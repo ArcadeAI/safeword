@@ -118,4 +118,4 @@ test-definitions.md is the R/G/R ledger.
 
 ## Feature-level
 
-- [ ] cross-scenario
+- [x] cross-scenario 63fcf57

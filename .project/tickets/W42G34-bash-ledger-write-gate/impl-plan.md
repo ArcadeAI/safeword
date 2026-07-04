@@ -1,6 +1,6 @@
 # Impl Plan: Gate Bash-channel writes to the R/G/R ledger (#644 G3)
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
@@ -86,6 +86,10 @@ skip: no deviations planned
 
 - A fourth harness adapter appears → its shell path must consult the same predicate.
 - The predicate's false-positive reports (blocked legitimate commands) accumulate →
-  revisit write-shape list rather than loosening namespace scope.
+  revisit write-shape list rather than loosening namespace scope. Known accepted
+  over-denials from the review: quoted `>` tokens, heredoc body lines.
+- Known accepted under-detections beyond the documented obfuscation limits: single `&`
+  (background) as separator, `dd of=` — revisit if they show up in a real bypass.
 - Claude Code hook API exposes structured command ASTs → replace token parsing.
-- G1/G4 branch lands artifact-cascade changes touching the Bash branch → reconcile at merge.
+- G1/G4 branch lands artifact-cascade changes touching the Bash branch (or the shared
+  `shell-segments.ts` pipe-splitter `>|` exception) → reconcile at merge.
