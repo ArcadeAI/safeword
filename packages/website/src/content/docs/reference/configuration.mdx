@@ -197,6 +197,18 @@ Two directory keys, `features` and `steps`, point the BDD acceptance lane at rel
 
 Relative paths resolve against the project root (the directory containing `.safeword/`); absolute paths are used verbatim.
 
+For adopted host harnesses with a house style, `bdd.conventions` points at a conventions document the host owns — what an unimplemented step body looks like, how spec-ahead scenarios are verified without executing them (for example a cucumber dry-run/check profile), and which tags the host's profiles exclude by default:
+
+```json
+{
+  "bdd": {
+    "conventions": "tests/CONVENTIONS.md"
+  }
+}
+```
+
+When set, `safeword codify` prints a pointer to the doc alongside its output, and the installed BDD skill prose directs agents to read and follow it over safeword's defaults. Safeword never parses or validates the doc — it lives next to the harness and is maintained by whoever maintains the harness, so it cannot drift the way conventions transcribed into skill prose do.
+
 `surfaces.md` is optional project knowledge for BDD. Use it for recurring product, agent, runtime, protocol, client, or deployment contexts where behavior must keep working, such as Claude Code, OpenAI Codex, Cursor, web, mobile, MCP, cloud service, or self-hosted deployments. Keep one-off contexts in a feature spec's `## Surfaces` section unless they recur across tickets, are ambiguous enough to drift, or are important enough that missing them would leave a context untested. When a spec lists affected surfaces, saved `.feature` scenarios should cover them with `@surface.<slug>` tags or explicit `skip:` reasons.
 
 `docs.sources` is separate from `paths.*`. Use it to tell audit where project documentation lives. Local sources are validated by `safeword check`; URL and git sources are treated as audit inventory and should be fetched during audit when access is available, or reported as skipped coverage when they are not accessible. Set `"docs": { "sources": [] }` to keep fallback discovery and stop future audits from asking for configured sources.

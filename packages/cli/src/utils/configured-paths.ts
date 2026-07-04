@@ -44,6 +44,9 @@ export type ConfiguredDocumentationSourceDecision =
 
 interface SafewordConfigShape {
   paths?: Partial<Record<ConfiguredPathKey | ConfiguredDirectoryKey, unknown>>;
+  bdd?: {
+    conventions?: unknown;
+  };
   docs?: {
     sources?: unknown;
   };
@@ -134,6 +137,20 @@ export function resolveConfiguredLaneDirectory(
   const configured = readConfiguredPath(cwd, key);
   if (configured === undefined) return undefined;
   return nodePath.isAbsolute(configured) ? configured : nodePath.join(cwd, configured);
+}
+
+/**
+ * The host-owned BDD conventions doc (`bdd.conventions`, ticket 7CK2KP): a
+ * path to a document describing the host harness's house style — stub shape,
+ * spec-ahead verification lane, tag rules, step layout. Agents read and follow
+ * it over safeword's defaults; safeword only surfaces the pointer (codify,
+ * installed prose). Returned as configured (repo-relative or absolute) —
+ * nothing here dereferences or validates the file, so a stale pointer is
+ * visible rather than silently dropped.
+ */
+export function readBddConventionsPath(cwd: string): string | undefined {
+  const raw = readSafewordConfig(cwd)?.bdd?.conventions;
+  return nonEmptyString(raw) ? raw : undefined;
 }
 
 /**

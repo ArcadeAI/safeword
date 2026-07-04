@@ -317,6 +317,38 @@ describe('safeword codify', () => {
   );
 
   it(
+    'bdd-lane-adoption.7CK2KP.conventions_pointer_prints_to_stderr_when_configured',
+    async () => {
+      scaffoldTicket(temporaryDirectory, TWO_SCENARIOS);
+      writeTestFile(
+        temporaryDirectory,
+        '.safeword/config.json',
+        JSON.stringify({ bdd: { conventions: 'tests/CONVENTIONS.md' } }),
+      );
+      const result = await runCli(['codify', TICKET_ID], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).toContain('tests/CONVENTIONS.md');
+      // stdout stays a clean skeleton — the pointer must not corrupt `codify > file`.
+      expect(result.stdout).not.toContain('CONVENTIONS.md');
+      expect(countTests(result.stdout)).toBe(2);
+    },
+    TIMEOUT_QUICK,
+  );
+
+  it(
+    'bdd-lane-adoption.7CK2KP.no_pointer_when_conventions_unset',
+    async () => {
+      scaffoldTicket(temporaryDirectory, TWO_SCENARIOS);
+      const result = await runCli(['codify', TICKET_ID], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).not.toContain('Host conventions');
+    },
+    TIMEOUT_QUICK,
+  );
+
+  it(
     'gherkin-typescript.DEV1.AC2.unknown_format_errors',
     async () => {
       scaffoldTicket(temporaryDirectory, TWO_SCENARIOS);
