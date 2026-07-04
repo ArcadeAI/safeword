@@ -29,18 +29,23 @@ Feature: Converge spec grammar on a single Rule tier
       Then no mixed-criteria issue is reported
 
     @rule-tier-convergence.SM1.R2 @rejection
-    Scenario: The mixed-criteria guard no longer exists to flag any JTBD
-      Given a ticket spec whose JTBD declares both an AC heading and a numbered Rule heading
+    Scenario: A mixed JTBD's criteria are still traced for coverage
+      Given a ticket spec whose JTBD declares both an AC heading and a numbered Rule heading, neither referenced by any scenario
       When safeword check runs
-      Then the check reports no issue that names the JTBD as mixing criteria kinds
+      Then both the AC and the Rule are reported uncovered
 
   Rule: Coverage speaks one Rule vocabulary regardless of legacy spelling
 
     @rule-tier-convergence.SM1.R2
-    Scenario: An uncovered criterion is reported in Rule terms
-      Given a ticket spec declaring a criterion that no feature scenario references
+    Scenario Outline: An uncovered criterion is reported in Rule terms regardless of spelling
+      Given a ticket spec declaring criterion <reference> that no feature scenario references
       When safeword check runs
-      Then an uncovered advisory names that criterion in Rule terms
+      Then an uncovered advisory names <reference> in Rule terms
+
+      Examples:
+        | reference    |
+        | demo.SM1.R1  |
+        | demo.SM1.AC1 |
 
     @rule-tier-convergence.SM1.R2
     Scenario Outline: Coverage drift is worded identically for a Rule id and a legacy AC id
@@ -49,10 +54,10 @@ Feature: Converge spec grammar on a single Rule tier
       Then a <drift> advisory names <reference> with one Rule vocabulary
 
       Examples:
-        | reference   | drift  |
-        | demo.SM1.R9 | stale  |
+        | reference    | drift  |
+        | demo.SM1.R9  | stale  |
         | demo.SM1.AC9 | stale  |
-        | gone.SM1.R1 | orphan |
+        | gone.SM1.R1  | orphan |
         | gone.SM1.AC1 | orphan |
 
   Rule: The intake-exit gate requires a Rule and names Rules when none is present
@@ -69,6 +74,13 @@ Feature: Converge spec grammar on a single Rule tier
       When the intake-exit gate evaluates test-definitions creation
       Then the gate denies the creation
       And the denial message names a numbered Rule heading as the criterion to add
+      And the denial message does not present Acceptance Criteria as a co-equal criterion
+
+    @rule-tier-convergence.SM1.R3 @rejection
+    Scenario: A JTBD whose skip line has no reason is denied
+      Given a ticket spec whose JTBD carries a skip line with no reason after the colon
+      When the intake-exit gate evaluates test-definitions creation
+      Then the gate denies the creation
 
   Rule: Legacy AC still parses, gates, and traces coverage unchanged
 
@@ -125,6 +137,12 @@ Feature: Converge spec grammar on a single Rule tier
       When safeword check runs
       Then no deprecation advisory is reported
 
+    @rule-tier-convergence.NTB1.R2 @rejection
+    Scenario: A completed ticket still using AC draws no deprecation advisory
+      Given a completed ticket whose spec uses an AC heading
+      When safeword check runs
+      Then no deprecation advisory is reported for that ticket
+
     @rule-tier-convergence.NTB1.R2
     Scenario: The deprecation nudge is a zero-exit advisory, not a blocking issue
       Given an in-progress ticket whose spec uses an AC heading and is otherwise healthy
@@ -151,6 +169,18 @@ Feature: Converge spec grammar on a single Rule tier
       When safeword migrate-ac runs
       Then the spec heading and the scenario tag both carry the same rewritten Rule id
       And safeword check reports the criterion as covered
+
+    @rule-tier-convergence.TB1.R1
+    Scenario: An AC tag carried on a Gherkin Rule block is rewritten like any other tag
+      Given a feature file whose Rule block carries the block-level tag "@demo.SM1.AC1"
+      When safeword migrate-ac runs
+      Then the Rule block carries "@demo.SM1.R1" and no longer carries "@demo.SM1.AC1"
+
+    @rule-tier-convergence.TB1.R1
+    Scenario: Every AC under a JTBD with several criteria is migrated in one pass
+      Given a spec JTBD declaring AC1, AC2, and AC3 and feature scenarios referencing each
+      When safeword migrate-ac runs
+      Then the headings and tags for all three read R1, R2, and R3 with no AC reference remaining
 
     @rule-tier-convergence.TB1.R1 @rejection
     Scenario: The codemod leaves non-AC tokens untouched

@@ -26,7 +26,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: The mixed-criteria guard no longer exists to flag any JTBD
+### Scenario: A mixed JTBD's criteria are still traced for coverage
 
 - [ ] RED
 - [ ] GREEN
@@ -34,7 +34,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ## Rule: Coverage speaks one Rule vocabulary regardless of legacy spelling
 
-### Scenario: An uncovered criterion is reported in Rule terms
+### Scenario: An uncovered criterion is reported in Rule terms regardless of spelling
 
 - [ ] RED
 - [ ] GREEN
@@ -55,6 +55,12 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 - [ ] REFACTOR
 
 ### Scenario: A JTBD with no criteria and no skip is denied, naming the Rule heading to add
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A JTBD whose skip line has no reason is denied
 
 - [ ] RED
 - [ ] GREEN
@@ -112,6 +118,12 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A completed ticket still using AC draws no deprecation advisory
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: The deprecation nudge is a zero-exit advisory, not a blocking issue
 
 - [ ] RED
@@ -127,6 +139,18 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 - [ ] REFACTOR
 
 ### Scenario: A migrated declaration and its scenario reference stay linked
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An AC tag carried on a Gherkin Rule block is rewritten like any other tag
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Every AC under a JTBD with several criteria is migrated in one pass
 
 - [ ] RED
 - [ ] GREEN
