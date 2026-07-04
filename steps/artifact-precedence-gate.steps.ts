@@ -271,27 +271,29 @@ Given(
   },
 );
 
+// A scenario-gate feature ticket whose ledger names a real `.feature` source
+// that exists on disk — the common fixture for the implement-entry demand's
+// source-binding scenarios.
+function seedScenarioGateWithSource(world: PrecedenceWorld): void {
+  seedBareTicket(world, { phase: 'scenario-gate' });
+  writeArtifact(world, 'spec.md', COMPLETE_SPEC);
+  writeArtifact(world, 'dimensions.md', 'skip: single-dimension fixture\n');
+  writeArtifact(world, 'test-definitions.md', LEDGER_WITH_SOURCE);
+  mkdirSync(nodePath.join(world.projectDirectory!, 'features'), { recursive: true });
+  writeFileSync(nodePath.join(world.projectDirectory!, SOURCE_PATH), SOURCE_CONTENT);
+}
+
 Given(
   'a feature ticket.md at phase scenario-gate with saved scenarios',
   function (this: PrecedenceWorld) {
-    seedBareTicket(this, { phase: 'scenario-gate' });
-    writeArtifact(this, 'spec.md', COMPLETE_SPEC);
-    writeArtifact(this, 'dimensions.md', 'skip: single-dimension fixture\n');
-    writeArtifact(this, 'test-definitions.md', LEDGER_WITH_SOURCE);
-    mkdirSync(nodePath.join(this.projectDirectory!, 'features'), { recursive: true });
-    writeFileSync(nodePath.join(this.projectDirectory!, SOURCE_PATH), SOURCE_CONTENT);
+    seedScenarioGateWithSource(this);
   },
 );
 
 Given(
   'a feature ticket.md at phase scenario-gate whose test-definitions.md names a feature source file',
   function (this: PrecedenceWorld) {
-    seedBareTicket(this, { phase: 'scenario-gate' });
-    writeArtifact(this, 'spec.md', COMPLETE_SPEC);
-    writeArtifact(this, 'dimensions.md', 'skip: single-dimension fixture\n');
-    writeArtifact(this, 'test-definitions.md', LEDGER_WITH_SOURCE);
-    mkdirSync(nodePath.join(this.projectDirectory!, 'features'), { recursive: true });
-    writeFileSync(nodePath.join(this.projectDirectory!, SOURCE_PATH), SOURCE_CONTENT);
+    seedScenarioGateWithSource(this);
   },
 );
 
