@@ -2,8 +2,7 @@ import { existsSync, readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { resolveConfiguredLaneDirectory } from './configured-paths.js';
-
-const WORKSPACE_FEATURE_ROOTS = ['packages', 'apps', 'libs', 'modules'] as const;
+import { WORKSPACE_ROOTS } from './workspaces.js';
 
 /** Ticket folder `ID-slug` -> `slug`; legacy `ID` -> `ID`. */
 function slugFromTicketFolder(ticketFolder: string): string {
@@ -30,7 +29,7 @@ export function collectExecutableFeatureFiles(cwd: string, fileName?: string): s
 function collectExecutableFeatureDirectories(cwd: string): string[] {
   const directories = [
     nodePath.join(cwd, 'features'),
-    ...WORKSPACE_FEATURE_ROOTS.flatMap(root =>
+    ...WORKSPACE_ROOTS.flatMap(root =>
       collectWorkspaceFeatureDirectories(nodePath.join(cwd, root)),
     ),
   ];

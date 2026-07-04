@@ -13,6 +13,7 @@ import type { Languages, ProjectType } from '../packs/types.js';
 import { detect } from '../presets/typescript/detect.js';
 import { isShippedCucumberTemplateRevision } from './cucumber-template-revisions.js';
 import { findInTree, readFileSafe, readJson } from './fs.js';
+import { WORKSPACE_ROOTS } from './workspaces.js';
 
 const {
   TAILWIND_PACKAGES,
@@ -472,10 +473,6 @@ function isSafewordLaneTemplate(configPath: string): boolean {
   return content !== undefined && isShippedCucumberTemplateRevision(content);
 }
 
-// Direct workspace-package radius for harness evidence — the same
-// conventional roots feature-source.ts scans for feature files.
-const WORKSPACE_PACKAGE_ROOTS = ['packages', 'apps', 'libs', 'modules'] as const;
-
 function manifestDependsOnCucumber(manifestPath: string): boolean {
   const manifest = readJson(manifestPath) as
     | { dependencies?: Record<string, string>; devDependencies?: Record<string, string> }
@@ -521,7 +518,7 @@ function findCucumberEvidenceUnderRoot(cwd: string, root: string): string | unde
 
 /** First direct workspace package with cucumber evidence (config file or dep). */
 function detectWorkspaceCucumberDependency(cwd: string): string | undefined {
-  for (const root of WORKSPACE_PACKAGE_ROOTS) {
+  for (const root of WORKSPACE_ROOTS) {
     const evidence = findCucumberEvidenceUnderRoot(cwd, root);
     if (evidence !== undefined) return evidence;
   }
