@@ -4,6 +4,7 @@ slug: dev-tooling-version-bumps
 type: task
 phase: intake
 status: backlog
+external_issue: https://github.com/ArcadeAI/safeword/issues/717
 scope: |
   Bump six dev-only tooling dependencies flagged outdated by the 2026-07-04
   audit (all devDependencies; no runtime deps involved):

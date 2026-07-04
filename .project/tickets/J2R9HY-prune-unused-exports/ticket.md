@@ -4,6 +4,7 @@ slug: prune-unused-exports
 type: task
 phase: intake
 status: backlog
+external_issue: https://github.com/ArcadeAI/safeword/issues/718
 scope: |
   Investigate and remove (or intentionally retain with justification) the five
   unused exports flagged by knip in the 2026-07-04 audit:
