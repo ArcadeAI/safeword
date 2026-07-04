@@ -314,6 +314,19 @@ Given(
 );
 
 Given(
+  'a feature ticket.md at phase scenario-gate whose test-definitions.md is a directory',
+  function (this: PrecedenceWorld) {
+    seedBareTicket(this, { phase: 'scenario-gate' });
+    writeArtifact(this, 'spec.md', COMPLETE_SPEC);
+    writeArtifact(this, 'dimensions.md', 'skip: single-dimension fixture\n');
+    // test-definitions.md exists but as a DIRECTORY — reading it throws EISDIR.
+    // The gate must treat an unreadable ledger as no-scenario-artifact and deny,
+    // never crash into a silent allow (fail-closed).
+    mkdirSync(nodePath.join(this.ticketDirectory!, 'test-definitions.md'), { recursive: true });
+  },
+);
+
+Given(
   'a feature ticket.md at phase scenario-gate whose test-definitions.md names no feature source file',
   function (this: PrecedenceWorld) {
     seedBareTicket(this, { phase: 'scenario-gate' });

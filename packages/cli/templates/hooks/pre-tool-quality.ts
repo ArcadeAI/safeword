@@ -162,6 +162,23 @@ function isMissingFrontmatterField(value: string | string[] | undefined): boolea
   return Array.isArray(value) ? value.every(item => item.trim() === '') : value.trim() === '';
 }
 
+/**
+ * Read a file, returning undefined on ANY failure — missing, a directory
+ * (EISDIR), or unreadable (EACCES). Every gate that reads an
+ * agent-influenceable path MUST use this, never a bare readFileSync: an
+ * uncaught throw makes installCrashCapture exit 0 with no deny payload, which
+ * the PreToolUse contract treats as "allow" — a silent fail-open that bypasses
+ * the gate entirely (#644 crash-fix + quality-review follow-up). Callers route
+ * undefined into their fail-closed branch (deny / treat-as-absent).
+ */
+function safeReadFile(filePath: string): string | undefined {
+  try {
+    return readFileSync(filePath, 'utf8');
+  } catch {
+    return undefined;
+  }
+}
+
 const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 
 // Both review gates (NMSD94, Tier 1 + Tier 2) are off unless `.safeword/config.json`
@@ -296,14 +313,16 @@ function enforceTestDefinitionsCreationGate(): void {
   const ticketDirectory = nodePath.dirname(editedFile);
   const ticketFile = nodePath.join(ticketDirectory, 'ticket.md');
 
-  if (!existsSync(ticketFile)) {
+  // Unreadable (missing OR a directory/EACCES) is denied uniformly — a bare
+  // readFileSync throw would crash the hook into a silent allow (fail-open).
+  const ticketContent = safeReadFile(ticketFile);
+  if (ticketContent === undefined) {
     deny(
       'Cannot create test definitions without a ticket spec. Create ticket.md with Scope, Out of Scope, and Done When sections first.',
       withOrderingNote('Complete understanding (propose-and-converge) before writing scenarios.'),
     );
   }
 
-  const ticketContent = readFileSync(ticketFile, 'utf8');
   const frontmatterMatch = ticketContent.match(/^---\n([\s\S]*?)\n---/);
 
   if (!frontmatterMatch) {
@@ -344,9 +363,10 @@ function enforceTestDefinitionsCreationGate(): void {
   // so this only bites pre-product-layer (epic DZ2NM5) tickets, which pay a lazy
   // two-line `## Jobs To Be Done` + `skip: <reason>` the next time they advance.
   const specFile = nodePath.join(ticketDirectory, 'spec.md');
-  const specExists = existsSync(specFile);
-  const specContent = specExists ? readFileSync(specFile, 'utf8') : undefined;
-  if (meta.type === 'feature' && !specExists) {
+  // Unreadable (missing OR a directory/EACCES) is undefined — a feature then
+  // fails closed below, never crashing the hook into a silent allow.
+  const specContent = safeReadFile(specFile);
+  if (meta.type === 'feature' && specContent === undefined) {
     deny(
       'Features require a spec.md before test-definitions.md. Without one the JTBD and Acceptance-Criteria gates have nothing to check.',
       'Author a Job To Be Done in spec.md under `## Jobs To Be Done` (persona from personas.md, in the "When I…, I want…, so I can…" form), or write `skip: <reason>` there to deliberately omit.',
@@ -458,13 +478,14 @@ if (
 ) {
   const ticketDirectory = nodePath.dirname(editedFile);
   const ticketFile = nodePath.join(ticketDirectory, 'ticket.md');
-  const ticketMeta = existsSync(ticketFile)
-    ? frontmatterFromContent(readFileSync(ticketFile, 'utf8'))
-    : {};
+  // An unreadable ticket.md yields {} (same as absent) — the spec.md creation
+  // gate owns the "ticket.md must exist" requirement, so here unknown-type =>
+  // treat as non-feature, which the spec-creation gate already handles.
+  const ticketMeta = frontmatterFromContent(safeReadFile(ticketFile) ?? '');
   const specFile = nodePath.join(ticketDirectory, 'spec.md');
   const dimensionsVerdict = evaluateDimensionsCreation({
     ticketType: frontmatterScalar(ticketMeta, 'type'),
-    specContent: existsSync(specFile) ? readFileSync(specFile, 'utf8') : undefined,
+    specContent: safeReadFile(specFile),
     personasContent: readPersonasForGate(ticketDirectory),
   });
   if (!dimensionsVerdict.ok) {
@@ -586,7 +607,7 @@ if (ticketWrite !== undefined) {
     priorTicketContent: ticketWrite.priorContent ?? '',
     proposedTicketContent: ticketWrite.proposedContent,
     ticketFolder: nodePath.basename(ticketDirectory),
-    ledgerContent: existsSync(ledgerFile) ? readFileSync(ledgerFile, 'utf8') : undefined,
+    ledgerContent: safeReadFile(ledgerFile),
     resolveSourceContent: relativePath => {
       // Any read failure (missing, a directory → EISDIR, unreadable → EACCES)
       // must fall back to undefined so the gate binds to the ledger and still

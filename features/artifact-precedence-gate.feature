@@ -263,6 +263,13 @@ Feature: Artifact precedence — the behavior chain is earned, not ticked
       And the denial explains that the scenarios need an independent review at their current content
 
     @artifact-precedence-gate.NTB1.AC3
+    Scenario: An unreadable scenario ledger denies rather than crashing into a silent allow
+      Given a feature ticket.md at phase scenario-gate whose test-definitions.md is a directory
+      When the ticket.md is edited to phase implement
+      Then the write is denied
+      And the denial names test-definitions.md as the artifact to create first
+
+    @artifact-precedence-gate.NTB1.AC3
     Scenario: An implement advance via MultiEdit is gated like an Edit
       Given a feature ticket.md at phase scenario-gate with saved scenarios
       And no review stamp exists for the ticket's scenarios
