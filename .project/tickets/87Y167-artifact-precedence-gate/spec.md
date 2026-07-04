@@ -88,7 +88,7 @@ skip: table-stakes — a guardrail's peak experience is the absence of a failure
 ## Outcomes
 
 - The #644 G1 reproduction is dead on all three harnesses: burst-authoring the chain in reverse order is denied at the first out-of-order write, and even a forward-ordered burst cannot reach scenario authoring or implement without the two review stamps (or visible, reasoned skips).
-- The block chain teaches the workflow: an agent that only ever follows denials still authors spec → review → dimensions → scenarios → independent review → implement, in that order.
+- The block chain teaches the workflow: an agent that only ever follows denials still authors spec → dimensions → review-spec → scenarios → independent scenario review → implement, in that order. (Dimensions is a lightweight derivation gated on a *complete* spec, not a reviewed one — the review demand guards the expensive commitment, scenario authoring, per AC2; it does not gate dimensions.)
 - Existing tickets, tasks, patches, and epics are untouched; no at-rest revalidation.
 
 ## Open Questions

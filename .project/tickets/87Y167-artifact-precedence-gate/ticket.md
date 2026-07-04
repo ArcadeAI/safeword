@@ -2,7 +2,7 @@
 id: 87Y167
 slug: artifact-precedence-gate
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 parent: YA68QF
 external_issue: https://github.com/ArcadeAI/safeword/issues/644
@@ -66,6 +66,7 @@ last_modified: 2026-07-03T21:35:00.000Z
 
 ## Work Log
 
+- 2026-07-04T06:05:00.000Z Complete: implement — 48 scenarios through R/G/R (144 ledger boxes, each a step SHA or reasoned skip; slices b6401a8 creation-gates, 1bd3fb6 spec-review-always-on, 8da8646 implement-entry, 1935b5f crash-fix). Two behavior-preserving extracts front-loaded (282b395, 743284d). Whole-ticket /quality-review (independent fresh-context subagent, ran unit lane + live-hook repro + fetched the Claude Code hook contract): REQUEST CHANGES → 1 Critical (unreadable/directory `Feature source:` crashed the gate into a silent allow via exit-0 fail-open — fixed 1935b5f with safe-read fallback in both the gate and write-review-stamp.ts, RED pinned by acceptance scenario + 2 units) + no-bloat dup-read dropped. Non-blocking deferred with reasons (recorded in impl-plan Assessment triggers): path-traversal confinement (grants no bypass — agent authors the ledger; content only hashed), 0.63.0 MINOR bump at the epic's release step. Spec Outcomes prose corrected to match enforcement (dimensions is gated on a complete spec, not a reviewed one; the review demand guards scenario authoring per AC2). Verification: unit 34/34, acceptance lane 48 scenarios/1012 steps, phase-provenance lane unregressed, all R2-collateral suites green (177/177 across the affected set), parity 211/211, typecheck clean. impl-plan reconciled to Status: implemented.
 - 2026-07-03T21:21:31.938Z Started: Created ticket 87Y167
 - 2026-07-03T21:25:00.000Z Found: G1 gap confirmed in code — the only artifact-creation gate anchors at test-definitions.md creation (pre-tool-quality.ts) and checks dimensions.md (line ~321) BEFORE spec.md (line ~348), which is what dictated the reversed authoring order in the #644 transcript. No gate fires on dimensions.md or spec.md creation. Both review demands exist (NMSD94 Tier-1 spec stamp at test-definitions creation; Tier-2 phase-exit stamps) but sit behind reviewGate, which is off in this repo and every customer repo by default — the #644 session hit zero review demands.
 - 2026-07-03T21:30:00.000Z Decision (/figure-it-out, recorded in epic YA68QF): D1 forward creation gates (creation-only, at-rest tolerance) over message-reordering-alone and mtime detection; D2 two targeted always-on content-bound review demands (spec stamp before scenarios; independent scenario stamp before implement) over flipping the reviewGate default or dogfood-config-only. Premortems: D1 over-blocking legacy-artifact edits → mitigated by gating creation only; D2 rubber-stamping → Tier-1 is the gameable floor by design (G7 owns forgery); content-binding kills stale/cross-ticket passes.

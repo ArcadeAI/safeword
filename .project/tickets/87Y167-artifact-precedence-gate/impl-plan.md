@@ -1,6 +1,18 @@
 # Impl Plan: Artifact precedence + review demand in the PreTool chain (#644 G1)
 
-**Status:** planned
+**Status:** implemented
+
+<!-- Reconciliation (implement exit): the proof plan held — the cucumber
+acceptance lane (real hook subprocess) is the primary proof for all 48
+scenarios, with pure-logic units alongside; build order followed (two
+behavior-preserving extracts → lib/artifact-precedence.ts → wiring by rule).
+All Decisions held unchanged. One deviation surfaced in the whole-ticket
+/quality-review and was fixed: an unreadable/directory `Feature source:` made
+the gate's readFileSync throw, crashing the hook into a silent allow (exit 0);
+both the gate callback and write-review-stamp.ts now safe-read → fall back to
+the ledger (commit 1935b5f). Deferred (Assessment triggers): path-traversal
+confinement of the source path, and the 0.63.0 MINOR version bump at release. -->
+
 
 ## Approach
 
@@ -51,4 +63,6 @@ skip: no deviations planned — the gates join existing patterns (G2 ordering, N
 - Hook output strings are capped at 10,000 characters (verified 2026-07-03) — revisit denial composition if the chain's messages grow.
 - #480 (plan-implementation phase) landing would change the implement-entry detection's target phase — re-key the advance detection.
 - Review stamps moving off `skill-invocations.log` (e.g. per-ticket stamp files) would relocate `readReviewStamps` — the gate reads through one helper, so the seam is contained.
-- If the Cucumber lane's subprocess-per-scenario cost becomes the suite bottleneck (>47 scenarios here), consolidate fixtures before splitting the feature file.
+- If the Cucumber lane's subprocess-per-scenario cost becomes the suite bottleneck (>48 scenarios here), consolidate fixtures before splitting the feature file.
+- **Deferred (whole-ticket review, non-blocking):** confine the resolved `Feature source:` path under the project root (a `../`-laden path is only hashed, never emitted, and the agent authors the ledger anyway, so it grants no bypass — but confinement bounds the read surface). Revisit if scenario-source resolution ever emits or executes the file.
+- **Version:** a new always-on behavioral gate is a MINOR bump (`versioning` skill) — 0.63.0 must land in `packages/cli/package.json` + `.claude-plugin/marketplace.json` at the epic's release step (this child is not itself a release).
