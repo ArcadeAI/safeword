@@ -225,6 +225,15 @@ program
   );
 
 program
+  .command('migrate-ac')
+  .description('Rewrite legacy `.AC<n>` criteria to the single Rule tier `.R<n>`')
+  .option('--dry-run', 'Report the rewrites without writing any file')
+  .action(async (options: { dryRun?: boolean }) => {
+    const { migrateAc } = await import('./commands/migrate-ac.js');
+    await migrateAc({ dryRun: options.dryRun });
+  });
+
+program
   .command('lint-gherkin')
   .description('Lint Gherkin feature files using Safeword-owned checks')
   .argument(
