@@ -2,8 +2,8 @@
 id: 5XXQQZ
 slug: capture-only-cli-crashes
 type: task
-phase: build
-status: in_progress
+phase: done
+status: done
 created: 2026-07-04T03:18:38.102Z
 last_modified: 2026-07-04T03:18:38.102Z
 scope: |
@@ -83,3 +83,6 @@ pattern already in `templates/hooks/lib/self-report.ts`, minus the exit-0 forcin
   - Green: 6/6 new, 50/50 self-report surface; typecheck + lint clean.
   - Dogfood verified: `safeword check` and `safeword codify NOSUCH` both exit 1
     and create NO spool (was one record each before the fix).
+- 2026-07-04 Verify → done: full CLI suite green (4564 passed / 5 skipped / 0
+  failed, 321 files); build + eslint + tsc clean. verify.md written (PR scope
+  ✅, task — no scenarios/audit). Marked done.
