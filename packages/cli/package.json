@@ -68,7 +68,7 @@
     "@secretlint/core": "^13.0.2",
     "@secretlint/secretlint-rule-preset-recommend": "^13.0.2",
     "@tanstack/eslint-plugin-query": "5.101.2",
-    "@vitest/eslint-plugin": "^1.6.21",
+    "@vitest/eslint-plugin": "1.6.20",
     "commander": "15.0.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-import-resolver-typescript": "^4.4.5",
