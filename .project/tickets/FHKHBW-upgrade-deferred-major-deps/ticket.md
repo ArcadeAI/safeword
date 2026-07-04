@@ -7,7 +7,7 @@ status: in_progress
 created: 2026-07-04T05:59:04.879Z
 last_modified: 2026-07-04T05:59:04.879Z
 epic: "730"
-external_issue: https://github.com/ArcadeAI/safeword/issues/730
+external_issue: https://github.com/ArcadeAI/safeword/issues/760
 ---
 
 # Upgrade deferred major deps: eslint-plugin-unicorn 70 + typescript 6

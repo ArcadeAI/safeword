@@ -55,14 +55,21 @@ const SAFEWORD_ENABLE = [
   'gocritic', // opinionated but high-signal
   'revive', // flexible metalinter
   'perfsprint', // faster string formatting
-  'copyloopvar', // loop variable capture (Go 1.22+)
-  'intrange', // integer range loops (Go 1.22+)
+  'copyloopvar', // loop variable capture
+  'intrange', // integer range loops
 ];
 
-/** Linters to disable (too strict or deprecated) */
+/**
+ * Linters to disable (too strict for LLM enforcement).
+ *
+ * We intentionally do NOT list any `wsl`/`wsl_v5` whitespace linter here: it is
+ * not part of `default: standard`, so disabling it is a no-op in the standalone
+ * config, and naming the deprecated `wsl` would draw a `golangci-lint config
+ * verify` deprecation notice. A customer who explicitly enables `wsl_v5` keeps
+ * their choice in merge scenarios.
+ */
 const SAFEWORD_DISABLE = [
   'forbidigo', // blocks all print statements
-  'wsl', // deprecated in v2.2.0, replaced by wsl_v5
 ];
 
 /** Exclusion presets for common false positives */
@@ -77,7 +84,14 @@ const SAFEWORD_SETTINGS: Record<string, Record<string, unknown>> = {
 // Config Generators
 // ============================================================================
 
-/** Build standalone golangci-lint v2 config object. */
+/**
+ * Build standalone golangci-lint v2 config object.
+ *
+ * We deliberately pin NO Go language version (no `run.go`): golangci-lint
+ * derives the analysis target from the project's `go.mod` `go` directive, so a
+ * pin here could only diverge from — and suppress analysis relative to — the
+ * user's real Go version. Deriving from `go.mod` is correct and zero-maintenance.
+ */
 function buildStandaloneConfig(): Record<string, unknown> {
   return {
     version: '2',

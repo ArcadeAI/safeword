@@ -7,7 +7,7 @@ status: in_progress
 created: 2026-07-04T05:57:29.534Z
 last_modified: 2026-07-04T05:57:29.534Z
 epic: "730"
-external_issue: https://github.com/ArcadeAI/safeword/issues/730
+external_issue: https://github.com/ArcadeAI/safeword/issues/761
 ---
 
 # Audit reconciles per-package leaf architecture.generated.md
