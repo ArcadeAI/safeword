@@ -4,14 +4,14 @@ import process from 'node:process';
 
 import { Command } from 'commander';
 
-import { recordCliExit } from './self-report-capture.js';
+import { installCliCrashCapture } from './self-report-capture.js';
 import { VERSION } from './version.js';
 
-// Self-observation (issue #345): capture safeword's own non-zero exits. Gated to
-// configured safeword projects and best-effort, so it never alters CLI behavior.
-process.on('exit', code => {
-  recordCliExit(code);
-});
+// Self-observation (issues #345 / #720): capture safeword's own genuine crashes
+// (uncaught exception / unhandled rejection) — NOT deliberate non-zero status
+// exits, which many commands use as normal control flow. Gated to configured
+// safeword projects and best-effort, so it never alters CLI behavior.
+installCliCrashCapture();
 
 const program = new Command();
 
