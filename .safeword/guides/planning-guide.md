@@ -321,7 +321,7 @@ GFM checkbox state IS the status. Don't add emoji indicators (`âœ… Passing`, `â
 
 ### Saved path
 
-Feature source: `features/<slug>.feature`
+Feature source: `features/<slug>.feature` (or under the configured `paths.features` directory)
 
 Ledger: `<namespace-root>/tickets/{ID}-{slug}/test-definitions.md`
 
