@@ -40,6 +40,9 @@ import {
   buildCoverageReportFromFeature,
   buildSurfaceCoverageReportFromFeature,
   type CoverageReport,
+  findMixedCriteriaJtbds,
+  findRulesMissingRejectionPaths,
+  isRuleId,
   type SurfaceCoverageReport,
 } from './utils/scenario-coverage.js';
 import { formatTicketReference } from './utils/ticket-reference.js';
@@ -357,10 +360,12 @@ function coverageDiagnosticsForTicket(
         : buildSurfaceCoverageReportFromFeature(specContent, featureSource.content);
     const lineageIssues =
       featureSource === undefined ? [] : formatFeatureLineageIssues(cwd, ticketId, featureSource);
+    const ruleTier = ruleTierDiagnostics(ticketId, specContent, featureSource);
     return {
-      issues: lineageIssues,
+      issues: [...lineageIssues, ...ruleTier.issues],
       advisories: [
         ...formatCoverageReport(ticketId, report),
+        ...ruleTier.advisories,
         ...formatSurfaceCoverageReport(ticketId, surfaceReport),
       ],
     };
@@ -375,6 +380,29 @@ function coverageDiagnosticsForTicket(
     }
     throw parseError;
   }
+}
+
+/** Rule-tier findings for one ticket: mixed-criteria JTBDs (issues) and
+ * numbered rules missing a rejection-path scenario (advisories). */
+function ruleTierDiagnostics(
+  ticketId: string,
+  specContent: string,
+  featureSource: FeatureSource | undefined,
+): CoverageDiagnostics {
+  const label = formatCoverageTicketLabel(ticketId);
+  return {
+    issues: findMixedCriteriaJtbds(specContent).map(
+      jtbd =>
+        `${label}: JTBD ${jtbd} declares both Acceptance Criteria and numbered Rules; keep one criteria kind per job — convert one set or split the job`,
+    ),
+    advisories:
+      featureSource === undefined
+        ? []
+        : findRulesMissingRejectionPaths(specContent, featureSource.content).map(
+            ruleId =>
+              `${label}: numbered rule ${ruleId} has no example of the rule being broken — add a @rejection-tagged scenario under it`,
+          ),
+  };
 }
 
 function formatFeatureLineageIssues(
@@ -418,15 +446,20 @@ function isInProgress(ticketContent: string): boolean {
 function formatCoverageReport(ticketId: string, report: CoverageReport): string[] {
   const ticketLabel = formatCoverageTicketLabel(ticketId);
   return [
-    ...report.uncovered.map(
-      acId => `${ticketLabel}: acceptance criterion ${acId} has no scenario (uncovered)`,
+    ...report.uncovered.map(id =>
+      isRuleId(id)
+        ? `${ticketLabel}: numbered rule ${id} has no scenario illustrating it (uncovered) — add a scenario tagged @${id}`
+        : `${ticketLabel}: acceptance criterion ${id} has no scenario (uncovered)`,
     ),
-    ...report.stale.map(
-      reference =>
-        `${ticketLabel}: scenario ref ${reference} matches no AC under its JTBD (stale ref)`,
+    ...report.stale.map(reference =>
+      isRuleId(reference)
+        ? `${ticketLabel}: scenario ref ${reference} matches no numbered rule under its JTBD (stale ref) — retag to a declared rule or declare it in spec.md`
+        : `${ticketLabel}: scenario ref ${reference} matches no AC under its JTBD (stale ref)`,
     ),
-    ...report.orphan.map(
-      reference => `${ticketLabel}: scenario ref ${reference} names no JTBD in spec.md (orphan)`,
+    ...report.orphan.map(reference =>
+      isRuleId(reference)
+        ? `${ticketLabel}: scenario ref ${reference} names no JTBD in spec.md (orphan) — fix the tag's JTBD id or add that JTBD to spec.md`
+        : `${ticketLabel}: scenario ref ${reference} names no JTBD in spec.md (orphan)`,
     ),
   ];
 }

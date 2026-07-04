@@ -44,14 +44,30 @@ export function parseFeatureScenarios(featureContent: string): ParsedFeatureScen
 }
 
 export function parseFeatureAcReferences(featureContent: string): string[] {
-  const references = new Set<string>();
+  return parseFeatureLineageReferences(featureContent).ac;
+}
+
+export function parseFeatureRuleReferences(featureContent: string): string[] {
+  return parseFeatureLineageReferences(featureContent).rule;
+}
+
+/**
+ * The AC and numbered-Rule lineage references a feature's scenarios carry,
+ * split by kind, from a single `parseFeatureScenarios` pass. Callers that need
+ * both kinds (coverage) read them off one AST build instead of parsing twice.
+ */
+export function parseFeatureLineageReferences(featureContent: string): {
+  ac: string[];
+  rule: string[];
+} {
+  const byKind: Record<LineageKind, Set<string>> = { ac: new Set(), rule: new Set() };
   for (const scenario of parseFeatureScenarios(featureContent)) {
     for (const tag of scenario.tags) {
-      const ref = parseAcReferenceFromTag(tag);
-      if (ref !== undefined) references.add(ref);
+      const ref = parseLineageReferenceFromTag(tag);
+      if (ref !== undefined) byKind[ref.kind].add(ref.reference);
     }
   }
-  return [...references];
+  return { ac: [...byKind.ac], rule: [...byKind.rule] };
 }
 
 export function findGherkinLintIssues(
@@ -83,14 +99,16 @@ export function findGherkinLintIssues(
 
 export function findFeatureLineageIssues(featureContent: string): string[] {
   return parseFeatureScenarios(featureContent).flatMap(scenario => {
-    const references = uniqueAcReferences(scenario.tags);
+    const references = uniqueLineageReferences(scenario.tags);
     if (references.length === 0) {
-      return [`Scenario "${scenario.title}" is missing lineage; add exactly one @<jtbd>.AC# tag.`];
+      return [
+        `Scenario "${scenario.title}" is missing lineage; add exactly one @<jtbd>.AC# or @<jtbd>.R# tag.`,
+      ];
     }
     if (references.length > 1) {
       const tagList = references.map(reference => `@${reference}`).join(', ');
       return [
-        `Scenario "${scenario.title}" has multiple lineage tags after inheritance (${tagList}); keep exactly one @<jtbd>.AC# tag.`,
+        `Scenario "${scenario.title}" has multiple lineage tags after inheritance (${tagList}); keep exactly one @<jtbd>.AC# or @<jtbd>.R# tag.`,
       ];
     }
     return [];
@@ -314,7 +332,10 @@ function findDocumentLintIssues(feature: Feature): GherkinLintIssue[] {
   for (const child of feature.children) {
     if (child.scenario) scenarios.push(child.scenario);
     if (child.rule) {
-      issues.push(...findDuplicateTagIssues(child.rule.tags, `Rule "${child.rule.name}"`));
+      issues.push(
+        ...findDuplicateTagIssues(child.rule.tags, `Rule "${child.rule.name}"`),
+        ...findRuleNameTagIssues(child.rule),
+      );
       for (const ruleChild of child.rule.children) {
         if (ruleChild.scenario) scenarios.push(ruleChild.scenario);
       }
@@ -446,6 +467,35 @@ function collectPlaceholders(text: string, variables: Set<string>): void {
   }
 }
 
+/**
+ * A Rule block carrying a rule lineage tag must repeat that id as its name's
+ * first token (the tag is authoritative; the name token is the human-readable
+ * copy). Unnumbered grouping blocks carry no rule tag and are exempt.
+ */
+function findRuleNameTagIssues(rule: {
+  name: string;
+  tags: readonly Tag[];
+  location: { line: number };
+}): GherkinLintIssue[] {
+  const ruleReference = rule.tags
+    .map(tag => parseLineageReferenceFromTag(tag.name))
+    .find(reference => reference?.kind === 'rule');
+  if (ruleReference === undefined) return [];
+
+  // The id ends at the first whitespace or dash separator. Split on em/en dash
+  // too so a name glued as `demo.DEV1.R1—foo` still yields the id, not a false
+  // mismatch; a plain `-` stays part of the token (kebab slugs contain it).
+  const nameToken = rule.name.trim().split(/[\s—–]+/, 1)[0] ?? '';
+  if (nameToken === ruleReference.reference) return [];
+  return [
+    issue(
+      'rule-name-tag-mismatch',
+      `Rule "${rule.name}" is tagged @${ruleReference.reference} but its name starts with a different id; make the name's first token match the tag.`,
+      rule.location.line,
+    ),
+  ];
+}
+
 function findDuplicateTagIssues(tags: readonly Tag[], owner: string): GherkinLintIssue[] {
   const seen = new Set<string>();
   const issues: GherkinLintIssue[] = [];
@@ -500,17 +550,47 @@ function parseErrorLine(message: string): number | undefined {
   return match?.[1] === undefined ? undefined : Number(match[1]);
 }
 
+type LineageKind = 'ac' | 'rule';
+
+export interface LineageReference {
+  kind: LineageKind;
+  reference: string;
+}
+
 function parseAcReferenceFromTag(tag: string): string | undefined {
   const match = /^@?(\S+?)\.AC(\d+)(?:\.|$)/.exec(tag.trim());
   if (!match) return undefined;
   return `${match[1] ?? ''}.AC${match[2] ?? ''}`;
 }
 
-function uniqueAcReferences(tags: readonly string[]): string[] {
+function parseRuleReferenceFromTag(tag: string): string | undefined {
+  // Anchor on the *terminal* `.R<n>` (greedy prefix) so the parsed id matches
+  // the spec-side declaration, which keeps the whole heading token
+  // (`scenario-coverage.ts` `isRuleId` = `/\.R\d+$/`). A lazy first-match would
+  // read `@feat.R1.R2` as `feat.R1` while the spec declares `feat.R1.R2`,
+  // splitting one corpus into a spurious uncovered+orphan pair. Rule tags carry
+  // no `.<scenario_name>` tail (unlike AC titles), so terminal anchoring is safe.
+  const match = /^@?(\S+)\.R(\d+)$/.exec(tag.trim());
+  if (!match) return undefined;
+  return `${match[1] ?? ''}.R${match[2] ?? ''}`;
+}
+
+/** Parse a tag's lineage reference. An AC match wins over a rule-shaped prefix
+ * so persona codes like `R` stay unambiguous: `@feat.R1.AC1` is AC1 of JTBD
+ * `feat.R1`, never rule `feat.R1`. */
+export function parseLineageReferenceFromTag(tag: string): LineageReference | undefined {
+  const acReference = parseAcReferenceFromTag(tag);
+  if (acReference !== undefined) return { kind: 'ac', reference: acReference };
+  const ruleReference = parseRuleReferenceFromTag(tag);
+  if (ruleReference !== undefined) return { kind: 'rule', reference: ruleReference };
+  return undefined;
+}
+
+function uniqueLineageReferences(tags: readonly string[]): string[] {
   const references = new Set<string>();
   for (const tag of tags) {
-    const ref = parseAcReferenceFromTag(tag);
-    if (ref !== undefined) references.add(ref);
+    const ref = parseLineageReferenceFromTag(tag);
+    if (ref !== undefined) references.add(ref.reference);
   }
   return [...references];
 }

@@ -17,7 +17,11 @@
  * No I/O — callers pass file content; check.ts owns ticket discovery.
  */
 
-import { parseFeatureAcReferences, parseFeatureScenarios } from './gherkin-feature.js';
+import {
+  parseFeatureLineageReferences,
+  parseFeatureScenarios,
+  parseLineageReferenceFromTag,
+} from './gherkin-feature.js';
 import { computeSkipMask, parseHeading } from './markdown-sections.js';
 
 const JTBD_HEADING = 'jobs to be done';
@@ -81,10 +85,24 @@ interface WalkState {
   currentJtbd: string | undefined;
 }
 
+/** A JTBD's declared criteria, split by kind (ticket V0NHT6 rule tier). */
+export interface JtbdCriteria {
+  acIds: string[];
+  ruleIds: string[];
+}
+
 export function parseAcIdsByJtbd(specContent: string): Map<string, string[]> {
+  const byJtbd = new Map<string, string[]>();
+  for (const [jtbd, criteria] of parseCriteriaIdsByJtbd(specContent)) {
+    byJtbd.set(jtbd, criteria.acIds);
+  }
+  return byJtbd;
+}
+
+export function parseCriteriaIdsByJtbd(specContent: string): Map<string, JtbdCriteria> {
   const lines = specContent.split('\n');
   const skip = computeSkipMask(lines);
-  const byJtbd = new Map<string, string[]>();
+  const byJtbd = new Map<string, JtbdCriteria>();
   let state: WalkState = { inSection: false, currentJtbd: undefined };
 
   for (const [index, line] of lines.entries()) {
@@ -97,11 +115,67 @@ export function parseAcIdsByJtbd(specContent: string): Map<string, string[]> {
   return byJtbd;
 }
 
-/** Apply one heading to the JTBD/AC walk, recording ACs into `byJtbd`. */
+const REJECTION_TAG = '@rejection';
+
+/**
+ * Spec-declared numbered Rules that have at least one referencing scenario but
+ * none tagged `@rejection`. A rule with no scenarios at all is the uncovered
+ * bucket's finding, not noise here; unnumbered `Rule:` grouping blocks declare
+ * no rule id, so they are exempt by construction.
+ */
+export function findRulesMissingRejectionPaths(
+  specContent: string,
+  featureContent: string,
+): string[] {
+  const declared = declaredRuleIds(specContent);
+  if (declared.size === 0) return [];
+
+  const hasRejectionByRule = new Map<string, boolean>();
+  for (const scenario of parseFeatureScenarios(featureContent)) {
+    recordRuleRejections(scenario.tags, declared, hasRejectionByRule);
+  }
+
+  return [...declared].filter(id => hasRejectionByRule.get(id) === false);
+}
+
+/** Every numbered-Rule id declared across the spec's JTBDs. */
+function declaredRuleIds(specContent: string): Set<string> {
+  const declared = new Set<string>();
+  for (const criteria of parseCriteriaIdsByJtbd(specContent).values()) {
+    for (const id of criteria.ruleIds) declared.add(id);
+  }
+  return declared;
+}
+
+/** Fold one scenario's rule refs into the rule → has-rejection-scenario map. */
+function recordRuleRejections(
+  tags: readonly string[],
+  declared: ReadonlySet<string>,
+  hasRejectionByRule: Map<string, boolean>,
+): void {
+  const isRejection = tags.includes(REJECTION_TAG);
+  for (const tag of tags) {
+    const ref = parseLineageReferenceFromTag(tag);
+    if (ref?.kind !== 'rule' || !declared.has(ref.reference)) continue;
+    hasRejectionByRule.set(
+      ref.reference,
+      (hasRejectionByRule.get(ref.reference) ?? false) || isRejection,
+    );
+  }
+}
+
+/** JTBD ids declaring both ACs and numbered Rules — one criteria kind per job. */
+export function findMixedCriteriaJtbds(specContent: string): string[] {
+  return [...parseCriteriaIdsByJtbd(specContent)]
+    .filter(([, criteria]) => criteria.acIds.length > 0 && criteria.ruleIds.length > 0)
+    .map(([jtbd]) => jtbd);
+}
+
+/** Apply one heading to the JTBD/criteria walk, recording ids into `byJtbd`. */
 function advance(
   state: WalkState,
   heading: { level: number; text: string },
-  byJtbd: Map<string, string[]>,
+  byJtbd: Map<string, JtbdCriteria>,
 ): WalkState {
   if (heading.level <= 2) {
     return { inSection: heading.text.toLowerCase() === JTBD_HEADING, currentJtbd: undefined };
@@ -109,13 +183,23 @@ function advance(
   if (!state.inSection) return state;
   if (heading.level === 3) {
     const currentJtbd = firstToken(heading.text);
-    if (!byJtbd.has(currentJtbd)) byJtbd.set(currentJtbd, []);
+    if (!byJtbd.has(currentJtbd)) byJtbd.set(currentJtbd, { acIds: [], ruleIds: [] });
     return { inSection: true, currentJtbd };
   }
   if (state.currentJtbd !== undefined) {
-    appendAc(byJtbd, state.currentJtbd, firstToken(heading.text));
+    appendCriterion(byJtbd, state.currentJtbd, firstToken(heading.text));
   }
   return state;
+}
+
+/**
+ * A terminal `.R<n>` id is a numbered Rule; everything else (including the
+ * `.AC<n>`-terminated ids and legacy free-form headings) stays an AC, so an
+ * AC-shaped id wins over a rule-shaped prefix (`feat.R1.AC1` is an AC of
+ * JTBD `feat.R1`).
+ */
+export function isRuleId(id: string): boolean {
+  return /\.R\d+$/.test(id);
 }
 
 const EMPTY_REPORT: CoverageReport = { uncovered: [], stale: [], orphan: [] };
@@ -144,10 +228,9 @@ export function buildCoverageReportFromFeature(
   specContent: string,
   featureContent?: string,
 ): CoverageReport {
-  return buildCoverageReportFromReferences(
-    specContent,
-    featureContent === undefined ? undefined : parseFeatureAcReferences(featureContent),
-  );
+  if (featureContent === undefined) return buildCoverageReportFromReferences(specContent);
+  const { ac, rule } = parseFeatureLineageReferences(featureContent);
+  return buildCoverageReportFromReferences(specContent, [...ac, ...rule]);
 }
 
 export function buildSurfaceCoverageReportFromFeature(
@@ -310,11 +393,13 @@ function buildCoverageReportFromReferences(
   specContent: string,
   scenarioReferences?: readonly string[],
 ): CoverageReport {
-  const byJtbd = parseAcIdsByJtbd(specContent);
-  const knownAcIds = new Set<string>();
-  for (const acIds of byJtbd.values()) for (const id of acIds) knownAcIds.add(id);
+  const byJtbd = parseCriteriaIdsByJtbd(specContent);
+  const knownIds = new Set<string>();
+  for (const criteria of byJtbd.values()) {
+    for (const id of [...criteria.acIds, ...criteria.ruleIds]) knownIds.add(id);
+  }
 
-  if (knownAcIds.size === 0) return { ...EMPTY_REPORT };
+  if (knownIds.size === 0) return { ...EMPTY_REPORT };
   if (scenarioReferences === undefined) return { ...EMPTY_REPORT };
 
   const knownJtbds = new Set(byJtbd.keys());
@@ -323,7 +408,7 @@ function buildCoverageReportFromReferences(
   const orphan = new Set<string>();
 
   for (const reference of scenarioReferences) {
-    if (knownAcIds.has(reference)) {
+    if (knownIds.has(reference)) {
       covered.add(reference);
     } else if (knownJtbds.has(jtbdPart(reference))) {
       stale.add(reference);
@@ -333,22 +418,22 @@ function buildCoverageReportFromReferences(
   }
 
   return {
-    uncovered: [...knownAcIds].filter(id => !covered.has(id)),
+    uncovered: [...knownIds].filter(id => !covered.has(id)),
     stale: [...stale],
     orphan: [...orphan],
   };
 }
 
-/** Append an AC id to a JTBD's list, creating the list on first use. */
-function appendAc(byJtbd: Map<string, string[]>, jtbd: string, acId: string): void {
-  const acIds = byJtbd.get(jtbd) ?? [];
-  acIds.push(acId);
-  byJtbd.set(jtbd, acIds);
+/** Append a criterion id to a JTBD's criteria by kind, creating the entry on first use. */
+function appendCriterion(byJtbd: Map<string, JtbdCriteria>, jtbd: string, id: string): void {
+  const criteria = byJtbd.get(jtbd) ?? { acIds: [], ruleIds: [] };
+  (isRuleId(id) ? criteria.ruleIds : criteria.acIds).push(id);
+  byJtbd.set(jtbd, criteria);
 }
 
-/** Strip the trailing `.AC<#>` segment to recover the JTBD id of a reference. */
+/** Strip the trailing `.AC<#>` or `.R<#>` segment to recover the JTBD id of a reference. */
 function jtbdPart(reference: string): string {
-  return reference.replace(/\.AC\d+$/, '');
+  return reference.replace(/\.(?:AC|R)\d+$/, '');
 }
 
 /**

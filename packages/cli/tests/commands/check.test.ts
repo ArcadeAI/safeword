@@ -934,6 +934,114 @@ describe('Test Suite 8: Health Check', () => {
       expect(combined).toMatch(/trace-thing \(COV003\):.*demo\.DEV1\.AC2.*uncovered/i);
     });
 
+    const SPEC_ONE_RULE = [
+      '# Spec',
+      '',
+      '## Jobs To Be Done',
+      '',
+      '### demo.DEV2 — Retry',
+      '',
+      '**Persona:** DEV',
+      '',
+      '#### demo.DEV2.R1 — failed deliveries retry on backoff',
+      '',
+    ].join('\n');
+
+    function ruleTagLine(tags: readonly string[]): string {
+      return tags.map(tag => `@${tag}`).join(' ');
+    }
+
+    function ruleFeature(scenarioTags: readonly string[][]): string {
+      return [
+        'Feature: Demo',
+        '',
+        '  Rule: demo.DEV2.R1 — failed deliveries retry on backoff',
+        '',
+        ...scenarioTags.flatMap((tags, index) => [
+          `    ${ruleTagLine(tags)}`,
+          `    Scenario: example ${index + 1}`,
+          '      Given a',
+          '      When b',
+          '      Then c',
+          '',
+        ]),
+      ].join('\n');
+    }
+
+    it('rule-tier.TB3.AC1: reports uncovered, stale, and orphan rule refs as advisories', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTicket('RUL001-demo', 'in_progress', {
+        'spec.md': SPEC_ONE_RULE,
+        'test-definitions.md': scenarioTitle('ledger only'),
+      });
+      writeTestFile(
+        temporaryDirectory,
+        'features/demo.feature',
+        ruleFeature([['demo.DEV2.R5'], ['ghost.SM1.R1']]),
+      );
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      const combined = `${result.stdout}\n${result.stderr}`;
+      expect(combined).toMatch(
+        /numbered rule demo\.DEV2\.R1 has no scenario illustrating it \(uncovered\) — add a scenario tagged @demo\.DEV2\.R1/,
+      );
+      expect(combined).toMatch(/scenario ref demo\.DEV2\.R5 matches no numbered rule.*stale ref/);
+      expect(combined).toMatch(/scenario ref ghost\.SM1\.R1 names no JTBD.*orphan/);
+    });
+
+    it('rule-tier.TB1.AC2: reports a numbered rule with no rejection-path scenario, silently passing covered rules', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTicket('RUL002-demo', 'in_progress', {
+        'spec.md': SPEC_ONE_RULE,
+        'test-definitions.md': scenarioTitle('ledger only'),
+      });
+      writeTestFile(temporaryDirectory, 'features/demo.feature', ruleFeature([['demo.DEV2.R1']]));
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      const combined = `${result.stdout}\n${result.stderr}`;
+      expect(combined).toMatch(
+        /numbered rule demo\.DEV2\.R1 has no example of the rule being broken — add a @rejection-tagged scenario under it/,
+      );
+    });
+
+    it('rule-tier.TB1.AC2: stays silent when the rule has a rejection-path scenario', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTicket('RUL003-demo', 'in_progress', {
+        'spec.md': SPEC_ONE_RULE,
+        'test-definitions.md': scenarioTitle('ledger only'),
+      });
+      writeTestFile(
+        temporaryDirectory,
+        'features/demo.feature',
+        ruleFeature([['demo.DEV2.R1'], ['demo.DEV2.R1', 'rejection']]),
+      );
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      const combined = `${result.stdout}\n${result.stderr}`;
+      expect(combined).not.toMatch(/no example of the rule being broken/);
+    });
+
+    it('rule-tier.TB1.AC4: flags a JTBD declaring both ACs and numbered Rules as a check issue', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTicket('RUL004-demo', 'in_progress', {
+        'spec.md': [SPEC_TWO_ACS, '#### demo.DEV1.R1 — an invariant beside the ACs', ''].join('\n'),
+        'test-definitions.md': scenarioTitle('demo.DEV1.AC1.happy_path'),
+      });
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(1);
+      const combined = `${result.stdout}\n${result.stderr}`;
+      expect(combined).toMatch(
+        /JTBD demo\.DEV1 declares both Acceptance Criteria and numbered Rules; keep one criteria kind per job — convert one set or split the job/,
+      );
+    });
+
     it('stays silent for a done ticket whose scenarios predate the scheme', async () => {
       await createConfiguredProject(temporaryDirectory);
       writeTicket('COV002', 'done', {
