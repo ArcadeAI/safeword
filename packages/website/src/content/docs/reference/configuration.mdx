@@ -109,13 +109,6 @@ Both tools coexist cleanly — ESLint handles code analysis (bugs, security, com
 | jiti (devDep)     | jiti (devDep)     |
 | _(no Prettier)_   | Prettier (devDep) |
 
-## SQL Formatting
-
-Your project's chosen SQL formatter owns SQL formatting; safeword adapts to it:
-
-- **If your project formats SQL with Prettier** (`prettier-plugin-sql` in your dependencies), safeword defers entirely: setup skips the SQLFluff configs (`.sqlfluff`, `.safeword/sqlfluff.cfg`), and the edit-time hook runs _your_ Prettier with _your_ config — so `.prettierignore` carve-outs (like frozen DDL migrations) are honored. Adopting `prettier-plugin-sql` in a repo that already has safeword-generated SQLFluff configs? Delete `.sqlfluff` and `.safeword/sqlfluff.cfg`; upgrades won't recreate them.
-- **Otherwise**, safeword lints SQL with SQLFluff: the edit-time hook runs `sqlfluff lint` and reports violations to the agent. In-place rewriting is opt-in — set `"sql": { "fix": true }` in `.safeword/config.json` to have the hook run `sqlfluff fix` on edited files. SQLFluff honors `.sqlfluffignore`, so you can exclude files (e.g. applied migrations) from rewriting.
-
 ## Hook Configuration
 
 Hooks are configured in `.claude/settings.json` (Claude Code), `.cursor/hooks.json` (Cursor), and `.codex/config.toml` (Codex). See [Hooks & Skills](/reference/hooks-and-skills) for what runs automatically.
@@ -196,6 +189,18 @@ Two directory keys, `features` and `steps`, point the BDD acceptance lane at rel
 ```
 
 Relative paths resolve against the project root (the directory containing `.safeword/`); absolute paths are used verbatim.
+
+For adopted host harnesses with a house style, `bdd.conventions` points at a conventions document the host owns — what an unimplemented step body looks like, how spec-ahead scenarios are verified without executing them (for example a cucumber dry-run/check profile), and which tags the host's profiles exclude by default:
+
+```json
+{
+  "bdd": {
+    "conventions": "tests/CONVENTIONS.md"
+  }
+}
+```
+
+When set, `safeword codify` prints a pointer to the doc alongside its output, and the installed BDD skill prose directs agents to read and follow it over safeword's defaults. Safeword never parses or validates the doc — it lives next to the harness and is maintained by whoever maintains the harness, so it cannot drift the way conventions transcribed into skill prose do.
 
 `surfaces.md` is optional project knowledge for BDD. Use it for recurring product, agent, runtime, protocol, client, or deployment contexts where behavior must keep working, such as Claude Code, OpenAI Codex, Cursor, web, mobile, MCP, cloud service, or self-hosted deployments. Keep one-off contexts in a feature spec's `## Surfaces` section unless they recur across tickets, are ambiguous enough to drift, or are important enough that missing them would leave a context untested. When a spec lists affected surfaces, saved `.feature` scenarios should cover them with `@surface.<slug>` tags or explicit `skip:` reasons.
 

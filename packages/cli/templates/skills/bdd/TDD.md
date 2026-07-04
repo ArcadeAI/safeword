@@ -28,7 +28,8 @@ Start with the most constraining test — usually E2E or integration. Prefer the
 
 When the scenario source is a `.feature` file and the Cucumber lane exists, RED starts by making that scenario executable through Cucumber step definitions:
 
-- If no matching steps exist, the first RED can be `bun run test:bdd` failing with undefined or pending steps, then add the thinnest TypeScript step definitions under `steps/` or `features/steps/`.
+- If `.safeword/config.json` sets `bdd.conventions`, read that doc first and follow it over the defaults below — it defines the host harness's stub shape, its spec-ahead verification lane (often a dry-run/check profile, not run-and-expect-failure), and its tag rules. Never pass ad-hoc `--tags` filters that bypass the host profiles' exclusions.
+- If no matching steps exist, the first RED can be `bun run test:bdd` failing with undefined or pending steps, then add the thinnest TypeScript step definitions under the project's step directory (`steps/` or `features/steps/` by default; `paths.steps` when configured). Run-and-expect-failure proves wiring for safeword's scaffolded lane — an adopted host harness whose hooks boot real infrastructure needs its documented dry-run/check profile instead.
 - Keep step definitions thin; call app, API, CLI, or shell helpers from steps. Do not bury business logic in Cucumber glue.
 - Use Vitest for lower-level implementation proof when it gives faster or more precise coverage, especially pure functions and module contracts.
 - A scenario is not complete until both the relevant implementation tests and `test:bdd` pass, unless the feature is explicitly tagged `@manual` or `@live` with a skip reason.

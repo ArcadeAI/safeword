@@ -10,7 +10,7 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
-import { resolveTicketsDirectory } from '../utils/configured-paths.js';
+import { readBddConventionsPath, resolveTicketsDirectory } from '../utils/configured-paths.js';
 import { findFeatureSourcePath } from '../utils/feature-source.js';
 import { FeatureParseError, parseFeatureScenarios } from '../utils/gherkin-feature.js';
 import { error, success } from '../utils/output.js';
@@ -54,9 +54,22 @@ function codifySync(ticket: string, options: CodifyOptions): void {
   const skeleton = renderSkeleton(format, source, scenarios, ticket, options.red);
   if (options.out === undefined) {
     process.stdout.write(skeleton);
-    return;
+  } else {
+    writeSkeleton(nodePath.resolve(cwd, options.out), options.out, skeleton, scenarios.length);
   }
-  writeSkeleton(nodePath.resolve(cwd, options.out), options.out, skeleton, scenarios.length);
+  printConventionsPointer(cwd);
+}
+
+/**
+ * Surface the host's conventions doc (`bdd.conventions`, ticket 7CK2KP) when
+ * configured. Goes to stderr so `codify > file.test.ts` output stays clean.
+ */
+function printConventionsPointer(cwd: string): void {
+  const conventions = readBddConventionsPath(cwd);
+  if (conventions === undefined) return;
+  process.stderr.write(
+    `Host conventions: ${conventions} — follow it for stub shape, verification, and tags.\n`,
+  );
 }
 
 function parseCodifyScenarios(source: CodifySource): ParsedScenario[] {

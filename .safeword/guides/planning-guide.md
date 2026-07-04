@@ -23,8 +23,9 @@ Ticket artifacts live in the ticket folder:
 - `spec.md` - Feature spec (epics only)
 - `design.md` - Design doc (complex features)
 
-Executable BDD scenarios live at `features/<slug>.feature`, rooted at the app
-or package that owns the behavior.
+Executable BDD scenarios live at `features/<slug>.feature` (or under the
+configured `paths.features` directory), rooted at the app or package that owns
+the behavior.
 
 **If none fit:** Break down the work. A single task spanning all three levels should be split into separate feature + tasks.
 
@@ -80,7 +81,7 @@ Out of Scope:
 
 ### Given-When-Then Format (Behavior-Focused)
 
-For feature-level work, run `/bdd`. The BDD skill walks define-behavior: derive dimensions → partition into scenarios → save executable scenarios in `features/<slug>.feature` (Rule grouping + nested Scenario + Given/When/Then + lineage `@<jtbd>.AC#` tags). `test-definitions.md` is the R/G/R ledger: it references the feature source and carries per-scenario `- [ ] RED / GREEN / REFACTOR` checkboxes for hooks. Keep scenarios **declarative** — describe _what_ the system does, not _how_ it does it — and aim for 3-5 G/W/T steps per scenario (Cucumber best practice).
+For feature-level work, run `/bdd`. The BDD skill walks define-behavior: derive dimensions → partition into scenarios → save executable scenarios in the feature lane, `features/<slug>.feature` by default or under `paths.features` when configured (Rule grouping + nested Scenario + Given/When/Then + lineage `@<jtbd>.AC#` tags). `test-definitions.md` is the R/G/R ledger: it references the feature source and carries per-scenario `- [ ] RED / GREEN / REFACTOR` checkboxes for hooks. Keep scenarios **declarative** — describe _what_ the system does, not _how_ it does it — and aim for 3-5 G/W/T steps per scenario (Cucumber best practice).
 
 ### Job Story Format (Outcome-Focused)
 
@@ -252,7 +253,7 @@ Before `test-definitions.md` can be created, the ticket frontmatter must contain
 
 ### Canonical format
 
-Rule grouping (Gherkin 6+ `Rule:` keyword + Matt Wynne's Example Mapping) wraps nested `Scenario`s in `features/<slug>.feature`. Each scenario carries lineage as `@<jtbd>.AC#`. test-definitions.md is the R/G/R ledger: it lists the same scenario names with `- [ ] RED / GREEN / REFACTOR` sub-checkboxes. The R/G/R sub-checkboxes are load-bearing — `parseTddStep` in `hooks/lib/active-ticket.ts` parses them to inject TDD-step guidance during implement.
+Rule grouping (Gherkin 6+ `Rule:` keyword + Matt Wynne's Example Mapping) wraps nested `Scenario`s in the feature lane's `<slug>.feature`. Each scenario carries lineage as `@<jtbd>.AC#`. test-definitions.md is the R/G/R ledger: it lists the same scenario names with `- [ ] RED / GREEN / REFACTOR` sub-checkboxes. The R/G/R sub-checkboxes are load-bearing — `parseTddStep` in `hooks/lib/active-ticket.ts` parses them to inject TDD-step guidance during implement.
 
 ```gherkin
 Feature: Init dry-run
