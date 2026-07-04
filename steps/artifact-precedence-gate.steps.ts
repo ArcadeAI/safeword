@@ -45,6 +45,11 @@ interface PrecedenceWorld extends SafewordWorld {
   projectDirectory?: string;
   ticketDirectory?: string;
   verdict?: HookVerdict;
+  // A scenario that explicitly establishes an existing dimensions.md before its
+  // spec Given (the rework case) pins it, so establishSpec won't reset it. The
+  // shared phase-provenance Given seeds a dimensions.md incidentally; creation
+  // scenarios need that reset so the write under test is a creation.
+  dimensionsPinned?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -123,20 +128,17 @@ function writeArtifact(world: PrecedenceWorld, name: string, content: string): v
   writeFileSync(nodePath.join(world.ticketDirectory!, name), content);
 }
 
-function removeArtifact(world: PrecedenceWorld, name: string): void {
-  rmSync(nodePath.join(world.ticketDirectory!, name), { force: true });
-}
-
 /**
- * Establish spec.md as the given state. Derived artifacts (dimensions.md,
- * test-definitions.md) are removed: a world defined by its spec state has not
- * derived anything from that spec yet, and the creation gates only fire on
- * writes that would create the artifact.
+ * Establish spec.md as the given state. Resets the derived artifacts so the
+ * write under test is a genuine creation — unless a prior Given explicitly
+ * pinned an existing dimensions.md (the rework case), which must survive.
  */
 function establishSpec(world: PrecedenceWorld, content: string): void {
   writeArtifact(world, 'spec.md', content);
-  removeArtifact(world, 'dimensions.md');
-  removeArtifact(world, 'test-definitions.md');
+  if (!world.dimensionsPinned) {
+    rmSync(nodePath.join(world.ticketDirectory!, 'dimensions.md'), { force: true });
+  }
+  rmSync(nodePath.join(world.ticketDirectory!, 'test-definitions.md'), { force: true });
 }
 
 function appendStampLine(world: PrecedenceWorld, entry: string): void {
@@ -255,6 +257,7 @@ Given(
   function (this: PrecedenceWorld) {
     seedBareTicket(this, { phase: 'define-behavior' });
     writeArtifact(this, 'dimensions.md', '| Dimension | Partitions |\n| --- | --- |\n| a | b |\n');
+    this.dimensionsPinned = true;
   },
 );
 

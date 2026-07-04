@@ -30,6 +30,7 @@ import nodePath from 'node:path';
 import process from 'node:process';
 
 import { getInProgressTicketFolders, getTicketInfo } from './lib/active-ticket.ts';
+import { resolveScenarioSource } from './lib/artifact-precedence.ts';
 import {
   readFreshCodexReviewStampIdentity,
   readFreshCursorReviewStampIdentity,
@@ -219,12 +220,33 @@ function resolveScope(ticketFolder: string): { scope: string; label: string } {
     return { scope: reviewScope(ticketFolder, 'phase', phase), label: `phase ${phase}` };
   }
   const artifact = bareName(positional[0] ?? 'spec', 'artifact name');
+  // The `scenarios` artifact isn't a file — it's the scenario source the
+  // implement-entry gate (87Y167) binds to: the `.feature` file the ledger
+  // names, else test-definitions.md itself. Resolve it the SAME way the gate
+  // does so the stamp matches by construction.
+  if (artifact === 'scenarios') {
+    return {
+      scope: reviewScope(ticketFolder, 'scenarios', hashArtifact(scenarioContent(ticketFolder))),
+      label: 'scenarios',
+    };
+  }
   const artifactFile = nodePath.join(ticketsDirectory, ticketFolder, `${artifact}.md`);
   if (!existsSync(artifactFile)) fail(`artifact not found: ${artifact}.md in ${ticketFolder}`);
   return {
     scope: reviewScope(ticketFolder, artifact, hashArtifact(readFileSync(artifactFile, 'utf8'))),
     label: `${artifact}.md`,
   };
+}
+
+/** The scenario content the implement-entry gate reviews: the `.feature` source the ledger names, else the ledger. */
+function scenarioContent(ticketFolder: string): string {
+  const ledgerFile = nodePath.join(ticketsDirectory, ticketFolder, 'test-definitions.md');
+  if (!existsSync(ledgerFile)) fail(`no test-definitions.md in ${ticketFolder} to review`);
+  const ledger = readFileSync(ledgerFile, 'utf8');
+  const sourcePath = resolveScenarioSource(ledger);
+  if (sourcePath === undefined) return ledger;
+  const sourceFile = nodePath.join(projectDirectory, sourcePath);
+  return existsSync(sourceFile) ? readFileSync(sourceFile, 'utf8') : ledger;
 }
 
 const { scope, label } = resolveScope(resolveTicketFolder());

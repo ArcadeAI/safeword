@@ -13,7 +13,11 @@ import {
   getTicketInfo,
   parseTddStep,
 } from './lib/active-ticket.ts';
-import { evaluateDimensionsCreation, evaluateSpecCreation } from './lib/artifact-precedence.ts';
+import {
+  evaluateDimensionsCreation,
+  evaluateImplementEntry,
+  evaluateSpecCreation,
+} from './lib/artifact-precedence.ts';
 import { evaluateBlockedOnGate } from './lib/blocked-on-gate.ts';
 import { isGitOperationInProgress } from './lib/git-operation.ts';
 import { collectNewTransitions } from './lib/checkbox-transitions.ts';
@@ -554,6 +558,32 @@ if (ticketWrite !== undefined) {
         'Complete the listed intake artifacts, then retry the phase change into define-behavior.',
       );
     }
+  }
+}
+
+// Implement-entry scenario-review demand (87Y167, #644 G1) — ALWAYS-ON. A
+// ticket.md edit that advances a feature ticket forward into `implement`
+// requires an independent review stamp for the scenarios at their current
+// content (bound to the .feature source when the ledger names one, else the
+// ledger itself; the G2 phase_skips hatch waives it). Ordered after the #404
+// readiness gate: readiness guards the define-behavior entry, this guards the
+// implement entry.
+if (ticketWrite !== undefined) {
+  const ticketDirectory = nodePath.dirname(editedFile);
+  const ledgerFile = nodePath.join(ticketDirectory, 'test-definitions.md');
+  const implementEntryVerdict = evaluateImplementEntry({
+    priorTicketContent: ticketWrite.priorContent ?? '',
+    proposedTicketContent: ticketWrite.proposedContent,
+    ticketFolder: nodePath.basename(ticketDirectory),
+    ledgerContent: existsSync(ledgerFile) ? readFileSync(ledgerFile, 'utf8') : undefined,
+    resolveSourceContent: relativePath => {
+      const sourceFile = nodePath.join(projectDirectory, relativePath);
+      return existsSync(sourceFile) ? readFileSync(sourceFile, 'utf8') : undefined;
+    },
+    stamps: readReviewStamps(),
+  });
+  if (!implementEntryVerdict.ok) {
+    deny(implementEntryVerdict.reason, withOrderingNote(implementEntryVerdict.remediation));
   }
 }
 

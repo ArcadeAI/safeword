@@ -172,6 +172,31 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
     expect(readLog()).toContain(`review:${reviewScope(TICKET_ID, 'spec', hashArtifact(SPEC))}`);
   });
 
+  it('scenarios: binds to the ledger content when no feature source is named (87Y167)', () => {
+    const ledger = '# Test Definitions\n\n### Scenario: a\n\n- [ ] RED\n';
+    writeFileSync(nodePath.join(ticketDirectory, 'test-definitions.md'), ledger);
+
+    const stamp = runStamp('scenarios');
+    expect(stamp.status).toBe(0);
+    expect(readLog()).toContain(
+      `review:${reviewScope(TICKET_ID, 'scenarios', hashArtifact(ledger))}`,
+    );
+  });
+
+  it('scenarios: binds to the named feature source, not the ledger (87Y167)', () => {
+    const source = 'Feature: fixture\n\n  Scenario: a\n    Given a world\n';
+    const ledger = '# Test Definitions\n\nFeature source: `features/fixture.feature`\n';
+    writeFileSync(nodePath.join(ticketDirectory, 'test-definitions.md'), ledger);
+    mkdirSync(nodePath.join(projectRoot, 'features'), { recursive: true });
+    writeFileSync(nodePath.join(projectRoot, 'features', 'fixture.feature'), source);
+
+    const stamp = runStamp('scenarios');
+    expect(stamp.status).toBe(0);
+    expect(readLog()).toContain(
+      `review:${reviewScope(TICKET_ID, 'scenarios', hashArtifact(source))}`,
+    );
+  });
+
   it('a --skip stamp clears the gate and records its reason', () => {
     const stamp = runStamp('spec', '--skip', 'trivial boilerplate spec');
     expect(stamp.status).toBe(0);
