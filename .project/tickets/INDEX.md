@@ -5,6 +5,22 @@
 
 <!-- prettier-ignore-start -->
 
+## Tickets (382)
+
+### 730
+
+- **Audit reconciles per-package leaf architecture.generated.md (5X0DZA)** (in_progress, epic: 730)
+  Make the audit's ARCHITECTURE.md structural-drift check read each
+  external issue: https://github.com/ArcadeAI/safeword/issues/730
+  → `.project/tickets/5X0DZA-audit-reconcile-leaf-architecture-docs`
+- **Upgrade deferred major deps: eslint-plugin-unicorn 70 + typescript 6 (FHKHBW)** (in_progress, epic: 730)
+  Adopt the two major bumps deferred by the audit follow-up —
+  external issue: https://github.com/ArcadeAI/safeword/issues/730
+  → `.project/tickets/FHKHBW-upgrade-deferred-major-deps`
+- **Re-check @vitest/eslint-plugin pin (held at 1.6.20) (WW0QTV)** (in_progress, epic: 730)
+  Unpin `@vitest/eslint-plugin` back to a caret range once a release
+  external issue: https://github.com/ArcadeAI/safeword/issues/730
+  → `.project/tickets/WW0QTV-vitest-eslint-plugin-pin-recheck`
 ## Tickets (380)
 ## Tickets (376)
 

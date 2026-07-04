@@ -283,8 +283,7 @@ export function validatePersonas(parsed: readonly ParsedPersona[]): PersonaValid
  * after checking `status`.
  */
 export type PersonaReferenceResult =
-  | { status: 'valid'; match: ResolvedPersona }
-  | { status: 'unknown'; suggestion?: string };
+  { status: 'valid'; match: ResolvedPersona } | { status: 'unknown'; suggestion?: string };
 
 /**
  * Look up a persona reference against a parsed-and-resolved list.

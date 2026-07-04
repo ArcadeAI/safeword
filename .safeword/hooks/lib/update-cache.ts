@@ -79,9 +79,7 @@ export const RELEASE_AGE_COOLDOWN_MS = 24 * 60 * 60 * 1000;
  * suppress the npm `time` field from bypassing the cooldown.
  */
 export type ReleaseAgeStatus =
-  | { state: 'unknown' }
-  | { state: 'cooling'; remainingHours: number }
-  | { state: 'ready' };
+  { state: 'unknown' } | { state: 'cooling'; remainingHours: number } | { state: 'ready' };
 
 /**
  * Decide whether `publishedAt` is past the cooldown window.

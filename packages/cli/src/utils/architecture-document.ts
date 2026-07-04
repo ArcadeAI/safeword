@@ -31,12 +31,7 @@ import {
 } from './configured-paths.js';
 
 export type SelfHealAction =
-  | 'created'
-  | 'healed'
-  | 'unchanged'
-  | 'regenerated'
-  | 'skipped'
-  | 'noop';
+  'created' | 'healed' | 'unchanged' | 'regenerated' | 'skipped' | 'noop';
 
 export interface SelfHealResult {
   action: SelfHealAction;

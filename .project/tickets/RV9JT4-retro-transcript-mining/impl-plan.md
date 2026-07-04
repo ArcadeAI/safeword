@@ -23,6 +23,7 @@ Per-behavior ownership and proof (highest practical scope from `testing/SKILL.md
 | Command wiring + autonomous file (TB1.AC1) | `src/commands/retro.ts` | integration (wiring) | real config→module wiring; only the GitHub transport boundary mocked |
 
 **Build order** (dependency-free first, load-bearing slice as early as its deps allow):
+
 1. `transcript.ts` + `finding.ts` (schema/normalize) — no deps.
 2. `signature.ts` — no deps.
 3. **`egress.ts` (load-bearing leak slice)** — depends on finding shape; build as soon as 1 lands so a wrong guard fails early.

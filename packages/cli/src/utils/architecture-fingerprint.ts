@@ -83,8 +83,7 @@ function readDependencyNames(projectDirectory: string): string[] {
 
 function readPackageJsonDependencyNames(projectDirectory: string): string[] {
   const manifest = readJson(nodePath.join(projectDirectory, 'package.json')) as
-    | Record<string, unknown>
-    | undefined;
+    Record<string, unknown> | undefined;
   return manifest === undefined ? [] : dependencySectionNames(manifest);
 }
 

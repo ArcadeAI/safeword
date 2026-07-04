@@ -52,8 +52,7 @@ export interface GlossaryValidationError {
  * narrow on `status` without optional chaining.
  */
 export type GlossaryReferenceResult =
-  | { status: 'valid'; match: ParsedGlossaryEntry }
-  | { status: 'unknown'; suggestion?: string };
+  { status: 'valid'; match: ParsedGlossaryEntry } | { status: 'unknown'; suggestion?: string };
 
 /**
  * Resolve a glossary reference against the on-disk glossary file.
@@ -282,9 +281,7 @@ function parseAliasLine(line: string): string[] | undefined {
  * - `none` — no known prefix matched; the line is a continuation candidate.
  */
 type LineOutcome =
-  | { kind: 'field'; field: StringFieldKey }
-  | { kind: 'aliases' }
-  | { kind: 'none' };
+  { kind: 'field'; field: StringFieldKey } | { kind: 'aliases' } | { kind: 'none' };
 
 /**
  * Apply a recognized field/alias line to the active entry. Unknown

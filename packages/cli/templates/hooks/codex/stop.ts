@@ -81,8 +81,7 @@ function runRetroExtraction(projectDirectory: string, input: CodexStopInput): vo
   if (!readSelfReportConfig(projectDirectory).surface) return;
 
   let pendingOffsetState:
-    | { sessionId: string; state: OffsetState; baseDirectory: string | undefined }
-    | undefined;
+    { sessionId: string; state: OffsetState; baseDirectory: string | undefined } | undefined;
   const decision = decideRetroRun(input, {
     env: process.env,
     countToolUses: countToolUsesCodex,

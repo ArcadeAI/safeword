@@ -40,9 +40,7 @@ export interface ParsedScenario {
 }
 
 type Heading =
-  | { kind: 'rule'; name: string }
-  | { kind: 'scenario'; title: string }
-  | { kind: 'other' };
+  { kind: 'rule'; name: string } | { kind: 'scenario'; title: string } | { kind: 'other' };
 
 /**
  * Parse a test-definitions.md into its scenarios. A scenario counts only inside

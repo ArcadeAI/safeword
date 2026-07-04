@@ -191,7 +191,7 @@ timeout = 30
 statusMessage = "Checking spooled safeword retro drafts"
 `;
 
-export const CODEX_SESSION_START_HOOK_PATCH = `
+const CODEX_SESSION_START_HOOK_PATCH = `
 [[hooks.SessionStart]]
 matcher = ""
 

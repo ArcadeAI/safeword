@@ -475,8 +475,7 @@ function isSafewordLaneTemplate(configPath: string): boolean {
 
 function manifestDependsOnCucumber(manifestPath: string): boolean {
   const manifest = readJson(manifestPath) as
-    | { dependencies?: Record<string, string>; devDependencies?: Record<string, string> }
-    | undefined;
+    { dependencies?: Record<string, string>; devDependencies?: Record<string, string> } | undefined;
   return Boolean(
     manifest?.dependencies?.['@cucumber/cucumber'] ??
     manifest?.devDependencies?.['@cucumber/cucumber'],

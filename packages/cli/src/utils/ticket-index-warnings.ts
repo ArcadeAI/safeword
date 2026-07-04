@@ -1,4 +1,4 @@
-export const SYNCTICKETS_QUIET_COMMAND = '`safeword sync-tickets --quiet`';
+const SYNCTICKETS_QUIET_COMMAND = '`safeword sync-tickets --quiet`';
 
 export function buildIndexConflictSummary(count: number): string {
   return (

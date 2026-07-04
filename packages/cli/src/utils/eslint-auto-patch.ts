@@ -258,8 +258,7 @@ function writeAndValidate(
   patched: string,
   runSyntaxCheck: boolean,
 ):
-  | { ok: true; backupPath: string }
-  | { ok: false; reason: 'write-failed' | 'syntax-check-failed' } {
+  { ok: true; backupPath: string } | { ok: false; reason: 'write-failed' | 'syntax-check-failed' } {
   const backupPath = `${configPath}${BACKUP_SUFFIX}`;
   try {
     copyFileSync(configPath, backupPath);

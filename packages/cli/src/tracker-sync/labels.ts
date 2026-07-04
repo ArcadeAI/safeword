@@ -8,7 +8,7 @@
  */
 
 /** Label namespaces safeword owns and may remove; everything else is the team's. */
-export const OWNED_LABEL_PREFIXES = ['epic:', 'type:'];
+const OWNED_LABEL_PREFIXES = ['epic:', 'type:'];
 
 function isOwned(label: string): boolean {
   return OWNED_LABEL_PREFIXES.some(prefix => label.startsWith(prefix));

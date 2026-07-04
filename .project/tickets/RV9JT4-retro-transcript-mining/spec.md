@@ -138,6 +138,7 @@ signature and ≤5 new per session, and title-match also recognizes an issue the
 deterministic spool already filed. **Caveat — this slice is best-effort:** title
 search is eventually-consistent on GitHub, so indexing lag or title drift can
 still occasionally duplicate. The *robust* exact-dedup guarantee (signature marker
+
 + strongly-consistent issues-list lookup) lands in sub-ticket
 **`1FGE1C-robust-tracker-dedup`** — that's where the unqualified "never a
 duplicate" claim is met.
