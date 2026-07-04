@@ -2,8 +2,8 @@
 id: W42G34
 slug: bash-ledger-write-gate
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 scope:
   - a pure predicate module (templates/hooks/lib/) that classifies a shell command as a write-shaped reference to a ledger file (test-definitions.md under the tickets namespace), with documented detection limits
   - deny wiring in the Bash branch of pre-tool-quality.ts (source of truth for Claude + Codex), with a denial message naming the Edit channel
@@ -44,4 +44,7 @@ last_modified: 2026-07-03T21:19:49.637Z
 - 2026-07-03T22:45:00Z Complete: implement — whole-ticket /quality-review APPROVE (0 critical, 6 verified suggestions; 3 applied as cross-scenario refactor 63fcf57, 3 documented as limits); cross-scenario row recorded; reconciled impl plan (1 decision updated: fs-free isNamespacePath scoping; triggers refreshed with accepted over/under-detections); full suite 4512 passed / 5 skipped / 1 failed (pre-fix schema-drift test — fix committed, pre-push gate re-ran it green); phase -> verify
 - 2026-07-03T22:20:00Z Found: out-of-ticket fix required to push — .safeword/self-reports missing from schema preservedDirs broke the schema-drift test for any session with recorded signals (committed separately, mirrors retro-drafts precedent)
 - 2026-07-04T00:10:00Z Complete: verify — /verify + /audit passed, verify.md written. Full suite 4513/4513 (5 skipped), Gherkin 181/181, lint+typecheck clean, depcruise clean, PR scope matches ticket. Also fixed a .js-import typecheck break (982b307) surfaced by /verify.
-- 2026-07-04T00:15:00Z Held at phase: verify (not done) pending user close-confirmation. Setting phase: done triggered the done-gate's full-suite run on every Stop, which flakes on cucumber-bdd.test.ts (vitest wrapper timeout under full-suite load — documented limitation; direct test:bdd 181/181, wrapper isolated 2/2, authoritative full suite 4513/4513). Will flip phase: done + status: done together on user confirmation.
+- 2026-07-04T00:15:00Z Held at phase: verify (not done) pending user close-confirmation. Setting phase: done triggered the done-gate's full-suite run on every Stop, which flakes on cucumber-bdd.test.ts (vitest wrapper timeout under full-suite load — documented limitation; direct test:bdd 181/181, wrapper isolated 2/2, authoritative full suite 4513/4513).
+- 2026-07-04T03:12:00Z Opened PR #721 against main. CI check-pr-ticket-done failed (correctly): a PR carrying verify.md must flip the ticket to status: done in the same PR.
+- 2026-07-04T03:25:00Z Second fresh-context /quality-review on PR #721 (APPROVE, no blockers); applied the full ranked suggestion list (f041d51): -t false-positive fix, install writer + positional-dir detection, subshell catch (also hardens git-commit gate), tightened flag regex, +8 test pins, doc reconciliation. Parity in sync, lint clean.
+- 2026-07-04T03:30:00Z Complete: verify + done — user-confirmed close. phase: verify -> done, status -> done (rides PR #721 per the ticket-done CI gate).

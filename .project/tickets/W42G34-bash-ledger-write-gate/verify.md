@@ -37,3 +37,10 @@
 - The whole-ticket /quality-review (fresh-context, APPROVE) surfaced 6 verified suggestions;
   3 applied as the cross-scenario refactor (`&>`/`>|`, `mv/cp -t`, basename boundary), 3
   documented as accepted limits.
+- A second fresh-context quality-review on the PR (#721, APPROVE, no blockers) surfaced a
+  further ranked list, all applied (commit f041d51): the `cp/mv/install -t` false positive
+  (ledger copied OUT no longer denied), `install` writer + positional-directory detection,
+  subshell-wrapped writes caught via `commandWordIndex` (also hardens the git-commit gate),
+  a tightened inline-code-flag regex, added shape/path + fd-prefixed + legacy-namespace test
+  pins, and reconciled dimensions.md/spec.md shape lists. Glued-redirection and `ln`/`dd`
+  remain documented limits.
