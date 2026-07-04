@@ -1,6 +1,18 @@
 # Impl Plan: Converge spec grammar on a single Rule tier
 
-**Status:** planned
+**Status:** implemented
+
+<!--
+Reconciled at implement exit (ticket 1SVCB9). All 7 slices shipped as planned;
+slice order held. Two design details firmed during build, both recorded above:
+per-file → per-ticket-unit collision atomicity, and the codemod scoping to
+`status: in_progress` (matching coverage + nudge scope). One codemod bug caught
+by dogfooding — `migrateReferencesAc` only rewrites tag/title lines, never `.AC`
+in step text — now unit-pinned. Cucumber steps import no CLI-src module to avoid
+a runtime-tsx transitive-`.js` resolution gap; codemod/check scenarios run the
+CLI as a process. Full vitest suite + 277-scenario Gherkin lane green.
+-->
+
 
 ## Approach
 

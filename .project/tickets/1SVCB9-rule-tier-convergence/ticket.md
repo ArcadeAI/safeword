@@ -2,7 +2,7 @@
 id: 1SVCB9
 slug: rule-tier-convergence
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 scope:
   - 'Single Rule tier in all authoring surfaces: spec-template (×2), bdd DISCOVERY/SCENARIOS (×3), review-spec, guides — scaffold `#### <jtbd>.R<n>` + `@<jtbd>.R<n>`, remove the "one criteria kind, never both" doctrine and AC-as-co-equal framing'
@@ -41,3 +41,4 @@ last_modified: 2026-07-04T03:49:30.927Z
 - 2026-07-04T04:41:00.000Z /quality-review (fresh subagent, define-behavior): verified both #716 premises against primary Cucumber sources (Example Mapping = one blue-card tier; Gherkin `Rule:` real keyword, no AC keyword). Fixed 1 vacuous SM1.R3 denial scenario + 5 coverage/AODI strengthenings → 24→30 scenarios. APPROVE.
 - 2026-07-04T04:52:00.000Z Complete: define-behavior - 30 scenarios across 7 criteria (8 Gherkin Rule blocks); features/rule-tier-convergence.feature saved (lint clean, dogfooding `.R` lineage), R/G/R ledger saved, dimensions.md written.
 - 2026-07-04T05:00:00.000Z Complete: scenario-gate - Independent /review-spec (Tier 2, fresh subagent): PASS WITH FIXES (0 must-fix) → 5 should-strengthen applied (SM1.R2 positive co-assertion + Rule-noun discriminator on both coverage outlines; SM1.R1 doctrine split into 2 atomic; per-file collision atomicity pinned + multi-file scenario; valid-skip-with-reason pass). impl-plan.md written (riskiest assumption = guard-delete-while-keeping-internal-AC/R-split, proved by slice 1; 7-slice build order, load-bearing coverage-collapse first). Stamp written.
+- 2026-07-04T06:00:00.000Z Complete: implement - 7 slices RGR'd (coverage/guard collapse → gate rewording → legacy-AC back-compat → deprecation nudge → migrate-ac codemod → authoring-surface/docs vocabulary → repo live-surface migration). Ledger 30/30 marked with SHAs (retained-behavior scenarios skip-annotated). Full vitest suite green (4577 pass); phase0-walkthrough doc test reconciled. Gherkin acceptance lane: 277 scenarios pass — new steps/rule-tier-convergence.steps.ts (CLI-process proofs, no CLI-src import) + predecessor rule-tier.feature/steps reconciled to the converged behavior. impl-plan reconciled → implemented.
