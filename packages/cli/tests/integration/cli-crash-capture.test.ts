@@ -52,8 +52,9 @@ describe('CLI crash capture (5XXQQZ / #720)', () => {
       timeout: TIMEOUT_QUICK,
     });
 
-    // A crash must still fail the process (CI/scripts depend on it).
-    expect(result.status).not.toBe(0);
+    // A crash must still fail the process with exactly Node's default uncaught
+    // exit code (1) — the ticket's "no command exit code may change" contract.
+    expect(result.status).toBe(1);
     // Crash UX preserved: the user still sees their error on stderr...
     expect(result.stderr).toContain('kaboom');
 
@@ -66,6 +67,35 @@ describe('CLI crash capture (5XXQQZ / #720)', () => {
     expect(JSON.stringify(records[0])).not.toContain('/home/secret');
   });
 
+  it('captures an unhandled promise rejection and exits non-zero', () => {
+    // The uncaughtException path is covered above; this exercises the sibling
+    // unhandledRejection registration end-to-end (an async command action that
+    // rejects becomes an unhandled rejection under commander's non-awaited parse).
+    const fixture = nodePath.join(directory, 'rejecty-cli.ts');
+    writeFileSync(
+      fixture,
+      [
+        `import { installCliCrashCapture } from ${JSON.stringify(CAPTURE)};`,
+        `installCliCrashCapture();`,
+        `Promise.reject(new RangeError('async kaboom'));`,
+      ].join('\n'),
+    );
+
+    const result = spawnSync('bun', [fixture, 'architecture'], {
+      cwd: directory,
+      env: { ...process.env, CLAUDE_PROJECT_DIR: directory },
+      encoding: 'utf8',
+      timeout: TIMEOUT_QUICK,
+    });
+
+    expect(result.status).toBe(1);
+    const records = readReports(directory);
+    expect(records).toHaveLength(1);
+    expect(records[0]?.source).toBe('architecture');
+    expect(records[0]?.errorClass).toBe('RangeError');
+    expect(JSON.stringify(records[0])).not.toContain('kaboom');
+  });
+
   it('records nothing for a deliberate non-zero status exit (#720)', () => {
     const result = spawnSync('bun', [CLI, 'codify', 'NOSUCHTICKET'], {
       cwd: directory,
@@ -75,7 +105,7 @@ describe('CLI crash capture (5XXQQZ / #720)', () => {
     });
 
     // codify exits 1 by design when the ticket folder is missing.
-    expect(result.status).not.toBe(0);
+    expect(result.status).toBe(1);
     // The deliberate status exit must NOT be spooled as a crash.
     expect(readReports(directory)).toHaveLength(0);
   });
