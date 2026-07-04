@@ -61,7 +61,7 @@ Each propose-and-converge turn either surfaces new scenarios or doesn't. When a 
 
 **Discovery shorthand** (in chat, presenting to user): Rule + bare scenario checkboxes — fast to read, easy to amend in conversation. This is what turn-1 above looks like.
 
-**Saved source** (`features/<slug>.feature`): Gherkin `Feature` / `Rule` / `Scenario` with lineage as `@<jtbd-id>.AC<#>` tags. This is the executable behavior source that the Cucumber lane runs and `/review-spec`, `safeword check`, and `codify` read.
+**Saved source** (`features/<slug>.feature`; under `paths.features` when configured): Gherkin `Feature` / `Rule` / `Scenario` with lineage as `@<jtbd-id>.AC<#>` tags. This is the executable behavior source that the Cucumber lane runs and `/review-spec`, `safeword check`, and `codify` read.
 
 ### Surface coverage tags
 
@@ -186,7 +186,7 @@ delivery retries on exponential backoff`). IDs are 1-indexed per job and
 
 ### Define Behavior Exit (REQUIRED)
 
-1. **Save scenarios** to `features/<slug>.feature`
+1. **Save scenarios** to the feature lane: `features/<slug>.feature` (under `paths.features` when configured)
 2. **Save the R/G/R ledger** to `<namespace-root>/tickets/{ID}-{slug}/test-definitions.md`
 3. **Update frontmatter:** `phase: scenario-gate`
 4. **Add work log entry:**
@@ -236,7 +236,7 @@ If the adversarial pass + user feedback produced new scenarios → loop back to 
 
 ### Optional: codify the scenarios
 
-After the gate, `safeword codify <ticket>` derives implementation stubs from the `.feature` source — a front-loaded "N tests to make pass" board, instead of writing each test at its RED step. Cucumber acceptance proof still comes from matching step definitions and `test:bdd`.
+After the gate, `safeword codify <ticket>` derives implementation stubs from the `.feature` source — a front-loaded "N tests to make pass" board, instead of writing each test at its RED step. Cucumber acceptance proof still comes from matching step definitions and `test:bdd`. When `.safeword/config.json` sets `bdd.conventions`, read that doc and follow its stub shape, verification lane, and tag rules over these defaults.
 
 - Default: a native vitest skeleton — one `describe` per rule, `it.todo` per scenario (`--red` for failing bodies); print to stdout or `--out <path>`.
 - `--format gherkin`: prints the feature source when one exists; on legacy tickets, emits a migration `.feature` from markdown scenarios.
