@@ -203,7 +203,7 @@ function advance(
  * AC-shaped id wins over a rule-shaped prefix (`feat.R1.AC1` is an AC of
  * JTBD `feat.R1`).
  */
-export function isRuleId(id: string): boolean {
+function isRuleId(id: string): boolean {
   return /\.R\d+$/.test(id);
 }
 

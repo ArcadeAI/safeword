@@ -55,7 +55,7 @@ export function migrateAc(options: MigrateAcOptions = {}): Promise<void> {
 }
 
 /** Rewrite `.AC` -> `.R` across active ticket units; returns what changed. */
-export function runMigrateAc(cwd: string, dryRun: boolean): MigrateAcReport {
+function runMigrateAc(cwd: string, dryRun: boolean): MigrateAcReport {
   const migrated: string[] = [];
   const refused: { path: string; jtbds: string[] }[] = [];
   const ticketsRoot = resolveTicketsDirectory(cwd);
