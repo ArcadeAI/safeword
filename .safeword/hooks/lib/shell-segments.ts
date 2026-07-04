@@ -87,11 +87,15 @@ export function parseShellWords(segment: string): string[] {
 
 /**
  * Index of the first word that is the actual command name — skipping a leading
- * run of `VAR=val` environment assignments, a `command` prefix, and an
- * `env [NAME=value ...]` prefix (with env's own assignments).
+ * subshell/group opener (`(` / `{`), a run of `VAR=val` environment
+ * assignments, a `command` prefix, and an `env [NAME=value ...]` prefix (with
+ * env's own assignments). Skipping the opener means `( git commit )` and
+ * `( sed -i … <ledger> )` resolve to the real command word, not `(`.
  */
 export function commandWordIndex(words: string[]): number {
-  let index = skipEnvironmentAssignments(words, 0);
+  let index = 0;
+  while (words[index] === '(' || words[index] === '{') index += 1;
+  index = skipEnvironmentAssignments(words, index);
   if (words[index] === 'command') index += 1;
   if (words[index] !== 'env') return index;
 

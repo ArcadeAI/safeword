@@ -68,9 +68,9 @@ Unaffected:
 - **Ledger file** — a `test-definitions.md` under the project namespace's `tickets/` tree:
   the R/G/R record whose checkboxes carry SHA-or-skip annotations.
 - **Write-shaped reference** — a command construct that names a ledger file as a mutation
-  target: in-place edit flags (`sed -i`, `perl -i`), output redirection (`>`, `>>`),
-  `tee`, a move/copy destination, `truncate`, or an inline interpreter invocation that
-  names the path.
+  target: in-place edit flags (`sed`/`gsed`/`perl -i`), output redirection (`>`, `>>`,
+  `&>`, `>|`, fd-prefixed), `tee`, a move/copy/install destination (positional or
+  `-t <dir>`), `truncate`, or an inline interpreter invocation that names the path.
 - **Channel-forcing** — denying the uninspectable channel (Bash) so mutations must travel
   the channel whose payload the gate can validate (Edit/Write/MultiEdit).
 

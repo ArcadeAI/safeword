@@ -54,8 +54,40 @@ describe('detectLedgerWrite', () => {
         'cp -t into the ticket directory',
         'cp -t .project/tickets/GH628F/ /tmp/test-definitions.md',
       ],
+      [
+        'cp -t=<dir> fused form into the ticket directory',
+        'cp --target-directory=.project/tickets/GH628F/ /tmp/test-definitions.md',
+      ],
+      [
+        'cp positional directory destination',
+        `cp /tmp/test-definitions.md .project/tickets/GH628F/`,
+      ],
+      ['install destination', `install -m 644 /tmp/forged.md ${LEDGER}`],
+      ['fd-prefixed append redirection', `echo '- [x] RED' 2>> ${LEDGER}`],
+      ['fd-prefixed output redirection', `echo '- [x] RED' 1> ${LEDGER}`],
+      ['subshell in-place edit', String.raw`( sed -i 's/^- \[ \] /- [x] /' ${LEDGER} )`],
+      [
+        'inline interpreter that only reads (over-approximate deny)',
+        `python3 -c 'print(open("${LEDGER}").read())'`,
+      ],
     ])('Scenario outline: %s targeting the ledger is denied', (_shape, command) => {
       expect(detectLedgerWrite(command)).toBeDefined();
+    });
+
+    it('Scenario: the detected shape and path are reported correctly', () => {
+      // Pin the fields, not just "defined" — append vs output, and the exact path.
+      expect(detectLedgerWrite(`printf x >> ${LEDGER}`)).toMatchObject({
+        shape: 'append redirection',
+        path: LEDGER,
+      });
+      expect(detectLedgerWrite(`echo x > ${LEDGER}`)).toMatchObject({
+        shape: 'output redirection',
+        path: LEDGER,
+      });
+      expect(detectLedgerWrite(`sed -i 's/a/b/' ${LEDGER}`)).toMatchObject({
+        shape: 'sed in-place edit',
+        path: LEDGER,
+      });
     });
 
     it('Scenario: a write-shaped segment inside a compound command is denied', () => {
@@ -73,6 +105,13 @@ describe('detectLedgerWrite', () => {
       ).toBeUndefined();
       expect(detectLedgerWrite(`cat ${LEDGER} >> /tmp/backup.md`)).toBeUndefined();
     });
+
+    it('Scenario: copying the ledger OUT via -t (ledger is the source) is allowed', () => {
+      // With -t, the destination is the flag's directory and the ledger is a
+      // SOURCE being relocated/backed up — not a checkbox mutation.
+      expect(detectLedgerWrite(`mv -t /backup/ ${LEDGER}`)).toBeUndefined();
+      expect(detectLedgerWrite(`cp --target-directory=/tmp ${LEDGER}`)).toBeUndefined();
+    });
   });
 
   describe('Rule: The gate scopes to the tickets namespace', () => {
@@ -89,6 +128,12 @@ describe('detectLedgerWrite', () => {
       expect(
         detectLedgerWrite('echo x > .project/tickets/GH628F/my-test-definitions.md'),
       ).toBeUndefined();
+    });
+
+    it('Scenario: a ledger under the legacy .safeword-project namespace is detected', () => {
+      expect(
+        detectLedgerWrite('echo x > .safeword-project/tickets/GH628F/test-definitions.md'),
+      ).toBeDefined();
     });
   });
 

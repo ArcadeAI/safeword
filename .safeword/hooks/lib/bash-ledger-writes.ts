@@ -15,7 +15,9 @@
 //   - shell variables and parameter expansion (`f=<ledger>; sed -i … "$f"`)
 //   - `eval`, command substitution (`$(…)`), and arithmetic/brace expansion
 //   - script files (`bash tick-boxes.sh`) and functions that embed the path
-//   - `dd of=<ledger>` and exotic writers not in the shape list below
+//   - `dd of=<ledger>`, `ln -f`, and exotic writers not in the shape list below
+//   - a redirection glued to the previous token with no space (`echo x>ledger`);
+//     only space-separated or fd-prefixed `>`/`>>` operators are tokenized
 //   - paths that reach the ledger only after symlink or `cd` resolution
 //   - a write following a single `&` (background operator) whose segment's
 //     command word is the backgrounded command — `&` is not a segment
@@ -40,13 +42,14 @@ export interface LedgerWriteDetection {
   path: string;
 }
 
+/** True when a token has the ledger basename, boundary-anchored so `my-test-definitions.md` isn't one. */
+function isTestDefinitionsBasename(token: string): boolean {
+  return token === 'test-definitions.md' || token.endsWith('/test-definitions.md');
+}
+
 /** True when a token is a literal path to an R/G/R ledger file. */
 function isLedgerPath(token: string): boolean {
-  // Boundary-anchored basename so `my-test-definitions.md` is not a ledger.
-  return (
-    (token === 'test-definitions.md' || token.endsWith('/test-definitions.md')) &&
-    isNamespacePath(token, 'tickets/')
-  );
+  return isTestDefinitionsBasename(token) && isNamespacePath(token, 'tickets/');
 }
 
 const IN_PLACE_EDITORS = new Set(['sed', 'perl', 'gsed']);
@@ -55,8 +58,8 @@ function isInPlaceFlag(word: string): boolean {
   return /^-i/.test(word) || word === '--in-place' || word.startsWith('--in-place=');
 }
 
-/** Commands whose last argument is the file being (over)written. */
-const DESTINATION_WRITERS = new Set(['mv', 'cp']);
+/** Commands whose last argument is the file being (over)written (`install` mirrors `cp`). */
+const DESTINATION_WRITERS = new Set(['mv', 'cp', 'install']);
 
 /** Commands whose ledger argument is mutated regardless of position. */
 const ARGUMENT_WRITERS = new Set(['tee', 'truncate']);
@@ -81,9 +84,13 @@ const INLINE_INTERPRETERS = new Set([
   'zsh',
 ]);
 
-/** An inline-code flag: -e / -c alone or in a bundle (-pe, -ne), or --eval=…. */
+/**
+ * An inline-code flag: `-c` / `-e` alone or in a short perl-style bundle
+ * (`-pe`, `-ne`, `-nE`), or `--eval`. Bounded length so ordinary long flags
+ * like `-check` or `-nice` don't count as inline-code carriers.
+ */
 function isInlineCodeFlag(word: string): boolean {
-  return /^-\w*[ce]/.test(word) || word.startsWith('--eval');
+  return /^-[a-z]{0,2}[ce]$/i.test(word) || word.startsWith('--eval');
 }
 
 /**
@@ -148,19 +155,30 @@ function detectInSegment(segment: string): LedgerWriteDetection | undefined {
   }
 
   if (DESTINATION_WRITERS.has(commandWord)) {
-    const destination = arguments_.at(-1);
-    if (destination !== undefined && isLedgerPath(destination)) {
-      return { shape: `${commandWord} destination`, path: destination };
-    }
-    // `-t <dir>` form: a source named test-definitions.md landing in a
-    // tickets-namespace directory becomes a ledger at the destination.
     const targetDirectory = flagTargetDirectory(rest);
-    if (targetDirectory !== undefined && isNamespacePath(targetDirectory, 'tickets/')) {
-      const ledgerSource = arguments_.find(
-        word => word === 'test-definitions.md' || word.endsWith('/test-definitions.md'),
-      );
-      if (ledgerSource !== undefined) {
-        return { shape: `${commandWord} into ticket directory`, path: ledgerSource };
+    if (targetDirectory !== undefined) {
+      // `-t <dir>` form: the destination is the flag's directory and every
+      // positional is a SOURCE — so the last positional is NOT a destination
+      // (guards the false positive where the ledger is being copied OUT).
+      if (isNamespacePath(targetDirectory, 'tickets/')) {
+        const ledgerSource = arguments_.find(isTestDefinitionsBasename);
+        if (ledgerSource !== undefined) {
+          return { shape: `${commandWord} into ticket directory`, path: ledgerSource };
+        }
+      }
+    } else {
+      const destination = arguments_.at(-1);
+      if (destination !== undefined && isLedgerPath(destination)) {
+        return { shape: `${commandWord} destination`, path: destination };
+      }
+      // Positional directory form (`cp <src…> <ticket-dir>/`): a source named
+      // test-definitions.md landing in a tickets-namespace directory becomes a
+      // ledger at the destination.
+      if (destination !== undefined && isNamespacePath(destination, 'tickets/')) {
+        const ledgerSource = arguments_.slice(0, -1).find(isTestDefinitionsBasename);
+        if (ledgerSource !== undefined) {
+          return { shape: `${commandWord} into ticket directory`, path: ledgerSource };
+        }
       }
     }
   }

@@ -8,7 +8,7 @@ command string, unit-testable as a pure predicate; no [agent] partitions.
 | Dimension                  | Partitions                                                                            | AC                 |
 | -------------------------- | ------------------------------------------------------------------------------------- | ------------------ |
 | Reference kind             | no ledger reference / read-only reference / write-shaped reference                    | SM1.AC1, SM1.AC2, SM2.AC2 |
-| Write shape                | in-place editor flag (`sed -i`, `perl -i`) / redirection (`>`, `>>`) / `tee` target / `mv`-`cp` destination / `truncate` / inline interpreter naming the path | SM1.AC1            |
+| Write shape                | in-place editor flag (`sed`/`gsed`/`perl -i`) / redirection (`>`, `>>`, `&>`, `>\|`, fd-prefixed) / `tee` target / `mv`-`cp`-`install` destination (positional or `-t <dir>`) / `truncate` / inline interpreter naming the path | SM1.AC1            |
 | Target path form           | literal path to `test-definitions.md` under tickets namespace / same basename outside the namespace / obfuscated (variable, substitution, script file) — undetectable by design | SM1.AC1, SM2.AC1, SM2.AC2 |
 | Command compounding        | single segment / multi-segment (`&&`, `;`, `\|`, newline) with the write in any one segment | SM1.AC1            |
 | Harness                    | Claude (direct) / Codex (adapter-translated Bash) / Cursor (`requiresFailClosedShellGate` pre-filter) | SM1.AC3            |
