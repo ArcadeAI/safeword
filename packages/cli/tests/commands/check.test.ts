@@ -984,9 +984,9 @@ describe('Test Suite 8: Health Check', () => {
 
       const combined = `${result.stdout}\n${result.stderr}`;
       expect(combined).toMatch(
-        /numbered rule demo\.DEV2\.R1 has no scenario illustrating it \(uncovered\) — add a scenario tagged @demo\.DEV2\.R1/,
+        /rule demo\.DEV2\.R1 has no scenario illustrating it \(uncovered\) — add a scenario tagged @demo\.DEV2\.R1/,
       );
-      expect(combined).toMatch(/scenario ref demo\.DEV2\.R5 matches no numbered rule.*stale ref/);
+      expect(combined).toMatch(/scenario ref demo\.DEV2\.R5 matches no rule.*stale ref/);
       expect(combined).toMatch(/scenario ref ghost\.SM1\.R1 names no JTBD.*orphan/);
     });
 
@@ -1026,20 +1026,77 @@ describe('Test Suite 8: Health Check', () => {
       expect(combined).not.toMatch(/no example of the rule being broken/);
     });
 
-    it('rule-tier.TB1.AC4: flags a JTBD declaring both ACs and numbered Rules as a check issue', async () => {
+    it('rule-tier-convergence.SM1.R2: a JTBD declaring both AC and Rule headings raises no mixed-criteria issue and still traces both', async () => {
       await createConfiguredProject(temporaryDirectory);
-      writeTicket('RUL004-demo', 'in_progress', {
+      writeTicket('CNV001-demo', 'in_progress', {
         'spec.md': [SPEC_TWO_ACS, '#### demo.DEV1.R1 — an invariant beside the ACs', ''].join('\n'),
         'test-definitions.md': scenarioTitle('demo.DEV1.AC1.happy_path'),
       });
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(1);
       const combined = `${result.stdout}\n${result.stderr}`;
-      expect(combined).toMatch(
-        /JTBD demo\.DEV1 declares both Acceptance Criteria and numbered Rules; keep one criteria kind per job — convert one set or split the job/,
+      // Guard retired: mixing AC and Rule headings under one JTBD is no longer an issue.
+      expect(combined).not.toMatch(
+        /mixing criteria kinds|keep one criteria kind per job|declares both Acceptance Criteria and numbered Rules/i,
       );
+      expect(result.exitCode).toBe(0);
+      // ...but the JTBD is still parsed: the unreferenced AC2 and R1 both trace as uncovered.
+      expect(combined).toMatch(/demo\.DEV1\.AC2.*uncovered/i);
+      expect(combined).toMatch(/demo\.DEV1\.R1.*uncovered/i);
+    });
+
+    it('rule-tier-convergence.SM1.R2: an uncovered legacy AC id is reported as a Rule, never an Acceptance Criterion', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTicket('CNV002-demo', 'in_progress', {
+        'spec.md': SPEC_TWO_ACS,
+        'test-definitions.md': scenarioTitle('demo.DEV1.AC1.happy_path'),
+      });
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      const combined = `${result.stdout}\n${result.stderr}`;
+      expect(combined).toMatch(/demo\.DEV1\.AC2.*uncovered/i);
+      // Single vocabulary: the advisory calls it a rule, never an acceptance criterion.
+      expect(combined).not.toMatch(/acceptance criterion/i);
+    });
+
+    it('rule-tier-convergence.SM1.R2: legacy AC stale and orphan refs are worded in Rule terms', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTicket('CNV003-demo', 'in_progress', {
+        'spec.md': SPEC_TWO_ACS,
+        // AC9 stale (JTBD demo.DEV1 exists, AC9 does not); ghost.SM1.AC1 orphan (no such JTBD).
+        'test-definitions.md': scenarioTitle('demo.DEV1.AC9.stale_ref'),
+      });
+      writeTestFile(
+        temporaryDirectory,
+        'features/demo.feature',
+        [
+          'Feature: Demo',
+          '',
+          '  Rule: r',
+          '',
+          '    @demo.DEV1.AC9',
+          '    Scenario: stale ac ref',
+          '      Given a',
+          '      When b',
+          '      Then c',
+          '',
+          '    @ghost.SM1.AC1',
+          '    Scenario: orphan ac ref',
+          '      Given a',
+          '      When b',
+          '      Then c',
+          '',
+        ].join('\n'),
+      );
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      const combined = `${result.stdout}\n${result.stderr}`;
+      expect(combined).toMatch(/demo\.DEV1\.AC9 matches no rule under its JTBD \(stale ref\)/);
+      expect(combined).toMatch(/ghost\.SM1\.AC1 names no JTBD in spec\.md \(orphan\)/);
+      expect(combined).not.toMatch(/matches no AC/i);
     });
 
     it('stays silent for a done ticket whose scenarios predate the scheme', async () => {

@@ -164,13 +164,6 @@ function recordRuleRejections(
   }
 }
 
-/** JTBD ids declaring both ACs and numbered Rules — one criteria kind per job. */
-export function findMixedCriteriaJtbds(specContent: string): string[] {
-  return [...parseCriteriaIdsByJtbd(specContent)]
-    .filter(([, criteria]) => criteria.acIds.length > 0 && criteria.ruleIds.length > 0)
-    .map(([jtbd]) => jtbd);
-}
-
 /** Apply one heading to the JTBD/criteria walk, recording ids into `byJtbd`. */
 function advance(
   state: WalkState,

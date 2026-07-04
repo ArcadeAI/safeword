@@ -17,7 +17,6 @@ import {
   buildCoverageReport,
   buildCoverageReportFromFeature,
   buildSurfaceCoverageReportFromFeature,
-  findMixedCriteriaJtbds,
   findRulesMissingRejectionPaths,
   parseAcIdsByJtbd,
   parseAcReferenceFromTitle,
@@ -45,7 +44,6 @@ const ONE_AC = '### demo.DEV1 — Trace\n\n**Persona:** DEV\n\n#### demo.DEV1.AC
 const TWO_ACS = `${ONE_AC}\n\n#### demo.DEV1.AC2 — capability two`;
 const ONE_RULE =
   '### demo.DEV2 — Retry\n\n**Persona:** DEV\n\n#### demo.DEV2.R1 — failed deliveries retry on backoff';
-const MIXED = `${ONE_AC}\n\n#### demo.DEV1.R1 — an invariant slipped in beside the AC`;
 
 describe('parseAcReferenceFromTitle (R1 — title parses to its AC reference, or none)', () => {
   it('cross-reference-numbering.DEV1.AC1.conformant_title_yields_ac_ref', () => {
@@ -97,16 +95,6 @@ describe('parseCriteriaIdsByJtbd (rule tier — AC vs R heading classification)'
   it('rule-tier.TB1.AC3.parse_ac_ids_no_longer_counts_rule_headings', () => {
     const byJtbd = parseAcIdsByJtbd(spec(ONE_RULE));
     expect(byJtbd.get('demo.DEV2')).toEqual([]);
-  });
-});
-
-describe('findMixedCriteriaJtbds (rule tier — one criteria kind per JTBD)', () => {
-  it('rule-tier.TB1.AC4.mixed_jtbd_detected', () => {
-    expect(findMixedCriteriaJtbds(spec(MIXED))).toEqual(['demo.DEV1']);
-  });
-
-  it('rule-tier.TB1.AC4.single_kind_jtbds_not_mixed', () => {
-    expect(findMixedCriteriaJtbds(spec(`${TWO_ACS}\n\n${ONE_RULE}`))).toEqual([]);
   });
 });
 

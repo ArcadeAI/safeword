@@ -40,9 +40,7 @@ import {
   buildCoverageReportFromFeature,
   buildSurfaceCoverageReportFromFeature,
   type CoverageReport,
-  findMixedCriteriaJtbds,
   findRulesMissingRejectionPaths,
-  isRuleId,
   type SurfaceCoverageReport,
 } from './utils/scenario-coverage.js';
 import { formatTicketReference } from './utils/ticket-reference.js';
@@ -382,8 +380,10 @@ function coverageDiagnosticsForTicket(
   }
 }
 
-/** Rule-tier findings for one ticket: mixed-criteria JTBDs (issues) and
- * numbered rules missing a rejection-path scenario (advisories). */
+/** Rule-tier findings for one ticket: numbered rules missing a rejection-path
+ * scenario (advisories). The pre-convergence mixed-criteria issue is retired —
+ * AC and Rule are one tier now (ticket 1SVCB9), so a JTBD carrying both spellings
+ * is no longer flagged. */
 function ruleTierDiagnostics(
   ticketId: string,
   specContent: string,
@@ -391,10 +391,7 @@ function ruleTierDiagnostics(
 ): CoverageDiagnostics {
   const label = formatCoverageTicketLabel(ticketId);
   return {
-    issues: findMixedCriteriaJtbds(specContent).map(
-      jtbd =>
-        `${label}: JTBD ${jtbd} declares both Acceptance Criteria and numbered Rules; keep one criteria kind per job — convert one set or split the job`,
-    ),
+    issues: [],
     advisories:
       featureSource === undefined
         ? []
@@ -442,24 +439,25 @@ function isInProgress(ticketContent: string): boolean {
   return false;
 }
 
-/** Render a coverage report into one advisory string per finding. */
+/**
+ * Render a coverage report into one advisory string per finding. One Rule
+ * vocabulary regardless of a criterion id's spelling (ticket 1SVCB9): a legacy
+ * `.AC` id and a `.R` id read identically — everything is a rule now.
+ */
 function formatCoverageReport(ticketId: string, report: CoverageReport): string[] {
   const ticketLabel = formatCoverageTicketLabel(ticketId);
   return [
-    ...report.uncovered.map(id =>
-      isRuleId(id)
-        ? `${ticketLabel}: numbered rule ${id} has no scenario illustrating it (uncovered) — add a scenario tagged @${id}`
-        : `${ticketLabel}: acceptance criterion ${id} has no scenario (uncovered)`,
+    ...report.uncovered.map(
+      id =>
+        `${ticketLabel}: rule ${id} has no scenario illustrating it (uncovered) — add a scenario tagged @${id}`,
     ),
-    ...report.stale.map(reference =>
-      isRuleId(reference)
-        ? `${ticketLabel}: scenario ref ${reference} matches no numbered rule under its JTBD (stale ref) — retag to a declared rule or declare it in spec.md`
-        : `${ticketLabel}: scenario ref ${reference} matches no AC under its JTBD (stale ref)`,
+    ...report.stale.map(
+      reference =>
+        `${ticketLabel}: scenario ref ${reference} matches no rule under its JTBD (stale ref) — retag to a declared rule or declare it in spec.md`,
     ),
-    ...report.orphan.map(reference =>
-      isRuleId(reference)
-        ? `${ticketLabel}: scenario ref ${reference} names no JTBD in spec.md (orphan) — fix the tag's JTBD id or add that JTBD to spec.md`
-        : `${ticketLabel}: scenario ref ${reference} names no JTBD in spec.md (orphan)`,
+    ...report.orphan.map(
+      reference =>
+        `${ticketLabel}: scenario ref ${reference} names no JTBD in spec.md (orphan) — fix the tag's JTBD id or add that JTBD to spec.md`,
     ),
   ];
 }
