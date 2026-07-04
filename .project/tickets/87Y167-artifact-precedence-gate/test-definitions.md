@@ -196,6 +196,12 @@ test-definitions.md is the R/G/R ledger. Scenario names mirror the feature sourc
 - [x] GREEN 8da8646
 - [x] REFACTOR skip: no post-green refactor for this scenario; structural prep done pre-impl (282b395, 743284d), cross-scenario pass below
 
+### Scenario: An unreadable feature source falls back to the ledger and still denies
+
+- [x] RED 1935b5f
+- [x] GREEN 1935b5f
+- [x] REFACTOR skip: crash-to-fail-open fix from whole-ticket review; RED (allow) verified in-session before the src fix, GREEN in the same commit — no separate refactor
+
 ### Scenario: An implement advance via MultiEdit is gated like an Edit
 
 - [x] RED e66dc54
