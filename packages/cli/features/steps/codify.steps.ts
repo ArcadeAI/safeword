@@ -8,7 +8,7 @@ import { promisify } from 'node:util';
 
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
-import type { SafewordWorld } from './world.js';
+import type { CliResult, SafewordWorld } from './world.js';
 
 const execFileAsync = promisify(execFile);
 const CLI_PATH = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
@@ -212,41 +212,95 @@ Given('the safeword skill templates', function (this: SafewordWorld) {
   this.temporaryDirectory = '';
 });
 
-When('I run {string}', async function (this: SafewordWorld, argumentLine: string) {
+interface CliSpawnFailure {
+  code?: number | string;
+  signal?: string;
+  killed?: boolean;
+  message?: string;
+}
+
+interface CliRun {
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+  /**
+   * True only for the transient infra signature: the subprocess was KILLED
+   * (timeout → SIGTERM, or OOM) AND produced no output at all. A real non-zero
+   * exit prints diagnostics (`stderr` non-empty), so this never matches a
+   * genuine "check found problems" or an assertion-relevant result.
+   */
+  killedWithNoOutput: boolean;
+  failure?: CliSpawnFailure;
+}
+
+async function runCliOnce(argumentLine: string, cwd: string): Promise<CliRun> {
   try {
     const { stdout, stderr } = await execFileAsync(
       process.execPath,
       [CLI_PATH, ...argumentLine.split(' ')],
-      { cwd: this.temporaryDirectory, timeout: 30_000, maxBuffer: 16 * 1024 * 1024 },
+      { cwd, timeout: 30_000, maxBuffer: 16 * 1024 * 1024 },
     );
-    this.result = { stdout, stderr, exitCode: 0 };
+    return { stdout, stderr, exitCode: 0, killedWithNoOutput: false };
   } catch (error: unknown) {
-    const failure = error as {
-      stdout?: string;
-      stderr?: string;
-      code?: number | string;
-      signal?: string;
-      killed?: boolean;
-      message?: string;
-    };
+    const failure = error as CliSpawnFailure & { stdout?: string; stderr?: string };
     const stdout = failure.stdout ?? '';
     const stderr = failure.stderr ?? '';
-    // A non-zero exit that still produced output is the normal "check found
-    // problems" path. Empty output means the subprocess never reported — it
-    // crashed, was killed (OOM/timeout → signal), or failed to spawn (missing
-    // dist → ENOENT). Preserve that diagnostic instead of a blank, so a rare CI
-    // flake is debuggable rather than a confusing "output does not contain X"
-    // with nothing to go on.
-    const noOutputDiagnostic =
-      stdout === '' && stderr === ''
-        ? `[no subprocess output] code=${String(failure.code)} signal=${String(failure.signal)} killed=${String(failure.killed)} cli=${CLI_PATH}: ${failure.message ?? ''}`
-        : '';
-    this.result = {
+    const killedWithNoOutput =
+      stdout === '' && stderr === '' && (failure.killed === true || Boolean(failure.signal));
+    return {
       stdout,
-      stderr: `${stderr}${noOutputDiagnostic}`,
+      stderr,
       exitCode: typeof failure.code === 'number' ? failure.code : 1,
+      killedWithNoOutput,
+      failure,
     };
   }
+}
+
+/**
+ * Run the CLI with the single-retry infra-kill policy and fold the no-output
+ * diagnostic into the returned result — the world-facing outcome the step records.
+ *
+ * A ~1s CLI command that is SIGTERM-killed with NO output is the infra-contention
+ * signature — starved past its 30s timeout under concurrent test load
+ * (deterministic locally, flaky on a shared CI runner), not a product failure.
+ * Retry that one signature exactly once; a content mismatch (output present but
+ * wrong) and a genuine hang (the retry times out too) both still fail. Scoped to
+ * empty output as a cold-start proxy: a command killed before its first byte of
+ * output almost certainly died before any side effect. That proxy holds for the
+ * commands this step drives today (read-only `check`, stdout-printing `codify`);
+ * a future command that mutates the temp dir before printing anything would need
+ * a tighter guard before it could be retried. Chosen via /figure-it-out
+ * (2026-07-04) over a blanket timeout bump / cucumber --retry, both of which
+ * would mask real failures rather than only the transient infra-kill.
+ */
+async function runCli(argumentLine: string, cwd: string): Promise<CliResult> {
+  let run = await runCliOnce(argumentLine, cwd);
+  const retried = run.killedWithNoOutput;
+  if (retried) {
+    run = await runCliOnce(argumentLine, cwd);
+  }
+
+  // On a FAILED run with no output, the subprocess never reported — killed
+  // (OOM/timeout → signal), crashed, or failed to spawn (missing dist → ENOENT).
+  // Preserve that diagnostic instead of a blank, so a rare failure is debuggable
+  // rather than a confusing "output does not contain X" with nothing to go on.
+  // Gated on `run.failure` (set only on the catch path) so a silently-succeeding
+  // command doesn't get a spurious "[no subprocess output] code=undefined" tag.
+  const retrySuffix = retried ? ' after 1 retry' : '';
+  const noOutputDiagnostic =
+    run.failure !== undefined && run.stdout === '' && run.stderr === ''
+      ? `[no subprocess output${retrySuffix}] code=${String(run.failure.code)} signal=${String(run.failure.signal)} killed=${String(run.failure.killed)} cli=${CLI_PATH}: ${run.failure.message ?? ''}`
+      : '';
+  return {
+    stdout: run.stdout,
+    stderr: `${run.stderr}${noOutputDiagnostic}`,
+    exitCode: run.exitCode,
+  };
+}
+
+When('I run {string}', async function (this: SafewordWorld, argumentLine: string) {
+  this.result = await runCli(argumentLine, this.temporaryDirectory);
 });
 
 Then('the output contains {string}', function (this: SafewordWorld, text: string) {
