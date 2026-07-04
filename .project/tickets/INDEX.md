@@ -6,6 +6,7 @@
 <!-- prettier-ignore-start -->
 
 ## Tickets (380)
+## Tickets (376)
 
 ### agent-surface-refactor
 
@@ -1184,6 +1185,9 @@
 - **Apply quality-review polish to bdd SCENARIOS.md (VZK191)** (done, epic: —)
   Apply the small content nits the quality-review surfaced in the bdd `SCENARIOS.md` (the file XN5SPN/9FSPM8/XBY5QR landed) so the shipped skill reads cleanly before those tickets close.
   → `.project/tickets/VZK191-scenarios-polish`
+- **Gate Bash-channel writes to the R/G/R ledger (#644 G3) (W42G34)** (in_progress, epic: —)
+  Deny Bash-channel writes to R/G/R ledger files at PreToolUse on all three harnesses, forcing ledger mutations onto the Edit channel where the SHA-or-skip annotation gate can validate them (#644 G3).
+  → `.project/tickets/W42G34-bash-ledger-write-gate`
 - **Whole-ticket quality review + refactor before verify (W610WW)** (done, epic: —)
   Make the end of implementation run one whole-ticket `/quality-review` → `/refactor` pass — for both BDD features and multi-loop TDD tasks — gated to fire only when there's more than one RGR loop.
   → `.project/tickets/W610WW-whole-ticket-quality-refactor`
