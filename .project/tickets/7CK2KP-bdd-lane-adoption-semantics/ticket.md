@@ -2,8 +2,8 @@
 id: 7CK2KP
 slug: bdd-lane-adoption-semantics
 type: feature
-phase: implement
-status: in_progress
+phase: done
+status: done
 blocked_on: []
 relates_to: [56JCFZ]
 external_issue: https://github.com/ArcadeAI/safeword/issues/650
@@ -67,3 +67,4 @@ Codebase audit of where each knob would land, against `main` + the 56JCFZ branch
 - 2026-07-03T16:55Z Issue #650 pickup: scope now has its own upstream issue (split from #645) — external_issue repointed. Recorded codebase-audit findings above; ticket carried onto branch `claude/safeword-issue-650-airxby`. Still blocked: 56JCFZ unmerged (no PR), schema evidence still N=1.
 - 2026-07-03T19:20Z Gate decision closed with user (design discussion on issue #650 branch): build the lean slice (deferral prose + `bdd.conventions` pointer key), defer all structured convention modeling pending a second real host. Scope/out_of_scope/done_when rewritten accordingly; option weighing recorded in Design Decision section. Still blocked on 56JCFZ landing (prose de-hardcoding touches files changed on that branch; `paths.features` deferral wording depends on its config keys).
 - 2026-07-03T19:35Z Lean slice implemented on `claude/safeword-issue-650-airxby`, stacked on the 56JCFZ branch (merged in; PR ordering: #645 branch must land first). `readBddConventionsPath` in configured-paths.ts; codify prints the pointer to stderr (stdout stays pipeable) — covered by 2 new e2e tests (15/15 codify tests pass; 51/51 across codify + lane-paths + schema). Prose de-hardcoded in TDD.md / SCENARIOS.md / planning-guide.md (templates + this repo's installed copies); `bdd.conventions` documented in configuration.mdx.
+- 2026-07-04T16:26Z Done: PR #756 open. Full pipeline green — /verify (4606 tests, 243 Gherkin, build/lint/typecheck), /audit 0/0, /quality-review (caught + fixed a rebuild regression that dropped the SQL-formatting docs section; finished prose de-hardcoding in planning-guide + bdd/SKILL.md), /refactor (code already minimal, no change). Ticket flipped implement→verify→done to satisfy the PR ticket-done gate.
