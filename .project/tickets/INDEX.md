@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (371)
+## Tickets (380)
 
 ### agent-surface-refactor
 
@@ -698,6 +698,10 @@
 - **lint-config-unify (54XH90)** (open, epic: —)
   Eliminate the local-vs-CI eslint config drift so devs don't ship code that passes locally then fails CI (or vice versa).
   → `.project/tickets/54XH90-lint-config-unify`
+- **BDD lane: detect existing cucumber harness, configurable feature/step paths (56JCFZ)** (done, epic: —)
+  Stop `safeword setup` from scaffolding a second cucumber harness into repos that already have one, and let hosts point safeword's BDD readers (codify / lint-gherkin / check) and the scaffolded runner at their own feature/step directories.
+  external issue: https://github.com/ArcadeAI/safeword/issues/645
+  → `.project/tickets/56JCFZ-bdd-lane-collision-detection-and-paths`
 - **Route the stop hook and /verify through safeword test-plan (5FF0ZD)** (done, epic: —)
   Make `test-runner.ts` and `/verify` consume the `safeword test-plan` resolver so per-language test/build command knowledge lives in exactly one place — killing the duplication 2FVZ26 introduced.
   → `.project/tickets/5FF0ZD-migrate-consumers-to-test-plan`
@@ -713,6 +717,9 @@
 - **Surface /explain to the NTB (5XOUDJ)** (done, epic: —)
   Make the NTB's one lifeline discoverable — in the README and proactively from the agent.
   → `.project/tickets/5XOUDJ-surface-explain-to-ntb`
+- **Self-report: capture only genuine CLI crashes, not deliberate non-zero exits (#720) (5XXQQZ)** (in_progress, epic: —)
+  Capture only genuine safeword CLI crashes (uncaught exceptions /
+  → `.project/tickets/5XXQQZ-capture-only-cli-crashes`
 - **Patterns catalog — scannable index + per-pattern detail (Rust-API-Guidelines two-part structure) (62PDX1)** (in_progress, epic: —)
   Create a safeword patterns catalog that complements PRINCIPLES.md by holding the MANY named, reusable tactical moves that instantiate the FEW principles. Two-part structure modeled on [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/about.html): a scannable checklist/index at `.safeword/PATTERNS.md` + per-pattern detail files at `.safeword/patterns/<id>.md`. Each pattern has a stable ID, names the principle(s) it instantiates via frontmatter, and documents purpose / context / example / anti-pattern caught.
   → `.project/tickets/62PDX1`
@@ -734,6 +741,10 @@
 - **Wire the phase-exit fork review to the cross-model knob (7A0B2K)** (done, epic: —)
   Let the Tier 2 phase-exit fork review (NMSD94) require a different-model reviewer when `crossModelReview` is on, reusing MR5M3A's `modelsMatch` / `isCrossModelReviewRequired` / `AUTHOR_MODEL_ENV` primitives in `review-ledger.ts`.
   → `.project/tickets/7A0B2K-scenario-review-cross-model`
+- **BDD lane adoption semantics: stub convention, verification lane, tag semantics (7CK2KP)** (blocked, epic: —)
+  Make `safeword codify` output and the BDD skill prose match an adopted host cucumber harness — not just its paths (56JCFZ) but its stub convention, spec-ahead verification lane, and tag-exclusion semantics.
+  external issue: https://github.com/ArcadeAI/safeword/issues/645
+  → `.project/tickets/7CK2KP-bdd-lane-adoption-semantics`
 - **Invisible retro: synchronous headless claude -p extraction (no conversation hijack) (7D8PJP)** (done, epic: —)
   Run the retro session-retrospective entirely out-of-band — in a separate
   → `.project/tickets/7D8PJP-invisible-retro-claude`
@@ -743,6 +754,9 @@
 - **Move stack-specific ESLint plugins to optional peer-deps (antfu pattern) (7JDZFF)** (in_progress, epic: —)
   Customers install only the ESLint plugins their stack actually uses. Backend-only Node services stop carrying `eslint-plugin-storybook`, `eslint-plugin-turbo`, `eslint-plugin-astro`, etc. as transitive deps. Matches the modern modular flat-ESLint-config convention (antfu/eslint-config, eslint-config-canonical).
   → `.project/tickets/7JDZFF`
+- **Refactor the verify and audit skills (7PG694)** (done, epic: —)
+  Restructure the /verify and /audit skill documents (all three synced copies each) per a fresh quality-review's refactor plan — cut bloat and duplication, harden the embedded scripts — while keeping every pinned contract green (verify-skill.test.ts, done-gate.ts verify.md parsing, invocation-log tests, 3-copy sync).
+  → `.project/tickets/7PG694-refactor-verify-audit-skills`
 - **Eliminate ambiguous smoke ticket ID warning (7VEYAY)** (in_progress, epic: —)
   Remove or intentionally isolate the duplicate `7K9M3P` fixture warning from smoke-fast output.
   → `.project/tickets/7VEYAY-eliminate-ambiguous-smoke-ticket-id-warning`
@@ -835,6 +849,7 @@
   → `.project/tickets/BM8HG4`
 - **Cloud retro filing: try-REST-then-agent-subagent transport (#568) (BNGK9W)** (done, epic: —)
   Make the invisible retro actually FILE its findings in a Claude cloud
+  blocks: Codex retro parity: invisible local extraction and Lane-2 filing (CDX602), Retro filer subagent gate: reliable, invisible cloud filing (GH628F)
   → `.project/tickets/BNGK9W-cloud-retro-filing-transport`
 - **Strengthen golden-path test quality (BPB39Q)** (in_progress, epic: —)
   Replace weak golden-path assertions and duplicated install/upgrade test shape with behavior-specific checks.
@@ -857,7 +872,18 @@
 - **Tune agent config audit signal (C4N0P8)** (in_progress, epic: —)
   Make agent-config audit warnings reflect actionable config risks instead of broad structural/staleness noise.
   → `.project/tickets/C4N0P8-tune-agent-config-audit-signal`
-- **Let maintainers commit dogfood hook changes without package-link setup (CQ4CD3)** (in_progress, epic: —)
+- **Prevent Cursor audit command drift (C7PXFR)** (in_progress, epic: —)
+  Prevent Cursor `/audit` from silently missing canonical audit skill updates.
+  external issue: https://github.com/ArcadeAI/safeword/issues/597
+  → `.project/tickets/C7PXFR-prevent-cursor-audit-drift`
+- **Codex retro parity: invisible local extraction and Lane-2 filing (CDX602)** (in_progress, epic: —)
+  Make local Codex match the invisible retro pipeline without hijacking the
+  blocked by: Cloud retro filing: try-REST-then-agent-subagent transport (#568) (BNGK9W)
+  blocks: Retro filer subagent gate: reliable, invisible cloud filing (GH628F)
+  external issue: https://github.com/ArcadeAI/safeword/issues/602
+  external PRs: https://github.com/ArcadeAI/safeword/pull/601
+  → `.project/tickets/CDX602-codex-retro-parity`
+- **Let maintainers commit dogfood hook changes without package-link setup (CQ4CD3)** (done, epic: —)
   Make the normal protected commit path work in Safeword source worktrees when staged files trigger `.safeword` ESLint.
   external issue: https://github.com/ArcadeAI/safeword/issues/470
   → `.project/tickets/CQ4CD3-commit-dogfood-hooks-without-package-link`
@@ -943,6 +969,17 @@
   → `.project/tickets/G8PBE6-knip-dynamic-load-false-positives`
 - **Auto-resolve merge conflicts on generated docs via `.gitattributes merge=union` (GA7T6M)** (todo, epic: —)
   → `.project/tickets/GA7T6M-generated-doc-merge-union`
+- **Retro filer subagent gate: reliable, invisible cloud filing (GH628F)** (done, epic: —)
+  Spooled retro findings get filed to the upstream tracker without human
+  blocked by: Cloud retro filing: try-REST-then-agent-subagent transport (#568) (BNGK9W), Codex retro parity: invisible local extraction and Lane-2 filing (CDX602)
+  blocks: Filer ack + bare-drain tripwire (GH644A)
+  external issue: https://github.com/ArcadeAI/safeword/issues/628
+  → `.project/tickets/GH628F-retro-filer-subagent-gate`
+- **Filer ack + bare-drain tripwire (GH644A)** (done, epic: —)
+  A drained spool no longer self-certifies filing: acks name the issues
+  blocked by: Retro filer subagent gate: reliable, invisible cloud filing (GH628F)
+  external issue: https://github.com/ArcadeAI/safeword/issues/658
+  → `.project/tickets/GH644A-filer-ack-tripwire`
 - **Quiet expected negative-path test output (GJGSS3)** (in_progress, epic: —)
   Keep passing full test runs quiet when negative-path fixtures intentionally print errors.
   → `.project/tickets/GJGSS3-quiet-expected-negative-path-test-output`
@@ -1131,6 +1168,9 @@
 - **Surface a present-but-unparseable workspace manager (coverage honesty) (UWP4XK)** (todo, epic: —)
   A workspace manager that is *present* at the repo root but whose member
   → `.project/tickets/UWP4XK-unparseable-workspace-coverage`
+- **Numbered Rule tier between JTBD and scenarios (V0NHT6)** (done, epic: —)
+  Add an optional numbered-Rule tier (`<jtbd-id>.R<#>`) to the scenario lineage so specs carry an invariant catalog with stable IDs, tier-aware checks, and expressiveness for Arcade's existing rule-numbered corpus (issue #649).
+  → `.project/tickets/V0NHT6-rule-tier`
 - **Formatter-aware lint hook: stop colliding with the customer's formatter (V7GGJZ)** (done, epic: —)
   The runtime auto-lint hook honors the formatter the customer already chose — it never
   → `.project/tickets/V7GGJZ-formatter-aware-lint-hook`
