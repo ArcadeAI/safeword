@@ -263,8 +263,11 @@ When('I run {string}', async function (this: SafewordWorld, argumentLine: string
   // load (deterministic locally, flaky on a shared CI runner), not a product
   // failure. Retry that one signature exactly once; a content mismatch (output
   // present but wrong) and a genuine hang (the retry times out too) both still
-  // fail. Scoped to empty output because a command killed before it printed
-  // anything almost certainly died at cold-start, before any side effect.
+  // fail. Scoped to empty output as a cold-start proxy: a command killed before
+  // its first byte of output almost certainly died before any side effect. That
+  // proxy holds for the commands this step drives today (read-only `check`,
+  // stdout-printing `codify`); a future command that mutates the temp dir before
+  // printing anything would need a tighter guard before it could be retried.
   // Chosen via /figure-it-out (2026-07-04) over a blanket timeout bump / cucumber
   // --retry, both of which would mask real failures (a content mismatch or a
   // genuine hang) rather than only the transient infra-kill.
@@ -274,14 +277,16 @@ When('I run {string}', async function (this: SafewordWorld, argumentLine: string
     run = await runCliOnce(argumentLine, this.temporaryDirectory);
   }
 
-  // Empty output means the subprocess never reported — killed (OOM/timeout →
-  // signal), crashed, or failed to spawn (missing dist → ENOENT). Preserve that
-  // diagnostic instead of a blank, so a rare failure is debuggable rather than a
-  // confusing "output does not contain X" with nothing to go on.
+  // On a FAILED run with no output, the subprocess never reported — killed
+  // (OOM/timeout → signal), crashed, or failed to spawn (missing dist → ENOENT).
+  // Preserve that diagnostic instead of a blank, so a rare failure is debuggable
+  // rather than a confusing "output does not contain X" with nothing to go on.
+  // Gated on `run.failure` (set only on the catch path) so a silently-succeeding
+  // command doesn't get a spurious "[no subprocess output] code=undefined" tag.
   const retrySuffix = retried ? ' after 1 retry' : '';
   const noOutputDiagnostic =
-    run.stdout === '' && run.stderr === ''
-      ? `[no subprocess output${retrySuffix}] code=${String(run.failure?.code)} signal=${String(run.failure?.signal)} killed=${String(run.failure?.killed)} cli=${CLI_PATH}: ${run.failure?.message ?? ''}`
+    run.failure !== undefined && run.stdout === '' && run.stderr === ''
+      ? `[no subprocess output${retrySuffix}] code=${String(run.failure.code)} signal=${String(run.failure.signal)} killed=${String(run.failure.killed)} cli=${CLI_PATH}: ${run.failure.message ?? ''}`
       : '';
   this.result = {
     stdout: run.stdout,
