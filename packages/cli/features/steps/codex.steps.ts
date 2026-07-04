@@ -1,5 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   chmodSync,
   existsSync,
@@ -16,6 +17,14 @@ import process from 'node:process';
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
 import type { SafewordWorld } from './world.js';
+
+// Reconstruct the review-stamp log-line contract (review-ledger.ts) rather than
+// importing it — the cucumber ESM loader doesn't resolve the .js→.ts template
+// specifier here. Scope: `<ticket>:<artifact>@<sha1-12 of content>`.
+function specReviewStampLine(ticketId: string, specContent: string): string {
+  const hash = createHash('sha1').update(specContent).digest('hex').slice(0, 12);
+  return `2026-01-01T00:00:00.000Z sess review:${ticketId}:spec@${hash}`;
+}
 
 const HOOK_PATH = nodePath.resolve(
   import.meta.dirname,
@@ -157,6 +166,13 @@ function createCompleteCodexHookTicket(projectRoot: string): void {
   const projectDirectory = nodePath.join(projectRoot, '.project');
   mkdirSync(projectDirectory, { recursive: true });
   writeFileSync(nodePath.join(projectDirectory, 'personas.md'), PERSONAS);
+  // Complete intake for a feature now includes a spec review stamp at the spec's
+  // current content — the always-on spec-review demand (87Y167, #644 G1) that
+  // scenarios build on a reviewed spec.
+  writeFileSync(
+    nodePath.join(projectDirectory, 'skill-invocations.log'),
+    `${specReviewStampLine(TICKET_ID, SPEC)}\n`,
+  );
 }
 
 function runCodexHook(
