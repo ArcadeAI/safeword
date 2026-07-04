@@ -2,7 +2,7 @@
 id: 1SVCB9
 slug: rule-tier-convergence
 type: feature
-phase: define-behavior
+phase: implement
 status: in_progress
 scope:
   - 'Single Rule tier in all authoring surfaces: spec-template (×2), bdd DISCOVERY/SCENARIOS (×3), review-spec, guides — scaffold `#### <jtbd>.R<n>` + `@<jtbd>.R<n>`, remove the "one criteria kind, never both" doctrine and AC-as-co-equal framing'
@@ -38,3 +38,6 @@ last_modified: 2026-07-04T03:49:30.927Z
 - 2026-07-04T03:49:30.927Z Started: Created ticket 1SVCB9
 - 2026-07-04T03:52:00.000Z Intake research: read #716 + resolved comment (soft-deprecate); mapped all AC/Rule touchpoints (core parsers, jtbd.ts ×2, health.ts, 3× skill mirrors, 2× spec-template, glossary/README/ARCHITECTURE/SAFEWORD.md, ~95 spec.md + ~39 .feature + ~27 test-definitions.md all AC-only). Authored spec.md (JTBD + Rules — dogfooding the Rule tier) + proposed engineering scope. Awaiting user signoff on JTBD/criteria/scope gates + migration-breadth question.
 - 2026-07-04T04:22:00.000Z Intake gates signed off (user): migration breadth = live surface only (leave completed/ untouched); codemod name = `safeword migrate-ac`. Open Questions resolved (deprecation wording deferred to define-behavior). Cold-start check (one-way door) skipped given deep shared context and explicit proceed. Complete: intake - Understanding converged, scope established.
+- 2026-07-04T04:41:00.000Z /quality-review (fresh subagent, define-behavior): verified both #716 premises against primary Cucumber sources (Example Mapping = one blue-card tier; Gherkin `Rule:` real keyword, no AC keyword). Fixed 1 vacuous SM1.R3 denial scenario + 5 coverage/AODI strengthenings → 24→30 scenarios. APPROVE.
+- 2026-07-04T04:52:00.000Z Complete: define-behavior - 30 scenarios across 7 criteria (8 Gherkin Rule blocks); features/rule-tier-convergence.feature saved (lint clean, dogfooding `.R` lineage), R/G/R ledger saved, dimensions.md written.
+- 2026-07-04T05:00:00.000Z Complete: scenario-gate - Independent /review-spec (Tier 2, fresh subagent): PASS WITH FIXES (0 must-fix) → 5 should-strengthen applied (SM1.R2 positive co-assertion + Rule-noun discriminator on both coverage outlines; SM1.R1 doctrine split into 2 atomic; per-file collision atomicity pinned + multi-file scenario; valid-skip-with-reason pass). impl-plan.md written (riskiest assumption = guard-delete-while-keeping-internal-AC/R-split, proved by slice 1; 7-slice build order, load-bearing coverage-collapse first). Stamp written.

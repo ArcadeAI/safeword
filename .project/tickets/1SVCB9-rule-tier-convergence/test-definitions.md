@@ -18,6 +18,12 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: No authoring surface still states the one-criteria-kind-never-both doctrine
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: A JTBD mixing AC and Rule headings is no longer an error
 
 ### Scenario: A JTBD declaring both an AC heading and a Rule heading raises no check issue
@@ -55,6 +61,12 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 - [ ] REFACTOR
 
 ### Scenario: A JTBD with no criteria and no skip is denied, naming the Rule heading to add
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A JTBD carrying a skip reason satisfies the intake-exit gate
 
 - [ ] RED
 - [ ] GREEN
@@ -176,7 +188,13 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: An AC that would collide with an existing Rule number is refused, not renumbered
+### Scenario: An AC that would collide with an existing Rule number refuses the whole file, not a rename
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A collision in one file does not block migrating other files
 
 - [ ] RED
 - [ ] GREEN

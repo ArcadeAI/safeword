@@ -13,7 +13,7 @@ list, and domain knowledge of the #713 parser/gate/coverage surface.
 | Ref-parse precedence (tag shape)       | `@f.PO1.R1` → rule R1 of `f.PO1`; `@f.R1.AC1` → **AC** of JTBD `f.R1` (AC-wins retained); `@f.R1.R2` → rule R2 of JTBD `f.R1` (persona-code-`R` safe)                                       | NTB1.R1       |
 | Deprecation-nudge trigger              | `.AC` heading in in-progress spec → advisory; `@…AC` tag in in-progress feature → advisory; Rule-only in-progress → **no** advisory; advisory is zero-exit (never a gate/issue)             | NTB1.R2       |
 | Codemod transform target               | spec.md `#### x.AC1` heading; `.feature` `@x.AC1` tag; test-definitions.md `### Scenario: x.AC1.<name>` ref → each rewritten to `.R1`, same number, declaration + refs together             | TB1.R1        |
-| Codemod run mode                       | fresh run → rewrite + report; re-run on migrated files → **no-op** (idempotent); `--dry-run` → preview, **no writes**; collision (AC→R clashes existing `.R<n>` in same JTBD) → refuse + report | TB1.R2        |
+| Codemod run mode                       | fresh run → rewrite + report; re-run on migrated files → **no-op** (idempotent); `--dry-run` → preview, **no writes**; collision (AC→R clashes existing `.R<n>` in same JTBD) → refuse the **whole file** (leave untouched) + report, **other files still migrate** (per-file atomicity) | TB1.R2 |
 
 Notes:
 

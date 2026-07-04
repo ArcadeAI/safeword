@@ -18,7 +18,12 @@ Feature: Converge spec grammar on a single Rule tier
       Given the shipped spec template and bdd skill guidance
       When an author reads how to decompose a JTBD
       Then no surface presents Acceptance Criteria as a criteria tier to choose
-      And no surface states that a JTBD declares one criteria kind, never both
+
+    @rule-tier-convergence.SM1.R1 @rejection
+    Scenario: No authoring surface still states the one-criteria-kind-never-both doctrine
+      Given the shipped spec template and bdd skill guidance
+      When an author reads how to decompose a JTBD
+      Then no surface states that a JTBD declares one criteria kind, never both
 
   Rule: A JTBD mixing AC and Rule headings is no longer an error
 
@@ -27,6 +32,7 @@ Feature: Converge spec grammar on a single Rule tier
       Given a ticket spec whose JTBD declares both an AC heading and a numbered Rule heading
       When safeword check runs
       Then no mixed-criteria issue is reported
+      And safeword check reports no health issue for that JTBD
 
     @rule-tier-convergence.SM1.R2 @rejection
     Scenario: A mixed JTBD's criteria are still traced for coverage
@@ -40,7 +46,7 @@ Feature: Converge spec grammar on a single Rule tier
     Scenario Outline: An uncovered criterion is reported in Rule terms regardless of spelling
       Given a ticket spec declaring criterion <reference> that no feature scenario references
       When safeword check runs
-      Then an uncovered advisory names <reference> in Rule terms
+      Then an uncovered advisory names <reference> and refers to it as a Rule, never as an Acceptance Criterion
 
       Examples:
         | reference    |
@@ -51,7 +57,7 @@ Feature: Converge spec grammar on a single Rule tier
     Scenario Outline: Coverage drift is worded identically for a Rule id and a legacy AC id
       Given a feature scenario whose lineage reference is <reference> and drifts as <drift>
       When safeword check runs
-      Then a <drift> advisory names <reference> with one Rule vocabulary
+      Then a <drift> advisory names <reference> and refers to it as a Rule, never as an Acceptance Criterion
 
       Examples:
         | reference    | drift  |
@@ -75,6 +81,12 @@ Feature: Converge spec grammar on a single Rule tier
       Then the gate denies the creation
       And the denial message names a numbered Rule heading as the criterion to add
       And the denial message does not present Acceptance Criteria as a co-equal criterion
+
+    @rule-tier-convergence.SM1.R3
+    Scenario: A JTBD carrying a skip reason satisfies the intake-exit gate
+      Given a ticket spec whose JTBD carries a skip line with a non-empty reason instead of criteria
+      When the intake-exit gate evaluates test-definitions creation
+      Then the gate allows the creation
 
     @rule-tier-convergence.SM1.R3 @rejection
     Scenario: A JTBD whose skip line has no reason is denied
@@ -204,8 +216,14 @@ Feature: Converge spec grammar on a single Rule tier
       And no file on disk is modified
 
     @rule-tier-convergence.TB1.R2 @rejection
-    Scenario: An AC that would collide with an existing Rule number is refused, not renumbered
-      Given a JTBD declaring both AC1 and an existing R1 heading
+    Scenario: An AC that would collide with an existing Rule number refuses the whole file, not a rename
+      Given a spec file with a JTBD declaring both AC1 and an existing R1 heading
       When safeword migrate-ac runs
-      Then it refuses to migrate that JTBD and reports the collision
-      And the JTBD's headings are left unchanged
+      Then it reports the collision and leaves that file unchanged
+
+    @rule-tier-convergence.TB1.R2
+    Scenario: A collision in one file does not block migrating other files
+      Given a run over one file with a colliding JTBD and one clean AC-only file
+      When safeword migrate-ac runs
+      Then the colliding file is reported and left unchanged
+      And the clean file is migrated to Rule lineage
