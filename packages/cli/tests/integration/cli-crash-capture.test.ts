@@ -34,6 +34,15 @@ describe('CLI crash capture (5XXQQZ / #720)', () => {
     removeTemporaryDirectory(directory);
   });
 
+  // Run `bun <args>` in the temp safeword project (the gate reads CLAUDE_PROJECT_DIR).
+  const spawnBun = (args: string[]) =>
+    spawnSync('bun', args, {
+      cwd: directory,
+      env: { ...process.env, CLAUDE_PROJECT_DIR: directory },
+      encoding: 'utf8',
+      timeout: TIMEOUT_QUICK,
+    });
+
   it('captures an uncaught crash, surfaces it, and exits non-zero', () => {
     const fixture = nodePath.join(directory, 'crashy-cli.ts');
     writeFileSync(
@@ -45,12 +54,7 @@ describe('CLI crash capture (5XXQQZ / #720)', () => {
       ].join('\n'),
     );
 
-    const result = spawnSync('bun', [fixture, 'codify'], {
-      cwd: directory,
-      env: { ...process.env, CLAUDE_PROJECT_DIR: directory },
-      encoding: 'utf8',
-      timeout: TIMEOUT_QUICK,
-    });
+    const result = spawnBun([fixture, 'codify']);
 
     // A crash must still fail the process with exactly Node's default uncaught
     // exit code (1) — the ticket's "no command exit code may change" contract.
@@ -81,12 +85,7 @@ describe('CLI crash capture (5XXQQZ / #720)', () => {
       ].join('\n'),
     );
 
-    const result = spawnSync('bun', [fixture, 'architecture'], {
-      cwd: directory,
-      env: { ...process.env, CLAUDE_PROJECT_DIR: directory },
-      encoding: 'utf8',
-      timeout: TIMEOUT_QUICK,
-    });
+    const result = spawnBun([fixture, 'architecture']);
 
     expect(result.status).toBe(1);
     const records = readReports(directory);
@@ -97,12 +96,7 @@ describe('CLI crash capture (5XXQQZ / #720)', () => {
   });
 
   it('records nothing for a deliberate non-zero status exit (#720)', () => {
-    const result = spawnSync('bun', [CLI, 'codify', 'NOSUCHTICKET'], {
-      cwd: directory,
-      env: { ...process.env, CLAUDE_PROJECT_DIR: directory },
-      encoding: 'utf8',
-      timeout: TIMEOUT_QUICK,
-    });
+    const result = spawnBun([CLI, 'codify', 'NOSUCHTICKET']);
 
     // codify exits 1 by design when the ticket folder is missing.
     expect(result.status).toBe(1);
