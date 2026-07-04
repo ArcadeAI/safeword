@@ -56,23 +56,47 @@ describe('resolveRustEdition', () => {
     expect(resolveRustEdition(dir)).toBe('2021');
   });
 
-  it('falls back to 2024 when no edition is declared', () => {
-    writeTestFile(dir, 'Cargo.toml', `[package]\nname = "app"\nversion = "0.1.0"\n`);
+  it('mirrors a single-quoted (TOML literal) edition string', () => {
+    writeTestFile(dir, 'Cargo.toml', `[package]\nname = "app"\nedition = '2024'\n`);
     expect(resolveRustEdition(dir)).toBe('2024');
+  });
+
+  it('ignores a commented-out edition and reads the real one', () => {
+    writeTestFile(
+      dir,
+      'Cargo.toml',
+      `[package]\nname = "app"\n# edition = "2018"  (migrated from)\nedition = "2021"\n`,
+    );
+    expect(resolveRustEdition(dir)).toBe('2021');
+  });
+
+  it('uses Cargo’s 2015 default for a present-but-edition-less [package]', () => {
+    // An edition-less [package] IS edition 2015 by Cargo's default — mirror it,
+    // rather than imposing the modern 2024 fallback on legacy code.
+    writeTestFile(dir, 'Cargo.toml', `[package]\nname = "app"\nversion = "0.1.0"\n`);
+    expect(resolveRustEdition(dir)).toBe('2015');
+  });
+
+  it('does not read edition from an unrelated later section (stays at 2015 default)', () => {
+    // A [dependencies] entry named edition-like must not be picked up as the
+    // package edition; the scan stops at the next section header, so the
+    // edition-less [package] resolves to Cargo's 2015 default.
+    writeTestFile(
+      dir,
+      'Cargo.toml',
+      `[package]\nname = "app"\n\n[dependencies]\nsome-edition-crate = "1.0"\n`,
+    );
+    expect(resolveRustEdition(dir)).toBe('2015');
   });
 
   it('falls back to 2024 when Cargo.toml is absent', () => {
     expect(resolveRustEdition(dir)).toBe('2024');
   });
 
-  it('does not read edition from an unrelated later section', () => {
-    // A [dependencies] entry named edition-like must not be picked up as the
-    // package edition; the scan stops at the next section header.
-    writeTestFile(
-      dir,
-      'Cargo.toml',
-      `[package]\nname = "app"\n\n[dependencies]\nsome-edition-crate = "1.0"\n`,
-    );
+  it('falls back to 2024 for a virtual manifest with no edition anywhere', () => {
+    // No [package] and no [workspace.package] edition to anchor to → truly
+    // unresolvable, so the modern fallback applies.
+    writeTestFile(dir, 'Cargo.toml', `[workspace]\nmembers = ["crates/*"]\n`);
     expect(resolveRustEdition(dir)).toBe('2024');
   });
 });

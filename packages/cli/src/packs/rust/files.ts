@@ -120,28 +120,59 @@ function parseClippyKeys(content: string): Set<string> {
 }
 
 /**
- * Fallback Rust edition when the project's own edition can't be resolved
- * (virtual/workspace manifest with no edition, missing field, unreadable
- * Cargo.toml). Tracks the latest STABLE edition, not the oldest: a fresh or
- * unresolvable project in 2026 is best served by the current style edition
- * (edition 2024, stable since Rust 1.85, 2025-02-20), not a 2021 default that
- * mis-sorts imports and can't parse 2024 syntax.
+ * Fallback Rust edition when the project's edition is truly unresolvable — an
+ * unreadable/absent Cargo.toml, or a manifest with neither a `[package]` nor a
+ * `[workspace.package]` edition to anchor to. Tracks the latest STABLE edition,
+ * not the oldest: a fresh or unknowable project in 2026 is best served by the
+ * current style edition (edition 2024, stable since Rust 1.85, 2025-02-20), not
+ * a 2021 default that mis-sorts imports and can't parse 2024 syntax.
  */
 const FALLBACK_RUST_EDITION = '2024';
+
+/**
+ * The edition Cargo assigns a `[package]` that declares none. We mirror it so an
+ * edition-less (legacy) crate is formatted as the 2015 it actually is, rather
+ * than having 2024 parsing/style imposed on 2015 code (which uses `async`,
+ * `await`, `dyn`, `try` as identifiers).
+ */
+const CARGO_DEFAULT_EDITION = '2015';
+
+/**
+ * The `edition = "…"` value declared inside a named TOML section, or undefined.
+ * Scoped to the section slice (header → next `[…]` header), comment-stripped,
+ * and line-anchored so a `# edition = "2018"` comment or a `foo-edition` key
+ * can't be mistaken for the real key. Accepts basic or literal TOML strings.
+ */
+function editionInSection(content: string, header: string): string | undefined {
+  const start = content.indexOf(header);
+  if (start === -1) return undefined;
+
+  const rest = content.slice(start + header.length);
+  const nextHeader = rest.search(/\n[ \t]*\[/);
+  const section = nextHeader === -1 ? rest : rest.slice(0, nextHeader);
+
+  for (const rawLine of section.split('\n')) {
+    const line = rawLine.replace(/#.*/, '').trim();
+    const match = /^edition\s*=\s*["']([^"']+)["']/.exec(line);
+    if (match?.[1]) return match[1];
+  }
+  return undefined;
+}
 
 /**
  * Resolve the Rust edition to emit in rustfmt.toml by reading the project's
  * Cargo.toml. rustfmt's `edition` drives both parsing and (by default) the
  * style edition, and an explicit value in rustfmt.toml OVERRIDES what
  * `cargo fmt` would infer — so it must match the crate's real edition or it
- * mis-parses/mis-styles. We check `[package] edition`, then workspace-inherited
- * `[workspace.package] edition` (also the virtual-manifest case), then fall
- * back. This never demands a newer toolchain than the crate already needs: a
- * 2024 crate already requires Rust 1.85 to compile.
- *
- * Regex-based to match the pack's existing Cargo.toml parsing idiom
- * (`CARGO_PACKAGE_NAME_REGEX`, `detectWorkspaceType`); `[^[]` stops the scan at
- * the next TOML section header.
+ * mis-parses/mis-styles. Resolution order mirrors Cargo:
+ *   1. `[package] edition`,
+ *   2. workspace-inherited `[workspace.package] edition` (also the
+ *      virtual-manifest case, where there is no `[package]`),
+ *   3. a `[package]` that declares no edition → Cargo's 2015 default,
+ *   4. otherwise the modern fallback (unreadable/absent manifest, or no edition
+ *      anywhere to anchor to).
+ * This never demands a newer toolchain than the crate already needs: a 2024
+ * crate already requires Rust 1.85 to compile.
  */
 export function resolveRustEdition(cwd: string): string {
   let content: string;
@@ -151,11 +182,16 @@ export function resolveRustEdition(cwd: string): string {
     return FALLBACK_RUST_EDITION;
   }
 
-  const packageEdition = /\[package\][^[]*?\bedition\s*=\s*"([^"]+)"/.exec(content);
-  if (packageEdition?.[1]) return packageEdition[1];
+  const packageEdition = editionInSection(content, '[package]');
+  if (packageEdition) return packageEdition;
 
-  const workspaceEdition = /\[workspace\.package\][^[]*?\bedition\s*=\s*"([^"]+)"/.exec(content);
-  if (workspaceEdition?.[1]) return workspaceEdition[1];
+  const workspaceEdition = editionInSection(content, '[workspace.package]');
+  if (workspaceEdition) return workspaceEdition;
+
+  // A present-but-edition-less `[package]` is edition 2015 by Cargo's default;
+  // match it rather than imposing the modern fallback on legacy code. `.includes`
+  // mirrors the pack's own `detectWorkspaceType` idiom.
+  if (content.includes('[package]')) return CARGO_DEFAULT_EDITION;
 
   return FALLBACK_RUST_EDITION;
 }
