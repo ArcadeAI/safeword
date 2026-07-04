@@ -28,174 +28,174 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: A JTBD declaring both an AC heading and a Rule heading raises no check issue
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 6ef0a77
+- [x] GREEN 6ef0a77
+- [x] REFACTOR 6ef0a77
 
 ### Scenario: A mixed JTBD's criteria are still traced for coverage
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 6ef0a77
+- [x] GREEN 6ef0a77
+- [x] REFACTOR 6ef0a77
 
 ## Rule: Coverage speaks one Rule vocabulary regardless of legacy spelling
 
 ### Scenario: An uncovered criterion is reported in Rule terms regardless of spelling
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 6ef0a77
+- [x] GREEN 6ef0a77
+- [x] REFACTOR 6ef0a77
 
 ### Scenario: Coverage drift is worded identically for a Rule id and a legacy AC id
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 6ef0a77
+- [x] GREEN 6ef0a77
+- [x] REFACTOR 6ef0a77
 
 ## Rule: The intake-exit gate requires a Rule and names Rules when none is present
 
 ### Scenario: A JTBD declaring a numbered Rule satisfies the intake-exit gate
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 194caea
+- [x] GREEN 194caea
+- [x] REFACTOR 194caea
 
 ### Scenario: A JTBD with no criteria and no skip is denied, naming the Rule heading to add
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 194caea
+- [x] GREEN 194caea
+- [x] REFACTOR 194caea
 
 ### Scenario: A JTBD carrying a skip reason satisfies the intake-exit gate
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 194caea
+- [x] GREEN 194caea
+- [x] REFACTOR 194caea
 
 ### Scenario: A JTBD whose skip line has no reason is denied
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 194caea
+- [x] GREEN 194caea
+- [x] REFACTOR 194caea
 
 ## Rule: Legacy AC still parses, gates, and traces coverage unchanged
 
 ### Scenario: An AC-only spec satisfies the intake-exit gate
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: retained behavior, no code change — regression-locked by ac-gate.test.ts S1.1 (passes a JTBD with >=1 AC)
+- [x] GREEN skip: retained — ac-gate.test.ts S1.1 green after slices 1-2
+- [x] REFACTOR skip: retained — nothing to refactor
 
 ### Scenario: A legacy AC reference is traced as covered exactly as before
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: retained behavior — regression-locked by scenario-coverage.test.ts covered_ac_not_flagged
+- [x] GREEN skip: retained — green after slices 1-2 (68/68)
+- [x] REFACTOR skip: retained — nothing to refactor
 
 ### Scenario: An AC-shaped tag under a persona-code-R JTBD parses as an AC, never a rule
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: retained (AC-wins precedence unchanged) — gherkin-feature.test.ts + scenario-coverage.test.ts persona-code-R AC case
+- [x] GREEN skip: retained — green after slices 1-2
+- [x] REFACTOR skip: retained — nothing to refactor
 
 ### Scenario: A terminal R tag under a persona-code-R JTBD parses as that JTBD's rule
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: retained (greedy-terminal .R anchor unchanged) — persona_code_r_rule_resolves_whole_id
+- [x] GREEN skip: retained — green after slices 1-2
+- [x] REFACTOR skip: retained — nothing to refactor
 
 ### Scenario: A legacy AC reference the spec never declared is still reported stale
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 6ef0a77
+- [x] GREEN 6ef0a77
+- [x] REFACTOR 6ef0a77
 
 ## Rule: Using legacy AC surfaces a plain-language deprecation nudge, never a block
 
 ### Scenario: An in-progress spec using an AC heading draws a deprecation advisory
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5ae0da6
+- [x] GREEN 5ae0da6
+- [x] REFACTOR 5ae0da6
 
 ### Scenario: An in-progress feature using an AC tag draws a deprecation advisory
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5ae0da6
+- [x] GREEN 5ae0da6
+- [x] REFACTOR 5ae0da6
 
 ### Scenario: A Rule-only in-progress ticket draws no deprecation advisory
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5ae0da6
+- [x] GREEN 5ae0da6
+- [x] REFACTOR 5ae0da6
 
 ### Scenario: A completed ticket still using AC draws no deprecation advisory
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5ae0da6
+- [x] GREEN 5ae0da6
+- [x] REFACTOR 5ae0da6
 
 ### Scenario: The deprecation nudge is a zero-exit advisory, not a blocking issue
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5ae0da6
+- [x] GREEN 5ae0da6
+- [x] REFACTOR 5ae0da6
 
 ## Rule: The codemod rewrites .AC to .R across specs, feature tags, and ledger refs
 
 ### Scenario: migrate-ac rewrites an AC reference to the same-numbered Rule reference
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED f4b5b5d
+- [x] GREEN f4b5b5d
+- [x] REFACTOR f4b5b5d
 
 ### Scenario: A migrated declaration and its scenario reference stay linked
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED f4b5b5d
+- [x] GREEN f4b5b5d
+- [x] REFACTOR f4b5b5d
 
 ### Scenario: An AC tag carried on a Gherkin Rule block is rewritten like any other tag
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED f4b5b5d
+- [x] GREEN f4b5b5d
+- [x] REFACTOR f4b5b5d
 
 ### Scenario: Every AC under a JTBD with several criteria is migrated in one pass
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED f4b5b5d
+- [x] GREEN f4b5b5d
+- [x] REFACTOR f4b5b5d
 
 ### Scenario: The codemod leaves non-AC tokens untouched
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED f4b5b5d
+- [x] GREEN f4b5b5d
+- [x] REFACTOR f4b5b5d
 
 ## Rule: The codemod is idempotent, previewable, and refuses collisions
 
 ### Scenario: Re-running migrate-ac on already-migrated files changes nothing
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED f4b5b5d
+- [x] GREEN f4b5b5d
+- [x] REFACTOR f4b5b5d
 
 ### Scenario: A dry run previews the rewrites without writing any file
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED f4b5b5d
+- [x] GREEN f4b5b5d
+- [x] REFACTOR f4b5b5d
 
 ### Scenario: An AC that would collide with an existing Rule number refuses the whole file, not a rename
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED f4b5b5d
+- [x] GREEN f4b5b5d
+- [x] REFACTOR f4b5b5d
 
 ### Scenario: A collision in one file does not block migrating other files
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED f4b5b5d
+- [x] GREEN f4b5b5d
+- [x] REFACTOR f4b5b5d

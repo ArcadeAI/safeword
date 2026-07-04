@@ -12,8 +12,8 @@
 
 1. **Derive dimensions** from intake artifacts (resolved questions, done-when, scope) + domain-knowledge dimensions not surfaced during intake
 2. **Partition** each dimension into equivalence classes + boundary values
-3. **Generate scenarios** — one per partition + boundary cases. Each scenario proves a specific **Acceptance Criterion** from intake (`spec.md`); if a scenario doesn't map to any AC, either it's testing implementation (drop it) or an AC is missing (go back and add it).
-4. **Organize under rules** with card-ratio self-check (too many rules? any rules with no examples? open questions?). Rules group scenarios by the AC they prove, so every AC has ≥1 scenario and no scenario is an orphan.
+3. **Generate scenarios** — one per partition + boundary cases. Each scenario proves a specific **Rule** from intake (`spec.md`); if a scenario doesn't map to any Rule, either it's testing implementation (drop it) or a Rule is missing (go back and add it).
+4. **Organize under rules** with card-ratio self-check (too many rules? any rules with no examples? open questions?). Every Rule has ≥1 scenario and no scenario is an orphan.
 5. **Present to user** (decider) — user accepts, tweaks, or adds
 
 Save the dimension table to `dimensions.md` in the ticket folder before writing test-definitions.md (the pre-tool hook enforces this for features). For tiny features with one obvious behavioral dimension and no partitioning to enumerate, dimensions.md may instead be a single line `skip: <non-empty reason>`.
@@ -61,7 +61,7 @@ Each propose-and-converge turn either surfaces new scenarios or doesn't. When a 
 
 **Discovery shorthand** (in chat, presenting to user): Rule + bare scenario checkboxes — fast to read, easy to amend in conversation. This is what turn-1 above looks like.
 
-**Saved source** (`features/<slug>.feature`): Gherkin `Feature` / `Rule` / `Scenario` with lineage as `@<jtbd-id>.AC<#>` tags. This is the executable behavior source that the Cucumber lane runs and `/review-spec`, `safeword check`, and `codify` read.
+**Saved source** (`features/<slug>.feature`): Gherkin `Feature` / `Rule` / `Scenario` with lineage as `@<jtbd-id>.R<#>` tags. This is the executable behavior source that the Cucumber lane runs and `/review-spec`, `safeword check`, and `codify` read.
 
 ### Surface coverage tags
 
@@ -70,18 +70,18 @@ If `spec.md` `## Surfaces` lists `Affected:` entries, each affected surface need
 **Progress ledger** (`test-definitions.md` on disk): scenario headings plus per-scenario `- [ ] RED / GREEN / REFACTOR` sub-checkboxes. test-definitions.md is the R/G/R ledger. The prompt hook parses those checkboxes to inject TDD-step guidance during implement, and they enforce one-commit-per-step discipline. Do not duplicate Given/When/Then here when a `.feature` source exists.
 
 ```gherkin
-@<jtbd-id>.AC1
+@<jtbd-id>.R1
 Feature: Description of feature
 
   Rule: Description of business rule
 
-    @<jtbd-id>.AC1
+    @<jtbd-id>.R1
     Scenario: Partition A
       Given [context]
       When [action]
       Then [outcome]
 
-    @<jtbd-id>.AC1
+    @<jtbd-id>.R1
     Scenario: Partition B (boundary)
       Given [context]
       When [action]
@@ -124,61 +124,60 @@ Two of these rules mirror gate checks — **one behavior** is AODI's **Atomic**,
 
 ### Scenario naming: lineage scheme
 
-Each saved `.feature` scenario carries the acceptance criterion it proves as a
-Gherkin tag, so the link back to AC, JTBD, and persona is machine-checkable
-rather than eyeballed:
+Each saved `.feature` scenario carries the Rule it proves as a Gherkin tag, so
+the link back to Rule, JTBD, and persona is machine-checkable rather than
+eyeballed:
 
-`@<jtbd-id>.AC<#>` — the tag is the AC id from intake
-(`<slug>.<persona-code><JTBD#>.AC<#>`). Long ids are fine — no truncation.
+`@<jtbd-id>.R<#>` — the tag is the Rule id from intake
+(`<slug>.<persona-code><JTBD#>.R<#>`). Long ids are fine — no truncation.
 Scenario names may be plain English; keep lineage in tags, not names.
 
 Worked example — feature `oauth-flow`, persona Platform Operator (PO), first JTBD:
 
-| Layer        | Id                    |
-| ------------ | --------------------- |
-| JTBD         | `oauth-flow.PO1`      |
-| AC           | `oauth-flow.PO1.AC2`  |
-| Scenario tag | `@oauth-flow.PO1.AC2` |
+| Layer        | Id                   |
+| ------------ | -------------------- |
+| JTBD         | `oauth-flow.PO1`     |
+| Rule         | `oauth-flow.PO1.R2`  |
+| Scenario tag | `@oauth-flow.PO1.R2` |
 
 ```text
-@oauth-flow.PO1.AC2
+@oauth-flow.PO1.R2
 Scenario: Change association applies to subsequent auth
 ```
 
-A scenario with no lineage tag is left alone — it simply proves no AC.
+A scenario with no lineage tag is left alone — it simply proves no Rule.
 `safeword check` reads the tags and reports coverage gaps for in-progress tickets
 as advisories (never a gate):
 
-- **uncovered** — an AC in `spec.md` that no scenario references.
-- **stale ref** — a scenario whose JTBD exists but whose `AC<#>` does not (a typo,
-  or an AC that was renumbered).
+- **uncovered** — a Rule in `spec.md` that no scenario references.
+- **stale ref** — a scenario whose JTBD exists but whose `R<#>` does not (a typo,
+  or a Rule that was renumbered).
 - **orphan** — a scenario whose JTBD is absent from `spec.md` entirely.
 
-### Numbered Rules (optional third tier)
+### Rule grammar
 
-A JTBD may declare **numbered Rules** instead of ACs — testable business
-invariants with stable per-JTBD IDs, stated generally and illustrated by the
-scenarios nested under them. Declaring them is the opt-in; there is no config
-flag, and a JTBD carries one criteria kind, never both (`safeword check` flags a
-mixed job as an issue).
+Rules are the single criteria tier between a JTBD and its scenarios: testable
+business invariants with stable per-JTBD IDs, stated generally and illustrated by
+the scenarios nested under them.
 
-- **Spec catalog:** `#### <jtbd-id>.R<n> — <invariant>` headings under the JTBD,
-  exactly where AC headings sit (e.g. `#### webhook-retry.PO1.R1 — a failed
-delivery retries on exponential backoff`). IDs are 1-indexed per job and
-  numbering-locked after review — renumbering breaks references on purpose.
+- **Spec catalog:** `#### <jtbd-id>.R<n> — <invariant>` headings under the JTBD
+  (e.g. `#### webhook-retry.PO1.R1 — a failed delivery retries on exponential
+backoff`). IDs are 1-indexed per job and numbering-locked after review —
+  renumbering breaks references on purpose.
 - **Feature file:** the `Rule:` block carries the literal `@<jtbd-id>.R<n>` tag
   (authoritative — scenarios inherit it as their single lineage ref) and repeats
   the ID as its name's first token for readability; a mismatch is a lint issue.
-  An AC-shaped tag always wins the ref parse, so persona code `R` stays safe
-  (`@feat.R1.AC1` is an AC of JTBD `feat.R1`).
 - **Rejection paths:** tag at least one scenario per rule `@rejection` (the
   example proving the system refuses when the invariant is violated); a numbered
   rule without one draws a check advisory. Unnumbered `Rule:` grouping headers
   are exempt from all of this.
 - **Selection:** `cucumber-js --tags @<jtbd-id>.R<n>` runs exactly that rule's
   examples.
-- **Coverage:** the uncovered / stale ref / orphan advisories work for rule refs
-  exactly as for AC refs.
+- **Legacy `.AC` alias:** the retired `.AC<n>` spelling still parses and traces
+  coverage as a Rule — an AC-shaped tag wins the ref parse, so persona code `R`
+  stays safe (`@feat.R1.AC1` is criterion AC1 of JTBD `feat.R1`, never rule
+  `feat.R1`). `safeword check` nudges toward `safeword migrate-ac`; hard removal
+  of `.AC` is deferred to a later major.
 - **Migrating a rule-numbered corpus** (e.g. Arcade-style split tags): the Rule
   blocks, IDs, and nesting survive as-is; respell tags mechanically —
   `@job:PO1 @rule:PO1.R1 @scenario:<name>` on a scenario becomes the single

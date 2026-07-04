@@ -11,7 +11,7 @@ and could mean two things. One-spec-only vocabulary stays in that ticket.
 
 ## Gate
 
-**Definition:** A checkpoint that blocks workflow progress until its condition is met. Safeword has several, each with a distinct trigger: the **phase gate** (can't create `test-definitions.md` without `scope`/`out_of_scope`/`done_when`; can't start TDD without `test-definitions.md`), the **phase-provenance gate** (a feature ticket must be born at `phase: intake` and advance one canonical step at a time; skipping a phase requires a per-phase `phase_skips` justification in frontmatter), the **LOC gate** (commit roughly every 400 lines of project code), the **done gate** (can't close a ticket without `verify.md`), and the **AC gate** (acceptance-criteria checks routed from `spec.md`).
+**Definition:** A checkpoint that blocks workflow progress until its condition is met. Safeword has several, each with a distinct trigger: the **phase gate** (can't create `test-definitions.md` without `scope`/`out_of_scope`/`done_when`; can't start TDD without `test-definitions.md`), the **phase-provenance gate** (a feature ticket must be born at `phase: intake` and advance one canonical step at a time; skipping a phase requires a per-phase `phase_skips` justification in frontmatter), the **LOC gate** (commit roughly every 400 lines of project code), the **done gate** (can't close a ticket without `verify.md`), and the **Rules gate** (per-JTBD Rule checks routed from `spec.md`; legacy `.AC` still satisfies it).
 
 **Do not confuse with:** "the gate" unqualified — each fires on a different condition, so always name which one.
 
@@ -61,11 +61,13 @@ and could mean two things. One-spec-only vocabulary stays in that ticket.
 
 **Definition:** A user archetype the project serves, defined in `.safeword-project/personas.md` with a `**Role:**` line and a short code (e.g. `TB`, `SM`). JTBDs and scenarios reference personas by name or code.
 
-## Acceptance Criterion
+## Rule
 
-**Definition:** A single capability or guarantee a persona gets — the rung between a JTBD and its scenarios. Written under its JTBD in `spec.md` (`#### <jtbd-id>.AC<n>`); the define-behavior scenarios prove its specifics. Kept at capability level, not implementation.
+**Definition:** The single criteria tier between a JTBD and its scenarios — a testable business invariant or guarantee a persona gets. Written under its JTBD in `spec.md` (`#### <jtbd-id>.R<n>`); the define-behavior scenarios prove its specifics. Kept at guarantee level, not implementation. Canonical BDD (Example Mapping) treats "acceptance criteria, or rules" as one tier; safeword keeps the name Gherkin's `Rule:` keyword acts on.
 
-**Aliases:** AC
+**Do not confuse with:** the Gherkin `Rule:` grouping block — a `Rule:` block in a `.feature` groups scenarios and may carry the `@<jtbd-id>.R<n>` lineage tag, but the numbered Rule is the spec-side catalog entry.
+
+**Legacy alias:** **Acceptance Criterion (AC)** — the retired `.AC<n>` spelling. Still parses and traces coverage as a Rule; `safeword check` nudges toward `safeword migrate-ac`. Hard removal deferred to a later major.
 
 ## Scope
 

@@ -82,7 +82,7 @@ flowchart TD
     classify -->|"1–2 files, one behavior"| task["task — TDD"]
     classify -->|"3+ files · new state · many flows"| feature["feature — BDD"]
 
-    feature --> phase0["Phase 0 spec:<br/>Jobs To Be Done → Acceptance Criteria → scope"]
+    feature --> phase0["Phase 0 spec:<br/>Jobs To Be Done → Rules → scope"]
     phase0 --> g1{{"Phase gate:<br/>scope / out_of_scope / done_when"}}
     g1 --> scenarios["Define-behavior scenarios"]
     scenarios --> g2{{"Phase gate:<br/>test-definitions.md exists"}}
@@ -98,7 +98,7 @@ flowchart TD
     loc{{"LOC gate — commit every ~400 lines"}} -.->|throughout build| build
 ```
 
-- **Clarify** — the agent proposes a direction and converges with you before building. For features, this writes the product framing first: Jobs To Be Done → Acceptance Criteria → engineering scope.
+- **Clarify** — the agent proposes a direction and converges with you before building. For features, this writes the product framing first: Jobs To Be Done → Rules → engineering scope.
 - **Classify** — sizes the work as a **patch** (fix directly), **task** (TDD), or **feature** (BDD).
 - **Build** — patches go straight to the fix; tasks and features run the RED → GREEN → REFACTOR loop, with features defining behavior scenarios first.
 - **Verify** — the agent runs the relevant tests itself, never handing you something untested.

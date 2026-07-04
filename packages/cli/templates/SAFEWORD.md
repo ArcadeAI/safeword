@@ -51,13 +51,13 @@ Before proceeding, run the **specificity self-test**: can you describe the behav
 
 If the conversation feels circular, make a best-guess proposal: "Here's my best read — should I build this, or is something off?"
 
-Exit: user accepts your proposal. For features, intake builds its artifacts in order, each anchoring the next: load personas, glossary, and surfaces from the configured project-knowledge files; open with a short **Intake Brief** in `spec.md` (who asked · cost of inaction · reversibility) — the decide-to-build framing that also triages whether this is a feature or a leaner task; then author the Jobs To Be Done in `spec.md` — one persona from the configured personas file per job, in the "When I…, I want…, so I can…" form; decompose each job into Acceptance Criteria — one observable capability per `#### <jtbd-id>.AC<n>`, the rung define-behavior scenarios later prove; then jobs-and-ACs anchor the engineering scope you write to ticket frontmatter — every resolved question produces scope (accepted choice = in scope, rejected alternative = out of scope):
+Exit: user accepts your proposal. For features, intake builds its artifacts in order, each anchoring the next: load personas, glossary, and surfaces from the configured project-knowledge files; open with a short **Intake Brief** in `spec.md` (who asked · cost of inaction · reversibility) — the decide-to-build framing that also triages whether this is a feature or a leaner task; then author the Jobs To Be Done in `spec.md` — one persona from the configured personas file per job, in the "When I…, I want…, so I can…" form; decompose each job into Rules — one observable invariant per `#### <jtbd-id>.R<n>`, the rung define-behavior scenarios later prove; then jobs-and-Rules anchor the engineering scope you write to ticket frontmatter — every resolved question produces scope (accepted choice = in scope, rejected alternative = out of scope):
 
 - **`scope`** — what you're building (derived from accepted choices).
 - **`out_of_scope`** — what you're not building (rejected alternatives + domain-knowledge exclusions).
 - **`done_when`** — observable outcomes.
 
-In define-behavior, each scenario carries its lineage `<jtbd-id>.AC<#>.<scenario_name>` (snake_case) so `safeword check` flags coverage gaps — uncovered ACs, orphan scenarios. The bdd skill's DISCOVERY.md walks these sub-steps end to end with a worked example; SCENARIOS.md covers the numbering.
+In define-behavior, each scenario carries its lineage `<jtbd-id>.R<#>.<scenario_name>` (snake_case) so `safeword check` flags coverage gaps — uncovered Rules, orphan scenarios. The bdd skill's DISCOVERY.md walks these sub-steps end to end with a worked example; SCENARIOS.md covers the numbering.
 
 If the user is exploring without intent to build, follow their lead — not every conversation produces a ticket.
 

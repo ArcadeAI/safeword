@@ -4,9 +4,9 @@
 
 ## Sub-phase gates
 
-Intake advances through sub-phases (load personas/glossary/surfaces → JTBD → AC → engineering scope). Each one ends with a **gate** — don't advance on your own momentum; present what you captured and get the user's signoff first. Three moves:
+Intake advances through sub-phases (load personas/glossary/surfaces → JTBD → Rules → engineering scope). Each one ends with a **gate** — don't advance on your own momentum; present what you captured and get the user's signoff first. Three moves:
 
-1. **Present** the captured artifact verbatim — the JTBD list, the AC list grouped by JTBD, or the Scope / Out of Scope / Done When block.
+1. **Present** the captured artifact verbatim — the JTBD list, the Rule list grouped by JTBD, or the Scope / Out of Scope / Done When block.
 2. **Ask** the sub-phase's closing question (below).
 3. **Wait** for confirmation. Any forward-moving reply advances — an explicit "looks good" / "proceed", or an amendment you fold in and re-present. A new concern loops back; you don't advance until it's resolved.
 
@@ -14,7 +14,7 @@ Intake advances through sub-phases (load personas/glossary/surfaces → JTBD →
 | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Personas / glossary / surfaces | _"`<file>` is empty — add entries now, or proceed without?"_ (only when missing/empty)                                                                                                       |
 | Jobs To Be Done                | _"Here's who asked, the cost of not doing it, and how reversible it is — plus the jobs it serves. Given that, is this a feature, or a task? And do the jobs cover who this serves and why?"_ |
-| Acceptance Criteria            | _"Does each job's criteria capture what 'done' means for the persona? Any to split, add, or drop?"_                                                                                          |
+| Rules                          | _"Does each job's Rules capture what 'done' means for the persona? Any to split, add, or drop?"_                                                                                             |
 | Engineering scope              | _"Here's the scope / out-of-scope / done-when — ready to proceed?"_                                                                                                                          |
 
 **On resume** (picked up mid-sub-phase across sessions): re-present the captured artifact for re-confirmation rather than assuming the prior signoff still stands — context may have shifted.
@@ -77,7 +77,7 @@ The brief frames _whether and how much_ to build before JTBD frames _what_. Its 
 
 ## Author Jobs To Be Done
 
-Before converging on scope, frame the product intent: what jobs does this feature do, and for whom? Write Jobs To Be Done into the ticket's `spec.md` under `## Jobs To Be Done`, one entry per job. JTBDs come first — they anchor the acceptance criteria and scope that follow.
+Before converging on scope, frame the product intent: what jobs does this feature do, and for whom? Write Jobs To Be Done into the ticket's `spec.md` under `## Jobs To Be Done`, one entry per job. JTBDs come first — they anchor the Rules and scope that follow.
 
 Each JTBD is:
 
@@ -89,22 +89,22 @@ Resolve each persona reference against the loaded personas before writing it. A 
 
 **Pause and confirm** the JTBD set with the user before advancing to Understanding — this is the JTBD **Sub-phase gate** (see above). Converge on the jobs first, then build scope on top of them.
 
-## Author Acceptance Criteria
+## Author Rules
 
-Once the JTBDs are confirmed, decompose each into **Acceptance Criteria** — the rung between a job and its scenarios. An AC is a single capability or guarantee the persona gets; the define-behavior scenarios prove its specifics, and the ACs sum to JTBD fulfillment. Write them under their JTBD in `spec.md`:
+Once the JTBDs are confirmed, decompose each into **Rules** — the rung between a job and its scenarios. A Rule is a single testable business invariant or guarantee the persona gets; the define-behavior scenarios prove its specifics, and the Rules sum to JTBD fulfillment. (Canonical BDD's Example Mapping puts "acceptance criteria, or rules" on one card — the same tier; safeword keeps the name Gherkin's `Rule:` keyword acts on.) Write them under their JTBD in `spec.md`:
 
-- A `#### <jtbd-id>.AC<n> — <capability>` heading (e.g., `### oauth-flow.PO1` → `#### oauth-flow.PO1.AC1 — old key keeps working for a bounded grace window`).
-- Each JTBD needs **≥1 AC**, or a `skip: <reason>` under it for a job with no user-observable capability to enumerate. The intake-exit gate enforces this (denies `test-definitions.md` until every JTBD has an AC or a skip).
-- Alternative tier: a JTBD whose behavior is best stated as invariants may declare **numbered Rules** (`#### <jtbd-id>.R<n> — <invariant>`) instead of ACs — one criteria kind per job, never both. The gate accepts either; the full rule grammar lives in the bdd skill's SCENARIOS.md.
+- A `#### <jtbd-id>.R<n> — <invariant>` heading (e.g., `### oauth-flow.PO1` → `#### oauth-flow.PO1.R1 — old key keeps working for a bounded grace window`).
+- Each JTBD needs **≥1 Rule**, or a `skip: <reason>` under it for a job with no user-observable guarantee to enumerate. The intake-exit gate enforces this (denies `test-definitions.md` until every JTBD has a Rule or a skip).
+- The legacy `.AC<n>` spelling still parses as a deprecated alias for a Rule (the gate accepts it, coverage traces it), and `safeword check` nudges toward `safeword migrate-ac` to convert it. New specs are Rule-shaped; the full rule grammar lives in the bdd skill's SCENARIOS.md.
 
-**Coaching — keep ACs at the capability level, not implementation:**
+**Coaching — keep Rules at the guarantee level, not implementation:**
 
 - Descriptive guarantee, not a bare verb: "user can revoke a session and it stops working everywhere within seconds" ✓, not just "user can revoke a session."
-- Capability, not mechanism: "`DELETE /sessions/<id>` returns 204" ✗ — that's a scenario's Then, not an AC.
-- **Split-test heuristic:** could each clause of a bundled AC ship as its own complete deliverable with independent value? If yes → split into separate ACs. If the sub-operations only make sense together → keep as one.
-- If an AC starts spawning more than ~10 scenarios in define-behavior, it's probably two ACs — split it.
+- Guarantee, not mechanism: "`DELETE /sessions/<id>` returns 204" ✗ — that's a scenario's Then, not a Rule.
+- **Split-test heuristic:** could each clause of a bundled Rule ship as its own complete deliverable with independent value? If yes → split into separate Rules. If the sub-operations only make sense together → keep as one.
+- If a Rule starts spawning more than ~10 scenarios in define-behavior, it's probably two Rules — split it.
 
-**Pause and confirm** the AC list grouped by JTBD with the user before advancing — this is the AC **Sub-phase gate** (see above). Iterate until they sign off, then build engineering scope (Understanding) on top.
+**Pause and confirm** the Rule list grouped by JTBD with the user before advancing — this is the Rules **Sub-phase gate** (see above). Iterate until they sign off, then build engineering scope (Understanding) on top.
 
 ## Author the Rave Moment
 
@@ -172,15 +172,15 @@ The job below names `Platform Operator (PO)`; it resolves against the file, so i
 
 **JTBD gate** → present the brief and the job together, ask _"Given who asked, the cost of inaction, and how reversible this is — is this a feature, or a task? And do the jobs cover who this serves and why?"_, wait for signoff before decomposing.
 
-**3 · Acceptance Criteria — capabilities under the job.** Each AC is one guarantee the operator can observe, not a mechanism:
+**3 · Rules — guarantees under the job.** Each Rule is one invariant the operator can observe, not a mechanism:
 
 ```markdown
-#### oauth-flow.PO1.AC1 — The previous key keeps authenticating for a bounded grace window
+#### oauth-flow.PO1.R1 — The previous key keeps authenticating for a bounded grace window
 
-#### oauth-flow.PO1.AC2 — The operator can see which keys are currently live
+#### oauth-flow.PO1.R2 — The operator can see which keys are currently live
 ```
 
-**AC gate** → present the criteria grouped under their job, ask _"Does each job's criteria capture what 'done' means?"_, wait. (AC2 split out by the split-test — "see which keys are live" delivers value on its own.)
+**Rules gate** → present the Rules grouped under their job, ask _"Does each job's Rules capture what 'done' means?"_, wait. (R2 split out by the split-test — "see which keys are live" delivers value on its own.)
 
 **4 · Engineering scope — what we touch, how we'll know.** Only now converge on the engineering contract, written to ticket frontmatter:
 
@@ -198,13 +198,13 @@ done_when:
 
 **Scope gate** → present Scope / Out of Scope / Done When, ask _"ready to proceed?"_, wait. Then advance to define-behavior.
 
-**5 · Scenario lineage — the chain stays machine-checkable.** In define-behavior each scenario title carries the criterion it proves, so persona → JTBD → AC → scenario is traceable, not eyeballed:
+**5 · Scenario lineage — the chain stays machine-checkable.** In define-behavior each scenario title carries the Rule it proves, so persona → JTBD → Rule → scenario is traceable, not eyeballed:
 
 ```text
-### Scenario: oauth-flow.PO1.AC1.previous_key_authenticates_within_grace_window
+### Scenario: oauth-flow.PO1.R1.previous_key_authenticates_within_grace_window
 ```
 
-`safeword check` reads these titles and reports coverage gaps as advisories — an AC no scenario references (AC2, until you write one) is **uncovered**; a scenario naming a renumbered or missing AC is a **stale ref** or **orphan**. The full scheme lives in the bdd skill's SCENARIOS.md.
+`safeword check` reads these titles and reports coverage gaps as advisories — a Rule no scenario references (R2, until you write one) is **uncovered**; a scenario naming a renumbered or missing Rule is a **stale ref** or **orphan**. The full scheme lives in the bdd skill's SCENARIOS.md.
 
 The arc end to end: a persona from `personas.md`, a job that names it, criteria under the job, an engineering contract on top, and scenarios that trace back to a criterion — each sub-phase closed by its gate.
 
@@ -226,7 +226,7 @@ Before proceeding to define-behavior (the Intake Brief is advisory — a missing
 
 ## Planning Note
 
-Define-behavior scenarios draw from the self-test: behavior that changes seeds happy paths and error paths, observable done states seed acceptance criteria. Behavior that stays the same is protected by the existing test suite — it informs out-of-scope, not new scenarios. Add failure-mode scenarios from domain knowledge.
+Define-behavior scenarios draw from the self-test: behavior that changes seeds happy paths and error paths, observable done states seed Rules. Behavior that stays the same is protected by the existing test suite — it informs out-of-scope, not new scenarios. Add failure-mode scenarios from domain knowledge.
 
 Technical breakdown — component identification and any design-doc/ADR triggers — belongs here in intake (you design the architecture in "Understanding" above). The per-scenario proof plan + build order step now happens at the scenario-gate exit; the standalone `decomposition` phase is retired (see the ADR in `ARCHITECTURE.md`).
 

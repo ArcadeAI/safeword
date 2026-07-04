@@ -76,19 +76,18 @@ Uncomment and customize:
 > for a short grace period, so I can roll the change across my fleet without
 > coordinated downtime.
 
-Acceptance Criteria — one capability or guarantee per AC, id <jtbd-id>.AC<n>,
+Rules — one testable business invariant or guarantee per Rule, id <jtbd-id>.R<n>,
 in descriptive product language (a guarantee the user can observe), NOT
 implementation ("returns 204" belongs in a scenario's Then). Each define-behavior
-scenario will prove a specific AC. If a JTBD has no user-observable capability
-to enumerate, write `skip: <reason>` under it instead of ACs.
+scenario proves a specific Rule. If a JTBD has no user-observable guarantee to
+enumerate, write `skip: <reason>` under it instead of Rules.
 
-Alternative: a JTBD may instead declare numbered Rules — testable business
-invariants with stable ids (#### <jtbd-id>.R<n> — <invariant>) that scenarios
-nest under. One criteria kind per JTBD, never both.
+(The legacy `.AC<n>` spelling still parses as a deprecated alias for a Rule; run
+`safeword migrate-ac` to convert an existing `.AC` project to `.R`.)
 
-#### oauth-flow.PO1.AC1 — The previous key keeps authenticating for a bounded grace window
+#### oauth-flow.PO1.R1 — The previous key keeps authenticating for a bounded grace window
 
-#### oauth-flow.PO1.AC2 — The operator can see which keys are currently live
+#### oauth-flow.PO1.R2 — The operator can see which keys are currently live
 -->
 
 ## Rave Moment

@@ -76,11 +76,11 @@ Report findings the way safeword talks to the user — lead with the answer, str
 ```text
 **Findings:** 1 must-fix, 0 should-strengthen.
 
-#### oauth.PO1.AC2.change_applies — Then joins two assertions with "and"
+#### oauth.PO1.R2.change_applies — Then joins two assertions with "and"
 Current: "Then the config shows B and later auths use B" — two independent observables.
 Proposed: "Then later authentications use User Source B."
 
-**Next:** split the AC2 scenario, then re-run the gate.
+**Next:** split the R2 scenario, then re-run the gate.
 ```
 
 ## After the review
