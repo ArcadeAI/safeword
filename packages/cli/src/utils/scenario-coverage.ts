@@ -164,6 +164,18 @@ function recordRuleRejections(
   }
 }
 
+/**
+ * Whether a spec.md declares any legacy `.AC` criterion heading. `.AC` is a
+ * soft-deprecated alias for a Rule (ticket 1SVCB9) — it still parses and traces,
+ * but its presence drives the `safeword migrate-ac` deprecation nudge.
+ */
+export function specDeclaresLegacyAc(specContent: string): boolean {
+  for (const criteria of parseCriteriaIdsByJtbd(specContent).values()) {
+    if (criteria.acIds.length > 0) return true;
+  }
+  return false;
+}
+
 /** Apply one heading to the JTBD/criteria walk, recording ids into `byJtbd`. */
 function advance(
   state: WalkState,

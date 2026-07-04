@@ -31,7 +31,11 @@ import {
 import { createProjectContext } from './utils/context.js';
 import { findFeatureSourcePath } from './utils/feature-source.js';
 import { exists, isDirectory, readFileSafe, readJson } from './utils/fs.js';
-import { FeatureParseError, findFeatureLineageIssues } from './utils/gherkin-feature.js';
+import {
+  FeatureParseError,
+  findFeatureLineageIssues,
+  parseFeatureLineageReferences,
+} from './utils/gherkin-feature.js';
 import { parseGlossary, validateGlossary } from './utils/glossary.js';
 import { header, info, listItem, success, warn } from './utils/output.js';
 import { parsePersonas, validatePersonas } from './utils/personas.js';
@@ -41,6 +45,7 @@ import {
   buildSurfaceCoverageReportFromFeature,
   type CoverageReport,
   findRulesMissingRejectionPaths,
+  specDeclaresLegacyAc,
   type SurfaceCoverageReport,
 } from './utils/scenario-coverage.js';
 import { formatTicketReference } from './utils/ticket-reference.js';
@@ -364,6 +369,7 @@ function coverageDiagnosticsForTicket(
       advisories: [
         ...formatCoverageReport(ticketId, report),
         ...ruleTier.advisories,
+        ...acDeprecationAdvisories(ticketId, specContent, featureSource),
         ...formatSurfaceCoverageReport(ticketId, surfaceReport),
       ],
     };
@@ -400,6 +406,27 @@ function ruleTierDiagnostics(
               `${label}: numbered rule ${ruleId} has no example of the rule being broken — add a @rejection-tagged scenario under it`,
           ),
   };
+}
+
+/**
+ * migrate-ac deprecation nudge (ticket 1SVCB9): a zero-exit advisory when an
+ * in-progress ticket's spec or feature still uses the legacy `.AC` name. `.AC`
+ * still parses and traces (never blocks) — this only points at the codemod.
+ * Scoped to the same in-progress + spec-bearing tickets as coverage, so
+ * completed/ historical records are never nagged.
+ */
+function acDeprecationAdvisories(
+  ticketId: string,
+  specContent: string,
+  featureSource: FeatureSource | undefined,
+): string[] {
+  const featureUsesAc =
+    featureSource !== undefined &&
+    parseFeatureLineageReferences(featureSource.content).ac.length > 0;
+  if (!specDeclaresLegacyAc(specContent) && !featureUsesAc) return [];
+  return [
+    `${formatCoverageTicketLabel(ticketId)}: spec or feature still uses the deprecated .AC criteria name (retired in favor of the Rule tier) — run \`safeword migrate-ac\` to convert .AC<n> to .R<n>`,
+  ];
 }
 
 function formatFeatureLineageIssues(

@@ -1099,6 +1099,62 @@ describe('Test Suite 8: Health Check', () => {
       expect(combined).not.toMatch(/matches no AC/i);
     });
 
+    it('rule-tier-convergence.NTB1.R2: an in-progress spec using an AC heading draws a migrate-ac deprecation advisory (zero-exit)', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTicket('CNV004-demo', 'in_progress', {
+        'spec.md': SPEC_TWO_ACS,
+        'test-definitions.md': scenarioTitle('demo.DEV1.AC1.happy_path'),
+      });
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      const combined = `${result.stdout}\n${result.stderr}`;
+      expect(combined).toMatch(/safeword migrate-ac/);
+      expect(combined).toMatch(/\.AC.*retired.*Rule|deprecated \.AC/i);
+    });
+
+    it('rule-tier-convergence.NTB1.R2: an in-progress feature using an AC tag draws a migrate-ac deprecation advisory', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTicket('CNV005-demo', 'in_progress', {
+        'spec.md': SPEC_ONE_RULE,
+        'test-definitions.md': scenarioTitle('ledger only'),
+      });
+      writeTestFile(temporaryDirectory, 'features/demo.feature', ruleFeature([['demo.DEV2.AC1']]));
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      const combined = `${result.stdout}\n${result.stderr}`;
+      expect(combined).toMatch(/safeword migrate-ac/);
+    });
+
+    it('rule-tier-convergence.NTB1.R2: a Rule-only in-progress ticket draws no deprecation advisory', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTicket('CNV006-demo', 'in_progress', {
+        'spec.md': SPEC_ONE_RULE,
+        'test-definitions.md': scenarioTitle('ledger only'),
+      });
+      writeTestFile(temporaryDirectory, 'features/demo.feature', ruleFeature([['demo.DEV2.R1']]));
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      const combined = `${result.stdout}\n${result.stderr}`;
+      expect(combined).not.toMatch(/migrate-ac/);
+    });
+
+    it('rule-tier-convergence.NTB1.R2: a completed ticket still using AC draws no deprecation advisory', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTicket('CNV007-demo', 'done', {
+        'spec.md': SPEC_TWO_ACS,
+        'test-definitions.md': scenarioTitle('demo.DEV1.AC1.happy_path'),
+      });
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      const combined = `${result.stdout}\n${result.stderr}`;
+      expect(combined).not.toMatch(/migrate-ac/);
+    });
+
     it('stays silent for a done ticket whose scenarios predate the scheme', async () => {
       await createConfiguredProject(temporaryDirectory);
       writeTicket('COV002', 'done', {
