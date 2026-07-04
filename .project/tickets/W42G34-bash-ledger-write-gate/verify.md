@@ -12,7 +12,7 @@
 **Parent Epic:** N/A
 **Reconcile:** ✅ No pattern deviation — joins the pre-tool-quality gate family; adapter-as-source-of-truth pattern followed (gate logic in the Claude hook, Cursor pre-filter delegates)
 **Experience:** ⏭️ N/A — internal enforcement plumbing; the SM persona experiences it as a denial message, covered by the TB1.AC1 scenario (message names the Edit channel + validation reason)
-**Evidence limits:** ✅ None — full suite and Gherkin lane ran to completion in-sandbox
+**Evidence limits:** ⚠️ The `cucumber-bdd.test.ts` vitest wrapper can time out under full-suite load in this sandbox (a re-run of the done-gate suite hit it). Not a product failure: the authoritative full suite passed 4513/4513, the direct `bun run test:bdd` lane passes 181/181, and the wrapper passes 2/2 in isolation. This is the documented full-suite-load limitation, not a regression.
 
 ## Audit
 
