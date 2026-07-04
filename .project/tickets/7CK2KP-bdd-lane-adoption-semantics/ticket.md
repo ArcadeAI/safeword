@@ -4,11 +4,11 @@ slug: bdd-lane-adoption-semantics
 type: feature
 phase: implement
 status: in_progress
-blocked_on: [56JCFZ]
+blocked_on: []
 relates_to: [56JCFZ]
 external_issue: https://github.com/ArcadeAI/safeword/issues/650
 created: 2026-07-03T14:30:29.173Z
-last_modified: 2026-07-03T19:35:00Z
+last_modified: 2026-07-04T16:11:00Z
 scope:
   - "Surgical coexistence with an adopted host harness at N=1 evidence (design decision 2026-07-03, see Design Decision section): defer, don't model."
   - "De-hardcode installed BDD prose (bdd/SCENARIOS.md, TDD.md, planning-guide): lane paths become 'root features/ by default, paths.features when configured'; RED verification becomes harness-relative ('run-and-expect-failure applies to safeword's scaffolded lane; harnesses with dry-run/check profiles use those'). Static deferral wording — no template-rendering machinery exists or is added; prose defers to config at read time."
