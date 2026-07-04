@@ -8,21 +8,21 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: The scaffolded spec template offers Rule headings as the criteria tier
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED ad18cff
+- [x] GREEN ad18cff
+- [x] REFACTOR ad18cff
 
 ### Scenario: No authoring surface still offers Acceptance Criteria as a co-equal tier
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED ad18cff
+- [x] GREEN ad18cff
+- [x] REFACTOR ad18cff
 
 ### Scenario: No authoring surface still states the one-criteria-kind-never-both doctrine
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED ad18cff
+- [x] GREEN ad18cff
+- [x] REFACTOR ad18cff
 
 ## Rule: A JTBD mixing AC and Rule headings is no longer an error
 
