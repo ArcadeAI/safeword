@@ -45,12 +45,17 @@ describe('CLI crash capture (5XXQQZ / #720)', () => {
 
   it('captures an uncaught crash, surfaces it, and exits non-zero', () => {
     const fixture = nodePath.join(directory, 'crashy-cli.ts');
+    // Defer the throw so it lands as a genuine runtime uncaughtException, the way
+    // a command action crashes AFTER module load. A bare top-level `throw` is a
+    // module-evaluation error that some runtimes (e.g. bun in CI) deliver as a
+    // generic wrapped Error, losing the original class/message — unrepresentative
+    // of a real crash and runtime-dependent.
     writeFileSync(
       fixture,
       [
         `import { installCliCrashCapture } from ${JSON.stringify(CAPTURE)};`,
         `installCliCrashCapture();`,
-        "throw new TypeError('kaboom with a /home/secret path');",
+        "setImmediate(() => { throw new TypeError('kaboom with a /home/secret path'); });",
       ].join('\n'),
     );
 
