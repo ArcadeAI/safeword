@@ -28,6 +28,11 @@ import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  formatReviewStamp,
+  hashArtifact,
+  reviewScope,
+} from '../../templates/hooks/lib/review-ledger';
+import {
   createConfiguredProject,
   createTemporaryDirectory,
   expectHookAllow,
@@ -119,11 +124,14 @@ function testDefinitionsCovering(...scenarioTitles: string[]): string {
   return ['# Test Definitions', '', '## Rule: key rotation grace window', '', ...blocks].join('\n');
 }
 
-function runHook(input: object): HookResult {
+function runHook(input: object, projectRoot?: string): HookResult {
   const result = spawnSync('bun', [HOOK_PATH], {
     input: JSON.stringify(input),
     encoding: 'utf8',
     stdio: ['pipe', 'pipe', 'pipe'],
+    // Match the real invocation so the always-on spec-review demand (87Y167)
+    // resolves stamps under the edited ticket's project, not the repo root.
+    env: projectRoot ? { ...process.env, CLAUDE_PROJECT_DIR: projectRoot } : process.env,
   });
   return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
 }
@@ -149,13 +157,26 @@ describe('Phase 0 end-to-end walkthrough (E1K5ZW): oauth-flow composes across al
 
   /** Attempt the test-definitions.md write that the intake-exit gate guards. */
   function attemptDefineBehavior(): HookResult {
-    return runHook({
-      tool_name: 'Write',
-      tool_input: {
-        file_path: nodePath.join(absTicketDirectory, 'test-definitions.md'),
-        content: '# Test Definitions\n',
+    return runHook(
+      {
+        tool_name: 'Write',
+        tool_input: {
+          file_path: nodePath.join(absTicketDirectory, 'test-definitions.md'),
+          content: '# Test Definitions\n',
+        },
       },
-    });
+      projectRoot,
+    );
+  }
+
+  /** Stamp the feature spec so the always-on spec-review demand (87Y167) is met. */
+  function seedSpecStamp(specContent: string): void {
+    const scope = reviewScope(TICKET_ID, 'spec', hashArtifact(specContent));
+    writeTestFile(
+      projectRoot,
+      '.project/skill-invocations.log',
+      `2026-01-01T00:00:00.000Z sess ${formatReviewStamp(scope)}\n`,
+    );
   }
 
   it('gate denies leaving intake while a JTBD has a persona but no Acceptance Criterion', () => {
@@ -167,11 +188,9 @@ describe('Phase 0 end-to-end walkthrough (E1K5ZW): oauth-flow composes across al
   });
 
   it('gate allows once persona + JTBD + AC are all present (the product-layer artifacts)', () => {
-    writeTestFile(
-      projectRoot,
-      `${TICKET_RELATIVE}/spec.md`,
-      specWith(`${JTBD}\n\n${AC1}\n\n${AC2}`),
-    );
+    const spec = specWith(`${JTBD}\n\n${AC1}\n\n${AC2}`);
+    writeTestFile(projectRoot, `${TICKET_RELATIVE}/spec.md`, spec);
+    seedSpecStamp(spec);
 
     expectHookAllow(attemptDefineBehavior());
   });

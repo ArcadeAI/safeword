@@ -18,6 +18,11 @@ import process from 'node:process';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  formatReviewStamp,
+  hashArtifact,
+  reviewScope,
+} from '../../templates/hooks/lib/review-ledger';
+import {
   createTemporaryDirectory,
   fileExists,
   initGitRepo,
@@ -37,6 +42,24 @@ const PRE_TOOL_QUALITY = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/pre-tool-
 /** Get per-session state file path */
 function stateFilePath(sessionId = 'test-session'): string {
   return `.safeword-project/quality-state-${sessionId}.json`;
+}
+
+/**
+ * Write a spec review stamp so the always-on spec-review demand (87Y167, #644
+ * G1) is satisfied for a feature ticket. Fixtures that pin the scope/dimensions
+ * prerequisites, not the review demand, need this to reach the check they test.
+ */
+function seedSpecReviewStamp(
+  projectDirectory: string,
+  ticketFolder: string,
+  specContent: string,
+): void {
+  const scope = reviewScope(ticketFolder, 'spec', hashArtifact(specContent));
+  writeTestFile(
+    projectDirectory,
+    '.safeword-project/skill-invocations.log',
+    `2026-01-01T00:00:00.000Z test-session ${formatReviewStamp(scope)}\n`,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -1340,11 +1363,11 @@ describe('Quality Gates', () => {
       );
       // ...and a spec.md (ticket 9EA27P). This suite tests the scope/dimensions
       // prerequisite, not JTBD content, so skip the JTBD enumeration.
-      writeTestFile(
-        projectDirectory,
-        '.safeword-project/tickets/099-test/spec.md',
-        '# Spec\n\n## Jobs To Be Done\n\nskip: prerequisite-gate fixture; JTBD/AC content covered in jtbd-gate.test.ts\n',
-      );
+      const spec93 =
+        '# Spec\n\n## Jobs To Be Done\n\nskip: prerequisite-gate fixture; JTBD/AC content covered in jtbd-gate.test.ts\n';
+      writeTestFile(projectDirectory, '.safeword-project/tickets/099-test/spec.md', spec93);
+      // Feature scenario authoring now demands a spec review stamp (87Y167).
+      seedSpecReviewStamp(projectDirectory, '099-test', spec93);
 
       const testDefsPath = nodePath.join(
         projectDirectory,
@@ -1452,6 +1475,13 @@ describe('Quality Gates', () => {
           '# Test',
         ].join('\n'),
       );
+      // Chain is earliest-first (87Y167): a passing spec.md routes the denial to
+      // the dimensions check this test pins.
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/spec.md',
+        '# Spec\n\n## Jobs To Be Done\n\nskip: prerequisite-gate fixture; JTBD/AC content covered in jtbd-gate.test.ts\n',
+      );
       // Remove dimensions.md if it exists from prior test
       const dimensionsPath = nodePath.join(
         projectDirectory,
@@ -1497,11 +1527,10 @@ describe('Quality Gates', () => {
         '| Dimension | Partitions |\n|---|---|\n| Delivery | email, slack |\n',
       );
       // Features now require spec.md too (ticket 9EA27P); skip JTBD enumeration.
-      writeTestFile(
-        projectDirectory,
-        '.safeword-project/tickets/099-test/spec.md',
-        '# Spec\n\n## Jobs To Be Done\n\nskip: prerequisite-gate fixture; JTBD/AC content covered in jtbd-gate.test.ts\n',
-      );
+      const spec98 =
+        '# Spec\n\n## Jobs To Be Done\n\nskip: prerequisite-gate fixture; JTBD/AC content covered in jtbd-gate.test.ts\n';
+      writeTestFile(projectDirectory, '.safeword-project/tickets/099-test/spec.md', spec98);
+      seedSpecReviewStamp(projectDirectory, '099-test', spec98);
 
       const testDefsPath = nodePath.join(
         projectDirectory,
@@ -1588,11 +1617,10 @@ describe('Quality Gates', () => {
         'skip: single behavioral dimension, no partitioning to enumerate\n',
       );
       // Features now require spec.md too (ticket 9EA27P); skip JTBD enumeration.
-      writeTestFile(
-        projectDirectory,
-        '.safeword-project/tickets/099-test/spec.md',
-        '# Spec\n\n## Jobs To Be Done\n\nskip: prerequisite-gate fixture; JTBD/AC content covered in jtbd-gate.test.ts\n',
-      );
+      const spec911 =
+        '# Spec\n\n## Jobs To Be Done\n\nskip: prerequisite-gate fixture; JTBD/AC content covered in jtbd-gate.test.ts\n';
+      writeTestFile(projectDirectory, '.safeword-project/tickets/099-test/spec.md', spec911);
+      seedSpecReviewStamp(projectDirectory, '099-test', spec911);
 
       const testDefsPath = nodePath.join(
         projectDirectory,
@@ -1618,6 +1646,13 @@ describe('Quality Gates', () => {
           'done_when: x',
           '---',
         ].join('\n'),
+      );
+      // Chain is earliest-first (87Y167): a passing spec.md routes the denial to
+      // the dimensions check this test pins.
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/spec.md',
+        '# Spec\n\n## Jobs To Be Done\n\nskip: prerequisite-gate fixture; JTBD/AC content covered in jtbd-gate.test.ts\n',
       );
       writeTestFile(projectDirectory, '.safeword-project/tickets/099-test/dimensions.md', 'skip:');
 
@@ -1647,6 +1682,13 @@ describe('Quality Gates', () => {
           'done_when: x',
           '---',
         ].join('\n'),
+      );
+      // Chain is earliest-first (87Y167): a passing spec.md routes the denial to
+      // the dimensions check this test pins.
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/spec.md',
+        '# Spec\n\n## Jobs To Be Done\n\nskip: prerequisite-gate fixture; JTBD/AC content covered in jtbd-gate.test.ts\n',
       );
       writeTestFile(
         projectDirectory,

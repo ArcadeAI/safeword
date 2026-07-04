@@ -12,6 +12,11 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import {
+  formatReviewStamp,
+  hashArtifact,
+  reviewScope,
+} from '../../templates/hooks/lib/review-ledger';
 import { expectHookAllow, expectHookDeny, type HookResult } from '../helpers';
 
 const HOOK_PATH = nodePath.resolve(__dirname, '../../templates/hooks/codex/pre-tool-quality.ts');
@@ -147,6 +152,13 @@ describe('Codex PreToolUse deny spike (N12G95)', () => {
     writeFileSync(nodePath.join(ticketDirectory, 'dimensions.md'), 'skip: one obvious dimension');
     writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), SPEC);
     writeFileSync(nodePath.join(projectRoot, '.project', 'personas.md'), PERSONAS);
+    // The always-on spec-review demand (87Y167, #644 G1) needs a stamp for the
+    // feature spec at its current content before scenarios may be authored.
+    const specScope = reviewScope(TICKET_ID, 'spec', hashArtifact(SPEC));
+    writeFileSync(
+      nodePath.join(projectRoot, '.project', 'skill-invocations.log'),
+      `2026-01-01T00:00:00.000Z sess ${formatReviewStamp(specScope)}\n`,
+    );
 
     expectHookAllow(runCodexHook(projectRoot));
   });

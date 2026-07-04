@@ -17,9 +17,26 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, it } from 'vitest';
 
+import {
+  formatReviewStamp,
+  hashArtifact,
+  reviewScope,
+} from '../../templates/hooks/lib/review-ledger';
 import { expectHookAllow, expectHookDeny, type HookResult } from '../helpers';
 
 const HOOK_PATH = nodePath.resolve(__dirname, '../../templates/hooks/pre-tool-quality.ts');
+
+/**
+ * Satisfy the always-on spec-review demand (87Y167, #644 G1) so a feature's
+ * test-definitions.md write reaches the JTBD/AC checks these suites pin.
+ */
+function seedSpecStamp(projectRoot: string, ticketFolder: string, specContent: string): void {
+  const scope = reviewScope(ticketFolder, 'spec', hashArtifact(specContent));
+  writeFileSync(
+    nodePath.join(projectRoot, '.safeword-project', 'skill-invocations.log'),
+    `2026-01-01T00:00:00.000Z test-session ${formatReviewStamp(scope)}\n`,
+  );
+}
 
 const TICKET_FRONTMATTER = [
   'id: ABC123',
@@ -36,11 +53,15 @@ const TICKET_FRONTMATTER = [
 
 const PERSONAS = '# Personas\n\n## Platform Operator (PO)\n\n**Role:** Owns infra.\n';
 
-function runHook(input: object): HookResult {
+function runHook(input: object, projectDirectory?: string): HookResult {
   const result = spawnSync('bun', [HOOK_PATH], {
     input: JSON.stringify(input),
     encoding: 'utf8',
     stdio: ['pipe', 'pipe', 'pipe'],
+    // Match the real invocation: stamps resolve under the edited ticket's
+    // project. Without this the always-on spec-review demand (87Y167) reads
+    // the wrong namespace and a seeded stamp never matches.
+    env: projectDirectory ? { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory } : process.env,
   });
   return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
 }
@@ -49,14 +70,17 @@ function jtbdSpec(jtbdBody: string): string {
   return `# Spec: x\n\n## Intent\n\nWhy.\n\n## Jobs To Be Done\n\n${jtbdBody}\n\n## Outcomes\n\nDone.\n`;
 }
 
-function attemptTestDefinitions(ticketDirectory: string): HookResult {
-  return runHook({
-    tool_name: 'Write',
-    tool_input: {
-      file_path: nodePath.join(ticketDirectory, 'test-definitions.md'),
-      content: '# Test Definitions\n',
+function attemptTestDefinitions(ticketDirectory: string, projectRoot?: string): HookResult {
+  return runHook(
+    {
+      tool_name: 'Write',
+      tool_input: {
+        file_path: nodePath.join(ticketDirectory, 'test-definitions.md'),
+        content: '# Test Definitions\n',
+      },
     },
-  });
+    projectRoot,
+  );
 }
 
 describe('intake-exit JTBD gate (Rule 7)', () => {
@@ -78,24 +102,23 @@ describe('intake-exit JTBD gate (Rule 7)', () => {
 
   it('denies when spec.md has no JTBD', () => {
     writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), jtbdSpec('(none yet)'));
-    expectHookDeny(attemptTestDefinitions(ticketDirectory), 'JTBD');
+    expectHookDeny(attemptTestDefinitions(ticketDirectory, projectRoot), 'JTBD');
   });
 
   it('allows when spec.md has a JTBD whose persona resolves and an AC under it', () => {
-    writeFileSync(
-      nodePath.join(ticketDirectory, 'spec.md'),
-      jtbdSpec(
-        '### x.PO1 — t\n\n**Persona:** Platform Operator (PO)\n\n> When I a, I want b, so I can c.\n\n#### x.PO1.AC1 — b is reliably delivered',
-      ),
+    const spec = jtbdSpec(
+      '### x.PO1 — t\n\n**Persona:** Platform Operator (PO)\n\n> When I a, I want b, so I can c.\n\n#### x.PO1.AC1 — b is reliably delivered',
     );
-    expectHookAllow(attemptTestDefinitions(ticketDirectory));
+    writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), spec);
+    seedSpecStamp(projectRoot, 'ABC123', spec);
+    expectHookAllow(attemptTestDefinitions(ticketDirectory, projectRoot));
   });
 
   it('denies a feature with no spec.md — the no-spec grandfather skip is gone (9EA27P)', () => {
     // No spec.md written. Features now fail closed: the JTBD/AC gates no longer
     // silently skip on spec.md absence — the feature is denied until it carries
     // a spec.md (real JTBDs, or a `skip:` under `## Jobs To Be Done`).
-    expectHookDeny(attemptTestDefinitions(ticketDirectory), 'spec.md');
+    expectHookDeny(attemptTestDefinitions(ticketDirectory, projectRoot), 'spec.md');
   });
 });
 
@@ -121,19 +144,18 @@ describe('intake-exit AC gate (31W8M3)', () => {
 
   it('denies when a JTBD has no Acceptance Criteria', () => {
     writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), jtbdSpec(RESOLVING_JTBD));
-    expectHookDeny(attemptTestDefinitions(ticketDirectory), 'AC');
+    expectHookDeny(attemptTestDefinitions(ticketDirectory, projectRoot), 'AC');
   });
 
   it('allows a JTBD with an AC heading under it', () => {
-    writeFileSync(
-      nodePath.join(ticketDirectory, 'spec.md'),
-      jtbdSpec(`${RESOLVING_JTBD}\n\n#### x.PO1.AC1 — b is reliably delivered`),
-    );
-    expectHookAllow(attemptTestDefinitions(ticketDirectory));
+    const spec = jtbdSpec(`${RESOLVING_JTBD}\n\n#### x.PO1.AC1 — b is reliably delivered`);
+    writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), spec);
+    seedSpecStamp(projectRoot, 'ABC123', spec);
+    expectHookAllow(attemptTestDefinitions(ticketDirectory, projectRoot));
   });
 
   it('denies a feature with no spec.md — the no-spec grandfather skip is gone (9EA27P)', () => {
     // Same fail-closed rule, reached from the AC gate's side: no spec.md ⇒ denied.
-    expectHookDeny(attemptTestDefinitions(ticketDirectory), 'spec.md');
+    expectHookDeny(attemptTestDefinitions(ticketDirectory, projectRoot), 'spec.md');
   });
 });

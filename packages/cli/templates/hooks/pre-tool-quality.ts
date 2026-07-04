@@ -389,12 +389,14 @@ function enforceTestDefinitionsCreationGate(): void {
 
   if (specExists) {
     const specContent = readFileSync(specFile, 'utf8');
-    // Review gate (NMSD94, Tier 1) — DEFAULT-OFF: only fires when
-    // `.safeword/config.json` sets `reviewGate: true`. Scenarios require a review
-    // stamp bound to THIS ticket's spec.md at its CURRENT content (so a stale or
-    // cross-ticket review doesn't satisfy it). Inert until enabled, so it can't
-    // brick a workflow before the stamp-earning step ships.
-    if (isReviewGateOn()) {
+    // Review demand (NMSD94 Tier 1, promoted ALWAYS-ON for features by 87Y167,
+    // #644 G1): scenarios require a review stamp bound to THIS ticket's spec.md
+    // at its CURRENT content (so a stale or cross-ticket review doesn't
+    // satisfy it). The reviewGate flag now only governs the demand for
+    // non-feature tickets that carry a spec.md — feature tickets pay it
+    // unconditionally; the same stamp satisfies both paths, so enabling the
+    // flag adds no second demand.
+    if (meta.type === 'feature' || isReviewGateOn()) {
       const stamps = readReviewStamps();
       const priorScope = reviewScope(
         nodePath.basename(ticketDirectory),
@@ -403,8 +405,8 @@ function enforceTestDefinitionsCreationGate(): void {
       );
       if (!reviewGateForNextAsset(priorScope, stamps).ok) {
         deny(
-          'spec.md has not been reviewed at its current content. Review it (or log a skip with a reason) before writing scenarios.',
-          'Run `/self-review` (or log a skip), then create test-definitions.md.',
+          "spec.md must be reviewed at its current content before scenarios are authored — no matching review stamp exists (a review goes stale when the spec is changed after it, and another ticket's review never counts).",
+          'Run `/self-review` (or log a skip with a reason via `bun .safeword/hooks/write-review-stamp.ts spec --skip "<reason>"`), then create test-definitions.md.',
         );
       }
     }

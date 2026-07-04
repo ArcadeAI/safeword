@@ -4,6 +4,12 @@
  * is default-off, and when enabled it denies an unreviewed/stale/cross-ticket
  * spec and allows a matching stamp or a logged skip. Proves the content-binding
  * fix from the quality-review end-to-end.
+ *
+ * Fixture is a `task` (not a feature): 87Y167 promoted the feature spec-review
+ * demand to always-on (flag-independent), so the `reviewGate` flag now governs
+ * only non-feature tickets that carry a spec.md — this suite covers that
+ * population. The feature always-on path lives in
+ * artifact-precedence-gate.feature and the jtbd/quality-gates suites.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -21,7 +27,7 @@ const TICKET_ID = 'ABC123';
 
 const TICKET_FRONTMATTER = [
   'id: ABC123',
-  'type: feature',
+  'type: task',
   'phase: define-behavior',
   'status: in_progress',
   'scope:',
@@ -104,7 +110,7 @@ describe('NMSD94 Tier 1 review gate (wired)', () => {
 
   it('enabled + unreviewed: denies, asking for a spec review', () => {
     writeConfig(true);
-    expectHookDeny(runWriteScenarios(), 'not been reviewed');
+    expectHookDeny(runWriteScenarios(), 'must be reviewed');
   });
 
   it('enabled + matching stamp: allows', () => {
@@ -120,7 +126,7 @@ describe('NMSD94 Tier 1 review gate (wired)', () => {
     writeLog(
       `2026-06-03T00:00:00Z sess review:${reviewScope(TICKET_ID, 'spec', hashArtifact('old spec'))}`,
     );
-    expectHookDeny(runWriteScenarios(), 'not been reviewed');
+    expectHookDeny(runWriteScenarios(), 'must be reviewed');
   });
 
   it('enabled + skip stamp: allows', () => {

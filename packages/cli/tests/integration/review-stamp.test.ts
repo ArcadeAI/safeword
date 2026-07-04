@@ -158,7 +158,7 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
   });
 
   it('earns a stamp the gate accepts: deny → stamp spec → allow', () => {
-    expectHookDeny(runGate(), 'not been reviewed');
+    expectHookDeny(runGate(), 'must be reviewed');
 
     const stamp = runStamp('spec');
     expect(stamp.status).toBe(0);
@@ -242,7 +242,7 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
     expectHookAllow(runGate());
     // Edit the spec — the prior stamp's content hash is now stale.
     writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), `${SPEC}\nedited.\n`);
-    expectHookDeny(runGate(), 'not been reviewed');
+    expectHookDeny(runGate(), 'must be reviewed');
   });
 
   it('a newline in the skip reason cannot inject a second stamp line', () => {
