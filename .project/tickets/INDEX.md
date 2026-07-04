@@ -641,7 +641,7 @@
 - **Skill-authoring checklist: template + dogfood + schema + pairs + full suite (1RYQFV)** (done, epic: —)
   Codify the new-skill checklist — template + byte-identical dogfood copy + `SAFEWORD_SCHEMA` entry + `SKILL_CURSOR_PAIRS`/`ACTION_SKILLS` decision + run the FULL test suite — as a short guide (or a `safeword check` validation).
   → `.project/tickets/1RYQFV-skill-authoring-checklist`
-- **Converge spec grammar on a single Rule tier (1SVCB9)** (in_progress, epic: —)
+- **Converge spec grammar on a single Rule tier (1SVCB9)** (done, epic: —)
   Collapse the two coexisting criteria names (Acceptance Criterion + Rule) into one tier named Rule — retiring `.AC` to a soft-deprecated legacy alias with a codemod — so safeword carries a single BDD vocabulary the Gherkin tooling actually acts on.
   → `.project/tickets/1SVCB9-rule-tier-convergence`
 - **Pull dependency-freshness checks out of audit, delegate to Dependabot — or not (263422)** (in_progress, epic: —)
