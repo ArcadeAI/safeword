@@ -534,37 +534,23 @@ Then('the gate denies the creation', function (this: RuleTierWorld) {
   assert.equal(this.gateVerdict.ok, false);
 });
 
-Then(
-  'the denial message names both Acceptance Criteria and numbered Rules as options',
-  function (this: RuleTierWorld) {
-    assert.ok(this.gateVerdict?.reason, 'no denial reason recorded');
-    assert.match(this.gateVerdict.reason, /#### <id>\.AC<n>/);
-    assert.match(this.gateVerdict.reason, /#### <id>\.R<n>/);
-    assert.match(this.gateVerdict.reason, /numbered rules/);
-  },
-);
+// The mixed-criteria issue and the "names both AC and Rules" denial retired with
+// the single-Rule convergence (ticket 1SVCB9); those assertions now live in
+// rule-tier-convergence.steps.ts. The denial-names-Rule step is shared from there.
 
 // --- Thens: check output ---
-
-Then('a check issue names that JTBD as mixing criteria kinds', function (this: RuleTierWorld) {
-  assert.match(
-    combinedOutput(this),
-    /JTBD demo\.DEV1 declares both Acceptance Criteria and numbered Rules; keep one criteria kind per job/,
-  );
-  assert.equal(this.result?.exitCode, 1, 'mixed criteria should be a hard check issue');
-});
 
 Then('an uncovered advisory names that rule ID', function (this: RuleTierWorld) {
   assert.match(
     combinedOutput(this),
-    /numbered rule demo\.DEV2\.R1 has no scenario illustrating it \(uncovered\)/,
+    /rule demo\.DEV2\.R1 has no scenario illustrating it \(uncovered\)/,
   );
 });
 
 Then('a stale advisory names that rule reference', function (this: RuleTierWorld) {
   assert.match(
     combinedOutput(this),
-    /scenario ref demo\.DEV2\.R5 matches no numbered rule under its JTBD \(stale ref\)/,
+    /scenario ref demo\.DEV2\.R5 matches no rule under its JTBD \(stale ref\)/,
   );
 });
 
@@ -613,12 +599,12 @@ Then('the coverage report resolves every rule reference', function (this: RuleTi
   assert.doesNotMatch(output, /orphan/);
 });
 
-// Equivalence check, not a stored golden: the flat AC fixture must produce
-// exactly the one advisory it would have produced before this feature (the
-// uncovered demo.DEV1.AC2 line, path-normalized to the ticket label), and no
-// rule-tier vocabulary may leak into an AC-only project's output.
+// Post-convergence (ticket 1SVCB9): an AC-only project traces coverage exactly
+// as before — one uncovered line for demo.DEV1.AC2 — but in the single Rule
+// vocabulary, plus a zero-exit migrate-ac deprecation nudge. Legacy `.AC` still
+// parses and never blocks; no other rule-tier vocabulary leaks.
 Then(
-  'the output is byte-identical to the recorded flat-lineage snapshot after path normalization',
+  'the AC-only project traces coverage in Rule terms and draws a migrate-ac nudge',
   function (this: RuleTierWorld) {
     const output = combinedOutput(this);
     const ticketLines = output
@@ -626,9 +612,10 @@ Then(
       .filter(line => line.includes('RUL001'))
       .map(line => line.replace(/^.*?(demo \(RUL001\))/, '$1').trimEnd());
     assert.deepEqual(ticketLines, [
-      'demo (RUL001): acceptance criterion demo.DEV1.AC2 has no scenario (uncovered)',
+      'demo (RUL001): rule demo.DEV1.AC2 has no scenario illustrating it (uncovered) — add a scenario tagged @demo.DEV1.AC2',
+      'demo (RUL001): spec or feature still uses the deprecated .AC criteria name (retired in favor of the Rule tier) — run `safeword migrate-ac` to convert .AC<n> to .R<n>',
     ]);
-    assert.doesNotMatch(output, /numbered rule|rejection|mixing criteria|rule-name-tag/i);
+    assert.doesNotMatch(output, /acceptance criterion|numbered rule|mixing criteria/i);
     assert.equal(this.lintExitCode, 0, 'gherkin lint should stay clean for the AC-only project');
   },
 );
@@ -676,14 +663,9 @@ const MESSAGE_CONTRACT: Record<
     id: /numbered rule demo\.DEV2\.R1/,
     nextAction: /add a @rejection-tagged scenario under it/,
   },
-  'mixed-criteria issue': {
-    surface: 'check',
-    id: /JTBD demo\.DEV1/,
-    nextAction: /convert one set or split the job/,
-  },
   'uncovered advisory': {
     surface: 'check',
-    id: /numbered rule demo\.DEV2\.R1/,
+    id: /rule demo\.DEV2\.R1/,
     nextAction: /add a scenario tagged @demo\.DEV2\.R1/,
   },
   'stale advisory': {
@@ -699,7 +681,7 @@ const MESSAGE_CONTRACT: Record<
   'denial message': {
     surface: 'gate',
     id: /JTBD "demo\.DEV2/,
-    nextAction: /add ≥1 `#### <id>\.AC<n>`, ≥1 `#### <id>\.R<n>`, or `skip: <reason>`/,
+    nextAction: /add ≥1 `#### <id>\.R<n>` \(or `skip: <reason>`\)/,
   },
   'name-tag mismatch issue': {
     surface: 'gherkin',

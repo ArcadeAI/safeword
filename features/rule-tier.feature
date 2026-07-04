@@ -18,7 +18,7 @@ Feature: Numbered Rule tier between JTBD and scenarios
       Given a ticket spec whose JTBD declares no ACs, no Rules, and no skip line
       When the intake-exit gate evaluates test-definitions creation
       Then the gate denies the creation
-      And the denial message names both Acceptance Criteria and numbered Rules as options
+      And the denial message names a numbered Rule heading as the criterion to add
 
     @rule-tier.TB1.AC1
     Scenario: JTBD with a skip line still satisfies the gate
@@ -26,13 +26,7 @@ Feature: Numbered Rule tier between JTBD and scenarios
       When the intake-exit gate evaluates test-definitions creation
       Then the gate allows the creation
 
-  Rule: A JTBD declares one criteria kind, never both
-
-    @rule-tier.TB1.AC4 @rejection
-    Scenario: Mixed AC and Rule JTBD is flagged as a check issue
-      Given a ticket spec whose JTBD declares both an AC heading and a numbered Rule heading
-      When safeword check runs
-      Then a check issue names that JTBD as mixing criteria kinds
+  Rule: A JTBD may carry both AC and Rule headings (one tier after convergence)
 
     @rule-tier.TB1.AC4
     Scenario: Mixed JTBD still passes the intake-exit gate
@@ -119,13 +113,13 @@ Feature: Numbered Rule tier between JTBD and scenarios
       When safeword check runs
       Then no zero-rejection-path advisory is reported
 
-  Rule: Non-adopters see zero change
+  Rule: Legacy AC projects still work, in the single Rule vocabulary
 
     @rule-tier.TB1.AC3
-    Scenario: AC-only project output is unchanged
+    Scenario: AC-only project traces coverage in Rule terms and is nudged to migrate
       Given a project whose specs and feature files use only AC lineage, including unnumbered Rule grouping blocks without rejection tags
       When safeword check and gherkin lint run
-      Then the output is byte-identical to the recorded flat-lineage snapshot after path normalization
+      Then the AC-only project traces coverage in Rule terms and draws a migrate-ac nudge
 
   Rule: An existing rule-numbered corpus is expressible
 
@@ -152,7 +146,6 @@ Feature: Numbered Rule tier between JTBD and scenarios
       Examples:
         | condition                                            | command              | message                 | offender           |
         | a numbered rule with no rejection-tagged scenario    | safeword check       | zero-rejection advisory | the rule ID        |
-        | a JTBD mixing AC and Rule headings                   | safeword check       | mixed-criteria issue    | the JTBD           |
         | a spec rule no scenario references                   | safeword check       | uncovered advisory      | the rule ID        |
         | a rule reference with a missing rule number          | safeword check       | stale advisory          | the rule reference |
         | a rule reference whose JTBD is absent                | safeword check       | orphan advisory         | the rule reference |
