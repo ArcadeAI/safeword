@@ -296,6 +296,24 @@ Given(
 );
 
 Given(
+  'a feature ticket.md at phase scenario-gate whose test-definitions.md names a feature source that is a directory',
+  function (this: PrecedenceWorld) {
+    seedBareTicket(this, { phase: 'scenario-gate' });
+    writeArtifact(this, 'spec.md', COMPLETE_SPEC);
+    writeArtifact(this, 'dimensions.md', 'skip: single-dimension fixture\n');
+    // The ledger names a path that resolves to a directory — reading it throws
+    // EISDIR. The gate must fall back to the ledger and still demand a review,
+    // never crash into a silent allow.
+    writeArtifact(
+      this,
+      'test-definitions.md',
+      '# Test Definitions: fixture\n\nFeature source: `features`\n',
+    );
+    mkdirSync(nodePath.join(this.projectDirectory!, 'features'), { recursive: true });
+  },
+);
+
+Given(
   'a feature ticket.md at phase scenario-gate whose test-definitions.md names no feature source file',
   function (this: PrecedenceWorld) {
     seedBareTicket(this, { phase: 'scenario-gate' });

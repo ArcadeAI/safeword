@@ -245,8 +245,15 @@ function scenarioContent(ticketFolder: string): string {
   const ledger = readFileSync(ledgerFile, 'utf8');
   const sourcePath = resolveScenarioSource(ledger);
   if (sourcePath === undefined) return ledger;
-  const sourceFile = nodePath.join(projectDirectory, sourcePath);
-  return existsSync(sourceFile) ? readFileSync(sourceFile, 'utf8') : ledger;
+  // Fall back to the ledger on any read failure (missing, directory, unreadable)
+  // so the stamp binds to the same content the gate does — the gate applies the
+  // identical fallback, so both stay consistent.
+  try {
+    const sourceFile = nodePath.join(projectDirectory, sourcePath);
+    return existsSync(sourceFile) ? readFileSync(sourceFile, 'utf8') : ledger;
+  } catch {
+    return ledger;
+  }
 }
 
 const { scope, label } = resolveScope(resolveTicketFolder());

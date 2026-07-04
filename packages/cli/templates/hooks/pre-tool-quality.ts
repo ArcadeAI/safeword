@@ -332,6 +332,7 @@ function enforceTestDefinitionsCreationGate(): void {
   // two-line `## Jobs To Be Done` + `skip: <reason>` the next time they advance.
   const specFile = nodePath.join(ticketDirectory, 'spec.md');
   const specExists = existsSync(specFile);
+  const specContent = specExists ? readFileSync(specFile, 'utf8') : undefined;
   if (meta.type === 'feature' && !specExists) {
     deny(
       'Features require a spec.md before test-definitions.md. Without one the JTBD and Acceptance-Criteria gates have nothing to check.',
@@ -343,9 +344,7 @@ function enforceTestDefinitionsCreationGate(): void {
   // personas.md, or a `skip: <reason>` in the Jobs To Be Done section. The
   // guard below now only spares tasks and patches — a feature with no spec.md
   // was already denied above.
-  if (specExists) {
-    const specContent = readFileSync(specFile, 'utf8');
-
+  if (specContent !== undefined) {
     const jtbdVerdict = evaluateJtbdGate(specContent, readPersonasForGate(ticketDirectory));
     if (!jtbdVerdict.ok) {
       deny(
@@ -391,8 +390,7 @@ function enforceTestDefinitionsCreationGate(): void {
     }
   }
 
-  if (specExists) {
-    const specContent = readFileSync(specFile, 'utf8');
+  if (specContent !== undefined) {
     // Review demand (NMSD94 Tier 1, promoted ALWAYS-ON for features by 87Y167,
     // #644 G1): scenarios require a review stamp bound to THIS ticket's spec.md
     // at its CURRENT content (so a stale or cross-ticket review doesn't
@@ -577,8 +575,16 @@ if (ticketWrite !== undefined) {
     ticketFolder: nodePath.basename(ticketDirectory),
     ledgerContent: existsSync(ledgerFile) ? readFileSync(ledgerFile, 'utf8') : undefined,
     resolveSourceContent: relativePath => {
-      const sourceFile = nodePath.join(projectDirectory, relativePath);
-      return existsSync(sourceFile) ? readFileSync(sourceFile, 'utf8') : undefined;
+      // Any read failure (missing, a directory → EISDIR, unreadable → EACCES)
+      // must fall back to undefined so the gate binds to the ledger and still
+      // demands a review — NOT throw, which would crash the hook into a silent
+      // allow (exit 0, no output = the write proceeds) and bypass the gate.
+      try {
+        const sourceFile = nodePath.join(projectDirectory, relativePath);
+        return existsSync(sourceFile) ? readFileSync(sourceFile, 'utf8') : undefined;
+      } catch {
+        return undefined;
+      }
     },
     stamps: readReviewStamps(),
   });

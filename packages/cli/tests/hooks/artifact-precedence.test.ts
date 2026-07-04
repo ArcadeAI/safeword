@@ -225,6 +225,27 @@ describe('evaluateImplementEntry — demand and satisfaction', () => {
     expect(verdict.ok).toBe(false);
   });
 
+  it('falls back to the ledger when a named source is unreadable (resolver returns undefined)', () => {
+    // The hook's resolver returns undefined on any read error (EISDIR/EACCES);
+    // the gate must then bind to the ledger, not crash — a ledger stamp satisfies.
+    const ledgerScope = reviewScope(
+      'ZZTEST-fixture',
+      'scenarios',
+      hashArtifact(LEDGER_WITH_SOURCE),
+    );
+    const verdict = entry({
+      ledger: LEDGER_WITH_SOURCE,
+      source: undefined,
+      stamps: [{ scope: ledgerScope }],
+    });
+    expect(verdict.ok).toBe(true);
+  });
+
+  it('denies when a named source is unreadable and no stamp matches the ledger', () => {
+    const verdict = entry({ ledger: LEDGER_WITH_SOURCE, source: undefined });
+    expect(verdict.ok).toBe(false);
+  });
+
   it('rejects a stale stamp after the scenario source changed', () => {
     const staleScope = reviewScope('ZZTEST-fixture', 'scenarios', hashArtifact('old content'));
     const verdict = entry({
