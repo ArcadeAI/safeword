@@ -154,6 +154,36 @@ as advisories (never a gate):
   or an AC that was renumbered).
 - **orphan** — a scenario whose JTBD is absent from `spec.md` entirely.
 
+### Numbered Rules (optional third tier)
+
+A JTBD may declare **numbered Rules** instead of ACs — testable business
+invariants with stable per-JTBD IDs, stated generally and illustrated by the
+scenarios nested under them. Declaring them is the opt-in; there is no config
+flag, and a JTBD carries one criteria kind, never both (`safeword check` flags a
+mixed job as an issue).
+
+- **Spec catalog:** `#### <jtbd-id>.R<n> — <invariant>` headings under the JTBD,
+  exactly where AC headings sit (e.g. `#### webhook-retry.PO1.R1 — a failed
+delivery retries on exponential backoff`). IDs are 1-indexed per job and
+  numbering-locked after review — renumbering breaks references on purpose.
+- **Feature file:** the `Rule:` block carries the literal `@<jtbd-id>.R<n>` tag
+  (authoritative — scenarios inherit it as their single lineage ref) and repeats
+  the ID as its name's first token for readability; a mismatch is a lint issue.
+  An AC-shaped tag always wins the ref parse, so persona code `R` stays safe
+  (`@feat.R1.AC1` is an AC of JTBD `feat.R1`).
+- **Rejection paths:** tag at least one scenario per rule `@rejection` (the
+  example proving the system refuses when the invariant is violated); a numbered
+  rule without one draws a check advisory. Unnumbered `Rule:` grouping headers
+  are exempt from all of this.
+- **Selection:** `cucumber-js --tags @<jtbd-id>.R<n>` runs exactly that rule's
+  examples.
+- **Coverage:** the uncovered / stale ref / orphan advisories work for rule refs
+  exactly as for AC refs.
+- **Migrating a rule-numbered corpus** (e.g. Arcade-style split tags): the Rule
+  blocks, IDs, and nesting survive as-is; respell tags mechanically —
+  `@job:PO1 @rule:PO1.R1 @scenario:<name>` on a scenario becomes the single
+  block-level `@<slug>.PO1.R1` tag, and scenario names go back to plain English.
+
 ### Define Behavior Exit (REQUIRED)
 
 1. **Save scenarios** to `features/<slug>.feature`

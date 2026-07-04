@@ -58,9 +58,15 @@ const PRETTIER_PACKAGES = new Set([
   'prettier-plugin-sh',
 ]);
 
+// Conditional-package keys whose condition is the ABSENCE of existing tooling,
+// rather than a truthy ProjectType field: "standard" = no existing formatter.
+const INVERTED_PACKAGE_CONDITIONS: Record<string, (projectType: ProjectType) => boolean> = {
+  standard: projectType => !projectType.existingFormatter,
+};
+
 /**
  * Get conditional packages based on project type.
- * Handles the "standard" key and prettier filtering for existing formatters.
+ * Handles inverted keys (standard) and prettier filtering for existing formatters.
  */
 function getConditionalPackages(
   conditionalPackages: Record<string, string[]>,
@@ -69,11 +75,9 @@ function getConditionalPackages(
   const packages: string[] = [];
 
   for (const [key, dependencies] of Object.entries(conditionalPackages)) {
-    // "standard" means !existingFormatter - only for projects without existing formatter
-    if (key === 'standard') {
-      if (!projectType.existingFormatter) {
-        packages.push(...dependencies);
-      }
+    const inverted = INVERTED_PACKAGE_CONDITIONS[key];
+    if (inverted) {
+      if (inverted(projectType)) packages.push(...dependencies);
       continue;
     }
 
@@ -697,8 +701,14 @@ function computeUninstallPlan(
   const actions: Action[] = [];
   const wouldRemove: string[] = [];
 
-  // 1. Remove all owned files and track parent dirs for cleanup
-  const ownedFiles = planExistingFilesRemoval(Object.keys(schema.ownedFiles), ctx.cwd);
+  // 1. Remove all owned files and track parent dirs for cleanup.
+  // cucumber.mjs is only safeword's when the lane is safeword's to scaffold —
+  // in a suppressed-lane repo the root cucumber.mjs is the HOST's own config
+  // and must survive uninstall (ticket 56JCFZ, TB1.AC3).
+  const removableOwnedPaths = Object.keys(schema.ownedFiles).filter(
+    filePath => filePath !== 'cucumber.mjs' || ctx.projectType.scaffoldBddLane,
+  );
+  const ownedFiles = planExistingFilesRemoval(removableOwnedPaths, ctx.cwd);
   actions.push(...ownedFiles.actions);
   wouldRemove.push(...ownedFiles.removed);
 
@@ -852,6 +862,13 @@ function executeWrite(cwd: string, path: string, content: string, result: Execut
 // ============================================================================
 
 function resolveFileContent(definition: FileDefinition, ctx: ProjectContext): string | undefined {
+  if (definition.generator) {
+    // Generator decides (undefined = skip file). Takes precedence over
+    // `template` so an entry can declare its template provenance (for the
+    // schema↔templates contract) while gating on project context (56JCFZ).
+    return definition.generator(ctx);
+  }
+
   if (definition.template) {
     const templatesDirectory = getTemplatesDirectory();
     return readFile(nodePath.join(templatesDirectory, definition.template));
@@ -859,11 +876,6 @@ function resolveFileContent(definition: FileDefinition, ctx: ProjectContext): st
 
   if (definition.content) {
     return typeof definition.content === 'function' ? definition.content() : definition.content;
-  }
-
-  if (definition.generator) {
-    // Generator can return null to skip file creation
-    return definition.generator(ctx);
   }
 
   throw new Error('FileDefinition must have template, content, or generator');

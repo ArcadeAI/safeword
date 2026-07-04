@@ -1,5 +1,10 @@
 # Test Definitions — stale tooling-config warning
 
+> **Retrospective ledger — not a per-step record.** These RED/GREEN/REFACTOR
+> boxes were filled in after the fact: the file entered git history already
+> ticked, with no per-step commit SHAs. Do not cite this ledger as precedent
+> for R/G/R bookkeeping (issue #644 G8; per-step enforcement is G3 + G5).
+
 Scenarios for [JYWZG1](./ticket.md), follow-up to epic
 [AQJ95G](../AQJ95G-project-namespace-default/spec.md). Lineage
 `<jtbd-id>.AC<#>.<scenario_name>`; dimensions in [dimensions.md](./dimensions.md).

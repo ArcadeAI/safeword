@@ -4,15 +4,24 @@
  * These are pure unit tests for the detectProjectType function.
  */
 
+import { readFileSync } from 'node:fs';
+import nodePath from 'node:path';
+
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   createTemporaryDirectory,
   removeTemporaryDirectory,
+  repoRoot,
   writeTestFile,
 } from '../../tests/helpers.js';
 import type { Languages, PackageJson, PythonProjectType } from './project-detector.js';
-import { detectLanguages, detectProjectType, detectPythonType } from './project-detector.js';
+import {
+  detectCucumberLane,
+  detectLanguages,
+  detectProjectType,
+  detectPythonType,
+} from './project-detector.js';
 
 describe('detectProjectType', () => {
   describe('Test 4.1: Detects TypeScript project', () => {
@@ -557,6 +566,72 @@ describe('detectPythonType', () => {
 
       expect(result).toBeDefined();
       expect(result?.packageManager).toBe('pip');
+    });
+  });
+});
+
+describe('detectCucumberLane (ticket 56JCFZ)', () => {
+  let temporaryDirectory: string;
+
+  const CURRENT_LANE_TEMPLATE = readFileSync(
+    nodePath.join(repoRoot, 'packages/cli/templates/cucumber/cucumber.mjs'),
+    'utf8',
+  );
+
+  beforeEach(() => {
+    temporaryDirectory = createTemporaryDirectory();
+  });
+
+  afterEach(() => {
+    removeTemporaryDirectory(temporaryDirectory);
+  });
+
+  it('reports no harness and scaffolds the lane in an empty project', () => {
+    expect(detectCucumberLane(temporaryDirectory)).toEqual({
+      existingCucumberHarness: undefined,
+      scaffoldBddLane: true,
+    });
+  });
+
+  it('treats a root cucumber config file as a host harness', () => {
+    writeTestFile(temporaryDirectory, 'cucumber.yaml', 'default:\n  paths: []\n');
+
+    expect(detectCucumberLane(temporaryDirectory)).toEqual({
+      existingCucumberHarness: 'cucumber.yaml',
+      scaffoldBddLane: false,
+    });
+  });
+
+  it('treats a workspace-package cucumber config FILE as a host harness', () => {
+    writeTestFile(temporaryDirectory, 'packages/api/cucumber.yaml', 'default:\n  paths: []\n');
+
+    expect(detectCucumberLane(temporaryDirectory)).toEqual({
+      existingCucumberHarness: 'packages/api/cucumber.yaml',
+      scaffoldBddLane: false,
+    });
+  });
+
+  it('recognizes its own scaffolded lane and keeps maintaining it', () => {
+    writeTestFile(temporaryDirectory, 'cucumber.mjs', CURRENT_LANE_TEMPLATE);
+    writeTestFile(
+      temporaryDirectory,
+      'package.json',
+      JSON.stringify({ devDependencies: { '@cucumber/cucumber': '^13.0.0' } }),
+    );
+
+    expect(detectCucumberLane(temporaryDirectory)).toEqual({
+      existingCucumberHarness: undefined,
+      scaffoldBddLane: true,
+    });
+  });
+
+  it('keeps maintaining its own lane in a bitten repo while reporting the host harness', () => {
+    writeTestFile(temporaryDirectory, 'cucumber.mjs', CURRENT_LANE_TEMPLATE);
+    writeTestFile(temporaryDirectory, 'cucumber.yaml', 'default:\n  paths: []\n');
+
+    expect(detectCucumberLane(temporaryDirectory)).toEqual({
+      existingCucumberHarness: 'cucumber.yaml',
+      scaffoldBddLane: true,
     });
   });
 });

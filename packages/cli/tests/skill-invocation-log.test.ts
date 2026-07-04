@@ -10,7 +10,6 @@ import { repoRoot } from './helpers';
 
 const templatesDirectory = nodePath.join(repoRoot, 'packages/cli/templates');
 
-const verifyCommand = readFileSync(nodePath.join(templatesDirectory, 'commands/verify.md'), 'utf8');
 const verifySkill = readFileSync(
   nodePath.join(templatesDirectory, 'skills/verify/SKILL.md'),
   'utf8',
@@ -18,12 +17,10 @@ const verifySkill = readFileSync(
 const auditSkill = readFileSync(nodePath.join(templatesDirectory, 'skills/audit/SKILL.md'), 'utf8');
 const readme = readFileSync(nodePath.join(repoRoot, 'README.md'), 'utf8');
 
-// Invocation-log surfaces. /audit's Cursor command is a generated wrapper that
-// points at the canonical skill, so the skill owns the helper proof text.
-const verifyForms: [string, string][] = [
-  ['verify-command', verifyCommand],
-  ['verify-skill', verifySkill],
-];
+// Invocation-log surfaces. Both Cursor commands (/audit and, since 7PG694,
+// /verify) are thin pointers at the canonical skill, so the skill owns the
+// helper proof text.
+const verifyForms: [string, string][] = [['verify-skill', verifySkill]];
 const auditForms: [string, string][] = [['audit-skill', auditSkill]];
 
 // Skill forms only — they own the `${CLAUDE_PROJECT_DIR:-…}` fallback that the

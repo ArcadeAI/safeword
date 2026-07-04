@@ -15,8 +15,10 @@ import { readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { getMissingPacks } from './packs/registry.js';
+import type { ProjectType } from './packs/types.js';
+import { typescriptPackages } from './packs/typescript/files.js';
 import { reconcile } from './reconcile.js';
-import { SAFEWORD_SCHEMA } from './schema.js';
+import { BDD_LANE_FILE_PATHS, BDD_LANE_SCRIPT, SAFEWORD_SCHEMA } from './schema.js';
 import { readTickets } from './ticket-sync/index.js';
 import { listArchitectureRecords } from './utils/architecture-records.js';
 import {
@@ -28,7 +30,7 @@ import {
 } from './utils/configured-paths.js';
 import { createProjectContext } from './utils/context.js';
 import { findFeatureSourcePath } from './utils/feature-source.js';
-import { exists, isDirectory, readFileSafe } from './utils/fs.js';
+import { exists, isDirectory, readFileSafe, readJson } from './utils/fs.js';
 import { FeatureParseError, findFeatureLineageIssues } from './utils/gherkin-feature.js';
 import { parseGlossary, validateGlossary } from './utils/glossary.js';
 import { header, info, listItem, success, warn } from './utils/output.js';
@@ -38,6 +40,9 @@ import {
   buildCoverageReportFromFeature,
   buildSurfaceCoverageReportFromFeature,
   type CoverageReport,
+  findMixedCriteriaJtbds,
+  findRulesMissingRejectionPaths,
+  isRuleId,
   type SurfaceCoverageReport,
 } from './utils/scenario-coverage.js';
 import { formatTicketReference } from './utils/ticket-reference.js';
@@ -170,6 +175,65 @@ function findGlossaryAdvisories(cwd: string): string[] {
   ];
 }
 
+/**
+ * Cucumber-harness misalignment advisories (ticket 56JCFZ, TB3.AC1+AC2).
+ * Persistent and zero-exit — the setup-time notice alone is ignorable:
+ * - Host harness detected, safeword's lane absent, `paths.*` unset → name
+ *   the harness and the exact config lines to add. Silent once set.
+ * - Host harness AND safeword's starter lane both present (a repo bitten by
+ *   pre-56JCFZ scaffolding) → enumerate the leftover lane surface, derived
+ *   from the schema constants so the list can't drift. Never edits/deletes.
+ */
+function findCucumberHarnessAdvisories(
+  cwd: string,
+  // Detection already ran once for this invocation (createProjectContext →
+  // detectProjectType); reuse it instead of re-sweeping the filesystem.
+  { existingCucumberHarness, scaffoldBddLane }: ProjectType,
+): string[] {
+  if (existingCucumberHarness === undefined) return [];
+
+  if (scaffoldBddLane) {
+    return [buildLeftoverLaneAdvisory(cwd, existingCucumberHarness)];
+  }
+
+  // paths.features alone silences this: the readers consume only the
+  // features directory. paths.steps matters only to the scaffolded runner
+  // (relocated TypeScript steps), which a host-harness repo isn't using.
+  if (readConfiguredPath(cwd, 'features') !== undefined) return [];
+  return [
+    `Detected a cucumber harness (${existingCucumberHarness}) but paths.features is not set in .safeword/config.json — codify, lint-gherkin, and check cannot see your suite. Add e.g. "paths": { "features": "tests/behaviors", "steps": "tests/steps" } (paths.steps only matters when the scaffolded runner reads relocated TypeScript steps).`,
+  ];
+}
+
+/** Enumerate the starter-lane leftovers (files/deps/script) from schema constants. */
+function buildLeftoverLaneAdvisory(cwd: string, evidence: string): string {
+  const leftovers: string[] = BDD_LANE_FILE_PATHS.filter(filePath =>
+    exists(nodePath.join(cwd, filePath)),
+  );
+
+  const manifest = readPackageJsonSafe(cwd);
+  const developmentDependencies = manifest?.devDependencies ?? {};
+  leftovers.push(
+    ...typescriptPackages.conditional.scaffoldBddLane.filter(dependency =>
+      Object.hasOwn(developmentDependencies, dependency),
+    ),
+  );
+  if (typeof manifest?.scripts?.[BDD_LANE_SCRIPT] === 'string') {
+    leftovers.push(`"${BDD_LANE_SCRIPT}" script`);
+  }
+
+  return `Duplicate BDD lane: a cucumber harness (${evidence}) coexists with safeword's starter lane. Leftover scaffold: ${leftovers.join(', ')}. Safeword never removes these — if the host harness is the real suite, delete the leftovers and set paths.features / paths.steps in .safeword/config.json so safeword reads it.`;
+}
+
+interface PackageJsonManifest {
+  scripts?: Record<string, unknown>;
+  devDependencies?: Record<string, string>;
+}
+
+function readPackageJsonSafe(cwd: string): PackageJsonManifest | undefined {
+  return readJson(nodePath.join(cwd, 'package.json')) as PackageJsonManifest | undefined;
+}
+
 function findDocumentationSourceIssues(cwd: string): string[] {
   return readConfiguredDocumentationSources(cwd).flatMap(source => {
     if (source.type !== 'local') return [];
@@ -296,10 +360,12 @@ function coverageDiagnosticsForTicket(
         : buildSurfaceCoverageReportFromFeature(specContent, featureSource.content);
     const lineageIssues =
       featureSource === undefined ? [] : formatFeatureLineageIssues(cwd, ticketId, featureSource);
+    const ruleTier = ruleTierDiagnostics(ticketId, specContent, featureSource);
     return {
-      issues: lineageIssues,
+      issues: [...lineageIssues, ...ruleTier.issues],
       advisories: [
         ...formatCoverageReport(ticketId, report),
+        ...ruleTier.advisories,
         ...formatSurfaceCoverageReport(ticketId, surfaceReport),
       ],
     };
@@ -314,6 +380,29 @@ function coverageDiagnosticsForTicket(
     }
     throw parseError;
   }
+}
+
+/** Rule-tier findings for one ticket: mixed-criteria JTBDs (issues) and
+ * numbered rules missing a rejection-path scenario (advisories). */
+function ruleTierDiagnostics(
+  ticketId: string,
+  specContent: string,
+  featureSource: FeatureSource | undefined,
+): CoverageDiagnostics {
+  const label = formatCoverageTicketLabel(ticketId);
+  return {
+    issues: findMixedCriteriaJtbds(specContent).map(
+      jtbd =>
+        `${label}: JTBD ${jtbd} declares both Acceptance Criteria and numbered Rules; keep one criteria kind per job — convert one set or split the job`,
+    ),
+    advisories:
+      featureSource === undefined
+        ? []
+        : findRulesMissingRejectionPaths(specContent, featureSource.content).map(
+            ruleId =>
+              `${label}: numbered rule ${ruleId} has no example of the rule being broken — add a @rejection-tagged scenario under it`,
+          ),
+  };
 }
 
 function formatFeatureLineageIssues(
@@ -357,15 +446,20 @@ function isInProgress(ticketContent: string): boolean {
 function formatCoverageReport(ticketId: string, report: CoverageReport): string[] {
   const ticketLabel = formatCoverageTicketLabel(ticketId);
   return [
-    ...report.uncovered.map(
-      acId => `${ticketLabel}: acceptance criterion ${acId} has no scenario (uncovered)`,
+    ...report.uncovered.map(id =>
+      isRuleId(id)
+        ? `${ticketLabel}: numbered rule ${id} has no scenario illustrating it (uncovered) — add a scenario tagged @${id}`
+        : `${ticketLabel}: acceptance criterion ${id} has no scenario (uncovered)`,
     ),
-    ...report.stale.map(
-      reference =>
-        `${ticketLabel}: scenario ref ${reference} matches no AC under its JTBD (stale ref)`,
+    ...report.stale.map(reference =>
+      isRuleId(reference)
+        ? `${ticketLabel}: scenario ref ${reference} matches no numbered rule under its JTBD (stale ref) — retag to a declared rule or declare it in spec.md`
+        : `${ticketLabel}: scenario ref ${reference} matches no AC under its JTBD (stale ref)`,
     ),
-    ...report.orphan.map(
-      reference => `${ticketLabel}: scenario ref ${reference} names no JTBD in spec.md (orphan)`,
+    ...report.orphan.map(reference =>
+      isRuleId(reference)
+        ? `${ticketLabel}: scenario ref ${reference} names no JTBD in spec.md (orphan) — fix the tag's JTBD id or add that JTBD to spec.md`
+        : `${ticketLabel}: scenario ref ${reference} names no JTBD in spec.md (orphan)`,
     ),
   ];
 }
@@ -608,6 +702,7 @@ export async function checkHealth(
       ...findNamespaceAdvisories(cwd),
       ...findPersonaAdvisories(cwd),
       ...findGlossaryAdvisories(cwd),
+      ...findCucumberHarnessAdvisories(cwd, ctx.projectType),
       ...coverageDiagnostics.advisories,
       ...findRelationAdvisories(cwd),
       ...findArchitectureAdvisories(cwd),

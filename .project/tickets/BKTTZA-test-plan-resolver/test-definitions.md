@@ -1,5 +1,10 @@
 # Test Definitions: test-plan resolver
 
+> **Retrospective ledger — not a per-step record.** These RED/GREEN/REFACTOR
+> boxes were filled in after the fact: the file entered git history already
+> ticked, with no per-step commit SHAs. Do not cite this ledger as precedent
+> for R/G/R bookkeeping (issue #644 G8; per-step enforcement is G3 + G5).
+
 Feature source: `features/test-plan-resolver.feature`
 
 R/G/R ledger. Executable Given/When/Then live in the `.feature`; lower-level

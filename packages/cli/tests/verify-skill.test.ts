@@ -29,18 +29,39 @@ const dogfoodCursorCommandContent = readFileSync(
 );
 
 // These template surfaces are the source files shipped to installed projects.
-const templateFiles: [string, string][] = [
-  ['skill', skillContent],
-  ['command', commandContent],
-];
+// The command template is a thin pointer to the canonical skill (like audit's,
+// ticket C7PXFR) — it carries no verify content of its own, so the content
+// contracts below apply to the skill copies only.
+const templateFiles: [string, string][] = [['skill', skillContent]];
 
 const allVerifySurfaces: [string, string][] = [
   ['template skill', skillContent],
-  ['template command', commandContent],
   ['dogfood agents skill', dogfoodAgentsSkillContent],
   ['dogfood claude skill', dogfoodClaudeSkillContent],
-  ['dogfood cursor command', dogfoodCursorCommandContent],
 ];
+
+describe('verify command pointer (7PG694)', () => {
+  it.each([
+    ['template command', commandContent],
+    ['dogfood cursor command', dogfoodCursorCommandContent],
+  ])('%s is a thin pointer to the canonical skill', (_name, content) => {
+    expect(content).toContain('Read and follow the instructions in');
+    expect(content).toContain('.claude/skills/verify/SKILL.md');
+    expect(content.split('\n').length).toBeLessThan(10);
+  });
+});
+
+describe('verify.md artifact step (7PG694)', () => {
+  // The done gate blocks on the verify.md artifact; the skill must keep
+  // instructing agents to write it (the missing step was this refactor's
+  // top critical — pin it so a future cut can't silently regress).
+  it.each(allVerifySurfaces)('%s instructs writing the verify.md artifact', (_name, content) => {
+    expect(content).toContain('### 7. Write verify.md');
+    expect(content).toContain(
+      'The all-green collapse in step 8 applies to the **chat report only**',
+    );
+  });
+});
 
 describe('verify report structure (146)', () => {
   describe('Rule: Status section preserves existing checklist + done-gate evidence patterns', () => {

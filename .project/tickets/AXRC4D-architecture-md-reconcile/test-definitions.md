@@ -1,5 +1,10 @@
 # Test definitions (R/G/R ledger) — AXRC4D
 
+> **Retrospective ledger — not a per-step record.** These RED/GREEN/REFACTOR
+> boxes were filled in after the fact: the file entered git history already
+> ticked, with no per-step commit SHAs. Do not cite this ledger as precedent
+> for R/G/R bookkeeping (issue #644 G8; per-step enforcement is G3 + G5).
+
 Two surfaces. The **done-gate nudge** is deterministic and carries the executable
 R/G/R proof (`tests/hooks/architecture-document-nudge.test.ts`). The **`/audit`
 structural reconciliation** is a skill-prompt sharpening — verified by reading the
