@@ -1,5 +1,10 @@
 # Test Definitions — Ticket 144
 
+> **Retrospective ledger — not a per-step record.** These RED/GREEN/REFACTOR
+> boxes were filled in after the fact: the file entered git history already
+> ticked, with no per-step commit SHAs. Do not cite this ledger as precedent
+> for R/G/R bookkeeping (issue #644 G8; per-step enforcement is G3 + G5).
+
 > 4 rules, 16 scenarios. AODI validated. Covers happy path + failure modes + boundaries.
 >
 > **Post-pivot note:** The "manifest" is `SAFEWORD_SCHEMA` (TypeScript), not a runtime JSON file. The earlier Rule 5 dissolved — TypeScript's compiler enforces the shape, file-missing cases already live in Rules 1 and 2, and the empty-schema boundary is a degenerate case of Rule 4's format string. Rule 3 narrows from "any parity drift" to "any contract violation" because pair drift is intentionally not enforced at pre-commit (preserves template-iteration UX; release test catches pairs before merge).

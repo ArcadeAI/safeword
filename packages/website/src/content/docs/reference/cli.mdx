@@ -47,6 +47,8 @@ Setup auto-detects your stack. A TypeScript project won't get Go (beta), Python 
 
 The **BDD acceptance lane is universal**: every project gets cucumber-js wired (`test:bdd` script, `features/` + `steps/` starters, `@cucumber/cucumber` + `tsx` + `@types/node` as devDependencies). Step definitions are always TypeScript — they test your app from the outside (shell out to `go test`, `cargo test`, or hit it over HTTP), so a pure Go/Python/Rust repo gets a minimal private `package.json` created to host the lane.
 
+**Unless you already have cucumber**: when setup detects an existing cucumber harness — any `cucumber.{json,yaml,yml,js,cjs,mjs}` it didn't scaffold, or a `@cucumber/cucumber` dependency it didn't add — it skips the starter lane entirely (no files, no deps, no `test:bdd`) and prints the `paths.features` / `paths.steps` config lines that point safeword's BDD tooling at your suite instead. `safeword check` keeps warning until those paths are set, and warns about duplicate lanes left by older safeword versions (it never deletes anything itself). Uninstall/reset likewise leaves your cucumber config untouched; when safeword's own scaffolded lane is present, `reset --full` treats the cucumber devDependencies as safeword's and removes them along with it.
+
 ## safeword upgrade
 
 Update Safeword files to the latest version.

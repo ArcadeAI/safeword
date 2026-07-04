@@ -7,6 +7,8 @@
  * Adding a new file? Add it here and it will be handled by setup/upgrade/reset.
  */
 
+import nodePath from 'node:path';
+
 import { golangManagedFiles, golangOwnedFiles } from './packs/golang/files.js';
 import { pythonManagedFiles, pythonOwnedFiles } from './packs/python/files.js';
 import { rustManagedFiles, rustOwnedFiles } from './packs/rust/files.js';
@@ -40,6 +42,7 @@ import type {
 } from './packs/types.js';
 import { CURSOR_HOOKS, SETTINGS_HOOKS } from './templates/config.js';
 import { AGENTS_MD_LINK, CLAUDE_MD_IMPORT_BLOCK } from './templates/content.js';
+import { getTemplatesDirectory, readFile } from './utils/fs.js';
 import { filterOutSafewordHooks } from './utils/hooks.js';
 import { MCP_SERVERS } from './utils/install.js';
 import { assignOrPrune } from './utils/json-merge.js';
@@ -454,6 +457,40 @@ function managedGitattributes(ctx: ProjectContext): string {
   ].join('\n');
 }
 
+/**
+ * The starter BDD lane's full surface — files (the bddLaneFile entries
+ * below), deps (typescriptPackages.conditional.scaffoldBddLane), and the
+ * test:bdd script. The `safeword check` leftover-scaffold advisory
+ * enumerates from these constants so its list can never drift from the
+ * schema (ticket 56JCFZ, TB3.AC2).
+ */
+export const BDD_LANE_FILE_PATHS = [
+  'cucumber.mjs',
+  'features/safeword-lane.feature',
+  'steps/world.ts',
+  'steps/shared.steps.ts',
+] as const;
+
+export const BDD_LANE_SCRIPT = 'test:bdd';
+
+/**
+ * Starter-lane template entry, suppressed when the repo has its own cucumber
+ * harness (ticket 56JCFZ, issue #645): the generator returns undefined so
+ * reconcile skips the file entirely instead of scaffolding a competing lane.
+ * Behaves exactly like `{ template }` when no harness is detected.
+ */
+function bddLaneFile(templatePath: string): FileDefinition {
+  return {
+    // `template` declares provenance for the schema↔templates contract;
+    // the generator (which takes precedence) gates on harness detection.
+    template: templatePath,
+    generator: (ctx: ProjectContext): string | undefined =>
+      ctx.projectType.scaffoldBddLane
+        ? readFile(nodePath.join(getTemplatesDirectory(), templatePath))
+        : undefined,
+  };
+}
+
 export const SAFEWORD_SCHEMA: SafewordSchema = {
   version: VERSION,
 
@@ -497,6 +534,10 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // Runtime cloud-filing spool (BNGK9W) — per-session drafts + nudge markers the
     // retro writes at runtime; user/runtime data the schema does not own.
     '.safeword/retro-drafts',
+    // Runtime self-report capture (already in SAFEWORD_TRANSIENT_PATHS /
+    // gitignore) — per-session JSONL the hooks write; without this entry the
+    // schema-drift test fails for any session that recorded a signal.
+    '.safeword/self-reports',
     '.safeword-project/tickets',
     '.safeword-project/tickets/completed',
     '.safeword-project/tmp',
@@ -620,12 +661,14 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
   ],
 
   // Files owned by safeword (overwritten on upgrade if content changed)
+  // (bddLaneFile entries: see the helper defined above the schema)
   ownedFiles: {
     // Project root config files (for audit/quality tools)
     '.jscpd.json': { template: '.jscpd.json' },
     // BDD acceptance lane config (ticket 102b) — safeword-owned; the lane's
     // working files (features/, steps/) are customer-owned in managedFiles.
-    'cucumber.mjs': { template: 'cucumber/cucumber.mjs' },
+    // Suppressed when the repo has its own cucumber harness (56JCFZ).
+    'cucumber.mjs': bddLaneFile('cucumber/cucumber.mjs'),
     // Note: knip.json is in typescriptManagedFiles (with context-aware ignoreDependencies)
 
     // Core files
@@ -706,6 +749,10 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/typecheck-gate.ts': { template: 'hooks/lib/typecheck-gate.ts' },
     '.safeword/hooks/lib/checkbox-transitions.ts': {
       template: 'hooks/lib/checkbox-transitions.ts',
+    },
+    '.safeword/hooks/lib/shell-segments.ts': { template: 'hooks/lib/shell-segments.ts' },
+    '.safeword/hooks/lib/bash-ledger-writes.ts': {
+      template: 'hooks/lib/bash-ledger-writes.ts',
     },
     '.safeword/hooks/lib/review-trigger.ts': { template: 'hooks/lib/review-trigger.ts' },
     '.safeword/hooks/lib/dogfood.ts': { template: 'hooks/lib/dogfood.ts' },
@@ -1053,10 +1100,11 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // BDD acceptance lane working files (ticket 102b) — scaffolded once; the
     // customer owns them thereafter (created if missing, updated only while
     // still safeword's template content). The lane config (cucumber.mjs) is
-    // safeword-owned in ownedFiles.
-    'features/safeword-lane.feature': { template: 'cucumber/safeword-lane.feature' },
-    'steps/world.ts': { template: 'cucumber/world.ts' },
-    'steps/shared.steps.ts': { template: 'cucumber/shared.steps.ts' },
+    // safeword-owned in ownedFiles. All suppressed when the repo has its own
+    // cucumber harness (56JCFZ).
+    'features/safeword-lane.feature': bddLaneFile('cucumber/safeword-lane.feature'),
+    'steps/world.ts': bddLaneFile('cucumber/world.ts'),
+    'steps/shared.steps.ts': bddLaneFile('cucumber/shared.steps.ts'),
 
     // TypeScript/JavaScript managed files (ESLint, tsconfig, Knip, Prettier configs)
     ...typescriptManagedFiles,

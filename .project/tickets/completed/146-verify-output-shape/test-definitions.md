@@ -1,5 +1,10 @@
 # Test Definitions — Ticket 146
 
+> **Retrospective ledger — not a per-step record.** These RED/GREEN/REFACTOR
+> boxes were filled in after the fact: the file entered git history already
+> ticked, with no per-step commit SHAs. Do not cite this ledger as precedent
+> for R/G/R bookkeeping (issue #644 G8; per-step enforcement is G3 + G5).
+
 > 5 rules, 13 scenarios. AODI validated. Covers happy path + failure modes + boundaries.
 >
 > **Test surface:** Most scenarios test the content of the verify skill markdown (canonical at `packages/cli/templates/skills/verify/SKILL.md` and `packages/cli/templates/commands/verify.md`). Substring/regex assertions on the skill instructions, similar to how 143 tested `getQualityMessage` output content.

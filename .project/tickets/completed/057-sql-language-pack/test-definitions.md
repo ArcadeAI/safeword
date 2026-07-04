@@ -1,5 +1,10 @@
 # 057: SQL Language Pack — Test Definitions
 
+> **Retrospective ledger — not a per-step record.** These RED/GREEN/REFACTOR
+> boxes were filled in after the fact: the file entered git history already
+> ticked, with no per-step commit SHAs. Do not cite this ledger as precedent
+> for R/G/R bookkeeping (issue #644 G8; per-step enforcement is G3 + G5).
+
 ## Scenario 1: Tier 1 config file markers activate SQL pack
 
 **Given** a project with a SQL tool config file (dbt_project.yml, .sqlfluff, sqlc.yaml, sqlc.yml, sqlc.json, flyway.toml, flyway.conf, atlas.hcl, liquibase.properties, schemachange-config.yml)

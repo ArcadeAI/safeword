@@ -82,6 +82,10 @@ implementation ("returns 204" belongs in a scenario's Then). Each define-behavio
 scenario will prove a specific AC. If a JTBD has no user-observable capability
 to enumerate, write `skip: <reason>` under it instead of ACs.
 
+Alternative: a JTBD may instead declare numbered Rules — testable business
+invariants with stable ids (#### <jtbd-id>.R<n> — <invariant>) that scenarios
+nest under. One criteria kind per JTBD, never both.
+
 #### oauth-flow.PO1.AC1 — The previous key keeps authenticating for a bounded grace window
 
 #### oauth-flow.PO1.AC2 — The operator can see which keys are currently live

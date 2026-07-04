@@ -365,17 +365,17 @@ CLI command
 
 ## Test Structure
 
-| Script             | Config                     | Includes                                                      | Purpose                                     |
-| ------------------ | -------------------------- | ------------------------------------------------------------- | ------------------------------------------- |
-| `test`             | `vitest.config.ts`         | `*.test.ts`                                                   | Main suite (1300+)                          |
-| `test:release`     | `vitest.release.config.ts` | `*.release.test.ts`                                           | Dogfood parity gate                         |
-| `test:slow`        | `vitest.slow.config.ts`    | `*.slow.test.ts`                                              | Real package installs                       |
-| `test:integration` | (default config)           | `tests/integration/`                                          | Integration subset                          |
-| `test:bdd`         | `cucumber.mjs`             | `features/**/*.feature` + workspace `*/features/**/*.feature` | Gherkin acceptance lane (cucumber-js, 102a) |
+| Script             | Config                     | Includes                                                                                                 | Purpose                                     |
+| ------------------ | -------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| `test`             | `vitest.config.ts`         | `*.test.ts`                                                                                              | Main suite (1300+)                          |
+| `test:release`     | `vitest.release.config.ts` | `*.release.test.ts`                                                                                      | Dogfood parity gate                         |
+| `test:slow`        | `vitest.slow.config.ts`    | `*.slow.test.ts`                                                                                         | Real package installs                       |
+| `test:integration` | (default config)           | `tests/integration/`                                                                                     | Integration subset                          |
+| `test:bdd`         | `cucumber.mjs`             | `features/**/*.feature` + workspace `*/features/**/*.feature` + configured `paths.features` dir (56JCFZ) | Gherkin acceptance lane (cucumber-js, 102a) |
 
 The vitest lanes extend `vitest.base.ts` (sequential execution, `maxWorkers: 1`). `test:bdd` is a **separate runner**: cucumber-js executes `.feature` files with TypeScript step defs (loaded via `tsx/esm`). Unit/integration stay in vitest (which globs only `*.test.ts`); the acceptance lane and the unit suite partition the tree, neither double-runs a spec.
 
-The lane is also **core customer scaffolding** (102b): `safeword setup` writes the same shape into every project — `cucumber.mjs` (safeword-owned), `features/` + `steps/` starters (customer-owned after creation), `@cucumber/cucumber` + `tsx` in base packages, and a `test:bdd` script (add-if-absent). A repo with no `package.json` (pure Go/Rust/Python) gets a minimal private one created to host the lane, and the TS toolchain comes along so the lane's step files are themselves linted (Option A, ticket 102b).
+The lane is also **core customer scaffolding** (102b): `safeword setup` writes the same shape into every project — `cucumber.mjs` (safeword-owned), `features/` + `steps/` starters (customer-owned after creation), `@cucumber/cucumber` + `tsx` as conditional packages, and a `test:bdd` script (add-if-absent). A repo with no `package.json` (pure Go/Rust/Python) gets a minimal private one created to host the lane, and the TS toolchain comes along so the lane's step files are themselves linted (Option A, ticket 102b). **Unless the repo already has its own cucumber harness** (56JCFZ, issue #645): setup detects host cucumber configs/deps (excluding safeword's own template revisions, hash-registered in `cucumber-template-revisions.ts`), suppresses the entire starter lane, and points the user at `paths.features`/`paths.steps` — which all readers (`codify`/`lint-gherkin`/`check` via `feature-source.ts`) and the scaffolded runner consume as augment-not-replace. `safeword check` carries the persistent misalignment advisories; uninstall never removes host-owned harness pieces.
 
 ---
 

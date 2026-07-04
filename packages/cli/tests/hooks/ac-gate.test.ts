@@ -59,3 +59,40 @@ describe('evaluateAcGate', () => {
     expect(evaluateAcGate(spec('skip: internal plumbing — no persona-facing job\n')).ok).toBe(true);
   });
 });
+
+describe('evaluateAcGate (rule tier — V0NHT6)', () => {
+  it('rule-tier.TB1.AC1.r_only_jtbd_passes_the_gate', () => {
+    expect(
+      evaluateAcGate(
+        spec(`${JTBD1}\n#### demo.PO1.R1 — a delivery that fails retries on backoff\n`),
+      ).ok,
+    ).toBe(true);
+  });
+
+  it('rule-tier.TB1.AC1.denial_names_numbered_rules_as_an_option', () => {
+    const verdict = evaluateAcGate(spec(JTBD1));
+    expect(verdict.ok).toBe(false);
+    if (!verdict.ok) {
+      expect(verdict.reason).toContain('demo.PO1');
+      expect(verdict.reason).toContain('numbered rules');
+      expect(verdict.reason).toContain('#### <id>.R<n>');
+    }
+  });
+
+  it('rule-tier.TB1.AC1.skip_line_still_passes_the_gate', () => {
+    expect(
+      evaluateAcGate(spec(`${JTBD1}\nskip: internal plumbing — no user-observable capability\n`))
+        .ok,
+    ).toBe(true);
+  });
+
+  it('rule-tier.TB1.AC4.mixed_jtbd_still_passes_the_gate', () => {
+    expect(
+      evaluateAcGate(
+        spec(
+          `${JTBD1}\n#### demo.PO1.AC1 — old key keeps working briefly\n\n#### demo.PO1.R1 — an invariant beside the AC\n`,
+        ),
+      ).ok,
+    ).toBe(true);
+  });
+});

@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (159)
+## Tickets (161)
 
 ### bdd-phase-zero-merge
 
@@ -270,6 +270,11 @@
 - **Unify Active Ticket Resolution Model (098)** (done, epic: —)
   Eliminate the dual-model inconsistency where pre-tool uses session-scoped binding and stop hook uses global ticket scan.
   → `.project/tickets/completed/098-unify-active-ticket-model`
+- **Phase provenance: feature tickets must be born at intake and advance one phase at a time (0KYEBN)** (done, epic: —)
+  Make ticket phase state trustworthy — feature tickets are born at intake and advance one canonical phase at a time, with any deliberate skip explicit, per-phase, and permanently visible (#644 G2).
+  blocks: Document the phase-provenance gate + phase_skips convention (SBRA2R)
+  external issue: https://github.com/ArcadeAI/safeword/issues/644
+  → `.project/tickets/completed/0KYEBN-phase-provenance`
 - **Propose-and-converge interaction pattern (100)** (done, epic: —)
   → `.project/tickets/completed/100-ideation-phase`
 - **Apply propose-and-converge to Safeword hooks (101)** (done, epic: —)
@@ -450,6 +455,10 @@
   Give the dimensions phase a deliberate escape valve — `skip: <reason>` as the entire file content — instead of forcing agents to produce a real dimensions.md when they have one obvious behavioral dimension and no real partitioning to do.
   blocked by: TDD ledger: SHA-or-skip on RED/GREEN/REFACTOR checkboxes (incl. cross-scenario refactor) (J7VBGJ)
   → `.project/tickets/completed/MKVNFB`
+- **Document the phase-provenance gate + phase_skips convention (SBRA2R)** (done, epic: —)
+  Make the 0KYEBN phase-provenance gate (#644 G2) and its `phase_skips` frontmatter convention discoverable outside the gate's denial messages. Three doc edits:
+  blocked by: Phase provenance: feature tickets must be born at intake and advance one phase at a time (0KYEBN)
+  → `.project/tickets/completed/SBRA2R-document-phase-skips-convention`
 - **Warn when learning files contain verification stamps (XV72DT)** (done, epic: —)
   Prevent agents from fabricating "✅ Verified" claims that land in `.safeword-project/learnings/` and poison future-session context.
   → `.project/tickets/completed/XV72DT`

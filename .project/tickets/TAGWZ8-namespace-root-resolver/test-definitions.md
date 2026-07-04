@@ -1,5 +1,10 @@
 # Test Definitions — namespace-root resolver
 
+> **Retrospective ledger — not a per-step record.** These RED/GREEN/REFACTOR
+> boxes were filled in after the fact: the file entered git history already
+> ticked, with no per-step commit SHAs. Do not cite this ledger as precedent
+> for R/G/R bookkeeping (issue #644 G8; per-step enforcement is G3 + G5).
+
 Scenarios for child [TAGWZ8](./ticket.md) of epic
 [AQJ95G](../AQJ95G-project-namespace-default/spec.md). Each `### Scenario:` title
 carries the AC it proves (`<jtbd-id>.AC<#>.<scenario_name>`). Dimensions and

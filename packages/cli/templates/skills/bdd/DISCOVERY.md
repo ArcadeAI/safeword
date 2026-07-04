@@ -95,6 +95,7 @@ Once the JTBDs are confirmed, decompose each into **Acceptance Criteria** — th
 
 - A `#### <jtbd-id>.AC<n> — <capability>` heading (e.g., `### oauth-flow.PO1` → `#### oauth-flow.PO1.AC1 — old key keeps working for a bounded grace window`).
 - Each JTBD needs **≥1 AC**, or a `skip: <reason>` under it for a job with no user-observable capability to enumerate. The intake-exit gate enforces this (denies `test-definitions.md` until every JTBD has an AC or a skip).
+- Alternative tier: a JTBD whose behavior is best stated as invariants may declare **numbered Rules** (`#### <jtbd-id>.R<n> — <invariant>`) instead of ACs — one criteria kind per job, never both. The gate accepts either; the full rule grammar lives in the bdd skill's SCENARIOS.md.
 
 **Coaching — keep ACs at the capability level, not implementation:**
 

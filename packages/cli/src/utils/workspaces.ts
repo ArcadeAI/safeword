@@ -9,6 +9,14 @@ import nodePath from 'node:path';
 
 import { exists, readJson } from './fs.js';
 
+/**
+ * The conventional monorepo package-root directories. Shared so the scanners
+ * that walk them — workspace-member, BDD feature-source, and cucumber-harness
+ * detection — cannot drift (a root added in one place but not another silently
+ * breaks detection or discovery).
+ */
+export const WORKSPACE_ROOTS = ['packages', 'apps', 'libs', 'modules'] as const;
+
 interface PackageJson {
   name?: string;
   workspaces?: string[] | { packages?: string[] };
