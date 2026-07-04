@@ -14,15 +14,21 @@ scope: |
     - prettier          3.8.4  → 3.9.4     (minor)
     - tsx               4.22.4 → 4.23.0    (minor)
     - markdownlint-cli2 0.22.1 → 0.23.0    (0.x minor — treat as major per audit risk matrix)
-  Update package.json + lockfile, run the full suite + lint, and fix any
-  formatter/lint churn the prettier and markdownlint-cli2 bumps introduce.
+  Five of the six (all but markdownlint-cli2, which is root-only) are ALSO
+  declared in packages/cli/package.json — bump both root and the workspace
+  package in lockstep or the two will skew. Note eslint already skews today
+  (root ^10.5.0, packages/cli ^10.4.0 as devDep + peerDependency); align both.
+  Update every affected package.json + the bun lockfile, run the full suite +
+  lint, and fix any formatter/lint churn the prettier and markdownlint-cli2
+  bumps introduce.
 out_of_scope: |
   - Runtime/production dependency upgrades (none were flagged).
   - eslint/prettier config rewrites beyond what the bump strictly requires.
-  - The 5 unused exports flagged by the same audit — tracked in J2R9HY.
+  - The 5 unused exports flagged by the same audit — tracked in J2R9HY (#718).
 done_when: |
-  - All six packages are at the listed target versions in package.json and the
-    bun lockfile.
+  - All six packages are at the listed target versions in the root package.json,
+    in packages/cli/package.json for the five declared there (incl. eslint's
+    peerDependency), and in the bun lockfile.
   - `bun run test`, `/lint` (eslint + prettier + tsc --noEmit) are green.
   - Any prettier 3.9 / markdownlint-cli2 0.23 reformatting is committed so the
     pre-commit hook is a no-op on a clean tree.

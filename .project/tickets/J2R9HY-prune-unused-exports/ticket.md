@@ -8,11 +8,13 @@ external_issue: https://github.com/ArcadeAI/safeword/issues/718
 scope: |
   Investigate and remove (or intentionally retain with justification) the five
   unused exports flagged by knip in the 2026-07-04 audit:
-    - CODEX_SESSION_START_HOOK_PATCH   packages/cli/src/schema.ts:191
+    - CODEX_SESSION_START_HOOK_PATCH   packages/cli/src/schema.ts:194
     - OWNED_LABEL_PREFIXES             packages/cli/src/tracker-sync/labels.ts:11
     - MONITOR_SOURCES                  packages/cli/src/upstream-monitor/index.ts:59
     - normalizeMarkdown (function)     packages/cli/src/upstream-monitor/index.ts:94
     - SYNCTICKETS_QUIET_COMMAND        packages/cli/src/utils/ticket-index-warnings.ts:1
+  Line numbers are as-of the branch base and drift with edits — re-run
+  `bunx knip` to get current locations.
   For each: confirm it is genuinely unreferenced (knip cannot see consumers
   wired via config/runtime resolution, e.g. the .safeword/hooks dogfood pattern),
   then either delete it or downgrade `export` to module-private.
@@ -20,7 +22,7 @@ out_of_scope: |
   - knip's "unresolved imports" findings — those are the known dogfood-hook
     pattern (test files importing .safeword/hooks/* resolved at runtime), not
     dead code. No action; do not silence with config.
-  - Dependency version bumps from the same audit — tracked in JCC69C.
+  - Dependency version bumps from the same audit — tracked in JCC69C (#717).
   - Broader dead-code sweep beyond these five named exports.
 done_when: |
   - Each of the five exports is either removed, or de-exported to module scope,
