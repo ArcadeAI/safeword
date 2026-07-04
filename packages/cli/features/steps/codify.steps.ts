@@ -8,7 +8,7 @@ import { promisify } from 'node:util';
 
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
-import type { SafewordWorld } from './world.js';
+import type { CliResult, SafewordWorld } from './world.js';
 
 const execFileAsync = promisify(execFile);
 const CLI_PATH = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
@@ -257,24 +257,28 @@ async function runCliOnce(argumentLine: string, cwd: string): Promise<CliRun> {
   }
 }
 
-When('I run {string}', async function (this: SafewordWorld, argumentLine: string) {
-  // A ~1s CLI command that is SIGTERM-killed with NO output is the infra-
-  // contention signature — starved past its 30s timeout under concurrent test
-  // load (deterministic locally, flaky on a shared CI runner), not a product
-  // failure. Retry that one signature exactly once; a content mismatch (output
-  // present but wrong) and a genuine hang (the retry times out too) both still
-  // fail. Scoped to empty output as a cold-start proxy: a command killed before
-  // its first byte of output almost certainly died before any side effect. That
-  // proxy holds for the commands this step drives today (read-only `check`,
-  // stdout-printing `codify`); a future command that mutates the temp dir before
-  // printing anything would need a tighter guard before it could be retried.
-  // Chosen via /figure-it-out (2026-07-04) over a blanket timeout bump / cucumber
-  // --retry, both of which would mask real failures (a content mismatch or a
-  // genuine hang) rather than only the transient infra-kill.
-  let run = await runCliOnce(argumentLine, this.temporaryDirectory);
+/**
+ * Run the CLI with the single-retry infra-kill policy and fold the no-output
+ * diagnostic into the returned result — the world-facing outcome the step records.
+ *
+ * A ~1s CLI command that is SIGTERM-killed with NO output is the infra-contention
+ * signature — starved past its 30s timeout under concurrent test load
+ * (deterministic locally, flaky on a shared CI runner), not a product failure.
+ * Retry that one signature exactly once; a content mismatch (output present but
+ * wrong) and a genuine hang (the retry times out too) both still fail. Scoped to
+ * empty output as a cold-start proxy: a command killed before its first byte of
+ * output almost certainly died before any side effect. That proxy holds for the
+ * commands this step drives today (read-only `check`, stdout-printing `codify`);
+ * a future command that mutates the temp dir before printing anything would need
+ * a tighter guard before it could be retried. Chosen via /figure-it-out
+ * (2026-07-04) over a blanket timeout bump / cucumber --retry, both of which
+ * would mask real failures rather than only the transient infra-kill.
+ */
+async function runCli(argumentLine: string, cwd: string): Promise<CliResult> {
+  let run = await runCliOnce(argumentLine, cwd);
   const retried = run.killedWithNoOutput;
   if (retried) {
-    run = await runCliOnce(argumentLine, this.temporaryDirectory);
+    run = await runCliOnce(argumentLine, cwd);
   }
 
   // On a FAILED run with no output, the subprocess never reported — killed
@@ -288,11 +292,15 @@ When('I run {string}', async function (this: SafewordWorld, argumentLine: string
     run.failure !== undefined && run.stdout === '' && run.stderr === ''
       ? `[no subprocess output${retrySuffix}] code=${String(run.failure.code)} signal=${String(run.failure.signal)} killed=${String(run.failure.killed)} cli=${CLI_PATH}: ${run.failure.message ?? ''}`
       : '';
-  this.result = {
+  return {
     stdout: run.stdout,
     stderr: `${run.stderr}${noOutputDiagnostic}`,
     exitCode: run.exitCode,
   };
+}
+
+When('I run {string}', async function (this: SafewordWorld, argumentLine: string) {
+  this.result = await runCli(argumentLine, this.temporaryDirectory);
 });
 
 Then('the output contains {string}', function (this: SafewordWorld, text: string) {
