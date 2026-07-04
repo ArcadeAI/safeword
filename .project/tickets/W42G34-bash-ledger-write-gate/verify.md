@@ -2,8 +2,8 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 4513/4513 tests pass (5 skipped, 314 files; full `bun run test`, 950s)
-**Gherkin:** ✅ Acceptance lane passes (181/181 scenarios, 3414 steps)
+**Test Suite:** ✓ 4513/4513 tests pass (5 skipped, 314 files; full `bun run test`, re-run 2026-07-04)
+**Gherkin:** ⚠️ 180/181 in the full lane — the lone failure (`Check reports invalid feature syntax without parser stack`, feature-files-as-source.feature) is a load flake unrelated to W42G34: it passes 6/6 in isolation, and it asserts on `safeword check`'s network-update-check output which varies under parallel lane load (same root as filed issue #720). The first full-lane run this session was 181/181.
 **Build:** ⏭️ Skipped — no build step (empty test-plan)
 **Lint:** ✅ Clean (eslint + lint-gherkin + tsc --noEmit)
 **Scenarios:** All 17 scenarios marked complete (+ cross-scenario row 63fcf57)
