@@ -30,10 +30,23 @@ export interface AcMigration {
  * (`<id>.AC<n>`), so bare prose "AC" is never touched. */
 const AC_SEGMENT = /\.AC(\d+)/g;
 
-/** Rewrite `.AC<n>` references to `.R<n>` (feature tags, ledger scenario titles). */
+/** Rewrite `.AC<n>` references to `.R<n>`, but only where a lineage reference
+ * actually lives — a Gherkin tag line (`@…`) or a `### Scenario:` ledger title.
+ * `.AC` inside Given/When/Then step text or Examples-table data is left verbatim
+ * (it is fixture prose, not a reference to migrate). */
 export function migrateReferencesAc(content: string): AcMigration {
-  const migrated = content.replaceAll(AC_SEGMENT, '.R$1');
+  const migrated = content
+    .split('\n')
+    .map(line => (isReferenceLine(line) ? line.replaceAll(AC_SEGMENT, '.R$1') : line))
+    .join('\n');
   return { content: migrated, changed: migrated !== content, collisions: [] };
+}
+
+/** A line that carries a lineage reference: a Gherkin tag line or a scenario
+ * title. Step text, prose, and Examples rows are not references. */
+function isReferenceLine(line: string): boolean {
+  const trimmed = line.trimStart();
+  return trimmed.startsWith('@') || /^#{3,}\s+Scenario:/.test(trimmed);
 }
 
 /** Rewrite `#### <id>.AC<n>` declaration headings to `.R<n>`, refusing the whole

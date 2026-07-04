@@ -52,11 +52,11 @@ artifacts and the next remediation step.
 > intake artifacts listed before scenario work starts, so I can fix readiness
 > once instead of being blocked while writing test definitions.
 
-#### feature-ticket-readiness.TB1.AC1 - New feature tickets missing readiness cannot enter define-behavior
+#### feature-ticket-readiness.TB1.R1 - New feature tickets missing readiness cannot enter define-behavior
 
-#### feature-ticket-readiness.TB1.AC2 - Legacy define-behavior tickets surface a clear remediation message on resume
+#### feature-ticket-readiness.TB1.R2 - Legacy define-behavior tickets surface a clear remediation message on resume
 
-#### feature-ticket-readiness.TB1.AC3 - Ready feature tickets keep the normal define-behavior flow
+#### feature-ticket-readiness.TB1.R3 - Ready feature tickets keep the normal define-behavior flow
 
 ### feature-ticket-readiness.SM1 - Keep readiness validation centralized
 
@@ -66,9 +66,9 @@ artifacts and the next remediation step.
 > readiness, so phase-entry and resume messaging cannot drift from each other
 > or from the existing artifact prerequisites.
 
-#### feature-ticket-readiness.SM1.AC1 - One shared helper evaluates ticket frontmatter, spec, and dimensions readiness
+#### feature-ticket-readiness.SM1.R1 - One shared helper evaluates ticket frontmatter, spec, and dimensions readiness
 
-#### feature-ticket-readiness.SM1.AC2 - Tasks and patches are not newly gated by feature readiness rules
+#### feature-ticket-readiness.SM1.R2 - Tasks and patches are not newly gated by feature readiness rules
 
 ## Outcomes
 

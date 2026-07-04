@@ -24,15 +24,15 @@ Reduce maintenance drift across Claude, Cursor, and Codex configuration surfaces
 
 When I update a safeword skill, command, rule, or hook adapter, I want the repeated Claude/Cursor/Codex files to derive from shared sources where possible, so I can make one intended change without missing a mirrored surface.
 
-#### agent-surface-refactor.SM1.AC1 - Shared source candidates are explicit
+#### agent-surface-refactor.SM1.R1 - Shared source candidates are explicit
 
 Every repeated surface has either a child ticket with the selected shared-source approach or an explicit decision not to refactor it.
 
-#### agent-surface-refactor.SM1.AC2 - Platform-native files remain intact
+#### agent-surface-refactor.SM1.R2 - Platform-native files remain intact
 
 Claude, Cursor, and Codex still receive the files their current docs expect; this epic does not collapse platform-specific surfaces into one unsupported format.
 
-#### agent-surface-refactor.SM1.AC3 - Drift-prone dogfood differences are tracked
+#### agent-surface-refactor.SM1.R3 - Drift-prone dogfood differences are tracked
 
 Any installed dogfood file that differs from its template is either reconciled or documented as intentional.
 

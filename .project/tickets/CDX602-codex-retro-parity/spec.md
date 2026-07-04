@@ -38,13 +38,13 @@ sanitized drafts through the existing spool/direct-file/fallback nudge path.
 > extraction to happen outside my conversation, so I can keep working without a
 > continuation prompt hijacking my next turn.
 
-#### codex-retro-parity.TB1.AC1 — Stop extraction is synchronous and invisible
+#### codex-retro-parity.TB1.R1 — Stop extraction is synchronous and invisible
 
 At Stop, the adapter uses the supplied readable `transcript_path`, runs child
 `codex exec` with closed stdin and a schema output file, awaits completion, and
 writes no conversation-visible Stop output.
 
-#### codex-retro-parity.TB1.AC2 — Stop fails open
+#### codex-retro-parity.TB1.R2 — Stop fails open
 
 Malformed input, absent/unreadable transcripts, child failures, empty child
 output, and schema-invalid child output all exit zero, surface nothing, and do not
@@ -58,18 +58,18 @@ advance retro state as if extraction succeeded.
 > the existing egress and spool pipeline, so I can trust the Codex stream without
 > weakening the no-leak boundary.
 
-#### codex-retro-parity.SM1.AC1 — Codex extractor uses an OpenAI default
+#### codex-retro-parity.SM1.R1 — Codex extractor uses an OpenAI default
 
 Codex extraction defaults to the configured Codex/OpenAI model when no
 `retro.model` override exists, while Claude extraction still defaults to sonnet.
 
-#### codex-retro-parity.SM1.AC2 — Extracted findings flow through egress, spool, and direct filing
+#### codex-retro-parity.SM1.R2 — Extracted findings flow through egress, spool, and direct filing
 
 Valid child findings are normalized through the existing `safeword retro`
 auto-extract path, persisted only as post-egress draft fields, and direct-filed
 when the local GitHub REST transport succeeds.
 
-#### codex-retro-parity.SM1.AC3 — Unfiled drafts use Lane 2
+#### codex-retro-parity.SM1.R3 — Unfiled drafts use Lane 2
 
 When direct filing is unavailable, drafts remain spooled and the Codex
 UserPromptSubmit hook surfaces the existing factual nudge via

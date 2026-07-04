@@ -126,15 +126,35 @@ function migrateReferenceFile(
   return nodePath.relative(cwd, referencePath);
 }
 
-/** Active ticket folder names under the tickets root (excludes `completed/`). */
+/**
+ * In-progress ticket folder names under the tickets root. Scoped to
+ * `status: in_progress` — the same live surface `safeword check`'s coverage and
+ * the `.AC` deprecation nudge act on — so migration stays in step with what the
+ * tooling flags. Done and `completed/` tickets are frozen records, left as-is.
+ */
 function activeTicketFolders(ticketsRoot: string): string[] {
   try {
     return readdirSync(ticketsRoot, { withFileTypes: true })
       .filter(entry => entry.isDirectory() && entry.name !== 'completed')
-      .map(entry => entry.name);
+      .map(entry => entry.name)
+      .filter(folder => isInProgressTicket(nodePath.join(ticketsRoot, folder)));
   } catch {
     return [];
   }
+}
+
+/** Whether a ticket directory's `ticket.md` frontmatter is `status: in_progress`. */
+function isInProgressTicket(ticketDirectory: string): boolean {
+  const content = readFileSafe(nodePath.join(ticketDirectory, 'ticket.md'));
+  if (content === undefined) return false;
+  const lines = content.split('\n');
+  if (lines[0]?.trim() !== '---') return false;
+  for (let index = 1; index < lines.length; index += 1) {
+    const line = (lines[index] ?? '').trim();
+    if (line === '---') return false;
+    if (line === 'status: in_progress') return true;
+  }
+  return false;
 }
 
 function write(path: string, content: string, dryRun: boolean): void {

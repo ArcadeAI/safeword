@@ -81,4 +81,24 @@ describe('migrateReferencesAc (TB1.R1 — rewrite AC references)', () => {
     expect(result.changed).toBe(false);
     expect(result.content).toBe(input);
   });
+
+  it('rewrites tags but never `.AC` inside step text or Examples data', () => {
+    const input = [
+      '    @demo.SM1.AC1',
+      '    Scenario: a scenario tagged "@feat.R1.AC1" in its own step text',
+      '      Given a feature scenario tagged "@feat.R1.AC1"',
+      '      Then the ref is "demo.SM1.AC2"',
+      '',
+      '      Examples:',
+      '        | ref          |',
+      '        | demo.SM1.AC9 |',
+    ].join('\n');
+    const result = migrateReferencesAc(input);
+    // The real tag line migrates...
+    expect(result.content).toContain('    @demo.SM1.R1');
+    // ...but quoted `.AC` in step text and Examples data is left verbatim.
+    expect(result.content).toContain('tagged "@feat.R1.AC1"');
+    expect(result.content).toContain('"demo.SM1.AC2"');
+    expect(result.content).toContain('| demo.SM1.AC9 |');
+  });
 });

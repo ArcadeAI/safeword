@@ -25,19 +25,19 @@ Safeword should deliver its standing agent instructions through files and hooks 
 
 > When I install safeword in a project with my own agent instructions, I want safeword to load its required workflow context without editing my `CLAUDE.md` or `AGENTS.md`, so I can customize those files without accidentally disabling safeword.
 
-#### safeword-md-via-hooks.DEV1.AC1 - Setup preserves customer context files
+#### safeword-md-via-hooks.DEV1.R1 - Setup preserves customer context files
 
 Fresh setup does not create or modify `CLAUDE.md` or `AGENTS.md` only to point at safeword.
 
-#### safeword-md-via-hooks.DEV1.AC2 - Prior safeword context-file patches are removed safely
+#### safeword-md-via-hooks.DEV1.R2 - Prior safeword context-file patches are removed safely
 
 Upgrade/reset can remove safeword-managed `CLAUDE.md` and `AGENTS.md` blocks while leaving customer-authored content intact.
 
-#### safeword-md-via-hooks.DEV1.AC3 - Safeword still loads at session start
+#### safeword-md-via-hooks.DEV1.R3 - Safeword still loads at session start
 
 Claude Code, Cursor, and Codex all receive the SAFEWORD.md standing context from safeword-owned hook/config surfaces.
 
-#### safeword-md-via-hooks.DEV1.AC4 - Claude compaction restores the standing context
+#### safeword-md-via-hooks.DEV1.R4 - Claude compaction restores the standing context
 
 Claude Code re-injects SAFEWORD.md after compaction so removing the `@import` does not regress compaction resilience.
 

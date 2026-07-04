@@ -31,15 +31,15 @@ Safeword's quality workflows should behave correctly after installation into arb
 
 > When I use safeword in a Go, Python, Rust, npm, pnpm, yarn, Bun, or minimal project, I want `/verify` to run the checks my project actually supports, so I can trust the done gate instead of debugging missing scripts from another stack.
 
-#### verify-safeword-any-project.DEV1.AC1 - Verification uses available project commands
+#### verify-safeword-any-project.DEV1.R1 - Verification uses available project commands
 
 `/verify` detects the installed project's runnable checks before choosing commands and does not require absent scripts such as `build`, `test`, or `test:bdd`.
 
-#### verify-safeword-any-project.DEV1.AC2 - Unsupported automation asks for evidence
+#### verify-safeword-any-project.DEV1.R2 - Unsupported automation asks for evidence
 
 When safeword cannot identify an automated verification command, `/verify` records the gap and asks for explicit manual evidence instead of manufacturing a failing command.
 
-#### verify-safeword-any-project.DEV1.AC3 - Safeword runtime stays separate from project runtime
+#### verify-safeword-any-project.DEV1.R3 - Safeword runtime stays separate from project runtime
 
 Safeword can still require Bun for its hooks while avoiding the implication that the target project itself must use Bun.
 
@@ -49,15 +49,15 @@ Safeword can still require Bun for its hooks while avoiding the implication that
 
 > When I change safeword's installed workflows, I want the templates and dogfood copies to stay aligned, so customer upgrades receive the same behavior proven in this repo.
 
-#### verify-safeword-any-project.SM1.AC1 - Templates are the source of truth
+#### verify-safeword-any-project.SM1.R1 - Templates are the source of truth
 
 Durable fixes land in `packages/cli/templates/` first, and installed dogfood files are refreshed from those templates rather than hand-edited as the permanent source.
 
-#### verify-safeword-any-project.SM1.AC2 - Regression fixtures cover stack variety
+#### verify-safeword-any-project.SM1.R2 - Regression fixtures cover stack variety
 
 Tests cover no-build JavaScript, non-Bun JavaScript, and non-JavaScript installed projects so the stack-agnostic promise cannot regress silently.
 
-#### verify-safeword-any-project.SM1.AC3 - Audit language matches project evidence
+#### verify-safeword-any-project.SM1.R3 - Audit language matches project evidence
 
 `/audit` and related quality guidance distinguish stack-generic checks from JavaScript-specific checks and only require JS-specific commands when project evidence supports them.
 

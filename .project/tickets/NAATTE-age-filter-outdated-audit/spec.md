@@ -35,11 +35,11 @@
 
 > When I run `/audit` near the end of feature work, I want dependency freshness findings to show updates that have been available long enough to matter, so I can act on real maintenance debt instead of triaging every fresh release.
 
-#### age-filter-outdated-audit.TB1.AC1 — Fresh releases are suppressed until they pass the threshold
+#### age-filter-outdated-audit.TB1.R1 — Fresh releases are suppressed until they pass the threshold
 
-#### age-filter-outdated-audit.TB1.AC2 — Suppressed update counts remain visible without filling the findings table
+#### age-filter-outdated-audit.TB1.R2 — Suppressed update counts remain visible without filling the findings table
 
-#### age-filter-outdated-audit.TB1.AC3 — Security findings appear immediately, even when the fixed version is newer than the threshold
+#### age-filter-outdated-audit.TB1.R3 — Security findings appear immediately, even when the fixed version is newer than the threshold
 
 ### age-filter-outdated-audit.TB2 — Get consistent behavior across supported language stacks
 
@@ -47,15 +47,15 @@
 
 > When I audit a JavaScript, Python, Go, or Rust project outside the SafeWord repo itself, I want the same dependency-noise policy to apply, so the audit report feels like one SafeWord feature instead of four unrelated package-manager dumps.
 
-#### age-filter-outdated-audit.TB2.AC1 — JavaScript candidate updates use npm registry release times for age filtering
+#### age-filter-outdated-audit.TB2.R1 — JavaScript candidate updates use npm registry release times for age filtering
 
-#### age-filter-outdated-audit.TB2.AC2 — Python candidate updates use PyPI release upload times for age filtering
+#### age-filter-outdated-audit.TB2.R2 — Python candidate updates use PyPI release upload times for age filtering
 
-#### age-filter-outdated-audit.TB2.AC3 — Go candidate updates use module version times for age filtering
+#### age-filter-outdated-audit.TB2.R3 — Go candidate updates use module version times for age filtering
 
-#### age-filter-outdated-audit.TB2.AC4 — Rust candidate updates use crate version publish times when available and report unknown-age candidates separately
+#### age-filter-outdated-audit.TB2.R4 — Rust candidate updates use crate version publish times when available and report unknown-age candidates separately
 
-#### age-filter-outdated-audit.TB2.AC5 — Non-dogfood project fixtures prove behavior without relying on SafeWord's own package.json, .agents, or dogfood install layout
+#### age-filter-outdated-audit.TB2.R5 — Non-dogfood project fixtures prove behavior without relying on SafeWord's own package.json, .agents, or dogfood install layout
 
 ### age-filter-outdated-audit.SM1 — Preserve repo-owned update policy
 
@@ -63,9 +63,9 @@
 
 > When I ship the audit noise filter, I want it to live in SafeWord's report policy rather than package-manager config, so SafeWord does not collide with a repo's install behavior, Renovate schedule, Dependabot rules, or lockfile workflow.
 
-#### age-filter-outdated-audit.SM1.AC1 — Audit filtering does not write package-manager, updater, manifest, or lockfile configuration
+#### age-filter-outdated-audit.SM1.R1 — Audit filtering does not write package-manager, updater, manifest, or lockfile configuration
 
-#### age-filter-outdated-audit.SM1.AC2 — The configured threshold belongs to SafeWord audit behavior, not package installation behavior
+#### age-filter-outdated-audit.SM1.R2 — The configured threshold belongs to SafeWord audit behavior, not package installation behavior
 
 ## Rave Moment
 
