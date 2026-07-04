@@ -13,6 +13,7 @@ import {
   getTicketInfo,
   parseTddStep,
 } from './lib/active-ticket.ts';
+import { detectLedgerWrite } from './lib/bash-ledger-writes.ts';
 import { evaluateBlockedOnGate } from './lib/blocked-on-gate.ts';
 import { isGitOperationInProgress } from './lib/git-operation.ts';
 import { collectNewTransitions } from './lib/checkbox-transitions.ts';
@@ -241,14 +242,26 @@ const tool = input.tool_name ?? '';
 const editedFile = input.tool_input?.file_path ?? input.tool_input?.notebook_path ?? '';
 
 // ---------------------------------------------------------------------------
-// Bash gate: REFACTOR commits must not touch test files (ticket J7VBGJ, Rule 2)
-// The only file-path commit rule that survived scope reduction — see
-// <namespace-root>/learnings/procedural-gates-generalize-beyond-tdd.md for why
-// the RED/GREEN file-path rules were dropped.
+// Bash gates:
+// 1. Ledger write gate (ticket W42G34, #644 G3): shell commands may not write
+//    to an R/G/R ledger — the annotation gate below can only validate Edit
+//    payloads, so mutations are forced onto that channel. Detection limits are
+//    documented in lib/bash-ledger-writes.ts; the done-gate is the backstop.
+// 2. REFACTOR commits must not touch test files (ticket J7VBGJ, Rule 2). The
+//    only file-path commit rule that survived scope reduction — see
+//    <namespace-root>/learnings/procedural-gates-generalize-beyond-tdd.md for
+//    why the RED/GREEN file-path rules were dropped.
 // ---------------------------------------------------------------------------
 
 if (tool === 'Bash') {
   const command = input.tool_input?.command ?? '';
+  const ledgerWrite = detectLedgerWrite(command);
+  if (ledgerWrite) {
+    deny(
+      `Bash writes to the R/G/R ledger are blocked (${ledgerWrite.shape} targeting ${ledgerWrite.path}). Shell commands bypass the annotation validation that runs on Edit payloads, so ledger checkboxes must be changed through the Edit tool.`,
+      `Make the change with the Edit tool on ${ledgerWrite.path} — each [ ] → [x] transition needs a commit SHA or "skip: <reason>", validated at write time. One checkbox per edit.`,
+    );
+  }
   if (GIT_COMMIT_COMMAND.test(command)) {
     enforceRefactorCommitGate(input.session_id);
   }

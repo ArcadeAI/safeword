@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (371)
+## Tickets (376)
 
 ### agent-surface-refactor
 
@@ -835,6 +835,7 @@
   → `.project/tickets/BM8HG4`
 - **Cloud retro filing: try-REST-then-agent-subagent transport (#568) (BNGK9W)** (done, epic: —)
   Make the invisible retro actually FILE its findings in a Claude cloud
+  blocks: Codex retro parity: invisible local extraction and Lane-2 filing (CDX602), Retro filer subagent gate: reliable, invisible cloud filing (GH628F)
   → `.project/tickets/BNGK9W-cloud-retro-filing-transport`
 - **Strengthen golden-path test quality (BPB39Q)** (in_progress, epic: —)
   Replace weak golden-path assertions and duplicated install/upgrade test shape with behavior-specific checks.
@@ -857,7 +858,18 @@
 - **Tune agent config audit signal (C4N0P8)** (in_progress, epic: —)
   Make agent-config audit warnings reflect actionable config risks instead of broad structural/staleness noise.
   → `.project/tickets/C4N0P8-tune-agent-config-audit-signal`
-- **Let maintainers commit dogfood hook changes without package-link setup (CQ4CD3)** (in_progress, epic: —)
+- **Prevent Cursor audit command drift (C7PXFR)** (in_progress, epic: —)
+  Prevent Cursor `/audit` from silently missing canonical audit skill updates.
+  external issue: https://github.com/ArcadeAI/safeword/issues/597
+  → `.project/tickets/C7PXFR-prevent-cursor-audit-drift`
+- **Codex retro parity: invisible local extraction and Lane-2 filing (CDX602)** (in_progress, epic: —)
+  Make local Codex match the invisible retro pipeline without hijacking the
+  blocked by: Cloud retro filing: try-REST-then-agent-subagent transport (#568) (BNGK9W)
+  blocks: Retro filer subagent gate: reliable, invisible cloud filing (GH628F)
+  external issue: https://github.com/ArcadeAI/safeword/issues/602
+  external PRs: https://github.com/ArcadeAI/safeword/pull/601
+  → `.project/tickets/CDX602-codex-retro-parity`
+- **Let maintainers commit dogfood hook changes without package-link setup (CQ4CD3)** (done, epic: —)
   Make the normal protected commit path work in Safeword source worktrees when staged files trigger `.safeword` ESLint.
   external issue: https://github.com/ArcadeAI/safeword/issues/470
   → `.project/tickets/CQ4CD3-commit-dogfood-hooks-without-package-link`
@@ -943,6 +955,17 @@
   → `.project/tickets/G8PBE6-knip-dynamic-load-false-positives`
 - **Auto-resolve merge conflicts on generated docs via `.gitattributes merge=union` (GA7T6M)** (todo, epic: —)
   → `.project/tickets/GA7T6M-generated-doc-merge-union`
+- **Retro filer subagent gate: reliable, invisible cloud filing (GH628F)** (done, epic: —)
+  Spooled retro findings get filed to the upstream tracker without human
+  blocked by: Cloud retro filing: try-REST-then-agent-subagent transport (#568) (BNGK9W), Codex retro parity: invisible local extraction and Lane-2 filing (CDX602)
+  blocks: Filer ack + bare-drain tripwire (GH644A)
+  external issue: https://github.com/ArcadeAI/safeword/issues/628
+  → `.project/tickets/GH628F-retro-filer-subagent-gate`
+- **Filer ack + bare-drain tripwire (GH644A)** (done, epic: —)
+  A drained spool no longer self-certifies filing: acks name the issues
+  blocked by: Retro filer subagent gate: reliable, invisible cloud filing (GH628F)
+  external issue: https://github.com/ArcadeAI/safeword/issues/658
+  → `.project/tickets/GH644A-filer-ack-tripwire`
 - **Quiet expected negative-path test output (GJGSS3)** (in_progress, epic: —)
   Keep passing full test runs quiet when negative-path fixtures intentionally print errors.
   → `.project/tickets/GJGSS3-quiet-expected-negative-path-test-output`
@@ -1144,6 +1167,9 @@
 - **Apply quality-review polish to bdd SCENARIOS.md (VZK191)** (done, epic: —)
   Apply the small content nits the quality-review surfaced in the bdd `SCENARIOS.md` (the file XN5SPN/9FSPM8/XBY5QR landed) so the shipped skill reads cleanly before those tickets close.
   → `.project/tickets/VZK191-scenarios-polish`
+- **Gate Bash-channel writes to the R/G/R ledger (#644 G3) (W42G34)** (in_progress, epic: —)
+  Deny Bash-channel writes to R/G/R ledger files at PreToolUse on all three harnesses, forcing ledger mutations onto the Edit channel where the SHA-or-skip annotation gate can validate them (#644 G3).
+  → `.project/tickets/W42G34-bash-ledger-write-gate`
 - **Whole-ticket quality review + refactor before verify (W610WW)** (done, epic: —)
   Make the end of implementation run one whole-ticket `/quality-review` → `/refactor` pass — for both BDD features and multi-loop TDD tasks — gated to fire only when there's more than one RGR loop.
   → `.project/tickets/W610WW-whole-ticket-quality-refactor`
