@@ -69,13 +69,14 @@ describe('evaluateAcGate (rule tier — V0NHT6)', () => {
     ).toBe(true);
   });
 
-  it('rule-tier.TB1.AC1.denial_names_numbered_rules_as_an_option', () => {
+  it('rule-tier-convergence.SM1.R3.denial_names_rule_not_ac', () => {
     const verdict = evaluateAcGate(spec(JTBD1));
     expect(verdict.ok).toBe(false);
     if (!verdict.ok) {
       expect(verdict.reason).toContain('demo.PO1');
-      expect(verdict.reason).toContain('numbered rules');
       expect(verdict.reason).toContain('#### <id>.R<n>');
+      // Converged: the denial names only the Rule tier, never Acceptance Criteria.
+      expect(verdict.reason).not.toMatch(/acceptance criteria/i);
     }
   });
 
