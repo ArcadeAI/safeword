@@ -355,3 +355,29 @@ describe('resolveTestPlan — typecheck plan (kind: typecheck, #436)', () => {
     expect(entryFor(plan, 'rust')?.available).toBe(false);
   });
 });
+
+describe('resolveTestPlan — deps plan (kind: deps, supply-chain gate)', () => {
+  it('emits the cargo-deny supply-chain check for Rust', () => {
+    const root = makeRepo({ 'Cargo.toml': '[package]\nname="x"\n' });
+    const plan = resolveTestPlan(root, { kind: 'deps', isToolAvailable: allTools });
+    expect(entryFor(plan, 'rust')?.command).toBe('cargo deny check');
+    expect(entryFor(plan, 'rust')?.runner).toBe('cargo-deny');
+  });
+
+  it('is Rust-only — never emits JS/Python/Go entries', () => {
+    const root = makeRepo({
+      'pyproject.toml': '[project]\nname="x"\n',
+      'go.mod': 'module x\n',
+      'Cargo.toml': '[package]\nname="x"\n',
+      'package.json': JSON.stringify({ scripts: { test: 'vitest' } }),
+    });
+    const plan = resolveTestPlan(root, { kind: 'deps', isToolAvailable: allTools });
+    expect(languages(plan)).toEqual(['rust']);
+  });
+
+  it('keeps the Rust entry visible but unavailable when cargo-deny is missing', () => {
+    const root = makeRepo({ 'Cargo.toml': '[package]\nname="x"\n' });
+    const plan = resolveTestPlan(root, { kind: 'deps', isToolAvailable: onlyTools('cargo') });
+    expect(entryFor(plan, 'rust')?.available).toBe(false);
+  });
+});

@@ -22,7 +22,7 @@ import process from 'node:process';
 import { findFileMatchingInTree, indexFilesInTree } from '../utils/fs.js';
 import { detectPackageManager } from '../utils/install.js';
 
-export type PlanKind = 'test' | 'build' | 'verify' | 'typecheck';
+export type PlanKind = 'test' | 'build' | 'verify' | 'typecheck' | 'deps';
 export type Language = 'javascript' | 'python' | 'go' | 'rust';
 
 export interface PlanEntry {
@@ -156,6 +156,7 @@ function resolveJs(
   kind: PlanKind,
   isAvailable: ToolProbe,
 ): PlanEntry | undefined {
+  if (kind === 'deps') return undefined; // supply-chain scanning is a Rust-only concern for now
   // JS is detected root-only: subdirectory package.json is too common to treat as a project root.
   const scripts = readRootScripts(root);
   if (!scripts) return undefined;
@@ -239,7 +240,8 @@ function resolvePython(
   kind: PlanKind,
   isAvailable: ToolProbe,
 ): PlanEntry | undefined {
-  if (kind === 'build' || kind === 'typecheck') return undefined; // no standard Python build/typecheck step
+  // no standard Python build/typecheck/supply-chain step
+  if ((['build', 'typecheck', 'deps'] as PlanKind[]).includes(kind)) return undefined;
   if (PYTHON_MANIFESTS.every(manifest => !index.has(manifest))) return undefined;
   const cwd = firstDirectory(root, index, PYTHON_MANIFESTS);
   if (index.has('tox.ini')) return entry('python', cwd, 'tox', 'tox', isAvailable('tox'));
@@ -266,7 +268,8 @@ function resolveGo(
   kind: PlanKind,
   isAvailable: ToolProbe,
 ): PlanEntry | undefined {
-  if (kind === 'typecheck') return undefined; // typecheck is a JS/TS concern; `go build` covers Go
+  // typecheck is a JS/TS concern (`go build` covers Go); deps/supply-chain is Rust-only for now
+  if (kind === 'typecheck' || kind === 'deps') return undefined;
   if (!index.has('go.mod')) return undefined;
   const verb = kind === 'build' ? 'build' : 'test';
   // A root go.work tests every workspace module — run the expansion from root.
@@ -287,6 +290,12 @@ function resolveRust(
 ): PlanEntry | undefined {
   if (!index.has('Cargo.toml')) return undefined;
   const cwd = index.get('Cargo.toml') ?? root;
+  if (kind === 'deps')
+    // Supply-chain gate: cargo-deny checks advisories (RustSec DB), licenses,
+    // banned/duplicate crates, and sources in one pass — a superset of cargo
+    // audit. Reads the project's deny.toml (safeword scaffolds a lenient one).
+    // Visible-but-unavailable when cargo-deny is absent (surfaces the install).
+    return entry('rust', cwd, 'cargo deny check', 'cargo-deny', isAvailable('cargo-deny'));
   if (kind === 'typecheck')
     // The typecheck kind is the strict CI-lint signal a green targeted-test run
     // can hide (#436). Clippy is a rustc driver — it wraps `cargo check`, so this
