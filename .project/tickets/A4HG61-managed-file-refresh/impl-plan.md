@@ -1,6 +1,6 @@
 # Implementation Plan: Managed-file provenance refresh (A4HG61 / #849)
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
@@ -48,6 +48,7 @@ One decision rule, evaluated per managed file during the upgrade plan (order mat
 | Corrupt manifest | Fail safe + warn, bytes untouched (DD8) | Treat as absent → re-adoption would replace recorded hashes, losing pristine-stale provenance |
 | Recording placement | Execute-only, single `manifest-record` action built at plan time (DD7) | Record inside each write executor — scatters the side effect; dry-run leakage risk |
 | Cleanup | Explicit rm on reset/uninstall-full (DD1) | "Structural" via dir removal — disproven: rmdir is remove-if-empty, uninstall rms declared files only |
+| jsonMerge co-owned paths (quality-review MF1) | Excluded from provenance entirely (create-if-missing, untracked) | Re-hash post-merge — refresh would strip what the merge re-adds, perpetual churn; record pre-merge hash — permanently stale, breaks the manifest invariant |
 
 ## Arch alignment
 
@@ -59,6 +60,8 @@ One decision rule, evaluated per managed file during the upgrade plan (order mat
 
 - **Clone scenario runs `upgrade`, not `setup`** — setup hard-refuses when `.safeword/` exists ("Already configured"), so the provenance-preservation guard moved to the command a clone actually runs. Merge-never-truncate covers both paths.
 - **configKey scenario pins override-after-install** — override-before-setup is unreachable (same setup refusal); reframed to the reviewer's sanctioned alternative (entry unchanged + file not recreated). Spec DD10 updated.
+- **Quality-review MF1: `.prettierrc` (and any jsonMerge co-owned managed file) is excluded from provenance** — the merge rewrites it after the managed write, so its recorded hash was stale within the same run. Not in the original 7-case rule; added as a pre-case with unit proof (incl. healing nothing on the poisoned pre-fix state).
+- **Proof-plan additions from review**: decideManagedFileAction exported + 9-case unit matrix (the corrupt+missing branch had no BDD coverage); manifest version!==1 reads corrupt; codepoint sort (localeCompare was machine-dependent); `safeword diff` prints plan-time warnings.
 - **Unplanned in-scope fix: eslint.config.mjs generator self-trap** — `findExistingEslintConfig` detected safeword's own managed file as a host config, so its generator returned `undefined` on every upgrade, making the flagship #849 config permanently unrefreshable. Fixed with a self-exclusion (skip only when the found config is NOT `eslint.config.mjs`); safe because the provenance gate rewrites only byte-provably-pristine files. Analogous traps in other packs' generators (ruff/golangci/…) are deliberately NOT fixed here — follow-up issue after verify.
 
 ## Assessment triggers

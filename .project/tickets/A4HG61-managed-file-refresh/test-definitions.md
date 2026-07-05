@@ -140,4 +140,4 @@ skip: documentation-only invariant (comment corrections at schema.ts:86/1095, pa
 
 ## Feature-level cross-scenario refactor
 
-- [ ] cross-scenario
+- [x] cross-scenario 6919d65
