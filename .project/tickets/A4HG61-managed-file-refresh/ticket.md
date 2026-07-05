@@ -2,7 +2,7 @@
 id: A4HG61
 slug: managed-file-refresh
 type: feature
-phase: intake
+phase: define-behavior
 external_issue: https://github.com/ArcadeAI/safeword/issues/849
 status: in_progress
 scope:
@@ -10,7 +10,7 @@ scope:
   - upgrade refreshes a managed file iff on-disk hash == recorded hash AND current resolved output differs (pristine + stale)
   - adoption rule for pre-manifest installs — record provenance only when on-disk bytes == current resolved output; otherwise leave file alone and unrecorded
   - refresh visibility in upgrade output (reported like owned-file updates)
-  - manifest removed with `.safeword/` on reset/uninstall (location makes cleanup structural)
+  - manifest at `.safeword/managed-files.json`, committed (not transient); explicitly removed on reset/uninstall-full
   - correct the managed-file comments (schema.ts:86/1095, packs/types.ts:136)
 out_of_scope:
   - ownedFiles behavior (already correct — content-compare overwrite)
@@ -36,5 +36,6 @@ last_modified: 2026-07-05T19:28:43.052Z
 ## Work Log
 
 - 2026-07-05T19:28:43.052Z Started: Created ticket A4HG61
+- 2026-07-05T20:12 Complete: define-behavior - 16 scenarios across 8 rules (+1 doc-only rule skipped); dimensions.md first (7 dimensions; load-bearing boundary = provenance x staleness). Branch caught up to main v0.65.0 (rust pack added deny.toml to managedFiles). Criteria converted ACs->Rules per user. Cold-start check found 8 gaps; all resolved in spec.md Design Decisions (manifest = .safeword/managed-files.json, committed, explicitly removed; generator-undefined = skip; execute-only recording).
 - 2026-07-05T19:55 Decision (user): full manifest scope chosen over advisory-only / static-hash. Re-sized task→feature; spec.md authored (brief, 3 JTBDs, 9 ACs); scope/out_of_scope/done_when drafted, presenting at intake gates.
 - 2026-07-05T19:32 Found (design-blocking): ALL motivating managed configs are ctx-generated (`generator: ctx => …`) — eslint.config.mjs & tsconfig.json (packs/typescript/files.ts:254+), ruff.toml/mypy.ini/.importlinter (packs/python/files.ts:245+), .golangci.yml (golang), clippy.toml/rustfmt.toml (rust), .sqlfluff (sql). A static per-file revision-hash list (cucumber pattern) CANNOT fingerprint generator output across versions → covers only static managed files (BDD lane starters, customer-edited by design). To heal ctx-generated configs requires recording what safeword actually wrote (provenance manifest) — larger surface (persistent .safeword state, setup/upgrade write, uninstall/reset cleanup, forward-only adopt-baseline for existing installs). Re-converging scope with user before building.

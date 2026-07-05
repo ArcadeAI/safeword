@@ -37,11 +37,11 @@ Unaffected:
 
 > When I run `safeword upgrade` on a project whose managed configs I haven't touched, I want safeword's shipped fixes to those configs to land automatically, so I get the improvements without hand-diffing tool configs against a changelog.
 
-#### managed-file-refresh.TB1.AC1 — an unedited managed file is refreshed to current output when safeword ships a change
+#### managed-file-refresh.TB1.R1 — an upgrade brings every pristine managed file to current resolved output
 
-#### managed-file-refresh.TB1.AC2 — refreshes are visible in upgrade output, so nothing changes silently
+#### managed-file-refresh.TB1.R2 — every refresh is reported in upgrade output; no managed file changes silently
 
-#### managed-file-refresh.TB1.AC3 — an unchanged managed file is not rewritten (no churn on no-op upgrades)
+#### managed-file-refresh.TB1.R3 — a managed file already at current output is never rewritten (no churn)
 
 ### managed-file-refresh.TB2 — customized configs survive upgrade untouched
 
@@ -49,11 +49,11 @@ Unaffected:
 
 > When I've edited a managed config to my house style, I want upgrade to leave that file exactly as I left it, so upgrading safeword never clobbers my customization.
 
-#### managed-file-refresh.TB2.AC1 — a managed file whose on-disk content differs from what safeword last wrote is never rewritten
+#### managed-file-refresh.TB2.R1 — upgrade never rewrites a managed file whose on-disk bytes differ from safeword's recorded write
 
-#### managed-file-refresh.TB2.AC2 — pristine/edited status is re-evaluated every upgrade — editing after an earlier refresh protects the file on the next one
+#### managed-file-refresh.TB2.R2 — pristine status is re-derived from on-disk bytes at every upgrade, never cached — an edit after an earlier refresh protects the file on the next one
 
-#### managed-file-refresh.TB2.AC3 — uninstall/reset leaves no manifest state behind
+#### managed-file-refresh.TB2.R3 — no manifest state survives uninstall/reset
 
 ### managed-file-refresh.SM1 — a shipped template fix reaches the installed base
 
@@ -61,16 +61,29 @@ Unaffected:
 
 > When I ship a fix to a managed template or generator, I want existing installs to pick it up on their next upgrade when the file is unedited, so the installed base doesn't silently fork across revisions.
 
-#### managed-file-refresh.SM1.AC1 — ctx-generated configs (generator output), not just static templates, are provenance-tracked and refreshable
+#### managed-file-refresh.SM1.R1 — provenance covers generator output as well as static templates; no managed-file kind is exempt
 
-#### managed-file-refresh.SM1.AC2 — installs predating the manifest adopt safely: a file byte-identical to current resolved output gains provenance; a differing file is left alone and stays unmanaged (never guessed pristine)
+#### managed-file-refresh.SM1.R2 — a file that cannot be proven pristine is never refreshed; byte-identity to current resolved output is the only adoption path into provenance
 
-#### managed-file-refresh.SM1.AC3 — schema documentation states the actual behavior (comments at schema.ts:86/1095, packs/types.ts:136 corrected)
+#### managed-file-refresh.SM1.R3 — schema documentation states the actual behavior (comments at schema.ts:86/1095, packs/types.ts:136 corrected)
 
 ## Rave Moment
 
 skip: table-stakes — the win is an upgrade that quietly does the right thing; the observable moment is the absence of a bad one (no clobber, no fork). Nothing here beats an expectation in a peer-retellable way.
 
+## Design Decisions (cold-start check resolutions)
+
+The intake-exit cold-start review surfaced 8 plannability gaps; resolutions:
+
+1. **Manifest removal is explicit, not structural.** `executeRmdir` is remove-if-empty and uninstall removes only declared files (reconcile.ts:806-808) — an undeclared manifest would survive and violate TB2.R3. The manifest is declared for removal on reset and uninstall-full (explicit rm, alongside the ownedFiles pass).
+2. **Manifest lives at `.safeword/managed-files.json`**; keys are the on-disk relative paths as written (post-namespace-translation). After a `paths.projectRoot` migration, moved files' old keys no longer match → the file is simply unrecorded and the byte-identity adoption rule applies. Safe by construction; no migration logic.
+3. **The manifest is committed, not gitignored** (not in `SAFEWORD_TRANSIENT_PATHS`). Provenance must travel with the repo — installs are repos, not machines; a gitignored manifest would make every fresh clone permanently pre-manifest and defeat the feature. Churn is bounded: the manifest changes only in commits that also change the managed files themselves.
+4. **Generator returns undefined → skip.** SM1.R1's "no kind is exempt" means generated content is *trackable*, not that suppression forces action: a recorded file whose generator now resolves nothing is left untouched (no delete, no refresh), its entry inert. Scenario'd.
+5. **Recorded-but-missing file → today's create-if-missing parity**: recreated, reported as created, hash re-recorded. User deletion is not treated as a customization (matches current behavior). Scenario'd.
+6. **Entries are never pruned by edits.** An edited file's entry stays — so edit-then-revert restores pristine status (TB2.R2's re-derivation). configKey-suppressed and schema-removed paths simply have inert entries; pruning is out of scope.
+7. **Recording/adoption is execute-only; reporting is plan-time.** Refresh candidates appear in the plan's `updated` output (so `safeword diff` previews them, scenario'd); manifest writes happen only in executePlan.
+8. **Corrupt manifest → fail safe**: treated as unable-to-prove-pristine (refresh nothing), upgrade succeeds. Never treated as pre-manifest re-adoption in the same run. Scenario'd.
+
 ## Open Questions
 
-(none — resolved during intake: manifest location `.safeword/` so reset/uninstall cleanup is structural; adoption rule is byte-match-only; pre-manifest stale installs are explicitly unhealable, deferred to the #849 thread as a possible advisory follow-up)
+(none — all cold-start gaps resolved above; pre-manifest unedited-but-stale installs remain explicitly unhealable, deferred to the #849 thread as a possible advisory follow-up)
