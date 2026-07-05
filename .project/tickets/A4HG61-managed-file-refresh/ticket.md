@@ -2,7 +2,7 @@
 id: A4HG61
 slug: managed-file-refresh
 type: feature
-phase: define-behavior
+phase: scenario-gate
 external_issue: https://github.com/ArcadeAI/safeword/issues/849
 status: in_progress
 scope:
