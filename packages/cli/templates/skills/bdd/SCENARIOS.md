@@ -61,7 +61,7 @@ Each propose-and-converge turn either surfaces new scenarios or doesn't. When a 
 
 **Discovery shorthand** (in chat, presenting to user): Rule + bare scenario checkboxes — fast to read, easy to amend in conversation. This is what turn-1 above looks like.
 
-**Saved source** (`features/<slug>.feature`; under `paths.features` when configured): Gherkin `Feature` / `Rule` / `Scenario` with lineage as `@<jtbd-id>.AC<#>` tags. This is the executable behavior source that the Cucumber lane runs and `/review-spec`, `safeword check`, and `codify` read.
+**Saved source** (`features/<slug>.feature`; under `paths.features` when configured): Gherkin `Feature` / `Rule` / `Scenario`, with lineage carried on the `Rule:` block as a `@<jtbd-id>.R<#>` tag that its scenarios inherit (legacy specs instead tag each scenario `@<jtbd-id>.AC<#>`). Two senses of "rule" meet here: Gherkin's `Rule:` keyword is the grouping block, while the numbered Rule (`.R<#>`) is safeword's lineage id — the block carries it as a tag and repeats it as the first token of its name. This is the executable behavior source that the Cucumber lane runs and `/review-spec`, `safeword check`, and `codify` read.
 
 ### Surface coverage tags
 
@@ -70,19 +70,18 @@ If `spec.md` `## Surfaces` lists `Affected:` entries, each affected surface need
 **Progress ledger** (`test-definitions.md` on disk): scenario headings plus per-scenario `- [ ] RED / GREEN / REFACTOR` sub-checkboxes. test-definitions.md is the R/G/R ledger. The prompt hook parses those checkboxes to inject TDD-step guidance during implement, and they enforce one-commit-per-step discipline. Do not duplicate Given/When/Then here when a `.feature` source exists.
 
 ```gherkin
-@<jtbd-id>.AC1
 Feature: Description of feature
 
-  Rule: Description of business rule
+  @<jtbd-id>.R1
+  Rule: <jtbd-id>.R1 — Description of the business invariant
 
-    @<jtbd-id>.AC1
     Scenario: Partition A
       Given [context]
       When [action]
       Then [outcome]
 
-    @<jtbd-id>.AC1
-    Scenario: Partition B (boundary)
+    @rejection
+    Scenario: Partition B (invariant violated)
       Given [context]
       When [action]
       Then [outcome]
@@ -95,7 +94,7 @@ Feature source: `features/<slug>.feature`
 
 test-definitions.md is the R/G/R ledger.
 
-## Rule: Description of business rule
+## Rule: <jtbd-id>.R1 — Description of the business invariant
 
 ### Scenario: Partition A
 
@@ -103,7 +102,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Partition B (boundary)
+### Scenario: Partition B (invariant violated)
 
 - [ ] RED
 - [ ] GREEN
