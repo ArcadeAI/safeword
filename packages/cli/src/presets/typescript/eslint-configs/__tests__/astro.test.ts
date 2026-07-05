@@ -27,7 +27,7 @@ describe('Astro config', () => {
     const packageJson = await readCliPackageJson();
 
     expect(packageJson.dependencies?.['eslint-plugin-astro']).toBe('~2.1.1');
-    expect(packageJson.engines?.node).toBe('^22.22.3 || ^24.16.0 || >=26.3.0');
+    expect(packageJson.engines?.node).toBe('^24.16.0 || >=26.3.0');
   });
 
   it('includes eslint-plugin-astro', () => {

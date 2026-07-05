@@ -334,7 +334,7 @@ export async function maybeMigrateNamespace(cwd: string, options: UpgradeOptions
     reportMigrationSuccess(executeNamespaceMigration(cwd));
   } catch (migrationError) {
     warn(
-      `${migrationError instanceof Error ? migrationError.message : String(migrationError)} — continuing upgrade on .safeword-project/.`,
+      `${Error.isError(migrationError) ? migrationError.message : String(migrationError)} — continuing upgrade on .safeword-project/.`,
     );
     return;
   }
@@ -456,7 +456,7 @@ export async function upgrade(options: UpgradeOptions): Promise<void> {
 
     await selfVerify(cwd);
   } catch (error_) {
-    error(`Upgrade failed: ${error_ instanceof Error ? error_.message : 'Unknown error'}`);
+    error(`Upgrade failed: ${Error.isError(error_) ? error_.message : 'Unknown error'}`);
     process.exit(1);
   }
 }

@@ -271,9 +271,8 @@ describe('eslint-comments governance', () => {
 
   it('enforces disable-enable-pair at error', () => {
     const rule = recommended
-      .flatMap(config =>
-        config?.rules ? [config.rules['eslint-comments/disable-enable-pair']] : [],
-      )
+      .filter(config => config?.rules)
+      .map(config => config?.rules?.['eslint-comments/disable-enable-pair'])
       .find(Boolean);
 
     expect(rule).toBeDefined();
@@ -283,9 +282,8 @@ describe('eslint-comments governance', () => {
 
   it('enforces no-unlimited-disable at error', () => {
     const rule = recommended
-      .flatMap(config =>
-        config?.rules ? [config.rules['eslint-comments/no-unlimited-disable']] : [],
-      )
+      .filter(config => config?.rules)
+      .map(config => config?.rules?.['eslint-comments/no-unlimited-disable'])
       .find(Boolean);
 
     expect(rule).toBe('error');
@@ -293,9 +291,8 @@ describe('eslint-comments governance', () => {
 
   it('enforces require-description at error', () => {
     const rule = recommended
-      .flatMap(config =>
-        config?.rules ? [config.rules['eslint-comments/require-description']] : [],
-      )
+      .filter(config => config?.rules)
+      .map(config => config?.rules?.['eslint-comments/require-description'])
       .find(Boolean);
 
     expect(rule).toBeDefined();
