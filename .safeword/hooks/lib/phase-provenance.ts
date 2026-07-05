@@ -322,7 +322,9 @@ function parseAnchors(meta: Record<string, string | string[]> | undefined): Map<
 }
 
 export type PhaseAnchorVerdict =
-  { kind: 'not-applicable' } | { kind: 'anchored' } | { kind: 'unanchored'; reason: string };
+  | { kind: 'not-applicable' }
+  | { kind: 'anchored' }
+  | { kind: 'unanchored'; phase: string; reason: string };
 
 const NOT_APPLICABLE: PhaseAnchorVerdict = { kind: 'not-applicable' };
 
@@ -371,21 +373,56 @@ export function detectUnanchoredPhaseTransition(
   if (toIndex <= canonicalIndex(effectivePrior)) return NOT_APPLICABLE; // backward or lateral
 
   // Policed: a forward feature advance must carry a valid anchor for the phase entered.
-  const anchor = parseAnchors(proposed).get(proposedPhase);
+  return validateAnchor(proposed, proposedPhase, resolveSha);
+}
+
+/** Shared anchor validation: present → well-formed → (with a resolver) reachable. */
+function validateAnchor(
+  meta: Record<string, string | string[]>,
+  phase: string,
+  resolveSha?: ShaResolver,
+): PhaseAnchorVerdict {
+  const anchor = parseAnchors(meta).get(phase);
   if (anchor === undefined) {
-    return { kind: 'unanchored', reason: `no phase_anchors entry for "${proposedPhase}".` };
+    return { kind: 'unanchored', phase, reason: `no phase_anchors entry for "${phase}".` };
   }
   if (!isValidSha(anchor)) {
     return {
       kind: 'unanchored',
-      reason: `phase_anchors entry for "${proposedPhase}" is "${anchor}", not a valid commit SHA (7-40 hex chars).`,
+      phase,
+      reason: `phase_anchors entry for "${phase}" is "${anchor}", not a valid commit SHA (7-40 hex chars).`,
     };
   }
   if (resolveSha && resolveSha(anchor) === false) {
     return {
       kind: 'unanchored',
-      reason: `phase_anchors SHA ${anchor} for "${proposedPhase}" is not reachable from HEAD.`,
+      phase,
+      reason: `phase_anchors SHA ${anchor} for "${phase}" is not reachable from HEAD.`,
     };
   }
   return { kind: 'anchored' };
+}
+
+/**
+ * At-rest variant of the anchor check (issue #824): does a feature ticket's
+ * CURRENT phase carry a valid anchor? No transition needed — this is the
+ * advisory view `safeword check` reports for in-progress tickets, nudging the
+ * convention along before the boundary gate (#810) enforces it. Intake is
+ * never anchored (nothing was advanced into), non-features and off-enum
+ * phases are not policed, and the caller decides status scoping.
+ */
+export function detectUnanchoredPhaseState(
+  content: string,
+  resolveSha?: ShaResolver,
+): PhaseAnchorVerdict {
+  const meta = frontmatterOf(normalizeNewlines(content));
+  if (meta === undefined) return NOT_APPLICABLE;
+  if (scalar(meta, 'type') !== 'feature') return NOT_APPLICABLE;
+
+  const phase = scalar(meta, 'phase');
+  if (phase === undefined || phase === 'intake' || !CANONICAL_SET.has(phase)) {
+    return NOT_APPLICABLE;
+  }
+
+  return validateAnchor(meta, phase, resolveSha);
 }
