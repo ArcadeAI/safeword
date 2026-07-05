@@ -73,20 +73,50 @@ interface ParsedSkips {
   invalid: string[];
 }
 
-function parseSkips(meta: Record<string, string | string[]> | undefined): ParsedSkips {
-  const raw = meta?.['phase_skips'];
-  const entries = Array.isArray(raw) ? raw : typeof raw === 'string' && raw !== '' ? [raw] : [];
-  const justified = new Map<string, string>();
-  const invalid: string[] = [];
-  for (const entry of entries) {
-    const match = /^([^:]+):(.*)$/.exec(entry);
+/** One `<phase>: <value>` block-sequence entry, split on the first colon. */
+interface PhaseKeyedEntry {
+  phase: string;
+  value: string;
+  /** The original entry text, for callers that report it verbatim. */
+  raw: string;
+}
+
+/**
+ * Parse a `<phase>: <value>` frontmatter block sequence (the shared shape
+ * behind both phase_skips and phase_anchors). Splits each entry on the first
+ * colon; entries with no colon or an empty phase are returned as `malformed`.
+ * Value trimming happens here; what makes a value *valid* is the caller's call.
+ */
+function parsePhaseKeyedEntries(
+  meta: Record<string, string | string[]> | undefined,
+  key: string,
+): { entries: PhaseKeyedEntry[]; malformed: string[] } {
+  const raw = meta?.[key];
+  const rawEntries = Array.isArray(raw) ? raw : typeof raw === 'string' && raw !== '' ? [raw] : [];
+  const entries: PhaseKeyedEntry[] = [];
+  const malformed: string[] = [];
+  for (const rawEntry of rawEntries) {
+    const match = /^([^:]+):(.*)$/.exec(rawEntry);
     const phase = match?.[1]?.trim();
-    const reason = match?.[2] ?? '';
-    if (match === null || phase === undefined || phase === '' || !isValidSkipReason(reason)) {
-      invalid.push(entry);
+    if (match === null || phase === undefined || phase === '') {
+      malformed.push(rawEntry);
       continue;
     }
-    justified.set(phase, reason.trim());
+    entries.push({ phase, value: (match[2] ?? '').trim(), raw: rawEntry });
+  }
+  return { entries, malformed };
+}
+
+function parseSkips(meta: Record<string, string | string[]> | undefined): ParsedSkips {
+  const { entries, malformed } = parsePhaseKeyedEntries(meta, 'phase_skips');
+  const justified = new Map<string, string>();
+  const invalid = [...malformed];
+  for (const { phase, value, raw } of entries) {
+    if (!isValidSkipReason(value)) {
+      invalid.push(raw);
+      continue;
+    }
+    justified.set(phase, value);
   }
   return { justified, invalid };
 }
@@ -284,14 +314,9 @@ function evaluateBirth(
  * validity. Entries without a colon carry no phase and are ignored.
  */
 function parseAnchors(meta: Record<string, string | string[]> | undefined): Map<string, string> {
-  const raw = meta?.['phase_anchors'];
-  const entries = Array.isArray(raw) ? raw : typeof raw === 'string' && raw !== '' ? [raw] : [];
   const byPhase = new Map<string, string>();
-  for (const entry of entries) {
-    const match = /^([^:]+):(.*)$/.exec(entry);
-    const phase = match?.[1]?.trim();
-    if (match === null || phase === undefined || phase === '') continue;
-    byPhase.set(phase, (match[2] ?? '').trim());
+  for (const { phase, value } of parsePhaseKeyedEntries(meta, 'phase_anchors').entries) {
+    byPhase.set(phase, value);
   }
   return byPhase;
 }
