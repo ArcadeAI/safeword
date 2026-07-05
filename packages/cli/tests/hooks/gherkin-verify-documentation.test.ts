@@ -22,15 +22,16 @@ describe('Gherkin verify evidence documentation (BFCWDB)', () => {
   it.each(verifyGuidanceFiles)('%s reports the Gherkin acceptance lane', file => {
     const content = readFileSync(file, 'utf8');
 
-    expect(content).toContain('bun run test:bdd');
+    // The lane is resolved by test-plan (--kind bdd), not a hardcoded test:bdd probe.
+    expect(content).toContain('test-plan --kind bdd');
     expect(content).toContain('**Gherkin:**');
-    expect(content).toContain('Skipped — no test:bdd script');
+    expect(content).toContain('Skipped — no acceptance lane detected');
   });
 
   it.each(doneGateGuidanceFiles)('%s requests Gherkin done-gate evidence', file => {
     const content = readFileSync(file, 'utf8');
 
     expect(content).toContain('Gherkin acceptance');
-    expect(content).toContain('Skipped — no test:bdd script');
+    expect(content).toContain('Skipped — no acceptance lane detected');
   });
 });
