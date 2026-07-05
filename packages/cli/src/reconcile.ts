@@ -817,6 +817,14 @@ function computeUninstallPlan(
   actions.push(...cleanupDirectories.actions);
   wouldRemove.push(...cleanupDirectories.removed);
 
+  // 1b. Remove the provenance manifest (A4HG61, #849) in BOTH modes — it is
+  // safeword state, meaningless without safeword, and not a schema entry
+  // (dynamic state, not a template), so it needs its own explicit removal:
+  // directory cleanup is remove-if-empty and would silently leave it behind.
+  const manifest = planExistingFilesRemoval([MANAGED_FILE_MANIFEST_PATH], ctx.cwd);
+  actions.push(...manifest.actions);
+  wouldRemove.push(...manifest.removed);
+
   // 2. JSON unmerges
   for (const [filePath, definition] of Object.entries(schema.jsonMerges)) {
     actions.push({ type: 'json-unmerge', path: filePath, definition });

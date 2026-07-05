@@ -256,8 +256,15 @@ export const typescriptManagedFiles: Record<string, ManagedFileDefinition> = {
   'eslint.config.mjs': {
     // eslint-disable-next-line sonarjs/no-inconsistent-returns -- generator returns undefined to skip file
     generator: ctx => {
-      // Skip if project already has ESLint config (safeword will use .safeword/eslint.config.mjs)
-      if (ctx.projectType.existingEslintConfig) return;
+      // Skip if the project has its own ESLint config (safeword will use
+      // .safeword/eslint.config.mjs) — but a detected `eslint.config.mjs` IS
+      // this managed file, usually safeword's own prior write. Suppressing on
+      // it would make the config permanently unrefreshable (the 56JCFZ
+      // self-trigger trap); resolving content is safe because the provenance
+      // gate (A4HG61, #849) only ever rewrites a byte-provably-pristine file,
+      // so a host-authored eslint.config.mjs is still never touched.
+      const existing = ctx.projectType.existingEslintConfig;
+      if (existing !== undefined && existing !== 'eslint.config.mjs') return;
       if (!ctx.languages?.javascript) return;
       return getEslintConfig(ctx.projectType.existingFormatter);
     },
