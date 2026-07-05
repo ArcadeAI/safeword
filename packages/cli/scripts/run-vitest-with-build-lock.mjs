@@ -13,11 +13,14 @@ const vitestArguments = process.argv.slice(2);
 // (and npm) inject it into PATH, but invoking this wrapper directly — e.g.
 // `node scripts/run-vitest-with-build-lock.mjs tests/foo.test.ts`, safeword's own
 // documented inner-loop path — does not, so `spawnSync('vitest')` fails with
-// ENOENT (#715). Prepend it here so the wrapper resolves `vitest` off any PATH.
+// ENOENT (#715). APPEND it (never prepend): a `vitest` already on PATH — the
+// npm-injected one, or a stub the test-runner-lock suite injects to exercise the
+// lock without real vitest — must still win. This only supplies a fallback when
+// nothing else on PATH resolves `vitest`.
 const localBinDirectory = nodePath.join(cliRoot, 'node_modules', '.bin');
 const childEnvironment = {
   ...process.env,
-  PATH: `${localBinDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+  PATH: `${process.env.PATH ?? ''}${nodePath.delimiter}${localBinDirectory}`,
 };
 const lockParent = nodePath.join(tmpdir(), 'safeword-test-locks');
 const lockName = 'safeword-package-test';
