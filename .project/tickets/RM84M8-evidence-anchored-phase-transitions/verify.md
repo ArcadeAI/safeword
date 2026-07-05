@@ -16,7 +16,15 @@
 
 ## Audit
 
-Audit passed with warnings — 0 errors. Architecture: no depcruise violations. Dead code: none (exports consumed by the unit suite and step definitions). Duplication: 0.70% across the 49 hook libs (baseline; this ticket's shared-parser refactor reduced it). Test quality: `phase-anchor.test.ts` uses specific verdict assertions, `it.each` for the type outline, and covers the malformed / empty / wrong-phase / unreachable edge partitions.
+Audit passed with warnings — 0 errors. Full block re-run post-done at the user's prompt (the first pass was scoped to the changed area only; recorded here so the record is honest):
+
+- **Config drift:** ✅ `sync-config --check` in sync.
+- **Architecture:** ✅ depcruise full repo — no violations (566 modules, 1727 dependencies).
+- **Dead code (knip):** 3 pre-existing "unlisted binaries" hints in `steps/rule-tier.steps.ts` (`setup`, `check`, `lint-gherkin`) — not from this ticket; nothing new flagged.
+- **Duplication (jscpd):** changed area 4 clones / 0.70% across the 49 hook libs — and this ticket's shared-parser refactor *removed* duplication. Full-repo numbers recorded for future baselines (no comparable prior full-repo record exists; earlier tickets recorded narrower scopes ~92 clones): whole repo 594 (17.9% — dominated by the *deliberate* templates↔.safeword byte mirror and the ticket archive); excluding `.safeword/` + `.project/` 416 (8.9%); `packages/cli` 317 (3.6%). Delta from this ticket: negative.
+- **Outdated deps:** ⚠️ evidence limit — `bun outdated` hangs resolving through the sandbox proxy; not checkable here. No dependencies were added or changed by this ticket.
+- **Learnings:** ✅ all carry `Covers:` lines. **CLAUDE.md refs:** ✅ no dead references.
+- **Test quality:** `phase-anchor.test.ts` uses specific verdict assertions, `it.each` for the type outline, and covers the malformed / empty / wrong-phase / unreachable edge partitions.
 
 ## Done-when reconciliation
 
