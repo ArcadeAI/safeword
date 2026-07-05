@@ -140,10 +140,14 @@ ticket
   .option('--title <title>', 'Ticket title (defaults to slug)')
   .option('--goal <goal>', 'One-line goal; fills the Goal field instead of a placeholder')
   .option('--why <why>', 'One-line rationale (task/patch/epic; features use spec.md)')
+  .option(
+    '--parent <epicId>',
+    'Link this ticket to an epic (sets parent: and appends to its children)',
+  )
   .action(
     async (
       slug: string,
-      options: { type?: string; title?: string; goal?: string; why?: string },
+      options: { type?: string; title?: string; goal?: string; why?: string; parent?: string },
     ) => {
       const { ticketNew } = await import('./commands/ticket-new.js');
       await ticketNew(slug, options);

@@ -41,6 +41,22 @@ export function linkChildToEpic(cwd: string, childId: string, epicId: string): L
   return { ok: true };
 }
 
+/**
+ * Validate that `epicId` names an existing `type: epic` ticket, without
+ * mutating anything — so `ticket new --parent` can fail before it creates a
+ * child (AC3: a bad `--parent` creates nothing).
+ */
+export function validateEpicParent(cwd: string, epicId: string): LinkResult {
+  const epicFolder = resolveTicketFolderById(cwd, epicId);
+  if (epicFolder === undefined) {
+    return { ok: false, reason: `--parent epic "${epicId}" not found` };
+  }
+  if (!isEpicTicket(readFileSync(nodePath.join(epicFolder, 'ticket.md'), 'utf8'))) {
+    return { ok: false, reason: `--parent "${epicId}" is not an epic` };
+  }
+  return { ok: true };
+}
+
 /** Resolve a ticket folder by id (`{id}-{slug}` or legacy `{id}`), or undefined. */
 export function resolveTicketFolderById(cwd: string, id: string): string | undefined {
   const ticketsDirectory = resolveTicketsDirectory(cwd);

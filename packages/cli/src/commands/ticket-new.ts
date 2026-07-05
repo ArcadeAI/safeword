@@ -9,6 +9,7 @@
 
 import process from 'node:process';
 
+import { linkChildToEpic, validateEpicParent } from '../utils/epic-linker.js';
 import { cryptoIdMinter, type IdMinter } from '../utils/id-minter.js';
 import { header, info, success } from '../utils/output.js';
 import { normalizeSlug, SlugError } from '../utils/slug.js';
@@ -22,6 +23,7 @@ export interface TicketNewOptions {
   title?: string;
   goal?: string;
   why?: string;
+  parent?: string;
 }
 
 export function ticketNew(slug: string, options: TicketNewOptions): Promise<void> {
@@ -29,34 +31,49 @@ export function ticketNew(slug: string, options: TicketNewOptions): Promise<void
   return Promise.resolve();
 }
 
-function ticketNewSync(slug: string, options: TicketNewOptions): void {
-  const type = resolveType(options.type);
-  if (type === 'invalid') {
-    process.stderr.write(
-      `Invalid --type=${String(options.type)}. Must be one of: patch, task, feature, epic.\n`,
-    );
-    process.exit(1);
-  }
+/** Exit non-zero with a message. */
+function fail(message: string): never {
+  process.stderr.write(`${message}\n`);
+  process.exit(1);
+}
 
+/** Validate all option constraints, exiting before anything is created;
+ * returns the type narrowed past the `invalid` sentinel. */
+function assertOptionsValid(
+  options: TicketNewOptions,
+  type: TicketType | undefined | 'invalid',
+): TicketType | undefined {
+  if (type === 'invalid') {
+    fail(`Invalid --type=${String(options.type)}. Must be one of: patch, task, feature, epic.`);
+  }
   // Features keep motivation in spec.md (single source of truth), so they have
   // no **Why:** field for --why to fill — fail loud rather than silently drop it.
   if (options.why !== undefined && type === 'feature') {
-    process.stderr.write(
-      '--why does not apply to features — their motivation lives in spec.md. Use --goal, or edit spec.md.\n',
+    fail(
+      '--why does not apply to features — their motivation lives in spec.md. Use --goal, or edit spec.md.',
     );
-    process.exit(1);
   }
+  // Validate --parent BEFORE creating anything, so a bad epic reference leaves
+  // no half-linked child behind (AC3).
+  if (options.parent !== undefined) {
+    const check = validateEpicParent(process.cwd(), options.parent);
+    if (!check.ok) fail(check.reason);
+  }
+  return type;
+}
 
-  let normalizedSlug: string;
+function resolveSlug(slug: string): string {
   try {
-    normalizedSlug = normalizeSlug(slug);
+    return normalizeSlug(slug);
   } catch (error: unknown) {
-    if (error instanceof SlugError) {
-      process.stderr.write(`${error.message}\n`);
-      process.exit(1);
-    }
+    if (error instanceof SlugError) fail(error.message);
     throw error;
   }
+}
+
+function ticketNewSync(slug: string, options: TicketNewOptions): void {
+  const type = assertOptionsValid(options, resolveType(options.type));
+  const normalizedSlug = resolveSlug(slug);
 
   header('Create ticket');
 
@@ -67,7 +84,12 @@ function ticketNewSync(slug: string, options: TicketNewOptions): void {
       title: options.title,
       goal: options.goal,
       why: options.why,
+      parent: options.parent,
     });
+    // Write the reverse index on the epic: append the child to its children[].
+    if (options.parent !== undefined) {
+      linkChildToEpic(process.cwd(), result.id, options.parent);
+    }
     success(`Created ticket ${formatTicketReference(result.id, normalizedSlug)}`);
     info(`Folder: ${result.folderPath}`);
     info(`File:   ${result.ticketPath}`);
