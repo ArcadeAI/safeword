@@ -133,18 +133,38 @@ DEPCRUISE_CONFIG=""
   bunx depcruise --output-type err --config "$DEPCRUISE_CONFIG" . 2>&1 || true
 }
 
-# 1b. Architecture - Python
-# Note: Python circular imports cause ImportError at runtime.
-# If your Python code runs, it has no blocking circular imports.
-# For static analysis, consider: pip install import-linter
+# 1b. Architecture - Python (import-linter). Python does NOT reliably catch cycles
+# at runtime — an ImportError fires only when the import order happens to touch a
+# not-yet-defined name, so a passing test run is NOT proof of an acyclic import
+# graph. import-linter is the static gate, but it is config-driven (it enforces only
+# declared contracts, nothing by default), so gate on its config and never force it.
+([ -f pyproject.toml ] || [ -f requirements.txt ] || [ -f setup.py ] || [ -f setup.cfg ]) && {
+  if [ -f .importlinter ] || grep -q '^\[importlinter\]' setup.cfg 2> /dev/null || grep -q '^\[tool\.importlinter\]' pyproject.toml 2> /dev/null; then
+    if command -v lint-imports > /dev/null 2>&1; then
+      lint-imports 2>&1 || true
+    else
+      echo "Manual evidence required: import-linter contracts found but 'lint-imports' not installed — Python architecture check skipped"
+    fi
+  else
+    echo "Manual evidence required: no import-linter contracts (.importlinter / [tool.importlinter] / setup.cfg [importlinter]) — Python import cycles are NOT statically checked (runtime does not reliably catch them). Add import-linter, or run 'pylint --disable=all --enable=cyclic-import <pkg>' for a config-free heuristic."
+  fi
+}
 
-# 1c. Architecture - Go
-# Note: Go compiler prevents circular imports between packages at build time.
-# If your Go project builds, it has no circular dependencies.
+# 1c. Architecture - Go. The compiler REJECTS import cycles at build, so a green
+# `go build ./...` / `go test ./...` already guarantees an acyclic package graph —
+# no separate cycle check exists or is needed. Layer/boundary rules are enforced by
+# depguard, which runs INSIDE the golangci-lint pass below when `.golangci.yml`
+# configures it — do NOT force-enable it (an unconfigured depguard flags every
+# non-stdlib import as a false positive).
+[ -f go.mod ] && echo "Go architecture: import cycles are compiler-guaranteed absent (a passing build proves it); boundary contracts run via depguard in the golangci-lint pass when .golangci.yml configures them."
 
-# 1d. Architecture - Rust
-# Note: Cargo validates Rust module/package structure during build and test.
-# Clippy runs below as Rust-specific static analysis when available.
+# 1d. Architecture - Rust. Cargo rejects circular crate deps and rustc forbids
+# mutually-recursive modules, so a compiling project cannot contain cycles — no
+# check needed. No mature standard tool enforces directional layer boundaries in
+# Rust (cargo-modules only visualizes); teams enforce boundaries structurally via
+# separate crates + visibility. (cargo-deny covers dependency supply-chain —
+# advisories/licenses/bans — a different axis, not architecture.)
+[ -f Cargo.toml ] && echo "Rust architecture: crate/module cycles are compiler-guaranteed absent (a passing build proves it); no standard layer-boundary tool exists — enforce structurally via crates."
 
 # =========================================================================
 # DEAD CODE DETECTION
