@@ -134,6 +134,11 @@ function idsAlreadyTaken(ticketsDirectory: string): Set<string> {
   return ids;
 }
 
+/** The value if it carries non-whitespace content, else the placeholder. */
+function filledOr(value: string | undefined, placeholder: string): string {
+  return value !== undefined && value.trim() !== '' ? value : placeholder;
+}
+
 function renderTicketMarkdown(id: string, options: NewTicketOptions): string {
   const type = options.type ?? 'task';
   const now = (options.now ?? (() => new Date()))().toISOString();
@@ -151,14 +156,16 @@ done_when:
   // index-visible epic precedent (Q4FX8Y) so `sync-tickets` picks up the goal.
   const childrenFrontmatter = type === 'epic' ? 'children: []\n' : '';
 
-  const goal = options.goal ?? '{One sentence: what are we trying to achieve?}';
+  // A blank/whitespace-only flag value keeps the placeholder rather than
+  // rendering `**Goal:** ` with a trailing space and no content.
+  const goal = filledOr(options.goal, '{One sentence: what are we trying to achieve?}');
 
   // Features keep motivation in spec.md's ## Intent (single source of truth)
   // and point there; task/patch/epic have no spec.md, so they keep **Why:**.
   const motivation =
     type === 'feature'
       ? '**See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.'
-      : `**Why:** ${options.why ?? '{One sentence: why does this matter?}'}`;
+      : `**Why:** ${filledOr(options.why, '{One sentence: why does this matter?}')}`;
 
   return `---
 id: ${id}

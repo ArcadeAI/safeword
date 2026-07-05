@@ -270,4 +270,55 @@ describe('safeword ticket new', () => {
     },
     TIMEOUT_QUICK,
   );
+
+  // The epic + --goal/--why interaction is the novel path: epics render the same
+  // inline **Goal:**/**Why:** fields as tasks, so both flags must land there.
+  it(
+    'fills Goal and Why from flags on an epic',
+    async () => {
+      await runCli(
+        [
+          'ticket',
+          'new',
+          'big-rollout',
+          '--type',
+          'epic',
+          '--goal',
+          'Coordinate rollout',
+          '--why',
+          'Too many moving parts',
+        ],
+        { cwd: temporaryDirectory },
+      );
+
+      const ticketsDirectory = nodePath.join(temporaryDirectory, '.project', 'tickets');
+      const folderName = readOnlyTicketFolderName(ticketsDirectory);
+      const ticketContent = readFileSync(
+        nodePath.join(ticketsDirectory, folderName, 'ticket.md'),
+        'utf8',
+      );
+      expect(ticketContent).toMatch(/^\*\*Goal:\*\* Coordinate rollout$/m);
+      expect(ticketContent).toMatch(/^\*\*Why:\*\* Too many moving parts$/m);
+    },
+    TIMEOUT_QUICK,
+  );
+
+  // A blank flag value keeps the placeholder rather than an empty, content-less field.
+  it(
+    'keeps the Goal placeholder when --goal is blank',
+    async () => {
+      await runCli(['ticket', 'new', 'auth-flow', '--goal', ' '.repeat(3)], {
+        cwd: temporaryDirectory,
+      });
+
+      const ticketsDirectory = nodePath.join(temporaryDirectory, '.project', 'tickets');
+      const folderName = readOnlyTicketFolderName(ticketsDirectory);
+      const ticketContent = readFileSync(
+        nodePath.join(ticketsDirectory, folderName, 'ticket.md'),
+        'utf8',
+      );
+      expect(ticketContent).toMatch(/^\*\*Goal:\*\* \{One sentence/m);
+    },
+    TIMEOUT_QUICK,
+  );
 });

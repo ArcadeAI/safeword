@@ -176,11 +176,14 @@ DEPCRUISE_CONFIG=""
 }
 
 # 2d. Rust-specific checks (Clippy catches unused code and quality issues)
+# Gate on `cargo-clippy` (the binary `cargo clippy` runs), not `cargo`: clippy
+# is a rustup component that can be absent while cargo is on PATH, and `|| true`
+# would otherwise swallow its failure into a false "clean" result.
 [ -f Cargo.toml ] && {
-  if command -v cargo > /dev/null 2>&1; then
+  if command -v cargo-clippy > /dev/null 2>&1; then
     cargo clippy --all-targets --all-features -- -D warnings 2>&1 || true
   else
-    echo "Manual evidence required: cargo not installed — Rust clippy check skipped"
+    echo "Manual evidence required: cargo clippy not available — Rust clippy check skipped"
   fi
 }
 
