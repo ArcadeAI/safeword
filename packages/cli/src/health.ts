@@ -345,7 +345,7 @@ function phaseAnchorAdvisoryForTicket(ticketsRoot: string, ticketId: string): st
   if (content === undefined || !isInProgress(content)) return undefined;
   const verdict = detectUnanchoredPhaseState(content);
   if (verdict.kind !== 'unanchored') return undefined;
-  return `${formatCoverageTicketLabel(ticketId)}: phase "${verdict.phase}" has no valid phase_anchors entry — append \`- ${verdict.phase}: <commit-sha>\` (the commit the advance rode) so the deliverable boundary can validate the transition`;
+  return `${formatCoverageTicketLabel(ticketId)}: phase "${verdict.phase}" has no valid phase_anchors entry — append \`- ${verdict.phase}: <commit-sha>\` (git's ID for the commit this phase advance rode on) so commit/push checks can verify the advance is real`;
 }
 
 /** Build coverage advisories for one ticket, or none if it is not an

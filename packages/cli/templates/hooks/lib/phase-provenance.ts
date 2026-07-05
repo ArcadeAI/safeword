@@ -405,16 +405,15 @@ function validateAnchor(
 
 /**
  * At-rest variant of the anchor check (issue #824): does a feature ticket's
- * CURRENT phase carry a valid anchor? No transition needed — this is the
- * advisory view `safeword check` reports for in-progress tickets, nudging the
- * convention along before the boundary gate (#810) enforces it. Intake is
- * never anchored (nothing was advanced into), non-features and off-enum
- * phases are not policed, and the caller decides status scoping.
+ * CURRENT phase carry a valid-format anchor? No transition needed — this is
+ * the advisory view `safeword check` reports for in-progress tickets, nudging
+ * the convention along before the boundary gate (#810) enforces it. Format
+ * only — no resolver seam until a caller actually resolves (the transition
+ * detector carries that seam for #810). Intake is never anchored (nothing was
+ * advanced into), non-features and off-enum phases are not policed, and the
+ * caller decides status scoping.
  */
-export function detectUnanchoredPhaseState(
-  content: string,
-  resolveSha?: ShaResolver,
-): PhaseAnchorVerdict {
+export function detectUnanchoredPhaseState(content: string): PhaseAnchorVerdict {
   const meta = frontmatterOf(normalizeNewlines(content));
   if (meta === undefined) return NOT_APPLICABLE;
   if (scalar(meta, 'type') !== 'feature') return NOT_APPLICABLE;
@@ -424,5 +423,5 @@ export function detectUnanchoredPhaseState(
     return NOT_APPLICABLE;
   }
 
-  return validateAnchor(meta, phase, resolveSha);
+  return validateAnchor(meta, phase);
 }
