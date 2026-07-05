@@ -9,7 +9,10 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { detectUnanchoredPhaseTransition } from '../../templates/hooks/lib/phase-provenance.js';
+import {
+  detectUnanchoredPhaseState,
+  detectUnanchoredPhaseTransition,
+} from '../../templates/hooks/lib/phase-provenance.js';
 
 /** A well-formed 7-hex abbreviated SHA. */
 const SHA = 'a1b2c3d';
@@ -153,6 +156,54 @@ describe('detectUnanchoredPhaseTransition — fires only on a feature forward ad
       undefined,
       ticket({ type: 'feature', phase: 'intake' }),
     );
+    expect(verdict.kind).toBe('not-applicable');
+  });
+});
+
+describe('detectUnanchoredPhaseState — at-rest variant (issue #824, the check advisory)', () => {
+  it('a feature past intake with a valid anchor for its current phase is anchored', () => {
+    const verdict = detectUnanchoredPhaseState(
+      ticket({ type: 'feature', phase: 'implement', anchors: [`implement: ${SHA}`] }),
+    );
+    expect(verdict.kind).toBe('anchored');
+  });
+
+  it('a feature past intake with no phase_anchors block is unanchored', () => {
+    const verdict = detectUnanchoredPhaseState(ticket({ type: 'feature', phase: 'implement' }));
+    expect(verdict.kind).toBe('unanchored');
+  });
+
+  it('a feature whose anchors name only other phases is unanchored', () => {
+    const verdict = detectUnanchoredPhaseState(
+      ticket({ type: 'feature', phase: 'verify', anchors: [`implement: ${SHA}`] }),
+    );
+    expect(verdict.kind).toBe('unanchored');
+  });
+
+  it('a feature whose current-phase anchor is malformed is unanchored', () => {
+    const verdict = detectUnanchoredPhaseState(
+      ticket({ type: 'feature', phase: 'implement', anchors: ['implement: not-a-sha'] }),
+    );
+    expect(verdict.kind).toBe('unanchored');
+  });
+
+  it('a feature at intake is not applicable — intake is never anchored', () => {
+    const verdict = detectUnanchoredPhaseState(ticket({ type: 'feature', phase: 'intake' }));
+    expect(verdict.kind).toBe('not-applicable');
+  });
+
+  it('a non-feature ticket is not applicable', () => {
+    const verdict = detectUnanchoredPhaseState(ticket({ type: 'task', phase: 'implement' }));
+    expect(verdict.kind).toBe('not-applicable');
+  });
+
+  it('an off-enum phase is not applicable — legality is the provenance gate, not this check', () => {
+    const verdict = detectUnanchoredPhaseState(ticket({ type: 'feature', phase: 'shipping' }));
+    expect(verdict.kind).toBe('not-applicable');
+  });
+
+  it('a feature with no phase field is not applicable', () => {
+    const verdict = detectUnanchoredPhaseState(ticket({ type: 'feature' }));
     expect(verdict.kind).toBe('not-applicable');
   });
 });
