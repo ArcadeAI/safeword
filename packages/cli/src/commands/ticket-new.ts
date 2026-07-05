@@ -15,11 +15,13 @@ import { normalizeSlug, SlugError } from '../utils/slug.js';
 import { formatTicketReference } from '../utils/ticket-reference.js';
 import { createTicket, TicketIdCollisionError, type TicketType } from '../utils/ticket-writer.js';
 
-const VALID_TYPES: ReadonlySet<TicketType> = new Set(['patch', 'task', 'feature']);
+const VALID_TYPES: ReadonlySet<TicketType> = new Set(['patch', 'task', 'feature', 'epic']);
 
 export interface TicketNewOptions {
   type?: string;
   title?: string;
+  goal?: string;
+  why?: string;
 }
 
 export function ticketNew(slug: string, options: TicketNewOptions): Promise<void> {
@@ -31,7 +33,16 @@ function ticketNewSync(slug: string, options: TicketNewOptions): void {
   const type = resolveType(options.type);
   if (type === 'invalid') {
     process.stderr.write(
-      `Invalid --type=${String(options.type)}. Must be one of: patch, task, feature.\n`,
+      `Invalid --type=${String(options.type)}. Must be one of: patch, task, feature, epic.\n`,
+    );
+    process.exit(1);
+  }
+
+  // Features keep motivation in spec.md (single source of truth), so they have
+  // no **Why:** field for --why to fill — fail loud rather than silently drop it.
+  if (options.why !== undefined && type === 'feature') {
+    process.stderr.write(
+      '--why does not apply to features — their motivation lives in spec.md. Use --goal, or edit spec.md.\n',
     );
     process.exit(1);
   }
@@ -54,6 +65,8 @@ function ticketNewSync(slug: string, options: TicketNewOptions): void {
       slug: normalizedSlug,
       type,
       title: options.title,
+      goal: options.goal,
+      why: options.why,
     });
     success(`Created ticket ${formatTicketReference(result.id, normalizedSlug)}`);
     info(`Folder: ${result.folderPath}`);

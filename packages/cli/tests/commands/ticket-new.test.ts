@@ -6,7 +6,7 @@
  * slug suffix is for legibility when scanning `ls`. End-to-end via the built CLI.
  */
 
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -191,6 +191,82 @@ describe('safeword ticket new', () => {
       const result = await runCli(['ticket', 'new', ''], { cwd: temporaryDirectory });
       expect(result.exitCode).toBe(1);
       expect(result.stderr).toMatch(/slug/i);
+    },
+    TIMEOUT_QUICK,
+  );
+
+  // #699 — epic is a first-class type; the CLI scaffolds a container ticket.
+  it(
+    'accepts --type=epic and scaffolds an empty children list, no spec.md (#699)',
+    async () => {
+      const result = await runCli(['ticket', 'new', 'big-rollout', '--type', 'epic'], {
+        cwd: temporaryDirectory,
+      });
+      expect(result.exitCode).toBe(0);
+
+      const ticketsDirectory = nodePath.join(temporaryDirectory, '.project', 'tickets');
+      const folderName = readOnlyTicketFolderName(ticketsDirectory);
+      const folder = nodePath.join(ticketsDirectory, folderName);
+      const ticketContent = readFileSync(nodePath.join(folder, 'ticket.md'), 'utf8');
+      expect(ticketContent).toMatch(/^type:\s*epic$/m);
+      expect(ticketContent).toMatch(/^children:\s*\[\]$/m);
+      // epics keep the inline **Goal:** shape (index-visible), not a ## Goal section
+      expect(ticketContent).toMatch(/^\*\*Goal:\*\*/m);
+      // container, not a feature: no spec.md and no scenario-gate readiness fields
+      expect(existsSync(nodePath.join(folder, 'spec.md'))).toBe(false);
+      expect(ticketContent).not.toMatch(/^scope:/m);
+    },
+    TIMEOUT_QUICK,
+  );
+
+  // #724 — --goal fills the Goal field instead of leaving a {placeholder}.
+  it(
+    'fills the Goal field from --goal, leaving no placeholder (#724)',
+    async () => {
+      await runCli(['ticket', 'new', 'auth-flow', '--goal', 'Ship SSO for admins'], {
+        cwd: temporaryDirectory,
+      });
+
+      const ticketsDirectory = nodePath.join(temporaryDirectory, '.project', 'tickets');
+      const folderName = readOnlyTicketFolderName(ticketsDirectory);
+      const ticketContent = readFileSync(
+        nodePath.join(ticketsDirectory, folderName, 'ticket.md'),
+        'utf8',
+      );
+      expect(ticketContent).toMatch(/^\*\*Goal:\*\* Ship SSO for admins$/m);
+      expect(ticketContent).not.toMatch(/\{One sentence: what/);
+    },
+    TIMEOUT_QUICK,
+  );
+
+  it(
+    'fills the Why field from --why for a task',
+    async () => {
+      await runCli(['ticket', 'new', 'auth-flow', '--why', 'Customers keep asking'], {
+        cwd: temporaryDirectory,
+      });
+
+      const ticketsDirectory = nodePath.join(temporaryDirectory, '.project', 'tickets');
+      const folderName = readOnlyTicketFolderName(ticketsDirectory);
+      const ticketContent = readFileSync(
+        nodePath.join(ticketsDirectory, folderName, 'ticket.md'),
+        'utf8',
+      );
+      expect(ticketContent).toMatch(/^\*\*Why:\*\* Customers keep asking$/m);
+    },
+    TIMEOUT_QUICK,
+  );
+
+  // Features keep motivation in spec.md, so --why has no target there — fail loud.
+  it(
+    'rejects --why on a feature with exit code 1',
+    async () => {
+      const result = await runCli(
+        ['ticket', 'new', 'auth-flow', '--type', 'feature', '--why', 'nope'],
+        { cwd: temporaryDirectory },
+      );
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toMatch(/spec\.md/);
     },
     TIMEOUT_QUICK,
   );

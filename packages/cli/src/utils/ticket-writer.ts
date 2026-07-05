@@ -28,12 +28,17 @@ import type { IdMinter } from './id-minter.js';
 const RETRY_BUDGET = 5;
 const NON_TICKET_ENTRIES = new Set(['completed', 'tmp']);
 
-export type TicketType = 'patch' | 'task' | 'feature';
+export type TicketType = 'patch' | 'task' | 'feature' | 'epic';
 
 export interface NewTicketOptions {
   slug: string;
   type?: TicketType;
   title?: string;
+  /** One-line Goal; fills the `**Goal:**` field instead of leaving a placeholder. */
+  goal?: string;
+  /** One-line Why; fills `**Why:**` for task/patch/epic. Not valid for features
+   * (their motivation lives in spec.md) — the CLI rejects `--why` there. */
+  why?: string;
   /** Override `new Date()` for tests. */
   now?: () => Date;
 }
@@ -140,13 +145,20 @@ out_of_scope:
 done_when:
 `
       : '';
+  // Epics are containers: they carry a `children:` list (bidirectional with each
+  // child's `parent:`). Born empty; children link in as they're created. Epics
+  // use the same inline **Goal:**/**Why:** body as tasks — matching the
+  // index-visible epic precedent (Q4FX8Y) so `sync-tickets` picks up the goal.
+  const childrenFrontmatter = type === 'epic' ? 'children: []\n' : '';
+
+  const goal = options.goal ?? '{One sentence: what are we trying to achieve?}';
 
   // Features keep motivation in spec.md's ## Intent (single source of truth)
-  // and point there; tasks/patches have no spec.md, so they keep **Why:**.
+  // and point there; task/patch/epic have no spec.md, so they keep **Why:**.
   const motivation =
     type === 'feature'
       ? '**See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.'
-      : '**Why:** {One sentence: why does this matter?}';
+      : `**Why:** ${options.why ?? '{One sentence: why does this matter?}'}`;
 
   return `---
 id: ${id}
@@ -154,13 +166,13 @@ slug: ${options.slug}
 type: ${type}
 phase: intake
 status: in_progress
-${featureReadinessFrontmatter}created: ${now}
+${featureReadinessFrontmatter}${childrenFrontmatter}created: ${now}
 last_modified: ${now}
 ---
 
 # ${title}
 
-**Goal:** {One sentence: what are we trying to achieve?}
+**Goal:** ${goal}
 
 ${motivation}
 
