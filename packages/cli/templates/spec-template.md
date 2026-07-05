@@ -76,19 +76,21 @@ Uncomment and customize:
 > for a short grace period, so I can roll the change across my fleet without
 > coordinated downtime.
 
-Acceptance Criteria — one capability or guarantee per AC, id <jtbd-id>.AC<n>,
-in descriptive product language (a guarantee the user can observe), NOT
+Numbered Rules — one testable business invariant per Rule, id <jtbd-id>.R<n>,
+stated generally in product language (the invariant a persona relies on), NOT
 implementation ("returns 204" belongs in a scenario's Then). Each define-behavior
-scenario will prove a specific AC. If a JTBD has no user-observable capability
-to enumerate, write `skip: <reason>` under it instead of ACs.
+scenario nests under the Rule it proves. Numbered Rules need a `.feature`
+scenario source; the legacy test-definitions.md path stays Acceptance-Criteria-
+only. If a JTBD has no user-observable behavior to enumerate, write
+`skip: <reason>` under it instead.
 
-Alternative: a JTBD may instead declare numbered Rules — testable business
-invariants with stable ids (#### <jtbd-id>.R<n> — <invariant>) that scenarios
-nest under. One criteria kind per JTBD, never both.
+Legacy alternative (soft-deprecated): a JTBD may instead declare Acceptance
+Criteria — one observable capability per `#### <jtbd-id>.AC<n>`. Still accepted;
+one criteria kind per JTBD, never both.
 
-#### oauth-flow.PO1.AC1 — The previous key keeps authenticating for a bounded grace window
+#### oauth-flow.PO1.R1 — A rotated key's predecessor keeps authenticating for a bounded grace window
 
-#### oauth-flow.PO1.AC2 — The operator can see which keys are currently live
+#### oauth-flow.PO1.R2 — Every currently-issued key is visible to the operator as live, grace, or expired
 -->
 
 ## Rave Moment

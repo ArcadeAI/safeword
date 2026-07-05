@@ -148,12 +148,11 @@ function writeSkeleton(
     // `wx` = write but fail atomically if the path exists — no check-then-write TOCTOU gap.
     writeFileSync(outPath, skeleton, { flag: 'wx' });
   } catch (writeError: unknown) {
-    const code =
-      writeError instanceof Error ? (writeError as NodeJS.ErrnoException).code : undefined;
+    const code = Error.isError(writeError) ? (writeError as NodeJS.ErrnoException).code : undefined;
     if (code === 'EEXIST') {
       fail(`Refusing to overwrite ${displayPath} — delete it first or choose another path.`);
     }
-    const reason = writeError instanceof Error ? writeError.message : 'unknown error';
+    const reason = Error.isError(writeError) ? writeError.message : 'unknown error';
     fail(`Failed to write ${displayPath}: ${reason}`);
   }
   success(`Wrote ${count} test stub${count === 1 ? '' : 's'} to ${displayPath}`);

@@ -1,6 +1,6 @@
 {
   "name": "safeword",
-  "version": "0.65.0",
+  "version": "0.66.0",
   "description": "CLI for setting up and managing safeword development environments",
   "repository": {
     "type": "git",
@@ -27,7 +27,7 @@
     "templates"
   ],
   "engines": {
-    "node": "^22.22.3 || ^24.16.0 || >=26.3.0"
+    "node": "^24.16.0 || >=26.3.0"
   },
   "scripts": {
     "build": "tsup",
@@ -85,7 +85,7 @@
     "eslint-plugin-sonarjs": "4.1.0",
     "eslint-plugin-storybook": "10.4.6",
     "eslint-plugin-turbo": "2.10.3",
-    "eslint-plugin-unicorn": "68.0.0",
+    "eslint-plugin-unicorn": "70.0.0",
     "typescript-eslint": "8.62.1",
     "yaml": "^2.9.0"
   },

@@ -699,7 +699,7 @@ const MESSAGE_CONTRACT: Record<
   'denial message': {
     surface: 'gate',
     id: /JTBD "demo\.DEV2/,
-    nextAction: /add ≥1 `#### <id>\.AC<n>`, ≥1 `#### <id>\.R<n>`, or `skip: <reason>`/,
+    nextAction: /add ≥1 `#### <id>\.R<n>`, ≥1 `#### <id>\.AC<n>`, or `skip: <reason>`/,
   },
   'name-tag mismatch issue': {
     surface: 'gherkin',

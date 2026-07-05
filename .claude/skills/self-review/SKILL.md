@@ -50,10 +50,10 @@ the active ticket's `spec.md` and check, against `personas.md` and the ticket's
 
 - **Every JTBD resolves to a real persona** and reads as a genuine job (`When
 I…, I want…, so I can…`), not a restated feature.
-- **Each JTBD carries ≥1 Acceptance Criterion** stating an observable, product-
-  level guarantee — not an implementation detail.
-- **The ACs cover the ticket's scope** and stop at its `out_of_scope` line — no
-  silent scope creep, no orphan capability.
+- **Each JTBD carries ≥1 numbered Rule** (or legacy Acceptance Criterion)
+  stating an observable, product-level invariant — not an implementation detail.
+- **The criteria cover the ticket's scope** and stop at its `out_of_scope` line —
+  no silent scope creep, no orphan capability.
 - **Nothing leaks implementation** (file names, function names, libraries) into
   spec-level prose.
 
