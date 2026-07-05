@@ -8,6 +8,24 @@ import process from 'node:process';
 const scriptDirectory = import.meta.dirname;
 const cliRoot = nodePath.resolve(scriptDirectory, '..');
 const vitestArguments = process.argv.slice(2);
+
+// The package-local bin directory holds the `vitest` executable. `bun run test`
+// (and npm) inject it into PATH, but invoking this wrapper directly — e.g.
+// `node scripts/run-vitest-with-build-lock.mjs tests/foo.test.ts`, safeword's own
+// documented inner-loop path — does not, so `spawnSync('vitest')` fails with
+// ENOENT (#715). APPEND it (never prepend): a `vitest` already on PATH — the
+// npm-injected one, or a stub the test-runner-lock suite injects to exercise the
+// lock without real vitest — must still win. This only supplies a fallback when
+// nothing else on PATH resolves `vitest`.
+const localBinDirectory = nodePath.join(cliRoot, 'node_modules', '.bin');
+// Windows names the variable `Path`; spreading process.env into a plain object
+// loses Node's case-insensitive access, so append to whatever key already holds
+// the path (else a stray `PATH` key would sit alongside `Path` and be ignored).
+const pathKey = Object.keys(process.env).find(key => key.toUpperCase() === 'PATH') ?? 'PATH';
+const childEnvironment = {
+  ...process.env,
+  [pathKey]: `${process.env[pathKey] ?? ''}${nodePath.delimiter}${localBinDirectory}`,
+};
 const lockParent = nodePath.join(tmpdir(), 'safeword-test-locks');
 const lockName = 'safeword-package-test';
 const defaultMaximumLockWaitMilliseconds = 20 * 60 * 1000;
@@ -126,7 +144,7 @@ function releaseLock() {
 function run(command, args) {
   const result = spawnSync(command, args, {
     cwd: cliRoot,
-    env: process.env,
+    env: childEnvironment,
     shell: process.platform === 'win32',
     stdio: 'inherit',
   });

@@ -160,7 +160,7 @@ Write ticket names that describe **user value**, not implementation.
 
 2. **Schema registration**: Every file in `packages/cli/templates/` MUST have an entry in `packages/cli/src/schema.ts`. Without it, the file exists but never gets installed. Run `bun run test -- --testNamePattern="should have entry"` to verify.
 
-3. **`bun test` vs `bun run test`**: This project uses Vitest. Always use `bun run test` (runs package.json script) not `bun test` (runs Bun's built-in test runner, which will fail on Vitest tests).
+3. **`bun test` vs `bun run test`**: This project uses Vitest. Always use `bun run test` (runs package.json script) not `bun test` (runs Bun's built-in test runner, which will fail on Vitest tests). Also: `vitest` is only installed in `packages/cli/node_modules/.bin`, so a bare `npx vitest run …` works **from `packages/cli`**, not the repo root (from root it fails `vitest: not found` — issue #723). From the root, target package tests with `bun run test tests/path/to/file.test.ts` (paths are `packages/cli`-relative; forwarded through the build-lock wrapper, which rebuilds `dist/` first).
 
 4. **Hook paths**: Always use `"$CLAUDE_PROJECT_DIR"/.safeword/hooks/...` format (quoted variable) for Claude Code hooks.
 

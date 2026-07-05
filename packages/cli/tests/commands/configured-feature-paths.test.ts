@@ -14,6 +14,7 @@ import {
   removeTemporaryDirectory,
   runCli,
   TIMEOUT_QUICK,
+  UNPARSEABLE_LANE_CONFIG,
   writeSafewordPathsConfig,
   writeTestFile,
 } from '../helpers.js';
@@ -110,7 +111,7 @@ describe('an unparseable config file falls back to default discovery (TB2.AC3)',
 
   beforeAll(() => {
     directory = createTemporaryDirectory();
-    writeTestFile(directory, '.safeword/config.json', '{ not json !!!');
+    writeTestFile(directory, '.safeword/config.json', UNPARSEABLE_LANE_CONFIG);
     writeTestFile(directory, 'features/default-dir.feature', TRAILING_SPACE_FEATURE);
   });
 

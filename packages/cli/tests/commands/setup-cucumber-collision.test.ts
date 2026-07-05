@@ -12,7 +12,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   createTemporaryDirectory,
   createTypeScriptPackageJson,
+  CUSTOMER_CUCUMBER_MJS,
   fileExists,
+  HOST_CUCUMBER_YAML,
+  readPackageJson,
   readTestFile,
   removeTemporaryDirectory,
   setupOrThrow,
@@ -27,23 +30,13 @@ const LANE_FILES = [
   'steps/shared.steps.ts',
 ] as const;
 
-interface PackageJsonShape {
-  scripts?: Record<string, string>;
-  devDependencies?: Record<string, string>;
-}
-
-function readPackageJson(directory: string): PackageJsonShape {
-  return JSON.parse(readTestFile(directory, 'package.json')) as PackageJsonShape;
-}
-
 describe('setup skips the starter lane when a customer-authored cucumber.mjs exists (TB1.AC1)', () => {
   let directory: string;
-  const CUSTOMER_CONFIG = 'export default { paths: ["acceptance/**/*.feature"] };\n';
 
   beforeAll(async () => {
     directory = createTemporaryDirectory();
     createTypeScriptPackageJson(directory);
-    writeTestFile(directory, 'cucumber.mjs', CUSTOMER_CONFIG);
+    writeTestFile(directory, 'cucumber.mjs', CUSTOMER_CUCUMBER_MJS);
     await setupOrThrow(directory);
   }, TIMEOUT_BUN_INSTALL);
 
@@ -59,7 +52,7 @@ describe('setup skips the starter lane when a customer-authored cucumber.mjs exi
   });
 
   it('bdd-lane-collision-detection-and-paths.TB1.AC1.customer_cucumber_mjs_content_is_unchanged', () => {
-    expect(readTestFile(directory, 'cucumber.mjs')).toBe(CUSTOMER_CONFIG);
+    expect(readTestFile(directory, 'cucumber.mjs')).toBe(CUSTOMER_CUCUMBER_MJS);
   });
 
   it('bdd-lane-collision-detection-and-paths.TB1.AC1.custom_cucumber_mjs_no_cucumber_dep_added', () => {
@@ -144,11 +137,7 @@ describe('setup skips the starter lane when a root cucumber config exists (TB1.A
   beforeAll(async () => {
     directory = createTemporaryDirectory();
     createTypeScriptPackageJson(directory);
-    writeTestFile(
-      directory,
-      'cucumber.yaml',
-      'default:\n  paths:\n    - tests/behaviors/**/*.feature\n',
-    );
+    writeTestFile(directory, 'cucumber.yaml', HOST_CUCUMBER_YAML);
     const result = await setupOrThrow(directory);
     output = `${result.stdout}\n${result.stderr}`;
   }, TIMEOUT_BUN_INSTALL);

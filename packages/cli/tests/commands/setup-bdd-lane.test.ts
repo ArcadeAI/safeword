@@ -15,6 +15,7 @@ import {
   createTemporaryDirectory,
   createTypeScriptPackageJson,
   fileExists,
+  readPackageJson,
   readTestFile,
   removeTemporaryDirectory,
   runCli,
@@ -31,17 +32,6 @@ const LANE_FILES = [
   'steps/world.ts',
   'steps/shared.steps.ts',
 ] as const;
-
-interface PackageJsonShape {
-  name?: string;
-  private?: boolean;
-  scripts?: Record<string, string>;
-  devDependencies?: Record<string, string>;
-}
-
-function readPackageJson(directory: string): PackageJsonShape {
-  return JSON.parse(readTestFile(directory, 'package.json')) as PackageJsonShape;
-}
 
 describe('setup scaffolds the lane in a TS project (AC1)', () => {
   let directory: string;

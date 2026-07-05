@@ -19,6 +19,14 @@ import { TIMEOUT_ACCEPTANCE_LANE } from '../helpers.js';
 const CLI_DIRECTORY = nodePath.resolve(import.meta.dirname, '../..');
 const CUCUMBER_WIRING_CHECK_ARGS = ['cucumber-js', '--dry-run', '--format', 'summary'];
 
+// spawnSync blocks the event loop, so Vitest's outer TIMEOUT_ACCEPTANCE_LANE
+// cannot interrupt a hung `bunx cucumber-js` child (ticket #488). Give the child
+// its own timeout well inside that outer budget and SIGKILL it on expiry — the
+// stdout/stderr buffered before the kill still comes back on `result`, so a hang
+// fails the status assertion with useful output instead of stalling the lane.
+const CUCUMBER_CHILD_TIMEOUT = 90_000;
+const CUCUMBER_CHILD_KILL_SIGNAL = 'SIGKILL';
+
 describe('cucumber-js acceptance lane (SM1.AC1)', () => {
   it(
     'gherkin-typescript.SM1.AC1.dogfood_feature_wiring_loads_without_executing_steps',
@@ -26,6 +34,8 @@ describe('cucumber-js acceptance lane (SM1.AC1)', () => {
       const result = spawnSync('bunx', CUCUMBER_WIRING_CHECK_ARGS, {
         cwd: CLI_DIRECTORY,
         encoding: 'utf8',
+        timeout: CUCUMBER_CHILD_TIMEOUT,
+        killSignal: CUCUMBER_CHILD_KILL_SIGNAL,
       });
       const output = `${result.stdout ?? ''}\n${result.stderr ?? ''}`;
       expect(result.status, output).toBe(0);
@@ -75,7 +85,12 @@ describe('cucumber-js acceptance lane (SM1.AC1)', () => {
             '@demo.DEV2.R1',
             featurePath,
           ],
-          { cwd: CLI_DIRECTORY, encoding: 'utf8' },
+          {
+            cwd: CLI_DIRECTORY,
+            encoding: 'utf8',
+            timeout: CUCUMBER_CHILD_TIMEOUT,
+            killSignal: CUCUMBER_CHILD_KILL_SIGNAL,
+          },
         );
 
         const output = `${result.stdout ?? ''}\n${result.stderr ?? ''}`;

@@ -19,6 +19,7 @@ import {
   setupOrThrow,
   TIMEOUT_BUN_INSTALL,
   TIMEOUT_SETUP,
+  UNPARSEABLE_LANE_CONFIG,
   writeTestFile,
 } from '../helpers.js';
 
@@ -90,7 +91,7 @@ describe('scaffolded runner honors configured paths (TB2.AC2 + TB2.AC3)', () => 
   it(
     'bdd-lane-collision-detection-and-paths.TB2.AC3.runner_falls_back_when_config_is_unparseable',
     () => {
-      writeTestFile(directory, '.safeword/config.json', '{ not json !!!');
+      writeTestFile(directory, '.safeword/config.json', UNPARSEABLE_LANE_CONFIG);
 
       const { output, status } = runTestBdd(directory);
       expect(status, output).toBe(0);
