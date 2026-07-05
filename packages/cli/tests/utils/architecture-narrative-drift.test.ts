@@ -98,6 +98,15 @@ describe('isMentioned', () => {
   it('does not match when the name is absent', () => {
     expect(isMentioned('billing', 'The web package serves the UI.')).toBe(false);
   });
+
+  it('matches a name ending a sentence (trailing period is punctuation, not a name char)', () => {
+    expect(isMentioned('billing', 'The packages are web, api, and billing.')).toBe(true);
+  });
+
+  it('matches a dotted package name literally (metacharacters escaped)', () => {
+    expect(isMentioned('lodash.merge', 'We wrap lodash.merge for deep config.')).toBe(true);
+    expect(isMentioned('lodash.merge', 'We wrap lodashxmerge for deep config.')).toBe(false);
+  });
 });
 
 describe('narrativeDriftAdvisory', () => {
