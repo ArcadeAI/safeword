@@ -57,8 +57,9 @@ function parseKind(value: string | undefined): PlanKind {
   if (value === 'verify') return 'verify';
   if (value === 'typecheck') return 'typecheck';
   if (value === 'deps') return 'deps';
+  if (value === 'bdd') return 'bdd';
   console.warn(
-    `Unknown --kind "${value}" (expected "test", "build", "verify", "typecheck", or "deps") — falling back to "test"`,
+    `Unknown --kind "${value}" (expected "test", "build", "verify", "typecheck", "deps", or "bdd") — falling back to "test"`,
   );
   return 'test';
 }
