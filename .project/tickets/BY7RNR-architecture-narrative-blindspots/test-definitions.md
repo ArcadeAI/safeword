@@ -96,76 +96,76 @@ rules run in the cucumber acceptance lane against the real CLI.
 
 ### Scenario: Packages the narrative never mentions are named in the run output
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5703f58
+- [x] GREEN 9b7567d
+- [x] REFACTOR skip: no structural change needed; feature-level pass at implement-exit
 
 ### Scenario: A configured narrative location is scanned instead of the root file
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5703f58
+- [x] GREEN 9b7567d
+- [x] REFACTOR skip: no structural change needed; feature-level pass at implement-exit
 
 ### Scenario: A long list of missing packages is capped with a tail count
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5703f58
+- [x] GREEN 9b7567d
+- [x] REFACTOR skip: no structural change needed; feature-level pass at implement-exit
 
 ### Scenario: A decision-record directory narrative is scanned across all records
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED a86dbd0
+- [x] GREEN 9b7567d
+- [x] REFACTOR skip: no structural change needed; feature-level pass at implement-exit
 
 ## Rule: A reconciled or absent narrative draws no drift advisory
 
 ### Scenario: A narrative mentioning every package stays silent
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5703f58
+- [x] GREEN 9b7567d
+- [x] REFACTOR skip: no structural change needed; feature-level pass at implement-exit
 
 ### Scenario: A package mentioned in any one decision record counts as mentioned
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED a86dbd0
+- [x] GREEN 9b7567d
+- [x] REFACTOR skip: no structural change needed; feature-level pass at implement-exit
 
 ### Scenario: A scoped package mentioned by its short name counts as mentioned
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5703f58
+- [x] GREEN 9b7567d
+- [x] REFACTOR skip: no structural change needed; feature-level pass at implement-exit
 
 ### Scenario: A project with no narrative anywhere stays silent
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5703f58
+- [x] GREEN 9b7567d
+- [x] REFACTOR skip: no structural change needed; feature-level pass at implement-exit
 
 ### Scenario: A single-repo modules map is never scanned for narrative drift
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5703f58
+- [x] GREEN 9b7567d
+- [x] REFACTOR skip: no structural change needed; feature-level pass at implement-exit
 
 ## Rule: The drift advisory never changes an exit code
 
 ### Scenario: A staleness check passes with current docs despite narrative drift
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5703f58
+- [x] GREEN 9b7567d
+- [x] REFACTOR skip: no structural change needed; feature-level pass at implement-exit
 
 ### Scenario: A staleness failure is still a staleness failure alongside narrative drift
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED a86dbd0
+- [x] GREEN 9b7567d
+- [x] REFACTOR skip: no structural change needed; feature-level pass at implement-exit
 
 ### Scenario: A commit-time stage run succeeds despite narrative drift
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5703f58
+- [x] GREEN 9b7567d
+- [x] REFACTOR skip: no structural change needed; feature-level pass at implement-exit
