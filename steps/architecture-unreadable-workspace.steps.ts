@@ -10,7 +10,6 @@
  */
 
 import { strict as assert } from 'node:assert';
-import { spawnSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -18,8 +17,8 @@ import { Given, Then, When } from '@cucumber/cucumber';
 
 import {
   type ArchitectureWorld,
-  CLI_PATH,
   rootDoc,
+  runArchitecture,
   worldDir as dir,
   writeJson,
 } from './support/architecture-fixtures.ts';
@@ -111,13 +110,7 @@ Given(
 When(
   'safeword refreshes the architecture doc and captures its output',
   function (this: ArchitectureWorld) {
-    const result = spawnSync('bun', [CLI_PATH, 'architecture'], {
-      cwd: dir(this),
-      encoding: 'utf8',
-      timeout: 30_000,
-    });
-    this.status = result.status ?? 1;
-    this.output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
+    runArchitecture(this);
   },
 );
 
