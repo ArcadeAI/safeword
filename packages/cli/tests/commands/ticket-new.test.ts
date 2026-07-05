@@ -40,6 +40,36 @@ function readSoleTicket(temporaryDirectory: string): string {
   return readFileSync(nodePath.join(soleTicketFolder(temporaryDirectory), 'ticket.md'), 'utf8');
 }
 
+/** Ticket folder whose slug suffix matches, when several tickets exist. */
+function ticketFolderBySlug(temporaryDirectory: string, slug: string): string {
+  const ticketsDirectory = nodePath.join(temporaryDirectory, '.project', 'tickets');
+  const match = readdirSync(ticketsDirectory).find(entry => entry.endsWith(`-${slug}`));
+  if (match === undefined) throw new Error(`no ticket folder for slug ${slug}`);
+  return nodePath.join(ticketsDirectory, match);
+}
+
+function readTicketBySlug(temporaryDirectory: string, slug: string): string {
+  return readFileSync(
+    nodePath.join(ticketFolderBySlug(temporaryDirectory, slug), 'ticket.md'),
+    'utf8',
+  );
+}
+
+function idBySlug(temporaryDirectory: string, slug: string): string {
+  const [id] = nodePath.basename(ticketFolderBySlug(temporaryDirectory, slug)).split('-');
+  if (id === undefined) throw new Error(`no id in folder for slug ${slug}`);
+  return id;
+}
+
+/** True if any ticket folder under the temp dir carries the given slug suffix. */
+function ticketExistsForSlug(temporaryDirectory: string, slug: string): boolean {
+  const ticketsDirectory = nodePath.join(temporaryDirectory, '.project', 'tickets');
+  return (
+    existsSync(ticketsDirectory) &&
+    readdirSync(ticketsDirectory).some(entry => entry.endsWith(`-${slug}`))
+  );
+}
+
 function extractIdFromFolder(folderName: string): string {
   const match = FOLDER_PATTERN.exec(folderName);
   const id = match?.[1];
@@ -283,6 +313,73 @@ describe('safeword ticket new', () => {
 
       const ticketContent = readSoleTicket(temporaryDirectory);
       expect(ticketContent).toMatch(/^\*\*Goal:\*\* \{One sentence/m);
+    },
+    TIMEOUT_QUICK,
+  );
+
+  // F9W3JP — epic-child-linker.TB1.AC1.linking_records_parent_and_appends_to_epic (S1)
+  it(
+    'links a child to its epic both ways with --parent',
+    async () => {
+      await runCli(['ticket', 'new', 'the-epic', '--type', 'epic'], { cwd: temporaryDirectory });
+      const epicId = idBySlug(temporaryDirectory, 'the-epic');
+
+      const result = await runCli(['ticket', 'new', 'the-child', '--parent', epicId], {
+        cwd: temporaryDirectory,
+      });
+      expect(result.exitCode).toBe(0);
+
+      const childId = idBySlug(temporaryDirectory, 'the-child');
+      expect(readTicketBySlug(temporaryDirectory, 'the-child')).toContain(`parent: ${epicId}`);
+      expect(readTicketBySlug(temporaryDirectory, 'the-epic')).toContain(childId);
+    },
+    TIMEOUT_QUICK,
+  );
+
+  // epic-child-linker.TB1.AC3.missing_parent_rejected (S4)
+  it(
+    'rejects --parent naming no existing ticket and creates no child',
+    async () => {
+      const result = await runCli(['ticket', 'new', 'orphan', '--parent', 'ZZZZZZ'], {
+        cwd: temporaryDirectory,
+      });
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toMatch(/not found|ZZZZZZ/);
+      expect(ticketExistsForSlug(temporaryDirectory, 'orphan')).toBe(false);
+    },
+    TIMEOUT_QUICK,
+  );
+
+  // epic-child-linker.TB1.AC3.non_epic_parent_rejected (S5)
+  it(
+    'rejects --parent naming a non-epic ticket, leaving it unchanged and creating no child',
+    async () => {
+      await runCli(['ticket', 'new', 'a-task', '--type', 'task'], { cwd: temporaryDirectory });
+      const taskId = idBySlug(temporaryDirectory, 'a-task');
+      const taskBefore = readTicketBySlug(temporaryDirectory, 'a-task');
+
+      const result = await runCli(['ticket', 'new', 'the-child', '--parent', taskId], {
+        cwd: temporaryDirectory,
+      });
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toMatch(/not an epic/);
+      expect(readTicketBySlug(temporaryDirectory, 'a-task')).toBe(taskBefore);
+      expect(ticketExistsForSlug(temporaryDirectory, 'the-child')).toBe(false);
+    },
+    TIMEOUT_QUICK,
+  );
+
+  // Regression (no AC): --parent logic must not leak into the default create path.
+  it(
+    'ticket new without --parent writes no parent: and touches no other ticket',
+    async () => {
+      await runCli(['ticket', 'new', 'the-epic', '--type', 'epic'], { cwd: temporaryDirectory });
+      const epicBefore = readTicketBySlug(temporaryDirectory, 'the-epic');
+
+      await runCli(['ticket', 'new', 'standalone'], { cwd: temporaryDirectory });
+
+      expect(readTicketBySlug(temporaryDirectory, 'standalone')).not.toMatch(/^parent:/m);
+      expect(readTicketBySlug(temporaryDirectory, 'the-epic')).toBe(epicBefore);
     },
     TIMEOUT_QUICK,
   );
