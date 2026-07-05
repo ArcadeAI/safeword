@@ -328,9 +328,8 @@ and when a just-finished feature might have surfaced something reusable.
 
 **Feedback Loop**:
 
-- After suggesting extraction: Note if user accepted or declined
-- After user accepts: Monitor if learning is referenced in future sessions
-- Adjust suggestion threshold based on acceptance rate (if <30% accepted, raise the bar)
+- After suggesting extraction, note whether the user accepted or declined.
+- If your suggestions aren't landing this session, ease off — stop offering and let the user ask. You can't track an acceptance rate across sessions, so gauge it from the ones in front of you.
 
 ---
 

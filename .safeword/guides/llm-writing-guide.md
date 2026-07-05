@@ -80,22 +80,30 @@ Section B: "All user-facing features have E2E tests"
 
 ## Decision Tree Patterns
 
-### Sequential Over Parallel
+### Declarative Table Over Ordered Scan
 
-Structure as ordered steps, not simultaneous checks.
+A literal model resolves a lookup in one glance, so prefer a declarative "first
+matching row applies" table over an ordered "answer in order, stop at first
+match" scan — the scan makes the model serially walk rows it already sees at
+once. Keep the rows mutually exclusive and collectively exhaustive. Reserve
+ordered steps for a genuinely sequential _procedure_, where each step depends on
+the result of the one before.
 
 ```markdown
-❌ BAD - Parallel:
-├─ Pure function?
-├─ Multiple components?
-└─ Full user flow?
-
-✅ GOOD - Sequential:
+❌ BAD - ordered scan of mutually-exclusive rows:
 Answer IN ORDER, stop at first match:
 
 1. Pure function? → Unit
 2. Multiple components? → Integration
 3. Full user flow? → E2E
+
+✅ GOOD - declarative table, first matching row applies:
+
+| If the test…               | Type        |
+| -------------------------- | ----------- |
+| covers a pure function     | Unit        |
+| spans multiple components  | Integration |
+| exercises a full user flow | E2E         |
 ```
 
 ### Tie-Breaking Rules
