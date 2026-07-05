@@ -596,6 +596,6 @@ function uniqueLineageReferences(tags: readonly string[]): string[] {
 }
 
 function formatParseError(error: unknown): string {
-  if (error instanceof Error) return error.message.replaceAll('\n', ' ');
+  if (Error.isError(error)) return error.message.replaceAll('\n', ' ');
   return String(error);
 }

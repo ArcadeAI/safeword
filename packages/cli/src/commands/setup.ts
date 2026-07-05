@@ -543,7 +543,7 @@ export async function setup(options: SetupOptions): Promise<void> {
       process.exit(1);
     }
   } catch (error_) {
-    error(`Setup failed: ${error_ instanceof Error ? error_.message : 'Unknown error'}`);
+    error(`Setup failed: ${Error.isError(error_) ? error_.message : 'Unknown error'}`);
     process.exit(1);
   }
 }
