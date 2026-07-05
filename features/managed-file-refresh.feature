@@ -171,8 +171,11 @@ Feature: Managed-file provenance refresh on upgrade
       And the manifest file's bytes are unchanged
       And the upgrade output warns that the provenance manifest is unreadable
 
+    @rejection
     Scenario: A configKey-overridden managed file stays fully suppressed
-      Given a fresh project with a configKey path override configured
-      When safeword setup and then upgrade run
-      Then the overridden managed file is not written
-      And the manifest gains no entry for that file
+      Given an installed project whose managed file's configKey path override is set
+      And the customer moved that managed file away from its default location
+      When safeword upgrade runs
+      Then the upgrade succeeds
+      And the overridden managed file is not recreated
+      And the manifest entry for that file is unchanged
