@@ -75,7 +75,7 @@ function readTicketFileOrUndefined(ticketPath: string): string | undefined {
 }
 
 /** Resolve a ticket folder by id (`{id}-{slug}` or legacy `{id}`), or undefined. */
-export function resolveTicketFolderById(cwd: string, id: string): string | undefined {
+function resolveTicketFolderById(cwd: string, id: string): string | undefined {
   const ticketsDirectory = resolveTicketsDirectory(cwd);
   if (!existsSync(ticketsDirectory)) return undefined;
   for (const entry of readdirSync(ticketsDirectory)) {
