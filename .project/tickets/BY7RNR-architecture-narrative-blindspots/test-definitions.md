@@ -10,87 +10,87 @@ rules run in the cucumber acceptance lane against the real CLI.
 
 ### Scenario: A configured non-root narrative gets the nudge when a ticket moves the shape
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 110ff34
+- [x] GREEN cdbee47
+- [x] REFACTOR skip: no structural change needed; feature-level pass at implement-exit
 
 ### Scenario: A configured decision-record directory counts as a narrative
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 110ff34
+- [x] GREEN cdbee47
+- [x] REFACTOR skip: no structural change needed; feature-level pass at implement-exit
 
 ### Scenario: A configured narrative that is missing on disk draws no advisory
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: regression pin — silent both pre- and post-change (test added in 110ff34, never red)
+- [x] GREEN cdbee47
+- [x] REFACTOR skip: no structural change needed; feature-level pass at implement-exit
 
 ### Scenario: An explicit configuration wins over a present root file even when its target is missing
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 110ff34
+- [x] GREEN cdbee47
+- [x] REFACTOR skip: no structural change needed; feature-level pass at implement-exit
 
 ## Rule: Unconfigured hosts keep today's root-ARCHITECTURE.md behavior exactly
 
 ### Scenario: An unconfigured host with a root ARCHITECTURE.md still nudges on shape movement
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: regression pin — AXRC4D behavior preserved, deliberately never red (test updated in 110ff34)
+- [x] GREEN cdbee47
+- [x] REFACTOR skip: no structural change needed; feature-level pass at implement-exit
 
 ### Scenario: An unconfigured host with no narrative anywhere stays silent
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: regression pin — AXRC4D behavior preserved, deliberately never red (test updated in 110ff34)
+- [x] GREEN cdbee47
+- [x] REFACTOR skip: no structural change needed; feature-level pass at implement-exit
 
 ### Scenario: An unchanged fingerprint stays silent even with a configured narrative
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: regression pin — silent both pre- and post-change (test added in 110ff34, never red)
+- [x] GREEN cdbee47
+- [x] REFACTOR skip: no structural change needed; feature-level pass at implement-exit
 
 ### Scenario: An unparseable config falls back to the root ARCHITECTURE.md
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: regression pin — root fallback held under the stub too (test added in 110ff34, never red)
+- [x] GREEN cdbee47
+- [x] REFACTOR skip: no structural change needed; feature-level pass at implement-exit
 
 ### Scenario: An empty-string paths.architecture behaves as unconfigured
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: regression pin — root fallback held under the stub too (test added in 110ff34, never red)
+- [x] GREEN cdbee47
+- [x] REFACTOR skip: no structural change needed; feature-level pass at implement-exit
 
 ## Rule: The advisory names the narrative it is asking the builder to reconcile
 
 ### Scenario: A configured narrative is named in the advisory text
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 110ff34
+- [x] GREEN cdbee47
+- [x] REFACTOR skip: no structural change needed; feature-level pass at implement-exit
 
 ### Scenario: The root fallback is named as ARCHITECTURE.md
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: regression pin — root naming held under the stub too (assertion updated in 110ff34, never red)
+- [x] GREEN cdbee47
+- [x] REFACTOR skip: no structural change needed; feature-level pass at implement-exit
 
 ## Rule: The installed prompts direct agents to the configured narrative
 
 ### Scenario: The architecture review prompt resolves the narrative via paths.architecture
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED bde4aa8
+- [x] GREEN a919651
+- [x] REFACTOR skip: prose asset — nothing to restructure
 
 ### Scenario: The audit skill's structural-drift check resolves the narrative via paths.architecture
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED bde4aa8
+- [x] GREEN a919651
+- [x] REFACTOR skip: prose asset — nothing to restructure
 
 ## Rule: Generated packages absent from the narrative are surfaced on every architecture run
 
