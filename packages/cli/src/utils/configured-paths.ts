@@ -274,8 +274,6 @@ export interface ArchitectureNarrative {
   absolutePath: string;
   /** Human-facing name: the as-written config value, or `ARCHITECTURE.md`. */
   displayPath: string;
-  /** True when `paths.architecture` supplied the location. */
-  configured: boolean;
 }
 
 /**
@@ -296,13 +294,11 @@ export function resolveArchitectureNarrative(cwd: string): ArchitectureNarrative
     return {
       absolutePath: nodePath.isAbsolute(configured) ? configured : nodePath.join(cwd, configured),
       displayPath: configured,
-      configured: true,
     };
   }
   return {
     absolutePath: nodePath.join(cwd, 'ARCHITECTURE.md'),
     displayPath: 'ARCHITECTURE.md',
-    configured: false,
   };
 }
 

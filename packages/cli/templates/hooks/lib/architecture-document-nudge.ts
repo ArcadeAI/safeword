@@ -35,8 +35,6 @@ export interface HookArchitectureNarrative {
   absolutePath: string;
   /** Human-facing name: the as-written config value, or `ARCHITECTURE.md`. */
   displayPath: string;
-  /** True when `paths.architecture` supplied the location. */
-  configured: boolean;
 }
 
 /**
@@ -54,13 +52,11 @@ export function resolveArchitectureNarrative(projectDir: string): HookArchitectu
         ? configured
         : nodePath.join(projectDir, configured),
       displayPath: configured,
-      configured: true,
     };
   }
   return {
     absolutePath: nodePath.join(projectDir, ARCHITECTURE_MD),
     displayPath: ARCHITECTURE_MD,
-    configured: false,
   };
 }
 
@@ -159,6 +155,9 @@ export function architectureDocumentNudge(inputs: ArchitectureDocumentNudgeInput
  */
 export function architectureDocumentNudgeForProject(projectDir: string): string | null {
   // Cheap exit before any git/fs work: no narrative ⇒ nothing to reconcile against.
+  // An empty configured ADR directory counts as a narrative here (existsSync) even
+  // though the CLI drift advisory treats it as none (zero records to scan) — the
+  // nudge only points a human at /audit, which is still the right pointer there.
   const narrative = resolveArchitectureNarrative(projectDir);
   if (!existsSync(narrative.absolutePath)) return null;
 

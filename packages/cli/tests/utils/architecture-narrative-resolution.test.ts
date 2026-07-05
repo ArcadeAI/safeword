@@ -51,17 +51,13 @@ describe('resolveArchitectureNarrative', () => {
       nodePath.join(context.directory, 'docs/agents/architecture.md'),
     );
     expect(narrative.displayPath).toBe('docs/agents/architecture.md');
-    expect(narrative.configured).toBe(true);
   });
 
   it('uses a configured absolute path verbatim', () => {
     const absolute = nodePath.join(context.directory, 'elsewhere', 'arch.md');
     writeConfig({ architecture: absolute });
 
-    const narrative = resolveArchitectureNarrative(context.directory);
-
-    expect(narrative.absolutePath).toBe(absolute);
-    expect(narrative.configured).toBe(true);
+    expect(resolveArchitectureNarrative(context.directory).absolutePath).toBe(absolute);
   });
 
   it('falls back to root ARCHITECTURE.md when unconfigured', () => {
@@ -69,16 +65,14 @@ describe('resolveArchitectureNarrative', () => {
 
     expect(narrative.absolutePath).toBe(nodePath.join(context.directory, 'ARCHITECTURE.md'));
     expect(narrative.displayPath).toBe('ARCHITECTURE.md');
-    expect(narrative.configured).toBe(false);
   });
 
   it('treats an empty-string value as unconfigured', () => {
     writeConfig({ architecture: '' });
 
-    const narrative = resolveArchitectureNarrative(context.directory);
-
-    expect(narrative.absolutePath).toBe(nodePath.join(context.directory, 'ARCHITECTURE.md'));
-    expect(narrative.configured).toBe(false);
+    expect(resolveArchitectureNarrative(context.directory).absolutePath).toBe(
+      nodePath.join(context.directory, 'ARCHITECTURE.md'),
+    );
   });
 });
 

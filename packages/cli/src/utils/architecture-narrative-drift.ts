@@ -82,11 +82,18 @@ export function isMentioned(packageName: string, narrativeText: string): boolean
   return candidates.some(candidate => nameBoundaryPattern(candidate).test(narrativeText));
 }
 
-/** Case-insensitive pattern matching `name` only at name-character boundaries. */
+/**
+ * Case-insensitive pattern matching `name` only at name-character boundaries.
+ * Boundary generosity is asymmetric on purpose, and each side errs toward
+ * counting a mention: a trailing `.`/`-` blocks only when it CONTINUES a name
+ * (`web-app`), never as sentence punctuation ("…and billing."), and a trailing
+ * `/` counts (`web/src` mentions `web` — a path reference) while a leading
+ * `@`/`/` does not (`@acme/web` is a different package than bare `web`).
+ */
 function nameBoundaryPattern(name: string): RegExp {
   const escaped = name.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
   // eslint-disable-next-line security/detect-non-literal-regexp -- name comes from safeword's own generated doc and is metacharacter-escaped above
-  return new RegExp(String.raw`(?<![\w@/.-])${escaped}(?![\w.-])`, 'i');
+  return new RegExp(String.raw`(?<![\w@/.-])${escaped}(?!\w|[.-]\w)`, 'i');
 }
 
 /**
