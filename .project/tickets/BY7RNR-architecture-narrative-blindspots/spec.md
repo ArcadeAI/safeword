@@ -40,7 +40,7 @@ Unaffected:
 
 ## Vocabulary
 
-- **Narrative** — the human-authored architecture document (root `ARCHITECTURE.md` or the `paths.architecture` target, which may be a single file or a directory of decision records); contrast with the machine-owned `architecture.generated.md`.
+- **Narrative** — the human-authored architecture document (root `ARCHITECTURE.md` or the `paths.architecture` target, which may be a single file or a directory of decision records); contrast with the machine-owned `architecture.generated.md`. An explicit configuration wins outright: when `paths.architecture` is set but its target is missing, the project has no narrative — safeword never falls back to a root file the host deliberately moved away from.
 - **Mentioned** — a generated package counts as mentioned when its full name or its scoped tail (`@scope/pkg` → `pkg`) appears case-insensitively at a word boundary anywhere in the narrative's text. Deliberately generous: the advisory prefers under-reporting to nagging; `/audit` remains the authoritative reconciliation pass.
 
 ## Jobs To Be Done

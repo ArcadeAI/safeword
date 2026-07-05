@@ -26,6 +26,12 @@ rules run in the cucumber acceptance lane against the real CLI.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: An explicit configuration wins over a present root file even when its target is missing
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: Unconfigured hosts keep today's root-ARCHITECTURE.md behavior exactly
 
 ### Scenario: An unconfigured host with a root ARCHITECTURE.md still nudges on shape movement
@@ -47,6 +53,12 @@ rules run in the cucumber acceptance lane against the real CLI.
 - [ ] REFACTOR
 
 ### Scenario: An unparseable config falls back to the root ARCHITECTURE.md
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An empty-string paths.architecture behaves as unconfigured
 
 - [ ] RED
 - [ ] GREEN
@@ -100,9 +112,21 @@ rules run in the cucumber acceptance lane against the real CLI.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A decision-record directory narrative is scanned across all records
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: A reconciled or absent narrative draws no drift advisory
 
 ### Scenario: A narrative mentioning every package stays silent
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A package mentioned in any one decision record counts as mentioned
 
 - [ ] RED
 - [ ] GREEN
@@ -129,6 +153,12 @@ rules run in the cucumber acceptance lane against the real CLI.
 ## Rule: The drift advisory never changes an exit code
 
 ### Scenario: A staleness check passes with current docs despite narrative drift
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A staleness failure is still a staleness failure alongside narrative drift
 
 - [ ] RED
 - [ ] GREEN

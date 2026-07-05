@@ -41,6 +41,14 @@ Feature: Architecture narrative reconciliation reaches configured narratives and
       When the done-gate checks for narrative staleness
       Then no reconcile advisory fires
 
+    @wip @architecture-narrative-blindspots.TB1.AC1
+    Scenario: An explicit configuration wins over a present root file even when its target is missing
+      Given a project whose paths.architecture points at a file that does not exist
+      And a root ARCHITECTURE.md exists
+      And the generated architecture map's fingerprint moved since the branch base
+      When the done-gate checks for narrative staleness
+      Then no reconcile advisory fires
+
   Rule: Unconfigured hosts keep today's root-ARCHITECTURE.md behavior exactly
 
     @wip @architecture-narrative-blindspots.TB1.AC2
@@ -70,6 +78,13 @@ Feature: Architecture narrative reconciliation reaches configured narratives and
       And the generated architecture map's fingerprint moved since the branch base
       When the done-gate checks for narrative staleness
       Then the reconcile advisory fires
+
+    @wip @architecture-narrative-blindspots.TB1.AC2
+    Scenario: An empty-string paths.architecture behaves as unconfigured
+      Given a project with a root ARCHITECTURE.md whose paths.architecture is an empty string
+      And the generated architecture map's fingerprint moved since the branch base
+      When the done-gate checks for narrative staleness
+      Then the reconcile advisory names "ARCHITECTURE.md" as the document to reconcile
 
   Rule: The advisory names the narrative it is asking the builder to reconcile
 
@@ -108,6 +123,7 @@ Feature: Architecture narrative reconciliation reaches configured narratives and
       When safeword refreshes the architecture doc and captures its output
       Then the command succeeds
       And the output advises that the narrative does not mention "billing"
+      And the advisory points at /audit as the reconciliation path
 
     @architecture-narrative-blindspots.TB2.AC1
     Scenario: A configured narrative location is scanned instead of the root file
@@ -122,7 +138,15 @@ Feature: Architecture narrative reconciliation reaches configured narratives and
       Given a monorepo with 8 JS packages none of which the root ARCHITECTURE.md narrative mentions
       When safeword refreshes the architecture doc and captures its output
       Then the command succeeds
-      And the drift advisory names at most 6 packages and reports 2 more
+      And the drift advisory names exactly 6 packages and reports 2 more
+
+    @architecture-narrative-blindspots.TB2.AC1
+    Scenario: A decision-record directory narrative is scanned across all records
+      Given a monorepo with JS packages "web" and "billing"
+      And a paths.architecture decision-record directory whose records together mention only "web"
+      When safeword refreshes the architecture doc and captures its output
+      Then the command succeeds
+      And the output advises that the narrative does not mention "billing"
 
   Rule: A reconciled or absent narrative draws no drift advisory
 
@@ -130,6 +154,14 @@ Feature: Architecture narrative reconciliation reaches configured narratives and
     Scenario: A narrative mentioning every package stays silent
       Given a monorepo with JS packages "web" and "billing"
       And a root ARCHITECTURE.md narrative that mentions "web" and "billing"
+      When safeword refreshes the architecture doc and captures its output
+      Then the command succeeds
+      And the output carries no narrative drift advisory
+
+    @architecture-narrative-blindspots.TB2.AC2
+    Scenario: A package mentioned in any one decision record counts as mentioned
+      Given a monorepo with JS packages "web" and "billing"
+      And a paths.architecture decision-record directory where one record mentions "web" and another mentions "billing"
       When safeword refreshes the architecture doc and captures its output
       Then the command succeeds
       And the output carries no narrative drift advisory
@@ -165,6 +197,15 @@ Feature: Architecture narrative reconciliation reaches configured narratives and
       And the generated architecture docs are current
       When safeword checks architecture staleness and captures its output
       Then the command succeeds
+      And the output advises that the narrative does not mention "billing"
+
+    @architecture-narrative-blindspots.TB2.AC3
+    Scenario: A staleness failure is still a staleness failure alongside narrative drift
+      Given a monorepo with JS packages "web" and "billing"
+      And a root ARCHITECTURE.md narrative that mentions only "web"
+      And the generated architecture docs are stale
+      When safeword checks architecture staleness and captures its output
+      Then the command fails
       And the output advises that the narrative does not mention "billing"
 
     @architecture-narrative-blindspots.TB2.AC3
