@@ -15,11 +15,9 @@ Feature: ticket new --parent links a child to its epic
       Then the child's parent field names the epic
       And the epic's children list contains the new child's id
 
-    @epic-child-linker.TB1.AC1
-    Scenario: Navigation from the epic reaches the linked child
-      Given an epic linked to one in-progress child via --parent
-      When the workflow looks for the next work under that epic
-      Then it navigates to the linked child
+    # Navigation (findNextWork reaches the linked child) is an internal contract
+    # with no CLI surface — proven by the integration test
+    # tests/integration/epic-child-linker-navigation.test.ts, not this black-box lane.
 
   Rule: A linked child appears under its epic in the index
 
@@ -54,8 +52,6 @@ Feature: ticket new --parent links a child to its epic
       When I link a second child to that epic with --parent
       Then the epic's children list names both children
 
-    @epic-child-linker.TB1.AC4
-    Scenario: Linking the same child twice adds it at most once
-      Given an epic whose children list does not yet name child C
-      When C is linked to the epic and then the same C id is linked again
-      Then the epic's children list names C exactly once
+    # Idempotency (re-linking the same id adds it once) has no CLI path — each
+    # `ticket new` mints a fresh id — so it is proven at the unit layer in
+    # src/utils/epic-linker.test.ts, not this black-box lane.
