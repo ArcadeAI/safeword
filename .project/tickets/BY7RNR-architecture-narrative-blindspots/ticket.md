@@ -2,8 +2,8 @@
 id: BY7RNR
 slug: architecture-narrative-blindspots
 type: feature
-phase: implement
-status: in_progress
+phase: done
+status: done
 scope:
   - hook-side narrative resolution in architecture-document-nudge.ts — configured paths.architecture (file or ADR directory) with root ARCHITECTURE.md fallback; nudge message names the resolved narrative
   - CLI counterpart resolver (resolveArchitectureNarrativePath in configured-paths.ts) pinned to the hook copy by a differential parity test (P58R22 pattern)
@@ -66,3 +66,5 @@ last_modified: 2026-07-05T19:25:59.867Z
 - 2026-07-05T19:37:00Z Complete: intake - Understanding converged, scope established. Spec self-reviewed (Design notes moved out of spec into ticket Decisions; "mentioned" rule promoted to spec Vocabulary), re-stamped. Reversibility recorded two-way-door → no cold-start check. Phase → define-behavior.
 - 2026-07-05T19:45:00Z Complete: define-behavior - 20 scenarios defined across 7 rules (dimensions.md table → partitions). TB1 rules @wip (vitest hook lane backing, bash-ledger-write-gate precedent); TB2 rules cucumber-backed. Saturation: second pass over dimensions surfaced no new partitions. Phase → scenario-gate.
 - 2026-07-05T19:41:00Z Complete: scenario-gate - Independent fork review (review-spec procedure): first pass BLOCK (ADR-directory drift uncovered + 5 strengtheners), all applied (+5 scenarios → 22 total), re-review PASS, stamped. impl-plan.md written (proof plan + build order in Approach). Phase → implement.
+- 2026-07-05T20:45:00Z Complete: implement — reconciled impl plan; 2 decisions added (matcher boundaries, advisory timing), 2 deviations recorded (steps-file naming, empty-ADR-dir divergence). All 25 scenarios R/G/R'd across 6 slices. Whole-ticket /quality-review: pass 1 REQUEST CHANGES (sentence-period matcher bug — real, fixed RED-first in 5902103/a3b5b0f + dead-field cleanup), pass 2 APPROVE (16-case repro verified). Cross-scenario row a3b5b0f. Evidence: vitest full suite green, 77/77 across touched suites, cucumber 255/255. Phase → verify.
+- 2026-07-05T21:05:00Z Complete: verify — /verify evidence block green (4695 tests, 255 cucumber scenarios, build/typecheck/lint clean), /audit passed with 1 warning (website docs don't cover `safeword architecture` — pre-existing gap, follow-up candidate). verify.md written. Phase → done.
