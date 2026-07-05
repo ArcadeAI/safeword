@@ -15,6 +15,8 @@ import {
   createTemporaryDirectory,
   removeTemporaryDirectory,
   runCli,
+  ticketFolderBySlug,
+  ticketIdBySlug as idBySlug,
   TIMEOUT_QUICK,
 } from '../helpers.js';
 
@@ -40,25 +42,11 @@ function readSoleTicket(temporaryDirectory: string): string {
   return readFileSync(nodePath.join(soleTicketFolder(temporaryDirectory), 'ticket.md'), 'utf8');
 }
 
-/** Ticket folder whose slug suffix matches, when several tickets exist. */
-function ticketFolderBySlug(temporaryDirectory: string, slug: string): string {
-  const ticketsDirectory = nodePath.join(temporaryDirectory, '.project', 'tickets');
-  const match = readdirSync(ticketsDirectory).find(entry => entry.endsWith(`-${slug}`));
-  if (match === undefined) throw new Error(`no ticket folder for slug ${slug}`);
-  return nodePath.join(ticketsDirectory, match);
-}
-
 function readTicketBySlug(temporaryDirectory: string, slug: string): string {
   return readFileSync(
     nodePath.join(ticketFolderBySlug(temporaryDirectory, slug), 'ticket.md'),
     'utf8',
   );
-}
-
-function idBySlug(temporaryDirectory: string, slug: string): string {
-  const [id] = nodePath.basename(ticketFolderBySlug(temporaryDirectory, slug)).split('-');
-  if (id === undefined) throw new Error(`no id in folder for slug ${slug}`);
-  return id;
 }
 
 /** True if any ticket folder under the temp dir carries the given slug suffix. */

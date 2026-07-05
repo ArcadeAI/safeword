@@ -6,7 +6,6 @@
  * hand-writing frontmatter), per the scenario-gate strengthen.
  */
 
-import { readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -16,24 +15,13 @@ import {
   createTemporaryDirectory,
   removeTemporaryDirectory,
   runCli,
+  ticketFolderBySlug,
+  ticketIdBySlug as idBySlug,
   TIMEOUT_QUICK,
 } from '../helpers.js';
 
 function ticketsDirectoryOf(temporaryDirectory: string): string {
   return nodePath.join(temporaryDirectory, '.project', 'tickets');
-}
-
-function folderBySlug(temporaryDirectory: string, slug: string): string {
-  const ticketsDirectory = ticketsDirectoryOf(temporaryDirectory);
-  const match = readdirSync(ticketsDirectory).find(entry => entry.endsWith(`-${slug}`));
-  if (match === undefined) throw new Error(`no ticket for slug ${slug}`);
-  return nodePath.join(ticketsDirectory, match);
-}
-
-function idBySlug(temporaryDirectory: string, slug: string): string {
-  const [id] = nodePath.basename(folderBySlug(temporaryDirectory, slug)).split('-');
-  if (id === undefined) throw new Error(`no id for slug ${slug}`);
-  return id;
 }
 
 describe('epic-child --parent navigation (F9W3JP AC1)', () => {
@@ -55,7 +43,7 @@ describe('epic-child --parent navigation (F9W3JP AC1)', () => {
         cwd: temporaryDirectory,
       });
 
-      const childFolder = folderBySlug(temporaryDirectory, 'the-child');
+      const childFolder = ticketFolderBySlug(temporaryDirectory, 'the-child');
       const childId = idBySlug(temporaryDirectory, 'the-child');
 
       // From the child (in-progress), the epic's children[] link makes it the

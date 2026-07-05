@@ -1173,3 +1173,18 @@ export function appendRetroAck(
 export function writeSelfReportConfig(dir: string, selfReport: Record<string, boolean>): void {
   writeTestFile(dir, '.safeword/config.json', JSON.stringify({ selfReport }));
 }
+
+/** Absolute path of the ticket folder whose slug suffix matches, in a temp project. */
+export function ticketFolderBySlug(projectDirectory: string, slug: string): string {
+  const ticketsDirectory = nodePath.join(projectDirectory, '.project', 'tickets');
+  const match = readdirSync(ticketsDirectory).find(entry => entry.endsWith(`-${slug}`));
+  if (match === undefined) throw new Error(`no ticket folder for slug ${slug}`);
+  return nodePath.join(ticketsDirectory, match);
+}
+
+/** The minted id portion of a `{id}-{slug}` ticket folder, found by slug. */
+export function ticketIdBySlug(projectDirectory: string, slug: string): string {
+  const [id] = nodePath.basename(ticketFolderBySlug(projectDirectory, slug)).split('-');
+  if (id === undefined) throw new Error(`no id in folder for slug ${slug}`);
+  return id;
+}
