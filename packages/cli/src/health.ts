@@ -664,14 +664,22 @@ export async function checkHealth(
   });
 
   // Collect issues from write actions and text patches
-  // Filter out chmod (paths[] instead of path) and json-merge/unmerge (incompatible definition)
+  // Filter out chmod (paths[] instead of path), json-merge/unmerge (incompatible
+  // definition), and manifest-record (provenance entries, no path — A4HG61)
   const actionsWithPath = result.actions.filter(
     (
       a,
     ): a is Exclude<
       (typeof result.actions)[number],
-      { type: 'chmod' } | { type: 'json-merge' } | { type: 'json-unmerge' }
-    > => a.type !== 'chmod' && a.type !== 'json-merge' && a.type !== 'json-unmerge',
+      | { type: 'chmod' }
+      | { type: 'json-merge' }
+      | { type: 'json-unmerge' }
+      | { type: 'manifest-record' }
+    > =>
+      a.type !== 'chmod' &&
+      a.type !== 'json-merge' &&
+      a.type !== 'json-unmerge' &&
+      a.type !== 'manifest-record',
   );
   const issues: string[] = [
     ...findMissingFiles(cwd, actionsWithPath),
