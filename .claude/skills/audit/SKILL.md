@@ -374,9 +374,10 @@ Test Quality:
 - If `docs.sources: []` is configured, do not prompt. Fall back to local discovery: `README.md`, `docs/`, `documentation/`, package docs folders, and known docs-site configs.
 - Always report docs coverage: configured vs fallback, sources checked, and sources skipped.
 
-**ARCHITECTURE.md:**
+**ARCHITECTURE.md (the architecture narrative):**
 
-- If missing → create from `.safeword/templates/architecture-template.md`
+- Resolve the narrative location first: the `paths.architecture` target in `.safeword/config.json` when set — a file is the narrative itself; a directory holds decision records, read them all — else the root `ARCHITECTURE.md`. A configured location wins outright: do not fall back to a root file the host deliberately moved away from. Every check below applies to the resolved narrative.
+- If missing → create from `.safeword/templates/architecture-template.md` (at the configured location when `paths.architecture` is set, else root `ARCHITECTURE.md`)
 - If exists → check for drift and gaps along TWO axes — dependency drift (what tech) and structural drift (what modules/layers):
   - **Dependency drift:**
     - **Drift (error):** Documented tech contradicts the code's actual dependencies (e.g., doc says "Redux" but `package.json` has "zustand"; doc says "Flask" but `pyproject.toml` has "fastapi")
