@@ -35,6 +35,9 @@ import {
 } from './utils/fs.js';
 import {
   hashManagedFileContent,
+  MANAGED_FILE_MANIFEST_PATH,
+  type ManifestReadResult,
+  readManagedFileManifest,
   recordManagedFileProvenance,
 } from './utils/managed-file-manifest.js';
 import type { ProjectType } from './utils/project-detector.js';
@@ -437,7 +440,7 @@ export async function reconcile(
       removed: plan.wouldRemove,
       packagesToInstall: plan.packagesToInstall,
       packagesToRemove: plan.packagesToRemove,
-      warnings: [],
+      warnings: plan.warnings ?? [],
     };
   }
 
@@ -451,7 +454,7 @@ export async function reconcile(
     removed: result.removed,
     packagesToInstall: plan.packagesToInstall,
     packagesToRemove: plan.packagesToRemove,
-    warnings: result.warnings,
+    warnings: [...(plan.warnings ?? []), ...result.warnings],
   };
 }
 
@@ -466,6 +469,8 @@ interface ReconcilePlan {
   wouldRemove: string[];
   packagesToInstall: string[];
   packagesToRemove: string[];
+  /** Plan-time warnings (e.g. corrupt provenance manifest, A4HG61). */
+  warnings?: string[];
 }
 
 function computePlan(
@@ -615,8 +620,22 @@ function isConfigOverridden(definition: ManagedFileDefinition, cwd: string): boo
   return readConfiguredPath(cwd, definition.configKey) !== undefined;
 }
 
+interface ManagedFilePlanResult extends FileActionResult {
+  /** path → sha256 to merge into the provenance manifest at execute time. */
+  provenance: Record<string, string>;
+  warnings: string[];
+}
+
 /**
- * Plan actions for managed files (only create if missing).
+ * Plan actions for managed files on upgrade: create if missing, refresh if
+ * provably pristine (ticket A4HG61, #849).
+ *
+ * A file is refreshed only when its on-disk bytes hash to exactly what the
+ * provenance manifest says safeword last wrote AND the currently resolved
+ * content differs — customer edits are never touched. A file whose bytes
+ * already equal the resolved output has its record healed/adopted (recorded
+ * without a write; spec DD9). A corrupt manifest fails safe and loud: no
+ * refresh, no recording, one warning (spec DD8).
  *
  * Entries with a `configKey` whose `paths.<configKey>` override is set in
  * `.safeword/config.json` are suppressed — the user has redirected
@@ -626,24 +645,76 @@ function isConfigOverridden(definition: ManagedFileDefinition, cwd: string): boo
 function planManagedFilesActions(
   managedFiles: Record<string, ManagedFileDefinition>,
   ctx: ProjectContext,
-): FileActionResult {
+): ManagedFilePlanResult {
   const actions: Action[] = [];
   const created: string[] = [];
+  const updated: string[] = [];
+  const provenance: Record<string, string> = {};
+
+  const manifest = readManagedFileManifest(ctx.cwd);
+  const warnings =
+    manifest.kind === 'corrupt'
+      ? [
+          `${MANAGED_FILE_MANIFEST_PATH} is unreadable — managed configs will not be refreshed until it is fixed or deleted.`,
+        ]
+      : [];
 
   for (const [filePath, definition] of Object.entries(managedFiles)) {
     if (isConfigOverridden(definition, ctx.cwd)) continue;
-
-    const fullPath = nodePath.join(ctx.cwd, filePath);
     const newContent = resolveFileContent(definition, ctx);
-
     if (newContent === undefined) continue;
-    if (exists(fullPath)) continue; // Don't update during upgrade
+
+    const decision = decideManagedFileAction(filePath, newContent, ctx.cwd, manifest);
+    if (decision.kind === 'skip') continue;
+    if (decision.hash !== undefined) provenance[filePath] = decision.hash;
+    if (decision.kind === 'record') continue;
 
     actions.push({ type: 'write', path: filePath, content: newContent });
-    created.push(filePath);
+    (decision.kind === 'create' ? created : updated).push(filePath);
   }
 
-  return { actions, created, updated: [] };
+  actions.push({ type: 'manifest-record', entries: provenance });
+  return { actions, created, updated, provenance, warnings };
+}
+
+type ManagedFileDecision =
+  | { kind: 'skip'; hash?: undefined }
+  | { kind: 'create'; hash: string | undefined }
+  | { kind: 'record'; hash: string }
+  | { kind: 'refresh'; hash: string };
+
+/**
+ * The per-file provenance decision (spec's 7-case rule). `record` means
+ * heal/adopt: no write, just record — byte-identity to resolved output
+ * proves the content is safeword's (DD9).
+ */
+function decideManagedFileAction(
+  filePath: string,
+  newContent: string,
+  cwd: string,
+  manifest: ManifestReadResult,
+): ManagedFileDecision {
+  const fullPath = nodePath.join(cwd, filePath);
+  if (!exists(fullPath)) {
+    // Corrupt manifest: still create-if-missing, but record nothing (DD8).
+    return {
+      kind: 'create',
+      hash: manifest.kind === 'corrupt' ? undefined : hashManagedFileContent(newContent),
+    };
+  }
+  // Existing file + corrupt manifest: pristineness unprovable — fail safe.
+  if (manifest.kind === 'corrupt') return { kind: 'skip' };
+
+  const onDiskHash = hashManagedFileContent(readFile(fullPath));
+  const newHash = hashManagedFileContent(newContent);
+  const recordedHash = manifest.kind === 'ok' ? manifest.files[filePath] : undefined;
+
+  if (onDiskHash === newHash) {
+    return recordedHash === newHash ? { kind: 'skip' } : { kind: 'record', hash: newHash };
+  }
+  if (recordedHash === onDiskHash) return { kind: 'refresh', hash: newHash };
+  // Edited, or unrecorded-and-differing — never touched.
+  return { kind: 'skip' };
 }
 
 function computeUpgradePlan(schema: SafewordSchema, ctx: ProjectContext): ReconcilePlan {
@@ -663,10 +734,11 @@ function computeUpgradePlan(schema: SafewordSchema, ctx: ProjectContext): Reconc
   wouldCreate.push(...ownedFilesResult.created);
   wouldUpdate.push(...ownedFilesResult.updated);
 
-  // 3. Create missing managed files (don't update existing)
+  // 3. Managed files: create if missing, refresh if provably pristine (A4HG61)
   const managedFilesResult = planManagedFilesActions(schema.managedFiles, ctx);
   actions.push(...managedFilesResult.actions);
   wouldCreate.push(...managedFilesResult.created);
+  wouldUpdate.push(...managedFilesResult.updated);
 
   // 4. Remove deprecated files (renamed or removed in newer versions)
   const deprecatedFiles = planExistingFilesRemoval(schema.deprecatedFiles, ctx.cwd);
@@ -712,6 +784,7 @@ function computeUpgradePlan(schema: SafewordSchema, ctx: ProjectContext): Reconc
     wouldRemove,
     packagesToInstall,
     packagesToRemove,
+    warnings: managedFilesResult.warnings,
   };
 }
 

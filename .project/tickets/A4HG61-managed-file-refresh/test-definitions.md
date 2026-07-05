@@ -20,7 +20,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A pristine static managed file is refreshed when its template changes
 
-- [x] RED PENDING_SHA
+- [x] RED e271e89
 - [ ] GREEN
 - [ ] REFACTOR
 
