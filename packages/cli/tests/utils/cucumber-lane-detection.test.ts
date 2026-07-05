@@ -42,9 +42,12 @@ describe('detectCucumberLane workspace-package config files (#708)', () => {
   });
 
   it('surfaces the workspace config file even with a hoisted root dependency', () => {
-    // The exact issue-#708 repro: config lives only in the workspace package,
-    // and @cucumber/cucumber is hoisted to the root manifest. Detection must
-    // still fire (dependency OR config-file evidence is enough).
+    // The exact issue-#708 repro: a cucumber config lives inside a workspace
+    // package while @cucumber/cucumber is hoisted to the root manifest. The
+    // root dep alone would already trip detection, so the *exact-evidence*
+    // assertion below is the real regression guard: if config-file-in-package
+    // scanning regressed, evidence would fall through to the root dep
+    // ('package.json (@cucumber/cucumber)') and this toBe() would fail.
     writeTestFile(
       shared.projectDirectory,
       'package.json',
