@@ -169,3 +169,7 @@ rules run in the cucumber acceptance lane against the real CLI.
 - [x] RED 5703f58
 - [x] GREEN 9b7567d
 - [x] REFACTOR skip: no structural change needed; feature-level pass at implement-exit
+
+## Feature-level cross-scenario refactor
+
+- [x] cross-scenario a3b5b0f

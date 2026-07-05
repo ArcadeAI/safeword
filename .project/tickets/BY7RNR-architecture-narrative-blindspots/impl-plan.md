@@ -1,6 +1,6 @@
 # Impl Plan: Architecture narrative reconciliation — paths.architecture + pre-existing drift (BY7RNR)
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
@@ -58,6 +58,8 @@ slice 4 needs 2 (parity target); slice 5 is independent prose, last.
 | Drift detector       | doc-to-doc mention check (generated `## Packages` vs narrative text) | agent-only reconciliation (`/audit`) status quo | never runs unprompted — #848 incident proof; recorded AXRC4D deviation in ticket Decisions     |
 | Mention matcher      | word-boundary regex, case-insensitive, full name or scoped tail | exact substring; heading-only match            | substring over-nags (`cli` in `click`); heading-only misses prose mentions and over-nags       |
 | Hook config read     | standalone mini-reader in the nudge lib                       | import CLI resolver                            | hooks run standalone under bun in host repos — no import path to the CLI (TAGWZ8)              |
+| Matcher boundaries   | trailing `./-` block only when continuing a name (`(?!\w\|[.-]\w)`) | symmetric name-char class on both sides    | sentence-final periods defeated the symmetric class ("…and billing." read as missing) — quality-review pass 1 critical finding, fixed a3b5b0f |
+| Advisory timing      | default/`--stage` warn after the heal; `--check` reads disk as-is | warn before healing in every mode           | pre-heal the doc may not exist yet — the stage-mode cucumber scenario caught it                |
 
 ## Arch alignment
 
@@ -69,6 +71,8 @@ slice 4 needs 2 (parity target); slice 5 is independent prose, last.
 ## Known deviations
 
 - Deviates from AXRC4D's "no deterministic drift module" ruling — narrowly: the new check is deterministic-by-reading (two docs), not source-analyzing; defect fixed: `/audit` reconciliation never runs unprompted (#848). Recorded in ticket Decisions with pre-mortem and mitigations.
+- Steps file is `steps/architecture-narrative-blindspots.steps.ts` (ticket-slug naming), not the plan's provisional `architecture-narrative-drift` name.
+- Empty configured ADR directory diverges by surface: the nudge counts it as a narrative (`existsSync`), the drift advisory as none (zero records). Deliberate — documented at the hook call site.
 
 ## Assessment triggers
 
