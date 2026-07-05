@@ -106,6 +106,14 @@ describe('architectureNarrativeDriftAdvisoryForProject', () => {
     expect(architectureNarrativeDriftAdvisoryForProject(context.directory)).toBeUndefined();
   });
 
+  it('is silent for an EMPTY configured directory (deliberate asymmetry: the nudge still fires there)', () => {
+    writeGeneratedRootIndex(['web']);
+    writeConfig({ architecture: 'docs/adr' });
+    mkdirSync(nodePath.join(context.directory, 'docs', 'adr'), { recursive: true });
+
+    expect(architectureNarrativeDriftAdvisoryForProject(context.directory)).toBeUndefined();
+  });
+
   it('never falls back to a root file when a configured target is missing', () => {
     writeGeneratedRootIndex(['web', 'billing']);
     writeConfig({ architecture: 'docs/missing.md' });

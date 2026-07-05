@@ -259,6 +259,19 @@ describe('architectureDocumentNudgeForProject (git-backed)', () => {
       );
     });
 
+    it('an EMPTY configured directory still counts as a narrative for the nudge (deliberate asymmetry with the drift advisory)', () => {
+      const dir = repoWithBaseline('base-fp', {
+        architectureMd: false,
+        rawConfig: architectureConfig('docs/adr'),
+      });
+      mkdirSync(nodePath.join(dir, 'docs', 'adr'), { recursive: true });
+      setCurrentFingerprint(dir, 'moved-fp');
+
+      expect(architectureDocumentNudgeForProject(dir)).toBe(
+        architectureDocumentNudgeText('docs/adr'),
+      );
+    });
+
     it('configured target missing, no root file → no nudge', () => {
       const dir = repoWithBaseline('base-fp', {
         architectureMd: false,
