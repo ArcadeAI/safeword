@@ -1109,7 +1109,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     ...pythonManagedFiles,
     // Go managed files (.golangci.yml)
     ...golangManagedFiles,
-    // Rust managed files (clippy.toml, rustfmt.toml)
+    // Rust managed files (clippy.toml, rustfmt.toml, deny.toml)
     ...rustManagedFiles,
     // SQL managed files (.sqlfluff)
     ...sqlManagedFiles,

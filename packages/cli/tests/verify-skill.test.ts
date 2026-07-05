@@ -199,6 +199,8 @@ describe('verify report structure (146)', () => {
       expect(content).toContain('plan_kind=build');
       // Typecheck is part of the ready path — CI's lint job runs it (#436).
       expect(content).toContain('plan_kind=typecheck');
+      // Dependency-policy gate (cargo deny check) runs for Rust projects.
+      expect(content).toContain('plan_kind=deps');
     });
 
     it.each(templateFiles)(
