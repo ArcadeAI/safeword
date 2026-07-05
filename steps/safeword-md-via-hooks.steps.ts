@@ -32,7 +32,17 @@ function createProjectDirectory(): string {
 function runSafeword(projectDirectory: string, command: 'setup' | 'upgrade'): void {
   execFileSync('bun', [CLI_PATH, command], {
     cwd: projectDirectory,
-    env: { ...process.env, SAFEWORD_TEST_DISABLE_AUTO_UPGRADE: '1' },
+    // These scenarios prove context-file behavior and hook wiring, not
+    // package-manager integration. SAFEWORD_SKIP_INSTALL keeps setup/upgrade
+    // hermetic: managed assets are still written, but the live devDependency
+    // install is skipped so a flaky network install can't red the lane with a
+    // failure the scenario name doesn't describe (ticket #493). Live install
+    // coverage lives in the dedicated setup/upgrade integration lanes.
+    env: {
+      ...process.env,
+      SAFEWORD_TEST_DISABLE_AUTO_UPGRADE: '1',
+      SAFEWORD_SKIP_INSTALL: '1',
+    },
     stdio: 'pipe',
   });
 }
