@@ -2,7 +2,7 @@
 id: V4MATC
 slug: python-importlinter-scaffold
 type: feature
-phase: intake
+phase: define-behavior
 status: in_progress
 scope:
   - .importlinter generation in the Python pack — root_packages from detected top-level package + one generic acyclic-siblings contract
@@ -35,3 +35,4 @@ last_modified: 2026-07-05T22:07:00.387Z
 ## Work Log
 
 - 2026-07-05T22:07:00.387Z Started: Created ticket V4MATC
+- 2026-07-05T22:12:41.000Z Complete: intake - Understanding converged, scope established (gates confirmed by Alex)
