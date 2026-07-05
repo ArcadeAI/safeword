@@ -221,6 +221,10 @@ function generateDenyConfig(): string {
 # sections below are configured but NOT gated by default, because they false-red
 # on things unrelated to a change (missing license metadata, intentional git
 # deps). Enforce them in your own CI with a full \`cargo deny check\`.
+#
+# Note: the advisories check fetches the RustSec advisory-db over git on first
+# run, so an offline done-gate can fail here. Prime the cache once online, or run
+# \`cargo deny check advisories\` yourself, before relying on the gate offline.
 
 [advisories]
 # Security advisories from the RustSec DB (the cargo-audit source). cargo-deny
