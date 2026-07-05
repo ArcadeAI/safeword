@@ -11,6 +11,13 @@
  * stay `/audit`'s judgment call.
  */
 
+import { listArchitectureRecords } from './architecture-records.js';
+import {
+  resolveArchitectureNarrative,
+  resolveGeneratedArchitecturePath,
+} from './configured-paths.js';
+import { readFileSafe } from './fs.js';
+
 /** Most packages named before the advisory truncates to an "and N more" tail. */
 const ADVISORY_PACKAGE_CAP = 6;
 
@@ -23,9 +30,21 @@ const ADVISORY_PACKAGE_CAP = 6;
  * every mode.
  */
 export function architectureNarrativeDriftAdvisoryForProject(
-  _projectDirectory: string,
+  projectDirectory: string,
 ): string | undefined {
-  throw new Error('not implemented');
+  const narrative = resolveArchitectureNarrative(projectDirectory);
+  const records = listArchitectureRecords(narrative.absolutePath).records;
+  if (records.length === 0) return undefined;
+
+  const generatedDocument = readFileSafe(resolveGeneratedArchitecturePath(projectDirectory));
+  if (generatedDocument === undefined) return undefined;
+
+  const narrativeText = records.map(record => readFileSafe(record) ?? '').join('\n');
+  return narrativeDriftAdvisory(
+    extractRootIndexPackages(generatedDocument),
+    narrativeText,
+    narrative.displayPath,
+  );
 }
 
 /**

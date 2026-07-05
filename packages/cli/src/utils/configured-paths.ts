@@ -290,8 +290,20 @@ export interface ArchitectureNarrative {
  * Mirrored standalone in the hook lib (`templates/hooks/lib/`); a differential
  * parity test pins the two copies (P58R22 pattern).
  */
-export function resolveArchitectureNarrative(_cwd: string): ArchitectureNarrative {
-  throw new Error('not implemented');
+export function resolveArchitectureNarrative(cwd: string): ArchitectureNarrative {
+  const configured = readConfiguredPath(cwd, 'architecture');
+  if (configured !== undefined) {
+    return {
+      absolutePath: nodePath.isAbsolute(configured) ? configured : nodePath.join(cwd, configured),
+      displayPath: configured,
+      configured: true,
+    };
+  }
+  return {
+    absolutePath: nodePath.join(cwd, 'ARCHITECTURE.md'),
+    displayPath: 'ARCHITECTURE.md',
+    configured: false,
+  };
 }
 
 /**
