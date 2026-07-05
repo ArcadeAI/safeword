@@ -47,11 +47,40 @@ export interface HookArchitectureNarrative {
  * empty-string value behaves as unconfigured.
  */
 export function resolveArchitectureNarrative(projectDir: string): HookArchitectureNarrative {
+  const configured = readConfiguredArchitecturePath(projectDir);
+  if (configured !== undefined) {
+    return {
+      absolutePath: nodePath.isAbsolute(configured)
+        ? configured
+        : nodePath.join(projectDir, configured),
+      displayPath: configured,
+      configured: true,
+    };
+  }
   return {
     absolutePath: nodePath.join(projectDir, ARCHITECTURE_MD),
     displayPath: ARCHITECTURE_MD,
     configured: false,
   };
+}
+
+/** The raw non-empty `paths.architecture` string, or `undefined` (unset, empty, non-string, or unreadable config). */
+function readConfiguredArchitecturePath(projectDir: string): string | undefined {
+  const configPath = nodePath.join(projectDir, '.safeword', 'config.json');
+  if (!existsSync(configPath)) return undefined;
+
+  let parsed: { paths?: { architecture?: unknown } };
+  try {
+    parsed = JSON.parse(readFileSync(configPath, 'utf8')) as {
+      paths?: { architecture?: unknown };
+    };
+  } catch {
+    return undefined;
+  }
+
+  const raw = parsed.paths?.architecture;
+  if (typeof raw !== 'string' || raw.length === 0) return undefined;
+  return raw;
 }
 
 /** The one-line, non-blocking advisory surfaced at the done-gate when the shape moved. */

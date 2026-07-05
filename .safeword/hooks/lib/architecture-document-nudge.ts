@@ -18,18 +18,81 @@ import { resolveNamespaceRoot } from './namespace-root.js';
 
 /** The generated state-document filename, colocated at the namespace root for the top level. */
 const GENERATED_DOC = 'architecture.generated.md';
-/** The human-authored architecture narrative at the project root. */
+/** The default human-authored architecture narrative at the project root. */
 const ARCHITECTURE_MD = 'ARCHITECTURE.md';
 
 /** The frontmatter key holding the recorded shape fingerprint (mirrors the CLI writer). */
 const FINGERPRINT_KEY = 'fingerprint';
 
+/**
+ * The resolved architecture narrative location (ticket BY7RNR, GitHub #848).
+ * Standalone copy of the CLI's `resolveArchitectureNarrative` in
+ * `src/utils/configured-paths.ts` — hooks run under bun in customer repos with
+ * no import path to the CLI. A differential test pins the two (P58R22).
+ */
+export interface HookArchitectureNarrative {
+  /** Absolute path of the narrative target. Existence is NOT guaranteed. */
+  absolutePath: string;
+  /** Human-facing name: the as-written config value, or `ARCHITECTURE.md`. */
+  displayPath: string;
+  /** True when `paths.architecture` supplied the location. */
+  configured: boolean;
+}
+
+/**
+ * Resolve the narrative: a non-empty `paths.architecture` in
+ * `.safeword/config.json` wins outright — even when its target is missing on
+ * disk, never hunting back to a root file the host deliberately moved away
+ * from — else root `ARCHITECTURE.md`. Missing/unparseable config or an
+ * empty-string value behaves as unconfigured.
+ */
+export function resolveArchitectureNarrative(projectDir: string): HookArchitectureNarrative {
+  const configured = readConfiguredArchitecturePath(projectDir);
+  if (configured !== undefined) {
+    return {
+      absolutePath: nodePath.isAbsolute(configured)
+        ? configured
+        : nodePath.join(projectDir, configured),
+      displayPath: configured,
+      configured: true,
+    };
+  }
+  return {
+    absolutePath: nodePath.join(projectDir, ARCHITECTURE_MD),
+    displayPath: ARCHITECTURE_MD,
+    configured: false,
+  };
+}
+
+/** The raw non-empty `paths.architecture` string, or `undefined` (unset, empty, non-string, or unreadable config). */
+function readConfiguredArchitecturePath(projectDir: string): string | undefined {
+  const configPath = nodePath.join(projectDir, '.safeword', 'config.json');
+  if (!existsSync(configPath)) return undefined;
+
+  let parsed: { paths?: { architecture?: unknown } };
+  try {
+    parsed = JSON.parse(readFileSync(configPath, 'utf8')) as {
+      paths?: { architecture?: unknown };
+    };
+  } catch {
+    return undefined;
+  }
+
+  const raw = parsed.paths?.architecture;
+  if (typeof raw !== 'string' || raw.length === 0) return undefined;
+  return raw;
+}
+
 /** The one-line, non-blocking advisory surfaced at the done-gate when the shape moved. */
-export const ARCHITECTURE_DOCUMENT_NUDGE =
-  'ARCHITECTURE.md may be stale: this ticket moved the top-level architecture shape ' +
-  '(the generated module/package map changed). ARCHITECTURE.md is human-owned and was ' +
-  'not touched — run `/audit` to reconcile its module/layer description against ' +
-  '`architecture.generated.md`. Advisory only; nothing is blocked.';
+export function architectureDocumentNudgeText(narrativeDisplayPath: string): string {
+  return (
+    `Architecture narrative (${narrativeDisplayPath}) may be stale: this ticket moved ` +
+    'the top-level architecture shape (the generated module/package map changed). ' +
+    `${narrativeDisplayPath} is human-owned and was not touched — run \`/audit\` to ` +
+    'reconcile its module/layer description against `architecture.generated.md`. ' +
+    'Advisory only; nothing is blocked.'
+  );
+}
 
 function runGit(cwd: string, args: string[]): string {
   try {
@@ -62,8 +125,10 @@ export function parseGeneratedFingerprint(content: string): string | undefined {
 
 /** Inputs the pure nudge decision depends on — gathered from disk + git by the caller. */
 export interface ArchitectureDocumentNudgeInputs {
-  /** Whether a human `ARCHITECTURE.md` exists at the project root. */
-  architectureMdExists: boolean;
+  /** Whether the resolved narrative (configured or root fallback) exists on disk. */
+  narrativeExists: boolean;
+  /** Human-facing name of the resolved narrative, for the advisory text. */
+  narrativeDisplayPath: string;
   /** The generated doc's fingerprint at the branch base, or `undefined` (doc absent at base). */
   baseFingerprint: string | undefined;
   /** The generated doc's fingerprint in the working tree, or `undefined` (no generated doc). */
@@ -72,28 +137,30 @@ export interface ArchitectureDocumentNudgeInputs {
 
 /**
  * The done-gate nudge string, or `null` when none is warranted. Pure — the IO seam lives
- * in {@link architectureDocumentNudgeForProject}. Fires only when (1) a human
- * `ARCHITECTURE.md` exists (the audit create-from-template path owns the absent case), (2)
+ * in {@link architectureDocumentNudgeForProject}. Fires only when (1) the resolved
+ * narrative exists (the audit create-from-template path owns the absent case), (2)
  * a generated shape doc exists now, and (3) the fingerprint moved vs the base — including
  * the "shape map newly introduced this ticket" case (`baseFingerprint === undefined`). A
  * ticket that left the top-level fingerprint unchanged emits nothing (no false alarm).
  */
 export function architectureDocumentNudge(inputs: ArchitectureDocumentNudgeInputs): string | null {
-  if (!inputs.architectureMdExists) return null;
+  if (!inputs.narrativeExists) return null;
   if (inputs.currentFingerprint === undefined) return null;
   if (inputs.baseFingerprint === inputs.currentFingerprint) return null;
-  return ARCHITECTURE_DOCUMENT_NUDGE;
+  return architectureDocumentNudgeText(inputs.narrativeDisplayPath);
 }
 
 /**
  * Resolve {@link architectureDocumentNudge}'s inputs from `projectDir` + git, then return
- * the nudge (or `null`). The branch base is the merge-base with the upstream/default
+ * the nudge (or `null`). The narrative resolves via `paths.architecture` (root
+ * `ARCHITECTURE.md` fallback). The branch base is the merge-base with the upstream/default
  * branch; when it can't be resolved we return `null` rather than guess (no false alarm on
  * an unknowable baseline). `projectDir` is the repo root (the done-gate's cwd).
  */
 export function architectureDocumentNudgeForProject(projectDir: string): string | null {
-  // Cheap exit before any git/fs work: no human doc ⇒ nothing to reconcile against.
-  if (!existsSync(nodePath.join(projectDir, ARCHITECTURE_MD))) return null;
+  // Cheap exit before any git/fs work: no narrative ⇒ nothing to reconcile against.
+  const narrative = resolveArchitectureNarrative(projectDir);
+  if (!existsSync(narrative.absolutePath)) return null;
 
   const generatedPath = nodePath.join(resolveNamespaceRoot(projectDir), GENERATED_DOC);
   const currentFingerprint = existsSync(generatedPath)
@@ -109,7 +176,8 @@ export function architectureDocumentNudgeForProject(projectDir: string): string 
   const baseFingerprint = baseDoc === '' ? undefined : parseGeneratedFingerprint(baseDoc);
 
   return architectureDocumentNudge({
-    architectureMdExists: true,
+    narrativeExists: true,
+    narrativeDisplayPath: narrative.displayPath,
     baseFingerprint,
     currentFingerprint,
   });
