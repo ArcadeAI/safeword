@@ -32,19 +32,15 @@ export function ticketNew(slug: string, options: TicketNewOptions): Promise<void
 function ticketNewSync(slug: string, options: TicketNewOptions): void {
   const type = resolveType(options.type);
   if (type === 'invalid') {
-    process.stderr.write(
-      `Invalid --type=${String(options.type)}. Must be one of: patch, task, feature, epic.\n`,
-    );
-    process.exit(1);
+    fail(`Invalid --type=${String(options.type)}. Must be one of: patch, task, feature, epic.`);
   }
 
   // Features keep motivation in spec.md (single source of truth), so they have
   // no **Why:** field for --why to fill — fail loud rather than silently drop it.
   if (options.why !== undefined && type === 'feature') {
-    process.stderr.write(
-      '--why does not apply to features — their motivation lives in spec.md. Use --goal, or edit spec.md.\n',
+    fail(
+      '--why does not apply to features — their motivation lives in spec.md. Use --goal, or edit spec.md.',
     );
-    process.exit(1);
   }
 
   let normalizedSlug: string;
@@ -52,8 +48,7 @@ function ticketNewSync(slug: string, options: TicketNewOptions): void {
     normalizedSlug = normalizeSlug(slug);
   } catch (error: unknown) {
     if (error instanceof SlugError) {
-      process.stderr.write(`${error.message}\n`);
-      process.exit(1);
+      fail(error.message);
     }
     throw error;
   }
@@ -77,11 +72,16 @@ function ticketNewSync(slug: string, options: TicketNewOptions): void {
     // The index refreshes via `safeword sync-tickets` and `safeword check`. 1GGD28.
   } catch (error: unknown) {
     if (error instanceof TicketIdCollisionError) {
-      process.stderr.write(`${error.message}\n`);
-      process.exit(1);
+      fail(error.message);
     }
     throw error;
   }
+}
+
+/** Write a one-line diagnostic to stderr and exit non-zero. */
+function fail(message: string): never {
+  process.stderr.write(`${message}\n`);
+  process.exit(1);
 }
 
 function resolveType(value: string | undefined): TicketType | undefined | 'invalid' {

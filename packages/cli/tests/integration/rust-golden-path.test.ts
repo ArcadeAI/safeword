@@ -87,6 +87,15 @@ describe('E2E: Rust Golden Path', () => {
     expect(config).toContain('newline_style = "Unix"');
   });
 
+  it('creates deny.toml at project root for the cargo-deny supply-chain gate', () => {
+    expect(fileExists(projectDirectory, 'deny.toml')).toBe(true);
+
+    const config = readTestFile(projectDirectory, 'deny.toml');
+    expect(config).toContain('[advisories]');
+    expect(config).toContain('[licenses]');
+    expect(config).toContain('multiple-versions = "warn"');
+  });
+
   it('merges [lints.clippy] into Cargo.toml', () => {
     const cargoToml = readTestFile(projectDirectory, 'Cargo.toml');
 
