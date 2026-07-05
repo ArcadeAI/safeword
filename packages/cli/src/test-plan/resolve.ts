@@ -60,6 +60,17 @@ const TREE_MANIFESTS = new Set<string>([
 ]);
 
 /**
+ * Kinds each non-Rust resolver opts out of, so a new PlanKind fails safe (the
+ * language emits nothing) instead of falling through to a wrong command. `deps`
+ * (supply-chain) is Rust-only for now; `typecheck` is the JS/TS CI-lint signal
+ * that `build` already covers for Go/Python. Frozen sets mirror the manifest-set
+ * idiom above and keep the three guards uniform.
+ */
+const JS_SKIP_KINDS: ReadonlySet<PlanKind> = new Set<PlanKind>(['deps']);
+const PYTHON_SKIP_KINDS: ReadonlySet<PlanKind> = new Set<PlanKind>(['build', 'typecheck', 'deps']);
+const GO_SKIP_KINDS: ReadonlySet<PlanKind> = new Set<PlanKind>(['typecheck', 'deps']);
+
+/**
  * Parse the `SAFEWORD_FAKE_TOOLS` test seam (same spirit as `SAFEWORD_SKIP_INSTALL`):
  * `all` → everything installed; `only:a,b` → allowlist; `none:a,b` → denylist.
  * Lets the BDD acceptance lane drive the real CLI deterministically without
@@ -156,7 +167,7 @@ function resolveJs(
   kind: PlanKind,
   isAvailable: ToolProbe,
 ): PlanEntry | undefined {
-  if (kind === 'deps') return undefined; // supply-chain scanning is a Rust-only concern for now
+  if (JS_SKIP_KINDS.has(kind)) return undefined;
   // JS is detected root-only: subdirectory package.json is too common to treat as a project root.
   const scripts = readRootScripts(root);
   if (!scripts) return undefined;
@@ -240,8 +251,7 @@ function resolvePython(
   kind: PlanKind,
   isAvailable: ToolProbe,
 ): PlanEntry | undefined {
-  // no standard Python build/typecheck/supply-chain step
-  if ((['build', 'typecheck', 'deps'] as PlanKind[]).includes(kind)) return undefined;
+  if (PYTHON_SKIP_KINDS.has(kind)) return undefined;
   if (PYTHON_MANIFESTS.every(manifest => !index.has(manifest))) return undefined;
   const cwd = firstDirectory(root, index, PYTHON_MANIFESTS);
   if (index.has('tox.ini')) return entry('python', cwd, 'tox', 'tox', isAvailable('tox'));
@@ -268,8 +278,7 @@ function resolveGo(
   kind: PlanKind,
   isAvailable: ToolProbe,
 ): PlanEntry | undefined {
-  // typecheck is a JS/TS concern (`go build` covers Go); deps/supply-chain is Rust-only for now
-  if (kind === 'typecheck' || kind === 'deps') return undefined;
+  if (GO_SKIP_KINDS.has(kind)) return undefined;
   if (!index.has('go.mod')) return undefined;
   const verb = kind === 'build' ? 'build' : 'test';
   // A root go.work tests every workspace module — run the expansion from root.
