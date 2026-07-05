@@ -2,8 +2,8 @@
 id: F9W3JP
 slug: epic-child-linker
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 scope:
   - a `--parent <epicId>` flag on `ticket new` that writes `parent: <epicId>` on the new child
   - idempotent, atomic append of the child id to the epic's `children:` list
@@ -37,3 +37,5 @@ last_modified: 2026-07-05T17:25:42.420Z
 - 2026-07-05T17:30:00.000Z Complete: define-behavior - 7 scenarios across 4 rules (AC1 link+navigate, AC2 index, AC3 validation, AC4 idempotent-preserve)
 - 2026-07-05T17:35:00.000Z Complete: scenario-gate - independent /review-spec PASS (fixed 1 vacuous scenario); impl-plan.md written (proof plan + build order, riskiest slice = INDEX grouping last)
 - 2026-07-05T18:03:00.000Z Complete: implement - all 7 scenarios GREEN via outside-in TDD (helper → CLI wiring → navigation → index grouping); RGR ledger annotated with SHAs
+- 2026-07-05T19:35:00.000Z Complete: verify - full suite 4651/4651 + Gherkin 28/28 over final HEAD; /quality-review criticals fixed (block-sequence children, surfaced LinkResult) + re-review PASS; /refactor ledger closed (−10 jscpd clones); audit passed; verify.md written
+- 2026-07-05T19:36:00.000Z Complete: done - ticket closed; follow-ups recorded in verify.md (INDEX nesting, ticket link command)
