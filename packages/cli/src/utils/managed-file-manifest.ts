@@ -16,6 +16,12 @@ import nodePath from 'node:path';
 
 export const MANAGED_FILE_MANIFEST_PATH = '.safeword/managed-files.json';
 
+/** Codepoint order — deterministic across machines, unlike localeCompare. */
+function comparePaths(a: string, b: string): -1 | 0 | 1 {
+  if (a < b) return -1;
+  return a > b ? 1 : 0;
+}
+
 const MANIFEST_VERSION = 1;
 
 /**
@@ -42,6 +48,13 @@ export function readManagedFileManifest(cwd: string): ManifestReadResult {
   } catch {
     return { kind: 'corrupt' };
   }
+  return parseManifestShape(parsed);
+}
+
+function parseManifestShape(parsed: unknown): ManifestReadResult {
+  // An unknown version means the files map's semantics can't be trusted —
+  // fail safe (refresh nothing, warn) rather than mis-adopt a future format.
+  if ((parsed as { version?: unknown })?.version !== MANIFEST_VERSION) return { kind: 'corrupt' };
 
   const files = (parsed as { files?: unknown })?.files;
   if (files === null || typeof files !== 'object' || Array.isArray(files)) {
@@ -56,8 +69,11 @@ export function readManagedFileManifest(cwd: string): ManifestReadResult {
 }
 
 export function serializeManagedFileManifest(files: Record<string, string>): string {
+  // Codepoint comparison, NOT localeCompare: the manifest is committed, so
+  // key order must be identical on every contributor's machine regardless of
+  // ICU locale.
   const sorted = Object.fromEntries(
-    Object.entries(files).toSorted(([a], [b]) => a.localeCompare(b)),
+    Object.entries(files).toSorted(([a], [b]) => comparePaths(a, b)),
   );
   return `${JSON.stringify({ version: MANIFEST_VERSION, files: sorted }, undefined, 2)}\n`;
 }

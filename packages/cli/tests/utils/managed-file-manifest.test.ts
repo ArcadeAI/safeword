@@ -23,8 +23,6 @@ describe('managed-file-manifest', () => {
 
   beforeEach(() => {
     dir = mkdtempSync(nodePath.join(nodeOs.tmpdir(), 'manifest-unit-'));
-    // The manifest lives under .safeword/, which exists on any install.
-    writeFileSync(nodePath.join(dir, '.gitkeep'), '');
   });
 
   afterEach(() => {

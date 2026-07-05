@@ -521,8 +521,14 @@ function computeInstallPlan(schema: SafewordSchema, ctx: ProjectContext): Reconc
 
   // 3b. Record provenance for the managed files this plan writes (A4HG61,
   // #849): hash the planned content now, merge into the manifest at execute
-  // time. Merge semantics preserve committed provenance on clones.
-  actions.push({ type: 'manifest-record', entries: manifestEntriesFromWrites(managed.actions) });
+  // time. Merge semantics preserve committed provenance on clones. Paths a
+  // json-merge co-owns are excluded — the merge rewrites them post-write, so
+  // their pre-merge hash would be permanently stale (see the upgrade pass).
+  const mergeOwnedPaths = new Set(Object.keys(schema.jsonMerges));
+  actions.push({
+    type: 'manifest-record',
+    entries: manifestEntriesFromWrites(managed.actions, mergeOwnedPaths),
+  });
 
   // 4. chmod hook/lib/scripts directories
   const chmodPaths = [...CHMOD_PATHS];
@@ -570,10 +576,15 @@ interface FileActionResult {
 }
 
 /** Provenance entries (path → sha256) for the write actions in a plan slice (A4HG61). */
-function manifestEntriesFromWrites(actions: Action[]): Record<string, string> {
+function manifestEntriesFromWrites(
+  actions: Action[],
+  excludePaths: ReadonlySet<string>,
+): Record<string, string> {
   const entries: Record<string, string> = {};
   for (const action of actions) {
-    if (action.type === 'write') entries[action.path] = hashManagedFileContent(action.content);
+    if (action.type === 'write' && !excludePaths.has(action.path)) {
+      entries[action.path] = hashManagedFileContent(action.content);
+    }
   }
   return entries;
 }
@@ -621,8 +632,6 @@ function isConfigOverridden(definition: ManagedFileDefinition, cwd: string): boo
 }
 
 interface ManagedFilePlanResult extends FileActionResult {
-  /** path → sha256 to merge into the provenance manifest at execute time. */
-  provenance: Record<string, string>;
   warnings: string[];
 }
 
@@ -645,6 +654,7 @@ interface ManagedFilePlanResult extends FileActionResult {
 function planManagedFilesActions(
   managedFiles: Record<string, ManagedFileDefinition>,
   ctx: ProjectContext,
+  mergeOwnedPaths: ReadonlySet<string>,
 ): ManagedFilePlanResult {
   const actions: Action[] = [];
   const created: string[] = [];
@@ -652,19 +662,16 @@ function planManagedFilesActions(
   const provenance: Record<string, string> = {};
 
   const manifest = readManagedFileManifest(ctx.cwd);
-  const warnings =
-    manifest.kind === 'corrupt'
-      ? [
-          `${MANAGED_FILE_MANIFEST_PATH} is unreadable — managed configs will not be refreshed until it is fixed or deleted.`,
-        ]
-      : [];
+  const warnings = corruptManifestWarnings(manifest);
 
   for (const [filePath, definition] of Object.entries(managedFiles)) {
     if (isConfigOverridden(definition, ctx.cwd)) continue;
     const newContent = resolveFileContent(definition, ctx);
     if (newContent === undefined) continue;
 
-    const decision = decideManagedFileAction(filePath, newContent, ctx.cwd, manifest);
+    const decision = mergeOwnedPaths.has(filePath)
+      ? decideMergeOwnedAction(filePath, ctx.cwd)
+      : decideManagedFileAction(filePath, newContent, ctx.cwd, manifest);
     if (decision.kind === 'skip') continue;
     if (decision.hash !== undefined) provenance[filePath] = decision.hash;
     if (decision.kind === 'record') continue;
@@ -674,21 +681,43 @@ function planManagedFilesActions(
   }
 
   actions.push({ type: 'manifest-record', entries: provenance });
-  return { actions, created, updated, provenance, warnings };
+  return { actions, created, updated, warnings };
 }
 
-type ManagedFileDecision =
+export type ManagedFileDecision =
   | { kind: 'skip'; hash?: undefined }
   | { kind: 'create'; hash: string | undefined }
   | { kind: 'record'; hash: string }
   | { kind: 'refresh'; hash: string };
 
+/** One warning when the provenance manifest is unreadable (spec DD8) — else none. */
+function corruptManifestWarnings(manifest: ManifestReadResult): string[] {
+  if (manifest.kind !== 'corrupt') return [];
+  return [
+    `${MANAGED_FILE_MANIFEST_PATH} is unreadable — managed configs will not be refreshed until it is fixed or deleted.`,
+  ];
+}
+
+/**
+ * A managed file that a json-merge also edits (e.g. .prettierrc plugin
+ * injection) is rewritten AFTER the managed write, so a recorded hash of the
+ * pre-merge bytes would be permanently stale — and re-hashing after the merge
+ * would make refresh strip what the merge re-adds, forever. Merge-co-owned
+ * paths keep create-if-missing and stay untracked.
+ */
+function decideMergeOwnedAction(filePath: string, cwd: string): ManagedFileDecision {
+  return exists(nodePath.join(cwd, filePath))
+    ? { kind: 'skip' }
+    : { kind: 'create', hash: undefined };
+}
+
 /**
  * The per-file provenance decision (spec's 7-case rule). `record` means
  * heal/adopt: no write, just record — byte-identity to resolved output
- * proves the content is safeword's (DD9).
+ * proves the content is safeword's (DD9). Exported for the unit-level
+ * matrix proof (tests/reconcile-managed-refresh.test.ts).
  */
-function decideManagedFileAction(
+export function decideManagedFileAction(
   filePath: string,
   newContent: string,
   cwd: string,
@@ -735,7 +764,11 @@ function computeUpgradePlan(schema: SafewordSchema, ctx: ProjectContext): Reconc
   wouldUpdate.push(...ownedFilesResult.updated);
 
   // 3. Managed files: create if missing, refresh if provably pristine (A4HG61)
-  const managedFilesResult = planManagedFilesActions(schema.managedFiles, ctx);
+  const managedFilesResult = planManagedFilesActions(
+    schema.managedFiles,
+    ctx,
+    new Set(Object.keys(schema.jsonMerges)),
+  );
   actions.push(...managedFilesResult.actions);
   wouldCreate.push(...managedFilesResult.created);
   wouldUpdate.push(...managedFilesResult.updated);

@@ -10,7 +10,15 @@ import { type Action, reconcile } from '../reconcile.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
 import { createProjectContext } from '../utils/context.js';
 import { exists, readFileSafe, readJson } from '../utils/fs.js';
-import { error, header, info, listItem, success, warn } from '../utils/output.js';
+import {
+  error,
+  header,
+  info,
+  listItem,
+  printReconcileWarnings,
+  success,
+  warn,
+} from '../utils/output.js';
 import {
   compareVersions,
   fetchRegistryLatestVersion,
@@ -244,6 +252,10 @@ export async function diff(options: DiffOptions): Promise<void> {
   const result = await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx, {
     dryRun: true,
   });
+
+  // Surface plan-time warnings (e.g. corrupt provenance manifest, A4HG61) —
+  // without this, a preview would silently show fewer pending updates.
+  printReconcileWarnings(result.warnings);
 
   // Convert actions to file diffs
   const diffs = actionsToDiffs(result.actions, cwd);

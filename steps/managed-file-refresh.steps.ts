@@ -206,13 +206,12 @@ Given(
   },
 );
 
-Given(
-  "that file's content differs from the currently resolved output",
-  function (this: RefreshWorld) {
-    this.frozenBytes = CUSTOMER_EDIT_CONTENT;
-    writeFileSync(targetPath(this), CUSTOMER_EDIT_CONTENT);
-  },
-);
+function makeTargetDiffer(this: RefreshWorld): void {
+  this.frozenBytes = CUSTOMER_EDIT_CONTENT;
+  writeFileSync(targetPath(this), CUSTOMER_EDIT_CONTENT);
+}
+
+Given("that file's content differs from the currently resolved output", makeTargetDiffer);
 
 When('safeword upgrade runs', function (this: RefreshWorld) {
   if (existsSync(targetPath(this))) {
@@ -230,7 +229,7 @@ Then(
   function (this: RefreshWorld) {
     const after = readManifest(this).files;
     for (const [path, hash] of Object.entries(this.manifestBefore ?? {})) {
-      assert.equal(after[path], hash, `provenance for ${path} was lost or changed by setup`);
+      assert.equal(after[path], hash, `provenance for ${path} was lost or changed by the run`);
     }
   },
 );
@@ -247,14 +246,16 @@ Then('the file contains the newly resolved content', function (this: RefreshWorl
   assert.equal(onDisk, this.currentResolved, 'file was not refreshed to current resolved content');
 });
 
-Then('the manifest records the new content for that file', function (this: RefreshWorld) {
+function assertManifestRecordsOnDisk(this: RefreshWorld): void {
   const onDisk = readFileSync(targetPath(this), 'utf8');
   assert.equal(
     readManifest(this).files[targetFile(this)],
     sha256(onDisk),
     'manifest was not updated to the refreshed content',
   );
-});
+}
+
+Then('the manifest records the new content for that file', assertManifestRecordsOnDisk);
 
 Then('the file exists with currently resolved content', function (this: RefreshWorld) {
   assert.ok(existsSync(targetPath(this)), 'deleted managed file was not recreated');
@@ -434,16 +435,15 @@ Then('the config contains the newly resolved content', function (this: RefreshWo
   assert.notEqual(onDisk, this.preUpgradeBytes, 'generated config was not refreshed');
 });
 
-Then('the manifest records the new content for that config', function (this: RefreshWorld) {
-  const onDisk = readFileSync(targetPath(this), 'utf8');
-  assert.equal(readManifest(this).files[targetFile(this)], sha256(onDisk));
-});
+// Alias of "…for that file" — config-flavored phrasing, same assert.
+Then('the manifest records the new content for that config', assertManifestRecordsOnDisk);
 
 Given(
   "safeword's generator now resolves no content for that config",
   function (this: RefreshWorld) {
-    // A host-authored config earlier in ESLint's discovery order suppresses
-    // the generator entirely (it must not fight a host config).
+    // A host-authored config that the DETECTOR finds first (its list checks
+    // eslint.config.ts before .mjs) suppresses the generator entirely — it
+    // must not fight a host config.
     writeFileSync(nodePath.join(projectDir(this), 'eslint.config.ts'), 'export default [];\n');
     this.frozenBytes = readFileSync(targetPath(this), 'utf8');
   },
@@ -620,10 +620,5 @@ Then('the manifest entry for that file is unchanged', function (this: RefreshWor
   );
 });
 
-Given(
-  'a managed file whose content differs from the currently resolved output',
-  function (this: RefreshWorld) {
-    this.frozenBytes = CUSTOMER_EDIT_CONTENT;
-    writeFileSync(targetPath(this), CUSTOMER_EDIT_CONTENT);
-  },
-);
+// Alias of "that file's content differs…" — same construction, pre-manifest phrasing.
+Given('a managed file whose content differs from the currently resolved output', makeTargetDiffer);
