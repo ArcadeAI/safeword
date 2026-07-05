@@ -48,6 +48,13 @@ type ToolProbe = (tool: string) => boolean;
 type ManifestIndex = ReadonlyMap<string, string>;
 
 const PYTHON_MANIFESTS = ['pyproject.toml', 'requirements.txt', 'setup.py', 'setup.cfg', 'tox.ini'];
+// Per-tool config-marker files — the opt-in signals that gate the python
+// `typecheck` (mypy/pyright) and `bdd` (behave) lanes. Single-sourced here so a
+// new marker lands in the detector, the cwd resolution, AND the tree index with
+// one edit (each name is also read by the matching *Configured detector below).
+const MYPY_MARKER_FILES = ['mypy.ini', '.mypy.ini'] as const;
+const PYRIGHT_MARKER_FILES = ['pyrightconfig.json'] as const;
+const BEHAVE_MARKER_FILES = ['behave.ini', '.behaverc'] as const;
 /** Every manifest probed via the tree (root-only files like package.json/go.work are checked directly). */
 const TREE_MANIFESTS = new Set<string>([
   ...PYTHON_MANIFESTS,
@@ -55,13 +62,9 @@ const TREE_MANIFESTS = new Set<string>([
   '.pytest.ini',
   'uv.lock',
   'poetry.lock',
-  // Standalone-BDD (behave) and opt-in typecheck (mypy/pyright) config markers —
-  // the signals that gate the python `bdd`/`typecheck` lanes below.
-  'behave.ini',
-  '.behaverc',
-  'mypy.ini',
-  '.mypy.ini',
-  'pyrightconfig.json',
+  ...MYPY_MARKER_FILES,
+  ...PYRIGHT_MARKER_FILES,
+  ...BEHAVE_MARKER_FILES,
   'go.mod',
   'Cargo.toml',
 ]);
@@ -252,21 +255,21 @@ function pytestConfigured(index: ManifestIndex): boolean {
  * behave), so keying the bdd lane on it too would double-run the same scenarios.
  */
 function behaveConfigured(index: ManifestIndex): boolean {
-  if (index.has('behave.ini') || index.has('.behaverc')) return true;
+  if (BEHAVE_MARKER_FILES.some(file => index.has(file))) return true;
   if (configContains(index, 'pyproject.toml', '[tool.behave]')) return true;
   return configContains(index, 'setup.cfg', '[behave]');
 }
 
 /** mypy config markers — the opt-in signal for the python `typecheck` lane. */
 function mypyConfigured(index: ManifestIndex): boolean {
-  if (index.has('mypy.ini') || index.has('.mypy.ini')) return true;
+  if (MYPY_MARKER_FILES.some(file => index.has(file))) return true;
   if (configContains(index, 'pyproject.toml', '[tool.mypy]')) return true;
   return configContains(index, 'setup.cfg', '[mypy]');
 }
 
 /** pyright config markers — the fallback opt-in signal for the python `typecheck` lane. */
 function pyrightConfigured(index: ManifestIndex): boolean {
-  if (index.has('pyrightconfig.json')) return true;
+  if (PYRIGHT_MARKER_FILES.some(file => index.has(file))) return true;
   return configContains(index, 'pyproject.toml', '[tool.pyright]');
 }
 
@@ -368,9 +371,8 @@ function resolvePython(
   // never yields a phantom pytest lane.
   if (kind === 'typecheck') {
     const cwd = firstDirectory(root, index, [
-      'mypy.ini',
-      '.mypy.ini',
-      'pyrightconfig.json',
+      ...MYPY_MARKER_FILES,
+      ...PYRIGHT_MARKER_FILES,
       'pyproject.toml',
       'setup.cfg',
     ]);
@@ -378,8 +380,7 @@ function resolvePython(
   }
   if (kind === 'bdd') {
     const cwd = firstDirectory(root, index, [
-      'behave.ini',
-      '.behaverc',
+      ...BEHAVE_MARKER_FILES,
       'pyproject.toml',
       'setup.cfg',
     ]);
