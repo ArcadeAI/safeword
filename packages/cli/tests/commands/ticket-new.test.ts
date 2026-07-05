@@ -29,6 +29,17 @@ function readOnlyTicketFolderName(ticketsDirectory: string): string {
   return folderName;
 }
 
+/** Absolute path of the single ticket folder created under the temp dir. */
+function soleTicketFolder(temporaryDirectory: string): string {
+  const ticketsDirectory = nodePath.join(temporaryDirectory, '.project', 'tickets');
+  return nodePath.join(ticketsDirectory, readOnlyTicketFolderName(ticketsDirectory));
+}
+
+/** Contents of the single created ticket.md. */
+function readSoleTicket(temporaryDirectory: string): string {
+  return readFileSync(nodePath.join(soleTicketFolder(temporaryDirectory), 'ticket.md'), 'utf8');
+}
+
 function extractIdFromFolder(folderName: string): string {
   const match = FOLDER_PATTERN.exec(folderName);
   const id = match?.[1];
@@ -71,13 +82,9 @@ describe('safeword ticket new', () => {
     async () => {
       await runCli(['ticket', 'new', 'login-bug'], { cwd: temporaryDirectory });
 
-      const ticketsDirectory = nodePath.join(temporaryDirectory, '.project', 'tickets');
-      const folderName = readOnlyTicketFolderName(ticketsDirectory);
+      const folderName = nodePath.basename(soleTicketFolder(temporaryDirectory));
       const id = extractIdFromFolder(folderName);
-      const ticketContent = readFileSync(
-        nodePath.join(ticketsDirectory, folderName, 'ticket.md'),
-        'utf8',
-      );
+      const ticketContent = readSoleTicket(temporaryDirectory);
 
       expect(id).toMatch(ID_PATTERN);
       expect(ticketContent).toContain(`id: ${id}`);
@@ -109,12 +116,7 @@ describe('safeword ticket new', () => {
         cwd: temporaryDirectory,
       });
 
-      const ticketsDirectory = nodePath.join(temporaryDirectory, '.project', 'tickets');
-      const folderName = readOnlyTicketFolderName(ticketsDirectory);
-      const ticketContent = readFileSync(
-        nodePath.join(ticketsDirectory, folderName, 'ticket.md'),
-        'utf8',
-      );
+      const ticketContent = readSoleTicket(temporaryDirectory);
       expect(ticketContent).toMatch(/^type:\s*feature$/m);
     },
     TIMEOUT_QUICK,
@@ -127,12 +129,7 @@ describe('safeword ticket new', () => {
         cwd: temporaryDirectory,
       });
 
-      const ticketsDirectory = nodePath.join(temporaryDirectory, '.project', 'tickets');
-      const folderName = readOnlyTicketFolderName(ticketsDirectory);
-      const ticketContent = readFileSync(
-        nodePath.join(ticketsDirectory, folderName, 'ticket.md'),
-        'utf8',
-      );
+      const ticketContent = readSoleTicket(temporaryDirectory);
 
       expect(ticketContent).toMatch(/^scope:\s*$/m);
       expect(ticketContent).toMatch(/^out_of_scope:\s*$/m);
@@ -158,12 +155,7 @@ describe('safeword ticket new', () => {
     async () => {
       await runCli(['ticket', 'new', 'Login Bug'], { cwd: temporaryDirectory });
 
-      const ticketsDirectory = nodePath.join(temporaryDirectory, '.project', 'tickets');
-      const folderName = readOnlyTicketFolderName(ticketsDirectory);
-      const ticketContent = readFileSync(
-        nodePath.join(ticketsDirectory, folderName, 'ticket.md'),
-        'utf8',
-      );
+      const ticketContent = readSoleTicket(temporaryDirectory);
       expect(ticketContent).toMatch(/^slug:\s*login-bug$/m);
     },
     TIMEOUT_QUICK,
@@ -174,12 +166,7 @@ describe('safeword ticket new', () => {
     async () => {
       await runCli(['ticket', 'new', 'fix/auth-flow!'], { cwd: temporaryDirectory });
 
-      const ticketsDirectory = nodePath.join(temporaryDirectory, '.project', 'tickets');
-      const folderName = readOnlyTicketFolderName(ticketsDirectory);
-      const ticketContent = readFileSync(
-        nodePath.join(ticketsDirectory, folderName, 'ticket.md'),
-        'utf8',
-      );
+      const ticketContent = readSoleTicket(temporaryDirectory);
       expect(ticketContent).toMatch(/^slug:\s*fix-auth-flow$/m);
     },
     TIMEOUT_QUICK,
@@ -204,9 +191,7 @@ describe('safeword ticket new', () => {
       });
       expect(result.exitCode).toBe(0);
 
-      const ticketsDirectory = nodePath.join(temporaryDirectory, '.project', 'tickets');
-      const folderName = readOnlyTicketFolderName(ticketsDirectory);
-      const folder = nodePath.join(ticketsDirectory, folderName);
+      const folder = soleTicketFolder(temporaryDirectory);
       const ticketContent = readFileSync(nodePath.join(folder, 'ticket.md'), 'utf8');
       expect(ticketContent).toMatch(/^type:\s*epic$/m);
       expect(ticketContent).toMatch(/^children:\s*\[\]$/m);
@@ -227,12 +212,7 @@ describe('safeword ticket new', () => {
         cwd: temporaryDirectory,
       });
 
-      const ticketsDirectory = nodePath.join(temporaryDirectory, '.project', 'tickets');
-      const folderName = readOnlyTicketFolderName(ticketsDirectory);
-      const ticketContent = readFileSync(
-        nodePath.join(ticketsDirectory, folderName, 'ticket.md'),
-        'utf8',
-      );
+      const ticketContent = readSoleTicket(temporaryDirectory);
       expect(ticketContent).toMatch(/^\*\*Goal:\*\* Ship SSO for admins$/m);
       expect(ticketContent).not.toMatch(/\{One sentence: what/);
     },
@@ -246,12 +226,7 @@ describe('safeword ticket new', () => {
         cwd: temporaryDirectory,
       });
 
-      const ticketsDirectory = nodePath.join(temporaryDirectory, '.project', 'tickets');
-      const folderName = readOnlyTicketFolderName(ticketsDirectory);
-      const ticketContent = readFileSync(
-        nodePath.join(ticketsDirectory, folderName, 'ticket.md'),
-        'utf8',
-      );
+      const ticketContent = readSoleTicket(temporaryDirectory);
       expect(ticketContent).toMatch(/^\*\*Why:\*\* Customers keep asking$/m);
     },
     TIMEOUT_QUICK,
@@ -291,12 +266,7 @@ describe('safeword ticket new', () => {
         { cwd: temporaryDirectory },
       );
 
-      const ticketsDirectory = nodePath.join(temporaryDirectory, '.project', 'tickets');
-      const folderName = readOnlyTicketFolderName(ticketsDirectory);
-      const ticketContent = readFileSync(
-        nodePath.join(ticketsDirectory, folderName, 'ticket.md'),
-        'utf8',
-      );
+      const ticketContent = readSoleTicket(temporaryDirectory);
       expect(ticketContent).toMatch(/^\*\*Goal:\*\* Coordinate rollout$/m);
       expect(ticketContent).toMatch(/^\*\*Why:\*\* Too many moving parts$/m);
     },
@@ -311,12 +281,7 @@ describe('safeword ticket new', () => {
         cwd: temporaryDirectory,
       });
 
-      const ticketsDirectory = nodePath.join(temporaryDirectory, '.project', 'tickets');
-      const folderName = readOnlyTicketFolderName(ticketsDirectory);
-      const ticketContent = readFileSync(
-        nodePath.join(ticketsDirectory, folderName, 'ticket.md'),
-        'utf8',
-      );
+      const ticketContent = readSoleTicket(temporaryDirectory);
       expect(ticketContent).toMatch(/^\*\*Goal:\*\* \{One sentence/m);
     },
     TIMEOUT_QUICK,
