@@ -22,7 +22,7 @@ import process from 'node:process';
 import { findFileMatchingInTree, indexFilesInTree } from '../utils/fs.js';
 import { detectPackageManager } from '../utils/install.js';
 
-export type PlanKind = 'test' | 'build' | 'verify' | 'typecheck' | 'deps';
+export type PlanKind = 'test' | 'build' | 'verify' | 'typecheck' | 'deps' | 'bdd';
 export type Language = 'javascript' | 'python' | 'go' | 'rust';
 
 export interface PlanEntry {
@@ -55,6 +55,13 @@ const TREE_MANIFESTS = new Set<string>([
   '.pytest.ini',
   'uv.lock',
   'poetry.lock',
+  // Standalone-BDD (behave) and opt-in typecheck (mypy/pyright) config markers —
+  // the signals that gate the python `bdd`/`typecheck` lanes below.
+  'behave.ini',
+  '.behaverc',
+  'mypy.ini',
+  '.mypy.ini',
+  'pyrightconfig.json',
   'go.mod',
   'Cargo.toml',
 ]);
@@ -62,13 +69,15 @@ const TREE_MANIFESTS = new Set<string>([
 /**
  * Kinds each non-Rust resolver opts out of, so a new PlanKind fails safe (the
  * language emits nothing) instead of falling through to a wrong command. `deps`
- * (supply-chain) is Rust-only for now; `typecheck` is the JS/TS CI-lint signal
- * that `build` already covers for Go/Python. Frozen sets mirror the manifest-set
- * idiom above and keep the three guards uniform.
+ * (supply-chain) is Rust-only for now. `typecheck` is a JS/TS + Python concern
+ * (Python via mypy/pyright); Go's compiler covers it. `bdd` (Gherkin acceptance)
+ * emits for JS (cucumber-js) and Python (behave); Go's godog and Rust's
+ * cucumber-rs fold into the native test lane, so those skip it. Frozen sets mirror
+ * the manifest-set idiom above and keep the guards uniform.
  */
 const JS_SKIP_KINDS: ReadonlySet<PlanKind> = new Set<PlanKind>(['deps']);
-const PYTHON_SKIP_KINDS: ReadonlySet<PlanKind> = new Set<PlanKind>(['build', 'typecheck', 'deps']);
-const GO_SKIP_KINDS: ReadonlySet<PlanKind> = new Set<PlanKind>(['typecheck', 'deps']);
+const PYTHON_SKIP_KINDS: ReadonlySet<PlanKind> = new Set<PlanKind>(['build', 'deps']);
+const GO_SKIP_KINDS: ReadonlySet<PlanKind> = new Set<PlanKind>(['typecheck', 'deps', 'bdd']);
 
 /**
  * Parse the `SAFEWORD_FAKE_TOOLS` test seam (same spirit as `SAFEWORD_SKIP_INSTALL`):
@@ -161,6 +170,18 @@ function readRootScripts(root: string): Record<string, string> | undefined {
   }
 }
 
+/**
+ * Kinds that map 1:1 to a project's own package.json script: `bdd` → the separate
+ * cucumber-js `test:bdd` lane (`npm test` doesn't run it); `typecheck` → the
+ * `tsc --noEmit` CI-lint signal a green test run can hide (#436); `build` → the
+ * build script. Each emits only when the script exists.
+ */
+const JS_DIRECT_SCRIPT: Partial<Record<PlanKind, string>> = {
+  bdd: 'test:bdd',
+  typecheck: 'typecheck',
+  build: 'build',
+};
+
 function resolveJs(
   root: string,
   _index: ManifestIndex,
@@ -172,17 +193,11 @@ function resolveJs(
   const scripts = readRootScripts(root);
   if (!scripts) return undefined;
   const pm = detectPackageManager(root);
-  if (kind === 'typecheck') {
-    // The same signal CI's lint job runs (#436): a targeted-test-only pass must
-    // not read as ready when `tsc --noEmit` would fail. Honors an explicit
-    // `typecheck` script (the project's own, possibly package-scoped command).
-    return scripts.typecheck
-      ? entry('javascript', root, `${pm} run typecheck`, pm, isAvailable(pm))
-      : undefined;
-  }
-  if (kind === 'build') {
-    return scripts.build
-      ? entry('javascript', root, `${pm} run build`, pm, isAvailable(pm))
+  const directScript = JS_DIRECT_SCRIPT[kind];
+  if (directScript !== undefined) {
+    const command = scripts[directScript];
+    return command
+      ? entry('javascript', root, `${pm} run ${directScript}`, pm, isAvailable(pm))
       : undefined;
   }
   const pickScript = kind === 'verify' ? pickVerifyScript : pickTestScript;
@@ -225,6 +240,32 @@ function pytestConfigured(index: ManifestIndex): boolean {
   return configContains(index, 'setup.cfg', '[tool:pytest]');
 }
 
+/**
+ * behave is the one Python Gherkin runner that does NOT fold into pytest — it has
+ * its own `behave` command. pytest-bdd (the other option) is collected by pytest
+ * and already runs in the test lane, so the `bdd` kind gates strictly on behave
+ * config to avoid double-running its scenarios.
+ */
+function behaveConfigured(index: ManifestIndex): boolean {
+  if (index.has('behave.ini') || index.has('.behaverc')) return true;
+  if (configContains(index, 'pyproject.toml', '[tool.behave]')) return true;
+  if (configContains(index, 'setup.cfg', '[behave]')) return true;
+  return configContains(index, 'tox.ini', '[behave]');
+}
+
+/** mypy config markers — the opt-in signal for the python `typecheck` lane. */
+function mypyConfigured(index: ManifestIndex): boolean {
+  if (index.has('mypy.ini') || index.has('.mypy.ini')) return true;
+  if (configContains(index, 'pyproject.toml', '[tool.mypy]')) return true;
+  return configContains(index, 'setup.cfg', '[mypy]');
+}
+
+/** pyright config markers — the fallback opt-in signal for the python `typecheck` lane. */
+function pyrightConfigured(index: ManifestIndex): boolean {
+  if (index.has('pyrightconfig.json')) return true;
+  return configContains(index, 'pyproject.toml', '[tool.pyright]');
+}
+
 function isPythonTestFile(filename: string): boolean {
   return (
     filename.endsWith('.py') &&
@@ -234,31 +275,68 @@ function isPythonTestFile(filename: string): boolean {
   );
 }
 
-/** Package-manager-aware pytest invocation; returns the command and the tool whose presence gates availability. */
-function pytestInvocation(
+/**
+ * Package-manager-aware invocation for a Python tool (pytest, behave, mypy, …).
+ * Returns the command plus the binary whose presence gates `available`: the package
+ * manager when the project is uv/poetry-locked, else the tool itself.
+ */
+function pythonInvocation(
   index: ManifestIndex,
   isAvailable: ToolProbe,
-): { command: string; tool: string } {
-  if (index.has('uv.lock') && isAvailable('uv')) return { command: 'uv run pytest', tool: 'uv' };
+  binary: string,
+  args = '',
+): { command: string; gate: string } {
+  const suffix = args ? ` ${args}` : '';
+  if (index.has('uv.lock') && isAvailable('uv'))
+    return { command: `uv run ${binary}${suffix}`, gate: 'uv' };
   if (index.has('poetry.lock') && isAvailable('poetry'))
-    return { command: 'poetry run pytest', tool: 'poetry' };
-  return { command: 'pytest', tool: 'pytest' };
+    return { command: `poetry run ${binary}${suffix}`, gate: 'poetry' };
+  return { command: `${binary}${suffix}`, gate: binary };
 }
 
-function resolvePython(
-  root: string,
+/**
+ * Python static type-check lane. Opt-in only: Python is dynamically typed and tests
+ * never check types, so this emits a command ONLY when the project configures mypy
+ * or pyright — the same shape as the JS `typecheck` script gate (#436).
+ */
+function resolvePythonTypecheck(
   index: ManifestIndex,
-  kind: PlanKind,
+  cwd: string,
   isAvailable: ToolProbe,
 ): PlanEntry | undefined {
-  if (PYTHON_SKIP_KINDS.has(kind)) return undefined;
-  if (PYTHON_MANIFESTS.every(manifest => !index.has(manifest))) return undefined;
-  const cwd = firstDirectory(root, index, PYTHON_MANIFESTS);
+  if (mypyConfigured(index)) {
+    const { command, gate } = pythonInvocation(index, isAvailable, 'mypy', '.');
+    return entry('python', cwd, command, 'mypy', isAvailable(gate));
+  }
+  if (pyrightConfigured(index)) {
+    const { command, gate } = pythonInvocation(index, isAvailable, 'pyright');
+    return entry('python', cwd, command, 'pyright', isAvailable(gate));
+  }
+  return undefined;
+}
+
+/** Python standalone-BDD lane — behave only (pytest-bdd already runs in the test lane). */
+function resolvePythonBdd(
+  index: ManifestIndex,
+  cwd: string,
+  isAvailable: ToolProbe,
+): PlanEntry | undefined {
+  if (!behaveConfigured(index)) return undefined;
+  const { command, gate } = pythonInvocation(index, isAvailable, 'behave');
+  return entry('python', cwd, command, 'behave', isAvailable(gate));
+}
+
+/** Python unit-test lane (kind: test | verify) — tox, then pytest, then unittest. */
+function resolvePythonTest(
+  index: ManifestIndex,
+  cwd: string,
+  isAvailable: ToolProbe,
+): PlanEntry | undefined {
   if (index.has('tox.ini')) return entry('python', cwd, 'tox', 'tox', isAvailable('tox'));
   const hasPythonTests = findFileMatchingInTree(cwd, isPythonTestFile) !== undefined;
   if (pytestConfigured(index) || (hasPythonTests && isAvailable('pytest'))) {
-    const { command, tool } = pytestInvocation(index, isAvailable);
-    return entry('python', cwd, command, 'pytest', isAvailable(tool));
+    const { command, gate } = pythonInvocation(index, isAvailable, 'pytest');
+    return entry('python', cwd, command, 'pytest', isAvailable(gate));
   }
   if (!hasPythonTests) return undefined;
   // Prefer python3 (the only `python` on macOS/modern distros), fall back to python.
@@ -272,12 +350,28 @@ function resolvePython(
   );
 }
 
+function resolvePython(
+  root: string,
+  index: ManifestIndex,
+  kind: PlanKind,
+  isAvailable: ToolProbe,
+): PlanEntry | undefined {
+  if (PYTHON_SKIP_KINDS.has(kind)) return undefined; // build/deps: no standard Python lane
+  if (PYTHON_MANIFESTS.every(manifest => !index.has(manifest))) return undefined;
+  const cwd = firstDirectory(root, index, PYTHON_MANIFESTS);
+  if (kind === 'typecheck') return resolvePythonTypecheck(index, cwd, isAvailable);
+  if (kind === 'bdd') return resolvePythonBdd(index, cwd, isAvailable);
+  return resolvePythonTest(index, cwd, isAvailable);
+}
+
 function resolveGo(
   root: string,
   index: ManifestIndex,
   kind: PlanKind,
   isAvailable: ToolProbe,
 ): PlanEntry | undefined {
+  // Go skips typecheck/deps/bdd (GO_SKIP_KINDS): the compiler is the type checker,
+  // godog runs as `go test` subtests, and supply-chain is Rust-only for now.
   if (GO_SKIP_KINDS.has(kind)) return undefined;
   if (!index.has('go.mod')) return undefined;
   const verb = kind === 'build' ? 'build' : 'test';
@@ -297,6 +391,10 @@ function resolveRust(
   kind: PlanKind,
   isAvailable: ToolProbe,
 ): PlanEntry | undefined {
+  // bdd folds into the native Rust lane: cucumber-rs runs under `cargo test` (a
+  // harness=false test target), so no separate lane. (typecheck IS handled below —
+  // clippy is the strict CI-lint gate, #436 — and deps runs cargo-deny.)
+  if (kind === 'bdd') return undefined;
   if (!index.has('Cargo.toml')) return undefined;
   const cwd = index.get('Cargo.toml') ?? root;
   if (kind === 'deps')

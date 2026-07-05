@@ -59,11 +59,12 @@ Run these in sequence, reporting each result:
 
 **Safeword runtime vs target project:** Safeword may use Bun for installed helpers such as `.safeword/hooks/*.ts`; that does not mean the target project uses Bun. Use Bun for installed helpers, then choose target project verification commands from stack manifests, lockfiles, and available scripts. A `package.json` may be safeword lane-host evidence in pure Python, Rust, and Go installs, so do not treat `package.json` as proof the target project is only JavaScript.
 
-Per-language test/build commands come from `safeword test-plan` — one source of
-truth (the same plan the stop-hook gate runs). Eval its shell plan in a child
-shell: an absent toolchain prints a visible skip, and a failing suite exits
-non-zero so the gate blocks. The Gherkin acceptance lane runs separately (it is
-not a `test-plan` suite).
+Per-language test/build/typecheck/bdd commands all come from `safeword test-plan`
+— one source of truth (the same plan the stop-hook gate runs). Eval its shell plan
+in a child shell: an absent toolchain prints a visible skip, and a failing suite
+exits non-zero so the gate blocks. The Gherkin acceptance lane is resolved the same
+way (`--kind bdd`): cucumber-js / behave get their own lane, while godog and
+cucumber-rs fold into the Go/Rust test lanes and need no separate command.
 
 **Run the block below verbatim, as ONE bash invocation.** Do not extract or paraphrase individual commands — the CLI resolver, the generator exit-code check inside `run_plan`, and the git preflight are load-bearing (regressions 487, 375, and 469 each came from a hand-rolled variant of this block).
 
@@ -141,21 +142,30 @@ fi
 plan_kind=verify
 run_plan
 
-# Gherkin acceptance lane (when available)
-if node -e 'const fs=require("fs");const pkg=JSON.parse(fs.readFileSync("package.json","utf8"));process.exit(pkg.scripts&&pkg.scripts["test:bdd"]?0:1)' 2> /dev/null; then
-  bun run test:bdd 2>&1
+# --- Gherkin acceptance lane (resolved by safeword test-plan --kind bdd:
+#     cucumber-js, behave, … — godog/cucumber-rs fold into the Go/Rust test lanes).
+#     Mirrors run_plan's generator exit-code check (#487) so a failed generator is
+#     not read as an empty (skipped) lane. ---
+bdd_plan="$(run_safeword test-plan --kind bdd --format sh)"
+rc=$?
+if [ "$rc" -ne 0 ]; then
+  echo "❌ Evidence generation failed: safeword test-plan --kind bdd exited $rc (red, not a passed check)" >&2
+elif [ -z "$bdd_plan" ]; then
+  echo "Gherkin acceptance lane: ⏭️ Skipped — no acceptance lane detected"
 else
-  echo "Gherkin acceptance lane skipped: Skipped — no test:bdd script"
+  bash -c "$bdd_plan"
 fi
 
 # --- Build check (resolved by safeword test-plan) ---
 plan_kind=build
 run_plan
 
-# --- Typecheck: the same `tsc --noEmit` signal CI's lint job runs (#436). A
-#     green targeted-test run is NOT readiness if types are broken. An empty
-#     plan (no `typecheck` script / non-TS project) is a silent no-op — when the
-#     ticket touched TypeScript, run `/lint` (which runs tsc) so it isn't a gap. ---
+# --- Typecheck: static type-check where the stack has one — `tsc --noEmit` for
+#     TypeScript (the same signal CI's lint job runs, #436) and mypy/pyright for
+#     Python when configured. A green targeted-test run is NOT readiness if types
+#     are broken. Go/Rust are absent by design — their compiler is the type checker,
+#     already covered by build. An empty plan is a silent no-op; when the ticket
+#     touched TypeScript, run `/lint` (which runs tsc) so it isn't a gap. ---
 plan_kind=typecheck
 run_plan
 
@@ -249,7 +259,7 @@ The Status section uses the existing Verify Checklist format. Format with these 
 ## Verify Checklist
 
 **Test Suite:** ✓ X/X tests pass (or ❌ N failures, or ⚠️ Local environment limitation: <reason>, or ⏭️ Skipped — no test suite)
-**Gherkin:** ✅ Acceptance lane passes (or ❌ Failed, or ⚠️ Local environment limitation: <reason>, or ⏭️ Skipped — no test:bdd script)
+**Gherkin:** ✅ Acceptance lane passes (or ❌ Failed, or ⚠️ Local environment limitation: <reason>, or ⏭️ Skipped — no acceptance lane detected)
 **Build:** ✅ Success (or ❌ Failed, or ⏭️ Skipped — no build step)
 **Lint:** ✅ Clean (or ❌ N errors)
 **Scenarios:** All N scenarios marked complete (or ❌ X/Y complete, or ⏭️ Skipped — no ticket)

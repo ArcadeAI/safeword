@@ -440,7 +440,7 @@ Run /audit, show output, then try again.`;
 
 Expected evidence formats:
 - "✓ X/X tests pass" or "X/X tests pass" (required for tasks with no test command)
-- "**Gherkin:** ✅ Acceptance lane passes" or "Skipped — no test:bdd script" (acceptance lane evidence)${auditLine}
+- "**Gherkin:** ✅ Acceptance lane passes" or "Skipped — no acceptance lane detected" (acceptance lane evidence)${auditLine}
 - "**PR Scope:** ✅ Diff matches ticket scope" or a skipped status with a reason
 
 Run /verify, show output, then try again.`;

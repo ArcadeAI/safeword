@@ -328,9 +328,8 @@ describe('resolveTestPlan — typecheck plan (kind: typecheck, #436)', () => {
     expect(entryFor(plan, 'javascript')).toBeUndefined();
   });
 
-  it('never emits Python/Go entries (their build step covers compile)', () => {
+  it('never emits a Go typecheck entry — the compiler is the type checker', () => {
     const root = makeRepo({
-      'pyproject.toml': '[project]\nname="x"\n',
       'go.mod': 'module x\n',
       'package.json': JSON.stringify({ scripts: { typecheck: 'tsc --noEmit' } }),
     });
@@ -381,5 +380,118 @@ describe('resolveTestPlan — deps plan (kind: deps, supply-chain gate)', () => 
     const root = makeRepo({ 'Cargo.toml': '[package]\nname="x"\n' });
     const plan = resolveTestPlan(root, { kind: 'deps', isToolAvailable: onlyTools('cargo') });
     expect(entryFor(plan, 'rust')?.available).toBe(false);
+  });
+});
+
+describe('resolveTestPlan — typecheck plan — Python mypy/pyright (kind: typecheck)', () => {
+  it('omits a Python entry when no mypy/pyright is configured (opt-in only)', () => {
+    const root = makeRepo({ 'pyproject.toml': '[project]\nname="x"\n' });
+    const plan = resolveTestPlan(root, { kind: 'typecheck', isToolAvailable: allTools });
+    expect(entryFor(plan, 'python')).toBeUndefined();
+  });
+
+  it('emits `mypy .` for a Python project configured with [tool.mypy]', () => {
+    const root = makeRepo({
+      'pyproject.toml': '[project]\nname="x"\n[tool.mypy]\nstrict = true\n',
+    });
+    const plan = resolveTestPlan(root, { kind: 'typecheck', isToolAvailable: allTools });
+    expect(entryFor(plan, 'python')?.command).toBe('mypy .');
+  });
+
+  it('emits `pyright` for a Python project configured with pyrightconfig.json', () => {
+    const root = makeRepo({
+      'pyproject.toml': '[project]\nname="x"\n',
+      'pyrightconfig.json': '{}',
+    });
+    const plan = resolveTestPlan(root, { kind: 'typecheck', isToolAvailable: allTools });
+    expect(entryFor(plan, 'python')?.command).toBe('pyright');
+  });
+
+  it('prefers mypy over pyright when both are configured', () => {
+    const root = makeRepo({
+      'pyproject.toml': '[project]\nname="x"\n[tool.mypy]\n[tool.pyright]\n',
+    });
+    const plan = resolveTestPlan(root, { kind: 'typecheck', isToolAvailable: allTools });
+    expect(entryFor(plan, 'python')?.command).toBe('mypy .');
+  });
+
+  it('runs mypy through uv when the project is uv-locked', () => {
+    const root = makeRepo({
+      'pyproject.toml': '[tool.mypy]\n',
+      'uv.lock': '',
+    });
+    const plan = resolveTestPlan(root, { kind: 'typecheck', isToolAvailable: onlyTools('uv') });
+    expect(entryFor(plan, 'python')?.command).toBe('uv run mypy .');
+  });
+});
+
+describe('resolveTestPlan — bdd (acceptance) plan (kind: bdd)', () => {
+  it('emits the JS test:bdd script when one exists', () => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({ scripts: { test: 'vitest', 'test:bdd': 'cucumber-js' } }),
+    });
+    const plan = resolveTestPlan(root, { kind: 'bdd', isToolAvailable: allTools });
+    expect(entryFor(plan, 'javascript')?.command).toBe('npm run test:bdd');
+  });
+
+  it('omits a JS entry when there is no test:bdd script', () => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({ scripts: { test: 'vitest' } }),
+    });
+    const plan = resolveTestPlan(root, { kind: 'bdd', isToolAvailable: allTools });
+    expect(entryFor(plan, 'javascript')).toBeUndefined();
+  });
+
+  it('emits `behave` for a Python project configured with behave.ini', () => {
+    const root = makeRepo({
+      'pyproject.toml': '[project]\nname="x"\n',
+      'behave.ini': '[behave]\n',
+    });
+    const plan = resolveTestPlan(root, { kind: 'bdd', isToolAvailable: allTools });
+    expect(entryFor(plan, 'python')?.command).toBe('behave');
+  });
+
+  it('emits `behave` via [tool.behave] in pyproject.toml', () => {
+    const root = makeRepo({ 'pyproject.toml': '[project]\nname="x"\n[tool.behave]\n' });
+    const plan = resolveTestPlan(root, { kind: 'bdd', isToolAvailable: allTools });
+    expect(entryFor(plan, 'python')?.command).toBe('behave');
+  });
+
+  it('does NOT emit a Python bdd entry for a pytest-bdd project (no behave config)', () => {
+    // pytest-bdd scenarios are collected by pytest and already run in the test lane;
+    // a bdd entry here would double-run them.
+    const root = makeRepo({
+      'pyproject.toml': '[project]\nname="x"\n[tool.pytest.ini_options]\n',
+      'tests/test_login.py': 'from pytest_bdd import scenario\n',
+    });
+    const plan = resolveTestPlan(root, { kind: 'bdd', isToolAvailable: allTools });
+    expect(entryFor(plan, 'python')).toBeUndefined();
+  });
+
+  it('runs behave through poetry when the project is poetry-locked', () => {
+    const root = makeRepo({
+      'pyproject.toml': '[tool.behave]\n',
+      'poetry.lock': '',
+    });
+    const plan = resolveTestPlan(root, { kind: 'bdd', isToolAvailable: onlyTools('poetry') });
+    expect(entryFor(plan, 'python')?.command).toBe('poetry run behave');
+  });
+
+  it('never emits Go or Rust entries — godog/cucumber-rs run under the native test lane', () => {
+    const root = makeRepo({
+      'go.mod': 'module x\n',
+      'Cargo.toml': '[package]\nname="x"\n',
+      'package.json': JSON.stringify({ scripts: { 'test:bdd': 'cucumber-js' } }),
+    });
+    const plan = resolveTestPlan(root, { kind: 'bdd', isToolAvailable: allTools });
+    expect(languages(plan)).toEqual(['javascript']);
+  });
+
+  it('marks a behave lane unavailable when behave is not installed', () => {
+    const root = makeRepo({
+      'pyproject.toml': '[project]\nname="x"\n[tool.behave]\n',
+    });
+    const plan = resolveTestPlan(root, { kind: 'bdd', isToolAvailable: onlyTools() });
+    expect(entryFor(plan, 'python')?.available).toBe(false);
   });
 });
