@@ -338,7 +338,15 @@ export function extractMonorepoModel(projectDirectory: string): MonorepoModel {
  * and the shared boundary config. Distinct from per-leaf `shapeFingerprint`.
  */
 export function monorepoFingerprint(projectDirectory: string): string {
-  const model = extractMonorepoModel(projectDirectory);
+  return monorepoFingerprintOf(projectDirectory, extractMonorepoModel(projectDirectory));
+}
+
+/**
+ * {@link monorepoFingerprint} over an already-extracted model, so a caller that
+ * needs both (the root-index heal renders the model AND stamps its fingerprint)
+ * extracts once instead of re-running discovery and the orphan tree walk.
+ */
+export function monorepoFingerprintOf(projectDirectory: string, model: MonorepoModel): string {
   const inputs = {
     // Introspection status is part of the root shape: a package gaining or losing
     // a `src/` tree flips its root-index line (marker ↔ described), so the root

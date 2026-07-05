@@ -18,7 +18,7 @@ import {
   discoverLeafDirectories,
   discoverUnreadableWorkspaces,
   extractMonorepoModel,
-  monorepoFingerprint,
+  monorepoFingerprintOf,
   type MonorepoModel,
   type PackageNode,
   type UnreadableWorkspace,
@@ -150,8 +150,8 @@ function leafTarget(packageDirectory: string): HealTarget {
 
 /** The derived root index: the package graph at the namespace-root path. */
 function rootIndexTarget(projectDirectory: string): HealTarget {
-  const fingerprint = monorepoFingerprint(projectDirectory);
   const model = extractMonorepoModel(projectDirectory);
+  const fingerprint = monorepoFingerprintOf(projectDirectory, model);
   return {
     path: resolveGeneratedArchitecturePath(projectDirectory),
     fingerprint,
