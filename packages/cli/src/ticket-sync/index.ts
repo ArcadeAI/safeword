@@ -147,7 +147,10 @@ function parseTicket(
   const bodyLines = content.split('\n').slice(bodyStart);
   const title = fields.get('title') ?? firstHeading(bodyLines) ?? fields.get('slug') ?? folder;
   const status = fields.get('status') ?? '—';
-  const epic = fields.get('epic');
+  // Group by the child's `parent:` — the single source of truth for the
+  // epic↔child link (F9W3JP). Fall back to a legacy `epic:` field for any
+  // ticket that predates parent-based linking.
+  const epic = fields.get('parent') ?? fields.get('epic');
 
   return {
     ok: true,
