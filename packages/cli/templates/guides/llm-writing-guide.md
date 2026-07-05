@@ -169,6 +169,12 @@ these guides, **convert prescription into principle** — state the intent, a
 measurable done-condition, and the explicit scope — rather than enumerating
 steps. Graduate true invariants out of prose and into hooks/lint.
 
+This is a cross-vendor shift, not an Anthropic quirk: OpenAI's GPT-5.5 guidance
+says the same — "reduce or remove detailed step-by-step process guidance… let
+the model choose the path unless the product requires that path," and "describe
+the expected outcome, success criteria, allowed side effects… and output shape"
+instead. Treat the convention as durable, not model-of-the-month.
+
 **Classify every edit into one of two columns:**
 
 - **Universal** — rephrases to intent, softens an imperative, drops
