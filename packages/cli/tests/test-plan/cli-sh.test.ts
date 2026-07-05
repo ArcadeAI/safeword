@@ -28,7 +28,7 @@ function makeRepo(files: Record<string, string>): string {
 
 async function renderSh(
   root: string,
-  kind: 'test' | 'build' | 'typecheck' | 'deps' = 'test',
+  kind: 'test' | 'build' | 'typecheck' | 'deps' | 'bdd' = 'test',
 ): Promise<string> {
   const result = await runCli(['test-plan', '--kind', kind, '--format', 'sh'], {
     cwd: root,
@@ -110,5 +110,26 @@ describe('safeword test-plan --format sh', () => {
     const sh = await renderSh(root);
     expect(sh).toBe('');
     expect(evalScript(sh, root).code).toBe(0);
+  });
+
+  // --kind bdd/typecheck flow through parseKind (commands/test-plan.ts) — a seam
+  // the resolve() unit tests bypass. These guard that the CLI accepts the kind and
+  // renders the right lane; a regressed parseKind would silently fall back to
+  // `test` and emit the wrong suite (the verify skill runs exactly this path).
+  it('renders --kind bdd as the JS test:bdd lane', async () => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({ scripts: { test: 'vitest', 'test:bdd': 'cucumber-js' } }),
+    });
+    expect(await renderSh(root, 'bdd')).toContain('run test:bdd');
+  });
+
+  it('renders --kind bdd as the Python behave lane when behave is configured', async () => {
+    const root = makeRepo({ 'pyproject.toml': '[project]\nname="x"\n[tool.behave]\n' });
+    expect(await renderSh(root, 'bdd')).toContain('behave');
+  });
+
+  it('renders --kind typecheck as `mypy .` when mypy is configured', async () => {
+    const root = makeRepo({ 'pyproject.toml': '[project]\nname="x"\n[tool.mypy]\n' });
+    expect(await renderSh(root, 'typecheck')).toContain('mypy .');
   });
 });
