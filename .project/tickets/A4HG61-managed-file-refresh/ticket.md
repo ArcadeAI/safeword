@@ -2,7 +2,7 @@
 id: A4HG61
 slug: managed-file-refresh
 type: feature
-phase: scenario-gate
+phase: implement
 external_issue: https://github.com/ArcadeAI/safeword/issues/849
 status: in_progress
 scope:
@@ -34,6 +34,8 @@ last_modified: 2026-07-05T19:28:43.052Z
 **Why:** managedFiles are documented as 'update if safeword content' (schema.ts:86,1095) but planManagedFilesActions skips all existing files with no content check (reconcile.ts:618), so shipped fixes to eslint/tsconfig/ruff/etc. never reach installed hosts. Closes #849.
 
 ## Work Log
+
+- 2026-07-05T20:20 Complete: scenario-gate - independent /review-spec (fresh context): 4 must-fix + 6 should-strengthen, all applied 1:1 and re-verified by the same reviewer -> GATE PASS, stamped. Scenario set now 19 scenarios / 8 rules (+setup-on-clone, record-heal, reset outline). New DDs 8-10 (corrupt warns + bytes untouched; byte-identity heal; configKey non-addition). impl-plan.md written (status: planned): 7-case decision rule, manifest-record action, build order, registry-neutralization note for diff step.
 
 - 2026-07-05T19:28:43.052Z Started: Created ticket A4HG61
 - 2026-07-05T20:12 Complete: define-behavior - 16 scenarios across 8 rules (+1 doc-only rule skipped); dimensions.md first (7 dimensions; load-bearing boundary = provenance x staleness). Branch caught up to main v0.65.0 (rust pack added deny.toml to managedFiles). Criteria converted ACs->Rules per user. Cold-start check found 8 gaps; all resolved in spec.md Design Decisions (manifest = .safeword/managed-files.json, committed, explicitly removed; generator-undefined = skip; execute-only recording).

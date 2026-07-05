@@ -12,6 +12,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Setup on a clone of an installed project preserves existing provenance
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A pristine static managed file is refreshed when its template changes
 
 - [ ] RED
@@ -70,7 +76,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: managed-file-refresh.TB2.R3 — no manifest state survives uninstall or reset
 
-### Scenario: Reset removes the provenance manifest
+### Scenario Outline: Reset removes the provenance manifest in either mode
 
 - [ ] RED
 - [ ] GREEN
@@ -93,6 +99,12 @@ test-definitions.md is the R/G/R ledger.
 ## Rule: managed-file-refresh.SM1.R2 — byte-identity to current resolved output is the only adoption path into provenance
 
 ### Scenario: A pre-manifest file identical to resolved output gains provenance without a write
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A file matching resolved output but not its record has its record healed
 
 - [ ] RED
 - [ ] GREEN

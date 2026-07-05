@@ -14,6 +14,12 @@ Feature: Managed-file provenance refresh on upgrade
       Given a fresh project with no safeword install
       When safeword setup runs
       Then the provenance manifest records every managed file setup wrote
+      And each recorded hash matches that file's on-disk content
+
+    Scenario: Setup on a clone of an installed project preserves existing provenance
+      Given a clone of an installed project with a committed provenance manifest
+      When safeword setup runs
+      Then the manifest still records every previously recorded managed file
 
     Scenario: A pristine static managed file is refreshed when its template changes
       Given an installed project whose managed file matches its recorded provenance
@@ -33,7 +39,8 @@ Feature: Managed-file provenance refresh on upgrade
       Given an installed project with a managed-path file that has no provenance entry
       And that file's content differs from the currently resolved output
       When safeword upgrade runs
-      Then the file's bytes are unchanged
+      Then the upgrade succeeds
+      And the file's bytes are unchanged
 
   @managed-file-refresh.TB1.R2
   Rule: managed-file-refresh.TB1.R2 — every refresh is reported; no managed file changes silently
@@ -71,7 +78,8 @@ Feature: Managed-file provenance refresh on upgrade
       Given an installed project whose managed file was edited after install
       And safeword now resolves different content for that file
       When safeword upgrade runs
-      Then the file's bytes are exactly as the customer left them
+      Then the upgrade succeeds
+      And the file's bytes are exactly as the customer left them
       And the upgrade output does not report that file as updated
 
   @managed-file-refresh.TB2.R2
@@ -83,16 +91,22 @@ Feature: Managed-file provenance refresh on upgrade
       And the customer then edited that file
       And safeword now resolves different content for that file
       When safeword upgrade runs
-      Then the file's bytes are exactly as the customer left them
+      Then the upgrade succeeds
+      And the file's bytes are exactly as the customer left them
 
   @managed-file-refresh.TB2.R3
   Rule: managed-file-refresh.TB2.R3 — no manifest state survives uninstall or reset
 
     @rejection
-    Scenario: Reset removes the provenance manifest
+    Scenario Outline: Reset removes the provenance manifest in either mode
       Given an installed project with a recorded provenance manifest
-      When safeword reset runs
+      When safeword <command> runs
       Then no provenance manifest remains in the project
+
+      Examples:
+        | command      |
+        | reset        |
+        | reset --full |
 
   @managed-file-refresh.SM1.R1
   Rule: managed-file-refresh.SM1.R1 — provenance covers generator output as well as static templates
@@ -122,6 +136,13 @@ Feature: Managed-file provenance refresh on upgrade
       Then the manifest records that file
       And the file is not rewritten
 
+    Scenario: A file matching resolved output but not its record has its record healed
+      Given an installed project whose managed file equals the currently resolved output
+      And that file's recorded provenance does not match its content
+      When safeword upgrade runs
+      Then the file is not rewritten
+      And the manifest records the current content for that file
+
     Scenario: An adopted file is refreshed by a later shipped change
       Given an installed project whose managed file was adopted into provenance by a previous upgrade
       And safeword now resolves different content for that file
@@ -132,9 +153,12 @@ Feature: Managed-file provenance refresh on upgrade
     Scenario: A pre-manifest file that differs from resolved output is never adopted
       Given an installed project with no provenance manifest
       And a managed file whose content differs from the currently resolved output
-      When safeword upgrade runs twice with a shipped change in between
-      Then the file's bytes are unchanged
-      And the manifest never records that file
+      And an upgrade has already run without adopting that file
+      And safeword now resolves different content for that file
+      When safeword upgrade runs
+      Then the upgrade succeeds
+      And the file's bytes are unchanged
+      And the manifest records no entry for that file
 
     @rejection
     Scenario: A corrupt manifest refreshes nothing and does not fail the upgrade
@@ -143,9 +167,11 @@ Feature: Managed-file provenance refresh on upgrade
       When safeword upgrade runs
       Then the upgrade succeeds
       And no managed file is rewritten
+      And the manifest file's bytes are unchanged
+      And the upgrade output warns that the provenance manifest is unreadable
 
     Scenario: A configKey-overridden managed file stays fully suppressed
-      Given an installed project whose managed file's configKey path override is set
-      When safeword upgrade runs
-      Then the file is not written
-      And the manifest does not record that file
+      Given a fresh project with a configKey path override configured
+      When safeword setup and then upgrade run
+      Then the overridden managed file is not written
+      And the manifest gains no entry for that file

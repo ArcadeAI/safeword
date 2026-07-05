@@ -82,7 +82,9 @@ The intake-exit cold-start review surfaced 8 plannability gaps; resolutions:
 5. **Recorded-but-missing file → today's create-if-missing parity**: recreated, reported as created, hash re-recorded. User deletion is not treated as a customization (matches current behavior). Scenario'd.
 6. **Entries are never pruned by edits.** An edited file's entry stays — so edit-then-revert restores pristine status (TB2.R2's re-derivation). configKey-suppressed and schema-removed paths simply have inert entries; pruning is out of scope.
 7. **Recording/adoption is execute-only; reporting is plan-time.** Refresh candidates appear in the plan's `updated` output (so `safeword diff` previews them, scenario'd); manifest writes happen only in executePlan.
-8. **Corrupt manifest → fail safe**: treated as unable-to-prove-pristine (refresh nothing), upgrade succeeds. Never treated as pre-manifest re-adoption in the same run. Scenario'd.
+8. **Corrupt manifest → fail safe, loudly**: treated as unable-to-prove-pristine (refresh nothing), upgrade succeeds, the manifest file is left byte-for-byte alone (never re-adopted in the same run), and the upgrade output warns that the manifest is unreadable — TB1.R2's spirit applied to refusals: nothing degrades silently. Scenario'd.
+9. **Interrupted-upgrade healing (scenario-gate addition)**: a file whose on-disk bytes equal the currently resolved output but whose record differs has its record healed (re-recorded, no write). Byte-identity to current output proves the content is safeword's — the same principle that justifies adoption — and it makes the mechanism self-healing after a crash between file write and manifest write (DD7's execute-only recording makes that window real). Scenario'd.
+10. **configKey suppression is about non-addition (scenario-gate precision)**: a suppressed entry never *gains* a manifest record; an entry recorded before the override was set stays inert per DD6. The scenario pins the override-before-setup case.
 
 ## Open Questions
 
