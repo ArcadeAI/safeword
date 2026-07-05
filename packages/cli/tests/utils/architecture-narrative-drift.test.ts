@@ -107,27 +107,27 @@ describe('narrativeDriftAdvisory', () => {
       'Only web is described.',
       'ARCHITECTURE.md',
     );
-    expect(advisory).not.toBeNull();
+    expect(advisory).toBeDefined();
     expect(advisory).toContain('billing');
     expect(advisory).not.toContain('web,'); // mentioned package is not listed as missing
     expect(advisory).toContain('ARCHITECTURE.md');
     expect(advisory).toContain('/audit');
   });
 
-  it('is null when every package is mentioned', () => {
+  it('is undefined when every package is mentioned', () => {
     expect(
       narrativeDriftAdvisory(['web', 'billing'], 'web and billing are here.', 'ARCHITECTURE.md'),
-    ).toBeNull();
+    ).toBeUndefined();
   });
 
-  it('is null when there are no packages (single-repo)', () => {
-    expect(narrativeDriftAdvisory([], 'anything', 'ARCHITECTURE.md')).toBeNull();
+  it('is undefined when there are no packages (single-repo)', () => {
+    expect(narrativeDriftAdvisory([], 'anything', 'ARCHITECTURE.md')).toBeUndefined();
   });
 
   it('caps the list at 6 names and reports the remainder', () => {
     const packages = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'];
     const advisory = narrativeDriftAdvisory(packages, 'nothing mentioned', 'docs/arch.md');
-    expect(advisory).not.toBeNull();
+    expect(advisory).toBeDefined();
     for (const name of packages.slice(0, 6)) expect(advisory).toContain(name);
     expect(advisory).not.toContain('p7');
     expect(advisory).not.toContain('p8');
