@@ -2,9 +2,9 @@
 id: A4HG61
 slug: managed-file-refresh
 type: feature
-phase: verify
+phase: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/849
-status: in_progress
+status: done
 scope:
   - provenance manifest under `.safeword/` recording sha256 of every managed file safeword writes (setup and upgrade)
   - upgrade refreshes a managed file iff on-disk hash == recorded hash AND current resolved output differs (pristine + stale)
@@ -34,6 +34,8 @@ last_modified: 2026-07-05T19:28:43.052Z
 **Why:** managedFiles are documented as 'update if safeword content' (schema.ts:86,1095) but planManagedFilesActions skips all existing files with no content check (reconcile.ts:618), so shipped fixes to eslint/tsconfig/ruff/etc. never reach installed hosts. Closes #849.
 
 ## Work Log
+
+- 2026-07-05T22:11 Complete: done — user confirmed. Shipped: provenance manifest + pristine-gated refresh, 20 scenarios, 9-case unit matrix, verify+audit green. #849 updated with resolution comment; field-evidence comment (host format-on-edit hooks freeze provenance) acknowledged — formatter-exclusion follow-up + packs self-trap follow-up to be filed after follow-up discussion.
 
 - 2026-07-05T21:18 Complete: implement — whole-ticket /quality-review returned 1 must-fix (jsonMerge co-owned .prettierrc recorded a pre-merge hash: permanently stale record, file excluded from refresh; fixed by excluding merge-co-owned paths from provenance, unit-proven incl. poisoned pre-fix state), 5 should-improves (all applied: codepoint sort, version gate, diff warnings, decision-matrix unit tests via exported decideManagedFileAction, dead field dropped), 5 nits (4 applied; mtime-assert nit accepted as-is). Cross-scenario refactor row: 6919d65. 20/20 scenarios + 130 targeted unit tests green after the pass. impl-plan reconciled: status implemented, 1 decision row added, 2 deviations recorded. Advancing to verify.
 
