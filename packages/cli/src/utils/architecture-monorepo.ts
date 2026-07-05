@@ -17,7 +17,7 @@ import nodePath from 'node:path';
 import { extractSkeleton, PURPOSE_PLACEHOLDER } from './architecture-skeleton.js';
 import { readBoundaryConfig } from './boundary-config.js';
 import { readCargoPackageName, readCargoWorkspaceMembers } from './cargo-manifest.js';
-import { isDirectory, readFileSafe, readJson } from './fs.js';
+import { findAllInTree, isDirectory, readFileSafe, readJson } from './fs.js';
 import { readDelimitedBlock } from './manifest-block.js';
 import { dependencySectionNames } from './manifest-dependencies.js';
 import { readPyprojectName, readUvWorkspaceMembers } from './pyproject-manifest.js';
@@ -33,10 +33,12 @@ export interface PackageNode {
   /** One-line purpose (the purpose floor); a placeholder until prose is written. */
   purpose: string;
   /**
-   * Whether the package has a recognized source layout (a non-empty `src/`
-   * skeleton, so it gets a leaf doc). A package that is `false` here is listed in
-   * the root index but explicitly marked "not introspected" rather than shown
-   * with a bare placeholder — incomplete, never silently complete (ZRW21K).
+   * Whether the package yields a non-empty skeleton (source modules to enumerate,
+   * so it gets a leaf doc) — across every layout the extractor recognizes: `src/`,
+   * `lib/`, or flat/top-level files for JS/TS, plus the Go/Rust/Python layouts
+   * (issue #843). A package that is `false` here is listed in the root index but
+   * explicitly marked "not introspected" rather than shown with a bare placeholder
+   * — incomplete, never silently complete (ZRW21K).
    */
   introspected: boolean;
 }
@@ -128,12 +130,108 @@ export function discoverWorkspaces(projectDirectory: string): WorkspaceDiscovery
 }
 
 /**
- * Absolute directories of the workspace leaf packages, sorted. Expands the
- * workspace globs from the manifest and keeps only directories that carry a
- * recognized manifest. Returns `[]` for a non-workspace project.
+ * Absolute directories of the leaf packages, sorted. The union of two sources:
+ * the DECLARED workspace members (workspace globs expanded, recognized-manifest
+ * dirs kept) and the ORPHAN non-JS packages a bounded tree walk finds outside any
+ * declared workspace (issue #844). A dir claimed by both is listed once. Returns
+ * `[]` for a non-workspace project with no orphan packages.
  */
 export function discoverLeafDirectories(projectDirectory: string): string[] {
-  return resolveLeafDirectories(projectDirectory, discoverWorkspaces(projectDirectory).patterns);
+  return leafDirectoriesFrom(projectDirectory, discoverWorkspaces(projectDirectory).patterns);
+}
+
+/**
+ * The declared-workspace ∪ orphan leaf union behind {@link discoverLeafDirectories},
+ * taking already-read workspace patterns so a caller that has run discovery (the
+ * model extractor) doesn't probe every manager a second time.
+ */
+function leafDirectoriesFrom(projectDirectory: string, patterns: string[]): string[] {
+  const workspaceLeaves = resolveLeafDirectories(projectDirectory, patterns);
+  const orphanLeaves = discoverOrphanManifestDirectories(projectDirectory);
+  return [...new Set([...workspaceLeaves, ...orphanLeaves])].toSorted(byString);
+}
+
+/**
+ * Non-JS language manifests a polyglot monorepo often keeps as standalone modules
+ * that are NOT enrolled in a declared workspace (`go.work`, uv, Cargo `[workspace]`),
+ * so `discoverWorkspaces` never sees them and the root index — the doc the staleness
+ * gate anchors on — omits the platform's actual core (issue #844). JS is absent on
+ * purpose: its packages come from the workspace graph. Each entry is gated by its
+ * language pack so a project only pays for a language it opted into.
+ */
+const ORPHAN_MANIFESTS: {
+  /** `installedPacks` ids that enable this language's walk (`go`/`golang` are aliases). */
+  packs: string[];
+  filename: string;
+  /** Whether the manifest actually declares a package (vs. tooling/workspace-root config). */
+  declaresPackage: (content: string) => boolean;
+}[] = [
+  { packs: ['golang', 'go'], filename: 'go.mod', declaresPackage: content => hasGoModule(content) },
+  {
+    packs: ['python'],
+    filename: 'pyproject.toml',
+    // A real package declares [project] (PEP 621) or [tool.poetry]; a pyproject that
+    // only carries [tool.ruff]/[tool.black] tooling config is not a package leaf.
+    declaresPackage: content =>
+      hasTomlTable(content, 'project') || hasTomlTable(content, 'tool.poetry'),
+  },
+  {
+    packs: ['rust'],
+    filename: 'Cargo.toml',
+    // A member crate declares [package]; a bare [workspace] root is not a leaf.
+    declaresPackage: content => hasTomlTable(content, 'package'),
+  },
+];
+
+/**
+ * Directories of non-JS packages discovered outside any declared workspace (issue
+ * #844): for every installed language pack, tree-walk for its manifest (bounded by
+ * the shared exclude set in {@link findAllInTree}), keep the dirs whose manifest
+ * actually declares a package, and drop the repo root itself (a root
+ * `pyproject.toml`/`Cargo.toml` is tooling/workspace config, not a leaf). Empty when
+ * no non-JS pack is installed, so a JS-only project is unaffected and pays for no walk.
+ */
+function discoverOrphanManifestDirectories(projectDirectory: string): string[] {
+  const installed = installedPacks(projectDirectory);
+  const directories = new Set<string>();
+  for (const manifest of ORPHAN_MANIFESTS) {
+    if (manifest.packs.every(pack => !installed.has(pack))) continue;
+    for (const dir of orphanDirectoriesFor(projectDirectory, manifest)) directories.add(dir);
+  }
+  return [...directories];
+}
+
+/** Package dirs for one language's manifest: tree-walked, root dropped, package-declaring kept. */
+function orphanDirectoriesFor(
+  projectDirectory: string,
+  manifest: { filename: string; declaresPackage: (content: string) => boolean },
+): string[] {
+  return findAllInTree(projectDirectory, manifest.filename).filter(dir => {
+    if (dir === projectDirectory) return false; // the repo root is not a leaf package
+    const content = readFileSafe(nodePath.join(dir, manifest.filename));
+    return content !== undefined && manifest.declaresPackage(content);
+  });
+}
+
+/** Whether a `go.mod`'s content declares a `module` path. */
+function hasGoModule(content: string): boolean {
+  return /^module\s+\S+/m.test(content);
+}
+
+/**
+ * The language packs the project opted into, from `.safeword/config.json`
+ * `installedPacks` — the gate for the orphan-manifest walk (issue #844). Read
+ * locally (best-effort, a single field) rather than importing the packs module, so
+ * this discovery layer stays free of a `utils → packs` dependency; `test-plan`
+ * reads the same field the same way for the same reason. An absent/unreadable
+ * config yields an empty set — no orphan walk, discovery unchanged.
+ */
+function installedPacks(projectDirectory: string): Set<string> {
+  const config = readJson(nodePath.join(projectDirectory, '.safeword', 'config.json'));
+  if (config === null || typeof config !== 'object') return new Set();
+  const packs = (config as { installedPacks?: unknown }).installedPacks;
+  if (!Array.isArray(packs)) return new Set();
+  return new Set(packs.filter((pack): pack is string => typeof pack === 'string'));
 }
 
 /** The present-but-unparseable workspace managers at the root, if any (UWP4XK). */
@@ -209,7 +307,8 @@ function hasRecognizedManifest(directory: string): boolean {
 /** The package/edge model the root index renders over. */
 export function extractMonorepoModel(projectDirectory: string): MonorepoModel {
   const { patterns, unreadable: unreadableWorkspaces } = discoverWorkspaces(projectDirectory);
-  const packages: PackageNode[] = resolveLeafDirectories(projectDirectory, patterns)
+  // Includes both declared workspace members and orphan non-JS packages (issue #844).
+  const packages: PackageNode[] = leafDirectoriesFrom(projectDirectory, patterns)
     .map(dir => ({
       name: packageName(dir),
       dir,
@@ -237,7 +336,15 @@ export function extractMonorepoModel(projectDirectory: string): MonorepoModel {
  * and the shared boundary config. Distinct from per-leaf `shapeFingerprint`.
  */
 export function monorepoFingerprint(projectDirectory: string): string {
-  const model = extractMonorepoModel(projectDirectory);
+  return monorepoFingerprintOf(projectDirectory, extractMonorepoModel(projectDirectory));
+}
+
+/**
+ * {@link monorepoFingerprint} over an already-extracted model, so a caller that
+ * needs both (the root-index heal renders the model AND stamps its fingerprint)
+ * extracts once instead of re-running discovery and the orphan tree walk.
+ */
+export function monorepoFingerprintOf(projectDirectory: string, model: MonorepoModel): string {
   const inputs = {
     // Introspection status is part of the root shape: a package gaining or losing
     // a `src/` tree flips its root-index line (marker ↔ described), so the root

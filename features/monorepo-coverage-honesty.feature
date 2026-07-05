@@ -60,3 +60,22 @@ Feature: Honest monorepo coverage — pnpm discovery + un-introspected marker
       Then the package "svc" is marked "not introspected" in the root index
       And the package "web" is not marked "not introspected" in the root index
       And the package "web" has its own colocated leaf doc
+
+  Rule: The recognizer covers conventional non-src layouts (issue #843)
+
+    @monorepo-coverage-honesty.TB3.AC1
+    Scenario: A package whose sources live under lib/ is introspected, not marked
+      Given a pnpm monorepo with a package "ui" whose sources live under lib/
+      When safeword generates the architecture doc
+      Then a root index lists the package "ui"
+      And the package "ui" is not marked "not introspected" in the root index
+      And the package "ui" has its own colocated leaf doc
+
+  Rule: Non-JS services outside a declared workspace appear in the root index (issue #844)
+
+    @monorepo-coverage-honesty.TB4.AC1
+    Scenario: A standalone Go service is listed and gets a colocated leaf doc
+      Given a JS monorepo that also has a standalone Go service at "services/engine" with module "example.com/engine" and the golang pack installed
+      When safeword generates the architecture doc
+      Then a root index lists the package "example.com/engine"
+      And a colocated leaf doc exists at "services/engine"

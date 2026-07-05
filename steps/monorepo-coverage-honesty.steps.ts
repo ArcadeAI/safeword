@@ -8,7 +8,7 @@
 
 import { strict as assert } from 'node:assert';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { Given, Then, When } from '@cucumber/cucumber';
@@ -109,6 +109,34 @@ Given(
   },
 );
 
+Given(
+  /^a pnpm monorepo with a package "([^"]+)" whose sources live under lib\/$/,
+  function (this: CoverageWorld, name: string) {
+    writeJson(nodePath.join(dir(this), 'package.json'), { name: 'root' });
+    writePnpmWorkspace(this, ['packages/*']);
+    const packageDir = nodePath.join(dir(this), 'packages', name);
+    writeJson(nodePath.join(packageDir, 'package.json'), { name });
+    mkdirSync(nodePath.join(packageDir, 'lib', 'components'), { recursive: true });
+  },
+);
+
+Given(
+  /^a JS monorepo that also has a standalone Go service at "([^"]+)" with module "([^"]+)" and the golang pack installed$/,
+  function (this: CoverageWorld, servicePath: string, modulePath: string) {
+    writeJson(nodePath.join(dir(this), 'package.json'), {
+      name: 'root',
+      workspaces: ['packages/*'],
+    });
+    makePackage(this, 'web', { src: true });
+    writeJson(nodePath.join(dir(this), '.safeword', 'config.json'), {
+      installedPacks: ['typescript', 'golang'],
+    });
+    const serviceDir = nodePath.join(dir(this), servicePath);
+    mkdirSync(nodePath.join(serviceDir, 'cmd', 'server'), { recursive: true });
+    writeFileSync(nodePath.join(serviceDir, 'go.mod'), `module ${modulePath}\n\ngo 1.22\n`);
+  },
+);
+
 // --- When ---
 
 When('safeword generates the architecture doc', function (this: CoverageWorld) {
@@ -153,6 +181,14 @@ Then(
   /^the package "([^"]+)" has no colocated leaf doc$/,
   function (this: CoverageWorld, name: string) {
     assert.ok(!leafDocExists(this, name), `unexpected leaf doc for ${name}`);
+  },
+);
+
+Then(
+  /^a colocated leaf doc exists at "([^"]+)"$/,
+  function (this: CoverageWorld, relativeDirectory: string) {
+    const leafPath = nodePath.join(dir(this), relativeDirectory, 'architecture.generated.md');
+    assert.ok(existsSync(leafPath), `leaf doc missing at ${relativeDirectory}`);
   },
 );
 
