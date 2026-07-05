@@ -139,10 +139,16 @@ export function discoverWorkspaces(projectDirectory: string): WorkspaceDiscovery
  * `[]` for a non-workspace project with no orphan packages.
  */
 export function discoverLeafDirectories(projectDirectory: string): string[] {
-  const workspaceLeaves = resolveLeafDirectories(
-    projectDirectory,
-    discoverWorkspaces(projectDirectory).patterns,
-  );
+  return leafDirectoriesFrom(projectDirectory, discoverWorkspaces(projectDirectory).patterns);
+}
+
+/**
+ * The declared-workspace ∪ orphan leaf union behind {@link discoverLeafDirectories},
+ * taking already-read workspace patterns so a caller that has run discovery (the
+ * model extractor) doesn't probe every manager a second time.
+ */
+function leafDirectoriesFrom(projectDirectory: string, patterns: string[]): string[] {
+  const workspaceLeaves = resolveLeafDirectories(projectDirectory, patterns);
   const orphanLeaves = discoverOrphanManifestDirectories(projectDirectory);
   return [...new Set([...workspaceLeaves, ...orphanLeaves])].toSorted(byString);
 }
@@ -302,9 +308,9 @@ function hasRecognizedManifest(directory: string): boolean {
 
 /** The package/edge model the root index renders over. */
 export function extractMonorepoModel(projectDirectory: string): MonorepoModel {
-  const unreadableWorkspaces = discoverWorkspaces(projectDirectory).unreadable;
+  const { patterns, unreadable: unreadableWorkspaces } = discoverWorkspaces(projectDirectory);
   // Includes both declared workspace members and orphan non-JS packages (issue #844).
-  const packages: PackageNode[] = discoverLeafDirectories(projectDirectory)
+  const packages: PackageNode[] = leafDirectoriesFrom(projectDirectory, patterns)
     .map(dir => ({
       name: packageName(dir),
       dir,
