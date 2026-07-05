@@ -8,6 +8,17 @@ import process from 'node:process';
 const scriptDirectory = import.meta.dirname;
 const cliRoot = nodePath.resolve(scriptDirectory, '..');
 const vitestArguments = process.argv.slice(2);
+
+// The package-local bin directory holds the `vitest` executable. `bun run test`
+// (and npm) inject it into PATH, but invoking this wrapper directly — e.g.
+// `node scripts/run-vitest-with-build-lock.mjs tests/foo.test.ts`, safeword's own
+// documented inner-loop path — does not, so `spawnSync('vitest')` fails with
+// ENOENT (#715). Prepend it here so the wrapper resolves `vitest` off any PATH.
+const localBinDirectory = nodePath.join(cliRoot, 'node_modules', '.bin');
+const childEnvironment = {
+  ...process.env,
+  PATH: `${localBinDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+};
 const lockParent = nodePath.join(tmpdir(), 'safeword-test-locks');
 const lockName = 'safeword-package-test';
 const defaultMaximumLockWaitMilliseconds = 20 * 60 * 1000;
@@ -126,7 +137,7 @@ function releaseLock() {
 function run(command, args) {
   const result = spawnSync(command, args, {
     cwd: cliRoot,
-    env: process.env,
+    env: childEnvironment,
     shell: process.platform === 'win32',
     stdio: 'inherit',
   });
