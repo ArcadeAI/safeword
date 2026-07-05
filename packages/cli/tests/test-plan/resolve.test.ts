@@ -494,4 +494,40 @@ describe('resolveTestPlan — bdd (acceptance) plan (kind: bdd)', () => {
     const plan = resolveTestPlan(root, { kind: 'bdd', isToolAvailable: onlyTools() });
     expect(entryFor(plan, 'python')?.available).toBe(false);
   });
+
+  it('does NOT emit behave from a tox.ini [behave] section (tox lane already runs it)', () => {
+    // tox is the umbrella runner; a separate behave lane would double-run scenarios.
+    const root = makeRepo({ 'tox.ini': '[tox]\nenvlist = py\n[behave]\npaths = features\n' });
+    const bdd = resolveTestPlan(root, { kind: 'bdd', isToolAvailable: allTools });
+    const test = resolveTestPlan(root, { kind: 'test', isToolAvailable: allTools });
+    expect(entryFor(bdd, 'python')).toBeUndefined();
+    expect(entryFor(test, 'python')?.command).toBe('tox');
+  });
+});
+
+describe('resolveTestPlan — Python config-only markers (no packaging manifest)', () => {
+  it('emits `mypy .` for a repo carrying only mypy.ini', () => {
+    const root = makeRepo({ 'mypy.ini': '[mypy]\nstrict = true\n' });
+    const plan = resolveTestPlan(root, { kind: 'typecheck', isToolAvailable: allTools });
+    expect(entryFor(plan, 'python')?.command).toBe('mypy .');
+  });
+
+  it('emits `behave` for a repo carrying only behave.ini', () => {
+    const root = makeRepo({ 'behave.ini': '[behave]\npaths = features\n' });
+    const plan = resolveTestPlan(root, { kind: 'bdd', isToolAvailable: allTools });
+    expect(entryFor(plan, 'python')?.command).toBe('behave');
+  });
+
+  it('runs the marker command in the directory the config lives in', () => {
+    const root = makeRepo({ 'services/api/mypy.ini': '[mypy]\n' });
+    const plan = resolveTestPlan(root, { kind: 'typecheck', isToolAvailable: allTools });
+    expect(entryFor(plan, 'python')?.cwd).toBe(nodePath.join(root, 'services/api'));
+  });
+
+  it('still emits no Python test lane without a packaging manifest', () => {
+    // typecheck/bdd relax the manifest gate; the test lane must NOT (no phantom pytest).
+    const root = makeRepo({ 'mypy.ini': '[mypy]\n' });
+    const plan = resolveTestPlan(root, { kind: 'verify', isToolAvailable: allTools });
+    expect(entryFor(plan, 'python')).toBeUndefined();
+  });
 });

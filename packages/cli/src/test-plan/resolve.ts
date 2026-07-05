@@ -245,12 +245,15 @@ function pytestConfigured(index: ManifestIndex): boolean {
  * its own `behave` command. pytest-bdd (the other option) is collected by pytest
  * and already runs in the test lane, so the `bdd` kind gates strictly on behave
  * config to avoid double-running its scenarios.
+ *
+ * `tox.ini [behave]` is deliberately NOT a signal: when a tox.ini exists, the
+ * test/verify lane already runs `tox` (the umbrella runner, which typically drives
+ * behave), so keying the bdd lane on it too would double-run the same scenarios.
  */
 function behaveConfigured(index: ManifestIndex): boolean {
   if (index.has('behave.ini') || index.has('.behaverc')) return true;
   if (configContains(index, 'pyproject.toml', '[tool.behave]')) return true;
-  if (configContains(index, 'setup.cfg', '[behave]')) return true;
-  return configContains(index, 'tox.ini', '[behave]');
+  return configContains(index, 'setup.cfg', '[behave]');
 }
 
 /** mypy config markers — the opt-in signal for the python `typecheck` lane. */
@@ -357,11 +360,32 @@ function resolvePython(
   isAvailable: ToolProbe,
 ): PlanEntry | undefined {
   if (PYTHON_SKIP_KINDS.has(kind)) return undefined; // build/deps: no standard Python lane
+  // typecheck/bdd detect Python via their OWN config markers (mypy/pyright/behave
+  // configs are Python-only), so they don't require a packaging manifest — a repo
+  // carrying just `mypy.ini` or `behave.ini` still gets its lane, run in the dir the
+  // config lives in. The test lane keeps the manifest gate so a non-Python directory
+  // never yields a phantom pytest lane.
+  if (kind === 'typecheck') {
+    const cwd = firstDirectory(root, index, [
+      'mypy.ini',
+      '.mypy.ini',
+      'pyrightconfig.json',
+      'pyproject.toml',
+      'setup.cfg',
+    ]);
+    return resolvePythonTypecheck(index, cwd, isAvailable);
+  }
+  if (kind === 'bdd') {
+    const cwd = firstDirectory(root, index, [
+      'behave.ini',
+      '.behaverc',
+      'pyproject.toml',
+      'setup.cfg',
+    ]);
+    return resolvePythonBdd(index, cwd, isAvailable);
+  }
   if (PYTHON_MANIFESTS.every(manifest => !index.has(manifest))) return undefined;
-  const cwd = firstDirectory(root, index, PYTHON_MANIFESTS);
-  if (kind === 'typecheck') return resolvePythonTypecheck(index, cwd, isAvailable);
-  if (kind === 'bdd') return resolvePythonBdd(index, cwd, isAvailable);
-  return resolvePythonTest(index, cwd, isAvailable);
+  return resolvePythonTest(index, firstDirectory(root, index, PYTHON_MANIFESTS), isAvailable);
 }
 
 function resolveGo(
