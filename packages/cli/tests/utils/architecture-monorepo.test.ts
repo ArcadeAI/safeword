@@ -39,6 +39,20 @@ function makePackage(
   }
 }
 
+/** A Go module at `<root>/<relativeDirectory>` with a conventional `cmd/server` layout. */
+function writeGoModule(root: string, relativeDirectory: string, name: string): void {
+  const dir = nodePath.join(root, relativeDirectory);
+  mkdirSync(nodePath.join(dir, 'cmd', 'server'), { recursive: true });
+  writeFileSync(nodePath.join(dir, 'go.mod'), `module ${name}\n\ngo 1.22\n`);
+}
+
+/** A Python package at `<root>/<relativeDirectory>` with a `src/` tree and PEP 621 name. */
+function writePythonPackage(root: string, relativeDirectory: string, name: string): void {
+  const dir = nodePath.join(root, relativeDirectory);
+  mkdirSync(nodePath.join(dir, 'src'), { recursive: true });
+  writeFileSync(nodePath.join(dir, 'pyproject.toml'), `[project]\nname = "${name}"\n`);
+}
+
 beforeEach(() => {
   context.directory = createTemporaryDirectory();
   writeManifest(context.directory, { name: 'root', workspaces: ['packages/*'] });
@@ -481,20 +495,10 @@ describe('discoverLeafDirectories — uv workspace discovery (ticket HWSEPV)', (
 });
 
 describe('discoverLeafDirectories — polyglot union (ticket MGWZ4P)', () => {
-  function writeGoModule(root: string, relativeDirectory: string, name: string): void {
-    const dir = nodePath.join(root, relativeDirectory);
-    mkdirSync(nodePath.join(dir, 'cmd', 'server'), { recursive: true });
-    writeFileSync(nodePath.join(dir, 'go.mod'), `module ${name}\n\ngo 1.22\n`);
-  }
   function writeRustCrate(root: string, relativeDirectory: string, name: string): void {
     const dir = nodePath.join(root, relativeDirectory);
     mkdirSync(nodePath.join(dir, 'src'), { recursive: true });
     writeFileSync(nodePath.join(dir, 'Cargo.toml'), `[package]\nname = "${name}"\n`);
-  }
-  function writePythonPackage(root: string, relativeDirectory: string, name: string): void {
-    const dir = nodePath.join(root, relativeDirectory);
-    mkdirSync(nodePath.join(dir, 'src'), { recursive: true });
-    writeFileSync(nodePath.join(dir, 'pyproject.toml'), `[project]\nname = "${name}"\n`);
   }
 
   /** Declares a go.work (gosvc), a Cargo [workspace] (crates/rscore), and a uv
@@ -567,6 +571,89 @@ describe('discoverLeafDirectories — polyglot union (ticket MGWZ4P)', () => {
     expect(discoverLeafDirectories(context.directory)).toEqual([
       nodePath.join(context.directory, 'packages', 'web'),
     ]);
+  });
+});
+
+describe('discoverLeafDirectories — orphan non-JS services outside a workspace (issue #844)', () => {
+  function writeConfig(root: string, installedPacks: string[]): void {
+    writeFileSync(
+      nodePath.join(root, '.safeword', 'config.json'),
+      JSON.stringify({ installedPacks }),
+    );
+  }
+
+  beforeEach(() => {
+    mkdirSync(nodePath.join(context.directory, '.safeword'), { recursive: true });
+  });
+
+  it('surfaces a Go service that is not enrolled in any go.work when the golang pack is installed', () => {
+    writeConfig(context.directory, ['typescript', 'golang']);
+    // JS workspace (from the outer beforeEach) has packages/*; the Go service is standalone.
+    makePackage(context.directory, 'web', { modules: ['ui'] });
+    writeGoModule(context.directory, nodePath.join('services', 'engine'), 'example.com/engine');
+
+    expect(discoverLeafDirectories(context.directory)).toEqual([
+      nodePath.join(context.directory, 'packages', 'web'),
+      nodePath.join(context.directory, 'services', 'engine'),
+    ]);
+  });
+
+  it('surfaces standalone Go and Python services together (polyglot)', () => {
+    writeConfig(context.directory, ['golang', 'python']);
+    rmSync(nodePath.join(context.directory, 'package.json'), { force: true });
+    writeGoModule(context.directory, 'engine', 'example.com/engine');
+    writePythonPackage(context.directory, 'coordinator', 'coordinator');
+
+    expect(discoverLeafDirectories(context.directory)).toEqual([
+      nodePath.join(context.directory, 'coordinator'),
+      nodePath.join(context.directory, 'engine'),
+    ]);
+  });
+
+  it('does not walk for a language whose pack is not installed', () => {
+    writeConfig(context.directory, ['typescript']); // no golang pack
+    writeGoModule(context.directory, 'engine', 'example.com/engine');
+
+    expect(discoverLeafDirectories(context.directory)).toEqual([]);
+  });
+
+  it('does not treat the repo root or a tooling-only pyproject as a package', () => {
+    writeConfig(context.directory, ['python']);
+    rmSync(nodePath.join(context.directory, 'package.json'), { force: true });
+    // Root pyproject is workspace/tooling config, and services/tools has only [tool.ruff].
+    writeFileSync(
+      nodePath.join(context.directory, 'pyproject.toml'),
+      '[tool.uv.workspace]\nmembers = []\n',
+    );
+    mkdirSync(nodePath.join(context.directory, 'services', 'tools'), { recursive: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'services', 'tools', 'pyproject.toml'),
+      '[tool.ruff]\nline-length = 100\n',
+    );
+
+    expect(discoverLeafDirectories(context.directory)).toEqual([]);
+  });
+
+  it('lists a dir claimed by both a workspace and the orphan walk exactly once', () => {
+    writeConfig(context.directory, ['golang']);
+    rmSync(nodePath.join(context.directory, 'package.json'), { force: true });
+    writeFileSync(nodePath.join(context.directory, 'go.work'), 'go 1.22\n\nuse ./engine\n');
+    writeGoModule(context.directory, 'engine', 'example.com/engine');
+
+    expect(discoverLeafDirectories(context.directory)).toEqual([
+      nodePath.join(context.directory, 'engine'),
+    ]);
+  });
+
+  it('makes the orphan service a package in the model, introspected via its Go layout', () => {
+    writeConfig(context.directory, ['golang']);
+    rmSync(nodePath.join(context.directory, 'package.json'), { force: true });
+    writeGoModule(context.directory, nodePath.join('services', 'engine'), 'example.com/engine');
+
+    const model = extractMonorepoModel(context.directory);
+
+    expect(model.packages.map(node => node.name)).toEqual(['example.com/engine']);
+    expect(model.packages[0]?.introspected).toBe(true);
   });
 });
 

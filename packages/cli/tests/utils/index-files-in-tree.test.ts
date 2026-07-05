@@ -4,7 +4,7 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { indexFilesInTree } from '../../src/utils/fs';
+import { findAllInTree, indexFilesInTree } from '../../src/utils/fs';
 
 const temporaryDirectories: string[] = [];
 
@@ -52,5 +52,39 @@ describe('indexFilesInTree', () => {
     const root = makeRepo({ 'a/b/c/go.mod': '' });
     expect(indexFilesInTree(root, ['go.mod'], 1).has('go.mod')).toBe(false);
     expect(indexFilesInTree(root, ['go.mod'], 3).get('go.mod')).toBe(nodePath.join(root, 'a/b/c'));
+  });
+});
+
+describe('findAllInTree', () => {
+  it('collects every directory containing the file, root included', () => {
+    const root = makeRepo({
+      'go.mod': '',
+      'services/engine/go.mod': '',
+      'services/worker/go.mod': '',
+    });
+    const byString = (a: string, b: string): number => a.localeCompare(b);
+    expect(findAllInTree(root, 'go.mod').toSorted(byString)).toEqual(
+      [
+        root,
+        nodePath.join(root, 'services/engine'),
+        nodePath.join(root, 'services/worker'),
+      ].toSorted(byString),
+    );
+  });
+
+  it('returns an empty list when the file is nowhere in the tree', () => {
+    const root = makeRepo({ 'go.mod': '' });
+    expect(findAllInTree(root, 'Cargo.toml')).toEqual([]);
+  });
+
+  it('skips excluded directories like node_modules', () => {
+    const root = makeRepo({ 'pkg/pyproject.toml': '', 'node_modules/dep/pyproject.toml': '' });
+    expect(findAllInTree(root, 'pyproject.toml')).toEqual([nodePath.join(root, 'pkg')]);
+  });
+
+  it('respects maxDepth', () => {
+    const root = makeRepo({ 'a/b/c/go.mod': '' });
+    expect(findAllInTree(root, 'go.mod', 1)).toEqual([]);
+    expect(findAllInTree(root, 'go.mod', 3)).toEqual([nodePath.join(root, 'a/b/c')]);
   });
 });
