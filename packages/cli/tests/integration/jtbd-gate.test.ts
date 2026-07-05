@@ -92,14 +92,14 @@ describe('intake-exit JTBD gate (Rule 7)', () => {
   });
 
   it('denies a feature with no spec.md — the no-spec grandfather skip is gone (9EA27P)', () => {
-    // No spec.md written. Features now fail closed: the JTBD/AC gates no longer
+    // No spec.md written. Features now fail closed: the JTBD/criteria gates no longer
     // silently skip on spec.md absence — the feature is denied until it carries
     // a spec.md (real JTBDs, or a `skip:` under `## Jobs To Be Done`).
     expectHookDeny(attemptTestDefinitions(ticketDirectory), 'spec.md');
   });
 });
 
-describe('intake-exit AC gate (31W8M3)', () => {
+describe('intake-exit criteria gate (31W8M3)', () => {
   let projectRoot: string;
   let ticketDirectory: string;
 
@@ -133,7 +133,7 @@ describe('intake-exit AC gate (31W8M3)', () => {
   });
 
   it('denies a feature with no spec.md — the no-spec grandfather skip is gone (9EA27P)', () => {
-    // Same fail-closed rule, reached from the AC gate's side: no spec.md ⇒ denied.
+    // Same fail-closed rule, reached from the criteria gate's side: no spec.md ⇒ denied.
     expectHookDeny(attemptTestDefinitions(ticketDirectory), 'spec.md');
   });
 });

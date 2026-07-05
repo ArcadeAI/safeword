@@ -213,7 +213,12 @@ DEPCRUISE_CONFIG=""
 
 # 3. Copy/paste detection (all languages). Generated/vendored trees are
 # guaranteed clones, so exclude them — findings should be hand-written dupes.
-bunx jscpd . --min-lines 10 --reporters console --ignore "**/node_modules/**,**/dist/**,**/build/**,**/coverage/**" 2>&1 || true
+# The ignore list IS the recorded scope (issue #825): `.safeword/**` is a
+# parity-enforced byte-mirror of templates (clones by design) and the
+# namespace root (`.project/**` / legacy `.safeword-project/**`) is the ticket
+# archive — both drown real findings. Keep this list stable so clone counts
+# stay comparable across audits.
+bunx jscpd . --min-lines 10 --reporters console --ignore "**/node_modules/**,**/dist/**,**/build/**,**/coverage/**,**/.safeword/**,**/.project/**,**/.safeword-project/**" 2>&1 || true
 
 # =========================================================================
 # OUTDATED DEPENDENCIES
@@ -292,7 +297,7 @@ If no configuration hints are found, skip this section.
 #### Findings triage — baselines, not re-litigation
 
 - **Knip:** `knip.json`'s ignore lists ARE the accepted-false-positive baseline — persist confirmed FPs there instead of re-triaging them every run (W005 flags any entry that goes stale, so the baseline self-cleans). Report only findings not already covered by the ignore lists.
-- **jscpd:** record the clone count in the audit summary and compare against the previous audit's recorded count (last verify.md/audit record, if any). Deltas are the findings; a flat count is the baseline, not a finding. Never report a raw total as if it were new.
+- **jscpd:** record the clone count in the audit summary **with its scope named next to the count** — e.g. `Clones: 416 (8.9%) [repo minus .safeword,.project]` — and compare against the previous audit's recorded count at the SAME scope (last verify.md/audit record, if any). A count whose scope differs from the prior record is a new baseline, not a delta (issue #825: unscoped counts spanning 84→594 proved incomparable). Deltas are the findings; a flat count is the baseline, not a finding. Never report a raw total as if it were new.
 
 ### 2. Agent Config Checks
 

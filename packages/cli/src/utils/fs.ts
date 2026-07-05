@@ -75,6 +75,9 @@ const SUBDIRECTORY_EXCLUDE = new Set([
   '.git',
   '.safeword',
   'vendor',
+  // Go toolchains ignore testdata/ entirely; repos keep fixture go.mod files there
+  // (with real module directives) that must not surface as discovered packages.
+  'testdata',
   'dist',
   'build',
   'target',
@@ -246,6 +249,32 @@ export function indexFilesInTree(
       }
     }
     if (found.size === wanted.length) break;
+    if (item.depth >= maxDepth) continue;
+    for (const subdirectory of getScannableSubdirectories(item.directory)) {
+      queue.push({ directory: subdirectory, depth: item.depth + 1 });
+    }
+  }
+  return found;
+}
+
+/**
+ * Every directory (root included) that DIRECTLY contains `filename`, in root-first
+ * BFS order, skipping hidden dirs and SUBDIRECTORY_EXCLUDE. The collect-all analogue
+ * of {@link findInTree} (which stops at the first match) — used to enumerate orphan
+ * language manifests (a `go.mod` / `pyproject.toml` / `Cargo.toml` that is not enrolled
+ * in any declared workspace) across a polyglot monorepo in one bounded walk.
+ */
+export function findAllInTree(cwd: string, filename: string, maxDepth = 10): string[] {
+  const found: string[] = [];
+  // Cursor-based BFS (not Array.shift()) so the walk stays O(dirs) on wide/deep trees,
+  // mirroring indexFilesInTree.
+  const queue: { directory: string; depth: number }[] = [{ directory: cwd, depth: 0 }];
+  let head = 0;
+  while (head < queue.length) {
+    const item = queue[head];
+    head += 1;
+    if (item === undefined) break;
+    if (existsSync(nodePath.join(item.directory, filename))) found.push(item.directory);
     if (item.depth >= maxDepth) continue;
     for (const subdirectory of getScannableSubdirectories(item.directory)) {
       queue.push({ directory: subdirectory, depth: item.depth + 1 });

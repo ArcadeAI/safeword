@@ -18,7 +18,7 @@ import {
   discoverLeafDirectories,
   discoverUnreadableWorkspaces,
   extractMonorepoModel,
-  monorepoFingerprint,
+  monorepoFingerprintOf,
   type MonorepoModel,
   type PackageNode,
   type UnreadableWorkspace,
@@ -150,8 +150,8 @@ function leafTarget(packageDirectory: string): HealTarget {
 
 /** The derived root index: the package graph at the namespace-root path. */
 function rootIndexTarget(projectDirectory: string): HealTarget {
-  const fingerprint = monorepoFingerprint(projectDirectory);
   const model = extractMonorepoModel(projectDirectory);
+  const fingerprint = monorepoFingerprintOf(projectDirectory, model);
   return {
     path: resolveGeneratedArchitecturePath(projectDirectory),
     fingerprint,
@@ -402,11 +402,12 @@ function renderCoverageGaps(unreadable: UnreadableWorkspace[]): string {
 }
 
 function renderPackageSection(node: PackageNode, stamp: string): string {
-  // An un-introspected package (no recognized source layout, so no leaf doc) is
+  // An un-introspected package (no source modules to enumerate, so no leaf doc) is
   // marked explicitly — never shown with the bare prose placeholder, which would
-  // read as "described but empty" rather than "safeword can't see this" (ZRW21K).
-  const body = node.introspected
-    ? node.purpose
-    : '> ⚠ not introspected — no recognized source layout';
+  // read as "described but empty" rather than "nothing to map here" (ZRW21K). The
+  // wording says "no source modules" rather than "no recognized source layout":
+  // with the broadened recognizer (issue #843) a package reaches this only when it
+  // genuinely has no enumerable modules, not because its layout was misread.
+  const body = node.introspected ? node.purpose : '> ⚠ not introspected — no source modules to map';
   return `### ${node.name}\n\n${RECONCILED_PREFIX} ${stamp} -->\n\n${body}\n`;
 }
