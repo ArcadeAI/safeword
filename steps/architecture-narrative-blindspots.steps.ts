@@ -10,7 +10,7 @@
  */
 
 import { strict as assert } from 'node:assert';
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -18,7 +18,7 @@ import { Given, Then, When } from '@cucumber/cucumber';
 
 import {
   type ArchitectureWorld,
-  CLI_PATH,
+  runArchitecture,
   worldDir as dir,
   writeJson,
 } from './support/architecture-fixtures.ts';
@@ -51,17 +51,6 @@ function writeArchitectureConfig(world: ArchitectureWorld, architecturePath: str
   writeJson(nodePath.join(dir(world), '.safeword', 'config.json'), {
     paths: { architecture: architecturePath },
   });
-}
-
-/** Run `safeword architecture [args]`, capturing combined output + exit code. */
-function runCapturing(world: ArchitectureWorld, args: string[]): void {
-  const result = spawnSync('bun', [CLI_PATH, 'architecture', ...args], {
-    cwd: dir(world),
-    encoding: 'utf8',
-    timeout: 30_000,
-  });
-  world.status = result.status ?? 1;
-  world.output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
 }
 
 // --- Givens ---
@@ -162,12 +151,12 @@ Given(
 );
 
 Given('the generated architecture docs are current', function (this: ArchitectureWorld) {
-  runCapturing(this, []);
+  runArchitecture(this);
   assert.equal(this.status, 0, 'fixture generation run failed');
 });
 
 Given('the generated architecture docs are stale', function (this: ArchitectureWorld) {
-  runCapturing(this, []);
+  runArchitecture(this);
   assert.equal(this.status, 0, 'fixture generation run failed');
   // A new workspace package moves the shape without regenerating the doc.
   writeJson(nodePath.join(dir(this), 'packages', 'freshly-added', 'package.json'), {
@@ -183,14 +172,14 @@ Given('the generated architecture docs are stale', function (this: ArchitectureW
 When(
   'safeword checks architecture staleness and captures its output',
   function (this: ArchitectureWorld) {
-    runCapturing(this, ['--check']);
+    runArchitecture(this, ['--check']);
   },
 );
 
 When(
   'safeword stages the architecture docs and captures its output',
   function (this: ArchitectureWorld) {
-    runCapturing(this, ['--stage']);
+    runArchitecture(this, ['--stage']);
   },
 );
 
