@@ -16,10 +16,11 @@ Feature: Managed-file provenance refresh on upgrade
       Then the provenance manifest records every managed file setup wrote
       And each recorded hash matches that file's on-disk content
 
-    Scenario: Setup on a clone of an installed project preserves existing provenance
+    Scenario: Upgrade on a clone of an installed project preserves existing provenance
       Given a clone of an installed project with a committed provenance manifest
-      When safeword setup runs
-      Then the manifest still records every previously recorded managed file
+      When safeword upgrade runs
+      Then the upgrade succeeds
+      And the manifest still records every previously recorded managed file
 
     Scenario: A pristine static managed file is refreshed when its template changes
       Given an installed project whose managed file matches its recorded provenance

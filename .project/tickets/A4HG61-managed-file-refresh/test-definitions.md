@@ -8,31 +8,31 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Setup records provenance for the managed files it writes
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 6fcd25b
+- [x] GREEN e071d9b
+- [x] REFACTOR skip: util purpose-built this commit; no structural debt
 
-### Scenario: Setup on a clone of an installed project preserves existing provenance
+### Scenario: Upgrade on a clone of an installed project preserves existing provenance
 
-- [ ] RED
+- [x] RED skip: CLI hard-refuses setup-on-installed (discovered at step wiring; scenario corrected to the upgrade path the clone flow actually uses)
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: A pristine static managed file is refreshed when its template changes
 
-- [ ] RED
+- [x] RED PENDING_SHA
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: A deleted managed file is recreated and regains provenance
 
-- [ ] RED
+- [x] RED skip: create-if-missing pre-exists; scenario guards the regained-provenance half via shared rule run
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: An unrecorded file that differs from resolved output is not brought current
 
-- [ ] RED
+- [x] RED skip: pre-feature invariant (upgrade never touched managed files); scenario guards it through the feature
 - [ ] GREEN
 - [ ] REFACTOR
 

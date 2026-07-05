@@ -8,7 +8,7 @@
 import { strict as assert } from 'node:assert';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import nodeOs from 'node:os';
 import nodePath from 'node:path';
 
@@ -28,8 +28,23 @@ const REPRESENTATIVE_MANAGED_FILES = [
   '.codex/config.toml',
 ];
 
+/** A stable static managed file to exercise refresh mechanics against. */
+const TARGET_MANAGED_FILE = 'features/safeword-lane.feature';
+
+/** Placeholder bytes standing in for an older safeword revision's output. */
+const OLD_REVISION_CONTENT = '# an older safeword revision wrote this\n';
+
+/** Placeholder bytes standing in for a customer's hand edit. */
+const CUSTOMER_EDIT_CONTENT = '# the customer edited this file\n';
+
 interface RefreshWorld extends SafewordWorld {
   projectDirectory?: string;
+  /** The currently resolved (template) content for the target file, captured post-setup. */
+  currentResolved?: string;
+  /** Bytes the scenario expects upgrade to leave untouched. */
+  frozenBytes?: string;
+  /** Manifest entries captured before the When, for preservation asserts. */
+  manifestBefore?: Record<string, string>;
 }
 
 function projectDir(world: RefreshWorld): string {
@@ -72,8 +87,125 @@ After(function (this: RefreshWorld) {
   }
 });
 
+/** Run setup and capture the target file's resolved content + manifest state. */
+function installProject(world: RefreshWorld): void {
+  runSafeword(world, ['setup', '--yes']);
+  assert.equal(world.result.exitCode, 0, `setup failed:\n${world.result.stderr}`);
+  world.currentResolved = readFileSync(
+    nodePath.join(projectDir(world), TARGET_MANAGED_FILE),
+    'utf8',
+  );
+}
+
+/** Overwrite the target file AND its record consistently — the state an older install left behind. */
+function simulateOlderInstall(world: RefreshWorld): void {
+  const dir = projectDir(world);
+  writeFileSync(nodePath.join(dir, TARGET_MANAGED_FILE), OLD_REVISION_CONTENT);
+  const manifest = readManifest(world);
+  manifest.files[TARGET_MANAGED_FILE] = sha256(OLD_REVISION_CONTENT);
+  writeFileSync(
+    nodePath.join(dir, MANIFEST_RELATIVE_PATH),
+    `${JSON.stringify({ version: 1, files: manifest.files }, undefined, 2)}\n`,
+  );
+}
+
 Given('a fresh project with no safeword install', function (this: RefreshWorld) {
   projectDir(this);
+});
+
+Given(
+  'a clone of an installed project with a committed provenance manifest',
+  function (this: RefreshWorld) {
+    installProject(this);
+    this.manifestBefore = readManifest(this).files;
+  },
+);
+
+Given(
+  'an installed project whose managed file matches its recorded provenance',
+  function (this: RefreshWorld) {
+    installProject(this);
+    const recorded = readManifest(this).files[TARGET_MANAGED_FILE];
+    assert.equal(recorded, sha256(this.currentResolved ?? ''), 'setup left a mismatched record');
+  },
+);
+
+Given('safeword now resolves different content for that file', function (this: RefreshWorld) {
+  // With one CLI build the template cannot change mid-scenario; instead,
+  // construct the state an older install left behind — old bytes with a
+  // matching record — so the CURRENT template genuinely differs (pristine +
+  // stale, exactly the upgrade-from-older-safeword state).
+  simulateOlderInstall(this);
+});
+
+Given('an installed project whose managed file was deleted', function (this: RefreshWorld) {
+  installProject(this);
+  rmSync(nodePath.join(projectDir(this), TARGET_MANAGED_FILE));
+});
+
+Given(
+  'an installed project with a managed-path file that has no provenance entry',
+  function (this: RefreshWorld) {
+    installProject(this);
+    const dir = projectDir(this);
+    const manifest = readManifest(this);
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete -- constructing the unrecorded state
+    delete manifest.files[TARGET_MANAGED_FILE];
+    writeFileSync(
+      nodePath.join(dir, MANIFEST_RELATIVE_PATH),
+      `${JSON.stringify({ version: 1, files: manifest.files }, undefined, 2)}\n`,
+    );
+  },
+);
+
+Given(
+  "that file's content differs from the currently resolved output",
+  function (this: RefreshWorld) {
+    this.frozenBytes = CUSTOMER_EDIT_CONTENT;
+    writeFileSync(nodePath.join(projectDir(this), TARGET_MANAGED_FILE), CUSTOMER_EDIT_CONTENT);
+  },
+);
+
+When('safeword upgrade runs', function (this: RefreshWorld) {
+  runSafeword(this, ['upgrade']);
+});
+
+Then('the upgrade succeeds', function (this: RefreshWorld) {
+  assert.equal(this.result.exitCode, 0, `upgrade failed:\n${this.result.stderr}`);
+});
+
+Then(
+  'the manifest still records every previously recorded managed file',
+  function (this: RefreshWorld) {
+    const after = readManifest(this).files;
+    for (const [path, hash] of Object.entries(this.manifestBefore ?? {})) {
+      assert.equal(after[path], hash, `provenance for ${path} was lost or changed by setup`);
+    }
+  },
+);
+
+Then('the file contains the newly resolved content', function (this: RefreshWorld) {
+  const onDisk = readFileSync(nodePath.join(projectDir(this), TARGET_MANAGED_FILE), 'utf8');
+  assert.equal(onDisk, this.currentResolved, 'file was not refreshed to current resolved content');
+});
+
+Then('the manifest records the new content for that file', function (this: RefreshWorld) {
+  assert.equal(
+    readManifest(this).files[TARGET_MANAGED_FILE],
+    sha256(this.currentResolved ?? ''),
+    'manifest was not updated to the refreshed content',
+  );
+});
+
+Then('the file exists with currently resolved content', function (this: RefreshWorld) {
+  const fullPath = nodePath.join(projectDir(this), TARGET_MANAGED_FILE);
+  assert.ok(existsSync(fullPath), 'deleted managed file was not recreated');
+  assert.equal(readFileSync(fullPath, 'utf8'), this.currentResolved);
+});
+
+Then("the file's bytes are unchanged", function (this: RefreshWorld) {
+  const onDisk = readFileSync(nodePath.join(projectDir(this), TARGET_MANAGED_FILE), 'utf8');
+  assert.equal(onDisk, this.frozenBytes, 'a file safeword cannot prove pristine was rewritten');
 });
 
 When('safeword setup runs', function (this: RefreshWorld) {
