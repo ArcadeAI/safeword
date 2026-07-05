@@ -33,10 +33,12 @@ export interface PackageNode {
   /** One-line purpose (the purpose floor); a placeholder until prose is written. */
   purpose: string;
   /**
-   * Whether the package has a recognized source layout (a non-empty `src/`
-   * skeleton, so it gets a leaf doc). A package that is `false` here is listed in
-   * the root index but explicitly marked "not introspected" rather than shown
-   * with a bare placeholder — incomplete, never silently complete (ZRW21K).
+   * Whether the package yields a non-empty skeleton (source modules to enumerate,
+   * so it gets a leaf doc) — across every layout the extractor recognizes: `src/`,
+   * `lib/`, or flat/top-level files for JS/TS, plus the Go/Rust/Python layouts
+   * (issue #843). A package that is `false` here is listed in the root index but
+   * explicitly marked "not introspected" rather than shown with a bare placeholder
+   * — incomplete, never silently complete (ZRW21K).
    */
   introspected: boolean;
 }
