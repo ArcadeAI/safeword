@@ -55,7 +55,7 @@ Unaffected:
 
 #### evidence-anchored-phase-transitions.SM1.AC1 — A legitimate forward phase advance records a commit-SHA anchor for the phase entered
 
-The anchor is per-phase and appended, never an overwritten scalar — so each phase entered keeps its own evidence and #810 can reuse the ledger's distinct-SHA collision check (a copy-pasted `HEAD` can't silently pass across every phase).
+The anchor is per-phase and appended, never an overwritten scalar — so each phase entered keeps its own evidence and #810 can validate each phase's anchor independently. Phase transitions are not commit-bearing the way R/G/R ticks are: several phases can legitimately advance in one commitless sitting and share a `HEAD`, so #810 must tolerate that rather than demand a distinct commit per phase.
 
 #### evidence-anchored-phase-transitions.SM1.AC2 — A forward advance whose anchor is missing or not a valid, reachable SHA is programmatically detectable as unanchored
 
@@ -67,10 +67,10 @@ skip: table-stakes — forgery-resistance plumbing for the SM; the persona-facin
 
 ## Outcomes
 
-- A forward phase advance in a feature ticket writes an anchor tying the entered phase to a commit SHA.
-- An advance whose anchor is missing, malformed, or not reachable from HEAD is detected as unanchored; backward moves, re-declarations, non-feature tickets, and at-rest legacy tickets are left silent.
-- Anchor validity and transition legality reuse safeword's existing ledger and phase-provenance checks — one detection path, not a duplicate.
-- No new prose nag: the invariant is expressed in code, per the de-prescribe thesis (#765).
+- The `phase_anchors` format lets a forward phase advance record an anchor tying the entered phase to a commit SHA, written via the Edit path.
+- A pure predicate detects an advance whose anchor is missing, malformed, or (with a git resolver) not reachable from HEAD; it stays silent on backward moves, re-declarations, non-feature tickets, and at-rest legacy tickets.
+- Detection reuses safeword's existing ledger SHA check and phase-provenance parsing — one path, not a duplicate.
+- #809 adds no write-time enforcement: it is the substrate #810's boundary gate consumes. No new prose nag; the capability lives in code, per the de-prescribe thesis (#765).
 
 ## Open Questions
 
