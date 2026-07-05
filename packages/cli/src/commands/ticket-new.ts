@@ -87,8 +87,15 @@ function ticketNewSync(slug: string, options: TicketNewOptions): void {
       parent: options.parent,
     });
     // Write the reverse index on the epic: append the child to its children[].
+    // The epic was validated pre-create, but could have changed since — the
+    // child already exists here, so surface a recoverable warning, not a fail.
     if (options.parent !== undefined) {
-      linkChildToEpic(process.cwd(), result.id, options.parent);
+      const linked = linkChildToEpic(process.cwd(), result.id, options.parent);
+      if (!linked.ok) {
+        process.stderr.write(
+          `Warning: ${linked.reason} — created ${result.id} with parent: ${options.parent}, but the epic's children list was not updated. Add '${result.id}' to its children: manually.\n`,
+        );
+      }
     }
     success(`Created ticket ${formatTicketReference(result.id, normalizedSlug)}`);
     info(`Folder: ${result.folderPath}`);

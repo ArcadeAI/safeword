@@ -6,7 +6,7 @@
  * slug suffix is for legibility when scanning `ls`. End-to-end via the built CLI.
  */
 
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -364,6 +364,28 @@ describe('safeword ticket new', () => {
       expect(result.exitCode).toBe(1);
       expect(result.stderr).toMatch(/not an epic/);
       expect(readTicketBySlug(temporaryDirectory, 'a-task')).toBe(taskBefore);
+      expect(ticketExistsForSlug(temporaryDirectory, 'the-child')).toBe(false);
+    },
+    TIMEOUT_QUICK,
+  );
+
+  // Quality-review edge: `completed/` is a real tickets-dir entry, so
+  // `--parent completed` resolves a folder with no ticket.md — must reject
+  // cleanly (exit 1, reasoned message), not crash with a raw ENOENT.
+  it(
+    'rejects --parent naming the completed archive dir with a clean error',
+    async () => {
+      await runCli(['ticket', 'new', 'the-epic', '--type', 'epic'], { cwd: temporaryDirectory });
+      mkdirSync(nodePath.join(temporaryDirectory, '.project', 'tickets', 'completed'), {
+        recursive: true,
+      });
+
+      const result = await runCli(['ticket', 'new', 'the-child', '--parent', 'completed'], {
+        cwd: temporaryDirectory,
+      });
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toMatch(/no readable ticket\.md/);
+      expect(result.stderr).not.toMatch(/ENOENT/);
       expect(ticketExistsForSlug(temporaryDirectory, 'the-child')).toBe(false);
     },
     TIMEOUT_QUICK,
