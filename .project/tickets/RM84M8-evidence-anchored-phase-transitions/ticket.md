@@ -2,11 +2,12 @@
 id: RM84M8
 slug: evidence-anchored-phase-transitions
 type: feature
-phase: define-behavior
+phase: scenario-gate
 status: in_progress
 epic: "808"
 phase_anchors:
   - define-behavior: 368c6e0
+  - scenario-gate: a88e475
 scope:
   - "Anchor format: a `phase_anchors:` block sequence in feature ticket.md frontmatter (`  - <phase>: <sha>`, mirroring the existing `phase_skips` convention), one appended entry per phase entered — never an overwritten scalar."
   - "Pure detection predicate `detectUnanchoredPhaseTransition(prior, proposed, resolveSha?)` in the phase-provenance lib: for a feature forward advance, reports whether the entered phase carries a valid anchor. Format-only when no resolver; adds HEAD-reachability when a resolver is injected (the shape #810's boundary consumes). This predicate is the deliverable substrate — it has no caller that blocks in #809."
