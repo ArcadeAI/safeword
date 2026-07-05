@@ -354,7 +354,7 @@ if (
 
   // spec.md gate (ticket 9EA27P): features fail closed. A `type: feature`
   // ticket with no spec.md is denied here, rather than silently skipping the
-  // JTBD/AC gates below — without a spec.md those gates have nothing to check,
+  // JTBD/criteria gates below — without a spec.md those gates have nothing to check,
   // so a feature could otherwise reach done with no jobs or criteria. Tasks and
   // patches don't require a spec.md. The CLI scaffolds spec.md for new features,
   // so this only bites pre-product-layer (epic DZ2NM5) tickets, which pay a lazy
@@ -363,7 +363,7 @@ if (
   const specExists = existsSync(specFile);
   if (meta.type === 'feature' && !specExists) {
     deny(
-      'Features require a spec.md before test-definitions.md. Without one the JTBD and Acceptance-Criteria gates have nothing to check.',
+      'Features require a spec.md before test-definitions.md. Without one the JTBD and criteria gates have nothing to check.',
       'Author a Job To Be Done in spec.md under `## Jobs To Be Done` (persona from personas.md, in the "When I…, I want…, so I can…" form), or write `skip: <reason>` there to deliberately omit.',
     );
   }
@@ -383,13 +383,14 @@ if (
       );
     }
 
-    // AC gate (ticket 31W8M3): each JTBD needs ≥1 Acceptance Criterion — a
-    // `#### <jtbd-id>.AC<n>` heading under it — or a per-JTBD `skip: <reason>`.
+    // Criteria gate (ticket 31W8M3): each JTBD needs ≥1 numbered Rule
+    // (`#### <jtbd-id>.R<n>`) or legacy Acceptance Criterion
+    // (`#### <jtbd-id>.AC<n>`), or a per-JTBD `skip: <reason>`.
     const acVerdict = evaluateAcGate(specContent);
     if (!acVerdict.ok) {
       deny(
-        `spec.md AC gate: ${acVerdict.reason}.`,
-        'Add an Acceptance Criterion under each JTBD as `#### <jtbd-id>.AC<n> — <capability>` (a product-level guarantee, not implementation), or `skip: <reason>` under that JTBD to omit it deliberately.',
+        `spec.md criteria gate: ${acVerdict.reason}.`,
+        'Add a numbered Rule under each JTBD as `#### <jtbd-id>.R<n> — <invariant>` (a product-level invariant, not implementation) — or a legacy `#### <jtbd-id>.AC<n> — <capability>` — or `skip: <reason>` under that JTBD to omit it deliberately.',
       );
     }
 
