@@ -133,7 +133,9 @@ export interface FileDefinition {
   generator?: (ctx: ProjectContext) => string | undefined;
 }
 
-// managedFiles: created if missing, updated only if content === current template output
+// managedFiles: created if missing; on upgrade, refreshed only when on-disk
+// content matches the provenance manifest's record of safeword's last write
+// (.safeword/managed-files.json, ticket A4HG61/#849) — edits are never touched.
 export interface ManagedFileDefinition extends FileDefinition {
   /**
    * Optional logical key linking this entry to a user-configurable path

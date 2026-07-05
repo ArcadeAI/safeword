@@ -55,6 +55,12 @@ One decision rule, evaluated per managed file during the upgrade plan (order mat
 - Follows the clobber-aversion idiom family (#255 add-if-missing merges, #293 no-churn rerender): refresh only what is provably safeword's.
 - Manifest is install state, not a template — deliberately NOT a schema `ownedFiles`/`managedFiles` entry; it is written/removed by dedicated actions.
 
+## Known deviations
+
+- **Clone scenario runs `upgrade`, not `setup`** — setup hard-refuses when `.safeword/` exists ("Already configured"), so the provenance-preservation guard moved to the command a clone actually runs. Merge-never-truncate covers both paths.
+- **configKey scenario pins override-after-install** — override-before-setup is unreachable (same setup refusal); reframed to the reviewer's sanctioned alternative (entry unchanged + file not recreated). Spec DD10 updated.
+- **Unplanned in-scope fix: eslint.config.mjs generator self-trap** — `findExistingEslintConfig` detected safeword's own managed file as a host config, so its generator returned `undefined` on every upgrade, making the flagship #849 config permanently unrefreshable. Fixed with a self-exclusion (skip only when the found config is NOT `eslint.config.mjs`); safe because the provenance gate rewrites only byte-provably-pristine files. Analogous traps in other packs' generators (ruff/golangci/…) are deliberately NOT fixed here — follow-up issue after verify.
+
 ## Assessment triggers
 
 - If manifest merge conflicts show up in real repos despite sorted-key serialization → revisit format (per-line entries vs JSON).

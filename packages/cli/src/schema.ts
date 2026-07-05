@@ -83,7 +83,7 @@ export interface SafewordSchema {
   deprecatedPackages: string[]; // Packages to uninstall on upgrade (consolidated into safeword plugin)
   deprecatedDirs: string[]; // Directories to delete on upgrade (no longer managed)
   ownedFiles: Record<string, FileDefinition>; // Overwrite on upgrade (if changed)
-  managedFiles: Record<string, ManagedFileDefinition>; // Create if missing, update if safeword content
+  managedFiles: Record<string, ManagedFileDefinition>; // Create if missing; refresh on upgrade only when provably pristine (provenance manifest, #849)
   jsonMerges: Record<string, JsonMergeDefinition>;
   // A file may carry an ordered list of patches (e.g. .codex/config.toml's hook
   // retrofit + MCP-server retrofit). Patches apply in list order and unpatch in
@@ -1092,7 +1092,10 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/cursor/stop.ts': { template: 'hooks/cursor/stop.ts' },
   },
 
-  // Files created if missing, updated only if content matches current template
+  // Files created if missing. On upgrade, refreshed only when the on-disk
+  // content is byte-identical to what safeword last wrote (recorded in
+  // .safeword/managed-files.json, ticket A4HG61/#849) — customer-edited
+  // files are never touched.
   managedFiles: {
     // BDD acceptance lane working files (ticket 102b) — scaffolded once; the
     // customer owns them thereafter (created if missing, updated only while
