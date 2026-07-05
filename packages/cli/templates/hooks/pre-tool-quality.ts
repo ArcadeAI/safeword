@@ -18,7 +18,7 @@ import { evaluateBlockedOnGate } from './lib/blocked-on-gate.ts';
 import { isGitOperationInProgress } from './lib/git-operation.ts';
 import { collectNewTransitions } from './lib/checkbox-transitions.ts';
 import { parseFrontmatter } from './lib/hierarchy.ts';
-import { evaluateAcGate, evaluateJtbdGate } from './lib/jtbd.ts';
+import { evaluateCriteriaGate, evaluateJtbdGate } from './lib/jtbd.ts';
 import { classifyAnnotation, isValidSkipReason } from './lib/parse-annotation.ts';
 import {
   AUTHOR_MODEL_ENV,
@@ -386,10 +386,10 @@ if (
     // Criteria gate (ticket 31W8M3): each JTBD needs ≥1 numbered Rule
     // (`#### <jtbd-id>.R<n>`) or legacy Acceptance Criterion
     // (`#### <jtbd-id>.AC<n>`), or a per-JTBD `skip: <reason>`.
-    const acVerdict = evaluateAcGate(specContent);
-    if (!acVerdict.ok) {
+    const criteriaVerdict = evaluateCriteriaGate(specContent);
+    if (!criteriaVerdict.ok) {
       deny(
-        `spec.md criteria gate: ${acVerdict.reason}.`,
+        `spec.md criteria gate: ${criteriaVerdict.reason}.`,
         'Add a numbered Rule under each JTBD as `#### <jtbd-id>.R<n> — <invariant>` (a product-level invariant, not implementation) — or a legacy `#### <jtbd-id>.AC<n> — <capability>` — or `skip: <reason>` under that JTBD to omit it deliberately.',
       );
     }
