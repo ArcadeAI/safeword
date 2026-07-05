@@ -11,7 +11,8 @@
 // history — tickets at rest are never re-validated.
 
 import { parseFrontmatter } from './hierarchy.js';
-import { isValidSkipReason } from './parse-annotation.js';
+import type { ShaResolver } from './ledger-validation.js';
+import { isValidSha, isValidSkipReason } from './parse-annotation.js';
 
 export const CANONICAL_PHASES = [
   'intake',
@@ -260,4 +261,106 @@ function evaluateBirth(
       remediation: `Start at phase: intake and work forward, or ${SKIPS_SYNTAX}.`,
     };
   });
+}
+
+// ---------------------------------------------------------------------------
+// Phase-transition anchors (#809, epic #808)
+//
+// A forward phase advance records a commit-SHA anchor for the phase it enters —
+// a `phase_anchors` block sequence, one `- <phase>: <sha>` entry per phase,
+// mirroring the `phase_skips` convention and the R/G/R ledger's SHA-per-tick.
+// This detector reports whether that anchor is present + valid; it is the
+// substrate epic #808's boundary gate (#810) consumes. #809 wires no blocking
+// caller — a write-time format-only block would catch no forger (a `sed` forge
+// appends a well-formed fake SHA in the same write) while taxing honest
+// advances. Reachability, the part with real forgery resistance, needs git and
+// is enforced at #810's commit/push boundary via the injected ShaResolver.
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse a `phase_anchors` block sequence into entered-phase → recorded SHA.
+ * Same shape as parseSkips: split each entry on the first colon. A blank value
+ * is kept as `''` so isValidSha (not this parser) is the single arbiter of
+ * validity. Entries without a colon carry no phase and are ignored.
+ */
+function parseAnchors(meta: Record<string, string | string[]> | undefined): Map<string, string> {
+  const raw = meta?.['phase_anchors'];
+  const entries = Array.isArray(raw) ? raw : typeof raw === 'string' && raw !== '' ? [raw] : [];
+  const byPhase = new Map<string, string>();
+  for (const entry of entries) {
+    const match = /^([^:]+):(.*)$/.exec(entry);
+    const phase = match?.[1]?.trim();
+    if (match === null || phase === undefined || phase === '') continue;
+    byPhase.set(phase, (match[2] ?? '').trim());
+  }
+  return byPhase;
+}
+
+export type PhaseAnchorVerdict =
+  { kind: 'not-applicable' } | { kind: 'anchored' } | { kind: 'unanchored'; reason: string };
+
+const NOT_APPLICABLE: PhaseAnchorVerdict = { kind: 'not-applicable' };
+
+/**
+ * Detect whether a feature ticket's forward phase advance carries a valid
+ * commit-SHA anchor for the phase it enters (#809). Pure — git reachability is
+ * delegated to an injected ShaResolver (the same contract the ledger uses), so
+ * the predicate never touches git: #810's boundary gate supplies the
+ * rebase-aware resolver; a caller with no git available passes none (format
+ * only). A `ShaResolution` string (a rebase-canonicalized SHA) counts as
+ * reachable, matching ledger-validation's `checkSha`.
+ *
+ * Returns `anchored` / `unanchored` only for the policed act — a feature→feature
+ * FORWARD phase change. Everything else is `not-applicable`: a creation/birth, a
+ * type-flip into feature (prior was not a feature, so it never traversed the
+ * phases), a non-feature ticket, a backward move, a re-declaration, or an
+ * at-rest edit. The detector polices transitions, not history — exactly like
+ * evaluateTicketWrite.
+ */
+export function detectUnanchoredPhaseTransition(
+  priorContent: string | undefined,
+  proposedContent: string,
+  resolveSha?: ShaResolver,
+): PhaseAnchorVerdict {
+  // A creation is a birth, not a transition.
+  if (priorContent === undefined) return NOT_APPLICABLE;
+
+  const proposed = frontmatterOf(normalizeNewlines(proposedContent));
+  const prior = frontmatterOf(normalizeNewlines(priorContent));
+  if (proposed === undefined) return NOT_APPLICABLE;
+
+  // Feature→feature only. A type-flip into feature is a birth, not an advance.
+  if (scalar(proposed, 'type') !== 'feature' || scalar(prior, 'type') !== 'feature') {
+    return NOT_APPLICABLE;
+  }
+
+  const priorPhase = scalar(prior, 'phase');
+  const proposedPhase = scalar(proposed, 'phase');
+  if (proposedPhase === undefined || proposedPhase === priorPhase) return NOT_APPLICABLE;
+
+  const toIndex = canonicalIndex(proposedPhase);
+  if (toIndex === -1) return NOT_APPLICABLE; // off-enum target — legality is evaluateAdvance's job
+
+  const effectivePrior =
+    priorPhase !== undefined && CANONICAL_SET.has(priorPhase) ? priorPhase : 'intake';
+  if (toIndex <= canonicalIndex(effectivePrior)) return NOT_APPLICABLE; // backward or lateral
+
+  // Policed: a forward feature advance must carry a valid anchor for the phase entered.
+  const anchor = parseAnchors(proposed).get(proposedPhase);
+  if (anchor === undefined) {
+    return { kind: 'unanchored', reason: `no phase_anchors entry for "${proposedPhase}".` };
+  }
+  if (!isValidSha(anchor)) {
+    return {
+      kind: 'unanchored',
+      reason: `phase_anchors entry for "${proposedPhase}" is "${anchor}", not a valid commit SHA (7-40 hex chars).`,
+    };
+  }
+  if (resolveSha && resolveSha(anchor) === false) {
+    return {
+      kind: 'unanchored',
+      reason: `phase_anchors SHA ${anchor} for "${proposedPhase}" is not reachable from HEAD.`,
+    };
+  }
+  return { kind: 'anchored' };
 }
