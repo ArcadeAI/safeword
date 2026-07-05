@@ -1,6 +1,6 @@
 {
   "ignore": ["templates/**"],
-  "ignoreBinaries": ["shellcheck", "setup", "check", "lint-gherkin"],
+  "ignoreBinaries": ["shellcheck"],
   "ignoreDependencies": ["tsx"],
   "rules": {
     "duplicates": "off"
