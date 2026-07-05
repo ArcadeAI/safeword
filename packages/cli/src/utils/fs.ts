@@ -75,6 +75,9 @@ const SUBDIRECTORY_EXCLUDE = new Set([
   '.git',
   '.safeword',
   'vendor',
+  // Go toolchains ignore testdata/ entirely; repos keep fixture go.mod files there
+  // (with real module directives) that must not surface as discovered packages.
+  'testdata',
   'dist',
   'build',
   'target',

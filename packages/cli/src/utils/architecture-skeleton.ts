@@ -11,7 +11,8 @@
 import { type Dirent, readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { exists, isDirectory } from './fs.js';
+import { exists, isDirectory, readFileSafe, readJson } from './fs.js';
+import { hasTomlTable } from './toml.js';
 
 /** Placeholder purpose for a freshly extracted node awaiting human prose. */
 export const PURPOSE_PLACEHOLDER = 'No description yet — awaiting prose.';
@@ -128,8 +129,36 @@ export function extractSkeleton(projectDirectory: string): Skeleton {
   if (libraryNodes.length > 0) return { nodes: libraryNodes };
 
   // No source root at all: a flat or test-only package (e.g. top-level `*.test.ts`
-  // with no `src/`) is described by its top-level source files (issue #843).
+  // with no `src/`) is described by its top-level source files (issue #843) — but
+  // NEVER at a workspace-declaring root. A monorepo root whose declared members
+  // resolve to zero leaves used to yield an empty skeleton, and `decideAction`
+  // relies on that emptiness to noop rather than birth a single-repo doc; a stray
+  // root script (`jest.setup.js`, `gulpfile.js`) must not become "the architecture"
+  // of a repo that declares itself a monorepo (quality-review of #843).
+  if (declaresWorkspaces(projectDirectory)) return { nodes: [] };
   return { nodes: topLevelJsModuleNodes(projectDirectory) };
+}
+
+/**
+ * Whether a directory declares workspace membership — the discovery-layer managers
+ * `architecture-monorepo.ts` reads, probed shallowly here (that module imports this
+ * one, so this light re-probe avoids an import cycle). Cargo `[workspace]` is not
+ * checked: a dir with a Cargo.toml dispatches to the Rust extractor above and never
+ * reaches the top-level JS fallback this guards.
+ */
+function declaresWorkspaces(projectDirectory: string): boolean {
+  if (exists(nodePath.join(projectDirectory, 'pnpm-workspace.yaml'))) return true;
+  if (exists(nodePath.join(projectDirectory, 'go.work'))) return true;
+  const manifest = readJson(nodePath.join(projectDirectory, 'package.json'));
+  if (
+    manifest !== null &&
+    typeof manifest === 'object' &&
+    (manifest as Record<string, unknown>).workspaces !== undefined
+  ) {
+    return true;
+  }
+  const pyproject = readFileSafe(nodePath.join(projectDirectory, 'pyproject.toml'));
+  return pyproject !== undefined && hasTomlTable(pyproject, 'tool.uv.workspace');
 }
 
 /**
@@ -181,16 +210,37 @@ function topLevelJsModuleNodes(projectDirectory: string): SkeletonNode[] {
   return jsFileNodes(entries, name => name);
 }
 
-/** The source-file entries of a directory as skeleton nodes, sorted by name. */
+/**
+ * The source-file entries of a directory as skeleton nodes, sorted by name and
+ * deduped by module name — the same unique-node contract the Rust/Python
+ * extractors keep via their `byName` maps. A same-named pair across extensions
+ * (`util.ts` + `util.js`, a mid-migration package) yields ONE node, and the
+ * winner is deterministic: the extension earliest in {@link JS_SOURCE_EXTENSIONS}
+ * (TypeScript over JavaScript — the migration's source of truth). Without the
+ * dedupe, two `### util` sections would render and the surviving path would be
+ * readdir-order (platform) dependent.
+ */
 function jsFileNodes(entries: Dirent[], pathFor: (entryName: string) => string): SkeletonNode[] {
-  return entries
+  const files = entries
     .filter(entry => entry.isFile() && isJsSourceModuleFile(entry.name))
-    .map(entry => ({
-      name: jsModuleName(entry.name),
-      path: pathFor(entry.name),
-      purpose: PURPOSE_PLACEHOLDER,
-    }))
-    .toSorted(byNodeName);
+    .toSorted(
+      (a, b) =>
+        extensionPriority(a.name) - extensionPriority(b.name) || a.name.localeCompare(b.name),
+    );
+
+  const byName = new Map<string, SkeletonNode>();
+  for (const entry of files) {
+    const name = jsModuleName(entry.name);
+    if (!byName.has(name)) {
+      byName.set(name, { name, path: pathFor(entry.name), purpose: PURPOSE_PLACEHOLDER });
+    }
+  }
+  return byName.values().toArray().toSorted(byNodeName);
+}
+
+/** The rank of a filename's extension in {@link JS_SOURCE_EXTENSIONS} (lower wins dedupe). */
+function extensionPriority(filename: string): number {
+  return JS_SOURCE_EXTENSIONS.findIndex(extension => filename.endsWith(extension));
 }
 
 /**

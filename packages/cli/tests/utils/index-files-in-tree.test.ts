@@ -82,6 +82,11 @@ describe('findAllInTree', () => {
     expect(findAllInTree(root, 'pyproject.toml')).toEqual([nodePath.join(root, 'pkg')]);
   });
 
+  it('skips Go testdata fixtures (toolchain-ignored, not real packages)', () => {
+    const root = makeRepo({ 'svc/go.mod': '', 'svc/testdata/fixture/go.mod': '' });
+    expect(findAllInTree(root, 'go.mod')).toEqual([nodePath.join(root, 'svc')]);
+  });
+
   it('respects maxDepth', () => {
     const root = makeRepo({ 'a/b/c/go.mod': '' });
     expect(findAllInTree(root, 'go.mod', 1)).toEqual([]);

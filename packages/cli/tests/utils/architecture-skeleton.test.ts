@@ -146,12 +146,39 @@ describe('extractSkeleton — broadened JS/TS recognition (issue #843)', () => {
     writeFileSync(nodePath.join(context.directory, 'index.ts'), 'export {};\n');
     writeFileSync(nodePath.join(context.directory, 'vite.config.ts'), 'export default {};\n');
     writeFileSync(nodePath.join(context.directory, 'eslint.config.mjs'), 'export default [];\n');
+    writeFileSync(nodePath.join(context.directory, 'jest.config.cjs'), 'module.exports = {};\n');
+    writeFileSync(nodePath.join(context.directory, 'next.config.mjs'), 'export default {};\n');
     writeFileSync(nodePath.join(context.directory, 'types.d.ts'), 'export {};\n');
+    writeFileSync(nodePath.join(context.directory, 'ambient.d.mts'), 'export {};\n');
     writeFileSync(nodePath.join(context.directory, '.eslintrc.cjs'), 'module.exports = {};\n');
 
     const skeleton = extractSkeleton(context.directory);
 
     expect(skeleton.nodes.map(node => node.name)).toEqual(['index']);
+  });
+
+  it('dedupes a same-named TS/JS pair to one node, TypeScript winning (mid-migration)', () => {
+    mkdirSync(nodePath.join(context.directory, 'src'), { recursive: true });
+    writeFileSync(nodePath.join(context.directory, 'src', 'util.js'), 'export {};\n');
+    writeFileSync(nodePath.join(context.directory, 'src', 'util.ts'), 'export {};\n');
+
+    const skeleton = extractSkeleton(context.directory);
+
+    expect(skeleton.nodes).toEqual([
+      { name: 'util', path: 'src/util.ts', purpose: expect.any(String) as string },
+    ]);
+  });
+
+  it('does not birth top-level modules at a workspace-declaring root (zero-leaf monorepo)', () => {
+    // A monorepo root whose declared members resolve to nothing yet must stay an
+    // empty skeleton (→ noop), not become a single-repo doc of stray root scripts.
+    writeFileSync(
+      nodePath.join(context.directory, 'package.json'),
+      JSON.stringify({ name: 'root', workspaces: ['packages/*'] }),
+    );
+    writeFileSync(nodePath.join(context.directory, 'jest.setup.js'), 'export {};\n');
+
+    expect(extractSkeleton(context.directory).nodes).toEqual([]);
   });
 
   it('lets a Go layout win over the JS fallbacks despite a stray top-level script', () => {

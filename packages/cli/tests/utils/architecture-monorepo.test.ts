@@ -617,6 +617,16 @@ describe('discoverLeafDirectories — orphan non-JS services outside a workspace
     expect(discoverLeafDirectories(context.directory)).toEqual([]);
   });
 
+  it('skips a go.mod that declares no module path (not a package)', () => {
+    writeConfig(context.directory, ['golang']);
+    rmSync(nodePath.join(context.directory, 'package.json'), { force: true });
+    const dir = nodePath.join(context.directory, 'engine');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(nodePath.join(dir, 'go.mod'), 'go 1.22\n'); // no `module` directive
+
+    expect(discoverLeafDirectories(context.directory)).toEqual([]);
+  });
+
   it('does not treat the repo root or a tooling-only pyproject as a package', () => {
     writeConfig(context.directory, ['python']);
     rmSync(nodePath.join(context.directory, 'package.json'), { force: true });
