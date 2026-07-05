@@ -329,7 +329,15 @@ function sourceEntryMtime(
 ): number | undefined {
   const fullPath = nodePath.join(directory, entry.name);
   if (entry.isDirectory()) return newestSourceMtime(fullPath);
-  if (entry.isFile() && !entry.name.endsWith('.test.ts')) return statSync(fullPath).mtimeMs;
+  if (entry.isFile() && !entry.name.endsWith('.test.ts')) {
+    // Guarded so the once-per-process warning stays strictly non-blocking: a file
+    // vanishing between readdir and stat must not throw out of runCli.
+    try {
+      return statSync(fullPath).mtimeMs;
+    } catch {
+      return undefined;
+    }
+  }
   return undefined;
 }
 

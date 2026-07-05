@@ -18,9 +18,13 @@ const vitestArguments = process.argv.slice(2);
 // lock without real vitest — must still win. This only supplies a fallback when
 // nothing else on PATH resolves `vitest`.
 const localBinDirectory = nodePath.join(cliRoot, 'node_modules', '.bin');
+// Windows names the variable `Path`; spreading process.env into a plain object
+// loses Node's case-insensitive access, so append to whatever key already holds
+// the path (else a stray `PATH` key would sit alongside `Path` and be ignored).
+const pathKey = Object.keys(process.env).find(key => key.toUpperCase() === 'PATH') ?? 'PATH';
 const childEnvironment = {
   ...process.env,
-  PATH: `${process.env.PATH ?? ''}${nodePath.delimiter}${localBinDirectory}`,
+  [pathKey]: `${process.env[pathKey] ?? ''}${nodePath.delimiter}${localBinDirectory}`,
 };
 const lockParent = nodePath.join(tmpdir(), 'safeword-test-locks');
 const lockName = 'safeword-package-test';
