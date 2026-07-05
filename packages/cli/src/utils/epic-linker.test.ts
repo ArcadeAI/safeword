@@ -28,17 +28,13 @@ function writeBlockSequenceEpic(cwd: string, id: string, children: string[]): vo
   );
 }
 
+function epicTicketPath(cwd: string, id: string): string {
+  return nodePath.join(cwd, '.project', 'tickets', `${id}-epic`, 'ticket.md');
+}
+
+/** Children as the production parser reads them — the contract under test. */
 function readEpicChildren(cwd: string, id: string): string[] {
-  const content = readFileSync(
-    nodePath.join(cwd, '.project', 'tickets', `${id}-epic`, 'ticket.md'),
-    'utf8',
-  );
-  const match = /^children:\s*\[(.*)\]\s*$/m.exec(content);
-  if (match?.[1] === undefined) return [];
-  const inner = match[1].trim();
-  return inner === ''
-    ? []
-    : inner.split(',').map(entry => entry.trim().replaceAll(/^['"]|['"]$/g, ''));
+  return parseChildrenList(readFileSync(epicTicketPath(cwd, id), 'utf8'));
 }
 
 describe('linkChildToEpic', () => {
@@ -74,24 +70,16 @@ describe('linkChildToEpic', () => {
     expect(linkChildToEpic(cwd, 'NEWKID', 'EPIC01').ok).toBe(true);
 
     expect(readEpicChildren(cwd, 'EPIC01')).toEqual(['049a', '049b', 'NEWKID']);
-    const content = readFileSync(
-      nodePath.join(cwd, '.project', 'tickets', 'EPIC01-epic', 'ticket.md'),
-      'utf8',
-    );
     // No dangling block items may survive the rewrite.
+    const content = readFileSync(epicTicketPath(cwd, 'EPIC01'), 'utf8');
     expect(content).not.toMatch(/^[ \t]+-[ \t]/m);
   });
 
   it('re-linking a block-sequence child is idempotent (no rewrite needed)', () => {
     writeBlockSequenceEpic(cwd, 'EPIC01', ['049a']);
     expect(linkChildToEpic(cwd, '049a', 'EPIC01').ok).toBe(true);
-    // Already linked → no-op: the file may legitimately stay in block form,
-    // so assert via the format-tolerant parser, not the flow-array reader.
-    const content = readFileSync(
-      nodePath.join(cwd, '.project', 'tickets', 'EPIC01-epic', 'ticket.md'),
-      'utf8',
-    );
-    expect(parseChildrenList(content)).toEqual(['049a']);
+    // Already linked → no-op: the file may legitimately stay in block form.
+    expect(readEpicChildren(cwd, 'EPIC01')).toEqual(['049a']);
   });
 
   // Quality-review critical #2 (throw path): a folder that resolves but has no
