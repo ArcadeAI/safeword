@@ -291,11 +291,20 @@ function resolveRust(
   if (!index.has('Cargo.toml')) return undefined;
   const cwd = index.get('Cargo.toml') ?? root;
   if (kind === 'deps')
-    // Supply-chain gate: cargo-deny checks advisories (RustSec DB), licenses,
-    // banned/duplicate crates, and sources in one pass — a superset of cargo
-    // audit. Reads the project's deny.toml (safeword scaffolds a lenient one).
+    // Supply-chain gate: `cargo deny check advisories` scans the RustSec DB (the
+    // cargo-audit replacement) — the universal, ~zero-false-positive security
+    // signal. Scoped to advisories on purpose: this runs at a BLOCKING done-gate
+    // over the whole dep tree, so licenses/sources (policy checks that false-red
+    // on missing license metadata or intentional git deps) stay configured in
+    // deny.toml but opt-in, not a default that blocks unrelated changes.
     // Visible-but-unavailable when cargo-deny is absent (surfaces the install).
-    return entry('rust', cwd, 'cargo deny check', 'cargo-deny', isAvailable('cargo-deny'));
+    return entry(
+      'rust',
+      cwd,
+      'cargo deny check advisories',
+      'cargo-deny',
+      isAvailable('cargo-deny'),
+    );
   if (kind === 'typecheck')
     // The typecheck kind is the strict CI-lint signal a green targeted-test run
     // can hide (#436). Clippy is a rustc driver — it wraps `cargo check`, so this

@@ -360,7 +360,9 @@ describe('resolveTestPlan — deps plan (kind: deps, supply-chain gate)', () => 
   it('emits the cargo-deny supply-chain check for Rust', () => {
     const root = makeRepo({ 'Cargo.toml': '[package]\nname="x"\n' });
     const plan = resolveTestPlan(root, { kind: 'deps', isToolAvailable: allTools });
-    expect(entryFor(plan, 'rust')?.command).toBe('cargo deny check');
+    // Scoped to advisories — the zero-false-positive security check — not full
+    // `cargo deny check`, whose license/source policy false-reds a blocking gate.
+    expect(entryFor(plan, 'rust')?.command).toBe('cargo deny check advisories');
     expect(entryFor(plan, 'rust')?.runner).toBe('cargo-deny');
   });
 

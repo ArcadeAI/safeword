@@ -159,9 +159,9 @@ run_plan
 plan_kind=typecheck
 run_plan
 
-# --- Dependency policy: `cargo deny check` (advisories, licenses, bans,
-#     sources) for Rust. Empty for non-Rust or when cargo-deny is absent
-#     (a visible skip, never a false green). ---
+# --- Supply-chain: `cargo deny check advisories` (RustSec DB) for Rust —
+#     the zero-false-positive security signal. Empty for non-Rust or when
+#     cargo-deny is absent (a visible skip, never a false green). ---
 plan_kind=deps
 run_plan
 ```
