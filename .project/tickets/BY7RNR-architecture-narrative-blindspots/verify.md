@@ -9,6 +9,13 @@ Date: 2026-07-05 · Branch: claude/github-848-qwjypx · HEAD at verification: 85
 > sync. The 8 vitest + 1 cucumber failures seen under the container's Node 22 are
 > environmental (`Error.isError` needs Node ≥24) and reproduce identically on
 > origin/main; CI (Node 24) is green on 93c559a.
+>
+> Post-rebase /audit: Audit passed with the same 1 warning (website docs gap) —
+> config-sync ✓, depcruise 0 violations (572 modules), knip clean, learnings ✓,
+> `bun outdated` empty. Clones: 419 (8.90%) [repo minus .safeword,.project —
+> new #825 scope; prior repo-wide 592 count is a different scope, not a delta].
+> Maintainer merged main (#857) into the PR branch remotely; my edits and all
+> 212 parity pairs verified intact after the merge.
 
 ## Verify Checklist
 
