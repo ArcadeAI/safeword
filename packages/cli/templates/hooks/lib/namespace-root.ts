@@ -16,20 +16,31 @@ import nodePath from 'node:path';
 export const NAMESPACE_ROOT_DEFAULT = '.project';
 export const NAMESPACE_ROOT_LEGACY = '.safeword-project';
 
-function readConfiguredProjectRoot(projectDirectory: string): string | undefined {
+/**
+ * The raw non-empty `paths.<key>` string from `.safeword/config.json`, or
+ * `undefined` (unset, empty, non-string, or missing/unparseable config).
+ * Shared by the hook-side path resolvers (projectRoot here, architecture in
+ * architecture-document-nudge.ts) — hooks run standalone, so this is their
+ * one config-reading seam.
+ */
+export function readConfiguredPathValue(projectDirectory: string, key: string): string | undefined {
   const configPath = nodePath.join(projectDirectory, '.safeword', 'config.json');
   if (!existsSync(configPath)) return undefined;
 
-  let parsed: { paths?: { projectRoot?: unknown } };
+  let parsed: { paths?: Record<string, unknown> };
   try {
-    parsed = JSON.parse(readFileSync(configPath, 'utf8')) as { paths?: { projectRoot?: unknown } };
+    parsed = JSON.parse(readFileSync(configPath, 'utf8')) as { paths?: Record<string, unknown> };
   } catch {
     return undefined;
   }
 
-  const raw = parsed.paths?.projectRoot;
+  const raw = parsed.paths?.[key];
   if (typeof raw !== 'string' || raw.length === 0) return undefined;
   return raw;
+}
+
+function readConfiguredProjectRoot(projectDirectory: string): string | undefined {
+  return readConfiguredPathValue(projectDirectory, 'projectRoot');
 }
 
 /**

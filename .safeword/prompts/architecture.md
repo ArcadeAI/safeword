@@ -12,7 +12,9 @@ Review the following code changes for architectural issues.
 
 ## Context
 
-Read the project's ARCHITECTURE.md for:
+Read the project's architecture narrative — the `paths.architecture` target in
+`.safeword/config.json` when set (a file, or a directory of decision records),
+else the root `ARCHITECTURE.md` — for:
 
 - Defined layers and their responsibilities
 - Allowed dependencies between layers

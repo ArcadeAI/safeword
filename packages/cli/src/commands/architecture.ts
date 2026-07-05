@@ -29,6 +29,7 @@ import {
   type SelfHealResult,
 } from '../utils/architecture-document.js';
 import { discoverUnreadableWorkspaces } from '../utils/architecture-monorepo.js';
+import { architectureNarrativeDriftAdvisoryForProject } from '../utils/architecture-narrative-drift.js';
 import { isArchitectureDocumentEnforcementEnabled } from '../utils/configured-paths.js';
 import { error, success, warn } from '../utils/output.js';
 
@@ -48,7 +49,22 @@ export function architecture(
     success(`Architecture state document ${result.action}: ${result.path}`);
   }
   warnUnreadableWorkspaces(cwd);
+  warnNarrativeDrift(cwd);
   return Promise.resolve();
+}
+
+/**
+ * Print the non-blocking narrative-drift advisory (ticket BY7RNR, GitHub #848):
+ * generated `## Packages` entries the human narrative never mentions — the
+ * pre-existing-drift case the AXRC4D fingerprint nudge cannot see. Surfaced in
+ * every mode (like {@link warnUnreadableWorkspaces}, and independent of
+ * `architectureDocEnforcement` for the same reason: honesty about the map is
+ * not enforcement) and never changes an exit code — the narrative is
+ * human-owned, so only a person can reconcile it.
+ */
+function warnNarrativeDrift(cwd: string): void {
+  const advisory = architectureNarrativeDriftAdvisoryForProject(cwd);
+  if (advisory !== undefined) warn(advisory);
 }
 
 /**
@@ -82,13 +98,14 @@ function architectureStage(cwd: string): Promise<void> {
   const changed = selfHealProject(cwd).filter(result => isWouldChangeAction(result.action));
   if (changed.length === 0) {
     success('Architecture docs need no change.');
-    return Promise.resolve();
+  } else {
+    for (const result of changed) {
+      stageDocument(cwd, result);
+      success(`Architecture doc ${result.action} and staged: ${result.path}`);
+    }
   }
-
-  for (const result of changed) {
-    stageDocument(cwd, result);
-    success(`Architecture doc ${result.action} and staged: ${result.path}`);
-  }
+  // After the heal, so the advisory reads the doc this commit will carry.
+  warnNarrativeDrift(cwd);
   return Promise.resolve();
 }
 
@@ -109,6 +126,7 @@ function stageDocument(cwd: string, result: SelfHealResult): void {
  */
 function architectureCheck(cwd: string): Promise<void> {
   warnUnreadableWorkspaces(cwd);
+  warnNarrativeDrift(cwd);
   if (!isArchitectureDocumentEnforcementEnabled(cwd)) {
     success('Architecture doc enforcement is opted out (architectureDocEnforcement: false).');
     return Promise.resolve();
