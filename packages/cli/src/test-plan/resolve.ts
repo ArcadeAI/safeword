@@ -285,9 +285,22 @@ function resolveRust(
   kind: PlanKind,
   isAvailable: ToolProbe,
 ): PlanEntry | undefined {
-  if (kind === 'typecheck') return undefined; // typecheck is a JS/TS concern; `cargo build` covers Rust
   if (!index.has('Cargo.toml')) return undefined;
   const cwd = index.get('Cargo.toml') ?? root;
+  if (kind === 'typecheck')
+    // The typecheck kind is the strict CI-lint signal a green targeted-test run
+    // can hide (#436). Clippy is a rustc driver — it wraps `cargo check`, so this
+    // subsumes a plain compile check and adds lint enforcement. `--all-targets
+    // --all-features` reaches test/bench targets and feature-gated code the
+    // per-file `clippy -p <pkg> --fix` hook cannot see; `-D warnings` makes it a
+    // gate. Reads the project's own Cargo.toml `[lints]` + clippy.toml.
+    return entry(
+      'rust',
+      cwd,
+      'cargo clippy --workspace --all-targets --all-features -- -D warnings',
+      'clippy',
+      isAvailable('cargo-clippy'),
+    );
   if (kind === 'build')
     return entry('rust', cwd, 'cargo build --workspace', 'cargo', isAvailable('cargo'));
   if (isAvailable('cargo-nextest'))

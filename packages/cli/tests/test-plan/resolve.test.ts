@@ -328,14 +328,30 @@ describe('resolveTestPlan — typecheck plan (kind: typecheck, #436)', () => {
     expect(entryFor(plan, 'javascript')).toBeUndefined();
   });
 
-  it('is a JS/TS-only concern — never emits Python/Go/Rust entries', () => {
+  it('never emits Python/Go entries (their build step covers compile)', () => {
     const root = makeRepo({
       'pyproject.toml': '[project]\nname="x"\n',
       'go.mod': 'module x\n',
-      'Cargo.toml': '[package]\nname="x"\n',
       'package.json': JSON.stringify({ scripts: { typecheck: 'tsc --noEmit' } }),
     });
     const plan = resolveTestPlan(root, { kind: 'typecheck', isToolAvailable: allTools });
     expect(languages(plan)).toEqual(['javascript']);
+  });
+
+  it('emits the strict workspace clippy gate for Rust', () => {
+    const root = makeRepo({ 'Cargo.toml': '[package]\nname="x"\n' });
+    const plan = resolveTestPlan(root, { kind: 'typecheck', isToolAvailable: allTools });
+    expect(entryFor(plan, 'rust')?.command).toBe(
+      'cargo clippy --workspace --all-targets --all-features -- -D warnings',
+    );
+    expect(entryFor(plan, 'rust')?.runner).toBe('clippy');
+  });
+
+  it('keeps the Rust clippy entry visible but unavailable when clippy is missing', () => {
+    const root = makeRepo({ 'Cargo.toml': '[package]\nname="x"\n' });
+    // cargo present, clippy component absent — the entry must stay listed so the
+    // gate surfaces "run `rustup component add clippy`" rather than silently pass.
+    const plan = resolveTestPlan(root, { kind: 'typecheck', isToolAvailable: onlyTools('cargo') });
+    expect(entryFor(plan, 'rust')?.available).toBe(false);
   });
 });
