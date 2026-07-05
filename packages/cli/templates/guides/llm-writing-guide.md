@@ -80,22 +80,30 @@ Section B: "All user-facing features have E2E tests"
 
 ## Decision Tree Patterns
 
-### Sequential Over Parallel
+### Declarative Table Over Ordered Scan
 
-Structure as ordered steps, not simultaneous checks.
+A literal model resolves a lookup in one glance, so prefer a declarative "first
+matching row applies" table over an ordered "answer in order, stop at first
+match" scan — the scan makes the model serially walk rows it already sees at
+once. Keep the rows mutually exclusive and collectively exhaustive. Reserve
+ordered steps for a genuinely sequential _procedure_, where each step depends on
+the result of the one before.
 
 ```markdown
-❌ BAD - Parallel:
-├─ Pure function?
-├─ Multiple components?
-└─ Full user flow?
-
-✅ GOOD - Sequential:
+❌ BAD - ordered scan of mutually-exclusive rows:
 Answer IN ORDER, stop at first match:
 
 1. Pure function? → Unit
 2. Multiple components? → Integration
 3. Full user flow? → E2E
+
+✅ GOOD - declarative table, first matching row applies:
+
+| If the test…               | Type        |
+| -------------------------- | ----------- |
+| covers a pure function     | Unit        |
+| spans multiple components  | Integration |
+| exercises a full user flow | E2E         |
 ```
 
 ### Tie-Breaking Rules
@@ -160,22 +168,36 @@ Provide concrete next steps for dead ends.
 
 ---
 
-## Quality Checklist
+## De-prescription: convert, don't delete
 
-- [ ] Decision trees: MECE, sequential, with tie-breakers
-- [ ] All terms explicitly defined
-- [ ] Every rule has good vs bad examples
-- [ ] Edge cases covered
-- [ ] No contradictions between sections
-- [ ] Complex decisions have lookup tables
-- [ ] Dead-end paths have re-evaluation steps
-- [ ] Critical rules not buried in the middle of long documents
+Modern models (Fable 5, Opus 4.8, Sonnet 5) follow instructions more literally
+than older ones, so imperative step-lists, forced ordering, and shouted
+`CRITICAL/MUST` emphasis now degrade output rather than improve it. When editing
+these guides, **convert prescription into principle** — state the intent, a
+measurable done-condition, and the explicit scope — rather than enumerating
+steps. Graduate true invariants out of prose and into hooks/lint.
 
----
+This is a cross-vendor shift, not an Anthropic quirk: OpenAI's GPT-5.5 guidance
+says the same — "reduce or remove detailed step-by-step process guidance… let
+the model choose the path unless the product requires that path," and "describe
+the expected outcome, success criteria, allowed side effects… and output shape"
+instead. Treat the convention as durable, not model-of-the-month.
 
-## Key Takeaways
+**Classify every edit into one of two columns:**
 
-- Decision trees: sequential, MECE, with tie-breakers
-- Every rule needs concrete examples (good vs bad)
-- Define all terms explicitly—assume nothing is obvious
-- Avoid burying critical rules in the middle — use clear structure over position tricks
+- **Universal** — rephrases to intent, softens an imperative, drops
+  native-behavior scaffolding, or graduates an invariant into a hook. No
+  guidance is lost, so **apply it globally, no A/B needed.**
+- **Deletion** — removes guidance instead of restating it. A literal model
+  won't infer what you cut, so this **must pass an Opus 4.8 + Sonnet 5 A/B
+  before it ships globally** — never on single-model evidence.
+
+Two more rules keep the smaller and non-Fable drivers safe:
+
+- **Tag each finding with the model that surfaced it.** A regression seen only
+  on one model isn't yet evidence for a global change.
+- **Keep capability guidance as conditional "when-X" triggers, don't delete it.**
+  Prompts to delegate to subagents, consult learnings, or search-first are
+  scaffolding Fable doesn't need but Opus 4.8 does (it under-reaches). Phrase
+  them as "when the task fans out across independent items, delegate to
+  subagents" — harmless to Fable, measurable lift on Opus 4.8.

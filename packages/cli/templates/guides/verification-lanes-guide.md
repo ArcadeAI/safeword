@@ -33,38 +33,20 @@ primary lane is smoke, release, or slow/performance.
 
 ## Lane Decision Tree
 
-Answer in order. Stop at the first match. Choose the lane that explains why this
-run exists now.
+The first matching row picks the lane (rows run specific → general). Choose the
+lane that explains why this run exists now.
 
-1. **Are you proving only the current change while writing code?**
-   - YES → Focused lane
-   - NO → Continue
+| If the run…                                                                                                              | Lane             |
+| ------------------------------------------------------------------------------------------------------------------------ | ---------------- |
+| proves only the current change while writing code                                                                        | Focused          |
+| gives a quick signal that the product is basically usable                                                                | Smoke            |
+| proves behavior against real external systems, credentials, production-like infrastructure, or a real customer workspace | Live-fire        |
+| proves a built, packaged, or deployed artifact is ready to ship                                                          | Release          |
+| proves old data, config, or installs still work after an upgrade                                                         | Migration        |
+| runs static analysis rather than runtime behavior                                                                        | Static gate      |
+| is too expensive for normal local or per-commit runs                                                                     | Slow/performance |
 
-2. **Do you need a quick signal that the product is basically usable?**
-   - YES → Smoke lane
-   - NO → Continue
-
-3. **Is the main reason for this run to prove behavior against real external
-   systems, real credentials, production-like infrastructure, or a real
-   customer-like workspace?**
-   - YES → Live-fire lane
-   - NO → Continue
-
-4. **Are you proving that a built, packaged, or deployed artifact is ready to ship?**
-   - YES → Release lane
-   - NO → Continue
-
-5. **Are you proving old data, old config, or old installs still work after an upgrade?**
-   - YES → Migration lane
-   - NO → Continue
-
-6. **Is the check static analysis rather than runtime behavior?**
-   - YES → Static gate
-   - NO → Continue
-
-7. **Is the check too expensive for normal local or per-commit runs?**
-   - YES → Slow/performance lane
-   - NO → Re-evaluate the test type in `.safeword/guides/testing-guide.md`
+If none fit, re-evaluate the test type in `.safeword/guides/testing-guide.md`.
 
 **Tie-breaker:** if a check fits two lanes, choose the lane that explains why it
 is run at its cadence. Example: a Playwright checkout test that runs in two
@@ -96,7 +78,8 @@ A good verification lane changes an engineering decision. It tells the team
 whether to keep coding, hand off, merge, release, roll back, or investigate the
 environment. A busywork lane consumes time without changing the next action.
 
-Before adding a new lane or check, answer in order. Stop at the first failure.
+A new lane or check earns its place only if every one of these holds; the first
+that fails tells you what to fix before adding it.
 
 1. **What decision will this run unblock?**
    - Clear answer → Continue

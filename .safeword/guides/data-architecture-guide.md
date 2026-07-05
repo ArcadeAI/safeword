@@ -8,15 +8,16 @@
 
 ## When to Document Data Architecture
 
-**Decision Tree (Answer IN ORDER, stop at first match):**
+The first matching row applies (rows run general → specific, so when several fit,
+the earlier one wins):
 
-1. **Project initialization?** → Create `DATA_ARCHITECTURE.md` or `ARCHITECTURE.md` with data section
-2. **Adding new data store?** (database, cache, file system) → Update architecture doc
-3. **Changing data model?** (schema, entities, relationships) → Update architecture doc
-4. **Data flow integration?** (API, ETL, sync) → Update architecture doc
-5. **Single feature implementation?** → Use design doc (reference architecture doc)
-
-**Tie-breaking rule:** If multiple apply, stop at first match (earlier = more general).
+| If the work is…                                           | Action                                                               |
+| --------------------------------------------------------- | -------------------------------------------------------------------- |
+| project initialization                                    | Create `DATA_ARCHITECTURE.md` or `ARCHITECTURE.md` with data section |
+| adding a new data store (database, cache, file system)    | Update architecture doc                                              |
+| changing the data model (schema, entities, relationships) | Update architecture doc                                              |
+| a data-flow integration (API, ETL, sync)                  | Update architecture doc                                              |
+| a single-feature implementation                           | Use design doc (reference architecture doc)                          |
 
 **Edge cases:**
 
@@ -199,12 +200,3 @@ Before finalizing data architecture doc:
 - [ ] Migration strategy covers both additive and breaking changes
 - [ ] Version and status match codebase (verify with git/deployment)
 - [ ] Cross-referenced from root ARCHITECTURE.md or SAFEWORD.md (link exists)
-
----
-
-## Key Takeaways
-
-- Data quality, governance, accessibility are core principles
-- Every entity needs: attributes, types, relationships, constraints
-- Performance targets use concrete numbers (e.g., <100ms, not "fast")
-- Migration strategy covers both additive and breaking changes

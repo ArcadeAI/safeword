@@ -6,7 +6,7 @@ allowed-tools: '*'
 
 # Figure It Out: Evidence-Backed Option Weighing
 
-**Iron Law:** No recommendation without current evidence. Training data is stale; verify before staking a position.
+No recommendation without current evidence. Training data is stale; verify before staking a position.
 
 **Stakes set depth.** Investigate as if your recommendation ships unreviewed — a decision gets built on it with no second analysis pass. That standard, not "it's just advice," sets how hard you research. Before researching, write the investigation plan: the sub-questions each domain (Phase 3a) must answer, then work the list. Plan the _investigation_, not the answer — committing to a conclusion before the evidence is the failure this skill exists to prevent.
 
@@ -43,7 +43,7 @@ Two or three, concrete enough to debate. For each: **what** (one sentence), **lo
 
 ### Phase 3: Enumerate domains, then research
 
-**3a — Name the domains.** Before searching, list every domain your decision touches. Multiple, not one. Write them down explicitly. A list with fewer than two or three entries means you haven't looked hard enough — decisions live at the intersection of multiple bodies of work.
+**3a — Name the domains.** Before searching, list every domain your decision touches. Multiple, not one. Write them down explicitly. A single-domain list means you haven't looked hard enough — decisions live at the intersection of multiple bodies of work.
 
 Worked example — drafting a one-line block message for a CLI hook isn't just "writing copy." Domain list:
 
@@ -87,7 +87,7 @@ Then commit. Format:
 
 The `**Premortem:**` line disconfirms your _choice_, not just the alternatives you steelmanned — the option you stop scrutinizing the moment you pick it is the one that bites. Keep it to one sentence.
 
-The `**Next:**` line is required. A recommendation without a next action is incomplete — name the file to edit, the command to run, or the question to ask. One line, imperative.
+Close with the `**Next:**` line — one imperative naming the file to edit, the command to run, or the question to ask (the stop hook reads it for the re-entry brief). A recommendation that doesn't say what to do now leaves the reader stranded.
 
 If two options tie on correctness and elegance, the smaller one wins.
 

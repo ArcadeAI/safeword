@@ -10,17 +10,12 @@ allowed-tools: '*'
 
 Find root cause before fixing. Symptom fixes are failure.
 
-**Iron Law:** NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST
+Investigate the root cause before attempting any fix.
 
 ## When to Use
 
-Answer IN ORDER. Stop at first match:
-
-1. Bug, error, or test failure? → Use this skill
-2. Unexpected behavior? → Use this skill
-3. Previous fix didn't work? → Use this skill (especially important)
-4. Performance problem? → Use this skill
-5. None of above? → Skip this skill
+Use for bugs, errors, test failures, unexpected behavior, repeated failed fixes,
+or performance problems — skip for greenfield work.
 
 **Use especially when:**
 
@@ -150,7 +145,7 @@ Write each as "X could be root cause because Y", then ask: what evidence would _
 | Rules one out         | Eliminate it; test the next live hypothesis. None left? Form new ones (3.1) |
 | Inconclusive          | Pick a more discriminating (cheaper-to-disconfirm) test                     |
 
-### Root Cause Checkpoint (REQUIRED)
+### Root Cause Checkpoint
 
 Before proceeding to Phase 4:
 
@@ -197,7 +192,7 @@ it('handles empty input without crashing', () => {
 - [ ] Existing tests still pass
 - [ ] Issue actually resolved (not just test passing)
 
-End the fix report with **Next:** on its own line — imperative, name what's now (commit message to use, ticket to mark done, follow-up issue to open for related debt the investigation surfaced). A debug session that ends without naming the next move is incomplete.
+Close the fix report with a `**Next:**` line — imperative: the commit message to use, the ticket to mark done, or a follow-up issue for related debt the investigation surfaced (the stop hook reads it for the re-entry brief).
 
 Examples:
 

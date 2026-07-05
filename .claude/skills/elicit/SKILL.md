@@ -8,7 +8,7 @@ allowed-tools: '*'
 
 Draw out what the user knows and you can't research. Then check the latest evidence. Then explore options together.
 
-**Iron Law:** NEVER ASK A QUESTION YOU COULD ANSWER YOURSELF. Read the code, search the docs, check git history first. Only ask what's left.
+Don't ask a question you could answer yourself. Read the code, search the docs, and check git history first; only ask what's left.
 
 ## When to Run
 
@@ -57,7 +57,7 @@ Keep asking until one of:
 - You have enough to distinguish between options in Phase 3
 - User says "enough" or "go"
 
-Typical: 3-7 questions. Fewer for small scope, more for ambiguous scope.
+Usually a handful — fewer for small scope, more for ambiguous scope. Let the stop conditions above end it, not a target count.
 
 ## Phase 2: Research
 

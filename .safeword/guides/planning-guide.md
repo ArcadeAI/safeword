@@ -6,7 +6,7 @@ How to write specs, user stories, and test definitions before implementation.
 
 ## Artifact Levels
 
-**Triage first - answer IN ORDER, stop at first match:**
+**Triage first — the first matching row sets the level:**
 
 | Question                                 | Level       | Artifacts                                            |
 | ---------------------------------------- | ----------- | ---------------------------------------------------- |
@@ -304,7 +304,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Testing Technical Constraints
 
-User stories include Technical Constraints. These MUST have corresponding scenarios.
+User stories include Technical Constraints; each one needs a corresponding scenario.
 
 | Constraint Category | Test Type                  | What to Verify                                |
 | ------------------- | -------------------------- | --------------------------------------------- |

@@ -449,6 +449,6 @@ Errors: N | Warnings: N | Passed: N
 **Next:** [imperative — which fix to start, which package to upgrade, which file to update].
 ```
 
-The `**Next:**` line is required, even on a clean pass. Name the immediate move (commit, mark ticket done, open a follow-up ticket for the warnings). A verdict without a concrete next action is incomplete — don't leave the user to guess which finding to address first.
+Close with the `**Next:**` line even on a clean pass — name the immediate move (commit, mark ticket done, open a follow-up for warnings) so the reader isn't left guessing which finding to start with (the stop hook reads it for the re-entry brief).
 
 **Voice:** plainspoken and concise — write to be scanned.

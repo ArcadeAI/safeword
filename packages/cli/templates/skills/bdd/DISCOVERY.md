@@ -208,7 +208,7 @@ done_when:
 
 The arc end to end: a persona from `personas.md`, a job that names it, criteria under the job, an engineering contract on top, and scenarios that trace back to a criterion — each sub-phase closed by its gate.
 
-## Intake Exit (REQUIRED)
+## Intake Exit
 
 Before proceeding to define-behavior (the Intake Brief is advisory — a missing or `skip:`'d field never blocks this exit; only `scope` / `out_of_scope` / `done_when` are required):
 

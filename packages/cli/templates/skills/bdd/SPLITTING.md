@@ -27,17 +27,9 @@ STEP 2: Assess depth
 
 ## Split Protocol
 
-**New ticket:**
+**New ticket:** create an epic with a `children:` array and child tickets that link back via `parent:`, then commit the split with a conventional-commit message.
 
-1. Create epic with `children:` array
-2. Create child tickets with `parent:` link
-3. Commit: "chore: split [name] into N features"
-
-**Existing ticket (promote):**
-
-1. Change `type: feature` → `type: epic`
-2. Add `children:` array
-3. Create child tickets with `parent:` link
+**Existing ticket (promote):** change `type: feature` → `type: epic`, add the `children:` array, and create the child tickets with `parent:` links.
 
 ## Restart Points After Split
 
@@ -49,10 +41,6 @@ STEP 2: Assess depth
 
 ## User Override
 
-User can decline: "Proceed anyway"
-
-- Log: "Split suggested but user declined"
-- Continue at current phase
-- Don't re-suggest at same checkpoint this session
+The user can decline a split and proceed anyway — note the declined suggestion in the work log, continue at the current phase, and don't re-suggest at the same checkpoint this session.
 
 **Avoid bloat.**

@@ -14,13 +14,7 @@ A safeword session runs through these phases in order. Each phase has an exit cr
 
 Understand what the user is asking before classifying or building. **Propose-and-Converge** means: lead with a perspective, then surface open questions _inside_ that proposal. Don't ask first — propose first.
 
-Each turn:
-
-1. Restate what you heard.
-2. Contribute a perspective, sketch, or reframe.
-3. Surface remaining open questions as part of that contribution.
-4. Incorporate what the user confirmed; narrow the open set.
-5. When zero open questions remain and the user accepts → advance.
+Each turn, restate what you heard, contribute a perspective/sketch/reframe, and surface the remaining open questions inside that contribution. Incorporate what the user confirms to narrow the open set; advance once none remain and the user accepts.
 
 Research before proposing anything significant — and the order is load-bearing:
 
@@ -123,7 +117,7 @@ Optimize for **Clarity → Simplicity → Correctness**, in that order. When in 
 | Factory for simple object    | Direct construction                              | Indirection without value |
 | `data`, `tmp`, `d`           | `userProfile`, `pendingOrder`                    | Names should explain      |
 | Code "for later"             | Delete it; add when needed                       | YAGNI                     |
-| >50 lines for nice-to-have   | Ask user: "Essential now?"                       | Scope creep               |
+| >50 lines for nice-to-have   | Ask whether it's essential now                   | Scope creep               |
 
 ---
 
@@ -139,7 +133,7 @@ Training data drifts. Memory of "how X worked" is not authority — the current 
 
 **Adding a dependency** (a package not yet in the project) — there's no installed version to read, and the version you recall is stale by definition. Use the live `Current time:` line injected by `prompt-timestamp.ts` when the host provides one; otherwise use the current system date from the session. Then verify the current version for that date before pinning. Prefer the package manager's resolver command (`bun add <pkg>`, `npm install <pkg>`, `uv add`, `cargo add`, `go get <module>@latest`, etc.) or a registry command such as `npm view <pkg> version`, `pip index versions`, `go list -m -versions`, or crates.io. Pin what the registry reports today, never a number from memory.
 
-**Design choices** (algorithm, architecture, security, performance, concurrency, accessibility, ML/stats) — call `/figure-it-out`. Its iron law: no recommendation without current evidence. It enumerates research domains, fetches live docs, and weighs options before committing.
+**Design choices** (algorithm, architecture, security, performance, concurrency, accessibility, ML/stats) — call `/figure-it-out`. Its core rule: no recommendation without current evidence. It enumerates research domains, fetches live docs, and weighs options before committing.
 
 Blog posts, tweets, marketing, and "I remember reading…" don't count for any tier. Treat them as leads, not evidence.
 
@@ -149,24 +143,24 @@ Blog posts, tweets, marketing, and "I remember reading…" don't count for any t
 
 Read the matching guide when its trigger fires:
 
-| Trigger                                                        | Guide                                           |
-| -------------------------------------------------------------- | ----------------------------------------------- |
-| Starting a feature/task OR writing specs/test-definitions      | `./.safeword/guides/planning-guide.md`          |
-| Choosing test type, doing TDD, or a test is failing            | `./.safeword/guides/testing-guide.md`           |
-| Creating or updating a design doc                              | `./.safeword/guides/design-doc-guide.md`        |
-| Making an architectural decision or writing an ADR             | `./.safeword/guides/architecture-guide.md`      |
-| Understanding the generated `architecture.generated.md` doc    | `./.safeword/guides/architecture-guide.md`      |
-| Data-heavy project needing formal data architecture            | `./.safeword/guides/data-architecture-guide.md` |
-| Writing learnings or agent config (CLAUDE.md, .cursor/rules)   | `./.safeword/guides/llm-writing-guide.md`       |
-| Updating CLAUDE.md, SAFEWORD.md, or any context file           | `./.safeword/guides/context-files-guide.md`     |
-| Hit the same bug 3+ times or discovered an undocumented gotcha | `./.safeword/guides/learning-extraction.md`     |
-| Process hanging, port in use, or zombie process suspected      | `./.safeword/guides/zombie-process-cleanup.md`  |
+| Trigger                                                          | Guide                                           |
+| ---------------------------------------------------------------- | ----------------------------------------------- |
+| Starting a feature/task OR writing specs/test-definitions        | `./.safeword/guides/planning-guide.md`          |
+| Choosing test type, doing TDD, or a test is failing              | `./.safeword/guides/testing-guide.md`           |
+| Creating or updating a design doc                                | `./.safeword/guides/design-doc-guide.md`        |
+| Making an architectural decision or writing an ADR               | `./.safeword/guides/architecture-guide.md`      |
+| Understanding the generated `architecture.generated.md` doc      | `./.safeword/guides/architecture-guide.md`      |
+| Data-heavy project needing formal data architecture              | `./.safeword/guides/data-architecture-guide.md` |
+| Writing learnings or agent config (CLAUDE.md, .cursor/rules)     | `./.safeword/guides/llm-writing-guide.md`       |
+| Updating CLAUDE.md, SAFEWORD.md, or any context file             | `./.safeword/guides/context-files-guide.md`     |
+| Hit the same bug repeatedly or discovered an undocumented gotcha | `./.safeword/guides/learning-extraction.md`     |
+| Process hanging, port in use, or zombie process suspected        | `./.safeword/guides/zombie-process-cleanup.md`  |
 
 ---
 
 ## Standing Rules
 
-**TodoWrite.** Use for 3+ step or non-trivial work, or when the user provides multiple requests. Create as the first tool call; keep one task `in_progress` at a time; mark completed immediately.
+**TodoWrite.** Use for 3+ step or non-trivial work, or when the user provides multiple requests. Set it up before diving in; keep one task `in_progress` at a time; mark completed as you finish each.
 
 **Commit frequently.** After each GREEN phase, before and after refactors, when switching tasks. The LOC gate fires near 400 lines — commit to reset it.
 
@@ -199,7 +193,7 @@ This is the most-read surface of safeword. **Write to be scanned, not read.** Sh
 > Do: "Fixed — `packages/cli/src/auth.ts:42` was swallowing the refresh error."
 > Don't: "Great question! Let me walk you through what I found..."
 
-**End with the call.** Last line is what's next — a question, a choice, or a proposed step. For structured replies (verdicts, reviews, recommendations, audits), use a literal `**Next:** <imperative>` line — the same discipline safeword skills enforce in their output. Short conversational replies can end with the question itself; no bold preface needed. Don't bury the call mid-reply.
+**End with the call.** Close by naming what's next — a question, a choice, or a proposed step; don't bury it mid-reply. For structured replies (verdicts, reviews, recommendations, audits), make that closing line a literal `**Next:** <imperative>`: the stop hook captures it verbatim for the session's re-entry brief, so the token is load-bearing, not decoration. Short conversational replies can end with the question itself.
 
 **Debate-then-pick.** When there's a real choice, surface 2-3 options weighed in one breath, then the pick — one line each on the candidates, one on the tradeoff, one on the call. Don't ping-pong one option at a time. Skip the debate when there's no real choice (rename, mechanical edit, single obvious path).
 
@@ -211,7 +205,7 @@ This is the most-read surface of safeword. **Write to be scanned, not read.** Sh
 
 **Gloss jargon at the decision point.** Don't assume the user reads code. The first time a stack or domain term is load-bearing in an _ask_ — a block, a decision, a step they must take — gloss it inline in one clause ("the refresh token (the credential that renews a login) expired"). Once per turn, never re-explained; a fluent reader skips it at no cost. Leave background narration unglossed.
 
-**Match length to the ask.** A one-line question gets a one-line reply — no headers, no bullets, no preamble. Complex tasks get a short answer followed by the detail that supports it. One sentence per status update while working; one or two sentences for end-of-turn summaries.
+**Match length to the ask.** A one-line question gets a one-line reply — no headers, no bullets, no preamble. Complex tasks get a short answer followed by the detail that supports it. Keep status updates terse and end-of-turn summaries brief — a sentence or two, not a paragraph.
 
 **Cite code as `path:line`.** When referencing something the user might open, write `packages/cli/src/foo.ts:142` inline. Not "the foo file." Not in a code block.
 
@@ -219,6 +213,6 @@ This is the most-read surface of safeword. **Write to be scanned, not read.** Sh
 
 **Use structure only when it carries weight.** Headings when the reply is long enough to navigate — and make them information-carrying, not generic ("What changed" beats "Summary"). Tables only for actual reference material — never as decision trees in disguise. Bullets only when items are genuinely parallel. Default to prose. Never output a series of overly short bullet points.
 
-**At most one bolded phrase per paragraph**, and only when reading the bold alone would tell the story. Bold-on-every-sentence reads as noise.
+**Use bold sparingly** — only where reading the bold alone would tell the story. Bold-on-every-sentence reads as noise.
 
 **Skip:** preambles ("I'll now..."), recaps of what the user just said, sycophantic openers ("Great question!"), hedging caveats ("It depends, but..."), restating actions the user can see in the tool log.

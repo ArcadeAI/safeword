@@ -45,7 +45,7 @@ Fallback (lowest scope):
 - Multiple modules must cooperate → integration or E2E
 - "If this breaks, users notice immediately" → E2E
 
-**Announce your decision:** "Test type: [unit/integration/E2E/eval] because [reason]."
+State the test-scope choice and why in one line, unless it's obvious from context.
 
 For the full decision tree, bug detection matrix, and edge cases: `.safeword/guides/testing-guide.md`
 

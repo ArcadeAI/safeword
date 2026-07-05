@@ -94,7 +94,7 @@
 - Designing a specific feature implementation
 - Need component breakdown and interactions
 - Feature-specific technical decisions
-- 2-3 pages (~121 lines)
+- Concise — a few pages, not a sprawling doc
 
 **Use Architecture Doc when:**
 
@@ -134,21 +134,11 @@
 
 ---
 
-## Example Commands
+## Working from a request
 
-**Creating design doc:**
-
-```text
-User: "Create design doc for three-pane layout"
-You: [Read user stories and test definitions, then create design doc]
-```
-
-**Updating design doc:**
-
-```text
-User: "Update design doc to add error handling section"
-You: [Read existing design doc, add Implementation Notes section with error handling]
-```
+Creating a design doc starts from the user stories and test definitions; updating
+one starts from the existing doc, extending the relevant section (e.g. adding
+Implementation Notes for error handling). Read the inputs first, then write.
 
 ---
 
@@ -161,7 +151,7 @@ Before saving, verify:
 - ✓ User flow has concrete examples
 - ✓ Key decisions have "what, why, trade-off"
 - ✓ All optional sections marked "(if applicable)"
-- ✓ ~121 lines (concise, LLM-optimized)
+- ✓ Concise, LLM-optimized (a few pages, not sprawling)
 
 ---
 
@@ -178,4 +168,4 @@ Before saving, verify:
 - Escalate to Architecture Doc if: new tech, new schema, or pattern affects 2+ features
 - Reference user stories and test definitions—don't duplicate them
 - Every decision needs: what, why, trade-off
-- ~121 lines target (concise, LLM-optimized)
+- Concise, LLM-optimized (a few pages, not sprawling)

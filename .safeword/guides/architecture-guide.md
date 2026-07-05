@@ -88,14 +88,16 @@ Required only when the ideal diverges from what exists:
 
 ---
 
-## Document Type Decision Tree (Follow in Order)
+## Document Type Decision Tree
 
-Answer **IN ORDER**. Stop at the first "Yes":
+The first matching row picks the doc type:
 
-1. **Technology or library choice?** → **Architecture Doc**
-2. **New data model or schema change?** → **Architecture Doc**
-3. **Project-wide pattern or convention?** → **Architecture Doc**
-4. **Implementing a specific feature?** → **Design Doc**
+| If the work is a…                  | Doc              |
+| ---------------------------------- | ---------------- |
+| technology or library choice       | Architecture Doc |
+| new data model or schema change    | Architecture Doc |
+| project-wide pattern or convention | Architecture Doc |
+| specific feature implementation    | Design Doc       |
 
 **Tie-breaker:** If a feature requires a new tech/schema choice, document the tech/schema in Architecture Doc first, then reference it in Design Doc.
 
@@ -301,12 +303,14 @@ Update in place with version/status tracking:
 
 ## Re-evaluation Path (When Unclear)
 
-Answer **IN ORDER**:
+The first matching row picks the doc type:
 
-1. **Affects 2+ features?** → Architecture Doc (stop)
-2. **Technology/data model choice?** → Architecture Doc (stop)
-3. **Future developers need this for whole project?** → Architecture Doc
-4. **Only for this feature?** → Design Doc
+| If the work…                                 | Doc              |
+| -------------------------------------------- | ---------------- |
+| affects 2+ features                          | Architecture Doc |
+| is a technology/data-model choice            | Architecture Doc |
+| future developers need for the whole project | Architecture Doc |
+| is only for this feature                     | Design Doc       |
 
 **Tie-breaker:** When still unclear, default to Design Doc. Easier to promote later than to split.
 

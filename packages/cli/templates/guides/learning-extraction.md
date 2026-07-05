@@ -1,6 +1,6 @@
 # Learning Extraction Process
 
-Extract reusable knowledge from debugging sessions and implementation discoveries. Ensures insights compound across sessions.
+Extract reusable knowledge from debugging sessions and implementation discoveries. Ensures insights compound across sessions. When in doubt, extract more rather than less — you can archive later — and capture it while the context is fresh rather than deferring.
 
 **LLM Instruction Design:** Learnings are documentation that LLMs read and follow. Apply best practices from `@.safeword/guides/llm-writing-guide.md` when writing learning files (concrete examples, explicit definitions, MECE principles).
 
@@ -14,10 +14,10 @@ Extract after experiencing ANY of these:
 
 1. **Observable debugging complexity** - Any of these signals:
    - User says "still debugging", "been stuck on this", "tried many things"
-   - 5+ debug cycles (Read → Edit → Bash pattern repeated)
-   - 3+ different error states encountered
-   - Modified 3+ files while debugging same issue
-2. **Trial and error** - Tried 3+ different approaches before finding the right one
+   - Several debug cycles (Read → Edit → Bash pattern repeated)
+   - Multiple different error states encountered
+   - Modified several files while debugging the same issue
+2. **Trial and error** - Tried several different approaches before finding the right one
 3. **Undocumented gotcha** - Not in official library/framework docs
 4. **Integration struggle** - Two tools that don't work together smoothly
 5. **Testing trap** - Tests pass but UX is broken (or vice versa)
@@ -51,7 +51,7 @@ Extract after experiencing ANY of these:
 
 ## Using Existing Learnings
 
-**CRITICAL**: Before extracting new learnings, ALWAYS check if similar learnings already exist. This prevents duplication and keeps knowledge organized.
+Before extracting a new learning, check whether a similar one already exists — this prevents duplication and keeps the knowledge organized.
 
 ### When to Check for Existing Learnings
 
@@ -88,55 +88,12 @@ ls <namespace-root>/learnings/*keyword*.md
 
 ### When to Reference Existing Learnings
 
-**Found existing learning** → Read and apply it:
+Before extracting or advising, `ls` the learnings directory for the concept's keywords, then:
 
-```text
-"I found an existing learning about [concept] at [path]. Let me read it and apply to your case..."
-[Read the file]
-"Based on the learning, here's how to handle this: [specific guidance from learning]"
-```
-
-**No existing learning** → Proceed normally (no message needed)
-
-**Similar but different** → Reference and note difference:
-
-```text
-"This is similar to the [existing learning] at [path], but differs in [specific way].
-The existing learning covers [X], but your case involves [Y]."
-```
-
-### Example Workflow
-
-**Scenario 1: Found relevant learning**
-
-```text
-User: "I'm getting an async state update error with React hooks"
-→ Check: ls <namespace-root>/learnings/*react*.md *hooks*.md *async*.md
-→ Found: react-hooks-async.md
-→ Read: [file contents]
-→ Apply: "I found a learning about async React hooks. It mentions you should use useEffect
-         for side effects, not setState directly in callbacks. Applying this to your case..."
-```
-
-**Scenario 2: No existing learning**
-
-```text
-User: "IndexedDB quota is behaving strangely in Safari"
-→ Check: ls <namespace-root>/learnings/*indexeddb*.md *safari*.md *quota*.md
-→ Not found
-→ Proceed: Continue debugging normally, suggest extraction if triggers match
-```
-
-**Scenario 3: Update existing learning**
-
-```text
-User: Debugging for 6 cycles, discovers new IndexedDB quirk
-→ Suggest extraction
-→ Check: ls <namespace-root>/learnings/*indexeddb*.md
-→ Found: indexeddb-quota-api.md
-→ Suggest: "I found an existing learning about IndexedDB quota. Should I update it with
-           this new discovery instead of creating a separate learning?"
-```
+- **Found a relevant learning** → read it and apply it, telling the user what it says and how it maps to their case.
+- **Found one that's similar but different** → reference it and name the specific difference (what it covers vs. what this case involves).
+- **None found** → proceed normally; suggest extraction if the triggers match.
+- **Extraction triggered and a near-match exists** → offer to update that learning rather than create a separate one.
 
 ### Benefits of Checking Existing Learnings
 
@@ -247,7 +204,7 @@ Actual: [What happened]
 
 ## SAFEWORD.md Integration
 
-**CRITICAL**: ALWAYS cross-reference in SAFEWORD.md after creating learning file.
+After creating a learning file, cross-reference it in SAFEWORD.md.
 
 After extracting to `<namespace-root>/learnings/`, add cross-reference in SAFEWORD.md:
 
@@ -324,14 +281,14 @@ Project-specific gotchas in `<namespace-root>/learnings/`:
 
 **High confidence - Suggest IMMEDIATELY DURING debugging:**
 
-- Observable debugging complexity (5+ debug cycles, 3+ error states, user says "stuck")
+- Observable debugging complexity (several debug cycles, multiple error states, user says "stuck")
 - Just discovered gotcha not in official docs
 - Just found anti-pattern (violated best practice)
-- Say: "I notice this pattern could save time on future work. Should I extract a learning after we fix this?"
+- Offer to extract a learning once the fix lands — note it could save time on future work.
 
 **Medium confidence - Ask AFTER completing task:**
 
-- "I noticed [pattern X] during implementation - should I document this as a learning?"
+- Ask whether to document the pattern you hit as a learning.
 
 **Low confidence - Don't suggest:**
 
@@ -345,11 +302,10 @@ Project-specific gotchas in `<namespace-root>/learnings/`:
 
 **Living Documentation**: This process evolves with your needs.
 
-**Review Cycle**:
-
-1. **Monthly**: Review existing learnings for relevance
-2. **Quarterly**: Archive obsolete learnings (technology changed, pattern no longer used)
-3. **Per feature**: After major features, assess if new learnings emerged
+**Review Cycle**: Revisit a learning when you next touch its area or start a
+nearby feature — not on a calendar. That's when you'll notice it's gone stale
+(technology changed, pattern no longer used) and should be updated or archived,
+and when a just-finished feature might have surfaced something reusable.
 
 **Test the Process**:
 
@@ -372,9 +328,8 @@ Project-specific gotchas in `<namespace-root>/learnings/`:
 
 **Feedback Loop**:
 
-- After suggesting extraction: Note if user accepted or declined
-- After user accepts: Monitor if learning is referenced in future sessions
-- Adjust suggestion threshold based on acceptance rate (if <30% accepted, raise the bar)
+- After suggesting extraction, note whether the user accepted or declined.
+- If your suggestions aren't landing this session, ease off — stop offering and let the user ask. You can't track an acceptance rate across sessions, so gauge it from the ones in front of you.
 
 ---
 
@@ -382,7 +337,7 @@ Project-specific gotchas in `<namespace-root>/learnings/`:
 
 ### During Development
 
-1. **Recognize trigger** - Spent 45 min debugging race condition
+1. **Recognize trigger** - Several failed attempts before cracking a race condition
 2. **Assess scope** - Forward-looking? (YES) Global or project? (Project)
 3. **Choose location** - Needs examples → `<namespace-root>/learnings/race-conditions.md`
 4. **Extract** - Use template, write before/after examples
@@ -391,7 +346,7 @@ Project-specific gotchas in `<namespace-root>/learnings/`:
 ### After Completing Feature
 
 1. **Review** - Did we learn anything reusable?
-2. **Extract** - If threshold met (>30min debug, non-obvious pattern)
+2. **Extract** - If the signals are there (repeated failed attempts, non-obvious pattern)
 3. **Update** - Add SAFEWORD.md cross-reference if needed
 4. **Commit** - Include learning in commit message
 
@@ -488,47 +443,3 @@ The `post-tool-sync-learnings` hook flags `✅ Verified` and `Verified by …` s
 <namespace-root>/learnings/electron-ipc-patterns.md         (60 lines)
 <namespace-root>/learnings/electron-path-validation.md      (50 lines)
 ```
-
----
-
-## Summary
-
-This is a **living process** - iterate and refine based on what works.
-
-**Core Principle**: Extract knowledge that **compounds over time**. Each learning should save time on 2+ future features.
-
-**Decision Framework**:
-
-1. **Forward-looking?** → Extract (helps future work)
-2. **Global or project?** → Choose directory
-3. **Architectural or gotcha?** → Choose SAFEWORD.md or separate file
-4. **ALWAYS cross-reference** → Update SAFEWORD.md
-
-**Continuous Improvement**:
-
-- Monthly: Review existing learnings for relevance
-- Quarterly: Archive obsolete learnings
-- Per feature: Assess if new learnings emerged
-- Test: Did extracting this actually help on the next feature?
-
-**When in Doubt**:
-
-- Extract more rather than less (can archive later)
-- Prefer separate file over inline comments (keeps code clean)
-- Update immediately while fresh (don't defer to "later")
-
-**Maintenance**:
-
-- Remove when technology deprecated or pattern no longer used
-- Refactor when multiple learnings cover similar topics (consolidate)
-- Split when learning file >200 lines (focus on single concept)
-- Update SAFEWORD.md references when learnings move or merge
-
----
-
-## Key Takeaways
-
-- Extract after 5+ debug cycles or 3+ approaches tried
-- Check existing learnings first—update, don't duplicate
-- One concept per file, under 200 lines
-- Extract immediately while fresh (don't defer to "later")
