@@ -22,7 +22,10 @@
     "architecture",
     "test-plan",
     "verify",
-    "quality-review"
+    "quality-review",
+    "setup",
+    "check",
+    "lint-gherkin"
   ],
   "ignoreDependencies": [
     "safeword",

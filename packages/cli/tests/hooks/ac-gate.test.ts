@@ -55,6 +55,20 @@ describe('evaluateAcGate', () => {
     expect(evaluateAcGate(spec(body)).ok).toBe(false);
   });
 
+  it('does not count a non-lineage level-4 heading like "#### Notes" (S1.7, #696)', () => {
+    const verdict = evaluateAcGate(spec(`${JTBD1}\n#### Notes — some context, not an AC\n`));
+    expect(verdict.ok).toBe(false);
+    if (!verdict.ok) expect(verdict.reason).toContain('demo.PO1');
+  });
+
+  // #696 — common non-lineage headings that could be mistaken for ACs must not
+  // satisfy the gate. "Acceptance Criteria" is the case-insensitivity trap (Ac…
+  // with no digit); "Rollback plan" starts with R but has no R<n>.
+  it('does not count "#### Acceptance Criteria" or "#### Rollback plan" (S1.8, #696)', () => {
+    const body = `${JTBD1}\n#### Acceptance Criteria\n\n#### Rollback plan\n`;
+    expect(evaluateAcGate(spec(body)).ok).toBe(false);
+  });
+
   it('passes vacuously when the whole JTBD section is skipped (S2.1)', () => {
     expect(evaluateAcGate(spec('skip: internal plumbing — no persona-facing job\n')).ok).toBe(true);
   });
