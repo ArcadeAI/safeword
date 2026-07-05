@@ -1,6 +1,6 @@
 {
   "name": "safeword",
-  "version": "0.65.0",
+  "version": "0.66.0",
   "description": "CLI for setting up and managing safeword development environments",
   "repository": {
     "type": "git",
