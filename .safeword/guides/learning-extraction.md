@@ -88,55 +88,12 @@ ls <namespace-root>/learnings/*keyword*.md
 
 ### When to Reference Existing Learnings
 
-**Found existing learning** → Read and apply it:
+Before extracting or advising, `ls` the learnings directory for the concept's keywords, then:
 
-```text
-"I found an existing learning about [concept] at [path]. Let me read it and apply to your case..."
-[Read the file]
-"Based on the learning, here's how to handle this: [specific guidance from learning]"
-```
-
-**No existing learning** → Proceed normally (no message needed)
-
-**Similar but different** → Reference and note difference:
-
-```text
-"This is similar to the [existing learning] at [path], but differs in [specific way].
-The existing learning covers [X], but your case involves [Y]."
-```
-
-### Example Workflow
-
-**Scenario 1: Found relevant learning**
-
-```text
-User: "I'm getting an async state update error with React hooks"
-→ Check: ls <namespace-root>/learnings/*react*.md *hooks*.md *async*.md
-→ Found: react-hooks-async.md
-→ Read: [file contents]
-→ Apply: "I found a learning about async React hooks. It mentions you should use useEffect
-         for side effects, not setState directly in callbacks. Applying this to your case..."
-```
-
-**Scenario 2: No existing learning**
-
-```text
-User: "IndexedDB quota is behaving strangely in Safari"
-→ Check: ls <namespace-root>/learnings/*indexeddb*.md *safari*.md *quota*.md
-→ Not found
-→ Proceed: Continue debugging normally, suggest extraction if triggers match
-```
-
-**Scenario 3: Update existing learning**
-
-```text
-User: Debugging for 6 cycles, discovers new IndexedDB quirk
-→ Suggest extraction
-→ Check: ls <namespace-root>/learnings/*indexeddb*.md
-→ Found: indexeddb-quota-api.md
-→ Suggest: "I found an existing learning about IndexedDB quota. Should I update it with
-           this new discovery instead of creating a separate learning?"
-```
+- **Found a relevant learning** → read it and apply it, telling the user what it says and how it maps to their case.
+- **Found one that's similar but different** → reference it and name the specific difference (what it covers vs. what this case involves).
+- **None found** → proceed normally; suggest extraction if the triggers match.
+- **Extraction triggered and a near-match exists** → offer to update that learning rather than create a separate one.
 
 ### Benefits of Checking Existing Learnings
 
@@ -327,11 +284,11 @@ Project-specific gotchas in `<namespace-root>/learnings/`:
 - Observable debugging complexity (5+ debug cycles, 3+ error states, user says "stuck")
 - Just discovered gotcha not in official docs
 - Just found anti-pattern (violated best practice)
-- Say: "I notice this pattern could save time on future work. Should I extract a learning after we fix this?"
+- Offer to extract a learning once the fix lands — note it could save time on future work.
 
 **Medium confidence - Ask AFTER completing task:**
 
-- "I noticed [pattern X] during implementation - should I document this as a learning?"
+- Ask whether to document the pattern you hit as a learning.
 
 **Low confidence - Don't suggest:**
 

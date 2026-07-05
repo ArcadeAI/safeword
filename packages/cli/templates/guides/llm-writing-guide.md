@@ -157,3 +157,33 @@ Provide concrete next steps for dead ends.
 | Percentages without context           | "70/20/10" meaningless without adjustment guidance |
 | Caveats in tables                     | Parentheticals break pattern matching              |
 | Critical info in middle               | Lost-in-middle phenomenon                          |
+
+---
+
+## De-prescription: convert, don't delete
+
+Modern models (Fable 5, Opus 4.8, Sonnet 5) follow instructions more literally
+than older ones, so imperative step-lists, forced ordering, and shouted
+`CRITICAL/MUST` emphasis now degrade output rather than improve it. When editing
+these guides, **convert prescription into principle** — state the intent, a
+measurable done-condition, and the explicit scope — rather than enumerating
+steps. Graduate true invariants out of prose and into hooks/lint.
+
+**Classify every edit into one of two columns:**
+
+- **Universal** — rephrases to intent, softens an imperative, drops
+  native-behavior scaffolding, or graduates an invariant into a hook. No
+  guidance is lost, so **apply it globally, no A/B needed.**
+- **Deletion** — removes guidance instead of restating it. A literal model
+  won't infer what you cut, so this **must pass an Opus 4.8 + Sonnet 5 A/B
+  before it ships globally** — never on single-model evidence.
+
+Two more rules keep the smaller and non-Fable drivers safe:
+
+- **Tag each finding with the model that surfaced it.** A regression seen only
+  on one model isn't yet evidence for a global change.
+- **Keep capability guidance as conditional "when-X" triggers, don't delete it.**
+  Prompts to delegate to subagents, consult learnings, or search-first are
+  scaffolding Fable doesn't need but Opus 4.8 does (it under-reaches). Phrase
+  them as "when the task fans out across independent items, delegate to
+  subagents" — harmless to Fable, measurable lift on Opus 4.8.

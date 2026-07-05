@@ -231,7 +231,7 @@ Ledger entries remaining?
 ├─ Yes → take next leaf-first entry → Phase 3 (one refactoring) → Phase 4 → mark done
 └─ No → Done
     ├─ Run `/audit` to verify no dead code or new issues
-    └─ Report: "Refactoring complete. Resolved: [ledger summary]. Deferred: [items + why]."
+    └─ Report what was resolved and what was deferred (with reasons)
 ```
 
 A single-named-smell request has a one-entry ledger — resolve it, audit, done.
@@ -252,11 +252,11 @@ A single-named-smell request has a one-entry ledger — resolve it, audit, done.
 
 - STOP refactoring
 - Note the bug location
-- Ask user: "Found potential bug at X. Fix it now (switching to tdd-enforcer) or continue refactoring?"
+- Ask the user whether to fix it now (switching to tdd-enforcer) or continue refactoring
 
 **User requests large refactoring:**
 
-- Break into steps: "I'll refactor this incrementally. First: [step 1]"
+- Break it into steps and name the first one before starting
 - Complete each step fully before next
 - Never batch multiple refactorings in one edit
 

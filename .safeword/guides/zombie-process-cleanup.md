@@ -166,17 +166,6 @@ tmux kill-session -t project-name
 
 ---
 
-## Best Practices
-
-1. **Assign unique ports** - Set `PORT=3000` in one project, `PORT=3001` in another
-2. **Use port-based cleanup first** - Simplest and safest
-3. **Create project cleanup scripts** - Reusable, documented
-4. **Never `killall node`** - Too broad when working on multiple projects
-5. **Clean up before starting** - Run cleanup script before `bun run dev`
-6. **Check what's running** - Use `lsof -i:PORT` to see what's using a port
-
----
-
 ## Debugging Zombie Processes
 
 ### Find What's Using a Port
@@ -223,21 +212,6 @@ ps aux | grep "/Users/alex/projects/my-project"
 
 ---
 
-## What NOT to Do
-
-❌ **DON'T:** `killall node` (kills all projects)
-❌ **DON'T:** `pkill -9 node` (kills all projects)
-❌ **DON'T:** `pkill -f "pattern"` without `pgrep -f` first (matches full command line, can kill unintended processes)
-❌ **DON'T:** Kill processes without checking working directory
-❌ **DON'T:** Assume zombie browsers will clean themselves up (they won't)
-
-✅ **DO:** Use port-based cleanup
-✅ **DO:** Filter by project directory with `$(pwd)`
-✅ **DO:** Create project-specific cleanup scripts
-✅ **DO:** Clean up before AND after development sessions
-
----
-
 ## Advanced: Finding the Source
 
 When zombies keep coming back, find which test is creating them.
@@ -272,13 +246,3 @@ Runs each test individually, checks if `<process_pattern>` is left running.
 - Auto-detect package manager (bun/pnpm/yarn/npm)
 - Stop at first offending test
 - Show investigation commands
-
----
-
-## Key Takeaways
-
-- Use `./.safeword/scripts/cleanup-zombies.sh` for quick, safe cleanup
-- Always preview with `--dry-run` first when unsure
-- Never use `killall node` (affects all projects)
-- Clean up before AND after development sessions
-- If zombies recur, use bisect scripts to find the source

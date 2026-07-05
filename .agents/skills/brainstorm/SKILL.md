@@ -36,7 +36,7 @@ Brainstorm is the explicit escape hatch from "commit to one path" — not from "
 
 ## When You Notice Convergence
 
-Offer a lightweight check-in: "Sounds like we're converging on X — want me to pull this together?"
+Offer a lightweight check-in — name the direction you're converging on and ask whether to pull it together.
 
 If yes → transition to SAFEWORD.md's understanding flow (scope / out of scope / done when).
 If no → keep exploring.

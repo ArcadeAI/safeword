@@ -134,21 +134,11 @@
 
 ---
 
-## Example Commands
+## Working from a request
 
-**Creating design doc:**
-
-```text
-User: "Create design doc for three-pane layout"
-You: [Read user stories and test definitions, then create design doc]
-```
-
-**Updating design doc:**
-
-```text
-User: "Update design doc to add error handling section"
-You: [Read existing design doc, add Implementation Notes section with error handling]
-```
+Creating a design doc starts from the user stories and test definitions; updating
+one starts from the existing doc, extending the relevant section (e.g. adding
+Implementation Notes for error handling). Read the inputs first, then write.
 
 ---
 

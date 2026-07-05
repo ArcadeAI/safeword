@@ -448,7 +448,7 @@ Brief description. Current status.
 - **Treat as living document** - Constantly refine based on what works
 - Periodically review and refactor for clarity
 - At Anthropic, teams use prompt improver to tune instructions
-- Add emphasis ("IMPORTANT", "YOU MUST") for critical rules
+- State critical rules as plain declarative facts — a literal model doesn't need shouting
 - Explicitly reference your context file in prompts ("following CLAUDE.md guidelines") for better adherence
 
 **Token Budget:**

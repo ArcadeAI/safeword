@@ -67,7 +67,7 @@ If issues found: address before starting next scenario. If clean: commit and pro
 
 **Context:** Agent just wrote a failing test for scenario 2 (verbose shows passing files) — RED is the last checked box, so the review focuses on the test.
 
-**Agent review:**
+Illustrative only — apply the checks in your own words, not this exact wording:
 
 > **Atomic?** Yes — tests one behavior (passing files appear in verbose output).
 > **Right assertions?** `expect(output).toContain('src/index.ts: pass')` — asserts on observable output, not internals. Good.
