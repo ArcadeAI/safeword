@@ -42,6 +42,13 @@ const PYTHON_EXCLUDED_FILES = new Set([
   '__main__.py',
 ]);
 
+/**
+ * Extensions a JS/TS source file can carry (issue #843). A package whose modules are
+ * files rather than directories — a flat `src/`, a `lib/` root, or a top-level layout —
+ * is described by these, the way the Python/Rust extractors already describe `*.py`/`*.rs`.
+ */
+const JS_SOURCE_EXTENSIONS = ['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs'];
+
 export interface SkeletonNode {
   /** Module name — the top-level `src/` subdirectory. */
   name: string;
@@ -89,9 +96,12 @@ export function extractSkeleton(projectDirectory: string): Skeleton {
     return { nodes: rustModuleNodes(projectDirectory) };
   }
 
-  // The `src/` layout (TS/JS) is authoritative and unchanged: when it yields
-  // modules, that is the skeleton.
-  const sourceNodes = enumerateModuleDirectories(
+  // The `src/` layout (TS/JS) is authoritative: its child DIRECTORIES are the
+  // modules, unchanged — a package that already has them never churns. Broadened
+  // (issue #843) so a flat `src/` — holding only files, no subdirectories — is
+  // introspected via those files, the same files-and-flat recognition the
+  // Python/Rust extractors above already have.
+  const sourceNodes = enumerateJsSourceRoot(
     nodePath.join(projectDirectory, 'src'),
     name => `src/${name}`,
   );
@@ -100,23 +110,42 @@ export function extractSkeleton(projectDirectory: string): Skeleton {
   // No `src/` modules: a Go module (a `go.mod` is present) is described by its
   // conventional top-level layout directories instead (ticket ZD70P1). A flat Go
   // package with none of these stays an empty skeleton — honestly "not
-  // introspected" (ZRW21K), never falsely complete.
+  // introspected" (ZRW21K), never falsely complete. Checked BEFORE the lib/
+  // and top-level JS fallbacks so a Go service carrying a stray build script
+  // never dispatches to the JS recognizer.
   if (exists(nodePath.join(projectDirectory, 'go.mod'))) {
     return { nodes: goLayoutNodes(projectDirectory) };
   }
 
-  return { nodes: sourceNodes };
+  // Still nothing under `src/`: a `lib/`-rooted package (component libraries like
+  // design systems keep their sources under `lib/` — issue #843) is described the
+  // same files-or-directories way. Last-resort JS fallbacks, so they never preempt
+  // a recognized Go/Rust/Python layout above.
+  const libraryNodes = enumerateJsSourceRoot(
+    nodePath.join(projectDirectory, 'lib'),
+    name => `lib/${name}`,
+  );
+  if (libraryNodes.length > 0) return { nodes: libraryNodes };
+
+  // No source root at all: a flat or test-only package (e.g. top-level `*.test.ts`
+  // with no `src/`) is described by its top-level source files (issue #843).
+  return { nodes: topLevelJsModuleNodes(projectDirectory) };
 }
 
 /**
- * The immediate subdirectories of `directory` as skeleton nodes, sorted by name
- * (readdirSync order is not guaranteed; the rendered doc and fingerprint must be
- * deterministic). `pathFor` maps a module name to its forward-slashed code
- * reference — platform-stable, the way the fingerprint normalizes paths.
+ * A JS/TS source root (`src/` or `lib/`) as skeleton nodes, sorted by name
+ * (readdirSync order is not guaranteed; the doc and fingerprint must be
+ * deterministic). Its child DIRECTORIES when it has any — the directory is the
+ * module unit, so a package with `src/` subdirectories is byte-for-byte
+ * unchanged. Only when the root has NO subdirectories (a flat package — issue
+ * #843) does it fall back to the root's source FILES, mirroring how the Rust and
+ * Python extractors list `*.rs`/`*.py`. `pathFor` maps an entry name to its
+ * forward-slashed code reference — platform-stable, the way the fingerprint
+ * normalizes paths. `[]` when the root is absent.
  */
-function enumerateModuleDirectories(
+function enumerateJsSourceRoot(
   directory: string,
-  pathFor: (name: string) => string,
+  pathFor: (entryName: string) => string,
 ): SkeletonNode[] {
   let entries: Dirent[];
   try {
@@ -125,10 +154,60 @@ function enumerateModuleDirectories(
     return [];
   }
 
+  const directories = entries.filter(entry => entry.isDirectory());
+  if (directories.length > 0) {
+    return directories
+      .map(entry => ({ name: entry.name, path: pathFor(entry.name), purpose: PURPOSE_PLACEHOLDER }))
+      .toSorted(byNodeName);
+  }
+  return jsFileNodes(entries, pathFor);
+}
+
+/**
+ * Top-level JS/TS source FILES as modules (issue #843) — a flat or test-only
+ * package with no `src/`/`lib/` root (e.g. an integration-tests package whose
+ * `*.test.ts` live at the root). Files only: a package root's directories are
+ * ambiguous (build output, fixtures, docs) with no `__init__.py`-style marker to
+ * qualify them the way the Python flat-layout extractor can, so only the source
+ * roots above enumerate directories.
+ */
+function topLevelJsModuleNodes(projectDirectory: string): SkeletonNode[] {
+  let entries: Dirent[];
+  try {
+    entries = readdirSync(projectDirectory, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  return jsFileNodes(entries, name => name);
+}
+
+/** The source-file entries of a directory as skeleton nodes, sorted by name. */
+function jsFileNodes(entries: Dirent[], pathFor: (entryName: string) => string): SkeletonNode[] {
   return entries
-    .filter(entry => entry.isDirectory())
-    .map(entry => ({ name: entry.name, path: pathFor(entry.name), purpose: PURPOSE_PLACEHOLDER }))
+    .filter(entry => entry.isFile() && isJsSourceModuleFile(entry.name))
+    .map(entry => ({
+      name: jsModuleName(entry.name),
+      path: pathFor(entry.name),
+      purpose: PURPOSE_PLACEHOLDER,
+    }))
     .toSorted(byNodeName);
+}
+
+/**
+ * Whether a filename is a JS/TS source module: a recognized source extension that
+ * is neither a declaration file (`*.d.ts`) nor a tooling config (`*.config.*`) —
+ * the JS analogue of the Python dunder/tooling exclusion. Dotfiles are excluded here.
+ */
+function isJsSourceModuleFile(name: string): boolean {
+  if (name.startsWith('.')) return false; // dotfiles (.eslintrc.js, .prettierrc.cjs)
+  if (/\.d\.[mc]?ts$/.test(name)) return false; // type declarations, not modules
+  if (/\.config\.[mc]?[jt]sx?$/.test(name)) return false; // vite.config.ts, eslint.config.mjs, …
+  return JS_SOURCE_EXTENSIONS.some(extension => name.endsWith(extension));
+}
+
+/** A source file's module name: the filename minus its final extension (`db.test.ts` → `db.test`). */
+function jsModuleName(filename: string): string {
+  return filename.slice(0, filename.lastIndexOf('.'));
 }
 
 /** The recognized Go layout directories that actually exist, as sorted nodes. */
