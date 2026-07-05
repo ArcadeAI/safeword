@@ -431,4 +431,27 @@ describe('ticket-sync', () => {
       expect(skipped.map(skip => skip.folder)).not.toContain('tmp');
     });
   });
+
+  // F9W3JP — epic-child-linker.TB1.AC2.index_groups_child_under_epic (S3)
+  it('groups a child under its epic heading via parent:', () => {
+    writeTicket(
+      'EPIC01-the-epic',
+      { id: 'EPIC01', type: 'epic', status: 'in_progress', children: "['CHILD1']" },
+      '# The epic\n',
+    );
+    writeTicket(
+      'CHILD1-the-child',
+      { id: 'CHILD1', type: 'task', status: 'in_progress', parent: 'EPIC01' },
+      '# The child\n',
+    );
+    const { active } = readTickets(ticketsDirectory);
+    const index = buildIndexContent(active, { variant: 'active' });
+
+    const start = index.indexOf('### EPIC01');
+    expect(start).toBeGreaterThanOrEqual(0);
+    const rest = index.slice(start + '### EPIC01'.length);
+    const next = rest.indexOf('\n### ');
+    const epicBlock = next === -1 ? rest : rest.slice(0, next);
+    expect(epicBlock).toContain('CHILD1');
+  });
 });
