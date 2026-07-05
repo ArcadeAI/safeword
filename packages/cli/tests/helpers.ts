@@ -4,8 +4,10 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -313,6 +315,72 @@ export function wasKilledByTimeout(execError: {
   return execError.killed === true || (execError.signal !== undefined && execError.signal !== null);
 }
 
+const SOURCE_DIRECTORY = nodePath.join(__dirname, '../src');
+// Holder (not a bare `let`) so the once-per-process memo can be set from inside
+// warnIfDistributionStale without tripping no-top-level-assignment-in-function.
+const distributionStaleness = { checked: false };
+
+/** mtime (ms) of one dir entry as a source input: recurse into subdirectories,
+ * take non-test files, ignore everything else. `*.test.ts` never staleness the
+ * runtime bundle, so it is excluded. */
+function sourceEntryMtime(
+  directory: string,
+  entry: { name: string; isDirectory: () => boolean; isFile: () => boolean },
+): number | undefined {
+  const fullPath = nodePath.join(directory, entry.name);
+  if (entry.isDirectory()) return newestSourceMtime(fullPath);
+  if (entry.isFile() && !entry.name.endsWith('.test.ts')) return statSync(fullPath).mtimeMs;
+  return undefined;
+}
+
+/** Newest mtime (ms) among non-test source files under `directory`, or undefined
+ * if the tree is unreadable. */
+function newestSourceMtime(directory: string): number | undefined {
+  let entries;
+  try {
+    entries = readdirSync(directory, { withFileTypes: true });
+  } catch {
+    return undefined;
+  }
+  let newest: number | undefined;
+  for (const entry of entries) {
+    if (entry.name === 'node_modules' || entry.name.startsWith('.')) continue;
+    const candidate = sourceEntryMtime(directory, entry);
+    if (candidate !== undefined && (newest === undefined || candidate > newest)) {
+      newest = candidate;
+    }
+  }
+  return newest;
+}
+
+/**
+ * Warn once per test process when `dist/cli.js` is older than the newest source
+ * file. `runCli`/`runCliSync` exec the built bundle, so a stale dist silently
+ * runs old behavior after a `src/` edit — a genuinely correct change then reads
+ * as a failing test until the developer diagnoses the build staleness themselves
+ * (#697). Non-blocking and self-limiting: the default `test` script rebuilds via
+ * the build-lock wrapper (dist newer than src → silent), so this only fires on a
+ * direct `vitest run` after editing source without rebuilding. Missing dist is
+ * left to the run's own loud module-not-found failure.
+ */
+function warnIfDistributionStale(): void {
+  if (distributionStaleness.checked) return;
+  distributionStaleness.checked = true;
+  let distributionMtime;
+  try {
+    distributionMtime = statSync(CLI_PATH).mtimeMs;
+  } catch {
+    return;
+  }
+  const newestSource = newestSourceMtime(SOURCE_DIRECTORY);
+  if (newestSource !== undefined && newestSource > distributionMtime) {
+    process.stderr.write(
+      '\n⚠ [safeword tests] dist/cli.js is OLDER than src/ — the CLI under test may be stale.\n' +
+        '  Run `bun run --cwd packages/cli build`, then re-run. (issue #697)\n\n',
+    );
+  }
+}
+
 /**
  * Runs the CLI with the given arguments in the specified directory
  * Uses built CLI (dist/cli.js)
@@ -331,6 +399,7 @@ export async function runCli(
   } = {},
 ): Promise<CliResult> {
   const { cwd = process.cwd(), env = {}, timeout = TIMEOUT_BUN_INSTALL } = options;
+  warnIfDistributionStale();
 
   try {
     const { stdout, stderr } = await execFileAsync(process.execPath, [CLI_PATH, ...args], {
@@ -377,6 +446,7 @@ export function runCliSync(
   } = {},
 ): CliResult {
   const { cwd = process.cwd(), env = {}, timeout = TIMEOUT_SYNC } = options;
+  warnIfDistributionStale();
 
   const command = `${process.execPath} ${CLI_PATH} ${args.join(' ')}`;
 
@@ -442,6 +512,37 @@ export function writeTestFile(dir: string, relativePath: string, content: string
 
 /** A host repo's own cucumber config, for harness-collision fixtures (56JCFZ). */
 export const HOST_CUCUMBER_YAML = 'default:\n  paths:\n    - tests/behaviors/**/*.feature\n';
+
+/**
+ * A customer-authored `cucumber.mjs` pointing at their own feature directory —
+ * the "host harness already present" fixture shared by the collision suites
+ * (56JCFZ). Setup must detect it and skip the starter lane; reset must never
+ * overwrite or delete it.
+ */
+export const CUSTOMER_CUCUMBER_MJS = 'export default { paths: ["acceptance/**/*.feature"] };\n';
+
+/**
+ * An intentionally-unparseable `.safeword/config.json` body. The lane readers
+ * (codify, lint-gherkin, the scaffolded runner) must fall back to default
+ * discovery rather than crash on it (56JCFZ, TB2.AC3).
+ */
+export const UNPARSEABLE_LANE_CONFIG = '{ not json !!!';
+
+/**
+ * Minimal package.json shape shared by the BDD-lane / cucumber-collision suites.
+ * Every field is optional — each caller asserts on the subset it cares about.
+ */
+export interface PackageJsonShape {
+  name?: string;
+  private?: boolean;
+  scripts?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+}
+
+/** Parse a fixture's package.json into {@link PackageJsonShape}. */
+export function readPackageJson(dir: string): PackageJsonShape {
+  return JSON.parse(readTestFile(dir, 'package.json')) as PackageJsonShape;
+}
 
 /**
  * Write a `.safeword/config.json` with `paths.features`/`paths.steps` set —
