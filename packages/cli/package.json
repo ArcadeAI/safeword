@@ -27,7 +27,7 @@
     "templates"
   ],
   "engines": {
-    "node": "^22.22.3 || ^24.16.0 || >=26.3.0"
+    "node": "^24.16.0 || >=26.3.0"
   },
   "scripts": {
     "build": "tsup",
