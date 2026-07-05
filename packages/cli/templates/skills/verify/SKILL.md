@@ -59,12 +59,13 @@ Run these in sequence, reporting each result:
 
 **Safeword runtime vs target project:** Safeword may use Bun for installed helpers such as `.safeword/hooks/*.ts`; that does not mean the target project uses Bun. Use Bun for installed helpers, then choose target project verification commands from stack manifests, lockfiles, and available scripts. A `package.json` may be safeword lane-host evidence in pure Python, Rust, and Go installs, so do not treat `package.json` as proof the target project is only JavaScript.
 
-Per-language test/build/typecheck/bdd commands all come from `safeword test-plan`
-— one source of truth (the same plan the stop-hook gate runs). Eval its shell plan
-in a child shell: an absent toolchain prints a visible skip, and a failing suite
-exits non-zero so the gate blocks. The Gherkin acceptance lane is resolved the same
-way (`--kind bdd`): cucumber-js / behave get their own lane, while godog and
-cucumber-rs fold into the Go/Rust test lanes and need no separate command.
+Per-language test/build/typecheck/bdd/deps commands all come from `safeword
+test-plan` — one source of truth (the same plan the stop-hook gate runs). Eval its
+shell plan in a child shell: an absent toolchain prints a visible skip, and a
+failing suite exits non-zero so the gate blocks. The Gherkin acceptance lane is
+resolved the same way (`--kind bdd`): cucumber-js / behave get their own lane,
+while godog and cucumber-rs fold into the Go/Rust test lanes and need no separate
+command.
 
 **Run the block below verbatim, as ONE bash invocation.** Do not extract or paraphrase individual commands — the CLI resolver, the generator exit-code check inside `run_plan`, and the git preflight are load-bearing (regressions 487, 375, and 469 each came from a hand-rolled variant of this block).
 
@@ -161,11 +162,13 @@ plan_kind=build
 run_plan
 
 # --- Typecheck: static type-check where the stack has one — `tsc --noEmit` for
-#     TypeScript (the same signal CI's lint job runs, #436) and mypy/pyright for
-#     Python when configured. A green targeted-test run is NOT readiness if types
-#     are broken. Go/Rust are absent by design — their compiler is the type checker,
-#     already covered by build. An empty plan is a silent no-op; when the ticket
-#     touched TypeScript, run `/lint` (which runs tsc) so it isn't a gap. ---
+#     TypeScript (the same signal CI's lint job runs, #436), mypy/pyright for
+#     Python when configured, and `cargo clippy -- -D warnings` (the strict
+#     lint-gate that subsumes `cargo check`) for Rust. A green targeted-test run
+#     is NOT readiness if types are broken. Go is absent by design — its compiler
+#     is the type checker, already covered by build. An empty plan is a silent
+#     no-op; when the ticket touched TypeScript, run `/lint` (which runs tsc) so
+#     it isn't a gap. ---
 plan_kind=typecheck
 run_plan
 

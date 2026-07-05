@@ -285,6 +285,14 @@ describe('resolveTestPlan — verify plan (kind: verify)', () => {
     expect(entryFor(verifyPlan, 'javascript')?.command).toContain('run test');
     expect(entryFor(testPlan, 'javascript')?.command).toContain('test:done');
   });
+
+  it('emits the Python test lane for kind: verify (typecheck/bdd branches do not shadow it)', () => {
+    const root = makeRepo({
+      'pyproject.toml': '[tool.pytest.ini_options]\n',
+    });
+    const plan = resolveTestPlan(root, { kind: 'verify', isToolAvailable: allTools });
+    expect(entryFor(plan, 'python')?.command).toBe('pytest');
+  });
 });
 
 describe('resolveTestPlan — build plan', () => {
@@ -423,6 +431,20 @@ describe('resolveTestPlan — typecheck plan — Python mypy/pyright (kind: type
     const plan = resolveTestPlan(root, { kind: 'typecheck', isToolAvailable: onlyTools('uv') });
     expect(entryFor(plan, 'python')?.command).toBe('uv run mypy .');
   });
+
+  // Each remaining config marker is its own branch in mypyConfigured/pyrightConfigured.
+  it.each([
+    ['.mypy.ini file', { '.mypy.ini': '[mypy]\n' }, 'mypy .'],
+    ['setup.cfg [mypy]', { 'setup.cfg': '[mypy]\nstrict = true\n' }, 'mypy .'],
+    [
+      'pyproject [tool.pyright]',
+      { 'pyproject.toml': '[project]\nname="x"\n[tool.pyright]\n' },
+      'pyright',
+    ],
+  ])('detects %s', (_label, files, command) => {
+    const plan = resolveTestPlan(makeRepo(files), { kind: 'typecheck', isToolAvailable: allTools });
+    expect(entryFor(plan, 'python')?.command).toBe(command);
+  });
 });
 
 describe('resolveTestPlan — bdd (acceptance) plan (kind: bdd)', () => {
@@ -502,6 +524,15 @@ describe('resolveTestPlan — bdd (acceptance) plan (kind: bdd)', () => {
     const test = resolveTestPlan(root, { kind: 'test', isToolAvailable: allTools });
     expect(entryFor(bdd, 'python')).toBeUndefined();
     expect(entryFor(test, 'python')?.command).toBe('tox');
+  });
+
+  // Each remaining config marker is its own branch in behaveConfigured.
+  it.each([
+    ['.behaverc file', { '.behaverc': '[behave]\n' }],
+    ['setup.cfg [behave]', { 'setup.cfg': '[behave]\npaths = features\n' }],
+  ])('detects %s', (_label, files) => {
+    const plan = resolveTestPlan(makeRepo(files), { kind: 'bdd', isToolAvailable: allTools });
+    expect(entryFor(plan, 'python')?.command).toBe('behave');
   });
 });
 

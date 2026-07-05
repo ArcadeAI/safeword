@@ -69,11 +69,12 @@ const TREE_MANIFESTS = new Set<string>([
 /**
  * Kinds each non-Rust resolver opts out of, so a new PlanKind fails safe (the
  * language emits nothing) instead of falling through to a wrong command. `deps`
- * (supply-chain) is Rust-only for now. `typecheck` is a JS/TS + Python concern
- * (Python via mypy/pyright); Go's compiler covers it. `bdd` (Gherkin acceptance)
- * emits for JS (cucumber-js) and Python (behave); Go's godog and Rust's
- * cucumber-rs fold into the native test lane, so those skip it. Frozen sets mirror
- * the manifest-set idiom above and keep the guards uniform.
+ * (supply-chain) is Rust-only for now. `typecheck` emits for JS/TS (`typecheck`
+ * script), Python (mypy/pyright when configured), and Rust (clippy, in
+ * resolveRust); Go's compiler covers it. `bdd` (Gherkin acceptance) emits for JS
+ * (cucumber-js) and Python (behave); Go's godog and Rust's cucumber-rs fold into
+ * the native test lane, so those skip it. Frozen sets mirror the manifest-set
+ * idiom above and keep the guards uniform.
  */
 const JS_SKIP_KINDS: ReadonlySet<PlanKind> = new Set<PlanKind>(['deps']);
 const PYTHON_SKIP_KINDS: ReadonlySet<PlanKind> = new Set<PlanKind>(['build', 'deps']);
