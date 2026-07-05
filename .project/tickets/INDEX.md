@@ -5,24 +5,29 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (382)
+## Tickets (387)
 
 ### 730
 
 - **Audit reconciles per-package leaf architecture.generated.md (5X0DZA)** (in_progress, epic: 730)
   Make the audit's ARCHITECTURE.md structural-drift check read each
-  external issue: https://github.com/ArcadeAI/safeword/issues/730
+  external issue: https://github.com/ArcadeAI/safeword/issues/761
   → `.project/tickets/5X0DZA-audit-reconcile-leaf-architecture-docs`
 - **Upgrade deferred major deps: eslint-plugin-unicorn 70 + typescript 6 (FHKHBW)** (in_progress, epic: 730)
   Adopt the two major bumps deferred by the audit follow-up —
-  external issue: https://github.com/ArcadeAI/safeword/issues/730
+  external issue: https://github.com/ArcadeAI/safeword/issues/760
   → `.project/tickets/FHKHBW-upgrade-deferred-major-deps`
 - **Re-check @vitest/eslint-plugin pin (held at 1.6.20) (WW0QTV)** (in_progress, epic: 730)
   Unpin `@vitest/eslint-plugin` back to a caret range once a release
-  external issue: https://github.com/ArcadeAI/safeword/issues/730
+  external issue: https://github.com/ArcadeAI/safeword/issues/762
   → `.project/tickets/WW0QTV-vitest-eslint-plugin-pin-recheck`
-## Tickets (380)
-## Tickets (376)
+
+### 808
+
+- **Evidence-anchored phase transitions (SHA-per-transition provenance) (RM84M8)** (done, epic: 808)
+  Give a feature ticket's `phase:` advance the same machine-checkable commit-SHA anchor the R/G/R ledger already has per tick, so a `sed`/Bash-forged transition is detectable as unanchored — as the reusable substrate #810's boundary gate enforces.
+  external issue: https://github.com/ArcadeAI/safeword/issues/809
+  → `.project/tickets/RM84M8-evidence-anchored-phase-transitions`
 
 ### agent-surface-refactor
 
@@ -734,7 +739,7 @@
 - **Surface /explain to the NTB (5XOUDJ)** (done, epic: —)
   Make the NTB's one lifeline discoverable — in the README and proactively from the agent.
   → `.project/tickets/5XOUDJ-surface-explain-to-ntb`
-- **Self-report: capture only genuine CLI crashes, not deliberate non-zero exits (#720) (5XXQQZ)** (in_progress, epic: —)
+- **Self-report: capture only genuine CLI crashes, not deliberate non-zero exits (#720) (5XXQQZ)** (done, epic: —)
   Capture only genuine safeword CLI crashes (uncaught exceptions /
   → `.project/tickets/5XXQQZ-capture-only-cli-crashes`
 - **Patterns catalog — scannable index + per-pattern detail (Rust-API-Guidelines two-part structure) (62PDX1)** (in_progress, epic: —)
@@ -758,9 +763,9 @@
 - **Wire the phase-exit fork review to the cross-model knob (7A0B2K)** (done, epic: —)
   Let the Tier 2 phase-exit fork review (NMSD94) require a different-model reviewer when `crossModelReview` is on, reusing MR5M3A's `modelsMatch` / `isCrossModelReviewRequired` / `AUTHOR_MODEL_ENV` primitives in `review-ledger.ts`.
   → `.project/tickets/7A0B2K-scenario-review-cross-model`
-- **BDD lane adoption semantics: stub convention, verification lane, tag semantics (7CK2KP)** (blocked, epic: —)
+- **BDD lane adoption semantics: stub convention, verification lane, tag semantics (7CK2KP)** (done, epic: —)
   Make `safeword codify` output and the BDD skill prose match an adopted host cucumber harness — not just its paths (56JCFZ) but its stub convention, spec-ahead verification lane, and tag-exclusion semantics.
-  external issue: https://github.com/ArcadeAI/safeword/issues/645
+  external issue: https://github.com/ArcadeAI/safeword/issues/650
   → `.project/tickets/7CK2KP-bdd-lane-adoption-semantics`
 - **Invisible retro: synchronous headless claude -p extraction (no conversation hijack) (7D8PJP)** (done, epic: —)
   Run the retro session-retrospective entirely out-of-band — in a separate
@@ -1021,6 +1026,14 @@
 - **Python language pack — pyproject discovery, package extraction, dependency fingerprint (HWSEPV)** (done, epic: —)
   Teach the generated architecture doc to introspect **Python** projects —
   → `.project/tickets/HWSEPV-architecture-python-language-pack`
+- **Remove 5 unused exports flagged by knip (audit follow-up) (J2R9HY)** (backlog, epic: —)
+  Resolve the five unused exports knip flagged — delete the truly dead
+  external issue: https://github.com/ArcadeAI/safeword/issues/718
+  → `.project/tickets/J2R9HY-prune-unused-exports`
+- **Bump 6 dev-tool dependencies (audit follow-up) (JCC69C)** (backlog, epic: —)
+  Bring the six outdated dev-tool dependencies up to their current
+  external issue: https://github.com/ArcadeAI/safeword/issues/717
+  → `.project/tickets/JCC69C-dev-tooling-version-bumps`
 - **Make implementation reviews quiet until exit (JENFZX)** (in_progress, epic: —)
   Let implementation run without chat-facing review checkpoints while keeping the actual TDD review, refactor, quality-review, and hard-gate work intact.
   external issue: https://github.com/ArcadeAI/safeword/issues/464
@@ -1201,7 +1214,7 @@
 - **Apply quality-review polish to bdd SCENARIOS.md (VZK191)** (done, epic: —)
   Apply the small content nits the quality-review surfaced in the bdd `SCENARIOS.md` (the file XN5SPN/9FSPM8/XBY5QR landed) so the shipped skill reads cleanly before those tickets close.
   → `.project/tickets/VZK191-scenarios-polish`
-- **Gate Bash-channel writes to the R/G/R ledger (#644 G3) (W42G34)** (in_progress, epic: —)
+- **Gate Bash-channel writes to the R/G/R ledger (#644 G3) (W42G34)** (done, epic: —)
   Deny Bash-channel writes to R/G/R ledger files at PreToolUse on all three harnesses, forcing ledger mutations onto the Edit channel where the SHA-or-skip annotation gate can validate them (#644 G3).
   → `.project/tickets/W42G34-bash-ledger-write-gate`
 - **Whole-ticket quality review + refactor before verify (W610WW)** (done, epic: —)
