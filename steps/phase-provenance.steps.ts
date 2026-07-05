@@ -45,7 +45,7 @@ interface ProvenanceWorld extends SafewordWorld {
 /** A persona the readiness fixtures can reference. */
 const PERSONAS = '# Personas\n\n## Fixture Person (FP)\n\n**Role:** exercises gates.\n';
 
-/** spec.md satisfying the JTBD + AC gates for readiness-complete tickets. */
+/** spec.md satisfying the JTBD + criteria gates for readiness-complete tickets. */
 const SPEC = [
   '# Spec: fixture',
   '',

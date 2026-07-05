@@ -31,12 +31,6 @@ export function ticketNew(slug: string, options: TicketNewOptions): Promise<void
   return Promise.resolve();
 }
 
-/** Exit non-zero with a message. */
-function fail(message: string): never {
-  process.stderr.write(`${message}\n`);
-  process.exit(1);
-}
-
 /** Validate all option constraints, exiting before anything is created;
  * returns the type narrowed past the `invalid` sentinel. */
 function assertOptionsValid(
@@ -106,11 +100,16 @@ function ticketNewSync(slug: string, options: TicketNewOptions): void {
     // The index refreshes via `safeword sync-tickets` and `safeword check`. 1GGD28.
   } catch (error: unknown) {
     if (error instanceof TicketIdCollisionError) {
-      process.stderr.write(`${error.message}\n`);
-      process.exit(1);
+      fail(error.message);
     }
     throw error;
   }
+}
+
+/** Write a one-line diagnostic to stderr and exit non-zero. */
+function fail(message: string): never {
+  process.stderr.write(`${message}\n`);
+  process.exit(1);
 }
 
 function resolveType(value: string | undefined): TicketType | undefined | 'invalid' {

@@ -14,6 +14,7 @@
 import { readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { detectUnanchoredPhaseState } from '../templates/hooks/lib/phase-provenance.js';
 import { getMissingPacks } from './packs/registry.js';
 import type { ProjectType } from './packs/types.js';
 import { typescriptPackages } from './packs/typescript/files.js';
@@ -326,8 +327,25 @@ function findCoverageDiagnostics(cwd: string): CoverageDiagnostics {
     const ticketDiagnostics = coverageDiagnosticsForTicket(cwd, ticketsRoot, ticketId);
     all.issues.push(...ticketDiagnostics.issues);
     all.advisories.push(...ticketDiagnostics.advisories);
+    const anchorAdvisory = phaseAnchorAdvisoryForTicket(ticketsRoot, ticketId);
+    if (anchorAdvisory !== undefined) all.advisories.push(anchorAdvisory);
   }
   return all;
+}
+
+/**
+ * Phase-anchor advisory (issue #824, epic #808): an in-progress feature
+ * ticket whose current phase carries no valid `phase_anchors` entry gets a
+ * zero-exit nudge — the at-rest view of the #809 anchor substrate. Advisory
+ * only: enforcement belongs to the deliverable-boundary gate (#810), and
+ * tickets born before the convention are tolerated, not failed.
+ */
+function phaseAnchorAdvisoryForTicket(ticketsRoot: string, ticketId: string): string | undefined {
+  const content = readFileSafe(nodePath.join(ticketsRoot, ticketId, 'ticket.md'));
+  if (content === undefined || !isInProgress(content)) return undefined;
+  const verdict = detectUnanchoredPhaseState(content);
+  if (verdict.kind !== 'unanchored') return undefined;
+  return `${formatCoverageTicketLabel(ticketId)}: phase "${verdict.phase}" has no valid phase_anchors entry — append \`- ${verdict.phase}: <commit-sha>\` (git's ID for the commit this phase advance rode on) so commit/push checks can verify the advance is real`;
 }
 
 /** Build coverage advisories for one ticket, or none if it is not an

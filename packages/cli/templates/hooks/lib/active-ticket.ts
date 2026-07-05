@@ -10,7 +10,7 @@ import nodePath from 'node:path';
 import process from 'node:process';
 
 import { parseFrontmatter } from './hierarchy.js';
-import { evaluateAcGate, evaluateJtbdGate } from './jtbd.js';
+import { evaluateCriteriaGate, evaluateJtbdGate } from './jtbd.js';
 import { resolveNamespaceRoot } from './namespace-root.js';
 import { isValidSkipReason } from './parse-annotation.js';
 import { activeScenarioKey } from './skill-nudge.js';
@@ -139,7 +139,7 @@ export function evaluateFeatureTicketReadiness(
       issues,
       'spec.md',
       'missing',
-      'Author spec.md with Jobs To Be Done and Acceptance Criteria, or a deliberate skip reason where allowed.',
+      'Author spec.md with Jobs To Be Done and numbered Rules (or legacy Acceptance Criteria), or a deliberate skip reason where allowed.',
     );
   } else {
     const specContent = readFileSync(specFile, 'utf8');
@@ -153,13 +153,13 @@ export function evaluateFeatureTicketReadiness(
       );
     }
 
-    const acVerdict = evaluateAcGate(specContent);
-    if (!acVerdict.ok) {
+    const criteriaVerdict = evaluateCriteriaGate(specContent);
+    if (!criteriaVerdict.ok) {
       addReadinessIssue(
         issues,
         'spec.md',
-        `AC gate: ${acVerdict.reason}`,
-        'Add an Acceptance Criterion under each JTBD as `#### <jtbd-id>.AC<n>`, or add a per-JTBD `skip: <reason>`.',
+        `criteria gate: ${criteriaVerdict.reason}`,
+        'Add a numbered Rule under each JTBD as `#### <jtbd-id>.R<n>` (or a legacy `#### <jtbd-id>.AC<n>`), or add a per-JTBD `skip: <reason>`.',
       );
     }
   }

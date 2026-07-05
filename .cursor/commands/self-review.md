@@ -33,9 +33,9 @@ blocking — resolve before retrying.
 
 Read the active ticket's `spec.md` and check, against `personas.md` and the
 ticket's `scope` / `out_of_scope`: every JTBD resolves to a real persona and
-reads as a genuine job; each JTBD has ≥1 observable, product-level Acceptance
-Criterion; the ACs cover scope and stop at `out_of_scope`; no implementation
-detail leaks into spec prose. If the review surfaces a fix, edit `spec.md` and
+reads as a genuine job; each JTBD has ≥1 observable, product-level numbered Rule
+(or legacy Acceptance Criterion); the criteria cover scope and stop at
+`out_of_scope`; no implementation detail leaks into spec prose. If the review surfaces a fix, edit `spec.md` and
 re-run — the content-bound stamp goes stale on any edit, so the gate correctly
 re-blocks until the corrected spec is re-reviewed.
 

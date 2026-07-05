@@ -26,7 +26,10 @@ function makeRepo(files: Record<string, string>): string {
   return root;
 }
 
-async function renderSh(root: string, kind: 'test' | 'build' = 'test'): Promise<string> {
+async function renderSh(
+  root: string,
+  kind: 'test' | 'build' | 'typecheck' | 'deps' = 'test',
+): Promise<string> {
   const result = await runCli(['test-plan', '--kind', kind, '--format', 'sh'], {
     cwd: root,
     env: { SAFEWORD_FAKE_TOOLS: 'all' },
@@ -60,6 +63,20 @@ describe('safeword test-plan --format sh', () => {
   it('renders --kind build as a go build command', async () => {
     const sh = await renderSh(makeRepo({ 'go.mod': 'module x\n' }), 'build');
     expect(sh).toContain('go build');
+  });
+
+  // These two route through the CLI `parseKind` boundary (cli → parseKind →
+  // resolver), which the resolver-level unit tests bypass by calling
+  // resolveTestPlan directly. They prove `--kind typecheck` and `--kind deps`
+  // are parsed and dispatched for real, not just handled inside the resolver.
+  it('renders --kind typecheck for Rust as the strict workspace clippy gate', async () => {
+    const sh = await renderSh(makeRepo({ 'Cargo.toml': '[package]\nname="x"\n' }), 'typecheck');
+    expect(sh).toContain('cargo clippy --workspace --all-targets --all-features -- -D warnings');
+  });
+
+  it('renders --kind deps for Rust as the cargo-deny advisories gate', async () => {
+    const sh = await renderSh(makeRepo({ 'Cargo.toml': '[package]\nname="x"\n' }), 'deps');
+    expect(sh).toContain('cargo deny check advisories');
   });
 
   it('eval runs the resolved suite and exits zero on success', async () => {

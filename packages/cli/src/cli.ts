@@ -251,7 +251,7 @@ program
   .command('test-plan')
   .description('Emit the test/build commands for every language detected in the repo')
   .argument('[dir]', 'project directory to scan (defaults to the current directory)')
-  .option('--kind <kind>', 'test, build, verify, or typecheck', 'test')
+  .option('--kind <kind>', 'test, build, verify, typecheck, or deps', 'test')
   .option('--format <format>', 'human, json, or sh (eval-able)', 'human')
   .option('--json', 'alias for --format json')
   .action(

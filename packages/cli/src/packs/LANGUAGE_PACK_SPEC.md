@@ -25,7 +25,7 @@ interface LanguagePack {
 | TypeScript | ESLint: multiple strict plugins         | Minimal (Prettier conflicts)                    |
 | Python     | Curated `extend-select` (E,F,W,I,UP,B…) | Formatter conflicts (COM812, ISC001, E501)      |
 | Go         | `default: standard` + curated `enable`  | `std-error-handling`, `common-false-positives`  |
-| Rust       | `pedantic = "warn"`                     | `missing_errors_doc`, `module_name_repetitions` |
+| Rust       | `pedantic = "deny"`                     | `missing_errors_doc`, `module_name_repetitions` |
 
 **Design Constraints (Required):** Every language pack MUST enforce:
 
@@ -46,7 +46,7 @@ interface LanguagePack {
 | Import cycles  | `import-x/no-cycle`      | -            | `depguard`    | N/A                    |
 | Async/Promise  | `eslint-plugin-promise`  | `ASYNC`      | N/A           | N/A                    |
 | Regex safety   | `eslint-plugin-regexp`   | -            | -             | N/A                    |
-| Error handling | N/A                      | N/A          | `errcheck`    | `unwrap_used = "warn"` |
+| Error handling | N/A                      | N/A          | `errcheck`    | `unwrap_used = "deny"` |
 
 **Severity:** Use `error` not `warn`. LLMs ignore warnings—only errors stop code generation.
 
@@ -709,7 +709,7 @@ export function setupRustTooling(cwd: string): SetupResult {
   const content = readFileSync(cargoPath, 'utf8');
 
   if (!hasExistingLints(content)) {
-    const lintsSection = `[lints.clippy]\npedantic = "warn"\n`;
+    const lintsSection = `[lints.clippy]\npedantic = "deny"\n`;
     writeFileSync(cargoPath, `${content.trimEnd()}\n\n${lintsSection}`);
   }
 

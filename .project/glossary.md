@@ -133,6 +133,12 @@ and could mean two things. One-spec-only vocabulary stays in that ticket.
 
 **Definition:** A per-language tooling module (detection + config generation + setup) implementing the `LanguagePack` interface — one each for typescript, python, golang, rust, sql. Bundled in the CLI, not shipped as separate npm packages.
 
+## Phase Anchor
+
+**Definition:** A commit SHA recorded in ticket frontmatter (`phase_anchors`, one `- <phase>: <sha>` entry per phase entered) when a feature ticket advances forward — evidence tying the transition to git history so a forged frontmatter edit is detectable as unanchored. Produced/detected by #809; validated at the deliverable boundary by #810.
+
+**Do not confuse with:** a ticket's role as "execution anchor" — the ticket anchors working context across sessions; a phase anchor evidences one specific transition.
+
 ## RED → GREEN → REFACTOR
 
 **Definition:** The three TDD micro-steps run per scenario — RED (write a failing test), GREEN (minimum code to pass), REFACTOR (clean up with tests green). One commit per step; the scenario's sub-checkboxes are marked with the commit SHA or `skip: <reason>`, and hooks parse them to track the active step.

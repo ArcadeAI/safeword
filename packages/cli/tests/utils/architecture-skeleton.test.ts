@@ -90,6 +90,118 @@ describe('extractSkeleton — skeleton reflects the real project', () => {
   });
 });
 
+describe('extractSkeleton — broadened JS/TS recognition (issue #843)', () => {
+  it('lists src FILES as modules when src has no subdirectories (flat package)', () => {
+    mkdirSync(nodePath.join(context.directory, 'src'), { recursive: true });
+    writeFileSync(nodePath.join(context.directory, 'src', 'index.ts'), 'export {};\n');
+    writeFileSync(nodePath.join(context.directory, 'src', 'auth.ts'), 'export {};\n');
+
+    const skeleton = extractSkeleton(context.directory);
+
+    expect(skeleton.nodes.map(node => node.name)).toEqual(['auth', 'index']);
+    const pathByName = Object.fromEntries(skeleton.nodes.map(node => [node.name, node.path]));
+    expect(pathByName.auth).toBe('src/auth.ts');
+  });
+
+  it('keeps src directories authoritative — files are ignored when subdirs exist (no churn)', () => {
+    mkdirSync(nodePath.join(context.directory, 'src', 'auth'), { recursive: true });
+    writeFileSync(nodePath.join(context.directory, 'src', 'index.ts'), 'export {};\n');
+
+    const skeleton = extractSkeleton(context.directory);
+
+    // Directory is the module unit; the sibling index.ts file is not listed.
+    expect(skeleton.nodes.map(node => node.name)).toEqual(['auth']);
+  });
+
+  it('recognizes a lib/ root (component libraries) — dirs then files', () => {
+    mkdirSync(nodePath.join(context.directory, 'lib', 'components'), { recursive: true });
+
+    const skeleton = extractSkeleton(context.directory);
+
+    expect(skeleton.nodes.map(node => node.name)).toEqual(['components']);
+    expect(skeleton.nodes[0]?.path).toBe('lib/components');
+  });
+
+  it('recognizes a flat lib/ of files when it has no subdirectories', () => {
+    mkdirSync(nodePath.join(context.directory, 'lib'), { recursive: true });
+    writeFileSync(nodePath.join(context.directory, 'lib', 'button.tsx'), 'export {};\n');
+
+    const skeleton = extractSkeleton(context.directory);
+
+    expect(skeleton.nodes.map(node => node.name)).toEqual(['button']);
+    expect(skeleton.nodes[0]?.path).toBe('lib/button.tsx');
+  });
+
+  it('recognizes top-level source files for a test-only package (no src/ or lib/)', () => {
+    writeFileSync(nodePath.join(context.directory, 'auth.test.ts'), 'export {};\n');
+    writeFileSync(nodePath.join(context.directory, 'billing.test.ts'), 'export {};\n');
+
+    const skeleton = extractSkeleton(context.directory);
+
+    expect(skeleton.nodes.map(node => node.name)).toEqual(['auth.test', 'billing.test']);
+    expect(skeleton.nodes[0]?.path).toBe('auth.test.ts');
+  });
+
+  it('excludes tooling config and declaration files from a flat layout', () => {
+    writeFileSync(nodePath.join(context.directory, 'index.ts'), 'export {};\n');
+    writeFileSync(nodePath.join(context.directory, 'vite.config.ts'), 'export default {};\n');
+    writeFileSync(nodePath.join(context.directory, 'eslint.config.mjs'), 'export default [];\n');
+    writeFileSync(nodePath.join(context.directory, 'jest.config.cjs'), 'module.exports = {};\n');
+    writeFileSync(nodePath.join(context.directory, 'next.config.mjs'), 'export default {};\n');
+    writeFileSync(nodePath.join(context.directory, 'types.d.ts'), 'export {};\n');
+    writeFileSync(nodePath.join(context.directory, 'ambient.d.mts'), 'export {};\n');
+    writeFileSync(nodePath.join(context.directory, '.eslintrc.cjs'), 'module.exports = {};\n');
+
+    const skeleton = extractSkeleton(context.directory);
+
+    expect(skeleton.nodes.map(node => node.name)).toEqual(['index']);
+  });
+
+  it('dedupes a same-named TS/JS pair to one node, TypeScript winning (mid-migration)', () => {
+    mkdirSync(nodePath.join(context.directory, 'src'), { recursive: true });
+    writeFileSync(nodePath.join(context.directory, 'src', 'util.js'), 'export {};\n');
+    writeFileSync(nodePath.join(context.directory, 'src', 'util.ts'), 'export {};\n');
+
+    const skeleton = extractSkeleton(context.directory);
+
+    expect(skeleton.nodes).toEqual([
+      { name: 'util', path: 'src/util.ts', purpose: expect.any(String) as string },
+    ]);
+  });
+
+  it('does not birth top-level modules at a workspace-declaring root (zero-leaf monorepo)', () => {
+    // A monorepo root whose declared members resolve to nothing yet must stay an
+    // empty skeleton (→ noop), not become a single-repo doc of stray root scripts.
+    writeFileSync(
+      nodePath.join(context.directory, 'package.json'),
+      JSON.stringify({ name: 'root', workspaces: ['packages/*'] }),
+    );
+    writeFileSync(nodePath.join(context.directory, 'jest.setup.js'), 'export {};\n');
+
+    expect(extractSkeleton(context.directory).nodes).toEqual([]);
+  });
+
+  it('lets a Go layout win over the JS fallbacks despite a stray top-level script', () => {
+    writeFileSync(
+      nodePath.join(context.directory, 'go.mod'),
+      'module example.com/app\n\ngo 1.22\n',
+    );
+    mkdirSync(nodePath.join(context.directory, 'cmd', 'server'), { recursive: true });
+    writeFileSync(nodePath.join(context.directory, 'gen.ts'), 'export {};\n'); // stray codegen script
+
+    const skeleton = extractSkeleton(context.directory);
+
+    expect(skeleton.nodes.map(node => node.name)).toEqual(['cmd']);
+  });
+
+  it('stays empty for a package with only a manifest and no source', () => {
+    writeFileSync(nodePath.join(context.directory, 'package.json'), '{"name":"solo"}');
+    writeFileSync(nodePath.join(context.directory, 'README.md'), '# solo\n');
+
+    expect(extractSkeleton(context.directory).nodes).toEqual([]);
+  });
+});
+
 describe('extractSkeleton — Go layout (ticket ZD70P1)', () => {
   function writeGoModule(directory: string, modulePath = 'example.com/app'): void {
     writeFileSync(nodePath.join(directory, 'go.mod'), `module ${modulePath}\n\ngo 1.22\n`);

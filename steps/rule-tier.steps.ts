@@ -21,7 +21,7 @@ import {
   findGherkinLintIssues,
   type GherkinLintIssue,
 } from '../packages/cli/src/utils/gherkin-feature.ts';
-import { evaluateAcGate } from '../packages/cli/templates/hooks/lib/jtbd.ts';
+import { evaluateCriteriaGate } from '../packages/cli/templates/hooks/lib/jtbd.ts';
 
 interface RuleTierWorld {
   temporaryDirectory?: string;
@@ -459,12 +459,12 @@ Given(/^a project exhibiting (.+)$/, function (this: RuleTierWorld, condition: s
 
 When('the intake-exit gate evaluates test-definitions creation', function (this: RuleTierWorld) {
   assert.ok(this.specContent, 'no spec content staged');
-  this.gateVerdict = evaluateAcGate(this.specContent);
+  this.gateVerdict = evaluateCriteriaGate(this.specContent);
 });
 
 When('the intake-exit gate runs', function (this: RuleTierWorld) {
   assert.ok(this.specContent, 'no spec content staged');
-  this.gateVerdict = evaluateAcGate(this.specContent);
+  this.gateVerdict = evaluateCriteriaGate(this.specContent);
 });
 
 When('lineage lint runs', function (this: RuleTierWorld) {
@@ -699,7 +699,7 @@ const MESSAGE_CONTRACT: Record<
   'denial message': {
     surface: 'gate',
     id: /JTBD "demo\.DEV2/,
-    nextAction: /add ≥1 `#### <id>\.AC<n>`, ≥1 `#### <id>\.R<n>`, or `skip: <reason>`/,
+    nextAction: /add ≥1 `#### <id>\.R<n>`, ≥1 `#### <id>\.AC<n>`, or `skip: <reason>`/,
   },
   'name-tag mismatch issue': {
     surface: 'gherkin',

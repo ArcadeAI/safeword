@@ -234,6 +234,14 @@ const basePluginsUnscoped: any[] = [
       // Escalated to error for LLM code
       'unicorn/switch-case-braces': 'error',
       'unicorn/catch-error-name': 'error',
+      // prefer-error-is-error: use Error.isError(x) over `x instanceof Error`. It's
+      // a brand check ([[ErrorData]] internal slot), so it's robust across realms
+      // and against Object.create(Error.prototype) spoofing. Error.isError is a
+      // Node 24+ (V8 12.5) API; enabled because safeword's engines floor is Node 24
+      // (packages/cli/package.json), which is the runtime contract for the shipped
+      // preset. Autofixes existing `instanceof Error`; needs ESNext.Error in the
+      // consumer's tsconfig lib for the type guard to narrow.
+      'unicorn/prefer-error-is-error': 'error',
       'unicorn/no-array-reduce': 'error', // LLMs write confusing reduce
       // Renamed from unicorn/prevent-abbreviations in eslint-plugin-unicorn 68.
       'unicorn/name-replacements': [

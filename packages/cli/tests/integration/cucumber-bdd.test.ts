@@ -26,18 +26,24 @@ const CUCUMBER_WIRING_CHECK_ARGS = ['cucumber-js', '--dry-run', '--format', 'sum
 // fails the status assertion with useful output instead of stalling the lane.
 const CUCUMBER_CHILD_TIMEOUT = 90_000;
 const CUCUMBER_CHILD_KILL_SIGNAL = 'SIGKILL';
+const CUCUMBER_SPAWN_OPTIONS = {
+  cwd: CLI_DIRECTORY,
+  encoding: 'utf8',
+  timeout: CUCUMBER_CHILD_TIMEOUT,
+  killSignal: CUCUMBER_CHILD_KILL_SIGNAL,
+} as const;
+
+/** stdout + stderr combined the way every assertion in this lane reads it. */
+function combinedOutput(result: { stdout?: string | null; stderr?: string | null }): string {
+  return `${result.stdout ?? ''}\n${result.stderr ?? ''}`;
+}
 
 describe('cucumber-js acceptance lane (SM1.AC1)', () => {
   it(
     'gherkin-typescript.SM1.AC1.dogfood_feature_wiring_loads_without_executing_steps',
     () => {
-      const result = spawnSync('bunx', CUCUMBER_WIRING_CHECK_ARGS, {
-        cwd: CLI_DIRECTORY,
-        encoding: 'utf8',
-        timeout: CUCUMBER_CHILD_TIMEOUT,
-        killSignal: CUCUMBER_CHILD_KILL_SIGNAL,
-      });
-      const output = `${result.stdout ?? ''}\n${result.stderr ?? ''}`;
+      const result = spawnSync('bunx', CUCUMBER_WIRING_CHECK_ARGS, CUCUMBER_SPAWN_OPTIONS);
+      const output = combinedOutput(result);
       expect(result.status, output).toBe(0);
       expect(output).toMatch(/\b[1-9]\d* scenarios? \([1-9]\d* skipped\)/);
       expect(output).not.toMatch(/undefined|ambiguous|pending|passed/);
@@ -85,15 +91,10 @@ describe('cucumber-js acceptance lane (SM1.AC1)', () => {
             '@demo.DEV2.R1',
             featurePath,
           ],
-          {
-            cwd: CLI_DIRECTORY,
-            encoding: 'utf8',
-            timeout: CUCUMBER_CHILD_TIMEOUT,
-            killSignal: CUCUMBER_CHILD_KILL_SIGNAL,
-          },
+          CUCUMBER_SPAWN_OPTIONS,
         );
 
-        const output = `${result.stdout ?? ''}\n${result.stderr ?? ''}`;
+        const output = combinedOutput(result);
         expect(result.status, output).toBe(0);
         // Rule-level tag inheritance: exactly R1's two scenarios are selected
         // (undefined — the fixture ships no step definitions); R2's scenario is
