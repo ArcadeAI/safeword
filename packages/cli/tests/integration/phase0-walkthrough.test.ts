@@ -237,8 +237,8 @@ describe.each([
     expect(section).toMatch(/When I /);
     expect(section).toMatch(/I want /);
     expect(section).toMatch(/so I can/);
-    // 3 — Acceptance Criterion under the JTBD
-    expect(section).toMatch(/#### oauth-flow\.PO1\.AC1/);
+    // 3 — numbered Rule under the JTBD (ACs are the legacy alternative)
+    expect(section).toMatch(/#### oauth-flow\.PO1\.R1/);
     // 4 — engineering scope / out-of-scope / done-when
     expect(section).toMatch(/scope:/);
     expect(section).toMatch(/out_of_scope:/);
@@ -246,7 +246,7 @@ describe.each([
   });
 
   it('shows the numbered define-behavior scenario lineage and the coverage report', () => {
-    expect(section).toMatch(/oauth-flow\.PO1\.AC1\.[a-z_]+/);
+    expect(section).toMatch(/oauth-flow\.PO1\.R1\.[a-z_]+/);
     expect(section).toMatch(/safeword check/);
     expect(section).toMatch(/uncovered/);
   });

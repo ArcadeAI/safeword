@@ -383,13 +383,15 @@ if (
       );
     }
 
-    // AC gate (ticket 31W8M3): each JTBD needs ≥1 Acceptance Criterion — a
-    // `#### <jtbd-id>.AC<n>` heading under it — or a per-JTBD `skip: <reason>`.
+    // Criteria gate (ticket 31W8M3): each JTBD needs ≥1 numbered Rule
+    // (`#### <jtbd-id>.R<n>`) or legacy Acceptance Criterion
+    // (`#### <jtbd-id>.AC<n>`), or a per-JTBD `skip: <reason>`. The user-facing
+    // label stays "AC gate" (pinned by feature-ticket-readiness / phase0 tests).
     const acVerdict = evaluateAcGate(specContent);
     if (!acVerdict.ok) {
       deny(
         `spec.md AC gate: ${acVerdict.reason}.`,
-        'Add an Acceptance Criterion under each JTBD as `#### <jtbd-id>.AC<n> — <capability>` (a product-level guarantee, not implementation), or `skip: <reason>` under that JTBD to omit it deliberately.',
+        'Add a numbered Rule under each JTBD as `#### <jtbd-id>.R<n> — <invariant>` (a product-level invariant, not implementation) — or a legacy `#### <jtbd-id>.AC<n> — <capability>` — or `skip: <reason>` under that JTBD to omit it deliberately.',
       );
     }
 

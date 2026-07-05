@@ -139,7 +139,7 @@ export function evaluateFeatureTicketReadiness(
       issues,
       'spec.md',
       'missing',
-      'Author spec.md with Jobs To Be Done and Acceptance Criteria, or a deliberate skip reason where allowed.',
+      'Author spec.md with Jobs To Be Done and numbered Rules (or legacy Acceptance Criteria), or a deliberate skip reason where allowed.',
     );
   } else {
     const specContent = readFileSync(specFile, 'utf8');

@@ -12,8 +12,8 @@
 
 1. **Derive dimensions** from intake artifacts (resolved questions, done-when, scope) + domain-knowledge dimensions not surfaced during intake
 2. **Partition** each dimension into equivalence classes + boundary values
-3. **Generate scenarios** — one per partition + boundary cases. Each scenario proves a specific **Acceptance Criterion** from intake (`spec.md`); if a scenario doesn't map to any AC, either it's testing implementation (drop it) or an AC is missing (go back and add it).
-4. **Organize under rules** with card-ratio self-check (too many rules? any rules with no examples? open questions?). Rules group scenarios by the AC they prove, so every AC has ≥1 scenario and no scenario is an orphan.
+3. **Generate scenarios** — one per partition + boundary cases. Each scenario proves a specific **Rule** (or legacy Acceptance Criterion) from intake (`spec.md`); if a scenario doesn't map to any criterion, either it's testing implementation (drop it) or a criterion is missing (go back and add it).
+4. **Organize under Gherkin `Rule:` blocks** with card-ratio self-check (too many rules? any rules with no examples? open questions?). They group scenarios by the criterion they prove, so every criterion has ≥1 scenario and no scenario is an orphan.
 5. **Present to user** (decider) — user accepts, tweaks, or adds
 
 Save the dimension table to `dimensions.md` in the ticket folder before writing test-definitions.md (the pre-tool hook enforces this for features). For tiny features with one obvious behavioral dimension and no partitioning to enumerate, dimensions.md may instead be a single line `skip: <non-empty reason>`.
@@ -124,43 +124,45 @@ Two of these rules mirror gate checks — **one behavior** is AODI's **Atomic**,
 
 ### Scenario naming: lineage scheme
 
-Each saved `.feature` scenario carries the acceptance criterion it proves as a
-Gherkin tag, so the link back to AC, JTBD, and persona is machine-checkable
-rather than eyeballed:
+Each saved `.feature` scenario carries the criterion it proves as a
+Gherkin tag, so the link back to the Rule (or legacy AC), JTBD, and persona is
+machine-checkable rather than eyeballed:
 
-`@<jtbd-id>.AC<#>` — the tag is the AC id from intake
-(`<slug>.<persona-code><JTBD#>.AC<#>`). Long ids are fine — no truncation.
-Scenario names may be plain English; keep lineage in tags, not names.
+`@<jtbd-id>.R<#>` — the tag is the numbered-Rule id from intake
+(`<slug>.<persona-code><JTBD#>.R<#>`); legacy specs use `.AC<#>`. Long ids are
+fine — no truncation. Scenario names may be plain English; keep lineage in tags,
+not names.
 
 Worked example — feature `oauth-flow`, persona Platform Operator (PO), first JTBD:
 
-| Layer        | Id                    |
-| ------------ | --------------------- |
-| JTBD         | `oauth-flow.PO1`      |
-| AC           | `oauth-flow.PO1.AC2`  |
-| Scenario tag | `@oauth-flow.PO1.AC2` |
+| Layer        | Id                   |
+| ------------ | -------------------- |
+| JTBD         | `oauth-flow.PO1`     |
+| Rule         | `oauth-flow.PO1.R2`  |
+| Scenario tag | `@oauth-flow.PO1.R2` |
 
 ```text
-@oauth-flow.PO1.AC2
+@oauth-flow.PO1.R2
 Scenario: Change association applies to subsequent auth
 ```
 
-A scenario with no lineage tag is left alone — it simply proves no AC.
+A scenario with no lineage tag is left alone — it simply proves no criterion.
 `safeword check` reads the tags and reports coverage gaps for in-progress tickets
 as advisories (never a gate):
 
-- **uncovered** — an AC in `spec.md` that no scenario references.
-- **stale ref** — a scenario whose JTBD exists but whose `AC<#>` does not (a typo,
-  or an AC that was renumbered).
+- **uncovered** — a Rule (or AC) in `spec.md` that no scenario references.
+- **stale ref** — a scenario whose JTBD exists but whose `R<#>`/`AC<#>` does not
+  (a typo, or a criterion that was renumbered).
 - **orphan** — a scenario whose JTBD is absent from `spec.md` entirely.
 
-### Numbered Rules (optional third tier)
+### Numbered Rules (the default tier)
 
-A JTBD may declare **numbered Rules** instead of ACs — testable business
+Numbered Rules are the recommended criteria kind — testable business
 invariants with stable per-JTBD IDs, stated generally and illustrated by the
-scenarios nested under them. Declaring them is the opt-in; there is no config
-flag, and a JTBD carries one criteria kind, never both (`safeword check` flags a
-mixed job as an issue).
+scenarios nested under them. Writing `#### <jtbd-id>.R<n>` headings under a JTBD
+puts it on rule lineage; there is no config flag, and a JTBD carries one criteria
+kind, never both (`safeword check` flags a mixed job as an issue). Legacy specs
+may still use Acceptance Criteria instead (soft-deprecated).
 
 - **Spec catalog:** `#### <jtbd-id>.R<n> — <invariant>` headings under the JTBD,
   exactly where AC headings sit (e.g. `#### webhook-retry.PO1.R1 — a failed

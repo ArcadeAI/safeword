@@ -231,7 +231,7 @@ export function evaluateAcGate(specContent: string): JtbdGateVerdict {
     if (block.acCount === 0) {
       return {
         ok: false,
-        reason: `JTBD "${block.heading}" has no acceptance criteria or numbered rules — add ≥1 \`#### <id>.AC<n>\`, ≥1 \`#### <id>.R<n>\`, or \`skip: <reason>\``,
+        reason: `JTBD "${block.heading}" has no numbered rules or acceptance criteria — add ≥1 \`#### <id>.R<n>\`, ≥1 \`#### <id>.AC<n>\`, or \`skip: <reason>\``,
       };
     }
   }
