@@ -16,25 +16,25 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: CLI hard-refuses setup-on-installed (discovered at step wiring; scenario corrected to the upgrade path the clone flow actually uses)
 - [x] GREEN 174e67a
-- [ ] REFACTOR
+- [x] REFACTOR skip: no per-scenario structural debt; cross-scenario cleanups carried by the quality pass 6919d65
 
 ### Scenario: A pristine static managed file is refreshed when its template changes
 
 - [x] RED e271e89
 - [x] GREEN 174e67a
-- [ ] REFACTOR
+- [x] REFACTOR skip: no per-scenario structural debt; cross-scenario cleanups carried by the quality pass 6919d65
 
 ### Scenario: A deleted managed file is recreated and regains provenance
 
 - [x] RED skip: create-if-missing pre-exists; scenario guards the regained-provenance half via shared rule run
 - [x] GREEN 174e67a
-- [ ] REFACTOR
+- [x] REFACTOR skip: no per-scenario structural debt; cross-scenario cleanups carried by the quality pass 6919d65
 
 ### Scenario: An unrecorded file that differs from resolved output is not brought current
 
 - [x] RED skip: pre-feature invariant (upgrade never touched managed files); scenario guards it through the feature
 - [x] GREEN 174e67a
-- [ ] REFACTOR
+- [x] REFACTOR skip: no per-scenario structural debt; cross-scenario cleanups carried by the quality pass 6919d65
 
 ## Rule: managed-file-refresh.TB1.R2 — every refresh is reported; no managed file changes silently
 
@@ -42,13 +42,13 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: reporting rode the decision rule's wouldUpdate (174e67a) into the pre-existing updated-list print
 - [x] GREEN 42c32ef
-- [ ] REFACTOR
+- [x] REFACTOR skip: no per-scenario structural debt; cross-scenario cleanups carried by the quality pass 6919d65
 
 ### Scenario: Diff previews a pending refresh without writing it
 
 - [x] RED skip: diff derives from the same dry-run plan; registry fetch is fail-soft (3s abort) so no neutralization needed beyond the recorded note
 - [x] GREEN 42c32ef
-- [ ] REFACTOR
+- [x] REFACTOR skip: no per-scenario structural debt; cross-scenario cleanups carried by the quality pass 6919d65
 
 ## Rule: managed-file-refresh.TB1.R3 — a managed file already at current output is never rewritten
 
@@ -56,7 +56,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: guard invariant — passed pre-feature; pins no-churn through the feature
 - [x] GREEN 42c32ef
-- [ ] REFACTOR
+- [x] REFACTOR skip: no per-scenario structural debt; cross-scenario cleanups carried by the quality pass 6919d65
 
 ## Rule: managed-file-refresh.TB2.R1 — upgrade never rewrites a managed file whose bytes differ from safeword's recorded write
 
@@ -64,7 +64,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: guard invariant — edits never touched pre-feature; pins it through the feature
 - [x] GREEN 42c32ef
-- [ ] REFACTOR
+- [x] REFACTOR skip: no per-scenario structural debt; cross-scenario cleanups carried by the quality pass 6919d65
 
 ## Rule: managed-file-refresh.TB2.R2 — pristine status is re-derived from on-disk bytes at every upgrade
 
@@ -72,7 +72,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: guard invariant; kills any cached-pristine-flag implementation by construction
 - [x] GREEN 42c32ef
-- [ ] REFACTOR
+- [x] REFACTOR skip: no per-scenario structural debt; cross-scenario cleanups carried by the quality pass 6919d65
 
 ## Rule: managed-file-refresh.TB2.R3 — no manifest state survives uninstall or reset
 
@@ -80,7 +80,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 77ffa5d
 - [x] GREEN 42c32ef
-- [ ] REFACTOR
+- [x] REFACTOR skip: no per-scenario structural debt; cross-scenario cleanups carried by the quality pass 6919d65
 
 ## Rule: managed-file-refresh.SM1.R1 — provenance covers generator output as well as static templates
 
@@ -88,13 +88,13 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 77ffa5d
 - [x] GREEN 42c32ef
-- [ ] REFACTOR
+- [x] REFACTOR skip: no per-scenario structural debt; cross-scenario cleanups carried by the quality pass 6919d65
 
 ### Scenario: A config whose generator now resolves nothing is left untouched
 
 - [x] RED skip: guard invariant — generator-undefined skips by decision-rule case 2 (174e67a)
 - [x] GREEN 42c32ef
-- [ ] REFACTOR
+- [x] REFACTOR skip: no per-scenario structural debt; cross-scenario cleanups carried by the quality pass 6919d65
 
 ## Rule: managed-file-refresh.SM1.R2 — byte-identity to current resolved output is the only adoption path into provenance
 
@@ -102,37 +102,37 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: adoption shipped inside the decision rule (174e67a); scenario proves it black-box
 - [x] GREEN 42c32ef
-- [ ] REFACTOR
+- [x] REFACTOR skip: no per-scenario structural debt; cross-scenario cleanups carried by the quality pass 6919d65
 
 ### Scenario: A file matching resolved output but not its record has its record healed
 
 - [x] RED skip: DD9 heal is the same byte-identity branch as adoption (174e67a)
 - [x] GREEN 42c32ef
-- [ ] REFACTOR
+- [x] REFACTOR skip: no per-scenario structural debt; cross-scenario cleanups carried by the quality pass 6919d65
 
 ### Scenario: An adopted file is refreshed by a later shipped change
 
 - [x] RED 77ffa5d
 - [x] GREEN 42c32ef
-- [ ] REFACTOR
+- [x] REFACTOR skip: no per-scenario structural debt; cross-scenario cleanups carried by the quality pass 6919d65
 
 ### Scenario: A pre-manifest file that differs from resolved output is never adopted
 
 - [x] RED skip: guard invariant — unprovable files skipped by decision-rule fall-through
 - [x] GREEN 42c32ef
-- [ ] REFACTOR
+- [x] REFACTOR skip: no per-scenario structural debt; cross-scenario cleanups carried by the quality pass 6919d65
 
 ### Scenario: A corrupt manifest refreshes nothing and does not fail the upgrade
 
 - [x] RED skip: fail-safe + warning shipped with the decision rule (174e67a); scenario pins DD8 both halves
 - [x] GREEN 42c32ef
-- [ ] REFACTOR
+- [x] REFACTOR skip: no per-scenario structural debt; cross-scenario cleanups carried by the quality pass 6919d65
 
 ### Scenario: A configKey-overridden managed file stays fully suppressed
 
 - [x] RED skip: K7N2QM suppression pre-existing; scenario reframed to the reachable override-after-install flow and pins non-recreation + inert entry
 - [x] GREEN 42c32ef
-- [ ] REFACTOR
+- [x] REFACTOR skip: no per-scenario structural debt; cross-scenario cleanups carried by the quality pass 6919d65
 
 ## Rule: managed-file-refresh.SM1.R3 — schema documentation states the actual behavior
 
