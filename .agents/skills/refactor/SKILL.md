@@ -12,17 +12,14 @@ allowed-tools: '*'
 
 Improve code structure without changing behavior. One small step at a time.
 
-**Iron Law:** ONE REFACTORING → TEST → COMMIT. Never batch changes.
+Work one refactoring at a time: change, test, commit. Don't batch changes.
 
 ## When to Use
 
-Answer IN ORDER. Stop at first match:
-
-1. User says "refactor", "clean up", "restructure"? → Use this skill
-2. User asks to "extract", "rename", "simplify"? → Use this skill
-3. Code smell identified? → Use this skill
-4. User wants to add feature or fix bug? → Skip (use tdd-enforcer)
-5. User wants formatting/style fixes? → Skip (use /lint)
+Use when the user says "refactor", "clean up", "restructure", "extract",
+"rename", or "simplify", or when you've identified a code smell. Skip for adding
+a feature or fixing a bug (use tdd-enforcer) and for formatting/style fixes (use
+/lint).
 
 **Code smells** (common triggers):
 
@@ -90,9 +87,9 @@ it('processOrder returns current behavior', () => {
 
 ## Phase 3: REFACTOR
 
-**Iron Law:** ONE refactoring at a time. Run tests after EVERY change.
+One refactoring at a time; run tests after every change.
 
-**Discovery fans out; mutation never does.** The scout step (in "When to Use", above) may run parallel read-only passes. Execution is the opposite — one change, in isolation, then test, then commit — because the safety net lives here. Parallel or batched edits forfeit the revert protocol (Phase 4), break `git bisect`, and destroy single-change test attribution: you can no longer tell which edit turned the suite red. The Iron Law is **per-edit, not per-session** — you still work through every ledger entry (Phase 5), just one at a time.
+**Discovery fans out; mutation never does.** The scout step (in "When to Use", above) may run parallel read-only passes. Execution is the opposite — one change, in isolation, then test, then commit — because the safety net lives here. Parallel or batched edits forfeit the revert protocol (Phase 4), break `git bisect`, and destroy single-change test attribution: you can no longer tell which edit turned the suite red. The one-change rule is **per-edit, not per-session** — you still work through every ledger entry (Phase 5), just one at a time.
 
 ### Refactoring Catalog
 
@@ -196,8 +193,8 @@ Choose exactly one outcome:
   creation would disturb the user's state or unrelated work is already present,
   defer the commit and report the exact branch/worktree reason.
 
-Deferring a commit is not skipping the Iron Law; it is preserving the same
-single-change attribution the Iron Law exists to protect.
+Deferring a commit is not skipping the one-change rule; it is preserving the same
+single-change attribution that rule exists to protect.
 
 ### Revert Protocol
 
@@ -275,14 +272,3 @@ A single-named-smell request has a one-entry ledger — resolve it, audit, done.
 | Change behavior during refactor        | That's a feature/fix, not refactoring                         |
 | Create a mixed feature+refactor commit | Commit only an isolated refactor, or defer with the reason    |
 | Skip a safe commit                     | Commit after every green test when the commit can stay scoped |
-
----
-
-## Key Takeaways
-
-1. **One change at a time** - Never batch refactorings
-2. **Tests before refactoring** - No safety net = no refactoring
-3. **Revert on failure** - Don't fix, revert and retry smaller
-4. **Commit after each success when safe** - `refactor: [description]`, or defer with a concrete mixed-tree/detached-HEAD reason
-5. **Smallest scope first** - Rename < Extract < Move < Restructure
-6. **Audit when done** - Run `/audit` to verify no dead code or new issues

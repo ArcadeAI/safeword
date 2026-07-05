@@ -322,6 +322,7 @@ Brief description. Current status.
 - Test: Can new developer understand "why" from reading this?
 - **Use imports** to keep main file under 200 lines
 - Verify loaded context matches intent (check hierarchical loading behavior)
+- Make critical rules findable through clear structure, not position tricks (burying them mid-file)
 
 ---
 
@@ -456,12 +457,3 @@ Brief description. Current status.
 - Bloated files cost more tokens and introduce noise
 - Keep under 50KB for optimal performance (though no hard limit)
 - Use imports to modularize instead of monolithic files
-
----
-
-## Key Takeaways
-
-- Keep context files under 200 lines—use imports to modularize
-- Short declarative bullets, not narrative paragraphs
-- Update immediately when architecture changes (stale docs = confusion)
-- Avoid burying critical rules in the middle — use clear structure over position tricks

@@ -35,35 +35,20 @@ Agent chooses the right tool       → eval or trace eval
 
 ## Eval Decision Tree
 
-Answer in order. Stop at the first match.
+The first matching row picks the approach (rows run cheapest/most-deterministic →
+most model-graded, which is also the tie-break order):
 
-1. **Can a normal deterministic test fully prove the behavior?**
-   - YES → Use unit, integration, E2E, or migration coverage instead
-   - NO → Continue
+| If…                                                                     | Approach                                          |
+| ----------------------------------------------------------------------- | ------------------------------------------------- |
+| a normal deterministic test can fully prove the behavior                | Use unit, integration, E2E, or migration coverage |
+| a deterministic eval assertion can prove part of the AI output contract | Add that assertion before any model-graded scorer |
+| there's a known correct output, label, or fact set                      | Reference-based evals                             |
+| comparing two outputs is easier than scoring one absolutely             | Pairwise evals                                    |
+| the desired quality is subjective but describable                       | Rubric-based LLM-as-judge evals                   |
+| the behavior involves multiple steps, tools, retrieval, or agents       | Trace or trajectory evals                         |
 
-2. **Can a deterministic eval assertion prove part of the AI output contract?**
-   - YES → Add that assertion before any model-graded scorer
-   - NO → Continue
-
-3. **Is there a known correct output, label, or fact set?**
-   - YES → Use reference-based evals
-   - NO → Continue
-
-4. **Is it easier to compare two outputs than score one output absolutely?**
-   - YES → Use pairwise evals
-   - NO → Continue
-
-5. **Is the desired quality subjective but describable?**
-   - YES → Use rubric-based LLM-as-judge evals
-   - NO → Continue
-
-6. **Does the behavior involve multiple steps, tools, retrieval, or agents?**
-   - YES → Use trace or trajectory evals
-   - NO → Write the missing acceptance criteria before creating the eval
-
-**Tie-breaker:** deterministic checks first, reference-based checks second,
-LLM-as-judge last. Model-graded evals are powerful but add cost, latency, and
-grader failure modes.
+If none fit, write the missing acceptance criteria before creating the eval.
+Model-graded evals are powerful but add cost, latency, and grader failure modes.
 
 ---
 
@@ -112,7 +97,8 @@ A good eval catches a plausible AI failure that users would notice, and it tells
 the team what to do when it fails. A wasteful eval spends model calls without
 raising confidence.
 
-Before writing a new eval, answer in order. Stop at the first failure.
+A new eval earns its place only if every one of these holds; the first that
+fails tells you what to fix before writing it.
 
 1. **What user-visible failure would this catch?**
    - Clear answer → Continue
@@ -471,15 +457,3 @@ Minimal template:
 | Full AI eval  | `npm run eval:full`  | release | yes            | `evals/full.yml`  | AI team |
 | Drift monitor | scheduled            | no      | sampled traces | platform          |
 ```
-
----
-
-## Key Takeaways
-
-- Use deterministic tests before judge evals.
-- Evals need objectives, datasets, scorers, cadence, thresholds, and owners.
-- Judge one quality dimension at a time.
-- Calibrate LLM-as-judge scorers against human-labeled examples.
-- Keep historical failures as regression cases.
-- Separate cheap smoke evals from full, expensive eval suites.
-- Never put sensitive production data into eval fixtures without approval.

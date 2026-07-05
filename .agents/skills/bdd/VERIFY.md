@@ -13,7 +13,7 @@ user whether to proceed.
 
 If tests are flaky, investigate before proceeding.
 
-## Verify Exit (REQUIRED)
+## Verify Exit
 
 Before proceeding to done:
 

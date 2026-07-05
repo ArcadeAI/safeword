@@ -6,7 +6,7 @@ allowed-tools: '*'
 
 # Figure It Out: Evidence-Backed Option Weighing
 
-**Iron Law:** No recommendation without current evidence. Training data is stale; verify before staking a position.
+No recommendation without current evidence. Training data is stale; verify before staking a position.
 
 **Stakes set depth.** Investigate as if your recommendation ships unreviewed — a decision gets built on it with no second analysis pass. That standard, not "it's just advice," sets how hard you research. Before researching, write the investigation plan: the sub-questions each domain (Phase 3a) must answer, then work the list. Plan the _investigation_, not the answer — committing to a conclusion before the evidence is the failure this skill exists to prevent.
 
@@ -87,7 +87,7 @@ Then commit. Format:
 
 The `**Premortem:**` line disconfirms your _choice_, not just the alternatives you steelmanned — the option you stop scrutinizing the moment you pick it is the one that bites. Keep it to one sentence.
 
-The `**Next:**` line is required. A recommendation without a next action is incomplete — name the file to edit, the command to run, or the question to ask. One line, imperative.
+Close with the `**Next:**` line — one imperative naming the file to edit, the command to run, or the question to ask (the stop hook reads it for the re-entry brief). A recommendation that doesn't say what to do now leaves the reader stranded.
 
 If two options tie on correctness and elegance, the smaller one wins.
 

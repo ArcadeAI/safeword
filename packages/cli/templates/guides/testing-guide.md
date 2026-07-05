@@ -24,11 +24,11 @@ the lane. Higher scope gives more real-world confidence. Lower scope wins when
 it proves the same behavior faster, diagnoses failures better, or covers dense
 edge cases.
 
-**Always test what you build** — Run tests yourself before completion. Don't ask the user to verify.
+Test what you build — run the tests yourself before completion rather than asking the user to verify.
 
 ---
 
-## Test Integrity (CRITICAL)
+## Test Integrity
 
 **NEVER modify, skip, or delete tests without explicit human approval.**
 
@@ -78,7 +78,8 @@ A good test protects behavior that matters and would fail for a plausible
 regression. A busywork test satisfies "add tests" without raising useful
 confidence.
 
-Before adding a test, answer in order. Stop at the first failure.
+A test earns its place only if every one of these holds; the first that fails
+tells you what to fix before writing it.
 
 1. **What behavior or contract does this protect?**
    - Clear answer → Continue
@@ -171,29 +172,16 @@ Unit (milliseconds)      ← Pure functions, no I/O           ↓ cheaper diagno
 
 ## When to Use Each Test Type
 
-Answer these questions in order. Stop at first match.
+The first matching row picks the type (rows run general → specific):
 
-```text
-1. Does this test AI-generated content quality (tone, reasoning, creativity)?
-   └─ YES → LLM Evaluation
-   └─ NO → Continue to question 2
+| If the test…                                                      | Type           | Examples                                                                                                                                   |
+| ----------------------------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| checks AI-generated content quality (tone, reasoning, creativity) | LLM Evaluation |                                                                                                                                            |
+| needs a real browser (Playwright/Cypress)                         | E2E            | Multi-page navigation, browser-specific behavior, visual regression (React Testing Library does _not_ need a browser — that's integration) |
+| exercises interactions between multiple components/services       | Integration    | API + database, React component + state store                                                                                              |
+| covers a pure function (input → output, no I/O)                   | Unit           | Calculations, formatters, validators, pure algorithms                                                                                      |
 
-2. Does this test require a real browser (Playwright/Cypress)?
-   └─ YES → E2E test
-      Examples: Multi-page navigation, browser-specific behavior, visual regression
-      Note: React Testing Library does NOT require a browser - that's integration
-   └─ NO → Continue to question 3
-
-3. Does this test interactions between multiple components/services?
-   └─ YES → Integration test
-      Examples: API + database, React component + state store
-   └─ NO → Continue to question 4
-
-4. Does this test a pure function (input → output, no I/O)?
-   └─ YES → Unit test
-      Examples: Calculations, formatters, validators, pure algorithms
-   └─ NO → Re-evaluate: What are you actually testing?
-```
+If none match, re-evaluate what you're actually testing.
 
 **Edge cases:**
 

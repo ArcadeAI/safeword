@@ -56,13 +56,9 @@ The CLI mints a 6-char Crockford Base32 ID, creates the folder atomically, and w
 | **task**    | ticket.md with inline tests                         |
 | **patch**   | ticket.md (minimal), existing tests                 |
 
-**Create ticket? Answer IN ORDER, stop at first match:**
-
-1. Multiple attempts likely needed? → Create ticket
-2. Multi-step with dependencies? → Create ticket
-3. Investigation/debugging required? → Create ticket
-4. Risk of losing context mid-session? → Create ticket
-5. None of above? → Skip ticket
+**Create a ticket** when any of these holds: multiple attempts are likely,
+the work is multi-step with dependencies, it needs investigation/debugging, or
+there's a risk of losing context mid-session. Otherwise skip it.
 
 **Examples:** "Fix typo" → skip. "Debug slow login" → ticket. "Add OAuth" → ticket.
 
@@ -124,11 +120,9 @@ status: in_progress
 
 **One artifact = one log.** If log exists, append a new session. Don't spawn multiple logs for the same work.
 
-**Create log? Answer IN ORDER, stop at first match:**
-
-1. Executing a plan, ticket, or spec? → Create log
-2. Investigation/debugging with multiple attempts? → Create log
-3. Quick single-action task? → Skip log
+**Create a log** when executing a plan, ticket, or spec, or when
+investigation/debugging spans multiple attempts. Skip it for a quick
+single-action task.
 
 **Think hard behaviors:**
 

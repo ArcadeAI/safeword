@@ -82,21 +82,11 @@ If issues found: address before starting next scenario. If clean: commit and pro
 
 ## Output discipline
 
-Every review ends with a **Next:** line on its own line — imperative, name the file/command/scenario. Don't end with "proceed" or "commit and move on" alone; name what to do.
+Close every review with a `**Next:**` line — imperative, naming the file/command/scenario, not a bare "proceed" or "commit and move on" (the stop hook reads it for the re-entry brief).
 
 - After RED, clean → `**Next:** implement minimum code in {file} to make this test pass.`
 - After RED, issues → `**Next:** rewrite assertion in {file}:{line} to check observable output, then re-review.`
 - After GREEN, clean → `**Next:** run /refactor on {file}, then commit and mark next [ ] RED.`
 - After REFACTOR, clean → `**Next:** commit, then start scenario {N} — write the failing test in {file}.`
-
-A review without a Next: line is incomplete.
-
-## Reminders
-
-1. **Depth matches step** — lightweight after RED, moderate after GREEN, full after REFACTOR
-2. **Local by default** — per-step reviews need no web research; reserve **/quality-review** for a scenario that introduces a new external dependency/API and for the whole-ticket pass at implement-exit
-3. **Single source of truth** — this skill owns all TDD review content
-4. **Advisory, not a wall** — these reviews guide; the commit ledger and done-gate are the hard gates. Review internally, then commit to proceed
-5. **Mark sub-checkbox** — ensure the current step's `[x]` is marked in test-definitions.md
 
 **Voice:** plainspoken and concise — write to be scanned.

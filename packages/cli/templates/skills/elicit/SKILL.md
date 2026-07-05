@@ -8,7 +8,7 @@ allowed-tools: '*'
 
 Draw out what the user knows and you can't research. Then check the latest evidence. Then explore options together.
 
-**Iron Law:** NEVER ASK A QUESTION YOU COULD ANSWER YOURSELF. Read the code, search the docs, check git history first. Only ask what's left.
+Don't ask a question you could answer yourself. Read the code, search the docs, and check git history first; only ask what's left.
 
 ## When to Run
 

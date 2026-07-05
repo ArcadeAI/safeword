@@ -1,6 +1,6 @@
 # Learning Extraction Process
 
-Extract reusable knowledge from debugging sessions and implementation discoveries. Ensures insights compound across sessions.
+Extract reusable knowledge from debugging sessions and implementation discoveries. Ensures insights compound across sessions. When in doubt, extract more rather than less — you can archive later — and capture it while the context is fresh rather than deferring.
 
 **LLM Instruction Design:** Learnings are documentation that LLMs read and follow. Apply best practices from `@.safeword/guides/llm-writing-guide.md` when writing learning files (concrete examples, explicit definitions, MECE principles).
 
@@ -51,7 +51,7 @@ Extract after experiencing ANY of these:
 
 ## Using Existing Learnings
 
-**CRITICAL**: Before extracting new learnings, ALWAYS check if similar learnings already exist. This prevents duplication and keeps knowledge organized.
+Before extracting a new learning, check whether a similar one already exists — this prevents duplication and keeps the knowledge organized.
 
 ### When to Check for Existing Learnings
 
@@ -247,7 +247,7 @@ Actual: [What happened]
 
 ## SAFEWORD.md Integration
 
-**CRITICAL**: ALWAYS cross-reference in SAFEWORD.md after creating learning file.
+After creating a learning file, cross-reference it in SAFEWORD.md.
 
 After extracting to `<namespace-root>/learnings/`, add cross-reference in SAFEWORD.md:
 
@@ -488,47 +488,3 @@ The `post-tool-sync-learnings` hook flags `✅ Verified` and `Verified by …` s
 <namespace-root>/learnings/electron-ipc-patterns.md         (60 lines)
 <namespace-root>/learnings/electron-path-validation.md      (50 lines)
 ```
-
----
-
-## Summary
-
-This is a **living process** - iterate and refine based on what works.
-
-**Core Principle**: Extract knowledge that **compounds over time**. Each learning should save time on 2+ future features.
-
-**Decision Framework**:
-
-1. **Forward-looking?** → Extract (helps future work)
-2. **Global or project?** → Choose directory
-3. **Architectural or gotcha?** → Choose SAFEWORD.md or separate file
-4. **ALWAYS cross-reference** → Update SAFEWORD.md
-
-**Continuous Improvement**:
-
-- Monthly: Review existing learnings for relevance
-- Quarterly: Archive obsolete learnings
-- Per feature: Assess if new learnings emerged
-- Test: Did extracting this actually help on the next feature?
-
-**When in Doubt**:
-
-- Extract more rather than less (can archive later)
-- Prefer separate file over inline comments (keeps code clean)
-- Update immediately while fresh (don't defer to "later")
-
-**Maintenance**:
-
-- Remove when technology deprecated or pattern no longer used
-- Refactor when multiple learnings cover similar topics (consolidate)
-- Split when learning file >200 lines (focus on single concept)
-- Update SAFEWORD.md references when learnings move or merge
-
----
-
-## Key Takeaways
-
-- Extract after 5+ debug cycles or 3+ approaches tried
-- Check existing learnings first—update, don't duplicate
-- One concept per file, under 200 lines
-- Extract immediately while fresh (don't defer to "later")

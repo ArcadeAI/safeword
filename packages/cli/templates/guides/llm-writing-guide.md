@@ -157,25 +157,3 @@ Provide concrete next steps for dead ends.
 | Percentages without context           | "70/20/10" meaningless without adjustment guidance |
 | Caveats in tables                     | Parentheticals break pattern matching              |
 | Critical info in middle               | Lost-in-middle phenomenon                          |
-
----
-
-## Quality Checklist
-
-- [ ] Decision trees: MECE, sequential, with tie-breakers
-- [ ] All terms explicitly defined
-- [ ] Every rule has good vs bad examples
-- [ ] Edge cases covered
-- [ ] No contradictions between sections
-- [ ] Complex decisions have lookup tables
-- [ ] Dead-end paths have re-evaluation steps
-- [ ] Critical rules not buried in the middle of long documents
-
----
-
-## Key Takeaways
-
-- Decision trees: sequential, MECE, with tie-breakers
-- Every rule needs concrete examples (good vs bad)
-- Define all terms explicitly—assume nothing is obvious
-- Avoid burying critical rules in the middle — use clear structure over position tricks

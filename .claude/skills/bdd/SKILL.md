@@ -12,7 +12,7 @@ allowed-tools: '*'
 
 Behavior-first development for features. Discovery → Scenarios → Implementation.
 
-**Iron Law:** DEFINE BEHAVIOR BEFORE IMPLEMENTATION
+Define the behavior before implementing it. When unsure whether work is a feature, default to a task (TDD directly) — the user can `/bdd` to override.
 
 ## Phase Tracking
 
@@ -126,15 +126,3 @@ Load the appropriate file based on current phase:
 | `done`            | DONE.md      |
 
 For splitting large features, see SPLITTING.md.
-
----
-
-## Key Takeaways
-
-- **patch/task** → TDD directly (RED → GREEN → REFACTOR)
-- **feature** → full BDD flow, track in ticket `phase:` field
-- **Resume** → read ticket, find first unchecked scenario, continue
-- **Split** → check thresholds at Entry, define-behavior, scenario-gate; user decides (see SPLITTING.md)
-- **Verify gate** → run /verify + /audit, writes verify.md. Stop hook blocks done without it.
-- **Done** → close ticket (trivial — verify.md must already exist)
-- When unsure → default to task, user can `/bdd` to override

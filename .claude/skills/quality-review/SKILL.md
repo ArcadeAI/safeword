@@ -56,7 +56,7 @@ Run each angle that applies — angle _diversity_ is the lever, not search volum
 
 ### Version-currency & security
 
-**CRITICAL**: This is your main differentiator from automatic hook.
+This is your main differentiator from the automatic hook.
 
 Read the live `Current time:` line from the prompt timestamp hook and use that date as the current prompt timestamp.
 Search for: "[library name] latest stable version as of <current prompt timestamp date>"
@@ -66,7 +66,7 @@ Search for: "[library name] security vulnerabilities"
 
 - Major versions behind -> WARN (e.g., React 17 when 19 is stable)
 - Minor versions behind -> NOTE
-- Security vulnerabilities -> CRITICAL (must upgrade)
+- Security vulnerabilities -> CRITICAL (upgrade now)
 - Using latest -> Confirm
 
 ## 3. Verify Documentation — deprecation + primary-source (Primary Value)
@@ -143,13 +143,6 @@ Each pass:
 A pass isn't done until `/verify` (tests, lint, typecheck) is green. That
 objective signal — not the reviewer running out of suggestions — is the real
 stop condition; tests are the ground truth.
-
-## Reminders
-
-1. **Primary value: Web research** - Verify versions, docs, security
-2. **Complement automatic hook** - Hook prompts for the decision-brief verdict and per-phase evidence; you verify versions, primary-literature claims, and ecosystem context the hook can't see
-3. **Phase matters** - Adapt research focus to current BDD phase
-4. **Be concise** - Hook already prompts for general quality, focus on what it can't do
 
 **Voice:** plainspoken and concise — write to be scanned.
 

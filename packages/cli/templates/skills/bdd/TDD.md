@@ -15,10 +15,10 @@ Before the first RED, confirm the project's test harness actually runs — judge
 
 Degradation is the intended path — no gate blocks on harness absence.
 
-## Iron Laws
+## Core rules
 
-1. **NO IMPLEMENTATION UNTIL TEST FAILS FOR THE RIGHT REASON** — behavior missing, not syntax error
-2. **ONLY WRITE CODE THE TEST REQUIRES** — GREEN is minimal, REFACTOR adds quality
+1. Write the failing test first and confirm it fails for the intended reason — behavior missing, not a syntax error — before writing any implementation.
+2. Write only the code the test requires: GREEN is minimal, REFACTOR adds quality.
 
 ## Test Scope
 
@@ -82,7 +82,7 @@ At the bottom of `test-definitions.md`, add one row for the whole-ticket cross-s
 
 **Evidence before claims:** Show test output, don't just claim "tests pass". Run the targeted suite at GREEN for fast feedback; run the FULL suite once at scenario close (after REFACTOR) to catch cross-module regressions.
 
-### Red Flags — STOP:
+### Red flags — stop and rethink:
 
 | Flag                    | Action                                        |
 | ----------------------- | --------------------------------------------- |

@@ -184,7 +184,7 @@ delivery retries on exponential backoff`). IDs are 1-indexed per job and
   `@job:PO1 @rule:PO1.R1 @scenario:<name>` on a scenario becomes the single
   block-level `@<slug>.PO1.R1` tag, and scenario names go back to plain English.
 
-### Define Behavior Exit (REQUIRED)
+### Define Behavior Exit
 
 1. **Save scenarios** to the feature lane: `features/<slug>.feature` (under `paths.features` when configured)
 2. **Save the R/G/R ledger** to `<namespace-root>/tickets/{ID}-{slug}/test-definitions.md`
@@ -207,7 +207,7 @@ Run the **`/review-spec`** skill — it is the gate procedure (vacuous-pass, AOD
 
 If the adversarial pass + user feedback produced new scenarios → loop back to define-behavior. If nothing new surfaced → done.
 
-### Scenario Gate Exit (REQUIRED)
+### Scenario Gate Exit
 
 1. Each scenario passes the vacuous-pass test and AODI (Atomic, Observable, Deterministic, Independent)
 2. Adversarial pass + cross-cutting checks complete; findings presented in the findings format (or confirmed clean)

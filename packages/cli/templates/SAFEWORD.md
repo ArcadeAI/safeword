@@ -139,7 +139,7 @@ Training data drifts. Memory of "how X worked" is not authority — the current 
 
 **Adding a dependency** (a package not yet in the project) — there's no installed version to read, and the version you recall is stale by definition. Use the live `Current time:` line injected by `prompt-timestamp.ts` when the host provides one; otherwise use the current system date from the session. Then verify the current version for that date before pinning. Prefer the package manager's resolver command (`bun add <pkg>`, `npm install <pkg>`, `uv add`, `cargo add`, `go get <module>@latest`, etc.) or a registry command such as `npm view <pkg> version`, `pip index versions`, `go list -m -versions`, or crates.io. Pin what the registry reports today, never a number from memory.
 
-**Design choices** (algorithm, architecture, security, performance, concurrency, accessibility, ML/stats) — call `/figure-it-out`. Its iron law: no recommendation without current evidence. It enumerates research domains, fetches live docs, and weighs options before committing.
+**Design choices** (algorithm, architecture, security, performance, concurrency, accessibility, ML/stats) — call `/figure-it-out`. Its core rule: no recommendation without current evidence. It enumerates research domains, fetches live docs, and weighs options before committing.
 
 Blog posts, tweets, marketing, and "I remember reading…" don't count for any tier. Treat them as leads, not evidence.
 
@@ -199,7 +199,7 @@ This is the most-read surface of safeword. **Write to be scanned, not read.** Sh
 > Do: "Fixed — `packages/cli/src/auth.ts:42` was swallowing the refresh error."
 > Don't: "Great question! Let me walk you through what I found..."
 
-**End with the call.** Last line is what's next — a question, a choice, or a proposed step. For structured replies (verdicts, reviews, recommendations, audits), use a literal `**Next:** <imperative>` line — the same discipline safeword skills enforce in their output. Short conversational replies can end with the question itself; no bold preface needed. Don't bury the call mid-reply.
+**End with the call.** Close by naming what's next — a question, a choice, or a proposed step; don't bury it mid-reply. For structured replies (verdicts, reviews, recommendations, audits), make that closing line a literal `**Next:** <imperative>`: the stop hook captures it verbatim for the session's re-entry brief, so the token is load-bearing, not decoration. Short conversational replies can end with the question itself.
 
 **Debate-then-pick.** When there's a real choice, surface 2-3 options weighed in one breath, then the pick — one line each on the candidates, one on the tradeoff, one on the call. Don't ping-pong one option at a time. Skip the debate when there's no real choice (rename, mechanical edit, single obvious path).
 
