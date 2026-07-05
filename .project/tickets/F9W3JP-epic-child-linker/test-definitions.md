@@ -15,9 +15,9 @@ Feature source: `packages/cli/features/epic-child-linker.feature`
 
 ### Scenario: epic-child-linker.TB1.AC1.linking_records_parent_and_appends_to_epic
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 9aecb5f
+- [x] GREEN ff52e24
+- [x] REFACTOR ff52e24 extracted assertOptionsValid/resolveSlug guards to hold complexity
 
 ### Scenario: epic-child-linker.TB1.AC1.navigation_from_epic_reaches_child
 
@@ -37,26 +37,26 @@ Feature source: `packages/cli/features/epic-child-linker.feature`
 
 ### Scenario: epic-child-linker.TB1.AC3.missing_parent_rejected
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 9aecb5f
+- [x] GREEN ff52e24
+- [x] REFACTOR skip: validation is a single guard, nothing to restructure
 
 ### Scenario: epic-child-linker.TB1.AC3.non_epic_parent_rejected
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 9aecb5f
+- [x] GREEN ff52e24
+- [x] REFACTOR skip: shares the validateEpicParent guard with the missing-parent case
 
 ## Rule: Linking is idempotent and preserves the epic's existing children
 
 ### Scenario: epic-child-linker.TB1.AC4.second_child_preserves_first
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 2db17dc
+- [x] GREEN edf4b05
+- [x] REFACTOR skip: helper authored clean in GREEN; no separate refactor step
 
 ### Scenario: epic-child-linker.TB1.AC4.linking_twice_adds_at_most_once
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 2db17dc
+- [x] GREEN edf4b05
+- [x] REFACTOR skip: idempotency covered by the same GREEN helper
