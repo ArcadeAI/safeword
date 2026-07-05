@@ -2,14 +2,15 @@
 id: RM84M8
 slug: evidence-anchored-phase-transitions
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 epic: "808"
 phase_anchors:
   - define-behavior: 368c6e0
   - scenario-gate: a88e475
   - implement: e092bef
   - verify: 2c3c33f
+  - done: ba1ffbf
 scope:
   - "Anchor format: a `phase_anchors:` block sequence in feature ticket.md frontmatter (`  - <phase>: <sha>`, mirroring the existing `phase_skips` convention), one appended entry per phase entered — never an overwritten scalar."
   - "Pure detection predicate `detectUnanchoredPhaseTransition(prior, proposed, resolveSha?)` in the phase-provenance lib: for a feature forward advance, reports whether the entered phase carries a valid anchor. Format-only when no resolver; adds HEAD-reachability when a resolver is injected (the shape #810's boundary consumes). This predicate is the deliverable substrate — it has no caller that blocks in #809."
@@ -60,3 +61,6 @@ Load-bearing evidence: SLSA's attestation model requires provenance fields be ge
 - 2026-07-05T15:23:19.033Z Started: Created ticket RM84M8
 - 2026-07-05T15:18:00.000Z Intake: framed via full research (explorer map + /figure-it-out); spec.md authored + self-reviewed (Tier 1 stamp). Scope set to #809 substrate only per user (two-fork convergence).
 - 2026-07-05T16:04:00.000Z Intake refine: independent /quality-review (REQUEST CHANGES) showed write-time format-only hard-deny catches no forger and taxes honest advances; re-scoped to substrate-only (format + detection predicate), enforcement is #810's. Softened AC1's distinct-SHA claim (phases aren't commit-bearing).
+- 2026-07-05T16:13:00.000Z Complete: define-behavior + scenario-gate — 13 scenarios / 3 rules; independent /review-spec (0 must-fix, 5 should-strengthen) applied; impl-plan.md written.
+- 2026-07-05T16:31:00.000Z Complete: implement — TDD RED (1050da6) → GREEN (cd064e7) → REFACTOR (eced2b7, shared parser); 17 unit + 16 acceptance scenarios green.
+- 2026-07-05T17:20:00.000Z Complete: verify — 936 hook tests, 259 acceptance scenarios, build/typecheck/lint green; /audit passed (0 errors); verify.md written. Ticket done.
