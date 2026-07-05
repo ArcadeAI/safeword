@@ -81,7 +81,7 @@ Out of Scope:
 
 ### Given-When-Then Format (Behavior-Focused)
 
-For feature-level work, run `/bdd`. The BDD skill walks define-behavior: derive dimensions → partition into scenarios → save executable scenarios in the feature lane, `features/<slug>.feature` by default or under `paths.features` when configured (Rule grouping + nested Scenario + Given/When/Then + lineage `@<jtbd>.AC#` tags). `test-definitions.md` is the R/G/R ledger: it references the feature source and carries per-scenario `- [ ] RED / GREEN / REFACTOR` checkboxes for hooks. Keep scenarios **declarative** — describe _what_ the system does, not _how_ it does it — and aim for 3-5 G/W/T steps per scenario (Cucumber best practice).
+For feature-level work, run `/bdd`. The BDD skill walks define-behavior: derive dimensions → partition into scenarios → save executable scenarios in the feature lane, `features/<slug>.feature` by default or under `paths.features` when configured (Rule grouping + nested Scenario + Given/When/Then + lineage `@<jtbd>.R#` tags — numbered Rule; legacy specs use `@<jtbd>.AC#`). `test-definitions.md` is the R/G/R ledger: it references the feature source and carries per-scenario `- [ ] RED / GREEN / REFACTOR` checkboxes for hooks. Keep scenarios **declarative** — describe _what_ the system does, not _how_ it does it — and aim for 3-5 G/W/T steps per scenario (Cucumber best practice).
 
 ### Job Story Format (Outcome-Focused)
 
