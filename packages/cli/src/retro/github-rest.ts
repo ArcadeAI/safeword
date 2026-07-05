@@ -26,17 +26,36 @@ function ghAuthToken(): string | undefined {
 }
 
 /**
+ * A value shaped like a real GitHub token: a modern prefixed token
+ * (`ghp_`/`gho_`/`ghu_`/`ghs_`/`ghr_`, or fine-grained `github_pat_`) or a
+ * legacy 40-char hex PAT. Deliberately narrow so proxy-injected placeholders
+ * such as `proxy-injected` are rejected before they reach the API (#634).
+ */
+function looksLikeGitHubToken(value: string): boolean {
+  return (
+    /^gh[opusr]_[A-Za-z0-9]{20,}$/.test(value) ||
+    /^github_pat_\w{20,}$/.test(value) ||
+    /^[0-9a-f]{40}$/.test(value)
+  );
+}
+
+/**
  * Resolve the GitHub token for retro's code-owned write, dropping the hard
  * `GITHUB_TOKEN` requirement (7D8PJP): prefer the env var, else fall back to the
  * environment's existing GitHub access via `gh auth token`. Returns undefined when
  * neither is available, so the caller can no-op gracefully instead of failing.
+ *
+ * The env var is only honored when it is *shaped* like a GitHub token (#634):
+ * some environments (e.g. Claude cloud containers) populate `GITHUB_TOKEN` with
+ * a non-credential placeholder that would 401, muddying diagnosis — treat that
+ * as absent and fall through to `gh` instead of passing it to the API.
  */
 export function resolveGitHubToken(
   env: Record<string, string | undefined> = process.env,
   getGhToken: () => string | undefined = ghAuthToken,
 ): string | undefined {
   const fromEnvironment = env.GITHUB_TOKEN;
-  if (fromEnvironment && fromEnvironment.length > 0) return fromEnvironment;
+  if (fromEnvironment && looksLikeGitHubToken(fromEnvironment)) return fromEnvironment;
   return getGhToken();
 }
 
