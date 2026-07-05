@@ -161,18 +161,64 @@ describe('createRestTransport', () => {
 });
 
 describe('resolveGitHubToken (7D8PJP — no hard GITHUB_TOKEN requirement)', () => {
+  // Build correctly-shaped tokens at runtime so the secret scanner doesn't flag
+  // a literal that looks like a real credential.
+  const envToken = `ghp_${'a'.repeat(32)}`;
+  const ghToken = `ghp_${'b'.repeat(32)}`;
+
+  // #634 — every accepted GitHub token shape must survive resolution, or a
+  // regex that quietly stopped matching one form (e.g. fine-grained PATs) would
+  // break a working auth path with no test to catch it.
+  it.each([
+    ['classic PAT (ghp_)', `ghp_${'a'.repeat(32)}`],
+    ['OAuth (gho_)', `gho_${'b'.repeat(32)}`],
+    ['app server-to-server (ghs_)', `ghs_${'c'.repeat(32)}`],
+    ['fine-grained PAT (github_pat_)', `github_pat_${'d'.repeat(40)}`],
+    ['legacy 40-char hex', '0123456789'.repeat(4)],
+  ])('accepts a %s from GITHUB_TOKEN without consulting gh', (_label, shaped) => {
+    let ghConsulted = false;
+    const token = resolveGitHubToken({ GITHUB_TOKEN: shaped }, () => {
+      ghConsulted = true;
+      return ghToken;
+    });
+    expect(token).toBe(shaped);
+    expect(ghConsulted).toBe(false);
+  });
+
+  it.each([
+    ['a proxy placeholder', 'proxy-injected'],
+    ['an unknown prefix', `gha_${'a'.repeat(32)}`],
+    ['an empty string', ''],
+  ])('rejects %s and falls back to gh', (_label, bogus) => {
+    const token = resolveGitHubToken({ GITHUB_TOKEN: bogus }, () => ghToken);
+    expect(token).toBe(ghToken);
+  });
+
   // invisible-retro-claude.SM1.AC1 (token arm) — GITHUB_TOKEN present → the REST
   // transport is built from it; `gh` is never consulted.
   it('invisible-retro-claude.SM1.AC1.token_present_uses_the_rest_transport', () => {
     let ghConsulted = false;
-    const token = resolveGitHubToken({ GITHUB_TOKEN: 'env-tok' }, () => {
+    const token = resolveGitHubToken({ GITHUB_TOKEN: envToken }, () => {
       ghConsulted = true;
-      return 'gh-tok';
+      return ghToken;
     });
-    expect(token).toBe('env-tok');
+    expect(token).toBe(envToken);
     expect(ghConsulted).toBe(false);
     // a transport is genuinely built from the resolved token
     expect(createRestTransport(token)).toBeDefined();
+  });
+
+  // #634 — a non-token-shaped placeholder (e.g. the `proxy-injected` value some
+  // cloud containers put in GITHUB_TOKEN) is treated as absent: it must NOT be
+  // passed to the API, and resolution falls through to `gh` instead.
+  it('ignores a non-token-shaped GITHUB_TOKEN and falls back to gh', () => {
+    let ghConsulted = false;
+    const token = resolveGitHubToken({ GITHUB_TOKEN: 'proxy-injected' }, () => {
+      ghConsulted = true;
+      return ghToken;
+    });
+    expect(token).toBe(ghToken);
+    expect(ghConsulted).toBe(true);
   });
 
   // invisible-retro-claude.SM1.AC1 (no-token arm) — no GITHUB_TOKEN but the

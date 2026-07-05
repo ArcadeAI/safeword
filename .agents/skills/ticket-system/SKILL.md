@@ -22,10 +22,14 @@ elif [ -f packages/cli/src/cli.ts ]; then
   SW="bun packages/cli/src/cli.ts"
 else SW="bunx safeword"; fi
 
-$SW ticket new <slug> # optionally add --type=patch|task|feature and --title="..."
+$SW ticket new <slug> # --type=patch|task|feature|epic, --title="...", --goal="...", --why="..."
 ```
 
+`--goal` fills the Goal field for any type; `--why` fills the rationale for task/patch/epic (features keep motivation in spec.md, so `--why` is rejected there). `--type=epic` scaffolds a container ticket with an empty `children:` list.
+
 The CLI mints a 6-char Crockford Base32 ID, creates the folder atomically, and writes a starter ticket.md. **Do not scan the tickets directory and pick the next ID yourself** — that races between parallel sessions and silently collides across git branches. If the resolver cannot run, stop and report that the CLI is unresolvable; do not hand-mint a fallback ID.
+
+**`ticket new` pre-populates ticket.md (and spec.md for features) with placeholder content.** Pass real values with `--goal`/`--title`/`--why` at creation, or **Edit** the scaffolded fields — do not blind-**Write** the whole file, which fails because the freshly-created file hasn't been Read yet.
 
 **Location:** `<namespace-root>/tickets/{ID}-{slug}/` for tickets created by the resolved `ticket new` command above (6-char Crockford ID plus normalized slug). Lookup remains backward-compatible with older `{ID}/` Crockford folders and legacy `{numeric-id}-{slug}/` folders — all formats remain reachable by ID.
 
@@ -37,7 +41,7 @@ The CLI mints a 6-char Crockford Base32 ID, creates the folder atomically, and w
 │   ├── 7K9M3P-login-bug/       # Current format: Crockford ID + normalized slug
 │   │   ├── ticket.md           # Ticket definition (frontmatter + work log)
 │   │   ├── test-definitions.md # BDD scenarios (Given/When/Then)
-│   │   ├── spec.md             # Feature spec for epics (optional)
+│   │   ├── spec.md             # Product spec (features only; auto-created)
 │   │   └── design.md           # Design doc for complex features (optional)
 │   ├── 7K9M3P/                 # Historical Crockford ID-only format, still readable
 │   │   └── ticket.md
@@ -50,11 +54,12 @@ The CLI mints a 6-char Crockford Base32 ID, creates the folder atomically, and w
 
 **Artifact Levels:**
 
-| Level       | Artifacts                                           |
-| ----------- | --------------------------------------------------- |
-| **feature** | ticket.md + test-definitions.md (+ spec.md if epic) |
-| **task**    | ticket.md with inline tests                         |
-| **patch**   | ticket.md (minimal), existing tests                 |
+| Level       | Artifacts                                    |
+| ----------- | -------------------------------------------- |
+| **epic**    | ticket.md (frontmatter `children:`), no spec |
+| **feature** | ticket.md + spec.md + test-definitions.md    |
+| **task**    | ticket.md with inline tests                  |
+| **patch**   | ticket.md (minimal), existing tests          |
 
 **Create a ticket** when any of these holds: multiple attempts are likely,
 the work is multi-step with dependencies, it needs investigation/debugging, or
