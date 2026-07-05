@@ -173,8 +173,9 @@ export function installSkills(options: InstallSkillsOptions): SkillInstallResult
     });
     return { status: 'installed', detail: options.source };
   } catch (error) {
-    const reason =
-      error instanceof Error ? (error.message.split('\n', 1)[0] ?? error.message) : String(error);
+    const reason = Error.isError(error)
+      ? (error.message.split('\n', 1)[0] ?? error.message)
+      : String(error);
     return { status: 'failed', detail: reason };
   }
 }

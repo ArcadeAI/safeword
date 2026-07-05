@@ -247,7 +247,7 @@ export function buildSurfaceCoverageReportFromFeature(
     missing: affected
       .filter(surface => !surface.skipped && !coveredSurfaceSlugs.has(surface.slug))
       .map(surface => ({ name: surface.name, slug: surface.slug })),
-    stale: [...coveredSurfaceSlugs].filter(slug => !affectedSurfaceSlugs.has(slug)),
+    stale: [...coveredSurfaceSlugs.difference(affectedSurfaceSlugs)],
   };
 }
 
@@ -418,7 +418,7 @@ function buildCoverageReportFromReferences(
   }
 
   return {
-    uncovered: [...knownIds].filter(id => !covered.has(id)),
+    uncovered: [...knownIds.difference(covered)],
     stale: [...stale],
     orphan: [...orphan],
   };

@@ -121,11 +121,9 @@ export function discoverWorkspaces(projectDirectory: string): WorkspaceDiscovery
     patterns: detections.flatMap(detection =>
       detection.status === 'parsed' ? detection.patterns : [],
     ),
-    unreadable: detections.flatMap(detection =>
-      detection.status === 'unreadable'
-        ? [{ manager: detection.manager, config: detection.config }]
-        : [],
-    ),
+    unreadable: detections
+      .filter(detection => detection.status === 'unreadable')
+      .map(detection => ({ manager: detection.manager, config: detection.config })),
   };
 }
 

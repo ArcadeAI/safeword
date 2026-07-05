@@ -59,7 +59,7 @@ describe('feature ticket readiness helper (#404)', () => {
 
       expect(readiness.ok).toBe(false);
       const message = formatFeatureTicketReadiness(readiness);
-      expect(message).toContain('AC gate');
+      expect(message).toContain('criteria gate');
       expect(message).toContain('dimensions.md');
       expect(message).toContain('no reason after the colon');
     });

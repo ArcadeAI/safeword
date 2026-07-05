@@ -108,7 +108,7 @@ export function executeNamespaceMigration(cwd: string): MigrationResult {
     }
   } catch (error) {
     throw new Error(
-      `Failed to move ${LEGACY_ROOT}/ to ${DEFAULT_ROOT}/: ${error instanceof Error ? error.message : String(error)}`,
+      `Failed to move ${LEGACY_ROOT}/ to ${DEFAULT_ROOT}/: ${Error.isError(error) ? error.message : String(error)}`,
       { cause: error },
     );
   }
