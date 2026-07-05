@@ -2,6 +2,14 @@
 
 Date: 2026-07-05 · Branch: claude/github-848-qwjypx · HEAD at verification: 85f9c99 (+ this artifact)
 
+> **Post-rebase re-verification (2026-07-05, HEAD 93c559a):** branch rebased onto
+> origin/main (v0.66.0, Node-24 floor). Full evidence re-run green under Node
+> 24.18.0 — 4745/4745 vitest (5 pre-existing skips), 273/273 cucumber scenarios,
+> build + `tsc --noEmit` + eslint + gherkin-lint clean, parity 212/212 pairs in
+> sync. The 8 vitest + 1 cucumber failures seen under the container's Node 22 are
+> environmental (`Error.isError` needs Node ≥24) and reproduce identically on
+> origin/main; CI (Node 24) is green on 93c559a.
+
 ## Verify Checklist
 
 **Test Suite:** ✓ 4695/4695 tests pass (5 pre-existing skips; full vitest suite via `safeword test-plan --kind verify`, exit 0)
