@@ -265,6 +265,36 @@ export function resolveGeneratedArchitecturePath(cwd: string): string {
 }
 
 /**
+ * The resolved architecture narrative location (ticket BY7RNR, GitHub #848):
+ * where the human-authored architecture document lives for nudges, prompts,
+ * and the drift advisory.
+ */
+export interface ArchitectureNarrative {
+  /** Absolute path of the narrative target. Existence is NOT guaranteed. */
+  absolutePath: string;
+  /** Human-facing name: the as-written config value, or `ARCHITECTURE.md`. */
+  displayPath: string;
+  /** True when `paths.architecture` supplied the location. */
+  configured: boolean;
+}
+
+/**
+ * Resolve the architecture narrative: a non-empty `paths.architecture` wins
+ * outright — even when its target is missing on disk, safeword never hunts
+ * back to a root file the host deliberately moved away from — else root
+ * `ARCHITECTURE.md`. Distinct from {@link resolveConfiguredPath}'s
+ * `<namespace>/architecture.md` default, which serves K4BWTQ record listing;
+ * changing that default would silently disable the AXRC4D nudge for every
+ * existing root-`ARCHITECTURE.md` host.
+ *
+ * Mirrored standalone in the hook lib (`templates/hooks/lib/`); a differential
+ * parity test pins the two copies (P58R22 pattern).
+ */
+export function resolveArchitectureNarrative(_cwd: string): ArchitectureNarrative {
+  throw new Error('not implemented');
+}
+
+/**
  * The default (non-overridden) absolute location of a configurable read
  * target: `<resolveNamespaceRoot(cwd)>/<key>.md`.
  */

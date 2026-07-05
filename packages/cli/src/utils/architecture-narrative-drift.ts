@@ -15,6 +15,20 @@
 const ADVISORY_PACKAGE_CAP = 6;
 
 /**
+ * The drift advisory for `projectDirectory`, or `undefined` when there is nothing
+ * to say: no narrative at the resolved location (an explicitly configured
+ * target that is missing means NO narrative — no root fallback), an empty
+ * decision-record directory, no generated root index, or no missing packages.
+ * IO seam over the pure helpers below; called by `safeword architecture` in
+ * every mode.
+ */
+export function architectureNarrativeDriftAdvisoryForProject(
+  _projectDirectory: string,
+): string | undefined {
+  throw new Error('not implemented');
+}
+
+/**
  * The `### <name>` package names under the root index's `## Packages` section.
  * Empty for a single-repo `## Modules` doc, empty content, or any doc without
  * that section.
