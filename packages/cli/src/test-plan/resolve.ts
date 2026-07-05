@@ -22,7 +22,7 @@ import process from 'node:process';
 import { findFileMatchingInTree, indexFilesInTree } from '../utils/fs.js';
 import { detectPackageManager } from '../utils/install.js';
 
-export type PlanKind = 'test' | 'build' | 'verify' | 'typecheck';
+export type PlanKind = 'test' | 'build' | 'verify' | 'typecheck' | 'deps';
 export type Language = 'javascript' | 'python' | 'go' | 'rust';
 
 export interface PlanEntry {
@@ -58,6 +58,17 @@ const TREE_MANIFESTS = new Set<string>([
   'go.mod',
   'Cargo.toml',
 ]);
+
+/**
+ * Kinds each non-Rust resolver opts out of, so a new PlanKind fails safe (the
+ * language emits nothing) instead of falling through to a wrong command. `deps`
+ * (supply-chain) is Rust-only for now; `typecheck` is the JS/TS CI-lint signal
+ * that `build` already covers for Go/Python. Frozen sets mirror the manifest-set
+ * idiom above and keep the three guards uniform.
+ */
+const JS_SKIP_KINDS: ReadonlySet<PlanKind> = new Set<PlanKind>(['deps']);
+const PYTHON_SKIP_KINDS: ReadonlySet<PlanKind> = new Set<PlanKind>(['build', 'typecheck', 'deps']);
+const GO_SKIP_KINDS: ReadonlySet<PlanKind> = new Set<PlanKind>(['typecheck', 'deps']);
 
 /**
  * Parse the `SAFEWORD_FAKE_TOOLS` test seam (same spirit as `SAFEWORD_SKIP_INSTALL`):
@@ -156,6 +167,7 @@ function resolveJs(
   kind: PlanKind,
   isAvailable: ToolProbe,
 ): PlanEntry | undefined {
+  if (JS_SKIP_KINDS.has(kind)) return undefined;
   // JS is detected root-only: subdirectory package.json is too common to treat as a project root.
   const scripts = readRootScripts(root);
   if (!scripts) return undefined;
@@ -239,7 +251,7 @@ function resolvePython(
   kind: PlanKind,
   isAvailable: ToolProbe,
 ): PlanEntry | undefined {
-  if (kind === 'build' || kind === 'typecheck') return undefined; // no standard Python build/typecheck step
+  if (PYTHON_SKIP_KINDS.has(kind)) return undefined;
   if (PYTHON_MANIFESTS.every(manifest => !index.has(manifest))) return undefined;
   const cwd = firstDirectory(root, index, PYTHON_MANIFESTS);
   if (index.has('tox.ini')) return entry('python', cwd, 'tox', 'tox', isAvailable('tox'));
@@ -266,7 +278,7 @@ function resolveGo(
   kind: PlanKind,
   isAvailable: ToolProbe,
 ): PlanEntry | undefined {
-  if (kind === 'typecheck') return undefined; // typecheck is a JS/TS concern; `go build` covers Go
+  if (GO_SKIP_KINDS.has(kind)) return undefined;
   if (!index.has('go.mod')) return undefined;
   const verb = kind === 'build' ? 'build' : 'test';
   // A root go.work tests every workspace module — run the expansion from root.
@@ -285,9 +297,37 @@ function resolveRust(
   kind: PlanKind,
   isAvailable: ToolProbe,
 ): PlanEntry | undefined {
-  if (kind === 'typecheck') return undefined; // typecheck is a JS/TS concern; `cargo build` covers Rust
   if (!index.has('Cargo.toml')) return undefined;
   const cwd = index.get('Cargo.toml') ?? root;
+  if (kind === 'deps')
+    // Supply-chain gate: `cargo deny check advisories` scans the RustSec DB (the
+    // cargo-audit replacement) — the universal, ~zero-false-positive security
+    // signal. Scoped to advisories on purpose: this runs at a BLOCKING done-gate
+    // over the whole dep tree, so licenses/sources (policy checks that false-red
+    // on missing license metadata or intentional git deps) stay configured in
+    // deny.toml but opt-in, not a default that blocks unrelated changes.
+    // Visible-but-unavailable when cargo-deny is absent (surfaces the install).
+    return entry(
+      'rust',
+      cwd,
+      'cargo deny check advisories',
+      'cargo-deny',
+      isAvailable('cargo-deny'),
+    );
+  if (kind === 'typecheck')
+    // The typecheck kind is the strict CI-lint signal a green targeted-test run
+    // can hide (#436). Clippy is a rustc driver — it wraps `cargo check`, so this
+    // subsumes a plain compile check and adds lint enforcement. `--all-targets
+    // --all-features` reaches test/bench targets and feature-gated code the
+    // per-file `clippy -p <pkg> --fix` hook cannot see; `-D warnings` makes it a
+    // gate. Reads the project's own Cargo.toml `[lints]` + clippy.toml.
+    return entry(
+      'rust',
+      cwd,
+      'cargo clippy --workspace --all-targets --all-features -- -D warnings',
+      'clippy',
+      isAvailable('cargo-clippy'),
+    );
   if (kind === 'build')
     return entry('rust', cwd, 'cargo build --workspace', 'cargo', isAvailable('cargo'));
   if (isAvailable('cargo-nextest'))
