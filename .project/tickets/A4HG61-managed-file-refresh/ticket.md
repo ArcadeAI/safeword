@@ -35,6 +35,8 @@ last_modified: 2026-07-05T19:28:43.052Z
 
 ## Work Log
 
+- 2026-07-05T21:03 Full vitest suite: 327 files, 4664 passed, 0 failed — no regressions from decision rule / eslint self-exclusion / reset rm. Whole-ticket /quality-review dispatched (fresh context) per implement-exit; cross-scenario refactor follows its findings.
+
 - 2026-07-05T20:45 Implement: 20/20 scenarios green. RGR ledger complete (genuine REDs: 6fcd25b, e271e89, 77ffa5d; GREENs: e071d9b, 174e67a, 42c32ef). Discovered + fixed in-scope: eslint.config.mjs generator self-trap (detected ITSELF as host config -> permanently unrefreshable; fixed with self-exclusion, safe because provenance gate only rewrites provably-pristine bytes). Discovered for follow-up: same self-trap pattern likely in other packs' generators (ruff/golangci/etc. gate on existing-config detection without self-exclusion) — file upstream issue after verify. SM1.R3 comment corrections done (schema.ts:86, schema.ts:1095 block, packs/types.ts:136). configKey scenario reframed to reachable override-after-install flow (setup refuses when .safeword/ exists); spec DD10 updated. Full vitest suite running.
 
 - 2026-07-05T20:20 Complete: scenario-gate - independent /review-spec (fresh context): 4 must-fix + 6 should-strengthen, all applied 1:1 and re-verified by the same reviewer -> GATE PASS, stamped. Scenario set now 19 scenarios / 8 rules (+setup-on-clone, record-heal, reset outline). New DDs 8-10 (corrupt warns + bytes untouched; byte-identity heal; configKey non-addition). impl-plan.md written (status: planned): 7-case decision rule, manifest-record action, build order, registry-neutralization note for diff step.
