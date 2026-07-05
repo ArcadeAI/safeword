@@ -177,7 +177,11 @@ DEPCRUISE_CONFIG=""
 
 # 2d. Rust-specific checks (Clippy catches unused code and quality issues)
 [ -f Cargo.toml ] && {
-  cargo clippy --all-targets --all-features -- -D warnings 2>&1 || true
+  if command -v cargo > /dev/null 2>&1; then
+    cargo clippy --all-targets --all-features -- -D warnings 2>&1 || true
+  else
+    echo "Manual evidence required: cargo not installed — Rust clippy check skipped"
+  fi
 }
 
 # =========================================================================

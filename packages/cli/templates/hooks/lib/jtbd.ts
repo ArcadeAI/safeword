@@ -15,6 +15,13 @@ const PERSONA_PREFIX = '**Persona:**';
 const SKIP_PREFIX = 'skip:';
 /** Max persona short-code length — mirrors the CLI's `MAX_CODE_LENGTH`. */
 const MAX_CODE_LENGTH = 6;
+/**
+ * A level-4 heading only counts toward the AC gate when it carries a real
+ * lineage id — `<jtbd>.AC<n>` or `<jtbd>.R<n>` (#696). Without this, any
+ * `#### <heading>` (e.g. `#### Notes`) vacuously satisfied the "≥1 AC per JTBD"
+ * requirement. Matches the id token wherever it sits in the heading text.
+ */
+const AC_OR_RULE_HEADING = /(?:^|\.)(?:AC|R)\d+\b/i;
 
 export interface JtbdEntry {
   /** The raw `**Persona:**` reference (name, code, or `Name (CODE)`); may be empty. */
@@ -189,7 +196,12 @@ function parseAcsByJtbd(specContent: string): {
       } else if (inSection && heading.level === 3) {
         flush();
         current = { heading: heading.text, acCount: 0, skip: null };
-      } else if (inSection && heading.level >= 4 && current !== null) {
+      } else if (
+        inSection &&
+        heading.level >= 4 &&
+        current !== null &&
+        AC_OR_RULE_HEADING.test(heading.text)
+      ) {
         current.acCount++;
       }
       continue;

@@ -55,6 +55,12 @@ describe('evaluateAcGate', () => {
     expect(evaluateAcGate(spec(body)).ok).toBe(false);
   });
 
+  it('does not count a non-lineage level-4 heading like "#### Notes" (S1.7, #696)', () => {
+    const verdict = evaluateAcGate(spec(`${JTBD1}\n#### Notes — some context, not an AC\n`));
+    expect(verdict.ok).toBe(false);
+    if (!verdict.ok) expect(verdict.reason).toContain('demo.PO1');
+  });
+
   it('passes vacuously when the whole JTBD section is skipped (S2.1)', () => {
     expect(evaluateAcGate(spec('skip: internal plumbing — no persona-facing job\n')).ok).toBe(true);
   });
