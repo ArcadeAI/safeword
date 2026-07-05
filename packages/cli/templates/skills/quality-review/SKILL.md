@@ -115,7 +115,7 @@ Severity is bounded by evidence: **a CRITICAL or REQUEST CHANGES verdict must ci
 
 ## Loop: review → fix → re-review
 
-Run the review in passes (MAX_PASSES = 3), not one-and-done.
+Run the review in passes until it comes back clean — not one-and-done, but not an endless loop either (a couple of passes is usually plenty).
 
 Each pass:
 
@@ -137,8 +137,8 @@ Each pass:
 2. **Triage.** Fix every **Critical issue** this pass. Apply the **Suggested
    improvements** worth the change; list the rest — don't chase them.
 3. **Decide.** Stop when **Critical issues = None** — remaining suggestions are
-   optional, not a reason to loop. Cap at MAX_PASSES regardless. Re-review only
-   if you edited code this pass.
+   optional, not a reason to loop. Don't loop indefinitely; a couple of passes is
+   the practical ceiling. Re-review only if you edited code this pass.
 
 A pass isn't done until `/verify` (tests, lint, typecheck) is green. That
 objective signal — not the reviewer running out of suggestions — is the real

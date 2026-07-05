@@ -43,7 +43,7 @@ Two or three, concrete enough to debate. For each: **what** (one sentence), **lo
 
 ### Phase 3: Enumerate domains, then research
 
-**3a — Name the domains.** Before searching, list every domain your decision touches. Multiple, not one. Write them down explicitly. A list with fewer than two or three entries means you haven't looked hard enough — decisions live at the intersection of multiple bodies of work.
+**3a — Name the domains.** Before searching, list every domain your decision touches. Multiple, not one. Write them down explicitly. A single-domain list means you haven't looked hard enough — decisions live at the intersection of multiple bodies of work.
 
 Worked example — drafting a one-line block message for a CLI hook isn't just "writing copy." Domain list:
 

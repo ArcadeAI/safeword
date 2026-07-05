@@ -57,7 +57,7 @@ Keep asking until one of:
 - You have enough to distinguish between options in Phase 3
 - User says "enough" or "go"
 
-Typical: 3-7 questions. Fewer for small scope, more for ambiguous scope.
+Usually a handful — fewer for small scope, more for ambiguous scope. Let the stop conditions above end it, not a target count.
 
 ## Phase 2: Research
 

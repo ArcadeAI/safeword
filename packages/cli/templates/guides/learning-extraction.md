@@ -14,10 +14,10 @@ Extract after experiencing ANY of these:
 
 1. **Observable debugging complexity** - Any of these signals:
    - User says "still debugging", "been stuck on this", "tried many things"
-   - 5+ debug cycles (Read → Edit → Bash pattern repeated)
-   - 3+ different error states encountered
-   - Modified 3+ files while debugging same issue
-2. **Trial and error** - Tried 3+ different approaches before finding the right one
+   - Several debug cycles (Read → Edit → Bash pattern repeated)
+   - Multiple different error states encountered
+   - Modified several files while debugging the same issue
+2. **Trial and error** - Tried several different approaches before finding the right one
 3. **Undocumented gotcha** - Not in official library/framework docs
 4. **Integration struggle** - Two tools that don't work together smoothly
 5. **Testing trap** - Tests pass but UX is broken (or vice versa)
@@ -281,7 +281,7 @@ Project-specific gotchas in `<namespace-root>/learnings/`:
 
 **High confidence - Suggest IMMEDIATELY DURING debugging:**
 
-- Observable debugging complexity (5+ debug cycles, 3+ error states, user says "stuck")
+- Observable debugging complexity (several debug cycles, multiple error states, user says "stuck")
 - Just discovered gotcha not in official docs
 - Just found anti-pattern (violated best practice)
 - Offer to extract a learning once the fix lands — note it could save time on future work.
@@ -302,11 +302,10 @@ Project-specific gotchas in `<namespace-root>/learnings/`:
 
 **Living Documentation**: This process evolves with your needs.
 
-**Review Cycle**:
-
-1. **Monthly**: Review existing learnings for relevance
-2. **Quarterly**: Archive obsolete learnings (technology changed, pattern no longer used)
-3. **Per feature**: After major features, assess if new learnings emerged
+**Review Cycle**: Revisit a learning when you next touch its area or start a
+nearby feature — not on a calendar. That's when you'll notice it's gone stale
+(technology changed, pattern no longer used) and should be updated or archived,
+and when a just-finished feature might have surfaced something reusable.
 
 **Test the Process**:
 
@@ -339,7 +338,7 @@ Project-specific gotchas in `<namespace-root>/learnings/`:
 
 ### During Development
 
-1. **Recognize trigger** - Spent 45 min debugging race condition
+1. **Recognize trigger** - Several failed attempts before cracking a race condition
 2. **Assess scope** - Forward-looking? (YES) Global or project? (Project)
 3. **Choose location** - Needs examples → `<namespace-root>/learnings/race-conditions.md`
 4. **Extract** - Use template, write before/after examples
@@ -348,7 +347,7 @@ Project-specific gotchas in `<namespace-root>/learnings/`:
 ### After Completing Feature
 
 1. **Review** - Did we learn anything reusable?
-2. **Extract** - If threshold met (>30min debug, non-obvious pattern)
+2. **Extract** - If the signals are there (repeated failed attempts, non-obvious pattern)
 3. **Update** - Add SAFEWORD.md cross-reference if needed
 4. **Commit** - Include learning in commit message
 

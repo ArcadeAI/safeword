@@ -75,12 +75,7 @@ ticket 2VCSZY), every phase advance requires a stamp, or a logged skip reason
 
 ## Resume Logic
 
-When user references a ticket, resume work:
-
-1. **Read ticket** → get current `phase:`
-2. **Find progress** → first unchecked `[ ]` in test-definitions
-3. **Check context** → read last work log entry
-4. **Announce resume** → "Resuming at [phase]. Last: [log entry]."
+**Resuming** means reconstruct where the ticket left off and continue. The ticket's `phase:` and the first unchecked ledger item tell you _where_; the last work-log entry tells you _what_. Announce where you're resuming, then continue.
 
 **Resume by phase:**
 
@@ -97,18 +92,9 @@ When user references a ticket, resume work:
 
 ## Current Behavior
 
-1. Understand first (see SAFEWORD.md "Understanding") — propose-and-converge until user accepts proposal with structured scope
-2. Size internally (see SAFEWORD.md "Sizing") — state scope assessment in proposal, not as a separate announcement
-3. **If user references iteration/story/phase from a spec:**
-   - Check if child ticket exists for that iteration
-   - If not → create ticket, run full BDD
-   - If yes → resume at current phase
-4. **If ticket exists:** Read phase, resume at appropriate point
-5. **Artifact-first rule:** Before doing work, create/verify the phase artifact:
-   - intake → ticket at `<namespace-root>/tickets/{ID}-{slug}/ticket.md`
-   - define-behavior → feature source at `features/<slug>.feature` (or the configured `paths.features` directory) plus R/G/R ledger at `<namespace-root>/tickets/{ID}-{slug}/test-definitions.md`
-6. **Execute phase** using the appropriate phase file
-7. **Update phase** in ticket when transitioning
+Understand first and size internally (see SAFEWORD.md "Understanding" and "Sizing") — state the scope read inside your proposal, not as a separate announcement. If the user references an iteration/story/phase from a spec, resume its child ticket at the current phase, or create one and run full BDD if none exists; if a ticket already exists, read its phase and resume there.
+
+**Artifact-first:** before doing a phase's work, create or verify its artifact — intake → `<namespace-root>/tickets/{ID}-{slug}/ticket.md`; define-behavior → the feature source at `features/<slug>.feature` (or the configured `paths.features` directory) plus the R/G/R ledger at `<namespace-root>/tickets/{ID}-{slug}/test-definitions.md`. Then execute the phase using its phase file, and update `phase:` on transition.
 
 ---
 

@@ -94,7 +94,7 @@
 - Designing a specific feature implementation
 - Need component breakdown and interactions
 - Feature-specific technical decisions
-- 2-3 pages (~121 lines)
+- Concise — a few pages, not a sprawling doc
 
 **Use Architecture Doc when:**
 
@@ -151,7 +151,7 @@ Before saving, verify:
 - ✓ User flow has concrete examples
 - ✓ Key decisions have "what, why, trade-off"
 - ✓ All optional sections marked "(if applicable)"
-- ✓ ~121 lines (concise, LLM-optimized)
+- ✓ Concise, LLM-optimized (a few pages, not sprawling)
 
 ---
 
@@ -168,4 +168,4 @@ Before saving, verify:
 - Escalate to Architecture Doc if: new tech, new schema, or pattern affects 2+ features
 - Reference user stories and test definitions—don't duplicate them
 - Every decision needs: what, why, trade-off
-- ~121 lines target (concise, LLM-optimized)
+- Concise, LLM-optimized (a few pages, not sprawling)
