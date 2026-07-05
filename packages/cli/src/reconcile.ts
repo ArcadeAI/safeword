@@ -33,6 +33,10 @@ import {
   writeFile,
   writeJson,
 } from './utils/fs.js';
+import {
+  hashManagedFileContent,
+  recordManagedFileProvenance,
+} from './utils/managed-file-manifest.js';
 import type { ProjectType } from './utils/project-detector.js';
 import { getWorkspacePackageNames } from './utils/workspaces.js';
 
@@ -329,7 +333,11 @@ export type Action =
   | { type: 'json-merge'; path: string; definition: JsonMergeDefinition }
   | { type: 'json-unmerge'; path: string; definition: JsonMergeDefinition }
   | { type: 'text-patch'; path: string; definition: ResolvedTextPatch }
-  | { type: 'text-unpatch'; path: string; definition: ResolvedTextPatch };
+  | { type: 'text-unpatch'; path: string; definition: ResolvedTextPatch }
+  // Provenance recording for managed files (ticket A4HG61, #849). Built at
+  // plan time (hashes of the content the plan writes), executed only in
+  // executePlan — so dry runs (diff) preview refreshes without recording.
+  | { type: 'manifest-record'; entries: Record<string, string> };
 
 // A TextPatchDefinition whose ctx-factory `content` has been resolved to a string
 // at plan time, so executors never see a function (#293).
@@ -506,6 +514,11 @@ function computeInstallPlan(schema: SafewordSchema, ctx: ProjectContext): Reconc
   actions.push(...managed.actions);
   wouldCreate.push(...managed.created);
 
+  // 3b. Record provenance for the managed files this plan writes (A4HG61,
+  // #849): hash the planned content now, merge into the manifest at execute
+  // time. Merge semantics preserve committed provenance on clones.
+  actions.push({ type: 'manifest-record', entries: manifestEntriesFromWrites(managed.actions) });
+
   // 4. chmod hook/lib/scripts directories
   const chmodPaths = [...CHMOD_PATHS];
   if (ctx.isGitRepo) chmodPaths.push(HUSKY_DIR);
@@ -549,6 +562,15 @@ interface FileActionResult {
   actions: Action[];
   created: string[];
   updated: string[];
+}
+
+/** Provenance entries (path → sha256) for the write actions in a plan slice (A4HG61). */
+function manifestEntriesFromWrites(actions: Action[]): Record<string, string> {
+  const entries: Record<string, string> = {};
+  for (const action of actions) {
+    if (action.type === 'write') entries[action.path] = hashManagedFileContent(action.content);
+  }
+  return entries;
 }
 
 /**
@@ -807,7 +829,28 @@ function executeRmdir(cwd: string, path: string, result: ExecutionResult): void 
   if (removeIfEmpty(nodePath.join(cwd, path))) result.removed.push(path);
 }
 
+type ContentAction = Extract<
+  Action,
+  { type: 'json-merge' | 'json-unmerge' | 'text-patch' | 'text-unpatch' | 'manifest-record' }
+>;
+
+const CONTENT_ACTION_TYPES: ReadonlySet<Action['type']> = new Set([
+  'json-merge',
+  'json-unmerge',
+  'text-patch',
+  'text-unpatch',
+  'manifest-record',
+] satisfies ContentAction['type'][]);
+
+function isContentAction(action: Action): action is ContentAction {
+  return CONTENT_ACTION_TYPES.has(action.type);
+}
+
 function executeAction(action: Action, ctx: ProjectContext, result: ExecutionResult): void {
+  if (isContentAction(action)) {
+    executeContentAction(action, ctx, result);
+    return;
+  }
   switch (action.type) {
     case 'mkdir': {
       ensureDirectory(nodePath.join(ctx.cwd, action.path));
@@ -831,6 +874,16 @@ function executeAction(action: Action, ctx: ProjectContext, result: ExecutionRes
       executeChmod(ctx.cwd, action.paths);
       break;
     }
+  }
+}
+
+/** JSON-merge, text-patch, and provenance actions — the non-filesystem-shape half of executeAction. */
+function executeContentAction(
+  action: ContentAction,
+  ctx: ProjectContext,
+  result: ExecutionResult,
+): void {
+  switch (action.type) {
     case 'json-merge': {
       executeJsonMerge(ctx.cwd, action.path, action.definition, ctx, result);
       break;
@@ -845,6 +898,10 @@ function executeAction(action: Action, ctx: ProjectContext, result: ExecutionRes
     }
     case 'text-unpatch': {
       executeTextUnpatch(ctx.cwd, action.path, action.definition);
+      break;
+    }
+    case 'manifest-record': {
+      recordManagedFileProvenance(ctx.cwd, action.entries);
       break;
     }
   }
