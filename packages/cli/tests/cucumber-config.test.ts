@@ -19,9 +19,13 @@ interface CucumberConfigModule {
   hasCliFeaturePath: (argv?: string[]) => boolean;
 }
 
+// The shipped runner template, repo-relative. Single source for both the
+// surface matrix below and the configured-directory block near the bottom.
+const TEMPLATE_CONFIG_PATH = 'packages/cli/templates/cucumber/cucumber.mjs';
+
 const CONFIG_SURFACES = [
   ['dogfood config', 'cucumber.mjs'],
-  ['template config', 'packages/cli/templates/cucumber/cucumber.mjs'],
+  ['template config', TEMPLATE_CONFIG_PATH],
 ] as const;
 
 async function loadConfigModule(relativePath: string): Promise<CucumberConfigModule> {
@@ -81,13 +85,12 @@ describe('Cucumber config targeted path handling', () => {
 // (issue #710). Exercised against the shipped template loaded next to a real
 // config file, since the runner reads config relative to its own location.
 describe('Cucumber config configured-directory CLI arg (#710)', () => {
-  const TEMPLATE_RELATIVE_PATH = 'packages/cli/templates/cucumber/cucumber.mjs';
   let directory: string;
 
   async function loadWithConfiguredFeatures(
     featuresDirectory: string,
   ): Promise<CucumberConfigModule> {
-    const template = readFileSync(nodePath.join(REPO_ROOT, TEMPLATE_RELATIVE_PATH), 'utf8');
+    const template = readFileSync(nodePath.join(REPO_ROOT, TEMPLATE_CONFIG_PATH), 'utf8');
     writeTestFile(directory, 'cucumber.mjs', template);
     writeTestFile(
       directory,
