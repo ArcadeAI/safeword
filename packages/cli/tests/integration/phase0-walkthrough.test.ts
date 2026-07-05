@@ -253,7 +253,7 @@ describe.each([
 
   it('threads the B0JZQN sub-phase gates through the walkthrough', () => {
     expect(section).toMatch(/JTBD gate/);
-    expect(section).toMatch(/AC gate/);
+    expect(section).toMatch(/Criteria gate/);
     expect(section).toMatch(/Scope gate/);
   });
 });

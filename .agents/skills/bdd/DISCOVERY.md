@@ -94,7 +94,7 @@ Resolve each persona reference against the loaded personas before writing it. A 
 Once the JTBDs are confirmed, decompose each into **numbered Rules** — the rung between a job and its scenarios. A Rule is a single testable business invariant the persona relies on; the define-behavior scenarios prove its specifics, and the rules sum to JTBD fulfillment. Write them under their JTBD in `spec.md`:
 
 - A `#### <jtbd-id>.R<n> — <invariant>` heading (e.g., `### oauth-flow.PO1` → `#### oauth-flow.PO1.R1 — a rotated key's predecessor keeps working for a bounded grace window`).
-- Each JTBD needs **≥1 Rule** (or ≥1 legacy AC), or a `skip: <reason>` under it for a job with no user-observable behavior to enumerate. The intake-exit gate enforces this (denies `test-definitions.md` until every JTBD has a criterion or a skip).
+- Each JTBD needs **≥1 Rule** (or ≥1 legacy Acceptance Criterion), or a `skip: <reason>` under it for a job with no user-observable behavior to enumerate. The intake-exit gate enforces this (denies `test-definitions.md` until every JTBD has a criterion or a skip).
 - Legacy alternative (soft-deprecated): a JTBD may instead declare **Acceptance Criteria** (`#### <jtbd-id>.AC<n> — <capability>`) — one criteria kind per job, never both. The gate accepts either; numbered Rules need a `.feature` scenario source while the legacy `test-definitions.md` path stays AC-only. The full rule grammar lives in the bdd skill's SCENARIOS.md.
 
 **Coaching — keep Rules at the invariant level, not implementation:**
@@ -104,7 +104,7 @@ Once the JTBDs are confirmed, decompose each into **numbered Rules** — the run
 - **Split-test heuristic:** could each clause of a bundled Rule ship as its own complete deliverable with independent value? If yes → split into separate Rules. If the sub-operations only make sense together → keep as one.
 - If a Rule starts spawning more than ~10 scenarios in define-behavior, it's probably two Rules — split it.
 
-**Pause and confirm** the criteria list grouped by JTBD with the user before advancing — this is the AC **Sub-phase gate** (see above). Iterate until they sign off, then build engineering scope (Understanding) on top.
+**Pause and confirm** the criteria list grouped by JTBD with the user before advancing — this is the criteria **Sub-phase gate** (see above). Iterate until they sign off, then build engineering scope (Understanding) on top.
 
 ## Author the Rave Moment
 
@@ -180,7 +180,7 @@ The job below names `Platform Operator (PO)`; it resolves against the file, so i
 #### oauth-flow.PO1.R2 — Every currently-issued key is visible to the operator as live, grace, or expired
 ```
 
-**AC gate** → present the criteria grouped under their job, ask _"Does each job's criteria capture what 'done' means?"_, wait. (R2 split out by the split-test — "see which keys are live" delivers value on its own.)
+**Criteria gate** → present the criteria grouped under their job, ask _"Does each job's criteria capture what 'done' means?"_, wait. (R2 split out by the split-test — "see which keys are live" delivers value on its own.)
 
 **4 · Engineering scope — what we touch, how we'll know.** Only now converge on the engineering contract, written to ticket frontmatter:
 

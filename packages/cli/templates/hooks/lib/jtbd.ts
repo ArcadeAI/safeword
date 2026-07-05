@@ -211,7 +211,8 @@ function parseAcsByJtbd(specContent: string): {
 }
 
 /**
- * AC gate (ticket 31W8M3). Requires ≥1 AC under each JTBD block, honoring a
+ * Criteria gate (ticket 31W8M3). Requires ≥1 numbered Rule or Acceptance
+ * Criterion under each JTBD block, honoring a
  * per-JTBD `skip: <non-empty reason>` valve. Vacuously passes when there are no
  * JTBD blocks (whole-section skip, or no JTBDs) — the JTBD gate owns that case.
  */

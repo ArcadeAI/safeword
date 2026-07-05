@@ -158,8 +158,8 @@ export function evaluateFeatureTicketReadiness(
       addReadinessIssue(
         issues,
         'spec.md',
-        `AC gate: ${acVerdict.reason}`,
-        'Add an Acceptance Criterion under each JTBD as `#### <jtbd-id>.AC<n>`, or add a per-JTBD `skip: <reason>`.',
+        `criteria gate: ${acVerdict.reason}`,
+        'Add a numbered Rule under each JTBD as `#### <jtbd-id>.R<n>` (or a legacy `#### <jtbd-id>.AC<n>`), or add a per-JTBD `skip: <reason>`.',
       );
     }
   }
