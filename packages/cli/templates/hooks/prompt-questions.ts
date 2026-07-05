@@ -131,11 +131,11 @@ if (existsSync(stateFile)) {
         }
       } else {
         lines.push(
-          '- No active ticket. Classify (patch/task/feature) before starting. For features, run `/bdd`.',
+          '- No active ticket. Classify (patch/task/feature/epic) before starting. For features, run `/bdd`.',
         );
       }
     } else {
-      lines.push('- No active ticket. Classify (patch/task/feature) before starting.');
+      lines.push('- No active ticket. Classify (patch/task/feature/epic) before starting.');
     }
 
     // One-shot reminder: verify novel research claims before building on them.

@@ -8,7 +8,7 @@ last_modified: YYYY-MM-DDTHH:MM:SSZ
 ---
 
 <!--
-type: patch | task | feature
+type: patch | task | feature | epic
 phase: intake | define-behavior | scenario-gate | implement | verify | done
   - patch/task: typically start at 'implement' or omit phase
   - feature: progresses through all phases via BDD workflow

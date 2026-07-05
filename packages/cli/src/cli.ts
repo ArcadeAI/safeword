@@ -136,12 +136,19 @@ const ticket = program.command('ticket').description('Ticket management');
 ticket
   .command('new <slug>')
   .description('Create a new ticket with a Crockford Base32 ID')
-  .option('--type <type>', 'Ticket type: patch, task, or feature', 'task')
+  .option('--type <type>', 'Ticket type: patch, task, feature, or epic', 'task')
   .option('--title <title>', 'Ticket title (defaults to slug)')
-  .action(async (slug: string, options: { type?: string; title?: string }) => {
-    const { ticketNew } = await import('./commands/ticket-new.js');
-    await ticketNew(slug, options);
-  });
+  .option('--goal <goal>', 'One-line goal; fills the Goal field instead of a placeholder')
+  .option('--why <why>', 'One-line rationale (task/patch/epic; features use spec.md)')
+  .action(
+    async (
+      slug: string,
+      options: { type?: string; title?: string; goal?: string; why?: string },
+    ) => {
+      const { ticketNew } = await import('./commands/ticket-new.js');
+      await ticketNew(slug, options);
+    },
+  );
 
 program
   .command('sync-learnings')
@@ -240,7 +247,7 @@ program
   .command('test-plan')
   .description('Emit the test/build commands for every language detected in the repo')
   .argument('[dir]', 'project directory to scan (defaults to the current directory)')
-  .option('--kind <kind>', 'test, build, verify, or typecheck', 'test')
+  .option('--kind <kind>', 'test, build, verify, typecheck, or deps', 'test')
   .option('--format <format>', 'human, json, or sh (eval-able)', 'human')
   .option('--json', 'alias for --format json')
   .action(

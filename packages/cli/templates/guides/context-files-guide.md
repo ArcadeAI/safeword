@@ -76,7 +76,7 @@ Loaded context:
 See root AGENTS.md for TDD workflow. This file covers test-specific patterns.
 ```
 
-**Reliability note:** On current models the context file auto-loads reliably every session — you don't need to name it in the prompt to get it applied. The real reliability lever is **brevity**: a bloated file buries its own rules, so a rule the model ignores is usually a length problem, not a reference problem. Keep it short and the auto-loaded rules land.
+**Reliability note:** On current models the tool's main context file (e.g. `CLAUDE.md` in Claude Code, `AGENTS.md` in Codex) auto-loads reliably every session — you don't need to name it in the prompt to get it applied. The real reliability lever is **brevity**: a bloated file buries its own rules, so a rule the model ignores is usually a length problem, not a reference problem. Keep it short and the auto-loaded rules land.
 
 **Deprecated:** `*.local.md` is no longer recommended - use imports instead for better multi-worktree support
 
@@ -448,11 +448,10 @@ Brief description. Current status.
 - **Treat as living document** - Constantly refine based on what works
 - Periodically review and refactor for clarity
 - State most rules as plain declarative facts; blanket `IMPORTANT`/`YOU MUST` decoration is noise a literal model doesn't need. Reserve emphasis for one job — flagging **when to reach for a capability** (a subagent, a tool, memory) that a model like Opus 4.8 otherwise under-uses.
-- The file auto-loads every session, so don't repeat a rule or name the file in the prompt to force adherence — brevity, not repetition, is what keeps rules followed.
 
 **Portability:**
 
-- Emphasis (`IMPORTANT`/`YOU MUST`) is a Claude-specific last-resort lever — don't teach it as portable reliability. OpenAI models lean on the system > developer > user instruction hierarchy instead.
+- Emphasis (`IMPORTANT`/`YOU MUST`) is an Anthropic-popularized last-resort lever — other vendors respond to emphasis too, but don't teach it as _portable_ reliability. OpenAI models lean on the system > developer > user instruction hierarchy instead.
 - Default to **Markdown** structure (portable across vendors); treat XML-tag structuring as a Claude-specific optimization, not a baseline.
 
 **Token Budget:**
