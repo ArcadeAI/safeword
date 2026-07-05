@@ -2,7 +2,7 @@
 id: BY7RNR
 slug: architecture-narrative-blindspots
 type: feature
-phase: scenario-gate
+phase: implement
 status: in_progress
 scope:
   - hook-side narrative resolution in architecture-document-nudge.ts — configured paths.architecture (file or ADR directory) with root ARCHITECTURE.md fallback; nudge message names the resolved narrative
@@ -65,3 +65,4 @@ last_modified: 2026-07-05T19:25:59.867Z
 - 2026-07-05T19:33:00Z Intake: personas/glossary/surfaces loaded; Intake Brief + JTBD (TB1, TB2) + ACs authored in spec.md. Sub-phase gates auto-confirmed (autonomous session, user not live); design settled by figure-it-out — configured-paths-first narrative resolution, stateless every-run advisory in `safeword architecture`. Deviation from AXRC4D "no deterministic drift module" recorded in Decisions.
 - 2026-07-05T19:37:00Z Complete: intake - Understanding converged, scope established. Spec self-reviewed (Design notes moved out of spec into ticket Decisions; "mentioned" rule promoted to spec Vocabulary), re-stamped. Reversibility recorded two-way-door → no cold-start check. Phase → define-behavior.
 - 2026-07-05T19:45:00Z Complete: define-behavior - 20 scenarios defined across 7 rules (dimensions.md table → partitions). TB1 rules @wip (vitest hook lane backing, bash-ledger-write-gate precedent); TB2 rules cucumber-backed. Saturation: second pass over dimensions surfaced no new partitions. Phase → scenario-gate.
+- 2026-07-05T19:41:00Z Complete: scenario-gate - Independent fork review (review-spec procedure): first pass BLOCK (ADR-directory drift uncovered + 5 strengtheners), all applied (+5 scenarios → 22 total), re-review PASS, stamped. impl-plan.md written (proof plan + build order in Approach). Phase → implement.
