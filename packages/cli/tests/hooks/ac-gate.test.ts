@@ -7,7 +7,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { evaluateAcGate } from '../../templates/hooks/lib/jtbd.js';
+import { evaluateCriteriaGate } from '../../templates/hooks/lib/jtbd.js';
 
 /** Wrap a Jobs-To-Be-Done body in a minimal spec.md. */
 function spec(jtbdBody: string): string {
@@ -17,46 +17,48 @@ function spec(jtbdBody: string): string {
 const JTBD1 =
   '### demo.PO1 — rotate keys\n**Persona:** Platform Operator (PO)\n> When I…, I want…, so I can…\n';
 
-describe('evaluateAcGate', () => {
+describe('evaluateCriteriaGate', () => {
   it('passes a JTBD that has at least one AC (S1.1)', () => {
     expect(
-      evaluateAcGate(spec(`${JTBD1}\n#### demo.PO1.AC1 — old key keeps working briefly\n`)).ok,
+      evaluateCriteriaGate(spec(`${JTBD1}\n#### demo.PO1.AC1 — old key keeps working briefly\n`))
+        .ok,
     ).toBe(true);
   });
 
   it('denies a JTBD with zero ACs and no skip, naming the JTBD (S1.2)', () => {
-    const verdict = evaluateAcGate(spec(JTBD1));
+    const verdict = evaluateCriteriaGate(spec(JTBD1));
     expect(verdict.ok).toBe(false);
     if (!verdict.ok) expect(verdict.reason).toContain('demo.PO1');
   });
 
   it('passes a JTBD whose AC skip has a non-empty reason (S1.3)', () => {
     expect(
-      evaluateAcGate(spec(`${JTBD1}\nskip: internal plumbing — no user-observable capability\n`))
-        .ok,
+      evaluateCriteriaGate(
+        spec(`${JTBD1}\nskip: internal plumbing — no user-observable capability\n`),
+      ).ok,
     ).toBe(true);
   });
 
   it('denies a JTBD whose AC skip reason is empty (S1.4)', () => {
-    const verdict = evaluateAcGate(spec(`${JTBD1}\nskip:\n`));
+    const verdict = evaluateCriteriaGate(spec(`${JTBD1}\nskip:\n`));
     expect(verdict.ok).toBe(false);
     if (!verdict.ok) expect(verdict.reason).toMatch(/reason/i);
   });
 
   it('denies when one of two JTBDs is missing ACs (S1.5)', () => {
     const body = `${JTBD1}\n#### demo.PO1.AC1 — cap\n\n### demo.PO2 — audit keys\n**Persona:** Platform Operator (PO)\n> When I…, I want…, so I can…\n`;
-    const verdict = evaluateAcGate(spec(body));
+    const verdict = evaluateCriteriaGate(spec(body));
     expect(verdict.ok).toBe(false);
     if (!verdict.ok) expect(verdict.reason).toContain('demo.PO2');
   });
 
   it('does not count an AC heading inside an HTML comment (S1.6)', () => {
     const body = `${JTBD1}\n<!--\n#### demo.PO1.AC1 — commented example\n-->\n`;
-    expect(evaluateAcGate(spec(body)).ok).toBe(false);
+    expect(evaluateCriteriaGate(spec(body)).ok).toBe(false);
   });
 
   it('does not count a non-lineage level-4 heading like "#### Notes" (S1.7, #696)', () => {
-    const verdict = evaluateAcGate(spec(`${JTBD1}\n#### Notes — some context, not an AC\n`));
+    const verdict = evaluateCriteriaGate(spec(`${JTBD1}\n#### Notes — some context, not an AC\n`));
     expect(verdict.ok).toBe(false);
     if (!verdict.ok) expect(verdict.reason).toContain('demo.PO1');
   });
@@ -66,25 +68,27 @@ describe('evaluateAcGate', () => {
   // with no digit); "Rollback plan" starts with R but has no R<n>.
   it('does not count "#### Acceptance Criteria" or "#### Rollback plan" (S1.8, #696)', () => {
     const body = `${JTBD1}\n#### Acceptance Criteria\n\n#### Rollback plan\n`;
-    expect(evaluateAcGate(spec(body)).ok).toBe(false);
+    expect(evaluateCriteriaGate(spec(body)).ok).toBe(false);
   });
 
   it('passes vacuously when the whole JTBD section is skipped (S2.1)', () => {
-    expect(evaluateAcGate(spec('skip: internal plumbing — no persona-facing job\n')).ok).toBe(true);
+    expect(evaluateCriteriaGate(spec('skip: internal plumbing — no persona-facing job\n')).ok).toBe(
+      true,
+    );
   });
 });
 
-describe('evaluateAcGate (rule tier — V0NHT6)', () => {
+describe('evaluateCriteriaGate (rule tier — V0NHT6)', () => {
   it('rule-tier.TB1.AC1.r_only_jtbd_passes_the_gate', () => {
     expect(
-      evaluateAcGate(
+      evaluateCriteriaGate(
         spec(`${JTBD1}\n#### demo.PO1.R1 — a delivery that fails retries on backoff\n`),
       ).ok,
     ).toBe(true);
   });
 
   it('rule-tier.TB1.AC1.denial_names_numbered_rules_as_an_option', () => {
-    const verdict = evaluateAcGate(spec(JTBD1));
+    const verdict = evaluateCriteriaGate(spec(JTBD1));
     expect(verdict.ok).toBe(false);
     if (!verdict.ok) {
       expect(verdict.reason).toContain('demo.PO1');
@@ -95,14 +99,15 @@ describe('evaluateAcGate (rule tier — V0NHT6)', () => {
 
   it('rule-tier.TB1.AC1.skip_line_still_passes_the_gate', () => {
     expect(
-      evaluateAcGate(spec(`${JTBD1}\nskip: internal plumbing — no user-observable capability\n`))
-        .ok,
+      evaluateCriteriaGate(
+        spec(`${JTBD1}\nskip: internal plumbing — no user-observable capability\n`),
+      ).ok,
     ).toBe(true);
   });
 
   it('rule-tier.TB1.AC4.mixed_jtbd_still_passes_the_gate', () => {
     expect(
-      evaluateAcGate(
+      evaluateCriteriaGate(
         spec(
           `${JTBD1}\n#### demo.PO1.AC1 — old key keeps working briefly\n\n#### demo.PO1.R1 — an invariant beside the AC\n`,
         ),
