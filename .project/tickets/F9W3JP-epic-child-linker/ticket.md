@@ -2,7 +2,7 @@
 id: F9W3JP
 slug: epic-child-linker
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 scope:
   - a `--parent <epicId>` flag on `ticket new` that writes `parent: <epicId>` on the new child
@@ -36,3 +36,4 @@ last_modified: 2026-07-05T17:25:42.420Z
 - 2026-07-05T17:27:00.000Z Complete: intake - one JTBD (TB1), four ACs, scope/out_of_scope/done_when set; design from /figure-it-out (single source of truth via parent:)
 - 2026-07-05T17:30:00.000Z Complete: define-behavior - 7 scenarios across 4 rules (AC1 link+navigate, AC2 index, AC3 validation, AC4 idempotent-preserve)
 - 2026-07-05T17:35:00.000Z Complete: scenario-gate - independent /review-spec PASS (fixed 1 vacuous scenario); impl-plan.md written (proof plan + build order, riskiest slice = INDEX grouping last)
+- 2026-07-05T18:03:00.000Z Complete: implement - all 7 scenarios GREEN via outside-in TDD (helper → CLI wiring → navigation → index grouping); RGR ledger annotated with SHAs

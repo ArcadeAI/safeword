@@ -1,6 +1,6 @@
 # Impl Plan: ticket new --parent links epic and child
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
@@ -62,7 +62,17 @@ The INDEX grouping key moves from `epic:` to `parent:` — a deliberate
 reconciliation of two competing relationship representations toward the single
 source of truth. Kept backward-compatible: a legacy `epic:` value is used as a
 fallback when `parent:` is absent, and tickets with neither still group under
-`(no epic)`. No other deviation from arch guidance.
+`(no epic)`.
+
+**Reconciliation (what actually shipped vs. plan):** the plan implied all 7
+scenarios would run in the Gherkin acceptance lane. In practice the two internal
+contracts with no CLI surface — findNextWork navigation (S2) and append
+idempotency (S7) — were removed from the black-box `.feature` and kept as
+vitest-only proofs (integration + unit, already green), because the cucumber
+lane drives the built CLI and neither behavior is reachable through it. The
+`.feature` documents this in place of the removed scenarios; AC1 and AC4 each
+still carry a tagged acceptance scenario (S1, S6). Decisions and Arch alignment
+above held as written — no change.
 
 ## Assessment triggers
 

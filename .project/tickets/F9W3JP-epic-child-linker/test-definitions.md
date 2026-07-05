@@ -21,17 +21,17 @@ Feature source: `packages/cli/features/epic-child-linker.feature`
 
 ### Scenario: epic-child-linker.TB1.AC1.navigation_from_epic_reaches_child
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: findNextWork navigation contract pre-exists; scenario proves the --parent link feeds it (green on first run)
+- [x] GREEN a2c2060
+- [x] REFACTOR skip: integration proof, no production code
 
 ## Rule: A linked child appears under its epic in the index
 
 ### Scenario: epic-child-linker.TB1.AC2.index_groups_child_under_epic
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED d8699c1
+- [x] GREEN 0f17529
+- [x] REFACTOR skip: one-line grouping-key change, nothing to restructure
 
 ## Rule: An invalid --parent fails loud and changes nothing
 
