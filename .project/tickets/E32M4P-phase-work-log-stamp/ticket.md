@@ -2,10 +2,11 @@
 id: E32M4P
 slug: phase-work-log-stamp
 type: feature
-phase: scenario-gate
+phase: implement
 phase_anchors:
   - define-behavior: d605a63
   - scenario-gate: d605a63
+  - implement: 4124ab2
 status: in_progress
 external_issue: https://github.com/ArcadeAI/safeword/issues/772
 scope:

@@ -505,6 +505,10 @@ export const SETTINGS_HOOKS = {
     matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/post-tool-skill-nudge.ts`),
     matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/post-tool-bypass-warn.ts`),
     matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/post-tool-sync-learnings.ts`),
+    // Stamp a real-timestamp work-log line when a ticket.md phase transition
+    // lands (E32M4P, #772) — replaces the bdd files' fabricated {timestamp}
+    // templates. Observer: fast-exits on non-ticket edits.
+    matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/post-tool-work-log.ts`),
     // Stamp the dependency fingerprint after a successful install so the
     // recommended recovery command clears the readiness block (#380). Fast-exits
     // on non-install Bash commands.
