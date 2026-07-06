@@ -75,11 +75,11 @@ packages/cli/
 │   │   └── types.ts      # Shared type definitions
 │   ├── presets/          # ESLint presets (exported as safeword/eslint)
 │   │   └── typescript/   # ESLint configs, rules, detection
-│   ├── retro/            # Retrospective pipeline: transcript mining, drafts, egress guard, GitHub REST transport
+│   ├── retro/            # Retro pipeline: finding sanitization, drafts, egress guard, GitHub REST transport (miner front-end lives in commands/retro.ts)
 │   ├── skills/           # Skill package installer (harness side of the pack/harness skill split)
 │   ├── templates/        # Template content helpers
 │   ├── test-plan/        # Resolves per-language test/build/typecheck/bdd/deps command plans (verify + stop-gate source of truth)
-│   ├── ticket-sync/      # Generates tickets/INDEX.md + INDEX-completed.md discovery indexes
+│   ├── ticket-sync/      # Generates <namespace-root>/tickets/INDEX.md + INDEX-completed.md discovery indexes
 │   ├── tracker-connect/  # `safeword connect` flow: tracker credentials, config, secret store
 │   ├── tracker-sync/     # One-way projection of the ticket corpus into the configured tracker
 │   ├── upstream-monitor/ # Watches upstream agent-CLI changelogs (claude-code, codex-cli, cursor) via snapshots
