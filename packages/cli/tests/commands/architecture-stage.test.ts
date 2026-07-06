@@ -12,7 +12,11 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { readDocumentFingerprint, selfHeal } from '../../src/utils/architecture-document.js';
+import {
+  readDocumentFingerprint,
+  selfHeal,
+  selfHealProject,
+} from '../../src/utils/architecture-document.js';
 import {
   resolveGeneratedArchitecturePath,
   resolveNamespaceRoot,
@@ -163,6 +167,45 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
     expect(execFileSync('cat', [DOC_RELATIVE], { cwd: context.directory, encoding: 'utf8' })).toBe(
       before,
     );
+  });
+
+  it('still surfaces the narrative-drift advisory when enforcement is opted out', async () => {
+    // Coverage honesty is independent of enforcement: an opted-out host running
+    // --stage must still be told the narrative omits a generated package, matching
+    // --check and default mode (#864 follow-up). Needs a monorepo — drift is a
+    // root `## Packages` concern; single-repo `## Modules` names are never scanned.
+    execFileSync('rm', ['-rf', 'src'], { cwd: context.directory });
+    writeFileSync(
+      nodePath.join(context.directory, 'package.json'),
+      JSON.stringify({ name: 'root', workspaces: ['packages/*'] }),
+    );
+    for (const pkg of ['web', 'billing']) {
+      mkdirSync(nodePath.join(context.directory, 'packages', pkg, 'src'), { recursive: true });
+      writeFileSync(
+        nodePath.join(context.directory, 'packages', pkg, 'package.json'),
+        JSON.stringify({ name: pkg }),
+      );
+      writeFileSync(
+        nodePath.join(context.directory, 'packages', pkg, 'src', 'index.ts'),
+        'export {};\n',
+      );
+    }
+    // Narrative mentions only "web" → "billing" is drift.
+    writeFileSync(
+      nodePath.join(context.directory, 'ARCHITECTURE.md'),
+      '# Architecture\n\nThe web package serves the UI.\n',
+    );
+    // Pre-generate the root `## Packages` index: the opt-out branch skips the heal,
+    // so the drift check reads whatever generated doc already exists on disk.
+    selfHealProject(context.directory);
+    writeEnforcementConfig(context.directory, false);
+
+    const result = await runCli(['architecture', '--stage'], { cwd: context.directory });
+
+    expect(result.exitCode).toBe(0);
+    const output = `${result.stdout}\n${result.stderr}`;
+    expect(output).toContain('does not mention');
+    expect(output).toContain('billing');
   });
 
   it('exits zero even with no modules and no doc (noop never blocks)', async () => {

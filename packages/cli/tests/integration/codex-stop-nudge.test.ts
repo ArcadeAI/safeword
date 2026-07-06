@@ -12,7 +12,7 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { ARCHITECTURE_DOCUMENT_NUDGE } from '../../templates/hooks/lib/architecture-document-nudge.js';
+import { architectureDocumentNudgeText } from '../../templates/hooks/lib/architecture-document-nudge.js';
 import {
   createTemporaryDirectory,
   initGitRepo,
@@ -107,7 +107,7 @@ describe('Codex Stop architecture drift nudge', () => {
       reason?: string;
     };
     expect(parsed.decision).toBe('block');
-    expect(parsed.reason).toContain(ARCHITECTURE_DOCUMENT_NUDGE);
+    expect(parsed.reason).toContain(architectureDocumentNudgeText('ARCHITECTURE.md'));
   });
 
   it('stays silent outside done-phase work', () => {

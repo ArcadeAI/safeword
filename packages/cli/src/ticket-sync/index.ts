@@ -34,7 +34,8 @@ export interface TicketEntry {
   relativePath: string; // e.g. <namespace-root>/tickets/1GGD28-ticket-discovery-index
   title: string;
   status: string;
-  epic: string | undefined; // undefined → grouped under "(no epic)"
+  epic: string | undefined; // literal `epic:` field (tracker back-link); may be undefined
+  parent: string | undefined; // `parent:` epic id — the INDEX grouping key (F9W3JP)
   goal: string | undefined; // the **Goal:** one-liner, when present
   externalIssue: string | undefined; // canonical tracker issue link (optional)
   externalPullRequests: string[]; // active/relevant PR links (optional)
@@ -148,6 +149,7 @@ function parseTicket(
   const title = fields.get('title') ?? firstHeading(bodyLines) ?? fields.get('slug') ?? folder;
   const status = fields.get('status') ?? '—';
   const epic = fields.get('epic');
+  const parent = fields.get('parent');
 
   return {
     ok: true,
@@ -157,6 +159,7 @@ function parseTicket(
       title,
       status,
       epic,
+      parent,
       externalIssue: fields.get('external_issue') ?? fields.get('external'),
       externalPullRequests: parseStringList(fields.get('external_prs')),
       goal: goalLine(bodyLines),
@@ -267,7 +270,10 @@ function renderEntry(
 function groupByEpic(entries: TicketEntry[]): [string, TicketEntry[]][] {
   const groups = new Map<string, TicketEntry[]>();
   for (const entry of entries) {
-    const key = entry.epic ?? NO_EPIC_GROUP;
+    // Group by `parent:` (single source of truth for the epic↔child link,
+    // F9W3JP), falling back to the legacy `epic:` field. Keeps `entry.epic`
+    // itself literal so the tracker-sync corpus back-link is unaffected.
+    const key = entry.parent ?? entry.epic ?? NO_EPIC_GROUP;
     const bucket = groups.get(key);
     if (bucket) bucket.push(entry);
     else groups.set(key, [entry]);

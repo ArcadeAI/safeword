@@ -36,7 +36,7 @@ export function writeJson(path: string, value: unknown): void {
   writeFileSync(path, JSON.stringify(value));
 }
 
-/** Drive the real `safeword architecture` CLI in the world's project dir; record exit. */
+/** Drive the real `safeword architecture` CLI in the world's project dir; record exit + combined output. */
 export function runArchitecture(world: ArchitectureWorld, args: string[] = []): void {
   const result = spawnSync('bun', [CLI_PATH, 'architecture', ...args], {
     cwd: worldDir(world),
@@ -44,6 +44,7 @@ export function runArchitecture(world: ArchitectureWorld, args: string[] = []): 
     timeout: 30_000,
   });
   world.status = result.status ?? 1;
+  world.output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
 }
 
 /** The derived root index / single-repo doc at `.project/architecture.generated.md`. */

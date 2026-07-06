@@ -39,6 +39,8 @@ export interface NewTicketOptions {
   /** One-line Why; fills `**Why:**` for task/patch/epic. Not valid for features
    * (their motivation lives in spec.md) — the CLI rejects `--why` there. */
   why?: string;
+  /** Epic id this ticket is a child of; written as `parent:` frontmatter. */
+  parent?: string;
   /** Override `new Date()` for tests. */
   now?: () => Date;
 }
@@ -155,6 +157,10 @@ done_when:
   // use the same inline **Goal:**/**Why:** body as tasks — matching the
   // index-visible epic precedent (Q4FX8Y) so `sync-tickets` picks up the goal.
   const childrenFrontmatter = type === 'epic' ? 'children: []\n' : '';
+  // A child records its epic via `parent:` — the single source of truth the
+  // epic's `children:` reverse-index and hierarchy navigation read (F9W3JP).
+  const parentFrontmatter =
+    options.parent !== undefined && options.parent !== '' ? `parent: ${options.parent}\n` : '';
 
   // A blank/whitespace-only flag value keeps the placeholder rather than
   // rendering `**Goal:** ` with a trailing space and no content.
@@ -173,7 +179,7 @@ slug: ${options.slug}
 type: ${type}
 phase: intake
 status: in_progress
-${featureReadinessFrontmatter}${childrenFrontmatter}created: ${now}
+${featureReadinessFrontmatter}${childrenFrontmatter}${parentFrontmatter}created: ${now}
 last_modified: ${now}
 ---
 

@@ -879,6 +879,9 @@
 - **Update audit duplication command for current jscpd (BQ5RCB)** (in_progress, epic: —)
   Update the audit duplication command so it works with the currently resolved `jscpd` CLI.
   → `.project/tickets/BQ5RCB-update-audit-duplication-command-for-current-jscpd`
+- **Architecture narrative reconciliation: honor paths.architecture + surface pre-existing drift (BY7RNR)** (done, epic: —)
+  Done-gate nudge and architecture prompts resolve the narrative via paths.architecture (root ARCHITECTURE.md fallback); safeword architecture emits a non-blocking advisory listing generated packages absent from the narrative
+  → `.project/tickets/BY7RNR-architecture-narrative-blindspots`
 - **Distinguish local dependency-cruiser config sync from published-latest drift (BYXB03)** (in_progress, epic: —)
   Ensure depcruise config drift checks use the intended Safeword source, and do not report branch-local config as stale when only the published CLI differs.
   → `.project/tickets/BYXB03-refresh-generated-dependency-cruiser-config-for-clean-audits`

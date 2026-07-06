@@ -12,7 +12,7 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { ARCHITECTURE_DOCUMENT_NUDGE } from '../../templates/hooks/lib/architecture-document-nudge.js';
+import { architectureDocumentNudgeText } from '../../templates/hooks/lib/architecture-document-nudge.js';
 import {
   createTemporaryDirectory,
   initGitRepo,
@@ -165,7 +165,7 @@ describe('Cursor stop review surface', () => {
     const parsed = JSON.parse(result.stdout) as { followup_message?: string };
 
     expect(result.status).toBe(0);
-    expect(parsed.followup_message).toContain(ARCHITECTURE_DOCUMENT_NUDGE);
+    expect(parsed.followup_message).toContain(architectureDocumentNudgeText('ARCHITECTURE.md'));
   });
 
   it('keeps crash capture wired in both Cursor stop hook copies', () => {
