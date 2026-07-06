@@ -92,6 +92,10 @@ function architectureStage(cwd: string): Promise<void> {
   warnUnreadableWorkspaces(cwd);
   if (!isArchitectureDocumentEnforcementEnabled(cwd)) {
     success('Architecture doc enforcement is opted out (architectureDocEnforcement: false).');
+    // Coverage honesty is not enforcement (see warnNarrativeDrift): surface drift
+    // even when opted out, matching --check and default mode. No heal runs here,
+    // so this reads the doc as-is — the same as --check's opt-out path.
+    warnNarrativeDrift(cwd);
     return Promise.resolve();
   }
 
