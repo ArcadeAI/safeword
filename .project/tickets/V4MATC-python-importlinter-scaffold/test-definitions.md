@@ -88,12 +88,12 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: setup installs import-linter alongside the pack's other Python tools
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 99c78da
+- [x] GREEN 68e1dcf
+- [x] REFACTOR skip: one-condition change threaded through existing flow
 
 ### Scenario: a failed installation surfaces the package-manager-appropriate install command
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 99c78da
+- [x] GREEN 68e1dcf
+- [x] REFACTOR skip: guidance path pre-existing; only the tool list changed
