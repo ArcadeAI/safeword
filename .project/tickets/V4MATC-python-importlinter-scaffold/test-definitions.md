@@ -97,3 +97,7 @@ test-definitions.md is the R/G/R ledger.
 - [x] RED 99c78da
 - [x] GREEN 68e1dcf
 - [x] REFACTOR skip: guidance path pre-existing; only the tool list changed
+
+## Feature-level cross-scenario refactor
+
+- [x] cross-scenario baa9595 # predicate single-sourcing + drift comment (source); be6429d fixture dedupe (tests) — /quality-review APPROVE, findings 1-3 applied, 4-6 deferred with reasons
