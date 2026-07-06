@@ -119,6 +119,55 @@ describe('python-importlinter-scaffold.TB1.R2 — existing import-linter config 
     },
     TIMEOUT_SETUP,
   );
+
+  const USER_INI =
+    '[importlinter]\nroot_package = mypkg\n\n[importlinter:contract:mine]\nname = My contract\ntype = independence\nmodules = mypkg.alpha\n';
+  const USER_PYPROJECT_SUFFIX = '\n[tool.importlinter]\nroot_package = "mypkg"\n';
+
+  // Remaining outline rows: config form × command. setup.cfg × setup is the
+  // RED-driving test above; these pin the already-gated forms and the upgrade path.
+  it.each([
+    ['a .importlinter file', 'setup'],
+    ['pyproject.toml [tool.importlinter]', 'setup'],
+    ['a .importlinter file', 'upgrade'],
+    ['pyproject.toml [tool.importlinter]', 'upgrade'],
+  ])(
+    '%s is untouched by safeword %s',
+    async (form, command) => {
+      createFlatSinglePackageProject(state.projectDirectory);
+      const isFileForm = form === 'a .importlinter file';
+      if (isFileForm) {
+        writeTestFile(state.projectDirectory, '.importlinter', USER_INI);
+      } else {
+        const pyproject = readTestFile(state.projectDirectory, 'pyproject.toml');
+        writeTestFile(state.projectDirectory, 'pyproject.toml', pyproject + USER_PYPROJECT_SUFFIX);
+      }
+      initGitRepo(state.projectDirectory);
+
+      await runCli(['setup'], {
+        cwd: state.projectDirectory,
+        env: SKIP_INSTALL_ENV,
+        timeout: TIMEOUT_SETUP,
+      });
+      if (command === 'upgrade') {
+        await runCli(['upgrade'], {
+          cwd: state.projectDirectory,
+          env: SKIP_INSTALL_ENV,
+          timeout: TIMEOUT_SETUP,
+        });
+      }
+
+      if (isFileForm) {
+        expect(readTestFile(state.projectDirectory, '.importlinter')).toBe(USER_INI);
+      } else {
+        expect(fileExists(state.projectDirectory, '.importlinter')).toBe(false);
+        expect(readTestFile(state.projectDirectory, 'pyproject.toml')).toContain(
+          '[tool.importlinter]',
+        );
+      }
+    },
+    TIMEOUT_SETUP * 2,
+  );
 });
 
 // E2E teeth: prove the scaffold is valid FOR THE REAL TOOL, not merely present.
