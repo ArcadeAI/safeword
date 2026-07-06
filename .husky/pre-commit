@@ -5,6 +5,14 @@
 GIT_COMMON_DIR=$(git rev-parse --git-common-dir 2> /dev/null)
 [ -n "$GIT_COMMON_DIR" ] && git config -f "$GIT_COMMON_DIR/config" core.bare false 2> /dev/null
 
+# Nothing staged (e.g. `git commit --allow-empty`): every check below
+# validates staged or repo content that this commit cannot change, and
+# lint-staged prints a confusing "could not find any staged files" line
+# (issue #862). Exit quietly instead of running the full pipeline.
+if git rev-parse --verify HEAD > /dev/null 2>&1 && git diff --cached --quiet; then
+  exit 0
+fi
+
 # Fail if nested config directories/files exist (indicates setup ran from wrong directory)
 # Uses schema-derived patterns to stay in sync with what safeword creates
 bun scripts/check-nested-configs.ts || exit 1
