@@ -1,6 +1,7 @@
 # Verify: V4MATC — Python pack scaffolds a generic import-linter config
 
 Run: 2026-07-06T04:03Z, HEAD of claude/verify-audit-skills-languages-lc9kf6, Node 24.18.
+Re-run: 2026-07-06T14:40Z after merging origin/main (d605a63) and opening PR #895 — all lanes re-green: 4808/4808 tests (5 skipped), 298/298 cucumber scenarios, build/typecheck/deps exit 0, lint clean, audit re-passed 0E/0W (depcruise ✔ 578 modules, knip ✓, jscpd 428 (8.83%) [repo minus .safeword,.project] — +9 vs baseline, attributable to main's three merged features).
 
 ## Verify Checklist
 
