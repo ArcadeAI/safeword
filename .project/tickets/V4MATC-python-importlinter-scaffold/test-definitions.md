@@ -36,15 +36,15 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: a scripts-only Python project gets no scaffold
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: ambiguity fallback landed with scenario 1's minimal GREEN (detectSolePackage returns undefined for zero packages); regression proof added
+- [x] GREEN 161c71b
+- [x] REFACTOR skip: single focused test
 
 ### Scenario: a project with multiple top-level packages gets no scaffold (outline: 2 layouts × setup, 1 × upgrade)
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: same fallback (2+ candidates → undefined) landed at scenario 1's GREEN; parameterized regression proofs added
+- [x] GREEN 161c71b
+- [x] REFACTOR skip: parameterized it.each, nothing to restructure
 
 ## Rule: python-importlinter-scaffold.TB1.R4 — the scaffold is create-once, then the user's: created when absent, never overwritten, reset removes only the unmodified
 
