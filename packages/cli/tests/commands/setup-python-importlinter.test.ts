@@ -9,6 +9,7 @@
  * The lint-imports E2E teeth run in the cucumber lane / guarded suite.
  */
 
+import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -92,6 +93,63 @@ describe('python-importlinter-scaffold.TB1.R1 — working cycle check with zero 
       const config = readTestFile(state.projectDirectory, '.importlinter');
       expect(config).toContain('root_package = srcpkg');
       expect(config).toContain('ancestors = srcpkg');
+    },
+    TIMEOUT_SETUP,
+  );
+});
+
+// E2E teeth: prove the scaffold is valid FOR THE REAL TOOL, not merely present.
+// Guarded on binary availability (visible skip locally); CI installs import-linter
+// via .github/requirements-ci.txt so these always run there.
+const HAS_LINT_IMPORTS = spawnSync('lint-imports', ['--version'], { stdio: 'ignore' }).status === 0;
+
+/** Run lint-imports in the project; returns exit status and combined output. */
+function runLintImports(cwd: string): { status: number | null; output: string } {
+  const result = spawnSync('lint-imports', [], { cwd, encoding: 'utf8' });
+  return { status: result.status, output: `${result.stdout}${result.stderr}` };
+}
+
+describe('python-importlinter-scaffold.TB1.R1 — lint-imports teeth (E2E, real binary)', () => {
+  it.skipIf(!HAS_LINT_IMPORTS)(
+    'the scaffolded check passes against acyclic code',
+    async () => {
+      createFlatSinglePackageProject(state.projectDirectory);
+      writeTestFile(state.projectDirectory, 'mypkg/alpha.py', 'VALUE = 1\n');
+      writeTestFile(state.projectDirectory, 'mypkg/beta.py', 'from mypkg.alpha import VALUE\n');
+      initGitRepo(state.projectDirectory);
+      await runCli(['setup'], {
+        cwd: state.projectDirectory,
+        env: SKIP_INSTALL_ENV,
+        timeout: TIMEOUT_SETUP,
+      });
+
+      expect(runLintImports(state.projectDirectory).status).toBe(0);
+    },
+    TIMEOUT_SETUP,
+  );
+
+  it.skipIf(!HAS_LINT_IMPORTS)(
+    'the scaffolded check fails when a circular import is introduced',
+    async () => {
+      createFlatSinglePackageProject(state.projectDirectory);
+      writeTestFile(state.projectDirectory, 'mypkg/alpha.py', 'VALUE = 1\n');
+      writeTestFile(state.projectDirectory, 'mypkg/beta.py', 'from mypkg.alpha import VALUE\n');
+      initGitRepo(state.projectDirectory);
+      await runCli(['setup'], {
+        cwd: state.projectDirectory,
+        env: SKIP_INSTALL_ENV,
+        timeout: TIMEOUT_SETUP,
+      });
+      // Introduce the cycle: alpha now imports beta, which imports alpha.
+      writeTestFile(
+        state.projectDirectory,
+        'mypkg/alpha.py',
+        'from mypkg.beta import VALUE as V2  # noqa\nVALUE = 1\n',
+      );
+
+      const { status, output } = runLintImports(state.projectDirectory);
+      expect(status).not.toBe(0);
+      expect(output).toContain('No circular imports between sibling modules (safeword)');
     },
     TIMEOUT_SETUP,
   );
