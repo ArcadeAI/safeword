@@ -9,8 +9,8 @@ source; this file tracks per-scenario RED → GREEN → REFACTOR with commit SHA
 
 ### Scenario: A staged ticket change with clean evidence passes quietly and is recorded
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 9891378
+- [x] GREEN c794510
 - [ ] REFACTOR
 
 ### Scenario: A staged forward phase advance without an anchor is warned and recorded
@@ -109,20 +109,20 @@ source; this file tracks per-scenario RED → GREEN → REFACTOR with commit SHA
 
 ### Scenario: A commit touching only source code produces no output and no audit entry
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 9891378
+- [x] GREEN c794510
 - [ ] REFACTOR
 
 ### Scenario: A push whose outgoing range contains no ticket-artifact changes is a silent no-op
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 9891378
+- [x] GREEN c794510
 - [ ] REFACTOR
 
 ### Scenario: Outside a safeword project the command is a silent no-op
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 9891378
+- [x] GREEN c794510
 - [ ] REFACTOR
 
 ## Rule: Findings never block — the local tier has no failing exit
@@ -143,14 +143,14 @@ source; this file tracks per-scenario RED → GREEN → REFACTOR with commit SHA
 
 ### Scenario: Audit entries accumulate across boundary runs
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 9891378
+- [x] GREEN c794510
 - [ ] REFACTOR
 
 ### Scenario: The audit record is created on first use when its directory is missing
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 9891378
+- [x] GREEN c794510
 - [ ] REFACTOR
 
 ## Feature-level cross-scenario refactor
