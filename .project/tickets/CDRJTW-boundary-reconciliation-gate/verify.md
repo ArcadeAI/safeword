@@ -21,6 +21,7 @@ The gate ran live on this ticket's own commits via the new `.husky` shims:
 - Commit `be37070` (shims landing): the gate **warned** — `[ledger-format] Cross-scenario refactor row is unchecked` — an honest finding on its own feature, recorded to `.safeword/boundary-audit.jsonl`, commit not blocked.
 - Commit `1d69fa8` (ledger completed): the gate re-ran and recorded **all-pass verdicts** (`birth: pass`, `ledger-format: pass`). The warn → fix → clean arc happened on the artifact under development.
 - Commit `f69c46d` (this file landing): the gate **flagged a false positive in the folded `checkVerifyArtifact` check** — it substring-matches "piggybacked" and rejected this verify.md's *negated* "No piggybacked changes." Found by the gate policing its own ticket; reworded here, and the naive matching is a follow-up finding for the existing done-gate check.
+- Push of `d9285df`: the push tier compared **range endpoints** (upstream at implement, HEAD at done) and warned "implement → done skips verify" even though intermediate commit `f69c46d` legally traversed verify — while the commit tier had correctly passed each step. **Known limitation discovered by dogfood:** range-endpoint transition legality false-positives on multi-commit pushes; follow-up direction is per-commit walking of the range (or leaving transition legality to the commit tier and keeping push to reachability). Cost: one warning line, zero blocking — the warn-never-block design absorbed its own false positive exactly as intended.
 
 ## Done-when reconciliation
 
