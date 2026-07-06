@@ -73,4 +73,26 @@ describe('python-importlinter-scaffold.TB1.R1 — working cycle check with zero 
     },
     TIMEOUT_SETUP,
   );
+
+  it(
+    'setup detects the package in a src layout',
+    async () => {
+      createPythonProject(state.projectDirectory);
+      createSafewordBasePackageJson(state.projectDirectory);
+      writeTestFile(state.projectDirectory, 'src/srcpkg/__init__.py', '');
+      writeTestFile(state.projectDirectory, 'src/srcpkg/core.py', 'VALUE = 1\n');
+      initGitRepo(state.projectDirectory);
+
+      await runCli(['setup'], {
+        cwd: state.projectDirectory,
+        env: SKIP_INSTALL_ENV,
+        timeout: TIMEOUT_SETUP,
+      });
+
+      const config = readTestFile(state.projectDirectory, '.importlinter');
+      expect(config).toContain('root_package = srcpkg');
+      expect(config).toContain('ancestors = srcpkg');
+    },
+    TIMEOUT_SETUP,
+  );
 });
