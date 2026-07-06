@@ -10,7 +10,7 @@ Feature: Python pack scaffolds a generic import-linter config
       Given a Python project with exactly one importable package at the repo root
       And no import-linter configuration in any form
       When safeword setup runs
-      Then a .importlinter file exists naming that package as root_packages
+      Then a .importlinter file exists naming that package as root_package
       And it declares exactly one acyclic-siblings contract
       And lint-imports exits 0 in the project
 
@@ -18,7 +18,7 @@ Feature: Python pack scaffolds a generic import-linter config
       Given a Python project whose only importable package lives under src/
       And no import-linter configuration in any form
       When safeword setup runs
-      Then the .importlinter root_packages names the package under src/
+      Then the .importlinter root_package names the package under src/
       And lint-imports exits 0 in the project
 
     @rejection
@@ -76,7 +76,7 @@ Feature: Python pack scaffolds a generic import-linter config
       And it has exactly one importable package at the repo root
       And no import-linter configuration in any form
       When safeword upgrade runs
-      Then a .importlinter file exists naming that package as root_packages
+      Then a .importlinter file exists naming that package as root_package
       And it declares exactly one acyclic-siblings contract
 
     Scenario: upgrade is idempotent over an unmodified scaffold

@@ -44,7 +44,7 @@ Affected:
 
 #### python-importlinter-scaffold.TB1.R4 — the scaffold is create-once, then the user's: setup or upgrade creates it when absent (same gating as R1–R3); safeword never overwrites it afterward (users extend it with their own contracts); reset removes it only when it is unmodified from the scaffold
 
-#### python-importlinter-scaffold.TB1.R5 — import-linter is installed with the pack's other Python tools; a failed or skipped installation surfaces the package-manager-appropriate install command
+#### python-importlinter-scaffold.TB1.R5 — import-linter is installed with the pack's other Python tools; a failed installation surfaces the package-manager-appropriate install command
 
 ## Rave Moment
 
@@ -52,7 +52,7 @@ skip: table-stakes — this delivers Python the same out-of-the-box behavior JS 
 
 ## Outcomes
 
-- Fresh `safeword setup` — or `safeword upgrade` on an existing safeword project — on a single-package Python layout → `.importlinter` exists with detected `root_packages` and one `acyclic-siblings` contract; `/audit` runs `lint-imports` for real (green on acyclic code, red when a cycle is introduced). Upgrade-creates is the delivery vehicle for every existing safeword Python project.
+- Fresh `safeword setup` — or `safeword upgrade` on an existing safeword project — on a single-package Python layout → `.importlinter` exists with detected `root_package` and one `acyclic-siblings` contract; `/audit` runs `lint-imports` for real (green on acyclic code, red when a cycle is introduced). Upgrade-creates is the delivery vehicle for every existing safeword Python project.
 - Projects with any pre-existing import-linter config are untouched; a user-extended scaffold is never overwritten by later upgrades.
 - Ambiguous layouts scaffold nothing; today's honest skip stands — never a broken config that errors every audit.
 - import-linter is auto-installed with the pack's other Python tools (existing pack behavior, now extended to single-package projects); if installation fails, audit's config-found-but-tool-missing branch (#857) still reports an honest, actionable skip — the scaffold never turns audits red by itself.
