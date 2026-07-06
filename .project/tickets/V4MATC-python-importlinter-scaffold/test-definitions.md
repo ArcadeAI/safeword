@@ -14,9 +14,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: setup detects the package in a src layout
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: behavior landed with scenario 1's minimal GREEN (src scan is part of detectSolePackage); test added as regression proof
+- [x] GREEN 9ed2e86
+- [x] REFACTOR skip: single assertion-focused test, nothing to restructure
 
 ### Scenario: the scaffolded check fails when a circular import is introduced
 
