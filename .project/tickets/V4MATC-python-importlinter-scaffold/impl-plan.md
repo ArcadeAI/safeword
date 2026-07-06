@@ -1,6 +1,8 @@
 # Impl Plan: Python pack: scaffold generic import-linter config
 
-**Status:** planned (rev 2 — corrected against codebase reality by pre-implementation review + primary-source docs)
+**Status:** planned
+
+_Rev 2 — corrected against codebase reality by pre-implementation review + primary-source docs._
 
 ## Approach
 
