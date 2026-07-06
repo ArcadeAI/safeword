@@ -497,6 +497,55 @@ describe('Phase Derivation (#124)', () => {
       const state = readState(projectDirectory);
       expect(state).not.toHaveProperty('lastKnownTddStep');
     });
+
+    it('6.3: a decoy file merely ending in ticket.md binds via the folder ticket, not itself (#673)', () => {
+      createTicket(projectDirectory, '099', 'test-ticket', { status: 'in_progress' });
+      const head = execSync('git rev-parse --short HEAD', {
+        cwd: projectDirectory,
+        encoding: 'utf8',
+      }).trim();
+      writeState(projectDirectory, baseState({ lastCommitHash: head }));
+
+      // Decoy carries its own id: frontmatter — must not be read as a ticket.md.
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test-ticket/sub-ticket.md',
+        ['---', 'id: 777', 'status: in_progress', '---', '', '# Decoy', ''].join('\n'),
+      );
+
+      const decoyPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/tickets/099-test-ticket/sub-ticket.md',
+      );
+      runPostToolQuality(projectDirectory, 'Edit', decoyPath);
+
+      const state = readState(projectDirectory);
+      expect(state.activeTicket).toBe('099');
+    });
+
+    it('6.4: a frontmatter-less *ticket.md artifact still binds via the folder ticket (#673)', () => {
+      createTicket(projectDirectory, '099', 'test-ticket', { status: 'in_progress' });
+      const head = execSync('git rev-parse --short HEAD', {
+        cwd: projectDirectory,
+        encoding: 'utf8',
+      }).trim();
+      writeState(projectDirectory, baseState({ lastCommitHash: head }));
+
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test-ticket/sub-ticket.md',
+        '# Notes, no frontmatter\n',
+      );
+
+      const decoyPath = nodePath.join(
+        projectDirectory,
+        '.safeword-project/tickets/099-test-ticket/sub-ticket.md',
+      );
+      runPostToolQuality(projectDirectory, 'Edit', decoyPath);
+
+      const state = readState(projectDirectory);
+      expect(state.activeTicket).toBe('099');
+    });
   });
 
   // =========================================================================
