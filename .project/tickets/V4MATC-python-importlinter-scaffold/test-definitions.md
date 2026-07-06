@@ -8,7 +8,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: setup scaffolds .importlinter for a flat single-package project
 
-- [ ] RED
+- [x] RED 6b29b74
 - [ ] GREEN
 - [ ] REFACTOR
 
