@@ -1,125 +1,117 @@
-# Spec: Commit/push/PR reconciliation gate (#810, epic #808 keystone)
+# Spec: Boundary reconciliation gate — engine + local hook (slice 1 of #810)
 
-<!--
-Product-framing spec for a feature ticket. The engineering contract
-(scope / out_of_scope / done_when) lives in ticket.md frontmatter; this
-file holds the *why and who*. The bdd intake flow authors it before
-engineering scope. Fill each section, then delete the
-guidance comments.
--->
+Issue #810 · epic #808 keystone. Slice 1 of 3: the reconciliation engine, the
+`safeword boundary` command, and dogfood wiring in safeword's own repo.
+Children to follow: host-repo installation (setup/upgrade emission); server-side
+required check (workflow template + `--at pr` hard-block + ruleset docs).
 
 ## Intent
 
-<!-- One or two sentences: what this feature is for and why it matters.
-This is the single source of truth for motivation — ticket.md drops its
-**Why:** line and points here. -->
+At the moments work leaves the machine — commit and push — reconcile workflow
+state against its committed evidence (phase legality, anchors, ledger, verify.md)
+and warn-and-record. One versioned engine behind one CLI command, so the git
+hooks (now) and the server-side required check (child ticket) are thin callers
+of the same code path.
 
 ## Intake Brief
 
-<!-- The decide-to-build framing for substantial features (advisory — write
-`skip: <reason>` on any line that doesn't apply). Intent above is the positive
-"why"; this is who asked, the cost of NOT doing it, and how reversible it is.
-If cost-of-inaction is low and reversibility is high, ask whether this is a
-feature at all, or a leaner task. -->
-
-- **Requested by:** <who asked for this — distinct from the persona it serves>
-- **Cost of inaction:** <what changes, breaks, or is lost if we don't build it>
-- **Reversibility:** <how hard to undo once shipped — one-way or two-way door; cross-cutting changes (data model, public API, migration) count as one-way>
+- **Requested by:** alex (TheMostlyGreat) — epic #808's G5 keystone ("the one moment a one-shot session cannot skip").
+- **Cost of inaction:** #809's anchors are evidence nobody checks — forgery-resistance currently ends at a zero-exit advisory, and a one-shot session still ships unreconciled or forged workflow state exactly as in the #644 audit.
+- **Reversibility:** Mixed. Engine + command + dogfood hook lines are two-way doors. The audit-record shape is one-way-adjacent (future tooling parses it) — kept minimal JSONL. Host-repo installation (the genuinely one-way surface) is deliberately NOT in this slice.
 
 ## References
 
-<!-- Related tickets, prior art, designs, external docs. Optional. -->
+- #810 (issue: mechanism, folded checks, warn-vs-block rule) · #808 (epic constraints) · #644 (the audit this all answers).
+- Friction register on #810 (2026-07-06): squash-merge orphaning, prior-HEAD anchor semantics, shallow-clone fetch depth, re-advance last-wins — all constraints on this engine's checks.
+- #809 substrate: `detectUnanchoredPhaseTransition` + injected `ShaResolver` seam (built for this gate, currently uncalled); `detectUnanchoredPhaseState`; `validateLedger` + `createLedgerShaResolver`; `evaluateTicketWrite`.
+- Design research (this session): husky v9 `core.hooksPath` (one-line-shim requirement); GitHub rulesets required-workflow GA (child 3's home); hook-perf budgets (sub-second pre-commit, heavier pre-push, minutes → CI only).
 
 ## Personas
 
-<!-- The personas this feature serves, referenced by name or code from
-the configured personas file (e.g., Platform Operator (PO)). Add new
-personas to that file — don't invent them here. -->
+- Safeword Maintainer (SM) — needs the epic's enforcement promise to hold on safeword's own repo first.
+- Technical Builder (TB) — their repos eventually get this gate (child 2); this slice must honor the standing promise: guardrails fire during agent sessions and **never block their own hand-written commits**.
 
 ## Surfaces
 
-<!-- Optional: supported product, agent, runtime, protocol, client, or
-deployment contexts this feature affects. Prefer names from the configured
-surfaces file. Use spec-local names only for one-off contexts.
-
 Affected:
-- <surface name>
+
+- skip: none tagged — the engine is a CLI command + git-native hooks, identical across agent runtimes; slice 1 wires only safeword's own repo. (Rides-on/environment coverage handled in dimensions.md per #888's method.)
 
 Unaffected:
-- <surface name> — <reason>
 
-Each affected surface should be covered by at least one saved scenario tagged
-`@surface.<slug>` (OpenAI Codex -> `@surface.openai-codex`) or carry
-`skip: <reason>` on the Affected line. -->
+- Claude Code / Cursor / Codex per-harness hooks — this gate is deliberately harness-independent (git-native), per the epic's mechanism constraint.
 
 ## Vocabulary
 
-<!-- Domain terms specific to this feature, consistent with
-the configured glossary file. Optional. -->
+- **Boundary** — a moment work leaves the machine: commit, push, PR. Slice 1 covers commit + push.
+- **Reconciliation** — re-running the workflow's evidence checks against the repo's committed/staged state, as opposed to trusting write-time gates or local logs.
+- **Warn-and-record** — the local tier's behavior: report findings, append them to the audit record, never exit non-zero.
+- **Audit record** — `.safeword/boundary-audit.jsonl`, gitignored, append-only; context for humans and retro, never trusted as evidence (the server tier re-derives instead).
 
 ## Jobs To Be Done
 
-<!--
-One persona per JTBD, in the form "When I …, I want …, so I can …". If two
-personas share a motivation, write two JTBDs. The heading id is
-<slug>.<persona-code><n> (e.g., oauth-flow.PO1). Add as many as the
-feature needs. If there is genuinely no persona-facing job (internal
-plumbing), write `skip: <reason>` here instead.
+### boundary-reconciliation-gate.SM1 — Catch unreconciled workflow state before it ships
 
-Uncomment and customize:
+**Persona:** Safeword Maintainer (SM)
 
-### oauth-flow.PO1 — Rotate credentials without a flag day
+> When a session commits or pushes work involving a ticket, I want the
+> workflow's evidence checks re-run at that boundary and any gaps reported and
+> recorded, so a divergent session leaves a visible trace at the one moment it
+> cannot skip — instead of shipping silently as in #644.
 
-**Persona:** Platform Operator (PO)
+#### boundary-reconciliation-gate.SM1.AC1 — A commit touching ticket artifacts gets its evidence reconciled and gaps reported
 
-> When I rotate a server's API key, I want the previous key to keep working
-> for a short grace period, so I can roll the change across my fleet without
-> coordinated downtime.
+Pre-commit, sub-second: for staged ticket artifacts, phase legality (including
+born-past-intake at rest), anchor presence + format, ledger annotation shape,
+and verify.md shape are re-checked; findings print as warnings and append to
+the audit record. The commit is never blocked.
 
-Numbered Rules — one testable business invariant per Rule, id <jtbd-id>.R<n>,
-stated generally in product language (the invariant a persona relies on), NOT
-implementation ("returns 204" belongs in a scenario's Then). Each define-behavior
-scenario nests under the Rule it proves. Numbered Rules need a `.feature`
-scenario source; the legacy test-definitions.md path stays Acceptance-Criteria-
-only. If a JTBD has no user-observable behavior to enumerate, write
-`skip: <reason>` under it instead.
+#### boundary-reconciliation-gate.SM1.AC2 — A push additionally verifies evidence against git history
 
-Legacy alternative (soft-deprecated): a JTBD may instead declare Acceptance
-Criteria — one observable capability per `#### <jtbd-id>.AC<n>`. Still accepted;
-one criteria kind per JTBD, never both.
+Pre-push adds the history-backed checks: the entered phase's anchor and the
+ledger's step SHAs must be real commits reachable from what's being pushed —
+and evidence recorded before an ordinary rebase still verifies rather than
+false-flagging (the friction register's squash/rebase and entered-phase-only
+constraints). Warn-and-record; never blocks.
 
-#### oauth-flow.PO1.R1 — A rotated key's predecessor keeps authenticating for a bounded grace window
+#### boundary-reconciliation-gate.SM1.AC3 — Every finding lands in a durable local audit record
 
-#### oauth-flow.PO1.R2 — Every currently-issued key is visible to the operator as live, grace, or expired
--->
+Each boundary run appends one JSONL entry (boundary, timestamp, HEAD, per-check
+verdicts) to `.safeword/boundary-audit.jsonl`; the record accumulates across
+sessions and is inspectable by humans and retro.
+
+### boundary-reconciliation-gate.TB1 — Never pay for the gate on ordinary work
+
+**Persona:** Technical Builder (TB)
+
+> When I commit my own hand-written changes that touch no ticket artifacts, I
+> want the boundary gate silent and effectively free, so safeword's guardrails
+> keep their promise of never taxing or blocking my own commits.
+
+#### boundary-reconciliation-gate.TB1.AC1 — A commit with no ticket artifacts staged is silent and fast
+
+No warnings, no audit entry (or a no-op entry at most), sub-second exit 0 —
+regardless of what else is in the diff.
+
+#### boundary-reconciliation-gate.TB1.AC2 — The gate never turns a warning into a block
+
+Exit code is 0 on findings at both commit and push boundaries; `--no-verify`
+therefore never needs to be reached for. (Hard-blocking is the server-side
+child's job, on cheap-to-attest committed evidence only.)
 
 ## Rave Moment
 
-<!-- Optional, and only for the highest persona-facing surface in the tree (the
-epic if there is one, else this feature). Child features under an epic that
-already named one inherit it — skip here; internal/plumbing work skips entirely.
-Advisory; never blocks intake exit. The one moment a persona would tell a peer
-about: name the moment, the expectation it beats, and the one sentence they'd
-repeat. Aim for awe, not "fine." If nothing clears the expectation bar, write
-`skip: table-stakes`.
-
-### <slug> — <the moment in a few words>
-
-- **Moment:** <the specific beat they'd screenshot or recount>
-- **Beats:** <the dread / status-quo pain / competitor clunk it's measured against>
-- **They'd say:** "<the one repeatable, status-conferring sentence>"
--->
+skip: inherited — the epic-level moment belongs to #808 (an agent's forged
+"done" caught red-handed at the PR boundary); this slice is its plumbing.
 
 ## Outcomes
 
-<!-- Observable results that tell us the JTBDs are satisfied — the product
-counterpart to ticket.md's done_when. -->
+- `safeword boundary --at commit|push` runs the reconciliation engine over the staged/committed ticket artifacts and reports per-check verdicts.
+- Safeword's own `.husky/pre-commit` and `.husky/pre-push` invoke it as one-line steps (dogfood).
+- Findings append to `.safeword/boundary-audit.jsonl`; ordinary non-ticket commits stay silent and sub-second.
+- The engine reuses the existing pure checks + injected resolvers — no duplicated validation logic; the #809 resolver seam gains its intended caller.
+- Friction-register constraints hold: entered-phase-only anchor validation, prior-HEAD semantics documented, re-advance last-wins pinned by test.
 
 ## Open Questions
 
-<!-- Unresolved questions surfaced during intake — the spec's running list of
-what we don't know yet (the equivalent of Example Mapping's red "question"
-cards). Add one per line as they come up; before advancing to define-behavior,
-resolve each (answer it, then delete the line) or record `defer: <reason>` for
-a deliberate punt. A long unresolved list means intake isn't done — keep
-converging. Delete this comment when you add real questions. -->
+- defer: exact JSONL entry schema beyond (boundary, timestamp, HEAD, verdicts) — settled at implement against jsonl-spool.ts's existing shape; additive later, per the minimal one-way-door posture.
