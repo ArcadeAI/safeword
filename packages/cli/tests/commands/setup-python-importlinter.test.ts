@@ -411,19 +411,24 @@ function runLintImports(cwd: string): { status: number | null; output: string } 
   return { status: result.status, output: `${result.stdout}${result.stderr}` };
 }
 
+/** Flat single-package fixture with two acyclic modules, set up by safeword. */
+async function setUpAcyclicProject(): Promise<void> {
+  createFlatSinglePackageProject(state.projectDirectory);
+  writeTestFile(state.projectDirectory, 'mypkg/alpha.py', 'VALUE = 1\n');
+  writeTestFile(state.projectDirectory, 'mypkg/beta.py', 'from mypkg.alpha import VALUE\n');
+  initGitRepo(state.projectDirectory);
+  await runCli(['setup'], {
+    cwd: state.projectDirectory,
+    env: SKIP_INSTALL_ENV,
+    timeout: TIMEOUT_SETUP,
+  });
+}
+
 describe('python-importlinter-scaffold.TB1.R1 — lint-imports teeth (E2E, real binary)', () => {
   it.skipIf(!HAS_LINT_IMPORTS)(
     'the scaffolded check passes against acyclic code',
     async () => {
-      createFlatSinglePackageProject(state.projectDirectory);
-      writeTestFile(state.projectDirectory, 'mypkg/alpha.py', 'VALUE = 1\n');
-      writeTestFile(state.projectDirectory, 'mypkg/beta.py', 'from mypkg.alpha import VALUE\n');
-      initGitRepo(state.projectDirectory);
-      await runCli(['setup'], {
-        cwd: state.projectDirectory,
-        env: SKIP_INSTALL_ENV,
-        timeout: TIMEOUT_SETUP,
-      });
+      await setUpAcyclicProject();
 
       expect(runLintImports(state.projectDirectory).status).toBe(0);
     },
@@ -433,15 +438,7 @@ describe('python-importlinter-scaffold.TB1.R1 — lint-imports teeth (E2E, real 
   it.skipIf(!HAS_LINT_IMPORTS)(
     'the scaffolded check fails when a circular import is introduced',
     async () => {
-      createFlatSinglePackageProject(state.projectDirectory);
-      writeTestFile(state.projectDirectory, 'mypkg/alpha.py', 'VALUE = 1\n');
-      writeTestFile(state.projectDirectory, 'mypkg/beta.py', 'from mypkg.alpha import VALUE\n');
-      initGitRepo(state.projectDirectory);
-      await runCli(['setup'], {
-        cwd: state.projectDirectory,
-        env: SKIP_INSTALL_ENV,
-        timeout: TIMEOUT_SETUP,
-      });
+      await setUpAcyclicProject();
       // Introduce the cycle: alpha now imports beta, which imports alpha.
       writeTestFile(
         state.projectDirectory,
