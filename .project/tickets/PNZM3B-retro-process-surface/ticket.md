@@ -32,3 +32,4 @@ last_modified: 2026-07-05T23:05:32.494Z
 
 - 2026-07-05T23:05:32.494Z Started: Created ticket PNZM3B
 - 2026-07-06T00:56:00Z JTBD + Rules gates confirmed by user (process label: yes); engineering scope drafted, pending scope gate
+- 2026-07-06T01:20:00Z /quality-review pass 2: APPROVE. Implement-time note: run the hex-run rejection on slugs of ANY length — do not inherit HIGH_ENTROPY_RUN's >=20-char floor for this field (sub-20 hex slugs must still drop)

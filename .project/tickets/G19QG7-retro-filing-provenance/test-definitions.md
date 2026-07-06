@@ -4,6 +4,11 @@ Feature source: `packages/cli/features/retro-filing-provenance.feature`
 
 test-definitions.md is the R/G/R ledger.
 
+Quality-review notes for RED (2026-07-06): the SM2.R5 scenario must assert the
+list query's filter parameters (state=open, labels=retro) on the transport spy,
+not merely the absence of comments — otherwise a sweep that lists everything but
+skips these fixtures passes vacuously.
+
 ## Rule: retro-filing-provenance.SM1.R1 — Every encounter records environment-aware provenance, newest visible
 
 ### Scenario: A dogfood-session encounter records the safeword short HEAD SHA and capture time
