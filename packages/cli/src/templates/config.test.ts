@@ -263,7 +263,7 @@ describe('SETTINGS_HOOKS', () => {
       h.hooks.some(
         (hook: HookCommand) => hook.type === 'command' && hook.command.includes('pre-tool-quality'),
       ),
-    ).map((h: HookEntry) => h.matcher);
+    ).map((h: HookEntry) => ('matcher' in h ? h.matcher : undefined));
     expect(qualityMatchers).toContain('Bash');
     expect(qualityMatchers).toContain('Edit|Write|MultiEdit|NotebookEdit');
   });

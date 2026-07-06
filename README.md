@@ -245,7 +245,8 @@ Key directories created in your project:
 - `post-tool-quality.ts` - Tracks LOC, detects phase changes and TDD steps
 - `post-tool-bypass-warn.ts` - Warns when agent bypasses quality gates
 - `post-tool-skill-nudge.ts` - On the first edit of a language with an installed coding-skill, points the agent at that skill (see Language coding-skills below)
-- `pre-tool-quality.ts` - Blocks edits when quality gate is active (LOC, phase, or TDD)
+- `post-tool-work-log.ts` - Stamps a real-timestamp work-log line in ticket.md when a phase transition lands
+- `pre-tool-quality.ts` - Blocks edits when quality gate is active (LOC, phase, or TDD); on Bash, denies R/G/R ledger writes and machine-wide process kills (`killall node`)
 - `pre-tool-config-guard.ts` - Guards against settings.json modifications
 - `stop-quality.ts` - Quality review prompt on stop
 - `cursor/after-file-edit.ts` - Auto-lints after Cursor file edits
