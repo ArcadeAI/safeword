@@ -15,44 +15,44 @@ source; this file tracks per-scenario RED → GREEN → REFACTOR with commit SHA
 
 ### Scenario: A staged forward phase advance without an anchor is warned and recorded
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED skip: emerged green from slice-1 engine composition
+- [x] GREEN 5ab57b6
 - [ ] REFACTOR
 
 ### Scenario: A feature ticket at rest born past intake is warned at the boundary
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 3eeed2c
+- [x] GREEN 5ab57b6
 - [ ] REFACTOR
 
 ### Scenario: A staged ticket.md with unparseable frontmatter is warned, never crashed on
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 3eeed2c
+- [x] GREEN 5ab57b6
 - [ ] REFACTOR
 
 ### Scenario: Several tickets in one commit are each reconciled with verdicts grouped per ticket
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED skip: emerged green from slice-1 engine composition
+- [x] GREEN 5ab57b6
 - [ ] REFACTOR
 
 ### Scenario: An invalid ledger annotation is warned at the commit boundary
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 3eeed2c
+- [x] GREEN 5ab57b6
 - [ ] REFACTOR
 
 ### Scenario: A feature ticket whose ledger is absent entirely is warned
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 3eeed2c
+- [x] GREEN 5ab57b6
 - [ ] REFACTOR
 
 ### Scenario: A malformed evidence artifact is warned about by name
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 3eeed2c
+- [x] GREEN 5ab57b6
 - [ ] REFACTOR
 
 ### Scenario: The commit tier consults no git history — reachability waits for push
@@ -63,8 +63,8 @@ source; this file tracks per-scenario RED → GREEN → REFACTOR with commit SHA
 
 ### Scenario: A mixed commit of source files and one ticket artifact is reconciled, not silent
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED skip: emerged green from slice-1 engine composition
+- [x] GREEN 5ab57b6
 - [ ] REFACTOR
 
 ## Rule: A push additionally verifies evidence against reachable history
@@ -129,8 +129,8 @@ source; this file tracks per-scenario RED → GREEN → REFACTOR with commit SHA
 
 ### Scenario: Multiple findings all print and record while the commit still exits zero
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 3eeed2c
+- [x] GREEN 5ab57b6
 - [ ] REFACTOR
 
 ### Scenario: Unreachable evidence at push warns but never blocks
