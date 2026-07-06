@@ -43,17 +43,32 @@ describe('untrackIgnoredFiles', () => {
   });
 
   it('is a no-op when the pathspec matches nothing tracked', () => {
-    expect(() => {
-      untrackIgnoredFiles(directory, ['.safeword-project/failure-counts.json']);
-    }).not.toThrow();
+    // Seed a tracked file so "no-op" is observable, not vacuous: the index
+    // must be byte-identical after the unmatched untrack, not merely un-thrown.
+    writeFileSync(nodePath.join(directory, 'keep.txt'), 'tracked\n');
+    execSync('git add -A && git commit -q -m init', { cwd: directory });
+    const indexBefore = execSync('git ls-files', { cwd: directory, encoding: 'utf8' });
+
+    untrackIgnoredFiles(directory, ['.safeword-project/failure-counts.json']);
+
+    expect(execSync('git ls-files', { cwd: directory, encoding: 'utf8' })).toBe(indexBefore);
+    expect(existsSync(nodePath.join(directory, 'keep.txt'))).toBe(true);
   });
 
   it('is a no-op outside a git repository', () => {
     const plain = createTemporaryDirectory();
     try {
+      const relative = '.safeword-project/re-entry.md';
+      const absolute = nodePath.join(plain, relative);
+      mkdirSync(nodePath.dirname(absolute), { recursive: true });
+      writeFileSync(absolute, 'session log\n');
+
       expect(() => {
-        untrackIgnoredFiles(plain, ['.safeword-project/re-entry.md']);
+        untrackIgnoredFiles(plain, [relative]);
       }).not.toThrow();
+
+      // The named file survives on disk — nothing was deleted in lieu of untracking.
+      expect(existsSync(absolute)).toBe(true);
     } finally {
       removeTemporaryDirectory(plain);
     }

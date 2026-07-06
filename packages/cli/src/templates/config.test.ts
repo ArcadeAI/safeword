@@ -32,46 +32,32 @@ describe('getEslintConfig', () => {
     expect(config).toContain('const { detect, configs } = safeword');
   });
 
-  it('should use detect.collectAllDeps for dependency scanning', () => {
-    const config = getEslintConfig();
-
-    expect(config).toContain('detect.collectAllDeps(__dirname)');
-    expect(config).toContain('detect.detectFramework(deps)');
-  });
-
-  it('should include framework detection for config selection', () => {
-    const config = getEslintConfig();
-
-    // Config should have baseConfigs mapping
-    expect(config).toContain('configs.recommendedTypeScriptNext');
-    expect(config).toContain('configs.recommendedTypeScriptReact');
-    expect(config).toContain('configs.recommendedTypeScript');
-    expect(config).toContain('configs.recommended');
-    expect(config).toContain('baseConfigs[framework]');
-  });
-
-  it('should include testing, storybook, and query configs conditionally', () => {
-    const config = getEslintConfig();
-
-    // All framework plugins are conditional (peer deps require the framework)
-    expect(config).toContain('detect.hasVitest(deps)');
-    expect(config).toContain('detect.hasBunTest(deps, __dirname)');
-    expect(config).toContain('detect.hasPlaywright(deps)');
-    expect(config).toContain('detect.hasStorybook(deps)');
-    expect(config).toContain('detect.hasTanstackQuery(deps)');
-  });
-
-  it('should use detection only for Tailwind (plugin needs config to validate classes)', () => {
-    const config = getEslintConfig();
-
-    // Tailwind still needs detection because plugin may require tailwind.config.js
-    expect(config).toContain('detect.hasTailwind(deps)');
-  });
-
-  it('should use detect.getIgnores for standard ignores', () => {
-    const config = getEslintConfig();
-
-    expect(config).toContain('detect.getIgnores()');
+  // Contract pins over the emitted source, deduped into one table (audit A7192X):
+  // each entry is part of the generated config's public wiring — the safeword/eslint
+  // detection API it calls and the base-config selection it performs. Behavioral
+  // coverage (the config actually linting) lives in tests/integration/golden-path.test.ts;
+  // these only guard the emitted contract, so a rename in the safeword/eslint API
+  // shows up here before it ships broken configs to users.
+  it.each([
+    ['dependency scanning', 'detect.collectAllDeps(__dirname)'],
+    ['framework detection', 'detect.detectFramework(deps)'],
+    ['framework base-config selection', 'baseConfigs[framework]'],
+    ['Next.js base config', 'configs.recommendedTypeScriptNext'],
+    ['React base config', 'configs.recommendedTypeScriptReact'],
+    ['TypeScript base config', 'configs.recommendedTypeScript'],
+    ['plain-JS base config', 'configs.recommended'],
+    ['conditional Vitest plugin', 'detect.hasVitest(deps)'],
+    ['conditional bun:test plugin', 'detect.hasBunTest(deps, __dirname)'],
+    ['conditional Playwright plugin', 'detect.hasPlaywright(deps)'],
+    ['conditional Storybook plugin', 'detect.hasStorybook(deps)'],
+    ['conditional TanStack Query plugin', 'detect.hasTanstackQuery(deps)'],
+    [
+      'Tailwind detection (plugin needs tailwind.config to validate classes)',
+      'detect.hasTailwind(deps)',
+    ],
+    ['standard ignores', 'detect.getIgnores()'],
+  ])('generated config wires %s', (_purpose, contractCall) => {
+    expect(getEslintConfig()).toContain(contractCall);
   });
 
   it('should include eslint-config-prettier when no existing formatter', () => {
