@@ -54,7 +54,7 @@ Affected:
 
 #### retro-filing-provenance.SM2.R3 — Reconcile is idempotent: re-running against unchanged state adds no duplicate flags or comments
 
-#### retro-filing-provenance.SM2.R4 — An issue without recorded provenance (filed before this feature) is left untouched, never guessed at
+#### retro-filing-provenance.SM2.R4 — An issue that cannot be reconciled — no recorded provenance (pre-feature) or no file-path surface (`process/<slug>`) — is left untouched, never guessed at
 
 ## Rave Moment
 
@@ -78,6 +78,8 @@ Retro files from two environments, and provenance means different things in each
 
 ## Open Questions
 
-- How is reconcile invoked — a `safeword retro --reconcile` CLI mode only, or also wired into this repo's CI on merge to main? (Proposal: CLI mode in scope; CI wiring is a one-line follow-up outside this ticket.)
-- Within-session staleness (a finding fixed later in the same session, before any merge) — out of scope here? (Proposal: yes; the reconcile sweep catches it once the fix merges, and in-session deferral is a separate design with its own Stop-timing tradeoffs.)
-- Should reconcile treat a `process/<slug>` surface (PNZM3B) as unreconcilable-by-path and skip it? (Proposal: yes — no file path to diff; leave untouched like pre-provenance issues.)
+All resolved at the intake gates (2026-07-06):
+
+- Reconcile ships as a CLI mode only; CI wiring is a follow-up outside this ticket.
+- Within-session staleness is out of scope — the sweep catches it once the fix merges.
+- `process/<slug>` surfaces (PNZM3B) are unreconcilable-by-path and skipped (folded into SM2.R4).

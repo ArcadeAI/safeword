@@ -64,4 +64,6 @@ skip: internal maintainer plumbing — no persona-facing peak to name.
 
 ## Open Questions
 
-- Should `process/<slug>` findings carry a distinguishing label (e.g. `process`) at draft time for tracker triage?
+All resolved at the JTBD gate (2026-07-06):
+
+- `process/<slug>` findings carry a `process` label at draft time for tracker triage (confirmed; in scope).
