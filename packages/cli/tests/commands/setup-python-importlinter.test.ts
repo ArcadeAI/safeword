@@ -170,6 +170,69 @@ describe('python-importlinter-scaffold.TB1.R2 — existing import-linter config 
   );
 });
 
+describe('python-importlinter-scaffold.TB1.R3 — ambiguous package layout scaffolds nothing', () => {
+  it(
+    'a scripts-only Python project gets no scaffold',
+    async () => {
+      createPythonProject(state.projectDirectory);
+      createSafewordBasePackageJson(state.projectDirectory);
+      writeTestFile(state.projectDirectory, 'run.py', 'print("script")\n');
+      initGitRepo(state.projectDirectory);
+
+      await runCli(['setup'], {
+        cwd: state.projectDirectory,
+        env: SKIP_INSTALL_ENV,
+        timeout: TIMEOUT_SETUP,
+      });
+
+      expect(fileExists(state.projectDirectory, '.importlinter')).toBe(false);
+    },
+    TIMEOUT_SETUP,
+  );
+
+  it.each([
+    [
+      'two importable packages at the repo root',
+      ['alpha/__init__.py', 'beta/__init__.py'],
+      'setup',
+    ],
+    [
+      'one package at the repo root and one under src/',
+      ['alpha/__init__.py', 'src/beta/__init__.py'],
+      'setup',
+    ],
+    [
+      'two importable packages at the repo root',
+      ['alpha/__init__.py', 'beta/__init__.py'],
+      'upgrade',
+    ],
+  ])(
+    '%s gets no scaffold (%s)',
+    async (_layout, files, command) => {
+      createPythonProject(state.projectDirectory);
+      createSafewordBasePackageJson(state.projectDirectory);
+      for (const f of files) writeTestFile(state.projectDirectory, f, '');
+      initGitRepo(state.projectDirectory);
+
+      await runCli(['setup'], {
+        cwd: state.projectDirectory,
+        env: SKIP_INSTALL_ENV,
+        timeout: TIMEOUT_SETUP,
+      });
+      if (command === 'upgrade') {
+        await runCli(['upgrade'], {
+          cwd: state.projectDirectory,
+          env: SKIP_INSTALL_ENV,
+          timeout: TIMEOUT_SETUP,
+        });
+      }
+
+      expect(fileExists(state.projectDirectory, '.importlinter')).toBe(false);
+    },
+    TIMEOUT_SETUP * 2,
+  );
+});
+
 // E2E teeth: prove the scaffold is valid FOR THE REAL TOOL, not merely present.
 // Guarded on binary availability (visible skip locally); CI installs import-linter
 // via .github/requirements-ci.txt so these always run there.
