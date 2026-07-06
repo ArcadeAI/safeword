@@ -11,15 +11,15 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { appendFileSync, existsSync, mkdirSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
 import {
-  type ChangedArtifact,
   findings,
   reconcileChange,
   TICKET_ARTIFACTS,
+  type TicketChange,
 } from '../boundary/engine.js';
 import { resolveTicketsDirectory } from '../utils/configured-paths.js';
 import { warn } from '../utils/output.js';
@@ -60,28 +60,66 @@ function contentAt(cwd: string, spec: string): string | undefined {
   return tryGit(cwd, ['show', spec]);
 }
 
-/** Map changed paths to ticket artifacts with prior/proposed content. */
-function collectArtifacts(cwd: string, paths: string[], at: Boundary): ChangedArtifact[] {
+/** Split a repo-relative changed path into ticket folder + artifact basename. */
+function parseTicketPath(
+  path: string,
+  prefix: string,
+): { ticketFolder: string; basename: string } | undefined {
+  if (!path.startsWith(prefix)) return undefined;
+  const segments = path.slice(prefix.length).split('/');
+  const ticketFolder = segments[0] ?? '';
+  const basename = segments.slice(1).join('/');
+  if (ticketFolder === '' || !TICKET_ARTIFACTS.has(basename)) return undefined;
+  return { ticketFolder, basename };
+}
+
+/** Map changed paths to per-ticket changes with prior/proposed + at-rest context. */
+function collectChanges(cwd: string, paths: string[], at: Boundary): TicketChange[] {
   const ticketsDirectory = nodePath.relative(cwd, resolveTicketsDirectory(cwd));
   const prefix = `${ticketsDirectory}/`;
-  const artifacts: ChangedArtifact[] = [];
+  const byTicket = new Map<string, TicketChange>();
+
   for (const path of paths) {
-    if (!path.startsWith(prefix)) continue;
-    const segments = path.slice(prefix.length).split('/');
-    const ticketFolder = segments[0] ?? '';
-    const basename = segments.slice(1).join('/');
-    if (ticketFolder === '' || !TICKET_ARTIFACTS.has(basename)) continue;
+    const parsed = parseTicketPath(path, prefix);
+    if (parsed === undefined) continue;
     // eslint-disable-next-line unicorn/no-incorrect-template-string-interpolation -- `@{u}` is a git refspec (the upstream), not a missed interpolation
     const priorSpec = at === 'commit' ? `HEAD:${path}` : `@{u}:${path}`;
     const proposedSpec = at === 'commit' ? `:${path}` : `HEAD:${path}`;
-    artifacts.push({
-      ticketFolder,
-      artifact: basename,
+    const change = byTicket.get(parsed.ticketFolder) ?? {
+      ticketFolder: parsed.ticketFolder,
+      artifacts: [],
+      hasLedger: false,
+    };
+    change.artifacts.push({
+      artifact: parsed.basename,
       prior: contentAt(cwd, priorSpec),
       proposed: contentAt(cwd, proposedSpec),
     });
+    byTicket.set(parsed.ticketFolder, change);
   }
-  return artifacts;
+
+  // At-rest context per touched ticket: ticket.md as it stands after the
+  // change (staged version wins over disk) and whether a ledger exists.
+  for (const change of byTicket.values()) {
+    const folder = nodePath.join(cwd, ticketsDirectory, change.ticketFolder);
+    const staged = change.artifacts.find(a => a.artifact === 'ticket.md')?.proposed;
+    change.ticketCurrent = staged ?? readFileSafe(nodePath.join(folder, 'ticket.md'));
+    change.hasLedger =
+      change.artifacts.some(
+        a => a.artifact === 'test-definitions.md' && a.proposed !== undefined,
+      ) || existsSync(nodePath.join(folder, 'test-definitions.md'));
+  }
+
+  return byTicket.values().toArray();
+}
+
+/** Read a file, or undefined when absent/unreadable — never throws. */
+function readFileSafe(path: string): string | undefined {
+  try {
+    return readFileSync(path, 'utf8');
+  } catch {
+    return undefined;
+  }
 }
 
 function appendAudit(cwd: string, entry: object): void {
@@ -95,10 +133,10 @@ function reconcileBoundary(cwd: string, at: Boundary): void {
   const paths = changedPaths(cwd, at);
   if (paths === undefined || paths.length === 0) return;
 
-  const artifacts = collectArtifacts(cwd, paths, at);
-  if (artifacts.length === 0) return;
+  const changes = collectChanges(cwd, paths, at);
+  if (changes.length === 0) return;
 
-  const reconciliations = reconcileChange(artifacts);
+  const reconciliations = reconcileChange(changes);
   for (const finding of findings(reconciliations)) {
     warn(
       `boundary(${at}) ${finding.ticket}: [${finding.check.check}] ${finding.check.detail ?? finding.check.verdict}`,
