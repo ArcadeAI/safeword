@@ -68,9 +68,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: reset removes an unmodified safeword-scaffolded config
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 9e29f2c
+- [x] GREEN 31950b3
+- [x] REFACTOR skip: extracted planConditionalManagedRemoval at GREEN to satisfy the complexity gate; already clean
 
 ### Scenario: reset preserves a user-extended scaffold
 
