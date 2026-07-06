@@ -43,6 +43,30 @@ source; this file tracks per-scenario RED → GREEN → REFACTOR with commit SHA
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A feature ticket whose ledger is absent entirely is warned
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A malformed evidence artifact is warned about by name
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: The commit tier consults no git history — reachability waits for push
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A mixed commit of source files and one ticket artifact is reconciled, not silent
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: A push additionally verifies evidence against reachable history
 
 ### Scenario: A well-formed anchor that is not reachable from the pushed history is warned
@@ -64,6 +88,18 @@ source; this file tracks per-scenario RED → GREEN → REFACTOR with commit SHA
 - [ ] REFACTOR
 
 ### Scenario: Ledger step SHAs are verified against the pushed history
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A failing SHA resolution is recorded as indeterminate, never a crash
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A branch pushed for the first time still gets its outgoing work reconciled
 
 - [ ] RED
 - [ ] GREEN
@@ -91,13 +127,13 @@ source; this file tracks per-scenario RED → GREEN → REFACTOR with commit SHA
 
 ## Rule: Findings never block — the local tier has no failing exit
 
-### Scenario: A commit boundary with multiple findings still exits zero
+### Scenario: Multiple findings all print and record while the commit still exits zero
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A push boundary with unreachable evidence still exits zero
+### Scenario: Unreachable evidence at push warns but never blocks
 
 - [ ] RED
 - [ ] GREEN

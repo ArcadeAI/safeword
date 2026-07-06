@@ -32,6 +32,7 @@ Feature: Boundary reconciliation gate — evidence checks re-run at commit and p
       Given a staged change touching a feature ticket that sits at phase implement with no phase_skips and no intake history
       When the boundary command runs at the commit boundary
       Then it exits zero and warns that the ticket was born past intake without justification
+      And an audit entry records the finding
 
     @boundary-reconciliation-gate.SM1.AC1
     Scenario: A staged ticket.md with unparseable frontmatter is warned, never crashed on
@@ -51,6 +52,38 @@ Feature: Boundary reconciliation gate — evidence checks re-run at commit and p
       Given a staged test-definitions.md whose checked step carries a malformed annotation
       When the boundary command runs at the commit boundary
       Then it exits zero and warns about the ledger annotation
+      And an audit entry records the finding
+
+    @boundary-reconciliation-gate.SM1.AC1
+    Scenario: A feature ticket whose ledger is absent entirely is warned
+      Given a staged change touching a feature ticket past define-behavior with no test-definitions.md
+      When the boundary command runs at the commit boundary
+      Then it exits zero and warns that the ledger is missing
+
+    @boundary-reconciliation-gate.SM1.AC1
+    Scenario Outline: A malformed evidence artifact is warned about by name
+      Given a staged <artifact> that fails its shape check
+      When the boundary command runs at the commit boundary
+      Then it exits zero and the warning names <artifact>
+
+      Examples:
+        | artifact     |
+        | verify.md    |
+        | impl-plan.md |
+
+    @boundary-reconciliation-gate.SM1.AC1
+    Scenario: The commit tier consults no git history — reachability waits for push
+      Given a staged advance whose anchor SHA is well-formed but absent from history
+      When the boundary command runs at the commit boundary
+      Then it exits zero without any reachability warning
+      And no reachability verification is attempted
+
+    @boundary-reconciliation-gate.SM1.AC1
+    Scenario: A mixed commit of source files and one ticket artifact is reconciled, not silent
+      Given a staged change touching source files and one ticket with an unanchored advance
+      When the boundary command runs at the commit boundary
+      Then it exits zero and warns about the unanchored advance
+      And an audit entry records the finding
 
   Rule: A push additionally verifies evidence against reachable history
 
@@ -65,6 +98,7 @@ Feature: Boundary reconciliation gate — evidence checks re-run at commit and p
       Given a ticket whose anchor SHA was rewritten by a rebase but whose patch is reachable under a new SHA
       When the boundary command runs at the push boundary
       Then it exits zero with no anchor warning
+      And the audit entry records a passing reachability verdict
 
     @boundary-reconciliation-gate.SM1.AC2
     Scenario: Only the entered phase's anchor is demanded on a multi-phase advance
@@ -77,6 +111,19 @@ Feature: Boundary reconciliation gate — evidence checks re-run at commit and p
       Given a ticket in the outgoing range whose ledger GREEN SHA is absent from history
       When the boundary command runs at the push boundary
       Then it exits zero and warns about the unreachable ledger SHA
+
+    @boundary-reconciliation-gate.SM1.AC2
+    Scenario: A failing SHA resolution is recorded as indeterminate, never a crash
+      Given a ticket in the outgoing range whose SHA resolution fails mid-run
+      When the boundary command runs at the push boundary
+      Then it still exits zero
+      And the audit entry records the reachability check as indeterminate
+
+    @boundary-reconciliation-gate.SM1.AC2
+    Scenario: A branch pushed for the first time still gets its outgoing work reconciled
+      Given a branch with no upstream whose unpushed commits touch a ticket with an unanchored advance
+      When the boundary command runs at the push boundary
+      Then it exits zero and warns about the unanchored advance
 
   Rule: The gate is silent and free for changes that touch no ticket artifacts
 
@@ -99,20 +146,22 @@ Feature: Boundary reconciliation gate — evidence checks re-run at commit and p
       Given a git repository with no safeword configuration
       When the boundary command runs at the commit boundary
       Then it exits zero with no output
+      And no audit entry is written
 
   Rule: Findings never block — the local tier has no failing exit
 
     @boundary-reconciliation-gate.TB1.AC2
-    Scenario: A commit boundary with multiple findings still exits zero
+    Scenario: Multiple findings all print and record while the commit still exits zero
       Given a staged change whose ticket evidence produces several findings
       When the boundary command runs at the commit boundary
-      Then it exits zero
+      Then it prints every finding as a warning and still exits zero
+      And one audit entry records all the findings
 
     @boundary-reconciliation-gate.TB1.AC2
-    Scenario: A push boundary with unreachable evidence still exits zero
+    Scenario: Unreachable evidence at push warns but never blocks
       Given an outgoing range whose ticket evidence includes an unreachable anchor
       When the boundary command runs at the push boundary
-      Then it exits zero
+      Then it warns about the unreachable evidence and still exits zero
 
   Rule: Every reconciliation is durably recorded locally
 
