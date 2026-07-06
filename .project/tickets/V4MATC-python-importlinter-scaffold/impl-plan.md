@@ -1,8 +1,8 @@
 # Impl Plan: Python pack: scaffold generic import-linter config
 
-**Status:** planned
+**Status:** implemented
 
-_Rev 2 — corrected against codebase reality by pre-implementation review + primary-source docs._
+_Rev 2 corrected the plan against codebase reality (pre-implementation review + primary-source docs); rev 3 reconciles it against what shipped._
 
 ## Approach
 
@@ -67,6 +67,14 @@ ancestors = <pkg>
 | Reset removal criterion | NEW per-entry `removeIfUnmodified` (content-comparison vs regenerated scaffold, gate-free content source) | sidecar marker; unconditional `--full` removal (status quo) | sidecar = more state that can lie; unconditional removal deletes user contracts (R4 rejection scenarios) |
 | Tool installation | auto-install with the pack's other Python tools, extended to single-package projects (R5 as flipped by Alex, 2026-07-06) | guidance-only | inconsistent with pack reality (already auto-installs); leaves the check dead until manual action |
 | Detection breadth | exactly one `__init__.py` package at root or under `src/` | broad heuristics (setup.py metadata, namespace pkgs) | wrong guess errors every audit; widen on demand |
+| Install-condition source (added at whole-ticket review) | `hasImportLinterScaffoldTarget` exported from files.ts; setupPython consumes it | re-deriving layers-or-sole-package at each call site | duplicated predicate drifts silently when scaffold conditions change |
+
+**Reconciliation notes (what differed from the plan):**
+
+- Slice 3's "migrate setup-python-phase2 assertions" turned out to be a no-op: Test 2.1b's fixture has no importable package at all, so it remains valid under the new behavior (verified green throughout).
+- Slice 6's machinery landed as a per-entry *function* (`removeIfUnmodified?: (ctx) => string | undefined`) rather than a boolean flag — the function IS the gate-free content source, collapsing two plan concepts into one field.
+- R5 flipped mid-implement (Alex, 2026-07-06): auto-install with the pack's other tools, replacing the original guidance-only rule — recorded in the Decisions row above and in spec.md.
+- The full-suite environment detour (Node 22 vs the repo's ^24.16 floor) was resolved by installing Node 24.18 (upstream #872 filed then closed as env-misdiagnosis).
 
 ## Arch alignment
 
@@ -82,3 +90,5 @@ One acknowledged: **new reconcile machinery** (`removeIfUnmodified` for managedF
 - Demand for multi-package/namespace layouts → revisit detection breadth.
 - A `sync-config`-style Python regeneration path → revisit create-once (comparison logic generalizes).
 - Other packs need conditional-removal semantics → promote `removeIfUnmodified` from Python-specific usage to documented schema vocabulary.
+- CI guarantees a `uv` binary → harden the R5 install assertions from install-intent output to strict pyproject content (deferred quality-review finding 5).
+- A second Python cucumber steps file appears → extract shared fixtures to `steps/support/python-fixtures.ts` (deferred finding 4).
