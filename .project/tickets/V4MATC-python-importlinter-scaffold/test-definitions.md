@@ -30,7 +30,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 51fd266
 - [x] GREEN 969e53c
-- [ ] REFACTOR
+- [x] REFACTOR skip: detector gained a small shared helper at GREEN; remaining rows are parameterized tests (08d6a90), nothing to restructure
 
 ## Rule: python-importlinter-scaffold.TB1.R3 — when the top-level package cannot be determined unambiguously, safeword scaffolds nothing
 
