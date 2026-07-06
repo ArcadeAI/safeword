@@ -27,18 +27,19 @@ Safeword is a CLI tool that configures linting, hooks, and development guides fo
 
 ### Tech Stack
 
-| Category        | Choice             | Rationale                              |
-| --------------- | ------------------ | -------------------------------------- |
-| Runtime         | Bun                | Fast startup, TypeScript native        |
-| Package Manager | npm/bun            | Standard for JS ecosystem              |
-| JS Linting      | ESLint             | Industry standard, extensive rule set  |
-| Python Linting  | Ruff               | Fast, replaces flake8/black/isort      |
-| Go Linting      | golangci-lint      | Aggregates 100+ linters, fast          |
-| Rust Linting    | clippy             | 750+ lints, pedantic by default        |
-| Rust Formatting | rustfmt            | Deterministic, gofmt-style formatting  |
-| SQL Linting     | SQLFluff           | dbt-aware, Jinja templater support     |
-| Type Checking   | tsc / mypy         | Native type checkers for each language |
-| Arch Validation | dependency-cruiser | Circular dep detection, layer rules    |
+| Category        | Choice             | Rationale                                                                              |
+| --------------- | ------------------ | -------------------------------------------------------------------------------------- |
+| Runtime         | Bun                | Fast startup, TypeScript native                                                        |
+| Package Manager | npm/bun            | Standard for JS ecosystem                                                              |
+| JS Linting      | ESLint             | Industry standard, extensive rule set                                                  |
+| Python Linting  | Ruff               | Fast, replaces flake8/black/isort                                                      |
+| Go Linting      | golangci-lint      | Aggregates 100+ linters, fast                                                          |
+| Rust Linting    | clippy             | 750+ lints, pedantic by default                                                        |
+| Rust Formatting | rustfmt            | Deterministic, gofmt-style formatting                                                  |
+| SQL Linting     | SQLFluff           | dbt-aware, Jinja templater support                                                     |
+| Type Checking   | tsc / mypy         | Native type checkers for each language                                                 |
+| Arch Validation | dependency-cruiser | Circular dep detection, layer rules (JS/TS)                                            |
+| Arch Validation | import-linter      | Python cycle guard (acyclic_siblings) + layer contracts, scaffolded by the Python pack |
 
 ---
 

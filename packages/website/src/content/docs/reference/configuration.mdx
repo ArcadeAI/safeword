@@ -80,13 +80,13 @@ export default defineConfig([
 
 Safeword auto-detects your stack and configures linting accordingly:
 
-| Language       | Linting           | Type Checking |
-| -------------- | ----------------- | ------------- |
-| TypeScript     | ESLint + Prettier | tsc           |
-| Python (beta)  | Ruff              | mypy          |
-| Go (beta)      | golangci-lint     | go vet        |
-| Rust (beta)    | clippy            | rustc         |
-| SQL/dbt (beta) | SQLFluff          | —             |
+| Language       | Linting           | Type Checking | Architecture       |
+| -------------- | ----------------- | ------------- | ------------------ |
+| TypeScript     | ESLint + Prettier | tsc           | dependency-cruiser |
+| Python (beta)  | Ruff              | mypy          | import-linter      |
+| Go (beta)      | golangci-lint     | go vet        | —                  |
+| Rust (beta)    | clippy            | rustc         | —                  |
+| SQL/dbt (beta) | SQLFluff          | —             | —                  |
 
 Detection is stored in `.safeword/config.json`. To force a refresh, delete that file and run `safeword setup` again.
 

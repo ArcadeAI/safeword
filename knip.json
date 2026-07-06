@@ -25,7 +25,8 @@
     "quality-review",
     "setup",
     "check",
-    "lint-gherkin"
+    "lint-gherkin",
+    "lint-imports"
   ],
   "ignoreDependencies": [
     "safeword",
