@@ -26,7 +26,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: python-importlinter-scaffold.TB1.R2 — an existing import-linter configuration is never modified, duplicated, or overridden
 
-### Scenario: setup leaves a project with existing import-linter config untouched (outline: .importlinter / setup.cfg / pyproject.toml)
+### Scenario: setup and upgrade leave a project with existing import-linter config untouched (outline: 3 config forms × setup, 2 × upgrade)
 
 - [ ] RED
 - [ ] GREEN
@@ -67,6 +67,12 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: reset removes an unmodified safeword-scaffolded config
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: reset preserves a user-extended scaffold
 
 - [ ] RED
 - [ ] GREEN

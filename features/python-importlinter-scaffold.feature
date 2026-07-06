@@ -32,18 +32,20 @@ Feature: Python pack scaffolds a generic import-linter config
   Rule: python-importlinter-scaffold.TB1.R2 — an existing import-linter configuration is never modified, duplicated, or overridden
 
     @rejection
-    Scenario Outline: setup leaves a project with existing import-linter config untouched
+    Scenario Outline: setup and upgrade leave a project with existing import-linter config untouched
       Given a Python project with exactly one importable package at the repo root
       And an existing import-linter configuration as <config form>
-      When safeword setup runs
+      When safeword <command> runs
       Then no .importlinter file is scaffolded beyond what already existed
       And the existing configuration content is unchanged
 
       Examples:
-        | config form                        |
-        | a .importlinter file               |
-        | setup.cfg with [importlinter]      |
-        | pyproject.toml [tool.importlinter] |
+        | config form                        | command |
+        | a .importlinter file               | setup   |
+        | setup.cfg with [importlinter]      | setup   |
+        | pyproject.toml [tool.importlinter] | setup   |
+        | a .importlinter file               | upgrade |
+        | pyproject.toml [tool.importlinter] | upgrade |
 
   @python-importlinter-scaffold.TB1.R3
   Rule: python-importlinter-scaffold.TB1.R3 — when the top-level package cannot be determined unambiguously, safeword scaffolds nothing
@@ -57,13 +59,14 @@ Feature: Python pack scaffolds a generic import-linter config
     @rejection
     Scenario Outline: a project with multiple top-level packages gets no scaffold
       Given a Python project with <package layout>
-      When safeword setup runs
+      When safeword <command> runs
       Then no .importlinter file is created
 
       Examples:
-        | package layout                                            |
-        | two importable packages at the repo root                  |
-        | one importable package at the repo root and one under src/ |
+        | package layout                                             | command |
+        | two importable packages at the repo root                   | setup   |
+        | one importable package at the repo root and one under src/ | setup   |
+        | two importable packages at the repo root                   | upgrade |
 
   @python-importlinter-scaffold.TB1.R4
   Rule: python-importlinter-scaffold.TB1.R4 — the scaffold is create-once, then the user's: created when absent, never overwritten, reset removes only the unmodified
@@ -74,6 +77,7 @@ Feature: Python pack scaffolds a generic import-linter config
       And no import-linter configuration in any form
       When safeword upgrade runs
       Then a .importlinter file exists naming that package as root_packages
+      And it declares exactly one acyclic-siblings contract
 
     Scenario: upgrade is idempotent over an unmodified scaffold
       Given a Python project that safeword previously set up with a scaffolded .importlinter
@@ -93,6 +97,12 @@ Feature: Python pack scaffolds a generic import-linter config
       And the file is unchanged since scaffolding
       When safeword reset runs
       Then the .importlinter file is removed
+
+    @rejection
+    Scenario: reset preserves a user-extended scaffold
+      Given a Python project whose scaffolded .importlinter was extended by the user with an additional contract
+      When safeword reset runs
+      Then the user's extended .importlinter content is unchanged
 
     @rejection
     Scenario: reset preserves a user-authored import-linter config
