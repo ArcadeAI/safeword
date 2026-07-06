@@ -16,6 +16,7 @@
     "lint": "eslint . && bun run lint:gherkin && bun run --cwd packages/cli typecheck",
     "format": "prettier --write .",
     "parity:fix": "bun scripts/parity-check.ts --fix",
+    "safeword": "bun packages/cli/src/cli.ts",
     "lint:md": "markdownlint-cli2 \"**/*.md\" \"#**/node_modules\" \"#examples\" \"#dist\"",
     "lint:sh": "shellcheck **/*.sh .safeword/hooks/* packages/cli/templates/hooks/* packages/cli/templates/scripts/* 2>/dev/null || true",
     "lint:gherkin": "bun packages/cli/src/cli.ts lint-gherkin",
