@@ -361,6 +361,49 @@ describe('python-importlinter-scaffold.TB1.R4 — create-once lifecycle (reset)'
   );
 });
 
+describe("python-importlinter-scaffold.TB1.R5 — installed with the pack's other Python tools", () => {
+  it(
+    'a failed installation surfaces the package-manager-appropriate install command',
+    async () => {
+      // pip projects never auto-install (deliberate); the guidance line always
+      // prints, making this the deterministic cross-environment failure fixture.
+      createFlatSinglePackageProject(state.projectDirectory);
+      initGitRepo(state.projectDirectory);
+
+      const result = await runCli(['setup'], {
+        cwd: state.projectDirectory,
+        timeout: TIMEOUT_SETUP,
+      });
+
+      expect(result.stdout).toContain('Install Python tools');
+      expect(result.stdout).toMatch(/pip install .*import-linter/);
+    },
+    TIMEOUT_SETUP,
+  );
+
+  it(
+    "setup installs import-linter alongside the pack's other Python tools",
+    async () => {
+      // uv-managed fixture: the "Installing Python tools (…)" intent line names
+      // the tool set regardless of whether the local uv install then succeeds.
+      createPythonProject(state.projectDirectory, { manager: 'uv' });
+      createSafewordBasePackageJson(state.projectDirectory);
+      writeTestFile(state.projectDirectory, 'mypkg/__init__.py', '');
+      initGitRepo(state.projectDirectory);
+
+      const result = await runCli(['setup'], {
+        cwd: state.projectDirectory,
+        timeout: TIMEOUT_SETUP,
+      });
+
+      expect(result.stdout).toMatch(
+        /Installing Python tools \(.*import-linter.*\)|Install Python tools: uv add --dev .*import-linter/,
+      );
+    },
+    TIMEOUT_SETUP,
+  );
+});
+
 // E2E teeth: prove the scaffold is valid FOR THE REAL TOOL, not merely present.
 // Guarded on binary availability (visible skip locally); CI installs import-linter
 // via .github/requirements-ci.txt so these always run there.
