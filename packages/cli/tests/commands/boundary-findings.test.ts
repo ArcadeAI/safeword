@@ -4,10 +4,6 @@
  * features/boundary-reconciliation-gate.feature under SM1.AC1 / TB1.AC2.
  */
 
-import { execSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
-import nodePath from 'node:path';
-
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
@@ -17,47 +13,7 @@ import {
   runCli,
   writeTestFile,
 } from '../helpers';
-
-const AUDIT_PATH = '.safeword/boundary-audit.jsonl';
-
-function git(dir: string, command: string): void {
-  execSync(`git ${command}`, { cwd: dir, stdio: 'pipe' });
-}
-
-function readAudit(dir: string): Record<string, unknown>[] {
-  const auditFile = nodePath.join(dir, AUDIT_PATH);
-  if (!existsSync(auditFile)) return [];
-  return readFileSync(auditFile, 'utf8')
-    .split('\n')
-    .filter(line => line.trim() !== '')
-    .map(line => JSON.parse(line) as Record<string, unknown>);
-}
-
-/** ticket.md content builder. */
-function ticketContent(options: {
-  type?: string;
-  phase: string;
-  anchors?: string[];
-  skips?: string[];
-}): string {
-  const lines = [
-    '---',
-    'id: ZZBND',
-    `type: ${options.type ?? 'feature'}`,
-    `phase: ${options.phase}`,
-    'status: in_progress',
-  ];
-  if (options.anchors) {
-    lines.push('phase_anchors:');
-    for (const entry of options.anchors) lines.push(`  - ${entry}`);
-  }
-  if (options.skips) {
-    lines.push('phase_skips:');
-    for (const entry of options.skips) lines.push(`  - ${entry}`);
-  }
-  lines.push('---', '', '# Fixture', '');
-  return lines.join('\n');
-}
+import { boundaryTicketContent as ticketContent, git, readAudit } from './boundary-helpers';
 
 describe('safeword boundary (slice 2: commit-tier findings)', () => {
   let dir: string;

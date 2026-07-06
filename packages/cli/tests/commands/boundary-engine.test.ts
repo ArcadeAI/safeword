@@ -8,15 +8,10 @@
 import { describe, expect, it } from 'vitest';
 
 import { reconcileChange, type TicketChange } from '../../src/boundary/engine.js';
+import { boundaryTicketContent } from './boundary-helpers';
 
 function ticketContent(phase: string, anchors?: string[]): string {
-  const lines = ['---', 'id: ZZENG', 'type: feature', `phase: ${phase}`, 'status: in_progress'];
-  if (anchors) {
-    lines.push('phase_anchors:');
-    for (const entry of anchors) lines.push(`  - ${entry}`);
-  }
-  lines.push('---', '', '# Fixture', '');
-  return lines.join('\n');
+  return boundaryTicketContent({ id: 'ZZENG', phase, anchors });
 }
 
 const throwingResolver = () => {

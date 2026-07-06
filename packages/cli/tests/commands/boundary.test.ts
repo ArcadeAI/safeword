@@ -7,7 +7,7 @@
  */
 
 import { execSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -20,38 +20,13 @@ import {
   runCli,
   writeTestFile,
 } from '../helpers';
-
-const AUDIT_PATH = '.safeword/boundary-audit.jsonl';
-
-function git(dir: string, command: string): void {
-  execSync(`git ${command}`, { cwd: dir, stdio: 'pipe' });
-}
-
-/** Read parsed audit entries, or [] when the record doesn't exist yet. */
-function readAudit(dir: string): Record<string, unknown>[] {
-  const auditFile = nodePath.join(dir, AUDIT_PATH);
-  if (!existsSync(auditFile)) return [];
-  return readFileSync(auditFile, 'utf8')
-    .split('\n')
-    .filter(line => line.trim() !== '')
-    .map(line => JSON.parse(line) as Record<string, unknown>);
-}
+import { AUDIT_PATH, boundaryTicketContent, git, readAudit } from './boundary-helpers';
 
 function writeIntakeFeatureTicket(dir: string, folder: string): void {
   writeTestFile(
     dir,
     `.project/tickets/${folder}/ticket.md`,
-    [
-      '---',
-      `id: ${folder.split('-', 1)[0]}`,
-      'type: feature',
-      'phase: intake',
-      'status: in_progress',
-      '---',
-      '',
-      '# Fixture feature',
-      '',
-    ].join('\n'),
+    boundaryTicketContent({ id: folder.split('-', 1)[0], phase: 'intake' }),
   );
 }
 
