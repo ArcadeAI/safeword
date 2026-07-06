@@ -74,15 +74,15 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: reset preserves a user-extended scaffold
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: preservation is the removeIfUnmodified comparison's no-match branch, landed with the machinery GREEN; regression proof added
+- [x] GREEN 6252888
+- [x] REFACTOR skip: thin fixtures over shared helpers
 
 ### Scenario: reset preserves a user-authored import-linter config
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: same no-match branch (user file never equals the scaffold); regression proof added
+- [x] GREEN 6252888
+- [x] REFACTOR skip: thin fixtures over shared helpers
 
 ## Rule: python-importlinter-scaffold.TB1.R5 — import-linter is installed with the pack's other Python tools; a failed installation surfaces the install command
 
