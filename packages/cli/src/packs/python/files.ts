@@ -288,18 +288,29 @@ export const pythonManagedFiles: Record<string, ManagedFileDefinition> = {
     generator: ctx => {
       if (!ctx.languages?.python) return;
       if (ctx.projectType.existingImportLinterConfig) return;
-
-      // Layer structure gets the richer layers contract (existing behavior)
-      const layers = detectPythonLayers(ctx.cwd);
-      if (layers.length >= 2) {
-        const rootPackage = detectRootPackage(ctx.cwd);
-        return generateProjectImportLinterConfig(layers, rootPackage);
-      }
-
-      // No layers: generic circular-import guard when the package is unambiguous
-      const solePackage = detectSolePackage(ctx.cwd);
-      if (!solePackage) return;
-      return generateAcyclicImportLinterConfig(solePackage);
+      return importLinterScaffoldContent(ctx.cwd);
     },
+    // Default reset removes the file only when it byte-equals the scaffold we
+    // would generate — gate-free content source, since at reset time the
+    // scaffold's own existence trips the existing-config gate above (V4MATC R4).
+    removeIfUnmodified: ctx =>
+      ctx.languages?.python ? importLinterScaffoldContent(ctx.cwd) : undefined,
   },
 };
+
+/**
+ * Expected .importlinter scaffold for this project, WITHOUT the existing-config
+ * gate: layers contract when a layer structure is detected, otherwise the
+ * generic acyclic guard when the top-level package is unambiguous, else
+ * undefined. Shared by the create-time generator (which adds the gate) and the
+ * reset-time removeIfUnmodified comparison (which must not have it).
+ */
+function importLinterScaffoldContent(cwd: string): string | undefined {
+  const layers = detectPythonLayers(cwd);
+  if (layers.length >= 2) {
+    return generateProjectImportLinterConfig(layers, detectRootPackage(cwd));
+  }
+  const solePackage = detectSolePackage(cwd);
+  if (!solePackage) return undefined;
+  return generateAcyclicImportLinterConfig(solePackage);
+}
