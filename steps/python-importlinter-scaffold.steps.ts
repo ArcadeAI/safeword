@@ -103,14 +103,19 @@ After(function (this: ImportLinterWorld) {
 // Givens — fixtures
 // ---------------------------------------------------------------------------
 
+/** Flat project whose sole importable package `mypkg` holds two acyclic modules. */
+function createAcyclicMypkgProject(world: ImportLinterWorld): void {
+  const dir = createProject(world);
+  addPackage(dir, 'mypkg');
+  writeFileSync(nodePath.join(dir, 'mypkg', 'alpha.py'), 'VALUE = 1\n');
+  writeFileSync(nodePath.join(dir, 'mypkg', 'beta.py'), 'from mypkg.alpha import VALUE\n');
+  world.packageName = 'mypkg';
+}
+
 Given(
   'a Python project with exactly one importable package at the repo root',
   function (this: ImportLinterWorld) {
-    const dir = createProject(this);
-    addPackage(dir, 'mypkg');
-    writeFileSync(nodePath.join(dir, 'mypkg', 'alpha.py'), 'VALUE = 1\n');
-    writeFileSync(nodePath.join(dir, 'mypkg', 'beta.py'), 'from mypkg.alpha import VALUE\n');
-    this.packageName = 'mypkg';
+    createAcyclicMypkgProject(this);
   },
 );
 
@@ -132,11 +137,7 @@ Given(
 Given(
   'a Python project set up with the scaffolded .importlinter',
   function (this: ImportLinterWorld) {
-    const dir = createProject(this);
-    addPackage(dir, 'mypkg');
-    writeFileSync(nodePath.join(dir, 'mypkg', 'alpha.py'), 'VALUE = 1\n');
-    writeFileSync(nodePath.join(dir, 'mypkg', 'beta.py'), 'from mypkg.alpha import VALUE\n');
-    this.packageName = 'mypkg';
+    createAcyclicMypkgProject(this);
     runSafeword(this, 'setup');
     assert.ok(existsSync(configPath(this)), 'setup should have scaffolded .importlinter');
   },
