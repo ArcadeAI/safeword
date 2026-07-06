@@ -239,7 +239,7 @@ describe('SETTINGS_HOOKS', () => {
 
   it('should have PreToolUse hooks for dependency readiness, quality enforcement, config guard, git-bare-race fix, architecture staging, and stale-branch checkout', () => {
     const preToolHooks = SETTINGS_HOOKS.PreToolUse;
-    expect(preToolHooks).toHaveLength(7);
+    expect(preToolHooks).toHaveLength(8);
 
     const commands = preToolHooks.flatMap((h: HookEntry) =>
       h.hooks
@@ -253,6 +253,19 @@ describe('SETTINGS_HOOKS', () => {
     expect(commands.some((c: string) => c.includes('pre-tool-git-bare-fix'))).toBe(true);
     expect(commands.some((c: string) => c.includes('pre-tool-architecture-stage'))).toBe(true);
     expect(commands.some((c: string) => c.includes('pre-tool-stale-main'))).toBe(true);
+  });
+
+  it('pre-tool-quality is wired for Bash so its shell gates fire on Claude (K4STDR, #773)', () => {
+    // The hook's Bash branch (ledger write gate W42G34, REFACTOR commit gate
+    // J7VBGJ, process-kill guard K4STDR) only fires if a Bash matcher routes
+    // shell commands to it — the EDIT_TOOLS matcher alone leaves it dead.
+    const qualityMatchers = SETTINGS_HOOKS.PreToolUse.filter((h: HookEntry) =>
+      h.hooks.some(
+        (hook: HookCommand) => hook.type === 'command' && hook.command.includes('pre-tool-quality'),
+      ),
+    ).map((h: HookEntry) => h.matcher);
+    expect(qualityMatchers).toContain('Bash');
+    expect(qualityMatchers).toContain('Edit|Write|MultiEdit|NotebookEdit');
   });
 
   it('stale-main hook is wired to git checkout and git switch with if-filters (#366)', () => {

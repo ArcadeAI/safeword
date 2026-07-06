@@ -1,0 +1,68 @@
+// Broad process-kill detection (ticket K4STDR, issue #773).
+//
+// `killall node` / `pkill -9 node` match processes by NAME across the whole
+// machine — on a multi-project box they kill every project's dev servers,
+// test runners, and build processes, not just this project's. This predicate
+// detects a killall/pkill invocation whose target is a bare shared-runtime
+// name so the Bash gate can deny it and point to the project-scoped
+// alternatives in zombie-process-cleanup.md (port-scoped `lsof -ti:<port>`,
+// path-scoped `pkill -f "<pattern>.*$(pwd)"`, or cleanup-zombies.sh).
+//
+// ## Detection limits (deliberate — this is not a shell parser)
+//
+// The predicate classifies literal tokens, same doctrine as
+// bash-ledger-writes.ts: close the low-friction accident path, not every
+// adversarial path. Undetected forms include targets materialized at runtime
+// (`p=node; killall "$p"`), scripts that embed the kill, `xargs killall`,
+// and `sudo -u <user> killall node` (sudo option values are not modeled).
+// A quoted regex that anchors a bare name (`pkill '^node$'`) IS detected —
+// anchors are stripped before the name comparison.
+
+import { commandWordIndex, parseShellWords, splitShellSegments } from './shell-segments.js';
+
+export interface ProcessKillDetection {
+  /** The kill command word, used in the denial message. */
+  command: string;
+  /** The bare runtime name it targets. */
+  target: string;
+}
+
+/** Commands that match processes by name (machine-wide blast radius). */
+const NAME_MATCHING_KILLERS = new Set(['killall', 'pkill']);
+
+/**
+ * Interpreter runtimes shared across projects: killing every process with
+ * one of these names is never scoped to the current project. Browser/test
+ * process names (chromium, playwright) are deliberately absent — the guide
+ * sanctions `pkill -f "playwright.*$(pwd)"`, and bare browser kills are rare
+ * enough that denying them would mostly produce false positives.
+ */
+const SHARED_RUNTIMES = new Set(['node', 'bun', 'deno', 'python', 'python3', 'ruby', 'java']);
+
+/** Strip regex anchors so `'^node$'` is judged as `node`. */
+function bareName(token: string): string {
+  return token.replace(/^\^/, '').replace(/\$$/, '');
+}
+
+/**
+ * Returns a detection when any segment of `command` invokes killall/pkill
+ * with a bare shared-runtime name among its arguments, undefined otherwise.
+ * Flags are skipped wholesale: whatever the signal (`-9`, `-SIGKILL`, plain
+ * TERM) or matcher flag (`-x`, `-f`), a bare runtime target is cross-project.
+ */
+export function detectBroadProcessKill(command: string): ProcessKillDetection | undefined {
+  for (const segment of splitShellSegments(command)) {
+    const words = parseShellWords(segment);
+    let index = commandWordIndex(words);
+    while (words[index] === 'sudo') index += 1;
+    const commandWord = words[index];
+    if (commandWord === undefined || !NAME_MATCHING_KILLERS.has(commandWord)) continue;
+    for (const word of words.slice(index + 1)) {
+      if (word.startsWith('-')) continue;
+      if (SHARED_RUNTIMES.has(bareName(word))) {
+        return { command: commandWord, target: bareName(word) };
+      }
+    }
+  }
+  return undefined;
+}

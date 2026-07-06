@@ -476,6 +476,10 @@ export const SETTINGS_HOOKS = {
   PreToolUse: [
     matchedHook('Bash', `bun ${HOOKS_DIR}/pre-tool-dependency-readiness.ts`),
     matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/pre-tool-quality.ts`),
+    // The hook's Bash branch — ledger write gate (W42G34), broad process-kill
+    // guard (K4STDR, #773), REFACTOR commit gate (J7VBGJ) — needs shell
+    // commands routed to it; the EDIT_TOOLS matcher above never sends Bash.
+    matchedHook('Bash', `bun ${HOOKS_DIR}/pre-tool-quality.ts`),
     matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/pre-tool-config-guard.ts`),
     // Defends ad-hoc git ops against Claude Code's parallel-worktree
     // core.bare=true race (anthropics/claude-code#58345). `if` filters at the
