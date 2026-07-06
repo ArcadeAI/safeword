@@ -12,7 +12,7 @@
 import { checkVerifyArtifact } from '../../templates/hooks/lib/done-gate.js';
 import { parseFrontmatter } from '../../templates/hooks/lib/hierarchy.js';
 import { parseImplPlan } from '../../templates/hooks/lib/impl-plan.js';
-import { validateLedger } from '../../templates/hooks/lib/ledger-validation.js';
+import { type ShaResolver, validateLedger } from '../../templates/hooks/lib/ledger-validation.js';
 import {
   detectUnanchoredPhaseTransition,
   evaluateTicketWrite,
@@ -88,8 +88,16 @@ function warnVerdict(check: string, detail: string): CheckVerdict {
   return { check, verdict: 'warn', detail };
 }
 
+/**
+ * The unreachable-anchor warning names both honest and dishonest causes: the
+ * same verdict covers a forged SHA and a shallow clone missing history
+ * (friction-register constraint — never accuse when the environment explains).
+ */
+const UNREACHABLE_CAUSES =
+  'possible causes: a forged anchor, or a shallow clone missing the history (fetch full history to verify)';
+
 /** Transition checks over a staged/changed ticket.md. */
-function ticketFileChecks(ticketFile: ChangedArtifact): CheckVerdict[] {
+function ticketFileChecks(ticketFile: ChangedArtifact, resolveSha?: ShaResolver): CheckVerdict[] {
   if (ticketFile.proposed === undefined) return [];
   const checks: CheckVerdict[] = [];
 
@@ -107,12 +115,27 @@ function ticketFileChecks(ticketFile: ChangedArtifact): CheckVerdict[] {
     legality.ok ? pass('phase-legality') : warnVerdict('phase-legality', legality.reason),
   );
 
-  const anchor = detectUnanchoredPhaseTransition(ticketFile.prior, ticketFile.proposed);
-  checks.push(
-    anchor.kind === 'unanchored'
-      ? warnVerdict('phase-anchor', anchor.reason)
-      : pass('phase-anchor'),
-  );
+  // A resolver failure (git broken mid-run, shallow-clone fetch error) must
+  // degrade to an indeterminate verdict, never a crash — exit-0 is absolute.
+  try {
+    const anchor = detectUnanchoredPhaseTransition(
+      ticketFile.prior,
+      ticketFile.proposed,
+      resolveSha,
+    );
+    if (anchor.kind === 'unanchored') {
+      const causes = /not reachable/i.test(anchor.reason) ? ` — ${UNREACHABLE_CAUSES}` : '';
+      checks.push(warnVerdict('phase-anchor', `${anchor.reason}${causes}`));
+    } else {
+      checks.push(pass('phase-anchor'));
+    }
+  } catch {
+    checks.push({
+      check: 'phase-anchor',
+      verdict: 'indeterminate',
+      detail: 'SHA resolution failed mid-run — reachability could not be determined',
+    });
+  }
 
   return checks;
 }
@@ -149,7 +172,7 @@ function ledgerRequiredPhase(change: TicketChange): string | undefined {
 }
 
 /** Ledger presence + format (content tier — reachability is the push tier's job). */
-function ledgerChecks(change: TicketChange): CheckVerdict[] {
+function ledgerChecks(change: TicketChange, resolveSha?: ShaResolver): CheckVerdict[] {
   const checks: CheckVerdict[] = [];
 
   const requiredAt = ledgerRequiredPhase(change);
@@ -164,13 +187,25 @@ function ledgerChecks(change: TicketChange): CheckVerdict[] {
 
   const ledgerFile = change.artifacts.find(a => a.artifact === 'test-definitions.md');
   if (ledgerFile?.proposed !== undefined) {
-    // Content tier: every SHA is treated as resolvable; reachability waits for push.
-    const result = validateLedger(ledgerFile.proposed, () => true);
-    checks.push(
-      result.ok
-        ? pass('ledger-format')
-        : warnVerdict('ledger-format', `ledger annotation problems: ${result.errors.join(' | ')}`),
-    );
+    // Content tier treats every SHA as resolvable; the push tier injects the
+    // real resolver. A resolver failure degrades to indeterminate, never a crash.
+    try {
+      const result = validateLedger(ledgerFile.proposed, resolveSha ?? (() => true));
+      checks.push(
+        result.ok
+          ? pass('ledger-format')
+          : warnVerdict(
+              'ledger-format',
+              `ledger annotation problems: ${result.errors.join(' | ')}`,
+            ),
+      );
+    } catch {
+      checks.push({
+        check: 'ledger-format',
+        verdict: 'indeterminate',
+        detail: 'SHA resolution failed mid-run — ledger reachability could not be determined',
+      });
+    }
   }
 
   return checks;
@@ -206,13 +241,14 @@ function artifactShapeChecks(change: TicketChange): CheckVerdict[] {
   return checks;
 }
 
-/** Commit-tier checks for one touched ticket (content-only — no git). */
-function reconcileTicket(change: TicketChange): CheckVerdict[] {
+/** Checks for one touched ticket. Content-only without a resolver (commit tier);
+ * history-backed SHA verification when one is injected (push tier). */
+function reconcileTicket(change: TicketChange, resolveSha?: ShaResolver): CheckVerdict[] {
   const ticketFile = change.artifacts.find(a => a.artifact === 'ticket.md');
   return [
-    ...(ticketFile ? ticketFileChecks(ticketFile) : []),
+    ...(ticketFile ? ticketFileChecks(ticketFile, resolveSha) : []),
     ...atRestBirthCheck(change),
-    ...ledgerChecks(change),
+    ...ledgerChecks(change, resolveSha),
     ...artifactShapeChecks(change),
   ];
 }
@@ -220,12 +256,16 @@ function reconcileTicket(change: TicketChange): CheckVerdict[] {
 /**
  * Reconcile every ticket touched by a change. Returns one entry per ticket,
  * each carrying its per-check verdicts — pass entries included, so a clean
- * run is a recorded fact, not an absence.
+ * run is a recorded fact, not an absence. `resolveSha` is the push tier's
+ * injected history oracle; the commit tier passes none and stays content-only.
  */
-export function reconcileChange(changes: TicketChange[]): TicketReconciliation[] {
+export function reconcileChange(
+  changes: TicketChange[],
+  resolveSha?: ShaResolver,
+): TicketReconciliation[] {
   return changes.map(change => ({
     ticket: change.ticketFolder,
-    checks: reconcileTicket(change),
+    checks: reconcileTicket(change, resolveSha),
   }));
 }
 
