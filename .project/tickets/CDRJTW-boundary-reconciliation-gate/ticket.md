@@ -2,14 +2,15 @@
 id: CDRJTW
 slug: boundary-reconciliation-gate
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 epic: "808"
 phase_anchors:
   - define-behavior: 75bfb7c
   - scenario-gate: d241fed
   - implement: 60ef9e0
   - verify: a2fc64b
+  - done: f69c46d
 external_issue: https://github.com/ArcadeAI/safeword/issues/810
 scope:
   - "Reconciliation engine: a pure module composing the existing checks over a set of ticket artifacts — phase legality incl. at-rest born-past-intake (#675 via evaluateTicketWrite/evaluateBirth logic), anchor presence/format + (with resolver) reachability of the ENTERED phase only (detectUnanchoredPhaseTransition/State, #809 seam), ledger validation (validateLedger + createLedgerShaResolver), verify.md shape (checkVerifyArtifact), impl-plan shape (parseImplPlan). Reuse, never duplicate."
@@ -56,3 +57,6 @@ last_modified: 2026-07-06T04:17:13.186Z
 
 - 2026-07-06T04:17:13.186Z Started: Created ticket CDRJTW
 - 2026-07-06T04:45:00.000Z Intake: framed via explorer map (7 folded checks: all pure cores exist; #675/#676/#666 net-new; husky-emission seam dormant; check-pr-ticket-done is CI beachhead) + /figure-it-out (D1–D4 above) + hook-perf and rulesets research. spec.md authored + self-reviewed (leak fixed, re-stamped).
+- 2026-07-06T05:00:00.000Z Complete: define-behavior + scenario-gate — dimensions via the #888 rides-on/guide-words method (first live trial); 23 scenarios / 5 rules after independent review (1 must-fix de-vacuized, 6 strengthenings applied); impl-plan written.
+- 2026-07-06T14:35:00.000Z Complete: implement — 5 slices RED→GREEN (engine core 9891378/c794510; findings 3eeed2c/5ab57b6; push tier 701a2b7/ea71278; tier-split be37070; shims/gitignore be37070) + cross-scenario REFACTOR 6fc7c6c; 27 unit/command tests + 24 acceptance scenarios green. Live dogfood: gate warned on its own open ledger at be37070, passed clean at 1d69fa8.
+- 2026-07-06T14:45:00.000Z Complete: verify — affected suites 1385/1385 (4 Node-22 sandbox artifacts excluded, proven on pristine main), acceptance 301/302 (same artifact), build/lint/typecheck green, audit 0 errors (jscpd +12 at pinned scope; Verdict export removed). Bonus live catch: the gate flagged checkVerifyArtifact's naive "piggybacked" substring match against this ticket's own honest verify.md — follow-up finding. Ticket done.

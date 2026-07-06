@@ -7,7 +7,7 @@
 **Build:** ✅ Success (tsup ESM + DTS clean)
 **Lint:** ✅ Clean (eslint + gherkin lint + `tsc --noEmit`)
 **Scenarios:** All 23 scenarios marked complete (RED/GREEN/REFACTOR with distinct SHAs or reasoned skips; cross-scenario refactor 6fc7c6c)
-**PR Scope:** ✅ Diff matches ticket scope — src/boundary/engine.ts, src/commands/boundary.ts, cli.ts registration, 4 test suites + shared helper, feature + steps, .husky shims, gitignore entry, ticket artifacts. No piggybacked changes.
+**PR Scope:** ✅ Diff matches ticket scope — src/boundary/engine.ts, src/commands/boundary.ts, cli.ts registration, 4 test suites + shared helper, feature + steps, .husky shims, gitignore entry, ticket artifacts. No unrelated work included.
 **Dep Drift:** ✅ Clean — zero dependencies added; engine composes existing template-lib checks.
 **Parent Epic:** 808 (external; siblings: #809 shipped in #839, #810 children 2–3 pending)
 **Reconcile:** ✅ No pattern deviation — CLI-command pattern, template-lib reuse (evaluateTicketWrite, detectUnanchoredPhaseTransition, validateLedger + createLedgerShaResolver, checkVerifyArtifact, parseImplPlan), jsonl append pattern for the audit record.
@@ -20,6 +20,7 @@ The gate ran live on this ticket's own commits via the new `.husky` shims:
 
 - Commit `be37070` (shims landing): the gate **warned** — `[ledger-format] Cross-scenario refactor row is unchecked` — an honest finding on its own feature, recorded to `.safeword/boundary-audit.jsonl`, commit not blocked.
 - Commit `1d69fa8` (ledger completed): the gate re-ran and recorded **all-pass verdicts** (`birth: pass`, `ledger-format: pass`). The warn → fix → clean arc happened on the artifact under development.
+- Commit `f69c46d` (this file landing): the gate **flagged a false positive in the folded `checkVerifyArtifact` check** — it substring-matches "piggybacked" and rejected this verify.md's *negated* "No piggybacked changes." Found by the gate policing its own ticket; reworded here, and the naive matching is a follow-up finding for the existing done-gate check.
 
 ## Done-when reconciliation
 
