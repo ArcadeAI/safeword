@@ -20,9 +20,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: the scaffolded check fails when a circular import is introduced
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: asserts the real tool's verdict on the scenario-1 scaffold; no new implementation to fail first — E2E proof (cycle → exit 1 naming the contract) verified manually then pinned
+- [x] GREEN 5d24c1f
+- [x] REFACTOR skip: thin guarded spawns, nothing to restructure
 
 ## Rule: python-importlinter-scaffold.TB1.R2 — an existing import-linter configuration is never modified, duplicated, or overridden
 
