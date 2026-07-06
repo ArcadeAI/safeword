@@ -14,6 +14,7 @@ import { installPack } from '../packs/install.js';
 import {
   detectPythonLayers,
   detectPythonPackageManager,
+  detectSolePackage,
   getPythonInstallCommand,
   hasRuffDependency,
   installPythonDependencies,
@@ -189,13 +190,16 @@ function getPythonTools(includeImportLinter: boolean): string[] {
 function setupPython(cwd: string): PythonSetupStatus {
   let isInstallFailed = false;
 
-  // Detect layers for import-linter
+  // import-linter installs whenever safeword would scaffold a config for it:
+  // layered projects (layers contract) or an unambiguous single-package project
+  // (acyclic guard, ticket V4MATC).
   const layers = detectPythonLayers(cwd);
   const hasLayers = layers.length >= 2;
+  const includeImportLinter = hasLayers || detectSolePackage(cwd) !== undefined;
 
   // Install Python tools if not already in dependencies
   if (!hasRuffDependency(cwd)) {
-    const tools = getPythonTools(hasLayers);
+    const tools = getPythonTools(includeImportLinter);
     const pm = detectPythonPackageManager(cwd);
     if (pm === 'pip') {
       isInstallFailed = true;
@@ -211,7 +215,7 @@ function setupPython(cwd: string): PythonSetupStatus {
   }
 
   // Note: files are now created by reconciliation, not returned here
-  return { files: [], installFailed: isInstallFailed, importLinter: hasLayers };
+  return { files: [], installFailed: isInstallFailed, importLinter: includeImportLinter };
 }
 
 interface SetupSummaryOptions {
