@@ -11,7 +11,7 @@
  */
 
 import { execSync, spawnSync } from 'node:child_process';
-import { unlinkSync } from 'node:fs';
+import { existsSync, unlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -174,19 +174,29 @@ describe('E2E: Golden Path', () => {
   });
 
   describe('Lint Hook Graceful Handling', () => {
-    it('hook completes without crashing on syntax error file', () => {
-      writeTestFile(projectDirectory, 'src/syntax-error.ts', 'const x = {{{{ invalid');
+    it('exits cleanly on a syntax-error file and leaves its content untouched', () => {
+      const unparseable = 'const x = {{{{ invalid';
+      writeTestFile(projectDirectory, 'src/syntax-error.ts', unparseable);
       const filePath = nodePath.join(projectDirectory, 'src/syntax-error.ts');
 
-      // Should not throw - hook uses .nothrow()
-      expect(() => runLintHook(projectDirectory, filePath)).not.toThrow();
+      const result = runLintHook(projectDirectory, filePath);
+
+      // Graceful = exit 0 (hook uses .nothrow()), the unfixable content is
+      // preserved byte-for-byte, and the failure is surfaced, not swallowed.
+      expect(result.status).toBe(0);
+      expect(readTestFile(projectDirectory, 'src/syntax-error.ts')).toBe(unparseable);
+      expect(result.stdout).toContain('Lint errors remain after auto-fix');
     });
 
-    it('hook completes without crashing on non-existent file', () => {
+    it('exits cleanly and silently on a non-existent file', () => {
       const filePath = nodePath.join(projectDirectory, 'src/does-not-exist.ts');
 
-      // Should not throw - hook uses .nothrow()
-      expect(() => runLintHook(projectDirectory, filePath)).not.toThrow();
+      const result = runLintHook(projectDirectory, filePath);
+
+      // Missing file is a silent no-op: exit 0, no output, nothing created.
+      expect(result.status).toBe(0);
+      expect(result.stdout.trim()).toBe('');
+      expect(existsSync(filePath)).toBe(false);
     });
   });
 });
