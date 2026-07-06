@@ -57,7 +57,11 @@ describe('getEslintConfig', () => {
     ],
     ['standard ignores', 'detect.getIgnores()'],
   ])('generated config wires %s', (_purpose, contractCall) => {
-    expect(getEslintConfig()).toContain(contractCall);
+    // Boundary-anchored so short rows can't pass via longer siblings
+    // (`configs.recommended` must not be satisfied by `configs.recommendedTypeScriptNext`).
+    const escaped = contractCall.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
+    // eslint-disable-next-line security/detect-non-literal-regexp -- escaped table literal
+    expect(getEslintConfig()).toMatch(new RegExp(`${escaped}(?![A-Za-z])`));
   });
 
   it('should include eslint-config-prettier when no existing formatter', () => {
