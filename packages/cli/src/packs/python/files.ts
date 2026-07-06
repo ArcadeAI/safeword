@@ -293,10 +293,23 @@ export const pythonManagedFiles: Record<string, ManagedFileDefinition> = {
     // Default reset removes the file only when it byte-equals the scaffold we
     // would generate — gate-free content source, since at reset time the
     // scaffold's own existence trips the existing-config gate above (V4MATC R4).
+    // If the project layout changed since scaffolding (package renamed, layers
+    // appeared), the regenerated content won't match and the file survives reset
+    // — intentional: never delete what we can't prove we wrote.
     removeIfUnmodified: ctx =>
       ctx.languages?.python ? importLinterScaffoldContent(ctx.cwd) : undefined,
   },
 };
+
+/**
+ * True when this project is one safeword would scaffold an .importlinter for —
+ * the single source of the "should import-linter be part of this project"
+ * decision, shared by the scaffold generator and the install condition in
+ * commands/setup.ts (so the two can never drift).
+ */
+export function hasImportLinterScaffoldTarget(cwd: string): boolean {
+  return importLinterScaffoldContent(cwd) !== undefined;
+}
 
 /**
  * Expected .importlinter scaffold for this project, WITHOUT the existing-config

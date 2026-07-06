@@ -11,10 +11,9 @@ import nodePath from 'node:path';
 import { checkHealth, reportHealthSummary } from '../health.js';
 import { setupGoTooling } from '../packs/golang/setup.js';
 import { installPack } from '../packs/install.js';
+import { hasImportLinterScaffoldTarget } from '../packs/python/files.js';
 import {
-  detectPythonLayers,
   detectPythonPackageManager,
-  detectSolePackage,
   getPythonInstallCommand,
   hasRuffDependency,
   installPythonDependencies,
@@ -190,12 +189,10 @@ function getPythonTools(includeImportLinter: boolean): string[] {
 function setupPython(cwd: string): PythonSetupStatus {
   let isInstallFailed = false;
 
-  // import-linter installs whenever safeword would scaffold a config for it:
-  // layered projects (layers contract) or an unambiguous single-package project
-  // (acyclic guard, ticket V4MATC).
-  const layers = detectPythonLayers(cwd);
-  const hasLayers = layers.length >= 2;
-  const includeImportLinter = hasLayers || detectSolePackage(cwd) !== undefined;
+  // import-linter installs whenever safeword would scaffold a config for it —
+  // the same predicate the scaffold generator uses, so the two never drift
+  // (ticket V4MATC).
+  const includeImportLinter = hasImportLinterScaffoldTarget(cwd);
 
   // Install Python tools if not already in dependencies
   if (!hasRuffDependency(cwd)) {
