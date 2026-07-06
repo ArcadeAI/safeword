@@ -10,7 +10,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 6b29b74
 - [x] GREEN 5e27063
-- [ ] REFACTOR
+- [x] REFACTOR skip: two small single-purpose functions + clean dispatch, no structural improvement needed
 
 ### Scenario: setup detects the package in a src layout
 
