@@ -40,7 +40,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: a project with multiple top-level packages gets no scaffold
+### Scenario: a project with multiple top-level packages gets no scaffold (outline: 2 layouts × setup, 1 × upgrade)
 
 - [ ] RED
 - [ ] GREEN
@@ -86,7 +86,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: python-importlinter-scaffold.TB1.R5 — safeword never installs the tool; it surfaces the package-manager-appropriate install command
 
-### Scenario: setup surfaces install guidance without installing (outline: uv / pip)
+### Scenario: setup surfaces install guidance without installing (outline: uv / poetry / pipenv / pip)
 
 - [ ] RED
 - [ ] GREEN
