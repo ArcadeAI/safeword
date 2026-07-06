@@ -14,7 +14,7 @@ Give Python projects the same out-of-the-box circular-import (architecture) chec
 
 - Upstream tracker: ArcadeAI/safeword#847 (this feature), #826/#857 (audit-honesty prerequisite, merged), #827 (verify-lane parity, merged)
 - JS analog: `packages/cli/src/commands/sync-config.ts` + `utils/depcruise-config.ts` (safeword-generated depcruise config)
-- Python pack: `packages/cli/src/packs/python/` (ruff/mypy config generation, install-guidance pattern)
+- Python pack: `packages/cli/src/packs/python/` — NOTE: the pack ALREADY generates a layer-based `.importlinter` (`files.ts` `generateProjectImportLinterConfig`, gated on `detectPythonLayers`) and auto-installs import-linter with ruff/mypy when layers are detected. This feature EXTENDS that: acyclic_siblings contract for unambiguous single-package projects (the uncovered case), layers contract preserved where detected, install extended to the single-package case.
 - import-linter v2.13: `lint-imports` CLI; config auto-detected from `.importlinter` / `setup.cfg [importlinter]` / `pyproject.toml [tool.importlinter]`; `acyclic-siblings` contract type (2.x); exits non-zero on broken contracts; enforces nothing without config
 
 ## Personas
@@ -44,7 +44,7 @@ Affected:
 
 #### python-importlinter-scaffold.TB1.R4 — the scaffold is create-once, then the user's: setup or upgrade creates it when absent (same gating as R1–R3); safeword never overwrites it afterward (users extend it with their own contracts); reset removes it only when it is unmodified from the scaffold
 
-#### python-importlinter-scaffold.TB1.R5 — safeword never installs the tool itself; it surfaces the package-manager-appropriate install command
+#### python-importlinter-scaffold.TB1.R5 — import-linter is installed with the pack's other Python tools; a failed or skipped installation surfaces the package-manager-appropriate install command
 
 ## Rave Moment
 
@@ -55,7 +55,7 @@ skip: table-stakes — this delivers Python the same out-of-the-box behavior JS 
 - Fresh `safeword setup` — or `safeword upgrade` on an existing safeword project — on a single-package Python layout → `.importlinter` exists with detected `root_packages` and one `acyclic-siblings` contract; `/audit` runs `lint-imports` for real (green on acyclic code, red when a cycle is introduced). Upgrade-creates is the delivery vehicle for every existing safeword Python project.
 - Projects with any pre-existing import-linter config are untouched; a user-extended scaffold is never overwritten by later upgrades.
 - Ambiguous layouts scaffold nothing; today's honest skip stands — never a broken config that errors every audit.
-- If the user hasn't installed import-linter yet, audit's existing config-found-but-tool-missing branch (#857) still reports an honest, actionable skip — the scaffold never turns audits red by itself.
+- import-linter is auto-installed with the pack's other Python tools (existing pack behavior, now extended to single-package projects); if installation fails, audit's config-found-but-tool-missing branch (#857) still reports an honest, actionable skip — the scaffold never turns audits red by itself.
 - `reset` removes the scaffolded file when unmodified; user-authored or user-extended files survive. Ownership/parity guards recognize the template (proof anchored in impl-plan, not a scenario — repo-internal infra).
 
 ## Open Questions

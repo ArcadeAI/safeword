@@ -84,15 +84,15 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: python-importlinter-scaffold.TB1.R5 — safeword never installs the tool; it surfaces the package-manager-appropriate install command
+## Rule: python-importlinter-scaffold.TB1.R5 — import-linter is installed with the pack's other Python tools; a failed installation surfaces the install command
 
-### Scenario: setup surfaces install guidance without installing (outline: uv / poetry / pipenv / pip)
+### Scenario: setup installs import-linter alongside the pack's other Python tools
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: no install guidance when the tool is already present
+### Scenario: a failed installation surfaces the package-manager-appropriate install command
 
 - [ ] RED
 - [ ] GREEN

@@ -111,23 +111,15 @@ Feature: Python pack scaffolds a generic import-linter config
       Then the user's .importlinter file still exists with its original content
 
   @python-importlinter-scaffold.TB1.R5
-  Rule: python-importlinter-scaffold.TB1.R5 — safeword never installs the tool; it surfaces the package-manager-appropriate install command
+  Rule: python-importlinter-scaffold.TB1.R5 — import-linter is installed with the pack's other Python tools; a failed installation surfaces the install command
+
+    Scenario: setup installs import-linter alongside the pack's other Python tools
+      Given a uv-managed single-package Python project where import-linter is not installed
+      When safeword setup runs
+      Then import-linter is declared as a development dependency
 
     @rejection
-    Scenario Outline: setup surfaces install guidance without installing
-      Given a Python project managed by <package manager> where import-linter is not installed
+    Scenario: a failed installation surfaces the package-manager-appropriate install command
+      Given a Python project where installing import-linter fails
       When safeword setup runs
-      Then the setup output includes <install command>
-      And import-linter has not been installed by safeword
-
-      Examples:
-        | package manager | install command                        |
-        | uv              | uv add --dev import-linter             |
-        | poetry          | poetry add --group dev import-linter   |
-        | pipenv          | pipenv install --dev import-linter     |
-        | pip             | pip install import-linter              |
-
-    Scenario: no install guidance when the tool is already present
-      Given a Python project where import-linter is already installed
-      When safeword setup runs
-      Then the setup output contains no import-linter install guidance
+      Then the setup output tells the user how to install import-linter
