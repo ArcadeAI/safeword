@@ -8,14 +8,17 @@
  * clock the agent doesn't have.
  */
 
-import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
-import process from 'node:process';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { createTemporaryDirectory, removeTemporaryDirectory, TIMEOUT_QUICK } from '../helpers';
+import {
+  createTemporaryDirectory,
+  type HookResult,
+  removeTemporaryDirectory,
+  spawnHookScript,
+} from '../helpers';
 
 const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 const HOOK = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/post-tool-work-log.ts');
@@ -23,24 +26,13 @@ const HOOK = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/post-tool-work-log.ts
 const TICKET_BODY = (phase: string) =>
   `---\nid: AB12CD\nslug: sample\ntype: feature\nphase: ${phase}\nstatus: in_progress\n---\n\n# Sample\n\n**Goal:** sample.\n\n## Work Log\n\n- 2026-07-05T00:00:00.000Z Started: Created ticket AB12CD\n`;
 
-function runHook(
-  cwd: string,
-  toolName: string,
-  toolInput: Record<string, unknown>,
-): { status: number | null; stdout: string; stderr: string } {
-  const result = spawnSync('bun', [HOOK], {
-    input: JSON.stringify({
-      session_id: 'test-session',
-      hook_event_name: 'PostToolUse',
-      tool_name: toolName,
-      tool_input: toolInput,
-    }),
-    cwd,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: cwd },
-    encoding: 'utf8',
-    timeout: TIMEOUT_QUICK,
+function runHook(cwd: string, toolName: string, toolInput: Record<string, unknown>): HookResult {
+  return spawnHookScript(HOOK, cwd, {
+    session_id: 'test-session',
+    hook_event_name: 'PostToolUse',
+    tool_name: toolName,
+    tool_input: toolInput,
   });
-  return { status: result.status, stdout: result.stdout, stderr: result.stderr };
 }
 
 describe('Phase work-log stamp hook', () => {

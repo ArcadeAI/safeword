@@ -1135,6 +1135,26 @@ export function expectHookDeny(result: HookResult, reasonShouldContain: string):
   expect(parsed.hookSpecificOutput.permissionDecisionReason).toContain(reasonShouldContain);
 }
 
+/**
+ * Spawn an installed hook script with a JSON payload on stdin — the delivery
+ * shape Claude Code uses. Shared by the hook integration suites so each file
+ * doesn't re-hand-roll the spawnSync/env/timeout plumbing.
+ */
+export function spawnHookScript(
+  hookPath: string,
+  cwd: string,
+  payload: Record<string, unknown>,
+): HookResult {
+  const result = spawnSync('bun', [hookPath], {
+    input: JSON.stringify(payload),
+    cwd,
+    env: { ...process.env, CLAUDE_PROJECT_DIR: cwd },
+    encoding: 'utf8',
+    timeout: TIMEOUT_QUICK,
+  });
+  return { status: result.status, stdout: result.stdout, stderr: result.stderr };
+}
+
 // ---------------------------------------------------------------------------
 // Retro draft-spool fixtures (shared by the retro spool/nudge/filing-gate unit
 // suites and the stop-hook integration suites — ticket GH628F cross-scenario
