@@ -22,6 +22,7 @@ import {
   parseFeatureScenarios,
   parseLineageReferenceFromTag,
 } from './gherkin-feature.js';
+// parseLineageReferenceFromTag also backs the test-definitions.md tag fallback (issue #891).
 import { computeSkipMask, parseHeading } from './markdown-sections.js';
 
 const JTBD_HEADING = 'jobs to be done';
@@ -209,7 +210,9 @@ const EMPTY_REPORT: CoverageReport = { uncovered: [], stale: [], orphan: [] };
  * pair. Degrades quietly: an empty report when the spec declares no ACs, or
  * when `testDefinitionsContent` is omitted (no test-definitions.md yet — a
  * ticket that hasn't reached define-behavior must not drown in uncovered-AC
- * noise). Free-text scenario titles contribute no coverage and raise no flag.
+ * noise). Coverage is read from conformant scenario titles and `@`-tag lineage
+ * (see `parseTestDefinitionReferences`); a free-text title carrying neither
+ * contributes no coverage and raises no flag.
  */
 export function buildCoverageReport(
   specContent: string,
@@ -218,9 +221,7 @@ export function buildCoverageReport(
   const scenarioReferences =
     testDefinitionsContent === undefined
       ? undefined
-      : parseScenarioTitles(testDefinitionsContent)
-          .map(title => parseAcReferenceFromTitle(title))
-          .filter((reference): reference is string => reference !== undefined);
+      : parseTestDefinitionReferences(testDefinitionsContent);
   return buildCoverageReportFromReferences(specContent, scenarioReferences);
 }
 
@@ -436,23 +437,42 @@ function jtbdPart(reference: string): string {
   return reference.replace(/\.(?:AC|R)\d+$/, '');
 }
 
+/** Every `@`-prefixed token on a line, once inline-code backticks are stripped. */
+const LINEAGE_TAG_TOKEN = /@\S+/g;
+
 /**
- * Extract every `### Scenario:` title from a test-definitions.md, skipping
- * commented/fenced regions.
+ * Lineage references a test-definitions.md declares, from two vehicles, skipping
+ * commented/fenced regions:
+ *   - conformant `### Scenario:` titles shaped `<jtbd>.AC#.<name>` (the encode-in-
+ *     the-title form the `testDefinitions` fixtures use); and
+ *   - `@<jtbd>.AC#` / `@<jtbd>.R#` lineage tags carried on a `## Rule:` heading or
+ *     on their own line beneath one — bare or wrapped in an inline `` `code span` ``.
+ *
+ * The tag vehicle mirrors what the `.feature` docs teach (lineage on the Rule
+ * block), so a ledger-only ticket that carries the same tag stays covered.
+ * Backticks are stripped before the tag parse because `parseLineageReferenceFromTag`
+ * is `^`-anchored — a leading `` ` `` would otherwise fold the whole reference into
+ * its lazy prefix and yield a malformed, never-matching id (issue #891).
  */
-function parseScenarioTitles(content: string): string[] {
+function parseTestDefinitionReferences(content: string): string[] {
   const lines = content.split('\n');
   const skip = computeSkipMask(lines);
-  const titles: string[] = [];
+  const references: string[] = [];
   for (const [index, line] of lines.entries()) {
-    const isSkipped = skip[index];
-    if (isSkipped) continue;
+    if (skip[index] === true) continue;
     const trimmed = line.trim();
     if (trimmed.startsWith(SCENARIO_PREFIX)) {
-      titles.push(trimmed.slice(SCENARIO_PREFIX.length).trim());
+      const reference = parseAcReferenceFromTitle(trimmed.slice(SCENARIO_PREFIX.length).trim());
+      if (reference !== undefined) references.push(reference);
+      continue;
+    }
+    const tagTokens = trimmed.replaceAll('`', '').match(LINEAGE_TAG_TOKEN) ?? [];
+    for (const token of tagTokens) {
+      const lineage = parseLineageReferenceFromTag(token);
+      if (lineage !== undefined) references.push(lineage.reference);
     }
   }
-  return titles;
+  return references;
 }
 
 /** First whitespace-delimited token of a heading's text (its id). */
