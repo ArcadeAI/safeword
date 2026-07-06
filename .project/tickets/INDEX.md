@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (387)
+## Tickets (388)
 
 ### 730
 
@@ -1201,6 +1201,9 @@
 - **Numbered Rule tier between JTBD and scenarios (V0NHT6)** (done, epic: —)
   Add an optional numbered-Rule tier (`<jtbd-id>.R<#>`) to the scenario lineage so specs carry an invariant catalog with stable IDs, tier-aware checks, and expressiveness for Arcade's existing rule-numbered corpus (issue #649).
   → `.project/tickets/V0NHT6-rule-tier`
+- **Python pack: scaffold generic import-linter config (audit arch check out of the box) (V4MATC)** (done, epic: —)
+  A freshly set-up Python project runs a real lint-imports cycle check under /audit with zero manual configuration (parity with JS depcruise)
+  → `.project/tickets/V4MATC-python-importlinter-scaffold`
 - **Formatter-aware lint hook: stop colliding with the customer's formatter (V7GGJZ)** (done, epic: —)
   The runtime auto-lint hook honors the formatter the customer already chose — it never
   → `.project/tickets/V7GGJZ-formatter-aware-lint-hook`

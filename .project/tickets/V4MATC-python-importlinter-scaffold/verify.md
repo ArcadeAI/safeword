@@ -18,4 +18,4 @@ Run: 2026-07-06T04:03Z, HEAD of claude/verify-audit-skills-languages-lc9kf6, Nod
 **Experience:** ✅ No new friction — Walked Technical Builder through setup-then-audit on a single-package Python project; worst step = ambiguous-layout projects still see the honest skip (unchanged by design, R3); new steps vs before = 0. Rave Moment: skip (table-stakes, per spec)
 **Evidence limits:** ✅ None (Node 24.18 matches the repo's engines floor; lint-imports 2.13 installed locally so E2E teeth ran for real)
 
-Audit: pending — appended below after /audit runs.
+Audit passed — 0 errors, 0 warnings. depcruise ✔ (569 modules acyclic), knip ✓ (lint-imports added to ignoreBinaries baseline — pip binary, not an npm dep), jscpd baseline 419 clones (8.83%) [repo minus .safeword,.project — new #825 scope], config in sync, learnings conform, docs impact addressed (website Python tools + file tables gained import-linter/.importlinter rows).
