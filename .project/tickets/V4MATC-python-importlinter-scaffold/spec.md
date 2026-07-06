@@ -42,7 +42,7 @@ Affected:
 
 #### python-importlinter-scaffold.TB1.R3 — when the project's top-level package cannot be determined unambiguously, safeword scaffolds nothing and the audit's honest skip stands
 
-#### python-importlinter-scaffold.TB1.R4 — the scaffolded config is safeword-owned through its whole lifecycle: created by setup/upgrade, removed by reset, drift-guarded like other owned files
+#### python-importlinter-scaffold.TB1.R4 — the scaffold is create-once, then the user's: setup or upgrade creates it when absent (same gating as R1–R3); safeword never overwrites it afterward (users extend it with their own contracts); reset removes it only when it is unmodified from the scaffold
 
 #### python-importlinter-scaffold.TB1.R5 — safeword never installs the tool itself; it surfaces the package-manager-appropriate install command
 
@@ -52,10 +52,11 @@ skip: table-stakes — this delivers Python the same out-of-the-box behavior JS 
 
 ## Outcomes
 
-- Fresh `safeword setup` on a single-package Python project → `.importlinter` exists with detected `root_packages` and one `acyclic-siblings` contract; `/audit` runs `lint-imports` for real (green on acyclic code, red when a cycle is introduced).
-- Projects with any pre-existing import-linter config are untouched.
+- Fresh `safeword setup` — or `safeword upgrade` on an existing safeword project — on a single-package Python layout → `.importlinter` exists with detected `root_packages` and one `acyclic-siblings` contract; `/audit` runs `lint-imports` for real (green on acyclic code, red when a cycle is introduced). Upgrade-creates is the delivery vehicle for every existing safeword Python project.
+- Projects with any pre-existing import-linter config are untouched; a user-extended scaffold is never overwritten by later upgrades.
 - Ambiguous layouts scaffold nothing; today's honest skip stands — never a broken config that errors every audit.
-- `reset` removes the scaffolded file; ownership/parity guards recognize it.
+- If the user hasn't installed import-linter yet, audit's existing config-found-but-tool-missing branch (#857) still reports an honest, actionable skip — the scaffold never turns audits red by itself.
+- `reset` removes the scaffolded file when unmodified; user-authored or user-extended files survive. Ownership/parity guards recognize the template (proof anchored in impl-plan, not a scenario — repo-internal infra).
 
 ## Open Questions
 

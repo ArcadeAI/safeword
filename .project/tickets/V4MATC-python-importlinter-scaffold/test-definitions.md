@@ -46,15 +46,27 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: python-importlinter-scaffold.TB1.R4 — the scaffolded config is safeword-owned through its whole lifecycle
+## Rule: python-importlinter-scaffold.TB1.R4 — the scaffold is create-once, then the user's: created when absent, never overwritten, reset removes only the unmodified
 
-### Scenario: upgrade is idempotent over an already-scaffolded config
+### Scenario: upgrade scaffolds .importlinter for a previously-set-up project that lacks one
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: reset removes the safeword-scaffolded config
+### Scenario: upgrade is idempotent over an unmodified scaffold
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: upgrade preserves a user-extended scaffold
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: reset removes an unmodified safeword-scaffolded config
 
 - [ ] RED
 - [ ] GREEN

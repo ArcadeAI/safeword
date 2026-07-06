@@ -12,20 +12,20 @@ Feature: Python pack scaffolds a generic import-linter config
       When safeword setup runs
       Then a .importlinter file exists naming that package as root_packages
       And it declares exactly one acyclic-siblings contract
-      And the cycle check passes against the project's acyclic code
+      And lint-imports exits 0 in the project
 
     Scenario: setup detects the package in a src layout
       Given a Python project whose only importable package lives under src/
       And no import-linter configuration in any form
       When safeword setup runs
       Then the .importlinter root_packages names the package under src/
-      And the cycle check passes against the project's acyclic code
+      And lint-imports exits 0 in the project
 
     @rejection
     Scenario: the scaffolded check fails when a circular import is introduced
       Given a Python project set up with the scaffolded .importlinter
       And two sibling modules that import each other
-      When the cycle check runs
+      When lint-imports runs
       Then it exits non-zero naming the broken contract
 
   @python-importlinter-scaffold.TB1.R2
@@ -55,22 +55,42 @@ Feature: Python pack scaffolds a generic import-linter config
       Then no .importlinter file is created
 
     @rejection
-    Scenario: a project with multiple top-level packages gets no scaffold
-      Given a Python project with two importable packages at the repo root
+    Scenario Outline: a project with multiple top-level packages gets no scaffold
+      Given a Python project with <package layout>
       When safeword setup runs
       Then no .importlinter file is created
 
-  @python-importlinter-scaffold.TB1.R4
-  Rule: python-importlinter-scaffold.TB1.R4 — the scaffolded config is safeword-owned through its whole lifecycle
+      Examples:
+        | package layout                                            |
+        | two importable packages at the repo root                  |
+        | one importable package at the repo root and one under src/ |
 
-    Scenario: upgrade is idempotent over an already-scaffolded config
+  @python-importlinter-scaffold.TB1.R4
+  Rule: python-importlinter-scaffold.TB1.R4 — the scaffold is create-once, then the user's: created when absent, never overwritten, reset removes only the unmodified
+
+    Scenario: upgrade scaffolds .importlinter for a previously-set-up project that lacks one
+      Given a Python project safeword previously set up before this feature existed
+      And it has exactly one importable package at the repo root
+      And no import-linter configuration in any form
+      When safeword upgrade runs
+      Then a .importlinter file exists naming that package as root_packages
+
+    Scenario: upgrade is idempotent over an unmodified scaffold
       Given a Python project that safeword previously set up with a scaffolded .importlinter
+      And the file is unchanged since scaffolding
       When safeword upgrade runs
       Then the .importlinter content is unchanged
       And no duplicate configuration is introduced
 
-    Scenario: reset removes the safeword-scaffolded config
+    @rejection
+    Scenario: upgrade preserves a user-extended scaffold
+      Given a Python project whose scaffolded .importlinter was extended by the user with an additional contract
+      When safeword upgrade runs
+      Then the user's extended .importlinter content is unchanged
+
+    Scenario: reset removes an unmodified safeword-scaffolded config
       Given a Python project that safeword previously set up with a scaffolded .importlinter
+      And the file is unchanged since scaffolding
       When safeword reset runs
       Then the .importlinter file is removed
 
@@ -91,9 +111,11 @@ Feature: Python pack scaffolds a generic import-linter config
       And import-linter has not been installed by safeword
 
       Examples:
-        | package manager | install command                  |
-        | uv              | uv add --dev import-linter       |
-        | pip             | pip install import-linter        |
+        | package manager | install command                        |
+        | uv              | uv add --dev import-linter             |
+        | poetry          | poetry add --group dev import-linter   |
+        | pipenv          | pipenv install --dev import-linter     |
+        | pip             | pip install import-linter              |
 
     Scenario: no install guidance when the tool is already present
       Given a Python project where import-linter is already installed
