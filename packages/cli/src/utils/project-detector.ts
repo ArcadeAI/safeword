@@ -201,14 +201,9 @@ function findExistingRuffConfig(cwd: string): 'ruff.toml' | 'pyproject.toml' | u
   if (existsSync(nodePath.join(cwd, 'ruff.toml'))) return 'ruff.toml';
 
   // Check for [tool.ruff] in pyproject.toml
-  const pyprojectPath = nodePath.join(cwd, PYPROJECT_TOML);
-  if (!existsSync(pyprojectPath)) return undefined;
-  try {
-    const content = readFileSync(pyprojectPath, 'utf8');
-    return content.includes('[tool.ruff]') ? 'pyproject.toml' : undefined;
-  } catch {
-    return undefined;
-  }
+  return fileContainsSection(nodePath.join(cwd, PYPROJECT_TOML), '[tool.ruff]')
+    ? 'pyproject.toml'
+    : undefined;
 }
 
 /**
@@ -222,14 +217,7 @@ function hasExistingMypyConfig(cwd: string): boolean {
   if (existsSync(nodePath.join(cwd, '.mypy.ini'))) return true;
 
   // Check for [tool.mypy] in pyproject.toml
-  const pyprojectPath = nodePath.join(cwd, PYPROJECT_TOML);
-  if (!existsSync(pyprojectPath)) return false;
-  try {
-    const content = readFileSync(pyprojectPath, 'utf8');
-    return content.includes('[tool.mypy]');
-  } catch {
-    return false;
-  }
+  return fileContainsSection(nodePath.join(cwd, PYPROJECT_TOML), '[tool.mypy]');
 }
 
 /**
