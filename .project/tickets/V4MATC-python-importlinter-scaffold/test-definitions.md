@@ -50,21 +50,21 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: upgrade scaffolds .importlinter for a previously-set-up project that lacks one
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: managedFiles already create-if-missing on upgrade (reconcile.ts planManagedFilesActions); regression proof added
+- [x] GREEN 9f2db8e
+- [x] REFACTOR skip: thin fixtures over shared helpers
 
 ### Scenario: upgrade is idempotent over an unmodified scaffold
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: managedFiles skip existing files by design; regression proof added
+- [x] GREEN 9f2db8e
+- [x] REFACTOR skip: thin fixtures over shared helpers
 
 ### Scenario: upgrade preserves a user-extended scaffold
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: same never-overwrite semantics; regression proof added
+- [x] GREEN 9f2db8e
+- [x] REFACTOR skip: thin fixtures over shared helpers
 
 ### Scenario: reset removes an unmodified safeword-scaffolded config
 
