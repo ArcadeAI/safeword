@@ -89,8 +89,9 @@ export function detectBroadProcessKill(command: string): ProcessKillDetection | 
         continue;
       }
       if (word.startsWith('-')) continue;
-      if (SHARED_RUNTIMES.has(bareName(word))) {
-        return { command: commandWord, target: bareName(word) };
+      const target = bareName(word);
+      if (SHARED_RUNTIMES.has(target)) {
+        return { command: commandWord, target };
       }
     }
   }
