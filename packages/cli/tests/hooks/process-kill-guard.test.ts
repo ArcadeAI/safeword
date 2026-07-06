@@ -80,6 +80,18 @@ describe('detectBroadProcessKill', () => {
       expect(detectBroadProcessKill('pkill -f "node scripts/dev.js"')).toBeUndefined();
     });
 
+    it('Scenario: a runtime name as a flag VALUE is a filter, not a target', () => {
+      // `node` is a real user in official Node.js Docker images — these kill
+      // myapp filtered to that user, not every node process.
+      expect(detectBroadProcessKill('pkill -u node myapp')).toBeUndefined();
+      expect(detectBroadProcessKill('pkill -U node -f myapp')).toBeUndefined();
+      // ...but a runtime target AFTER a consumed flag value still detects.
+      expect(detectBroadProcessKill('pkill --signal KILL node')).toEqual({
+        command: 'pkill',
+        target: 'node',
+      });
+    });
+
     it('Scenario: a runtime name that is not a kill target passes', () => {
       expect(detectBroadProcessKill(`git commit -m 'killall node'`)).toBeUndefined();
       expect(detectBroadProcessKill('echo killall node')).toBeUndefined();

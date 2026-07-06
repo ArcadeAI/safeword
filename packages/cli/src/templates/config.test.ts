@@ -254,6 +254,16 @@ describe('SETTINGS_HOOKS', () => {
     expect(qualityMatchers).toContain('Edit|Write|MultiEdit|NotebookEdit');
   });
 
+  it('post-tool-work-log is wired for edit tools so phase stamps fire on Claude (E32M4P, #772)', () => {
+    const workLogMatchers = SETTINGS_HOOKS.PostToolUse.filter((h: HookEntry) =>
+      h.hooks.some(
+        (hook: HookCommand) =>
+          hook.type === 'command' && hook.command.includes('post-tool-work-log'),
+      ),
+    ).map((h: HookEntry) => ('matcher' in h ? h.matcher : undefined));
+    expect(workLogMatchers).toContain('Edit|Write|MultiEdit|NotebookEdit');
+  });
+
   it('stale-main hook is wired to git checkout and git switch with if-filters (#366)', () => {
     const staleHooks = SETTINGS_HOOKS.PreToolUse.filter((h: HookEntry) =>
       h.hooks.some(

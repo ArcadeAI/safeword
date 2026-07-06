@@ -45,10 +45,34 @@ function bareName(token: string): string {
 }
 
 /**
+ * pkill/killall flags whose value is a separate following word. The value is
+ * a filter, not a kill target — `pkill -u node myapp` kills myapp (filtered
+ * to user `node`, a real user in official Node.js Docker images), so the
+ * value must not be judged as a runtime name.
+ */
+const VALUE_TAKING_FLAGS = new Set([
+  '-u',
+  '-U',
+  '-G',
+  '-P',
+  '-t',
+  '-s',
+  '-g',
+  '--signal',
+  '--uid',
+  '--euid',
+  '--group',
+  '--parent',
+  '--terminal',
+  '--session',
+]);
+
+/**
  * Returns a detection when any segment of `command` invokes killall/pkill
  * with a bare shared-runtime name among its arguments, undefined otherwise.
- * Flags are skipped wholesale: whatever the signal (`-9`, `-SIGKILL`, plain
- * TERM) or matcher flag (`-x`, `-f`), a bare runtime target is cross-project.
+ * Flags are skipped (with their separate values): whatever the signal (`-9`,
+ * `-SIGKILL`, plain TERM) or matcher flag (`-x`, `-f`), a bare runtime
+ * target is cross-project.
  */
 export function detectBroadProcessKill(command: string): ProcessKillDetection | undefined {
   for (const segment of splitShellSegments(command)) {
@@ -57,7 +81,13 @@ export function detectBroadProcessKill(command: string): ProcessKillDetection | 
     while (words[index] === 'sudo') index += 1;
     const commandWord = words[index];
     if (commandWord === undefined || !NAME_MATCHING_KILLERS.has(commandWord)) continue;
-    for (const word of words.slice(index + 1)) {
+    const args = words.slice(index + 1);
+    for (let argIndex = 0; argIndex < args.length; argIndex += 1) {
+      const word = args[argIndex] ?? '';
+      if (VALUE_TAKING_FLAGS.has(word)) {
+        argIndex += 1; // skip the flag's value — a filter, never the target
+        continue;
+      }
       if (word.startsWith('-')) continue;
       if (SHARED_RUNTIMES.has(bareName(word))) {
         return { command: commandWord, target: bareName(word) };

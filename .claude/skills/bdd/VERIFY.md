@@ -19,7 +19,7 @@ Before proceeding to done:
 
 1. **verify.md exists** in the ticket folder (written by /verify on success)
 2. **Update frontmatter:** `phase: done`
-3. **Work log:** the phase hook stamps the transition with real time; optionally add a narrative entry (what /verify and /audit found).
+3. **Work log:** the phase hook stamps the transition with real time (Claude Code — on other harnesses add a short transition entry yourself); optionally add a narrative entry (what /verify and /audit found).
 
 The stop hook hard-blocks `phase: done` if verify.md is missing or empty.
 

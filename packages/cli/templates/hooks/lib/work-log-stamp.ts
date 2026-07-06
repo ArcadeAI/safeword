@@ -30,10 +30,15 @@ export interface EditToolInput {
   content?: string;
 }
 
-/** First `phase: <value>` line in a payload string, if any. */
+/**
+ * First `phase: <value>` line in a payload string, if any. Column-0 anchored:
+ * real frontmatter keys are never indented, so an indented `phase:` line
+ * (e.g. a fenced code example inside the ticket body) must not read as a
+ * transition.
+ */
 function phaseIn(text: string | undefined): string | undefined {
   if (text === undefined) return undefined;
-  return /^\s*phase:[ \t]*(\S+)[ \t]*$/m.exec(text)?.[1];
+  return /^phase:[ \t]*(\S+)[ \t]*$/m.exec(text)?.[1];
 }
 
 function transitionFromPair(

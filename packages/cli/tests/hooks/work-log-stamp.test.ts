@@ -90,6 +90,17 @@ describe('detectPhaseTransition', () => {
       ).toBeUndefined();
     });
 
+    it('Scenario: an indented phase line (fenced code example) is not a transition', () => {
+      // Ticket bodies may quote frontmatter in code blocks; only column-0
+      // `phase:` lines are real frontmatter.
+      expect(
+        detectPhaseTransition({
+          old_string: '    phase: intake\n    status: in_progress',
+          new_string: '    phase: implement\n    status: in_progress',
+        }),
+      ).toBeUndefined();
+    });
+
     it('Scenario: a phase introduced where the old payload had none', () => {
       expect(
         detectPhaseTransition({

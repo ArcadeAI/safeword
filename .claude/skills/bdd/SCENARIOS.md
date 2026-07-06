@@ -190,7 +190,7 @@ delivery retries on exponential backoff`). IDs are 1-indexed per job and
 1. **Save scenarios** to the feature lane: `features/<slug>.feature` (under `paths.features` when configured)
 2. **Save the R/G/R ledger** to `<namespace-root>/tickets/{ID}-{slug}/test-definitions.md`
 3. **Update frontmatter:** `phase: scenario-gate`
-4. **Work log:** the phase hook stamps the transition with real time; optionally add a narrative entry (scenario count, rules covered).
+4. **Work log:** the phase hook stamps the transition with real time (Claude Code — on other harnesses add a short transition entry yourself); optionally add a narrative entry (scenario count, rules covered).
 
 ---
 
@@ -225,7 +225,7 @@ If the adversarial pass + user feedback produced new scenarios → loop back to 
    The stop hook blocks the `implement` phase for new-flow features until this file exists with all five sections satisfied.
 
 4. **Update frontmatter:** `phase: implement`
-5. **Work log:** the phase hook stamps the transition with real time; optionally add a narrative entry (validation outcome, proof-plan highlights).
+5. **Work log:** the phase hook stamps the transition with real time (Claude Code — on other harnesses add a short transition entry yourself); optionally add a narrative entry (validation outcome, proof-plan highlights).
 
 ### Optional: codify the scenarios
 

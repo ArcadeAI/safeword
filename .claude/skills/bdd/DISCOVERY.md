@@ -218,7 +218,7 @@ Before proceeding to define-behavior (the Intake Brief is advisory — a missing
 3. **Verify ticket exists:** `<namespace-root>/tickets/{ID}-{slug}/ticket.md`
 4. **Verify frontmatter has:** `scope`, `out_of_scope`, `done_when` fields (non-empty)
 5. **Update frontmatter:** `phase: define-behavior`
-6. **Work log:** the phase hook stamps the transition with real time (`post-tool-work-log.ts`); add narrative — what converged, key scope calls — as separate entries when useful.
+6. **Work log:** the phase hook stamps the transition with real time (`post-tool-work-log.ts`; Claude Code — on other harnesses add a short transition entry yourself); add narrative — what converged, key scope calls — as separate entries when useful.
 
 ## Planning Note
 
