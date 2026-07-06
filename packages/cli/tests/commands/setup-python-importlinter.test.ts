@@ -98,6 +98,29 @@ describe('python-importlinter-scaffold.TB1.R1 — working cycle check with zero 
   );
 });
 
+describe('python-importlinter-scaffold.TB1.R2 — existing import-linter config is never touched', () => {
+  it(
+    'setup leaves a project with setup.cfg [importlinter] untouched',
+    async () => {
+      createFlatSinglePackageProject(state.projectDirectory);
+      const userConfig =
+        '[importlinter]\nroot_package = mypkg\n\n[importlinter:contract:mine]\nname = My contract\ntype = independence\nmodules = mypkg.alpha\n';
+      writeTestFile(state.projectDirectory, 'setup.cfg', userConfig);
+      initGitRepo(state.projectDirectory);
+
+      await runCli(['setup'], {
+        cwd: state.projectDirectory,
+        env: SKIP_INSTALL_ENV,
+        timeout: TIMEOUT_SETUP,
+      });
+
+      expect(fileExists(state.projectDirectory, '.importlinter')).toBe(false);
+      expect(readTestFile(state.projectDirectory, 'setup.cfg')).toBe(userConfig);
+    },
+    TIMEOUT_SETUP,
+  );
+});
+
 // E2E teeth: prove the scaffold is valid FOR THE REAL TOOL, not merely present.
 // Guarded on binary availability (visible skip locally); CI installs import-linter
 // via .github/requirements-ci.txt so these always run there.
