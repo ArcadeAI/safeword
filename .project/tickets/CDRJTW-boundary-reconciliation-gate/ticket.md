@@ -2,13 +2,14 @@
 id: CDRJTW
 slug: boundary-reconciliation-gate
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 epic: "808"
 phase_anchors:
   - define-behavior: 75bfb7c
   - scenario-gate: d241fed
   - implement: 60ef9e0
+  - verify: a2fc64b
 external_issue: https://github.com/ArcadeAI/safeword/issues/810
 scope:
   - "Reconciliation engine: a pure module composing the existing checks over a set of ticket artifacts — phase legality incl. at-rest born-past-intake (#675 via evaluateTicketWrite/evaluateBirth logic), anchor presence/format + (with resolver) reachability of the ENTERED phase only (detectUnanchoredPhaseTransition/State, #809 seam), ledger validation (validateLedger + createLedgerShaResolver), verify.md shape (checkVerifyArtifact), impl-plan shape (parseImplPlan). Reuse, never duplicate."

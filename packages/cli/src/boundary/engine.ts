@@ -47,7 +47,7 @@ export interface TicketChange {
   hasLedger: boolean;
 }
 
-export type Verdict = 'pass' | 'warn' | 'indeterminate';
+type Verdict = 'pass' | 'warn' | 'indeterminate';
 
 export interface CheckVerdict {
   check: string;
