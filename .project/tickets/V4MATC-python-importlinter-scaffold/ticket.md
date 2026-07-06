@@ -2,7 +2,7 @@
 id: V4MATC
 slug: python-importlinter-scaffold
 type: feature
-phase: define-behavior
+phase: scenario-gate
 status: in_progress
 scope:
   - .importlinter generation in the Python pack — root_packages from detected top-level package + one generic acyclic-siblings contract
@@ -36,3 +36,4 @@ last_modified: 2026-07-05T22:07:00.387Z
 
 - 2026-07-05T22:07:00.387Z Started: Created ticket V4MATC
 - 2026-07-05T22:12:41.000Z Complete: intake - Understanding converged, scope established (gates confirmed by Alex)
+- 2026-07-06T00:35:23.000Z Complete: define-behavior - 11 scenarios defined across 5 rules (set accepted by Alex)
