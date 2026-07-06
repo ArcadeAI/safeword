@@ -52,6 +52,17 @@ function fileExists(dir: string, filename: string): boolean {
   return existsSync(nodePath.join(dir, filename));
 }
 
+/** Create a flat single-package fixture and run safeword setup on it. */
+async function setUpFlatProject(): Promise<void> {
+  createFlatSinglePackageProject(state.projectDirectory);
+  initGitRepo(state.projectDirectory);
+  await runCli(['setup'], {
+    cwd: state.projectDirectory,
+    env: SKIP_INSTALL_ENV,
+    timeout: TIMEOUT_SETUP,
+  });
+}
+
 describe('python-importlinter-scaffold.TB1.R1 — working cycle check with zero manual configuration', () => {
   it(
     'setup scaffolds .importlinter for a flat single-package project',
@@ -234,16 +245,6 @@ describe('python-importlinter-scaffold.TB1.R3 — ambiguous package layout scaff
 });
 
 describe('python-importlinter-scaffold.TB1.R4 — create-once lifecycle (upgrade)', () => {
-  async function setUpFlatProject(): Promise<void> {
-    createFlatSinglePackageProject(state.projectDirectory);
-    initGitRepo(state.projectDirectory);
-    await runCli(['setup'], {
-      cwd: state.projectDirectory,
-      env: SKIP_INSTALL_ENV,
-      timeout: TIMEOUT_SETUP,
-    });
-  }
-
   async function runUpgrade(): Promise<void> {
     await runCli(['upgrade'], {
       cwd: state.projectDirectory,
@@ -294,6 +295,29 @@ describe('python-importlinter-scaffold.TB1.R4 — create-once lifecycle (upgrade
       await runUpgrade();
 
       expect(readTestFile(state.projectDirectory, '.importlinter')).toBe(extended);
+    },
+    TIMEOUT_SETUP * 2,
+  );
+});
+
+describe('python-importlinter-scaffold.TB1.R4 — create-once lifecycle (reset)', () => {
+  async function runReset(): Promise<void> {
+    await runCli(['reset', '--yes'], {
+      cwd: state.projectDirectory,
+      env: SKIP_INSTALL_ENV,
+      timeout: TIMEOUT_SETUP,
+    });
+  }
+
+  it(
+    'reset removes an unmodified safeword-scaffolded config',
+    async () => {
+      await setUpFlatProject();
+      expect(fileExists(state.projectDirectory, '.importlinter')).toBe(true);
+
+      await runReset();
+
+      expect(fileExists(state.projectDirectory, '.importlinter')).toBe(false);
     },
     TIMEOUT_SETUP * 2,
   );
