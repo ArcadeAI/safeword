@@ -1,7 +1,7 @@
 # Safeword Architecture
 
-**Version:** 1.15
-**Last Updated:** 2026-07-02
+**Version:** 1.16
+**Last Updated:** 2026-07-06
 **Status:** Production
 
 ---
@@ -48,7 +48,7 @@ Safeword is a CLI tool that configures linting, hooks, and development guides fo
 packages/
 ├── cli/            # Main CLI tool + ESLint configs (bunx safeword)
 └── website/        # Documentation site (Astro/Starlight)
-plugin/             # Cursor IDE plugin (commands, hooks)
+plugin/             # Claude Code plugin (commands, hooks) — not a workspace package; distributed via .claude-plugin/marketplace.json
 ```
 
 | Package             | Purpose                                                 | Published As |
@@ -65,19 +65,27 @@ ESLint configs are bundled in the main package and accessed via `import safeword
 ```text
 packages/cli/
 ├── src/
-│   ├── commands/       # CLI commands (setup, upgrade, check, diff, reset, sync-config, sync-learnings, test-plan)
-│   ├── packs/          # Language packs + registry
-│   │   ├── {lang}/     # index.ts, files.ts, setup.ts per language
-│   │   ├── registry.ts # Central pack registry and detection
-│   │   ├── config.ts   # Pack config management (.safeword/config.json)
-│   │   ├── install.ts  # Pack installation logic
-│   │   └── types.ts    # Shared type definitions
-│   ├── presets/        # ESLint presets (exported as safeword/eslint)
-│   │   └── typescript/ # ESLint configs, rules, detection
-│   ├── templates/      # Template content helpers
-│   ├── utils/          # Detection, file ops, git, version
-│   ├── schema.ts       # Single source of truth for all managed files
-│   └── reconcile.ts    # Schema-based file management
+│   ├── commands/         # CLI commands (setup, upgrade, check, diff, reset, sync-config, sync-learnings, …)
+│   ├── learning-sync/    # Generates <namespace-root>/learnings/INDEX.md from learning files
+│   ├── packs/            # Language packs + registry
+│   │   ├── {lang}/       # index.ts, files.ts, setup.ts per language
+│   │   ├── registry.ts   # Central pack registry and detection
+│   │   ├── config.ts     # Pack config management (.safeword/config.json)
+│   │   ├── install.ts    # Pack installation logic
+│   │   └── types.ts      # Shared type definitions
+│   ├── presets/          # ESLint presets (exported as safeword/eslint)
+│   │   └── typescript/   # ESLint configs, rules, detection
+│   ├── retro/            # Retrospective pipeline: transcript mining, drafts, egress guard, GitHub REST transport
+│   ├── skills/           # Skill package installer (harness side of the pack/harness skill split)
+│   ├── templates/        # Template content helpers
+│   ├── test-plan/        # Resolves per-language test/build/typecheck/bdd/deps command plans (verify + stop-gate source of truth)
+│   ├── ticket-sync/      # Generates tickets/INDEX.md + INDEX-completed.md discovery indexes
+│   ├── tracker-connect/  # `safeword connect` flow: tracker credentials, config, secret store
+│   ├── tracker-sync/     # One-way projection of the ticket corpus into the configured tracker
+│   ├── upstream-monitor/ # Watches upstream agent-CLI changelogs (claude-code, codex-cli, cursor) via snapshots
+│   ├── utils/            # Detection, file ops, git, version
+│   ├── schema.ts         # Single source of truth for all managed files
+│   └── reconcile.ts      # Schema-based file management
 ├── templates/
 │   ├── SAFEWORD.md     # Core instructions (installed to .safeword/)
 │   ├── AGENTS.md       # Project context template
@@ -335,6 +343,8 @@ CLI command
 | `yaml`                                            | YAML config parsing (failsafe mode)                                                        |
 | `@secretlint/core`                                | Retro egress: in-process secret detection over a raw string (returns spans)                |
 | `@secretlint/secretlint-rule-preset-recommend`    | Retro egress: maintained provider-key rule-packs (28 formats) layered over the regex floor |
+| `@cucumber/gherkin`                               | Gherkin parse engine for `lint-gherkin` and `.feature` scenario-source validation          |
+| `@cucumber/messages`                              | Gherkin AST message types consumed alongside the parser                                    |
 | `@eslint/js`                                      | ESLint core rules                                                                          |
 | `typescript-eslint`                               | TypeScript ESLint parser + rules                                                           |
 | `eslint-config-prettier`                          | Disable formatting rules                                                                   |
