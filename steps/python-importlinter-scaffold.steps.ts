@@ -269,10 +269,8 @@ Given(
   function (this: ImportLinterWorld) {
     const dir = createProject(this);
     addPackage(dir, 'mypkg');
-    const ini =
-      '[importlinter]\nroot_package = mypkg\n\n[importlinter:contract:mine]\nname = Mine\ntype = independence\nmodules = mypkg.alpha\n';
-    writeFileSync(configPath(this), ini);
-    this.savedConfig = { relativePath: '.importlinter', content: ini };
+    writeFileSync(configPath(this), USER_INI);
+    this.savedConfig = { relativePath: '.importlinter', content: USER_INI };
     runSafeword(this, 'setup');
   },
 );

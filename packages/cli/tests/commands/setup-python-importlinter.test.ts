@@ -52,6 +52,14 @@ function fileExists(dir: string, filename: string): boolean {
   return existsSync(nodePath.join(dir, filename));
 }
 
+/** A user-authored import-linter INI, distinct from any safeword scaffold. */
+const USER_INI =
+  '[importlinter]\nroot_package = mypkg\n\n[importlinter:contract:mine]\nname = Mine\ntype = independence\nmodules = mypkg.alpha\n';
+
+/** A user-added extra contract, appended to a scaffold to make it "extended". */
+const USER_CONTRACT_SUFFIX =
+  '\n[importlinter:contract:mine]\nname = Mine\ntype = independence\nmodules = mypkg.alpha\n';
+
 /** Create a flat single-package fixture and run safeword setup on it. */
 async function setUpFlatProject(): Promise<void> {
   createFlatSinglePackageProject(state.projectDirectory);
@@ -114,9 +122,7 @@ describe('python-importlinter-scaffold.TB1.R2 — existing import-linter config 
     'setup leaves a project with setup.cfg [importlinter] untouched',
     async () => {
       createFlatSinglePackageProject(state.projectDirectory);
-      const userConfig =
-        '[importlinter]\nroot_package = mypkg\n\n[importlinter:contract:mine]\nname = My contract\ntype = independence\nmodules = mypkg.alpha\n';
-      writeTestFile(state.projectDirectory, 'setup.cfg', userConfig);
+      writeTestFile(state.projectDirectory, 'setup.cfg', USER_INI);
       initGitRepo(state.projectDirectory);
 
       await runCli(['setup'], {
@@ -126,13 +132,11 @@ describe('python-importlinter-scaffold.TB1.R2 — existing import-linter config 
       });
 
       expect(fileExists(state.projectDirectory, '.importlinter')).toBe(false);
-      expect(readTestFile(state.projectDirectory, 'setup.cfg')).toBe(userConfig);
+      expect(readTestFile(state.projectDirectory, 'setup.cfg')).toBe(USER_INI);
     },
     TIMEOUT_SETUP,
   );
 
-  const USER_INI =
-    '[importlinter]\nroot_package = mypkg\n\n[importlinter:contract:mine]\nname = My contract\ntype = independence\nmodules = mypkg.alpha\n';
   const USER_PYPROJECT_SUFFIX = '\n[tool.importlinter]\nroot_package = "mypkg"\n';
 
   // Remaining outline rows: config form × command. setup.cfg × setup is the
@@ -286,10 +290,7 @@ describe('python-importlinter-scaffold.TB1.R4 — create-once lifecycle (upgrade
     'upgrade preserves a user-extended scaffold',
     async () => {
       await setUpFlatProject();
-      const extended = `${readTestFile(
-        state.projectDirectory,
-        '.importlinter',
-      )}\n[importlinter:contract:mine]\nname = My layers\ntype = independence\nmodules = mypkg.alpha\n`;
+      const extended = readTestFile(state.projectDirectory, '.importlinter') + USER_CONTRACT_SUFFIX;
       writeTestFile(state.projectDirectory, '.importlinter', extended);
 
       await runUpgrade();
@@ -326,10 +327,7 @@ describe('python-importlinter-scaffold.TB1.R4 — create-once lifecycle (reset)'
     'reset preserves a user-extended scaffold',
     async () => {
       await setUpFlatProject();
-      const extended = `${readTestFile(
-        state.projectDirectory,
-        '.importlinter',
-      )}\n[importlinter:contract:mine]\nname = My contract\ntype = independence\nmodules = mypkg.alpha\n`;
+      const extended = readTestFile(state.projectDirectory, '.importlinter') + USER_CONTRACT_SUFFIX;
       writeTestFile(state.projectDirectory, '.importlinter', extended);
 
       await runReset();
@@ -343,9 +341,7 @@ describe('python-importlinter-scaffold.TB1.R4 — create-once lifecycle (reset)'
     'reset preserves a user-authored import-linter config',
     async () => {
       createFlatSinglePackageProject(state.projectDirectory);
-      const userConfig =
-        '[importlinter]\nroot_package = mypkg\n\n[importlinter:contract:mine]\nname = Mine\ntype = independence\nmodules = mypkg.alpha\n';
-      writeTestFile(state.projectDirectory, '.importlinter', userConfig);
+      writeTestFile(state.projectDirectory, '.importlinter', USER_INI);
       initGitRepo(state.projectDirectory);
       await runCli(['setup'], {
         cwd: state.projectDirectory,
@@ -355,7 +351,7 @@ describe('python-importlinter-scaffold.TB1.R4 — create-once lifecycle (reset)'
 
       await runReset();
 
-      expect(readTestFile(state.projectDirectory, '.importlinter')).toBe(userConfig);
+      expect(readTestFile(state.projectDirectory, '.importlinter')).toBe(USER_INI);
     },
     TIMEOUT_SETUP * 2,
   );
