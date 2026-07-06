@@ -2,8 +2,8 @@
 id: K4STDR
 slug: process-kill-guard
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-07-06T01:04:22.130Z
 last_modified: 2026-07-06T01:04:22.130Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/773
@@ -48,3 +48,4 @@ done_when:
 - 2026-07-06T01:34:00Z RED: unit + integration + config-matcher tests written and failing (pre-commit lint blocks committing an unresolved import, so RED and GREEN land in one commit)
 - 2026-07-06T01:36:00Z GREEN: lib/process-kill-guard.ts + Bash-branch deny + config.ts Bash matcher + cursor routing + schema registration; dogfood mirrors synced (.safeword/hooks, .claude/settings.json); guide prose trimmed to pointer; 50/50 targeted + 1009/1009 hooks/templates tests pass; parity 213 pairs in sync
 - 2026-07-06T02:10:00Z Verified: full suite 4803 passed / 8 failed — all 8 are pre-existing `Error.isError is not a function` (container runs Node 22 workers; repo floor is Node 24 since v0.66.0), in gherkin/self-report/codify suites untouched by this change; identical failures reproduce with and without the change
+- 2026-07-06T03:24:39.902Z Phase: intake → done
