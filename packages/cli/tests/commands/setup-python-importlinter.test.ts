@@ -10,7 +10,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, rmSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -228,6 +228,72 @@ describe('python-importlinter-scaffold.TB1.R3 — ambiguous package layout scaff
       }
 
       expect(fileExists(state.projectDirectory, '.importlinter')).toBe(false);
+    },
+    TIMEOUT_SETUP * 2,
+  );
+});
+
+describe('python-importlinter-scaffold.TB1.R4 — create-once lifecycle (upgrade)', () => {
+  async function setUpFlatProject(): Promise<void> {
+    createFlatSinglePackageProject(state.projectDirectory);
+    initGitRepo(state.projectDirectory);
+    await runCli(['setup'], {
+      cwd: state.projectDirectory,
+      env: SKIP_INSTALL_ENV,
+      timeout: TIMEOUT_SETUP,
+    });
+  }
+
+  async function runUpgrade(): Promise<void> {
+    await runCli(['upgrade'], {
+      cwd: state.projectDirectory,
+      env: SKIP_INSTALL_ENV,
+      timeout: TIMEOUT_SETUP,
+    });
+  }
+
+  it(
+    'upgrade scaffolds .importlinter for a previously-set-up project that lacks one',
+    async () => {
+      await setUpFlatProject();
+      // Simulate a project set up before this feature existed
+      rmSync(nodePath.join(state.projectDirectory, '.importlinter'));
+
+      await runUpgrade();
+
+      const config = readTestFile(state.projectDirectory, '.importlinter');
+      expect(config).toContain('root_package = mypkg');
+      expect(config).toContain('type = acyclic_siblings');
+    },
+    TIMEOUT_SETUP * 2,
+  );
+
+  it(
+    'upgrade is idempotent over an unmodified scaffold',
+    async () => {
+      await setUpFlatProject();
+      const before = readTestFile(state.projectDirectory, '.importlinter');
+
+      await runUpgrade();
+
+      expect(readTestFile(state.projectDirectory, '.importlinter')).toBe(before);
+    },
+    TIMEOUT_SETUP * 2,
+  );
+
+  it(
+    'upgrade preserves a user-extended scaffold',
+    async () => {
+      await setUpFlatProject();
+      const extended = `${readTestFile(
+        state.projectDirectory,
+        '.importlinter',
+      )}\n[importlinter:contract:mine]\nname = My layers\ntype = independence\nmodules = mypkg.alpha\n`;
+      writeTestFile(state.projectDirectory, '.importlinter', extended);
+
+      await runUpgrade();
+
+      expect(readTestFile(state.projectDirectory, '.importlinter')).toBe(extended);
     },
     TIMEOUT_SETUP * 2,
   );
