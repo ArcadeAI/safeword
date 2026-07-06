@@ -192,6 +192,33 @@ describe('package test runner lock (379)', () => {
     ]);
   });
 
+  it('rebases repo-root-relative test paths onto the package root (#723)', async () => {
+    const temporaryDirectory = makeTemporaryDirectory();
+    const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
+    const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
+
+    const result = await runNodeScript(
+      runnerPath,
+      ['packages/cli/tests/first.test.ts', '--config', 'vitest.live.config.ts'],
+      {
+        ...process.env,
+        PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+        SAFEWORD_TEST_LOCK_DIR: lockDirectory,
+      },
+    );
+
+    expect(result).toMatchObject({ status: 0, stderr: '' });
+    expect(readEvents(logPath)).toEqual([
+      expect.stringMatching(/^build:start:/),
+      expect.stringMatching(/^build:end:/),
+      // The path arg is rebased; the flag value is left untouched.
+      expect.stringMatching(
+        /^vitest:start:.*:run,tests\/first\.test\.ts,--config,vitest\.live\.config\.ts$/,
+      ),
+      expect.stringMatching(/^vitest:end:/),
+    ]);
+  });
+
   it('every vitest test script builds before running (no stale dist — #352)', () => {
     const pkg = JSON.parse(readFileSync(nodePath.join(cliRoot, 'package.json'), 'utf8')) as {
       scripts: Record<string, string>;

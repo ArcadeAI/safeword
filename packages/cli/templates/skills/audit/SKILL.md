@@ -121,6 +121,11 @@ elif [ -f packages/cli/src/cli.ts ]; then
 else SW="bunx safeword"; fi
 $SW sync-config --check 2>&1 || echo "[W007] Stale .safeword/depcruise-config.cjs — run \`safeword sync-config\` to refresh and commit"
 
+# Config-drift coverage is JS/TS-only (W005 knip hints, W007 depcruise config).
+# Native stacks have no comparable drift check yet — say so instead of letting
+# silence read as "no drift" (#831).
+(has_python_project || has_go_project || has_rust_project) && echo "Coverage limitation: config-drift checks (W005/W007) cover JS/TS tooling only — native lint configs (ruff.toml, .golangci.yml, Cargo [lints]) are not drift-checked; review them manually."
+
 # =========================================================================
 # ARCHITECTURE CHECKS (circular deps, layer violations)
 # =========================================================================
@@ -360,15 +365,17 @@ find . -name "*.test.*" -o -name "*.spec.*" -o -name "*_test.*" | grep -v node_m
 
 **For each sampled test file, check:**
 
-| Check                        | Criteria                                                                                                | Severity |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------- | -------- |
-| Meaningful assertions        | Every test has specific value/behavior assertions (not just `toBeTruthy`, `toBeDefined`, `not.toThrow`) | error    |
-| Behavior over implementation | Tests assert observable outcomes, not internal state or mock call args                                  | error    |
-| Independence                 | No test depends on another test's side effects; fresh state per test                                    | error    |
-| No arbitrary timeouts        | No `sleep()`, `waitForTimeout()`, or hardcoded delays                                                   | error    |
-| Edge case coverage           | Tests include error paths and boundary cases, not just happy path                                       | error    |
-| No duplicate tests           | Similar tests use parameterized/table-driven patterns (`it.each`)                                       | error    |
-| Test naming                  | Names describe behavior, not implementation ("returns 401 when..." not "works correctly")               | error    |
+The criteria are language-neutral; the parenthetical idioms are examples — map them to the project's test framework (Jest/Vitest, pytest, Go `testing`, Rust `#[test]`, …).
+
+| Check                        | Criteria                                                                                                                                                                  | Severity |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| Meaningful assertions        | Every test asserts specific values/behavior — not bare existence/truthiness/no-error checks (`toBeTruthy`, bare `assert result`, only `err == nil`, `assert!(x.is_ok())`) | error    |
+| Behavior over implementation | Tests assert observable outcomes, not internal state or mock call args                                                                                                    | error    |
+| Independence                 | No test depends on another test's side effects; fresh state per test                                                                                                      | error    |
+| No arbitrary timeouts        | No sleeps or hardcoded delays (`sleep`, `waitForTimeout`, `time.Sleep`, `thread::sleep`)                                                                                  | error    |
+| Edge case coverage           | Tests include error paths and boundary cases, not just happy path                                                                                                         | error    |
+| No duplicate tests           | Similar tests use parameterized/table-driven patterns (`it.each`, `pytest.mark.parametrize`, Go table-driven subtests, `rstest`)                                          | error    |
+| Test naming                  | Names describe behavior, not implementation ("returns 401 when..." not "works correctly")                                                                                 | error    |
 
 **Report format:**
 

@@ -446,6 +446,12 @@ function frontmatterFromContent(content: string): Record<string, string | string
   return match ? parseFrontmatter(match[1] ?? '') : {};
 }
 
+// Shared predicate for the four ticket.md gates below. Exact-basename match
+// (#673): a suffix check would let decoys like `sub-ticket.md` take the
+// canonical-ticket branches and be judged on their own frontmatter.
+const isCanonicalTicketEdit =
+  nodePath.basename(editedFile) === 'ticket.md' && isNamespacePath(editedFile, 'tickets/');
+
 // ---------------------------------------------------------------------------
 // Phase-provenance gate (0KYEBN, #644 G2) — ALWAYS-ON. A feature ticket's
 // phase is earned, not declared: born at intake, one canonical step at a time,
@@ -453,7 +459,7 @@ function frontmatterFromContent(content: string): Record<string, string | string
 // #404 readiness gate so "wrong step" is reported before "step not earned".
 // ---------------------------------------------------------------------------
 
-if (editedFile.endsWith('ticket.md') && isNamespacePath(editedFile, 'tickets/')) {
+if (isCanonicalTicketEdit) {
   // Only judge writes whose proposed content is reconstructable from the
   // payload (Write content, Edit old/new, MultiEdit edits). Payload shapes
   // carrying none of those (e.g. NotebookEdit, adapter probes) pass — the
@@ -476,7 +482,7 @@ if (editedFile.endsWith('ticket.md') && isNamespacePath(editedFile, 'tickets/'))
 // Feature readiness gate (#404): block new entries into define-behavior before
 // scenario work starts. The existing test-definitions.md gate still guards the
 // first scenario-file write; this catches the earlier phase edit.
-if (editedFile.endsWith('ticket.md') && isNamespacePath(editedFile, 'tickets/')) {
+if (isCanonicalTicketEdit) {
   const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : '';
   const proposedContent = nextContentAfterEdit(input.tool_input, priorContent);
   const priorMeta = frontmatterFromContent(priorContent);
@@ -508,7 +514,7 @@ if (editedFile.endsWith('ticket.md') && isNamespacePath(editedFile, 'tickets/'))
 // independent phase-exit review stamp exists for it. The stamp is produced by a
 // fresh (context:fork) reviewer and logged via `write-review-stamp.ts --phase`,
 // so the author can't grade their own phase. Inert until reviewGate is enabled.
-if (editedFile.endsWith('ticket.md') && isNamespacePath(editedFile, 'tickets/')) {
+if (isCanonicalTicketEdit) {
   if (isReviewGateOn()) {
     const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : '';
     const exitedPhase = detectPhaseAdvance(
@@ -554,7 +560,7 @@ if (editedFile.endsWith('ticket.md') && isNamespacePath(editedFile, 'tickets/'))
 // not done (override with a substantive reason). Joins the phase-gate family.
 // ---------------------------------------------------------------------------
 
-if (editedFile.endsWith('ticket.md') && isNamespacePath(editedFile, 'tickets/')) {
+if (isCanonicalTicketEdit) {
   const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : '';
   const proposedContent = nextContentAfterEdit(input.tool_input, priorContent);
   const denial = evaluateBlockedOnGate(priorContent, proposedContent, id => {

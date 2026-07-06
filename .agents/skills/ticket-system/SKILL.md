@@ -105,6 +105,10 @@ status: in_progress
 - Log immediately after each action
 - Re-read ticket before significant actions
 - For detailed scratch notes, use a separate work log (see Work Logs below)
+- **Cite durable anchors, not raw line numbers.** `file.md:18-22` goes stale
+  after any unrelated merge (#799). Anchor each edit site to something that
+  survives drift — heading text, a unique grep pattern, or a function name —
+  and re-grep before editing if you must quote a line number.
 - **CRITICAL:** Never mark `done` without user confirmation
 
 ---

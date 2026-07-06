@@ -166,7 +166,10 @@ function frontmatterField(content: string, field: string): string | undefined {
 }
 
 // Active ticket binding (phase/TDD step no longer cached — derived at read time)
-if (isNamespacePath(editedFile, 'tickets/') && editedFile.endsWith('ticket.md')) {
+// Exact-basename match (#673): a suffix check would let decoys like
+// `sub-ticket.md` shadow the folder's canonical ticket.md and bind to a
+// stray/absent id instead of falling through to the artifact branch.
+if (isNamespacePath(editedFile, 'tickets/') && nodePath.basename(editedFile) === 'ticket.md') {
   const fullPath = editedFile.startsWith('/')
     ? editedFile
     : nodePath.join(projectDirectory, editedFile);

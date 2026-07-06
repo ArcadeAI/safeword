@@ -69,13 +69,20 @@ fresh context** that hasn't lived the session:
 
 ## Rules
 
-- **Autonomous** — no human approval. The schema + sanitizer + dedup + caps are
-  the safeguards, not a human gate.
-- **Upstream only** — `ArcadeAI/safeword`. Never the host project's tracker (the
-  friction is in safeword, not their product). If your agent lacks GitHub access
-  to the upstream repo, the command says so and no-ops — that's fine.
-- **Code owns egress.** You provide raw findings; the command sanitizes and
-  writes. Never file issues yourself from the transcript — that bypasses the
-  guard.
+The three bold invariants are shared word-for-word with
+`self-report-filing.md`; a parity contract (`packages/cli/src/schema.ts` →
+`contracts`) keeps the two guides from forking again (#801). Guide-specific
+rules follow them.
+
+- **Autonomous** — no human approval; sanitization + dedup + caps are the safeguards, not a human gate.
+- **Upstream only** — `ArcadeAI/safeword`, never the host project's tracker.
+- **Code owns egress** — nothing leaves beyond what the sanitized output contains.
+
+Specific to this playbook:
+
+- The friction is in safeword, not the host product. You provide raw findings;
+  the command sanitizes and files. Never file issues yourself from the
+  transcript — that bypasses the guard. If the agent lacks GitHub access to the
+  upstream repo, the command says so and no-ops — that's fine.
 - **Empty is a valid result.** A smooth session yields zero findings. Don't
   invent friction to fill the array.
