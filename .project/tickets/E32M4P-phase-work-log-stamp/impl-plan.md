@@ -1,6 +1,6 @@
 # Impl Plan: Auto-stamp ticket work-log entries on phase transitions (#772)
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
