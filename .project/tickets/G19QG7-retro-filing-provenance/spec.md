@@ -38,9 +38,9 @@ Affected:
 
 > When I open a retro-filed issue, I want to see the commit state each encounter was captured against, so I can check whether the code has changed since without reconstructing session timelines from git log.
 
-#### retro-filing-provenance.SM1.R1 — Every encounter recorded on an issue carries the commit provenance (short SHA, branch) current at capture time, newest encounter visible
+#### retro-filing-provenance.SM1.R1 — Every encounter records environment-aware provenance: a dogfood session records the safeword repo's short HEAD SHA, a customer install records the installed safeword version — both with the capture time, newest encounter visible
 
-#### retro-filing-provenance.SM1.R2 — Provenance fields are code-assembled and bounded, so no free-text or leakable shape reaches the public ledger comment
+#### retro-filing-provenance.SM1.R2 — Provenance fields are code-assembled and bounded, and never carry a customer repo identifier (no customer SHA, branch, or repo name), so no free-text or leakable shape reaches the public ledger comment
 
 ### retro-filing-provenance.SM2 — separate still-broken from already-fixed without archaeology
 
@@ -48,7 +48,7 @@ Affected:
 
 > When I triage open retro issues after a session's PR has merged, I want issues whose surface changed since their last recorded encounter flagged as possibly-resolved, so I start from a shortlist instead of auditing every issue by hand.
 
-#### retro-filing-provenance.SM2.R1 — A reconcile sweep marks an open retro issue possibly-resolved when its surface was touched by commits after the issue's newest recorded provenance
+#### retro-filing-provenance.SM2.R1 — A reconcile sweep marks an open retro issue possibly-resolved when its surface was touched by commits after the issue's newest recorded code state — a dogfood SHA's capture time, or a customer version's release-tag date — never by ancestry from a possibly-unreachable SHA
 
 #### retro-filing-provenance.SM2.R2 — Reconcile never closes an issue — it only flags; a human (or a later verification pass) decides
 
@@ -66,7 +66,18 @@ skip: internal maintainer plumbing — no persona-facing peak to name.
 - Running reconcile after a merge produces a `possibly-resolved` shortlist that matches issues whose surface actually changed; re-running produces nothing new.
 - The #707-style manual archaeology (2 days open, git-log spelunking) becomes: read the flag, verify, close.
 
+## Environment split (figure-it-out, 2026-07-06)
+
+Retro files from two environments, and provenance means different things in each:
+
+- **Dogfood repo** (`isDogfoodRepo` — `templates/hooks/lib/dogfood.ts`): the session's repo IS safeword, so the meaningful code state is the repo's short HEAD SHA at capture. The installed version is useless here — development happens between releases, so the version doesn't advance while the bug is being introduced/fixed (the actual #791 case).
+- **Customer install**: safeword is an installed npm package + materialized `.safeword/`; the customer's HEAD SHA says nothing about safeword's code state and customer repo identifiers must never reach the public ledger. The meaningful code state is the installed safeword version (`packages/cli/src/version.ts` `VERSION`), which maps to a release tag (releases are tag-driven per CLAUDE.md) and thus to a date. Prior art: crash reporters (Sentry) key regression/resolution tracking to the app's release version, not the host machine's state.
+- **Mixed ledgers are normal** — the same upstream issue can be encountered from both environments. Reconcile therefore normalizes every encounter to a *code-state date* (dogfood SHA → its capture time; version → its release-tag date) and flags when the surface was touched on the default branch after the newest such date (`GET /repos/{o}/{r}/commits?path=&since=` — confirmed in GitHub REST docs).
+- **Why date-based, not ancestry-based:** dogfood captures happen on feature branches that squash-merge — the recorded SHA is never an ancestor of main and may become unresolvable after branch deletion, so the capture time is recorded alongside and the SHA is informational.
+- **Why an old-version encounter doesn't reset freshness:** a customer on v0.50 hitting the bug *today* reports an old code state (the v0.50 tag date), not today — so it correctly stays flaggable as possibly-resolved-by-a-newer-release. This is why wall-clock capture time alone is the wrong key for version encounters.
+
 ## Open Questions
 
 - How is reconcile invoked — a `safeword retro --reconcile` CLI mode only, or also wired into this repo's CI on merge to main? (Proposal: CLI mode in scope; CI wiring is a one-line follow-up outside this ticket.)
 - Within-session staleness (a finding fixed later in the same session, before any merge) — out of scope here? (Proposal: yes; the reconcile sweep catches it once the fix merges, and in-session deferral is a separate design with its own Stop-timing tradeoffs.)
+- Should reconcile treat a `process/<slug>` surface (PNZM3B) as unreconcilable-by-path and skip it? (Proposal: yes — no file path to diff; leave untouched like pre-provenance issues.)
