@@ -321,6 +321,44 @@ describe('python-importlinter-scaffold.TB1.R4 — create-once lifecycle (reset)'
     },
     TIMEOUT_SETUP * 2,
   );
+
+  it(
+    'reset preserves a user-extended scaffold',
+    async () => {
+      await setUpFlatProject();
+      const extended = `${readTestFile(
+        state.projectDirectory,
+        '.importlinter',
+      )}\n[importlinter:contract:mine]\nname = My contract\ntype = independence\nmodules = mypkg.alpha\n`;
+      writeTestFile(state.projectDirectory, '.importlinter', extended);
+
+      await runReset();
+
+      expect(readTestFile(state.projectDirectory, '.importlinter')).toBe(extended);
+    },
+    TIMEOUT_SETUP * 2,
+  );
+
+  it(
+    'reset preserves a user-authored import-linter config',
+    async () => {
+      createFlatSinglePackageProject(state.projectDirectory);
+      const userConfig =
+        '[importlinter]\nroot_package = mypkg\n\n[importlinter:contract:mine]\nname = Mine\ntype = independence\nmodules = mypkg.alpha\n';
+      writeTestFile(state.projectDirectory, '.importlinter', userConfig);
+      initGitRepo(state.projectDirectory);
+      await runCli(['setup'], {
+        cwd: state.projectDirectory,
+        env: SKIP_INSTALL_ENV,
+        timeout: TIMEOUT_SETUP,
+      });
+
+      await runReset();
+
+      expect(readTestFile(state.projectDirectory, '.importlinter')).toBe(userConfig);
+    },
+    TIMEOUT_SETUP * 2,
+  );
 });
 
 // E2E teeth: prove the scaffold is valid FOR THE REAL TOOL, not merely present.
