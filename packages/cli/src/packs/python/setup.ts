@@ -110,7 +110,13 @@ const NON_PACKAGE_DIRS = new Set([
   'venv',
 ]);
 
-/** Importable packages (dirs with `__init__.py`) directly under `dir`, excluding non-package dirs. */
+/**
+ * Importable packages (dirs with `__init__.py`) directly under `dir`, excluding
+ * non-package dirs. Symlinked directories are not counted (`isDirectory()` is
+ * false for symlinks) — deliberate narrow detection: a layout that only looks
+ * ambiguous through symlinks still scaffolds, and the unchecked package is at
+ * worst uncovered, never wrongly deleted.
+ */
 function importablePackagesIn(dir: string): string[] {
   if (!exists(dir)) return [];
   try {

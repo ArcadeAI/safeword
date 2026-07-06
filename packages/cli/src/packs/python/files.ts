@@ -294,8 +294,9 @@ export const pythonManagedFiles: Record<string, ManagedFileDefinition> = {
     // would generate — gate-free content source, since at reset time the
     // scaffold's own existence trips the existing-config gate above (V4MATC R4).
     // If the project layout changed since scaffolding (package renamed, layers
-    // appeared), the regenerated content won't match and the file survives reset
-    // — intentional: never delete what we can't prove we wrote.
+    // appeared) or line endings were converted (e.g. autocrlf), the regenerated
+    // content won't byte-match and the file survives reset — intentional:
+    // never delete what we can't prove we wrote.
     removeIfUnmodified: ctx =>
       ctx.languages?.python ? importLinterScaffoldContent(ctx.cwd) : undefined,
   },
