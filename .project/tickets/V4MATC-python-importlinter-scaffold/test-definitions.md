@@ -28,8 +28,8 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: setup and upgrade leave a project with existing import-linter config untouched (outline: 3 config forms × setup, 2 × upgrade)
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 51fd266
+- [x] GREEN 969e53c
 - [ ] REFACTOR
 
 ## Rule: python-importlinter-scaffold.TB1.R3 — when the top-level package cannot be determined unambiguously, safeword scaffolds nothing
