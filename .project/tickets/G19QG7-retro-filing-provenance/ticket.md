@@ -7,7 +7,7 @@ status: in_progress
 scope:
   - environment-aware provenance captured per encounter (dogfood repo → safeword short HEAD SHA + capture time; customer install → installed safeword version), recorded in the code-assembled ledger comment on both create and bump paths
   - ledger schema extension with safe coercion — pre-provenance ledgers parse unchanged
-  - reconcile sweep as a CLI mode that lists open retro-labeled issues, normalizes each issue's newest provenance to a code-state date (SHA → capture time; version → release-tag date), and flags possibly-resolved via an idempotent comment + label
+  - reconcile sweep as a CLI mode that lists open retro-labeled issues, normalizes each issue's newest provenance to a code-state date (SHA → capture time; version → release-tag date), flags possibly-resolved via an idempotent comment + label, and bounds its API operations per run (actions/stale precedent)
 out_of_scope:
   - CI wiring of the reconcile sweep (one-line follow-up outside this ticket)
   - in-session staleness deferral (separate design with Stop-timing tradeoffs)

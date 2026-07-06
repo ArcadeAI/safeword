@@ -69,8 +69,9 @@ Feature: Retro filing provenance and reconcile sweep
 
     Scenario: A mixed ledger keys on the newest code state, not the newest wall clock
       Given an open retro issue with a dogfood encounter and a later-in-time encounter from an older installed version
-      When the reconcile sweep normalizes the ledger
-      Then the decision keys on the dogfood encounter's capture time as the newest code state
+      And the issue's surface has commits after the old version's release-tag date but none after the dogfood capture time
+      When the reconcile sweep runs
+      Then the issue is left unmarked
 
     @rejection
     Scenario: An issue whose surface is untouched since its newest code state is not flagged
@@ -110,3 +111,18 @@ Feature: Retro filing provenance and reconcile sweep
       Given an open retro issue whose surface is a process area rather than a file path
       When the reconcile sweep runs
       Then the issue is left untouched
+
+    @rejection
+    Scenario: A version whose release-tag date cannot be resolved is skipped
+      Given an open retro issue whose newest provenance is a version with no resolvable release tag
+      When the reconcile sweep runs
+      Then the issue is left untouched rather than keyed to a guessed date
+
+  @retro-filing-provenance.SM2.R5
+  Rule: retro-filing-provenance.SM2.R5 — The sweep considers only open, retro-labeled issues
+
+    @rejection
+    Scenario: Closed and non-retro issues are never considered
+      Given a closed retro issue and an open issue without the retro label, each with reconcilable provenance
+      When the reconcile sweep runs
+      Then neither issue receives a comment or label

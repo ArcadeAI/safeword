@@ -54,7 +54,9 @@ Affected:
 
 #### retro-filing-provenance.SM2.R3 — Reconcile is idempotent: re-running against unchanged state adds no duplicate flags or comments
 
-#### retro-filing-provenance.SM2.R4 — An issue that cannot be reconciled — no recorded provenance (pre-feature) or no file-path surface (`process/<slug>`) — is left untouched, never guessed at
+#### retro-filing-provenance.SM2.R4 — An issue that cannot be reconciled — no recorded provenance (pre-feature), no file-path surface (`process/<slug>`), or version provenance whose release-tag date cannot be resolved — is left untouched, never guessed at
+
+#### retro-filing-provenance.SM2.R5 — The sweep considers only open, retro-labeled issues; anything else is never touched
 
 ## Rave Moment
 
@@ -71,10 +73,13 @@ skip: internal maintainer plumbing — no persona-facing peak to name.
 Retro files from two environments, and provenance means different things in each:
 
 - **Dogfood repo** (`isDogfoodRepo` — `templates/hooks/lib/dogfood.ts`): the session's repo IS safeword, so the meaningful code state is the repo's short HEAD SHA at capture. The installed version is useless here — development happens between releases, so the version doesn't advance while the bug is being introduced/fixed (the actual #791 case).
-- **Customer install**: safeword is an installed npm package + materialized `.safeword/`; the customer's HEAD SHA says nothing about safeword's code state and customer repo identifiers must never reach the public ledger. The meaningful code state is the installed safeword version (`packages/cli/src/version.ts` `VERSION`), which maps to a release tag (releases are tag-driven per CLAUDE.md) and thus to a date. Prior art: crash reporters (Sentry) key regression/resolution tracking to the app's release version, not the host machine's state.
+- **Customer install**: safeword is an installed npm package + materialized `.safeword/`; the customer's HEAD SHA says nothing about safeword's code state and customer repo identifiers must never reach the public ledger. The meaningful code state is the installed safeword version (`packages/cli/src/version.ts` `VERSION`), which maps to a release tag (releases are tag-driven per CLAUDE.md) and thus to a date. Prior art: crash reporters (Sentry) key regression/resolution tracking to the app's release version, not the host machine's state (training-data claim, unverified — verify at implement if load-bearing).
 - **Mixed ledgers are normal** — the same upstream issue can be encountered from both environments. Reconcile therefore normalizes every encounter to a *code-state date* (dogfood SHA → its capture time; version → its release-tag date) and flags when the surface was touched on the default branch after the newest such date (`GET /repos/{o}/{r}/commits?path=&since=` — confirmed in GitHub REST docs).
 - **Why date-based, not ancestry-based:** dogfood captures happen on feature branches that squash-merge — the recorded SHA is never an ancestor of main and may become unresolvable after branch deletion, so the capture time is recorded alongside and the SHA is informational.
 - **Why an old-version encounter doesn't reset freshness:** a customer on v0.50 hitting the bug *today* reports an old code state (the v0.50 tag date), not today — so it correctly stays flaggable as possibly-resolved-by-a-newer-release. This is why wall-clock capture time alone is the wrong key for version encounters.
+- **Tag-date resolution is fallible** (quality review 2026-07-06): the git tag-object endpoint supports annotated tags only; lightweight tags need a different ref→commit shape, and a recorded version may have no tag at all (dev/unpublished builds, forks). Safeword's release path is annotated `v*` tags, but reconcile runs against whatever a ledger recorded — an unresolvable tag date makes the issue unreconcilable (SM2.R4), never guessed.
+- **`since` semantics assumption:** the list-commits `since` filter is committer-date-based (GitHub docs are ambiguous; git's own `--since` is committer date). Committer date is what we want — a squash-merged fix's committer date is merge time, so post-capture fixes land after the capture time even when authored earlier. Clock skew between capture-time and committer clocks is tolerated because reconcile is flag-only and human-verified.
+- **Forged-ledger accepted risk:** the ledger comment is publicly editable, so crafted provenance dates can steer the flag decision. Parse-side coercion (SM1.R2) bounds *shape*, not truth; flag-only + human verification bounds the damage. Accepted, not designed around.
 
 ## Open Questions
 

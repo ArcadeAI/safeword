@@ -40,7 +40,13 @@ Affected:
 
 #### retro-process-surface.SM1.R1 — A finding surfaced as a constrained process area survives egress and files like any file-surfaced finding
 
-#### retro-process-surface.SM1.R2 — The process namespace stays fail-closed: anything outside its strict slug shape is still dropped, so no new leakable shape can reach a public issue body
+#### retro-process-surface.SM1.R2 — The process namespace stays fail-closed: a slug survives only when it is lowercase alphanumerics + hyphens, bounded (≤32 chars), and not secret-shaped (hex-run / entropy backstop) — so no new leakable shape can reach a public issue body
+
+<!-- Quality-review finding (2026-07-06): the surface field bypasses sanitizeTextDeep —
+resolveSurface is the ONLY wall before public interpolation — and a bare
+[a-z0-9-]+ shape admits 32–40 char lowercase-hex secrets/SHAs that the egress
+posture (#601) redacts everywhere else. Hence the explicit length bound and
+secret-shape rejection in the rule itself. -->
 
 #### retro-process-surface.SM1.R3 — Extraction guidance offers the process surface, so an extractor with no honest file path names a process area instead of fabricating one
 

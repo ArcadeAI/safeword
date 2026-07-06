@@ -88,6 +88,12 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: retro-filing-provenance.SM2.R4 — Unreconcilable issues are left untouched
 
+### Scenario: A version whose release-tag date cannot be resolved is skipped
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: An issue without recorded provenance is skipped
 
 - [ ] RED
@@ -95,6 +101,14 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 
 ### Scenario: A process-surfaced issue is skipped
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: retro-filing-provenance.SM2.R5 — The sweep considers only open, retro-labeled issues
+
+### Scenario: Closed and non-retro issues are never considered
 
 - [ ] RED
 - [ ] GREEN
