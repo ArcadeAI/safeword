@@ -31,7 +31,7 @@ When running dev servers and E2E tests across multiple projects, zombie processe
 - Test runners stuck in background
 - Build processes from previous sessions
 
-**CRITICAL:** NEVER use `killall node` or `pkill -9 node` when working on multiple projects - this kills processes from ALL projects.
+Broad kills by bare runtime name (`killall node`, `pkill -9 node`) hit ALL projects' processes — the safeword Bash gate denies them (`hooks/lib/process-kill-guard.ts`). Use the project-scoped patterns below.
 
 ---
 

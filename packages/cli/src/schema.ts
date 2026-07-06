@@ -762,6 +762,12 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/bash-ledger-writes.ts': {
       template: 'hooks/lib/bash-ledger-writes.ts',
     },
+    '.safeword/hooks/lib/process-kill-guard.ts': {
+      template: 'hooks/lib/process-kill-guard.ts',
+    },
+    '.safeword/hooks/lib/work-log-stamp.ts': {
+      template: 'hooks/lib/work-log-stamp.ts',
+    },
     '.safeword/hooks/lib/review-trigger.ts': { template: 'hooks/lib/review-trigger.ts' },
     '.safeword/hooks/lib/dogfood.ts': { template: 'hooks/lib/dogfood.ts' },
     '.safeword/hooks/lib/ledger-git.ts': { template: 'hooks/lib/ledger-git.ts' },
@@ -893,6 +899,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/post-tool-sync-learnings.ts': {
       template: 'hooks/post-tool-sync-learnings.ts',
+    },
+    '.safeword/hooks/post-tool-work-log.ts': {
+      template: 'hooks/post-tool-work-log.ts',
     },
 
     // Retro filer subagent (GH628F, issue #628): the filing procedure lives in
