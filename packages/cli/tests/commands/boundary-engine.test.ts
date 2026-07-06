@@ -69,3 +69,27 @@ describe('boundary engine — resolver failure degrades to indeterminate', () =>
     expect(format?.verdict).toBe('indeterminate');
   });
 });
+
+describe('boundary tier split — commit tier attempts no reachability (SM1.AC1)', () => {
+  it('a well-formed but unreachable anchor passes at commit tier (reachability waits for push)', () => {
+    const change: TicketChange = {
+      ticketFolder: 'ENG003-fixture',
+      artifacts: [
+        {
+          artifact: 'ticket.md',
+          prior: ticketContent('define-behavior'),
+          proposed: ticketContent('implement', ['implement: deadbee']),
+        },
+      ],
+      ticketCurrent: ticketContent('implement', ['implement: deadbee']),
+      hasLedger: true,
+    };
+
+    // Commit tier: no resolver injected — by construction no reachability
+    // verification can be attempted; a well-formed anchor must PASS.
+    const [reconciliation] = reconcileChange([change]);
+
+    const anchor = reconciliation?.checks.find(c => c.check === 'phase-anchor');
+    expect(anchor?.verdict).toBe('pass');
+  });
+});

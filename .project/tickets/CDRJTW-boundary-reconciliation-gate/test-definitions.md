@@ -71,38 +71,38 @@ source; this file tracks per-scenario RED → GREEN → REFACTOR with commit SHA
 
 ### Scenario: A well-formed anchor that is not reachable from the pushed history is warned
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 701a2b7
+- [x] GREEN ea71278
 - [ ] REFACTOR
 
 ### Scenario: Anchors recorded before a rebase still verify after it
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED skip: protective test — passed pre-resolver, guards canonicalization once reachability landed
+- [x] GREEN ea71278
 - [ ] REFACTOR
 
 ### Scenario: Only the entered phase's anchor is demanded on a multi-phase advance
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED skip: pure entered-phase logic shipped in #809; test protective from birth
+- [x] GREEN ea71278
 - [ ] REFACTOR
 
 ### Scenario: Ledger step SHAs are verified against the pushed history
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 701a2b7
+- [x] GREEN ea71278
 - [ ] REFACTOR
 
 ### Scenario: A failing SHA resolution is recorded as indeterminate, never a crash
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED skip: unit-level spec written with its implementation in one slice (pure engine seam)
+- [x] GREEN ea71278
 - [ ] REFACTOR
 
 ### Scenario: A branch pushed for the first time still gets its outgoing work reconciled
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 701a2b7
+- [x] GREEN ea71278
 - [ ] REFACTOR
 
 ## Rule: The gate is silent and free for changes that touch no ticket artifacts
@@ -135,8 +135,8 @@ source; this file tracks per-scenario RED → GREEN → REFACTOR with commit SHA
 
 ### Scenario: Unreachable evidence at push warns but never blocks
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 701a2b7
+- [x] GREEN ea71278
 - [ ] REFACTOR
 
 ## Rule: Every reconciliation is durably recorded locally
