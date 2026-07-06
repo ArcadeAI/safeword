@@ -10,6 +10,8 @@ const cliRoot = nodePath.resolve(scriptDirectory, '..');
 // Vitest runs with cwd=cliRoot, so a repo-root-relative path — the natural
 // spelling when invoking `bun run test` from the workspace root (#723) —
 // would act as a filter that matches nothing. Rebase those onto the package.
+// Only standalone arguments are rebased; `=`-joined flag values
+// (`--config=packages/cli/x.ts`) pass through untouched.
 const vitestArguments = process.argv
   .slice(2)
   .map(argument =>
