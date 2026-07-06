@@ -15,6 +15,8 @@ bun scripts/parity-check.ts --fix        # auto-sync: copy drifted templates →
 
 `--fix` (or `bun run parity:fix`) resolves pair drift by copying each canonical template over its dogfood mirror, so a hook edit no longer has to be hand-`cp`'d between `templates/` and `.safeword/`. Templates are canonical; `.safeword/` is the mirror.
 
+Run the `bun scripts/…` forms from the **repo root** — the path is root-relative, so from a package directory bun fails with a misleading `Module not found` (#861). `bun run parity:fix` works from the root or `packages/cli` (forwarding script).
+
 ## What gets checked
 
 - **Pairs** (from `SAFEWORD_SCHEMA.ownedFiles`): every entry with a `template` field is compared byte-for-byte against its dogfood counterpart.
