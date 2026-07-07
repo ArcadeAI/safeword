@@ -25,6 +25,7 @@ NC='\033[0m' # No Color
 
 # Parse arguments
 DRY_RUN=true
+DRY_RUN_EXPLICIT=false
 PORT=""
 PATTERN=""
 
@@ -35,7 +36,9 @@ for arg in "$@"; do
       ;;
     --dry-run)
       # Explicit alias for the default; kept so existing invocations stay valid.
+      # Sticky: in a contradictory `--dry-run --yes` mix, preview wins.
       DRY_RUN=true
+      DRY_RUN_EXPLICIT=true
       ;;
     --help | -h)
       echo "Usage: $0 [--yes] [port] [pattern]"
@@ -68,6 +71,10 @@ for arg in "$@"; do
       ;;
   esac
 done
+
+# A contradictory `--dry-run --yes` mix resolves to preview regardless of flag
+# order — the safest reading of an ambiguous request.
+[ "$DRY_RUN_EXPLICIT" = true ] && DRY_RUN=true
 
 # Check if any file matching pattern exists (supports globs)
 has_config() {

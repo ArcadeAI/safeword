@@ -5,7 +5,7 @@
  * in temp directories with mock config files.
  */
 
-import { execSync } from 'node:child_process';
+import { type ChildProcess, execSync, spawn } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
@@ -209,6 +209,74 @@ describe('cleanup-zombies.sh', () => {
       // Bare preview still runs the full detection pass (port + pattern shown).
       expect(output).toContain('Port: 5173');
       expect(output).toContain('--yes');
+    });
+
+    it('Scenario: preview wins a contradictory flag mix, regardless of order', () => {
+      for (const args of [
+        ['--yes', '--dry-run'],
+        ['--dry-run', '--yes'],
+      ]) {
+        expect(runScriptBare(args)).toContain('no processes will be killed');
+      }
+    });
+  });
+
+  // The behavioral pin for kill mode: a real project-scoped process survives the
+  // bare preview and dies under --yes. Everything above proves messaging; this
+  // proves the mode flip reaches kill(1).
+  describe('Rule: --yes kills what the preview showed (behavioral pin)', () => {
+    let victim: ChildProcess | undefined;
+
+    afterEach(() => {
+      if (victim?.pid && victim.exitCode === null) {
+        try {
+          process.kill(victim.pid, 'SIGKILL');
+        } catch {
+          // already dead — the desired end state
+        }
+      }
+      victim = undefined;
+    });
+
+    function spawnVictim(): number {
+      // The marker + temp-dir path in the raw argv is what the script's
+      // project-scoped pgrep ("<pattern>.*<project dir>") matches. The `; exit 0`
+      // keeps bash resident (a lone simple command would exec-optimize into
+      // `sleep 60`, discarding the marker from the command line).
+      victim = spawn('bash', ['-c', `sleep 60; exit 0 # swzombie ${temporaryDirectory}`], {
+        detached: true,
+        stdio: 'ignore',
+      });
+      if (victim.pid === undefined) throw new Error('failed to spawn victim');
+      return victim.pid;
+    }
+
+    function isAlive(pid: number): boolean {
+      try {
+        process.kill(pid, 0);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    it('Scenario: the victim survives a bare preview and dies under --yes', async () => {
+      const pid = spawnVictim();
+      await expect.poll(() => isAlive(pid)).toBe(true);
+
+      const preview = execSync(`bash "${SCRIPT_PATH}" swzombie`, {
+        cwd: temporaryDirectory,
+        encoding: 'utf8',
+      });
+      expect(preview).toContain('swzombie');
+      expect(preview).toContain('Re-run with --yes to kill them');
+      expect(isAlive(pid)).toBe(true); // preview never kills
+
+      execSync(`bash "${SCRIPT_PATH}" --yes swzombie`, {
+        cwd: temporaryDirectory,
+        encoding: 'utf8',
+      });
+      await expect.poll(() => isAlive(pid)).toBe(false); // consent kills
     });
   });
 
