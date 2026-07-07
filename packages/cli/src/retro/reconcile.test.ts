@@ -229,3 +229,76 @@ describe('reconcile — flag-only, idempotent, bounded eligibility (SM2.R2-R5)',
     expect(tracker.labels.get(6)).toEqual([RECONCILE_LABEL]);
   });
 });
+
+describe('reconcile — unreconcilable issues are left untouched (SM2.R4-R5)', () => {
+  const untouchedExpectations = (tracker: FakeTracker, issueNumber: number) => {
+    expect(tracker.comments.get(issueNumber)).toBeUndefined();
+    expect(tracker.labels.get(issueNumber)).toBeUndefined();
+  };
+
+  it('skips an issue without recorded provenance', async () => {
+    const issue: ReconcileIssue = {
+      number: 11,
+      title: 'pre-provenance',
+      body: issueBody('packages/cli/src/retro/pipeline.ts'),
+      labels: ['retro'],
+    };
+    const tracker = new FakeTracker([issue], new Map([[11, ledgerComment({})]]), () => true);
+
+    const result = await reconcile(tracker);
+
+    expect(result.skipped).toEqual([11]);
+    untouchedExpectations(tracker, 11);
+  });
+
+  it('skips a process-surfaced issue', async () => {
+    const issue: ReconcileIssue = {
+      number: 12,
+      title: 'process friction',
+      body: issueBody('process/tdd-loop'),
+      labels: ['retro'],
+    };
+    const tracker = new FakeTracker(
+      [issue],
+      new Map([
+        [12, ledgerComment({ dogfood: { sha: 'abc1234', at: '2026-07-01T00:00:00.000Z' } })],
+      ]),
+      () => true,
+    );
+
+    const result = await reconcile(tracker);
+
+    expect(result.skipped).toEqual([12]);
+    untouchedExpectations(tracker, 12);
+  });
+
+  it('skips a version whose release-tag date cannot be resolved', async () => {
+    const issue: ReconcileIssue = {
+      number: 13,
+      title: 'dev-build version',
+      body: issueBody('packages/cli/src/retro/pipeline.ts'),
+      labels: ['retro'],
+    };
+    const tracker = new FakeTracker(
+      [issue],
+      new Map([
+        [13, ledgerComment({ install: { version: '0.0.0-dev', at: '2026-07-01T00:00:00.000Z' } })],
+      ]),
+      () => true,
+      new Map(),
+    );
+
+    const result = await reconcile(tracker);
+
+    expect(result.skipped).toEqual([13]);
+    untouchedExpectations(tracker, 13);
+  });
+
+  it('requests only open, retro-labeled issues from the tracker', async () => {
+    const tracker = new FakeTracker([], new Map(), () => true);
+
+    await reconcile(tracker);
+
+    expect(tracker.listQueries).toEqual([{ state: 'open', labels: ['retro'] }]);
+  });
+});
