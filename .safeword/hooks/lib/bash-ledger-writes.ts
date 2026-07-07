@@ -21,7 +21,7 @@
 //   - paths that reach the ledger only after symlink or `cd` resolution
 //   - a write following a single `&` (background operator) whose segment's
 //     command word is the backgrounded command — `&` is not a segment
-//     separator here (only `&&`, `;`, `|`, newline are)
+//     separator here (only `&&`, `||`, `;`, `|`, newline are)
 //
 // Known over-denials (fail-closed, accepted): heredoc body lines are parsed
 // as command segments, so a body line that looks like a ledger write denies.

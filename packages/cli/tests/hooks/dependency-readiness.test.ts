@@ -553,6 +553,9 @@ describe('dependency readiness hook support', () => {
     ['yarn test'],
     ['yarn --cwd packages/cli test'],
     ['yarn vitest run'],
+    ['command bun test'],
+    ['( bun test )'],
+    ['env -u FOO bun test'],
   ])('treats dependency-backed command "%s" as guarded', command => {
     expect(isDependencyBackedCommand(command)).toBe(true);
   });
@@ -570,6 +573,9 @@ describe('dependency readiness hook support', () => {
     ['corepack pnpm install --frozen-lockfile'],
     ['yarn install --immutable'],
     ['npx cowsay hello'],
+    // `>|` is a clobber redirect: `vitest` here is a target filename, not a
+    // command — the pre-EDDABK private splitter treated it as one.
+    ['echo cfg >| vitest'],
   ])('does not guard non-runtime or install command "%s"', command => {
     expect(isDependencyBackedCommand(command)).toBe(false);
   });
@@ -829,13 +835,23 @@ describe('dependency readiness hook support', () => {
         'npm ci',
         'yarn',
         'corepack pnpm install',
+        'command npm ci',
       ]) {
         expect(isDependencyInstallCommand(command), command).toBe(true);
       }
     });
 
     it('ignores non-install commands', () => {
-      for (const command of ['bun run test', 'eslint .', 'git commit -m x', 'pnpm add zod']) {
+      for (const command of [
+        'bun run test',
+        'eslint .',
+        'git commit -m x',
+        'pnpm add zod',
+        // Classic-yarn report-only flags print-and-exit — stamping after
+        // them would mark stale deps ready without an install (EDDABK).
+        'yarn --version',
+        'command yarn --version',
+      ]) {
         expect(isDependencyInstallCommand(command), command).toBe(false);
       }
     });

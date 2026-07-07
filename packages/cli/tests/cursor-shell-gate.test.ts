@@ -40,6 +40,7 @@ describe('Cursor beforeShellExecution gate', () => {
     'git --no-pager commit -m "save"',
     'command git commit -m "save"',
     'env GIT_AUTHOR_NAME=bot git commit -m "save"',
+    '/usr/bin/env git commit -m "save"',
     // Bare leading env-assignments must not slip the gate (the env(1) wrapper is
     // optional in real shells): `VAR=val git commit …` is still a commit.
     'GIT_AUTHOR_NAME=bot git commit -m "save"',

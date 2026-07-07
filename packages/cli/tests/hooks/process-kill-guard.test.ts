@@ -50,6 +50,21 @@ describe('detectBroadProcessKill', () => {
         command: 'killall',
         target: 'node',
       });
+      // env matched by basename and with its options consumed (EDDABK).
+      expect(detectBroadProcessKill('/usr/bin/env killall node')).toEqual({
+        command: 'killall',
+        target: 'node',
+      });
+      expect(detectBroadProcessKill('env -i pkill node')).toEqual({
+        command: 'pkill',
+        target: 'node',
+      });
+      // POSIX single-quote rule: the backslash does not escape the closing
+      // quote, so the `;` splits and the kill segment is visible (EDDABK).
+      expect(detectBroadProcessKill(String.raw`echo 'a\'; pkill node`)).toEqual({
+        command: 'pkill',
+        target: 'node',
+      });
     });
 
     it('Scenario: regex anchors around a bare name do not evade detection', () => {
@@ -60,6 +75,12 @@ describe('detectBroadProcessKill', () => {
       expect(detectBroadProcessKill('pkill -x node')).toEqual({
         command: 'pkill',
         target: 'node',
+      });
+      // In an ERE, `\j` is a literal `j` — `pkill '\java'` still kills every
+      // java process, so the escape must not evade detection (EDDABK).
+      expect(detectBroadProcessKill(String.raw`pkill '\java'`)).toEqual({
+        command: 'pkill',
+        target: 'java',
       });
     });
   });

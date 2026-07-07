@@ -66,6 +66,7 @@ describe('detectLedgerWrite', () => {
       ['fd-prefixed append redirection', `echo '- [x] RED' 2>> ${LEDGER}`],
       ['fd-prefixed output redirection', `echo '- [x] RED' 1> ${LEDGER}`],
       ['subshell in-place edit', String.raw`( sed -i 's/^- \[ \] /- [x] /' ${LEDGER} )`],
+      ['env-by-basename prefixed tee', `/usr/bin/env tee ${LEDGER}`],
       [
         'inline interpreter that only reads (over-approximate deny)',
         `python3 -c 'print(open("${LEDGER}").read())'`,

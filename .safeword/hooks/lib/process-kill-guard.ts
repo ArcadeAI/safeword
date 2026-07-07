@@ -16,7 +16,10 @@
 // (`p=node; killall "$p"`), scripts that embed the kill, `xargs killall`,
 // and `sudo -u <user> killall node` (sudo option values are not modeled).
 // A quoted regex that anchors a bare name (`pkill '^node$'`) IS detected —
-// anchors are stripped before the name comparison.
+// anchors are stripped before the name comparison. So is a leading
+// backslash-escape (`pkill '\java'`): pkill patterns are EREs, where a
+// backslash before an ordinary letter is that letter, so the pattern still
+// kills every `java` process (EDDABK).
 
 import { commandWordIndex, parseShellWords, splitShellSegments } from './shell-segments.js';
 
@@ -39,9 +42,13 @@ const NAME_MATCHING_KILLERS = new Set(['killall', 'pkill']);
  */
 const SHARED_RUNTIMES = new Set(['node', 'bun', 'deno', 'python', 'python3', 'ruby', 'java']);
 
-/** Strip regex anchors so `'^node$'` is judged as `node`. */
+/**
+ * Strip regex anchors and leading backslash-escapes so `'^node$'` and
+ * `'\java'` are judged as `node` / `java` (in an ERE, `\j` is a literal
+ * `j`, so the pattern still matches the bare runtime name).
+ */
 function bareName(token: string): string {
-  return token.replace(/^\^/, '').replace(/\$$/, '');
+  return token.replace(/^\^/, '').replace(/\$$/, '').replace(/^\\+/, '');
 }
 
 /**

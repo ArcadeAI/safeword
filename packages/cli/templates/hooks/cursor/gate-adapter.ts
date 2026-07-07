@@ -259,8 +259,10 @@ export function requiresFailClosedShellGate(params: { command: string }): boolea
 }
 
 function isGitCommitSegment(words: string[]): boolean {
-  // commandWordIndex skips `VAR=val` assignments, `command`, and `env` prefixes
-  // so `GIT_AUTHOR_NAME=bot git commit` can't slip the fail-closed gate.
+  // commandWordIndex skips `VAR=val` assignments and `command`/`env`/
+  // `corepack` prefixes (looping, env matched by basename with its flags) so
+  // neither `GIT_AUTHOR_NAME=bot git commit` nor `/usr/bin/env git commit`
+  // can slip the fail-closed gate.
   let index = commandWordIndex(words);
   if (words[index] !== 'git') return false;
 
