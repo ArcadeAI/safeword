@@ -466,6 +466,11 @@ function parseTestDefinitionReferences(content: string): string[] {
       if (reference !== undefined) references.push(reference);
       continue;
     }
+    // A concrete `@<jtbd>.AC#` token in prose or inline code on a non-fenced line
+    // is counted as a reference — inherent to treating the tag as a lineage
+    // vehicle. It stays advisory-only (health.ts routes coverage to advisories,
+    // not blocking issues); `@`-tokens that aren't `.AC<n>`/`.R<n>`-shaped
+    // (emails, decorators, `@rejection`, `@<jtbd>.AC#` placeholders) never match.
     const tagTokens = trimmed.replaceAll('`', '').match(LINEAGE_TAG_TOKEN) ?? [];
     for (const token of tagTokens) {
       const lineage = parseLineageReferenceFromTag(token);
