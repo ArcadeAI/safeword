@@ -17,6 +17,10 @@
  */
 
 import { TEST_FILE_GLOBS } from './test-file-globs.js';
+import {
+  DEFERRED_TEST_RESTRICTED_SYNTAX,
+  SLEEP_RESTRICTED_SYNTAX,
+} from './test-integrity-syntax.js';
 
 /**
  * `bun:test` global names, all read-only (Bun owns these bindings).
@@ -63,6 +67,18 @@ export const bunTestConfig: any[] = [
     files: [...TEST_FILE_GLOBS],
     languageOptions: {
       globals: BUN_TEST_GLOBALS,
+    },
+    rules: {
+      // Test-integrity graduation (VFD6X1 review hardening, #773): bun:test
+      // projects share testing-guide.md, so the plugin-free invariants apply
+      // here too — sleep idioms plus the deferred-test marker (selector-based
+      // in this lane, since the vitest plugin's rule isn't available; the
+      // selector covers both direct and chained-modifier forms).
+      'no-restricted-syntax': [
+        'error',
+        ...SLEEP_RESTRICTED_SYNTAX,
+        ...DEFERRED_TEST_RESTRICTED_SYNTAX,
+      ],
     },
   },
 ];

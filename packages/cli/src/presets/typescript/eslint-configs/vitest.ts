@@ -20,6 +20,7 @@
 import vitestPlugin from '@vitest/eslint-plugin';
 
 import { TEST_FILE_GLOBS } from './test-file-globs.js';
+import { SLEEP_RESTRICTED_SYNTAX } from './test-integrity-syntax.js';
 
 /**
  * Vitest test linting config
@@ -57,37 +58,19 @@ export const vitestConfig: any[] = [
       // conditional skipIf/runIf stay legal (the rule doesn't match them).
       'vitest/no-disabled-tests': 'error',
 
+      // Deferred-test marker (review hardening of VFD6X1): the plugin rule —
+      // NOT a custom selector — because it also catches chained modifiers
+      // (it.concurrent + marker), a verified bypass of the direct-only
+      // selector this replaced. The plugin docs suggest warn severity; error-
+      // with-disable-comment is deliberately safeword's policy (LLMs ignore
+      // warnings, and the disable comment is the auditable approval).
+      'vitest/warn-todo': 'error',
+
       // No-arbitrary-sleep graduation (VFD6X1, #773): the guide's "poll, never
       // sleep" rule for the vitest lane (the playwright lane already has
-      // no-wait-for-timeout). Selectors match the sleep *idioms*, not every
-      // setTimeout — fake-timer scheduling and template-string fixtures stay
-      // legal. The deferred-test marker rides along: parking a test that way
-      // hides a gap the suite then reports as green.
-      'no-restricted-syntax': [
-        'error',
-        {
-          selector:
-            "AwaitExpression > NewExpression[callee.name='Promise'] CallExpression[callee.name='setTimeout']",
-          message:
-            'Arbitrary sleep (await new Promise + setTimeout) — poll an observable condition instead (expect.poll / vi.waitFor). See testing-guide.md.',
-        },
-        {
-          selector: "CallExpression[callee.object.name='Bun'][callee.property.name='sleep']",
-          message:
-            'Arbitrary sleep (Bun.sleep) — poll an observable condition instead (expect.poll / vi.waitFor). See testing-guide.md.',
-        },
-        {
-          selector: "CallExpression[callee.name='sleep']",
-          message:
-            'Arbitrary sleep — poll an observable condition instead (expect.poll / vi.waitFor). See testing-guide.md.',
-        },
-        {
-          selector:
-            "CallExpression > MemberExpression[property.name='todo'][object.name=/^(it|test|describe)$/]",
-          message:
-            'Deferred-test marker parks a gap the suite then reports as green — write the test or delete the stub (an inline eslint-disable with a reason is the sanctioned escape hatch).',
-        },
-      ],
+      // no-wait-for-timeout). Shared selectors — see test-integrity-syntax.ts
+      // for the idiom list and its documented accepted false positive.
+      'no-restricted-syntax': ['error', ...SLEEP_RESTRICTED_SYNTAX],
 
       // Relax base rules for test files - each override has documented justification:
       //
