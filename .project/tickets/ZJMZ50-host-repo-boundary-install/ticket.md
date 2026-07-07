@@ -2,9 +2,10 @@
 id: ZJMZ50
 slug: host-repo-boundary-install
 type: feature
-phase: define-behavior
+phase: scenario-gate
 phase_anchors:
   - define-behavior: 0337cd9
+  - scenario-gate: 59cc585
 status: in_progress
 scope:
   - Hook-manager world detection (husky | lefthook | pre-commit | bare) computed once at plan time into ProjectContext
@@ -40,3 +41,4 @@ last_modified: 2026-07-07T04:23:13.747Z
 
 - 2026-07-07T04:23:13.747Z Started: Created ticket ZJMZ50
 - 2026-07-07T04:57:27.759Z Phase: intake → define-behavior
+- 2026-07-07T05:02:43.720Z Phase: define-behavior → scenario-gate
