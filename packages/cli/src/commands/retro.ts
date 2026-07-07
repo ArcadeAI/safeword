@@ -94,6 +94,8 @@ export interface RetroOutcome {
   ok: boolean;
   errorMessage?: string;
   result?: TriageResult;
+  /** Per-wall egress drop counts (PNZM3B) — silence must mean clean. */
+  drops?: { schema: number; surface: number };
   /**
    * True when drafts remain spooled after filing (REST failed / was capped) — the
    * signal that the agent filing path (PATH B) is needed. Undefined when the spool
@@ -132,7 +134,7 @@ export async function runRetro(
   // behavior. The window flows through the UNCHANGED egress pipeline below.
   const window = windowFor(transcript, options.windowStart ?? 0);
   const rawFindings = await dependencies.extract(window);
-  const { encounters } = await prepareEncounters(rawFindings);
+  const { encounters, drops } = await prepareEncounters(rawFindings);
 
   // Cloud-filing spool (BNGK9W): persist the post-egress drafts BEFORE filing so a
   // REST auth failure (cloud #568) can't lose them. Opt-in via projectDirectory.
@@ -152,13 +154,13 @@ export async function runRetro(
     ...(provenance && { provenance }),
   });
 
-  if (projectDirectory === undefined) return { ok: true, result };
+  if (projectDirectory === undefined) return { ok: true, result, drops };
 
   // Drain the drafts that reached the tracker; failed/deferred stay spooled for the
   // agent path. agentFilingNeeded = anything still spooled after the drain.
   markDraftsFiled(projectDirectory, sessionId, result.filedSignatures);
   const agentFilingNeeded = readSpooledDrafts(projectDirectory, sessionId).length > 0;
-  return { ok: true, result, agentFilingNeeded };
+  return { ok: true, result, agentFilingNeeded, drops };
 }
 
 export interface RetroCliOptions {
@@ -303,7 +305,19 @@ interface RetroCommandOutput {
   success: (message: string) => void;
 }
 
-function reportRetroCommandOutcome(
+/**
+ * Egress drop report (PNZM3B): rendered only when something was dropped, so a
+ * clean run's summary stays byte-identical to the pre-feature output.
+ */
+function renderDropReport(drops: RetroOutcome['drops']): string | undefined {
+  if (!drops || (drops.schema === 0 && drops.surface === 0)) return undefined;
+  const parts: string[] = [];
+  if (drops.schema > 0) parts.push(`${drops.schema} dropped at the schema wall`);
+  if (drops.surface > 0) parts.push(`${drops.surface} dropped at the surface wall`);
+  return `retro: ${parts.join(', ')} (egress fail-closed)`;
+}
+
+export function reportRetroCommandOutcome(
   outcome: RetroOutcome,
   options: {
     extractionSucceeded: boolean;
@@ -328,6 +342,8 @@ function reportRetroCommandOutcome(
   info(
     `retro: ${r.created.length} filed, ${r.bumped.length} recurrence(s) counted, ${r.commented.length} new manifestation(s), ${r.deferred.length} deferred, ${r.failed.length} failed`,
   );
+  const dropLine = renderDropReport(outcome.drops);
+  if (dropLine) info(dropLine);
   if (outcome.agentFilingNeeded) {
     info(
       options.restTransportAvailable
