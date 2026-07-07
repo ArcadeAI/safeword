@@ -153,4 +153,11 @@ describe('prepareEncounters — process-level surfaces (PNZM3B)', () => {
     expect(report.encounters).toEqual([]);
     expect(report.drops).toEqual({ schema: 0, surface: 1 });
   });
+
+  it('rejects a finding that omits its surface at the schema wall', async () => {
+    const { safeword_surface: _dropped, ...withoutSurface } = rawFinding();
+    const report = await prepareEncounters([withoutSurface]);
+    expect(report.encounters).toEqual([]);
+    expect(report.drops).toEqual({ schema: 1, surface: 0 });
+  });
 });
