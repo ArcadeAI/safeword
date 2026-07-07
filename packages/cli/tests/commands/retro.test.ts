@@ -775,4 +775,18 @@ describe('retro summary drop reporting (PNZM3B SM2.R1)', () => {
     expect(summary).toContain('1 dropped at the schema wall');
     expect(summary).toContain('1 dropped at the surface wall');
   });
+
+  it("keeps a clean run's summary free of any drop line", async () => {
+    const { reportRetroCommandOutcome } = await import('../../src/commands/retro.js');
+    const outcome = await runRetro({ transcript: '/tmp/t.jsonl' }, dependencies());
+
+    const { lines, output } = collect();
+    reportRetroCommandOutcome(outcome, {
+      extractionSucceeded: true,
+      restTransportAvailable: true,
+      output,
+    });
+
+    expect(lines.join('\n')).not.toContain('dropped');
+  });
 });
