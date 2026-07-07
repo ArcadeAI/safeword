@@ -2,9 +2,10 @@
 id: PNZM3B
 slug: retro-process-surface
 type: feature
-phase: define-behavior
+phase: scenario-gate
 phase_anchors:
   - define-behavior: c99e020
+  - scenario-gate: a862077
 status: in_progress
 scope:
   - resolveSurface accepts a virtual `process/<slug>` namespace — strict slug validation (lowercase alphanumerics + hyphens, ≤32 chars, secret-shaped slugs rejected via the existing hex-run/entropy backstop), additive to the existing path allowlist
@@ -36,3 +37,4 @@ last_modified: 2026-07-05T23:05:32.494Z
 - 2026-07-06T00:56:00Z JTBD + Rules gates confirmed by user (process label: yes); engineering scope drafted, pending scope gate
 - 2026-07-06T01:20:00Z /quality-review pass 2: APPROVE. Implement-time note: run the hex-run rejection on slugs of ANY length — do not inherit HIGH_ENTROPY_RUN's >=20-char floor for this field (sub-20 hex slugs must still drop)
 - 2026-07-07T14:38:35.439Z Phase: intake → define-behavior
+- 2026-07-07T17:01:22.444Z Phase: define-behavior → scenario-gate
