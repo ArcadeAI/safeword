@@ -50,6 +50,45 @@ export const vitestConfig: any[] = [
       'vitest/no-focused-tests': 'error', // No .only() in CI
       'vitest/max-nested-describe': ['error', { max: 5 }], // Limit describe nesting depth
 
+      // Test-integrity graduation (VFD6X1, #773): testing-guide.md's "never
+      // skip/park tests without approval" invariant, lint-owned. Unconditional
+      // skips (it.skip, xit, xdescribe) need an inline eslint-disable with a
+      // reason — that comment IS the auditable approval artifact. Environment-
+      // conditional skipIf/runIf stay legal (the rule doesn't match them).
+      'vitest/no-disabled-tests': 'error',
+
+      // No-arbitrary-sleep graduation (VFD6X1, #773): the guide's "poll, never
+      // sleep" rule for the vitest lane (the playwright lane already has
+      // no-wait-for-timeout). Selectors match the sleep *idioms*, not every
+      // setTimeout — fake-timer scheduling and template-string fixtures stay
+      // legal. The deferred-test marker rides along: parking a test that way
+      // hides a gap the suite then reports as green.
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "AwaitExpression > NewExpression[callee.name='Promise'] CallExpression[callee.name='setTimeout']",
+          message:
+            'Arbitrary sleep (await new Promise + setTimeout) — poll an observable condition instead (expect.poll / vi.waitFor). See testing-guide.md.',
+        },
+        {
+          selector: "CallExpression[callee.object.name='Bun'][callee.property.name='sleep']",
+          message:
+            'Arbitrary sleep (Bun.sleep) — poll an observable condition instead (expect.poll / vi.waitFor). See testing-guide.md.',
+        },
+        {
+          selector: "CallExpression[callee.name='sleep']",
+          message:
+            'Arbitrary sleep — poll an observable condition instead (expect.poll / vi.waitFor). See testing-guide.md.',
+        },
+        {
+          selector:
+            "CallExpression > MemberExpression[property.name='todo'][object.name=/^(it|test|describe)$/]",
+          message:
+            'Deferred-test marker parks a gap the suite then reports as green — write the test or delete the stub (an inline eslint-disable with a reason is the sanctioned escape hatch).',
+        },
+      ],
+
       // Relax base rules for test files - each override has documented justification:
       //
       // no-empty-function: Tests often need empty callbacks for mocks/stubs:
