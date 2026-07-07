@@ -2,6 +2,8 @@
 // their newest recorded code state as possibly-resolved. Flag-only — never
 // closes; idempotent via the marker comment; per-issue isolation like triage.
 
+import { RETRO_LABEL } from './draft.js';
+import { LEDGER_MARKER, parseLedger, type StoredProvenance } from './ledger.js';
 import type { IssueComment } from './triage.js';
 
 export const RECONCILE_LABEL = 'possibly-resolved';
@@ -31,8 +33,6 @@ export interface ReconcileResult {
   skipped: number[];
   failed: number[];
 }
-
-import { LEDGER_MARKER, parseLedger, type StoredProvenance } from './ledger.js';
 
 // The issue body is code-assembled by buildDraft; this line shape is stable.
 const SURFACE_LINE = /\*\*Safeword surface:\*\* `([^`]+)`/;
@@ -90,7 +90,7 @@ export async function reconcile(
 ): Promise<ReconcileResult> {
   const maxFlags = options.maxFlags ?? DEFAULT_MAX_FLAGS;
   const result: ReconcileResult = { flagged: [], skipped: [], failed: [] };
-  const issues = await tracker.listIssues({ state: 'open', labels: ['retro'] });
+  const issues = await tracker.listIssues({ state: 'open', labels: [RETRO_LABEL] });
 
   for (const issue of issues) {
     if (result.flagged.length >= maxFlags) {

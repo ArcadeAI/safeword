@@ -14,6 +14,8 @@ const ISSUES_BASE = `/repos/${UPSTREAM_REPO}/issues`;
 const API = 'https://api.github.com';
 // Safety bound on comment pagination (100/page → up to 2000 comments scanned).
 const MAX_COMMENT_PAGES = 20;
+// Safety bound on issue-listing pagination for the reconcile sweep (→ 1000 issues).
+const MAX_ISSUE_PAGES = 10;
 
 /** Ask the `gh` CLI for the environment's GitHub token, or undefined if unavailable. */
 function ghAuthToken(): string | undefined {
@@ -67,6 +69,15 @@ export function resolveGitHubToken(
  */
 const refOf = (tag: string): string => `tags/${tag}`;
 
+function buildHeaders(token: string): Record<string, string> {
+  return {
+    Authorization: `Bearer ${token}`,
+    Accept: 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+    'User-Agent': 'safeword-retro',
+  };
+}
+
 function buildCall(headers: Record<string, string>) {
   return async function call(method: string, path: string, body?: unknown): Promise<unknown> {
     const response = await fetch(`${API}${path}`, {
@@ -84,13 +95,7 @@ function buildCall(headers: Record<string, string>) {
 export function createRestTransport(token: string | undefined): IssueTracker | undefined {
   if (!token) return undefined;
 
-  const headers = {
-    Authorization: `Bearer ${token}`,
-    Accept: 'application/vnd.github+json',
-    'X-GitHub-Api-Version': '2022-11-28',
-    'User-Agent': 'safeword-retro',
-  };
-
+  const headers = buildHeaders(token);
   const call = buildCall(headers);
 
   return {
@@ -155,12 +160,7 @@ export function createReconcileTransport(token: string | undefined): ReconcileTr
   const base = createRestTransport(token);
   if (!token || !base) return undefined;
 
-  const call = buildCall({
-    Authorization: `Bearer ${token}`,
-    Accept: 'application/vnd.github+json',
-    'X-GitHub-Api-Version': '2022-11-28',
-    'User-Agent': 'safeword-retro',
-  });
+  const call = buildCall(buildHeaders(token));
 
   /** Committer date of a commit SHA (committer, not author — squash-merge time). */
   async function commitDate(sha: string): Promise<string | undefined> {
@@ -172,17 +172,35 @@ export function createReconcileTransport(token: string | undefined): ReconcileTr
 
   return {
     async listIssues(query: { state: string; labels: string[] }): Promise<ReconcileIssue[]> {
+      // Paginate with a bound (mirrors listComments): created-desc default order
+      // would otherwise starve the oldest issues past 100. PRs share this
+      // endpoint (distinguished by `pull_request`) and are not sweep targets.
       const labels = encodeURIComponent(query.labels.join(','));
-      const data = (await call(
-        'GET',
-        `${ISSUES_BASE}?state=${encodeURIComponent(query.state)}&labels=${labels}&per_page=100`,
-      )) as { number: number; title: string; body?: string; labels?: { name?: string }[] }[];
-      return data.map(issue => ({
-        number: issue.number,
-        title: issue.title,
-        body: issue.body ?? '',
-        labels: (issue.labels ?? []).map(label => label.name ?? ''),
-      }));
+      const issues: ReconcileIssue[] = [];
+      for (let page = 1; page <= MAX_ISSUE_PAGES; page++) {
+        const data = (await call(
+          'GET',
+          `${ISSUES_BASE}?state=${encodeURIComponent(query.state)}&labels=${labels}&per_page=100&page=${page}`,
+        )) as {
+          number: number;
+          title: string;
+          body?: string;
+          labels?: { name?: string }[];
+          pull_request?: unknown;
+        }[];
+        issues.push(
+          ...data
+            .filter(issue => issue.pull_request === undefined)
+            .map(issue => ({
+              number: issue.number,
+              title: issue.title,
+              body: issue.body ?? '',
+              labels: (issue.labels ?? []).map(label => label.name ?? ''),
+            })),
+        );
+        if (data.length < 100) break;
+      }
+      return issues;
     },
 
     listComments: issueNumber => base.listComments(issueNumber),

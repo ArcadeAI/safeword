@@ -27,7 +27,7 @@ import {
   spoolDrafts,
 } from '../../templates/hooks/lib/retro-draft-spool.js';
 import { type RetroAgent, windowFor } from '../../templates/hooks/lib/retro-extract.js';
-import type { Provenance } from '../retro/ledger.js';
+import { type Provenance, PROVENANCE_SHA } from '../retro/ledger.js';
 import { prepareEncounters } from '../retro/pipeline.js';
 import { reconcile, type ReconcileTracker } from '../retro/reconcile.js';
 import { type IssueTracker, triage, type TriageResult } from '../retro/triage.js';
@@ -86,7 +86,7 @@ export function buildProvenanceResolver(
     } catch {
       sha = '';
     }
-    return /^[0-9a-f]{7,40}$/i.test(sha) ? { sha, at } : undefined;
+    return PROVENANCE_SHA.test(sha) ? { sha, at } : undefined;
   };
 }
 

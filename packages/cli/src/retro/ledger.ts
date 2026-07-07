@@ -94,7 +94,7 @@ function coerceStringArray(value: unknown): string[] {
 // Bounded token shapes for provenance fields. The ledger comment is publicly
 // editable, and these strings are re-rendered into a public comment — so only
 // exact token shapes survive coercion; anything else is dropped, never echoed.
-const PROVENANCE_SHA = /^[0-9a-f]{7,40}$/i;
+export const PROVENANCE_SHA = /^[0-9a-f]{7,40}$/i;
 const PROVENANCE_VERSION = /^\w[\w.-]{0,31}$/;
 // Timestamp chars only (no letters beyond T/Z), bounded, and ISO-parseable —
 // simple class + Date.parse instead of a repeat-heavy regex (unsafe-regex lint).

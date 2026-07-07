@@ -23,6 +23,9 @@ function normalizeForKey(value: string): string {
   return value.toLowerCase().replaceAll(/\s+/g, ' ').trim();
 }
 
+/** The tracker label shared by filing (applied) and reconcile (queried). */
+export const RETRO_LABEL = 'retro';
+
 /** `retro:<12-hex>` keyed on the stable finding identity. */
 export function retroSignature(finding: Finding): string {
   const key = [finding.category, finding.safewordSurface, normalizeForKey(finding.title)].join(':');
@@ -49,6 +52,6 @@ export function buildDraft(finding: Finding): RetroDraft {
     // Embed the signature marker so re-fires (and recurrences) dedupe on the
     // stable signature, not the variable title.
     body: `${assembleBody(finding)}\n${signatureMarker(signature)}`,
-    labels: ['self-report', 'retro', finding.category],
+    labels: ['self-report', RETRO_LABEL, finding.category],
   };
 }
