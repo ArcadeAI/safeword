@@ -9,11 +9,11 @@
  * the quiesce signal is integration, not run count).
  */
 
-import { execFileSync } from 'node:child_process';
 import nodePath from 'node:path';
 
 import type { ProjectContext } from '../packs/types.js';
 import { readFileSafe } from './fs.js';
+import { gitToplevel } from './git.js';
 import { LEFTHOOK_CONFIGS } from './hook-manager.js';
 
 /** Substring proving a config already invokes the gate — the quiesce signal. */
@@ -73,20 +73,6 @@ function configAlreadyIntegrates(cwd: string, configNames: string[]): boolean {
   return configNames.some(name =>
     (readFileSafe(nodePath.join(cwd, name)) ?? '').includes(BOUNDARY_INVOCATION),
   );
-}
-
-/** The git worktree root at/above cwd, or undefined outside any repository. */
-function gitToplevel(cwd: string): string | undefined {
-  try {
-    const top = execFileSync('git', ['rev-parse', '--show-toplevel'], {
-      cwd,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-    }).trim();
-    return top === '' ? undefined : top;
-  } catch {
-    return undefined;
-  }
 }
 
 /**
