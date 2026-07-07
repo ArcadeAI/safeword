@@ -2,8 +2,8 @@
 id: 2KG1JW
 slug: cleanup-zombies-confirm
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-07-07T17:59:01.912Z
 last_modified: 2026-07-07T17:59:01.912Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/773
@@ -33,3 +33,4 @@ done_when:
 
 - 2026-07-07T17:59:01.912Z Started: Created ticket 2KG1JW
 - Scouted: no code callers of cleanup-zombies.sh (grep: prose sites + pre-tool-quality deny message only); existing tests/scripts/cleanup-zombies.test.ts runs every case with --dry-run so the inversion is low-blast-radius; #938 (boundary gate) touches neither the script nor its prose
+- 2026-07-07T18:30:49.043Z Phase: intake → done
