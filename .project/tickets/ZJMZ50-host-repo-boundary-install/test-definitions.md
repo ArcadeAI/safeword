@@ -74,20 +74,20 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: The emitted shim invokes the boundary gate when the binary is present
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED fbd1552 (proof-after: test written against slice-3's shipped shim; see work log)
+- [x] GREEN fbd1552
 - [ ] REFACTOR
 
 ### Scenario: The emitted shim passes when safeword's binary is absent
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED fbd1552 (proof-after: test written against slice-3's shipped shim; see work log)
+- [x] GREEN fbd1552
 - [ ] REFACTOR
 
 ### Scenario: The emitted shim passes even when the boundary gate crashes
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED fbd1552 (proof-after: test written against slice-3's shipped shim; see work log)
+- [x] GREEN fbd1552
 - [ ] REFACTOR
 
 ## Rule: host-repo-boundary-install.TB1.R5 — safeword reset removes the shims and leaves the host's own hook content intact
