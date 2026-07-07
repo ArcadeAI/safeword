@@ -4,22 +4,14 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { shortHash } from '../../src/retro/hash.js';
 import {
   draftSpoolPath,
   markDraftsFiled,
   readSpooledDrafts,
   spoolDrafts,
-  type SpooledDraft,
   verifyDraftBody,
 } from '../../templates/hooks/lib/retro-draft-spool.js';
-import { retroDraft as draft } from '../helpers.js';
-
-/** A draft sealed the way buildDraft seals it: bodyDigest over the final body. */
-function sealedDraft(signature: string, title = 'A friction'): SpooledDraft {
-  const base = draft(signature, title);
-  return { ...base, bodyDigest: shortHash(base.body) };
-}
+import { retroDraft as draft, sealedRetroDraft as sealedDraft } from '../helpers.js';
 
 describe('retro draft spool (BNGK9W — persist post-egress drafts on filing failure)', () => {
   let projectDirectory: string;

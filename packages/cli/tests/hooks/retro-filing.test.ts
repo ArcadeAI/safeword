@@ -4,7 +4,6 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { shortHash } from '../../src/retro/hash.js';
 import {
   fileSpooledDrafts,
   readAcks,
@@ -13,7 +12,7 @@ import {
   type SpooledDraft,
 } from '../../templates/hooks/lib/retro-draft-spool.js';
 import { decideRetroFilingNudge } from '../../templates/hooks/lib/retro-nudge.js';
-import { retroDraft as draft } from '../helpers.js';
+import { retroDraft as draft, sealedRetroDraft } from '../helpers.js';
 
 describe('fileSpooledDrafts (BNGK9W — the agent filing seam: post each verbatim, drain filed)', () => {
   let projectDirectory: string;
@@ -116,11 +115,11 @@ describe('fileSpooledDrafts (BNGK9W — the agent filing seam: post each verbati
   // JDK0F0 (#773 rung 3): the seal is what graduates retro/SKILL.md's
   // "post verbatim, never re-word" rule — the seam refuses, prose just points.
   it('refuses to post a draft whose body was modified after sealing (it stays spooled)', async () => {
-    const intact = draft('retro:aaaaaaaaaaaa', 'Intact');
-    const sealed = { ...intact, bodyDigest: shortHash(intact.body) };
+    const sealed = sealedRetroDraft('retro:aaaaaaaaaaaa', 'Intact');
+    // Sealed correctly, then the body re-worded — the digest no longer matches.
     const tampered = {
-      ...draft('retro:bbbbbbbbbbbb', 'Tampered'),
-      bodyDigest: shortHash('the body as it was sealed'),
+      ...sealedRetroDraft('retro:bbbbbbbbbbbb', 'Tampered'),
+      body: 're-worded after sealing',
     };
     spoolDrafts(projectDirectory, 'sess-1', [sealed, tampered]);
 
