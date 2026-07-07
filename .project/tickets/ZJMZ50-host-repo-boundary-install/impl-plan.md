@@ -1,6 +1,19 @@
 # Impl Plan: Install the boundary gate into host repos via setup/upgrade (ZJMZ50)
 
-**Status:** planned
+**Status:** implemented
+
+**Reconciliation (implement exit):** shipped as planned with three deltas.
+(1) The shim block became a SINGLE line carrying the marker as a trailing sh
+comment — the planned marker-header + command-line block could not heal a
+changed command line (rerender's strip only consumes body lines matching the
+current block as a prefix), while a whole-block-is-the-marker-line design
+heals any future change. (2) The nudge is wired into `upgrade` as well as
+`setup` — setup refuses re-runs on a configured project, so the
+repeat-until-integrated cadence lives on upgrade. (3) Detection is slightly
+stronger than planned: a lefthook/pre-commit config contests a leftover
+`.husky` dir even when no `core.hooksPath` is set (conservative-when-
+contested; fresh clones of active husky repos still read husky because
+nothing contests them).
 
 ## Approach
 
@@ -76,6 +89,9 @@ integration harness from `tests/commands/setup-core.test.ts` is the workhorse
 ## Known deviations
 
 - The shim calls the binary by explicit `node_modules/.bin` path rather than husky's documented bare-command convention — deliberate (worktree-safety, 9P3VVH); documented in the shim's marker comment.
+- `.husky` is exempted from the EYRK34 owned-dir formatter-ignore guarantee (reconcile.test.ts drift check): the host owns their hook files; safeword owns only the marker line, and excluding user hooks from the user's own formatter would be overreach.
+- `.safeword/boundary-audit.jsonl` joined the schema drift-scan's DYNAMIC_FILES set — the dogfooded boundary hook writes it on every commit here, and it is runtime state, not schema drift.
+- TB1.R4's runtime proofs are proof-after (tests written against slice 3's already-shipped shim, passed first-run) — recorded in the ledger annotations rather than staged as a synthetic RED.
 
 ## Assessment triggers
 
