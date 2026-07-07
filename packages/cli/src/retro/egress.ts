@@ -294,14 +294,30 @@ export async function sanitizeTextDeep(text: string): Promise<string> {
   return sanitizeText(await redactKnownSecrets(text));
 }
 
+// Virtual process namespace (PNZM3B): friction with no single-file home files
+// under `process/<slug>`. The surface field BYPASSES sanitizeTextDeep — this
+// wall is the only egress guarantee on it — so the slug is a strict bounded
+// token: lowercase alphanumerics + hyphens, ≤32 chars, non-empty.
+const PROCESS_PREFIX = 'process/';
+const PROCESS_SLUG_SHAPE = /^[a-z0-9-]{1,32}$/;
+
+function resolveProcessSurface(slug: string): string | undefined {
+  if (!PROCESS_SLUG_SHAPE.test(slug)) return undefined;
+  return `${PROCESS_PREFIX}${slug}`;
+}
+
 /**
  * Resolve a finding's `safeword_surface` against the spool allowlist (fail
  * closed). Returns the internal tail when the surface names a real safeword
- * location — an absolute safeword path or a bare internal tail — else undefined,
+ * location — an absolute safeword path or a bare internal tail — or the
+ * constrained `process/<slug>` virtual namespace (PNZM3B); else undefined,
  * so the caller drops the finding. The synthetic `.safeword/` prefix routes bare
  * tails through the same separator-bounded segment + internal-prefix allowlist.
  */
 export function resolveSurface(surface: string): string | undefined {
+  if (surface.startsWith(PROCESS_PREFIX)) {
+    return resolveProcessSurface(surface.slice(PROCESS_PREFIX.length));
+  }
   const tail = safewordInternalTail(surface) ?? safewordInternalTail(`.safeword/${surface}`);
   if (tail === undefined) return undefined;
   // Reject path traversal and any non-path characters in the resolved tail (C2):
