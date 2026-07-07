@@ -36,13 +36,18 @@ Tests are the specification. When a test fails, the implementation is wrong—no
 
 ### Forbidden Actions (Require Approval)
 
-| Action                                          | Why It's Forbidden                |
-| ----------------------------------------------- | --------------------------------- |
-| Changing assertions to match broken code        | Hides bugs instead of fixing them |
-| Adding `.skip()`, `.only()`, `xit()`, `.todo()` | Makes failures invisible          |
-| Deleting tests you can't get passing            | Removes coverage for edge cases   |
-| Weakening assertions (`toBe` → `toBeTruthy`)    | Reduces test precision            |
-| Commenting out test code                        | Same as skipping                  |
+| Action                                       | Why It's Forbidden                |
+| -------------------------------------------- | --------------------------------- |
+| Changing assertions to match broken code     | Hides bugs instead of fixing them |
+| Deleting tests you can't get passing         | Removes coverage for edge cases   |
+| Weakening assertions (`toBe` → `toBeTruthy`) | Reduces test precision            |
+
+Skipping, focusing, deferring, or commenting out tests is lint-denied in the
+vitest lane (`vitest/no-disabled-tests`, `no-focused-tests`,
+`no-commented-out-tests`, plus the deferred-marker selector). The sanctioned
+escape hatch is an inline eslint-disable with a reason — that comment is the
+auditable approval artifact. Environment-conditional `skipIf`/`runIf` stay
+legal.
 
 ### What To Do Instead
 
@@ -423,13 +428,11 @@ it('should increase stress when resisting', () => {
 
 ### Async Testing
 
-**NEVER use arbitrary timeouts:**
+Arbitrary sleeps are lint-denied (`no-restricted-syntax` sleep selectors in the
+vitest lane; `playwright/no-wait-for-timeout` in the e2e lane). Poll an
+observable condition instead:
 
 ```typescript
-// ❌ BAD - Arbitrary timeout
-await page.waitForTimeout(3000);
-await sleep(500);
-
 // ✅ GOOD - Poll until condition
 await expect.poll(() => getStatus()).toBe('ready');
 await page.waitForSelector('[data-testid="loaded"]');
