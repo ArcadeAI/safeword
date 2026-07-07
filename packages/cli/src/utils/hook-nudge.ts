@@ -19,18 +19,25 @@ import { LEFTHOOK_CONFIGS } from './hook-manager.js';
 /** Substring proving a config already invokes the gate — the quiesce signal. */
 const BOUNDARY_INVOCATION = 'safeword boundary';
 
+// Snippet lines carry the same armor as the husky shim (TB1.R4): the `[ -x ]`
+// guard keeps a fresh clone (no node_modules) silent, and `|| true` keeps a
+// crashing gate from blocking — pre-commit and lefthook both treat a non-zero
+// hook as failure, so an unguarded entry would break the warn-only contract.
 const LEFTHOOK_SNIPPET = `Boundary gate: this repo uses lefthook, and safeword never edits lefthook.yml.
 To wire the warn-only boundary gate, add:
 
 pre-commit:
   commands:
     safeword-boundary:
-      run: node_modules/.bin/safeword boundary --at commit || true
+      run: '[ -x node_modules/.bin/safeword ] && node_modules/.bin/safeword boundary --at commit || true'
 pre-push:
   commands:
     safeword-boundary:
-      run: node_modules/.bin/safeword boundary --at push || true`;
+      run: '[ -x node_modules/.bin/safeword ] && node_modules/.bin/safeword boundary --at push || true'`;
 
+// `stages` is explicit on BOTH hooks: pre-commit's default_stages spreads a
+// stage-less hook to every installed hook type, so the commit-tier gate would
+// also fire on push in a `--hook-type pre-push` install.
 const PRE_COMMIT_SNIPPET = `Boundary gate: this repo uses the pre-commit framework, and safeword never edits .pre-commit-config.yaml.
 To wire the warn-only boundary gate, add under repos:
 
@@ -38,13 +45,14 @@ To wire the warn-only boundary gate, add under repos:
     hooks:
       - id: safeword-boundary-commit
         name: safeword boundary gate (commit)
-        entry: node_modules/.bin/safeword boundary --at commit
+        entry: sh -c '[ -x node_modules/.bin/safeword ] && node_modules/.bin/safeword boundary --at commit || true'
         language: system
         always_run: true
         pass_filenames: false
+        stages: [pre-commit]
       - id: safeword-boundary-push
         name: safeword boundary gate (push)
-        entry: node_modules/.bin/safeword boundary --at push
+        entry: sh -c '[ -x node_modules/.bin/safeword ] && node_modules/.bin/safeword boundary --at push || true'
         language: system
         always_run: true
         pass_filenames: false

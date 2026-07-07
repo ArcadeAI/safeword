@@ -61,7 +61,14 @@ function splitLines(listing: string | undefined): string[] | undefined {
  */
 function pushRange(cwd: string): BoundaryRange | undefined {
   const upstreamPaths = splitLines(tryGit(cwd, ['diff', '--name-only', '@{u}...HEAD']));
-  if (upstreamPaths !== undefined) return { paths: upstreamPaths, priorRef: '@{u}' };
+  if (upstreamPaths !== undefined) {
+    // Prior content must come from the merge base, not the upstream tip: on a
+    // diverged upstream, `@{u}:path` can hold content this branch never had,
+    // and endpoint checks would compare against it. The three-dot path list
+    // above is already merge-base-relative.
+    const base = tryGit(cwd, ['merge-base', '@{u}', 'HEAD'])?.trim();
+    return { paths: upstreamPaths, priorRef: base ?? '@{u}' };
+  }
 
   const unpushed = splitLines(tryGit(cwd, ['rev-list', 'HEAD', '--not', '--remotes']));
   if (unpushed === undefined || unpushed.length === 0) return undefined;

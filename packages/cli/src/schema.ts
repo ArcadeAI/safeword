@@ -392,6 +392,7 @@ const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
 export const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
   '.safeword/.update-cache.json',
   '.safeword/self-reports/',
+  '.safeword/boundary-audit.jsonl',
   ...['.project', '.safeword-project'].flatMap(root =>
     NAMESPACE_TRANSIENT_BASENAMES.map(name => `${root}/${name}`),
   ),
@@ -1315,13 +1316,14 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.gitignore': {
       operation: 'append',
       content: `\n# Safeword - Local cache and transient state\n${SAFEWORD_TRANSIENT_PATHS.join('\n')}\n`,
-      // Marker is a NEW line (.project/dependency-readiness.json) so customers with
-      // the older legacy-only block re-apply on upgrade and pick up the
-      // latest transient paths. Hooks write state under the resolved root, so
-      // fresh installs generate these under .project/. Without them, those
-      // generated files show as untracked in `git status --porcelain` —
-      // churning the tree and blocking the auto-upgrade gate.
-      marker: '.project/dependency-readiness.json',
+      // Marker is the NEWEST line (.safeword/boundary-audit.jsonl, the boundary
+      // gate's audit record — ZJMZ50) so customers with any older block
+      // re-apply on upgrade and pick up the latest transient paths. Hooks write
+      // state under the resolved root, so fresh installs generate these under
+      // .project/. Without them, those generated files show as untracked in
+      // `git status --porcelain` — churning the tree and blocking the
+      // auto-upgrade gate.
+      marker: '.safeword/boundary-audit.jsonl',
     },
     // Prettier ignores: safeword owns the dot-directories in SAFEWORD_IGNORE_DIRS
     // (.safeword/, .claude/, .cursor/, .codex/, .agents/, and both namespace

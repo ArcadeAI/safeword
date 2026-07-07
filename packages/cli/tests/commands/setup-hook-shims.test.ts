@@ -156,6 +156,17 @@ describe('setup: husky hook shims (ZJMZ50 slice 3)', () => {
     expect(readTestFile(dir, '.husky/pre-commit')).toContain(COMMIT_SHIM);
   });
 
+  it("covers the boundary audit record in the host's .gitignore (TB1.R4 support)", async () => {
+    // The shims make `boundary` write .safeword/boundary-audit.jsonl in the
+    // host — without this ignore entry every shim host grows an untracked,
+    // accidentally-committable audit file (quality-review, PR #938).
+    seedHuskyHost();
+
+    await runCli(['setup'], { cwd: dir });
+
+    expect(readTestFile(dir, '.gitignore')).toContain('.safeword/boundary-audit.jsonl');
+  });
+
   it('a host without husky gets no .husky hook files (world gate)', async () => {
     // No .husky dir seeded: bare world — create-if-absent must not fire.
     const result = await runCli(['setup'], { cwd: dir });
