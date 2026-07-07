@@ -205,4 +205,27 @@ describe('reconcile — flag-only, idempotent, bounded eligibility (SM2.R2-R5)',
     expect(tracker.comments.get(5)).toHaveLength(1);
     expect(tracker.labels.get(5)).toEqual([RECONCILE_LABEL]);
   });
+
+  it('a re-run against unchanged state adds no duplicate flags', async () => {
+    const issue: ReconcileIssue = {
+      number: 6,
+      title: 'already flagged',
+      body: issueBody('packages/cli/src/retro/pipeline.ts'),
+      labels: ['retro'],
+    };
+    const tracker = new FakeTracker(
+      [issue],
+      new Map([
+        [6, ledgerComment({ dogfood: { sha: 'abc1234', at: '2026-07-01T00:00:00.000Z' } })],
+      ]),
+      () => true,
+    );
+
+    await reconcile(tracker);
+    const second = await reconcile(tracker);
+
+    expect(second.flagged).toEqual([]);
+    expect(tracker.comments.get(6)).toHaveLength(1);
+    expect(tracker.labels.get(6)).toEqual([RECONCILE_LABEL]);
+  });
 });
