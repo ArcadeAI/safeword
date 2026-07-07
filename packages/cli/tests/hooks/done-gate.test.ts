@@ -34,6 +34,28 @@ describe('checkVerifyArtifact', () => {
     expect(verdict.ok).toBe(false);
     expect(verdict.reason).toContain('piggybacked');
   });
+
+  // 1F08DD: a passing ✅ status whose PROSE mentions "piggybacked changes"
+  // (negated) must not be read as a failure — found live when the boundary
+  // gate rejected CDRJTW's honest "No piggybacked changes." verify.md.
+  it('passes a ✅ status that merely mentions piggybacked changes in prose', () => {
+    const verdict = checkVerifyArtifact(
+      '**PR Scope:** ✅ Diff matches ticket scope — No piggybacked changes.\n',
+    );
+    expect(verdict).toEqual({ ok: true });
+  });
+
+  it('fails a glyph-less status that positively claims piggybacked changes', () => {
+    const verdict = checkVerifyArtifact('**PR Scope:** Piggybacked changes: src/foo.ts\n');
+    expect(verdict.ok).toBe(false);
+  });
+
+  it('fails a status carrying ❌ even when a ✅ also appears later in the line', () => {
+    const verdict = checkVerifyArtifact(
+      '**PR Scope:** ❌ Piggybacked changes: src/foo.ts (was ✅ before the late edit)\n',
+    );
+    expect(verdict.ok).toBe(false);
+  });
 });
 
 describe('evaluateDoneEvidence', () => {
