@@ -14,9 +14,9 @@ object.
 
 ### Scenario: A finding surfaced as a valid process area becomes a filable encounter
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 91548ee
+- [x] GREEN 9e1cc9a
+- [x] REFACTOR skip: minimal additive branch, extraction helper already in place for the strictness loops
 
 ### Scenario: A process-surfaced finding files end to end through the retro run
 
@@ -46,9 +46,9 @@ object.
 
 ### Scenario: A process surface outside the strict slug shape is dropped
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 30fdf25
+- [x] GREEN 9951350
+- [x] REFACTOR skip: wall helpers named and documented at authoring; no duplication introduced
 
 ### Scenario: An ordinary word slug at the length boundary survives
 
