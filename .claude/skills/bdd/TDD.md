@@ -63,6 +63,8 @@ Then they see the dashboard
 
 **Annotation rule (enforced by hook):** every `[x]` transition must carry either a commit SHA (proving which commit did that step) or `skip: <non-empty reason>` (a deliberate, auditable omission). Bare `[x]` without an annotation is blocked at the write-time hook. Pre-existing bare `[x]` from before this rule shipped is silently allowed — the validation is forward-looking only.
 
+**Uncommittable RED states:** Prefer a real RED commit. If a partial RED state cannot pass structural commit gates because the repo rejects incomplete code (for example, a type-only scaffold trips unused-property lint, or an interface rename cannot compile until all callers are updated), do not weaken the gate and do not force it through with `--no-verify`. Run the smallest command that proves the intended RED, record the command and failure in the work log, and mark the scenario `RED skip: uncommittable partial state — <command> failed before GREEN because <reason>`. Then move directly to GREEN and cite the GREEN commit on its own checkbox.
+
 At the bottom of `test-definitions.md`, add one row for the whole-ticket cross-scenario refactor pass (same annotation rule applies). It's **completed at implement-exit** (see "whole-ticket quality review + refactor" below), and the done-gate requires it only when the ticket has **two or more RGR loops** — a single-loop ticket has nothing to cross and may leave it unmarked:
 
 ```markdown
@@ -77,6 +79,7 @@ At the bottom of `test-definitions.md`, add one row for the whole-ticket cross-s
 - Mark `RED` and `GREEN` in the same edit — one checkbox per edit, commit between
 - `- [x] RED` with no SHA and no `skip:` — blocked at write-time
 - `- [x] REFACTOR skip:` with empty or whitespace-only reason — blocked at write-time
+- `git commit --no-verify` to force a structurally broken RED code commit — use the `RED skip:` evidence path above instead
 - Reuse the same SHA across two steps in one scenario — caught at the done-gate (each step needs its own distinct commit)
 - Modify test files in a REFACTOR commit — blocked at commit-time (test changes during cleanup are behavior changes in disguise)
 - Add extra checkboxes like `- [ ] REVIEW` — only RED/GREEN/REFACTOR
