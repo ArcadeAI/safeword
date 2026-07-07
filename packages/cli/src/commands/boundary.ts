@@ -11,7 +11,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
@@ -25,6 +25,7 @@ import {
   type TicketChange,
 } from '../boundary/engine.js';
 import { resolveTicketsDirectory } from '../utils/configured-paths.js';
+import { readFileSafe } from '../utils/fs.js';
 import { warn } from '../utils/output.js';
 
 export interface BoundaryOptions {
@@ -180,15 +181,6 @@ function legalityStepsFor(cwd: string, path: string, priorReference?: string): L
     proposed: contentAt(cwd, `${commit}:${path}`) ?? '',
     commit: commit.slice(0, 7),
   }));
-}
-
-/** Read a file, or undefined when absent/unreadable — never throws. */
-function readFileSafe(path: string): string | undefined {
-  try {
-    return readFileSync(path, 'utf8');
-  } catch {
-    return undefined;
-  }
 }
 
 function appendAudit(cwd: string, entry: object): void {
