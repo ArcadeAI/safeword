@@ -137,4 +137,14 @@ describe('prepareEncounters — process-level surfaces (PNZM3B)', () => {
     expect(report.encounters).toHaveLength(1);
     expect(report.drops).toEqual({ schema: 0, surface: 0 });
   });
+
+  it('keeps a slug with a hex-alphabet dictionary word among non-hex segments', async () => {
+    // "dead" is pure hex-alphabet; "code"/"cleanup" are not — an over-aggressive
+    // per-segment hex check would wrongly kill this honest slug.
+    const report = await prepareEncounters([
+      rawFinding({ safeword_surface: 'process/dead-code-cleanup' }),
+    ]);
+    expect(report.encounters).toHaveLength(1);
+    expect(report.drops).toEqual({ schema: 0, surface: 0 });
+  });
 });
