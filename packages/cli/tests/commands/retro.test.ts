@@ -789,4 +789,24 @@ describe('retro summary drop reporting (PNZM3B SM2.R1)', () => {
 
     expect(lines.join('\n')).not.toContain('dropped');
   });
+
+  it('retro-process-surface.SM1.R1.process_finding_files_end_to_end', async () => {
+    const transport = new FakeGitHub();
+    await runRetro(
+      { transcript: '/tmp/t.jsonl' },
+      dependencies({
+        transport,
+        extract: () =>
+          Promise.resolve([
+            rawFinding({ safeword_surface: 'process/tdd-loop', title: 'TDD loop misses tsc' }),
+          ]),
+      }),
+    );
+
+    expect(transport.issues).toHaveLength(1);
+    expect(transport.issues[0]?.body).toContain('process/tdd-loop');
+    expect(transport.issues[0]?.labels).toContain('process');
+    expect(transport.issues[0]?.labels).toContain('retro');
+    expect(transport.issues[0]?.labels).toContain('self-report');
+  });
 });
