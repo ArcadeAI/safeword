@@ -18,7 +18,13 @@ import { exists } from './fs.js';
 
 export type { HookManagerWorld } from '../packs/types.js';
 
-const LEFTHOOK_CONFIGS = ['lefthook.yml', 'lefthook.yaml', '.lefthook.yml', '.lefthook.yaml'];
+/** Lefthook's recognized config filenames — shared with the nudge's quiesce check. */
+export const LEFTHOOK_CONFIGS = [
+  'lefthook.yml',
+  'lefthook.yaml',
+  '.lefthook.yml',
+  '.lefthook.yaml',
+];
 const PRE_COMMIT_CONFIG = '.pre-commit-config.yaml';
 
 /** The repo's configured core.hooksPath, or undefined when unset/unreadable. */

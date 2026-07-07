@@ -14,11 +14,10 @@ import nodePath from 'node:path';
 
 import type { ProjectContext } from '../packs/types.js';
 import { readFileSafe } from './fs.js';
+import { LEFTHOOK_CONFIGS } from './hook-manager.js';
 
 /** Substring proving a config already invokes the gate — the quiesce signal. */
 const BOUNDARY_INVOCATION = 'safeword boundary';
-
-const LEFTHOOK_CONFIGS = ['lefthook.yml', 'lefthook.yaml', '.lefthook.yml', '.lefthook.yaml'];
 
 const LEFTHOOK_SNIPPET = `Boundary gate: this repo uses lefthook, and safeword never edits lefthook.yml.
 To wire the warn-only boundary gate, add:
