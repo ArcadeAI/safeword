@@ -35,6 +35,13 @@ function restrictedSyntaxRule(config: unknown[]): unknown {
   return getRuleConfig(config, 'no-restricted-syntax');
 }
 
+/** The selector strings of a no-restricted-syntax rule entry. */
+function selectorsOf(rule: unknown): string[] {
+  return (rule as [string, ...{ selector: string }[]])
+    .slice(1)
+    .map(entry => (entry as { selector: string }).selector);
+}
+
 describe('Test-integrity rules ship in the vitest lane (VFD6X1)', () => {
   it('vitest/no-disabled-tests is at error', () => {
     expect(getSeverityNumber(getRuleConfig(vitestConfig, 'vitest/no-disabled-tests'))).toBe(ERROR);
@@ -45,21 +52,19 @@ describe('Test-integrity rules ship in the vitest lane (VFD6X1)', () => {
   });
 
   it('no-restricted-syntax is at error with the sleep selectors', () => {
-    const rule = restrictedSyntaxRule(vitestConfig) as [string, ...{ selector: string }[]];
+    const rule = restrictedSyntaxRule(vitestConfig);
     expect(getSeverityNumber(rule)).toBe(ERROR);
-    const selectors = rule.slice(1).map(entry => (entry as { selector: string }).selector);
     // One selector per sleep-idiom family: awaited Promise+setTimeout,
     // Bun.sleep, bare sleep().
-    expect(selectors.length).toBeGreaterThanOrEqual(3);
+    expect(selectorsOf(rule).length).toBeGreaterThanOrEqual(3);
   });
 });
 
 describe('Test-integrity rules ship in the bun:test lane (review hardening)', () => {
   it('no-restricted-syntax is at error with sleep + deferred-marker selectors', () => {
-    const rule = restrictedSyntaxRule(bunTestConfig) as [string, ...{ selector: string }[]];
+    const rule = restrictedSyntaxRule(bunTestConfig);
     expect(getSeverityNumber(rule)).toBe(ERROR);
-    const selectors = rule.slice(1).map(entry => (entry as { selector: string }).selector);
-    expect(selectors.length).toBeGreaterThanOrEqual(4);
+    expect(selectorsOf(rule).length).toBeGreaterThanOrEqual(4);
   });
 
   it('flags direct and chained deferred markers, not non-test members', () => {
