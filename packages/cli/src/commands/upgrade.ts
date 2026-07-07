@@ -27,6 +27,7 @@ import {
   warnIfCodexBelowHookFloor,
 } from '../utils/codex.js';
 import { createProjectContext } from '../utils/context.js';
+import { isError } from '../utils/errors.js';
 import { getEslintPeerMismatchWarning } from '../utils/eslint-peer-check.js';
 import { exists, findInTree, readFileSafe, readJson, writeFile } from '../utils/fs.js';
 import { untrackIgnoredFiles } from '../utils/git.js';
@@ -334,7 +335,7 @@ export async function maybeMigrateNamespace(cwd: string, options: UpgradeOptions
     reportMigrationSuccess(executeNamespaceMigration(cwd));
   } catch (migrationError) {
     warn(
-      `${Error.isError(migrationError) ? migrationError.message : String(migrationError)} — continuing upgrade on .safeword-project/.`,
+      `${isError(migrationError) ? migrationError.message : String(migrationError)} — continuing upgrade on .safeword-project/.`,
     );
     return;
   }
@@ -456,7 +457,7 @@ export async function upgrade(options: UpgradeOptions): Promise<void> {
 
     await selfVerify(cwd);
   } catch (error_) {
-    error(`Upgrade failed: ${Error.isError(error_) ? error_.message : 'Unknown error'}`);
+    error(`Upgrade failed: ${isError(error_) ? error_.message : 'Unknown error'}`);
     process.exit(1);
   }
 }

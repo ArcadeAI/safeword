@@ -14,6 +14,7 @@ import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { readConfiguredPath } from './configured-paths.js';
+import { isError } from './errors.js';
 import { isDirectory } from './fs.js';
 
 const LEGACY_ROOT = '.safeword-project';
@@ -108,7 +109,7 @@ export function executeNamespaceMigration(cwd: string): MigrationResult {
     }
   } catch (error) {
     throw new Error(
-      `Failed to move ${LEGACY_ROOT}/ to ${DEFAULT_ROOT}/: ${Error.isError(error) ? error.message : String(error)}`,
+      `Failed to move ${LEGACY_ROOT}/ to ${DEFAULT_ROOT}/: ${isError(error) ? error.message : String(error)}`,
       { cause: error },
     );
   }

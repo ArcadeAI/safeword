@@ -28,6 +28,7 @@ import {
   warnIfCodexBelowHookFloor,
 } from '../utils/codex.js';
 import { createProjectContext } from '../utils/context.js';
+import { isError } from '../utils/errors.js';
 import { getEslintPeerMismatchWarning } from '../utils/eslint-peer-check.js';
 import { exists, readJson, writeJson } from '../utils/fs.js';
 import { installDependencies } from '../utils/install.js';
@@ -544,7 +545,7 @@ export async function setup(options: SetupOptions): Promise<void> {
       process.exit(1);
     }
   } catch (error_) {
-    error(`Setup failed: ${Error.isError(error_) ? error_.message : 'Unknown error'}`);
+    error(`Setup failed: ${isError(error_) ? error_.message : 'Unknown error'}`);
     process.exit(1);
   }
 }

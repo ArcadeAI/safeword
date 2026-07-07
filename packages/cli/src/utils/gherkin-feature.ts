@@ -13,6 +13,7 @@ import {
   type Tag,
 } from '@cucumber/messages';
 
+import { isError } from './errors.js';
 import type { ParsedScenario } from './test-skeleton.js';
 
 export interface ParsedFeatureScenario extends ParsedScenario {
@@ -596,6 +597,6 @@ function uniqueLineageReferences(tags: readonly string[]): string[] {
 }
 
 function formatParseError(error: unknown): string {
-  if (Error.isError(error)) return error.message.replaceAll('\n', ' ');
+  if (isError(error)) return error.message.replaceAll('\n', ' ');
   return String(error);
 }

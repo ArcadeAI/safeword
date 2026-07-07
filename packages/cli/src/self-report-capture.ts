@@ -28,6 +28,7 @@ import {
   readSelfReportConfig,
   recordSignal,
 } from '../templates/hooks/lib/self-report.js';
+import { isError } from './utils/errors.js';
 import { VERSION } from './version.js';
 
 /**
@@ -43,7 +44,7 @@ export function recordCliCrash(
   if (!existsSync(nodePath.join(cwd, '.safeword'))) return;
   if (!readSelfReportConfig(cwd).capture) return; // honor selfReport.capture = false
 
-  const thrown = Error.isError(error) ? error : new Error(String(error));
+  const thrown = isError(error) ? error : new Error(String(error));
   // argv[2] is the subcommand (e.g. 'check'); the sanitizer bounds it to a safe
   // token, so flags or junk can't smuggle anything into the record.
   const source = argv[2] ?? 'unknown';
@@ -69,7 +70,7 @@ export function installCliCrashCapture(): void {
     recordCliCrash(reason);
     // Preserve the default crash UX: once we register a handler, Node stops
     // printing the error itself, so surface it here before failing non-zero.
-    console.error(Error.isError(reason) ? (reason.stack ?? reason.message) : reason);
+    console.error(isError(reason) ? (reason.stack ?? reason.message) : reason);
     process.exit(1);
   };
   process.on('uncaughtException', handler);

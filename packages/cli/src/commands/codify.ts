@@ -11,6 +11,7 @@ import nodePath from 'node:path';
 import process from 'node:process';
 
 import { readBddConventionsPath, resolveTicketsDirectory } from '../utils/configured-paths.js';
+import { isError } from '../utils/errors.js';
 import { findFeatureSourcePath } from '../utils/feature-source.js';
 import { FeatureParseError, parseFeatureScenarios } from '../utils/gherkin-feature.js';
 import { error, success } from '../utils/output.js';
@@ -148,11 +149,11 @@ function writeSkeleton(
     // `wx` = write but fail atomically if the path exists — no check-then-write TOCTOU gap.
     writeFileSync(outPath, skeleton, { flag: 'wx' });
   } catch (writeError: unknown) {
-    const code = Error.isError(writeError) ? (writeError as NodeJS.ErrnoException).code : undefined;
+    const code = isError(writeError) ? (writeError as NodeJS.ErrnoException).code : undefined;
     if (code === 'EEXIST') {
       fail(`Refusing to overwrite ${displayPath} — delete it first or choose another path.`);
     }
-    const reason = Error.isError(writeError) ? writeError.message : 'unknown error';
+    const reason = isError(writeError) ? writeError.message : 'unknown error';
     fail(`Failed to write ${displayPath}: ${reason}`);
   }
   success(`Wrote ${count} test stub${count === 1 ? '' : 's'} to ${displayPath}`);

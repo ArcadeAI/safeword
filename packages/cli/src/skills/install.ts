@@ -16,6 +16,8 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { isError } from '../utils/errors.js';
+
 /**
  * Agent skill directories the installer writes into (project-level). Used to
  * detect an existing install by reading reality off disk — the same
@@ -173,7 +175,7 @@ export function installSkills(options: InstallSkillsOptions): SkillInstallResult
     });
     return { status: 'installed', detail: options.source };
   } catch (error) {
-    const reason = Error.isError(error)
+    const reason = isError(error)
       ? (error.message.split('\n', 1)[0] ?? error.message)
       : String(error);
     return { status: 'failed', detail: reason };
