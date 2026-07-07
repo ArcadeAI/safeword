@@ -361,12 +361,16 @@ describe('Schema - Single Source of Truth', () => {
         'astro', // prettier-plugin-astro (ESLint rules are in safeword)
         'tailwind', // prettier-plugin-tailwindcss
         'publishableLibrary', // publint
-        'shellcheck', // shellcheck for shell scripts
       ];
 
       for (const condition of requiredConditions) {
         expect(SAFEWORD_SCHEMA.packages.conditional).toHaveProperty(condition);
       }
+    });
+
+    it('should rely on the system shellcheck binary instead of the vulnerable npm wrapper', async () => {
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      expect(SAFEWORD_SCHEMA.packages.conditional).not.toHaveProperty('shellcheck');
     });
   });
 

@@ -18,6 +18,7 @@ import { astroConfig } from '../astro.js';
 import { JS_TS_FILES } from '../base.js';
 import { recommended } from '../recommended.js';
 import { recommendedTypeScript } from '../recommended-typescript.js';
+import { getRuleConfig, getSeverity } from './test-utilities.js';
 
 // Absolute paths under __tests__ so sonarjs test-aware rules can resolve a topDir.
 // The extension drives which config block matches.
@@ -106,6 +107,12 @@ try {
     );
 
     expect(safewordErrors).toHaveLength(1);
+  });
+
+  it('keeps Node 24-only Error.isError autofixes disabled while Node 22 is supported', () => {
+    const severity = getSeverity(getRuleConfig(recommended, 'unicorn/prefer-error-is-error'));
+
+    expect(severity).toBe('off');
   });
 });
 
