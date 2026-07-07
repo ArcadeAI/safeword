@@ -4,18 +4,15 @@
  * TB1.AC2 scenarios in features/boundary-reconciliation-gate.feature.
  */
 
-import { execSync } from 'node:child_process';
-
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { removeTemporaryDirectory, runCli, writeTestFile } from '../helpers';
 import {
-  createConfiguredProject,
-  createTemporaryDirectory,
-  removeTemporaryDirectory,
-  runCli,
-  writeTestFile,
-} from '../helpers';
-import { boundaryTicketContent as ticketContent, git, readAudit } from './boundary-helpers';
+  boundaryTicketContent as ticketContent,
+  createBoundaryPushFixture,
+  git,
+  readAudit,
+} from './boundary-helpers';
 
 const TICKET = '.project/tickets/BNP001-fixture';
 
@@ -24,15 +21,10 @@ describe('safeword boundary (slice 3: push tier)', () => {
   let remote: string;
 
   beforeEach(async () => {
-    dir = createTemporaryDirectory();
-    remote = createTemporaryDirectory();
-    await createConfiguredProject(dir);
-    execSync('git init --bare --quiet', { cwd: remote, stdio: 'pipe' });
-    git(dir, `remote add origin ${remote}`);
-    writeTestFile(dir, `${TICKET}/ticket.md`, ticketContent({ phase: 'define-behavior' }));
-    git(dir, 'add -A');
-    git(dir, 'commit -m baseline --quiet');
-    git(dir, 'push -u origin HEAD --quiet');
+    ({ dir, remote } = await createBoundaryPushFixture(
+      `${TICKET}/ticket.md`,
+      ticketContent({ phase: 'define-behavior' }),
+    ));
   });
 
   afterEach(() => {
@@ -40,7 +32,8 @@ describe('safeword boundary (slice 3: push tier)', () => {
     removeTemporaryDirectory(remote);
   });
 
-  it('warns when a well-formed anchor is unreachable, naming forge and shallow clone (SM1.AC2)', async () => {
+  /** Advance to implement anchored on a SHA no pushed history contains. */
+  function commitForgedAnchorAdvance() {
     writeTestFile(
       dir,
       `${TICKET}/ticket.md`,
@@ -48,6 +41,10 @@ describe('safeword boundary (slice 3: push tier)', () => {
     );
     git(dir, 'add -A');
     git(dir, 'commit -m advance --quiet');
+  }
+
+  it('warns when a well-formed anchor is unreachable, naming forge and shallow clone (SM1.AC2)', async () => {
+    commitForgedAnchorAdvance();
 
     const result = await runCli(['boundary', '--at', 'push'], { cwd: dir });
 
@@ -59,13 +56,7 @@ describe('safeword boundary (slice 3: push tier)', () => {
   });
 
   it('warns about unreachable evidence but never blocks the push (TB1.AC2)', async () => {
-    writeTestFile(
-      dir,
-      `${TICKET}/ticket.md`,
-      ticketContent({ phase: 'implement', anchors: ['implement: deadbee'] }),
-    );
-    git(dir, 'add -A');
-    git(dir, 'commit -m advance --quiet');
+    commitForgedAnchorAdvance();
 
     const result = await runCli(['boundary', '--at', 'push'], { cwd: dir });
 
@@ -187,22 +178,13 @@ describe('safeword boundary (N76NQ0: per-commit legality at push)', () => {
   let remote: string;
 
   beforeEach(async () => {
-    dir = createTemporaryDirectory();
-    remote = createTemporaryDirectory();
-    await createConfiguredProject(dir);
-    execSync('git init --bare --quiet', { cwd: remote, stdio: 'pipe' });
-    git(dir, `remote add origin ${remote}`);
-    writeTestFile(
-      dir,
+    ({ dir, remote } = await createBoundaryPushFixture(
       `${TICKET}/ticket.md`,
       ticketContent({
         phase: 'implement',
         skips: ['intake: retro', 'define-behavior: retro', 'scenario-gate: retro'],
       }),
-    );
-    git(dir, 'add -A');
-    git(dir, 'commit -m baseline --quiet');
-    git(dir, 'push -u origin HEAD --quiet');
+    ));
   });
 
   afterEach(() => {
