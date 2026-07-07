@@ -2,10 +2,10 @@
 id: J555B9
 slug: track-decompress-critical-audit-regression
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-07-07T05:34:36.978Z
-last_modified: 2026-07-07T05:34:43Z
+last_modified: 2026-07-07T23:22:00Z
 external_issue: https://github.com/advisories/GHSA-mp2f-45pm-3cg9
 ---
 
@@ -22,6 +22,7 @@ external_issue: https://github.com/advisories/GHSA-mp2f-45pm-3cg9
 - 2026-07-07T05:34:43Z Found: `bun pm why decompress` resolves the chain as `safeword -> shellcheck@4.1.0 -> decompress@4.2.1`.
 - 2026-07-07T05:34:43Z Found: `bun pm view shellcheck version` reports `4.1.0`, and `bun pm view decompress version` reports `4.2.1`; neither package currently has a newer npm release that clears the advisory.
 - 2026-07-07T05:34:43Z Decided: Track as follow-up remediation, not part of the #586 docs patch, because replacing the shellcheck npm wrapper or changing audit policy is a separate dependency decision.
+- 2026-07-07T23:22:00Z Done: Resolved by #927 (shipped in v0.68.0), which removed the `shellcheck` npm wrapper and its `decompress@4.2.1` transitive dep, relying on a system ShellCheck binary instead. The `shellcheck -> decompress` chain is gone from `bun.lock`; `bun pm why decompress` now reports nothing, so GHSA-mp2f-45pm-3cg9 no longer resolves. Done-When met (advisory clean).
 
 ## Scope
 
@@ -40,3 +41,4 @@ external_issue: https://github.com/advisories/GHSA-mp2f-45pm-3cg9
 
 - `bun audit --json` is clean for this advisory, or the remaining risk has an explicit accepted-risk note with rationale and owner.
 - The selected path is verified with the repo lint/typecheck flow.
+- 2026-07-07T23:24:17.959Z Phase: intake → done
