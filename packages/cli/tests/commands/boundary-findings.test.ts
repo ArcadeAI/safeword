@@ -6,23 +6,19 @@
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { removeTemporaryDirectory, runCli, writeTestFile } from '../helpers';
 import {
-  createConfiguredProject,
-  createTemporaryDirectory,
-  removeTemporaryDirectory,
-  runCli,
-  writeTestFile,
-} from '../helpers';
-import { boundaryTicketContent as ticketContent, git, readAudit } from './boundary-helpers';
+  boundaryTicketContent as ticketContent,
+  createBoundaryProject,
+  git,
+  readAudit,
+} from './boundary-helpers';
 
 describe('safeword boundary (slice 2: commit-tier findings)', () => {
   let dir: string;
 
   beforeEach(async () => {
-    dir = createTemporaryDirectory();
-    await createConfiguredProject(dir);
-    git(dir, 'add -A');
-    git(dir, 'commit -m baseline --quiet');
+    dir = await createBoundaryProject();
   });
 
   afterEach(() => {

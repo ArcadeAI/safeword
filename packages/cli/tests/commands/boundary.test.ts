@@ -13,14 +13,19 @@ import nodePath from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
-  createConfiguredProject,
   createTemporaryDirectory,
   initGitRepo,
   removeTemporaryDirectory,
   runCli,
   writeTestFile,
 } from '../helpers';
-import { AUDIT_PATH, boundaryTicketContent, git, readAudit } from './boundary-helpers';
+import {
+  AUDIT_PATH,
+  boundaryTicketContent,
+  createBoundaryProject,
+  git,
+  readAudit,
+} from './boundary-helpers';
 
 function writeIntakeFeatureTicket(dir: string, folder: string): void {
   writeTestFile(
@@ -34,10 +39,7 @@ describe('safeword boundary (slice 1: engine core)', () => {
   let dir: string;
 
   beforeEach(async () => {
-    dir = createTemporaryDirectory();
-    await createConfiguredProject(dir);
-    git(dir, 'add -A');
-    git(dir, 'commit -m baseline --quiet');
+    dir = await createBoundaryProject();
   });
 
   afterEach(() => {

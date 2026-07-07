@@ -8,7 +8,38 @@ import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { createConfiguredProject, createTemporaryDirectory, writeTestFile } from '../helpers';
+
 export const AUDIT_PATH = '.safeword/boundary-audit.jsonl';
+
+/** A configured temp project with everything committed as the baseline. */
+export async function createBoundaryProject(): Promise<string> {
+  const dir = createTemporaryDirectory();
+  await createConfiguredProject(dir);
+  git(dir, 'add -A');
+  git(dir, 'commit -m baseline --quiet');
+  return dir;
+}
+
+/**
+ * A boundary project wired to a bare remote with a pushed baseline holding
+ * `content` at `ticketPath` — the push-tier suites' shared opening position.
+ */
+export async function createBoundaryPushFixture(
+  ticketPath: string,
+  content: string,
+): Promise<{ dir: string; remote: string }> {
+  const dir = createTemporaryDirectory();
+  const remote = createTemporaryDirectory();
+  await createConfiguredProject(dir);
+  execSync('git init --bare --quiet', { cwd: remote, stdio: 'pipe' });
+  git(dir, `remote add origin ${remote}`);
+  writeTestFile(dir, ticketPath, content);
+  git(dir, 'add -A');
+  git(dir, 'commit -m baseline --quiet');
+  git(dir, 'push -u origin HEAD --quiet');
+  return { dir, remote };
+}
 
 export function git(dir: string, command: string): string {
   return execSync(`git ${command}`, { cwd: dir, stdio: 'pipe', encoding: 'utf8' });
