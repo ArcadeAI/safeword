@@ -63,7 +63,17 @@ Then they see the dashboard
 
 **Annotation rule (enforced by hook):** every `[x]` transition must carry either a commit SHA (proving which commit did that step) or `skip: <non-empty reason>` (a deliberate, auditable omission). Bare `[x]` without an annotation is blocked at the write-time hook. Pre-existing bare `[x]` from before this rule shipped is silently allowed — the validation is forward-looking only.
 
-**Uncommittable RED states:** Prefer a real RED commit. If a partial RED state cannot pass structural commit gates because the repo rejects incomplete code (for example, a type-only scaffold trips unused-property lint, or an interface rename cannot compile until all callers are updated), do not weaken the gate and do not force it through with `--no-verify`. Run the smallest command that proves the intended RED, record the command and failure in the work log, and mark the scenario `RED skip: uncommittable partial state — <command> failed before GREEN because <reason>`. Then move directly to GREEN and cite the GREEN commit on its own checkbox.
+**Uncommittable RED states:** Prefer a real RED commit. Use this escape hatch only when a partial RED state cannot pass structural commit gates because the repo rejects incomplete code, such as:
+
+- a type-only scaffold that trips unused-property lint before behavior exists
+- an interface rename that cannot compile until all callers are updated
+
+Do not weaken the gate or force it through with `--no-verify`. Instead:
+
+1. Run the smallest command that proves the intended RED.
+2. Record the command and failure in the work log.
+3. Mark the scenario `RED skip: uncommittable partial state — <command> failed before GREEN because <reason>`.
+4. Move directly to GREEN and cite the GREEN commit on its own checkbox.
 
 At the bottom of `test-definitions.md`, add one row for the whole-ticket cross-scenario refactor pass (same annotation rule applies). It's **completed at implement-exit** (see "whole-ticket quality review + refactor" below), and the done-gate requires it only when the ticket has **two or more RGR loops** — a single-loop ticket has nothing to cross and may leave it unmarked:
 
