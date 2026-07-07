@@ -125,6 +125,10 @@ skips these fixtures passes vacuously.
 - [x] GREEN ab9faa8
 - [x] REFACTOR skip: test-only addition
 
+## Feature-level cross-scenario refactor
+
+- [x] cross-scenario 4652299
+
 ## Rule: retro-filing-provenance.SM2.R6 — The sweep bounds its API operations per run, and applied flags land complete
 
 ### Scenario: A run over more flaggable issues than the bound flags completely up to it and defers the rest
