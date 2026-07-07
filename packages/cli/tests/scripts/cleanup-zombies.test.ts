@@ -25,9 +25,15 @@ describe('cleanup-zombies.sh', () => {
     rmSync(temporaryDirectory, { recursive: true, force: true });
   });
 
-  function runScript(args: string[] = []): string {
-    const command = `bash "${SCRIPT_PATH}" --dry-run ${args.join(' ')}`;
+  /** Run the real script with the args exactly as given. */
+  function runScriptRaw(args: string[] = []): string {
+    const command = `bash "${SCRIPT_PATH}" ${args.join(' ')}`;
     return execSync(command, { cwd: temporaryDirectory, encoding: 'utf8' });
+  }
+
+  /** Detection-suite default: always preview explicitly. */
+  function runScript(args: string[] = []): string {
+    return runScriptRaw(['--dry-run', ...args]);
   }
 
   function createFile(relativePath: string, content = ''): void {
@@ -168,13 +174,8 @@ describe('cleanup-zombies.sh', () => {
   // 2KG1JW (#773 rung 4): the skill's "run --dry-run first, then re-run" ritual
   // is script-enforced — bare invocation previews, killing needs explicit consent.
   describe('Rule: killing requires an explicit --yes (deny-by-default)', () => {
-    function runScriptBare(args: string[] = []): string {
-      const command = `bash "${SCRIPT_PATH}" ${args.join(' ')}`;
-      return execSync(command, { cwd: temporaryDirectory, encoding: 'utf8' });
-    }
-
     it('Scenario: a bare invocation is a preview that names the consent flag', () => {
-      const output = runScriptBare();
+      const output = runScriptRaw();
 
       expect(output).toContain('no processes will be killed');
       expect(output).toContain('--yes');
@@ -183,20 +184,20 @@ describe('cleanup-zombies.sh', () => {
     it('Scenario: --yes enters kill mode (no preview banner)', () => {
       // Empty temp dir: no detected port, no project-scoped matches — kill mode
       // runs safely and reports clean. The mode flip is what's under test.
-      const output = runScriptBare(['--yes']);
+      const output = runScriptRaw(['--yes']);
 
       expect(output).not.toContain('no processes will be killed');
       expect(output).toContain('already clean');
     });
 
     it('Scenario: -y is the short form of consent', () => {
-      const output = runScriptBare(['-y']);
+      const output = runScriptRaw(['-y']);
 
       expect(output).not.toContain('no processes will be killed');
     });
 
     it('Scenario: --dry-run stays an explicit preview (back-compat)', () => {
-      const output = runScriptBare(['--dry-run']);
+      const output = runScriptRaw(['--dry-run']);
 
       expect(output).toContain('no processes will be killed');
     });
@@ -204,7 +205,7 @@ describe('cleanup-zombies.sh', () => {
     it('Scenario: a preview with findings tells the reader how to proceed', () => {
       createFile('vite.config.ts');
 
-      const output = runScriptBare();
+      const output = runScriptRaw();
 
       // Bare preview still runs the full detection pass (port + pattern shown).
       expect(output).toContain('Port: 5173');
@@ -216,7 +217,7 @@ describe('cleanup-zombies.sh', () => {
         ['--yes', '--dry-run'],
         ['--dry-run', '--yes'],
       ]) {
-        expect(runScriptBare(args)).toContain('no processes will be killed');
+        expect(runScriptRaw(args)).toContain('no processes will be killed');
       }
     });
   });
@@ -264,18 +265,12 @@ describe('cleanup-zombies.sh', () => {
       const pid = spawnVictim();
       await expect.poll(() => isAlive(pid)).toBe(true);
 
-      const preview = execSync(`bash "${SCRIPT_PATH}" swzombie`, {
-        cwd: temporaryDirectory,
-        encoding: 'utf8',
-      });
+      const preview = runScriptRaw(['swzombie']);
       expect(preview).toContain('swzombie');
       expect(preview).toContain('Re-run with --yes to kill them');
       expect(isAlive(pid)).toBe(true); // preview never kills
 
-      execSync(`bash "${SCRIPT_PATH}" --yes swzombie`, {
-        cwd: temporaryDirectory,
-        encoding: 'utf8',
-      });
+      runScriptRaw(['--yes', 'swzombie']);
       await expect.poll(() => isAlive(pid)).toBe(false); // consent kills
     });
   });
