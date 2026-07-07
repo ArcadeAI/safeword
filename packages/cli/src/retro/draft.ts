@@ -16,6 +16,13 @@ export interface RetroDraft {
   title: string;
   body: string;
   labels: string[];
+  /**
+   * Seal over the FINAL body (signature marker included): `shortHash(body)`.
+   * The egress sanitizer runs before draft assembly, so a body whose digest
+   * still matches is byte-identical to what was sanitized — filing paths
+   * refuse a mismatch (retro-draft-spool.ts verifyDraftBody, JDK0F0).
+   */
+  bodyDigest: string;
 }
 
 /** Lowercase + whitespace-collapse so trivial phrasing differences don't fork the id. */
@@ -43,12 +50,14 @@ export function signatureMarker(signature: string): string {
 /** Build the namespaced draft from a normalized finding. */
 export function buildDraft(finding: Finding): RetroDraft {
   const signature = retroSignature(finding);
+  // Embed the signature marker so re-fires (and recurrences) dedupe on the
+  // stable signature, not the variable title.
+  const body = `${assembleBody(finding)}\n${signatureMarker(signature)}`;
   return {
     signature,
     title: finding.title,
-    // Embed the signature marker so re-fires (and recurrences) dedupe on the
-    // stable signature, not the variable title.
-    body: `${assembleBody(finding)}\n${signatureMarker(signature)}`,
+    body,
+    bodyDigest: shortHash(body),
     labels: ['self-report', 'retro', finding.category],
   };
 }

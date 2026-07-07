@@ -16,16 +16,25 @@
 // Self-contained (node:* only): the CLI's `src/` imports it AND the surfacing hook
 // runs it under bun in a customer repo. `SpooledDraft` is structurally `RetroDraft`.
 
+import { createHash } from 'node:crypto';
 import nodePath from 'node:path';
 
 import { appendJsonlRecords, atomicWriteFile, readJsonlRecords } from './jsonl-spool.js';
 
-/** The four code-assembled, post-egress fields — structurally the CLI's RetroDraft. */
+/** The code-assembled, post-egress fields — structurally the CLI's RetroDraft. */
 export interface SpooledDraft {
   signature: string;
   title: string;
   body: string;
   labels: string[];
+  /**
+   * Seal over the body as it was assembled post-egress (JDK0F0): the CLI's
+   * `shortHash(body)`. Optional because pre-seal spool lines have no digest —
+   * those stay fileable (fail-open), but a PRESENT digest that no longer
+   * matches means the body was modified after sanitization, and the filing
+   * seam refuses it.
+   */
+  bodyDigest?: string;
 }
 
 /** Per-session spool cap — bounds a crash-looping or runaway session's disk use. */
@@ -48,7 +57,7 @@ export function draftSpoolPath(projectDirectory: string, sessionId: string): str
 function toDraft(value: unknown): SpooledDraft | undefined {
   if (typeof value !== 'object' || value === null) return undefined;
   const record = value as Record<string, unknown>;
-  const { signature, title, body, labels } = record;
+  const { signature, title, body, labels, bodyDigest } = record;
   if (
     typeof signature !== 'string' ||
     typeof title !== 'string' ||
@@ -58,7 +67,11 @@ function toDraft(value: unknown): SpooledDraft | undefined {
   ) {
     return undefined;
   }
-  return { signature, title, body, labels };
+  // The seal is optional (legacy lines predate it) but must be a string when present.
+  if (bodyDigest !== undefined && typeof bodyDigest !== 'string') return undefined;
+  return bodyDigest === undefined
+    ? { signature, title, body, labels }
+    : { signature, title, body, labels, bodyDigest };
 }
 
 /**
@@ -70,14 +83,28 @@ export function readSpooledDrafts(projectDirectory: string, sessionId: string): 
   return readJsonlRecords(draftSpoolPath(projectDirectory, sessionId), toDraft);
 }
 
-/** Serialize one draft to its canonical spool line (only the four code-assembled fields). */
+/** Serialize one draft to its canonical spool line (only the code-assembled fields). */
 function draftLine(draft: SpooledDraft): string {
   return JSON.stringify({
     signature: draft.signature,
     title: draft.title,
     body: draft.body,
     labels: draft.labels,
+    // JSON.stringify drops an undefined seal, so legacy drafts stay four-field.
+    bodyDigest: draft.bodyDigest,
   });
+}
+
+/**
+ * True unless the draft carries a seal that no longer matches its body. The
+ * digest algorithm MUST stay byte-identical to the CLI's `src/retro/hash.ts`
+ * `shortHash` (sha256, hex, first 12 chars) — this module is self-contained
+ * (node:* only; hooks run it under bun in customer repos), so it cannot import
+ * that definition. `draft.test.ts` pins the two implementations together.
+ */
+export function verifyDraftBody(draft: SpooledDraft): boolean {
+  if (draft.bodyDigest === undefined) return true;
+  return createHash('sha256').update(draft.body).digest('hex').slice(0, 12) === draft.bodyDigest;
 }
 
 /**
@@ -150,19 +177,26 @@ export type DraftPoster = (draft: SpooledDraft) => Promise<{ issue: number | str
  * that guide describes in prose, so it can be tested: read the session spool, post
  * each draft's code-assembled body VERBATIM through `post` (mocked in tests), then
  * drain exactly the drafts that posted. A draft whose post throws stays spooled so a
- * later boundary re-nudges and it retries — findings are never dropped. Returns the
- * posted/failed counts. The spool already holds post-egress bodies, so "verbatim"
- * carries no un-sanitized text. (Covers done_when: the subagent posts each draft
- * verbatim — proven at the spool→transport seam, the MCP call mocked.)
+ * later boundary re-nudges and it retries — findings are never dropped. A draft
+ * whose body no longer matches its seal (JDK0F0) is REFUSED — never posted, left
+ * spooled for a human to inspect, counted in `rejected`. Returns the counts. The
+ * spool already holds post-egress bodies, so "verbatim" carries no un-sanitized
+ * text. (Covers done_when: the subagent posts each draft verbatim — proven at the
+ * spool→transport seam, the MCP call mocked.)
  */
 export async function fileSpooledDrafts(
   projectDirectory: string,
   sessionId: string,
   post: DraftPoster,
-): Promise<{ posted: number; failed: number }> {
+): Promise<{ posted: number; failed: number; rejected: number }> {
   const filed: string[] = [];
   let failed = 0;
+  let rejected = 0;
   for (const draft of readSpooledDrafts(projectDirectory, sessionId)) {
+    if (!verifyDraftBody(draft)) {
+      rejected += 1;
+      continue;
+    }
     try {
       const { issue } = await post(draft);
       // Ack IMMEDIATELY after the post, before any drain (GH644A): a crash
@@ -179,7 +213,7 @@ export async function fileSpooledDrafts(
     }
   }
   markDraftsFiled(projectDirectory, sessionId, filed);
-  return { posted: filed.length, failed };
+  return { posted: filed.length, failed, rejected };
 }
 
 /**
