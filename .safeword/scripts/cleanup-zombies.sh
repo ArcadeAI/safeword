@@ -6,12 +6,15 @@
 #
 # Auto-detection: Checks root, packages/*/, apps/*/ for framework configs (monorepo support)
 #
-# Usage: ./cleanup-zombies.sh [port] [pattern]
-# Example: ./cleanup-zombies.sh                    # auto-detect from config files
-# Example: ./cleanup-zombies.sh 5173               # explicit port
-# Example: ./cleanup-zombies.sh 5173 "vite"        # port + pattern
-# Example: ./cleanup-zombies.sh --dry-run          # preview what would be killed
-# Example: ./cleanup-zombies.sh --dry-run 5173     # preview with explicit port
+# Deny-by-default (#773 rung 4): a bare invocation PREVIEWS what would be
+# killed; nothing dies without an explicit --yes. The preview-first ritual is
+# script-enforced, not a guide instruction.
+#
+# Usage: ./cleanup-zombies.sh [--yes] [port] [pattern]
+# Example: ./cleanup-zombies.sh                    # preview (auto-detect from config files)
+# Example: ./cleanup-zombies.sh --yes              # kill what the preview shows
+# Example: ./cleanup-zombies.sh --yes 5173         # kill on explicit port
+# Example: ./cleanup-zombies.sh --yes 5173 "vite"  # kill on port + pattern
 
 set -e
 
@@ -21,22 +24,28 @@ YELLOW='\033[0;33m'
 NC='\033[0m' # No Color
 
 # Parse arguments
-DRY_RUN=false
+DRY_RUN=true
 PORT=""
 PATTERN=""
 
 for arg in "$@"; do
   case "$arg" in
+    --yes | -y)
+      DRY_RUN=false
+      ;;
     --dry-run)
+      # Explicit alias for the default; kept so existing invocations stay valid.
       DRY_RUN=true
       ;;
     --help | -h)
-      echo "Usage: $0 [--dry-run] [port] [pattern]"
+      echo "Usage: $0 [--yes] [port] [pattern]"
       echo ""
       echo "Cleanup zombie processes for the current project."
+      echo "Previews by default; killing requires --yes."
       echo ""
       echo "Options:"
-      echo "  --dry-run    Show what would be killed without killing"
+      echo "  --yes, -y    Kill the processes the preview shows"
+      echo "  --dry-run    Explicit preview (the default behavior)"
       echo "  --help       Show this help message"
       echo ""
       echo "Arguments:"
@@ -44,10 +53,10 @@ for arg in "$@"; do
       echo "  pattern      Additional process pattern to match"
       echo ""
       echo "Examples:"
-      echo "  $0                     # Auto-detect port from config files"
-      echo "  $0 5173                # Kill processes on port 5173"
-      echo "  $0 5173 electron       # Port 5173 + electron processes"
-      echo "  $0 --dry-run           # Preview without killing"
+      echo "  $0                     # Preview (auto-detect port from config files)"
+      echo "  $0 --yes               # Kill what the preview shows"
+      echo "  $0 --yes 5173          # Kill processes on port 5173"
+      echo "  $0 --yes 5173 electron # Port 5173 + electron processes"
       exit 0
       ;;
     *)
@@ -118,7 +127,7 @@ echo "Cleanup zombies for: $PROJECT_NAME"
 echo "   Directory: $PROJECT_DIR"
 [ -n "$PORT" ] && echo "   Port: $PORT (+ test port $((PORT + 1000)))"
 [ -n "$PATTERN" ] && echo "   Pattern: $PATTERN"
-$DRY_RUN && echo -e "   ${YELLOW}DRY RUN - no processes will be killed${NC}"
+$DRY_RUN && echo -e "   ${YELLOW}DRY RUN (default) - no processes will be killed; pass --yes to kill${NC}"
 echo ""
 
 # Track what we find/kill
@@ -206,7 +215,7 @@ if [ "$FOUND_COUNT" -eq 0 ]; then
   echo -e "${GREEN}No zombie processes found - already clean!${NC}"
 elif [ "$DRY_RUN" = true ]; then
   echo -e "${YELLOW}Found $FOUND_COUNT process(es) that would be killed${NC}"
-  echo "   Run without --dry-run to kill them"
+  echo "   Re-run with --yes to kill them"
 else
   echo -e "${GREEN}Killed $KILLED_COUNT process(es)${NC}"
 

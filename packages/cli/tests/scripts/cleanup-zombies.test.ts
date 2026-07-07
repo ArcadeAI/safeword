@@ -165,6 +165,53 @@ describe('cleanup-zombies.sh', () => {
     });
   });
 
+  // 2KG1JW (#773 rung 4): the skill's "run --dry-run first, then re-run" ritual
+  // is script-enforced — bare invocation previews, killing needs explicit consent.
+  describe('Rule: killing requires an explicit --yes (deny-by-default)', () => {
+    function runScriptBare(args: string[] = []): string {
+      const command = `bash "${SCRIPT_PATH}" ${args.join(' ')}`;
+      return execSync(command, { cwd: temporaryDirectory, encoding: 'utf8' });
+    }
+
+    it('Scenario: a bare invocation is a preview that names the consent flag', () => {
+      const output = runScriptBare();
+
+      expect(output).toContain('no processes will be killed');
+      expect(output).toContain('--yes');
+    });
+
+    it('Scenario: --yes enters kill mode (no preview banner)', () => {
+      // Empty temp dir: no detected port, no project-scoped matches — kill mode
+      // runs safely and reports clean. The mode flip is what's under test.
+      const output = runScriptBare(['--yes']);
+
+      expect(output).not.toContain('no processes will be killed');
+      expect(output).toContain('already clean');
+    });
+
+    it('Scenario: -y is the short form of consent', () => {
+      const output = runScriptBare(['-y']);
+
+      expect(output).not.toContain('no processes will be killed');
+    });
+
+    it('Scenario: --dry-run stays an explicit preview (back-compat)', () => {
+      const output = runScriptBare(['--dry-run']);
+
+      expect(output).toContain('no processes will be killed');
+    });
+
+    it('Scenario: a preview with findings tells the reader how to proceed', () => {
+      createFile('vite.config.ts');
+
+      const output = runScriptBare();
+
+      // Bare preview still runs the full detection pass (port + pattern shown).
+      expect(output).toContain('Port: 5173');
+      expect(output).toContain('--yes');
+    });
+  });
+
   describe('test port convention', () => {
     it('shows test port = dev port + 1000', () => {
       createFile('vite.config.ts');

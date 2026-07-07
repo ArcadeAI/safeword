@@ -9,11 +9,11 @@
 Use the built-in cleanup script:
 
 ```bash
-# Preview what would be killed (safe)
-./.safeword/scripts/cleanup-zombies.sh --dry-run
-
-# Kill zombie processes
+# Preview what would be killed (the default — nothing dies without --yes)
 ./.safeword/scripts/cleanup-zombies.sh
+
+# Kill what the preview showed
+./.safeword/scripts/cleanup-zombies.sh --yes
 ```
 
 The script auto-detects your framework (Vite, Next.js, etc.) and kills only processes belonging to this project.
@@ -75,17 +75,17 @@ sleep 2
 Safeword includes a cleanup script at `.safeword/scripts/cleanup-zombies.sh`:
 
 ```bash
-# Auto-detect framework and clean up
+# Preview (the default — auto-detects framework; nothing dies without --yes)
 ./.safeword/scripts/cleanup-zombies.sh
 
-# Preview first (recommended)
-./.safeword/scripts/cleanup-zombies.sh --dry-run
+# Kill what the preview showed
+./.safeword/scripts/cleanup-zombies.sh --yes
 
-# Explicit port override
+# Explicit port override (add --yes to kill)
 ./.safeword/scripts/cleanup-zombies.sh 5173
 
 # Port + additional pattern
-./.safeword/scripts/cleanup-zombies.sh 5173 "electron"
+./.safeword/scripts/cleanup-zombies.sh --yes 5173 "electron"
 ```
 
 **Features:**
@@ -201,8 +201,8 @@ ps aux | grep "/Users/alex/projects/my-project"
 
 | Situation                                | Command                                                          |
 | ---------------------------------------- | ---------------------------------------------------------------- |
-| Quick cleanup (recommended)              | `./.safeword/scripts/cleanup-zombies.sh`                         |
-| Preview before killing                   | `./.safeword/scripts/cleanup-zombies.sh --dry-run`               |
+| Preview zombies (recommended first step) | `./.safeword/scripts/cleanup-zombies.sh`                         |
+| Kill what the preview showed             | `./.safeword/scripts/cleanup-zombies.sh --yes`                   |
 | Kill dev + test servers (use your ports) | `lsof -ti:$DEV_PORT -ti:$TEST_PORT \| xargs kill -9 2>/dev/null` |
 | Kill Playwright (this project)           | `pkill -f "playwright.*$(pwd)"`                                  |
 | Check what's on port                     | `lsof -i:3000`                                                   |
