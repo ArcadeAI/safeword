@@ -8,6 +8,7 @@
 // finding identity (category + surface + normalized title) so the same friction
 // recurring across sessions resolves to the same signature.
 
+import { PROCESS_PREFIX } from './egress.js';
 import { assembleBody, type Finding } from './finding.js';
 import { shortHash } from './hash.js';
 
@@ -49,7 +50,7 @@ export const PROCESS_LABEL = 'process';
 /** Build the namespaced draft from a normalized finding. */
 export function buildDraft(finding: Finding): RetroDraft {
   const signature = retroSignature(finding);
-  const processLabel = finding.safewordSurface.startsWith('process/') ? [PROCESS_LABEL] : [];
+  const processLabel = finding.safewordSurface.startsWith(PROCESS_PREFIX) ? [PROCESS_LABEL] : [];
   return {
     signature,
     title: finding.title,

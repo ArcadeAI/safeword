@@ -65,6 +65,7 @@ Feature: Retro process-level surfaces and egress-drop reporting
         | 3f9d2c7b1a8e4d6f0b5a9c8d7e6f1a2b  | 32-char hex (secret-shaped)        |
         | 3f9d-2c7b-1a8e-4d6f               | hyphen-split hex                   |
         | k9x2m7q4w8z3j6v1n5r0              | high-entropy non-hex token         |
+        | deadbe1f-zzzzzzzz                 | embedded 8-hex run in padding      |
 
     Scenario: An ordinary word slug at the length boundary survives
       Given a raw finding whose surface is a process area with a 32-character hyphenated word slug

@@ -3,6 +3,7 @@
 // closes; idempotent via the marker comment; per-issue isolation like triage.
 
 import { RETRO_LABEL } from './draft.js';
+import { PROCESS_PREFIX } from './egress.js';
 import { LEDGER_MARKER, parseLedger, type StoredProvenance } from './ledger.js';
 import type { IssueComment } from './triage.js';
 
@@ -122,7 +123,7 @@ export async function reconcile(
  */
 async function shouldFlag(issue: ReconcileIssue, tracker: ReconcileTracker): Promise<boolean> {
   const surface = surfaceOf(issue);
-  if (!surface || surface.startsWith('process/')) return false;
+  if (!surface || surface.startsWith(PROCESS_PREFIX)) return false;
 
   const comments = await tracker.listComments(issue.number);
   if (comments.some(comment => comment.body.includes(RECONCILE_MARKER))) return false;

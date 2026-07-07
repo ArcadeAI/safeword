@@ -298,33 +298,33 @@ export async function sanitizeTextDeep(text: string): Promise<string> {
 // under `process/<slug>`. The surface field BYPASSES sanitizeTextDeep — this
 // wall is the only egress guarantee on it — so the slug is a strict bounded
 // token: lowercase alphanumerics + hyphens, ≤32 chars, non-empty.
-const PROCESS_PREFIX = 'process/';
+export const PROCESS_PREFIX = 'process/';
 const PROCESS_SLUG_SHAPE = /^[a-z0-9-]{1,32}$/;
 const PROCESS_HEX_RUN = /^[0-9a-f]+$/;
 // The entropy backstop applies to the hyphen-stripped slug from this length up
 // — NOT HIGH_ENTROPY_RUN's ≥20 floor (a sub-20 hex slug must still drop), and
 // not shorter, so honest mixed slugs like `sprint2-retro` survive.
 const PROCESS_ENTROPY_MIN_LENGTH = 16;
-// A hyphen segment this long that is pure hex reads as a secret fragment even
-// when the rest of the slug is honest words.
-const PROCESS_HEX_SEGMENT_MIN_LENGTH = 8;
+// Any ≥8-char run of consecutive hex chars in the STRIPPED slug reads as a
+// secret fragment — substring, not per-segment, so hyphen placement and
+// low-entropy padding (`deadbe1f-zzzz…`) can't hide it (whole-ticket review).
+const PROCESS_HEX_SUBSTRING = /[0-9a-f]{8}/;
 
 /**
- * Secret-shape rejection at ANY length (quality review 2026-07-06/07): the
- * whole hyphen-stripped slug being pure hex (catches `deadbeefcafe` and
- * hyphen-split hex), any long pure-hex segment, or a high-entropy stripped run
- * (non-hex alphabets, e.g. base32/36). Calibrated so digit-free hex-alphabet
- * dictionary words among non-hex segments (`dead-code-cleanup`) survive.
+ * Secret-shape rejection: hex shapes at ANY length — the whole hyphen-stripped
+ * slug being pure hex (`deadbeefcafe`, hyphen-split hex) or any ≥8-char hex
+ * substring within it — plus the entropy backstop for non-hex alphabets on
+ * stripped slugs ≥16 chars. Calibrated so digit-free hex-alphabet dictionary
+ * words among non-hex segments (`dead-code-cleanup`) survive. Documented
+ * residuals (matching the egress posture's accepted tail): sub-16-char mixed
+ * alnum tokens and pure-alpha tokens (whose ≤26-symbol alphabet cannot clear
+ * ALPHA_MIN_BITS below ~19 distinct chars) — both backstopped by the schema's
+ * required non-surface fields and the flag-only public target.
  */
 function isSecretShapedSlug(slug: string): boolean {
   const stripped = slug.replaceAll('-', '');
   if (PROCESS_HEX_RUN.test(stripped)) return true;
-  const hasLongHexSegment = slug
-    .split('-')
-    .some(
-      segment => segment.length >= PROCESS_HEX_SEGMENT_MIN_LENGTH && PROCESS_HEX_RUN.test(segment),
-    );
-  if (hasLongHexSegment) return true;
+  if (PROCESS_HEX_SUBSTRING.test(stripped)) return true;
   return stripped.length >= PROCESS_ENTROPY_MIN_LENGTH && looksHighEntropySecret(stripped);
 }
 

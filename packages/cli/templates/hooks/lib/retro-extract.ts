@@ -216,7 +216,7 @@ export const EXTRACT_SYSTEM_PROMPT =
   'title of the SAFEWORD behavior","safeword_surface":"a real safeword path: ' +
   'hooks/…, packages/cli/…, templates/…, dist/…, or .safeword/…; for friction ' +
   'with no single-file surface use process/<area>, a short lowercase-hyphen area ' +
-  'like process/tdd-loop","what_happened":"",' +
+  '(<=32 chars) like process/tdd-loop","what_happened":"",' +
   '"why_friction":"","repro":"in terms of safeword commands"}. Rules: SAFEWORD\'s ' +
   'friction only (not the host project, not Claude Code itself); canonical ' +
   'behavior-titles; do not invent; [] if none.';
@@ -238,7 +238,7 @@ export const CODEX_RETRO_OUTPUT_SCHEMA = {
           safeword_surface: {
             type: 'string',
             description:
-              'A real safeword path (hooks/…, packages/cli/…, templates/…, dist/…, .safeword/…); for friction with no single-file surface use process/<area>, e.g. process/tdd-loop',
+              'A real safeword path (hooks/…, packages/cli/…, templates/…, dist/…, .safeword/…); for friction with no single-file surface use process/<area> (<=32 chars), e.g. process/tdd-loop',
           },
           what_happened: { type: 'string' },
           why_friction: { type: 'string' },
