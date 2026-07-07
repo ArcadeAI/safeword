@@ -637,4 +637,32 @@ describe('runRetro provenance capture (G19QG7)', () => {
 
     rmSync(projectDirectory, { recursive: true, force: true });
   });
+
+  it('retro-filing-provenance.SM1.R1.unresolvable_git_state_files_without_provenance', async () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'sw-dogfood-'));
+    writeFileSync(nodePath.join(projectDirectory, 'package.json'), '{"name":"safeword"}');
+
+    const transport = new LedgerRecordingGitHub();
+    const outcome = await runRetro(
+      { transcript: '/tmp/t.jsonl' },
+      dependencies({
+        transport,
+        resolveProvenance: buildProvenanceResolver({
+          projectDirectory,
+          runGit: () => {
+            throw new Error('not a git repository');
+          },
+          now: () => new Date('2026-07-07T12:00:00.000Z'),
+          version: '0.67.0',
+        }),
+      }),
+    );
+
+    expect(outcome.ok).toBe(true);
+    expect(outcome.result?.created).toHaveLength(1);
+    const ledgerComment = transport.comments.find(c => c.includes(LEDGER_MARKER));
+    expect(parseLedger(ledgerComment ?? '').provenance).toBeUndefined();
+
+    rmSync(projectDirectory, { recursive: true, force: true });
+  });
 });
