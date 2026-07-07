@@ -298,35 +298,32 @@ Given('two consecutive boundary runs over ticket-touching changes', function (th
 // Givens — push tier
 // ---------------------------------------------------------------------------
 
+/** Pushed baseline + an unpushed advance anchored on a SHA history lacks —
+ * one world behind two Gherkin phrasings (SM1.AC2 / TB1.AC2). */
+function seedForgedAnchorPush(world: BoundaryWorld): void {
+  createProject(world);
+  seedTicket(world, ticketContent({ phase: 'define-behavior' }));
+  addRemote(world);
+  writeFileAt(
+    world.dir!,
+    `${TICKET_DIR}/ticket.md`,
+    ticketContent({ phase: 'implement', anchors: ['implement: deadbee'] }),
+  );
+  git(world.dir!, 'add -A');
+  git(world.dir!, 'commit -m advance --quiet');
+}
+
 Given(
   'a ticket in the outgoing range whose entered-phase anchor is a well-formed SHA absent from history',
   function (this: BoundaryWorld) {
-    createProject(this);
-    seedTicket(this, ticketContent({ phase: 'define-behavior' }));
-    addRemote(this);
-    writeFileAt(
-      this.dir!,
-      `${TICKET_DIR}/ticket.md`,
-      ticketContent({ phase: 'implement', anchors: ['implement: deadbee'] }),
-    );
-    git(this.dir!, 'add -A');
-    git(this.dir!, 'commit -m advance --quiet');
+    seedForgedAnchorPush(this);
   },
 );
 
 Given(
   'an outgoing range whose ticket evidence includes an unreachable anchor',
   function (this: BoundaryWorld) {
-    createProject(this);
-    seedTicket(this, ticketContent({ phase: 'define-behavior' }));
-    addRemote(this);
-    writeFileAt(
-      this.dir!,
-      `${TICKET_DIR}/ticket.md`,
-      ticketContent({ phase: 'implement', anchors: ['implement: deadbee'] }),
-    );
-    git(this.dir!, 'add -A');
-    git(this.dir!, 'commit -m advance --quiet');
+    seedForgedAnchorPush(this);
   },
 );
 
