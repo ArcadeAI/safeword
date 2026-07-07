@@ -45,7 +45,7 @@ export function signatureMarker(signature: string): string {
 }
 
 /** The tracker label marking process-level (no single-file) friction (PNZM3B). */
-export const PROCESS_LABEL = 'process';
+const PROCESS_LABEL = 'process';
 
 /** Build the namespaced draft from a normalized finding. */
 export function buildDraft(finding: Finding): RetroDraft {

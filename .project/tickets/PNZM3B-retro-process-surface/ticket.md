@@ -2,13 +2,14 @@
 id: PNZM3B
 slug: retro-process-surface
 type: feature
-phase: verify
+phase: done
 phase_anchors:
   - define-behavior: c99e020
   - scenario-gate: a862077
   - implement: a56d225
   - verify: 26df953
-status: in_progress
+  - done: 3e44097
+status: done
 scope:
   - resolveSurface accepts a virtual `process/<slug>` namespace — strict slug validation (lowercase alphanumerics + hyphens, ≤32 chars, secret-shaped slugs rejected via the existing hex-run/entropy backstop), additive to the existing path allowlist
   - prepareEncounters reports drop counts per egress wall (off-schema vs unresolvable surface); the retro summary line shows them only when non-zero
@@ -42,3 +43,4 @@ last_modified: 2026-07-05T23:05:32.494Z
 - 2026-07-07T17:01:22.444Z Phase: define-behavior → scenario-gate
 - 2026-07-07T17:10:04.355Z Phase: scenario-gate → implement
 - 2026-07-07T17:43:42.607Z Phase: implement → verify
+- 2026-07-07T18:02:49.797Z Phase: verify → done
