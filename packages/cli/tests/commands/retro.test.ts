@@ -22,6 +22,7 @@ import { DIGEST_CAP, runHeadlessExtraction } from '../../templates/hooks/lib/ret
 
 vi.mock('../../src/retro/github-rest.js', () => ({
   createRestTransport: () => {},
+  createReconcileTransport: () => {},
   resolveGitHubToken: () => {},
 }));
 

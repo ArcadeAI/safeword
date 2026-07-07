@@ -6,6 +6,7 @@
 import { spawnSync } from 'node:child_process';
 import process from 'node:process';
 
+import type { ReconcileIssue, ReconcileTracker } from './reconcile.js';
 import type { CreateIssueInput, IssueComment, IssueReference, IssueTracker } from './triage.js';
 
 const UPSTREAM_REPO = 'ArcadeAI/safeword';
@@ -64,6 +65,22 @@ export function resolveGitHubToken(
  * token is REQUIRED (no `process.env` default) so every caller routes through
  * `resolveGitHubToken` — a default here would silently bypass the `gh` fallback.
  */
+const refOf = (tag: string): string => `tags/${tag}`;
+
+function buildCall(headers: Record<string, string>) {
+  return async function call(method: string, path: string, body?: unknown): Promise<unknown> {
+    const response = await fetch(`${API}${path}`, {
+      method,
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    if (!response.ok) {
+      throw new Error(`GitHub ${method} ${path} → ${response.status}`);
+    }
+    return response.json();
+  };
+}
+
 export function createRestTransport(token: string | undefined): IssueTracker | undefined {
   if (!token) return undefined;
 
@@ -74,17 +91,7 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
     'User-Agent': 'safeword-retro',
   };
 
-  async function call(method: string, path: string, body?: unknown): Promise<unknown> {
-    const response = await fetch(`${API}${path}`, {
-      method,
-      headers: { ...headers, 'Content-Type': 'application/json' },
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
-    if (!response.ok) {
-      throw new Error(`GitHub ${method} ${path} → ${response.status}`);
-    }
-    return response.json();
-  }
+  const call = buildCall(headers);
 
   return {
     async searchBySignature(signature: string): Promise<IssueReference[]> {
@@ -135,6 +142,82 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
 
     async updateComment(commentId: number, body: string): Promise<void> {
       await call('PATCH', `${ISSUES_BASE}/comments/${commentId}`, { body });
+    },
+  };
+}
+
+/**
+ * REST-backed reconcile transport (G19QG7), or undefined without a token. Thin
+ * and untested-by-unit like `createRestTransport` — the sweep's logic lives in
+ * the tested `reconcile` module; this only maps the six seam methods to REST.
+ */
+export function createReconcileTransport(token: string | undefined): ReconcileTracker | undefined {
+  const base = createRestTransport(token);
+  if (!token || !base) return undefined;
+
+  const call = buildCall({
+    Authorization: `Bearer ${token}`,
+    Accept: 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+    'User-Agent': 'safeword-retro',
+  });
+
+  /** Committer date of a commit SHA (committer, not author — squash-merge time). */
+  async function commitDate(sha: string): Promise<string | undefined> {
+    const data = (await call('GET', `/repos/${UPSTREAM_REPO}/commits/${sha}`)) as {
+      commit?: { committer?: { date?: string } };
+    };
+    return data.commit?.committer?.date;
+  }
+
+  return {
+    async listIssues(query: { state: string; labels: string[] }): Promise<ReconcileIssue[]> {
+      const labels = encodeURIComponent(query.labels.join(','));
+      const data = (await call(
+        'GET',
+        `${ISSUES_BASE}?state=${encodeURIComponent(query.state)}&labels=${labels}&per_page=100`,
+      )) as { number: number; title: string; body?: string; labels?: { name?: string }[] }[];
+      return data.map(issue => ({
+        number: issue.number,
+        title: issue.title,
+        body: issue.body ?? '',
+        labels: (issue.labels ?? []).map(label => label.name ?? ''),
+      }));
+    },
+
+    listComments: issueNumber => base.listComments(issueNumber),
+    createComment: (issueNumber, body) => base.createComment(issueNumber, body),
+
+    async addLabels(issueNumber: number, labels: string[]): Promise<void> {
+      await call('POST', `${ISSUES_BASE}/${issueNumber}/labels`, { labels });
+    },
+
+    async resolveTagDate(tag: string): Promise<string | undefined> {
+      // Annotated tags point at a tag object (deref once); lightweight tags
+      // point straight at the commit. Any failure → undefined (never guessed).
+      try {
+        const ref = (await call(
+          'GET',
+          `/repos/${UPSTREAM_REPO}/git/ref/${encodeURIComponent(refOf(tag))}`,
+        )) as { object?: { type?: string; sha?: string } };
+        const target = ref.object;
+        if (!target?.sha) return undefined;
+        if (target.type === 'commit') return await commitDate(target.sha);
+        const tagObject = (await call('GET', `/repos/${UPSTREAM_REPO}/git/tags/${target.sha}`)) as {
+          object?: { sha?: string };
+        };
+        return tagObject.object?.sha ? await commitDate(tagObject.object.sha) : undefined;
+      } catch {
+        return undefined;
+      }
+    },
+
+    async surfaceTouchedSince(path: string, sinceIso: string): Promise<boolean> {
+      const data = (await call(
+        'GET',
+        `/repos/${UPSTREAM_REPO}/commits?path=${encodeURIComponent(path)}&since=${encodeURIComponent(sinceIso)}&per_page=1`,
+      )) as unknown[];
+      return data.length > 0;
     },
   };
 }

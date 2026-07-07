@@ -29,6 +29,7 @@ import {
 import { type RetroAgent, windowFor } from '../../templates/hooks/lib/retro-extract.js';
 import type { Provenance } from '../retro/ledger.js';
 import { prepareEncounters } from '../retro/pipeline.js';
+import { reconcile, type ReconcileTracker } from '../retro/reconcile.js';
 import { type IssueTracker, triage, type TriageResult } from '../retro/triage.js';
 import { VERSION } from '../version.js';
 
@@ -402,4 +403,35 @@ function readFindings(path: string): unknown[] {
   } catch {
     return [];
   }
+}
+
+export interface ReconcileCliDependencies {
+  /** Injectable sweep transport; defaults to the REST reconcile transport. */
+  tracker?: ReconcileTracker;
+}
+
+/**
+ * `safeword retro-reconcile` — the flag-only reconcile sweep (G19QG7 SM2). No
+ * transcript involved; it reads open retro-labeled issues, normalizes their
+ * newest provenance to a code-state date, and marks possibly-resolved ones.
+ * No-ops gracefully without GitHub access, like the filing path.
+ */
+export async function retroReconcileCommand(
+  dependencies: ReconcileCliDependencies = {},
+): Promise<void> {
+  const { error, info, success } = await import('../utils/output.js');
+  const { createReconcileTransport, resolveGitHubToken } = await import('../retro/github-rest.js');
+
+  const tracker = dependencies.tracker ?? createReconcileTransport(resolveGitHubToken());
+  if (!tracker) {
+    error('retro-reconcile: no GitHub access; nothing swept.');
+    process.exitCode = 1;
+    return;
+  }
+
+  const result = await reconcile(tracker);
+  info(
+    `reconcile: ${result.flagged.length} flagged possibly-resolved, ${result.skipped.length} skipped, ${result.failed.length} failed`,
+  );
+  success('reconcile complete');
 }
