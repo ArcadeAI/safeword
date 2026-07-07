@@ -2,9 +2,10 @@
 id: G19QG7
 slug: retro-filing-provenance
 type: feature
-phase: define-behavior
+phase: scenario-gate
 phase_anchors:
   - define-behavior: 38cb72b
+  - scenario-gate: e3ba3b5
 status: in_progress
 scope:
   - environment-aware provenance captured per encounter (dogfood repo → safeword short HEAD SHA + capture time; customer install → installed safeword version), recorded in the code-assembled ledger comment on both create and bump paths
@@ -34,3 +35,4 @@ last_modified: 2026-07-05T23:05:32.609Z
 - 2026-07-06T00:34:00Z figure-it-out: environment-aware provenance (dogfood SHA vs customer version), date-based reconcile — spec.md "Environment split"
 - 2026-07-06T00:42:00Z JTBD + Rules gates confirmed by user; engineering scope drafted, pending scope gate
 - 2026-07-06T00:55:00Z Complete: intake - scope gate confirmed, open questions resolved (SM2.R4 broadened to cover process-surface skip)
+- 2026-07-07T14:37:58.238Z Phase: define-behavior → scenario-gate
