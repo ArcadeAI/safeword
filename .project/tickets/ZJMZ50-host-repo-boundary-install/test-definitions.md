@@ -8,14 +8,14 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Setup appends both shims to existing husky hooks
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 57f9669
+- [x] GREEN 4374675
 - [ ] REFACTOR
 
 ### Scenario: Setup creates a missing hook file beside an existing one
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 57f9669
+- [x] GREEN 4374675
 - [ ] REFACTOR
 
 ### Scenario: Conflicting manager signals do not get a silent shim
@@ -28,14 +28,14 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A second setup run leaves the hooks byte-identical
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 57f9669
+- [x] GREEN 4374675
 - [ ] REFACTOR
 
 ### Scenario: Upgrade over an installed shim adds no duplicate
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 57f9669
+- [x] GREEN 4374675
 - [ ] REFACTOR
 
 ## Rule: host-repo-boundary-install.TB1.R3 — A lefthook or pre-commit host gets an exact integration snippet, never an edited config file
@@ -94,34 +94,34 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Reset restores a pre-existing hook byte-for-byte
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 57f9669
+- [x] GREEN 4374675
 - [ ] REFACTOR
 
 ### Scenario: Reset removes a hook file that setup alone created
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 57f9669
+- [x] GREEN 4374675
 - [ ] REFACTOR
 
 ### Scenario: Reset spares hook lines the user added after setup
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 57f9669
+- [x] GREEN 4374675
 - [ ] REFACTOR
 
 ## Rule: host-repo-boundary-install.SM1.R1 — Shims install, heal, and revert through the same managed-surface machinery, gated on the detected hook-manager world
 
 ### Scenario: Upgrade heals a stale shim block in place
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 57f9669
+- [x] GREEN 4374675
 - [ ] REFACTOR
 
 ### Scenario: A deleted shim block returns on upgrade
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 57f9669
+- [x] GREEN 4374675
 - [ ] REFACTOR
 
 ## Rule: host-repo-boundary-install.SM1.R2 — A host where the hooks could never fire gets no hook writes
