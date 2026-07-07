@@ -81,13 +81,30 @@ function coerceStringArray(value: unknown): string[] {
     : [];
 }
 
+// Bounded token shapes for provenance fields. The ledger comment is publicly
+// editable, and these strings are re-rendered into a public comment — so only
+// exact token shapes survive coercion; anything else is dropped, never echoed.
+const PROVENANCE_SHA = /^[0-9a-f]{7,40}$/i;
+const PROVENANCE_VERSION = /^\w[\w.-]{0,31}$/;
+// Timestamp chars only (no letters beyond T/Z), bounded, and ISO-parseable —
+// simple class + Date.parse instead of a repeat-heavy regex (unsafe-regex lint).
+const PROVENANCE_AT_CHARS = /^[\d.:TZ-]{20,24}$/;
+
+function isProvenanceTimestamp(value: string): boolean {
+  return PROVENANCE_AT_CHARS.test(value) && value.endsWith('Z') && !Number.isNaN(Date.parse(value));
+}
+
 function coerceProvenance(value: unknown): Provenance | undefined {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined;
   const source = value as Record<string, unknown>;
-  if (typeof source.at !== 'string') return undefined;
+  if (typeof source.at !== 'string' || !isProvenanceTimestamp(source.at)) return undefined;
   const provenance: Provenance = { at: source.at };
-  if (typeof source.sha === 'string') provenance.sha = source.sha;
-  if (typeof source.version === 'string') provenance.version = source.version;
+  if (typeof source.sha === 'string' && PROVENANCE_SHA.test(source.sha)) {
+    provenance.sha = source.sha;
+  }
+  if (typeof source.version === 'string' && PROVENANCE_VERSION.test(source.version)) {
+    provenance.version = source.version;
+  }
   return provenance;
 }
 
