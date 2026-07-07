@@ -9,9 +9,11 @@ import nodePath from 'node:path';
 import { checkHealth, reportHealthSummary } from '../health.js';
 import { migratePackId } from '../packs/config.js';
 import { installPack } from '../packs/install.js';
+import { hasImportLinterScaffoldTarget } from '../packs/python/files.js';
 import {
   detectPythonPackageManager,
   getPythonInstallCommand,
+  getPythonTools,
   hasRuffDependency,
   installPythonDependencies,
 } from '../packs/python/setup.js';
@@ -199,7 +201,9 @@ function installPythonBasedTools(pythonDirectory: string, packages: string[], la
 function installPythonTools(cwd: string): void {
   const pythonDirectory = findInTree(cwd, 'pyproject.toml') ?? cwd;
   if (hasRuffDependency(pythonDirectory)) return;
-  installPythonBasedTools(pythonDirectory, ['ruff', 'mypy'], 'Python tools');
+  // Same set as `setup` — via the shared getPythonTools so the two can't drift.
+  const tools = getPythonTools(hasImportLinterScaffoldTarget(pythonDirectory));
+  installPythonBasedTools(pythonDirectory, tools, 'Python tools');
 }
 
 function installSqlTools(cwd: string, ctx: ProjectContext): void {

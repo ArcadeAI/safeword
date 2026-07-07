@@ -15,6 +15,7 @@ import { hasImportLinterScaffoldTarget } from '../packs/python/files.js';
 import {
   detectPythonPackageManager,
   getPythonInstallCommand,
+  getPythonTools,
   hasRuffDependency,
   installPythonDependencies,
 } from '../packs/python/setup.js';
@@ -173,13 +174,6 @@ interface PythonSetupStatus {
   files: string[];
   installFailed: boolean;
   importLinter: boolean;
-}
-
-/** Base Python tools to install. Import-linter added when layers detected. */
-function getPythonTools(includeImportLinter: boolean): string[] {
-  const tools = ['ruff', 'mypy', 'deadcode'];
-  if (includeImportLinter) tools.push('import-linter');
-  return tools;
 }
 
 /**
