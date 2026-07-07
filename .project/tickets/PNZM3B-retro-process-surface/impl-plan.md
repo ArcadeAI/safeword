@@ -1,6 +1,6 @@
 # Impl Plan: Retro accepts process-level friction surfaces and reports egress drops
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
@@ -18,7 +18,7 @@ Proof plan + build order (all vitest; feature is `@manual` — the corpus conven
 
 | Decision | Choice | Alternatives considered | Rejected because |
 | -------- | ------ | ----------------------- | ---------------- |
-| Secret-shape check | Whole hyphen-stripped slug AND per-segment hex/entropy, any length | Reuse `HIGH_ENTROPY_RUN` (≥20 floor) | Sub-20 hex slugs (`deadbeefcafe`) would clear the floor — the wall is the only egress guarantee on this field |
+| Secret-shape check | Whole-stripped pure hex (any length) + ≥8 consecutive hex chars as a SUBSTRING of the stripped slug + entropy backstop from 16 chars | Per-segment hex check (initial GREEN); reuse `HIGH_ENTROPY_RUN` (≥20 floor) | Per-segment let low-entropy padding hide an 8+-hex fragment (whole-ticket review); the ≥20 floor lets sub-20 hex slugs (`deadbeefcafe`) through — the wall is the only egress guarantee on this field |
 | Hex-word calibration | Pure-hex test on stripped/segment forms with digit-awareness + entropy, tuned so digit-free dictionary hex-words among non-hex segments survive | Reject any all-`[0-9a-f]` segment | Kills honest slugs (`dead-code-cleanup`) — the survivor scenario pins this |
 | Drop-count plumbing | `prepareEncounters` returns `{ encounters, drops: { schema, surface } }` | Module-level counter; logging side-channel | Return value keeps the pipeline pure and the counts testable at every altitude |
 | Overflow drops | Excluded from reporting | Third wall counter | `MAX_RAW_FINDINGS` (50) is an anti-abuse ceiling unreachable by legitimate sessions — documented waiver in dimensions.md |
@@ -31,7 +31,7 @@ Proof plan + build order (all vitest; feature is `@manual` — the corpus conven
 
 ## Known deviations
 
-skip: no deviations planned.
+- The manual `/retro` guide (templates/guides/retro.md + the materialized `.safeword/guides` mirror) was added to scope mid-implement: the whole-ticket review found it still instructed agents to DROP process friction, defeating SM1.R3 for the manual lane. Required supporting change, same guidance contract as the headless lanes.
 
 ## Assessment triggers
 
