@@ -10,12 +10,13 @@
  */
 
 import { checkVerifyArtifact } from '../../templates/hooks/lib/done-gate.js';
-import { parseFrontmatter } from '../../templates/hooks/lib/hierarchy.js';
 import { parseImplPlan } from '../../templates/hooks/lib/impl-plan.js';
 import { type ShaResolver, validateLedger } from '../../templates/hooks/lib/ledger-validation.js';
 import {
   detectUnanchoredPhaseTransition,
   evaluateTicketWrite,
+  frontmatterOf as parseTicketFrontmatter,
+  scalar,
 } from '../../templates/hooks/lib/phase-provenance.js';
 
 /** Ticket-artifact basenames the engine knows how to reconcile. */
@@ -79,16 +80,13 @@ export interface TicketReconciliation {
 /** Phases at which a feature's R/G/R ledger must already exist. */
 const LEDGER_REQUIRED_PHASES = new Set(['scenario-gate', 'implement', 'verify', 'done']);
 
+/**
+ * Ticket frontmatter, tolerant of CRLF git blobs — the shared parser is
+ * LF-only, so normalize before delegating (engine reads raw git content).
+ * `scalar` is imported from the same module.
+ */
 function frontmatterOf(content: string): Record<string, string | string[]> | undefined {
-  const match = /^---\n([\s\S]*?)\n---/.exec(content.replaceAll('\r\n', '\n'));
-  if (!match) return undefined;
-  const parsed = parseFrontmatter(match[1] ?? '');
-  return Object.keys(parsed).length > 0 ? parsed : undefined;
-}
-
-function scalar(meta: Record<string, string | string[]>, key: string): string | undefined {
-  const value = meta[key];
-  return typeof value === 'string' && value.trim() !== '' ? value : undefined;
+  return parseTicketFrontmatter(content.replaceAll('\r\n', '\n'));
 }
 
 function hasEntries(meta: Record<string, string | string[]>, key: string): boolean {
