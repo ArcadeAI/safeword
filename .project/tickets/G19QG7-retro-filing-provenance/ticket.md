@@ -3,6 +3,8 @@ id: G19QG7
 slug: retro-filing-provenance
 type: feature
 phase: define-behavior
+phase_anchors:
+  - define-behavior: 38cb72b
 status: in_progress
 scope:
   - environment-aware provenance captured per encounter (dogfood repo → safeword short HEAD SHA + capture time; customer install → installed safeword version), recorded in the code-assembled ledger comment on both create and bump paths
