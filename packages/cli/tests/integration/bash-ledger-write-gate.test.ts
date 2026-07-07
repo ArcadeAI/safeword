@@ -9,9 +9,7 @@
  * sees. Mutations are directed to the Edit channel instead.
  */
 
-import { spawnSync } from 'node:child_process';
 import nodePath from 'node:path';
-import process from 'node:process';
 
 import { afterEach, beforeEach, describe, it } from 'vitest';
 
@@ -22,7 +20,7 @@ import {
   type HookResult,
   initGitRepo,
   removeTemporaryDirectory,
-  TIMEOUT_QUICK,
+  spawnHookScript,
   writeTestFile,
 } from '../helpers';
 
@@ -35,35 +33,21 @@ const CODEX_PRE_TOOL_QUALITY = nodePath.join(
 
 /** Invoke pre-tool-quality with a Bash payload. */
 function runBashHook(cwd: string, command: string): HookResult {
-  const result = spawnSync('bun', [PRE_TOOL_QUALITY], {
-    input: JSON.stringify({
-      session_id: 'test-session',
-      hook_event_name: 'PreToolUse',
-      tool_name: 'Bash',
-      tool_input: { command },
-    }),
-    cwd,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: cwd },
-    encoding: 'utf8',
-    timeout: TIMEOUT_QUICK,
+  return spawnHookScript(PRE_TOOL_QUALITY, cwd, {
+    session_id: 'test-session',
+    hook_event_name: 'PreToolUse',
+    tool_name: 'Bash',
+    tool_input: { command },
   });
-  return { status: result.status, stdout: result.stdout, stderr: result.stderr };
 }
 
 /** Invoke the Codex adapter with a Codex-shaped Bash payload. */
 function runCodexHook(cwd: string, command: string): HookResult {
-  const result = spawnSync('bun', [CODEX_PRE_TOOL_QUALITY], {
-    input: JSON.stringify({
-      session_id: 'test-session',
-      tool_name: 'Bash',
-      tool_input: { command },
-    }),
-    cwd,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: cwd },
-    encoding: 'utf8',
-    timeout: TIMEOUT_QUICK,
+  return spawnHookScript(CODEX_PRE_TOOL_QUALITY, cwd, {
+    session_id: 'test-session',
+    tool_name: 'Bash',
+    tool_input: { command },
   });
-  return { status: result.status, stdout: result.stdout, stderr: result.stderr };
 }
 
 /** Temp project with a ticket ledger holding unticked R/G/R checkboxes. */
