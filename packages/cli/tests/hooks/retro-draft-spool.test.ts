@@ -9,8 +9,9 @@ import {
   markDraftsFiled,
   readSpooledDrafts,
   spoolDrafts,
+  verifyDraftBody,
 } from '../../templates/hooks/lib/retro-draft-spool.js';
-import { retroDraft as draft } from '../helpers.js';
+import { retroDraft as draft, sealedRetroDraft as sealedDraft } from '../helpers.js';
 
 describe('retro draft spool (BNGK9W — persist post-egress drafts on filing failure)', () => {
   let projectDirectory: string;
@@ -81,6 +82,53 @@ describe('retro draft spool (BNGK9W — persist post-egress drafts on filing fai
       'signature',
       'title',
     ]);
+  });
+
+  it('round-trips the body seal, and only the seal, as the fifth field (JDK0F0)', () => {
+    const sealed = sealedDraft('retro:aaaaaaaaaaaa', 'Sealed');
+    spoolDrafts(projectDirectory, 'sess-1', [sealed]);
+    expect(readSpooledDrafts(projectDirectory, 'sess-1')).toEqual([sealed]);
+    const raw = readFileSync(draftSpoolPath(projectDirectory, 'sess-1'), 'utf8').trim();
+    expect(Object.keys(JSON.parse(raw)).toSorted((a, b) => a.localeCompare(b))).toEqual([
+      'body',
+      'bodyDigest',
+      'labels',
+      'signature',
+      'title',
+    ]);
+  });
+});
+
+describe('verifyDraftBody (JDK0F0 — refuse a body modified after sealing)', () => {
+  let projectDirectory: string;
+  beforeEach(() => {
+    projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-spool-'));
+  });
+  afterEach(() => {
+    rmSync(projectDirectory, { recursive: true, force: true });
+  });
+
+  it('accepts a draft whose body matches its seal', () => {
+    expect(verifyDraftBody(sealedDraft('retro:aaaaaaaaaaaa'))).toBe(true);
+  });
+
+  it('rejects a draft whose body was modified after sealing', () => {
+    const tampered = { ...sealedDraft('retro:aaaaaaaaaaaa'), body: 're-worded by the agent' };
+    expect(verifyDraftBody(tampered)).toBe(false);
+  });
+
+  it('accepts a legacy digest-less draft (pre-seal spools keep filing)', () => {
+    expect(verifyDraftBody(draft('retro:aaaaaaaaaaaa'))).toBe(true);
+  });
+
+  it('drops a spool line whose bodyDigest is not a string (shape check, not legacy)', () => {
+    // A malformed seal must not be read as "legacy, verified" — the line fails
+    // the shape check like any other wrong-typed field.
+    const file = draftSpoolPath(projectDirectory, 'sess-bad-seal');
+    mkdirSync(nodePath.dirname(file), { recursive: true });
+    const line = { ...draft('retro:aaaaaaaaaaaa'), bodyDigest: 123 };
+    writeFileSync(file, `${JSON.stringify(line)}\n`, 'utf8');
+    expect(readSpooledDrafts(projectDirectory, 'sess-bad-seal')).toEqual([]);
   });
 });
 

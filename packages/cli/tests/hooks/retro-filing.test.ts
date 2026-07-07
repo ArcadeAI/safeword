@@ -12,7 +12,7 @@ import {
   type SpooledDraft,
 } from '../../templates/hooks/lib/retro-draft-spool.js';
 import { decideRetroFilingNudge } from '../../templates/hooks/lib/retro-nudge.js';
-import { retroDraft as draft } from '../helpers.js';
+import { retroDraft as draft, sealedRetroDraft } from '../helpers.js';
 
 describe('fileSpooledDrafts (BNGK9W — the agent filing seam: post each verbatim, drain filed)', () => {
   let projectDirectory: string;
@@ -34,7 +34,7 @@ describe('fileSpooledDrafts (BNGK9W — the agent filing seam: post each verbati
     };
     const result = await fileSpooledDrafts(projectDirectory, 'sess-1', post);
 
-    expect(result).toEqual({ posted: 2, failed: 0 });
+    expect(result).toEqual({ posted: 2, failed: 0, rejected: 0 });
     expect(posts).toHaveLength(2); // exactly N posts for N drafts
     // Each post's body byte-equals the corresponding spooled draft body (signature marker included).
     expect(posts[0]?.body).toBe(drafts[0]?.body);
@@ -52,7 +52,7 @@ describe('fileSpooledDrafts (BNGK9W — the agent filing seam: post each verbati
       return Promise.resolve({ issue: 100 });
     };
     const result = await fileSpooledDrafts(projectDirectory, 'drained-sess', post);
-    expect(result).toEqual({ posted: 0, failed: 0 });
+    expect(result).toEqual({ posted: 0, failed: 0, rejected: 0 });
     expect(posts).toBe(0);
     expect(decideRetroFilingNudge(projectDirectory, 'drained-sess')).toBeUndefined();
   });
@@ -78,7 +78,7 @@ describe('fileSpooledDrafts (BNGK9W — the agent filing seam: post each verbati
     };
     const result = await fileSpooledDrafts(projectDirectory, 'sess-1', post);
 
-    expect(result).toEqual({ posted: 1, failed: 1 });
+    expect(result).toEqual({ posted: 1, failed: 1, rejected: 0 });
     expect(midRun?.acks).toEqual([{ signature: 'retro:aaaaaaaaaaaa', issue: 101 }]);
     expect(midRun?.spooled).toBe(2); // ack precedes ANY drain
     // End state: success acked + drained; failure unacked + spooled.
@@ -102,7 +102,7 @@ describe('fileSpooledDrafts (BNGK9W — the agent filing seam: post each verbati
         : Promise.resolve({ issue: 100 });
     const result = await fileSpooledDrafts(projectDirectory, 'sess-1', post);
 
-    expect(result).toEqual({ posted: 1, failed: 1 });
+    expect(result).toEqual({ posted: 1, failed: 1, rejected: 0 });
     // A FRESH read yields only the draft that failed to post.
     const remaining = readSpooledDrafts(projectDirectory, 'sess-1');
     expect(remaining).toEqual([draft('retro:bbbbbbbbbbbb', 'Unpostable')]);
@@ -110,5 +110,35 @@ describe('fileSpooledDrafts (BNGK9W — the agent filing seam: post each verbati
     const line = decideRetroFilingNudge(projectDirectory, 'sess-1');
     expect(line).toBeDefined();
     expect(line).toContain('1');
+  });
+
+  // JDK0F0 (#773 rung 3): the seal is what graduates retro/SKILL.md's
+  // "post verbatim, never re-word" rule — the seam refuses, prose just points.
+  it('refuses to post a draft whose body was modified after sealing (it stays spooled)', async () => {
+    const sealed = sealedRetroDraft('retro:aaaaaaaaaaaa', 'Intact');
+    // Sealed correctly, then the body re-worded — the digest no longer matches.
+    const tampered = {
+      ...sealedRetroDraft('retro:bbbbbbbbbbbb', 'Tampered'),
+      body: 're-worded after sealing',
+    };
+    spoolDrafts(projectDirectory, 'sess-1', [sealed, tampered]);
+
+    const posts: SpooledDraft[] = [];
+    const post = (d: SpooledDraft): Promise<{ issue: number }> => {
+      posts.push(d);
+      return Promise.resolve({ issue: 100 });
+    };
+    const result = await fileSpooledDrafts(projectDirectory, 'sess-1', post);
+
+    // The mismatched body never reaches the transport — not a failed post, a refusal.
+    expect(result).toEqual({ posted: 1, failed: 0, rejected: 1 });
+    expect(posts.map(d => d.signature)).toEqual(['retro:aaaaaaaaaaaa']);
+    // It stays spooled (visible for a human to inspect), and no ack is forged for it.
+    expect(readSpooledDrafts(projectDirectory, 'sess-1').map(d => d.signature)).toEqual([
+      'retro:bbbbbbbbbbbb',
+    ]);
+    expect(readAcks(projectDirectory, 'sess-1')).toEqual([
+      { signature: 'retro:aaaaaaaaaaaa', issue: 100 },
+    ]);
   });
 });
