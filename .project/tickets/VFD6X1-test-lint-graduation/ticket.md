@@ -2,8 +2,8 @@
 id: VFD6X1
 slug: test-lint-graduation
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-07-07T02:19:20.221Z
 last_modified: 2026-07-07T02:19:20.221Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/773
@@ -33,3 +33,4 @@ done_when:
 - 2026-07-07T02:19:20.221Z Started: Created ticket VFD6X1
 - Scouted: all in-tree skips are env-conditional skipIf (legal under the new rule); the only sleep-shaped lines live in template-string fixtures (not AST calls) — rules can land at error with zero suppressions
 - TDD: 15 RED tests (config pins + functional Linter runs incl. the load-bearing skipIf no-flag pin) → GREEN via vitest/no-disabled-tests + 4 no-restricted-syntax selectors; 81/81 preset tests, repo-wide test-file lint zero violations, parity synced, prose trimmed to pointers at both sites
+- 2026-07-07T03:27:31.164Z Phase: intake → done
