@@ -71,6 +71,30 @@ describe('recordEncounter provenance (G19QG7)', () => {
   });
 });
 
+describe('recordEncounter provenance — newest wins across the bump cycle', () => {
+  // A real bump goes render -> parse -> record -> render; provenance must
+  // survive the round-trip and the newest encounter must replace the old.
+  it('surfaces the newest encounter provenance through a render/parse bump', () => {
+    const older = recordEncounter(emptyLedger(), {
+      sessionId: 's1',
+      harness: 'claude',
+      manifestation: 'm1',
+      provenance: { version: '0.66.0', at: '2026-07-01T00:00:00.000Z' },
+    });
+
+    const reparsed = parseLedger(renderLedger(older.state));
+    expect(reparsed.provenance).toEqual({ version: '0.66.0', at: '2026-07-01T00:00:00.000Z' });
+
+    const next = recordEncounter(reparsed, {
+      sessionId: 's2',
+      harness: 'claude',
+      manifestation: 'm1',
+      provenance: { sha: 'abc1234', at: '2026-07-07T00:00:00.000Z' },
+    });
+    expect(next.state.provenance).toEqual({ sha: 'abc1234', at: '2026-07-07T00:00:00.000Z' });
+  });
+});
+
 describe('recordEncounter (idempotency + novelty)', () => {
   const base: LedgerState = {
     total: 1,
