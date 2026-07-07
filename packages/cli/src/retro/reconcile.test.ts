@@ -157,4 +157,26 @@ describe('reconcile — flags surface-touched-after-code-state (SM2.R1)', () => 
     expect(result.flagged).toEqual([3]);
     expect(tracker.labels.get(3)).toContain(RECONCILE_LABEL);
   });
+
+  it('leaves an issue unmarked when its surface is untouched since the newest code state', async () => {
+    const issue: ReconcileIssue = {
+      number: 4,
+      title: 'still broken',
+      body: issueBody('packages/cli/src/retro/pipeline.ts'),
+      labels: ['retro'],
+    };
+    const tracker = new FakeTracker(
+      [issue],
+      new Map([
+        [4, ledgerComment({ dogfood: { sha: 'abc1234', at: '2026-07-01T00:00:00.000Z' } })],
+      ]),
+      () => false,
+    );
+
+    const result = await reconcile(tracker);
+
+    expect(result.flagged).toEqual([]);
+    expect(tracker.labels.get(4)).toBeUndefined();
+    expect(tracker.comments.get(4)).toBeUndefined();
+  });
 });
