@@ -62,13 +62,6 @@ export function resolveGitHubToken(
   return getGhToken();
 }
 
-/**
- * Build a REST-backed transport, or undefined when no token is available. The
- * token is REQUIRED (no `process.env` default) so every caller routes through
- * `resolveGitHubToken` — a default here would silently bypass the `gh` fallback.
- */
-const refOf = (tag: string): string => `tags/${tag}`;
-
 function buildHeaders(token: string): Record<string, string> {
   return {
     Authorization: `Bearer ${token}`,
@@ -92,6 +85,11 @@ function buildCall(headers: Record<string, string>) {
   };
 }
 
+/**
+ * Build a REST-backed transport, or undefined when no token is available. The
+ * token is REQUIRED (no `process.env` default) so every caller routes through
+ * `resolveGitHubToken` — a default here would silently bypass the `gh` fallback.
+ */
 export function createRestTransport(token: string | undefined): IssueTracker | undefined {
   if (!token) return undefined;
 
@@ -214,9 +212,10 @@ export function createReconcileTransport(token: string | undefined): ReconcileTr
       // Annotated tags point at a tag object (deref once); lightweight tags
       // point straight at the commit. Any failure → undefined (never guessed).
       try {
+        const tagReference = `tags/${tag}`;
         const ref = (await call(
           'GET',
-          `/repos/${UPSTREAM_REPO}/git/ref/${encodeURIComponent(refOf(tag))}`,
+          `/repos/${UPSTREAM_REPO}/git/ref/${encodeURIComponent(tagReference)}`,
         )) as { object?: { type?: string; sha?: string } };
         const target = ref.object;
         if (!target?.sha) return undefined;
