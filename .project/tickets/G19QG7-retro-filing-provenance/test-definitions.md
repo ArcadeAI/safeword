@@ -29,6 +29,12 @@ skips these fixtures passes vacuously.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A recurrence bump onto a pre-provenance ledger preserves its counts and gains provenance
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Unresolvable git state never blocks filing
 
 - [ ] RED
@@ -114,6 +120,22 @@ skips these fixtures passes vacuously.
 ## Rule: retro-filing-provenance.SM2.R5 — The sweep considers only open, retro-labeled issues
 
 ### Scenario: Closed and non-retro issues are never considered
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: retro-filing-provenance.SM2.R6 — The sweep bounds its API operations per run, and applied flags land complete
+
+### Scenario: A run over more flaggable issues than the bound flags completely up to it and defers the rest
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: retro-filing-provenance.SM2.R7 — A per-issue transport failure never sinks the sweep or flags on partial data
+
+### Scenario: A failing surface-commits query isolates to its issue
 
 - [ ] RED
 - [ ] GREEN

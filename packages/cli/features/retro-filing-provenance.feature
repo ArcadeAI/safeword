@@ -19,7 +19,7 @@ Feature: Retro filing provenance and reconcile sweep
 
     Scenario: A dogfood-session encounter records the safeword short HEAD SHA and capture time
       Given a retro encounter captured in the safeword dogfood repo
-      When the encounter is recorded on its tracker issue
+      When safeword retro files the encounter, with only the GitHub transport, git state, and clock mocked
       Then the issue's ledger provenance carries the safeword repo's short commit SHA and the capture time
 
     Scenario: A customer-install encounter records the installed safeword version and capture time
@@ -31,6 +31,11 @@ Feature: Retro filing provenance and reconcile sweep
       Given an open issue whose ledger records an older encounter's provenance
       When a later session's encounter bumps the issue
       Then the ledger's newest provenance reflects the later encounter's code state
+
+    Scenario: A recurrence bump onto a pre-provenance ledger preserves its counts and gains provenance
+      Given an open retro issue whose ledger predates provenance and records existing occurrence counts
+      When a new encounter bumps the issue
+      Then the existing occurrence counts are preserved unchanged and the ledger now carries the new encounter's provenance
 
     @rejection
     Scenario: Unresolvable git state never blocks filing
@@ -58,7 +63,7 @@ Feature: Retro filing provenance and reconcile sweep
     Scenario: A dogfood-provenance issue is flagged when its surface changed after the capture time
       Given an open retro issue whose newest provenance is a dogfood encounter
       And the issue's surface was touched on the default branch after that capture time
-      When the reconcile sweep runs
+      When the reconcile CLI mode runs, with only the GitHub transport mocked
       Then the issue is marked possibly-resolved
 
     Scenario: A version-provenance issue is flagged when its surface changed after that release's tag date
@@ -125,4 +130,21 @@ Feature: Retro filing provenance and reconcile sweep
     Scenario: Closed and non-retro issues are never considered
       Given a closed retro issue and an open issue without the retro label, each with reconcilable provenance
       When the reconcile sweep runs
-      Then neither issue receives a comment or label
+      Then the sweep's issue listing requests only open, retro-labeled issues, and neither fixture receives a comment or label
+
+  @retro-filing-provenance.SM2.R6
+  Rule: retro-filing-provenance.SM2.R6 — The sweep bounds its API operations per run, and applied flags land complete
+
+    Scenario: A run over more flaggable issues than the bound flags completely up to it and defers the rest
+      Given more flaggable open retro issues than the per-run operation bound
+      When the reconcile sweep runs
+      Then it flags at most the bounded number, each applied flag carries both its comment and its label, and the remaining issues are left unmarked for a later run
+
+  @retro-filing-provenance.SM2.R7
+  Rule: retro-filing-provenance.SM2.R7 — A per-issue transport failure never sinks the sweep or flags on partial data
+
+    @rejection
+    Scenario: A failing surface-commits query isolates to its issue
+      Given two flaggable issues where the surface-commits query fails for the first
+      When the reconcile sweep runs
+      Then the first issue is left untouched and the second is still flagged

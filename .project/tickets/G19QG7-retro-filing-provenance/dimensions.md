@@ -11,7 +11,7 @@ of the ledger's attacker-influenceable parse path and squash-merge git topology.
 | Code-state normalization | SHA encounter → capture time; version encounter → release-tag date; mixed ledger → newest code state governs (not newest wall clock)            |
 | Surface touch state      | surface touched on default branch after newest code-state date (flag); untouched since (no flag)                                                |
 | Reconcile eligibility    | provenance + file-path surface (eligible); no provenance / pre-feature (skip); `process/<slug>` surface (skip); version with unresolvable release-tag date (skip); closed or non-retro-labeled issues (never considered) |
-| Side-effect discipline   | first flag adds comment + label only (issue stays open); re-run against unchanged state adds nothing; close is never issued                     |
+| Side-effect discipline   | first flag adds comment + label only (issue stays open); re-run against unchanged state adds nothing; close is never issued; ops bound reached mid-run (complete flags only, rest deferred); per-issue transport failure (isolated, no partial flag) |
 
 Boundary notes:
 

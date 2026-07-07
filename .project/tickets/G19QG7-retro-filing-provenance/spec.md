@@ -58,6 +58,10 @@ Affected:
 
 #### retro-filing-provenance.SM2.R5 — The sweep considers only open, retro-labeled issues; anything else is never touched
 
+#### retro-filing-provenance.SM2.R6 — The sweep bounds its API operations per run; every flag it does apply lands complete (comment + label together), and the remainder waits for a later run
+
+#### retro-filing-provenance.SM2.R7 — A transport failure on one issue never sinks the rest of the sweep and never produces a flag from partial data
+
 ## Rave Moment
 
 skip: internal maintainer plumbing — no persona-facing peak to name.
