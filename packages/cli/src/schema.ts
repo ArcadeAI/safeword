@@ -508,7 +508,7 @@ const SHARED_FILING_INVARIANTS = [
 ];
 
 /** Marker substring identifying a boundary-gate shim line (ZJMZ50). */
-export const BOUNDARY_SHIM_MARKER = '# Safeword boundary gate';
+const BOUNDARY_SHIM_MARKER = '# Safeword boundary gate';
 
 /**
  * One-line boundary-gate shim for a husky hook file (see the textPatches
