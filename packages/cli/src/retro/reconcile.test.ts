@@ -180,3 +180,29 @@ describe('reconcile — flags surface-touched-after-code-state (SM2.R1)', () => 
     expect(tracker.comments.get(4)).toBeUndefined();
   });
 });
+
+describe('reconcile — flag-only, idempotent, bounded eligibility (SM2.R2-R5)', () => {
+  it('flagging adds exactly one comment and one label and the issue stays open', async () => {
+    const issue: ReconcileIssue = {
+      number: 5,
+      title: 'flag me',
+      body: issueBody('packages/cli/src/retro/pipeline.ts'),
+      labels: ['retro'],
+    };
+    const tracker = new FakeTracker(
+      [issue],
+      new Map([
+        [5, ledgerComment({ dogfood: { sha: 'abc1234', at: '2026-07-01T00:00:00.000Z' } })],
+      ]),
+      () => true,
+    );
+
+    const result = await reconcile(tracker);
+
+    // The tracker seam has no close operation at all — reconcile CANNOT close;
+    // the flag is exactly one marker comment plus one label.
+    expect(result.flagged).toEqual([5]);
+    expect(tracker.comments.get(5)).toHaveLength(1);
+    expect(tracker.labels.get(5)).toEqual([RECONCILE_LABEL]);
+  });
+});
