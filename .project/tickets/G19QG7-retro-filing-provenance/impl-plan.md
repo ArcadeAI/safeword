@@ -45,6 +45,7 @@ Honors (ARCHITECTURE.md → Key Decisions, plus module-header ADRs in the retro 
 
 - Retro issue volume grows past the ops bound routinely → revisit bound size / pagination strategy (listing now paginates to 1000 issues with PR filtering; flagged issues remain in the listing until closed).
 - `resolveTagDate`'s annotated/lightweight deref branching lives in the untested REST boundary — extract a tested pure helper if it grows (whole-ticket review item 9, deliberately deferred).
+- UNVERIFIED (branch review 2026-07-07): whether `git/ref/tags%2Fv<version>` (percent-encoded slash) is accepted by the live API could not be probed from this environment; a rejection fails closed (skip, never mis-flag). Smoke `safeword retro-reconcile` once against a real version-provenance issue before relying on version reconciliation.
 - GitHub REST changes to commits/tags endpoints or a non-GitHub tracker lands → revisit the transport seam.
 - Harnesses gain a reliable session-end signal → revisit in-session reconciliation (deferred from intake).
 - PNZM3B's `process/<slug>` namespace grows reconcilable semantics → revisit the SM2.R4 skip.
