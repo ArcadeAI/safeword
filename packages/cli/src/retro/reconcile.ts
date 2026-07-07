@@ -73,51 +73,66 @@ function flagBody(): string {
   ].join('\n');
 }
 
-export async function reconcile(tracker: ReconcileTracker): Promise<ReconcileResult> {
+export interface ReconcileOptions {
+  /**
+   * Per-run flag bound (actions/stale `operations-per-run` precedent): at most
+   * this many issues are flagged per sweep; each applied flag lands complete
+   * (comment + label together) and the remainder waits for a later run.
+   */
+  maxFlags?: number;
+}
+
+const DEFAULT_MAX_FLAGS = 30;
+
+export async function reconcile(
+  tracker: ReconcileTracker,
+  options: ReconcileOptions = {},
+): Promise<ReconcileResult> {
+  const maxFlags = options.maxFlags ?? DEFAULT_MAX_FLAGS;
   const result: ReconcileResult = { flagged: [], skipped: [], failed: [] };
   const issues = await tracker.listIssues({ state: 'open', labels: ['retro'] });
 
   for (const issue of issues) {
+    if (result.flagged.length >= maxFlags) {
+      result.skipped.push(issue.number); // bound reached — deferred to a later run
+      continue;
+    }
     // Per-issue isolation (triage precedent): one poisoned issue or failing
     // query must not sink the rest of the sweep.
     try {
-      const surface = surfaceOf(issue);
-      if (!surface || surface.startsWith('process/')) {
+      if (await shouldFlag(issue, tracker)) {
+        await tracker.createComment(issue.number, flagBody());
+        await tracker.addLabels(issue.number, [RECONCILE_LABEL]);
+        result.flagged.push(issue.number);
+      } else {
         result.skipped.push(issue.number);
-        continue;
       }
-
-      const comments = await tracker.listComments(issue.number);
-      if (comments.some(comment => comment.body.includes(RECONCILE_MARKER))) {
-        result.skipped.push(issue.number); // already flagged — idempotent
-        continue;
-      }
-
-      const ledgerComment = comments.find(comment => comment.body.includes(LEDGER_MARKER));
-      const provenance = ledgerComment ? parseLedger(ledgerComment.body).provenance : undefined;
-      if (!provenance) {
-        result.skipped.push(issue.number); // pre-provenance — never guessed at
-        continue;
-      }
-
-      const since = await codeStateDate(provenance, tracker);
-      if (!since) {
-        result.skipped.push(issue.number); // unresolvable tag — never guessed at
-        continue;
-      }
-
-      if (!(await tracker.surfaceTouchedSince(surface, since))) {
-        result.skipped.push(issue.number);
-        continue;
-      }
-
-      await tracker.createComment(issue.number, flagBody());
-      await tracker.addLabels(issue.number, [RECONCILE_LABEL]);
-      result.flagged.push(issue.number);
     } catch {
       result.failed.push(issue.number);
     }
   }
 
   return result;
+}
+
+/**
+ * The per-issue decision, fail-closed at every rung: no file-path surface,
+ * already flagged (idempotency marker), no provenance (pre-feature), or an
+ * unresolvable tag date all mean "leave untouched, never guess".
+ */
+async function shouldFlag(issue: ReconcileIssue, tracker: ReconcileTracker): Promise<boolean> {
+  const surface = surfaceOf(issue);
+  if (!surface || surface.startsWith('process/')) return false;
+
+  const comments = await tracker.listComments(issue.number);
+  if (comments.some(comment => comment.body.includes(RECONCILE_MARKER))) return false;
+
+  const ledgerComment = comments.find(comment => comment.body.includes(LEDGER_MARKER));
+  const provenance = ledgerComment ? parseLedger(ledgerComment.body).provenance : undefined;
+  if (!provenance) return false;
+
+  const since = await codeStateDate(provenance, tracker);
+  if (!since) return false;
+
+  return tracker.surfaceTouchedSince(surface, since);
 }
