@@ -430,7 +430,8 @@ export interface ReconcileCliDependencies {
  * `safeword retro-reconcile` — the flag-only reconcile sweep (G19QG7 SM2). No
  * transcript involved; it reads open retro-labeled issues, normalizes their
  * newest provenance to a code-state date, and marks possibly-resolved ones.
- * No-ops gracefully without GitHub access, like the filing path.
+ * Fails loudly (exit 1) without GitHub access — a manual mode should say why it
+ * did nothing, unlike the hook-driven filing path which must never block a Stop.
  */
 export async function retroReconcileCommand(
   dependencies: ReconcileCliDependencies = {},
@@ -447,7 +448,7 @@ export async function retroReconcileCommand(
 
   const result = await reconcile(tracker);
   info(
-    `reconcile: ${result.flagged.length} flagged possibly-resolved, ${result.skipped.length} skipped, ${result.failed.length} failed`,
+    `reconcile: ${result.flagged.length} flagged possibly-resolved, ${result.skipped.length} skipped, ${result.deferred.length} deferred to a later run, ${result.failed.length} failed`,
   );
   success('reconcile complete');
 }

@@ -40,7 +40,13 @@ class FakeTracker implements ReconcileTracker {
 
   listIssues(query: { state: string; labels: string[] }): Promise<ReconcileIssue[]> {
     this.listQueries.push(query);
-    return Promise.resolve(this.issues);
+    // Faithful to GitHub: labels applied via addLabels appear on later listings.
+    return Promise.resolve(
+      this.issues.map(issue => ({
+        ...issue,
+        labels: [...issue.labels, ...(this.labels.get(issue.number) ?? [])],
+      })),
+    );
   }
 
   listComments(issueNumber: number): Promise<IssueComment[]> {
@@ -367,5 +373,57 @@ describe('reconcile — per-run operation bound (SM2.R6)', () => {
     }
     expect(tracker.comments.get(33)).toBeUndefined();
     expect(tracker.labels.get(33)).toBeUndefined();
+  });
+});
+
+describe('reconcile — half-flag repair (quality review 2026-07-07)', () => {
+  const body = issueBody('packages/cli/src/retro/pipeline.ts');
+  const ledger = ledgerComment({ dogfood: { sha: 'abc1234', at: '2026-07-01T00:00:00.000Z' } });
+
+  it('completes a marker-without-label half-flag by applying only the label', async () => {
+    const tracker = new FakeTracker(
+      [{ number: 51, title: 'half', body, labels: ['retro'] }],
+      new Map([[51, ledger]]),
+      () => false,
+    );
+    // A prior run posted the marker comment but died before the label.
+    await tracker.createComment(51, '<!-- retro-reconcile -->\nhalf-applied');
+
+    const result = await reconcile(tracker);
+
+    expect(result.flagged).toEqual([51]);
+    expect(tracker.labels.get(51)).toEqual([RECONCILE_LABEL]);
+    // No second marker comment: the pre-seeded one plus zero new.
+    const markers = (tracker.comments.get(51) ?? []).filter(c => c.includes(RECONCILE_MARKER));
+    expect(markers).toHaveLength(1);
+  });
+
+  it('completes a label-without-marker half-flag by posting only the comment', async () => {
+    const tracker = new FakeTracker(
+      [{ number: 52, title: 'half', body, labels: ['retro', RECONCILE_LABEL] }],
+      new Map([[52, ledger]]),
+      () => false,
+    );
+
+    const result = await reconcile(tracker);
+
+    expect(result.flagged).toEqual([52]);
+    const markers = (tracker.comments.get(52) ?? []).filter(c => c.includes(RECONCILE_MARKER));
+    expect(markers).toHaveLength(1);
+    expect(tracker.labels.get(52)).toBeUndefined(); // no duplicate label add
+  });
+
+  it('skips a fully flagged issue (marker and label both present)', async () => {
+    const tracker = new FakeTracker(
+      [{ number: 53, title: 'done', body, labels: ['retro', RECONCILE_LABEL] }],
+      new Map([[53, ledger]]),
+      () => true,
+    );
+    await tracker.createComment(53, '<!-- retro-reconcile -->\nalready flagged');
+
+    const result = await reconcile(tracker);
+
+    expect(result.flagged).toEqual([]);
+    expect(result.skipped).toEqual([53]);
   });
 });

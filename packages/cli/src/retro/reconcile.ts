@@ -31,7 +31,10 @@ export interface ReconcileTracker {
 
 export interface ReconcileResult {
   flagged: number[];
+  /** Evaluated and found ineligible or already flagged. */
   skipped: number[];
+  /** Not evaluated — the per-run flag bound was reached; a later run picks these up. */
+  deferred: number[];
   failed: number[];
 }
 
@@ -90,23 +93,23 @@ export async function reconcile(
   options: ReconcileOptions = {},
 ): Promise<ReconcileResult> {
   const maxFlags = options.maxFlags ?? DEFAULT_MAX_FLAGS;
-  const result: ReconcileResult = { flagged: [], skipped: [], failed: [] };
+  const result: ReconcileResult = { flagged: [], skipped: [], deferred: [], failed: [] };
   const issues = await tracker.listIssues({ state: 'open', labels: [RETRO_LABEL] });
 
   for (const issue of issues) {
     if (result.flagged.length >= maxFlags) {
-      result.skipped.push(issue.number); // bound reached — deferred to a later run
+      result.deferred.push(issue.number); // bound reached — a later run picks these up
       continue;
     }
     // Per-issue isolation (triage precedent): one poisoned issue or failing
     // query must not sink the rest of the sweep.
     try {
-      if (await shouldFlag(issue, tracker)) {
-        await tracker.createComment(issue.number, flagBody());
-        await tracker.addLabels(issue.number, [RECONCILE_LABEL]);
-        result.flagged.push(issue.number);
-      } else {
+      const verdict = await evaluateIssue(issue, tracker);
+      if (verdict === 'skip') {
         result.skipped.push(issue.number);
+      } else {
+        await applyFlag(verdict, issue, tracker);
+        result.flagged.push(issue.number);
       }
     } catch {
       result.failed.push(issue.number);
@@ -116,24 +119,67 @@ export async function reconcile(
   return result;
 }
 
+type IssueVerdict = 'skip' | 'flag' | 'repair-label' | 'repair-comment';
+
+/**
+ * A flag lands complete (comment + label together): a run that died between
+ * the two leaves a half-flag, which the next run repairs by applying only the
+ * missing artifact instead of wedging on the marker check forever.
+ */
+async function applyFlag(
+  verdict: Exclude<IssueVerdict, 'skip'>,
+  issue: ReconcileIssue,
+  tracker: ReconcileTracker,
+): Promise<void> {
+  if (verdict !== 'repair-label') await tracker.createComment(issue.number, flagBody());
+  if (verdict !== 'repair-comment') await tracker.addLabels(issue.number, [RECONCILE_LABEL]);
+}
+
 /**
  * The per-issue decision, fail-closed at every rung: no file-path surface,
- * already flagged (idempotency marker), no provenance (pre-feature), or an
- * unresolvable tag date all mean "leave untouched, never guess".
+ * already flagged (comment marker AND label), no provenance (pre-feature), or
+ * an unresolvable tag date all mean "leave untouched, never guess". A half-flag
+ * (marker without label, or label without marker — a prior run's partial
+ * failure) is completed without re-evaluating eligibility: the prior run
+ * already decided to flag.
  */
-async function shouldFlag(issue: ReconcileIssue, tracker: ReconcileTracker): Promise<boolean> {
+async function evaluateIssue(
+  issue: ReconcileIssue,
+  tracker: ReconcileTracker,
+): Promise<IssueVerdict> {
   const surface = surfaceOf(issue);
-  if (!surface || surface.startsWith(PROCESS_PREFIX)) return false;
+  if (!surface || surface.startsWith(PROCESS_PREFIX)) return 'skip';
 
   const comments = await tracker.listComments(issue.number);
-  if (comments.some(comment => comment.body.includes(RECONCILE_MARKER))) return false;
+  const existing = existingFlagVerdict(issue, comments);
+  if (existing) return existing;
 
+  const since = await eligibleSince(comments, tracker);
+  if (!since) return 'skip';
+
+  return (await tracker.surfaceTouchedSince(surface, since)) ? 'flag' : 'skip';
+}
+
+/** The newest recorded code-state date, or undefined when unreconcilable. */
+async function eligibleSince(
+  comments: IssueComment[],
+  tracker: ReconcileTracker,
+): Promise<string | undefined> {
   const ledgerComment = comments.find(comment => comment.body.includes(LEDGER_MARKER));
   const provenance = ledgerComment ? parseLedger(ledgerComment.body).provenance : undefined;
-  if (!provenance) return false;
+  if (!provenance) return undefined;
+  return codeStateDate(provenance, tracker);
+}
 
-  const since = await codeStateDate(provenance, tracker);
-  if (!since) return false;
-
-  return tracker.surfaceTouchedSince(surface, since);
+/** Idempotency rung: fully flagged → skip; half-flagged → the repair verdict. */
+function existingFlagVerdict(
+  issue: ReconcileIssue,
+  comments: IssueComment[],
+): IssueVerdict | undefined {
+  const hasLabel = issue.labels.includes(RECONCILE_LABEL);
+  const hasMarker = comments.some(comment => comment.body.includes(RECONCILE_MARKER));
+  if (hasMarker && hasLabel) return 'skip';
+  if (hasMarker) return 'repair-label';
+  if (hasLabel) return 'repair-comment';
+  return undefined;
 }
