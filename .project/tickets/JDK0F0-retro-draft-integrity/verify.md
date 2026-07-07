@@ -17,3 +17,5 @@ Ran 2026-07-07 on branch claude/retro-draft-integrity, Node 24 container.
 **Evidence limits:** ✅ None (all lanes ran clean locally)
 
 Audit passed — sync-config ✓, depcruise ✓ (583 modules, 0 violations), knip ✓ clean (no findings, no W005 hints), jscpd 424 clones (8.77%) [repo minus .safeword/.project] — -1 vs the previous 425 at the same scope, no new duplication from this diff; learnings Covers: ✓; outdated deps all dev-only patch/minor plus the three already-tracked majors (unicorn 71 pin, typescript 6 → ticket 091, cucumber-messages 34).
+
+Post-rebase revalidation (onto v0.67.0 main): all verify lanes re-ran green (4898/4898, Gherkin 295/298, build/typecheck/deps exit 0); audit re-passed — jscpd 427 (8.83%) at the same scope, +3 attributable to the incoming release commit (this diff unchanged between measurements).
