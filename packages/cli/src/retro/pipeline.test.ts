@@ -147,4 +147,10 @@ describe('prepareEncounters — process-level surfaces (PNZM3B)', () => {
     expect(report.encounters).toHaveLength(1);
     expect(report.drops).toEqual({ schema: 0, surface: 0 });
   });
+
+  it('still drops a non-safeword file path and counts it at the surface wall', async () => {
+    const report = await prepareEncounters([rawFinding({ safeword_surface: 'src/billing.ts' })]);
+    expect(report.encounters).toEqual([]);
+    expect(report.drops).toEqual({ schema: 0, surface: 1 });
+  });
 });
