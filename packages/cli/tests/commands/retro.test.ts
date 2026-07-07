@@ -582,4 +582,31 @@ describe('runRetro provenance capture (G19QG7)', () => {
 
     rmSync(projectDirectory, { recursive: true, force: true });
   });
+  it('retro-filing-provenance.SM1.R1.customer_encounter_records_version_and_capture_time', async () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'sw-customer-'));
+    writeFileSync(nodePath.join(projectDirectory, 'package.json'), '{"name":"acme-app"}');
+
+    const transport = new LedgerRecordingGitHub();
+    const outcome = await runRetro(
+      { transcript: '/tmp/t.jsonl' },
+      dependencies({
+        transport,
+        resolveProvenance: buildProvenanceResolver({
+          projectDirectory,
+          runGit: () => 'feedc0ffee\n',
+          now: () => new Date('2026-07-07T12:00:00.000Z'),
+          version: '0.67.0',
+        }),
+      }),
+    );
+
+    expect(outcome.ok).toBe(true);
+    const ledgerComment = transport.comments.find(c => c.includes(LEDGER_MARKER));
+    expect(parseLedger(ledgerComment ?? '').provenance).toEqual({
+      version: '0.67.0',
+      at: '2026-07-07T12:00:00.000Z',
+    });
+
+    rmSync(projectDirectory, { recursive: true, force: true });
+  });
 });
