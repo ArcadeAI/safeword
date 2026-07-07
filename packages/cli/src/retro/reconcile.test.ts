@@ -20,8 +20,10 @@ const issueBody = (surface: string) =>
     'x',
   ].join('\n');
 
-const ledgerComment = (provenance: { sha?: string; version?: string; at: string }): string =>
-  renderLedger({ ...emptyLedger(), total: 1, sessions: ['s1'], provenance });
+const ledgerComment = (provenance: {
+  dogfood?: { sha: string; at: string };
+  install?: { version: string; at: string };
+}): string => renderLedger({ ...emptyLedger(), total: 1, sessions: ['s1'], provenance });
 
 /** In-memory tracker — only the GitHub boundary is faked. */
 class FakeTracker implements ReconcileTracker {
@@ -80,7 +82,9 @@ describe('reconcile — flags surface-touched-after-code-state (SM2.R1)', () => 
     };
     const tracker = new FakeTracker(
       [issue],
-      new Map([[7, ledgerComment({ sha: 'abc1234', at: '2026-07-01T00:00:00.000Z' })]]),
+      new Map([
+        [7, ledgerComment({ dogfood: { sha: 'abc1234', at: '2026-07-01T00:00:00.000Z' } })],
+      ]),
       (path, sinceIso) =>
         path === 'packages/cli/src/retro/pipeline.ts' && sinceIso === '2026-07-01T00:00:00.000Z',
     );

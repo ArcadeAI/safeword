@@ -576,8 +576,7 @@ describe('runRetro provenance capture (G19QG7)', () => {
     const ledgerComment = transport.comments.find(c => c.includes(LEDGER_MARKER));
     expect(ledgerComment).toBeDefined();
     expect(parseLedger(ledgerComment ?? '').provenance).toEqual({
-      sha: 'abc1234def',
-      at: '2026-07-07T12:00:00.000Z',
+      dogfood: { sha: 'abc1234def', at: '2026-07-07T12:00:00.000Z' },
     });
 
     rmSync(projectDirectory, { recursive: true, force: true });
@@ -603,8 +602,7 @@ describe('runRetro provenance capture (G19QG7)', () => {
     expect(outcome.ok).toBe(true);
     const ledgerComment = transport.comments.find(c => c.includes(LEDGER_MARKER));
     expect(parseLedger(ledgerComment ?? '').provenance).toEqual({
-      version: '0.67.0',
-      at: '2026-07-07T12:00:00.000Z',
+      install: { version: '0.67.0', at: '2026-07-07T12:00:00.000Z' },
     });
 
     rmSync(projectDirectory, { recursive: true, force: true });

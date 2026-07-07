@@ -32,7 +32,7 @@ export interface ReconcileResult {
   failed: number[];
 }
 
-import { LEDGER_MARKER, parseLedger, type Provenance } from './ledger.js';
+import { LEDGER_MARKER, parseLedger, type StoredProvenance } from './ledger.js';
 
 // The issue body is code-assembled by buildDraft; this line shape is stable.
 const SURFACE_LINE = /\*\*Safeword surface:\*\* `([^`]+)`/;
@@ -42,17 +42,26 @@ function surfaceOf(issue: ReconcileIssue): string | undefined {
 }
 
 /**
- * Normalize an issue's newest provenance to its code-state date: a dogfood SHA
- * keys on its capture time; a version keys on its release-tag date (resolved
- * through the tracker). Undefined = unreconcilable, caller skips.
+ * Normalize stored provenance to the NEWEST code-state date across kinds: a
+ * dogfood SHA keys on its capture time, a version keys on its release-tag date
+ * (resolved through the tracker), and a mixed ledger keys on the later of the
+ * two — never the newest wall clock. Undefined = unreconcilable, caller skips;
+ * a version whose tag cannot be resolved never falls back to a guess.
  */
 async function codeStateDate(
-  provenance: Provenance,
+  provenance: StoredProvenance,
   tracker: ReconcileTracker,
 ): Promise<string | undefined> {
-  if (provenance.sha) return provenance.at;
-  if (provenance.version) return tracker.resolveTagDate(`v${provenance.version}`);
-  return undefined;
+  const dates: string[] = [];
+  if (provenance.dogfood) dates.push(provenance.dogfood.at);
+  if (provenance.install) {
+    const tagDate = await tracker.resolveTagDate(`v${provenance.install.version}`);
+    if (tagDate === undefined) return undefined;
+    dates.push(tagDate);
+  }
+  if (dates.length === 0) return undefined;
+  // ISO-8601 UTC strings order lexically.
+  return dates.toSorted((a, b) => a.localeCompare(b)).at(-1);
 }
 
 function flagBody(): string {

@@ -67,7 +67,9 @@ describe('recordEncounter provenance (G19QG7)', () => {
     expect(next.state.total).toBe(3);
     expect(next.state.sessions).toEqual(['s1', 's2', 's3']);
     expect(next.state.harness.claude).toBe(3);
-    expect(next.state.provenance).toEqual({ sha: 'abc1234', at: '2026-07-07T00:00:00.000Z' });
+    expect(next.state.provenance).toEqual({
+      dogfood: { sha: 'abc1234', at: '2026-07-07T00:00:00.000Z' },
+    });
   });
 });
 
@@ -83,7 +85,9 @@ describe('recordEncounter provenance — newest wins across the bump cycle', () 
     });
 
     const reparsed = parseLedger(renderLedger(older.state));
-    expect(reparsed.provenance).toEqual({ version: '0.66.0', at: '2026-07-01T00:00:00.000Z' });
+    expect(reparsed.provenance).toEqual({
+      install: { version: '0.66.0', at: '2026-07-01T00:00:00.000Z' },
+    });
 
     const next = recordEncounter(reparsed, {
       sessionId: 's2',
@@ -91,7 +95,10 @@ describe('recordEncounter provenance — newest wins across the bump cycle', () 
       manifestation: 'm1',
       provenance: { sha: 'abc1234', at: '2026-07-07T00:00:00.000Z' },
     });
-    expect(next.state.provenance).toEqual({ sha: 'abc1234', at: '2026-07-07T00:00:00.000Z' });
+    expect(next.state.provenance).toEqual({
+      install: { version: '0.66.0', at: '2026-07-01T00:00:00.000Z' },
+      dogfood: { sha: 'abc1234', at: '2026-07-07T00:00:00.000Z' },
+    });
   });
 });
 
@@ -100,7 +107,7 @@ describe('provenance coercion under attacker-shaped input', () => {
   // rendered public comment only as bounded token shapes — never as free text.
   it('drops non-token-shaped provenance fields instead of echoing them', () => {
     const crafted = 'sk-live [click here](https://evil.example) <script>';
-    const poisoned = `${LEDGER_MARKER}\n<!-- retro-data: {"total":1,"harness":{"claude":1},"sessions":["s1"],"manifestations":["m1"],"provenance":{"sha":"${crafted}","version":"${'v'.repeat(200)}","at":"not-a-timestamp"}} -->`;
+    const poisoned = `${LEDGER_MARKER}\n<!-- retro-data: {"total":1,"harness":{"claude":1},"sessions":["s1"],"manifestations":["m1"],"provenance":{"dogfood":{"sha":"${crafted}","at":"not-a-timestamp"},"install":{"version":"${'v'.repeat(200)}","at":"not-a-timestamp"}}} -->`;
 
     const state = parseLedger(poisoned);
     expect(state.provenance).toBeUndefined();
@@ -113,10 +120,12 @@ describe('provenance coercion under attacker-shaped input', () => {
   });
 
   it('keeps valid token-shaped fields while dropping invalid siblings', () => {
-    const poisoned = `${LEDGER_MARKER}\n<!-- retro-data: {"total":1,"harness":{"claude":1},"sessions":["s1"],"manifestations":["m1"],"provenance":{"sha":"abc1234","version":"../../etc/passwd","at":"2026-07-07T00:00:00.000Z"}} -->`;
+    const poisoned = `${LEDGER_MARKER}\n<!-- retro-data: {"total":1,"harness":{"claude":1},"sessions":["s1"],"manifestations":["m1"],"provenance":{"dogfood":{"sha":"abc1234","at":"2026-07-07T00:00:00.000Z"},"install":{"version":"../../etc/passwd","at":"2026-07-07T00:00:00.000Z"}}} -->`;
 
     const state = parseLedger(poisoned);
-    expect(state.provenance).toEqual({ sha: 'abc1234', at: '2026-07-07T00:00:00.000Z' });
+    expect(state.provenance).toEqual({
+      dogfood: { sha: 'abc1234', at: '2026-07-07T00:00:00.000Z' },
+    });
   });
 });
 

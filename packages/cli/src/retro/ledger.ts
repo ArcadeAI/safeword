@@ -21,13 +21,23 @@ export interface Provenance {
   at: string;
 }
 
+/**
+ * Stored per-kind: a later encounter from an OLD installed version must not
+ * clobber a newer dogfood code state (and vice versa) — reconcile normalizes
+ * both slots to dates and keys on the newest (mixed-ledger rule, SM2.R1).
+ */
+export interface StoredProvenance {
+  dogfood?: { sha: string; at: string };
+  install?: { version: string; at: string };
+}
+
 export interface LedgerState {
   total: number;
   harness: Record<string, number>;
   sessions: string[];
   manifestations: string[];
-  /** Newest encounter's code-state provenance; absent on pre-provenance ledgers. */
-  provenance?: Provenance;
+  /** Newest encounter's code state per kind; absent on pre-provenance ledgers. */
+  provenance?: StoredProvenance;
 }
 
 export interface EncounterInput {
@@ -94,18 +104,39 @@ function isProvenanceTimestamp(value: string): boolean {
   return PROVENANCE_AT_CHARS.test(value) && value.endsWith('Z') && !Number.isNaN(Date.parse(value));
 }
 
-function coerceProvenance(value: unknown): Provenance | undefined {
+function coerceSlot<Key extends 'sha' | 'version'>(
+  value: unknown,
+  key: Key,
+  pattern: RegExp,
+): (Record<Key, string> & { at: string }) | undefined {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined;
   const source = value as Record<string, unknown>;
+  const token = source[key];
+  if (typeof token !== 'string' || !pattern.test(token)) return undefined;
   if (typeof source.at !== 'string' || !isProvenanceTimestamp(source.at)) return undefined;
-  const provenance: Provenance = { at: source.at };
-  if (typeof source.sha === 'string' && PROVENANCE_SHA.test(source.sha)) {
-    provenance.sha = source.sha;
+  return { [key]: token, at: source.at } as Record<Key, string> & { at: string };
+}
+
+function coerceProvenance(value: unknown): StoredProvenance | undefined {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined;
+  const source = value as Record<string, unknown>;
+  const dogfood = coerceSlot(source.dogfood, 'sha', PROVENANCE_SHA);
+  const install = coerceSlot(source.install, 'version', PROVENANCE_VERSION);
+  if (!dogfood && !install) return undefined;
+  return { ...(dogfood && { dogfood }), ...(install && { install }) };
+}
+
+/** Fold an encounter's flat provenance into the stored per-kind slots. */
+function mergeProvenance(
+  existing: StoredProvenance | undefined,
+  incoming: Provenance | undefined,
+): StoredProvenance | undefined {
+  if (!incoming) return existing;
+  if (incoming.sha) return { ...existing, dogfood: { sha: incoming.sha, at: incoming.at } };
+  if (incoming.version) {
+    return { ...existing, install: { version: incoming.version, at: incoming.at } };
   }
-  if (typeof source.version === 'string' && PROVENANCE_VERSION.test(source.version)) {
-    provenance.version = source.version;
-  }
-  return provenance;
+  return existing;
 }
 
 function coerceHarness(value: unknown): Record<string, number> {
@@ -154,13 +185,14 @@ export function recordEncounter(state: LedgerState, input: EncounterInput): Enco
     };
   }
 
+  const provenance = mergeProvenance(state.provenance, input.provenance);
   return {
     state: {
       total: state.total + 1,
       harness: { ...state.harness, [input.harness]: (state.harness[input.harness] ?? 0) + 1 },
       sessions: [...state.sessions, input.sessionId],
       manifestations,
-      ...(input.provenance && { provenance: input.provenance }),
+      ...(provenance && { provenance }),
     },
     changed: true,
     novel,
