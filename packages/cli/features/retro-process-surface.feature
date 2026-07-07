@@ -50,13 +50,16 @@ Feature: Retro process-level surfaces and egress-drop reporting
       Then no encounter is produced for it
 
       Examples:
-        | slug                                    | shape violation             |
-        | TDD-Loop                                | uppercase                   |
-        | tdd_loop                                | underscore                  |
-        | tdd/loop                                | nested separator            |
-        | a-slug-well-beyond-the-thirty-two-bound | over the length bound       |
-        | deadbeefcafe                            | sub-20-char hex run         |
-        | 3f9d2c7b1a8e4d6f0b5a9c8d7e6f1a2b        | 32-char hex (secret-shaped) |
+        | slug                              | shape violation                    |
+        | TDD-Loop                          | uppercase                          |
+        | tdd_loop                          | underscore                         |
+        | tdd/loop                          | nested separator                   |
+        | verify-suite-timeout-and-tdd-loop | 33 chars, one over the bound       |
+        |                                   | empty slug                         |
+        | deadbeefcafe                      | sub-20-char hex run                |
+        | 3f9d2c7b1a8e4d6f0b5a9c8d7e6f1a2b  | 32-char hex (secret-shaped)        |
+        | 3f9d-2c7b-1a8e-4d6f               | hyphen-split hex                   |
+        | k9x2m7q4w8z3j6v1n5r0              | high-entropy non-hex token         |
 
     Scenario: An ordinary word slug at the length boundary survives
       Given a raw finding whose surface is a process area with a 32-character hyphenated word slug
@@ -67,15 +70,15 @@ Feature: Retro process-level surfaces and egress-drop reporting
   Rule: retro-process-surface.SM1.R3 — Extraction guidance offers the process surface instead of fabricated file paths
 
     Scenario: Both extraction lanes offer the process namespace
-      Given the Claude extraction prompt and the Codex extraction schema
-      When their surface guidance is read
-      Then both offer a process area form for friction with no single-file surface
+      Given the extraction guidance shared by both lanes
+      When the surface field's guidance is inspected
+      Then it offers a process area form for friction with no single-file surface, and the Codex schema's surface description names the same form
 
     @rejection
     Scenario: A surface is still required of every finding
-      Given the extraction schema
-      When a finding omits its surface field
-      Then the finding is rejected by normalization rather than filed surface-less
+      Given a raw finding that omits its surface field
+      When the findings pass the egress pipeline
+      Then the finding is rejected at the schema wall rather than filed surface-less
 
   @retro-process-surface.SM2.R1
   Rule: retro-process-surface.SM2.R1 — The run summary reports drops per egress wall and stays quiet when clean
@@ -89,6 +92,11 @@ Feature: Retro process-level surfaces and egress-drop reporting
       Given a run whose findings include one missing a required field
       When the retro run completes
       Then the summary reports one finding dropped at the schema wall
+
+    Scenario: Drops at both walls in one run are reported separately
+      Given a run whose findings include one missing a required field and one with a surface that resolves nowhere
+      When the retro run completes
+      Then the summary reports one finding dropped at the schema wall and one at the surface wall
 
     @rejection
     Scenario: A clean run's summary carries no drop line
