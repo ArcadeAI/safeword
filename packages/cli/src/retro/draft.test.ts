@@ -48,3 +48,27 @@ describe('retroSignature', () => {
     );
   });
 });
+
+describe('buildDraft — process label (PNZM3B)', () => {
+  const processFinding = (surface: string) => ({
+    category: 'gap' as const,
+    title: 'TDD loop misses tsc errors',
+    safewordSurface: surface,
+    whatHappened: 'x',
+    whyFriction: 'y',
+    repro: 'z',
+  });
+
+  it('adds the process label to a process-surfaced draft alongside the standard labels', () => {
+    const draft = buildDraft(processFinding('process/tdd-loop'));
+    expect(draft.labels).toContain('process');
+    expect(draft.labels).toContain('retro');
+    expect(draft.labels).toContain('self-report');
+    expect(draft.labels).toContain('gap');
+  });
+
+  it('leaves a file-surfaced draft without the process label', () => {
+    const draft = buildDraft(processFinding('hooks/stop-quality.ts'));
+    expect(draft.labels).not.toContain('process');
+  });
+});
