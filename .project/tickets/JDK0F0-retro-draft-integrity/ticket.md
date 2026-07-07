@@ -2,8 +2,8 @@
 id: JDK0F0
 slug: retro-draft-integrity
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-07-07T05:31:41.043Z
 last_modified: 2026-07-07T05:31:41.043Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/773
@@ -35,3 +35,4 @@ done_when:
 - 2026-07-07T05:31:41.043Z Started: Created ticket JDK0F0
 - Scouted: spool consumers are retro.ts (spool+count), retro-nudge, retro-filing-gate (read-only), and fileSpooledDrafts (the executable filing seam) — the tamper window is the on-disk spool between sessions, so the seal verifies there; REST path consumes buildDraft output in-process (no window, out of scope)
 - TDD: 11 RED (seal = shortHash(final body); cross-module verifier agreement; spool round-trips the seal as the only fifth field; verifyDraftBody match/mismatch/legacy matrix; filing seam refuses tampered draft — no post, no ack, stays spooled, additive rejected count; legacy digest-less drafts keep filing) → GREEN via draft.ts bodyDigest + retro-draft-spool.ts verifyDraftBody/rejected; 210/210 retro+parity+contract tests, tsc clean, parity synced (7 mirrors), prose pointed at the enforcing seam (retro/SKILL.md, self-report-filing.md, filer agent md+toml)
+- 2026-07-07T06:21:22.420Z Phase: intake → done
