@@ -126,8 +126,10 @@ describe('setup: husky hook shims (ZJMZ50 slice 3)', () => {
   });
 
   it('upgrade heals a stale shim line in place (SM1.R1)', async () => {
-    // A block from an "older safeword": same marker, different command line.
+    // An install whose shim line came from an "older safeword": same marker,
+    // different command line.
     seedHuskyHost();
+    await runCli(['setup'], { cwd: dir });
     writeTestFile(
       dir,
       '.husky/pre-commit',

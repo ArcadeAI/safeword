@@ -13,9 +13,10 @@
 import { execFileSync } from 'node:child_process';
 import nodePath from 'node:path';
 
+import type { HookManagerWorld } from '../packs/types.js';
 import { exists } from './fs.js';
 
-export type HookManagerWorld = 'husky' | 'husky-uninitialized' | 'lefthook' | 'pre-commit' | 'bare';
+export type { HookManagerWorld } from '../packs/types.js';
 
 const LEFTHOOK_CONFIGS = ['lefthook.yml', 'lefthook.yaml', '.lefthook.yml', '.lefthook.yaml'];
 const PRE_COMMIT_CONFIG = '.pre-commit-config.yaml';

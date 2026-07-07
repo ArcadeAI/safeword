@@ -507,6 +507,27 @@ const SHARED_FILING_INVARIANTS = [
   '- **Code owns egress** — nothing leaves beyond what the sanitized output contains.',
 ];
 
+/** Marker substring identifying a boundary-gate shim line (ZJMZ50). */
+export const BOUNDARY_SHIM_MARKER = '# Safeword boundary gate';
+
+/**
+ * One-line boundary-gate shim for a husky hook file (see the textPatches
+ * entry comment for the full design rationale). The marker is a trailing sh
+ * comment on the command line itself, so the block IS the marker line.
+ */
+function boundaryShimPatch(at: 'commit' | 'push'): TextPatchDefinition {
+  return {
+    operation: 'append',
+    content: `[ -x node_modules/.bin/safeword ] && node_modules/.bin/safeword boundary --at ${at} || true ${BOUNDARY_SHIM_MARKER}: warn-only; removed by \`safeword reset\`\n`,
+    marker: BOUNDARY_SHIM_MARKER,
+    rerender: true,
+    // A hook file that setup alone created holds nothing but the shim after
+    // unpatch — delete it rather than leave an empty husk (TB1.R5).
+    removeFileIfContentEquals: ['', '\n'],
+    when: ctx => ctx.hookManager === 'husky',
+  };
+}
+
 export const SAFEWORD_SCHEMA: SafewordSchema = {
   version: VERSION,
 
@@ -1279,6 +1300,18 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
 
   // Text files where we patch specific content
   textPatches: {
+    // Boundary-gate shims for husky hosts (ZJMZ50, #810 child 2). One line,
+    // all logic in the versioned CLI: explicit .bin path (husky's PATH
+    // prepend is relative — worktree-unsafe, 9P3VVH), existence-guarded
+    // (fresh clones), whole-line `|| true` (husky runs hooks with sh -e, so
+    // an unguarded failure would BLOCK the commit — TB1.R4). The marker rides
+    // the line as a trailing comment, which makes the whole block the marker
+    // line: rerender then heals ANY future line change in place
+    // (rerenderBlockLines excludes marker lines). Gated to the husky world —
+    // lefthook/pre-commit/bare hosts get a printed nudge instead, and
+    // `when` never gates unpatch, so reset still strips after a migration.
+    '.husky/pre-commit': boundaryShimPatch('commit'),
+    '.husky/pre-push': boundaryShimPatch('push'),
     '.gitignore': {
       operation: 'append',
       content: `\n# Safeword - Local cache and transient state\n${SAFEWORD_TRANSIENT_PATHS.join('\n')}\n`,
