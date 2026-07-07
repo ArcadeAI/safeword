@@ -419,4 +419,14 @@ describe('extraction guidance offers the process namespace (PNZM3B)', () => {
     expect(EXTRACT_SYSTEM_PROMPT).toContain('process/<area>');
     expect(EXTRACT_SYSTEM_PROMPT).toMatch(/no single-file surface/i);
   });
+
+  it("the Codex schema's surface description names the identical process form", async () => {
+    const { CODEX_RETRO_OUTPUT_SCHEMA } =
+      await import('../../templates/hooks/lib/retro-extract.js');
+    const surface = CODEX_RETRO_OUTPUT_SCHEMA.properties.findings.items.properties
+      .safeword_surface as {
+      description?: string;
+    };
+    expect(surface.description).toContain('process/<area>');
+  });
 });
