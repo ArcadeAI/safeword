@@ -300,9 +300,37 @@ export async function sanitizeTextDeep(text: string): Promise<string> {
 // token: lowercase alphanumerics + hyphens, ≤32 chars, non-empty.
 const PROCESS_PREFIX = 'process/';
 const PROCESS_SLUG_SHAPE = /^[a-z0-9-]{1,32}$/;
+const PROCESS_HEX_RUN = /^[0-9a-f]+$/;
+// The entropy backstop applies to the hyphen-stripped slug from this length up
+// — NOT HIGH_ENTROPY_RUN's ≥20 floor (a sub-20 hex slug must still drop), and
+// not shorter, so honest mixed slugs like `sprint2-retro` survive.
+const PROCESS_ENTROPY_MIN_LENGTH = 16;
+// A hyphen segment this long that is pure hex reads as a secret fragment even
+// when the rest of the slug is honest words.
+const PROCESS_HEX_SEGMENT_MIN_LENGTH = 8;
+
+/**
+ * Secret-shape rejection at ANY length (quality review 2026-07-06/07): the
+ * whole hyphen-stripped slug being pure hex (catches `deadbeefcafe` and
+ * hyphen-split hex), any long pure-hex segment, or a high-entropy stripped run
+ * (non-hex alphabets, e.g. base32/36). Calibrated so digit-free hex-alphabet
+ * dictionary words among non-hex segments (`dead-code-cleanup`) survive.
+ */
+function isSecretShapedSlug(slug: string): boolean {
+  const stripped = slug.replaceAll('-', '');
+  if (PROCESS_HEX_RUN.test(stripped)) return true;
+  const hasLongHexSegment = slug
+    .split('-')
+    .some(
+      segment => segment.length >= PROCESS_HEX_SEGMENT_MIN_LENGTH && PROCESS_HEX_RUN.test(segment),
+    );
+  if (hasLongHexSegment) return true;
+  return stripped.length >= PROCESS_ENTROPY_MIN_LENGTH && looksHighEntropySecret(stripped);
+}
 
 function resolveProcessSurface(slug: string): string | undefined {
   if (!PROCESS_SLUG_SHAPE.test(slug)) return undefined;
+  if (isSecretShapedSlug(slug)) return undefined;
   return `${PROCESS_PREFIX}${slug}`;
 }
 

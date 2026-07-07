@@ -15,7 +15,8 @@ const rawFinding = (over: Record<string, unknown> = {}) => ({
 
 describe('prepareEncounters', () => {
   it('turns a valid raw finding into an encounter with the resolved surface', async () => {
-    const [encounter] = await prepareEncounters([rawFinding()]);
+    const report = await prepareEncounters([rawFinding()]);
+    const [encounter] = report.encounters;
     expect(encounter).toBeDefined();
     expect(encounter?.draft.signature.startsWith('retro:')).toBe(true);
     expect(encounter?.draft.body).toContain('hooks/stop-quality.ts');
@@ -23,14 +24,14 @@ describe('prepareEncounters', () => {
   });
 
   it('drops a finding whose safeword_surface does not resolve (fail closed)', async () => {
-    const encounters = await prepareEncounters([
+    const { encounters } = await prepareEncounters([
       rawFinding({ safeword_surface: 'src/billing.ts' }),
     ]);
     expect(encounters).toEqual([]);
   });
 
   it('drops a finding that fails the schema (bad category)', async () => {
-    const encounters = await prepareEncounters([rawFinding({ category: 'whatever' })]);
+    const { encounters } = await prepareEncounters([rawFinding({ category: 'whatever' })]);
     expect(encounters).toEqual([]);
   });
 
@@ -38,7 +39,7 @@ describe('prepareEncounters', () => {
     // A runaway/adversarial extractor array must not fire unbounded secretlint
     // passes inside the synchronous Stop; the cap (50) drops the excess.
     const many = Array.from({ length: 200 }, (_, i) => rawFinding({ title: `friction ${i}` }));
-    const encounters = await prepareEncounters(many);
+    const { encounters } = await prepareEncounters(many);
     expect(encounters.length).toBeLessThanOrEqual(50);
   });
 
@@ -56,11 +57,12 @@ describe('prepareEncounters', () => {
   });
 
   it('sanitizes free-text fields so no secret or customer path reaches the draft', async () => {
-    const [encounter] = await prepareEncounters([
+    const report = await prepareEncounters([
       rawFinding({
         what_happened: 'blocked editing /Users/jdoe/app/billing.ts with key sk_live_TESTONLY1',
       }),
     ]);
+    const [encounter] = report.encounters;
     expect(encounter).toBeDefined();
     expect(encounter?.draft.body).not.toContain('/Users/jdoe/app/billing.ts');
     expect(encounter?.draft.body).not.toContain('sk_live_TESTONLY1');
@@ -71,13 +73,14 @@ describe('prepareEncounters', () => {
   // Review (#543): the modern leak formats must not reach the assembled body
   // end-to-end (LLM-provider keys + Bearer + relative customer paths).
   it('scrubs hyphenated provider keys, Bearer tokens, and relative customer paths from the draft', async () => {
-    const [encounter] = await prepareEncounters([
+    const report = await prepareEncounters([
       rawFinding({
         what_happened:
           'used sk-ant-api03-AbCdEf012345_-ghIJklMnOpQrStuv editing src/customers/acme/secret.ts',
         why_friction: 'the header was Authorization: Bearer abcdef0123456789ABCDEF0123',
       }),
     ]);
+    const [encounter] = report.encounters;
     expect(encounter).toBeDefined();
     const body = encounter?.draft.body ?? '';
     expect(body).not.toContain('sk-ant');
@@ -91,9 +94,10 @@ describe('prepareEncounters', () => {
   // end-to-end, not just unit-tested.
   it('scrubs a well-formed secretlint-only provider key from the draft', async () => {
     const wellFormed = `sk-ant-api03-${'A'.repeat(93)}AA`;
-    const [encounter] = await prepareEncounters([
+    const report = await prepareEncounters([
       rawFinding({ what_happened: `key ${wellFormed} hit the gate` }),
     ]);
+    const [encounter] = report.encounters;
     expect(encounter).toBeDefined();
     const body = encounter?.draft.body ?? '';
     expect(body).not.toContain(wellFormed);
@@ -103,9 +107,8 @@ describe('prepareEncounters', () => {
 
 describe('prepareEncounters — process-level surfaces (PNZM3B)', () => {
   it('turns a valid process-area finding into a filable encounter naming that surface', async () => {
-    const [encounter] = await prepareEncounters([
-      rawFinding({ safeword_surface: 'process/tdd-loop' }),
-    ]);
+    const report = await prepareEncounters([rawFinding({ safeword_surface: 'process/tdd-loop' })]);
+    const [encounter] = report.encounters;
     expect(encounter).toBeDefined();
     expect(encounter?.draft.body).toContain('process/tdd-loop');
   });

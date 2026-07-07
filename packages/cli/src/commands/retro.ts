@@ -132,7 +132,7 @@ export async function runRetro(
   // behavior. The window flows through the UNCHANGED egress pipeline below.
   const window = windowFor(transcript, options.windowStart ?? 0);
   const rawFindings = await dependencies.extract(window);
-  const encounters = await prepareEncounters(rawFindings);
+  const { encounters } = await prepareEncounters(rawFindings);
 
   // Cloud-filing spool (BNGK9W): persist the post-egress drafts BEFORE filing so a
   // REST auth failure (cloud #568) can't lose them. Opt-in via projectDirectory.
