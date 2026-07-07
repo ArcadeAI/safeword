@@ -338,3 +338,34 @@ describe('reconcile — per-issue failure isolation (SM2.R7)', () => {
     expect(tracker.labels.get(22)).toEqual([RECONCILE_LABEL]);
   });
 });
+
+describe('reconcile — per-run operation bound (SM2.R6)', () => {
+  it('flags at most the bound, each flag complete, remainder left for a later run', async () => {
+    const body = issueBody('packages/cli/src/retro/pipeline.ts');
+    const ledgers = new Map(
+      [31, 32, 33].map(n => [
+        n,
+        ledgerComment({ dogfood: { sha: 'abc1234', at: '2026-07-01T00:00:00.000Z' } }),
+      ]),
+    );
+    const tracker = new FakeTracker(
+      [
+        { number: 31, title: 'a', body, labels: ['retro'] },
+        { number: 32, title: 'b', body, labels: ['retro'] },
+        { number: 33, title: 'c', body, labels: ['retro'] },
+      ],
+      ledgers,
+      () => true,
+    );
+
+    const result = await reconcile(tracker, { maxFlags: 2 });
+
+    expect(result.flagged).toEqual([31, 32]);
+    for (const flagged of result.flagged) {
+      expect(tracker.comments.get(flagged)).toHaveLength(1);
+      expect(tracker.labels.get(flagged)).toEqual([RECONCILE_LABEL]);
+    }
+    expect(tracker.comments.get(33)).toBeUndefined();
+    expect(tracker.labels.get(33)).toBeUndefined();
+  });
+});
