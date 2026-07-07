@@ -13,7 +13,6 @@ import nodePath from 'node:path';
 import { reconcile, type ReconcileResult } from '../reconcile.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
 import { createProjectContext } from '../utils/context.js';
-import { isError } from '../utils/errors.js';
 import { exists } from '../utils/fs.js';
 import { getUninstallCommand } from '../utils/install.js';
 import { error, header, info, listItem, success, warn } from '../utils/output.js';
@@ -87,7 +86,7 @@ export async function reset(options: ResetOptions): Promise<void> {
     if (isFullReset) uninstallPackages(cwd, result.packagesToRemove);
     printResetSummary(result, isFullReset);
   } catch (error_) {
-    error(`Reset failed: ${isError(error_) ? error_.message : 'Unknown error'}`);
+    error(`Reset failed: ${error_ instanceof Error ? error_.message : 'Unknown error'}`);
     process.exit(1);
   }
 }
