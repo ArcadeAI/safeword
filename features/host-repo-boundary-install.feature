@@ -34,8 +34,10 @@ Feature: Install the boundary gate into host repos (ZJMZ50, #810 child 2)
 
     Scenario: A second setup run leaves the hooks byte-identical
       Given a husky host where safeword setup has already installed the shims
+      And the pre-commit hook contains the boundary commit shim
       When safeword setup runs again
       Then the pre-commit and pre-push hooks are byte-identical to before
+      And the boundary commit shim appears exactly once in the pre-commit hook
 
     @rejection
     Scenario: Upgrade over an installed shim adds no duplicate
@@ -58,6 +60,7 @@ Feature: Install the boundary gate into host repos (ZJMZ50, #810 child 2)
       When safeword setup runs
       Then the output contains a pre-commit local-hook snippet invoking the boundary gate
       And the pre-commit config file is byte-identical to before
+      And no husky hook files are created
 
     Scenario: Bare host is pointed at husky without any hook writes
       Given a git host with no hook manager at all
@@ -73,13 +76,24 @@ Feature: Install the boundary gate into host repos (ZJMZ50, #810 child 2)
       And the output recommends completing the husky setup
 
     @rejection
-    Scenario: An integrated lefthook host gets no repeat nudge
-      Given a lefthook host whose config already invokes the boundary gate
-      When safeword setup runs
-      Then the output contains no lefthook integration snippet
+    Scenario: Pasting the printed snippet quiesces the nudge
+      Given a lefthook host whose config contains the snippet exactly as setup printed it
+      When safeword setup runs again
+      Then setup completes successfully
+      And the output contains no lefthook integration snippet
 
   @host-repo-boundary-install.TB1.R4
   Rule: host-repo-boundary-install.TB1.R4 — The installed shim can never block a commit or push
+
+    Scenario Outline: The emitted shim invokes the boundary gate when the binary is present
+      Given a <hook> hook file as emitted by setup, in a host whose safeword binary records its invocation
+      When the hook runs under husky's strict shell with an empty PATH
+      Then the boundary gate was invoked at the <boundary> boundary
+
+      Examples:
+        | hook       | boundary |
+        | pre-commit | commit   |
+        | pre-push   | push     |
 
     Scenario: The emitted shim passes when safeword's binary is absent
       Given a hook file as emitted by setup, in a host with no dependencies installed
@@ -97,17 +111,20 @@ Feature: Install the boundary gate into host repos (ZJMZ50, #810 child 2)
 
     Scenario: Reset restores a pre-existing hook byte-for-byte
       Given a husky host whose pre-commit hook carried the team's own linter line before setup
+      And the pre-commit hook contains the boundary commit shim
       When safeword reset runs
       Then the pre-commit hook is byte-identical to its pre-setup content
 
     Scenario: Reset removes a hook file that setup alone created
       Given a husky host whose pre-push hook was created by setup and never edited
+      And the pre-push hook contains the boundary push shim
       When safeword reset runs
       Then the pre-push hook file no longer exists
 
     @rejection
     Scenario: Reset spares hook lines the user added after setup
       Given a husky host whose pre-commit hook gained a user-written line after setup
+      And the pre-commit hook contains the boundary commit shim
       When safeword reset runs
       Then the user-written line survives in the pre-commit hook
       And the boundary shims are gone from the pre-commit hook
@@ -134,7 +151,8 @@ Feature: Install the boundary gate into host repos (ZJMZ50, #810 child 2)
     Scenario: Non-git directory gets no hook writes and no hook nudge
       Given a project directory that is not a git repository
       When safeword setup runs
-      Then no husky hook files are written
+      Then setup completes successfully
+      And no husky hook files are written
       And the output contains no hook integration nudge
 
     Scenario: Setup in a monorepo subdirectory plants no dead hooks

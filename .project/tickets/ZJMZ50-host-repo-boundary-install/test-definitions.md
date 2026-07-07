@@ -64,13 +64,19 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: An integrated lefthook host gets no repeat nudge
+### Scenario: Pasting the printed snippet quiesces the nudge
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
 ## Rule: host-repo-boundary-install.TB1.R4 — The installed shim can never block a commit or push
+
+### Scenario: The emitted shim invokes the boundary gate when the binary is present
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ### Scenario: The emitted shim passes when safeword's binary is absent
 

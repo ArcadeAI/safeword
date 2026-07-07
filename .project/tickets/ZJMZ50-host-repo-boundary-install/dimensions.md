@@ -11,7 +11,7 @@ plus domain knowledge and the #888 environment guide-words.
 | Hook-file pre-state (husky world)  | no `.husky/` at all · `.husky/` exists, hook file absent · hook file with user content · shim already present (idempotency) · stale shim from older version (heal)          |
 | Reconcile mode                     | install (setup) · upgrade · uninstall (reset) — each must be symmetric over the same schema entries                                                                         |
 | Git context                        | git repo at cwd · non-git directory · git repo where cwd ≠ repo root (monorepo subdir)                                                                                      |
-| Nudge lifecycle                    | first run prints snippet · target config already integrates the gate (self-quiescing) · repeat runs stay quiet                                                              |
+| Nudge lifecycle                    | first run prints snippet · target config integrates the gate → quiesces (incl. verbatim paste of the printed snippet) · not yet integrated → nudge repeats on later runs (vendored-ignores precedent; the quiesce signal is integration, not run count)  |
 | Shim runtime (emitted-line shape)  | binary present → gate runs · binary absent (fresh clone, deps not installed) → silent pass-through · gate exits non-zero → hook still passes (`sh -e` + whole-line `\|\| true`) |
 
 ## Environment guide-words (#888 trial)

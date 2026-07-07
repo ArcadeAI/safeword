@@ -2,10 +2,11 @@
 id: ZJMZ50
 slug: host-repo-boundary-install
 type: feature
-phase: scenario-gate
+phase: implement
 phase_anchors:
   - define-behavior: 0337cd9
   - scenario-gate: 59cc585
+  - implement: bb3da2c
 status: in_progress
 scope:
   - Hook-manager world detection (husky | lefthook | pre-commit | bare) computed once at plan time into ProjectContext
@@ -23,7 +24,7 @@ done_when:
   - Setup in a husky host appends both shims exactly once; re-running setup/upgrade is byte-idempotent
   - Pre-existing hook content in .husky/pre-commit and pre-push survives install and reset byte-for-byte
   - safeword reset removes the shim blocks (and only them)
-  - Lefthook / pre-commit / bare hosts get a nudge with a verbatim-usable snippet, exactly once (self-quiescing)
+  - Lefthook / pre-commit / bare hosts get a nudge with a verbatim-usable snippet; the nudge quiesces once the config integrates the gate (pasting the printed snippet verbatim is sufficient)
   - Non-git directories get no hook writes and no nudge
   - Shim line is existence-guarded, explicit-path, whole-line-|| true (sh -e safe); scenarios prove a missing/broken binary never blocks
   - Feature scenarios green in the BDD lane; full suite green
@@ -42,3 +43,4 @@ last_modified: 2026-07-07T04:23:13.747Z
 - 2026-07-07T04:23:13.747Z Started: Created ticket ZJMZ50
 - 2026-07-07T04:57:27.759Z Phase: intake → define-behavior
 - 2026-07-07T05:02:43.720Z Phase: define-behavior → scenario-gate
+- 2026-07-07T05:11:08.364Z Phase: scenario-gate → implement
