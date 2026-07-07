@@ -100,3 +100,13 @@ describe('prepareEncounters', () => {
     expect(body).toContain('[redacted]');
   });
 });
+
+describe('prepareEncounters — process-level surfaces (PNZM3B)', () => {
+  it('turns a valid process-area finding into a filable encounter naming that surface', async () => {
+    const [encounter] = await prepareEncounters([
+      rawFinding({ safeword_surface: 'process/tdd-loop' }),
+    ]);
+    expect(encounter).toBeDefined();
+    expect(encounter?.draft.body).toContain('process/tdd-loop');
+  });
+});
