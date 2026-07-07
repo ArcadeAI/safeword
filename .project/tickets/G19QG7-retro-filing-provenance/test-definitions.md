@@ -31,7 +31,7 @@ skips these fixtures passes vacuously.
 
 ### Scenario: A recurrence bump onto a pre-provenance ledger preserves its counts and gains provenance
 
-- [ ] RED
+- [x] RED 0ba463f
 - [ ] GREEN
 - [ ] REFACTOR
 

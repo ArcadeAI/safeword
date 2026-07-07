@@ -9,17 +9,33 @@ export const LEDGER_MARKER = '<!-- retro-ledger -->';
 const DATA_OPEN = '<!-- retro-data:';
 const DATA_CLOSE = '-->';
 
+/**
+ * Code-state provenance of an encounter (G19QG7): a dogfood session records the
+ * safeword repo's short HEAD SHA, a customer install records the installed
+ * safeword version — both with the capture time. Newest encounter wins; the
+ * ledger keeps only the latest.
+ */
+export interface Provenance {
+  sha?: string;
+  version?: string;
+  at: string;
+}
+
 export interface LedgerState {
   total: number;
   harness: Record<string, number>;
   sessions: string[];
   manifestations: string[];
+  /** Newest encounter's code-state provenance; absent on pre-provenance ledgers. */
+  provenance?: Provenance;
 }
 
 export interface EncounterInput {
   sessionId: string;
   harness: string;
   manifestation: string;
+  /** Code state observed by this encounter; omitted when unresolvable. */
+  provenance?: Provenance;
 }
 
 export interface EncounterResult {
@@ -115,6 +131,7 @@ export function recordEncounter(state: LedgerState, input: EncounterInput): Enco
       harness: { ...state.harness, [input.harness]: (state.harness[input.harness] ?? 0) + 1 },
       sessions: [...state.sessions, input.sessionId],
       manifestations,
+      ...(input.provenance && { provenance: input.provenance }),
     },
     changed: true,
     novel,
