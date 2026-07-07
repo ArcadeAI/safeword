@@ -78,8 +78,8 @@ Feature: Install the boundary gate into host repos (ZJMZ50, #810 child 2)
     @rejection
     Scenario: Pasting the printed snippet quiesces the nudge
       Given a lefthook host whose config contains the snippet exactly as setup printed it
-      When safeword setup runs again
-      Then setup completes successfully
+      When safeword upgrade runs
+      Then the upgrade completes successfully
       And the output contains no lefthook integration snippet
 
   @host-repo-boundary-install.TB1.R4

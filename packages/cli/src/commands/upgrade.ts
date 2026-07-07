@@ -30,6 +30,7 @@ import { createProjectContext } from '../utils/context.js';
 import { getEslintPeerMismatchWarning } from '../utils/eslint-peer-check.js';
 import { exists, findInTree, readFileSafe, readJson, writeFile } from '../utils/fs.js';
 import { untrackIgnoredFiles } from '../utils/git.js';
+import { hookIntegrationNudge } from '../utils/hook-nudge.js';
 import {
   detectPackageManager,
   getUninstallCommand,
@@ -420,6 +421,10 @@ export async function upgrade(options: UpgradeOptions): Promise<void> {
   try {
     const ctx = createProjectContext(cwd);
     const result = await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
+    // Boundary-gate integration for non-husky worlds (ZJMZ50): repeats each
+    // upgrade until the config invokes the gate, then quiesces (TB1.R3).
+    const hookNudge = hookIntegrationNudge(ctx);
+    if (hookNudge !== undefined) info(hookNudge);
     installDependencies(cwd, result.packagesToInstall, 'missing packages');
     syncAndRecordPackageJsonSafewordVersion(cwd, result);
 

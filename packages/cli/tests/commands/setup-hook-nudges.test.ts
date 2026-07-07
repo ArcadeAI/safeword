@@ -119,7 +119,8 @@ describe('setup: hook-integration nudges (ZJMZ50 slice 4)', () => {
       `${LEFTHOOK_CONFIG}    safeword-boundary:\n      run: node_modules/.bin/safeword boundary --at commit || true\n`,
     );
 
-    const second = await runCli(['setup'], { cwd: dir });
+    // Re-runs on a configured project go through upgrade (setup refuses).
+    const second = await runCli(['upgrade'], { cwd: dir });
 
     expect(second.exitCode).toBe(0);
     expect(output(second)).not.toContain(BOUNDARY_INVOCATION);
