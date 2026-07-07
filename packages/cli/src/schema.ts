@@ -61,6 +61,11 @@ export interface TextPatchDefinition {
   // applyWhenContentIncludes so it only touches safeword-scaffolded files.
   supersedes?: string;
   applyWhenContentIncludes?: string[]; // Optional guard for semi-owned config files
+  // Context predicate gating APPLICATION only (install/upgrade/creation) —
+  // e.g. hook shims apply only in husky hosts (ZJMZ50). Unpatch is deliberately
+  // NOT gated: reset must strip a leftover block even when the host's world
+  // changed after install (a husky -> lefthook migration).
+  when?: (ctx: ProjectContext) => boolean;
   unpatchContent?: string[]; // Additional exact blocks to remove on uninstall/reset
   removeFileIfContentEquals?: string[]; // Delete file only when remaining content is known scaffold
   // When set (append patches only), re-render the managed block in place on

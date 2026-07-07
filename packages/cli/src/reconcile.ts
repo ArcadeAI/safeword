@@ -152,6 +152,8 @@ function planTextPatchesForFile(
 ): Action[] {
   const actions: Action[] = [];
   for (const definition of asPatchList(entry)) {
+    // Application-only gate (ZJMZ50): unpatch stays ungated in planTextUnpatches.
+    if (definition.when !== undefined && !definition.when(ctx)) continue;
     if (!passesTextPatchContentGuard(ctx.cwd, filePath, definition)) continue;
     actions.push({
       type: 'text-patch',
