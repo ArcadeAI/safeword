@@ -108,6 +108,14 @@ describe('retro draft spool (BNGK9W — persist post-egress drafts on filing fai
 });
 
 describe('verifyDraftBody (JDK0F0 — refuse a body modified after sealing)', () => {
+  let projectDirectory: string;
+  beforeEach(() => {
+    projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-spool-'));
+  });
+  afterEach(() => {
+    rmSync(projectDirectory, { recursive: true, force: true });
+  });
+
   it('accepts a draft whose body matches its seal', () => {
     expect(verifyDraftBody(sealedDraft('retro:aaaaaaaaaaaa'))).toBe(true);
   });
@@ -119,6 +127,16 @@ describe('verifyDraftBody (JDK0F0 — refuse a body modified after sealing)', ()
 
   it('accepts a legacy digest-less draft (pre-seal spools keep filing)', () => {
     expect(verifyDraftBody(draft('retro:aaaaaaaaaaaa'))).toBe(true);
+  });
+
+  it('drops a spool line whose bodyDigest is not a string (shape check, not legacy)', () => {
+    // A malformed seal must not be read as "legacy, verified" — the line fails
+    // the shape check like any other wrong-typed field.
+    const file = draftSpoolPath(projectDirectory, 'sess-bad-seal');
+    mkdirSync(nodePath.dirname(file), { recursive: true });
+    const line = { ...draft('retro:aaaaaaaaaaaa'), bodyDigest: 123 };
+    writeFileSync(file, `${JSON.stringify(line)}\n`, 'utf8');
+    expect(readSpooledDrafts(projectDirectory, 'sess-bad-seal')).toEqual([]);
   });
 });
 

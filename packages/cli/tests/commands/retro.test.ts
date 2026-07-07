@@ -11,7 +11,11 @@ import type {
   IssueReference,
   IssueTracker,
 } from '../../src/retro/triage.js';
-import { draftSpoolPath, readSpooledDrafts } from '../../templates/hooks/lib/retro-draft-spool.js';
+import {
+  draftSpoolPath,
+  readSpooledDrafts,
+  verifyDraftBody,
+} from '../../templates/hooks/lib/retro-draft-spool.js';
 import { DIGEST_CAP, runHeadlessExtraction } from '../../templates/hooks/lib/retro-extract.js';
 
 vi.mock('../../src/retro/github-rest.js', () => ({
@@ -434,6 +438,11 @@ describe('runRetro transport selection (BNGK9W — spool → try-REST → drain 
         'title',
       ]);
     }
+    // Close the wiring chain in one place: the drafts read back from the REAL
+    // pipeline's spool (real sanitizer, real disk) pass the spool-side verifier.
+    const readBack = readSpooledDrafts(projectDirectory, 'sess-a');
+    expect(readBack.length).toBeGreaterThan(0);
+    expect(readBack.every(draft => verifyDraftBody(draft))).toBe(true);
   });
 
   it('retroCommand still spools sanitized drafts when no GitHub transport is available', async () => {

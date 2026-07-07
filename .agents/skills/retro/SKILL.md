@@ -95,9 +95,9 @@ Everything flows through the egress guard, then files upstream:
   nudge surfaces them; file each **verbatim** per `.safeword/guides/self-report-filing.md`
   using your GitHub access. Never re-word or re-sanitize a spooled draft — the body is
   already code-assembled and egress-clean; the sanitizer is the security boundary.
-  Enforced: each body is sealed with a `bodyDigest` at assembly, and the filing seam
-  refuses a draft whose body no longer matches (`hooks/lib/retro-draft-spool.ts`
-  `verifyDraftBody`) — a re-worded draft doesn't file, it sits in the spool.
+  Enforced at the code-owned seams: each body is sealed with a `bodyDigest` at
+  assembly, and `verifyDraftBody` (`hooks/lib/retro-draft-spool.ts`) refuses a
+  mismatch — a re-worded draft stays spooled instead of filing.
 
 ## Reminders
 

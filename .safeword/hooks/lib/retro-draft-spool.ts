@@ -53,7 +53,7 @@ export function draftSpoolPath(projectDirectory: string, sessionId: string): str
   return nodePath.join(projectDirectory, SPOOL_DIR, spoolName(sessionId));
 }
 
-/** A parsed spool line is a draft only when all four code-assembled fields are present. */
+/** A parsed spool line is a draft only when the required code-assembled fields are present. */
 function toDraft(value: unknown): SpooledDraft | undefined {
   if (typeof value !== 'object' || value === null) return undefined;
   const record = value as Record<string, unknown>;
@@ -217,7 +217,7 @@ export async function fileSpooledDrafts(
 }
 
 /**
- * Append post-egress drafts to the session spool (writing ONLY the four
+ * Append post-egress drafts to the session spool (writing ONLY the
  * code-assembled fields). BEST-EFFORT and capped at `MAX_DRAFTS_PER_SESSION` — both
  * handled by the shared `appendJsonlRecords`.
  */
