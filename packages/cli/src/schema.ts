@@ -512,6 +512,17 @@ const SHARED_FILING_INVARIANTS = [
 const BOUNDARY_SHIM_MARKER = '# Safeword boundary gate';
 
 /**
+ * The armored boundary-gate invocation, shared by every hook manager so the
+ * safety semantics can never drift: the `[ -x … ]` guard keeps a fresh clone
+ * (no node_modules) silent, and `|| true` keeps a crashing gate from blocking
+ * (warn-only contract, TB1.R4). Husky appends it via the textPatch below;
+ * the lefthook/pre-commit snippets interpolate it in hook-nudge.ts.
+ */
+export function boundaryShimCommand(at: 'commit' | 'push'): string {
+  return `[ -x node_modules/.bin/safeword ] && node_modules/.bin/safeword boundary --at ${at} || true`;
+}
+
+/**
  * One-line boundary-gate shim for a husky hook file (see the textPatches
  * entry comment for the full design rationale). The marker is a trailing sh
  * comment on the command line itself, so the block IS the marker line.
@@ -519,7 +530,7 @@ const BOUNDARY_SHIM_MARKER = '# Safeword boundary gate';
 function boundaryShimPatch(at: 'commit' | 'push'): TextPatchDefinition {
   return {
     operation: 'append',
-    content: `[ -x node_modules/.bin/safeword ] && node_modules/.bin/safeword boundary --at ${at} || true ${BOUNDARY_SHIM_MARKER}: warn-only; removed by \`safeword reset\`\n`,
+    content: `${boundaryShimCommand(at)} ${BOUNDARY_SHIM_MARKER}: warn-only; removed by \`safeword reset\`\n`,
     marker: BOUNDARY_SHIM_MARKER,
     rerender: true,
     // A hook file that setup alone created holds nothing but the shim after

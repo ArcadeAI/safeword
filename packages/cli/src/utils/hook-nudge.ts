@@ -12,6 +12,7 @@
 import nodePath from 'node:path';
 
 import type { ProjectContext } from '../packs/types.js';
+import { boundaryShimCommand } from '../schema.js';
 import { readFileSafe } from './fs.js';
 import { gitToplevel } from './git.js';
 import { LEFTHOOK_CONFIGS } from './hook-manager.js';
@@ -19,21 +20,21 @@ import { LEFTHOOK_CONFIGS } from './hook-manager.js';
 /** Substring proving a config already invokes the gate — the quiesce signal. */
 const BOUNDARY_INVOCATION = 'safeword boundary';
 
-// Snippet lines carry the same armor as the husky shim (TB1.R4): the `[ -x ]`
-// guard keeps a fresh clone (no node_modules) silent, and `|| true` keeps a
-// crashing gate from blocking — pre-commit and lefthook both treat a non-zero
-// hook as failure, so an unguarded entry would break the warn-only contract.
+// Both snippets interpolate the shared boundaryShimCommand (schema.ts): the
+// `[ -x ]` guard keeps a fresh clone (no node_modules) silent, and `|| true`
+// keeps a crashing gate from blocking — pre-commit and lefthook both treat a
+// non-zero hook as failure, so an unguarded entry would break warn-only.
 const LEFTHOOK_SNIPPET = `Boundary gate: this repo uses lefthook, and safeword never edits lefthook.yml.
 To wire the warn-only boundary gate, add:
 
 pre-commit:
   commands:
     safeword-boundary:
-      run: '[ -x node_modules/.bin/safeword ] && node_modules/.bin/safeword boundary --at commit || true'
+      run: '${boundaryShimCommand('commit')}'
 pre-push:
   commands:
     safeword-boundary:
-      run: '[ -x node_modules/.bin/safeword ] && node_modules/.bin/safeword boundary --at push || true'`;
+      run: '${boundaryShimCommand('push')}'`;
 
 // `stages` is explicit on BOTH hooks: pre-commit's default_stages spreads a
 // stage-less hook to every installed hook type, so the commit-tier gate would
@@ -45,14 +46,14 @@ To wire the warn-only boundary gate, add under repos:
     hooks:
       - id: safeword-boundary-commit
         name: safeword boundary gate (commit)
-        entry: sh -c '[ -x node_modules/.bin/safeword ] && node_modules/.bin/safeword boundary --at commit || true'
+        entry: sh -c '${boundaryShimCommand('commit')}'
         language: system
         always_run: true
         pass_filenames: false
         stages: [pre-commit]
       - id: safeword-boundary-push
         name: safeword boundary gate (push)
-        entry: sh -c '[ -x node_modules/.bin/safeword ] && node_modules/.bin/safeword boundary --at push || true'
+        entry: sh -c '${boundaryShimCommand('push')}'
         language: system
         always_run: true
         pass_filenames: false
