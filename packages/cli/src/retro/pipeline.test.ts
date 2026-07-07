@@ -128,4 +128,13 @@ describe('prepareEncounters — process-level surfaces (PNZM3B)', () => {
     expect(report.encounters).toEqual([]);
     expect(report.drops).toEqual({ schema: 0, surface: 1 });
   });
+
+  it('keeps an ordinary word slug at the 32-char length boundary', async () => {
+    // 32 chars, dictionary words, low entropy — the passing side of the bound.
+    const slug = 'verify-suite-timeout-and-tdd-lop';
+    expect(slug).toHaveLength(32);
+    const report = await prepareEncounters([rawFinding({ safeword_surface: `process/${slug}` })]);
+    expect(report.encounters).toHaveLength(1);
+    expect(report.drops).toEqual({ schema: 0, surface: 0 });
+  });
 });
