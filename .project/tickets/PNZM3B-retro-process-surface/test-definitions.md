@@ -18,6 +18,12 @@ object.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A process-surfaced finding files end to end through the retro run
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A process-surfaced draft carries the process label
 
 - [ ] RED
@@ -50,9 +56,21 @@ object.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A slug with a hex-alphabet dictionary word among non-hex segments survives
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: retro-process-surface.SM1.R3 — Extraction guidance offers the process surface instead of fabricated file paths
 
-### Scenario: Both extraction lanes offer the process namespace
+### Scenario: The shared extraction prompt offers the process namespace
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: The Codex schema's surface description names the same process form
 
 - [ ] RED
 - [ ] GREEN

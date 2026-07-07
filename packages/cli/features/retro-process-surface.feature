@@ -24,6 +24,11 @@ Feature: Retro process-level surfaces and egress-drop reporting
       When the findings pass the egress pipeline
       Then an encounter is produced whose issue body names that process surface
 
+    Scenario: A process-surfaced finding files end to end through the retro run
+      Given a run whose findings include one surfaced as a valid process area
+      When the retro run completes, with only extraction and the GitHub transport mocked
+      Then an issue is created whose body names the process surface and whose labels include the process label alongside the standard retro labels
+
     Scenario: A process-surfaced draft carries the process label
       Given a sanitized finding whose resolved surface is a process area
       When the draft is assembled
@@ -38,7 +43,7 @@ Feature: Retro process-level surfaces and egress-drop reporting
     Scenario: A non-safeword file path is still dropped
       Given a raw finding whose surface is a customer file path outside the allowlist
       When the findings pass the egress pipeline
-      Then no encounter is produced for it
+      Then no encounter is produced and the drop is counted at the surface wall
 
   @retro-process-surface.SM1.R2
   Rule: retro-process-surface.SM1.R2 — The process namespace stays fail-closed against non-slug and secret-shaped values
@@ -47,7 +52,7 @@ Feature: Retro process-level surfaces and egress-drop reporting
     Scenario Outline: A process surface outside the strict slug shape is dropped
       Given a raw finding whose surface is "process/<slug>", violating the slug shape as <shape violation>
       When the findings pass the egress pipeline
-      Then no encounter is produced for it
+      Then no encounter is produced and the drop is counted at the surface wall
 
       Examples:
         | slug                              | shape violation                    |
@@ -66,13 +71,23 @@ Feature: Retro process-level surfaces and egress-drop reporting
       When the findings pass the egress pipeline
       Then an encounter is produced for it
 
+    Scenario: A slug with a hex-alphabet dictionary word among non-hex segments survives
+      Given a raw finding whose surface is a process area slugged "dead-code-cleanup"
+      When the findings pass the egress pipeline
+      Then an encounter is produced for it
+
   @retro-process-surface.SM1.R3
   Rule: retro-process-surface.SM1.R3 — Extraction guidance offers the process surface instead of fabricated file paths
 
-    Scenario: Both extraction lanes offer the process namespace
-      Given the extraction guidance shared by both lanes
-      When the surface field's guidance is inspected
-      Then it offers a process area form for friction with no single-file surface, and the Codex schema's surface description names the same form
+    Scenario: The shared extraction prompt offers the process namespace
+      Given the extraction prompt shared by both lanes
+      When its surface guidance is inspected
+      Then it offers a process area form for friction with no single-file surface
+
+    Scenario: The Codex schema's surface description names the same process form
+      Given the Codex extraction schema
+      When its surface field description is inspected
+      Then it names the identical process area form
 
     @rejection
     Scenario: A surface is still required of every finding
