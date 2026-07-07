@@ -95,6 +95,31 @@ describe('recordEncounter provenance — newest wins across the bump cycle', () 
   });
 });
 
+describe('provenance coercion under attacker-shaped input', () => {
+  // The ledger comment is publicly editable; provenance strings must re-enter a
+  // rendered public comment only as bounded token shapes — never as free text.
+  it('drops non-token-shaped provenance fields instead of echoing them', () => {
+    const crafted = 'sk-live [click here](https://evil.example) <script>';
+    const poisoned = `${LEDGER_MARKER}\n<!-- retro-data: {"total":1,"harness":{"claude":1},"sessions":["s1"],"manifestations":["m1"],"provenance":{"sha":"${crafted}","version":"${'v'.repeat(200)}","at":"not-a-timestamp"}} -->`;
+
+    const state = parseLedger(poisoned);
+    expect(state.provenance).toBeUndefined();
+
+    const rendered = renderLedger(
+      recordEncounter(state, { sessionId: 's2', harness: 'claude', manifestation: 'm1' }).state,
+    );
+    expect(rendered).not.toContain('evil.example');
+    expect(rendered).not.toContain('<script>');
+  });
+
+  it('keeps valid token-shaped fields while dropping invalid siblings', () => {
+    const poisoned = `${LEDGER_MARKER}\n<!-- retro-data: {"total":1,"harness":{"claude":1},"sessions":["s1"],"manifestations":["m1"],"provenance":{"sha":"abc1234","version":"../../etc/passwd","at":"2026-07-07T00:00:00.000Z"}} -->`;
+
+    const state = parseLedger(poisoned);
+    expect(state.provenance).toEqual({ sha: 'abc1234', at: '2026-07-07T00:00:00.000Z' });
+  });
+});
+
 describe('recordEncounter (idempotency + novelty)', () => {
   const base: LedgerState = {
     total: 1,
