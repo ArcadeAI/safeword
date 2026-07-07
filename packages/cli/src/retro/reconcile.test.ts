@@ -92,4 +92,43 @@ describe('reconcile — flags surface-touched-after-code-state (SM2.R1)', () => 
     const flagComment = (tracker.comments.get(7) ?? []).find(c => c.includes(RECONCILE_MARKER));
     expect(flagComment).toBeDefined();
   });
+
+  it('keys a mixed ledger on the newest code state, not the newest wall clock', async () => {
+    // Encounter order: dogfood sha first (code state 2026-07-05), then a
+    // later-in-time encounter from an older installed version (v0.50.0,
+    // tag date 2026-06-01). Newest CODE STATE is the dogfood capture time.
+    const { recordEncounter } = await import('./ledger.js');
+    const first = recordEncounter(emptyLedger(), {
+      sessionId: 's1',
+      harness: 'claude',
+      manifestation: 'm1',
+      provenance: { sha: 'abc1234', at: '2026-07-05T00:00:00.000Z' },
+    });
+    const second = recordEncounter(first.state, {
+      sessionId: 's2',
+      harness: 'claude',
+      manifestation: 'm1',
+      provenance: { version: '0.50.0', at: '2026-07-07T00:00:00.000Z' },
+    });
+
+    const issue: ReconcileIssue = {
+      number: 9,
+      title: 'mixed encounters',
+      body: issueBody('packages/cli/src/retro/egress.ts'),
+      labels: ['retro'],
+    };
+    const tracker = new FakeTracker(
+      [issue],
+      new Map([[9, renderLedger(second.state)]]),
+      // Commits exist after the old release's tag date, but none after the
+      // dogfood capture time.
+      (_path, sinceIso) => sinceIso < '2026-07-05T00:00:00.000Z',
+      new Map([['v0.50.0', '2026-06-01T00:00:00.000Z']]),
+    );
+
+    const result = await reconcile(tracker);
+
+    expect(result.flagged).toEqual([]);
+    expect(tracker.labels.get(9)).toBeUndefined();
+  });
 });
