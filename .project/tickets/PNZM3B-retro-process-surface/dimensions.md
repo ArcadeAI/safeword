@@ -21,9 +21,13 @@ Boundary notes:
   secret-shape check must also consider the whole slug AND its hyphen-split
   segments (hyphen-split hex) and non-hex high-entropy alphabets (base32/36).
 - Accepted residuals, mirroring egress.ts's documented posture: low-entropy
-  pure-alpha tokens (no practical stricter wall without a dictionary),
-  pure-digit runs; canonical-UUID shapes are structurally excluded by the ≤32
-  bound.
+  pure-alpha tokens (no practical stricter wall without a dictionary; the
+  ≤26-symbol alphabet cannot clear ALPHA_MIN_BITS below ~19 distinct chars),
+  pure-digit runs (dropped anyway — digits are hex), sub-16-char mixed-alnum
+  tokens (below the entropy window; whole-ticket review 2026-07-07);
+  canonical-UUID shapes are structurally excluded by the ≤32 bound. Hex is
+  stricter than entropy: any ≥8 consecutive hex chars in the stripped slug
+  drop it regardless of surrounding padding.
 - `MAX_RAW_FINDINGS` overflow (anti-abuse ceiling of 50, unreachable by a
   legitimate session) is deliberately EXCLUDED from drop reporting — waived
   here per quality review 2026-07-07; the summary counts the schema and

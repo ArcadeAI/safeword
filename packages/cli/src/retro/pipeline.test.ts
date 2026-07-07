@@ -24,10 +24,9 @@ describe('prepareEncounters', () => {
   });
 
   it('drops a finding whose safeword_surface does not resolve (fail closed)', async () => {
-    const { encounters } = await prepareEncounters([
-      rawFinding({ safeword_surface: 'src/billing.ts' }),
-    ]);
-    expect(encounters).toEqual([]);
+    const report = await prepareEncounters([rawFinding({ safeword_surface: 'src/billing.ts' })]);
+    expect(report.encounters).toEqual([]);
+    expect(report.drops).toEqual({ schema: 0, surface: 1 });
   });
 
   it('drops a finding that fails the schema (bad category)', async () => {
@@ -147,12 +146,6 @@ describe('prepareEncounters — process-level surfaces (PNZM3B)', () => {
     ]);
     expect(report.encounters).toHaveLength(1);
     expect(report.drops).toEqual({ schema: 0, surface: 0 });
-  });
-
-  it('still drops a non-safeword file path and counts it at the surface wall', async () => {
-    const report = await prepareEncounters([rawFinding({ safeword_surface: 'src/billing.ts' })]);
-    expect(report.encounters).toEqual([]);
-    expect(report.drops).toEqual({ schema: 0, surface: 1 });
   });
 
   it('rejects a finding that omits its surface at the schema wall', async () => {

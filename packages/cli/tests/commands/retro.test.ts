@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   buildAutoExtractor,
   buildProvenanceResolver,
+  reportRetroCommandOutcome,
   retroCommand,
   runRetro,
 } from '../../src/commands/retro.js';
@@ -687,6 +688,11 @@ describe('retroReconcileCommand wiring (G19QG7 SM2.R1)', () => {
 });
 
 describe('retro summary drop reporting (PNZM3B SM2.R1)', () => {
+  const reportOptions = (output: Parameters<typeof reportRetroCommandOutcome>[1]['output']) => ({
+    extractionSucceeded: true,
+    restTransportAvailable: true,
+    output,
+  });
   const collect = () => {
     const lines: string[] = [];
     return {
@@ -706,7 +712,6 @@ describe('retro summary drop reporting (PNZM3B SM2.R1)', () => {
   };
 
   it('counts unresolvable-surface drops in the rendered summary', async () => {
-    const { reportRetroCommandOutcome } = await import('../../src/commands/retro.js');
     const transport = new FakeGitHub();
     const outcome = await runRetro(
       { transcript: '/tmp/t.jsonl' },
@@ -722,18 +727,13 @@ describe('retro summary drop reporting (PNZM3B SM2.R1)', () => {
     );
 
     const { lines, output } = collect();
-    reportRetroCommandOutcome(outcome, {
-      extractionSucceeded: true,
-      restTransportAvailable: true,
-      output,
-    });
+    reportRetroCommandOutcome(outcome, reportOptions(output));
 
     const summary = lines.join('\n');
     expect(summary).toContain('2 dropped at the surface wall');
   });
 
   it('counts off-schema drops in the rendered summary', async () => {
-    const { reportRetroCommandOutcome } = await import('../../src/commands/retro.js');
     const outcome = await runRetro(
       { transcript: '/tmp/t.jsonl' },
       dependencies({
@@ -742,17 +742,12 @@ describe('retro summary drop reporting (PNZM3B SM2.R1)', () => {
     );
 
     const { lines, output } = collect();
-    reportRetroCommandOutcome(outcome, {
-      extractionSucceeded: true,
-      restTransportAvailable: true,
-      output,
-    });
+    reportRetroCommandOutcome(outcome, reportOptions(output));
 
     expect(lines.join('\n')).toContain('1 dropped at the schema wall');
   });
 
   it('reports drops at both walls separately in one run', async () => {
-    const { reportRetroCommandOutcome } = await import('../../src/commands/retro.js');
     const outcome = await runRetro(
       { transcript: '/tmp/t.jsonl' },
       dependencies({
@@ -765,11 +760,7 @@ describe('retro summary drop reporting (PNZM3B SM2.R1)', () => {
     );
 
     const { lines, output } = collect();
-    reportRetroCommandOutcome(outcome, {
-      extractionSucceeded: true,
-      restTransportAvailable: true,
-      output,
-    });
+    reportRetroCommandOutcome(outcome, reportOptions(output));
 
     const summary = lines.join('\n');
     expect(summary).toContain('1 dropped at the schema wall');
@@ -777,15 +768,10 @@ describe('retro summary drop reporting (PNZM3B SM2.R1)', () => {
   });
 
   it("keeps a clean run's summary free of any drop line", async () => {
-    const { reportRetroCommandOutcome } = await import('../../src/commands/retro.js');
     const outcome = await runRetro({ transcript: '/tmp/t.jsonl' }, dependencies());
 
     const { lines, output } = collect();
-    reportRetroCommandOutcome(outcome, {
-      extractionSucceeded: true,
-      restTransportAvailable: true,
-      output,
-    });
+    reportRetroCommandOutcome(outcome, reportOptions(output));
 
     expect(lines.join('\n')).not.toContain('dropped');
   });
