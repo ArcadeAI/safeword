@@ -230,7 +230,7 @@ export function boundary(options: BoundaryOptions): Promise<void> {
   } catch (error: unknown) {
     // Exit-0 is absolute in this slice: record the breakage, never block.
     warn(
-      `boundary check could not complete: ${Error.isError(error) ? error.message : String(error)}`,
+      `boundary check could not complete: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
   return Promise.resolve();
