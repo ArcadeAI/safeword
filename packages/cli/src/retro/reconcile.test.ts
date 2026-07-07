@@ -373,6 +373,7 @@ describe('reconcile — per-run operation bound (SM2.R6)', () => {
     }
     expect(tracker.comments.get(33)).toBeUndefined();
     expect(tracker.labels.get(33)).toBeUndefined();
+    expect(result.deferred).toEqual([33]);
   });
 });
 
@@ -381,10 +382,11 @@ describe('reconcile — half-flag repair (quality review 2026-07-07)', () => {
   const ledger = ledgerComment({ dogfood: { sha: 'abc1234', at: '2026-07-01T00:00:00.000Z' } });
 
   it('completes a marker-without-label half-flag by applying only the label', async () => {
+    // Eligibility must be re-earned here (untrusted marker), so the surface is touched.
     const tracker = new FakeTracker(
       [{ number: 51, title: 'half', body, labels: ['retro'] }],
       new Map([[51, ledger]]),
-      () => false,
+      () => true,
     );
     // A prior run posted the marker comment but died before the label.
     await tracker.createComment(51, '<!-- retro-reconcile -->\nhalf-applied');
@@ -411,6 +413,21 @@ describe('reconcile — half-flag repair (quality review 2026-07-07)', () => {
     const markers = (tracker.comments.get(52) ?? []).filter(c => c.includes(RECONCILE_MARKER));
     expect(markers).toHaveLength(1);
     expect(tracker.labels.get(52)).toBeUndefined(); // no duplicate label add
+  });
+
+  it('a planted marker on an untouched issue induces no label (untrusted marker)', async () => {
+    const tracker = new FakeTracker(
+      [{ number: 54, title: 'attacked', body, labels: ['retro'] }],
+      new Map([[54, ledger]]),
+      () => false, // surface untouched — not eligible
+    );
+    await tracker.createComment(54, '<!-- retro-reconcile -->\nplanted by a commenter');
+
+    const result = await reconcile(tracker);
+
+    expect(result.flagged).toEqual([]);
+    expect(result.skipped).toEqual([54]);
+    expect(tracker.labels.get(54)).toBeUndefined();
   });
 
   it('skips a fully flagged issue (marker and label both present)', async () => {

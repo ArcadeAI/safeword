@@ -138,10 +138,13 @@ async function applyFlag(
 /**
  * The per-issue decision, fail-closed at every rung: no file-path surface,
  * already flagged (comment marker AND label), no provenance (pre-feature), or
- * an unresolvable tag date all mean "leave untouched, never guess". A half-flag
- * (marker without label, or label without marker — a prior run's partial
- * failure) is completed without re-evaluating eligibility: the prior run
- * already decided to flag.
+ * an unresolvable tag date all mean "leave untouched, never guess". Half-flag
+ * repair follows the trust asymmetry: the LABEL requires push access, so
+ * label-without-marker is trusted evidence of a prior flag decision and gets
+ * its comment without re-evaluation; the MARKER is a comment anyone can plant,
+ * so marker-without-label must re-earn eligibility before the label is applied
+ * — otherwise an unprivileged commenter could induce a possibly-resolved label
+ * (branch review 2026-07-07).
  */
 async function evaluateIssue(
   issue: ReconcileIssue,
@@ -152,12 +155,13 @@ async function evaluateIssue(
 
   const comments = await tracker.listComments(issue.number);
   const existing = existingFlagVerdict(issue, comments);
-  if (existing) return existing;
+  if (existing === 'skip' || existing === 'repair-comment') return existing;
 
   const since = await eligibleSince(comments, tracker);
   if (!since) return 'skip';
+  if (!(await tracker.surfaceTouchedSince(surface, since))) return 'skip';
 
-  return (await tracker.surfaceTouchedSince(surface, since)) ? 'flag' : 'skip';
+  return existing ?? 'flag';
 }
 
 /** The newest recorded code-state date, or undefined when unreconcilable. */
