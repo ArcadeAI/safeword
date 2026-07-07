@@ -221,7 +221,9 @@ export const EXTRACT_SYSTEM_PROMPT =
   'friction only (not the host project, not Claude Code itself); canonical ' +
   'behavior-titles; do not invent; [] if none.';
 
-const CODEX_RETRO_OUTPUT_SCHEMA = {
+// Exported for the string-contract tests (PNZM3B) — parity with the shared
+// prompt's surface guidance is a tested invariant.
+export const CODEX_RETRO_OUTPUT_SCHEMA = {
   type: 'object',
   additionalProperties: false,
   properties: {
@@ -233,7 +235,11 @@ const CODEX_RETRO_OUTPUT_SCHEMA = {
         properties: {
           category: { type: 'string', enum: ['bug', 'rough-edge', 'gap'] },
           title: { type: 'string' },
-          safeword_surface: { type: 'string' },
+          safeword_surface: {
+            type: 'string',
+            description:
+              'A real safeword path (hooks/…, packages/cli/…, templates/…, dist/…, .safeword/…); for friction with no single-file surface use process/<area>, e.g. process/tdd-loop',
+          },
           what_happened: { type: 'string' },
           why_friction: { type: 'string' },
           repro: { type: 'string' },
