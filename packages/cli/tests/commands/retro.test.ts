@@ -685,3 +685,50 @@ describe('retroReconcileCommand wiring (G19QG7 SM2.R1)', () => {
     expect((comments.get(41) ?? []).some(c => c.includes(RECONCILE_MARKER))).toBe(true);
   });
 });
+
+describe('retro summary drop reporting (PNZM3B SM2.R1)', () => {
+  const collect = () => {
+    const lines: string[] = [];
+    return {
+      lines,
+      output: {
+        error: (m: string) => {
+          lines.push(m);
+        },
+        info: (m: string) => {
+          lines.push(m);
+        },
+        success: (m: string) => {
+          lines.push(m);
+        },
+      },
+    };
+  };
+
+  it('counts unresolvable-surface drops in the rendered summary', async () => {
+    const { reportRetroCommandOutcome } = await import('../../src/commands/retro.js');
+    const transport = new FakeGitHub();
+    const outcome = await runRetro(
+      { transcript: '/tmp/t.jsonl' },
+      dependencies({
+        transport,
+        extract: () =>
+          Promise.resolve([
+            rawFinding({ safeword_surface: 'process/deadbeefcafe', title: 'Secret-shaped' }),
+            rawFinding({ safeword_surface: 'src/billing.ts', title: 'Customer path' }),
+            rawFinding(),
+          ]),
+      }),
+    );
+
+    const { lines, output } = collect();
+    reportRetroCommandOutcome(outcome, {
+      extractionSucceeded: true,
+      restTransportAvailable: true,
+      output,
+    });
+
+    const summary = lines.join('\n');
+    expect(summary).toContain('2 dropped at the surface wall');
+  });
+});
