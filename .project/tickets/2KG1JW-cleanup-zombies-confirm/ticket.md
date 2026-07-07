@@ -34,3 +34,4 @@ done_when:
 - 2026-07-07T17:59:01.912Z Started: Created ticket 2KG1JW
 - Scouted: no code callers of cleanup-zombies.sh (grep: prose sites + pre-tool-quality deny message only); existing tests/scripts/cleanup-zombies.test.ts runs every case with --dry-run so the inversion is low-blast-radius; #938 (boundary gate) touches neither the script nor its prose
 - 2026-07-07T18:30:49.043Z Phase: intake → done
+- 3-stage pass: stage 1 satisfied by the done-gate run minutes earlier on the same commit (all lanes green, audit clean); quality-review APPROVE, 0 critical — applied 3 findings (behavioral kill pin with a real sacrificial process, sticky --dry-run over --yes regardless of flag order, findings-preview hint now provably pinned); declined unknown-dash-arg rejection (pre-existing, now fail-safe); refactor: single runScriptRaw invocation seam (22/22, knip + depcruise clean after)
