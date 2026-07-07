@@ -59,11 +59,13 @@ export function parseLedger(body: string): LedgerState {
   if (end === -1) return emptyLedger();
   try {
     const parsed = JSON.parse(body.slice(from, end).trim()) as Record<string, unknown>;
+    const provenance = coerceProvenance(parsed.provenance);
     return {
       total: typeof parsed.total === 'number' ? parsed.total : 0,
       harness: coerceHarness(parsed.harness),
       sessions: coerceStringArray(parsed.sessions),
       manifestations: coerceStringArray(parsed.manifestations),
+      ...(provenance && { provenance }),
     };
   } catch {
     return emptyLedger();
@@ -77,6 +79,16 @@ function coerceStringArray(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === 'string')
     : [];
+}
+
+function coerceProvenance(value: unknown): Provenance | undefined {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined;
+  const source = value as Record<string, unknown>;
+  if (typeof source.at !== 'string') return undefined;
+  const provenance: Provenance = { at: source.at };
+  if (typeof source.sha === 'string') provenance.sha = source.sha;
+  if (typeof source.version === 'string') provenance.version = source.version;
+  return provenance;
 }
 
 function coerceHarness(value: unknown): Record<string, number> {

@@ -25,7 +25,7 @@ skips these fixtures passes vacuously.
 
 ### Scenario: A recurrence bump surfaces the newest encounter's provenance
 
-- [ ] RED
+- [x] RED e46e90c
 - [ ] GREEN
 - [ ] REFACTOR
 
