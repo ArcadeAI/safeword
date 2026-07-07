@@ -32,8 +32,8 @@ skips these fixtures passes vacuously.
 ### Scenario: A recurrence bump onto a pre-provenance ledger preserves its counts and gains provenance
 
 - [x] RED 0ba463f
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN f8b9a64
+- [x] REFACTOR skip: minimal additive change — no duplication or naming drift introduced
 
 ### Scenario: Unresolvable git state never blocks filing
 
