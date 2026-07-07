@@ -659,6 +659,10 @@ describe('Schema - Single Source of Truth', () => {
         'depcruise-config.cjs',
         'eslint.config.mjs',
         '.prettierrc',
+        // Runtime audit record appended by the dogfooded boundary hooks
+        // (CDRJTW) — gitignored transient state, present on any machine that
+        // has committed in this repo.
+        'boundary-audit.jsonl',
       ]);
 
       const ownedPaths = new Set(Object.keys(SAFEWORD_SCHEMA.ownedFiles));
