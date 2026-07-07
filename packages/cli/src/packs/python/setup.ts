@@ -231,6 +231,19 @@ export function getPythonInstallCommand(cwd: string, tools: string[] = ['ruff'])
  * @param tools - Tools to install (e.g., ['ruff', 'mypy', 'import-linter'])
  * @returns true if installation succeeded, false otherwise
  */
+/**
+ * The Python tools safeword installs: ruff, mypy, deadcode, plus import-linter
+ * when safeword would scaffold a config for it (layers OR an unambiguous single
+ * package — the hasImportLinterScaffoldTarget predicate). Single source so
+ * `setup` and `upgrade` install the same set; they had drifted (upgrade shipped
+ * only ruff + mypy).
+ */
+export function getPythonTools(includeImportLinter: boolean): string[] {
+  const tools = ['ruff', 'mypy', 'deadcode'];
+  if (includeImportLinter) tools.push('import-linter');
+  return tools;
+}
+
 export function installPythonDependencies(cwd: string, tools: string[]): boolean {
   if (tools.length === 0) return true;
   if (process.env.SAFEWORD_SKIP_INSTALL) return true;
