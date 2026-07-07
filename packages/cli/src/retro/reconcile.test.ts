@@ -135,4 +135,26 @@ describe('reconcile — flags surface-touched-after-code-state (SM2.R1)', () => 
     expect(result.flagged).toEqual([]);
     expect(tracker.labels.get(9)).toBeUndefined();
   });
+
+  it('flags a version-provenance issue whose surface changed after the release-tag date', async () => {
+    const issue: ReconcileIssue = {
+      number: 3,
+      title: 'customer friction',
+      body: issueBody('packages/cli/src/retro/egress.ts'),
+      labels: ['retro'],
+    };
+    const tracker = new FakeTracker(
+      [issue],
+      new Map([
+        [3, ledgerComment({ install: { version: '0.50.0', at: '2026-07-07T09:00:00.000Z' } })],
+      ]),
+      (_path, sinceIso) => sinceIso === '2026-06-01T00:00:00.000Z',
+      new Map([['v0.50.0', '2026-06-01T00:00:00.000Z']]),
+    );
+
+    const result = await reconcile(tracker);
+
+    expect(result.flagged).toEqual([3]);
+    expect(tracker.labels.get(3)).toContain(RECONCILE_LABEL);
+  });
 });
