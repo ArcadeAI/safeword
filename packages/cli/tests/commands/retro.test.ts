@@ -609,4 +609,32 @@ describe('runRetro provenance capture (G19QG7)', () => {
 
     rmSync(projectDirectory, { recursive: true, force: true });
   });
+
+  it('retro-filing-provenance.SM1.R2.customer_provenance_carries_no_customer_repo_identifier', async () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'sw-acme-secret-project-'));
+    writeFileSync(nodePath.join(projectDirectory, 'package.json'), '{"name":"acme-app"}');
+
+    const transport = new LedgerRecordingGitHub();
+    await runRetro(
+      { transcript: '/tmp/t.jsonl' },
+      dependencies({
+        transport,
+        resolveProvenance: buildProvenanceResolver({
+          projectDirectory,
+          // If the resolver ever consulted git in a customer install, this
+          // branch-shaped sentinel would leak into the public artifacts.
+          runGit: () => 'feature/acme-payments-refactor',
+          now: () => new Date('2026-07-07T12:00:00.000Z'),
+          version: '0.67.0',
+        }),
+      }),
+    );
+
+    const everything = transport.comments.join('\n');
+    expect(everything).not.toContain('acme-payments-refactor');
+    expect(everything).not.toContain('acme-secret-project');
+    expect(everything).not.toContain(projectDirectory);
+
+    rmSync(projectDirectory, { recursive: true, force: true });
+  });
 });
