@@ -460,24 +460,30 @@ function parseTestDefinitionReferences(content: string): string[] {
   const references: string[] = [];
   for (const [index, line] of lines.entries()) {
     if (skip[index] === true) continue;
-    const trimmed = line.trim();
-    if (trimmed.startsWith(SCENARIO_PREFIX)) {
-      const reference = parseAcReferenceFromTitle(trimmed.slice(SCENARIO_PREFIX.length).trim());
-      if (reference !== undefined) references.push(reference);
-      continue;
-    }
-    // A concrete `@<jtbd>.AC#` token in prose or inline code on a non-fenced line
-    // is counted as a reference — inherent to treating the tag as a lineage
-    // vehicle. It stays advisory-only (health.ts routes coverage to advisories,
-    // not blocking issues); `@`-tokens that aren't `.AC<n>`/`.R<n>`-shaped
-    // (emails, decorators, `@rejection`, `@<jtbd>.AC#` placeholders) never match.
-    const tagTokens = trimmed.replaceAll('`', '').match(LINEAGE_TAG_TOKEN) ?? [];
-    for (const token of tagTokens) {
-      const lineage = parseLineageReferenceFromTag(token);
-      if (lineage !== undefined) references.push(lineage.reference);
-    }
+    references.push(...lineReferences(line.trim()));
   }
   return references;
+}
+
+/**
+ * Lineage references one non-skipped, trimmed test-definitions.md line declares:
+ * its `### Scenario:` title reference, else every `@`-tag reference it carries.
+ *
+ * A concrete `@<jtbd>.AC#` token in prose or inline code is counted — inherent
+ * to treating the tag as a lineage vehicle. It stays advisory-only (health.ts
+ * routes coverage to advisories, not blocking issues); `@`-tokens that aren't
+ * `.AC<n>`/`.R<n>`-shaped (emails, decorators, `@rejection`, `@<jtbd>.AC#`
+ * placeholders) never match.
+ */
+function lineReferences(trimmed: string): string[] {
+  if (trimmed.startsWith(SCENARIO_PREFIX)) {
+    const reference = parseAcReferenceFromTitle(trimmed.slice(SCENARIO_PREFIX.length).trim());
+    return reference === undefined ? [] : [reference];
+  }
+  const tagTokens = trimmed.replaceAll('`', '').match(LINEAGE_TAG_TOKEN) ?? [];
+  return tagTokens
+    .map(token => parseLineageReferenceFromTag(token)?.reference)
+    .filter((reference): reference is string => reference !== undefined);
 }
 
 /** First whitespace-delimited token of a heading's text (its id). */
