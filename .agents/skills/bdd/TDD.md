@@ -10,7 +10,7 @@ Before the first RED, confirm the project's test harness actually runs — judge
 
 **Harness absent** → behavioral tests are not yet executable for this project. Do not fake test runs and do not stall: implement using the service's **existing test patterns** (unit tests, integration tests, whatever the project already runs — for untested legacy code, characterization tests that pin current behavior are the canonical first move), keeping the same RED/GREEN/REFACTOR discipline and checkbox tracking. Then:
 
-- Annotate the ticket work log: `- {timestamp} Harness absent; using existing service test patterns. Follow-up: wire behavioral harness.`
+- Annotate the ticket work log: `- Harness absent; using existing service test patterns. Follow-up: wire behavioral harness.` (narrative entry — no timestamp; the clock belongs to the phase hook)
 - Recommend a follow-up ticket (`Wire behavioral test harness for {project}`) — prompt the user; don't auto-create it.
 
 Degradation is the intended path — no gate blocks on harness absence.
@@ -116,11 +116,7 @@ All scenarios complete → reconcile `impl-plan.md` against what actually shippe
 1. **Walk the Decisions table** — for each row ask "did we actually do this, or did we change our mind?" Update changed rows: new choice, new rationale, the abandoned choice moves into Alternatives considered.
 2. **Walk Arch alignment** — for each claim ask "did the implementation honor this?" Move anything that deviated into **Known deviations** with the reason.
 3. **Refresh Assessment triggers** — add triggers the implementation surfaced (e.g., "works at current scale, degrades past 10x").
-4. **Flip the status line** to `**Status:** implemented`, then add the work log entry:
-
-   ```
-   - {timestamp} Complete: implement — reconciled impl plan; {N} decisions updated, {M} deviations recorded
-   ```
+4. **Flip the status line** to `**Status:** implemented`. The phase hook stamps the transition with real time (Claude Code — on other harnesses add a short transition entry yourself); log the reconciliation outcome ({N} decisions updated, {M} deviations recorded) as a narrative work-log entry.
 
 _Worked example:_ the plan said "Decisions: parse with the shared markdown utility"; during implementation a local scan proved smaller, so the choice changed mid-implementation — the row now reads choice "local content-or-skip scan", with the shared utility recorded under Alternatives considered and the reason it lost. That update (not a rewrite of history — the alternatives column preserves it) is what reconciliation produces.
 

@@ -491,6 +491,17 @@ function bddLaneFile(templatePath: string): FileDefinition {
   };
 }
 
+// Filing invariants shared word-for-word by the retro and self-report-filing
+// guides (#801). Both carry guide-specific nuance around them, so the guides
+// can't be collapsed into one — instead the shared bullets are contract-pinned
+// in both files below. Single-line bullets on purpose: contracts match exact
+// substrings, so a rewrap would break the check.
+const SHARED_FILING_INVARIANTS = [
+  '- **Autonomous** — no human approval; sanitization + dedup + caps are the safeguards, not a human gate.',
+  "- **Upstream only** — `ArcadeAI/safeword`, never the host project's tracker.",
+  '- **Code owns egress** — nothing leaves beyond what the sanitized output contains.',
+];
+
 export const SAFEWORD_SCHEMA: SafewordSchema = {
   version: VERSION,
 
@@ -751,6 +762,12 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/bash-ledger-writes.ts': {
       template: 'hooks/lib/bash-ledger-writes.ts',
     },
+    '.safeword/hooks/lib/process-kill-guard.ts': {
+      template: 'hooks/lib/process-kill-guard.ts',
+    },
+    '.safeword/hooks/lib/work-log-stamp.ts': {
+      template: 'hooks/lib/work-log-stamp.ts',
+    },
     '.safeword/hooks/lib/review-trigger.ts': { template: 'hooks/lib/review-trigger.ts' },
     '.safeword/hooks/lib/dogfood.ts': { template: 'hooks/lib/dogfood.ts' },
     '.safeword/hooks/lib/ledger-git.ts': { template: 'hooks/lib/ledger-git.ts' },
@@ -882,6 +899,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/post-tool-sync-learnings.ts': {
       template: 'hooks/post-tool-sync-learnings.ts',
+    },
+    '.safeword/hooks/post-tool-work-log.ts': {
+      template: 'hooks/post-tool-work-log.ts',
     },
 
     // Retro filer subagent (GH628F, issue #628): the filing procedure lives in
@@ -1434,6 +1454,16 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
   // Used by runParity() in src/parity.ts for both release tests and pre-commit
   // (see ticket 144). Path key = file relative to repo root.
   contracts: {
+    'packages/cli/templates/guides/self-report-filing.md': {
+      // Shared filing invariants with retro.md (#801): the two guides carried
+      // independently hand-tuned Rules blocks that silently forked. The exact
+      // bullet text below must appear in BOTH guides — edit them together.
+      requires: SHARED_FILING_INVARIANTS,
+    },
+    'packages/cli/templates/guides/retro.md': {
+      // See self-report-filing.md contract above (#801).
+      requires: SHARED_FILING_INVARIANTS,
+    },
     'packages/cli/templates/hooks/lib/quality.ts': {
       // Cursor's stop hook imports QUALITY_REVIEW_MESSAGE. The export must exist
       // or Cursor users get a broken hook. The four marker strings (CONFIDENT,

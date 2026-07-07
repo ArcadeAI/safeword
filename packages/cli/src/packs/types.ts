@@ -146,6 +146,19 @@ export interface ManagedFileDefinition extends FileDefinition {
    * See ticket K7N2QM for the data-loss-prevention rationale.
    */
   configKey?: 'personas' | 'glossary' | 'surfaces' | 'architecture';
+
+  /**
+   * Opt-in conditional removal on DEFAULT reset (ticket V4MATC): uninstall
+   * removes the file iff its on-disk content byte-equals this function's
+   * output — an unmodified safeword scaffold. A user-extended or user-authored
+   * file never matches and survives.
+   *
+   * Deliberately separate from `generator`: generators gate on existing-config
+   * detection, and at reset time the scaffold itself trips that gate — so this
+   * function regenerates the expected content gate-free. Returning undefined
+   * means "cannot determine the expected scaffold here" → never remove.
+   */
+  removeIfUnmodified?: (ctx: ProjectContext) => string | undefined;
 }
 
 export interface JsonMergeDefinition {

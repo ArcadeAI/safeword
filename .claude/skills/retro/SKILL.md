@@ -83,7 +83,8 @@ Optional: `--session-id <id>` for stable ledger attribution across fires;
 `--window-start <chars>` to digest only the transcript from an offset (delta mode).
 
 In a repo where the `safeword` binary isn't on PATH (e.g. this monorepo), substitute
-`bun packages/cli/src/cli.ts` for `safeword`.
+`bun run safeword` for `safeword` (runs the CLI from source via the root
+`package.json` script; `bunx safeword` also resolves the workspace-linked build).
 
 ## 3. Filing is code-owned — do not hand-write issues
 

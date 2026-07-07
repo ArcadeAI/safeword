@@ -282,6 +282,32 @@ function planExistingDirectoriesRemoval(
 }
 
 /** Plan rm actions for files that exist */
+/**
+ * Conditional managed-file removal on DEFAULT reset (ticket V4MATC): entries
+ * opting in via `removeIfUnmodified` are removed iff the on-disk content
+ * byte-equals the expected scaffold — a user-extended or user-authored file
+ * never matches and survives.
+ */
+function planConditionalManagedRemoval(
+  managedFiles: Record<string, ManagedFileDefinition>,
+  ctx: ProjectContext,
+): { actions: Action[]; removed: string[] } {
+  const actions: Action[] = [];
+  const removed: string[] = [];
+  for (const [filePath, definition] of Object.entries(managedFiles)) {
+    if (definition.removeIfUnmodified === undefined) continue;
+    if (isConfigOverridden(definition, ctx.cwd)) continue;
+    const fullPath = nodePath.join(ctx.cwd, filePath);
+    if (!exists(fullPath)) continue;
+    const expected = definition.removeIfUnmodified(ctx);
+    if (expected !== undefined && readFileSafe(fullPath) === expected) {
+      actions.push({ type: 'rm', path: filePath });
+      removed.push(filePath);
+    }
+  }
+  return { actions, removed };
+}
+
 function planExistingFilesRemoval(
   files: string[],
   cwd: string,
@@ -754,6 +780,11 @@ function computeUninstallPlan(
     const managed = planExistingFilesRemoval(removable, ctx.cwd);
     actions.push(...managed.actions);
     wouldRemove.push(...managed.removed);
+  } else {
+    // 6b. Default uninstall: conditional managed-file removal (ticket V4MATC).
+    const conditional = planConditionalManagedRemoval(schema.managedFiles, ctx);
+    actions.push(...conditional.actions);
+    wouldRemove.push(...conditional.removed);
   }
 
   // 7. Compute packages to remove (full only)

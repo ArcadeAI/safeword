@@ -7,7 +7,16 @@ import process from 'node:process';
 
 const scriptDirectory = import.meta.dirname;
 const cliRoot = nodePath.resolve(scriptDirectory, '..');
-const vitestArguments = process.argv.slice(2);
+// Vitest runs with cwd=cliRoot, so a repo-root-relative path — the natural
+// spelling when invoking `bun run test` from the workspace root (#723) —
+// would act as a filter that matches nothing. Rebase those onto the package.
+// Only standalone arguments are rebased; `=`-joined flag values
+// (`--config=packages/cli/x.ts`) pass through untouched.
+const vitestArguments = process.argv
+  .slice(2)
+  .map(argument =>
+    argument.startsWith('packages/cli/') ? argument.slice('packages/cli/'.length) : argument,
+  );
 
 // The package-local bin directory holds the `vitest` executable. `bun run test`
 // (and npm) inject it into PATH, but invoking this wrapper directly — e.g.

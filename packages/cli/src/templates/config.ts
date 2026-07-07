@@ -476,6 +476,10 @@ export const SETTINGS_HOOKS = {
   PreToolUse: [
     matchedHook('Bash', `bun ${HOOKS_DIR}/pre-tool-dependency-readiness.ts`),
     matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/pre-tool-quality.ts`),
+    // The hook's Bash branch — ledger write gate (W42G34), broad process-kill
+    // guard (K4STDR, #773), REFACTOR commit gate (J7VBGJ) — needs shell
+    // commands routed to it; the EDIT_TOOLS matcher above never sends Bash.
+    matchedHook('Bash', `bun ${HOOKS_DIR}/pre-tool-quality.ts`),
     matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/pre-tool-config-guard.ts`),
     // Defends ad-hoc git ops against Claude Code's parallel-worktree
     // core.bare=true race (anthropics/claude-code#58345). `if` filters at the
@@ -501,6 +505,10 @@ export const SETTINGS_HOOKS = {
     matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/post-tool-skill-nudge.ts`),
     matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/post-tool-bypass-warn.ts`),
     matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/post-tool-sync-learnings.ts`),
+    // Stamp a real-timestamp work-log line when a ticket.md phase transition
+    // lands (E32M4P, #772) — replaces the bdd files' fabricated {timestamp}
+    // templates. Observer: fast-exits on non-ticket edits.
+    matchedHook(EDIT_TOOLS, `bun ${HOOKS_DIR}/post-tool-work-log.ts`),
     // Stamp the dependency fingerprint after a successful install so the
     // recommended recovery command clears the readiness block (#380). Fast-exits
     // on non-install Bash commands.

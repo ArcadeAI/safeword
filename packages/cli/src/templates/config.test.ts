@@ -32,46 +32,36 @@ describe('getEslintConfig', () => {
     expect(config).toContain('const { detect, configs } = safeword');
   });
 
-  it('should use detect.collectAllDeps for dependency scanning', () => {
-    const config = getEslintConfig();
-
-    expect(config).toContain('detect.collectAllDeps(__dirname)');
-    expect(config).toContain('detect.detectFramework(deps)');
-  });
-
-  it('should include framework detection for config selection', () => {
-    const config = getEslintConfig();
-
-    // Config should have baseConfigs mapping
-    expect(config).toContain('configs.recommendedTypeScriptNext');
-    expect(config).toContain('configs.recommendedTypeScriptReact');
-    expect(config).toContain('configs.recommendedTypeScript');
-    expect(config).toContain('configs.recommended');
-    expect(config).toContain('baseConfigs[framework]');
-  });
-
-  it('should include testing, storybook, and query configs conditionally', () => {
-    const config = getEslintConfig();
-
-    // All framework plugins are conditional (peer deps require the framework)
-    expect(config).toContain('detect.hasVitest(deps)');
-    expect(config).toContain('detect.hasBunTest(deps, __dirname)');
-    expect(config).toContain('detect.hasPlaywright(deps)');
-    expect(config).toContain('detect.hasStorybook(deps)');
-    expect(config).toContain('detect.hasTanstackQuery(deps)');
-  });
-
-  it('should use detection only for Tailwind (plugin needs config to validate classes)', () => {
-    const config = getEslintConfig();
-
-    // Tailwind still needs detection because plugin may require tailwind.config.js
-    expect(config).toContain('detect.hasTailwind(deps)');
-  });
-
-  it('should use detect.getIgnores for standard ignores', () => {
-    const config = getEslintConfig();
-
-    expect(config).toContain('detect.getIgnores()');
+  // Contract pins over the emitted source, deduped into one table (audit A7192X):
+  // each entry is part of the generated config's public wiring — the safeword/eslint
+  // detection API it calls and the base-config selection it performs. Behavioral
+  // coverage (the config actually linting) lives in tests/integration/golden-path.test.ts;
+  // these only guard the emitted contract, so a rename in the safeword/eslint API
+  // shows up here before it ships broken configs to users.
+  it.each([
+    ['dependency scanning', 'detect.collectAllDeps(__dirname)'],
+    ['framework detection', 'detect.detectFramework(deps)'],
+    ['framework base-config selection', 'baseConfigs[framework]'],
+    ['Next.js base config', 'configs.recommendedTypeScriptNext'],
+    ['React base config', 'configs.recommendedTypeScriptReact'],
+    ['TypeScript base config', 'configs.recommendedTypeScript'],
+    ['plain-JS base config', 'configs.recommended'],
+    ['conditional Vitest plugin', 'detect.hasVitest(deps)'],
+    ['conditional bun:test plugin', 'detect.hasBunTest(deps, __dirname)'],
+    ['conditional Playwright plugin', 'detect.hasPlaywright(deps)'],
+    ['conditional Storybook plugin', 'detect.hasStorybook(deps)'],
+    ['conditional TanStack Query plugin', 'detect.hasTanstackQuery(deps)'],
+    [
+      'Tailwind detection (plugin needs tailwind.config to validate classes)',
+      'detect.hasTailwind(deps)',
+    ],
+    ['standard ignores', 'detect.getIgnores()'],
+  ])('generated config wires %s', (_purpose, contractCall) => {
+    // Boundary-anchored so short rows can't pass via longer siblings
+    // (`configs.recommended` must not be satisfied by `configs.recommendedTypeScriptNext`).
+    const escaped = contractCall.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
+    // eslint-disable-next-line security/detect-non-literal-regexp -- escaped table literal
+    expect(getEslintConfig()).toMatch(new RegExp(`${escaped}(?![A-Za-z])`));
   });
 
   it('should include eslint-config-prettier when no existing formatter', () => {
@@ -239,7 +229,7 @@ describe('SETTINGS_HOOKS', () => {
 
   it('should have PreToolUse hooks for dependency readiness, quality enforcement, config guard, git-bare-race fix, architecture staging, and stale-branch checkout', () => {
     const preToolHooks = SETTINGS_HOOKS.PreToolUse;
-    expect(preToolHooks).toHaveLength(7);
+    expect(preToolHooks).toHaveLength(8);
 
     const commands = preToolHooks.flatMap((h: HookEntry) =>
       h.hooks
@@ -253,6 +243,29 @@ describe('SETTINGS_HOOKS', () => {
     expect(commands.some((c: string) => c.includes('pre-tool-git-bare-fix'))).toBe(true);
     expect(commands.some((c: string) => c.includes('pre-tool-architecture-stage'))).toBe(true);
     expect(commands.some((c: string) => c.includes('pre-tool-stale-main'))).toBe(true);
+  });
+
+  it('pre-tool-quality is wired for Bash so its shell gates fire on Claude (K4STDR, #773)', () => {
+    // The hook's Bash branch (ledger write gate W42G34, REFACTOR commit gate
+    // J7VBGJ, process-kill guard K4STDR) only fires if a Bash matcher routes
+    // shell commands to it — the EDIT_TOOLS matcher alone leaves it dead.
+    const qualityMatchers = SETTINGS_HOOKS.PreToolUse.filter((h: HookEntry) =>
+      h.hooks.some(
+        (hook: HookCommand) => hook.type === 'command' && hook.command.includes('pre-tool-quality'),
+      ),
+    ).map((h: HookEntry) => ('matcher' in h ? h.matcher : undefined));
+    expect(qualityMatchers).toContain('Bash');
+    expect(qualityMatchers).toContain('Edit|Write|MultiEdit|NotebookEdit');
+  });
+
+  it('post-tool-work-log is wired for edit tools so phase stamps fire on Claude (E32M4P, #772)', () => {
+    const workLogMatchers = SETTINGS_HOOKS.PostToolUse.filter((h: HookEntry) =>
+      h.hooks.some(
+        (hook: HookCommand) =>
+          hook.type === 'command' && hook.command.includes('post-tool-work-log'),
+      ),
+    ).map((h: HookEntry) => ('matcher' in h ? h.matcher : undefined));
+    expect(workLogMatchers).toContain('Edit|Write|MultiEdit|NotebookEdit');
   });
 
   it('stale-main hook is wired to git checkout and git switch with if-filters (#366)', () => {

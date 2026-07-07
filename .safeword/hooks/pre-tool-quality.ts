@@ -14,6 +14,7 @@ import {
   parseTddStep,
 } from './lib/active-ticket.ts';
 import { detectLedgerWrite } from './lib/bash-ledger-writes.ts';
+import { detectBroadProcessKill } from './lib/process-kill-guard.ts';
 import { evaluateBlockedOnGate } from './lib/blocked-on-gate.ts';
 import { isGitOperationInProgress } from './lib/git-operation.ts';
 import { collectNewTransitions } from './lib/checkbox-transitions.ts';
@@ -247,7 +248,11 @@ const editedFile = input.tool_input?.file_path ?? input.tool_input?.notebook_pat
 //    to an R/G/R ledger — the annotation gate below can only validate Edit
 //    payloads, so mutations are forced onto that channel. Detection limits are
 //    documented in lib/bash-ledger-writes.ts; the done-gate is the backstop.
-// 2. REFACTOR commits must not touch test files (ticket J7VBGJ, Rule 2). The
+// 2. Broad process-kill guard (ticket K4STDR, #773): killall/pkill targeting
+//    a bare shared-runtime name kills every project's processes on the
+//    machine, not just this one's. Denied with the project-scoped
+//    alternatives from zombie-process-cleanup.md.
+// 3. REFACTOR commits must not touch test files (ticket J7VBGJ, Rule 2). The
 //    only file-path commit rule that survived scope reduction — see
 //    <namespace-root>/learnings/procedural-gates-generalize-beyond-tdd.md for
 //    why the RED/GREEN file-path rules were dropped.
@@ -260,6 +265,13 @@ if (tool === 'Bash') {
     deny(
       `Bash writes to the R/G/R ledger are blocked (${ledgerWrite.shape} targeting ${ledgerWrite.path}). Shell commands bypass the annotation validation that runs on Edit payloads, so ledger checkboxes must be changed through the Edit tool.`,
       `Make the change with the Edit tool on ${ledgerWrite.path} — each [ ] → [x] transition needs a commit SHA or "skip: <reason>", validated at write time. One checkbox per edit.`,
+    );
+  }
+  const processKill = detectBroadProcessKill(command);
+  if (processKill) {
+    deny(
+      `Broad process kill blocked: \`${processKill.command} ${processKill.target}\` matches by name across the whole machine, killing every project's ${processKill.target} processes (dev servers, test runners, other sessions), not just this project's. Use the project-scoped \`./.safeword/scripts/cleanup-zombies.sh\` instead.`,
+      `Project-scoped alternatives: \`./.safeword/scripts/cleanup-zombies.sh\` (auto-detects this project's processes; --dry-run to preview), \`lsof -ti:<port> | xargs kill -9\` (port-scoped), or \`pkill -f "<pattern>.*$(pwd)"\` (path-scoped). See .safeword/guides/zombie-process-cleanup.md.`,
     );
   }
   if (GIT_COMMIT_COMMAND.test(command)) {
@@ -446,6 +458,12 @@ function frontmatterFromContent(content: string): Record<string, string | string
   return match ? parseFrontmatter(match[1] ?? '') : {};
 }
 
+// Shared predicate for the four ticket.md gates below. Exact-basename match
+// (#673): a suffix check would let decoys like `sub-ticket.md` take the
+// canonical-ticket branches and be judged on their own frontmatter.
+const isCanonicalTicketEdit =
+  nodePath.basename(editedFile) === 'ticket.md' && isNamespacePath(editedFile, 'tickets/');
+
 // ---------------------------------------------------------------------------
 // Phase-provenance gate (0KYEBN, #644 G2) — ALWAYS-ON. A feature ticket's
 // phase is earned, not declared: born at intake, one canonical step at a time,
@@ -453,7 +471,7 @@ function frontmatterFromContent(content: string): Record<string, string | string
 // #404 readiness gate so "wrong step" is reported before "step not earned".
 // ---------------------------------------------------------------------------
 
-if (editedFile.endsWith('ticket.md') && isNamespacePath(editedFile, 'tickets/')) {
+if (isCanonicalTicketEdit) {
   // Only judge writes whose proposed content is reconstructable from the
   // payload (Write content, Edit old/new, MultiEdit edits). Payload shapes
   // carrying none of those (e.g. NotebookEdit, adapter probes) pass — the
@@ -476,7 +494,7 @@ if (editedFile.endsWith('ticket.md') && isNamespacePath(editedFile, 'tickets/'))
 // Feature readiness gate (#404): block new entries into define-behavior before
 // scenario work starts. The existing test-definitions.md gate still guards the
 // first scenario-file write; this catches the earlier phase edit.
-if (editedFile.endsWith('ticket.md') && isNamespacePath(editedFile, 'tickets/')) {
+if (isCanonicalTicketEdit) {
   const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : '';
   const proposedContent = nextContentAfterEdit(input.tool_input, priorContent);
   const priorMeta = frontmatterFromContent(priorContent);
@@ -508,7 +526,7 @@ if (editedFile.endsWith('ticket.md') && isNamespacePath(editedFile, 'tickets/'))
 // independent phase-exit review stamp exists for it. The stamp is produced by a
 // fresh (context:fork) reviewer and logged via `write-review-stamp.ts --phase`,
 // so the author can't grade their own phase. Inert until reviewGate is enabled.
-if (editedFile.endsWith('ticket.md') && isNamespacePath(editedFile, 'tickets/')) {
+if (isCanonicalTicketEdit) {
   if (isReviewGateOn()) {
     const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : '';
     const exitedPhase = detectPhaseAdvance(
@@ -554,7 +572,7 @@ if (editedFile.endsWith('ticket.md') && isNamespacePath(editedFile, 'tickets/'))
 // not done (override with a substantive reason). Joins the phase-gate family.
 // ---------------------------------------------------------------------------
 
-if (editedFile.endsWith('ticket.md') && isNamespacePath(editedFile, 'tickets/')) {
+if (isCanonicalTicketEdit) {
   const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : '';
   const proposedContent = nextContentAfterEdit(input.tool_input, priorContent);
   const denial = evaluateBlockedOnGate(priorContent, proposedContent, id => {

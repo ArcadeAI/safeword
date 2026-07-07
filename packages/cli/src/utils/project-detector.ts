@@ -201,14 +201,9 @@ function findExistingRuffConfig(cwd: string): 'ruff.toml' | 'pyproject.toml' | u
   if (existsSync(nodePath.join(cwd, 'ruff.toml'))) return 'ruff.toml';
 
   // Check for [tool.ruff] in pyproject.toml
-  const pyprojectPath = nodePath.join(cwd, PYPROJECT_TOML);
-  if (!existsSync(pyprojectPath)) return undefined;
-  try {
-    const content = readFileSync(pyprojectPath, 'utf8');
-    return content.includes('[tool.ruff]') ? 'pyproject.toml' : undefined;
-  } catch {
-    return undefined;
-  }
+  return fileContainsSection(nodePath.join(cwd, PYPROJECT_TOML), '[tool.ruff]')
+    ? 'pyproject.toml'
+    : undefined;
 }
 
 /**
@@ -222,14 +217,7 @@ function hasExistingMypyConfig(cwd: string): boolean {
   if (existsSync(nodePath.join(cwd, '.mypy.ini'))) return true;
 
   // Check for [tool.mypy] in pyproject.toml
-  const pyprojectPath = nodePath.join(cwd, PYPROJECT_TOML);
-  if (!existsSync(pyprojectPath)) return false;
-  try {
-    const content = readFileSync(pyprojectPath, 'utf8');
-    return content.includes('[tool.mypy]');
-  } catch {
-    return false;
-  }
+  return fileContainsSection(nodePath.join(cwd, PYPROJECT_TOML), '[tool.mypy]');
 }
 
 /**
@@ -241,12 +229,18 @@ function hasExistingImportLinterConfig(cwd: string): boolean {
   // Check for standalone .importlinter file
   if (existsSync(nodePath.join(cwd, '.importlinter'))) return true;
 
+  // Check for [importlinter] in setup.cfg (import-linter's third auto-detected form)
+  if (fileContainsSection(nodePath.join(cwd, 'setup.cfg'), '[importlinter]')) return true;
+
   // Check for [tool.importlinter] in pyproject.toml
-  const pyprojectPath = nodePath.join(cwd, PYPROJECT_TOML);
-  if (!existsSync(pyprojectPath)) return false;
+  return fileContainsSection(nodePath.join(cwd, PYPROJECT_TOML), '[tool.importlinter]');
+}
+
+/** True when `filePath` exists and contains `section`; false on absence or read error. */
+function fileContainsSection(filePath: string, section: string): boolean {
+  if (!existsSync(filePath)) return false;
   try {
-    const content = readFileSync(pyprojectPath, 'utf8');
-    return content.includes('[tool.importlinter]');
+    return readFileSync(filePath, 'utf8').includes(section);
   } catch {
     return false;
   }

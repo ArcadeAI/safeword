@@ -10,6 +10,7 @@
  */
 
 import { execSync } from 'node:child_process';
+import { readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { exists, readFileSafe } from '../../utils/fs.js';
@@ -92,6 +93,60 @@ export function detectRootPackage(cwd: string): string {
 
   // Last resort: use directory name
   return nodePath.basename(cwd).replaceAll('-', '_');
+}
+
+/**
+ * Directory names that hold Python files but are not the distribution package —
+ * excluded from sole-package detection so `tests/__init__.py` etc. never make a
+ * real single-package project read as ambiguous.
+ */
+const NON_PACKAGE_DIRS = new Set([
+  'tests',
+  'test',
+  'docs',
+  'examples',
+  'scripts',
+  'node_modules',
+  'venv',
+]);
+
+/**
+ * Importable packages (dirs with `__init__.py`) directly under `dir`, excluding
+ * non-package dirs. Symlinked directories are not counted (`isDirectory()` is
+ * false for symlinks) — deliberate narrow detection: a layout that only looks
+ * ambiguous through symlinks still scaffolds, and the unchecked package is at
+ * worst uncovered, never wrongly deleted.
+ */
+function importablePackagesIn(dir: string): string[] {
+  if (!exists(dir)) return [];
+  try {
+    return readdirSync(dir, { withFileTypes: true })
+      .filter(
+        entry =>
+          entry.isDirectory() &&
+          !entry.name.startsWith('.') &&
+          !NON_PACKAGE_DIRS.has(entry.name) &&
+          exists(nodePath.join(dir, entry.name, '__init__.py')),
+      )
+      .map(entry => entry.name);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * The project's single unambiguous top-level package, from filesystem truth:
+ * exactly one importable package (a directory with `__init__.py`) at the repo
+ * root or under `src/`. Anything else — zero packages (scripts-only), two or
+ * more, or a root+src mix — returns undefined, and callers scaffold nothing
+ * (ticket V4MATC R3: a wrong guess errors every audit; the honest skip wins).
+ */
+export function detectSolePackage(cwd: string): string | undefined {
+  const candidates = [
+    ...importablePackagesIn(cwd),
+    ...importablePackagesIn(nodePath.join(cwd, 'src')),
+  ];
+  return candidates.length === 1 ? candidates[0] : undefined;
 }
 
 type PythonPackageManager = 'uv' | 'poetry' | 'pipenv' | 'pip';

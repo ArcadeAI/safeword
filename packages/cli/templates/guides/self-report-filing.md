@@ -46,12 +46,20 @@ do not improvise another target.
 
 ## Rules
 
-- **File autonomously** — no human approval. (The cap + dedup + sanitization are
-  the safeguards, not a human gate.)
-- **Never** add anything to the issue beyond what the draft contains. The draft is
-  the sanitized surface; hand-adding context (paths, code, command output) defeats
-  the whole point and can leak customer data.
-- **Only** the upstream `ArcadeAI/safeword` repo — never the host project's tracker.
+The three bold invariants are shared word-for-word with `retro.md`; a parity
+contract (`packages/cli/src/schema.ts` → `contracts`) keeps the two guides
+from forking again (#801). Guide-specific rules follow them.
+
+- **Autonomous** — no human approval; sanitization + dedup + caps are the safeguards, not a human gate.
+- **Upstream only** — `ArcadeAI/safeword`, never the host project's tracker.
+- **Code owns egress** — nothing leaves beyond what the sanitized output contains.
+
+Specific to this playbook:
+
+- Post the drafts **verbatim** — hand-adding context (paths, code, command
+  output) defeats the sanitizer and can leak customer data. If GitHub access to
+  the upstream repo is missing, say so briefly and skip — do not improvise
+  another target.
 - If unsure whether a signal is worth a new issue, prefer **commenting on an
   existing one**.
 

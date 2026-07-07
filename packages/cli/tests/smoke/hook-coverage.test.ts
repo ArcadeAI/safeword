@@ -56,6 +56,8 @@ const EXEMPT_HOOKS: Record<string, string> = {
   // Auxiliary / narrow scope
   'post-tool-sync-learnings.ts':
     'PostToolUse learning-sync hook — no agent-blocking deny path to assert in a live run',
+  'post-tool-work-log.ts':
+    'PostToolUse work-log stamp, no deny path; covered deterministically by tests/integration/work-log-stamp.test.ts and tests/hooks/work-log-stamp.test.ts',
   'post-tool-bypass-warn.ts': 'warn-only hook, no deny path — output is informational, not a gate',
   'write-review-stamp.ts':
     'fires on PostToolUse Write of skill-invocations.log specifically; covered by tests/integration/review-stamp.test.ts',
