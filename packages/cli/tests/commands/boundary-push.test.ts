@@ -1,0 +1,249 @@
+/**
+ * Slice 3: push-tier scenarios for `safeword boundary` (CDRJTW). Real git
+ * history fixtures — a bare remote, rebases, orphaned SHAs. Maps to SM1.AC2 /
+ * TB1.AC2 scenarios in features/boundary-reconciliation-gate.feature.
+ */
+
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
+import { removeTemporaryDirectory, runCli, writeTestFile } from '../helpers';
+import {
+  boundaryTicketContent as ticketContent,
+  createBoundaryPushFixture,
+  git,
+  readAudit,
+} from './boundary-helpers';
+
+const TICKET = '.project/tickets/BNP001-fixture';
+
+describe('safeword boundary (slice 3: push tier)', () => {
+  let dir: string;
+  let remote: string;
+
+  beforeEach(async () => {
+    ({ dir, remote } = await createBoundaryPushFixture(
+      `${TICKET}/ticket.md`,
+      ticketContent({ phase: 'define-behavior' }),
+    ));
+  });
+
+  afterEach(() => {
+    removeTemporaryDirectory(dir);
+    removeTemporaryDirectory(remote);
+  });
+
+  /** Advance to implement anchored on a SHA no pushed history contains. */
+  function commitForgedAnchorAdvance() {
+    writeTestFile(
+      dir,
+      `${TICKET}/ticket.md`,
+      ticketContent({ phase: 'implement', anchors: ['implement: deadbee'] }),
+    );
+    git(dir, 'add -A');
+    git(dir, 'commit -m advance --quiet');
+  }
+
+  it('warns when a well-formed anchor is unreachable, naming forge and shallow clone (SM1.AC2)', async () => {
+    commitForgedAnchorAdvance();
+
+    const result = await runCli(['boundary', '--at', 'push'], { cwd: dir });
+
+    expect(result.exitCode).toBe(0);
+    const combined = `${result.stdout}\n${result.stderr}`;
+    expect(combined).toMatch(/not reachable|unreachable/i);
+    expect(combined).toMatch(/forge/i);
+    expect(combined).toMatch(/shallow/i);
+  });
+
+  it('warns about unreachable evidence but never blocks the push (TB1.AC2)', async () => {
+    commitForgedAnchorAdvance();
+
+    const result = await runCli(['boundary', '--at', 'push'], { cwd: dir });
+
+    expect(result.exitCode).toBe(0);
+    expect(`${result.stdout}\n${result.stderr}`).toMatch(/not reachable|unreachable/i);
+  });
+
+  it('accepts a reachable anchor and records a passing reachability verdict (SM1.AC2)', async () => {
+    const anchor = git(dir, 'rev-parse --short HEAD').trim();
+    writeTestFile(
+      dir,
+      `${TICKET}/ticket.md`,
+      ticketContent({ phase: 'implement', anchors: [`implement: ${anchor}`] }),
+    );
+    git(dir, 'add -A');
+    git(dir, 'commit -m advance --quiet');
+
+    const result = await runCli(['boundary', '--at', 'push'], { cwd: dir });
+
+    expect(result.exitCode).toBe(0);
+    expect(`${result.stdout}\n${result.stderr}`).not.toMatch(/unreachable|not reachable/i);
+    const lastEntry = JSON.stringify(readAudit(dir).at(-1));
+    expect(lastEntry).toMatch(/phase-anchor.*pass|pass.*phase-anchor/);
+  });
+
+  it('demands only the entered phase anchor on a commitless multi-phase advance (SM1.AC2)', async () => {
+    const anchor = git(dir, 'rev-parse --short HEAD').trim();
+    writeTestFile(
+      dir,
+      `${TICKET}/ticket.md`,
+      ticketContent({
+        phase: 'verify',
+        anchors: [`verify: ${anchor}`],
+        skips: ['scenario-gate: reviewed on the PR thread', 'implement: pair-programmed live'],
+      }),
+    );
+    git(dir, 'add -A');
+    git(dir, 'commit -m multi-advance --quiet');
+
+    const result = await runCli(['boundary', '--at', 'push'], { cwd: dir });
+
+    expect(result.exitCode).toBe(0);
+    expect(`${result.stdout}\n${result.stderr}`).not.toMatch(
+      /unanchored|unreachable|not reachable/i,
+    );
+  });
+
+  it('verifies anchors across a rebase via patch-id canonicalization (SM1.AC2)', async () => {
+    // Work commit whose SHA the anchor records.
+    writeTestFile(dir, 'src/work.ts', 'export const work = 1;\n');
+    git(dir, 'add -A');
+    git(dir, 'commit -m work --quiet');
+    const originalSha = git(dir, 'rev-parse --short HEAD').trim();
+    writeTestFile(
+      dir,
+      `${TICKET}/ticket.md`,
+      ticketContent({ phase: 'implement', anchors: [`implement: ${originalSha}`] }),
+    );
+    git(dir, 'add -A');
+    git(dir, 'commit -m advance --quiet');
+
+    // Rewrite history: amend a NEW baseline commit under the two commits via
+    // rebase --onto a tweaked base, orphaning originalSha but keeping its patch.
+    const base = git(dir, 'rev-parse HEAD~2').trim();
+    git(dir, `checkout --quiet -b rebase-target ${base}`);
+    writeTestFile(dir, 'docs/note.md', 'note\n');
+    git(dir, 'add -A');
+    git(dir, 'commit -m new-base --quiet');
+    const newBase = git(dir, 'rev-parse HEAD').trim();
+    git(dir, 'checkout --quiet -');
+    git(dir, `rebase --quiet --onto ${newBase} ${base}`);
+
+    const result = await runCli(['boundary', '--at', 'push'], { cwd: dir });
+
+    expect(result.exitCode).toBe(0);
+    expect(`${result.stdout}\n${result.stderr}`).not.toMatch(/unreachable|not reachable/i);
+  });
+
+  it('verifies ledger step SHAs against pushed history (SM1.AC2)', async () => {
+    const real = git(dir, 'rev-parse --short HEAD').trim();
+    writeTestFile(
+      dir,
+      `${TICKET}/test-definitions.md`,
+      [
+        '# Test Definitions',
+        '',
+        '### Scenario: s1',
+        '',
+        `- [x] RED ${real}`,
+        '- [x] GREEN deadbee',
+        '- [ ] REFACTOR',
+        '',
+      ].join('\n'),
+    );
+    git(dir, 'add -A');
+    git(dir, 'commit -m ledger --quiet');
+
+    const result = await runCli(['boundary', '--at', 'push'], { cwd: dir });
+
+    expect(result.exitCode).toBe(0);
+    expect(`${result.stdout}\n${result.stderr}`).toMatch(/deadbee|ledger/i);
+  });
+
+  it('reconciles a first push from a branch with no upstream (SM1.AC2)', async () => {
+    git(dir, 'checkout --quiet -b feature/no-upstream');
+    writeTestFile(dir, `${TICKET}/ticket.md`, ticketContent({ phase: 'implement' }));
+    git(dir, 'add -A');
+    git(dir, 'commit -m advance --quiet');
+
+    const result = await runCli(['boundary', '--at', 'push'], { cwd: dir });
+
+    expect(result.exitCode).toBe(0);
+    expect(`${result.stdout}\n${result.stderr}`).toMatch(/unanchored|phase-anchor/i);
+  });
+});
+
+describe('safeword boundary (N76NQ0: per-commit legality at push)', () => {
+  let dir: string;
+  let remote: string;
+
+  beforeEach(async () => {
+    ({ dir, remote } = await createBoundaryPushFixture(
+      `${TICKET}/ticket.md`,
+      ticketContent({
+        phase: 'implement',
+        skips: ['intake: retro', 'define-behavior: retro', 'scenario-gate: retro'],
+      }),
+    ));
+  });
+
+  afterEach(() => {
+    removeTemporaryDirectory(dir);
+    removeTemporaryDirectory(remote);
+  });
+
+  it('does not warn legality when intermediate commits traversed phases one step at a time', async () => {
+    // Commit 1: implement -> verify. Commit 2: verify -> done. Endpoints read
+    // implement -> done (a skip), but every commit was legal — the CDRJTW
+    // false positive, caught live on this feature's own closing push.
+    const a1 = git(dir, 'rev-parse --short HEAD').trim();
+    writeTestFile(
+      dir,
+      `${TICKET}/ticket.md`,
+      ticketContent({
+        phase: 'verify',
+        anchors: [`verify: ${a1}`],
+        skips: ['intake: retro', 'define-behavior: retro', 'scenario-gate: retro'],
+      }),
+    );
+    git(dir, 'add -A');
+    git(dir, 'commit -m to-verify --quiet');
+    const a2 = git(dir, 'rev-parse --short HEAD').trim();
+    writeTestFile(
+      dir,
+      `${TICKET}/ticket.md`,
+      ticketContent({
+        phase: 'done',
+        anchors: [`verify: ${a1}`, `done: ${a2}`],
+        skips: ['intake: retro', 'define-behavior: retro', 'scenario-gate: retro'],
+      }),
+    );
+    git(dir, 'add -A');
+    git(dir, 'commit -m to-done --quiet');
+
+    const result = await runCli(['boundary', '--at', 'push'], { cwd: dir });
+
+    expect(result.exitCode).toBe(0);
+    expect(`${result.stdout}\n${result.stderr}`).not.toMatch(/one canonical step|skips work/i);
+  });
+
+  it('still warns when a single commit in the range actually jumps phases', async () => {
+    const a1 = git(dir, 'rev-parse --short HEAD').trim();
+    writeTestFile(
+      dir,
+      `${TICKET}/ticket.md`,
+      ticketContent({
+        phase: 'done',
+        anchors: [`done: ${a1}`],
+        skips: ['intake: retro', 'define-behavior: retro', 'scenario-gate: retro'],
+      }),
+    );
+    git(dir, 'add -A');
+    git(dir, 'commit -m jump --quiet');
+
+    const result = await runCli(['boundary', '--at', 'push'], { cwd: dir });
+
+    expect(result.exitCode).toBe(0);
+    expect(`${result.stdout}\n${result.stderr}`).toMatch(/one canonical step|skips work/i);
+  });
+});

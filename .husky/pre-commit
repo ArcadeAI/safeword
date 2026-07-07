@@ -52,3 +52,8 @@ fi
 # so bare `lint-staged` fails even though the binary exists on disk. The
 # explicit path has no PATH dependency.
 node_modules/.bin/lint-staged
+
+# Boundary reconciliation gate (CDRJTW, #810 slice 1): warn-and-record over
+# staged ticket artifacts. Exits 0 by contract — `|| true` is belt-and-braces
+# so a broken bun/CLI can never block a commit.
+bun packages/cli/src/cli.ts boundary --at commit || true

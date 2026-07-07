@@ -10,6 +10,7 @@ examples/
 .safeword/.update-cache.json
 .safeword/self-reports/
 .safeword/retro-drafts/
+.safeword/boundary-audit.jsonl
 .safeword-project/quality-state*.json
 .safeword-project/cursor-run-identity.json
 .safeword-project/codex-run-identity.json

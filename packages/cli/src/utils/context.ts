@@ -10,6 +10,7 @@ import type { ProjectContext } from '../schema.js';
 import { resolveNamespaceRoot } from './configured-paths.js';
 import { readJson } from './fs.js';
 import { isGitRepo } from './git.js';
+import { detectHookManagerWorld } from './hook-manager.js';
 import { detectLanguages, detectProjectType, type PackageJson } from './project-detector.js';
 
 /**
@@ -29,5 +30,9 @@ export function createProjectContext(cwd: string): ProjectContext {
     isGitRepo: isGitRepo(cwd),
     languages: detectLanguages(cwd),
     namespaceRoot: resolveNamespaceRoot(cwd),
+    hookManager: detectHookManagerWorld(cwd, {
+      ...packageJson?.dependencies,
+      ...packageJson?.devDependencies,
+    }),
   };
 }
