@@ -412,3 +412,11 @@ describe('runCodexHeadlessExtraction', () => {
     });
   });
 });
+
+describe('extraction guidance offers the process namespace (PNZM3B)', () => {
+  it('the shared extraction prompt offers process/<area> for friction with no single-file surface', async () => {
+    const { EXTRACT_SYSTEM_PROMPT } = await import('../../templates/hooks/lib/retro-extract.js');
+    expect(EXTRACT_SYSTEM_PROMPT).toContain('process/<area>');
+    expect(EXTRACT_SYSTEM_PROMPT).toMatch(/no single-file surface/i);
+  });
+});
