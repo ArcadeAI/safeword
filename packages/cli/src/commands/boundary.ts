@@ -19,6 +19,7 @@ import { createLedgerShaResolver } from '../../templates/hooks/lib/ledger-git.js
 import {
   type ChangedArtifact,
   findings,
+  type LegalityStep,
   reconcileChange,
   TICKET_ARTIFACTS,
   type TicketChange,
@@ -147,9 +148,31 @@ function collectChanges(cwd: string, range: BoundaryRange, at: Boundary): Ticket
       change.artifacts.some(
         a => a.artifact === 'test-definitions.md' && a.proposed !== undefined,
       ) || existsSync(nodePath.join(folder, 'test-definitions.md'));
+    // Push tier: legality is judged per commit in the range, never by its
+    // endpoints (N76NQ0 — a range that traversed phases one legal step at a
+    // time must not read as a skip).
+    if (at === 'push' && change.artifacts.some(a => a.artifact === 'ticket.md')) {
+      const path = `${prefix}${change.ticketFolder}/ticket.md`;
+      change.legalitySteps = legalityStepsFor(cwd, path, range.priorRef);
+    }
   }
 
   return byTicket.values().toArray();
+}
+
+/**
+ * Per-commit ticket.md transitions across the outgoing range (oldest first):
+ * each commit that touched the path, viewed against its own parent. An
+ * unknown prior ref (first push of a whole history) walks every commit.
+ */
+function legalityStepsFor(cwd: string, path: string, priorReference?: string): LegalityStep[] {
+  const range = priorReference === undefined ? 'HEAD' : `${priorReference}..HEAD`;
+  const commits = splitLines(tryGit(cwd, ['rev-list', '--reverse', range, '--', path])) ?? [];
+  return commits.map(commit => ({
+    prior: contentAt(cwd, `${commit}~1:${path}`),
+    proposed: contentAt(cwd, `${commit}:${path}`) ?? '',
+    commit: commit.slice(0, 7),
+  }));
 }
 
 /** Read a file, or undefined when absent/unreadable — never throws. */

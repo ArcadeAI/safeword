@@ -36,6 +36,14 @@ export interface ChangedArtifact {
   proposed?: string;
 }
 
+/** One legality step: a single commit's before/after view of ticket.md. */
+export interface LegalityStep {
+  prior?: string;
+  proposed: string;
+  /** Short SHA of the commit this step came from, for warning attribution. */
+  commit?: string;
+}
+
 /** One touched ticket: its changed artifacts plus at-rest context. */
 export interface TicketChange {
   /** Ticket folder name, e.g. `BND001-clean`. */
@@ -45,6 +53,14 @@ export interface TicketChange {
   ticketCurrent?: string;
   /** Whether a test-definitions.md exists for this ticket (staged or on disk). */
   hasLedger: boolean;
+  /**
+   * Per-commit ticket.md transitions for phase legality (N76NQ0). Supplied by
+   * the push tier so a multi-commit range that traversed phases one legal step
+   * at a time is judged commit-by-commit, never by its endpoints (the CDRJTW
+   * closing-push false positive). Absent at commit tier — the endpoint pair IS
+   * the single step there.
+   */
+  legalitySteps?: LegalityStep[];
 }
 
 type Verdict = 'pass' | 'warn' | 'indeterminate';
@@ -96,8 +112,38 @@ function warnVerdict(check: string, detail: string): CheckVerdict {
 const UNREACHABLE_CAUSES =
   'possible causes: a forged anchor, or a shallow clone missing the history (fetch full history to verify)';
 
+/**
+ * Phase legality over the change (N76NQ0): judged per commit when the caller
+ * supplies legality steps (push tier — each range commit against its parent),
+ * else over the endpoint pair (commit tier, where the pair IS the one step).
+ * First illegal step wins, attributed to its commit.
+ */
+function legalityVerdict(
+  ticketFile: ChangedArtifact,
+  legalitySteps?: LegalityStep[],
+): CheckVerdict {
+  let steps: LegalityStep[] = [];
+  if (legalitySteps && legalitySteps.length > 0) {
+    steps = legalitySteps;
+  } else if (ticketFile.proposed !== undefined) {
+    steps = [{ prior: ticketFile.prior, proposed: ticketFile.proposed }];
+  }
+  for (const step of steps) {
+    const verdict = evaluateTicketWrite(step.prior, step.proposed);
+    if (!verdict.ok) {
+      const at = step.commit === undefined ? '' : ` (commit ${step.commit})`;
+      return warnVerdict('phase-legality', `${verdict.reason}${at}`);
+    }
+  }
+  return pass('phase-legality');
+}
+
 /** Transition checks over a staged/changed ticket.md. */
-function ticketFileChecks(ticketFile: ChangedArtifact, resolveSha?: ShaResolver): CheckVerdict[] {
+function ticketFileChecks(
+  ticketFile: ChangedArtifact,
+  resolveSha?: ShaResolver,
+  legalitySteps?: LegalityStep[],
+): CheckVerdict[] {
   if (ticketFile.proposed === undefined) return [];
   const checks: CheckVerdict[] = [];
 
@@ -110,10 +156,7 @@ function ticketFileChecks(ticketFile: ChangedArtifact, resolveSha?: ShaResolver)
     );
   }
 
-  const legality = evaluateTicketWrite(ticketFile.prior, ticketFile.proposed);
-  checks.push(
-    legality.ok ? pass('phase-legality') : warnVerdict('phase-legality', legality.reason),
-  );
+  checks.push(legalityVerdict(ticketFile, legalitySteps));
 
   // A resolver failure (git broken mid-run, shallow-clone fetch error) must
   // degrade to an indeterminate verdict, never a crash — exit-0 is absolute.
@@ -246,7 +289,7 @@ function artifactShapeChecks(change: TicketChange): CheckVerdict[] {
 function reconcileTicket(change: TicketChange, resolveSha?: ShaResolver): CheckVerdict[] {
   const ticketFile = change.artifacts.find(a => a.artifact === 'ticket.md');
   return [
-    ...(ticketFile ? ticketFileChecks(ticketFile, resolveSha) : []),
+    ...(ticketFile ? ticketFileChecks(ticketFile, resolveSha, change.legalitySteps) : []),
     ...atRestBirthCheck(change),
     ...ledgerChecks(change, resolveSha),
     ...artifactShapeChecks(change),
