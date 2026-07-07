@@ -308,6 +308,8 @@ const PROCESS_ENTROPY_MIN_LENGTH = 16;
 // Any ≥8-char run of consecutive hex chars in the STRIPPED slug reads as a
 // secret fragment — substring, not per-segment, so hyphen placement and
 // low-entropy padding (`deadbe1f-zzzz…`) can't hide it (whole-ticket review).
+// Accepted over-block: stripping concatenates hyphen-adjacent hex-alphabet
+// words (`added-feedback` → 12 hex chars → dropped) — safe direction, rare.
 const PROCESS_HEX_SUBSTRING = /[0-9a-f]{8}/;
 
 /**
