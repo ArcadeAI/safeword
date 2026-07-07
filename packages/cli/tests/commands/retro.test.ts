@@ -664,3 +664,48 @@ describe('runRetro provenance capture (G19QG7)', () => {
     rmSync(projectDirectory, { recursive: true, force: true });
   });
 });
+
+describe('retroReconcileCommand wiring (G19QG7 SM2.R1)', () => {
+  it('retro-filing-provenance.SM2.R1.reconcile_cli_mode_flags_through_injected_tracker', async () => {
+    const { retroReconcileCommand } = await import('../../src/commands/retro.js');
+    const { RECONCILE_LABEL, RECONCILE_MARKER } = await import('../../src/retro/reconcile.js');
+    const { renderLedger, emptyLedger } = await import('../../src/retro/ledger.js');
+
+    const ledger = renderLedger({
+      ...emptyLedger(),
+      total: 1,
+      sessions: ['s1'],
+      provenance: { dogfood: { sha: 'abc1234', at: '2026-07-01T00:00:00.000Z' } },
+    });
+    const comments = new Map<number, string[]>([[41, [ledger]]]);
+    const labels = new Map<number, string[]>();
+    const tracker = {
+      listIssues: () =>
+        Promise.resolve([
+          {
+            number: 41,
+            title: 'flag via CLI',
+            body: '**Safeword surface:** `packages/cli/src/retro/pipeline.ts`',
+            labels: ['retro'],
+          },
+        ]),
+      listComments: (n: number) =>
+        Promise.resolve((comments.get(n) ?? []).map((body, index) => ({ id: index + 1, body }))),
+      createComment: (n: number, body: string) => {
+        comments.set(n, [...(comments.get(n) ?? []), body]);
+        return Promise.resolve({ id: 99, body });
+      },
+      addLabels: (n: number, added: string[]) => {
+        labels.set(n, [...(labels.get(n) ?? []), ...added]);
+        return Promise.resolve();
+      },
+      resolveTagDate: () => Promise.resolve(undefined),
+      surfaceTouchedSince: () => Promise.resolve(true),
+    };
+
+    await retroReconcileCommand({ tracker });
+
+    expect(labels.get(41)).toContain(RECONCILE_LABEL);
+    expect((comments.get(41) ?? []).some(c => c.includes(RECONCILE_MARKER))).toBe(true);
+  });
+});
