@@ -2,7 +2,9 @@
 id: ZJMZ50
 slug: host-repo-boundary-install
 type: feature
-phase: intake
+phase: define-behavior
+phase_anchors:
+  - define-behavior: 0337cd9
 status: in_progress
 scope:
   - Hook-manager world detection (husky | lefthook | pre-commit | bare) computed once at plan time into ProjectContext
@@ -37,3 +39,4 @@ last_modified: 2026-07-07T04:23:13.747Z
 ## Work Log
 
 - 2026-07-07T04:23:13.747Z Started: Created ticket ZJMZ50
+- 2026-07-07T04:57:27.759Z Phase: intake → define-behavior

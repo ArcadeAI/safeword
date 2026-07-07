@@ -78,7 +78,7 @@ Unaffected:
 
 #### host-repo-boundary-install.SM1.R1 — Shims install, heal, and revert through the same managed-surface machinery as every other safeword file, gated on the detected hook-manager world — no bespoke install/uninstall path
 
-#### host-repo-boundary-install.SM1.R2 — A non-git host directory gets no hook writes and no nudge noise
+#### host-repo-boundary-install.SM1.R2 — A host where the hooks could never fire — a non-git directory, or a setup run below the repository root — gets no hook writes
 
 ## Rave Moment
 
