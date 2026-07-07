@@ -49,6 +49,28 @@ describe('ledger render/parse round-trip', () => {
   });
 });
 
+describe('recordEncounter provenance (G19QG7)', () => {
+  // Back-compat contract: the live fleet of upstream ledgers predates
+  // provenance; a bump must never corrupt their counts and must record the
+  // new encounter's code state.
+  it('bumping a pre-provenance ledger preserves counts and gains provenance', () => {
+    const preProvenance = `${LEDGER_MARKER}\n<!-- retro-data: {"total":2,"harness":{"claude":2},"sessions":["s1","s2"],"manifestations":["m1"]} -->`;
+    const state = parseLedger(preProvenance);
+
+    const next = recordEncounter(state, {
+      sessionId: 's3',
+      harness: 'claude',
+      manifestation: 'm1',
+      provenance: { sha: 'abc1234', at: '2026-07-07T00:00:00.000Z' },
+    });
+
+    expect(next.state.total).toBe(3);
+    expect(next.state.sessions).toEqual(['s1', 's2', 's3']);
+    expect(next.state.harness.claude).toBe(3);
+    expect(next.state.provenance).toEqual({ sha: 'abc1234', at: '2026-07-07T00:00:00.000Z' });
+  });
+});
+
 describe('recordEncounter (idempotency + novelty)', () => {
   const base: LedgerState = {
     total: 1,
