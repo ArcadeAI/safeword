@@ -302,3 +302,39 @@ describe('reconcile — unreconcilable issues are left untouched (SM2.R4-R5)', (
     expect(tracker.listQueries).toEqual([{ state: 'open', labels: ['retro'] }]);
   });
 });
+
+describe('reconcile — per-issue failure isolation (SM2.R7)', () => {
+  it('a failing surface-commits query isolates to its issue', async () => {
+    const body = issueBody('packages/cli/src/retro/pipeline.ts');
+    const ledgers = new Map([
+      [21, ledgerComment({ dogfood: { sha: 'abc1234', at: '2026-07-01T00:00:00.000Z' } })],
+      [22, ledgerComment({ dogfood: { sha: 'def5678', at: '2026-07-01T00:00:00.000Z' } })],
+    ]);
+    class FlakyTracker extends FakeTracker {
+      private failFirst = true;
+
+      override surfaceTouchedSince(path: string, sinceIso: string): Promise<boolean> {
+        if (this.failFirst) {
+          this.failFirst = false;
+          return Promise.reject(new Error('502'));
+        }
+        return super.surfaceTouchedSince(path, sinceIso);
+      }
+    }
+    const tracker = new FlakyTracker(
+      [
+        { number: 21, title: 'first', body, labels: ['retro'] },
+        { number: 22, title: 'second', body, labels: ['retro'] },
+      ],
+      ledgers,
+      () => true,
+    );
+
+    const result = await reconcile(tracker);
+
+    expect(result.failed).toEqual([21]);
+    expect(result.flagged).toEqual([22]);
+    expect(tracker.comments.get(21)).toBeUndefined();
+    expect(tracker.labels.get(22)).toEqual([RECONCILE_LABEL]);
+  });
+});
