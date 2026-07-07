@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   commandWordIndex,
+  commandWords,
   parseShellWords,
   splitShellSegments,
 } from '../../templates/hooks/lib/shell-segments.js';
@@ -125,5 +126,13 @@ describe('commandWordIndex', () => {
 
   it('Scenario: sudo is deliberately not skipped (gates handle it themselves)', () => {
     expect(resolve('sudo npm ci')).toEqual(['sudo', 'npm', 'ci']);
+  });
+});
+
+describe('commandWords', () => {
+  it('Scenario: composes parseShellWords + commandWordIndex to return the resolved argv', () => {
+    expect(commandWords('env FOO=1 corepack pnpm install')).toEqual(['pnpm', 'install']);
+    expect(commandWords('command npm ci')).toEqual(['npm', 'ci']);
+    expect(commandWords('pkill -9 node')).toEqual(['pkill', '-9', 'node']);
   });
 });

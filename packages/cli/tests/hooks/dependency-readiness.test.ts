@@ -847,10 +847,14 @@ describe('dependency readiness hook support', () => {
         'eslint .',
         'git commit -m x',
         'pnpm add zod',
-        // Classic-yarn report-only flags print-and-exit — stamping after
-        // them would mark stale deps ready without an install (EDDABK).
+        // Report-only flags print-and-exit — stamping after them would mark
+        // stale deps ready without an install. True for every manager, not
+        // just classic bare yarn (EDDABK).
         'yarn --version',
         'command yarn --version',
+        'npm ci --help',
+        'bun install --help',
+        'pnpm install -h',
       ]) {
         expect(isDependencyInstallCommand(command), command).toBe(false);
       }

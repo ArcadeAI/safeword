@@ -11,7 +11,7 @@ import {
 import nodePath from 'node:path';
 
 import { resolveNamespaceRoot } from './namespace-root.js';
-import { commandWordIndex, parseShellWords, splitShellSegments } from './shell-segments.js';
+import { commandWords, splitShellSegments } from './shell-segments.js';
 
 export type DependencyManager = 'bun' | 'pnpm' | 'npm' | 'yarn';
 export type DependencyReadinessStatus = 'ready' | 'missing' | 'stale' | 'unsupported';
@@ -381,11 +381,14 @@ const INSTALL_SUBCOMMANDS = new Set(['install', 'i', 'ci']);
  */
 const NO_RECONCILE_FLAGS = new Set(['--dry-run', '--lockfile-only', '--package-lock-only']);
 /**
- * Classic-`yarn` flags that print-and-exit instead of installing. Bare
- * `yarn` installs, but `yarn --version` never reconciles `node_modules` —
- * counting it as an install would stamp a false-ready (EDDABK).
+ * Flags that make any package manager print-and-exit instead of installing.
+ * `bun install --help`, `npm ci --version`, and bare `yarn --version` all
+ * carry a real install subcommand (or are classic bare yarn) yet never
+ * reconcile `node_modules`, so counting them as installs would stamp a
+ * false-ready (EDDABK). Under-counting is safe here — the worst case is the
+ * user re-running a real install — so a broad flag list is fine.
  */
-const YARN_REPORT_ONLY_FLAGS = new Set(['--version', '-v', '--help', '-h']);
+const REPORT_ONLY_INSTALL_FLAGS = new Set(['--version', '-v', '--help', '-h']);
 
 /**
  * Whether a command runs a dependency *install* (e.g. `bun ci`, `pnpm install
@@ -399,19 +402,19 @@ export function isDependencyInstallCommand(command: string): boolean {
 }
 
 function isInstallSegment(segment: string): boolean {
-  const words = parseShellWords(segment);
-  const [binary, ...args] = words.slice(commandWordIndex(words));
+  const [binary, ...args] = commandWords(segment);
   if (binary === undefined) return false;
-  if (!INSTALL_MANAGERS.has(nodePath.basename(binary))) return false;
+  const base = nodePath.basename(binary);
+  if (!INSTALL_MANAGERS.has(base)) return false;
   // A lockfile-only / dry-run install never materializes node_modules.
   if (args.some(arg => NO_RECONCILE_FLAGS.has(arg.split('=')[0] ?? arg))) return false;
+  // A report-only flag (--help/--version) makes the manager print and exit
+  // without installing — for every manager, not just classic bare yarn.
+  if (args.some(arg => REPORT_ONLY_INSTALL_FLAGS.has(arg))) return false;
 
   const subcommand = firstCommandArgument(args, PACKAGE_MANAGER_OPTIONS_WITH_VALUES);
-  // Classic `yarn` with no subcommand installs — unless a report-only flag
-  // makes it print-and-exit without touching node_modules.
-  if (nodePath.basename(binary) === 'yarn' && subcommand === undefined) {
-    return !args.some(arg => YARN_REPORT_ONLY_FLAGS.has(arg));
-  }
+  // Classic `yarn` with no subcommand installs.
+  if (base === 'yarn' && subcommand === undefined) return true;
   return subcommand !== undefined && INSTALL_SUBCOMMANDS.has(subcommand);
 }
 
@@ -759,8 +762,7 @@ function escapeRegExp(value: string): string {
 }
 
 function isDependencyBackedSegment(segment: string): boolean {
-  const words = parseShellWords(segment);
-  const [binary, ...args] = words.slice(commandWordIndex(words));
+  const [binary, ...args] = commandWords(segment);
   if (binary === undefined) return false;
 
   const basename = nodePath.basename(binary);

@@ -82,6 +82,13 @@ describe('detectBroadProcessKill', () => {
         command: 'pkill',
         target: 'java',
       });
+      // Interior backslashes are literals too (`n\ode` == `node`); the POSIX
+      // single-quote rule delivers them intact, so bareName must strip them
+      // wherever they appear, not only leading (EDDABK).
+      expect(detectBroadProcessKill(String.raw`pkill 'n\ode'`)).toEqual({
+        command: 'pkill',
+        target: 'node',
+      });
     });
   });
 

@@ -43,12 +43,16 @@ const NAME_MATCHING_KILLERS = new Set(['killall', 'pkill']);
 const SHARED_RUNTIMES = new Set(['node', 'bun', 'deno', 'python', 'python3', 'ruby', 'java']);
 
 /**
- * Strip regex anchors and leading backslash-escapes so `'^node$'` and
- * `'\java'` are judged as `node` / `java` (in an ERE, `\j` is a literal
- * `j`, so the pattern still matches the bare runtime name).
+ * Strip regex anchors and backslash-escapes so `'^node$'`, `'\java'`, and
+ * `'n\ode'` are all judged as their bare runtime name. In an ERE a backslash
+ * before an ordinary character is that character, so `n\ode` still matches
+ * every `node` process; dropping backslashes wherever they appear keeps the
+ * comparison from being evaded by one. (POSIX single-quote tokenization now
+ * delivers interior backslashes intact, so a leading-only strip would miss
+ * `n\ode` — EDDABK.)
  */
 function bareName(token: string): string {
-  return token.replace(/^\^/, '').replace(/\$$/, '').replace(/^\\+/, '');
+  return token.replaceAll('\\', '').replace(/^\^/, '').replace(/\$$/, '');
 }
 
 /**

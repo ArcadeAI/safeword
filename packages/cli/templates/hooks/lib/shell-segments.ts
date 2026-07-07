@@ -159,6 +159,18 @@ export function commandWordIndex(words: string[]): number {
   return index;
 }
 
+/**
+ * A segment's words with leading execution prefixes stripped — the command
+ * word first, then its arguments. Composes parseShellWords with
+ * commandWordIndex; use it when a caller only needs the resolved argv and not
+ * the index (the kill/ledger/cursor gates keep the index for in-place
+ * iteration).
+ */
+export function commandWords(segment: string): string[] {
+  const words = parseShellWords(segment);
+  return words.slice(commandWordIndex(words));
+}
+
 function skipEnvOptions(words: string[], start: number): number {
   let index = start;
   while (index < words.length) {
