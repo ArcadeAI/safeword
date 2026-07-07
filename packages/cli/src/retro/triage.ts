@@ -17,6 +17,7 @@ import {
   LEDGER_MARKER,
   type LedgerState,
   parseLedger,
+  type Provenance,
   recordEncounter,
   renderLedger,
 } from './ledger.js';
@@ -60,6 +61,8 @@ export interface TriageContext {
   sessionId: string;
   harness: string;
   maxNewIssues?: number;
+  /** Code-state provenance for this session's encounters (G19QG7). */
+  provenance?: Provenance;
 }
 
 export interface TriageResult {
@@ -144,6 +147,7 @@ function toEncounterInput(encounter: Encounter, ctx: TriageContext): EncounterIn
     sessionId: ctx.sessionId,
     harness: ctx.harness,
     manifestation: encounter.manifestation,
+    ...(ctx.provenance && { provenance: ctx.provenance }),
   };
 }
 

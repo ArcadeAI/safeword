@@ -20,14 +20,17 @@ import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
 
+import { isDogfoodRepo } from '../../templates/hooks/lib/dogfood.js';
 import {
   markDraftsFiled,
   readSpooledDrafts,
   spoolDrafts,
 } from '../../templates/hooks/lib/retro-draft-spool.js';
 import { type RetroAgent, windowFor } from '../../templates/hooks/lib/retro-extract.js';
+import type { Provenance } from '../retro/ledger.js';
 import { prepareEncounters } from '../retro/pipeline.js';
 import { type IssueTracker, triage, type TriageResult } from '../retro/triage.js';
+import { VERSION } from '../version.js';
 
 /** Reads a transcript and returns raw, un-sanitized findings (the LLM boundary). */
 type FindingExtractor = (transcript: string) => Promise<unknown[]>;
@@ -46,6 +49,44 @@ export interface RetroDependencies {
    * existing callers keep their REST-only behavior unchanged.
    */
   projectDirectory?: string;
+  /**
+   * Code-state provenance for this session's encounters (G19QG7). Omit (or
+   * return undefined) to file without provenance — capture never blocks filing.
+   */
+  resolveProvenance?: () => Provenance | undefined;
+}
+
+export interface ProvenanceResolverOptions {
+  projectDirectory: string;
+  /** The git subprocess boundary: stdout of `git rev-parse --short HEAD`. */
+  runGit: () => string;
+  now: () => Date;
+  /** The installed safeword version (customer-install provenance). */
+  version: string;
+}
+
+/**
+ * Environment-aware code-state provenance (G19QG7): the dogfood repo records
+ * its own short HEAD SHA (development happens between releases, so the version
+ * is meaningless there); a customer install records the installed safeword
+ * version — never any customer repo identifier. Fail-open: unresolvable git
+ * state yields undefined, so filing proceeds without provenance rather than
+ * inventing one.
+ */
+export function buildProvenanceResolver(
+  options: ProvenanceResolverOptions,
+): () => Provenance | undefined {
+  return () => {
+    const at = options.now().toISOString();
+    if (!isDogfoodRepo(options.projectDirectory)) return { version: options.version, at };
+    let sha: string;
+    try {
+      sha = options.runGit().trim();
+    } catch {
+      sha = '';
+    }
+    return /^[0-9a-f]{7,40}$/i.test(sha) ? { sha, at } : undefined;
+  };
 }
 
 export interface RetroOutcome {
@@ -103,9 +144,11 @@ export async function runRetro(
     );
   }
 
+  const provenance = dependencies.resolveProvenance?.();
   const result = await triage(dependencies.transport, encounters, {
     sessionId,
     harness: dependencies.harness,
+    ...(provenance && { provenance }),
   });
 
   if (projectDirectory === undefined) return { ok: true, result };
@@ -330,6 +373,19 @@ export async function retroCommand(options: RetroCliOptions): Promise<void> {
     // Enable the cloud-filing spool: on a REST failure the drafts survive on disk
     // for the agent path (BNGK9W) instead of being lost.
     projectDirectory,
+    // Environment-aware code-state provenance (G19QG7): dogfood SHA / installed
+    // version. Fail-open — capture never blocks filing.
+    resolveProvenance: buildProvenanceResolver({
+      projectDirectory,
+      runGit: () =>
+        spawnSync('git', ['rev-parse', '--short', 'HEAD'], {
+          cwd: projectDirectory,
+          encoding: 'utf8',
+          timeout: 10_000,
+        }).stdout ?? '',
+      now: () => new Date(),
+      version: VERSION,
+    }),
   });
 
   reportRetroCommandOutcome(outcome, {
