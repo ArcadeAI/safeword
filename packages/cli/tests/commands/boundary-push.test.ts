@@ -181,3 +181,87 @@ describe('safeword boundary (slice 3: push tier)', () => {
     expect(`${result.stdout}\n${result.stderr}`).toMatch(/unanchored|phase-anchor/i);
   });
 });
+
+describe('safeword boundary (N76NQ0: per-commit legality at push)', () => {
+  let dir: string;
+  let remote: string;
+
+  beforeEach(async () => {
+    dir = createTemporaryDirectory();
+    remote = createTemporaryDirectory();
+    await createConfiguredProject(dir);
+    execSync('git init --bare --quiet', { cwd: remote, stdio: 'pipe' });
+    git(dir, `remote add origin ${remote}`);
+    writeTestFile(
+      dir,
+      `${TICKET}/ticket.md`,
+      ticketContent({
+        phase: 'implement',
+        skips: ['intake: retro', 'define-behavior: retro', 'scenario-gate: retro'],
+      }),
+    );
+    git(dir, 'add -A');
+    git(dir, 'commit -m baseline --quiet');
+    git(dir, 'push -u origin HEAD --quiet');
+  });
+
+  afterEach(() => {
+    removeTemporaryDirectory(dir);
+    removeTemporaryDirectory(remote);
+  });
+
+  it('does not warn legality when intermediate commits traversed phases one step at a time', async () => {
+    // Commit 1: implement -> verify. Commit 2: verify -> done. Endpoints read
+    // implement -> done (a skip), but every commit was legal — the CDRJTW
+    // false positive, caught live on this feature's own closing push.
+    const a1 = git(dir, 'rev-parse --short HEAD').trim();
+    writeTestFile(
+      dir,
+      `${TICKET}/ticket.md`,
+      ticketContent({
+        phase: 'verify',
+        anchors: [`verify: ${a1}`],
+        skips: ['intake: retro', 'define-behavior: retro', 'scenario-gate: retro'],
+      }),
+    );
+    git(dir, 'add -A');
+    git(dir, 'commit -m to-verify --quiet');
+    const a2 = git(dir, 'rev-parse --short HEAD').trim();
+    writeTestFile(
+      dir,
+      `${TICKET}/ticket.md`,
+      ticketContent({
+        phase: 'done',
+        anchors: [`verify: ${a1}`, `done: ${a2}`],
+        skips: ['intake: retro', 'define-behavior: retro', 'scenario-gate: retro'],
+      }),
+    );
+    git(dir, 'add -A');
+    git(dir, 'commit -m to-done --quiet');
+
+    const result = await runCli(['boundary', '--at', 'push'], { cwd: dir });
+
+    expect(result.exitCode).toBe(0);
+    expect(`${result.stdout}\n${result.stderr}`).not.toMatch(/one canonical step|skips work/i);
+  });
+
+  it('still warns when a single commit in the range actually jumps phases', async () => {
+    const a1 = git(dir, 'rev-parse --short HEAD').trim();
+    writeTestFile(
+      dir,
+      `${TICKET}/ticket.md`,
+      ticketContent({
+        phase: 'done',
+        anchors: [`done: ${a1}`],
+        skips: ['intake: retro', 'define-behavior: retro', 'scenario-gate: retro'],
+      }),
+    );
+    git(dir, 'add -A');
+    git(dir, 'commit -m jump --quiet');
+
+    const result = await runCli(['boundary', '--at', 'push'], { cwd: dir });
+
+    expect(result.exitCode).toBe(0);
+    expect(`${result.stdout}\n${result.stderr}`).toMatch(/one canonical step|skips work/i);
+  });
+});
