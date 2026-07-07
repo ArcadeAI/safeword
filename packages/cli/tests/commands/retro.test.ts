@@ -731,4 +731,23 @@ describe('retro summary drop reporting (PNZM3B SM2.R1)', () => {
     const summary = lines.join('\n');
     expect(summary).toContain('2 dropped at the surface wall');
   });
+
+  it('counts off-schema drops in the rendered summary', async () => {
+    const { reportRetroCommandOutcome } = await import('../../src/commands/retro.js');
+    const outcome = await runRetro(
+      { transcript: '/tmp/t.jsonl' },
+      dependencies({
+        extract: () => Promise.resolve([rawFinding({ repro: undefined }), rawFinding()]),
+      }),
+    );
+
+    const { lines, output } = collect();
+    reportRetroCommandOutcome(outcome, {
+      extractionSucceeded: true,
+      restTransportAvailable: true,
+      output,
+    });
+
+    expect(lines.join('\n')).toContain('1 dropped at the schema wall');
+  });
 });
