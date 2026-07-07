@@ -30,6 +30,7 @@ import {
 import { createProjectContext } from '../utils/context.js';
 import { getEslintPeerMismatchWarning } from '../utils/eslint-peer-check.js';
 import { exists, readJson, writeJson } from '../utils/fs.js';
+import { hookIntegrationNudge } from '../utils/hook-nudge.js';
 import { installDependencies } from '../utils/install.js';
 import {
   error,
@@ -492,6 +493,10 @@ export async function setup(options: SetupOptions): Promise<void> {
     if (!ctx.projectType.scaffoldBddLane) {
       printCucumberHarnessNotice(ctx.projectType.existingCucumberHarness);
     }
+    // Boundary-gate integration for non-husky worlds (ZJMZ50): a verbatim
+    // snippet or adoption pointer; quiesces once the config invokes the gate.
+    const hookNudge = hookIntegrationNudge(ctx);
+    if (hookNudge !== undefined) info(hookNudge);
 
     // Language-specific setup. The JS path runs unconditionally: ensurePackageJson
     // guarantees a package.json (the BDD lane's home, ticket 102b), which is what

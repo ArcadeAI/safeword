@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { type RetroDraft, signatureMarker } from './draft.js';
+import { shortHash } from './hash.js';
 import { LEDGER_MARKER, renderLedger } from './ledger.js';
 import {
   type CreateIssueInput,
@@ -102,12 +103,16 @@ class FakeGitHub implements IssueTracker {
   }
 }
 
-const draft = (title: string, signature = `retro:${title}`): RetroDraft => ({
-  signature,
-  title,
-  body: `body for ${title}\n${signatureMarker(signature)}`,
-  labels: ['self-report', 'retro', 'rough-edge'],
-});
+const draft = (title: string, signature = `retro:${title}`): RetroDraft => {
+  const body = `body for ${title}\n${signatureMarker(signature)}`;
+  return {
+    signature,
+    title,
+    body,
+    bodyDigest: shortHash(body),
+    labels: ['self-report', 'retro', 'rough-edge'],
+  };
+};
 
 const enc = (title: string, manifestation = 'm1', signature?: string): Encounter => ({
   draft: draft(title, signature),

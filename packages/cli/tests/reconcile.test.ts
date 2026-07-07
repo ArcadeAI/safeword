@@ -420,7 +420,13 @@ describe('Reconcile - Reconciliation Engine', () => {
 
       const schemaDotDirectories = computeSafewordPathPrefixes(SAFEWORD_SCHEMA)
         .filter(prefix => prefix.endsWith('/') && prefix.startsWith('.'))
-        .map(prefix => prefix.slice(0, -1));
+        .map(prefix => prefix.slice(0, -1))
+        // .husky is USER-owned — safeword only appends a marker line to hook
+        // files there (ZJMZ50 boundary shims). Excluding the host's own hooks
+        // from the host's own formatter would be overreach, so it is exempt
+        // from the owned-dir ignore guarantee (husky's generated `.husky/_`
+        // stays excluded via managedPrettierPaths).
+        .filter(dir => dir !== '.husky');
 
       // Every dot-directory the schema actually manages must be in the single
       // ignore list, so a newly-owned dir can't silently escape the formatters'

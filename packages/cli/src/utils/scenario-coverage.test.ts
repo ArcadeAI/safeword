@@ -151,6 +151,109 @@ describe('buildCoverageReport (R2 — three buckets)', () => {
   });
 });
 
+describe('buildCoverageReport (issue #891 — @-tag lineage in a ledger-only test-definitions.md)', () => {
+  /** A test-definitions.md whose lineage rides an `@`-tag rather than the scenario title. */
+  function taggedDefinitions(tagLine: string): string {
+    return [
+      '# Test Definitions',
+      '',
+      tagLine,
+      '',
+      '### Scenario: The catalogue lists all shipped event types',
+      '',
+      '- [ ] RED',
+      '- [ ] GREEN',
+      '- [ ] REFACTOR',
+      '',
+    ].join('\n');
+  }
+
+  it('covers an AC via a bare tag on the ## Rule: heading', () => {
+    const report = buildCoverageReport(
+      spec(ONE_AC),
+      taggedDefinitions('## Rule: @demo.DEV1.AC1 — r'),
+    );
+    expect(report).toEqual({ uncovered: [], stale: [], orphan: [] });
+  });
+
+  it('covers an AC via a bare tag on its own line below the heading', () => {
+    const report = buildCoverageReport(
+      spec(ONE_AC),
+      taggedDefinitions('## Rule: r\n\n@demo.DEV1.AC1'),
+    );
+    expect(report).toEqual({ uncovered: [], stale: [], orphan: [] });
+  });
+
+  it('covers an AC via a backtick-wrapped tag on its own line (the shipped form)', () => {
+    const report = buildCoverageReport(
+      spec(ONE_AC),
+      taggedDefinitions('## Rule: r\n\n`@demo.DEV1.AC1`'),
+    );
+    expect(report).toEqual({ uncovered: [], stale: [], orphan: [] });
+  });
+
+  it('covers an AC via a backtick-wrapped tag on the ## Rule: heading', () => {
+    const report = buildCoverageReport(
+      spec(ONE_AC),
+      taggedDefinitions('## Rule: `@demo.DEV1.AC1` — r'),
+    );
+    expect(report).toEqual({ uncovered: [], stale: [], orphan: [] });
+  });
+
+  it('covers a numbered Rule via an @<jtbd>.R# tag', () => {
+    const report = buildCoverageReport(spec(ONE_RULE), taggedDefinitions('`@demo.DEV2.R1`'));
+    expect(report).toEqual({ uncovered: [], stale: [], orphan: [] });
+  });
+
+  it('ignores a tag inside a fenced code block (template example)', () => {
+    const report = buildCoverageReport(
+      spec(ONE_AC),
+      '# Test Definitions\n\n```\n@demo.DEV1.AC1\n```\n',
+    );
+    expect(report.uncovered).toEqual(['demo.DEV1.AC1']);
+  });
+
+  it('unions title-based and tag-based references in one ledger', () => {
+    const report = buildCoverageReport(
+      spec(TWO_ACS),
+      '# Test Definitions\n\n`@demo.DEV1.AC1`\n\n### Scenario: demo.DEV1.AC2.plain\n',
+    );
+    expect(report).toEqual({ uncovered: [], stale: [], orphan: [] });
+  });
+
+  it('flags a tag whose AC# is absent under a known JTBD as stale', () => {
+    const report = buildCoverageReport(spec(ONE_AC), taggedDefinitions('`@demo.DEV1.AC5`'));
+    expect(report.stale).toEqual(['demo.DEV1.AC5']);
+    expect(report.orphan).toEqual([]);
+  });
+
+  it('flags a tag naming an unknown JTBD as orphan', () => {
+    const report = buildCoverageReport(spec(ONE_AC), taggedDefinitions('`@ghost.SM1.AC1`'));
+    expect(report.orphan).toEqual(['ghost.SM1.AC1']);
+    expect(report.stale).toEqual([]);
+  });
+
+  it('does not over-match prose: emails and `@<jtbd>.AC#` placeholders raise no ref', () => {
+    // A non-fenced line mentioning alex@arcade.dev and the literal placeholder
+    // `@<jtbd>.AC#` must not manufacture a stale/orphan advisory — the `@`-tokens
+    // are not `.AC<n>`/`.R<n>`-shaped, so they parse to nothing.
+    const report = buildCoverageReport(
+      spec(TWO_ACS),
+      [
+        '# Test Definitions',
+        '',
+        'Owner alex@arcade.dev; tag scenarios `@<jtbd>.AC#` per the guide.',
+        '',
+        '`@demo.DEV1.AC1`',
+        '',
+        '### Scenario: demo.DEV1.AC2.plain',
+        '',
+      ].join('\n'),
+    );
+    expect(report).toEqual({ uncovered: [], stale: [], orphan: [] });
+  });
+});
+
 describe('buildCoverageReportFromFeature (feature files as source)', () => {
   function feature(tags: readonly string[]): string {
     return [

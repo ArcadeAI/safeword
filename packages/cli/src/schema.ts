@@ -61,6 +61,11 @@ export interface TextPatchDefinition {
   // applyWhenContentIncludes so it only touches safeword-scaffolded files.
   supersedes?: string;
   applyWhenContentIncludes?: string[]; // Optional guard for semi-owned config files
+  // Context predicate gating APPLICATION only (install/upgrade/creation) —
+  // e.g. hook shims apply only in husky hosts (ZJMZ50). Unpatch is deliberately
+  // NOT gated: reset must strip a leftover block even when the host's world
+  // changed after install (a husky -> lefthook migration).
+  when?: (ctx: ProjectContext) => boolean;
   unpatchContent?: string[]; // Additional exact blocks to remove on uninstall/reset
   removeFileIfContentEquals?: string[]; // Delete file only when remaining content is known scaffold
   // When set (append patches only), re-render the managed block in place on
@@ -387,6 +392,7 @@ const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
 export const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
   '.safeword/.update-cache.json',
   '.safeword/self-reports/',
+  '.safeword/boundary-audit.jsonl',
   ...['.project', '.safeword-project'].flatMap(root =>
     NAMESPACE_TRANSIENT_BASENAMES.map(name => `${root}/${name}`),
   ),
@@ -501,6 +507,27 @@ const SHARED_FILING_INVARIANTS = [
   "- **Upstream only** — `ArcadeAI/safeword`, never the host project's tracker.",
   '- **Code owns egress** — nothing leaves beyond what the sanitized output contains.',
 ];
+
+/** Marker substring identifying a boundary-gate shim line (ZJMZ50). */
+const BOUNDARY_SHIM_MARKER = '# Safeword boundary gate';
+
+/**
+ * One-line boundary-gate shim for a husky hook file (see the textPatches
+ * entry comment for the full design rationale). The marker is a trailing sh
+ * comment on the command line itself, so the block IS the marker line.
+ */
+function boundaryShimPatch(at: 'commit' | 'push'): TextPatchDefinition {
+  return {
+    operation: 'append',
+    content: `[ -x node_modules/.bin/safeword ] && node_modules/.bin/safeword boundary --at ${at} || true ${BOUNDARY_SHIM_MARKER}: warn-only; removed by \`safeword reset\`\n`,
+    marker: BOUNDARY_SHIM_MARKER,
+    rerender: true,
+    // A hook file that setup alone created holds nothing but the shim after
+    // unpatch — delete it rather than leave an empty husk (TB1.R5).
+    removeFileIfContentEquals: ['', '\n'],
+    when: ctx => ctx.hookManager === 'husky',
+  };
+}
 
 export const SAFEWORD_SCHEMA: SafewordSchema = {
   version: VERSION,
@@ -1274,16 +1301,29 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
 
   // Text files where we patch specific content
   textPatches: {
+    // Boundary-gate shims for husky hosts (ZJMZ50, #810 child 2). One line,
+    // all logic in the versioned CLI: explicit .bin path (husky's PATH
+    // prepend is relative — worktree-unsafe, 9P3VVH), existence-guarded
+    // (fresh clones), whole-line `|| true` (husky runs hooks with sh -e, so
+    // an unguarded failure would BLOCK the commit — TB1.R4). The marker rides
+    // the line as a trailing comment, which makes the whole block the marker
+    // line: rerender then heals ANY future line change in place
+    // (rerenderBlockLines excludes marker lines). Gated to the husky world —
+    // lefthook/pre-commit/bare hosts get a printed nudge instead, and
+    // `when` never gates unpatch, so reset still strips after a migration.
+    '.husky/pre-commit': boundaryShimPatch('commit'),
+    '.husky/pre-push': boundaryShimPatch('push'),
     '.gitignore': {
       operation: 'append',
       content: `\n# Safeword - Local cache and transient state\n${SAFEWORD_TRANSIENT_PATHS.join('\n')}\n`,
-      // Marker is a NEW line (.project/dependency-readiness.json) so customers with
-      // the older legacy-only block re-apply on upgrade and pick up the
-      // latest transient paths. Hooks write state under the resolved root, so
-      // fresh installs generate these under .project/. Without them, those
-      // generated files show as untracked in `git status --porcelain` —
-      // churning the tree and blocking the auto-upgrade gate.
-      marker: '.project/dependency-readiness.json',
+      // Marker is the NEWEST line (.safeword/boundary-audit.jsonl, the boundary
+      // gate's audit record — ZJMZ50) so customers with any older block
+      // re-apply on upgrade and pick up the latest transient paths. Hooks write
+      // state under the resolved root, so fresh installs generate these under
+      // .project/. Without them, those generated files show as untracked in
+      // `git status --porcelain` — churning the tree and blocking the
+      // auto-upgrade gate.
+      marker: '.safeword/boundary-audit.jsonl',
     },
     // Prettier ignores: safeword owns the dot-directories in SAFEWORD_IGNORE_DIRS
     // (.safeword/, .claude/, .cursor/, .codex/, .agents/, and both namespace

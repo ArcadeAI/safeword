@@ -20,6 +20,7 @@
 import vitestPlugin from '@vitest/eslint-plugin';
 
 import { TEST_FILE_GLOBS } from './test-file-globs.js';
+import { SLEEP_RESTRICTED_SYNTAX } from './test-integrity-syntax.js';
 
 /**
  * Vitest test linting config
@@ -49,6 +50,27 @@ export const vitestConfig: any[] = [
       // Additional strict rules
       'vitest/no-focused-tests': 'error', // No .only() in CI
       'vitest/max-nested-describe': ['error', { max: 5 }], // Limit describe nesting depth
+
+      // Test-integrity graduation (VFD6X1, #773): testing-guide.md's "never
+      // skip/park tests without approval" invariant, lint-owned. Unconditional
+      // skips (it.skip, xit, xdescribe) need an inline eslint-disable with a
+      // reason — that comment IS the auditable approval artifact. Environment-
+      // conditional skipIf/runIf stay legal (the rule doesn't match them).
+      'vitest/no-disabled-tests': 'error',
+
+      // Deferred-test marker (review hardening of VFD6X1): the plugin rule —
+      // NOT a custom selector — because it also catches chained modifiers
+      // (it.concurrent + marker), a verified bypass of the direct-only
+      // selector this replaced. The plugin docs suggest warn severity; error-
+      // with-disable-comment is deliberately safeword's policy (LLMs ignore
+      // warnings, and the disable comment is the auditable approval).
+      'vitest/warn-todo': 'error',
+
+      // No-arbitrary-sleep graduation (VFD6X1, #773): the guide's "poll, never
+      // sleep" rule for the vitest lane (the playwright lane already has
+      // no-wait-for-timeout). Shared selectors — see test-integrity-syntax.ts
+      // for the idiom list and its documented accepted false positive.
+      'no-restricted-syntax': ['error', ...SLEEP_RESTRICTED_SYNTAX],
 
       // Relax base rules for test files - each override has documented justification:
       //
