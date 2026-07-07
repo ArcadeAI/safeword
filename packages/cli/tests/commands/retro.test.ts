@@ -4,7 +4,13 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { buildAutoExtractor, retroCommand, runRetro } from '../../src/commands/retro.js';
+import {
+  buildAutoExtractor,
+  buildProvenanceResolver,
+  retroCommand,
+  runRetro,
+} from '../../src/commands/retro.js';
+import { LEDGER_MARKER, parseLedger } from '../../src/retro/ledger.js';
 import type {
   CreateIssueInput,
   IssueComment,
@@ -515,5 +521,65 @@ describe('buildAutoExtractor (SM1.AC2 — runner model: sonnet default, config-o
     const codex = await modelFromRunner(projectDirectory, 'codex');
     expect(claude.model).toBe('haiku');
     expect(codex.model).toBe('haiku');
+  });
+});
+
+describe('runRetro provenance capture (G19QG7)', () => {
+  // Only the process boundaries are mocked: GitHub transport, git subprocess,
+  // clock. Environment detection and ledger rendering are real.
+  class LedgerRecordingGitHub implements IssueTracker {
+    private nextIssue = 1;
+    private nextComment = 1;
+    readonly comments: string[] = [];
+
+    searchBySignature(): Promise<IssueReference[]> {
+      return Promise.resolve([]);
+    }
+
+    createIssue(input: CreateIssueInput): Promise<IssueReference> {
+      return Promise.resolve({ number: this.nextIssue++, title: input.title });
+    }
+
+    listComments(): Promise<IssueComment[]> {
+      return Promise.resolve([]);
+    }
+
+    createComment(_n: number, body: string): Promise<IssueComment> {
+      this.comments.push(body);
+      return Promise.resolve({ id: this.nextComment++, body });
+    }
+
+    updateComment(): Promise<void> {
+      return Promise.resolve();
+    }
+  }
+
+  it('retro-filing-provenance.SM1.R1.dogfood_encounter_records_short_sha_and_capture_time', async () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'sw-dogfood-'));
+    writeFileSync(nodePath.join(projectDirectory, 'package.json'), '{"name":"safeword"}');
+
+    const transport = new LedgerRecordingGitHub();
+    const outcome = await runRetro(
+      { transcript: '/tmp/t.jsonl' },
+      dependencies({
+        transport,
+        resolveProvenance: buildProvenanceResolver({
+          projectDirectory,
+          runGit: () => 'abc1234def\n',
+          now: () => new Date('2026-07-07T12:00:00.000Z'),
+          version: '0.67.0',
+        }),
+      }),
+    );
+
+    expect(outcome.ok).toBe(true);
+    const ledgerComment = transport.comments.find(c => c.includes(LEDGER_MARKER));
+    expect(ledgerComment).toBeDefined();
+    expect(parseLedger(ledgerComment ?? '').provenance).toEqual({
+      sha: 'abc1234def',
+      at: '2026-07-07T12:00:00.000Z',
+    });
+
+    rmSync(projectDirectory, { recursive: true, force: true });
   });
 });
