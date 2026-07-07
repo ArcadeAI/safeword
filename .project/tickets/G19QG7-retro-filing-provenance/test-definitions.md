@@ -59,84 +59,84 @@ skips these fixtures passes vacuously.
 
 ### Scenario: A dogfood-provenance issue is flagged when its surface changed after the capture time
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 179037d
+- [x] GREEN 81cdf61
+- [x] REFACTOR skip: fresh module built to the triage idiom — nothing to restructure yet
 
 ### Scenario: A version-provenance issue is flagged when its surface changed after that release's tag date
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: resolveTagDate path shipped in the sweep-core GREEN (81cdf61); this is its partition proof
+- [x] GREEN 075ec84
+- [x] REFACTOR skip: test-only addition
 
 ### Scenario: A mixed ledger keys on the newest code state, not the newest wall clock
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED d1623ae
+- [x] GREEN 4e9348c
+- [x] REFACTOR skip: slot design landed clean; coercion reuses per-field validators
 
 ### Scenario: An issue whose surface is untouched since its newest code state is not flagged
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: decision path shipped in the sweep core (81cdf61); rejection proof
+- [x] GREEN 0f954cd
+- [x] REFACTOR skip: test-only addition
 
 ## Rule: retro-filing-provenance.SM2.R2 — Reconcile only flags; it never closes
 
 ### Scenario: Flagging leaves the issue open and touches nothing but a comment and label
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: the tracker seam has no close operation — structural guarantee; proof asserts exactly one comment + one label
+- [x] GREEN 2ce226e
+- [x] REFACTOR skip: test-only addition
 
 ## Rule: retro-filing-provenance.SM2.R3 — Reconcile is idempotent
 
 ### Scenario: A re-run against unchanged state adds no duplicate flags
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: marker idempotency shipped in the sweep core (81cdf61); rejection proof runs the sweep twice
+- [x] GREEN 434c52a
+- [x] REFACTOR skip: test-only addition
 
 ## Rule: retro-filing-provenance.SM2.R4 — Unreconcilable issues are left untouched
 
 ### Scenario: A version whose release-tag date cannot be resolved is skipped
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: fail-closed rung shipped in the sweep core (81cdf61); rejection proof
+- [x] GREEN ab9faa8
+- [x] REFACTOR skip: test-only addition
 
 ### Scenario: An issue without recorded provenance is skipped
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: fail-closed rung shipped in the sweep core (81cdf61); rejection proof
+- [x] GREEN ab9faa8
+- [x] REFACTOR skip: test-only addition
 
 ### Scenario: A process-surfaced issue is skipped
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: fail-closed rung shipped in the sweep core (81cdf61); rejection proof
+- [x] GREEN ab9faa8
+- [x] REFACTOR skip: test-only addition
 
 ## Rule: retro-filing-provenance.SM2.R5 — The sweep considers only open, retro-labeled issues
 
 ### Scenario: Closed and non-retro issues are never considered
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: query shape shipped in the sweep core (81cdf61); proof asserts the listing parameters on the transport spy per the RED note above
+- [x] GREEN ab9faa8
+- [x] REFACTOR skip: test-only addition
 
 ## Rule: retro-filing-provenance.SM2.R6 — The sweep bounds its API operations per run, and applied flags land complete
 
 ### Scenario: A run over more flaggable issues than the bound flags completely up to it and defers the rest
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 4073715
+- [x] GREEN c21ef74
+- [x] REFACTOR skip: shouldFlag extraction folded into GREEN under the complexity lint gate
 
 ## Rule: retro-filing-provenance.SM2.R7 — A per-issue transport failure never sinks the sweep or flags on partial data
 
 ### Scenario: A failing surface-commits query isolates to its issue
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: per-issue try/catch shipped in the sweep core (81cdf61); rejection proof with a flaky tracker
+- [x] GREEN 486c29b
+- [x] REFACTOR skip: test-only addition
