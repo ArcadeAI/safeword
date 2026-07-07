@@ -109,4 +109,20 @@ describe('prepareEncounters — process-level surfaces (PNZM3B)', () => {
     expect(encounter).toBeDefined();
     expect(encounter?.draft.body).toContain('process/tdd-loop');
   });
+
+  it.each([
+    ['TDD-Loop', 'uppercase'],
+    ['tdd_loop', 'underscore'],
+    ['tdd/loop', 'nested separator'],
+    ['verify-suite-timeout-and-tdd-loop', '33 chars, one over the bound'],
+    ['', 'empty slug'],
+    ['deadbeefcafe', 'sub-20-char hex run'],
+    ['3f9d2c7b1a8e4d6f0b5a9c8d7e6f1a2b', '32-char hex (secret-shaped)'],
+    ['3f9d-2c7b-1a8e-4d6f', 'hyphen-split hex'],
+    ['k9x2m7q4w8z3j6v1n5r0', 'high-entropy non-hex token'],
+  ])('drops process/%s (%s) and counts it at the surface wall', async (slug: string) => {
+    const report = await prepareEncounters([rawFinding({ safeword_surface: `process/${slug}` })]);
+    expect(report.encounters).toEqual([]);
+    expect(report.drops).toEqual({ schema: 0, surface: 1 });
+  });
 });
