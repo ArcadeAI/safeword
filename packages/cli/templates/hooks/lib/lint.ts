@@ -6,7 +6,7 @@
 //
 // Auto-upgrades safeword if a language pack is missing.
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { $ } from 'bun';
@@ -281,7 +281,8 @@ async function runPrettier(file: string): Promise<void> {
  * @param _projectDir - Project root directory (cached at module init, kept for backward compat)
  */
 export async function lintFile(file: string, _projectDir: string): Promise<LintResult> {
-  const extension = file.split('.').pop()?.toLowerCase() ?? '';
+  const normalizedFile = existsSync(file) ? realpathSync(file) : file;
+  const extension = normalizedFile.split('.').pop()?.toLowerCase() ?? '';
   const warnings: string[] = [];
 
   // JS/TS and framework files - ESLint first (fix code), then Prettier (format)
@@ -289,9 +290,12 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
   if (JS_EXTENSIONS.has(extension)) {
     const hasEslint = await ensurePackInstalled('TypeScript', SAFEWORD_ESLINT);
     const cfg = configArgs(SAFEWORD_ESLINT, hasEslint);
-    await $`bunx eslint ${cfg} --fix ${file}`.nothrow().quiet();
-    await runPrettier(file);
-    const errors = await captureRemainingErrors(['bunx', 'eslint', ...cfg, file], warnings);
+    await $`bunx eslint ${cfg} --fix ${normalizedFile}`.nothrow().quiet();
+    await runPrettier(normalizedFile);
+    const errors = await captureRemainingErrors(
+      ['bunx', 'eslint', ...cfg, normalizedFile],
+      warnings,
+    );
     return { warnings, ...(errors && { errors }) };
   }
 
@@ -299,15 +303,23 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
   // Auto-upgrades safeword if Python pack is missing
   if (PYTHON_EXTENSIONS.has(extension)) {
     if (
-      !(await checkToolAvailable('ruff', 'Python', getPythonInstallHint(file, 'ruff'), warnings))
+      !(await checkToolAvailable(
+        'ruff',
+        'Python',
+        getPythonInstallHint(normalizedFile, 'ruff'),
+        warnings,
+      ))
     ) {
       return { warnings };
     }
     const hasRuff = await ensurePackInstalled('Python', SAFEWORD_RUFF);
     const cfg = configArgs(SAFEWORD_RUFF, hasRuff);
-    await $`ruff check ${cfg} --fix ${file}`.nothrow().quiet();
-    await $`ruff format ${cfg} ${file}`.nothrow().quiet();
-    const errors = await captureRemainingErrors(['ruff', 'check', ...cfg, file], warnings);
+    await $`ruff check ${cfg} --fix ${normalizedFile}`.nothrow().quiet();
+    await $`ruff format ${cfg} ${normalizedFile}`.nothrow().quiet();
+    const errors = await captureRemainingErrors(
+      ['ruff', 'check', ...cfg, normalizedFile],
+      warnings,
+    );
     return { warnings, ...(errors && { errors }) };
   }
 
@@ -343,9 +355,12 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
     }
     const hasGolangci = await ensurePackInstalled('Go', SAFEWORD_GOLANGCI);
     const cfg = configArgs(SAFEWORD_GOLANGCI, hasGolangci);
-    await $`golangci-lint run ${cfg} --fix ${file}`.nothrow().quiet();
-    await $`golangci-lint fmt ${cfg} ${file}`.nothrow().quiet();
-    const errors = await captureRemainingErrors(['golangci-lint', 'run', ...cfg, file], warnings);
+    await $`golangci-lint run ${cfg} --fix ${normalizedFile}`.nothrow().quiet();
+    await $`golangci-lint fmt ${cfg} ${normalizedFile}`.nothrow().quiet();
+    const errors = await captureRemainingErrors(
+      ['golangci-lint', 'run', ...cfg, normalizedFile],
+      warnings,
+    );
     return { warnings, ...(errors && { errors }) };
   }
 
@@ -355,7 +370,7 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
     const hasRustConfig = await ensurePackInstalled('Rust', SAFEWORD_RUSTFMT);
 
     // Run clippy with package targeting for workspaces
-    const packageName = detectRustPackage(file);
+    const packageName = detectRustPackage(normalizedFile);
     if (packageName && (await isCommandAvailable('cargo'))) {
       const clippyEnv = hasConfig(SAFEWORD_CLIPPY)
         ? { CLIPPY_CONF_DIR: nodePath.dirname(SAFEWORD_CLIPPY) }
@@ -370,9 +385,9 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
     // Run rustfmt for file-level formatting
     if (await isCommandAvailable('rustfmt')) {
       if (hasRustConfig) {
-        await $`rustfmt --config-path ${SAFEWORD_RUSTFMT} ${file}`.nothrow().quiet();
+        await $`rustfmt --config-path ${SAFEWORD_RUSTFMT} ${normalizedFile}`.nothrow().quiet();
       } else {
-        await $`rustfmt ${file}`.nothrow().quiet();
+        await $`rustfmt ${normalizedFile}`.nothrow().quiet();
       }
     } else if (!toolWarnings.has('rustfmt')) {
       toolWarnings.add('rustfmt');
@@ -397,7 +412,7 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
     // runPrettier's V7GGJZ guard deliberately: plugin presence means the host
     // formats SQL with prettier even when Biome/dprint owns its JS/TS style.
     if (hostFormatsSqlWithPrettier(projectDir)) {
-      const result = await $`bunx prettier --write ${file}`.nothrow().quiet();
+      const result = await $`bunx prettier --write ${normalizedFile}`.nothrow().quiet();
       if (result.exitCode === 0) return { warnings };
       // Non-zero: the plugin is undeclared in the host config, or the edit
       // itself doesn't parse. Only fall through to sqlfluff when its config
@@ -416,7 +431,7 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
         !(await checkToolAvailable(
           'sqlfluff',
           'SQL/dbt',
-          getPythonInstallHint(file, "'sqlfluff>=4.2.0'"),
+          getPythonInstallHint(normalizedFile, "'sqlfluff>=4.2.0'"),
           warnings,
         ))
       ) {
@@ -428,10 +443,10 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
       // carve out frozen files with .sqlfluffignore, which sqlfluff honors
       // even for explicitly passed paths.
       if (sqlFixOptedIn(projectDir)) {
-        await $`sqlfluff fix --config ${SAFEWORD_SQLFLUFF} ${file}`.nothrow().quiet();
+        await $`sqlfluff fix --config ${SAFEWORD_SQLFLUFF} ${normalizedFile}`.nothrow().quiet();
       }
       const errors = await captureRemainingErrors(
-        ['sqlfluff', 'lint', '--config', SAFEWORD_SQLFLUFF, file],
+        ['sqlfluff', 'lint', '--config', SAFEWORD_SQLFLUFF, normalizedFile],
         warnings,
       );
       return { warnings, ...(errors && { errors }) };
@@ -442,7 +457,7 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
   // Gherkin feature files - syntax/style lint, no auto-fix available
   if (FEATURE_EXTENSIONS.has(extension)) {
     const errors = await captureRemainingErrors(
-      [...safewordCliCommand(), 'lint-gherkin', file],
+      [...safewordCliCommand(), 'lint-gherkin', normalizedFile],
       warnings,
       { stderrIsLintOutput: true },
     );
@@ -451,20 +466,29 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
 
   // Other supported formats - prettier only
   if (PRETTIER_EXTENSIONS.has(extension)) {
-    await runPrettier(file);
+    await runPrettier(normalizedFile);
     return { warnings };
   }
 
   // Shell scripts - shellcheck (if available), then Prettier (if plugin installed)
   if (SHELL_EXTENSIONS.has(extension)) {
-    const shellcheckResult = await $`bunx shellcheck ${file}`.nothrow().quiet();
-    const shellErrors =
-      shellcheckResult.exitCode !== 0 ? shellcheckResult.stdout.toString().trim() : '';
+    let shellErrors = '';
+    if (await isCommandAvailable('shellcheck')) {
+      const shellcheckResult = await $`shellcheck ${normalizedFile}`.nothrow().quiet();
+      shellErrors =
+        shellcheckResult.exitCode !== 0 ? shellcheckResult.stdout.toString().trim() : '';
+    } else if (!toolWarnings.has('shellcheck')) {
+      toolWarnings.add('shellcheck');
+      warnings.push(
+        'ShellCheck is not installed — shell scripts are not being linted. ' +
+          'Install it with your system package manager, for example: brew install shellcheck',
+      );
+    }
     if (
       hasConfig(SAFEWORD_PRETTIER) ||
       existsSync(`${projectDir}/node_modules/prettier-plugin-sh`)
     ) {
-      await runPrettier(file);
+      await runPrettier(normalizedFile);
     }
     return { warnings, ...(shellErrors && { errors: shellErrors }) };
   }

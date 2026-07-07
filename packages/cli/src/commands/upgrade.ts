@@ -9,9 +9,11 @@ import nodePath from 'node:path';
 import { checkHealth, reportHealthSummary } from '../health.js';
 import { migratePackId } from '../packs/config.js';
 import { installPack } from '../packs/install.js';
+import { hasImportLinterScaffoldTarget } from '../packs/python/files.js';
 import {
   detectPythonPackageManager,
   getPythonInstallCommand,
+  getPythonTools,
   hasRuffDependency,
   installPythonDependencies,
 } from '../packs/python/setup.js';
@@ -30,6 +32,7 @@ import { createProjectContext } from '../utils/context.js';
 import { getEslintPeerMismatchWarning } from '../utils/eslint-peer-check.js';
 import { exists, findInTree, readFileSafe, readJson, writeFile } from '../utils/fs.js';
 import { untrackIgnoredFiles } from '../utils/git.js';
+import { hookIntegrationNudge } from '../utils/hook-nudge.js';
 import {
   detectPackageManager,
   getUninstallCommand,
@@ -198,7 +201,9 @@ function installPythonBasedTools(pythonDirectory: string, packages: string[], la
 function installPythonTools(cwd: string): void {
   const pythonDirectory = findInTree(cwd, 'pyproject.toml') ?? cwd;
   if (hasRuffDependency(pythonDirectory)) return;
-  installPythonBasedTools(pythonDirectory, ['ruff', 'mypy'], 'Python tools');
+  // Same set as `setup` — via the shared getPythonTools so the two can't drift.
+  const tools = getPythonTools(hasImportLinterScaffoldTarget(pythonDirectory));
+  installPythonBasedTools(pythonDirectory, tools, 'Python tools');
 }
 
 function installSqlTools(cwd: string, ctx: ProjectContext): void {
@@ -334,7 +339,7 @@ export async function maybeMigrateNamespace(cwd: string, options: UpgradeOptions
     reportMigrationSuccess(executeNamespaceMigration(cwd));
   } catch (migrationError) {
     warn(
-      `${Error.isError(migrationError) ? migrationError.message : String(migrationError)} — continuing upgrade on .safeword-project/.`,
+      `${migrationError instanceof Error ? migrationError.message : String(migrationError)} — continuing upgrade on .safeword-project/.`,
     );
     return;
   }
@@ -420,6 +425,10 @@ export async function upgrade(options: UpgradeOptions): Promise<void> {
   try {
     const ctx = createProjectContext(cwd);
     const result = await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
+    // Boundary-gate integration for non-husky worlds (ZJMZ50): repeats each
+    // upgrade until the config invokes the gate, then quiesces (TB1.R3).
+    const hookNudge = hookIntegrationNudge(ctx);
+    if (hookNudge !== undefined) info(hookNudge);
     installDependencies(cwd, result.packagesToInstall, 'missing packages');
     syncAndRecordPackageJsonSafewordVersion(cwd, result);
 
@@ -456,7 +465,7 @@ export async function upgrade(options: UpgradeOptions): Promise<void> {
 
     await selfVerify(cwd);
   } catch (error_) {
-    error(`Upgrade failed: ${Error.isError(error_) ? error_.message : 'Unknown error'}`);
+    error(`Upgrade failed: ${error_ instanceof Error ? error_.message : 'Unknown error'}`);
     process.exit(1);
   }
 }

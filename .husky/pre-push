@@ -21,3 +21,7 @@ if git diff origin/main...HEAD --name-only 2> /dev/null | grep -q "schema.ts"; t
   cd packages/cli && bunx vitest run tests/schema.test.ts tests/integration/skills-commands-validation.test.ts || exit 1
   echo "✓ Schema-drift tests passed"
 fi
+
+# Boundary reconciliation gate (CDRJTW, #810 slice 1): history-backed evidence
+# checks over the outgoing range. Warn-and-record only — never blocks.
+bun packages/cli/src/cli.ts boundary --at push || true

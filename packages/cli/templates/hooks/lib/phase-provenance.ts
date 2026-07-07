@@ -52,14 +52,14 @@ const OK: ProvenanceVerdict = { ok: true };
 const SKIPS_SYNTAX =
   'record a deliberate skip for each bypassed phase as an indented phase_skips block sequence — e.g. `phase_skips:` on its own line, then `  - intake: <reason>` (two-space indent) for each skipped phase, each with a non-empty reason';
 
-function frontmatterOf(content: string): Record<string, string | string[]> | undefined {
+export function frontmatterOf(content: string): Record<string, string | string[]> | undefined {
   const match = content.match(/^---\n([\s\S]*?)\n---/);
   if (!match) return undefined;
   const parsed = parseFrontmatter(match[1] ?? '');
   return Object.keys(parsed).length > 0 ? parsed : undefined;
 }
 
-function scalar(
+export function scalar(
   meta: Record<string, string | string[]> | undefined,
   key: string,
 ): string | undefined {

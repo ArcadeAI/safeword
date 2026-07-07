@@ -361,12 +361,16 @@ describe('Schema - Single Source of Truth', () => {
         'astro', // prettier-plugin-astro (ESLint rules are in safeword)
         'tailwind', // prettier-plugin-tailwindcss
         'publishableLibrary', // publint
-        'shellcheck', // shellcheck for shell scripts
       ];
 
       for (const condition of requiredConditions) {
         expect(SAFEWORD_SCHEMA.packages.conditional).toHaveProperty(condition);
       }
+    });
+
+    it('should rely on the system shellcheck binary instead of the vulnerable npm wrapper', async () => {
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      expect(SAFEWORD_SCHEMA.packages.conditional).not.toHaveProperty('shellcheck');
     });
   });
 
@@ -659,6 +663,10 @@ describe('Schema - Single Source of Truth', () => {
         'depcruise-config.cjs',
         'eslint.config.mjs',
         '.prettierrc',
+        // Runtime audit record appended by the dogfooded boundary hooks
+        // (CDRJTW) — gitignored transient state, present on any machine that
+        // has committed in this repo.
+        'boundary-audit.jsonl',
       ]);
 
       const ownedPaths = new Set(Object.keys(SAFEWORD_SCHEMA.ownedFiles));

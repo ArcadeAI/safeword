@@ -8,16 +8,17 @@ Kill zombie processes (dev servers, Playwright browsers, test runners) for the c
 
 ## Instructions
 
-Run the cleanup script with `--dry-run` first to preview what will be killed:
-
-```bash
-./.safeword/scripts/cleanup-zombies.sh --dry-run
-```
-
-If the output looks correct, run without `--dry-run`:
+Run the cleanup script — it previews what would be killed (nothing dies without
+explicit consent; the preview-first ritual is script-enforced):
 
 ```bash
 ./.safeword/scripts/cleanup-zombies.sh
+```
+
+If the preview looks correct, confirm the kill with `--yes`:
+
+```bash
+./.safeword/scripts/cleanup-zombies.sh --yes
 ```
 
 ## What It Does
@@ -32,11 +33,11 @@ If the output looks correct, run without `--dry-run`:
 If auto-detection fails or you need a specific port:
 
 ```bash
-# Explicit port
+# Explicit port (preview, then add --yes to kill)
 ./.safeword/scripts/cleanup-zombies.sh 5173
 
 # Port + additional pattern
-./.safeword/scripts/cleanup-zombies.sh 5173 "electron"
+./.safeword/scripts/cleanup-zombies.sh --yes 5173 "electron"
 ```
 
 ## When to Use

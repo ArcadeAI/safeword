@@ -271,7 +271,7 @@ if (tool === 'Bash') {
   if (processKill) {
     deny(
       `Broad process kill blocked: \`${processKill.command} ${processKill.target}\` matches by name across the whole machine, killing every project's ${processKill.target} processes (dev servers, test runners, other sessions), not just this project's. Use the project-scoped \`./.safeword/scripts/cleanup-zombies.sh\` instead.`,
-      `Project-scoped alternatives: \`./.safeword/scripts/cleanup-zombies.sh\` (auto-detects this project's processes; --dry-run to preview), \`lsof -ti:<port> | xargs kill -9\` (port-scoped), or \`pkill -f "<pattern>.*$(pwd)"\` (path-scoped). See .safeword/guides/zombie-process-cleanup.md.`,
+      `Project-scoped alternatives: \`./.safeword/scripts/cleanup-zombies.sh\` (auto-detects this project's processes; previews by default, --yes to kill), \`lsof -ti:<port> | xargs kill -9\` (port-scoped), or \`pkill -f "<pattern>.*$(pwd)"\` (path-scoped). See .safeword/guides/zombie-process-cleanup.md.`,
     );
   }
   if (GIT_COMMIT_COMMAND.test(command)) {

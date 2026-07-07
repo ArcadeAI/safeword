@@ -19,7 +19,7 @@ Local `bun publish` is still gated by `packages/cli/scripts/check-bun-publish.js
 
 - **Never run more than one vitest process.** If a test run is backgrounded, wait for the completion notification — do not retry.
 - Prefer targeted runs over the full suite during development.
-- **Where you run matters.** `vitest` is only installed in `packages/cli/node_modules/.bin`, so `npx vitest run …` works **from `packages/cli`**, not the repo root (from root it fails `vitest: not found` — issue #723). From the repo root, run package tests via `bun run test <path>` — both `packages/cli`-relative (`tests/foo.test.ts`) and repo-root-relative (`packages/cli/tests/foo.test.ts`) paths work; the build-lock wrapper rebases the latter (#723) and rebuilds `dist/` first. The `node scripts/run-vitest-with-build-lock.mjs` wrapper resolves a `vitest` even when PATH lacks one (issue #715).
+- **Where you run matters.** `vitest` is only installed in `packages/cli/node_modules/.bin`, so `npx vitest run …` works **from `packages/cli`**, not the repo root (from root it fails `vitest: not found` — issue #723). From the repo root, run package tests via `bun run test <path>` — both `packages/cli`-relative (`tests/foo.test.ts`) and repo-root-relative (`packages/cli/tests/foo.test.ts`) paths work; the build-lock wrapper rebases the latter (#723) and rebuilds `dist/` first. The wrapper (`packages/cli/scripts/run-vitest-with-build-lock.mjs`, invoked as `node scripts/…` from `packages/cli`) resolves a `vitest` even when PATH lacks one (issue #715).
 - Full suite only for final verification before commit.
 
 ---@./AGENTS.md

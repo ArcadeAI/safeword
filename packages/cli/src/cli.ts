@@ -43,6 +43,17 @@ program
   });
 
 program
+  .command('boundary')
+  .description(
+    'Reconcile workflow evidence at a git boundary — warn-and-record, never blocks (exit 0 always)',
+  )
+  .requiredOption('--at <boundary>', 'which boundary: commit | push')
+  .action(async options => {
+    const { boundary } = await import('./commands/boundary.js');
+    await boundary(options);
+  });
+
+program
   .command('upgrade')
   .description('Upgrade safeword configuration to latest version')
   .option(

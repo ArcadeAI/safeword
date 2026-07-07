@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   detectPythonPackageManager,
+  getPythonTools,
   hasRuffDependency,
   installPythonDependencies,
 } from '../../src/packs/python/setup.js';
@@ -31,6 +32,20 @@ afterEach(() => {
   if (context.projectDirectory) {
     removeTemporaryDirectory(context.projectDirectory);
   }
+});
+
+// =============================================================================
+// Tool set (shared by setup + upgrade — the anti-drift source of truth)
+// =============================================================================
+
+describe('getPythonTools', () => {
+  it('installs ruff, mypy, and deadcode by default', () => {
+    expect(getPythonTools(false)).toEqual(['ruff', 'mypy', 'deadcode']);
+  });
+
+  it('adds import-linter when a config would be scaffolded', () => {
+    expect(getPythonTools(true)).toEqual(['ruff', 'mypy', 'deadcode', 'import-linter']);
+  });
 });
 
 // =============================================================================

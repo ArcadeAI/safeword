@@ -45,8 +45,16 @@ export function checkVerifyArtifact(content: string): VerifyArtifactStatus {
     };
   }
 
+  // Status semantics (1F08DD): the glyph decides. ❌ anywhere fails (it may be
+  // followed by explanatory prose, even a ✅ quote); otherwise an explicit ✅
+  // passes REGARDLESS of prose — "No piggybacked changes." on a passing line
+  // must not read as a failure (found live when the boundary gate rejected an
+  // honest verify.md). The bare-substring test survives only as the fallback
+  // for glyph-less legacy lines, where "piggybacked changes" is a positive claim.
   const status = prScopeMatch.groups.status;
-  if (/❌|piggybacked changes/i.test(status)) {
+  const failed =
+    status.includes('❌') || (!status.includes('✅') && /piggybacked changes/i.test(status));
+  if (failed) {
     return {
       ok: false,
       reason:
