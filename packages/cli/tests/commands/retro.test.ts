@@ -31,6 +31,7 @@ class FakeGitHub implements IssueTracker {
   private nextIssue = 1;
   private nextComment = 1;
   readonly issues: (CreateIssueInput & { number: number })[] = [];
+  readonly comments: string[] = [];
   readonly calls = { createIssue: 0 };
 
   searchBySignature(): Promise<IssueReference[]> {
@@ -49,6 +50,7 @@ class FakeGitHub implements IssueTracker {
   }
 
   createComment(_n: number, body: string): Promise<IssueComment> {
+    this.comments.push(body);
     return Promise.resolve({ id: this.nextComment++, body });
   }
 
@@ -528,38 +530,11 @@ describe('buildAutoExtractor (SM1.AC2 — runner model: sonnet default, config-o
 describe('runRetro provenance capture (G19QG7)', () => {
   // Only the process boundaries are mocked: GitHub transport, git subprocess,
   // clock. Environment detection and ledger rendering are real.
-  class LedgerRecordingGitHub implements IssueTracker {
-    private nextIssue = 1;
-    private nextComment = 1;
-    readonly comments: string[] = [];
-
-    searchBySignature(): Promise<IssueReference[]> {
-      return Promise.resolve([]);
-    }
-
-    createIssue(input: CreateIssueInput): Promise<IssueReference> {
-      return Promise.resolve({ number: this.nextIssue++, title: input.title });
-    }
-
-    listComments(): Promise<IssueComment[]> {
-      return Promise.resolve([]);
-    }
-
-    createComment(_n: number, body: string): Promise<IssueComment> {
-      this.comments.push(body);
-      return Promise.resolve({ id: this.nextComment++, body });
-    }
-
-    updateComment(): Promise<void> {
-      return Promise.resolve();
-    }
-  }
-
   it('retro-filing-provenance.SM1.R1.dogfood_encounter_records_short_sha_and_capture_time', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'sw-dogfood-'));
     writeFileSync(nodePath.join(projectDirectory, 'package.json'), '{"name":"safeword"}');
 
-    const transport = new LedgerRecordingGitHub();
+    const transport = new FakeGitHub();
     const outcome = await runRetro(
       { transcript: '/tmp/t.jsonl' },
       dependencies({
@@ -586,7 +561,7 @@ describe('runRetro provenance capture (G19QG7)', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'sw-customer-'));
     writeFileSync(nodePath.join(projectDirectory, 'package.json'), '{"name":"acme-app"}');
 
-    const transport = new LedgerRecordingGitHub();
+    const transport = new FakeGitHub();
     const outcome = await runRetro(
       { transcript: '/tmp/t.jsonl' },
       dependencies({
@@ -613,7 +588,7 @@ describe('runRetro provenance capture (G19QG7)', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'sw-acme-secret-project-'));
     writeFileSync(nodePath.join(projectDirectory, 'package.json'), '{"name":"acme-app"}');
 
-    const transport = new LedgerRecordingGitHub();
+    const transport = new FakeGitHub();
     await runRetro(
       { transcript: '/tmp/t.jsonl' },
       dependencies({
@@ -641,7 +616,7 @@ describe('runRetro provenance capture (G19QG7)', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'sw-dogfood-'));
     writeFileSync(nodePath.join(projectDirectory, 'package.json'), '{"name":"safeword"}');
 
-    const transport = new LedgerRecordingGitHub();
+    const transport = new FakeGitHub();
     const outcome = await runRetro(
       { transcript: '/tmp/t.jsonl' },
       dependencies({
