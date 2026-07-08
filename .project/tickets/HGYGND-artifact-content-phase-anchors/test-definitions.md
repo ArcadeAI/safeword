@@ -21,31 +21,31 @@ suites.
 
 ### Scenario: Forward advance recording the exited phase's artifact path is anchored
 
-- [ ] RED
+- [x] RED e90eb07
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: Only the entered phase needs an anchor on a multi-step advance
 
-- [ ] RED
+- [x] RED e90eb07
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: The scenario-gate anchor accepts the feature source or its legacy fallback
 
-- [ ] RED
+- [x] RED e90eb07
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: Re-advancing a phase is judged by its latest anchor entry
 
-- [ ] RED
+- [x] RED e90eb07
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: An earlier valid entry cannot rescue a re-advance whose latest anchor is stale
 
-- [ ] RED
+- [x] RED e90eb07
 - [ ] GREEN
 - [ ] REFACTOR
 
@@ -53,7 +53,7 @@ suites.
 
 ### Scenario: Verification consults only the supplied tree, never git history
 
-- [ ] RED
+- [x] RED e90eb07
 - [ ] GREEN
 - [ ] REFACTOR
 
@@ -85,73 +85,79 @@ suites.
 
 ### Scenario: Forward advance with no phase_anchors block at all is flagged with the exact line to add
 
-- [ ] RED
+- [x] RED e90eb07
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: Forward advance whose phase_anchors block names only an earlier phase is flagged
 
-- [ ] RED
+- [x] RED e90eb07
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: Forward advance whose anchor value is empty is flagged
 
-- [ ] RED
+- [x] RED e90eb07
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: Forward advance whose anchor is not a plausible repo-relative path is flagged
 
-- [ ] RED
+- [x] RED e90eb07
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: Forward advance anchored to a path absent from the tree is flagged
 
-- [ ] RED
+- [x] RED e90eb07
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: Forward advance anchored to a hollow scaffold artifact is flagged
 
-- [ ] RED
+- [x] RED e90eb07
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: Forward advance anchored to the wrong kind of artifact for the phase is flagged
 
-- [ ] RED
+- [x] RED e90eb07
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: A backward phase move is not flagged
 
-- [ ] RED
+- [x] RED e90eb07
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: Re-declaring the same phase is not flagged
 
-- [ ] RED
+- [x] RED e90eb07
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: A non-feature ticket advancing is not flagged
 
-- [ ] RED
+- [x] RED e90eb07
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: A ticket becoming a feature past intake is not flagged
 
-- [ ] RED
+- [x] RED e90eb07
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: An edit that leaves the phase unchanged is not flagged
 
-- [ ] RED
+- [x] RED e90eb07
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: The at-rest advisory nudges a missing anchor with the path grammar
+
+- [x] RED e90eb07
 - [ ] GREEN
 - [ ] REFACTOR
 
@@ -159,13 +165,13 @@ suites.
 
 ### Scenario: A hex-shaped legacy anchor on a ticket at rest stays silent
 
-- [ ] RED
+- [x] RED e90eb07
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: A new forward advance recording a hex-shaped anchor draws the migration remediation
 
-- [ ] RED
+- [x] RED e90eb07
 - [ ] GREEN
 - [ ] REFACTOR
 

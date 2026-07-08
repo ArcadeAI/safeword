@@ -171,6 +171,12 @@ Feature: Artifact-content phase anchors — a phase advance is evidenced by the 
       When its body is edited without changing the phase
       Then the advance is not flagged
 
+    @artifact-content-phase-anchors.SM1.R3
+    Scenario: The at-rest advisory nudges a missing anchor with the path grammar
+      Given a feature ticket at rest at phase implement with no phase_anchors entry for implement
+      When the at-rest anchor advisory inspects it
+      Then an anchor finding nudges the path grammar
+
   Rule: Legacy SHA anchors neither warn at rest nor block new work
 
     @artifact-content-phase-anchors.SM1.R4

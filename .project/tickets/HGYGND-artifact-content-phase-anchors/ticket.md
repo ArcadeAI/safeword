@@ -2,11 +2,12 @@
 id: HGYGND
 slug: artifact-content-phase-anchors
 type: feature
-phase: scenario-gate
+phase: implement
 status: in_progress
 phase_anchors:
   - define-behavior: .project/tickets/HGYGND-artifact-content-phase-anchors/spec.md
   - scenario-gate: features/artifact-content-phase-anchors.feature
+  - implement: .project/tickets/HGYGND-artifact-content-phase-anchors/impl-plan.md
 epic: "808"
 external_issue: https://github.com/ArcadeAI/safeword/issues/815
 scope:
@@ -76,3 +77,4 @@ under path anchors distinct phases now carry distinct evidence anyway.
 - 2026-07-07T05:12:00.000Z BLOCKED on #810: user decision — #810's boundary gate is being built on another branch against SHA-reachability anchors; hold this redesign until it merges, then migrate the live gate. Resume at intake with spec.md's Open Questions (/figure-it-out on hash semantics).
 - 2026-07-08T02:13:55.616Z Phase: intake → define-behavior
 - 2026-07-08T02:16:06.514Z Phase: define-behavior → scenario-gate
+- 2026-07-08T02:29:33.085Z Phase: scenario-gate → implement
