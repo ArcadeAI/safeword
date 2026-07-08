@@ -38,7 +38,7 @@ Unaffected:
 
 ## Vocabulary
 
-Consistent with the project glossary: Phase, Gate, Reconciliation, Phase Anchor. The glossary's `Phase` entry hard-codes the six-phase enum and is updated by this feature. No new project-wide terms; "transition gate" stays spec-local for the pre-tool denial of `phase: implement` without a valid plan.
+Consistent with the project glossary: Phase, Gate, Reconciliation, Phase Anchor. The glossary's `Phase` entry hard-codes the six-phase enum and is updated by this feature. Spec-local terms: "transition gate" (the pre-tool denial of `phase: implement` without a valid plan) and `designApprovalGate` (the opt-in human-approval config toggle, decision 17).
 
 ## Jobs To Be Done
 
@@ -62,11 +62,33 @@ Consistent with the project glossary: Phase, Gate, Reconciliation, Phase Anchor.
 
 > When my agent completes planning, I want the stored artifacts sized to the feature's risk — with padding flagged editorially — so the planning record stays readable and trustworthy instead of becoming volume nobody reads.
 
-#### plan-implementation-phase.TB2.R1 — plan depth tracks feature size and risk in both directions: brief plans are correct for small features, hard-to-reverse work compels depth, and the phase stores only the plan plus qualifying ADRs
+#### plan-implementation-phase.TB2.R1 — plan depth tracks feature size and risk in both directions: brief plans are correct for small features, hard-to-reverse work compels depth, and the phase stores only the plan, qualifying ADRs, and existing-lane design docs when their own guides trigger them
 
 #### plan-implementation-phase.TB2.R2 — ADRs stay lean: a page or two per record, never mega-records or design guides in disguise
 
 #### plan-implementation-phase.TB2.R3 — the editorial check governs size, never whether: padding is flagged via the deletion test, and skip lines govern applicability, not effort
+
+### plan-implementation-phase.TB3 — architecture-fluent planning that reuses what exists
+
+**Persona:** Technical Builder (TB)
+
+> When my agent plans, I want it fluent in the current architecture and the design machinery we already ship — reusing better components and existing design lanes, changing architecture deliberately when warranted — so plans neither duplicate what exists nor anchor to it.
+
+#### plan-implementation-phase.TB3.R1 — the phase directs current-architecture awareness (generated state doc + decision record) after the ideal design is sketched, framed as reuse-or-deliberate-change, never sunk-cost conformance
+
+#### plan-implementation-phase.TB3.R2 — deep technical and data design routes through the existing design-doc and data-architecture lanes; impl-plan.md stays the lean record
+
+#### plan-implementation-phase.TB3.R3 — each load-bearing design choice gets a /figure-it-out pass
+
+### plan-implementation-phase.NTB2 — reviewed before it reaches me, autonomous by default
+
+**Persona:** Non-Technical Builder (NTB)
+
+> When my agent finishes planning, I want the output independently reviewed before anything is put in front of me — and human design approval to be an opt-in toggle defaulting to autonomous — so I'm never asked to judge raw output or approve architecture I can't evaluate.
+
+#### plan-implementation-phase.NTB2.R1 — human handoff on planning output happens only after the phase's independent review has passed; user-only information gaps route to the user at any time
+
+#### plan-implementation-phase.NTB2.R2 — human design approval is a config toggle defaulting to autonomous; enabling it inserts the approval after the review passes, before implement
 
 ### plan-implementation-phase.NTB1 — a plan I can read is my only audit surface
 
@@ -133,6 +155,14 @@ Added at the ADR-lifecycle /figure-it-out (2026-07-08, second signoff round):
 10. **Elevation:** the significance test decides what touches the architecture record; routine decisions live in the plan's Decisions table; generated architecture state docs (architecture.generated.md — machine-owned *what-is*) are never an ADR destination — the record (*why*) is the only target.
 11. **Mid-flight drift:** the plan is a living record until implement-exit reconciliation — a decision proven wrong during implement updates the plan section then, notes the change in Decisions, and supersedes any affected ADR immediately; exit reconciliation is the backstop. Stage-scoped review stamps make mid-flight edits safe.
 12. **Legacy ADR drift:** supersede, never edit, never delete — a new record marks the old one "superseded by", linked in both directions (unanimous: Nygard, Microsoft WAF, AWS, MADR).
+
+Added at the third signoff round (2026-07-08 — reuse, AI leverage, review-before-handoff, approval toggle):
+
+13. **Reuse over reinvention:** deep technical/data design routes through the lanes that already ship — design-doc-template/guide (Components, Data Model), data-architecture-guide (data-model elevation rules), architecture-guide (Survey & Reconcile, escalation table). impl-plan.md stays the lean record with pointers; no new section inventions. TB2's closed artifact set amended to include the existing design-doc lane when its own guide's triggers fire.
+14. **/figure-it-out is the phase's design engine:** each load-bearing choice (slicing, data model, storage, interfaces, test layers) gets a /figure-it-out pass — leveraging AI research abilities to out-plan an unaided human is the point of the phase, not an optional extra.
+15. **Architecture awareness without anchoring:** the phase directs reading the generated architecture state doc and the decision record for current-structure fluency (reuse better components, avoid duplicate work) — but only after the ideal design is sketched (SAFEWORD.md's load-bearing order), and changing the architecture is a planned-for outcome with a recorded decision, never sunk-cost conformance.
+16. **Review-before-handoff:** any human-facing checkpoint in this phase fires only after the phase's independent quality review has passed — raw output is never handed to the user. User-only information gaps (/elicit) are the exception and route to the user at any time. (#478's principle applied to this phase; reordering other phases stays out of scope.)
+17. **Human design approval is an opt-in toggle:** config key `designApprovalGate`, default off/absent = autonomous (the NTB default — no rooting around for toggles). Enabled (the TB opt-in): after the independent review passes, the plan is presented for user approval before `implement`. Conversational-gate mechanism like intake's sub-phase gates — prose contract, no hook code; documented in the config reference. Independent review prefers a different model when crossModelReview is available (secondary, per existing semantics).
 
 ## Open Questions
 

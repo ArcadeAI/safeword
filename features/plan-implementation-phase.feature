@@ -135,7 +135,7 @@ Feature: plan-implementation phase before TDD
     Scenario: Planning stores only the plan and qualifying ADRs
       Given the shipped bdd skill documents
       When PLAN_IMPLEMENTATION.md is read
-      Then it directs storing impl-plan.md and qualifying ADRs only, with no auxiliary design documents
+      Then it directs storing impl-plan.md and qualifying ADRs, routing deeper design to the existing design-doc lane rather than novel artifact kinds
 
   @plan-implementation-phase.TB2.R2
   Rule: plan-implementation-phase.TB2.R2 — ADRs stay lean
@@ -161,6 +161,58 @@ Feature: plan-implementation phase before TDD
       When PLAN_IMPLEMENTATION.md is read
       Then it states skip lines govern applicability, never effort or size
       And the five sections remain content-or-skip regardless of feature size
+
+  @plan-implementation-phase.TB3.R1
+  Rule: plan-implementation-phase.TB3.R1 — current-architecture awareness after the ideal design, never sunk-cost conformance
+
+    Scenario: Planning directs architecture awareness after the ideal design
+      Given the shipped bdd skill documents
+      When PLAN_IMPLEMENTATION.md is read
+      Then it directs reading the generated architecture state doc and the decision record for reuse candidates after sketching the ideal approach
+      And it frames existing architecture as changeable with a recorded decision, not a constraint to conform to
+
+  @plan-implementation-phase.TB3.R2
+  Rule: plan-implementation-phase.TB3.R2 — deep design routes through the existing design lanes
+
+    Scenario: Deep technical and data design routes through the existing lanes
+      Given the shipped bdd skill documents
+      When PLAN_IMPLEMENTATION.md is read
+      Then it routes component and data-model design to the design-doc template and the data-architecture guide rather than new plan sections
+
+  @plan-implementation-phase.TB3.R3
+  Rule: plan-implementation-phase.TB3.R3 — each load-bearing design choice gets a figure-it-out pass
+
+    Scenario: Load-bearing choices get a figure-it-out pass
+      Given the shipped bdd skill documents
+      When PLAN_IMPLEMENTATION.md is read
+      Then it directs running the figure-it-out skill for each load-bearing design choice recorded in the decisions table
+
+  @plan-implementation-phase.NTB2.R1
+  Rule: plan-implementation-phase.NTB2.R1 — human handoff only after the independent review passes
+
+    Scenario: Raw planning output is never handed to the user
+      Given the shipped bdd skill documents
+      When PLAN_IMPLEMENTATION.md is read
+      Then it directs any human-facing plan checkpoint to occur only after the phase's independent review has passed
+
+    Scenario: User-only information gaps route to the user at any time
+      Given the shipped bdd skill documents
+      When PLAN_IMPLEMENTATION.md is read
+      Then it directs asking the user for information not derivable from the codebase or research whenever the gap appears
+
+  @plan-implementation-phase.NTB2.R2
+  Rule: plan-implementation-phase.NTB2.R2 — human design approval is an opt-in toggle, autonomous by default
+
+    Scenario: Design approval defaults to autonomous
+      Given the shipped bdd skill documents
+      When PLAN_IMPLEMENTATION.md is read
+      Then it states the reviewed plan advances to implement without human approval when designApprovalGate is absent or off
+
+    @rejection
+    Scenario: Enabled design approval waits for the user after the review
+      Given the shipped bdd skill documents
+      When PLAN_IMPLEMENTATION.md is read
+      Then it states that with designApprovalGate enabled the reviewed plan is presented for user approval before implement
 
   @plan-implementation-phase.NTB1.R1
   Rule: plan-implementation-phase.NTB1.R1 — application code stays untouched while a feature ticket is in the planning phase

@@ -158,6 +158,58 @@ _RED evidence: uncapturable pre-build — over-blocking guard; passes today by d
 - [ ] GREEN
 - [ ] REFACTOR
 
+## Rule: plan-implementation-phase.TB3.R1 — current-architecture awareness after the ideal design, never sunk-cost conformance
+
+### Scenario: Planning directs architecture awareness after the ideal design
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: plan-implementation-phase.TB3.R2 — deep design routes through the existing design lanes
+
+### Scenario: Deep technical and data design routes through the existing lanes
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: plan-implementation-phase.TB3.R3 — each load-bearing design choice gets a figure-it-out pass
+
+### Scenario: Load-bearing choices get a figure-it-out pass
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: plan-implementation-phase.NTB2.R1 — human handoff only after the independent review passes
+
+### Scenario: Raw planning output is never handed to the user
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: User-only information gaps route to the user at any time
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: plan-implementation-phase.NTB2.R2 — human design approval is an opt-in toggle, autonomous by default
+
+### Scenario: Design approval defaults to autonomous
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Enabled design approval waits for the user after the review
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: plan-implementation-phase.NTB1.R1 — application code stays untouched while a feature ticket is in the planning phase
 
 ### Scenario: Application-code edit during planning is denied

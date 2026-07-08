@@ -15,6 +15,7 @@ scope:
   - reword every shipped "authored at scenario-gate exit" surface (SCENARIOS.md, TDD.md, impl-plan-template, stop-gate message, schema comment, SKILL.md tables, SPLITTING.md, review-spec handoff, quality-review table, tdd-review loop-back, ticket-template/ticket-system/glossary enum copies, PRINCIPLES.md, prompt-questions)
   - superseding ADR in ARCHITECTURE.md
   - ship `.safeword/templates/adr-template.md` (ownedFiles doc-template + schema registration); PLAN_IMPLEMENTATION.md directs ADR emission to the paths.architecture-resolved location (file appends, directory gets date-prefixed files)
+  - "`designApprovalGate` config toggle (default off) — conversational approval gate after the phase's independent review; PLAN_IMPLEMENTATION.md routes deep design through existing design-doc/data-architecture lanes; config-reference doc line for the new key"
   - update tests pinned to the old phase order and authoring point; new transition-gate tests
   - minimal website touch — the BDD flow enumeration in hooks-and-skills.mdx
 out_of_scope:
