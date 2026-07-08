@@ -187,6 +187,28 @@ Feature: plan-implementation phase before TDD
       When PLAN_IMPLEMENTATION.md is read
       Then it directs running the figure-it-out skill for each load-bearing design choice recorded in the decisions table
 
+  @plan-implementation-phase.TB3.R4
+  Rule: plan-implementation-phase.TB3.R4 — relevant environment skills surface during planning, never the full inventory
+
+    Scenario: Planning surfaces installed language skills for the languages the feature touches
+      Given the shipped bdd skill documents
+      When PLAN_IMPLEMENTATION.md is read
+      Then it directs mapping installed language skills to the plan's scenarios for the languages the feature touches
+
+    @rejection
+    Scenario: A polyglot monorepo does not context-flood the planning phase
+      Given the shipped bdd skill documents
+      When PLAN_IMPLEMENTATION.md is read
+      Then it directs surfacing only the skills relevant to the feature's touched components, not the repository's full inventory
+
+  @plan-implementation-phase.TB3.R5
+  Rule: plan-implementation-phase.TB3.R5 — selected components are planned against current documentation
+
+    Scenario: Selected components are planned against their installed version's documentation
+      Given the shipped bdd skill documents
+      When PLAN_IMPLEMENTATION.md is read
+      Then it directs reading the installed version's documentation for each component the plan selects before recording the decision
+
   @plan-implementation-phase.NTB2.R1
   Rule: plan-implementation-phase.NTB2.R1 — human handoff only after the independent review passes
 

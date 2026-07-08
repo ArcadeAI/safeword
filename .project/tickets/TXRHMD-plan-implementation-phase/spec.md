@@ -78,6 +78,10 @@ Consistent with the project glossary: Phase, Gate, Reconciliation, Phase Anchor.
 
 #### plan-implementation-phase.TB3.R3 — each load-bearing design choice gets a /figure-it-out pass
 
+#### plan-implementation-phase.TB3.R4 — installed language and component skills relevant to the feature's touched code are surfaced during planning, scoped to relevance, never the full inventory
+
+#### plan-implementation-phase.TB3.R5 — each component the plan selects is planned against its installed version's current documentation
+
 ### plan-implementation-phase.NTB2 — reviewed before it reaches me, autonomous by default
 
 **Persona:** Non-Technical Builder (NTB)
@@ -170,6 +174,11 @@ Added at the fourth signoff round (2026-07-08 — model/harness currency, remote
 
 18. **Harness and model currency, remote-first-class:** the phase contract executes on current Claude Code, OpenAI Codex, and Cursor *including their cloud surfaces* (Claude Code on the Web, Codex Cloud, Cursor Cloud Agents) — no interactive-only dependencies, no reliance on bash auto-expansion (Codex has none; skill bash runs only if the model chooses). Guidance is authored for frontier models (Fable 5, Opus 4.8, GPT-5.5), and crossModelReview pairing may span vendors. Doc/API currency against the latest harness documentation is verified at implement via /quality-review's version-currency angle.
 19. **Headless approval semantics:** with `designApprovalGate` enabled in a session with no interactive user (cloud/headless runs), the gate follows the YOLO precedent (G2E72G): record the auto-decision as pending approval in the work log and surface the reviewed plan in the session's reviewable output (PR description / session summary) rather than blocking indefinitely — the human approves at PR-review time.
+
+Added at the fifth signoff round (2026-07-08 — environment skills, docs currency, context economy):
+
+20. **Language/environment skill surfacing is relevance-scoped:** the phase directs mapping installed language skills (`.claude/skills/<lang>-*` — Go via #482, TypeScript, Rust, and future packs like redis/Astro) to the plan's scenarios — but scoped to what the feature actually touches, never the repository's full inventory. A polyglot monorepo must not context-flood the phase; the pointer-not-list principle from the #480/#530 design holds (skill descriptions are already always-loaded in the picker). Mechanism boundary unchanged: #530 wires the entry-reminder trigger; this ticket pins what the phase doc directs.
+21. **Current-docs planning:** for each component or library the plan selects, the phase directs reading the installed version's documentation before recording the decision — extending intake's library-docs rule to planning time, so designs aren't stale for Go/TypeScript/anything. /quality-review's version-currency angle at implement stays the verification backstop.
 
 ## Open Questions
 

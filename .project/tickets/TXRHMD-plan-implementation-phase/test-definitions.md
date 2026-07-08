@@ -182,6 +182,28 @@ _RED evidence: uncapturable pre-build — over-blocking guard; passes today by d
 - [ ] GREEN
 - [ ] REFACTOR
 
+## Rule: plan-implementation-phase.TB3.R4 — relevant environment skills surface during planning, never the full inventory
+
+### Scenario: Planning surfaces installed language skills for the languages the feature touches
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A polyglot monorepo does not context-flood the planning phase
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: plan-implementation-phase.TB3.R5 — selected components are planned against current documentation
+
+### Scenario: Selected components are planned against their installed version's documentation
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: plan-implementation-phase.NTB2.R1 — human handoff only after the independent review passes
 
 ### Scenario: Raw planning output is never handed to the user
