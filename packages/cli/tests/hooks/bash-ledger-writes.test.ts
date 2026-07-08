@@ -67,6 +67,10 @@ describe('detectLedgerWrite', () => {
       ['fd-prefixed output redirection', `echo '- [x] RED' 1> ${LEDGER}`],
       ['subshell in-place edit', String.raw`( sed -i 's/^- \[ \] /- [x] /' ${LEDGER} )`],
       ['env-by-basename prefixed tee', `/usr/bin/env tee ${LEDGER}`],
+      // Writer matched by basename — an absolute path does not evade (HRDN42).
+      ['absolute-path tee', `/usr/bin/tee ${LEDGER}`],
+      ['absolute-path sed in-place', `/usr/bin/sed -i 's/a/b/' ${LEDGER}`],
+      ['absolute-path cp destination', `/bin/cp /tmp/forged.md ${LEDGER}`],
       [
         'inline interpreter that only reads (over-approximate deny)',
         `python3 -c 'print(open("${LEDGER}").read())'`,

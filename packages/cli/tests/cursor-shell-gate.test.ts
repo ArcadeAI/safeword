@@ -41,6 +41,10 @@ describe('Cursor beforeShellExecution gate', () => {
     'command git commit -m "save"',
     'env GIT_AUTHOR_NAME=bot git commit -m "save"',
     '/usr/bin/env git commit -m "save"',
+    // git itself matched by basename — an absolute path is a real commit (HRDN42).
+    '/usr/bin/git commit -m "save"',
+    // `command -p git commit` runs git with the default PATH — a real commit.
+    'command -p git commit -m "save"',
     // Bare leading env-assignments must not slip the gate (the env(1) wrapper is
     // optional in real shells): `VAR=val git commit …` is still a commit.
     'GIT_AUTHOR_NAME=bot git commit -m "save"',
@@ -62,6 +66,9 @@ describe('Cursor beforeShellExecution gate', () => {
     expect(requiresFailClosedShellGate({ command: 'echo "git commit -m save"' })).toBe(false);
     // The env-assignment skip must not over-trigger on non-commit git subcommands.
     expect(requiresFailClosedShellGate({ command: 'GIT_PAGER=cat git status' })).toBe(false);
+    // `command -v git` DESCRIBES git (a lookup), it does not run a commit — the
+    // `-p`-only skip must leave `-v` in place so this stays fail-open (HRDN42).
+    expect(requiresFailClosedShellGate({ command: 'command -v git' })).toBe(false);
   });
 
   it('preserves a real denial from the delegated gate', () => {

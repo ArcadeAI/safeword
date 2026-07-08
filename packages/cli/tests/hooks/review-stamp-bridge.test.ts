@@ -17,6 +17,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   commandInvokesWriteReviewStamp,
+  parseRecordSkillInvocationCommand,
   readFreshCodexReviewStampIdentity,
   readFreshCursorReviewStampIdentity,
   rememberCodexReviewStampIdentity,
@@ -55,6 +56,20 @@ describe('commandInvokesWriteReviewStamp (#630)', () => {
     ).toBe(true);
   });
 
+  it('recognizes execution-prefixed invocations via the shared tokenizer (EDDABK follow-up)', () => {
+    // The old private tokenizer skipped only VAR=val words, so `command`/`env`
+    // prefixes resolved the executable to the prefix and the stamp proof was
+    // never recorded — the fail-closed stamp gate then denied a legitimate write.
+    expect(
+      commandInvokesWriteReviewStamp('command bun .safeword/hooks/write-review-stamp.ts spec'),
+    ).toBe(true);
+    expect(
+      commandInvokesWriteReviewStamp(
+        'env bun .safeword/hooks/write-review-stamp.ts --phase implement',
+      ),
+    ).toBe(true);
+  });
+
   it('recognizes the helper in a chained command alongside the proof helper', () => {
     const chained =
       'bun ".safeword/hooks/record-skill-invocation.ts" "/repo" self-review && bun .safeword/hooks/write-review-stamp.ts spec';
@@ -80,6 +95,40 @@ describe('commandInvokesWriteReviewStamp (#630)', () => {
     expect(commandInvokesWriteReviewStamp('node .safeword/hooks/write-review-stamp.ts spec')).toBe(
       false,
     );
+  });
+});
+
+describe('parseRecordSkillInvocationCommand (shared tokenizer, EDDABK follow-up)', () => {
+  const HELPER = '/repo/.safeword/hooks/record-skill-invocation.ts';
+
+  it('parses the plain and quoted absolute forms', () => {
+    expect(parseRecordSkillInvocationCommand(`bun ${HELPER} /repo verify`)).toEqual({
+      skillName: 'verify',
+    });
+    expect(parseRecordSkillInvocationCommand(`bun "${HELPER}" "/repo" self-review`)).toEqual({
+      skillName: 'self-review',
+    });
+  });
+
+  it('parses execution-prefixed invocations the old tokenizer missed', () => {
+    expect(parseRecordSkillInvocationCommand(`command bun ${HELPER} /repo verify`)).toEqual({
+      skillName: 'verify',
+    });
+    expect(parseRecordSkillInvocationCommand(`env FOO=1 bun ${HELPER} /repo audit`)).toEqual({
+      skillName: 'audit',
+    });
+  });
+
+  it('parses an invocation on its own line of a multi-line command', () => {
+    // The old tokenizer treated newline as plain whitespace, merging both lines
+    // into one segment whose executable was `echo` — a missed proof.
+    expect(parseRecordSkillInvocationCommand(`echo hi\nbun ${HELPER} /repo retro`)).toEqual({
+      skillName: 'retro',
+    });
+  });
+
+  it('does not match the helper mentioned in a quoted string', () => {
+    expect(parseRecordSkillInvocationCommand(`echo "bun ${HELPER} /repo x"`)).toBeUndefined();
   });
 });
 
