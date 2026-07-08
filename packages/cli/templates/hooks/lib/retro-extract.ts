@@ -208,17 +208,22 @@ export function buildCodexExtractArgv(options: CodexExtractArgvOptions): string[
 
 // The extraction rules, mirrored from templates/guides/retro.md: SAFEWORD's own
 // friction only, the constrained snake_case schema, no invention. The egress
-// guard sanitizes downstream, so the child writes plainly.
-const EXTRACT_SYSTEM_PROMPT =
+// guard sanitizes downstream, so the child writes plainly. Exported for the
+// string-contract tests (PNZM3B) — the guidance IS a tested surface.
+export const EXTRACT_SYSTEM_PROMPT =
   "You extract SAFEWORD's OWN friction from a session digest. Output ONLY a JSON " +
   'array (no prose). Each item: {"category":"bug|rough-edge|gap","title":"canonical ' +
   'title of the SAFEWORD behavior","safeword_surface":"a real safeword path: ' +
-  'hooks/…, packages/cli/…, templates/…, dist/…, or .safeword/…","what_happened":"",' +
+  'hooks/…, packages/cli/…, templates/…, dist/…, or .safeword/…; for friction ' +
+  'with no single-file surface use process/<area>, a short lowercase-hyphen area ' +
+  '(<=32 chars) like process/tdd-loop","what_happened":"",' +
   '"why_friction":"","repro":"in terms of safeword commands"}. Rules: SAFEWORD\'s ' +
   'friction only (not the host project, not Claude Code itself); canonical ' +
   'behavior-titles; do not invent; [] if none.';
 
-const CODEX_RETRO_OUTPUT_SCHEMA = {
+// Exported for the string-contract tests (PNZM3B) — parity with the shared
+// prompt's surface guidance is a tested invariant.
+export const CODEX_RETRO_OUTPUT_SCHEMA = {
   type: 'object',
   additionalProperties: false,
   properties: {
@@ -230,7 +235,11 @@ const CODEX_RETRO_OUTPUT_SCHEMA = {
         properties: {
           category: { type: 'string', enum: ['bug', 'rough-edge', 'gap'] },
           title: { type: 'string' },
-          safeword_surface: { type: 'string' },
+          safeword_surface: {
+            type: 'string',
+            description:
+              'A real safeword path (hooks/…, packages/cli/…, templates/…, dist/…, .safeword/…); for friction with no single-file surface use process/<area> (<=32 chars), e.g. process/tdd-loop',
+          },
           what_happened: { type: 'string' },
           why_friction: { type: 'string' },
           repro: { type: 'string' },

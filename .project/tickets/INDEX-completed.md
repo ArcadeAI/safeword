@@ -7,27 +7,8 @@
 
 ## Tickets (161)
 
-### bdd-phase-zero-merge
+### 001
 
-- **Add persona model (.safeword-project/personas.md) + Phase 0 validation (7YN5QB)** (done, epic: bdd-phase-zero-merge)
-  Introduce a project-wide personas file as the source of truth for who features serve, and validate persona references in `bdd` Phase 0 against it.
-  → `.project/tickets/completed/7YN5QB`
-
-### setup-lifecycle
-
-- **LOC gate should exclude safeword/tooling files from line count (074)** (done, epic: setup-lifecycle)
-  → `.project/tickets/completed/074-loc-gate-exclude-tooling`
-- **Auto-upgrade safeword on session start (081)** (done, epic: setup-lifecycle)
-  → `.project/tickets/completed/081-auto-upgrade`
-
-### (no epic)
-
-- **Stateful BDD Flow (001)** (done, epic: —)
-  Agent knows where it is in BDD workflow and acts accordingly.
-  → `.project/tickets/completed/001-stateful-bdd-flow`
-- **Single Source of Truth for Cross-Platform Skills (002)** (cancelled, epic: —)
-  Eliminate manual duplication between Claude skills and Cursor rules.
-  → `.project/tickets/completed/002-cross-platform-skill-source`
 - **Phase-Aware Quality Review (006)** (done, epic: —)
   Quality review hook provides context-appropriate prompts based on current BDD phase.
   → `.project/tickets/completed/006-phase-aware-quality`
@@ -40,8 +21,9 @@
 - **Iteration 7: Decomposition at Checkpoints (010)** (done, epic: —)
   Agent suggests splitting large work at 5 checkpoints with calibrated thresholds.
   → `.project/tickets/completed/010-iteration7-decomposition`
-- **Restructure skills for LLM optimization (013)** (done, epic: —)
-  → `.project/tickets/completed/013-skills-restructuring`
+
+### 013
+
 - **BDD skill compression and phase-based splitting (013a)** (done, epic: —)
   → `.project/tickets/completed/013a-bdd-skill-compression`
 - **Phase-aware quality review skill with web research (013b)** (done, epic: —)
@@ -54,29 +36,27 @@
 - **Schema File Validation Command (013e)** (done, epic: —)
   Add a test that verifies schema ↔ template file integrity.
   → `.project/tickets/completed/013e-schema-file-validation`
-- **BDD Skill vs Guides: Duplication & Misalignment Report (014)** (done, epic: —)
-  → `.project/tickets/completed/014-bdd-guides-consolidation`
+
+### 016
+
 - **Format and lint on save for safeword contributors (015)** (done, epic: —)
   Add `.vscode/settings.json` to the safeword monorepo for developer experience.
   → `.project/tickets/completed/015-cursor-ide-optimization`
-- **IDE and Claude Code Integration (016)** (done, epic: —)
-  Provide seamless IDE integration and Claude Code safeguards for both safeword developers and customers.
-  → `.project/tickets/completed/016-ide-developer-experience`
 - **Format and lint on save for customer projects (016b)** (cancelled, epic: —)
   Add `.vscode/settings.json` to customer projects via `safeword setup`.
   → `.project/tickets/completed/016b-customer-vscode-template`
-- **Continuous Quality Monitoring for Long-Running Agent Sessions (017)** (superseded, epic: —)
-  Ensure quality checks happen at appropriate intervals during long BDD runs, not just when the agent stops for user input.
-  → `.project/tickets/completed/017-continuous-quality-monitoring`
+
+### 017
+
 - **LOC-Based Commit Enforcement (017a)** (superseded, epic: —)
   Block edits when 400+ LOC uncommitted, enforcing TDD commit discipline.
   → `.project/tickets/completed/017a-loc-quality-tracking`
 - **Phase Transition Quality Gates (017b)** (superseded, epic: —)
   Trigger quality review at BDD phase boundaries, ensuring work is validated before moving to the next phase.
   → `.project/tickets/completed/017b-phase-transition-gates`
-- **IDE Parity: Eliminate Claude Code / Cursor Configuration Drift (018)** (cancelled, epic: —)
-  Single source of truth for Safeword configuration that works in both IDEs.
-  → `.project/tickets/completed/018-ide-parity`
+
+### 018
+
 - **Unified Hook I/O Library (018a)** (cancelled, epic: —)
   Create `lib/io.ts` that normalizes input/output across IDEs, eliminating `.safeword/hooks/cursor/`.
   → `.project/tickets/completed/018a-unified-hook-io`
@@ -86,39 +66,9 @@
 - **Command Sync (018c)** (cancelled, epic: —)
   Single source for commands in `.safeword/commands/`, copied to both IDE directories.
   → `.project/tickets/completed/018c-command-sync`
-- **Document user-focused ticket naming conventions (020)** (done, epic: —)
-  Add guidance on writing user-focused ticket names to AGENTS.md or a planning guide.
-  → `.project/tickets/completed/020-ticket-naming-guide`
-- **Smart Quality Review (Prompt-Based) (021)** (wontfix, epic: —)
-  Use LLM evaluation for deeper quality analysis beyond simple thresholds.
-  → `.project/tickets/completed/021-smart-quality-review`
-- **Hierarchical Work State Machine (022)** (superseded, epic: —)
-  Unified state machine that tracks nested work items, injects phase-appropriate context, and enforces commits at natural checkpoints.
-  → `.project/tickets/completed/022-hierarchical-work-state`
-- **Enable Rust developers to use safeword's quality workflow (023)** (complete, epic: —)
-  Add Rust language support so Rust projects get automatic linting and formatting with strict defaults.
-  → `.project/tickets/completed/023-rust-language-pack`
-- **Continuous Quality Gates (LOC + Phase) (024)** (done, epic: —)
-  Block edits when 400+ LOC uncommitted (commit discipline) and at phase transitions (process compliance), injecting phase-appropriate context at each gate.
-  → `.project/tickets/completed/024-continuous-quality-gates`
-- **Hierarchy Navigation After Ticket Completion (025)** (done, epic: —)
-  After completing a child ticket, the Stop hook walks the ticket hierarchy to find the next undone sibling and directs the agent to start it. When all siblings are done, cascade completion up to the parent.
-  → `.project/tickets/completed/025-hierarchy-navigation`
-- **Extract shared vitest base config (026)** (done, epic: —)
-  Eliminate ~75% duplication between vitest.config.ts and vitest.slow.config.ts by extracting shared settings into a base config.
-  → `.project/tickets/completed/026-vitest-config-dedup`
-- **Consolidate package manager command mapping (027)** (done, epic: —)
-  Replace 3 functions with identical Record<PackageManager, ...> patterns with a single data structure.
-  → `.project/tickets/completed/027-install-command-dedup`
-- **Merge duplicate Rust workspace test helpers (028)** (done, epic: —)
-  Merge createRustWorkspace and createRustWorkspaceWithGlob into a single function with a parameter for member format.
-  → `.project/tickets/completed/028-rust-workspace-dedup`
-- **Distribute Quality Gate Hooks to Consumer Projects (029)** (done, epic: —)
-  Ship all 4 quality enforcement hooks (`pre-tool-quality.ts`, `post-tool-quality.ts`, `pre-tool-config-guard.ts`, `post-tool-bypass-warn.ts`) + shared lib (`lib/quality-state.ts`) via `safeword setup` and `safeword upgrade` so consumer projects get the same TDD refactor gate, LOC gate, phase gate, config protection, and bypass warnings that the dogfood repo has.
-  → `.project/tickets/completed/029-distribute-quality-hooks`
-- **Rename /done to /verify with Dependency Drift Check (030)** (done, epic: —)
-  Replace the `/done` command with `/verify` — a self-documenting verb that proves a ticket meets its criteria. Add dependency drift detection (package.json vs ARCHITECTURE.md) to `/verify`. Require `/audit` evidence in the stop hook for done phase completion.
-  → `.project/tickets/completed/030-rename-done-to-verify`
+
+### 031
+
 - **Re-inject ticket context after compaction to prevent context loss (032)** (done, epic: —)
   Add a PostCompact hook that re-injects active ticket context, current BDD phase, and quality state after Claude Code compacts the conversation.
   → `.project/tickets/completed/032-post-compact-context-reinject`
@@ -137,30 +87,21 @@
 - **Remove JSON response format, trigger quality review on edit tools only (039)** (done, epic: —)
   Replace the self-reporting JSON format (`proposedChanges`/`madeChanges`/`askedQuestion`) with direct edit-tool detection. Quality reviews only fire when Claude actually edited files.
   → `.project/tickets/completed/039-remove-json-response-format`
-- **Add dbt language pack for SQL linting and formatting (040)** (done, epic: —)
-  Let safeword lint and auto-fix `.sql` files on edit in dbt projects, using SQLFluff with Jinja-aware parsing.
-  → `.project/tickets/completed/040-sql-dbt-language-pack`
-- **TDD Inner-Loop Quality Gates (041)** (done, epic: —)
-  Add quality review gates at each TDD sub-phase boundary (RED, GREEN, REFACTOR) so that work is reviewed before transitioning to the next step.
-  → `.project/tickets/completed/041-tdd-quality-gates`
+
+### 044
+
 - **Quality Gate Deadlock: Pre-tool blocks edits to project artifacts (043)** (done, epic: —)
   Fix circular dependency where quality gates block edits to `.safeword-project/` files, creating unrecoverable deadlocks.
   → `.project/tickets/completed/043-quality-gate-deadlock-fix`
-- **Quality Gate Robustness (044)** (done, epic: —)
-  Fix quality gate failure modes discovered in production use — deadlocks on project artifacts and cross-session state contamination.
-  → `.project/tickets/completed/044-quality-gate-robustness`
 - **Per-Session Quality State (045)** (done, epic: —)
   Isolate quality gate state per Claude session to prevent cross-session interference.
   → `.project/tickets/completed/045-per-session-quality-state`
 - **Phase-Based Access Control in Pre-Tool Hook (046)** (done, epic: —)
   Restrict file edits based on ticket phase — planning phases allow only `.safeword-project/` edits, implement allows everything.
   → `.project/tickets/completed/046-phase-access-control`
-- **Switch done-phase hard block from exit(2) to JSON decision:block (048)** (done, epic: —)
-  Replace `hardBlockDone`'s `console.error + process.exit(2)` with the canonical `{ decision: 'block', reason } + process.exit(0)` pattern in `stop-quality.ts`.
-  → `.project/tickets/completed/048-done-phase-hardblock-json`
-- **Stop Hook Quality Gate Improvements (049)** (done, epic: —)
-  Progressively strengthen the stop hook system based on research into Claude Code hook mechanics, LLM self-correction literature, and Goodhart's Law failure modes.
-  → `.project/tickets/completed/049-stop-hook-quality-improvements`
+
+### 049-stop-hook-quality-improvements
+
 - **Return `suppressOutput: true` from silent observer hooks (049a)** (blocked, epic: —)
   Add `suppressOutput: true` to the JSON output of silent observer hooks (PostToolUse quality, SessionEnd cleanup) to reduce false "hook error" noise injected into Claude's context.
   → `.project/tickets/completed/049a-suppressoutput-silent-hooks`
@@ -179,6 +120,149 @@
 - **Haiku as judge for soft block quality review (049f)** (cancelled, epic: —)
   Replace the soft block's self-review prompt with an independent evaluator model (claude-haiku-4-5) that judges Claude's response for rationalization patterns and quality gaps before allowing it to stop.
   → `.project/tickets/completed/049f-haiku-judge-soft-block`
+
+### 057-sql-language-pack
+
+- **SQL dialect auto-detection for the dbt/SQL language pack (056)** (done, epic: —)
+  Automatically detect the correct SQLFluff dialect from project signals so that SQL linting works out of the box — zero config from the user.
+  → `.project/tickets/completed/056-sql-dialect-auto-detection`
+
+### 109
+
+- **Reflexion-style structured failure memory for reminders (111)** (done, epic: —)
+  → `.project/tickets/completed/111-reflexion-failure-memory`
+- **Audit and overhaul CLI guides (112)** (done, epic: —)
+  Review all 10 guides for correctness, elegance, agent ergonomics, and duplication — ensure each earns its place and is effective at its stated intention.
+  → `.project/tickets/completed/112-guides-overhaul`
+- **BDD skill file updates — reduce ceremony, increase agent judgment (113)** (done, epic: —)
+  → `.project/tickets/completed/113-bdd-skill-file-updates`
+- **Enforcement architecture — natural gates + reminders, remove hard blocks (114)** (done, epic: —)
+  → `.project/tickets/completed/114-enforcement-architecture`
+- **Stop hook improvements — structural scenario verification + simplified review (115)** (done, epic: —)
+  → `.project/tickets/completed/115-stop-hook-improvements`
+- **Pre-ticket prompt gap — understanding reminder before ticket exists (118)** (wontfix, epic: —)
+  → `.project/tickets/completed/118-pre-ticket-prompt-gap`
+
+### 112
+
+- **Trim learning-extraction.md from 526 to ~150 lines (112a)** (done, epic: —)
+  Cut the guide to its core value — triggers, locations, decision tree, templates, anti-patterns — by removing the ~400 lines of repetition and self-evident instruction.
+  → `.project/tickets/completed/112a-learning-extraction-trim`
+- **Trim planning-guide.md from 417 to ~230 lines (112b)** (done, epic: —)
+  Cut Part 2 (Test Definitions, lines 226-417) which duplicates the test-definitions-feature template, testing-guide, and testing SKILL.md. Replace with a pointer. Keep Part 1 (User Stories) intact with minor example trimming.
+  → `.project/tickets/completed/112b-planning-guide-trim`
+- **Deduplicate testing-guide.md and testing SKILL.md (112c)** (done, epic: —)
+  Eliminate ~80% content overlap across 690 combined lines (409 guide + 280 skill). Separate concerns: skill = enforceable rules during workflow, guide = reference patterns and strategies.
+  → `.project/tickets/completed/112c-testing-guide-dedupe`
+- **Trim zombie-process-cleanup.md from 285 to ~180 lines (112d)** (done, epic: —)
+  Fix correctness issues, cut human-oriented content that doesn't serve the agent, remove repeated content.
+  → `.project/tickets/completed/112d-zombie-cleanup-trim`
+- **Trim architecture-guide.md from 392 to ~300 lines (112e)** (done, epic: —)
+  Cut restatements, add agent-visibility note, keep the layers & boundaries section (crown jewel) and decision tree intact.
+  → `.project/tickets/completed/112e-architecture-guide-trim`
+- **Trim context-files-guide.md from 454 to ~200 lines (112f)** (done, epic: —)
+  Remove content that restates Claude Code's official docs (~180 lines), fix outdated claims, add explicit pointers so the agent knows WHERE to find the offloaded content.
+  → `.project/tickets/completed/112f-context-files-guide-trim`
+- **Update llm-writing-guide.md with latest Anthropic research (112g)** (done, epic: —)
+  The most cross-referenced guide (6 inbound links) must be near-perfect. Update with verified 2026 Anthropic research, fix outdated claims, keep what's solid.
+  → `.project/tickets/completed/112g-llm-writing-guide-update`
+- **Remove cli-reference.md, inline decision table into SAFEWORD.md (112h)** (done, epic: —)
+  Eliminate a guide that duplicates `bunx safeword --help` and has zero inbound references.
+  → `.project/tickets/completed/112h-cli-reference-remove`
+
+### 120
+
+- **Root ESLint Config: Dogfood the configs.cli/relaxedTypes Presets (136)** (done, epic: —)
+  → `.project/tickets/completed/136-root-eslint-config-dogfood-presets`
+
+### bdd-phase-zero-merge
+
+- **Add persona model (.safeword-project/personas.md) + Phase 0 validation (7YN5QB)** (done, epic: bdd-phase-zero-merge)
+  Introduce a project-wide personas file as the source of truth for who features serve, and validate persona references in `bdd` Phase 0 against it.
+  → `.project/tickets/completed/7YN5QB`
+
+### null
+
+- **Continuous Quality Gates (LOC + Phase) (024)** (done, epic: —)
+  Block edits when 400+ LOC uncommitted (commit discipline) and at phase transitions (process compliance), injecting phase-appropriate context at each gate.
+  → `.project/tickets/completed/024-continuous-quality-gates`
+- **Hierarchy Navigation After Ticket Completion (025)** (done, epic: —)
+  After completing a child ticket, the Stop hook walks the ticket hierarchy to find the next undone sibling and directs the agent to start it. When all siblings are done, cascade completion up to the parent.
+  → `.project/tickets/completed/025-hierarchy-navigation`
+- **Rename dbt pack → SQL pack and broaden activation (057)** (done, epic: —)
+  Expand the dbt language pack into a general-purpose SQL pack that activates for any project with intentional SQL work — dbt, Flyway, sqlc, Atlas, Prisma migrations, and more.
+  → `.project/tickets/completed/057-sql-language-pack`
+
+### setup-lifecycle
+
+- **LOC gate should exclude safeword/tooling files from line count (074)** (done, epic: setup-lifecycle)
+  → `.project/tickets/completed/074-loc-gate-exclude-tooling`
+- **Auto-upgrade safeword on session start (081)** (done, epic: setup-lifecycle)
+  → `.project/tickets/completed/081-auto-upgrade`
+
+### (no epic)
+
+- **Stateful BDD Flow (001)** (done, epic: —)
+  Agent knows where it is in BDD workflow and acts accordingly.
+  → `.project/tickets/completed/001-stateful-bdd-flow`
+- **Single Source of Truth for Cross-Platform Skills (002)** (cancelled, epic: —)
+  Eliminate manual duplication between Claude skills and Cursor rules.
+  → `.project/tickets/completed/002-cross-platform-skill-source`
+- **Restructure skills for LLM optimization (013)** (done, epic: —)
+  → `.project/tickets/completed/013-skills-restructuring`
+- **BDD Skill vs Guides: Duplication & Misalignment Report (014)** (done, epic: —)
+  → `.project/tickets/completed/014-bdd-guides-consolidation`
+- **IDE and Claude Code Integration (016)** (done, epic: —)
+  Provide seamless IDE integration and Claude Code safeguards for both safeword developers and customers.
+  → `.project/tickets/completed/016-ide-developer-experience`
+- **Continuous Quality Monitoring for Long-Running Agent Sessions (017)** (superseded, epic: —)
+  Ensure quality checks happen at appropriate intervals during long BDD runs, not just when the agent stops for user input.
+  → `.project/tickets/completed/017-continuous-quality-monitoring`
+- **IDE Parity: Eliminate Claude Code / Cursor Configuration Drift (018)** (cancelled, epic: —)
+  Single source of truth for Safeword configuration that works in both IDEs.
+  → `.project/tickets/completed/018-ide-parity`
+- **Document user-focused ticket naming conventions (020)** (done, epic: —)
+  Add guidance on writing user-focused ticket names to AGENTS.md or a planning guide.
+  → `.project/tickets/completed/020-ticket-naming-guide`
+- **Smart Quality Review (Prompt-Based) (021)** (wontfix, epic: —)
+  Use LLM evaluation for deeper quality analysis beyond simple thresholds.
+  → `.project/tickets/completed/021-smart-quality-review`
+- **Hierarchical Work State Machine (022)** (superseded, epic: —)
+  Unified state machine that tracks nested work items, injects phase-appropriate context, and enforces commits at natural checkpoints.
+  → `.project/tickets/completed/022-hierarchical-work-state`
+- **Enable Rust developers to use safeword's quality workflow (023)** (complete, epic: —)
+  Add Rust language support so Rust projects get automatic linting and formatting with strict defaults.
+  → `.project/tickets/completed/023-rust-language-pack`
+- **Extract shared vitest base config (026)** (done, epic: —)
+  Eliminate ~75% duplication between vitest.config.ts and vitest.slow.config.ts by extracting shared settings into a base config.
+  → `.project/tickets/completed/026-vitest-config-dedup`
+- **Consolidate package manager command mapping (027)** (done, epic: —)
+  Replace 3 functions with identical Record<PackageManager, ...> patterns with a single data structure.
+  → `.project/tickets/completed/027-install-command-dedup`
+- **Merge duplicate Rust workspace test helpers (028)** (done, epic: —)
+  Merge createRustWorkspace and createRustWorkspaceWithGlob into a single function with a parameter for member format.
+  → `.project/tickets/completed/028-rust-workspace-dedup`
+- **Distribute Quality Gate Hooks to Consumer Projects (029)** (done, epic: —)
+  Ship all 4 quality enforcement hooks (`pre-tool-quality.ts`, `post-tool-quality.ts`, `pre-tool-config-guard.ts`, `post-tool-bypass-warn.ts`) + shared lib (`lib/quality-state.ts`) via `safeword setup` and `safeword upgrade` so consumer projects get the same TDD refactor gate, LOC gate, phase gate, config protection, and bypass warnings that the dogfood repo has.
+  → `.project/tickets/completed/029-distribute-quality-hooks`
+- **Rename /done to /verify with Dependency Drift Check (030)** (done, epic: —)
+  Replace the `/done` command with `/verify` — a self-documenting verb that proves a ticket meets its criteria. Add dependency drift detection (package.json vs ARCHITECTURE.md) to `/verify`. Require `/audit` evidence in the stop hook for done phase completion.
+  → `.project/tickets/completed/030-rename-done-to-verify`
+- **Add dbt language pack for SQL linting and formatting (040)** (done, epic: —)
+  Let safeword lint and auto-fix `.sql` files on edit in dbt projects, using SQLFluff with Jinja-aware parsing.
+  → `.project/tickets/completed/040-sql-dbt-language-pack`
+- **TDD Inner-Loop Quality Gates (041)** (done, epic: —)
+  Add quality review gates at each TDD sub-phase boundary (RED, GREEN, REFACTOR) so that work is reviewed before transitioning to the next step.
+  → `.project/tickets/completed/041-tdd-quality-gates`
+- **Quality Gate Robustness (044)** (done, epic: —)
+  Fix quality gate failure modes discovered in production use — deadlocks on project artifacts and cross-session state contamination.
+  → `.project/tickets/completed/044-quality-gate-robustness`
+- **Switch done-phase hard block from exit(2) to JSON decision:block (048)** (done, epic: —)
+  Replace `hardBlockDone`'s `console.error + process.exit(2)` with the canonical `{ decision: 'block', reason } + process.exit(0)` pattern in `stop-quality.ts`.
+  → `.project/tickets/completed/048-done-phase-hardblock-json`
+- **Stop Hook Quality Gate Improvements (049)** (done, epic: —)
+  Progressively strengthen the stop hook system based on research into Claude Code hook mechanics, LLM self-correction literature, and Goodhart's Law failure modes.
+  → `.project/tickets/completed/049-stop-hook-quality-improvements`
 - **Haiku as independent judge for stop hook soft block (050)** (wontfix, epic: —)
   Replace the soft block's self-review prompt with a Haiku API call that independently judges Claude's response for rationalization patterns and quality gaps.
   → `.project/tickets/completed/050-haiku-judge-stop-hook`
@@ -194,12 +278,6 @@
 - **Pre-execution plan verification for agent workflows (055)** (cancelled, epic: —)
   Before an agent executes a multi-step workflow (BDD, TDD), verify the plan against declared constraints and reject invalid plans before work begins.
   → `.project/tickets/completed/055-plan-verification`
-- **SQL dialect auto-detection for the dbt/SQL language pack (056)** (done, epic: —)
-  Automatically detect the correct SQLFluff dialect from project signals so that SQL linting works out of the box — zero config from the user.
-  → `.project/tickets/completed/056-sql-dialect-auto-detection`
-- **Rename dbt pack → SQL pack and broaden activation (057)** (done, epic: —)
-  Expand the dbt language pack into a general-purpose SQL pack that activates for any project with intentional SQL work — dbt, Flyway, sqlc, Atlas, Prisma migrations, and more.
-  → `.project/tickets/completed/057-sql-language-pack`
 - **Unify language detection: single source of truth for pack detection (058)** (done, epic: —)
   Eliminate the dual detection paths that have already caused a real bug (Python `requirements.txt` not detected by pack registration) and prevent future drift as we add the SQL pack.
   → `.project/tickets/completed/058-unify-language-detection`
@@ -285,45 +363,8 @@
   → `.project/tickets/completed/109-enforcement-redesign`
 - **Replace "best practices" with "latest research" in quality prompts (109)** (done, epic: —)
   → `.project/tickets/completed/109-replace-best-practices-wording`
-- **Reflexion-style structured failure memory for reminders (111)** (done, epic: —)
-  → `.project/tickets/completed/111-reflexion-failure-memory`
-- **Audit and overhaul CLI guides (112)** (done, epic: —)
-  Review all 10 guides for correctness, elegance, agent ergonomics, and duplication — ensure each earns its place and is effective at its stated intention.
-  → `.project/tickets/completed/112-guides-overhaul`
-- **Trim learning-extraction.md from 526 to ~150 lines (112a)** (done, epic: —)
-  Cut the guide to its core value — triggers, locations, decision tree, templates, anti-patterns — by removing the ~400 lines of repetition and self-evident instruction.
-  → `.project/tickets/completed/112a-learning-extraction-trim`
-- **Trim planning-guide.md from 417 to ~230 lines (112b)** (done, epic: —)
-  Cut Part 2 (Test Definitions, lines 226-417) which duplicates the test-definitions-feature template, testing-guide, and testing SKILL.md. Replace with a pointer. Keep Part 1 (User Stories) intact with minor example trimming.
-  → `.project/tickets/completed/112b-planning-guide-trim`
-- **Deduplicate testing-guide.md and testing SKILL.md (112c)** (done, epic: —)
-  Eliminate ~80% content overlap across 690 combined lines (409 guide + 280 skill). Separate concerns: skill = enforceable rules during workflow, guide = reference patterns and strategies.
-  → `.project/tickets/completed/112c-testing-guide-dedupe`
-- **Trim zombie-process-cleanup.md from 285 to ~180 lines (112d)** (done, epic: —)
-  Fix correctness issues, cut human-oriented content that doesn't serve the agent, remove repeated content.
-  → `.project/tickets/completed/112d-zombie-cleanup-trim`
-- **Trim architecture-guide.md from 392 to ~300 lines (112e)** (done, epic: —)
-  Cut restatements, add agent-visibility note, keep the layers & boundaries section (crown jewel) and decision tree intact.
-  → `.project/tickets/completed/112e-architecture-guide-trim`
-- **Trim context-files-guide.md from 454 to ~200 lines (112f)** (done, epic: —)
-  Remove content that restates Claude Code's official docs (~180 lines), fix outdated claims, add explicit pointers so the agent knows WHERE to find the offloaded content.
-  → `.project/tickets/completed/112f-context-files-guide-trim`
-- **Update llm-writing-guide.md with latest Anthropic research (112g)** (done, epic: —)
-  The most cross-referenced guide (6 inbound links) must be near-perfect. Update with verified 2026 Anthropic research, fix outdated claims, keep what's solid.
-  → `.project/tickets/completed/112g-llm-writing-guide-update`
-- **Remove cli-reference.md, inline decision table into SAFEWORD.md (112h)** (done, epic: —)
-  Eliminate a guide that duplicates `bunx safeword --help` and has zero inbound references.
-  → `.project/tickets/completed/112h-cli-reference-remove`
-- **BDD skill file updates — reduce ceremony, increase agent judgment (113)** (done, epic: —)
-  → `.project/tickets/completed/113-bdd-skill-file-updates`
-- **Enforcement architecture — natural gates + reminders, remove hard blocks (114)** (done, epic: —)
-  → `.project/tickets/completed/114-enforcement-architecture`
-- **Stop hook improvements — structural scenario verification + simplified review (115)** (done, epic: —)
-  → `.project/tickets/completed/115-stop-hook-improvements`
 - **Review Anthropic research for Safeword-relevant design insights (117)** (cancelled, epic: —)
   → `.project/tickets/completed/117-anthropic-research-review`
-- **Pre-ticket prompt gap — understanding reminder before ticket exists (118)** (wontfix, epic: —)
-  → `.project/tickets/completed/118-pre-ticket-prompt-gap`
 - **ESLint Config Override System (120)** (done, epic: —)
   → `.project/tickets/completed/120-eslint-config-override-system`
 - **Phase 3 Scenario Completeness Pipeline (121)** (done, epic: —)
@@ -358,8 +399,6 @@
 - **Refactor: consolidate duplicate getWorkspacePatterns in detect.ts (134)** (done, epic: —)
   Single source of truth for reading workspace patterns from package.json.
   → `.project/tickets/completed/134-consolidate-workspace-patterns`
-- **Root ESLint Config: Dogfood the configs.cli/relaxedTypes Presets (136)** (done, epic: —)
-  → `.project/tickets/completed/136-root-eslint-config-dogfood-presets`
 - **Verify customer lint rule overrides survive safeword upgrades (BDD) (137)** (done, epic: —)
   Prove, per-language, that a customer's override in their own lint config file is honored by safeword's LLM hook AND is not touched by `safeword upgrade`.
   → `.project/tickets/completed/137-customer-override-survival`

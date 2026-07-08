@@ -15,7 +15,8 @@ const rawFinding = (over: Record<string, unknown> = {}) => ({
 
 describe('prepareEncounters', () => {
   it('turns a valid raw finding into an encounter with the resolved surface', async () => {
-    const [encounter] = await prepareEncounters([rawFinding()]);
+    const report = await prepareEncounters([rawFinding()]);
+    const [encounter] = report.encounters;
     expect(encounter).toBeDefined();
     expect(encounter?.draft.signature.startsWith('retro:')).toBe(true);
     expect(encounter?.draft.body).toContain('hooks/stop-quality.ts');
@@ -23,14 +24,13 @@ describe('prepareEncounters', () => {
   });
 
   it('drops a finding whose safeword_surface does not resolve (fail closed)', async () => {
-    const encounters = await prepareEncounters([
-      rawFinding({ safeword_surface: 'src/billing.ts' }),
-    ]);
-    expect(encounters).toEqual([]);
+    const report = await prepareEncounters([rawFinding({ safeword_surface: 'src/billing.ts' })]);
+    expect(report.encounters).toEqual([]);
+    expect(report.drops).toEqual({ schema: 0, surface: 1 });
   });
 
   it('drops a finding that fails the schema (bad category)', async () => {
-    const encounters = await prepareEncounters([rawFinding({ category: 'whatever' })]);
+    const { encounters } = await prepareEncounters([rawFinding({ category: 'whatever' })]);
     expect(encounters).toEqual([]);
   });
 
@@ -38,7 +38,7 @@ describe('prepareEncounters', () => {
     // A runaway/adversarial extractor array must not fire unbounded secretlint
     // passes inside the synchronous Stop; the cap (50) drops the excess.
     const many = Array.from({ length: 200 }, (_, i) => rawFinding({ title: `friction ${i}` }));
-    const encounters = await prepareEncounters(many);
+    const { encounters } = await prepareEncounters(many);
     expect(encounters.length).toBeLessThanOrEqual(50);
   });
 
@@ -56,11 +56,12 @@ describe('prepareEncounters', () => {
   });
 
   it('sanitizes free-text fields so no secret or customer path reaches the draft', async () => {
-    const [encounter] = await prepareEncounters([
+    const report = await prepareEncounters([
       rawFinding({
         what_happened: 'blocked editing /Users/jdoe/app/billing.ts with key sk_live_TESTONLY1',
       }),
     ]);
+    const [encounter] = report.encounters;
     expect(encounter).toBeDefined();
     expect(encounter?.draft.body).not.toContain('/Users/jdoe/app/billing.ts');
     expect(encounter?.draft.body).not.toContain('sk_live_TESTONLY1');
@@ -71,13 +72,14 @@ describe('prepareEncounters', () => {
   // Review (#543): the modern leak formats must not reach the assembled body
   // end-to-end (LLM-provider keys + Bearer + relative customer paths).
   it('scrubs hyphenated provider keys, Bearer tokens, and relative customer paths from the draft', async () => {
-    const [encounter] = await prepareEncounters([
+    const report = await prepareEncounters([
       rawFinding({
         what_happened:
           'used sk-ant-api03-AbCdEf012345_-ghIJklMnOpQrStuv editing src/customers/acme/secret.ts',
         why_friction: 'the header was Authorization: Bearer abcdef0123456789ABCDEF0123',
       }),
     ]);
+    const [encounter] = report.encounters;
     expect(encounter).toBeDefined();
     const body = encounter?.draft.body ?? '';
     expect(body).not.toContain('sk-ant');
@@ -91,12 +93,65 @@ describe('prepareEncounters', () => {
   // end-to-end, not just unit-tested.
   it('scrubs a well-formed secretlint-only provider key from the draft', async () => {
     const wellFormed = `sk-ant-api03-${'A'.repeat(93)}AA`;
-    const [encounter] = await prepareEncounters([
+    const report = await prepareEncounters([
       rawFinding({ what_happened: `key ${wellFormed} hit the gate` }),
     ]);
+    const [encounter] = report.encounters;
     expect(encounter).toBeDefined();
     const body = encounter?.draft.body ?? '';
     expect(body).not.toContain(wellFormed);
     expect(body).toContain('[redacted]');
+  });
+});
+
+describe('prepareEncounters — process-level surfaces (PNZM3B)', () => {
+  it('turns a valid process-area finding into a filable encounter naming that surface', async () => {
+    const report = await prepareEncounters([rawFinding({ safeword_surface: 'process/tdd-loop' })]);
+    const [encounter] = report.encounters;
+    expect(encounter).toBeDefined();
+    expect(encounter?.draft.body).toContain('process/tdd-loop');
+  });
+
+  it.each([
+    ['TDD-Loop', 'uppercase'],
+    ['tdd_loop', 'underscore'],
+    ['tdd/loop', 'nested separator'],
+    ['verify-suite-timeout-and-tdd-loop', '33 chars, one over the bound'],
+    ['', 'empty slug'],
+    ['deadbeefcafe', 'sub-20-char hex run'],
+    ['3f9d2c7b1a8e4d6f0b5a9c8d7e6f1a2b', '32-char hex (secret-shaped)'],
+    ['3f9d-2c7b-1a8e-4d6f', 'hyphen-split hex'],
+    ['k9x2m7q4w8z3j6v1n5r0', 'high-entropy non-hex token'],
+    ['deadbe1f-zzzzzzzz', 'embedded 8-hex run amid low-entropy padding'],
+  ])('drops process/%s (%s) and counts it at the surface wall', async (slug: string) => {
+    const report = await prepareEncounters([rawFinding({ safeword_surface: `process/${slug}` })]);
+    expect(report.encounters).toEqual([]);
+    expect(report.drops).toEqual({ schema: 0, surface: 1 });
+  });
+
+  it('keeps an ordinary word slug at the 32-char length boundary', async () => {
+    // 32 chars, dictionary words, low entropy — the passing side of the bound.
+    const slug = 'verify-suite-timeout-and-tdd-lop';
+    expect(slug).toHaveLength(32);
+    const report = await prepareEncounters([rawFinding({ safeword_surface: `process/${slug}` })]);
+    expect(report.encounters).toHaveLength(1);
+    expect(report.drops).toEqual({ schema: 0, surface: 0 });
+  });
+
+  it('keeps a slug with a hex-alphabet dictionary word among non-hex segments', async () => {
+    // "dead" is pure hex-alphabet; "code"/"cleanup" are not — an over-aggressive
+    // per-segment hex check would wrongly kill this honest slug.
+    const report = await prepareEncounters([
+      rawFinding({ safeword_surface: 'process/dead-code-cleanup' }),
+    ]);
+    expect(report.encounters).toHaveLength(1);
+    expect(report.drops).toEqual({ schema: 0, surface: 0 });
+  });
+
+  it('rejects a finding that omits its surface at the schema wall', async () => {
+    const { safeword_surface: _dropped, ...withoutSurface } = rawFinding();
+    const report = await prepareEncounters([withoutSurface]);
+    expect(report.encounters).toEqual([]);
+    expect(report.drops).toEqual({ schema: 1, surface: 0 });
   });
 });

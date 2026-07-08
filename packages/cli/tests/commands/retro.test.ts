@@ -4,7 +4,14 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { buildAutoExtractor, retroCommand, runRetro } from '../../src/commands/retro.js';
+import {
+  buildAutoExtractor,
+  buildProvenanceResolver,
+  reportRetroCommandOutcome,
+  retroCommand,
+  runRetro,
+} from '../../src/commands/retro.js';
+import { LEDGER_MARKER, parseLedger } from '../../src/retro/ledger.js';
 import type {
   CreateIssueInput,
   IssueComment,
@@ -20,6 +27,7 @@ import { DIGEST_CAP, runHeadlessExtraction } from '../../templates/hooks/lib/ret
 
 vi.mock('../../src/retro/github-rest.js', () => ({
   createRestTransport: () => {},
+  createReconcileTransport: () => {},
   resolveGitHubToken: () => {},
 }));
 
@@ -28,6 +36,7 @@ class FakeGitHub implements IssueTracker {
   private nextIssue = 1;
   private nextComment = 1;
   readonly issues: (CreateIssueInput & { number: number })[] = [];
+  readonly comments: string[] = [];
   readonly calls = { createIssue: 0 };
 
   searchBySignature(): Promise<IssueReference[]> {
@@ -46,6 +55,7 @@ class FakeGitHub implements IssueTracker {
   }
 
   createComment(_n: number, body: string): Promise<IssueComment> {
+    this.comments.push(body);
     return Promise.resolve({ id: this.nextComment++, body });
   }
 
@@ -525,5 +535,279 @@ describe('buildAutoExtractor (SM1.AC2 — runner model: sonnet default, config-o
     const codex = await modelFromRunner(projectDirectory, 'codex');
     expect(claude.model).toBe('haiku');
     expect(codex.model).toBe('haiku');
+  });
+});
+
+describe('runRetro provenance capture (G19QG7)', () => {
+  // Only the process boundaries are mocked: GitHub transport, git subprocess,
+  // clock. Environment detection and ledger rendering are real.
+  //
+  // Prefixes stay per-test: SM1.R2 plants `sw-acme-secret-project-` as a leak
+  // sentinel and asserts the directory name never reaches public comments.
+  let projectDirectory = '';
+  afterEach(() => {
+    if (projectDirectory) rmSync(projectDirectory, { recursive: true, force: true });
+    projectDirectory = '';
+  });
+  const makeProject = (prefix: string, packageName: string): string => {
+    projectDirectory = mkdtempSync(nodePath.join(tmpdir(), prefix));
+    writeFileSync(
+      nodePath.join(projectDirectory, 'package.json'),
+      JSON.stringify({ name: packageName }),
+    );
+    return projectDirectory;
+  };
+
+  it('retro-filing-provenance.SM1.R1.dogfood_encounter_records_short_sha_and_capture_time', async () => {
+    makeProject('sw-dogfood-', 'safeword');
+
+    const transport = new FakeGitHub();
+    const outcome = await runRetro(
+      { transcript: '/tmp/t.jsonl' },
+      dependencies({
+        transport,
+        resolveProvenance: buildProvenanceResolver({
+          projectDirectory,
+          runGit: () => 'abc1234def\n',
+          now: () => new Date('2026-07-07T12:00:00.000Z'),
+          version: '0.67.0',
+        }),
+      }),
+    );
+
+    expect(outcome.ok).toBe(true);
+    const ledgerComment = transport.comments.find(c => c.includes(LEDGER_MARKER));
+    expect(ledgerComment).toBeDefined();
+    expect(parseLedger(ledgerComment ?? '').provenance).toEqual({
+      dogfood: { sha: 'abc1234def', at: '2026-07-07T12:00:00.000Z' },
+    });
+  });
+  it('retro-filing-provenance.SM1.R1.customer_encounter_records_version_and_capture_time', async () => {
+    makeProject('sw-customer-', 'acme-app');
+
+    const transport = new FakeGitHub();
+    const outcome = await runRetro(
+      { transcript: '/tmp/t.jsonl' },
+      dependencies({
+        transport,
+        resolveProvenance: buildProvenanceResolver({
+          projectDirectory,
+          runGit: () => 'feedc0ffee\n',
+          now: () => new Date('2026-07-07T12:00:00.000Z'),
+          version: '0.67.0',
+        }),
+      }),
+    );
+
+    expect(outcome.ok).toBe(true);
+    const ledgerComment = transport.comments.find(c => c.includes(LEDGER_MARKER));
+    expect(parseLedger(ledgerComment ?? '').provenance).toEqual({
+      install: { version: '0.67.0', at: '2026-07-07T12:00:00.000Z' },
+    });
+  });
+
+  it('retro-filing-provenance.SM1.R2.customer_provenance_carries_no_customer_repo_identifier', async () => {
+    makeProject('sw-acme-secret-project-', 'acme-app');
+
+    const transport = new FakeGitHub();
+    await runRetro(
+      { transcript: '/tmp/t.jsonl' },
+      dependencies({
+        transport,
+        resolveProvenance: buildProvenanceResolver({
+          projectDirectory,
+          // If the resolver ever consulted git in a customer install, this
+          // branch-shaped sentinel would leak into the public artifacts.
+          runGit: () => 'feature/acme-payments-refactor',
+          now: () => new Date('2026-07-07T12:00:00.000Z'),
+          version: '0.67.0',
+        }),
+      }),
+    );
+
+    const everything = transport.comments.join('\n');
+    expect(everything).not.toContain('acme-payments-refactor');
+    expect(everything).not.toContain('acme-secret-project');
+    expect(everything).not.toContain(projectDirectory);
+  });
+
+  it('retro-filing-provenance.SM1.R1.unresolvable_git_state_files_without_provenance', async () => {
+    makeProject('sw-dogfood-', 'safeword');
+
+    const transport = new FakeGitHub();
+    const outcome = await runRetro(
+      { transcript: '/tmp/t.jsonl' },
+      dependencies({
+        transport,
+        resolveProvenance: buildProvenanceResolver({
+          projectDirectory,
+          runGit: () => {
+            throw new Error('not a git repository');
+          },
+          now: () => new Date('2026-07-07T12:00:00.000Z'),
+          version: '0.67.0',
+        }),
+      }),
+    );
+
+    expect(outcome.ok).toBe(true);
+    expect(outcome.result?.created).toHaveLength(1);
+    const ledgerComment = transport.comments.find(c => c.includes(LEDGER_MARKER));
+    expect(parseLedger(ledgerComment ?? '').provenance).toBeUndefined();
+  });
+});
+
+describe('retroReconcileCommand wiring (G19QG7 SM2.R1)', () => {
+  it('retro-filing-provenance.SM2.R1.reconcile_cli_mode_flags_through_injected_tracker', async () => {
+    const { retroReconcileCommand } = await import('../../src/commands/retro.js');
+    const { RECONCILE_LABEL, RECONCILE_MARKER } = await import('../../src/retro/reconcile.js');
+    const { renderLedger, emptyLedger } = await import('../../src/retro/ledger.js');
+
+    const ledger = renderLedger({
+      ...emptyLedger(),
+      total: 1,
+      sessions: ['s1'],
+      provenance: { dogfood: { sha: 'abc1234', at: '2026-07-01T00:00:00.000Z' } },
+    });
+    const comments = new Map<number, string[]>([[41, [ledger]]]);
+    const labels = new Map<number, string[]>();
+    const tracker = {
+      listIssues: () =>
+        Promise.resolve([
+          {
+            number: 41,
+            title: 'flag via CLI',
+            body: '**Safeword surface:** `packages/cli/src/retro/pipeline.ts`',
+            labels: ['retro'],
+          },
+        ]),
+      listComments: (n: number) =>
+        Promise.resolve((comments.get(n) ?? []).map((body, index) => ({ id: index + 1, body }))),
+      createComment: (n: number, body: string) => {
+        comments.set(n, [...(comments.get(n) ?? []), body]);
+        return Promise.resolve({ id: 99, body });
+      },
+      addLabels: (n: number, added: string[]) => {
+        labels.set(n, [...(labels.get(n) ?? []), ...added]);
+        return Promise.resolve();
+      },
+      resolveTagDate: () => Promise.resolve(undefined),
+      surfaceTouchedSince: () => Promise.resolve(true),
+    };
+
+    await retroReconcileCommand({ tracker });
+
+    expect(labels.get(41)).toContain(RECONCILE_LABEL);
+    expect((comments.get(41) ?? []).some(c => c.includes(RECONCILE_MARKER))).toBe(true);
+  });
+});
+
+describe('retro summary drop reporting (PNZM3B SM2.R1)', () => {
+  const reportOptions = (output: Parameters<typeof reportRetroCommandOutcome>[1]['output']) => ({
+    extractionSucceeded: true,
+    restTransportAvailable: true,
+    output,
+  });
+  const collect = () => {
+    const lines: string[] = [];
+    return {
+      lines,
+      output: {
+        error: (m: string) => {
+          lines.push(m);
+        },
+        info: (m: string) => {
+          lines.push(m);
+        },
+        success: (m: string) => {
+          lines.push(m);
+        },
+      },
+    };
+  };
+
+  it('counts unresolvable-surface drops in the rendered summary', async () => {
+    const transport = new FakeGitHub();
+    const outcome = await runRetro(
+      { transcript: '/tmp/t.jsonl' },
+      dependencies({
+        transport,
+        extract: () =>
+          Promise.resolve([
+            rawFinding({ safeword_surface: 'process/deadbeefcafe', title: 'Secret-shaped' }),
+            rawFinding({ safeword_surface: 'src/billing.ts', title: 'Customer path' }),
+            rawFinding(),
+          ]),
+      }),
+    );
+
+    const { lines, output } = collect();
+    reportRetroCommandOutcome(outcome, reportOptions(output));
+
+    const summary = lines.join('\n');
+    expect(summary).toContain('2 dropped at the surface wall');
+  });
+
+  it('counts off-schema drops in the rendered summary', async () => {
+    const outcome = await runRetro(
+      { transcript: '/tmp/t.jsonl' },
+      dependencies({
+        extract: () => Promise.resolve([rawFinding({ repro: undefined }), rawFinding()]),
+      }),
+    );
+
+    const { lines, output } = collect();
+    reportRetroCommandOutcome(outcome, reportOptions(output));
+
+    expect(lines.join('\n')).toContain('1 dropped at the schema wall');
+  });
+
+  it('reports drops at both walls separately in one run', async () => {
+    const outcome = await runRetro(
+      { transcript: '/tmp/t.jsonl' },
+      dependencies({
+        extract: () =>
+          Promise.resolve([
+            rawFinding({ repro: undefined }),
+            rawFinding({ safeword_surface: 'src/billing.ts' }),
+          ]),
+      }),
+    );
+
+    const { lines, output } = collect();
+    reportRetroCommandOutcome(outcome, reportOptions(output));
+
+    const summary = lines.join('\n');
+    expect(summary).toContain('1 dropped at the schema wall');
+    expect(summary).toContain('1 dropped at the surface wall');
+  });
+
+  it("keeps a clean run's summary free of any drop line", async () => {
+    const outcome = await runRetro({ transcript: '/tmp/t.jsonl' }, dependencies());
+
+    const { lines, output } = collect();
+    reportRetroCommandOutcome(outcome, reportOptions(output));
+
+    expect(lines.join('\n')).not.toContain('dropped');
+  });
+
+  it('retro-process-surface.SM1.R1.process_finding_files_end_to_end', async () => {
+    const transport = new FakeGitHub();
+    await runRetro(
+      { transcript: '/tmp/t.jsonl' },
+      dependencies({
+        transport,
+        extract: () =>
+          Promise.resolve([
+            rawFinding({ safeword_surface: 'process/tdd-loop', title: 'TDD loop misses tsc' }),
+          ]),
+      }),
+    );
+
+    expect(transport.issues).toHaveLength(1);
+    expect(transport.issues[0]?.body).toContain('process/tdd-loop');
+    expect(transport.issues[0]?.labels).toContain('process');
+    expect(transport.issues[0]?.labels).toContain('retro');
+    expect(transport.issues[0]?.labels).toContain('self-report');
   });
 });
