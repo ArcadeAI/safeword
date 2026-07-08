@@ -100,7 +100,7 @@ function contentAt(cwd: string, spec: string): string | undefined {
 }
 
 /** One changed artifact's prior (range base) and proposed (index/HEAD) content. */
-function readArtifact(
+function readChangedArtifact(
   cwd: string,
   path: string,
   basename: string,
@@ -142,7 +142,7 @@ function collectChanges(cwd: string, range: BoundaryRange, at: Boundary): Ticket
       artifacts: [],
       hasLedger: false,
     };
-    change.artifacts.push(readArtifact(cwd, path, parsed.basename, range, at));
+    change.artifacts.push(readChangedArtifact(cwd, path, parsed.basename, range, at));
     byTicket.set(parsed.ticketFolder, change);
   }
 
