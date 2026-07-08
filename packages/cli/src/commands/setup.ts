@@ -15,6 +15,7 @@ import { hasImportLinterScaffoldTarget } from '../packs/python/files.js';
 import {
   detectPythonPackageManager,
   getPythonInstallCommand,
+  getPythonTools,
   hasRuffDependency,
   installPythonDependencies,
 } from '../packs/python/setup.js';
@@ -30,6 +31,7 @@ import {
 import { createProjectContext } from '../utils/context.js';
 import { getEslintPeerMismatchWarning } from '../utils/eslint-peer-check.js';
 import { exists, readJson, writeJson } from '../utils/fs.js';
+import { hookIntegrationNudge } from '../utils/hook-nudge.js';
 import { installDependencies } from '../utils/install.js';
 import {
   error,
@@ -172,13 +174,6 @@ interface PythonSetupStatus {
   files: string[];
   installFailed: boolean;
   importLinter: boolean;
-}
-
-/** Base Python tools to install. Import-linter added when layers detected. */
-function getPythonTools(includeImportLinter: boolean): string[] {
-  const tools = ['ruff', 'mypy', 'deadcode'];
-  if (includeImportLinter) tools.push('import-linter');
-  return tools;
 }
 
 /**
@@ -492,6 +487,10 @@ export async function setup(options: SetupOptions): Promise<void> {
     if (!ctx.projectType.scaffoldBddLane) {
       printCucumberHarnessNotice(ctx.projectType.existingCucumberHarness);
     }
+    // Boundary-gate integration for non-husky worlds (ZJMZ50): a verbatim
+    // snippet or adoption pointer; quiesces once the config invokes the gate.
+    const hookNudge = hookIntegrationNudge(ctx);
+    if (hookNudge !== undefined) info(hookNudge);
 
     // Language-specific setup. The JS path runs unconditionally: ensurePackageJson
     // guarantees a package.json (the BDD lane's home, ticket 102b), which is what
@@ -544,7 +543,7 @@ export async function setup(options: SetupOptions): Promise<void> {
       process.exit(1);
     }
   } catch (error_) {
-    error(`Setup failed: ${Error.isError(error_) ? error_.message : 'Unknown error'}`);
+    error(`Setup failed: ${error_ instanceof Error ? error_.message : 'Unknown error'}`);
     process.exit(1);
   }
 }

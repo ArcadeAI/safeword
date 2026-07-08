@@ -1,6 +1,6 @@
 {
   "name": "safeword",
-  "version": "0.66.0",
+  "version": "0.68.0",
   "description": "CLI for setting up and managing safeword development environments",
   "repository": {
     "type": "git",
@@ -27,7 +27,7 @@
     "templates"
   ],
   "engines": {
-    "node": "^24.16.0 || >=26.3.0"
+    "node": "^22.22.3 || ^24.16.0 || >=26.3.0"
   },
   "scripts": {
     "build": "tsup",
@@ -57,7 +57,7 @@
     "format:check": "prettier --check .",
     "knip": "knip",
     "publint": "publint",
-    "lint:sh": "shellcheck **/*.sh"
+    "lint:sh": "if command -v shellcheck >/dev/null 2>&1; then shellcheck **/*.sh; else echo 'shellcheck not installed; skipping'; fi"
   },
   "dependencies": {
     "@cucumber/gherkin": "^41.0.0",

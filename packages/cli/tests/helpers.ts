@@ -16,6 +16,8 @@ import { promisify } from 'node:util';
 
 import { expect } from 'vitest';
 
+import { shortHash } from '../src/retro/hash.js';
+
 const execFileAsync = promisify(execFile);
 
 /**
@@ -1175,6 +1177,18 @@ export function retroDraft(
     body: `body for ${title}\n<!-- safeword-retro-signature: ${signature} -->`,
     labels: ['self-report', 'retro', 'rough-edge'],
   };
+}
+
+/**
+ * A retro draft sealed the way `buildDraft` seals it: `bodyDigest` over the
+ * final body (JDK0F0). Digest-less `retroDraft` stays the legacy fixture.
+ */
+export function sealedRetroDraft(
+  signature: string,
+  title = 'A friction',
+): ReturnType<typeof retroDraft> & { bodyDigest: string } {
+  const base = retroDraft(signature, title);
+  return { ...base, bodyDigest: shortHash(base.body) };
 }
 
 /** Append one shape-valid ack line to a session's retro ack file (GH644A fixtures). */

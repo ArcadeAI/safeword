@@ -20,6 +20,7 @@
     "rustfmt",
     "which",
     "architecture",
+    "boundary",
     "test-plan",
     "verify",
     "quality-review",

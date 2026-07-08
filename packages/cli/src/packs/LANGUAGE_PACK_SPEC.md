@@ -235,7 +235,7 @@ if (result.exitCode !== 0 && result.stderr.length > 0) {
 const SHELL_EXTENSIONS = new Set(['sh']);
 
 if (SHELL_EXTENSIONS.has(extension)) {
-  await $`bunx shellcheck ${file}`.nothrow().quiet();
+  await $`shellcheck ${file}`.nothrow().quiet();
   if (existsSync(`${projectDir}/node_modules/prettier-plugin-sh`)) {
     await $`bunx prettier --write ${file}`.nothrow().quiet();
   }

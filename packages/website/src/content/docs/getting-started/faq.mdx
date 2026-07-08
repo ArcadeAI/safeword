@@ -41,7 +41,7 @@ No. Commit the `.safeword/`, `.claude/`, `.cursor/`, `.codex/`, and `.agents/` d
 
 ### Will it interfere with my development workflow?
 
-No. Safeword's hooks and stricter linting rules only fire during AI agent sessions (Claude Code / Cursor / Codex events). They never run when you code normally, and safeword does not install git hooks or modify your commit workflow. Safeword adds `lint` and `format` scripts to your `package.json` — you can wire these into CI pipelines or precommit hooks if you want, but it's your choice.
+No. Safeword's hooks and stricter linting rules only fire during AI agent sessions (Claude Code / Cursor / Codex events). They never run when you code normally. In repos that already use husky, setup appends one warn-only line to `pre-commit`/`pre-push` — the boundary evidence check. It reports, never blocks a commit, and `safeword reset` removes it; safeword never installs a hook manager. Safeword also adds `lint` and `format` scripts to your `package.json` — you can wire these into CI pipelines or precommit hooks if you want, but it's your choice.
 
 ### Some lint rules are wrong for my project type
 

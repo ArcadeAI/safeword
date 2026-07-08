@@ -22,6 +22,13 @@ export interface Languages {
   sql: boolean; // dbt_project.yml (or other SQL tool markers) exists
 }
 
+/**
+ * Which hook-manager world governs a host's git hooks (ZJMZ50, #810 child 2).
+ * Detected by `utils/hook-manager.ts`; `husky` hosts get boundary-shim
+ * appends, every other world gets a printed integration nudge.
+ */
+export type HookManagerWorld = 'husky' | 'husky-uninitialized' | 'lefthook' | 'pre-commit' | 'bare';
+
 export interface ProjectType {
   typescript: boolean;
   react: boolean;
@@ -122,6 +129,13 @@ export interface ProjectContext {
    * reconcile resolves from `cwd` when absent.
    */
   namespaceRoot?: string;
+  /**
+   * Which hook-manager world governs the host's git hooks (ZJMZ50). Gates the
+   * boundary-shim textPatches: `husky` appends, every other world nudges.
+   * Optional for older callers — absent reads as unknown, and gated patches
+   * do not apply.
+   */
+  hookManager?: HookManagerWorld;
 }
 
 export interface FileDefinition {

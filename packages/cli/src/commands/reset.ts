@@ -86,7 +86,7 @@ export async function reset(options: ResetOptions): Promise<void> {
     if (isFullReset) uninstallPackages(cwd, result.packagesToRemove);
     printResetSummary(result, isFullReset);
   } catch (error_) {
-    error(`Reset failed: ${Error.isError(error_) ? error_.message : 'Unknown error'}`);
+    error(`Reset failed: ${error_ instanceof Error ? error_.message : 'Unknown error'}`);
     process.exit(1);
   }
 }

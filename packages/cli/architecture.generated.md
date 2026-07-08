@@ -1,11 +1,19 @@
 ---
 generator: safeword-architecture
-fingerprint: 3dd53c1fa45850e6d2d4894c1c7556870663b58d05710e8dc248b4424eaf8b62
+fingerprint: 775eecda88726a4e3534dd13ba6eb4ffcdcbf5ca42582940435de969ba860f80
 ---
 
 # Architecture
 
 ## Modules
+
+### boundary
+
+<!-- reconciled: 775eecda88726a4e3534dd13ba6eb4ffcdcbf5ca42582940435de969ba860f80 -->
+
+`src/boundary`
+
+No description yet — awaiting prose.
 
 ### commands
 
@@ -54,6 +62,8 @@ No description yet — awaiting prose.
 `src/retro`
 
 No description yet — awaiting prose.
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### skills
 

@@ -392,7 +392,11 @@ export const typescriptJsonMerges: Record<string, JsonMergeDefinition> = {
         addScriptIfMissing(scripts, 'publint', 'publint');
       }
       if (ctx.projectType.shell) {
-        addScriptIfMissing(scripts, 'lint:sh', 'shellcheck **/*.sh');
+        addScriptIfMissing(
+          scripts,
+          'lint:sh',
+          "if command -v shellcheck >/dev/null 2>&1; then shellcheck **/*.sh; else echo 'shellcheck not installed; skipping'; fi",
+        );
       }
 
       result.scripts = scripts;
@@ -536,7 +540,6 @@ export const typescriptPackages = {
     shell: ['prettier-plugin-sh'],
     // Non-ESLint tools
     publishableLibrary: ['publint'],
-    shellcheck: ['shellcheck'], // Renamed from shell to avoid conflict with prettier-plugin-sh
     // Legacy ESLint config compat (needed when extending .eslintrc.* configs)
     legacyEslint: ['@eslint/eslintrc'],
     // Architecture + dead-code tools (used by /audit) — these scan JS APPLICATION

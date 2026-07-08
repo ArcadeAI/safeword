@@ -88,16 +88,19 @@ self-report drafts above — same repo, same dedup, same cap, same verbatim rule
 with two differences:
 
 1. **Get the drafts from the spool file** named in the reminder. It is JSONL: one
-   `{ signature, title, body, labels }` per line, already egress-sanitized (no
-   customer data — do not add any). Dedup by the draft's content signature (the
-   `<!-- safeword-retro-signature: … -->` marker in the body, or the `title`).
+   `{ signature, title, body, labels, bodyDigest }` per line, already
+   egress-sanitized (no customer data — do not add any). Dedup by the draft's
+   content signature (the `<!-- safeword-retro-signature: … -->` marker in the
+   body, or the `title`).
 2. **Write the ack record, then drain.** After each successful post, append one
    `{"signature": ..., "issue": ...}` ack line to the spool's sibling ack file
    (`.acks.jsonl` in place of `.jsonl`), then rewrite the spool with only the
    drafts you did not file (delete it when none remain). The acks are what
    prove the drain honest — a drain without them trips safeword's bare-drain
    telemetry. Post the bodies exactly as spooled — the signature marker in
-   each body is what dedup depends on.
+   each body is what dedup depends on, and each body is sealed by its
+   `bodyDigest` (code-owned filing paths refuse a modified body —
+   `hooks/lib/retro-draft-spool.ts` `verifyDraftBody`).
 
 ## Config
 

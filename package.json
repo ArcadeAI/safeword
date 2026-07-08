@@ -18,7 +18,7 @@
     "parity:fix": "bun scripts/parity-check.ts --fix",
     "safeword": "bun packages/cli/src/cli.ts",
     "lint:md": "markdownlint-cli2 \"**/*.md\" \"#**/node_modules\" \"#examples\" \"#dist\"",
-    "lint:sh": "shellcheck **/*.sh .safeword/hooks/* packages/cli/templates/hooks/* packages/cli/templates/scripts/* 2>/dev/null || true",
+    "lint:sh": "if command -v shellcheck >/dev/null 2>&1; then shellcheck **/*.sh .safeword/hooks/* packages/cli/templates/hooks/* packages/cli/templates/scripts/* 2>/dev/null || true; else echo 'shellcheck not installed; skipping'; fi",
     "lint:gherkin": "bun packages/cli/src/cli.ts lint-gherkin",
     "format:sh": "shfmt -w -i 2 -ci **/*.sh .safeword/hooks/* packages/cli/templates/hooks/* packages/cli/templates/scripts/* 2>/dev/null || echo 'shfmt not installed (brew install shfmt)'",
     "format:check": "prettier --check .",
@@ -44,7 +44,6 @@
     "prettier": "^3.9.4",
     "prettier-plugin-sh": "^0.18.1",
     "safeword": "workspace:*",
-    "shellcheck": "^4.1.0",
     "tsx": "^4.23.0"
   },
   "lint-staged": {
@@ -64,7 +63,7 @@
       "prettier --write"
     ],
     "*.sh": [
-      "shellcheck"
+      "sh -c 'if command -v shellcheck >/dev/null 2>&1; then shellcheck \"$@\"; else echo \"shellcheck not installed; skipping\"; fi' --"
     ],
     "*.feature": [
       "bun packages/cli/src/cli.ts lint-gherkin"
