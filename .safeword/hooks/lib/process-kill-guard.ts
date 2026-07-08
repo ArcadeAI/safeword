@@ -12,14 +12,22 @@
 //
 // The predicate classifies literal tokens, same doctrine as
 // bash-ledger-writes.ts: close the low-friction accident path, not every
-// adversarial path. Undetected forms include targets materialized at runtime
-// (`p=node; killall "$p"`), scripts that embed the kill, `xargs killall`,
-// and `sudo -u <user> killall node` (sudo option values are not modeled).
+// adversarial path. Undetected forms (all deliberate, adversarial-path) include
+// targets materialized at runtime (`p=node; killall "$p"`), scripts that embed
+// the kill, `xargs killall`, a lone `&` backgrounding the kill
+// (`sleep 1 & killall node` — `&` is not a segment boundary, same as the ledger
+// gate), `env -S 'killall node'` (GNU split-string is not re-tokenized), and
+// sudo compositions where a skippable prefix follows sudo (`sudo env killall
+// node`, `sudo -u <user> killall node` — commandWordIndex does not model sudo or
+// its option values, so only a leading `sudo` run is stripped, after prefix
+// resolution).
 // A quoted regex that anchors a bare name (`pkill '^node$'`) IS detected —
-// anchors are stripped before the name comparison. So is a leading
-// backslash-escape (`pkill '\java'`): pkill patterns are EREs, where a
-// backslash before an ordinary letter is that letter, so the pattern still
-// kills every `java` process (EDDABK).
+// anchors are stripped before the name comparison. So is a backslash-escape
+// (`pkill '\java'`, `pkill 'n\ode'`): a backslash before an ordinary character
+// in an ERE is undefined per POSIX and engine-dependent (glibc/BSD commonly
+// yield the literal char), so bareName strips ALL backslashes as a deliberate
+// conservative over-approximation — the guard over-matches rather than letting
+// an inserted backslash evade it (EDDABK).
 
 import nodePath from 'node:path';
 
@@ -46,8 +54,9 @@ const SHARED_RUNTIMES = new Set(['node', 'bun', 'deno', 'python', 'python3', 'ru
 
 /**
  * Strip regex anchors and backslash-escapes so `'^node$'`, `'\java'`, and
- * `'n\ode'` are all judged as their bare runtime name. In an ERE a backslash
- * before an ordinary character is that character, so `n\ode` still matches
+ * `'n\ode'` are all judged as their bare runtime name. A backslash before an
+ * ordinary character in an ERE is undefined per POSIX (engine-dependent), so
+ * stripping every backslash is a conservative over-match — `n\ode` still matches
  * every `node` process; dropping backslashes wherever they appear keeps the
  * comparison from being evaded by one. (POSIX single-quote tokenization now
  * delivers interior backslashes intact, so a leading-only strip would miss

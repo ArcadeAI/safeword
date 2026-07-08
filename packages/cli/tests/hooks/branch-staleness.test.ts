@@ -26,6 +26,8 @@ describe('parseCheckoutTarget', () => {
     ['cd repo; git switch develop', 'develop'],
     ['sudo git checkout main', 'main'],
     ['GIT_PAGER=cat git checkout main', 'main'],
+    // git matched by basename, consistent with the security gates (quality-review).
+    ['/usr/bin/git checkout main', 'main'],
     // Flags in a NEIGHBORING segment must not null out the parse — the old
     // flat-token scan read `git branch -d`'s flag as create/detach.
     ['git checkout main && git branch -d old', 'main'],

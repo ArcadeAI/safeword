@@ -6,6 +6,8 @@
 // per segment: `git fetch && git checkout main` resolves `main`, and flags in a
 // neighboring segment can no longer null out or fake a checkout target.
 
+import nodePath from 'node:path';
+
 import { commandWords, splitShellSegments } from './shell-segments.js';
 
 /** Flags that mean the command creates/detaches a branch — no upstream-staleness risk. */
@@ -21,7 +23,9 @@ export function parseCheckoutTarget(command: string): string | null {
     const words = commandWords(segment);
     let index = 0;
     while (words[index] === 'sudo') index += 1;
-    if (words[index] !== 'git') continue;
+    // Basename-match `git` so `/usr/bin/git checkout main` warns the same as
+    // bare `git` — consistent with the security gates (HRDN42).
+    if (nodePath.basename(words[index] ?? '') !== 'git') continue;
     const subcommand = words[index + 1];
     if (subcommand !== 'checkout' && subcommand !== 'switch') continue;
 
