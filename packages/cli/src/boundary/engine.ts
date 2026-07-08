@@ -103,6 +103,11 @@ function warnVerdict(check: string, detail: string): CheckVerdict {
   return { check, verdict: 'warn', detail };
 }
 
+/** A check that could not run to a conclusion (oracle failed mid-run) — never a crash. */
+function indeterminate(check: string, detail: string): CheckVerdict {
+  return { check, verdict: 'indeterminate', detail };
+}
+
 /**
  * Phase legality over the change (N76NQ0): judged per commit when the caller
  * supplies legality steps (push tier — each range commit against its parent),
@@ -164,11 +169,12 @@ function ticketFileChecks(
         : pass('phase-anchor'),
     );
   } catch {
-    checks.push({
-      check: 'phase-anchor',
-      verdict: 'indeterminate',
-      detail: 'artifact read failed mid-run — the anchor could not be determined',
-    });
+    checks.push(
+      indeterminate(
+        'phase-anchor',
+        'artifact read failed mid-run — the anchor could not be determined',
+      ),
+    );
   }
 
   return checks;
@@ -234,11 +240,12 @@ function ledgerChecks(change: TicketChange, resolveSha?: ShaResolver): CheckVerd
             ),
       );
     } catch {
-      checks.push({
-        check: 'ledger-format',
-        verdict: 'indeterminate',
-        detail: 'SHA resolution failed mid-run — ledger reachability could not be determined',
-      });
+      checks.push(
+        indeterminate(
+          'ledger-format',
+          'SHA resolution failed mid-run — ledger reachability could not be determined',
+        ),
+      );
     }
   }
 
