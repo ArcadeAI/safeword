@@ -541,9 +541,25 @@ describe('buildAutoExtractor (SM1.AC2 — runner model: sonnet default, config-o
 describe('runRetro provenance capture (G19QG7)', () => {
   // Only the process boundaries are mocked: GitHub transport, git subprocess,
   // clock. Environment detection and ledger rendering are real.
+  //
+  // Prefixes stay per-test: SM1.R2 plants `sw-acme-secret-project-` as a leak
+  // sentinel and asserts the directory name never reaches public comments.
+  let projectDirectory = '';
+  afterEach(() => {
+    if (projectDirectory) rmSync(projectDirectory, { recursive: true, force: true });
+    projectDirectory = '';
+  });
+  const makeProject = (prefix: string, packageName: string): string => {
+    projectDirectory = mkdtempSync(nodePath.join(tmpdir(), prefix));
+    writeFileSync(
+      nodePath.join(projectDirectory, 'package.json'),
+      JSON.stringify({ name: packageName }),
+    );
+    return projectDirectory;
+  };
+
   it('retro-filing-provenance.SM1.R1.dogfood_encounter_records_short_sha_and_capture_time', async () => {
-    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'sw-dogfood-'));
-    writeFileSync(nodePath.join(projectDirectory, 'package.json'), '{"name":"safeword"}');
+    makeProject('sw-dogfood-', 'safeword');
 
     const transport = new FakeGitHub();
     const outcome = await runRetro(
@@ -565,12 +581,9 @@ describe('runRetro provenance capture (G19QG7)', () => {
     expect(parseLedger(ledgerComment ?? '').provenance).toEqual({
       dogfood: { sha: 'abc1234def', at: '2026-07-07T12:00:00.000Z' },
     });
-
-    rmSync(projectDirectory, { recursive: true, force: true });
   });
   it('retro-filing-provenance.SM1.R1.customer_encounter_records_version_and_capture_time', async () => {
-    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'sw-customer-'));
-    writeFileSync(nodePath.join(projectDirectory, 'package.json'), '{"name":"acme-app"}');
+    makeProject('sw-customer-', 'acme-app');
 
     const transport = new FakeGitHub();
     const outcome = await runRetro(
@@ -591,13 +604,10 @@ describe('runRetro provenance capture (G19QG7)', () => {
     expect(parseLedger(ledgerComment ?? '').provenance).toEqual({
       install: { version: '0.67.0', at: '2026-07-07T12:00:00.000Z' },
     });
-
-    rmSync(projectDirectory, { recursive: true, force: true });
   });
 
   it('retro-filing-provenance.SM1.R2.customer_provenance_carries_no_customer_repo_identifier', async () => {
-    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'sw-acme-secret-project-'));
-    writeFileSync(nodePath.join(projectDirectory, 'package.json'), '{"name":"acme-app"}');
+    makeProject('sw-acme-secret-project-', 'acme-app');
 
     const transport = new FakeGitHub();
     await runRetro(
@@ -619,13 +629,10 @@ describe('runRetro provenance capture (G19QG7)', () => {
     expect(everything).not.toContain('acme-payments-refactor');
     expect(everything).not.toContain('acme-secret-project');
     expect(everything).not.toContain(projectDirectory);
-
-    rmSync(projectDirectory, { recursive: true, force: true });
   });
 
   it('retro-filing-provenance.SM1.R1.unresolvable_git_state_files_without_provenance', async () => {
-    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'sw-dogfood-'));
-    writeFileSync(nodePath.join(projectDirectory, 'package.json'), '{"name":"safeword"}');
+    makeProject('sw-dogfood-', 'safeword');
 
     const transport = new FakeGitHub();
     const outcome = await runRetro(
@@ -647,8 +654,6 @@ describe('runRetro provenance capture (G19QG7)', () => {
     expect(outcome.result?.created).toHaveLength(1);
     const ledgerComment = transport.comments.find(c => c.includes(LEDGER_MARKER));
     expect(parseLedger(ledgerComment ?? '').provenance).toBeUndefined();
-
-    rmSync(projectDirectory, { recursive: true, force: true });
   });
 });
 
