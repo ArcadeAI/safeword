@@ -6,13 +6,20 @@
 import { spawnSync } from 'node:child_process';
 import process from 'node:process';
 
+import type { ReconcileIssue, ReconcileTracker } from './reconcile.js';
 import type { CreateIssueInput, IssueComment, IssueReference, IssueTracker } from './triage.js';
 
 const UPSTREAM_REPO = 'ArcadeAI/safeword';
 const ISSUES_BASE = `/repos/${UPSTREAM_REPO}/issues`;
 const API = 'https://api.github.com';
+// GitHub's max page size. The paginated loops interpolate this into the URL
+// AND compare against it to detect the last (short) page — one constant keeps
+// the two from drifting (a mismatch silently truncates or over-fetches).
+const PER_PAGE = 100;
 // Safety bound on comment pagination (100/page → up to 2000 comments scanned).
 const MAX_COMMENT_PAGES = 20;
+// Safety bound on issue-listing pagination for the reconcile sweep (→ 1000 issues).
+const MAX_ISSUE_PAGES = 10;
 
 /** Ask the `gh` CLI for the environment's GitHub token, or undefined if unavailable. */
 function ghAuthToken(): string | undefined {
@@ -59,22 +66,15 @@ export function resolveGitHubToken(
   return getGhToken();
 }
 
-/**
- * Build a REST-backed transport, or undefined when no token is available. The
- * token is REQUIRED (no `process.env` default) so every caller routes through
- * `resolveGitHubToken` — a default here would silently bypass the `gh` fallback.
- */
-export function createRestTransport(token: string | undefined): IssueTracker | undefined {
-  if (!token) return undefined;
-
-  const headers = {
+/** The one place auth + API headers are wired to fetch; both transports compose this. */
+function buildCall(token: string) {
+  const headers: Record<string, string> = {
     Authorization: `Bearer ${token}`,
     Accept: 'application/vnd.github+json',
     'X-GitHub-Api-Version': '2022-11-28',
     'User-Agent': 'safeword-retro',
   };
-
-  async function call(method: string, path: string, body?: unknown): Promise<unknown> {
+  return async function call(method: string, path: string, body?: unknown): Promise<unknown> {
     const response = await fetch(`${API}${path}`, {
       method,
       headers: { ...headers, 'Content-Type': 'application/json' },
@@ -84,7 +84,18 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
       throw new Error(`GitHub ${method} ${path} → ${response.status}`);
     }
     return response.json();
-  }
+  };
+}
+
+/**
+ * Build a REST-backed transport, or undefined when no token is available. The
+ * token is REQUIRED (no `process.env` default) so every caller routes through
+ * `resolveGitHubToken` — a default here would silently bypass the `gh` fallback.
+ */
+export function createRestTransport(token: string | undefined): IssueTracker | undefined {
+  if (!token) return undefined;
+
+  const call = buildCall(token);
 
   return {
     async searchBySignature(signature: string): Promise<IssueReference[]> {
@@ -94,7 +105,7 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
       // fuzzy, so a hash near-miss must be rejected to avoid matching the wrong issue.
       const hashToken = signature.replace(/^retro:/, '');
       const query = encodeURIComponent(`repo:${UPSTREAM_REPO} in:body state:open ${hashToken}`);
-      const data = (await call('GET', `/search/issues?q=${query}&per_page=100`)) as {
+      const data = (await call('GET', `/search/issues?q=${query}&per_page=${PER_PAGE}`)) as {
         items?: { number: number; title: string; body?: string }[];
       };
       return (data.items ?? [])
@@ -118,10 +129,10 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
       for (let page = 1; page <= MAX_COMMENT_PAGES; page++) {
         const data = (await call(
           'GET',
-          `${ISSUES_BASE}/${issueNumber}/comments?per_page=100&page=${page}`,
+          `${ISSUES_BASE}/${issueNumber}/comments?per_page=${PER_PAGE}&page=${page}`,
         )) as { id: number; body?: string }[];
         comments.push(...data.map(comment => ({ id: comment.id, body: comment.body ?? '' })));
-        if (data.length < 100) break;
+        if (data.length < PER_PAGE) break;
       }
       return comments;
     },
@@ -135,6 +146,96 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
 
     async updateComment(commentId: number, body: string): Promise<void> {
       await call('PATCH', `${ISSUES_BASE}/comments/${commentId}`, { body });
+    },
+  };
+}
+
+/**
+ * REST-backed reconcile transport (G19QG7), or undefined without a token. Thin
+ * and untested-by-unit like `createRestTransport` — the sweep's logic lives in
+ * the tested `reconcile` module; this only maps the six seam methods to REST.
+ */
+export function createReconcileTransport(token: string | undefined): ReconcileTracker | undefined {
+  const base = createRestTransport(token);
+  if (!token || !base) return undefined;
+
+  const call = buildCall(token);
+
+  /** Committer date of a commit SHA (committer, not author — squash-merge time). */
+  async function commitDate(sha: string): Promise<string | undefined> {
+    const data = (await call('GET', `/repos/${UPSTREAM_REPO}/commits/${sha}`)) as {
+      commit?: { committer?: { date?: string } };
+    };
+    return data.commit?.committer?.date;
+  }
+
+  return {
+    async listIssues(query: { state: string; labels: string[] }): Promise<ReconcileIssue[]> {
+      // Paginate with a bound (mirrors listComments): created-desc default order
+      // would otherwise starve the oldest issues past 100. PRs share this
+      // endpoint (distinguished by `pull_request`) and are not sweep targets.
+      const labels = encodeURIComponent(query.labels.join(','));
+      const issues: ReconcileIssue[] = [];
+      for (let page = 1; page <= MAX_ISSUE_PAGES; page++) {
+        const data = (await call(
+          'GET',
+          `${ISSUES_BASE}?state=${encodeURIComponent(query.state)}&labels=${labels}&per_page=${PER_PAGE}&page=${page}`,
+        )) as {
+          number: number;
+          title: string;
+          body?: string;
+          labels?: { name?: string }[];
+          pull_request?: unknown;
+        }[];
+        issues.push(
+          ...data
+            .filter(issue => issue.pull_request === undefined)
+            .map(issue => ({
+              number: issue.number,
+              title: issue.title,
+              body: issue.body ?? '',
+              labels: (issue.labels ?? []).map(label => label.name ?? ''),
+            })),
+        );
+        if (data.length < PER_PAGE) break;
+      }
+      return issues;
+    },
+
+    listComments: issueNumber => base.listComments(issueNumber),
+    createComment: (issueNumber, body) => base.createComment(issueNumber, body),
+
+    async addLabels(issueNumber: number, labels: string[]): Promise<void> {
+      await call('POST', `${ISSUES_BASE}/${issueNumber}/labels`, { labels });
+    },
+
+    async resolveTagDate(tag: string): Promise<string | undefined> {
+      // Annotated tags point at a tag object (deref once); lightweight tags
+      // point straight at the commit. Any failure → undefined (never guessed).
+      try {
+        const tagReference = `tags/${tag}`;
+        const ref = (await call(
+          'GET',
+          `/repos/${UPSTREAM_REPO}/git/ref/${encodeURIComponent(tagReference)}`,
+        )) as { object?: { type?: string; sha?: string } };
+        const target = ref.object;
+        if (!target?.sha) return undefined;
+        if (target.type === 'commit') return await commitDate(target.sha);
+        const tagObject = (await call('GET', `/repos/${UPSTREAM_REPO}/git/tags/${target.sha}`)) as {
+          object?: { sha?: string };
+        };
+        return tagObject.object?.sha ? await commitDate(tagObject.object.sha) : undefined;
+      } catch {
+        return undefined;
+      }
+    },
+
+    async surfaceTouchedSince(path: string, sinceIso: string): Promise<boolean> {
+      const data = (await call(
+        'GET',
+        `/repos/${UPSTREAM_REPO}/commits?path=${encodeURIComponent(path)}&since=${encodeURIComponent(sinceIso)}&per_page=1`,
+      )) as unknown[];
+      return data.length > 0;
     },
   };
 }

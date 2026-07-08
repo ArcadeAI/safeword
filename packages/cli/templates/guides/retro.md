@@ -39,7 +39,7 @@ fresh context** that hasn't lived the session:
    {
      "category": "bug | rough-edge | gap",
      "title": "<concise, canonical title describing the SAFEWORD behavior>",
-     "safeword_surface": "<a real safeword path: hooks/…, packages/cli/…, templates/…, dist/…, or .safeword/…>",
+     "safeword_surface": "<a real safeword path: hooks/…, packages/cli/…, templates/…, dist/…, or .safeword/…; for friction with no single-file surface use process/<area>, a short lowercase-hyphen area (≤32 chars) like process/tdd-loop>",
      "what_happened": "<what safeword did, in your own words>",
      "why_friction": "<why it was friction / what it blocked>",
      "repro": "<in terms of safeword commands>"
@@ -48,7 +48,9 @@ fresh context** that hasn't lived the session:
 
    Rules for the reader:
    - **Safeword's friction only.** Not the host project's bugs. If a finding
-     can't name a real safeword surface, drop it — the command drops it anyway.
+     has no single-file surface, use `process/<area>` (e.g. `process/tdd-loop`);
+     if it can't name a safeword surface at all, drop it — the command drops it
+     anyway.
    - **Canonical titles.** Title by safeword's behavior ("Coverage gate message
      omits file and number"), not the customer's situation. Stable titles keep
      recurrences on one issue.

@@ -9,22 +9,52 @@ export const LEDGER_MARKER = '<!-- retro-ledger -->';
 const DATA_OPEN = '<!-- retro-data:';
 const DATA_CLOSE = '-->';
 
+/**
+ * Code-state provenance of an encounter (G19QG7): a dogfood session records the
+ * safeword repo's short HEAD SHA, a customer install records the installed
+ * safeword version — both with the capture time. Newest encounter wins; the
+ * ledger keeps only the latest.
+ */
+export interface Provenance {
+  sha?: string;
+  version?: string;
+  at: string;
+}
+
+/**
+ * Stored per-kind: a later encounter from an OLD installed version must not
+ * clobber a newer dogfood code state (and vice versa) — reconcile normalizes
+ * both slots to dates and keys on the newest (mixed-ledger rule, SM2.R1).
+ */
+export interface StoredProvenance {
+  dogfood?: { sha: string; at: string };
+  install?: { version: string; at: string };
+}
+
 export interface LedgerState {
   total: number;
   harness: Record<string, number>;
   sessions: string[];
   manifestations: string[];
+  /** Newest encounter's code state per kind; absent on pre-provenance ledgers. */
+  provenance?: StoredProvenance;
 }
 
 export interface EncounterInput {
   sessionId: string;
   harness: string;
   manifestation: string;
+  /** Code state observed by this encounter; omitted when unresolvable. */
+  provenance?: Provenance;
 }
 
 export interface EncounterResult {
   state: LedgerState;
-  /** True when this encounter changed the ledger (a new session was counted). */
+  /**
+   * True when this encounter changed ledger state — a new session was counted
+   * OR a novel manifestation was appended on an already-counted session — so
+   * the caller re-renders the comment exactly when there is new state to persist.
+   */
   changed: boolean;
   /** True when the manifestation was not already documented. */
   novel: boolean;
@@ -32,6 +62,18 @@ export interface EncounterResult {
 
 export function emptyLedger(): LedgerState {
   return { total: 0, harness: {}, sessions: [], manifestations: [] };
+}
+
+/**
+ * Locate retro's own ledger comment in an issue's comment list — the single
+ * place "which comment is the ledger" is defined, so triage and reconcile
+ * can't drift on how it's identified. Returns the comment (not parsed state)
+ * because callers also need its id for idempotent edits.
+ */
+export function findLedgerComment<Comment extends { body: string }>(
+  comments: Comment[],
+): Comment | undefined {
+  return comments.find(comment => comment.body.includes(LEDGER_MARKER));
 }
 
 /** Parse a comment body into ledger state; returns the empty ledger when unmarked. */
@@ -43,11 +85,13 @@ export function parseLedger(body: string): LedgerState {
   if (end === -1) return emptyLedger();
   try {
     const parsed = JSON.parse(body.slice(from, end).trim()) as Record<string, unknown>;
+    const provenance = coerceProvenance(parsed.provenance);
     return {
       total: typeof parsed.total === 'number' ? parsed.total : 0,
       harness: coerceHarness(parsed.harness),
       sessions: coerceStringArray(parsed.sessions),
       manifestations: coerceStringArray(parsed.manifestations),
+      ...(provenance && { provenance }),
     };
   } catch {
     return emptyLedger();
@@ -61,6 +105,54 @@ function coerceStringArray(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === 'string')
     : [];
+}
+
+// Bounded token shapes for provenance fields. The ledger comment is publicly
+// editable, and these strings are re-rendered into a public comment — so only
+// exact token shapes survive coercion; anything else is dropped, never echoed.
+export const PROVENANCE_SHA = /^[0-9a-f]{7,40}$/i;
+const PROVENANCE_VERSION = /^\w[\w.-]{0,31}$/;
+// Timestamp chars only (no letters beyond T/Z), bounded, and ISO-parseable —
+// simple class + Date.parse instead of a repeat-heavy regex (unsafe-regex lint).
+const PROVENANCE_AT_CHARS = /^[\d.:TZ-]{20,24}$/;
+
+function isProvenanceTimestamp(value: string): boolean {
+  return PROVENANCE_AT_CHARS.test(value) && value.endsWith('Z') && !Number.isNaN(Date.parse(value));
+}
+
+function coerceSlot<Key extends 'sha' | 'version'>(
+  value: unknown,
+  key: Key,
+  pattern: RegExp,
+): (Record<Key, string> & { at: string }) | undefined {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined;
+  const source = value as Record<string, unknown>;
+  const token = source[key];
+  if (typeof token !== 'string' || !pattern.test(token)) return undefined;
+  if (typeof source.at !== 'string' || !isProvenanceTimestamp(source.at)) return undefined;
+  return { [key]: token, at: source.at } as Record<Key, string> & { at: string };
+}
+
+function coerceProvenance(value: unknown): StoredProvenance | undefined {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined;
+  const source = value as Record<string, unknown>;
+  const dogfood = coerceSlot(source.dogfood, 'sha', PROVENANCE_SHA);
+  const install = coerceSlot(source.install, 'version', PROVENANCE_VERSION);
+  if (!dogfood && !install) return undefined;
+  return { ...(dogfood && { dogfood }), ...(install && { install }) };
+}
+
+/** Fold an encounter's flat provenance into the stored per-kind slots. */
+function mergeProvenance(
+  existing: StoredProvenance | undefined,
+  incoming: Provenance | undefined,
+): StoredProvenance | undefined {
+  if (!incoming) return existing;
+  if (incoming.sha) return { ...existing, dogfood: { sha: incoming.sha, at: incoming.at } };
+  if (incoming.version) {
+    return { ...existing, install: { version: incoming.version, at: incoming.at } };
+  }
+  return existing;
 }
 
 function coerceHarness(value: unknown): Record<string, number> {
@@ -109,12 +201,14 @@ export function recordEncounter(state: LedgerState, input: EncounterInput): Enco
     };
   }
 
+  const provenance = mergeProvenance(state.provenance, input.provenance);
   return {
     state: {
       total: state.total + 1,
       harness: { ...state.harness, [input.harness]: (state.harness[input.harness] ?? 0) + 1 },
       sessions: [...state.sessions, input.sessionId],
       manifestations,
+      ...(provenance && { provenance }),
     },
     changed: true,
     novel,
