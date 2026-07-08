@@ -2,8 +2,11 @@
 id: TXRHMD
 slug: plan-implementation-phase
 type: feature
-phase: intake
+phase: define-behavior
 status: in_progress
+external_issue: https://github.com/ArcadeAI/safeword/issues/480
+phase_anchors:
+  - define-behavior: 3bb035bc
 scope:
   - insert `plan-implementation` between scenario-gate and implement in the canonical phase enum and every phase-keyed hook surface (CANONICAL_PHASES, BddPhase, PHASE_EVIDENCE, prompt reminders, stop/pre-tool gate phase lists, LEDGER_REQUIRED_PHASES)
   - pre-tool transition gate — deny `phase: implement` for new-flow features until impl-plan.md parses valid with status `planned`
@@ -40,3 +43,4 @@ last_modified: 2026-07-08T06:03:20.016Z
 
 - 2026-07-08T06:03:20.016Z Started: Created ticket TXRHMD
 - 2026-07-08T06:16:00Z Intake: spec.md authored from issue #480 revalidation + /figure-it-out verdict (option C: phase owns impl-plan authoring; architecture design stays at intake; pre-tool transition gate; stage-scoped exit stamp). Cold-start executability check ran (one-way-door trigger): INSUFFICIENT-narrowly — 2 gaps (impl-plan stop-list membership; SPLITTING.md remappings) appended to Open Questions with proposals. Awaiting user signoff on JTBD/Rules/scope + 7 open-question proposals.
+- 2026-07-08T13:31:31.710Z Phase: intake → define-behavior

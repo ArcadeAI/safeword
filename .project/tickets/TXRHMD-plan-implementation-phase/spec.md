@@ -88,12 +88,18 @@ skip: table-stakes — plan-before-code is now baseline across major harnesses (
 - Existing M6D315/MR5M3A gate semantics still hold end-to-end: plan exists by `implement`, status flips to `implemented` before `verify`/`done`, architectureReviewGate unchanged.
 - ARCHITECTURE.md records the superseding ADR.
 
+## Decisions (intake signoff, 2026-07-08)
+
+All seven intake questions resolved — user accepted each proposal:
+
+1. **Phase name:** `plan-implementation` (matches issue text and kebab-case enum convention).
+2. **Code-edit block (NTB1.R1):** the implement-phase application-code gate extends to cover `plan-implementation` — no app-code writes while planning.
+3. **Cumulative test-defs gate:** `plan-implementation` joins `phasesRequiringTestDefs`. (The list's pre-existing `verify` hole is a separate chip, not this ticket.)
+4. **In-flight migration:** no tooling — the one-step provenance denial + changelog note carry it; ships as a 0.x minor.
+5. **#530 seam:** this feature only establishes the phase-entry reminder surface; wiring the language-skill pointer stays in #530.
+6. **Impl-plan stop-list:** `phasesRequiringImplPlan = ['implement','verify','done']` unchanged — the stop gate stays cumulative (artifacts owed by *prior* exits, matching the test-defs precedent); the pre-tool transition gate is the sole boundary enforcement; mid-phase work-in-progress stops stay legal. SM1.R1 reads as "an explicit membership decision per phase-keyed list", not "added to every list".
+7. **SPLITTING.md:** the ">20 tasks OR 5+ major components" checkpoint moves to `plan-implementation` (task counts materialize with the build order); split children at plan-implementation-or-later restart at `plan-implementation` — each child authors its own plan scoped to its slice.
+
 ## Open Questions
 
-1. **Phase name:** `plan-implementation` per the issue (alternatives: `plan`, `implementation-plan`). Proposal: keep `plan-implementation`.
-2. **Code-edit block (NTB1.R1):** extend the implement-phase application-code gate to also cover `plan-implementation`, or rely on the transition gate alone? Proposal: extend — "no RED until the plan exists" is the issue's stated outcome.
-3. **Cumulative test-defs gate membership:** add `plan-implementation` to the stop-gate list `['scenario-gate','implement','done']`? Proposal: yes. (That list's pre-existing `verify` hole is a separate chip, not this ticket.)
-4. **In-flight migration:** tickets sitting at `scenario-gate` on upgrade get a one-step denial if they jump to `implement`; they pass through the new phase doing work they already owed. Proposal: denial message + changelog note, ship as a 0.x minor — no migration tooling.
-5. **#530 seam:** Proposal: this feature only establishes the phase-entry reminder surface; wiring the language-skill pointer stays in #530.
-6. **Stop-gate membership for the impl-plan artifact list** (cold-start check gap): should stopping while AT `plan-implementation` with no impl-plan.md yet hard-block, or is the transition gate the sole boundary enforcement? Proposal: leave `phasesRequiringImplPlan = ['implement','verify','done']` unchanged — the stop gate stays cumulative (artifacts owed by *prior* exits), matching the test-defs precedent (required at scenario-gate because define-behavior's exit produced it); mid-phase work-in-progress stops stay legal, and SM1.R1's "every phase-keyed surface" reads as "an explicit membership decision per list", not "added to every list".
-7. **SPLITTING.md remappings** (cold-start check gap): (a) the ">20 tasks OR 5+ major components" split checkpoint — task counts only materialize when the build order is drafted, so Proposal: move that checkpoint row from scenario-gate to plan-implementation. (b) split children currently restart at `implement` for splits at "scenario-gate+" — Proposal: children of splits at plan-implementation-or-later restart at `plan-implementation`, because each child needs its own impl-plan scoped to its slice (inheriting the parent's unsplit plan would be stale and would trip the transition gate anyway).
+None outstanding — all resolved at intake signoff (see Decisions above).
