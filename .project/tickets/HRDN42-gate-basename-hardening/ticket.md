@@ -2,8 +2,8 @@
 id: HRDN42
 slug: gate-basename-hardening
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-07-08T03:40:00.000Z
 last_modified: 2026-07-08T03:40:00.000Z
 ---
@@ -41,4 +41,8 @@ Basename matching mirrors dep-readiness's established `nodePath.basename(binary)
 
 ## Work Log
 
+- 2026-07-08T03:52 Implemented + 3-lens adversarial review (false-positive / gate-weakening / tokenizer-regression), every claim bun-verified against the real modules → **clean sweep, zero findings survived**. Confirmed: no legit command newly over-blocked; nothing caught at base now evades (base-vs-HEAD diffed); single-quote line-continuation correctly NOT collapsed (guarded by `quote !== "'"`, matches bash for all three quoting contexts); `|&` and `command -p` are strict hardening wins; `>|&` and combined `command -pv` are correct fail-safe non-resolutions; the only messier case (`a |&& b`) is a bash syntax error that never executes (inert). 221/221 gate tests (8 new pins), lint + parity green. Phase implement → verify.
 - 2026-07-08T03:40 Created from the EDDABK follow-up chip. All 16 evasions re-verified reproducing on #959 HEAD, then all 6 in-scope fixes verified landing (basename ×3, command -p, line-continuation, `|&`) with the `command -v git` query guardrail preserved and 5c/5d deliberately still evading. Scope call: 1–4 + 5a/5b are accident-path or clear tokenizer-correctness; 5c/5d are adversarial + risky shared-tokenizer changes, deferred with backstops.
+- 2026-07-08T03:51:18.007Z Phase: implement → verify
+- 2026-07-08T04:14:36.924Z Phase: verify → done
+- 2026-07-08T04:15 **/verify + /audit green → done.** Full suite 5017/5024 (2 failures = the known-unrelated rust-golden-path + cleanup-zombies pair, byte-identical to base, none of this diff's files); build ✅, lint ✅, typecheck ✅, parity ✅. Audit 0 errors (depcruise clean, knip silent on changed files, jscpd +8 clones = new test pins only). verify.md written. Stacks on EDDABK #959, parallel to KQ3MRV #961. Closure rides the PR (per the #959 CI-guard lesson). Deferred 5c/5d remain a documented follow-up.
