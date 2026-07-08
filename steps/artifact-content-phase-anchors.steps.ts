@@ -488,12 +488,12 @@ function addPushedBaseline(world: AnchorWorld): void {
   world.remote = remote;
 }
 
-function runBoundary(world: AnchorWorld, at: 'commit' | 'push', cwd?: string): void {
+function runBoundary(world: AnchorWorld, at: 'commit' | 'push'): void {
   const result = spawnSync('bun', [CLI, 'boundary', '--at', at], {
-    cwd: cwd ?? world.dir,
+    cwd: world.dir,
     encoding: 'utf8',
   });
-  world.cli = { exitCode: result.status ?? 1, output: `${result.stdout}\n${result.stderr}` };
+  world.cli = { exitCode: result.status ?? 1, output: `${result.stdout}\n${result.stderr}`.trim() };
 }
 
 function lastAuditEntry(dir: string): string {
@@ -674,7 +674,7 @@ Then(
 );
 
 Then('the anchor check passes', function (this: AnchorWorld) {
-  const entry = lastAuditEntry(this.fsDir ?? this.dir!);
+  const entry = lastAuditEntry(this.dir!);
   assert.match(entry, /phase-anchor.*pass|pass.*phase-anchor/);
 });
 
