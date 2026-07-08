@@ -21,6 +21,14 @@ describe('parseCheckoutTarget', () => {
     ['git switch main', 'main'],
     ['git checkout feature/x', 'feature/x'],
     ['git switch develop', 'develop'],
+    // Shared-tokenizer parsing (EDDABK follow-up): per-segment, prefix-aware.
+    ['git fetch && git checkout main', 'main'],
+    ['cd repo; git switch develop', 'develop'],
+    ['sudo git checkout main', 'main'],
+    ['GIT_PAGER=cat git checkout main', 'main'],
+    // Flags in a NEIGHBORING segment must not null out the parse — the old
+    // flat-token scan read `git branch -d`'s flag as create/detach.
+    ['git checkout main && git branch -d old', 'main'],
   ])('%s → %s', (command, expected) => {
     expect(parseCheckoutTarget(command)).toBe(expected);
   });
@@ -32,6 +40,11 @@ describe('parseCheckoutTarget', () => {
     ['git checkout -- file.ts', 'path checkout'],
     ['git status', 'not a checkout'],
     ['git commit -m main', 'not a checkout'],
+    // Quoted prose is one word under the shared tokenizer — the old
+    // whitespace split probed a bogus branch here.
+    ['echo "use git checkout main"', 'prose, not a command'],
+    // The old flat-token scan returned `&&` as the target here.
+    ['git checkout -q && echo hi', 'no positional target'],
   ])('%s → null (%s)', command => {
     expect(parseCheckoutTarget(command)).toBeNull();
   });
