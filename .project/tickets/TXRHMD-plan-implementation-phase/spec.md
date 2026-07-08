@@ -56,6 +56,18 @@ Consistent with the project glossary: Phase, Gate, Reconciliation, Phase Anchor.
 
 #### plan-implementation-phase.TB1.R4 — the architecture record stays honest through planning: prior decisions are reviewed, significant new decisions are offered as ADRs, and deviations supersede the record instead of silently contradicting it
 
+### plan-implementation-phase.TB2 — right-sized planning artifacts
+
+**Persona:** Technical Builder (TB)
+
+> When my agent completes planning, I want the stored artifacts sized to the feature's risk — with padding flagged editorially — so the planning record stays readable and trustworthy instead of becoming volume nobody reads.
+
+#### plan-implementation-phase.TB2.R1 — plan depth tracks feature size and risk in both directions: brief plans are correct for small features, hard-to-reverse work compels depth, and the phase stores only the plan plus qualifying ADRs
+
+#### plan-implementation-phase.TB2.R2 — ADRs stay lean: a page or two per record, never mega-records or design guides in disguise
+
+#### plan-implementation-phase.TB2.R3 — the editorial check governs size, never whether: padding is flagged via the deletion test, and skip lines govern applicability, not effort
+
 ### plan-implementation-phase.NTB1 — a plan I can read is my only audit surface
 
 **Persona:** Non-Technical Builder (NTB)

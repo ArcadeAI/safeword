@@ -99,6 +99,52 @@ Feature: plan-implementation phase before TDD
       When PLAN_IMPLEMENTATION.md is read
       Then it directs amending or superseding the contradicted ADR rather than recording the deviation alone
 
+    @rejection
+    Scenario: A routine decision stays in the decisions table without an ADR
+      Given the shipped bdd skill documents
+      When PLAN_IMPLEMENTATION.md is read
+      Then it bounds the ADR offer to decisions affecting structure, key quality attributes, or ones difficult to reverse
+      And it directs recording routine choices in the plan's decisions table alone
+
+  @plan-implementation-phase.TB2.R1
+  Rule: plan-implementation-phase.TB2.R1 — plan depth tracks feature size and risk in both directions
+
+    Scenario: The planning doc keys plan depth to blast radius in both directions
+      Given the shipped bdd skill documents
+      When PLAN_IMPLEMENTATION.md is read
+      Then it states a brief plan is correct for a small feature
+      And it directs deeper treatment for hard-to-reverse or cross-cutting work
+
+    Scenario: Planning stores only the plan and qualifying ADRs
+      Given the shipped bdd skill documents
+      When PLAN_IMPLEMENTATION.md is read
+      Then it directs storing impl-plan.md and qualifying ADRs only, with no auxiliary design documents
+
+  @plan-implementation-phase.TB2.R2
+  Rule: plan-implementation-phase.TB2.R2 — ADRs stay lean
+
+    Scenario: The planning doc bounds each ADR to a lean record
+      Given the shipped bdd skill documents
+      When PLAN_IMPLEMENTATION.md is read
+      Then it directs keeping each ADR to a page or two
+      And it warns against mega-records and design guides in disguise
+
+  @plan-implementation-phase.TB2.R3
+  Rule: plan-implementation-phase.TB2.R3 — the editorial check governs size, never whether
+
+    @rejection
+    Scenario: Editorial review flags information-free padding
+      Given the shipped bdd skill documents
+      When PLAN_IMPLEMENTATION.md is read
+      Then its exit review directs flagging spans deletable without information loss
+      And it states a shorter plan scores no worse than a longer one at equal decision coverage
+
+    Scenario: Proportionality never waives the mandatory sections
+      Given the shipped bdd skill documents
+      When PLAN_IMPLEMENTATION.md is read
+      Then it states skip lines govern applicability, never effort or size
+      And the five sections remain content-or-skip regardless of feature size
+
   @plan-implementation-phase.NTB1.R1
   Rule: plan-implementation-phase.NTB1.R1 — application code stays untouched while a feature ticket is in the planning phase
 

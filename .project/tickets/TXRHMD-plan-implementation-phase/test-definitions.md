@@ -98,6 +98,48 @@ _RED evidence: uncapturable pre-build — over-blocking guard; passes today by d
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A routine decision stays in the decisions table without an ADR
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: plan-implementation-phase.TB2.R1 — plan depth tracks feature size and risk in both directions
+
+### Scenario: The planning doc keys plan depth to blast radius in both directions
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Planning stores only the plan and qualifying ADRs
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: plan-implementation-phase.TB2.R2 — ADRs stay lean
+
+### Scenario: The planning doc bounds each ADR to a lean record
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: plan-implementation-phase.TB2.R3 — the editorial check governs size, never whether
+
+### Scenario: Editorial review flags information-free padding
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Proportionality never waives the mandatory sections
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: plan-implementation-phase.NTB1.R1 — application code stays untouched while a feature ticket is in the planning phase
 
 ### Scenario: Application-code edit during planning is denied
