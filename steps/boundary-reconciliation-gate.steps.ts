@@ -298,49 +298,58 @@ Given('two consecutive boundary runs over ticket-touching changes', function (th
 // Givens — push tier
 // ---------------------------------------------------------------------------
 
-/** Pushed baseline + an unpushed advance anchored on a SHA history lacks —
- * one world behind two Gherkin phrasings (SM1.AC2 / TB1.AC2). */
-function seedForgedAnchorPush(world: BoundaryWorld): void {
-  createProject(world);
-  seedTicket(world, ticketContent({ phase: 'define-behavior' }));
-  addRemote(world);
-  writeFileAt(
-    world.dir!,
-    `${TICKET_DIR}/ticket.md`,
-    ticketContent({ phase: 'implement', anchors: ['implement: deadbee'] }),
-  );
-  git(world.dir!, 'add -A');
-  git(world.dir!, 'commit -m advance --quiet');
-}
-
 Given(
-  'a ticket in the outgoing range whose entered-phase anchor is a well-formed SHA absent from history',
-  function (this: BoundaryWorld) {
-    seedForgedAnchorPush(this);
-  },
-);
-
-Given(
-  'an outgoing range whose ticket evidence includes an unreachable anchor',
-  function (this: BoundaryWorld) {
-    seedForgedAnchorPush(this);
-  },
-);
-
-Given(
-  'a ticket whose anchor SHA was rewritten by a rebase but whose patch is reachable under a new SHA',
+  'a ticket in the outgoing range whose entered-phase anchor names a path absent from the pushed tree',
   function (this: BoundaryWorld) {
     createProject(this);
-    seedTicket(this, ticketContent({ phase: 'define-behavior' }));
+    seedTicket(this, ticketContent({ phase: 'scenario-gate' }));
+    addRemote(this);
+    writeFileAt(
+      this.dir!,
+      `${TICKET_DIR}/ticket.md`,
+      ticketContent({
+        phase: 'implement',
+        anchors: [`implement: ${TICKET_DIR}/impl-plan.md`],
+      }),
+    );
+    git(this.dir!, 'add -A');
+    git(this.dir!, 'commit -m advance --quiet');
+  },
+);
+
+Given(
+  'an outgoing range whose ticket evidence includes an unreachable ledger SHA',
+  function (this: BoundaryWorld) {
+    createProject(this);
+    seedTicket(this, ticketContent({ phase: 'intake' }));
+    addRemote(this);
+    writeFileAt(
+      this.dir!,
+      `${TICKET_DIR}/test-definitions.md`,
+      ['# Test Definitions', '', '### Scenario: s1', '', '- [x] RED deadbee', ''].join('\n'),
+    );
+    git(this.dir!, 'add -A');
+    git(this.dir!, 'commit -m forged-ledger --quiet');
+  },
+);
+
+Given(
+  'a ticket whose path anchor was recorded before its branch was rebased',
+  function (this: BoundaryWorld) {
+    createProject(this);
+    seedTicket(this, ticketContent({ phase: 'scenario-gate' }));
     addRemote(this);
     writeFileAt(this.dir!, 'src/work.ts', 'export const work = 1;\n');
     git(this.dir!, 'add -A');
     git(this.dir!, 'commit -m work --quiet');
-    const original = git(this.dir!, 'rev-parse --short HEAD').trim();
+    writeFileAt(this.dir!, `${TICKET_DIR}/impl-plan.md`, implPlanContent());
     writeFileAt(
       this.dir!,
       `${TICKET_DIR}/ticket.md`,
-      ticketContent({ phase: 'implement', anchors: [`implement: ${original}`] }),
+      ticketContent({
+        phase: 'implement',
+        anchors: [`implement: ${TICKET_DIR}/impl-plan.md`],
+      }),
     );
     git(this.dir!, 'add -A');
     git(this.dir!, 'commit -m advance --quiet');
@@ -361,13 +370,17 @@ Given(
     createProject(this);
     seedTicket(this, ticketContent({ phase: 'define-behavior' }));
     addRemote(this);
-    const anchor = git(this.dir!, 'rev-parse --short HEAD').trim();
+    writeFileAt(
+      this.dir!,
+      `${TICKET_DIR}/test-definitions.md`,
+      ['# Test Definitions', '', '### Scenario: s1', '', '- [ ] RED', ''].join('\n'),
+    );
     writeFileAt(
       this.dir!,
       `${TICKET_DIR}/ticket.md`,
       ticketContent({
         phase: 'verify',
-        anchors: [`verify: ${anchor}`],
+        anchors: [`verify: ${TICKET_DIR}/test-definitions.md`],
         skips: ['scenario-gate: reviewed on the PR thread', 'implement: pair-programmed live'],
       }),
     );

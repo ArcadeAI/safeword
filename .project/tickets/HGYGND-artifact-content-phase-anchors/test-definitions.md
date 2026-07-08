@@ -60,25 +60,25 @@ suites.
 ### Scenario: A squash-merged branch's ticket still verifies at the next boundary
 
 - [x] RED 73b9759
-- [ ] GREEN
+- [x] GREEN ea8bcf6
 - [ ] REFACTOR
 
 ### Scenario: An amended commit does not disturb a recorded anchor
 
 - [x] RED 73b9759
-- [ ] GREEN
+- [x] GREEN ea8bcf6
 - [ ] REFACTOR
 
 ### Scenario: A shallow clone's anchor check passes with no unreachable-history hedging
 
 - [x] RED 73b9759
-- [ ] GREEN
+- [x] GREEN ea8bcf6
 - [ ] REFACTOR
 
 ### Scenario: The commit tier verifies anchors against the staged tree, not the worktree
 
 - [x] RED 3b37b7f
-- [ ] GREEN
+- [x] GREEN ea8bcf6
 - [ ] REFACTOR
 
 ## Rule: A forward advance without a real artifact behind it is detectable as unanchored
@@ -180,7 +180,7 @@ suites.
 ### Scenario: In one push, anchors verify from the tree while ledger SHAs still verify from history
 
 - [x] RED 73b9759
-- [ ] GREEN
+- [x] GREEN ea8bcf6
 - [ ] REFACTOR
 
 ## Feature-level cross-scenario refactor
