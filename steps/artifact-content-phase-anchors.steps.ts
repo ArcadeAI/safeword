@@ -13,14 +13,14 @@
 
 import { strict as assert } from 'node:assert';
 import { execFileSync, execSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import nodeOs from 'node:os';
 import nodePath from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { Given, Then, When } from '@cucumber/cucumber';
 
-import { implPlanContent } from './anchor-fixtures.ts';
+import { git, implPlanContent, readAuditEntries, writeFileAt } from './support/repo-fixtures.ts';
 import type { SafewordWorld } from './world.js';
 
 const PROJECT_ROOT = nodePath.resolve(import.meta.dirname, '..');
@@ -28,7 +28,6 @@ const CLI = nodePath.join(PROJECT_ROOT, 'packages/cli/src/cli.ts');
 const LIB_URL = pathToFileURL(
   nodePath.join(PROJECT_ROOT, 'packages/cli/templates/hooks/lib/phase-provenance.ts'),
 ).href;
-const AUDIT_PATH = '.safeword/boundary-audit.jsonl';
 
 const SHA = 'a1b2c3d';
 const TICKET_DIR = '.project/tickets/ACA001-fixture';
@@ -468,16 +467,6 @@ Then('no anchor finding is raised', function (this: AnchorWorld) {
 // Command lane — real repos, real CLI
 // ---------------------------------------------------------------------------
 
-function git(dir: string, command: string): string {
-  return execSync(`git ${command}`, { cwd: dir, stdio: 'pipe', encoding: 'utf8' });
-}
-
-function writeFileAt(dir: string, relative: string, content: string): void {
-  const full = nodePath.join(dir, relative);
-  mkdirSync(nodePath.dirname(full), { recursive: true });
-  writeFileSync(full, content);
-}
-
 function createProject(world: AnchorWorld): string {
   const dir = mkdtempSync(nodePath.join(nodeOs.tmpdir(), 'safeword-anchor-cli-'));
   git(dir, 'init --quiet');
@@ -508,10 +497,8 @@ function runBoundary(world: AnchorWorld, at: 'commit' | 'push', cwd?: string): v
 }
 
 function lastAuditEntry(dir: string): string {
-  const auditFile = nodePath.join(dir, AUDIT_PATH);
-  if (!existsSync(auditFile)) return '';
-  const lines = readFileSync(auditFile, 'utf8').split('\n').filter(Boolean);
-  return lines.at(-1) ?? '';
+  const entry = readAuditEntries(dir).at(-1);
+  return entry === undefined ? '' : JSON.stringify(entry);
 }
 
 Given(

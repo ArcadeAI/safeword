@@ -12,18 +12,23 @@
 
 import { strict as assert } from 'node:assert';
 import { execFileSync, execSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import nodeOs from 'node:os';
 import nodePath from 'node:path';
 
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
-import { implPlanContent } from './anchor-fixtures.ts';
+import {
+  AUDIT_PATH,
+  git,
+  implPlanContent,
+  readAuditEntries,
+  writeFileAt,
+} from './support/repo-fixtures.ts';
 import type { SafewordWorld } from './world.js';
 
 const PROJECT_ROOT = nodePath.resolve(import.meta.dirname, '..');
 const CLI = nodePath.join(PROJECT_ROOT, 'packages/cli/src/cli.ts');
-const AUDIT_PATH = '.safeword/boundary-audit.jsonl';
 const TICKET_DIR = '.project/tickets/BGT001-fixture';
 
 interface BoundaryWorld extends SafewordWorld {
@@ -31,16 +36,6 @@ interface BoundaryWorld extends SafewordWorld {
   remote?: string;
   cli?: { exitCode: number; output: string };
   engineVerdicts?: Array<{ check: string; verdict: string; detail?: string }>;
-}
-
-function git(dir: string, command: string): string {
-  return execSync(`git ${command}`, { cwd: dir, stdio: 'pipe', encoding: 'utf8' });
-}
-
-function writeFileAt(dir: string, relative: string, content: string): void {
-  const full = nodePath.join(dir, relative);
-  mkdirSync(nodePath.dirname(full), { recursive: true });
-  writeFileSync(full, content);
 }
 
 function ticketContent(options: {
@@ -111,12 +106,7 @@ function runBoundary(world: BoundaryWorld, at: 'commit' | 'push'): void {
 }
 
 function readAudit(world: BoundaryWorld): Array<Record<string, unknown>> {
-  const auditFile = nodePath.join(world.dir!, AUDIT_PATH);
-  if (!existsSync(auditFile)) return [];
-  return readFileSync(auditFile, 'utf8')
-    .split('\n')
-    .filter(line => line.trim() !== '')
-    .map(line => JSON.parse(line) as Record<string, unknown>);
+  return readAuditEntries(world.dir!);
 }
 
 After(function (this: BoundaryWorld) {
