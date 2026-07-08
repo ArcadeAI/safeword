@@ -2,8 +2,8 @@
 id: KQ3MRV
 slug: tokenizer-absorption
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-07-08T02:10:00.000Z
 last_modified: 2026-07-08T02:10:00.000Z
 ---
@@ -24,3 +24,5 @@ last_modified: 2026-07-08T02:10:00.000Z
 ## Work Log
 
 - 2026-07-08T02:10 Created from the EDDABK follow-up task. Both files read; migration mapped (consumers keep positional contracts: `words[0]`=bun, `words[1]`=helper, `words[3]`=skill). 24-case smoke table green: all preserved behaviors (incl. the pinned newline `SELF_REVIEW_FALLBACK`, prose negatives, sudo checkout) + all gains (`command`/`env` prefixes now record proof; newline segmentation; per-segment checkout parse fixing the `&&` misses and the cross-segment flag bug). The one apparent regression in the smoke table was a wrong expectation: quoted bare-relative `record-skill-invocation` never matched (slash-anchored matcher, unchanged).
+- 2026-07-08T05:59:00.508Z Phase: implement → done
+- 2026-07-08T06:00 **Closed via the consolidated PR.** 276/276 gate/tokenizer tests (incl. review-stamp-bridge, branch-staleness, run-identity, codex-cursor-skill-fallback); full suite ran green earlier at 5017/5024 on the integrated tree (2 pre-existing unrelated failures). Whole-session quality-review (fresh-context, APPROVE) + refactor pass applied on top: branch-staleness now basename-matches git too. verify.md written. Shipped in the consolidated session PR alongside EDDABK + HRDN42 (superseding the parallel stacked PRs #959/#961/#965).
