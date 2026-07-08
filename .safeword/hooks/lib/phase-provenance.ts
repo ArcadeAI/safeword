@@ -490,52 +490,43 @@ function validateAnchor(
   const kind = ANCHOR_KINDS[phase];
   if (kind === undefined) return NOT_APPLICABLE; // intake/off-enum — nothing enterable to anchor
 
+  const unanchored = (reason: string): PhaseAnchorVerdict => ({
+    kind: 'unanchored',
+    phase,
+    reason,
+  });
   const expectedLine = `\`- ${phase}: ${kind.example}\``;
   const anchor = parseAnchors(meta).get(phase);
   if (anchor === undefined) {
-    return {
-      kind: 'unanchored',
-      phase,
-      reason: `no phase_anchors entry for "${phase}" — record the exited phase's artifact, e.g. ${expectedLine}.`,
-    };
+    return unanchored(
+      `no phase_anchors entry for "${phase}" — record the exited phase's artifact, e.g. ${expectedLine}.`,
+    );
   }
   if (isValidSha(anchor)) {
-    return {
-      kind: 'unanchored',
-      phase,
-      reason: `phase_anchors entry for "${phase}" is "${anchor}", a legacy commit-SHA anchor — record the artifact path instead, e.g. ${expectedLine}.`,
-    };
+    return unanchored(
+      `phase_anchors entry for "${phase}" is "${anchor}", a legacy commit-SHA anchor — record the artifact path instead, e.g. ${expectedLine}.`,
+    );
   }
   if (!isPlausibleRepoPath(anchor)) {
-    return {
-      kind: 'unanchored',
-      phase,
-      reason: `phase_anchors entry for "${phase}" is "${anchor}", not a repo-relative artifact path — record ${expectedLine}.`,
-    };
+    return unanchored(
+      `phase_anchors entry for "${phase}" is "${anchor}", not a repo-relative artifact path — record ${expectedLine}.`,
+    );
   }
   if (!kind.matches(anchor)) {
-    return {
-      kind: 'unanchored',
-      phase,
-      reason: `phase_anchors entry for "${phase}" is "${anchor}", not the expected artifact kind — "${phase}" expects ${kind.label}, e.g. ${expectedLine}.`,
-    };
+    return unanchored(
+      `phase_anchors entry for "${phase}" is "${anchor}", not the expected artifact kind — "${phase}" expects ${kind.label}, e.g. ${expectedLine}.`,
+    );
   }
   if (readArtifact === undefined) return { kind: 'anchored' };
 
   const content = readArtifact(anchor);
   if (content === undefined) {
-    return {
-      kind: 'unanchored',
-      phase,
-      reason: `anchored artifact "${anchor}" for "${phase}" is missing from the tree.`,
-    };
+    return unanchored(`anchored artifact "${anchor}" for "${phase}" is missing from the tree.`);
   }
   if (!kind.shapeOk(anchor, content)) {
-    return {
-      kind: 'unanchored',
-      phase,
-      reason: `anchored artifact "${anchor}" for "${phase}" fails its shape check — it does not look like ${kind.label}.`,
-    };
+    return unanchored(
+      `anchored artifact "${anchor}" for "${phase}" fails its shape check — it does not look like ${kind.label}.`,
+    );
   }
   return { kind: 'anchored' };
 }
