@@ -50,7 +50,11 @@ export interface EncounterInput {
 
 export interface EncounterResult {
   state: LedgerState;
-  /** True when this encounter changed the ledger (a new session was counted). */
+  /**
+   * True when this encounter changed ledger state — a new session was counted
+   * OR a novel manifestation was appended on an already-counted session — so
+   * the caller re-renders the comment exactly when there is new state to persist.
+   */
   changed: boolean;
   /** True when the manifestation was not already documented. */
   novel: boolean;
