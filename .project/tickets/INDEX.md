@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (397)
+## Tickets (407)
 
 ### 001
 
@@ -93,6 +93,10 @@
 
 ### 808
 
+- **Boundary reconciliation gate — engine + local hook (slice 1 of #810) (CDRJTW)** (done, epic: 808)
+  Re-run the workflow's evidence checks at commit and push — the moments a session cannot skip — warn-and-record through one versioned CLI command, dogfooded on safeword's own repo.
+  external issue: https://github.com/ArcadeAI/safeword/issues/810
+  → `.project/tickets/CDRJTW-boundary-reconciliation-gate`
 - **Evidence-anchored phase transitions (SHA-per-transition provenance) (RM84M8)** (done, epic: 808)
   Give a feature ticket's `phase:` advance the same machine-checkable commit-SHA anchor the R/G/R ledger already has per tick, so a `sed`/Bash-forged transition is detectable as unanchored — as the reusable substrate #810's boundary gate enforces.
   external issue: https://github.com/ArcadeAI/safeword/issues/809
@@ -885,6 +889,9 @@
 - **Pre-commit auto-resync of template/install pairs after formatter pass (168)** (in_progress, epic: —)
   Make the lint-staged formatter step transparent to dogfood parity — if it touches a template, the paired install copy automatically catches up before commit lands.
   → `.project/tickets/168-pre-commit-template-install-resync`
+- **checkVerifyArtifact: parse PR-scope status, stop substring-matching negated mentions (1F08DD)** (done, epic: —)
+  A ✅ PR Scope line that merely mentions 'piggybacked changes' in prose must pass; only a ❌ status or a positive failure claim fails.
+  → `.project/tickets/1F08DD-verify-scope-status-parsing`
 - **Harden hook git calls against shell injection (1JMSH6)** (done, epic: —)
   Close the shell-injection class in safeword hooks — git invoked via `execSync` string interpolation runs through `/bin/sh -c`, so file-derived free-text values can inject commands. The hooks auto-fire on UserPromptSubmit/Stop; in a shared repo the file content can come from an untrusted PR.
   → `.project/tickets/1JMSH6-harden-hook-git-injection`
@@ -905,6 +912,10 @@
   → `.project/tickets/2GPM47`
 - **Formatter coexistence: inert install, zero formatter collisions, self-contained ignores (2H2XKH)** (done, epic: —)
   → `.project/tickets/2H2XKH-formatter-coexistence`
+- **cleanup-zombies.sh kills only with an explicit confirm flag (2KG1JW)** (done, epic: —)
+  Bare invocation previews (deny-by-default); killing requires --yes — graduating the skill's "run --dry-run first, then re-run" prose ritual into the script itself
+  external issue: https://github.com/ArcadeAI/safeword/issues/773
+  → `.project/tickets/2KG1JW-cleanup-zombies-confirm`
 - **Tracker connect/onboarding flow — interactive wiring (when + where the human authorizes) (2TK5AD)** (done, epic: —)
   Make wiring a tracker a clear, opt-in, human-in-the-loop flow: the agent prepares config and orchestrates, the human does the steps only they can (authorize OAuth / paste a token / install the GitHub App / pick team+repo), and the agent **verifies before any real sync** — closing the "set-but-silently-broken" trap.
   blocked by: safeword sync-tracker — one-way projection to Linear + GitHub Issues (JS5K5G)
@@ -929,6 +940,9 @@
 - **dependency-readiness false-positive stale after rebase (mtime vs content) (4JMBXT)** (in_progress, epic: —)
   Make the dependency-readiness stale decision content-based (fingerprint marker) so rebase/checkout/clone no longer falsely block dependency-backed commands.
   → `.project/tickets/4JMBXT-dep-readiness-mtime-stale`
+- **Schedule the retro-reconcile sweep in CI (4KP67A)** (backlog, epic: —)
+  A standalone scheduled workflow (daily off-peak cron + workflow_dispatch, permissions issues:write/contents:read) runs safeword retro-reconcile against the upstream repo and fails loudly
+  → `.project/tickets/4KP67A-reconcile-ci-schedule`
 - **Use generic file paths in shipped guidance examples (4YJV1N)** (in_progress, epic: —)
   Shipped guidance examples should cite generic `src/...` paths, not safeword's own `packages/cli/src/...` monorepo paths.
   → `.project/tickets/4YJV1N-generic-paths-in-shipped-guidance`
@@ -1035,6 +1049,9 @@
 - **Protect advanced workspace glob fallback (B8GCC1)** (in_progress, epic: —)
   Lock in the dependency readiness hook's conservative fallback for unsupported advanced Bun workspace glob syntax.
   → `.project/tickets/B8GCC1-protect-advanced-workspace-glob-fallback`
+- **Live smoke of retro-reconcile version-provenance path (B9S30R)** (backlog, epic: —)
+  A token-gated live-lane test pins resolveTagDate('v0.68.0') to the real tag's commit date (%2F ref encoding + annotated-tag deref), plus one documented manual sweep run against a real version-provenance issue
+  → `.project/tickets/B9S30R-reconcile-live-smoke`
 - **Keep successful upgrades from failing on health warnings (BBJKR5)** (in_progress, epic: —)
   Let automation trust `safeword upgrade` exit status as the apply result, while keeping post-upgrade health warnings visible.
   external issue: https://github.com/ArcadeAI/safeword/issues/427
@@ -1115,6 +1132,9 @@
   Keep `/refactor` from creating mixed commits when the worktree already contains unrelated feature work or is detached.
   external issue: https://github.com/ArcadeAI/safeword/issues/407
   → `.project/tickets/E5VDEF-refactor-commit-mixed-worktrees`
+- **Consolidate divergent shell tokenizers across safeword's security gates (EDDABK)** (in_progress, epic: —)
+  Decide and unify how safeword's Bash-command gates tokenize commands, so the kill-guard, ledger-write, and dependency-readiness gates segment identically instead of via two divergent implementations.
+  → `.project/tickets/EDDABK-shell-tokenizer-consolidation`
 - **Extract stop-quality gate logic into testable hook libs (suite-time + unit-testability) (EK16X4)** (in_progress, epic: —)
   Extract the pure gate decisions from `templates/hooks/stop-quality.ts` (~550 lines: cumulative artifacts, impl-plan existence/validity/status gates, done-gate evidence checks) into `hooks/lib/` functions so gate cells run as millisecond unit tests instead of spawn-per-test integration tests.
   → `.project/tickets/EK16X4-stop-quality-gate-extraction`
@@ -1128,13 +1148,16 @@
 - **ticket new --parent links epic and child (F9W3JP)** (done, epic: —)
   One command wires a new child ticket to its epic across navigation and the index, with no dual-write drift
   → `.project/tickets/F9W3JP-epic-child-linker`
+- **Unify session-id sanitizers behind a parity contract (FG6V57)** (backlog, epic: —)
+  One sanitization rule (charset + substitute + length cap) pinned byte-identical across triage.ts, retro-draft-spool.ts, and self-report.ts via the parity contracts schema
+  → `.project/tickets/FG6V57-unify-session-token`
 - **ticket-slug-rename (FM5EDA)** (open, epic: —)
   Make ticket slug changes explicit and safe — explicit because the rename is a deliberate event the user invokes, safe because drift between dir name and frontmatter is detected before it can mislead.
   → `.project/tickets/FM5EDA-ticket-slug-rename`
 - **Architecture doc staleness enforcement (Slice 2 — auto-fix on commit, fail CI, opt-out) (FPV0E4)** (done, epic: —)
   Make the generated architecture doc's freshness _enforced_, not just
   → `.project/tickets/FPV0E4-architecture-staleness-enforcement`
-- **Retro records filing-time provenance for reconciliation against merged state (G19QG7)** (in_progress, epic: —)
+- **Retro records filing-time provenance for reconciliation against merged state (G19QG7)** (done, epic: —)
   Record what code state each retro finding was captured against and flag open issues whose surface has changed since, so stale retro issues stop needing git-log archaeology.
   → `.project/tickets/G19QG7-retro-filing-provenance`
 - **Convert bdd cursor rules to @reference + reconcile to 7-phase set (G1A6BS)** (done, epic: —)
@@ -1177,6 +1200,10 @@
   Bring the six outdated dev-tool dependencies up to their current
   external issue: https://github.com/ArcadeAI/safeword/issues/717
   → `.project/tickets/JCC69C-dev-tooling-version-bumps`
+- **Spooled retro drafts carry a body digest; emit and filing refuse modified bodies (JDK0F0)** (done, epic: —)
+  A sanitized draft's body is hashed at spool time and every code-owned consumer (self-report --format issue, the REST filer path) refuses or flags a draft whose body no longer matches, graduating retro/SKILL.md's never-re-word rule
+  external issue: https://github.com/ArcadeAI/safeword/issues/773
+  → `.project/tickets/JDK0F0-retro-draft-integrity`
 - **Make implementation reviews quiet until exit (JENFZX)** (in_progress, epic: —)
   Let implementation run without chat-facing review checkpoints while keeping the actual TDD review, refactor, quality-review, and hard-gate work intact.
   external issue: https://github.com/ArcadeAI/safeword/issues/464
@@ -1239,6 +1266,9 @@
   Prevent SafeWord from pausing for human approval between implementation and verification.
   external issue: https://github.com/ArcadeAI/safeword/issues/483
   → `.project/tickets/MZAHAW-run-verification-automatically-after-implementation`
+- **Boundary push tier: evaluate phase legality per commit in the range, not at endpoints (N76NQ0)** (done, epic: —)
+  A multi-commit push whose intermediate commits legally traversed phases must not warn; a range whose commits actually skipped a phase still warns.
+  → `.project/tickets/N76NQ0-push-tier-per-commit-legality`
 - **Reduce outdated dependency noise in audit (NAATTE)** (in_progress, epic: —)
   Make `/audit` report only dependency updates old enough to be worth action, across supported language ecosystems, without changing the target repo's package-management policy.
   → `.project/tickets/NAATTE-age-filter-outdated-audit`
@@ -1251,7 +1281,7 @@
 - **Show complete reset removals for users (P95FN6)** (in_progress, epic: —)
   Make `ReconcileResult.removed` report every file removed during reset/uninstall, including cleanup side effects from unmerge and unpatch executors.
   → `.project/tickets/P95FN6-show-complete-reset-removals`
-- **Retro accepts process-level friction surfaces and reports egress drops (PNZM3B)** (in_progress, epic: —)
+- **Retro accepts process-level friction surfaces and reports egress drops (PNZM3B)** (done, epic: —)
   Let retro file process-level friction under a leak-proof `process/<slug>` surface and report every egress drop, so silence means clean instead of secretly lossy.
   → `.project/tickets/PNZM3B-retro-process-surface`
 - **Centralize and harden the test/build resolver (polyglot, nested, multi-runner) (Q4FX8Y)** (done, epic: —)
@@ -1363,6 +1393,9 @@
 - **Go language pack — architecture discovery, extraction, fingerprint (ZD70P1)** (done, epic: —)
   Teach the generated architecture doc to introspect **Go** projects —
   → `.project/tickets/ZD70P1-architecture-go-language-pack`
+- **Install the boundary gate into host repos via setup/upgrade (#810 child 2) (ZJMZ50)** (done, epic: —)
+  `safeword setup`/upgrade installs the boundary-gate shims into host repos' git hooks — coexisting with whatever hooks exist, healing on upgrade, reverting on reset, and never blocking a commit.
+  → `.project/tickets/ZJMZ50-host-repo-boundary-install`
 - **Promote scenario-coverage to a blocking gate (split from NMSD94 SM1.AC1) (ZRMDKD)** (backlog, epic: —)
   Promote the deliberately-advisory AC↔scenario coverage check to a skippable blocking gate, so test-definitions with an uncovered AC or an orphan scenario are denied (not just warned), with a measured alert-to-action ratio.
   → `.project/tickets/ZRMDKD-coverage-gate-blocking`
