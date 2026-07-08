@@ -65,19 +65,13 @@ export function splitShellSegments(command: string): string[] {
       index += 1;
       continue;
     }
-    // `|&` pipes stdout+stderr (bash) — a boundary whose trailing `&` must be
-    // consumed, else it becomes the next segment's phantom command word. The
-    // `>|` clobber-redirect exception applies here too (`>|&` is not a pipe).
-    if (char === '|' && next === '&' && command[index - 1] !== '>') {
-      pushSegment(segments, current);
-      current = '';
-      index += 1;
-      continue;
-    }
-    // `>|` is a clobbering redirection operator, not a pipe boundary.
+    // A single `|` is a pipe boundary, and so is `|&` (bash's stdout+stderr
+    // pipe) — consume its trailing `&` so it doesn't become the next segment's
+    // phantom command word. `>|` / `>|&` are clobber redirections, not pipes.
     if (char === '|' && command[index - 1] !== '>') {
       pushSegment(segments, current);
       current = '';
+      if (next === '&') index += 1;
       continue;
     }
 
