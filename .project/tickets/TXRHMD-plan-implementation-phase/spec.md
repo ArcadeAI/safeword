@@ -54,6 +54,8 @@ Consistent with the project glossary: Phase, Gate, Reconciliation, Phase Anchor.
 
 #### plan-implementation-phase.TB1.R3 — the scenario-gate exit judges only scenario quality; implementation-design judgment happens in the planning phase
 
+#### plan-implementation-phase.TB1.R4 — the architecture record stays honest through planning: prior decisions are reviewed, significant new decisions are offered as ADRs, and deviations supersede the record instead of silently contradicting it
+
 ### plan-implementation-phase.NTB1 — a plan I can read is my only audit surface
 
 **Persona:** Non-Technical Builder (NTB)
@@ -78,7 +80,19 @@ Consistent with the project glossary: Phase, Gate, Reconciliation, Phase Anchor.
 
 ## Rave Moment
 
-skip: table-stakes — plan-before-code is now baseline across major harnesses (Cursor Plan Mode, Claude Code plan mode; verified in the 2026-07-08 /figure-it-out research). Safeword's differentiator here is *enforcement*, which users experience as absence-of-failure, not a shareable moment.
+Grounded in the 2026-07-08 /figure-it-out research: every major harness ships a plan *mode* (Cursor Plan Mode, Claude Code plan mode, Devin's plan file) — optional, freeform, forgettable. The rave is enforcement plus honesty, not planning per se.
+
+### plan-implementation-phase — a readable plan before it's allowed to build (NTB)
+
+- **Moment:** before any code exists, a plain-English plan sits in the ticket — riskiest assumption, build order, how each behavior gets proven — and the agent must later reconcile it: "here's where reality differed."
+- **Beats:** the dread of "it confidently built the wrong thing for three hours and I couldn't tell until the demo" — today's tooling gives a non-coder no checkpoint between describing a feature and receiving finished code.
+- **They'd say:** "I can't read code, but I don't have to — it has to show me a readable plan before it's allowed to build, and confess afterward where it changed course."
+
+### plan-implementation-phase — plan mode with teeth (TB)
+
+- **Moment:** the agent tries to jump into TDD and the harness refuses: no `implement` until the plan names the riskiest assumption and which scenario proves it. Screenshot-able denial.
+- **Beats:** plan modes you must remember to toggle, and plans agents silently drift from (ungated plan artifacts measured as near-noise; the gate is the active ingredient — Spec-Kit ablation, arxiv 2604.05278).
+- **They'd say:** "It's plan mode, except the agent physically can't skip it — and it has to reconcile the plan against what actually shipped."
 
 ## Outcomes
 

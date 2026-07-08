@@ -78,6 +78,26 @@ _RED evidence: uncapturable pre-build — over-blocking guard; passes today by d
 - [ ] GREEN
 - [ ] REFACTOR
 
+## Rule: plan-implementation-phase.TB1.R4 — the architecture record stays honest through planning
+
+### Scenario: Planning directs review of prior architecture decisions
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A significant planning decision triggers an ADR draft offer
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A deviation from a recorded decision directs superseding the record
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: plan-implementation-phase.NTB1.R1 — application code stays untouched while a feature ticket is in the planning phase
 
 ### Scenario: Application-code edit during planning is denied

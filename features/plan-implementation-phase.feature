@@ -80,6 +80,25 @@ Feature: plan-implementation phase before TDD
       When they are searched for the phrase "authored at scenario-gate exit"
       Then no occurrences are found
 
+  @plan-implementation-phase.TB1.R4
+  Rule: plan-implementation-phase.TB1.R4 — the architecture record stays honest through planning
+
+    Scenario: Planning directs review of prior architecture decisions
+      Given the shipped bdd skill documents
+      When PLAN_IMPLEMENTATION.md is read
+      Then it directs consulting the architecture record before filling the alignment section
+
+    Scenario: A significant planning decision triggers an ADR draft offer
+      Given the shipped bdd skill documents
+      When PLAN_IMPLEMENTATION.md is read
+      Then it directs offering an ADR draft when a decision spans features, data ownership, or cross-service contracts
+
+    @rejection
+    Scenario: A deviation from a recorded decision directs superseding the record
+      Given the shipped bdd skill documents
+      When PLAN_IMPLEMENTATION.md is read
+      Then it directs amending or superseding the contradicted ADR rather than recording the deviation alone
+
   @plan-implementation-phase.NTB1.R1
   Rule: plan-implementation-phase.NTB1.R1 — application code stays untouched while a feature ticket is in the planning phase
 
