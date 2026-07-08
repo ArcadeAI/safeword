@@ -1,6 +1,6 @@
 # Impl Plan: Artifact-content phase anchors (HGYGND)
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
@@ -77,7 +77,23 @@ pre-commit contracts); the ledger's ShaResolver contract untouched
   Deliberate cross-ticket edit: those scenarios describe the anchor grammar
   this ticket replaces — leaving them green would pin the superseded behavior.
   Recorded here rather than reopening CDRJTW (the gate behavior they prove —
-  warn-and-record at tiers — is unchanged).
+  warn-and-record at tiers — is unchanged). As shipped: three scenarios
+  retitled (+ CDRJTW ledger headings synced with retitle notes), the
+  unreachable-evidence never-block scenario retargeted from a forged anchor
+  SHA to a forged ledger SHA (anchors can no longer be "unreachable"), and
+  the indeterminate scenario's seam moved from resolver to reader.
+- verify.md's anchor shape check does NOT reuse `checkVerifyArtifact` as
+  planned: done-gate.ts imports node:fs/test-runner, and importing it from
+  phase-provenance.ts would drag an impure, heavy graph into the pre-tool hot
+  path. The anchor side uses a lightweight `**PR Scope:**` presence probe with
+  a comment pointing at done-gate's authoritative check (which the boundary
+  engine still runs in full on changed verify.md files).
+- `reconcileChange` kept its `resolveSha` parameter (ledger) and GAINED
+  `readArtifact` (anchors) — a 3-arg signature rather than a swap, keeping the
+  two oracles deliberately separate.
+- One net-new non-hook file: `steps/anchor-fixtures.ts` (shared impl-plan
+  fixture for the two acceptance step files, the cross-scenario refactor). Not
+  a hook lib — no schema parity-pair cost.
 
 ## Assessment triggers
 

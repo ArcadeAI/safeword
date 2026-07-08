@@ -23,31 +23,31 @@ suites.
 
 - [x] RED e90eb07
 - [x] GREEN 73b9759
-- [ ] REFACTOR
+- [x] REFACTOR 5bd56ea
 
 ### Scenario: Only the entered phase needs an anchor on a multi-step advance
 
 - [x] RED e90eb07
 - [x] GREEN 73b9759
-- [ ] REFACTOR
+- [x] REFACTOR 5bd56ea
 
 ### Scenario: The scenario-gate anchor accepts the feature source or its legacy fallback
 
 - [x] RED e90eb07
 - [x] GREEN 73b9759
-- [ ] REFACTOR
+- [x] REFACTOR 5bd56ea
 
 ### Scenario: Re-advancing a phase is judged by its latest anchor entry
 
 - [x] RED e90eb07
 - [x] GREEN 73b9759
-- [ ] REFACTOR
+- [x] REFACTOR 5bd56ea
 
 ### Scenario: An earlier valid entry cannot rescue a re-advance whose latest anchor is stale
 
 - [x] RED e90eb07
 - [x] GREEN 73b9759
-- [ ] REFACTOR
+- [x] REFACTOR 5bd56ea
 
 ## Rule: An anchored advance verifies from the tree alone, under any history
 
@@ -55,31 +55,31 @@ suites.
 
 - [x] RED e90eb07
 - [x] GREEN 73b9759
-- [ ] REFACTOR
+- [x] REFACTOR 5bd56ea
 
 ### Scenario: A squash-merged branch's ticket still verifies at the next boundary
 
 - [x] RED 73b9759
 - [x] GREEN ea8bcf6
-- [ ] REFACTOR
+- [x] REFACTOR 5bd56ea
 
 ### Scenario: An amended commit does not disturb a recorded anchor
 
 - [x] RED 73b9759
 - [x] GREEN ea8bcf6
-- [ ] REFACTOR
+- [x] REFACTOR 5bd56ea
 
 ### Scenario: A shallow clone's anchor check passes with no unreachable-history hedging
 
 - [x] RED 73b9759
 - [x] GREEN ea8bcf6
-- [ ] REFACTOR
+- [x] REFACTOR 5bd56ea
 
 ### Scenario: The commit tier verifies anchors against the staged tree, not the worktree
 
 - [x] RED 3b37b7f
 - [x] GREEN ea8bcf6
-- [ ] REFACTOR
+- [x] REFACTOR 5bd56ea
 
 ## Rule: A forward advance without a real artifact behind it is detectable as unanchored
 
@@ -87,79 +87,79 @@ suites.
 
 - [x] RED e90eb07
 - [x] GREEN 73b9759
-- [ ] REFACTOR
+- [x] REFACTOR 5bd56ea
 
 ### Scenario: Forward advance whose phase_anchors block names only an earlier phase is flagged
 
 - [x] RED e90eb07
 - [x] GREEN 73b9759
-- [ ] REFACTOR
+- [x] REFACTOR 5bd56ea
 
 ### Scenario: Forward advance whose anchor value is empty is flagged
 
 - [x] RED e90eb07
 - [x] GREEN 73b9759
-- [ ] REFACTOR
+- [x] REFACTOR 5bd56ea
 
 ### Scenario: Forward advance whose anchor is not a plausible repo-relative path is flagged
 
 - [x] RED e90eb07
 - [x] GREEN 73b9759
-- [ ] REFACTOR
+- [x] REFACTOR 5bd56ea
 
 ### Scenario: Forward advance anchored to a path absent from the tree is flagged
 
 - [x] RED e90eb07
 - [x] GREEN 73b9759
-- [ ] REFACTOR
+- [x] REFACTOR 5bd56ea
 
 ### Scenario: Forward advance anchored to a hollow scaffold artifact is flagged
 
 - [x] RED e90eb07
 - [x] GREEN 73b9759
-- [ ] REFACTOR
+- [x] REFACTOR 5bd56ea
 
 ### Scenario: Forward advance anchored to the wrong kind of artifact for the phase is flagged
 
 - [x] RED e90eb07
 - [x] GREEN 73b9759
-- [ ] REFACTOR
+- [x] REFACTOR 5bd56ea
 
 ### Scenario: A backward phase move is not flagged
 
 - [x] RED e90eb07
 - [x] GREEN 73b9759
-- [ ] REFACTOR
+- [x] REFACTOR 5bd56ea
 
 ### Scenario: Re-declaring the same phase is not flagged
 
 - [x] RED e90eb07
 - [x] GREEN 73b9759
-- [ ] REFACTOR
+- [x] REFACTOR 5bd56ea
 
 ### Scenario: A non-feature ticket advancing is not flagged
 
 - [x] RED e90eb07
 - [x] GREEN 73b9759
-- [ ] REFACTOR
+- [x] REFACTOR 5bd56ea
 
 ### Scenario: A ticket becoming a feature past intake is not flagged
 
 - [x] RED e90eb07
 - [x] GREEN 73b9759
-- [ ] REFACTOR
+- [x] REFACTOR 5bd56ea
 
 ### Scenario: An edit that leaves the phase unchanged is not flagged
 
 - [x] RED e90eb07
 - [x] GREEN 73b9759
-- [ ] REFACTOR
+- [x] REFACTOR 5bd56ea
 
 ### Scenario: The at-rest advisory nudges a missing anchor with the path grammar
 
 - [x] RED e90eb07
 - [x] GREEN 73b9759
-- [ ] REFACTOR
+- [x] REFACTOR 5bd56ea
 
 ## Rule: Legacy SHA anchors neither warn at rest nor block new work
 
@@ -167,13 +167,13 @@ suites.
 
 - [x] RED e90eb07
 - [x] GREEN 73b9759
-- [ ] REFACTOR
+- [x] REFACTOR 5bd56ea
 
 ### Scenario: A new forward advance recording a hex-shaped anchor draws the migration remediation
 
 - [x] RED e90eb07
 - [x] GREEN 73b9759
-- [ ] REFACTOR
+- [x] REFACTOR 5bd56ea
 
 ## Rule: The R/G/R ledger's per-tick commit SHAs are untouched
 
@@ -181,8 +181,8 @@ suites.
 
 - [x] RED 73b9759
 - [x] GREEN ea8bcf6
-- [ ] REFACTOR
+- [x] REFACTOR 5bd56ea
 
 ## Feature-level cross-scenario refactor
 
-- [ ] cross-scenario
+- [x] cross-scenario 5bd56ea

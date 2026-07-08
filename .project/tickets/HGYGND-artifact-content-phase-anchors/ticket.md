@@ -2,12 +2,13 @@
 id: HGYGND
 slug: artifact-content-phase-anchors
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 phase_anchors:
   - define-behavior: .project/tickets/HGYGND-artifact-content-phase-anchors/spec.md
   - scenario-gate: features/artifact-content-phase-anchors.feature
   - implement: .project/tickets/HGYGND-artifact-content-phase-anchors/impl-plan.md
+  - verify: .project/tickets/HGYGND-artifact-content-phase-anchors/test-definitions.md
 epic: "808"
 external_issue: https://github.com/ArcadeAI/safeword/issues/815
 scope:
@@ -78,3 +79,4 @@ under path anchors distinct phases now carry distinct evidence anyway.
 - 2026-07-08T02:13:55.616Z Phase: intake → define-behavior
 - 2026-07-08T02:16:06.514Z Phase: define-behavior → scenario-gate
 - 2026-07-08T02:29:33.085Z Phase: scenario-gate → implement
+- 2026-07-08T03:11:15.675Z Phase: implement → verify
