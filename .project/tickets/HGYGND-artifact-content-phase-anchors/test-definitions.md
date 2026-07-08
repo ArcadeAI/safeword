@@ -77,7 +77,7 @@ suites.
 
 ### Scenario: The commit tier verifies anchors against the staged tree, not the worktree
 
-- [ ] RED
+- [x] RED 3b37b7f
 - [ ] GREEN
 - [ ] REFACTOR
 
