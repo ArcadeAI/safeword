@@ -55,7 +55,11 @@ source; this file tracks per-scenario RED → GREEN → REFACTOR with commit SHA
 - [x] GREEN 5ab57b6
 - [x] REFACTOR 6fc7c6c
 
-### Scenario: The commit tier consults no git history — reachability waits for push
+### Scenario: The commit tier consults no git history — a legacy SHA anchor is warned toward the path grammar
+
+<!-- Retitled by HGYGND (artifact-content anchors): the commit tier now fully
+verifies path anchors against the staged tree; a hex anchor draws the
+migrate-to-path warning instead of waiting for push-tier reachability. -->
 
 - [x] RED skip: guard pinned by construction — commit tier never builds a resolver
 - [x] GREEN be37070
@@ -69,7 +73,10 @@ source; this file tracks per-scenario RED → GREEN → REFACTOR with commit SHA
 
 ## Rule: A push additionally verifies evidence against reachable history
 
-### Scenario: A well-formed anchor that is not reachable from the pushed history is warned
+### Scenario: An anchored artifact missing from the pushed tree is warned
+
+<!-- Retitled by HGYGND: anchors are artifact paths verified against the tree;
+the unreachable-SHA phrasing (and its forge/shallow-clone hedge) is gone. -->
 
 - [x] RED 701a2b7
 - [x] GREEN ea71278
@@ -93,7 +100,11 @@ source; this file tracks per-scenario RED → GREEN → REFACTOR with commit SHA
 - [x] GREEN ea71278
 - [x] REFACTOR 6fc7c6c
 
-### Scenario: A failing SHA resolution is recorded as indeterminate, never a crash
+### Scenario: A failing artifact read is recorded as indeterminate, never a crash
+
+<!-- Retitled by HGYGND: the anchor check's failure seam is the artifact
+reader; the ledger's SHA-resolution indeterminate case stays pinned in
+boundary-engine.test.ts. -->
 
 - [x] RED skip: unit-level spec written with its implementation in one slice (pure engine seam)
 - [x] GREEN ea71278

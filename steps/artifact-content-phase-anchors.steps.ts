@@ -623,6 +623,9 @@ Given(
     git(shallow, `clone --quiet --depth 1 ${this.remote!} .`);
     git(shallow, 'config user.email test@test.com');
     git(shallow, 'config user.name Test');
+    // Git tracks no empty directories — recreate the .safeword marker the
+    // boundary command requires, exactly as a fresh container's setup would.
+    mkdirSync(nodePath.join(shallow, '.safeword'), { recursive: true });
     writeFileAt(shallow, IMPL_PLAN, SHAPE_VALID_IMPL_PLAN);
     writeFileAt(
       shallow,
@@ -631,7 +634,9 @@ Given(
     );
     git(shallow, 'add -A');
     git(shallow, 'commit -m advance --quiet');
-    this.fsDir = shallow;
+    // The shared boundary-command steps operate on this.dir — point it at the
+    // shallow clone (the original full-clone project has served its purpose).
+    this.dir = shallow;
   },
 );
 
@@ -684,23 +689,10 @@ Given(
   },
 );
 
-When('the boundary command runs at the push boundary', function (this: AnchorWorld) {
-  runBoundary(this, 'push', this.fsDir ?? this.dir);
-});
-
-When('the boundary command runs at the commit boundary', function (this: AnchorWorld) {
-  runBoundary(this, 'commit');
-});
-
-Then('it exits zero with no anchor warning', function (this: AnchorWorld) {
-  assert.equal(this.cli?.exitCode, 0);
-  assert.doesNotMatch(this.cli?.output ?? '', /phase-anchor/i);
-});
-
-Then('the audit entry records a passing phase-anchor verdict', function (this: AnchorWorld) {
-  const entry = lastAuditEntry(this.fsDir ?? this.dir!);
-  assert.match(entry, /phase-anchor.*pass|pass.*phase-anchor/);
-});
+// `the boundary command runs at the …` / `it exits zero with no anchor warning`
+// / `the audit entry records a passing phase-anchor verdict` are defined in
+// boundary-reconciliation-gate.steps.ts — cucumber steps are global, so this
+// file adds only the anchor-specific vocabulary.
 
 Then(
   'it exits zero with no warning about unreachable history or shallow clones',

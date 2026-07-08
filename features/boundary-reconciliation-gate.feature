@@ -115,11 +115,11 @@ Feature: Boundary reconciliation gate — evidence checks re-run at commit and p
       Then it exits zero and warns about the unreachable ledger SHA
 
     @boundary-reconciliation-gate.SM1.AC2
-    Scenario: A failing SHA resolution is recorded as indeterminate, never a crash
-      Given a ticket in the outgoing range whose SHA resolution fails mid-run
+    Scenario: A failing artifact read is recorded as indeterminate, never a crash
+      Given a ticket in the outgoing range whose artifact read fails mid-run
       When the boundary command runs at the push boundary
       Then it still exits zero
-      And the audit entry records the reachability check as indeterminate
+      And the audit entry records the anchor check as indeterminate
 
     @boundary-reconciliation-gate.SM1.AC2
     Scenario: A branch pushed for the first time still gets its outgoing work reconciled
