@@ -134,6 +134,33 @@ function legalityVerdict(
   return pass('phase-legality');
 }
 
+/**
+ * Anchor check over a ticket.md transition, tree-only via the injected reader
+ * (never git history, so both tiers verify fully). A reader failure (git
+ * broken mid-run) degrades to an indeterminate verdict, never a crash —
+ * exit-0 is absolute.
+ */
+function phaseAnchorVerdict(
+  ticketFile: ChangedArtifact,
+  readArtifact?: ArtifactReader,
+): CheckVerdict {
+  try {
+    const anchor = detectUnanchoredPhaseTransition(
+      ticketFile.prior,
+      ticketFile.proposed ?? '',
+      readArtifact,
+    );
+    return anchor.kind === 'unanchored'
+      ? warnVerdict('phase-anchor', anchor.reason)
+      : pass('phase-anchor');
+  } catch {
+    return indeterminate(
+      'phase-anchor',
+      'artifact read failed mid-run — the anchor could not be determined',
+    );
+  }
+}
+
 /** Transition checks over a staged/changed ticket.md. */
 function ticketFileChecks(
   ticketFile: ChangedArtifact,
@@ -152,30 +179,10 @@ function ticketFileChecks(
     );
   }
 
-  checks.push(legalityVerdict(ticketFile, legalitySteps));
-
-  // A reader failure (git broken mid-run) must degrade to an indeterminate
-  // verdict, never a crash — exit-0 is absolute. The anchor check is
-  // tree-only: it never consults history, so both tiers verify fully.
-  try {
-    const anchor = detectUnanchoredPhaseTransition(
-      ticketFile.prior,
-      ticketFile.proposed,
-      readArtifact,
-    );
-    checks.push(
-      anchor.kind === 'unanchored'
-        ? warnVerdict('phase-anchor', anchor.reason)
-        : pass('phase-anchor'),
-    );
-  } catch {
-    checks.push(
-      indeterminate(
-        'phase-anchor',
-        'artifact read failed mid-run — the anchor could not be determined',
-      ),
-    );
-  }
+  checks.push(
+    legalityVerdict(ticketFile, legalitySteps),
+    phaseAnchorVerdict(ticketFile, readArtifact),
+  );
 
   return checks;
 }
