@@ -2,8 +2,8 @@
 id: EDDABK
 slug: shell-tokenizer-consolidation
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-07-07T17:55:50.140Z
 last_modified: 2026-07-07T17:55:50.140Z
 ---
@@ -83,3 +83,5 @@ last_modified: 2026-07-07T17:55:50.140Z
 - 2026-07-07T23:35 **High-effort code review (8 angles → verify) → 2 regressions fixed.** Review produced 24 verified findings; triaged regression-vs-pre-existing. Two were **genuine regressions the consolidation introduced**, both fixed here: (a) the POSIX single-quote rule delivers *interior* backslashes intact, so `pkill 'n\ode'` (ERE literal → `node`) evaded — the first `bareName` fix stripped only *leading* `\`; corrected to strip all backslashes (at base the non-POSIX rule ate the backslash → detected, so this was a real weakening, now re-caught + pinned). (b) the report-only-flag false-stamp fix was yarn-only; `npm ci --help`/`bun install --help`/`pnpm install -h` still stamped false-ready — generalized `REPORT_ONLY_INSTALL_FLAGS` to every manager (under-stamping is fail-safe), pinned. Cleanups: exported a `commandWords(segment)` helper killing the duplicated `parseShellWords`+`commandWordIndex` idiom at the two dep call sites; hoisted a double `basename`. **Correction to the 22:40 entry:** "exactly two implementations" was wrong — the review found two MORE private shell tokenizers in adjacent (non-gate) subsystems, `cursor-run-identity.ts` (stamp-proof recording; real functional gap on `command`/`env`-prefixed invocations) and `branch-staleness.ts` (`parseCheckoutTarget`, warn-only). Both out of EDDABK's scope (the four security *gates*) → filed as follow-up. Second follow-up: the review's pre-existing (verified identical at base, non-regression) gate-evasion cluster — gates exact-match the command word while the tokenizer basename-matches env/corepack, so absolute-path forms (`/usr/bin/pkill node`, `/usr/bin/tee <ledger>`, `/usr/bin/git commit`), `command -p git commit`, and tokenizer edge cases (`\`+newline, `|&`, glued `(cmd`, escaped `\>|`) evade — each a deliberate gate-behavior change needing its own semver call.
 - 2026-07-08T00:20:33.230Z Phase: implement → verify
 - 2026-07-08T00:22 **/verify + /audit green.** Tokenizer scope 213/213 across all 8 files; full suite 5009/5016 — the 2 failures (`rust-golden-path` cargo-clippy E2E, `cleanup-zombies` `pgrep` victim-detection from #949) are byte-identical to main, fail in isolation with none of this diff's tests loaded → pre-existing/environment, not this change (CI authoritative). Build ✅, lint ✅ (tsc+eslint+gherkin), parity ✅ (215 pairs / 5 contracts). Audit: 0 errors — depcruise clean (no cycles, `dependency-readiness → shell-segments` adds none), knip silent on changed files, jscpd baseline (this diff *reduced* duplication). verify.md written. PR opened; `done` flip belongs post-merge.
+- 2026-07-08T02:05:35.055Z Phase: verify → done
+- 2026-07-08T02:06 **Closed on the PR (CI guard correction).** PR #959's `check-pr-ticket-done` gate failed: verify.md rides the PR, so the done flip must too — "ticket closure must ride the ready PR", not post-merge as the 00:22 entry assumed. Flipped `status: done` / `phase: done`; guard now exits 0 locally. Follow-ups (non-gate tokenizer absorption; basename/edge-case hardening) are spawned tasks, not this ticket.
