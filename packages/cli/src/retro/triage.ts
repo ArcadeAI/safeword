@@ -14,7 +14,7 @@ import type { RetroDraft } from './draft.js';
 import {
   emptyLedger,
   type EncounterInput,
-  LEDGER_MARKER,
+  findLedgerComment,
   type LedgerState,
   parseLedger,
   type Provenance,
@@ -163,7 +163,7 @@ async function recordOnKnownIssue(
   result: TriageResult,
 ): Promise<void> {
   const comments = await transport.listComments(issue.number);
-  const ledgerComment = comments.find(c => c.body.includes(LEDGER_MARKER));
+  const ledgerComment = findLedgerComment(comments);
   const previous = ledgerComment ? parseLedger(ledgerComment.body) : emptyLedger();
 
   const { state, changed, novel } = recordEncounter(previous, toEncounterInput(encounter, ctx));

@@ -60,6 +60,18 @@ export function emptyLedger(): LedgerState {
   return { total: 0, harness: {}, sessions: [], manifestations: [] };
 }
 
+/**
+ * Locate retro's own ledger comment in an issue's comment list — the single
+ * place "which comment is the ledger" is defined, so triage and reconcile
+ * can't drift on how it's identified. Returns the comment (not parsed state)
+ * because callers also need its id for idempotent edits.
+ */
+export function findLedgerComment<Comment extends { body: string }>(
+  comments: Comment[],
+): Comment | undefined {
+  return comments.find(comment => comment.body.includes(LEDGER_MARKER));
+}
+
 /** Parse a comment body into ledger state; returns the empty ledger when unmarked. */
 export function parseLedger(body: string): LedgerState {
   const start = body.indexOf(DATA_OPEN);

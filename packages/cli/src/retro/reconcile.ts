@@ -4,7 +4,7 @@
 
 import { RETRO_LABEL } from './draft.js';
 import { PROCESS_PREFIX } from './egress.js';
-import { LEDGER_MARKER, parseLedger, type StoredProvenance } from './ledger.js';
+import { findLedgerComment, parseLedger, type StoredProvenance } from './ledger.js';
 import type { IssueComment } from './triage.js';
 
 export const RECONCILE_LABEL = 'possibly-resolved';
@@ -169,7 +169,7 @@ async function eligibleSince(
   comments: IssueComment[],
   tracker: ReconcileTracker,
 ): Promise<string | undefined> {
-  const ledgerComment = comments.find(comment => comment.body.includes(LEDGER_MARKER));
+  const ledgerComment = findLedgerComment(comments);
   const provenance = ledgerComment ? parseLedger(ledgerComment.body).provenance : undefined;
   if (!provenance) return undefined;
   return codeStateDate(provenance, tracker);
