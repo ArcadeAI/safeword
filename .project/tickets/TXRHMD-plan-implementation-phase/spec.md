@@ -30,11 +30,9 @@ Affected:
 - Claude Code — full enforcement: phase enum, transition gate (PreToolUse), stop-gate lists, prompt reminders
 - OpenAI Codex — skill-doc parity (`.agents/skills/bdd/` trio member) + phase-keyed stop-hook behavior
 - Cursor — thin rule pair for the new phase doc + phase-keyed stop-hook behavior
-
-Unaffected:
-
-- Claude Code on the Web — inherits repo-installed files; no cloud-specific behavior changes
-- OpenAI Codex Cloud — same: reads the repo checkout's `.agents/skills`; no container-specific behavior
+- Claude Code on the Web — headless/ephemeral sessions: approval-gate auto-decision semantics, no interactive-only dependencies
+- OpenAI Codex Cloud — same headless semantics; reads `.agents/skills` from the checkout; no bash auto-expansion available
+- Cursor Cloud Agents — same headless semantics via the Cursor rule pair
 
 ## Vocabulary
 
@@ -90,6 +88,8 @@ Consistent with the project glossary: Phase, Gate, Reconciliation, Phase Anchor.
 
 #### plan-implementation-phase.NTB2.R2 — human design approval is a config toggle defaulting to autonomous; enabling it inserts the approval after the review passes, before implement
 
+#### plan-implementation-phase.NTB2.R3 — an enabled approval gate in a headless session records the pending approval and surfaces the plan in the session's reviewable output instead of blocking indefinitely
+
 ### plan-implementation-phase.NTB1 — a plan I can read is my only audit surface
 
 **Persona:** Non-Technical Builder (NTB)
@@ -111,6 +111,8 @@ Consistent with the project glossary: Phase, Gate, Reconciliation, Phase Anchor.
 #### plan-implementation-phase.SM1.R2 — the phase doc ships with full cross-harness parity (template ↔ Claude ↔ Codex trio, Cursor rule pair) like every other bdd phase doc
 
 #### plan-implementation-phase.SM1.R3 — the decomposition-retirement ADR is superseded by a recorded ADR, not silently contradicted
+
+#### plan-implementation-phase.SM1.R4 — the phase contract executes on the current versions of Claude Code, Codex, and Cursor including their cloud surfaces, with no interactive-only or bash-auto-expansion dependencies
 
 ## Rave Moment
 
@@ -163,6 +165,11 @@ Added at the third signoff round (2026-07-08 — reuse, AI leverage, review-befo
 15. **Architecture awareness without anchoring:** the phase directs reading the generated architecture state doc and the decision record for current-structure fluency (reuse better components, avoid duplicate work) — but only after the ideal design is sketched (SAFEWORD.md's load-bearing order), and changing the architecture is a planned-for outcome with a recorded decision, never sunk-cost conformance.
 16. **Review-before-handoff:** any human-facing checkpoint in this phase fires only after the phase's independent quality review has passed — raw output is never handed to the user. User-only information gaps (/elicit) are the exception and route to the user at any time. (#478's principle applied to this phase; reordering other phases stays out of scope.)
 17. **Human design approval is an opt-in toggle:** config key `designApprovalGate`, default off/absent = autonomous (the NTB default — no rooting around for toggles). Enabled (the TB opt-in): after the independent review passes, the plan is presented for user approval before `implement`. Conversational-gate mechanism like intake's sub-phase gates — prose contract, no hook code; documented in the config reference. Independent review prefers a different model when crossModelReview is available (secondary, per existing semantics).
+
+Added at the fourth signoff round (2026-07-08 — model/harness currency, remote sessions):
+
+18. **Harness and model currency, remote-first-class:** the phase contract executes on current Claude Code, OpenAI Codex, and Cursor *including their cloud surfaces* (Claude Code on the Web, Codex Cloud, Cursor Cloud Agents) — no interactive-only dependencies, no reliance on bash auto-expansion (Codex has none; skill bash runs only if the model chooses). Guidance is authored for frontier models (Fable 5, Opus 4.8, GPT-5.5), and crossModelReview pairing may span vendors. Doc/API currency against the latest harness documentation is verified at implement via /quality-review's version-currency angle.
+19. **Headless approval semantics:** with `designApprovalGate` enabled in a session with no interactive user (cloud/headless runs), the gate follows the YOLO precedent (G2E72G): record the auto-decision as pending approval in the work log and surface the reviewed plan in the session's reviewable output (PR description / session summary) rather than blocking indefinitely — the human approves at PR-review time.
 
 ## Open Questions
 

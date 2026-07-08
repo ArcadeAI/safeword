@@ -214,6 +214,16 @@ Feature: plan-implementation phase before TDD
       When PLAN_IMPLEMENTATION.md is read
       Then it states that with designApprovalGate enabled the reviewed plan is presented for user approval before implement
 
+  @plan-implementation-phase.NTB2.R3
+  Rule: plan-implementation-phase.NTB2.R3 — headless sessions record pending approval instead of blocking
+
+    @surface.claude-code-on-the-web @surface.openai-codex-cloud @surface.cursor-cloud-agents
+    Scenario: Headless session with approval enabled surfaces the plan instead of stalling
+      Given the shipped bdd skill documents
+      When PLAN_IMPLEMENTATION.md is read
+      Then it directs sessions without an interactive user to record the pending approval in the work log
+      And it directs surfacing the reviewed plan in the session's reviewable output
+
   @plan-implementation-phase.NTB1.R1
   Rule: plan-implementation-phase.NTB1.R1 — application code stays untouched while a feature ticket is in the planning phase
 
@@ -296,6 +306,16 @@ Feature: plan-implementation phase before TDD
       When its checkpoint and restart tables are read
       Then the task-count split checkpoint is keyed to plan-implementation
       And split children at plan-implementation or later restart at plan-implementation
+
+  @plan-implementation-phase.SM1.R4
+  Rule: plan-implementation-phase.SM1.R4 — the phase contract runs on current harnesses including cloud surfaces
+
+    @surface.claude-code @surface.openai-codex @surface.cursor @surface.claude-code-on-the-web @surface.openai-codex-cloud @surface.cursor-cloud-agents
+    Scenario: The phase contract carries no interactive-only dependencies
+      Given the shipped bdd skill documents
+      When PLAN_IMPLEMENTATION.md is read
+      Then its steps require no bash auto-expansion and no interactively-authenticated tools
+      And every gate it describes has defined behavior for sessions without an interactive user
 
   @plan-implementation-phase.SM1.R2
   Rule: plan-implementation-phase.SM1.R2 — the phase doc ships with full cross-harness parity

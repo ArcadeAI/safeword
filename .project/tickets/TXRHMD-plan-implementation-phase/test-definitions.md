@@ -210,6 +210,14 @@ _RED evidence: uncapturable pre-build — over-blocking guard; passes today by d
 - [ ] GREEN
 - [ ] REFACTOR
 
+## Rule: plan-implementation-phase.NTB2.R3 — headless sessions record pending approval instead of blocking
+
+### Scenario: Headless session with approval enabled surfaces the plan instead of stalling
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: plan-implementation-phase.NTB1.R1 — application code stays untouched while a feature ticket is in the planning phase
 
 ### Scenario: Application-code edit during planning is denied
@@ -283,6 +291,14 @@ _RED evidence: uncapturable pre-build — over-blocking guard; passes today by d
 _RED evidence: uncapturable pre-build — over-blocking guard; passes today by design (#928 convention)._
 
 ### Scenario: Splitting guidance is remapped to the planning phase
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: plan-implementation-phase.SM1.R4 — the phase contract runs on current harnesses including cloud surfaces
+
+### Scenario: The phase contract carries no interactive-only dependencies
 
 - [ ] RED
 - [ ] GREEN
