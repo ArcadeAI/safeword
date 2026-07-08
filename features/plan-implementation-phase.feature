@@ -106,6 +106,23 @@ Feature: plan-implementation phase before TDD
       Then it bounds the ADR offer to decisions affecting structure, key quality attributes, or ones difficult to reverse
       And it directs recording routine choices in the plan's decisions table alone
 
+    Scenario: Emitted ADRs scaffold from the shipped template into the configured record location
+      Given the shipped bdd skill documents
+      When PLAN_IMPLEMENTATION.md is read
+      Then it directs scaffolding new ADRs from the safeword ADR template
+      And it directs writing them to the location resolved from paths.architecture, appending to a file or adding a date-prefixed file to a directory
+
+    @rejection
+    Scenario: Generated architecture state docs never receive ADRs
+      Given the shipped bdd skill documents
+      When PLAN_IMPLEMENTATION.md is read
+      Then it directs never writing decision records into generated architecture state documents
+
+    Scenario: A decision proven wrong during implement updates the record mid-flight
+      Given the shipped bdd skill documents
+      When the planning and TDD phase docs are read
+      Then they direct updating the plan and superseding any affected ADR when implementation contradicts a planned decision, before verify
+
   @plan-implementation-phase.TB2.R1
   Rule: plan-implementation-phase.TB2.R1 — plan depth tracks feature size and risk in both directions
 

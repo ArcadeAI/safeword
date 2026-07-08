@@ -104,6 +104,24 @@ _RED evidence: uncapturable pre-build — over-blocking guard; passes today by d
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Emitted ADRs scaffold from the shipped template into the configured record location
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Generated architecture state docs never receive ADRs
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A decision proven wrong during implement updates the record mid-flight
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: plan-implementation-phase.TB2.R1 — plan depth tracks feature size and risk in both directions
 
 ### Scenario: The planning doc keys plan depth to blast radius in both directions

@@ -126,6 +126,14 @@ All seven intake questions resolved — user accepted each proposal:
 6. **Impl-plan stop-list:** `phasesRequiringImplPlan = ['implement','verify','done']` unchanged — the stop gate stays cumulative (artifacts owed by *prior* exits, matching the test-defs precedent); the pre-tool transition gate is the sole boundary enforcement; mid-phase work-in-progress stops stay legal. SM1.R1 reads as "an explicit membership decision per phase-keyed list", not "added to every list".
 7. **SPLITTING.md:** the ">20 tasks OR 5+ major components" checkpoint moves to `plan-implementation` (task counts materialize with the build order); split children at plan-implementation-or-later restart at `plan-implementation` — each child authors its own plan scoped to its slice.
 
+Added at the ADR-lifecycle /figure-it-out (2026-07-08, second signoff round):
+
+8. **ADR template:** safeword ships `.safeword/templates/adr-template.md` (ownedFiles doc-template, like impl-plan-template) — Nygard-core fields (Context / Decision / Consequences + Status, Date, bidirectional supersede links), lean per MADR minimalism. Validation stays advisory; structure is never hard-gated (log4brains precedent: enforcement isn't prevailing practice; gating = ceremony).
+9. **ADR destination:** reuse `paths.architecture` (no new config key) — a file receives appended entries, a directory receives one file per ADR with a merge-safe date-prefixed filename (`YYYYMMDD-slug.md`); sequential NNNN rejected because parallel sessions collide (same race ticket IDs were redesigned to avoid; MADR issue #28 + log4brains agree).
+10. **Elevation:** the significance test decides what touches the architecture record; routine decisions live in the plan's Decisions table; generated architecture state docs (architecture.generated.md — machine-owned *what-is*) are never an ADR destination — the record (*why*) is the only target.
+11. **Mid-flight drift:** the plan is a living record until implement-exit reconciliation — a decision proven wrong during implement updates the plan section then, notes the change in Decisions, and supersedes any affected ADR immediately; exit reconciliation is the backstop. Stage-scoped review stamps make mid-flight edits safe.
+12. **Legacy ADR drift:** supersede, never edit, never delete — a new record marks the old one "superseded by", linked in both directions (unanimous: Nygard, Microsoft WAF, AWS, MADR).
+
 ## Open Questions
 
 None outstanding — all resolved at intake signoff (see Decisions above).
