@@ -12,6 +12,10 @@ import type { CreateIssueInput, IssueComment, IssueReference, IssueTracker } fro
 const UPSTREAM_REPO = 'ArcadeAI/safeword';
 const ISSUES_BASE = `/repos/${UPSTREAM_REPO}/issues`;
 const API = 'https://api.github.com';
+// GitHub's max page size. The paginated loops interpolate this into the URL
+// AND compare against it to detect the last (short) page — one constant keeps
+// the two from drifting (a mismatch silently truncates or over-fetches).
+const PER_PAGE = 100;
 // Safety bound on comment pagination (100/page → up to 2000 comments scanned).
 const MAX_COMMENT_PAGES = 20;
 // Safety bound on issue-listing pagination for the reconcile sweep (→ 1000 issues).
@@ -104,7 +108,7 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
       // fuzzy, so a hash near-miss must be rejected to avoid matching the wrong issue.
       const hashToken = signature.replace(/^retro:/, '');
       const query = encodeURIComponent(`repo:${UPSTREAM_REPO} in:body state:open ${hashToken}`);
-      const data = (await call('GET', `/search/issues?q=${query}&per_page=100`)) as {
+      const data = (await call('GET', `/search/issues?q=${query}&per_page=${PER_PAGE}`)) as {
         items?: { number: number; title: string; body?: string }[];
       };
       return (data.items ?? [])
@@ -128,10 +132,10 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
       for (let page = 1; page <= MAX_COMMENT_PAGES; page++) {
         const data = (await call(
           'GET',
-          `${ISSUES_BASE}/${issueNumber}/comments?per_page=100&page=${page}`,
+          `${ISSUES_BASE}/${issueNumber}/comments?per_page=${PER_PAGE}&page=${page}`,
         )) as { id: number; body?: string }[];
         comments.push(...data.map(comment => ({ id: comment.id, body: comment.body ?? '' })));
-        if (data.length < 100) break;
+        if (data.length < PER_PAGE) break;
       }
       return comments;
     },
@@ -178,7 +182,7 @@ export function createReconcileTransport(token: string | undefined): ReconcileTr
       for (let page = 1; page <= MAX_ISSUE_PAGES; page++) {
         const data = (await call(
           'GET',
-          `${ISSUES_BASE}?state=${encodeURIComponent(query.state)}&labels=${labels}&per_page=100&page=${page}`,
+          `${ISSUES_BASE}?state=${encodeURIComponent(query.state)}&labels=${labels}&per_page=${PER_PAGE}&page=${page}`,
         )) as {
           number: number;
           title: string;
@@ -196,7 +200,7 @@ export function createReconcileTransport(token: string | undefined): ReconcileTr
               labels: (issue.labels ?? []).map(label => label.name ?? ''),
             })),
         );
-        if (data.length < 100) break;
+        if (data.length < PER_PAGE) break;
       }
       return issues;
     },
