@@ -283,17 +283,33 @@ describe('detectUnanchoredPhaseTransition — no real artifact behind the advanc
     expect(verdict.kind).toBe('unanchored');
   });
 
-  it.each(['../outside/impl-plan.md', '/absolute/impl-plan.md'])(
-    'an implausible path value %s is unanchored',
-    value => {
-      const verdict = detectUnanchoredPhaseTransition(
-        ticket({ type: 'feature', phase: 'scenario-gate' }),
-        ticket({ type: 'feature', phase: 'implement', anchors: [`implement: ${value}`] }),
-        readTree,
-      );
-      expect(verdict.kind).toBe('unanchored');
-    },
-  );
+  it.each([
+    '../outside/impl-plan.md',
+    '/absolute/impl-plan.md',
+    // Git pathspec magic / glob values would change the MEANING of a
+    // `git show :<path>` read (`:(top)x` exits 0 with commit text — a false
+    // "anchored"); they are rejected as paths before any read happens.
+    '(top)gone/impl-plan.md',
+    ':colon/impl-plan.md',
+    'glob/*/impl-plan.md',
+  ])('an implausible path value %s is unanchored', value => {
+    const verdict = detectUnanchoredPhaseTransition(
+      ticket({ type: 'feature', phase: 'scenario-gate' }),
+      ticket({ type: 'feature', phase: 'implement', anchors: [`implement: ${value}`] }),
+      readTree,
+    );
+    expect(verdict.kind).toBe('unanchored');
+  });
+
+  it('an empty (readable but blank) artifact fails its shape check rather than reading as missing', () => {
+    const verdict = detectUnanchoredPhaseTransition(
+      ticket({ type: 'feature', phase: 'implement' }),
+      ticket({ type: 'feature', phase: 'verify', anchors: [`verify: ${LEDGER_PATH}`] }),
+      readerFor({ [LEDGER_PATH]: '' }),
+    );
+    expect(verdict.kind).toBe('unanchored');
+    if (verdict.kind === 'unanchored') expect(verdict.reason).toMatch(/shape/i);
+  });
 
   it('a path absent from the tree is unanchored, saying it is missing', () => {
     const verdict = detectUnanchoredPhaseTransition(

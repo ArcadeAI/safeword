@@ -77,6 +77,7 @@ under path anchors distinct phases now carry distinct evidence anyway.
 - 2026-07-07T05:10:18.049Z Started: Created ticket HGYGND
 - 2026-07-07T05:12:00.000Z Intake research complete: 8-agent audit (17-issue cluster #808/#809/#810/#813-816/#824/#902-905/#909-912/#918 + phase→artifact map + boundary-gate inventory + ledger mechanics + RM84M8 prior art). All five forward transitions map to committed tree artifacts — pure artifact-content anchor viable, no hybrid needed. Findings in spec.md.
 - 2026-07-07T05:12:00.000Z BLOCKED on #810: user decision — #810's boundary gate is being built on another branch against SHA-reachability anchors; hold this redesign until it merges, then migrate the live gate. Resume at intake with spec.md's Open Questions (/figure-it-out on hash semantics).
+- 2026-07-08T03:50:00.000Z Post-done follow-up (independent /quality-review — APPROVE, 0 criticals): hardened isPlausibleRepoPath against git pathspec magic/glob values (`(top)x` under `git show :<path>` exits 0 with commit text — a probed false-anchored at the commit tier) + pinned the empty-artifact-fails-shape partition. Reviewer NOTE recorded for #810 slice 3: kind matchers bind by basename only — server-side hard-block should add ticket-folder binding for ticket-scoped kinds.
 - 2026-07-08T02:13:55.616Z Phase: intake → define-behavior
 - 2026-07-08T02:16:06.514Z Phase: define-behavior → scenario-gate
 - 2026-07-08T02:29:33.085Z Phase: scenario-gate → implement

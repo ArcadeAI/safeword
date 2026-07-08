@@ -407,12 +407,17 @@ const ANCHOR_KINDS: Record<string, AnchorKind> = {
 
 /**
  * A plausible repo-relative path: non-empty, forward-slashed, not absolute
- * (POSIX or Windows), and free of `..` traversal. Deliberately permissive
- * beyond that — existence and kind checks do the real discrimination.
+ * (POSIX or Windows), free of `..` traversal, and free of git pathspec
+ * magic/glob characters — a value opening with `(` or `:` would activate
+ * pathspec magic inside a `git show :<path>` read (`:(top)x` exits 0 with
+ * commit text, a false "anchored"), and glob characters are never a single
+ * artifact's path. Deliberately permissive beyond that — existence and kind
+ * checks do the real discrimination.
  */
 function isPlausibleRepoPath(value: string): boolean {
   if (value === '' || value.includes('\\')) return false;
   if (value.startsWith('/') || /^[a-zA-Z]:/.test(value)) return false;
+  if (/^[(:]/.test(value) || /[*?[\]]/.test(value)) return false;
   return !value.split('/').includes('..');
 }
 
