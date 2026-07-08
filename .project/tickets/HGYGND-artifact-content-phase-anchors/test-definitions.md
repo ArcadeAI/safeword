@@ -10,6 +10,13 @@ Supersedes RM84M8's ledger scope: `evidence-anchored-phase-transitions.feature`
 and its steps are removed in this ticket's REFACTOR once these scenarios are
 green.
 
+Deliberate coverage notes (from the independent scenario review, applied
+2026-07-08): per-kind shape partitions for spec.md / feature source / ledger /
+verify.md are unit-lane only (dimensions.md test-layers note); the post-rebase
+history partition is subsumed by the squash scenario (a strictly harsher
+rewrite); done-gate ledger isolation is carried by the existing regression
+suites.
+
 ## Rule: A forward advance anchors the entered phase to the exited phase's artifact
 
 ### Scenario: Forward advance recording the exited phase's artifact path is anchored
@@ -24,7 +31,19 @@ green.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: The scenario-gate anchor accepts the feature source or its legacy fallback
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Re-advancing a phase is judged by its latest anchor entry
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An earlier valid entry cannot rescue a re-advance whose latest anchor is stale
 
 - [ ] RED
 - [ ] GREEN
@@ -44,7 +63,19 @@ green.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A shallow clone verifies anchors identically to a full clone
+### Scenario: An amended commit does not disturb a recorded anchor
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A shallow clone's anchor check passes with no unreachable-history hedging
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: The commit tier verifies anchors against the staged tree, not the worktree
 
 - [ ] RED
 - [ ] GREEN
