@@ -417,7 +417,7 @@ const ANCHOR_KINDS: Record<string, AnchorKind> = {
 function isPlausibleRepoPath(value: string): boolean {
   if (value === '' || value.includes('\\')) return false;
   if (value.startsWith('/') || /^[a-zA-Z]:/.test(value)) return false;
-  if (/^[(:]/.test(value) || /[*?[\]]/.test(value)) return false;
+  if (/^[(:!^]/.test(value) || /[*?[\]]/.test(value)) return false;
   return !value.split('/').includes('..');
 }
 

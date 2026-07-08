@@ -291,6 +291,8 @@ describe('detectUnanchoredPhaseTransition — no real artifact behind the advanc
     // "anchored"); they are rejected as paths before any read happens.
     '(top)gone/impl-plan.md',
     ':colon/impl-plan.md',
+    '!bang/impl-plan.md',
+    '^caret/impl-plan.md',
     'glob/*/impl-plan.md',
   ])('an implausible path value %s is unanchored', value => {
     const verdict = detectUnanchoredPhaseTransition(
