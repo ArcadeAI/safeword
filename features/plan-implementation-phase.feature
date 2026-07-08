@@ -26,6 +26,7 @@ Feature: plan-implementation phase before TDD
       And its impl-plan.md is missing a required section
       When the agent sets the ticket phase to implement
       Then the phase change is denied
+      And the denial names the missing plan section
 
     @rejection @surface.claude-code
     Scenario: Plan still marked implemented from a replan loop is denied entry
@@ -33,10 +34,16 @@ Feature: plan-implementation phase before TDD
       And its impl-plan.md is valid but its status line reads implemented
       When the agent sets the ticket phase to implement
       Then the phase change is denied
+      And the denial names the stale plan status
 
     Scenario: Legacy feature without spec.md is grandfathered past the plan gate
       Given a feature ticket with no spec.md at the plan-implementation phase
       And no impl-plan.md exists in the ticket folder
+      When the agent sets the ticket phase to implement
+      Then the phase change is accepted
+
+    Scenario: Task tickets reach implement without a plan requirement
+      Given a task ticket with no impl-plan.md
       When the agent sets the ticket phase to implement
       Then the phase change is accepted
 
@@ -60,10 +67,14 @@ Feature: plan-implementation phase before TDD
     Scenario: Scenario-gate exit contains only scenario-quality steps
       Given the shipped bdd skill documents
       When the scenario-gate exit checklist is read
-      Then it contains no implementation-design steps
+      Then no exit step directs authoring impl-plan.md
       And its phase advance targets plan-implementation
 
-    @rejection
+    Scenario: The planning phase doc owns the impl-plan authoring steps
+      Given the shipped bdd skill documents
+      When PLAN_IMPLEMENTATION.md is read
+      Then it directs authoring impl-plan.md with the five design sections
+
     Scenario: No shipped surface still claims the plan is authored at scenario-gate exit
       Given the shipped templates and hook sources
       When they are searched for the phrase "authored at scenario-gate exit"
@@ -88,13 +99,13 @@ Feature: plan-implementation phase before TDD
   @plan-implementation-phase.NTB1.R2
   Rule: plan-implementation-phase.NTB1.R2 — a planning-gate denial names the missing artifact and the concrete next action in plain language
 
-    @surface.claude-code
+    @rejection @surface.claude-code
     Scenario: Transition denial explains what is missing and what to do next
       Given a new-flow feature ticket at the plan-implementation phase
       And no impl-plan.md exists in the ticket folder
       When the agent sets the ticket phase to implement
       Then the denial names impl-plan.md as the missing artifact
-      And the denial states the concrete next action without internal jargon
+      And the denial names the scaffold template to author the plan from
 
   @plan-implementation-phase.SM1.R1
   Rule: plan-implementation-phase.SM1.R1 — every phase-keyed surface carries a plan-implementation entry
@@ -123,6 +134,13 @@ Feature: plan-implementation phase before TDD
       And the ticket carries a phase_skips justification for plan-implementation
       When the agent sets the ticket phase to implement
       Then the phase change is accepted
+
+    @rejection @surface.claude-code
+    Scenario: A jump from intake to done names all five skipped phases
+      Given a feature ticket at the intake phase
+      When the agent sets the ticket phase to done
+      Then the phase change is denied
+      And the denial names define-behavior, scenario-gate, plan-implementation, implement, and verify as the skipped phases
 
     @rejection @surface.claude-code
     Scenario: Stopping at plan-implementation without the scenario ledger is blocked

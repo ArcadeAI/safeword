@@ -17,3 +17,5 @@ Derived from done_when, the seven intake decisions, and the #480 investigation (
 | ADR record                           | superseding ADR present in ARCHITECTURE.md; decomposition-retirement ADR marked superseded (not silently contradicted)                                                                                                                                               |
 
 Boundary values: the two adjacent transitions around the inserted phase (scenario-gate → plan-implementation, plan-implementation → implement) and the `planned` vs `implemented` status line on an otherwise-valid plan.
+
+Partitions covered elsewhere (no scenario by design): backward moves — already proven by `features/phase-provenance.feature` ("Rework … never blocks"); PHASE_EVIDENCE quality message — compile-proven (`Record<BddPhase, string>` is exhaustive; a missing entry fails `tsc`, no runtime scenario can add signal).

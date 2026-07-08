@@ -36,6 +36,14 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Task tickets reach implement without a plan requirement
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+_RED evidence: uncapturable pre-build — over-blocking guard; passes today by design (#928 convention)._
+
 ## Rule: plan-implementation-phase.TB1.R2 — a ticket interrupted mid-planning resumes into planning work, not scenario re-validation
 
 ### Scenario: Resume guidance routes a planning-phase ticket to the planning doc
@@ -53,6 +61,12 @@ test-definitions.md is the R/G/R ledger.
 ## Rule: plan-implementation-phase.TB1.R3 — the scenario-gate exit judges only scenario quality
 
 ### Scenario: Scenario-gate exit contains only scenario-quality steps
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: The planning phase doc owns the impl-plan authoring steps
 
 - [ ] RED
 - [ ] GREEN
@@ -77,6 +91,8 @@ test-definitions.md is the R/G/R ledger.
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
+
+_RED evidence: uncapturable pre-build — over-blocking guard; passes today by design (#928 convention)._
 
 ## Rule: plan-implementation-phase.NTB1.R2 — a planning-gate denial names the missing artifact and the concrete next action in plain language
 
@@ -112,6 +128,14 @@ test-definitions.md is the R/G/R ledger.
 - [ ] GREEN
 - [ ] REFACTOR
 
+_RED evidence: uncapturable pre-build — over-blocking guard; passes today by design (#928 convention)._
+
+### Scenario: A jump from intake to done names all five skipped phases
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Stopping at plan-implementation without the scenario ledger is blocked
 
 - [ ] RED
@@ -123,6 +147,8 @@ test-definitions.md is the R/G/R ledger.
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
+
+_RED evidence: uncapturable pre-build — over-blocking guard; passes today by design (#928 convention)._
 
 ### Scenario: Splitting guidance is remapped to the planning phase
 
