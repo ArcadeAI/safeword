@@ -2,13 +2,14 @@
 
 Covers core cluster #813, #815, #814, #816 · epic #808. **ON HOLD** — see Status.
 
-## Status: parked until #810 lands
+## Status: active (resumed 2026-07-08)
 
-User decision (alex, 2026-07-07): the #810 boundary gate is being built on another
-branch against the current SHA-reachability anchors; hold this redesign until it
-merges, then migrate the live gate to artifact-content anchors in one stroke.
-Everything below is the completed intake research (audit + primitive direction),
-recorded so resume costs nothing. Nothing here is implemented.
+Parked 2026-07-07 while #810 was mid-build elsewhere; resumed on user
+instruction after #810 slices 1-2 merged (#938: warn-only
+`safeword boundary --at commit|push` + host-repo install). Slice 3 (server-side
+hard-block) is still unbuilt — the primitive swap lands before it, so the
+un-bypassable tier is built against artifact anchors and never ships
+SHA-reachability semantics.
 
 ## Intent
 
@@ -66,23 +67,56 @@ the gate's conclusion (impl-plan.md) is committed, its evidence is not. That
 is #918's surface and stays a known limit of any tree-verified scheme until
 stamps get a committed home (out of scope here; see Open Questions).
 
-## Primitive direction (decided in principle; value semantics settled at resume)
+## Primitive: the settled semantics (/figure-it-out, 2026-07-08)
 
-**Anchor each phase to the content of the artifact it produces, verified in the
-final tree at the #810 commit/push/PR boundary.** Not SHAs, not history.
+**Anchor value = the repo-relative path of the exit artifact of the phase being
+left; the boundary verifies that artifact exists in the tree being shipped and
+passes its existing shape predicate.** Not SHAs, not history, not content
+hashes.
 
-- **Format (sketch):** keep the `phase_anchors:` block-sequence shape —
-  `- <phase>: <relpath>@<hash>` — so `parsePhaseKeyedEntries` survives and only
-  value validation changes. Reuse the established content-binding idiom
-  (`hashArtifact` sha1/12-hex + `<artifact>@<hash>` scope keys,
-  `review-ledger.ts:27-39`) instead of `isValidSha`.
-- **Boundary verification (#810):** a single pass over the tree being shipped —
-  for each phase the ticket claims to have traversed, its exit artifact exists
-  (and satisfies the phase's cheap validity predicate, e.g. verify.md's PR-scope
-  line). Pure tree read: no `createLedgerShaResolver`, no patch-id archaeology,
-  works at `fetch-depth: 1`, invariant under amend/squash/rebase. Directly
-  subsumes three checks #810 planned to fold separately: artifact precedence
-  (#676), impl-plan-before-code (#666), verify-actually-ran (#725).
+- **Format:** the `phase_anchors:` block-sequence shape survives —
+  `- <phase-entered>: <repo-relative-path>` (e.g.
+  `- implement: .project/tickets/HGYGND-x/impl-plan.md`). Only value validation
+  changes: a path (non-empty, repo-relative, no `..`) replaces `isValidSha`.
+  `parsePhaseKeyedEntries`, entered-phase-only, append-per-advance, and
+  last-wins-on-re-advance all carry over.
+- **Canonical per-phase artifact** (phase entered ← exit artifact of phase
+  left): define-behavior ← `spec.md` · scenario-gate ← the feature source
+  (`features/<slug>.feature` or configured path) · implement ← `impl-plan.md` ·
+  verify ← `test-definitions.md` (the R/G/R ledger) · done ← `verify.md`. The
+  explicit path (rather than a derived map) pins per-ticket ambiguity —
+  configurable features dir, legacy AC-path tickets — and keeps the traversal
+  trail the shipped birth check already reads (`engine.ts:198`).
+- **Boundary verification (#810):** for the entered phase of a transition in
+  the change — the anchored artifact exists in the shipped tree and passes the
+  artifact's existing shape predicate (`parseImplPlan`, `checkVerifyArtifact`,
+  `validateLedger`-presence, spec JTBD check — all shipped pure libs). Pure
+  tree read: no `createLedgerShaResolver`, no patch-id archaeology, works at
+  `fetch-depth: 1`, invariant under amend/squash/rebase — and fully checkable
+  at the **commit tier** (staged tree, sub-second), a strict upgrade over SHA
+  anchors' format-only commit tier. Subsumes three checks #810 planned to fold
+  separately: artifact precedence (#676), impl-plan-before-code (#666),
+  verify-actually-ran (#725).
+- **No content hash in the value** (rejected `<relpath>@<hash>`): the boundary
+  verifies the final tree, where honest evolution (spec refined in
+  define-behavior, ledger annotated through implement, impl-plan reconciled at
+  implement exit) guarantees hash mismatch for 4 of 5 phases — so an embedded
+  hash is either never compared (decoration inviting a future false-blocking
+  equality check) or compared and false-warning (alarm-fatigue evidence: false
+  positives are why developers ignore warn channels). Anti-hollow-file coverage
+  comes from the shape predicates, which a hash cannot provide (a hash of an
+  empty file is a valid hash). In-toto/SLSA back this split: a digest binds
+  state-at-attestation-time; what the verifier compares is the policy's call —
+  and this policy has nothing meaningful to compare a hash against.
+- **No machine-stamping hook** (rejected extending E32M4P's PostToolUse
+  observer to write anchors): with no hash to compute, hand-authoring a path
+  via the Edit channel is trivial and mirrors `phase_skips`; a stamping hook
+  adds a write surface with the documented Write-tool blindness and no added
+  trust — the value is self-reported either way.
+- **Legacy SHA anchors** (`/^[0-9a-f]{7,40}$/i`-shaped values on existing
+  tickets): grandfathered — at-rest silence, never re-validated; a *new*
+  transition carrying a hex-shaped anchor gets a remediation-forward warning
+  naming the exact path-shaped line to write instead.
 - **Threat model:** durable tamper-evidence, not unforgeability — #905 proved
   the SHA is satisfiable by reflexively writing HEAD; a content hash is equally
   satisfiable by hashing the file. The gain is that the *artifact itself* must
@@ -186,8 +220,6 @@ Unaffected:
 
 ## Jobs To Be Done
 
-_Draft — to be converged at resume (intake is parked, not exited)._
-
 ### artifact-content-phase-anchors.SM1 — Phase evidence that survives normal git operations
 
 **Persona:** Safeword Maintainer (SM)
@@ -195,9 +227,42 @@ _Draft — to be converged at resume (intake is parked, not exited)._
 > When a feature ticket's phases advance and the branch is later amended,
 > rebased, squash-merged, or checked out shallowly, I want each phase's evidence
 > to remain verifiable from the final tree alone, so the #810 boundary gate can
-> hard-block forged state without false-blocking honest git hygiene.
+> police forged state without false-blocking honest git hygiene.
 
-Rules: authored at resume, informed by the shape #810 ships.
+#### artifact-content-phase-anchors.SM1.R1 — A forward advance anchors the entered phase to the exit artifact of the phase being left
+
+The anchor value is that artifact's repo-relative path; only the entered phase
+is demanded on a multi-step advance (skipped phases stay `phase_skips`
+territory), and re-advancing a phase replaces its anchor meaning (last-wins is
+the documented, correct semantic — the latest artifact is the phase's output).
+
+#### artifact-content-phase-anchors.SM1.R2 — An anchored advance verifies from the tree alone, under any history
+
+A transition whose anchored artifact exists in the tree (and passes the
+artifact's shape predicate) is anchored — identically in a full clone, a
+shallow clone, after amend, rebase, or squash-merge. No check consults git
+history for phase anchors.
+
+#### artifact-content-phase-anchors.SM1.R3 — A forward advance without a real artifact behind it is detectable as unanchored
+
+Missing anchor entry for the entered phase, a value that is not a plausible
+repo-relative path, a path absent from the tree, or an artifact failing its
+shape predicate — each is programmatically detectable, with a remediation
+message naming the exact line to write. Detection fires only on the policed
+act (a feature ticket's forward advance); backward moves, re-declarations,
+non-feature tickets, and tickets at rest stay silent.
+
+#### artifact-content-phase-anchors.SM1.R4 — Legacy SHA anchors neither warn at rest nor block new work
+
+A hex-shaped (7-40 char) anchor value on an existing ticket is grandfathered:
+at-rest checks stay silent on it, and only a new forward transition carrying a
+hex-shaped anchor for its entered phase draws the migrate-to-path remediation.
+
+#### artifact-content-phase-anchors.SM1.R5 — The R/G/R ledger's per-tick commit SHAs are untouched
+
+`test-definitions.md` tick annotations keep their SHA grammar, reachability
+resolution, and done-gate validation exactly as shipped — the redesign removes
+the phase-anchor dependency on git history, not the ledger's.
 
 ## Rave Moment
 
@@ -206,34 +271,25 @@ belongs to #810's boundary gate.
 
 ## Outcomes
 
-_To finalize at resume; the direction:_
-
-- A forward phase advance records `<relpath>@<hash>` for the phase entered;
-  boundary verification is a pure read of the final tree.
-- All six SHA-fragility issues (#902-#905, #911, #912) are dissolved with
-  citations; #909 and #910 get explicit, tested semantics.
+- A feature ticket's forward advance records
+  `- <phase-entered>: <repo-relative-artifact-path>`; detection and boundary
+  verification are pure reads of the tree — no git history anywhere in the
+  phase-anchor path.
+- The boundary gate's anchor check upgrades at the commit tier from
+  format-only to full verification (artifact exists in the staged tree +
+  shape), and the push tier's anchor check drops its resolver dependency —
+  `createLedgerShaResolver` remains ledger-only.
+- All six SHA-fragility issues dissolve with citations: #902 (off-by-one),
+  #903 (squash), #904 (amend), #905 (shared HEAD), #911 (shallow clone),
+  #912 (rebase-hostility); #909 and #910 get explicit, tested semantics
+  (honest backfill; documented last-wins).
+- Existing SHA-anchored tickets stay quiet at rest; docs (ticket-system skill,
+  glossary) and the `safeword check` advisory teach the path grammar.
 - The R/G/R ledger's per-tick SHA model is untouched.
 
 ## Open Questions
 
-- Hash semantics at the boundary: existence + phase-validity only, or hash
-  equality for frozen-at-exit artifacts (verify.md) with existence-only for
-  evolving ones (spec.md, .feature, ledger)? Artifacts legitimately evolve after
-  the advance (spec refined in define-behavior, ledger annotated through
-  implement, impl-plan reconciled at implement exit), so blanket hash-equality
-  in the final tree would false-block honest work — but hash-at-advance still
-  gives at-rest drift advisories and advance-time attestation. Settle via
-  /figure-it-out at resume, against whatever shape #810 shipped. defer: on hold
-  until #810 lands.
-- Machine-stamped anchors: E32M4P's PostToolUse observer already fires on
-  exactly the policed edit and could hash the artifact itself — converting the
-  anchor from self-asserted to control-plane-generated (the SLSA property
-  RM84M8 cited). RM84M8 rejected only a self-asserted *channel string* stamp;
-  machine-stamping the anchor value was never weighed. defer: same.
-- Migration of existing SHA anchors (RM84M8, E32M4P, and other dogfood tickets
-  carry `- <phase>: <sha>`): tolerate both grammars at rest, or one-shot
-  rewrite? defer: same.
-- #918's gitignored review-stamp log: give scenario-gate's independent-review
-  evidence a committed home, or accept the "conclusion committed, evidence
-  ephemeral" split as the tree-verification limit? defer: adjacent issue, not
-  this ticket's scope decision.
+_None — hash semantics, machine-stamping, and legacy migration were settled by
+the 2026-07-08 /figure-it-out (recorded in the Primitive section and ticket.md
+Design Decision). #918's gitignored review-stamp log: defer — adjacent issue
+about where review evidence lives, not this ticket's anchor-value decision._
