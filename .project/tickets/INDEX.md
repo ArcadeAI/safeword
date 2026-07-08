@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (407)
+## Tickets (409)
 
 ### 001
 
@@ -940,7 +940,7 @@
 - **dependency-readiness false-positive stale after rebase (mtime vs content) (4JMBXT)** (in_progress, epic: —)
   Make the dependency-readiness stale decision content-based (fingerprint marker) so rebase/checkout/clone no longer falsely block dependency-backed commands.
   → `.project/tickets/4JMBXT-dep-readiness-mtime-stale`
-- **Schedule the retro-reconcile sweep in CI (4KP67A)** (backlog, epic: —)
+- **Schedule the retro-reconcile sweep in CI (4KP67A)** (in_progress, epic: —)
   A standalone scheduled workflow (daily off-peak cron + workflow_dispatch, permissions issues:write/contents:read) runs safeword retro-reconcile against the upstream repo and fails loudly
   → `.project/tickets/4KP67A-reconcile-ci-schedule`
 - **Use generic file paths in shipped guidance examples (4YJV1N)** (in_progress, epic: —)
@@ -1196,6 +1196,10 @@
   Resolve the five unused exports knip flagged — delete the truly dead
   external issue: https://github.com/ArcadeAI/safeword/issues/718
   → `.project/tickets/J2R9HY-prune-unused-exports`
+- **Track decompress critical audit regression (J555B9)** (done, epic: —)
+  Track and resolve the new critical bun audit advisory in the root shellcheck dependency chain.
+  external issue: https://github.com/advisories/GHSA-mp2f-45pm-3cg9
+  → `.project/tickets/J555B9-track-decompress-critical-audit-regression`
 - **Bump 6 dev-tool dependencies (audit follow-up) (JCC69C)** (backlog, epic: —)
   Bring the six outdated dev-tool dependencies up to their current
   external issue: https://github.com/ArcadeAI/safeword/issues/717
@@ -1247,6 +1251,10 @@
   blocked by: safeword sync-tracker — one-way projection to Linear + GitHub Issues (JS5K5G)
   external issue: https://github.com/ArcadeAI/safeword/issues/347
   → `.project/tickets/M1FGRJ-tracker-relations-projection`
+- **Document uncommittable RED evidence path (M8NNX0)** (in_progress, epic: —)
+  Make the TDD instructions explicitly handle RED states that cannot be committed because structural quality gates reject partial code.
+  external issue: https://github.com/ArcadeAI/safeword/issues/586
+  → `.project/tickets/M8NNX0-document-uncommittable-red-evidence`
 - **Local ticket schema: epic + blocked_on, warn-only + one blocked_on hard gate (MBGQ89)** (done, epic: —)
   Promote `epic` and `blocked_on` from ad-hoc free-text frontmatter to canonical fields, validated **warn-only** by `safeword check` — with exactly **one** hard gate: `blocked_on` denies advancing a ticket's phase out of `intake` while a same-repo dependency isn't `done` (other terminal states need a reasoned override). (`depends_on` already landed via [AKZJXC](../AKZJXC-ticket-relations/ticket.md); `parent`/`paired_with` are deferred — no consumer yet.)
   → `.project/tickets/MBGQ89-ticket-deps-schema`
