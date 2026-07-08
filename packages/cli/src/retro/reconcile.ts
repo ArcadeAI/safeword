@@ -3,7 +3,7 @@
 // closes; idempotent via the marker comment; per-issue isolation like triage.
 
 import { RETRO_LABEL } from './draft.js';
-import { PROCESS_PREFIX } from './egress.js';
+import { isProcessSurface } from './egress.js';
 import { findLedgerComment, parseLedger, type StoredProvenance } from './ledger.js';
 import type { IssueComment } from './triage.js';
 
@@ -151,7 +151,7 @@ async function evaluateIssue(
   tracker: ReconcileTracker,
 ): Promise<IssueVerdict> {
   const surface = surfaceOf(issue);
-  if (!surface || surface.startsWith(PROCESS_PREFIX)) return 'skip';
+  if (!surface || isProcessSurface(surface)) return 'skip';
 
   const comments = await tracker.listComments(issue.number);
   const existing = existingFlagVerdict(issue, comments);

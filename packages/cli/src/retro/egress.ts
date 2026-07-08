@@ -298,7 +298,17 @@ export async function sanitizeTextDeep(text: string): Promise<string> {
 // under `process/<slug>`. The surface field BYPASSES sanitizeTextDeep — this
 // wall is the only egress guarantee on it — so the slug is a strict bounded
 // token: lowercase alphanumerics + hyphens, ≤32 chars, non-empty.
-export const PROCESS_PREFIX = 'process/';
+const PROCESS_PREFIX = 'process/';
+
+/**
+ * Domain predicate: does this (already-resolved) surface live in the virtual
+ * process namespace? The single answer to that question — draft labeling and
+ * the reconcile sweep both key on it, so the namespace's representation can
+ * change in one place.
+ */
+export function isProcessSurface(surface: string): boolean {
+  return surface.startsWith(PROCESS_PREFIX);
+}
 const PROCESS_SLUG_SHAPE = /^[a-z0-9-]{1,32}$/;
 const PROCESS_HEX_RUN = /^[0-9a-f]+$/;
 // The entropy backstop applies to the hyphen-stripped slug from this length up
@@ -345,7 +355,7 @@ function resolveProcessSurface(slug: string): string | undefined {
  * tails through the same separator-bounded segment + internal-prefix allowlist.
  */
 export function resolveSurface(surface: string): string | undefined {
-  if (surface.startsWith(PROCESS_PREFIX)) {
+  if (isProcessSurface(surface)) {
     return resolveProcessSurface(surface.slice(PROCESS_PREFIX.length));
   }
   const tail = safewordInternalTail(surface) ?? safewordInternalTail(`.safeword/${surface}`);
