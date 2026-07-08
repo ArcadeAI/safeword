@@ -123,6 +123,27 @@ Feature: plan-implementation phase before TDD
       When the planning and TDD phase docs are read
       Then they direct updating the plan and superseding any affected ADR when implementation contradicts a planned decision, before verify
 
+  @plan-implementation-phase.TB1.R5
+  Rule: plan-implementation-phase.TB1.R5 — customer-visible changes carry a doc-impact plan
+
+    Scenario: Customer-visible changes enumerate their doc impact in the plan
+      Given the shipped bdd skill documents and the impl-plan template
+      When the Doc impact section is read
+      Then it directs enumerating which configured documentation sources the feature's customer-visible changes touch, as build-order tasks or an explicit skip with a reason
+
+    Scenario: Legacy five-section plans keep passing their gates
+      Given a feature ticket whose impl-plan.md has the original five sections and no Doc impact section
+      When the plan is validated at a phase gate
+      Then the plan passes
+
+  @plan-implementation-phase.TB1.R6
+  Rule: plan-implementation-phase.TB1.R6 — proof coverage spans every spec-affected surface
+
+    Scenario: Each affected surface appears in the plan's proof coverage
+      Given the shipped bdd skill documents
+      When PLAN_IMPLEMENTATION.md is read
+      Then it directs recording, for each surface the spec lists as affected, the proof that covers it or a per-surface skip with a reason
+
   @plan-implementation-phase.TB2.R1
   Rule: plan-implementation-phase.TB2.R1 — plan depth tracks feature size and risk in both directions
 

@@ -54,6 +54,10 @@ Consistent with the project glossary: Phase, Gate, Reconciliation, Phase Anchor.
 
 #### plan-implementation-phase.TB1.R4 — the architecture record stays honest through planning: prior decisions are reviewed, significant new decisions are offered as ADRs, and deviations supersede the record instead of silently contradicting it
 
+#### plan-implementation-phase.TB1.R5 — customer-visible changes carry a doc-impact plan: the configured documentation sources they touch are enumerated as build-order tasks, or skipped with a reason, and legacy five-section plans keep passing their gates
+
+#### plan-implementation-phase.TB1.R6 — the plan's proof coverage spans every spec-affected surface, or records a per-surface skip
+
 ### plan-implementation-phase.TB2 — right-sized planning artifacts
 
 **Persona:** Technical Builder (TB)
@@ -179,6 +183,11 @@ Added at the fifth signoff round (2026-07-08 — environment skills, docs curren
 
 20. **Language/environment skill surfacing is relevance-scoped:** the phase directs mapping installed language skills (`.claude/skills/<lang>-*` — Go via #482, TypeScript, Rust, and future packs like redis/Astro) to the plan's scenarios — but scoped to what the feature actually touches, never the repository's full inventory. A polyglot monorepo must not context-flood the phase; the pointer-not-list principle from the #480/#530 design holds (skill descriptions are already always-loaded in the picker). Mechanism boundary unchanged: #530 wires the entry-reminder trigger; this ticket pins what the phase doc directs.
 21. **Current-docs planning:** for each component or library the plan selects, the phase directs reading the installed version's documentation before recording the decision — extending intake's library-docs rule to planning time, so designs aren't stale for Go/TypeScript/anything. /quality-review's version-currency angle at implement stays the verification backstop.
+
+Added at the sixth signoff round (2026-07-08 — doc impact, customer surfaces):
+
+22. **Doc impact is a sixth impl-plan section (template-driven, parser validates-if-present):** impl-plan-template.md gains a content-or-skip "Doc impact" section directing enumeration of which configured `docs.sources` surfaces the feature's customer-visible changes touch (updates become build-order tasks); `parseImplPlan` validates the section when present but never requires it, so in-flight five-section plans pass their gates untouched — no staged tightening (/figure-it-out verdict: the scaffold slot solves the decay failure; parser tightening stays in reserve if skip-laundering emerges). Audit-side consumption of this section is ticket 3BTGMW's scope, not this ticket's.
+23. **Customer surfaces.md is a planning input:** the plan's proof planning covers each spec-affected surface (from the project's surfaces.md) — naming the proof that covers it or a per-surface skip — and the affected-surface list is the relevance selector for skill/doc surfacing (generalizing decision 20's "what the feature touches").
 
 ## Open Questions
 

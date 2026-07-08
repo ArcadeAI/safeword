@@ -122,6 +122,30 @@ _RED evidence: uncapturable pre-build — over-blocking guard; passes today by d
 - [ ] GREEN
 - [ ] REFACTOR
 
+## Rule: plan-implementation-phase.TB1.R5 — customer-visible changes carry a doc-impact plan
+
+### Scenario: Customer-visible changes enumerate their doc impact in the plan
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Legacy five-section plans keep passing their gates
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+_RED evidence: uncapturable pre-build — over-blocking guard; passes today by design (#928 convention)._
+
+## Rule: plan-implementation-phase.TB1.R6 — proof coverage spans every spec-affected surface
+
+### Scenario: Each affected surface appears in the plan's proof coverage
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: plan-implementation-phase.TB2.R1 — plan depth tracks feature size and risk in both directions
 
 ### Scenario: The planning doc keys plan depth to blast radius in both directions

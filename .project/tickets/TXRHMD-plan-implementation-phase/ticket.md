@@ -16,6 +16,7 @@ scope:
   - superseding ADR in ARCHITECTURE.md
   - ship `.safeword/templates/adr-template.md` (ownedFiles doc-template + schema registration); PLAN_IMPLEMENTATION.md directs ADR emission to the paths.architecture-resolved location (file appends, directory gets date-prefixed files)
   - "`designApprovalGate` config toggle (default off) — conversational approval gate after the phase's independent review; PLAN_IMPLEMENTATION.md routes deep design through existing design-doc/data-architecture lanes; config-reference doc line for the new key"
+  - impl-plan template gains a sixth content-or-skip "Doc impact" section (docs.sources enumeration); parseImplPlan validates it when present, never requires it (legacy five-section plans grandfathered)
   - update tests pinned to the old phase order and authoring point; new transition-gate tests
   - minimal website touch — the BDD flow enumeration in hooks-and-skills.mdx
 out_of_scope:
