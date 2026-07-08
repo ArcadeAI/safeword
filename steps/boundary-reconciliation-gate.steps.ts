@@ -18,6 +18,7 @@ import nodePath from 'node:path';
 
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
+import { implPlanContent } from './anchor-fixtures.ts';
 import type { SafewordWorld } from './world.js';
 
 const PROJECT_ROOT = nodePath.resolve(import.meta.dirname, '..');
@@ -40,36 +41,6 @@ function writeFileAt(dir: string, relative: string, content: string): void {
   const full = nodePath.join(dir, relative);
   mkdirSync(nodePath.dirname(full), { recursive: true });
   writeFileSync(full, content);
-}
-
-/** A minimal impl-plan.md that passes parseImplPlan — the implement anchor's artifact. */
-function implPlanContent(): string {
-  return [
-    '# Impl Plan: fixture',
-    '',
-    '**Status:** planned',
-    '',
-    '## Approach',
-    '',
-    'Do the fixture work.',
-    '',
-    '## Decisions',
-    '',
-    'skip: fixture',
-    '',
-    '## Arch alignment',
-    '',
-    'skip: fixture',
-    '',
-    '## Known deviations',
-    '',
-    'skip: fixture',
-    '',
-    '## Assessment triggers',
-    '',
-    'skip: fixture',
-    '',
-  ].join('\n');
 }
 
 function ticketContent(options: {

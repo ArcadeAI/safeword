@@ -20,6 +20,7 @@ import { pathToFileURL } from 'node:url';
 
 import { Given, Then, When } from '@cucumber/cucumber';
 
+import { implPlanContent } from './anchor-fixtures.ts';
 import type { SafewordWorld } from './world.js';
 
 const PROJECT_ROOT = nodePath.resolve(import.meta.dirname, '..');
@@ -36,32 +37,7 @@ const LEDGER = `${TICKET_DIR}/test-definitions.md`;
 const FEATURE_SRC = 'features/fixture.feature';
 const GONE = `${TICKET_DIR}/gone/impl-plan.md`;
 
-const SHAPE_VALID_IMPL_PLAN = [
-  '# Impl Plan: fixture',
-  '',
-  '**Status:** planned',
-  '',
-  '## Approach',
-  '',
-  'Do the fixture work.',
-  '',
-  '## Decisions',
-  '',
-  'skip: fixture',
-  '',
-  '## Arch alignment',
-  '',
-  'skip: fixture',
-  '',
-  '## Known deviations',
-  '',
-  'skip: fixture',
-  '',
-  '## Assessment triggers',
-  '',
-  'skip: fixture',
-  '',
-].join('\n');
+const SHAPE_VALID_IMPL_PLAN = implPlanContent();
 
 const HOLLOW_IMPL_PLAN = [
   '# Impl Plan: fixture',
