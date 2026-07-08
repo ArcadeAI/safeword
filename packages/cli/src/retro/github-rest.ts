@@ -66,16 +66,14 @@ export function resolveGitHubToken(
   return getGhToken();
 }
 
-function buildHeaders(token: string): Record<string, string> {
-  return {
+/** The one place auth + API headers are wired to fetch; both transports compose this. */
+function buildCall(token: string) {
+  const headers: Record<string, string> = {
     Authorization: `Bearer ${token}`,
     Accept: 'application/vnd.github+json',
     'X-GitHub-Api-Version': '2022-11-28',
     'User-Agent': 'safeword-retro',
   };
-}
-
-function buildCall(headers: Record<string, string>) {
   return async function call(method: string, path: string, body?: unknown): Promise<unknown> {
     const response = await fetch(`${API}${path}`, {
       method,
@@ -97,8 +95,7 @@ function buildCall(headers: Record<string, string>) {
 export function createRestTransport(token: string | undefined): IssueTracker | undefined {
   if (!token) return undefined;
 
-  const headers = buildHeaders(token);
-  const call = buildCall(headers);
+  const call = buildCall(token);
 
   return {
     async searchBySignature(signature: string): Promise<IssueReference[]> {
@@ -162,7 +159,7 @@ export function createReconcileTransport(token: string | undefined): ReconcileTr
   const base = createRestTransport(token);
   if (!token || !base) return undefined;
 
-  const call = buildCall(buildHeaders(token));
+  const call = buildCall(token);
 
   /** Committer date of a commit SHA (committer, not author — squash-merge time). */
   async function commitDate(sha: string): Promise<string | undefined> {
