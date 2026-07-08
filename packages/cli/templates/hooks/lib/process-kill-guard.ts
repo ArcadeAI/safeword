@@ -21,6 +21,8 @@
 // backslash before an ordinary letter is that letter, so the pattern still
 // kills every `java` process (EDDABK).
 
+import nodePath from 'node:path';
+
 import { commandWordIndex, parseShellWords, splitShellSegments } from './shell-segments.js';
 
 export interface ProcessKillDetection {
@@ -90,8 +92,13 @@ export function detectBroadProcessKill(command: string): ProcessKillDetection | 
     const words = parseShellWords(segment);
     let index = commandWordIndex(words);
     while (words[index] === 'sudo') index += 1;
-    const commandWord = words[index];
-    if (commandWord === undefined || !NAME_MATCHING_KILLERS.has(commandWord)) continue;
+    const rawCommandWord = words[index];
+    if (rawCommandWord === undefined) continue;
+    // Match by basename so an absolute path (`/usr/bin/pkill`) is judged the
+    // same as the bare name — consistent with how the shared tokenizer already
+    // basename-matches env/corepack.
+    const commandWord = nodePath.basename(rawCommandWord);
+    if (!NAME_MATCHING_KILLERS.has(commandWord)) continue;
     const args = words.slice(index + 1);
     for (let argIndex = 0; argIndex < args.length; argIndex += 1) {
       const word = args[argIndex] ?? '';

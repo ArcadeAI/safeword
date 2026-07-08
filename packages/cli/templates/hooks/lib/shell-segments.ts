@@ -30,6 +30,14 @@ export function splitShellSegments(command: string): string[] {
       continue;
     }
     if (char === '\\' && quote !== "'") {
+      // A backslash-newline is a bash line continuation: both characters are
+      // removed and the surrounding text joins, so `pkill \<newline>node`
+      // runs `pkill node` — drop both rather than letting the literal newline
+      // fuse onto the next word and hide it from the gates.
+      if (command[index + 1] === '\n') {
+        index += 1;
+        continue;
+      }
       current += char;
       escaped = true;
       continue;
@@ -52,6 +60,15 @@ export function splitShellSegments(command: string): string[] {
       continue;
     }
     if ((char === '&' && next === '&') || (char === '|' && next === '|')) {
+      pushSegment(segments, current);
+      current = '';
+      index += 1;
+      continue;
+    }
+    // `|&` pipes stdout+stderr (bash) — a boundary whose trailing `&` must be
+    // consumed, else it becomes the next segment's phantom command word. The
+    // `>|` clobber-redirect exception applies here too (`>|&` is not a pipe).
+    if (char === '|' && next === '&' && command[index - 1] !== '>') {
       pushSegment(segments, current);
       current = '';
       index += 1;
@@ -129,8 +146,8 @@ const ENV_OPTIONS_WITH_VALUES = new Set(['--argv0', '--chdir', '--unset', '-a', 
  * word, not `(`; looping means `FOO=1 env BAR=2 corepack pnpm install`
  * resolves to `pnpm`.
  *
- * Deliberately NOT skipped (pre-existing behavior, out of EDDABK's scope):
- * `sudo` (the kill-guard skips it itself), `nohup`/`nice`/`time`/`xargs`.
+ * Deliberately NOT skipped (pre-existing behavior): `sudo` (the kill-guard
+ * skips it itself), `nohup`/`nice`/`time`/`xargs`.
  */
 export function commandWordIndex(words: string[]): number {
   let index = 0;
@@ -142,6 +159,11 @@ export function commandWordIndex(words: string[]): number {
     if (word === undefined) return index;
     if (word === 'command') {
       index += 1;
+      // `command -p CMD` runs CMD with the default PATH, so CMD is the real
+      // command word — skip the `-p`. `command -v`/`-V` DESCRIBE without
+      // running, so they are left in place and never mistaken for a run of
+      // the command they name.
+      while (words[index] === '-p') index += 1;
       continue;
     }
     const binary = nodePath.basename(word);

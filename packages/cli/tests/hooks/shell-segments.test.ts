@@ -60,6 +60,20 @@ describe('splitShellSegments', () => {
     ]);
   });
 
+  it('Scenario: `|&` (stdout+stderr pipe) is a boundary that consumes the `&`', () => {
+    // The trailing `&` must not survive as the next segment's first word (HRDN42).
+    expect(splitShellSegments('tail -f log |& pkill node')).toEqual(['tail -f log', 'pkill node']);
+    expect(splitShellSegments('a|&b')).toEqual(['a', 'b']);
+  });
+
+  it('Scenario: a backslash-newline line continuation collapses (HRDN42)', () => {
+    // bash removes `\<newline>` entirely and joins the surrounding text.
+    expect(splitShellSegments('pkill \\\nnode')).toEqual(['pkill node']);
+    expect(splitShellSegments('pk\\\nill node')).toEqual(['pkill node']);
+    // A backslash before any other char stays a literal escape in the segment.
+    expect(splitShellSegments(String.raw`echo a\;b`)).toEqual([String.raw`echo a\;b`]);
+  });
+
   it('Scenario: segments are trimmed and empty segments dropped', () => {
     expect(splitShellSegments('bun ci ||')).toEqual(['bun ci']);
     expect(splitShellSegments('| npm ci')).toEqual(['npm ci']);
@@ -99,6 +113,16 @@ describe('commandWordIndex', () => {
   it('Scenario: skips environment assignments and the command builtin', () => {
     expect(resolve('FOO=1 BAR=2 npm ci')).toEqual(['npm', 'ci']);
     expect(resolve('command npm ci')).toEqual(['npm', 'ci']);
+  });
+
+  it('Scenario: skips `command -p` (runs CMD) but not `command -v` (describes it)', () => {
+    // `command -p git commit` runs git → resolve past the -p (HRDN42).
+    expect(resolve('command -p git commit')).toEqual(['git', 'commit']);
+    expect(resolve('command -p -p pkill node')).toEqual(['pkill', 'node']);
+    // `command -v`/`-V` DESCRIBE without running — leave the flag as the word so
+    // callers never treat `command -v git` as a run of git.
+    expect(resolve('command -v git')).toEqual(['-v', 'git']);
+    expect(resolve('command -V pkill')).toEqual(['-V', 'pkill']);
   });
 
   it('Scenario: skips env by basename, including its options', () => {

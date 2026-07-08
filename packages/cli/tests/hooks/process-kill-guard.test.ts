@@ -59,6 +59,34 @@ describe('detectBroadProcessKill', () => {
         command: 'pkill',
         target: 'node',
       });
+      // The killer itself matched by basename — an absolute path does not evade
+      // (HRDN42). sudo + abspath compose.
+      expect(detectBroadProcessKill('/usr/bin/pkill node')).toEqual({
+        command: 'pkill',
+        target: 'node',
+      });
+      expect(detectBroadProcessKill('sudo /usr/bin/killall node')).toEqual({
+        command: 'killall',
+        target: 'node',
+      });
+      // `command -p CMD` runs CMD with the default PATH — the CMD resolves,
+      // so a broad kill behind it is caught (HRDN42).
+      expect(detectBroadProcessKill('command -p pkill node')).toEqual({
+        command: 'pkill',
+        target: 'node',
+      });
+      // A backslash-newline is a bash line continuation: `pkill \<newline>node`
+      // runs `pkill node` and must not evade (HRDN42).
+      expect(detectBroadProcessKill('pkill \\\nnode')).toEqual({
+        command: 'pkill',
+        target: 'node',
+      });
+      // `|&` pipes stdout+stderr — the trailing `&` is consumed, so the piped
+      // command is a real segment, not a phantom `&`-led one (HRDN42).
+      expect(detectBroadProcessKill('tail -f log |& pkill node')).toEqual({
+        command: 'pkill',
+        target: 'node',
+      });
       // POSIX single-quote rule: the backslash does not escape the closing
       // quote, so the `;` splits and the kill segment is visible (EDDABK).
       expect(detectBroadProcessKill(String.raw`echo 'a\'; pkill node`)).toEqual({
