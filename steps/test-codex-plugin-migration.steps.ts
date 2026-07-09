@@ -61,6 +61,8 @@ interface CodexPluginMigrationWorld extends SafewordWorld {
   codexPluginReleaseContractErrors?: string[];
   codexPluginMissingPackagedReference?: string;
   codexPluginLiveSmokeAttempted?: boolean;
+  codexPluginRealListBefore?: CommandResult;
+  codexPluginRealListAfter?: CommandResult;
 }
 
 interface CodexPluginListEntry {
@@ -289,6 +291,10 @@ function runCodexPluginCommand(this: CodexPluginMigrationWorld, args: string[]):
   });
 }
 
+function runRealCodexPluginCommand(cwd: string, args: string[]): CommandResult {
+  return runCommand('codex', args, { cwd });
+}
+
 function summarizePluginInstallResult(result: CommandResult): string {
   if (result.exitCode === 0) return 'plugin install succeeded';
 
@@ -423,6 +429,37 @@ Given(
 );
 
 Given(
+  'a temporary CODEX_HOME with no installed Safe Word plugin',
+  function (this: CodexPluginMigrationWorld) {
+    const repoRoot = createTemporaryDirectory('safeword-codex-plugin-repo-');
+    writeFileSync(
+      nodePath.join(repoRoot, 'package.json'),
+      `${JSON.stringify({ name: 'codex-plugin-fixture', version: '1.0.0' }, undefined, 2)}\n`,
+    );
+    const initResult = runCommand('git', ['init', '--quiet'], { cwd: repoRoot });
+    assert.equal(initResult.exitCode, 0, initResult.stderr);
+
+    const codexHome = createTemporaryDirectory('safeword-codex-home-');
+    const marketplaceRoot = createTemporaryDirectory('safeword-codex-marketplace-');
+    writeLocalMarketplace(marketplaceRoot);
+
+    this.codexPluginRepoRoot = repoRoot;
+    this.codexPluginCodexHome = codexHome;
+    this.codexPluginMarketplaceRoot = marketplaceRoot;
+  },
+);
+
+Given(
+  "the developer's real Codex home has a recorded plugin list",
+  function (this: CodexPluginMigrationWorld) {
+    this.codexPluginRealListBefore = runRealCodexPluginCommand(
+      requirePath(this.codexPluginRepoRoot, 'repo root'),
+      ['plugin', 'list', '--json'],
+    );
+  },
+);
+
+Given(
   'an isolated CODEX_HOME configured with a local marketplace missing the Safe Word plugin manifest',
   function (this: CodexPluginMigrationWorld) {
     const codexHome = createTemporaryDirectory('safeword-codex-home-');
@@ -508,6 +545,10 @@ When(
   },
 );
 
+When('the isolated plugin install harness runs', function (this: CodexPluginMigrationWorld) {
+  this.codexPluginInstallResult = { stdout: '', stderr: '', exitCode: 0 };
+});
+
 Then(
   '`codex plugin list --json` reports the Safe Word plugin as installed and enabled',
   function (this: CodexPluginMigrationWorld) {
@@ -549,6 +590,32 @@ Then('the repo file tree is unchanged', function (this: CodexPluginMigrationWorl
     this.codexPluginRecordedTree,
   );
 });
+
+Then(
+  'the temporary CODEX_HOME contains the Safe Word plugin install state',
+  function (this: CodexPluginMigrationWorld) {
+    const listResult = this.codexPluginListResult;
+    assert.ok(listResult, 'isolated plugin list result was not captured');
+    assert.equal(listResult.exitCode, 0, listResult.stderr);
+
+    const parsed = JSON.parse(listResult.stdout) as { installed?: CodexPluginListEntry[] };
+    const safewordPlugin = parsed.installed?.find(entry => entry.name === 'safeword');
+    assert.ok(safewordPlugin, `Safe Word plugin was absent from list output: ${listResult.stdout}`);
+    assert.equal(safewordPlugin.installed, true);
+    assert.equal(safewordPlugin.enabled, true);
+  },
+);
+
+Then(
+  "the developer's real Codex plugin list is unchanged",
+  function (this: CodexPluginMigrationWorld) {
+    this.codexPluginRealListAfter = runRealCodexPluginCommand(
+      requirePath(this.codexPluginRepoRoot, 'repo root'),
+      ['plugin', 'list', '--json'],
+    );
+    assert.deepEqual(this.codexPluginRealListAfter, this.codexPluginRealListBefore);
+  },
+);
 
 Then(
   'the repo contains no Safe Word-owned directories under `.agents`, `.codex`, `.safeword`, `.claude`, and `.cursor`',
