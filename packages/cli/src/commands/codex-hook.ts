@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
-type SupportedCodexHookEvent = 'pre-tool-use';
+type SupportedCodexHookEvent = 'pre-tool-use' | 'session-start';
 
 interface CodexHookInput {
   hook_event_name?: string;
@@ -24,8 +24,20 @@ interface DenialOutput {
   };
 }
 
+interface AdditionalContextOutput {
+  hookSpecificOutput: {
+    hookEventName: 'SessionStart';
+    additionalContext: string;
+  };
+}
+
 const EXPLAIN_HINT = 'Run `safeword:explain` for a plain-English version of this block.';
 const REQUIRED_INTAKE_FIELDS = ['scope', 'out_of_scope', 'done_when'] as const;
+const MODULE_DIRECTORY = import.meta.dirname;
+const SAFEWORD_INSTRUCTIONS_PATHS = [
+  nodePath.resolve(MODULE_DIRECTORY, '../templates/SAFEWORD.md'),
+  nodePath.resolve(MODULE_DIRECTORY, '../../templates/SAFEWORD.md'),
+];
 
 async function readStdin(): Promise<string> {
   let body = '';
@@ -45,7 +57,8 @@ function parseCodexHookInput(raw: string): CodexHookInput | undefined {
 }
 
 function normalizeEvent(event: string): SupportedCodexHookEvent | undefined {
-  return event === 'pre-tool-use' ? event : undefined;
+  if (event === 'pre-tool-use' || event === 'session-start') return event;
+  return undefined;
 }
 
 function extractPatchTargets(command: string): string[] {
@@ -116,6 +129,15 @@ function deny(reason: string): void {
   process.stdout.write(`${JSON.stringify(buildDenyOutput(reason))}\n`);
 }
 
+function readPackagedSafewordInstructions(): string | undefined {
+  const instructionsPath = SAFEWORD_INSTRUCTIONS_PATHS.find(candidate => existsSync(candidate));
+  return instructionsPath ? readFileSync(instructionsPath, 'utf8') : undefined;
+}
+
+function emitAdditionalContext(output: AdditionalContextOutput): void {
+  process.stdout.write(`${JSON.stringify(output)}\n`);
+}
+
 function maybeDenyTestDefinitionsWrite(projectDirectory: string, targetPath: string): boolean {
   const ticketFolder = testDefinitionsTicketFolder(targetPath);
   if (!ticketFolder) return false;
@@ -143,8 +165,24 @@ async function runPreToolUse(): Promise<void> {
   }
 }
 
+async function runSessionStart(): Promise<void> {
+  const input = parseCodexHookInput(await readStdin());
+  if (!input) return;
+
+  const additionalContext = readPackagedSafewordInstructions();
+  if (!additionalContext) return;
+
+  emitAdditionalContext({
+    hookSpecificOutput: {
+      hookEventName: 'SessionStart',
+      additionalContext,
+    },
+  });
+}
+
 export async function codexHook(event: string): Promise<void> {
   const normalized = normalizeEvent(event);
   if (normalized === undefined) return;
   if (normalized === 'pre-tool-use') await runPreToolUse();
+  else if (normalized === 'session-start') await runSessionStart();
 }
