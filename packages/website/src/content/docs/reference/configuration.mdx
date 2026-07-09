@@ -122,6 +122,18 @@ Hooks are configured in `.claude/settings.json` (Claude Code), `.cursor/hooks.js
 
 To disable a specific hook, remove the safeword hook entry from that agent's config.
 
+### Design approval gate
+
+`designApprovalGate` (default: off) keeps the plan-implementation phase autonomous: the independently reviewed implementation plan advances to TDD without a human checkpoint. Technical builders who want to approve the design before any code can opt in:
+
+```json
+{
+  "designApprovalGate": true
+}
+```
+
+When enabled, the agent presents the reviewed plan (riskiest assumption, build order, decisions) and waits for approval before entering the implement phase. In headless/cloud sessions the pending approval is recorded in the ticket work log and the plan surfaces in the session's reviewable output instead of stalling the run.
+
 ## Customizing Without Losing Upgrades
 
 Safeword has two types of files:
