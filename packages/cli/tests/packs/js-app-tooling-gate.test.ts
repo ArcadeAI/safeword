@@ -85,4 +85,17 @@ describe('JS-app-only tooling is gated on real JS source (BE7C7B)', () => {
     expect(generator?.(withoutJs)).toBeUndefined();
     expect(generator?.(withJs)).toBeDefined();
   });
+
+  it('baselines the system shellcheck binary when shell tooling is present', () => {
+    const generator = SAFEWORD_SCHEMA.managedFiles?.['knip.json']?.generator;
+    const withoutShell = generator?.(ctxWith(projectType({ hasJsSource: true, shell: false })));
+    const withShell = generator?.(ctxWith(projectType({ hasJsSource: true, shell: true })));
+
+    expect(
+      (JSON.parse(String(withoutShell)) as { ignoreBinaries?: string[] }).ignoreBinaries ?? [],
+    ).not.toContain('shellcheck');
+    expect(
+      (JSON.parse(String(withShell)) as { ignoreBinaries?: string[] }).ignoreBinaries,
+    ).toContain('shellcheck');
+  });
 });

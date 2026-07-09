@@ -89,7 +89,7 @@ function getKnipConfig(ctx: ProjectContext): object {
   // safewordIgnoreDirectories/resolvedIgnoreDirectories list — so resolve the
   // custom root directly here rather than reusing that composer.
   const customRoot = resolvedNamespaceDirectory(ctx);
-  const config = {
+  const config: { ignore: string[]; ignoreDependencies: string[]; ignoreBinaries?: string[] } = {
     ignore: [
       '.safeword/**',
       '.project/**',
@@ -98,6 +98,8 @@ function getKnipConfig(ctx: ProjectContext): object {
     ],
     ignoreDependencies: ['safeword', 'dependency-cruiser'],
   };
+
+  if (ctx.projectType.shell) config.ignoreBinaries = ['shellcheck'];
 
   addKnipIgnores(config, ctx);
   addKnipIgnoreDependencies(config, ctx);

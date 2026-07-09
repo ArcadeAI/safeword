@@ -9,6 +9,7 @@
   ],
   "ignoreBinaries": [
     "shfmt",
+    "shellcheck",
     "dot",
     "claude",
     "codex",
