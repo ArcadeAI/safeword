@@ -497,6 +497,7 @@ function phaseTransitionContext(toolInput: HookInput['tool_input']): {
   priorPhase: string | undefined;
   proposedPhase: string | undefined;
   proposedType: string | undefined;
+  proposedContent: string;
 } {
   const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : '';
   const proposedContent = nextContentAfterEdit(toolInput, priorContent);
@@ -505,6 +506,7 @@ function phaseTransitionContext(toolInput: HookInput['tool_input']): {
     priorPhase: frontmatterScalar(frontmatterFromContent(priorContent), 'phase'),
     proposedPhase: frontmatterScalar(proposedMeta, 'phase'),
     proposedType: frontmatterScalar(proposedMeta, 'type'),
+    proposedContent,
   };
 }
 
@@ -512,9 +514,9 @@ function phaseTransitionContext(toolInput: HookInput['tool_input']): {
 // scenario work starts. The existing test-definitions.md gate still guards the
 // first scenario-file write; this catches the earlier phase edit.
 if (isCanonicalTicketEdit) {
-  const { priorPhase, proposedPhase, proposedType } = phaseTransitionContext(input.tool_input);
-  const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : '';
-  const proposedContent = nextContentAfterEdit(input.tool_input, priorContent);
+  const { priorPhase, proposedPhase, proposedType, proposedContent } = phaseTransitionContext(
+    input.tool_input,
+  );
 
   if (
     proposedType === 'feature' &&
