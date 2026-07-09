@@ -24,7 +24,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED e15dfb17
 - [x] GREEN a651e556
-- [ ] REFACTOR
+- [x] REFACTOR skip: plugin skill bundle is intentionally three small separate files
 
 ### Scenario: Bare-name compatibility shims are treated as repo-residue
 
