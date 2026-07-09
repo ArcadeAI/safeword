@@ -154,7 +154,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Default verification skips the live Codex smoke with an explicit reason
 
-- [ ] RED
+- [x] RED e9813484
 - [ ] GREEN
 - [ ] REFACTOR
 
