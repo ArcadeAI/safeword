@@ -29,7 +29,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Bare-name compatibility shims are treated as repo-residue
 
 - [x] RED 596b924a
-- [ ] GREEN
+- [x] GREEN 45e0e916
 - [ ] REFACTOR
 
 ## Rule: test-codex-plugin-migration.TB1.R3 — Safe Word Codex hooks execute the packaged CLI entrypoints and preserve the existing deny, allow, context, and continuation semantics
