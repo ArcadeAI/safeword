@@ -23,6 +23,7 @@
     }
   },
   "files": [
+    "codex-plugin",
     "dist",
     "templates"
   ],
