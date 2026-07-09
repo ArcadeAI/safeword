@@ -34,8 +34,8 @@ test -f AGENTS.md && echo "AGENTS.md ✓"
 - `.safeword/hooks/` - Auto-linting, quality review hooks
 - `.claude/settings.json` - Hook configuration for Claude Code
 - `.claude/skills/` - Skills and slash-command workflows for Claude Code
-- `.codex/config.toml` - Hook configuration for Codex
-- `.agents/skills/` - Skills for Codex
+- `.codex/config.toml` - Hook configuration for Codex using packaged `safeword codex-hook` commands
+- `.codex/agents/` - Codex agent configuration for Safe Word retro filing
 - `.cursor/hooks.json` - Hook configuration for Cursor
 - `.cursor/rules/` - Behavior rules for Cursor
 - `.cursor/commands/` - Slash commands for Cursor
@@ -127,8 +127,10 @@ Key directories created in your project:
 - `.safeword/guides/` - Core methodology and best practices
 - `.safeword/templates/` - Fillable document structures
 - `<namespace-root>/tickets/` - Tickets for complex/multi-step work (context anchors)
-- `.safeword/hooks/` - Automation scripts (Claude Code + Cursor + Codex)
-- `.claude/skills/`, `.agents/skills/`, `.cursor/rules/` - Specialized agent capabilities
+- `.safeword/hooks/` - Automation scripts (Claude Code + Cursor; Codex runs packaged CLI hook commands)
+- `.claude/skills/`, `.cursor/rules/` - Specialized agent capabilities
+- `.codex/config.toml` - Codex hook configuration for packaged Safe Word commands
+- `.codex/agents/` - Codex agent configuration for retro filing
 - `.cursor/commands/` - Slash commands for Cursor
 
 ---
@@ -252,22 +254,18 @@ Key directories created in your project:
 - `cursor/after-file-edit.ts` - Auto-lints after Cursor file edits
 - `cursor/stop.ts` - Quality review prompt on Cursor stop
 - `cursor/post-tool-skill-nudge.ts` - Cursor adapter for the language coding-skill nudge (dormant pending Cursor bug #534)
-- `codex/pre-tool-quality.ts` - Adapts Codex PreToolUse events to safeword's quality gate
-- `codex/stop.ts` - Runs invisible retro extraction and emits Stop continuations for done-phase reminders such as ARCHITECTURE.md drift
-- `codex/post-tool-skill-nudge.ts` - Codex adapter for the language coding-skill nudge
-- `codex/post-tool-quality.ts` - Codex adapter that maintains per-session quality state (LOC, active-ticket binding)
 
-Codex edit-gate coverage is limited to the documented PreToolUse
-tool calls that Safeword configures (`Bash`, `apply_patch` edit payloads, and
-MCP tools). Live Codex runs can also report `file_change` execution items; those
-are recorded as a runtime boundary, not as edits Safeword claims to guard through
-PreToolUse. Codex Stop hooks are separate: Safeword uses continuation semantics
-(`decision: "block"`, `reason`) for done-phase reminders such as ARCHITECTURE.md
-drift, while retro extraction runs silently and synchronously; any unfiled drafts
-surface later through the shared UserPromptSubmit `prompt-retro-nudge.ts` hook
-rather than a Stop continuation.
+Codex hooks are configured in `.codex/config.toml` and run from the package:
+`npx --yes safeword codex-hook session-start`, `user-prompt-submit`,
+`pre-tool-use`, `post-tool-use`, and `stop`. They do not require
+`.safeword/hooks/codex/*.ts` files in the repo. Codex edit-gate coverage is
+limited to the documented PreToolUse tool calls Safeword configures (`Bash`,
+`apply_patch` edit payloads, and file-editing tools). Live Codex runs can also
+report `file_change` execution items; those are recorded as a runtime boundary,
+not as edits Safeword claims to guard through PreToolUse. Codex Stop hooks use
+continuation semantics (`decision: "block"`, `reason`) for done-phase reminders.
 
-**Skills** (in `.claude/skills/` and `.agents/skills/`): Specialized agent capabilities
+**Skills** (in `.claude/skills/`): Specialized agent capabilities
 
 - `bdd/` - BDD orchestrator for feature-level work (Discovery, Scenarios, TDD, Verify, Splitting, Done)
 - `debug/` - Four-phase debugging (investigate before fixing)
@@ -276,9 +274,11 @@ rather than a Stop continuation.
 - `testing/` - Test writing methodology (iron laws, anti-patterns)
 - `ticket-system/` - Ticket system and work logs for context anchoring
 
-**Language coding-skills** (auto-installed per language): when safeword detects a Go, Python, TypeScript, or Rust project, `setup`/`upgrade` install a small third-party coding-skill for that language (via `npx skills`, into `.claude/skills/` and `.agents/skills/`), and `post-tool-skill-nudge.ts` points the agent at it the first time you edit that language in a scenario. Best-effort — a missing network or installer error degrades to a warning, never blocks setup. Works across Claude, Codex, and Cursor (Cursor's injection is dormant pending platform bug #534). Note: frontier models already write most core idioms unaided, so this is a light nudge, not a transformation.
+**Codex plugin skills**: Codex gets Safe Word workflow skills from the Safe Word Codex plugin, with scoped names such as `safeword:bdd`, `safeword:verify`, and `safeword:explain`. Safeword no longer installs Safe Word-owned workflow aliases into `.agents/skills/`.
 
-**Commands**: Cursor gets explicit command files in `.cursor/commands/`; Claude Code exposes slash-command behavior through skills. Codex uses repo-scoped skills in `.agents/skills/` rather than command files.
+**Language coding-skills** (auto-installed per language): when safeword detects a Go, Python, TypeScript, or Rust project, `setup`/`upgrade` install a small third-party coding-skill for that language (via `npx skills`, into `.claude/skills/` and, where supported by the agent, `.agents/skills/`). These are third-party language helpers, not Safe Word Codex workflow files. The Claude Code on-edit nudge points the agent at the matching skill the first time you edit that language in a scenario; Cursor's adapter is dormant pending platform bug #534. Best-effort — a missing network or installer error degrades to a warning, never blocks setup. Note: frontier models already write most core idioms unaided, so this is a light nudge, not a transformation.
+
+**Commands**: Cursor gets explicit command files in `.cursor/commands/`; Claude Code exposes slash-command behavior through skills. Codex uses plugin-scoped skills such as `safeword:bdd` rather than repo-scoped command files.
 
 - `/audit` - Run architecture and dead code analysis
 - `/bdd` - Force BDD flow for current task
@@ -526,15 +526,15 @@ The CLI installs matching workflow capabilities for Claude Code, Cursor, and Cod
 
 **Parity tests:** `packages/cli/tests/schema.test.ts`
 
-| Agent       | Workflow Surface                       | Commands / Hooks                                   |
-| ----------- | -------------------------------------- | -------------------------------------------------- |
-| Claude Code | `.claude/skills/*`                     | Skills expose slash-command behavior               |
-| Cursor      | `.cursor/rules/{safeword-*,bdd-*}.mdc` | `.cursor/commands/*.md`, `.cursor/hooks.json`      |
-| Codex       | `.agents/skills/*`                     | `.codex/config.toml`, `.safeword/hooks/codex/*.ts` |
+| Agent       | Workflow Surface                         | Commands / Hooks                                                                   |
+| ----------- | ---------------------------------------- | ---------------------------------------------------------------------------------- |
+| Claude Code | `.claude/skills/*`                       | Skills expose slash-command behavior                                               |
+| Cursor      | `.cursor/rules/{safeword-*,bdd-*}.mdc`   | `.cursor/commands/*.md`, `.cursor/hooks.json`                                      |
+| Codex       | Codex plugin skills (`safeword:<skill>`) | `.codex/config.toml` and plugin hooks call `npx --yes safeword codex-hook <event>` |
 
 **Editing skills:**
 
-1. Edit templates in `packages/cli/templates/skills/` (Claude Code and Codex) and `packages/cli/templates/cursor/rules/` (Cursor)
+1. Edit templates in `packages/cli/templates/skills/` (Claude Code), `packages/cli/codex-plugin/skills/` (Codex), and `packages/cli/templates/cursor/rules/` (Cursor)
 2. Update `packages/cli/src/schema.ts` if adding/removing skills
 3. Run parity tests: `bun run test -- --testNamePattern="parity"`
 4. Run `bunx safeword upgrade` to sync to local project

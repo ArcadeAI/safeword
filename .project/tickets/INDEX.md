@@ -937,7 +937,7 @@
   → `.project/tickets/3N3Q7B`
 - **Serialize package tests across checkouts (419)** (done, epic: —)
   → `.project/tickets/419-global-package-test-lock`
-- **Test Codex plugin migration (4DK9H4)** (in_progress, epic: —)
+- **Test Codex plugin migration (4DK9H4)** (done, epic: —)
   Prove Safe Word works in Codex through a plugin and package-runner CLI entrypoints without installing bulky repo-local assets.
   → `.project/tickets/4DK9H4-test-codex-plugin-migration`
 - **dependency-readiness false-positive stale after rebase (mtime vs content) (4JMBXT)** (in_progress, epic: —)

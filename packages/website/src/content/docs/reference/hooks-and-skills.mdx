@@ -7,7 +7,7 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 ## Slash Commands
 
-Quick actions you type in Claude Code or Cursor. Just type the command and hit enter. Codex uses the same repo-scoped skills through `.agents/skills/`, not separate safeword command files.
+Quick actions you type in Claude Code or Cursor. Just type the command and hit enter. Codex uses plugin-scoped skills such as `safeword:bdd`, `safeword:verify`, and `safeword:explain`.
 
 | Command            | What it does                              |
 | ------------------ | ----------------------------------------- |
@@ -84,30 +84,31 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
 
   </TabItem>
   <TabItem label="Codex">
-    Safeword installs hook config (`.codex/config.toml`) and repo-scoped skills (`.agents/skills/`) for Codex.
+    Safeword's Codex support is package/plugin-backed. Project setup writes hook config (`.codex/config.toml`) that calls packaged Safe Word commands; the Codex plugin provides scoped workflow skills.
 
-| When                          | What happens                                                |
-| ----------------------------- | ----------------------------------------------------------- |
-| Before supported tools        | Runs safeword's PreToolUse quality gate adapter             |
-| Agent edits Go/Python/TS/Rust | Points it at that language's coding-skill                   |
-| You stop the session          | Runs silent retro extraction and Stop continuation nudges   |
-| You submit a prompt           | Shows a factual nudge when unfiled retro drafts are waiting |
+| When                            | What happens                                              |
+| ------------------------------- | --------------------------------------------------------- |
+| Session starts                  | Loads packaged Safe Word standing instructions            |
+| Before supported tools          | Runs the packaged `safeword codex-hook pre-tool-use` gate |
+| Agent finishes a supported tool | Surfaces queued Safe Word post-tool context               |
+| You submit a prompt             | Surfaces queued Safe Word prompt context                  |
+| You stop the session            | Emits queued Stop continuation nudges                     |
 
-    Safeword's Codex edit-gate adapter covers the documented PreToolUse paths it configures: `Bash`, `apply_patch` edit payloads, and MCP tools. Live Codex runs can also report `file_change` execution items; Safeword records that as a Codex runtime boundary, not as a PreToolUse path it claims to guard. The Codex Stop adapter is separate: it uses continuation output for done-phase reminders such as ARCHITECTURE.md drift, while retro extraction runs synchronously and silently. Unfiled retro drafts use the UserPromptSubmit nudge lane instead of a Stop continuation.
+    Safeword's Codex edit-gate command covers the documented PreToolUse paths it configures: `Bash`, `apply_patch` edit payloads, and file-editing tools. Live Codex runs can also report `file_change` execution items; Safeword records that as a Codex runtime boundary, not as a PreToolUse path it claims to guard. The Codex Stop command is separate: it uses continuation output for done-phase reminders such as ARCHITECTURE.md drift.
 
     ### Skills
 
-    Codex reads safeword workflows from `.agents/skills/`. These mirror the Claude Code skill templates for debugging, BDD/TDD, refactoring, testing, review, ticketing, and verification.
+    Codex reads safeword workflows from the Safe Word Codex plugin. The canonical invocation names are scoped, for example `safeword:bdd`, `safeword:verify`, and `safeword:explain`. Safeword no longer installs Safe Word-owned repo-local aliases under `.agents/skills/`.
 
     ### Hook trust
 
-    Project-local Codex hooks only run after you review and trust them in Codex. Safeword writes the config, but Codex owns the trust decision.
+    Codex hooks only run after you review and trust them in Codex. Safeword writes the project config and ships plugin hook metadata, but Codex owns the trust decision.
 
     Hook config: `.codex/config.toml`
 
-Hook adapters: `.safeword/hooks/codex/pre-tool-quality.ts`, `.safeword/hooks/codex/stop.ts`, `.safeword/hooks/prompt-retro-nudge.ts`
+Hook commands: `npx --yes safeword codex-hook <event>`
 
-    Skill files: `.agents/skills/`
+    Plugin skill files: bundled in the Safe Word package under `codex-plugin/skills/`
 
   </TabItem>
 </Tabs>
@@ -141,9 +142,9 @@ When safeword sets up (or upgrades) a project, it installs a small third-party *
 | TypeScript | `jeffallan/typescript-pro` |
 | Rust       | `leonardomso/rust-skills`  |
 
-Skills install into `.claude/skills/` and `.agents/skills/` via the `npx skills` CLI. The install is **best-effort** — a missing network or installer error degrades to a warning and never blocks setup. It runs once; later upgrades skip it when the skill is already present.
+Language coding-skills install into `.claude/skills/` and, where supported by the agent, `.agents/skills/` via the `npx skills` CLI. These are third-party language helpers, not Safe Word Codex workflow aliases. The install is **best-effort** — a missing network or installer error degrades to a warning and never blocks setup. It runs once; later upgrades skip it when the skill is already present.
 
-**What you see:** edit a `.go` / `.py` / `.ts` / `.tsx` / `.rs` file and a one-line reminder points your agent at the matching skill and surfaces the skill's own description. It fires once per scenario and stays silent for other file types. Works across Claude Code and Codex; the Cursor adapter is built but dormant until Cursor fixes an upstream injection bug ([#534](https://github.com/TheMostlyGreat/safeword/issues/534)).
+**What you see:** edit a `.go` / `.py` / `.ts` / `.tsx` / `.rs` file and, in Claude Code, a one-line reminder points your agent at the matching skill and surfaces the skill's own description. It fires once per scenario and stays silent for other file types. The Cursor adapter is built but dormant until Cursor fixes an upstream injection bug ([#534](https://github.com/TheMostlyGreat/safeword/issues/534)). Codex's Safe Word workflow guidance now comes from the Codex plugin rather than repo-local `.agents/skills/` aliases.
 
 To skip the skill install, set `SAFEWORD_SKIP_SKILLS=1` (or `SAFEWORD_SKIP_INSTALL=1` to skip all network installs during setup).
 
@@ -153,7 +154,7 @@ Frontier models already write most core-language idioms unaided, so treat this a
 
 ## Skills
 
-Skills are structured workflows that activate based on what you're asking for. Claude Code uses `.claude/skills/`; Codex uses `.agents/skills/`. When you say "debug this test failure" or "refactor this function", your agent follows the skill's methodology instead of jumping straight to code changes.
+Skills are structured workflows that activate based on what you're asking for. Claude Code uses `.claude/skills/`; Codex uses the Safe Word Codex plugin's scoped skills. When you say "debug this test failure" or "refactor this function", your agent follows the relevant methodology instead of jumping straight to code changes.
 
 | Skill             | Triggers on                                                                                                         |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------- |

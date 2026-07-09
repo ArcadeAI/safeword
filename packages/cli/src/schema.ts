@@ -196,7 +196,7 @@ timeout = 30
 statusMessage = "Checking spooled safeword retro drafts"
 `;
 
-export const CODEX_USER_PROMPT_SUBMIT_HOOK_PATCH = `
+const CODEX_USER_PROMPT_SUBMIT_HOOK_PATCH = `
 [[hooks.UserPromptSubmit]]
 
 [[hooks.UserPromptSubmit.hooks]]
@@ -271,7 +271,7 @@ timeout = 30
 statusMessage = "Checking safeword PreToolUse gates"
 `;
 
-export const CODEX_POST_TOOL_USE_HOOK_PATCH = `
+const CODEX_POST_TOOL_USE_HOOK_PATCH = `
 [[hooks.PostToolUse]]
 matcher = "^(apply_patch|Bash|Edit|Write|MultiEdit|NotebookEdit)$"
 

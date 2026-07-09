@@ -103,10 +103,10 @@ Feature: Codex retro parity — invisible local extraction and Lane-2 filing
   Rule: UserPromptSubmit surfaces unfiled Codex drafts
 
     @codex-retro-parity.SM1.AC3 @surface.codex-user-prompt-submit @surface.config-wiring
-    Scenario: The generated Codex config wires the prompt-retro-nudge hook
+    Scenario: The generated Codex config wires the packaged UserPromptSubmit hook
       Given a project installed with Codex hooks
       When a new user prompt starts after retro drafts remain spooled
-      Then the Codex UserPromptSubmit hook runs `prompt-retro-nudge.ts`
+      Then the Codex UserPromptSubmit hook runs `safeword codex-hook user-prompt-submit`
 
     @codex-retro-parity.SM1.AC3 @surface.codex-user-prompt-submit
     Scenario: The Codex prompt nudge fires once per unfiled batch

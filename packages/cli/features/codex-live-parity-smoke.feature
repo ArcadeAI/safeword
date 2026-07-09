@@ -1,22 +1,22 @@
 @codex-live-parity-smoke @live @manual
 Feature: Codex live parity smoke
 
-  Safeword's Codex parity is proven in a trusted customer-like repo after the
-  generator and PreToolUse spike are available.
+  Safeword's Codex parity is proven in a trusted customer-like repo with
+  package-backed Codex hook commands and no repo-local Codex implementation tree.
 
-  Rule: Trusted Codex session sees generated safeword assets
+  Rule: Trusted Codex session sees generated safeword config
 
     @codex-live-parity-smoke.SM1.AC1
     Scenario: Empty customer repo installs Codex assets
       Given an empty customer-like repository
       When safeword installs Codex-facing assets for that repository
-      Then the repository contains `AGENTS.md`, `.codex/config.toml`, `.agents/skills`, and the Codex PreToolUse adapter
+      Then the repository contains `AGENTS.md` and `.codex/config.toml` with packaged Safe Word hook commands
 
     @codex-live-parity-smoke.SM1.AC2
-    Scenario: Trusted Codex session loads safeword instructions and skills
+    Scenario: Trusted Codex session loads safeword project instructions
       Given a trusted Codex CLI session in the installed repository
       When the session starts
-      Then Codex can see safeword project instructions and repo-scoped skills
+      Then Codex can see safeword project instructions without repo-local Safe Word skills
 
   Rule: Trusted Codex session enforces supported edit hooks
 

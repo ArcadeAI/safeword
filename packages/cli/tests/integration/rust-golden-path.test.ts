@@ -783,15 +783,13 @@ describe('E2E: Rust Lint Hook Package Targeting', () => {
   it.skipIf(!IS_CLIPPY_AVAILABLE)(
     'lint hook runs cargo clippy with -p <package> for workspace member (Scenario 10)',
     () => {
-      // Create a file with a clippy-fixable issue: single_char_pattern
-      // clippy suggests 'l' (char) instead of "l" (string) for contains()
-      // This CANNOT be fixed by rustfmt, only by clippy --fix
+      // Create a file with a clippy-fixable issue. This cannot be fixed by
+      // rustfmt, so the output proves clippy --fix ran for the package.
       writeTestFile(
         projectDirectory,
         'crates/core/src/lib.rs',
-        `pub fn test_function() -> bool {
-    let s = "hello";
-    s.contains("l")
+        `pub fn test_function() -> String {
+    format!("hello")
 }
 `,
       );
@@ -802,10 +800,9 @@ describe('E2E: Rust Lint Hook Package Targeting', () => {
       // Hook should complete successfully
       expect(result.status).toBe(0);
 
-      // Verify clippy ran and fixed the single_char_pattern issue
-      // If clippy ran with --fix, it changes "l" to 'l'
+      // Verify clippy ran and fixed the redundant format! call.
       const fixed = readTestFile(projectDirectory, 'crates/core/src/lib.rs');
-      expect(fixed).toContain("s.contains('l')"); // Clippy fix: char instead of &str
+      expect(fixed).toContain('"hello".to_string()');
     },
   );
 

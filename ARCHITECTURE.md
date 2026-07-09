@@ -1,7 +1,7 @@
 # Safeword Architecture
 
-**Version:** 1.16
-**Last Updated:** 2026-07-06
+**Version:** 1.17
+**Last Updated:** 2026-07-09
 **Status:** Production
 
 ---
@@ -65,6 +65,7 @@ ESLint configs are bundled in the main package and accessed via `import safeword
 
 ```text
 packages/cli/
+├── codex-plugin/    # Codex plugin bundle (manifest, hooks.json, scoped safeword:<skill> skills)
 ├── src/
 │   ├── commands/         # CLI commands (setup, upgrade, check, diff, reset, sync-config, sync-learnings, …)
 │   ├── learning-sync/    # Generates <namespace-root>/learnings/INDEX.md from learning files
@@ -91,14 +92,14 @@ packages/cli/
 │   ├── SAFEWORD.md     # Core instructions (installed to .safeword/)
 │   ├── AGENTS.md       # Project context template
 │   ├── commands/       # Slash commands (see templates/commands/ for full list)
-│   ├── codex/          # Codex hook config
+│   ├── codex/          # Codex project config that calls packaged `safeword codex-hook` commands
 │   ├── cursor/         # Cursor IDE rules (.mdc files)
 │   ├── doc-templates/  # Feature specs, design docs, tickets
 │   ├── guides/         # Methodology guides (TDD, planning, etc.)
-│   ├── hooks/          # Claude Code, Cursor, and Codex hook adapters
+│   ├── hooks/          # Claude Code and Cursor hook adapters plus shared hook libraries
 │   ├── prompts/        # Prompt templates for commands
 │   ├── scripts/        # Shell scripts (cleanup, bisect)
-│   └── skills/         # Claude Code and Codex skills (see templates/skills/ for full list)
+│   └── skills/         # Claude Code skills (Codex workflow skills live in codex-plugin/skills)
 ```
 
 ---
@@ -400,7 +401,7 @@ tsup → dist/
   └── *.d.ts              # Type declarations
 ```
 
-Published files: `dist/` + `templates/` (bundled for setup/upgrade).
+Published files: `dist/` + `templates/` (bundled for setup/upgrade) + `codex-plugin/` (bundled for Codex plugin install).
 
 **Publish gate:** `prepublishOnly` runs `test:release` (dogfood parity) then `build`.
 
@@ -459,7 +460,7 @@ Published files: `dist/` + `templates/` (bundled for setup/upgrade).
 | Why            | BDD skill's discovery phase covers brainstorming; Phase 6 includes full TDD; Claude Code has native plan mode |
 | Trade-off      | Less granular skill invocation; users must use `/bdd` for structured workflows                                |
 | Removed        | `safeword-tdd-enforcing`, `safeword-brainstorming`, `safeword-writing-plans` skills; `/tdd` command           |
-| Remaining      | See `templates/skills/` for current list                                                                      |
+| Remaining      | See `templates/skills/` for Claude Code and `packages/cli/codex-plugin/skills/` for Codex plugin skills       |
 | Implementation | Deprecated files listed in `packages/cli/src/schema.ts` deprecatedFiles/deprecatedDirs                        |
 
 ### Hard Block for Done Phase (Exit Code 2)
@@ -530,7 +531,7 @@ Published files: `dist/` + `templates/` (bundled for setup/upgrade).
 
 **Quality review cadence (SXSCJQ; implement-step reviews quieted by JENFZX):** The quality review fires at phase boundaries, not on a LOC throttle. PostToolUse surfaces a phase-appropriate review (`getQualityMessage`) as `additionalContext` on each `phase:` change in `ticket.md` — at the edit, so it works in long autonomous runs where the Stop hook never fires. Ordinary implement-step (RED/GREEN/REFACTOR) reviews no longer surface per step; they are folded into the whole-ticket review at the implement→verify exit (JENFZX). The Stop hook is a deduped backstop: it reviews per phase, but only for a boundary not already marked (`lastReviewedPhase` in session state), and still fires a generic review when there is no active ticket. The former implement-phase LOC review throttle (`LOC_REVIEW_THRESHOLD`) is removed. Shared decision logic lives in `lib/review-trigger.ts` (`shouldReviewPhase`); checkbox-flip detection in `lib/checkbox-transitions.ts`.
 
-**Cross-agent Stop delivery (JN403D):** Claude Code keeps the hard done-gate/review behavior in `stop-quality.ts`. Cursor and Codex use lighter local Stop adapters for continuation nudges, not hard done-gate enforcement: `cursor/stop.ts` appends `followup_message`, while `codex/stop.ts` emits Codex continuation output (`decision: "block"`, `reason`). Both reuse `architectureDocumentNudgeForProject` so the ARCHITECTURE.md drift advisory has one detector and agent-specific delivery wrappers.
+**Cross-agent Stop delivery (JN403D/P30CRP):** Claude Code keeps the hard done-gate/review behavior in `stop-quality.ts`. Cursor uses a lighter local Stop adapter for continuation nudges (`cursor/stop.ts` appends `followup_message`). Codex no longer installs repo-local Stop adapters; `.codex/config.toml` and the Codex plugin hook manifest call the packaged `npx --yes safeword codex-hook stop` entrypoint, which emits Codex continuation output (`decision: "block"`, `reason`) from queued project context. Codex Stop delivery is advisory continuation, not hard done-gate enforcement.
 
 **Gate clearing:** All gates clear automatically when `git rev-parse --short HEAD` changes (i.e., a commit happened). No manual intervention needed. TDD gates have priority over LOC gate (LOC gate cannot overwrite an active TDD gate).
 
