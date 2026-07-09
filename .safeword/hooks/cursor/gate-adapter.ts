@@ -14,6 +14,8 @@ import { spawnSync } from 'node:child_process';
 
 import { detectLedgerWrite } from '../lib/bash-ledger-writes.js';
 import { detectBroadProcessKill } from '../lib/process-kill-guard.js';
+import nodePath from 'node:path';
+
 import { commandWordIndex, parseShellWords, splitShellSegments } from '../lib/shell-segments.js';
 
 /** Fields present on every Cursor agent hook request (the "common schema"). */
@@ -259,10 +261,13 @@ export function requiresFailClosedShellGate(params: { command: string }): boolea
 }
 
 function isGitCommitSegment(words: string[]): boolean {
-  // commandWordIndex skips `VAR=val` assignments, `command`, and `env` prefixes
-  // so `GIT_AUTHOR_NAME=bot git commit` can't slip the fail-closed gate.
+  // commandWordIndex skips `VAR=val` assignments and `command`/`env`/
+  // `corepack` prefixes (looping, env matched by basename with its flags) so
+  // neither `GIT_AUTHOR_NAME=bot git commit` nor `/usr/bin/env git commit`
+  // can slip the fail-closed gate. The command word is basename-matched too, so
+  // `/usr/bin/git commit` is caught the same as bare `git commit`.
   let index = commandWordIndex(words);
-  if (words[index] !== 'git') return false;
+  if (nodePath.basename(words[index] ?? '') !== 'git') return false;
 
   index += 1;
   while (index < words.length && words[index]?.startsWith('-')) {

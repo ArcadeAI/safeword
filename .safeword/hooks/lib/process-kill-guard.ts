@@ -12,11 +12,24 @@
 //
 // The predicate classifies literal tokens, same doctrine as
 // bash-ledger-writes.ts: close the low-friction accident path, not every
-// adversarial path. Undetected forms include targets materialized at runtime
-// (`p=node; killall "$p"`), scripts that embed the kill, `xargs killall`,
-// and `sudo -u <user> killall node` (sudo option values are not modeled).
+// adversarial path. Undetected forms (all deliberate, adversarial-path) include
+// targets materialized at runtime (`p=node; killall "$p"`), scripts that embed
+// the kill, `xargs killall`, a lone `&` backgrounding the kill
+// (`sleep 1 & killall node` — `&` is not a segment boundary, same as the ledger
+// gate), `env -S 'killall node'` (GNU split-string is not re-tokenized), and
+// sudo compositions where a skippable prefix follows sudo (`sudo env killall
+// node`, `sudo -u <user> killall node` — commandWordIndex does not model sudo or
+// its option values, so only a leading `sudo` run is stripped, after prefix
+// resolution).
 // A quoted regex that anchors a bare name (`pkill '^node$'`) IS detected —
-// anchors are stripped before the name comparison.
+// anchors are stripped before the name comparison. So is a backslash-escape
+// (`pkill '\java'`, `pkill 'n\ode'`): a backslash before an ordinary character
+// in an ERE is undefined per POSIX and engine-dependent (glibc/BSD commonly
+// yield the literal char), so bareName strips ALL backslashes as a deliberate
+// conservative over-approximation — the guard over-matches rather than letting
+// an inserted backslash evade it (EDDABK).
+
+import nodePath from 'node:path';
 
 import { commandWordIndex, parseShellWords, splitShellSegments } from './shell-segments.js';
 
@@ -39,9 +52,18 @@ const NAME_MATCHING_KILLERS = new Set(['killall', 'pkill']);
  */
 const SHARED_RUNTIMES = new Set(['node', 'bun', 'deno', 'python', 'python3', 'ruby', 'java']);
 
-/** Strip regex anchors so `'^node$'` is judged as `node`. */
+/**
+ * Strip regex anchors and backslash-escapes so `'^node$'`, `'\java'`, and
+ * `'n\ode'` are all judged as their bare runtime name. A backslash before an
+ * ordinary character in an ERE is undefined per POSIX (engine-dependent), so
+ * stripping every backslash is a conservative over-match — `n\ode` still matches
+ * every `node` process; dropping backslashes wherever they appear keeps the
+ * comparison from being evaded by one. (POSIX single-quote tokenization now
+ * delivers interior backslashes intact, so a leading-only strip would miss
+ * `n\ode` — EDDABK.)
+ */
 function bareName(token: string): string {
-  return token.replace(/^\^/, '').replace(/\$$/, '');
+  return token.replaceAll('\\', '').replace(/^\^/, '').replace(/\$$/, '');
 }
 
 /**
@@ -79,8 +101,13 @@ export function detectBroadProcessKill(command: string): ProcessKillDetection | 
     const words = parseShellWords(segment);
     let index = commandWordIndex(words);
     while (words[index] === 'sudo') index += 1;
-    const commandWord = words[index];
-    if (commandWord === undefined || !NAME_MATCHING_KILLERS.has(commandWord)) continue;
+    const rawCommandWord = words[index];
+    if (rawCommandWord === undefined) continue;
+    // Match by basename so an absolute path (`/usr/bin/pkill`) is judged the
+    // same as the bare name — consistent with how the shared tokenizer already
+    // basename-matches env/corepack.
+    const commandWord = nodePath.basename(rawCommandWord);
+    if (!NAME_MATCHING_KILLERS.has(commandWord)) continue;
     const args = words.slice(index + 1);
     for (let argIndex = 0; argIndex < args.length; argIndex += 1) {
       const word = args[argIndex] ?? '';

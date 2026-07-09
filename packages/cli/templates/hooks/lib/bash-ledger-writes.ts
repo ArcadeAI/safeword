@@ -21,7 +21,7 @@
 //   - paths that reach the ledger only after symlink or `cd` resolution
 //   - a write following a single `&` (background operator) whose segment's
 //     command word is the backgrounded command — `&` is not a segment
-//     separator here (only `&&`, `;`, `|`, newline are)
+//     separator here (only `&&`, `||`, `;`, `|`, newline are)
 //
 // Known over-denials (fail-closed, accepted): heredoc body lines are parsed
 // as command segments, so a body line that looks like a ledger write denies.
@@ -31,6 +31,8 @@
 // ledger validation (ledger-validation.ts) remains the backstop that catches
 // whatever detection misses. Silence from this predicate means "nothing
 // detectable", never "nothing happened".
+
+import nodePath from 'node:path';
 
 import { isNamespacePath } from './namespace-root.js';
 import { commandWordIndex, parseShellWords, splitShellSegments } from './shell-segments.js';
@@ -143,7 +145,10 @@ function detectInSegment(segment: string): LedgerWriteDetection | undefined {
   if (redirection !== undefined) return redirection;
 
   const commandIndex = commandWordIndex(words);
-  const commandWord = words[commandIndex] ?? '';
+  // Match writers by basename so `/usr/bin/tee` / `/bin/cp` are judged the same
+  // as the bare names in the writer sets (consistent with the tokenizer's
+  // basename-matching of env/corepack).
+  const commandWord = nodePath.basename(words[commandIndex] ?? '');
   const rest = words.slice(commandIndex + 1);
   const arguments_ = rest.filter(word => !word.startsWith('-'));
 
