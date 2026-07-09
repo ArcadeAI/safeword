@@ -7,6 +7,13 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { removeTemporaryDirectory, runCli, writeTestFile } from '../helpers';
+
+const RETRO_SKIPS = [
+  'intake: retro',
+  'define-behavior: retro',
+  'scenario-gate: retro',
+  'plan-implementation: retro',
+];
 import {
   boundaryTicketContent as ticketContent,
   createBoundaryPushFixture,
@@ -182,12 +189,7 @@ describe('safeword boundary (N76NQ0: per-commit legality at push)', () => {
       `${TICKET}/ticket.md`,
       ticketContent({
         phase: 'implement',
-        skips: [
-          'intake: retro',
-          'define-behavior: retro',
-          'scenario-gate: retro',
-          'plan-implementation: retro',
-        ],
+        skips: RETRO_SKIPS,
       }),
     ));
   });
@@ -208,12 +210,7 @@ describe('safeword boundary (N76NQ0: per-commit legality at push)', () => {
       ticketContent({
         phase: 'verify',
         anchors: [`verify: ${a1}`],
-        skips: [
-          'intake: retro',
-          'define-behavior: retro',
-          'scenario-gate: retro',
-          'plan-implementation: retro',
-        ],
+        skips: RETRO_SKIPS,
       }),
     );
     git(dir, 'add -A');
@@ -225,12 +222,7 @@ describe('safeword boundary (N76NQ0: per-commit legality at push)', () => {
       ticketContent({
         phase: 'done',
         anchors: [`verify: ${a1}`, `done: ${a2}`],
-        skips: [
-          'intake: retro',
-          'define-behavior: retro',
-          'scenario-gate: retro',
-          'plan-implementation: retro',
-        ],
+        skips: RETRO_SKIPS,
       }),
     );
     git(dir, 'add -A');
@@ -250,12 +242,7 @@ describe('safeword boundary (N76NQ0: per-commit legality at push)', () => {
       ticketContent({
         phase: 'done',
         anchors: [`done: ${a1}`],
-        skips: [
-          'intake: retro',
-          'define-behavior: retro',
-          'scenario-gate: retro',
-          'plan-implementation: retro',
-        ],
+        skips: RETRO_SKIPS,
       }),
     );
     git(dir, 'add -A');
