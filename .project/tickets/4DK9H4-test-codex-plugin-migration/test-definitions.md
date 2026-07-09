@@ -38,7 +38,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 257d2213
 - [x] GREEN f21fc4be
-- [ ] REFACTOR
+- [x] REFACTOR skip: command is already split into parsing, target extraction, gate check, and output formatting
 
 ### Scenario: SessionStart context runs through the packaged CLI entrypoint
 
