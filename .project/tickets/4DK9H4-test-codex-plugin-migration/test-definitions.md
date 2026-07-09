@@ -86,7 +86,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: User-authored Codex skills survive the migration
 
-- [ ] RED
+- [x] RED 22fc256e
 - [ ] GREEN
 - [ ] REFACTOR
 
