@@ -30,7 +30,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 596b924a
 - [x] GREEN 45e0e916
-- [ ] REFACTOR
+- [x] REFACTOR skip: scoped examples are explicit leaf content with no shared structure
 
 ## Rule: test-codex-plugin-migration.TB1.R3 — Safe Word Codex hooks execute the packaged CLI entrypoints and preserve the existing deny, allow, context, and continuation semantics
 
