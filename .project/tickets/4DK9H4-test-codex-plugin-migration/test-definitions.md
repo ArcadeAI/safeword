@@ -37,7 +37,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: PreToolUse denial runs through the packaged CLI entrypoint
 
 - [x] RED 257d2213
-- [ ] GREEN
+- [x] GREEN f21fc4be
 - [ ] REFACTOR
 
 ### Scenario: SessionStart context runs through the packaged CLI entrypoint
