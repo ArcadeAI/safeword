@@ -72,7 +72,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Plugin hook commands never point at repo-local hook scripts
 
-- [ ] RED
+- [x] RED c06e85a8
 - [ ] GREEN
 - [ ] REFACTOR
 
