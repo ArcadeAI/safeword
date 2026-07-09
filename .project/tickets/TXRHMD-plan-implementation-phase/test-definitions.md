@@ -8,39 +8,39 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Feature with a valid plan advances into implement
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: over-blocking guard — allow-path passed pre-gate by design (#928); pinned in 93e792e0
+- [x] GREEN 34110654
+- [x] REFACTOR skip: shared slice-2 loop
 
 ### Scenario: Feature without a plan is denied entry to implement
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 93e792e0
+- [x] GREEN 34110654
+- [x] REFACTOR skip: shared slice-2 loop
 
 ### Scenario: Feature with an incomplete plan is denied entry to implement
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 93e792e0
+- [x] GREEN 34110654
+- [x] REFACTOR skip: shared slice-2 loop
 
 ### Scenario: Plan still marked implemented from a replan loop is denied entry
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 93e792e0
+- [x] GREEN 34110654
+- [x] REFACTOR skip: shared slice-2 loop
 
 ### Scenario: Legacy feature without spec.md is grandfathered past the plan gate
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: grandfather guard — passed pre-gate by design (#928); pinned in 93e792e0
+- [x] GREEN 34110654
+- [x] REFACTOR skip: shared slice-2 loop
 
 ### Scenario: Task tickets reach implement without a plan requirement
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: exemption guard — passed pre-gate by design (#928); pinned in 93e792e0
+- [x] GREEN 34110654
+- [x] REFACTOR skip: shared slice-2 loop
 
 _RED evidence: uncapturable pre-build — over-blocking guard; passes today by design (#928 convention)._
 
@@ -296,9 +296,9 @@ _RED evidence: uncapturable pre-build — over-blocking guard; passes today by d
 
 ### Scenario: Transition denial explains what is missing and what to do next
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 93e792e0
+- [x] GREEN 34110654
+- [x] REFACTOR skip: shared slice-2 loop
 
 ## Rule: plan-implementation-phase.SM1.R1 — every phase-keyed surface carries a plan-implementation entry
 
