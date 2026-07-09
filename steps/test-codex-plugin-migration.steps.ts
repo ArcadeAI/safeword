@@ -29,6 +29,7 @@ interface CodexPluginMigrationWorld extends SafewordWorld {
   codexPluginMarketplaceRoot?: string;
   codexPluginRecordedTree?: string[];
   codexPluginInstallResult?: CommandResult;
+  codexPluginInstallSummary?: string;
   codexPluginListResult?: CommandResult;
 }
 
@@ -169,6 +170,20 @@ Given(
   },
 );
 
+Given(
+  'an isolated CODEX_HOME configured with a local marketplace missing the Safe Word plugin manifest',
+  function (this: CodexPluginMigrationWorld) {
+    const codexHome = createTemporaryDirectory('safeword-codex-home-');
+    const marketplaceRoot = createTemporaryDirectory('safeword-codex-marketplace-');
+
+    writeLocalMarketplace(marketplaceRoot);
+    mkdirSync(nodePath.join(marketplaceRoot, 'plugins/safeword'), { recursive: true });
+
+    this.codexPluginCodexHome = codexHome;
+    this.codexPluginMarketplaceRoot = marketplaceRoot;
+  },
+);
+
 Given('the repo file tree has been recorded', function (this: CodexPluginMigrationWorld) {
   this.codexPluginRecordedTree = collectTree(requirePath(this.codexPluginRepoRoot, 'repo root'));
 });
@@ -211,6 +226,38 @@ When(
   },
 );
 
+When(
+  'the plugin install harness tries to install the Safe Word Codex plugin',
+  function (this: CodexPluginMigrationWorld) {
+    const marketplaceRoot = requirePath(this.codexPluginMarketplaceRoot, 'local marketplace root');
+
+    const addMarketplaceResult = runCodexPluginCommand.call(this, [
+      'plugin',
+      'marketplace',
+      'add',
+      marketplaceRoot,
+      '--json',
+    ]);
+    if (addMarketplaceResult.exitCode !== 0) {
+      this.codexPluginInstallResult = addMarketplaceResult;
+      return;
+    }
+
+    this.codexPluginInstallResult = runCodexPluginCommand.call(this, [
+      'plugin',
+      'add',
+      'safeword',
+      '--marketplace',
+      'safeword-local',
+      '--json',
+    ]);
+    this.codexPluginInstallSummary =
+      this.codexPluginInstallResult.exitCode === 0
+        ? 'plugin install succeeded'
+        : `${this.codexPluginInstallResult.stdout}\n${this.codexPluginInstallResult.stderr}`;
+  },
+);
+
 Then(
   '`codex plugin list --json` reports the Safe Word plugin as installed and enabled',
   function (this: CodexPluginMigrationWorld) {
@@ -235,6 +282,17 @@ Then(
   },
 );
 
+Then(
+  'the install result names the plugin manifest validation failure',
+  function (this: CodexPluginMigrationWorld) {
+    assert.notEqual(this.codexPluginInstallResult?.exitCode, 0, 'install unexpectedly succeeded');
+    assert.match(
+      this.codexPluginInstallSummary ?? '',
+      /plugin manifest validation failure: missing plugin\.json/u,
+    );
+  },
+);
+
 Then('the repo file tree is unchanged', function (this: CodexPluginMigrationWorld) {
   assert.deepEqual(
     collectTree(requirePath(this.codexPluginRepoRoot, 'repo root')),
@@ -249,6 +307,30 @@ Then(
     for (const relativePath of ['.agents', '.codex', '.safeword', '.claude', '.cursor']) {
       assert.equal(existsSync(nodePath.join(repoRoot, relativePath)), false, relativePath);
     }
+  },
+);
+
+Then(
+  /^the repo still has no `\.agents\/skills` Safe Word skill directory$/,
+  function (this: CodexPluginMigrationWorld) {
+    assert.equal(
+      existsSync(
+        nodePath.join(requirePath(this.codexPluginRepoRoot, 'repo root'), '.agents/skills'),
+      ),
+      false,
+    );
+  },
+);
+
+Then(
+  /^the repo still has no `\.safeword\/hooks\/codex` directory$/,
+  function (this: CodexPluginMigrationWorld) {
+    assert.equal(
+      existsSync(
+        nodePath.join(requirePath(this.codexPluginRepoRoot, 'repo root'), '.safeword/hooks/codex'),
+      ),
+      false,
+    );
   },
 );
 
