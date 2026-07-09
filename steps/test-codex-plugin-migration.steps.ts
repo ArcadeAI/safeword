@@ -5,6 +5,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   readdirSync,
   rmSync,
   writeFileSync,
@@ -32,6 +33,7 @@ interface CodexPluginMigrationWorld extends SafewordWorld {
   codexPluginInstallSummary?: string;
   codexPluginListResult?: CommandResult;
   codexPluginPromptResult?: CommandResult;
+  codexPluginInspectedText?: string;
 }
 
 interface CodexPluginListEntry {
@@ -87,6 +89,22 @@ function collectTree(root: string, relativeDirectory = ''): string[] {
   }
 
   return collected.sort();
+}
+
+function collectMarkdownText(root: string): string {
+  if (!existsSync(root)) return '';
+
+  const chunks: string[] = [];
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    const fullPath = nodePath.join(root, entry.name);
+    if (entry.isDirectory()) {
+      chunks.push(collectMarkdownText(fullPath));
+    } else if (entry.isFile() && entry.name.endsWith('.md')) {
+      chunks.push(readFileSync(fullPath, 'utf8'));
+    }
+  }
+
+  return chunks.join('\n');
 }
 
 function writeLocalMarketplace(marketplaceRoot: string): void {
@@ -420,6 +438,55 @@ Then('the available skills include `safeword:explain`', function (this: CodexPlu
   assert.equal(this.codexPluginPromptResult?.exitCode, 0, this.codexPluginPromptResult?.stderr);
   assert.ok(this.codexPluginPromptResult?.stdout.includes('safeword:explain'));
 });
+
+When('the generated repo files are inspected', function (this: CodexPluginMigrationWorld) {
+  const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
+  this.codexPluginInspectedText = [
+    collectTree(repoRoot).join('\n'),
+    collectMarkdownText(SAFEWORD_CODEX_PLUGIN_ROOT),
+  ].join('\n');
+});
+
+Then(
+  /^no Safe Word-owned `\.agents\/skills\/bdd\/SKILL\.md` alias exists$/,
+  function (this: CodexPluginMigrationWorld) {
+    assert.equal(
+      existsSync(
+        nodePath.join(
+          requirePath(this.codexPluginRepoRoot, 'repo root'),
+          '.agents/skills/bdd/SKILL.md',
+        ),
+      ),
+      false,
+    );
+  },
+);
+
+Then(
+  /^no Safe Word-owned `\.agents\/skills\/verify\/SKILL\.md` alias exists$/,
+  function (this: CodexPluginMigrationWorld) {
+    assert.equal(
+      existsSync(
+        nodePath.join(
+          requirePath(this.codexPluginRepoRoot, 'repo root'),
+          '.agents/skills/verify/SKILL.md',
+        ),
+      ),
+      false,
+    );
+  },
+);
+
+Then(
+  'user-facing Codex examples name `safeword:<skill>` instead of bare skill names',
+  function (this: CodexPluginMigrationWorld) {
+    const text = this.codexPluginInspectedText ?? '';
+    assert.match(text, /safeword:bdd/u);
+    assert.match(text, /safeword:verify/u);
+    assert.match(text, /safeword:explain/u);
+    assert.doesNotMatch(text, /(?:\$|\/)(?:bdd|verify|explain)\b/u);
+  },
+);
 
 Then('the plugin install has not created `AGENTS.md`', function (this: CodexPluginMigrationWorld) {
   assert.equal(
