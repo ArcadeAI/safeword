@@ -51,6 +51,8 @@ interface CodexPluginMigrationWorld extends SafewordWorld {
   codexPluginInspectedText?: string;
   codexPluginHookResult?: CommandResult;
   codexPluginHookCommands?: string[];
+  codexPluginMigrationResult?: CommandResult;
+  codexPluginUserDataSnapshot?: Record<string, string>;
 }
 
 interface CodexPluginListEntry {
@@ -237,6 +239,17 @@ function createCompleteFeatureTicket(projectRoot: string): void {
       '',
     ].join('\n'),
   );
+}
+
+function readUserDataSnapshot(projectRoot: string): Record<string, string> {
+  const snapshot: Record<string, string> = {};
+  for (const relativePath of [
+    '.project/tickets/USER123/ticket.md',
+    '.project/learnings/user-learning.md',
+  ]) {
+    snapshot[relativePath] = readFileSync(nodePath.join(projectRoot, relativePath), 'utf8');
+  }
+  return snapshot;
 }
 
 Given(
@@ -620,6 +633,65 @@ Given('the Safe Word Codex plugin hook manifest', function (this: CodexPluginMig
   this.codexPluginHookCommands = collectHookCommands(parsed);
 });
 
+Given(
+  "a repo installed with today's project-local Codex assets",
+  function (this: CodexPluginMigrationWorld) {
+    const repoRoot = createTemporaryDirectory('safeword-codex-migration-repo-');
+    writeFileSync(
+      nodePath.join(repoRoot, 'package.json'),
+      `${JSON.stringify({ name: 'codex-migration-fixture', version: '1.0.0' }, undefined, 2)}\n`,
+    );
+
+    const initResult = runCommand('git', ['init', '--quiet'], { cwd: repoRoot });
+    assert.equal(initResult.exitCode, 0, initResult.stderr);
+
+    mkdirSync(nodePath.join(repoRoot, '.safeword/hooks/codex'), { recursive: true });
+    mkdirSync(nodePath.join(repoRoot, '.agents/skills/bdd'), { recursive: true });
+    mkdirSync(nodePath.join(repoRoot, '.agents/skills/verify'), { recursive: true });
+    writeFileSync(nodePath.join(repoRoot, '.safeword/version'), '0.67.0\n');
+    writeFileSync(
+      nodePath.join(repoRoot, '.safeword/config.json'),
+      `${JSON.stringify({ installedPacks: [] }, undefined, 2)}\n`,
+    );
+    writeFileSync(
+      nodePath.join(repoRoot, '.safeword/hooks/codex/pre-tool-quality.ts'),
+      'old Safe Word Codex PreToolUse hook\n',
+    );
+    writeFileSync(
+      nodePath.join(repoRoot, '.safeword/hooks/codex/stop.ts'),
+      'old Safe Word Codex Stop hook\n',
+    );
+    writeFileSync(
+      nodePath.join(repoRoot, '.agents/skills/bdd/SKILL.md'),
+      'old Safe Word Codex BDD skill\n',
+    );
+    writeFileSync(
+      nodePath.join(repoRoot, '.agents/skills/verify/SKILL.md'),
+      'old Safe Word Codex verify skill\n',
+    );
+
+    this.codexPluginRepoRoot = repoRoot;
+  },
+);
+
+Given(
+  'the repo contains user-owned tickets and learnings under the namespace root',
+  function (this: CodexPluginMigrationWorld) {
+    const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
+    mkdirSync(nodePath.join(repoRoot, '.project/tickets/USER123'), { recursive: true });
+    mkdirSync(nodePath.join(repoRoot, '.project/learnings'), { recursive: true });
+    writeFileSync(
+      nodePath.join(repoRoot, '.project/tickets/USER123/ticket.md'),
+      'user ticket content\n',
+    );
+    writeFileSync(
+      nodePath.join(repoRoot, '.project/learnings/user-learning.md'),
+      'user learning content\n',
+    );
+    this.codexPluginUserDataSnapshot = readUserDataSnapshot(repoRoot);
+  },
+);
+
 When(
   "the packaged Codex PreToolUse entrypoint receives a supported edit payload for that ticket's `test-definitions.md`",
   function (this: CodexPluginMigrationWorld) {
@@ -738,6 +810,17 @@ When('the hook commands are inspected', function (this: CodexPluginMigrationWorl
   assert.ok(this.codexPluginHookCommands, 'hook commands were not loaded');
 });
 
+When('the plugin migration upgrade runs', function (this: CodexPluginMigrationWorld) {
+  const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
+  this.codexPluginMigrationResult = runCommand(process.execPath, [SAFEWORD_CLI_PATH, 'upgrade'], {
+    cwd: repoRoot,
+    env: {
+      SAFEWORD_SKIP_INSTALL: '1',
+    },
+    timeout: 120_000,
+  });
+});
+
 Then(
   'the hook output denies the edit with the existing Safe Word phase-gate reason',
   function (this: CodexPluginMigrationWorld) {
@@ -805,6 +888,36 @@ Then(
       assert.match(command, /\b(?:bunx|npx)(?:\s+--yes)?\s+safeword\b/u);
       assert.match(command, /\bcodex-hook\b/u);
     }
+  },
+);
+
+Then(
+  'the user-owned tickets and learnings remain byte-identical',
+  function (this: CodexPluginMigrationWorld) {
+    const result = this.codexPluginMigrationResult;
+    assert.ok(result, 'migration result was not captured');
+    assert.equal(result.exitCode, 0, result.stderr);
+    assert.deepEqual(
+      readUserDataSnapshot(requirePath(this.codexPluginRepoRoot, 'repo root')),
+      this.codexPluginUserDataSnapshot,
+    );
+  },
+);
+
+Then(
+  /^Safe Word no longer requires repo-local `\.agents\/skills` to expose Codex skills$/,
+  function (this: CodexPluginMigrationWorld) {
+    const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
+    assert.equal(existsSync(nodePath.join(repoRoot, '.agents/skills/bdd/SKILL.md')), false);
+    assert.equal(existsSync(nodePath.join(repoRoot, '.agents/skills/verify/SKILL.md')), false);
+  },
+);
+
+Then(
+  /^Safe Word no longer requires repo-local `\.safeword\/hooks\/codex` scripts to run Codex hooks$/,
+  function (this: CodexPluginMigrationWorld) {
+    const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
+    assert.equal(existsSync(nodePath.join(repoRoot, '.safeword/hooks/codex')), false);
   },
 );
 
