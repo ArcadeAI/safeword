@@ -120,7 +120,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Disabled plugin is reported as unavailable to the prompt surface
 
-- [ ] RED
+- [x] RED 877fc633
 - [ ] GREEN
 - [ ] REFACTOR
 
