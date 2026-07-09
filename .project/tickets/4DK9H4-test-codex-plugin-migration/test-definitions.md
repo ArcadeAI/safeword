@@ -130,7 +130,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 388880e4
 - [x] GREEN 705ceb77
-- [ ] REFACTOR
+- [x] REFACTOR skip: hook contract fixture builder and command parser already isolate the manifest-wide coverage path
 
 ### Scenario: Malformed Codex hook input fails open through the packaged entrypoint
 
