@@ -135,7 +135,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Malformed Codex hook input fails open through the packaged entrypoint
 
 - [x] RED b9e8c904
-- [ ] GREEN
+- [x] GREEN 3574626f
 - [ ] REFACTOR
 
 ## Rule: test-codex-plugin-migration.SM1.R4 — A single opt-in live Codex smoke proves real `codex exec` invokes the installed plugin hooks, while model-mediated cost and flake stay out of default verification
