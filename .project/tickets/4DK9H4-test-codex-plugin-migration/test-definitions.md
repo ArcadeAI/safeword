@@ -10,7 +10,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED bfb71fdf
 - [x] GREEN 4e5ee2f5
-- [ ] REFACTOR
+- [x] REFACTOR skip: no structural improvement after single-manifest GREEN
 
 ### Scenario: Invalid local marketplace fails before claiming plugin install success
 
