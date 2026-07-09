@@ -539,12 +539,7 @@ if (isCanonicalTicketEdit) {
 // during the plan-implementation phase. Ordered after provenance/readiness so
 // "wrong step" is reported before "plan not ready".
 if (isCanonicalTicketEdit) {
-  const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : '';
-  const proposedContent = nextContentAfterEdit(input.tool_input, priorContent);
-  const proposedMeta = frontmatterFromContent(proposedContent);
-  const priorPhase = frontmatterScalar(frontmatterFromContent(priorContent), 'phase');
-  const proposedPhase = frontmatterScalar(proposedMeta, 'phase');
-  const proposedType = frontmatterScalar(proposedMeta, 'type');
+  const { priorPhase, proposedPhase, proposedType } = phaseTransitionContext(input.tool_input);
 
   if (proposedType === 'feature' && proposedPhase === 'implement' && priorPhase !== proposedPhase) {
     const verdict = evaluateImplementEntry(nodePath.dirname(editedFile));
