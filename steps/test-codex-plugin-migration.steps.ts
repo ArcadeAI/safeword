@@ -307,6 +307,30 @@ function summarizePluginInstallResult(result: CommandResult): string {
   return output;
 }
 
+function findSafeWordPlugin(result: CommandResult): CodexPluginListEntry | undefined {
+  if (result.exitCode !== 0) return undefined;
+
+  const parsed = JSON.parse(result.stdout) as { installed?: CodexPluginListEntry[] };
+  return parsed.installed?.find(
+    entry => entry.name === 'safeword' && entry.marketplaceName === 'safeword-local',
+  );
+}
+
+function summarizePromptAvailability(
+  promptResult: CommandResult,
+  pluginListResult: CommandResult,
+): string {
+  if (promptResult.exitCode !== 0) return 'prompt inspection failed';
+  if (promptResult.stdout.includes('safeword:bdd')) return 'prompt valid';
+
+  const safewordPlugin = findSafeWordPlugin(pluginListResult);
+  if (safewordPlugin?.installed === true && safewordPlugin.enabled === false) {
+    return 'plugin disabled';
+  }
+
+  return 'plugin unavailable';
+}
+
 function installSafeWordCodexPlugin(this: CodexPluginMigrationWorld): void {
   const marketplaceRoot = requirePath(this.codexPluginMarketplaceRoot, 'local marketplace root');
   const marketplacePreparation = prepareMarketplacePlugin(marketplaceRoot);
@@ -751,6 +775,11 @@ When(
       'prompt-input',
       'Use Safe Word for this feature.',
     ]);
+    this.codexPluginListResult = runCodexPluginCommand.call(this, ['plugin', 'list', '--json']);
+    this.codexPluginPromptAvailabilitySummary = summarizePromptAvailability(
+      this.codexPluginPromptResult,
+      this.codexPluginListResult,
+    );
   },
 );
 
