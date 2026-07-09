@@ -144,7 +144,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED b9d88166
 - [x] GREEN ccf610a9
-- [ ] REFACTOR
+- [x] REFACTOR skip: runtime-state helper was already narrowed and named during GREEN
 
 ### Scenario: Untrusted plugin hooks are reported as not active for normal Codex runs
 
