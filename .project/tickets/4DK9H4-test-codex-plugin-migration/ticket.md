@@ -2,10 +2,11 @@
 id: 4DK9H4
 slug: test-codex-plugin-migration
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 phase_anchors:
   - implement: 1898cec6
+  - verify: 4361afec
 scope:
   - Static plugin/package contract tests for the Safe Word Codex plugin manifest, marketplace entry, bundled skills, bundled hooks, and published package contents
   - Isolated Codex plugin install harness using a temp CODEX_HOME and local marketplace, proving plugin install/enablement without repo-local Safe Word assets
@@ -28,7 +29,7 @@ done_when:
   - The opt-in live smoke exercises plugin-installed hooks through real `codex exec --json --dangerously-bypass-hook-trust` and records any known Codex interception boundary
   - A migration fixture starting from today's project-local Codex install shape ends with no bulky Safe Word Codex skill/hook dependency in the repo, while user-owned project data is preserved
 created: 2026-07-09T01:04:07.604Z
-last_modified: 2026-07-09T02:24:49Z
+last_modified: 2026-07-09T18:05:56Z
 ---
 
 # Test Codex plugin migration
@@ -48,3 +49,4 @@ last_modified: 2026-07-09T02:24:49Z
 - 2026-07-09T01:52:29Z Tightened malformed-hook-input scenario to assert a deterministic fail-open result with unchanged self-report spool.
 - 2026-07-09T02:22:34Z Phase: define-behavior → scenario-gate → implement. Scenario-gate local review found 0 must-fix issues after precision edits; independent fresh-context review skipped because this Codex tool policy only permits sub-agent spawning when the user explicitly asks for delegation. Wrote impl-plan.md with per-scenario proof plan and build order.
 - 2026-07-09T02:24:49Z Validation: `lint-gherkin features/test-codex-plugin-migration.feature` passed; `git diff --check` passed; feature source and R/G/R ledger both contain 23 scenarios. `safeword check` still reports known repo-health advisories plus this ticket's uncommitted implement phase anchor.
+- 2026-07-09T18:05:56Z Phase: implement → verify after completing the Codex plugin migration test harness, including non-live BDD, opt-in live smoke, typecheck, and parity checks.
