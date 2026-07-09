@@ -88,7 +88,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 22fc256e
 - [x] GREEN ba64937a
-- [ ] REFACTOR
+- [x] REFACTOR skip: deprecated file and empty-dir cleanup both derive from the canonical Codex skill list
 
 ### Scenario: Customized Codex config is not clobbered while stale Safe Word hooks are removed
 
