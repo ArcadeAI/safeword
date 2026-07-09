@@ -46,29 +46,6 @@
     "safeword": "workspace:*",
     "tsx": "^4.23.0"
   },
-  "lint-staged": {
-    "*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}": [
-      "eslint --fix --config eslint.config.ts",
-      "prettier --write"
-    ],
-    "*.{vue,svelte,astro}": [
-      "eslint --fix --config eslint.config.ts",
-      "prettier --write"
-    ],
-    "*.{json,css,scss,html,yaml,yml,graphql}": [
-      "prettier --write"
-    ],
-    "*.md": [
-      "markdownlint-cli2 --fix",
-      "prettier --write"
-    ],
-    "*.sh": [
-      "sh -c 'if command -v shellcheck >/dev/null 2>&1; then shellcheck \"$@\"; else echo \"shellcheck not installed; skipping\"; fi' --"
-    ],
-    "*.feature": [
-      "bun packages/cli/src/cli.ts lint-gherkin"
-    ]
-  },
   "overrides": {
     "@felipecrs/decompress-tarxz": "5.0.6",
     "@types/estree": "^1.0.9",
