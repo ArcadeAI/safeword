@@ -116,7 +116,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 59f7fd1a
 - [x] GREEN da67c8f7
-- [ ] REFACTOR
+- [x] REFACTOR skip: shared install helper already centralizes the isolated and fresh install harness paths
 
 ### Scenario: Disabled plugin is reported as unavailable to the prompt surface
 
