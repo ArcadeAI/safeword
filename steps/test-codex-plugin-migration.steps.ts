@@ -23,6 +23,13 @@ const SAFEWORD_CODEX_PLUGIN_ROOT = nodePath.resolve(
   '..',
   'packages/cli/codex-plugin',
 );
+const SAFEWORD_CLI_PATH = nodePath.resolve(import.meta.dirname, '..', 'packages/cli/dist/cli.js');
+const CODEX_TEST_TICKET_ID = 'ABC123';
+const TEST_DEFINITIONS_PATCH = `*** Begin Patch
+*** Add File: .project/tickets/${CODEX_TEST_TICKET_ID}/test-definitions.md
++# Test Definitions
+*** End Patch
+`;
 
 interface CodexPluginMigrationWorld extends SafewordWorld {
   codexPluginRepoRoot?: string;
@@ -34,6 +41,7 @@ interface CodexPluginMigrationWorld extends SafewordWorld {
   codexPluginListResult?: CommandResult;
   codexPluginPromptResult?: CommandResult;
   codexPluginInspectedText?: string;
+  codexPluginHookResult?: CommandResult;
 }
 
 interface CodexPluginListEntry {
@@ -55,13 +63,14 @@ function requirePath(value: string | undefined, label: string): string {
 function runCommand(
   command: string,
   args: string[],
-  options: { cwd: string; env?: Record<string, string>; timeout?: number },
+  options: { cwd: string; env?: Record<string, string>; input?: string; timeout?: number },
 ): CommandResult {
   const result = spawnSync(command, args, {
     cwd: options.cwd,
     encoding: 'utf8',
     env: { ...process.env, ...options.env },
-    stdio: ['ignore', 'pipe', 'pipe'],
+    input: options.input,
+    stdio: ['pipe', 'pipe', 'pipe'],
     timeout: options.timeout ?? 60_000,
   });
 
@@ -165,6 +174,23 @@ function summarizePluginInstallResult(result: CommandResult): string {
   }
 
   return output;
+}
+
+function createIncompleteFeatureTicket(projectRoot: string): void {
+  const ticketDirectory = nodePath.join(projectRoot, '.project/tickets', CODEX_TEST_TICKET_ID);
+  mkdirSync(ticketDirectory, { recursive: true });
+  writeFileSync(
+    nodePath.join(ticketDirectory, 'ticket.md'),
+    [
+      '---',
+      `id: ${CODEX_TEST_TICKET_ID}`,
+      'type: feature',
+      'phase: define-behavior',
+      'status: in_progress',
+      '---',
+      '',
+    ].join('\n'),
+  );
 }
 
 Given(
@@ -485,6 +511,74 @@ Then(
     assert.match(text, /safeword:verify/u);
     assert.match(text, /safeword:explain/u);
     assert.doesNotMatch(text, /(?:\$|\/)(?:bdd|verify|explain)\b/u);
+  },
+);
+
+Given(
+  'the Safe Word package has been packed and installed into a fixture project',
+  function (this: CodexPluginMigrationWorld) {
+    const repoRoot = createTemporaryDirectory('safeword-codex-hook-package-');
+    writeFileSync(
+      nodePath.join(repoRoot, 'package.json'),
+      `${JSON.stringify({ name: 'codex-hook-fixture', version: '1.0.0' }, undefined, 2)}\n`,
+    );
+    const initResult = runCommand('git', ['init', '--quiet'], { cwd: repoRoot });
+    assert.equal(initResult.exitCode, 0, initResult.stderr);
+    this.codexPluginRepoRoot = repoRoot;
+  },
+);
+
+Given(
+  'the fixture has a feature ticket missing intake prerequisites',
+  function (this: CodexPluginMigrationWorld) {
+    createIncompleteFeatureTicket(requirePath(this.codexPluginRepoRoot, 'repo root'));
+  },
+);
+
+When(
+  "the packaged Codex PreToolUse entrypoint receives a supported edit payload for that ticket's `test-definitions.md`",
+  function (this: CodexPluginMigrationWorld) {
+    const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
+    this.codexPluginHookResult = runCommand(
+      process.execPath,
+      [SAFEWORD_CLI_PATH, 'codex-hook', 'pre-tool-use'],
+      {
+        cwd: repoRoot,
+        env: { CLAUDE_PROJECT_DIR: repoRoot },
+        input: JSON.stringify({
+          hook_event_name: 'PreToolUse',
+          session_id: 'codex-test-session',
+          tool_name: 'apply_patch',
+          tool_input: { command: TEST_DEFINITIONS_PATCH },
+        }),
+      },
+    );
+  },
+);
+
+Then(
+  'the hook output denies the edit with the existing Safe Word phase-gate reason',
+  function (this: CodexPluginMigrationWorld) {
+    const result = this.codexPluginHookResult;
+    assert.ok(result, 'hook result was not captured');
+    assert.equal(result.exitCode, 0, result.stderr);
+
+    const parsed = JSON.parse(result.stdout) as {
+      hookSpecificOutput?: {
+        permissionDecision?: unknown;
+        permissionDecisionReason?: unknown;
+      };
+    };
+    assert.equal(parsed.hookSpecificOutput?.permissionDecision, 'deny');
+    assert.match(String(parsed.hookSpecificOutput?.permissionDecisionReason), /scope/u);
+  },
+);
+
+Then(
+  'the denial tells the Codex user to run the scoped Safe Word explain skill',
+  function (this: CodexPluginMigrationWorld) {
+    const output = `${this.codexPluginHookResult?.stdout ?? ''}\n${this.codexPluginHookResult?.stderr ?? ''}`;
+    assert.match(output, /safeword:explain/u);
   },
 );
 
