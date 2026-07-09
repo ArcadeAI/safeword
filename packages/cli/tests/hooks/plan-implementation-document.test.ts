@@ -249,3 +249,28 @@ describe('surfaces rewritten by the phase introduction (TXRHMD)', () => {
     }
   });
 });
+
+describe('record + public docs (TXRHMD slices 6-7)', () => {
+  it('ARCHITECTURE.md records the superseding ADR and marks the old one superseded (SM1.R3)', () => {
+    const text = readFileSync(nodePath.join(repoRoot, 'ARCHITECTURE.md'), 'utf8');
+    expect(text).toMatch(/plan-implementation/);
+    expect(text).toMatch(/[Ss]uperseded by/);
+  });
+
+  it('the website flow enumeration names the planning phase', () => {
+    const text = readFileSync(
+      nodePath.join(repoRoot, 'packages/website/src/content/docs/reference/hooks-and-skills.mdx'),
+      'utf8',
+    );
+    expect(text).toMatch(/[Pp]lan[- ][Ii]mplementation/);
+  });
+
+  it('the config reference documents designApprovalGate defaulting to off (NTB2.R2)', () => {
+    const text = readFileSync(
+      nodePath.join(repoRoot, 'packages/website/src/content/docs/reference/configuration.mdx'),
+      'utf8',
+    );
+    expect(text).toContain('designApprovalGate');
+    expect(text).toMatch(/default.*off|off.*default|autonomous/i);
+  });
+});
