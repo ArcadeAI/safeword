@@ -28,6 +28,8 @@ const CODEX_TEST_TICKET_ID = 'ABC123';
 const REPO_LOCAL_SAFEWORD_SENTINEL = 'REPO LOCAL SAFEWORD SHOULD NOT APPEAR';
 const POST_TOOL_GUIDANCE_LINE =
   'Fixture Safe Word guidance: review the generated file before continuing.';
+const PROMPT_CONTEXT_LINE =
+  'Queued Safe Word prompt context: continue after verifying the ticket ledger.';
 const SOURCE_CHECKOUT_HOOK_SENTINEL = 'SOURCE CHECKOUT HOOK SHOULD NOT APPEAR';
 const TEST_DEFINITIONS_PATCH = `*** Begin Patch
 *** Add File: .project/tickets/${CODEX_TEST_TICKET_ID}/test-definitions.md
@@ -569,6 +571,18 @@ Given(
   },
 );
 
+Given(
+  'the fixture has queued Safe Word prompt context for Codex',
+  function (this: CodexPluginMigrationWorld) {
+    const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
+    mkdirSync(nodePath.join(repoRoot, '.project'), { recursive: true });
+    writeFileSync(
+      nodePath.join(repoRoot, '.project/codex-prompt-context.txt'),
+      `${PROMPT_CONTEXT_LINE}\n`,
+    );
+  },
+);
+
 When(
   "the packaged Codex PreToolUse entrypoint receives a supported edit payload for that ticket's `test-definitions.md`",
   function (this: CodexPluginMigrationWorld) {
@@ -644,6 +658,26 @@ When(
   },
 );
 
+When(
+  'the packaged Codex UserPromptSubmit entrypoint receives a prompt JSON fixture',
+  function (this: CodexPluginMigrationWorld) {
+    const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
+    this.codexPluginHookResult = runCommand(
+      process.execPath,
+      [SAFEWORD_CLI_PATH, 'codex-hook', 'user-prompt-submit'],
+      {
+        cwd: repoRoot,
+        env: { CLAUDE_PROJECT_DIR: repoRoot },
+        input: JSON.stringify({
+          hook_event_name: 'UserPromptSubmit',
+          session_id: 'codex-test-session',
+          prompt: 'continue',
+        }),
+      },
+    );
+  },
+);
+
 Then(
   'the hook output denies the edit with the existing Safe Word phase-gate reason',
   function (this: CodexPluginMigrationWorld) {
@@ -684,6 +718,21 @@ Then(
   function (this: CodexPluginMigrationWorld) {
     const output = `${this.codexPluginHookResult?.stdout ?? ''}\n${this.codexPluginHookResult?.stderr ?? ''}`;
     assert.equal(output.includes(REPO_LOCAL_SAFEWORD_SENTINEL), false);
+  },
+);
+
+Then(
+  'the hook output returns the queued context as Codex additional context',
+  function (this: CodexPluginMigrationWorld) {
+    const result = this.codexPluginHookResult;
+    assert.ok(result, 'hook result was not captured');
+    assert.equal(result.exitCode, 0, result.stderr);
+
+    const parsed = JSON.parse(result.stdout) as {
+      hookSpecificOutput?: { hookEventName?: unknown; additionalContext?: unknown };
+    };
+    assert.equal(parsed.hookSpecificOutput?.hookEventName, 'UserPromptSubmit');
+    assert.equal(parsed.hookSpecificOutput?.additionalContext, PROMPT_CONTEXT_LINE);
   },
 );
 
