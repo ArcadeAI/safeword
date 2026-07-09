@@ -52,6 +52,7 @@ interface CodexPluginMigrationWorld extends SafewordWorld {
   codexPluginInspectedText?: string;
   codexPluginHookResult?: CommandResult;
   codexPluginHookCommands?: string[];
+  codexPluginHookContractResults?: CodexHookContractResult[];
   codexPluginMigrationResult?: CommandResult;
   codexPluginUserDataSnapshot?: Record<string, string>;
   codexPluginUserSkillSnapshot?: string;
@@ -71,6 +72,13 @@ interface CodexPluginListEntry {
   marketplaceName?: string;
   installed?: boolean;
   enabled?: boolean;
+}
+
+interface CodexHookContractResult {
+  command: string;
+  fixtureName?: string;
+  result?: CommandResult;
+  errors: string[];
 }
 
 function createTemporaryDirectory(prefix: string): string {
@@ -1166,6 +1174,17 @@ When('the hook commands are inspected', function (this: CodexPluginMigrationWorl
 });
 
 When(
+  'deterministic hook contract tests enumerate the hook commands',
+  function (this: CodexPluginMigrationWorld) {
+    const commands = this.codexPluginHookCommands ?? [];
+    this.codexPluginHookContractResults = commands.map(command => ({
+      command,
+      errors: ['missing exact Codex JSON fixture'],
+    }));
+  },
+);
+
+When(
   'the release contract inspects the package contents',
   function (this: CodexPluginMigrationWorld) {
     const tarball = requirePath(this.codexPluginPackageTarball, 'package tarball');
@@ -1259,6 +1278,49 @@ Then(
       assert.match(command, /\b(?:bunx|npx)(?:\s+--yes)?\s+safeword\b/u);
       assert.match(command, /\bcodex-hook\b/u);
     }
+  },
+);
+
+Then(
+  'every hook command has at least one exact Codex JSON fixture',
+  function (this: CodexPluginMigrationWorld) {
+    const results = this.codexPluginHookContractResults ?? [];
+    assert.ok(results.length > 0, 'no hook contract commands were enumerated');
+
+    const missingFixtures = results
+      .filter(result => result.errors.includes('missing exact Codex JSON fixture'))
+      .map(result => result.command);
+    assert.deepEqual(missingFixtures, []);
+  },
+);
+
+Then(
+  'each fixture runs through the packaged CLI entrypoint',
+  function (this: CodexPluginMigrationWorld) {
+    const results = this.codexPluginHookContractResults ?? [];
+    assert.ok(results.length > 0, 'no hook contract results were captured');
+
+    const failedFixtures = results
+      .filter(result => result.result === undefined || result.result.exitCode !== 0)
+      .map(
+        result => `${result.fixtureName ?? result.command}: ${result.result?.stderr ?? 'not run'}`,
+      );
+    assert.deepEqual(failedFixtures, []);
+  },
+);
+
+Then(
+  'no fixture imports hook code from the source checkout',
+  function (this: CodexPluginMigrationWorld) {
+    const results = this.codexPluginHookContractResults ?? [];
+    const sourceImports = results
+      .filter(result =>
+        `${result.result?.stdout ?? ''}\n${result.result?.stderr ?? ''}`.includes(
+          SOURCE_CHECKOUT_HOOK_SENTINEL,
+        ),
+      )
+      .map(result => result.fixtureName ?? result.command);
+    assert.deepEqual(sourceImports, []);
   },
 );
 
