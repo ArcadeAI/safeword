@@ -302,6 +302,7 @@ const CODEX_SKILL_TEMPLATE_FILES = [
   ['audit/SKILL.md', 'skills/audit/SKILL.md'],
   ['bdd/SKILL.md', 'skills/bdd/SKILL.md'],
   ['bdd/DISCOVERY.md', 'skills/bdd/DISCOVERY.md'],
+  ['bdd/PLAN_IMPLEMENTATION.md', 'skills/bdd/PLAN_IMPLEMENTATION.md'],
   ['bdd/SCENARIOS.md', 'skills/bdd/SCENARIOS.md'],
   ['bdd/TDD.md', 'skills/bdd/TDD.md'],
   ['bdd/DONE.md', 'skills/bdd/DONE.md'],
@@ -788,6 +789,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/jtbd.ts': { template: 'hooks/lib/jtbd.ts' },
     '.safeword/hooks/lib/phase-provenance.ts': { template: 'hooks/lib/phase-provenance.ts' },
     '.safeword/hooks/lib/impl-plan.ts': { template: 'hooks/lib/impl-plan.ts' },
+    '.safeword/hooks/lib/plan-gate.ts': { template: 'hooks/lib/plan-gate.ts' },
     '.safeword/hooks/lib/replan-relevance.ts': { template: 'hooks/lib/replan-relevance.ts' },
     '.safeword/hooks/lib/replan.ts': { template: 'hooks/lib/replan.ts' },
     '.safeword/hooks/lib/review-ledger.ts': { template: 'hooks/lib/review-ledger.ts' },
@@ -1015,9 +1017,12 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       template: 'doc-templates/feature-spec-template.md',
     },
     // Per-ticket impl-plan.md scaffold (ticket XDNSZA) — authored at
-    // scenario-gate exit, validated by the stop hook's impl-plan gate.
+    // the plan-implementation phase, validated by the stop hook's impl-plan gate.
     '.safeword/templates/impl-plan-template.md': {
       template: 'doc-templates/impl-plan-template.md',
+    },
+    '.safeword/templates/adr-template.md': {
+      template: 'doc-templates/adr-template.md',
     },
     '.safeword/templates/work-log-template.md': {
       template: 'doc-templates/work-log-template.md',
@@ -1064,6 +1069,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.claude/skills/bdd/DISCOVERY.md': {
       template: 'skills/bdd/DISCOVERY.md',
+    },
+    '.claude/skills/bdd/PLAN_IMPLEMENTATION.md': {
+      template: 'skills/bdd/PLAN_IMPLEMENTATION.md',
     },
     '.claude/skills/bdd/SCENARIOS.md': {
       template: 'skills/bdd/SCENARIOS.md',

@@ -240,7 +240,7 @@ When(
 );
 
 When(
-  'a feature ticket.md is written with phase implement and phase_skips entries with reasons for intake, define-behavior, and scenario-gate',
+  'a feature ticket.md is written with phase implement and phase_skips entries with reasons for intake, define-behavior, scenario-gate, and plan-implementation',
   function (this: ProvenanceWorld) {
     writeTicket(
       this,
@@ -251,6 +251,7 @@ When(
           'intake: retro-ticketing work already scoped in PR review',
           'define-behavior: scenarios exist as tests in the PR',
           'scenario-gate: reviewed by maintainer on the PR thread',
+          'plan-implementation: plan captured in the PR description',
         ],
       }),
     );
@@ -333,8 +334,31 @@ When(
 );
 
 When(
-  'the ticket.md is edited to phase implement and phase_skips entries with reasons for define-behavior and scenario-gate',
+  'the ticket.md is edited to phase implement and phase_skips entries with reasons for define-behavior, scenario-gate, and plan-implementation',
   function (this: ProvenanceWorld) {
+    // New-flow fixture (seedTicket writes spec.md): the TXRHMD plan gate
+    // requires a valid planned impl-plan.md at implement entry — a provenance
+    // skip justifies the phase jump, never the missing plan.
+    writeFileSync(
+      nodePath.join(this.ticketDirectory!, 'impl-plan.md'),
+      [
+        '# Impl Plan: fixture',
+        '',
+        '**Status:** planned',
+        '',
+        '## Approach',
+        'One slice.',
+        '## Decisions',
+        'skip: fixture',
+        '## Arch alignment',
+        'skip: no ADRs in this project yet',
+        '## Known deviations',
+        'skip: none',
+        '## Assessment triggers',
+        'skip: fixture',
+        '',
+      ].join('\n'),
+    );
     editTicket(
       this,
       'phase: intake\nstatus: in_progress',
@@ -344,6 +368,7 @@ When(
         'phase_skips:',
         '  - define-behavior: scenarios exist as tests in the PR',
         '  - scenario-gate: reviewed by maintainer on the PR thread',
+        '  - plan-implementation: plan captured in the PR description',
       ].join('\n'),
     );
   },
@@ -363,7 +388,7 @@ When(
 );
 
 When(
-  'the ticket.md is edited to type feature and phase_skips entries with reasons for intake, define-behavior, and scenario-gate',
+  'the ticket.md is edited to type feature and phase_skips entries with reasons for intake, define-behavior, scenario-gate, and plan-implementation',
   function (this: ProvenanceWorld) {
     editTicket(
       this,
@@ -374,6 +399,7 @@ When(
         '  - intake: retro-ticketing work already scoped in PR review',
         '  - define-behavior: scenarios exist as tests in the PR',
         '  - scenario-gate: reviewed by maintainer on the PR thread',
+        '  - plan-implementation: plan captured in the PR description',
       ].join('\n'),
     );
   },
@@ -427,11 +453,12 @@ Then(
 );
 
 Then(
-  'the denial names define-behavior and scenario-gate as the phases still needing justification',
+  'the denial names define-behavior, scenario-gate, and plan-implementation as the phases still needing justification',
   function (this: ProvenanceWorld) {
     const text = this.verdict?.text ?? '';
     assert.match(text, /define-behavior/);
     assert.match(text, /scenario-gate/);
+    assert.match(text, /plan-implementation/);
   },
 );
 
@@ -453,20 +480,22 @@ Then(
 );
 
 Then(
-  'the denial names define-behavior and scenario-gate as the skipped phases',
+  'the denial names define-behavior, scenario-gate, and plan-implementation as the skipped phases',
   function (this: ProvenanceWorld) {
     const text = this.verdict?.text ?? '';
     assert.match(text, /define-behavior/);
     assert.match(text, /scenario-gate/);
+    assert.match(text, /plan-implementation/);
   },
 );
 
 Then(
-  'the denial names define-behavior, scenario-gate, implement, and verify as the skipped phases',
+  'the denial names define-behavior, scenario-gate, plan-implementation, implement, and verify as the skipped phases',
   function (this: ProvenanceWorld) {
     const text = this.verdict?.text ?? '';
     assert.match(text, /define-behavior/);
     assert.match(text, /scenario-gate/);
+    assert.match(text, /plan-implementation/);
     assert.match(text, /\bimplement\b/);
     assert.match(text, /\bverify\b/);
   },
@@ -474,7 +503,14 @@ Then(
 
 Then('the denial lists the canonical phases', function (this: ProvenanceWorld) {
   const text = this.verdict?.text ?? '';
-  for (const phase of ['intake', 'define-behavior', 'scenario-gate', 'implement', 'verify']) {
+  for (const phase of [
+    'intake',
+    'define-behavior',
+    'scenario-gate',
+    'plan-implementation',
+    'implement',
+    'verify',
+  ]) {
     assert.match(text, new RegExp(phase));
   }
   assert.match(text, /\bdone\b/);

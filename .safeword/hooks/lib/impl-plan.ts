@@ -17,6 +17,17 @@ export const IMPL_PLAN_SECTIONS = [
 
 export type ImplPlanSectionName = (typeof IMPL_PLAN_SECTIONS)[number];
 
+/**
+ * Optional sections validated only when present (TXRHMD, #480 decision 22):
+ * the template ships them, legacy plans without them stay valid.
+ */
+export const IMPL_PLAN_OPTIONAL_SECTIONS = ['Doc impact'] as const;
+
+export type ImplPlanOptionalSectionName = (typeof IMPL_PLAN_OPTIONAL_SECTIONS)[number];
+
+/** Any section name the parser can report — required or optional. */
+export type ImplPlanAnySectionName = ImplPlanSectionName | ImplPlanOptionalSectionName;
+
 export interface ImplPlanSectionVerdict {
   /** True when the section has real content or a valid skip. */
   satisfied: boolean;
@@ -27,8 +38,8 @@ export interface ImplPlanSectionVerdict {
 export interface ImplPlanResult {
   /** Parsed status, or null when the line is missing or carries an unknown value. */
   status: ImplPlanStatus | null;
-  /** Per-section verdicts keyed by canonical section name. */
-  sections: Partial<Record<ImplPlanSectionName, ImplPlanSectionVerdict>>;
+  /** Per-section verdicts — required sections plus optional ones when present. */
+  sections: Partial<Record<ImplPlanAnySectionName, ImplPlanSectionVerdict>>;
   /** Validation errors; empty when the plan is valid. */
   errors: string[];
 }
@@ -36,9 +47,13 @@ export interface ImplPlanResult {
 const STATUS_PREFIX = '**Status:**';
 const SKIP_PREFIX = 'skip:';
 
-const SECTION_NAMES = new Map<string, ImplPlanSectionName>(
-  IMPL_PLAN_SECTIONS.map(name => [name.toLowerCase(), name]),
-);
+const SECTION_NAMES = new Map<string, ImplPlanAnySectionName>([
+  ...IMPL_PLAN_SECTIONS.map((name): [string, ImplPlanAnySectionName] => [name.toLowerCase(), name]),
+  ...IMPL_PLAN_OPTIONAL_SECTIONS.map((name): [string, ImplPlanAnySectionName] => [
+    name.toLowerCase(),
+    name,
+  ]),
+]);
 
 /**
  * Lines outside HTML comments. Mirrors jtbd.ts's comment handling — the
@@ -87,9 +102,9 @@ function parseStatus(lines: string[], errors: string[]): ImplPlanStatus | null {
 }
 
 /** Accumulate non-empty body lines per known `## ` section. */
-function collectSectionBodies(lines: string[]): Map<ImplPlanSectionName, string[]> {
-  const bodies = new Map<ImplPlanSectionName, string[]>();
-  let current: ImplPlanSectionName | null = null;
+function collectSectionBodies(lines: string[]): Map<ImplPlanAnySectionName, string[]> {
+  const bodies = new Map<ImplPlanAnySectionName, string[]>();
+  let current: ImplPlanAnySectionName | null = null;
   for (const line of lines) {
     const trimmed = line.trim();
     if (trimmed.startsWith('## ')) {
@@ -112,13 +127,8 @@ export function parseImplPlan(content: string): ImplPlanResult {
   const status = parseStatus(lines, errors);
   const bodies = collectSectionBodies(lines);
 
-  const sections: Partial<Record<ImplPlanSectionName, ImplPlanSectionVerdict>> = {};
-  for (const name of IMPL_PLAN_SECTIONS) {
-    const body = bodies.get(name);
-    if (body === undefined) {
-      errors.push(`Missing section heading \`## ${name}\` — all five sections are required.`);
-      continue;
-    }
+  const sections: ImplPlanResult['sections'] = {};
+  const validatePresentSection = (name: ImplPlanAnySectionName, body: string[]): void => {
     const skipLine =
       body.length === 1 && body[0]?.toLowerCase().startsWith(SKIP_PREFIX) ? body[0] : null;
     if (skipLine !== null) {
@@ -127,12 +137,30 @@ export function parseImplPlan(content: string): ImplPlanResult {
         errors.push(`Section "${name}": skip requires a non-empty reason (\`skip: <why>\`).`);
       }
       sections[name] = { satisfied: reason !== '', skip: reason };
-      continue;
+      return;
     }
     if (body.length === 0) {
       errors.push(`Section "${name}" is empty — add content or \`skip: <why>\`.`);
     }
     sections[name] = { satisfied: body.length > 0, skip: null };
+  };
+
+  for (const name of IMPL_PLAN_SECTIONS) {
+    const body = bodies.get(name);
+    if (body === undefined) {
+      errors.push(
+        `Missing section heading \`## ${name}\` — all five required sections must be present.`,
+      );
+      continue;
+    }
+    validatePresentSection(name, body);
+  }
+
+  // Optional sections: validated only when their heading exists — a legacy
+  // plan without them stays valid (decision 22's grandfather guarantee).
+  for (const name of IMPL_PLAN_OPTIONAL_SECTIONS) {
+    const body = bodies.get(name);
+    if (body !== undefined) validatePresentSection(name, body);
   }
 
   return { status, sections, errors };

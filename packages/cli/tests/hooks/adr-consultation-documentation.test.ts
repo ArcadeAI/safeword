@@ -12,15 +12,15 @@ import { describe, expect, it } from 'vitest';
 
 const repoRoot = nodePath.join(__dirname, '../../../..');
 const copies = [
-  nodePath.join(repoRoot, 'packages/cli/templates/skills/bdd/SCENARIOS.md'),
-  nodePath.join(repoRoot, '.claude/skills/bdd/SCENARIOS.md'),
+  nodePath.join(repoRoot, 'packages/cli/templates/skills/bdd/PLAN_IMPLEMENTATION.md'),
+  nodePath.join(repoRoot, '.claude/skills/bdd/PLAN_IMPLEMENTATION.md'),
 ];
 
 describe('ADR consultation docs (Rule 3)', () => {
   for (const scenariosPath of copies) {
     const label = scenariosPath.includes('templates') ? 'canonical' : 'dogfood';
 
-    it(`${label} SCENARIOS.md documents the consultation procedure`, () => {
+    it(`${label} PLAN_IMPLEMENTATION.md documents the consultation procedure`, () => {
       const content = readFileSync(scenariosPath, 'utf8');
       expect(content, 'consultation step (read records at the configured location)').toMatch(
         /architecture record|paths\.architecture/,

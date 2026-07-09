@@ -562,6 +562,27 @@ describe('Phase Derivation (#124)', () => {
       expect(output).toContain('/audit');
     });
 
+    it('1.3: plan-implementation phase directs authoring the implementation plan (TXRHMD)', () => {
+      createTicket(projectDirectory, '099', 'test-ticket', { phase: 'plan-implementation' });
+      writeState(projectDirectory, baseState({ activeTicket: '099' }));
+
+      const output = runPromptHook(projectDirectory);
+
+      expect(output).toContain('plan-implementation');
+      expect(output).toContain('impl-plan.md');
+    });
+
+    it('1.4: scenario-gate reminder routes to plan-implementation, not proof planning (TXRHMD)', () => {
+      createTicket(projectDirectory, '099', 'test-ticket', { phase: 'scenario-gate' });
+      writeState(projectDirectory, baseState({ activeTicket: '099' }));
+
+      const output = runPromptHook(projectDirectory);
+
+      expect(output).toContain('scenario-gate');
+      expect(output).not.toContain('proof plan');
+      expect(output).toContain('plan-implementation');
+    });
+
     it('1.2: done phase shows simplified reminder', () => {
       createTicket(projectDirectory, '099', 'test-ticket', { phase: 'done' });
       writeState(projectDirectory, baseState({ activeTicket: '099' }));

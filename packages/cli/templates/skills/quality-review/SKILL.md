@@ -41,14 +41,15 @@ Single-loop tickets, patches, and no-ticket reviews may continue after recording
 
 If in BDD workflow, read the current ticket from `<namespace-root>/tickets/` and apply phase-appropriate research:
 
-| Phase           | Research Focus                                  |
-| --------------- | ----------------------------------------------- |
-| intake          | Similar features in ecosystem, scope patterns   |
-| define-behavior | Testing patterns, BDD research and patterns     |
-| scenario-gate   | Architecture patterns, proof plan strategy      |
-| implement       | **Library versions, deprecated APIs, security** |
-| verify          | Flaky-test & regression patterns, coverage gaps |
-| done            | CI/CD patterns, release checklists              |
+| Phase               | Research Focus                                  |
+| ------------------- | ----------------------------------------------- |
+| intake              | Similar features in ecosystem, scope patterns   |
+| define-behavior     | Testing patterns, BDD research and patterns     |
+| scenario-gate       | Scenario quality, BDD coverage patterns         |
+| plan-implementation | Architecture patterns, proof plan strategy      |
+| implement           | **Library versions, deprecated APIs, security** |
+| verify              | Flaky-test & regression patterns, coverage gaps |
+| done                | CI/CD patterns, release checklists              |
 
 ## 2. Research Angles (Primary Value)
 

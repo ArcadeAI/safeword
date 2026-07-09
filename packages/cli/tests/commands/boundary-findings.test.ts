@@ -67,6 +67,7 @@ describe('safeword boundary (slice 2: commit-tier findings)', () => {
           'intake: retro-scoped in PR review',
           'define-behavior: scenarios exist as tests',
           'scenario-gate: reviewed on the PR thread',
+          'plan-implementation: plan captured in PR description',
         ],
       }),
     );
@@ -91,6 +92,25 @@ describe('safeword boundary (slice 2: commit-tier findings)', () => {
 
     expect(result.exitCode).toBe(0);
     expect(`${result.stdout}\n${result.stderr}`).toMatch(/classif|frontmatter/i);
+  });
+
+  it('warns when a feature at plan-implementation has no ledger (TXRHMD)', async () => {
+    writeTestFile(dir, `${TICKET}/ticket.md`, ticketContent({ phase: 'scenario-gate' }));
+    git(dir, 'add -A');
+    git(dir, 'commit -m seed --quiet');
+    writeTestFile(
+      dir,
+      `${TICKET}/ticket.md`,
+      ticketContent({ phase: 'plan-implementation', anchors: ['plan-implementation: a1b2c3d'] }),
+    );
+    git(dir, 'add -A');
+
+    const result = await runCli(['boundary', '--at', 'commit'], { cwd: dir });
+
+    expect(result.exitCode).toBe(0);
+    expect(`${result.stdout}\n${result.stderr}`).toMatch(
+      /ledger.*missing|missing.*ledger|no test-definitions/i,
+    );
   });
 
   it('warns when a feature past define-behavior has no ledger at all (SM1.AC1)', async () => {

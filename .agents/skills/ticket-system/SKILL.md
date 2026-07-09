@@ -90,7 +90,7 @@ status: in_progress
 **Frontmatter values:**
 
 - `status`: `in_progress | done | cancelled | superseded | wontfix | blocked`
-- `phase`: `intake | define-behavior | scenario-gate | implement | verify | done` (see ticket-template.md)
+- `phase`: `intake | define-behavior | scenario-gate | plan-implementation | implement | verify | done` (see ticket-template.md)
 - `phase_skips`: `["<phase>: <reason>", ...]` (optional; feature tickets only) — one entry per phase a feature was born into or advanced past without traversing it. Block sequence, non-empty reason each; the phase-provenance gate requires it when a feature skips phases (see glossary "Gate")
 - `phase_anchors`: `["<phase>: <artifact-path>", ...]` (optional; feature tickets only) — one entry per phase entered on a forward advance, recording the repo-relative path of the exit artifact of the phase being left (define-behavior ← spec.md · scenario-gate ← the feature source · implement ← impl-plan.md · verify ← test-definitions.md · done ← verify.md). Append one entry per phase; on a re-advance the latest entry for a phase wins (it names the phase's current output). The boundary gate verifies the artifact exists (and looks right) in the tree being shipped — never against git history, so anchors survive amend, rebase, squash-merge, and shallow clones. Hex commit-SHA anchors on pre-redesign tickets are grandfathered at rest
 - `parent`: `<id>` (optional)

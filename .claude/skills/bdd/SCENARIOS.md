@@ -208,24 +208,8 @@ If the adversarial pass + user feedback produced new scenarios → loop back to 
 
 1. Each scenario passes the vacuous-pass test and AODI (Atomic, Observable, Deterministic, Independent)
 2. Adversarial pass + cross-cutting checks complete; findings presented in the findings format (or confirmed clean)
-3. **Write `impl-plan.md`** (sibling to `ticket.md`; scaffold from `.safeword/templates/impl-plan-template.md`) — the implementation design record, status `planned`. Five sections, each with content or `skip: <non-empty reason>`:
-   - **Approach** — open by naming the riskiest assumption this design rests on and the cheapest scenario that proves it — concrete and scenario-bound ("assumes the OAuth refresh survives token expiry → scenario 3"), never vacuous ("assumes it works"); if no single slice is load-bearing, say so in one line. Then record the proof plan + build order: for each scenario, name the primary proof using `testing/SKILL.md`'s highest practical scope rule (`unit`, `integration`, `E2E`, or `eval`) and explain why. Add supporting proof where the scenario needs it: focused unit coverage for combinatorial pure logic, evals for AI output quality, and at least one wiring test per new entry point or command built from real collaborators while mocking only the process boundary (network / fs / clock / subprocess). Order tasks so each builds on what's already green; among dependency-free work, sequence the load-bearing slice first, so a wrong design fails on slice 1 while it's still cheap. For non-obvious slicing or data-model choices, run `/figure-it-out`; the architecture itself was already designed in intake. (Absorbed from the retired `decomposition` phase — see the ADR in `ARCHITECTURE.md`.)
-   - **Decisions** — one table row per significant technical choice: choice, alternatives considered, rejected because.
-   - **Arch alignment** — consult the project's architecture record before filling this in. Resolve the location from `paths.architecture` in `.safeword/config.json` (default `.project/architecture.md`); a file is the record itself, a directory holds one ADR per `.md` file (README.md excluded, any naming).
-     - **Records exist:** read them; populate this section with the titles of the decisions this implementation honors.
-     - **None recorded yet:** write `skip: no ADRs in this project yet` (the canonical "None recorded yet" state), then prompt the user before proceeding: _"No architectural decisions have been recorded yet. Consider whether this implementation introduces patterns worth documenting as the first ADR — technology choices spanning multiple features, data ownership, cross-service contracts. Draft the first ADR now, or continue and document afterward?"_ Wait for the answer (under autonomous runs: auto-continue and note the prompt in the work log).
-
-     `safeword check` flags the stale combination structurally — content in this section while no record exists at the resolved location.
-
-     _Worked example (both branches):_ a project with `docs/adr/0001-event-sourcing.md` writes "Honors 0001 (event sourcing): new writes append to the ledger"; a fresh project with no records writes the skip line, and the agent asks the first-ADR question before starting TDD.
-
-   - **Known deviations** — where this deviates from arch guidance and why that's acceptable.
-   - **Assessment triggers** — future changes that would prompt revisiting these choices.
-
-   The stop hook blocks the `implement` phase for new-flow features until this file exists with all five sections satisfied.
-
-4. **Update frontmatter:** `phase: implement`
-5. **Work log:** the phase hook stamps the transition with real time (Claude Code — on other harnesses add a short transition entry yourself); optionally add a narrative entry (validation outcome, proof-plan highlights).
+3. **Update frontmatter:** `phase: plan-implementation` — implementation design (the impl-plan, proof plan, build order, ADR work) happens there; see `PLAN_IMPLEMENTATION.md`.
+4. **Work log:** the phase hook stamps the transition with real time (Claude Code — on other harnesses add a short transition entry yourself); optionally add a narrative entry (validation outcome, proof-plan highlights).
 
 ### Optional: codify the scenarios
 

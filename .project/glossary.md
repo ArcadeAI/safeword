@@ -17,7 +17,7 @@ and could mean two things. One-spec-only vocabulary stays in that ticket.
 
 ## Phase
 
-**Definition:** A stage in a ticket's lifecycle, tracked in ticket frontmatter: intake → define-behavior → scenario-gate → implement → verify → done.
+**Definition:** A stage in a ticket's lifecycle, tracked in ticket frontmatter: intake → define-behavior → scenario-gate → plan-implementation → implement → verify → done.
 
 ## Hook
 

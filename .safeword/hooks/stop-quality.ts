@@ -185,7 +185,7 @@ function checkCumulativeArtifacts(ticketInfo: TicketInfo): void {
   if (!ticketInfo.folder || !ticketInfo.phase) return;
 
   // Phases that require test-definitions.md
-  const phasesRequiringTestDefs = ['scenario-gate', 'implement', 'done'];
+  const phasesRequiringTestDefs = ['scenario-gate', 'plan-implementation', 'implement', 'done'];
   if (!phasesRequiringTestDefs.includes(ticketInfo.phase)) return;
 
   const testDefsPath = `${ticketsDir}/${ticketInfo.folder}/test-definitions.md`;
@@ -212,7 +212,7 @@ function checkCumulativeArtifacts(ticketInfo: TicketInfo): void {
  * Features with spec.md (post-DZ2NM5 flow) at implement+ require an
  * impl-plan.md whose five sections are content-or-skip valid; from verify
  * onward its status must be `implemented` — the plan-vs-actual reconciliation
- * at implement exit flips it. Authored at scenario-gate exit; grandfathered
+ * at implement exit flips it. Authored during the plan-implementation phase; grandfathered
  * tickets (no spec.md) and tasks are exempt.
  */
 function checkImplPlanArtifact(ticketInfo: TicketInfo): void {
@@ -228,7 +228,7 @@ function checkImplPlanArtifact(ticketInfo: TicketInfo): void {
   const implPlanPath = `${ticketsDir}/${ticketInfo.folder}/impl-plan.md`;
   if (!existsSync(implPlanPath)) {
     hardBlockDone(
-      `Feature at ${ticketInfo.phase} phase requires impl-plan.md (authored at scenario-gate exit). Create it from the impl-plan template with all five sections (or skip: <reason> per section) before stopping.`,
+      `Feature at ${ticketInfo.phase} phase requires impl-plan.md (authored during the plan-implementation phase). Create it from the impl-plan template with all five required sections (plus optional Doc impact), each content or skip: <reason>, before stopping.`,
     );
   }
 

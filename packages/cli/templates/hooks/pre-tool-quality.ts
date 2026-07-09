@@ -43,6 +43,7 @@ import {
 } from './lib/quality-state.ts';
 import { isNamespacePath, resolveNamespaceRoot } from './lib/namespace-root.ts';
 import { evaluateTicketWrite } from './lib/phase-provenance.ts';
+import { evaluateImplementEntry } from './lib/plan-gate.ts';
 import { installCrashCapture } from './lib/self-report.ts';
 
 installCrashCapture('pre-tool-quality');
@@ -491,17 +492,31 @@ if (isCanonicalTicketEdit) {
   }
 }
 
+/** Prior/proposed phase + proposed type for a canonical ticket.md edit. */
+function phaseTransitionContext(toolInput: HookInput['tool_input']): {
+  priorPhase: string | undefined;
+  proposedPhase: string | undefined;
+  proposedType: string | undefined;
+  proposedContent: string;
+} {
+  const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : '';
+  const proposedContent = nextContentAfterEdit(toolInput, priorContent);
+  const proposedMeta = frontmatterFromContent(proposedContent);
+  return {
+    priorPhase: frontmatterScalar(frontmatterFromContent(priorContent), 'phase'),
+    proposedPhase: frontmatterScalar(proposedMeta, 'phase'),
+    proposedType: frontmatterScalar(proposedMeta, 'type'),
+    proposedContent,
+  };
+}
+
 // Feature readiness gate (#404): block new entries into define-behavior before
 // scenario work starts. The existing test-definitions.md gate still guards the
 // first scenario-file write; this catches the earlier phase edit.
 if (isCanonicalTicketEdit) {
-  const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : '';
-  const proposedContent = nextContentAfterEdit(input.tool_input, priorContent);
-  const priorMeta = frontmatterFromContent(priorContent);
-  const proposedMeta = frontmatterFromContent(proposedContent);
-  const priorPhase = frontmatterScalar(priorMeta, 'phase');
-  const proposedPhase = frontmatterScalar(proposedMeta, 'phase');
-  const proposedType = frontmatterScalar(proposedMeta, 'type');
+  const { priorPhase, proposedPhase, proposedType, proposedContent } = phaseTransitionContext(
+    input.tool_input,
+  );
 
   if (
     proposedType === 'feature' &&
@@ -517,6 +532,21 @@ if (isCanonicalTicketEdit) {
         formatFeatureTicketReadiness(readiness),
         'Complete the listed intake artifacts, then retry the phase change into define-behavior.',
       );
+    }
+  }
+}
+
+// Implement-entry plan gate (TXRHMD, #480) — ALWAYS-ON. A new-flow feature
+// enters implement only with a valid impl-plan.md (status planned), authored
+// during the plan-implementation phase. Ordered after provenance/readiness so
+// "wrong step" is reported before "plan not ready".
+if (isCanonicalTicketEdit) {
+  const { priorPhase, proposedPhase, proposedType } = phaseTransitionContext(input.tool_input);
+
+  if (proposedType === 'feature' && proposedPhase === 'implement' && priorPhase !== proposedPhase) {
+    const verdict = evaluateImplementEntry(nodePath.dirname(editedFile));
+    if (!verdict.ok) {
+      deny(verdict.reason, verdict.remediation);
     }
   }
 }
@@ -634,6 +664,17 @@ if (!state) {
 
 if (state.activeTicket) {
   const ticketInfo = getTicketInfo(projectDirectory, state.activeTicket);
+
+  // Planning code freeze (TXRHMD, #480): while a feature plans, application
+  // code stays untouched — the plan is the phase's only deliverable. Meta
+  // paths (ticket artifacts, impl-plan.md) already exited above.
+  if (ticketInfo.type === 'feature' && ticketInfo.phase === 'plan-implementation') {
+    recordFailure(projectDirectory, input.session_id, 'plan-implementation-code-freeze');
+    deny(
+      'Feature at plan-implementation phase: application code stays untouched while planning. Finish impl-plan.md, advance the ticket to implement, then write code.',
+      'Author impl-plan.md next to ticket.md (scaffold from .safeword/templates/impl-plan-template.md), then set phase: implement to unlock code edits.',
+    );
+  }
 
   if (ticketInfo.type === 'feature' && ticketInfo.phase === 'implement' && ticketInfo.folder) {
     const testDefinitionsPath = nodePath.join(
