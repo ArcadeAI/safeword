@@ -369,7 +369,25 @@ const featureShapeOk = (content: string): boolean => /^\s*Scenario(?: Outline)?:
 /** Presence probe for verify.md's scope line (authoritative check: done-gate.ts). */
 const VERIFY_SCOPE_LINE = /^\*\*PR Scope:\*\*\s*\S/im;
 
-const ANCHOR_KINDS: Record<string, AnchorKind> = {
+/**
+ * Scenarios as evidence: the .feature (or test-definitions.md on the legacy
+ * path). Anchors two forward advances — entering scenario-gate (define-behavior
+ * produced the scenarios) and entering plan-implementation (scenario-gate is a
+ * review gate with no distinct exit artifact of its own; its acceptance is
+ * evidenced by the same reviewed source).
+ */
+const FEATURE_SOURCE_ANCHOR: AnchorKind = {
+  label: 'the feature source (.feature, or test-definitions.md on the legacy path)',
+  example: 'features/<slug>.feature',
+  matches: relpath => isFeatureSource(relpath) || basenameOf(relpath) === 'test-definitions.md',
+  shapeOk: (relpath, content) =>
+    isFeatureSource(relpath) ? featureShapeOk(content) : hasSubstance(content),
+};
+
+// `satisfies` (not `Record<string, …>`) so the compiler forces an anchor kind
+// for every enterable phase: a phase added to CANONICAL_PHASES without an entry
+// here becomes a compile error, not a silently-unanchored forward transition.
+const ANCHOR_KINDS = {
   'define-behavior': {
     label: 'spec.md',
     example: '<ticket-folder>/spec.md',
@@ -379,13 +397,8 @@ const ANCHOR_KINDS: Record<string, AnchorKind> = {
       return jtbd.entries.length > 0 || jtbd.skip !== null;
     },
   },
-  'scenario-gate': {
-    label: 'the feature source (.feature, or test-definitions.md on the legacy path)',
-    example: 'features/<slug>.feature',
-    matches: relpath => isFeatureSource(relpath) || basenameOf(relpath) === 'test-definitions.md',
-    shapeOk: (relpath, content) =>
-      isFeatureSource(relpath) ? featureShapeOk(content) : hasSubstance(content),
-  },
+  'scenario-gate': FEATURE_SOURCE_ANCHOR,
+  'plan-implementation': FEATURE_SOURCE_ANCHOR,
   implement: {
     label: 'impl-plan.md',
     example: '<ticket-folder>/impl-plan.md',
@@ -404,7 +417,7 @@ const ANCHOR_KINDS: Record<string, AnchorKind> = {
     matches: relpath => basenameOf(relpath) === 'verify.md',
     shapeOk: (_relpath, content) => VERIFY_SCOPE_LINE.test(content),
   },
-};
+} satisfies Record<Exclude<(typeof CANONICAL_PHASES)[number], 'intake'>, AnchorKind>;
 
 /**
  * A plausible repo-relative path: non-empty, forward-slashed, not absolute
@@ -488,7 +501,7 @@ function validateAnchor(
   phase: string,
   readArtifact?: ArtifactReader,
 ): PhaseAnchorVerdict {
-  const kind = ANCHOR_KINDS[phase];
+  const kind = (ANCHOR_KINDS as Record<string, AnchorKind | undefined>)[phase];
   if (kind === undefined) return NOT_APPLICABLE; // intake/off-enum — nothing enterable to anchor
 
   const unanchored = (reason: string): PhaseAnchorVerdict => ({

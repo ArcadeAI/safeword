@@ -180,6 +180,7 @@ describe('detectUnanchoredPhaseTransition — the per-phase kind map', () => {
   it.each([
     ['define-behavior', 'intake', SPEC_PATH],
     ['scenario-gate', 'define-behavior', FEATURE_PATH],
+    ['plan-implementation', 'scenario-gate', FEATURE_PATH],
     ['implement', 'scenario-gate', IMPL_PLAN_PATH],
     ['verify', 'implement', LEDGER_PATH],
     ['done', 'verify', VERIFY_PATH],
@@ -190,6 +191,21 @@ describe('detectUnanchoredPhaseTransition — the per-phase kind map', () => {
       readTree,
     );
     expect(verdict.kind).toBe('anchored');
+  });
+
+  it('entering plan-implementation with no anchor is unanchored (ANCHOR_KINDS completeness)', () => {
+    // Pre-fix this returned not-applicable: plan-implementation was absent from
+    // ANCHOR_KINDS, so the transition into it was silently unpoliced. It must
+    // now be anchored to the scenarios (the exited scenario-gate's evidence).
+    const verdict = detectUnanchoredPhaseTransition(
+      ticket({ type: 'feature', phase: 'scenario-gate' }),
+      ticket({ type: 'feature', phase: 'plan-implementation' }),
+      readTree,
+    );
+    expect(verdict.kind).toBe('unanchored');
+    if (verdict.kind === 'unanchored') {
+      expect(verdict.phase).toBe('plan-implementation');
+    }
   });
 
   it('the scenario-gate anchor accepts the legacy test-definitions fallback', () => {
