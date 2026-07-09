@@ -74,7 +74,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED c06e85a8
 - [x] GREEN 011cb21d
-- [ ] REFACTOR
+- [x] REFACTOR skip: hook manifest is intentionally explicit per Codex event
 
 ## Rule: test-codex-plugin-migration.TB1.R4 — Upgrading an old project-local Codex install leaves user-owned project data intact while removing or ignoring obsolete Safe Word implementation assets
 
