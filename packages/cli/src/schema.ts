@@ -229,6 +229,16 @@ timeout = 30
 statusMessage = "Checking safeword PreToolUse gates"
 `;
 
+const CODEX_LEGACY_PRE_TOOL_QUALITY_HOOK_PATCH_WITHOUT_STATUS = `
+[[hooks.PreToolUse]]
+matcher = "^(apply_patch|Bash|Edit|Write|MultiEdit|NotebookEdit)$"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-quality.ts"'
+timeout = 30
+`;
+
 // Codex Stop hook for the merged Stop adapter — the retro auto-trigger (53DQJZ)
 // and the architecture-drift advisory (#598/#605) now compose in one
 // codex/stop.ts, so it registers ONCE. Retrofits onto pre-existing configs and is
@@ -242,6 +252,15 @@ type = "command"
 command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/stop.ts"'
 timeout = 600
 statusMessage = "Running safeword retro if this session is substantial"
+`;
+
+const CODEX_LEGACY_STOP_HOOK_PATCH_WITHOUT_STATUS = `
+[[hooks.Stop]]
+
+[[hooks.Stop.hooks]]
+type = "command"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/stop.ts"'
+timeout = 600
 `;
 
 // Includes Bash (unlike the skill nudge): the quality accumulator counts LOC and
@@ -1399,18 +1418,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
         ],
         removeFileIfContentEquals: [CODEX_CONFIG_SCAFFOLD_WITHOUT_HOOKS],
       },
-      // Codex Stop hook retrofit (53DQJZ): add-if-missing, guarded to safeword
-      // scaffolds. Marker is the adapter path so an existing entry suppresses the
-      // append. Uninstall cleanup is owned by the primary patch's unpatchContent.
-      {
-        operation: 'append',
-        content: CODEX_STOP_HOOK_PATCH,
-        marker: '.safeword/hooks/codex/stop.ts',
-        applyWhenContentIncludes: [
-          '# Safeword Codex project configuration.',
-          '.safeword/hooks/codex/pre-tool-quality.ts',
-        ],
-      },
       // Prompt retro nudge retrofit (CDX602): add-if-missing onto existing Codex
       // configs. This is Lane 2 for unfiled spooled drafts; Codex Stop itself is
       // silent and never blocks the turn.
@@ -1445,33 +1452,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
           '.safeword/hooks/codex/pre-tool-quality.ts',
         ],
       },
-      // PostToolUse skill-nudge retrofit (#482): add-if-missing onto existing
-      // configs, marker = the hook path so a present block suppresses the append.
-      // Own unpatch removes this block; the primary patch (last on reversed
-      // unpatch) owns file removal. Mirrors the MCP-server retrofit below.
-      {
-        operation: 'append',
-        content: CODEX_POST_TOOL_SKILL_NUDGE_HOOK_PATCH,
-        marker: '.safeword/hooks/codex/post-tool-skill-nudge.ts',
-        applyWhenContentIncludes: [
-          '# Safeword Codex project configuration.',
-          '.safeword/hooks/codex/pre-tool-quality.ts',
-        ],
-      },
-      // PostToolUse quality-state retrofit (#630): add-if-missing onto existing
-      // configs, same shape as the skill-nudge retrofit above. Writes the
-      // per-session state (active ticket binding, LOC) that the PreToolUse gates
-      // and write-review-stamp.ts read back. Uninstall cleanup is owned by the
-      // primary patch's unpatchContent.
-      {
-        operation: 'append',
-        content: CODEX_POST_TOOL_QUALITY_HOOK_PATCH,
-        marker: '.safeword/hooks/codex/post-tool-quality.ts',
-        applyWhenContentIncludes: [
-          '# Safeword Codex project configuration.',
-          '.safeword/hooks/codex/pre-tool-quality.ts',
-        ],
-      },
       // MCP-server retrofit (#269): add-if-missing parity with .mcp.json /
       // .cursor/mcp.json. Marker is the context7 table header, so an existing
       // (safeword- or user-authored) [mcp_servers.context7] suppresses the
@@ -1496,6 +1476,18 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
   // customer-owned context files; P30CRP moved SAFEWORD.md delivery to
   // safeword-owned hooks.
   legacyTextPatches: {
+    '.codex/config.toml': {
+      operation: 'append',
+      content: CODEX_LEGACY_PRE_TOOL_QUALITY_HOOK_PATCH_WITHOUT_STATUS,
+      marker: '.safeword/hooks/codex/pre-tool-quality.ts',
+      unpatchContent: [
+        CODEX_PRE_TOOL_QUALITY_HOOK_PATCH,
+        CODEX_LEGACY_STOP_HOOK_PATCH_WITHOUT_STATUS,
+        CODEX_STOP_HOOK_PATCH,
+        CODEX_POST_TOOL_QUALITY_HOOK_PATCH,
+        CODEX_POST_TOOL_SKILL_NUDGE_HOOK_PATCH,
+      ],
+    },
     'AGENTS.md': {
       operation: 'prepend',
       content: AGENTS_MD_LINK,
