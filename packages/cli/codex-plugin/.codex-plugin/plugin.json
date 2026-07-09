@@ -10,6 +10,7 @@
   "license": "MIT",
   "keywords": ["safeword", "codex", "bdd", "tdd", "agent-workflow"],
   "skills": "./skills/",
+  "hooks": "./hooks.json",
   "interface": {
     "displayName": "Safe Word",
     "shortDescription": "BDD/TDD workflow guidance and gates for Codex",
