@@ -73,7 +73,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Plugin hook commands never point at repo-local hook scripts
 
 - [x] RED c06e85a8
-- [ ] GREEN
+- [x] GREEN 011cb21d
 - [ ] REFACTOR
 
 ## Rule: test-codex-plugin-migration.TB1.R4 — Upgrading an old project-local Codex install leaves user-owned project data intact while removing or ignoring obsolete Safe Word implementation assets
