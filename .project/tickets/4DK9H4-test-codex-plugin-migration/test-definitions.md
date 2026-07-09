@@ -9,7 +9,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Fresh repo installs the plugin without repo-local Safe Word implementation assets
 
 - [x] RED bfb71fdf
-- [ ] GREEN
+- [x] GREEN 4e5ee2f5
 - [ ] REFACTOR
 
 ### Scenario: Invalid local marketplace fails before claiming plugin install success
