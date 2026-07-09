@@ -28,7 +28,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Bare-name compatibility shims are treated as repo-residue
 
-- [ ] RED
+- [x] RED 596b924a
 - [ ] GREEN
 - [ ] REFACTOR
 
