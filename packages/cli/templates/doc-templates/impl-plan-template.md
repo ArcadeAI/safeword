@@ -50,6 +50,14 @@ If none are recorded yet, write `skip: no ADRs in this project yet`. -->
 and why that is acceptable. Surface drift deliberately — deviations are
 documented, not forbidden. If none: `skip: no deviations planned`. -->
 
+## Doc impact
+
+<!-- Which configured documentation sources (`docs.sources` in
+.safeword/config.json — README, docs sites, guides) do this feature's
+customer-visible changes touch? Enumerate each affected surface and fold the
+updates into the build order as tasks. Internal-only change with no
+customer-visible behavior: `skip: <reason>`. -->
+
 ## Assessment triggers
 
 <!-- Future changes that would prompt re-evaluating these choices (scale
