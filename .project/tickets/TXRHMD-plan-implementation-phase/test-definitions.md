@@ -54,9 +54,9 @@ _RED evidence: uncapturable pre-build — over-blocking guard; passes today by d
 
 ### Scenario: Prompt guidance during planning names the planning work
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED c3c8c6ee
+- [x] GREEN 988b7b81
+- [x] REFACTOR skip: reminder map entry, nothing to restructure
 
 ## Rule: plan-implementation-phase.TB1.R3 — the scenario-gate exit judges only scenario quality
 
