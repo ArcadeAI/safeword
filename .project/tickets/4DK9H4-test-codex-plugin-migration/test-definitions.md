@@ -42,7 +42,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: SessionStart context runs through the packaged CLI entrypoint
 
-- [ ] RED
+- [x] RED 4350e1b1
 - [ ] GREEN
 - [ ] REFACTOR
 
