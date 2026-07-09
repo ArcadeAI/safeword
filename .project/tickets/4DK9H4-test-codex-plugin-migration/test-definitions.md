@@ -94,7 +94,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED eb760fa5
 - [x] GREEN cb6cc277
-- [ ] REFACTOR
+- [x] REFACTOR skip: stale-hook cleanup is isolated in legacy text patches and obsolete retrofits are removed
 
 ## Rule: test-codex-plugin-migration.SM1.R1 — Static and release checks prove the plugin manifest, marketplace entry, bundled files, and packed package contents are valid
 
