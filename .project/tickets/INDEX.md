@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (409)
+## Tickets (412)
 
 ### 001
 
@@ -97,6 +97,10 @@
   Re-run the workflow's evidence checks at commit and push — the moments a session cannot skip — warn-and-record through one versioned CLI command, dogfooded on safeword's own repo.
   external issue: https://github.com/ArcadeAI/safeword/issues/810
   → `.project/tickets/CDRJTW-boundary-reconciliation-gate`
+- **Artifact-content phase anchors (redesign of #809's SHA anchors) (HGYGND)** (done, epic: 808)
+  Anchor each phase to the committed artifact it produces, verified in the final tree at the #810 boundary — replacing commit-SHA reachability
+  external issue: https://github.com/ArcadeAI/safeword/issues/815
+  → `.project/tickets/HGYGND-artifact-content-phase-anchors`
 - **Evidence-anchored phase transitions (SHA-per-transition provenance) (RM84M8)** (done, epic: 808)
   Give a feature ticket's `phase:` advance the same machine-checkable commit-SHA anchor the R/G/R ledger already has per tick, so a `sed`/Bash-forged transition is detectable as unanchored — as the reusable substrate #810's boundary gate enforces.
   external issue: https://github.com/ArcadeAI/safeword/issues/809
@@ -1132,7 +1136,7 @@
   Keep `/refactor` from creating mixed commits when the worktree already contains unrelated feature work or is detached.
   external issue: https://github.com/ArcadeAI/safeword/issues/407
   → `.project/tickets/E5VDEF-refactor-commit-mixed-worktrees`
-- **Consolidate divergent shell tokenizers across safeword's security gates (EDDABK)** (in_progress, epic: —)
+- **Consolidate divergent shell tokenizers across safeword's security gates (EDDABK)** (done, epic: —)
   Decide and unify how safeword's Bash-command gates tokenize commands, so the kill-guard, ledger-write, and dependency-readiness gates segment identically instead of via two divergent implementations.
   → `.project/tickets/EDDABK-shell-tokenizer-consolidation`
 - **Extract stop-quality gate logic into testable hook libs (suite-time + unit-testability) (EK16X4)** (in_progress, epic: —)
@@ -1186,6 +1190,9 @@
 - **Let Codex verify task tickets without Claude session proof (HMZSCD)** (done, epic: —)
   Let Codex complete task-ticket verification without fabricating Claude session proof or blocking on proof the done gate does not require.
   → `.project/tickets/HMZSCD-let-codex-verify-task-tickets-without-claude-session-proof`
+- **Harden Bash gates: basename-match the command word + tokenizer edge cases (HRDN42)** (done, epic: —)
+  Close the cluster of gate evasions the EDDABK code review found: gates exact-match the resolved command word while the shared tokenizer basename-matches env/corepack — an asymmetry that lets absolute-path forms (`/usr/bin/pkill`, `/usr/bin/tee`, `/usr/bin/git`) slip. Plus two tokenizer-correctness gaps.
+  → `.project/tickets/HRDN42-gate-basename-hardening`
 - **Upgrade eslint-plugin-jsdoc v62 → v63 (HRN1Z6)** (done, epic: —)
   Bump `eslint-plugin-jsdoc` from v62 to v63 across the monorepo and fix the root `package.json` categorization (currently in `dependencies`, belongs in `devDependencies`).
   → `.project/tickets/HRN1Z6`
@@ -1246,14 +1253,14 @@
 - **Epic: Make safeword legible to the Non-Technical Builder (K6CAJN)** (done, epic: —)
   Close the gaps where safeword speaks to the Non-Technical Builder (NTB) in raw jargon — across the CLI terminal, first-run runtime checks, gate blocks, and the framing rules that govern translation — so a user who can't read the diff always gets a plain-language explanation and a concrete next action.
   → `.project/tickets/K6CAJN-ntb-experience-epic`
+- **Absorb the two remaining private shell tokenizers into shell-segments (KQ3MRV)** (done, epic: —)
+  Migrate `cursor-run-identity.ts` and `branch-staleness.ts` — the two private shell tokenizers the EDDABK code review found outside the four Bash security gates — onto the shared `shell-segments.ts` tokenizer, so the "one tokenizer, one test surface" property holds repo-wide.
+  → `.project/tickets/KQ3MRV-tokenizer-absorption`
 - **sync-tracker v2 — project the dependency graph (relations, sub-issues, types) (M1FGRJ)** (done, epic: —)
   Extend `safeword sync-tracker` from a flat board to a **dependency-aware** projection: map safeword's `epic`/`parent` to tracker **sub-issues/parents**, `blocked_on`/`depends_on` to tracker **issue relations**, and `type` to native **issue-types** — so the external roadmap shows ordering and hierarchy, not just grouping.
   blocked by: safeword sync-tracker — one-way projection to Linear + GitHub Issues (JS5K5G)
   external issue: https://github.com/ArcadeAI/safeword/issues/347
   → `.project/tickets/M1FGRJ-tracker-relations-projection`
-- **Document uncommittable RED evidence path (M8NNX0)** (in_progress, epic: —)
-  Make the TDD instructions explicitly handle RED states that cannot be committed because structural quality gates reject partial code.
-  external issue: https://github.com/ArcadeAI/safeword/issues/586
 - **Document uncommittable RED evidence path (M8NNX0)** (done, epic: —)
   Make the TDD instructions explicitly handle RED states that cannot be committed because structural quality gates reject partial code.
   external issue: https://github.com/ArcadeAI/safeword/issues/586
