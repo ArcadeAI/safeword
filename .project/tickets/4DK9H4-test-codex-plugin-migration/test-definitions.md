@@ -14,7 +14,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Invalid local marketplace fails before claiming plugin install success
 
-- [ ] RED
+- [x] RED 5b4d62b6
 - [ ] GREEN
 - [ ] REFACTOR
 
