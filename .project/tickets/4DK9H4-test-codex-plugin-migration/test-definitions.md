@@ -66,7 +66,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Stop continuation runs through the packaged CLI entrypoint
 
-- [ ] RED
+- [x] RED 73491db8
 - [ ] GREEN
 - [ ] REFACTOR
 
