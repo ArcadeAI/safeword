@@ -138,6 +138,12 @@ _RED evidence: uncapturable pre-build — over-blocking guard; passes today by d
 
 _RED evidence: uncapturable pre-build — over-blocking guard; passes today by design (#928 convention)._
 
+### Scenario: A present but empty Doc impact section fails validation
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: plan-implementation-phase.TB1.R6 — proof coverage spans every spec-affected surface
 
 ### Scenario: Each affected surface appears in the plan's proof coverage
@@ -256,6 +262,12 @@ _RED evidence: uncapturable pre-build — over-blocking guard; passes today by d
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: The config reference documents the approval toggle
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: plan-implementation-phase.NTB2.R3 — headless sessions record pending approval instead of blocking
 
 ### Scenario: Headless session with approval enabled surfaces the plan instead of stalling
@@ -335,6 +347,12 @@ _RED evidence: uncapturable pre-build — over-blocking guard; passes today by d
 - [ ] REFACTOR
 
 _RED evidence: uncapturable pre-build — over-blocking guard; passes today by design (#928 convention)._
+
+### Scenario: A feature commit at plan-implementation without a ledger is reported at the boundary
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ### Scenario: Splitting guidance is remapped to the planning phase
 

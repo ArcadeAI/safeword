@@ -19,6 +19,7 @@ Feature: plan-implementation phase before TDD
       And no impl-plan.md exists in the ticket folder
       When the agent sets the ticket phase to implement
       Then the phase change is denied
+      And the denial names the missing implementation plan
 
     @rejection @surface.claude-code
     Scenario: Feature with an incomplete plan is denied entry to implement
@@ -43,7 +44,7 @@ Feature: plan-implementation phase before TDD
       Then the phase change is accepted
 
     Scenario: Task tickets reach implement without a plan requirement
-      Given a task ticket with no impl-plan.md
+      Given a task ticket at the scenario-gate phase with no impl-plan.md
       When the agent sets the ticket phase to implement
       Then the phase change is accepted
 
@@ -135,6 +136,12 @@ Feature: plan-implementation phase before TDD
       Given a feature ticket whose impl-plan.md has the original five sections and no Doc impact section
       When the plan is validated at a phase gate
       Then the plan passes
+
+    @rejection
+    Scenario: A present but empty Doc impact section fails validation
+      Given a feature ticket whose impl-plan.md includes a Doc impact section with no content and no skip line
+      When the plan is validated at a phase gate
+      Then the plan fails validation naming the empty section
 
   @plan-implementation-phase.TB1.R6
   Rule: plan-implementation-phase.TB1.R6 — proof coverage spans every spec-affected surface
@@ -257,6 +264,11 @@ Feature: plan-implementation phase before TDD
       When PLAN_IMPLEMENTATION.md is read
       Then it states that with designApprovalGate enabled the reviewed plan is presented for user approval before implement
 
+    Scenario: The config reference documents the approval toggle
+      Given the shipped website configuration reference
+      When the designApprovalGate entry is read
+      Then it documents the key as defaulting to off with autonomous advancement
+
   @plan-implementation-phase.NTB2.R3
   Rule: plan-implementation-phase.NTB2.R3 — headless sessions record pending approval instead of blocking
 
@@ -344,6 +356,13 @@ Feature: plan-implementation phase before TDD
       When the agent ends the session
       Then the stop is allowed
 
+    @rejection @surface.claude-code
+    Scenario: A feature commit at plan-implementation without a ledger is reported at the boundary
+      Given a feature ticket at the plan-implementation phase
+      And no test-definitions.md exists in the ticket folder
+      When the boundary check runs on its commit
+      Then the ledger check reports the missing ledger
+
     Scenario: Splitting guidance is remapped to the planning phase
       Given the shipped bdd splitting document
       When its checkpoint and restart tables are read
@@ -358,7 +377,7 @@ Feature: plan-implementation phase before TDD
       Given the shipped bdd skill documents
       When PLAN_IMPLEMENTATION.md is read
       Then its steps require no bash auto-expansion and no interactively-authenticated tools
-      And every gate it describes has defined behavior for sessions without an interactive user
+      And its transition-gate and designApprovalGate guidance each define behavior for sessions without an interactive user
 
   @plan-implementation-phase.SM1.R2
   Rule: plan-implementation-phase.SM1.R2 — the phase doc ships with full cross-harness parity
