@@ -148,7 +148,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Untrusted plugin hooks are reported as not active for normal Codex runs
 
-- [ ] RED
+- [x] RED df9ba998
 - [ ] GREEN
 - [ ] REFACTOR
 
