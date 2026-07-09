@@ -660,6 +660,17 @@ Then(
   },
 );
 
+Then(
+  'the hook output allows the edit without a denial payload',
+  function (this: CodexPluginMigrationWorld) {
+    const result = this.codexPluginHookResult;
+    assert.ok(result, 'hook result was not captured');
+    assert.equal(result.exitCode, 0, result.stderr);
+    assert.equal(result.stderr, '');
+    assert.equal(result.stdout.trim(), '');
+  },
+);
+
 Then('the plugin install has not created `AGENTS.md`', function (this: CodexPluginMigrationWorld) {
   assert.equal(
     existsSync(nodePath.join(requirePath(this.codexPluginRepoRoot, 'repo root'), 'AGENTS.md')),
