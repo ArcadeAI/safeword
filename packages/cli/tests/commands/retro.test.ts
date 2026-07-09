@@ -700,6 +700,35 @@ describe('retroReconcileCommand wiring (G19QG7 SM2.R1)', () => {
     expect(labels.get(41)).toContain(RECONCILE_LABEL);
     expect((comments.get(41) ?? []).some(c => c.includes(RECONCILE_MARKER))).toBe(true);
   });
+
+  // 4KP67A (quality review): with per-issue isolation, a sweep where EVERY
+  // evaluated issue fails (e.g. token valid enough to list but broken for
+  // comment reads) would otherwise report success and look identical to a
+  // healthy quiet day — total failure must redden the scheduled run.
+  it('exits non-zero when every evaluated issue fails and nothing was flagged or skipped', async () => {
+    const { retroReconcileCommand } = await import('../../src/commands/retro.js');
+    const previousExitCode = process.exitCode;
+
+    const tracker = {
+      listIssues: () =>
+        Promise.resolve([
+          { number: 1, title: 'a', body: '**Safeword surface:** `hooks/a.ts`', labels: ['retro'] },
+          { number: 2, title: 'b', body: '**Safeword surface:** `hooks/b.ts`', labels: ['retro'] },
+        ]),
+      listComments: () => Promise.reject(new Error('403')),
+      createComment: () => Promise.reject(new Error('403')),
+      addLabels: () => Promise.reject(new Error('403')),
+      resolveTagDate: () => Promise.resolve(undefined),
+      surfaceTouchedSince: () => Promise.resolve(false),
+    };
+
+    try {
+      await retroReconcileCommand({ tracker });
+      expect(process.exitCode).toBe(1);
+    } finally {
+      process.exitCode = previousExitCode;
+    }
+  });
 });
 
 describe('retro summary drop reporting (PNZM3B SM2.R1)', () => {
