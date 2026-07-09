@@ -329,6 +329,12 @@ const CODEX_SKILL_DEPRECATED_FILES = CODEX_SKILL_TEMPLATE_FILES.map(
   ([target]) => `.agents/skills/${target}`,
 );
 
+const CODEX_SKILL_DEPRECATED_DIRS = [
+  ...new Set(
+    CODEX_SKILL_TEMPLATE_FILES.map(([target]) => `.agents/skills/${target.split('/', 1)[0]}`),
+  ),
+];
+
 function skipLegacyCodexHookInstall(): undefined {
   return;
 }
@@ -722,6 +728,8 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/skills/safeword-bdd-orchestrating',
     // Empty after deprecated Codex hook files are removed.
     '.safeword/hooks/codex',
+    // Empty after deprecated Codex skill files are removed; non-empty user-modified dirs survive.
+    ...CODEX_SKILL_DEPRECATED_DIRS,
   ],
 
   // Files owned by safeword (overwritten on upgrade if content changed)
