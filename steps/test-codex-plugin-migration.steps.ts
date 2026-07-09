@@ -53,8 +53,10 @@ interface CodexPluginMigrationWorld extends SafewordWorld {
   codexPluginHookResult?: CommandResult;
   codexPluginHookCommands?: string[];
   codexPluginHookContractResults?: CodexHookContractResult[];
+  codexPluginMalformedHookCommandName?: CodexHookCommandName;
   codexPluginMigrationResult?: CommandResult;
   codexPluginUserDataSnapshot?: Record<string, string>;
+  codexPluginSelfReportSnapshot?: Record<string, string>;
   codexPluginUserSkillSnapshot?: string;
   codexPluginUserCodexConfigLines?: string[];
   codexPluginPackageRoot?: string;
@@ -453,6 +455,39 @@ function createCodexHookContractFixture(): string {
   );
 
   return repoRoot;
+}
+
+function createMalformedCodexHookFixture(): string {
+  const repoRoot = createTemporaryDirectory('safeword-codex-hook-malformed-');
+  writeFileSync(
+    nodePath.join(repoRoot, 'package.json'),
+    `${JSON.stringify({ name: 'codex-hook-malformed-fixture', version: '1.0.0' }, undefined, 2)}\n`,
+  );
+
+  const initResult = runCommand('git', ['init', '--quiet'], { cwd: repoRoot });
+  assert.equal(initResult.exitCode, 0, initResult.stderr);
+
+  mkdirSync(nodePath.join(repoRoot, '.safeword/self-reports'), { recursive: true });
+  writeFileSync(
+    nodePath.join(repoRoot, '.safeword/self-reports/existing.jsonl'),
+    '{"sessionId":"existing","source":"sentinel"}\n',
+  );
+
+  return repoRoot;
+}
+
+function readSelfReportSpoolSnapshot(projectRoot: string): Record<string, string> {
+  const snapshot: Record<string, string> = {};
+  const selfReportDirectory = nodePath.join(projectRoot, '.safeword/self-reports');
+  if (!existsSync(selfReportDirectory)) return snapshot;
+
+  for (const entry of readdirSync(selfReportDirectory, { withFileTypes: true })) {
+    if (entry.isFile()) {
+      snapshot[entry.name] = readFileSync(nodePath.join(selfReportDirectory, entry.name), 'utf8');
+    }
+  }
+
+  return snapshot;
 }
 
 function readUserDataSnapshot(projectRoot: string): Record<string, string> {
@@ -1019,6 +1054,13 @@ Given(
   },
 );
 
+Given('a packaged Safe Word Codex hook entrypoint', function (this: CodexPluginMigrationWorld) {
+  const repoRoot = createMalformedCodexHookFixture();
+  this.codexPluginRepoRoot = repoRoot;
+  this.codexPluginMalformedHookCommandName = 'stop';
+  this.codexPluginSelfReportSnapshot = readSelfReportSpoolSnapshot(repoRoot);
+});
+
 Given(
   'the fixture has a feature ticket missing intake prerequisites',
   function (this: CodexPluginMigrationWorld) {
@@ -1316,6 +1358,10 @@ When(
   },
 );
 
+When('the entrypoint receives malformed JSON on stdin', function (this: CodexPluginMigrationWorld) {
+  this.codexPluginHookResult = undefined;
+});
+
 When(
   'the release contract inspects the package contents',
   function (this: CodexPluginMigrationWorld) {
@@ -1458,6 +1504,33 @@ Then(
       )
       .map(result => result.fixtureName ?? result.command);
     assert.deepEqual(sourceImports, []);
+  },
+);
+
+Then(
+  'the malformed hook entrypoint exits successfully',
+  function (this: CodexPluginMigrationWorld) {
+    const result = this.codexPluginHookResult;
+    assert.ok(result, 'hook result was not captured');
+    assert.equal(result.exitCode, 0, result.stderr);
+  },
+);
+
+Then("it emits the event's silent success payload", function (this: CodexPluginMigrationWorld) {
+  const result = this.codexPluginHookResult;
+  assert.ok(result, 'hook result was not captured');
+  assert.equal(this.codexPluginMalformedHookCommandName, 'stop');
+  assert.equal(result.stdout.trim(), '{}');
+  assert.equal(result.stderr, '');
+});
+
+Then(
+  'the Safe Word self-report spool remains unchanged',
+  function (this: CodexPluginMigrationWorld) {
+    assert.deepEqual(
+      readSelfReportSpoolSnapshot(requirePath(this.codexPluginRepoRoot, 'repo root')),
+      this.codexPluginSelfReportSnapshot,
+    );
   },
 );
 

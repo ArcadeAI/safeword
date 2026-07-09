@@ -170,7 +170,7 @@ Feature: Test Codex plugin migration
     Scenario: Malformed Codex hook input fails open through the packaged entrypoint
       Given a packaged Safe Word Codex hook entrypoint
       When the entrypoint receives malformed JSON on stdin
-      Then it exits successfully
+      Then the malformed hook entrypoint exits successfully
       And it emits the event's silent success payload
       And the Safe Word self-report spool remains unchanged
 
