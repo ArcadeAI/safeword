@@ -53,6 +53,7 @@ interface CodexPluginMigrationWorld extends SafewordWorld {
   codexPluginHookCommands?: string[];
   codexPluginMigrationResult?: CommandResult;
   codexPluginUserDataSnapshot?: Record<string, string>;
+  codexPluginUserSkillSnapshot?: string;
 }
 
 interface CodexPluginListEntry {
@@ -250,6 +251,44 @@ function readUserDataSnapshot(projectRoot: string): Record<string, string> {
     snapshot[relativePath] = readFileSync(nodePath.join(projectRoot, relativePath), 'utf8');
   }
   return snapshot;
+}
+
+function createProjectLocalCodexInstallFixture(): string {
+  const repoRoot = createTemporaryDirectory('safeword-codex-migration-repo-');
+  writeFileSync(
+    nodePath.join(repoRoot, 'package.json'),
+    `${JSON.stringify({ name: 'codex-migration-fixture', version: '1.0.0' }, undefined, 2)}\n`,
+  );
+
+  const initResult = runCommand('git', ['init', '--quiet'], { cwd: repoRoot });
+  assert.equal(initResult.exitCode, 0, initResult.stderr);
+
+  mkdirSync(nodePath.join(repoRoot, '.safeword/hooks/codex'), { recursive: true });
+  mkdirSync(nodePath.join(repoRoot, '.agents/skills/bdd'), { recursive: true });
+  mkdirSync(nodePath.join(repoRoot, '.agents/skills/verify'), { recursive: true });
+  writeFileSync(nodePath.join(repoRoot, '.safeword/version'), '0.67.0\n');
+  writeFileSync(
+    nodePath.join(repoRoot, '.safeword/config.json'),
+    `${JSON.stringify({ installedPacks: [] }, undefined, 2)}\n`,
+  );
+  writeFileSync(
+    nodePath.join(repoRoot, '.safeword/hooks/codex/pre-tool-quality.ts'),
+    'old Safe Word Codex PreToolUse hook\n',
+  );
+  writeFileSync(
+    nodePath.join(repoRoot, '.safeword/hooks/codex/stop.ts'),
+    'old Safe Word Codex Stop hook\n',
+  );
+  writeFileSync(
+    nodePath.join(repoRoot, '.agents/skills/bdd/SKILL.md'),
+    'old Safe Word Codex BDD skill\n',
+  );
+  writeFileSync(
+    nodePath.join(repoRoot, '.agents/skills/verify/SKILL.md'),
+    'old Safe Word Codex verify skill\n',
+  );
+
+  return repoRoot;
 }
 
 Given(
@@ -636,41 +675,25 @@ Given('the Safe Word Codex plugin hook manifest', function (this: CodexPluginMig
 Given(
   "a repo installed with today's project-local Codex assets",
   function (this: CodexPluginMigrationWorld) {
-    const repoRoot = createTemporaryDirectory('safeword-codex-migration-repo-');
-    writeFileSync(
-      nodePath.join(repoRoot, 'package.json'),
-      `${JSON.stringify({ name: 'codex-migration-fixture', version: '1.0.0' }, undefined, 2)}\n`,
-    );
+    this.codexPluginRepoRoot = createProjectLocalCodexInstallFixture();
+  },
+);
 
-    const initResult = runCommand('git', ['init', '--quiet'], { cwd: repoRoot });
-    assert.equal(initResult.exitCode, 0, initResult.stderr);
-
-    mkdirSync(nodePath.join(repoRoot, '.safeword/hooks/codex'), { recursive: true });
-    mkdirSync(nodePath.join(repoRoot, '.agents/skills/bdd'), { recursive: true });
-    mkdirSync(nodePath.join(repoRoot, '.agents/skills/verify'), { recursive: true });
-    writeFileSync(nodePath.join(repoRoot, '.safeword/version'), '0.67.0\n');
+Given(
+  /^an old project-local Codex install with a user-authored `\.agents\/skills\/company-workflow\/SKILL\.md`$/,
+  function (this: CodexPluginMigrationWorld) {
+    const repoRoot = createProjectLocalCodexInstallFixture();
+    const skillPath = nodePath.join(repoRoot, '.agents/skills/company-workflow/SKILL.md');
+    mkdirSync(nodePath.dirname(skillPath), { recursive: true });
     writeFileSync(
-      nodePath.join(repoRoot, '.safeword/config.json'),
-      `${JSON.stringify({ installedPacks: [] }, undefined, 2)}\n`,
-    );
-    writeFileSync(
-      nodePath.join(repoRoot, '.safeword/hooks/codex/pre-tool-quality.ts'),
-      'old Safe Word Codex PreToolUse hook\n',
-    );
-    writeFileSync(
-      nodePath.join(repoRoot, '.safeword/hooks/codex/stop.ts'),
-      'old Safe Word Codex Stop hook\n',
-    );
-    writeFileSync(
-      nodePath.join(repoRoot, '.agents/skills/bdd/SKILL.md'),
-      'old Safe Word Codex BDD skill\n',
-    );
-    writeFileSync(
-      nodePath.join(repoRoot, '.agents/skills/verify/SKILL.md'),
-      'old Safe Word Codex verify skill\n',
+      skillPath,
+      ['---', 'name: company-workflow', '---', '', '# Company Workflow', 'Use local process.'].join(
+        '\n',
+      ),
     );
 
     this.codexPluginRepoRoot = repoRoot;
+    this.codexPluginUserSkillSnapshot = readFileSync(skillPath, 'utf8');
   },
 );
 
@@ -918,6 +941,24 @@ Then(
   function (this: CodexPluginMigrationWorld) {
     const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
     assert.equal(existsSync(nodePath.join(repoRoot, '.safeword/hooks/codex')), false);
+  },
+);
+
+Then('the user-authored skill remains byte-identical', function (this: CodexPluginMigrationWorld) {
+  const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
+  assert.equal(
+    readFileSync(nodePath.join(repoRoot, '.agents/skills/company-workflow/SKILL.md'), 'utf8'),
+    this.codexPluginUserSkillSnapshot,
+  );
+});
+
+Then(
+  'Safe Word-owned Codex skill files no longer appear as active repo-local skills',
+  function (this: CodexPluginMigrationWorld) {
+    const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
+    assert.deepEqual(readdirSync(nodePath.join(repoRoot, '.agents/skills')).sort(), [
+      'company-workflow',
+    ]);
   },
 );
 
