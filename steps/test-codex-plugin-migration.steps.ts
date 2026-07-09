@@ -479,6 +479,53 @@ function createMalformedCodexHookFixture(): string {
   return repoRoot;
 }
 
+function installLocalSafewordNpxShim(projectRoot: string): void {
+  const buildResult = runCommand('bun', ['run', 'build'], {
+    cwd: nodePath.resolve(import.meta.dirname, '..', 'packages/cli'),
+    timeout: 120_000,
+  });
+  assert.equal(buildResult.exitCode, 0, buildResult.stderr);
+
+  const binDirectory = nodePath.join(projectRoot, 'node_modules/.bin');
+  mkdirSync(binDirectory, { recursive: true });
+  writeFileSync(
+    nodePath.join(binDirectory, 'safeword'),
+    [
+      '#!/usr/bin/env node',
+      "import { spawnSync } from 'node:child_process';",
+      "import process from 'node:process';",
+      `const result = spawnSync(process.execPath, [${JSON.stringify(
+        SAFEWORD_CLI_PATH,
+      )}, ...process.argv.slice(2)], { stdio: 'inherit' });`,
+      'process.exit(result.status ?? 1);',
+      '',
+    ].join('\n'),
+    { mode: 0o755 },
+  );
+}
+
+function copyRealCodexLiveRuntimeState(codexHome: string): void {
+  const home = process.env.HOME;
+  assert.ok(home, 'HOME was not set; cannot locate real Codex runtime state');
+
+  const codexRuntimeStateFiles = [
+    'auth.json',
+    'config.toml',
+    '.codex-global-state.json',
+    'installation_id',
+    'models_cache.json',
+    'state_5.sqlite',
+    'state_5.sqlite-wal',
+    'state_5.sqlite-shm',
+  ];
+
+  for (const file of codexRuntimeStateFiles) {
+    const source = nodePath.join(home, '.codex', file);
+    assert.equal(existsSync(source), true, `real Codex runtime state was missing at ${source}`);
+    cpSync(source, nodePath.join(codexHome, file));
+  }
+}
+
 function readSelfReportSpoolSnapshot(projectRoot: string): Record<string, string> {
   const snapshot: Record<string, string> = {};
   const selfReportDirectory = nodePath.join(projectRoot, '.safeword/self-reports');
@@ -937,6 +984,7 @@ Given(
     const codexHome = createTemporaryDirectory('safeword-codex-home-');
     const marketplaceRoot = createTemporaryDirectory('safeword-codex-marketplace-');
     writeLocalMarketplace(marketplaceRoot);
+    copyRealCodexLiveRuntimeState(codexHome);
 
     this.codexPluginRepoRoot = repoRoot;
     this.codexPluginCodexHome = codexHome;
@@ -944,6 +992,7 @@ Given(
 
     installSafeWordCodexPlugin.call(this);
     assert.equal(this.codexPluginInstallResult?.exitCode, 0, this.codexPluginInstallResult?.stderr);
+    installLocalSafewordNpxShim(repoRoot);
   },
 );
 
@@ -1413,10 +1462,37 @@ When('the entrypoint receives malformed JSON on stdin', function (this: CodexPlu
 When(
   '`codex exec --json --dangerously-bypass-hook-trust` attempts a supported edit that violates a Safe Word gate',
   function (this: CodexPluginMigrationWorld) {
+    const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
+    createIncompleteFeatureTicket(repoRoot);
     this.codexPluginLiveSmokeAttempted = true;
-    this.codexPluginLiveSmokeResult = undefined;
-    this.codexPluginLiveSmokeOutput = undefined;
-    this.codexPluginLiveSmokeFileChangeObserved = undefined;
+
+    const prompt = [
+      `Use the apply_patch tool to create .project/tickets/${CODEX_TEST_TICKET_ID}/test-definitions.md.`,
+      'The file content must be exactly: # Test Definitions',
+      'Do not use a shell command.',
+    ].join(' ');
+
+    this.codexPluginLiveSmokeResult = runCommand(
+      'codex',
+      [
+        'exec',
+        '--json',
+        '--dangerously-bypass-hook-trust',
+        '--dangerously-bypass-approvals-and-sandbox',
+        '-C',
+        repoRoot,
+        prompt,
+      ],
+      {
+        cwd: repoRoot,
+        env: { CODEX_HOME: requirePath(this.codexPluginCodexHome, 'isolated CODEX_HOME') },
+        timeout: 180_000,
+      },
+    );
+    this.codexPluginLiveSmokeOutput = `${this.codexPluginLiveSmokeResult.stdout}\n${this.codexPluginLiveSmokeResult.stderr}`;
+    this.codexPluginLiveSmokeFileChangeObserved = /"type"\s*:\s*"file_change"/u.test(
+      this.codexPluginLiveSmokeOutput,
+    );
   },
 );
 
