@@ -44,7 +44,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 4350e1b1
 - [x] GREEN 433657da
-- [ ] REFACTOR
+- [x] REFACTOR skip: two-branch hook dispatcher and packaged template reader are already isolated
 
 ### Scenario: PreToolUse allow runs through the packaged CLI entrypoint
 
