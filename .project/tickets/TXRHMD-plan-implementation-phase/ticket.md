@@ -2,14 +2,18 @@
 id: TXRHMD
 slug: plan-implementation-phase
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/480
+external_prs:
+  - https://github.com/ArcadeAI/safeword/pull/988
+  - https://github.com/ArcadeAI/safeword/pull/989
 phase_anchors:
   - define-behavior: 3bb035bc
   - scenario-gate: 5e7cba52
   - implement: b4603611
   - verify: a83a908a
+  - done: .project/tickets/TXRHMD-plan-implementation-phase/verify.md
 scope:
   - insert `plan-implementation` between scenario-gate and implement in the canonical phase enum and every phase-keyed hook surface (CANONICAL_PHASES, BddPhase, PHASE_EVIDENCE, prompt reminders, stop/pre-tool gate phase lists, LEDGER_REQUIRED_PHASES)
   - pre-tool transition gate — deny `phase: implement` for new-flow features until impl-plan.md parses valid with status `planned`
@@ -54,3 +58,4 @@ last_modified: 2026-07-08T06:03:20.016Z
 - 2026-07-09T04:41:37.925Z Phase: scenario-gate → implement
 - 2026-07-09T06:55:48.300Z Phase: implement → verify
 - PR opened: https://github.com/ArcadeAI/safeword/pull/988 (feature); docs follow-up stacked as https://github.com/ArcadeAI/safeword/pull/989. Done-flip pends CI green on #988.
+- Done flip (2026-07-09): all done_when satisfied; verify.md + audit recorded; steps delivered after CI proved the acceptance lane blocking; CI vitest green on the PR head settles the two locally-environmental failures. Flip rides PR #988 per the ticket-closure guard.
