@@ -198,6 +198,14 @@ program
   });
 
 program
+  .command('codex-hook <event>')
+  .description('Run a packaged Safe Word Codex hook entrypoint')
+  .action(async (event: string) => {
+    const { codexHook } = await import('./commands/codex-hook.js');
+    await codexHook(event);
+  });
+
+program
   .command('self-report')
   .description("View safeword's own captured runtime signals (zero-egress local spool)")
   .option('--json', 'Emit machine-readable JSON instead of a human summary')
