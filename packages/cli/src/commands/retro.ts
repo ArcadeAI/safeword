@@ -455,6 +455,8 @@ export async function retroReconcileCommand(
   // not redden every scheduled run), but when every evaluated issue failed the
   // sweep did no work at all (e.g. auth broke after listing) — that must be a
   // red run, not a report indistinguishable from a healthy quiet day (4KP67A).
+  // `deferred` needs no check: it only populates once flagged hits the per-run
+  // bound, so deferred > 0 implies flagged > 0 and the predicate is false.
   if (result.failed.length > 0 && result.flagged.length === 0 && result.skipped.length === 0) {
     error('retro-reconcile: every evaluated issue failed; nothing swept.');
     process.exitCode = 1;
