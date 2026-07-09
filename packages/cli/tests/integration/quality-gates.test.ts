@@ -368,7 +368,7 @@ describe('Quality Gates', () => {
       expect(state).not.toHaveProperty('lastKnownPhase');
     });
 
-    it('2.2a: denies application-code edits while a feature is at plan-implementation (TXRHMD)', () => {
+    function seedPlanImplementationFeature(): void {
       writeTestFile(
         projectDirectory,
         '.safeword-project/tickets/099-test/ticket.md',
@@ -382,13 +382,16 @@ describe('Quality Gates', () => {
           '# T',
         ].join('\n'),
       );
-      const head = getHead(projectDirectory);
       writeState(projectDirectory, {
         locSinceCommit: 0,
-        lastCommitHash: head,
+        lastCommitHash: getHead(projectDirectory),
         activeTicket: '099',
         gate: null,
       });
+    }
+
+    it('2.2a: denies application-code edits while a feature is at plan-implementation (TXRHMD)', () => {
+      seedPlanImplementationFeature();
 
       const result = runPreToolQuality(
         projectDirectory,
@@ -402,26 +405,7 @@ describe('Quality Gates', () => {
     });
 
     it('2.2b: ticket artifacts stay editable while a feature is at plan-implementation (TXRHMD)', () => {
-      writeTestFile(
-        projectDirectory,
-        '.safeword-project/tickets/099-test/ticket.md',
-        [
-          '---',
-          'id: 099',
-          'type: feature',
-          'phase: plan-implementation',
-          'status: in_progress',
-          '---',
-          '# T',
-        ].join('\n'),
-      );
-      const head = getHead(projectDirectory);
-      writeState(projectDirectory, {
-        locSinceCommit: 0,
-        lastCommitHash: head,
-        activeTicket: '099',
-        gate: null,
-      });
+      seedPlanImplementationFeature();
 
       const result = runPreToolQuality(
         projectDirectory,
