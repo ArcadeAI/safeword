@@ -92,7 +92,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Customized Codex config is not clobbered while stale Safe Word hooks are removed
 
-- [ ] RED
+- [x] RED eb760fa5
 - [ ] GREEN
 - [ ] REFACTOR
 
