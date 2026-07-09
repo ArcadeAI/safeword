@@ -201,22 +201,26 @@ describe('surfaces rewritten by the phase introduction (TXRHMD)', () => {
     }
   });
 
+  /** Assert a literal appears nowhere under the given shipped roots. */
+  function expectNoShippedSurfaceMatches(literal: string, roots: string[]): void {
+    for (const root of roots) {
+      const out = execSync(`grep -rlF "${literal}" ${root} 2>/dev/null || true`, {
+        cwd: repoRoot,
+        encoding: 'utf8',
+      }).trim();
+      expect(out, `"${literal}" under ${root}: ${out}`).toBe('');
+    }
+  }
+
   it('no shipped surface still says "authored at scenario-gate exit" (TB1.R3)', () => {
     // Template tree + dogfood skills + hook sources: the grep scenario.
-    const roots = [
+    expectNoShippedSurfaceMatches('authored at scenario-gate exit', [
       'packages/cli/templates',
       '.claude/skills',
       '.safeword/hooks',
       '.safeword/templates',
       'packages/cli/src',
-    ];
-    for (const root of roots) {
-      const out = execSync(
-        `grep -rl "authored at scenario-gate exit" ${root} 2>/dev/null || true`,
-        { cwd: repoRoot, encoding: 'utf8' },
-      ).trim();
-      expect(out, `stale phrase under ${root}: ${out}`).toBe('');
-    }
+    ]);
   });
 
   it('no shipped surface keeps a six-phase adjacency (scenario-gate directly to implement)', () => {
@@ -226,15 +230,8 @@ describe('surfaces rewritten by the phase introduction (TXRHMD)', () => {
       '.agents/skills',
       '.safeword/templates',
     ];
-    for (const root of roots) {
-      for (const pattern of ['scenario-gate | implement', 'scenario-gate → implement']) {
-        const out = execSync(`grep -rlF "${pattern}" ${root} 2>/dev/null || true`, {
-          cwd: repoRoot,
-          encoding: 'utf8',
-        }).trim();
-        expect(out, `six-phase adjacency "${pattern}" under ${root}: ${out}`).toBe('');
-      }
-    }
+    expectNoShippedSurfaceMatches('scenario-gate | implement', roots);
+    expectNoShippedSurfaceMatches('scenario-gate → implement', roots);
   });
 
   it('resume + phase-file tables route plan-implementation to PLAN_IMPLEMENTATION.md (TB1.R2)', () => {
