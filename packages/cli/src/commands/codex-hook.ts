@@ -2,7 +2,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
-type SupportedCodexHookEvent = 'pre-tool-use' | 'session-start';
+type AdditionalContextHookEvent = 'PostToolUse' | 'SessionStart';
+type SupportedCodexHookEvent = 'post-tool-use' | 'pre-tool-use' | 'session-start';
 
 interface CodexHookInput {
   hook_event_name?: string;
@@ -26,7 +27,7 @@ interface DenialOutput {
 
 interface AdditionalContextOutput {
   hookSpecificOutput: {
-    hookEventName: 'SessionStart';
+    hookEventName: AdditionalContextHookEvent;
     additionalContext: string;
   };
 }
@@ -38,6 +39,12 @@ const SAFEWORD_INSTRUCTIONS_PATHS = [
   nodePath.resolve(MODULE_DIRECTORY, '../templates/SAFEWORD.md'),
   nodePath.resolve(MODULE_DIRECTORY, '../../templates/SAFEWORD.md'),
 ];
+const POST_TOOL_GUIDANCE_PATH = '.project/codex-post-tool-guidance.txt';
+const SUPPORTED_CODEX_HOOK_EVENTS: ReadonlySet<string> = new Set([
+  'post-tool-use',
+  'pre-tool-use',
+  'session-start',
+]);
 
 async function readStdin(): Promise<string> {
   let body = '';
@@ -57,7 +64,7 @@ function parseCodexHookInput(raw: string): CodexHookInput | undefined {
 }
 
 function normalizeEvent(event: string): SupportedCodexHookEvent | undefined {
-  if (event === 'pre-tool-use' || event === 'session-start') return event;
+  if (SUPPORTED_CODEX_HOOK_EVENTS.has(event)) return event as SupportedCodexHookEvent;
   return undefined;
 }
 
@@ -134,6 +141,11 @@ function readPackagedSafewordInstructions(): string | undefined {
   return instructionsPath ? readFileSync(instructionsPath, 'utf8') : undefined;
 }
 
+function readProjectTextFile(projectDirectory: string, relativePath: string): string | undefined {
+  const filePath = nodePath.join(projectDirectory, relativePath);
+  return existsSync(filePath) ? readFileSync(filePath, 'utf8') : undefined;
+}
+
 function emitAdditionalContext(output: AdditionalContextOutput): void {
   process.stdout.write(`${JSON.stringify(output)}\n`);
 }
@@ -180,9 +192,30 @@ async function runSessionStart(): Promise<void> {
   });
 }
 
+async function runPostToolUse(): Promise<void> {
+  const input = parseCodexHookInput(await readStdin());
+  if (!input) return;
+
+  const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+  const additionalContext = readProjectTextFile(projectDirectory, POST_TOOL_GUIDANCE_PATH)?.trim();
+  if (!additionalContext) return;
+
+  emitAdditionalContext({
+    hookSpecificOutput: {
+      hookEventName: 'PostToolUse',
+      additionalContext,
+    },
+  });
+}
+
+const CODEX_HOOK_RUNNERS: Record<SupportedCodexHookEvent, () => Promise<void>> = {
+  'post-tool-use': runPostToolUse,
+  'pre-tool-use': runPreToolUse,
+  'session-start': runSessionStart,
+};
+
 export async function codexHook(event: string): Promise<void> {
   const normalized = normalizeEvent(event);
   if (normalized === undefined) return;
-  if (normalized === 'pre-tool-use') await runPreToolUse();
-  else if (normalized === 'session-start') await runSessionStart();
+  await CODEX_HOOK_RUNNERS[normalized]();
 }
