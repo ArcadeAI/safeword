@@ -67,7 +67,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Stop continuation runs through the packaged CLI entrypoint
 
 - [x] RED 73491db8
-- [ ] GREEN
+- [x] GREEN 59a83d49
 - [ ] REFACTOR
 
 ### Scenario: Plugin hook commands never point at repo-local hook scripts
