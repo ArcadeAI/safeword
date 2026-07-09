@@ -560,6 +560,34 @@ function copyRealCodexLiveRuntimeState(codexHome: string): void {
   }
 }
 
+function installSafeWordPluginFixture(
+  world: CodexPluginMigrationWorld,
+  options: { liveAuthenticated?: boolean } = {},
+): void {
+  const repoRoot = createTemporaryDirectory(
+    options.liveAuthenticated ? 'safeword-codex-plugin-live-repo-' : 'safeword-codex-plugin-repo-',
+  );
+  writeFileSync(
+    nodePath.join(repoRoot, 'package.json'),
+    `${JSON.stringify({ name: 'codex-plugin-fixture', version: '1.0.0' }, undefined, 2)}\n`,
+  );
+  const initResult = runCommand('git', ['init', '--quiet'], { cwd: repoRoot });
+  assert.equal(initResult.exitCode, 0, initResult.stderr);
+
+  const codexHome = createTemporaryDirectory('safeword-codex-home-');
+  const marketplaceRoot = createTemporaryDirectory('safeword-codex-marketplace-');
+  writeLocalMarketplace(marketplaceRoot);
+  if (options.liveAuthenticated) copyRealCodexLiveRuntimeState(codexHome);
+
+  world.codexPluginRepoRoot = repoRoot;
+  world.codexPluginCodexHome = codexHome;
+  world.codexPluginMarketplaceRoot = marketplaceRoot;
+
+  installSafeWordCodexPlugin.call(world);
+  assert.equal(world.codexPluginInstallResult?.exitCode, 0, world.codexPluginInstallResult?.stderr);
+  if (options.liveAuthenticated) installLocalSafewordNpxShim(repoRoot);
+}
+
 function readSelfReportSpoolSnapshot(projectRoot: string): Record<string, string> {
   const snapshot: Record<string, string> = {};
   const selfReportDirectory = nodePath.join(projectRoot, '.safeword/self-reports');
@@ -1007,50 +1035,14 @@ Given('the live Codex plugin smoke is explicitly enabled', function () {
 Given(
   'a fresh repo has the Safe Word Codex plugin installed and enabled under an isolated CODEX_HOME',
   function (this: CodexPluginMigrationWorld) {
-    const repoRoot = createTemporaryDirectory('safeword-codex-plugin-repo-');
-    writeFileSync(
-      nodePath.join(repoRoot, 'package.json'),
-      `${JSON.stringify({ name: 'codex-plugin-fixture', version: '1.0.0' }, undefined, 2)}\n`,
-    );
-    const initResult = runCommand('git', ['init', '--quiet'], { cwd: repoRoot });
-    assert.equal(initResult.exitCode, 0, initResult.stderr);
-
-    const codexHome = createTemporaryDirectory('safeword-codex-home-');
-    const marketplaceRoot = createTemporaryDirectory('safeword-codex-marketplace-');
-    writeLocalMarketplace(marketplaceRoot);
-
-    this.codexPluginRepoRoot = repoRoot;
-    this.codexPluginCodexHome = codexHome;
-    this.codexPluginMarketplaceRoot = marketplaceRoot;
-
-    installSafeWordCodexPlugin.call(this);
-    assert.equal(this.codexPluginInstallResult?.exitCode, 0, this.codexPluginInstallResult?.stderr);
+    installSafeWordPluginFixture(this);
   },
 );
 
 Given(
   'a fresh repo has the Safe Word Codex plugin installed, enabled, and live-authenticated under an isolated CODEX_HOME',
   function (this: CodexPluginMigrationWorld) {
-    const repoRoot = createTemporaryDirectory('safeword-codex-plugin-live-repo-');
-    writeFileSync(
-      nodePath.join(repoRoot, 'package.json'),
-      `${JSON.stringify({ name: 'codex-plugin-live-fixture', version: '1.0.0' }, undefined, 2)}\n`,
-    );
-    const initResult = runCommand('git', ['init', '--quiet'], { cwd: repoRoot });
-    assert.equal(initResult.exitCode, 0, initResult.stderr);
-
-    const codexHome = createTemporaryDirectory('safeword-codex-home-');
-    const marketplaceRoot = createTemporaryDirectory('safeword-codex-marketplace-');
-    writeLocalMarketplace(marketplaceRoot);
-    copyRealCodexLiveRuntimeState(codexHome);
-
-    this.codexPluginRepoRoot = repoRoot;
-    this.codexPluginCodexHome = codexHome;
-    this.codexPluginMarketplaceRoot = marketplaceRoot;
-
-    installSafeWordCodexPlugin.call(this);
-    assert.equal(this.codexPluginInstallResult?.exitCode, 0, this.codexPluginInstallResult?.stderr);
-    installLocalSafewordNpxShim(repoRoot);
+    installSafeWordPluginFixture(this, { liveAuthenticated: true });
   },
 );
 
