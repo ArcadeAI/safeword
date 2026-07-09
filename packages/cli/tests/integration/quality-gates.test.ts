@@ -368,6 +368,71 @@ describe('Quality Gates', () => {
       expect(state).not.toHaveProperty('lastKnownPhase');
     });
 
+    it('2.2a: denies application-code edits while a feature is at plan-implementation (TXRHMD)', () => {
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/ticket.md',
+        [
+          '---',
+          'id: 099',
+          'type: feature',
+          'phase: plan-implementation',
+          'status: in_progress',
+          '---',
+          '# T',
+        ].join('\n'),
+      );
+      const head = getHead(projectDirectory);
+      writeState(projectDirectory, {
+        locSinceCommit: 0,
+        lastCommitHash: head,
+        activeTicket: '099',
+        gate: null,
+      });
+
+      const result = runPreToolQuality(
+        projectDirectory,
+        'Edit',
+        nodePath.join(projectDirectory, 'src/app.ts'),
+      );
+
+      const output = `${result.stdout}${result.stderr}`;
+      expect(output).toContain('impl-plan.md');
+      expect(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision).toBe('deny');
+    });
+
+    it('2.2b: ticket artifacts stay editable while a feature is at plan-implementation (TXRHMD)', () => {
+      writeTestFile(
+        projectDirectory,
+        '.safeword-project/tickets/099-test/ticket.md',
+        [
+          '---',
+          'id: 099',
+          'type: feature',
+          'phase: plan-implementation',
+          'status: in_progress',
+          '---',
+          '# T',
+        ].join('\n'),
+      );
+      const head = getHead(projectDirectory);
+      writeState(projectDirectory, {
+        locSinceCommit: 0,
+        lastCommitHash: head,
+        activeTicket: '099',
+        gate: null,
+      });
+
+      const result = runPreToolQuality(
+        projectDirectory,
+        'Edit',
+        nodePath.join(projectDirectory, '.safeword-project/tickets/099-test/impl-plan.md'),
+      );
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
+    });
+
     it('2.2: PreToolUse allows edits even with phase gate set (gates are now reminders)', () => {
       const head = getHead(projectDirectory);
       writeState(projectDirectory, {
