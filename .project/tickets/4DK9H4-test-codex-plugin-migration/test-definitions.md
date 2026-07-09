@@ -128,7 +128,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Exact Codex JSON fixtures cover every plugin hook command
 
-- [ ] RED
+- [x] RED 388880e4
 - [ ] GREEN
 - [ ] REFACTOR
 
