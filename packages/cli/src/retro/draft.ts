@@ -8,6 +8,7 @@
 // finding identity (category + surface + normalized title) so the same friction
 // recurring across sessions resolves to the same signature.
 
+import { isProcessSurface } from './egress.js';
 import { assembleBody, type Finding } from './finding.js';
 import { shortHash } from './hash.js';
 
@@ -30,6 +31,9 @@ function normalizeForKey(value: string): string {
   return value.toLowerCase().replaceAll(/\s+/g, ' ').trim();
 }
 
+/** The tracker label shared by filing (applied) and reconcile (queried). */
+export const RETRO_LABEL = 'retro';
+
 /** `retro:<12-hex>` keyed on the stable finding identity. */
 export function retroSignature(finding: Finding): string {
   const key = [finding.category, finding.safewordSurface, normalizeForKey(finding.title)].join(':');
@@ -47,9 +51,13 @@ export function signatureMarker(signature: string): string {
   return `<!-- safeword-retro-signature: ${signature} -->`;
 }
 
+/** The tracker label marking process-level (no single-file) friction (PNZM3B). */
+const PROCESS_LABEL = 'process';
+
 /** Build the namespaced draft from a normalized finding. */
 export function buildDraft(finding: Finding): RetroDraft {
   const signature = retroSignature(finding);
+  const processLabel = isProcessSurface(finding.safewordSurface) ? [PROCESS_LABEL] : [];
   // Embed the signature marker so re-fires (and recurrences) dedupe on the
   // stable signature, not the variable title.
   const body = `${assembleBody(finding)}\n${signatureMarker(signature)}`;
@@ -58,6 +66,6 @@ export function buildDraft(finding: Finding): RetroDraft {
     title: finding.title,
     body,
     bodyDigest: shortHash(body),
-    labels: ['self-report', 'retro', finding.category],
+    labels: ['self-report', RETRO_LABEL, finding.category, ...processLabel],
   };
 }
