@@ -23,7 +23,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Plugin skills expose the approved scoped invocation names
 
 - [x] RED e15dfb17
-- [ ] GREEN
+- [x] GREEN a651e556
 - [ ] REFACTOR
 
 ### Scenario: Bare-name compatibility shims are treated as repo-residue
