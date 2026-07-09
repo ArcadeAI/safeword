@@ -2,13 +2,14 @@
 id: TXRHMD
 slug: plan-implementation-phase
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 external_issue: https://github.com/ArcadeAI/safeword/issues/480
 phase_anchors:
   - define-behavior: 3bb035bc
   - scenario-gate: 5e7cba52
   - implement: b4603611
+  - verify: a83a908a
 scope:
   - insert `plan-implementation` between scenario-gate and implement in the canonical phase enum and every phase-keyed hook surface (CANONICAL_PHASES, BddPhase, PHASE_EVIDENCE, prompt reminders, stop/pre-tool gate phase lists, LEDGER_REQUIRED_PHASES)
   - pre-tool transition gate — deny `phase: implement` for new-flow features until impl-plan.md parses valid with status `planned`
@@ -51,3 +52,4 @@ last_modified: 2026-07-08T06:03:20.016Z
 - 2026-07-08T13:31:31.710Z Phase: intake → define-behavior
 - 2026-07-09T04:23:21.946Z Phase: define-behavior → scenario-gate
 - 2026-07-09T04:41:37.925Z Phase: scenario-gate → implement
+- 2026-07-09T06:55:48.300Z Phase: implement → verify
