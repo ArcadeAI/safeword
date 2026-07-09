@@ -8,12 +8,12 @@
 
 **Proof plan by cluster** (54 scenarios; highest practical scope per testing/SKILL.md):
 
-- Gate machinery (TB1.R1 ×6, SM1.R1 transitions ×4, NTB1.R1 ×2, NTB1.R2): **integration** — direct hook-lib invocation in vitest, the established pattern of `tests/hooks/phase-provenance.test.ts` and `tests/integration/impl-plan-gate.test.ts`. Denial-content assertions pin the new gate apart from today's skip-denials.
+- Gate machinery (TB1.R1 ×6, SM1.R1 transitions ×5, NTB1.R1 ×2, NTB1.R2): **integration** — direct hook-lib invocation in vitest, the established pattern of `tests/hooks/phase-provenance.test.ts` and `tests/integration/impl-plan-gate.test.ts`. Denial-content assertions pin the new gate apart from today's skip-denials. The canonical-order scenario is proven by the pinned order-string test updated in slice 1.
 - Stop-gate memberships (SM1.R1 stop ×2): **integration** via stop-quality paths (pattern: `tests/integration/hooks.test.ts` scenarios 11–12).
 - Boundary ledger (SM1.R1 boundary): **unit** on `src/boundary/engine.ts` (`ledgerRequiredPhase`).
 - Plan validation incl. Doc impact (TB1.R5 ×3): **unit** on `templates/hooks/lib/impl-plan.ts` (validate-if-present, legacy five-section pass, empty-section fail).
-- Doc-contract scenarios (TB1.R3/R6, TB2 all, TB3 all, NTB2 doc semantics, TB1.R4 ADR lifecycle): **unit content assertions** on the shipped docs (pattern: `tests/hooks/impl-plan.test.ts:164`, `adr-consultation-documentation.test.ts`).
-- Prompt reminder (TB1.R2): **unit** on `prompt-questions.ts` map.
+- Doc-contract scenarios (TB1.R3/R6, TB2 all, TB3 all, NTB2 doc semantics, TB1.R4 ADR lifecycle, SM1.R4 interactive-only check, TB1.R2 resume-table routing): **unit content assertions** on the shipped docs (pattern: `tests/hooks/impl-plan.test.ts:164`, `adr-consultation-documentation.test.ts`).
+- Prompt reminder (TB1.R2 reminder scenario): **unit** on `prompt-questions.ts` map.
 - Parity/schema (SM1.R2): existing `schema.test.ts` + `runParity` machinery; new entries only.
 - Config reference + website flow line (NTB2.R2 config scenario): content assertion on `configuration.mdx`.
 - ADR record (SM1.R3): content assertion on `ARCHITECTURE.md`.
@@ -22,12 +22,12 @@
 
 **Build order** (each slice commits green before the next):
 
-1. **Enum insertion** — `CANONICAL_PHASES`, `BddPhase` union, `PHASE_EVIDENCE` (compile-forced), `prompt-questions.ts` reminder (silent-miss — add with test), `review-trigger` default check; update pinned order-string tests + `phase_skips` fixtures. *Load-bearing slice.*
+1. **Enum insertion** — `CANONICAL_PHASES`, `BddPhase` union, `PHASE_EVIDENCE` (compile-forced), `prompt-questions.ts`: add the new phase reminder AND reword the scenario-gate line at :80 (drops "record the proof plan + build order"), `review-trigger` default check; update pinned order-string tests + `phase_skips` fixtures. *Load-bearing slice.*
 2. **Transition gate** — pre-tool deny of `phase: implement` for new-flow features without a parse-valid `planned` plan; denial names the missing artifact/section/status + scaffold template; task/legacy exemptions mirror M6D315 grandfathering. Wiring test here.
 3. **List memberships + code freeze** — `phasesRequiringTestDefs` + `LEDGER_REQUIRED_PHASES` gain the phase; implement-phase app-code gate extends to plan-implementation; stop-message updates ("authored at scenario-gate exit" → planning phase).
-4. **Doc impact section** — template sixth section + `parseImplPlan` validate-if-present + legacy/empty tests.
-5. **Phase doc + content moves** — author `templates/skills/bdd/PLAN_IMPLEMENTATION.md` (impl-plan authoring steps, ADR lifecycle incl. template/destination/supersede/mid-flight, editorial contract + deletion-test review, reuse routing to design-doc/data-architecture lanes, architecture awareness after ideal, relevance-scoped skill surfacing, current-docs rule, review-before-handoff + designApprovalGate incl. headless semantics); slim SCENARIOS.md exit; reword TDD.md/SKILL.md tables/SPLITTING.md/VERIFY.md/impl-plan-template header/review-spec handoff/quality-review table/tdd-review loop-back/ticket-template/ticket-system/glossary/PRINCIPLES.md.
-6. **ADR template + registrations** — `doc-templates/adr-template.md` (Nygard-core, date-prefixed dir-mode filenames); schema ownedFiles entries (phase doc + adr-template), CODEX row, CURSOR_RULE_WRAPPERS entry + generator run; parity sync (template → dogfood trio + `.mdc` pair + `.safeword/hooks`).
+4. **Doc impact section** — template sixth section + `parseImplPlan` validate-if-present + legacy/empty tests; adjust the "all five sections" error phrasing to "all five required sections".
+5. **Phase doc + content moves** — author `templates/skills/bdd/PLAN_IMPLEMENTATION.md` (impl-plan authoring steps, ADR lifecycle incl. template/destination/supersede/mid-flight, editorial contract + deletion-test review, reuse routing to design-doc/data-architecture lanes, architecture awareness after ideal, relevance-scoped skill surfacing, current-docs rule, review-before-handoff + designApprovalGate incl. headless semantics — noting Cursor Cloud Agents run preToolUse but NOT stop/sessionStart hooks, so headless guidance must not assume stop-hook nudges there); slim SCENARIOS.md exit; reword DISCOVERY.md:227 (planning-note pointer to the new phase), TDD.md/SKILL.md tables/SPLITTING.md/VERIFY.md/impl-plan-template header/review-spec handoff/quality-review table/tdd-review loop-back/ticket-template/ticket-system/glossary/PRINCIPLES.md.
+6. **ADR template + registrations** — `doc-templates/adr-template.md` (Nygard-core, date-prefixed dir-mode filenames); schema ownedFiles entries (phase doc + adr-template) + reword the schema.ts:1018 registration comment ("authored at scenario-gate exit"), CODEX row, CURSOR_RULE_WRAPPERS entry + generator run; parity sync (template → dogfood trio + `.mdc` pair + `.safeword/hooks`).
 7. **Record + docs** — superseding ADR in ARCHITECTURE.md; `hooks-and-skills.mdx` flow line; `configuration.mdx` designApprovalGate entry; changelog note (0.x minor, in-flight migration note).
 8. **Full verification** — full suite, `parity-check --mode=all`, `safeword check`.
 
