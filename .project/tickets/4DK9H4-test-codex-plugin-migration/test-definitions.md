@@ -106,7 +106,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Missing packaged hook dependency blocks the release contract
 
-- [ ] RED
+- [x] RED c054b1fa
 - [ ] GREEN
 - [ ] REFACTOR
 
