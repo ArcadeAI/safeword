@@ -50,6 +50,7 @@ interface CodexPluginMigrationWorld extends SafewordWorld {
   codexPluginPromptResult?: CommandResult;
   codexPluginInspectedText?: string;
   codexPluginHookResult?: CommandResult;
+  codexPluginHookCommands?: string[];
 }
 
 interface CodexPluginListEntry {
@@ -122,6 +123,20 @@ function collectMarkdownText(root: string): string {
   }
 
   return chunks.join('\n');
+}
+
+function collectHookCommands(value: unknown): string[] {
+  if (typeof value === 'string') return [];
+  if (Array.isArray(value)) return value.flatMap(entry => collectHookCommands(entry));
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    return [
+      ...(typeof record.command === 'string' ? [record.command] : []),
+      ...Object.values(record).flatMap(entry => collectHookCommands(entry)),
+    ];
+  }
+
+  return [];
 }
 
 function writeLocalMarketplace(marketplaceRoot: string): void {
@@ -597,6 +612,14 @@ Given(
   },
 );
 
+Given('the Safe Word Codex plugin hook manifest', function (this: CodexPluginMigrationWorld) {
+  const manifestPath = nodePath.join(SAFEWORD_CODEX_PLUGIN_ROOT, 'hooks.json');
+  assert.equal(existsSync(manifestPath), true, 'Safe Word Codex plugin hooks.json is missing');
+
+  const parsed = JSON.parse(readFileSync(manifestPath, 'utf8')) as unknown;
+  this.codexPluginHookCommands = collectHookCommands(parsed);
+});
+
 When(
   "the packaged Codex PreToolUse entrypoint receives a supported edit payload for that ticket's `test-definitions.md`",
   function (this: CodexPluginMigrationWorld) {
@@ -711,6 +734,10 @@ When(
   },
 );
 
+When('the hook commands are inspected', function (this: CodexPluginMigrationWorld) {
+  assert.ok(this.codexPluginHookCommands, 'hook commands were not loaded');
+});
+
 Then(
   'the hook output denies the edit with the existing Safe Word phase-gate reason',
   function (this: CodexPluginMigrationWorld) {
@@ -751,6 +778,33 @@ Then(
   function (this: CodexPluginMigrationWorld) {
     const output = `${this.codexPluginHookResult?.stdout ?? ''}\n${this.codexPluginHookResult?.stderr ?? ''}`;
     assert.equal(output.includes(REPO_LOCAL_SAFEWORD_SENTINEL), false);
+  },
+);
+
+Then(/^no command contains `\.safeword\/hooks`$/, function (this: CodexPluginMigrationWorld) {
+  for (const command of this.codexPluginHookCommands ?? []) {
+    assert.doesNotMatch(command, /\.safeword\/hooks/u);
+  }
+});
+
+Then(
+  'no command depends on `git rev-parse --show-toplevel` to find Safe Word hook code',
+  function (this: CodexPluginMigrationWorld) {
+    for (const command of this.codexPluginHookCommands ?? []) {
+      assert.doesNotMatch(command, /git rev-parse --show-toplevel/u);
+    }
+  },
+);
+
+Then(
+  'each command invokes a packaged Safe Word command entrypoint',
+  function (this: CodexPluginMigrationWorld) {
+    const commands = this.codexPluginHookCommands ?? [];
+    assert.ok(commands.length > 0, 'no hook commands were found');
+    for (const command of commands) {
+      assert.match(command, /\b(?:bunx|npx)(?:\s+--yes)?\s+safeword\b/u);
+      assert.match(command, /\bcodex-hook\b/u);
+    }
   },
 );
 
