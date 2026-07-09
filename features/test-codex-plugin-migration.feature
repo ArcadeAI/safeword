@@ -179,7 +179,7 @@ Feature: Test Codex plugin migration
 
     Scenario: Opt-in live smoke observes a plugin-installed hook denial
       Given the live Codex plugin smoke is explicitly enabled
-      And a fresh repo has the Safe Word Codex plugin installed and enabled under an isolated CODEX_HOME
+      And a fresh repo has the Safe Word Codex plugin installed, enabled, and live-authenticated under an isolated CODEX_HOME
       When `codex exec --json --dangerously-bypass-hook-trust` attempts a supported edit that violates a Safe Word gate
       Then the JSONL output contains the Safe Word hook denial
       And the fixture records whether Codex also reports a known file-change interception boundary

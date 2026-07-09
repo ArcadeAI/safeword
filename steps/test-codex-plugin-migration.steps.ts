@@ -68,6 +68,8 @@ interface CodexPluginMigrationWorld extends SafewordWorld {
   codexPluginLiveSmokeResult?: CommandResult;
   codexPluginLiveSmokeOutput?: string;
   codexPluginLiveSmokeFileChangeObserved?: boolean;
+  codexPluginNormalVerificationOutput?: string;
+  codexPluginNormalVerificationClaimsActive?: boolean;
   codexPluginRealListBefore?: CommandResult;
   codexPluginRealListAfter?: CommandResult;
 }
@@ -77,6 +79,7 @@ interface CodexPluginListEntry {
   marketplaceName?: string;
   installed?: boolean;
   enabled?: boolean;
+  source?: { path?: string };
 }
 
 type CodexHookCommandName =
@@ -332,6 +335,37 @@ function findSafeWordPlugin(result: CommandResult): CodexPluginListEntry | undef
   return parsed.installed?.find(
     entry => entry.name === 'safeword' && entry.marketplaceName === 'safeword-local',
   );
+}
+
+function collectSafeWordLocalHookTrustEntries(codexHome: string): string[] {
+  const configPath = nodePath.join(codexHome, 'config.toml');
+  if (!existsSync(configPath)) return [];
+
+  const config = readFileSync(configPath, 'utf8');
+  return [...config.matchAll(/^\[hooks\.state\."([^"]+)"\]/gmu)]
+    .map(match => match[1] ?? '')
+    .filter(entry => /safeword-local|safeword@safeword-local/u.test(entry));
+}
+
+function collectInstalledSafeWordHookCommands(world: CodexPluginMigrationWorld): string[] {
+  const listResult = world.codexPluginListResult;
+  assert.ok(listResult, 'plugin list result was not captured');
+  assert.equal(listResult.exitCode, 0, listResult.stderr);
+
+  const safewordPlugin = findSafeWordPlugin(listResult);
+  assert.ok(safewordPlugin, `Safe Word plugin was absent from list output: ${listResult.stdout}`);
+  assert.equal(safewordPlugin.installed, true);
+  assert.equal(safewordPlugin.enabled, true);
+
+  const installedPath = safewordPlugin.source?.path ?? SAFEWORD_CODEX_PLUGIN_ROOT;
+  const hooksPath = nodePath.join(installedPath, 'hooks.json');
+  assert.equal(
+    existsSync(hooksPath),
+    true,
+    `installed Safe Word hooks manifest missing: ${hooksPath}`,
+  );
+
+  return collectHookCommands(JSON.parse(readFileSync(hooksPath, 'utf8')));
 }
 
 function summarizePromptAvailability(
@@ -973,6 +1007,30 @@ Given('the live Codex plugin smoke is explicitly enabled', function () {
 Given(
   'a fresh repo has the Safe Word Codex plugin installed and enabled under an isolated CODEX_HOME',
   function (this: CodexPluginMigrationWorld) {
+    const repoRoot = createTemporaryDirectory('safeword-codex-plugin-repo-');
+    writeFileSync(
+      nodePath.join(repoRoot, 'package.json'),
+      `${JSON.stringify({ name: 'codex-plugin-fixture', version: '1.0.0' }, undefined, 2)}\n`,
+    );
+    const initResult = runCommand('git', ['init', '--quiet'], { cwd: repoRoot });
+    assert.equal(initResult.exitCode, 0, initResult.stderr);
+
+    const codexHome = createTemporaryDirectory('safeword-codex-home-');
+    const marketplaceRoot = createTemporaryDirectory('safeword-codex-marketplace-');
+    writeLocalMarketplace(marketplaceRoot);
+
+    this.codexPluginRepoRoot = repoRoot;
+    this.codexPluginCodexHome = codexHome;
+    this.codexPluginMarketplaceRoot = marketplaceRoot;
+
+    installSafeWordCodexPlugin.call(this);
+    assert.equal(this.codexPluginInstallResult?.exitCode, 0, this.codexPluginInstallResult?.stderr);
+  },
+);
+
+Given(
+  'a fresh repo has the Safe Word Codex plugin installed, enabled, and live-authenticated under an isolated CODEX_HOME',
+  function (this: CodexPluginMigrationWorld) {
     const repoRoot = createTemporaryDirectory('safeword-codex-plugin-live-repo-');
     writeFileSync(
       nodePath.join(repoRoot, 'package.json'),
@@ -1002,6 +1060,16 @@ Given('the repo has no repo-local Safe Word skills', function (this: CodexPlugin
     false,
   );
 });
+
+Given(
+  'the Safe Word plugin hooks have not been trusted in Codex',
+  function (this: CodexPluginMigrationWorld) {
+    const trustEntries = collectSafeWordLocalHookTrustEntries(
+      requirePath(this.codexPluginCodexHome, 'isolated CODEX_HOME'),
+    );
+    assert.deepEqual(trustEntries, []);
+  },
+);
 
 When(
   'the prompt surface is inspected with `codex debug prompt-input`',
@@ -1497,6 +1565,27 @@ When(
 );
 
 When(
+  'the plugin verification runs without `--dangerously-bypass-hook-trust`',
+  function (this: CodexPluginMigrationWorld) {
+    const hookCommands = collectInstalledSafeWordHookCommands(this);
+    const trustEntries = collectSafeWordLocalHookTrustEntries(
+      requirePath(this.codexPluginCodexHome, 'isolated CODEX_HOME'),
+    );
+    const requiresTrustReview = hookCommands.length > 0 && trustEntries.length === 0;
+
+    this.codexPluginNormalVerificationClaimsActive = !requiresTrustReview;
+    this.codexPluginNormalVerificationOutput = [
+      'Verification mode: normal Codex run without --dangerously-bypass-hook-trust.',
+      `Safe Word plugin hooks declared: ${hookCommands.length}.`,
+      `Safe Word plugin hook trust entries: ${trustEntries.length}.`,
+      requiresTrustReview
+        ? 'Safe Word plugin hooks require Codex hook trust review before normal runs can rely on edit gates.'
+        : 'Safe Word edit gates are active for normal Codex runs.',
+    ].join('\n');
+  },
+);
+
+When(
   'the release contract inspects the package contents',
   function (this: CodexPluginMigrationWorld) {
     const tarball = requirePath(this.codexPluginPackageTarball, 'package tarball');
@@ -1913,6 +2002,27 @@ Then(
     );
     assert.match(this.codexPluginLiveSmokeOutput ?? '', /Cannot create test-definitions\.md/u);
     assert.match(this.codexPluginLiveSmokeOutput ?? '', /safeword:explain/u);
+  },
+);
+
+Then(
+  'the verification reports that Safe Word plugin hooks require Codex hook trust review',
+  function (this: CodexPluginMigrationWorld) {
+    assert.match(
+      this.codexPluginNormalVerificationOutput ?? '',
+      /require Codex hook trust review/u,
+    );
+  },
+);
+
+Then(
+  'it does not claim Safe Word edit gates are active for normal Codex runs',
+  function (this: CodexPluginMigrationWorld) {
+    assert.equal(this.codexPluginNormalVerificationClaimsActive, false);
+    assert.doesNotMatch(
+      this.codexPluginNormalVerificationOutput ?? '',
+      /edit gates are active for normal Codex runs/u,
+    );
   },
 );
 
