@@ -5,8 +5,10 @@ Feature: Boundary reconciliation gate — evidence checks re-run at commit and p
   workflow's evidence checks over the ticket artifacts in the change: phase
   legality (including tickets born past intake at rest), phase anchors, the
   R/G/R ledger, verify.md and impl-plan shape. Commit tier is content-only and
-  sub-second; push tier adds history-backed SHA verification through the
-  rebase-aware resolver. Findings are warnings appended to a local audit
+  sub-second; push tier adds history-backed verification of LEDGER SHAs
+  through the rebase-aware resolver. Phase anchors are artifact paths verified
+  against the shipped tree at both tiers (HGYGND) — never against history.
+  Findings are warnings appended to a local audit
   record — the command never blocks (exit 0 always; hard-blocking belongs to
   the server-side child of #810). Changes touching no ticket artifacts are
   silent no-ops, keeping safeword's promise that ordinary commits stay free.
@@ -72,11 +74,11 @@ Feature: Boundary reconciliation gate — evidence checks re-run at commit and p
         | impl-plan.md |
 
     @boundary-reconciliation-gate.SM1.AC1
-    Scenario: The commit tier consults no git history — reachability waits for push
+    Scenario: The commit tier consults no git history — a legacy SHA anchor is warned toward the path grammar
       Given a staged advance whose anchor SHA is well-formed but absent from history
       When the boundary command runs at the commit boundary
       Then it exits zero without any reachability warning
-      And no reachability verification is attempted
+      And the warning teaches the artifact-path grammar instead
 
     @boundary-reconciliation-gate.SM1.AC1
     Scenario: A mixed commit of source files and one ticket artifact is reconciled, not silent
@@ -88,17 +90,17 @@ Feature: Boundary reconciliation gate — evidence checks re-run at commit and p
   Rule: A push additionally verifies evidence against reachable history
 
     @boundary-reconciliation-gate.SM1.AC2
-    Scenario: A well-formed anchor that is not reachable from the pushed history is warned
-      Given a ticket in the outgoing range whose entered-phase anchor is a well-formed SHA absent from history
+    Scenario: An anchored artifact missing from the pushed tree is warned
+      Given a ticket in the outgoing range whose entered-phase anchor names a path absent from the pushed tree
       When the boundary command runs at the push boundary
-      Then it exits zero and warns that the anchor is unreachable, naming forge and shallow clone as possible causes
+      Then it exits zero and warns that the anchored artifact is missing
 
     @boundary-reconciliation-gate.SM1.AC2
     Scenario: Anchors recorded before a rebase still verify after it
-      Given a ticket whose anchor SHA was rewritten by a rebase but whose patch is reachable under a new SHA
+      Given a ticket whose path anchor was recorded before its branch was rebased
       When the boundary command runs at the push boundary
       Then it exits zero with no anchor warning
-      And the audit entry records a passing reachability verdict
+      And the audit entry records a passing phase-anchor verdict
 
     @boundary-reconciliation-gate.SM1.AC2
     Scenario: Only the entered phase's anchor is demanded on a multi-phase advance
@@ -113,11 +115,11 @@ Feature: Boundary reconciliation gate — evidence checks re-run at commit and p
       Then it exits zero and warns about the unreachable ledger SHA
 
     @boundary-reconciliation-gate.SM1.AC2
-    Scenario: A failing SHA resolution is recorded as indeterminate, never a crash
-      Given a ticket in the outgoing range whose SHA resolution fails mid-run
+    Scenario: A failing artifact read is recorded as indeterminate, never a crash
+      Given a ticket in the outgoing range whose artifact read fails mid-run
       When the boundary command runs at the push boundary
       Then it still exits zero
-      And the audit entry records the reachability check as indeterminate
+      And the audit entry records the anchor check as indeterminate
 
     @boundary-reconciliation-gate.SM1.AC2
     Scenario: A branch pushed for the first time still gets its outgoing work reconciled
@@ -159,7 +161,7 @@ Feature: Boundary reconciliation gate — evidence checks re-run at commit and p
 
     @boundary-reconciliation-gate.TB1.AC2
     Scenario: Unreachable evidence at push warns but never blocks
-      Given an outgoing range whose ticket evidence includes an unreachable anchor
+      Given an outgoing range whose ticket evidence includes an unreachable ledger SHA
       When the boundary command runs at the push boundary
       Then it warns about the unreachable evidence and still exits zero
 

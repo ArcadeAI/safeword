@@ -1146,7 +1146,7 @@ describe('Test Suite 8: Health Check', () => {
       writeFrontmatterTicket(folder, [`id: ${folder}`, ...frontmatter]);
     }
 
-    it('reports an unanchored in-progress feature phase as a zero-exit advisory', async () => {
+    it('reports an unanchored in-progress feature phase, nudging the artifact-path grammar', async () => {
       await createConfiguredProject(temporaryDirectory);
       writeAnchorTicket('ANC001-demo', [
         'type: feature',
@@ -1157,10 +1157,13 @@ describe('Test Suite 8: Health Check', () => {
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
       expect(result.exitCode).toBe(0);
-      expect(`${result.stdout}\n${result.stderr}`).toMatch(/ANC001.*implement.*phase_anchors/is);
+      const combined = `${result.stdout}\n${result.stderr}`;
+      expect(combined).toMatch(/ANC001/);
+      expect(combined).toMatch(/no phase_anchors entry for "implement"/);
+      expect(combined).toMatch(/artifact/i);
     });
 
-    it('stays silent when the current phase carries a valid anchor', async () => {
+    it('stays silent on a hex-shaped legacy anchor at rest (grandfathered, never re-litigated)', async () => {
       await createConfiguredProject(temporaryDirectory);
       writeAnchorTicket('ANC002-demo', [
         'type: feature',
@@ -1174,6 +1177,68 @@ describe('Test Suite 8: Health Check', () => {
 
       expect(result.exitCode).toBe(0);
       expect(`${result.stdout}\n${result.stderr}`).not.toMatch(/ANC002/);
+    });
+
+    it('stays silent when the anchored artifact exists on disk', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTestFile(
+        temporaryDirectory,
+        '.project/tickets/ANC006-demo/impl-plan.md',
+        [
+          '# Impl Plan',
+          '',
+          '**Status:** planned',
+          '',
+          '## Approach',
+          '',
+          'Fixture approach.',
+          '',
+          '## Decisions',
+          '',
+          'skip: fixture',
+          '',
+          '## Arch alignment',
+          '',
+          'skip: fixture',
+          '',
+          '## Known deviations',
+          '',
+          'skip: fixture',
+          '',
+          '## Assessment triggers',
+          '',
+          'skip: fixture',
+          '',
+        ].join('\n'),
+      );
+      writeAnchorTicket('ANC006-demo', [
+        'type: feature',
+        'phase: implement',
+        'status: in_progress',
+        'phase_anchors:',
+        '  - implement: .project/tickets/ANC006-demo/impl-plan.md',
+      ]);
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).not.toMatch(/ANC006/);
+    });
+
+    it('reports a path anchor whose artifact is missing from disk', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeAnchorTicket('ANC007-demo', [
+        'type: feature',
+        'phase: implement',
+        'status: in_progress',
+        'phase_anchors:',
+        '  - implement: .project/tickets/ANC007-demo/impl-plan.md',
+      ]);
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toMatch(/ANC007.*missing/is);
     });
 
     it('stays silent for non-feature tickets, intake, and done tickets', async () => {

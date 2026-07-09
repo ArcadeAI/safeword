@@ -100,7 +100,7 @@ function contentAt(cwd: string, spec: string): string | undefined {
 }
 
 /** One changed artifact's prior (range base) and proposed (index/HEAD) content. */
-function readArtifact(
+function readChangedArtifact(
   cwd: string,
   path: string,
   basename: string,
@@ -142,7 +142,7 @@ function collectChanges(cwd: string, range: BoundaryRange, at: Boundary): Ticket
       artifacts: [],
       hasLedger: false,
     };
-    change.artifacts.push(readArtifact(cwd, path, parsed.basename, range, at));
+    change.artifacts.push(readChangedArtifact(cwd, path, parsed.basename, range, at));
     byTicket.set(parsed.ticketFolder, change);
   }
 
@@ -197,10 +197,16 @@ function reconcileBoundary(cwd: string, at: Boundary): void {
   const changes = collectChanges(cwd, range, at);
   if (changes.length === 0) return;
 
-  // The push tier verifies SHAs against real history; the commit tier stays
-  // content-only (sub-second budget — no history walks).
+  // The push tier verifies LEDGER SHAs against real history; the commit tier
+  // stays content-only for SHAs (sub-second budget — no history walks).
+  // Anchors are tree-only at both tiers: the reader serves the exact tree the
+  // boundary ships — the staged index at commit, HEAD at push — never the
+  // worktree and never git history (shallow clones and squashed branches
+  // verify identically to full clones).
   const resolveSha = at === 'push' ? createLedgerShaResolver(cwd) : undefined;
-  const reconciliations = reconcileChange(changes, resolveSha);
+  const readTreeArtifact = (relpath: string): string | undefined =>
+    contentAt(cwd, at === 'commit' ? `:${relpath}` : `HEAD:${relpath}`);
+  const reconciliations = reconcileChange(changes, resolveSha, readTreeArtifact);
   for (const finding of findings(reconciliations)) {
     warn(
       `boundary(${at}) ${finding.ticket}: [${finding.check.check}] ${finding.check.detail ?? finding.check.verdict}`,
