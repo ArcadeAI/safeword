@@ -114,7 +114,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Plugin install harness mutates only the isolated Codex home
 
-- [ ] RED
+- [x] RED 59f7fd1a
 - [ ] GREEN
 - [ ] REFACTOR
 
