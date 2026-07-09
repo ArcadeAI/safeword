@@ -74,9 +74,14 @@ interface CodexPluginListEntry {
   enabled?: boolean;
 }
 
+type CodexHookCommandName =
+  'post-tool-use' | 'pre-tool-use' | 'session-start' | 'stop' | 'user-prompt-submit';
+
 interface CodexHookContractResult {
   command: string;
+  commandName?: CodexHookCommandName;
   fixtureName?: string;
+  fixtureInput?: Record<string, unknown>;
   result?: CommandResult;
   errors: string[];
 }
@@ -415,6 +420,41 @@ function createCompleteFeatureTicket(projectRoot: string): void {
   );
 }
 
+function createCodexHookContractFixture(): string {
+  const repoRoot = createTemporaryDirectory('safeword-codex-hook-contract-');
+  writeFileSync(
+    nodePath.join(repoRoot, 'package.json'),
+    `${JSON.stringify({ name: 'codex-hook-contract-fixture', version: '1.0.0' }, undefined, 2)}\n`,
+  );
+
+  const initResult = runCommand('git', ['init', '--quiet'], { cwd: repoRoot });
+  assert.equal(initResult.exitCode, 0, initResult.stderr);
+
+  createIncompleteFeatureTicket(repoRoot);
+  mkdirSync(nodePath.join(repoRoot, '.project'), { recursive: true });
+  writeFileSync(
+    nodePath.join(repoRoot, '.project/codex-post-tool-guidance.txt'),
+    `${POST_TOOL_GUIDANCE_LINE}\n`,
+  );
+  writeFileSync(
+    nodePath.join(repoRoot, '.project/codex-prompt-context.txt'),
+    `${PROMPT_CONTEXT_LINE}\n`,
+  );
+  writeFileSync(
+    nodePath.join(repoRoot, '.project/codex-stop-continuation.txt'),
+    `${STOP_CONTINUATION_MESSAGE}\n`,
+  );
+  mkdirSync(nodePath.join(repoRoot, '.safeword'), { recursive: true });
+  writeFileSync(nodePath.join(repoRoot, '.safeword/SAFEWORD.md'), REPO_LOCAL_SAFEWORD_SENTINEL);
+  mkdirSync(nodePath.join(repoRoot, 'packages/cli/templates/hooks/codex'), { recursive: true });
+  writeFileSync(
+    nodePath.join(repoRoot, 'packages/cli/templates/hooks/codex/post-tool-quality.ts'),
+    SOURCE_CHECKOUT_HOOK_SENTINEL,
+  );
+
+  return repoRoot;
+}
+
 function readUserDataSnapshot(projectRoot: string): Record<string, string> {
   const snapshot: Record<string, string> = {};
   for (const relativePath of [
@@ -462,6 +502,75 @@ function createProjectLocalCodexInstallFixture(): string {
   );
 
   return repoRoot;
+}
+
+function codexHookCommandName(command: string): CodexHookCommandName | undefined {
+  const match = /\bcodex-hook\s+([a-z-]+)\b/u.exec(command);
+  const commandName = match?.[1];
+  if (
+    commandName === 'post-tool-use' ||
+    commandName === 'pre-tool-use' ||
+    commandName === 'session-start' ||
+    commandName === 'stop' ||
+    commandName === 'user-prompt-submit'
+  ) {
+    return commandName;
+  }
+
+  return undefined;
+}
+
+function codexHookFixture(commandName: CodexHookCommandName): {
+  fixtureName: string;
+  input: Record<string, unknown>;
+} {
+  switch (commandName) {
+    case 'post-tool-use':
+      return {
+        fixtureName: 'PostToolUse Edit payload',
+        input: {
+          hook_event_name: 'PostToolUse',
+          session_id: 'codex-contract-session',
+          tool_name: 'Edit',
+          tool_input: { file_path: 'src/generated.ts' },
+        },
+      };
+    case 'pre-tool-use':
+      return {
+        fixtureName: 'PreToolUse apply_patch payload',
+        input: {
+          hook_event_name: 'PreToolUse',
+          session_id: 'codex-contract-session',
+          tool_name: 'apply_patch',
+          tool_input: { command: TEST_DEFINITIONS_PATCH },
+        },
+      };
+    case 'session-start':
+      return {
+        fixtureName: 'SessionStart payload',
+        input: {
+          hook_event_name: 'SessionStart',
+          session_id: 'codex-contract-session',
+        },
+      };
+    case 'stop':
+      return {
+        fixtureName: 'Stop payload',
+        input: {
+          hook_event_name: 'Stop',
+          session_id: 'codex-contract-session',
+        },
+      };
+    case 'user-prompt-submit':
+      return {
+        fixtureName: 'UserPromptSubmit payload',
+        input: {
+          hook_event_name: 'UserPromptSubmit',
+          session_id: 'codex-contract-session',
+          prompt: 'continue',
+        },
+      };
+  }
 }
 
 Given(
@@ -1177,10 +1286,33 @@ When(
   'deterministic hook contract tests enumerate the hook commands',
   function (this: CodexPluginMigrationWorld) {
     const commands = this.codexPluginHookCommands ?? [];
-    this.codexPluginHookContractResults = commands.map(command => ({
-      command,
-      errors: ['missing exact Codex JSON fixture'],
-    }));
+    const repoRoot = createCodexHookContractFixture();
+
+    this.codexPluginHookContractResults = commands.map(command => {
+      const commandName = codexHookCommandName(command);
+      if (!commandName) {
+        return {
+          command,
+          errors: ['missing exact Codex JSON fixture'],
+        };
+      }
+
+      const fixture = codexHookFixture(commandName);
+      const result = runCommand(process.execPath, [SAFEWORD_CLI_PATH, 'codex-hook', commandName], {
+        cwd: repoRoot,
+        env: { CLAUDE_PROJECT_DIR: repoRoot },
+        input: JSON.stringify(fixture.input),
+      });
+
+      return {
+        command,
+        commandName,
+        fixtureName: fixture.fixtureName,
+        fixtureInput: fixture.input,
+        result,
+        errors: [],
+      };
+    });
   },
 );
 
@@ -1288,7 +1420,12 @@ Then(
     assert.ok(results.length > 0, 'no hook contract commands were enumerated');
 
     const missingFixtures = results
-      .filter(result => result.errors.includes('missing exact Codex JSON fixture'))
+      .filter(
+        result =>
+          result.errors.includes('missing exact Codex JSON fixture') ||
+          !result.fixtureName ||
+          !result.fixtureInput?.hook_event_name,
+      )
       .map(result => result.command);
     assert.deepEqual(missingFixtures, []);
   },
