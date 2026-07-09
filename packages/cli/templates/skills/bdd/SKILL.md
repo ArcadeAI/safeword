@@ -65,7 +65,7 @@ bun .safeword/hooks/write-review-stamp.ts --phase <phase you are leaving>
 
 If the reviewer finds blocking issues, fix them and re-review — don't stamp.
 
-Other phase exits don't need an independent review by default — they carry their
+The plan-implementation exit applies the same discipline to the implementation plan (see PLAN_IMPLEMENTATION.md's exit). Other phase exits don't need an independent review by default — they carry their
 own guards (intake's user sub-phase gates, implement's tests, the done-gate's
 evidence checks). When the **review gate** is enabled (`reviewGate` in
 `.safeword/config.json` — e.g. autonomous runs where user gates auto-confirm,
