@@ -257,6 +257,35 @@ describe('evaluateTicketWrite — feature phase transitions', () => {
     }
   });
 
+  it('accepts the one-step advance scenario-gate -> plan-implementation', () => {
+    const verdict = evaluateTicketWrite(
+      ticket({ type: 'feature', phase: 'scenario-gate' }),
+      ticket({ type: 'feature', phase: 'plan-implementation' }),
+    );
+    expect(verdict.ok).toBe(true);
+  });
+
+  it('denies scenario-gate -> implement as a skip, naming plan-implementation', () => {
+    const verdict = evaluateTicketWrite(
+      ticket({ type: 'feature', phase: 'scenario-gate' }),
+      ticket({ type: 'feature', phase: 'implement' }),
+    );
+    expect(verdict.ok).toBe(false);
+    if (!verdict.ok) expect(verdict.reason).toContain('plan-implementation');
+  });
+
+  it('accepts scenario-gate -> implement with a justified plan-implementation skip', () => {
+    const verdict = evaluateTicketWrite(
+      ticket({ type: 'feature', phase: 'scenario-gate' }),
+      ticket({
+        type: 'feature',
+        phase: 'implement',
+        skips: ['plan-implementation: plan captured in PR description'],
+      }),
+    );
+    expect(verdict.ok).toBe(true);
+  });
+
   it('allows a forward jump when every skipped phase is justified', () => {
     const verdict = evaluateTicketWrite(
       ticket({ type: 'feature', phase: 'intake' }),
