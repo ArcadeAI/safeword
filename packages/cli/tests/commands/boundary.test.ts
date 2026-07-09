@@ -62,6 +62,37 @@ describe('safeword boundary (slice 1: engine core)', () => {
     });
   });
 
+  describe('HGYGND.SM1.R2: the commit tier verifies anchors against the staged tree', () => {
+    it('warns when the anchored artifact exists on disk but is not staged', async () => {
+      const ticket = '.project/tickets/BND009-staged';
+      writeTestFile(
+        dir,
+        `${ticket}/ticket.md`,
+        boundaryTicketContent({ id: 'BND009', phase: 'scenario-gate' }),
+      );
+      git(dir, 'add -A');
+      git(dir, 'commit -m seed --quiet');
+      // The anchored impl-plan lands on disk only — never `git add`ed, so the
+      // staged tree the commit will ship does not contain it.
+      writeTestFile(dir, `${ticket}/impl-plan.md`, '# plan on disk only\n');
+      writeTestFile(
+        dir,
+        `${ticket}/ticket.md`,
+        boundaryTicketContent({
+          id: 'BND009',
+          phase: 'implement',
+          anchors: [`implement: ${ticket}/impl-plan.md`],
+        }),
+      );
+      git(dir, `add ${ticket}/ticket.md`);
+
+      const result = await runCli(['boundary', '--at', 'commit'], { cwd: dir });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toMatch(/missing/i);
+    });
+  });
+
   describe('CDRJTW.TB1.AC1: silence for changes touching no ticket artifacts', () => {
     it('a commit touching only source code produces no output and no audit entry', async () => {
       writeTestFile(dir, 'src/widget.ts', 'export const widget = 1;\n');

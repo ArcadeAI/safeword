@@ -50,6 +50,49 @@ describe('detectBroadProcessKill', () => {
         command: 'killall',
         target: 'node',
       });
+      // env matched by basename and with its options consumed (EDDABK).
+      expect(detectBroadProcessKill('/usr/bin/env killall node')).toEqual({
+        command: 'killall',
+        target: 'node',
+      });
+      expect(detectBroadProcessKill('env -i pkill node')).toEqual({
+        command: 'pkill',
+        target: 'node',
+      });
+      // The killer itself matched by basename — an absolute path does not evade
+      // (HRDN42). sudo + abspath compose.
+      expect(detectBroadProcessKill('/usr/bin/pkill node')).toEqual({
+        command: 'pkill',
+        target: 'node',
+      });
+      expect(detectBroadProcessKill('sudo /usr/bin/killall node')).toEqual({
+        command: 'killall',
+        target: 'node',
+      });
+      // `command -p CMD` runs CMD with the default PATH — the CMD resolves,
+      // so a broad kill behind it is caught (HRDN42).
+      expect(detectBroadProcessKill('command -p pkill node')).toEqual({
+        command: 'pkill',
+        target: 'node',
+      });
+      // A backslash-newline is a bash line continuation: `pkill \<newline>node`
+      // runs `pkill node` and must not evade (HRDN42).
+      expect(detectBroadProcessKill('pkill \\\nnode')).toEqual({
+        command: 'pkill',
+        target: 'node',
+      });
+      // `|&` pipes stdout+stderr — the trailing `&` is consumed, so the piped
+      // command is a real segment, not a phantom `&`-led one (HRDN42).
+      expect(detectBroadProcessKill('tail -f log |& pkill node')).toEqual({
+        command: 'pkill',
+        target: 'node',
+      });
+      // POSIX single-quote rule: the backslash does not escape the closing
+      // quote, so the `;` splits and the kill segment is visible (EDDABK).
+      expect(detectBroadProcessKill(String.raw`echo 'a\'; pkill node`)).toEqual({
+        command: 'pkill',
+        target: 'node',
+      });
     });
 
     it('Scenario: regex anchors around a bare name do not evade detection', () => {
@@ -58,6 +101,19 @@ describe('detectBroadProcessKill', () => {
         target: 'node',
       });
       expect(detectBroadProcessKill('pkill -x node')).toEqual({
+        command: 'pkill',
+        target: 'node',
+      });
+      // In an ERE, `\j` is a literal `j` — `pkill '\java'` still kills every
+      // java process, so the escape must not evade detection (EDDABK).
+      expect(detectBroadProcessKill(String.raw`pkill '\java'`)).toEqual({
+        command: 'pkill',
+        target: 'java',
+      });
+      // Interior backslashes are literals too (`n\ode` == `node`); the POSIX
+      // single-quote rule delivers them intact, so bareName must strip them
+      // wherever they appear, not only leading (EDDABK).
+      expect(detectBroadProcessKill(String.raw`pkill 'n\ode'`)).toEqual({
         command: 'pkill',
         target: 'node',
       });

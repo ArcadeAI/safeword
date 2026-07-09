@@ -55,6 +55,36 @@ export function readAudit(dir: string): Record<string, unknown>[] {
     .map(line => JSON.parse(line) as Record<string, unknown>);
 }
 
+/** A minimal impl-plan.md that passes parseImplPlan — the implement anchor's artifact. */
+export function shapeValidImplPlan(): string {
+  return [
+    '# Impl Plan: fixture',
+    '',
+    '**Status:** planned',
+    '',
+    '## Approach',
+    '',
+    'Do the fixture work.',
+    '',
+    '## Decisions',
+    '',
+    'skip: fixture',
+    '',
+    '## Arch alignment',
+    '',
+    'skip: fixture',
+    '',
+    '## Known deviations',
+    '',
+    'skip: fixture',
+    '',
+    '## Assessment triggers',
+    '',
+    'skip: fixture',
+    '',
+  ].join('\n');
+}
+
 /** ticket.md content builder shared across boundary fixtures. */
 export function boundaryTicketContent(options: {
   id?: string;

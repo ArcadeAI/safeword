@@ -120,7 +120,10 @@ describe('safeword boundary (slice 2: commit-tier findings)', () => {
     writeTestFile(
       dir,
       `${TICKET}/ticket.md`,
-      ticketContent({ phase: 'implement', anchors: ['implement: a1b2c3d'] }),
+      ticketContent({
+        phase: 'implement',
+        anchors: ['implement: .project/tickets/BNF001-fixture/impl-plan.md'],
+      }),
     );
     git(dir, 'add -A');
 

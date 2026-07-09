@@ -12,17 +12,23 @@
 
 import { strict as assert } from 'node:assert';
 import { execFileSync, execSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import nodeOs from 'node:os';
 import nodePath from 'node:path';
 
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
+import {
+  AUDIT_PATH,
+  git,
+  implPlanContent,
+  readAuditEntries,
+  writeFileAt,
+} from './support/repo-fixtures.ts';
 import type { SafewordWorld } from './world.js';
 
 const PROJECT_ROOT = nodePath.resolve(import.meta.dirname, '..');
 const CLI = nodePath.join(PROJECT_ROOT, 'packages/cli/src/cli.ts');
-const AUDIT_PATH = '.safeword/boundary-audit.jsonl';
 const TICKET_DIR = '.project/tickets/BGT001-fixture';
 
 interface BoundaryWorld extends SafewordWorld {
@@ -30,16 +36,6 @@ interface BoundaryWorld extends SafewordWorld {
   remote?: string;
   cli?: { exitCode: number; output: string };
   engineVerdicts?: Array<{ check: string; verdict: string; detail?: string }>;
-}
-
-function git(dir: string, command: string): string {
-  return execSync(`git ${command}`, { cwd: dir, stdio: 'pipe', encoding: 'utf8' });
-}
-
-function writeFileAt(dir: string, relative: string, content: string): void {
-  const full = nodePath.join(dir, relative);
-  mkdirSync(nodePath.dirname(full), { recursive: true });
-  writeFileSync(full, content);
 }
 
 function ticketContent(options: {
@@ -110,12 +106,7 @@ function runBoundary(world: BoundaryWorld, at: 'commit' | 'push'): void {
 }
 
 function readAudit(world: BoundaryWorld): Array<Record<string, unknown>> {
-  const auditFile = nodePath.join(world.dir!, AUDIT_PATH);
-  if (!existsSync(auditFile)) return [];
-  return readFileSync(auditFile, 'utf8')
-    .split('\n')
-    .filter(line => line.trim() !== '')
-    .map(line => JSON.parse(line) as Record<string, unknown>);
+  return readAuditEntries(world.dir!);
 }
 
 After(function (this: BoundaryWorld) {
@@ -298,49 +289,58 @@ Given('two consecutive boundary runs over ticket-touching changes', function (th
 // Givens — push tier
 // ---------------------------------------------------------------------------
 
-/** Pushed baseline + an unpushed advance anchored on a SHA history lacks —
- * one world behind two Gherkin phrasings (SM1.AC2 / TB1.AC2). */
-function seedForgedAnchorPush(world: BoundaryWorld): void {
-  createProject(world);
-  seedTicket(world, ticketContent({ phase: 'define-behavior' }));
-  addRemote(world);
-  writeFileAt(
-    world.dir!,
-    `${TICKET_DIR}/ticket.md`,
-    ticketContent({ phase: 'implement', anchors: ['implement: deadbee'] }),
-  );
-  git(world.dir!, 'add -A');
-  git(world.dir!, 'commit -m advance --quiet');
-}
-
 Given(
-  'a ticket in the outgoing range whose entered-phase anchor is a well-formed SHA absent from history',
-  function (this: BoundaryWorld) {
-    seedForgedAnchorPush(this);
-  },
-);
-
-Given(
-  'an outgoing range whose ticket evidence includes an unreachable anchor',
-  function (this: BoundaryWorld) {
-    seedForgedAnchorPush(this);
-  },
-);
-
-Given(
-  'a ticket whose anchor SHA was rewritten by a rebase but whose patch is reachable under a new SHA',
+  'a ticket in the outgoing range whose entered-phase anchor names a path absent from the pushed tree',
   function (this: BoundaryWorld) {
     createProject(this);
-    seedTicket(this, ticketContent({ phase: 'define-behavior' }));
+    seedTicket(this, ticketContent({ phase: 'scenario-gate' }));
+    addRemote(this);
+    writeFileAt(
+      this.dir!,
+      `${TICKET_DIR}/ticket.md`,
+      ticketContent({
+        phase: 'implement',
+        anchors: [`implement: ${TICKET_DIR}/impl-plan.md`],
+      }),
+    );
+    git(this.dir!, 'add -A');
+    git(this.dir!, 'commit -m advance --quiet');
+  },
+);
+
+Given(
+  'an outgoing range whose ticket evidence includes an unreachable ledger SHA',
+  function (this: BoundaryWorld) {
+    createProject(this);
+    seedTicket(this, ticketContent({ phase: 'intake' }));
+    addRemote(this);
+    writeFileAt(
+      this.dir!,
+      `${TICKET_DIR}/test-definitions.md`,
+      ['# Test Definitions', '', '### Scenario: s1', '', '- [x] RED deadbee', ''].join('\n'),
+    );
+    git(this.dir!, 'add -A');
+    git(this.dir!, 'commit -m forged-ledger --quiet');
+  },
+);
+
+Given(
+  'a ticket whose path anchor was recorded before its branch was rebased',
+  function (this: BoundaryWorld) {
+    createProject(this);
+    seedTicket(this, ticketContent({ phase: 'scenario-gate' }));
     addRemote(this);
     writeFileAt(this.dir!, 'src/work.ts', 'export const work = 1;\n');
     git(this.dir!, 'add -A');
     git(this.dir!, 'commit -m work --quiet');
-    const original = git(this.dir!, 'rev-parse --short HEAD').trim();
+    writeFileAt(this.dir!, `${TICKET_DIR}/impl-plan.md`, implPlanContent());
     writeFileAt(
       this.dir!,
       `${TICKET_DIR}/ticket.md`,
-      ticketContent({ phase: 'implement', anchors: [`implement: ${original}`] }),
+      ticketContent({
+        phase: 'implement',
+        anchors: [`implement: ${TICKET_DIR}/impl-plan.md`],
+      }),
     );
     git(this.dir!, 'add -A');
     git(this.dir!, 'commit -m advance --quiet');
@@ -361,13 +361,17 @@ Given(
     createProject(this);
     seedTicket(this, ticketContent({ phase: 'define-behavior' }));
     addRemote(this);
-    const anchor = git(this.dir!, 'rev-parse --short HEAD').trim();
+    writeFileAt(
+      this.dir!,
+      `${TICKET_DIR}/test-definitions.md`,
+      ['# Test Definitions', '', '### Scenario: s1', '', '- [ ] RED', ''].join('\n'),
+    );
     writeFileAt(
       this.dir!,
       `${TICKET_DIR}/ticket.md`,
       ticketContent({
         phase: 'verify',
-        anchors: [`verify: ${anchor}`],
+        anchors: [`verify: ${TICKET_DIR}/test-definitions.md`],
         skips: ['scenario-gate: reviewed on the PR thread', 'implement: pair-programmed live'],
       }),
     );
@@ -426,9 +430,9 @@ Given(
 );
 
 Given(
-  'a ticket in the outgoing range whose SHA resolution fails mid-run',
+  'a ticket in the outgoing range whose artifact read fails mid-run',
   function (this: BoundaryWorld) {
-    // Engine-seam fixture: a resolver that throws stands in for git breaking
+    // Engine-seam fixture: a reader that throws stands in for git breaking
     // mid-run (see file header). The When step routes accordingly.
     this.engineVerdicts = undefined;
   },
@@ -451,18 +455,19 @@ When(
 
 When('the boundary command runs at the push boundary', function (this: BoundaryWorld) {
   if (this.dir === undefined) {
-    // Resolver-failure scenario: drive the engine with a throwing resolver.
+    // Reader-failure scenario: drive the engine with a throwing artifact reader.
     const script = `
 const { reconcileChange } = await import(${JSON.stringify(
       nodePath.join(PROJECT_ROOT, 'packages/cli/src/boundary/engine.ts'),
     )});
 const ticket = (phase, anchors) => ['---','id: BGT','type: feature','phase: '+phase,'status: in_progress', ...(anchors ? ['phase_anchors:', ...anchors.map(a=>'  - '+a)] : []), '---',''].join('\\n');
+const anchor = 'implement: .project/tickets/BGT001-fixture/impl-plan.md';
 const verdicts = reconcileChange([{
   ticketFolder: 'BGT001-fixture',
-  artifacts: [{ artifact: 'ticket.md', prior: ticket('define-behavior'), proposed: ticket('implement', ['implement: a1b2c3d']) }],
-  ticketCurrent: ticket('implement', ['implement: a1b2c3d']),
+  artifacts: [{ artifact: 'ticket.md', prior: ticket('define-behavior'), proposed: ticket('implement', [anchor]) }],
+  ticketCurrent: ticket('implement', [anchor]),
   hasLedger: true,
-}], () => { throw new Error('git exploded'); });
+}], undefined, () => { throw new Error('git exploded'); });
 console.log(JSON.stringify(verdicts[0].checks));
 `;
     const output = execFileSync('bun', ['-e', script], { cwd: PROJECT_ROOT, encoding: 'utf8' });
@@ -555,12 +560,10 @@ Then('it exits zero without any reachability warning', function (this: BoundaryW
   assert.doesNotMatch(this.cli?.output ?? '', /unreachable|not reachable/i);
 });
 
-Then('no reachability verification is attempted', function (this: BoundaryWorld) {
-  // Deterministic proxy (see feature prose): the commit tier's phase-anchor
-  // verdict for a well-formed but unreachable SHA must be PASS — reachability
-  // was never consulted.
-  const last = JSON.stringify(readAudit(this).at(-1));
-  assert.match(last, /"check":"phase-anchor","verdict":"pass"/);
+Then('the warning teaches the artifact-path grammar instead', function (this: BoundaryWorld) {
+  // A hex value is yesterday's valid grammar — the finding must migrate, not
+  // accuse: it names the path grammar to record instead (HGYGND SM1.R4).
+  assert.match(this.cli?.output ?? '', /artifact path/i);
 });
 
 Then('it exits zero and warns about the unanchored advance', function (this: BoundaryWorld) {
@@ -594,22 +597,19 @@ Then(
 );
 
 Then(
-  'it exits zero and warns that the anchor is unreachable, naming forge and shallow clone as possible causes',
+  'it exits zero and warns that the anchored artifact is missing',
   function (this: BoundaryWorld) {
     assert.equal(this.cli?.exitCode, 0);
-    const output = this.cli?.output ?? '';
-    assert.match(output, /not reachable|unreachable/i);
-    assert.match(output, /forge/i);
-    assert.match(output, /shallow/i);
+    assert.match(this.cli?.output ?? '', /missing/i);
   },
 );
 
 Then('it exits zero with no anchor warning', function (this: BoundaryWorld) {
   assert.equal(this.cli?.exitCode, 0);
-  assert.doesNotMatch(this.cli?.output ?? '', /unanchored|not reachable|unreachable/i);
+  assert.doesNotMatch(this.cli?.output ?? '', /phase-anchor|unanchored|not reachable|unreachable/i);
 });
 
-Then('the audit entry records a passing reachability verdict', function (this: BoundaryWorld) {
+Then('the audit entry records a passing phase-anchor verdict', function (this: BoundaryWorld) {
   const last = JSON.stringify(readAudit(this).at(-1));
   assert.match(last, /"check":"phase-anchor","verdict":"pass"/);
 });
@@ -623,13 +623,10 @@ Then('it still exits zero', function (this: BoundaryWorld) {
   assert.equal(this.cli?.exitCode, 0);
 });
 
-Then(
-  'the audit entry records the reachability check as indeterminate',
-  function (this: BoundaryWorld) {
-    const anchor = this.engineVerdicts?.find(v => v.check === 'phase-anchor');
-    assert.equal(anchor?.verdict, 'indeterminate');
-  },
-);
+Then('the audit entry records the anchor check as indeterminate', function (this: BoundaryWorld) {
+  const anchor = this.engineVerdicts?.find(v => v.check === 'phase-anchor');
+  assert.equal(anchor?.verdict, 'indeterminate');
+});
 
 Then('it exits zero with no output', function (this: BoundaryWorld) {
   assert.equal(this.cli?.exitCode, 0);
