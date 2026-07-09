@@ -156,7 +156,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED e9813484
 - [x] GREEN 2d8ea67c
-- [ ] REFACTOR
+- [x] REFACTOR skip: default-suite dry-run check is single-use verification glue
 
 ## Feature-level cross-scenario refactor
 
