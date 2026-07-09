@@ -264,9 +264,9 @@ _RED evidence: uncapturable pre-build — over-blocking guard; passes today by d
 
 ### Scenario: The config reference documents the approval toggle
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5385582d
+- [x] GREEN c5af85f0
+- [x] REFACTOR skip: shared slice-7 loop
 
 ## Rule: plan-implementation-phase.NTB2.R3 — headless sessions record pending approval instead of blocking
 
@@ -370,14 +370,14 @@ _RED evidence: uncapturable pre-build — over-blocking guard; passes today by d
 
 ### Scenario: The planning phase doc ships to all three harnesses
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: proven by existing schema/parity machinery once registered — no new assertion could fail first
+- [x] GREEN c9a7ef59
+- [x] REFACTOR skip: registrations only
 
 ## Rule: plan-implementation-phase.SM1.R3 — the decomposition-retirement ADR is superseded on the record
 
 ### Scenario: The architecture record supersedes the decomposition retirement
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5385582d
+- [x] GREEN c5af85f0
+- [x] REFACTOR skip: record entry, nothing to restructure
