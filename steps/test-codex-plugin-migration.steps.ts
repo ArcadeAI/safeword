@@ -137,6 +137,17 @@ function runCodexPluginCommand(this: CodexPluginMigrationWorld, args: string[]):
   });
 }
 
+function summarizePluginInstallResult(result: CommandResult): string {
+  if (result.exitCode === 0) return 'plugin install succeeded';
+
+  const output = `${result.stdout}\n${result.stderr}`;
+  if (output.includes('missing plugin.json')) {
+    return 'plugin manifest validation failure: missing plugin.json';
+  }
+
+  return output;
+}
+
 Given(
   'a fresh git repo with no Safe Word Codex assets',
   function (this: CodexPluginMigrationWorld) {
@@ -219,6 +230,7 @@ When(
       '--json',
     ]);
     this.codexPluginInstallResult = installResult;
+    this.codexPluginInstallSummary = summarizePluginInstallResult(installResult);
 
     if (installResult.exitCode === 0) {
       this.codexPluginListResult = runCodexPluginCommand.call(this, ['plugin', 'list', '--json']);
@@ -251,10 +263,7 @@ When(
       'safeword-local',
       '--json',
     ]);
-    this.codexPluginInstallSummary =
-      this.codexPluginInstallResult.exitCode === 0
-        ? 'plugin install succeeded'
-        : `${this.codexPluginInstallResult.stdout}\n${this.codexPluginInstallResult.stderr}`;
+    this.codexPluginInstallSummary = summarizePluginInstallResult(this.codexPluginInstallResult);
   },
 );
 
