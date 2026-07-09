@@ -4,7 +4,7 @@ import process from 'node:process';
 
 type AdditionalContextHookEvent = 'PostToolUse' | 'SessionStart' | 'UserPromptSubmit';
 type SupportedCodexHookEvent =
-  'post-tool-use' | 'pre-tool-use' | 'session-start' | 'user-prompt-submit';
+  'post-tool-use' | 'pre-tool-use' | 'session-start' | 'stop' | 'user-prompt-submit';
 
 interface CodexHookInput {
   hook_event_name?: string;
@@ -33,6 +33,11 @@ interface AdditionalContextOutput {
   };
 }
 
+interface StopContinuationOutput {
+  decision: 'block';
+  reason: string;
+}
+
 const EXPLAIN_HINT = 'Run `safeword:explain` for a plain-English version of this block.';
 const REQUIRED_INTAKE_FIELDS = ['scope', 'out_of_scope', 'done_when'] as const;
 const MODULE_DIRECTORY = import.meta.dirname;
@@ -42,10 +47,12 @@ const SAFEWORD_INSTRUCTIONS_PATHS = [
 ];
 const POST_TOOL_GUIDANCE_PATH = '.project/codex-post-tool-guidance.txt';
 const PROMPT_CONTEXT_PATH = '.project/codex-prompt-context.txt';
+const STOP_CONTINUATION_PATH = '.project/codex-stop-continuation.txt';
 const SUPPORTED_CODEX_HOOK_EVENTS: ReadonlySet<string> = new Set([
   'post-tool-use',
   'pre-tool-use',
   'session-start',
+  'stop',
   'user-prompt-submit',
 ]);
 
@@ -153,6 +160,14 @@ function emitAdditionalContext(output: AdditionalContextOutput): void {
   process.stdout.write(`${JSON.stringify(output)}\n`);
 }
 
+function emitStopNoop(): void {
+  process.stdout.write('{}\n');
+}
+
+function emitStopContinuation(output: StopContinuationOutput): void {
+  process.stdout.write(`${JSON.stringify(output)}\n`);
+}
+
 function maybeDenyTestDefinitionsWrite(projectDirectory: string, targetPath: string): boolean {
   const ticketFolder = testDefinitionsTicketFolder(targetPath);
   if (!ticketFolder) return false;
@@ -222,10 +237,28 @@ async function runUserPromptSubmit(): Promise<void> {
   await runProjectAdditionalContext('UserPromptSubmit', PROMPT_CONTEXT_PATH);
 }
 
+async function runStop(): Promise<void> {
+  const input = parseCodexHookInput(await readStdin());
+  if (!input) {
+    emitStopNoop();
+    return;
+  }
+
+  const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+  const reason = readProjectTextFile(projectDirectory, STOP_CONTINUATION_PATH)?.trim();
+  if (!reason) {
+    emitStopNoop();
+    return;
+  }
+
+  emitStopContinuation({ decision: 'block', reason });
+}
+
 const CODEX_HOOK_RUNNERS: Record<SupportedCodexHookEvent, () => Promise<void>> = {
   'post-tool-use': runPostToolUse,
   'pre-tool-use': runPreToolUse,
   'session-start': runSessionStart,
+  stop: runStop,
   'user-prompt-submit': runUserPromptSubmit,
 };
 
