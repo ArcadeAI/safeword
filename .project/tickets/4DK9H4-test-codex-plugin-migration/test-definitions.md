@@ -82,7 +82,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 76e61756
 - [x] GREEN d38dba27
-- [ ] REFACTOR
+- [x] REFACTOR skip: migration cleanup is already file-scoped for shared skill dirs and source-only for legacy hook templates
 
 ### Scenario: User-authored Codex skills survive the migration
 
