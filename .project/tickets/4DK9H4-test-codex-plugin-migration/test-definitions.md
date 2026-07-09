@@ -54,7 +54,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: PostToolUse additional context runs through the packaged CLI entrypoint
 
-- [ ] RED
+- [x] RED 6316de52
 - [ ] GREEN
 - [ ] REFACTOR
 
