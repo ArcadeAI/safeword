@@ -1,0 +1,6 @@
+---
+description: USE WHEN in BDD plan-implementation phase. Author impl-plan.md, run figure-it-out on load-bearing choices, ADR lifecycle, review before implement.
+alwaysApply: false
+---
+
+@.claude/skills/bdd/PLAN_IMPLEMENTATION.md

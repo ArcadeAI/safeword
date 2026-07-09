@@ -1021,6 +1021,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/templates/impl-plan-template.md': {
       template: 'doc-templates/impl-plan-template.md',
     },
+    '.safeword/templates/adr-template.md': {
+      template: 'doc-templates/adr-template.md',
+    },
     '.safeword/templates/work-log-template.md': {
       template: 'doc-templates/work-log-template.md',
     },
