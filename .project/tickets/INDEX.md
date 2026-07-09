@@ -944,7 +944,7 @@
 - **dependency-readiness false-positive stale after rebase (mtime vs content) (4JMBXT)** (in_progress, epic: —)
   Make the dependency-readiness stale decision content-based (fingerprint marker) so rebase/checkout/clone no longer falsely block dependency-backed commands.
   → `.project/tickets/4JMBXT-dep-readiness-mtime-stale`
-- **Schedule the retro-reconcile sweep in CI (4KP67A)** (in_progress, epic: —)
+- **Schedule the retro-reconcile sweep in CI (4KP67A)** (done, epic: —)
   A standalone scheduled workflow (daily off-peak cron + workflow_dispatch, permissions issues:write/contents:read) runs safeword retro-reconcile against the upstream repo and fails loudly
   → `.project/tickets/4KP67A-reconcile-ci-schedule`
 - **Use generic file paths in shipped guidance examples (4YJV1N)** (in_progress, epic: —)
