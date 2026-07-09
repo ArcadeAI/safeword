@@ -50,7 +50,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 19237ffb
 - [x] GREEN d2b76011
-- [ ] REFACTOR
+- [x] REFACTOR skip: only cleanup candidate is Cucumber fixture duplication, and test files are not changed in REFACTOR commits
 
 ### Scenario: PostToolUse additional context runs through the packaged CLI entrypoint
 
