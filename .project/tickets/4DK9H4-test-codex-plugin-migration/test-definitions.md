@@ -150,7 +150,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED df9ba998
 - [x] GREEN cbac217d
-- [ ] REFACTOR
+- [x] REFACTOR 960d90d7
 
 ### Scenario: Default verification skips the live Codex smoke with an explicit reason
 
