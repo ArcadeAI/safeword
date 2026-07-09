@@ -122,7 +122,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 877fc633
 - [x] GREEN 5b43f99d
-- [ ] REFACTOR
+- [x] REFACTOR skip: prompt availability classifier is isolated and remaining cleanup would be test-glue-only
 
 ## Rule: test-codex-plugin-migration.SM1.R3 — Deterministic hook contract tests exercise exact Codex hook JSON against packaged CLI entrypoints without involving the model
 
