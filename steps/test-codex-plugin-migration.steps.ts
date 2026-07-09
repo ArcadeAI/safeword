@@ -54,6 +54,7 @@ interface CodexPluginMigrationWorld extends SafewordWorld {
   codexPluginMigrationResult?: CommandResult;
   codexPluginUserDataSnapshot?: Record<string, string>;
   codexPluginUserSkillSnapshot?: string;
+  codexPluginUserCodexConfigLines?: string[];
 }
 
 interface CodexPluginListEntry {
@@ -698,6 +699,62 @@ Given(
 );
 
 Given(
+  'an old project-local Codex install with user-authored Codex config entries',
+  function (this: CodexPluginMigrationWorld) {
+    const repoRoot = createProjectLocalCodexInstallFixture();
+    this.codexPluginUserCodexConfigLines = [
+      '[profiles.company]',
+      'model = "gpt-5"',
+      'sandbox_mode = "workspace-write"',
+    ];
+
+    mkdirSync(nodePath.join(repoRoot, '.codex'), { recursive: true });
+    writeFileSync(
+      nodePath.join(repoRoot, '.codex/config.toml'),
+      [
+        '# Safeword Codex project configuration.',
+        '',
+        ...this.codexPluginUserCodexConfigLines,
+        '',
+      ].join('\n'),
+    );
+
+    this.codexPluginRepoRoot = repoRoot;
+  },
+);
+
+Given(
+  /^the config also contains old Safe Word hook commands pointing at `\.safeword\/hooks\/codex`$/,
+  function (this: CodexPluginMigrationWorld) {
+    const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
+    const configPath = nodePath.join(repoRoot, '.codex/config.toml');
+    const current = readFileSync(configPath, 'utf8');
+    writeFileSync(
+      configPath,
+      [
+        current.trimEnd(),
+        '',
+        '[[hooks.PreToolUse]]',
+        'matcher = "^(apply_patch|Bash|Edit|Write|MultiEdit|NotebookEdit)$"',
+        '',
+        '[[hooks.PreToolUse.hooks]]',
+        'type = "command"',
+        'command = \'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-quality.ts"\'',
+        'timeout = 30',
+        '',
+        '[[hooks.Stop]]',
+        '',
+        '[[hooks.Stop.hooks]]',
+        'type = "command"',
+        'command = \'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/stop.ts"\'',
+        'timeout = 600',
+        '',
+      ].join('\n'),
+    );
+  },
+);
+
+Given(
   'the repo contains user-owned tickets and learnings under the namespace root',
   function (this: CodexPluginMigrationWorld) {
     const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
@@ -959,6 +1016,24 @@ Then(
     assert.deepEqual(readdirSync(nodePath.join(repoRoot, '.agents/skills')).sort(), [
       'company-workflow',
     ]);
+  },
+);
+
+Then('the user-authored Codex config entries remain', function (this: CodexPluginMigrationWorld) {
+  const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
+  const config = readFileSync(nodePath.join(repoRoot, '.codex/config.toml'), 'utf8');
+  const lines = config.split(/\r?\n/u);
+  for (const line of this.codexPluginUserCodexConfigLines ?? []) {
+    assert.equal(lines.includes(line), true);
+  }
+});
+
+Then(
+  'the stale Safe Word project-local hook commands no longer remain',
+  function (this: CodexPluginMigrationWorld) {
+    const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
+    const config = readFileSync(nodePath.join(repoRoot, '.codex/config.toml'), 'utf8');
+    assert.equal(config.includes('.safeword/hooks/codex'), false);
   },
 );
 
