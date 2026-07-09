@@ -50,7 +50,7 @@ Scaffold from `.safeword/templates/impl-plan-template.md` (sibling to `ticket.md
 4. **Update frontmatter:** `phase: implement`. The pre-tool transition gate verifies `impl-plan.md` parses valid with status `planned` — a missing or invalid plan blocks the move with the fix named. A `phase_skips` justification satisfies phase provenance only — a new-flow feature (spec.md present) still needs the valid plan to enter implement.
 5. **Work log:** the phase hook stamps the transition with real time (Claude Code — on other harnesses add a short transition entry yourself); add a narrative line (riskiest assumption, slice count, ADRs emitted) when useful.
 
-**Splitting checkpoint:** the build order is where task counts materialize — >20 tasks or 5+ major components → consider splitting (see SPLITTING.md); split children restart at `plan-implementation`, each authoring its own plan.
+**Splitting checkpoint:** the build order is where task counts materialize — run SPLITTING.md's plan-implementation checkpoint before starting TDD (its table owns the split trigger and the children-restart rule).
 
 **Voice:** plainspoken and concise — write to be scanned.
 
