@@ -9,6 +9,9 @@ import { describe, expect, it } from 'vitest';
 
 import { evaluateTicketWrite } from '../../templates/hooks/lib/phase-provenance.js';
 
+const CANONICAL_PHASE_ORDER =
+  'intake → define-behavior → scenario-gate → plan-implementation → implement → verify → done';
+
 function ticket(options: { type?: string; phase?: string; skips?: string[] }): string {
   const lines = ['---', 'id: ZZTEST', 'slug: fixture'];
   if (options.type !== undefined) lines.push(`type: ${options.type}`);
@@ -208,9 +211,7 @@ describe('evaluateTicketWrite — canonical phase enum at creation', () => {
     const verdict = evaluateTicketWrite(undefined, ticket({ type: 'feature', phase: 'shape' }));
     expect(verdict.ok).toBe(false);
     if (!verdict.ok) {
-      expect(verdict.reason).toContain(
-        'intake → define-behavior → scenario-gate → plan-implementation → implement → verify → done',
-      );
+      expect(verdict.reason).toContain(CANONICAL_PHASE_ORDER);
     }
   });
 });
@@ -330,9 +331,7 @@ describe('evaluateTicketWrite — feature phase transitions', () => {
     );
     expect(verdict.ok).toBe(false);
     if (!verdict.ok) {
-      expect(verdict.reason).toContain(
-        'intake → define-behavior → scenario-gate → plan-implementation → implement → verify → done',
-      );
+      expect(verdict.reason).toContain(CANONICAL_PHASE_ORDER);
     }
   });
 
