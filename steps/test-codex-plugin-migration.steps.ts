@@ -31,6 +31,7 @@ interface CodexPluginMigrationWorld extends SafewordWorld {
   codexPluginInstallResult?: CommandResult;
   codexPluginInstallSummary?: string;
   codexPluginListResult?: CommandResult;
+  codexPluginPromptResult?: CommandResult;
 }
 
 interface CodexPluginListEntry {
@@ -342,6 +343,83 @@ Then(
     );
   },
 );
+
+Given(
+  'a fresh repo with the Safe Word Codex plugin installed and enabled',
+  function (this: CodexPluginMigrationWorld) {
+    const repoRoot = createTemporaryDirectory('safeword-codex-plugin-repo-');
+    writeFileSync(
+      nodePath.join(repoRoot, 'package.json'),
+      `${JSON.stringify({ name: 'codex-plugin-fixture', version: '1.0.0' }, undefined, 2)}\n`,
+    );
+
+    const initResult = runCommand('git', ['init', '--quiet'], { cwd: repoRoot });
+    assert.equal(initResult.exitCode, 0, initResult.stderr);
+
+    const codexHome = createTemporaryDirectory('safeword-codex-home-');
+    const marketplaceRoot = createTemporaryDirectory('safeword-codex-marketplace-');
+    writeLocalMarketplace(marketplaceRoot);
+
+    const marketplacePreparation = prepareMarketplacePlugin(marketplaceRoot);
+    assert.equal(marketplacePreparation, undefined, marketplacePreparation?.stderr);
+
+    this.codexPluginRepoRoot = repoRoot;
+    this.codexPluginCodexHome = codexHome;
+    this.codexPluginMarketplaceRoot = marketplaceRoot;
+
+    const addMarketplaceResult = runCodexPluginCommand.call(this, [
+      'plugin',
+      'marketplace',
+      'add',
+      marketplaceRoot,
+      '--json',
+    ]);
+    assert.equal(addMarketplaceResult.exitCode, 0, addMarketplaceResult.stderr);
+
+    const installResult = runCodexPluginCommand.call(this, [
+      'plugin',
+      'add',
+      'safeword',
+      '--marketplace',
+      'safeword-local',
+      '--json',
+    ]);
+    assert.equal(installResult.exitCode, 0, installResult.stderr);
+  },
+);
+
+Given('the repo has no repo-local Safe Word skills', function (this: CodexPluginMigrationWorld) {
+  assert.equal(
+    existsSync(nodePath.join(requirePath(this.codexPluginRepoRoot, 'repo root'), '.agents/skills')),
+    false,
+  );
+});
+
+When(
+  'the prompt surface is inspected with `codex debug prompt-input`',
+  function (this: CodexPluginMigrationWorld) {
+    this.codexPluginPromptResult = runCodexPluginCommand.call(this, [
+      'debug',
+      'prompt-input',
+      'Use Safe Word for this feature.',
+    ]);
+  },
+);
+
+Then('the available skills include `safeword:bdd`', function (this: CodexPluginMigrationWorld) {
+  assert.equal(this.codexPluginPromptResult?.exitCode, 0, this.codexPluginPromptResult?.stderr);
+  assert.ok(this.codexPluginPromptResult?.stdout.includes('safeword:bdd'));
+});
+
+Then('the available skills include `safeword:verify`', function (this: CodexPluginMigrationWorld) {
+  assert.equal(this.codexPluginPromptResult?.exitCode, 0, this.codexPluginPromptResult?.stderr);
+  assert.ok(this.codexPluginPromptResult?.stdout.includes('safeword:verify'));
+});
+
+Then('the available skills include `safeword:explain`', function (this: CodexPluginMigrationWorld) {
+  assert.equal(this.codexPluginPromptResult?.exitCode, 0, this.codexPluginPromptResult?.stderr);
+  assert.ok(this.codexPluginPromptResult?.stdout.includes('safeword:explain'));
+});
 
 Then('the plugin install has not created `AGENTS.md`', function (this: CodexPluginMigrationWorld) {
   assert.equal(
