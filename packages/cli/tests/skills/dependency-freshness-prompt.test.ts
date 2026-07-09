@@ -62,10 +62,11 @@ describe('dependency freshness instructions', () => {
   it.each([
     ['canonical Codex config', 'packages/cli/templates/codex/config.toml'],
     ['dogfood Codex config', '.codex/config.toml'],
-  ])('%s wires prompt timestamp into UserPromptSubmit', (_label, path) => {
+  ])('%s wires packaged UserPromptSubmit context', (_label, path) => {
     const content = readRepoFile(path);
 
     expect(content).toContain('[[hooks.UserPromptSubmit]]');
-    expect(content).toContain('.safeword/hooks/prompt-timestamp.ts');
+    expect(content).toContain('npx --yes safeword codex-hook user-prompt-submit');
+    expect(content).not.toContain('.safeword/hooks/prompt-timestamp.ts');
   });
 });

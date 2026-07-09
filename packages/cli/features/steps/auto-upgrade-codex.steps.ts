@@ -242,9 +242,12 @@ Then('exactly one safeword SessionStart command is wired', function (this: AutoU
   assert.equal(this.codexSessionStartCommands?.length, 1);
 });
 
-Then('the command runs `session-codex-start.ts`', function (this: AutoUpgradeCodexWorld) {
-  assert.match(this.codexSessionStartCommands?.[0] ?? '', /session-codex-start\.ts/);
-});
+Then(
+  'the command runs `safeword codex-hook session-start`',
+  function (this: AutoUpgradeCodexWorld) {
+    assert.match(this.codexSessionStartCommands?.[0] ?? '', /safeword codex-hook session-start/);
+  },
+);
 
 Then(
   'the command does not run `session-safeword-context.ts` directly',

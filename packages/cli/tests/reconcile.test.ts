@@ -131,13 +131,22 @@ describe('Reconcile - Reconciliation Engine', () => {
   }
 
   function readLegacyCodexConfigWithoutPromptTimestamp(): string {
-    const template = readCodexConfigTemplate();
-    const promptStart = template.indexOf('\n[[hooks.UserPromptSubmit]]');
-    const preToolStart = template.indexOf('\n[[hooks.PreToolUse]]');
-    if (promptStart === -1 || preToolStart === -1 || preToolStart <= promptStart) {
-      throw new Error('Codex config template no longer has the expected hook block order');
-    }
-    return template.slice(0, promptStart) + template.slice(preToolStart);
+    return `# Safeword Codex project configuration.
+#
+# Project-local Codex config loads only after the project is reviewed and trusted.
+# Run Codex's hook trust flow after setup/upgrade before assuming these gates run.
+
+[features]
+hooks = true
+
+[[hooks.PreToolUse]]
+matcher = "^(apply_patch|Bash|Edit|Write|MultiEdit|NotebookEdit)$"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-quality.ts"'
+timeout = 30
+`;
   }
 
   describe('reconcile() - install mode', () => {
@@ -1530,8 +1539,8 @@ describe('Reconcile - Reconciliation Engine', () => {
     });
   });
 
-  describe('reconcile() - Codex retro parity (#602)', () => {
-    it('configures the silent Stop retro hook and prompt nudge hook on install', async () => {
+  describe('reconcile() - Codex packaged hook parity (#602)', () => {
+    it('configures the packaged Stop and prompt hooks on install', async () => {
       const { reconcile } = await import('../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
 
@@ -1541,35 +1550,37 @@ describe('Reconcile - Reconciliation Engine', () => {
       await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
 
       const content = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
-      expect(content).toContain('.safeword/hooks/codex/stop.ts');
+      expect(content).toContain('npx --yes safeword codex-hook stop');
       expect(content).toContain('timeout = 600');
-      expect(content).toContain('Running safeword retro if this session is substantial');
-      expect(content).toContain('.safeword/hooks/prompt-retro-nudge.ts');
-      expect(content).toContain('Checking spooled safeword retro drafts');
+      expect(content).toContain('Checking Safe Word stop continuation');
+      expect(content).toContain('npx --yes safeword codex-hook user-prompt-submit');
+      expect(content).toContain('Checking queued Safe Word prompt context');
     });
 
-    it('retrofits the Codex prompt retro nudge into an existing pre-nudge config', async () => {
+    it('migrates an existing local-hook config to the packaged prompt hook', async () => {
       const { reconcile } = await import('../src/reconcile.js');
-      const { CODEX_PROMPT_RETRO_NUDGE_HOOK_PATCH, SAFEWORD_SCHEMA } =
-        await import('../src/schema.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
 
       createPackageJson();
       const ctx = createContext();
 
-      const preNudge = readCodexConfigTemplate().replace(CODEX_PROMPT_RETRO_NUDGE_HOOK_PATCH, '');
       mkdirSync(nodePath.join(temporaryDirectory, '.codex'), { recursive: true });
-      writeFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), preNudge);
+      writeFileSync(
+        nodePath.join(temporaryDirectory, '.codex/config.toml'),
+        readLegacyCodexConfigWithoutPromptTimestamp(),
+      );
 
       await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
 
       const content = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
-      expect(content).toContain('.safeword/hooks/prompt-retro-nudge.ts');
-      expect(content.match(/\.safeword\/hooks\/prompt-retro-nudge\.ts/g)).toHaveLength(1);
+      expect(content).toContain('npx --yes safeword codex-hook user-prompt-submit');
+      expect(content.match(/safeword codex-hook user-prompt-submit/g)).toHaveLength(1);
+      expect(content).not.toContain('.safeword/hooks/codex');
     });
   });
 
   describe('reconcile() - Codex quality-state parity (#630)', () => {
-    it('configures the PostToolUse quality-state hook on install', async () => {
+    it('configures the packaged PostToolUse hook on install', async () => {
       const { reconcile } = await import('../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
 
@@ -1579,26 +1590,28 @@ describe('Reconcile - Reconciliation Engine', () => {
       await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
 
       const content = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
-      expect(content).toContain('.safeword/hooks/codex/post-tool-quality.ts');
-      expect(content).toContain('Updating safeword quality state');
+      expect(content).toContain('npx --yes safeword codex-hook post-tool-use');
+      expect(content).toContain('Surfacing Safe Word post-tool context');
     });
 
-    it('retrofits the PostToolUse quality-state hook into an existing pre-#630 config', async () => {
+    it('migrates an existing local-hook config to the packaged PostToolUse hook', async () => {
       const { reconcile } = await import('../src/reconcile.js');
-      const { CODEX_POST_TOOL_QUALITY_HOOK_PATCH, SAFEWORD_SCHEMA } =
-        await import('../src/schema.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
 
       createPackageJson();
       const ctx = createContext();
 
-      const preQuality = readCodexConfigTemplate().replace(CODEX_POST_TOOL_QUALITY_HOOK_PATCH, '');
       mkdirSync(nodePath.join(temporaryDirectory, '.codex'), { recursive: true });
-      writeFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), preQuality);
+      writeFileSync(
+        nodePath.join(temporaryDirectory, '.codex/config.toml'),
+        readLegacyCodexConfigWithoutPromptTimestamp(),
+      );
 
       await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
 
       const content = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
-      expect(content.match(/\.safeword\/hooks\/codex\/post-tool-quality\.ts/g)).toHaveLength(1);
+      expect(content.match(/safeword codex-hook post-tool-use/g)).toHaveLength(1);
+      expect(content).not.toContain('.safeword/hooks/codex');
     });
   });
 

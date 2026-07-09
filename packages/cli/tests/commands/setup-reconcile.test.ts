@@ -198,41 +198,30 @@ describe('Setup Command - Reconcile Integration', () => {
 
       expect(existsSync(nodePath.join(temporaryDirectory, '.codex/config.toml'))).toBe(true);
       expect(existsSync(nodePath.join(temporaryDirectory, '.agents/skills/bdd/SKILL.md'))).toBe(
-        true,
+        false,
       );
-      expect(
-        existsSync(nodePath.join(temporaryDirectory, '.agents/skills/figure-it-out/SKILL.md')),
-      ).toBe(true);
-      expect(
-        existsSync(nodePath.join(temporaryDirectory, '.safeword/hooks/codex/pre-tool-quality.ts')),
-      ).toBe(true);
-      expect(
-        existsSync(
-          nodePath.join(temporaryDirectory, '.safeword/hooks/codex/pre-tool-quality-helpers.ts'),
-        ),
-      ).toBe(true);
-      expect(existsSync(nodePath.join(temporaryDirectory, '.safeword/hooks/codex/stop.ts'))).toBe(
-        true,
-      );
+      expect(existsSync(nodePath.join(temporaryDirectory, '.safeword/hooks/codex'))).toBe(false);
     });
 
-    it('should wire Codex hooks through a single SessionStart dispatcher', async () => {
+    it('should wire Codex hooks through packaged CLI entrypoints', async () => {
       await setupReconcileTest(temporaryDirectory);
 
       const content = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
       expect(content).toContain('[features]');
       expect(content).toContain('hooks = true');
       expect(content).toContain('[[hooks.UserPromptSubmit]]');
-      expect(content).toContain('.safeword/hooks/prompt-timestamp.ts');
+      expect(content).toContain('npx --yes safeword codex-hook user-prompt-submit');
       expect(content).toContain('[[hooks.PreToolUse]]');
       expect(content).toContain('apply_patch');
-      expect(content).toContain('.safeword/hooks/codex/pre-tool-quality.ts');
+      expect(content).toContain('npx --yes safeword codex-hook pre-tool-use');
       expect(content).toContain('[[hooks.SessionStart]]');
       expect(content.match(/\[\[hooks\.SessionStart\]\]/g)).toHaveLength(1);
-      expect(content).toContain('.safeword/hooks/session-codex-start.ts');
+      expect(content).toContain('npx --yes safeword codex-hook session-start');
       expect(content).toContain('[[hooks.Stop]]');
-      expect(content).toContain('.safeword/hooks/codex/stop.ts');
+      expect(content).toContain('npx --yes safeword codex-hook stop');
       expect(content.match(/\[\[hooks\.Stop\]\]/g)).toHaveLength(1);
+      expect(content).toContain('npx --yes safeword codex-hook post-tool-use');
+      expect(content).not.toContain('.safeword/hooks/codex');
       expect(content).not.toContain('.safeword/hooks/session-safeword-context.ts" --agent=codex');
     });
 

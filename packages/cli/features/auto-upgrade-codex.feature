@@ -11,7 +11,7 @@ Feature: Auto-upgrade under Codex
       Given a fresh project runs safeword setup
       When the generated Codex config is inspected
       Then exactly one safeword SessionStart command is wired
-      And the command runs `session-codex-start.ts`
+      And the command runs `safeword codex-hook session-start`
       And the command does not run `session-safeword-context.ts` directly
 
     @auto-upgrade-codex.TB1.AC2

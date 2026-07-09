@@ -162,7 +162,7 @@ function writeCompleteTicket(projectRoot: string): void {
 }
 
 function runInstalledCodexHook(projectRoot: string) {
-  return run('bun', [nodePath.join(projectRoot, '.safeword/hooks/codex/pre-tool-quality.ts')], {
+  return run(process.execPath, [CLI_PATH, 'codex-hook', 'pre-tool-use'], {
     cwd: projectRoot,
     input: JSON.stringify({
       hook_event_name: 'PreToolUse',
@@ -226,29 +226,29 @@ describe.skipIf(!CAN_RUN)('live smoke: Codex customer-repo parity', () => {
     if (!CODEX) throw new Error('unreachable: CAN_RUN guards codex presence');
 
     expect(existsSync(nodePath.join(projectRoot, '.codex/config.toml'))).toBe(true);
-    expect(existsSync(nodePath.join(projectRoot, '.agents/skills/explain/SKILL.md'))).toBe(true);
+    expect(existsSync(nodePath.join(projectRoot, '.agents/skills/explain/SKILL.md'))).toBe(false);
     expect(
       existsSync(nodePath.join(projectRoot, '.safeword/hooks/codex/pre-tool-quality.ts')),
-    ).toBe(true);
+    ).toBe(false);
+    expect(readFileSync(nodePath.join(projectRoot, '.codex/config.toml'), 'utf8')).toContain(
+      'npx --yes safeword codex-hook pre-tool-use',
+    );
 
     const promptInput = inspectPromptInput(CODEX, projectRoot);
     const seesProjectInstructions =
       promptInput.includes('.safeword/SAFEWORD.md') || promptInput.includes('.safeword/AGENTS.md');
-    const seesRepoExplainSkill = promptInput.includes('.agents/skills/explain');
-    if (!seesProjectInstructions || !seesRepoExplainSkill) {
+    if (!seesProjectInstructions) {
       console.warn(
-        [
-          'Codex live smoke finding:',
-          `projectInstructionsVisible=${seesProjectInstructions}`,
-          `repoExplainSkillVisible=${seesRepoExplainSkill}`,
-        ].join(' '),
+        ['Codex live smoke finding:', `projectInstructionsVisible=${seesProjectInstructions}`].join(
+          ' ',
+        ),
       );
     }
 
     writeIncompleteTicket(projectRoot);
     const directDeny = runInstalledCodexHook(projectRoot);
     expect(directDeny.stdout).toContain('permissionDecision');
-    expect(directDeny.stdout).toContain('Run `$explain`');
+    expect(directDeny.stdout).toContain('safeword:explain');
 
     writeCompleteTicket(projectRoot);
     const directAllow = runInstalledCodexHook(projectRoot);

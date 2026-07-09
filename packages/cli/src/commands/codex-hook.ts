@@ -52,8 +52,19 @@ const POST_TOOL_GUIDANCE_PATH = '.project/codex-post-tool-guidance.txt';
 const PROMPT_CONTEXT_PATH = '.project/codex-prompt-context.txt';
 const STOP_CONTINUATION_PATH = '.project/codex-stop-continuation.txt';
 const CODEX_RUN_IDENTITY_CACHE = 'codex-run-identity.json';
-const SHELL_OPERATORS = new Set([';', '&&', '||', '|']);
 const SKILL_NAME_PATTERN = /^[a-z][a-z0-9-]*$/;
+const RECORD_SKILL_INVOCATION_COMMAND = new RegExp(
+  [
+    String.raw`(?:^|[;&|]\s*)`,
+    String.raw`(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)*`,
+    String.raw`(?:\S*/)?bun\s+`,
+    String.raw`(?:"[^"]*/\.safeword/hooks/record-skill-invocation\.ts"`,
+    String.raw`|'[^']*/\.safeword/hooks/record-skill-invocation\.ts'`,
+    String.raw`|[^\s;&|]*/\.safeword/hooks/record-skill-invocation\.ts)`,
+    String.raw`\s+(?:"[^"]*"|'[^']*'|[^\s;&|]+)\s+([a-z][a-z0-9-]*)\b`,
+  ].join(''),
+  'u',
+);
 const SUPPORTED_CODEX_HOOK_EVENTS: ReadonlySet<string> = new Set([
   'post-tool-use',
   'pre-tool-use',
@@ -101,115 +112,8 @@ function resolveProjectDirectory(): string {
   return process.cwd();
 }
 
-function tokenizeShellCommand(command: string): string[] {
-  const tokens: string[] = [];
-  let current = '';
-  let quote: '"' | "'" | undefined;
-  let escaped = false;
-
-  function flush(): void {
-    if (current.length > 0) {
-      tokens.push(current);
-      current = '';
-    }
-  }
-
-  for (let index = 0; index < command.length; index += 1) {
-    const char = command[index];
-    if (char === undefined) continue;
-
-    if (escaped) {
-      current += char;
-      escaped = false;
-      continue;
-    }
-
-    if (char === '\\' && quote !== "'") {
-      escaped = true;
-      continue;
-    }
-
-    if (quote !== undefined) {
-      if (char === quote) {
-        quote = undefined;
-      } else {
-        current += char;
-      }
-      continue;
-    }
-
-    if (char === '"' || char === "'") {
-      quote = char;
-      continue;
-    }
-
-    if (/\s/u.test(char)) {
-      flush();
-      continue;
-    }
-
-    if (char === '&' && command[index + 1] === '&') {
-      flush();
-      tokens.push('&&');
-      index += 1;
-      continue;
-    }
-
-    if (char === '|' && command[index + 1] === '|') {
-      flush();
-      tokens.push('||');
-      index += 1;
-      continue;
-    }
-
-    if (char === ';' || char === '|') {
-      flush();
-      tokens.push(char);
-      continue;
-    }
-
-    current += char;
-  }
-
-  flush();
-  return tokens;
-}
-
-function shellSegments(command: string): string[][] {
-  const tokens = tokenizeShellCommand(command);
-  const segments: string[][] = [];
-  let start = 0;
-
-  for (let index = 0; index <= tokens.length; index += 1) {
-    if (index !== tokens.length && !SHELL_OPERATORS.has(tokens[index] ?? '')) continue;
-    segments.push(tokens.slice(start, index));
-    start = index + 1;
-  }
-
-  return segments;
-}
-
-function executableIndexOf(segment: string[]): number {
-  let executableIndex = 0;
-  while (/^[A-Za-z_][A-Za-z0-9_]*=/u.test(segment[executableIndex] ?? '')) {
-    executableIndex += 1;
-  }
-  return executableIndex;
-}
-
 function parseRecordSkillInvocationCommand(command: string): string | undefined {
-  for (const segment of shellSegments(command)) {
-    const executableIndex = executableIndexOf(segment);
-    const executable = segment[executableIndex];
-    const helperPath = segment[executableIndex + 1]?.replaceAll('\\', '/');
-    const skillName = segment[executableIndex + 3]?.trim();
-
-    if (nodePath.basename(executable ?? '') !== 'bun') continue;
-    if (!helperPath?.endsWith('/.safeword/hooks/record-skill-invocation.ts')) continue;
-    if (skillName && SKILL_NAME_PATTERN.test(skillName)) return skillName;
-  }
-
-  return undefined;
+  return RECORD_SKILL_INVOCATION_COMMAND.exec(command)?.[1];
 }
 
 function rememberCodexRunIdentity(input: {

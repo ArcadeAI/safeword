@@ -1444,10 +1444,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
         operation: 'append',
         content: CODEX_USER_PROMPT_SUBMIT_HOOK_PATCH,
         marker: 'safeword codex-hook user-prompt-submit',
-        applyWhenContentIncludes: [
-          '# Safeword Codex project configuration.',
-          '.safeword/hooks/codex/pre-tool-quality.ts',
-        ],
+        applyWhenContentIncludes: ['# Safeword Codex project configuration.'],
         unpatchContent: [
           CODEX_SESSION_START_HOOK_PATCH,
           CODEX_PRE_TOOL_QUALITY_HOOK_PATCH,
@@ -1470,37 +1467,26 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
         operation: 'append',
         content: CODEX_SESSION_START_HOOK_PATCH,
         marker: 'safeword codex-hook session-start',
-        applyWhenContentIncludes: [
-          '# Safeword Codex project configuration.',
-          '.safeword/hooks/codex/pre-tool-quality.ts',
-        ],
+        supersedes: CODEX_LEGACY_CONTEXT_SESSION_START_HOOK_PATCH,
+        applyWhenContentIncludes: ['# Safeword Codex project configuration.'],
       },
       {
         operation: 'append',
         content: CODEX_PRE_TOOL_QUALITY_HOOK_PATCH,
         marker: 'safeword codex-hook pre-tool-use',
-        applyWhenContentIncludes: [
-          '# Safeword Codex project configuration.',
-          '.safeword/hooks/codex/pre-tool-quality.ts',
-        ],
+        applyWhenContentIncludes: ['# Safeword Codex project configuration.'],
       },
       {
         operation: 'append',
         content: CODEX_POST_TOOL_USE_HOOK_PATCH,
         marker: 'safeword codex-hook post-tool-use',
-        applyWhenContentIncludes: [
-          '# Safeword Codex project configuration.',
-          '.safeword/hooks/codex/pre-tool-quality.ts',
-        ],
+        applyWhenContentIncludes: ['# Safeword Codex project configuration.'],
       },
       {
         operation: 'append',
         content: CODEX_STOP_HOOK_PATCH,
         marker: 'safeword codex-hook stop',
-        applyWhenContentIncludes: [
-          '# Safeword Codex project configuration.',
-          '.safeword/hooks/codex/pre-tool-quality.ts',
-        ],
+        applyWhenContentIncludes: ['# Safeword Codex project configuration.'],
       },
       // MCP-server retrofit (#269): add-if-missing parity with .mcp.json /
       // .cursor/mcp.json. Marker is the context7 table header, so an existing
@@ -1511,10 +1497,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
         operation: 'append',
         content: CODEX_MCP_SERVERS_BLOCK,
         marker: '[mcp_servers.context7]',
-        applyWhenContentIncludes: [
-          '# Safeword Codex project configuration.',
-          '.safeword/hooks/codex/pre-tool-quality.ts',
-        ],
+        applyWhenContentIncludes: ['# Safeword Codex project configuration.'],
         // No unpatchContent/removeFileIfContentEquals by design: unpatch removes
         // this patch's `content` (the MCP block), and the primary patch above —
         // running last on the reversed unpatch — owns file removal.
@@ -1528,10 +1511,10 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
   legacyTextPatches: {
     '.codex/config.toml': {
       operation: 'append',
-      content: CODEX_LEGACY_PRE_TOOL_QUALITY_HOOK_PATCH_WITHOUT_STATUS,
+      content: CODEX_LEGACY_PRE_TOOL_QUALITY_HOOK_PATCH,
       marker: '.safeword/hooks/codex/pre-tool-quality.ts',
       unpatchContent: [
-        CODEX_LEGACY_PRE_TOOL_QUALITY_HOOK_PATCH,
+        CODEX_LEGACY_PRE_TOOL_QUALITY_HOOK_PATCH_WITHOUT_STATUS,
         CODEX_LEGACY_STOP_HOOK_PATCH_WITHOUT_STATUS,
         CODEX_LEGACY_STOP_HOOK_PATCH,
         CODEX_LEGACY_POST_TOOL_QUALITY_HOOK_PATCH,
