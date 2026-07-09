@@ -56,7 +56,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 6316de52
 - [x] GREEN 9a5d7127
-- [ ] REFACTOR
+- [x] REFACTOR skip: additional-context output and event dispatch are already shared after GREEN
 
 ### Scenario: UserPromptSubmit additional context runs through the packaged CLI entrypoint
 
