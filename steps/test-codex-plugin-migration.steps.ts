@@ -30,6 +30,8 @@ const POST_TOOL_GUIDANCE_LINE =
   'Fixture Safe Word guidance: review the generated file before continuing.';
 const PROMPT_CONTEXT_LINE =
   'Queued Safe Word prompt context: continue after verifying the ticket ledger.';
+const STOP_CONTINUATION_MESSAGE =
+  'Fixture Safe Word continuation: finish the queued verification before stopping.';
 const SOURCE_CHECKOUT_HOOK_SENTINEL = 'SOURCE CHECKOUT HOOK SHOULD NOT APPEAR';
 const TEST_DEFINITIONS_PATCH = `*** Begin Patch
 *** Add File: .project/tickets/${CODEX_TEST_TICKET_ID}/test-definitions.md
@@ -583,6 +585,18 @@ Given(
   },
 );
 
+Given(
+  'the fixture has a Codex stop payload that should produce a Safe Word continuation',
+  function (this: CodexPluginMigrationWorld) {
+    const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
+    mkdirSync(nodePath.join(repoRoot, '.project'), { recursive: true });
+    writeFileSync(
+      nodePath.join(repoRoot, '.project/codex-stop-continuation.txt'),
+      `${STOP_CONTINUATION_MESSAGE}\n`,
+    );
+  },
+);
+
 When(
   "the packaged Codex PreToolUse entrypoint receives a supported edit payload for that ticket's `test-definitions.md`",
   function (this: CodexPluginMigrationWorld) {
@@ -678,6 +692,25 @@ When(
   },
 );
 
+When(
+  'the packaged Codex Stop entrypoint receives the stop JSON fixture',
+  function (this: CodexPluginMigrationWorld) {
+    const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
+    this.codexPluginHookResult = runCommand(
+      process.execPath,
+      [SAFEWORD_CLI_PATH, 'codex-hook', 'stop'],
+      {
+        cwd: repoRoot,
+        env: { CLAUDE_PROJECT_DIR: repoRoot },
+        input: JSON.stringify({
+          hook_event_name: 'Stop',
+          session_id: 'codex-test-session',
+        }),
+      },
+    );
+  },
+);
+
 Then(
   'the hook output denies the edit with the existing Safe Word phase-gate reason',
   function (this: CodexPluginMigrationWorld) {
@@ -718,6 +751,28 @@ Then(
   function (this: CodexPluginMigrationWorld) {
     const output = `${this.codexPluginHookResult?.stdout ?? ''}\n${this.codexPluginHookResult?.stderr ?? ''}`;
     assert.equal(output.includes(REPO_LOCAL_SAFEWORD_SENTINEL), false);
+  },
+);
+
+Then(
+  'the hook output is valid Codex continuation JSON with `decision` set to `block`',
+  function (this: CodexPluginMigrationWorld) {
+    const result = this.codexPluginHookResult;
+    assert.ok(result, 'hook result was not captured');
+    assert.equal(result.exitCode, 0, result.stderr);
+
+    const parsed = JSON.parse(result.stdout) as { decision?: unknown; reason?: unknown };
+    assert.equal(parsed.decision, 'block');
+    assert.equal(typeof parsed.reason, 'string');
+  },
+);
+
+Then(
+  "the continuation reason contains the fixture's Safe Word continuation message",
+  function (this: CodexPluginMigrationWorld) {
+    const parsed = JSON.parse(this.codexPluginHookResult?.stdout ?? '') as { reason?: unknown };
+    assert.match(String(parsed.reason), /Fixture Safe Word continuation/u);
+    assert.match(String(parsed.reason), /queued verification/u);
   },
 );
 
