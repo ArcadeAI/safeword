@@ -55,6 +55,9 @@ interface CodexPluginMigrationWorld extends SafewordWorld {
   codexPluginUserDataSnapshot?: Record<string, string>;
   codexPluginUserSkillSnapshot?: string;
   codexPluginUserCodexConfigLines?: string[];
+  codexPluginPackageRoot?: string;
+  codexPluginPackageTarball?: string;
+  codexPluginPackageFiles?: string[];
 }
 
 interface CodexPluginListEntry {
@@ -141,6 +144,19 @@ function collectHookCommands(value: unknown): string[] {
   }
 
   return [];
+}
+
+function requirePackageFiles(world: CodexPluginMigrationWorld): string[] {
+  assert.ok(world.codexPluginPackageFiles, 'package files were not inspected');
+  return world.codexPluginPackageFiles;
+}
+
+function readTarballFile(tarball: string, packagePath: string): string {
+  const result = runCommand('tar', ['-xOf', tarball, packagePath], {
+    cwd: nodePath.dirname(tarball),
+  });
+  assert.equal(result.exitCode, 0, result.stderr);
+  return result.stdout;
 }
 
 function writeLocalMarketplace(marketplaceRoot: string): void {
@@ -628,6 +644,31 @@ Given(
 );
 
 Given(
+  'the Safe Word package has been packed from the working tree',
+  function (this: CodexPluginMigrationWorld) {
+    const packageRoot = createTemporaryDirectory('safeword-package-release-contract-');
+    const buildResult = runCommand('bun', ['run', 'build'], {
+      cwd: nodePath.resolve(import.meta.dirname, '..', 'packages/cli'),
+      timeout: 120_000,
+    });
+    assert.equal(buildResult.exitCode, 0, buildResult.stderr);
+
+    const packResult = runCommand('npm', ['pack', '--json', '--pack-destination', packageRoot], {
+      cwd: nodePath.resolve(import.meta.dirname, '..', 'packages/cli'),
+      timeout: 120_000,
+    });
+    assert.equal(packResult.exitCode, 0, packResult.stderr);
+
+    const packed = JSON.parse(packResult.stdout) as Array<{ filename?: string }>;
+    const filename = packed[0]?.filename;
+    assert.ok(filename, `npm pack did not report a filename: ${packResult.stdout}`);
+
+    this.codexPluginPackageRoot = packageRoot;
+    this.codexPluginPackageTarball = nodePath.join(packageRoot, filename);
+  },
+);
+
+Given(
   'the fixture has a feature ticket missing intake prerequisites',
   function (this: CodexPluginMigrationWorld) {
     createIncompleteFeatureTicket(requirePath(this.codexPluginRepoRoot, 'repo root'));
@@ -890,6 +931,18 @@ When('the hook commands are inspected', function (this: CodexPluginMigrationWorl
   assert.ok(this.codexPluginHookCommands, 'hook commands were not loaded');
 });
 
+When(
+  'the release contract inspects the package contents',
+  function (this: CodexPluginMigrationWorld) {
+    const tarball = requirePath(this.codexPluginPackageTarball, 'package tarball');
+    const listResult = runCommand('tar', ['-tf', tarball], {
+      cwd: nodePath.dirname(tarball),
+    });
+    assert.equal(listResult.exitCode, 0, listResult.stderr);
+    this.codexPluginPackageFiles = listResult.stdout.split(/\r?\n/u).filter(Boolean).sort();
+  },
+);
+
 When('the plugin migration upgrade runs', function (this: CodexPluginMigrationWorld) {
   const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
   this.codexPluginMigrationResult = runCommand(process.execPath, [SAFEWORD_CLI_PATH, 'upgrade'], {
@@ -1038,6 +1091,47 @@ Then(
 );
 
 Then(
+  'the package contains the Safe Word Codex plugin manifest',
+  function (this: CodexPluginMigrationWorld) {
+    assert.ok(requirePackageFiles(this).includes('package/codex-plugin/.codex-plugin/plugin.json'));
+  },
+);
+
+Then(
+  'the package contains the bundled Codex skill files',
+  function (this: CodexPluginMigrationWorld) {
+    const files = requirePackageFiles(this);
+    for (const skill of ['bdd', 'verify', 'explain']) {
+      assert.ok(files.includes(`package/codex-plugin/skills/${skill}/SKILL.md`));
+    }
+  },
+);
+
+Then(
+  'the package contains the bundled Codex hook manifest',
+  function (this: CodexPluginMigrationWorld) {
+    assert.ok(requirePackageFiles(this).includes('package/codex-plugin/hooks.json'));
+  },
+);
+
+Then(
+  'the package contains every CLI entrypoint referenced by plugin hook commands',
+  function (this: CodexPluginMigrationWorld) {
+    const tarball = requirePath(this.codexPluginPackageTarball, 'package tarball');
+    const files = requirePackageFiles(this);
+    const hooksJson = readTarballFile(tarball, 'package/codex-plugin/hooks.json');
+    const commands = collectHookCommands(JSON.parse(hooksJson));
+
+    assert.ok(commands.length > 0, 'package hook manifest did not contain commands');
+    for (const command of commands) {
+      assert.match(command, /\bsafeword\s+codex-hook\b/u);
+    }
+    assert.ok(files.includes('package/dist/cli.js'));
+    assert.ok(files.some(file => /^package\/dist\/codex-hook-[A-Z0-9]+\.js$/u.test(file)));
+  },
+);
+
+Then(
   'the hook output is valid Codex continuation JSON with `decision` set to `block`',
   function (this: CodexPluginMigrationWorld) {
     const result = this.codexPluginHookResult;
@@ -1146,6 +1240,7 @@ After(function (this: CodexPluginMigrationWorld) {
     this.codexPluginRepoRoot,
     this.codexPluginCodexHome,
     this.codexPluginMarketplaceRoot,
+    this.codexPluginPackageRoot,
   ]) {
     if (directory) rmSync(directory, { recursive: true, force: true });
   }
