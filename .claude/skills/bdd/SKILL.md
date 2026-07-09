@@ -27,15 +27,15 @@ phase: implement # intake | define-behavior | scenario-gate | plan-implementatio
 
 **Phase meanings:**
 
-| Phase             | What happens                    | Details      |
-| ----------------- | ------------------------------- | ------------ |
-| `intake`          | Context check, discovery        | DISCOVERY.md |
-| `define-behavior` | Writing Given/When/Then         | SCENARIOS.md |
-| `scenario-gate`   | Validating scenarios            | SCENARIOS.md |
-| `plan-implementation` | Implementation design record | PLAN_IMPLEMENTATION.md |
-| `implement`       | Outside-in TDD                  | TDD.md       |
-| `verify`          | Evidence gate: /verify + /audit | VERIFY.md    |
-| `done`            | Close ticket                    | DONE.md      |
+| Phase                 | What happens                    | Details                |
+| --------------------- | ------------------------------- | ---------------------- |
+| `intake`              | Context check, discovery        | DISCOVERY.md           |
+| `define-behavior`     | Writing Given/When/Then         | SCENARIOS.md           |
+| `scenario-gate`       | Validating scenarios            | SCENARIOS.md           |
+| `plan-implementation` | Implementation design record    | PLAN_IMPLEMENTATION.md |
+| `implement`           | Outside-in TDD                  | TDD.md                 |
+| `verify`              | Evidence gate: /verify + /audit | VERIFY.md              |
+| `done`                | Close ticket                    | DONE.md                |
 
 **Update phase when:**
 
@@ -80,15 +80,15 @@ ticket 2VCSZY), every phase advance requires a stamp, or a logged skip reason
 
 **Resume by phase:**
 
-| Phase             | Resume action                              |
-| ----------------- | ------------------------------------------ |
-| `intake`          | Start understanding (propose-and-converge) |
-| `define-behavior` | Continue drafting scenarios                |
-| `scenario-gate`   | Continue validating scenarios              |
+| Phase                 | Resume action                                             |
+| --------------------- | --------------------------------------------------------- |
+| `intake`              | Start understanding (propose-and-converge)                |
+| `define-behavior`     | Continue drafting scenarios                               |
+| `scenario-gate`       | Continue validating scenarios                             |
 | `plan-implementation` | Continue the implementation plan (PLAN_IMPLEMENTATION.md) |
-| `implement`       | Find first unchecked scenario, run TDD     |
-| `verify`          | Run /verify and /audit, write verify.md    |
-| `done`            | Close ticket (verify.md must exist)        |
+| `implement`           | Find first unchecked scenario, run TDD                    |
+| `verify`              | Run /verify and /audit, write verify.md                   |
+| `done`                | Close ticket (verify.md must exist)                       |
 
 ---
 
@@ -104,14 +104,14 @@ Understand first and size internally (see SAFEWORD.md "Understanding" and "Sizin
 
 Load the appropriate file based on current phase:
 
-| Phase             | File         |
-| ----------------- | ------------ |
-| `intake`          | DISCOVERY.md |
-| `define-behavior` | SCENARIOS.md |
-| `scenario-gate`   | SCENARIOS.md |
+| Phase                 | File                   |
+| --------------------- | ---------------------- |
+| `intake`              | DISCOVERY.md           |
+| `define-behavior`     | SCENARIOS.md           |
+| `scenario-gate`       | SCENARIOS.md           |
 | `plan-implementation` | PLAN_IMPLEMENTATION.md |
-| `implement`       | TDD.md       |
-| `verify`          | VERIFY.md    |
-| `done`            | DONE.md      |
+| `implement`           | TDD.md                 |
+| `verify`              | VERIFY.md              |
+| `done`                | DONE.md                |
 
 For splitting large features, see SPLITTING.md.
