@@ -15,7 +15,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Invalid local marketplace fails before claiming plugin install success
 
 - [x] RED 5b4d62b6
-- [ ] GREEN
+- [x] GREEN b42ac294
 - [ ] REFACTOR
 
 ## Rule: test-codex-plugin-migration.TB1.R2 — Safe Word Codex skills are visible to the agent from the plugin with stable, intentional invocation names
