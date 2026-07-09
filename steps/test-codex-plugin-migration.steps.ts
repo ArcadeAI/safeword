@@ -103,6 +103,25 @@ function createTemporaryDirectory(prefix: string): string {
   return mkdtempSync(nodePath.join(tmpdir(), prefix));
 }
 
+function createFreshCodexPluginRepo(
+  options: { packageName?: string; prefix?: string } = {},
+): string {
+  const repoRoot = createTemporaryDirectory(options.prefix ?? 'safeword-codex-plugin-repo-');
+  writeFileSync(
+    nodePath.join(repoRoot, 'package.json'),
+    `${JSON.stringify(
+      { name: options.packageName ?? 'codex-plugin-fixture', version: '1.0.0' },
+      undefined,
+      2,
+    )}\n`,
+  );
+
+  const initResult = runCommand('git', ['init', '--quiet'], { cwd: repoRoot });
+  assert.equal(initResult.exitCode, 0, initResult.stderr);
+
+  return repoRoot;
+}
+
 function requirePath(value: string | undefined, label: string): string {
   assert.ok(value, `${label} was not initialized`);
   return value;
@@ -578,15 +597,11 @@ function installSafeWordPluginFixture(
   world: CodexPluginMigrationWorld,
   options: { liveAuthenticated?: boolean } = {},
 ): void {
-  const repoRoot = createTemporaryDirectory(
-    options.liveAuthenticated ? 'safeword-codex-plugin-live-repo-' : 'safeword-codex-plugin-repo-',
-  );
-  writeFileSync(
-    nodePath.join(repoRoot, 'package.json'),
-    `${JSON.stringify({ name: 'codex-plugin-fixture', version: '1.0.0' }, undefined, 2)}\n`,
-  );
-  const initResult = runCommand('git', ['init', '--quiet'], { cwd: repoRoot });
-  assert.equal(initResult.exitCode, 0, initResult.stderr);
+  const repoRoot = createFreshCodexPluginRepo({
+    prefix: options.liveAuthenticated
+      ? 'safeword-codex-plugin-live-repo-'
+      : 'safeword-codex-plugin-repo-',
+  });
 
   const codexHome = createTemporaryDirectory('safeword-codex-home-');
   const marketplaceRoot = createTemporaryDirectory('safeword-codex-marketplace-');
@@ -737,14 +752,7 @@ function codexHookFixture(commandName: CodexHookCommandName): {
 Given(
   'a fresh git repo with no Safe Word Codex assets',
   function (this: CodexPluginMigrationWorld) {
-    const repoRoot = createTemporaryDirectory('safeword-codex-plugin-repo-');
-    writeFileSync(
-      nodePath.join(repoRoot, 'package.json'),
-      `${JSON.stringify({ name: 'codex-plugin-fixture', version: '1.0.0' }, undefined, 2)}\n`,
-    );
-
-    const initResult = runCommand('git', ['init', '--quiet'], { cwd: repoRoot });
-    assert.equal(initResult.exitCode, 0, initResult.stderr);
+    const repoRoot = createFreshCodexPluginRepo();
 
     for (const relativePath of ['.agents', '.codex', '.safeword', '.claude', '.cursor']) {
       assert.equal(existsSync(nodePath.join(repoRoot, relativePath)), false, relativePath);
@@ -770,13 +778,7 @@ Given(
 Given(
   'a temporary CODEX_HOME with no installed Safe Word plugin',
   function (this: CodexPluginMigrationWorld) {
-    const repoRoot = createTemporaryDirectory('safeword-codex-plugin-repo-');
-    writeFileSync(
-      nodePath.join(repoRoot, 'package.json'),
-      `${JSON.stringify({ name: 'codex-plugin-fixture', version: '1.0.0' }, undefined, 2)}\n`,
-    );
-    const initResult = runCommand('git', ['init', '--quiet'], { cwd: repoRoot });
-    assert.equal(initResult.exitCode, 0, initResult.stderr);
+    const repoRoot = createFreshCodexPluginRepo();
 
     const codexHome = createTemporaryDirectory('safeword-codex-home-');
     const marketplaceRoot = createTemporaryDirectory('safeword-codex-marketplace-');
@@ -961,14 +963,7 @@ Then(
 Given(
   'a fresh repo with the Safe Word Codex plugin installed and enabled',
   function (this: CodexPluginMigrationWorld) {
-    const repoRoot = createTemporaryDirectory('safeword-codex-plugin-repo-');
-    writeFileSync(
-      nodePath.join(repoRoot, 'package.json'),
-      `${JSON.stringify({ name: 'codex-plugin-fixture', version: '1.0.0' }, undefined, 2)}\n`,
-    );
-
-    const initResult = runCommand('git', ['init', '--quiet'], { cwd: repoRoot });
-    assert.equal(initResult.exitCode, 0, initResult.stderr);
+    const repoRoot = createFreshCodexPluginRepo();
 
     const codexHome = createTemporaryDirectory('safeword-codex-home-');
     const marketplaceRoot = createTemporaryDirectory('safeword-codex-marketplace-');
@@ -1005,13 +1000,7 @@ Given(
 Given(
   'a temporary CODEX_HOME where the Safe Word plugin is installed but disabled',
   function (this: CodexPluginMigrationWorld) {
-    const repoRoot = createTemporaryDirectory('safeword-codex-plugin-repo-');
-    writeFileSync(
-      nodePath.join(repoRoot, 'package.json'),
-      `${JSON.stringify({ name: 'codex-plugin-fixture', version: '1.0.0' }, undefined, 2)}\n`,
-    );
-    const initResult = runCommand('git', ['init', '--quiet'], { cwd: repoRoot });
-    assert.equal(initResult.exitCode, 0, initResult.stderr);
+    const repoRoot = createFreshCodexPluginRepo();
 
     const codexHome = createTemporaryDirectory('safeword-codex-home-');
     const marketplaceRoot = createTemporaryDirectory('safeword-codex-marketplace-');
