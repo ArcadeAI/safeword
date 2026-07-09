@@ -30,7 +30,10 @@ flowchart TD
     phase0 --> g1{{"Phase gate:<br/>scope / out_of_scope / done_when"}}
     g1 --> scenarios["Define-behavior scenarios"]
     scenarios --> g2{{"Phase gate:<br/>test-definitions.md exists"}}
-    g2 --> build
+    g2 --> sgate["Scenario gate:<br/>adversarial scenario review"]
+    sgate --> plan["Plan implementation:<br/>impl-plan.md — proof plan, build order, ADRs"]
+    plan --> g2b{{"Plan gate:<br/>valid impl-plan.md before TDD"}}
+    g2b --> build
 
     task --> build["3 · Build<br/>RED → GREEN → REFACTOR"]
     patch --> verify
@@ -60,7 +63,7 @@ The agent sizes the work — it doesn't announce a label, it just picks the righ
 
 - **patch** goes straight to the fix.
 - **task** runs the TDD loop: a failing test (RED), the minimum code to pass (GREEN), then cleanup (REFACTOR).
-- **feature** writes define-behavior scenarios first, then implements each one through that same TDD loop.
+- **feature** writes define-behavior scenarios first, validates them at the scenario gate, plans the implementation (`impl-plan.md` — the proof plan, build order, and any architecture decisions, written in the plan-implementation phase), then implements each scenario through that same TDD loop.
 
 ## 4 · Verify
 
@@ -70,10 +73,11 @@ The agent runs the relevant tests itself after every fix, task, or feature. It n
 
 A ticket can't close until `verify.md` exists in its folder — the artifact the `/verify` skill produces. No artifact, no done.
 
-<Aside type="caution" title="The three gates hard-block">
-Safeword runs hooks every turn to track which phase the agent is in. Three of them stop work cold rather than warn:
+<Aside type="caution" title="The gates hard-block">
+Safeword runs hooks every turn to track which phase the agent is in. Four of them stop work cold rather than warn:
 
 - **Phase gate** — can't start TDD without `test-definitions.md`; can't write that file without `scope` / `out_of_scope` / `done_when` in the ticket.
+- **Plan gate** — a feature can't enter the implement phase without a valid `impl-plan.md` (written in the plan-implementation phase), and can't reach verify until that plan is reconciled against what actually shipped.
 - **LOC gate** — commit roughly every 400 lines of project code, so no single change grows an unreviewable blast radius.
 - **Done gate** — can't close a ticket without `verify.md`.
 
