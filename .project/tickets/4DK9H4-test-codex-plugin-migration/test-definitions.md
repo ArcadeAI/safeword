@@ -134,7 +134,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Malformed Codex hook input fails open through the packaged entrypoint
 
-- [ ] RED
+- [x] RED b9e8c904
 - [ ] GREEN
 - [ ] REFACTOR
 
