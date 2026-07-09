@@ -45,7 +45,7 @@ High-frequency enforcement destroys its own signal. A real dogfooding session pr
 
 **Gate at transitions:**
 
-- Phase boundaries (scenario-gate to implement, implement to done)
+- Phase boundaries (scenario-gate to plan-implementation, plan-implementation to implement, implement to done)
 - Artifact creation (test-definitions.md, dimensions.md)
 - Commit thresholds (~400 LOC of project code)
 - Session boundaries (start, stop, handoff)

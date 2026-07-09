@@ -219,6 +219,24 @@ describe('surfaces rewritten by the phase introduction (TXRHMD)', () => {
     }
   });
 
+  it('no shipped surface keeps a six-phase adjacency (scenario-gate directly to implement)', () => {
+    const roots = [
+      'packages/cli/templates',
+      '.claude/skills',
+      '.agents/skills',
+      '.safeword/templates',
+    ];
+    for (const root of roots) {
+      for (const pattern of ['scenario-gate | implement', 'scenario-gate → implement']) {
+        const out = execSync(`grep -rlF "${pattern}" ${root} 2>/dev/null || true`, {
+          cwd: repoRoot,
+          encoding: 'utf8',
+        }).trim();
+        expect(out, `six-phase adjacency "${pattern}" under ${root}: ${out}`).toBe('');
+      }
+    }
+  });
+
   it('resume + phase-file tables route plan-implementation to PLAN_IMPLEMENTATION.md (TB1.R2)', () => {
     for (const { path, text } of readCopies('SKILL.md')) {
       expect(text, path).toContain('PLAN_IMPLEMENTATION.md');

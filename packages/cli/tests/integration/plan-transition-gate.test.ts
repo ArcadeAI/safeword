@@ -137,6 +137,32 @@ describe('TXRHMD plan-implementation → implement transition gate (wired)', () 
     expectHookAllow(runAdvance('plan-implementation', 'implement'));
   });
 
+  it('denies a justified provenance skip when the new-flow feature still has no plan', () => {
+    const withSkip = [
+      '---',
+      `id: ${TICKET_ID}`,
+      'type: feature',
+      'phase: scenario-gate',
+      'status: in_progress',
+      'phase_skips:',
+      '  - plan-implementation: plan captured in PR description',
+      'scope:',
+      '  - gate the implement entry',
+      'out_of_scope:',
+      '  - unrelated',
+      'done_when:',
+      '  - gated',
+      '---',
+      '',
+      '# Ticket',
+      '',
+    ].join('\n');
+    writeFileSync(ticketFile, withSkip);
+    writeFileSync(nodePath.join(ticketDirectory, 'spec.md'), '# Spec\n');
+    const result = runAdvance('scenario-gate', 'implement');
+    expectHookDeny(result, 'impl-plan.md');
+  });
+
   it('leaves task tickets unpoliced', () => {
     writeFileSync(ticketFile, ticketBody('scenario-gate', 'task'));
     expectHookAllow(runAdvance('scenario-gate', 'implement'));

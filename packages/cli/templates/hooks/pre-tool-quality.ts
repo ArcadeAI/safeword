@@ -492,17 +492,29 @@ if (isCanonicalTicketEdit) {
   }
 }
 
+/** Prior/proposed phase + proposed type for a canonical ticket.md edit. */
+function phaseTransitionContext(toolInput: HookInput['tool_input']): {
+  priorPhase: string | undefined;
+  proposedPhase: string | undefined;
+  proposedType: string | undefined;
+} {
+  const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : '';
+  const proposedContent = nextContentAfterEdit(toolInput, priorContent);
+  const proposedMeta = frontmatterFromContent(proposedContent);
+  return {
+    priorPhase: frontmatterScalar(frontmatterFromContent(priorContent), 'phase'),
+    proposedPhase: frontmatterScalar(proposedMeta, 'phase'),
+    proposedType: frontmatterScalar(proposedMeta, 'type'),
+  };
+}
+
 // Feature readiness gate (#404): block new entries into define-behavior before
 // scenario work starts. The existing test-definitions.md gate still guards the
 // first scenario-file write; this catches the earlier phase edit.
 if (isCanonicalTicketEdit) {
+  const { priorPhase, proposedPhase, proposedType } = phaseTransitionContext(input.tool_input);
   const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : '';
   const proposedContent = nextContentAfterEdit(input.tool_input, priorContent);
-  const priorMeta = frontmatterFromContent(priorContent);
-  const proposedMeta = frontmatterFromContent(proposedContent);
-  const priorPhase = frontmatterScalar(priorMeta, 'phase');
-  const proposedPhase = frontmatterScalar(proposedMeta, 'phase');
-  const proposedType = frontmatterScalar(proposedMeta, 'type');
 
   if (
     proposedType === 'feature' &&

@@ -61,7 +61,7 @@ const PHASE_EVIDENCE: Record<BddPhase, string> = {
   'scenario-gate':
     'Phase: scenario-gate. CONFIDENT cites N validated scenarios, AODI pass, and either issues found or "No issues."',
   'plan-implementation':
-    'Phase: plan-implementation. CONFIDENT cites a parse-valid impl-plan.md (five sections content-or-skip, status planned), the riskiest assumption named with its proving scenario, and the independent review passed (or its pending state recorded).',
+    'Phase: plan-implementation. CONFIDENT cites a parse-valid impl-plan.md (five required sections content-or-skip, plus optional Doc impact, status planned), the riskiest assumption named with its proving scenario, and the independent review passed (or its pending state recorded).',
   implement:
     'Phase: implement. CONFIDENT cites the passing artifact (X/X tests pass; scenario checked off).',
   verify:

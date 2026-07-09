@@ -228,7 +228,7 @@ function checkImplPlanArtifact(ticketInfo: TicketInfo): void {
   const implPlanPath = `${ticketsDir}/${ticketInfo.folder}/impl-plan.md`;
   if (!existsSync(implPlanPath)) {
     hardBlockDone(
-      `Feature at ${ticketInfo.phase} phase requires impl-plan.md (authored during the plan-implementation phase). Create it from the impl-plan template with all five sections (or skip: <reason> per section) before stopping.`,
+      `Feature at ${ticketInfo.phase} phase requires impl-plan.md (authored during the plan-implementation phase). Create it from the impl-plan template with all five required sections (plus optional Doc impact), each content or skip: <reason>, before stopping.`,
     );
   }
 

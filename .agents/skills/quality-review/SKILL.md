@@ -45,7 +45,8 @@ If in BDD workflow, read the current ticket from `<namespace-root>/tickets/` and
 | --------------- | ----------------------------------------------- |
 | intake          | Similar features in ecosystem, scope patterns   |
 | define-behavior | Testing patterns, BDD research and patterns     |
-| scenario-gate   | Architecture patterns, proof plan strategy      |
+| scenario-gate   | Scenario quality, BDD coverage patterns          |
+| plan-implementation | Architecture patterns, proof plan strategy   |
 | implement       | **Library versions, deprecated APIs, security** |
 | verify          | Flaky-test & regression patterns, coverage gaps |
 | done            | CI/CD patterns, release checklists              |

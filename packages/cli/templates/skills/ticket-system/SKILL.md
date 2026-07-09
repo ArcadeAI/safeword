@@ -90,7 +90,7 @@ status: in_progress
 **Frontmatter values:**
 
 - `status`: `in_progress | done | cancelled | superseded | wontfix | blocked`
-- `phase`: `intake | define-behavior | scenario-gate | implement | verify | done` (see ticket-template.md)
+- `phase`: `intake | define-behavior | scenario-gate | plan-implementation | implement | verify | done` (see ticket-template.md)
 - `phase_skips`: `["<phase>: <reason>", ...]` (optional; feature tickets only) — one entry per phase a feature was born into or advanced past without traversing it. Block sequence, non-empty reason each; the phase-provenance gate requires it when a feature skips phases (see glossary "Gate")
 - `phase_anchors`: `["<phase>: <commit-sha>", ...]` (optional; feature tickets only) — one entry per phase entered on a forward advance, recording the commit SHA the transition rides (7–40 hex — HEAD at advance time). Append one entry per phase, never overwrite. This is the evidence distinguishing a real advance from a forged frontmatter edit; the deliverable-boundary gate validates it
 - `parent`: `<id>` (optional)
