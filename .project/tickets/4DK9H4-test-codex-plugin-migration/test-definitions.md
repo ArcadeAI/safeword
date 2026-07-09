@@ -61,7 +61,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: UserPromptSubmit additional context runs through the packaged CLI entrypoint
 
 - [x] RED f4b40603
-- [ ] GREEN
+- [x] GREEN 711977aa
 - [ ] REFACTOR
 
 ### Scenario: Stop continuation runs through the packaged CLI entrypoint
