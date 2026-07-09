@@ -194,6 +194,29 @@ function createIncompleteFeatureTicket(projectRoot: string): void {
   );
 }
 
+function createCompleteFeatureTicket(projectRoot: string): void {
+  const ticketDirectory = nodePath.join(projectRoot, '.project/tickets', CODEX_TEST_TICKET_ID);
+  mkdirSync(ticketDirectory, { recursive: true });
+  writeFileSync(
+    nodePath.join(ticketDirectory, 'ticket.md'),
+    [
+      '---',
+      `id: ${CODEX_TEST_TICKET_ID}`,
+      'type: feature',
+      'phase: define-behavior',
+      'status: in_progress',
+      'scope:',
+      '  - prove packaged Codex PreToolUse allows completed intake edits',
+      'out_of_scope:',
+      '  - exercising non-Codex hook runtimes',
+      'done_when:',
+      '  - the packaged entrypoint returns silent allow output',
+      '---',
+      '',
+    ].join('\n'),
+  );
+}
+
 Given(
   'a fresh git repo with no Safe Word Codex assets',
   function (this: CodexPluginMigrationWorld) {
@@ -533,6 +556,13 @@ Given(
   'the fixture has a feature ticket missing intake prerequisites',
   function (this: CodexPluginMigrationWorld) {
     createIncompleteFeatureTicket(requirePath(this.codexPluginRepoRoot, 'repo root'));
+  },
+);
+
+Given(
+  'the fixture has a feature ticket with completed intake prerequisites',
+  function (this: CodexPluginMigrationWorld) {
+    createCompleteFeatureTicket(requirePath(this.codexPluginRepoRoot, 'repo root'));
   },
 );
 
