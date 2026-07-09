@@ -64,6 +64,7 @@ describe('evaluateTicketWrite — phase_skips hatch at birth', () => {
     'intake: retro-ticketing scoped work',
     'define-behavior: scenarios exist as tests',
     'scenario-gate: reviewed on the PR thread',
+    'plan-implementation: retro-ticketed, plan captured in PR description',
   ];
 
   it('allows a birth past intake when every bypassed phase is justified', () => {
@@ -127,7 +128,7 @@ describe('evaluateTicketWrite — CRLF line endings', () => {
         ticket({
           type: 'feature',
           phase: 'implement',
-          skips: ['intake: a', 'define-behavior: b', 'scenario-gate: c'],
+          skips: ['intake: a', 'define-behavior: b', 'scenario-gate: c', 'plan-implementation: d'],
         }),
       ),
     );
@@ -170,6 +171,7 @@ describe('evaluateTicketWrite — type flips are births', () => {
           'intake: retro-ticketing scoped work',
           'define-behavior: scenarios exist as tests',
           'scenario-gate: reviewed on the PR thread',
+          'plan-implementation: plan captured in PR description',
         ],
       }),
     );
@@ -264,6 +266,7 @@ describe('evaluateTicketWrite — feature phase transitions', () => {
         skips: [
           'define-behavior: scenarios exist as tests',
           'scenario-gate: reviewed on the PR thread',
+          'plan-implementation: plan captured in PR description',
         ],
       }),
     );

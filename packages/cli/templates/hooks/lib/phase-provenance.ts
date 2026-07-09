@@ -18,6 +18,7 @@ export const CANONICAL_PHASES = [
   'intake',
   'define-behavior',
   'scenario-gate',
+  'plan-implementation',
   'implement',
   'verify',
   'done',

@@ -67,6 +67,7 @@ describe('safeword boundary (slice 2: commit-tier findings)', () => {
           'intake: retro-scoped in PR review',
           'define-behavior: scenarios exist as tests',
           'scenario-gate: reviewed on the PR thread',
+          'plan-implementation: plan captured in PR description',
         ],
       }),
     );
