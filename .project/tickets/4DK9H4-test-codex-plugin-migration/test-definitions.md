@@ -136,7 +136,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED b9e8c904
 - [x] GREEN 3574626f
-- [ ] REFACTOR
+- [x] REFACTOR skip: malformed-input contract is a direct entrypoint check with no structural cleanup needed
 
 ## Rule: test-codex-plugin-migration.SM1.R4 — A single opt-in live Codex smoke proves real `codex exec` invokes the installed plugin hooks, while model-mediated cost and flake stay out of default verification
 
