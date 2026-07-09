@@ -122,6 +122,14 @@ function createFreshCodexPluginRepo(
   return repoRoot;
 }
 
+function createIsolatedCodexMarketplace(): { codexHome: string; marketplaceRoot: string } {
+  const codexHome = createTemporaryDirectory('safeword-codex-home-');
+  const marketplaceRoot = createTemporaryDirectory('safeword-codex-marketplace-');
+  writeLocalMarketplace(marketplaceRoot);
+
+  return { codexHome, marketplaceRoot };
+}
+
 function requirePath(value: string | undefined, label: string): string {
   assert.ok(value, `${label} was not initialized`);
   return value;
@@ -602,10 +610,7 @@ function installSafeWordPluginFixture(
       ? 'safeword-codex-plugin-live-repo-'
       : 'safeword-codex-plugin-repo-',
   });
-
-  const codexHome = createTemporaryDirectory('safeword-codex-home-');
-  const marketplaceRoot = createTemporaryDirectory('safeword-codex-marketplace-');
-  writeLocalMarketplace(marketplaceRoot);
+  const { codexHome, marketplaceRoot } = createIsolatedCodexMarketplace();
   if (options.liveAuthenticated) copyRealCodexLiveRuntimeState(codexHome);
 
   world.codexPluginRepoRoot = repoRoot;
@@ -765,10 +770,7 @@ Given(
 Given(
   'an isolated CODEX_HOME configured with a local Safe Word marketplace',
   function (this: CodexPluginMigrationWorld) {
-    const codexHome = createTemporaryDirectory('safeword-codex-home-');
-    const marketplaceRoot = createTemporaryDirectory('safeword-codex-marketplace-');
-
-    writeLocalMarketplace(marketplaceRoot);
+    const { codexHome, marketplaceRoot } = createIsolatedCodexMarketplace();
 
     this.codexPluginCodexHome = codexHome;
     this.codexPluginMarketplaceRoot = marketplaceRoot;
@@ -779,10 +781,7 @@ Given(
   'a temporary CODEX_HOME with no installed Safe Word plugin',
   function (this: CodexPluginMigrationWorld) {
     const repoRoot = createFreshCodexPluginRepo();
-
-    const codexHome = createTemporaryDirectory('safeword-codex-home-');
-    const marketplaceRoot = createTemporaryDirectory('safeword-codex-marketplace-');
-    writeLocalMarketplace(marketplaceRoot);
+    const { codexHome, marketplaceRoot } = createIsolatedCodexMarketplace();
 
     this.codexPluginRepoRoot = repoRoot;
     this.codexPluginCodexHome = codexHome;
@@ -803,10 +802,7 @@ Given(
 Given(
   'an isolated CODEX_HOME configured with a local marketplace missing the Safe Word plugin manifest',
   function (this: CodexPluginMigrationWorld) {
-    const codexHome = createTemporaryDirectory('safeword-codex-home-');
-    const marketplaceRoot = createTemporaryDirectory('safeword-codex-marketplace-');
-
-    writeLocalMarketplace(marketplaceRoot);
+    const { codexHome, marketplaceRoot } = createIsolatedCodexMarketplace();
     mkdirSync(nodePath.join(marketplaceRoot, 'plugins/safeword'), { recursive: true });
 
     this.codexPluginCodexHome = codexHome;
@@ -964,10 +960,7 @@ Given(
   'a fresh repo with the Safe Word Codex plugin installed and enabled',
   function (this: CodexPluginMigrationWorld) {
     const repoRoot = createFreshCodexPluginRepo();
-
-    const codexHome = createTemporaryDirectory('safeword-codex-home-');
-    const marketplaceRoot = createTemporaryDirectory('safeword-codex-marketplace-');
-    writeLocalMarketplace(marketplaceRoot);
+    const { codexHome, marketplaceRoot } = createIsolatedCodexMarketplace();
 
     const marketplacePreparation = prepareMarketplacePlugin(marketplaceRoot);
     assert.equal(marketplacePreparation, undefined, marketplacePreparation?.stderr);
@@ -1001,10 +994,7 @@ Given(
   'a temporary CODEX_HOME where the Safe Word plugin is installed but disabled',
   function (this: CodexPluginMigrationWorld) {
     const repoRoot = createFreshCodexPluginRepo();
-
-    const codexHome = createTemporaryDirectory('safeword-codex-home-');
-    const marketplaceRoot = createTemporaryDirectory('safeword-codex-marketplace-');
-    writeLocalMarketplace(marketplaceRoot);
+    const { codexHome, marketplaceRoot } = createIsolatedCodexMarketplace();
 
     this.codexPluginRepoRoot = repoRoot;
     this.codexPluginCodexHome = codexHome;
