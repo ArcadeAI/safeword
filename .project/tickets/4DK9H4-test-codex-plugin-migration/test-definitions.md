@@ -93,7 +93,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Customized Codex config is not clobbered while stale Safe Word hooks are removed
 
 - [x] RED eb760fa5
-- [ ] GREEN
+- [x] GREEN cb6cc277
 - [ ] REFACTOR
 
 ## Rule: test-codex-plugin-migration.SM1.R1 — Static and release checks prove the plugin manifest, marketplace entry, bundled files, and packed package contents are valid
