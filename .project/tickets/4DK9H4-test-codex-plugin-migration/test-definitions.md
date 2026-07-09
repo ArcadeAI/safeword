@@ -48,7 +48,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: PreToolUse allow runs through the packaged CLI entrypoint
 
-- [ ] RED
+- [x] RED 19237ffb
 - [ ] GREEN
 - [ ] REFACTOR
 
