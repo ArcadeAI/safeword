@@ -1,0 +1,159 @@
+# Test Definitions: Test Codex plugin migration (4DK9H4)
+
+Feature source: `features/test-codex-plugin-migration.feature`
+
+test-definitions.md is the R/G/R ledger.
+
+## Rule: test-codex-plugin-migration.TB1.R1 — A fresh repo can install and enable the Safe Word Codex plugin without `.agents/skills` or repo-local `.safeword/hooks`
+
+### Scenario: Fresh repo installs the plugin without repo-local Safe Word implementation assets
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Invalid local marketplace fails before claiming plugin install success
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: test-codex-plugin-migration.TB1.R2 — Safe Word Codex skills are visible to the agent from the plugin with stable, intentional invocation names
+
+### Scenario: Plugin skills expose the approved scoped invocation names
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Bare-name compatibility shims are treated as repo-residue
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: test-codex-plugin-migration.TB1.R3 — Safe Word Codex hooks execute the packaged CLI entrypoints and preserve the existing deny, allow, context, and continuation semantics
+
+### Scenario: PreToolUse denial runs through the packaged CLI entrypoint
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: SessionStart context runs through the packaged CLI entrypoint
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: PreToolUse allow runs through the packaged CLI entrypoint
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: PostToolUse additional context runs through the packaged CLI entrypoint
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: UserPromptSubmit additional context runs through the packaged CLI entrypoint
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Stop continuation runs through the packaged CLI entrypoint
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Plugin hook commands never point at repo-local hook scripts
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: test-codex-plugin-migration.TB1.R4 — Upgrading an old project-local Codex install leaves user-owned project data intact while removing or ignoring obsolete Safe Word implementation assets
+
+### Scenario: Old project-local Codex install migrates to plugin-backed Codex support
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: User-authored Codex skills survive the migration
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Customized Codex config is not clobbered while stale Safe Word hooks are removed
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: test-codex-plugin-migration.SM1.R1 — Static and release checks prove the plugin manifest, marketplace entry, bundled files, and packed package contents are valid
+
+### Scenario: Release check proves the packed package contains the plugin and hook entrypoints
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Missing packaged hook dependency blocks the release contract
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: test-codex-plugin-migration.SM1.R2 — An isolated plugin install harness proves Codex can discover, install, enable, and expose the Safe Word plugin under a temp CODEX_HOME
+
+### Scenario: Plugin install harness mutates only the isolated Codex home
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Disabled plugin is reported as unavailable to the prompt surface
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: test-codex-plugin-migration.SM1.R3 — Deterministic hook contract tests exercise exact Codex hook JSON against packaged CLI entrypoints without involving the model
+
+### Scenario: Exact Codex JSON fixtures cover every plugin hook command
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Malformed Codex hook input fails open through the packaged entrypoint
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: test-codex-plugin-migration.SM1.R4 — A single opt-in live Codex smoke proves real `codex exec` invokes the installed plugin hooks, while model-mediated cost and flake stay out of default verification
+
+### Scenario: Opt-in live smoke observes a plugin-installed hook denial
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Untrusted plugin hooks are reported as not active for normal Codex runs
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Default verification skips the live Codex smoke with an explicit reason
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
