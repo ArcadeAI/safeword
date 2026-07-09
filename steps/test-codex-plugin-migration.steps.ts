@@ -58,6 +58,9 @@ interface CodexPluginMigrationWorld extends SafewordWorld {
   codexPluginPackageRoot?: string;
   codexPluginPackageTarball?: string;
   codexPluginPackageFiles?: string[];
+  codexPluginReleaseContractErrors?: string[];
+  codexPluginMissingPackagedReference?: string;
+  codexPluginLiveSmokeAttempted?: boolean;
 }
 
 interface CodexPluginListEntry {
@@ -157,6 +160,35 @@ function readTarballFile(tarball: string, packagePath: string): string {
   });
   assert.equal(result.exitCode, 0, result.stderr);
   return result.stdout;
+}
+
+function listTarballFiles(tarball: string): string[] {
+  const listResult = runCommand('tar', ['-tf', tarball], {
+    cwd: nodePath.dirname(tarball),
+  });
+  assert.equal(listResult.exitCode, 0, listResult.stderr);
+  return listResult.stdout.split(/\r?\n/u).filter(Boolean).sort();
+}
+
+function packSafeWordPackage(): { packageRoot: string; tarball: string } {
+  const packageRoot = createTemporaryDirectory('safeword-package-release-contract-');
+  const buildResult = runCommand('bun', ['run', 'build'], {
+    cwd: nodePath.resolve(import.meta.dirname, '..', 'packages/cli'),
+    timeout: 120_000,
+  });
+  assert.equal(buildResult.exitCode, 0, buildResult.stderr);
+
+  const packResult = runCommand('npm', ['pack', '--json', '--pack-destination', packageRoot], {
+    cwd: nodePath.resolve(import.meta.dirname, '..', 'packages/cli'),
+    timeout: 120_000,
+  });
+  assert.equal(packResult.exitCode, 0, packResult.stderr);
+
+  const packed = JSON.parse(packResult.stdout) as Array<{ filename?: string }>;
+  const filename = packed[0]?.filename;
+  assert.ok(filename, `npm pack did not report a filename: ${packResult.stdout}`);
+
+  return { packageRoot, tarball: nodePath.join(packageRoot, filename) };
 }
 
 function writeLocalMarketplace(marketplaceRoot: string): void {
@@ -646,25 +678,26 @@ Given(
 Given(
   'the Safe Word package has been packed from the working tree',
   function (this: CodexPluginMigrationWorld) {
-    const packageRoot = createTemporaryDirectory('safeword-package-release-contract-');
-    const buildResult = runCommand('bun', ['run', 'build'], {
-      cwd: nodePath.resolve(import.meta.dirname, '..', 'packages/cli'),
-      timeout: 120_000,
-    });
-    assert.equal(buildResult.exitCode, 0, buildResult.stderr);
+    const { packageRoot, tarball } = packSafeWordPackage();
+    this.codexPluginPackageRoot = packageRoot;
+    this.codexPluginPackageTarball = tarball;
+  },
+);
 
-    const packResult = runCommand('npm', ['pack', '--json', '--pack-destination', packageRoot], {
-      cwd: nodePath.resolve(import.meta.dirname, '..', 'packages/cli'),
-      timeout: 120_000,
-    });
-    assert.equal(packResult.exitCode, 0, packResult.stderr);
-
-    const packed = JSON.parse(packResult.stdout) as Array<{ filename?: string }>;
-    const filename = packed[0]?.filename;
-    assert.ok(filename, `npm pack did not report a filename: ${packResult.stdout}`);
+Given(
+  'the Safe Word package omits a helper required by a Codex hook entrypoint',
+  function (this: CodexPluginMigrationWorld) {
+    const { packageRoot, tarball } = packSafeWordPackage();
+    const files = listTarballFiles(tarball);
+    const missingReference = files.find(file =>
+      /^package\/dist\/codex-hook-[A-Z0-9]+\.js$/u.test(file),
+    );
+    assert.ok(missingReference, 'packed package did not include a codex-hook chunk to remove');
 
     this.codexPluginPackageRoot = packageRoot;
-    this.codexPluginPackageTarball = nodePath.join(packageRoot, filename);
+    this.codexPluginPackageTarball = tarball;
+    this.codexPluginMissingPackagedReference = missingReference;
+    this.codexPluginPackageFiles = files.filter(file => file !== missingReference);
   },
 );
 
@@ -935,11 +968,15 @@ When(
   'the release contract inspects the package contents',
   function (this: CodexPluginMigrationWorld) {
     const tarball = requirePath(this.codexPluginPackageTarball, 'package tarball');
-    const listResult = runCommand('tar', ['-tf', tarball], {
-      cwd: nodePath.dirname(tarball),
-    });
-    assert.equal(listResult.exitCode, 0, listResult.stderr);
-    this.codexPluginPackageFiles = listResult.stdout.split(/\r?\n/u).filter(Boolean).sort();
+    this.codexPluginPackageFiles = listTarballFiles(tarball);
+  },
+);
+
+When(
+  'the release contract runs against the packed package',
+  function (this: CodexPluginMigrationWorld) {
+    this.codexPluginLiveSmokeAttempted = false;
+    this.codexPluginReleaseContractErrors = [];
   },
 );
 
@@ -1128,6 +1165,28 @@ Then(
     }
     assert.ok(files.includes('package/dist/cli.js'));
     assert.ok(files.some(file => /^package\/dist\/codex-hook-[A-Z0-9]+\.js$/u.test(file)));
+  },
+);
+
+Then(
+  'the release contract fails before any live Codex smoke can run',
+  function (this: CodexPluginMigrationWorld) {
+    assert.equal(this.codexPluginLiveSmokeAttempted, false);
+    assert.ok(
+      (this.codexPluginReleaseContractErrors ?? []).length > 0,
+      'release contract unexpectedly passed',
+    );
+  },
+);
+
+Then(
+  'the failure names the missing packaged reference',
+  function (this: CodexPluginMigrationWorld) {
+    assert.ok(
+      (this.codexPluginReleaseContractErrors ?? [])
+        .join('\n')
+        .includes(requirePath(this.codexPluginMissingPackagedReference, 'missing reference')),
+    );
   },
 );
 
