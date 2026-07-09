@@ -26,8 +26,10 @@ function readCopies(file: string): { path: string; text: string }[] {
 }
 
 describe('PLAN_IMPLEMENTATION.md contract (TXRHMD)', () => {
+  const planCopies = readCopies('PLAN_IMPLEMENTATION.md');
+
   it('owns the impl-plan authoring steps with the five design sections (TB1.R3)', () => {
-    for (const { path, text } of readCopies('PLAN_IMPLEMENTATION.md')) {
+    for (const { path, text } of planCopies) {
       expect(text, path).toContain('impl-plan.md');
       for (const section of [
         'Approach',
@@ -42,13 +44,13 @@ describe('PLAN_IMPLEMENTATION.md contract (TXRHMD)', () => {
   });
 
   it('directs consulting the architecture record before the alignment section (TB1.R4)', () => {
-    for (const { path, text } of readCopies('PLAN_IMPLEMENTATION.md')) {
+    for (const { path, text } of planCopies) {
       expect(text, path).toContain('paths.architecture');
     }
   });
 
   it('bounds the ADR offer to significant decisions and routine ones to the table (TB1.R4)', () => {
-    for (const { path, text } of readCopies('PLAN_IMPLEMENTATION.md')) {
+    for (const { path, text } of planCopies) {
       expect(text, path).toMatch(/structure, key quality attributes/i);
       expect(text, path).toMatch(/difficult to reverse/i);
       expect(text, path).toMatch(/Decisions table/i);
@@ -56,74 +58,74 @@ describe('PLAN_IMPLEMENTATION.md contract (TXRHMD)', () => {
   });
 
   it('directs superseding a contradicted ADR rather than deviating silently (TB1.R4)', () => {
-    for (const { path, text } of readCopies('PLAN_IMPLEMENTATION.md')) {
+    for (const { path, text } of planCopies) {
       expect(text, path).toMatch(/supersed/i);
     }
   });
 
   it('scaffolds ADRs from the template into the configured record location (TB1.R4)', () => {
-    for (const { path, text } of readCopies('PLAN_IMPLEMENTATION.md')) {
+    for (const { path, text } of planCopies) {
       expect(text, path).toContain('adr-template.md');
       expect(text, path).toMatch(/date-prefixed/i);
     }
   });
 
   it('never writes decision records into generated architecture state docs (TB1.R4)', () => {
-    for (const { path, text } of readCopies('PLAN_IMPLEMENTATION.md')) {
+    for (const { path, text } of planCopies) {
       expect(text, path).toMatch(/architecture\.generated\.md|generated architecture state/i);
       expect(text, path).toMatch(/never|not a destination|don't write/i);
     }
   });
 
   it('directs mid-flight plan updates and ADR supersession before verify (TB1.R4)', () => {
-    for (const { path, text } of readCopies('PLAN_IMPLEMENTATION.md')) {
+    for (const { path, text } of planCopies) {
       expect(text, path).toMatch(/during implement|mid-flight|proven wrong/i);
     }
   });
 
   it('records per-surface proof coverage from the spec (TB1.R6)', () => {
-    for (const { path, text } of readCopies('PLAN_IMPLEMENTATION.md')) {
+    for (const { path, text } of planCopies) {
       expect(text, path).toMatch(/affected surface/i);
     }
   });
 
   it('keys plan depth to blast radius in both directions (TB2.R1)', () => {
-    for (const { path, text } of readCopies('PLAN_IMPLEMENTATION.md')) {
+    for (const { path, text } of planCopies) {
       expect(text, path).toMatch(/brief plan is correct|small feature/i);
       expect(text, path).toMatch(/hard-to-reverse|cross-cutting/i);
     }
   });
 
   it('closes the stored artifact set to plan + ADRs + existing design lanes (TB2.R1)', () => {
-    for (const { path, text } of readCopies('PLAN_IMPLEMENTATION.md')) {
+    for (const { path, text } of planCopies) {
       expect(text, path).toMatch(/design-doc/i);
       expect(text, path).toMatch(/no (new|novel) artifact kinds|novel artifact/i);
     }
   });
 
   it('bounds each ADR to a lean record (TB2.R2)', () => {
-    for (const { path, text } of readCopies('PLAN_IMPLEMENTATION.md')) {
+    for (const { path, text } of planCopies) {
       expect(text, path).toMatch(/page or two/i);
       expect(text, path).toMatch(/mega/i);
     }
   });
 
   it('editorial check: deletion test + shorter-scores-no-worse (TB2.R3)', () => {
-    for (const { path, text } of readCopies('PLAN_IMPLEMENTATION.md')) {
+    for (const { path, text } of planCopies) {
       expect(text, path).toMatch(/deleted? without (information )?loss|deletion test/i);
       expect(text, path).toMatch(/shorter plan scores no worse/i);
     }
   });
 
   it('skip governs applicability, never effort or size (TB2.R3)', () => {
-    for (const { path, text } of readCopies('PLAN_IMPLEMENTATION.md')) {
+    for (const { path, text } of planCopies) {
       expect(text, path).toMatch(/applicability, never effort/i);
       expect(text, path).toMatch(/content-or-skip/i);
     }
   });
 
   it('directs architecture awareness after the ideal design, reuse-or-change (TB3.R1)', () => {
-    for (const { path, text } of readCopies('PLAN_IMPLEMENTATION.md')) {
+    for (const { path, text } of planCopies) {
       expect(text, path).toMatch(
         /after (sketching|designing) the ideal|ideal (approach|design) first/i,
       );
@@ -133,21 +135,21 @@ describe('PLAN_IMPLEMENTATION.md contract (TXRHMD)', () => {
   });
 
   it('routes deep design through the existing design lanes (TB3.R2)', () => {
-    for (const { path, text } of readCopies('PLAN_IMPLEMENTATION.md')) {
+    for (const { path, text } of planCopies) {
       expect(text, path).toContain('design-doc-template.md');
       expect(text, path).toMatch(/data-architecture-guide/i);
     }
   });
 
   it('directs a figure-it-out pass for load-bearing choices (TB3.R3)', () => {
-    for (const { path, text } of readCopies('PLAN_IMPLEMENTATION.md')) {
+    for (const { path, text } of planCopies) {
       expect(text, path).toMatch(/figure-it-out/i);
       expect(text, path).toMatch(/load-bearing/i);
     }
   });
 
   it('surfaces relevant language skills, never the full inventory (TB3.R4)', () => {
-    for (const { path, text } of readCopies('PLAN_IMPLEMENTATION.md')) {
+    for (const { path, text } of planCopies) {
       expect(text, path).toMatch(/language skills?/i);
       expect(text, path).toMatch(/languages? the feature touches|feature's touched/i);
       expect(text, path).toMatch(
@@ -157,13 +159,13 @@ describe('PLAN_IMPLEMENTATION.md contract (TXRHMD)', () => {
   });
 
   it('plans selected components against their installed documentation (TB3.R5)', () => {
-    for (const { path, text } of readCopies('PLAN_IMPLEMENTATION.md')) {
+    for (const { path, text } of planCopies) {
       expect(text, path).toMatch(/installed version'?s? documentation/i);
     }
   });
 
   it('human handoff only after the independent review passes; elicit anytime (NTB2.R1)', () => {
-    for (const { path, text } of readCopies('PLAN_IMPLEMENTATION.md')) {
+    for (const { path, text } of planCopies) {
       expect(text, path).toMatch(/independent review/i);
       expect(text, path).toMatch(/only after|before any human/i);
       expect(text, path).toMatch(/elicit|only the user (has|knows)/i);
@@ -171,14 +173,14 @@ describe('PLAN_IMPLEMENTATION.md contract (TXRHMD)', () => {
   });
 
   it('designApprovalGate: default autonomous, enabled waits post-review (NTB2.R2)', () => {
-    for (const { path, text } of readCopies('PLAN_IMPLEMENTATION.md')) {
+    for (const { path, text } of planCopies) {
       expect(text, path).toContain('designApprovalGate');
       expect(text, path).toMatch(/absent or off|default(s)? (to )?(off|autonomous)/i);
     }
   });
 
   it('headless sessions record pending approval and surface the plan (NTB2.R3)', () => {
-    for (const { path, text } of readCopies('PLAN_IMPLEMENTATION.md')) {
+    for (const { path, text } of planCopies) {
       expect(text, path).toMatch(/without an interactive user|headless/i);
       expect(text, path).toMatch(/work log/i);
       expect(text, path).toMatch(/reviewable output|PR description|session summary/i);
@@ -186,7 +188,7 @@ describe('PLAN_IMPLEMENTATION.md contract (TXRHMD)', () => {
   });
 
   it('carries no interactive-only dependencies and defines headless gate behavior (SM1.R4)', () => {
-    for (const { path, text } of readCopies('PLAN_IMPLEMENTATION.md')) {
+    for (const { path, text } of planCopies) {
       expect(text, path).not.toMatch(/^!`/m); // no bash auto-expansion lines
       expect(text, path).toMatch(/Cursor Cloud/i); // stop-hook caveat noted
     }
