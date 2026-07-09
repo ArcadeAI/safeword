@@ -53,3 +53,4 @@ last_modified: 2026-07-08T06:03:20.016Z
 - 2026-07-09T04:23:21.946Z Phase: define-behavior → scenario-gate
 - 2026-07-09T04:41:37.925Z Phase: scenario-gate → implement
 - 2026-07-09T06:55:48.300Z Phase: implement → verify
+- PR opened: https://github.com/ArcadeAI/safeword/pull/988 (feature); docs follow-up stacked as https://github.com/ArcadeAI/safeword/pull/989. Done-flip pends CI green on #988.
