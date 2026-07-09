@@ -71,6 +71,8 @@ if (existsSync(stateFile)) {
             : null;
 
         // Phase-specific one-liner
+        // satisfies proves every canonical phase has a reminder (a missing key was
+        // silent before); Record<string,string> keeps the tolerant off-enum lookup.
         const reminders: Record<string, string> = {
           intake:
             'Phase: understanding. Contribute a perspective, surface open questions. If sizing as feature, run `/bdd`.',
@@ -85,7 +87,7 @@ if (existsSync(stateFile)) {
             : 'Phase: implement.',
           verify: 'Phase: verify. Cross-scenario refactor if needed, then run /verify and /audit.',
           done: 'Phase: done. Close ticket (verify.md exists).',
-        };
+        } satisfies Record<import('./lib/quality.js').BddPhase, string> & Record<string, string>;
 
         // Name the active ticket slug-first (ZRXM6Q) so the per-turn reminder
         // reads in names, not the opaque ID — recognition over recall. The slug
