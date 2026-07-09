@@ -170,6 +170,55 @@ function listTarballFiles(tarball: string): string[] {
   return listResult.stdout.split(/\r?\n/u).filter(Boolean).sort();
 }
 
+function inspectReleaseContract(world: CodexPluginMigrationWorld): string[] {
+  const errors: string[] = [];
+  const files = requirePackageFiles(world);
+  const tarball = requirePath(world.codexPluginPackageTarball, 'package tarball');
+
+  for (const requiredPath of [
+    'package/codex-plugin/.codex-plugin/plugin.json',
+    'package/codex-plugin/hooks.json',
+    'package/codex-plugin/skills/bdd/SKILL.md',
+    'package/codex-plugin/skills/verify/SKILL.md',
+    'package/codex-plugin/skills/explain/SKILL.md',
+    'package/dist/cli.js',
+  ]) {
+    if (!files.includes(requiredPath)) errors.push(`missing packaged reference: ${requiredPath}`);
+  }
+
+  if (!files.includes('package/codex-plugin/hooks.json')) return errors;
+
+  const hooksJson = readTarballFile(tarball, 'package/codex-plugin/hooks.json');
+  const commands = collectHookCommands(JSON.parse(hooksJson));
+  if (commands.length === 0) {
+    errors.push('missing packaged hook commands: package/codex-plugin/hooks.json');
+  }
+  for (const command of commands) {
+    if (!/\bsafeword\s+codex-hook\b/u.test(command)) {
+      errors.push(`hook command does not invoke packaged entrypoint: ${command}`);
+    }
+  }
+
+  if (!files.includes('package/dist/cli.js')) return errors;
+
+  const cli = readTarballFile(tarball, 'package/dist/cli.js');
+  const codexHookChunks = [
+    ...new Set([...cli.matchAll(/\.\/(codex-hook-[A-Z0-9]+\.js)/gu)].map(match => match[1] ?? '')),
+  ].filter(Boolean);
+
+  if (codexHookChunks.length === 0) {
+    errors.push('missing codex-hook import in package/dist/cli.js');
+  }
+  for (const chunk of codexHookChunks) {
+    const packagedChunk = `package/dist/${chunk}`;
+    if (!files.includes(packagedChunk)) {
+      errors.push(`missing packaged reference: ${packagedChunk}`);
+    }
+  }
+
+  return errors;
+}
+
 function packSafeWordPackage(): { packageRoot: string; tarball: string } {
   const packageRoot = createTemporaryDirectory('safeword-package-release-contract-');
   const buildResult = runCommand('bun', ['run', 'build'], {
@@ -976,7 +1025,7 @@ When(
   'the release contract runs against the packed package',
   function (this: CodexPluginMigrationWorld) {
     this.codexPluginLiveSmokeAttempted = false;
-    this.codexPluginReleaseContractErrors = [];
+    this.codexPluginReleaseContractErrors = inspectReleaseContract(this);
   },
 );
 
