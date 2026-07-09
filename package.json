@@ -38,36 +38,13 @@
     "eslint-config-prettier": "^10.1.8",
     "husky": "^9.1.7",
     "jiti": "^2.7.0",
-    "knip": "6.24.0",
+    "knip": "6.25.0",
     "lint-staged": "^17.0.8",
     "markdownlint-cli2": "^0.23.0",
     "prettier": "^3.9.4",
     "prettier-plugin-sh": "^0.18.1",
     "safeword": "workspace:*",
     "tsx": "^4.23.0"
-  },
-  "lint-staged": {
-    "*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}": [
-      "eslint --fix --config eslint.config.ts",
-      "prettier --write"
-    ],
-    "*.{vue,svelte,astro}": [
-      "eslint --fix --config eslint.config.ts",
-      "prettier --write"
-    ],
-    "*.{json,css,scss,html,yaml,yml,graphql}": [
-      "prettier --write"
-    ],
-    "*.md": [
-      "markdownlint-cli2 --fix",
-      "prettier --write"
-    ],
-    "*.sh": [
-      "sh -c 'if command -v shellcheck >/dev/null 2>&1; then shellcheck \"$@\"; else echo \"shellcheck not installed; skipping\"; fi' --"
-    ],
-    "*.feature": [
-      "bun packages/cli/src/cli.ts lint-gherkin"
-    ]
   },
   "overrides": {
     "@felipecrs/decompress-tarxz": "5.0.6",

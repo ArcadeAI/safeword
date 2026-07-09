@@ -1,0 +1,46 @@
+---
+id: PNZM3B
+slug: retro-process-surface
+type: feature
+phase: done
+phase_anchors:
+  - define-behavior: c99e020
+  - scenario-gate: a862077
+  - implement: a56d225
+  - verify: 26df953
+  - done: 3e44097
+status: done
+scope:
+  - resolveSurface accepts a virtual `process/<slug>` namespace — strict slug validation (lowercase alphanumerics + hyphens, ≤32 chars, secret-shaped slugs rejected via the existing hex-run/entropy backstop), additive to the existing path allowlist
+  - prepareEncounters reports drop counts per egress wall (off-schema vs unresolvable surface); the retro summary line shows them only when non-zero
+  - extraction prompt + Codex schema description offer `process/<area>` for friction with no single-file surface
+  - process-surfaced drafts carry a `process` label at draft time
+out_of_scope:
+  - loosening the file-path allowlist or any sanitization pass
+  - any new free-text field in the finding schema
+  - reconciling process surfaces (G19QG7 skips them by rule)
+  - retroactively re-filing findings dropped by past sessions
+done_when:
+  - a finding surfaced as a valid process/<slug> files end to end; anything outside the slug shape — including a hex/high-entropy-shaped slug — is still dropped
+  - a run that dropped findings says how many at which wall; a clean run's summary is unchanged
+  - egress tests prove no string outside the path allowlist or slug namespace reaches an issue body via the surface field
+created: 2026-07-05T23:05:32.494Z
+last_modified: 2026-07-05T23:05:32.494Z
+---
+
+# Retro accepts process-level friction surfaces and reports egress drops
+
+**Goal:** Let retro file process-level friction under a leak-proof `process/<slug>` surface and report every egress drop, so silence means clean instead of secretly lossy.
+
+**See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
+
+## Work Log
+
+- 2026-07-05T23:05:32.494Z Started: Created ticket PNZM3B
+- 2026-07-06T00:56:00Z JTBD + Rules gates confirmed by user (process label: yes); engineering scope drafted, pending scope gate
+- 2026-07-06T01:20:00Z /quality-review pass 2: APPROVE. Implement-time note: run the hex-run rejection on slugs of ANY length — do not inherit HIGH_ENTROPY_RUN's >=20-char floor for this field (sub-20 hex slugs must still drop)
+- 2026-07-07T14:38:35.439Z Phase: intake → define-behavior
+- 2026-07-07T17:01:22.444Z Phase: define-behavior → scenario-gate
+- 2026-07-07T17:10:04.355Z Phase: scenario-gate → implement
+- 2026-07-07T17:43:42.607Z Phase: implement → verify
+- 2026-07-07T18:02:49.797Z Phase: verify → done

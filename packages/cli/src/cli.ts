@@ -247,6 +247,16 @@ program
   );
 
 program
+  .command('retro-reconcile')
+  .description(
+    'Flag open retro issues whose surface changed after their newest recorded code state (G19QG7)',
+  )
+  .action(async () => {
+    const { retroReconcileCommand } = await import('./commands/retro.js');
+    await retroReconcileCommand();
+  });
+
+program
   .command('lint-gherkin')
   .description('Lint Gherkin feature files using Safeword-owned checks')
   .argument(
