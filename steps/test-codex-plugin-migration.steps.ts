@@ -26,6 +26,9 @@ const SAFEWORD_CODEX_PLUGIN_ROOT = nodePath.resolve(
 const SAFEWORD_CLI_PATH = nodePath.resolve(import.meta.dirname, '..', 'packages/cli/dist/cli.js');
 const CODEX_TEST_TICKET_ID = 'ABC123';
 const REPO_LOCAL_SAFEWORD_SENTINEL = 'REPO LOCAL SAFEWORD SHOULD NOT APPEAR';
+const POST_TOOL_GUIDANCE_LINE =
+  'Fixture Safe Word guidance: review the generated file before continuing.';
+const SOURCE_CHECKOUT_HOOK_SENTINEL = 'SOURCE CHECKOUT HOOK SHOULD NOT APPEAR';
 const TEST_DEFINITIONS_PATCH = `*** Begin Patch
 *** Add File: .project/tickets/${CODEX_TEST_TICKET_ID}/test-definitions.md
 +# Test Definitions
@@ -609,6 +612,38 @@ When(
   },
 );
 
+When(
+  'the packaged Codex PostToolUse entrypoint receives a supported edit payload fixture',
+  function (this: CodexPluginMigrationWorld) {
+    const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
+    mkdirSync(nodePath.join(repoRoot, '.project'), { recursive: true });
+    writeFileSync(
+      nodePath.join(repoRoot, '.project/codex-post-tool-guidance.txt'),
+      `${POST_TOOL_GUIDANCE_LINE}\n`,
+    );
+    mkdirSync(nodePath.join(repoRoot, 'packages/cli/templates/hooks/codex'), { recursive: true });
+    writeFileSync(
+      nodePath.join(repoRoot, 'packages/cli/templates/hooks/codex/post-tool-quality.ts'),
+      SOURCE_CHECKOUT_HOOK_SENTINEL,
+    );
+
+    this.codexPluginHookResult = runCommand(
+      process.execPath,
+      [SAFEWORD_CLI_PATH, 'codex-hook', 'post-tool-use'],
+      {
+        cwd: repoRoot,
+        env: { CLAUDE_PROJECT_DIR: repoRoot },
+        input: JSON.stringify({
+          hook_event_name: 'PostToolUse',
+          session_id: 'codex-test-session',
+          tool_name: 'Edit',
+          tool_input: { file_path: 'src/generated.ts' },
+        }),
+      },
+    );
+  },
+);
+
 Then(
   'the hook output denies the edit with the existing Safe Word phase-gate reason',
   function (this: CodexPluginMigrationWorld) {
@@ -649,6 +684,47 @@ Then(
   function (this: CodexPluginMigrationWorld) {
     const output = `${this.codexPluginHookResult?.stdout ?? ''}\n${this.codexPluginHookResult?.stderr ?? ''}`;
     assert.equal(output.includes(REPO_LOCAL_SAFEWORD_SENTINEL), false);
+  },
+);
+
+Then(
+  /^the hook output is valid Codex `PostToolUse` additional context JSON$/,
+  function (this: CodexPluginMigrationWorld) {
+    const result = this.codexPluginHookResult;
+    assert.ok(result, 'hook result was not captured');
+    assert.equal(result.exitCode, 0, result.stderr);
+
+    const parsed = JSON.parse(result.stdout) as {
+      hookSpecificOutput?: { hookEventName?: unknown; additionalContext?: unknown };
+    };
+    assert.equal(parsed.hookSpecificOutput?.hookEventName, 'PostToolUse');
+    assert.equal(typeof parsed.hookSpecificOutput?.additionalContext, 'string');
+  },
+);
+
+Then(
+  "the additional context contains the fixture's Safe Word guidance line",
+  function (this: CodexPluginMigrationWorld) {
+    const parsed = JSON.parse(this.codexPluginHookResult?.stdout ?? '') as {
+      hookSpecificOutput?: { additionalContext?: unknown };
+    };
+    assert.match(
+      String(parsed.hookSpecificOutput?.additionalContext),
+      /Fixture Safe Word guidance/u,
+    );
+    assert.match(
+      String(parsed.hookSpecificOutput?.additionalContext),
+      /review the generated file/u,
+    );
+  },
+);
+
+Then(
+  'the entrypoint does not import hook code from the source checkout',
+  function (this: CodexPluginMigrationWorld) {
+    const output = `${this.codexPluginHookResult?.stdout ?? ''}\n${this.codexPluginHookResult?.stderr ?? ''}`;
+    assert.equal(output.includes(SOURCE_CHECKOUT_HOOK_SENTINEL), false);
+    assert.doesNotMatch(output, /packages\/cli\/templates\/hooks/u);
   },
 );
 
