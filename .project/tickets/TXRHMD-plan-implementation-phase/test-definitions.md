@@ -310,29 +310,27 @@ _RED evidence: uncapturable pre-build — over-blocking guard; passes today by d
 
 ### Scenario: A feature at scenario-gate advances one step into plan-implementation
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: behavior shipped with canonical-order GREEN ea3c5113; assertion added as regression pin
+- [x] GREEN 21570ca2
+- [x] REFACTOR skip: assertion-only pin
 
 ### Scenario: Jumping from scenario-gate straight to implement is denied as a skipped phase
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: behavior shipped with canonical-order GREEN ea3c5113; assertion added as regression pin
+- [x] GREEN 21570ca2
+- [x] REFACTOR skip: assertion-only pin
 
 ### Scenario: A justified skip past plan-implementation is accepted
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-_RED evidence: uncapturable pre-build — over-blocking guard; passes today by design (#928 convention)._
+- [x] RED skip: uncapturable pre-build — over-blocking guard, passed today by design (#928); pinned post-enum
+- [x] GREEN 21570ca2
+- [x] REFACTOR skip: assertion-only pin
 
 ### Scenario: A jump from intake to done names all five skipped phases
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 82aa9ad0
+- [x] GREEN ea3c5113
+- [x] REFACTOR skip: shared slice-1 loop, no structural change
 
 ### Scenario: Stopping at plan-implementation without the scenario ledger is blocked
 
