@@ -70,6 +70,11 @@ interface CodexPluginMigrationWorld extends SafewordWorld {
   codexPluginLiveSmokeFileChangeObserved?: boolean;
   codexPluginNormalVerificationOutput?: string;
   codexPluginNormalVerificationClaimsActive?: boolean;
+  codexPluginDefaultVerificationResult?: CommandResult;
+  codexPluginDefaultVerificationOutput?: string;
+  codexPluginDefaultVerificationSelectedScenarios?: string[];
+  codexPluginDefaultVerificationLiveSessionStarted?: boolean;
+  codexPluginDefaultVerificationReportRoot?: string;
   codexPluginRealListBefore?: CommandResult;
   codexPluginRealListAfter?: CommandResult;
 }
@@ -366,6 +371,15 @@ function collectInstalledSafeWordHookCommands(world: CodexPluginMigrationWorld):
   );
 
   return collectHookCommands(JSON.parse(readFileSync(hooksPath, 'utf8')));
+}
+
+function collectCucumberScenarioNames(reportPath: string): string[] {
+  if (!existsSync(reportPath)) return [];
+
+  const report = JSON.parse(readFileSync(reportPath, 'utf8')) as Array<{
+    elements?: Array<{ name?: string }>;
+  }>;
+  return report.flatMap(feature => feature.elements ?? []).flatMap(element => element.name ?? []);
 }
 
 function summarizePromptAvailability(
@@ -1032,6 +1046,14 @@ Given('the live Codex plugin smoke is explicitly enabled', function () {
   );
 });
 
+Given('the live Codex plugin smoke is not explicitly enabled', function () {
+  assert.notEqual(
+    process.env.SAFEWORD_RUN_CODEX_LIVE_SMOKE,
+    '1',
+    'unset SAFEWORD_RUN_CODEX_LIVE_SMOKE for default verification',
+  );
+});
+
 Given(
   'a fresh repo has the Safe Word Codex plugin installed and enabled under an isolated CODEX_HOME',
   function (this: CodexPluginMigrationWorld) {
@@ -1577,6 +1599,47 @@ When(
   },
 );
 
+When('the default verification suite runs', function (this: CodexPluginMigrationWorld) {
+  const reportRoot = createTemporaryDirectory('safeword-default-cucumber-report-');
+  const reportPath = nodePath.join(reportRoot, 'cucumber.json');
+
+  this.codexPluginDefaultVerificationReportRoot = reportRoot;
+  this.codexPluginDefaultVerificationResult = runCommand(
+    'bunx',
+    [
+      'cucumber-js',
+      '--dry-run',
+      '--import',
+      'tsx/esm',
+      '--import',
+      'steps/**/*.ts',
+      '--tags',
+      'not @manual and not @live',
+      '--format',
+      `json:${reportPath}`,
+      'features/test-codex-plugin-migration.feature',
+    ],
+    {
+      cwd: nodePath.resolve(import.meta.dirname, '..'),
+      env: { SAFEWORD_RUN_CODEX_LIVE_SMOKE: '' },
+      timeout: 120_000,
+    },
+  );
+
+  const selectedScenarios = collectCucumberScenarioNames(reportPath);
+  this.codexPluginDefaultVerificationSelectedScenarios = selectedScenarios;
+  this.codexPluginDefaultVerificationLiveSessionStarted = /"type"\s*:\s*"thread\.started"/u.test(
+    `${this.codexPluginDefaultVerificationResult.stdout}\n${this.codexPluginDefaultVerificationResult.stderr}`,
+  );
+  this.codexPluginDefaultVerificationOutput = [
+    `Default verification exit code: ${this.codexPluginDefaultVerificationResult.exitCode}.`,
+    `Default verification selected scenarios: ${selectedScenarios.length}.`,
+    selectedScenarios.includes('Opt-in live smoke observes a plugin-installed hook denial')
+      ? 'Live Codex smoke was selected by default verification.'
+      : 'Skipped live Codex smoke because SAFEWORD_RUN_CODEX_LIVE_SMOKE=1 was not set.',
+  ].join('\n');
+});
+
 When(
   'the release contract inspects the package contents',
   function (this: CodexPluginMigrationWorld) {
@@ -2018,6 +2081,27 @@ Then(
   },
 );
 
+Then('no live `codex exec` session starts', function (this: CodexPluginMigrationWorld) {
+  const result = this.codexPluginDefaultVerificationResult;
+  assert.ok(result, 'default verification result was not captured');
+  assert.equal(result.exitCode, 0, `${result.stdout}\n${result.stderr}`);
+  assert.equal(this.codexPluginDefaultVerificationLiveSessionStarted, false);
+  assert.doesNotMatch(
+    this.codexPluginDefaultVerificationSelectedScenarios?.join('\n') ?? '',
+    /Opt-in live smoke observes a plugin-installed hook denial/u,
+  );
+});
+
+Then(
+  'the skipped live smoke reports the missing opt-in flag',
+  function (this: CodexPluginMigrationWorld) {
+    assert.match(
+      this.codexPluginDefaultVerificationOutput ?? '',
+      /SAFEWORD_RUN_CODEX_LIVE_SMOKE=1 was not set/u,
+    );
+  },
+);
+
 Then(
   'the fixture records whether Codex also reports a known file-change interception boundary',
   function (this: CodexPluginMigrationWorld) {
@@ -2031,6 +2115,7 @@ After(function (this: CodexPluginMigrationWorld) {
     this.codexPluginCodexHome,
     this.codexPluginMarketplaceRoot,
     this.codexPluginPackageRoot,
+    this.codexPluginDefaultVerificationReportRoot,
   ]) {
     if (directory) rmSync(directory, { recursive: true, force: true });
   }

@@ -177,6 +177,7 @@ Feature: Test Codex plugin migration
   @test-codex-plugin-migration.SM1.R4 @surface.openai-codex
   Rule: test-codex-plugin-migration.SM1.R4 — A single opt-in live Codex smoke proves real `codex exec` invokes the installed plugin hooks, while model-mediated cost and flake stay out of default verification
 
+    @live
     Scenario: Opt-in live smoke observes a plugin-installed hook denial
       Given the live Codex plugin smoke is explicitly enabled
       And a fresh repo has the Safe Word Codex plugin installed, enabled, and live-authenticated under an isolated CODEX_HOME
