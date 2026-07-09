@@ -70,7 +70,7 @@ describe('TXRHMD plan-implementation → implement transition gate (wired)', () 
   let ticketDirectory: string;
   let ticketFile: string;
 
-  function runAdvance(fromPhase: string, toPhase: string, type = 'feature'): HookResult {
+  function runAdvance(fromPhase: string, toPhase: string): HookResult {
     const result = spawnSync('bun', [GATE_PATH], {
       input: JSON.stringify({
         tool_name: 'Edit',
@@ -139,6 +139,6 @@ describe('TXRHMD plan-implementation → implement transition gate (wired)', () 
 
   it('leaves task tickets unpoliced', () => {
     writeFileSync(ticketFile, ticketBody('scenario-gate', 'task'));
-    expectHookAllow(runAdvance('scenario-gate', 'implement', 'task'));
+    expectHookAllow(runAdvance('scenario-gate', 'implement'));
   });
 });

@@ -43,6 +43,7 @@ import {
 } from './lib/quality-state.ts';
 import { isNamespacePath, resolveNamespaceRoot } from './lib/namespace-root.ts';
 import { evaluateTicketWrite } from './lib/phase-provenance.ts';
+import { evaluateImplementEntry } from './lib/plan-gate.ts';
 import { installCrashCapture } from './lib/self-report.ts';
 
 installCrashCapture('pre-tool-quality');
@@ -517,6 +518,26 @@ if (isCanonicalTicketEdit) {
         formatFeatureTicketReadiness(readiness),
         'Complete the listed intake artifacts, then retry the phase change into define-behavior.',
       );
+    }
+  }
+}
+
+// Implement-entry plan gate (TXRHMD, #480) — ALWAYS-ON. A new-flow feature
+// enters implement only with a valid impl-plan.md (status planned), authored
+// during the plan-implementation phase. Ordered after provenance/readiness so
+// "wrong step" is reported before "plan not ready".
+if (isCanonicalTicketEdit) {
+  const priorContent = existsSync(editedFile) ? readFileSync(editedFile, 'utf8') : '';
+  const proposedContent = nextContentAfterEdit(input.tool_input, priorContent);
+  const proposedMeta = frontmatterFromContent(proposedContent);
+  const priorPhase = frontmatterScalar(frontmatterFromContent(priorContent), 'phase');
+  const proposedPhase = frontmatterScalar(proposedMeta, 'phase');
+  const proposedType = frontmatterScalar(proposedMeta, 'type');
+
+  if (proposedType === 'feature' && proposedPhase === 'implement' && priorPhase !== proposedPhase) {
+    const verdict = evaluateImplementEntry(nodePath.dirname(editedFile));
+    if (!verdict.ok) {
+      deny(verdict.reason, verdict.remediation);
     }
   }
 }

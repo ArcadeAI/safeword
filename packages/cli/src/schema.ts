@@ -788,6 +788,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/jtbd.ts': { template: 'hooks/lib/jtbd.ts' },
     '.safeword/hooks/lib/phase-provenance.ts': { template: 'hooks/lib/phase-provenance.ts' },
     '.safeword/hooks/lib/impl-plan.ts': { template: 'hooks/lib/impl-plan.ts' },
+    '.safeword/hooks/lib/plan-gate.ts': { template: 'hooks/lib/plan-gate.ts' },
     '.safeword/hooks/lib/replan-relevance.ts': { template: 'hooks/lib/replan-relevance.ts' },
     '.safeword/hooks/lib/replan.ts': { template: 'hooks/lib/replan.ts' },
     '.safeword/hooks/lib/review-ledger.ts': { template: 'hooks/lib/review-ledger.ts' },
