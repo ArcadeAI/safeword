@@ -81,7 +81,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Old project-local Codex install migrates to plugin-backed Codex support
 
 - [x] RED 76e61756
-- [ ] GREEN
+- [x] GREEN d38dba27
 - [ ] REFACTOR
 
 ### Scenario: User-authored Codex skills survive the migration
