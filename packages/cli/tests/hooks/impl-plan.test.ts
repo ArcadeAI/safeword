@@ -161,13 +161,19 @@ describe('impl-plan docs (Rule 4)', () => {
     nodePath.join(repoRoot, '.claude/skills/bdd'),
   ];
 
-  it('SCENARIOS.md gate exit and TDD.md entry reference impl-plan.md in both copies', () => {
+  it('PLAN_IMPLEMENTATION.md authoring and TDD.md entry reference impl-plan.md in both copies', () => {
     for (const skillDirectory of copies) {
-      const scenarios = readFileSync(nodePath.join(skillDirectory, 'SCENARIOS.md'), 'utf8');
+      const planDocument = readFileSync(
+        nodePath.join(skillDirectory, 'PLAN_IMPLEMENTATION.md'),
+        'utf8',
+      );
       const tdd = readFileSync(nodePath.join(skillDirectory, 'TDD.md'), 'utf8');
-      expect(scenarios, `${skillDirectory}/SCENARIOS.md`).toContain('impl-plan.md');
+      expect(planDocument, `${skillDirectory}/PLAN_IMPLEMENTATION.md`).toContain('impl-plan.md');
       for (const section of IMPL_PLAN_SECTIONS) {
-        expect(scenarios, `${skillDirectory}/SCENARIOS.md section ${section}`).toContain(section);
+        expect(
+          planDocument,
+          `${skillDirectory}/PLAN_IMPLEMENTATION.md section ${section}`,
+        ).toContain(section);
       }
       expect(tdd, `${skillDirectory}/TDD.md`).toContain('impl-plan.md');
     }

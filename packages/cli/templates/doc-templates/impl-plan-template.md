@@ -3,8 +3,8 @@
 **Status:** planned
 
 <!--
-Implementation plan for a feature ticket, authored at scenario-gate exit —
-after scenarios are validated, before TDD starts. Lives next to ticket.md as
+Implementation plan for a feature ticket, authored during the
+plan-implementation phase — after scenarios are validated, before TDD starts. Lives next to ticket.md as
 impl-plan.md. Status lifecycle: `planned` (written, code not started) →
 `implemented` (reconciled against what actually shipped at implement-phase
 exit). Every section below must have content or `skip: <reason>` — never
@@ -23,8 +23,8 @@ enough, any supporting proof needed for pure-logic edge cases, AI output
 quality, or entry-point wiring, and the build order so each task builds on
 what's already green — among dependency-free work, sequence the load-bearing
 slice (the one proving that riskiest assumption) first, so a wrong design fails
-on slice 1 while it's still cheap. This absorbs the scenario-gate exit's proof
-plan + sequencing step — record that output here. -->
+on slice 1 while it's still cheap. Record the plan-implementation
+phase's proof plan + sequencing output here. -->
 
 ## Decisions
 

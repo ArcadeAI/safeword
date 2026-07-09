@@ -224,7 +224,7 @@ Before proceeding to define-behavior (the Intake Brief is advisory — a missing
 
 Define-behavior scenarios draw from the self-test: behavior that changes seeds happy paths and error paths, observable done states seed acceptance criteria. Behavior that stays the same is protected by the existing test suite — it informs out-of-scope, not new scenarios. Add failure-mode scenarios from domain knowledge.
 
-Technical breakdown — component identification and any design-doc/ADR triggers — belongs here in intake (you design the architecture in "Understanding" above). The per-scenario proof plan + build order step now happens at the scenario-gate exit; the standalone `decomposition` phase is retired (see the ADR in `ARCHITECTURE.md`).
+Technical breakdown — component identification and any design-doc/ADR triggers — belongs here in intake (you design the architecture in "Understanding" above). The per-scenario proof plan + build order lives in the `plan-implementation` phase (`PLAN_IMPLEMENTATION.md`); the standalone `decomposition` phase stays retired (see the ADRs in `ARCHITECTURE.md`).
 
 **Voice:** plainspoken and concise — write to be scanned.
 

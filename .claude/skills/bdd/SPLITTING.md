@@ -8,7 +8,7 @@ Splitting is **suggested, not mandatory** — user decides.
 | ------------------- | ------------------------------------- | -------------------------- |
 | **Entry**           | 2+ user stories OR vague scope        | Split into epic + features |
 | **define-behavior** | >15 scenarios OR 3+ distinct clusters | Split by user journey      |
-| **scenario-gate**   | >20 tasks OR 5+ major components      | Split by component/layer   |
+| **plan-implementation** | >20 tasks OR 5+ major components | Split by component/layer   |
 | **implement**       | >10 tests per slice                   | Break into smaller slices  |
 | **TDD Loop**        | >5 unit tests for single E2E          | Break E2E into steps       |
 
@@ -37,7 +37,7 @@ STEP 2: Assess depth
 | --------------- | ------------------- |
 | Entry           | `intake`            |
 | define-behavior | `scenario-gate`     |
-| scenario-gate+  | `implement`         |
+| plan-implementation+ | `plan-implementation` — each child authors its own plan |
 
 ## User Override
 
