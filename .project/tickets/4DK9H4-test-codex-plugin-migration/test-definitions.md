@@ -102,7 +102,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED a1f74901
 - [x] GREEN 58c75916
-- [ ] REFACTOR
+- [x] REFACTOR skip: package inclusion is already the minimal manifest change
 
 ### Scenario: Missing packaged hook dependency blocks the release contract
 
