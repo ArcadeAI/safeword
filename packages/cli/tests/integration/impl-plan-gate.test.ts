@@ -134,7 +134,7 @@ describe('impl-plan cumulative gate (Rule 3)', () => {
     writeTicket({ id: 'IPG001', type: 'feature', phase: 'implement', spec: true });
     const reason = runStopHook('IPG001');
     expect(reason).toContain('impl-plan.md');
-    expect(reason).toContain('scenario-gate exit');
+    expect(reason).toContain('plan-implementation phase');
   });
 
   it('permits the stop for a new-flow feature at implement with a valid impl-plan.md', () => {

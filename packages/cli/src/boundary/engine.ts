@@ -78,7 +78,13 @@ export interface TicketReconciliation {
 }
 
 /** Phases at which a feature's R/G/R ledger must already exist. */
-const LEDGER_REQUIRED_PHASES = new Set(['scenario-gate', 'implement', 'verify', 'done']);
+const LEDGER_REQUIRED_PHASES = new Set([
+  'scenario-gate',
+  'plan-implementation',
+  'implement',
+  'verify',
+  'done',
+]);
 
 /**
  * Ticket frontmatter, tolerant of CRLF git blobs — the shared parser is

@@ -656,6 +656,17 @@ if (!state) {
 if (state.activeTicket) {
   const ticketInfo = getTicketInfo(projectDirectory, state.activeTicket);
 
+  // Planning code freeze (TXRHMD, #480): while a feature plans, application
+  // code stays untouched — the plan is the phase's only deliverable. Meta
+  // paths (ticket artifacts, impl-plan.md) already exited above.
+  if (ticketInfo.type === 'feature' && ticketInfo.phase === 'plan-implementation') {
+    recordFailure(projectDirectory, input.session_id, 'plan-implementation-code-freeze');
+    deny(
+      'Feature at plan-implementation phase: application code stays untouched while planning. Finish impl-plan.md, advance the ticket to implement, then write code.',
+      'Author impl-plan.md next to ticket.md (scaffold from .safeword/templates/impl-plan-template.md), then set phase: implement to unlock code edits.',
+    );
+  }
+
   if (ticketInfo.type === 'feature' && ticketInfo.phase === 'implement' && ticketInfo.folder) {
     const testDefinitionsPath = nodePath.join(
       resolveNamespaceRoot(projectDirectory),
