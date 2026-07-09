@@ -68,7 +68,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 73491db8
 - [x] GREEN 59a83d49
-- [ ] REFACTOR
+- [x] REFACTOR skip: Stop continuation output is intentionally separate from additional-context helpers
 
 ### Scenario: Plugin hook commands never point at repo-local hook scripts
 
