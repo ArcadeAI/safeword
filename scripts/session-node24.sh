@@ -12,7 +12,9 @@ export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
 mkdir -p "$NVM_DIR"
 
 node24_bin() {
-  ls -d "$NVM_DIR"/versions/node/v24.*/bin 2> /dev/null | sort -V | tail -1
+  # find, not `ls -d` — same v24.*/bin candidates without SC2012's
+  # non-alphanumeric-filename caveat (versions sort cleanly under -V either way).
+  find "$NVM_DIR"/versions/node -mindepth 2 -maxdepth 2 -type d -path '*/v24.*/bin' 2> /dev/null | sort -V | tail -1
 }
 
 # Probe for an existing install BEFORE gating on nvm.sh — a container that

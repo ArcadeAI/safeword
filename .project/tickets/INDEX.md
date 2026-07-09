@@ -1254,6 +1254,10 @@
 - **Document uncommittable RED evidence path (M8NNX0)** (in_progress, epic: —)
   Make the TDD instructions explicitly handle RED states that cannot be committed because structural quality gates reject partial code.
   external issue: https://github.com/ArcadeAI/safeword/issues/586
+- **Document uncommittable RED evidence path (M8NNX0)** (done, epic: —)
+  Make the TDD instructions explicitly handle RED states that cannot be committed because structural quality gates reject partial code.
+  external issue: https://github.com/ArcadeAI/safeword/issues/586
+  external PRs: https://github.com/ArcadeAI/safeword/pull/928
   → `.project/tickets/M8NNX0-document-uncommittable-red-evidence`
 - **Local ticket schema: epic + blocked_on, warn-only + one blocked_on hard gate (MBGQ89)** (done, epic: —)
   Promote `epic` and `blocked_on` from ad-hoc free-text frontmatter to canonical fields, validated **warn-only** by `safeword check` — with exactly **one** hard gate: `blocked_on` denies advancing a ticket's phase out of `intake` while a same-repo dependency isn't `done` (other terminal states need a reasoned override). (`depends_on` already landed via [AKZJXC](../AKZJXC-ticket-relations/ticket.md); `parent`/`paired_with` are deferred — no consumer yet.)
