@@ -325,16 +325,24 @@ const CODEX_SKILL_TEMPLATE_FILES = [
   ['verify/SKILL.md', 'skills/verify/SKILL.md'],
 ] as const;
 
-const CODEX_SKILL_DIRS = [
-  ...new Set(
-    CODEX_SKILL_TEMPLATE_FILES.map(([target]) => `.agents/skills/${target.split('/', 1)[0]}`),
-  ),
-];
+const CODEX_SKILL_DEPRECATED_FILES = CODEX_SKILL_TEMPLATE_FILES.map(
+  ([target]) => `.agents/skills/${target}`,
+);
 
-const CODEX_SKILL_OWNED_FILES: Record<string, FileDefinition> = Object.fromEntries(
-  CODEX_SKILL_TEMPLATE_FILES.map(([target, template]) => [
-    `.agents/skills/${target}`,
-    { template },
+function skipLegacyCodexHookInstall(): undefined {
+  return;
+}
+
+const LEGACY_CODEX_HOOK_TEMPLATE_FILES: Record<string, ManagedFileDefinition> = Object.fromEntries(
+  [
+    ['pre-tool-quality.ts', 'hooks/codex/pre-tool-quality.ts'],
+    ['pre-tool-quality-helpers.ts', 'hooks/codex/pre-tool-quality-helpers.ts'],
+    ['stop.ts', 'hooks/codex/stop.ts'],
+    ['post-tool-quality.ts', 'hooks/codex/post-tool-quality.ts'],
+    ['post-tool-skill-nudge.ts', 'hooks/codex/post-tool-skill-nudge.ts'],
+  ].map(([target, template]) => [
+    `.safeword/hooks/codex/${target}`,
+    { template, generator: skipLegacyCodexHookInstall },
   ]),
 );
 
@@ -547,7 +555,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
   ownedDirs: [
     '.safeword',
     '.safeword/hooks',
-    '.safeword/hooks/codex',
     '.safeword/hooks/cursor',
     '.safeword/hooks/lib',
     '.safeword/guides',
@@ -571,9 +578,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/agents',
     '.codex',
     '.codex/agents',
-    '.agents',
-    '.agents/skills',
-    ...CODEX_SKILL_DIRS,
   ],
 
   // Created on setup but NOT deleted on reset (preserves user data)
@@ -666,6 +670,15 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/.gherkin-lintrc',
     // Merged into session-auto-upgrade.ts — check + apply now run in one pass (XQ9CXA)
     '.safeword/hooks/session-update-check.ts',
+    // Codex implementation moved into the packaged Codex plugin and `safeword codex-hook`.
+    // Keep cleanup file-scoped for `.agents/skills/*` because `.agents/skills` is a shared
+    // agent directory; a user-authored sibling skill must survive migration.
+    ...CODEX_SKILL_DEPRECATED_FILES,
+    '.safeword/hooks/codex/pre-tool-quality.ts',
+    '.safeword/hooks/codex/pre-tool-quality-helpers.ts',
+    '.safeword/hooks/codex/stop.ts',
+    '.safeword/hooks/codex/post-tool-quality.ts',
+    '.safeword/hooks/codex/post-tool-skill-nudge.ts',
   ],
 
   // Packages to uninstall on upgrade (now bundled in safeword/eslint or replaced)
@@ -707,6 +720,8 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/skills/safeword-quality-reviewing',
     '.claude/skills/safeword-refactoring',
     '.claude/skills/safeword-bdd-orchestrating',
+    // Empty after deprecated Codex hook files are removed.
+    '.safeword/hooks/codex',
   ],
 
   // Files owned by safeword (overwritten on upgrade if content changed)
@@ -887,21 +902,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/pre-tool-stale-main.ts': {
       template: 'hooks/pre-tool-stale-main.ts',
-    },
-    '.safeword/hooks/codex/pre-tool-quality.ts': {
-      template: 'hooks/codex/pre-tool-quality.ts',
-    },
-    '.safeword/hooks/codex/pre-tool-quality-helpers.ts': {
-      template: 'hooks/codex/pre-tool-quality-helpers.ts',
-    },
-    '.safeword/hooks/codex/stop.ts': {
-      template: 'hooks/codex/stop.ts',
-    },
-    '.safeword/hooks/codex/post-tool-quality.ts': {
-      template: 'hooks/codex/post-tool-quality.ts',
-    },
-    '.safeword/hooks/codex/post-tool-skill-nudge.ts': {
-      template: 'hooks/codex/post-tool-skill-nudge.ts',
     },
     '.safeword/hooks/write-review-stamp.ts': {
       template: 'hooks/write-review-stamp.ts',
@@ -1111,9 +1111,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       template: 'skills/figure-it-out/SKILL.md',
     },
 
-    // Codex skills (repo-scoped .agents/skills)
-    ...CODEX_SKILL_OWNED_FILES,
-
     // Cursor rules — generated from wrapper metadata; physical files stay installed.
     ...CURSOR_RULE_WRAPPER_OWNED_FILES,
 
@@ -1174,6 +1171,10 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
 
     // Codex project config — create if missing, preserve user-authored config.
     '.codex/config.toml': { template: 'codex/config.toml' },
+    // Legacy source templates kept for old helper/unit coverage while Codex support
+    // migrates to the plugin. `generator: undefined` means setup/upgrade never writes
+    // these repo-local hook scripts.
+    ...LEGACY_CODEX_HOOK_TEMPLATE_FILES,
 
     // Project personas — scaffolded once with format header + commented example;
     // user authors real persona blocks thereafter (safeword reads, never overwrites
