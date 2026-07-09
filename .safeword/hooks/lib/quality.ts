@@ -19,14 +19,10 @@
 // Calibration grounding: Kadavath 2022, Lin 2022, Tian 2023 — tokenized
 // verdicts beat free-form uncertainty descriptions for calibration.
 
-export type BddPhase =
-  | 'intake'
-  | 'define-behavior'
-  | 'scenario-gate'
-  | 'plan-implementation'
-  | 'implement'
-  | 'verify'
-  | 'done';
+import type { CANONICAL_PHASES } from './phase-provenance.js';
+
+/** Derived from CANONICAL_PHASES so a new phase is a compile error here, not drift. */
+export type BddPhase = (typeof CANONICAL_PHASES)[number];
 
 const UNIVERSAL_HEADER = `Apply SAFEWORD.md "Talking to the user" rules to your reply: scan-not-read, lead with the answer, named structure only when it carries weight, end with **Next:**.
 
