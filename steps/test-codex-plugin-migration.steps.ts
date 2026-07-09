@@ -25,6 +25,7 @@ const SAFEWORD_CODEX_PLUGIN_ROOT = nodePath.resolve(
 );
 const SAFEWORD_CLI_PATH = nodePath.resolve(import.meta.dirname, '..', 'packages/cli/dist/cli.js');
 const CODEX_TEST_TICKET_ID = 'ABC123';
+const REPO_LOCAL_SAFEWORD_SENTINEL = 'REPO LOCAL SAFEWORD SHOULD NOT APPEAR';
 const TEST_DEFINITIONS_PATCH = `*** Begin Patch
 *** Add File: .project/tickets/${CODEX_TEST_TICKET_ID}/test-definitions.md
 +# Test Definitions
@@ -556,6 +557,28 @@ When(
   },
 );
 
+When(
+  'the packaged Codex SessionStart entrypoint receives a SessionStart JSON fixture',
+  function (this: CodexPluginMigrationWorld) {
+    const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
+    mkdirSync(nodePath.join(repoRoot, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(repoRoot, '.safeword/SAFEWORD.md'), REPO_LOCAL_SAFEWORD_SENTINEL);
+
+    this.codexPluginHookResult = runCommand(
+      process.execPath,
+      [SAFEWORD_CLI_PATH, 'codex-hook', 'session-start'],
+      {
+        cwd: repoRoot,
+        env: { CLAUDE_PROJECT_DIR: repoRoot },
+        input: JSON.stringify({
+          hook_event_name: 'SessionStart',
+          session_id: 'codex-test-session',
+        }),
+      },
+    );
+  },
+);
+
 Then(
   'the hook output denies the edit with the existing Safe Word phase-gate reason',
   function (this: CodexPluginMigrationWorld) {
@@ -571,6 +594,31 @@ Then(
     };
     assert.equal(parsed.hookSpecificOutput?.permissionDecision, 'deny');
     assert.match(String(parsed.hookSpecificOutput?.permissionDecisionReason), /scope/u);
+  },
+);
+
+Then(
+  'the hook output includes Safe Word standing instructions as Codex additional context',
+  function (this: CodexPluginMigrationWorld) {
+    const result = this.codexPluginHookResult;
+    assert.ok(result, 'hook result was not captured');
+    assert.equal(result.exitCode, 0, result.stderr);
+
+    const parsed = JSON.parse(result.stdout) as {
+      hookSpecificOutput?: { additionalContext?: unknown };
+    };
+    assert.match(
+      String(parsed.hookSpecificOutput?.additionalContext),
+      /SAFEWORD Agent Instructions/u,
+    );
+  },
+);
+
+Then(
+  /^the entrypoint does not read standing instructions from repo-local `\.safeword\/SAFEWORD\.md`$/,
+  function (this: CodexPluginMigrationWorld) {
+    const output = `${this.codexPluginHookResult?.stdout ?? ''}\n${this.codexPluginHookResult?.stderr ?? ''}`;
+    assert.equal(output.includes(REPO_LOCAL_SAFEWORD_SENTINEL), false);
   },
 );
 
