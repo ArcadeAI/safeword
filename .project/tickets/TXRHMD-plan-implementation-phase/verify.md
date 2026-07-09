@@ -3,7 +3,7 @@ Verified: 2026-07-09T07:40:00Z
 ## Verify Checklist
 
 **Test Suite:** ✓ 5054/5056 tests pass — the full run surfaced 4 failures: 2 product failures (adr-consultation retarget after the content migration; root-lane fixtures learning the plan gate) were fixed this session and re-run green (34/34 + 832/832), and 2 are ⚠️ local environment limitations (cleanup-zombies process discovery; rust-golden-path clippy 0.1.89 suggestion-quoting) — both files byte-identical to main where CI is green.
-**Gherkin:** ⚠️ Local environment limitation: 397 scenarios — 340 passed, 0 failed, 3 skipped (pre-existing); 54 undefined are the new feature file's step definitions, the deviation recorded in impl-plan.md Known deviations (root lane is local-only dogfooding; all 54 scenarios carry vitest proofs).
+**Gherkin:** ✅ Acceptance lane passes — 410 scenarios: 407 passed, 3 skipped (pre-existing environment-conditional), 0 failed, 0 undefined; the new feature's 54 scenarios all pass via steps/plan-implementation-phase.steps.ts.
 **Build:** ✅ Success
 **Lint:** ✅ Clean (eslint + lint-gherkin + tsc --noEmit)
 **Scenarios:** All 54 scenarios marked complete (163/163 ledger boxes incl. cross-scenario refactor row f34f74f6)
@@ -20,5 +20,5 @@ Audit passed with warnings — depcruise ✅ 0 violations (603 modules); knip: p
 
 ## Deferred (non-blocking)
 
-- Step definitions for features/plan-implementation-phase.feature — recorded Known deviation; rides the root-lane backlog (12 of 34 features share the gap).
+- ~~Step definitions~~ delivered in-ticket (CI's acceptance lane requires them; 54/54 pass).
 - 91YDB6 (audit reads Doc impact as drift baseline) and #530 (language-skill pointer wiring) are tracked follow-ups, out of scope here.
