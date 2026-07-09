@@ -2,8 +2,9 @@ import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
-type AdditionalContextHookEvent = 'PostToolUse' | 'SessionStart';
-type SupportedCodexHookEvent = 'post-tool-use' | 'pre-tool-use' | 'session-start';
+type AdditionalContextHookEvent = 'PostToolUse' | 'SessionStart' | 'UserPromptSubmit';
+type SupportedCodexHookEvent =
+  'post-tool-use' | 'pre-tool-use' | 'session-start' | 'user-prompt-submit';
 
 interface CodexHookInput {
   hook_event_name?: string;
@@ -40,10 +41,12 @@ const SAFEWORD_INSTRUCTIONS_PATHS = [
   nodePath.resolve(MODULE_DIRECTORY, '../../templates/SAFEWORD.md'),
 ];
 const POST_TOOL_GUIDANCE_PATH = '.project/codex-post-tool-guidance.txt';
+const PROMPT_CONTEXT_PATH = '.project/codex-prompt-context.txt';
 const SUPPORTED_CODEX_HOOK_EVENTS: ReadonlySet<string> = new Set([
   'post-tool-use',
   'pre-tool-use',
   'session-start',
+  'user-prompt-submit',
 ]);
 
 async function readStdin(): Promise<string> {
@@ -208,10 +211,27 @@ async function runPostToolUse(): Promise<void> {
   });
 }
 
+async function runUserPromptSubmit(): Promise<void> {
+  const input = parseCodexHookInput(await readStdin());
+  if (!input) return;
+
+  const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+  const additionalContext = readProjectTextFile(projectDirectory, PROMPT_CONTEXT_PATH)?.trim();
+  if (!additionalContext) return;
+
+  emitAdditionalContext({
+    hookSpecificOutput: {
+      hookEventName: 'UserPromptSubmit',
+      additionalContext,
+    },
+  });
+}
+
 const CODEX_HOOK_RUNNERS: Record<SupportedCodexHookEvent, () => Promise<void>> = {
   'post-tool-use': runPostToolUse,
   'pre-tool-use': runPreToolUse,
   'session-start': runSessionStart,
+  'user-prompt-submit': runUserPromptSubmit,
 };
 
 export async function codexHook(event: string): Promise<void> {
