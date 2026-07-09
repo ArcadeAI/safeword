@@ -207,7 +207,7 @@ describe('evaluateTicketWrite — canonical phase enum at creation', () => {
     expect(verdict.ok).toBe(false);
     if (!verdict.ok) {
       expect(verdict.reason).toContain(
-        'intake → define-behavior → scenario-gate → implement → verify → done',
+        'intake → define-behavior → scenario-gate → plan-implementation → implement → verify → done',
       );
     }
   });
@@ -243,7 +243,13 @@ describe('evaluateTicketWrite — feature phase transitions', () => {
     expect(verdict.ok).toBe(false);
     if (!verdict.ok) {
       const named = /justification[^:]*:\s*([^.]*)/.exec(verdict.reason)?.[1] ?? '';
-      for (const phase of ['define-behavior', 'scenario-gate', 'implement', 'verify']) {
+      for (const phase of [
+        'define-behavior',
+        'scenario-gate',
+        'plan-implementation',
+        'implement',
+        'verify',
+      ]) {
         expect(named).toContain(phase);
       }
     }
@@ -293,7 +299,7 @@ describe('evaluateTicketWrite — feature phase transitions', () => {
     expect(verdict.ok).toBe(false);
     if (!verdict.ok) {
       expect(verdict.reason).toContain(
-        'intake → define-behavior → scenario-gate → implement → verify → done',
+        'intake → define-behavior → scenario-gate → plan-implementation → implement → verify → done',
       );
     }
   });
