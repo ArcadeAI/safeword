@@ -126,23 +126,23 @@ _RED evidence: uncapturable pre-build — over-blocking guard; passes today by d
 
 ### Scenario: Customer-visible changes enumerate their doc impact in the plan
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 9886b661
+- [x] GREEN 3a585c0a
+- [x] REFACTOR skip: shared slice-4 loop, helper extracted at GREEN
 
 ### Scenario: Legacy five-section plans keep passing their gates
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: grandfather guard — passed pre-change by design (#928); pinned in 9886b661
+- [x] GREEN 3a585c0a
+- [x] REFACTOR skip: shared slice-4 loop
 
 _RED evidence: uncapturable pre-build — over-blocking guard; passes today by design (#928 convention)._
 
 ### Scenario: A present but empty Doc impact section fails validation
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 9886b661
+- [x] GREEN 3a585c0a
+- [x] REFACTOR skip: shared slice-4 loop
 
 ## Rule: plan-implementation-phase.TB1.R6 — proof coverage spans every spec-affected surface
 
