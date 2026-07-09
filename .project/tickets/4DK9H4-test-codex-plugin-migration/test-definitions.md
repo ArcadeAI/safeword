@@ -108,7 +108,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED c054b1fa
 - [x] GREEN 841d42fc
-- [ ] REFACTOR
+- [x] REFACTOR skip: dependency validation is centralized and positive artifact assertions stay explicit
 
 ## Rule: test-codex-plugin-migration.SM1.R2 — An isolated plugin install harness proves Codex can discover, install, enable, and expose the Safe Word plugin under a temp CODEX_HOME
 
