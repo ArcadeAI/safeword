@@ -16,7 +16,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 5b4d62b6
 - [x] GREEN b42ac294
-- [ ] REFACTOR
+- [x] REFACTOR skip: summary helper already centralizes the classification path
 
 ## Rule: test-codex-plugin-migration.TB1.R2 — Safe Word Codex skills are visible to the agent from the plugin with stable, intentional invocation names
 
