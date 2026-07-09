@@ -20,14 +20,18 @@ import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
 
+import { isDogfoodRepo } from '../../templates/hooks/lib/dogfood.js';
 import {
   markDraftsFiled,
   readSpooledDrafts,
   spoolDrafts,
 } from '../../templates/hooks/lib/retro-draft-spool.js';
 import { type RetroAgent, windowFor } from '../../templates/hooks/lib/retro-extract.js';
+import { type Provenance, PROVENANCE_SHA } from '../retro/ledger.js';
 import { prepareEncounters } from '../retro/pipeline.js';
+import { reconcile, type ReconcileTracker } from '../retro/reconcile.js';
 import { type IssueTracker, triage, type TriageResult } from '../retro/triage.js';
+import { VERSION } from '../version.js';
 
 /** Reads a transcript and returns raw, un-sanitized findings (the LLM boundary). */
 type FindingExtractor = (transcript: string) => Promise<unknown[]>;
@@ -46,12 +50,52 @@ export interface RetroDependencies {
    * existing callers keep their REST-only behavior unchanged.
    */
   projectDirectory?: string;
+  /**
+   * Code-state provenance for this session's encounters (G19QG7). Omit (or
+   * return undefined) to file without provenance — capture never blocks filing.
+   */
+  resolveProvenance?: () => Provenance | undefined;
+}
+
+export interface ProvenanceResolverOptions {
+  projectDirectory: string;
+  /** The git subprocess boundary: stdout of `git rev-parse --short HEAD`. */
+  runGit: () => string;
+  now: () => Date;
+  /** The installed safeword version (customer-install provenance). */
+  version: string;
+}
+
+/**
+ * Environment-aware code-state provenance (G19QG7): the dogfood repo records
+ * its own short HEAD SHA (development happens between releases, so the version
+ * is meaningless there); a customer install records the installed safeword
+ * version — never any customer repo identifier. Fail-open: unresolvable git
+ * state yields undefined, so filing proceeds without provenance rather than
+ * inventing one.
+ */
+export function buildProvenanceResolver(
+  options: ProvenanceResolverOptions,
+): () => Provenance | undefined {
+  return () => {
+    const at = options.now().toISOString();
+    if (!isDogfoodRepo(options.projectDirectory)) return { version: options.version, at };
+    let sha: string;
+    try {
+      sha = options.runGit().trim();
+    } catch {
+      sha = '';
+    }
+    return PROVENANCE_SHA.test(sha) ? { sha, at } : undefined;
+  };
 }
 
 export interface RetroOutcome {
   ok: boolean;
   errorMessage?: string;
   result?: TriageResult;
+  /** Per-wall egress drop counts (PNZM3B) — silence must mean clean. */
+  drops?: { schema: number; surface: number };
   /**
    * True when drafts remain spooled after filing (REST failed / was capped) — the
    * signal that the agent filing path (PATH B) is needed. Undefined when the spool
@@ -90,7 +134,7 @@ export async function runRetro(
   // behavior. The window flows through the UNCHANGED egress pipeline below.
   const window = windowFor(transcript, options.windowStart ?? 0);
   const rawFindings = await dependencies.extract(window);
-  const encounters = await prepareEncounters(rawFindings);
+  const { encounters, drops } = await prepareEncounters(rawFindings);
 
   // Cloud-filing spool (BNGK9W): persist the post-egress drafts BEFORE filing so a
   // REST auth failure (cloud #568) can't lose them. Opt-in via projectDirectory.
@@ -103,18 +147,20 @@ export async function runRetro(
     );
   }
 
+  const provenance = dependencies.resolveProvenance?.();
   const result = await triage(dependencies.transport, encounters, {
     sessionId,
     harness: dependencies.harness,
+    ...(provenance && { provenance }),
   });
 
-  if (projectDirectory === undefined) return { ok: true, result };
+  if (projectDirectory === undefined) return { ok: true, result, drops };
 
   // Drain the drafts that reached the tracker; failed/deferred stay spooled for the
   // agent path. agentFilingNeeded = anything still spooled after the drain.
   markDraftsFiled(projectDirectory, sessionId, result.filedSignatures);
   const agentFilingNeeded = readSpooledDrafts(projectDirectory, sessionId).length > 0;
-  return { ok: true, result, agentFilingNeeded };
+  return { ok: true, result, agentFilingNeeded, drops };
 }
 
 export interface RetroCliOptions {
@@ -259,7 +305,19 @@ interface RetroCommandOutput {
   success: (message: string) => void;
 }
 
-function reportRetroCommandOutcome(
+/**
+ * Egress drop report (PNZM3B): rendered only when something was dropped, so a
+ * clean run's summary stays byte-identical to the pre-feature output.
+ */
+function renderDropReport(drops: RetroOutcome['drops']): string | undefined {
+  if (!drops || (drops.schema === 0 && drops.surface === 0)) return undefined;
+  const parts: string[] = [];
+  if (drops.schema > 0) parts.push(`${drops.schema} dropped at the schema wall`);
+  if (drops.surface > 0) parts.push(`${drops.surface} dropped at the surface wall`);
+  return `retro: ${parts.join(', ')} (egress fail-closed)`;
+}
+
+export function reportRetroCommandOutcome(
   outcome: RetroOutcome,
   options: {
     extractionSucceeded: boolean;
@@ -284,6 +342,8 @@ function reportRetroCommandOutcome(
   info(
     `retro: ${r.created.length} filed, ${r.bumped.length} recurrence(s) counted, ${r.commented.length} new manifestation(s), ${r.deferred.length} deferred, ${r.failed.length} failed`,
   );
+  const dropLine = renderDropReport(outcome.drops);
+  if (dropLine) info(dropLine);
   if (outcome.agentFilingNeeded) {
     info(
       options.restTransportAvailable
@@ -330,6 +390,19 @@ export async function retroCommand(options: RetroCliOptions): Promise<void> {
     // Enable the cloud-filing spool: on a REST failure the drafts survive on disk
     // for the agent path (BNGK9W) instead of being lost.
     projectDirectory,
+    // Environment-aware code-state provenance (G19QG7): dogfood SHA / installed
+    // version. Fail-open — capture never blocks filing.
+    resolveProvenance: buildProvenanceResolver({
+      projectDirectory,
+      runGit: () =>
+        spawnSync('git', ['rev-parse', '--short', 'HEAD'], {
+          cwd: projectDirectory,
+          encoding: 'utf8',
+          timeout: 10_000,
+        }).stdout ?? '',
+      now: () => new Date(),
+      version: VERSION,
+    }),
   });
 
   reportRetroCommandOutcome(outcome, {
@@ -346,4 +419,36 @@ function readFindings(path: string): unknown[] {
   } catch {
     return [];
   }
+}
+
+export interface ReconcileCliDependencies {
+  /** Injectable sweep transport; defaults to the REST reconcile transport. */
+  tracker?: ReconcileTracker;
+}
+
+/**
+ * `safeword retro-reconcile` — the flag-only reconcile sweep (G19QG7 SM2). No
+ * transcript involved; it reads open retro-labeled issues, normalizes their
+ * newest provenance to a code-state date, and marks possibly-resolved ones.
+ * Fails loudly (exit 1) without GitHub access — a manual mode should say why it
+ * did nothing, unlike the hook-driven filing path which must never block a Stop.
+ */
+export async function retroReconcileCommand(
+  dependencies: ReconcileCliDependencies = {},
+): Promise<void> {
+  const { error, info, success } = await import('../utils/output.js');
+  const { createReconcileTransport, resolveGitHubToken } = await import('../retro/github-rest.js');
+
+  const tracker = dependencies.tracker ?? createReconcileTransport(resolveGitHubToken());
+  if (!tracker) {
+    error('retro-reconcile: no GitHub access; nothing swept.');
+    process.exitCode = 1;
+    return;
+  }
+
+  const result = await reconcile(tracker);
+  info(
+    `reconcile: ${result.flagged.length} flagged possibly-resolved, ${result.skipped.length} skipped, ${result.deferred.length} deferred to a later run, ${result.failed.length} failed`,
+  );
+  success('reconcile complete');
 }

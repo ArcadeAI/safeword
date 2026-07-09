@@ -33,18 +33,36 @@ export function manifestationKey(finding: Finding): string {
 }
 
 /**
- * Turn raw agent findings into sanitized, fail-closed encounters ready to file.
- * Async because the egress scrub (`sanitizeTextDeep`) runs the secretlint pass.
+ * Per-wall drop counts (PNZM3B): silence must mean clean, not secretly lossy.
+ * `MAX_RAW_FINDINGS` overflow is deliberately excluded — an anti-abuse ceiling
+ * unreachable by legitimate sessions (waiver recorded in the ticket).
  */
-export async function prepareEncounters(rawFindings: readonly unknown[]): Promise<Encounter[]> {
+export interface EncounterReport {
+  encounters: Encounter[];
+  drops: { schema: number; surface: number };
+}
+
+/**
+ * Turn raw agent findings into sanitized, fail-closed encounters ready to file,
+ * reporting what each egress wall dropped. Async because the egress scrub
+ * (`sanitizeTextDeep`) runs the secretlint pass.
+ */
+export async function prepareEncounters(rawFindings: readonly unknown[]): Promise<EncounterReport> {
   const encounters: Encounter[] = [];
+  const drops = { schema: 0, surface: 0 };
 
   for (const raw of rawFindings.slice(0, MAX_RAW_FINDINGS)) {
     const finding = normalizeFinding(raw);
-    if (!finding) continue;
+    if (!finding) {
+      drops.schema += 1;
+      continue;
+    }
 
     const surface = resolveSurface(finding.safewordSurface);
-    if (surface === undefined) continue;
+    if (surface === undefined) {
+      drops.surface += 1;
+      continue;
+    }
 
     const [title, whatHappened, whyFriction, repro] = await Promise.all([
       sanitizeTextDeep(finding.title),
@@ -64,5 +82,5 @@ export async function prepareEncounters(rawFindings: readonly unknown[]): Promis
     encounters.push({ draft: buildDraft(sanitized), manifestation: manifestationKey(sanitized) });
   }
 
-  return encounters;
+  return { encounters, drops };
 }

@@ -14,9 +14,10 @@ import type { RetroDraft } from './draft.js';
 import {
   emptyLedger,
   type EncounterInput,
-  LEDGER_MARKER,
+  findLedgerComment,
   type LedgerState,
   parseLedger,
+  type Provenance,
   recordEncounter,
   renderLedger,
 } from './ledger.js';
@@ -60,6 +61,8 @@ export interface TriageContext {
   sessionId: string;
   harness: string;
   maxNewIssues?: number;
+  /** Code-state provenance for this session's encounters (G19QG7). */
+  provenance?: Provenance;
 }
 
 export interface TriageResult {
@@ -144,6 +147,7 @@ function toEncounterInput(encounter: Encounter, ctx: TriageContext): EncounterIn
     sessionId: ctx.sessionId,
     harness: ctx.harness,
     manifestation: encounter.manifestation,
+    ...(ctx.provenance && { provenance: ctx.provenance }),
   };
 }
 
@@ -159,7 +163,7 @@ async function recordOnKnownIssue(
   result: TriageResult,
 ): Promise<void> {
   const comments = await transport.listComments(issue.number);
-  const ledgerComment = comments.find(c => c.body.includes(LEDGER_MARKER));
+  const ledgerComment = findLedgerComment(comments);
   const previous = ledgerComment ? parseLedger(ledgerComment.body) : emptyLedger();
 
   const { state, changed, novel } = recordEncounter(previous, toEncounterInput(encounter, ctx));

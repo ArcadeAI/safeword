@@ -294,14 +294,70 @@ export async function sanitizeTextDeep(text: string): Promise<string> {
   return sanitizeText(await redactKnownSecrets(text));
 }
 
+// Virtual process namespace (PNZM3B): friction with no single-file home files
+// under `process/<slug>`. The surface field BYPASSES sanitizeTextDeep — this
+// wall is the only egress guarantee on it — so the slug is a strict bounded
+// token: lowercase alphanumerics + hyphens, ≤32 chars, non-empty.
+const PROCESS_PREFIX = 'process/';
+
+/**
+ * Domain predicate: does this (already-resolved) surface live in the virtual
+ * process namespace? The single answer to that question — draft labeling and
+ * the reconcile sweep both key on it, so the namespace's representation can
+ * change in one place.
+ */
+export function isProcessSurface(surface: string): boolean {
+  return surface.startsWith(PROCESS_PREFIX);
+}
+const PROCESS_SLUG_SHAPE = /^[a-z0-9-]{1,32}$/;
+const PROCESS_HEX_RUN = /^[0-9a-f]+$/;
+// The entropy backstop applies to the hyphen-stripped slug from this length up
+// — NOT HIGH_ENTROPY_RUN's ≥20 floor (a sub-20 hex slug must still drop), and
+// not shorter, so honest mixed slugs like `sprint2-retro` survive.
+const PROCESS_ENTROPY_MIN_LENGTH = 16;
+// Any ≥8-char run of consecutive hex chars in the STRIPPED slug reads as a
+// secret fragment — substring, not per-segment, so hyphen placement and
+// low-entropy padding (`deadbe1f-zzzz…`) can't hide it (whole-ticket review).
+// Accepted over-block: stripping concatenates hyphen-adjacent hex-alphabet
+// words (`added-feedback` → 12 hex chars → dropped) — safe direction, rare.
+const PROCESS_HEX_SUBSTRING = /[0-9a-f]{8}/;
+
+/**
+ * Secret-shape rejection: hex shapes at ANY length — the whole hyphen-stripped
+ * slug being pure hex (`deadbeefcafe`, hyphen-split hex) or any ≥8-char hex
+ * substring within it — plus the entropy backstop for non-hex alphabets on
+ * stripped slugs ≥16 chars. Calibrated so digit-free hex-alphabet dictionary
+ * words among non-hex segments (`dead-code-cleanup`) survive. Documented
+ * residuals (matching the egress posture's accepted tail): sub-16-char mixed
+ * alnum tokens and pure-alpha tokens (whose ≤26-symbol alphabet cannot clear
+ * ALPHA_MIN_BITS below ~19 distinct chars) — both backstopped by the schema's
+ * required non-surface fields and the flag-only public target.
+ */
+function isSecretShapedSlug(slug: string): boolean {
+  const stripped = slug.replaceAll('-', '');
+  if (PROCESS_HEX_RUN.test(stripped)) return true;
+  if (PROCESS_HEX_SUBSTRING.test(stripped)) return true;
+  return stripped.length >= PROCESS_ENTROPY_MIN_LENGTH && looksHighEntropySecret(stripped);
+}
+
+function resolveProcessSurface(slug: string): string | undefined {
+  if (!PROCESS_SLUG_SHAPE.test(slug)) return undefined;
+  if (isSecretShapedSlug(slug)) return undefined;
+  return `${PROCESS_PREFIX}${slug}`;
+}
+
 /**
  * Resolve a finding's `safeword_surface` against the spool allowlist (fail
  * closed). Returns the internal tail when the surface names a real safeword
- * location — an absolute safeword path or a bare internal tail — else undefined,
+ * location — an absolute safeword path or a bare internal tail — or the
+ * constrained `process/<slug>` virtual namespace (PNZM3B); else undefined,
  * so the caller drops the finding. The synthetic `.safeword/` prefix routes bare
  * tails through the same separator-bounded segment + internal-prefix allowlist.
  */
 export function resolveSurface(surface: string): string | undefined {
+  if (isProcessSurface(surface)) {
+    return resolveProcessSurface(surface.slice(PROCESS_PREFIX.length));
+  }
   const tail = safewordInternalTail(surface) ?? safewordInternalTail(`.safeword/${surface}`);
   if (tail === undefined) return undefined;
   // Reject path traversal and any non-path characters in the resolved tail (C2):
