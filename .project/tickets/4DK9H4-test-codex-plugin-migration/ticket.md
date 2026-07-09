@@ -4,6 +4,8 @@ slug: test-codex-plugin-migration
 type: feature
 phase: implement
 status: in_progress
+phase_anchors:
+  - implement: 1898cec6
 scope:
   - Static plugin/package contract tests for the Safe Word Codex plugin manifest, marketplace entry, bundled skills, bundled hooks, and published package contents
   - Isolated Codex plugin install harness using a temp CODEX_HOME and local marketplace, proving plugin install/enablement without repo-local Safe Word assets
