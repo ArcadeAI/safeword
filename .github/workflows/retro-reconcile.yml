@@ -8,8 +8,8 @@ name: Retro reconcile
 #
 # Failure posture: one loud job. `safeword retro-reconcile` exits non-zero when
 # GitHub access is missing, so a broken token shows up as a red scheduled run
-# instead of a silent no-op. The public-repo 60-day scheduled-workflow auto-
-# disable only bites inactive repos; workflow_dispatch is the manual fallback.
+# instead of a silent no-op. The 60-day scheduled-workflow auto-disable only
+# bites repos with no commit activity; workflow_dispatch is the manual fallback.
 
 on:
   schedule:
