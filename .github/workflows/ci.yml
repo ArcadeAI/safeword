@@ -138,6 +138,12 @@ jobs:
       - name: Lint
         run: bun run lint
 
+      - name: Shellcheck
+        # The deterministic shell-lint gate (#966): pre-commit's *.sh rule is
+        # guarded (skips on machines without shellcheck), so this lane is where
+        # the check is guaranteed to run — ubuntu-latest preinstalls shellcheck.
+        run: git ls-files '*.sh' | xargs -r shellcheck
+
       - name: Format check
         # prettier --check . — guards against formatting drift that eslint
         # does not catch. Pre-commit (lint-staged) only formats staged files,

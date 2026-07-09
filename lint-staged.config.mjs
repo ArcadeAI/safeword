@@ -29,6 +29,11 @@ export default {
   // CI's `prettier --check .`, which does cover .mdx (the gap that let an
   // unformatted .mdx commit pass the hook and fail CI on PR #692).
   '*.mdx': ['prettier --write'],
-  '*.sh': ['shellcheck'],
+  // Guarded: shellcheck is a system binary, not a devDependency — a clean
+  // machine without it must not fail pre-commit. The deterministic, strict
+  // gate is CI's lint job, where the runner preinstalls shellcheck (#966).
+  '*.sh': [
+    `sh -c 'if command -v shellcheck >/dev/null 2>&1; then shellcheck "$@"; else echo "shellcheck not installed; skipping (CI runs it strictly)"; fi' --`,
+  ],
   '*.feature': ['bun packages/cli/src/cli.ts lint-gherkin'],
 };
