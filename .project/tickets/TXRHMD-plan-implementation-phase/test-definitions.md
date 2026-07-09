@@ -280,15 +280,15 @@ _RED evidence: uncapturable pre-build — over-blocking guard; passes today by d
 
 ### Scenario: Application-code edit during planning is denied
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 86fef63f
+- [x] GREEN baace5e5
+- [x] REFACTOR skip: shared slice-3 loop, list/message edits only
 
 ### Scenario: Ticket artifacts stay editable during planning
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 86fef63f
+- [x] GREEN baace5e5
+- [x] REFACTOR skip: shared slice-3 loop, list/message edits only
 
 _RED evidence: uncapturable pre-build — over-blocking guard; passes today by design (#928 convention)._
 
@@ -334,23 +334,23 @@ _RED evidence: uncapturable pre-build — over-blocking guard; passes today by d
 
 ### Scenario: Stopping at plan-implementation without the scenario ledger is blocked
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 86fef63f
+- [x] GREEN baace5e5
+- [x] REFACTOR skip: shared slice-3 loop, list/message edits only
 
 ### Scenario: Stopping mid-planning without a plan yet is allowed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 86fef63f
+- [x] GREEN baace5e5
+- [x] REFACTOR skip: shared slice-3 loop, list/message edits only
 
 _RED evidence: uncapturable pre-build — over-blocking guard; passes today by design (#928 convention)._
 
 ### Scenario: A feature commit at plan-implementation without a ledger is reported at the boundary
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 86fef63f
+- [x] GREEN baace5e5
+- [x] REFACTOR skip: shared slice-3 loop, list/message edits only
 
 ### Scenario: Splitting guidance is remapped to the planning phase
 
