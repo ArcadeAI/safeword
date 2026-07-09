@@ -306,6 +306,42 @@ function summarizePluginInstallResult(result: CommandResult): string {
   return output;
 }
 
+function installSafeWordCodexPlugin(this: CodexPluginMigrationWorld): void {
+  const marketplaceRoot = requirePath(this.codexPluginMarketplaceRoot, 'local marketplace root');
+  const marketplacePreparation = prepareMarketplacePlugin(marketplaceRoot);
+  if (marketplacePreparation) {
+    this.codexPluginInstallResult = marketplacePreparation;
+    return;
+  }
+
+  const addMarketplaceResult = runCodexPluginCommand.call(this, [
+    'plugin',
+    'marketplace',
+    'add',
+    marketplaceRoot,
+    '--json',
+  ]);
+  if (addMarketplaceResult.exitCode !== 0) {
+    this.codexPluginInstallResult = addMarketplaceResult;
+    return;
+  }
+
+  const installResult = runCodexPluginCommand.call(this, [
+    'plugin',
+    'add',
+    'safeword',
+    '--marketplace',
+    'safeword-local',
+    '--json',
+  ]);
+  this.codexPluginInstallResult = installResult;
+  this.codexPluginInstallSummary = summarizePluginInstallResult(installResult);
+
+  if (installResult.exitCode === 0) {
+    this.codexPluginListResult = runCodexPluginCommand.call(this, ['plugin', 'list', '--json']);
+  }
+}
+
 function createIncompleteFeatureTicket(projectRoot: string): void {
   const ticketDirectory = nodePath.join(projectRoot, '.project/tickets', CODEX_TEST_TICKET_ID);
   mkdirSync(ticketDirectory, { recursive: true });
@@ -480,39 +516,7 @@ Given('the repo file tree has been recorded', function (this: CodexPluginMigrati
 When(
   'the plugin install harness installs the Safe Word Codex plugin',
   function (this: CodexPluginMigrationWorld) {
-    const marketplaceRoot = requirePath(this.codexPluginMarketplaceRoot, 'local marketplace root');
-    const marketplacePreparation = prepareMarketplacePlugin(marketplaceRoot);
-    if (marketplacePreparation) {
-      this.codexPluginInstallResult = marketplacePreparation;
-      return;
-    }
-
-    const addMarketplaceResult = runCodexPluginCommand.call(this, [
-      'plugin',
-      'marketplace',
-      'add',
-      marketplaceRoot,
-      '--json',
-    ]);
-    if (addMarketplaceResult.exitCode !== 0) {
-      this.codexPluginInstallResult = addMarketplaceResult;
-      return;
-    }
-
-    const installResult = runCodexPluginCommand.call(this, [
-      'plugin',
-      'add',
-      'safeword',
-      '--marketplace',
-      'safeword-local',
-      '--json',
-    ]);
-    this.codexPluginInstallResult = installResult;
-    this.codexPluginInstallSummary = summarizePluginInstallResult(installResult);
-
-    if (installResult.exitCode === 0) {
-      this.codexPluginListResult = runCodexPluginCommand.call(this, ['plugin', 'list', '--json']);
-    }
+    installSafeWordCodexPlugin.call(this);
   },
 );
 
@@ -546,7 +550,7 @@ When(
 );
 
 When('the isolated plugin install harness runs', function (this: CodexPluginMigrationWorld) {
-  this.codexPluginInstallResult = { stdout: '', stderr: '', exitCode: 0 };
+  installSafeWordCodexPlugin.call(this);
 });
 
 Then(
