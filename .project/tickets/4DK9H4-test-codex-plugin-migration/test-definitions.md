@@ -107,7 +107,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Missing packaged hook dependency blocks the release contract
 
 - [x] RED c054b1fa
-- [ ] GREEN
+- [x] GREEN 841d42fc
 - [ ] REFACTOR
 
 ## Rule: test-codex-plugin-migration.SM1.R2 — An isolated plugin install harness proves Codex can discover, install, enable, and expose the Safe Word plugin under a temp CODEX_HOME
