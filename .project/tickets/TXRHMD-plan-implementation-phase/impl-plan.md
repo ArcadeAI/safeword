@@ -1,6 +1,6 @@
 # Impl Plan: plan-implementation phase before TDD
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
@@ -57,7 +57,9 @@ Honors (ARCHITECTURE.md via `paths.architecture`):
 
 ## Known deviations
 
-None silent — the single deliberate reversal (standalone planning beat) is recorded via the superseding ADR rather than deviation-noted, which is the mechanism this feature itself prescribes.
+- The single deliberate reversal (standalone planning beat) is recorded via the superseding ADR (shipped, ARCHITECTURE.md 2026-07-09) rather than deviation-noted — the mechanism this feature itself prescribes.
+- Cucumber step definitions for `features/plan-implementation-phase.feature` were not delivered: the root BDD lane is local-only dogfooding (12 of 34 features share the gap), and all 54 scenarios carry vitest proofs. Follow-up rides the root-lane backlog rather than this ticket.
+- Reconciliation (2026-07-09): Decisions table held end-to-end — no choice changed during implementation; the slice-2 gate shape gained a shared `phaseTransitionContext` helper (readiness + plan gates), a smaller dedupe than planned-for, found by the cross-scenario review.
 
 ## Doc impact
 
@@ -73,3 +75,4 @@ None silent — the single deliberate reversal (standalone planning beat) is rec
 - A third phase-insertion proposal → generalize the enum/gate-list machinery instead of hand-editing lists again.
 - designApprovalGate uptake signals (support questions, PR-review friction) → revisit conversational vs. hook-backed.
 - Editorial deletion-test decays into tone-nagging → re-anchor rubric to decision coverage.
+- The adjacency grep pin (plan-implementation-document.test.ts) fails on any reintroduced six-phase list — if it fires on legitimate text, scope the pattern, don't delete the pin.

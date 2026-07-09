@@ -381,3 +381,7 @@ _RED evidence: uncapturable pre-build — over-blocking guard; passes today by d
 - [x] RED 5385582d
 - [x] GREEN c5af85f0
 - [x] REFACTOR skip: record entry, nothing to restructure
+
+## Feature-level cross-scenario refactor
+
+- [x] cross-scenario f34f74f6
