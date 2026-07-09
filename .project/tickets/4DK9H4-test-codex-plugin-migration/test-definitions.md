@@ -149,7 +149,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Untrusted plugin hooks are reported as not active for normal Codex runs
 
 - [x] RED df9ba998
-- [ ] GREEN
+- [x] GREEN cbac217d
 - [ ] REFACTOR
 
 ### Scenario: Default verification skips the live Codex smoke with an explicit reason
