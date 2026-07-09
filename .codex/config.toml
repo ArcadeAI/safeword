@@ -11,60 +11,43 @@ matcher = ""
 
 [[hooks.SessionStart.hooks]]
 type = "command"
-command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/session-codex-start.ts"'
+command = 'npx --yes safeword codex-hook session-start'
 timeout = 120
-statusMessage = "Checking safeword updates and loading standing instructions"
+statusMessage = "Loading Safe Word standing instructions"
 
 [[hooks.UserPromptSubmit]]
 
 [[hooks.UserPromptSubmit.hooks]]
 type = "command"
-command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/prompt-timestamp.ts"'
-timeout = 5
-statusMessage = "Adding current timestamp"
-
-[[hooks.UserPromptSubmit]]
-
-[[hooks.UserPromptSubmit.hooks]]
-type = "command"
-command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/prompt-retro-nudge.ts"'
+command = 'npx --yes safeword codex-hook user-prompt-submit'
 timeout = 30
-statusMessage = "Checking spooled safeword retro drafts"
+statusMessage = "Checking queued Safe Word prompt context"
 
 [[hooks.PreToolUse]]
 matcher = "^(apply_patch|Bash|Edit|Write|MultiEdit|NotebookEdit)$"
 
 [[hooks.PreToolUse.hooks]]
 type = "command"
-command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-quality.ts"'
+command = 'npx --yes safeword codex-hook pre-tool-use'
 timeout = 30
-statusMessage = "Checking safeword PreToolUse gates"
+statusMessage = "Checking Safe Word edit gates"
 
 [[hooks.Stop]]
 
 [[hooks.Stop.hooks]]
 type = "command"
-command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/stop.ts"'
+command = 'npx --yes safeword codex-hook stop'
 timeout = 600
-statusMessage = "Running safeword retro if this session is substantial"
-
-[[hooks.PostToolUse]]
-matcher = "^(apply_patch|Edit|Write|MultiEdit|NotebookEdit)$"
-
-[[hooks.PostToolUse.hooks]]
-type = "command"
-command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/post-tool-skill-nudge.ts"'
-timeout = 30
-statusMessage = "Surfacing language-skill guidance"
+statusMessage = "Checking Safe Word stop continuation"
 
 [[hooks.PostToolUse]]
 matcher = "^(apply_patch|Bash|Edit|Write|MultiEdit|NotebookEdit)$"
 
 [[hooks.PostToolUse.hooks]]
 type = "command"
-command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/post-tool-quality.ts"'
+command = 'npx --yes safeword codex-hook post-tool-use'
 timeout = 30
-statusMessage = "Updating safeword quality state"
+statusMessage = "Surfacing Safe Word post-tool context"
 
 [mcp_servers.context7]
 url = "https://mcp.context7.com/mcp"

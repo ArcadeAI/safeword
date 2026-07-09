@@ -1,6 +1,9 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
+
+import { resolveNamespaceRoot } from '../utils/configured-paths.js';
 
 type AdditionalContextHookEvent = 'PostToolUse' | 'SessionStart' | 'UserPromptSubmit';
 type SupportedCodexHookEvent =
@@ -48,6 +51,9 @@ const SAFEWORD_INSTRUCTIONS_PATHS = [
 const POST_TOOL_GUIDANCE_PATH = '.project/codex-post-tool-guidance.txt';
 const PROMPT_CONTEXT_PATH = '.project/codex-prompt-context.txt';
 const STOP_CONTINUATION_PATH = '.project/codex-stop-continuation.txt';
+const CODEX_RUN_IDENTITY_CACHE = 'codex-run-identity.json';
+const SHELL_OPERATORS = new Set([';', '&&', '||', '|']);
+const SKILL_NAME_PATTERN = /^[a-z][a-z0-9-]*$/;
 const SUPPORTED_CODEX_HOOK_EVENTS: ReadonlySet<string> = new Set([
   'post-tool-use',
   'pre-tool-use',
@@ -76,6 +82,159 @@ function parseCodexHookInput(raw: string): CodexHookInput | undefined {
 function normalizeEvent(event: string): SupportedCodexHookEvent | undefined {
   if (SUPPORTED_CODEX_HOOK_EVENTS.has(event)) return event as SupportedCodexHookEvent;
   return undefined;
+}
+
+function resolveProjectDirectory(): string {
+  if (process.env.CLAUDE_PROJECT_DIR) return process.env.CLAUDE_PROJECT_DIR;
+
+  try {
+    const root = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 5000,
+    }).trim();
+    if (root.length > 0) return root;
+  } catch {
+    // Fall back to cwd when the hook runs outside git or git is unavailable.
+  }
+
+  return process.cwd();
+}
+
+function tokenizeShellCommand(command: string): string[] {
+  const tokens: string[] = [];
+  let current = '';
+  let quote: '"' | "'" | undefined;
+  let escaped = false;
+
+  function flush(): void {
+    if (current.length > 0) {
+      tokens.push(current);
+      current = '';
+    }
+  }
+
+  for (let index = 0; index < command.length; index += 1) {
+    const char = command[index];
+    if (char === undefined) continue;
+
+    if (escaped) {
+      current += char;
+      escaped = false;
+      continue;
+    }
+
+    if (char === '\\' && quote !== "'") {
+      escaped = true;
+      continue;
+    }
+
+    if (quote !== undefined) {
+      if (char === quote) {
+        quote = undefined;
+      } else {
+        current += char;
+      }
+      continue;
+    }
+
+    if (char === '"' || char === "'") {
+      quote = char;
+      continue;
+    }
+
+    if (/\s/u.test(char)) {
+      flush();
+      continue;
+    }
+
+    if (char === '&' && command[index + 1] === '&') {
+      flush();
+      tokens.push('&&');
+      index += 1;
+      continue;
+    }
+
+    if (char === '|' && command[index + 1] === '|') {
+      flush();
+      tokens.push('||');
+      index += 1;
+      continue;
+    }
+
+    if (char === ';' || char === '|') {
+      flush();
+      tokens.push(char);
+      continue;
+    }
+
+    current += char;
+  }
+
+  flush();
+  return tokens;
+}
+
+function shellSegments(command: string): string[][] {
+  const tokens = tokenizeShellCommand(command);
+  const segments: string[][] = [];
+  let start = 0;
+
+  for (let index = 0; index <= tokens.length; index += 1) {
+    if (index !== tokens.length && !SHELL_OPERATORS.has(tokens[index] ?? '')) continue;
+    segments.push(tokens.slice(start, index));
+    start = index + 1;
+  }
+
+  return segments;
+}
+
+function executableIndexOf(segment: string[]): number {
+  let executableIndex = 0;
+  while (/^[A-Za-z_][A-Za-z0-9_]*=/u.test(segment[executableIndex] ?? '')) {
+    executableIndex += 1;
+  }
+  return executableIndex;
+}
+
+function parseRecordSkillInvocationCommand(command: string): string | undefined {
+  for (const segment of shellSegments(command)) {
+    const executableIndex = executableIndexOf(segment);
+    const executable = segment[executableIndex];
+    const helperPath = segment[executableIndex + 1]?.replaceAll('\\', '/');
+    const skillName = segment[executableIndex + 3]?.trim();
+
+    if (nodePath.basename(executable ?? '') !== 'bun') continue;
+    if (!helperPath?.endsWith('/.safeword/hooks/record-skill-invocation.ts')) continue;
+    if (skillName && SKILL_NAME_PATTERN.test(skillName)) return skillName;
+  }
+
+  return undefined;
+}
+
+function rememberCodexRunIdentity(input: {
+  projectDirectory: string;
+  sessionId: string | undefined;
+  skillName: string | undefined;
+}): void {
+  const sessionId = input.sessionId?.trim();
+  const skillName = input.skillName?.trim();
+  if (!sessionId || !skillName) return;
+
+  try {
+    const cachePath = nodePath.join(
+      resolveNamespaceRoot(input.projectDirectory),
+      CODEX_RUN_IDENTITY_CACHE,
+    );
+    mkdirSync(nodePath.dirname(cachePath), { recursive: true });
+    writeFileSync(
+      cachePath,
+      JSON.stringify({ id: sessionId, skillName, recordedAt: new Date().toISOString() }),
+      'utf8',
+    );
+  } catch {
+    // This bridge only enables done-gate proof. It must never block a tool call.
+  }
 }
 
 function extractPatchTargets(command: string): string[] {
@@ -189,7 +348,13 @@ async function runPreToolUse(): Promise<void> {
   const input = parseCodexHookInput(await readStdin());
   if (!input) return;
 
-  const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+  const projectDirectory = resolveProjectDirectory();
+  rememberCodexRunIdentity({
+    projectDirectory,
+    sessionId: input.session_id,
+    skillName: parseRecordSkillInvocationCommand(input.tool_input?.command ?? ''),
+  });
+
   for (const targetPath of extractTargetPaths(input)) {
     if (maybeDenyTestDefinitionsWrite(projectDirectory, targetPath)) return;
   }
@@ -217,7 +382,7 @@ async function runProjectAdditionalContext(
   const input = parseCodexHookInput(await readStdin());
   if (!input) return;
 
-  const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+  const projectDirectory = resolveProjectDirectory();
   const additionalContext = readProjectTextFile(projectDirectory, relativePath)?.trim();
   if (!additionalContext) return;
 
@@ -244,7 +409,7 @@ async function runStop(): Promise<void> {
     return;
   }
 
-  const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+  const projectDirectory = resolveProjectDirectory();
   const reason = readProjectTextFile(projectDirectory, STOP_CONTINUATION_PATH)?.trim();
   if (!reason) {
     emitStopNoop();

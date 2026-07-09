@@ -176,7 +176,7 @@ const MCP_JSON_MERGE: JsonMergeDefinition = {
  */
 const MARKDOWNLINT_CLI2_IGNORES_MERGE = dirGlobExcludeMerge('ignores', dir => `**/${dir}/**`);
 
-const CODEX_PROMPT_TIMESTAMP_HOOK_PATCH = `
+const CODEX_LEGACY_PROMPT_TIMESTAMP_HOOK_PATCH = `
 [[hooks.UserPromptSubmit]]
 
 [[hooks.UserPromptSubmit.hooks]]
@@ -186,7 +186,7 @@ timeout = 5
 statusMessage = "Adding current timestamp"
 `;
 
-export const CODEX_PROMPT_RETRO_NUDGE_HOOK_PATCH = `
+const CODEX_LEGACY_PROMPT_RETRO_NUDGE_HOOK_PATCH = `
 [[hooks.UserPromptSubmit]]
 
 [[hooks.UserPromptSubmit.hooks]]
@@ -196,15 +196,25 @@ timeout = 30
 statusMessage = "Checking spooled safeword retro drafts"
 `;
 
+export const CODEX_USER_PROMPT_SUBMIT_HOOK_PATCH = `
+[[hooks.UserPromptSubmit]]
+
+[[hooks.UserPromptSubmit.hooks]]
+type = "command"
+command = 'npx --yes safeword codex-hook user-prompt-submit'
+timeout = 30
+statusMessage = "Checking queued Safe Word prompt context"
+`;
+
 const CODEX_SESSION_START_HOOK_PATCH = `
 [[hooks.SessionStart]]
 matcher = ""
 
 [[hooks.SessionStart.hooks]]
 type = "command"
-command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/session-codex-start.ts"'
+command = 'npx --yes safeword codex-hook session-start'
 timeout = 120
-statusMessage = "Checking safeword updates and loading standing instructions"
+statusMessage = "Loading Safe Word standing instructions"
 `;
 
 export const CODEX_LEGACY_CONTEXT_SESSION_START_HOOK_PATCH = `
@@ -218,15 +228,26 @@ timeout = 30
 statusMessage = "Loading safeword standing instructions"
 `;
 
+const CODEX_LEGACY_SESSION_START_HOOK_PATCH = `
+[[hooks.SessionStart]]
+matcher = ""
+
+[[hooks.SessionStart.hooks]]
+type = "command"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/session-codex-start.ts"'
+timeout = 120
+statusMessage = "Checking safeword updates and loading standing instructions"
+`;
+
 const CODEX_PRE_TOOL_QUALITY_HOOK_PATCH = `
 [[hooks.PreToolUse]]
 matcher = "^(apply_patch|Bash|Edit|Write|MultiEdit|NotebookEdit)$"
 
 [[hooks.PreToolUse.hooks]]
 type = "command"
-command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-quality.ts"'
+command = 'npx --yes safeword codex-hook pre-tool-use'
 timeout = 30
-statusMessage = "Checking safeword PreToolUse gates"
+statusMessage = "Checking Safe Word edit gates"
 `;
 
 const CODEX_LEGACY_PRE_TOOL_QUALITY_HOOK_PATCH_WITHOUT_STATUS = `
@@ -239,19 +260,58 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
 timeout = 30
 `;
 
-// Codex Stop hook for the merged Stop adapter — the retro auto-trigger (53DQJZ)
-// and the architecture-drift advisory (#598/#605) now compose in one
-// codex/stop.ts, so it registers ONCE. Retrofits onto pre-existing configs and is
-// stripped on uninstall via the primary patch's unpatchContent. Must byte-match
-// the Stop block appended to the codex/config.toml template.
+const CODEX_LEGACY_PRE_TOOL_QUALITY_HOOK_PATCH = `
+[[hooks.PreToolUse]]
+matcher = "^(apply_patch|Bash|Edit|Write|MultiEdit|NotebookEdit)$"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-quality.ts"'
+timeout = 30
+statusMessage = "Checking safeword PreToolUse gates"
+`;
+
+export const CODEX_POST_TOOL_USE_HOOK_PATCH = `
+[[hooks.PostToolUse]]
+matcher = "^(apply_patch|Bash|Edit|Write|MultiEdit|NotebookEdit)$"
+
+[[hooks.PostToolUse.hooks]]
+type = "command"
+command = 'npx --yes safeword codex-hook post-tool-use'
+timeout = 30
+statusMessage = "Surfacing Safe Word post-tool context"
+`;
+
+const CODEX_LEGACY_POST_TOOL_QUALITY_HOOK_PATCH = `
+[[hooks.PostToolUse]]
+matcher = "^(apply_patch|Bash|Edit|Write|MultiEdit|NotebookEdit)$"
+
+[[hooks.PostToolUse.hooks]]
+type = "command"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/post-tool-quality.ts"'
+timeout = 30
+statusMessage = "Updating safeword quality state"
+`;
+
+const CODEX_LEGACY_POST_TOOL_SKILL_NUDGE_HOOK_PATCH = `
+[[hooks.PostToolUse]]
+matcher = "^(apply_patch|Edit|Write|MultiEdit|NotebookEdit)$"
+
+[[hooks.PostToolUse.hooks]]
+type = "command"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/post-tool-skill-nudge.ts"'
+timeout = 30
+statusMessage = "Surfacing language-skill guidance"
+`;
+
 const CODEX_STOP_HOOK_PATCH = `
 [[hooks.Stop]]
 
 [[hooks.Stop.hooks]]
 type = "command"
-command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/stop.ts"'
+command = 'npx --yes safeword codex-hook stop'
 timeout = 600
-statusMessage = "Running safeword retro if this session is substantial"
+statusMessage = "Checking Safe Word stop continuation"
 `;
 
 const CODEX_LEGACY_STOP_HOOK_PATCH_WITHOUT_STATUS = `
@@ -263,34 +323,14 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/stop.ts"'
 timeout = 600
 `;
 
-// Includes Bash (unlike the skill nudge): the quality accumulator counts LOC and
-// clears the gate on commit, so shell runs matter. Writes the per-session state
-// (active ticket binding, LOC) the PreToolUse gates and write-review-stamp.ts
-// read back under the same codex-<session> key (#630). Exported so tests can
-// strip the exact block when simulating pre-#630 configs.
-export const CODEX_POST_TOOL_QUALITY_HOOK_PATCH = `
-[[hooks.PostToolUse]]
-matcher = "^(apply_patch|Bash|Edit|Write|MultiEdit|NotebookEdit)$"
+const CODEX_LEGACY_STOP_HOOK_PATCH = `
+[[hooks.Stop]]
 
-[[hooks.PostToolUse.hooks]]
+[[hooks.Stop.hooks]]
 type = "command"
-command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/post-tool-quality.ts"'
-timeout = 30
-statusMessage = "Updating safeword quality state"
-`;
-
-// Edit-only (no Bash): the language-skill nudge fires on source-file edits. Codex
-// PostToolUse supports hookSpecificOutput.additionalContext (GA), so the adapter
-// forwards the Claude hook's nudge verbatim.
-const CODEX_POST_TOOL_SKILL_NUDGE_HOOK_PATCH = `
-[[hooks.PostToolUse]]
-matcher = "^(apply_patch|Edit|Write|MultiEdit|NotebookEdit)$"
-
-[[hooks.PostToolUse.hooks]]
-type = "command"
-command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/post-tool-skill-nudge.ts"'
-timeout = 30
-statusMessage = "Surfacing language-skill guidance"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/stop.ts"'
+timeout = 600
+statusMessage = "Running safeword retro if this session is substantial"
 `;
 
 // MCP servers for Codex parity with .mcp.json / .cursor/mcp.json (#269).
@@ -1398,55 +1438,65 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       marker: GITATTRIBUTES_HEADER,
     },
     '.codex/config.toml': [
-      // Primary patch: retrofits the prompt-timestamp hook onto pre-existing
-      // configs and owns file removal on uninstall (runs LAST on unpatch).
+      // Primary patch: retrofits package-backed Codex hooks onto pre-existing
+      // safeword configs and owns file removal on uninstall (runs LAST on unpatch).
       {
         operation: 'append',
-        content: CODEX_PROMPT_TIMESTAMP_HOOK_PATCH,
-        marker: '.safeword/hooks/prompt-timestamp.ts',
+        content: CODEX_USER_PROMPT_SUBMIT_HOOK_PATCH,
+        marker: 'safeword codex-hook user-prompt-submit',
         applyWhenContentIncludes: [
           '# Safeword Codex project configuration.',
           '.safeword/hooks/codex/pre-tool-quality.ts',
         ],
         unpatchContent: [
-          CODEX_PROMPT_RETRO_NUDGE_HOOK_PATCH,
           CODEX_SESSION_START_HOOK_PATCH,
-          CODEX_LEGACY_CONTEXT_SESSION_START_HOOK_PATCH,
           CODEX_PRE_TOOL_QUALITY_HOOK_PATCH,
-          CODEX_POST_TOOL_QUALITY_HOOK_PATCH,
+          CODEX_POST_TOOL_USE_HOOK_PATCH,
           CODEX_STOP_HOOK_PATCH,
+          CODEX_LEGACY_PROMPT_TIMESTAMP_HOOK_PATCH,
+          CODEX_LEGACY_PROMPT_RETRO_NUDGE_HOOK_PATCH,
+          CODEX_LEGACY_SESSION_START_HOOK_PATCH,
+          CODEX_LEGACY_CONTEXT_SESSION_START_HOOK_PATCH,
+          CODEX_LEGACY_PRE_TOOL_QUALITY_HOOK_PATCH,
+          CODEX_LEGACY_PRE_TOOL_QUALITY_HOOK_PATCH_WITHOUT_STATUS,
+          CODEX_LEGACY_POST_TOOL_QUALITY_HOOK_PATCH,
+          CODEX_LEGACY_POST_TOOL_SKILL_NUDGE_HOOK_PATCH,
+          CODEX_LEGACY_STOP_HOOK_PATCH,
+          CODEX_LEGACY_STOP_HOOK_PATCH_WITHOUT_STATUS,
         ],
         removeFileIfContentEquals: [CODEX_CONFIG_SCAFFOLD_WITHOUT_HOOKS],
       },
-      // Prompt retro nudge retrofit (CDX602): add-if-missing onto existing Codex
-      // configs. This is Lane 2 for unfiled spooled drafts; Codex Stop itself is
-      // silent and never blocks the turn.
       {
         operation: 'append',
-        content: CODEX_PROMPT_RETRO_NUDGE_HOOK_PATCH,
-        marker: '.safeword/hooks/prompt-retro-nudge.ts',
+        content: CODEX_SESSION_START_HOOK_PATCH,
+        marker: 'safeword codex-hook session-start',
         applyWhenContentIncludes: [
           '# Safeword Codex project configuration.',
           '.safeword/hooks/codex/pre-tool-quality.ts',
         ],
       },
-      // Migrate existing installs (auto-upgrade-codex follow-up to #433): swap the
-      // legacy context-only SessionStart hook for the auto-upgrade dispatcher.
-      // Codex runs same-event hooks concurrently with no ordering, so this must
-      // REPLACE the legacy hook (appending a second SessionStart hook would
-      // double-emit context) — hence `supersedes`. managedFiles is
-      // create-if-missing, so a fresh install gets the dispatcher from the
-      // template while every EXISTING config is skipped by managedFiles and
-      // migrated here. Idempotent: skips when the dispatcher marker is already
-      // present, and the strip no-ops when the legacy block is absent. Guarded to
-      // safeword scaffolds; a user-modified legacy block won't byte-match and is
-      // preserved. Uninstall cleanup is owned by the primary patch's
-      // unpatchContent above.
       {
         operation: 'append',
-        content: CODEX_SESSION_START_HOOK_PATCH,
-        marker: '.safeword/hooks/session-codex-start.ts',
-        supersedes: CODEX_LEGACY_CONTEXT_SESSION_START_HOOK_PATCH,
+        content: CODEX_PRE_TOOL_QUALITY_HOOK_PATCH,
+        marker: 'safeword codex-hook pre-tool-use',
+        applyWhenContentIncludes: [
+          '# Safeword Codex project configuration.',
+          '.safeword/hooks/codex/pre-tool-quality.ts',
+        ],
+      },
+      {
+        operation: 'append',
+        content: CODEX_POST_TOOL_USE_HOOK_PATCH,
+        marker: 'safeword codex-hook post-tool-use',
+        applyWhenContentIncludes: [
+          '# Safeword Codex project configuration.',
+          '.safeword/hooks/codex/pre-tool-quality.ts',
+        ],
+      },
+      {
+        operation: 'append',
+        content: CODEX_STOP_HOOK_PATCH,
+        marker: 'safeword codex-hook stop',
         applyWhenContentIncludes: [
           '# Safeword Codex project configuration.',
           '.safeword/hooks/codex/pre-tool-quality.ts',
@@ -1481,12 +1531,13 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       content: CODEX_LEGACY_PRE_TOOL_QUALITY_HOOK_PATCH_WITHOUT_STATUS,
       marker: '.safeword/hooks/codex/pre-tool-quality.ts',
       unpatchContent: [
-        CODEX_PRE_TOOL_QUALITY_HOOK_PATCH,
+        CODEX_LEGACY_PRE_TOOL_QUALITY_HOOK_PATCH,
         CODEX_LEGACY_STOP_HOOK_PATCH_WITHOUT_STATUS,
-        CODEX_STOP_HOOK_PATCH,
-        CODEX_POST_TOOL_QUALITY_HOOK_PATCH,
-        CODEX_POST_TOOL_SKILL_NUDGE_HOOK_PATCH,
+        CODEX_LEGACY_STOP_HOOK_PATCH,
+        CODEX_LEGACY_POST_TOOL_QUALITY_HOOK_PATCH,
+        CODEX_LEGACY_POST_TOOL_SKILL_NUDGE_HOOK_PATCH,
       ],
+      removeFileIfContentEquals: [CODEX_CONFIG_SCAFFOLD_WITHOUT_HOOKS],
     },
     'AGENTS.md': {
       operation: 'prepend',
