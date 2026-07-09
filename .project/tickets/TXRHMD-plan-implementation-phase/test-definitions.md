@@ -304,9 +304,9 @@ _RED evidence: uncapturable pre-build — over-blocking guard; passes today by d
 
 ### Scenario: Canonical phase order places plan-implementation between scenario-gate and implement
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 82aa9ad0
+- [x] GREEN ea3c5113
+- [x] REFACTOR skip: minimal enum insertion, no structural change warranted
 
 ### Scenario: A feature at scenario-gate advances one step into plan-implementation
 
