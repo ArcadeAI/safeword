@@ -143,7 +143,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Opt-in live smoke observes a plugin-installed hook denial
 
 - [x] RED b9d88166
-- [ ] GREEN
+- [x] GREEN ccf610a9
 - [ ] REFACTOR
 
 ### Scenario: Untrusted plugin hooks are reported as not active for normal Codex runs
