@@ -121,7 +121,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Disabled plugin is reported as unavailable to the prompt surface
 
 - [x] RED 877fc633
-- [ ] GREEN
+- [x] GREEN 5b43f99d
 - [ ] REFACTOR
 
 ## Rule: test-codex-plugin-migration.SM1.R3 — Deterministic hook contract tests exercise exact Codex hook JSON against packaged CLI entrypoints without involving the model
