@@ -1359,7 +1359,20 @@ When(
 );
 
 When('the entrypoint receives malformed JSON on stdin', function (this: CodexPluginMigrationWorld) {
-  this.codexPluginHookResult = undefined;
+  const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
+  const commandName = requirePath(
+    this.codexPluginMalformedHookCommandName,
+    'malformed hook command name',
+  );
+  this.codexPluginHookResult = runCommand(
+    process.execPath,
+    [SAFEWORD_CLI_PATH, 'codex-hook', commandName],
+    {
+      cwd: repoRoot,
+      env: { CLAUDE_PROJECT_DIR: repoRoot },
+      input: '{not valid json',
+    },
+  );
 });
 
 When(
