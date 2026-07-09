@@ -65,6 +65,9 @@ interface CodexPluginMigrationWorld extends SafewordWorld {
   codexPluginReleaseContractErrors?: string[];
   codexPluginMissingPackagedReference?: string;
   codexPluginLiveSmokeAttempted?: boolean;
+  codexPluginLiveSmokeResult?: CommandResult;
+  codexPluginLiveSmokeOutput?: string;
+  codexPluginLiveSmokeFileChangeObserved?: boolean;
   codexPluginRealListBefore?: CommandResult;
   codexPluginRealListAfter?: CommandResult;
 }
@@ -912,6 +915,38 @@ Given(
   },
 );
 
+Given('the live Codex plugin smoke is explicitly enabled', function () {
+  assert.equal(
+    process.env.SAFEWORD_RUN_CODEX_LIVE_SMOKE,
+    '1',
+    'set SAFEWORD_RUN_CODEX_LIVE_SMOKE=1 to run the live Codex plugin smoke',
+  );
+});
+
+Given(
+  'a fresh repo has the Safe Word Codex plugin installed and enabled under an isolated CODEX_HOME',
+  function (this: CodexPluginMigrationWorld) {
+    const repoRoot = createTemporaryDirectory('safeword-codex-plugin-live-repo-');
+    writeFileSync(
+      nodePath.join(repoRoot, 'package.json'),
+      `${JSON.stringify({ name: 'codex-plugin-live-fixture', version: '1.0.0' }, undefined, 2)}\n`,
+    );
+    const initResult = runCommand('git', ['init', '--quiet'], { cwd: repoRoot });
+    assert.equal(initResult.exitCode, 0, initResult.stderr);
+
+    const codexHome = createTemporaryDirectory('safeword-codex-home-');
+    const marketplaceRoot = createTemporaryDirectory('safeword-codex-marketplace-');
+    writeLocalMarketplace(marketplaceRoot);
+
+    this.codexPluginRepoRoot = repoRoot;
+    this.codexPluginCodexHome = codexHome;
+    this.codexPluginMarketplaceRoot = marketplaceRoot;
+
+    installSafeWordCodexPlugin.call(this);
+    assert.equal(this.codexPluginInstallResult?.exitCode, 0, this.codexPluginInstallResult?.stderr);
+  },
+);
+
 Given('the repo has no repo-local Safe Word skills', function (this: CodexPluginMigrationWorld) {
   assert.equal(
     existsSync(nodePath.join(requirePath(this.codexPluginRepoRoot, 'repo root'), '.agents/skills')),
@@ -1376,6 +1411,16 @@ When('the entrypoint receives malformed JSON on stdin', function (this: CodexPlu
 });
 
 When(
+  '`codex exec --json --dangerously-bypass-hook-trust` attempts a supported edit that violates a Safe Word gate',
+  function (this: CodexPluginMigrationWorld) {
+    this.codexPluginLiveSmokeAttempted = true;
+    this.codexPluginLiveSmokeResult = undefined;
+    this.codexPluginLiveSmokeOutput = undefined;
+    this.codexPluginLiveSmokeFileChangeObserved = undefined;
+  },
+);
+
+When(
   'the release contract inspects the package contents',
   function (this: CodexPluginMigrationWorld) {
     const tarball = requirePath(this.codexPluginPackageTarball, 'package tarball');
@@ -1779,6 +1824,28 @@ Then('the plugin install has not created `AGENTS.md`', function (this: CodexPlug
     false,
   );
 });
+
+Then(
+  'the JSONL output contains the Safe Word hook denial',
+  function (this: CodexPluginMigrationWorld) {
+    assert.ok(this.codexPluginLiveSmokeAttempted, 'live smoke was not attempted');
+    assert.ok(this.codexPluginLiveSmokeResult, 'live smoke result was not captured');
+    assert.equal(
+      this.codexPluginLiveSmokeResult.exitCode,
+      0,
+      `${this.codexPluginLiveSmokeResult.stdout}\n${this.codexPluginLiveSmokeResult.stderr}`,
+    );
+    assert.match(this.codexPluginLiveSmokeOutput ?? '', /Cannot create test-definitions\.md/u);
+    assert.match(this.codexPluginLiveSmokeOutput ?? '', /safeword:explain/u);
+  },
+);
+
+Then(
+  'the fixture records whether Codex also reports a known file-change interception boundary',
+  function (this: CodexPluginMigrationWorld) {
+    assert.equal(typeof this.codexPluginLiveSmokeFileChangeObserved, 'boolean');
+  },
+);
 
 After(function (this: CodexPluginMigrationWorld) {
   for (const directory of [
