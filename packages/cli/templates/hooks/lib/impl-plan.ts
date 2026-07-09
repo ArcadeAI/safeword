@@ -25,6 +25,9 @@ export const IMPL_PLAN_OPTIONAL_SECTIONS = ['Doc impact'] as const;
 
 export type ImplPlanOptionalSectionName = (typeof IMPL_PLAN_OPTIONAL_SECTIONS)[number];
 
+/** Any section name the parser can report — required or optional. */
+export type ImplPlanAnySectionName = ImplPlanSectionName | ImplPlanOptionalSectionName;
+
 export interface ImplPlanSectionVerdict {
   /** True when the section has real content or a valid skip. */
   satisfied: boolean;
@@ -35,8 +38,8 @@ export interface ImplPlanSectionVerdict {
 export interface ImplPlanResult {
   /** Parsed status, or null when the line is missing or carries an unknown value. */
   status: ImplPlanStatus | null;
-  /** Per-section verdicts keyed by canonical section name. */
-  sections: Partial<Record<ImplPlanSectionName, ImplPlanSectionVerdict>>;
+  /** Per-section verdicts — required sections plus optional ones when present. */
+  sections: Partial<Record<ImplPlanAnySectionName, ImplPlanSectionVerdict>>;
   /** Validation errors; empty when the plan is valid. */
   errors: string[];
 }
@@ -44,11 +47,9 @@ export interface ImplPlanResult {
 const STATUS_PREFIX = '**Status:**';
 const SKIP_PREFIX = 'skip:';
 
-type AnySectionName = ImplPlanSectionName | ImplPlanOptionalSectionName;
-
-const SECTION_NAMES = new Map<string, AnySectionName>([
-  ...IMPL_PLAN_SECTIONS.map((name): [string, AnySectionName] => [name.toLowerCase(), name]),
-  ...IMPL_PLAN_OPTIONAL_SECTIONS.map((name): [string, AnySectionName] => [
+const SECTION_NAMES = new Map<string, ImplPlanAnySectionName>([
+  ...IMPL_PLAN_SECTIONS.map((name): [string, ImplPlanAnySectionName] => [name.toLowerCase(), name]),
+  ...IMPL_PLAN_OPTIONAL_SECTIONS.map((name): [string, ImplPlanAnySectionName] => [
     name.toLowerCase(),
     name,
   ]),
@@ -101,9 +102,9 @@ function parseStatus(lines: string[], errors: string[]): ImplPlanStatus | null {
 }
 
 /** Accumulate non-empty body lines per known `## ` section. */
-function collectSectionBodies(lines: string[]): Map<AnySectionName, string[]> {
-  const bodies = new Map<AnySectionName, string[]>();
-  let current: AnySectionName | null = null;
+function collectSectionBodies(lines: string[]): Map<ImplPlanAnySectionName, string[]> {
+  const bodies = new Map<ImplPlanAnySectionName, string[]>();
+  let current: ImplPlanAnySectionName | null = null;
   for (const line of lines) {
     const trimmed = line.trim();
     if (trimmed.startsWith('## ')) {
@@ -126,13 +127,8 @@ export function parseImplPlan(content: string): ImplPlanResult {
   const status = parseStatus(lines, errors);
   const bodies = collectSectionBodies(lines);
 
-  const sections: Partial<
-    Record<ImplPlanSectionName | ImplPlanOptionalSectionName, ImplPlanSectionVerdict>
-  > = {};
-  const validatePresentSection = (
-    name: ImplPlanSectionName | ImplPlanOptionalSectionName,
-    body: string[],
-  ): void => {
+  const sections: ImplPlanResult['sections'] = {};
+  const validatePresentSection = (name: ImplPlanAnySectionName, body: string[]): void => {
     const skipLine =
       body.length === 1 && body[0]?.toLowerCase().startsWith(SKIP_PREFIX) ? body[0] : null;
     if (skipLine !== null) {
