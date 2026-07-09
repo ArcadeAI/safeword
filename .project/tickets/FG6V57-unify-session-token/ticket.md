@@ -2,8 +2,8 @@
 id: FG6V57
 slug: unify-session-token
 type: task
-phase: intake
-status: backlog
+phase: implement
+status: in_progress
 created: 2026-07-08T05:11:53.040Z
 last_modified: 2026-07-08T05:11:53.040Z
 ---
@@ -39,5 +39,7 @@ confuses the editor — keep the pinned snippet minimal and comment the contract
 
 ## Work Log
 
+- 2026-07-09T23:00:00.000Z Implemented per the recorded decision, TDD (3 RED → GREEN): one rule `.replaceAll(/[^\w.-]/g, '_').slice(0, 80) || 'unknown'` in triage.ts (ledger token — gains the missing cap), retro-draft-spool.ts (filename — gains the cap), self-report.ts (sessionId sites switch from sanitizeToken's strip+@ to substitute; sanitizeToken retained for version/source). Mirrors synced to .safeword. Three parity contracts added in schema.ts (SESSION_TOKEN_RULE) — negative-tested: a mutated copy hard-fails `parity-check --mode=contracts-only` with `[CONTRACT] Missing in …triage.ts`. Evidence: 99/99 across triage/spool/self-report/schema suites; parity 215 pairs + 8 contracts in sync; eslint/tsc clean. UUID-shaped ids are unchanged under the rule (no token migration).
 - 2026-07-08T05:11:53.040Z Started: Created ticket FG6V57
 - 2026-07-08T05:13:00.000Z Decision recorded (parity contract over shared helper); parked to backlog
+- 2026-07-09T22:40:30.986Z Phase: intake → implement

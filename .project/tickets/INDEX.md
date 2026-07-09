@@ -1152,7 +1152,7 @@
 - **ticket new --parent links epic and child (F9W3JP)** (done, epic: —)
   One command wires a new child ticket to its epic across navigation and the index, with no dual-write drift
   → `.project/tickets/F9W3JP-epic-child-linker`
-- **Unify session-id sanitizers behind a parity contract (FG6V57)** (backlog, epic: —)
+- **Unify session-id sanitizers behind a parity contract (FG6V57)** (in_progress, epic: —)
   One sanitization rule (charset + substitute + length cap) pinned byte-identical across triage.ts, retro-draft-spool.ts, and self-report.ts via the parity contracts schema
   → `.project/tickets/FG6V57-unify-session-token`
 - **ticket-slug-rename (FM5EDA)** (open, epic: —)

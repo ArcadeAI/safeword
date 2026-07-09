@@ -43,9 +43,11 @@ const MAX_DRAFTS_PER_SESSION = 20;
 /** Spool lives under the project's `.safeword/` so it travels with the install. */
 const SPOOL_DIR = nodePath.join('.safeword', 'retro-drafts');
 
-/** Collapse a session id to one safe filename component (no path escape). */
+/** Collapse a session id to one safe filename component (no path escape).
+ * FG6V57: the rule is pinned byte-identical with triage.ts and self-report.ts
+ * by a parity contract. */
 function spoolName(sessionId: string): string {
-  return `${sessionId.replaceAll(/[^\w.-]/g, '_') || 'unknown'}.jsonl`;
+  return `${sessionId.replaceAll(/[^\w.-]/g, '_').slice(0, 80) || 'unknown'}.jsonl`;
 }
 
 /** Absolute path of the per-session retro-draft spool file. */
