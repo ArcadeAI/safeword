@@ -195,36 +195,31 @@ async function runSessionStart(): Promise<void> {
   });
 }
 
-async function runPostToolUse(): Promise<void> {
+async function runProjectAdditionalContext(
+  hookEventName: AdditionalContextHookEvent,
+  relativePath: string,
+): Promise<void> {
   const input = parseCodexHookInput(await readStdin());
   if (!input) return;
 
   const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
-  const additionalContext = readProjectTextFile(projectDirectory, POST_TOOL_GUIDANCE_PATH)?.trim();
+  const additionalContext = readProjectTextFile(projectDirectory, relativePath)?.trim();
   if (!additionalContext) return;
 
   emitAdditionalContext({
     hookSpecificOutput: {
-      hookEventName: 'PostToolUse',
+      hookEventName,
       additionalContext,
     },
   });
 }
 
+async function runPostToolUse(): Promise<void> {
+  await runProjectAdditionalContext('PostToolUse', POST_TOOL_GUIDANCE_PATH);
+}
+
 async function runUserPromptSubmit(): Promise<void> {
-  const input = parseCodexHookInput(await readStdin());
-  if (!input) return;
-
-  const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
-  const additionalContext = readProjectTextFile(projectDirectory, PROMPT_CONTEXT_PATH)?.trim();
-  if (!additionalContext) return;
-
-  emitAdditionalContext({
-    hookSpecificOutput: {
-      hookEventName: 'UserPromptSubmit',
-      additionalContext,
-    },
-  });
+  await runProjectAdditionalContext('UserPromptSubmit', PROMPT_CONTEXT_PATH);
 }
 
 const CODEX_HOOK_RUNNERS: Record<SupportedCodexHookEvent, () => Promise<void>> = {
