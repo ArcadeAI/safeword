@@ -100,7 +100,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Release check proves the packed package contains the plugin and hook entrypoints
 
-- [ ] RED
+- [x] RED a1f74901
 - [ ] GREEN
 - [ ] REFACTOR
 
