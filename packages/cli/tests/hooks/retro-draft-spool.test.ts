@@ -30,7 +30,10 @@ describe('retro draft spool (BNGK9W — persist post-egress drafts on filing fai
     const base = nodePath.basename(path);
     expect(base).toMatch(/^[\w.-]{1,80}\.jsonl$/);
     // sanitized inside the project spool dir — the ../.. cannot escape it
-    expect(path.startsWith(projectDirectory)).toBe(true);
+    // (dirname equality, not a prefix check: /tmp/x must not match /tmp/x-sibling)
+    expect(nodePath.dirname(path)).toBe(
+      nodePath.join(projectDirectory, '.safeword', 'retro-drafts'),
+    );
   });
 
   it('round-trips spooled drafts, keyed by session id', () => {

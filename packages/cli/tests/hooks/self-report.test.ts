@@ -237,6 +237,19 @@ describe('self-report capture (QYYC5Y)', () => {
       expect(records[0]?.safewordVersion).toBe('2.0.0');
     });
 
+    // FG6V57 (review): the parity contract is a presence check, so spoolPath
+    // alone regressing to a different rule would still pass it — this pins the
+    // filename site behaviorally, like the retro-spool twin test.
+    it('collapses a hostile overlong session id to one bounded filename component', () => {
+      const hostile = `../../evil@host ${'x'.repeat(100)}`;
+      const spool = spoolPath(projectDirectory, hostile);
+      const base = nodePath.basename(spool);
+      expect(base).toMatch(/^[\w.-]{1,80}\.jsonl$/);
+      expect(nodePath.dirname(spool)).toBe(
+        nodePath.join(projectDirectory, '.safeword', 'self-reports'),
+      );
+    });
+
     it('is best-effort: never throws even when the spool cannot be written', () => {
       // Point the project dir at a path whose .safeword is a FILE, so mkdir fails.
       const blocked = mkdtempSync(nodePath.join(tmpdir(), 'sw-blocked-'));
