@@ -218,6 +218,7 @@ export function sanitizeStackFrames(stack: string | undefined): string[] {
 export function buildRecord(signal: SelfReportSignal, ctx: SelfReportContext): SelfReportRecord {
   const record: SelfReportRecord = {
     ts: new Date().toISOString(),
+    // FG6V57 session-token rule (see spoolPath); the other fields keep sanitizeToken.
     sessionId: ctx.sessionId.replaceAll(/[^\w.-]/g, '_').slice(0, 80) || 'unknown',
     safewordVersion: sanitizeToken(ctx.safewordVersion) || 'unknown',
     source: sanitizeToken(signal.source) || 'unknown',
