@@ -29,7 +29,7 @@
       },
       "dependencies": {
         "@cucumber/gherkin": "^41.0.0",
-        "@cucumber/messages": "^33.0.4",
+        "@cucumber/messages": "^34.0.1",
         "@eslint-community/eslint-plugin-eslint-comments": "^4.7.2",
         "@eslint-react/eslint-plugin": "5.10.3",
         "@eslint/js": "^10.0.1",
@@ -241,7 +241,7 @@
 
     "@cucumber/message-streams": ["@cucumber/message-streams@4.1.1", "", { "dependencies": { "mime": "^3.0.0" }, "peerDependencies": { "@cucumber/messages": ">=17.1.1" } }, "sha512-QCAntLajesWMyX+mZKrj63YghVAts7yKFlZe46XprLbdJZN0ddB+f/Mr9OnyWKC2DHhJ18jzCfKIFCaqpAmUxg=="],
 
-    "@cucumber/messages": ["@cucumber/messages@33.0.4", "", {}, "sha512-i6P1a0bnmhecOHfvIW0rhMxv/gMKfBKwDMxmD9/Uo1HSqpQ17ocHms1JwWW6uTMLAopqqWlcz7l6Pax+qUOTzg=="],
+    "@cucumber/messages": ["@cucumber/messages@34.0.1", "", {}, "sha512-Mvh8CkZD4TGykvXqM9qpnYVGy9cqMxYkImtghl2cF1hEuBtuDGU716zQk7KviLh0ssidM/phh9kdbJL/73dHpg=="],
 
     "@cucumber/pretty-formatter": ["@cucumber/pretty-formatter@3.3.1", "", { "dependencies": { "@cucumber/query": "15.0.1", "luxon": "^3.7.2" }, "peerDependencies": { "@cucumber/messages": "*" } }, "sha512-wy8M/Poaqnoom+YP1mzZMfHEE3pP9/0JAYajkjpHTtanp4KJGpAXdukuUYbmmgFjRXUmUSK3s5I+I5+f+q2blA=="],
 
@@ -2622,6 +2622,8 @@
     "@cucumber/cucumber/@cucumber/gherkin": ["@cucumber/gherkin@39.1.0", "", { "dependencies": { "@cucumber/messages": ">=31.0.0 <33" } }, "sha512-pqmSO2bUWxJm3TbNrKXlDaHjL6c77+ez9kWmfCd9oRPeTRPEVH3spZvpAqdXYWOZYSNYwWFCAAeZ4RGpkauNoQ=="],
 
     "@cucumber/cucumber/@cucumber/messages": ["@cucumber/messages@32.3.1", "", { "dependencies": { "class-transformer": "0.5.1", "reflect-metadata": "0.2.2" } }, "sha512-yNQq1KoXRYaEKrWMFmpUQX7TdeQuU9jeGgJAZ3dArTsC/T4NpJ6DnqaJIIgwPnz/wtQIQTNX7/h0rOuF5xY4qQ=="],
+
+    "@cucumber/gherkin/@cucumber/messages": ["@cucumber/messages@33.0.4", "", {}, "sha512-i6P1a0bnmhecOHfvIW0rhMxv/gMKfBKwDMxmD9/Uo1HSqpQ17ocHms1JwWW6uTMLAopqqWlcz7l6Pax+qUOTzg=="],
 
     "@cucumber/gherkin-streams/commander": ["commander@14.0.0", "", {}, "sha512-2uM9rYjPvyq39NwLRqaiLtWHyDC1FvryJDa2ATTVims5YAS4PupsEQsDvP14FqhFr0P49CYDugi59xaxJlTXRA=="],
 
