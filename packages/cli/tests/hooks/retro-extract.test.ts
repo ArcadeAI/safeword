@@ -158,7 +158,8 @@ describe('buildExtractArgv', () => {
 
 describe('buildCodexExtractArgv', () => {
   // codex-retro-parity.SM1.AC1 — Codex extraction runs through `codex exec` with
-  // structured output, closed stdin, no hooks/MCP, and an inline digest prompt.
+  // structured output, closed stdin, no hooks/MCP, a neutral temp cwd, and an
+  // inline digest prompt.
   it('builds the gated codex exec argv used by the Stop hook child', () => {
     const argv = buildCodexExtractArgv({
       model: 'gpt-5.5',
@@ -167,7 +168,7 @@ describe('buildCodexExtractArgv', () => {
       prompt: 'INLINE DIGEST',
     });
 
-    expect(argv.slice(0, 2)).toEqual(['exec', '--ignore-user-config']);
+    expect(argv.slice(0, 3)).toEqual(['exec', '--skip-git-repo-check', '--ignore-user-config']);
     expect(argv).toContain('--disable');
     expect(argv[argv.indexOf('--disable') + 1]).toBe('hooks');
     expect(argv).toContain('-c');
@@ -376,6 +377,8 @@ describe('runCodexHeadlessExtraction', () => {
     await expect(runCodexHeadlessExtraction('t', nonZero.deps)).resolves.toEqual([]);
     await expect(runCodexHeadlessExtractionChecked('t', nonZero.deps)).resolves.toEqual({
       ok: false,
+      failureReason: 'spawn_nonzero',
+      exitCode: 1,
       findings: [],
     });
 
@@ -391,6 +394,7 @@ describe('runCodexHeadlessExtraction', () => {
     await expect(runCodexHeadlessExtraction('t', invalid.deps)).resolves.toEqual([]);
     await expect(runCodexHeadlessExtractionChecked('t', invalid.deps)).resolves.toEqual({
       ok: false,
+      failureReason: 'invalid_output',
       findings: [],
     });
   });
@@ -408,6 +412,18 @@ describe('runCodexHeadlessExtraction', () => {
 
     await expect(runCodexHeadlessExtractionChecked('t', empty.deps)).resolves.toEqual({
       ok: true,
+      findings: [],
+    });
+  });
+
+  it('distinguishes missing output from a schema-valid empty findings array', async () => {
+    const missing = codexDependencies({
+      spawn: () => Promise.resolve({ code: 0, stdout: '' }),
+    });
+
+    await expect(runCodexHeadlessExtractionChecked('t', missing.deps)).resolves.toEqual({
+      ok: false,
+      failureReason: 'missing_output',
       findings: [],
     });
   });

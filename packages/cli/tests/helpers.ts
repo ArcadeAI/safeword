@@ -101,6 +101,13 @@ export function createTemporaryDirectory(): string {
   return mkdtempSync(nodePath.join(tmpdir(), 'safeword-test-'));
 }
 
+export function readJsonlFile(path: string): Record<string, unknown>[] {
+  return readFileSync(path, 'utf8')
+    .split('\n')
+    .filter(line => line.trim().length > 0)
+    .map(line => JSON.parse(line) as Record<string, unknown>);
+}
+
 export function installFakeCodexCli(projectRoot: string, version: string): string {
   const fakeBin = nodePath.join(projectRoot, 'bin');
   mkdirSync(fakeBin);
