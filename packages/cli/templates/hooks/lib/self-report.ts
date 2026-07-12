@@ -125,12 +125,15 @@ const SAFEWORD_SEGMENTS = new Set(['safeword', '.safeword']);
 const INTERNAL_TAIL_PREFIXES = ['packages/cli/', 'hooks/', 'dist/', 'templates/'];
 const MAX_FRAMES = 20;
 
-/** Absolute path of the per-session spool file. */
+/** Absolute path of the per-session spool file. Session ids use the shared
+ * session-token rule (FG6V57) — pinned byte-identical with triage.ts and
+ * retro-draft-spool.ts by a parity contract; sanitizeToken stays for the
+ * other free-form fields (version, source). */
 export function spoolPath(projectDirectory: string, sessionId: string): string {
   return nodePath.join(
     projectDirectory,
     SELF_REPORT_DIR,
-    `${sanitizeToken(sessionId) || 'unknown'}.jsonl`,
+    `${sessionId.replaceAll(/[^\w.-]/g, '_').slice(0, 80) || 'unknown'}.jsonl`,
   );
 }
 
@@ -215,7 +218,8 @@ export function sanitizeStackFrames(stack: string | undefined): string[] {
 export function buildRecord(signal: SelfReportSignal, ctx: SelfReportContext): SelfReportRecord {
   const record: SelfReportRecord = {
     ts: new Date().toISOString(),
-    sessionId: sanitizeToken(ctx.sessionId) || 'unknown',
+    // FG6V57 session-token rule (see spoolPath); the other fields keep sanitizeToken.
+    sessionId: ctx.sessionId.replaceAll(/[^\w.-]/g, '_').slice(0, 80) || 'unknown',
     safewordVersion: sanitizeToken(ctx.safewordVersion) || 'unknown',
     source: sanitizeToken(signal.source) || 'unknown',
     // Bounded to the enum on storage — deny-by-default for an unexpected value.

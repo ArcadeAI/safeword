@@ -136,6 +136,19 @@ describe('self-report capture (QYYC5Y)', () => {
   });
 
   describe('buildRecord allowlist', () => {
+    // FG6V57: the session-id rule (substitute-not-strip, [\w.-], cap 80) is
+    // pinned byte-identical with triage.ts and retro-draft-spool.ts by a
+    // parity contract; @ and other non-token chars substitute to _.
+    it('reduces a hostile session id with the shared session-token rule', () => {
+      const hostile = `../../evil@host ${'x'.repeat(100)}`;
+      const record = buildRecord(
+        { source: 'stop-quality' },
+        { sessionId: hostile, safewordVersion: '1.0.0' },
+      );
+      expect(record.sessionId).toBe(`.._.._evil_host_${'x'.repeat(100)}`.slice(0, 80));
+      expect(record.sessionId).toHaveLength(80);
+    });
+
     it('GUARDRAIL: never leaks message contents; keeps safeword frame + errorClass', () => {
       const secretToken = 'ghp_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA1234';
       const absolutePath = '/Users/customer/private/credentials.env';
@@ -222,6 +235,19 @@ describe('self-report capture (QYYC5Y)', () => {
       expect(records).toHaveLength(1);
       expect(records[0]?.source).toBe('stop-quality');
       expect(records[0]?.safewordVersion).toBe('2.0.0');
+    });
+
+    // FG6V57 (review): the parity contract is a presence check, so spoolPath
+    // alone regressing to a different rule would still pass it — this pins the
+    // filename site behaviorally, like the retro-spool twin test.
+    it('collapses a hostile overlong session id to one bounded filename component', () => {
+      const hostile = `../../evil@host ${'x'.repeat(100)}`;
+      const spool = spoolPath(projectDirectory, hostile);
+      const base = nodePath.basename(spool);
+      expect(base).toMatch(/^[\w.-]{1,80}\.jsonl$/);
+      expect(nodePath.dirname(spool)).toBe(
+        nodePath.join(projectDirectory, '.safeword', 'self-reports'),
+      );
     });
 
     it('is best-effort: never throws even when the spool cannot be written', () => {
