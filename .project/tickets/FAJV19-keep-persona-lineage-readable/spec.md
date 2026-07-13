@@ -20,8 +20,8 @@ signal to distinguish roles while existing codes continue to resolve.
 
 ## Personas
 
-- Technical Builder (TB)
-- Safeword Maintainer (SM)
+- Technical Builder (TBU)
+- Safeword Maintainer (SWM)
 
 ## Surfaces
 
@@ -42,27 +42,27 @@ Unaffected:
 
 ## Jobs To Be Done
 
-### keep-persona-lineage-readable.TB1 — Recognize who a requirement serves
+### keep-persona-lineage-readable.TBU1 — Recognize who a requirement serves
 
-**Persona:** Technical Builder (TB)
+**Persona:** Technical Builder (TBU)
 
 > When I read or author a persona-backed requirement, I want its short code to
 > be mnemonic and stable, so I can follow the same persona through JTBDs and
 > executable Gherkin without decoding an ambiguous two-letter token.
 
-#### keep-persona-lineage-readable.TB1.R1 — Newly derived persona codes are canonical 3–4 letter identifiers
+#### keep-persona-lineage-readable.TBU1.R1 — Newly derived persona codes are canonical 3–4 letter identifiers
 
-#### keep-persona-lineage-readable.TB1.R2 — Existing explicit persona codes remain valid lineage anchors
+#### keep-persona-lineage-readable.TBU1.R2 — Existing explicit persona codes remain valid lineage anchors
 
-### keep-persona-lineage-readable.SM1 — Maintain one lineage convention across runtimes
+### keep-persona-lineage-readable.SWM1 — Maintain one lineage convention across runtimes
 
-**Persona:** Safeword Maintainer (SM)
+**Persona:** Safeword Maintainer (SWM)
 
 > When I change persona-code authoring, I want the CLI, installed hooks, and BDD
 > guidance to agree, so every supported agent produces the same requirement and
 > Gherkin lineage.
 
-#### keep-persona-lineage-readable.SM1.R1 — One resolved code flows unchanged from personas.md through JTBD and Gherkin lineage
+#### keep-persona-lineage-readable.SWM1.R1 — One resolved code flows unchanged from personas.md through JTBD and Gherkin lineage
 
 ## Rave Moment
 

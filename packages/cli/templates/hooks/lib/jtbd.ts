@@ -107,7 +107,7 @@ function allocateDerivedCode(base: string, claimed: ReadonlySet<string>): string
 /**
  * The set of persona references a JTBD may resolve against. Each `## Name` or
  * `## Name (CODE)` header contributes the name, its short code — the explicit
- * `(CODE)` when present AND the auto-derived code (`Platform Operator` → `PO`,
+ * `(CODE)` when present AND the auto-derived code (`Platform Operator` → `PLO`,
  * matching the CLI's `derivePersonaCode` and DISCOVERY.md's "codes auto-derive"
  * promise) — plus the combined `Name (code)` forms. Without the derived code a
  * bare-named persona would falsely block a JTBD that references its code.

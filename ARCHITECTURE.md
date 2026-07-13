@@ -1,7 +1,7 @@
 # Safeword Architecture
 
-**Version:** 1.16
-**Last Updated:** 2026-07-06
+**Version:** 1.17
+**Last Updated:** 2026-07-13
 **Status:** Production
 
 ---
@@ -559,6 +559,19 @@ Published files: `dist/` + `templates/` (bundled for setup/upgrade).
 | Trade-off      | Longer intake for features; Phase 0 advances through structured signoff sub-gates (orientation → JTBD → Rules → scope) rather than one step.                                                                                                                                                                                                                                                           |
 | Alternatives   | Keep engineering-only scope (rejected: no product framing); separate product skill with handoff (rejected: skill-to-skill handoffs unreliable — same reasoning as the BDD+TDD merge above).                                                                                                                                                                                                            |
 | Implementation | `packages/cli/templates/skills/bdd/DISCOVERY.md` (Phase 0 sub-phases + worked example), `SCENARIOS.md` (lineage numbering), `spec-template.md`, glossary/persona `managedFiles` entries; per-file path overrides via `.safeword/config.json` `paths.*` (ticket K7N2QM). Epic DZ2NM5.                                                                                                                   |
+
+### Canonical Persona Codes with Legacy Lineage Compatibility
+
+**Status:** Accepted
+**Date:** 2026-07-13
+
+| Field          | Value                                                                                                                                                                                                                                                                                                                                  |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| What           | Newly derived and newly authored persona codes use canonical 3–4 character identifiers. Derivation is deterministic across the CLI and installed JTBD hook; collisions receive a bounded numeric suffix. Persisted explicit codes remain valid under the legacy 2–6 character pattern, and former derived aliases continue to resolve. |
+| Why            | Two-letter defaults are hard to recognize in JTBD and Gherkin lineage, while rewriting existing identifiers would sever historical references. A narrow canonical convention improves readability without turning a presentation improvement into a migration event.                                                                   |
+| Trade-off      | The resolver carries a small legacy-alias path, and the CLI and standalone installed hook deliberately duplicate the pure derivation policy because deployed hooks cannot import the CLI distribution. Exhausting the four-character collision namespace requires an explicit canonical override.                                      |
+| Alternatives   | Enforce 3–4 characters for every persisted code (rejected: breaks existing projects and history); keep 2–6 as the default (rejected: preserves unreadable two-letter lineage); bulk-rename historical Gherkin tags (rejected: destroys stable traceability).                                                                           |
+| Implementation | `packages/cli/src/utils/personas.ts`, `packages/cli/templates/hooks/lib/jtbd.ts`, `packages/cli/templates/personas-template.md`, and BDD authoring templates. The repo's current persona catalog uses `TBU`, `NTB`, and `SWM`; existing historical `TB` and `SM` references resolve through compatibility aliases. Ticket FAJV19.      |
 
 ### BDD as a Solo-Agent Adaptation of the Three-Practice Model (retire `decomposition` phase)
 

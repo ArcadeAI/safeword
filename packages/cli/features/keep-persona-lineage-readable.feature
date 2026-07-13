@@ -4,8 +4,8 @@ Feature: Keep persona lineage readable for builders
   catalog through JTBDs and executable Gherkin. New defaults should be mnemonic
   without invalidating identifiers already stored in customer projects.
 
-  @keep-persona-lineage-readable.TB1.R1
-  Rule: keep-persona-lineage-readable.TB1.R1 — Newly derived persona codes are canonical 3–4 letter identifiers
+  @keep-persona-lineage-readable.TBU1.R1
+  Rule: keep-persona-lineage-readable.TBU1.R1 — Newly derived persona codes are canonical 3–4 letter identifiers
 
     Scenario Outline: CLI and installed hooks derive the same canonical code
       Given a persona named "<name>" without an explicit code
@@ -44,8 +44,8 @@ Feature: Keep persona lineage readable for builders
       Then both report that the canonical collision space is exhausted
       And both messages request an explicit 3–4 letter code
 
-  @keep-persona-lineage-readable.TB1.R2
-  Rule: keep-persona-lineage-readable.TB1.R2 — Existing explicit persona codes remain valid lineage anchors
+  @keep-persona-lineage-readable.TBU1.R2
+  Rule: keep-persona-lineage-readable.TBU1.R2 — Existing explicit persona codes remain valid lineage anchors
 
     Scenario Outline: A compatible explicit code resolves unchanged
       Given a persona with the explicit code "<code>"
@@ -79,8 +79,8 @@ Feature: Keep persona lineage readable for builders
         | A       |
         | TOOLONG |
 
-  @keep-persona-lineage-readable.SM1.R1
-  Rule: keep-persona-lineage-readable.SM1.R1 — One resolved code flows unchanged from personas.md through JTBD and Gherkin lineage
+  @keep-persona-lineage-readable.SWM1.R1
+  Rule: keep-persona-lineage-readable.SWM1.R1 — One resolved code flows unchanged from personas.md through JTBD and Gherkin lineage
 
     @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario Outline: Installed assets prescribe one canonical lineage code
