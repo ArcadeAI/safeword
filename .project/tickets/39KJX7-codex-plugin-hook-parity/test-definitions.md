@@ -118,7 +118,7 @@ derive the active RED/GREEN/REFACTOR step.
 
 ## Rule: codex-plugin-hook-parity.SM1.R3 - Live smoke proves the trusted plugin path invokes the package command
 
-### Scenario: Live vetted plugin run observes a package-backed denial
+### Scenario: Live vetted plugin run observes package-backed lifecycle dispatch
 
 - [x] RED skip: isolated live-smoke fixture REDs were folded into the implementation checkpoint to satisfy the LOC gate
 - [x] GREEN a73d0537

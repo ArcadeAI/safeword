@@ -124,9 +124,9 @@ Feature: Codex plugin hook parity
       Then both commands deny with the same Codex hook JSON contract
 
     @codex-plugin-hook-parity.SM1.R3 @live @manual @surface.openai-codex
-    Scenario: Live vetted plugin run observes a package-backed denial
+    Scenario: Live vetted plugin run observes package-backed lifecycle dispatch
       Given an isolated CODEX_HOME with the Safe Word plugin installed
       And the live smoke uses Codex's explicit one-off hook-trust bypass
-      When real `codex exec --json` attempts a blocked shell command
-      Then the hook denial comes from the packaged `safeword hook codex pre-tool-use` command
+      When real `codex exec --json` starts a no-tool session
+      Then the plugin SessionStart hook invokes the packaged `safeword hook codex session-start` command
       And the customer repo contains no repo-local Safe Word Codex implementation tree

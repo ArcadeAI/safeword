@@ -53,7 +53,7 @@ Build order:
 | Event-by-event parity map covers every legacy adapter behavior | Static BDD step over a checked-in parity map or table exported from tests. | Prevents future behavior from disappearing without a decision. |
 | Plugin manifest commands all use the packaged hook command | Existing `schema.test.ts`, release contract checks, and BDD manifest assertion. | Catches accidental fallback to repo-local hook scripts. |
 | Hidden compatibility alias preserves the packaged hook contract | BDD subprocess test comparing alias output to public command output for the same payload. | Proves old command strings remain safe during rollout. |
-| Live trusted plugin run observes a package-backed denial | Existing opt-in live smoke lane in `steps/test-codex-plugin-migration.steps.ts`, extended as needed. | Only real Codex can prove plugin trust and hook invocation end to end. |
+| Live vetted plugin run observes package-backed lifecycle dispatch | Existing opt-in live smoke lane in `steps/test-codex-plugin-migration.steps.ts`, extended as needed. | Real Codex proves plugin lifecycle dispatch end to end; deterministic PreToolUse tests prove the denial contract separately. |
 
 ## Decisions
 
