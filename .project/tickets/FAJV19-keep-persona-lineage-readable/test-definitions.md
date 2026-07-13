@@ -41,7 +41,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: A pre-existing legacy JTBD reference still resolves
 
 - [x] RED 99c701ab
-- [x] GREEN ac823076
+- [x] GREEN ff1cc5f0
 - [x] REFACTOR skip: legacy derivation is isolated behind one compatibility helper per runtime boundary
 
 ### Scenario: A code outside the compatibility bounds is rejected
@@ -68,4 +68,4 @@ test-definitions.md is the R/G/R ledger.
 
 ## Feature-level cross-scenario refactor
 
-- [x] cross-scenario 03375975
+- [x] cross-scenario ff1cc5f0
