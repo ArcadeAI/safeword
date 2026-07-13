@@ -208,7 +208,9 @@ function runPackagedCodexHook(projectRoot: string, event: string, input: object 
     cwd: projectRoot,
     input: typeof input === 'string' ? input : JSON.stringify(input),
     encoding: 'utf8',
-    env: { ...process.env, CLAUDE_PROJECT_DIR: projectRoot },
+    // SessionStart upgrade notices are intentionally suppressed in CI. These
+    // fixtures exercise the interactive hook path, including visible notices.
+    env: { ...process.env, CI: '', CLAUDE_PROJECT_DIR: projectRoot },
     stdio: ['pipe', 'pipe', 'pipe'],
   });
 
