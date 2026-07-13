@@ -201,6 +201,26 @@ function runLiveShellAttempt(
   return `${result.stdout}\n${result.stderr}`;
 }
 
+function runUntrustedPluginCheck(
+  codex: string,
+  projectRoot: string,
+  environment: NodeJS.ProcessEnv,
+): void {
+  const result = run(
+    codex,
+    [
+      'exec',
+      '--json',
+      '--dangerously-bypass-approvals-and-sandbox',
+      '-C',
+      projectRoot,
+      'Reply with exactly OK. Do not use tools.',
+    ],
+    { cwd: projectRoot, env: environment, timeout: 180_000 },
+  );
+  assertSuccess(result, 'codex exec untrusted plugin check');
+}
+
 const CODEX = resolveCodex();
 const CAN_RUN = process.env.SAFEWORD_RUN_CODEX_LIVE_SMOKE === '1' && CODEX !== undefined;
 
@@ -241,9 +261,16 @@ describe.skipIf(!CAN_RUN)('live smoke: Codex packaged plugin parity', () => {
       SAFEWORD_NPX_SHIM_LOG: shimLog,
       PATH: `${npxBinDirectory}:${process.env.PATH ?? ''}`,
     };
+
+    runUntrustedPluginCheck(CODEX, projectRoot, environment);
+    expect(existsSync(shimLog)).toBe(false);
+
     const liveOutput = runLiveShellAttempt(CODEX, projectRoot, environment);
 
-    expect(readFileSync(shimLog, 'utf8')).toContain('safeword hook codex pre-tool-use');
+    expect(
+      readFileSync(shimLog, 'utf8'),
+      `Codex did not invoke plugin PreToolUse.\n${liveOutput}`,
+    ).toContain('safeword hook codex pre-tool-use');
     expect(
       liveOutput,
       `Codex did not deny the plugin PreToolUse command.\n${liveOutput}`,

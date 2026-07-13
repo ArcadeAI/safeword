@@ -305,13 +305,19 @@ function resolvePackagedHook(relativePath: string): string | undefined {
   );
 }
 
-export function packagedNamespaceRootLabel(projectDirectory: string): string | undefined {
-  const label = nodePath.relative(projectDirectory, resolveNamespaceRoot(projectDirectory)) || '.';
-  return label === '.' ||
-    label.startsWith('..') ||
-    ['.project', '.safeword-project'].includes(label)
+export function normalizeNamespaceRootLabel(label: string): string | undefined {
+  const normalizedLabel = label.replaceAll('\\', '/');
+  return normalizedLabel === '.' ||
+    normalizedLabel.startsWith('..') ||
+    ['.project', '.safeword-project'].includes(normalizedLabel)
     ? undefined
-    : label;
+    : normalizedLabel;
+}
+
+export function packagedNamespaceRootLabel(projectDirectory: string): string | undefined {
+  return normalizeNamespaceRootLabel(
+    nodePath.relative(projectDirectory, resolveNamespaceRoot(projectDirectory)) || '.',
+  );
 }
 
 function runPackagedHook(relativePath: string, rawInput: string, projectDirectory: string): string {
