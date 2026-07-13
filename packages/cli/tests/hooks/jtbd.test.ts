@@ -183,6 +183,22 @@ describe('evaluateJtbdGate (Rule 6)', () => {
     expect(verdict).toMatchObject({ reason: expect.stringContaining('no reason') });
   });
 
+  it('denies the gate with an actionable error when canonical collision space is exhausted', () => {
+    const personas = Array.from(
+      { length: 1000 },
+      (_, index) => `## Pl${index} Operator\n\n**Role:** Owns platform ${index}.`,
+    ).join('\n\n');
+    const verdict = evaluateJtbdGate(
+      spec('### x.PLO1 — t\n\n**Persona:** Pl999 Operator'),
+      personas,
+    );
+
+    expect(verdict.ok).toBe(false);
+    expect(verdict).toMatchObject({
+      reason: expect.stringMatching(/collision.*exhausted.*explicit.*3[–-]4/i),
+    });
+  });
+
   it('still resolves personas when a later JTBD carries an AC skip (31W8M3)', () => {
     // A per-JTBD AC `skip:` (after a `###`) must NOT leak into the section-level
     // skip and short-circuit persona resolution for an unresolved JTBD.
