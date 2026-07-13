@@ -46,7 +46,7 @@ function createProjectDirectory(): string {
 function runSafeword(projectDirectory: string, command: SafewordCommand): void {
   execFileSync(process.execPath, [CLI_PATH, command], {
     cwd: projectDirectory,
-    env: { ...process.env, SAFEWORD_NO_AUTO_UPGRADE: '1' },
+    env: { ...process.env, SAFEWORD_NO_AUTO_UPGRADE: '1', SAFEWORD_SKIP_INSTALL: '1' },
     stdio: 'pipe',
   });
 }
