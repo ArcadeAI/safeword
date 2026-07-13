@@ -503,7 +503,9 @@ if [ -f "$personas_file" ] && [ "$(domain_docs_entry_count)" -gt 0 ] && [ -d "$t
   # writes, to avoid a spurious E009.
   defined_codes="$(sed 's/<!--.*-->//g; /<!--/,/-->/d' "$personas_file" | grep -E '^## ' | while IFS= read -r heading; do
     name="${heading#\#\# }"
-    explicit="$(printf '%s' "$name" | grep -oE '\([A-Z][A-Z0-9]{1,5}\)$' | tr -d '()')"
+    # Trailing-whitespace-tolerant so `## Name (CODE)` still reads explicitly
+    # after a stripped inline comment left a trailing space; capture only the code.
+    explicit="$(printf '%s' "$name" | sed -nE 's/.*\(([A-Z][A-Z0-9]{1,5})\)[[:space:]]*$/\1/p')"
     if [ -n "$explicit" ]; then
       printf '%s\n' "$explicit"
       continue

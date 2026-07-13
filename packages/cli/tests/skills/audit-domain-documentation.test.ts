@@ -207,6 +207,17 @@ describe('audit domain-documentation persona drift (E009)', () => {
     expect(output).not.toContain('[W008]');
   });
 
+  it('reads an explicit code even when the heading has a trailing inline comment', () => {
+    // "Foo Bar" derives to FB, not XY — so this only resolves if the explicit
+    // (XY) is read despite the trailing space left by the stripped comment.
+    const { output } = runDomainDocumentationCheck({
+      '.project/personas.md': `# Personas\n\n## Foo Bar (XY) <!-- alias -->\n\n**Role:** x.\n`,
+      '.project/tickets/T1-x/spec.md': `# Spec\n\n**Persona:** Foo Bar (XY)\n`,
+    });
+
+    expect(output).not.toContain('[E009]');
+  });
+
   it('resolves a persona defined by name only via derived code', () => {
     const { output } = runDomainDocumentationCheck({
       // No explicit (PO) — derived from "Platform Operator" -> PO.
