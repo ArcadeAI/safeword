@@ -137,7 +137,7 @@ function resolvePersonaRefs(personasContent: string): PersonaReferenceResolution
     references.add(persona.name);
 
     const derived = derivePersonaCode(persona.name);
-    if (derived !== '') {
+    if (persona.code === undefined && derived !== '') {
       const candidate = allocateDerivedCode(derived, claimed);
       if (candidate !== undefined) {
         claimed.add(candidate);
