@@ -3,8 +3,8 @@ id: 24WR26
 slug: codex-retro-runtime-completion
 type: task
 subtype: bug-investigated
-phase: verify
-status: in_progress
+phase: done
+status: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/960
 scope:
   - Debug Codex retro auto-run behavior from real Stop hook input through child extraction, draft spooling, and filing-gate visibility.
@@ -21,7 +21,7 @@ done_when:
   - Empty findings are visibly different from extractor failure.
   - The hook remains fail-open for normal users.
 created: 2026-07-08T01:49:10.650Z
-last_modified: 2026-07-11T05:17:25Z
+last_modified: 2026-07-13T02:45:13Z
 ---
 
 # Debug Codex retro runtime completion
@@ -43,6 +43,7 @@ last_modified: 2026-07-11T05:17:25Z
 - 2026-07-08T03:37:15Z Runtime boundary captured: live Stop decided to run with readable transcript and 205 tool uses, the retro CLI reported `failureReason: spawn_nonzero` / `exitCode: 1` from Codex extraction, the parent child exited `status: 1`, no offset state was written, and filing gate stayed silent. Removed the temporary Stop-input-session switch after capture.
 - 2026-07-08T05:05:01Z Root cause fixed: exact helper replay captured Codex stderr `Not inside a trusted directory and --skip-git-repo-check was not specified.` Added `--skip-git-repo-check` to the Codex extractor argv; the same real transcript replay now exits 0 with `retro_cli_extraction ok:true`.
 - 2026-07-11T05:17:25Z Review cleanup: full audit/quality/refactor pass added direct redaction/fail-open coverage for `retro-debug.ts`, extracted shared test JSONL parsing, and fixed Knip's intentional external `shellcheck` binary finding.
+- 2026-07-13T02:45:13Z Done: PR #994 CI passed lint plus full test jobs on Node 22.22.3 and Node 24 after rebasing onto `198a8d35`; ticket metadata moved to done so the ready-PR ticket gate can run cleanly.
 
 ## Test Plan
 
@@ -78,7 +79,8 @@ Ruled out: trigger skip, missing transcript, unreadable transcript, empty-findin
 - PASS: `bun run knip`.
 - PASS: Audit rerun: config sync clean, dependency-cruiser clean, Knip clean, with baseline jscpd duplication and `knip` patch-version freshness reported.
 - PASS: `git diff --check`.
-- LIMIT: Full `bun run test` is not clean in this worktree because two unrelated tests fail and reproduce in isolation: `tests/integration/rust-golden-path.test.ts` scenario 10 and `tests/scripts/cleanup-zombies.test.ts` preview/--yes scenario. Focused retro coverage is green.
+- PASS: PR #994 GitHub CI passed full `bun run --cwd packages/cli test`, BDD, release tests, lint, format, typecheck, deps, architecture, and ticket-ID checks on rebased head `0c211f45`.
+- LOCAL LIMIT: Two unrelated tests were flaky/environment-sensitive in this Mac worktree before CI: `tests/integration/rust-golden-path.test.ts` scenario 10 depends on local Clippy suggestion behavior, and `tests/scripts/cleanup-zombies.test.ts` preview/--yes depends on macOS temp-path spelling in process command matching. CI passed both full-suite jobs on Linux.
 
 ## Runtime Evidence
 
