@@ -26,7 +26,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Exhausted collision suffixes request an explicit override
 
-- [ ] RED
+- [x] RED cdfe8581
 - [ ] GREEN
 - [ ] REFACTOR
 
