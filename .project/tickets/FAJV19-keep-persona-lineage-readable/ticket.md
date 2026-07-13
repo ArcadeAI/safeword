@@ -9,6 +9,7 @@ phase_anchors:
   - 'scenario-gate: packages/cli/features/keep-persona-lineage-readable.feature'
   - 'plan-implementation: packages/cli/features/keep-persona-lineage-readable.feature'
   - 'implement: .project/tickets/FAJV19-keep-persona-lineage-readable/impl-plan.md'
+  - 'verify: .project/tickets/FAJV19-keep-persona-lineage-readable/test-definitions.md'
 scope:
   - Derive new persona codes as 3–4 uppercase alphanumeric characters, using mnemonic name fragments and bounded collision suffixes.
   - Keep explicitly-authored legacy 2–6 character codes valid and resolvable so existing customer personas and lineage do not break on upgrade.
@@ -47,3 +48,4 @@ last_modified: 2026-07-13T22:08:35.793Z
 - 2026-07-13T22:19:00.000Z Plan gate passed: Independent reviewer returned PASS. Plan is parse-valid with six content sections, status planned, nine scenario proofs, all affected surfaces, and the riskiest legacy-compatibility assumption first. Advanced to implement.
 - 2026-07-13T23:14:00.000Z Quality review correction: Reconstructed the former six-character derivation and source-ordered collision aliases in both runtimes, prevented explicit canonical codes from reserving duplicate collision slots, and replaced source-only asset checks with real setup-installed hook and authoring-asset fixtures.
 - 2026-07-13T23:22:00.000Z Quality review passed: Fresh review approved dependency hygiene, documentation, security, scope discipline, and real setup-installed hook wiring. Advanced to verify.
+- 2026-07-13T23:50:00.000Z Verify: Persona-focused unit, integration, installed-hook, documentation, and walkthrough tests pass 143/143; Gherkin passes 429 scenarios with 3 skipped; configured build, lint, and typecheck lanes pass. Repository-wide verification remains red on two unrelated pre-existing fixtures (Rust clippy autofix and cleanup-zombie process discovery), so the ticket remains in verify.
