@@ -21,7 +21,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: A name too short for a canonical code requests an explicit override
 
 - [x] RED e0949b03
-- [ ] GREEN
+- [x] GREEN 7e2701d0
 - [ ] REFACTOR
 
 ### Scenario: Exhausted collision suffixes request an explicit override
