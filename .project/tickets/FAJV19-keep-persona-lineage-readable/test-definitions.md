@@ -34,21 +34,21 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A compatible explicit code resolves unchanged
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: compatibility is existing behavior pinned with characterization coverage
+- [x] GREEN 892683c7
+- [x] REFACTOR skip: the persisted compatibility pattern remains the single explicit-code validator
 
 ### Scenario: A pre-existing legacy JTBD reference still resolves
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 99c701ab
+- [x] GREEN ac823076
+- [x] REFACTOR skip: legacy derivation is isolated behind one compatibility helper per runtime boundary
 
 ### Scenario: A code outside the compatibility bounds is rejected
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: the existing 2–6 character boundary tests already reject one and seven characters
+- [x] GREEN 892683c7
+- [x] REFACTOR skip: explicit compatibility bounds remain expressed by one anchored regular expression
 
 ## Rule: One resolved code flows unchanged from personas.md through JTBD and Gherkin lineage
 
