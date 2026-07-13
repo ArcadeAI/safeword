@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (414)
+## Tickets (416)
 
 ### 001
 
@@ -905,6 +905,10 @@
 - **Custom paths.projectRoot: wire formatter ignores + auto-upgrade staging (1QNPCF)** (done, epic: —)
   Make the namespace-root contribution to formatter ignore-lists and the auto-upgrade owned-paths prefixes follow the _resolved_ `paths.projectRoot`, not just the static `.project/`/`.safeword-project/`.
   → `.project/tickets/1QNPCF-custom-projectroot-wiring`
+- **Debug Codex retro runtime completion (24WR26)** (done, epic: —)
+  Identify the failing Codex retro runtime boundary and add focused smoke evidence for child launch and offset writes.
+  external issue: https://github.com/ArcadeAI/safeword/issues/960
+  → `.project/tickets/24WR26-codex-retro-runtime-completion`
 - **Reconcile ARCHITECTURE.md narrative with the generated module map (25TJAR)** (in_progress, epic: —)
   ARCHITECTURE.md documents all 13 real CLI modules, the test-plan module location, the plugin/ packaging note, and the cucumber runtime deps
   → `.project/tickets/25TJAR-architecture-narrative-reconcile`
@@ -1256,6 +1260,9 @@
 - **Epic: Make safeword legible to the Non-Technical Builder (K6CAJN)** (done, epic: —)
   Close the gaps where safeword speaks to the Non-Technical Builder (NTB) in raw jargon — across the CLI terminal, first-run runtime checks, gate blocks, and the framing rules that govern translation — so a user who can't read the diff always gets a plain-language explanation and a concrete next action.
   → `.project/tickets/K6CAJN-ntb-experience-epic`
+- **Add Agent-Driven Developer (DEV) persona to personas.md (KDS0P6)** (in_progress, epic: —)
+  Add the DEV persona block so the 25 specs / 65 feature tags using code DEV resolve, clearing the E009 drift the new audit check found
+  → `.project/tickets/KDS0P6-dev-persona-entry`
 - **Absorb the two remaining private shell tokenizers into shell-segments (KQ3MRV)** (done, epic: —)
   Migrate `cursor-run-identity.ts` and `branch-staleness.ts` — the two private shell tokenizers the EDDABK code review found outside the four Bash security gates — onto the shared `shell-segments.ts` tokenizer, so the "one tokenizer, one test surface" property holds repo-wide.
   → `.project/tickets/KQ3MRV-tokenizer-absorption`
