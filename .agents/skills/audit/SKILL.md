@@ -447,15 +447,18 @@ NS_ROOT="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJEC
   if [ -d "$PROJECT_DIR/.project" ]; then NS_ROOT="$PROJECT_DIR/.project"; else NS_ROOT="$PROJECT_DIR/.safeword-project"; fi
 }
 
+# Single-source the HTML-comment strip used by every check below. Strips
+# same-line comments FIRST (`s/<!--.*-->//g`) then deletes multi-line comment
+# blocks (`/<!--/,/-->/d`): a POSIX range alone would treat a lone `<!-- x -->`
+# as an unclosed range and wipe every following line to EOF.
+strip_html_comments='s/<!--.*-->//g; /<!--/,/-->/d'
+
 # Count `## ` entries OUTSIDE HTML comments — the scaffold's example headings
-# live inside its `<!-- ... -->` comment, so a verbatim scaffold counts as zero.
-# The sed strips same-line comments FIRST (`s/<!--.*-->//g`) then deletes
-# multi-line comment blocks (`/<!--/,/-->/d`): a POSIX range alone would treat a
-# lone `<!-- x -->` as an unclosed range and wipe every following line to EOF.
-# Reads the named var `dd_file`, NOT positional `$1`: skill/command argument
-# substitution clobbers `$1` in the injected block body.
+# live inside its comment, so a verbatim scaffold counts as zero. Reads the
+# named var `dd_file`, NOT positional `$1`: skill/command argument substitution
+# clobbers `$1` in the injected block body.
 domain_docs_entry_count() {
-  sed 's/<!--.*-->//g; /<!--/,/-->/d' "$dd_file" | grep -cE '^## '
+  sed "$strip_html_comments" "$dd_file" | grep -cE '^## '
 }
 
 # --- Emptiness (W008): a domain doc with no uncommented entries ---
@@ -475,7 +478,7 @@ dd_file="$surfaces_file"
 if [ -f "$surfaces_file" ] && [ "$(domain_docs_entry_count)" -gt 0 ] && [ -d "$FEATURES_DIR" ]; then
   # Defined slugs: slugify each uncommented `## ` heading. Portable casing via
   # `tr` — BSD/macOS sed lacks `\L`.
-  defined_slugs="$(sed 's/<!--.*-->//g; /<!--/,/-->/d' "$surfaces_file" | grep -E '^## ' | sed 's/^## //' \
+  defined_slugs="$(sed "$strip_html_comments" "$surfaces_file" | grep -E '^## ' | sed 's/^## //' \
     | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9][^a-z0-9]*/-/g; s/^-//; s/-$//')"
   # Referenced slugs: @surface.<slug> on Gherkin tag lines only (line starts
   # with @), so a slug mentioned in step prose is not a reference.
@@ -501,7 +504,7 @@ if [ -f "$personas_file" ] && [ "$(domain_docs_entry_count)" -gt 0 ] && [ -d "$t
   # Engineer -> SE not SRE), and codes are the project's `[A-Z][A-Z0-9]{1,5}`
   # (>=2 chars) — prefer the explicit `(CODE)` heading, which `safeword check`
   # writes, to avoid a spurious E009.
-  defined_codes="$(sed 's/<!--.*-->//g; /<!--/,/-->/d' "$personas_file" | grep -E '^## ' | while IFS= read -r heading; do
+  defined_codes="$(sed "$strip_html_comments" "$personas_file" | grep -E '^## ' | while IFS= read -r heading; do
     name="${heading#\#\# }"
     # Trailing-whitespace-tolerant so `## Name (CODE)` still reads explicitly
     # after a stripped inline comment left a trailing space; capture only the code.
@@ -519,7 +522,7 @@ if [ -f "$personas_file" ] && [ "$(domain_docs_entry_count)" -gt 0 ] && [ -d "$t
   done)"
   # Referenced codes: (CODE) from spec **Persona:** lines, comments stripped.
   referenced_codes="$(for spec in "$tickets_dir"/*/spec.md; do
-    [ -f "$spec" ] && sed 's/<!--.*-->//g; /<!--/,/-->/d' "$spec"
+    [ -f "$spec" ] && sed "$strip_html_comments" "$spec"
   done 2> /dev/null | grep -E '^\*\*Persona:\*\*' | grep -oE '\([A-Z][A-Z0-9]{1,5}\)' | tr -d '()' | sort -u)"
   for code in $referenced_codes; do
     if ! printf '%s\n' $defined_codes | grep -qxF "$code"; then
