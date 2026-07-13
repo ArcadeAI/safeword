@@ -477,6 +477,17 @@ describe('lookupPersonaReference', () => {
     expect(result.match.code).toBe('PO');
   });
 
+  it('keeps a legacy initials reference valid after an explicit canonical-code migration', () => {
+    const migrated = buildResolvedFixture(
+      '## Safeword Maintainer (SWM)\n\n**Role:** Maintains safeword.\n',
+    );
+    const result = lookupPersonaReference(migrated, 'SM');
+
+    assert(result.status === 'valid');
+    expect(result.match.name).toBe('Safeword Maintainer');
+    expect(result.match.code).toBe('SWM');
+  });
+
   it('casing mismatch on code returns unknown with suggestion', () => {
     const result = lookupPersonaReference(fixture, 'po');
     assert(result.status === 'unknown');

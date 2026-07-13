@@ -171,6 +171,13 @@ describe('evaluateJtbdGate (Rule 6)', () => {
     expect(verdict.ok).toBe(true);
   });
 
+  it('resolves a legacy initials reference after the persona adopts a canonical code', () => {
+    const personas = '## Safeword Maintainer (SWM)\n\n**Role:** Maintains safeword.\n';
+    const verdict = evaluateJtbdGate(spec('### x.SM1 — t\n\n**Persona:** SM'), personas);
+
+    expect(verdict.ok).toBe(true);
+  });
+
   it('still denies an unknown persona after derivation (G9BXE9)', () => {
     const personas = '## Platform Operator\n\n**Role:** Owns infra.\n';
     const verdict = evaluateJtbdGate(spec('### a\n\n**Persona:** Ghost Persona'), personas);
