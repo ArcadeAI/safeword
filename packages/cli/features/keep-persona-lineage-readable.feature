@@ -39,8 +39,8 @@ Feature: Keep persona lineage readable for builders
 
     @rejection
     Scenario: Exhausted collision suffixes request an explicit override
-      Given an ordered persona catalog has claimed "PLO" and every suffix from "PLO2" through "PLO9"
-      When the CLI resolver and installed JTBD hook resolve another persona deriving "PLO"
+      Given an ordered persona catalog contains 1000 names deriving "PLO"
+      When the CLI resolver and installed JTBD hook resolve the catalog
       Then both report that the canonical collision space is exhausted
       And both messages request an explicit 3–4 letter code
 
