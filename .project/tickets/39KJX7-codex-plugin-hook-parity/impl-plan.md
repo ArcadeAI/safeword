@@ -46,7 +46,7 @@ Build order:
 | Packaged Stop emits architecture continuation before filing continuation | BDD subprocess fixture using existing `quality-state` and retro draft helpers from integration tests. | Proves continuation precedence and one-continuation behavior. |
 | Packaged Stop runs retro extraction invisibly | BDD subprocess fixture with injected retro child command and transcript fixture. | Proves the extraction path is invoked without depending on model output. |
 | Packaged Stop fails open with valid JSON | BDD direct subprocess malformed-input test. | Guards the lifecycle boundary every Stop run crosses. |
-| Packaged SessionStart runs auto-upgrade before emitting SAFEWORD context | `packages/cli/features/steps/auto-upgrade-codex.steps.ts` extension or BDD step with shared auto-upgrade core controlled as no-op. | Proves single-dispatcher sequencing. |
+| Packaged SessionStart runs auto-upgrade before emitting package-owned SAFEWORD context | `packages/cli/features/steps/auto-upgrade-codex.steps.ts` extension or BDD step with shared auto-upgrade core controlled as no-op. | Proves single-dispatcher sequencing without repo-local instructions. |
 | Packaged SessionStart includes upgrade notices without exit-code blocking | `packages/cli/tests/hooks/auto-upgrade-core.test.ts` plus CLI subprocess exit-code coverage. | Preserves Codex notice semantics without blocking session startup. |
 | Packaged UserPromptSubmit emits queued Safe Word prompt context | BDD direct subprocess test with `.project/codex-prompt-context.txt`. | Proves queued context remains project-owned data. |
 | Packaged UserPromptSubmit stays quiet with no queued prompt context | BDD direct subprocess test with no queue file. | Guards stale/default context emission. |
@@ -71,7 +71,7 @@ Build order:
 | PreToolUse | Translate Codex payloads; run shared quality gate; preserve denial output; record skill and review-stamp identities. | Partial: only direct intake-field denial and skill identity. | Preserve. |
 | PostToolUse | Translate edit/shell payloads; run shared quality state accumulator; forward review additionalContext; run language skill nudge. | Partial: only reads a queued context file. | Preserve. |
 | Stop | Run retro extraction invisibly; emit architecture continuation; emit retro filing continuation; fail open with `{}`. | Partial: only reads queued stop continuation file. | Preserve, while keeping queued continuation as an additive compatibility path if tests prove no conflict. |
-| SessionStart | Emit SAFEWORD.md context and run Codex auto-upgrade through one dispatcher. | Partial: emits SAFEWORD.md only. | Preserve. |
+| SessionStart | Emit package-owned SAFEWORD.md context and run Codex auto-upgrade through one dispatcher. | Partial: emits SAFEWORD.md only. | Preserve. |
 | UserPromptSubmit | Surface queued prompt context, including retro filing nudges. | Mostly preserved through queued context file. | Preserve; empty queue must stay silent. |
 | Self-report crash capture | Attribute unexpected hook crashes to Codex without breaking the user turn. | CLI-level crash capture already exists; legacy adapter-local capture is not yet proven through packaged hook scenarios. | Defer: file a follow-up if implementation removes adapter-local crash capture or if quality review finds package-level crash attribution insufficient. |
 

@@ -72,11 +72,11 @@ Feature: Codex plugin hook parity
   Rule: SessionStart preserves context and auto-upgrade behavior through one dispatcher
 
     @codex-plugin-hook-parity.TB1.R4 @surface.openai-codex @surface.safe-word-packaged-cli
-    Scenario: Packaged SessionStart runs auto-upgrade before emitting SAFEWORD context
+    Scenario: Packaged SessionStart runs auto-upgrade before emitting package-owned SAFEWORD context
       Given a Codex project with no applicable Safe Word upgrade
       When the packaged Codex SessionStart command runs
       Then it invokes the shared auto-upgrade core
-      And it emits SessionStart additionalContext containing SAFEWORD.md
+      And it emits SessionStart additionalContext containing package-owned SAFEWORD.md
 
     @codex-plugin-hook-parity.TB1.R4 @surface.openai-codex @surface.safe-word-packaged-cli
     Scenario: Packaged SessionStart includes upgrade notices without exit-code blocking

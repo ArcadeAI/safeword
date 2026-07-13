@@ -54,7 +54,7 @@ Feature: Test Codex plugin migration
       And the fixture has a feature ticket missing intake prerequisites
       When the packaged Codex PreToolUse entrypoint receives a supported edit payload for that ticket's `test-definitions.md`
       Then the hook output denies the edit with the existing Safe Word phase-gate reason
-      And the denial tells the Codex user to run the scoped Safe Word explain skill
+      And the denial tells the Codex user to run the Safe Word explain guidance
 
     Scenario: SessionStart context runs through the packaged CLI entrypoint
       Given the Safe Word package has been packed and installed into a fixture project

@@ -295,8 +295,12 @@ function deny(reason: string): void {
 }
 
 function readPackagedSafewordInstructions(): string | undefined {
-  const instructionsPath = SAFEWORD_INSTRUCTIONS_PATHS.find(candidate => existsSync(candidate));
+  const instructionsPath = findPackagedSafewordInstructionsPath();
   return instructionsPath ? readFileSync(instructionsPath, 'utf8') : undefined;
+}
+
+function findPackagedSafewordInstructionsPath(): string | undefined {
+  return SAFEWORD_INSTRUCTIONS_PATHS.find(candidate => existsSync(candidate));
 }
 
 function resolvePackagedHook(relativePath: string): string | undefined {
@@ -349,6 +353,12 @@ function runPackagedHook(relativePath: string, rawInput: string, projectDirector
         ...process.env,
         CLAUDE_PROJECT_DIR: projectDirectory,
         SAFEWORD_AGENT_RUNTIME: 'codex',
+        // The copied dispatcher keeps its auto-upgrade behavior, but the plugin
+        // must inject package-owned instructions rather than project-local text.
+        SAFEWORD_PACKAGED_CONTEXT_PATH:
+          relativePath === 'session-codex-start.ts'
+            ? (findPackagedSafewordInstructionsPath() ?? '')
+            : '',
       },
       stdio: ['pipe', 'pipe', 'pipe'],
     });

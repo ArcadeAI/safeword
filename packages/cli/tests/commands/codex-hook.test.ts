@@ -94,4 +94,25 @@ describe('packagedNamespaceRootLabel', () => {
       'knowledge/UPGRADE.md',
     );
   });
+
+  it('injects package-owned SessionStart instructions instead of project-local text', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-'));
+    directories.push(projectDirectory);
+    mkdirSync(nodePath.join(projectDirectory, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(projectDirectory, '.safeword', 'SAFEWORD.md'),
+      'PROJECT-LOCAL INSTRUCTIONS MUST NOT APPEAR',
+    );
+
+    const result = spawnSync(process.execPath, [CLI_PATH, 'hook', 'codex', 'session-start'], {
+      cwd: projectDirectory,
+      input: JSON.stringify({ hook_event_name: 'SessionStart', cwd: projectDirectory }),
+      encoding: 'utf8',
+      env: { ...process.env, SAFEWORD_NO_AUTO_UPGRADE: '1' },
+    });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain('SAFEWORD Agent Instructions');
+    expect(result.stdout).not.toContain('PROJECT-LOCAL INSTRUCTIONS MUST NOT APPEAR');
+  });
 });

@@ -66,9 +66,9 @@ derive the active RED/GREEN/REFACTOR step.
 - [x] GREEN 70f9ed72
 - [x] REFACTOR skip: no additional behavior beyond the shared Stop response contract
 
-## Rule: codex-plugin-hook-parity.TB1.R4 - SessionStart preserves context and auto-upgrade behavior through one dispatcher
+## Rule: codex-plugin-hook-parity.TB1.R4 - SessionStart preserves package-owned context and auto-upgrade behavior through one dispatcher
 
-### Scenario: Packaged SessionStart runs auto-upgrade before emitting SAFEWORD context
+### Scenario: Packaged SessionStart runs auto-upgrade before emitting package-owned SAFEWORD context
 
 - [x] RED skip: focused scenario proved the old bundled-context shortcut before dispatcher wiring
 - [x] GREEN 7d5d8561

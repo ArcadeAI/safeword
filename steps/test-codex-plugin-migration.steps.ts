@@ -528,6 +528,11 @@ function createCompleteFeatureTicket(projectRoot: string): void {
       '',
     ].join('\n'),
   );
+  writeFileSync(
+    nodePath.join(ticketDirectory, 'spec.md'),
+    '## Jobs To Be Done\n\nskip: fixture exercises hook delivery\n',
+  );
+  writeFileSync(nodePath.join(ticketDirectory, 'dimensions.md'), 'skip: fixture has one path\n');
 }
 
 function createCodexHookContractFixture(): string {
@@ -2035,10 +2040,10 @@ Then(
 );
 
 Then(
-  'the denial tells the Codex user to run the scoped Safe Word explain skill',
+  'the denial tells the Codex user to run the Safe Word explain guidance',
   function (this: CodexPluginMigrationWorld) {
     const output = `${this.codexPluginHookResult?.stdout ?? ''}\n${this.codexPluginHookResult?.stderr ?? ''}`;
-    assert.match(output, /safeword:explain/u);
+    assert.match(output, /\$explain/u);
   },
 );
 

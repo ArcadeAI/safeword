@@ -105,7 +105,7 @@ Unaffected:
 
 #### codex-plugin-hook-parity.TB1.R3 - Stop preserves continuations, retro work, and fail-open behavior
 
-#### codex-plugin-hook-parity.TB1.R4 - SessionStart preserves context and auto-upgrade behavior through one dispatcher
+#### codex-plugin-hook-parity.TB1.R4 - SessionStart preserves package-owned context and auto-upgrade behavior through one dispatcher
 
 #### codex-plugin-hook-parity.TB1.R5 - UserPromptSubmit preserves queued prompt context
 

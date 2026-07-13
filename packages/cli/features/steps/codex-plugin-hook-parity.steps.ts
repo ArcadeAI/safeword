@@ -679,20 +679,20 @@ Then('it invokes the shared auto-upgrade core', function (this: SafewordWorld) {
   const parsed = JSON.parse(this.result.stdout) as {
     hookSpecificOutput?: { additionalContext?: string };
   };
-  assert.match(
-    parsed.hookSpecificOutput?.additionalContext ?? '',
-    /Project SAFEWORD context after upgrade check/u,
-  );
+  assert.match(parsed.hookSpecificOutput?.additionalContext ?? '', /SAFEWORD Agent Instructions/u);
 });
 
 Then(
-  'it emits SessionStart additionalContext containing SAFEWORD.md',
+  'it emits SessionStart additionalContext containing package-owned SAFEWORD.md',
   function (this: SafewordWorld) {
     const parsed = JSON.parse(this.result.stdout) as {
       hookSpecificOutput?: { hookEventName?: string; additionalContext?: string };
     };
     assert.equal(parsed.hookSpecificOutput?.hookEventName, 'SessionStart');
-    assert.match(parsed.hookSpecificOutput?.additionalContext ?? '', /SAFEWORD/u);
+    assert.match(
+      parsed.hookSpecificOutput?.additionalContext ?? '',
+      /SAFEWORD Agent Instructions/u,
+    );
   },
 );
 
@@ -704,7 +704,7 @@ Then('the notice is included in SessionStart additionalContext', function (this:
   };
   assert.match(parsed.systemMessage ?? '', /v2\.0\.0 available \(major\)/u);
   assert.equal(parsed.hookSpecificOutput?.hookEventName, 'SessionStart');
-  assert.match(parsed.hookSpecificOutput?.additionalContext ?? '', /Project context/u);
+  assert.match(parsed.hookSpecificOutput?.additionalContext ?? '', /SAFEWORD Agent Instructions/u);
 });
 
 Then('the command exits successfully', function (this: SafewordWorld) {
