@@ -27,8 +27,8 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Exhausted collision suffixes request an explicit override
 
 - [x] RED cdfe8581
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN f457a265
+- [x] REFACTOR skip: bounded allocation is centralized in one helper at each required runtime boundary
 
 ## Rule: Existing explicit persona codes remain valid lineage anchors
 
