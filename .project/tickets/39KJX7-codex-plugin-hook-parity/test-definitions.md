@@ -22,9 +22,9 @@ derive the active RED/GREEN/REFACTOR step.
 
 ### Scenario: Packaged PreToolUse preserves the shared shell safety gate
 
-- [x] RED: focused scenario failed before the shared PreToolUse adapter delegated to `codex/pre-tool-quality.ts`
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED a73d0537
+- [x] GREEN a73d0537
+- [x] REFACTOR skip: the packaged adapter intentionally delegates to the existing shared hook
 
 ## Rule: codex-plugin-hook-parity.TB1.R2 - PostToolUse preserves quality state and language-skill nudges
 
@@ -120,9 +120,9 @@ derive the active RED/GREEN/REFACTOR step.
 
 ### Scenario: Live vetted plugin run observes a package-backed denial
 
-- [x] RED: isolated live smoke failed until its marketplace used Codex's current `.agents/plugins/marketplace.json` layout
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED a73d0537
+- [x] GREEN a73d0537
+- [x] REFACTOR skip: the isolated marketplace and local CLI shim are test-only boundary infrastructure
 
 ## Feature-level cross-scenario refactor
 
