@@ -461,6 +461,26 @@ for doc in personas surfaces glossary; do
     echo "[W008] Empty domain doc: $doc.md — fill from packages/cli/templates/$doc-template.md (BDD intake references degrade until filled)"
   fi
 done
+
+# --- Surface drift (E008): @surface.<slug> tag referenced but undefined ---
+# Suppressed when surfaces.md is empty/absent — W008 already says "fill it".
+FEATURES_DIR="$PROJECT_DIR/features"
+surfaces_file="$NS_ROOT/surfaces.md"
+if [ -f "$surfaces_file" ] && [ "$(domain_docs_entry_count "$surfaces_file")" -gt 0 ] && [ -d "$FEATURES_DIR" ]; then
+  # Defined slugs: slugify each uncommented `## ` heading. Portable casing via
+  # `tr` — BSD/macOS sed lacks `\L`.
+  defined_slugs="$(sed '/<!--/,/-->/d' "$surfaces_file" | grep -E '^## ' | sed 's/^## //' \
+    | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9][^a-z0-9]*/-/g; s/^-//; s/-$//')"
+  # Referenced slugs: @surface.<slug> on Gherkin tag lines only (line starts
+  # with @), so a slug mentioned in step prose is not a reference.
+  referenced_slugs="$(grep -rhE '^[[:space:]]*@' "$FEATURES_DIR" 2> /dev/null \
+    | grep -oE '@surface\.[a-z0-9-]+' | sed 's/^@surface\.//' | sort -u)"
+  for slug in $referenced_slugs; do
+    if ! printf '%s\n' $defined_slugs | grep -qxF "$slug"; then
+      echo "[E008] Surface drift: @surface.$slug referenced in features/ but no matching entry in surfaces.md"
+    fi
+  done
+fi
 ```
 
 ---

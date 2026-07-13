@@ -92,3 +92,59 @@ describe('audit domain-documentation emptiness (W008)', () => {
     expect(output).not.toContain('glossary.md');
   });
 });
+
+const MULTIWORD_SURFACES = `# Surfaces\n\n## Claude Code on the Web\n\n**Kind:** Agent runtime\n\n## Cursor\n\n**Kind:** Agent runtime\n`;
+
+function tagLineFeature(...tags: string[]): string {
+  return `Feature: fixture\n\n  ${tags.join(' ')}\n  Scenario: one\n    Given a thing\n    When it happens\n    Then it holds\n`;
+}
+
+describe('audit domain-documentation surface drift (E008)', () => {
+  it('reports a surface tag with no matching inventory entry', () => {
+    const { output } = runDomainDocumentationCheck({
+      '.project/surfaces.md': POPULATED_SURFACES,
+      'features/x.feature': tagLineFeature('@surface.safeword-cli'),
+    });
+
+    expect(output).toContain('[E008]');
+    expect(output).toContain('safeword-cli');
+  });
+
+  it('does not report drift when every tag resolves, including multi-word headings', () => {
+    const { output } = runDomainDocumentationCheck({
+      '.project/surfaces.md': MULTIWORD_SURFACES,
+      'features/x.feature': tagLineFeature('@surface.claude-code-on-the-web', '@surface.cursor'),
+    });
+
+    expect(output).not.toContain('[E008]');
+  });
+
+  it('does not report a surface defined but referenced by no tag', () => {
+    const { output } = runDomainDocumentationCheck({
+      '.project/surfaces.md': POPULATED_SURFACES,
+      'features/x.feature': tagLineFeature('@surface.claude-code'),
+    });
+
+    expect(output).not.toContain('[E008]');
+  });
+
+  it('does not treat a surface slug mentioned only in prose as a reference', () => {
+    const proseOnly = `Feature: fixture\n\n  Scenario: one\n    Given the @surface.safeword-cli tag is discussed in prose\n    When it happens\n    Then it holds\n`;
+    const { output } = runDomainDocumentationCheck({
+      '.project/surfaces.md': POPULATED_SURFACES,
+      'features/x.feature': proseOnly,
+    });
+
+    expect(output).not.toContain('[E008]');
+  });
+
+  it('suppresses surface drift when surfaces.md is an empty scaffold', () => {
+    const { output } = runDomainDocumentationCheck({
+      '.project/surfaces.md': SURFACES_SCAFFOLD,
+      'features/x.feature': tagLineFeature('@surface.safeword-cli'),
+    });
+
+    expect(output).toContain('[W008]');
+    expect(output).not.toContain('[E008]');
+  });
+});

@@ -54,27 +54,27 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A verbatim surfaces scaffold is reported empty
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED be88ad48
+- [x] GREEN be88ad48
+- [x] REFACTOR be88ad48
 
 ### Scenario: A verbatim glossary scaffold is reported empty
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED be88ad48
+- [x] GREEN be88ad48
+- [x] REFACTOR be88ad48
 
 ### Scenario: A populated domain doc is not reported empty
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED be88ad48
+- [x] GREEN be88ad48
+- [x] REFACTOR be88ad48
 
 ### Scenario: An absent domain doc is skipped, not reported empty
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED be88ad48
+- [x] GREEN be88ad48
+- [x] REFACTOR be88ad48
 
 ### Scenario: An empty domain doc suppresses its own drift codes
 
