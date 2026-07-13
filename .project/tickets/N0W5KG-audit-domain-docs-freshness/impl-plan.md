@@ -1,6 +1,25 @@
 # Impl Plan: Audit checks namespace domain docs for emptiness and drift
 
-**Status:** planned
+**Status:** implemented
+
+## Reconciliation (implement exit)
+
+Shipped as planned across 4 TDD slices (be88ad48 emptiness, 55efd801 surface,
+53b3f63a persona, b599c826 advisory+legend). Every Decision held:
+
+- **E009 spec-only** — feature lineage source dropped; verified on the real repo
+  it emits the true `DEV` drift, no ticket-ID storm.
+- **Comment-aware emptiness** — `sed '/<!--/,/-->/d'` then `^##` count (perl
+  swapped for sed to avoid a runtime dep, as the plan already recorded).
+- **`[ -d "$NS_ROOT" ]` fallback**, **`tr` slugify** (no `\L`), **empty-suppresses-drift**,
+  **marker-based extractor** — all implemented and covered by the 18 tests.
+- **Derivation fallback** — implemented AND covered by a dedicated test
+  (`resolves a persona defined by name only via derived code`).
+- **Report Format legend** — E008/E009/W008 added; content-parity asserted
+  across all 3 mirrors.
+
+No new deviations beyond those already listed under Known deviations; no ADR
+emitted (skill-behavior extension of an existing pattern).
 
 ## Approach
 

@@ -19,7 +19,7 @@ function extractDomainDocumentationBlock(): string {
   const content = readSurface('packages/cli/templates/skills/audit/SKILL.md');
   const block = content
     .matchAll(/```bash\n([\s\S]*?)\n```/g)
-    .map(match => match[1])
+    .map(match => match[1] ?? '')
     .find(body => body.includes('domain-docs-check'));
   if (!block) throw new Error('domain-docs-check bash block not found in audit SKILL.md');
   return block;
