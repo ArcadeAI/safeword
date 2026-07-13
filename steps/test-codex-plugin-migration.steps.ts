@@ -23,6 +23,7 @@ const SAFEWORD_CODEX_PLUGIN_ROOT = nodePath.resolve(
   '..',
   'packages/cli/codex-plugin',
 );
+const CODEX_PLUGIN_MANIFEST_PATH = '.codex-plugin/plugin.json';
 const SAFEWORD_CLI_PATH = nodePath.resolve(import.meta.dirname, '..', 'packages/cli/dist/cli.js');
 const CODEX_TEST_TICKET_ID = 'ABC123';
 const REPO_LOCAL_SAFEWORD_SENTINEL = 'REPO LOCAL SAFEWORD SHOULD NOT APPEAR';
@@ -336,6 +337,21 @@ function prepareMarketplacePlugin(marketplaceRoot: string): CommandResult | unde
   return undefined;
 }
 
+function validateMarketplacePlugin(marketplaceRoot: string): CommandResult | undefined {
+  const manifestPath = nodePath.join(
+    marketplaceRoot,
+    'plugins/safeword',
+    CODEX_PLUGIN_MANIFEST_PATH,
+  );
+  if (existsSync(manifestPath)) return undefined;
+
+  return {
+    stdout: '',
+    stderr: `plugin manifest validation failure: missing plugin.json at ${manifestPath}`,
+    exitCode: 1,
+  };
+}
+
 function runCodexPluginCommand(this: CodexPluginMigrationWorld, args: string[]): CommandResult {
   return runCommand('codex', args, {
     cwd: requirePath(this.codexPluginRepoRoot, 'fresh repo root'),
@@ -429,6 +445,13 @@ function installSafeWordCodexPlugin(this: CodexPluginMigrationWorld): void {
   const marketplacePreparation = prepareMarketplacePlugin(marketplaceRoot);
   if (marketplacePreparation) {
     this.codexPluginInstallResult = marketplacePreparation;
+    return;
+  }
+
+  const marketplaceValidation = validateMarketplacePlugin(marketplaceRoot);
+  if (marketplaceValidation) {
+    this.codexPluginInstallResult = marketplaceValidation;
+    this.codexPluginInstallSummary = summarizePluginInstallResult(marketplaceValidation);
     return;
   }
 
@@ -825,6 +848,13 @@ When(
   'the plugin install harness tries to install the Safe Word Codex plugin',
   function (this: CodexPluginMigrationWorld) {
     const marketplaceRoot = requirePath(this.codexPluginMarketplaceRoot, 'local marketplace root');
+
+    const marketplaceValidation = validateMarketplacePlugin(marketplaceRoot);
+    if (marketplaceValidation) {
+      this.codexPluginInstallResult = marketplaceValidation;
+      this.codexPluginInstallSummary = summarizePluginInstallResult(marketplaceValidation);
+      return;
+    }
 
     const addMarketplaceResult = runCodexPluginCommand.call(this, [
       'plugin',
