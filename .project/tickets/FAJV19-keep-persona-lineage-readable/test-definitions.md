@@ -10,7 +10,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 83421c41
 - [x] GREEN 91bdc3be
-- [ ] REFACTOR
+- [x] REFACTOR skip: duplicated derivation is the required installed-hook boundary and both copies are already concise
 
 ### Scenario: A first collision stays inside the canonical length
 
