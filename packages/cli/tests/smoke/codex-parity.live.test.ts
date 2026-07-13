@@ -1,31 +1,37 @@
 /**
- * Live Codex parity smoke (ticket CXP9LM / GitHub #394).
+ * Live Codex plugin smoke (ticket CXP9LM / GitHub #394).
  *
  * This is deliberately opt-in: it launches a real `codex exec` session and may
  * spend tokens. Run with:
  *
  *   SAFEWORD_RUN_CODEX_LIVE_SMOKE=1 bun run --cwd packages/cli test:smoke:live
  *
- * The smoke proves supported hook-adapter behavior in a real Codex session.
- * Codex may still report subsequent `file_change` execution items; those are
- * tracked as a runtime boundary, not as the supported PreToolUse adapter path.
+ * The smoke installs the packaged plugin into an isolated CODEX_HOME. Its npx
+ * command is intercepted only for `safeword` and dispatched to this checkout's
+ * built CLI, proving the plugin manifest invokes the code under test instead of
+ * the currently published npm package.
  */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 const CLI_PATH = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
-const TICKET_ID = 'ABC123';
-const TEST_DEFINITIONS_PATH = `.project/tickets/${TICKET_ID}/test-definitions.md`;
-const TEST_DEFINITIONS_PATCH = `*** Begin Patch
-*** Add File: ${TEST_DEFINITIONS_PATH}
-+# Test Definitions
-*** End Patch
-`;
+const PLUGIN_PATH = nodePath.resolve(import.meta.dirname, '../../codex-plugin');
+const LIVE_MARKETPLACE_NAME = 'safeword-live-smoke';
+const NPM_SHIM_LOG = 'npx-safeword-invocations.log';
+const SYSTEM_NPX_PATH = spawnSync('which', ['npx'], { encoding: 'utf8' }).stdout.trim();
 
 function resolveCodex(): string | undefined {
   const candidates = [process.env.SMOKE_CODEX_BIN, 'codex'].filter(Boolean) as string[];
@@ -38,16 +44,19 @@ function resolveCodex(): string | undefined {
   return undefined;
 }
 
-function run(
-  command: string,
-  args: string[],
-  options: { cwd: string; input?: string; timeout?: number },
-) {
+interface RunOptions {
+  cwd: string;
+  env?: NodeJS.ProcessEnv;
+  input?: string;
+  timeout?: number;
+}
+
+function run(command: string, args: string[], options: RunOptions) {
   const result = spawnSync(command, args, {
     cwd: options.cwd,
     input: options.input,
     encoding: 'utf8',
-    env: process.env,
+    env: { ...process.env, ...options.env },
     stdio: ['pipe', 'pipe', 'pipe'],
     timeout: options.timeout ?? 60_000,
   });
@@ -72,6 +81,7 @@ function assertSuccess(
 function createFixture(): string {
   const projectRoot = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-live-'));
   run('git', ['init', '-q'], { cwd: projectRoot });
+  if (SYSTEM_NPX_PATH === '') throw new Error('live smoke requires npx on PATH');
   writeFileSync(
     nodePath.join(projectRoot, 'package.json'),
     JSON.stringify({ name: 'codex-live-fixture', version: '1.0.0' }, undefined, 2),
@@ -79,115 +89,101 @@ function createFixture(): string {
   return projectRoot;
 }
 
-function setupSafeword(projectRoot: string) {
-  const result = spawnSync(process.execPath, [CLI_PATH, 'setup', '--yes', '--no-modify'], {
-    cwd: projectRoot,
-    encoding: 'utf8',
-    env: { ...process.env, SAFEWORD_SKIP_INSTALL: '1' },
-    stdio: ['ignore', 'pipe', 'pipe'],
-    timeout: 60_000,
-  });
-
-  return {
-    status: result.status,
-    stdout: result.stdout ?? '',
-    stderr: result.stderr ?? '',
-  };
+function createAuthenticatedCodexHome(): string {
+  const codexHome = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-home-'));
+  const sourceAuthPath = nodePath.join(
+    process.env.CODEX_HOME ?? nodePath.join(homedir(), '.codex'),
+    'auth.json',
+  );
+  if (!existsSync(sourceAuthPath)) {
+    throw new Error('live smoke requires an authenticated Codex CLI');
+  }
+  cpSync(sourceAuthPath, nodePath.join(codexHome, 'auth.json'));
+  return codexHome;
 }
 
-function writeIncompleteTicket(projectRoot: string): void {
-  const ticketDirectory = nodePath.join(projectRoot, '.project', 'tickets', TICKET_ID);
-  mkdirSync(ticketDirectory, { recursive: true });
+function createMarketplace(root: string): string {
+  const marketplaceRoot = nodePath.join(root, 'marketplace');
+  const pluginRoot = nodePath.join(marketplaceRoot, 'plugins', 'safeword');
+  const manifestDirectory = nodePath.join(marketplaceRoot, '.agents', 'plugins');
+  mkdirSync(manifestDirectory, { recursive: true });
+  cpSync(PLUGIN_PATH, pluginRoot, { recursive: true });
   writeFileSync(
-    nodePath.join(ticketDirectory, 'ticket.md'),
-    [
-      '---',
-      `id: ${TICKET_ID}`,
-      'type: feature',
-      'phase: define-behavior',
-      'status: in_progress',
-      '---',
-      '',
-      '# Live smoke fixture',
-      '',
-    ].join('\n'),
+    nodePath.join(manifestDirectory, 'marketplace.json'),
+    `${JSON.stringify(
+      {
+        name: LIVE_MARKETPLACE_NAME,
+        description: 'Isolated Safe Word plugin smoke marketplace.',
+        owner: { name: 'Safe Word test suite' },
+        plugins: [
+          {
+            name: 'safeword',
+            description: 'Safe Word test plugin.',
+            source: { source: 'local', path: './plugins/safeword' },
+            policy: { installation: 'AVAILABLE', authentication: 'ON_INSTALL' },
+            category: 'Developer Tools',
+          },
+        ],
+      },
+      undefined,
+      2,
+    )}\n`,
   );
+  return marketplaceRoot;
 }
 
-function writeCompleteTicket(projectRoot: string): void {
-  const ticketDirectory = nodePath.join(projectRoot, '.project', 'tickets', TICKET_ID);
-  mkdirSync(ticketDirectory, { recursive: true });
+function writeNpxShim(root: string): string {
+  const binDirectory = nodePath.join(root, 'bin');
+  const shimPath = nodePath.join(binDirectory, 'npx');
+  mkdirSync(binDirectory, { recursive: true });
   writeFileSync(
-    nodePath.join(ticketDirectory, 'ticket.md'),
-    [
-      '---',
-      `id: ${TICKET_ID}`,
-      'type: feature',
-      'phase: define-behavior',
-      'status: in_progress',
-      'scope:',
-      '  - prove the live Codex parity smoke',
-      'out_of_scope:',
-      '  - changing production hook policy',
-      'done_when:',
-      '  - Codex hook behavior is observed',
-      '---',
-      '',
-      '# Live smoke fixture',
-      '',
-    ].join('\n'),
+    shimPath,
+    `#!/bin/sh
+set -eu
+if [ "\${1:-}" = "--yes" ] && [ "\${2:-}" = "safeword" ]; then
+  printf '%s\\n' "$*" >> "$SAFEWORD_NPX_SHIM_LOG"
+  shift 2
+  exec "${process.execPath}" "${CLI_PATH}" "$@"
+fi
+exec "${SYSTEM_NPX_PATH}" "$@"
+`,
+    { mode: 0o755 },
   );
-  writeFileSync(nodePath.join(ticketDirectory, 'dimensions.md'), 'skip: one obvious dimension');
-  writeFileSync(
-    nodePath.join(ticketDirectory, 'spec.md'),
-    [
-      '# Spec: Codex Live Smoke',
-      '',
-      '## Jobs To Be Done',
-      '',
-      '### codex-live-smoke.SM1 - Observe Codex hook behavior',
-      '',
-      '**Persona:** Safeword Maintainer (SM)',
-      '',
-      '> When I run a live Codex smoke, I want hook behavior recorded, so I can close parity honestly.',
-      '',
-      '#### codex-live-smoke.SM1.AC1 - Hook behavior is observable',
-      '',
-    ].join('\n'),
-  );
-  writeFileSync(
-    nodePath.join(projectRoot, '.project', 'personas.md'),
-    '# Personas\n\n## Safeword Maintainer (SM)\n\n**Role:** Maintains safeword.\n',
-  );
+  return binDirectory;
 }
 
-function runInstalledCodexHook(projectRoot: string) {
-  return run(process.execPath, [CLI_PATH, 'hook', 'codex', 'pre-tool-use'], {
-    cwd: projectRoot,
-    input: JSON.stringify({
-      hook_event_name: 'PreToolUse',
-      tool_name: 'apply_patch',
-      tool_input: { command: TEST_DEFINITIONS_PATCH },
+function installPlugin(
+  codex: string,
+  projectRoot: string,
+  codexHome: string,
+  marketplaceRoot: string,
+): void {
+  const environment = { CODEX_HOME: codexHome };
+  assertSuccess(
+    run(codex, ['plugin', 'marketplace', 'add', marketplaceRoot, '--json'], {
+      cwd: projectRoot,
+      env: environment,
     }),
-  });
+    'codex plugin marketplace add',
+  );
+  assertSuccess(
+    run(codex, ['plugin', 'add', `safeword@${LIVE_MARKETPLACE_NAME}`, '--json'], {
+      cwd: projectRoot,
+      env: environment,
+    }),
+    'codex plugin add',
+  );
 }
 
-function inspectPromptInput(codex: string, projectRoot: string): string {
-  const result = run(codex, ['debug', 'prompt-input', 'List visible safeword context.'], {
-    cwd: projectRoot,
-    timeout: 60_000,
-  });
-  assertSuccess(result, 'codex debug prompt-input');
-  return `${result.stdout}\n${result.stderr}`;
-}
-
-function runLiveEditAttempt(codex: string, projectRoot: string): string {
+function runLiveShellAttempt(
+  codex: string,
+  projectRoot: string,
+  environment: NodeJS.ProcessEnv,
+): string {
   const prompt = [
-    `Use the apply_patch tool to create ${TEST_DEFINITIONS_PATH}.`,
-    'The file content must be exactly: # Test Definitions',
-    'Do not use a shell command.',
+    'Use the Bash tool now to execute exactly `killall bun`.',
+    'Do not use a different tool or explain the command.',
   ].join(' ');
-
   const result = run(
     codex,
     [
@@ -199,81 +195,59 @@ function runLiveEditAttempt(codex: string, projectRoot: string): string {
       projectRoot,
       prompt,
     ],
-    { cwd: projectRoot, timeout: 180_000 },
+    { cwd: projectRoot, env: environment, timeout: 180_000 },
   );
-  assertSuccess(result, 'codex exec live edit attempt');
+  assertSuccess(result, 'codex exec live shell attempt');
   return `${result.stdout}\n${result.stderr}`;
 }
 
 const CODEX = resolveCodex();
 const CAN_RUN = process.env.SAFEWORD_RUN_CODEX_LIVE_SMOKE === '1' && CODEX !== undefined;
 
-describe.skipIf(!CAN_RUN)('live smoke: Codex customer-repo parity', () => {
+describe.skipIf(!CAN_RUN)('live smoke: Codex packaged plugin parity', () => {
   let projectRoot: string;
+  let codexHome: string;
+  let npxBinDirectory: string;
+  let marketplaceRoot: string;
 
   beforeAll(() => {
+    if (!CODEX) throw new Error('unreachable: CAN_RUN guards codex presence');
     projectRoot = createFixture();
-    const setup = setupSafeword(projectRoot);
-    assertSuccess(setup, 'safeword setup');
-    expect(`${setup.stdout}\n${setup.stderr}`).toContain('run `/hooks`');
+    codexHome = createAuthenticatedCodexHome();
+    npxBinDirectory = writeNpxShim(codexHome);
+    marketplaceRoot = createMarketplace(codexHome);
+    installPlugin(CODEX, projectRoot, codexHome, marketplaceRoot);
   });
 
   afterAll(() => {
     rmSync(projectRoot, { recursive: true, force: true });
+    rmSync(codexHome, { recursive: true, force: true });
   });
 
-  it('installs Codex assets and exposes current live execution gaps', () => {
+  it('runs this checkout CLI through the installed plugin and denies unsafe shell commands', () => {
     if (!CODEX) throw new Error('unreachable: CAN_RUN guards codex presence');
 
-    expect(existsSync(nodePath.join(projectRoot, '.codex/config.toml'))).toBe(true);
-    expect(existsSync(nodePath.join(projectRoot, '.agents/skills/explain/SKILL.md'))).toBe(false);
-    expect(
-      existsSync(nodePath.join(projectRoot, '.safeword/hooks/codex/pre-tool-quality.ts')),
-    ).toBe(false);
-    expect(readFileSync(nodePath.join(projectRoot, '.codex/config.toml'), 'utf8')).toContain(
-      'npx --yes safeword hook codex pre-tool-use',
+    expect(existsSync(nodePath.join(codexHome, 'config.toml'))).toBe(true);
+    expect(readFileSync(nodePath.join(codexHome, 'config.toml'), 'utf8')).toContain(
+      `plugins."safeword@${LIVE_MARKETPLACE_NAME}"`,
     );
+    expect(existsSync(nodePath.join(projectRoot, '.codex'))).toBe(false);
+    expect(existsSync(nodePath.join(projectRoot, '.safeword'))).toBe(false);
+    expect(existsSync(nodePath.join(projectRoot, '.agents'))).toBe(false);
 
-    const promptInput = inspectPromptInput(CODEX, projectRoot);
-    const seesProjectInstructions =
-      promptInput.includes('.safeword/SAFEWORD.md') || promptInput.includes('.safeword/AGENTS.md');
-    if (!seesProjectInstructions) {
-      console.warn(
-        ['Codex live smoke finding:', `projectInstructionsVisible=${seesProjectInstructions}`].join(
-          ' ',
-        ),
-      );
-    }
+    const shimLog = nodePath.join(codexHome, NPM_SHIM_LOG);
+    const environment = {
+      CODEX_HOME: codexHome,
+      SAFEWORD_NPX_SHIM_LOG: shimLog,
+      PATH: `${npxBinDirectory}:${process.env.PATH ?? ''}`,
+    };
+    const liveOutput = runLiveShellAttempt(CODEX, projectRoot, environment);
 
-    writeIncompleteTicket(projectRoot);
-    const directDeny = runInstalledCodexHook(projectRoot);
-    expect(directDeny.stdout).toContain('permissionDecision');
-    expect(directDeny.stdout).toContain('$explain');
-
-    writeCompleteTicket(projectRoot);
-    const directAllow = runInstalledCodexHook(projectRoot);
-    expect(directAllow.stdout.trim()).toBe('');
-    expect(directAllow.stderr.trim()).toBe('');
-
-    rmSync(nodePath.join(projectRoot, TEST_DEFINITIONS_PATH), { force: true });
-    writeIncompleteTicket(projectRoot);
-
-    const liveOutput = runLiveEditAttempt(CODEX, projectRoot);
-    const liveDenied = liveOutput.includes('Command blocked by PreToolUse hook');
-    const usedFileChangePath = liveOutput.includes('"type":"file_change"');
-
+    expect(readFileSync(shimLog, 'utf8')).toContain('safeword hook codex pre-tool-use');
     expect(
-      liveDenied,
-      `Codex did not deny the supported apply_patch edit path.\n${liveOutput}`,
-    ).toBe(true);
-
-    if (usedFileChangePath) {
-      expect(readFileSync(nodePath.join(projectRoot, TEST_DEFINITIONS_PATH), 'utf8')).toContain(
-        '# Test Definitions',
-      );
-      console.warn(
-        'Codex live smoke finding: codex exec reported file_change after the supported apply_patch path was denied.',
-      );
-    }
+      liveOutput,
+      `Codex did not deny the plugin PreToolUse command.\n${liveOutput}`,
+    ).toContain('Command blocked by PreToolUse hook');
+    expect(liveOutput).toContain('killall');
   });
 });

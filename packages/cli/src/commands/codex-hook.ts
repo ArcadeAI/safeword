@@ -305,26 +305,36 @@ function resolvePackagedHook(relativePath: string): string | undefined {
   );
 }
 
+export function packagedNamespaceRootLabel(projectDirectory: string): string | undefined {
+  const label = nodePath.relative(projectDirectory, resolveNamespaceRoot(projectDirectory)) || '.';
+  return label === '.' ||
+    label.startsWith('..') ||
+    ['.project', '.safeword-project'].includes(label)
+    ? undefined
+    : label;
+}
+
 function runPackagedHook(relativePath: string, rawInput: string, projectDirectory: string): string {
   const hookPath = resolvePackagedHook(relativePath);
   if (!hookPath) return '';
 
   let executableHookPath = hookPath;
   let temporaryHookDirectory: string | undefined;
-  if (relativePath === 'session-codex-start.ts') {
-    // The installed dispatcher imports a project-generated ownership list. Build
-    // that one generated dependency in a temporary package copy for CLI delivery.
-    temporaryHookDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-'));
-    cpSync(nodePath.dirname(hookPath), temporaryHookDirectory, { recursive: true });
-    writeFileSync(
-      nodePath.join(temporaryHookDirectory, 'lib', 'owned-paths.ts'),
-      generateOwnedPathsModule(SAFEWORD_SCHEMA),
-      'utf8',
-    );
-    executableHookPath = nodePath.join(temporaryHookDirectory, nodePath.basename(hookPath));
-  }
 
   try {
+    if (relativePath === 'session-codex-start.ts') {
+      // The installed dispatcher imports a project-generated ownership list. Build
+      // that one generated dependency in a temporary package copy for CLI delivery.
+      temporaryHookDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-'));
+      cpSync(nodePath.dirname(hookPath), temporaryHookDirectory, { recursive: true });
+      writeFileSync(
+        nodePath.join(temporaryHookDirectory, 'lib', 'owned-paths.ts'),
+        generateOwnedPathsModule(SAFEWORD_SCHEMA, packagedNamespaceRootLabel(projectDirectory)),
+        'utf8',
+      );
+      executableHookPath = nodePath.join(temporaryHookDirectory, nodePath.basename(hookPath));
+    }
+
     const result = spawnSync('bun', [executableHookPath], {
       cwd: projectDirectory,
       input: rawInput,
@@ -378,10 +388,17 @@ function maybeDenyTestDefinitionsWrite(projectDirectory: string, targetPath: str
 }
 
 async function runPreToolUse(): Promise<void> {
-  const input = parseCodexHookInput(await readStdin());
+  const rawInput = await readStdin();
+  const projectDirectory = resolveProjectDirectory();
+  const qualityOutput = runPackagedHook('codex/pre-tool-quality.ts', rawInput, projectDirectory);
+  if (qualityOutput.trim() !== '') {
+    process.stdout.write(qualityOutput);
+    return;
+  }
+
+  const input = parseCodexHookInput(rawInput);
   if (!input) return;
 
-  const projectDirectory = resolveProjectDirectory();
   rememberCodexRunIdentity({
     projectDirectory,
     sessionId: input.session_id,

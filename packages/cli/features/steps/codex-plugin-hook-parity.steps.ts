@@ -240,6 +240,19 @@ Given('a Codex session id and project namespace root', function (this: SafewordW
   mkdirSync(nodePath.join(this.temporaryDirectory, '.project'), { recursive: true });
 });
 
+Given(
+  'a Codex project with a dangerous broad process-kill command',
+  function (this: CodexPluginHookParityWorld) {
+    this.temporaryDirectory = createProject('safeword-codex-plugin-hook-parity-');
+    this.codexHookInput = {
+      hook_event_name: 'PreToolUse',
+      session_id: 'codex-shell-safety-session',
+      tool_name: 'Bash',
+      tool_input: { command: 'killall bun' },
+    };
+  },
+);
+
 When(
   'the packaged Codex PreToolUse command sees Safe Word proof commands',
   function (this: SafewordWorld) {
@@ -254,6 +267,18 @@ When(
       tool_name: 'Bash',
       tool_input: { command },
     });
+  },
+);
+
+When(
+  'the packaged Codex PreToolUse command receives that shell command',
+  function (this: CodexPluginHookParityWorld) {
+    assert.ok(this.codexHookInput, 'Codex shell command input was not prepared');
+    this.result = runPackagedCodexHook(
+      this.temporaryDirectory,
+      'pre-tool-use',
+      this.codexHookInput,
+    );
   },
 );
 
@@ -562,6 +587,15 @@ Then(
       { id: 'codex-session-1', skillName: 'review-stamp' },
     );
     assert.match(reviewStampIdentity.recordedAt ?? '', /^\d{4}-\d{2}-\d{2}T/u);
+  },
+);
+
+Then(
+  'it denies the command with the shared process-kill gate reason',
+  function (this: SafewordWorld) {
+    assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
+    assert.match(this.result.stdout, /killall/u);
+    assert.match(this.result.stdout, /permissionDecision":"deny/u);
   },
 );
 

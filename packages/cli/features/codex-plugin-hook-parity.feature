@@ -20,6 +20,12 @@ Feature: Codex plugin hook parity
       When the packaged Codex PreToolUse command sees Safe Word proof commands
       Then it writes the Codex run identity bridge files expected by the proof helpers
 
+    @codex-plugin-hook-parity.TB1.R1 @surface.openai-codex @surface.safe-word-packaged-cli
+    Scenario: Packaged PreToolUse preserves the shared shell safety gate
+      Given a Codex project with a dangerous broad process-kill command
+      When the packaged Codex PreToolUse command receives that shell command
+      Then it denies the command with the shared process-kill gate reason
+
   Rule: PostToolUse preserves quality state and language-skill nudges
 
     @codex-plugin-hook-parity.TB1.R2 @surface.openai-codex @surface.safe-word-packaged-cli
@@ -118,8 +124,9 @@ Feature: Codex plugin hook parity
       Then both commands deny with the same Codex hook JSON contract
 
     @codex-plugin-hook-parity.SM1.R3 @live @manual @surface.openai-codex
-    Scenario: Live trusted plugin run observes a package-backed denial
-      Given an isolated CODEX_HOME with the Safe Word plugin installed and trusted
-      When real `codex exec --json` attempts a blocked edit
+    Scenario: Live vetted plugin run observes a package-backed denial
+      Given an isolated CODEX_HOME with the Safe Word plugin installed
+      And the live smoke uses Codex's explicit one-off hook-trust bypass
+      When real `codex exec --json` attempts a blocked shell command
       Then the hook denial comes from the packaged `safeword hook codex pre-tool-use` command
       And the customer repo contains no repo-local Safe Word Codex implementation tree

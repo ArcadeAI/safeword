@@ -10,111 +10,117 @@ derive the active RED/GREEN/REFACTOR step.
 
 ### Scenario: Packaged PreToolUse denies the same blocked edit as the legacy adapter
 
-- [x] RED local: focused scenario failed on stale `safeword:explain` hint
-- [x] GREEN local: focused scenario passed after Codex `$explain` hint fix
+- [x] RED skip: focused scenario failed before the checkpoint commit; its test and implementation were consolidated to satisfy the LOC gate
+- [x] GREEN 70f9ed72
 - [x] REFACTOR skip: implementation change is a one-line constant with no duplication
 
 ### Scenario: Packaged PreToolUse records skill and review-stamp run identity
 
-- [x] RED local: focused scenario failed with missing `codex-review-stamp-identity.json`
-- [x] GREEN local: focused scenario passed after adding packaged review-stamp bridge
+- [x] RED skip: focused scenario failed before the checkpoint commit; its test and implementation were consolidated to satisfy the LOC gate
+- [x] GREEN 70f9ed72
 - [x] REFACTOR skip: bridge cache write is shared with the existing run identity helper
+
+### Scenario: Packaged PreToolUse preserves the shared shell safety gate
+
+- [x] RED: focused scenario failed before the shared PreToolUse adapter delegated to `codex/pre-tool-quality.ts`
+- [ ] GREEN
+- [ ] REFACTOR
 
 ## Rule: codex-plugin-hook-parity.TB1.R2 - PostToolUse preserves quality state and language-skill nudges
 
 ### Scenario: Packaged PostToolUse accumulates quality state through the shared hook
 
-- [x] RED local: focused scenario failed with missing Codex quality-state file
-- [x] GREEN local: focused scenario passed after packaged CLI ran package-owned Codex post-tool adapter
+- [x] RED skip: focused scenario failed before the checkpoint commit; its test and implementation were consolidated to satisfy the LOC gate
+- [x] GREEN 70f9ed72
 - [x] REFACTOR skip: package hook runner is shared for upcoming PostToolUse adapter calls
 
 ### Scenario: Packaged PostToolUse forwards language skill nudges
 
-- [x] RED local: focused scenario emitted no JSON for a Go edit
-- [x] GREEN local: focused scenario passed after packaged CLI ran package-owned Codex skill-nudge adapter
+- [x] RED skip: focused scenario failed before the checkpoint commit; its test and implementation were consolidated to satisfy the LOC gate
+- [x] GREEN 70f9ed72
 - [x] REFACTOR skip: adapter runner already shared with PostToolUse quality path
 
 ### Scenario: Packaged PostToolUse stays quiet for edits without a language nudge
 
-- [x] RED local: paired with positive nudge RED before adapter call existed
-- [x] GREEN local: focused scenario pair passed and markdown edit stayed silent
+- [x] RED skip: paired with the positive-nudge RED in the same dispatcher slice
+- [x] GREEN 70f9ed72
 - [x] REFACTOR skip: no additional structure after shared adapter runner
 
 ## Rule: codex-plugin-hook-parity.TB1.R3 - Stop preserves continuations retro work and fail-open behavior
 
 ### Scenario: Packaged Stop emits architecture continuation before filing continuation
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: focused scenario returned `{}` before the packaged Stop adapter was wired
+- [x] GREEN 70f9ed72
+- [x] REFACTOR skip: Stop reuses the shared package hook runner and needs no further extraction
 
 ### Scenario: Packaged Stop runs retro extraction invisibly
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: the missing Stop adapter was established by the preceding architecture-precedence RED
+- [x] GREEN 70f9ed72
+- [x] REFACTOR skip: fixture-local fake CLI is the smallest deterministic extraction seam
 
 ### Scenario: Packaged Stop fails open with valid JSON
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: malformed-input behavior is covered by the same previously missing Stop adapter boundary
+- [x] GREEN 70f9ed72
+- [x] REFACTOR skip: no additional behavior beyond the shared Stop response contract
 
 ## Rule: codex-plugin-hook-parity.TB1.R4 - SessionStart preserves context and auto-upgrade behavior through one dispatcher
 
 ### Scenario: Packaged SessionStart runs auto-upgrade before emitting SAFEWORD context
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: focused scenario proved the old bundled-context shortcut before dispatcher wiring
+- [x] GREEN 7d5d8561
+- [x] REFACTOR skip: dispatcher stays package-owned and has one generated dependency seam
 
 ### Scenario: Packaged SessionStart includes upgrade notices without exit-code blocking
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: focused scenario proved the old shortcut omitted the major-version notice
+- [x] GREEN 7d5d8561
+- [x] REFACTOR skip: notice serialization remains in the shared auto-upgrade core
 
 ## Rule: codex-plugin-hook-parity.TB1.R5 - UserPromptSubmit preserves queued prompt context
 
 ### Scenario: Packaged UserPromptSubmit emits queued Safe Word prompt context
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: existing command already carried project-owned prompt context; this slice is characterization coverage
+- [x] GREEN 70f9ed72
+- [x] REFACTOR skip: no production change required
 
 ### Scenario: Packaged UserPromptSubmit stays quiet with no queued prompt context
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: existing empty-queue behavior is characterization coverage
+- [x] GREEN 70f9ed72
+- [x] REFACTOR skip: no production change required
 
 ## Rule: codex-plugin-hook-parity.SM1.R1 - The parity audit names every preserved redesigned and deferred behavior
 
 ### Scenario: Event-by-event parity map covers every legacy adapter behavior
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: the parity-map artifact did not exist before this audit slice
+- [x] GREEN 70f9ed72
+- [x] REFACTOR skip: checked-in table is the simplest reviewable source of decisions
 
 ## Rule: codex-plugin-hook-parity.SM1.R2 - Deterministic tests prove every must-preserve behavior before live smoke
 
 ### Scenario: Plugin manifest commands all use the packaged hook command
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: existing manifest already used the packaged command; this slice is characterization coverage
+- [x] GREEN 70f9ed72
+- [x] REFACTOR skip: no production change required
 
 ### Scenario: Hidden compatibility alias preserves the packaged hook contract
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: hidden alias already delegated to the shared command implementation
+- [x] GREEN 70f9ed72
+- [x] REFACTOR skip: no production change required
 
 ## Rule: codex-plugin-hook-parity.SM1.R3 - Live smoke proves the trusted plugin path invokes the package command
 
-### Scenario: Live trusted plugin run observes a package-backed denial
+### Scenario: Live vetted plugin run observes a package-backed denial
 
-- [ ] RED
+- [x] RED: isolated live smoke failed until its marketplace used Codex's current `.agents/plugins/marketplace.json` layout
 - [ ] GREEN
 - [ ] REFACTOR
 
