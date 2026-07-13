@@ -299,20 +299,20 @@ describe('resolvePersonaCodes', () => {
   it('derives missing codes from names', () => {
     const parsed = parsePersonas('## Platform Operator\n**Role:** A\n');
     const resolved = resolvePersonaCodes(parsed);
-    expect(resolved[0]?.code).toBe('PO');
+    expect(resolved[0]?.code).toBe('PLO');
   });
 
   it('appends suffix on collision with existing explicit code', () => {
     const content = [
-      '## Partner Org (PO)',
+      '## Partner Org (PLO)',
       '**Role:** A',
       '',
       '## Platform Operator',
       '**Role:** B',
     ].join('\n');
     const resolved = resolvePersonaCodes(parsePersonas(content));
-    expect(resolved[0]?.code).toBe('PO');
-    expect(resolved[1]?.code).toBe('PO2');
+    expect(resolved[0]?.code).toBe('PLO');
+    expect(resolved[1]?.code).toBe('PLO2');
   });
 
   it('chains suffix when multiple derivations collide', () => {
@@ -320,29 +320,29 @@ describe('resolvePersonaCodes', () => {
       '## Platform Operator',
       '**Role:** A',
       '',
-      '## Product Owner',
+      '## Planning Owner',
       '**Role:** B',
       '',
-      '## Partner Org',
+      '## Plugin Operator',
       '**Role:** C',
     ].join('\n');
     const resolved = resolvePersonaCodes(parsePersonas(content));
-    expect(resolved.map(p => p.code)).toEqual(['PO', 'PO2', 'PO3']);
+    expect(resolved.map(p => p.code)).toEqual(['PLO', 'PLO2', 'PLO3']);
   });
 
   it('explicit code claims its slot regardless of file order', () => {
-    // Auto-derived Platform Operator (line 1) WOULD be PO; the explicit (PO)
+    // Auto-derived Platform Operator (line 1) WOULD be PLO; the explicit (PLO)
     // on Partner Org (line 4) wins because explicit codes are claimed first.
     const content = [
       '## Platform Operator',
       '**Role:** A',
       '',
-      '## Partner Org (PO)',
+      '## Partner Org (PLO)',
       '**Role:** B',
     ].join('\n');
     const resolved = resolvePersonaCodes(parsePersonas(content));
-    expect(resolved[0]?.code).toBe('PO2');
-    expect(resolved[1]?.code).toBe('PO');
+    expect(resolved[0]?.code).toBe('PLO2');
+    expect(resolved[1]?.code).toBe('PLO');
   });
 });
 

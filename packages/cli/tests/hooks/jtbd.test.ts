@@ -118,6 +118,12 @@ describe('knownPersonaRefs (Rule 5)', () => {
     expect(references.has('Platform Operator (PLO)')).toBe(true);
   });
 
+  it('allocates canonical collision suffixes in persona source order', () => {
+    const references = knownPersonaReferences('## Platform Operator\n\n## Planning Owner\n');
+    expect(references.has('Platform Operator (PLO)')).toBe(true);
+    expect(references.has('Planning Owner (PLO2)')).toBe(true);
+  });
+
   it('does not contain an undeclared reference', () => {
     expect(knownPersonaReferences('## Platform Operator (PO)\n').has('End User')).toBe(false);
   });
