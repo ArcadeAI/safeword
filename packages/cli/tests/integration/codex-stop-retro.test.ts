@@ -23,6 +23,7 @@ import { offsetStatePath, sentinelPath } from '../../templates/hooks/lib/retro-t
 import { readSessionReports } from '../../templates/hooks/lib/self-report.js';
 import {
   createTemporaryDirectory,
+  readJsonlFile,
   removeTemporaryDirectory,
   retroDraft,
   TIMEOUT_QUICK,
@@ -105,6 +106,7 @@ function expectNoContinuation(result: ReturnType<typeof runHook>): void {
 describe('codex/stop.ts retro adapter (CDX602)', () => {
   let dir: string;
   let recordPath: string;
+  let debugLogPath: string;
   const sessionIds: string[] = [];
 
   function freshSession(tag: string): string {
@@ -116,6 +118,7 @@ describe('codex/stop.ts retro adapter (CDX602)', () => {
   beforeEach(() => {
     dir = createTemporaryDirectory();
     recordPath = nodePath.join(dir, 'child-record.json');
+    debugLogPath = nodePath.join(dir, 'retro-debug.jsonl');
   });
   afterEach(() => {
     removeTemporaryDirectory(dir);
@@ -153,6 +156,49 @@ describe('codex/stop.ts retro adapter (CDX602)', () => {
     expect(record.argv[record.argv.indexOf('--transcript') + 1]).toBe(transcript);
     expect(record.argv[record.argv.indexOf('--window-start') + 1]).toBe('0');
     expect(record.argv[record.argv.indexOf('--session-id') + 1]).toBe(id);
+    expect(existsSync(offsetStatePath(id))).toBe(true);
+  });
+
+  it('writes opt-in sanitized diagnostics for Codex Stop child failures', () => {
+    writeConfig(dir, { surface: true });
+    installFakeLocalCli(dir, { exitCode: 7 });
+    const transcript = writeCodexRollout(dir, 'big.jsonl', 8);
+    const id = freshSession('debugfail');
+
+    const result = runHook(
+      dir,
+      { session_id: id, transcript_path: transcript, cwd: dir },
+      {
+        RECORD_PATH: recordPath,
+        SAFEWORD_RETRO_DEBUG_LOG: debugLogPath,
+      },
+    );
+
+    expect(result.status).toBe(0);
+    expectNoContinuation(result);
+    expect(existsSync(offsetStatePath(id))).toBe(false);
+
+    const events = readJsonlFile(debugLogPath);
+    expect(events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          event: 'codex_stop_retro_decision',
+          outcome: 'run',
+          toolUses: 8,
+          windowStart: 0,
+        }),
+        expect.objectContaining({
+          event: 'codex_stop_child_exit',
+          status: 7,
+          ok: false,
+          timedOut: false,
+          pendingOffsetState: true,
+        }),
+      ]),
+    );
+    const rawTrace = readFileSync(debugLogPath, 'utf8');
+    expect(rawTrace).not.toContain('function_call');
+    expect(rawTrace).not.toContain(transcript);
   });
 
   it('codex-retro-parity.SM2.AC1.stays_silent_without_child_on_below_threshold_codex_session', () => {

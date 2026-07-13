@@ -23,6 +23,7 @@ import process from 'node:process';
 import { getActiveTicket } from '../lib/active-ticket.ts';
 import { architectureDocumentNudgeForProject } from '../lib/architecture-document-nudge.ts';
 import { readSessionActiveTicket } from '../lib/quality-state.ts';
+import { recordRetroDebugEvent } from '../lib/retro-debug.ts';
 import { decideRetroFilingGate } from '../lib/retro-filing-gate.ts';
 import { RETRO_CHILD_ENV, retroChildArgs } from '../lib/retro-extract.ts';
 import { resolveRunIdentity } from '../lib/run-identity.ts';
@@ -77,8 +78,19 @@ function resolveExtractCommand(
     : ['bunx', ['safeword@latest', ...retroArgs]];
 }
 
+function argvShape(args: readonly string[]): string[] {
+  return args.map(arg => (arg === 'retro' || arg.startsWith('--') ? arg : '<value>'));
+}
+
 function runRetroExtraction(projectDirectory: string, input: CodexStopInput): void {
-  if (!readSelfReportConfig(projectDirectory).surface) return;
+  if (!readSelfReportConfig(projectDirectory).surface) {
+    recordRetroDebugEvent({
+      event: 'codex_stop_retro_decision',
+      outcome: 'skip',
+      reason: 'surface_disabled',
+    });
+    return;
+  }
 
   let pendingOffsetState:
     { sessionId: string; state: OffsetState; baseDirectory: string | undefined } | undefined;
@@ -86,6 +98,9 @@ function runRetroExtraction(projectDirectory: string, input: CodexStopInput): vo
     env: process.env,
     countToolUses: countToolUsesCodex,
     resolveSessionId: resolveCodexSessionId,
+    onDecision: trace => {
+      recordRetroDebugEvent({ event: 'codex_stop_retro_decision', ...trace });
+    },
     writeOffsetState: (sessionId, state, baseDirectory) => {
       pendingOffsetState = { sessionId, state, baseDirectory };
     },
@@ -93,6 +108,7 @@ function runRetroExtraction(projectDirectory: string, input: CodexStopInput): vo
   if (!decision) return;
 
   const [command, args] = resolveExtractCommand(projectDirectory, decision);
+  const startedAt = Date.now();
   const result = spawnSync(command, args, {
     cwd: projectDirectory,
     env: {
@@ -103,7 +119,22 @@ function runRetroExtraction(projectDirectory: string, input: CodexStopInput): vo
     stdio: 'ignore',
     timeout: 600_000,
   });
-  if (result.status !== 0 || result.error || !pendingOffsetState) return;
+  const error = result.error as (Error & { code?: string }) | undefined;
+  const ok = result.status === 0 && !result.error && pendingOffsetState !== undefined;
+  recordRetroDebugEvent({
+    event: 'codex_stop_child_exit',
+    command: nodePath.basename(command),
+    argvShape: argvShape(args),
+    status: result.status,
+    signal: result.signal,
+    errorName: error?.name,
+    errorCode: error?.code,
+    elapsedMs: Date.now() - startedAt,
+    timedOut: error?.code === 'ETIMEDOUT',
+    pendingOffsetState: pendingOffsetState !== undefined,
+    ok,
+  });
+  if (!ok) return;
 
   try {
     writeOffsetState(
@@ -111,7 +142,17 @@ function runRetroExtraction(projectDirectory: string, input: CodexStopInput): vo
       pendingOffsetState.state,
       pendingOffsetState.baseDirectory,
     );
+    recordRetroDebugEvent({
+      event: 'codex_stop_offset_write',
+      sessionId: pendingOffsetState.sessionId,
+      ok: true,
+    });
   } catch {
+    recordRetroDebugEvent({
+      event: 'codex_stop_offset_write',
+      sessionId: pendingOffsetState.sessionId,
+      ok: false,
+    });
     // A state-write failure must not make Stop visible or blocking.
   }
 }
@@ -142,6 +183,11 @@ async function main(): Promise<string> {
   // tripwire, file gates the dispatch — evaluate unconditionally.
   const sessionId = resolveCodexSessionId(input, process.env);
   const dispatch = sessionId ? decideRetroFilingGate(projectDirectory, sessionId) : undefined;
+  recordRetroDebugEvent({
+    event: 'codex_stop_filing_gate',
+    sessionId,
+    dispatch: dispatch !== undefined,
+  });
   if (dispatch) return JSON.stringify({ decision: 'block', reason: dispatch });
 
   return SILENT;

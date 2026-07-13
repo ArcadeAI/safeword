@@ -7,6 +7,7 @@
 
 ## Tickets (410)
 ## Tickets (412)
+## Tickets (414)
 
 ### 001
 
@@ -1013,6 +1014,9 @@
 - **Architecture guide: state-vs-ADR split + polyglot boundary enforcement (Slice 4, scoped) (8JMV3Q)** (done, epic: —)
   Split `architecture-guide.md` so it documents BOTH architecture-doc
   → `.project/tickets/8JMV3Q-architecture-guide-state-vs-adr-split`
+- **Audit checks docs drift against the plan's Doc impact baseline (91YDB6)** (in_progress, epic: —)
+  Teach /audit's docs-drift check to read the active/closed ticket's impl-plan Doc impact section (TXRHMD decision 22) as its expectation baseline: enumerated docs.sources surfaces must have been updated, skips must carry reasons. Builds on 3BTGMW's docs.sources config and lands after TXRHMD ships the section.
+  → `.project/tickets/91YDB6-audit-doc-impact-baseline`
 - **Auto-upgrade should skip the safeword dev (dogfood) repo (975N5T)** (done, epic: —)
   Make `session-auto-upgrade.ts` detect the safeword dev (dogfood) repo and skip the auto-upgrade entirely — e.g. if `packages/cli/templates/` exists (the canonical source) or the root `package.json` name is the safeword package itself, no-op instead of re-installing the published version.
   → `.project/tickets/975N5T-auto-upgrade-skip-dogfood-repo`
@@ -1156,7 +1160,7 @@
 - **ticket new --parent links epic and child (F9W3JP)** (done, epic: —)
   One command wires a new child ticket to its epic across navigation and the index, with no dual-write drift
   → `.project/tickets/F9W3JP-epic-child-linker`
-- **Unify session-id sanitizers behind a parity contract (FG6V57)** (in_progress, epic: —)
+- **Unify session-id sanitizers behind a parity contract (FG6V57)** (done, epic: —)
   One sanitization rule (charset + substitute + length cap) pinned byte-identical across triage.ts, retro-draft-spool.ts, and self-report.ts via the parity contracts schema
   → `.project/tickets/FG6V57-unify-session-token`
 - **ticket-slug-rename (FM5EDA)** (open, epic: —)
@@ -1355,6 +1359,10 @@
 - **Merge engine: warn when a JSON-merge target exists but won't parse (TIA4M8)** (done, epic: —)
   When `safeword setup`/`upgrade` reconciles a `jsonMerge` target that
   → `.project/tickets/TIA4M8-merge-warn-unparseable`
+- **plan-implementation phase before TDD (TXRHMD)** (done, epic: —)
+  Insert a gated `plan-implementation` phase between scenario-gate and implement so no TDD RED starts before a valid, reviewed impl-plan.md exists (GitHub #480).
+  external issue: https://github.com/ArcadeAI/safeword/issues/480
+  → `.project/tickets/TXRHMD-plan-implementation-phase`
 - **Surface a present-but-unparseable workspace manager (coverage honesty) (UWP4XK)** (todo, epic: —)
   A workspace manager that is *present* at the repo root but whose member
   → `.project/tickets/UWP4XK-unparseable-workspace-coverage`
