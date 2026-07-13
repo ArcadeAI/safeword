@@ -1,8 +1,19 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
 
+import { generateOwnedPathsModule } from '../owned-paths.js';
+import { SAFEWORD_SCHEMA } from '../schema.js';
 import { resolveNamespaceRoot } from '../utils/configured-paths.js';
 
 type AdditionalContextHookEvent = 'PostToolUse' | 'SessionStart' | 'UserPromptSubmit';
@@ -298,19 +309,38 @@ function runPackagedHook(relativePath: string, rawInput: string, projectDirector
   const hookPath = resolvePackagedHook(relativePath);
   if (!hookPath) return '';
 
-  const result = spawnSync('bun', [hookPath], {
-    cwd: projectDirectory,
-    input: rawInput,
-    encoding: 'utf8',
-    env: {
-      ...process.env,
-      CLAUDE_PROJECT_DIR: projectDirectory,
-      SAFEWORD_AGENT_RUNTIME: 'codex',
-    },
-    stdio: ['pipe', 'pipe', 'pipe'],
-  });
+  let executableHookPath = hookPath;
+  let temporaryHookDirectory: string | undefined;
+  if (relativePath === 'session-codex-start.ts') {
+    // The installed dispatcher imports a project-generated ownership list. Build
+    // that one generated dependency in a temporary package copy for CLI delivery.
+    temporaryHookDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-'));
+    cpSync(nodePath.dirname(hookPath), temporaryHookDirectory, { recursive: true });
+    writeFileSync(
+      nodePath.join(temporaryHookDirectory, 'lib', 'owned-paths.ts'),
+      generateOwnedPathsModule(SAFEWORD_SCHEMA),
+      'utf8',
+    );
+    executableHookPath = nodePath.join(temporaryHookDirectory, nodePath.basename(hookPath));
+  }
 
-  return result.stdout ?? '';
+  try {
+    const result = spawnSync('bun', [executableHookPath], {
+      cwd: projectDirectory,
+      input: rawInput,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        CLAUDE_PROJECT_DIR: projectDirectory,
+        SAFEWORD_AGENT_RUNTIME: 'codex',
+      },
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+
+    return result.stdout ?? '';
+  } finally {
+    if (temporaryHookDirectory) rmSync(temporaryHookDirectory, { recursive: true, force: true });
+  }
 }
 
 function readProjectTextFile(projectDirectory: string, relativePath: string): string | undefined {
