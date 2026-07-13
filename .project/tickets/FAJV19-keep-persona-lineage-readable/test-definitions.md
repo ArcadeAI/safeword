@@ -8,7 +8,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: CLI and installed hooks derive the same canonical code
 
-- [ ] RED
+- [x] RED 83421c41
 - [ ] GREEN
 - [ ] REFACTOR
 
