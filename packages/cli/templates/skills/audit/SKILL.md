@@ -451,6 +451,10 @@ NS_ROOT="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJEC
 # same-line comments FIRST (`s/<!--.*-->//g`) then deletes multi-line comment
 # blocks (`/<!--/,/-->/d`): a POSIX range alone would treat a lone `<!-- x -->`
 # as an unclosed range and wipe every following line to EOF.
+# Line-based limitation (accepted): a `## ` heading that shares its line with a
+# multi-line comment OPENER (`## Foo <!-- note` … `-->`) is deleted with the
+# comment — well-formed markdown keeps headings on their own line, so this never
+# bites the real docs; pinned by a test so any change to it stays conscious.
 strip_html_comments='s/<!--.*-->//g; /<!--/,/-->/d'
 
 # Count `## ` entries OUTSIDE HTML comments — the scaffold's example headings

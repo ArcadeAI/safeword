@@ -88,6 +88,17 @@ describe('audit domain-documentation emptiness (W008)', () => {
     expect(output).not.toContain('[W008]');
   });
 
+  it('documents the accepted limit: a heading sharing a multi-line-comment opener line is not counted', () => {
+    // Line-based stripping deletes the whole opener line, heading included. This
+    // is malformed markdown (headings belong on their own line); pinned so any
+    // change to the strip stays a conscious choice. Here only "## Kept" survives,
+    // so the doc is NOT empty — the surviving heading keeps it out of W008.
+    const openerOnHeadingLine = `# Surfaces\n## Swallowed <!-- opening note\nstill in comment\n-->\n## Kept\n\n**Kind:** x\n`;
+    const { output } = runDomainDocumentationCheck({ '.project/surfaces.md': openerOnHeadingLine });
+
+    expect(output).not.toContain('[W008]');
+  });
+
   it('skips absent domain docs without erroring', () => {
     const { output, status } = runDomainDocumentationCheck({
       '.project/surfaces.md': POPULATED_SURFACES,
