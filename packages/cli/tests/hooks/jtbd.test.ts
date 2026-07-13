@@ -6,6 +6,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { derivePersonaCode } from '../../src/utils/personas.js';
 import {
   evaluateJtbdGate,
   knownPersonaRefs as knownPersonaReferences,
@@ -88,6 +89,21 @@ describe('parseJtbdSection (Rule 4)', () => {
 });
 
 describe('knownPersonaRefs (Rule 5)', () => {
+  it.each([
+    ['Auditor', 'AUD'],
+    ['Platform Operator', 'PLO'],
+    ['Site Reliability Engineer', 'SRE'],
+    ['International Atomic Energy Agency Inspector', 'IAEA'],
+    ['Co-Founder', 'COF'],
+    ["Bob's Burger", 'BOB'],
+    ['Level 3 Operator', 'L3O'],
+  ])('matches CLI canonical derivation for %s', (name, expectedCode) => {
+    const references = knownPersonaReferences(`## ${name}\n`);
+    expect(derivePersonaCode(name)).toBe(expectedCode);
+    expect(references.has(expectedCode)).toBe(true);
+    expect(references.has(`${name} (${expectedCode})`)).toBe(true);
+  });
+
   it('contributes name, code, and combined form', () => {
     const references = knownPersonaReferences('## Platform Operator (PO)\n');
     expect(references.has('Platform Operator (PO)')).toBe(true);
@@ -98,8 +114,8 @@ describe('knownPersonaRefs (Rule 5)', () => {
   it('contributes the derived code for a bare-named persona (G9BXE9)', () => {
     const references = knownPersonaReferences('## Platform Operator\n');
     expect(references.has('Platform Operator')).toBe(true);
-    expect(references.has('PO')).toBe(true);
-    expect(references.has('Platform Operator (PO)')).toBe(true);
+    expect(references.has('PLO')).toBe(true);
+    expect(references.has('Platform Operator (PLO)')).toBe(true);
   });
 
   it('does not contain an undeclared reference', () => {

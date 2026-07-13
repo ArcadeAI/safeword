@@ -26,48 +26,47 @@ import {
 } from './personas.js';
 
 describe('derivePersonaCode', () => {
-  describe('multi-word names use first-letter-of-each-word', () => {
-    it('two-word name derives two-letter code', () => {
-      expect(derivePersonaCode('Platform Operator')).toBe('PO');
+  describe('canonical 3–4 character derivation', () => {
+    it('two-word name uses two characters from the first word and one from the second', () => {
+      expect(derivePersonaCode('Platform Operator')).toBe('PLO');
     });
 
     it('three-word name derives three-letter code', () => {
       expect(derivePersonaCode('Site Reliability Engineer')).toBe('SRE');
     });
 
-    it('two-word name with End User derives EU', () => {
-      expect(derivePersonaCode('End User')).toBe('EU');
+    it('names longer than four words truncate to four initials', () => {
+      expect(derivePersonaCode('International Atomic Energy Agency Inspector')).toBe('IAEA');
     });
   });
 
-  describe('single-word names use first two characters uppercased', () => {
-    it('Auditor derives AU', () => {
-      expect(derivePersonaCode('Auditor')).toBe('AU');
+  describe('single-word names use first three characters uppercased', () => {
+    it('Auditor derives AUD', () => {
+      expect(derivePersonaCode('Auditor')).toBe('AUD');
     });
 
-    it('Architect derives AR', () => {
-      expect(derivePersonaCode('Architect')).toBe('AR');
+    it('Architect derives ARC', () => {
+      expect(derivePersonaCode('Architect')).toBe('ARC');
     });
   });
 
   describe('non-alpha characters stripped before derivation', () => {
-    it("apostrophe in name is removed (Bob's Burger → BB)", () => {
-      expect(derivePersonaCode("Bob's Burger")).toBe('BB');
+    it("apostrophe in name is removed (Bob's Burger → BOB)", () => {
+      expect(derivePersonaCode("Bob's Burger")).toBe('BOB');
     });
 
-    it('hyphen in name is removed (Co-Founder → CF as single word after strip)', () => {
-      // After stripping hyphen: "CoFounder" — single word, first 2 chars
-      expect(derivePersonaCode('Co-Founder')).toBe('CO');
+    it('hyphen in name separates words (Co-Founder → COF)', () => {
+      expect(derivePersonaCode('Co-Founder')).toBe('COF');
     });
   });
 
   describe('whitespace handling', () => {
     it('leading and trailing whitespace trimmed', () => {
-      expect(derivePersonaCode('  Platform Operator  ')).toBe('PO');
+      expect(derivePersonaCode('  Platform Operator  ')).toBe('PLO');
     });
 
     it('multiple internal spaces collapse to single-word separator', () => {
-      expect(derivePersonaCode('Platform   Operator')).toBe('PO');
+      expect(derivePersonaCode('Platform   Operator')).toBe('PLO');
     });
   });
 
@@ -82,21 +81,20 @@ describe('derivePersonaCode', () => {
       expect(derivePersonaCode('3M')).toBe('3M');
     });
 
-    it('multi-word with digit-first word (3 Amigos) derives 3A', () => {
-      expect(derivePersonaCode('3 Amigos')).toBe('3A');
+    it('multi-word with a digit-bearing word preserves the digit', () => {
+      expect(derivePersonaCode('Level 3 Operator')).toBe('L3O');
     });
   });
 
   describe('overflow truncation', () => {
-    it('seven-word name truncates to first 6 initials', () => {
-      // "International Atomic Energy Agency Inspection Sub Department" → IAEAISD → IAEAIS
+    it('seven-word name truncates to first 4 initials', () => {
       expect(
         derivePersonaCode('International Atomic Energy Agency Inspection Sub Department'),
-      ).toBe('IAEAIS');
+      ).toBe('IAEA');
     });
 
-    it('six-word name returns full 6 initials (no truncation)', () => {
-      expect(derivePersonaCode('Alpha Beta Gamma Delta Epsilon Zeta')).toBe('ABGDEZ');
+    it('four-word name returns all 4 initials', () => {
+      expect(derivePersonaCode('Alpha Beta Gamma Delta')).toBe('ABGD');
     });
   });
 
