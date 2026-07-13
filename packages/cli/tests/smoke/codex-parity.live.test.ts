@@ -162,7 +162,7 @@ function writeCompleteTicket(projectRoot: string): void {
 }
 
 function runInstalledCodexHook(projectRoot: string) {
-  return run(process.execPath, [CLI_PATH, 'codex-hook', 'pre-tool-use'], {
+  return run(process.execPath, [CLI_PATH, 'hook', 'codex', 'pre-tool-use'], {
     cwd: projectRoot,
     input: JSON.stringify({
       hook_event_name: 'PreToolUse',
@@ -231,7 +231,7 @@ describe.skipIf(!CAN_RUN)('live smoke: Codex customer-repo parity', () => {
       existsSync(nodePath.join(projectRoot, '.safeword/hooks/codex/pre-tool-quality.ts')),
     ).toBe(false);
     expect(readFileSync(nodePath.join(projectRoot, '.codex/config.toml'), 'utf8')).toContain(
-      'npx --yes safeword codex-hook pre-tool-use',
+      'npx --yes safeword hook codex pre-tool-use',
     );
 
     const promptInput = inspectPromptInput(CODEX, projectRoot);

@@ -11,7 +11,7 @@ matcher = ""
 
 [[hooks.SessionStart.hooks]]
 type = "command"
-command = 'npx --yes safeword codex-hook session-start'
+command = 'npx --yes safeword hook codex session-start'
 timeout = 120
 statusMessage = "Loading Safe Word standing instructions"
 
@@ -19,7 +19,7 @@ statusMessage = "Loading Safe Word standing instructions"
 
 [[hooks.UserPromptSubmit.hooks]]
 type = "command"
-command = 'npx --yes safeword codex-hook user-prompt-submit'
+command = 'npx --yes safeword hook codex user-prompt-submit'
 timeout = 30
 statusMessage = "Checking queued Safe Word prompt context"
 
@@ -28,7 +28,7 @@ matcher = "^(apply_patch|Bash|Edit|Write|MultiEdit|NotebookEdit)$"
 
 [[hooks.PreToolUse.hooks]]
 type = "command"
-command = 'npx --yes safeword codex-hook pre-tool-use'
+command = 'npx --yes safeword hook codex pre-tool-use'
 timeout = 30
 statusMessage = "Checking Safe Word edit gates"
 
@@ -36,7 +36,7 @@ statusMessage = "Checking Safe Word edit gates"
 
 [[hooks.Stop.hooks]]
 type = "command"
-command = 'npx --yes safeword codex-hook stop'
+command = 'npx --yes safeword hook codex stop'
 timeout = 600
 statusMessage = "Checking Safe Word stop continuation"
 
@@ -45,7 +45,7 @@ matcher = "^(apply_patch|Bash|Edit|Write|MultiEdit|NotebookEdit)$"
 
 [[hooks.PostToolUse.hooks]]
 type = "command"
-command = 'npx --yes safeword codex-hook post-tool-use'
+command = 'npx --yes safeword hook codex post-tool-use'
 timeout = 30
 statusMessage = "Surfacing Safe Word post-tool context"
 

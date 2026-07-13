@@ -159,7 +159,7 @@ function runCodexHook(
   projectRoot: string,
   options: { command?: string; fallbackMode?: boolean } = {},
 ) {
-  const result = spawnSync(process.execPath, [CLI_PATH, 'codex-hook', 'pre-tool-use'], {
+  const result = spawnSync(process.execPath, [CLI_PATH, 'hook', 'codex', 'pre-tool-use'], {
     cwd: projectRoot,
     input: JSON.stringify({
       hook_event_name: 'PreToolUse',
@@ -242,8 +242,8 @@ Then(
       nodePath.join(this.temporaryDirectory, '.codex/config.toml'),
       'utf8',
     );
-    assert.ok(config.includes('npx --yes safeword codex-hook pre-tool-use'));
-    assert.ok(config.includes('npx --yes safeword codex-hook session-start'));
+    assert.ok(config.includes('npx --yes safeword hook codex pre-tool-use'));
+    assert.ok(config.includes('npx --yes safeword hook codex session-start'));
     assertPathAbsent(this.temporaryDirectory, '.agents/skills/bdd/SKILL.md');
     assertPathAbsent(this.temporaryDirectory, '.safeword/hooks/codex');
   },
@@ -289,14 +289,14 @@ When('the config is inspected', function (this: SafewordWorld) {
 });
 
 Then(
-  /^hooks are enabled and supported edit\/shell calls run `safeword codex-hook pre-tool-use`$/,
+  /^hooks are enabled and supported edit\/shell calls run `safeword hook codex pre-tool-use`$/,
   function (this: SafewordWorld) {
     assert.equal(this.result.exitCode, 0);
     assert.ok(this.result.stdout.includes('[features]'));
     assert.ok(this.result.stdout.includes('hooks = true'));
     assert.ok(this.result.stdout.includes('[[hooks.PreToolUse]]'));
     assert.ok(this.result.stdout.includes('apply_patch'));
-    assert.ok(this.result.stdout.includes('npx --yes safeword codex-hook pre-tool-use'));
+    assert.ok(this.result.stdout.includes('npx --yes safeword hook codex pre-tool-use'));
     assert.ok(!this.result.stdout.includes('.safeword/hooks/codex'));
   },
 );

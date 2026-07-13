@@ -203,7 +203,7 @@ Then(
     const wiring = readInstalledWiring(this.projectDirectory);
     assert.match(wiring.claudeSettings, /session-safeword-context\.ts/);
     assert.match(wiring.cursorHooks, /session-safeword-context\.ts/);
-    assert.match(wiring.codexConfig, /safeword codex-hook session-start/);
+    assert.match(wiring.codexConfig, /safeword hook codex session-start/);
     assert.doesNotMatch(wiring.codexConfig, /session-safeword-context\.ts.+--agent=codex/);
   },
 );
@@ -252,7 +252,7 @@ Then('Cursor sessionStart runs the SAFEWORD context hook', function (this: Safew
 });
 
 Then('Codex SessionStart runs the SAFEWORD context hook', function (this: SafewordMdWorld) {
-  assert.match(this.wiring?.codexConfig ?? '', /safeword codex-hook session-start/);
+  assert.match(this.wiring?.codexConfig ?? '', /safeword hook codex session-start/);
   assert.doesNotMatch(
     this.wiring?.codexConfig ?? '',
     /session-safeword-context\.ts.+--agent=codex/,

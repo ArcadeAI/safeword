@@ -16,7 +16,7 @@ Feature: Codex agents config generation
     Scenario: codex-agents-config-generation.SM1.AC2.config_wires_supported_pretooluse_adapter
       Given safeword setup generated project-local Codex config
       When the config is inspected
-      Then hooks are enabled and supported edit/shell calls run `safeword codex-hook pre-tool-use`
+      Then hooks are enabled and supported edit/shell calls run `safeword hook codex pre-tool-use`
 
     @codex-agents-config-generation.SM1.AC4
     Scenario: codex-agents-config-generation.SM1.AC4.setup_reports_codex_hook_trust_step

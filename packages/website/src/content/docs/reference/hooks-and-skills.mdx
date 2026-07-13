@@ -89,7 +89,7 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
 | When                            | What happens                                              |
 | ------------------------------- | --------------------------------------------------------- |
 | Session starts                  | Loads packaged Safe Word standing instructions            |
-| Before supported tools          | Runs the packaged `safeword codex-hook pre-tool-use` gate |
+| Before supported tools          | Runs the packaged `safeword hook codex pre-tool-use` gate |
 | Agent finishes a supported tool | Surfaces queued Safe Word post-tool context               |
 | You submit a prompt             | Surfaces queued Safe Word prompt context                  |
 | You stop the session            | Emits queued Stop continuation nudges                     |
@@ -106,7 +106,7 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
 
     Hook config: `.codex/config.toml`
 
-Hook commands: `npx --yes safeword codex-hook <event>`
+Hook commands: `npx --yes safeword hook codex <event>`
 
     Plugin skill files: bundled in the Safe Word package under `codex-plugin/skills/`
 

@@ -34,7 +34,7 @@ test -f AGENTS.md && echo "AGENTS.md ✓"
 - `.safeword/hooks/` - Auto-linting, quality review hooks
 - `.claude/settings.json` - Hook configuration for Claude Code
 - `.claude/skills/` - Skills and slash-command workflows for Claude Code
-- `.codex/config.toml` - Hook configuration for Codex using packaged `safeword codex-hook` commands
+- `.codex/config.toml` - Hook configuration for Codex using packaged `safeword hook codex` commands
 - `.codex/agents/` - Codex agent configuration for Safe Word retro filing
 - `.cursor/hooks.json` - Hook configuration for Cursor
 - `.cursor/rules/` - Behavior rules for Cursor
@@ -256,7 +256,7 @@ Key directories created in your project:
 - `cursor/post-tool-skill-nudge.ts` - Cursor adapter for the language coding-skill nudge (dormant pending Cursor bug #534)
 
 Codex hooks are configured in `.codex/config.toml` and run from the package:
-`npx --yes safeword codex-hook session-start`, `user-prompt-submit`,
+`npx --yes safeword hook codex session-start`, `user-prompt-submit`,
 `pre-tool-use`, `post-tool-use`, and `stop`. They do not require
 `.safeword/hooks/codex/*.ts` files in the repo. Codex edit-gate coverage is
 limited to the documented PreToolUse tool calls Safeword configures (`Bash`,
@@ -530,7 +530,7 @@ The CLI installs matching workflow capabilities for Claude Code, Cursor, and Cod
 | ----------- | ---------------------------------------- | ---------------------------------------------------------------------------------- |
 | Claude Code | `.claude/skills/*`                       | Skills expose slash-command behavior                                               |
 | Cursor      | `.cursor/rules/{safeword-*,bdd-*}.mdc`   | `.cursor/commands/*.md`, `.cursor/hooks.json`                                      |
-| Codex       | Codex plugin skills (`safeword:<skill>`) | `.codex/config.toml` and plugin hooks call `npx --yes safeword codex-hook <event>` |
+| Codex       | Codex plugin skills (`safeword:<skill>`) | `.codex/config.toml` and plugin hooks call `npx --yes safeword hook codex <event>` |
 
 **Editing skills:**
 

@@ -66,7 +66,7 @@ describe('dependency freshness instructions', () => {
     const content = readRepoFile(path);
 
     expect(content).toContain('[[hooks.UserPromptSubmit]]');
-    expect(content).toContain('npx --yes safeword codex-hook user-prompt-submit');
+    expect(content).toContain('npx --yes safeword hook codex user-prompt-submit');
     expect(content).not.toContain('.safeword/hooks/prompt-timestamp.ts');
   });
 });

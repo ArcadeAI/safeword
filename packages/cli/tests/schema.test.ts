@@ -52,7 +52,7 @@ function commandMatcherByCodexEventFromPlugin(): Map<string, string | undefined>
     for (const entry of eventEntries) {
       const hookCommands = entry.hooks ?? [];
       for (const hook of hookCommands) {
-        const match = /safeword codex-hook ([a-z-]+)/u.exec(hook.command ?? '');
+        const match = /safeword hook codex ([a-z-]+)/u.exec(hook.command ?? '');
         if (match?.[1]) entries.set(`${eventName}:${match[1]}`, entry.matcher);
       }
     }
@@ -82,7 +82,7 @@ function commandMatcherByCodexEventFromTemplate(): Map<string, string | undefine
       continue;
     }
 
-    const commandMatch = /command = 'npx --yes safeword codex-hook ([a-z-]+)'/u.exec(line);
+    const commandMatch = /command = 'npx --yes safeword hook codex ([a-z-]+)'/u.exec(line);
     if (commandMatch?.[1] && currentEvent) {
       entries.set(`${currentEvent}:${commandMatch[1]}`, currentMatcher);
     }

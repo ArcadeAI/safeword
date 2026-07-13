@@ -1550,10 +1550,10 @@ timeout = 30
       await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
 
       const content = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
-      expect(content).toContain('npx --yes safeword codex-hook stop');
+      expect(content).toContain('npx --yes safeword hook codex stop');
       expect(content).toContain('timeout = 600');
       expect(content).toContain('Checking Safe Word stop continuation');
-      expect(content).toContain('npx --yes safeword codex-hook user-prompt-submit');
+      expect(content).toContain('npx --yes safeword hook codex user-prompt-submit');
       expect(content).toContain('Checking queued Safe Word prompt context');
     });
 
@@ -1573,8 +1573,8 @@ timeout = 30
       await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
 
       const content = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
-      expect(content).toContain('npx --yes safeword codex-hook user-prompt-submit');
-      expect(content.match(/safeword codex-hook user-prompt-submit/g)).toHaveLength(1);
+      expect(content).toContain('npx --yes safeword hook codex user-prompt-submit');
+      expect(content.match(/safeword hook codex user-prompt-submit/g)).toHaveLength(1);
       expect(content).not.toContain('.safeword/hooks/codex');
     });
   });
@@ -1590,7 +1590,7 @@ timeout = 30
       await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
 
       const content = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
-      expect(content).toContain('npx --yes safeword codex-hook post-tool-use');
+      expect(content).toContain('npx --yes safeword hook codex post-tool-use');
       expect(content).toContain('Surfacing Safe Word post-tool context');
     });
 
@@ -1610,7 +1610,7 @@ timeout = 30
       await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
 
       const content = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
-      expect(content.match(/safeword codex-hook post-tool-use/g)).toHaveLength(1);
+      expect(content.match(/safeword hook codex post-tool-use/g)).toHaveLength(1);
       expect(content).not.toContain('.safeword/hooks/codex');
     });
   });

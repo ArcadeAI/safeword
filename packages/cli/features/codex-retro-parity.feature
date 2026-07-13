@@ -106,7 +106,7 @@ Feature: Codex retro parity — invisible local extraction and Lane-2 filing
     Scenario: The generated Codex config wires the packaged UserPromptSubmit hook
       Given a project installed with Codex hooks
       When a new user prompt starts after retro drafts remain spooled
-      Then the Codex UserPromptSubmit hook runs `safeword codex-hook user-prompt-submit`
+      Then the Codex UserPromptSubmit hook runs `safeword hook codex user-prompt-submit`
 
     @codex-retro-parity.SM1.AC3 @surface.codex-user-prompt-submit
     Scenario: The Codex prompt nudge fires once per unfiled batch

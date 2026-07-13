@@ -243,9 +243,9 @@ Then('exactly one safeword SessionStart command is wired', function (this: AutoU
 });
 
 Then(
-  'the command runs `safeword codex-hook session-start`',
+  'the command runs `safeword hook codex session-start`',
   function (this: AutoUpgradeCodexWorld) {
-    assert.match(this.codexSessionStartCommands?.[0] ?? '', /safeword codex-hook session-start/);
+    assert.match(this.codexSessionStartCommands?.[0] ?? '', /safeword hook codex session-start/);
   },
 );
 

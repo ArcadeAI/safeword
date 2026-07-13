@@ -201,7 +201,7 @@ const CODEX_USER_PROMPT_SUBMIT_HOOK_PATCH = `
 
 [[hooks.UserPromptSubmit.hooks]]
 type = "command"
-command = 'npx --yes safeword codex-hook user-prompt-submit'
+command = 'npx --yes safeword hook codex user-prompt-submit'
 timeout = 30
 statusMessage = "Checking queued Safe Word prompt context"
 `;
@@ -212,7 +212,7 @@ matcher = ""
 
 [[hooks.SessionStart.hooks]]
 type = "command"
-command = 'npx --yes safeword codex-hook session-start'
+command = 'npx --yes safeword hook codex session-start'
 timeout = 120
 statusMessage = "Loading Safe Word standing instructions"
 `;
@@ -245,7 +245,7 @@ matcher = "^(apply_patch|Bash|Edit|Write|MultiEdit|NotebookEdit)$"
 
 [[hooks.PreToolUse.hooks]]
 type = "command"
-command = 'npx --yes safeword codex-hook pre-tool-use'
+command = 'npx --yes safeword hook codex pre-tool-use'
 timeout = 30
 statusMessage = "Checking Safe Word edit gates"
 `;
@@ -277,7 +277,7 @@ matcher = "^(apply_patch|Bash|Edit|Write|MultiEdit|NotebookEdit)$"
 
 [[hooks.PostToolUse.hooks]]
 type = "command"
-command = 'npx --yes safeword codex-hook post-tool-use'
+command = 'npx --yes safeword hook codex post-tool-use'
 timeout = 30
 statusMessage = "Surfacing Safe Word post-tool context"
 `;
@@ -309,7 +309,7 @@ const CODEX_STOP_HOOK_PATCH = `
 
 [[hooks.Stop.hooks]]
 type = "command"
-command = 'npx --yes safeword codex-hook stop'
+command = 'npx --yes safeword hook codex stop'
 timeout = 600
 statusMessage = "Checking Safe Word stop continuation"
 `;
@@ -744,7 +744,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/.gherkin-lintrc',
     // Merged into session-auto-upgrade.ts — check + apply now run in one pass (XQ9CXA)
     '.safeword/hooks/session-update-check.ts',
-    // Codex implementation moved into the packaged Codex plugin and `safeword codex-hook`.
+    // Codex implementation moved into the packaged Codex plugin and `safeword hook codex`.
     // Keep cleanup file-scoped for `.agents/skills/*` because `.agents/skills` is a shared
     // agent directory; a user-authored sibling skill must survive migration.
     ...CODEX_SKILL_DEPRECATED_FILES,
@@ -1459,7 +1459,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       {
         operation: 'append',
         content: CODEX_USER_PROMPT_SUBMIT_HOOK_PATCH,
-        marker: 'safeword codex-hook user-prompt-submit',
+        marker: 'safeword hook codex user-prompt-submit',
         applyWhenContentIncludes: ['# Safeword Codex project configuration.'],
         unpatchContent: [
           CODEX_SESSION_START_HOOK_PATCH,
@@ -1482,26 +1482,26 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       {
         operation: 'append',
         content: CODEX_SESSION_START_HOOK_PATCH,
-        marker: 'safeword codex-hook session-start',
+        marker: 'safeword hook codex session-start',
         supersedes: CODEX_LEGACY_CONTEXT_SESSION_START_HOOK_PATCH,
         applyWhenContentIncludes: ['# Safeword Codex project configuration.'],
       },
       {
         operation: 'append',
         content: CODEX_PRE_TOOL_QUALITY_HOOK_PATCH,
-        marker: 'safeword codex-hook pre-tool-use',
+        marker: 'safeword hook codex pre-tool-use',
         applyWhenContentIncludes: ['# Safeword Codex project configuration.'],
       },
       {
         operation: 'append',
         content: CODEX_POST_TOOL_USE_HOOK_PATCH,
-        marker: 'safeword codex-hook post-tool-use',
+        marker: 'safeword hook codex post-tool-use',
         applyWhenContentIncludes: ['# Safeword Codex project configuration.'],
       },
       {
         operation: 'append',
         content: CODEX_STOP_HOOK_PATCH,
-        marker: 'safeword codex-hook stop',
+        marker: 'safeword hook codex stop',
         applyWhenContentIncludes: ['# Safeword Codex project configuration.'],
       },
       // MCP-server retrofit (#269): add-if-missing parity with .mcp.json /

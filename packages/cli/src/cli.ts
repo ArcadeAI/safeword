@@ -197,9 +197,19 @@ program
     await codify(ticketId, options);
   });
 
-program
-  .command('codex-hook <event>')
+const hook = program.command('hook').description('Run packaged Safe Word hooks');
+
+hook
+  .command('codex <event>')
   .description('Run a packaged Safe Word Codex hook entrypoint')
+  .action(async (event: string) => {
+    const { codexHook } = await import('./commands/codex-hook.js');
+    await codexHook(event);
+  });
+
+program
+  .command('codex-hook <event>', { hidden: true })
+  .description('Compatibility alias for `safeword hook codex <event>`')
   .action(async (event: string) => {
     const { codexHook } = await import('./commands/codex-hook.js');
     await codexHook(event);

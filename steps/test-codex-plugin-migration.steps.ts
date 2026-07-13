@@ -251,7 +251,7 @@ function inspectReleaseContract(world: CodexPluginMigrationWorld): string[] {
     errors.push('missing packaged hook commands: package/codex-plugin/hooks.json');
   }
   for (const command of commands) {
-    if (!/\bsafeword\s+codex-hook\b/u.test(command)) {
+    if (!/\bsafeword\s+hook\s+codex\b/u.test(command)) {
       errors.push(`hook command does not invoke packaged entrypoint: ${command}`);
     }
   }
@@ -716,7 +716,7 @@ function createProjectLocalCodexInstallFixture(): string {
 }
 
 function codexHookCommandName(command: string): CodexHookCommandName | undefined {
-  const match = /\bcodex-hook\s+([a-z-]+)\b/u.exec(command);
+  const match = /\bhook\s+codex\s+([a-z-]+)\b/u.exec(command);
   const commandName = match?.[1];
   if (
     commandName === 'post-tool-use' ||
@@ -1389,7 +1389,7 @@ When(
     const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
     this.codexPluginHookResult = runCommand(
       process.execPath,
-      [SAFEWORD_CLI_PATH, 'codex-hook', 'pre-tool-use'],
+      [SAFEWORD_CLI_PATH, 'hook', 'codex', 'pre-tool-use'],
       {
         cwd: repoRoot,
         env: { CLAUDE_PROJECT_DIR: repoRoot },
@@ -1413,7 +1413,7 @@ When(
 
     this.codexPluginHookResult = runCommand(
       process.execPath,
-      [SAFEWORD_CLI_PATH, 'codex-hook', 'session-start'],
+      [SAFEWORD_CLI_PATH, 'hook', 'codex', 'session-start'],
       {
         cwd: repoRoot,
         env: { CLAUDE_PROJECT_DIR: repoRoot },
@@ -1443,7 +1443,7 @@ When(
 
     this.codexPluginHookResult = runCommand(
       process.execPath,
-      [SAFEWORD_CLI_PATH, 'codex-hook', 'post-tool-use'],
+      [SAFEWORD_CLI_PATH, 'hook', 'codex', 'post-tool-use'],
       {
         cwd: repoRoot,
         env: { CLAUDE_PROJECT_DIR: repoRoot },
@@ -1464,7 +1464,7 @@ When(
     const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
     this.codexPluginHookResult = runCommand(
       process.execPath,
-      [SAFEWORD_CLI_PATH, 'codex-hook', 'user-prompt-submit'],
+      [SAFEWORD_CLI_PATH, 'hook', 'codex', 'user-prompt-submit'],
       {
         cwd: repoRoot,
         env: { CLAUDE_PROJECT_DIR: repoRoot },
@@ -1484,7 +1484,7 @@ When(
     const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
     this.codexPluginHookResult = runCommand(
       process.execPath,
-      [SAFEWORD_CLI_PATH, 'codex-hook', 'stop'],
+      [SAFEWORD_CLI_PATH, 'hook', 'codex', 'stop'],
       {
         cwd: repoRoot,
         env: { CLAUDE_PROJECT_DIR: repoRoot },
@@ -1517,11 +1517,15 @@ When(
       }
 
       const fixture = codexHookFixture(commandName);
-      const result = runCommand(process.execPath, [SAFEWORD_CLI_PATH, 'codex-hook', commandName], {
-        cwd: repoRoot,
-        env: { CLAUDE_PROJECT_DIR: repoRoot },
-        input: JSON.stringify(fixture.input),
-      });
+      const result = runCommand(
+        process.execPath,
+        [SAFEWORD_CLI_PATH, 'hook', 'codex', commandName],
+        {
+          cwd: repoRoot,
+          env: { CLAUDE_PROJECT_DIR: repoRoot },
+          input: JSON.stringify(fixture.input),
+        },
+      );
 
       return {
         command,
@@ -1543,7 +1547,7 @@ When('the entrypoint receives malformed JSON on stdin', function (this: CodexPlu
   );
   this.codexPluginHookResult = runCommand(
     process.execPath,
-    [SAFEWORD_CLI_PATH, 'codex-hook', commandName],
+    [SAFEWORD_CLI_PATH, 'hook', 'codex', commandName],
     {
       cwd: repoRoot,
       env: { CLAUDE_PROJECT_DIR: repoRoot },
@@ -1743,7 +1747,7 @@ Then(
     assert.ok(commands.length > 0, 'no hook commands were found');
     for (const command of commands) {
       assert.match(command, /\b(?:bunx|npx)(?:\s+--yes)?\s+safeword\b/u);
-      assert.match(command, /\bcodex-hook\b/u);
+      assert.match(command, /\bhook\s+codex\b/u);
     }
   },
 );
@@ -1923,7 +1927,7 @@ Then(
 
     assert.ok(commands.length > 0, 'package hook manifest did not contain commands');
     for (const command of commands) {
-      assert.match(command, /\bsafeword\s+codex-hook\b/u);
+      assert.match(command, /\bsafeword\s+hook\s+codex\b/u);
     }
     assert.ok(files.includes('package/dist/cli.js'));
     assert.ok(files.some(file => /^package\/dist\/codex-hook-[A-Z0-9]+\.js$/u.test(file)));

@@ -87,7 +87,7 @@ function bindCodexSession(projectDirectory: string, skill: string, sessionId: st
   const command = `bun "${projectDirectory}/.safeword/hooks/record-skill-invocation.ts" "${projectDirectory}" ${skill}`;
   const result = spawnSync(
     process.execPath,
-    [nodePath.join(repoRoot, 'packages/cli/dist/cli.js'), 'codex-hook', 'pre-tool-use'],
+    [nodePath.join(repoRoot, 'packages/cli/dist/cli.js'), 'hook', 'codex', 'pre-tool-use'],
     {
       cwd: projectDirectory,
       input: JSON.stringify({

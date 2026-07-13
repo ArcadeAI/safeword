@@ -343,11 +343,11 @@ statusMessage = "Checking safeword PreToolUse gates"
         'utf8',
       );
       expect(upgraded).toContain('[[hooks.UserPromptSubmit]]');
-      expect(upgraded).toContain('npx --yes safeword codex-hook user-prompt-submit');
-      expect(upgraded).toContain('npx --yes safeword codex-hook pre-tool-use');
+      expect(upgraded).toContain('npx --yes safeword hook codex user-prompt-submit');
+      expect(upgraded).toContain('npx --yes safeword hook codex pre-tool-use');
       expect(upgraded).toContain('[[hooks.Stop]]');
-      expect(upgraded).toContain('npx --yes safeword codex-hook stop');
-      expect(upgraded).toContain('npx --yes safeword codex-hook post-tool-use');
+      expect(upgraded).toContain('npx --yes safeword hook codex stop');
+      expect(upgraded).toContain('npx --yes safeword hook codex post-tool-use');
       expect(upgraded).not.toContain('.safeword/hooks/codex');
 
       await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
@@ -356,9 +356,9 @@ statusMessage = "Checking safeword PreToolUse gates"
         'utf8',
       );
       const timestampHookCount =
-        upgradedAgain.split('safeword codex-hook user-prompt-submit').length - 1;
+        upgradedAgain.split('safeword hook codex user-prompt-submit').length - 1;
       expect(timestampHookCount).toBe(1);
-      const stopHookCount = upgradedAgain.split('safeword codex-hook stop').length - 1;
+      const stopHookCount = upgradedAgain.split('safeword hook codex stop').length - 1;
       expect(stopHookCount).toBe(1);
     });
 
@@ -401,16 +401,16 @@ statusMessage = "Checking safeword PreToolUse gates"
       );
       // Legacy context-only hook is gone; the packaged hook is wired.
       expect(upgraded).not.toContain('session-safeword-context.ts" --agent=codex');
-      expect(upgraded).toContain('npx --yes safeword codex-hook session-start');
+      expect(upgraded).toContain('npx --yes safeword hook codex session-start');
       // Exactly one SessionStart command — concurrent Codex hooks make a
       // double-wire double-emit context, so the swap must not leave two.
-      expect(upgraded.split('safeword codex-hook session-start').length - 1).toBe(1);
+      expect(upgraded.split('safeword hook codex session-start').length - 1).toBe(1);
       expect(upgraded).not.toContain('.safeword/hooks/codex');
 
       // Idempotent: re-running upgrade keeps exactly one dispatcher, no legacy.
       await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
       const again = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
-      expect(again.split('safeword codex-hook session-start').length - 1).toBe(1);
+      expect(again.split('safeword hook codex session-start').length - 1).toBe(1);
       expect(again).not.toContain('session-safeword-context.ts" --agent=codex');
     });
 
