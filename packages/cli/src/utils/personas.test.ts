@@ -415,8 +415,8 @@ describe('validatePersonas', () => {
     expect(
       errors.some(
         error =>
-          error.message.includes('non-conformant code') &&
-          error.message.includes('author explicit code'),
+          error.message.includes('non-canonical code') &&
+          error.message.includes('explicit 3–4 letter code'),
       ),
     ).toBe(true);
   });

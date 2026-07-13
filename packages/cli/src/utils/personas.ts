@@ -36,6 +36,8 @@ const MAX_DERIVED_CODE_LENGTH = 4;
 const MIN_NAME_LENGTH = 2;
 /** Pattern for a valid persona short code. */
 export const PERSONA_CODE_PATTERN = /^[A-Z][A-Z0-9]{1,5}$/;
+/** Pattern for a newly derived canonical persona short code. */
+export const CANONICAL_PERSONA_CODE_PATTERN = /^[A-Z][A-Z0-9]{2,3}$/;
 
 /**
  * Derive a short code from a persona name.
@@ -106,6 +108,7 @@ export interface ParsedPersona {
 /** A resolved persona — code is always populated (derived if not explicit). */
 export interface ResolvedPersona extends ParsedPersona {
   code: string;
+  codeError?: 'non-canonical-derived-code' | 'collision-space-exhausted';
 }
 
 /** A validation error with a 1-indexed line reference into the source content. */
@@ -211,7 +214,10 @@ export function resolvePersonaCodes(parsed: readonly ParsedPersona[]): ResolvedP
       suffix += 1;
     }
     claimed.add(candidate);
-    resolved.push({ ...persona, code: candidate });
+    const codeError = CANONICAL_PERSONA_CODE_PATTERN.test(candidate)
+      ? undefined
+      : 'non-canonical-derived-code';
+    resolved.push({ ...persona, code: candidate, codeError });
   }
 
   return resolved;
@@ -252,6 +258,13 @@ function findPatternErrors(resolved: readonly ResolvedPersona[]): PersonaValidat
   const errors: PersonaValidationError[] = [];
   for (const persona of resolved) {
     if (persona.code.length === 0) continue;
+    if (persona.codeError === 'non-canonical-derived-code') {
+      errors.push({
+        line: persona.lineNumber,
+        message: `name produces non-canonical code "${persona.code}" — author an explicit 3–4 letter code via \`## Name (CODE)\``,
+      });
+      continue;
+    }
     if (isValidPersonaCode(persona.code)) continue;
     const message = persona.explicit
       ? `code "${persona.code}" violates pattern ${PERSONA_CODE_PATTERN.source}`
@@ -308,6 +321,7 @@ export function lookupPersonaReference(
   if (input.length === 0) return { status: 'unknown' };
 
   for (const persona of personas) {
+    if (persona.codeError !== undefined) continue;
     if (persona.code === input || persona.name === input) {
       return { status: 'valid', match: persona };
     }
@@ -316,6 +330,7 @@ export function lookupPersonaReference(
   // Casing-mismatch detection — search again with lowercase comparison.
   const lowered = input.toLowerCase();
   for (const persona of personas) {
+    if (persona.codeError !== undefined) continue;
     if (persona.code.toLowerCase() === lowered) {
       return { status: 'unknown', suggestion: persona.code };
     }
