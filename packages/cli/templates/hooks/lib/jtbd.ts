@@ -13,8 +13,8 @@
 const JTBD_HEADING = 'jobs to be done';
 const PERSONA_PREFIX = '**Persona:**';
 const SKIP_PREFIX = 'skip:';
-/** Max persona short-code length — mirrors the CLI's `MAX_CODE_LENGTH`. */
-const MAX_CODE_LENGTH = 6;
+/** Max newly derived persona-code length — mirrors the CLI canonical bound. */
+const MAX_CODE_LENGTH = 4;
 /**
  * A level-4 heading only counts toward the AC gate when it carries a real
  * lineage id — `<jtbd>.AC<n>` or `<jtbd>.R<n>` (#696). Without this, any
@@ -349,9 +349,9 @@ function parseSectionHeading(trimmed: string): string | null {
 /**
  * Derive a short code from a persona name — a deliberate cross-runtime copy of
  * the CLI's `derivePersonaCode` (src/utils/personas.ts), since deployed hooks
- * can't import the CLI dist. Multi-word → first letter of each word ("Platform
- * Operator" → "PO"); single-word → first 2 chars ("Auditor" → "AU"); non-
- * alphanumerics stripped (digits kept); uppercased; truncated to MAX_CODE_LENGTH.
+ * can't import the CLI dist. Single-word → first 3 chars; two-word → first 2
+ * chars plus the second initial; 3+ words → first 4 initials. Apostrophes are
+ * removed within words, other punctuation separates words, and digits remain.
  * The gate is a lenient backstop — it does NOT apply the CLI's collision
  * suffixes (PO → PO2), so a derived code resolves to any persona deriving it.
  * Kept in agreement with the CLI by tests (see ticket P58R22).
@@ -360,14 +360,21 @@ function derivePersonaCode(name: string): string {
   const trimmed = name.trim();
   if (trimmed.length === 0) return '';
 
-  const cleaned = trimmed.replaceAll(/[^A-Z0-9\s]/gi, '');
+  const withoutApostrophes = trimmed.replaceAll(/['’]/g, '');
+  const cleaned = withoutApostrophes.replaceAll(/[^A-Z0-9\s]/gi, ' ');
   const words = cleaned.split(/\s+/).filter(word => word.length > 0);
 
   const [firstWord] = words;
   if (!firstWord) return '';
 
-  const derived =
-    words.length === 1 ? firstWord.slice(0, 2) : words.map(word => word.charAt(0)).join('');
+  let derived: string;
+  if (words.length === 1) {
+    derived = firstWord.slice(0, 3);
+  } else if (words.length === 2) {
+    derived = `${firstWord.slice(0, 2)}${words[1]?.charAt(0) ?? ''}`;
+  } else {
+    derived = words.map(word => word.charAt(0)).join('');
+  }
 
   return derived.toUpperCase().slice(0, MAX_CODE_LENGTH);
 }
