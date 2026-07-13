@@ -124,6 +124,13 @@ describe('knownPersonaRefs (Rule 5)', () => {
     expect(references.has('Planning Owner (PLO2)')).toBe(true);
   });
 
+  it('does not let an explicit canonical code reserve its own derived alias', () => {
+    const references = knownPersonaReferences('## Platform Operator (PLO)\n\n## Planning Owner\n');
+
+    expect(references.has('Platform Operator (PLO)')).toBe(true);
+    expect(references.has('Planning Owner (PLO2)')).toBe(true);
+  });
+
   it('never exposes a derived collision code longer than four characters', () => {
     const content = Array.from({ length: 1000 }, (_, index) => `## Pl${index} Operator`).join('\n');
     const references = knownPersonaReferences(content);
