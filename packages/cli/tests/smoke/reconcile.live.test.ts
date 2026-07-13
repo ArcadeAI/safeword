@@ -8,15 +8,24 @@
  * `undefined`), so a production regression would be silently invisible — every
  * version-provenance issue skipped with no signal.
  *
- * This test closes that gap by hitting the real API. It exercises two otherwise
- * unverified behaviors at once via `resolveTagDate('v0.68.0')`:
- *   1. the `%2F`-encoded ref path (`git/ref/tags%2Fv0.68.0`), and
- *   2. the annotated-vs-lightweight tag deref branch (github-rest.ts:212).
+ * This test closes that gap by hitting the real API via `resolveTagDate(
+ * 'v0.68.0')`, proving the whole ref-lookup → deref → commit-date chain
+ * resolves end-to-end against production instead of failing closed. v0.68.0 is
+ * an *annotated* tag, so it specifically drives the annotated-tag deref branch
+ * (github-rest.ts:212) — the `/git/tags/{sha}` hop a lightweight tag skips.
+ *
+ * Scope caveat: this proves the current `%2F`-encoded ref (`git/ref/tags%2F…`)
+ * works, but does NOT discriminate `%2F` from a raw slash — GitHub's
+ * `/git/ref/{ref}` accepts both, so a swap to raw-slash interpolation would
+ * still pass here. The regression it truly guards is the fail-closed one: the
+ * path silently returning `undefined`.
  *
  * It is token-gated and opt-in: it only runs in the live lane and only when a
  * real GitHub token is resolvable (env `GITHUB_TOKEN` or `gh auth token`). It
- * skips loudly when absent — it must never fail on missing egress or a missing
- * token, only when the live path itself regresses.
+ * skips loudly when absent — never failing on a missing token. (One edge: in an
+ * environment with `gh` auth but no `api.github.com` egress, the gate passes and
+ * the fetch fails closed → the assertion fails rather than skips; that is the
+ * right signal for a deliberately-invoked manual lane.)
  *
  *   bun run --cwd packages/cli test:smoke:live
  */
