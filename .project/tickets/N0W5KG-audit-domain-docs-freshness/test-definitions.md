@@ -86,18 +86,18 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A fully-populated, in-sync docs set produces no domain-doc findings
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED b599c826
+- [x] GREEN b599c826
+- [x] REFACTOR b599c826
 
 ### Scenario: Editing a curated definition changes no finding
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED b599c826
+- [x] GREEN b599c826
+- [x] REFACTOR b599c826
 
 ### Scenario: The skill instructs that glossary and description prose is advisory, never an error
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED b599c826
+- [x] GREEN b599c826
+- [x] REFACTOR b599c826
