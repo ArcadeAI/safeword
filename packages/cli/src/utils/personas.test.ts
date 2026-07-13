@@ -290,11 +290,15 @@ describe('parsePersonas', () => {
 });
 
 describe('resolvePersonaCodes', () => {
-  it('keeps explicit codes verbatim', () => {
-    const parsed = parsePersonas('## Platform Operator (PLATOPS)\n**Role:** A\n');
-    const resolved = resolvePersonaCodes(parsed);
-    expect(resolved[0]?.code).toBe('PLATOPS');
-  });
+  it.each(['SM', 'DEV', 'OPER', 'ADMIN', 'PLATOP'])(
+    'keeps compatible explicit code %s verbatim',
+    code => {
+      const parsed = parsePersonas(`## Platform Operator (${code})\n**Role:** A\n`);
+      const resolved = resolvePersonaCodes(parsed);
+      expect(validatePersonas(parsed)).toEqual([]);
+      expect(resolved[0]?.code).toBe(code);
+    },
+  );
 
   it('derives missing codes from names', () => {
     const parsed = parsePersonas('## Platform Operator\n**Role:** A\n');
