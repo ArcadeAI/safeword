@@ -421,6 +421,15 @@ describe('validatePersonas', () => {
     ).toBe(true);
   });
 
+  it('short derived code requests an explicit canonical override', () => {
+    const content = '## S3\n**Role:** A\n';
+    const errors = validatePersonas(parsePersonas(content));
+    const matchesCanonicalOverrideMessage = errors.some(error =>
+      /non-canonical.*explicit.*3[–-]4/i.test(error.message),
+    );
+    expect(matchesCanonicalOverrideMessage).toBe(true);
+  });
+
   it('digit-first name does NOT trigger pattern violation message for explicit codes (different message)', () => {
     // When user authors `## 3 Amigos (THREE)`, explicit code is valid → no error
     const content = '## 3 Amigos (THREE)\n**Role:** A\n';
