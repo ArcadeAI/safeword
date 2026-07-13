@@ -22,7 +22,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED e0949b03
 - [x] GREEN 7e2701d0
-- [ ] REFACTOR
+- [x] REFACTOR skip: the discriminator and validation branch are already the smallest clear representation
 
 ### Scenario: Exhausted collision suffixes request an explicit override
 
