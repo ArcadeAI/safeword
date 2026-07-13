@@ -492,6 +492,29 @@ describe('lookupPersonaReference', () => {
     expect(result.match.code).toBe('SWM');
   });
 
+  it('keeps a six-character former derivation valid after a canonical-code migration', () => {
+    const migrated = buildResolvedFixture(
+      '## Alpha Beta Charlie Delta Echo Foxtrot (ABCD)\n\n**Role:** Test persona.\n',
+    );
+    const result = lookupPersonaReference(migrated, 'ABCDEF');
+
+    assert(result.status === 'valid');
+    expect(result.match.code).toBe('ABCD');
+  });
+
+  it('reconstructs former source-ordered collision aliases', () => {
+    const migrated = buildResolvedFixture(
+      '## Platform Operator\n\n**Role:** First.\n\n## Planning Owner\n\n**Role:** Second.\n',
+    );
+    const first = lookupPersonaReference(migrated, 'PO');
+    const second = lookupPersonaReference(migrated, 'PO2');
+
+    assert(first.status === 'valid');
+    assert(second.status === 'valid');
+    expect(first.match.name).toBe('Platform Operator');
+    expect(second.match.name).toBe('Planning Owner');
+  });
+
   it('casing mismatch on code returns unknown with suggestion', () => {
     const result = lookupPersonaReference(fixture, 'po');
     assert(result.status === 'unknown');

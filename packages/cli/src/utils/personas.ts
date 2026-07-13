@@ -87,7 +87,7 @@ function deriveLegacyPersonaCode(name: string): string {
 
   const derived =
     words.length === 1 ? firstWord.slice(0, 2) : words.map(word => word.charAt(0)).join('');
-  return derived.toUpperCase().slice(0, 4);
+  return derived.toUpperCase().slice(0, 6);
 }
 
 /** Whether a persona name passes the minimum-length requirement. */
@@ -334,18 +334,39 @@ export function validatePersonas(parsed: readonly ParsedPersona[]): PersonaValid
 export type PersonaReferenceResult =
   { status: 'valid'; match: ResolvedPersona } | { status: 'unknown'; suggestion?: string };
 
-function findLegacyCodeMatch(
-  personas: readonly ResolvedPersona[],
-  input: string,
-): ResolvedPersona | undefined {
-  const matches = personas.filter(
-    persona => persona.codeError === undefined && deriveLegacyPersonaCode(persona.name) === input,
+interface LegacyPersonaAlias {
+  code: string;
+  persona: ResolvedPersona;
+}
+
+function resolveLegacyPersonaAliases(personas: readonly ResolvedPersona[]): LegacyPersonaAlias[] {
+  const claimed = new Set(
+    personas.filter(persona => persona.codeError === undefined).map(persona => persona.code),
   );
-  return matches.length === 1 ? matches[0] : undefined;
+  const aliases: LegacyPersonaAlias[] = [];
+
+  for (const persona of personas) {
+    if (persona.codeError !== undefined) continue;
+    const base = deriveLegacyPersonaCode(persona.name);
+    if (base === '' || base === persona.code) continue;
+
+    let candidate = base;
+    let suffix = 2;
+    while (claimed.has(candidate)) {
+      candidate = `${base}${suffix}`;
+      suffix += 1;
+    }
+    if (!isValidPersonaCode(candidate)) continue;
+    claimed.add(candidate);
+    aliases.push({ code: candidate, persona });
+  }
+
+  return aliases;
 }
 
 function findCasingSuggestion(
   personas: readonly ResolvedPersona[],
+  legacyAliases: readonly LegacyPersonaAlias[],
   input: string,
 ): string | undefined {
   const lowered = input.toLowerCase();
@@ -353,9 +374,9 @@ function findCasingSuggestion(
     if (persona.codeError !== undefined) continue;
     if (persona.code.toLowerCase() === lowered) return persona.code;
     if (persona.name.toLowerCase() === lowered) return persona.name;
-    const legacyCode = deriveLegacyPersonaCode(persona.name);
-    if (legacyCode.toLowerCase() === lowered) return legacyCode;
   }
+  const legacyAlias = legacyAliases.find(alias => alias.code.toLowerCase() === lowered);
+  if (legacyAlias) return legacyAlias.code;
   return undefined;
 }
 
@@ -385,10 +406,11 @@ export function lookupPersonaReference(
     }
   }
 
-  const legacyMatch = findLegacyCodeMatch(personas, input);
-  if (legacyMatch) return { status: 'valid', match: legacyMatch };
+  const legacyAliases = resolveLegacyPersonaAliases(personas);
+  const legacyMatch = legacyAliases.find(alias => alias.code === input);
+  if (legacyMatch) return { status: 'valid', match: legacyMatch.persona };
 
-  return { status: 'unknown', suggestion: findCasingSuggestion(personas, input) };
+  return { status: 'unknown', suggestion: findCasingSuggestion(personas, legacyAliases, input) };
 }
 
 /**

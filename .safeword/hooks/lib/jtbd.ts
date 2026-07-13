@@ -15,6 +15,7 @@ const PERSONA_PREFIX = '**Persona:**';
 const SKIP_PREFIX = 'skip:';
 /** Max newly derived persona-code length — mirrors the CLI canonical bound. */
 const MAX_CODE_LENGTH = 4;
+const LEGACY_CODE_PATTERN = /^[A-Z][A-Z0-9]{1,5}$/;
 /**
  * A level-4 heading only counts toward the AC gate when it carries a real
  * lineage id — `<jtbd>.AC<n>` or `<jtbd>.R<n>` (#696). Without this, any
@@ -104,6 +105,16 @@ function allocateDerivedCode(base: string, claimed: ReadonlySet<string>): string
   }
 }
 
+/** Reconstruct the former source-ordered suffix allocation within persisted bounds. */
+function allocateLegacyCode(base: string, claimed: ReadonlySet<string>): string | undefined {
+  if (!claimed.has(base)) return LEGACY_CODE_PATTERN.test(base) ? base : undefined;
+  for (let suffix = 2; ; suffix += 1) {
+    const candidate = `${base}${suffix}`;
+    if (!LEGACY_CODE_PATTERN.test(candidate)) return undefined;
+    if (!claimed.has(candidate)) return candidate;
+  }
+}
+
 /**
  * The set of persona references a JTBD may resolve against. Each `## Name` or
  * `## Name (CODE)` header contributes the name, its short code — the explicit
@@ -133,22 +144,37 @@ function resolvePersonaRefs(personasContent: string): PersonaReferenceResolution
     if (persona.code !== undefined) claimed.add(persona.code);
   }
 
-  for (const persona of personas) {
+  const currentCodes: Array<string | undefined> = [];
+  for (const [index, persona] of personas.entries()) {
     references.add(persona.name);
 
+    if (persona.code !== undefined) {
+      currentCodes[index] = persona.code;
+      addCodeForms(references, persona.name, persona.code);
+      continue;
+    }
+
     const derived = derivePersonaCode(persona.name);
-    if (persona.code === undefined && derived !== '') {
+    if (derived !== '') {
       const candidate = allocateDerivedCode(derived, claimed);
       if (candidate !== undefined) {
         claimed.add(candidate);
+        currentCodes[index] = candidate;
         addCodeForms(references, persona.name, candidate);
       } else {
         collisionExhaustedFor.push(persona.name);
       }
     }
-    const legacy = deriveLegacyPersonaCode(persona.name);
-    if (legacy !== '' && legacy !== derived) addCodeForms(references, persona.name, legacy);
-    if (persona.code !== undefined) addCodeForms(references, persona.name, persona.code);
+  }
+
+  const legacyClaimed = new Set(currentCodes.filter(code => code !== undefined));
+  for (const [index, persona] of personas.entries()) {
+    const base = deriveLegacyPersonaCode(persona.name);
+    if (base === '' || base === currentCodes[index]) continue;
+    const alias = allocateLegacyCode(base, legacyClaimed);
+    if (alias === undefined) continue;
+    legacyClaimed.add(alias);
+    addCodeForms(references, persona.name, alias);
   }
 
   return { references, collisionExhaustedFor };
@@ -403,9 +429,8 @@ function parseSectionHeading(trimmed: string): string | null {
  * can't import the CLI dist. Single-word → first 3 chars; two-word → first 2
  * chars plus the second initial; 3+ words → first 4 initials. Apostrophes are
  * removed within words, other punctuation separates words, and digits remain.
- * The gate is a lenient backstop — it does NOT apply the CLI's collision
- * suffixes (PO → PO2), so a derived code resolves to any persona deriving it.
- * Kept in agreement with the CLI by tests (see ticket P58R22).
+ * Canonical and former source-ordered collision suffixes are applied by the
+ * resolver above. Kept in agreement with the CLI by tests (see ticket P58R22).
  */
 function derivePersonaCode(name: string): string {
   const trimmed = name.trim();
@@ -439,7 +464,7 @@ function deriveLegacyPersonaCode(name: string): string {
 
   const derived =
     words.length === 1 ? firstWord.slice(0, 2) : words.map(word => word.charAt(0)).join('');
-  return derived.toUpperCase().slice(0, MAX_CODE_LENGTH);
+  return derived.toUpperCase().slice(0, 6);
 }
 
 /** `Platform Operator (PO)` → { name, code }; bare names → { name }. */

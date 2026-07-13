@@ -1,8 +1,10 @@
 import { strict as assert } from 'node:assert';
-import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import { Given, Then, When } from '@cucumber/cucumber';
+import { After, Given, Then, When } from '@cucumber/cucumber';
 import { createJiti } from 'jiti';
 
 import type * as PersonasModule from '../../src/utils/personas.js';
@@ -30,10 +32,18 @@ interface PersonaCodeState {
   personaGuidance?: string;
   discoveryGuidance?: string;
   scenarioGuidance?: string;
+  projectRoot?: string;
 }
 
 const states = new WeakMap<SafewordWorld, PersonaCodeState>();
 const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
+const cliPath = nodePath.join(repoRoot, 'packages/cli/dist/cli.js');
+
+After(function (this: SafewordWorld) {
+  const projectRoot = states.get(this)?.projectRoot;
+  if (projectRoot) rmSync(projectRoot, { recursive: true, force: true });
+  states.delete(this);
+});
 
 function state(world: SafewordWorld): PersonaCodeState {
   let current = states.get(world);
@@ -56,6 +66,40 @@ function catalog(names: readonly string[], explicitCode?: string): string {
 function resolveBoth(current: PersonaCodeState): void {
   current.cli = resolvePersonaCodes(parsePersonas(current.content));
   current.hookReferences = knownPersonaRefs(current.content);
+}
+
+function prepareFixture(current: PersonaCodeState): void {
+  current.projectRoot = mkdtempSync(nodePath.join(tmpdir(), 'persona-code-bdd-'));
+  writeFileSync(
+    nodePath.join(current.projectRoot, 'package.json'),
+    JSON.stringify({ name: 'persona-code-fixture', private: true }),
+  );
+  const git = spawnSync('git', ['init', '--quiet'], { cwd: current.projectRoot, encoding: 'utf8' });
+  assert.equal(git.status, 0, git.stderr);
+}
+
+function installAndReadAssets(current: PersonaCodeState): void {
+  assert.ok(current.projectRoot);
+  const setup = spawnSync('bun', [cliPath, 'setup', '--yes', '--no-modify'], {
+    cwd: current.projectRoot,
+    encoding: 'utf8',
+    env: { ...process.env, SAFEWORD_SKIP_INSTALL: '1', SAFEWORD_SKIP_SKILLS: '1' },
+  });
+  assert.equal(setup.status, 0, `${setup.stdout}\n${setup.stderr}`);
+
+  const skillRoot = current.surface === 'OpenAI Codex' ? '.agents' : '.claude';
+  current.personaGuidance = readFileSync(
+    nodePath.join(current.projectRoot, '.project/personas.md'),
+    'utf8',
+  );
+  current.discoveryGuidance = readFileSync(
+    nodePath.join(current.projectRoot, skillRoot, 'skills/bdd/DISCOVERY.md'),
+    'utf8',
+  );
+  current.scenarioGuidance = readFileSync(
+    nodePath.join(current.projectRoot, skillRoot, 'skills/bdd/SCENARIOS.md'),
+    'utf8',
+  );
 }
 
 Given('a persona named {string} without an explicit code', function (this: SafewordWorld, name) {
@@ -232,24 +276,13 @@ Then('validation rejects the code', function (this: SafewordWorld) {
 });
 
 Given('a fresh project configured for {string}', function (this: SafewordWorld, surface) {
-  state(this).surface = surface;
+  const current = state(this);
+  current.surface = surface;
+  prepareFixture(current);
 });
 
 When('safeword installs its persona and BDD authoring assets', function (this: SafewordWorld) {
-  const current = state(this);
-  const skillRoot = current.surface === 'OpenAI Codex' ? '.agents' : '.claude';
-  current.personaGuidance = readFileSync(
-    nodePath.join(repoRoot, 'packages/cli/templates/personas-template.md'),
-    'utf8',
-  );
-  current.discoveryGuidance = readFileSync(
-    nodePath.join(repoRoot, skillRoot, 'skills/bdd/DISCOVERY.md'),
-    'utf8',
-  );
-  current.scenarioGuidance = readFileSync(
-    nodePath.join(repoRoot, skillRoot, 'skills/bdd/SCENARIOS.md'),
-    'utf8',
-  );
+  installAndReadAssets(state(this));
 });
 
 Then(
@@ -269,23 +302,13 @@ Then('JTBD and Gherkin guidance carry the persona code unchanged', function (thi
 });
 
 Given('the installed persona and BDD authoring assets', function (this: SafewordWorld) {
-  state(this).surface = 'Claude Code';
+  const current = state(this);
+  current.surface = 'Claude Code';
+  prepareFixture(current);
 });
 
 When('their new-code examples are inspected', function (this: SafewordWorld) {
-  const current = state(this);
-  current.personaGuidance = readFileSync(
-    nodePath.join(repoRoot, 'packages/cli/templates/personas-template.md'),
-    'utf8',
-  );
-  current.discoveryGuidance = readFileSync(
-    nodePath.join(repoRoot, '.claude/skills/bdd/DISCOVERY.md'),
-    'utf8',
-  );
-  current.scenarioGuidance = readFileSync(
-    nodePath.join(repoRoot, '.claude/skills/bdd/SCENARIOS.md'),
-    'utf8',
-  );
+  installAndReadAssets(state(this));
 });
 
 Then(

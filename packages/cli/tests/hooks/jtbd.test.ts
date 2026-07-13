@@ -185,6 +185,20 @@ describe('evaluateJtbdGate (Rule 6)', () => {
     expect(verdict.ok).toBe(true);
   });
 
+  it('resolves six-character and collision-suffixed former derivations', () => {
+    const references = knownPersonaReferences(
+      [
+        '## Alpha Beta Charlie Delta Echo Foxtrot (ABCD)',
+        '## Platform Operator',
+        '## Planning Owner',
+      ].join('\n\n'),
+    );
+
+    expect(references.has('ABCDEF')).toBe(true);
+    expect(references.has('Platform Operator (PO)')).toBe(true);
+    expect(references.has('Planning Owner (PO2)')).toBe(true);
+  });
+
   it('still denies an unknown persona after derivation (G9BXE9)', () => {
     const personas = '## Platform Operator\n\n**Role:** Owns infra.\n';
     const verdict = evaluateJtbdGate(spec('### a\n\n**Persona:** Ghost Persona'), personas);
