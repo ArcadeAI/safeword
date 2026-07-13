@@ -146,6 +146,8 @@ function resolvePersonaRefs(personasContent: string): PersonaReferenceResolution
         collisionExhaustedFor.push(persona.name);
       }
     }
+    const legacy = deriveLegacyPersonaCode(persona.name);
+    if (legacy !== '' && legacy !== derived) addCodeForms(references, persona.name, legacy);
     if (persona.code !== undefined) addCodeForms(references, persona.name, persona.code);
   }
 
@@ -425,6 +427,18 @@ function derivePersonaCode(name: string): string {
     derived = words.map(word => word.charAt(0)).join('');
   }
 
+  return derived.toUpperCase().slice(0, MAX_CODE_LENGTH);
+}
+
+/** Preserve references authored under safeword's former 2–6 character derivation. */
+function deriveLegacyPersonaCode(name: string): string {
+  const cleaned = name.trim().replaceAll(/[^A-Z0-9\s]/gi, '');
+  const words = cleaned.split(/\s+/).filter(word => word.length > 0);
+  const [firstWord] = words;
+  if (!firstWord) return '';
+
+  const derived =
+    words.length === 1 ? firstWord.slice(0, 2) : words.map(word => word.charAt(0)).join('');
   return derived.toUpperCase().slice(0, MAX_CODE_LENGTH);
 }
 

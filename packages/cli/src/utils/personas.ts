@@ -78,6 +78,18 @@ export function derivePersonaCode(name: string): string {
   return derived.toUpperCase().slice(0, MAX_DERIVED_CODE_LENGTH);
 }
 
+/** Derive the pre-canonical code used by safeword before 3–4 letter defaults. */
+function deriveLegacyPersonaCode(name: string): string {
+  const cleaned = name.trim().replaceAll(/[^A-Z0-9\s]/gi, '');
+  const words = cleaned.split(/\s+/).filter(word => word.length > 0);
+  const [firstWord] = words;
+  if (!firstWord) return '';
+
+  const derived =
+    words.length === 1 ? firstWord.slice(0, 2) : words.map(word => word.charAt(0)).join('');
+  return derived.toUpperCase().slice(0, 4);
+}
+
 /** Whether a persona name passes the minimum-length requirement. */
 export function isValidPersonaName(name: string): boolean {
   return name.trim().length >= MIN_NAME_LENGTH;
@@ -322,6 +334,31 @@ export function validatePersonas(parsed: readonly ParsedPersona[]): PersonaValid
 export type PersonaReferenceResult =
   { status: 'valid'; match: ResolvedPersona } | { status: 'unknown'; suggestion?: string };
 
+function findLegacyCodeMatch(
+  personas: readonly ResolvedPersona[],
+  input: string,
+): ResolvedPersona | undefined {
+  const matches = personas.filter(
+    persona => persona.codeError === undefined && deriveLegacyPersonaCode(persona.name) === input,
+  );
+  return matches.length === 1 ? matches[0] : undefined;
+}
+
+function findCasingSuggestion(
+  personas: readonly ResolvedPersona[],
+  input: string,
+): string | undefined {
+  const lowered = input.toLowerCase();
+  for (const persona of personas) {
+    if (persona.codeError !== undefined) continue;
+    if (persona.code.toLowerCase() === lowered) return persona.code;
+    if (persona.name.toLowerCase() === lowered) return persona.name;
+    const legacyCode = deriveLegacyPersonaCode(persona.name);
+    if (legacyCode.toLowerCase() === lowered) return legacyCode;
+  }
+  return undefined;
+}
+
 /**
  * Look up a persona reference against a parsed-and-resolved list.
  *
@@ -348,19 +385,10 @@ export function lookupPersonaReference(
     }
   }
 
-  // Casing-mismatch detection — search again with lowercase comparison.
-  const lowered = input.toLowerCase();
-  for (const persona of personas) {
-    if (persona.codeError !== undefined) continue;
-    if (persona.code.toLowerCase() === lowered) {
-      return { status: 'unknown', suggestion: persona.code };
-    }
-    if (persona.name.toLowerCase() === lowered) {
-      return { status: 'unknown', suggestion: persona.name };
-    }
-  }
+  const legacyMatch = findLegacyCodeMatch(personas, input);
+  if (legacyMatch) return { status: 'valid', match: legacyMatch };
 
-  return { status: 'unknown' };
+  return { status: 'unknown', suggestion: findCasingSuggestion(personas, input) };
 }
 
 /**
