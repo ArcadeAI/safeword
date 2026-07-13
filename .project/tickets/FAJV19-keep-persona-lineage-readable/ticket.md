@@ -16,7 +16,7 @@ scope:
   - Update persona authoring guidance, BDD examples, hook-side derivation, dogfood personas, and the architecture decision record to the canonical 3–4 letter convention.
 out_of_scope:
   - Bulk-renaming codes embedded in completed tickets, historical Gherkin, or existing customer repositories.
-  - Adding persona-code aliases, an interactive persona editor, or automatic file mutation during `safeword check`.
+  - Adding a user-authored alias registry, an interactive persona editor, or automatic file mutation during `safeword check`; deterministic former-derived aliases are retained only for compatibility.
   - Changing Gherkin tag grammar, Rule numbering, or scenario-name conventions beyond the persona-code segment.
 done_when:
   - A newly derived persona code is always 3–4 characters or produces a clear validation error when the name cannot yield a conformant code.

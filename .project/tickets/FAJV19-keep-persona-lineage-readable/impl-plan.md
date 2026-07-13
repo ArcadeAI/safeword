@@ -1,6 +1,6 @@
 # Impl Plan: Keep persona lineage readable for builders
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 

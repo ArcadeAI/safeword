@@ -54,18 +54,18 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Installed assets prescribe one canonical lineage code
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED c85a35d0
+- [x] GREEN 3deafda9
+- [x] REFACTOR skip: one documentation contract table covers source plus installed Claude, Codex, and Cursor assets
 
 ### Scenario: Installed assets do not present two-letter defaults as canonical
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED c85a35d0
+- [x] GREEN 3deafda9
+- [x] REFACTOR skip: canonical examples and the legacy note share the persona scaffold as their source of truth
 
 ---
 
 ## Feature-level cross-scenario refactor
 
-- [ ] cross-scenario
+- [x] cross-scenario 03375975
