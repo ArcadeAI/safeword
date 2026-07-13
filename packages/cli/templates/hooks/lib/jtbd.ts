@@ -38,6 +38,11 @@ export interface JtbdSection {
 
 export type JtbdGateVerdict = { ok: true } | { ok: false; reason: string };
 
+interface PersonaReferenceResolution {
+  references: Set<string>;
+  collisionExhaustedFor: string[];
+}
+
 /**
  * Parse the `## Jobs To Be Done` section of a spec.md. Content inside HTML
  * comments is ignored (the scaffolded template's worked example is commented,
@@ -87,6 +92,18 @@ function addCodeForms(references: Set<string>, name: string, code: string): void
   references.add(`${name} (${code})`);
 }
 
+/** Allocate a deterministic collision suffix without exceeding four characters. */
+function allocateDerivedCode(base: string, claimed: ReadonlySet<string>): string | undefined {
+  if (!claimed.has(base)) return base;
+  for (let suffix = 2; ; suffix += 1) {
+    const suffixText = String(suffix);
+    const prefixLength = MAX_CODE_LENGTH - suffixText.length;
+    if (prefixLength < 1) return undefined;
+    const candidate = `${base.slice(0, prefixLength)}${suffixText}`;
+    if (!claimed.has(candidate)) return candidate;
+  }
+}
+
 /**
  * The set of persona references a JTBD may resolve against. Each `## Name` or
  * `## Name (CODE)` header contributes the name, its short code — the explicit
@@ -97,8 +114,9 @@ function addCodeForms(references: Set<string>, name: string, code: string): void
  * Exact-string membership; the richer case-suggestion contract stays in the
  * agent/authoring path. Empty/unreadable content yields an empty set.
  */
-export function knownPersonaRefs(personasContent: string): Set<string> {
+function resolvePersonaRefs(personasContent: string): PersonaReferenceResolution {
   const references = new Set<string>();
+  const collisionExhaustedFor: string[] = [];
   const personas: { name: string; code?: string }[] = [];
 
   for (const { text } of activeLines(personasContent)) {
@@ -120,19 +138,22 @@ export function knownPersonaRefs(personasContent: string): Set<string> {
 
     const derived = derivePersonaCode(persona.name);
     if (derived !== '') {
-      let candidate = derived;
-      let suffix = 2;
-      while (claimed.has(candidate)) {
-        candidate = `${derived}${suffix}`;
-        suffix += 1;
+      const candidate = allocateDerivedCode(derived, claimed);
+      if (candidate !== undefined) {
+        claimed.add(candidate);
+        addCodeForms(references, persona.name, candidate);
+      } else {
+        collisionExhaustedFor.push(persona.name);
       }
-      claimed.add(candidate);
-      addCodeForms(references, persona.name, candidate);
     }
     if (persona.code !== undefined) addCodeForms(references, persona.name, persona.code);
   }
 
-  return references;
+  return { references, collisionExhaustedFor };
+}
+
+export function knownPersonaRefs(personasContent: string): Set<string> {
+  return resolvePersonaRefs(personasContent).references;
 }
 
 /**
@@ -161,7 +182,16 @@ export function evaluateJtbdGate(specContent: string, personasContent: string): 
     };
   }
 
-  const known = knownPersonaRefs(personasContent);
+  const resolution = resolvePersonaRefs(personasContent);
+  const exhausted = resolution.collisionExhaustedFor[0];
+  if (exhausted !== undefined) {
+    return {
+      ok: false,
+      reason: `canonical persona-code collision space exhausted for "${exhausted}" — author an explicit 3–4 letter code in personas.md`,
+    };
+  }
+
+  const known = resolution.references;
   const unresolved = entries.find(entry => !known.has(entry.persona));
   if (unresolved !== undefined) {
     const named = unresolved.persona === '' ? '(empty)' : `"${unresolved.persona}"`;

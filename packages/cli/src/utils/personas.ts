@@ -181,6 +181,22 @@ export function parsePersonas(content: string): ParsedPersona[] {
   return personas;
 }
 
+/** Allocate a deterministic collision suffix without exceeding four characters. */
+function allocateDerivedCode(
+  base: string,
+  claimed: ReadonlySet<string>,
+): { code: string; exhausted: boolean } {
+  if (!claimed.has(base)) return { code: base, exhausted: false };
+
+  for (let suffix = 2; ; suffix += 1) {
+    const suffixText = String(suffix);
+    const prefixLength = MAX_DERIVED_CODE_LENGTH - suffixText.length;
+    if (prefixLength < 1) return { code: base, exhausted: true };
+    const candidate = `${base.slice(0, prefixLength)}${suffixText}`;
+    if (!claimed.has(candidate)) return { code: candidate, exhausted: false };
+  }
+}
+
 /**
  * Resolve auto-derived codes with collision avoidance.
  *
@@ -207,17 +223,15 @@ export function resolvePersonaCodes(parsed: readonly ParsedPersona[]): ResolvedP
       continue;
     }
     const base = derivePersonaCode(persona.name);
-    let candidate = base;
-    let suffix = 2;
-    while (claimed.has(candidate)) {
-      candidate = `${base}${suffix}`;
-      suffix += 1;
+    const allocation = allocateDerivedCode(base, claimed);
+    if (!allocation.exhausted) claimed.add(allocation.code);
+    let codeError: ResolvedPersona['codeError'];
+    if (allocation.exhausted) {
+      codeError = 'collision-space-exhausted';
+    } else if (!CANONICAL_PERSONA_CODE_PATTERN.test(allocation.code)) {
+      codeError = 'non-canonical-derived-code';
     }
-    claimed.add(candidate);
-    const codeError = CANONICAL_PERSONA_CODE_PATTERN.test(candidate)
-      ? undefined
-      : 'non-canonical-derived-code';
-    resolved.push({ ...persona, code: candidate, codeError });
+    resolved.push({ ...persona, code: allocation.code, codeError });
   }
 
   return resolved;
@@ -262,6 +276,13 @@ function findPatternErrors(resolved: readonly ResolvedPersona[]): PersonaValidat
       errors.push({
         line: persona.lineNumber,
         message: `name produces non-canonical code "${persona.code}" — author an explicit 3–4 letter code via \`## Name (CODE)\``,
+      });
+      continue;
+    }
+    if (persona.codeError === 'collision-space-exhausted') {
+      errors.push({
+        line: persona.lineNumber,
+        message: `canonical collision space exhausted for "${persona.code}" — author an explicit 3–4 letter code via \`## Name (CODE)\``,
       });
       continue;
     }

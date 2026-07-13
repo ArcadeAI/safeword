@@ -355,9 +355,11 @@ describe('resolvePersonaCodes', () => {
     const exhausted = resolved.at(-1);
     expect(exhausted?.codeError).toBe('collision-space-exhausted');
     expect(exhausted?.code.length).toBeLessThanOrEqual(4);
-    expect(validatePersonas(parsed).at(-1)?.message).toMatch(
-      /collision.*exhausted.*explicit.*3[–-]4/i,
-    );
+    expect(
+      validatePersonas(parsed).some(error =>
+        /collision.*exhausted.*explicit.*3[–-]4/i.test(error.message),
+      ),
+    ).toBe(true);
   });
 });
 
