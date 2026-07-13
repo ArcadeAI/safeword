@@ -16,7 +16,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 21f535a2
 - [x] GREEN a00663f6
-- [ ] REFACTOR
+- [x] REFACTOR skip: allocation is extended by the next exhaustion scenario, so extracting its final shape now would be premature
 
 ### Scenario: A name too short for a canonical code requests an explicit override
 
