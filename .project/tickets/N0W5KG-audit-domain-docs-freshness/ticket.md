@@ -2,8 +2,8 @@
 id: N0W5KG
 slug: audit-domain-docs-freshness
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 scope: |
   Add a "Namespace domain docs" subsection to /audit SKILL.md Section 5
   (Project Documentation Checks) — pure prose + bash, no new CLI code — that
@@ -54,3 +54,4 @@ last_modified: 2026-07-13T19:07:06.009Z
 - 2026-07-13T19:37:05.626Z Phase: scenario-gate → plan-implementation
 - 2026-07-13T19:58:42.766Z Phase: plan-implementation → implement
 - 2026-07-13T20:13:59.532Z Phase: implement → verify
+- 2026-07-13T20:45:28.465Z Phase: verify → done
