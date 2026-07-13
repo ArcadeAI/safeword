@@ -190,3 +190,56 @@ describe('audit domain-documentation persona drift (E009)', () => {
     expect(output).not.toContain('[E009]');
   });
 });
+
+const IN_SYNC_FIXTURE: Record<string, string> = {
+  '.project/personas.md': PERSONAS_TB,
+  '.project/surfaces.md': POPULATED_SURFACES,
+  '.project/glossary.md': `# Glossary\n\n## Tool\n\n**Definition:** A callable capability.\n`,
+  '.project/tickets/T1-x/spec.md': `# Spec\n\n**Persona:** Technical Builder (TB)\n`,
+  'features/x.feature': tagLineFeature('@surface.claude-code'),
+};
+
+describe('audit domain-documentation content is advisory only (R4)', () => {
+  it('produces no findings on a fully-populated, in-sync docs set', () => {
+    const { output } = runDomainDocumentationCheck(IN_SYNC_FIXTURE);
+
+    expect(output).not.toContain('[E008]');
+    expect(output).not.toContain('[E009]');
+    expect(output).not.toContain('[W008]');
+  });
+
+  it('emits the same result when a curated definition is reworded', () => {
+    const inSync = runDomainDocumentationCheck(IN_SYNC_FIXTURE);
+    const edited = runDomainDocumentationCheck({
+      ...IN_SYNC_FIXTURE,
+      '.project/glossary.md': `# Glossary\n\n## Tool\n\n**Definition:** A wholly different, arguably stale wording.\n`,
+    });
+
+    expect(edited.output).toBe(inSync.output);
+    expect(edited.output).not.toContain('[E');
+    expect(edited.output).not.toContain('[W');
+  });
+});
+
+const AUDIT_SURFACES = [
+  'packages/cli/templates/skills/audit/SKILL.md',
+  '.agents/skills/audit/SKILL.md',
+  '.claude/skills/audit/SKILL.md',
+];
+
+describe('audit domain-documentation skill guidance parity', () => {
+  it.each(AUDIT_SURFACES)('%s documents the domain-docs codes and advisory rule', relativePath => {
+    const content = readSurface(relativePath);
+
+    // The check exists and carries its sentinel + codes.
+    expect(content).toContain('domain-docs-check');
+    expect(content).toContain('Namespace Domain Docs');
+    // Codes appear in the Report Format legend, not only inline.
+    expect(content).toContain('[E008] Surface drift');
+    expect(content).toContain('[E009] Persona drift');
+    expect(content).toContain('[W008] Empty domain doc');
+    // R4: human-curated content is advisory-only, never an error.
+    expect(content).toContain('advisory');
+    expect(content).toMatch(/never (an? )?error/i);
+  });
+});

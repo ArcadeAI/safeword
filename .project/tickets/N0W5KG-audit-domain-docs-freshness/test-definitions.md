@@ -34,21 +34,21 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Persona code named in a live spec Persona line but undefined is reported
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 53b3f63a
+- [x] GREEN 53b3f63a
+- [x] REFACTOR 53b3f63a
 
 ### Scenario: Every persona code referenced in a live spec line resolves to an inventory entry
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 53b3f63a
+- [x] GREEN 53b3f63a
+- [x] REFACTOR 53b3f63a
 
 ### Scenario: A persona code appearing only in a commented-out spec example is not reported
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 53b3f63a
+- [x] GREEN 53b3f63a
+- [x] REFACTOR 53b3f63a
 
 ## Rule: audit-domain-docs.TB1.R3 — Empty domain doc is a warning with a fill offer (W008)
 

@@ -516,6 +516,12 @@ if [ -f "$personas_file" ] && [ "$(domain_docs_entry_count "$personas_file")" -g
 fi
 ```
 
+**Content is human-owned — advisory only, never an error.** This check judges _references_ (a slug/code that is or isn't defined) and _emptiness_ — observable facts. Whether a glossary term's meaning, or a persona/surface _description_, is still accurate is a human judgment: raise it as an advisory note at most, never as an error code. Only the three codes above (E008, E009, W008) are emitted here.
+
+**Empty-doc offer (W008):** report the empty doc and point the user to its template — do **not** draft entries or write the file during the audit pass (read-only). Filling it is a follow-up the user approves.
+
+**Coverage limitation:** the block reads the default namespace-root locations; per-file `paths.personas` / `paths.surfaces` / `paths.glossary` overrides are validated by `safeword check` (structure), not here. Persona drift reads spec `**Persona:**` lines only — feature lineage tags are not a reliable persona source.
+
 ---
 
 ## Report Format
@@ -531,6 +537,8 @@ Report findings by severity with codes:
 - [E005] Dependency gap: `@tanstack/query` is a major dependency but is not documented in ARCHITECTURE.md
 - [E006] Structural gap: module `billing` in `architecture.generated.md` is not documented in `ARCHITECTURE.md` (missing)
 - [E007] Drifted layer→dir: `ARCHITECTURE.md` maps `domain` → `src/core/` but no such module path is in `architecture.generated.md`
+- [E008] Surface drift: `@surface.safeword-cli` is referenced in `features/` but has no matching entry in `surfaces.md`
+- [E009] Persona drift: persona code `DEV` is named in a spec `**Persona:**` line but has no matching entry in `personas.md`
 
 ### Warnings (should review)
 
@@ -540,6 +548,7 @@ Report findings by severity with codes:
 - [W005] Stale config: `knip.json` — `lodash` can be removed from ignoreDependencies
 - [W006] Learning file missing Covers: — `<namespace-root>/learnings/foo.md` (absent from INDEX.md)
 - [W007] Stale .safeword/depcruise-config.cjs — run `safeword sync-config` to refresh and commit
+- [W008] Empty domain doc: `surfaces.md` has no uncommented entries — fill from its template (BDD intake references degrade until filled)
 
 ### Code Quality
 
