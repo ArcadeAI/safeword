@@ -430,6 +430,39 @@ Test Quality:
 
 Review recent commits (since last tag or last 20 commits). For each significantly changed area, check if related docs, readmes, or guides across the project need updating. Flag stale, missing, or contradictory impacted documentation as errors. Documentation drift is never a warning; only date-based staleness with no changed-code contradiction stays a warning.
 
+### 6. Namespace Domain Docs
+
+Reconcile the three namespace domain docs — `personas.md`, `surfaces.md`, `glossary.md` — against what the code actually references, and report empty scaffolds. These docs feed the BDD intake flow, so silent rot there degrades every downstream spec. This check is **read-only and class-2** (observable facts only): it reports and offers, it never rewrites a doc. **Run the block below verbatim, as ONE bash invocation.**
+
+```bash
+# domain-docs-check — read-only reconciliation of the namespace domain docs.
+# Class-2: observable facts only. Emits W008 (empty). Never writes the tree.
+cd "${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}" || exit 1
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
+
+# Resolve the namespace root (honors config paths.projectRoot in real runs).
+# Fall back on directory existence — robust when the resolver hook is absent.
+NS_ROOT="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR" 2> /dev/null)"
+[ -d "$NS_ROOT" ] || {
+  if [ -d "$PROJECT_DIR/.project" ]; then NS_ROOT="$PROJECT_DIR/.project"; else NS_ROOT="$PROJECT_DIR/.safeword-project"; fi
+}
+
+# Count `## ` entries OUTSIDE HTML comments — the scaffold's example headings
+# live inside its `<!-- ... -->` comment, so a verbatim scaffold counts as zero.
+domain_docs_entry_count() {
+  sed '/<!--/,/-->/d' "$1" | grep -cE '^## '
+}
+
+# --- Emptiness (W008): a domain doc with no uncommented entries ---
+for doc in personas surfaces glossary; do
+  file="$NS_ROOT/$doc.md"
+  [ -f "$file" ] || continue
+  if [ "$(domain_docs_entry_count "$file")" -eq 0 ]; then
+    echo "[W008] Empty domain doc: $doc.md — fill from packages/cli/templates/$doc-template.md (BDD intake references degrade until filled)"
+  fi
+done
+```
+
 ---
 
 ## Report Format
