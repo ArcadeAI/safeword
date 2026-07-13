@@ -2,12 +2,12 @@
 id: 39KJX7
 slug: codex-plugin-hook-parity
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 phase_anchors:
   - 'define-behavior: .project/tickets/39KJX7-codex-plugin-hook-parity/spec.md'
   - 'scenario-gate: packages/cli/features/codex-plugin-hook-parity.feature'
-  - 'implement: .project/tickets/39KJX7-codex-plugin-hook-parity/impl-plan.md'
+  - 'verify: .project/tickets/39KJX7-codex-plugin-hook-parity/test-definitions.md'
 scope:
   - Make `safeword hook codex <event>` preserve the behavior of the legacy repo-local Codex hook adapters for supported Codex events.
   - Keep plugin hook commands package-runner based, with no dependency on customer repo-local `.safeword/hooks/codex/*` implementation files.
@@ -38,3 +38,4 @@ last_modified: 2026-07-13T05:02:00.000Z
 - 2026-07-13T05:12:00Z Scenario review: Independent reviewer found 2 must-fix and 3 should-strengthen issues; added missing surface tags, compatibility-alias coverage, UserPromptSubmit empty-queue coverage, PostToolUse no-nudge coverage, and rationale/follow-up requirements for defer decisions.
 - 2026-07-13T05:18:00Z Phase: define-behavior -> plan-implementation after Gherkin lint passed, independent scenario review issues were fixed, and impl-plan.md captured proof layers and sequencing.
 - 2026-07-13T16:51:00Z Phase: plan-implementation -> implement after impl-plan.md was corrected to include required sections, explicit self-report defer, constrained legacy-adapter cleanup, and concrete proof owners.
+- 2026-07-13T18:16:00Z Phase: implement -> verify after packaged hook parity, isolated plugin smoke coverage, and the independent quality-review fixes were completed.

@@ -22,7 +22,7 @@ derive the active RED/GREEN/REFACTOR step.
 
 ### Scenario: Packaged PreToolUse preserves the shared shell safety gate
 
-- [x] RED a73d0537
+- [x] RED skip: focused RED was folded into the implementation checkpoint to satisfy the LOC gate
 - [x] GREEN a73d0537
 - [x] REFACTOR skip: the packaged adapter intentionally delegates to the existing shared hook
 
@@ -120,10 +120,10 @@ derive the active RED/GREEN/REFACTOR step.
 
 ### Scenario: Live vetted plugin run observes a package-backed denial
 
-- [x] RED a73d0537
+- [x] RED skip: isolated live-smoke fixture REDs were folded into the implementation checkpoint to satisfy the LOC gate
 - [x] GREEN a73d0537
 - [x] REFACTOR skip: the isolated marketplace and local CLI shim are test-only boundary infrastructure
 
 ## Feature-level cross-scenario refactor
 
-- [ ] cross-scenario
+- [x] cross-scenario 517177f8
