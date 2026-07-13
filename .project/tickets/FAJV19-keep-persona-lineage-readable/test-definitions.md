@@ -20,7 +20,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A name too short for a canonical code requests an explicit override
 
-- [ ] RED
+- [x] RED e0949b03
 - [ ] GREEN
 - [ ] REFACTOR
 
