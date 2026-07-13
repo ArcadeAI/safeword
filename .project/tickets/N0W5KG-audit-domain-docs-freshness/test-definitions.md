@@ -8,27 +8,27 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Surface tag with no matching inventory entry is reported
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 55efd801
+- [x] GREEN 55efd801
+- [x] REFACTOR 55efd801
 
 ### Scenario: Every referenced surface tag resolves, including multi-word headings
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 55efd801
+- [x] GREEN 55efd801
+- [x] REFACTOR 55efd801
 
 ### Scenario: A surface defined in the inventory but referenced by no tag is not reported
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 55efd801
+- [x] GREEN 55efd801
+- [x] REFACTOR 55efd801
 
 ### Scenario: A surface slug that appears only in prose is not treated as a reference
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 55efd801
+- [x] GREEN 55efd801
+- [x] REFACTOR 55efd801
 
 ## Rule: audit-domain-docs.TB1.R2 — Persona drift is an error (E009)
 
@@ -78,9 +78,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: An empty domain doc suppresses its own drift codes
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 55efd801
+- [x] GREEN 55efd801
+- [x] REFACTOR 55efd801
 
 ## Rule: audit-domain-docs.TB1.R4 — Human-curated content is advisory only, never an error
 

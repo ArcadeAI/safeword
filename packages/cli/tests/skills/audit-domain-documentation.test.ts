@@ -148,3 +148,45 @@ describe('audit domain-documentation surface drift (E008)', () => {
     expect(output).not.toContain('[E008]');
   });
 });
+
+const PERSONAS_TB = `# Personas\n\n## Technical Builder (TB)\n\n**Role:** Runs the agent.\n`;
+
+describe('audit domain-documentation persona drift (E009)', () => {
+  it('reports a persona code named in a live spec line but undefined', () => {
+    const { output } = runDomainDocumentationCheck({
+      '.project/personas.md': PERSONAS_TB,
+      '.project/tickets/T1-x/spec.md': `# Spec\n\n**Persona:** Growth Marketer (GM)\n`,
+    });
+
+    expect(output).toContain('[E009]');
+    expect(output).toContain('GM');
+  });
+
+  it('does not report drift when every live spec persona code resolves', () => {
+    const { output } = runDomainDocumentationCheck({
+      '.project/personas.md': PERSONAS_TB,
+      '.project/tickets/T1-x/spec.md': `# Spec\n\n**Persona:** Technical Builder (TB)\n`,
+    });
+
+    expect(output).not.toContain('[E009]');
+  });
+
+  it('does not report a persona code that appears only in a commented-out spec example', () => {
+    const { output } = runDomainDocumentationCheck({
+      '.project/personas.md': PERSONAS_TB,
+      '.project/tickets/T1-x/spec.md': `# Spec\n\n<!--\n**Persona:** Growth Marketer (GM)\n-->\n`,
+    });
+
+    expect(output).not.toContain('[E009]');
+  });
+
+  it('resolves a persona defined by name only via derived code', () => {
+    const { output } = runDomainDocumentationCheck({
+      // No explicit (PO) — derived from "Platform Operator" -> PO.
+      '.project/personas.md': `# Personas\n\n## Platform Operator\n\n**Role:** Owns infra.\n`,
+      '.project/tickets/T1-x/spec.md': `# Spec\n\n**Persona:** Platform Operator (PO)\n`,
+    });
+
+    expect(output).not.toContain('[E009]');
+  });
+});

@@ -481,6 +481,39 @@ if [ -f "$surfaces_file" ] && [ "$(domain_docs_entry_count "$surfaces_file")" -g
     fi
   done
 fi
+
+# --- Persona drift (E009): spec **Persona:** code referenced but undefined ---
+# Spec lines only, comment-stripped (feature lineage tags carry ticket-ids, not
+# personas). Suppressed when personas.md is empty/absent.
+personas_file="$NS_ROOT/personas.md"
+tickets_dir="$NS_ROOT/tickets"
+if [ -f "$personas_file" ] && [ "$(domain_docs_entry_count "$personas_file")" -gt 0 ] && [ -d "$tickets_dir" ]; then
+  # Defined codes: explicit `## Name (CODE)`, else derived (multi-word ->
+  # initials, single -> first two chars, uppercased).
+  defined_codes="$(sed '/<!--/,/-->/d' "$personas_file" | grep -E '^## ' | while IFS= read -r heading; do
+    name="${heading#\#\# }"
+    explicit="$(printf '%s' "$name" | grep -oE '\([A-Z][A-Z0-9]{1,5}\)$' | tr -d '()')"
+    if [ -n "$explicit" ]; then
+      printf '%s\n' "$explicit"
+      continue
+    fi
+    base="${name%% (*}"
+    if [ "$(printf '%s' "$base" | wc -w | tr -d ' ')" -ge 2 ]; then
+      printf '%s' "$base" | awk '{s="";for(i=1;i<=NF;i++)s=s toupper(substr($i,1,1));print s}'
+    else
+      printf '%s' "$base" | cut -c1-2 | tr '[:lower:]' '[:upper:]'
+    fi
+  done)"
+  # Referenced codes: (CODE) from spec **Persona:** lines, comments stripped.
+  referenced_codes="$(for spec in "$tickets_dir"/*/spec.md; do
+    [ -f "$spec" ] && sed '/<!--/,/-->/d' "$spec"
+  done 2> /dev/null | grep -E '^\*\*Persona:\*\*' | grep -oE '\([A-Z][A-Z0-9]{1,5}\)' | tr -d '()' | sort -u)"
+  for code in $referenced_codes; do
+    if ! printf '%s\n' $defined_codes | grep -qxF "$code"; then
+      echo "[E009] Persona drift: code $code referenced in a spec but no matching entry in personas.md"
+    fi
+  done
+fi
 ```
 
 ---
