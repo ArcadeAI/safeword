@@ -242,4 +242,13 @@ describe('audit domain-documentation skill guidance parity', () => {
     expect(content).toContain('advisory');
     expect(content).toMatch(/never (an? )?error/i);
   });
+
+  it('does not use a positional $1 in the domain-docs block (clobbered by skill-arg substitution)', () => {
+    // Skill/command injection substitutes positional $1 in the block body, so a
+    // shell function reading "$1" breaks in a live session. Named vars survive.
+    const block = extractDomainDocumentationBlock();
+
+    expect(block).not.toContain('"$1"');
+    expect(block).toContain('"$dd_file"');
+  });
 });

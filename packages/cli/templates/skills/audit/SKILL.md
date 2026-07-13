@@ -449,15 +449,17 @@ NS_ROOT="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJEC
 
 # Count `## ` entries OUTSIDE HTML comments — the scaffold's example headings
 # live inside its `<!-- ... -->` comment, so a verbatim scaffold counts as zero.
+# Reads the named var `dd_file`, NOT positional `$1`: skill/command argument
+# substitution clobbers `$1` in the injected block body.
 domain_docs_entry_count() {
-  sed '/<!--/,/-->/d' "$1" | grep -cE '^## '
+  sed '/<!--/,/-->/d' "$dd_file" | grep -cE '^## '
 }
 
 # --- Emptiness (W008): a domain doc with no uncommented entries ---
 for doc in personas surfaces glossary; do
-  file="$NS_ROOT/$doc.md"
-  [ -f "$file" ] || continue
-  if [ "$(domain_docs_entry_count "$file")" -eq 0 ]; then
+  dd_file="$NS_ROOT/$doc.md"
+  [ -f "$dd_file" ] || continue
+  if [ "$(domain_docs_entry_count)" -eq 0 ]; then
     echo "[W008] Empty domain doc: $doc.md — fill from packages/cli/templates/$doc-template.md (BDD intake references degrade until filled)"
   fi
 done
@@ -466,7 +468,8 @@ done
 # Suppressed when surfaces.md is empty/absent — W008 already says "fill it".
 FEATURES_DIR="$PROJECT_DIR/features"
 surfaces_file="$NS_ROOT/surfaces.md"
-if [ -f "$surfaces_file" ] && [ "$(domain_docs_entry_count "$surfaces_file")" -gt 0 ] && [ -d "$FEATURES_DIR" ]; then
+dd_file="$surfaces_file"
+if [ -f "$surfaces_file" ] && [ "$(domain_docs_entry_count)" -gt 0 ] && [ -d "$FEATURES_DIR" ]; then
   # Defined slugs: slugify each uncommented `## ` heading. Portable casing via
   # `tr` — BSD/macOS sed lacks `\L`.
   defined_slugs="$(sed '/<!--/,/-->/d' "$surfaces_file" | grep -E '^## ' | sed 's/^## //' \
@@ -487,7 +490,8 @@ fi
 # personas). Suppressed when personas.md is empty/absent.
 personas_file="$NS_ROOT/personas.md"
 tickets_dir="$NS_ROOT/tickets"
-if [ -f "$personas_file" ] && [ "$(domain_docs_entry_count "$personas_file")" -gt 0 ] && [ -d "$tickets_dir" ]; then
+dd_file="$personas_file"
+if [ -f "$personas_file" ] && [ "$(domain_docs_entry_count)" -gt 0 ] && [ -d "$tickets_dir" ]; then
   # Defined codes: explicit `## Name (CODE)`, else derived (multi-word ->
   # initials, single -> first two chars, uppercased).
   defined_codes="$(sed '/<!--/,/-->/d' "$personas_file" | grep -E '^## ' | while IFS= read -r heading; do
