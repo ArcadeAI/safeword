@@ -99,6 +99,7 @@ function addCodeForms(references: Set<string>, name: string, code: string): void
  */
 export function knownPersonaRefs(personasContent: string): Set<string> {
   const references = new Set<string>();
+  const personas: { name: string; code?: string }[] = [];
 
   for (const { text } of activeLines(personasContent)) {
     const heading = parseSectionHeading(text);
@@ -106,11 +107,29 @@ export function knownPersonaRefs(personasContent: string): Set<string> {
 
     const parsed = splitNameAndCode(heading);
     if (parsed.name === '') continue;
-    references.add(parsed.name);
+    personas.push(parsed);
+  }
 
-    const derived = derivePersonaCode(parsed.name);
-    if (derived !== '') addCodeForms(references, parsed.name, derived);
-    if (parsed.code !== undefined) addCodeForms(references, parsed.name, parsed.code);
+  const claimed = new Set<string>();
+  for (const persona of personas) {
+    if (persona.code !== undefined) claimed.add(persona.code);
+  }
+
+  for (const persona of personas) {
+    references.add(persona.name);
+
+    const derived = derivePersonaCode(persona.name);
+    if (derived !== '') {
+      let candidate = derived;
+      let suffix = 2;
+      while (claimed.has(candidate)) {
+        candidate = `${derived}${suffix}`;
+        suffix += 1;
+      }
+      claimed.add(candidate);
+      addCodeForms(references, persona.name, candidate);
+    }
+    if (persona.code !== undefined) addCodeForms(references, persona.name, persona.code);
   }
 
   return references;
