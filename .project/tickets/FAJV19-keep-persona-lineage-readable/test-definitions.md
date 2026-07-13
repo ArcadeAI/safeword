@@ -9,7 +9,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: CLI and installed hooks derive the same canonical code
 
 - [x] RED 83421c41
-- [ ] GREEN
+- [x] GREEN 91bdc3be
 - [ ] REFACTOR
 
 ### Scenario: A first collision stays inside the canonical length
