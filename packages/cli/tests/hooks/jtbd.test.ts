@@ -124,6 +124,13 @@ describe('knownPersonaRefs (Rule 5)', () => {
     expect(references.has('Planning Owner (PLO2)')).toBe(true);
   });
 
+  it('never exposes a derived collision code longer than four characters', () => {
+    const content = Array.from({ length: 1000 }, (_, index) => `## Pl${index} Operator`).join('\n');
+    const references = knownPersonaReferences(content);
+    expect(references.has('Pl999 Operator (PLO1000)')).toBe(false);
+    expect([...references].some(reference => /^PLO\d{4,}$/.test(reference))).toBe(false);
+  });
+
   it('does not contain an undeclared reference', () => {
     expect(knownPersonaReferences('## Platform Operator (PO)\n').has('End User')).toBe(false);
   });

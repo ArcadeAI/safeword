@@ -344,6 +344,17 @@ describe('resolvePersonaCodes', () => {
     expect(resolved[0]?.code).toBe('PLO2');
     expect(resolved[1]?.code).toBe('PLO');
   });
+
+  it('reports exhaustion before a collision suffix exceeds four characters', () => {
+    const content = Array.from(
+      { length: 1000 },
+      (_, index) => `## Pl${index} Operator\n**Role:** A`,
+    ).join('\n\n');
+    const resolved = resolvePersonaCodes(parsePersonas(content));
+    const exhausted = resolved.at(-1);
+    expect(exhausted?.codeError).toBe('collision-space-exhausted');
+    expect(exhausted?.code.length).toBeLessThanOrEqual(4);
+  });
 });
 
 describe('validatePersonas', () => {
