@@ -181,6 +181,32 @@ function inspectPromptInput(codex: string, projectRoot: string): string {
   return `${result.stdout}\n${result.stderr}`;
 }
 
+function promptInputIncludesRepoSkill(promptInput: string, skillName: string): boolean {
+  return promptInput.includes('/.agents/skills') && promptInput.includes(`- ${skillName}:`);
+}
+
+function runLiveContextProbe(codex: string, projectRoot: string): string {
+  const result = run(
+    codex,
+    [
+      'exec',
+      '--json',
+      '--dangerously-bypass-hook-trust',
+      '--dangerously-bypass-approvals-and-sandbox',
+      '-C',
+      projectRoot,
+      [
+        'Do not run tools.',
+        "Output exactly YES if your visible instructions include the phrase 'SAFEWORD.md standing instructions are loaded by safeword-owned hooks'.",
+        'Otherwise output exactly NO.',
+      ].join(' '),
+    ],
+    { cwd: projectRoot, timeout: 180_000 },
+  );
+  assertSuccess(result, 'codex exec live context probe');
+  return `${result.stdout}\n${result.stderr}`;
+}
+
 function runLiveEditAttempt(codex: string, projectRoot: string): string {
   const prompt = [
     `Use the apply_patch tool to create ${TEST_DEFINITIONS_PATH}.`,
@@ -232,18 +258,16 @@ describe.skipIf(!CAN_RUN)('live smoke: Codex customer-repo parity', () => {
     ).toBe(true);
 
     const promptInput = inspectPromptInput(CODEX, projectRoot);
-    const seesProjectInstructions =
-      promptInput.includes('.safeword/SAFEWORD.md') || promptInput.includes('.safeword/AGENTS.md');
-    const seesRepoExplainSkill = promptInput.includes('.agents/skills/explain');
-    if (!seesProjectInstructions || !seesRepoExplainSkill) {
-      console.warn(
-        [
-          'Codex live smoke finding:',
-          `projectInstructionsVisible=${seesProjectInstructions}`,
-          `repoExplainSkillVisible=${seesRepoExplainSkill}`,
-        ].join(' '),
-      );
-    }
+    expect(
+      promptInputIncludesRepoSkill(promptInput, 'explain'),
+      `Codex prompt input did not include the installed repo explain skill.\n${promptInput}`,
+    ).toBe(true);
+
+    const contextProbeOutput = runLiveContextProbe(CODEX, projectRoot);
+    expect(
+      contextProbeOutput,
+      `Codex live context probe did not receive safeword SessionStart context.\n${contextProbeOutput}`,
+    ).toContain('"text":"YES"');
 
     writeIncompleteTicket(projectRoot);
     const directDeny = runInstalledCodexHook(projectRoot);
