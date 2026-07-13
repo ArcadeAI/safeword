@@ -21,7 +21,9 @@ import nodePath from 'node:path';
 import process from 'node:process';
 
 import { isDogfoodRepo } from '../../templates/hooks/lib/dogfood.js';
+import { recordRetroDebugEvent } from '../../templates/hooks/lib/retro-debug.js';
 import {
+  draftSpoolPath,
   markDraftsFiled,
   readSpooledDrafts,
   spoolDrafts,
@@ -140,11 +142,15 @@ export async function runRetro(
   // REST auth failure (cloud #568) can't lose them. Opt-in via projectDirectory.
   const { projectDirectory, sessionId } = dependencies;
   if (projectDirectory !== undefined) {
-    spoolDrafts(
-      projectDirectory,
+    const drafts = encounters.map(encounter => encounter.draft);
+    recordRetroDebugEvent({
+      event: 'retro_cli_spool',
       sessionId,
-      encounters.map(encounter => encounter.draft),
-    );
+      draftsPassed: drafts.length,
+      skippedAppend: drafts.length === 0,
+      spoolFile: nodePath.relative(projectDirectory, draftSpoolPath(projectDirectory, sessionId)),
+    });
+    spoolDrafts(projectDirectory, sessionId, drafts);
   }
 
   const provenance = dependencies.resolveProvenance?.();
@@ -159,7 +165,15 @@ export async function runRetro(
   // Drain the drafts that reached the tracker; failed/deferred stay spooled for the
   // agent path. agentFilingNeeded = anything still spooled after the drain.
   markDraftsFiled(projectDirectory, sessionId, result.filedSignatures);
-  const agentFilingNeeded = readSpooledDrafts(projectDirectory, sessionId).length > 0;
+  const remainingDrafts = readSpooledDrafts(projectDirectory, sessionId).length;
+  const agentFilingNeeded = remainingDrafts > 0;
+  recordRetroDebugEvent({
+    event: 'retro_cli_filing',
+    sessionId,
+    filedCount: result.filedSignatures.length,
+    remainingDrafts,
+    agentFilingNeeded,
+  });
   return { ok: true, result, agentFilingNeeded, drops };
 }
 
@@ -245,6 +259,14 @@ export async function buildAutoExtractor(
         model,
         schemaPath: nodePath.join(workDirectory, 'schema.json'),
         outputPath: nodePath.join(workDirectory, 'output.json'),
+      });
+      recordRetroDebugEvent({
+        event: 'retro_cli_extraction',
+        agent: 'codex',
+        ok: result.ok,
+        findingsCount: result.findings.length,
+        failureReason: result.failureReason,
+        exitCode: result.exitCode,
       });
       dependencies.onExtractionResult?.(result);
       return result.findings;

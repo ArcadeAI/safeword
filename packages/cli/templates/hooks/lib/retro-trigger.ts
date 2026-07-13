@@ -329,7 +329,45 @@ export interface RetroTriggerDeps {
   readOffsetState?: (sessionId: string, baseDirectory?: string) => OffsetState | undefined;
   /** Offset-state writer (injected for tests; defaults to the atomic fs helper). */
   writeOffsetState?: (sessionId: string, state: OffsetState, baseDirectory?: string) => void;
+  /** Optional sanitized decision trace for opt-in diagnostics. */
+  onDecision?: (trace: RetroRunTrace) => void;
 }
+
+export type RetroRunSkipReason =
+  | 'retro_child'
+  | 'missing_session_id'
+  | 'missing_transcript_path'
+  | 'unreadable_transcript'
+  | 'below_threshold'
+  | 'max_fires_reached'
+  | 'below_rearm_growth';
+
+export type RetroRunTrace =
+  | {
+      outcome: 'skip';
+      reason: RetroRunSkipReason;
+      sessionId?: string;
+      transcriptPathPresent?: boolean;
+      transcriptReadable?: boolean;
+      toolUses?: number;
+      threshold?: number;
+      priorToolUses?: number;
+      rearmGrowth?: number;
+      priorFires?: number;
+      maxFires?: number;
+    }
+  | {
+      outcome: 'run';
+      sessionId: string;
+      transcriptPathPresent: true;
+      transcriptReadable: true;
+      toolUses: number;
+      threshold: number;
+      priorToolUses?: number;
+      priorFires?: number;
+      windowStart: number;
+      fires: number;
+    };
 
 /**
  * Decide whether to surface a retro nudge for this Stop, and (when it does) mark
@@ -423,22 +461,44 @@ export function decideRetroRun(
   dependencies: RetroTriggerDeps = {},
 ): RetroRunDecision | undefined {
   const env = dependencies.env ?? (process.env as Record<string, string | undefined>);
+  const trace = dependencies.onDecision;
   // Recursion guard first: the auth-working headless child runs with hooks, so
   // without this it would re-fire retro endlessly.
-  if (isRetroChild(env)) return undefined;
+  if (isRetroChild(env)) {
+    trace?.({ outcome: 'skip', reason: 'retro_child' });
+    return undefined;
+  }
 
   const resolve = dependencies.resolveSessionId ?? resolveSessionId;
   const sessionId = resolve(input, env);
-  if (!sessionId) return undefined;
+  if (!sessionId) {
+    trace?.({ outcome: 'skip', reason: 'missing_session_id' });
+    return undefined;
+  }
 
   const transcriptPath = input.transcript_path;
-  if (!transcriptPath || transcriptPath.length === 0) return undefined;
+  if (!transcriptPath || transcriptPath.length === 0) {
+    trace?.({
+      outcome: 'skip',
+      reason: 'missing_transcript_path',
+      sessionId,
+      transcriptPathPresent: false,
+    });
+    return undefined;
+  }
 
   const read = dependencies.readFile ?? ((path: string) => readFileSync(path, 'utf8'));
   let transcript: string;
   try {
     transcript = read(transcriptPath);
   } catch {
+    trace?.({
+      outcome: 'skip',
+      reason: 'unreadable_transcript',
+      sessionId,
+      transcriptPathPresent: true,
+      transcriptReadable: false,
+    });
     return undefined; // unreadable transcript → fail open
   }
 
@@ -456,16 +516,66 @@ export function decideRetroRun(
   let fires: number;
   if (!prior) {
     // First fire: substance gate, digest from the start of the transcript.
-    if (toolUses < threshold) return undefined;
+    if (toolUses < threshold) {
+      trace?.({
+        outcome: 'skip',
+        reason: 'below_threshold',
+        sessionId,
+        transcriptPathPresent: true,
+        transcriptReadable: true,
+        toolUses,
+        threshold,
+      });
+      return undefined;
+    }
     windowStart = 0;
     fires = 1;
   } else {
     // Re-fire: bounded by the runaway backstop, then gated by additive growth.
-    if (prior.fires >= maxFires) return undefined;
-    if (toolUses - prior.toolUses < rearmGrowth) return undefined;
+    if (prior.fires >= maxFires) {
+      trace?.({
+        outcome: 'skip',
+        reason: 'max_fires_reached',
+        sessionId,
+        transcriptPathPresent: true,
+        transcriptReadable: true,
+        toolUses,
+        priorToolUses: prior.toolUses,
+        priorFires: prior.fires,
+        maxFires,
+      });
+      return undefined;
+    }
+    if (toolUses - prior.toolUses < rearmGrowth) {
+      trace?.({
+        outcome: 'skip',
+        reason: 'below_rearm_growth',
+        sessionId,
+        transcriptPathPresent: true,
+        transcriptReadable: true,
+        toolUses,
+        priorToolUses: prior.toolUses,
+        rearmGrowth,
+        priorFires: prior.fires,
+      });
+      return undefined;
+    }
     windowStart = prior.offset;
     fires = prior.fires + 1;
   }
+
+  trace?.({
+    outcome: 'run',
+    sessionId,
+    transcriptPathPresent: true,
+    transcriptReadable: true,
+    toolUses,
+    threshold,
+    priorToolUses: prior?.toolUses,
+    priorFires: prior?.fires,
+    windowStart,
+    fires,
+  });
 
   try {
     writeState(sessionId, { offset: transcript.length, toolUses, fires }, baseDirectory);

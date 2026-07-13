@@ -14,6 +14,7 @@
     "claude",
     "codex",
     "gh",
+    "shellcheck",
     "rustup",
     "ruff",
     "golangci-lint",

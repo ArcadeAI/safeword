@@ -183,11 +183,13 @@ export interface CodexExtractArgvOptions {
  * Build the `codex exec` argv for a headless retro extraction. The digest is
  * inline in the prompt because `--output-schema` is ignored by Codex when the
  * task requires Read/MCP tool use. Hooks and MCP servers are explicitly disabled,
- * stdin is closed by the runner, and the sandbox is read-only.
+ * stdin is closed by the runner, the sandbox is read-only, and Codex is allowed
+ * to run from the neutral temp cwd rather than requiring a git repository.
  */
 export function buildCodexExtractArgv(options: CodexExtractArgvOptions): string[] {
   return [
     'exec',
+    '--skip-git-repo-check',
     '--ignore-user-config',
     '--disable',
     'hooks',
@@ -354,6 +356,10 @@ export interface CodexExtractionResult {
   /** True only when the child exited successfully and wrote schema-valid JSON. */
   ok: boolean;
   findings: unknown[];
+  /** Present only on extraction failure; lets callers distinguish empty success from failure. */
+  failureReason?: 'spawn_nonzero' | 'missing_output' | 'invalid_output' | 'spawn_or_io_error';
+  /** Child exit code when a process ran and exited non-zero. */
+  exitCode?: number | null;
 }
 
 /**
@@ -415,11 +421,21 @@ export async function runCodexHeadlessExtractionChecked(
       env: { ...dependencies.env, [RETRO_CHILD_ENV]: '1' },
       stdio: 'ignore',
     });
-    if (code !== 0) return { ok: false, findings: [] };
-    const findings = parseCodexFindingsOutput(readFile(outputPath));
-    return findings === undefined ? { ok: false, findings: [] } : { ok: true, findings };
+    if (code !== 0) {
+      return { ok: false, failureReason: 'spawn_nonzero', exitCode: code, findings: [] };
+    }
+    let rawOutput: string;
+    try {
+      rawOutput = readFile(outputPath);
+    } catch {
+      return { ok: false, failureReason: 'missing_output', findings: [] };
+    }
+    const findings = parseCodexFindingsOutput(rawOutput);
+    return findings === undefined
+      ? { ok: false, failureReason: 'invalid_output', findings: [] }
+      : { ok: true, findings };
   } catch {
-    return { ok: false, findings: [] };
+    return { ok: false, failureReason: 'spawn_or_io_error', findings: [] };
   }
 }
 

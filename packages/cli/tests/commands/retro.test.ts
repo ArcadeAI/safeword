@@ -24,6 +24,7 @@ import {
   verifyDraftBody,
 } from '../../templates/hooks/lib/retro-draft-spool.js';
 import { DIGEST_CAP, runHeadlessExtraction } from '../../templates/hooks/lib/retro-extract.js';
+import { readJsonlFile } from '../helpers.js';
 
 vi.mock('../../src/retro/github-rest.js', () => ({
   createRestTransport: () => {},
@@ -336,6 +337,52 @@ describe('runRetro', () => {
       }),
     );
     expect(transport.issues).toHaveLength(0);
+  });
+
+  it('traces empty post-egress spool calls separately from extraction failure', async () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-empty-spool-'));
+    const debugLog = nodePath.join(projectDirectory, 'retro-debug.jsonl');
+    const previousDebugLog = process.env.SAFEWORD_RETRO_DEBUG_LOG;
+    let events: Record<string, unknown>[] | undefined;
+    process.env.SAFEWORD_RETRO_DEBUG_LOG = debugLog;
+    try {
+      await runRetro(
+        { transcript: '/t.jsonl' },
+        dependencies({
+          projectDirectory,
+          extract: () => Promise.resolve([]),
+          transport: new FakeGitHub(),
+          sessionId: 'empty-findings',
+          readFile: () => 'transcript content',
+        }),
+      );
+      events = readJsonlFile(debugLog);
+    } finally {
+      if (previousDebugLog === undefined) {
+        delete process.env.SAFEWORD_RETRO_DEBUG_LOG;
+      } else {
+        process.env.SAFEWORD_RETRO_DEBUG_LOG = previousDebugLog;
+      }
+      rmSync(projectDirectory, { recursive: true, force: true });
+    }
+
+    expect(events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          event: 'retro_cli_spool',
+          sessionId: 'empty-findings',
+          draftsPassed: 0,
+          skippedAppend: true,
+        }),
+        expect.objectContaining({
+          event: 'retro_cli_filing',
+          sessionId: 'empty-findings',
+          filedCount: 0,
+          remainingDrafts: 0,
+          agentFilingNeeded: false,
+        }),
+      ]),
+    );
   });
 });
 
