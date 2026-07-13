@@ -2,10 +2,10 @@
 id: B9S30R
 slug: reconcile-live-smoke
 type: task
-phase: intake
-status: backlog
+phase: done
+status: done
 created: 2026-07-08T05:12:02.716Z
-last_modified: 2026-07-08T05:12:02.716Z
+last_modified: 2026-07-13T18:06:00.000Z
 ---
 
 # Live smoke of retro-reconcile version-provenance path
@@ -36,3 +36,10 @@ rate-limit flakes.
 
 - 2026-07-08T05:12:02.716Z Started: Created ticket B9S30R
 - 2026-07-08T05:14:00.000Z Decision recorded (live-lane test + one manual sweep run); parked to backlog. Depends on PR #958 merging (resolveTagDate ships there).
+- 2026-07-13T17:31:01.466Z Phase: intake → verify
+- 2026-07-13T18:06:00.000Z **Implemented + verified.** Added `packages/cli/tests/smoke/reconcile.live.test.ts` (token-gated via `resolveGitHubToken`; `describe.skipIf(!CAN_RUN)`; skips loudly; auto-joins the live lane via the `tests/**/*.live.test.ts` glob — no wiring change).
+  - **Live-run evidence (egress-capable env, real GitHub token):** egress probe `GET .../git/ref/tags%2Fv0.68.0` → 200; targeted live lane `test:smoke:live` → Test Files 1 passed / Tests 1 passed on a fresh dist build; `resolveTagDate('v0.68.0')` → `2026-07-07T21:47:32Z`. Cross-check: v0.68.0 is an annotated tag (object `b64b93c`) → commit `d5905a7`, committer date `2026-07-07T14:47:32-07:00` = the API result exactly — confirms the annotated-deref branch and that the current `%2F` ref resolves.
+  - **Three-stage close (FG6V57-style):** /verify — product suite 5172/5172 pass, Gherkin 407/410 (3 skipped), build ✅, lint ✅; 7 full-suite failures were local-overload/toolchain-env, all in files this diff doesn't touch (cursor-stop-review re-ran 6/6 green isolated; base SHA CI-green). /audit — passed with pre-existing baseline warnings only (arch clean, config in sync, new file adds no dead code/clones). /quality-review — independent fresh-context reviewer APPROVE, no critical issues; applied one accuracy fix (scoped the header to what a green proves: fail-closed path + annotated deref, not `%2F`-vs-raw-slash discrimination). /refactor — assessed, empty ledger (mirrors the `codex-parity.live.test.ts` house pattern), no smells. See `verify.md`.
+  - **Manual-sweep half of the original Decision:** satisfied without a separate run — the daily reconcile sweep is already live (PR #990, 89 issues) but none carried version provenance (the gap this ticket closes), so the unit-level live assertion on `resolveTagDate` is the correct closure for the version path.
+  - Commits: `ce7889f7` (test), `2a3bda65` (review-driven comment scope fix).
+- 2026-07-13T18:07:21.338Z Phase: verify → done
