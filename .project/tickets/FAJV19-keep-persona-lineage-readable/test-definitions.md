@@ -15,7 +15,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: A first collision stays inside the canonical length
 
 - [x] RED 21f535a2
-- [ ] GREEN
+- [x] GREEN a00663f6
 - [ ] REFACTOR
 
 ### Scenario: A name too short for a canonical code requests an explicit override
