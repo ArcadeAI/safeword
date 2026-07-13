@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
@@ -41,7 +41,7 @@ interface StopContinuationOutput {
   reason: string;
 }
 
-const EXPLAIN_HINT = 'Run `safeword:explain` for a plain-English version of this block.';
+const EXPLAIN_HINT = 'Run `$explain` for a plain-English version of this block.';
 const EXIT_CODE_DENY_MODE = 'exit-code';
 const REQUIRED_INTAKE_FIELDS = ['scope', 'out_of_scope', 'done_when'] as const;
 const MODULE_DIRECTORY = import.meta.dirname;
@@ -49,11 +49,18 @@ const SAFEWORD_INSTRUCTIONS_PATHS = [
   nodePath.resolve(MODULE_DIRECTORY, '../templates/SAFEWORD.md'),
   nodePath.resolve(MODULE_DIRECTORY, '../../templates/SAFEWORD.md'),
 ];
+const TEMPLATE_HOOKS_DIRECTORIES = [
+  nodePath.resolve(MODULE_DIRECTORY, '../templates/hooks'),
+  nodePath.resolve(MODULE_DIRECTORY, '../../templates/hooks'),
+];
 const POST_TOOL_GUIDANCE_PATH = '.project/codex-post-tool-guidance.txt';
 const PROMPT_CONTEXT_PATH = '.project/codex-prompt-context.txt';
 const STOP_CONTINUATION_PATH = '.project/codex-stop-continuation.txt';
 const CODEX_RUN_IDENTITY_CACHE = 'codex-run-identity.json';
+const CODEX_REVIEW_STAMP_IDENTITY_CACHE = 'codex-review-stamp-identity.json';
 const RECORD_SKILL_INVOCATION_SCRIPT = '.safeword/hooks/record-skill-invocation.ts';
+const WRITE_REVIEW_STAMP_SCRIPT = '.safeword/hooks/write-review-stamp.ts';
+const REVIEW_STAMP_CACHE_KEY = 'review-stamp';
 const SKILL_NAME_PATTERN = /^[a-z][a-z0-9-]*$/u;
 const SHELL_SEPARATORS = ';&|';
 const SHELL_WHITESPACE = ' \n\r\t\v\f';
@@ -155,8 +162,13 @@ function parseRecordSkillInvocationCommand(command: string): string | undefined 
   return skillName && SKILL_NAME_PATTERN.test(skillName) ? skillName : undefined;
 }
 
-function rememberCodexRunIdentity(input: {
+function commandInvokesWriteReviewStamp(command: string): boolean {
+  return command.replaceAll('\\', '/').includes(WRITE_REVIEW_STAMP_SCRIPT);
+}
+
+function writeCodexIdentityCache(input: {
   projectDirectory: string;
+  cacheFile: string;
   sessionId: string | undefined;
   skillName: string | undefined;
 }): void {
@@ -165,10 +177,7 @@ function rememberCodexRunIdentity(input: {
   if (!sessionId || !skillName) return;
 
   try {
-    const cachePath = nodePath.join(
-      resolveNamespaceRoot(input.projectDirectory),
-      CODEX_RUN_IDENTITY_CACHE,
-    );
+    const cachePath = nodePath.join(resolveNamespaceRoot(input.projectDirectory), input.cacheFile);
     mkdirSync(nodePath.dirname(cachePath), { recursive: true });
     writeFileSync(
       cachePath,
@@ -176,8 +185,28 @@ function rememberCodexRunIdentity(input: {
       'utf8',
     );
   } catch {
-    // This bridge only enables done-gate proof. It must never block a tool call.
+    // This bridge only enables proof helpers. It must never block a tool call.
   }
+}
+
+function rememberCodexRunIdentity(input: {
+  projectDirectory: string;
+  sessionId: string | undefined;
+  skillName: string | undefined;
+}): void {
+  writeCodexIdentityCache({ ...input, cacheFile: CODEX_RUN_IDENTITY_CACHE });
+}
+
+function rememberCodexReviewStampIdentity(input: {
+  projectDirectory: string;
+  sessionId: string | undefined;
+}): void {
+  writeCodexIdentityCache({
+    projectDirectory: input.projectDirectory,
+    cacheFile: CODEX_REVIEW_STAMP_IDENTITY_CACHE,
+    sessionId: input.sessionId,
+    skillName: REVIEW_STAMP_CACHE_KEY,
+  });
 }
 
 function extractPatchTargets(command: string): string[] {
@@ -259,6 +288,31 @@ function readPackagedSafewordInstructions(): string | undefined {
   return instructionsPath ? readFileSync(instructionsPath, 'utf8') : undefined;
 }
 
+function resolvePackagedHook(relativePath: string): string | undefined {
+  return TEMPLATE_HOOKS_DIRECTORIES.map(directory => nodePath.join(directory, relativePath)).find(
+    candidate => existsSync(candidate),
+  );
+}
+
+function runPackagedHook(relativePath: string, rawInput: string, projectDirectory: string): string {
+  const hookPath = resolvePackagedHook(relativePath);
+  if (!hookPath) return '';
+
+  const result = spawnSync('bun', [hookPath], {
+    cwd: projectDirectory,
+    input: rawInput,
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      CLAUDE_PROJECT_DIR: projectDirectory,
+      SAFEWORD_AGENT_RUNTIME: 'codex',
+    },
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+
+  return result.stdout ?? '';
+}
+
 function readProjectTextFile(projectDirectory: string, relativePath: string): string | undefined {
   const filePath = nodePath.join(projectDirectory, relativePath);
   return existsSync(filePath) ? readFileSync(filePath, 'utf8') : undefined;
@@ -304,13 +358,28 @@ async function runPreToolUse(): Promise<void> {
     skillName: parseRecordSkillInvocationCommand(input.tool_input?.command ?? ''),
   });
 
+  if (commandInvokesWriteReviewStamp(input.tool_input?.command ?? '')) {
+    rememberCodexReviewStampIdentity({
+      projectDirectory,
+      sessionId: input.session_id,
+    });
+  }
+
   for (const targetPath of extractTargetPaths(input)) {
     if (maybeDenyTestDefinitionsWrite(projectDirectory, targetPath)) return;
   }
 }
 
 async function runSessionStart(): Promise<void> {
-  const input = parseCodexHookInput(await readStdin());
+  const rawInput = await readStdin();
+  const projectDirectory = resolveProjectDirectory();
+  const packagedOutput = runPackagedHook('session-codex-start.ts', rawInput, projectDirectory);
+  if (packagedOutput.trim() !== '') {
+    process.stdout.write(packagedOutput);
+    return;
+  }
+
+  const input = parseCodexHookInput(rawInput);
   if (!input) return;
 
   const additionalContext = readPackagedSafewordInstructions();
@@ -344,7 +413,33 @@ async function runProjectAdditionalContext(
 }
 
 async function runPostToolUse(): Promise<void> {
-  await runProjectAdditionalContext('PostToolUse', POST_TOOL_GUIDANCE_PATH);
+  const rawInput = await readStdin();
+  const projectDirectory = resolveProjectDirectory();
+  const qualityOutput = runPackagedHook('codex/post-tool-quality.ts', rawInput, projectDirectory);
+  if (qualityOutput.trim() !== '') {
+    process.stdout.write(qualityOutput);
+    return;
+  }
+
+  const skillNudgeOutput = runPackagedHook(
+    'codex/post-tool-skill-nudge.ts',
+    rawInput,
+    projectDirectory,
+  );
+  if (skillNudgeOutput.trim() !== '') {
+    process.stdout.write(skillNudgeOutput);
+    return;
+  }
+
+  const additionalContext = readProjectTextFile(projectDirectory, POST_TOOL_GUIDANCE_PATH)?.trim();
+  if (!additionalContext) return;
+
+  emitAdditionalContext({
+    hookSpecificOutput: {
+      hookEventName: 'PostToolUse',
+      additionalContext,
+    },
+  });
 }
 
 async function runUserPromptSubmit(): Promise<void> {
@@ -352,20 +447,27 @@ async function runUserPromptSubmit(): Promise<void> {
 }
 
 async function runStop(): Promise<void> {
-  const input = parseCodexHookInput(await readStdin());
-  if (!input) {
-    emitStopNoop();
-    return;
-  }
-
+  const rawInput = await readStdin();
   const projectDirectory = resolveProjectDirectory();
-  const reason = readProjectTextFile(projectDirectory, STOP_CONTINUATION_PATH)?.trim();
-  if (!reason) {
-    emitStopNoop();
+  const packagedOutput = runPackagedHook('codex/stop.ts', rawInput, projectDirectory);
+  const trimmedPackagedOutput = packagedOutput.trim();
+  if (trimmedPackagedOutput !== '' && trimmedPackagedOutput !== '{}') {
+    process.stdout.write(packagedOutput);
     return;
   }
 
-  emitStopContinuation({ decision: 'block', reason });
+  const reason = readProjectTextFile(projectDirectory, STOP_CONTINUATION_PATH)?.trim();
+  if (reason) {
+    emitStopContinuation({ decision: 'block', reason });
+    return;
+  }
+
+  if (trimmedPackagedOutput !== '') {
+    process.stdout.write(packagedOutput);
+    return;
+  }
+
+  emitStopNoop();
 }
 
 const CODEX_HOOK_RUNNERS: Record<SupportedCodexHookEvent, () => Promise<void>> = {

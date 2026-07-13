@@ -248,7 +248,7 @@ describe.skipIf(!CAN_RUN)('live smoke: Codex customer-repo parity', () => {
     writeIncompleteTicket(projectRoot);
     const directDeny = runInstalledCodexHook(projectRoot);
     expect(directDeny.stdout).toContain('permissionDecision');
-    expect(directDeny.stdout).toContain('safeword:explain');
+    expect(directDeny.stdout).toContain('$explain');
 
     writeCompleteTicket(projectRoot);
     const directAllow = runInstalledCodexHook(projectRoot);
