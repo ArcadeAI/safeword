@@ -352,6 +352,18 @@ function validateMarketplacePlugin(marketplaceRoot: string): CommandResult | und
   };
 }
 
+function recordMarketplaceValidationFailure(
+  world: CodexPluginMigrationWorld,
+  marketplaceRoot: string,
+): boolean {
+  const marketplaceValidation = validateMarketplacePlugin(marketplaceRoot);
+  if (!marketplaceValidation) return false;
+
+  world.codexPluginInstallResult = marketplaceValidation;
+  world.codexPluginInstallSummary = summarizePluginInstallResult(marketplaceValidation);
+  return true;
+}
+
 function runCodexPluginCommand(this: CodexPluginMigrationWorld, args: string[]): CommandResult {
   return runCommand('codex', args, {
     cwd: requirePath(this.codexPluginRepoRoot, 'fresh repo root'),
@@ -448,12 +460,7 @@ function installSafeWordCodexPlugin(this: CodexPluginMigrationWorld): void {
     return;
   }
 
-  const marketplaceValidation = validateMarketplacePlugin(marketplaceRoot);
-  if (marketplaceValidation) {
-    this.codexPluginInstallResult = marketplaceValidation;
-    this.codexPluginInstallSummary = summarizePluginInstallResult(marketplaceValidation);
-    return;
-  }
+  if (recordMarketplaceValidationFailure(this, marketplaceRoot)) return;
 
   const addMarketplaceResult = runCodexPluginCommand.call(this, [
     'plugin',
@@ -849,12 +856,7 @@ When(
   function (this: CodexPluginMigrationWorld) {
     const marketplaceRoot = requirePath(this.codexPluginMarketplaceRoot, 'local marketplace root');
 
-    const marketplaceValidation = validateMarketplacePlugin(marketplaceRoot);
-    if (marketplaceValidation) {
-      this.codexPluginInstallResult = marketplaceValidation;
-      this.codexPluginInstallSummary = summarizePluginInstallResult(marketplaceValidation);
-      return;
-    }
+    if (recordMarketplaceValidationFailure(this, marketplaceRoot)) return;
 
     const addMarketplaceResult = runCodexPluginCommand.call(this, [
       'plugin',
