@@ -81,6 +81,13 @@ describe('audit domain-documentation emptiness (W008)', () => {
     expect(output).not.toContain('[W008]');
   });
 
+  it('does not report a populated doc empty when it has a single-line HTML comment', () => {
+    const withInlineComment = `# Surfaces\n<!-- TODO: keep sorted -->\n## Claude Code\n\n**Kind:** Agent runtime\n`;
+    const { output } = runDomainDocumentationCheck({ '.project/surfaces.md': withInlineComment });
+
+    expect(output).not.toContain('[W008]');
+  });
+
   it('skips absent domain docs without erroring', () => {
     const { output, status } = runDomainDocumentationCheck({
       '.project/surfaces.md': POPULATED_SURFACES,
@@ -138,6 +145,16 @@ describe('audit domain-documentation surface drift (E008)', () => {
     expect(output).not.toContain('[E008]');
   });
 
+  it('does not false-flag a surface whose heading follows a single-line comment', () => {
+    const withInlineComment = `# Surfaces\n## Claude Code\n\n**Kind:** x\n<!-- keep sorted alphabetically -->\n## Cursor\n\n**Kind:** y\n`;
+    const { output } = runDomainDocumentationCheck({
+      '.project/surfaces.md': withInlineComment,
+      'features/x.feature': tagLineFeature('@surface.cursor'),
+    });
+
+    expect(output).not.toContain('[E008]');
+  });
+
   it('suppresses surface drift when surfaces.md is an empty scaffold', () => {
     const { output } = runDomainDocumentationCheck({
       '.project/surfaces.md': SURFACES_SCAFFOLD,
@@ -178,6 +195,16 @@ describe('audit domain-documentation persona drift (E009)', () => {
     });
 
     expect(output).not.toContain('[E009]');
+  });
+
+  it('resolves a persona whose heading follows a single-line comment', () => {
+    const { output } = runDomainDocumentationCheck({
+      '.project/personas.md': `# Personas\n<!-- roles below, keep in sync -->\n## Technical Builder (TB)\n\n**Role:** x.\n`,
+      '.project/tickets/T1-x/spec.md': `# Spec\n\n**Persona:** Technical Builder (TB)\n`,
+    });
+
+    expect(output).not.toContain('[E009]');
+    expect(output).not.toContain('[W008]');
   });
 
   it('resolves a persona defined by name only via derived code', () => {

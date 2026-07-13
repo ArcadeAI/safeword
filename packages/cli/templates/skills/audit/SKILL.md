@@ -449,10 +449,13 @@ NS_ROOT="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJEC
 
 # Count `## ` entries OUTSIDE HTML comments — the scaffold's example headings
 # live inside its `<!-- ... -->` comment, so a verbatim scaffold counts as zero.
+# The sed strips same-line comments FIRST (`s/<!--.*-->//g`) then deletes
+# multi-line comment blocks (`/<!--/,/-->/d`): a POSIX range alone would treat a
+# lone `<!-- x -->` as an unclosed range and wipe every following line to EOF.
 # Reads the named var `dd_file`, NOT positional `$1`: skill/command argument
 # substitution clobbers `$1` in the injected block body.
 domain_docs_entry_count() {
-  sed '/<!--/,/-->/d' "$dd_file" | grep -cE '^## '
+  sed 's/<!--.*-->//g; /<!--/,/-->/d' "$dd_file" | grep -cE '^## '
 }
 
 # --- Emptiness (W008): a domain doc with no uncommented entries ---
@@ -472,7 +475,7 @@ dd_file="$surfaces_file"
 if [ -f "$surfaces_file" ] && [ "$(domain_docs_entry_count)" -gt 0 ] && [ -d "$FEATURES_DIR" ]; then
   # Defined slugs: slugify each uncommented `## ` heading. Portable casing via
   # `tr` — BSD/macOS sed lacks `\L`.
-  defined_slugs="$(sed '/<!--/,/-->/d' "$surfaces_file" | grep -E '^## ' | sed 's/^## //' \
+  defined_slugs="$(sed 's/<!--.*-->//g; /<!--/,/-->/d' "$surfaces_file" | grep -E '^## ' | sed 's/^## //' \
     | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9][^a-z0-9]*/-/g; s/^-//; s/-$//')"
   # Referenced slugs: @surface.<slug> on Gherkin tag lines only (line starts
   # with @), so a slug mentioned in step prose is not a reference.
@@ -492,9 +495,13 @@ personas_file="$NS_ROOT/personas.md"
 tickets_dir="$NS_ROOT/tickets"
 dd_file="$personas_file"
 if [ -f "$personas_file" ] && [ "$(domain_docs_entry_count)" -gt 0 ] && [ -d "$tickets_dir" ]; then
-  # Defined codes: explicit `## Name (CODE)`, else derived (multi-word ->
-  # initials, single -> first two chars, uppercased).
-  defined_codes="$(sed '/<!--/,/-->/d' "$personas_file" | grep -E '^## ' | while IFS= read -r heading; do
+  # Defined codes: explicit trailing `## Name (CODE)` wins; else derived
+  # best-effort (multi-word -> initials, single -> first two chars, uppercased).
+  # Derivation is naive (particles/hyphens mis-derive, e.g. Site-Reliability
+  # Engineer -> SE not SRE), and codes are the project's `[A-Z][A-Z0-9]{1,5}`
+  # (>=2 chars) — prefer the explicit `(CODE)` heading, which `safeword check`
+  # writes, to avoid a spurious E009.
+  defined_codes="$(sed 's/<!--.*-->//g; /<!--/,/-->/d' "$personas_file" | grep -E '^## ' | while IFS= read -r heading; do
     name="${heading#\#\# }"
     explicit="$(printf '%s' "$name" | grep -oE '\([A-Z][A-Z0-9]{1,5}\)$' | tr -d '()')"
     if [ -n "$explicit" ]; then
@@ -510,7 +517,7 @@ if [ -f "$personas_file" ] && [ "$(domain_docs_entry_count)" -gt 0 ] && [ -d "$t
   done)"
   # Referenced codes: (CODE) from spec **Persona:** lines, comments stripped.
   referenced_codes="$(for spec in "$tickets_dir"/*/spec.md; do
-    [ -f "$spec" ] && sed '/<!--/,/-->/d' "$spec"
+    [ -f "$spec" ] && sed 's/<!--.*-->//g; /<!--/,/-->/d' "$spec"
   done 2> /dev/null | grep -E '^\*\*Persona:\*\*' | grep -oE '\([A-Z][A-Z0-9]{1,5}\)' | tr -d '()' | sort -u)"
   for code in $referenced_codes; do
     if ! printf '%s\n' $defined_codes | grep -qxF "$code"; then
