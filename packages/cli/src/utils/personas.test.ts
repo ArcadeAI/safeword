@@ -350,10 +350,14 @@ describe('resolvePersonaCodes', () => {
       { length: 1000 },
       (_, index) => `## Pl${index} Operator\n**Role:** A`,
     ).join('\n\n');
-    const resolved = resolvePersonaCodes(parsePersonas(content));
+    const parsed = parsePersonas(content);
+    const resolved = resolvePersonaCodes(parsed);
     const exhausted = resolved.at(-1);
     expect(exhausted?.codeError).toBe('collision-space-exhausted');
     expect(exhausted?.code.length).toBeLessThanOrEqual(4);
+    expect(validatePersonas(parsed).at(-1)?.message).toMatch(
+      /collision.*exhausted.*explicit.*3[–-]4/i,
+    );
   });
 });
 
