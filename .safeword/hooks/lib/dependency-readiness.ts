@@ -11,6 +11,7 @@ import {
 import nodePath from 'node:path';
 
 import { resolveNamespaceRoot } from './namespace-root.js';
+import { commandWords, splitShellSegments } from './shell-segments.js';
 
 export type DependencyManager = 'bun' | 'pnpm' | 'npm' | 'yarn';
 export type DependencyReadinessStatus = 'ready' | 'missing' | 'stale' | 'unsupported';
@@ -76,7 +77,6 @@ const BUN_OPTIONS_WITH_VALUES = new Set([
   '-c',
   '-r',
 ]);
-const ENV_OPTIONS_WITH_VALUES = new Set(['--argv0', '--chdir', '--unset', '-a', '-C', '-u']);
 const PACKAGE_MANAGER_OPTIONS_WITH_VALUES = new Set([
   '--cwd',
   '--dir',
@@ -380,6 +380,15 @@ const INSTALL_SUBCOMMANDS = new Set(['install', 'i', 'ci']);
  * command from post-install stamping.
  */
 const NO_RECONCILE_FLAGS = new Set(['--dry-run', '--lockfile-only', '--package-lock-only']);
+/**
+ * Flags that make any package manager print-and-exit instead of installing.
+ * `bun install --help`, `npm ci --version`, and bare `yarn --version` all
+ * carry a real install subcommand (or are classic bare yarn) yet never
+ * reconcile `node_modules`, so counting them as installs would stamp a
+ * false-ready (EDDABK). Under-counting is safe here — the worst case is the
+ * user re-running a real install — so a broad flag list is fine.
+ */
+const REPORT_ONLY_INSTALL_FLAGS = new Set(['--version', '-v', '--help', '-h']);
 
 /**
  * Whether a command runs a dependency *install* (e.g. `bun ci`, `pnpm install
@@ -393,15 +402,19 @@ export function isDependencyInstallCommand(command: string): boolean {
 }
 
 function isInstallSegment(segment: string): boolean {
-  const [binary, ...args] = stripExecutionPrefixes(tokenizeShellWords(segment));
+  const [binary, ...args] = commandWords(segment);
   if (binary === undefined) return false;
-  if (!INSTALL_MANAGERS.has(nodePath.basename(binary))) return false;
+  const base = nodePath.basename(binary);
+  if (!INSTALL_MANAGERS.has(base)) return false;
   // A lockfile-only / dry-run install never materializes node_modules.
   if (args.some(arg => NO_RECONCILE_FLAGS.has(arg.split('=')[0] ?? arg))) return false;
+  // A report-only flag (--help/--version) makes the manager print and exit
+  // without installing — for every manager, not just classic bare yarn.
+  if (args.some(arg => REPORT_ONLY_INSTALL_FLAGS.has(arg))) return false;
 
   const subcommand = firstCommandArgument(args, PACKAGE_MANAGER_OPTIONS_WITH_VALUES);
   // Classic `yarn` with no subcommand installs.
-  if (nodePath.basename(binary) === 'yarn' && subcommand === undefined) return true;
+  if (base === 'yarn' && subcommand === undefined) return true;
   return subcommand !== undefined && INSTALL_SUBCOMMANDS.has(subcommand);
 }
 
@@ -749,8 +762,7 @@ function escapeRegExp(value: string): string {
 }
 
 function isDependencyBackedSegment(segment: string): boolean {
-  const words = stripExecutionPrefixes(tokenizeShellWords(segment));
-  const [binary, ...args] = words;
+  const [binary, ...args] = commandWords(segment);
   if (binary === undefined) return false;
 
   const basename = nodePath.basename(binary);
@@ -828,195 +840,6 @@ function firstCommandArgument(
   }
 
   return undefined;
-}
-
-function splitShellSegments(command: string): string[] {
-  const segments: string[] = [];
-  let current = '';
-  let quote: '"' | "'" | undefined;
-  let escaped = false;
-
-  for (let index = 0; index < command.length; index += 1) {
-    const char = command[index];
-    const next = command[index + 1];
-
-    if (char === undefined) continue;
-
-    if (escaped) {
-      current += char;
-      escaped = false;
-      continue;
-    }
-
-    if (char === '\\' && quote !== "'") {
-      current += char;
-      escaped = true;
-      continue;
-    }
-
-    if (quote !== undefined) {
-      current += char;
-      if (char === quote) quote = undefined;
-      continue;
-    }
-
-    if (char === '"' || char === "'") {
-      quote = char;
-      current += char;
-      continue;
-    }
-
-    if (char === '\n' || char === ';') {
-      pushSegment(segments, current);
-      current = '';
-      continue;
-    }
-
-    if ((char === '&' && next === '&') || (char === '|' && next === '|')) {
-      pushSegment(segments, current);
-      current = '';
-      index += 1;
-      continue;
-    }
-
-    if (char === '|') {
-      pushSegment(segments, current);
-      current = '';
-      continue;
-    }
-
-    current += char;
-  }
-
-  pushSegment(segments, current);
-  return segments;
-}
-
-function pushSegment(segments: string[], segment: string): void {
-  const trimmed = segment.trim();
-  if (trimmed.length > 0) segments.push(trimmed);
-}
-
-function tokenizeShellWords(segment: string): string[] {
-  const words: string[] = [];
-  let current = '';
-  let quote: '"' | "'" | undefined;
-  let escaped = false;
-
-  for (let index = 0; index < segment.length; index += 1) {
-    const char = segment[index];
-    if (char === undefined) continue;
-
-    if (escaped) {
-      current += char;
-      escaped = false;
-      continue;
-    }
-
-    if (char === '\\' && quote !== "'") {
-      escaped = true;
-      continue;
-    }
-
-    if (quote !== undefined) {
-      if (char === quote) {
-        quote = undefined;
-      } else {
-        current += char;
-      }
-      continue;
-    }
-
-    if (char === '"' || char === "'") {
-      quote = char;
-      continue;
-    }
-
-    if (/\s/.test(char)) {
-      pushWord(words, current);
-      current = '';
-      continue;
-    }
-
-    current += char;
-  }
-
-  pushWord(words, current);
-  return words;
-}
-
-function pushWord(words: string[], word: string): void {
-  if (word.length > 0) words.push(word);
-}
-
-function stripExecutionPrefixes(words: string[]): string[] {
-  let remaining = words;
-
-  while (remaining.length > 0) {
-    remaining = stripLeadingEnvironmentAssignments(remaining);
-    const [binary, ...args] = remaining;
-    if (binary === undefined) return [];
-
-    const basename = nodePath.basename(binary);
-    if (basename === 'env') {
-      remaining = stripEnvInvocation(args);
-      continue;
-    }
-
-    if (basename === 'corepack') {
-      remaining = args;
-      continue;
-    }
-
-    return remaining;
-  }
-
-  return remaining;
-}
-
-function stripLeadingEnvironmentAssignments(words: string[]): string[] {
-  let index = 0;
-  while (index < words.length && isEnvironmentAssignment(words[index] ?? '')) {
-    index += 1;
-  }
-  return words.slice(index);
-}
-
-function stripEnvInvocation(args: string[]): string[] {
-  let index = 0;
-
-  while (index < args.length) {
-    const arg = args[index];
-    if (arg === undefined) break;
-
-    if (isEnvironmentAssignment(arg)) {
-      index += 1;
-      continue;
-    }
-
-    if (arg === '--') {
-      index += 1;
-      break;
-    }
-
-    if (ENV_OPTIONS_WITH_VALUES.has(arg) && !arg.includes('=')) {
-      index += 2;
-      continue;
-    }
-
-    if (arg.startsWith('-')) {
-      index += 1;
-      continue;
-    }
-
-    break;
-  }
-
-  return args.slice(index);
-}
-
-function isEnvironmentAssignment(word: string): boolean {
-  return /^[A-Za-z_][A-Za-z0-9_]*=.*/.test(word);
 }
 
 function isInstallArtifactStale(

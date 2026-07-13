@@ -71,19 +71,23 @@ if (existsSync(stateFile)) {
             : null;
 
         // Phase-specific one-liner
+        // satisfies proves every canonical phase has a reminder (a missing key was
+        // silent before); Record<string,string> keeps the tolerant off-enum lookup.
         const reminders: Record<string, string> = {
           intake:
             'Phase: understanding. Contribute a perspective, surface open questions. If sizing as feature, run `/bdd`.',
           'define-behavior':
             'Phase: define-behavior. Present scenarios to user for review. Do not save test-definitions.md until accepted.',
           'scenario-gate':
-            'Phase: scenario-gate. AODI validation + adversarial pass. If new scenarios found, loop back to define-behavior; else record the proof plan + build order and advance to implement.',
+            'Phase: scenario-gate. AODI validation + adversarial pass. If new scenarios found, loop back to define-behavior; else advance to plan-implementation.',
+          'plan-implementation':
+            'Phase: plan-implementation. Author impl-plan.md (scaffold from .safeword/templates/impl-plan-template.md); map installed language/component skills to the scenarios; independent review before advancing to implement.',
           implement: tddStep
             ? `TDD: ${tddStep.toUpperCase()}. ${tddNextStep(tddStep)}`
             : 'Phase: implement.',
           verify: 'Phase: verify. Cross-scenario refactor if needed, then run /verify and /audit.',
           done: 'Phase: done. Close ticket (verify.md exists).',
-        };
+        } satisfies Record<import('./lib/quality.js').BddPhase, string> & Record<string, string>;
 
         // Name the active ticket slug-first (ZRXM6Q) so the per-turn reminder
         // reads in names, not the opaque ID — recognition over recall. The slug

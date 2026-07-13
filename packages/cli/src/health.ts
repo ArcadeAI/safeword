@@ -327,25 +327,33 @@ function findCoverageDiagnostics(cwd: string): CoverageDiagnostics {
     const ticketDiagnostics = coverageDiagnosticsForTicket(cwd, ticketsRoot, ticketId);
     all.issues.push(...ticketDiagnostics.issues);
     all.advisories.push(...ticketDiagnostics.advisories);
-    const anchorAdvisory = phaseAnchorAdvisoryForTicket(ticketsRoot, ticketId);
+    const anchorAdvisory = phaseAnchorAdvisoryForTicket(cwd, ticketsRoot, ticketId);
     if (anchorAdvisory !== undefined) all.advisories.push(anchorAdvisory);
   }
   return all;
 }
 
 /**
- * Phase-anchor advisory (issue #824, epic #808): an in-progress feature
- * ticket whose current phase carries no valid `phase_anchors` entry gets a
- * zero-exit nudge — the at-rest view of the #809 anchor substrate. Advisory
- * only: enforcement belongs to the deliverable-boundary gate (#810), and
- * tickets born before the convention are tolerated, not failed.
+ * Phase-anchor advisory (issue #824, epic #808; HGYGND artifact-path grammar):
+ * an in-progress feature ticket whose current phase carries no valid
+ * `phase_anchors` entry gets a zero-exit nudge — the at-rest view of the
+ * anchor substrate, verified against the working tree (a filesystem reader is
+ * injected, so existence + shape are checked, not just format). Advisory only:
+ * enforcement belongs to the deliverable-boundary gate (#810). Hex-shaped
+ * legacy anchors are grandfathered by the detector and never re-litigated.
  */
-function phaseAnchorAdvisoryForTicket(ticketsRoot: string, ticketId: string): string | undefined {
+function phaseAnchorAdvisoryForTicket(
+  cwd: string,
+  ticketsRoot: string,
+  ticketId: string,
+): string | undefined {
   const content = readFileSafe(nodePath.join(ticketsRoot, ticketId, 'ticket.md'));
   if (content === undefined || !isInProgress(content)) return undefined;
-  const verdict = detectUnanchoredPhaseState(content);
+  const verdict = detectUnanchoredPhaseState(content, relpath =>
+    readFileSafe(nodePath.join(cwd, relpath)),
+  );
   if (verdict.kind !== 'unanchored') return undefined;
-  return `${formatCoverageTicketLabel(ticketId)}: phase "${verdict.phase}" has no valid phase_anchors entry — append \`- ${verdict.phase}: <commit-sha>\` (git's ID for the commit this phase advance rode on) so commit/push checks can verify the advance is real`;
+  return `${formatCoverageTicketLabel(ticketId)}: ${verdict.reason} The anchor is the exited phase's artifact — boundary checks verify it against the tree.`;
 }
 
 /** Build coverage advisories for one ticket, or none if it is not an

@@ -8,11 +8,11 @@ How to write specs, user stories, and test definitions before implementation.
 
 **Triage first — the first matching row sets the level:**
 
-| Question                                 | Level       | Artifacts                                            |
-| ---------------------------------------- | ----------- | ---------------------------------------------------- |
-| User-facing feature with business value? | **feature** | Feature Spec + Test Definitions (+ Design Doc if 3+) |
-| Bug, improvement, internal, or refactor? | **task**    | Task Spec with inline tests                          |
-| Typo, config, or trivial change?         | **patch**   | Minimal Task Spec, existing tests                    |
+| Question                                 | Level       | Artifacts                                                        |
+| ---------------------------------------- | ----------- | ---------------------------------------------------------------- |
+| User-facing feature with business value? | **feature** | Feature Spec + Test Definitions + Impl Plan (+ Design Doc if 3+) |
+| Bug, improvement, internal, or refactor? | **task**    | Task Spec with inline tests                                      |
+| Typo, config, or trivial change?         | **patch**   | Minimal Task Spec, existing tests                                |
 
 **Location:** `<namespace-root>/tickets/{ID}-{slug}/`
 
@@ -21,6 +21,7 @@ Ticket artifacts live in the ticket folder:
 - `ticket.md` - Ticket definition
 - `test-definitions.md` - R/G/R ledger for BDD scenarios
 - `spec.md` - Feature spec (epics only)
+- `impl-plan.md` - Implementation design record for new-flow features — authored during the plan-implementation phase (after scenarios validate, before TDD), scaffolded from `.safeword/templates/impl-plan-template.md`; the plan gate blocks `implement` until it parses valid (see the bdd skill's `PLAN_IMPLEMENTATION.md`)
 - `design.md` - Design doc (complex features)
 
 Executable BDD scenarios live at `features/<slug>.feature` (or under the

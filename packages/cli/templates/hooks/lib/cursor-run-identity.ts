@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import nodePath from 'node:path';
 
 import { resolveNamespaceRoot } from './namespace-root.js';
+import { commandWords, splitShellSegments } from './shell-segments.js';
 
 const CURSOR_RUN_IDENTITY_CACHE = 'cursor-run-identity.json';
 const CODEX_RUN_IDENTITY_CACHE = 'codex-run-identity.json';
@@ -61,7 +62,6 @@ interface ReadFreshRunIdentityInput {
   maxAgeMs?: number;
 }
 
-const SHELL_OPERATORS = new Set([';', '&&', '||', '|']);
 const SKILL_NAME_PATTERN = /^[a-z][a-z0-9-]*$/;
 
 function nonEmptyString(value: string | undefined): string | undefined {
@@ -71,10 +71,6 @@ function nonEmptyString(value: string | undefined): string | undefined {
 
 function cachePathForProject(projectDirectory: string, cacheFile: string): string {
   return nodePath.join(resolveNamespaceRoot(projectDirectory), cacheFile);
-}
-
-function isEnvironmentAssignment(token: string): boolean {
-  return /^[A-Za-z_][A-Za-z0-9_]*=/.test(token);
 }
 
 function isBunExecutable(token: string | undefined): boolean {
@@ -101,114 +97,20 @@ function isReviewStampHelperPath(token: string | undefined): boolean {
   );
 }
 
-function tokenizeShellCommand(command: string): string[] {
-  const tokens: string[] = [];
-  let current = '';
-  let quote: '"' | "'" | undefined;
-  let escaped = false;
-
-  function flush(): void {
-    if (current.length > 0) {
-      tokens.push(current);
-      current = '';
-    }
-  }
-
-  for (let index = 0; index < command.length; index += 1) {
-    const char = command[index];
-    if (char === undefined) continue;
-
-    if (escaped) {
-      current += char;
-      escaped = false;
-      continue;
-    }
-
-    if (char === '\\' && quote !== "'") {
-      escaped = true;
-      continue;
-    }
-
-    if (quote !== undefined) {
-      if (char === quote) {
-        quote = undefined;
-      } else {
-        current += char;
-      }
-      continue;
-    }
-
-    if (char === '"' || char === "'") {
-      quote = char;
-      continue;
-    }
-
-    if (/\s/.test(char)) {
-      flush();
-      continue;
-    }
-
-    if (char === '&' && command[index + 1] === '&') {
-      flush();
-      tokens.push('&&');
-      index += 1;
-      continue;
-    }
-
-    if (char === '|' && command[index + 1] === '|') {
-      flush();
-      tokens.push('||');
-      index += 1;
-      continue;
-    }
-
-    if (char === ';' || char === '|') {
-      flush();
-      tokens.push(char);
-      continue;
-    }
-
-    current += char;
-  }
-
-  flush();
-  return tokens;
-}
-
-function shellSegments(command: string): string[][] {
-  const tokens = tokenizeShellCommand(command);
-  const segments: string[][] = [];
-  let segmentStart = 0;
-
-  for (let index = 0; index <= tokens.length; index += 1) {
-    if (index !== tokens.length && !SHELL_OPERATORS.has(tokens[index] ?? '')) {
-      continue;
-    }
-    segments.push(tokens.slice(segmentStart, index));
-    segmentStart = index + 1;
-  }
-
-  return segments;
-}
-
-function executableIndexOf(segment: string[]): number {
-  let executableIndex = 0;
-  while (isEnvironmentAssignment(segment[executableIndex] ?? '')) {
-    executableIndex += 1;
-  }
-  return executableIndex;
-}
-
 export function parseRecordSkillInvocationCommand(
   command: string,
 ): { skillName: string } | undefined {
-  for (const segment of shellSegments(command)) {
-    const executableIndex = executableIndexOf(segment);
+  // Tokenization is the shared shell-segments tokenizer (EDDABK follow-up), so
+  // execution prefixes (`command`, `env` + flags, `VAR=val`, corepack, subshell
+  // openers) are skipped before the bun word — a prefixed helper invocation
+  // still records its proof.
+  for (const segment of splitShellSegments(command)) {
+    const words = commandWords(segment);
 
-    if (!isBunExecutable(segment[executableIndex])) continue;
-    if (!isInvocationHelperPath(segment[executableIndex + 1])) continue;
+    if (!isBunExecutable(words[0])) continue;
+    if (!isInvocationHelperPath(words[1])) continue;
 
-    const skillName = nonEmptyString(segment[executableIndex + 3]);
+    const skillName = nonEmptyString(words[3]);
     if (skillName !== undefined && SKILL_NAME_PATTERN.test(skillName)) {
       return { skillName };
     }
@@ -219,12 +121,9 @@ export function parseRecordSkillInvocationCommand(
 
 /** True when any segment of `command` runs write-review-stamp.ts under bun. */
 export function commandInvokesWriteReviewStamp(command: string): boolean {
-  return shellSegments(command).some(segment => {
-    const executableIndex = executableIndexOf(segment);
-    return (
-      isBunExecutable(segment[executableIndex]) &&
-      isReviewStampHelperPath(segment[executableIndex + 1])
-    );
+  return splitShellSegments(command).some(segment => {
+    const words = commandWords(segment);
+    return isBunExecutable(words[0]) && isReviewStampHelperPath(words[1]);
   });
 }
 

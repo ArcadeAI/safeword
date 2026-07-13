@@ -13,6 +13,7 @@ import { checkVerifyArtifact } from '../../templates/hooks/lib/done-gate.js';
 import { parseImplPlan } from '../../templates/hooks/lib/impl-plan.js';
 import { type ShaResolver, validateLedger } from '../../templates/hooks/lib/ledger-validation.js';
 import {
+  type ArtifactReader,
   detectUnanchoredPhaseTransition,
   evaluateTicketWrite,
   frontmatterOf as parseTicketFrontmatter,
@@ -78,7 +79,13 @@ export interface TicketReconciliation {
 }
 
 /** Phases at which a feature's R/G/R ledger must already exist. */
-const LEDGER_REQUIRED_PHASES = new Set(['scenario-gate', 'implement', 'verify', 'done']);
+const LEDGER_REQUIRED_PHASES = new Set([
+  'scenario-gate',
+  'plan-implementation',
+  'implement',
+  'verify',
+  'done',
+]);
 
 /**
  * Ticket frontmatter, tolerant of CRLF git blobs — the shared parser is
@@ -102,13 +109,10 @@ function warnVerdict(check: string, detail: string): CheckVerdict {
   return { check, verdict: 'warn', detail };
 }
 
-/**
- * The unreachable-anchor warning names both honest and dishonest causes: the
- * same verdict covers a forged SHA and a shallow clone missing history
- * (friction-register constraint — never accuse when the environment explains).
- */
-const UNREACHABLE_CAUSES =
-  'possible causes: a forged anchor, or a shallow clone missing the history (fetch full history to verify)';
+/** A check that could not run to a conclusion (oracle failed mid-run) — never a crash. */
+function indeterminate(check: string, detail: string): CheckVerdict {
+  return { check, verdict: 'indeterminate', detail };
+}
 
 /**
  * Phase legality over the change (N76NQ0): judged per commit when the caller
@@ -136,10 +140,37 @@ function legalityVerdict(
   return pass('phase-legality');
 }
 
+/**
+ * Anchor check over a ticket.md transition, tree-only via the injected reader
+ * (never git history, so both tiers verify fully). A reader failure (git
+ * broken mid-run) degrades to an indeterminate verdict, never a crash —
+ * exit-0 is absolute.
+ */
+function phaseAnchorVerdict(
+  ticketFile: ChangedArtifact,
+  readArtifact?: ArtifactReader,
+): CheckVerdict {
+  try {
+    const anchor = detectUnanchoredPhaseTransition(
+      ticketFile.prior,
+      ticketFile.proposed ?? '',
+      readArtifact,
+    );
+    return anchor.kind === 'unanchored'
+      ? warnVerdict('phase-anchor', anchor.reason)
+      : pass('phase-anchor');
+  } catch {
+    return indeterminate(
+      'phase-anchor',
+      'artifact read failed mid-run — the anchor could not be determined',
+    );
+  }
+}
+
 /** Transition checks over a staged/changed ticket.md. */
 function ticketFileChecks(
   ticketFile: ChangedArtifact,
-  resolveSha?: ShaResolver,
+  readArtifact?: ArtifactReader,
   legalitySteps?: LegalityStep[],
 ): CheckVerdict[] {
   if (ticketFile.proposed === undefined) return [];
@@ -154,29 +185,10 @@ function ticketFileChecks(
     );
   }
 
-  checks.push(legalityVerdict(ticketFile, legalitySteps));
-
-  // A resolver failure (git broken mid-run, shallow-clone fetch error) must
-  // degrade to an indeterminate verdict, never a crash — exit-0 is absolute.
-  try {
-    const anchor = detectUnanchoredPhaseTransition(
-      ticketFile.prior,
-      ticketFile.proposed,
-      resolveSha,
-    );
-    if (anchor.kind === 'unanchored') {
-      const causes = /not reachable/i.test(anchor.reason) ? ` — ${UNREACHABLE_CAUSES}` : '';
-      checks.push(warnVerdict('phase-anchor', `${anchor.reason}${causes}`));
-    } else {
-      checks.push(pass('phase-anchor'));
-    }
-  } catch {
-    checks.push({
-      check: 'phase-anchor',
-      verdict: 'indeterminate',
-      detail: 'SHA resolution failed mid-run — reachability could not be determined',
-    });
-  }
+  checks.push(
+    legalityVerdict(ticketFile, legalitySteps),
+    phaseAnchorVerdict(ticketFile, readArtifact),
+  );
 
   return checks;
 }
@@ -241,11 +253,12 @@ function ledgerChecks(change: TicketChange, resolveSha?: ShaResolver): CheckVerd
             ),
       );
     } catch {
-      checks.push({
-        check: 'ledger-format',
-        verdict: 'indeterminate',
-        detail: 'SHA resolution failed mid-run — ledger reachability could not be determined',
-      });
+      checks.push(
+        indeterminate(
+          'ledger-format',
+          'SHA resolution failed mid-run — ledger reachability could not be determined',
+        ),
+      );
     }
   }
 
@@ -282,12 +295,16 @@ function artifactShapeChecks(change: TicketChange): CheckVerdict[] {
   return checks;
 }
 
-/** Checks for one touched ticket. Content-only without a resolver (commit tier);
- * history-backed SHA verification when one is injected (push tier). */
-function reconcileTicket(change: TicketChange, resolveSha?: ShaResolver): CheckVerdict[] {
+/** Checks for one touched ticket: anchors verify through the tree reader,
+ * ledger SHAs through the history resolver — deliberately separate oracles. */
+function reconcileTicket(
+  change: TicketChange,
+  resolveSha?: ShaResolver,
+  readArtifact?: ArtifactReader,
+): CheckVerdict[] {
   const ticketFile = change.artifacts.find(a => a.artifact === 'ticket.md');
   return [
-    ...(ticketFile ? ticketFileChecks(ticketFile, resolveSha, change.legalitySteps) : []),
+    ...(ticketFile ? ticketFileChecks(ticketFile, readArtifact, change.legalitySteps) : []),
     ...atRestBirthCheck(change),
     ...ledgerChecks(change, resolveSha),
     ...artifactShapeChecks(change),
@@ -297,16 +314,20 @@ function reconcileTicket(change: TicketChange, resolveSha?: ShaResolver): CheckV
 /**
  * Reconcile every ticket touched by a change. Returns one entry per ticket,
  * each carrying its per-check verdicts — pass entries included, so a clean
- * run is a recorded fact, not an absence. `resolveSha` is the push tier's
- * injected history oracle; the commit tier passes none and stays content-only.
+ * run is a recorded fact, not an absence. `resolveSha` is the LEDGER's
+ * history oracle (push tier only — the commit tier stays content-only for
+ * SHAs); `readArtifact` is the ANCHOR check's view of the tree being shipped
+ * (staged index at commit, HEAD at push) — both tiers verify anchors fully,
+ * because a tree read fits the commit tier's sub-second budget.
  */
 export function reconcileChange(
   changes: TicketChange[],
   resolveSha?: ShaResolver,
+  readArtifact?: ArtifactReader,
 ): TicketReconciliation[] {
   return changes.map(change => ({
     ticket: change.ticketFolder,
-    checks: reconcileTicket(change, resolveSha),
+    checks: reconcileTicket(change, resolveSha, readArtifact),
   }));
 }
 

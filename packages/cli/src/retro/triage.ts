@@ -99,9 +99,11 @@ export async function triage(
   const maxNew = ctx.maxNewIssues ?? DEFAULT_MAX_NEW_ISSUES;
   // Bound the session id before it flows into the ledger-comment JSON (eng-review
   // #601): it is interpolated into a public issue body, so keep it to a bare token.
+  // FG6V57: the rule is pinned byte-identical with retro-draft-spool.ts and
+  // self-report.ts by a parity contract.
   const boundContext: TriageContext = {
     ...ctx,
-    sessionId: ctx.sessionId.replaceAll(/[^\w.-]/g, '_') || 'unknown',
+    sessionId: ctx.sessionId.replaceAll(/[^\w.-]/g, '_').slice(0, 80) || 'unknown',
   };
   let newCount = 0;
 

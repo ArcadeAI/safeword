@@ -17,7 +17,7 @@ and could mean two things. One-spec-only vocabulary stays in that ticket.
 
 ## Phase
 
-**Definition:** A stage in a ticket's lifecycle, tracked in ticket frontmatter: intake → define-behavior → scenario-gate → implement → verify → done.
+**Definition:** A stage in a ticket's lifecycle, tracked in ticket frontmatter: intake → define-behavior → scenario-gate → plan-implementation → implement → verify → done.
 
 ## Hook
 
@@ -135,7 +135,7 @@ and could mean two things. One-spec-only vocabulary stays in that ticket.
 
 ## Phase Anchor
 
-**Definition:** A commit SHA recorded in ticket frontmatter (`phase_anchors`, one `- <phase>: <sha>` entry per phase entered) when a feature ticket advances forward — evidence tying the transition to git history so a forged frontmatter edit is detectable as unanchored. Produced/detected by #809; validated at the deliverable boundary by #810.
+**Definition:** The repo-relative path of a phase's exit artifact, recorded in ticket frontmatter (`phase_anchors`, one `- <phase-entered>: <path>` entry per forward advance; latest entry wins on a re-advance) — evidence tying the transition to the work it shipped. Verified against the tree at the deliverable boundary (existence + shape, never git history), so anchors survive amend, rebase, squash-merge, and shallow clones. Canonical map: define-behavior ← spec.md · scenario-gate ← feature source · implement ← impl-plan.md · verify ← test-definitions.md · done ← verify.md. Redesigned by HGYGND from #809's commit-SHA grammar (hex anchors on old tickets are grandfathered at rest).
 
 **Do not confuse with:** a ticket's role as "execution anchor" — the ticket anchors working context across sessions; a phase anchor evidences one specific transition.
 

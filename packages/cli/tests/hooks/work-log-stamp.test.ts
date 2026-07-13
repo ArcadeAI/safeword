@@ -152,7 +152,7 @@ describe('appendWorkLogEntry', () => {
 describe('Rule: no bdd phase file instructs fabricating a timestamp', () => {
   const BDD_DIR = nodePath.resolve(import.meta.dirname, '../../templates/skills/bdd');
 
-  it.each(['DISCOVERY.md', 'SCENARIOS.md', 'TDD.md', 'VERIFY.md'])(
+  it.each(['DISCOVERY.md', 'PLAN_IMPLEMENTATION.md', 'SCENARIOS.md', 'TDD.md', 'VERIFY.md'])(
     'Scenario: %s carries no {timestamp} transition template',
     file => {
       const content = readFileSync(nodePath.join(BDD_DIR, file), 'utf8');

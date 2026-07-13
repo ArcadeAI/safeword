@@ -76,7 +76,7 @@ Feature: Phase provenance — feature tickets are born at intake and advance one
     @phase-provenance.NTB1.AC1
     Scenario: A type flip to feature past intake with every skipped phase justified is allowed
       Given a task ticket.md at phase implement
-      When the ticket.md is edited to type feature and phase_skips entries with reasons for intake, define-behavior, and scenario-gate
+      When the ticket.md is edited to type feature and phase_skips entries with reasons for intake, define-behavior, scenario-gate, and plan-implementation
       Then the write is allowed
 
     @phase-provenance.NTB1.AC1
@@ -117,7 +117,7 @@ Feature: Phase provenance — feature tickets are born at intake and advance one
     @phase-provenance.NTB1.AC2
     Scenario: Born past intake with every skipped phase justified is allowed
       Given a ticket folder with no ticket.md
-      When a feature ticket.md is written with phase implement and phase_skips entries with reasons for intake, define-behavior, and scenario-gate
+      When a feature ticket.md is written with phase implement and phase_skips entries with reasons for intake, define-behavior, scenario-gate, and plan-implementation
       Then the write is allowed
 
     @phase-provenance.NTB1.AC2
@@ -125,7 +125,7 @@ Feature: Phase provenance — feature tickets are born at intake and advance one
       Given a ticket folder with no ticket.md
       When a feature ticket.md is written with phase implement and a phase_skips entry with a reason for intake only
       Then the write is denied
-      And the denial names define-behavior and scenario-gate as the phases still needing justification
+      And the denial names define-behavior, scenario-gate, and plan-implementation as the phases still needing justification
       And the denial does not name intake
 
     @phase-provenance.NTB1.AC2
@@ -148,26 +148,26 @@ Feature: Phase provenance — feature tickets are born at intake and advance one
       Given a feature ticket.md at phase intake
       When the ticket.md is edited to phase implement with no phase_skips
       Then the write is denied
-      And the denial names define-behavior and scenario-gate as the skipped phases
+      And the denial names define-behavior, scenario-gate, and plan-implementation as the skipped phases
 
     @phase-provenance.TB1.AC1
     Scenario: A forward jump via MultiEdit is gated like an Edit
       Given a feature ticket.md at phase intake
       When the ticket.md is MultiEdited to phase implement
       Then the write is denied
-      And the denial names define-behavior and scenario-gate as the skipped phases
+      And the denial names define-behavior, scenario-gate, and plan-implementation as the skipped phases
 
     @phase-provenance.TB1.AC1
     Scenario: The maximal jump names every skipped phase
       Given a feature ticket.md at phase intake
       When the ticket.md is edited to phase done with no phase_skips
       Then the write is denied
-      And the denial names define-behavior, scenario-gate, implement, and verify as the skipped phases
+      And the denial names define-behavior, scenario-gate, plan-implementation, implement, and verify as the skipped phases
 
     @phase-provenance.TB1.AC1
     Scenario: A forward jump with every skipped phase justified is allowed
       Given a feature ticket.md at phase intake
-      When the ticket.md is edited to phase implement and phase_skips entries with reasons for define-behavior and scenario-gate
+      When the ticket.md is edited to phase implement and phase_skips entries with reasons for define-behavior, scenario-gate, and plan-implementation
       Then the write is allowed
 
     @phase-provenance.TB1.AC1
@@ -175,7 +175,7 @@ Feature: Phase provenance — feature tickets are born at intake and advance one
       Given a feature ticket.md with no phase field
       When the ticket.md is edited to phase implement with no phase_skips
       Then the write is denied
-      And the denial names define-behavior and scenario-gate as the skipped phases
+      And the denial names define-behavior, scenario-gate, and plan-implementation as the skipped phases
 
   Rule: Rework and routine edits stay cheap — the gate never blocks them
 
@@ -224,7 +224,7 @@ Feature: Phase provenance — feature tickets are born at intake and advance one
       Given a feature ticket.md at phase research
       When the ticket.md is edited to phase implement with no phase_skips
       Then the write is denied
-      And the denial names define-behavior and scenario-gate as the skipped phases
+      And the denial names define-behavior, scenario-gate, and plan-implementation as the skipped phases
 
     @phase-provenance.TB1.AC3
     Scenario: An edit that leaves an unrecognized phase untouched is ignored by the gate

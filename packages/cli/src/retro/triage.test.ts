@@ -124,6 +124,24 @@ const ctx = (over: Partial<{ sessionId: string; harness: string; maxNewIssues: n
   ...over,
 });
 
+describe('triage — session-id egress token (FG6V57)', () => {
+  // The rule (substitute-not-strip, [\w.-], cap 80) is pinned byte-identical
+  // with retro-draft-spool.ts and self-report.ts by a parity contract.
+  it('caps and substitutes a hostile session id before it reaches the public ledger', async () => {
+    const gh = new FakeGitHub();
+    const seeded = gh.seedIssue('Known friction', { sessions: ['old'], manifestations: ['m1'] });
+    const hostile = `evil session@${'x'.repeat(100)}`;
+
+    await triage(gh, [enc('Known friction')], ctx({ sessionId: hostile }));
+
+    const ledger = gh.ledgerOf(seeded.number) ?? '';
+    const expected = `evil_session_${'x'.repeat(100)}`.slice(0, 80);
+    expect(ledger).toContain(expected);
+    expect(ledger).not.toContain('evil session@');
+    expect(ledger).not.toContain('x'.repeat(81));
+  });
+});
+
 describe('triage — never a duplicate issue (SM1.AC2)', () => {
   it('retro-transcript-mining.SM1.AC2.unticketed_signature_creates_one_issue', async () => {
     const gh = new FakeGitHub();

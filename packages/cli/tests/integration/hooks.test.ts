@@ -705,6 +705,48 @@ describe('E2E: Phase-Aware Quality Review', () => {
   });
 
   describe('Cumulative Artifact Checks', () => {
+    it('Scenario 11a: Soft blocks feature at plan-implementation without test-definitions.md', () => {
+      setupIssuesDirectory(shared.projectDirectory, [
+        {
+          id: '001',
+          type: 'feature',
+          phase: 'plan-implementation',
+          status: 'in_progress',
+          lastModified: '2026-01-06T10:00:00Z',
+        },
+      ]);
+      // No test-definitions.md file exists
+
+      const result = runStopHookForPhase(shared.projectDirectory);
+
+      expect(result.exitCode).toBe(0); // Soft block uses exit 0
+      expect(result.reason).toContain('test-definitions.md');
+    });
+
+    it('Scenario 11b: Allows stop at plan-implementation with ledger but no impl-plan yet', () => {
+      setupIssuesDirectory(shared.projectDirectory, [
+        {
+          id: '001',
+          type: 'feature',
+          phase: 'plan-implementation',
+          status: 'in_progress',
+          lastModified: '2026-01-06T10:00:00Z',
+        },
+      ]);
+      writeTestFile(
+        shared.projectDirectory,
+        '.project/tickets/001/test-definitions.md',
+        '# Test Definitions\n\n## Rule: Test rule\n\n- [ ] Scenario one\n',
+      );
+      writeTestFile(shared.projectDirectory, '.project/tickets/001/spec.md', '# Spec\n');
+      // Deliberately no impl-plan.md — mid-planning stop must stay legal (decision 6)
+
+      const result = runStopHookForPhase(shared.projectDirectory);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.reason ?? '').not.toContain('requires impl-plan.md');
+    });
+
     it('Scenario 11: Soft blocks feature at scenario-gate without test-definitions.md', () => {
       setupIssuesDirectory(shared.projectDirectory, [
         {

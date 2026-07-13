@@ -11,13 +11,15 @@
 // history — tickets at rest are never re-validated.
 
 import { parseFrontmatter } from './hierarchy.js';
-import type { ShaResolver } from './ledger-validation.js';
+import { parseImplPlan } from './impl-plan.js';
+import { parseJtbdSection } from './jtbd.js';
 import { isValidSha, isValidSkipReason } from './parse-annotation.js';
 
 export const CANONICAL_PHASES = [
   'intake',
   'define-behavior',
   'scenario-gate',
+  'plan-implementation',
   'implement',
   'verify',
   'done',
@@ -294,24 +296,37 @@ function evaluateBirth(
 }
 
 // ---------------------------------------------------------------------------
-// Phase-transition anchors (#809, epic #808)
+// Artifact-content phase anchors (ticket HGYGND; supersedes #809's SHA anchors)
 //
-// A forward phase advance records a commit-SHA anchor for the phase it enters —
-// a `phase_anchors` block sequence, one `- <phase>: <sha>` entry per phase,
-// mirroring the `phase_skips` convention and the R/G/R ledger's SHA-per-tick.
-// This detector reports whether that anchor is present + valid; it is the
-// substrate epic #808's boundary gate (#810) consumes. #809 wires no blocking
-// caller — a write-time format-only block would catch no forger (a `sed` forge
-// appends a well-formed fake SHA in the same write) while taxing honest
-// advances. Reachability, the part with real forgery resistance, needs git and
-// is enforced at #810's commit/push boundary via the injected ShaResolver.
+// A forward phase advance records the repo-relative path of the exit artifact
+// of the phase being left — a `phase_anchors` block sequence, one
+// `- <phase-entered>: <path>` entry per phase, mirroring the `phase_skips`
+// convention. Verification reads the tree alone (an injected ArtifactReader):
+// the anchored artifact must exist and pass its kind's cheap shape check. No
+// anchor check consults git history, so verdicts survive amend, rebase,
+// squash-merge, and shallow clones — the operations that orphaned SHA anchors
+// (#902-#905, #911, #912). Hex-shaped legacy values are grandfathered at rest
+// and drawn to the path grammar on new transitions. The R/G/R ledger's
+// per-tick commit SHAs are a separate mechanism and keep their history-backed
+// resolution (ledger-validation.ts / ledger-git.ts).
 // ---------------------------------------------------------------------------
 
 /**
- * Parse a `phase_anchors` block sequence into entered-phase → recorded SHA.
+ * Read one artifact's content by repo-relative path, or undefined when absent.
+ * The tree behind it is the caller's choice: the staged index at the commit
+ * boundary, HEAD at the push boundary, the filesystem for `safeword check`.
+ * Callers with no tree at hand (write-time hooks) pass none — format-only.
+ */
+export type ArtifactReader = (relpath: string) => string | undefined;
+
+/**
+ * Parse a `phase_anchors` block sequence into entered-phase → recorded value.
  * Same shape as parseSkips: split each entry on the first colon. A blank value
- * is kept as `''` so isValidSha (not this parser) is the single arbiter of
- * validity. Entries without a colon carry no phase and are ignored.
+ * is kept as `''` so validateAnchor (not this parser) is the single arbiter of
+ * validity. Duplicate phase keys resolve to the LAST entry — re-doing a phase
+ * legitimately replaces its output, so the latest anchor describes the phase's
+ * current artifact (last-wins, pinned by test). Entries without a colon carry
+ * no phase and are ignored.
  */
 function parseAnchors(meta: Record<string, string | string[]> | undefined): Map<string, string> {
   const byPhase = new Map<string, string>();
@@ -319,6 +334,105 @@ function parseAnchors(meta: Record<string, string | string[]> | undefined): Map<
     byPhase.set(phase, value);
   }
   return byPhase;
+}
+
+/** Non-blank content — the shape floor shared by the artifact kinds. */
+function hasSubstance(content: string): boolean {
+  return content.trim() !== '';
+}
+
+/**
+ * The expected exit artifact for each enterable phase: how a recorded path is
+ * recognized as that artifact, a remediation example, and the kind's cheap
+ * shape check. Shape checks reuse the pure spec/plan parsers; verify.md and
+ * the feature source use lightweight presence probes here — the authoritative
+ * verify.md scope check stays `checkVerifyArtifact` (done-gate.ts), which the
+ * boundary engine already runs on changed verify.md files. This map is the
+ * codified phase→artifact contract the bdd skill's "artifact-first" rule
+ * describes.
+ */
+interface AnchorKind {
+  /** Human label for the expected artifact, used in verdict reasons. */
+  label: string;
+  /** Remediation example path for the expected anchor line. */
+  example: string;
+  matches: (relpath: string) => boolean;
+  shapeOk: (relpath: string, content: string) => boolean;
+}
+
+const basenameOf = (relpath: string): string => relpath.split('/').at(-1) ?? '';
+
+/** A Gherkin source: any .feature path with at least one scenario. */
+const isFeatureSource = (relpath: string): boolean => relpath.endsWith('.feature');
+const featureShapeOk = (content: string): boolean => /^\s*Scenario(?: Outline)?:/m.test(content);
+
+/** Presence probe for verify.md's scope line (authoritative check: done-gate.ts). */
+const VERIFY_SCOPE_LINE = /^\*\*PR Scope:\*\*\s*\S/im;
+
+/**
+ * Scenarios as evidence: the .feature (or test-definitions.md on the legacy
+ * path). Anchors two forward advances — entering scenario-gate (define-behavior
+ * produced the scenarios) and entering plan-implementation (scenario-gate is a
+ * review gate with no distinct exit artifact of its own; its acceptance is
+ * evidenced by the same reviewed source).
+ */
+const FEATURE_SOURCE_ANCHOR: AnchorKind = {
+  label: 'the feature source (.feature, or test-definitions.md on the legacy path)',
+  example: 'features/<slug>.feature',
+  matches: relpath => isFeatureSource(relpath) || basenameOf(relpath) === 'test-definitions.md',
+  shapeOk: (relpath, content) =>
+    isFeatureSource(relpath) ? featureShapeOk(content) : hasSubstance(content),
+};
+
+// `satisfies` (not `Record<string, …>`) so the compiler forces an anchor kind
+// for every enterable phase: a phase added to CANONICAL_PHASES without an entry
+// here becomes a compile error, not a silently-unanchored forward transition.
+const ANCHOR_KINDS = {
+  'define-behavior': {
+    label: 'spec.md',
+    example: '<ticket-folder>/spec.md',
+    matches: relpath => basenameOf(relpath) === 'spec.md',
+    shapeOk: (_relpath, content) => {
+      const jtbd = parseJtbdSection(content);
+      return jtbd.entries.length > 0 || jtbd.skip !== null;
+    },
+  },
+  'scenario-gate': FEATURE_SOURCE_ANCHOR,
+  'plan-implementation': FEATURE_SOURCE_ANCHOR,
+  implement: {
+    label: 'impl-plan.md',
+    example: '<ticket-folder>/impl-plan.md',
+    matches: relpath => basenameOf(relpath) === 'impl-plan.md',
+    shapeOk: (_relpath, content) => parseImplPlan(content).errors.length === 0,
+  },
+  verify: {
+    label: 'test-definitions.md (the R/G/R ledger)',
+    example: '<ticket-folder>/test-definitions.md',
+    matches: relpath => basenameOf(relpath) === 'test-definitions.md',
+    shapeOk: (_relpath, content) => hasSubstance(content),
+  },
+  done: {
+    label: 'verify.md',
+    example: '<ticket-folder>/verify.md',
+    matches: relpath => basenameOf(relpath) === 'verify.md',
+    shapeOk: (_relpath, content) => VERIFY_SCOPE_LINE.test(content),
+  },
+} satisfies Record<Exclude<(typeof CANONICAL_PHASES)[number], 'intake'>, AnchorKind>;
+
+/**
+ * A plausible repo-relative path: non-empty, forward-slashed, not absolute
+ * (POSIX or Windows), free of `..` traversal, and free of git pathspec
+ * magic/glob characters — a value opening with `(` or `:` would activate
+ * pathspec magic inside a `git show :<path>` read (`:(top)x` exits 0 with
+ * commit text, a false "anchored"), and glob characters are never a single
+ * artifact's path. Deliberately permissive beyond that — existence and kind
+ * checks do the real discrimination.
+ */
+function isPlausibleRepoPath(value: string): boolean {
+  if (value === '' || value.includes('\\')) return false;
+  if (value.startsWith('/') || /^[a-zA-Z]:/.test(value)) return false;
+  if (/^[(:!^]/.test(value) || /[*?[\]]/.test(value)) return false;
+  return !value.split('/').includes('..');
 }
 
 export type PhaseAnchorVerdict =
@@ -330,12 +444,11 @@ const NOT_APPLICABLE: PhaseAnchorVerdict = { kind: 'not-applicable' };
 
 /**
  * Detect whether a feature ticket's forward phase advance carries a valid
- * commit-SHA anchor for the phase it enters (#809). Pure — git reachability is
- * delegated to an injected ShaResolver (the same contract the ledger uses), so
- * the predicate never touches git: #810's boundary gate supplies the
- * rebase-aware resolver; a caller with no git available passes none (format
- * only). A `ShaResolution` string (a rebase-canonicalized SHA) counts as
- * reachable, matching ledger-validation's `checkSha`.
+ * artifact-path anchor for the phase it enters (HGYGND). Pure — the tree is
+ * read through an injected ArtifactReader, so the predicate touches neither
+ * filesystem nor git: the boundary gate supplies a staged-index or HEAD-tree
+ * reader, `safeword check` a filesystem reader; a caller with no tree at hand
+ * passes none (format-only).
  *
  * Returns `anchored` / `unanchored` only for the policed act — a feature→feature
  * FORWARD phase change. Everything else is `not-applicable`: a creation/birth, a
@@ -347,7 +460,7 @@ const NOT_APPLICABLE: PhaseAnchorVerdict = { kind: 'not-applicable' };
 export function detectUnanchoredPhaseTransition(
   priorContent: string | undefined,
   proposedContent: string,
-  resolveSha?: ShaResolver,
+  readArtifact?: ArtifactReader,
 ): PhaseAnchorVerdict {
   // A creation is a birth, not a transition.
   if (priorContent === undefined) return NOT_APPLICABLE;
@@ -373,47 +486,82 @@ export function detectUnanchoredPhaseTransition(
   if (toIndex <= canonicalIndex(effectivePrior)) return NOT_APPLICABLE; // backward or lateral
 
   // Policed: a forward feature advance must carry a valid anchor for the phase entered.
-  return validateAnchor(proposed, proposedPhase, resolveSha);
+  return validateAnchor(proposed, proposedPhase, readArtifact);
 }
 
-/** Shared anchor validation: present → well-formed → (with a resolver) reachable. */
+/**
+ * Shared anchor validation ladder: entry present → path-shaped (hex is the
+ * legacy branch) → expected kind for the phase → (with a reader) present in
+ * the tree → shape-valid. Every denial names the exact line to write — the
+ * honest hand-editor must be distinguishable from a forger by remediation,
+ * not accusation.
+ */
 function validateAnchor(
   meta: Record<string, string | string[]>,
   phase: string,
-  resolveSha?: ShaResolver,
+  readArtifact?: ArtifactReader,
 ): PhaseAnchorVerdict {
+  const kind = (ANCHOR_KINDS as Record<string, AnchorKind | undefined>)[phase];
+  if (kind === undefined) return NOT_APPLICABLE; // intake/off-enum — nothing enterable to anchor
+
+  const unanchored = (reason: string): PhaseAnchorVerdict => ({
+    kind: 'unanchored',
+    phase,
+    reason,
+  });
+  const expectedLine = `\`- ${phase}: ${kind.example}\``;
   const anchor = parseAnchors(meta).get(phase);
   if (anchor === undefined) {
-    return { kind: 'unanchored', phase, reason: `no phase_anchors entry for "${phase}".` };
+    return unanchored(
+      `no phase_anchors entry for "${phase}" — record the exited phase's artifact, e.g. ${expectedLine}.`,
+    );
   }
-  if (!isValidSha(anchor)) {
-    return {
-      kind: 'unanchored',
-      phase,
-      reason: `phase_anchors entry for "${phase}" is "${anchor}", not a valid commit SHA (7-40 hex chars).`,
-    };
+  if (isValidSha(anchor)) {
+    return unanchored(
+      `phase_anchors entry for "${phase}" is "${anchor}", a legacy commit-SHA anchor — record the artifact path instead, e.g. ${expectedLine}.`,
+    );
   }
-  if (resolveSha && resolveSha(anchor) === false) {
-    return {
-      kind: 'unanchored',
-      phase,
-      reason: `phase_anchors SHA ${anchor} for "${phase}" is not reachable from HEAD.`,
-    };
+  if (!isPlausibleRepoPath(anchor)) {
+    return unanchored(
+      `phase_anchors entry for "${phase}" is "${anchor}", not a repo-relative artifact path — record ${expectedLine}.`,
+    );
+  }
+  if (!kind.matches(anchor)) {
+    return unanchored(
+      `phase_anchors entry for "${phase}" is "${anchor}", not the expected artifact kind — "${phase}" expects ${kind.label}, e.g. ${expectedLine}.`,
+    );
+  }
+  if (readArtifact === undefined) return { kind: 'anchored' };
+
+  const content = readArtifact(anchor);
+  if (content === undefined) {
+    return unanchored(`anchored artifact "${anchor}" for "${phase}" is missing from the tree.`);
+  }
+  if (!kind.shapeOk(anchor, content)) {
+    return unanchored(
+      `anchored artifact "${anchor}" for "${phase}" fails its shape check — it does not look like ${kind.label}.`,
+    );
   }
   return { kind: 'anchored' };
 }
 
 /**
  * At-rest variant of the anchor check (issue #824): does a feature ticket's
- * CURRENT phase carry a valid-format anchor? No transition needed — this is
- * the advisory view `safeword check` reports for in-progress tickets, nudging
- * the convention along before the boundary gate (#810) enforces it. Format
- * only — no resolver seam until a caller actually resolves (the transition
- * detector carries that seam for #810). Intake is never anchored (nothing was
- * advanced into), non-features and off-enum phases are not policed, and the
- * caller decides status scoping.
+ * CURRENT phase carry a valid anchor? No transition needed — this is the
+ * advisory view `safeword check` reports for in-progress tickets. Format-only
+ * without a reader; existence + shape with one (`safeword check` injects the
+ * filesystem). One deliberate divergence from the transition detector: a
+ * hex-shaped legacy anchor at rest is `not-applicable` — pre-redesign tickets
+ * recorded SHAs honestly under the old convention, and re-litigating them
+ * would demand fabricated evidence (#909). Only a NEW transition draws the
+ * migrate-to-path remediation. Intake is never anchored (nothing was advanced
+ * into), non-features and off-enum phases are not policed, and the caller
+ * decides status scoping.
  */
-export function detectUnanchoredPhaseState(content: string): PhaseAnchorVerdict {
+export function detectUnanchoredPhaseState(
+  content: string,
+  readArtifact?: ArtifactReader,
+): PhaseAnchorVerdict {
   const meta = frontmatterOf(normalizeNewlines(content));
   if (meta === undefined) return NOT_APPLICABLE;
   if (scalar(meta, 'type') !== 'feature') return NOT_APPLICABLE;
@@ -423,5 +571,8 @@ export function detectUnanchoredPhaseState(content: string): PhaseAnchorVerdict 
     return NOT_APPLICABLE;
   }
 
-  return validateAnchor(meta, phase);
+  const anchor = parseAnchors(meta).get(phase);
+  if (anchor !== undefined && isValidSha(anchor)) return NOT_APPLICABLE;
+
+  return validateAnchor(meta, phase, readArtifact);
 }

@@ -361,6 +361,7 @@ const CODEX_SKILL_TEMPLATE_FILES = [
   ['audit/SKILL.md', 'skills/audit/SKILL.md'],
   ['bdd/SKILL.md', 'skills/bdd/SKILL.md'],
   ['bdd/DISCOVERY.md', 'skills/bdd/DISCOVERY.md'],
+  ['bdd/PLAN_IMPLEMENTATION.md', 'skills/bdd/PLAN_IMPLEMENTATION.md'],
   ['bdd/SCENARIOS.md', 'skills/bdd/SCENARIOS.md'],
   ['bdd/TDD.md', 'skills/bdd/TDD.md'],
   ['bdd/DONE.md', 'skills/bdd/DONE.md'],
@@ -580,6 +581,14 @@ const SHARED_FILING_INVARIANTS = [
   "- **Upstream only** — `ArcadeAI/safeword`, never the host project's tracker.",
   '- **Code owns egress** — nothing leaves beyond what the sanitized output contains.',
 ];
+
+// One session-id → safe-token rule (FG6V57): triage (public ledger JSON), the
+// retro draft spool (filename), and self-report (local records) each reduce an
+// attacker-influenceable session id to a bare bounded token. The spool module is
+// deliberately self-contained (node:* only), so the rule is pinned byte-identical
+// across the three files instead of shared via import — edit them together.
+// (Keep this string minimal: an equivalent-but-reformatted regex fails the pin.)
+const SESSION_TOKEN_RULE = [String.raw`.replaceAll(/[^\w.-]/g, '_').slice(0, 80) || 'unknown'`];
 
 /** Marker substring identifying a boundary-gate shim line (ZJMZ50). */
 const BOUNDARY_SHIM_MARKER = '# Safeword boundary gate';
@@ -870,6 +879,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/jtbd.ts': { template: 'hooks/lib/jtbd.ts' },
     '.safeword/hooks/lib/phase-provenance.ts': { template: 'hooks/lib/phase-provenance.ts' },
     '.safeword/hooks/lib/impl-plan.ts': { template: 'hooks/lib/impl-plan.ts' },
+    '.safeword/hooks/lib/plan-gate.ts': { template: 'hooks/lib/plan-gate.ts' },
     '.safeword/hooks/lib/replan-relevance.ts': { template: 'hooks/lib/replan-relevance.ts' },
     '.safeword/hooks/lib/replan.ts': { template: 'hooks/lib/replan.ts' },
     '.safeword/hooks/lib/review-ledger.ts': { template: 'hooks/lib/review-ledger.ts' },
@@ -1082,9 +1092,12 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       template: 'doc-templates/feature-spec-template.md',
     },
     // Per-ticket impl-plan.md scaffold (ticket XDNSZA) — authored at
-    // scenario-gate exit, validated by the stop hook's impl-plan gate.
+    // the plan-implementation phase, validated by the stop hook's impl-plan gate.
     '.safeword/templates/impl-plan-template.md': {
       template: 'doc-templates/impl-plan-template.md',
+    },
+    '.safeword/templates/adr-template.md': {
+      template: 'doc-templates/adr-template.md',
     },
     '.safeword/templates/work-log-template.md': {
       template: 'doc-templates/work-log-template.md',
@@ -1131,6 +1144,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.claude/skills/bdd/DISCOVERY.md': {
       template: 'skills/bdd/DISCOVERY.md',
+    },
+    '.claude/skills/bdd/PLAN_IMPLEMENTATION.md': {
+      template: 'skills/bdd/PLAN_IMPLEMENTATION.md',
     },
     '.claude/skills/bdd/SCENARIOS.md': {
       template: 'skills/bdd/SCENARIOS.md',
@@ -1540,6 +1556,18 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
   // Used by runParity() in src/parity.ts for both release tests and pre-commit
   // (see ticket 144). Path key = file relative to repo root.
   contracts: {
+    'packages/cli/src/retro/triage.ts': {
+      // Shared session-token rule (FG6V57) — see SESSION_TOKEN_RULE above.
+      requires: SESSION_TOKEN_RULE,
+    },
+    'packages/cli/templates/hooks/lib/retro-draft-spool.ts': {
+      // Shared session-token rule (FG6V57); the .safeword mirror follows via pairs.
+      requires: SESSION_TOKEN_RULE,
+    },
+    'packages/cli/templates/hooks/lib/self-report.ts': {
+      // Shared session-token rule (FG6V57); sanitizeToken stays for non-session fields.
+      requires: SESSION_TOKEN_RULE,
+    },
     'packages/cli/templates/guides/self-report-filing.md': {
       // Shared filing invariants with retro.md (#801): the two guides carried
       // independently hand-tuned Rules blocks that silently forked. The exact

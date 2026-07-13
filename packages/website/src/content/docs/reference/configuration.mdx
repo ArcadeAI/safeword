@@ -122,6 +122,25 @@ Hooks are configured in `.claude/settings.json` (Claude Code), `.cursor/hooks.js
 
 To disable a specific hook, remove the safeword hook entry from that agent's config.
 
+### Review gates
+
+Two opt-in review gates (both default off) add independent-review requirements on top of the always-on gates:
+
+- `reviewGate: true` — every ticket phase advance requires an independent phase-exit review stamp (a fresh-context reviewer, logged via `write-review-stamp.ts --phase <phase>`), or an explicitly logged skip reason. Built for autonomous runs where user checkpoints auto-confirm.
+- `architectureReviewGate: true` — a new-flow feature can't reach verify/done until its `impl-plan.md` design has been independently reviewed: the Decisions section must cite evidence (URL or `[n]` marker), and the review stamp binds to the plan's content hash — editing the design after review invalidates it. Add `crossModelReview: true` to require the reviewer run on a different model than the author.
+
+### Design approval gate
+
+`designApprovalGate` (default: off) keeps the plan-implementation phase autonomous: the independently reviewed implementation plan advances to TDD without a human checkpoint. Technical builders who want to approve the design before any code can opt in:
+
+```json
+{
+  "designApprovalGate": true
+}
+```
+
+When enabled, the agent presents the reviewed plan (riskiest assumption, build order, decisions) and waits for approval before entering the implement phase. In headless/cloud sessions the pending approval is recorded in the ticket work log and the plan surfaces in the session's reviewable output instead of stalling the run.
+
 ## Customizing Without Losing Upgrades
 
 Safeword has two types of files:

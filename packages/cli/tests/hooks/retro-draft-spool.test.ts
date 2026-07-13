@@ -22,6 +22,20 @@ describe('retro draft spool (BNGK9W — persist post-egress drafts on filing fai
     rmSync(projectDirectory, { recursive: true, force: true });
   });
 
+  // FG6V57: the session-token rule (substitute-not-strip, [\w.-], cap 80) is
+  // pinned byte-identical with triage.ts and self-report.ts by a parity contract.
+  it('collapses a hostile overlong session id to one bounded filename component', () => {
+    const hostile = `../../evil session ${'x'.repeat(100)}`;
+    const path = draftSpoolPath(projectDirectory, hostile);
+    const base = nodePath.basename(path);
+    expect(base).toMatch(/^[\w.-]{1,80}\.jsonl$/);
+    // sanitized inside the project spool dir — the ../.. cannot escape it
+    // (dirname equality, not a prefix check: /tmp/x must not match /tmp/x-sibling)
+    expect(nodePath.dirname(path)).toBe(
+      nodePath.join(projectDirectory, '.safeword', 'retro-drafts'),
+    );
+  });
+
   it('round-trips spooled drafts, keyed by session id', () => {
     const drafts = [draft('retro:aaaaaaaaaaaa', 'One'), draft('retro:bbbbbbbbbbbb', 'Two')];
     spoolDrafts(projectDirectory, 'sess-1', drafts);

@@ -161,13 +161,19 @@ describe('impl-plan docs (Rule 4)', () => {
     nodePath.join(repoRoot, '.claude/skills/bdd'),
   ];
 
-  it('SCENARIOS.md gate exit and TDD.md entry reference impl-plan.md in both copies', () => {
+  it('PLAN_IMPLEMENTATION.md authoring and TDD.md entry reference impl-plan.md in both copies', () => {
     for (const skillDirectory of copies) {
-      const scenarios = readFileSync(nodePath.join(skillDirectory, 'SCENARIOS.md'), 'utf8');
+      const planDocument = readFileSync(
+        nodePath.join(skillDirectory, 'PLAN_IMPLEMENTATION.md'),
+        'utf8',
+      );
       const tdd = readFileSync(nodePath.join(skillDirectory, 'TDD.md'), 'utf8');
-      expect(scenarios, `${skillDirectory}/SCENARIOS.md`).toContain('impl-plan.md');
+      expect(planDocument, `${skillDirectory}/PLAN_IMPLEMENTATION.md`).toContain('impl-plan.md');
       for (const section of IMPL_PLAN_SECTIONS) {
-        expect(scenarios, `${skillDirectory}/SCENARIOS.md section ${section}`).toContain(section);
+        expect(
+          planDocument,
+          `${skillDirectory}/PLAN_IMPLEMENTATION.md section ${section}`,
+        ).toContain(section);
       }
       expect(tdd, `${skillDirectory}/TDD.md`).toContain('impl-plan.md');
     }
@@ -183,6 +189,47 @@ describe('impl-plan template (Rule 4)', () => {
     const result = parseImplPlan(template);
     for (const name of IMPL_PLAN_SECTIONS) {
       expect(result.sections[name]?.satisfied, `section ${name}`).toBe(false);
+    }
+  });
+});
+
+describe('Doc impact optional section (TXRHMD, decision 22)', () => {
+  it('accepts a legacy five-section plan with no Doc impact section', () => {
+    const parsed = parseImplPlan(plan('planned'));
+    expect(parsed.errors).toEqual([]);
+  });
+
+  it('validates a present Doc impact section: content satisfies', () => {
+    const parsed = parseImplPlan(
+      plan('planned', `${FIVE_SECTIONS}\n## Doc impact\n\nUpdate the README quickstart.\n`),
+    );
+    expect(parsed.errors).toEqual([]);
+  });
+
+  it('validates a present Doc impact section: skip with reason satisfies', () => {
+    const parsed = parseImplPlan(
+      plan(
+        'planned',
+        `${FIVE_SECTIONS}\n## Doc impact\n\nskip: no customer-visible behavior change\n`,
+      ),
+    );
+    expect(parsed.errors).toEqual([]);
+  });
+
+  it('rejects a present but empty Doc impact section, naming it', () => {
+    const parsed = parseImplPlan(plan('planned', `${FIVE_SECTIONS}\n## Doc impact\n`));
+    expect(parsed.errors.join(' ')).toContain('Doc impact');
+  });
+
+  it('ships the Doc impact section in the template, wired to docs.sources', () => {
+    const repoRoot = nodePath.resolve(__dirname, '../../../..');
+    for (const templatePath of [
+      nodePath.join(repoRoot, 'packages/cli/templates/doc-templates/impl-plan-template.md'),
+      nodePath.join(repoRoot, '.safeword/templates/impl-plan-template.md'),
+    ]) {
+      const template = readFileSync(templatePath, 'utf8');
+      expect(template, templatePath).toContain('## Doc impact');
+      expect(template, templatePath).toContain('docs.sources');
     }
   });
 });

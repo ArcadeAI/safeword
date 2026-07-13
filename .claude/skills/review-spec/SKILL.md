@@ -85,4 +85,4 @@ Proposed: "Then later authentications use User Source B."
 
 ## After the review
 
-When invoked **auto-fire** from the bdd scenario-gate, hand control back to `bdd/SCENARIOS.md` for the Scenario Gate Exit (record the proof plan, advance the phase, work-log). When invoked **manually**, stop after presenting findings — the driver decides what to fix and whether to re-run.
+When invoked **auto-fire** from the bdd scenario-gate, hand control back to `bdd/SCENARIOS.md` for the Scenario Gate Exit (advance the phase to `plan-implementation` — the proof plan is recorded there per `bdd/PLAN_IMPLEMENTATION.md`; work-log). When invoked **manually**, stop after presenting findings — the driver decides what to fix and whether to re-run.
