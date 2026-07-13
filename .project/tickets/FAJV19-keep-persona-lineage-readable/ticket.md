@@ -2,7 +2,7 @@
 id: FAJV19
 slug: keep-persona-lineage-readable
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 phase_anchors:
   - 'define-behavior: .project/tickets/FAJV19-keep-persona-lineage-readable/spec.md'
@@ -46,3 +46,4 @@ last_modified: 2026-07-13T22:08:35.793Z
 - 2026-07-13T22:18:00.000Z Plan review: Added a real setup/install test that executes the copied hook, tied evidence to every significant decision, and settled `codeError` as the shared non-throwing failure discriminator.
 - 2026-07-13T22:19:00.000Z Plan gate passed: Independent reviewer returned PASS. Plan is parse-valid with six content sections, status planned, nine scenario proofs, all affected surfaces, and the riskiest legacy-compatibility assumption first. Advanced to implement.
 - 2026-07-13T23:14:00.000Z Quality review correction: Reconstructed the former six-character derivation and source-ordered collision aliases in both runtimes, prevented explicit canonical codes from reserving duplicate collision slots, and replaced source-only asset checks with real setup-installed hook and authoring-asset fixtures.
+- 2026-07-13T23:22:00.000Z Quality review passed: Fresh review approved dependency hygiene, documentation, security, scope discipline, and real setup-installed hook wiring. Advanced to verify.
