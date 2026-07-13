@@ -33,7 +33,7 @@
   "devDependencies": {
     "@cucumber/cucumber": "^13.0.0",
     "@types/node": "^26.1.1",
-    "dependency-cruiser": "^18.0.0",
+    "dependency-cruiser": "^18.1.0",
     "eslint": "^10.6.0",
     "eslint-config-prettier": "^10.1.8",
     "husky": "^9.1.7",
