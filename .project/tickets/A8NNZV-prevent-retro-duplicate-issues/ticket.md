@@ -32,3 +32,5 @@ last_modified: 2026-07-14T04:36:28.727Z
 - 2026-07-14T04:48:00Z Defined: Six scenarios cover marker emission, canonical recurrence, legacy precedence, exact-match rejection, new-issue behavior, and same-session ledger idempotency.
 - 2026-07-14T04:53:00Z Reviewed: Independent scenario review found no blocking issues; strengthened atomic assertions and documented #1035 as the wiring-test owner.
 - 2026-07-14T04:53:00Z Planned: Draft construction, triage fallback, then REST exact filtering; implementation plan records decisions and follow-up triggers.
+- 2026-07-14T10:04:00Z Implemented: Added deterministic canonical repro markers, legacy-first canonical fallback, exact REST filtering, and recurrence-ledger coverage.
+- 2026-07-14T10:06:00Z Reviewed: Independent quality review found issue/PR search mixing and an optional fallback contract; both were fixed and a fresh review approved the result.

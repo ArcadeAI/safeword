@@ -1,6 +1,6 @@
 # Impl Plan: Prevent repeated retro findings from opening duplicate issues
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
@@ -42,7 +42,10 @@ boundary. It also follows the existing retro boundary pattern: pure logic in
 
 ## Known deviations
 
-skip: no deviations planned.
+The project preset referenced a Unicorn rule absent from the pinned plugin
+version, which prevented the required lint workflow. Commit `968d2169` removes
+only that unavailable rule; it is verification-supporting cleanup, not a change
+to the retro behavior.
 
 ## Assessment triggers
 
