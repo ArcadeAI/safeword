@@ -103,7 +103,7 @@ esac
   world.migrationBin = bin;
 }
 
-async function migrate(world: MigrationWorld, withoutBun = false): Promise<void> {
+function migrate(world: MigrationWorld, withoutBun = false): void {
   const directory = worldDirectory(world);
   world.migrationResult = runCli(['migrate', 'codex-plugin'], directory, {
     PATH: withoutBun ? '' : `${world.migrationBin}:${process.env.PATH ?? ''}`,
@@ -168,20 +168,20 @@ Given('Bun is unavailable', function (this: MigrationWorld) {
   this.migrationBin = undefined;
 });
 
-When('the builder upgrades Safe Word', async function (this: MigrationWorld) {
+When('the builder upgrades Safe Word', function (this: MigrationWorld) {
   this.migrationResult = runCli(['upgrade', '--no-migrate-namespace'], worldDirectory(this), {
     SAFEWORD_SKIP_INSTALL: '1',
   });
 });
 
-When('the builder sets up Safe Word', async function (this: MigrationWorld) {
+When('the builder sets up Safe Word', function (this: MigrationWorld) {
   this.migrationResult = runCli(['setup', '--yes', '--no-modify'], worldDirectory(this), {
     SAFEWORD_SKIP_INSTALL: '1',
   });
 });
 
-When('the builder migrates Codex to the plugin', async function (this: MigrationWorld) {
-  await migrate(this);
+When('the builder migrates Codex to the plugin', function (this: MigrationWorld) {
+  migrate(this);
 });
 
 Given('a plugin hook command is unpinned or uses npx', function (this: MigrationWorld) {
