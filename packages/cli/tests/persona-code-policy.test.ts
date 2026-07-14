@@ -10,12 +10,14 @@ function read(relativePath: string): string {
 }
 
 describe('persona-code authoring policy', () => {
-  it('defines canonical new codes and legacy persisted compatibility in the persona scaffold', () => {
+  it('separates automatic, explicit, and legacy code bounds in the persona scaffold', () => {
     const template = read('packages/cli/templates/personas-template.md');
 
-    expect(template).toMatch(/new codes.*3[–-]4 letters/i);
+    expect(template).toMatch(/automatic codes.*3[–-]4 letters/i);
+    expect(template).toMatch(/explicit codes.*2[–-]4 letters/i);
+    expect(template).toContain('## Platform Operator (PO)');
     expect(template).toContain('"Platform Operator" → PLO');
-    expect(template).toMatch(/legacy.*2[–-]6/i);
+    expect(template).toMatch(/legacy.*5[–-]6/i);
   });
 
   it.each([

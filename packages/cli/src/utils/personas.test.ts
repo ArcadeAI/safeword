@@ -437,7 +437,7 @@ describe('validatePersonas', () => {
       errors.some(
         error =>
           error.message.includes('non-canonical code') &&
-          error.message.includes('explicit 3–4 letter code'),
+          error.message.includes('explicit 2–4 letter code'),
       ),
     ).toBe(true);
   });
@@ -446,7 +446,7 @@ describe('validatePersonas', () => {
     const content = '## S3\n**Role:** A\n';
     const errors = validatePersonas(parsePersonas(content));
     const matchesCanonicalOverrideMessage = errors.some(error =>
-      /non-canonical.*explicit.*3[–-]4/i.test(error.message),
+      /non-canonical.*explicit.*2[–-]4/i.test(error.message),
     );
     expect(matchesCanonicalOverrideMessage).toBe(true);
   });

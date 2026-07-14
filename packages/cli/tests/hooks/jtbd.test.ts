@@ -223,7 +223,7 @@ describe('evaluateJtbdGate (Rule 6)', () => {
 
     expect(verdict.ok).toBe(false);
     expect(verdict).toMatchObject({
-      reason: expect.stringMatching(/collision.*exhausted.*explicit.*3[–-]4/i),
+      reason: expect.stringMatching(/collision.*exhausted.*explicit.*2[–-]4/i),
     });
   });
 
