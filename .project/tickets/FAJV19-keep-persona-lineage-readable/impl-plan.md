@@ -48,7 +48,7 @@ receives them.
 | Decision | Choice | Alternatives considered | Rejected because | Evidence |
 | --- | --- | --- | --- | --- |
 | Identifier ownership | One code resolves at personas.md and flows unchanged through lineage | Derive independently in each artifact | Independent derivation drifts after renames and breaks traceability | Figure-it-out traceability domain; [IBM traceability](https://www.ibm.com/docs/en/engineering-lifecycle-management-suite/doors-next/7.2.0?topic=requirements-traceability); `SCENARIOS.md` lineage contract |
-| New vs persisted bounds | Generate 3–4; accept explicit 2–6 | Hard-change all codes to 3–4 | Breaks customer-owned files and historical lineage | Repository survey found 100+ two-letter lineage files; `personas-file (7YN5QB)` made personas user-owned |
+| Automatic vs explicit vs persisted bounds | Generate 3–4; recommend explicit 2–4; accept persisted 5–6 | Generate 2–4; hard-change all codes to 2–4 | Two-letter automatic defaults are ambiguous; rejecting 5–6 breaks customer-owned history | User amendment on 2026-07-14; repository survey found 100+ existing lineage files |
 | Two-word derivation | First two characters of the first word plus first of the second | Initials only; first three flattened characters | Initials recreate two-letter defaults; flattening loses the second-word signal | Validated examples in `keep-persona-lineage-readable.feature`; user explicitly chose mnemonic 3–4 letter codes |
 | Collision allocation | Deterministic source order with a suffix while total length stays ≤4 | Unbounded decimal suffix; random hash | Unbounded suffix violates the canonical bound; hashes are opaque | Existing source-order collision contract in `resolvePersonaCodes`; reviewed collision/exhaustion scenarios |
 | Failure representation | `codeError` discriminator on resolved personas and hook results | Throw during resolution; infer from malformed code | Throwing prevents aggregate file diagnostics; inference confuses compatibility-valid 5-character codes with exhaustion | Existing `validatePersonas` aggregates line-addressed errors; reviewed exact-error parity scenario |
@@ -75,7 +75,7 @@ receives them.
 ## Doc impact
 
 - `packages/cli/templates/personas-template.md`: canonical and legacy rules.
-- BDD `DISCOVERY.md` / `SCENARIOS.md`: 3–4 letter worked lineage.
+- BDD `DISCOVERY.md` / `SCENARIOS.md`: automatic 3–4 and explicit 2–4 letter guidance.
 - `packages/website/src/content/docs/reference/configuration.mdx`: customer
   format and migration note.
 - `ARCHITECTURE.md`: project-wide identifier decision and migration boundary.

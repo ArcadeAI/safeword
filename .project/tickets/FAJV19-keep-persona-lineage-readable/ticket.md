@@ -2,7 +2,7 @@
 id: FAJV19
 slug: keep-persona-lineage-readable
 type: feature
-phase: verify
+phase: implement
 status: in_progress
 phase_anchors:
   - 'define-behavior: .project/tickets/FAJV19-keep-persona-lineage-readable/spec.md'
@@ -11,19 +11,19 @@ phase_anchors:
   - 'implement: .project/tickets/FAJV19-keep-persona-lineage-readable/impl-plan.md'
   - 'verify: .project/tickets/FAJV19-keep-persona-lineage-readable/test-definitions.md'
 scope:
-  - Derive new persona codes as 3–4 uppercase alphanumeric characters, using mnemonic name fragments and bounded collision suffixes.
-  - Keep explicitly-authored legacy 2–6 character codes valid and resolvable so existing customer personas and lineage do not break on upgrade.
+  - Derive automatic persona codes as 3–4 uppercase alphanumeric characters, using mnemonic name fragments and bounded collision suffixes.
+  - Recommend 2–4 characters for explicitly-authored new codes while keeping persisted 5–6 character codes valid and resolvable.
   - Carry the resolved persona code unchanged through JTBD IDs and Gherkin Rule tags; scenario names remain plain English.
-  - Update persona authoring guidance, BDD examples, hook-side derivation, dogfood personas, and the architecture decision record to the canonical 3–4 letter convention.
+  - Update persona authoring guidance, BDD examples, hook-side derivation, dogfood personas, and the architecture decision record to distinguish automatic 3–4 letter codes from explicit 2–4 letter codes.
 out_of_scope:
   - Bulk-renaming codes embedded in completed tickets, historical Gherkin, or existing customer repositories.
   - Adding a user-authored alias registry, an interactive persona editor, or automatic file mutation during `safeword check`; deterministic former-derived aliases are retained only for compatibility.
   - Changing Gherkin tag grammar, Rule numbering, or scenario-name conventions beyond the persona-code segment.
 done_when:
   - A newly derived persona code is always 3–4 characters or produces a clear validation error when the name cannot yield a conformant code.
-  - Explicit legacy codes that satisfy the existing 2–6 character compatibility pattern still validate and resolve.
+  - Explicit 2–4 character codes are recommended for new personas, and persisted 5–6 character codes still validate and resolve.
   - CLI and installed-hook derivation agree for single-word, two-word, three-plus-word, punctuation, digit, and collision-relevant inputs.
-  - Templates and BDD guidance show 3–4 letter codes flowing unchanged from personas.md into JTBD and Gherkin lineage.
+  - Templates and BDD guidance show automatic 3–4 and explicit 2–4 letter codes flowing unchanged from personas.md into JTBD and Gherkin lineage.
   - Focused persona, JTBD-gate, Gherkin, schema, lint, and type-check verification passes.
 created: 2026-07-13T22:08:35.793Z
 last_modified: 2026-07-13T22:08:35.793Z
@@ -31,7 +31,7 @@ last_modified: 2026-07-13T22:08:35.793Z
 
 # Keep persona lineage readable for builders
 
-**Goal:** Give every persona a canonical 3–4 letter code and carry it unchanged into JTBD and Gherkin lineage without breaking legacy projects.
+**Goal:** Give every persona a concise 2–4 letter authored code or 3–4 letter automatic code and carry it unchanged into JTBD and Gherkin lineage without breaking legacy projects.
 
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
 
@@ -49,3 +49,4 @@ last_modified: 2026-07-13T22:08:35.793Z
 - 2026-07-13T23:14:00.000Z Quality review correction: Reconstructed the former six-character derivation and source-ordered collision aliases in both runtimes, prevented explicit canonical codes from reserving duplicate collision slots, and replaced source-only asset checks with real setup-installed hook and authoring-asset fixtures.
 - 2026-07-13T23:22:00.000Z Quality review passed: Fresh review approved dependency hygiene, documentation, security, scope discipline, and real setup-installed hook wiring. Advanced to verify.
 - 2026-07-13T23:50:00.000Z Verify: Persona-focused unit, integration, installed-hook, documentation, and walkthrough tests pass 143/143; Gherkin passes 429 scenarios with 3 skipped; configured build, lint, and typecheck lanes pass. Repository-wide verification remains red on two unrelated pre-existing fixtures (Rust clippy autofix and cleanup-zombie process discovery), so the ticket remains in verify.
+- 2026-07-14T00:32:00.000-04:00 Scope amendment: User chose explicit 2–4 letter codes while retaining 3–4 letter automatic derivation and 5–6 letter compatibility. Reopened implementation; RED d1f8ee6b pins recovery messages and installed guidance.

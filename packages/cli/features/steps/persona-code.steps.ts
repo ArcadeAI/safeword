@@ -286,12 +286,23 @@ When('safeword installs its persona and BDD authoring assets', function (this: S
 });
 
 Then(
-  'persona guidance defines new codes as {int}–{int} letters',
+  'persona guidance defines automatic codes as {int}–{int} letters',
   function (this: SafewordWorld, minimum, maximum) {
     assert.ok(
       (state(this).personaGuidance ?? '')
         .toLowerCase()
-        .includes(`new codes use ${minimum}–${maximum} letters`),
+        .includes(`automatic codes use ${minimum}–${maximum} letters`),
+    );
+  },
+);
+
+Then(
+  'persona guidance allows explicit codes with {int}–{int} letters',
+  function (this: SafewordWorld, minimum, maximum) {
+    assert.ok(
+      (state(this).personaGuidance ?? '')
+        .toLowerCase()
+        .includes(`explicit codes may use ${minimum}–${maximum} letters`),
     );
   },
 );
@@ -312,7 +323,7 @@ When('their new-code examples are inspected', function (this: SafewordWorld) {
 });
 
 Then(
-  'every new-code example uses {int}–{int} letters',
+  'automatic new-code examples use {int}–{int} letters',
   function (this: SafewordWorld, minimum, maximum) {
     const combined = `${state(this).personaGuidance}\n${state(this).discoveryGuidance}\n${state(this).scenarioGuidance}`;
     assert.ok(combined.includes('Platform Operator (PLO)'));
@@ -320,8 +331,16 @@ Then(
   },
 );
 
-Then('two-letter codes are described only as legacy compatibility', function (this: SafewordWorld) {
+Then(
+  'explicit new-code examples may use {int}–{int} letters',
+  function (this: SafewordWorld, minimum, maximum) {
+    const combined = `${state(this).personaGuidance}\n${state(this).discoveryGuidance}`;
+    assert.ok(combined.includes('Platform Operator (PO)'));
+    assert.ok('PO'.length >= minimum && 'PO'.length <= maximum);
+  },
+);
+
+Then('5–6 letter codes are described only as legacy compatibility', function (this: SafewordWorld) {
   const combined = `${state(this).personaGuidance}\n${state(this).discoveryGuidance}`;
-  assert.match(combined, /legacy.*2–6/i);
-  assert.ok(!combined.includes('Platform Operator (PO)'));
+  assert.match(combined, /legacy 5–6/i);
 });

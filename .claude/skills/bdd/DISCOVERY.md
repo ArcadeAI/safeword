@@ -35,7 +35,7 @@ At intake start, read the configured personas file (`paths.personas`, default `<
 
 - **If a persona reference comes up during intake that isn't in the file** — flag it, don't invent. Ask whether it's a new persona to add, or a typo for an existing one. Use `validatePersonaReference` semantics (case-sensitive match; offer the suggestion when only casing differs).
 
-Short codes auto-derive as canonical 3–4 letter identifiers on the next `safeword check` (e.g., `Platform Operator` → `PLO`). Codes can be overridden with explicit `## Name (CODE)` syntax. Preserve existing 2–6 character codes as legacy compatibility, but use 3–4 letters for every new code. Never edit derived codes manually except via the override path — `safeword check` will rewrite them.
+Short codes auto-derive as 3–4 letter identifiers on the next `safeword check` (e.g., `Platform Operator` → `PLO`). Explicit `## Name (CODE)` overrides may use 2–4 letters (for example, `## Platform Operator (PO)`). Preserve existing 5–6 character codes as legacy compatibility. Never edit derived codes manually except via the override path — `safeword check` will rewrite them.
 
 ## Load project glossary
 

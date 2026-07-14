@@ -16,7 +16,7 @@ Each persona is a `##` block with:
 
 SHORT CODES
 
-New codes use 3–4 letters and auto-derive when you save the file:
+Automatic codes use 3–4 letters and derive when you save the file:
 
 - Single-word names → first 3 characters, uppercased
   ("Auditor" → AUD)
@@ -25,10 +25,10 @@ New codes use 3–4 letters and auto-derive when you save the file:
 - Names with 3+ words → initials, truncated to 4 characters
   ("Site Reliability Engineer" → SRE)
 - Collisions get a bounded numeric suffix ("PLO", "PLO2", "PLO3")
-- Override by authoring a canonical code explicitly: `## Platform Operator (PLAT)`
+- Explicit codes may use 2–4 letters: `## Platform Operator (PO)`
 
-Legacy explicit codes remain compatible at 2–6 characters so existing JTBD and
-Gherkin lineage does not break. Do not use the wider legacy range for new codes.
+Legacy 5–6 letter explicit codes remain compatible so existing JTBD and Gherkin
+lineage does not break. Do not use the wider legacy range for new codes.
 Persisted codes must match `^[A-Z][A-Z0-9]{1,5}$` (uppercase letter first).
 
 To retire a persona, delete the block. References to retired codes surface

@@ -10,8 +10,9 @@ validation and lookup; the installed JTBD hook carries a deliberate copy because
 deployed hooks cannot import the CLI distribution. Tests pin both copies to the
 same input/output table.
 
-The compatibility pattern remains 2–6 uppercase alphanumeric characters for
-explicit persisted codes. Canonical derivation is narrower: 3–4 characters.
+The persisted validation pattern remains 2–6 uppercase alphanumeric characters.
+Automatic derivation is 3–4 characters; explicitly authored new codes are
+recommended at 2–4 characters, with 5–6 retained for compatibility.
 Collision suffixes are allocated deterministically in source order while the
 result fits four characters; exhaustion becomes a validation error requesting
 an explicit code.
@@ -54,7 +55,7 @@ reference acceptance.
 
 ### Component 3: Authoring assets and dogfood catalog
 
-**What:** Teach persona authors to use canonical 3–4 letter codes and show the
+**What:** Teach persona authors to use automatic 3–4 or explicit 2–4 letter codes and show the
 same code flowing into JTBD and Gherkin Rule tags.
 
 **Where:** `packages/cli/templates/personas-template.md`, BDD `DISCOVERY.md` and
@@ -108,14 +109,14 @@ personas.md heading
 2. Safeword resolves `PLO`; explicit compatible legacy codes remain unchanged.
 3. BDD guidance writes `feature.PLO1` and `@feature.PLO1.R1`.
 4. If a short name or exhausted collision space cannot yield 3–4 characters,
-   `safeword check` asks for an explicit canonical code.
+   `safeword check` asks for an explicit 2–4 letter code.
 
 ## Key Decisions
 
 ### Separate canonical generation from compatibility validation
 
-**What:** Generate 3–4 characters but continue accepting persisted 2–6
-character explicit codes.
+**What:** Generate 3–4 characters, recommend 2–4 for explicit new codes, and
+continue accepting persisted 5–6 character explicit codes.
 
 **Why:** A hard pattern change would invalidate existing customer-owned
 `personas.md` files and stored lineage; the repository alone has more than 100
@@ -140,7 +141,7 @@ keep every derived result within four characters; edit templates before
 dogfood copies.
 
 **Error handling:** Short-name and collision-exhaustion errors point to
-`## Name (CODE)` with a 3–4 character example.
+`## Name (CODE)` with a 2–4 character example.
 
 **Gotchas:** Explicit codes claim their namespace before derived codes. Collision
 allocation must remain deterministic in persona source order.

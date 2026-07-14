@@ -58,11 +58,25 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 3deafda9
 - [x] REFACTOR skip: one documentation contract table covers source plus installed Claude, Codex, and Cursor assets
 
-### Scenario: Installed assets do not present two-letter defaults as canonical
+### Scenario: Installed assets distinguish explicit two-letter codes from automatic defaults
 
 - [x] RED c85a35d0
 - [x] GREEN 3deafda9
 - [x] REFACTOR skip: canonical examples and the legacy note share the persona scaffold as their source of truth
+
+## Scope amendment: Explicit codes may use 2–4 letters
+
+### Scenario: Recovery guidance offers explicit 2–4 letter codes
+
+- [x] RED d1f8ee6b
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Installed assets distinguish automatic, explicit, and legacy bounds
+
+- [x] RED d1f8ee6b
+- [ ] GREEN
+- [ ] REFACTOR
 
 ---
 

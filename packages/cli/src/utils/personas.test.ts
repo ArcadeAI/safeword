@@ -361,7 +361,7 @@ describe('resolvePersonaCodes', () => {
     expect(exhausted?.code.length).toBeLessThanOrEqual(4);
     expect(
       validatePersonas(parsed).some(error =>
-        /collision.*exhausted.*explicit.*3[–-]4/i.test(error.message),
+        /collision.*exhausted.*explicit.*2[–-]4/i.test(error.message),
       ),
     ).toBe(true);
   });

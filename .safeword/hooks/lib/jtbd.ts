@@ -15,7 +15,7 @@ const PERSONA_PREFIX = '**Persona:**';
 const SKIP_PREFIX = 'skip:';
 /** Max newly derived persona-code length — mirrors the CLI canonical bound. */
 const MAX_CODE_LENGTH = 4;
-const LEGACY_CODE_PATTERN = /^[A-Z][A-Z0-9]{1,5}$/;
+const PERSISTED_CODE_PATTERN = /^[A-Z][A-Z0-9]{1,5}$/;
 /**
  * A level-4 heading only counts toward the AC gate when it carries a real
  * lineage id — `<jtbd>.AC<n>` or `<jtbd>.R<n>` (#696). Without this, any
@@ -107,10 +107,10 @@ function allocateDerivedCode(base: string, claimed: ReadonlySet<string>): string
 
 /** Reconstruct the former source-ordered suffix allocation within persisted bounds. */
 function allocateLegacyCode(base: string, claimed: ReadonlySet<string>): string | undefined {
-  if (!claimed.has(base)) return LEGACY_CODE_PATTERN.test(base) ? base : undefined;
+  if (!claimed.has(base)) return PERSISTED_CODE_PATTERN.test(base) ? base : undefined;
   for (let suffix = 2; ; suffix += 1) {
     const candidate = `${base}${suffix}`;
-    if (!LEGACY_CODE_PATTERN.test(candidate)) return undefined;
+    if (!PERSISTED_CODE_PATTERN.test(candidate)) return undefined;
     if (!claimed.has(candidate)) return candidate;
   }
 }
@@ -215,7 +215,7 @@ export function evaluateJtbdGate(specContent: string, personasContent: string): 
   if (exhausted !== undefined) {
     return {
       ok: false,
-      reason: `canonical persona-code collision space exhausted for "${exhausted}" — author an explicit 3–4 letter code in personas.md`,
+      reason: `canonical persona-code collision space exhausted for "${exhausted}" — author an explicit 2–4 letter code in personas.md`,
     };
   }
 

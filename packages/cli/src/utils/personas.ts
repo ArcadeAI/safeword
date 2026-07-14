@@ -8,8 +8,8 @@
  *
  * Persisted short codes follow the compatibility pattern
  * `^[A-Z][A-Z0-9]{1,5}$` (2-6 chars). Newly derived codes use the narrower
- * canonical 3-4 character convention; users can preserve an existing code or
- * override derivation with explicit `## Name (CODE)` syntax.
+ * canonical 3-4 character convention; explicitly authored new codes should use
+ * 2-4 characters, while persisted 5-6 character codes remain compatible.
  *
  * See ticket 7YN5QB for the full spec.
  */
@@ -287,14 +287,14 @@ function findPatternErrors(resolved: readonly ResolvedPersona[]): PersonaValidat
     if (persona.codeError === 'non-canonical-derived-code') {
       errors.push({
         line: persona.lineNumber,
-        message: `name produces non-canonical code "${persona.code}" — author an explicit 3–4 letter code via \`## Name (CODE)\``,
+        message: `name produces non-canonical code "${persona.code}" — author an explicit 2–4 letter code via \`## Name (CODE)\``,
       });
       continue;
     }
     if (persona.codeError === 'collision-space-exhausted') {
       errors.push({
         line: persona.lineNumber,
-        message: `canonical collision space exhausted for "${persona.code}" — author an explicit 3–4 letter code via \`## Name (CODE)\``,
+        message: `canonical collision space exhausted for "${persona.code}" — author an explicit 2–4 letter code via \`## Name (CODE)\``,
       });
       continue;
     }
