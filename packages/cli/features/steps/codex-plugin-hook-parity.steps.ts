@@ -791,7 +791,10 @@ Then(
   function (this: CodexPluginHookParityWorld) {
     const commands = this.hookManifestCommands ?? [];
     assert.equal(commands.length, 5);
-    for (const command of commands) assert.match(command, /safeword hook codex [a-z-]+/u);
+    for (const command of commands) {
+      assert.match(command, /bunx --bun safeword@[\d.]+ hook codex [a-z-]+/u);
+      assert.doesNotMatch(command, /npx/u);
+    }
   },
 );
 
