@@ -1,0 +1,52 @@
+# Test Definitions: Prevent repeated retro findings from opening duplicate issues
+
+The feature source is `packages/cli/features/prevent-retro-duplicate-issues.feature`.
+These scenarios use focused Vitest coverage: draft construction and triage are
+deterministic modules, while the REST transport test exercises exact GitHub body
+search with only `fetch` mocked.
+
+## Rule: A canonical repro identity ignores model-assigned classification drift
+
+### Scenario: New issue body contains both legacy and canonical markers
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Same repro with altered title category and surface finds the canonical issue
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: Exact compatibility precedes canonical lookup and does not merge near matches
+
+### Scenario: Legacy signature match remains the first lookup
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Canonical search rejects a body without the exact marker
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Different canonical repro identity creates a new issue
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: Canonical matches retain ordinary recurrence accounting
+
+### Scenario: Canonical recurrence is idempotent within a session
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Feature-level cross-scenario refactor
+
+- [ ] cross-scenario
