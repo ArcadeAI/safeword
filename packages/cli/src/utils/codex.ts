@@ -6,6 +6,8 @@ const MIN_CODEX_HOOK_VERSION = '0.133.0';
 const CODEX_CONFIG_PATH = '.codex/config.toml';
 export const CODEX_TRUST_NEXT_STEP =
   'Open Codex and run `/hooks` to review and trust safeword project hooks before relying on Codex gates.';
+export const CODEX_PLUGIN_MIGRATION_NEXT_STEP =
+  'For Codex, run `safeword migrate codex-plugin` to install and verify the Safe Word plugin for your profile.';
 
 interface ParsedSemver {
   major: number;

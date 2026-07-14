@@ -74,6 +74,16 @@ program
     });
   });
 
+const migrate = program.command('migrate').description('Migrate an agent integration');
+
+migrate
+  .command('codex-plugin')
+  .description('Move this project from legacy Codex hooks to the Safe Word plugin')
+  .action(async () => {
+    const { migrateCodexPlugin } = await import('./commands/migrate-codex-plugin.js');
+    migrateCodexPlugin();
+  });
+
 program
   .command('diff')
   .description('Preview changes that would be made by upgrade')

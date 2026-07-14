@@ -176,187 +176,6 @@ const MCP_JSON_MERGE: JsonMergeDefinition = {
  */
 const MARKDOWNLINT_CLI2_IGNORES_MERGE = dirGlobExcludeMerge('ignores', dir => `**/${dir}/**`);
 
-const CODEX_LEGACY_PROMPT_TIMESTAMP_HOOK_PATCH = `
-[[hooks.UserPromptSubmit]]
-
-[[hooks.UserPromptSubmit.hooks]]
-type = "command"
-command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/prompt-timestamp.ts"'
-timeout = 5
-statusMessage = "Adding current timestamp"
-`;
-
-const CODEX_LEGACY_PROMPT_RETRO_NUDGE_HOOK_PATCH = `
-[[hooks.UserPromptSubmit]]
-
-[[hooks.UserPromptSubmit.hooks]]
-type = "command"
-command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/prompt-retro-nudge.ts"'
-timeout = 30
-statusMessage = "Checking spooled safeword retro drafts"
-`;
-
-const CODEX_USER_PROMPT_SUBMIT_HOOK_PATCH = `
-[[hooks.UserPromptSubmit]]
-
-[[hooks.UserPromptSubmit.hooks]]
-type = "command"
-command = 'npx --yes safeword hook codex user-prompt-submit'
-timeout = 30
-statusMessage = "Checking queued Safe Word prompt context"
-`;
-
-const CODEX_SESSION_START_HOOK_PATCH = `
-[[hooks.SessionStart]]
-matcher = ""
-
-[[hooks.SessionStart.hooks]]
-type = "command"
-command = 'npx --yes safeword hook codex session-start'
-timeout = 120
-statusMessage = "Loading Safe Word standing instructions"
-`;
-
-export const CODEX_LEGACY_CONTEXT_SESSION_START_HOOK_PATCH = `
-[[hooks.SessionStart]]
-matcher = ""
-
-[[hooks.SessionStart.hooks]]
-type = "command"
-command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/session-safeword-context.ts" --agent=codex'
-timeout = 30
-statusMessage = "Loading safeword standing instructions"
-`;
-
-const CODEX_LEGACY_SESSION_START_HOOK_PATCH = `
-[[hooks.SessionStart]]
-matcher = ""
-
-[[hooks.SessionStart.hooks]]
-type = "command"
-command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/session-codex-start.ts"'
-timeout = 120
-statusMessage = "Checking safeword updates and loading standing instructions"
-`;
-
-const CODEX_PRE_TOOL_QUALITY_HOOK_PATCH = `
-[[hooks.PreToolUse]]
-matcher = "^(apply_patch|Bash|Edit|Write|MultiEdit|NotebookEdit)$"
-
-[[hooks.PreToolUse.hooks]]
-type = "command"
-command = 'npx --yes safeword hook codex pre-tool-use'
-timeout = 30
-statusMessage = "Checking Safe Word edit gates"
-`;
-
-const CODEX_LEGACY_PRE_TOOL_QUALITY_HOOK_PATCH_WITHOUT_STATUS = `
-[[hooks.PreToolUse]]
-matcher = "^(apply_patch|Bash|Edit|Write|MultiEdit|NotebookEdit)$"
-
-[[hooks.PreToolUse.hooks]]
-type = "command"
-command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-quality.ts"'
-timeout = 30
-`;
-
-const CODEX_LEGACY_PRE_TOOL_QUALITY_HOOK_PATCH = `
-[[hooks.PreToolUse]]
-matcher = "^(apply_patch|Bash|Edit|Write|MultiEdit|NotebookEdit)$"
-
-[[hooks.PreToolUse.hooks]]
-type = "command"
-command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-quality.ts"'
-timeout = 30
-statusMessage = "Checking safeword PreToolUse gates"
-`;
-
-const CODEX_POST_TOOL_USE_HOOK_PATCH = `
-[[hooks.PostToolUse]]
-matcher = "^(apply_patch|Bash|Edit|Write|MultiEdit|NotebookEdit)$"
-
-[[hooks.PostToolUse.hooks]]
-type = "command"
-command = 'npx --yes safeword hook codex post-tool-use'
-timeout = 30
-statusMessage = "Surfacing Safe Word post-tool context"
-`;
-
-const CODEX_LEGACY_POST_TOOL_QUALITY_HOOK_PATCH = `
-[[hooks.PostToolUse]]
-matcher = "^(apply_patch|Bash|Edit|Write|MultiEdit|NotebookEdit)$"
-
-[[hooks.PostToolUse.hooks]]
-type = "command"
-command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/post-tool-quality.ts"'
-timeout = 30
-statusMessage = "Updating safeword quality state"
-`;
-
-const CODEX_LEGACY_POST_TOOL_SKILL_NUDGE_HOOK_PATCH = `
-[[hooks.PostToolUse]]
-matcher = "^(apply_patch|Edit|Write|MultiEdit|NotebookEdit)$"
-
-[[hooks.PostToolUse.hooks]]
-type = "command"
-command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/post-tool-skill-nudge.ts"'
-timeout = 30
-statusMessage = "Surfacing language-skill guidance"
-`;
-
-const CODEX_STOP_HOOK_PATCH = `
-[[hooks.Stop]]
-
-[[hooks.Stop.hooks]]
-type = "command"
-command = 'npx --yes safeword hook codex stop'
-timeout = 600
-statusMessage = "Checking Safe Word stop continuation"
-`;
-
-const CODEX_LEGACY_STOP_HOOK_PATCH_WITHOUT_STATUS = `
-[[hooks.Stop]]
-
-[[hooks.Stop.hooks]]
-type = "command"
-command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/stop.ts"'
-timeout = 600
-`;
-
-const CODEX_LEGACY_STOP_HOOK_PATCH = `
-[[hooks.Stop]]
-
-[[hooks.Stop.hooks]]
-type = "command"
-command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/stop.ts"'
-timeout = 600
-statusMessage = "Running safeword retro if this session is substantial"
-`;
-
-// MCP servers for Codex parity with .mcp.json / .cursor/mcp.json (#269).
-// context7 uses the hosted streamable-HTTP transport (url); playwright uses
-// stdio (command/args) — matching MCP_SERVERS. Shipped via the codex/config.toml
-// template and re-applied as a retrofit text-patch on upgrade. Must byte-match
-// the block appended to that template (exported so tests strip it exactly).
-export const CODEX_MCP_SERVERS_BLOCK = `
-[mcp_servers.context7]
-url = "https://mcp.context7.com/mcp"
-
-[mcp_servers.playwright]
-command = "bunx"
-args = ["@playwright/mcp@latest"]
-`;
-
-const CODEX_CONFIG_SCAFFOLD_WITHOUT_HOOKS = `
-# Safeword Codex project configuration.
-#
-# Project-local Codex config loads only after the project is reviewed and trusted.
-# Run Codex's hook trust flow after setup/upgrade before assuming these gates run.
-
-[features]
-hooks = true
-`;
-
 const CODEX_SKILL_TEMPLATE_FILES = [
   ['audit/SKILL.md', 'skills/audit/SKILL.md'],
   ['bdd/SKILL.md', 'skills/bdd/SKILL.md'],
@@ -394,23 +213,6 @@ const CODEX_SKILL_DEPRECATED_DIRS = [
     CODEX_SKILL_TEMPLATE_FILES.map(([target]) => `.agents/skills/${target.split('/', 1)[0]}`),
   ),
 ];
-
-function skipLegacyCodexHookInstall(): undefined {
-  return;
-}
-
-const LEGACY_CODEX_HOOK_TEMPLATE_FILES: Record<string, ManagedFileDefinition> = Object.fromEntries(
-  [
-    ['pre-tool-quality.ts', 'hooks/codex/pre-tool-quality.ts'],
-    ['pre-tool-quality-helpers.ts', 'hooks/codex/pre-tool-quality-helpers.ts'],
-    ['stop.ts', 'hooks/codex/stop.ts'],
-    ['post-tool-quality.ts', 'hooks/codex/post-tool-quality.ts'],
-    ['post-tool-skill-nudge.ts', 'hooks/codex/post-tool-skill-nudge.ts'],
-  ].map(([target, template]) => [
-    `.safeword/hooks/codex/${target}`,
-    { template, generator: skipLegacyCodexHookInstall },
-  ]),
-);
 
 const CURSOR_RULE_WRAPPER_OWNED_FILES: Record<string, FileDefinition> = Object.fromEntries(
   CURSOR_RULE_WRAPPERS.map(wrapper => [
@@ -622,7 +424,7 @@ function boundaryShimPatch(at: 'commit' | 'push'): TextPatchDefinition {
   };
 }
 
-export const SAFEWORD_SCHEMA: SafewordSchema = {
+const LEGACY_SAFEWORD_SCHEMA: SafewordSchema = {
   version: VERSION,
 
   // Directories fully owned by safeword (created on setup, deleted on reset)
@@ -1027,7 +829,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // would keep `.cursor/` alive after reset.
     '.claude/agents/safeword-retro-filer.md': { template: 'agents/safeword-retro-filer.md' },
     '.cursor/agents/safeword-retro-filer.md': { template: 'agents/safeword-retro-filer.md' },
-    '.codex/agents/safeword-retro-filer.toml': { template: 'agents/safeword-retro-filer.toml' },
 
     // Guides
     '.safeword/guides/architecture-guide.md': {
@@ -1253,13 +1054,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // SQL managed files (.sqlfluff)
     ...sqlManagedFiles,
 
-    // Codex project config — create if missing, preserve user-authored config.
-    '.codex/config.toml': { template: 'codex/config.toml' },
-    // Legacy source templates kept for old helper/unit coverage while Codex support
-    // migrates to the plugin. `generator: undefined` means setup/upgrade never writes
-    // these repo-local hook scripts.
-    ...LEGACY_CODEX_HOOK_TEMPLATE_FILES,
-
     // Project personas — scaffolded once with format header + commented example;
     // user authors real persona blocks thereafter (safeword reads, never overwrites
     // user content). See ticket 7YN5QB. `configKey: 'personas'` lets the user
@@ -1454,91 +1248,12 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       rerender: true,
       marker: GITATTRIBUTES_HEADER,
     },
-    '.codex/config.toml': [
-      // Primary patch: retrofits package-backed Codex hooks onto pre-existing
-      // safeword configs and owns file removal on uninstall (runs LAST on unpatch).
-      {
-        operation: 'append',
-        content: CODEX_USER_PROMPT_SUBMIT_HOOK_PATCH,
-        marker: 'safeword hook codex user-prompt-submit',
-        applyWhenContentIncludes: ['# Safeword Codex project configuration.'],
-        unpatchContent: [
-          CODEX_SESSION_START_HOOK_PATCH,
-          CODEX_PRE_TOOL_QUALITY_HOOK_PATCH,
-          CODEX_POST_TOOL_USE_HOOK_PATCH,
-          CODEX_STOP_HOOK_PATCH,
-          CODEX_LEGACY_PROMPT_TIMESTAMP_HOOK_PATCH,
-          CODEX_LEGACY_PROMPT_RETRO_NUDGE_HOOK_PATCH,
-          CODEX_LEGACY_SESSION_START_HOOK_PATCH,
-          CODEX_LEGACY_CONTEXT_SESSION_START_HOOK_PATCH,
-          CODEX_LEGACY_PRE_TOOL_QUALITY_HOOK_PATCH,
-          CODEX_LEGACY_PRE_TOOL_QUALITY_HOOK_PATCH_WITHOUT_STATUS,
-          CODEX_LEGACY_POST_TOOL_QUALITY_HOOK_PATCH,
-          CODEX_LEGACY_POST_TOOL_SKILL_NUDGE_HOOK_PATCH,
-          CODEX_LEGACY_STOP_HOOK_PATCH,
-          CODEX_LEGACY_STOP_HOOK_PATCH_WITHOUT_STATUS,
-        ],
-        removeFileIfContentEquals: [CODEX_CONFIG_SCAFFOLD_WITHOUT_HOOKS],
-      },
-      {
-        operation: 'append',
-        content: CODEX_SESSION_START_HOOK_PATCH,
-        marker: 'safeword hook codex session-start',
-        supersedes: CODEX_LEGACY_CONTEXT_SESSION_START_HOOK_PATCH,
-        applyWhenContentIncludes: ['# Safeword Codex project configuration.'],
-      },
-      {
-        operation: 'append',
-        content: CODEX_PRE_TOOL_QUALITY_HOOK_PATCH,
-        marker: 'safeword hook codex pre-tool-use',
-        applyWhenContentIncludes: ['# Safeword Codex project configuration.'],
-      },
-      {
-        operation: 'append',
-        content: CODEX_POST_TOOL_USE_HOOK_PATCH,
-        marker: 'safeword hook codex post-tool-use',
-        applyWhenContentIncludes: ['# Safeword Codex project configuration.'],
-      },
-      {
-        operation: 'append',
-        content: CODEX_STOP_HOOK_PATCH,
-        marker: 'safeword hook codex stop',
-        applyWhenContentIncludes: ['# Safeword Codex project configuration.'],
-      },
-      // MCP-server retrofit (#269): add-if-missing parity with .mcp.json /
-      // .cursor/mcp.json. Marker is the context7 table header, so an existing
-      // (safeword- or user-authored) [mcp_servers.context7] suppresses the
-      // append — never clobbering or duplicating a user's entry. Guarded to
-      // safeword-scaffolded configs only.
-      {
-        operation: 'append',
-        content: CODEX_MCP_SERVERS_BLOCK,
-        marker: '[mcp_servers.context7]',
-        applyWhenContentIncludes: ['# Safeword Codex project configuration.'],
-        // No unpatchContent/removeFileIfContentEquals by design: unpatch removes
-        // this patch's `content` (the MCP block), and the primary patch above —
-        // running last on the reversed unpatch — owns file removal.
-      },
-    ],
   },
 
   // Cleanup-only text patches. Safeword used to prepend these blocks to
   // customer-owned context files; P30CRP moved SAFEWORD.md delivery to
   // safeword-owned hooks.
   legacyTextPatches: {
-    '.codex/config.toml': {
-      operation: 'append',
-      content: CODEX_LEGACY_PRE_TOOL_QUALITY_HOOK_PATCH,
-      marker: '.safeword/hooks/codex/pre-tool-quality.ts',
-      unpatchContent: [
-        CODEX_LEGACY_PRE_TOOL_QUALITY_HOOK_PATCH_WITHOUT_STATUS,
-        CODEX_LEGACY_STOP_HOOK_PATCH_WITHOUT_STATUS,
-        CODEX_LEGACY_STOP_HOOK_PATCH,
-        CODEX_LEGACY_POST_TOOL_QUALITY_HOOK_PATCH,
-        CODEX_LEGACY_POST_TOOL_SKILL_NUDGE_HOOK_PATCH,
-      ],
-      removeFileIfContentEquals: [CODEX_CONFIG_SCAFFOLD_WITHOUT_HOOKS],
-    },
     'AGENTS.md': {
       operation: 'prepend',
       content: AGENTS_MD_LINK,
@@ -1620,3 +1335,26 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
   // NPM packages to install (JS/TS specific packages from typescript pack)
   packages: typescriptPackages,
 };
+
+function withoutCodexProjectAssets<T>(entries: Record<string, T>): Record<string, T> {
+  return Object.fromEntries(
+    Object.entries(entries).filter(
+      ([path]) => path !== '.codex/config.toml' && !path.startsWith('.codex/agents/'),
+    ),
+  );
+}
+
+/**
+ * The public schema is plugin-only for Codex. Existing project hooks are left
+ * untouched until `safeword migrate codex-plugin` verifies the profile plugin.
+ */
+export const SAFEWORD_SCHEMA: SafewordSchema = {
+  ...LEGACY_SAFEWORD_SCHEMA,
+  ownedFiles: withoutCodexProjectAssets(LEGACY_SAFEWORD_SCHEMA.ownedFiles),
+  managedFiles: withoutCodexProjectAssets(LEGACY_SAFEWORD_SCHEMA.managedFiles),
+  textPatches: withoutCodexProjectAssets(LEGACY_SAFEWORD_SCHEMA.textPatches),
+  legacyTextPatches: withoutCodexProjectAssets(LEGACY_SAFEWORD_SCHEMA.legacyTextPatches),
+};
+
+/** @deprecated Use SAFEWORD_SCHEMA; retained temporarily for migration callers. */
+export const SAFEWORD_PLUGIN_SCHEMA = SAFEWORD_SCHEMA;

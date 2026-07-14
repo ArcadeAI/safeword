@@ -19,7 +19,7 @@ import { getMissingPacks } from './packs/registry.js';
 import type { ProjectType } from './packs/types.js';
 import { typescriptPackages } from './packs/typescript/files.js';
 import { reconcile } from './reconcile.js';
-import { BDD_LANE_FILE_PATHS, BDD_LANE_SCRIPT, SAFEWORD_SCHEMA } from './schema.js';
+import { BDD_LANE_FILE_PATHS, BDD_LANE_SCRIPT, SAFEWORD_PLUGIN_SCHEMA } from './schema.js';
 import { readTickets } from './ticket-sync/index.js';
 import { listArchitectureRecords } from './utils/architecture-records.js';
 import {
@@ -685,7 +685,7 @@ export async function checkHealth(
 
   // Use reconcile with dryRun to detect issues
   const ctx = createProjectContext(cwd);
-  const result = await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx, {
+  const result = await reconcile(SAFEWORD_PLUGIN_SCHEMA, 'upgrade', ctx, {
     dryRun: true,
   });
 

@@ -5,9 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (410)
-## Tickets (412)
-## Tickets (414)
+## Tickets (418)
 
 ### 001
 
@@ -907,6 +905,10 @@
 - **Custom paths.projectRoot: wire formatter ignores + auto-upgrade staging (1QNPCF)** (done, epic: —)
   Make the namespace-root contribution to formatter ignore-lists and the auto-upgrade owned-paths prefixes follow the _resolved_ `paths.projectRoot`, not just the static `.project/`/`.safeword-project/`.
   → `.project/tickets/1QNPCF-custom-projectroot-wiring`
+- **Debug Codex retro runtime completion (24WR26)** (done, epic: —)
+  Identify the failing Codex retro runtime boundary and add focused smoke evidence for child launch and offset writes.
+  external issue: https://github.com/ArcadeAI/safeword/issues/960
+  → `.project/tickets/24WR26-codex-retro-runtime-completion`
 - **Reconcile ARCHITECTURE.md narrative with the generated module map (25TJAR)** (in_progress, epic: —)
   ARCHITECTURE.md documents all 13 real CLI modules, the test-plan module location, the plugin/ packaging note, and the cucumber runtime deps
   → `.project/tickets/25TJAR-architecture-narrative-reconcile`
@@ -932,6 +934,9 @@
 - **Stabilize CLI startup performance test under full-suite load (34FRZR)** (in_progress, epic: —)
   Make the CLI startup performance constraint deterministic enough that full-suite verification fails only on real startup regressions, not incidental machine contention.
   → `.project/tickets/34FRZR-stabilize-cli-startup-performance-test`
+- **Preserve Codex hook behavior through the plugin CLI (39KJX7)** (in_progress, epic: —)
+  Make the Codex plugin CLI path preserve the legacy Codex hook behavior and prove it with executable parity tests plus live smoke evidence.
+  → `.project/tickets/39KJX7-codex-plugin-hook-parity`
 - **Configure documentation sources for audit (3BTGMW)** (in_progress, epic: —)
   Let projects tell safeword where documentation lives so audit can compare repo reality against the right docs instead of guessing.
   → `.project/tickets/3BTGMW-configure-audit-doc-sources`
@@ -1269,9 +1274,6 @@
   blocked by: safeword sync-tracker — one-way projection to Linear + GitHub Issues (JS5K5G)
   external issue: https://github.com/ArcadeAI/safeword/issues/347
   → `.project/tickets/M1FGRJ-tracker-relations-projection`
-- **Document uncommittable RED evidence path (M8NNX0)** (in_progress, epic: —)
-  Make the TDD instructions explicitly handle RED states that cannot be committed because structural quality gates reject partial code.
-  external issue: https://github.com/ArcadeAI/safeword/issues/586
 - **Document uncommittable RED evidence path (M8NNX0)** (done, epic: —)
   Make the TDD instructions explicitly handle RED states that cannot be committed because structural quality gates reject partial code.
   external issue: https://github.com/ArcadeAI/safeword/issues/586
@@ -1421,6 +1423,9 @@
 - **Document Codex parity for developers (Y5GS4X)** (done, epic: —)
   Make safeword's public developer docs reflect Codex as a first-class installed surface alongside Claude Code and Cursor.
   → `.project/tickets/Y5GS4X-document-codex-parity-for-developers`
+- **Move Codex users to the Safe Word plugin (YH2ZRN)** (in_progress, epic: —)
+  Let existing Safe Word Codex projects move to the profile-scoped plugin without duplicate hooks or lost enforcement.
+  → `.project/tickets/YH2ZRN-migrate-codex-to-plugin`
 - **Rust language pack — Cargo workspace discovery, src extraction, Cargo.toml fingerprint (YKFA5X)** (done, epic: —)
   Teach the generated architecture doc to introspect **Rust** projects —
   → `.project/tickets/YKFA5X-architecture-rust-language-pack`
