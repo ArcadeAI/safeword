@@ -3,11 +3,18 @@
 The feature source is `packages/cli/features/prevent-retro-duplicate-issues.feature`.
 These scenarios use focused Vitest coverage: draft construction and triage are
 deterministic modules, while the REST transport test exercises exact GitHub body
-search with only `fetch` mocked.
+search with only `fetch` mocked. Real command/spool/agent-path wiring is #1035's
+separate scope.
 
 ## Rule: A canonical repro identity ignores model-assigned classification drift
 
-### Scenario: New issue body contains both legacy and canonical markers
+### Scenario: New issue body preserves the legacy signature marker
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: New issue body contains the exact canonical repro marker
 
 - [ ] RED
 - [ ] GREEN
@@ -40,6 +47,12 @@ search with only `fetch` mocked.
 - [ ] REFACTOR
 
 ## Rule: Canonical matches retain ordinary recurrence accounting
+
+### Scenario: Canonical recurrence records once for a new session
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ### Scenario: Canonical recurrence is idempotent within a session
 
