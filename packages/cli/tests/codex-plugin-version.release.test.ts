@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -5,8 +6,16 @@ import { describe, expect, it } from 'vitest';
 
 type HookEntry = { hooks?: { command?: string }[] };
 
+function pluginCommands(hooks: Record<string, HookEntry[]>): string[] {
+  return Object.values(hooks).flatMap(entries =>
+    entries.flatMap(entry =>
+      (entry.hooks ?? []).flatMap(hook => (hook.command ? [hook.command] : [])),
+    ),
+  );
+}
+
 describe('Codex plugin release contract', () => {
-  it('pins every hook to the published CLI version', () => {
+  it('pins every hook to the published CLI version through Bunx only', () => {
     const root = nodePath.resolve(import.meta.dirname, '..');
     const version = JSON.parse(readFileSync(nodePath.join(root, 'package.json'), 'utf8'))
       .version as string;
@@ -20,14 +29,37 @@ describe('Codex plugin release contract', () => {
     };
 
     expect(manifest.version).toBe(version);
-    const hookEntryGroups = Object.values(hooks.hooks);
-    for (const entries of hookEntryGroups) {
-      for (const entry of entries) {
-        const hookCommands = entry.hooks ?? [];
-        for (const hook of hookCommands) {
-          expect(hook.command).toContain(`bunx --bun safeword@${version} hook codex`);
-        }
-      }
+    const commands = pluginCommands(hooks.hooks);
+    expect(commands).toEqual([
+      `bunx --bun safeword@${version} hook codex session-start`,
+      `bunx --bun safeword@${version} hook codex pre-tool-use`,
+      `bunx --bun safeword@${version} hook codex post-tool-use`,
+      `bunx --bun safeword@${version} hook codex user-prompt-submit`,
+      `bunx --bun safeword@${version} hook codex stop`,
+    ]);
+    for (const command of commands) {
+      expect(command).not.toContain('npx');
+    }
+  });
+
+  it('includes every required plugin artifact in the packed package', () => {
+    const root = nodePath.resolve(import.meta.dirname, '..');
+    const result = spawnSync('npm', ['pack', '--dry-run', '--json'], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+    expect(result.status, result.stderr).toBe(0);
+
+    const [pack] = JSON.parse(result.stdout) as [{ files: { path: string }[] }];
+    const paths = new Set(pack.files.map(file => file.path));
+    for (const path of [
+      'codex-plugin/.codex-plugin/plugin.json',
+      'codex-plugin/hooks.json',
+      'codex-plugin/skills/bdd/SKILL.md',
+      'codex-plugin/skills/explain/SKILL.md',
+      'codex-plugin/skills/verify/SKILL.md',
+    ]) {
+      expect(paths).toContain(path);
     }
   });
 });
