@@ -6,7 +6,7 @@
 import { spawnSync } from 'node:child_process';
 import process from 'node:process';
 
-import { canonicalMarker } from './draft.js';
+import { canonicalMarker, signatureMarker } from './draft.js';
 import type { ReconcileIssue, ReconcileTracker } from './reconcile.js';
 import type { CreateIssueInput, IssueComment, IssueReference, IssueTracker } from './triage.js';
 
@@ -105,24 +105,30 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
       // exact-filter on the FULL signature in the returned body — GitHub search is
       // fuzzy, so a hash near-miss must be rejected to avoid matching the wrong issue.
       const hashToken = signature.replace(/^retro:/, '');
-      const query = encodeURIComponent(`repo:${UPSTREAM_REPO} in:body state:open ${hashToken}`);
-      const data = (await call('GET', `/search/issues?q=${query}&per_page=${PER_PAGE}`)) as {
-        items?: { number: number; title: string; body?: string }[];
+      const query = encodeURIComponent(
+        `repo:${UPSTREAM_REPO} is:issue in:body state:open ${hashToken}`,
+      );
+      const data = (await call('GET', `/search/issues?q=${query}&per_page=100`)) as {
+        items?: { number: number; title: string; body?: string; pull_request?: unknown }[];
       };
       return (data.items ?? [])
-        .filter(item => (item.body ?? '').includes(signature))
+        .filter(
+          item => !item.pull_request && (item.body ?? '').includes(signatureMarker(signature)),
+        )
         .map(item => ({ number: item.number, title: item.title }));
     },
 
     async searchByCanonical(canonicalSignature: string): Promise<IssueReference[]> {
       const hashToken = canonicalSignature.replace(/^canonical:/, '');
-      const query = encodeURIComponent(`repo:${UPSTREAM_REPO} in:body state:open ${hashToken}`);
+      const query = encodeURIComponent(
+        `repo:${UPSTREAM_REPO} is:issue in:body state:open ${hashToken}`,
+      );
       const data = (await call('GET', `/search/issues?q=${query}&per_page=100`)) as {
-        items?: { number: number; title: string; body?: string }[];
+        items?: { number: number; title: string; body?: string; pull_request?: unknown }[];
       };
       const marker = canonicalMarker(canonicalSignature);
       return (data.items ?? [])
-        .filter(item => (item.body ?? '').includes(marker))
+        .filter(item => !item.pull_request && (item.body ?? '').includes(marker))
         .map(item => ({ number: item.number, title: item.title }));
     },
 

@@ -70,6 +70,7 @@ describe('createRestTransport', () => {
     expect(calls[0]).toContain('per_page=100');
     // searches the body, by the bare hash token (no `retro:` colon qualifier)
     expect(decoded).toContain('in:body');
+    expect(decoded).toContain('is:issue');
     expect(decoded).toContain('abc123def456');
     expect(decoded).not.toContain('retro:abc123def456');
   });
@@ -79,7 +80,11 @@ describe('createRestTransport', () => {
       json: () => ({
         items: [
           { number: 1, title: 'near miss', body: 'has retro:zzzzzzzzzzzz only' },
-          { number: 2, title: 'exact', body: 'carries retro:abc123def456 here' },
+          {
+            number: 2,
+            title: 'exact',
+            body: '<!-- safeword-retro-signature: retro:abc123def456 -->',
+          },
         ],
       }),
     }));
@@ -105,11 +110,47 @@ describe('createRestTransport', () => {
       }),
     }));
     const transport = createRestTransport('tok');
-    if (!transport?.searchByCanonical) throw new Error('expected a canonical-capable transport');
+    if (!transport) throw new Error('expected a transport');
 
     const matches = await transport.searchByCanonical('canonical:abc123def456');
 
     expect(matches).toEqual([{ number: 2, title: 'exact' }]);
+  });
+
+  it('searches canonical identities as issues, never pull requests', async () => {
+    const calls = mockFetch(() => ({ json: () => ({ items: [] }) }));
+    const transport = createRestTransport('tok');
+    if (!transport) throw new Error('expected a transport');
+
+    await transport.searchByCanonical('canonical:abc123def456');
+
+    expect(decodeURIComponent(calls[0] ?? '')).toContain('is:issue');
+  });
+
+  it('rejects an exact canonical marker copied into a pull request', async () => {
+    mockFetch(() => ({
+      json: () => ({
+        items: [
+          {
+            number: 1,
+            title: 'copied marker PR',
+            body: '<!-- safeword-retro-canonical: canonical:abc123def456 -->',
+            pull_request: {},
+          },
+          {
+            number: 2,
+            title: 'canonical issue',
+            body: '<!-- safeword-retro-canonical: canonical:abc123def456 -->',
+          },
+        ],
+      }),
+    }));
+    const transport = createRestTransport('tok');
+    if (!transport) throw new Error('expected a transport');
+
+    await expect(transport.searchByCanonical('canonical:abc123def456')).resolves.toEqual([
+      { number: 2, title: 'canonical issue' },
+    ]);
   });
 
   it('C1: paginates listComments until a short page', async () => {

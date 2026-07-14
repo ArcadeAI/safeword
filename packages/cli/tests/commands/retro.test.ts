@@ -44,6 +44,10 @@ class FakeGitHub implements IssueTracker {
     return Promise.resolve([]);
   }
 
+  searchByCanonical(): Promise<IssueReference[]> {
+    return Promise.resolve([]);
+  }
+
   createIssue(input: CreateIssueInput): Promise<IssueReference> {
     this.calls.createIssue += 1;
     const issue = { number: this.nextIssue++, ...input };

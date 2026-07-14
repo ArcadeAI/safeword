@@ -39,6 +39,12 @@ describe('buildDraft', () => {
     expect(retroCanonicalSignature('safeword check --offline')).toBe('canonical:6d49803883d3');
     expect(draft.body).toContain(canonicalMarker(draft.canonicalSignature));
   });
+
+  it('normalizes repro casing and repeated whitespace before deriving canonical identity', () => {
+    expect(retroCanonicalSignature('  SAFEWORD   check\n--offline  ')).toBe(
+      retroCanonicalSignature('safeword check --offline'),
+    );
+  });
 });
 
 describe('buildDraft body seal (JDK0F0 — #773 rung 3)', () => {
