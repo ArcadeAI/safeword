@@ -6,23 +6,23 @@ Feature source: `packages/cli/features/migrate-codex-to-plugin.feature`
 
 ### Scenario: Upgrade retains legacy hooks until explicit migration
 
-- [ ] RED
-- [x] GREEN 2026-07-14
-- [ ] REFACTOR
+- [x] RED skip: legacy reconciliation behavior was already covered before the migration test suite
+- [x] GREEN 5a1dcaa2
+- [x] REFACTOR skip: generic reconciliation no longer owns Codex hooks
 
 ### Scenario: Fresh setup does not create Safe Word Codex hooks
 
-- [ ] RED
-- [x] GREEN 2026-07-14
-- [ ] REFACTOR
+- [x] RED skip: setup behavior changed with the canonical schema migration
+- [x] GREEN 5a1dcaa2
+- [x] REFACTOR skip: generic reconciliation no longer owns Codex hooks
 
 ## Rule: migrate-codex-to-plugin.TB1.R2 - Explicit migration verifies the profile plugin before removing Safe Word-owned project hooks
 
 ### Scenario: Verified plugin migration replaces legacy hooks
 
-- [ ] RED
-- [x] GREEN 2026-07-14
-- [ ] REFACTOR
+- [x] RED skip: command test and implementation were introduced in the same checkpoint
+- [x] GREEN 5a1dcaa2
+- [x] REFACTOR skip: assertions are direct migration behavior coverage
 
 ### Scenario: Failed plugin installation retains legacy hooks
 
@@ -32,9 +32,9 @@ Feature source: `packages/cli/features/migrate-codex-to-plugin.feature`
 
 ### Scenario: Disabled plugin retains legacy hooks
 
-- [ ] RED
-- [x] GREEN 2026-07-14
-- [ ] REFACTOR
+- [x] RED skip: command test and implementation were introduced in the same checkpoint
+- [x] GREEN 5a1dcaa2
+- [x] REFACTOR skip: assertions are direct migration behavior coverage
 
 ### Scenario: Missing Bun retains legacy hooks
 
@@ -52,9 +52,9 @@ Feature source: `packages/cli/features/migrate-codex-to-plugin.feature`
 
 ### Scenario: Configuration without Safe Word hooks remains unchanged
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: reconciliation preservation assertion replaced retired delivery coverage
+- [x] GREEN 5a1dcaa2
+- [x] REFACTOR skip: retired project-delivery assertions must be deleted with the behavior change
 
 ## Rule: migrate-codex-to-plugin.SM1.R1 - The shipped plugin uses exact version-pinned Bunx commands and no Codex npx command
 
@@ -80,4 +80,4 @@ Feature source: `packages/cli/features/migrate-codex-to-plugin.feature`
 
 ## Feature-level cross-scenario refactor
 
-- [ ] cross-scenario
+- [x] cross-scenario skip: remaining scenarios require release and live-profile coverage before a shared refactor
