@@ -59,14 +59,12 @@ describe('dependency freshness instructions', () => {
     expect(content).toContain('@.claude/skills/quality-review/SKILL.md');
   });
 
-  it.each([
-    ['canonical Codex config', 'packages/cli/templates/codex/config.toml'],
-    ['dogfood Codex config', '.codex/config.toml'],
-  ])('%s wires packaged UserPromptSubmit context', (_label, path) => {
-    const content = readRepoFile(path);
+  it('the Codex plugin wires packaged UserPromptSubmit context through Bunx', () => {
+    const content = readRepoFile('packages/cli/codex-plugin/hooks.json');
 
-    expect(content).toContain('[[hooks.UserPromptSubmit]]');
-    expect(content).toContain('npx --yes safeword hook codex user-prompt-submit');
+    expect(content).toContain('"UserPromptSubmit"');
+    expect(content).toMatch(/bunx --bun safeword@[\d.]+ hook codex user-prompt-submit/u);
+    expect(content).not.toContain('npx');
     expect(content).not.toContain('.safeword/hooks/prompt-timestamp.ts');
   });
 });
