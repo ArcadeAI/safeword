@@ -253,6 +253,28 @@ describe('triage — dedupe by content signature, not title (ZFGWS1 SM2.AC1)', (
 });
 
 describe('triage — count every encounter, record novel shapes (SM1.AC3)', () => {
+  it('prevent-retro-duplicate-issues.SM1.R3.canonical_recurrence_in_the_same_session_does_not_double_count', async () => {
+    const gh = new FakeGitHub();
+    gh.seedIssue(
+      'Known friction',
+      { sessions: ['sess-a'], manifestations: ['m1'] },
+      'retro:old-signature',
+      'canonical:same-repro',
+    );
+    const recurrence: Encounter = {
+      draft: {
+        ...draft('Different title', 'retro:new-signature'),
+        canonicalSignature: 'canonical:same-repro',
+      },
+      manifestation: 'm1',
+    };
+
+    await triage(gh, [recurrence], ctx({ sessionId: 'sess-a' }));
+
+    expect(gh.calls.createIssue).toBe(0);
+    expect(gh.calls.updateComment).toBe(0);
+  });
+
   it('retro-transcript-mining.SM1.AC3.known_issue_hit_bumps_the_ledger_once', async () => {
     const gh = new FakeGitHub();
     gh.seedIssue('Known friction', { sessions: ['old'], manifestations: ['m1'] });
