@@ -69,14 +69,14 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Recovery guidance offers explicit 2–4 letter codes
 
 - [x] RED d1f8ee6b
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 93b1b81c
+- [x] REFACTOR skip: the existing persisted-code validator already accepts the chosen explicit range; only recovery copy changed
 
 ### Scenario: Installed assets distinguish automatic, explicit, and legacy bounds
 
 - [x] RED d1f8ee6b
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 93b1b81c
+- [x] REFACTOR skip: automatic, explicit, and compatibility bounds are stated once in the persona scaffold and mirrored by installed guidance
 
 ---
 

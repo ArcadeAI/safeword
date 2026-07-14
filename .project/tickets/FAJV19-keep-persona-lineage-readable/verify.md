@@ -6,7 +6,7 @@
 **Gherkin:** ✅ Acceptance lane passes
 **Build:** ✅ Success
 **Lint:** ✅ Clean
-**Scenarios:** All 28 scenarios marked complete
+**Scenarios:** All 34 scenarios marked complete
 **PR Scope:** ✅ Diff matches ticket scope
 **Dep Drift:** ✅ Clean
 **Parent Epic:** N/A
@@ -18,7 +18,8 @@ Audit passed with warnings — dependency-cruiser found no violations, config is
 
 ## Evidence
 
-- Focused Vitest: 143/143 tests pass across persona derivation, legacy lookup, installed JTBD hook execution, documentation contracts, and the intake walkthrough.
+- Focused Vitest: 143/143 tests pass across persona derivation, explicit 2–4 letter overrides, legacy lookup, installed JTBD hook execution, documentation contracts, and the intake walkthrough.
+- Amended Gherkin slice: 22/22 scenarios and 202/202 steps pass for automatic 3–4, explicit 2–4, and persisted 5–6 character behavior.
 - Gherkin: 429 passed, 3 skipped; 11,549 steps passed, 4 skipped.
 - Configured TypeScript typecheck: `tsc --noEmit` passed from `packages/cli`.
 - Build: `tsup` JavaScript and declaration builds passed.
@@ -29,4 +30,4 @@ Audit passed with warnings — dependency-cruiser found no violations, config is
 
 ## Experience Walk
 
-Walked Technical Builder through adding `Platform Operator`, receiving `PLO`, and carrying it through `oauth-flow.PLO1.R1`; worst step = choosing an explicit override when a name cannot yield three characters; new steps vs before = 0.
+Walked Technical Builder through adding `Platform Operator`, receiving automatic `PLO`, choosing explicit `PO`, and carrying it through `oauth-flow.PO1.R1`; worst step = deciding whether a two-letter acronym is recognizable enough; new steps vs before = 0 because the override syntax already existed.

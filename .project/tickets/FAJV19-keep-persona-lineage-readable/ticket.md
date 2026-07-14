@@ -2,7 +2,7 @@
 id: FAJV19
 slug: keep-persona-lineage-readable
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 phase_anchors:
   - 'define-behavior: .project/tickets/FAJV19-keep-persona-lineage-readable/spec.md'
@@ -50,3 +50,4 @@ last_modified: 2026-07-13T22:08:35.793Z
 - 2026-07-13T23:22:00.000Z Quality review passed: Fresh review approved dependency hygiene, documentation, security, scope discipline, and real setup-installed hook wiring. Advanced to verify.
 - 2026-07-13T23:50:00.000Z Verify: Persona-focused unit, integration, installed-hook, documentation, and walkthrough tests pass 143/143; Gherkin passes 429 scenarios with 3 skipped; configured build, lint, and typecheck lanes pass. Repository-wide verification remains red on two unrelated pre-existing fixtures (Rust clippy autofix and cleanup-zombie process discovery), so the ticket remains in verify.
 - 2026-07-14T00:32:00.000-04:00 Scope amendment: User chose explicit 2–4 letter codes while retaining 3–4 letter automatic derivation and 5–6 letter compatibility. Reopened implementation; RED d1f8ee6b pins recovery messages and installed guidance.
+- 2026-07-14T00:39:00.000-04:00 Amendment implemented: GREEN 93b1b81c updates recovery messages, installed authoring guidance, Gherkin steps, website docs, and the architecture decision. Focused verification passes 143/143 tests, 22/22 scenarios, lint, typecheck, build, and config sync. Advanced to verify; the two unrelated repository-wide fixture failures remain unchanged.
