@@ -29,8 +29,7 @@ Safeword Maintainer (SM)
 
 Affected:
 
-- CLI retro filing — this issue changes its deterministic triage path.
-  skip: this is a CLI command, not a configured agent-runtime surface; #1035 owns cross-path wiring coverage.
+- CLI retro filing — skip: this is a CLI command, not a configured agent-runtime surface; #1035 owns cross-path wiring coverage.
 
 Unaffected:
 

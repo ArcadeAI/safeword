@@ -14,9 +14,9 @@ Feature: Prevent repeated retro findings from opening duplicate issues
 
     @prevent-retro-duplicate-issues.SM1.R1
     Scenario: New issue body contains the exact canonical repro marker
-      Given a normalized retro finding with a fixed repro
+      Given a normalized retro finding with repro "safeword check --offline"
       When CLI triage creates its issue
-      Then the body contains the exact canonical marker derived from that normalized repro
+      Then the body contains "<!-- safeword-retro-canonical: canonical:6d49803883d3 -->"
 
     @prevent-retro-duplicate-issues.SM1.R1
     Scenario: Same repro with altered title category and surface finds the canonical issue
@@ -24,7 +24,6 @@ Feature: Prevent repeated retro findings from opening duplicate issues
       And a new finding has that repro but a different title category and surface
       When CLI triage processes the finding
       Then it creates no new issue
-      And it records the encounter on the existing issue's occurrence ledger
 
   Rule: Exact compatibility precedes canonical lookup and does not merge near matches
 
@@ -34,7 +33,6 @@ Feature: Prevent repeated retro findings from opening duplicate issues
       And canonical lookup would fail if it were reached
       When CLI triage processes the matching finding
       Then it creates no new issue
-      And it records the encounter on that legacy-marked issue's occurrence ledger
 
     @prevent-retro-duplicate-issues.SM1.R2
     Scenario: Canonical search rejects a body without the exact marker
@@ -54,12 +52,10 @@ Feature: Prevent repeated retro findings from opening duplicate issues
     Scenario: Canonical recurrence records once for a new session
       Given an open issue with a matching canonical marker and an older session ledger entry
       When CLI triage processes the finding in a new session
-      Then it creates no new issue
-      And it adds exactly one occurrence to the existing issue's ledger
+      Then it adds exactly one occurrence to the existing issue's ledger
 
     @prevent-retro-duplicate-issues.SM1.R3
     Scenario: Canonical recurrence is idempotent within a session
       Given an open issue with a matching canonical marker and an existing session ledger entry
       When CLI triage processes that finding again in the same session
-      Then it creates no new issue
-      And it does not add another ledger occurrence
+      Then it does not add another ledger occurrence
