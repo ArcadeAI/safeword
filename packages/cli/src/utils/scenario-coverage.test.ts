@@ -41,10 +41,10 @@ function testDefinitions(titles: readonly string[]): string {
   return `# Test Definitions\n\n## Rule: r\n\n${body}\n`;
 }
 
-const ONE_AC = '### demo.TB1 — Trace\n\n**Persona:** DEV\n\n#### demo.TB1.AC1 — capability one';
+const ONE_AC = '### demo.TB1 — Trace\n\n**Persona:** TB\n\n#### demo.TB1.AC1 — capability one';
 const TWO_ACS = `${ONE_AC}\n\n#### demo.TB1.AC2 — capability two`;
 const ONE_RULE =
-  '### demo.TB2 — Retry\n\n**Persona:** DEV\n\n#### demo.TB2.R1 — failed deliveries retry on backoff';
+  '### demo.TB2 — Retry\n\n**Persona:** TB\n\n#### demo.TB2.R1 — failed deliveries retry on backoff';
 const MIXED = `${ONE_AC}\n\n#### demo.TB1.R1 — an invariant slipped in beside the AC`;
 
 describe('parseAcReferenceFromTitle (R1 — title parses to its AC reference, or none)', () => {
@@ -408,7 +408,7 @@ describe('buildCoverageReport (R3 — quiet degradation)', () => {
   });
 
   it('cross-reference-numbering.TB1.AC2.no_acs_yields_empty_report', () => {
-    const noAcs = spec('### demo.TB1 — Trace\n\n**Persona:** DEV');
+    const noAcs = spec('### demo.TB1 — Trace\n\n**Persona:** TB');
     const report = buildCoverageReport(noAcs, testDefinitions(['demo.TB1.AC1.x']));
     expect(report).toEqual({ uncovered: [], stale: [], orphan: [] });
   });
