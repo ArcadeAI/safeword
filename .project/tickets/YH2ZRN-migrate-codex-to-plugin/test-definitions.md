@@ -28,7 +28,7 @@ Feature source: `packages/cli/features/migrate-codex-to-plugin.feature`
 
 - [x] RED skip: command test and implementation were introduced in the same checkpoint
 - [x] GREEN c376325d
-- [x] REFACTOR c376325d
+- [x] REFACTOR c70b73b6
 
 ### Scenario: Disabled plugin retains legacy hooks
 
@@ -40,7 +40,7 @@ Feature source: `packages/cli/features/migrate-codex-to-plugin.feature`
 
 - [x] RED skip: command test and implementation were introduced in the same checkpoint
 - [x] GREEN c376325d
-- [x] REFACTOR c376325d
+- [x] REFACTOR c70b73b6
 
 ## Rule: migrate-codex-to-plugin.TB1.R3 - Migration preserves user-authored Codex configuration and hooks
 
@@ -48,7 +48,7 @@ Feature source: `packages/cli/features/migrate-codex-to-plugin.feature`
 
 - [x] RED skip: command test and implementation were introduced in the same checkpoint
 - [x] GREEN c376325d
-- [x] REFACTOR c376325d
+- [x] REFACTOR c70b73b6
 
 ### Scenario: Configuration without Safe Word hooks remains unchanged
 
@@ -62,7 +62,7 @@ Feature source: `packages/cli/features/migrate-codex-to-plugin.feature`
 
 - [x] RED skip: release-contract test was introduced with the manifest change
 - [x] GREEN 98c961d3
-- [x] REFACTOR 98c961d3
+- [x] REFACTOR c70b73b6
 
 ## Rule: migrate-codex-to-plugin.SM1.R2 - The packed package and a real isolated Codex profile prove the release contract
 
@@ -70,13 +70,13 @@ Feature source: `packages/cli/features/migrate-codex-to-plugin.feature`
 
 - [x] RED skip: the opt-in live smoke was introduced with the packaged plugin proof
 - [x] GREEN 5896f718
-- [x] REFACTOR 5896f718
+- [x] REFACTOR c70b73b6
 
 ### Scenario: Release rejects a package missing plugin assets
 
 - [x] RED skip: packed-artifact test was introduced with the release contract
 - [x] GREEN b8690433
-- [x] REFACTOR b8690433
+- [x] REFACTOR c70b73b6
 
 ## Feature-level cross-scenario refactor
 
