@@ -1,6 +1,6 @@
 /**
  * Golden-path tests for the scaffolded BDD lane (ticket 102b —
- * gherkin-setup.DEV1.AC3): a freshly set-up project runs its starter feature
+ * gherkin-setup.TB1.AC3): a freshly set-up project runs its starter feature
  * green via the `test:bdd` script, out of the box — TS and pure-Go fixtures.
  * Slow: real `safeword setup` including dependency install.
  */
@@ -97,7 +97,7 @@ describe('scaffolded lane runs green (AC3)', () => {
   });
 
   it(
-    'gherkin-setup.DEV1.AC3.starter_feature_runs_green_in_a_ts_project',
+    'gherkin-setup.TB1.AC3.starter_feature_runs_green_in_a_ts_project',
     () => {
       const { output, status } = runTestBdd(tsDirectory);
       expect(status, output).toBe(0);
@@ -122,7 +122,7 @@ describe('scaffolded lane runs green (AC3)', () => {
   );
 
   it(
-    'gherkin-setup.DEV1.AC3.starter_feature_runs_green_in_a_pure_go_project',
+    'gherkin-setup.TB1.AC3.starter_feature_runs_green_in_a_pure_go_project',
     () => {
       const { output, status } = runTestBdd(goDirectory);
       expect(status, output).toBe(0);

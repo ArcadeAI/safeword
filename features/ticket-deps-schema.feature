@@ -5,7 +5,7 @@
 # tests/ticket-sync/ticket-sync.test.ts. Tagged @wip to exclude this feature
 # from the cucumber acceptance lane (proof lives in vitest), while staying
 # discoverable for `safeword check` AC-coverage.
-@ticket-deps-schema.DEV1 @wip
+@ticket-deps-schema.TB1 @wip
 Feature: epic + blocked_on schema and the blocked_on phase gate
   Two canonical optional frontmatter fields (epic, blocked_on) with warn-only
   validation, plus one hard gate: blocked_on denies advancing a ticket's phase
@@ -14,7 +14,7 @@ Feature: epic + blocked_on schema and the blocked_on phase gate
 
   Rule: epic and blocked_on are optional canonical fields
 
-    @ticket-deps-schema.DEV1.AC1
+    @ticket-deps-schema.TB1.AC1
     Scenario: A ticket carrying neither field validates cleanly
       Given a ticket with no epic and no blocked_on
       When safeword check runs
@@ -23,28 +23,28 @@ Feature: epic + blocked_on schema and the blocked_on phase gate
 
   Rule: Relations validation warns, never blocks
 
-    @ticket-deps-schema.DEV1.AC2
+    @ticket-deps-schema.TB1.AC2
     Scenario: An unresolvable blocked_on id is warned, not errored
       Given a ticket whose blocked_on lists an id that is not in the corpus
       When safeword check runs
       Then it prints a warning naming the unresolvable id
       And it exits 0
 
-    @ticket-deps-schema.DEV1.AC2
+    @ticket-deps-schema.TB1.AC2
     Scenario: A blocked_on cycle is warned, not errored
       Given two tickets where A is blocked_on B and B is blocked_on A
       When safeword check runs
       Then it prints a warning naming the cycle
       And it exits 0
 
-    @ticket-deps-schema.DEV1.AC2
+    @ticket-deps-schema.TB1.AC2
     Scenario: A self-referential blocked_on is warned
       Given a ticket whose blocked_on lists its own id
       When safeword check runs
       Then it prints a warning naming the self-cycle
       And it exits 0
 
-    @ticket-deps-schema.DEV1.AC2
+    @ticket-deps-schema.TB1.AC2
     Scenario: A clean corpus produces no relation advisories
       Given every blocked_on id resolves and no cycle exists
       When safeword check runs
@@ -52,31 +52,31 @@ Feature: epic + blocked_on schema and the blocked_on phase gate
 
   Rule: blocked_on gates phase-advance out of intake
 
-    @ticket-deps-schema.DEV1.AC3
+    @ticket-deps-schema.TB1.AC3
     Scenario: Advancing out of intake is denied while a blocker is in progress
       Given a ticket in phase intake blocked_on a ticket whose status is in_progress
       When an edit tries to change its phase to define-behavior
       Then the write is denied with "BLOCKED on <id> (status: in_progress)"
 
-    @ticket-deps-schema.DEV1.AC3
+    @ticket-deps-schema.TB1.AC3
     Scenario: Advancing out of intake is allowed once the blocker is done
       Given a ticket in phase intake blocked_on a ticket whose status is done
       When an edit changes its phase to define-behavior
       Then the write is allowed
 
-    @ticket-deps-schema.DEV1.AC3
+    @ticket-deps-schema.TB1.AC3
     Scenario: Any non-done blocker among several denies the advance
       Given a ticket in phase intake blocked_on two tickets, one done and one in_progress
       When an edit tries to change its phase to define-behavior
       Then the write is denied naming the in_progress blocker
 
-    @ticket-deps-schema.DEV1.AC3
+    @ticket-deps-schema.TB1.AC3
     Scenario: All-done blockers allow the advance
       Given a ticket in phase intake blocked_on two tickets that are both done
       When an edit changes its phase to define-behavior
       Then the write is allowed
 
-    @ticket-deps-schema.DEV1.AC3
+    @ticket-deps-schema.TB1.AC3
     Scenario: A blocker with unreadable status fails safe and denies the advance
       Given a ticket in phase intake blocked_on a ticket whose status is missing or unparseable
       When an edit tries to change its phase to define-behavior
@@ -84,14 +84,14 @@ Feature: epic + blocked_on schema and the blocked_on phase gate
 
   Rule: Non-done terminal blockers require a reasoned override
 
-    @ticket-deps-schema.DEV1.AC4
+    @ticket-deps-schema.TB1.AC4
     Scenario: A cancelled blocker without an override denies the advance
       Given a ticket in phase intake blocked_on a ticket whose status is cancelled
       And the ticket has no blocked_on_override
       When an edit tries to change its phase to define-behavior
       Then the write is denied
 
-    @ticket-deps-schema.DEV1.AC4
+    @ticket-deps-schema.TB1.AC4
     Scenario Outline: A substantive override allows advance past a terminal-but-not-done blocker
       Given a ticket in phase intake blocked_on a ticket whose status is <status>
       And the ticket sets blocked_on_override with a substantive reason
@@ -104,7 +104,7 @@ Feature: epic + blocked_on schema and the blocked_on phase gate
         | superseded |
         | wontfix    |
 
-    @ticket-deps-schema.DEV1.AC4
+    @ticket-deps-schema.TB1.AC4
     Scenario: An override's reason is surfaced in the INDEX
       Given a ticket that advanced past a cancelled blocker via blocked_on_override
       When the ticket INDEX is regenerated
@@ -112,14 +112,14 @@ Feature: epic + blocked_on schema and the blocked_on phase gate
 
   Rule: The override must be honest
 
-    @ticket-deps-schema.DEV1.AC4
+    @ticket-deps-schema.TB1.AC4
     Scenario: An override with a trivial reason is rejected
       Given a ticket in phase intake blocked_on a cancelled ticket
       And its blocked_on_override reason is empty or trivial
       When an edit tries to change its phase to define-behavior
       Then the write is denied
 
-    @ticket-deps-schema.DEV1.AC4
+    @ticket-deps-schema.TB1.AC4
     Scenario: A stale override is flagged once every blocker is done
       Given a ticket that carries a blocked_on_override
       And every listed blocker now has status done
@@ -128,13 +128,13 @@ Feature: epic + blocked_on schema and the blocked_on phase gate
 
   Rule: The gate fires only on the intake-exit transition (grandfather)
 
-    @ticket-deps-schema.DEV1.AC5
+    @ticket-deps-schema.TB1.AC5
     Scenario: A blocker added after intake does not retroactively block
       Given a ticket already past intake
       When it gains a blocked_on referencing an in_progress ticket
       Then further edits to the ticket are not denied
 
-    @ticket-deps-schema.DEV1.AC5
+    @ticket-deps-schema.TB1.AC5
     Scenario: A non-phase edit is never blocked
       Given a ticket in phase intake blocked_on an in_progress ticket
       When an edit changes only its title, leaving phase at intake
@@ -142,7 +142,7 @@ Feature: epic + blocked_on schema and the blocked_on phase gate
 
   Rule: A dependency cycle does not hang the gate
 
-    @ticket-deps-schema.DEV1.AC5
+    @ticket-deps-schema.TB1.AC5
     Scenario: The gate short-circuits on a cycle instead of looping
       Given a ticket in phase intake whose blocked_on chain forms a cycle
       When an edit tries to change its phase to define-behavior

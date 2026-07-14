@@ -51,7 +51,7 @@ function hasSatisfyingStamp(id: string, stamps: readonly ReviewStamp[]): boolean
 }
 
 /**
- * Per-asset gate (DEV1.AC1): authoring the next asset is allowed only when the
+ * Per-asset gate (TB1.AC1): authoring the next asset is allowed only when the
  * prior asset carries a satisfying review stamp. The first asset (no prior) is
  * never gated.
  */
@@ -68,7 +68,7 @@ export function reviewGateForNextAsset(
 }
 
 /**
- * Phase-exit gate (DEV2.AC1): advancing past a phase is allowed only when an
+ * Phase-exit gate (TB2.AC1): advancing past a phase is allowed only when an
  * independent review stamp for that phase exists. Unlike the per-asset gate
  * there is no "first" exemption — every phase exit needs a stamp.
  */

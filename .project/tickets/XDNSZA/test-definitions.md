@@ -54,7 +54,7 @@ Then the Decisions section is reported satisfied
 - [x] GREEN f6a2af46
 - [x] REFACTOR skip: activeLines helper extracted at GREEN; no further duplication
 
-### Scenario: impl-plan-artifact.DEV1.AC2.skip_with_reason_satisfies
+### Scenario: impl-plan-artifact.TB1.AC2.skip_with_reason_satisfies
 
 Given an impl-plan.md whose `## Arch alignment` section contains only `skip: no ADRs in this project yet`
 When the parser validates sections
@@ -64,7 +64,7 @@ Then the Arch alignment section is reported satisfied with its skip reason prese
 - [x] GREEN a1b987a9
 - [x] REFACTOR skip: skip-line branch is 6 lines, no smell to address
 
-### Scenario: impl-plan-artifact.DEV1.AC2.bare_skip_is_invalid
+### Scenario: impl-plan-artifact.TB1.AC2.bare_skip_is_invalid
 
 Given an impl-plan.md whose `## Known deviations` section contains only `skip:`
 When the parser validates sections
@@ -74,7 +74,7 @@ Then it reports a validation error naming Known deviations and the empty-reason 
 - [x] GREEN 10b9c1d9
 - [x] REFACTOR skip: 3-line guard, nothing to restructure
 
-### Scenario: impl-plan-artifact.DEV1.AC2.whitespace_skip_reason_is_invalid
+### Scenario: impl-plan-artifact.TB1.AC2.whitespace_skip_reason_is_invalid
 
 Given an impl-plan.md whose `## Assessment triggers` section contains only `skip:` followed by spaces
 When the parser validates sections
@@ -116,7 +116,7 @@ Then that section is reported empty and unskipped
 
 ## Rule: The stop-hook cumulative gate requires a valid impl plan for new-flow features at implement and done
 
-### Scenario: impl-plan-artifact.DEV1.AC1.implement_without_impl_plan_blocks
+### Scenario: impl-plan-artifact.TB1.AC1.implement_without_impl_plan_blocks
 
 Given a feature ticket at phase `implement` whose folder contains spec.md but no impl-plan.md
 When the stop hook runs its cumulative artifact checks
@@ -126,7 +126,7 @@ Then it hard-blocks with a message naming impl-plan.md and the authoring point (
 - [x] GREEN 2e8f5373
 - [x] REFACTOR skip: gate function mirrors checkCumulativeArtifacts shape by design
 
-### Scenario: impl-plan-artifact.DEV1.AC1.implement_with_valid_impl_plan_passes
+### Scenario: impl-plan-artifact.TB1.AC1.implement_with_valid_impl_plan_passes
 
 Given a feature ticket at phase `implement` whose folder contains spec.md, a test-definitions.md with scenarios, and an impl-plan.md with five satisfied sections and a status line
 When the stop hook runs its cumulative artifact checks
@@ -198,7 +198,7 @@ Then all five sections are reported empty (guidance comments do not count as con
 - [x] GREEN 6c29b8c4
 - [x] REFACTOR skip: template is content, not code
 
-### Scenario: impl-plan-artifact.DEV1.AC1.docs_reference_impl_plan_in_both_copies
+### Scenario: impl-plan-artifact.TB1.AC1.docs_reference_impl_plan_in_both_copies
 
 Given the canonical skill files (packages/cli/templates/skills/bdd) and the dogfood copies (.claude/skills/bdd)
 When the SCENARIOS.md scenario-gate exit step and the TDD.md entry step are scanned in both copies

@@ -3,7 +3,7 @@
 > Child of epic [AQJ95G](../AQJ95G-project-namespace-default/spec.md). The epic
 > holds the full persona/JTBD/outcome story; this child carries the subset it
 > implements: the resolver itself (SM1) and the resolution guarantees that
-> depend on it (DEV1.AC2/AC3, DEV2, DEV3.AC1). Setup-scaffolding (N9S5XG) and
+> depend on it (TB1.AC2/AC3, TB2, TB3.AC1). Setup-scaffolding (N9S5XG) and
 > upgrade-migration (9MMWS7) are sibling children.
 
 ## Intent
@@ -42,7 +42,7 @@ every surface through it, so the default flips to `.project/` while existing
 
 #### namespace-root-resolver.SM1.AC2 — CLI, hooks, and skill surfaces consume that resolver rather than hard-coding the `.safeword-project` literal
 
-### namespace-root-resolver.DEV1 — Read project knowledge from the resolved root
+### namespace-root-resolver.TB1 — Read project knowledge from the resolved root
 
 **Persona:** Technical Builder (TB)
 
@@ -50,11 +50,11 @@ every surface through it, so the default flips to `.project/` while existing
 > learnings, I want them read from whichever root resolves, so the new
 > `.project/` default and my existing layout both just work.
 
-#### namespace-root-resolver.DEV1.AC1 — The default location of personas, glossary, and architecture derives from the resolved root, not a hard-coded prefix
+#### namespace-root-resolver.TB1.AC1 — The default location of personas, glossary, and architecture derives from the resolved root, not a hard-coded prefix
 
-#### namespace-root-resolver.DEV1.AC2 — A project with only `.safeword-project/` present continues to resolve there
+#### namespace-root-resolver.TB1.AC2 — A project with only `.safeword-project/` present continues to resolve there
 
-### namespace-root-resolver.DEV2 — Point the namespace where my repo keeps it
+### namespace-root-resolver.TB2 — Point the namespace where my repo keeps it
 
 **Persona:** Technical Builder (TB)
 
@@ -62,9 +62,9 @@ every surface through it, so the default flips to `.project/` while existing
 > want to set the namespace root in config, so I can adopt safeword without
 > reorganizing my repo.
 
-#### namespace-root-resolver.DEV2.AC1 — A configured `paths.projectRoot` redirects every namespace read/write to that location
+#### namespace-root-resolver.TB2.AC1 — A configured `paths.projectRoot` redirects every namespace read/write to that location
 
-#### namespace-root-resolver.DEV2.AC2 — Existing per-file `paths.personas` / `paths.glossary` / `paths.architecture` overrides still work and resolve against the root
+#### namespace-root-resolver.TB2.AC2 — Existing per-file `paths.personas` / `paths.glossary` / `paths.architecture` overrides still work and resolve against the root
 
 ## Outcomes
 

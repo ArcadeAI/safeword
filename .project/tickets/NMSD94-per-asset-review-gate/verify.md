@@ -14,8 +14,8 @@ Audit passed — architecture clean (no circular deps or layer violations across
 
 ## What shipped
 
-- **Tier 1 (per-asset, gameable floor):** `/self-review` + `write-review-stamp.ts` earn a content-bound spec stamp (`<ticket>:spec@<hash>`); the PreToolUse gate blocks `test-definitions.md` creation until the spec is reviewed at its current content. DEV1.AC1 (hook) + DEV1.AC2 (inline, no sub-agent — skill prose).
-- **Tier 2 (phase exit, independent):** the phase-advance gate blocks leaving a phase until a ticket-qualified phase-exit stamp exists; bdd prose directs a fresh fork reviewer whose verdict becomes the stamp. DEV2.AC1 (hook) + DEV2.AC2 (fork — skill prose).
+- **Tier 1 (per-asset, gameable floor):** `/self-review` + `write-review-stamp.ts` earn a content-bound spec stamp (`<ticket>:spec@<hash>`); the PreToolUse gate blocks `test-definitions.md` creation until the spec is reviewed at its current content. TB1.AC1 (hook) + TB1.AC2 (inline, no sub-agent — skill prose).
+- **Tier 2 (phase exit, independent):** the phase-advance gate blocks leaving a phase until a ticket-qualified phase-exit stamp exists; bdd prose directs a fresh fork reviewer whose verdict becomes the stamp. TB2.AC1 (hook) + TB2.AC2 (fork — skill prose).
 - **Hardening (post quality-review):** whitespace-collapsed stamp inputs (no log-line injection) + fail-loud guard on ambiguous active ticket (`--ticket` override).
 - **Rollout guard:** both gates are inert unless `.safeword/config.json` sets `reviewGate: true` — ships off, enable deliberately.
 

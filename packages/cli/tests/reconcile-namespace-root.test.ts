@@ -4,7 +4,7 @@
  * setup/upgrade/diff/reset scaffold and reconcile at the resolved namespace
  * root — `.project/` for fresh repos, an adopted existing `.project/`, the
  * legacy `.safeword-project/` where only it exists, or a configured
- * `paths.projectRoot`. Scenario lineage: setup-scaffolds-project-dir.DEV1.*
+ * `paths.projectRoot`. Scenario lineage: setup-scaffolds-project-dir.TB1.*
  * (test-definitions.md in the ticket folder).
  */
 
@@ -67,7 +67,7 @@ describe('reconcile scaffolds at the resolved namespace root (N9S5XG)', () => {
     return reconcile(SAFEWORD_SCHEMA, 'install', createProjectContext(cwd));
   }
 
-  it('DEV1.AC1.fresh_setup_creates_project_namespace', async () => {
+  it('TB1.AC1.fresh_setup_creates_project_namespace', async () => {
     await runInstall();
 
     for (const directory of NAMESPACE_DIRECTORIES) {
@@ -84,13 +84,13 @@ describe('reconcile scaffolds at the resolved namespace root (N9S5XG)', () => {
     );
   });
 
-  it('DEV1.AC1.fresh_setup_creates_no_legacy_dir', async () => {
+  it('TB1.AC1.fresh_setup_creates_no_legacy_dir', async () => {
     await runInstall();
 
     expect(existsSync(nodePath.join(cwd, '.safeword-project'))).toBe(false);
   });
 
-  it('DEV1.AC2.existing_personas_survive_setup_byte_identical', async () => {
+  it('TB1.AC2.existing_personas_survive_setup_byte_identical', async () => {
     const personas = '# Personas\n\n## Platform Operator (PO)\n\n**Role:** Owns infra.\n';
     mkdirSync(nodePath.join(cwd, '.project'));
     writeFileSync(nodePath.join(cwd, '.project', 'personas.md'), personas);
@@ -105,7 +105,7 @@ describe('reconcile scaffolds at the resolved namespace root (N9S5XG)', () => {
     }
   });
 
-  it('DEV1.AC2.existing_surfaces_survive_setup_byte_identical', async () => {
+  it('TB1.AC2.existing_surfaces_survive_setup_byte_identical', async () => {
     const surfaces = '# Surfaces\n\n## Setup CLI\n\n**Kind:** CLI\n';
     mkdirSync(nodePath.join(cwd, '.project'));
     writeFileSync(nodePath.join(cwd, '.project', 'surfaces.md'), surfaces);
@@ -117,7 +117,7 @@ describe('reconcile scaffolds at the resolved namespace root (N9S5XG)', () => {
     expect(existsSync(nodePath.join(cwd, '.project', 'glossary.md'))).toBe(true);
   });
 
-  it('DEV1.AC2.partial_project_dir_gets_missing_pieces', async () => {
+  it('TB1.AC2.partial_project_dir_gets_missing_pieces', async () => {
     mkdirSync(nodePath.join(cwd, '.project'));
     writeFileSync(nodePath.join(cwd, '.project', 'personas.md'), '# Personas\n');
 
@@ -131,7 +131,7 @@ describe('reconcile scaffolds at the resolved namespace root (N9S5XG)', () => {
     );
   });
 
-  it('DEV1.AC2.both_dirs_setup_operates_only_on_project', async () => {
+  it('TB1.AC2.both_dirs_setup_operates_only_on_project', async () => {
     mkdirSync(nodePath.join(cwd, '.project'));
     mkdirSync(nodePath.join(cwd, '.safeword-project', 'tickets'), { recursive: true });
     writeFileSync(nodePath.join(cwd, '.safeword-project', 'personas.md'), 'legacy personas\n');
@@ -146,7 +146,7 @@ describe('reconcile scaffolds at the resolved namespace root (N9S5XG)', () => {
     );
   });
 
-  it('DEV1.AC3.legacy_setup_stays_legacy', async () => {
+  it('TB1.AC3.legacy_setup_stays_legacy', async () => {
     mkdirSync(nodePath.join(cwd, '.safeword-project', 'tickets'), { recursive: true });
 
     await runInstall();
@@ -157,7 +157,7 @@ describe('reconcile scaffolds at the resolved namespace root (N9S5XG)', () => {
     expect(existsSync(nodePath.join(cwd, '.project'))).toBe(false);
   });
 
-  it('DEV1.AC3.legacy_upgrade_stays_legacy', async () => {
+  it('TB1.AC3.legacy_upgrade_stays_legacy', async () => {
     mkdirSync(nodePath.join(cwd, '.safeword-project', 'tickets'), { recursive: true });
 
     await reconcile(SAFEWORD_SCHEMA, 'upgrade', createProjectContext(cwd));
@@ -167,7 +167,7 @@ describe('reconcile scaffolds at the resolved namespace root (N9S5XG)', () => {
     expect(existsSync(nodePath.join(cwd, '.project'))).toBe(false);
   });
 
-  it('DEV1.AC4.configured_root_scaffolds_there', async () => {
+  it('TB1.AC4.configured_root_scaffolds_there', async () => {
     mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
     writeFileSync(
       nodePath.join(cwd, '.safeword', 'config.json'),
@@ -189,7 +189,7 @@ describe('reconcile scaffolds at the resolved namespace root (N9S5XG)', () => {
   // `.safeword-project/`, so a custom paths.projectRoot's transient files would
   // leak into `git status`. The per-root .gitignore (written into the resolved
   // root) covers it — and never ignores durable knowledge files.
-  it('DEV1.AC4.configured_root_gets_transient_gitignore', async () => {
+  it('TB1.AC4.configured_root_gets_transient_gitignore', async () => {
     mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
     writeFileSync(
       nodePath.join(cwd, '.safeword', 'config.json'),
@@ -206,7 +206,7 @@ describe('reconcile scaffolds at the resolved namespace root (N9S5XG)', () => {
     expect(existsSync(nodePath.join(cwd, '.safeword-project', '.gitignore'))).toBe(false);
   });
 
-  it('DEV1.AC4.default_root_gets_transient_gitignore', async () => {
+  it('TB1.AC4.default_root_gets_transient_gitignore', async () => {
     await runInstall();
 
     expectAnchoredTransientGitignore(
@@ -218,7 +218,7 @@ describe('reconcile scaffolds at the resolved namespace root (N9S5XG)', () => {
   // paths.projectRoot: '.' resolves the namespace to the repo root, where a
   // per-root .gitignore would BE the user's own root .gitignore. Install must
   // not clobber it, and a full uninstall must not delete it (issue #272 review).
-  it('DEV1.AC4.repo_root_namespace_never_manages_root_gitignore', async () => {
+  it('TB1.AC4.repo_root_namespace_never_manages_root_gitignore', async () => {
     mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
     writeFileSync(
       nodePath.join(cwd, '.safeword', 'config.json'),
@@ -241,7 +241,7 @@ describe('reconcile scaffolds at the resolved namespace root (N9S5XG)', () => {
   // the filter directly: with no pre-existing root .gitignore, install must never
   // write our managed per-root block (distinct `(auto-managed)` header) at the
   // repo root — that file is the repo-root textPatch's domain, not a managed file.
-  it('DEV1.AC4.repo_root_namespace_skips_managed_root_gitignore', async () => {
+  it('TB1.AC4.repo_root_namespace_skips_managed_root_gitignore', async () => {
     mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
     writeFileSync(
       nodePath.join(cwd, '.safeword', 'config.json'),
@@ -259,7 +259,7 @@ describe('reconcile scaffolds at the resolved namespace root (N9S5XG)', () => {
   // Issue #273 Facet 2: the generated owned-paths module drives which files the
   // auto-upgrade hook stages. A custom root must appear there, or its scaffolded
   // files surface as untracked churn and block the clean-tree gate on upgrade.
-  it('DEV1.AC4.configured_root_listed_in_owned_paths_module', async () => {
+  it('TB1.AC4.configured_root_listed_in_owned_paths_module', async () => {
     mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
     writeFileSync(
       nodePath.join(cwd, '.safeword', 'config.json'),
@@ -275,7 +275,7 @@ describe('reconcile scaffolds at the resolved namespace root (N9S5XG)', () => {
     expect(ownedPaths).toContain("'team-ns/'");
   });
 
-  it('DEV1.AC4.repo_root_namespace_adds_no_bare_prefix', async () => {
+  it('TB1.AC4.repo_root_namespace_adds_no_bare_prefix', async () => {
     // projectRoot '.' must NOT inject a repo-root prefix — a bare './' or '' would
     // make the auto-upgrade hook match (and stage) every file in the repo.
     mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
@@ -294,7 +294,7 @@ describe('reconcile scaffolds at the resolved namespace root (N9S5XG)', () => {
     expect(ownedPaths).not.toMatch(/^[ \t]*'',?[ \t]*$/m);
   });
 
-  it('DEV1.AC4.upgrade_on_project_repo_stays_project', async () => {
+  it('TB1.AC4.upgrade_on_project_repo_stays_project', async () => {
     await runInstall();
     const glossaryPath = nodePath.join(cwd, '.project', 'glossary.md');
     rmSync(glossaryPath);
@@ -305,7 +305,7 @@ describe('reconcile scaffolds at the resolved namespace root (N9S5XG)', () => {
     expect(existsSync(nodePath.join(cwd, '.safeword-project'))).toBe(false);
   });
 
-  it('DEV1.AC4.reset_preserves_namespace_at_resolved_root', async () => {
+  it('TB1.AC4.reset_preserves_namespace_at_resolved_root', async () => {
     await runInstall();
     const ticketDirectory = nodePath.join(cwd, '.project', 'tickets', 'ABC123-keep-me');
     mkdirSync(ticketDirectory, { recursive: true });
@@ -318,7 +318,7 @@ describe('reconcile scaffolds at the resolved namespace root (N9S5XG)', () => {
     expect(existsSync(nodePath.join(cwd, '.safeword'))).toBe(false);
   });
 
-  it('DEV1.AC4.repo_root_configured_namespace_lands_at_cwd', async () => {
+  it('TB1.AC4.repo_root_configured_namespace_lands_at_cwd', async () => {
     // paths.projectRoot '.' = namespace at the repo root — reconcile must
     // agree with the runtime resolver instead of falling back to legacy.
     mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
@@ -335,7 +335,7 @@ describe('reconcile scaffolds at the resolved namespace root (N9S5XG)', () => {
     expect(existsSync(nodePath.join(cwd, '.project'))).toBe(false);
   });
 
-  it('DEV1.AC4.diff_reports_clean_after_fresh_setup', async () => {
+  it('TB1.AC4.diff_reports_clean_after_fresh_setup', async () => {
     await runInstall();
 
     const result = await reconcile(SAFEWORD_SCHEMA, 'upgrade', createProjectContext(cwd), {

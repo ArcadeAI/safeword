@@ -27,8 +27,8 @@
 
 ## Commits
 
-- `4a9afd94` feat(102a): emitGherkinFeature renderer + cucumber-js/tsx deps (DEV1.AC1)
-- `f4fb8374` feat(102a): safeword codify --format gherkin (DEV1.AC2)
+- `4a9afd94` feat(102a): emitGherkinFeature renderer + cucumber-js/tsx deps (TB1.AC1)
+- `f4fb8374` feat(102a): safeword codify --format gherkin (TB1.AC2)
 - `a088da1d` feat(102a): cucumber-js acceptance runner + dogfood feature (SM1.AC1)
 - `f66ba1b1` docs(102a): mark 13/13 scenarios complete; phase → verify
 - (this commit) docs(102a): ARCHITECTURE test:bdd lane + knip tsx ignore + verify.md

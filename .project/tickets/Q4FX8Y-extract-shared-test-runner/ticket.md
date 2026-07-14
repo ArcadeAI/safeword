@@ -26,7 +26,7 @@ Promoted feature→epic; two child features, build A then B:
 
 ### Jobs To Be Done
 
-- **q4fx8y.DEV1 — trustworthy done-gate across languages.** Persona: Agent-Driven Developer (DEV). _When my agent finishes work in a Python/Go/Rust or polyglot repo, I want the done-gate to actually run my real suite(s), so "done" means verified — not a silent pass._
+- **q4fx8y.TB1 — trustworthy done-gate across languages.** Persona: Technical Builder (TB). _When my agent finishes work in a Python/Go/Rust or polyglot repo, I want the done-gate to actually run my real suite(s), so "done" means verified — not a silent pass._
 - **q4fx8y.SM1 — one place to define how a language is tested.** Persona: Safeword Maintainer (SM). _When I add or change a language's test/build command, I want a single source of truth, so `/verify`, `/audit`, and `test-runner.ts` can't drift._
 
 ## Decisive constraint (from /figure-it-out)

@@ -22,15 +22,15 @@ Give feature work an upfront design record — what approach was chosen, what al
 
 ## Jobs To Be Done
 
-### impl-plan-artifact.DEV1 — Know why the implementation looks the way it does
+### impl-plan-artifact.TB1 — Know why the implementation looks the way it does
 
 **Persona:** Technical Builder (TB)
 
 > When I revisit a feature my agent built weeks ago, I want the chosen approach, the rejected alternatives, and the known deviations recorded next to the ticket, so I can tell intentional design from accident without re-deriving it.
 
-#### impl-plan-artifact.DEV1.AC1 — A feature entering implementation carries an impl plan with all five sections accounted for
+#### impl-plan-artifact.TB1.AC1 — A feature entering implementation carries an impl plan with all five sections accounted for
 
-#### impl-plan-artifact.DEV1.AC2 — A section that doesn't apply carries an auditable skip reason instead of silence
+#### impl-plan-artifact.TB1.AC2 — A section that doesn't apply carries an auditable skip reason instead of silence
 
 ### impl-plan-artifact.SM1 — Enforce the plan without trusting agent claims
 

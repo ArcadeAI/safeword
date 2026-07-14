@@ -6,7 +6,7 @@
  *   SM1.AC1 — test-runner.ts structural assertions (no hardcoded language commands)
  *   SM1.AC2 — /verify skill structural assertions (section 2 evals test-plan, no inline language)
  *
- * DEV1.AC1 scenarios (stop-hook runner integration) are tagged @wip and deferred — they
+ * TB1.AC1 scenarios (stop-hook runner integration) are tagged @wip and deferred — they
  * require running test-runner.ts as a subprocess with a live safeword CLI, which needs
  * a separate integration harness.
  */

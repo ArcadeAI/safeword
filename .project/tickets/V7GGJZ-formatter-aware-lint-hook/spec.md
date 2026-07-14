@@ -27,7 +27,7 @@ eliminates the prettier-vs-formatter churn that makes safeword unwelcome in esta
 
 ## Jobs To Be Done
 
-### formatter-aware-lint-hook.DEV1 — Keep my formatter's style; no churn from the agent
+### formatter-aware-lint-hook.TB1 — Keep my formatter's style; no churn from the agent
 
 **Persona:** Technical Builder (TB)
 
@@ -35,38 +35,38 @@ eliminates the prettier-vs-formatter churn that makes safeword unwelcome in esta
 > formatter (Biome, dprint, oxfmt, deno), I want the auto-lint hook to not reformat my files with
 > Prettier, so my repo doesn't ping-pong between two styles on every edit.
 
-#### formatter-aware-lint-hook.DEV1.AC1 — JS/TS edits are not restyled by Prettier when an alternative formatter owns the repo
+#### formatter-aware-lint-hook.TB1.AC1 — JS/TS edits are not restyled by Prettier when an alternative formatter owns the repo
 
-#### formatter-aware-lint-hook.DEV1.AC2 — The same hands-off applies to markup/data files (JSON, CSS, YAML, Markdown) the alternative formatter owns
+#### formatter-aware-lint-hook.TB1.AC2 — The same hands-off applies to markup/data files (JSON, CSS, YAML, Markdown) the alternative formatter owns
 
-#### formatter-aware-lint-hook.DEV1.AC3 — Safeword's non-style ESLint checks (security/complexity) still run on JS/TS in an alternative-formatter repo
+#### formatter-aware-lint-hook.TB1.AC3 — Safeword's non-style ESLint checks (security/complexity) still run on JS/TS in an alternative-formatter repo
 
-### formatter-aware-lint-hook.DEV2 — Format with my own Prettier config
+### formatter-aware-lint-hook.TB2 — Format with my own Prettier config
 
 **Persona:** Technical Builder (TB)
 
 > When my repo has its own Prettier config, I want agent edits formatted with my config, so they
 > match my house style rather than safeword's defaults.
 
-#### formatter-aware-lint-hook.DEV2.AC1 — On a repo with its own Prettier config, agent edits are formatted with that config, not safeword's
+#### formatter-aware-lint-hook.TB2.AC1 — On a repo with its own Prettier config, agent edits are formatted with that config, not safeword's
 
-### formatter-aware-lint-hook.DEV3 — Still get formatting on a greenfield repo
+### formatter-aware-lint-hook.TB3 — Still get formatting on a greenfield repo
 
 **Persona:** Technical Builder (TB)
 
 > When my repo has no formatter of its own, I want safeword to keep formatting my files with its
 > defaults, so I still get consistent formatting from the agent.
 
-#### formatter-aware-lint-hook.DEV3.AC1 — On a greenfield repo (no formatter config; a disabled/backup config does not count), agent edits are formatted with safeword's Prettier config
+#### formatter-aware-lint-hook.TB3.AC1 — On a greenfield repo (no formatter config; a disabled/backup config does not count), agent edits are formatted with safeword's Prettier config
 
-### formatter-aware-lint-hook.DEV4 — Don't push Prettier on me
+### formatter-aware-lint-hook.TB4 — Don't push Prettier on me
 
 **Persona:** Technical Builder (TB)
 
 > When my repo uses a non-Prettier formatter, I don't want safeword's session start warning that
 > Prettier is missing or telling me to install it, so I'm not pushed toward a tool I don't use.
 
-#### formatter-aware-lint-hook.DEV4.AC1 — On a repo with an alternative formatter, the session lint check emits no "Prettier missing / install Prettier" warning
+#### formatter-aware-lint-hook.TB4.AC1 — On a repo with an alternative formatter, the session lint check emits no "Prettier missing / install Prettier" warning
 
 ## Outcomes
 

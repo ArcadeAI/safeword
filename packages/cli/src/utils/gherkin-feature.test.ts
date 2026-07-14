@@ -99,7 +99,7 @@ describe('parseFeatureScenarios', () => {
   it('feature-files-as-source.SM1.AC2.preserves_backgrounds_doc_strings_and_data_tables', () => {
     const scenarios = parseFeatureScenarios(
       [
-        '@demo.DEV1.AC1',
+        '@demo.TB1.AC1',
         'Feature: Demo',
         '',
         '  Background:',
@@ -147,7 +147,7 @@ describe('parseFeatureAcReferences', () => {
 });
 
 describe('findGherkinLintIssues', () => {
-  it('gherkin-linting.DEV1.AC1.flags_parser_and_style_errors_without_legacy_dependency', () => {
+  it('gherkin-linting.TB1.AC1.flags_parser_and_style_errors_without_legacy_dependency', () => {
     const issues = findGherkinLintIssues(
       ['Feature: Broken', '  Scenario: bad ', '    Given ok', '    nope'].join('\n'),
       { filePath: 'features/bad_name.feature' },
@@ -163,7 +163,7 @@ describe('findGherkinLintIssues', () => {
     );
   });
 
-  it('gherkin-linting.DEV1.AC1.flags_duplicate_scenario_names', () => {
+  it('gherkin-linting.TB1.AC1.flags_duplicate_scenario_names', () => {
     const issues = findGherkinLintIssues(
       [
         'Feature: Demo',
@@ -183,7 +183,7 @@ describe('findGherkinLintIssues', () => {
     );
   });
 
-  it('gherkin-linting.DEV1.AC1.flags_scenario_outline_placeholder_mismatches', () => {
+  it('gherkin-linting.TB1.AC1.flags_scenario_outline_placeholder_mismatches', () => {
     const issues = findGherkinLintIssues(
       [
         'Feature: Demo',
@@ -228,7 +228,7 @@ describe('findGherkinLintIssues', () => {
     );
   });
 
-  it('gherkin-linting.DEV1.AC2.leaves_safeword_lineage_to_check_command', () => {
+  it('gherkin-linting.TB1.AC2.leaves_safeword_lineage_to_check_command', () => {
     const content = [
       'Feature: Demo',
       '',
@@ -264,7 +264,7 @@ describe('findGherkinLintIssues (rule tier — name-token/tag correspondence)', 
 
   it('rule-tier.TB2.AC1.rule_tag_matching_name_token_passes', () => {
     const issues = findGherkinLintIssues(
-      ruleFeature('@demo.DEV1.R1', 'demo.DEV1.R1 — retries use exponential backoff'),
+      ruleFeature('@demo.TB1.R1', 'demo.TB1.R1 — retries use exponential backoff'),
       { filePath: 'features/demo.feature' },
     );
     expect(issues).toEqual([]);
@@ -272,21 +272,21 @@ describe('findGherkinLintIssues (rule tier — name-token/tag correspondence)', 
 
   it('rule-tier.TB2.AC1.rule_tag_disagreeing_with_name_token_flagged', () => {
     const issues = findGherkinLintIssues(
-      ruleFeature('@demo.DEV1.R1', 'demo.DEV1.R2 — renamed without retagging'),
+      ruleFeature('@demo.TB1.R1', 'demo.TB1.R2 — renamed without retagging'),
       { filePath: 'features/demo.feature' },
     );
     expect(issues).toContainEqual(
       expect.objectContaining({
         line: 4,
         message:
-          'Rule "demo.DEV1.R2 — renamed without retagging" is tagged @demo.DEV1.R1 but its name starts with a different id; make the name\'s first token match the tag.',
+          'Rule "demo.TB1.R2 — renamed without retagging" is tagged @demo.TB1.R1 but its name starts with a different id; make the name\'s first token match the tag.',
         rule: 'rule-name-tag-mismatch',
       }),
     );
   });
 
   it('rule-tier.TB2.AC1.rule_tag_with_plain_name_flagged', () => {
-    const issues = findGherkinLintIssues(ruleFeature('@demo.DEV1.R1', 'plain grouping words'), {
+    const issues = findGherkinLintIssues(ruleFeature('@demo.TB1.R1', 'plain grouping words'), {
       filePath: 'features/demo.feature',
     });
     expect(issues).toContainEqual(expect.objectContaining({ rule: 'rule-name-tag-mismatch' }));
@@ -294,7 +294,7 @@ describe('findGherkinLintIssues (rule tier — name-token/tag correspondence)', 
 
   it('rule-tier.TB2.AC1.name_token_glued_to_em_dash_still_matches', () => {
     const issues = findGherkinLintIssues(
-      ruleFeature('@demo.DEV1.R1', 'demo.DEV1.R1—retries use exponential backoff'),
+      ruleFeature('@demo.TB1.R1', 'demo.TB1.R1—retries use exponential backoff'),
       { filePath: 'features/demo.feature' },
     );
     expect(issues.filter(issue => issue.rule === 'rule-name-tag-mismatch')).toEqual([]);
@@ -309,10 +309,10 @@ describe('findGherkinLintIssues (rule tier — name-token/tag correspondence)', 
 });
 
 describe('findFeatureLineageIssues', () => {
-  it('gherkin-linting.DEV1.AC2.accepts_one_effective_ac_tag_after_inheritance', () => {
+  it('gherkin-linting.TB1.AC2.accepts_one_effective_ac_tag_after_inheritance', () => {
     const issues = findFeatureLineageIssues(
       [
-        '@demo.DEV1.AC1',
+        '@demo.TB1.AC1',
         'Feature: Demo',
         '',
         '  Rule: r',
@@ -327,7 +327,7 @@ describe('findFeatureLineageIssues', () => {
     expect(issues).toEqual([]);
   });
 
-  it('gherkin-linting.DEV1.AC2.flags_missing_and_multiple_effective_ac_tags', () => {
+  it('gherkin-linting.TB1.AC2.flags_missing_and_multiple_effective_ac_tags', () => {
     const issues = findFeatureLineageIssues(
       [
         'Feature: Demo',
@@ -339,10 +339,10 @@ describe('findFeatureLineageIssues', () => {
         '      When b',
         '      Then c',
         '',
-        '  @demo.DEV1.AC1',
+        '  @demo.TB1.AC1',
         '  Rule: tagged rule',
         '',
-        '    @demo.DEV1.AC2',
+        '    @demo.TB1.AC2',
         '    Scenario: carries two AC tags',
         '      Given a',
         '      When b',
@@ -352,7 +352,7 @@ describe('findFeatureLineageIssues', () => {
 
     expect(issues).toEqual([
       'Scenario "has no AC tag" is missing lineage; add exactly one @<jtbd>.AC# or @<jtbd>.R# tag.',
-      'Scenario "carries two AC tags" has multiple lineage tags after inheritance (@demo.DEV1.AC1, @demo.DEV1.AC2); keep exactly one @<jtbd>.AC# or @<jtbd>.R# tag.',
+      'Scenario "carries two AC tags" has multiple lineage tags after inheritance (@demo.TB1.AC1, @demo.TB1.AC2); keep exactly one @<jtbd>.AC# or @<jtbd>.R# tag.',
     ]);
   });
 
@@ -361,8 +361,8 @@ describe('findFeatureLineageIssues', () => {
       [
         'Feature: Demo',
         '',
-        '  @demo.DEV1.R1',
-        '  Rule: demo.DEV1.R1 — retries use exponential backoff',
+        '  @demo.TB1.R1',
+        '  Rule: demo.TB1.R1 — retries use exponential backoff',
         '',
         '    Scenario: inherits the rule tag',
         '      Given a',
@@ -381,7 +381,7 @@ describe('findFeatureLineageIssues', () => {
         '',
         '  Rule: grouping only',
         '',
-        '    @demo.DEV1.R2',
+        '    @demo.TB1.R2',
         '    Scenario: carries the rule tag directly',
         '      Given a',
         '      When b',
@@ -397,10 +397,10 @@ describe('findFeatureLineageIssues', () => {
       [
         'Feature: Demo',
         '',
-        '  @demo.DEV1.R1',
-        '  Rule: demo.DEV1.R1 — retries use exponential backoff',
+        '  @demo.TB1.R1',
+        '  Rule: demo.TB1.R1 — retries use exponential backoff',
         '',
-        '    @demo.DEV1.AC1',
+        '    @demo.TB1.AC1',
         '    Scenario: adds an AC ref under a rule-tagged block',
         '      Given a',
         '      When b',
@@ -409,7 +409,7 @@ describe('findFeatureLineageIssues', () => {
     );
 
     expect(issues).toEqual([
-      'Scenario "adds an AC ref under a rule-tagged block" has multiple lineage tags after inheritance (@demo.DEV1.R1, @demo.DEV1.AC1); keep exactly one @<jtbd>.AC# or @<jtbd>.R# tag.',
+      'Scenario "adds an AC ref under a rule-tagged block" has multiple lineage tags after inheritance (@demo.TB1.R1, @demo.TB1.AC1); keep exactly one @<jtbd>.AC# or @<jtbd>.R# tag.',
     ]);
   });
 });
@@ -420,8 +420,8 @@ describe('parseFeatureRuleReferences', () => {
       [
         'Feature: Demo',
         '',
-        '  @demo.DEV1.R1',
-        '  Rule: demo.DEV1.R1 — retries use exponential backoff',
+        '  @demo.TB1.R1',
+        '  Rule: demo.TB1.R1 — retries use exponential backoff',
         '',
         '    Scenario: first example',
         '      Given a',
@@ -431,13 +431,13 @@ describe('parseFeatureRuleReferences', () => {
         '',
         '  Rule: grouping only',
         '',
-        '    @demo.DEV1.R2',
+        '    @demo.TB1.R2',
         '    Scenario: direct rule ref',
         '      Given c',
       ].join('\n'),
     );
 
-    expect(references).toEqual(['demo.DEV1.R1', 'demo.DEV1.R2']);
+    expect(references).toEqual(['demo.TB1.R1', 'demo.TB1.R2']);
   });
 
   it('rule-tier.TB2.AC1.terminal_rule_segment_keeps_whole_id', () => {

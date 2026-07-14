@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (416)
+## Tickets (417)
 
 ### 001
 
@@ -115,11 +115,11 @@
 ### AQJ95G
 
 - **Upgrade-vehicle migration to .project/ + both-dirs advisory (9MMWS7)** (done, epic: project-namespace-default)
-  `safeword upgrade` offers a legacy install the move to `.project/` as the default-recommended action (git-aware, consent-gated, never silent), and `safeword check` flags the transient both-dirs state (implements epic [AQJ95G](../AQJ95G-project-namespace-default/spec.md) DEV4 + DEV3.AC2). TAGWZ8 (resolver) and N9S5XG (scaffold) are done — this completes the epic.
+  `safeword upgrade` offers a legacy install the move to `.project/` as the default-recommended action (git-aware, consent-gated, never silent), and `safeword check` flags the transient both-dirs state (implements epic [AQJ95G](../AQJ95G-project-namespace-default/spec.md) TB4 + TB3.AC2). TAGWZ8 (resolver) and N9S5XG (scaffold) are done — this completes the epic.
   blocked by: Single namespace-root resolver with legacy detection + literal migration (TAGWZ8)
   → `.project/tickets/9MMWS7-upgrade-namespace-migration`
 - **Fresh safeword setup scaffolds .project/ (N9S5XG)** (done, epic: project-namespace-default)
-  A fresh `safeword setup` scaffolds the namespace at `.project/` (implements epic [AQJ95G](../AQJ95G-project-namespace-default/spec.md) DEV1.AC1), adopting an existing arcade `.project/` without clobbering it, and leaving legacy installs untouched — seamless for the developer in all three states.
+  A fresh `safeword setup` scaffolds the namespace at `.project/` (implements epic [AQJ95G](../AQJ95G-project-namespace-default/spec.md) TB1.AC1), adopting an existing arcade `.project/` without clobbering it, and leaving legacy installs untouched — seamless for the developer in all three states.
   blocked by: Single namespace-root resolver with legacy detection + literal migration (TAGWZ8)
   → `.project/tickets/N9S5XG-setup-scaffolds-project-dir`
 - **Single namespace-root resolver with legacy detection + literal migration (TAGWZ8)** (done, epic: project-namespace-default)
@@ -1060,7 +1060,7 @@
 - **Protect advanced workspace glob fallback (B8GCC1)** (in_progress, epic: —)
   Lock in the dependency readiness hook's conservative fallback for unsupported advanced Bun workspace glob syntax.
   → `.project/tickets/B8GCC1-protect-advanced-workspace-glob-fallback`
-- **Live smoke of retro-reconcile version-provenance path (B9S30R)** (backlog, epic: —)
+- **Live smoke of retro-reconcile version-provenance path (B9S30R)** (done, epic: —)
   A token-gated live-lane test pins resolveTagDate('v0.68.0') to the real tag's commit date (%2F ref encoding + annotated-tag deref), plus one documented manual sweep run against a real version-provenance issue
   → `.project/tickets/B9S30R-reconcile-live-smoke`
 - **Keep successful upgrades from failing on health warnings (BBJKR5)** (in_progress, epic: —)
@@ -1307,7 +1307,7 @@
 - **Show complete reset removals for users (P95FN6)** (in_progress, epic: —)
   Make `ReconcileResult.removed` report every file removed during reset/uninstall, including cleanup side effects from unmerge and unpatch executors.
   → `.project/tickets/P95FN6-show-complete-reset-removals`
-- **Add Safeword CLI surface to surfaces.md (P9Z3P7)** (in_progress, epic: —)
+- **Add Safeword CLI surface to surfaces.md (P9Z3P7)** (done, epic: —)
   Add a ## Safeword CLI entry so the @surface.safeword-cli tags in feature-surfaces-bdd.feature resolve, clearing the E008 drift the new audit check found
   → `.project/tickets/P9Z3P7-safeword-cli-surface`
 - **Retro accepts process-level friction surfaces and reports egress drops (PNZM3B)** (done, epic: —)
@@ -1334,6 +1334,9 @@
 - **Capture safeword's own runtime signals to a sanitized local spool (#345) (QYYC5Y)** (done, epic: —)
   {One sentence: what are we trying to achieve?}
   → `.project/tickets/QYYC5Y-self-report-capture`
+- **Rename DEV persona code to TB across the corpus (R4S85Y)** (in_progress, epic: —)
+  Eliminate the redundant DEV persona code by renaming DEV<n> -> TB<n> (828 occ) and Agent-Driven Developer (DEV) -> Technical Builder (TB) (2 occ) across 103 files, clearing the E009 drift by elimination and making a personas.md DEV entry unnecessary
+  → `.project/tickets/R4S85Y-rename-dev-persona-to-tb`
 - **Stop-hook escalation path may be dead (0/10 BLOCKED) — revalidate post-F14BG2, recalibrate if needed (RAS9N8)** (pending, epic: —)
   Determine whether the Stop-hook escalation path (`BLOCKED`) is actually reachable in practice, and if it isn't, recalibrate within the existing binary-verdict architecture so genuine blockers surface instead of everything defaulting to `CONFIDENT`.
   → `.project/tickets/RAS9N8-stop-hook-escalation-calibration`

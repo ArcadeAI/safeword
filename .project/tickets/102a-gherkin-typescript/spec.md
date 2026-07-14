@@ -25,15 +25,15 @@ Safeword orchestrates BDD but never executes the specs it produces — Given/Whe
 
 ## Jobs To Be Done
 
-### gherkin-typescript.DEV1 — Generate a runnable `.feature` from my scenarios
+### gherkin-typescript.TB1 — Generate a runnable `.feature` from my scenarios
 
 **Persona:** Technical Builder (TB)
 
 > When I've defined a ticket's scenarios, I want to generate a Gherkin `.feature` from them, so my specs are executable acceptance tests instead of Markdown I hand-translate into vitest.
 
-#### gherkin-typescript.DEV1.AC1 — `codify --format gherkin` renders each scenario as a Gherkin `Scenario` under a `Feature`, with Given/When/Then steps and the lineage as a `@tag`
+#### gherkin-typescript.TB1.AC1 — `codify --format gherkin` renders each scenario as a Gherkin `Scenario` under a `Feature`, with Given/When/Then steps and the lineage as a `@tag`
 
-#### gherkin-typescript.DEV1.AC2 — Gherkin is opt-in: `--format gherkin` emits Gherkin; without it `codify` still emits native vitest (additive, backward-compatible)
+#### gherkin-typescript.TB1.AC2 — Gherkin is opt-in: `--format gherkin` emits Gherkin; without it `codify` still emits native vitest (additive, backward-compatible)
 
 ### gherkin-typescript.SM1 — Run `.feature` acceptance tests in safeword's own repo
 

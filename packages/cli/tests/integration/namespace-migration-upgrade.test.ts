@@ -6,7 +6,7 @@
  * injected confirm seam — subprocesses have no TTY), and `safeword check`
  * carries the both-dirs advisory.
  *
- * Scenario lineage: upgrade-namespace-migration.DEV1.* (test-definitions.md).
+ * Scenario lineage: upgrade-namespace-migration.TB1.* (test-definitions.md).
  */
 
 import { execSync } from 'node:child_process';
@@ -62,7 +62,7 @@ describe('upgrade --migrate-namespace (9MMWS7)', () => {
   });
 
   it(
-    'DEV1.AC3.same_run_reconciles_on_new_root',
+    'TB1.AC3.same_run_reconciles_on_new_root',
     async () => {
       // Legacy install missing its glossary — the same run must move AND scaffold.
       rmSync(nodePath.join(cwd, '.safeword-project', 'glossary.md'), { force: true });
@@ -80,7 +80,7 @@ describe('upgrade --migrate-namespace (9MMWS7)', () => {
   );
 
   it(
-    'DEV1.AC2.decline_flag_skips_prompt_and_move',
+    'TB1.AC2.decline_flag_skips_prompt_and_move',
     async () => {
       const legacyBefore = listTree(nodePath.join(cwd, '.safeword-project'));
 
@@ -98,7 +98,7 @@ describe('upgrade --migrate-namespace (9MMWS7)', () => {
   );
 
   it(
-    'DEV1.AC2.non_interactive_nudges_only',
+    'TB1.AC2.non_interactive_nudges_only',
     async () => {
       // Subprocess has no TTY and no flag → nudge, no move.
       const result = await runCli(['upgrade'], { cwd });
@@ -112,7 +112,7 @@ describe('upgrade --migrate-namespace (9MMWS7)', () => {
   );
 
   it(
-    'DEV1.AC2.move_failure_reports_and_changes_nothing',
+    'TB1.AC2.move_failure_reports_and_changes_nothing',
     async () => {
       writeFileSync(nodePath.join(cwd, '.project'), 'a file, not a directory');
       const legacyBefore = listTree(nodePath.join(cwd, '.safeword-project'));
@@ -132,7 +132,7 @@ describe('upgrade --migrate-namespace (9MMWS7)', () => {
   );
 
   it(
-    'DEV1.AC4.both_dirs_refuses_move_and_advises',
+    'TB1.AC4.both_dirs_refuses_move_and_advises',
     async () => {
       mkdirSync(nodePath.join(cwd, '.project'));
       writeFileSync(nodePath.join(cwd, '.project', 'user-file.md'), 'pre-existing\n');
@@ -153,7 +153,7 @@ describe('upgrade --migrate-namespace (9MMWS7)', () => {
   );
 
   it(
-    'DEV1.AC2.current_install_gets_no_offer',
+    'TB1.AC2.current_install_gets_no_offer',
     async () => {
       // Convert the seed to a .project-only install first.
       const result0 = await runCli(['upgrade', '--migrate-namespace'], { cwd });
@@ -182,7 +182,7 @@ describe('check both-dirs advisory (9MMWS7)', () => {
   });
 
   it(
-    'DEV1.AC4.check_advisory_fires_on_both_dirs',
+    'TB1.AC4.check_advisory_fires_on_both_dirs',
     async () => {
       // Realistic mid-migration state: populated .project/ plus a legacy
       // leftover. Advisory fires zero-exit; the resolver reads .project/.
@@ -199,7 +199,7 @@ describe('check both-dirs advisory (9MMWS7)', () => {
   );
 
   it(
-    'DEV1.AC4.check_silent_on_single_root — legacy only',
+    'TB1.AC4.check_silent_on_single_root — legacy only',
     async () => {
       const result = await runCli(['check', '--offline'], { cwd });
 
@@ -210,7 +210,7 @@ describe('check both-dirs advisory (9MMWS7)', () => {
   );
 
   it(
-    'DEV1.AC4.check_silent_on_single_root — project only',
+    'TB1.AC4.check_silent_on_single_root — project only',
     async () => {
       const result0 = await runCli(['upgrade', '--migrate-namespace'], { cwd });
       expect(result0.exitCode).toBe(0);
@@ -243,7 +243,7 @@ describe('upgrade stale tooling-config warning (JYWZG1)', () => {
   });
 
   it(
-    'DEV1.AC1.upgrade_output_names_stale_file + shows_old_new_mapping',
+    'TB1.AC1.upgrade_output_names_stale_file + shows_old_new_mapping',
     async () => {
       const result = await runCli(['upgrade', '--migrate-namespace'], { cwd });
 
@@ -257,7 +257,7 @@ describe('upgrade stale tooling-config warning (JYWZG1)', () => {
   );
 
   it(
-    'DEV1.AC2.flagged_config_is_byte_identical',
+    'TB1.AC2.flagged_config_is_byte_identical',
     async () => {
       const before = readFileSync(nodePath.join(cwd, 'tsconfig.json'), 'utf8');
 
@@ -270,7 +270,7 @@ describe('upgrade stale tooling-config warning (JYWZG1)', () => {
   );
 
   it(
-    'DEV1.AC4.warning_fires_when_move_succeeds',
+    'TB1.AC4.warning_fires_when_move_succeeds',
     async () => {
       const result = await runCli(['upgrade', '--migrate-namespace'], { cwd });
 
@@ -282,7 +282,7 @@ describe('upgrade stale tooling-config warning (JYWZG1)', () => {
   );
 
   it(
-    'DEV1.AC4.silent_when_no_move — declined',
+    'TB1.AC4.silent_when_no_move — declined',
     async () => {
       const result = await runCli(['upgrade', '--no-migrate-namespace'], { cwd });
 
@@ -293,7 +293,7 @@ describe('upgrade stale tooling-config warning (JYWZG1)', () => {
   );
 
   it(
-    'DEV1.AC4.silent_when_no_move — both-dirs',
+    'TB1.AC4.silent_when_no_move — both-dirs',
     async () => {
       mkdirSync(nodePath.join(cwd, '.project'));
 

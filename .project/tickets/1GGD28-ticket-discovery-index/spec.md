@@ -27,7 +27,7 @@ Uses existing glossary terms: Ticket, Epic (as the `epic:` frontmatter grouping 
 
 ## Jobs To Be Done
 
-### ticket-discovery-index.DEV1 — Discover existing tickets by capability
+### ticket-discovery-index.TB1 — Discover existing tickets by capability
 
 **Persona:** Technical Builder (TB)
 
@@ -36,13 +36,13 @@ Uses existing glossary terms: Ticket, Epic (as the `epic:` frontmatter grouping 
 > opaque-ID folders, so I can find the owning epic and prior work — and avoid
 > filing a duplicate.
 
-#### ticket-discovery-index.DEV1.AC1 — One generated file lists every in-scope ticket with id, title, status, epic, goal, and folder path
+#### ticket-discovery-index.TB1.AC1 — One generated file lists every in-scope ticket with id, title, status, epic, goal, and folder path
 
-#### ticket-discovery-index.DEV1.AC2 — Entries are grouped by epic, so a capability keyword grep lands on the owning epic and its children together
+#### ticket-discovery-index.TB1.AC2 — Entries are grouped by epic, so a capability keyword grep lands on the owning epic and its children together
 
-#### ticket-discovery-index.DEV1.AC3 — Regeneration is idempotent and drift-free — re-running reports "already current" when nothing changed, and the file is stamped auto-generated / do-not-edit
+#### ticket-discovery-index.TB1.AC3 — Regeneration is idempotent and drift-free — re-running reports "already current" when nothing changed, and the file is stamped auto-generated / do-not-edit
 
-#### ticket-discovery-index.DEV1.AC4 — Completed tickets stay discoverable without bloating the active surface — they live in a separate archive index so `grep INDEX*.md` finds shipped prior work while the active index stays scannable
+#### ticket-discovery-index.TB1.AC4 — Completed tickets stay discoverable without bloating the active surface — they live in a separate archive index so `grep INDEX*.md` finds shipped prior work while the active index stays scannable
 
 ## Outcomes
 

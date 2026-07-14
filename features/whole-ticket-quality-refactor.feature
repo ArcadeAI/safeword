@@ -10,7 +10,7 @@
 # vitest integration test already drives it against a temp repo — wiring cucumber step
 # defs would duplicate that harness for no added coverage (gherkin-lane policy 7ES3GW:
 # the .feature is the behavior source; the backing layer may be vitest integration).
-@wip @whole-ticket-quality-refactor.DEV1.AC2
+@wip @whole-ticket-quality-refactor.TB1.AC2
 Feature: Whole-ticket quality review and refactor before verify
 
   The end of implementation runs one whole-ticket /quality-review then
@@ -23,13 +23,13 @@ Feature: Whole-ticket quality review and refactor before verify
 
   Rule: The whole-ticket pass is required only above one loop
 
-    @whole-ticket-quality-refactor.DEV2.AC1
+    @whole-ticket-quality-refactor.TB2.AC1
     Scenario: A single annotated loop is exempt despite the annotation
       Given a ticket whose ledger has exactly one annotated RGR loop and no cross-scenario row
       When the done gate validates the ledger
       Then the cross-scenario refactor row is not required, even though the loop is annotated
 
-    @whole-ticket-quality-refactor.DEV2.AC1
+    @whole-ticket-quality-refactor.TB2.AC1
     Scenario: A ticket with zero parsed scenarios needs no row
       Given a ticket whose ledger has no scenario blocks and no annotations
       When the done gate validates the ledger
@@ -41,7 +41,7 @@ Feature: Whole-ticket quality review and refactor before verify
       When the done gate validates the ledger
       Then validation fails for a missing cross-scenario refactor row
 
-    @whole-ticket-quality-refactor.DEV1.AC2
+    @whole-ticket-quality-refactor.TB1.AC2
     Scenario: Exactly two annotated loops with a refactor commit pass
       Given a ticket whose ledger has exactly two annotated RGR loops and a cross-scenario row carrying a reachable SHA
       When the done gate validates the ledger
@@ -59,13 +59,13 @@ Feature: Whole-ticket quality review and refactor before verify
       When the done gate validates the ledger
       Then validation fails for an empty cross-scenario skip reason
 
-    @whole-ticket-quality-refactor.DEV1.AC2
+    @whole-ticket-quality-refactor.TB1.AC2
     Scenario: A two-loop ticket with an empty skip reason is blocked
       Given a two-loop ticket whose cross-scenario row reads "skip:" with no reason
       When the done gate validates the ledger
       Then validation fails for an empty cross-scenario skip reason
 
-    @whole-ticket-quality-refactor.DEV1.AC2
+    @whole-ticket-quality-refactor.TB1.AC2
     Scenario: A two-loop ticket with a real skip reason passes
       Given a two-loop ticket whose cross-scenario row reads "skip: no shared duplication emerged"
       When the done gate validates the ledger
@@ -85,7 +85,7 @@ Feature: Whole-ticket quality review and refactor before verify
       When the done gate checks required skill invocations on the task
       Then the done gate blocks for a missing /quality-review invocation
 
-    @whole-ticket-quality-refactor.DEV2.AC1
+    @whole-ticket-quality-refactor.TB2.AC1
     Scenario: A single-loop task proceeds without a row
       Given a task ticket whose ledger has one annotated RGR loop and no row
       When the done gate runs on the task
@@ -93,19 +93,19 @@ Feature: Whole-ticket quality review and refactor before verify
 
   Rule: The quality-review half is proven by its invocation log
 
-    @whole-ticket-quality-refactor.DEV1.AC1
+    @whole-ticket-quality-refactor.TB1.AC1
     Scenario: A two-loop ticket without a logged quality review is blocked
       Given a two-loop ticket whose session log has no /quality-review entry
       When the done gate checks required skill invocations
       Then the done gate blocks for a missing /quality-review invocation
 
-    @whole-ticket-quality-refactor.DEV1.AC1
+    @whole-ticket-quality-refactor.TB1.AC1
     Scenario: A two-loop ticket with a logged quality review passes the review check
       Given a two-loop ticket whose session log has a /quality-review entry
       When the done gate checks required skill invocations
       Then the /quality-review invocation requirement is satisfied
 
-    @whole-ticket-quality-refactor.DEV2.AC1
+    @whole-ticket-quality-refactor.TB2.AC1
     Scenario: A single-loop ticket is not blocked for a missing quality review
       Given a ticket with exactly one annotated loop whose session log has no /quality-review entry
       When the done gate checks required skill invocations

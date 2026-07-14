@@ -36,7 +36,7 @@ done_when:
 ## Work Log
 
 - 2026-06-20T15:47:16.880Z Started: Created ticket W610WW
-- 2026-06-20T15:50:00.000Z Complete: intake - Understanding converged (design via /figure-it-out), scope established. 3 JTBDs (DEV1/DEV2/SM1), 6 ACs. Gate on loop count ≥2 from parsed ledger; drop isFeature fence; reuse skill-invocation log + cross-scenario row for proof.
+- 2026-06-20T15:50:00.000Z Complete: intake - Understanding converged (design via /figure-it-out), scope established. 3 JTBDs (TB1/TB2/SM1), 6 ACs. Gate on loop count ≥2 from parsed ledger; drop isFeature fence; reuse skill-invocation log + cross-scenario row for proof.
 - 2026-06-20T15:54:00.000Z Complete: define-behavior - 10 scenarios across 3 rules; dimensions.md authored. Boundary (1→2 loops) + legacy-exemption regression guard covered.
 - 2026-06-20T16:02:00.000Z Complete: scenario-gate - independent fresh-context review found 4 must-fix + 3 should-strengthen (vacuous-against-current-code scenarios, two missing negatives). Revised to 14 scenarios; pinned explicit loop counts; added single-loop-not-blocked-for-review and task-blocked-for-review negatives. impl-plan.md written (test layers + build order). Stamp recorded.
 - 2026-06-20T16:24:00.000Z Complete: implement - 14 scenarios green across 3 units (ledger threshold, countRgrLoops + requiredSkillsForDone helpers, done-gate restructure). Whole-ticket /quality-review pass run (logged); independent review 0 must-fix; cross-scenario hardening commit (doc drift + 2 positive-path tests + helper dedup). impl-plan reconciled → implemented. Full regression green, tsc + parity clean.

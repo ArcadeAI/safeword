@@ -28,7 +28,7 @@ this term is feature-local.)
 
 ## Jobs To Be Done
 
-### cross-reference-numbering.DEV1 — Trace a scenario to the capability it proves
+### cross-reference-numbering.TB1 — Trace a scenario to the capability it proves
 
 **Persona:** Technical Builder (TB)
 
@@ -36,9 +36,9 @@ this term is feature-local.)
 > name to carry the acceptance criterion it proves, so I can see at a glance which
 > capability is at risk and whether every AC actually has a test behind it.
 
-#### cross-reference-numbering.DEV1.AC1 — Each scenario name encodes its AC lineage in the `<jtbd-id>.AC<#>.<scenario_name>` scheme
+#### cross-reference-numbering.TB1.AC1 — Each scenario name encodes its AC lineage in the `<jtbd-id>.AC<#>.<scenario_name>` scheme
 
-#### cross-reference-numbering.DEV1.AC2 — `safeword check` reports every AC with no scenario and every scenario whose AC-reference matches no AC
+#### cross-reference-numbering.TB1.AC2 — `safeword check` reports every AC with no scenario and every scenario whose AC-reference matches no AC
 
 ## Outcomes
 

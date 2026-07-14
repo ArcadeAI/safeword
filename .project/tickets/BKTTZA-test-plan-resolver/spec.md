@@ -16,29 +16,29 @@ A single pure resolver, exposed as `safeword test-plan`, that emits the correct 
 
 ## Jobs To Be Done
 
-### test-plan-resolver.DEV1 — trustworthy done-gate across languages
+### test-plan-resolver.TB1 — trustworthy done-gate across languages
 
 **Persona:** Technical Builder (TB)
 
 > When my agent finishes work in a Python/Go/Rust or polyglot repo, I want the gate to run my real suite(s), so "done" means verified — not a silent pass.
 
-#### test-plan-resolver.DEV1.AC1 — every detected language gets a plan entry (no first-match)
+#### test-plan-resolver.TB1.AC1 — every detected language gets a plan entry (no first-match)
 
 A repo with N languages present yields N test entries; adding a second language never hides the first.
 
-#### test-plan-resolver.DEV1.AC2 — the command reflects the detected runner, not a hardcode
+#### test-plan-resolver.TB1.AC2 — the command reflects the detected runner, not a hardcode
 
 Python resolves tox / pytest / unittest (PM-aware); Rust resolves nextest vs `cargo test --workspace`; Go honors `go.work`; JS uses the project's own script (PM-aware).
 
-#### test-plan-resolver.DEV1.AC3 — a missing toolchain is visible, never dropped
+#### test-plan-resolver.TB1.AC3 — a missing toolchain is visible, never dropped
 
 An entry whose tool isn't installed is returned with `available:false` (so a consumer skips loudly), not silently omitted.
 
-#### test-plan-resolver.DEV1.AC4 — nested/sub-package manifests are discovered
+#### test-plan-resolver.TB1.AC4 — nested/sub-package manifests are discovered
 
 A manifest in a sub-directory (no root manifest) still produces an entry; vendored/generated dirs are excluded.
 
-#### test-plan-resolver.DEV1.AC5 — `--kind build` emits native build commands
+#### test-plan-resolver.TB1.AC5 — `--kind build` emits native build commands
 
 Build plan yields `<pm> run build` (JS), `go build` (Go), `cargo build --workspace` (Rust); Python has no build entry.
 

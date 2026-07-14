@@ -36,7 +36,7 @@ Then the resolved root is `.project/`
 - [x] GREEN
 - [x] REFACTOR
 
-### Scenario: namespace-root-resolver.DEV1.AC2.legacy_only_resolves_there
+### Scenario: namespace-root-resolver.TB1.AC2.legacy_only_resolves_there
 
 Given a project with no `paths.projectRoot` configured and only a `.safeword-project/` directory present
 When the resolver computes the namespace root
@@ -72,7 +72,7 @@ Then the resolved root is `.project/`
 > K7N2QM already established for per-file keys, so the config surface stays
 > consistent and predictable.
 
-### Scenario: namespace-root-resolver.DEV2.AC1.relative_project_root_resolves_against_cwd
+### Scenario: namespace-root-resolver.TB2.AC1.relative_project_root_resolves_against_cwd
 
 Given `paths.projectRoot` is set to the relative path `shared/ns`
 When the resolver computes the namespace root
@@ -82,7 +82,7 @@ Then the resolved root is `shared/ns` joined to the project directory (cwd)
 - [x] GREEN
 - [x] REFACTOR
 
-### Scenario: namespace-root-resolver.DEV2.AC1.absolute_project_root_used_verbatim
+### Scenario: namespace-root-resolver.TB2.AC1.absolute_project_root_used_verbatim
 
 Given `paths.projectRoot` is set to an absolute path
 When the resolver computes the namespace root
@@ -97,7 +97,7 @@ Then the resolved root is that absolute path verbatim
 > Rationale: personas, glossary, and architecture must follow the root so the
 > flip to `.project/` moves all three for free — no second hard-coded prefix.
 
-### Scenario: namespace-root-resolver.DEV1.AC1.personas_default_derives_from_root
+### Scenario: namespace-root-resolver.TB1.AC1.personas_default_derives_from_root
 
 Given a project whose namespace root resolves to `.project/` and no `paths.personas` override
 When the resolver computes the personas default location
@@ -107,7 +107,7 @@ Then the personas default is `.project/personas.md`
 - [x] GREEN
 - [x] REFACTOR
 
-### Scenario: namespace-root-resolver.DEV1.AC1.glossary_default_derives_from_root
+### Scenario: namespace-root-resolver.TB1.AC1.glossary_default_derives_from_root
 
 Given a project whose namespace root resolves to `.project/` and no `paths.glossary` override
 When the resolver computes the glossary default location
@@ -117,7 +117,7 @@ Then the glossary default is `.project/glossary.md`
 - [x] GREEN
 - [x] REFACTOR
 
-### Scenario: namespace-root-resolver.DEV1.AC1.architecture_default_derives_from_root
+### Scenario: namespace-root-resolver.TB1.AC1.architecture_default_derives_from_root
 
 Given a project whose namespace root resolves to `.project/` and no `paths.architecture` override
 When the resolver computes the architecture default location
@@ -133,7 +133,7 @@ Then the architecture default is `.project/architecture.md`
 > overrides must keep working and resolve against the root, so adopting the new
 > root never silently breaks a customer's redirect.
 
-### Scenario: namespace-root-resolver.DEV2.AC2.per_file_override_wins_for_its_file
+### Scenario: namespace-root-resolver.TB2.AC2.per_file_override_wins_for_its_file
 
 Given a project whose namespace root resolves to `.project/` and `paths.personas` set to `team/people.md`
 When the resolver computes the personas location
@@ -143,7 +143,7 @@ Then the personas location is `team/people.md`, not `.project/personas.md`
 - [x] GREEN
 - [x] REFACTOR
 
-### Scenario: namespace-root-resolver.DEV2.AC2.unset_per_file_falls_back_to_root
+### Scenario: namespace-root-resolver.TB2.AC2.unset_per_file_falls_back_to_root
 
 Given a project whose namespace root resolves to `.project/`, `paths.personas` set, and `paths.glossary` unset
 When the resolver computes the glossary location
