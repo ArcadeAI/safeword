@@ -1,3 +1,10 @@
+# Acceptance is proven by the vitest lane, not cucumber step definitions:
+# packages/cli/tests/skills/audit-domain-documentation.test.ts extracts the real
+# domain-docs bash block and runs it via spawnSync against fixtures (W008/E008/
+# E009 asserted end-to-end). Tagged @wip to exclude this feature from the
+# cucumber acceptance lane (proof lives in vitest) while staying discoverable for
+# `safeword check` AC-coverage.
+@audit-domain-docs.TB1 @wip
 Feature: Audit checks namespace domain docs for emptiness and drift
 
   Audit's Project Documentation Checks reconcile the three namespace domain
