@@ -23,12 +23,7 @@ import { detectLanguages as detectLanguagePacks } from '../packs/registry.js';
 import { reconcile, type ReconcileResult } from '../reconcile.js';
 import { type ProjectContext, SAFEWORD_SCHEMA } from '../schema.js';
 import { installDetectedLanguageSkills } from '../skills/languages.js';
-import {
-  CODEX_PLUGIN_MIGRATION_NEXT_STEP,
-  CODEX_TRUST_NEXT_STEP,
-  reconciledCodexConfig,
-  warnIfCodexBelowHookFloor,
-} from '../utils/codex.js';
+import { CODEX_PLUGIN_MIGRATION_NEXT_STEP } from '../utils/codex.js';
 import { createProjectContext } from '../utils/context.js';
 import { getEslintPeerMismatchWarning } from '../utils/eslint-peer-check.js';
 import { exists, readJson, writeJson } from '../utils/fs.js';
@@ -307,7 +302,6 @@ function printSetupSummary(options: SetupSummaryOptions): void {
   // Next steps
   info('\nNext steps:');
   listItem('Run `safeword check` to verify setup');
-  if (reconciledCodexConfig(result)) listItem(CODEX_TRUST_NEXT_STEP);
   listItem(CODEX_PLUGIN_MIGRATION_NEXT_STEP);
 
   printLanguageNextSteps({
@@ -472,8 +466,6 @@ export async function setup(options: SetupOptions): Promise<void> {
   info(`Version: ${VERSION}`);
   if (isPackageJsonCreated) info('Created package.json (none found)');
   warnIfBunMissing();
-  warnIfCodexBelowHookFloor();
-
   try {
     info('\nCreating safeword configuration...');
     const ctx = createProjectContext(cwd);

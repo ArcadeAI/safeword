@@ -1751,7 +1751,7 @@ Then(
     const commands = this.codexPluginHookCommands ?? [];
     assert.ok(commands.length > 0, 'no hook commands were found');
     for (const command of commands) {
-      assert.match(command, /\b(?:bunx|npx)(?:\s+--yes)?\s+safeword\b/u);
+      assert.match(command, /\bbunx\s+--bun\s+safeword@[^\s]+\b/u);
       assert.match(command, /\bhook\s+codex\b/u);
     }
   },
@@ -1890,11 +1890,11 @@ Then('the user-authored Codex config entries remain', function (this: CodexPlugi
 });
 
 Then(
-  'the stale Safe Word project-local hook commands no longer remain',
+  'the stale Safe Word project-local hook commands remain until explicit migration',
   function (this: CodexPluginMigrationWorld) {
     const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
     const config = readFileSync(nodePath.join(repoRoot, '.codex/config.toml'), 'utf8');
-    assert.equal(config.includes('.safeword/hooks/codex'), false);
+    assert.equal(config.includes('.safeword/hooks/codex'), true);
   },
 );
 
@@ -1932,7 +1932,7 @@ Then(
 
     assert.ok(commands.length > 0, 'package hook manifest did not contain commands');
     for (const command of commands) {
-      assert.match(command, /\bsafeword\s+hook\s+codex\b/u);
+      assert.match(command, /\bsafeword@[^\s]+\s+hook\s+codex\b/u);
     }
     assert.ok(files.includes('package/dist/cli.js'));
     assert.ok(files.some(file => /^package\/dist\/codex-hook-[A-Z0-9]+\.js$/u.test(file)));

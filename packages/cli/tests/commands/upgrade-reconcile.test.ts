@@ -14,7 +14,7 @@ import nodePath from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { ESLINT_PACKAGE } from '../../src/packs/typescript/files.js';
-import { installFakeCodexCli, removeTemporaryDirectory, runCli, runCommandSync } from '../helpers';
+import { removeTemporaryDirectory, runCli, runCommandSync } from '../helpers';
 
 const __dirname = import.meta.dirname;
 
@@ -411,23 +411,6 @@ statusMessage = "Checking safeword PreToolUse gates"
 
       expect(result.exitCode).toBe(0);
       expect(`${result.stdout}\n${result.stderr}`).toContain('migrate codex-plugin');
-    });
-
-    it('should warn when the installed Codex CLI is below the safeword hook floor during upgrade', async () => {
-      createConfiguredProject('0.5.0');
-      const fakeBin = installFakeCodexCli(temporaryDirectory, '0.132.0');
-
-      const result = await runCli(['upgrade', '--no-migrate-namespace'], {
-        cwd: temporaryDirectory,
-        env: {
-          PATH: `${fakeBin}${nodePath.delimiter}${process.env.PATH ?? ''}`,
-          SAFEWORD_SKIP_INSTALL: '1',
-        },
-      });
-
-      expect(result.exitCode).toBe(0);
-      expect(`${result.stdout}\n${result.stderr}`).toContain('Codex 0.132.0 is below safeword');
-      expect(`${result.stdout}\n${result.stderr}`).toContain('0.133.0');
     });
 
     it('should preserve customer .prettierignore entries and append idempotently', async () => {

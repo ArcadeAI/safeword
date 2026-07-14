@@ -40,7 +40,7 @@ function isSafewordHookBlock(block: string): boolean {
   ].some(marker => block.includes(marker));
 }
 
-export function removeLegacyCodexHooks(content: string): string {
+function removeLegacyCodexHooks(content: string): string {
   return content.replaceAll(
     /^\[\[hooks\.[^.\]]+\]\][\s\S]*?(?=^\[\[hooks\.[^.\]]+\]\]|(?![\s\S]))/gmu,
     block => (isSafewordHookBlock(block) ? '' : block),

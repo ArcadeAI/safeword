@@ -1,6 +1,6 @@
 # Impl Plan: Move Codex users to the Safe Word plugin
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
@@ -64,6 +64,9 @@ The current architecture describes `templates/codex/` as a project config
 surface. This change intentionally removes it because Codex plugin and project
 hooks run additively. ARCHITECTURE.md changes with the implementation.
 
+Final public-marketplace validation awaits merge of the marketplace manifest to
+the default branch.
+
 ## Doc impact
 
 - `README.md`: remove project-hook and npx descriptions; document Bun and the
@@ -76,4 +79,3 @@ hooks run additively. ARCHITECTURE.md changes with the implementation.
 Revisit if Codex introduces project-scoped plugins, changes marketplace or
 enabled-state JSON, supports plugin runtime dependencies, or Safe Word needs a
 Node-compatible Codex hook path.
-

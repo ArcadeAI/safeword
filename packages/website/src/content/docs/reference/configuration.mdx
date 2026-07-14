@@ -118,7 +118,7 @@ Your project's chosen SQL formatter owns SQL formatting; safeword adapts to it:
 
 ## Hook Configuration
 
-Hooks are configured in `.claude/settings.json` (Claude Code), `.cursor/hooks.json` (Cursor), and `.codex/config.toml` (Codex). See [Hooks & Skills](/reference/hooks-and-skills) for what runs automatically.
+Hooks are configured in `.claude/settings.json` (Claude Code) and `.cursor/hooks.json` (Cursor). Codex uses the profile-scoped Safe Word plugin; install it with `safeword migrate codex-plugin`. See [Hooks & Skills](/reference/hooks-and-skills) for what runs automatically.
 
 To disable a specific hook, remove the safeword hook entry from that agent's config.
 
@@ -154,7 +154,6 @@ Safeword has two types of files:
 **Never overwritten** (safe to customize):
 
 - `eslint.config.mjs`, `.prettierrc`, `tsconfig.json`, `knip.json`, `cucumber.mjs`
-- `.codex/config.toml`
 - Language-specific configs: `ruff.toml`, `mypy.ini`, `.golangci.yml`, `clippy.toml`, `rustfmt.toml`, `.sqlfluff`
 
 **Created once, yours afterward** (scaffolded if missing, never overwritten once you've edited them):

@@ -84,7 +84,7 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
 
   </TabItem>
   <TabItem label="Codex">
-    Safeword's Codex support is package/plugin-backed. Project setup writes hook config (`.codex/config.toml`) that calls packaged Safe Word commands; the Codex plugin provides scoped workflow skills.
+    Safeword's Codex support is plugin-backed. Run `safeword migrate codex-plugin` to install and verify the Safe Word plugin in your active Codex profile; setup and upgrade do not write project-local Codex hook configuration.
 
 | When                            | What happens                                              |
 | ------------------------------- | --------------------------------------------------------- |
@@ -102,11 +102,7 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
 
     ### Hook trust
 
-    Codex hooks only run after you review and trust them in Codex. Safeword writes the project config and ships plugin hook metadata, but Codex owns the trust decision.
-
-    Hook config: `.codex/config.toml`
-
-Hook commands: `npx --yes safeword hook codex <event>`
+    Codex hooks only run after you review and trust the plugin in Codex. The plugin hook manifest uses version-pinned `bunx --bun safeword@<version> hook codex <event>` commands; Bun is required for this integration.
 
     Plugin skill files: bundled in the Safe Word package under `codex-plugin/skills/`
 

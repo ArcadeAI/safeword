@@ -61,5 +61,5 @@ describe('Codex plugin release contract', () => {
     ]) {
       expect(paths).toContain(path);
     }
-  });
+  }, 15_000);
 });

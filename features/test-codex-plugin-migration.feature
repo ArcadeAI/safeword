@@ -114,12 +114,12 @@ Feature: Test Codex plugin migration
       And Safe Word-owned Codex skill files no longer appear as active repo-local skills
 
     @rejection
-    Scenario: Customized Codex config is not clobbered while stale Safe Word hooks are removed
+    Scenario: Customized Codex config is not clobbered while stale Safe Word hooks await explicit migration
       Given an old project-local Codex install with user-authored Codex config entries
       And the config also contains old Safe Word hook commands pointing at `.safeword/hooks/codex`
       When the plugin migration upgrade runs
       Then the user-authored Codex config entries remain
-      And the stale Safe Word project-local hook commands no longer remain
+      And the stale Safe Word project-local hook commands remain until explicit migration
 
   @test-codex-plugin-migration.SM1.R1 @surface.openai-codex
   Rule: test-codex-plugin-migration.SM1.R1 — Static and release checks prove the plugin manifest, marketplace entry, bundled files, and packed package contents are valid

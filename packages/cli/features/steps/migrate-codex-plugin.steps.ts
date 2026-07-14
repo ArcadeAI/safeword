@@ -6,13 +6,14 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  rmSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
 
-import { Given, Then, When } from '@cucumber/cucumber';
+import { After, Given, Then, When } from '@cucumber/cucumber';
 
 import type { SafewordWorld } from './world.js';
 
@@ -121,6 +122,10 @@ function migrationOutput(world: MigrationWorld): string {
 function codexConfigPath(world: MigrationWorld): string {
   return nodePath.join(worldDirectory(world), '.codex/config.toml');
 }
+
+After(function (this: MigrationWorld) {
+  if (this.migrationDirectory) rmSync(this.migrationDirectory, { recursive: true, force: true });
+});
 
 Given('a Safe Word project has legacy Codex hooks', function (this: MigrationWorld) {
   createFixture(this, `${LEGACY_HOOK}\n`);

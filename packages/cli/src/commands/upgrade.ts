@@ -23,12 +23,7 @@ import type { ProjectContext } from '../packs/types.js';
 import { reconcile, type ReconcileResult } from '../reconcile.js';
 import { SAFEWORD_SCHEMA, SAFEWORD_TRANSIENT_PATHS } from '../schema.js';
 import { ensureLanguageSkills } from '../skills/languages.js';
-import {
-  CODEX_PLUGIN_MIGRATION_NEXT_STEP,
-  CODEX_TRUST_NEXT_STEP,
-  reconciledCodexConfig,
-  warnIfCodexBelowHookFloor,
-} from '../utils/codex.js';
+import { CODEX_PLUGIN_MIGRATION_NEXT_STEP } from '../utils/codex.js';
 import { createProjectContext } from '../utils/context.js';
 import { getEslintPeerMismatchWarning } from '../utils/eslint-peer-check.js';
 import { exists, findInTree, readFileSafe, readJson, writeFile } from '../utils/fs.js';
@@ -170,11 +165,6 @@ function printUpgradeSummary(result: ReconcileResult, projectVersion: string, cw
     for (const pkg of result.packagesToRemove) listItem(pkg);
     info("\nIf you don't use these elsewhere, you can remove them:");
     listItem(uninstallCommand);
-  }
-
-  if (reconciledCodexConfig(result)) {
-    info('\nCodex next step:');
-    listItem(CODEX_TRUST_NEXT_STEP);
   }
 
   printReconcileWarnings(result.warnings);
@@ -416,8 +406,6 @@ export async function upgrade(options: UpgradeOptions): Promise<void> {
 
   header('Safeword Upgrade');
   info(`Upgrading from v${projectVersion} to v${VERSION}`);
-  warnIfCodexBelowHookFloor();
-
   const eslintWarning = getEslintPeerMismatchWarning(cwd);
   if (eslintWarning) warn(`\n${eslintWarning}`);
 

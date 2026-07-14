@@ -22,7 +22,6 @@ bunx safeword@latest setup
 | `.safeword/`            | Creates directory                                  | Hooks, guides, templates                              |
 | `.claude/settings.json` | Creates or merges                                  | Hook configuration                                    |
 | `.claude/skills/`       | Creates directory                                  | Workflow skills                                       |
-| `.codex/config.toml`    | Creates if missing                                 | Codex hook config for packaged Safe Word commands     |
 | `.codex/agents/`        | Creates directory                                  | Codex retro-filer agent configuration                 |
 | `.cursor/hooks.json`    | Creates or merges                                  | Hook configuration                                    |
 | `.cursor/rules/`        | Creates directory                                  | Behavior rules                                        |
@@ -121,7 +120,17 @@ Safeword manages two types of files:
 
 **Owned files** — Safeword controls these completely. They get overwritten on upgrade. Examples: hooks, skills, guides, Cursor commands.
 
-**Managed files** — Created if missing, but never overwritten. You can customize these freely. Examples: `eslint.config.mjs`, `.prettierrc`, `tsconfig.json`, `knip.json`, `.codex/config.toml`, `ruff.toml`, `.golangci.yml`, `clippy.toml`, `.sqlfluff`.
+**Managed files** — Created if missing, but never overwritten. You can customize these freely. Examples: `eslint.config.mjs`, `.prettierrc`, `tsconfig.json`, `knip.json`, `ruff.toml`, `.golangci.yml`, `clippy.toml`, `.sqlfluff`.
+
+### safeword migrate codex-plugin
+
+Install the Safe Word plugin into the active Codex profile, verify Codex reports it enabled, then remove only Safe Word-owned legacy hook stanzas from the current project's `.codex/config.toml`.
+
+```bash
+bunx safeword@latest migrate codex-plugin
+```
+
+This command requires Bun. Normal `setup` and `upgrade` do not install a profile-scoped Codex plugin or recreate project-local Codex hooks.
 
 Run `safeword diff` to see which files you've modified.
 

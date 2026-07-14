@@ -1,6 +1,5 @@
 import { execFile, execSync, spawnSync, type SpawnSyncReturns } from 'node:child_process';
 import {
-  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -106,15 +105,6 @@ export function readJsonlFile(path: string): Record<string, unknown>[] {
     .split('\n')
     .filter(line => line.trim().length > 0)
     .map(line => JSON.parse(line) as Record<string, unknown>);
-}
-
-export function installFakeCodexCli(projectRoot: string, version: string): string {
-  const fakeBin = nodePath.join(projectRoot, 'bin');
-  mkdirSync(fakeBin);
-  const fakeCodex = nodePath.join(fakeBin, 'codex');
-  writeFileSync(fakeCodex, `#!/usr/bin/env sh\necho "codex ${version}"\n`);
-  chmodSync(fakeCodex, 0o755);
-  return fakeBin;
 }
 
 /**

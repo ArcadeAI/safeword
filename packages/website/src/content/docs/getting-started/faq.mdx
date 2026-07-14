@@ -92,7 +92,7 @@ Yes. Run `bunx safeword reset --full` to remove all Safeword files and linting p
 
 ### What if I only want some of the features?
 
-Safeword's hooks are configured in `.claude/settings.json` (Claude Code), `.cursor/hooks.json` (Cursor), and `.codex/config.toml` (Codex). For Codex, review and trust project hooks before relying on safeword gates. You can disable individual hooks by removing them from the settings. See [Configuration](/reference/configuration) for details.
+Safeword's hooks are configured in `.claude/settings.json` (Claude Code) and `.cursor/hooks.json` (Cursor). Codex uses the profile-scoped Safe Word plugin, installed with `safeword migrate codex-plugin`; review and trust that plugin before relying on its gates. You can disable individual Claude Code or Cursor hooks by removing them from the settings. See [Configuration](/reference/configuration) for details.
 
 <footer class="docs-footer">
 

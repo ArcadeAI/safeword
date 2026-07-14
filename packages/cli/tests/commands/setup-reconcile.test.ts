@@ -17,7 +17,6 @@ import {
   createTemporaryDirectory,
   createTypeScriptProjectReadyForSetup,
   getReconcileTestUtilities,
-  installFakeCodexCli,
   removeTemporaryDirectory,
   runCli,
   runCommandSync,
@@ -197,26 +196,6 @@ describe('Setup Command - Reconcile Integration', () => {
       await setupReconcileTest(temporaryDirectory);
 
       expect(existsSync(nodePath.join(temporaryDirectory, '.codex/config.toml'))).toBe(false);
-    });
-
-    it('should warn when the installed Codex CLI is below the safeword hook floor', async () => {
-      writeFileSync(
-        nodePath.join(temporaryDirectory, 'package.json'),
-        JSON.stringify({ name: 'test', version: '1.0.0' }, undefined, 2),
-      );
-      const fakeBin = installFakeCodexCli(temporaryDirectory, '0.132.0');
-
-      const result = await runCli(['setup', '--yes', '--no-modify'], {
-        cwd: temporaryDirectory,
-        env: {
-          PATH: `${fakeBin}${nodePath.delimiter}${process.env.PATH ?? ''}`,
-          SAFEWORD_SKIP_INSTALL: '1',
-        },
-      });
-
-      expect(result.exitCode).toBe(0);
-      expect(`${result.stdout}\n${result.stderr}`).toContain('Codex 0.132.0 is below safeword');
-      expect(`${result.stdout}\n${result.stderr}`).toContain('0.133.0');
     });
 
     it('tells users how to migrate Codex to the plugin after setup', async () => {

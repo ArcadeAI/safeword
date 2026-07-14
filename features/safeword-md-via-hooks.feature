@@ -29,17 +29,16 @@ Feature: Load SAFEWORD.md through safeword-owned hooks
   Rule: Supported agents receive SAFEWORD context from owned hook surfaces
 
     @safeword-md-via-hooks.DEV1.AC3
-    Scenario: Startup hooks are wired for Claude Cursor and Codex
-      Given safeword's generated Claude settings Cursor hooks and Codex config
+    Scenario: Startup hooks are wired for Claude and Cursor
+      Given safeword's generated Claude settings and Cursor hooks
       When the generated hook wiring is inspected
       Then Claude SessionStart runs the SAFEWORD context hook
       And Cursor sessionStart runs the SAFEWORD context hook
-      And Codex SessionStart runs the SAFEWORD context hook
 
     @safeword-md-via-hooks.DEV1.AC3
     Scenario: SAFEWORD context hook emits agent-compatible context
       Given an installed safeword project with .safeword/SAFEWORD.md
-      When the SAFEWORD context hook runs for Claude, Cursor, and Codex modes
+      When the SAFEWORD context hook runs for Claude and Cursor modes
       Then each output contains the SAFEWORD.md standing instructions as model-visible context
       And the output shape matches that agent's hook context contract
 

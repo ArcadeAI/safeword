@@ -26,9 +26,9 @@ Feature source: `packages/cli/features/migrate-codex-to-plugin.feature`
 
 ### Scenario: Failed plugin installation retains legacy hooks
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: command test and implementation were introduced in the same checkpoint
+- [x] GREEN c376325d
+- [x] REFACTOR c376325d
 
 ### Scenario: Disabled plugin retains legacy hooks
 
@@ -38,17 +38,17 @@ Feature source: `packages/cli/features/migrate-codex-to-plugin.feature`
 
 ### Scenario: Missing Bun retains legacy hooks
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: command test and implementation were introduced in the same checkpoint
+- [x] GREEN c376325d
+- [x] REFACTOR c376325d
 
 ## Rule: migrate-codex-to-plugin.TB1.R3 - Migration preserves user-authored Codex configuration and hooks
 
 ### Scenario: Mixed Codex configuration retains custom hooks
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: command test and implementation were introduced in the same checkpoint
+- [x] GREEN c376325d
+- [x] REFACTOR c376325d
 
 ### Scenario: Configuration without Safe Word hooks remains unchanged
 
@@ -60,24 +60,24 @@ Feature source: `packages/cli/features/migrate-codex-to-plugin.feature`
 
 ### Scenario: Plugin release contract rejects an unpinned or npx command
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: release-contract test was introduced with the manifest change
+- [x] GREEN 98c961d3
+- [x] REFACTOR 98c961d3
 
 ## Rule: migrate-codex-to-plugin.SM1.R2 - The packed package and a real isolated Codex profile prove the release contract
 
 ### Scenario: Packed plugin installs and dispatches through Bunx
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: the opt-in live smoke was introduced with the packaged plugin proof
+- [x] GREEN 5896f718
+- [x] REFACTOR 5896f718
 
 ### Scenario: Release rejects a package missing plugin assets
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: packed-artifact test was introduced with the release contract
+- [x] GREEN b8690433
+- [x] REFACTOR b8690433
 
 ## Feature-level cross-scenario refactor
 
-- [x] cross-scenario skip: remaining scenarios require release and live-profile coverage before a shared refactor
+- [x] cross-scenario c376325d
