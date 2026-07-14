@@ -2,13 +2,14 @@
 id: A8NNZV
 slug: prevent-retro-duplicate-issues
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 external_issue: https://github.com/ArcadeAI/safeword/issues/1032
 phase_anchors:
   - "define-behavior: a014e3c4c0460ed03e2d227d006368ef402c147c"
   - "scenario-gate: 584d1baf568c23315df097ee60dccfc628c0da06"
   - "implement: cf9aa1b4dcf5a9089ae31891bb17e12bbfefdf1f"
+  - "verify: 606ee81643dd603a20fbe0b2f024edec45ca7a74"
 scope: Add a deterministic canonical marker derived from normalized repro evidence; write it to new CLI-filed issue bodies; search exact legacy signature before the exact canonical marker; update the matched issue's occurrence ledger.
 out_of_scope: Spool/agent-filer parity, fuzzy or related-issue matching, automatic issue closure, and changing dedupe for legacy issues that lack a canonical marker.
 done_when: A recurrence whose title, category, and surface differ but whose canonical repro identity matches updates the existing issue ledger; legacy signature-only issues still dedupe; unmatched or only-fuzzy candidates create a new issue.
@@ -34,3 +35,4 @@ last_modified: 2026-07-14T04:36:28.727Z
 - 2026-07-14T04:53:00Z Planned: Draft construction, triage fallback, then REST exact filtering; implementation plan records decisions and follow-up triggers.
 - 2026-07-14T10:04:00Z Implemented: Added deterministic canonical repro markers, legacy-first canonical fallback, exact REST filtering, and recurrence-ledger coverage.
 - 2026-07-14T10:06:00Z Reviewed: Independent quality review found issue/PR search mixing and an optional fallback contract; both were fixed and a fresh review approved the result.
+- 2026-07-14T10:10:00Z Verifying: focused tests, typecheck, lint, build, Gherkin, and audit pass; the full Vitest wrapper is queued behind concurrent repository tests.
