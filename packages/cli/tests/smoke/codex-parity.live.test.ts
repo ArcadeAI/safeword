@@ -6,7 +6,7 @@
  *
  *   SAFEWORD_RUN_CODEX_LIVE_SMOKE=1 bun run --cwd packages/cli test:smoke:live
  *
- * The smoke installs the packaged plugin into an isolated CODEX_HOME. Its npx
+ * The smoke installs the packaged plugin into an isolated CODEX_HOME. Its Bunx
  * command is intercepted only for `safeword` and dispatched to this checkout's
  * built CLI, proving the plugin manifest invokes the code under test instead of
  * the currently published npm package.
@@ -139,7 +139,7 @@ function writeBunxShim(root: string): string {
     `#!/bin/sh
 set -eu
 if [ "\${1:-}" = "--bun" ] && [ "\${2:-}" = "safeword@0.68.0" ]; then
-  printf '%s\\n' "$*" >> "$SAFEWORD_NPX_SHIM_LOG"
+  printf '%s\\n' "$*" >> "$SAFEWORD_BUNX_SHIM_LOG"
   shift 2
   exec "${process.execPath}" "${CLI_PATH}" "$@"
 fi
@@ -252,7 +252,7 @@ describe.skipIf(!CAN_RUN)('live smoke: Codex packaged plugin parity', () => {
     const shimLog = nodePath.join(codexHome, BUNX_SHIM_LOG);
     const environment = {
       CODEX_HOME: codexHome,
-      SAFEWORD_NPX_SHIM_LOG: shimLog,
+      SAFEWORD_BUNX_SHIM_LOG: shimLog,
       PATH: `${bunxBinDirectory}:${process.env.PATH ?? ''}`,
     };
 
@@ -264,6 +264,6 @@ describe.skipIf(!CAN_RUN)('live smoke: Codex packaged plugin parity', () => {
     expect(
       readFileSync(shimLog, 'utf8'),
       `Codex did not invoke plugin SessionStart.\n${liveOutput}`,
-    ).toContain('safeword hook codex session-start');
+    ).toContain('--bun safeword@0.68.0 hook codex session-start');
   });
 });
