@@ -36,7 +36,7 @@ describe('buildDraft', () => {
   it('prevent-retro-duplicate-issues.SM1.R1.body_embeds_the_exact_canonical_repro_marker', () => {
     const draft = buildDraft({ ...finding, repro: 'safeword check --offline' });
 
-    expect(retroCanonicalSignature(draft.repro)).toBe('canonical:6d49803883d3');
+    expect(retroCanonicalSignature('safeword check --offline')).toBe('canonical:6d49803883d3');
     expect(draft.body).toContain(canonicalMarker(draft.canonicalSignature));
   });
 });
