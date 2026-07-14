@@ -278,7 +278,7 @@ describe('sqlFixOptedIn', () => {
 
 describe('shouldWarnMissingPrettier', () => {
   // The session lint check must not nag a Biome/dprint/oxfmt/deno shop to install
-  // Prettier — they deliberately don't use it (ticket V7GGJZ, DEV4.AC1).
+  // Prettier — they deliberately don't use it (ticket V7GGJZ, TB4.AC1).
   it('warns when neither a Prettier config nor an alternative formatter is present', () => {
     expect(shouldWarnMissingPrettier(['package.json', 'tsconfig.json'])).toBe(true);
   });

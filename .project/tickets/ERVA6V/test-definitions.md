@@ -76,7 +76,7 @@ Then it does not block on the impl-plan status
 
 ## Rule: TDD.md teaches the reconciliation procedure end to end
 
-### Scenario: plan-reconciliation.DEV1.AC1.docs_show_reconciliation_in_both_copies
+### Scenario: plan-reconciliation.TB1.AC1.docs_show_reconciliation_in_both_copies
 
 Given the canonical skill files (packages/cli/templates/skills/bdd) and the dogfood copies (.claude/skills/bdd)
 When TDD.md is scanned in both copies

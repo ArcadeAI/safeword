@@ -41,37 +41,37 @@ function testDefinitions(titles: readonly string[]): string {
   return `# Test Definitions\n\n## Rule: r\n\n${body}\n`;
 }
 
-const ONE_AC = '### demo.DEV1 — Trace\n\n**Persona:** DEV\n\n#### demo.DEV1.AC1 — capability one';
-const TWO_ACS = `${ONE_AC}\n\n#### demo.DEV1.AC2 — capability two`;
+const ONE_AC = '### demo.TB1 — Trace\n\n**Persona:** DEV\n\n#### demo.TB1.AC1 — capability one';
+const TWO_ACS = `${ONE_AC}\n\n#### demo.TB1.AC2 — capability two`;
 const ONE_RULE =
-  '### demo.DEV2 — Retry\n\n**Persona:** DEV\n\n#### demo.DEV2.R1 — failed deliveries retry on backoff';
-const MIXED = `${ONE_AC}\n\n#### demo.DEV1.R1 — an invariant slipped in beside the AC`;
+  '### demo.TB2 — Retry\n\n**Persona:** DEV\n\n#### demo.TB2.R1 — failed deliveries retry on backoff';
+const MIXED = `${ONE_AC}\n\n#### demo.TB1.R1 — an invariant slipped in beside the AC`;
 
 describe('parseAcReferenceFromTitle (R1 — title parses to its AC reference, or none)', () => {
-  it('cross-reference-numbering.DEV1.AC1.conformant_title_yields_ac_ref', () => {
+  it('cross-reference-numbering.TB1.AC1.conformant_title_yields_ac_ref', () => {
     expect(parseAcReferenceFromTitle('oauth-flow.PO1.AC2.change_association_applies')).toBe(
       'oauth-flow.PO1.AC2',
     );
   });
 
-  it('cross-reference-numbering.DEV1.AC1.free_text_title_yields_no_ref', () => {
+  it('cross-reference-numbering.TB1.AC1.free_text_title_yields_no_ref', () => {
     expect(parseAcReferenceFromTitle('A JTBD with at least one AC passes')).toBeUndefined();
   });
 
   it('a single-token title missing the AC segment yields no ref', () => {
     // Malformed conformant-looking title folds into the no-ref partition.
-    expect(parseAcReferenceFromTitle('demo.DEV1.no_ac_here')).toBeUndefined();
+    expect(parseAcReferenceFromTitle('demo.TB1.no_ac_here')).toBeUndefined();
   });
 });
 
 describe('parseAcIdsByJtbd (supporting — AC ids grouped by JTBD)', () => {
   it('groups AC ids under their JTBD id', () => {
     const byJtbd = parseAcIdsByJtbd(spec(TWO_ACS));
-    expect(byJtbd.get('demo.DEV1')).toEqual(['demo.DEV1.AC1', 'demo.DEV1.AC2']);
+    expect(byJtbd.get('demo.TB1')).toEqual(['demo.TB1.AC1', 'demo.TB1.AC2']);
   });
 
   it('ignores an HTML-commented example AC', () => {
-    const byJtbd = parseAcIdsByJtbd(spec('<!--\n### ex.DEV1 — t\n\n#### ex.DEV1.AC1 — a\n-->'));
+    const byJtbd = parseAcIdsByJtbd(spec('<!--\n### ex.TB1 — t\n\n#### ex.TB1.AC1 — a\n-->'));
     expect(byJtbd.size).toBe(0);
   });
 });
@@ -79,11 +79,11 @@ describe('parseAcIdsByJtbd (supporting — AC ids grouped by JTBD)', () => {
 describe('parseCriteriaIdsByJtbd (rule tier — AC vs R heading classification)', () => {
   it('rule-tier.TB3.AC1.groups_rule_ids_separately_from_ac_ids', () => {
     const byJtbd = parseCriteriaIdsByJtbd(spec(`${TWO_ACS}\n\n${ONE_RULE}`));
-    expect(byJtbd.get('demo.DEV1')).toEqual({
-      acIds: ['demo.DEV1.AC1', 'demo.DEV1.AC2'],
+    expect(byJtbd.get('demo.TB1')).toEqual({
+      acIds: ['demo.TB1.AC1', 'demo.TB1.AC2'],
       ruleIds: [],
     });
-    expect(byJtbd.get('demo.DEV2')).toEqual({ acIds: [], ruleIds: ['demo.DEV2.R1'] });
+    expect(byJtbd.get('demo.TB2')).toEqual({ acIds: [], ruleIds: ['demo.TB2.R1'] });
   });
 
   it('rule-tier.TB3.AC1.ac_shaped_heading_wins_over_rule_shaped_prefix', () => {
@@ -96,13 +96,13 @@ describe('parseCriteriaIdsByJtbd (rule tier — AC vs R heading classification)'
 
   it('rule-tier.TB1.AC3.parse_ac_ids_no_longer_counts_rule_headings', () => {
     const byJtbd = parseAcIdsByJtbd(spec(ONE_RULE));
-    expect(byJtbd.get('demo.DEV2')).toEqual([]);
+    expect(byJtbd.get('demo.TB2')).toEqual([]);
   });
 });
 
 describe('findMixedCriteriaJtbds (rule tier — one criteria kind per JTBD)', () => {
   it('rule-tier.TB1.AC4.mixed_jtbd_detected', () => {
-    expect(findMixedCriteriaJtbds(spec(MIXED))).toEqual(['demo.DEV1']);
+    expect(findMixedCriteriaJtbds(spec(MIXED))).toEqual(['demo.TB1']);
   });
 
   it('rule-tier.TB1.AC4.single_kind_jtbds_not_mixed', () => {
@@ -111,41 +111,38 @@ describe('findMixedCriteriaJtbds (rule tier — one criteria kind per JTBD)', ()
 });
 
 describe('buildCoverageReport (R2 — three buckets)', () => {
-  it('cross-reference-numbering.DEV1.AC2.covered_ac_not_flagged', () => {
-    const report = buildCoverageReport(spec(ONE_AC), testDefinitions(['demo.DEV1.AC1.happy_path']));
+  it('cross-reference-numbering.TB1.AC2.covered_ac_not_flagged', () => {
+    const report = buildCoverageReport(spec(ONE_AC), testDefinitions(['demo.TB1.AC1.happy_path']));
     expect(report).toEqual({ uncovered: [], stale: [], orphan: [] });
   });
 
-  it('cross-reference-numbering.DEV1.AC2.uncovered_ac_flagged', () => {
-    const report = buildCoverageReport(
-      spec(TWO_ACS),
-      testDefinitions(['demo.DEV1.AC1.happy_path']),
-    );
-    expect(report.uncovered).toEqual(['demo.DEV1.AC2']);
+  it('cross-reference-numbering.TB1.AC2.uncovered_ac_flagged', () => {
+    const report = buildCoverageReport(spec(TWO_ACS), testDefinitions(['demo.TB1.AC1.happy_path']));
+    expect(report.uncovered).toEqual(['demo.TB1.AC2']);
   });
 
-  it('cross-reference-numbering.DEV1.AC2.stale_ac_ref_flagged', () => {
+  it('cross-reference-numbering.TB1.AC2.stale_ac_ref_flagged', () => {
     const report = buildCoverageReport(
       spec(ONE_AC),
-      testDefinitions(['demo.DEV1.AC1.happy_path', 'demo.DEV1.AC5.renumbered']),
+      testDefinitions(['demo.TB1.AC1.happy_path', 'demo.TB1.AC5.renumbered']),
     );
-    expect(report.stale).toEqual(['demo.DEV1.AC5']);
+    expect(report.stale).toEqual(['demo.TB1.AC5']);
     expect(report.orphan).toEqual([]);
   });
 
-  it('cross-reference-numbering.DEV1.AC2.orphan_scenario_flagged', () => {
+  it('cross-reference-numbering.TB1.AC2.orphan_scenario_flagged', () => {
     const report = buildCoverageReport(
       spec(ONE_AC),
-      testDefinitions(['demo.DEV1.AC1.happy_path', 'ghost.SM1.AC1.absent_jtbd']),
+      testDefinitions(['demo.TB1.AC1.happy_path', 'ghost.SM1.AC1.absent_jtbd']),
     );
     expect(report.orphan).toEqual(['ghost.SM1.AC1']);
     expect(report.stale).toEqual([]);
   });
 
-  it('cross-reference-numbering.DEV1.AC2.multiple_scenarios_per_ac_covered', () => {
+  it('cross-reference-numbering.TB1.AC2.multiple_scenarios_per_ac_covered', () => {
     const report = buildCoverageReport(
       spec(ONE_AC),
-      testDefinitions(['demo.DEV1.AC1.case_a', 'demo.DEV1.AC1.case_b']),
+      testDefinitions(['demo.TB1.AC1.case_a', 'demo.TB1.AC1.case_b']),
     );
     expect(report).toEqual({ uncovered: [], stale: [], orphan: [] });
   });
@@ -171,7 +168,7 @@ describe('buildCoverageReport (issue #891 — @-tag lineage in a ledger-only tes
   it('covers an AC via a bare tag on the ## Rule: heading', () => {
     const report = buildCoverageReport(
       spec(ONE_AC),
-      taggedDefinitions('## Rule: @demo.DEV1.AC1 — r'),
+      taggedDefinitions('## Rule: @demo.TB1.AC1 — r'),
     );
     expect(report).toEqual({ uncovered: [], stale: [], orphan: [] });
   });
@@ -179,7 +176,7 @@ describe('buildCoverageReport (issue #891 — @-tag lineage in a ledger-only tes
   it('covers an AC via a bare tag on its own line below the heading', () => {
     const report = buildCoverageReport(
       spec(ONE_AC),
-      taggedDefinitions('## Rule: r\n\n@demo.DEV1.AC1'),
+      taggedDefinitions('## Rule: r\n\n@demo.TB1.AC1'),
     );
     expect(report).toEqual({ uncovered: [], stale: [], orphan: [] });
   });
@@ -187,7 +184,7 @@ describe('buildCoverageReport (issue #891 — @-tag lineage in a ledger-only tes
   it('covers an AC via a backtick-wrapped tag on its own line (the shipped form)', () => {
     const report = buildCoverageReport(
       spec(ONE_AC),
-      taggedDefinitions('## Rule: r\n\n`@demo.DEV1.AC1`'),
+      taggedDefinitions('## Rule: r\n\n`@demo.TB1.AC1`'),
     );
     expect(report).toEqual({ uncovered: [], stale: [], orphan: [] });
   });
@@ -195,35 +192,35 @@ describe('buildCoverageReport (issue #891 — @-tag lineage in a ledger-only tes
   it('covers an AC via a backtick-wrapped tag on the ## Rule: heading', () => {
     const report = buildCoverageReport(
       spec(ONE_AC),
-      taggedDefinitions('## Rule: `@demo.DEV1.AC1` — r'),
+      taggedDefinitions('## Rule: `@demo.TB1.AC1` — r'),
     );
     expect(report).toEqual({ uncovered: [], stale: [], orphan: [] });
   });
 
   it('covers a numbered Rule via an @<jtbd>.R# tag', () => {
-    const report = buildCoverageReport(spec(ONE_RULE), taggedDefinitions('`@demo.DEV2.R1`'));
+    const report = buildCoverageReport(spec(ONE_RULE), taggedDefinitions('`@demo.TB2.R1`'));
     expect(report).toEqual({ uncovered: [], stale: [], orphan: [] });
   });
 
   it('ignores a tag inside a fenced code block (template example)', () => {
     const report = buildCoverageReport(
       spec(ONE_AC),
-      '# Test Definitions\n\n```\n@demo.DEV1.AC1\n```\n',
+      '# Test Definitions\n\n```\n@demo.TB1.AC1\n```\n',
     );
-    expect(report.uncovered).toEqual(['demo.DEV1.AC1']);
+    expect(report.uncovered).toEqual(['demo.TB1.AC1']);
   });
 
   it('unions title-based and tag-based references in one ledger', () => {
     const report = buildCoverageReport(
       spec(TWO_ACS),
-      '# Test Definitions\n\n`@demo.DEV1.AC1`\n\n### Scenario: demo.DEV1.AC2.plain\n',
+      '# Test Definitions\n\n`@demo.TB1.AC1`\n\n### Scenario: demo.TB1.AC2.plain\n',
     );
     expect(report).toEqual({ uncovered: [], stale: [], orphan: [] });
   });
 
   it('flags a tag whose AC# is absent under a known JTBD as stale', () => {
-    const report = buildCoverageReport(spec(ONE_AC), taggedDefinitions('`@demo.DEV1.AC5`'));
-    expect(report.stale).toEqual(['demo.DEV1.AC5']);
+    const report = buildCoverageReport(spec(ONE_AC), taggedDefinitions('`@demo.TB1.AC5`'));
+    expect(report.stale).toEqual(['demo.TB1.AC5']);
     expect(report.orphan).toEqual([]);
   });
 
@@ -244,9 +241,9 @@ describe('buildCoverageReport (issue #891 — @-tag lineage in a ledger-only tes
         '',
         'Owner alex@arcade.dev; tag scenarios `@<jtbd>.AC#` per the guide.',
         '',
-        '`@demo.DEV1.AC1`',
+        '`@demo.TB1.AC1`',
         '',
-        '### Scenario: demo.DEV1.AC2.plain',
+        '### Scenario: demo.TB1.AC2.plain',
         '',
       ].join('\n'),
     );
@@ -273,32 +270,32 @@ describe('buildCoverageReportFromFeature (feature files as source)', () => {
   }
 
   it('feature-files-as-source.SM1.AC1.covered_tag_not_flagged', () => {
-    const report = buildCoverageReportFromFeature(spec(ONE_AC), feature(['demo.DEV1.AC1']));
+    const report = buildCoverageReportFromFeature(spec(ONE_AC), feature(['demo.TB1.AC1']));
     expect(report).toEqual({ uncovered: [], stale: [], orphan: [] });
   });
 
   it('feature-files-as-source.SM1.AC1.uncovered_ac_flagged_from_feature_tags', () => {
-    const report = buildCoverageReportFromFeature(spec(TWO_ACS), feature(['demo.DEV1.AC1']));
-    expect(report.uncovered).toEqual(['demo.DEV1.AC2']);
+    const report = buildCoverageReportFromFeature(spec(TWO_ACS), feature(['demo.TB1.AC1']));
+    expect(report.uncovered).toEqual(['demo.TB1.AC2']);
   });
 
   it('feature-files-as-source.SM1.AC1.stale_and_orphan_tags_flagged', () => {
     const report = buildCoverageReportFromFeature(
       spec(ONE_AC),
-      feature(['demo.DEV1.AC5', 'ghost.SM1.AC1']),
+      feature(['demo.TB1.AC5', 'ghost.SM1.AC1']),
     );
-    expect(report.stale).toEqual(['demo.DEV1.AC5']);
+    expect(report.stale).toEqual(['demo.TB1.AC5']);
     expect(report.orphan).toEqual(['ghost.SM1.AC1']);
   });
 
   it('rule-tier.TB3.AC1.uncovered_spec_rule_flagged', () => {
     const report = buildCoverageReportFromFeature(spec(ONE_RULE), feature(['other.SM1.AC1']));
-    expect(report.uncovered).toEqual(['demo.DEV2.R1']);
+    expect(report.uncovered).toEqual(['demo.TB2.R1']);
   });
 
   it('rule-tier.TB3.AC1.stale_rule_ref_flagged', () => {
-    const report = buildCoverageReportFromFeature(spec(ONE_RULE), feature(['demo.DEV2.R5']));
-    expect(report.stale).toEqual(['demo.DEV2.R5']);
+    const report = buildCoverageReportFromFeature(spec(ONE_RULE), feature(['demo.TB2.R5']));
+    expect(report.stale).toEqual(['demo.TB2.R5']);
     expect(report.orphan).toEqual([]);
   });
 
@@ -310,11 +307,11 @@ describe('buildCoverageReportFromFeature (feature files as source)', () => {
 
   it('rule-tier.TB4.AC1.rule_numbered_corpus_fully_resolves', () => {
     const corpusSpec = spec(
-      `${ONE_RULE}\n\n#### demo.DEV2.R2 — deliveries stop after the retry budget`,
+      `${ONE_RULE}\n\n#### demo.TB2.R2 — deliveries stop after the retry budget`,
     );
     const report = buildCoverageReportFromFeature(
       corpusSpec,
-      feature(['demo.DEV2.R1', 'demo.DEV2.R2']),
+      feature(['demo.TB2.R1', 'demo.TB2.R2']),
     );
     expect(report).toEqual({ uncovered: [], stale: [], orphan: [] });
   });
@@ -346,7 +343,7 @@ describe('findRulesMissingRejectionPaths (rule tier — rejection-path visibilit
 
   function featureWithScenarios(
     scenarios: readonly { tags: readonly string[]; title: string }[],
-    ruleLine = '  Rule: demo.DEV2.R1 — failed deliveries retry on backoff',
+    ruleLine = '  Rule: demo.TB2.R1 — failed deliveries retry on backoff',
   ): string {
     return [
       'Feature: Demo',
@@ -367,17 +364,17 @@ describe('findRulesMissingRejectionPaths (rule tier — rejection-path visibilit
   it('rule-tier.TB1.AC2.numbered_rule_without_rejection_scenario_flagged', () => {
     const missing = findRulesMissingRejectionPaths(
       spec(ONE_RULE),
-      featureWithScenarios([{ tags: ['demo.DEV2.R1'], title: 'happy path only' }]),
+      featureWithScenarios([{ tags: ['demo.TB2.R1'], title: 'happy path only' }]),
     );
-    expect(missing).toEqual(['demo.DEV2.R1']);
+    expect(missing).toEqual(['demo.TB2.R1']);
   });
 
   it('rule-tier.TB1.AC2.numbered_rule_with_rejection_scenario_silent', () => {
     const missing = findRulesMissingRejectionPaths(
       spec(ONE_RULE),
       featureWithScenarios([
-        { tags: ['demo.DEV2.R1'], title: 'happy path' },
-        { tags: ['demo.DEV2.R1', 'rejection'], title: 'refused when budget exhausted' },
+        { tags: ['demo.TB2.R1'], title: 'happy path' },
+        { tags: ['demo.TB2.R1', 'rejection'], title: 'refused when budget exhausted' },
       ]),
     );
     expect(missing).toEqual([]);
@@ -387,7 +384,7 @@ describe('findRulesMissingRejectionPaths (rule tier — rejection-path visibilit
     const missing = findRulesMissingRejectionPaths(
       spec(ONE_AC),
       featureWithScenarios(
-        [{ tags: ['demo.DEV1.AC1'], title: 'flat lineage under a grouping header' }],
+        [{ tags: ['demo.TB1.AC1'], title: 'flat lineage under a grouping header' }],
         '  Rule: plain grouping header',
       ),
     );
@@ -404,15 +401,15 @@ describe('findRulesMissingRejectionPaths (rule tier — rejection-path visibilit
 });
 
 describe('buildCoverageReport (R3 — quiet degradation)', () => {
-  it('cross-reference-numbering.DEV1.AC2.spec_acs_without_test_definitions_no_flags', () => {
+  it('cross-reference-numbering.TB1.AC2.spec_acs_without_test_definitions_no_flags', () => {
     // No test-definitions.md → the content argument is omitted entirely.
     const report = buildCoverageReport(spec(TWO_ACS));
     expect(report).toEqual({ uncovered: [], stale: [], orphan: [] });
   });
 
-  it('cross-reference-numbering.DEV1.AC2.no_acs_yields_empty_report', () => {
-    const noAcs = spec('### demo.DEV1 — Trace\n\n**Persona:** DEV');
-    const report = buildCoverageReport(noAcs, testDefinitions(['demo.DEV1.AC1.x']));
+  it('cross-reference-numbering.TB1.AC2.no_acs_yields_empty_report', () => {
+    const noAcs = spec('### demo.TB1 — Trace\n\n**Persona:** DEV');
+    const report = buildCoverageReport(noAcs, testDefinitions(['demo.TB1.AC1.x']));
     expect(report).toEqual({ uncovered: [], stale: [], orphan: [] });
   });
 });

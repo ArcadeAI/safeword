@@ -13,7 +13,7 @@ early-return and `session-lint-check` wiring consume them. End-to-end, the cucum
 acceptance lane (`steps/formatter-aware-lint-hook.steps.ts`) spawns the REAL
 post-tool-lint hook against throwaway Biome/dprint/oxfmt/deno / greenfield /
 own-Prettier repos and asserts on the resulting file bytes — 10 scenario executions,
-all passing. DEV1.AC3 (2 scenarios) stay `@wip`: they need the real `safeword/eslint`
+all passing. TB1.AC3 (2 scenarios) stay `@wip`: they need the real `safeword/eslint`
 config resolvable in the fixture (a full install), and are verified by inspection.
 SHAs point at the covering commit.
 

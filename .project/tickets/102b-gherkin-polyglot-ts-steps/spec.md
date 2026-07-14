@@ -23,17 +23,17 @@ Safeword's whole purpose is BDD/TDD discipline — so the executable-Gherkin acc
 
 ## Jobs To Be Done
 
-### gherkin-setup.DEV1 — Get a runnable acceptance lane from `safeword setup`, in any project
+### gherkin-setup.TB1 — Get a runnable acceptance lane from `safeword setup`, in any project
 
 **Persona:** Technical Builder (TB)
 
 > When I set up safeword on my project — whatever language it is — I want the executable-Gherkin acceptance lane installed as part of that setup, so running `.feature` tests is built in rather than something I hand-wire.
 
-#### gherkin-setup.DEV1.AC1 — `safeword setup` scaffolds the full cucumber-js lane (config, steps scaffold, features/ starter, deps, test:bdd script) as standard output
+#### gherkin-setup.TB1.AC1 — `safeword setup` scaffolds the full cucumber-js lane (config, steps scaffold, features/ starter, deps, test:bdd script) as standard output
 
-#### gherkin-setup.DEV1.AC2 — In a repo with no `package.json` (pure Go/Rust/Python), setup creates a minimal one to host the lane — the only TS-vs-non-TS divergence
+#### gherkin-setup.TB1.AC2 — In a repo with no `package.json` (pure Go/Rust/Python), setup creates a minimal one to host the lane — the only TS-vs-non-TS divergence
 
-#### gherkin-setup.DEV1.AC3 — The scaffolded lane runs green out of the box: `test:bdd` executes the starter feature and it passes, proving the wiring is real
+#### gherkin-setup.TB1.AC3 — The scaffolded lane runs green out of the box: `test:bdd` executes the starter feature and it passes, proving the wiring is real
 
 ## Outcomes
 

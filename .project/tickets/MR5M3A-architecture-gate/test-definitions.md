@@ -10,9 +10,9 @@ Scenarios prove the ACs in `spec.md`. The gate extends `stop-quality.ts`'s impl-
 
 ## Rule: Enabled — a new-flow feature cannot leave implement without cited evidence in Decisions
 
-> Rationale: the generation half. A design recorded without evidence is the confident un-researched guess the gate exists to stop. Proves architecture-gate.DEV1.AC1.
+> Rationale: the generation half. A design recorded without evidence is the confident un-researched guess the gate exists to stop. Proves architecture-gate.TB1.AC1.
 
-### Scenario: architecture-gate.DEV1.AC1.decisions_with_citation_passes
+### Scenario: architecture-gate.TB1.AC1.decisions_with_citation_passes
 
 Given the review gate is enabled
 And a new-flow feature at the implement→verify exit
@@ -24,7 +24,7 @@ Then the exit is allowed
 - [x] GREEN 67b27fb
 - [x] REFACTOR skip: helper is a single predicate, no structural improvement
 
-### Scenario: architecture-gate.DEV1.AC1.decisions_without_citation_blocks
+### Scenario: architecture-gate.TB1.AC1.decisions_without_citation_blocks
 
 Given the review gate is enabled
 And a new-flow feature at the implement→verify exit
@@ -36,7 +36,7 @@ Then the exit is blocked with a reason naming the missing evidence
 - [x] GREEN 39b0e96
 - [x] REFACTOR skip: gate is one function, no structural change
 
-### Scenario: architecture-gate.DEV1.AC1.decisions_evidence_skip_with_reason_passes
+### Scenario: architecture-gate.TB1.AC1.decisions_evidence_skip_with_reason_passes
 
 Given the review gate is enabled
 And a new-flow feature at the implement→verify exit
@@ -48,7 +48,7 @@ Then the exit is allowed
 - [x] GREEN 55c3c8b
 - [x] REFACTOR skip: no structural change
 
-### Scenario: architecture-gate.DEV1.AC1.decisions_evidence_bare_skip_blocks
+### Scenario: architecture-gate.TB1.AC1.decisions_evidence_bare_skip_blocks
 
 Given the review gate is enabled
 And a new-flow feature at the implement→verify exit
@@ -60,7 +60,7 @@ Then the exit is blocked with a reason demanding a non-empty skip
 - [x] GREEN skip: proven by impl-plan.test.ts bare-skip case (#204)
 - [x] REFACTOR skip: inherited behavior, no new code
 
-### Scenario: architecture-gate.DEV1.AC1.skip_with_trailing_content_treated_as_uncited_content_blocks
+### Scenario: architecture-gate.TB1.AC1.skip_with_trailing_content_treated_as_uncited_content_blocks
 
 Given the review gate is enabled
 And a new-flow feature at the implement→verify exit
@@ -76,7 +76,7 @@ Then the exit is blocked because a multi-line section is content, not a skip, an
 
 > Rationale: the new evidence/stamp checks sit on top of #204's gate; absent or malformed plans must be handled before the new reasons can apply. Proves the AC1 boundary (precedence).
 
-### Scenario: architecture-gate.DEV1.AC1.impl_plan_absent_blocks_existence_first
+### Scenario: architecture-gate.TB1.AC1.impl_plan_absent_blocks_existence_first
 
 Given the review gate is enabled
 And a new-flow feature at the implement→verify exit
@@ -88,7 +88,7 @@ Then the exit is blocked by the existing impl-plan existence check, before the e
 - [x] GREEN skip: gate returns early when plan absent (39b0e96); existence owned by #204
 - [x] REFACTOR skip: inherited behavior
 
-### Scenario: architecture-gate.DEV1.AC1.decisions_section_missing_blocks_before_evidence_check
+### Scenario: architecture-gate.TB1.AC1.decisions_section_missing_blocks_before_evidence_check
 
 Given the review gate is enabled
 And a new-flow feature at the implement→verify exit
@@ -100,7 +100,7 @@ Then the exit is blocked by the existing impl-plan section validation, before th
 - [x] GREEN skip: gate returns early on parse errors (39b0e96); section validation owned by #204
 - [x] REFACTOR skip: inherited behavior
 
-### Scenario: architecture-gate.DEV1.AC1.malformed_plan_blocks_before_evidence_check
+### Scenario: architecture-gate.TB1.AC1.malformed_plan_blocks_before_evidence_check
 
 Given the review gate is enabled
 And a new-flow feature at the implement→verify exit
@@ -114,9 +114,9 @@ Then the exit is blocked by the parser error, and the evidence check does not ru
 
 ## Rule: Enabled — leaving implement requires a matching design-review stamp
 
-> Rationale: the selection half. The stamp is bound to the impl-plan's content hash and to this ticket, so a review of a since-edited plan, or of another ticket, no longer counts. Proves architecture-gate.DEV1.AC2.
+> Rationale: the selection half. The stamp is bound to the impl-plan's content hash and to this ticket, so a review of a since-edited plan, or of another ticket, no longer counts. Proves architecture-gate.TB1.AC2.
 
-### Scenario: architecture-gate.DEV1.AC2.matching_design_review_stamp_passes
+### Scenario: architecture-gate.TB1.AC2.matching_design_review_stamp_passes
 
 Given the review gate is enabled
 And a new-flow feature at the implement→verify exit whose impl-plan.md carries cited evidence
@@ -128,7 +128,7 @@ Then the exit is allowed
 - [x] GREEN 39b0e96
 - [x] REFACTOR skip: no structural change
 
-### Scenario: architecture-gate.DEV1.AC2.missing_design_review_stamp_blocks
+### Scenario: architecture-gate.TB1.AC2.missing_design_review_stamp_blocks
 
 Given the review gate is enabled
 And a new-flow feature at the implement→verify exit whose impl-plan.md carries cited evidence
@@ -140,7 +140,7 @@ Then the exit is blocked with a reason requesting an independent design review
 - [x] GREEN 39b0e96
 - [x] REFACTOR skip: no structural change
 
-### Scenario: architecture-gate.DEV1.AC2.same_stamp_stops_matching_after_plan_edit_blocks
+### Scenario: architecture-gate.TB1.AC2.same_stamp_stops_matching_after_plan_edit_blocks
 
 Given the review gate is enabled
 And a design-review stamp was written for the impl-plan at content hash H
@@ -153,7 +153,7 @@ Then the exit is now blocked because the stamp's hash binds to the pre-edit desi
 - [x] GREEN 39b0e96
 - [x] REFACTOR skip: no structural change
 
-### Scenario: architecture-gate.DEV1.AC2.stamp_for_other_ticket_same_hash_blocks
+### Scenario: architecture-gate.TB1.AC2.stamp_for_other_ticket_same_hash_blocks
 
 Given the review gate is enabled
 And a new-flow feature at the implement→verify exit whose impl-plan.md carries cited evidence
@@ -165,7 +165,7 @@ Then the exit is blocked because the stamp is not scoped to this ticket
 - [x] GREEN 55c3c8b
 - [x] REFACTOR skip: no structural change
 
-### Scenario: architecture-gate.DEV1.AC2.review_skip_with_reason_passes
+### Scenario: architecture-gate.TB1.AC2.review_skip_with_reason_passes
 
 Given the review gate is enabled
 And a new-flow feature at the implement→verify exit whose impl-plan.md carries cited evidence
@@ -177,7 +177,7 @@ Then the exit is allowed
 - [x] GREEN 55c3c8b
 - [x] REFACTOR skip: no structural change
 
-### Scenario: architecture-gate.DEV1.AC1.both_halves_skipped_with_reasons_passes
+### Scenario: architecture-gate.TB1.AC1.both_halves_skipped_with_reasons_passes
 
 Given the review gate is enabled
 And a new-flow feature at the implement→verify exit
@@ -191,9 +191,9 @@ Then the exit is allowed because both halves carry an auditable skip
 
 ## Rule: Cross-model review — when configured, a same-model stamp does not satisfy the gate
 
-> Rationale: the ceiling-raiser. A fresh-context review by the same model shares the author's blind spots; cross-model is the opt-in that breaks correlated errors. The gate compares recorded tag strings. Proves architecture-gate.DEV1.AC3.
+> Rationale: the ceiling-raiser. A fresh-context review by the same model shares the author's blind spots; cross-model is the opt-in that breaks correlated errors. The gate compares recorded tag strings. Proves architecture-gate.TB1.AC3.
 
-### Scenario: architecture-gate.DEV1.AC3.cross_model_required_same_recorded_model_blocks
+### Scenario: architecture-gate.TB1.AC3.cross_model_required_same_recorded_model_blocks
 
 Given the review gate is enabled with cross-model review required
 And a new-flow feature at the implement→verify exit whose impl-plan.md carries cited evidence
@@ -205,7 +205,7 @@ Then the exit is blocked because the review was not independent of the author's 
 - [x] GREEN 39b0e96
 - [x] REFACTOR skip: no structural change
 
-### Scenario: architecture-gate.DEV1.AC3.cross_model_required_different_recorded_model_passes
+### Scenario: architecture-gate.TB1.AC3.cross_model_required_different_recorded_model_passes
 
 Given the review gate is enabled with cross-model review required
 And a new-flow feature at the implement→verify exit whose impl-plan.md carries cited evidence
@@ -217,7 +217,7 @@ Then the exit is allowed
 - [x] GREEN 39b0e96
 - [x] REFACTOR skip: no structural change
 
-### Scenario: architecture-gate.DEV1.AC3.cross_model_required_author_model_unknown_blocks
+### Scenario: architecture-gate.TB1.AC3.cross_model_required_author_model_unknown_blocks
 
 Given the review gate is enabled with cross-model review required
 And a new-flow feature at the implement→verify exit whose impl-plan.md carries cited evidence
@@ -229,7 +229,7 @@ Then the exit is blocked, failing closed rather than treating an unknown author-
 - [x] GREEN 55c3c8b
 - [x] REFACTOR skip: no structural change
 
-### Scenario: architecture-gate.DEV1.AC3.cross_model_required_same_model_differing_case_blocks
+### Scenario: architecture-gate.TB1.AC3.cross_model_required_same_model_differing_case_blocks
 
 Given the review gate is enabled with cross-model review required
 And a new-flow feature at the implement→verify exit whose impl-plan.md carries cited evidence
@@ -241,7 +241,7 @@ Then the exit is blocked because the tags resolve to the same model
 - [x] GREEN 0b085c7
 - [x] REFACTOR skip: modelsMatch is a single predicate
 
-### Scenario: architecture-gate.DEV1.AC3.cross_model_off_same_recorded_model_passes
+### Scenario: architecture-gate.TB1.AC3.cross_model_off_same_recorded_model_passes
 
 Given the review gate is enabled with cross-model review off (the default floor)
 And a new-flow feature at the implement→verify exit whose impl-plan.md carries cited evidence
@@ -255,9 +255,9 @@ Then the exit is allowed because cross-model independence is not required
 
 ## Rule: Default-off — a disabled, unconfigured, or malformed-config gate never blocks
 
-> Rationale: ships inert so an upgrade can't brick an in-flight feature; fail-safe to off on any config trouble. Proves architecture-gate.DEV2.AC1.
+> Rationale: ships inert so an upgrade can't brick an in-flight feature; fail-safe to off on any config trouble. Proves architecture-gate.TB2.AC1.
 
-### Scenario: architecture-gate.DEV2.AC1.gate_disabled_allows_missing_evidence_and_stamp
+### Scenario: architecture-gate.TB2.AC1.gate_disabled_allows_missing_evidence_and_stamp
 
 Given the review gate is explicitly disabled
 And a new-flow feature at the implement→verify exit whose impl-plan.md has no citation and no design-review stamp
@@ -268,7 +268,7 @@ Then the exit is allowed
 - [x] GREEN 39b0e96
 - [x] REFACTOR skip: no structural change
 
-### Scenario: architecture-gate.DEV2.AC1.gate_config_absent_treated_as_disabled
+### Scenario: architecture-gate.TB2.AC1.gate_config_absent_treated_as_disabled
 
 Given no review-gate setting is present in config
 And a new-flow feature at the implement→verify exit whose impl-plan.md has no citation and no design-review stamp
@@ -279,7 +279,7 @@ Then the exit is allowed
 - [x] GREEN 4b24494
 - [x] REFACTOR 757399b
 
-### Scenario: architecture-gate.DEV2.AC1.gate_config_malformed_treated_as_disabled
+### Scenario: architecture-gate.TB2.AC1.gate_config_malformed_treated_as_disabled
 
 Given the config file contains invalid JSON
 And a new-flow feature at the implement→verify exit whose impl-plan.md has no citation and no design-review stamp
@@ -294,7 +294,7 @@ Then the exit is allowed, the malformed config failing safe to off
 
 > Rationale: friction must match blast radius; tasks and pre-spec tickets inherit #204's exemption. The exemption must hold on both the evidence and the stamp path. Proves the AC1/AC2 boundary (exemption side).
 
-### Scenario: architecture-gate.DEV1.AC1.task_exempt_from_gate
+### Scenario: architecture-gate.TB1.AC1.task_exempt_from_gate
 
 Given the review gate is enabled
 And a task (not a feature) at the implement→verify exit with no citation and no design-review stamp
@@ -305,7 +305,7 @@ Then the exit is allowed because tasks are never gated
 - [x] GREEN 39b0e96
 - [x] REFACTOR skip: no structural change
 
-### Scenario: architecture-gate.DEV1.AC2.grandfathered_feature_no_spec_exempt
+### Scenario: architecture-gate.TB1.AC2.grandfathered_feature_no_spec_exempt
 
 Given the review gate is enabled
 And a grandfathered feature with no spec.md at the implement→verify exit with no citation and no design-review stamp

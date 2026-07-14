@@ -154,4 +154,4 @@ this session traced it to runtime formatter-blindness despite careful install-ti
   - **EYRK34** (task): customer formatters (Biome/Prettier/dprint/oxfmt) skip every safeword-owned dir
     from one `SAFEWORD_IGNORE_DIRS` source + drift guard; ruff/rustfmt no-churn by file-type.
     Deferred fast-follows: V7GGJZ Option B (detect-and-delegate) + Option D (formatter config switch); the
-    V7GGJZ DEV1.AC3 cucumber lane (`@wip`). Status → done.
+    V7GGJZ TB1.AC3 cucumber lane (`@wip`). Status → done.

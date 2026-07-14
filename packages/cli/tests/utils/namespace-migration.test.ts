@@ -5,7 +5,7 @@
  * performs the consensual move (git mv when tracked, fs rename otherwise) and
  * rewrites stale per-file `paths.*` legacy prefixes in `.safeword/config.json`.
  *
- * Scenario lineage: upgrade-namespace-migration.DEV1.* (test-definitions.md).
+ * Scenario lineage: upgrade-namespace-migration.TB1.* (test-definitions.md).
  */
 
 import { execSync } from 'node:child_process';
@@ -50,7 +50,7 @@ describe('planNamespaceMigration (9MMWS7)', () => {
     expect(planNamespaceMigration(cwd)).toBe('offer');
   });
 
-  it('DEV1.AC2.current_install_gets_no_offer (already-current)', () => {
+  it('TB1.AC2.current_install_gets_no_offer (already-current)', () => {
     mkdirSync(nodePath.join(cwd, '.project'));
 
     expect(planNamespaceMigration(cwd)).toBe('already-current');
@@ -63,7 +63,7 @@ describe('planNamespaceMigration (9MMWS7)', () => {
     expect(planNamespaceMigration(cwd)).toBe('both-dirs');
   });
 
-  it('DEV1.AC3.configured_custom_root_not_offered (custom-root)', () => {
+  it('TB1.AC3.configured_custom_root_not_offered (custom-root)', () => {
     seedLegacy(cwd);
     mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
     writeFileSync(
@@ -74,7 +74,7 @@ describe('planNamespaceMigration (9MMWS7)', () => {
     expect(planNamespaceMigration(cwd)).toBe('custom-root');
   });
 
-  it('DEV1.AC2.move_failure_reports_and_changes_nothing (blocked target)', () => {
+  it('TB1.AC2.move_failure_reports_and_changes_nothing (blocked target)', () => {
     seedLegacy(cwd);
     writeFileSync(nodePath.join(cwd, '.project'), 'a file, not a directory');
 
@@ -97,7 +97,7 @@ describe('executeNamespaceMigration (9MMWS7)', () => {
     removeTemporaryDirectory(cwd);
   });
 
-  it('DEV1.AC1.flag_migrates_legacy_install — git mv preserves history', () => {
+  it('TB1.AC1.flag_migrates_legacy_install — git mv preserves history', () => {
     initGit(cwd);
     seedLegacy(cwd);
     execSync('git add -A && git commit -qm seed', { cwd });
@@ -113,7 +113,7 @@ describe('executeNamespaceMigration (9MMWS7)', () => {
     expect(status).toMatch(/^R\s+\.safeword-project\/personas\.md -> \.project\/personas\.md/m);
   });
 
-  it('DEV1.AC1.untracked_dir_falls_back_to_rename — non-git repo', () => {
+  it('TB1.AC1.untracked_dir_falls_back_to_rename — non-git repo', () => {
     seedLegacy(cwd);
 
     const result = executeNamespaceMigration(cwd);
@@ -125,7 +125,7 @@ describe('executeNamespaceMigration (9MMWS7)', () => {
     );
   });
 
-  it('DEV1.AC3.stale_per_file_overrides_rewritten — config rewrite', () => {
+  it('TB1.AC3.stale_per_file_overrides_rewritten — config rewrite', () => {
     seedLegacy(cwd);
     mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
     writeFileSync(
@@ -157,7 +157,7 @@ describe('migration prompt seam (9MMWS7)', () => {
     removeTemporaryDirectory(cwd);
   });
 
-  it('DEV1.AC1.prompt_accept_migrates — default answer moves the namespace', async () => {
+  it('TB1.AC1.prompt_accept_migrates — default answer moves the namespace', async () => {
     seedLegacy(cwd);
 
     await maybeMigrateNamespace(cwd, { confirmMigration: () => Promise.resolve(true) });
@@ -166,7 +166,7 @@ describe('migration prompt seam (9MMWS7)', () => {
     expect(existsSync(nodePath.join(cwd, '.safeword-project'))).toBe(false);
   });
 
-  it('DEV1.AC2.prompt_decline_leaves_legacy_untouched', async () => {
+  it('TB1.AC2.prompt_decline_leaves_legacy_untouched', async () => {
     seedLegacy(cwd);
     const personasBefore = readFileSync(
       nodePath.join(cwd, '.safeword-project', 'personas.md'),

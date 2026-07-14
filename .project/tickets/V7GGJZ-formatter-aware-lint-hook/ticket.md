@@ -77,7 +77,7 @@ Deferred (not this ticket):
   order; deno.json over-skip noted as known deviation). Stamped phase scenario-gate. Phase → implement.
   Next: TDD (RED) — requires `bun ci` in this worktree first.
 - 2026-06-19T14:03:00.000Z Complete: implement — 4 commits (db6361b9 detector, 783935af install-time
-  oxfmt/deno, fdc9f189 runPrettier skip-gate, 3e01a0e3 session-nag). DEV1.AC3 satisfied by the existing
+  oxfmt/deno, fdc9f189 runPrettier skip-gate, 3e01a0e3 session-nag). TB1.AC3 satisfied by the existing
   formatter-agnostic eslint config (eslint-config-prettier baked into recommendedTypeScript; security via
   basePlugins; no @stylistic) — no change. README FAQ corrected. Full suite green (3073 pass / 3 skip).
   Ledger marked; coverage is unit-level (detector + gate predicate + warning gate), full end-to-end hook
@@ -86,5 +86,5 @@ Deferred (not this ticket):
   criticals; oxfmt set re-verified vs oxc docs), refactor n/a (no smell), /audit passed (arch clean, no
   new dead code/dup). Then wired the cucumber acceptance lane — `steps/formatter-aware-lint-hook.steps.ts`
   spawns the real post-tool-lint hook against temp Biome/dprint/oxfmt/deno/greenfield/own-Prettier repos
-  and asserts on file bytes; 10 scenarios green (full lane 69/741). Only DEV1.AC3 (2 scenarios) stay @wip
+  and asserts on file bytes; 10 scenarios green (full lane 69/741). Only TB1.AC3 (2 scenarios) stay @wip
   (need the real safeword/eslint config in-fixture). 11 commits (db6361b9 → c1d8b652). Status → done.

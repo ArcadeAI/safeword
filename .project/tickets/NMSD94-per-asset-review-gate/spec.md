@@ -24,31 +24,31 @@ Make "work is reviewed before it's built on" enforceable in the safeword workflo
 
 ## Jobs To Be Done
 
-### review-gate.DEV1 — catch a weak asset before downstream work is built on it
+### review-gate.TB1 — catch a weak asset before downstream work is built on it
 
 **Persona:** Technical Builder (TB)
 
 > When I'm building a feature and the agent produces each artifact in turn (jobs → acceptance criteria → scenarios, and each TDD step), I want a quick review forced on each one before the next is authored, so a flawed foundation is caught early instead of after the whole chain has been poured on top of it.
 
-#### review-gate.DEV1.AC1 — the next artifact can't be authored until the prior one is reviewed
+#### review-gate.TB1.AC1 — the next artifact can't be authored until the prior one is reviewed
 
 Authoring artifact N+1 is denied (with a reason naming what's unreviewed) until artifact N carries a review stamp; a `skip: <reason>` stamp also clears it.
 
-#### review-gate.DEV1.AC2 — the forced per-asset review is inline, no separate agent run
+#### review-gate.TB1.AC2 — the forced per-asset review is inline, no separate agent run
 
 Satisfying the per-asset stamp spawns no fresh sub-agent — the review is the working agent's own inline pass, so it adds no per-asset spin-up cost.
 
-### review-gate.DEV2 — guarantee an independent review actually ran at each phase
+### review-gate.TB2 — guarantee an independent review actually ran at each phase
 
 **Persona:** Technical Builder (TB)
 
 > When the agent advances from one workflow phase to the next, I want proof that an independent review ran — not the author grading its own work, and not skipped — so review isn't silently dropped and I don't have to keep manually prompting for it.
 
-#### review-gate.DEV2.AC1 — a phase can't advance until an independent review of it has run
+#### review-gate.TB2.AC1 — a phase can't advance until an independent review of it has run
 
 Advancing past a phase boundary is denied until a logged independent-review stamp for that phase exists; a recorded skip clears it.
 
-#### review-gate.DEV2.AC2 — the phase-exit review is independent, not the author
+#### review-gate.TB2.AC2 — the phase-exit review is independent, not the author
 
 The phase-exit review is performed by a fresh reviewer with no conversation history (so it can't rubber-stamp its own work), and its verdict is what the stamp records.
 

@@ -483,7 +483,7 @@ function findRuleNameTagIssues(rule: {
   if (ruleReference === undefined) return [];
 
   // The id ends at the first whitespace or dash separator. Split on em/en dash
-  // too so a name glued as `demo.DEV1.R1—foo` still yields the id, not a false
+  // too so a name glued as `demo.TB1.R1—foo` still yields the id, not a false
   // mismatch; a plain `-` stays part of the token (kebab slugs contain it).
   const nameToken = rule.name.trim().split(/[\s—–]+/, 1)[0] ?? '';
   if (nameToken === ruleReference.reference) return [];

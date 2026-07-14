@@ -26,7 +26,7 @@ doctor-style diagnostic for CI and debugging.
 
 ## Jobs To Be Done
 
-### self-verify-setup-upgrade.DEV1 — Know immediately when setup or upgrade left the project broken
+### self-verify-setup-upgrade.TB1 — Know immediately when setup or upgrade left the project broken
 
 **Persona:** Technical Builder (TB)
 
@@ -34,17 +34,17 @@ doctor-style diagnostic for CI and debugging.
 > verify the configuration it just wrote and fail loudly if it's broken, so I
 > don't run sessions on a half-applied install I had no way to notice.
 
-#### self-verify-setup-upgrade.DEV1.AC1 — Setup ends with a config-health verification: issues are reported and the command exits non-zero
+#### self-verify-setup-upgrade.TB1.AC1 — Setup ends with a config-health verification: issues are reported and the command exits non-zero
 
-#### self-verify-setup-upgrade.DEV1.AC2 — Upgrade ends with the same verification and failure semantics
+#### self-verify-setup-upgrade.TB1.AC2 — Upgrade ends with the same verification and failure semantics
 
-#### self-verify-setup-upgrade.DEV1.AC3 — The self-verify is config-health only: no npm update-check, no network, no "update available" nag
+#### self-verify-setup-upgrade.TB1.AC3 — The self-verify is config-health only: no npm update-check, no network, no "update available" nag
 
-#### self-verify-setup-upgrade.DEV1.AC4 — A clean result stays quiet: one health success line, no duplicate output walls
+#### self-verify-setup-upgrade.TB1.AC4 — A clean result stays quiet: one health success line, no duplicate output walls
 
-#### self-verify-setup-upgrade.DEV1.AC5 — A failing post-upgrade verification never tells the user to "run `safeword upgrade`" as the fix (remediation hint matches context)
+#### self-verify-setup-upgrade.TB1.AC5 — A failing post-upgrade verification never tells the user to "run `safeword upgrade`" as the fix (remediation hint matches context)
 
-### self-verify-setup-upgrade.DEV2 — Trust the install without learning safeword's diagnostic commands
+### self-verify-setup-upgrade.TB2 — Trust the install without learning safeword's diagnostic commands
 
 **Persona:** Technical Builder (TB)
 
@@ -52,9 +52,9 @@ doctor-style diagnostic for CI and debugging.
 > without me knowing a separate command exists, so the tool carries its own
 > quality bar instead of delegating it to my memory.
 
-#### self-verify-setup-upgrade.DEV2.AC1 — Docs present `check` as an automatic step that also exists standalone (CI/debugging), not a routine human command
+#### self-verify-setup-upgrade.TB2.AC1 — Docs present `check` as an automatic step that also exists standalone (CI/debugging), not a routine human command
 
-#### self-verify-setup-upgrade.DEV2.AC2 — Standalone `safeword check` behavior is unchanged by the extraction
+#### self-verify-setup-upgrade.TB2.AC2 — Standalone `safeword check` behavior is unchanged by the extraction
 
 ## Outcomes
 

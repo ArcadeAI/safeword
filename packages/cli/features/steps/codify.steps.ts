@@ -30,7 +30,7 @@ const DEMO_DEFINITIONS = [
   '',
   '## Rule: demo',
   '',
-  '### Scenario: demo.DEV1.AC1.one',
+  '### Scenario: demo.TB1.AC1.one',
   '',
   'Given a',
   'When b',

@@ -21,13 +21,13 @@ Keep the impl plan honest: when implementation finishes, the plan is reconciled 
 
 ## Jobs To Be Done
 
-### plan-reconciliation.DEV1 — Trust the plan as a record of what shipped
+### plan-reconciliation.TB1 — Trust the plan as a record of what shipped
 
 **Persona:** Technical Builder (TB)
 
 > When I read a finished feature's impl plan, I want it to reflect what was actually built — including decisions that changed mid-flight — so I can rely on it instead of diffing it against the code.
 
-#### plan-reconciliation.DEV1.AC1 — The implement-exit procedure walks Decisions, Arch alignment, and Assessment triggers and records what changed
+#### plan-reconciliation.TB1.AC1 — The implement-exit procedure walks Decisions, Arch alignment, and Assessment triggers and records what changed
 
 ### plan-reconciliation.SM1 — Enforce reconciliation machine-side
 

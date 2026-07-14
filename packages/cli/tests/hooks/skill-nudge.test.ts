@@ -189,9 +189,9 @@ describe('decideSkillNudge', () => {
   const installed = new Set(['golang']);
 
   it('fires for a Go edit when golang skills are installed', () => {
-    const nudge = decideSkillNudge('a/b/main.go', installed, 'pkg.DEV1.AC1.x');
+    const nudge = decideSkillNudge('a/b/main.go', installed, 'pkg.TB1.AC1.x');
     expect(nudge?.line).toContain('golang-*');
-    expect(nudge?.dedupKey).toBe('golang:pkg.DEV1.AC1.x');
+    expect(nudge?.dedupKey).toBe('golang:pkg.TB1.AC1.x');
   });
 
   it('does not fire when golang skills are not installed', () => {

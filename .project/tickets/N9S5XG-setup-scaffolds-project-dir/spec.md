@@ -1,7 +1,7 @@
 # Spec: Fresh safeword setup scaffolds .project/
 
 > Child of epic [AQJ95G](../AQJ95G-project-namespace-default/spec.md). This
-> child implements **DEV1.AC1** (fresh install scaffolds `.project/`) plus the
+> child implements **TB1.AC1** (fresh install scaffolds `.project/`) plus the
 > seamlessness guarantees around it (driver steer 2026-06-12: the experience
 > must be seamless for the end developer in every starting state). Sibling
 > 9MMWS7 owns legacy migration; TAGWZ8 (done) provides the resolver.
@@ -20,7 +20,7 @@ never has a file clobbered.
 
 ## Jobs To Be Done
 
-### setup-scaffolds-project-dir.DEV1 — Set up into the right namespace, whatever my repo looks like
+### setup-scaffolds-project-dir.TB1 — Set up into the right namespace, whatever my repo looks like
 
 **Persona:** Technical Builder (TB)
 
@@ -28,13 +28,13 @@ never has a file clobbered.
 > root for my repo's state — new, arcade, or legacy — so setup just works and
 > I never end up with two namespace directories or clobbered files.
 
-#### setup-scaffolds-project-dir.DEV1.AC1 — A fresh repo gets `.project/` with all namespace directories and starter files
+#### setup-scaffolds-project-dir.TB1.AC1 — A fresh repo gets `.project/` with all namespace directories and starter files
 
-#### setup-scaffolds-project-dir.DEV1.AC2 — A repo with an existing `.project/` is adopted: missing pieces are added, existing user files are never overwritten
+#### setup-scaffolds-project-dir.TB1.AC2 — A repo with an existing `.project/` is adopted: missing pieces are added, existing user files are never overwritten
 
-#### setup-scaffolds-project-dir.DEV1.AC3 — A legacy-only repo keeps operating entirely in `.safeword-project/`; no `.project/` appears
+#### setup-scaffolds-project-dir.TB1.AC3 — A legacy-only repo keeps operating entirely in `.safeword-project/`; no `.project/` appears
 
-#### setup-scaffolds-project-dir.DEV1.AC4 — Every lifecycle command (setup, upgrade, diff, reset) agrees on the same resolved root
+#### setup-scaffolds-project-dir.TB1.AC4 — Every lifecycle command (setup, upgrade, diff, reset) agrees on the same resolved root
 
 ## Outcomes
 

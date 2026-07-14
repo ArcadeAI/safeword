@@ -37,7 +37,7 @@ fail for a true-RED "make them pass" board. (`it.fails` is wrong — green-while
 
 ## Jobs To Be Done
 
-### codify.DEV1 — Scaffold every scenario into a runnable test board in one shot
+### codify.TB1 — Scaffold every scenario into a runnable test board in one shot
 
 **Persona:** Technical Builder (TB)
 
@@ -46,11 +46,11 @@ fail for a true-RED "make them pass" board. (`it.fails` is wrong — green-while
 > so I can see a concrete "N tests to make pass" board before I start
 > implementing, instead of hand-typing each test during its RED phase.
 
-#### codify.DEV1.AC1 — Each scenario becomes exactly one test, grouped under its rule, lineage-named, with Given/When/Then preserved as comments
+#### codify.TB1.AC1 — Each scenario becomes exactly one test, grouped under its rule, lineage-named, with Given/When/Then preserved as comments
 
-#### codify.DEV1.AC2 — Stubs are pending (`it.todo`) by default to keep the suite green; `--red` emits failing bodies for a true-RED board
+#### codify.TB1.AC2 — Stubs are pending (`it.todo`) by default to keep the suite green; `--red` emits failing bodies for a true-RED board
 
-#### codify.DEV1.AC3 — The skeleton prints to stdout by default; `--out <path>` writes a file but refuses to overwrite an existing one; missing or scenario-less input fails with a clear message
+#### codify.TB1.AC3 — The skeleton prints to stdout by default; `--out <path>` writes a file but refuses to overwrite an existing one; missing or scenario-less input fails with a clear message
 
 ## Outcomes
 

@@ -67,13 +67,13 @@ Feature: migrate consumers to test-plan
       And it does not define "nativeTestCommand", "getJsTestCommands", or "pythonTestCommand"
       And it invokes "test-plan" via the safeword CLI
 
-    @wip @migrate-consumers.DEV1.AC1
+    @wip @migrate-consumers.TB1.AC1
     Scenario: A JS project still runs its test script and the acceptance lane
       Given a project whose package.json has a "test" and a "test:bdd" script
       When the stop-hook test runner runs
       Then both the test script and the acceptance lane are executed
 
-    @wip @migrate-consumers.DEV1.AC1
+    @wip @migrate-consumers.TB1.AC1
     Scenario: A project with no runnable suite skips without blocking
       Given a project with no test script and no language manifest
       When the stop-hook test runner runs

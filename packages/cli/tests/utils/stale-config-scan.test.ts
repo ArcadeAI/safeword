@@ -6,7 +6,7 @@
  * excluding documentary refs under the moved `.project/`, the owned `.safeword/`
  * dir, substring near-misses, and the managed `.prettierignore` block.
  *
- * Scenario lineage: migration-stale-config-warning.DEV1.* (test-definitions.md).
+ * Scenario lineage: migration-stale-config-warning.TB1.* (test-definitions.md).
  */
 
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -42,13 +42,13 @@ describe('scanStaleNamespaceConfigs (JYWZG1)', () => {
     removeTemporaryDirectory(cwd);
   });
 
-  it('DEV1.AC1.scanner_finds_stale_eslint_config', () => {
+  it('TB1.AC1.scanner_finds_stale_eslint_config', () => {
     write(cwd, 'eslint.config.ts', "export default [{ ignores: ['.safeword-project/'] }];\n");
 
     expect(scanStaleNamespaceConfigs(cwd)).toContain('eslint.config.ts');
   });
 
-  it('DEV1.AC1.scanner_finds_multiple_config_types', () => {
+  it('TB1.AC1.scanner_finds_multiple_config_types', () => {
     write(cwd, 'tsconfig.json', '{ "exclude": [".safeword-project/"] }\n');
     write(cwd, '.github/workflows/ci.yml', "paths-ignore: ['.safeword-project/**']\n");
 
@@ -57,37 +57,37 @@ describe('scanStaleNamespaceConfigs (JYWZG1)', () => {
     );
   });
 
-  it('DEV1.AC3.clean_repo_produces_no_warning', () => {
+  it('TB1.AC3.clean_repo_produces_no_warning', () => {
     write(cwd, 'eslint.config.ts', "export default [{ ignores: ['.project/'] }];\n");
 
     expect(scanStaleNamespaceConfigs(cwd)).toEqual([]);
   });
 
-  it('DEV1.AC3.managed_prettierignore_block_not_flagged', () => {
+  it('TB1.AC3.managed_prettierignore_block_not_flagged', () => {
     write(cwd, '.prettierignore', MANAGED_PRETTIER_BLOCK);
 
     expect(scanStaleNamespaceConfigs(cwd)).toEqual([]);
   });
 
-  it('DEV1.AC3.customer_prettierignore_line_is_flagged', () => {
+  it('TB1.AC3.customer_prettierignore_line_is_flagged', () => {
     write(cwd, '.prettierignore', `${MANAGED_PRETTIER_BLOCK}\n.safeword-project/cache/\n`);
 
     expect(scanStaleNamespaceConfigs(cwd)).toContain('.prettierignore');
   });
 
-  it('DEV1.AC3.raw_legacy_line_without_managed_block_is_flagged', () => {
+  it('TB1.AC3.raw_legacy_line_without_managed_block_is_flagged', () => {
     write(cwd, '.prettierignore', '.safeword-project/\nnode_modules/\n');
 
     expect(scanStaleNamespaceConfigs(cwd)).toContain('.prettierignore');
   });
 
-  it('DEV1.AC3.substring_near_miss_not_flagged', () => {
+  it('TB1.AC3.substring_near_miss_not_flagged', () => {
     write(cwd, 'eslint.config.ts', "export default [{ ignores: ['.safeword-projectile/'] }];\n");
 
     expect(scanStaleNamespaceConfigs(cwd)).toEqual([]);
   });
 
-  it('DEV1.AC3.reference_under_safeword_owned_dir_not_flagged', () => {
+  it('TB1.AC3.reference_under_safeword_owned_dir_not_flagged', () => {
     write(cwd, '.safeword/config.json', '{ "note": ".safeword-project/ legacy" }\n');
 
     expect(scanStaleNamespaceConfigs(cwd)).toEqual([]);
@@ -101,7 +101,7 @@ describe('scanStaleNamespaceConfigs (JYWZG1)', () => {
     expect(scanStaleNamespaceConfigs(cwd)).toEqual([]);
   });
 
-  it('DEV1.AC3.documentary_reference_under_namespace_not_flagged', () => {
+  it('TB1.AC3.documentary_reference_under_namespace_not_flagged', () => {
     write(cwd, '.project/tickets/T/ticket.md', 'This ticket moved from .safeword-project/.\n');
 
     expect(scanStaleNamespaceConfigs(cwd)).toEqual([]);
