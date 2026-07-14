@@ -30,8 +30,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 const CLI_PATH = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
 const PLUGIN_PATH = nodePath.resolve(import.meta.dirname, '../../codex-plugin');
 const LIVE_MARKETPLACE_NAME = 'safeword-live-smoke';
-const NPM_SHIM_LOG = 'npx-safeword-invocations.log';
-const SYSTEM_NPX_PATH = spawnSync('which', ['npx'], { encoding: 'utf8' }).stdout.trim();
+const BUNX_SHIM_LOG = 'bunx-safeword-invocations.log';
 
 function resolveCodex(): string | undefined {
   const candidates = [process.env.SMOKE_CODEX_BIN, 'codex'].filter(Boolean) as string[];
@@ -81,7 +80,6 @@ function assertSuccess(
 function createFixture(): string {
   const projectRoot = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-live-'));
   run('git', ['init', '-q'], { cwd: projectRoot });
-  if (SYSTEM_NPX_PATH === '') throw new Error('live smoke requires npx on PATH');
   writeFileSync(
     nodePath.join(projectRoot, 'package.json'),
     JSON.stringify({ name: 'codex-live-fixture', version: '1.0.0' }, undefined, 2),
@@ -132,20 +130,20 @@ function createMarketplace(root: string): string {
   return marketplaceRoot;
 }
 
-function writeNpxShim(root: string): string {
+function writeBunxShim(root: string): string {
   const binDirectory = nodePath.join(root, 'bin');
-  const shimPath = nodePath.join(binDirectory, 'npx');
+  const shimPath = nodePath.join(binDirectory, 'bunx');
   mkdirSync(binDirectory, { recursive: true });
   writeFileSync(
     shimPath,
     `#!/bin/sh
 set -eu
-if [ "\${1:-}" = "--yes" ] && [ "\${2:-}" = "safeword" ]; then
+if [ "\${1:-}" = "--bun" ] && [ "\${2:-}" = "safeword@0.68.0" ]; then
   printf '%s\\n' "$*" >> "$SAFEWORD_NPX_SHIM_LOG"
   shift 2
   exec "${process.execPath}" "${CLI_PATH}" "$@"
 fi
-exec "${SYSTEM_NPX_PATH}" "$@"
+exit 1
 `,
     { mode: 0o755 },
   );
@@ -223,14 +221,14 @@ const CAN_RUN = process.env.SAFEWORD_RUN_CODEX_LIVE_SMOKE === '1' && CODEX !== u
 describe.skipIf(!CAN_RUN)('live smoke: Codex packaged plugin parity', () => {
   let projectRoot: string;
   let codexHome: string;
-  let npxBinDirectory: string;
+  let bunxBinDirectory: string;
   let marketplaceRoot: string;
 
   beforeAll(() => {
     if (!CODEX) throw new Error('unreachable: CAN_RUN guards codex presence');
     projectRoot = createFixture();
     codexHome = createAuthenticatedCodexHome();
-    npxBinDirectory = writeNpxShim(codexHome);
+    bunxBinDirectory = writeBunxShim(codexHome);
     marketplaceRoot = createMarketplace(codexHome);
     installPlugin(CODEX, projectRoot, codexHome, marketplaceRoot);
   });
@@ -251,11 +249,11 @@ describe.skipIf(!CAN_RUN)('live smoke: Codex packaged plugin parity', () => {
     expect(existsSync(nodePath.join(projectRoot, '.safeword'))).toBe(false);
     expect(existsSync(nodePath.join(projectRoot, '.agents'))).toBe(false);
 
-    const shimLog = nodePath.join(codexHome, NPM_SHIM_LOG);
+    const shimLog = nodePath.join(codexHome, BUNX_SHIM_LOG);
     const environment = {
       CODEX_HOME: codexHome,
       SAFEWORD_NPX_SHIM_LOG: shimLog,
-      PATH: `${npxBinDirectory}:${process.env.PATH ?? ''}`,
+      PATH: `${bunxBinDirectory}:${process.env.PATH ?? ''}`,
     };
 
     runUntrustedPluginCheck(CODEX, projectRoot, environment);
