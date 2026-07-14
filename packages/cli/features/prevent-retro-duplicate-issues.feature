@@ -1,4 +1,4 @@
-@prevent-retro-duplicate-issues
+@manual @prevent-retro-duplicate-issues
 Feature: Prevent repeated retro findings from opening duplicate issues
 
   Retro runs can describe the same friction differently. Exact, code-derived
