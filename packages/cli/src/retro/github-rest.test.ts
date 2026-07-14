@@ -91,6 +91,27 @@ describe('createRestTransport', () => {
     expect(matches).toEqual([{ number: 2, title: 'exact' }]);
   });
 
+  it('prevent-retro-duplicate-issues.SM1.R2.rejects a canonical hash token without its exact marker', async () => {
+    mockFetch(() => ({
+      json: () => ({
+        items: [
+          { number: 1, title: 'near miss', body: 'contains canonical:abc123def456-suffix' },
+          {
+            number: 2,
+            title: 'exact',
+            body: '<!-- safeword-retro-canonical: canonical:abc123def456 -->',
+          },
+        ],
+      }),
+    }));
+    const transport = createRestTransport('tok');
+    if (!transport?.searchByCanonical) throw new Error('expected a canonical-capable transport');
+
+    const matches = await transport.searchByCanonical('canonical:abc123def456');
+
+    expect(matches).toEqual([{ number: 2, title: 'exact' }]);
+  });
+
   it('C1: paginates listComments until a short page', async () => {
     const fullPage = Array.from({ length: 100 }, (_, i) => ({ id: i, body: `c${i}` }));
     const calls = mockFetch(url => ({

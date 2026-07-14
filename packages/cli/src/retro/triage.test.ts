@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { type RetroDraft, signatureMarker } from './draft.js';
+import { canonicalMarker, type RetroDraft, signatureMarker } from './draft.js';
 import { shortHash } from './hash.js';
 import { LEDGER_MARKER, renderLedger } from './ledger.js';
 import {
@@ -33,13 +33,14 @@ class FakeGitHub implements IssueTracker {
     title: string,
     ledger?: { sessions: string[]; manifestations: string[] },
     signature = `retro:${title}`,
+    canonicalSignature = `canonical:${title}`,
   ): StoredIssue {
     // Embed the signature marker in the body so searchBySignature finds it, exactly
     // as a real retro-filed issue carries it (buildDraft → signatureMarker).
     const issue: StoredIssue = {
       number: this.nextIssue++,
       title,
-      body: signatureMarker(signature),
+      body: `${signatureMarker(signature)}\n${canonicalMarker(canonicalSignature)}`,
       labels: [],
     };
     this.issues.push(issue);
@@ -65,6 +66,14 @@ class FakeGitHub implements IssueTracker {
     return Promise.resolve(
       this.issues
         .filter(i => i.body.includes(signature))
+        .map(i => ({ number: i.number, title: i.title })),
+    );
+  }
+
+  searchByCanonical(canonicalSignature: string): Promise<IssueReference[]> {
+    return Promise.resolve(
+      this.issues
+        .filter(i => i.body.includes(canonicalMarker(canonicalSignature)))
         .map(i => ({ number: i.number, title: i.title })),
     );
   }
@@ -104,9 +113,11 @@ class FakeGitHub implements IssueTracker {
 }
 
 const draft = (title: string, signature = `retro:${title}`): RetroDraft => {
-  const body = `body for ${title}\n${signatureMarker(signature)}`;
+  const canonicalSignature = `canonical:${title}`;
+  const body = `body for ${title}\n${signatureMarker(signature)}\n${canonicalMarker(canonicalSignature)}`;
   return {
     signature,
+    canonicalSignature,
     title,
     body,
     bodyDigest: shortHash(body),
@@ -178,6 +189,28 @@ describe('triage — never a duplicate issue (SM1.AC2)', () => {
 });
 
 describe('triage — dedupe by content signature, not title (ZFGWS1 SM2.AC1)', () => {
+  it('prevent-retro-duplicate-issues.SM1.R1.canonical_repro_match_with_drift_updates_the_existing_issue', async () => {
+    const gh = new FakeGitHub();
+    gh.seedIssue(
+      'Original wording',
+      { sessions: ['old'], manifestations: ['m1'] },
+      'retro:old-signature',
+      'canonical:same-repro',
+    );
+    const recurrence: Encounter = {
+      draft: {
+        ...draft('Different title', 'retro:new-signature'),
+        canonicalSignature: 'canonical:same-repro',
+      },
+      manifestation: 'm1',
+    };
+
+    const result = await triage(gh, [recurrence], ctx({ sessionId: 'sess-new' }));
+
+    expect(gh.calls.createIssue).toBe(0);
+    expect(result.bumped).toEqual(['Original wording']);
+  });
+
   it('retro-recall.SM2.AC1.repeat_signature_under_a_different_title_opens_no_second_issue', async () => {
     const gh = new FakeGitHub();
     // An issue already filed for signature S under one (model-generated) title.

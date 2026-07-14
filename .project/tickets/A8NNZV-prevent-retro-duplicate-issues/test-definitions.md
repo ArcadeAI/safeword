@@ -16,9 +16,9 @@ separate scope.
 
 ### Scenario: New issue body contains the exact canonical repro marker
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 614da600
+- [x] GREEN f2b18cf0
+- [x] REFACTOR skip: marker construction stays a small pure helper beside the legacy marker
 
 ### Scenario: Same repro with altered title category and surface finds the canonical issue
 

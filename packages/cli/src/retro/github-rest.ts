@@ -6,6 +6,7 @@
 import { spawnSync } from 'node:child_process';
 import process from 'node:process';
 
+import { canonicalMarker } from './draft.js';
 import type { ReconcileIssue, ReconcileTracker } from './reconcile.js';
 import type { CreateIssueInput, IssueComment, IssueReference, IssueTracker } from './triage.js';
 
@@ -110,6 +111,18 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
       };
       return (data.items ?? [])
         .filter(item => (item.body ?? '').includes(signature))
+        .map(item => ({ number: item.number, title: item.title }));
+    },
+
+    async searchByCanonical(canonicalSignature: string): Promise<IssueReference[]> {
+      const hashToken = canonicalSignature.replace(/^canonical:/, '');
+      const query = encodeURIComponent(`repo:${UPSTREAM_REPO} in:body state:open ${hashToken}`);
+      const data = (await call('GET', `/search/issues?q=${query}&per_page=100`)) as {
+        items?: { number: number; title: string; body?: string }[];
+      };
+      const marker = canonicalMarker(canonicalSignature);
+      return (data.items ?? [])
+        .filter(item => (item.body ?? '').includes(marker))
         .map(item => ({ number: item.number, title: item.title }));
     },
 
