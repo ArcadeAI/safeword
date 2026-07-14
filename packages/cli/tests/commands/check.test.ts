@@ -275,7 +275,7 @@ describe('Test Suite 8: Health Check', () => {
 
       expect(result.exitCode).toBe(1);
       expect(result.stderr).toMatch(/non-canonical code/);
-      expect(result.stderr).toMatch(/author an explicit 3–4 letter code/);
+      expect(result.stderr).toMatch(/author an explicit 2–4 letter code/);
     });
 
     it('passes when personas.md is well-formed', async () => {
