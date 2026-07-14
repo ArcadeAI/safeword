@@ -228,6 +228,23 @@ const CURSOR_COMMAND_WRAPPER_OWNED_FILES: Record<string, FileDefinition> = Objec
   ]),
 );
 
+function skipCodexRuntimeAssetInstall(): undefined {
+  return;
+}
+
+const CODEX_RUNTIME_ASSETS: Record<string, ManagedFileDefinition> = Object.fromEntries(
+  [
+    'pre-tool-quality.ts',
+    'pre-tool-quality-helpers.ts',
+    'post-tool-quality.ts',
+    'post-tool-skill-nudge.ts',
+    'stop.ts',
+  ].map(file => [
+    `.safeword/hooks/codex/${file}`,
+    { template: `hooks/codex/${file}`, generator: skipCodexRuntimeAssetInstall },
+  ]),
+);
+
 // ============================================================================
 // SAFEWORD_SCHEMA - The Single Source of Truth
 // ============================================================================
@@ -1035,6 +1052,11 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
 
   // Files created if missing, updated only if content matches current template
   managedFiles: {
+    // Package-owned Codex runtime adapters. Their generator intentionally
+    // returns undefined: the plugin CLI executes them from the npm package,
+    // never from a customer repository.
+    ...CODEX_RUNTIME_ASSETS,
+
     // BDD acceptance lane working files (ticket 102b) — scaffolded once; the
     // customer owns them thereafter (created if missing, updated only while
     // still safeword's template content). The lane config (cucumber.mjs) is

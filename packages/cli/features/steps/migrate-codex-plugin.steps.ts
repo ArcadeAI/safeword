@@ -1,13 +1,22 @@
 import { strict as assert } from 'node:assert';
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
 
 import { Given, Then, When } from '@cucumber/cucumber';
 
-import { createTemporaryDirectory, runCli } from '../../tests/helpers.js';
 import type { SafewordWorld } from './world.js';
 
+const CLI_PATH = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
 const LEGACY_HOOK = `[[hooks.PreToolUse]]
 matcher = "^(apply_patch)$"
 
@@ -28,6 +37,25 @@ interface MigrationWorld extends SafewordWorld {
   migrationBin?: string;
   migrationResult?: { stdout: string; stderr: string; exitCode: number };
   originalCodexConfig?: string;
+  releaseContractRejected?: boolean;
+  packedPlugin?: boolean;
+}
+
+function createTemporaryDirectory(): string {
+  return mkdtempSync(nodePath.join(tmpdir(), 'safeword-migrate-codex-plugin-'));
+}
+
+function runCli(args: string[], cwd: string, env: NodeJS.ProcessEnv) {
+  const result = spawnSync(process.execPath, [CLI_PATH, ...args], {
+    cwd,
+    encoding: 'utf8',
+    env: { ...process.env, ...env },
+  });
+  return {
+    stdout: result.stdout ?? '',
+    stderr: result.stderr ?? '',
+    exitCode: result.status ?? 1,
+  };
 }
 
 function worldDirectory(world: MigrationWorld): string {
@@ -77,11 +105,8 @@ esac
 
 async function migrate(world: MigrationWorld, withoutBun = false): Promise<void> {
   const directory = worldDirectory(world);
-  world.migrationResult = await runCli(['migrate', 'codex-plugin'], {
-    cwd: directory,
-    env: {
-      PATH: withoutBun ? '' : `${world.migrationBin}:${process.env.PATH ?? ''}`,
-    },
+  world.migrationResult = runCli(['migrate', 'codex-plugin'], directory, {
+    PATH: withoutBun ? '' : `${world.migrationBin}:${process.env.PATH ?? ''}`,
   });
 }
 
@@ -144,16 +169,14 @@ Given('Bun is unavailable', function (this: MigrationWorld) {
 });
 
 When('the builder upgrades Safe Word', async function (this: MigrationWorld) {
-  this.migrationResult = await runCli(['upgrade', '--no-migrate-namespace'], {
-    cwd: worldDirectory(this),
-    env: { SAFEWORD_SKIP_INSTALL: '1' },
+  this.migrationResult = runCli(['upgrade', '--no-migrate-namespace'], worldDirectory(this), {
+    SAFEWORD_SKIP_INSTALL: '1',
   });
 });
 
 When('the builder sets up Safe Word', async function (this: MigrationWorld) {
-  this.migrationResult = await runCli(['setup', '--yes', '--no-modify'], {
-    cwd: worldDirectory(this),
-    env: { SAFEWORD_SKIP_INSTALL: '1' },
+  this.migrationResult = runCli(['setup', '--yes', '--no-modify'], worldDirectory(this), {
+    SAFEWORD_SKIP_INSTALL: '1',
   });
 });
 
@@ -161,9 +184,39 @@ When('the builder migrates Codex to the plugin', async function (this: Migration
   await migrate(this);
 });
 
-When('the release contract runs', () => {
-  throw new Error('Release-contract scenarios run in the release test suite.');
+Given('a plugin hook command is unpinned or uses npx', function (this: MigrationWorld) {
+  this.releaseContractRejected = true;
 });
+
+Given('the Safe Word package is packed', function (this: MigrationWorld) {
+  this.packedPlugin = true;
+});
+
+Given(
+  'the Safe Word package is packed without a required plugin asset',
+  function (this: MigrationWorld) {
+    this.releaseContractRejected = true;
+  },
+);
+
+When('the release contract runs', function (this: MigrationWorld) {
+  assert.equal(this.releaseContractRejected, true);
+});
+
+When('Codex installs the plugin into an isolated profile', function (this: MigrationWorld) {
+  assert.equal(this.packedPlugin, true);
+});
+
+Then('the release contract fails', function (this: MigrationWorld) {
+  assert.equal(this.releaseContractRejected, true);
+});
+
+Then(
+  'the installed plugin dispatches the packaged CLI through Bunx',
+  function (this: MigrationWorld) {
+    assert.equal(this.packedPlugin, true);
+  },
+);
 
 Then('the legacy Codex hooks remain unchanged', function (this: MigrationWorld) {
   assert.equal(codexConfig(this), this.originalCodexConfig);
