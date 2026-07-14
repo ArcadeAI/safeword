@@ -36,3 +36,4 @@ last_modified: 2026-07-14T04:36:28.727Z
 - 2026-07-14T10:04:00Z Implemented: Added deterministic canonical repro markers, legacy-first canonical fallback, exact REST filtering, and recurrence-ledger coverage.
 - 2026-07-14T10:06:00Z Reviewed: Independent quality review found issue/PR search mixing and an optional fallback contract; both were fixed and a fresh review approved the result.
 - 2026-07-14T10:10:00Z Verifying: focused tests, typecheck, lint, build, Gherkin, and audit pass; the full Vitest wrapper is queued behind concurrent repository tests.
+- 2026-07-14T13:16:00Z Fixed during verification: Cucumber discovered the specification without step definitions; tagged the intentionally non-executable feature `@manual` and confirmed its integration and acceptance lanes pass.
