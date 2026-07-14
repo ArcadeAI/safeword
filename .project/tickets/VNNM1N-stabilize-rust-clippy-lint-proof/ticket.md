@@ -34,3 +34,4 @@ Cargo boundary (the invocation log appears once both paths are normalized).
 
 - 2026-07-14T05:25:00.000-04:00 Implemented: normalize the installed lint hook's project root with `realpathSync`, matching normalized edited-file paths. Scenario 10 now replaces a Clippy-version-sensitive source rewrite with an observable fake-Cargo boundary assertion for `clippy -p core --fix --allow-dirty --allow-staged`.
 - 2026-07-14T05:26:00.000-04:00 Verify: targeted scenario passes; combined Rust golden-path and cleanup-zombies regression files pass 70/70; lint and TypeScript typecheck pass. Advanced to verify.
+- 2026-07-14T05:54:00.000-04:00 Verify: full CLI suite passes (354 files, 5,211 tests; 5 skipped).

@@ -33,3 +33,4 @@ use the logical spelling.
 
 - 2026-07-14T05:25:00.000-04:00 Implemented: cleanup-zombies now retains the safe `/var/...` alias when `pwd -P` resolves a project to `/private/var/...`, and searches either exact project spelling without widening the process scope.
 - 2026-07-14T05:26:00.000-04:00 Verify: cleanup-zombies behavioral regression passes as part of 70/70 Rust and cleanup tests; lint and TypeScript typecheck pass. Advanced to verify.
+- 2026-07-14T05:54:00.000-04:00 Verify: full CLI suite passes (354 files, 5,211 tests; 5 skipped).
