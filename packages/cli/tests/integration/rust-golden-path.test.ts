@@ -13,7 +13,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { unlinkSync } from 'node:fs';
+import { chmodSync, mkdirSync, unlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -783,9 +783,9 @@ describe('E2E: Rust Lint Hook Package Targeting', () => {
   it.skipIf(!IS_CLIPPY_AVAILABLE)(
     'lint hook runs cargo clippy with -p <package> for workspace member (Scenario 10)',
     () => {
-      // Create a file with a clippy-fixable issue: single_char_pattern
-      // clippy suggests 'l' (char) instead of "l" (string) for contains()
-      // This CANNOT be fixed by rustfmt, only by clippy --fix
+      // The fake cargo executable is the process boundary: it makes the
+      // package-targeted Clippy command observable without assuming a
+      // particular Clippy version's autofix output.
       writeTestFile(
         projectDirectory,
         'crates/core/src/lib.rs',
@@ -795,17 +795,29 @@ describe('E2E: Rust Lint Hook Package Targeting', () => {
 }
 `,
       );
+      const fakeBin = nodePath.join(projectDirectory, 'fake-bin');
+      const invocationLog = nodePath.join(projectDirectory, 'cargo-invocation.txt');
+      mkdirSync(fakeBin, { recursive: true });
+      const fakeCargo = nodePath.join(fakeBin, 'cargo');
+      writeTestFile(
+        projectDirectory,
+        'fake-bin/cargo',
+        String.raw`#!/usr/bin/env bash
+printf '%s\n' "$*" > "${invocationLog}"
+`,
+      );
+      chmodSync(fakeCargo, 0o755);
 
       const filePath = nodePath.join(projectDirectory, 'crates/core/src/lib.rs');
-      const result = runLintHook(projectDirectory, filePath);
+      const result = runLintHook(projectDirectory, filePath, {
+        PATH: `${fakeBin}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      });
 
       // Hook should complete successfully
       expect(result.status).toBe(0);
-
-      // Verify clippy ran and fixed the single_char_pattern issue
-      // If clippy ran with --fix, it changes "l" to 'l'
-      const fixed = readTestFile(projectDirectory, 'crates/core/src/lib.rs');
-      expect(fixed).toContain("s.contains('l')"); // Clippy fix: char instead of &str
+      expect(readTestFile(projectDirectory, 'cargo-invocation.txt')).toBe(
+        'clippy -p core --fix --allow-dirty --allow-staged\n',
+      );
     },
   );
 

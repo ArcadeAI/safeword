@@ -974,7 +974,11 @@ export async function setupReconcileTest(
  * @param projectDirectory - Project directory with safeword hooks installed
  * @param filePath - Absolute path to the file being linted
  */
-export function runLintHook(projectDirectory: string, filePath: string): SpawnSyncReturns<string> {
+export function runLintHook(
+  projectDirectory: string,
+  filePath: string,
+  environment: NodeJS.ProcessEnv = {},
+): SpawnSyncReturns<string> {
   const hookInput = JSON.stringify({
     session_id: 'test-session',
     hook_event_name: 'PostToolUse',
@@ -984,7 +988,7 @@ export function runLintHook(projectDirectory: string, filePath: string): SpawnSy
 
   return spawnSync('bash', ['-c', `echo '${hookInput}' | bun .safeword/hooks/post-tool-lint.ts`], {
     cwd: projectDirectory,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
+    env: { ...process.env, ...environment, CLAUDE_PROJECT_DIR: projectDirectory },
     encoding: 'utf8',
     timeout: 30_000,
     killSignal: 'SIGKILL',

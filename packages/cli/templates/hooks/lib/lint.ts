@@ -49,7 +49,10 @@ const PRETTIER_EXTENSIONS = new Set([
 ]);
 
 // Cache safeword config paths
-const projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+const configuredProjectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+const projectDir = existsSync(configuredProjectDir)
+  ? realpathSync(configuredProjectDir)
+  : configuredProjectDir;
 const SAFEWORD_ESLINT = `${projectDir}/.safeword/eslint.config.mjs`;
 const SAFEWORD_RUFF = `${projectDir}/.safeword/ruff.toml`;
 const SAFEWORD_GOLANGCI = `${projectDir}/.safeword/.golangci.yml`;
