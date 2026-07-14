@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { verifyDraftBody } from '../../templates/hooks/lib/retro-draft-spool.js';
-import { buildDraft, retroSignature } from './draft.js';
+import { buildDraft, canonicalMarker, retroCanonicalSignature, retroSignature } from './draft.js';
 import type { Finding } from './finding.js';
 import { shortHash } from './hash.js';
 
@@ -31,6 +31,13 @@ describe('buildDraft', () => {
     // The signature must appear verbatim in the body so searchBySignature (in:body
     // + exact-filter) can dedupe re-fires on it rather than the variable title.
     expect(draft.body).toContain(draft.signature);
+  });
+
+  it('prevent-retro-duplicate-issues.SM1.R1.body_embeds_the_exact_canonical_repro_marker', () => {
+    const draft = buildDraft({ ...finding, repro: 'safeword check --offline' });
+
+    expect(retroCanonicalSignature(draft.repro)).toBe('canonical:6d49803883d3');
+    expect(draft.body).toContain(canonicalMarker(draft.canonicalSignature));
   });
 });
 
