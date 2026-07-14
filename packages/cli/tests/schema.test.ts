@@ -61,36 +61,6 @@ function commandMatcherByCodexEventFromPlugin(): Map<string, string | undefined>
   return entries;
 }
 
-function commandMatcherByCodexEventFromTemplate(): Map<string, string | undefined> {
-  const templatePath = nodePath.join(import.meta.dirname, '../templates/codex/config.toml');
-  const lines = readFileSync(templatePath, 'utf8').split(/\r?\n/u);
-  const entries = new Map<string, string | undefined>();
-  let currentEvent: string | undefined;
-  let currentMatcher: string | undefined;
-
-  for (const line of lines) {
-    const eventMatch = /^\[\[hooks\.([A-Za-z]+)\]\]$/u.exec(line);
-    if (eventMatch?.[1]) {
-      currentEvent = eventMatch[1];
-      currentMatcher = '';
-      continue;
-    }
-
-    const matcherMatch = /^matcher = "(.+)"$/u.exec(line);
-    if (matcherMatch) {
-      currentMatcher = matcherMatch[1];
-      continue;
-    }
-
-    const commandMatch = /command = 'npx --yes safeword hook codex ([a-z-]+)'/u.exec(line);
-    if (commandMatch?.[1] && currentEvent) {
-      entries.set(`${currentEvent}:${commandMatch[1]}`, currentMatcher);
-    }
-  }
-
-  return entries;
-}
-
 describe('Schema - Single Source of Truth', () => {
   /** Recursively collect all files in templates/ directory (skips _ prefixed dirs) */
   function collectTemplateFiles(dir: string, prefix = ''): string[] {
@@ -382,9 +352,15 @@ describe('Schema - Single Source of Truth', () => {
   });
 
   describe('Codex plugin hook parity', () => {
-    it('matches packaged hook commands and tool coverage in the project Codex config', () => {
+    it('declares the complete Codex hook surface in the plugin manifest', () => {
       expect(commandMatcherByCodexEventFromPlugin()).toEqual(
-        commandMatcherByCodexEventFromTemplate(),
+        new Map([
+          ['SessionStart:session-start', ''],
+          ['PreToolUse:pre-tool-use', '^(apply_patch|Bash|Edit|Write|MultiEdit|NotebookEdit)$'],
+          ['PostToolUse:post-tool-use', '^(apply_patch|Bash|Edit|Write|MultiEdit|NotebookEdit)$'],
+          ['UserPromptSubmit:user-prompt-submit', ''],
+          ['Stop:stop', ''],
+        ]),
       );
     });
 

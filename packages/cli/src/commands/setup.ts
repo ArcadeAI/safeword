@@ -21,7 +21,7 @@ import {
 } from '../packs/python/setup.js';
 import { detectLanguages as detectLanguagePacks } from '../packs/registry.js';
 import { reconcile, type ReconcileResult } from '../reconcile.js';
-import { type ProjectContext, SAFEWORD_PLUGIN_SCHEMA } from '../schema.js';
+import { type ProjectContext, SAFEWORD_SCHEMA } from '../schema.js';
 import { installDetectedLanguageSkills } from '../skills/languages.js';
 import {
   CODEX_PLUGIN_MIGRATION_NEXT_STEP,
@@ -484,7 +484,7 @@ export async function setup(options: SetupOptions): Promise<void> {
       rust: false,
       sql: false,
     };
-    const result = await reconcile(SAFEWORD_PLUGIN_SCHEMA, 'install', ctx);
+    const result = await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
     success('Created .safeword directory and configuration');
     if (!ctx.projectType.scaffoldBddLane) {
       printCucumberHarnessNotice(ctx.projectType.existingCucumberHarness);

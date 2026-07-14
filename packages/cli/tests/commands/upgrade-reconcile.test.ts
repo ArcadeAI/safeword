@@ -307,7 +307,7 @@ describe('Upgrade Command - Reconcile Integration', () => {
       expect(fileExists(nodePath.join(temporaryDirectory, '.safeword/hooks/codex'))).toBe(false);
     });
 
-    it('should migrate existing safeword Codex hooks to packaged CLI commands', async () => {
+    it('retains existing Safe Word Codex hooks until explicit migration', async () => {
       const { reconcile } = await import('../../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../../src/schema.js');
       const { createProjectContext } = await import('../../src/utils/context.js');
@@ -335,6 +335,7 @@ statusMessage = "Checking safeword PreToolUse gates"
 `,
       );
 
+      const before = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
       const ctx = createProjectContext(temporaryDirectory);
       await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
 
@@ -342,30 +343,19 @@ statusMessage = "Checking safeword PreToolUse gates"
         nodePath.join(temporaryDirectory, '.codex/config.toml'),
         'utf8',
       );
-      expect(upgraded).toContain('[[hooks.UserPromptSubmit]]');
-      expect(upgraded).toContain('npx --yes safeword hook codex user-prompt-submit');
-      expect(upgraded).toContain('npx --yes safeword hook codex pre-tool-use');
-      expect(upgraded).toContain('[[hooks.Stop]]');
-      expect(upgraded).toContain('npx --yes safeword hook codex stop');
-      expect(upgraded).toContain('npx --yes safeword hook codex post-tool-use');
-      expect(upgraded).not.toContain('.safeword/hooks/codex');
+      expect(upgraded).toBe(before);
 
       await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
       const upgradedAgain = readFileSync(
         nodePath.join(temporaryDirectory, '.codex/config.toml'),
         'utf8',
       );
-      const timestampHookCount =
-        upgradedAgain.split('safeword hook codex user-prompt-submit').length - 1;
-      expect(timestampHookCount).toBe(1);
-      const stopHookCount = upgradedAgain.split('safeword hook codex stop').length - 1;
-      expect(stopHookCount).toBe(1);
+      expect(upgradedAgain).toBe(before);
     });
 
-    it('migrates a customized legacy Codex config to the packaged SessionStart hook', async () => {
+    it('retains a customized legacy Codex config until explicit migration', async () => {
       const { reconcile } = await import('../../src/reconcile.js');
-      const { SAFEWORD_SCHEMA, CODEX_LEGACY_CONTEXT_SESSION_START_HOOK_PATCH } =
-        await import('../../src/schema.js');
+      const { SAFEWORD_SCHEMA } = await import('../../src/schema.js');
       const { createProjectContext } = await import('../../src/utils/context.js');
 
       createConfiguredProject('0.5.0');
@@ -380,7 +370,12 @@ statusMessage = "Checking safeword PreToolUse gates"
 
 [features]
 hooks = true
-${CODEX_LEGACY_CONTEXT_SESSION_START_HOOK_PATCH}
+[[hooks.SessionStart]]
+matcher = ""
+
+[[hooks.SessionStart.hooks]]
+type = "command"
+command = 'npx --yes safeword hook codex session-start'
 [[hooks.PreToolUse]]
 matcher = "^(apply_patch|Bash|Edit|Write|MultiEdit|NotebookEdit)$"
 
@@ -399,22 +394,14 @@ statusMessage = "Checking safeword PreToolUse gates"
         nodePath.join(temporaryDirectory, '.codex/config.toml'),
         'utf8',
       );
-      // Legacy context-only hook is gone; the packaged hook is wired.
-      expect(upgraded).not.toContain('session-safeword-context.ts" --agent=codex');
-      expect(upgraded).toContain('npx --yes safeword hook codex session-start');
-      // Exactly one SessionStart command — concurrent Codex hooks make a
-      // double-wire double-emit context, so the swap must not leave two.
-      expect(upgraded.split('safeword hook codex session-start').length - 1).toBe(1);
-      expect(upgraded).not.toContain('.safeword/hooks/codex');
+      expect(upgraded).toBe(legacyConfig);
 
-      // Idempotent: re-running upgrade keeps exactly one dispatcher, no legacy.
       await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
       const again = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
-      expect(again.split('safeword hook codex session-start').length - 1).toBe(1);
-      expect(again).not.toContain('session-safeword-context.ts" --agent=codex');
+      expect(again).toBe(legacyConfig);
     });
 
-    it('should tell users to trust generated Codex hooks after upgrade creates Codex config', async () => {
+    it('tells users how to migrate Codex to the plugin after upgrade', async () => {
       createConfiguredProject('0.5.0');
 
       const result = await runCli(['upgrade', '--no-migrate-namespace'], {
@@ -423,8 +410,7 @@ statusMessage = "Checking safeword PreToolUse gates"
       });
 
       expect(result.exitCode).toBe(0);
-      expect(`${result.stdout}\n${result.stderr}`).toContain('/hooks');
-      expect(`${result.stdout}\n${result.stderr}`).toContain('trust safeword project hooks');
+      expect(`${result.stdout}\n${result.stderr}`).toContain('migrate codex-plugin');
     });
 
     it('should warn when the installed Codex CLI is below the safeword hook floor during upgrade', async () => {

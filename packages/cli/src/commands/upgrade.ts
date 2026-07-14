@@ -21,7 +21,7 @@ import { getMissingPacks } from '../packs/registry.js';
 import { hostOwnsSqlFormatting } from '../packs/sql/files.js';
 import type { ProjectContext } from '../packs/types.js';
 import { reconcile, type ReconcileResult } from '../reconcile.js';
-import { SAFEWORD_PLUGIN_SCHEMA, SAFEWORD_TRANSIENT_PATHS } from '../schema.js';
+import { SAFEWORD_SCHEMA, SAFEWORD_TRANSIENT_PATHS } from '../schema.js';
 import { ensureLanguageSkills } from '../skills/languages.js';
 import {
   CODEX_PLUGIN_MIGRATION_NEXT_STEP,
@@ -425,7 +425,7 @@ export async function upgrade(options: UpgradeOptions): Promise<void> {
 
   try {
     const ctx = createProjectContext(cwd);
-    const result = await reconcile(SAFEWORD_PLUGIN_SCHEMA, 'upgrade', ctx);
+    const result = await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
     // Boundary-gate integration for non-husky worlds (ZJMZ50): repeats each
     // upgrade until the config invokes the gate, then quiesces (TB1.R3).
     const hookNudge = hookIntegrationNudge(ctx);

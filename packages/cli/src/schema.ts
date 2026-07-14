@@ -424,7 +424,8 @@ function boundaryShimPatch(at: 'commit' | 'push'): TextPatchDefinition {
   };
 }
 
-const LEGACY_SAFEWORD_SCHEMA: SafewordSchema = {
+/** The canonical schema is plugin-only for Codex. */
+export const SAFEWORD_SCHEMA: SafewordSchema = {
   version: VERSION,
 
   // Directories fully owned by safeword (created on setup, deleted on reset)
@@ -1335,26 +1336,3 @@ const LEGACY_SAFEWORD_SCHEMA: SafewordSchema = {
   // NPM packages to install (JS/TS specific packages from typescript pack)
   packages: typescriptPackages,
 };
-
-function withoutCodexProjectAssets<T>(entries: Record<string, T>): Record<string, T> {
-  return Object.fromEntries(
-    Object.entries(entries).filter(
-      ([path]) => path !== '.codex/config.toml' && !path.startsWith('.codex/agents/'),
-    ),
-  );
-}
-
-/**
- * The public schema is plugin-only for Codex. Existing project hooks are left
- * untouched until `safeword migrate codex-plugin` verifies the profile plugin.
- */
-export const SAFEWORD_SCHEMA: SafewordSchema = {
-  ...LEGACY_SAFEWORD_SCHEMA,
-  ownedFiles: withoutCodexProjectAssets(LEGACY_SAFEWORD_SCHEMA.ownedFiles),
-  managedFiles: withoutCodexProjectAssets(LEGACY_SAFEWORD_SCHEMA.managedFiles),
-  textPatches: withoutCodexProjectAssets(LEGACY_SAFEWORD_SCHEMA.textPatches),
-  legacyTextPatches: withoutCodexProjectAssets(LEGACY_SAFEWORD_SCHEMA.legacyTextPatches),
-};
-
-/** @deprecated Use SAFEWORD_SCHEMA; retained temporarily for migration callers. */
-export const SAFEWORD_PLUGIN_SCHEMA = SAFEWORD_SCHEMA;
