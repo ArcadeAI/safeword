@@ -25,6 +25,7 @@ class FakeGitHub implements IssueTracker {
   private nextIssue = 1;
   private nextComment = 1;
   failListComments = false;
+  failCanonicalSearch = false;
   readonly issues: StoredIssue[] = [];
   readonly commentsByIssue = new Map<number, IssueComment[]>();
   readonly calls = { createIssue: 0, createComment: 0, updateComment: 0 };
@@ -71,6 +72,8 @@ class FakeGitHub implements IssueTracker {
   }
 
   searchByCanonical(canonicalSignature: string): Promise<IssueReference[]> {
+    if (this.failCanonicalSearch)
+      return Promise.reject(new Error('canonical lookup should not run'));
     return Promise.resolve(
       this.issues
         .filter(i => i.body.includes(canonicalMarker(canonicalSignature)))
@@ -227,6 +230,17 @@ describe('triage — dedupe by content signature, not title (ZFGWS1 SM2.AC1)', (
     );
     expect(gh.calls.createIssue).toBe(0);
     expect(result.created).toEqual([]);
+  });
+
+  it('prevent-retro-duplicate-issues.SM1.R2.legacy_signature_match_does_not_request_canonical_lookup', async () => {
+    const gh = new FakeGitHub();
+    gh.seedIssue('Known friction', { sessions: ['old'], manifestations: ['m1'] }, 'retro:legacy');
+    gh.failCanonicalSearch = true;
+
+    const result = await triage(gh, [enc('Different title', 'm1', 'retro:legacy')], ctx());
+
+    expect(result.created).toEqual([]);
+    expect(result.failed).toEqual([]);
   });
 
   it('retro-recall.SM2.AC1.a_genuinely_new_signature_opens_a_new_issue', async () => {
