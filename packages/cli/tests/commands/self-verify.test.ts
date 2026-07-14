@@ -82,16 +82,16 @@ describe('3293WH: setup self-verify (clean fixture)', () => {
     removeTemporaryDirectory(dir);
   });
 
-  it('DEV1.AC1.clean_setup_ends_with_health_verification', () => {
+  it('TB1.AC1.clean_setup_ends_with_health_verification', () => {
     expect(exitCode).toBe(0);
     expect(output).toContain(HEALTHY_LINE);
   });
 
-  it('DEV1.AC4.clean_setup_prints_one_health_summary', () => {
+  it('TB1.AC4.clean_setup_prints_one_health_summary', () => {
     expect(occurrences(output, HEALTHY_LINE)).toBe(1);
   });
 
-  it('DEV1.AC3.setup_health_verification_carries_no_update_check', () => {
+  it('TB1.AC3.setup_health_verification_carries_no_update_check', () => {
     expect(output).toContain(HEALTHY_LINE);
     expect(output).not.toMatch(UPDATE_CHECK_PATTERN);
   });
@@ -105,7 +105,7 @@ describe('3293WH: setup self-verify (deliberately-skipped install)', () => {
   });
 
   it(
-    'DEV1.AC1.skipped_install_setup_does_not_fault_absent_packages',
+    'TB1.AC1.skipped_install_setup_does_not_fault_absent_packages',
     async () => {
       dir = createTemporaryDirectory();
       // Bare TS project — package.json omits safeword's dev deps, so reconcile
@@ -136,7 +136,7 @@ describe('3293WH: setup self-verify (broken postcondition)', () => {
   });
 
   it(
-    'DEV1.AC1.setup_with_post_run_issues_exits_nonzero',
+    'TB1.AC1.setup_with_post_run_issues_exits_nonzero',
     async () => {
       dir = createTemporaryDirectory();
       freshProject(dir);
@@ -171,16 +171,16 @@ describe('3293WH: upgrade self-verify (clean fixture)', () => {
     removeTemporaryDirectory(dir);
   });
 
-  it('DEV1.AC2.clean_upgrade_ends_with_health_verification', () => {
+  it('TB1.AC2.clean_upgrade_ends_with_health_verification', () => {
     expect(exitCode).toBe(0);
     expect(output).toContain(HEALTHY_LINE);
   });
 
-  it('DEV1.AC4.clean_upgrade_prints_one_health_summary', () => {
+  it('TB1.AC4.clean_upgrade_prints_one_health_summary', () => {
     expect(occurrences(output, HEALTHY_LINE)).toBe(1);
   });
 
-  it('DEV1.AC3.upgrade_health_verification_carries_no_update_check', () => {
+  it('TB1.AC3.upgrade_health_verification_carries_no_update_check', () => {
     expect(output).toContain(HEALTHY_LINE);
     expect(output).not.toMatch(UPDATE_CHECK_PATTERN);
   });
@@ -194,7 +194,7 @@ describe('3293WH + BBJKR5: upgrade self-verify (reported health issue)', () => {
   });
 
   it(
-    'BBJKR5.DEV1.AC1.upgrade_reports_existing_health_issues_without_failing + BBJKR5.DEV1.AC2.check_keeps_nonzero_exit_for_existing_health_issue',
+    'BBJKR5.TB1.AC1.upgrade_reports_existing_health_issues_without_failing + BBJKR5.TB1.AC2.check_keeps_nonzero_exit_for_existing_health_issue',
     async () => {
       dir = createTemporaryDirectory();
       await createConfiguredProject(dir);
@@ -230,7 +230,7 @@ describe('3293WH: upgrade self-verify (advisories only)', () => {
   });
 
   it(
-    'DEV1.AC4.advisories_surface_once_without_failing',
+    'TB1.AC4.advisories_surface_once_without_failing',
     async () => {
       dir = createTemporaryDirectory();
       await createConfiguredProject(dir);
@@ -257,7 +257,7 @@ describe('3293WH: health module seam', () => {
   });
 
   it(
-    'DEV1.AC3.health_module_has_no_update_check_path',
+    'TB1.AC3.health_module_has_no_update_check_path',
     async () => {
       dir = createTemporaryDirectory();
       await createConfiguredProject(dir);
@@ -316,18 +316,15 @@ describe('3293WH: reportHealthSummary remediation hint', () => {
     vi.restoreAllMocks();
   });
 
-  it.each(failureBranches)(
-    'DEV1.AC5.standalone_check_keeps_existing_hint ($name)',
-    ({ health }) => {
-      captureConsole();
-      const hasIssues = reportHealthSummary(health);
-      expect(hasIssues).toBe(true);
-      expect(logged.join('\n')).toContain(RUN_UPGRADE_HINT);
-    },
-  );
+  it.each(failureBranches)('TB1.AC5.standalone_check_keeps_existing_hint ($name)', ({ health }) => {
+    captureConsole();
+    const hasIssues = reportHealthSummary(health);
+    expect(hasIssues).toBe(true);
+    expect(logged.join('\n')).toContain(RUN_UPGRADE_HINT);
+  });
 
   it.each(failureBranches)(
-    'DEV1.AC5.post_upgrade_failure_hint_omits_run_upgrade ($name)',
+    'TB1.AC5.post_upgrade_failure_hint_omits_run_upgrade ($name)',
     ({ health }) => {
       captureConsole();
       const hasIssues = reportHealthSummary(health, {
@@ -342,7 +339,7 @@ describe('3293WH: reportHealthSummary remediation hint', () => {
   );
 });
 
-describe('3293WH: docs demote check (DEV2.AC1)', () => {
+describe('3293WH: docs demote check (TB2.AC1)', () => {
   const repoRoot = nodePath.join(import.meta.dirname, '..', '..', '..', '..');
   const surfaces = [
     nodePath.join(repoRoot, 'packages/cli/templates/SAFEWORD.md'),
@@ -350,7 +347,7 @@ describe('3293WH: docs demote check (DEV2.AC1)', () => {
     nodePath.join(repoRoot, 'packages/website/src/content/docs/reference/cli.mdx'),
   ];
 
-  it('DEV2.AC1.docs_present_check_as_automatic_first', () => {
+  it('TB2.AC1.docs_present_check_as_automatic_first', () => {
     const cliMdx = readFileSync(surfaces[2] ?? '', 'utf8');
     // Pinned automatic-after phrase (gate review: literal fixed at RED).
     expect(cliMdx).toContain('runs automatically after `setup` and `upgrade`');

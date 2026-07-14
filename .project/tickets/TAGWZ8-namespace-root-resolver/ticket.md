@@ -28,7 +28,7 @@ done_when:
 
 **Goal:** Compute the safeword namespace root in one shared resolver (config → `.project/` → legacy `.safeword-project/`) and route every surface through it, so the default flips to `.project/` while existing installs keep resolving `.safeword-project/`.
 
-**See:** epic [AQJ95G](../AQJ95G-project-namespace-default/spec.md) for personas, JTBDs, and outcomes. This child implements **SM1** (single resolver), **DEV1.AC2/AC3** (reads from resolved root, defaults derive from it), **DEV2** (configurable root + per-file overrides), and **DEV3.AC1** (legacy-only resolves unchanged).
+**See:** epic [AQJ95G](../AQJ95G-project-namespace-default/spec.md) for personas, JTBDs, and outcomes. This child implements **SM1** (single resolver), **TB1.AC2/AC3** (reads from resolved root, defaults derive from it), **TB2** (configurable root + per-file overrides), and **TB3.AC1** (legacy-only resolves unchanged).
 
 **See:** [spec.md](./spec.md) for the child-scoped JTBD/AC subset.
 

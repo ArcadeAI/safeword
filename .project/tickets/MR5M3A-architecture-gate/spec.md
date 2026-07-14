@@ -25,25 +25,25 @@ That is precisely the correlated-single-agent-error gap the M6D315 ADR itself na
 
 ## Jobs To Be Done
 
-### architecture-gate.DEV1 — The design is generated from evidence, then independently challenged, before code completes
+### architecture-gate.TB1 — The design is generated from evidence, then independently challenged, before code completes
 
 **Persona:** Technical Builder (TB)
 
 > When my agent records an implementation plan for a non-trivial feature, I want its key decisions backed by cited evidence and then challenged by an independent reviewer before the work can finish, so I can trust the design wasn't a confident first guess that only its own author ever checked.
 
-#### architecture-gate.DEV1.AC1 — The impl-plan Decisions section must carry cited external evidence (the /figure-it-out trace), or an auditable skip
+#### architecture-gate.TB1.AC1 — The impl-plan Decisions section must carry cited external evidence (the /figure-it-out trace), or an auditable skip
 
-#### architecture-gate.DEV1.AC2 — A fresh-context reviewer challenges the impl-plan design, and its pass (a review stamp) is required to leave the implement phase
+#### architecture-gate.TB1.AC2 — A fresh-context reviewer challenges the impl-plan design, and its pass (a review stamp) is required to leave the implement phase
 
-#### architecture-gate.DEV1.AC3 — The design-review stamp records the reviewing model, and when cross-model review is configured a same-model stamp does not satisfy the gate
+#### architecture-gate.TB1.AC3 — The design-review stamp records the reviewing model, and when cross-model review is configured a same-model stamp does not satisfy the gate
 
-### architecture-gate.DEV2 — The gate ships safely without bricking existing workflows
+### architecture-gate.TB2 — The gate ships safely without bricking existing workflows
 
 **Persona:** Technical Builder (TB)
 
 > When I upgrade safeword, I want this new blocking gate to arrive inert until I deliberately enable it, so an in-flight feature doesn't suddenly become unshippable.
 
-#### architecture-gate.DEV2.AC1 — The gate is default-off behind a config flag and only enforces when explicitly enabled
+#### architecture-gate.TB2.AC1 — The gate is default-off behind a config flag and only enforces when explicitly enabled
 
 ## Outcomes
 

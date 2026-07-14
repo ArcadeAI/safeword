@@ -22,7 +22,7 @@ keep the old path.
 
 ## Jobs To Be Done
 
-### migration-stale-config-warning.DEV1 — Don't let the move silently break my tooling
+### migration-stale-config-warning.TB1 — Don't let the move silently break my tooling
 
 **Persona:** Technical Builder (TB)
 
@@ -32,13 +32,13 @@ keep the old path.
 > and without safeword editing my files or crying wolf over references that
 > are fine.
 
-#### migration-stale-config-warning.DEV1.AC1 — After a move, tooling configs still referencing the legacy path are named in the upgrade output, with the old→new mapping
+#### migration-stale-config-warning.TB1.AC1 — After a move, tooling configs still referencing the legacy path are named in the upgrade output, with the old→new mapping
 
-#### migration-stale-config-warning.DEV1.AC2 — Safeword edits none of those files — the warning lists, the developer decides
+#### migration-stale-config-warning.TB1.AC2 — Safeword edits none of those files — the warning lists, the developer decides
 
-#### migration-stale-config-warning.DEV1.AC3 — No false positives: a clean repo, the safeword-managed both-roots `.prettierignore` block, and documentary references under the namespace dir produce no warning
+#### migration-stale-config-warning.TB1.AC3 — No false positives: a clean repo, the safeword-managed both-roots `.prettierignore` block, and documentary references under the namespace dir produce no warning
 
-#### migration-stale-config-warning.DEV1.AC4 — The warning fires only when the migration actually moved the directory (silent on decline, both-dirs, custom-root, already-current)
+#### migration-stale-config-warning.TB1.AC4 — The warning fires only when the migration actually moved the directory (silent on decline, both-dirs, custom-root, already-current)
 
 ## Outcomes
 

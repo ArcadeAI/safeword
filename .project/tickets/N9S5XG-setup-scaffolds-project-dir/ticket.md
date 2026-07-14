@@ -29,7 +29,7 @@ done_when:
 
 # Fresh safeword setup scaffolds .project/
 
-**Goal:** A fresh `safeword setup` scaffolds the namespace at `.project/` (implements epic [AQJ95G](../AQJ95G-project-namespace-default/spec.md) DEV1.AC1), adopting an existing arcade `.project/` without clobbering it, and leaving legacy installs untouched — seamless for the developer in all three states.
+**Goal:** A fresh `safeword setup` scaffolds the namespace at `.project/` (implements epic [AQJ95G](../AQJ95G-project-namespace-default/spec.md) TB1.AC1), adopting an existing arcade `.project/` without clobbering it, and leaving legacy installs untouched — seamless for the developer in all three states.
 
 **See:** epic [AQJ95G](../AQJ95G-project-namespace-default/spec.md) for personas, JTBDs, and outcomes.
 

@@ -430,6 +430,118 @@ Test Quality:
 
 Review recent commits (since last tag or last 20 commits). For each significantly changed area, check if related docs, readmes, or guides across the project need updating. Flag stale, missing, or contradictory impacted documentation as errors. Documentation drift is never a warning; only date-based staleness with no changed-code contradiction stays a warning.
 
+### 6. Namespace Domain Docs
+
+Reconcile the three namespace domain docs — `personas.md`, `surfaces.md`, `glossary.md` — against what the code actually references, and report empty scaffolds. These docs feed the BDD intake flow, so silent rot there degrades every downstream spec. This check is **read-only and class-2** (observable facts only): it reports and offers, it never rewrites a doc. **Run the block below verbatim, as ONE bash invocation.**
+
+```bash
+# domain-docs-check — read-only reconciliation of the namespace domain docs.
+# Class-2: observable facts only. Emits W008 (empty). Never writes the tree.
+cd "${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}" || exit 1
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
+
+# Resolve the namespace root (honors config paths.projectRoot in real runs).
+# Fall back on directory existence — robust when the resolver hook is absent.
+NS_ROOT="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR" 2> /dev/null)"
+[ -d "$NS_ROOT" ] || {
+  if [ -d "$PROJECT_DIR/.project" ]; then NS_ROOT="$PROJECT_DIR/.project"; else NS_ROOT="$PROJECT_DIR/.safeword-project"; fi
+}
+
+# Single-source the HTML-comment strip used by every check below. Strips
+# same-line comments FIRST (`s/<!--.*-->//g`) then deletes multi-line comment
+# blocks (`/<!--/,/-->/d`): a POSIX range alone would treat a lone `<!-- x -->`
+# as an unclosed range and wipe every following line to EOF.
+# Line-based limitation (accepted): a `## ` heading that shares its line with a
+# multi-line comment OPENER (`## Foo <!-- note` … `-->`) is deleted with the
+# comment — well-formed markdown keeps headings on their own line, so this never
+# bites the real docs; pinned by a test so any change to it stays conscious.
+strip_html_comments='s/<!--.*-->//g; /<!--/,/-->/d'
+
+# Count `## ` entries OUTSIDE HTML comments — the scaffold's example headings
+# live inside its comment, so a verbatim scaffold counts as zero. Reads the
+# named var `dd_file`, NOT positional `$1`: skill/command argument substitution
+# clobbers `$1` in the injected block body.
+domain_docs_entry_count() {
+  sed "$strip_html_comments" "$dd_file" | grep -cE '^## '
+}
+
+# --- Emptiness (W008): a domain doc with no uncommented entries ---
+for doc in personas surfaces glossary; do
+  dd_file="$NS_ROOT/$doc.md"
+  [ -f "$dd_file" ] || continue
+  if [ "$(domain_docs_entry_count)" -eq 0 ]; then
+    echo "[W008] Empty domain doc: $doc.md — fill from packages/cli/templates/$doc-template.md (BDD intake references degrade until filled)"
+  fi
+done
+
+# --- Surface drift (E008): @surface.<slug> tag referenced but undefined ---
+# Suppressed when surfaces.md is empty/absent — W008 already says "fill it".
+FEATURES_DIR="$PROJECT_DIR/features"
+surfaces_file="$NS_ROOT/surfaces.md"
+dd_file="$surfaces_file"
+if [ -f "$surfaces_file" ] && [ "$(domain_docs_entry_count)" -gt 0 ] && [ -d "$FEATURES_DIR" ]; then
+  # Defined slugs: slugify each uncommented `## ` heading. Portable casing via
+  # `tr` — BSD/macOS sed lacks `\L`.
+  defined_slugs="$(sed "$strip_html_comments" "$surfaces_file" | grep -E '^## ' | sed 's/^## //' \
+    | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9][^a-z0-9]*/-/g; s/^-//; s/-$//')"
+  # Referenced slugs: @surface.<slug> on Gherkin tag lines only (line starts
+  # with @), so a slug mentioned in step prose is not a reference.
+  referenced_slugs="$(grep -rhE '^[[:space:]]*@' "$FEATURES_DIR" 2> /dev/null \
+    | grep -oE '@surface\.[a-z0-9-]+' | sed 's/^@surface\.//' | sort -u)"
+  for slug in $referenced_slugs; do
+    if ! printf '%s\n' $defined_slugs | grep -qxF "$slug"; then
+      echo "[E008] Surface drift: @surface.$slug referenced in features/ but no matching entry in surfaces.md"
+    fi
+  done
+fi
+
+# --- Persona drift (E009): spec **Persona:** code referenced but undefined ---
+# Spec lines only, comment-stripped (feature lineage tags carry ticket-ids, not
+# personas). Suppressed when personas.md is empty/absent.
+personas_file="$NS_ROOT/personas.md"
+tickets_dir="$NS_ROOT/tickets"
+dd_file="$personas_file"
+if [ -f "$personas_file" ] && [ "$(domain_docs_entry_count)" -gt 0 ] && [ -d "$tickets_dir" ]; then
+  # Defined codes: explicit trailing `## Name (CODE)` wins; else derived
+  # best-effort (multi-word -> initials, single -> first two chars, uppercased).
+  # Derivation is naive (particles/hyphens mis-derive, e.g. Site-Reliability
+  # Engineer -> SE not SRE), and codes are the project's `[A-Z][A-Z0-9]{1,5}`
+  # (>=2 chars) — prefer the explicit `(CODE)` heading, which `safeword check`
+  # writes, to avoid a spurious E009.
+  defined_codes="$(sed "$strip_html_comments" "$personas_file" | grep -E '^## ' | while IFS= read -r heading; do
+    name="${heading#\#\# }"
+    # Trailing-whitespace-tolerant so `## Name (CODE)` still reads explicitly
+    # after a stripped inline comment left a trailing space; capture only the code.
+    explicit="$(printf '%s' "$name" | sed -nE 's/.*\(([A-Z][A-Z0-9]{1,5})\)[[:space:]]*$/\1/p')"
+    if [ -n "$explicit" ]; then
+      printf '%s\n' "$explicit"
+      continue
+    fi
+    base="${name%% (*}"
+    if [ "$(printf '%s' "$base" | wc -w | tr -d ' ')" -ge 2 ]; then
+      printf '%s' "$base" | awk '{s="";for(i=1;i<=NF;i++)s=s toupper(substr($i,1,1));print s}'
+    else
+      printf '%s' "$base" | cut -c1-2 | tr '[:lower:]' '[:upper:]'
+    fi
+  done)"
+  # Referenced codes: (CODE) from spec **Persona:** lines, comments stripped.
+  referenced_codes="$(for spec in "$tickets_dir"/*/spec.md; do
+    [ -f "$spec" ] && sed "$strip_html_comments" "$spec"
+  done 2> /dev/null | grep -E '^\*\*Persona:\*\*' | grep -oE '\([A-Z][A-Z0-9]{1,5}\)' | tr -d '()' | sort -u)"
+  for code in $referenced_codes; do
+    if ! printf '%s\n' $defined_codes | grep -qxF "$code"; then
+      echo "[E009] Persona drift: code $code referenced in a spec but no matching entry in personas.md"
+    fi
+  done
+fi
+```
+
+**Content is human-owned — advisory only, never an error.** This check judges _references_ (a slug/code that is or isn't defined) and _emptiness_ — observable facts. Whether a glossary term's meaning, or a persona/surface _description_, is still accurate is a human judgment: raise it as an advisory note at most, never as an error code. Only the three codes above (E008, E009, W008) are emitted here.
+
+**Empty-doc offer (W008):** report the empty doc and point the user to its template — do **not** draft entries or write the file during the audit pass (read-only). Filling it is a follow-up the user approves.
+
+**Coverage limitation:** the block reads the default namespace-root locations; per-file `paths.personas` / `paths.surfaces` / `paths.glossary` overrides are validated by `safeword check` (structure), not here. Persona drift reads spec `**Persona:**` lines only — feature lineage tags are not a reliable persona source.
+
 ---
 
 ## Report Format
@@ -445,6 +557,8 @@ Report findings by severity with codes:
 - [E005] Dependency gap: `@tanstack/query` is a major dependency but is not documented in ARCHITECTURE.md
 - [E006] Structural gap: module `billing` in `architecture.generated.md` is not documented in `ARCHITECTURE.md` (missing)
 - [E007] Drifted layer→dir: `ARCHITECTURE.md` maps `domain` → `src/core/` but no such module path is in `architecture.generated.md`
+- [E008] Surface drift: `@surface.safeword-cli` is referenced in `features/` but has no matching entry in `surfaces.md`
+- [E009] Persona drift: persona code `DEV` is named in a spec `**Persona:**` line but has no matching entry in `personas.md`
 
 ### Warnings (should review)
 
@@ -454,6 +568,7 @@ Report findings by severity with codes:
 - [W005] Stale config: `knip.json` — `lodash` can be removed from ignoreDependencies
 - [W006] Learning file missing Covers: — `<namespace-root>/learnings/foo.md` (absent from INDEX.md)
 - [W007] Stale .safeword/depcruise-config.cjs — run `safeword sync-config` to refresh and commit
+- [W008] Empty domain doc: `surfaces.md` has no uncommented entries — fill from its template (BDD intake references degrade until filled)
 
 ### Code Quality
 

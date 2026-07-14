@@ -153,7 +153,7 @@ Given(
   },
 );
 
-// --- Given: the file under edit (DEV1 scenarios name it explicitly) -----------
+// --- Given: the file under edit (TB1 scenarios name it explicitly) -----------
 
 Given(
   /^a TypeScript file styled to \w+'s conventions, which differ from Prettier's defaults$/,

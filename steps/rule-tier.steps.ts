@@ -44,15 +44,15 @@ function specWithJtbdBody(body: string): string {
   return ['# Spec', '', '## Jobs To Be Done', '', body, ''].join('\n');
 }
 
-const JTBD_HEAD = '### demo.DEV2 — Retry\n\n**Persona:** TB\n';
+const JTBD_HEAD = '### demo.TB2 — Retry\n\n**Persona:** TB\n';
 const R_ONLY_SPEC = specWithJtbdBody(
-  `${JTBD_HEAD}\n#### demo.DEV2.R1 — failed deliveries retry on backoff`,
+  `${JTBD_HEAD}\n#### demo.TB2.R1 — failed deliveries retry on backoff`,
 );
 const MIXED_SPEC = specWithJtbdBody(
-  '### demo.DEV1 — Trace\n\n**Persona:** TB\n\n#### demo.DEV1.AC1 — capability one\n\n#### demo.DEV1.R1 — an invariant beside the AC',
+  '### demo.TB1 — Trace\n\n**Persona:** TB\n\n#### demo.TB1.AC1 — capability one\n\n#### demo.TB1.R1 — an invariant beside the AC',
 );
 const AC_ONLY_SPEC = specWithJtbdBody(
-  '### demo.DEV1 — Trace\n\n**Persona:** TB\n\n#### demo.DEV1.AC1 — capability one\n\n#### demo.DEV1.AC2 — capability two',
+  '### demo.TB1 — Trace\n\n**Persona:** TB\n\n#### demo.TB1.AC1 — capability one\n\n#### demo.TB1.AC2 — capability two',
 );
 
 function featureWithScenarios(
@@ -75,7 +75,7 @@ function featureWithScenarios(
   ].join('\n');
 }
 
-const R1_RULE_LINE = 'Rule: demo.DEV2.R1 — failed deliveries retry on backoff';
+const R1_RULE_LINE = 'Rule: demo.TB2.R1 — failed deliveries retry on backoff';
 
 function runSafewordSetup(project: string): void {
   const result = spawnSync('bun', [CLI_PATH, 'setup', '--yes'], {
@@ -193,7 +193,7 @@ Given(
 Given(
   'a feature file whose Rule block carries a rule ID tag and untagged scenarios',
   function (this: RuleTierWorld) {
-    this.featureContent = featureWithScenarios(`@demo.DEV2.R1\n  ${R1_RULE_LINE}`, [
+    this.featureContent = featureWithScenarios(`@demo.TB2.R1\n  ${R1_RULE_LINE}`, [
       { title: 'first example' },
       { title: 'second example' },
     ]);
@@ -204,7 +204,7 @@ Given(
   'a feature file with a scenario carrying an R lineage tag directly and no ID-tagged Rule block',
   function (this: RuleTierWorld) {
     this.featureContent = featureWithScenarios('Rule: plain grouping', [
-      { tags: '@demo.DEV2.R1', title: 'direct rule ref' },
+      { tags: '@demo.TB2.R1', title: 'direct rule ref' },
     ]);
   },
 );
@@ -212,8 +212,8 @@ Given(
 Given(
   'a feature file whose Rule block carries a rule ID tag and a scenario adds an AC lineage tag',
   function (this: RuleTierWorld) {
-    this.featureContent = featureWithScenarios(`@demo.DEV2.R1\n  ${R1_RULE_LINE}`, [
-      { tags: '@demo.DEV1.AC1', title: 'adds an AC ref' },
+    this.featureContent = featureWithScenarios(`@demo.TB2.R1\n  ${R1_RULE_LINE}`, [
+      { tags: '@demo.TB1.AC1', title: 'adds an AC ref' },
     ]);
   },
 );
@@ -222,7 +222,7 @@ Given(
   'a feature file whose Rule block tag and leading name token carry different rule IDs',
   function (this: RuleTierWorld) {
     this.featureContent = featureWithScenarios(
-      '@demo.DEV1.R1\n  Rule: demo.DEV1.R2 — renamed without retagging',
+      '@demo.TB1.R1\n  Rule: demo.TB1.R2 — renamed without retagging',
       [{ title: 'example' }],
     );
   },
@@ -249,7 +249,7 @@ Given('a feature file with two ID-tagged Rule blocks', function (this: RuleTierW
     [
       'Feature: Demo',
       '',
-      '  @demo.DEV2.R1',
+      '  @demo.TB2.R1',
       `  ${R1_RULE_LINE}`,
       '',
       '    Scenario: first retry after one minute',
@@ -258,8 +258,8 @@ Given('a feature file with two ID-tagged Rule blocks', function (this: RuleTierW
       '    Scenario: second retry doubles the wait',
       '      Given a failed delivery',
       '',
-      '  @demo.DEV2.R2',
-      '  Rule: demo.DEV2.R2 — deliveries stop after the retry budget',
+      '  @demo.TB2.R2',
+      '  Rule: demo.TB2.R2 — deliveries stop after the retry budget',
       '',
       '    Scenario: delivery abandoned after final retry',
       '      Given an exhausted budget',
@@ -287,7 +287,7 @@ Given(
     createCheckProject(
       this,
       R_ONLY_SPEC,
-      featureWithScenarios('Rule: grouping', [{ tags: '@demo.DEV2.R5', title: 'stale ref' }]),
+      featureWithScenarios('Rule: grouping', [{ tags: '@demo.TB2.R5', title: 'stale ref' }]),
     );
   },
 );
@@ -309,7 +309,7 @@ Given(
     createCheckProject(
       this,
       R_ONLY_SPEC,
-      featureWithScenarios(`@demo.DEV2.R1\n  ${R1_RULE_LINE}`, [{ title: 'happy path only' }]),
+      featureWithScenarios(`@demo.TB2.R1\n  ${R1_RULE_LINE}`, [{ title: 'happy path only' }]),
     );
   },
 );
@@ -320,7 +320,7 @@ Given(
     createCheckProject(
       this,
       R_ONLY_SPEC,
-      featureWithScenarios(`@demo.DEV2.R1\n  ${R1_RULE_LINE}`, [
+      featureWithScenarios(`@demo.TB2.R1\n  ${R1_RULE_LINE}`, [
         { title: 'happy path' },
         { tags: '@rejection', title: 'refused when budget exhausted' },
       ]),
@@ -335,8 +335,8 @@ Given(
       this,
       AC_ONLY_SPEC,
       featureWithScenarios('Rule: plain grouping header', [
-        { tags: '@demo.DEV1.AC1', title: 'flat lineage' },
-        { tags: '@demo.DEV1.AC2', title: 'more flat lineage' },
+        { tags: '@demo.TB1.AC1', title: 'flat lineage' },
+        { tags: '@demo.TB1.AC2', title: 'more flat lineage' },
       ]),
     );
   },
@@ -349,7 +349,7 @@ Given(
       this,
       AC_ONLY_SPEC,
       featureWithScenarios('Rule: plain grouping header', [
-        { tags: '@demo.DEV1.AC1', title: 'covers only capability one' },
+        { tags: '@demo.TB1.AC1', title: 'covers only capability one' },
       ]),
     );
   },
@@ -359,12 +359,12 @@ Given(
   'a feature file shaped like an existing rule-numbered corpus with a matching spec catalog',
   function (this: RuleTierWorld) {
     const corpusSpec = specWithJtbdBody(
-      `${JTBD_HEAD}\n#### demo.DEV2.R1 — failed deliveries retry on backoff\n\n#### demo.DEV2.R2 — deliveries stop after the retry budget`,
+      `${JTBD_HEAD}\n#### demo.TB2.R1 — failed deliveries retry on backoff\n\n#### demo.TB2.R2 — deliveries stop after the retry budget`,
     );
     const corpusFeature = [
       'Feature: Webhook retries',
       '',
-      '  @demo.DEV2.R1',
+      '  @demo.TB2.R1',
       `  ${R1_RULE_LINE}`,
       '',
       '    Scenario: first retry after one minute',
@@ -378,8 +378,8 @@ Given(
       '      When the retry evaluates it',
       '      Then the delivery is rejected',
       '',
-      '  @demo.DEV2.R2',
-      '  Rule: demo.DEV2.R2 — deliveries stop after the retry budget',
+      '  @demo.TB2.R2',
+      '  Rule: demo.TB2.R2 — deliveries stop after the retry budget',
       '',
       '    @rejection',
       '    Scenario: delivery abandoned after final retry',
@@ -399,7 +399,7 @@ Given(/^a project exhibiting (.+)$/, function (this: RuleTierWorld, condition: s
       createCheckProject(
         this,
         R_ONLY_SPEC,
-        featureWithScenarios(`@demo.DEV2.R1\n  ${R1_RULE_LINE}`, [{ title: 'happy path only' }]),
+        featureWithScenarios(`@demo.TB2.R1\n  ${R1_RULE_LINE}`, [{ title: 'happy path only' }]),
       );
       return;
     }
@@ -419,7 +419,7 @@ Given(/^a project exhibiting (.+)$/, function (this: RuleTierWorld, condition: s
       createCheckProject(
         this,
         R_ONLY_SPEC,
-        featureWithScenarios('Rule: grouping', [{ tags: '@demo.DEV2.R5', title: 'stale ref' }]),
+        featureWithScenarios('Rule: grouping', [{ tags: '@demo.TB2.R5', title: 'stale ref' }]),
       );
       return;
     }
@@ -437,14 +437,14 @@ Given(/^a project exhibiting (.+)$/, function (this: RuleTierWorld, condition: s
     }
     case 'a Rule block whose name token disagrees with its tag': {
       this.featureContent = featureWithScenarios(
-        '@demo.DEV1.R1\n  Rule: demo.DEV1.R2 — renamed without retagging',
+        '@demo.TB1.R1\n  Rule: demo.TB1.R2 — renamed without retagging',
         [{ title: 'example' }],
       );
       return;
     }
     case 'a scenario with two lineage references': {
-      this.featureContent = featureWithScenarios(`@demo.DEV2.R1\n  ${R1_RULE_LINE}`, [
-        { tags: '@demo.DEV1.AC1', title: 'adds an AC ref' },
+      this.featureContent = featureWithScenarios(`@demo.TB2.R1\n  ${R1_RULE_LINE}`, [
+        { tags: '@demo.TB1.AC1', title: 'adds an AC ref' },
       ]);
       return;
     }
@@ -512,7 +512,7 @@ When(
         '--format',
         'summary',
         '--tags',
-        '@demo.DEV2.R1',
+        '@demo.TB2.R1',
         nodePath.join(this.fixtureDirectory, 'demo.feature'),
       ],
       { cwd: nodePath.join(REPO_ROOT, 'packages/cli'), encoding: 'utf8', timeout: 120_000 },
@@ -549,7 +549,7 @@ Then(
 Then('a check issue names that JTBD as mixing criteria kinds', function (this: RuleTierWorld) {
   assert.match(
     combinedOutput(this),
-    /JTBD demo\.DEV1 declares both Acceptance Criteria and numbered Rules; keep one criteria kind per job/,
+    /JTBD demo\.TB1 declares both Acceptance Criteria and numbered Rules; keep one criteria kind per job/,
   );
   assert.equal(this.result?.exitCode, 1, 'mixed criteria should be a hard check issue');
 });
@@ -557,14 +557,14 @@ Then('a check issue names that JTBD as mixing criteria kinds', function (this: R
 Then('an uncovered advisory names that rule ID', function (this: RuleTierWorld) {
   assert.match(
     combinedOutput(this),
-    /numbered rule demo\.DEV2\.R1 has no scenario illustrating it \(uncovered\)/,
+    /numbered rule demo\.TB2\.R1 has no scenario illustrating it \(uncovered\)/,
   );
 });
 
 Then('a stale advisory names that rule reference', function (this: RuleTierWorld) {
   assert.match(
     combinedOutput(this),
-    /scenario ref demo\.DEV2\.R5 matches no numbered rule under its JTBD \(stale ref\)/,
+    /scenario ref demo\.TB2\.R5 matches no numbered rule under its JTBD \(stale ref\)/,
   );
 });
 
@@ -578,7 +578,7 @@ Then('an orphan advisory names that rule reference', function (this: RuleTierWor
 Then('a zero-rejection-path advisory names that rule ID', function (this: RuleTierWorld) {
   assert.match(
     combinedOutput(this),
-    /numbered rule demo\.DEV2\.R1 has no example of the rule being broken/,
+    /numbered rule demo\.TB2\.R1 has no example of the rule being broken/,
   );
 });
 
@@ -615,7 +615,7 @@ Then('the coverage report resolves every rule reference', function (this: RuleTi
 
 // Equivalence check, not a stored golden: the flat AC fixture must produce
 // exactly the one advisory it would have produced before this feature (the
-// uncovered demo.DEV1.AC2 line, path-normalized to the ticket label), and no
+// uncovered demo.TB1.AC2 line, path-normalized to the ticket label), and no
 // rule-tier vocabulary may leak into an AC-only project's output.
 Then(
   'the output is byte-identical to the recorded flat-lineage snapshot after path normalization',
@@ -626,7 +626,7 @@ Then(
       .filter(line => line.includes('RUL001'))
       .map(line => line.replace(/^.*?(demo \(RUL001\))/, '$1').trimEnd());
     assert.deepEqual(ticketLines, [
-      'demo (RUL001): acceptance criterion demo.DEV1.AC2 has no scenario (uncovered)',
+      'demo (RUL001): acceptance criterion demo.TB1.AC2 has no scenario (uncovered)',
     ]);
     assert.doesNotMatch(output, /numbered rule|rejection|mixing criteria|rule-name-tag/i);
     assert.equal(this.lintExitCode, 0, 'gherkin lint should stay clean for the AC-only project');
@@ -653,7 +653,7 @@ Then('a name-tag mismatch issue names that Rule block', function (this: RuleTier
   assert.ok(this.lintIssues, 'gherkin lint has not run');
   const mismatch = this.lintIssues.find(issue => issue.rule === 'rule-name-tag-mismatch');
   assert.ok(mismatch, JSON.stringify(this.lintIssues));
-  assert.match(mismatch.message, /demo\.DEV1\.R2 — renamed without retagging/);
+  assert.match(mismatch.message, /demo\.TB1\.R2 — renamed without retagging/);
 });
 
 // --- Thens: cucumber selection ---
@@ -673,22 +673,22 @@ const MESSAGE_CONTRACT: Record<
 > = {
   'zero-rejection advisory': {
     surface: 'check',
-    id: /numbered rule demo\.DEV2\.R1/,
+    id: /numbered rule demo\.TB2\.R1/,
     nextAction: /add a @rejection-tagged scenario under it/,
   },
   'mixed-criteria issue': {
     surface: 'check',
-    id: /JTBD demo\.DEV1/,
+    id: /JTBD demo\.TB1/,
     nextAction: /convert one set or split the job/,
   },
   'uncovered advisory': {
     surface: 'check',
-    id: /numbered rule demo\.DEV2\.R1/,
-    nextAction: /add a scenario tagged @demo\.DEV2\.R1/,
+    id: /numbered rule demo\.TB2\.R1/,
+    nextAction: /add a scenario tagged @demo\.TB2\.R1/,
   },
   'stale advisory': {
     surface: 'check',
-    id: /scenario ref demo\.DEV2\.R5/,
+    id: /scenario ref demo\.TB2\.R5/,
     nextAction: /retag to a declared rule or declare it in spec\.md/,
   },
   'orphan advisory': {
@@ -698,12 +698,12 @@ const MESSAGE_CONTRACT: Record<
   },
   'denial message': {
     surface: 'gate',
-    id: /JTBD "demo\.DEV2/,
+    id: /JTBD "demo\.TB2/,
     nextAction: /add ≥1 `#### <id>\.R<n>`, ≥1 `#### <id>\.AC<n>`, or `skip: <reason>`/,
   },
   'name-tag mismatch issue': {
     surface: 'gherkin',
-    id: /Rule "demo\.DEV1\.R2/,
+    id: /Rule "demo\.TB1\.R2/,
     nextAction: /make the name's first token match the tag/,
   },
   'multiple-lineage issue': {

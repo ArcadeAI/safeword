@@ -6,13 +6,13 @@ Derived from the 6 ACs. Splits the same way ticket 153 did: **[hook]** = determi
 
 | Dimension                 | Partitions                                                          | AC            |
 | ------------------------- | ------------------------------------------------------------------- | ------------- |
-| Prior-asset review state  | stamped / unstamped / skip-stamped                                  | DEV1.AC1      |
-| Asset position            | has a prior asset to gate on / is the first asset (nothing to gate) | DEV1.AC1      |
-| Per-asset review actor    | working agent inline (no spawn) / would-be sub-agent (forbidden)    | DEV1.AC2      |
-| Phase-exit stamp          | present / absent / skip-stamped                                     | DEV2.AC1      |
-| Phase-review independence | fresh reviewer (no history) / author self-review                    | DEV2.AC2      |
+| Prior-asset review state  | stamped / unstamped / skip-stamped                                  | TB1.AC1      |
+| Asset position            | has a prior asset to gate on / is the first asset (nothing to gate) | TB1.AC1      |
+| Per-asset review actor    | working agent inline (no spawn) / would-be sub-agent (forbidden)    | TB1.AC2      |
+| Phase-exit stamp          | present / absent / skip-stamped                                     | TB2.AC1      |
+| Phase-review independence | fresh reviewer (no history) / author self-review                    | TB2.AC2      |
 | Coverage state            | complete / uncovered AC / orphan scenario                           | SM1.AC1       |
-| Skip valve                | provided (with reason) / absent                                     | DEV1/DEV2/SM1 |
+| Skip valve                | provided (with reason) / absent                                     | TB1/TB2/SM1 |
 
 ## Partitions → rules
 
@@ -54,4 +54,4 @@ Derived from the 6 ACs. Splits the same way ticket 153 did: **[hook]** = determi
 
 ## Coverage gate split (SM1.AC1)
 
-Split to a child ticket — enforcing it in a hook needs porting `scenario-coverage.ts` (192 lines, in `src/`, unreachable from a standalone hook) + a differential test. Separable, the "trial" piece, and the ticket pre-authorized the split. This ticket keeps the core two-tier mechanism (DEV1 + DEV2); SM1.AC1's scenarios move with it.
+Split to a child ticket — enforcing it in a hook needs porting `scenario-coverage.ts` (192 lines, in `src/`, unreachable from a standalone hook) + a differential test. Separable, the "trial" piece, and the ticket pre-authorized the split. This ticket keeps the core two-tier mechanism (TB1 + TB2); SM1.AC1's scenarios move with it.

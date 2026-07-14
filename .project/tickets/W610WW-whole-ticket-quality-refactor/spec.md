@@ -46,7 +46,7 @@ when there's more than one RGR loop, and auto-skipping when there's just one
 
 ## Jobs To Be Done
 
-### whole-ticket-quality-refactor.DEV1 — Clean up cross-loop debt before verify
+### whole-ticket-quality-refactor.TB1 — Clean up cross-loop debt before verify
 
 **Persona:** Technical Builder (TB)
 
@@ -55,13 +55,13 @@ when there's more than one RGR loop, and auto-skipping when there's just one
 > so duplication, drift, and inconsistent naming spread across the loops gets
 > cleaned up instead of riding silently to done.
 
-#### whole-ticket-quality-refactor.DEV1.AC1 — A whole-ticket quality review runs at implement-exit and feeds the refactor
+#### whole-ticket-quality-refactor.TB1.AC1 — A whole-ticket quality review runs at implement-exit and feeds the refactor
 
-#### whole-ticket-quality-refactor.DEV1.AC2 — The refactor outcome is recorded and enforced before done (a SHA or an auditable skip)
+#### whole-ticket-quality-refactor.TB1.AC2 — The refactor outcome is recorded and enforced before done (a SHA or an auditable skip)
 
-#### whole-ticket-quality-refactor.DEV1.AC3 — The pass covers both feature (BDD scenarios) and task (TDD loops) work
+#### whole-ticket-quality-refactor.TB1.AC3 — The pass covers both feature (BDD scenarios) and task (TDD loops) work
 
-### whole-ticket-quality-refactor.DEV2 — No ceremony when there's nothing to cross
+### whole-ticket-quality-refactor.TB2 — No ceremony when there's nothing to cross
 
 **Persona:** Technical Builder (TB)
 
@@ -69,7 +69,7 @@ when there's more than one RGR loop, and auto-skipping when there's just one
 > skipped automatically, so I'm not forced through a quality-review-and-refactor
 > ritual for a change that has nothing to cross.
 
-#### whole-ticket-quality-refactor.DEV2.AC1 — A single-loop ticket requires no whole-ticket pass; the gate stays silent
+#### whole-ticket-quality-refactor.TB2.AC1 — A single-loop ticket requires no whole-ticket pass; the gate stays silent
 
 ### whole-ticket-quality-refactor.SM1 — One derived trigger, one path for both work types
 

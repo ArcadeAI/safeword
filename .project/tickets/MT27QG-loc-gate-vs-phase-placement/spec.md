@@ -26,7 +26,7 @@ it git-operation-aware.
 
 ## Jobs To Be Done
 
-### loc-gate-vs-phase-placement.DEV1 — Resolve a merge without the blast-radius gate deadlocking me
+### loc-gate-vs-phase-placement.TB1 — Resolve a merge without the blast-radius gate deadlocking me
 
 **Persona:** Technical Builder (TB)
 
@@ -34,9 +34,9 @@ it git-operation-aware.
 > resolve conflicts, I want the LOC gate to stand down, so blast-radius control
 > doesn't block the very edits that finish the operation.
 
-#### loc-gate-vs-phase-placement.DEV1.AC1 — The LOC gate does not arm or block while a git merge/rebase/cherry-pick/revert is in progress
+#### loc-gate-vs-phase-placement.TB1.AC1 — The LOC gate does not arm or block while a git merge/rebase/cherry-pick/revert is in progress
 
-#### loc-gate-vs-phase-placement.DEV1.AC2 — Normal blast-radius control is unchanged when no git operation is in progress (≥400 LOC still gates)
+#### loc-gate-vs-phase-placement.TB1.AC2 — Normal blast-radius control is unchanged when no git operation is in progress (≥400 LOC still gates)
 
 ## Vocabulary
 

@@ -25,21 +25,21 @@ Safeword's quality workflows should behave correctly after installation into arb
 
 ## Jobs To Be Done
 
-### verify-safeword-any-project.DEV1 - Finish work without false verification failures
+### verify-safeword-any-project.TB1 - Finish work without false verification failures
 
 **Persona:** Technical Builder (TB)
 
 > When I use safeword in a Go, Python, Rust, npm, pnpm, yarn, Bun, or minimal project, I want `/verify` to run the checks my project actually supports, so I can trust the done gate instead of debugging missing scripts from another stack.
 
-#### verify-safeword-any-project.DEV1.AC1 - Verification uses available project commands
+#### verify-safeword-any-project.TB1.AC1 - Verification uses available project commands
 
 `/verify` detects the installed project's runnable checks before choosing commands and does not require absent scripts such as `build`, `test`, or `test:bdd`.
 
-#### verify-safeword-any-project.DEV1.AC2 - Unsupported automation asks for evidence
+#### verify-safeword-any-project.TB1.AC2 - Unsupported automation asks for evidence
 
 When safeword cannot identify an automated verification command, `/verify` records the gap and asks for explicit manual evidence instead of manufacturing a failing command.
 
-#### verify-safeword-any-project.DEV1.AC3 - Safeword runtime stays separate from project runtime
+#### verify-safeword-any-project.TB1.AC3 - Safeword runtime stays separate from project runtime
 
 Safeword can still require Bun for its hooks while avoiding the implication that the target project itself must use Bun.
 

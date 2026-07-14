@@ -30,7 +30,7 @@ Audit passed with warnings.
 ## Scope → evidence
 
 - **Scheme as scenario title:** `test-definitions.md` titles use
-  `cross-reference-numbering.DEV1.AC1|AC2.<snake>` (dogfooded);
+  `cross-reference-numbering.TB1.AC1|AC2.<snake>` (dogfooded);
   `parseAcReferenceFromTitle` proves the title→ref parse (R1).
 - **`safeword check` coverage report (advisory, three buckets):**
   `buildCoverageReport` + `check.ts` wiring, scoped to in-progress spec-bearing

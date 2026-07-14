@@ -717,13 +717,13 @@ describe('Test Suite 8: Health Check', () => {
       '',
       '## Jobs To Be Done',
       '',
-      '### demo.DEV1 — Trace',
+      '### demo.TB1 — Trace',
       '',
-      '**Persona:** DEV',
+      '**Persona:** TB',
       '',
-      '#### demo.DEV1.AC1 — capability one',
+      '#### demo.TB1.AC1 — capability one',
       '',
-      '#### demo.DEV1.AC2 — capability two',
+      '#### demo.TB1.AC2 — capability two',
       '',
     ].join('\n');
 
@@ -762,14 +762,14 @@ describe('Test Suite 8: Health Check', () => {
       await createConfiguredProject(temporaryDirectory);
       writeTicket('COV001', 'in_progress', {
         'spec.md': SPEC_TWO_ACS,
-        'test-definitions.md': scenarioTitle('demo.DEV1.AC1.happy_path'),
+        'test-definitions.md': scenarioTitle('demo.TB1.AC1.happy_path'),
       });
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
       expect(result.exitCode).toBe(0);
       const combined = `${result.stdout}\n${result.stderr}`;
-      expect(combined).toMatch(/COV001:.*demo\.DEV1\.AC2.*uncovered/i);
+      expect(combined).toMatch(/COV001:.*demo\.TB1\.AC2.*uncovered/i);
     });
 
     it('prefers feature-source tags over markdown scenario titles (1DT29X)', async () => {
@@ -777,7 +777,7 @@ describe('Test Suite 8: Health Check', () => {
       writeTicket('COV004-demo', 'in_progress', {
         'spec.md': SPEC_TWO_ACS,
         // If markdown still won, AC2 would look covered. Feature source should win.
-        'test-definitions.md': scenarioTitle('demo.DEV1.AC2.markdown_only'),
+        'test-definitions.md': scenarioTitle('demo.TB1.AC2.markdown_only'),
       });
       writeTestFile(
         temporaryDirectory,
@@ -787,7 +787,7 @@ describe('Test Suite 8: Health Check', () => {
           '',
           '  Rule: r',
           '',
-          '    @demo.DEV1.AC1',
+          '    @demo.TB1.AC1',
           '    Scenario: feature source covers only AC1',
           '      Given a',
           '      When b',
@@ -800,7 +800,7 @@ describe('Test Suite 8: Health Check', () => {
 
       expect(result.exitCode).toBe(0);
       const combined = `${result.stdout}\n${result.stderr}`;
-      expect(combined).toMatch(/demo \(COV004\):.*demo\.DEV1\.AC2.*uncovered/i);
+      expect(combined).toMatch(/demo \(COV004\):.*demo\.TB1\.AC2.*uncovered/i);
     });
 
     it('reports an affected surface with no matching feature-source tag as a zero-exit advisory', async () => {
@@ -817,14 +817,14 @@ describe('Test Suite 8: Health Check', () => {
           '',
           '## Jobs To Be Done',
           '',
-          '### demo.DEV1 — Trace',
+          '### demo.TB1 — Trace',
           '',
-          '**Persona:** DEV',
+          '**Persona:** TB',
           '',
-          '#### demo.DEV1.AC1 — capability one',
+          '#### demo.TB1.AC1 — capability one',
           '',
         ].join('\n'),
-        'test-definitions.md': scenarioTitle('demo.DEV1.AC1.markdown_fallback'),
+        'test-definitions.md': scenarioTitle('demo.TB1.AC1.markdown_fallback'),
       });
       writeTestFile(
         temporaryDirectory,
@@ -834,7 +834,7 @@ describe('Test Suite 8: Health Check', () => {
           '',
           '  Rule: r',
           '',
-          '    @demo.DEV1.AC1 @surface.claude-code',
+          '    @demo.TB1.AC1 @surface.claude-code',
           '    Scenario: feature source covers Claude only',
           '      Given a',
           '      When b',
@@ -854,7 +854,7 @@ describe('Test Suite 8: Health Check', () => {
       await createConfiguredProject(temporaryDirectory);
       writeTicket('COV005-demo', 'in_progress', {
         'spec.md': SPEC_TWO_ACS,
-        'test-definitions.md': scenarioTitle('demo.DEV1.AC1.markdown_fallback'),
+        'test-definitions.md': scenarioTitle('demo.TB1.AC1.markdown_fallback'),
       });
       writeTestFile(
         temporaryDirectory,
@@ -882,7 +882,7 @@ describe('Test Suite 8: Health Check', () => {
       await createConfiguredProject(temporaryDirectory);
       writeTicket('COV006-demo', 'in_progress', {
         'spec.md': SPEC_TWO_ACS,
-        'test-definitions.md': scenarioTitle('demo.DEV1.AC1.markdown_fallback'),
+        'test-definitions.md': scenarioTitle('demo.TB1.AC1.markdown_fallback'),
       });
       writeTestFile(
         temporaryDirectory,
@@ -897,10 +897,10 @@ describe('Test Suite 8: Health Check', () => {
           '      When b',
           '      Then c',
           '',
-          '  @demo.DEV1.AC1',
+          '  @demo.TB1.AC1',
           '  Rule: tagged',
           '',
-          '    @demo.DEV1.AC2',
+          '    @demo.TB1.AC2',
           '    Scenario: carries two AC tags',
           '      Given a',
           '      When b',
@@ -924,14 +924,14 @@ describe('Test Suite 8: Health Check', () => {
       // so a slugged folder must lead with the slug: `slug (ID):`, not bare ID.
       writeTicket('COV003-trace-thing', 'in_progress', {
         'spec.md': SPEC_TWO_ACS,
-        'test-definitions.md': scenarioTitle('demo.DEV1.AC1.happy_path'),
+        'test-definitions.md': scenarioTitle('demo.TB1.AC1.happy_path'),
       });
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
       expect(result.exitCode).toBe(0);
       const combined = `${result.stdout}\n${result.stderr}`;
-      expect(combined).toMatch(/trace-thing \(COV003\):.*demo\.DEV1\.AC2.*uncovered/i);
+      expect(combined).toMatch(/trace-thing \(COV003\):.*demo\.TB1\.AC2.*uncovered/i);
     });
 
     const SPEC_ONE_RULE = [
@@ -939,11 +939,11 @@ describe('Test Suite 8: Health Check', () => {
       '',
       '## Jobs To Be Done',
       '',
-      '### demo.DEV2 — Retry',
+      '### demo.TB2 — Retry',
       '',
-      '**Persona:** DEV',
+      '**Persona:** TB',
       '',
-      '#### demo.DEV2.R1 — failed deliveries retry on backoff',
+      '#### demo.TB2.R1 — failed deliveries retry on backoff',
       '',
     ].join('\n');
 
@@ -955,7 +955,7 @@ describe('Test Suite 8: Health Check', () => {
       return [
         'Feature: Demo',
         '',
-        '  Rule: demo.DEV2.R1 — failed deliveries retry on backoff',
+        '  Rule: demo.TB2.R1 — failed deliveries retry on backoff',
         '',
         ...scenarioTags.flatMap((tags, index) => [
           `    ${ruleTagLine(tags)}`,
@@ -977,16 +977,16 @@ describe('Test Suite 8: Health Check', () => {
       writeTestFile(
         temporaryDirectory,
         'features/demo.feature',
-        ruleFeature([['demo.DEV2.R5'], ['ghost.SM1.R1']]),
+        ruleFeature([['demo.TB2.R5'], ['ghost.SM1.R1']]),
       );
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
       const combined = `${result.stdout}\n${result.stderr}`;
       expect(combined).toMatch(
-        /numbered rule demo\.DEV2\.R1 has no scenario illustrating it \(uncovered\) — add a scenario tagged @demo\.DEV2\.R1/,
+        /numbered rule demo\.TB2\.R1 has no scenario illustrating it \(uncovered\) — add a scenario tagged @demo\.TB2\.R1/,
       );
-      expect(combined).toMatch(/scenario ref demo\.DEV2\.R5 matches no numbered rule.*stale ref/);
+      expect(combined).toMatch(/scenario ref demo\.TB2\.R5 matches no numbered rule.*stale ref/);
       expect(combined).toMatch(/scenario ref ghost\.SM1\.R1 names no JTBD.*orphan/);
     });
 
@@ -996,14 +996,14 @@ describe('Test Suite 8: Health Check', () => {
         'spec.md': SPEC_ONE_RULE,
         'test-definitions.md': scenarioTitle('ledger only'),
       });
-      writeTestFile(temporaryDirectory, 'features/demo.feature', ruleFeature([['demo.DEV2.R1']]));
+      writeTestFile(temporaryDirectory, 'features/demo.feature', ruleFeature([['demo.TB2.R1']]));
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
       expect(result.exitCode).toBe(0);
       const combined = `${result.stdout}\n${result.stderr}`;
       expect(combined).toMatch(
-        /numbered rule demo\.DEV2\.R1 has no example of the rule being broken — add a @rejection-tagged scenario under it/,
+        /numbered rule demo\.TB2\.R1 has no example of the rule being broken — add a @rejection-tagged scenario under it/,
       );
     });
 
@@ -1016,7 +1016,7 @@ describe('Test Suite 8: Health Check', () => {
       writeTestFile(
         temporaryDirectory,
         'features/demo.feature',
-        ruleFeature([['demo.DEV2.R1'], ['demo.DEV2.R1', 'rejection']]),
+        ruleFeature([['demo.TB2.R1'], ['demo.TB2.R1', 'rejection']]),
       );
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
@@ -1029,8 +1029,8 @@ describe('Test Suite 8: Health Check', () => {
     it('rule-tier.TB1.AC4: flags a JTBD declaring both ACs and numbered Rules as a check issue', async () => {
       await createConfiguredProject(temporaryDirectory);
       writeTicket('RUL004-demo', 'in_progress', {
-        'spec.md': [SPEC_TWO_ACS, '#### demo.DEV1.R1 — an invariant beside the ACs', ''].join('\n'),
-        'test-definitions.md': scenarioTitle('demo.DEV1.AC1.happy_path'),
+        'spec.md': [SPEC_TWO_ACS, '#### demo.TB1.R1 — an invariant beside the ACs', ''].join('\n'),
+        'test-definitions.md': scenarioTitle('demo.TB1.AC1.happy_path'),
       });
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
@@ -1038,7 +1038,7 @@ describe('Test Suite 8: Health Check', () => {
       expect(result.exitCode).toBe(1);
       const combined = `${result.stdout}\n${result.stderr}`;
       expect(combined).toMatch(
-        /JTBD demo\.DEV1 declares both Acceptance Criteria and numbered Rules; keep one criteria kind per job — convert one set or split the job/,
+        /JTBD demo\.TB1 declares both Acceptance Criteria and numbered Rules; keep one criteria kind per job — convert one set or split the job/,
       );
     });
 

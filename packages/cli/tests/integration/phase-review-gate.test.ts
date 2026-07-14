@@ -138,7 +138,7 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
     rmSync(projectRoot, { recursive: true, force: true });
   });
 
-  it('blocks a Write that advances the phase with no stamp (DEV2.AC1)', () => {
+  it('blocks a Write that advances the phase with no stamp (TB2.AC1)', () => {
     expectHookDeny(runGateWrite('scenario-gate'), 'define-behavior');
   });
 

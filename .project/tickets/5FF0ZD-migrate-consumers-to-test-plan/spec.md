@@ -33,13 +33,13 @@ Make `test-runner.ts` and `/verify` consume the `safeword test-plan` resolver so
 
 `safeword test-plan --kind <k> --format sh` prints a runnable script: `( cd <cwd> && <command> )` per available entry, `echo "⏭️ Skipped — <runner> not installed"` for unavailable ones. Evaluating it **propagates failure** — exits non-zero if any suite fails (so the gate still blocks) and is a clean no-op (exit 0) for an empty plan. Works for `--kind test` and `--kind build`.
 
-### migrate-consumers.DEV1 — the done-gate runs my real suite (preserved/upgraded)
+### migrate-consumers.TB1 — the done-gate runs my real suite (preserved/upgraded)
 
 **Persona:** Technical Builder (TB)
 
 > When my agent hits the done-gate in a Go/Rust/polyglot repo, I want my actual suite(s) run — no regression from the migration.
 
-#### migrate-consumers.DEV1.AC1 — stop-hook behavior preserved, plus polyglot/go.work/nextest
+#### migrate-consumers.TB1.AC1 — stop-hook behavior preserved, plus polyglot/go.work/nextest
 
 A JS project still runs its `test`/`test:done` + `test:bdd`; non-JS and polyglot repos run the resolver's (more capable) suite. Per-command timeout + truncation + done-gate phrases intact.
 

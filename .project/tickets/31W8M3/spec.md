@@ -31,7 +31,7 @@ that prove it. (Project-wide `glossary.md` is not yet bootstrapped.)
 
 ## Jobs To Be Done
 
-### ac-layer.DEV1 — Trust that scenarios prove the feature, not just that code runs
+### ac-layer.TB1 — Trust that scenarios prove the feature, not just that code runs
 
 **Persona:** Technical Builder (TB)
 
@@ -39,9 +39,9 @@ that prove it. (Project-wide `glossary.md` is not yet bootstrapped.)
 > pinned as acceptance criteria before any scenarios are written, so I can trust
 > the scenarios prove the feature does its job — not merely that some code runs.
 
-#### ac-layer.DEV1.AC1 — Each job carries ≥1 acceptance criterion (or an auditable skip) before scenarios can be written
+#### ac-layer.TB1.AC1 — Each job carries ≥1 acceptance criterion (or an auditable skip) before scenarios can be written
 
-#### ac-layer.DEV1.AC2 — Each scenario proves a specific acceptance criterion, so scenario coverage is provably purposeful
+#### ac-layer.TB1.AC2 — Each scenario proves a specific acceptance criterion, so scenario coverage is provably purposeful
 
 ## Outcomes
 

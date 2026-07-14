@@ -35,7 +35,7 @@ working untouched via automatic legacy detection.
 
 ## Jobs To Be Done
 
-### project-namespace-default.DEV1 — Maintain shared knowledge in one place
+### project-namespace-default.TB1 — Maintain shared knowledge in one place
 
 **Persona:** Technical Builder (TB)
 
@@ -43,13 +43,13 @@ working untouched via automatic legacy detection.
 > read my personas, glossary, and specs from one directory, so I can maintain
 > that knowledge in a single place instead of keeping two copies in sync.
 
-#### project-namespace-default.DEV1.AC1 — A fresh safeword install scaffolds the namespace at `.project/`
+#### project-namespace-default.TB1.AC1 — A fresh safeword install scaffolds the namespace at `.project/`
 
-#### project-namespace-default.DEV1.AC2 — Safeword reads project knowledge (personas, glossary, architecture, tickets, learnings) from `.project/` whenever it is the resolved root
+#### project-namespace-default.TB1.AC2 — Safeword reads project knowledge (personas, glossary, architecture, tickets, learnings) from `.project/` whenever it is the resolved root
 
-#### project-namespace-default.DEV1.AC3 — The default location of personas, glossary, and architecture derives from the resolved root, not a hard-coded prefix
+#### project-namespace-default.TB1.AC3 — The default location of personas, glossary, and architecture derives from the resolved root, not a hard-coded prefix
 
-### project-namespace-default.DEV2 — Point the namespace where my repo keeps it
+### project-namespace-default.TB2 — Point the namespace where my repo keeps it
 
 **Persona:** Technical Builder (TB)
 
@@ -57,11 +57,11 @@ working untouched via automatic legacy detection.
 > want to tell safeword where the namespace root lives, so I can adopt safeword
 > without reorganizing my repo.
 
-#### project-namespace-default.DEV2.AC1 — A configured root override redirects every namespace read/write to that location
+#### project-namespace-default.TB2.AC1 — A configured root override redirects every namespace read/write to that location
 
-#### project-namespace-default.DEV2.AC2 — Existing per-file `paths.personas` / `paths.glossary` / `paths.architecture` overrides still work and resolve against the root
+#### project-namespace-default.TB2.AC2 — Existing per-file `paths.personas` / `paths.glossary` / `paths.architecture` overrides still work and resolve against the root
 
-### project-namespace-default.DEV3 — Upgrade an existing install without a flag day
+### project-namespace-default.TB3 — Upgrade an existing install without a flag day
 
 **Persona:** Technical Builder (TB)
 
@@ -69,11 +69,11 @@ working untouched via automatic legacy detection.
 > want my existing layout to keep working untouched, so I can take the upgrade
 > without a migration scramble.
 
-#### project-namespace-default.DEV3.AC1 — An install with only `.safeword-project/` present continues to resolve there after upgrade
+#### project-namespace-default.TB3.AC1 — An install with only `.safeword-project/` present continues to resolve there after upgrade
 
-#### project-namespace-default.DEV3.AC2 — The upgrade introduces no new required migration step for existing installs
+#### project-namespace-default.TB3.AC2 — The upgrade introduces no new required migration step for existing installs
 
-### project-namespace-default.DEV4 — Converge an old install via upgrade
+### project-namespace-default.TB4 — Converge an old install via upgrade
 
 **Persona:** Technical Builder (TB)
 
@@ -82,11 +82,11 @@ working untouched via automatic legacy detection.
 > converge during a routine upgrade without a separate command or hand-editing
 > paths.
 
-#### project-namespace-default.DEV4.AC1 — Interactive `upgrade` on a legacy install prompts to migrate, defaulting to yes (recommended); accepting moves the namespace to `.project/` preserving git history
+#### project-namespace-default.TB4.AC1 — Interactive `upgrade` on a legacy install prompts to migrate, defaulting to yes (recommended); accepting moves the namespace to `.project/` preserving git history
 
-#### project-namespace-default.DEV4.AC2 — The move never happens without consent: scripted runs gate on `--migrate-namespace` / `--no-migrate-namespace`, and the non-interactive auto-upgrade hook only nudges
+#### project-namespace-default.TB4.AC2 — The move never happens without consent: scripted runs gate on `--migrate-namespace` / `--no-migrate-namespace`, and the non-interactive auto-upgrade hook only nudges
 
-#### project-namespace-default.DEV4.AC3 — After a migration, resolution points at `.project/` and the old location is no longer consulted
+#### project-namespace-default.TB4.AC3 — After a migration, resolution points at `.project/` and the old location is no longer consulted
 
 ### project-namespace-default.SM1 — Resolve the root in one place
 

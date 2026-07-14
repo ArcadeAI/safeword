@@ -45,7 +45,7 @@ Feature: Gherkin feature files are the scenario source
       Given a ticket "DEMO" with one scenario
       When I run "codify DEMO"
       Then the output contains "describe("
-      And the output contains "demo.DEV1.AC1.one"
+      And the output contains "demo.TB1.AC1.one"
 
   Rule: Authoring instructions name feature files as source
 

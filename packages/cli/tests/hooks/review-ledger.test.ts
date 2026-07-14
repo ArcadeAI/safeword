@@ -18,7 +18,7 @@ import {
   type ReviewStamp,
 } from '../../templates/hooks/lib/review-ledger.js';
 
-describe('reviewGateForNextAsset (DEV1.AC1 — per-asset stamp gates the next asset)', () => {
+describe('reviewGateForNextAsset (TB1.AC1 — per-asset stamp gates the next asset)', () => {
   it('unstamped_prior_blocks_next: denies, naming the unreviewed prior asset', () => {
     const verdict = reviewGateForNextAsset('jtbd', []);
     expect(verdict.ok).toBe(false);
@@ -50,7 +50,7 @@ describe('reviewGateForNextAsset (DEV1.AC1 — per-asset stamp gates the next as
   });
 });
 
-describe('gatePhaseAdvance (DEV2.AC1 — phase advance needs an independent review stamp)', () => {
+describe('gatePhaseAdvance (TB2.AC1 — phase advance needs an independent review stamp)', () => {
   it('no_phase_stamp_blocks_advance: no stamp for the phase denies, naming the phase', () => {
     const verdict = gatePhaseAdvance('define-behavior', []);
     expect(verdict.ok).toBe(false);

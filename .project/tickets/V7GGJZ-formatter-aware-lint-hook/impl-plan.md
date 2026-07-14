@@ -19,18 +19,18 @@ step lands on green:
    `eslint --fix`) and the `PRETTIER_EXTENSIONS` markup branch — to skip when an alternative
    formatter owns the repo. **Integration tests** drive `lintFile` against temp-repo fixtures
    (biome/dprint/oxfmt/deno config + a file in that tool's style) and assert the bytes are unchanged.
-   Covers DEV1.AC1, AC2, and the both-configs precedence boundary.
+   Covers TB1.AC1, AC2, and the both-configs precedence boundary.
 3. **ESLint stays non-style (integration).** Confirm the `existingFormatter` ESLint config carries
-   no stylistic rules; add the regression scenario (DEV1.AC3 "no restyle") and the security-finding
+   no stylistic rules; add the regression scenario (TB1.AC3 "no restyle") and the security-finding
    scenario. Fixture asserts a security finding still surfaces and a biome-styled file gets no format
    change from `eslint --fix`.
 4. **Session check (unit/integration).** Make `session-lint-check.ts` skip the "Prettier missing /
-   install prettier" warnings when an alternative formatter is present (DEV4.AC1).
+   install prettier" warnings when an alternative formatter is present (TB4.AC1).
 5. **Docs + mirror (no test).** Fix the README formatter FAQ ("coexist without conflict") to match
    real runtime behavior — tracked on the `/verify` done-checklist, not a scenario. Sync the
    `.safeword/hooks/` ↔ `packages/cli/templates/hooks/` mirror for every touched hook file.
 
-Own-Prettier-config (DEV2.AC1) and greenfield (DEV3.AC1) scenarios are **integration** regression
+Own-Prettier-config (TB2.AC1) and greenfield (TB3.AC1) scenarios are **integration** regression
 guards — they assert the unchanged post-8BNSTE behavior survives the new gating.
 
 ## Decisions
@@ -65,7 +65,7 @@ the epic restates — here applied to hook _actions_, not just written config.
   called for integration tests driving `lintFile` against temp-repo fixtures. As shipped, the gate is
   proven by unit tests of the decision seam — `detectAlternativeFormatter`,
   `projectOwnsAlternativeFormatter` (skip-gate), `shouldWarnMissingPrettier` (session nag) — plus the
-  trivial `runPrettier` early-return wiring. DEV1.AC3 needed no code: the existing formatter-agnostic
+  trivial `runPrettier` early-return wiring. TB1.AC3 needed no code: the existing formatter-agnostic
   ESLint config already bakes in `eslint-config-prettier` (in `recommendedTypeScript`) and carries no
   `@stylistic` plugin, with security via `basePlugins` — verified by inspection. The 9 Gherkin
   scenarios that would assert the full end-to-end hook run are tagged `@wip` (cucumber step defs

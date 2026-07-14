@@ -2,7 +2,7 @@
 
 ## Rule: The architecture-record helper resolves file-or-directory locations
 
-### Scenario: adr-consultation.DEV1.AC1.single_file_location_is_the_record
+### Scenario: adr-consultation.TB1.AC1.single_file_location_is_the_record
 
 Given `paths.architecture` resolves to an existing markdown file
 When the helper lists architecture records
@@ -12,7 +12,7 @@ Then it reports kind `file` with that file as the single record
 - [x] GREEN 9d113675
 - [x] REFACTOR skip: 5-line file branch, nothing to restructure
 
-### Scenario: adr-consultation.DEV1.AC1.directory_location_lists_each_md_as_adr
+### Scenario: adr-consultation.TB1.AC1.directory_location_lists_each_md_as_adr
 
 Given the location is a directory containing `0001-storage.md`, `ADR-queue.md`, `naming-freeform.md`, a non-markdown `notes.txt`, and a subdirectory `nested/` holding `0002-deep.md`
 When the helper lists architecture records
@@ -22,7 +22,7 @@ Then it reports kind `directory` and the record set equals exactly the three top
 - [x] GREEN ff8fa6b8
 - [x] REFACTOR skip: directory branch is one filter chain, readable as-is
 
-### Scenario: adr-consultation.DEV1.AC1.readme_is_excluded_from_directory_records
+### Scenario: adr-consultation.TB1.AC1.readme_is_excluded_from_directory_records
 
 Given the location is a directory containing `README.md` and `0001-storage.md`
 When the helper lists architecture records
@@ -32,7 +32,7 @@ Then the records contain `0001-storage.md` only
 - [x] GREEN bf956576
 - [x] REFACTOR skip: one filter condition added, chain still reads at a glance
 
-### Scenario: adr-consultation.DEV1.AC2.absent_location_reports_no_records
+### Scenario: adr-consultation.TB1.AC2.absent_location_reports_no_records
 
 Given the resolved location does not exist
 When the helper lists architecture records
@@ -42,7 +42,7 @@ Then it reports kind `absent` with zero records
 - [x] GREEN 62dcee19
 - [x] REFACTOR skip: stub line replaced with the absent return, function complete at 12 lines
 
-### Scenario: adr-consultation.DEV1.AC2.readme_only_directory_reports_no_records
+### Scenario: adr-consultation.TB1.AC2.readme_only_directory_reports_no_records
 
 Given the location is a directory containing only `README.md`
 When the helper lists architecture records
@@ -52,7 +52,7 @@ Then it reports kind `directory` with zero records
 - [x] GREEN 4c18a4d5
 - [x] REFACTOR skip: characterization test, no code change
 
-### Scenario: adr-consultation.DEV1.AC1.configured_override_directory_is_consumed
+### Scenario: adr-consultation.TB1.AC1.configured_override_directory_is_consumed
 
 Given `.safeword/config.json` sets `paths.architecture` to a project-relative directory of ADRs
 When the helper lists architecture records for the project
@@ -99,7 +99,7 @@ Then no architecture question is surfaced for that ticket
 
 ## Rule: The skill docs teach the consultation procedure end to end
 
-### Scenario: adr-consultation.DEV1.AC2.docs_show_consultation_and_first_adr_prompt_in_both_copies
+### Scenario: adr-consultation.TB1.AC2.docs_show_consultation_and_first_adr_prompt_in_both_copies
 
 Given the canonical skill files (packages/cli/templates/skills/bdd) and the dogfood copies (.claude/skills/bdd)
 When SCENARIOS.md's scenario-gate exit is scanned in both copies

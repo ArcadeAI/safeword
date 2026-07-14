@@ -261,7 +261,7 @@ Feature: Init dry-run
 
   Rule: Dry-run shows expected output
 
-    @init-dry-run.DEV1.AC1
+    @init-dry-run.TB1.AC1
     Scenario: Empty directory lists would-be files
       Given an empty target directory
       When user runs `init --dry-run`

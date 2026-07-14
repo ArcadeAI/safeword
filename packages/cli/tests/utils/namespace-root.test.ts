@@ -6,7 +6,7 @@
  * semantics and malformed-config fallthrough. Default-subpath derivation and
  * per-file override interaction live in namespace-root-defaults.test.ts.
  *
- * Scenario lineage: namespace-root-resolver.SM1.AC1.*, DEV1.AC2, DEV2.AC1
+ * Scenario lineage: namespace-root-resolver.SM1.AC1.*, TB1.AC2, TB2.AC1
  * (test-definitions.md in the ticket folder).
  */
 
@@ -56,7 +56,7 @@ describe('resolveNamespaceRoot — precedence (TAGWZ8)', () => {
     expect(resolveNamespaceRoot(cwd)).toBe(nodePath.join(cwd, '.project'));
   });
 
-  it('DEV1.AC2.legacy_only_resolves_there', () => {
+  it('TB1.AC2.legacy_only_resolves_there', () => {
     mkdirSync(nodePath.join(cwd, '.safeword-project'));
 
     expect(resolveNamespaceRoot(cwd)).toBe(nodePath.join(cwd, '.safeword-project'));
@@ -73,13 +73,13 @@ describe('resolveNamespaceRoot — precedence (TAGWZ8)', () => {
     expect(resolveNamespaceRoot(cwd)).toBe(nodePath.join(cwd, '.project'));
   });
 
-  it('DEV2.AC1.relative_project_root_resolves_against_cwd', () => {
+  it('TB2.AC1.relative_project_root_resolves_against_cwd', () => {
     writeConfig(cwd, { installedPacks: [], paths: { projectRoot: 'shared/ns' } });
 
     expect(resolveNamespaceRoot(cwd)).toBe(nodePath.join(cwd, 'shared', 'ns'));
   });
 
-  it('DEV2.AC1.absolute_project_root_used_verbatim', () => {
+  it('TB2.AC1.absolute_project_root_used_verbatim', () => {
     const externalDirectory = createTemporaryDirectory();
     try {
       writeConfig(cwd, { installedPacks: [], paths: { projectRoot: externalDirectory } });

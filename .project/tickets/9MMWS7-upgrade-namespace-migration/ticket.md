@@ -31,7 +31,7 @@ done_when:
 
 # Upgrade-vehicle migration to .project/ + both-dirs advisory
 
-**Goal:** `safeword upgrade` offers a legacy install the move to `.project/` as the default-recommended action (git-aware, consent-gated, never silent), and `safeword check` flags the transient both-dirs state (implements epic [AQJ95G](../AQJ95G-project-namespace-default/spec.md) DEV4 + DEV3.AC2). TAGWZ8 (resolver) and N9S5XG (scaffold) are done — this completes the epic.
+**Goal:** `safeword upgrade` offers a legacy install the move to `.project/` as the default-recommended action (git-aware, consent-gated, never silent), and `safeword check` flags the transient both-dirs state (implements epic [AQJ95G](../AQJ95G-project-namespace-default/spec.md) TB4 + TB3.AC2). TAGWZ8 (resolver) and N9S5XG (scaffold) are done — this completes the epic.
 
 **See:** epic [AQJ95G](../AQJ95G-project-namespace-default/spec.md) for personas, JTBDs, and outcomes.
 

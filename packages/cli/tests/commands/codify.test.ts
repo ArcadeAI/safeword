@@ -29,7 +29,7 @@ const TWO_SCENARIOS = [
   '',
   '## Rule: demo behaviour',
   '',
-  '### Scenario: demo.DEV1.AC1.one',
+  '### Scenario: demo.TB1.AC1.one',
   '',
   'Given a',
   'When b',
@@ -39,7 +39,7 @@ const TWO_SCENARIOS = [
   '- [ ] GREEN',
   '- [ ] REFACTOR',
   '',
-  '### Scenario: demo.DEV1.AC1.two',
+  '### Scenario: demo.TB1.AC1.two',
   '',
   'Given a',
   'When b',
@@ -69,14 +69,14 @@ function scaffoldFeatureTicket(root: string): void {
       '',
       '  Rule: source rule',
       '',
-      '    @demo.DEV1.AC1',
-      '    Scenario: demo.DEV1.AC1.feature_source_one',
+      '    @demo.TB1.AC1',
+      '    Scenario: demo.TB1.AC1.feature_source_one',
       '      Given a feature file',
       '      When codify runs',
       '      Then a Vitest test is emitted',
       '',
-      '    @demo.DEV1.AC1',
-      '    Scenario: demo.DEV1.AC1.feature_source_two',
+      '    @demo.TB1.AC1',
+      '    Scenario: demo.TB1.AC1.feature_source_two',
       '      Given a second scenario',
       '      When codify runs',
       '      Then another Vitest test is emitted',
@@ -104,8 +104,8 @@ function scaffoldOutlineFeatureTicket(root: string): void {
       '',
       '  Rule: source rule',
       '',
-      '    @demo.DEV1.AC1',
-      '    Scenario Outline: demo.DEV1.AC1.outline_source',
+      '    @demo.TB1.AC1',
+      '    Scenario Outline: demo.TB1.AC1.outline_source',
       '      Given a <source> feature file',
       '      Then codify emits <result>',
       '',
@@ -134,7 +134,7 @@ describe('safeword codify', () => {
   });
 
   it(
-    'codify.DEV1.AC3.default_prints_to_stdout',
+    'codify.TB1.AC3.default_prints_to_stdout',
     async () => {
       scaffoldTicket(temporaryDirectory, TWO_SCENARIOS);
       const result = await runCli(['codify', TICKET_ID], { cwd: temporaryDirectory });
@@ -150,7 +150,7 @@ describe('safeword codify', () => {
   );
 
   it(
-    'codify.DEV1.AC3.out_writes_the_file',
+    'codify.TB1.AC3.out_writes_the_file',
     async () => {
       scaffoldTicket(temporaryDirectory, TWO_SCENARIOS);
       const result = await runCli(['codify', TICKET_ID, '--out', 'gen.test.ts'], {
@@ -167,7 +167,7 @@ describe('safeword codify', () => {
   );
 
   it(
-    'codify.DEV1.AC3.out_refuses_to_overwrite_an_existing_file',
+    'codify.TB1.AC3.out_refuses_to_overwrite_an_existing_file',
     async () => {
       scaffoldTicket(temporaryDirectory, TWO_SCENARIOS);
       writeTestFile(temporaryDirectory, 'gen.test.ts', 'ORIGINAL CONTENT');
@@ -183,7 +183,7 @@ describe('safeword codify', () => {
   );
 
   it(
-    'codify.DEV1.AC3.out_parent_dir_missing_errors',
+    'codify.TB1.AC3.out_parent_dir_missing_errors',
     async () => {
       scaffoldTicket(temporaryDirectory, TWO_SCENARIOS);
       const result = await runCli(['codify', TICKET_ID, '--out', 'missing-dir/gen.test.ts'], {
@@ -198,7 +198,7 @@ describe('safeword codify', () => {
   );
 
   it(
-    'codify.DEV1.AC3.missing_test_definitions_errors',
+    'codify.TB1.AC3.missing_test_definitions_errors',
     async () => {
       // Ticket folder exists (ticket.md) but no test-definitions.md.
       writeTestFile(temporaryDirectory, `.safeword-project/tickets/${TICKET_ID}/ticket.md`, '# x');
@@ -211,7 +211,7 @@ describe('safeword codify', () => {
   );
 
   it(
-    'codify.DEV1.AC3.scenario_less_input_errors',
+    'codify.TB1.AC3.scenario_less_input_errors',
     async () => {
       scaffoldTicket(temporaryDirectory, '# Test Definitions\n\nNo rules or scenarios here.\n');
       const result = await runCli(['codify', TICKET_ID], { cwd: temporaryDirectory });
@@ -224,7 +224,7 @@ describe('safeword codify', () => {
   );
 
   it(
-    'gherkin-typescript.DEV1.AC2.default_emits_vitest',
+    'gherkin-typescript.TB1.AC2.default_emits_vitest',
     async () => {
       scaffoldTicket(temporaryDirectory, TWO_SCENARIOS);
       const result = await runCli(['codify', TICKET_ID], { cwd: temporaryDirectory });
@@ -244,7 +244,7 @@ describe('safeword codify', () => {
 
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('describe("source rule"');
-      expect(result.stdout).toContain('it.todo("demo.DEV1.AC1.feature_source_one")');
+      expect(result.stdout).toContain('it.todo("demo.TB1.AC1.feature_source_one")');
       expect(countTests(result.stdout)).toBe(2);
     },
     TIMEOUT_QUICK,
@@ -258,10 +258,10 @@ describe('safeword codify', () => {
 
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain(
-        'it.todo("demo.DEV1.AC1.outline_source (source=valid, result=a test stub)")',
+        'it.todo("demo.TB1.AC1.outline_source (source=valid, result=a test stub)")',
       );
       expect(result.stdout).toContain(
-        'it.todo("demo.DEV1.AC1.outline_source (source=tagged, result=coverage tag)")',
+        'it.todo("demo.TB1.AC1.outline_source (source=tagged, result=coverage tag)")',
       );
       expect(result.stdout).toContain('// Given a valid feature file');
       expect(result.stdout).toContain('// Then codify emits coverage tag');
@@ -280,7 +280,7 @@ describe('safeword codify', () => {
 
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('Feature: Demo feature source');
-      expect(result.stdout).toContain('Scenario: demo.DEV1.AC1.feature_source_two');
+      expect(result.stdout).toContain('Scenario: demo.TB1.AC1.feature_source_two');
       expect(result.stdout).not.toContain('describe(');
     },
     TIMEOUT_QUICK,
@@ -301,7 +301,7 @@ describe('safeword codify', () => {
   );
 
   it(
-    'gherkin-typescript.DEV1.AC2.format_gherkin_emits_feature',
+    'gherkin-typescript.TB1.AC2.format_gherkin_emits_feature',
     async () => {
       scaffoldTicket(temporaryDirectory, TWO_SCENARIOS);
       const result = await runCli(['codify', TICKET_ID, '--format', 'gherkin'], {
@@ -349,7 +349,7 @@ describe('safeword codify', () => {
   );
 
   it(
-    'gherkin-typescript.DEV1.AC2.unknown_format_errors',
+    'gherkin-typescript.TB1.AC2.unknown_format_errors',
     async () => {
       scaffoldTicket(temporaryDirectory, TWO_SCENARIOS);
       const result = await runCli(['codify', TICKET_ID, '--format', 'bogus'], {

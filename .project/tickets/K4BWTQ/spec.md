@@ -22,15 +22,15 @@ Make architectural awareness a working part of impl-plan authoring: before TDD s
 
 ## Jobs To Be Done
 
-### adr-consultation.DEV1 — Implementations honor recorded decisions
+### adr-consultation.TB1 — Implementations honor recorded decisions
 
 **Persona:** Technical Builder (TB)
 
 > When my agent plans an implementation, I want it to read the architecture decisions my project has already recorded and name the relevant ones in the impl plan, so I can trust new code follows the decisions instead of silently drifting.
 
-#### adr-consultation.DEV1.AC1 — The consultation step reads records from the configured location, whether it is a single file or a directory of ADRs
+#### adr-consultation.TB1.AC1 — The consultation step reads records from the configured location, whether it is a single file or a directory of ADRs
 
-#### adr-consultation.DEV1.AC2 — When no decisions are recorded, the agent surfaces the first-ADR prompt instead of leaving the section blank
+#### adr-consultation.TB1.AC2 — When no decisions are recorded, the agent surfaces the first-ADR prompt instead of leaving the section blank
 
 ### adr-consultation.SM1 — Catch stale architecture claims structurally
 
