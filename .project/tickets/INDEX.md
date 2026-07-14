@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (414)
+## Tickets (416)
 
 ### 001
 
@@ -905,6 +905,10 @@
 - **Custom paths.projectRoot: wire formatter ignores + auto-upgrade staging (1QNPCF)** (done, epic: —)
   Make the namespace-root contribution to formatter ignore-lists and the auto-upgrade owned-paths prefixes follow the _resolved_ `paths.projectRoot`, not just the static `.project/`/`.safeword-project/`.
   → `.project/tickets/1QNPCF-custom-projectroot-wiring`
+- **Debug Codex retro runtime completion (24WR26)** (done, epic: —)
+  Identify the failing Codex retro runtime boundary and add focused smoke evidence for child launch and offset writes.
+  external issue: https://github.com/ArcadeAI/safeword/issues/960
+  → `.project/tickets/24WR26-codex-retro-runtime-completion`
 - **Reconcile ARCHITECTURE.md narrative with the generated module map (25TJAR)** (in_progress, epic: —)
   ARCHITECTURE.md documents all 13 real CLI modules, the test-plan module location, the plugin/ packaging note, and the cucumber runtime deps
   → `.project/tickets/25TJAR-architecture-narrative-reconcile`
@@ -1303,6 +1307,9 @@
 - **Show complete reset removals for users (P95FN6)** (in_progress, epic: —)
   Make `ReconcileResult.removed` report every file removed during reset/uninstall, including cleanup side effects from unmerge and unpatch executors.
   → `.project/tickets/P95FN6-show-complete-reset-removals`
+- **Add Safeword CLI surface to surfaces.md (P9Z3P7)** (in_progress, epic: —)
+  Add a ## Safeword CLI entry so the @surface.safeword-cli tags in feature-surfaces-bdd.feature resolve, clearing the E008 drift the new audit check found
+  → `.project/tickets/P9Z3P7-safeword-cli-surface`
 - **Retro accepts process-level friction surfaces and reports egress drops (PNZM3B)** (done, epic: —)
   Let retro file process-level friction under a leak-proof `process/<slug>` surface and report every egress drop, so silence means clean instead of secretly lossy.
   → `.project/tickets/PNZM3B-retro-process-surface`

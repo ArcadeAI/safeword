@@ -58,3 +58,12 @@ surfaces.md from packages/cli/templates/surfaces-template.md and then own it.
 **Examples:** `.cursor/environment.json` (cloud-only env config), Cursor Web (cursor.com/agents), Slack/GitHub/Linear `@cursor` mentions, `cursor/<task-slug>` branches (customizable prefix)
 **Coverage notes:** Tag feature scenarios with `@surface.cursor-cloud-agents` when behavior depends on the cloud VM lifecycle rather than local IDE mechanics. Project-level `.cursor/rules`, `.cursor/commands`, and command-based `.cursor/hooks.json` still apply; user-level hooks and IDE-only events do not.
 **Do not confuse with:** Cursor — runs in the IDE on the developer's machine with full local environment access.
+
+## Safeword CLI
+
+**Kind:** CLI
+**Description:** The `safeword` command-line tool itself — the harness-agnostic engine that installs and maintains the process layer. Runs setup/upgrade to scaffold and reconcile managed files (personas.md, surfaces.md, glossary.md, hooks, skills), and check/sync-config/test-plan/ticket to validate and drive the workflow. Operates on the project's real filesystem independent of which agent (if any) invokes it.
+**Audience:** Technical Builder (TB), Safeword Maintainer (SM)
+**Examples:** `safeword setup`, `safeword upgrade`, `safeword check`, `safeword sync-config`, `safeword test-plan`, `safeword ticket new`, the managed-file reconcile contract, generated `INDEX.md`
+**Coverage notes:** Tag feature scenarios with `@surface.safeword-cli` when the behavior is the CLI tool's own — file scaffolding/reconciliation, config validation, index generation — rather than something that must work through a specific agent runtime.
+**Do not confuse with:** Claude Code / OpenAI Codex / Cursor — the agent runtimes that *invoke* safeword during a session. `@surface.safeword-cli` marks behavior that must hold no matter which agent (or a plain terminal) runs the command.
