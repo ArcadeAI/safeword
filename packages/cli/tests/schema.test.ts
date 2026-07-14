@@ -52,7 +52,7 @@ function commandMatcherByCodexEventFromPlugin(): Map<string, string | undefined>
     for (const entry of eventEntries) {
       const hookCommands = entry.hooks ?? [];
       for (const hook of hookCommands) {
-        const match = /safeword hook codex ([a-z-]+)/u.exec(hook.command ?? '');
+        const match = /safeword@[\d.]+ hook codex ([a-z-]+)/u.exec(hook.command ?? '');
         if (match?.[1]) entries.set(`${eventName}:${match[1]}`, entry.matcher);
       }
     }
@@ -386,6 +386,32 @@ describe('Schema - Single Source of Truth', () => {
       expect(commandMatcherByCodexEventFromPlugin()).toEqual(
         commandMatcherByCodexEventFromTemplate(),
       );
+    });
+
+    it('pins every plugin hook to the packaged CLI version', () => {
+      const packageVersion = JSON.parse(
+        readFileSync(nodePath.join(import.meta.dirname, '../package.json'), 'utf8'),
+      ).version as string;
+      const pluginVersion = JSON.parse(
+        readFileSync(
+          nodePath.join(import.meta.dirname, '../codex-plugin/.codex-plugin/plugin.json'),
+          'utf8',
+        ),
+      ).version as string;
+      const hooks = JSON.parse(
+        readFileSync(nodePath.join(import.meta.dirname, '../codex-plugin/hooks.json'), 'utf8'),
+      ) as { hooks: Record<string, CodexHookEntry[]> };
+
+      expect(pluginVersion).toBe(packageVersion);
+      const hookEntryGroups = Object.values(hooks.hooks);
+      for (const entries of hookEntryGroups) {
+        for (const entry of entries) {
+          const hookCommands = entry.hooks ?? [];
+          for (const hook of hookCommands) {
+            expect(hook.command).toContain(`bunx --bun safeword@${packageVersion} hook codex`);
+          }
+        }
+      }
     });
   });
 

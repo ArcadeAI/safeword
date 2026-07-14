@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npx --yes safeword hook codex session-start",
+            "command": "bunx --bun safeword@0.68.0 hook codex session-start",
             "timeout": 120,
             "statusMessage": "Loading Safe Word standing instructions"
           }
@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npx --yes safeword hook codex pre-tool-use",
+            "command": "bunx --bun safeword@0.68.0 hook codex pre-tool-use",
             "timeout": 30,
             "statusMessage": "Checking Safe Word edit gates"
           }
@@ -32,7 +32,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npx --yes safeword hook codex post-tool-use",
+            "command": "bunx --bun safeword@0.68.0 hook codex post-tool-use",
             "timeout": 30,
             "statusMessage": "Surfacing Safe Word post-tool context"
           }
@@ -45,7 +45,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npx --yes safeword hook codex user-prompt-submit",
+            "command": "bunx --bun safeword@0.68.0 hook codex user-prompt-submit",
             "timeout": 30,
             "statusMessage": "Checking queued Safe Word prompt context"
           }
@@ -58,7 +58,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npx --yes safeword hook codex stop",
+            "command": "bunx --bun safeword@0.68.0 hook codex stop",
             "timeout": 600,
             "statusMessage": "Checking Safe Word stop continuation"
           }
