@@ -132,16 +132,16 @@ machine-checkable rather than eyeballed:
 fine — no truncation. Scenario names may be plain English; keep lineage in tags,
 not names.
 
-Worked example — feature `oauth-flow`, persona Platform Operator (PO), first JTBD:
+Worked example — feature `oauth-flow`, persona Platform Operator (PLO), first JTBD:
 
-| Layer        | Id                   |
-| ------------ | -------------------- |
-| JTBD         | `oauth-flow.PO1`     |
-| Rule         | `oauth-flow.PO1.R2`  |
-| Scenario tag | `@oauth-flow.PO1.R2` |
+| Layer        | Id                    |
+| ------------ | --------------------- |
+| JTBD         | `oauth-flow.PLO1`     |
+| Rule         | `oauth-flow.PLO1.R2`  |
+| Scenario tag | `@oauth-flow.PLO1.R2` |
 
 ```text
-@oauth-flow.PO1.R2
+@oauth-flow.PLO1.R2
 Scenario: Change association applies to subsequent auth
 ```
 
@@ -164,7 +164,7 @@ kind, never both (`safeword check` flags a mixed job as an issue). Legacy specs
 may still use Acceptance Criteria instead (soft-deprecated).
 
 - **Spec catalog:** `#### <jtbd-id>.R<n> — <invariant>` headings under the JTBD,
-  exactly where AC headings sit (e.g. `#### webhook-retry.PO1.R1 — a failed
+  exactly where AC headings sit (e.g. `#### webhook-retry.PLO1.R1 — a failed
 delivery retries on exponential backoff`). IDs are 1-indexed per job and
   numbering-locked after review — renumbering breaks references on purpose.
 - **Feature file:** the `Rule:` block carries the literal `@<jtbd-id>.R<n>` tag
@@ -182,8 +182,8 @@ delivery retries on exponential backoff`). IDs are 1-indexed per job and
   exactly as for AC refs.
 - **Migrating a rule-numbered corpus** (e.g. Arcade-style split tags): the Rule
   blocks, IDs, and nesting survive as-is; respell tags mechanically —
-  `@job:PO1 @rule:PO1.R1 @scenario:<name>` on a scenario becomes the single
-  block-level `@<slug>.PO1.R1` tag, and scenario names go back to plain English.
+  `@job:PLO1 @rule:PLO1.R1 @scenario:<name>` on a scenario becomes the single
+  block-level `@<slug>.PLO1.R1` tag, and scenario names go back to plain English.
 
 ### Define Behavior Exit
 

@@ -11,6 +11,7 @@
     "shfmt",
     "dot",
     "claude",
+    "codex",
     "shellcheck",
     "rustup",
     "ruff",

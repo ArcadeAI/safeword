@@ -7,7 +7,7 @@ unknown references as questions. Format and short-code rules:
 packages/cli/templates/personas-template.md.
 -->
 
-## Technical Builder (TB)
+## Technical Builder (TBU)
 
 **Role:** A developer who runs an AI coding agent (Claude Code, Cursor, or Codex) on a real project and installs safeword to keep that agent test-first, design-validated, and consistent.
 
@@ -19,7 +19,7 @@ packages/cli/templates/personas-template.md.
 
 **Context:** Founders, PMs, designers, and domain experts — likely the larger audience. Understands systems, logic, and data flow, but doesn't read or write code. Harness-agnostic: drives Claude Code, Cursor, or Codex in natural language. Judges success by whether the feature works and is safe, not by code quality they can inspect, because they can't audit the diff. When a gate fires, needs a plain-language explanation and a concrete next action — internal jargon ("RED phase", "type narrowing") is a dead end. Safeword's value is highest here: it is the only thing standing between them and an agent that confidently ships broken or unsafe code.
 
-## Safeword Maintainer (SM)
+## Safeword Maintainer (SWM)
 
 **Role:** A contributor who builds and extends safeword itself — authoring hooks, gates, skills, and enforcement rules in this repo.
 

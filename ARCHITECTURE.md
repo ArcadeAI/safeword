@@ -1,7 +1,7 @@
 # Safeword Architecture
 
 **Version:** 1.17
-**Last Updated:** 2026-07-09
+**Last Updated:** 2026-07-14
 **Status:** Production
 
 ---
@@ -559,6 +559,19 @@ Published files: `dist/` + `templates/` (bundled for setup/upgrade) + `codex-plu
 | Trade-off      | Longer intake for features; Phase 0 advances through structured signoff sub-gates (orientation → JTBD → Rules → scope) rather than one step.                                                                                                                                                                                                                                                           |
 | Alternatives   | Keep engineering-only scope (rejected: no product framing); separate product skill with handoff (rejected: skill-to-skill handoffs unreliable — same reasoning as the BDD+TDD merge above).                                                                                                                                                                                                            |
 | Implementation | `packages/cli/templates/skills/bdd/DISCOVERY.md` (Phase 0 sub-phases + worked example), `SCENARIOS.md` (lineage numbering), `spec-template.md`, glossary/persona `managedFiles` entries; per-file path overrides via `.safeword/config.json` `paths.*` (ticket K7N2QM). Epic DZ2NM5.                                                                                                                   |
+
+### Canonical Persona Codes with Legacy Lineage Compatibility
+
+**Status:** Accepted
+**Date:** 2026-07-13 (updated 2026-07-14: explicit new codes may use 2–4 letters)
+
+| Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                     |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| What           | Newly derived persona codes use deterministic 3–4 character identifiers across the CLI and installed JTBD hook; collisions receive a bounded numeric suffix. Explicitly authored new codes may use 2–4 characters, so natural acronyms such as `PO` remain available. Persisted 5–6 character codes and former derived aliases continue to resolve for compatibility.                                     |
+| Why            | Three-character automatic defaults avoid ambiguous initials without forbidding a builder from choosing an obvious two-letter acronym. Separating automatic and explicit bounds improves default readability while preserving user judgment and historical lineage.                                                                                                                                        |
+| Trade-off      | Explicit two-letter codes can collide or be less recognizable, so the author owns that choice. The resolver also carries a small legacy-alias path, and the CLI and standalone installed hook deliberately duplicate the pure derivation policy because deployed hooks cannot import the CLI distribution. Exhausting the four-character collision namespace requires an explicit 2–4 character override. |
+| Alternatives   | Auto-generate 2–4 characters (rejected: recreates ambiguous initials by default); enforce 3–4 characters for every explicit code (rejected: forbids natural acronyms and breaks history); accept 2–6 as equally recommended (rejected: weakens concise lineage guidance); bulk-rename historical Gherkin tags (rejected: destroys stable traceability).                                                   |
+| Implementation | `packages/cli/src/utils/personas.ts`, `packages/cli/templates/hooks/lib/jtbd.ts`, `packages/cli/templates/personas-template.md`, and BDD authoring templates. The repo's current persona catalog uses `TBU`, `NTB`, and `SWM`; existing historical `TB` and `SM` references resolve through compatibility aliases. Ticket FAJV19.                                                                         |
 
 ### BDD as a Solo-Agent Adaptation of the Three-Practice Model (retire `decomposition` phase)
 
