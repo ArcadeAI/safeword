@@ -58,6 +58,20 @@ Spec-local pending curation (see Open Questions — these are absent from `.proj
 > what it might break — so I get signal worth reading instead of a bot I end
 > up muting.
 
+#### autonomous-pr-review.TB1.R1 — A concern the project's own tooling already reports is never surfaced as a finding
+
+#### autonomous-pr-review.TB1.R2 — A pull request with nothing worth saying receives no comment at all
+
+#### autonomous-pr-review.TB1.R3 — Findings are capped and ranked, so a large diff never floods the review
+
+#### autonomous-pr-review.TB1.R4 — Every finding carries a concrete proposed change, not just a concern
+
+#### autonomous-pr-review.TB1.R5 — A finding the reviewer could not verify can inform, but never blocks
+
+#### autonomous-pr-review.TB1.R6 — The reviewer uses whatever declared intent the project exposes, and never claims more certainty than that source supports
+
+#### autonomous-pr-review.TB1.R7 — The reviewer runs once per meaningful change, not once per push
+
 ### autonomous-pr-review.NTB1 — Be my eyes on a diff I can't read
 
 **Persona:** Non-Technical Builder (NTB)
@@ -67,6 +81,20 @@ Spec-local pending curation (see Open Questions — these are absent from `.proj
 > if it's wrong, so I can decide to merge or push back without reading a line
 > of code.
 
+<!-- Split test applied (resolves the "one job or two?" open question): the two
+halves — "did it do what I asked" and "what could break" — each look separable,
+but an NTB told "it does what you asked" while NOT told "it will drop your
+table" is not served. The sub-operations only make sense together; the job is
+one decision (merge or push back). So: one JTBD, two Rules. -->
+
+#### autonomous-pr-review.NTB1.R1 — Every finding names its consequence in plain language, without requiring the reader to read code
+
+#### autonomous-pr-review.NTB1.R2 — The review states whether the change did what was asked, in the asker's own terms
+
+#### autonomous-pr-review.NTB1.R3 — The review names what could break if the change is wrong
+
+#### autonomous-pr-review.NTB1.R4 — The review ends in a decision the reader can act on — merge, push back, or ask — not just a list of problems
+
 ### autonomous-pr-review.SM1 — Trust the reviewer before it fires on someone else's repo
 
 **Persona:** Safeword Maintainer (SM)
@@ -74,6 +102,12 @@ Spec-local pending curation (see Open Questions — these are absent from `.proj
 > When I ship a reviewer that will comment on projects unlike ours, I want
 > measured evidence that it's worth reading there — not just here — and a way
 > to pull it back if it isn't, so I never spend a customer's trust on noise.
+
+#### autonomous-pr-review.SM1.R1 — The reviewer's usefulness is measured on projects unlike safeword's before it fires on them
+
+#### autonomous-pr-review.SM1.R2 — A maintainer can turn the reviewer off without deleting it, and the signal that should trigger that is named
+
+#### autonomous-pr-review.SM1.R3 — Content inside a pull request cannot direct the reviewer's behavior
 
 ## Rave Moment
 
@@ -86,7 +120,8 @@ _Deferred to the Rules sub-phase._ Outcomes are the product counterpart to `done
 ## Open Questions
 
 - **New glossary terms.** `intent tier`, `intent provenance`, and `quality surface` are absent from `.project/glossary.md`. DISCOVERY says flag, don't invent — promote to the project glossary, or keep spec-local under `## Vocabulary`?
-- **Is NTB1 one job or two?** "Tell me if it does what I asked" (intent conformance, plain language) and "tell me what could break" (blast radius) may fail the split test — each arguably ships independent value to an NTB. Resolve at the Rules gate.
+- ~~**Is NTB1 one job or two?**~~ **Resolved at the Rules gate:** one job, two Rules. The split test fails — an NTB told "it does what you asked" but not "it will drop your table" is not served; the halves only make sense together, and the job is a single decision (merge or push back). See the note under NTB1.
+- **Does this feature need to split into an epic?** SPLITTING's entry checkpoint says *3+ stories → epic*, and its define-behavior checkpoint says *>15 scenarios OR 3+ distinct clusters → split by user journey*. We have 3 JTBDs and 14 Rules; at ~2-3 scenarios each that is ~30-40 scenarios, roughly double the threshold. The three natural children: **the reviewer skill** (TB1+NTB1 — the judgment), **distribution + config** (ownedFiles, workflow template, kill switch, trigger gating), **the eval harness** (SM1 — Tier-2 corpus, pre-registered bars). Splitting is suggested, never mandatory — the user decides at this gate.
 - **Does the Codex/Cursor gap belong in `out_of_scope`, or as the tagged surface skips above?** Both are live project surfaces; v1's runner is Claude-only by decision. Currently written as skips.
 - **What sets the Tier-2 bar for SM1's "measured evidence"?** The Tier-0 shadow run is unscored (triage outstanding) and n=1 repo. Per the pre-registration discipline, the number must be set before a non-safeword corpus is read.
 - **Does TB1's "skips what my tooling covers" need per-project config, or pure detection?** Detection is cleaner (PRINCIPLES §3) but every project's CI is idiosyncratic; a `.safeword/config.json` escape hatch may be unavoidable. Affects whether TB1 has a configuration Rule.
