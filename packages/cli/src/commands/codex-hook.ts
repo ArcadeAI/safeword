@@ -52,6 +52,13 @@ interface StopContinuationOutput {
   reason: string;
 }
 
+interface PackagedHookResult {
+  error?: Error;
+  status?: number;
+  stderr: string;
+  stdout: string;
+}
+
 const EXPLAIN_HINT = 'Run `$explain` for a plain-English version of this block.';
 const EXIT_CODE_DENY_MODE = 'exit-code';
 const REQUIRED_INTAKE_FIELDS = ['scope', 'out_of_scope', 'done_when'] as const;
@@ -324,9 +331,19 @@ export function packagedNamespaceRootLabel(projectDirectory: string): string | u
   );
 }
 
-function runPackagedHook(relativePath: string, rawInput: string, projectDirectory: string): string {
+function runPackagedHook(
+  relativePath: string,
+  rawInput: string,
+  projectDirectory: string,
+): PackagedHookResult {
   const hookPath = resolvePackagedHook(relativePath);
-  if (!hookPath) return '';
+  if (!hookPath) {
+    return {
+      error: new Error(`Safe Word packaged hook is missing: ${relativePath}`),
+      stderr: '',
+      stdout: '',
+    };
+  }
 
   let executableHookPath = hookPath;
   let temporaryHookDirectory: string | undefined;
@@ -363,10 +380,29 @@ function runPackagedHook(relativePath: string, rawInput: string, projectDirector
       stdio: ['pipe', 'pipe', 'pipe'],
     });
 
-    return result.stdout ?? '';
+    return {
+      error: result.error,
+      status: result.status ?? undefined,
+      stderr: result.stderr ?? '',
+      stdout: result.stdout ?? '',
+    };
   } finally {
     if (temporaryHookDirectory) rmSync(temporaryHookDirectory, { recursive: true, force: true });
   }
+}
+
+function denyForPackagedHookFailure(result: PackagedHookResult): never {
+  const detail =
+    result.stderr.trim() || result.error?.message || 'exited without a failure message';
+  process.stderr.write(`Safe Word packaged PreToolUse hook failed: ${detail}\n`);
+  process.exit(2);
+}
+
+function emitPackagedPreToolResult(result: PackagedHookResult): boolean {
+  if (result.error || result.status !== 0) denyForPackagedHookFailure(result);
+  if (result.stdout.trim() === '') return false;
+  process.stdout.write(result.stdout);
+  return true;
 }
 
 function readProjectTextFile(projectDirectory: string, relativePath: string): string | undefined {
@@ -406,11 +442,8 @@ function maybeDenyTestDefinitionsWrite(projectDirectory: string, targetPath: str
 async function runPreToolUse(): Promise<void> {
   const rawInput = await readStdin();
   const projectDirectory = resolveProjectDirectory();
-  const qualityOutput = runPackagedHook('codex/pre-tool-quality.ts', rawInput, projectDirectory);
-  if (qualityOutput.trim() !== '') {
-    process.stdout.write(qualityOutput);
-    return;
-  }
+  const qualityResult = runPackagedHook('codex/pre-tool-quality.ts', rawInput, projectDirectory);
+  if (emitPackagedPreToolResult(qualityResult)) return;
 
   const input = parseCodexHookInput(rawInput);
   if (!input) return;
@@ -436,9 +469,9 @@ async function runPreToolUse(): Promise<void> {
 async function runSessionStart(): Promise<void> {
   const rawInput = await readStdin();
   const projectDirectory = resolveProjectDirectory();
-  const packagedOutput = runPackagedHook('session-codex-start.ts', rawInput, projectDirectory);
-  if (packagedOutput.trim() !== '') {
-    process.stdout.write(packagedOutput);
+  const packagedResult = runPackagedHook('session-codex-start.ts', rawInput, projectDirectory);
+  if (packagedResult.stdout.trim() !== '') {
+    process.stdout.write(packagedResult.stdout);
     return;
   }
 
@@ -478,19 +511,19 @@ async function runProjectAdditionalContext(
 async function runPostToolUse(): Promise<void> {
   const rawInput = await readStdin();
   const projectDirectory = resolveProjectDirectory();
-  const qualityOutput = runPackagedHook('codex/post-tool-quality.ts', rawInput, projectDirectory);
-  if (qualityOutput.trim() !== '') {
-    process.stdout.write(qualityOutput);
+  const qualityResult = runPackagedHook('codex/post-tool-quality.ts', rawInput, projectDirectory);
+  if (qualityResult.stdout.trim() !== '') {
+    process.stdout.write(qualityResult.stdout);
     return;
   }
 
-  const skillNudgeOutput = runPackagedHook(
+  const skillNudgeResult = runPackagedHook(
     'codex/post-tool-skill-nudge.ts',
     rawInput,
     projectDirectory,
   );
-  if (skillNudgeOutput.trim() !== '') {
-    process.stdout.write(skillNudgeOutput);
+  if (skillNudgeResult.stdout.trim() !== '') {
+    process.stdout.write(skillNudgeResult.stdout);
     return;
   }
 
@@ -512,10 +545,10 @@ async function runUserPromptSubmit(): Promise<void> {
 async function runStop(): Promise<void> {
   const rawInput = await readStdin();
   const projectDirectory = resolveProjectDirectory();
-  const packagedOutput = runPackagedHook('codex/stop.ts', rawInput, projectDirectory);
-  const trimmedPackagedOutput = packagedOutput.trim();
+  const packagedResult = runPackagedHook('codex/stop.ts', rawInput, projectDirectory);
+  const trimmedPackagedOutput = packagedResult.stdout.trim();
   if (trimmedPackagedOutput !== '' && trimmedPackagedOutput !== '{}') {
-    process.stdout.write(packagedOutput);
+    process.stdout.write(packagedResult.stdout);
     return;
   }
 
@@ -526,7 +559,7 @@ async function runStop(): Promise<void> {
   }
 
   if (trimmedPackagedOutput !== '') {
-    process.stdout.write(packagedOutput);
+    process.stdout.write(packagedResult.stdout);
     return;
   }
 

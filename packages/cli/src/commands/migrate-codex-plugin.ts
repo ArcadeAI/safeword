@@ -7,6 +7,7 @@ import { info, success } from '../utils/output.js';
 const MARKETPLACE_SOURCE = 'ArcadeAI/safeword';
 const PLUGIN_ID = 'safeword@safeword';
 const CODEX_CONFIG_PATH = '.codex/config.toml';
+const LEGACY_CONFIG_BACKUP_SUFFIX = '.safeword.bak';
 
 type CodexPluginList = {
   installed?: { enabled?: boolean; pluginId?: string }[];
@@ -42,19 +43,23 @@ function isSafewordHookBlock(block: string): boolean {
 
 function removeLegacyCodexHooks(content: string): string {
   return content.replaceAll(
-    /^\[\[hooks\.[^.\]]+\]\][\s\S]*?(?=^\[\[hooks\.[^.\]]+\]\]|(?![\s\S]))/gmu,
+    /^\[\[hooks\.[^.\]]+\]\][\s\S]*?(?=^\[\[hooks\.[^.\]]+\]\]|^\[(?!\[hooks\.)|(?![\s\S]))/gmu,
     block => (isSafewordHookBlock(block) ? '' : block),
   );
 }
 
-function removeLegacyHooks(cwd: string): boolean {
+function removeLegacyHooks(cwd: string): { removed: boolean; backupCreated: boolean } {
   const configPath = nodePath.join(cwd, CODEX_CONFIG_PATH);
-  if (!existsSync(configPath)) return false;
+  if (!existsSync(configPath)) return { removed: false, backupCreated: false };
   const original = readFileSync(configPath, 'utf8');
   const cleaned = removeLegacyCodexHooks(original);
-  if (cleaned === original) return false;
+  if (cleaned === original) return { removed: false, backupCreated: false };
+
+  const backupPath = `${configPath}${LEGACY_CONFIG_BACKUP_SUFFIX}`;
+  const backupCreated = !existsSync(backupPath);
+  if (backupCreated) writeFileSync(backupPath, original);
   writeFileSync(configPath, cleaned);
-  return true;
+  return { removed: true, backupCreated };
 }
 
 export function migrateCodexPlugin(cwd = process.cwd()): void {
@@ -87,10 +92,13 @@ export function migrateCodexPlugin(cwd = process.cwd()): void {
     );
   }
 
-  const removed = removeLegacyHooks(cwd);
+  const cleanup = removeLegacyHooks(cwd);
   success('Safe Word Codex plugin is enabled for this profile.');
+  if (cleanup.backupCreated) {
+    info('Backed up the legacy Codex configuration to .codex/config.toml.safeword.bak.');
+  }
   info(
-    removed
+    cleanup.removed
       ? 'Removed Safe Word legacy Codex hooks from this project.'
       : 'No Safe Word legacy Codex hooks were found in this project.',
   );

@@ -115,4 +115,38 @@ describe('packagedNamespaceRootLabel', () => {
     expect(result.stdout).toContain('SAFEWORD Agent Instructions');
     expect(result.stdout).not.toContain('PROJECT-LOCAL INSTRUCTIONS MUST NOT APPEAR');
   });
+
+  it('propagates an exit-code denial from the packaged PreToolUse adapter', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-'));
+    directories.push(projectDirectory);
+
+    const result = spawnSync(process.execPath, [CLI_PATH, 'hook', 'codex', 'pre-tool-use'], {
+      cwd: projectDirectory,
+      input: JSON.stringify({
+        session_id: 'deny-session',
+        tool_name: 'Bash',
+        tool_input: { command: 'pkill node' },
+      }),
+      encoding: 'utf8',
+      env: { ...process.env, SAFEWORD_CODEX_DENY_MODE: 'exit-code' },
+    });
+
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain('Broad process kill blocked');
+  });
+
+  it('fails PreToolUse visibly when Bun is unavailable', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-'));
+    directories.push(projectDirectory);
+
+    const result = spawnSync(process.execPath, [CLI_PATH, 'hook', 'codex', 'pre-tool-use'], {
+      cwd: projectDirectory,
+      input: JSON.stringify({ tool_name: 'Bash', tool_input: { command: 'echo allowed' } }),
+      encoding: 'utf8',
+      env: { ...process.env, PATH: '' },
+    });
+
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain('bun');
+  });
 });

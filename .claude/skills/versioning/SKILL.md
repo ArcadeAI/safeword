@@ -78,9 +78,10 @@ The publish path is CI-driven via OIDC trusted publishing. Tag push → GitHub A
 
 1. **Decide the bump** using rules above. Patch / Minor / Major.
 
-2. **Bump version in both files** (pre-commit hook enforces they match):
+2. **Bump version in all three files** (release-contract tests enforce the Codex match):
    - `packages/cli/package.json` → `version`
    - `marketplace.json` → `plugins[0].version`
+   - `packages/cli/codex-plugin/.codex-plugin/plugin.json` → `version`
 
    Then **regenerate the lockfile** so `bun.lock`'s `packages/cli` workspace
    version tracks `package.json` — otherwise it drifts and CI's lockfile-drift
@@ -94,7 +95,7 @@ The publish path is CI-driven via OIDC trusted publishing. Tag push → GitHub A
 
    ```bash
    git checkout -b release/vX.Y.Z
-   git add packages/cli/package.json marketplace.json bun.lock
+   git add packages/cli/package.json marketplace.json packages/cli/codex-plugin/.codex-plugin/plugin.json bun.lock
    git commit -m "chore(release): vX.Y.Z"
    git push -u origin release/vX.Y.Z
    gh pr create --title "chore(release): vX.Y.Z" --body "..."
