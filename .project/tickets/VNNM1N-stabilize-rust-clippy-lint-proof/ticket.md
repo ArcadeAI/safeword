@@ -2,11 +2,11 @@
 id: VNNM1N
 slug: stabilize-rust-clippy-lint-proof
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 subtype: bug-investigated
 created: 2026-07-14T05:12:57.171Z
-last_modified: 2026-07-14T05:12:57.171Z
+last_modified: 2026-07-15T02:16:39.000Z
 ---
 
 # Stabilize Rust lint-hook proof
@@ -35,3 +35,4 @@ Cargo boundary (the invocation log appears once both paths are normalized).
 - 2026-07-14T05:25:00.000-04:00 Implemented: normalize the installed lint hook's project root with `realpathSync`, matching normalized edited-file paths. Scenario 10 now replaces a Clippy-version-sensitive source rewrite with an observable fake-Cargo boundary assertion for `clippy -p core --fix --allow-dirty --allow-staged`.
 - 2026-07-14T05:26:00.000-04:00 Verify: targeted scenario passes; combined Rust golden-path and cleanup-zombies regression files pass 70/70; lint and TypeScript typecheck pass. Advanced to verify.
 - 2026-07-14T05:54:00.000-04:00 Verify: full CLI suite passes (354 files, 5,211 tests; 5 skipped).
+- 2026-07-15T02:16:00.000Z Done: closed with FAJV19 in PR #1053 as required supporting cleanup. CI full suite green on node 22.22.3 + node 24 at head 58f80d79; lint and typecheck clean. Scope expansion accepted by project owner 2026-07-14.

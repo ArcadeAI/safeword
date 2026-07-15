@@ -2,11 +2,11 @@
 id: EKK1HA
 slug: stabilize-zombie-process-discovery
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 subtype: bug-investigated
 created: 2026-07-14T05:13:01.118Z
-last_modified: 2026-07-14T05:13:01.118Z
+last_modified: 2026-07-15T02:16:39.000Z
 ---
 
 # Stabilize zombie process discovery
@@ -34,3 +34,4 @@ use the logical spelling.
 - 2026-07-14T05:25:00.000-04:00 Implemented: cleanup-zombies now retains the safe `/var/...` alias when `pwd -P` resolves a project to `/private/var/...`, and searches either exact project spelling without widening the process scope.
 - 2026-07-14T05:26:00.000-04:00 Verify: cleanup-zombies behavioral regression passes as part of 70/70 Rust and cleanup tests; lint and TypeScript typecheck pass. Advanced to verify.
 - 2026-07-14T05:54:00.000-04:00 Verify: full CLI suite passes (354 files, 5,211 tests; 5 skipped).
+- 2026-07-15T02:16:00.000Z Done: closed with FAJV19 in PR #1053 as required supporting cleanup. CI full suite green on node 22.22.3 + node 24 at head 58f80d79; lint and typecheck clean. Scope expansion accepted by project owner 2026-07-14.
