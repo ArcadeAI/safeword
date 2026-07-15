@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (419)
+## Tickets (420)
 
 ### 001
 
@@ -1399,6 +1399,7 @@
   → `.project/tickets/W610WW-whole-ticket-quality-refactor`
 - **Autonomous PR review at the intent-conformance bar (WAWQA6)** (in_progress, epic: —)
   Review open PRs autonomously via GitHub Action, on the dimensions no linter or generic AI reviewer covers: intent conformance, scope discipline, alternatives, blast radius.
+  blocks: Detect the authoring model for cross-model PR review (X1Z5MG)
   → `.project/tickets/WAWQA6-autonomous-pr-review`
 - **Per-language architecture extractors (Go / Rust / Python) — the epic's "language packs" (WBM8JE)** (backlog, epic: —)
   Extend the generated architecture doc beyond the TypeScript/`src/`
@@ -1410,6 +1411,10 @@
 - **Extract src section-walk skip-mask into a shared markdown-sections util (WQ4RH3)** (done, epic: —)
   Collapse the three logic-identical copies of `computeSkipMask` (+ two of `stripInlineComments`) in `src/utils` into one shared `markdown-sections.ts`, so the CommonMark comment/fence-skip primitive has a single source of truth.
   → `.project/tickets/WQ4RH3-extract-section-walk-skip-mask`
+- **Detect the authoring model for cross-model PR review (X1Z5MG)** (backlog, epic: —)
+  Derive the model that authored a PR from repo evidence so the reviewer can guarantee a different, never-weaker model instead of relying on configuration.
+  blocked by: Autonomous PR review at the intent-conformance bar (WAWQA6)
+  → `.project/tickets/X1Z5MG-detect-author-model-for-cross-model-review`
 - **Keep Knip config warnings actionable (X6EFPN)** (in_progress, epic: —)
   Remove stale root Knip configuration so future audit runs do not train maintainers to ignore configuration hints.
   → `.project/tickets/X6EFPN-keep-knip-config-warnings-actionable`

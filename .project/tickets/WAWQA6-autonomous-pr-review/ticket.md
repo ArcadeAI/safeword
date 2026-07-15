@@ -12,9 +12,12 @@ scope:
   - A GitHub Action workflow wrapping `anthropics/claude-code-action@v1`, triggered on `ready_for_review`/label — not every `synchronize`. Auth: WIF, OAuth token, or API key.
   - Fork-PR safety: untrusted diff content is data, never instructions; no write token on fork PRs.
   - Distribution via `safeword setup` — workflow template + skill as ownedFiles in schema.ts, template↔dogfood parity pairs.
-  - Output discipline: hunk-anchored findings, each carrying a code block, capped (~5), batched into one `POST /pulls/{n}/reviews` call, Conventional Comments labels, provenance-gated severity.
+  - **A triage verdict on every review** — does this PR need a human's eyes, or not — alongside the findings. Both, per user. The verdict is the primary output for a team drowning in agent-written PRs; it routes scarce attention rather than adding reading.
+  - **Cross-model review**: the reviewer runs on a different, never-weaker model than the agent that authored the code (PRINCIPLES §1 class-1). v1 implies the author model by config; detection is X1Z5MG.
+  - **Linear (T1) as the primary intent source** — arcade's required status check guarantees a pre-committed issue on every PR. T0 (safeword artifacts in-diff) is the bonus path, not the design centre.
+  - Output discipline: hunk-anchored findings, each carrying a code block, batched into one `POST /pulls/{n}/reviews` call, Conventional Comments labels, provenance-gated severity. **No cap** — a bar instead; the verdict absorbs high-density PRs.
   - Per-project trust calibration in `.safeword/config.json` (Tricorder's kill switch, per customer).
-  - A cross-project eval corpus including Tier-2 repos — NOT only safeword's own PRs.
+  - An eval on **arcade PRs approved with zero inline comments and merged** — defects in human-blessed code are the unambiguous signal. NOT safeword's own PRs.
 out_of_scope:
   - A server/daemon or webhook service — `claude-code-action` runs on the customer's own runners and is structurally the not-a-service answer. Revisit only for cross-repo/org-wide or non-GitHub triggers.
   - Re-reviewing whatever the project's OWN quality surface already covers (detected, not hard-coded).
@@ -22,10 +25,14 @@ out_of_scope:
   - A required status check / hard block. Warn-mode only at first (precedent: the done-flip guard #460 over-fired and was held to warn-mode).
   - Voting panels of reviewers — already rejected by ADR as the "popularity trap".
   - The `safeword review-pr` CLI runner (cross-harness, shells to `claude` or `codex` like the retro path). NOT rejected — a planned second surface once a non-Claude customer needs it. The skill is authored runner-agnostic so it ports without rewrite.
-done_when:
-  - The reviewer produces useful findings at Tier 3 (no artifacts) and demonstrably richer ones at Tier 0 — proven on an eval corpus spanning both, not safeword's PRs alone.
-  - Intent sources are provenance-weighted from git; a narrative-only source cannot alone justify a blocking finding.
-  - Findings are hunk-anchored with a code block each, capped, and batched into a single review call.
+  - On a corpus of `ArcadeAI/monorepo` PRs that humans approved with zero inline comments and merged, the reviewer surfaces defects those humans missed, at a rate clearing a bar recorded before the corpus was triaged — triaged by arcade engineers, not by the agent that built this.
+  - Every review carries a triage verdict (needs-a-human / safe-to-merge) that an engineer can act on without opening the diff.
+  - A PR with more real findings than is worth enumerating is verdicted unreviewable-as-is rather than flooded with comments.
+  - The reviewer reads the Linear issue the required check already guarantees, and checks the diff against it.
+  - The reviewer runs on a different model than the authoring agent, and says which — a review that cannot establish it is cross-model declares that rather than implying independence it lacks.
+  - Nothing Cursor Bugbot or arcade's CI already reports is surfaced again.
+  - Intent sources are provenance-weighted; a narrative-only source cannot alone justify a blocking finding.
+  - Findings are hunk-anchored with a code block each and batched into a single review call — every finding that clears the bar is shown, and nothing that doesn't.
   - The reviewer is silent on a clean PR (no "LGTM" comment) — proven on a certified-clean fixture, which the shadow probe never tested.
   - A severity claim cannot block unless it cites a `verified` source (reuses the quality-review provenance gate).
   - A fork PR carrying injected instructions in the diff is reviewed without those instructions taking effect, and without a write token.
@@ -40,7 +47,34 @@ last_modified: 2026-07-15T02:50:15.807Z
 
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
 
-## Why now — the vacuum
+## THE TARGET: ArcadeAI/monorepo (customer #1 of many) — corrected 2026-07-15
+
+**Safeword builds and ships the reviewer; `ArcadeAI/monorepo` is the guinea-pig customer, the first of many.** Safeword's own repo is a dogfood surface, NOT the design target. This correction invalidates most of what the "vacuum" section below originally argued — kept, struck through, because the reasoning trail matters.
+
+**Every premise flipped when measured against the real target:**
+
+| | safeword (what v1 assumed) | **ArcadeAI/monorepo (measured 2026-07-15)** |
+| --- | --- | --- |
+| Review coverage | 0% — a vacuum | **96%** (58 of 60 merged PRs) |
+| PR size | 1,922 lines / 44 files | **69 lines / 4 files** (median) |
+| Authors | 1 | real multi-author team |
+| AI reviewer | none | **Cursor Bugbot already installed** |
+| Intent tier | T0 — `spec.md` in-diff | **T1 — Linear; zero tickets, zero specs** |
+| Stack | TypeScript | **Python (2,637) + Go (959) + TS/TSX (1,334)** |
+
+**The pain is rubber-stamp review, not absent review.** Coverage says 96%; depth says otherwise — **1 of 202 reviews requested changes (0.5%)**, **21 of 25 PRs have zero inline comments**, and 3 of the 4 that got comments were commented by Bugbot, not a human. The ritual is intact; the substance is not. User's framing: *"we're drowning under PRs because of agent coding and we don't have enough eng capacity to review everything **well**."* They review everything. Not well.
+
+**The wedge survives — it relocates to Linear.** Arcade has no safeword artifacts, but `.github/workflows/check-linear.yml` enforces a **required status check**: every PR must carry a Linear issue (`PLT-2414`) in its title, branch, or via the linear[bot] linkback. That is a **mandatory, pre-committed** intent source — created before the code, therefore a *contract*, not narrative. It is arguably stronger than safeword's own artifacts, because branch protection cannot be rationalized around the way a hook can. Nothing reads it today: Bugbot does not open Linear, and a 0.5%-changes-requested human is not checking the diff against it either. **"Did this PR do what PLT-2414 said, and what else did it quietly touch?" is the feature.**
+
+**T1 is the PRIMARY path, not a degradation.** v1 designed T0-first with T1–T3 as graceful decay. Customer #1 is T1, and "first of many" implies most customers look like arcade, not like safeword. Building T0-first optimizes for the least representative case we have.
+
+**Bugbot is part of the quality surface to subtract.** It owns generic bug-hunting — which it is good at and which arcade already pays for. Safeword owns the intent layer Bugbot structurally cannot reach. Complement, not competitor: PRINCIPLES §3 (add, never replace), now applied to a peer AI reviewer rather than a linter.
+
+**Cross-model is a requirement, and it is existing doctrine.** The reviewer must be a different model than the agent that wrote the code — PRINCIPLES §1's class-1 rule verbatim ("never weaker than the author, a different model when stakes warrant"), with `crossModelReview` / `modelsMatch` already in `hooks/lib/review-ledger.ts`, and the voting-panel ADR already settling on a single adversarial reviewer over a panel. **v1 implies the author model by configuration; detection is deferred to X1Z5MG.**
+
+**The eval, corrected.** The safeword shadow probe generalizes to nothing here — wrong repo, wrong size, wrong tier, n=1. The real test: **take arcade PRs approved with zero inline comments and merged, run the cross-model reviewer with the Linear task + diff, and see what it finds in code humans already blessed.** Defects in already-approved, already-merged code are unambiguous signal, and 21/25 PRs qualify — the corpus is free.
+
+## ~~Why now — the vacuum~~ (superseded by the section above — safeword-repo reasoning, retained for the trail)
 
 40 of the last 40 merged PRs have **zero** reviews (that span reaches back only to **2026-07-06 — 8 days**, not 30); **282 PRs merged in the last 30 days** (275 non-dependabot), essentially one author. *(Corrected 2026-07-15: an earlier "~100/30d" understated by 2.8×. The argument survives — it gets stronger — but a decision record with a 2.8×-off number is a hygiene failure regardless of direction.)* This is not competing with a human reviewer, it is filling a vacuum. Separately, `reviewGate` is off in our own `.safeword/config.json`, so the PR is currently the only unguarded boundary where review could bite.
 
@@ -95,6 +129,7 @@ Do these four; stay silent on everything else:
 
 - **Noise is irrelevance, not wrongness.** arXiv 2508.18771 (22,326 AI comments, 178 repos): ~70% of AI comments are *valid*, yet only **0.9–19.2%** are addressed (Table VIII), vs **60%** for human comments. The enemy is the correct-but-ignorable comment.
 - **Hunk-anchored, not summary.** File-level comment sources address at 0.9–4.2%; hunk-level at 6.5–19.2% (Table VIII) — the ~4× gap is real, and file-level ρ=−0.96. A sticky summary comment is the move that makes findings ignorable. *(Corrected: the earlier "43.88% hunk-level" was Table V's file-change filter, not an addressing rate.)*
+- **~~Cap findings at ~5.~~ REVERSED 2026-07-15 (user: "Why only 5 findings? Why cap it?").** The cap was a **proxy for precision** — not trusting the reviewer to say only useful things, so limiting how much it could say. It fails both ways. **It suppresses truth:** a PR with 12 real problems shows 5 and hides 7 — the same eval-gaming the GEPA run was rejected for (buying a number by staying quiet). **And it never binds on the real target:** arcade's median PR is 69 lines / 4 files, and Google's comment volume peaks at 12.5 for ~1,250-line changes — a calibrated reviewer on 69 lines yields ~0–3 findings naturally. The cap solved safeword's 1,922-line PRs: **the wrong repo's problem.** Replaced by a **bar, not a cap** — every finding clears an evidence threshold; all that clear it are shown. Volume then becomes *information*: **a PR with 20 real findings must not get 20 comments, it gets a verdict that it is not reviewable as-is.** The triage verdict is what makes uncapped findings safe. Silence on a clean PR stays — that is a floor, not a cap.
 - **Every finding carries a code block.** Multiline code ρ=**0.78**; **code-to-text ratio ρ=0.89 is the strongest _code-related_ correlate**. Verbosity hurts (ρ=−0.28). **The sting worth confronting: `Is_Human` ρ=0.99 — the single strongest predictor that a comment gets acted on is that a human wrote it.** No prompt fixes that; it is a standing discount on everything below, and an argument for the reviewer earning trust rather than assuming it.
 - **Do not auto-fire on every push.** Manual-triggered comments are acted on at 12.8% vs 6.8% automatic (ρ=−0.97). *Caveat: almost certainly confounded by selection — a manual trigger means someone wanted a review. Not proof of mechanism, but enough to move the default given our 97%-noise history.*
 - **Silence on clean PRs.** No LGTM comment.

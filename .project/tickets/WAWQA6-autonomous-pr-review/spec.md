@@ -2,12 +2,14 @@
 
 ## Intent
 
-Give any project a PR reviewer that says only what its own tooling can't: did this change do what it said it would, is it bigger than it needed to be, is there a simpler shape, and what breaks if it's wrong. Safeword projects get the richest version of that review — because the intent was written down, before the code, as a contract.
+A team shipping agent-written PRs faster than it can review them well needs a **second model** — one that doesn't share the authoring agent's blind spots — to check each change against the intent that was declared before the code, and to tell a human whether this PR is worth their eyes. Safeword builds and ships that reviewer; **`ArcadeAI/monorepo` is customer #1 of many.**
+
+The target does not lack review — it reviews 96% of PRs and requests changes on **0.5%**. It lacks review *depth*: 21 of 25 PRs get zero inline comments. Rubber-stamping plus agent-written code is the failure mode, because a skimming human and the authoring model share blind spots. Every arcade PR carries a **mandatory, pre-committed Linear issue** (branch protection enforces it) — a contract nobody currently checks the diff against.
 
 ## Intake Brief
 
 - **Requested by:** Alex (2026-07-15) — "safeword to run as a server process or github action and review open PRs and do a super high quality eng review the way a top quality engineer or PM on a team would do", scope-corrected in the same session to "a top tier reviewer of any project, not just safeword's own... and of course, it should be awesome at its own."
-- **Cost of inaction:** One per persona. **SM:** this repo merged 40 of its last 40 PRs with **zero** reviews (an 8-day span) at **282 PRs/30d**; a 10-PR shadow probe found 3 live defects, two of them inert safety mechanisms in a cron running daily ([#1069](https://github.com/ArcadeAI/safeword/issues/1069)). **NTB:** they merge agent-written code they cannot read, with nothing between them and a confident agent shipping something broken. **TB:** the generic bots they'd otherwise reach for get **0.9–19.2%** of comments addressed vs **60%** for humans, and the recurring complaint is noise, not wrongness. Structurally: safeword already forces specs, `done_when`, and `Out of scope` into existence — without a reviewer that reads them, the discipline's biggest payoff goes uncollected.
+- **Cost of inaction:** **TB (the target — arcade engineers, measured 2026-07-15):** 60 PRs merged in 8 days, **96% reviewed but 0.5% changes-requested and 21/25 with zero inline comments** — agent-written code is landing on a rubber stamp, and the humans doing the stamping share the authoring model's blind spots. Every PR has a mandatory Linear contract nobody checks the diff against. **NTB (downstream, per user):** *"if we get this right then yes, the NTB will benefit because they clearly aren't doing eng review and we still need a second model catching blind spots"* — real, but not the v1 target. **SM:** ships it to arcade and to customers after; can't turn it on for anyone without evidence it's worth reading there. Structurally: safeword already forces specs, `done_when`, and `Out of scope` into existence — without a reviewer that reads them, the discipline's biggest payoff goes uncollected.
 - **Reversibility:** **Two-way door with a one-way edge.** The workflow is a deletable `.yml`, ships default-off, and runs warn-mode with no required status check — nothing is gated on it. The one-way edge: the skill and workflow become **ownedFiles** in `schema.ts` (upgrade-overwritten in installed projects), and any `.safeword/config.json` key becomes a compatibility surface under the versioning commitment. No data model, no migration.
 
 ## References
@@ -62,7 +64,37 @@ Spec-local pending curation (see Open Questions — these are absent from `.proj
 
 #### autonomous-pr-review.TB1.R2 — A pull request with nothing worth saying receives no comment at all
 
-#### autonomous-pr-review.TB1.R3 — Findings are capped and ranked, so a large diff never floods the review
+#### autonomous-pr-review.TB1.R3 — Every finding that clears the bar is surfaced, and nothing that doesn't — the review neither pads nor truncates
+
+#### autonomous-pr-review.TB1.R9 — Every review ends in a verdict that tells an engineer whether this PR needs their eyes, without opening the diff
+
+#### autonomous-pr-review.TB1.R10 — A pull request with more real problems than are worth enumerating is verdicted unreviewable-as-is, not flooded with comments
+
+<!-- R3 REVERSED at the intake gate (user: "Why only 5 findings? Why cap it?").
+The old Rule was "findings are capped and ranked." The cap was a proxy for
+precision, and it fails twice: it suppresses true findings (12 real problems ->
+show 5, hide 7 — the GEPA eval-gaming failure), and it never binds on the real
+target (arcade's median PR is 69 lines / 4 files; Google's volume peaks at 12.5
+comments for ~1250-line changes). It solved safeword's 1,922-line PRs — the
+wrong repo's problem. R3 is now a bar; R10 absorbs the density case the cap was
+clumsily protecting against; R9 makes the verdict first-class. Silence (R2)
+stays — a floor is not a cap. -->
+
+<!-- R9 is deliberately TB-facing, not only NTB-facing: the target team reviews
+96% of PRs and requests changes on 0.5%. For a team drowning in agent-written
+PRs the verdict IS the product — it routes scarce human attention. Is_Human
+rho=0.99: the strongest predictor a comment gets acted on is that a human wrote
+it, so the reviewer's job is to aim human review, not replace it. -->
+
+#### autonomous-pr-review.TB1.R11 — The reviewer runs on a different, never-weaker model than the agent that wrote the code, and never implies an independence it cannot establish
+
+<!-- R11 is PRINCIPLES §1's class-1 rule at the PR boundary: correlated blind
+spots are the threat, so the reviewer must not share the author's. v1 implies
+the author model by configuration; detection is X1Z5MG. The second clause is the
+load-bearing one — a same-model review that believes it is cross-model launders
+correlated blind spots as independent verification, which is worse than a
+same-model review that admits it. -->
+
 
 #### autonomous-pr-review.TB1.R4 — Every finding carries a concrete proposed change, not just a concern
 
