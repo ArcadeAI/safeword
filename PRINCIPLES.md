@@ -35,6 +35,8 @@ This extends to testing: specify WHAT the system does (behavior), not HOW it doe
 
 One question routes it: _is the check a judgment about work a model produced, an observable fact, or the generation of new candidates?_ Judgment on produced work → review. Observable fact → observation. New candidates → producer. Only the review class earns the no-weaker / cross-model rule; applying it to the other two wastes tokens (cross-modeling a test run buys nothing) or collapses the angle diversity that is the whole point of fan-out.
 
+**Verify the remedy, not just the finding.** A review that proposes a fix makes _two_ claims: that something is wrong, and that this change fixes it. Evidence rules usually guard only the first — yet the second is the one that gets **applied**, so it carries the higher stakes and needs its own verification: does the fix break a test that exists today, are its APIs real, does it regress current behavior? Check for the guard that already mitigates the finding before assigning severity — a reviewer handed only the diff cannot see a mitigation twenty lines outside it, and code that agrees with its own comments is deliberate, not an oversight. Naming a defect you can't yet fix is honest; a confident patch that breaks the suite proposes a regression while claiming authority, and discredits the finding it arrived with.
+
 ---
 
 ## 2. Fire at boundaries, not every turn
