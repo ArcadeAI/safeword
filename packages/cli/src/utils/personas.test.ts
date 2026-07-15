@@ -26,48 +26,47 @@ import {
 } from './personas.js';
 
 describe('derivePersonaCode', () => {
-  describe('multi-word names use first-letter-of-each-word', () => {
-    it('two-word name derives two-letter code', () => {
-      expect(derivePersonaCode('Platform Operator')).toBe('PO');
+  describe('canonical 3–4 character derivation', () => {
+    it('two-word name uses two characters from the first word and one from the second', () => {
+      expect(derivePersonaCode('Platform Operator')).toBe('PLO');
     });
 
     it('three-word name derives three-letter code', () => {
       expect(derivePersonaCode('Site Reliability Engineer')).toBe('SRE');
     });
 
-    it('two-word name with End User derives EU', () => {
-      expect(derivePersonaCode('End User')).toBe('EU');
+    it('names longer than four words truncate to four initials', () => {
+      expect(derivePersonaCode('International Atomic Energy Agency Inspector')).toBe('IAEA');
     });
   });
 
-  describe('single-word names use first two characters uppercased', () => {
-    it('Auditor derives AU', () => {
-      expect(derivePersonaCode('Auditor')).toBe('AU');
+  describe('single-word names use first three characters uppercased', () => {
+    it('Auditor derives AUD', () => {
+      expect(derivePersonaCode('Auditor')).toBe('AUD');
     });
 
-    it('Architect derives AR', () => {
-      expect(derivePersonaCode('Architect')).toBe('AR');
+    it('Architect derives ARC', () => {
+      expect(derivePersonaCode('Architect')).toBe('ARC');
     });
   });
 
   describe('non-alpha characters stripped before derivation', () => {
-    it("apostrophe in name is removed (Bob's Burger → BB)", () => {
-      expect(derivePersonaCode("Bob's Burger")).toBe('BB');
+    it("apostrophe in name is removed (Bob's Burger → BOB)", () => {
+      expect(derivePersonaCode("Bob's Burger")).toBe('BOB');
     });
 
-    it('hyphen in name is removed (Co-Founder → CF as single word after strip)', () => {
-      // After stripping hyphen: "CoFounder" — single word, first 2 chars
-      expect(derivePersonaCode('Co-Founder')).toBe('CO');
+    it('hyphen in name separates words (Co-Founder → COF)', () => {
+      expect(derivePersonaCode('Co-Founder')).toBe('COF');
     });
   });
 
   describe('whitespace handling', () => {
     it('leading and trailing whitespace trimmed', () => {
-      expect(derivePersonaCode('  Platform Operator  ')).toBe('PO');
+      expect(derivePersonaCode('  Platform Operator  ')).toBe('PLO');
     });
 
     it('multiple internal spaces collapse to single-word separator', () => {
-      expect(derivePersonaCode('Platform   Operator')).toBe('PO');
+      expect(derivePersonaCode('Platform   Operator')).toBe('PLO');
     });
   });
 
@@ -82,21 +81,20 @@ describe('derivePersonaCode', () => {
       expect(derivePersonaCode('3M')).toBe('3M');
     });
 
-    it('multi-word with digit-first word (3 Amigos) derives 3A', () => {
-      expect(derivePersonaCode('3 Amigos')).toBe('3A');
+    it('multi-word with a digit-bearing word preserves the digit', () => {
+      expect(derivePersonaCode('Level 3 Operator')).toBe('L3O');
     });
   });
 
   describe('overflow truncation', () => {
-    it('seven-word name truncates to first 6 initials', () => {
-      // "International Atomic Energy Agency Inspection Sub Department" → IAEAISD → IAEAIS
+    it('seven-word name truncates to first 4 initials', () => {
       expect(
         derivePersonaCode('International Atomic Energy Agency Inspection Sub Department'),
-      ).toBe('IAEAIS');
+      ).toBe('IAEA');
     });
 
-    it('six-word name returns full 6 initials (no truncation)', () => {
-      expect(derivePersonaCode('Alpha Beta Gamma Delta Epsilon Zeta')).toBe('ABGDEZ');
+    it('four-word name returns all 4 initials', () => {
+      expect(derivePersonaCode('Alpha Beta Gamma Delta')).toBe('ABGD');
     });
   });
 
@@ -292,29 +290,33 @@ describe('parsePersonas', () => {
 });
 
 describe('resolvePersonaCodes', () => {
-  it('keeps explicit codes verbatim', () => {
-    const parsed = parsePersonas('## Platform Operator (PLATOPS)\n**Role:** A\n');
-    const resolved = resolvePersonaCodes(parsed);
-    expect(resolved[0]?.code).toBe('PLATOPS');
-  });
+  it.each(['SM', 'DEV', 'OPER', 'ADMIN', 'PLATOP'])(
+    'keeps compatible explicit code %s verbatim',
+    code => {
+      const parsed = parsePersonas(`## Platform Operator (${code})\n**Role:** A\n`);
+      const resolved = resolvePersonaCodes(parsed);
+      expect(validatePersonas(parsed)).toEqual([]);
+      expect(resolved[0]?.code).toBe(code);
+    },
+  );
 
   it('derives missing codes from names', () => {
     const parsed = parsePersonas('## Platform Operator\n**Role:** A\n');
     const resolved = resolvePersonaCodes(parsed);
-    expect(resolved[0]?.code).toBe('PO');
+    expect(resolved[0]?.code).toBe('PLO');
   });
 
   it('appends suffix on collision with existing explicit code', () => {
     const content = [
-      '## Partner Org (PO)',
+      '## Partner Org (PLO)',
       '**Role:** A',
       '',
       '## Platform Operator',
       '**Role:** B',
     ].join('\n');
     const resolved = resolvePersonaCodes(parsePersonas(content));
-    expect(resolved[0]?.code).toBe('PO');
-    expect(resolved[1]?.code).toBe('PO2');
+    expect(resolved[0]?.code).toBe('PLO');
+    expect(resolved[1]?.code).toBe('PLO2');
   });
 
   it('chains suffix when multiple derivations collide', () => {
@@ -322,29 +324,46 @@ describe('resolvePersonaCodes', () => {
       '## Platform Operator',
       '**Role:** A',
       '',
-      '## Product Owner',
+      '## Planning Owner',
       '**Role:** B',
       '',
-      '## Partner Org',
+      '## Plugin Operator',
       '**Role:** C',
     ].join('\n');
     const resolved = resolvePersonaCodes(parsePersonas(content));
-    expect(resolved.map(p => p.code)).toEqual(['PO', 'PO2', 'PO3']);
+    expect(resolved.map(p => p.code)).toEqual(['PLO', 'PLO2', 'PLO3']);
   });
 
   it('explicit code claims its slot regardless of file order', () => {
-    // Auto-derived Platform Operator (line 1) WOULD be PO; the explicit (PO)
+    // Auto-derived Platform Operator (line 1) WOULD be PLO; the explicit (PLO)
     // on Partner Org (line 4) wins because explicit codes are claimed first.
     const content = [
       '## Platform Operator',
       '**Role:** A',
       '',
-      '## Partner Org (PO)',
+      '## Partner Org (PLO)',
       '**Role:** B',
     ].join('\n');
     const resolved = resolvePersonaCodes(parsePersonas(content));
-    expect(resolved[0]?.code).toBe('PO2');
-    expect(resolved[1]?.code).toBe('PO');
+    expect(resolved[0]?.code).toBe('PLO2');
+    expect(resolved[1]?.code).toBe('PLO');
+  });
+
+  it('reports exhaustion before a collision suffix exceeds four characters', () => {
+    const content = Array.from(
+      { length: 1000 },
+      (_, index) => `## Pl${index} Operator\n**Role:** A`,
+    ).join('\n\n');
+    const parsed = parsePersonas(content);
+    const resolved = resolvePersonaCodes(parsed);
+    const exhausted = resolved.at(-1);
+    expect(exhausted?.codeError).toBe('collision-space-exhausted');
+    expect(exhausted?.code.length).toBeLessThanOrEqual(4);
+    expect(
+      validatePersonas(parsed).some(error =>
+        /collision.*exhausted.*explicit.*2[–-]4/i.test(error.message),
+      ),
+    ).toBe(true);
   });
 });
 
@@ -417,10 +436,19 @@ describe('validatePersonas', () => {
     expect(
       errors.some(
         error =>
-          error.message.includes('non-conformant code') &&
-          error.message.includes('author explicit code'),
+          error.message.includes('non-canonical code') &&
+          error.message.includes('explicit 2–4 letter code'),
       ),
     ).toBe(true);
+  });
+
+  it('short derived code requests an explicit canonical override', () => {
+    const content = '## S3\n**Role:** A\n';
+    const errors = validatePersonas(parsePersonas(content));
+    const matchesCanonicalOverrideMessage = errors.some(error =>
+      /non-canonical.*explicit.*2[–-]4/i.test(error.message),
+    );
+    expect(matchesCanonicalOverrideMessage).toBe(true);
   });
 
   it('digit-first name does NOT trigger pattern violation message for explicit codes (different message)', () => {
@@ -451,6 +479,40 @@ describe('lookupPersonaReference', () => {
     const result = lookupPersonaReference(fixture, 'Platform Operator');
     assert(result.status === 'valid');
     expect(result.match.code).toBe('PO');
+  });
+
+  it('keeps a legacy initials reference valid after an explicit canonical-code migration', () => {
+    const migrated = buildResolvedFixture(
+      '## Safeword Maintainer (SWM)\n\n**Role:** Maintains safeword.\n',
+    );
+    const result = lookupPersonaReference(migrated, 'SM');
+
+    assert(result.status === 'valid');
+    expect(result.match.name).toBe('Safeword Maintainer');
+    expect(result.match.code).toBe('SWM');
+  });
+
+  it('keeps a six-character former derivation valid after a canonical-code migration', () => {
+    const migrated = buildResolvedFixture(
+      '## Alpha Beta Charlie Delta Echo Foxtrot (ABCD)\n\n**Role:** Test persona.\n',
+    );
+    const result = lookupPersonaReference(migrated, 'ABCDEF');
+
+    assert(result.status === 'valid');
+    expect(result.match.code).toBe('ABCD');
+  });
+
+  it('reconstructs former source-ordered collision aliases', () => {
+    const migrated = buildResolvedFixture(
+      '## Platform Operator\n\n**Role:** First.\n\n## Planning Owner\n\n**Role:** Second.\n',
+    );
+    const first = lookupPersonaReference(migrated, 'PO');
+    const second = lookupPersonaReference(migrated, 'PO2');
+
+    assert(first.status === 'valid');
+    assert(second.status === 'valid');
+    expect(first.match.name).toBe('Platform Operator');
+    expect(second.match.name).toBe('Planning Owner');
   });
 
   it('casing mismatch on code returns unknown with suggestion', () => {

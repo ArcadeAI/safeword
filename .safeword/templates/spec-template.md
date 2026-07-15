@@ -33,7 +33,7 @@ feature at all, or a leaner task. -->
 ## Personas
 
 <!-- The personas this feature serves, referenced by name or code from
-the configured personas file (e.g., Platform Operator (PO)). Add new
+the configured personas file (e.g., Platform Operator (PLO)). Add new
 personas to that file — don't invent them here. -->
 
 ## Surfaces
@@ -62,15 +62,15 @@ the configured glossary file. Optional. -->
 <!--
 One persona per JTBD, in the form "When I …, I want …, so I can …". If two
 personas share a motivation, write two JTBDs. The heading id is
-<slug>.<persona-code><n> (e.g., oauth-flow.PO1). Add as many as the
+<slug>.<persona-code><n> (e.g., oauth-flow.PLO1). Add as many as the
 feature needs. If there is genuinely no persona-facing job (internal
 plumbing), write `skip: <reason>` here instead.
 
 Uncomment and customize:
 
-### oauth-flow.PO1 — Rotate credentials without a flag day
+### oauth-flow.PLO1 — Rotate credentials without a flag day
 
-**Persona:** Platform Operator (PO)
+**Persona:** Platform Operator (PLO)
 
 > When I rotate a server's API key, I want the previous key to keep working
 > for a short grace period, so I can roll the change across my fleet without
@@ -88,9 +88,9 @@ Legacy alternative (soft-deprecated): a JTBD may instead declare Acceptance
 Criteria — one observable capability per `#### <jtbd-id>.AC<n>`. Still accepted;
 one criteria kind per JTBD, never both.
 
-#### oauth-flow.PO1.R1 — A rotated key's predecessor keeps authenticating for a bounded grace window
+#### oauth-flow.PLO1.R1 — A rotated key's predecessor keeps authenticating for a bounded grace window
 
-#### oauth-flow.PO1.R2 — Every currently-issued key is visible to the operator as live, grace, or expired
+#### oauth-flow.PLO1.R2 — Every currently-issued key is visible to the operator as live, grace, or expired
 -->
 
 ## Rave Moment

@@ -1,0 +1,56 @@
+---
+id: FAJV19
+slug: keep-persona-lineage-readable
+type: feature
+phase: done
+status: done
+phase_anchors:
+  - 'define-behavior: .project/tickets/FAJV19-keep-persona-lineage-readable/spec.md'
+  - 'scenario-gate: packages/cli/features/keep-persona-lineage-readable.feature'
+  - 'plan-implementation: packages/cli/features/keep-persona-lineage-readable.feature'
+  - 'implement: .project/tickets/FAJV19-keep-persona-lineage-readable/impl-plan.md'
+  - 'verify: .project/tickets/FAJV19-keep-persona-lineage-readable/test-definitions.md'
+  - 'done: .project/tickets/FAJV19-keep-persona-lineage-readable/verify.md'
+scope:
+  - Derive automatic persona codes as 3–4 uppercase alphanumeric characters, using mnemonic name fragments and bounded collision suffixes.
+  - Recommend 2–4 characters for explicitly-authored new codes while keeping persisted 5–6 character codes valid and resolvable.
+  - Carry the resolved persona code unchanged through JTBD IDs and Gherkin Rule tags; scenario names remain plain English.
+  - Update persona authoring guidance, BDD examples, hook-side derivation, dogfood personas, and the architecture decision record to distinguish automatic 3–4 letter codes from explicit 2–4 letter codes.
+out_of_scope:
+  - Bulk-renaming codes embedded in completed tickets, historical Gherkin, or existing customer repositories.
+  - Adding a user-authored alias registry, an interactive persona editor, or automatic file mutation during `safeword check`; deterministic former-derived aliases are retained only for compatibility.
+  - Changing Gherkin tag grammar, Rule numbering, or scenario-name conventions beyond the persona-code segment.
+done_when:
+  - A newly derived persona code is always 3–4 characters or produces a clear validation error when the name cannot yield a conformant code.
+  - Explicit 2–4 character codes are recommended for new personas, and persisted 5–6 character codes still validate and resolve.
+  - CLI and installed-hook derivation agree for single-word, two-word, three-plus-word, punctuation, digit, and collision-relevant inputs.
+  - Templates and BDD guidance show automatic 3–4 and explicit 2–4 letter codes flowing unchanged from personas.md into JTBD and Gherkin lineage.
+  - Focused persona, JTBD-gate, Gherkin, schema, lint, and type-check verification passes.
+created: 2026-07-13T22:08:35.793Z
+last_modified: 2026-07-15T02:16:39.000Z
+---
+
+# Keep persona lineage readable for builders
+
+**Goal:** Give every persona a concise 2–4 letter authored code or 3–4 letter automatic code and carry it unchanged into JTBD and Gherkin lineage without breaking legacy projects.
+
+**See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
+
+## Work Log
+
+- 2026-07-13T22:08:35.793Z Started: Created ticket FAJV19
+- 2026-07-13T22:10:00.000Z Intake: User confirmed implementation after the figure-it-out recommendation. Canonical 3–4 letter generation, legacy explicit-code compatibility, and no historical bulk rewrite are accepted boundaries.
+- 2026-07-13T22:11:00.000Z Intake complete: Scope, out-of-scope, and done-when are bounded; failure modes cover collision overflow and legacy breakage; open questions are resolved. Advanced to define-behavior.
+- 2026-07-13T22:12:00.000Z Define-behavior complete: Seven scenario groups plus two outlines cover canonical derivation, collision and short-name edges, legacy compatibility, invalid bounds, and cross-runtime lineage guidance. Advanced to scenario-gate.
+- 2026-07-13T22:14:00.000Z Scenario review: Fresh reviewer found four blockers (vacuous lineage assertion, missing CLI↔hook parity, weak legacy preservation proof, undefined collision exhaustion). Revised to nine scenario groups with deterministic installed-asset coverage and explicit rejection boundaries.
+- 2026-07-13T22:15:00.000Z Scenario re-review: Strengthened collision parity across CLI and hook, made legacy resolution identify the exact persona/code, and added explicit 3/4-character recovery boundaries without adding scenario groups.
+- 2026-07-13T22:16:00.000Z Scenario gate passed: Independent reviewer confirmed all nine scenario groups pass vacuous-pass, AODI, determinism, boundary, negative-case, surface, and wiring checks. Review stamp recorded; advanced to plan-implementation.
+- 2026-07-13T22:18:00.000Z Plan review: Added a real setup/install test that executes the copied hook, tied evidence to every significant decision, and settled `codeError` as the shared non-throwing failure discriminator.
+- 2026-07-13T22:19:00.000Z Plan gate passed: Independent reviewer returned PASS. Plan is parse-valid with six content sections, status planned, nine scenario proofs, all affected surfaces, and the riskiest legacy-compatibility assumption first. Advanced to implement.
+- 2026-07-13T23:14:00.000Z Quality review correction: Reconstructed the former six-character derivation and source-ordered collision aliases in both runtimes, prevented explicit canonical codes from reserving duplicate collision slots, and replaced source-only asset checks with real setup-installed hook and authoring-asset fixtures.
+- 2026-07-13T23:22:00.000Z Quality review passed: Fresh review approved dependency hygiene, documentation, security, scope discipline, and real setup-installed hook wiring. Advanced to verify.
+- 2026-07-13T23:50:00.000Z Verify: Persona-focused unit, integration, installed-hook, documentation, and walkthrough tests pass 143/143; Gherkin passes 429 scenarios with 3 skipped; configured build, lint, and typecheck lanes pass. Repository-wide verification remains red on two unrelated pre-existing fixtures (Rust clippy autofix and cleanup-zombie process discovery), so the ticket remains in verify.
+- 2026-07-14T00:32:00.000-04:00 Scope amendment: User chose explicit 2–4 letter codes while retaining 3–4 letter automatic derivation and 5–6 letter compatibility. Reopened implementation; RED d1f8ee6b pins recovery messages and installed guidance.
+- 2026-07-14T00:39:00.000-04:00 Amendment implemented: GREEN 93b1b81c updates recovery messages, installed authoring guidance, Gherkin steps, website docs, and the architecture decision. Focused verification passes 143/143 tests, 22/22 scenarios, lint, typecheck, build, and config sync. Advanced to verify; the two unrelated repository-wide fixture failures remain unchanged.
+- 2026-07-15T02:16:00.000Z Verify: /verify and /audit invoked on head 58f80d79. CI full suite green on node 22.22.3 + node 24 (5,211 tests); Gherkin 429/432 (3 skipped); build, eslint, lint-gherkin, and `tsc --noEmit` clean. Audit passed with 0 errors / 0 warnings. Local full-suite showed 5 contention artifacts in cursor-stop-review.test.ts that pass 6/6 in isolation and are green in CI on the same SHA — not product evidence. Evidence in verify.md.
+- 2026-07-15T02:16:00.000Z Scope: project owner accepted PR #1053 carrying this feature plus required supporting tasks EKK1HA and VNNM1N (both root-caused to the same macOS logical-vs-physical path bug, and the fixes that cleared this ticket's two previously-blocking test failures) and the /audit maintenance (stale knip `gh` ignore; @cucumber/cucumber, eslint, tsx dev-dep patches). All three tickets close in this PR. Advanced to done.

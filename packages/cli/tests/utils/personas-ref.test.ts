@@ -75,11 +75,12 @@ describe('validatePersonaReference — filesystem I/O', () => {
 
   it('resolves auto-derived codes during lookup', () => {
     // User authored only `## Platform Operator` (no explicit code);
-    // lookup by derived code "PO" should still match.
+    // lookup by the former derived code "PO" should still match while the
+    // resolved persona exposes its canonical code.
     writePersonasFile(cwd, ['## Platform Operator', '**Role:** A', ''].join('\n'));
     const result = validatePersonaReference(cwd, 'PO');
     assert(result.status === 'valid');
-    expect(result.match.code).toBe('PO');
+    expect(result.match.code).toBe('PLO');
   });
 
   it('empty string input returns unknown without reading file twice', () => {
