@@ -4,7 +4,7 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-type HookEntry = { hooks?: { command?: string }[] };
+type HookEntry = { hooks?: { command?: string }[]; matcher?: string };
 
 function pluginCommands(hooks: Record<string, HookEntry[]>): string[] {
   return Object.values(hooks).flatMap(entries =>
@@ -62,4 +62,20 @@ describe('Codex plugin release contract', () => {
       expect(paths).toContain(path);
     }
   }, 15_000);
+
+  it('uses only Codex-supported tool matchers for edit hooks', () => {
+    const root = nodePath.resolve(import.meta.dirname, '..');
+    const hooks = JSON.parse(
+      readFileSync(nodePath.join(root, 'codex-plugin/hooks.json'), 'utf8'),
+    ) as {
+      hooks: Record<string, HookEntry[]>;
+    };
+
+    const preToolUseHooks = hooks.hooks.PreToolUse ?? [];
+    const postToolUseHooks = hooks.hooks.PostToolUse ?? [];
+    expect(preToolUseHooks).toHaveLength(1);
+    expect(postToolUseHooks).toHaveLength(1);
+    expect(preToolUseHooks[0]?.matcher).toBe('^(apply_patch|Bash|Edit|Write)$');
+    expect(postToolUseHooks[0]?.matcher).toBe('^(apply_patch|Bash|Edit|Write)$');
+  });
 });

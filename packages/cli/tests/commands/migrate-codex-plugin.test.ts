@@ -26,6 +26,12 @@ command = "gh-mcp"
 trust_level = "trusted"
 `;
 
+const CUSTOM_PRE_TOOL_HOOK = `
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = 'echo "keep this user hook"'
+`;
+
 function writeExecutable(path: string, content: string): void {
   writeFileSync(path, content, { mode: 0o755 });
   chmodSync(path, 0o755);
@@ -108,6 +114,36 @@ describe('migrate codex-plugin command', () => {
     const migrated = readFileSync(configPath, 'utf8');
     expect(migrated).not.toContain('safeword hook codex pre-tool-use');
     expect(migrated).not.toContain('[[hooks.PreToolUse]]');
+    expect(migrated).toContain(USER_CODEX_CONFIG.trim());
+    expect(readFileSync(nodePath.join(directory, '.codex/config.toml.safeword.bak'), 'utf8')).toBe(
+      original,
+    );
+  });
+
+  it('removes only the Safe Word handler when an event group also has a custom handler', async () => {
+    const directory = createTemporaryDirectory();
+    directories.push(directory);
+    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+    mkdirSync(nodePath.join(directory, '.codex'), { recursive: true });
+    writeFileSync(nodePath.join(directory, '.safeword/version'), '0.68.0\n');
+    const original = `${LEGACY_HOOK_CONFIG}${CUSTOM_PRE_TOOL_HOOK}${USER_CODEX_CONFIG}`;
+    const configPath = nodePath.join(directory, '.codex/config.toml');
+    writeFileSync(configPath, original);
+    const bin = installFakeRuntime(directory, true);
+
+    const result = await runCli(['migrate', 'codex-plugin'], {
+      cwd: directory,
+      env: {
+        PATH: `${bin}:${process.env.PATH ?? ''}`,
+        SAFEWORD_CODEX_LOG: nodePath.join(directory, 'codex.log'),
+      },
+    });
+
+    expect(result.exitCode, result.stderr).toBe(0);
+    const migrated = readFileSync(configPath, 'utf8');
+    expect(migrated).not.toContain('safeword hook codex pre-tool-use');
+    expect(migrated).toContain('[[hooks.PreToolUse]]');
+    expect(migrated).toContain(CUSTOM_PRE_TOOL_HOOK.trim());
     expect(migrated).toContain(USER_CODEX_CONFIG.trim());
     expect(readFileSync(nodePath.join(directory, '.codex/config.toml.safeword.bak'), 'utf8')).toBe(
       original,

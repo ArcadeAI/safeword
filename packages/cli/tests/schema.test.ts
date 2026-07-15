@@ -356,8 +356,8 @@ describe('Schema - Single Source of Truth', () => {
       expect(commandMatcherByCodexEventFromPlugin()).toEqual(
         new Map([
           ['SessionStart:session-start', ''],
-          ['PreToolUse:pre-tool-use', '^(apply_patch|Bash|Edit|Write|MultiEdit|NotebookEdit)$'],
-          ['PostToolUse:post-tool-use', '^(apply_patch|Bash|Edit|Write|MultiEdit|NotebookEdit)$'],
+          ['PreToolUse:pre-tool-use', '^(apply_patch|Bash|Edit|Write)$'],
+          ['PostToolUse:post-tool-use', '^(apply_patch|Bash|Edit|Write)$'],
           ['UserPromptSubmit:user-prompt-submit', ''],
           ['Stop:stop', ''],
         ]),

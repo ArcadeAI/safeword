@@ -8,6 +8,11 @@ const MARKETPLACE_SOURCE = 'ArcadeAI/safeword';
 const PLUGIN_ID = 'safeword@safeword';
 const CODEX_CONFIG_PATH = '.codex/config.toml';
 const LEGACY_CONFIG_BACKUP_SUFFIX = '.safeword.bak';
+const TOML_END_MARKER = '\0';
+const CODEX_HOOK_EVENT_BLOCK =
+  /^\[\[hooks\.\w+\]\][\s\S]*?(?=^\[\[hooks\.\w+\]\]|^\[(?!\[hooks\.)|\0)/gmu;
+const CODEX_NESTED_HOOK_BLOCK =
+  /^\[\[hooks\.\w+\.\w+\]\][\s\S]*?(?=^\[\[hooks\.\w+\.\w+\]\]|(?![\s\S]))/gmu;
 
 type CodexPluginList = {
   installed?: { enabled?: boolean; pluginId?: string }[];
@@ -42,10 +47,29 @@ function isSafewordHookBlock(block: string): boolean {
 }
 
 function removeLegacyCodexHooks(content: string): string {
-  return content.replaceAll(
-    /^\[\[hooks\.[^.\]]+\]\][\s\S]*?(?=^\[\[hooks\.[^.\]]+\]\]|^\[(?!\[hooks\.)|(?![\s\S]))/gmu,
-    block => (isSafewordHookBlock(block) ? '' : block),
-  );
+  const withEndMarker = `${content}${TOML_END_MARKER}`;
+  return withEndMarker
+    .replaceAll(CODEX_HOOK_EVENT_BLOCK, eventBlock => {
+      const nestedBlocks = eventBlock.matchAll(CODEX_NESTED_HOOK_BLOCK).toArray();
+      if (nestedBlocks.length === 0) return isSafewordHookBlock(eventBlock) ? '' : eventBlock;
+
+      const legacyNestedBlocks = nestedBlocks.filter(([nestedBlock]) =>
+        isSafewordHookBlock(nestedBlock),
+      );
+      if (legacyNestedBlocks.length === 0) return eventBlock;
+
+      const firstNestedBlock = nestedBlocks[0];
+      if (!firstNestedBlock) return eventBlock;
+      const parentBlock = eventBlock.slice(0, firstNestedBlock.index);
+      const retainedNestedBlocks = nestedBlocks
+        .filter(([nestedBlock]) => !isSafewordHookBlock(nestedBlock))
+        .map(([nestedBlock]) => nestedBlock);
+
+      return retainedNestedBlocks.length === 0
+        ? ''
+        : `${parentBlock}${retainedNestedBlocks.join('')}`;
+    })
+    .slice(0, -TOML_END_MARKER.length);
 }
 
 function removeLegacyHooks(cwd: string): { removed: boolean; backupCreated: boolean } {
