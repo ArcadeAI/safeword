@@ -1,9 +1,11 @@
 ---
 id: WAWQA6
 slug: autonomous-pr-review
-type: feature
+type: epic
 phase: intake
 status: in_progress
+epic: autonomous-pr-review
+children: ['G5337S', '36EEMY', 'CWGYH0']
 scope:
   - A `pr-review` skill (the durable asset) that reviews any project's PR diff on four dimensions — intent conformance, scope discipline, alternatives, blast radius — three of which need no safeword artifacts.
   - A tiered intent resolver: artifacts in-diff (T0) → linked issue/ADR/CONTRIBUTING (T1) → PR body + issue (T2) → commits/nothing (T3). Same job at every tier, different sources, declared confidence.
@@ -25,6 +27,7 @@ out_of_scope:
   - A required status check / hard block. Warn-mode only at first (precedent: the done-flip guard #460 over-fired and was held to warn-mode).
   - Voting panels of reviewers — already rejected by ADR as the "popularity trap".
   - The `safeword review-pr` CLI runner (cross-harness, shells to `claude` or `codex` like the retro path). NOT rejected — a planned second surface once a non-Claude customer needs it. The skill is authored runner-agnostic so it ports without rewrite.
+done_when:
   - On a corpus of `ArcadeAI/monorepo` PRs that humans approved with zero inline comments and merged, the reviewer surfaces defects those humans missed, at a rate clearing a bar recorded before the corpus was triaged — triaged by arcade engineers, not by the agent that built this.
   - Every review carries a triage verdict (needs-a-human / safe-to-merge) that an engineer can act on without opening the diff.
   - A PR with more real findings than is worth enumerating is verdicted unreviewable-as-is rather than flooded with comments.

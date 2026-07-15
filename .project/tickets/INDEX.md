@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (420)
+## Tickets (423)
 
 ### 001
 
@@ -132,6 +132,13 @@
 - **Epic: Cross-agent auto-upgrade (Cursor + Codex) (BJX7WR)** (done, epic: auto-upgrade-cross-agent)
   Extend safeword's seamless auto-upgrade — today Claude-Code-only — to the other two supported agents, Cursor and Codex, so customers on any agent stay current without manual `safeword upgrade`.
   → `.project/tickets/BJX7WR-auto-upgrade-cross-agent`
+
+### autonomous-pr-review
+
+- **Autonomous PR review at the intent-conformance bar (WAWQA6)** (in_progress, epic: autonomous-pr-review)
+  Review open PRs autonomously via GitHub Action, on the dimensions no linter or generic AI reviewer covers: intent conformance, scope discipline, alternatives, blast radius.
+  blocks: Detect the authoring model for cross-model PR review (X1Z5MG)
+  → `.project/tickets/WAWQA6-autonomous-pr-review`
 
 ### B6MZ4Z
 
@@ -745,6 +752,22 @@
 - **Render ticket references slug-first (slug + ID locator) across hooks, CLI, and INDEX (ZRXM6Q)** (done, epic: —)
   Every safeword surface that names a ticket leads with the human slug and demotes the Crockford ID to a trailing locator — starting with the hook-injected context that shapes how every agent (and every customer's chat) refers to work.
   → `.project/tickets/ZRXM6Q-slug-first-ticket-refs`
+
+### WAWQA6
+
+- **pr-review-distribution (36EEMY)** (in_progress, epic: —)
+  Ship the reviewer into a customer repo: workflow template, ownedFiles, config + kill switch, trigger gating, fork-PR safety. Serves TB1's delivery.
+  blocked by: pr-review-skill (G5337S), pr-review-eval (CWGYH0)
+  → `.project/tickets/36EEMY-pr-review-distribution`
+- **pr-review-eval (CWGYH0)** (in_progress, epic: —)
+  Measure the reviewer on arcade PRs humans approved with zero inline comments, against a bar recorded before triage. Serves SM1 — gates the other two from firing on customers.
+  blocks: pr-review-distribution (36EEMY), pr-review-skill (G5337S)
+  → `.project/tickets/CWGYH0-pr-review-eval`
+- **pr-review-skill (G5337S)** (in_progress, epic: —)
+  The cross-model reviewer skill: read a PR against its declared intent (Linear contract), return a triage verdict plus uncapped bar-cleared findings. Serves TB1 + NTB1.
+  blocked by: pr-review-eval (CWGYH0)
+  blocks: pr-review-distribution (36EEMY)
+  → `.project/tickets/G5337S-pr-review-skill`
 
 ### workflow-gate-hygiene
 
@@ -1397,10 +1420,6 @@
 - **Whole-ticket quality review + refactor before verify (W610WW)** (done, epic: —)
   Make the end of implementation run one whole-ticket `/quality-review` → `/refactor` pass — for both BDD features and multi-loop TDD tasks — gated to fire only when there's more than one RGR loop.
   → `.project/tickets/W610WW-whole-ticket-quality-refactor`
-- **Autonomous PR review at the intent-conformance bar (WAWQA6)** (in_progress, epic: —)
-  Review open PRs autonomously via GitHub Action, on the dimensions no linter or generic AI reviewer covers: intent conformance, scope discipline, alternatives, blast radius.
-  blocks: Detect the authoring model for cross-model PR review (X1Z5MG)
-  → `.project/tickets/WAWQA6-autonomous-pr-review`
 - **Per-language architecture extractors (Go / Rust / Python) — the epic's "language packs" (WBM8JE)** (backlog, epic: —)
   Extend the generated architecture doc beyond the TypeScript/`src/`
   → `.project/tickets/WBM8JE-per-language-architecture-extractors`
