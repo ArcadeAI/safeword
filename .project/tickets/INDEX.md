@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (417)
+## Tickets (419)
 
 ### 001
 
@@ -1292,6 +1292,9 @@
   Prevent SafeWord from pausing for human approval between implementation and verification.
   external issue: https://github.com/ArcadeAI/safeword/issues/483
   → `.project/tickets/MZAHAW-run-verification-automatically-after-implementation`
+- **Audit checks namespace domain docs for emptiness and drift (N0W5KG)** (done, epic: —)
+  {One sentence: what are we trying to achieve?}
+  → `.project/tickets/N0W5KG-audit-domain-docs-freshness`
 - **Boundary push tier: evaluate phase legality per commit in the range, not at endpoints (N76NQ0)** (done, epic: —)
   A multi-commit push whose intermediate commits legally traversed phases must not warn; a range whose commits actually skipped a phase still warns.
   → `.project/tickets/N76NQ0-push-tier-per-commit-legality`
@@ -1334,7 +1337,7 @@
 - **Capture safeword's own runtime signals to a sanitized local spool (#345) (QYYC5Y)** (done, epic: —)
   {One sentence: what are we trying to achieve?}
   → `.project/tickets/QYYC5Y-self-report-capture`
-- **Rename DEV persona code to TB across the corpus (R4S85Y)** (in_progress, epic: —)
+- **Rename DEV persona code to TB across the corpus (R4S85Y)** (done, epic: —)
   Eliminate the redundant DEV persona code by renaming DEV<n> -> TB<n> (828 occ) and Agent-Driven Developer (DEV) -> Technical Builder (TB) (2 occ) across 103 files, clearing the E009 drift by elimination and making a personas.md DEV entry unnecessary
   → `.project/tickets/R4S85Y-rename-dev-persona-to-tb`
 - **Stop-hook escalation path may be dead (0/10 BLOCKED) — revalidate post-F14BG2, recalibrate if needed (RAS9N8)** (pending, epic: —)
@@ -1394,6 +1397,9 @@
 - **Whole-ticket quality review + refactor before verify (W610WW)** (done, epic: —)
   Make the end of implementation run one whole-ticket `/quality-review` → `/refactor` pass — for both BDD features and multi-loop TDD tasks — gated to fire only when there's more than one RGR loop.
   → `.project/tickets/W610WW-whole-ticket-quality-refactor`
+- **Autonomous PR review at the intent-conformance bar (WAWQA6)** (in_progress, epic: —)
+  Review open PRs autonomously via GitHub Action, on the dimensions no linter or generic AI reviewer covers: intent conformance, scope discipline, alternatives, blast radius.
+  → `.project/tickets/WAWQA6-autonomous-pr-review`
 - **Per-language architecture extractors (Go / Rust / Python) — the epic's "language packs" (WBM8JE)** (backlog, epic: —)
   Extend the generated architecture doc beyond the TypeScript/`src/`
   → `.project/tickets/WBM8JE-per-language-architecture-extractors`
