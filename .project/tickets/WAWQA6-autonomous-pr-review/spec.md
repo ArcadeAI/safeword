@@ -1,125 +1,92 @@
 # Spec: Autonomous PR review at the intent-conformance bar
 
-<!--
-Product-framing spec for a feature ticket. The engineering contract
-(scope / out_of_scope / done_when) lives in ticket.md frontmatter; this
-file holds the *why and who*. The bdd intake flow authors it before
-engineering scope. Fill each section, then delete the
-guidance comments.
--->
-
 ## Intent
 
-<!-- One or two sentences: what this feature is for and why it matters.
-This is the single source of truth for motivation — ticket.md drops its
-**Why:** line and points here. -->
+Give any project a PR reviewer that says only what its own tooling can't: did this change do what it said it would, is it bigger than it needed to be, is there a simpler shape, and what breaks if it's wrong. Safeword projects get the richest version of that review — because the intent was written down, before the code, as a contract.
 
 ## Intake Brief
 
-<!-- The decide-to-build framing for substantial features (advisory — write
-`skip: <reason>` on any line that doesn't apply). Intent above is the positive
-"why"; this is who asked, the cost of NOT doing it, and how reversible it is.
-If cost-of-inaction is low and reversibility is high, ask whether this is a
-feature at all, or a leaner task. -->
-
-- **Requested by:** <who asked for this — distinct from the persona it serves>
-- **Cost of inaction:** <what changes, breaks, or is lost if we don't build it>
-- **Reversibility:** <how hard to undo once shipped — one-way or two-way door; cross-cutting changes (data model, public API, migration) count as one-way>
+- **Requested by:** Alex (2026-07-15) — "safeword to run as a server process or github action and review open PRs and do a super high quality eng review the way a top quality engineer or PM on a team would do", scope-corrected in the same session to "a top tier reviewer of any project, not just safeword's own... and of course, it should be awesome at its own."
+- **Cost of inaction:** One per persona. **SM:** this repo merged 40 of its last 40 PRs with **zero** reviews at ~100 PRs/month; a 10-PR shadow probe found 3 live defects, two of them inert safety mechanisms in a cron running daily ([#1069](https://github.com/ArcadeAI/safeword/issues/1069)). **NTB:** they merge agent-written code they cannot read, with nothing between them and a confident agent shipping something broken. **TB:** the generic bots they'd otherwise reach for get ≤19.2% of comments acted on, and the recurring complaint is noise, not wrongness. Structurally: safeword already forces specs, `done_when`, and `Out of scope` into existence — without a reviewer that reads them, the discipline's biggest payoff goes uncollected.
+- **Reversibility:** **Two-way door with a one-way edge.** The workflow is a deletable `.yml`, ships default-off, and runs warn-mode with no required status check — nothing is gated on it. The one-way edge: the skill and workflow become **ownedFiles** in `schema.ts` (upgrade-overwritten in installed projects), and any `.safeword/config.json` key becomes a compatibility surface under the versioning commitment. No data model, no migration.
 
 ## References
 
-<!-- Related tickets, prior art, designs, external docs. Optional. -->
+- **ticket.md** — the full decision record: architecture call, tier model, intent provenance, dynamic subtraction, any-project risks, pre-registered shadow bar.
+- **Shadow probe (2026-07-15)** — 10 merged PRs, 14 findings, 6/6 spot-checks confirmed; maintainer triage outstanding.
+- **[#1069](https://github.com/ArcadeAI/safeword/issues/1069)** — the three live defects the probe surfaced.
+- **X4518B** — native-review overlap positioning; this answers it for the PR surface (delegate the mechanism, own the judgment).
+- **E2D8S5 / `experiments/gepa-review-spec/`** — the eval discipline this inherits: decoupled metrics, no F1 headline, held-out corpus.
+- Evidence: [Bacchelli & Bird ICSE 2013](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/ICSE202013-codereview.pdf) (defects are 14% of review comments; understanding is the bottleneck), [Sadowski et al. ICSE-SEIP 2018](https://sback.it/publications/icse2018seip.pdf) (Tricorder's not-useful kill switch), [arXiv 2508.18771](https://arxiv.org/abs/2508.18771) (~70% of AI comments valid, ≤19.2% acted on), [Conventional Comments](https://conventionalcomments.org/).
 
 ## Personas
 
-<!-- The personas this feature serves, referenced by name or code from
-the configured personas file (e.g., Platform Operator (PO)). Add new
-personas to that file — don't invent them here. -->
+- **Technical Builder (TB)** — any project, any stack, any harness. Reads the diff; will mute a noisy bot without hesitation.
+- **Non-Technical Builder (NTB)** — **cannot read the diff.** Judges success by whether the feature works and is safe. Internal jargon is a dead end.
+- **Safeword Maintainer (SM)** — ships the reviewer into other people's repos; must trust it before it fires there. Always also a TB in their own sessions.
 
 ## Surfaces
 
-<!-- Optional: supported product, agent, runtime, protocol, client, or
-deployment contexts this feature affects. Prefer names from the configured
-surfaces file. Use spec-local names only for one-off contexts.
-
 Affected:
-- <surface name>
+
+- **Safeword CLI** — the reviewer ships via `safeword setup` (workflow template + skill as ownedFiles).
+- **Claude Code** — the v1 runner (`claude-code-action`, agent mode).
+- **OpenAI Codex** — `skip: v1 runner is Claude-only by decision (ticket.md decision record); the CLI runner is the planned second surface. Tagged, not pretended.`
+- **Cursor** — `skip: same as OpenAI Codex.`
 
 Unaffected:
-- <surface name> — <reason>
 
-Each affected surface should be covered by at least one saved scenario tagged
-`@surface.<slug>` (OpenAI Codex -> `@surface.openai-codex`) or carry
-`skip: <reason>` on the Affected line. -->
+- **Claude Code on the Web**, **OpenAI Codex Cloud**, **Cursor Cloud Agents** — the reviewer runs in CI, not in an agent session; no cloud-harness surface is touched.
 
 ## Vocabulary
 
-<!-- Domain terms specific to this feature, consistent with
-the configured glossary file. Optional. -->
+Spec-local pending curation (see Open Questions — these are absent from `.project/glossary.md` and DISCOVERY forbids inventing glossary entries):
+
+- **Intent tier** — how much declared intent a project exposes: T0 artifacts-in-diff (`spec.md`, `done_when`, `Out of scope`) → T1 linked issue/ADR/CONTRIBUTING → T2 PR body + issue → T3 commits or nothing.
+- **Intent provenance** — whether an intent source predates the code (a **contract**) or ships with it (a **narrative**). Derived from git commit order, not asserted.
+- **Quality surface** — what a project's own tooling already covers (linters, types, tests, CI). The reviewer subtracts this and reviews only the gap.
 
 ## Jobs To Be Done
 
-<!--
-One persona per JTBD, in the form "When I …, I want …, so I can …". If two
-personas share a motivation, write two JTBDs. The heading id is
-<slug>.<persona-code><n> (e.g., oauth-flow.PO1). Add as many as the
-feature needs. If there is genuinely no persona-facing job (internal
-plumbing), write `skip: <reason>` here instead.
+### autonomous-pr-review.TB1 — Hear only what my own tooling can't tell me
 
-Uncomment and customize:
+**Persona:** Technical Builder (TB)
 
-### oauth-flow.PO1 — Rotate credentials without a flag day
+> When I open a PR on my project, I want a reviewer that skips everything my
+> linters, types, and tests already cover and tells me only what they can't —
+> whether this did what I said, whether it's bigger than it needs to be, and
+> what it might break — so I get signal worth reading instead of a bot I end
+> up muting.
 
-**Persona:** Platform Operator (PO)
+### autonomous-pr-review.NTB1 — Be my eyes on a diff I can't read
 
-> When I rotate a server's API key, I want the previous key to keep working
-> for a short grace period, so I can roll the change across my fleet without
-> coordinated downtime.
+**Persona:** Non-Technical Builder (NTB)
 
-Numbered Rules — one testable business invariant per Rule, id <jtbd-id>.R<n>,
-stated generally in product language (the invariant a persona relies on), NOT
-implementation ("returns 204" belongs in a scenario's Then). Each define-behavior
-scenario nests under the Rule it proves. Numbered Rules need a `.feature`
-scenario source; the legacy test-definitions.md path stays Acceptance-Criteria-
-only. If a JTBD has no user-observable behavior to enumerate, write
-`skip: <reason>` under it instead.
+> When my agent opens a PR I have no way to audit myself, I want a
+> plain-language account of whether it does what I asked and what could break
+> if it's wrong, so I can decide to merge or push back without reading a line
+> of code.
 
-Legacy alternative (soft-deprecated): a JTBD may instead declare Acceptance
-Criteria — one observable capability per `#### <jtbd-id>.AC<n>`. Still accepted;
-one criteria kind per JTBD, never both.
+### autonomous-pr-review.SM1 — Trust the reviewer before it fires on someone else's repo
 
-#### oauth-flow.PO1.R1 — A rotated key's predecessor keeps authenticating for a bounded grace window
+**Persona:** Safeword Maintainer (SM)
 
-#### oauth-flow.PO1.R2 — Every currently-issued key is visible to the operator as live, grace, or expired
--->
+> When I ship a reviewer that will comment on projects unlike ours, I want
+> measured evidence that it's worth reading there — not just here — and a way
+> to pull it back if it isn't, so I never spend a customer's trust on noise.
 
 ## Rave Moment
 
-<!-- Optional, and only for the highest persona-facing surface in the tree (the
-epic if there is one, else this feature). Child features under an epic that
-already named one inherit it — skip here; internal/plumbing work skips entirely.
-Advisory; never blocks intake exit. The one moment a persona would tell a peer
-about: name the moment, the expectation it beats, and the one sentence they'd
-repeat. Aim for awe, not "fine." If nothing clears the expectation bar, write
-`skip: table-stakes`.
-
-### <slug> — <the moment in a few words>
-
-- **Moment:** <the specific beat they'd screenshot or recount>
-- **Beats:** <the dread / status-quo pain / competitor clunk it's measured against>
-- **They'd say:** "<the one repeatable, status-conferring sentence>"
--->
+_Pending — deliberately not authored yet._ DISCOVERY requires grounding this via `/figure-it-out` rather than writing it from priors, and it is advisory (never blocks intake exit). The candidate worth researching: **NTB1** — _"I merged something I couldn't read, and it told me in English what would break."_ Whether that clears the beaten-expectation bar, or is table-stakes once you've accepted agent-written code, is exactly what the research must settle. Deferred to the Rules gate.
 
 ## Outcomes
 
-<!-- Observable results that tell us the JTBDs are satisfied — the product
-counterpart to ticket.md's done_when. -->
+_Deferred to the Rules sub-phase._ Outcomes are the product counterpart to `done_when`, and DISCOVERY orders JTBD gate → Rules gate → engineering scope. Writing them now would pre-empt the gate.
 
 ## Open Questions
 
-<!-- Unresolved questions surfaced during intake — the spec's running list of
-what we don't know yet (the equivalent of Example Mapping's red "question"
-cards). Add one per line as they come up; before advancing to define-behavior,
-resolve each (answer it, then delete the line) or record `defer: <reason>` for
-a deliberate punt. A long unresolved list means intake isn't done — keep
-converging. Delete this comment when you add real questions. -->
+- **New glossary terms.** `intent tier`, `intent provenance`, and `quality surface` are absent from `.project/glossary.md`. DISCOVERY says flag, don't invent — promote to the project glossary, or keep spec-local under `## Vocabulary`?
+- **Is NTB1 one job or two?** "Tell me if it does what I asked" (intent conformance, plain language) and "tell me what could break" (blast radius) may fail the split test — each arguably ships independent value to an NTB. Resolve at the Rules gate.
+- **Does the Codex/Cursor gap belong in `out_of_scope`, or as the tagged surface skips above?** Both are live project surfaces; v1's runner is Claude-only by decision. Currently written as skips.
+- **What sets the Tier-2 bar for SM1's "measured evidence"?** The Tier-0 shadow run is unscored (triage outstanding) and n=1 repo. Per the pre-registration discipline, the number must be set before a non-safeword corpus is read.
+- **Does TB1's "skips what my tooling covers" need per-project config, or pure detection?** Detection is cleaner (PRINCIPLES §3) but every project's CI is idiosyncratic; a `.safeword/config.json` escape hatch may be unavoidable. Affects whether TB1 has a configuration Rule.
