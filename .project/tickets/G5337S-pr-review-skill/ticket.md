@@ -53,3 +53,24 @@ The severity was also inflated. The draft claimed a "false green to cut over on"
 2. **Require a counter-evidence pass before severity.** The reviewer must actively hunt for guards that already mitigate the finding, and either name them or lower severity. "Did the author already think about this?" — the ledger guard was 40 lines from the finding.
 3. **Deliberate-and-documented ≠ oversight.** The shipped metric description said *"Index write **batches**"* — self-consistent, i.e. a considered deviation. The draft read as if the author hadn't noticed. Detect self-consistency between code and its own docs before implying a mistake.
 4. **This is metric C (false certainty) firing on our own output** — the kill criterion, caught only because an independent reviewer ran. The author-agent verified the *claim* and never questioned the *fix*, which is precisely the correlated blind spot PRINCIPLES §1 predicts. **Strong evidence the reviewer needs an adversarial pass on its own findings before posting, not just before shipping the skill.**
+
+## Design finding: the reviewer must PIN its tree (2026-07-15)
+
+**Discovered by the user asking "did you dig into the arcade-monorepo codebase?"** — the honest answer exposed a hazard in the skill, not just in the probe.
+
+The probe's local arcade checkout was **483 commits behind origin/main, on a WIP branch, containing none of the four PRs under review**. Agents were told "you may read the repo at /Users/alex/Projects/arcade-monorepo for context." That instruction silently resolved to *"reason about a 483-commit-old tree."*
+
+**Both failure and correct behavior occurred, and the difference was luck:**
+
+- The orchestrator (me) ran `find … db.py` against the stale tree, got nothing, and briefly concluded a TRUE finding was false. Recovered only by falling back to the fetched diff.
+- The orchestrator verified 2056 entirely against the stale tree. The claim happens to hold on real `origin/main` (re-verified after the fact) — right answer, unsound method.
+- PR 2100's reviewer hit the same stale tree, noticed a `PUBLIC`→`STATIC` rename it couldn't account for, inferred its checkout predated the PR, and **dropped a finding that "would have been confidently wrong."** That is the behavior the skill needs, and it emerged from the agent's own discipline rather than from any instruction.
+
+### Requirements this generates
+
+1. **The tree is an input, not an ambient fact.** The skill must review against a tree that provably contains the PR's head/merge-base. In CI this is free (`claude-code-action` checks out the PR head) — but the skill must not assume it, because the same skill runs locally and via the planned `review-pr` CLI where the working copy is arbitrary.
+2. **Fail loudly on a tree mismatch.** If the checkout doesn't contain the PR's SHA, say so and fall back to the diff — never silently reason about different code. A stale-tree finding is indistinguishable from a real one at the point of posting, which makes it a metric-C (false-certainty) generator.
+3. **Prefer the diff as ground truth; treat the tree as context only.** Every sound verification in the probe came from the fetched diff or `gh api` at a pinned ref. Every unsound one came from the ambient working copy.
+4. **`gh pr view --json mergeCommitOid` returned EMPTY for all four merged PRs** (squash-merge and/or permissions). So "pin to the merge commit" is not reliably available — the skill needs a fallback chain (head SHA → base SHA → diff-only) rather than assuming a merge SHA exists.
+
+**Meta-observation worth keeping:** the deepest verification in the entire session (the adversarial pass, 23 tool calls, `gh api` against the merged tree) produced the most consequential result — catching that the flagship's fix was a regression. Depth of digging correlated with value of finding, exactly as Bacchelli & Bird predict ("finding defects requires the most understanding of any outcome"). The corollary is uncomfortable: the probe's *median* reviewer dug less than that, so its findings deserve less confidence than its confident prose implies.
