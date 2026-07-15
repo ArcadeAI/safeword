@@ -149,4 +149,19 @@ describe('packagedNamespaceRootLabel', () => {
     expect(result.status).toBe(2);
     expect(result.stderr).toContain('bun');
   });
+
+  it('reports an unknown event without blocking the Codex hook process', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-'));
+    directories.push(projectDirectory);
+
+    const result = spawnSync(process.execPath, [CLI_PATH, 'hook', 'codex', 'before-tool-use'], {
+      cwd: projectDirectory,
+      input: '{}',
+      encoding: 'utf8',
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toContain('unknown Codex hook event: before-tool-use');
+  });
 });

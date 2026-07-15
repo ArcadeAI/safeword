@@ -8,9 +8,7 @@
     "packages/cli/vitest.slow.config.ts"
   ],
   "ignoreBinaries": [
-    "shellcheck",
     "shfmt",
-    "shellcheck",
     "dot",
     "claude",
     "shellcheck",

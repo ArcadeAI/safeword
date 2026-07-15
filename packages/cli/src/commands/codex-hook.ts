@@ -552,6 +552,7 @@ async function runStop(): Promise<void> {
     return;
   }
 
+  // `{}` is an intentional packaged no-op, so project-owned continuations still apply.
   const reason = readProjectTextFile(projectDirectory, STOP_CONTINUATION_PATH)?.trim();
   if (reason) {
     emitStopContinuation({ decision: 'block', reason });
@@ -576,6 +577,9 @@ const CODEX_HOOK_RUNNERS: Record<SupportedCodexHookEvent, () => Promise<void>> =
 
 export async function codexHook(event: string): Promise<void> {
   const normalized = normalizeEvent(event);
-  if (normalized === undefined) return;
+  if (normalized === undefined) {
+    process.stderr.write(`Safe Word ignored unknown Codex hook event: ${event}\n`);
+    return;
+  }
   await CODEX_HOOK_RUNNERS[normalized]();
 }
