@@ -37,7 +37,7 @@ last_modified: 2026-07-15T14:24:45.773Z
 
 ## Probe run 2026-07-15 — 10 arcade PRs, all human-APPROVED and merged with ZERO inline comments
 
-Throwaway v1 prompt, three-pass (cold code → Linear contract → PR body last). 9/10 reported.
+Throwaway v1 prompt, three-pass (cold code → Linear contract → PR body last). **10/10 reported.**
 **Not cross-model**: ran fresh-context Opus, the same family arcade's agents likely use.
 Declared, not implied — dogfooding TB1.R11's second clause.
 
@@ -52,10 +52,11 @@ Declared, not implied — dogfooding TB1.R11's second clause.
 | 2096 | 1733 | safe-to-merge | 1 — author *requested* security review; got zero comments |
 | 2051 | 3097 | safe-to-merge | **0 — silence** |
 | 2099 | 1301 | safe-to-merge | **0 — silence** |
+| 2093 | 1800 | safe-to-merge | **0 — silence** — formed 5 cold hypotheses, verification killed all 5 |
 
-**Verdict distribution is the product:** 6/9 safe-to-merge → an engineer opens 3 PRs, not 9. That is the capacity answer, and no findings cap could produce it.
+**Verdict distribution is the product:** **7/10 safe-to-merge → an engineer opens 3 PRs, not 10.** That is the capacity answer, and no findings cap could produce it.
 
-**Silence works here.** 2/9 silent. The safeword probe produced 0/10 silence on a repo whose PRs were 28× larger — evidence the earlier probe's noise was the corpus, not the reviewer.
+**Silence works here.** **3/10 silent (30%).** The safeword probe produced 0/10 silence on a repo whose PRs were 28× larger — evidence the earlier probe's noise was the corpus, not the reviewer.
 
 ### The flagship (2113) — the thesis, demonstrated
 
@@ -77,7 +78,13 @@ Every reviewer audited the *intent process*, not just code — a class no bot ca
 
 ### Restraint (the metric-C evidence)
 
-2099 declined a scope gap ("asserting a gap here would be confidently wrong"). 2056 declined a conformance gap belonging to the parent PR. 2100 caught its own stale checkout and **dropped** a finding that would have been confidently wrong. 2109 killed its own google_slides hypothesis by verifying it.
+2099 declined a scope gap ("asserting a gap here would be confidently wrong"). 2056 declined a conformance gap belonging to the parent PR. 2100 caught its own stale checkout and **dropped** a finding that would have been confidently wrong. 2109 killed its own google_slides hypothesis by verifying it. **2093 is the strongest case: five cold hypotheses, all five killed by verification** — including one it named as "training-data pattern-matching" — and it declined a sixth as "would have been confidently wrong". Five plausible bot comments a lesser reviewer ships.
+
+### NEW RISK the probe surfaced: intent-granularity mismatch
+
+Three PRs (2056, 2093, 2109) hit the same trap: the linked Linear issue is written at **epic granularity**, not PR granularity, so it bundles work this PR never owned. 2093 states it plainly: *"A reviewer checking conformance against the Linear contract alone would flag a false positive here."* 2056: reusing a parent's link means the linkback *looks* like a contract while carrying no obligation for the diff under review.
+
+**This is the intent-conformance wedge's own failure mode, and the design does not yet handle it.** A naive contract-vs-diff check generates false CONFORMANCE findings — exactly the confidently-wrong class that is metric C's kill criterion. In all three cases only the PR body (written after the code) disambiguated scope, which cuts against reading the body last. Needs an answer before G5337S implements: detect granularity mismatch, or weight the contract down when it doesn't match the diff's scope.
 
 ### Honest caveats
 
@@ -85,3 +92,6 @@ Every reviewer audited the *intent process*, not just code — a class no bot ca
 - **Not cross-model.** Same-model fresh context. Declared, per TB1.R11.
 - **My spot-checks are a weak instrument.** Twice today my own verification nearly produced a false negative (shell ate `$doc`; stale arcade checkout). I confirmed 2113/2094/2056 and was inconclusive on 2100.
 - **n=9, one repo, 8 days, one prompt.** Not a result — a reason to build.
+
+
+**Final: 10/10. 11 findings, 2 blocking, 3 silences (30%), 3 needs-a-human (30%), 7 safe-to-merge (70%).**
