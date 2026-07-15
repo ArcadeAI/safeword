@@ -42,7 +42,7 @@ last_modified: 2026-07-15T02:50:15.807Z
 
 ## Why now — the vacuum
 
-40 of the last 40 merged PRs have **zero** reviews; ~100 PRs merged in 30 days; essentially one author. This is not competing with a human reviewer, it is filling a vacuum. Separately, `reviewGate` is off in our own `.safeword/config.json`, so the PR is currently the only unguarded boundary where review could bite.
+40 of the last 40 merged PRs have **zero** reviews (that span reaches back only to **2026-07-06 — 8 days**, not 30); **282 PRs merged in the last 30 days** (275 non-dependabot), essentially one author. *(Corrected 2026-07-15: an earlier "~100/30d" understated by 2.8×. The argument survives — it gets stronger — but a decision record with a 2.8×-off number is a hygiene failure regardless of direction.)* This is not competing with a human reviewer, it is filling a vacuum. Separately, `reviewGate` is off in our own `.safeword/config.json`, so the PR is currently the only unguarded boundary where review could bite.
 
 Our PRs are also far past the size where review is known to work: PR #1053 is +1,922 lines / 44 files, against Google's median change of **24 lines**. Cisco found no review >250 lines exceeded 37 defects/kLOC and reviewers wear out after ~60 min. Human-style review of these PRs is a known-ineffective activity.
 
@@ -71,7 +71,9 @@ The fix is mechanical and falls out of git: **weight intent sources by when they
 
 **This reframes the product.** Safeword's real job is manufacturing the pre-committed intent that makes review possible. The reviewer is the *payoff* for the discipline, not a bolt-on: adopt safeword → get artifacts → get a review nobody else can give. That is the honest answer to "why not just use CodeRabbit," and it is a flywheel rather than a feature.
 
-The literature backs this as the under-served dimension: Bacchelli & Bird found reviewer *understanding* is the bottleneck (91% say unfamiliar files take longer; 82% say familiar reviewers give conceptual rather than superficial feedback) and that finding defects **requires the most understanding of any outcome** — which is why it is under-produced. Context is the input that produces depth. Meanwhile a 178-repo study of AI reviewers found none attempting intent conformance, because none had the spec in the diff. Search for PM-level PR review research returned essentially **zero** results — under-served, not solved.
+The literature backs this as the under-served dimension: Bacchelli & Bird found reviewer *understanding* is the bottleneck (91% say unfamiliar files take longer; 82% say familiar reviewers give conceptual rather than superficial feedback) and that finding defects **requires the most understanding of any outcome** — which is why it is under-produced. Context is the input that produces depth.
+
+**Honest gap claim (CORRECTED 2026-07-15 — the original over-claimed).** The earlier wording said "a 178-repo study of AI reviewers found none attempting intent conformance." That is **not a finding of that study**: its questions are RQ1 adoption, RQ2 whether comments were addressed, RQ3 what drives code change (verified against the paper). It never assessed intent conformance, and offers no comment-type taxonomy. Absence of a finding is not a finding of absence. What is defensible: **no study we found evaluates intent conformance in PR review, and none of the tools we surveyed appears to attempt it.** That is still a real gap — but it is our survey's gap, not a cited result. Likewise, searching for PM-level PR-review research returned essentially zero results — under-served, not solved, on our own search rather than on anyone's authority.
 
 ## What the review consists of
 
@@ -91,9 +93,9 @@ Do these four; stay silent on everything else:
 
 ## Design constraints (each carries a citation or a precedent)
 
-- **Noise is irrelevance, not wrongness.** arXiv 2508.18771 (22,326 AI comments, 178 repos): ~70% of AI comments are *valid*, yet ≤19.2% are acted on, vs **60%** for human comments. The enemy is the correct-but-ignorable comment.
-- **Hunk-anchored, not summary.** Hunk-level comments are acted on at **43.88%** vs ≤13.89% file-level (file-level ρ=−0.96). A sticky summary comment is the move that makes findings ignorable.
-- **Every finding carries a code block.** Strongest positive correlate of action: ρ=**0.78**. Verbosity hurts (ρ=−0.28).
+- **Noise is irrelevance, not wrongness.** arXiv 2508.18771 (22,326 AI comments, 178 repos): ~70% of AI comments are *valid*, yet only **0.9–19.2%** are addressed (Table VIII), vs **60%** for human comments. The enemy is the correct-but-ignorable comment.
+- **Hunk-anchored, not summary.** File-level comment sources address at 0.9–4.2%; hunk-level at 6.5–19.2% (Table VIII) — the ~4× gap is real, and file-level ρ=−0.96. A sticky summary comment is the move that makes findings ignorable. *(Corrected: the earlier "43.88% hunk-level" was Table V's file-change filter, not an addressing rate.)*
+- **Every finding carries a code block.** Multiline code ρ=**0.78**; **code-to-text ratio ρ=0.89 is the strongest _code-related_ correlate**. Verbosity hurts (ρ=−0.28). **The sting worth confronting: `Is_Human` ρ=0.99 — the single strongest predictor that a comment gets acted on is that a human wrote it.** No prompt fixes that; it is a standing discount on everything below, and an argument for the reviewer earning trust rather than assuming it.
 - **Do not auto-fire on every push.** Manual-triggered comments are acted on at 12.8% vs 6.8% automatic (ρ=−0.97). *Caveat: almost certainly confounded by selection — a manual trigger means someone wanted a review. Not proof of mechanism, but enough to move the default given our 97%-noise history.*
 - **Silence on clean PRs.** No LGTM comment.
 - **Don't trust an LLM to filter its own noise.** Greptile's postmortem: "the LLM's judgment of its own output was nearly random." `claude-code-action`'s `classify_inline_comments` (Haiku, default true) is a convenience, not the noise control.
@@ -104,6 +106,14 @@ Do these four; stay silent on everything else:
 ## The priming trap (design detail, easy to miss)
 
 Cisco found author-prepared reviews **never** exceeded 30 defects/kLOC, most commonly finding **zero** — one reading being that priming *disables* reviewer criticism ("as long as the code matches the prose, the reviewer is satisfied"). Our PR bodies are long and confident. So **split the passes**: hunt correctness cold from the diff alone, *then* read the ticket contract and check conformance. The intent artifacts are the contract; the PR body is the author's closing argument and must not be read before the evidence.
+
+## The risk this ticket did not consider (raised by the independent intake review)
+
+**The vacuum may be a triage-capacity problem, not a review-capacity problem.** The "why now" proves nobody reviews — and never asks *why*. One author, **282 merges/month**. At the shadow probe's own rate of 1.4 findings/PR that is **~395 findings/month** landing on the one person who already has no time to review. If the bottleneck is attention rather than the absence of a reviewer, then a reviewer that manufactures more reading does not fill the vacuum — **it taxes it.**
+
+The evidence is already in hand and it is unflattering: the maintainer triage for the **10-PR** probe is still outstanding. That is the same bottleneck showing up in miniature, on a corpus 28× smaller than one month.
+
+This is not fatal, but it reorders the design. It argues that TB1.R2 (silence), TB1.R3 (cap), and TB1.R7 (trigger gating) are not noise-hygiene niceties — they are **the primary feature**, and the review content is what happens on the rare PR that survives them. It may also argue for a much higher blocking bar and a much smaller findings cap than 5. Unresolved; belongs at the Rules gate.
 
 ## Risks that only exist at any-project scale
 
@@ -139,7 +149,7 @@ Pre-registered 2026-07-15, before any finding existed. Committed to git ahead of
 
 | # | Metric | Bar | Rationale |
 | --- | --- | --- | --- |
-| **A** | **Actionable rate** — share of all surfaced findings the user marks "real / would act on" | **≥40%** | Best generic AI reviewer measured at **19.2%** (arXiv 2508.18771); hunk-level ceiling observed in the wild is **43.88%**. If intent-conformance can't clearly beat the best generic tool, the thesis is dead. Deliberately ambitious. |
+| **A** | **Actionable rate** — share of all surfaced findings the user marks "real / would act on" | **≥40%** | **Rationale CORRECTED 2026-07-15 (quality-review, verified against the paper's Tables V/VIII).** The original justification cited a "43.88% hunk-level ceiling" — that number is Table **V**, a *post-review file-change distribution used to filter the dataset*, **not** an addressing rate. The real measure is Table **VIII**: human **60%**, AI **0.9–19.2%** (best AI = 19.2%, coderabbitai/ai-pr-reviewer). Further, Metric A ("would you act on this", triaged on merged PRs) is a **more permissive** quantity than Table VIII's "did a code change follow", so **neither table is a clean anchor** — A should be read as an upper bound on real-world addressing, not a like-for-like. The ≥40% bar therefore survives as a **deliberate choice, not a derived one**: roughly the midpoint between the best measured AI tool (19.2%) and human reviewers (60%) — i.e. "materially closer to a human than to the best bot." Correcting this before any verdict exists is legitimate: the corpus has been read but **Metric A depends entirely on maintainer verdicts, which do not yet exist**, so the bar cannot be fitted to a result that hasn't happened. |
 | **B** | **Coverage** — PRs (of 10) with ≥1 real finding | **≥3** | Blocks the degenerate win: near-silence buys a perfect rate. This is exactly Greptile's metric trap ("would go up if you leave almost no comments"). |
 | **C** | **False certainty** — findings that confidently assert something false about the spec or code | **≤1** total | A wrong-but-ignored comment is cheap; a wrong-but-confident one burns trust. Per PRINCIPLES, false certainty is the cry-wolf mechanism. |
 

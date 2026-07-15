@@ -7,7 +7,7 @@ Give any project a PR reviewer that says only what its own tooling can't: did th
 ## Intake Brief
 
 - **Requested by:** Alex (2026-07-15) — "safeword to run as a server process or github action and review open PRs and do a super high quality eng review the way a top quality engineer or PM on a team would do", scope-corrected in the same session to "a top tier reviewer of any project, not just safeword's own... and of course, it should be awesome at its own."
-- **Cost of inaction:** One per persona. **SM:** this repo merged 40 of its last 40 PRs with **zero** reviews at ~100 PRs/month; a 10-PR shadow probe found 3 live defects, two of them inert safety mechanisms in a cron running daily ([#1069](https://github.com/ArcadeAI/safeword/issues/1069)). **NTB:** they merge agent-written code they cannot read, with nothing between them and a confident agent shipping something broken. **TB:** the generic bots they'd otherwise reach for get ≤19.2% of comments acted on, and the recurring complaint is noise, not wrongness. Structurally: safeword already forces specs, `done_when`, and `Out of scope` into existence — without a reviewer that reads them, the discipline's biggest payoff goes uncollected.
+- **Cost of inaction:** One per persona. **SM:** this repo merged 40 of its last 40 PRs with **zero** reviews (an 8-day span) at **282 PRs/30d**; a 10-PR shadow probe found 3 live defects, two of them inert safety mechanisms in a cron running daily ([#1069](https://github.com/ArcadeAI/safeword/issues/1069)). **NTB:** they merge agent-written code they cannot read, with nothing between them and a confident agent shipping something broken. **TB:** the generic bots they'd otherwise reach for get **0.9–19.2%** of comments addressed vs **60%** for humans, and the recurring complaint is noise, not wrongness. Structurally: safeword already forces specs, `done_when`, and `Out of scope` into existence — without a reviewer that reads them, the discipline's biggest payoff goes uncollected.
 - **Reversibility:** **Two-way door with a one-way edge.** The workflow is a deletable `.yml`, ships default-off, and runs warn-mode with no required status check — nothing is gated on it. The one-way edge: the skill and workflow become **ownedFiles** in `schema.ts` (upgrade-overwritten in installed projects), and any `.safeword/config.json` key becomes a compatibility surface under the versioning commitment. No data model, no migration.
 
 ## References
@@ -68,9 +68,17 @@ Spec-local pending curation (see Open Questions — these are absent from `.proj
 
 #### autonomous-pr-review.TB1.R5 — A finding the reviewer could not verify can inform, but never blocks
 
-#### autonomous-pr-review.TB1.R6 — The reviewer uses whatever declared intent the project exposes, and never claims more certainty than that source supports
+#### autonomous-pr-review.TB1.R6 — The reviewer uses whatever declared intent the project exposes, however little that is
 
-#### autonomous-pr-review.TB1.R7 — The reviewer runs once per meaningful change, not once per push
+#### autonomous-pr-review.TB1.R7 — A finding never claims more certainty than the intent source it rests on supports
+
+<!-- R6/R7 split at the quality-review gate: the original bundled "uses whatever
+intent exists" (tiering) with "never over-claims certainty" (provenance
+weighting). Split test: tiering without provenance-weighting is a working
+reviewer; provenance-weighting without tiering is a working safeguard. Each
+ships standalone value → two Rules. -->
+
+#### autonomous-pr-review.TB1.R8 — The reviewer runs once per change the author has declared ready, not once per push
 
 ### autonomous-pr-review.NTB1 — Be my eyes on a diff I can't read
 
@@ -103,11 +111,35 @@ one decision (merge or push back). So: one JTBD, two Rules. -->
 > measured evidence that it's worth reading there — not just here — and a way
 > to pull it back if it isn't, so I never spend a customer's trust on noise.
 
-#### autonomous-pr-review.SM1.R1 — The reviewer's usefulness is measured on projects unlike safeword's before it fires on them
+#### autonomous-pr-review.SM1.R1 — The reviewer's usefulness is measured against a recorded bar, on projects unlike safeword's, before it fires on them
 
 #### autonomous-pr-review.SM1.R2 — A maintainer can turn the reviewer off without deleting it, and the signal that should trigger that is named
 
-#### autonomous-pr-review.SM1.R3 — Content inside a pull request cannot direct the reviewer's behavior
+#### autonomous-pr-review.SM1.R3 — The reviewer never holds a credential that can write, comment, or approve while it is reading untrusted content
+
+<!-- R3 REWORDED at the quality-review gate. It previously read "Content inside a
+pull request cannot direct the reviewer's behavior" — an absolute the platform
+explicitly refuses to promise. claude-code-action's own security doc (fetched
+this session) offers sanitization + actor allowlists, then concedes "new bypass
+techniques may emerge" and recommends manually reviewing raw content from
+external contributors. An invariant that no bypass exists is neither achievable
+nor testable (you cannot write a scenario proving a negative over an open
+attack space). The reworded Rule is structural, provable, and survives a
+successful injection rather than pretending none can occur: if the reviewer
+holds no write credential, a hijacked reviewer says something wrong instead of
+doing something irreversible. Vendor's concrete pattern to adopt: check out the
+base ref at the workspace root, put the PR head in a subdirectory, pass it via
+`--add-dir`; never check an untrusted ref into the workspace root under
+`pull_request_target`. -->
+
+<!-- SM1.R1: "measured" was untestable as written (no bar). Now bound to "a
+recorded bar" — the bar's VALUE stays an Open Question, but the Rule is
+testable: either a bar was recorded before the corpus was read, or it wasn't. -->
+
+<!-- Rules gate note: TB1 now carries 8 Rules to SM1's 3. The independent review
+flagged the lopsidedness; it is real but is a symptom of the epic split (below),
+not of over-decomposition — TB1+NTB1 are one child feature, SM1 is another. -->
+
 
 ## Rave Moment
 
@@ -123,5 +155,11 @@ _Deferred to the Rules sub-phase._ Outcomes are the product counterpart to `done
 - ~~**Is NTB1 one job or two?**~~ **Resolved at the Rules gate:** one job, two Rules. The split test fails — an NTB told "it does what you asked" but not "it will drop your table" is not served; the halves only make sense together, and the job is a single decision (merge or push back). See the note under NTB1.
 - **Does this feature need to split into an epic?** SPLITTING's entry checkpoint says *3+ stories → epic*, and its define-behavior checkpoint says *>15 scenarios OR 3+ distinct clusters → split by user journey*. We have 3 JTBDs and 14 Rules; at ~2-3 scenarios each that is ~30-40 scenarios, roughly double the threshold. The three natural children: **the reviewer skill** (TB1+NTB1 — the judgment), **distribution + config** (ownedFiles, workflow template, kill switch, trigger gating), **the eval harness** (SM1 — Tier-2 corpus, pre-registered bars). Splitting is suggested, never mandatory — the user decides at this gate.
 - **Does the Codex/Cursor gap belong in `out_of_scope`, or as the tagged surface skips above?** Both are live project surfaces; v1's runner is Claude-only by decision. Currently written as skips.
-- **What sets the Tier-2 bar for SM1's "measured evidence"?** The Tier-0 shadow run is unscored (triage outstanding) and n=1 repo. Per the pre-registration discipline, the number must be set before a non-safeword corpus is read.
+- **What sets the Tier-2 bar for SM1's "measured evidence"?** The Tier-0 shadow run is unscored (triage outstanding) and n=1 repo. Per the pre-registration discipline, the number must be set before a non-safeword corpus is read. **Sharpened by the quality-review:** the Tier-0 bar's own rationale was mis-derived (anchored to a filter statistic, not an addressing rate — see ticket.md); the corrected anchors are AI 0.9–19.2% / human 60%. Any Tier-2 bar must be justified against those, and against the fact that Metric A is a more permissive quantity than either.
+- **Who triages ~395 findings/month?** 282 merges/month × the probe's 1.4 findings/PR. If the review vacuum is an *attention* problem rather than a missing-reviewer problem, this feature taxes the bottleneck instead of relieving it — and the 10-PR triage already sitting outstanding is that bottleneck in miniature. Reframes TB1.R2/R3/R8 (silence, cap, trigger gating) from hygiene into the primary feature. **Needs a user answer before Rules close.**
+- **Where does an NTB actually read this review?** The output surface is inline GitHub review comments on the Files-changed tab. An NTB directing an agent in natural language plausibly never opens it. NTB1 currently has **no named delivery surface** — and if the answer is "a summary comment," that collides head-on with the hunk-anchored discipline TB1 rests on (file-level sources address at 0.9–4.2% vs hunk-level 6.5–19.2%).
+- **Does NTB1.R1 conflict with TB1.R4?** TB1.R4 requires every finding to carry a concrete code block (code-to-text ratio ρ=0.89); NTB1.R1 requires findings readable without reading code. Both target the same inline comment. Possibly reconcilable (consequence-first prose, code block second) — but currently unproven and unstated.
+- **Is NTB1 grounded, or inferred from `personas.md`?** The independent review's sharpest observation: TB1 traces to the ≤19.2% data and SM1 traces near-verbatim to the persona file's "needs to trust and verify the rule set before it ships"; NTB1's cost-of-inaction echoes the persona file's own "the only thing standing between them and an agent that confidently ships broken code." Legitimate inference — but the most differentiated persona claim is the least grounded, and **no NTB has been asked.** `/elicit` before Rules close.
+- **Is the 4-tier model over-built for v1?** Only one of four dimensions degrades with tier. If T1/T2/T3 all collapse to "read whatever intent exists, weight it by provenance," a 4-tier taxonomy earns its complexity nowhere — 2 tiers (artifacts-in-diff vs not) + provenance weighting may deliver ~all the value at a fraction of the surface. PRINCIPLES §5: don't abstract for hypothetical reuse.
+- **Unresolved tension in the artifact-free claim.** Bacchelli ranks *alternative solutions* the 2nd-most understanding-demanding outcome, right after defect-finding — yet this spec lists alternatives as needing "no artifacts, high at every tier." Tier measures *declared-intent* artifacts, not code familiarity, so it isn't a refutation — but our own source says the artifact-free dimensions are the understanding-hungriest ones, which undercuts "differentiated at Tier 3 already" more than the ticket admits.
 - **Does TB1's "skips what my tooling covers" need per-project config, or pure detection?** Detection is cleaner (PRINCIPLES §3) but every project's CI is idiosyncratic; a `.safeword/config.json` escape hatch may be unavoidable. Affects whether TB1 has a configuration Rule.
