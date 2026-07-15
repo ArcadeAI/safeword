@@ -34,3 +34,54 @@ last_modified: 2026-07-15T14:24:45.773Z
 ## Work Log
 
 - 2026-07-15T14:24:45.773Z Started: Created ticket CWGYH0
+
+## Probe run 2026-07-15 — 10 arcade PRs, all human-APPROVED and merged with ZERO inline comments
+
+Throwaway v1 prompt, three-pass (cold code → Linear contract → PR body last). 9/10 reported.
+**Not cross-model**: ran fresh-context Opus, the same family arcade's agents likely use.
+Declared, not implied — dogfooding TB1.R11's second clause.
+
+| PR | intent chars | verdict | findings |
+| --- | --- | --- | --- |
+| 2113 | 4217 | needs-a-human | **4 (2 blocking)** — verified in full |
+| 2100 | 1448 | needs-a-human | 1 question (agent refused to assert; my own check inconclusive) |
+| 2109 | 526 | needs-a-human | 1 question — author asked 2 direct questions; approval answered neither |
+| 2094 | 3842 | safe-to-merge | 1 — verified |
+| 2039 | 1030 | safe-to-merge | 2 verified |
+| 2056 | 1978 | safe-to-merge | 1 — verified |
+| 2096 | 1733 | safe-to-merge | 1 — author *requested* security review; got zero comments |
+| 2051 | 3097 | safe-to-merge | **0 — silence** |
+| 2099 | 1301 | safe-to-merge | **0 — silence** |
+
+**Verdict distribution is the product:** 6/9 safe-to-merge → an engineer opens 3 PRs, not 9. That is the capacity answer, and no findings cap could produce it.
+
+**Silence works here.** 2/9 silent. The safeword probe produced 0/10 silence on a repo whose PRs were 28× larger — evidence the earlier probe's noise was the corpus, not the reviewer.
+
+### The flagship (2113) — the thesis, demonstrated
+
+Contract: `RecordIndexWrite(ctx, model, outcome, batchSize)` / *"Assets successfully upserted"*. Shipped: `RecordIndexWrite(ctx, model, err)` — `batchSize` deleted — `Add(ctx, 1)` / *"Index write batches"*. The author's comment rationalizes the drop by pointing at `catalog_sync_tools_indexed` — and the contract's own Gap section says that metric **"cannot distinguish which embedding model an asset was indexed for."** All verified against the diff + intent this session.
+
+`index_writes` is the go/no-go signal for the qwen3 migration. It counts batches, not assets, and a batch whose embeddings are all missing returns `(0, nil)` → **`outcome=success` for writing nothing**. A broken model shows a green line at full rate. Bugbot: "Low Risk." Human: approved, zero comments. Reviewer: *"the code, the PR body, and Bugbot all agree with each other, and all three are wrong together."*
+
+### Intent richness — the measured finding (refines the tier model)
+
+Richness does NOT predict finding count (2051: 3097 chars → 0 findings; the code was right). Richness predicts **checkability**. 2113's blocking findings were only reachable because the contract was specific; 2109's 526-char contract made conformance *"nearly unfalsifiable."* **Thin intent doesn't mean a clean PR — it means nobody can tell.** Supports collapsing the 4-tier model to intent-richness + provenance (the independent review already flagged 4 tiers as over-built).
+
+### Refinement to the priming rule (from 2109)
+
+Cisco's warning is that the author's prose suppresses criticism. 2109 inverts it: the body *self-disclosed* the PR's weakest point (a subtree modeled without a doc cross-check) and asked two direct questions — and the zero-comment approval engaged with neither. The reviewer's finding came **from** the body. So: read the body LAST, but never ignore it — **author self-disclosure is high-signal**, and an unanswered author question is itself a finding.
+
+### Process findings nobody asked for
+
+Every reviewer audited the *intent process*, not just code — a class no bot can produce: acceptance criteria scoped to "another PR's diff" (uncheckable by anyone, 2099); follow-up PRs reusing a parent's Linear link so the linkback looks like a contract but carries no obligation (2056); a deflake ticket that never said "without reducing coverage" (2039); goembed's CI sitting in a nested `.github/` GitHub Actions never reads, so those tests have **never run** (2056, verified).
+
+### Restraint (the metric-C evidence)
+
+2099 declined a scope gap ("asserting a gap here would be confidently wrong"). 2056 declined a conformance gap belonging to the parent PR. 2100 caught its own stale checkout and **dropped** a finding that would have been confidently wrong. 2109 killed its own google_slides hypothesis by verifying it.
+
+### Honest caveats
+
+- **Not triaged.** Arcade engineers must judge these. The agent that built the reviewer must not score it (Greptile: an LLM's judgment of its own output was "nearly random").
+- **Not cross-model.** Same-model fresh context. Declared, per TB1.R11.
+- **My spot-checks are a weak instrument.** Twice today my own verification nearly produced a false negative (shell ate `$doc`; stale arcade checkout). I confirmed 2113/2094/2056 and was inconclusive on 2100.
+- **n=9, one repo, 8 days, one prompt.** Not a result — a reason to build.
