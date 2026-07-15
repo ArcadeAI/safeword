@@ -2,7 +2,7 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 5211/5211 tests pass (CI, node 22.22.3 + node 24, on head 58f80d79)
+**Test Suite:** ✓ 5236/5236 tests pass (CI run 29384824602, node 22.22.3 + node 24, on head 6f379315; 355 files, 4 skipped)
 **Gherkin:** ✅ Acceptance lane passes — 432 scenarios (429 passed, 3 skipped); 11,557 steps (11,553 passed, 4 skipped)
 **Build:** ✅ Success — tsup ESM + DTS
 **Lint:** ✅ Clean — eslint, lint-gherkin, and `tsc --noEmit` all green
@@ -14,7 +14,7 @@
 **Experience:** ✅ No new friction for existing personas — walk recorded below
 **Evidence limits:** ⚠️ Local full-suite contention produced 5 non-reproducing failures; see Evidence — not product evidence
 
-Audit passed — 0 errors, 0 warnings. Config in sync; dependency-cruiser found no violations (613 modules, 1,922 dependencies); knip reported no findings (independently confirming the stale `gh` ignore was safe to remove — no re-flag, no W005 hint); all learnings carry `Covers:`; no empty domain docs (personas 3, surfaces 7, glossary 27 entries). Clones: 434 (8.47%) [repo minus .safeword,.project] vs 431 (8.09%) at the same scope in the prior audit — +3, consistent with the added persona policy and its tests. All packages up to date.
+Audit passed — 0 errors, 0 warnings. Config in sync; dependency-cruiser found no violations (613 modules, 1,922 dependencies); knip reported no findings (independently confirming the stale `gh` ignore was safe to remove — no re-flag, no W005 hint); all learnings carry `Covers:`; no empty domain docs (personas 3, surfaces 7, glossary 27 entries). Clones: 434 (8.47%) [repo minus .safeword,.project] vs 431 (8.09%) at the same scope in the prior audit — +3, consistent with the added persona policy and its tests. All packages up to date. Measured against this branch's content rebased onto `main` @ 589b2623 — the same tree this head carries.
 
 ## Scope decision
 
@@ -29,7 +29,8 @@ EKK1HA and VNNM1N are required supporting cleanup, not piggybacking: they fix th
 
 ## Evidence
 
-- **Test suite:** CI is the authoritative signal — the full suite passes on both node 22.22.3 and node 24 for head `58f80d79`. The local full-suite run showed 5 failures in `tests/integration/cursor-stop-review.test.ts` (5,206 passed / 5 failed / 5 skipped), all sharing one root: `existsSync(stateFile)` false because the hook subprocess was starved under parallel load. That file passes **6/6 in isolation** on the same tree, and CI passes it on the same SHA. Isolation-recovery plus CI green classifies these as local contention artifacts, not product failures. The git-init preflight reported no sandbox limitation, so these are not the known temp-dir symptom either.
+- **Test suite:** CI is the authoritative signal — the full suite passes on both node 22.22.3 and node 24 for head `6f379315` (run 29384824602: 355 files, 5,236 passed, 4 skipped). The local full-suite run showed 5 failures in `tests/integration/cursor-stop-review.test.ts` (5,206 passed / 5 failed / 5 skipped), all sharing one root: `existsSync(stateFile)` false because the hook subprocess was starved under parallel load. That file passes **6/6 in isolation** on the same tree, and CI passes it. Isolation-recovery plus CI green classifies these as local contention artifacts, not product failures. The git-init preflight reported no sandbox limitation, so these are not the known temp-dir symptom either.
+- **History note:** verification began on head `58f80d79`, which a parallel Codex session then rebased onto `main` @ 589b2623 and force-pushed as `6f379315`. That earlier SHA is orphaned and no longer reachable from this branch — every figure above is restated against `6f379315`, the tree that actually ships. The rebase raised the suite from 5,211 to 5,236 tests by pulling in main's newer coverage, including the DEV→TB persona rename (#1052) that this feature's lineage depends on.
 - **Gherkin:** the amended acceptance lane covers automatic 3–4, explicit 2–4, and persisted 5–6 character behavior end-to-end.
 - **Typecheck:** `tsc --noEmit` clean from `packages/cli`.
 - **Parity (the ticket's riskiest assumption):** verified byte-identical across every shipped pair — `.safeword/hooks/lib/jtbd.ts` ↔ `templates/hooks/lib/jtbd.ts`, the same for `lint.ts` and `cleanup-zombies.sh`, the spec template, and the 3-way BDD skill trio (`.agents/` ↔ `.claude/` ↔ `templates/`). The hook's `derivePersonaCode` mirrors the CLI implementation exactly.
