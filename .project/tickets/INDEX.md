@@ -761,11 +761,10 @@
   → `.project/tickets/36EEMY-pr-review-distribution`
 - **pr-review-eval (CWGYH0)** (in_progress, epic: —)
   Measure the reviewer on arcade PRs humans approved with zero inline comments, against a bar recorded before triage. Serves SM1 — gates the other two from firing on customers.
-  blocks: pr-review-distribution (36EEMY), pr-review-skill (G5337S)
+  blocks: pr-review-distribution (36EEMY)
   → `.project/tickets/CWGYH0-pr-review-eval`
-- **pr-review-skill (G5337S)** (in_progress, epic: —)
+- **pr-review-skill (G5337S)** (blocked, epic: —)
   The cross-model reviewer skill: read a PR against its declared intent (Linear contract), return a triage verdict plus uncapped bar-cleared findings. Serves TB1 + NTB1.
-  blocked by: pr-review-eval (CWGYH0)
   blocks: pr-review-distribution (36EEMY)
   → `.project/tickets/G5337S-pr-review-skill`
 

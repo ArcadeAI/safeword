@@ -1,10 +1,10 @@
 ---
 id: G5337S
 slug: pr-review-skill
-type: feature
+type: task
 phase: intake
-status: in_progress
-depends_on: [CWGYH0]
+status: blocked
+blocked_on: [CWGYH0]
 scope:
   - The `pr-review` SKILL.md — the durable asset and the only real moat. Authored RUNNER-AGNOSTIC so it ports to the `review-pr` CLI without rewrite.
   - Three-pass procedure: COLD (code only, no narrative) → INTENT (the Linear contract) → BODY (last, only to catch body-vs-diff mismatch).
@@ -16,9 +16,10 @@ out_of_scope:
   - The eval corpus and its bar — CWGYH0.
   - Author-model detection — X1Z5MG. v1 implies it by config.
 done_when:
-  - Rules TB1.R1-R11 and NTB1.R1-R4 each have a proving scenario or an explicit skip.
-  - The skill is silent on a certified-clean PR.
-  - A finding it cannot verify never blocks; the skill says so rather than dropping it.
+  - The skill scores against CWGYH0's corpus at or above the bar CWGYH0 recorded BEFORE triage. The eval is this ticket's test suite — there is no other proof of a prompt's judgment.
+  - Silence on a certified-clean PR is demonstrated on the corpus, not asserted in prose.
+  - A finding it cannot verify never blocks — measured as CWGYH0's false-certainty count, which can veto a ship on its own.
+  - The skill ships to all 7 surfaces (template + .claude + .agents byte-parity, Cursor @reference pair, schema.ts parity entry + ownedFiles) with parity green.
 scope:
 out_of_scope:
 done_when:
@@ -37,6 +38,18 @@ last_modified: 2026-07-15T14:24:45.692Z
 
 ## Work Log
 
+
+- 2026-07-15T18:30:00.000Z **RE-SCOPED feature -> task** (user picked option 1). Two things forced it.
+
+  **You cannot Gherkin a prompt's judgment.** This skill is 0 lines of deterministic anything — it is judgment end to end. The one safeword skill with real Gherkin coverage (`audit`) is testable precisely because its checks are a bash block the tests extract and execute; `pr-review` has no such block. The repo already knows this: the GEPA README states it outright — *"safeword has ~11,500 lines of prompts but no metric that scores prompt behavior."* That harness exists BECAUSE Gherkin cannot reach this. Writing `.feature` files for "the reviewer stays silent when nothing is worth saying" would produce scenarios that either cannot run or assert nothing — the "unenforced records are documentation theater" failure ARCHITECTURE.md's ADR names.
+
+  **So the eval is not a follow-up to the skill — it IS the skill's test suite.** `depends_on: [CWGYH0]` (soft, advisory) upgraded to `blocked_on: [CWGYH0]` (hard — the phase gate refuses to advance out of intake until CWGYH0 is done). That is the honest ordering: the corpus and the recorded bar can exist without the skill; the skill cannot be *proven* without them. The draft can still be iterated meanwhile — `blocked_on` gates advancing, not drafting.
+
+  **The mechanically-testable behaviours are not here.** Output-schema validity, silence-means-no-post, findings-batched-into-one-review-call, tree-pin-fails-loud — all live in the runner (36EEMY), not in skill prose. Keeping them here would blur the split.
+
+  `spec.md` was an unfilled template stub (tasks don't carry one; the JTBDs and Rules live on the parent epic and are inherited) — removed.
+
+- 2026-07-15T18:30:00.000Z **Intake is NOT exitable and this ticket should not advance yet.** The parent epic carries 12 open questions, and two of them determine this skill's own behaviour: (a) **intent-granularity mismatch** — three of ten arcade PRs linked a Linear issue written at *epic* granularity, so a naive contract-vs-diff check emits false conformance findings (the wedge's own failure mode); (b) **NTB1 has no delivery surface**, and NTB1.R1 (plain language, no code required) may contradict TB1.R4 (mandatory code block) inside the same inline comment. Scenarios or implementation written before these are answered would encode a guess.
 - 2026-07-15T14:24:45.692Z Started: Created ticket G5337S
 
 ## Design finding: verify the FIX, not just the finding (2026-07-15)
