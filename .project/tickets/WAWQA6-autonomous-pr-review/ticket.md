@@ -88,6 +88,24 @@ Cisco found author-prepared reviews **never** exceeded 30 defects/kLOC, most com
 
 **Riskiest assumption:** that intent-conformance findings clear a materially higher actionable rate than the ~6.8% automatic-comment baseline. **Cheapest test:** shadow mode over ~10 merged PRs — the corpus already exists and costs only tokens.
 
+## Shadow-mode pre-registration (committed BEFORE the probe ran)
+
+Pre-registered 2026-07-15, before any finding existed. Committed to git ahead of the run so neither the bar nor the corpus can be fitted to the results. Bar set by the agent because the user delegated it ("do it"); the user may dispute the numbers, but only against this recorded version.
+
+**Corpus (locked, no substitution):** merged PRs #1052, #1038, #994, #992, #990, #988, #967, #964, #958, #949. Selection rule, applied before reading any diff: merged, non-dependabot, carries ≥1 ticket artifact in-diff, ≥5 files changed, excluding administrative `chore(ticket): close` PRs. Every PR matching that rule in the last 60 merged is included — no cherry-picking.
+
+**Three separate metrics. No composite, no trade-offs** — per the GEPA evaluator's no-F1-headline lesson and the "never one scalar" constraint above.
+
+| # | Metric | Bar | Rationale |
+| --- | --- | --- | --- |
+| **A** | **Actionable rate** — share of all surfaced findings the user marks "real / would act on" | **≥40%** | Best generic AI reviewer measured at **19.2%** (arXiv 2508.18771); hunk-level ceiling observed in the wild is **43.88%**. If intent-conformance can't clearly beat the best generic tool, the thesis is dead. Deliberately ambitious. |
+| **B** | **Coverage** — PRs (of 10) with ≥1 real finding | **≥3** | Blocks the degenerate win: near-silence buys a perfect rate. This is exactly Greptile's metric trap ("would go up if you leave almost no comments"). |
+| **C** | **False certainty** — findings that confidently assert something false about the spec or code | **≤1** total | A wrong-but-ignored comment is cheap; a wrong-but-confident one burns trust. Per PRINCIPLES, false certainty is the cry-wolf mechanism. |
+
+**Ship decision:** A ≥40% **AND** B ≥3 **AND** C ≤1. All three. Failing any one means do not ship — a strong A does not buy a bad C.
+
+**What the probe is:** a throwaway v0 prompt, not the shipped skill. This is an intake experiment testing the riskiest assumption, not implementation. A failed bar kills or reshapes the feature; it does not mean "tune the prompt until it passes" — that is the eval-gaming failure our GEPA run already hit.
+
 ## Citations
 
 - [Bacchelli & Bird, ICSE 2013](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/ICSE202013-codereview.pdf) — defects are 14% of comments (4th of 9); code improvements 29%, understanding 21%; understanding is the bottleneck.
