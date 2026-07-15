@@ -6,11 +6,11 @@ phase: done
 status: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/1032
 phase_anchors:
-  - "define-behavior: a014e3c4c0460ed03e2d227d006368ef402c147c"
-  - "scenario-gate: 584d1baf568c23315df097ee60dccfc628c0da06"
-  - "implement: cf9aa1b4dcf5a9089ae31891bb17e12bbfefdf1f"
-  - "verify: 606ee81643dd603a20fbe0b2f024edec45ca7a74"
-  - "done: 0638b412186e8e7843ba442a638fcd96113d10fe"
+  - "define-behavior: d18ed978234f4f67bb582a7c174faf78cbd391a5"
+  - "scenario-gate: 34aa4cd07c80e70a7d9c9fd4a7d0c3924d731d2a"
+  - "implement: 94969bf9d48f4259f3d3472a265a551ca4a96c11"
+  - "verify: 53759c50a4049f27b50ffb106f04c7d5cb969edd"
+  - "done: 6799f4abc5003dadfda660cc8bd9a156a40d1967"
 scope: Add a deterministic canonical marker derived from normalized repro evidence; write it to new CLI-filed issue bodies; search exact legacy signature before the exact canonical marker; update the matched issue's occurrence ledger.
 out_of_scope: Spool/agent-filer parity, fuzzy or related-issue matching, automatic issue closure, and changing dedupe for legacy issues that lack a canonical marker.
 done_when: A recurrence whose title, category, and surface differ but whose canonical repro identity matches updates the existing issue ledger; legacy signature-only issues still dedupe; unmatched or only-fuzzy candidates create a new issue.
