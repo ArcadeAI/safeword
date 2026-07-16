@@ -1233,3 +1233,12 @@ export function ticketIdBySlug(projectDirectory: string, slug: string): string {
   if (id === undefined) throw new Error(`no id in folder for slug ${slug}`);
   return id;
 }
+
+/** Ticket folders under a tickets dir (excludes the `completed`/`tmp` reserved entries). */
+export function ticketFolders(ticketsDirectory: string): string[] {
+  try {
+    return readdirSync(ticketsDirectory).filter(name => name !== 'completed' && name !== 'tmp');
+  } catch {
+    return [];
+  }
+}

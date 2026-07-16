@@ -1,6 +1,6 @@
 ---
 generator: safeword-architecture
-fingerprint: 775eecda88726a4e3534dd13ba6eb4ffcdcbf5ca42582940435de969ba860f80
+fingerprint: a76d4be663184b56a45feac236f76e81ba795425708ea67fd56b76bcb0058ee8
 ---
 
 # Architecture
@@ -14,6 +14,8 @@ fingerprint: 775eecda88726a4e3534dd13ba6eb4ffcdcbf5ca42582940435de969ba860f80
 `src/boundary`
 
 No description yet — awaiting prose.
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### commands
 
@@ -90,6 +92,16 @@ No description yet — awaiting prose.
 <!-- reconciled: baf84fad13ff152cf8bceed63ef6a6e65c6edbb3dcf8ac0cbf76fc4caa39fe38 -->
 
 `src/test-plan`
+
+No description yet — awaiting prose.
+
+> ⚠ stale: structure changed since this section was reconciled.
+
+### ticket-create
+
+<!-- reconciled: a48bcc3820c9cca4a78184f53ae752117d461b6ed53541d3b3cddaad10d4a349 -->
+
+`src/ticket-create`
 
 No description yet — awaiting prose.
 
