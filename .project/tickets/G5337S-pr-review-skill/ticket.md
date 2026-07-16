@@ -101,3 +101,16 @@ What it changes here:
 - Dimension re-rank under the on-topic filter: **evidence integrity 3/3 change-caused, co-leads blast radius 3/4.** "The tests this PR added don't prove what they claim" is the most PR-native value and is invisible to Bugbot + skimming humans because CI is green. Elevate it in the skill's framing.
 - Delivery surface confirmed with zero ambiguity: GitHub PR review comments + verdict, on ready-for-review/label. No dashboard, no digest, no Linear auto-post.
 - Cost/context bounded: per-PR (diff + linked ticket + targeted reads), ~225 runs/month, never a whole-repo scan.
+
+## Considered and rejected 2026-07-16: importing debug / figure-it-out self-critique machinery
+
+Evaluated pulling four things into pr-review from `debug` and `figure-it-out`: a merged "argue the other side" gate (competing hypotheses + steelman + premortem), a red-flags self-catch table, a `considered_and_rejected` output field, and a collapse-duplicate-root-causes rule. **Shipped none.** Two review passes (a self-review grounded in a fetched paper + the live run, then an independent adversarial pass) converged on reject.
+
+Why it's recorded rather than left implicit — so it isn't re-proposed:
+
+1. **The behaviors already emerge from structure.** The 8-PR validation run tested the CURRENT skill, before any of this. PR 2064 formed FOUR competing hypotheses and disconfirmed all four unprompted; 2088/2112 steelmanned the code ("deliberate and documented") and downgraded; 2112 refused an unverifiable fix per the existing FIX gate. These come from §2's forced COLD ordering and §5's counter-evidence + fix gates — PRINCIPLES §1: structure beats instructions, which are the weakest tier. Adding instructions for structurally-guaranteed behavior is the §5 "few, not many" / "avoid bloat" violation the skill polices.
+2. **The reflective parts are the kind research says degrades.** Steelman/premortem as pure reasoning (no new evidence) is *intrinsic self-correction*; Huang et al., "LLMs Cannot Self-Correct Reasoning Yet" (ICLR 2024, arXiv 2310.01798, fetched this session) — intrinsic self-correction "at times… degrades." What works is *grounded* disconfirmation (check the tree/tests), which the skill already does (§0 pin-tree, §5 "read the surrounding function"). debug's transplant was safe only because debug is already grounded ("test the cheapest disconfirming CHECK"); figure-it-out's reflection framing was the unsafe import.
+3. **`considered_and_rejected` would corrupt the product.** It would force a silence PR (2064) to emit a ruled-out list, fighting §6 (silence is legitimate) / §7 (the verdict is the product), and it incentivizes manufacturing rejected hypotheses to look rigorous. Internal disconfirmation stays internal.
+4. **Collapse-duplicate-root-causes is speculative.** Zero instances across ~15 findings in two runs; in tension with §6 ("a cap suppresses truth"). Revisit as ONE line only if duplicate-root-cause findings actually appear.
+
+The exercise's value was the negative result: it confirmed (fetched paper + live run + independent adversary) that the skill already carries the grounded-disconfirmation mechanism that works, and that the additions ranged from redundant to harmful. Do not re-import without new evidence of a gap.
