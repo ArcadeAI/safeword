@@ -2,13 +2,14 @@
 id: MZH9QH
 slug: give-codex-users-full-workflow
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 phase_anchors:
   - 'define-behavior: .project/tickets/MZH9QH-give-codex-users-full-workflow/spec.md'
   - 'scenario-gate: packages/cli/features/give-codex-users-full-workflow.feature'
   - 'plan-implementation: packages/cli/features/give-codex-users-full-workflow.feature'
   - 'implement: .project/tickets/MZH9QH-give-codex-users-full-workflow/impl-plan.md'
+  - 'verify: .project/tickets/MZH9QH-give-codex-users-full-workflow/test-definitions.md'
 scope:
   - Generate the Codex plugin skill catalogue from every workflow under `packages/cli/templates/skills/`, including supporting phase documents as plugin references.
   - Define and test the small, explicit transformation allowlist required for Codex-compatible skill metadata, scoped skill invocation, and packaged reference paths.
@@ -31,7 +32,7 @@ done_when:
   - Codex persona-lineage coverage reads the packaged plugin model rather than retired repository-local BDD files, and Claude Code and Cursor regression checks remain unchanged.
   - The published documentation explains complete scoped skill availability, the two-step migration, and Bunx-only hooks.
 created: 2026-07-15T18:26:26.899Z
-last_modified: 2026-07-16T14:58:24.000Z
+last_modified: 2026-07-16T15:44:26.000Z
 ---
 
 # Give Codex users the full Safe Word workflow
@@ -45,3 +46,6 @@ last_modified: 2026-07-16T14:58:24.000Z
 - 2026-07-15T18:26:26.899Z Started: Created ticket MZH9QH
 - 2026-07-16T15:08:00.000Z RED: `bun run --cwd packages/cli test:bdd -- --tags '@codex-workflow.TBU1.R1'` reported two undefined scenarios and nine undefined steps for the first plugin-catalogue acceptance contract.
 - 2026-07-16T15:15:00.000Z RED: `bun run --cwd packages/cli test tests/commands/migrate-codex-plugin.test.ts` proved initial migration deletes legacy hooks and rejects the explicit `--remove-legacy-hooks` handoff command.
+- 2026-07-16T15:40:03.000Z GREEN: `6e5492f3` removed the empty project-local Codex scaffold, centralized Bunx hook policy, and aligned migration and published documentation with the explicit trust handoff.
+- 2026-07-16T15:41:42.000Z GREEN: `47f89f44` bound every deterministic scenario to real generator, package, cache, setup, and hook-policy contracts; `bun run --cwd packages/cli test:bdd` passed 83 scenarios and 986 steps.
+- 2026-07-16T15:44:26.000Z Phase transition: all executable scenarios are green; manual Codex trust evidence is recorded in `packages/cli/tests/smoke/codex-plugin-manual-acceptance.md`. Moving to verification.

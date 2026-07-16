@@ -9,8 +9,8 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Complete profile plugin exposes every workflow entry and phase reference
 
 - [x] RED e0633ddc
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 890367e2; live isolation 36d61247
+- [x] REFACTOR skip: the generated catalogue, packed-package, and cache helpers are shared release contracts
 
 ### Scenario: Missing phase material rejects the plugin release
 
@@ -22,15 +22,15 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Fresh setup keeps workflow material out of the project
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED observed 2026-07-16 before 6e5492f3: setup created an empty `.codex` directory
+- [x] GREEN 6e5492f3
+- [x] REFACTOR 47f89f44: acceptance binding invokes the public setup command and one shared project-tree assertion
 
 ### Scenario: Project-local workflow output rejects the integration
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED characterization: the plugin-only schema already prohibited project output; the fixture creates the forbidden tree deliberately
+- [x] GREEN 47f89f44
+- [x] REFACTOR skip: the negative case shares `assertNoProjectWorkflowTree` with the public-setup scenario
 
 ## Rule: codex-workflow.TBU1.R3 - Staged migration handoff
 
@@ -48,29 +48,29 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Initial migration does not clean up hooks without an explicit handoff request
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 57971514
+- [x] GREEN 8d6285c1
+- [x] REFACTOR a7de06e5: shared migration fixture preserves exact legacy-hook bytes across the initial-handoff scenarios
 
 ### Scenario: Failed plugin installation retains legacy hooks
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED c79ec903
+- [x] GREEN 4b84db17
+- [x] REFACTOR a7de06e5: the same real CLI fixture exercises failure without a test-only implementation seam
 
 ## Rule: codex-workflow.TBU1.R4 - Untrusted hooks fail loudly
 
 ### Scenario: New plugin hooks require review before they run
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED manual baseline: Codex trust UI is an external product behavior, so the no-bypass marker probe is characterization evidence
+- [x] GREEN 110f2b9e; live smoke 890367e2
+- [x] REFACTOR skip: interactive TUI evidence stays in one manual-acceptance procedure; automated marker absence remains in the live smoke
 
 ### Scenario: Changed plugin hooks require review again
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED manual baseline: mutating the actual cached hook definition is required to exercise Codex's renewed-review behavior
+- [x] GREEN 110f2b9e
+- [x] REFACTOR skip: both manual paths share the retained cache-only fixture and `/hooks` procedure
 
 ## Rule: workflow-maintenance.SWM1.R1 - Deterministic allowlisted generation
 
@@ -94,9 +94,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Unexpected workflow drift rejects generation
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED characterization: `assertCodexPluginCatalogue` already compared exact output; the BDD fixture mutates a non-allowlisted reference
+- [x] GREEN 47f89f44
+- [x] REFACTOR skip: one exact catalogue comparison owns missing, extra, and changed-asset detection
 
 ## Rule: workflow-maintenance.SWM1.R2 - Complete release package
 
@@ -130,16 +130,16 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Plugin hooks invoke the pinned Safe Word CLI through Bunx
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED characterization: committed hooks already used the Bunx form; the release contract made that public boundary executable
+- [x] GREEN 5d358196
+- [x] REFACTOR 6e5492f3: extracted the shared hook-command policy for release and Cucumber contracts
 
 ### Scenario Outline: Unsafe hook execution path rejects the plugin release
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5d358196
+- [x] GREEN 5d358196
+- [x] REFACTOR 6e5492f3: shared policy rejects `npx`, unpinned Bunx, and trust-bypass variants
 
 ## Cross-scenario refactor
 
-- [ ] cross-scenario
+- [x] cross-scenario 6e5492f3: centralized pinned-Bunx hook validation for release and BDD coverage
