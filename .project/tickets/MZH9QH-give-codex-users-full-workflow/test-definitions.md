@@ -38,7 +38,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 57971514
 - [x] GREEN a7de06e5
-- [ ] REFACTOR
+- [x] REFACTOR skip: the shared migration fixture already centralizes exact legacy-byte preservation
 
 ### Scenario: Completed handoff removes only legacy Safe Word hooks
 
