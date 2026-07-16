@@ -9,6 +9,7 @@
  * Run with:
  *
  *   SAFEWORD_RUN_CODEX_LIVE_SMOKE=1 bun run --cwd packages/cli test:smoke:live
+ *   SAFEWORD_RUN_CODEX_LIVE_SMOKE=1 SAFEWORD_RUN_CODEX_MIGRATION_SMOKE=1 bun run --cwd packages/cli test:smoke:live
  */
 
 import { spawnSync } from 'node:child_process';
@@ -29,6 +30,7 @@ import process from 'node:process';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { migrateCodexPlugin } from '../../src/commands/migrate-codex-plugin.js';
 import {
   assertCachedCodexPlugin,
   parsePluginInstalledPath,
@@ -40,12 +42,17 @@ const CLI_PATH = nodePath.join(CLI_ROOT, 'dist/cli.js');
 const LIVE_MARKETPLACE_NAME = 'safeword-live-smoke';
 const BUNX_SHIM_LOG = 'bunx-safeword-invocations.log';
 const WORKFLOW_DIRECTORIES = ['.agents', '.codex', '.safeword'] as const;
+const REQUIRED_CODEX_VERSION = '0.144.5';
 
 function resolveCodex(): string | undefined {
-  const candidates = [process.env.SMOKE_CODEX_BIN, 'codex'].filter(Boolean) as string[];
+  const candidates = [
+    process.env.SMOKE_CODEX_BIN,
+    nodePath.resolve(CLI_ROOT, '../../node_modules/.bin/codex'),
+    'codex',
+  ].filter((candidate): candidate is string => candidate !== undefined && candidate !== '');
   for (const candidate of candidates) {
     const probe = spawnSync(candidate, ['--version'], { encoding: 'utf8' });
-    if (probe.status === 0 && /\b0\.(?:13[3-9]|1[4-9]\d|\d{3,})\./.test(probe.stdout)) {
+    if (probe.status === 0 && probe.stdout.trim() === `codex-cli ${REQUIRED_CODEX_VERSION}`) {
       return candidate;
     }
   }
@@ -86,6 +93,17 @@ function assertSuccess(
   ).toBe(0);
 }
 
+function assertSafeWordPluginEnabled(output: string): void {
+  const parsed = JSON.parse(output) as {
+    installed?: { enabled?: boolean; pluginId?: string }[];
+  };
+  expect(parsed.installed).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ enabled: true, pluginId: 'safeword@safeword' }),
+    ]),
+  );
+}
+
 function packageVersion(): string {
   return JSON.parse(readFileSync(nodePath.join(CLI_ROOT, 'package.json'), 'utf8'))
     .version as string;
@@ -112,6 +130,31 @@ function createAuthenticatedCodexHome(): string {
   }
   cpSync(sourceAuthPath, nodePath.join(codexHome, 'auth.json'));
   return codexHome;
+}
+
+function migrationMarketplaceSource(): string {
+  if (process.env.SAFEWORD_CODEX_MIGRATION_SOURCE !== undefined) {
+    return process.env.SAFEWORD_CODEX_MIGRATION_SOURCE;
+  }
+
+  const branch = run('git', ['branch', '--show-current'], { cwd: CLI_ROOT });
+  assertSuccess(branch, 'git branch --show-current');
+  const ref = branch.stdout.trim();
+  if (ref === '') throw new Error('live migration smoke requires a checked-out branch');
+  return `ArcadeAI/safeword@${ref}`;
+}
+
+function withEnvironment<T>(environment: NodeJS.ProcessEnv, callback: () => T): T {
+  const previous = new Map(Object.keys(environment).map(key => [key, process.env[key]] as const));
+  Object.assign(process.env, environment);
+  try {
+    return callback();
+  } finally {
+    for (const [key, value] of previous) {
+      if (value === undefined) Reflect.deleteProperty(process.env, key);
+      else process.env[key] = value;
+    }
+  }
 }
 
 function createMarketplace(root: string, extractedPackage: string): string {
@@ -236,7 +279,7 @@ function runCachedSkillProbe(
   return `${result.stdout}\n${result.stderr}`;
 }
 
-function runVettedPluginDispatch(
+function runCacheDispatchWithTrustBypass(
   codex: string,
   projectRoot: string,
   environment: NodeJS.ProcessEnv,
@@ -254,13 +297,24 @@ function runVettedPluginDispatch(
     ],
     { cwd: projectRoot, env: environment, timeout: 180_000 },
   );
-  assertSuccess(result, 'codex exec vetted plugin dispatch');
+  assertSuccess(result, 'codex exec cache dispatch with trust bypass');
   return `${result.stdout}\n${result.stderr}`;
 }
 
 const CODEX = resolveCodex();
 const CAN_RUN = process.env.SAFEWORD_RUN_CODEX_LIVE_SMOKE === '1' && CODEX !== undefined;
+const CAN_RUN_MIGRATION = CAN_RUN && process.env.SAFEWORD_RUN_CODEX_MIGRATION_SMOKE === '1';
 const KEEP_LIVE_FIXTURE = process.env.SAFEWORD_KEEP_CODEX_LIVE_FIXTURE === '1';
+
+const LEGACY_HOOK_CONFIG = `# Legacy Safe Word Codex project configuration.
+
+[[hooks.PreToolUse]]
+matcher = "^(apply_patch)$"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = 'npx --yes safeword hook codex pre-tool-use'
+`;
 
 describe.skipIf(!CAN_RUN)('live smoke: Codex packaged plugin parity', () => {
   let projectRoot: string;
@@ -298,7 +352,7 @@ describe.skipIf(!CAN_RUN)('live smoke: Codex packaged plugin parity', () => {
     rmSync(codexHome, { recursive: true, force: true });
   });
 
-  it('loads the complete plugin from Codex cache after every source is removed', () => {
+  it(`loads the complete plugin from Codex ${REQUIRED_CODEX_VERSION} cache after every source is removed`, () => {
     if (!CODEX) throw new Error('unreachable: CAN_RUN guards codex presence');
 
     expect(readdirSync(packDestination)).toEqual([]);
@@ -325,11 +379,63 @@ describe.skipIf(!CAN_RUN)('live smoke: Codex packaged plugin parity', () => {
     expect(skillOutput).toContain('SAFEWORD_CACHE_SKILL_READY');
     expect(existsSync(shimLog)).toBe(false);
 
-    const liveOutput = runVettedPluginDispatch(CODEX, projectRoot, environment);
+    // The bypass proves cache dispatch only. Interactive /hooks trust remains manual acceptance.
+    const liveOutput = runCacheDispatchWithTrustBypass(CODEX, projectRoot, environment);
     expect(
       readFileSync(shimLog, 'utf8'),
       `Codex did not invoke cached plugin SessionStart.\n${liveOutput}`,
     ).toContain(`--bun safeword@${packageVersion()} hook codex session-start`);
     assertNoProjectWorkflowTree(projectRoot);
+  });
+});
+
+describe.skipIf(!CAN_RUN_MIGRATION)('live smoke: Codex public migration', () => {
+  let projectRoot: string;
+  let codexHome: string;
+
+  beforeAll(() => {
+    projectRoot = createFixture();
+    codexHome = createAuthenticatedCodexHome();
+    const configDirectory = nodePath.join(projectRoot, '.codex');
+    mkdirSync(configDirectory, { recursive: true });
+    writeFileSync(nodePath.join(configDirectory, 'config.toml'), LEGACY_HOOK_CONFIG);
+  });
+
+  afterAll(() => {
+    if (KEEP_LIVE_FIXTURE) {
+      process.stdout.write(
+        `Preserved Codex migration fixture:\nCODEX_HOME=${codexHome}\nPROJECT_ROOT=${projectRoot}\n`,
+      );
+      return;
+    }
+    rmSync(projectRoot, { recursive: true, force: true });
+    rmSync(codexHome, { recursive: true, force: true });
+  });
+
+  it('installs and verifies the marketplace plugin without deleting unreviewed legacy hooks', () => {
+    if (!CODEX) throw new Error('unreachable: CAN_RUN_MIGRATION guards codex presence');
+
+    withEnvironment(
+      {
+        CODEX_HOME: codexHome,
+        PATH: `${nodePath.resolve(CLI_ROOT, '../../node_modules/.bin')}:${process.env.PATH ?? ''}`,
+      },
+      () => {
+        migrateCodexPlugin(projectRoot, { marketplaceSource: migrationMarketplaceSource() });
+      },
+    );
+
+    expect(readFileSync(nodePath.join(projectRoot, '.codex', 'config.toml'), 'utf8')).toBe(
+      LEGACY_HOOK_CONFIG,
+    );
+    expect(existsSync(nodePath.join(projectRoot, '.agents'))).toBe(false);
+    expect(existsSync(nodePath.join(projectRoot, '.safeword'))).toBe(false);
+
+    const pluginList = run(CODEX, ['plugin', 'list', '--json'], {
+      cwd: projectRoot,
+      env: { CODEX_HOME: codexHome },
+    });
+    assertSuccess(pluginList, 'codex plugin list');
+    assertSafeWordPluginEnabled(pluginList.stdout);
   });
 });

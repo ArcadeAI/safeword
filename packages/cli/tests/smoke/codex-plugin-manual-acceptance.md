@@ -56,8 +56,12 @@ extraction, and tarball before continuing.
 
 ## Recorded acceptance
 
-The latest interactive run used `codex-cli 0.141.0`. A fresh plugin showed
-`Hooks need review` for five new or changed hooks and offered continue without
-trusting. After the actual installed cache hook was changed, the next TUI
-session showed the same review state for one changed hook. In both cases the
-untrusted hook marker was absent.
+The latest interactive run used `codex-cli 0.144.5`. A fresh isolated plugin
+showed `Hooks need review` for five new or changed hooks and offered both
+`/hooks` remediation and continue without trusting. The supporting untrusted
+live smoke completed before its intentional cache-dispatch bypass with the hook
+log absent. Trusting the disposable fixture persisted five Safe Word hook
+hashes and dispatched the shimmed hooks. After changing only the cached
+SessionStart `statusMessage`, the next TUI session showed the same review state
+for one changed hook. Its hook log was reset and remained absent when the
+session exited without trusting.

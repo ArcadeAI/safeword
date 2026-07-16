@@ -34,6 +34,24 @@ const KNOWN_HOOK_EVENTS = new Set([
   'SubagentStop',
   'Stop',
 ]);
+const LEGACY_SAFEWORD_HOOK_EVENTS = new Set([
+  'session-start',
+  'user-prompt-submit',
+  'pre-tool-use',
+  'post-tool-use',
+  'stop',
+]);
+const LEGACY_SAFEWORD_HOOK_SCRIPTS = new Set([
+  'session-codex-start.ts',
+  'session-safeword-context.ts',
+  'prompt-timestamp.ts',
+  'prompt-retro-nudge.ts',
+  'codex/pre-tool-quality.ts',
+  'codex/stop.ts',
+  'codex/post-tool-skill-nudge.ts',
+  'codex/post-tool-quality.ts',
+]);
+const LEGACY_SAFEWORD_HOOK_PREFIX = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/';
 
 type CodexPluginList = {
   installed?: { enabled?: boolean; pluginId?: string }[];
@@ -128,17 +146,54 @@ function commandParts(command: string): string[] {
 }
 
 function isNpxSafeWordCommand(parts: string[]): boolean {
-  return parts[0] === 'npx' && parts[1] === '--yes' && parts[2]?.startsWith('safeword') === true;
+  return parts[0] === 'npx' && parts[1] === '--yes' && parts[2] === 'safeword';
+}
+
+function isDecimal(value: string): boolean {
+  if (value === '') return false;
+  for (const character of value) {
+    if (character < '0' || character > '9') return false;
+  }
+  return true;
+}
+
+function isPinnedSafeWordVersion(value: string): boolean {
+  const segments = value.split('.');
+  return segments.length === 3 && segments.every(segment => isDecimal(segment));
 }
 
 function isBunxSafeWordCommand(parts: string[]): boolean {
-  return parts[0] === 'bunx' && parts[1] === '--bun' && parts[2]?.startsWith('safeword@') === true;
+  const packageVersion = parts[2]?.slice('safeword@'.length);
+  return (
+    parts[0] === 'bunx' &&
+    parts[1] === '--bun' &&
+    parts[2]?.startsWith('safeword@') === true &&
+    packageVersion !== undefined &&
+    isPinnedSafeWordVersion(packageVersion)
+  );
 }
 
 function safeWordCommandOffset(parts: string[]): number | undefined {
-  if (parts[0]?.startsWith('safeword') === true) return 0;
+  if (parts[0] === 'safeword') return 0;
   if (isNpxSafeWordCommand(parts) || isBunxSafeWordCommand(parts)) return 2;
   return undefined;
+}
+
+function isSafeWordHookCommand(parts: string[], offset: number): boolean {
+  const hook = parts.slice(offset + 1);
+  return (
+    hook.length === 3 &&
+    hook[0] === 'hook' &&
+    hook[1] === 'codex' &&
+    LEGACY_SAFEWORD_HOOK_EVENTS.has(hook[2] ?? '')
+  );
+}
+
+function isLegacySafeWordHookAlias(parts: string[], offset: number): boolean {
+  const hook = parts.slice(offset + 1);
+  return (
+    hook.length === 2 && hook[0] === 'codex-hook' && LEGACY_SAFEWORD_HOOK_EVENTS.has(hook[1] ?? '')
+  );
 }
 
 function isPackagedSafeWordCommand(command: string): boolean {
@@ -146,20 +201,27 @@ function isPackagedSafeWordCommand(command: string): boolean {
   const offset = safeWordCommandOffset(parts);
   return (
     offset !== undefined &&
-    parts[offset + 1] === 'hook' &&
-    parts[offset + 2] === 'codex' &&
-    parts[offset + 3] !== undefined &&
-    parts.length === offset + 4
+    (isSafeWordHookCommand(parts, offset) || isLegacySafeWordHookAlias(parts, offset))
+  );
+}
+
+function isLegacySafeWordHookScript(command: string): boolean {
+  if (!command.startsWith(LEGACY_SAFEWORD_HOOK_PREFIX)) return false;
+  const scriptAndArguments = command.slice(LEGACY_SAFEWORD_HOOK_PREFIX.length);
+  const scriptEnd = scriptAndArguments.indexOf('"');
+  if (scriptEnd === -1) return false;
+
+  const script = scriptAndArguments.slice(0, scriptEnd);
+  const arguments_ = scriptAndArguments.slice(scriptEnd + 1);
+  return (
+    LEGACY_SAFEWORD_HOOK_SCRIPTS.has(script) &&
+    (arguments_ === '' ||
+      (script === 'session-safeword-context.ts' && arguments_ === ' --agent=codex'))
   );
 }
 
 function isSafeWordCommand(command: string): boolean {
-  return (
-    isPackagedSafeWordCommand(command) ||
-    command.includes('.safeword/hooks/codex/') ||
-    command.includes('.safeword/hooks/session-codex-start.ts') ||
-    command.includes('session-safeword-context.ts" --agent=codex')
-  );
+  return isPackagedSafeWordCommand(command) || isLegacySafeWordHookScript(command);
 }
 
 function blockCommandValues(lines: string[], range: TextRange): string[] {
@@ -337,7 +399,9 @@ function removeLegacyHooks(cwd: string): { removed: boolean; backupCreated: bool
 
 export function migrateCodexPlugin(
   cwd = process.cwd(),
-  options: { removeLegacyHooks?: boolean } = {},
+  // The CLI always uses MARKETPLACE_SOURCE. The source override lets the live
+  // test validate a pushed release branch before its marketplace reaches main.
+  options: { marketplaceSource?: string; removeLegacyHooks?: boolean } = {},
 ): void {
   run('bun', ['--version']);
   run('codex', ['--version']);
@@ -345,7 +409,7 @@ export function migrateCodexPlugin(
     'plugin',
     'marketplace',
     'add',
-    MARKETPLACE_SOURCE,
+    options.marketplaceSource ?? MARKETPLACE_SOURCE,
     '--sparse',
     '.agents/plugins',
     '--sparse',

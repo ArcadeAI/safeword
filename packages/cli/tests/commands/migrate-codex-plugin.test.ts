@@ -91,7 +91,11 @@ describe('migrate codex-plugin command', () => {
     expect(`${result.stdout}\n${result.stderr}`).toContain('/hooks');
     expect(`${result.stdout}\n${result.stderr}`).toContain('--remove-legacy-hooks');
     expect(existsSync(nodePath.join(directory, '.codex/config.toml.safeword.bak'))).toBe(false);
-    expect(readFileSync(log, 'utf8')).toContain('plugin list --json');
+    const calls = readFileSync(log, 'utf8');
+    expect(calls).toContain(
+      'plugin marketplace add ArcadeAI/safeword --sparse .agents/plugins --sparse packages/cli/codex-plugin --json',
+    );
+    expect(calls).toContain('plugin list --json');
   });
 
   it('removes legacy hooks only after the explicit handoff cleanup request', async () => {
@@ -151,6 +155,83 @@ describe('migrate codex-plugin command', () => {
     expect(readFileSync(nodePath.join(directory, '.codex/config.toml.safeword.bak'), 'utf8')).toBe(
       original,
     );
+  });
+
+  it('preserves lookalike user hook commands during explicit handoff cleanup', async () => {
+    const directory = createTemporaryDirectory();
+    directories.push(directory);
+    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+    mkdirSync(nodePath.join(directory, '.codex'), { recursive: true });
+    writeFileSync(nodePath.join(directory, '.safeword/version'), '0.68.0\n');
+    const original = `[[hooks.PreToolUse]]
+matcher = "^(apply_patch)$"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = 'npx --yes safeword hook codex pre-tool-use'
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = 'safeword-tools hook codex pre-tool-use'
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = 'npx --yes safeword@evil hook codex pre-tool-use'
+`;
+    const configPath = nodePath.join(directory, '.codex/config.toml');
+    writeFileSync(configPath, original);
+    const bin = installFakeRuntime(directory, true);
+
+    const result = await runCli(['migrate', 'codex-plugin', '--remove-legacy-hooks'], {
+      cwd: directory,
+      env: {
+        PATH: `${bin}:${process.env.PATH ?? ''}`,
+        SAFEWORD_CODEX_LOG: nodePath.join(directory, 'codex.log'),
+      },
+    });
+
+    expect(result.exitCode, result.stderr).toBe(0);
+    const migrated = readFileSync(configPath, 'utf8');
+    expect(migrated).not.toContain("command = 'npx --yes safeword hook codex pre-tool-use'");
+    expect(migrated).toContain("command = 'safeword-tools hook codex pre-tool-use'");
+    expect(migrated).toContain("command = 'npx --yes safeword@evil hook codex pre-tool-use'");
+    expect(readFileSync(`${configPath}.safeword.bak`, 'utf8')).toBe(original);
+  });
+
+  it('preserves user scripts beside an exact historical Safe Word hook', async () => {
+    const directory = createTemporaryDirectory();
+    directories.push(directory);
+    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+    mkdirSync(nodePath.join(directory, '.codex'), { recursive: true });
+    writeFileSync(nodePath.join(directory, '.safeword/version'), '0.68.0\n');
+    const original = `[[hooks.PreToolUse]]
+matcher = "^(apply_patch)$"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-quality.ts"'
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/custom.ts"'
+`;
+    const configPath = nodePath.join(directory, '.codex/config.toml');
+    writeFileSync(configPath, original);
+    const bin = installFakeRuntime(directory, true);
+
+    const result = await runCli(['migrate', 'codex-plugin', '--remove-legacy-hooks'], {
+      cwd: directory,
+      env: {
+        PATH: `${bin}:${process.env.PATH ?? ''}`,
+        SAFEWORD_CODEX_LOG: nodePath.join(directory, 'codex.log'),
+      },
+    });
+
+    expect(result.exitCode, result.stderr).toBe(0);
+    const migrated = readFileSync(configPath, 'utf8');
+    expect(migrated).not.toContain('codex/pre-tool-quality.ts');
+    expect(migrated).toContain('codex/custom.ts');
+    expect(readFileSync(`${configPath}.safeword.bak`, 'utf8')).toBe(original);
   });
 
   it('refuses explicit cleanup when the Codex configuration is malformed', async () => {
