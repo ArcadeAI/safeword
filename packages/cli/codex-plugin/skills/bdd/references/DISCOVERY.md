@@ -116,11 +116,11 @@ The jobs above say what a persona can _do_. The rave moment says what would make
 - **The expectation it beats** — the dread, status-quo pain, or competitor clunk it's measured against. A moment that beats nothing is table-stakes, not a rave.
 - **The one-sentence test** — can the persona repeat it to a peer with the same problem, in a way that makes _them_ look in-the-know? If it can't be said in a sentence, it won't travel.
 
-**Ground it in evidence — don't write it from your priors.** A moment invented from memory is how you get a plausible-but-fake rave, so it isn't optional: **run `/figure-it-out` every time**, handing it the three criteria above as the brief, to research the real dread, the competitor's actual clunk, and what genuinely travels here. (Where that skill isn't available, do that research inline — the grounding is the requirement; the skill is only the tool.) If the real gap is persona intent or raw ideation, it routes you to `/elicit` or `/brainstorm`.
+**Ground it in evidence — don't write it from your priors.** A moment invented from memory is how you get a plausible-but-fake rave, so it isn't optional: **run `$safeword:figure-it-out` every time**, handing it the three criteria above as the brief, to research the real dread, the competitor's actual clunk, and what genuinely travels here. (Where that skill isn't available, do that research inline — the grounding is the requirement; the skill is only the tool.) If the real gap is persona intent or raw ideation, it routes you to `$safeword:elicit` or `$safeword:brainstorm`.
 
 Aim for **awe** ("whoa, it just did that"), not mild satisfaction — low-arousal "fine" doesn't get shared. Write it to `spec.md`'s `## Rave Moment` (e.g., oauth-flow: _"I expected a coordinated flag-day; the old key just kept working while I rolled the fleet"_). If nothing clears the expectation bar, write `skip: table-stakes` — "no rave here" is an honest, common answer, not a gap to fill. Manufacturing one to fill the field is the failure mode; the beaten-expectation requirement is the guard.
 
-`/verify`'s experience lens walks this moment as the persona later and asks whether it landed.
+`$safeword:verify`'s experience lens walks this moment as the persona later and asks whether it landed.
 
 ## Understanding (Propose-and-Converge)
 
@@ -134,15 +134,15 @@ Follow the understanding pattern from SAFEWORD.md — including contribution tec
 
 If any answer is vague, you have open questions — surface them, and record each unresolved one in `spec.md`'s `## Open Questions` section (the equivalent of Example Mapping's red "question" cards) so it isn't lost across turns or sessions. Delete a question when it's answered, or mark it `defer: <reason>` for a deliberate punt.
 
-**When the gap is user-only knowledge** (intent, priorities, constraints not derivable from code/docs) — call `/elicit` to extract it via microquestions before drafting scope.
+**When the gap is user-only knowledge** (intent, priorities, constraints not derivable from code/docs) — call `$safeword:elicit` to extract it via microquestions before drafting scope.
 
-**When the option space is empty** (a vague idea with no candidate approaches yet) — call `/brainstorm` to diverge and generate options first; converge on one with `/figure-it-out` after.
+**When the option space is empty** (a vague idea with no candidate approaches yet) — call `$safeword:brainstorm` to diverge and generate options first; converge on one with `$safeword:figure-it-out` after.
 
-**When the gap is the option space itself** (multiple plausible scopes, framings, or boundaries with no clear winner) — call `/figure-it-out` to weigh options against current docs and research before drafting scope.
+**When the gap is the option space itself** (multiple plausible scopes, framings, or boundaries with no clear winner) — call `$safeword:figure-it-out` to weigh options against current docs and research before drafting scope.
 
 **When the feature leans on a library or framework** — read the installed version's docs before proposing API shapes or done-when criteria. Scope baked on training memory of a different version is silently wrong. Check `package.json` / lockfile first, then the source wired up (Context7, official docs, README at the pinned ref).
 
-**When the feature introduces architecture or a new pattern** — design the ideal first (`/figure-it-out`), _then_ survey the existing patterns in the area and reconcile: conform by default, deviate only with a named defect and an uplevel follow-up ticket. See `.safeword/guides/architecture-guide.md` → Survey & Reconcile.
+**When the feature introduces architecture or a new pattern** — design the ideal first (`$safeword:figure-it-out`), _then_ survey the existing patterns in the area and reconcile: conform by default, deviate only with a named defect and an uplevel follow-up ticket. See `.safeword/guides/architecture-guide.md` → Survey & Reconcile.
 
 ## Worked example: intake end to end
 

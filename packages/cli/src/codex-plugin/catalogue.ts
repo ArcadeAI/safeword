@@ -77,7 +77,87 @@ function parseSkill(content: string, skill: string): { body: string; description
   };
 }
 
-function adaptSkillBody(body: string, skillNames: string[], referenceNames: string[]): string {
+function isAsciiLowercase(character: string): boolean {
+  return character >= 'a' && character <= 'z';
+}
+
+function isAsciiDigit(character: string): boolean {
+  return character >= '0' && character <= '9';
+}
+
+function isWorkflowNameCharacter(character: string): boolean {
+  return isAsciiLowercase(character) || character === '-';
+}
+
+function isWorkflowPathCharacter(character: string): boolean {
+  return isAsciiLowercase(character) || isAsciiDigit(character) || '.-/'.includes(character);
+}
+
+function isWorkflowInvocationPrefix(character: string | undefined): boolean {
+  return (
+    character === undefined ||
+    (!isWorkflowNameCharacter(character) &&
+      !isAsciiDigit(character) &&
+      character !== '_' &&
+      character !== '/')
+  );
+}
+
+function hasWorkflowPathSuffix(markdown: string, nameEnd: number): boolean {
+  const suffix = markdown[nameEnd];
+  const firstPathCharacter = markdown[nameEnd + 1] ?? '';
+  return (
+    (suffix === '.' &&
+      (isAsciiLowercase(firstPathCharacter) || isAsciiDigit(firstPathCharacter))) ||
+    (suffix === '/' && isWorkflowPathCharacter(firstPathCharacter))
+  );
+}
+
+function hasWorkflowInvocationBoundary(markdown: string, nameEnd: number): boolean {
+  const next = markdown[nameEnd];
+  return (
+    next === undefined || (!isWorkflowNameCharacter(next) && !isAsciiDigit(next) && next !== '_')
+  );
+}
+
+function adaptWorkflowInvocations(markdown: string, knownSkillNames: ReadonlySet<string>): string {
+  let adapted = '';
+  let copiedThrough = 0;
+  let slash = markdown.indexOf('/');
+
+  while (slash !== -1) {
+    const nameStart = slash + 1;
+    let nameEnd = nameStart;
+    while (isWorkflowNameCharacter(markdown[nameEnd] ?? '')) nameEnd += 1;
+    const name = markdown.slice(nameStart, nameEnd);
+
+    if (
+      isAsciiLowercase(name[0] ?? '') &&
+      isWorkflowInvocationPrefix(markdown[slash - 1]) &&
+      knownSkillNames.has(name) &&
+      !hasWorkflowPathSuffix(markdown, nameEnd) &&
+      hasWorkflowInvocationBoundary(markdown, nameEnd)
+    ) {
+      adapted += `${markdown.slice(copiedThrough, slash)}$safeword:${name}`;
+      copiedThrough = nameEnd;
+    }
+    slash = markdown.indexOf('/', slash + 1);
+  }
+
+  return `${adapted}${markdown.slice(copiedThrough)}`;
+}
+
+function adaptWorkflowMarkdown(markdown: string, knownSkillNames: ReadonlySet<string>): string {
+  const adapted = adaptWorkflowInvocations(markdown, knownSkillNames);
+
+  return formatMarkdownTables(adapted);
+}
+
+function adaptSkillBody(
+  body: string,
+  knownSkillNames: ReadonlySet<string>,
+  referenceNames: string[],
+): string {
   // Canonical skills have one blank line after frontmatter. The generated
   // frontmatter supplies that separator, so avoid duplicating it here.
   let adapted = body.replace(/^\r?\n/u, '');
@@ -85,14 +165,7 @@ function adaptSkillBody(body: string, skillNames: string[], referenceNames: stri
     adapted = adapted.split(referenceName).join(`references/${referenceName}`);
   }
 
-  const knownSkillNames = new Set(skillNames);
-  adapted = adapted.replaceAll(
-    /(^|[^\w-])\/([a-z][a-z-]*)\b/gu,
-    (match, prefix: string, name: string) =>
-      knownSkillNames.has(name) ? `${prefix}$safeword:${name}` : match,
-  );
-
-  return formatMarkdownTables(adapted);
+  return adaptWorkflowMarkdown(adapted, knownSkillNames);
 }
 
 function tableCells(line: string): string[] {
@@ -158,6 +231,7 @@ export function generateCodexPluginAssets(
   const skillNames = canonicalFiles
     .map(relativePath => canonicalSkillPath(relativePath).skill)
     .filter((value, index, values) => values.indexOf(value) === index);
+  const knownSkillNames = new Set(skillNames);
 
   return canonicalFiles.map(relativePath => {
     const { skill, filename } = canonicalSkillPath(relativePath);
@@ -165,7 +239,7 @@ export function generateCodexPluginAssets(
     if (filename !== 'SKILL.md') {
       return {
         relativePath: nodePath.join('skills', skill, 'references', filename),
-        content,
+        content: adaptWorkflowMarkdown(content, knownSkillNames),
       };
     }
 
@@ -177,11 +251,10 @@ export function generateCodexPluginAssets(
 
     return {
       relativePath: nodePath.join('skills', skill, 'SKILL.md'),
-      content: `---\n${stringify({ name: skill, description }).trimEnd()}\n---\n\n${adaptSkillBody(
-        body,
-        skillNames,
-        referenceNames,
-      )}`,
+      content: `---\n${stringify({
+        name: skill,
+        description: adaptWorkflowInvocations(description, knownSkillNames),
+      }).trimEnd()}\n---\n\n${adaptSkillBody(body, knownSkillNames, referenceNames)}`,
     };
   });
 }
@@ -192,7 +265,19 @@ function skillMetadataLength(asset: GeneratedPluginAsset): number {
   if (frontmatter?.groups?.metadata === undefined) {
     throw new Error(`generated skill ${asset.relativePath} has no YAML frontmatter`);
   }
-  return frontmatter.groups.metadata.length;
+  const metadata = parse(frontmatter.groups.metadata);
+  if (
+    !isCanonicalSkillMetadata(metadata) ||
+    typeof metadata.name !== 'string' ||
+    typeof metadata.description !== 'string'
+  ) {
+    throw new Error(
+      `generated skill ${asset.relativePath} has invalid name or description metadata`,
+    );
+  }
+
+  // Codex's initial skill list contains each skill's name, description, and file path.
+  return metadata.name.length + metadata.description.length + asset.relativePath.length;
 }
 
 export function codexSkillMetadataCharacters(assets: GeneratedPluginAsset[]): number {

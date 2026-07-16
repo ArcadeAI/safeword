@@ -1,6 +1,6 @@
 # Done: Close Ticket
 
-**Entry:** verify.md exists in ticket folder (written by /verify in the verify phase).
+**Entry:** verify.md exists in ticket folder (written by $safeword:verify in the verify phase).
 
 Done means the ticket is closed. All verification happened in the verify phase.
 

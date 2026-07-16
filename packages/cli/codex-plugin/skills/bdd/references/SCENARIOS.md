@@ -61,7 +61,7 @@ Each propose-and-converge turn either surfaces new scenarios or doesn't. When a 
 
 **Discovery shorthand** (in chat, presenting to user): Rule + bare scenario checkboxes — fast to read, easy to amend in conversation. This is what turn-1 above looks like.
 
-**Saved source** (`features/<slug>.feature`; under `paths.features` when configured): Gherkin `Feature` / `Rule` / `Scenario`, with lineage carried on the `Rule:` block as a `@<jtbd-id>.R<#>` tag that its scenarios inherit (legacy specs instead tag each scenario `@<jtbd-id>.AC<#>`). Two senses of "rule" meet here: Gherkin's `Rule:` keyword is the grouping block, while the numbered Rule (`.R<#>`) is safeword's lineage id — the block carries it as a tag and repeats it as the first token of its name. This is the executable behavior source that the Cucumber lane runs and `/review-spec`, `safeword check`, and `codify` read.
+**Saved source** (`features/<slug>.feature`; under `paths.features` when configured): Gherkin `Feature` / `Rule` / `Scenario`, with lineage carried on the `Rule:` block as a `@<jtbd-id>.R<#>` tag that its scenarios inherit (legacy specs instead tag each scenario `@<jtbd-id>.AC<#>`). Two senses of "rule" meet here: Gherkin's `Rule:` keyword is the grouping block, while the numbered Rule (`.R<#>`) is safeword's lineage id — the block carries it as a tag and repeats it as the first token of its name. This is the executable behavior source that the Cucumber lane runs and `$safeword:review-spec`, `safeword check`, and `codify` read.
 
 ### Surface coverage tags
 
@@ -198,7 +198,7 @@ delivery retries on exponential backoff`). IDs are 1-indexed per job and
 
 **Entry:** Agent enters `scenario-gate` phase.
 
-Run the **`/review-spec`** skill — it is the gate procedure (vacuous-pass, AODI, determinism risks, adversarial pass + negative-case, cross-cutting checks, and the findings format). It reads the active ticket's `.feature` source when present, using `test-definitions.md` only as the R/G/R ledger, reports findings, and is re-invokable standalone after scenario edits. Apply its findings, then complete the saturation check and exit below.
+Run the **`$safeword:review-spec`** skill — it is the gate procedure (vacuous-pass, AODI, determinism risks, adversarial pass + negative-case, cross-cutting checks, and the findings format). It reads the active ticket's `.feature` source when present, using `test-definitions.md` only as the R/G/R ledger, reports findings, and is re-invokable standalone after scenario edits. Apply its findings, then complete the saturation check and exit below.
 
 ### Coverage saturation
 

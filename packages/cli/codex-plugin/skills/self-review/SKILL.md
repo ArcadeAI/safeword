@@ -56,7 +56,7 @@ I…, I want…, so I can…`), not a restated feature.
 - **Nothing leaks implementation** (file names, function names, libraries) into
   spec-level prose.
 
-If the review surfaces a fix, **edit `spec.md` and re-invoke `/review`** — the
+If the review surfaces a fix, **edit `spec.md` and re-invoke `$safeword:self-review`** — the
 content-bound stamp goes stale on any edit, so the gate correctly re-blocks
 until the corrected spec is re-reviewed. That is the point: a review that
 changes the artifact must be re-earned.

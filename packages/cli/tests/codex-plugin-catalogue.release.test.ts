@@ -17,6 +17,7 @@ import {
   assertCodexPluginCatalogue,
   assertCodexSkillMetadataBudget,
   CODEX_SKILL_METADATA_LIMIT,
+  codexSkillMetadataCharacters,
   generateCodexPluginAssets,
 } from '../src/codex-plugin/catalogue.js';
 
@@ -97,7 +98,7 @@ describe('generated Codex plugin catalogue', () => {
         [
           '---',
           'name: alpha',
-          'description: Example transformation',
+          'description: Invoke /beta and retain /beta.md',
           'allowed-tools: Bash',
           '---',
           '',
@@ -105,7 +106,10 @@ describe('generated Codex plugin catalogue', () => {
           '',
         ].join('\n'),
       );
-      writeFileSync(nodePath.join(canonicalSkillsDirectory, 'alpha/TDD.md'), '# TDD detail\n');
+      writeFileSync(
+        nodePath.join(canonicalSkillsDirectory, 'alpha/TDD.md'),
+        '# TDD detail\n\nRun /beta before writing /beta.md.\n',
+      );
       writeFileSync(
         nodePath.join(canonicalSkillsDirectory, 'beta/SKILL.md'),
         ['---', 'name: beta', 'description: Referenced skill', '---', '', '# Beta', ''].join('\n'),
@@ -115,11 +119,11 @@ describe('generated Codex plugin catalogue', () => {
         {
           relativePath: nodePath.join('skills', 'alpha', 'SKILL.md'),
           content:
-            '---\nname: alpha\ndescription: Example transformation\n---\n\nRun $safeword:beta, preserve /outside, and consult references/TDD.md.\n',
+            '---\nname: alpha\ndescription: Invoke $safeword:beta and retain /beta.md\n---\n\nRun $safeword:beta, preserve /outside, and consult references/TDD.md.\n',
         },
         {
           relativePath: nodePath.join('skills', 'alpha', 'references', 'TDD.md'),
-          content: '# TDD detail\n',
+          content: '# TDD detail\n\nRun $safeword:beta before writing /beta.md.\n',
         },
         {
           relativePath: nodePath.join('skills', 'beta', 'SKILL.md'),
@@ -165,5 +169,16 @@ describe('generated Codex plugin catalogue', () => {
     expect(() => {
       assertCodexSkillMetadataBudget(oversized);
     }).toThrow('8000');
+  });
+
+  it('measures every field Codex places in its initial skill list', () => {
+    const asset = {
+      relativePath: nodePath.join('skills', 'alpha', 'SKILL.md'),
+      content: '---\nname: alpha\ndescription: Describe alpha\n---\n',
+    };
+
+    expect(codexSkillMetadataCharacters([asset])).toBe(
+      asset.relativePath.length + 'alpha'.length + 'Describe alpha'.length,
+    );
   });
 });

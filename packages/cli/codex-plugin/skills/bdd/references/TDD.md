@@ -108,17 +108,17 @@ At the bottom of `test-definitions.md`, add one row for the whole-ticket cross-s
 
 ### Refactor Decision
 
-Assess: duplication, unclear naming, excessive length? If yes, refactor (small changes directly, structural changes via `/refactor`). If no, proceed to next scenario.
+Assess: duplication, unclear naming, excessive length? If yes, refactor (small changes directly, structural changes via `$safeword:refactor`). If no, proceed to next scenario.
 
 ## Implement exit: whole-ticket quality review + refactor
 
 All scenarios green → before reconciling the plan, do one pass over the **whole ticket** (not a single loop). Skip it only when the ticket has a single RGR loop — there's nothing to cross.
 
-1. **Quality-review the whole diff.** Run `/quality-review` across everything the ticket changed — the review's findings are the refactor ledger. The done-gate requires a logged `/quality-review` invocation for ≥2-loop tickets (see the skill's invocation-log block).
-2. **Refactor the findings.** Work the cross-scenario cleanups `/quality-review` surfaced — shared fixtures, duplicated logic, naming drift that only shows up across loops. One change → test → commit, per the `/refactor` skill. Only real wins; don't gold-plate.
+1. **Quality-review the whole diff.** Run `$safeword:quality-review` across everything the ticket changed — the review's findings are the refactor ledger. The done-gate requires a logged `$safeword:quality-review` invocation for ≥2-loop tickets (see the skill's invocation-log block).
+2. **Refactor the findings.** Work the cross-scenario cleanups `$safeword:quality-review` surfaced — shared fixtures, duplicated logic, naming drift that only shows up across loops. One change → test → commit, per the `$safeword:refactor` skill. Only real wins; don't gold-plate.
 3. **Record the row.** Mark the `## Feature-level cross-scenario refactor` row with the refactor commit `<sha>`, or `skip: <reason>` when no cross-loop cleanup was warranted. The done-gate hard-blocks a ≥2-loop ticket whose row is missing or carries an empty `skip:`.
 
-Quiet implement mode means the RED/GREEN/REFACTOR reviews stayed internal. At implement exit, summarize scenarios completed, review/refactor work performed, `/quality-review` findings handled, test evidence, commits recorded, and any deferred risks.
+Quiet implement mode means the RED/GREEN/REFACTOR reviews stayed internal. At implement exit, summarize scenarios completed, review/refactor work performed, `$safeword:quality-review` findings handled, test evidence, commits recorded, and any deferred risks.
 
 Then reconcile the plan.
 
@@ -134,15 +134,15 @@ All scenarios complete → reconcile `impl-plan.md` against what actually shippe
 _Worked example:_ the plan said "Decisions: parse with the shared markdown utility"; during implementation a local scan proved smaller, so the choice changed mid-implementation — the row now reads choice "local content-or-skip scan", with the shared utility recorded under Alternatives considered and the reason it lost. That update (not a rewrite of history — the alternatives column preserves it) is what reconciliation produces.
 
 Reconciled → set `phase: verify` and continue directly into the verify phase:
-run `/verify`, then `/audit`. Do not ask the user whether to proceed; verification
-is agent-owned work. Ask the user only if `/verify`, `/audit`, or a review
+run `$safeword:verify`, then `$safeword:audit`. Do not ask the user whether to proceed; verification
+is agent-owned work. Ask the user only if `$safeword:verify`, `$safeword:audit`, or a review
 surfaces a real spec, scope, value, or risk decision.
 
 ## Implement exit: independent design review (architecture review gate)
 
 Off by default. When `.safeword/config.json` sets `architectureReviewGate: true`, the stop hook blocks `verify`/`done` for a new-flow feature until its `impl-plan.md` design has been **independently reviewed** — the same propose-then-challenge discipline the scenario-gate applies to scenarios, now applied to the design. Two requirements:
 
-1. **Cited evidence.** The Decisions section must carry a citation — a URL or a `[n]` source-reference marker — proving the choice was weighed against real evidence (the `/figure-it-out` trace), or an auditable `skip: <reason>`.
+1. **Cited evidence.** The Decisions section must carry a citation — a URL or a `[n]` source-reference marker — proving the choice was weighed against real evidence (the `$safeword:figure-it-out` trace), or an auditable `skip: <reason>`.
 2. **A fresh-context review.** Spawn a reviewer with **no conversation history**, handed only `impl-plan.md` and the ticket scope, to try to refute the design against its cited sources. On a pass, stamp it:
 
    ```bash

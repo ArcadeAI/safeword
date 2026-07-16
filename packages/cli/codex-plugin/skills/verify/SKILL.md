@@ -245,7 +245,7 @@ If PR scope fails, do not collapse to "Ready to mark done." Put the concrete spl
 
 ### 7. Write verify.md (skip if no ticket)
 
-The done gate blocks on this **artifact**, not on your chat report: `<ticket folder>$safeword:verify.md` must exist and contain a `**PR Scope:**` line whose status is passing (`done-gate.ts` rejects `❌`/piggybacked). Write the full Status checklist (step 8's Verify Checklist block, every line) to `$NS_ROOT/tickets/{ID}-{slug}$safeword:verify.md`, and once $safeword:audit has run, include its one-line result (`Audit passed …`) there too.
+The done gate blocks on this **artifact**, not on your chat report: `<ticket folder>/verify.md` must exist and contain a `**PR Scope:**` line whose status is passing (`done-gate.ts` rejects `❌`/piggybacked). Write the full Status checklist (step 8's Verify Checklist block, every line) to `$NS_ROOT/tickets/{ID}-{slug}/verify.md`, and once $safeword:audit has run, include its one-line result (`Audit passed …`) there too.
 
 The all-green collapse in step 8 applies to the **chat report only** — verify.md always carries the full checklist, even when everything is green.
 

@@ -3,9 +3,9 @@ name: retro
 description: Run a safeword retrospective on the current session on demand —
   mine the session transcript for qualitative safeword friction (bugs / rough
   edges / gaps) and file it upstream behind the egress guard. Use when the user
-  says "run a retro", "/retro", "retrospective on this session", or wants to
-  capture friction before the session ends. The retro also auto-fires at Stop;
-  this is the manual, on-demand path.
+  says "run a retro", "$safeword:retro", "retrospective on this session", or
+  wants to capture friction before the session ends. The retro also auto-fires
+  at Stop; this is the manual, on-demand path.
 ---
 
 # Retro
