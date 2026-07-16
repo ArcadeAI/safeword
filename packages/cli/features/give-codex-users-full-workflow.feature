@@ -4,6 +4,7 @@ Feature: Give Codex users the full Safe Word workflow
   @codex-workflow.TBU1.R1
   Rule: codex-workflow.TBU1.R1 - Every canonical workflow is available with the reference material it dispatches to
 
+    @live
     Scenario: Complete profile plugin exposes every workflow entry and phase reference
       Given the canonical Safe Word catalogue contains workflows with supporting phase material
       And the generated plugin is installed in an otherwise empty Codex profile
@@ -128,6 +129,7 @@ Feature: Give Codex users the full Safe Word workflow
   @workflow-maintenance.SWM1.R3
   Rule: workflow-maintenance.SWM1.R3 - Isolated Codex installation proves the cached plugin exposes the generated workflow without project-local workflow assets
 
+    @live
     Scenario: Cached installation exposes scoped workflow skills without project files
       Given a packed Safe Word package is installed in an isolated Codex profile
       And the target project is empty
