@@ -1,15 +1,14 @@
 /**
  * Live Codex plugin smoke (ticket CXP9LM / GitHub #394).
  *
- * This is deliberately opt-in: it launches a real `codex exec` session and may
- * spend tokens. Run with:
+ * This opt-in test proves the installed plugin is a real cache copy of a
+ * Bun-packed archive. It uses a local Bunx shim only to dispatch the pinned
+ * package command to this checkout's built CLI; no npm registry package is
+ * involved.
+ *
+ * Run with:
  *
  *   SAFEWORD_RUN_CODEX_LIVE_SMOKE=1 bun run --cwd packages/cli test:smoke:live
- *
- * The smoke installs the packaged plugin into an isolated CODEX_HOME. Its Bunx
- * command is intercepted only for `safeword` and dispatched to this checkout's
- * built CLI, proving the plugin manifest invokes the code under test instead of
- * the currently published npm package.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -18,8 +17,10 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
@@ -27,10 +28,17 @@ import nodePath from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-const CLI_PATH = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
-const PLUGIN_PATH = nodePath.resolve(import.meta.dirname, '../../codex-plugin');
+import {
+  assertCachedCodexPlugin,
+  parsePluginInstalledPath,
+} from '../helpers/codex-plugin-cache.js';
+import { extractPackedCliPackage, packCliPackage } from '../helpers/codex-plugin-package.js';
+
+const CLI_ROOT = nodePath.resolve(import.meta.dirname, '../..');
+const CLI_PATH = nodePath.join(CLI_ROOT, 'dist/cli.js');
 const LIVE_MARKETPLACE_NAME = 'safeword-live-smoke';
 const BUNX_SHIM_LOG = 'bunx-safeword-invocations.log';
+const WORKFLOW_DIRECTORIES = ['.agents', '.codex', '.safeword'] as const;
 
 function resolveCodex(): string | undefined {
   const candidates = [process.env.SMOKE_CODEX_BIN, 'codex'].filter(Boolean) as string[];
@@ -77,9 +85,14 @@ function assertSuccess(
   ).toBe(0);
 }
 
+function packageVersion(): string {
+  return JSON.parse(readFileSync(nodePath.join(CLI_ROOT, 'package.json'), 'utf8'))
+    .version as string;
+}
+
 function createFixture(): string {
   const projectRoot = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-live-'));
-  run('git', ['init', '-q'], { cwd: projectRoot });
+  assertSuccess(run('git', ['init', '-q'], { cwd: projectRoot }), 'git init');
   writeFileSync(
     nodePath.join(projectRoot, 'package.json'),
     JSON.stringify({ name: 'codex-live-fixture', version: '1.0.0' }, undefined, 2),
@@ -100,12 +113,13 @@ function createAuthenticatedCodexHome(): string {
   return codexHome;
 }
 
-function createMarketplace(root: string): string {
+function createMarketplace(root: string, extractedPackage: string): string {
   const marketplaceRoot = nodePath.join(root, 'marketplace');
   const pluginRoot = nodePath.join(marketplaceRoot, 'plugins', 'safeword');
   const manifestDirectory = nodePath.join(marketplaceRoot, '.agents', 'plugins');
+  mkdirSync(nodePath.dirname(pluginRoot), { recursive: true });
   mkdirSync(manifestDirectory, { recursive: true });
-  cpSync(PLUGIN_PATH, pluginRoot, { recursive: true });
+  symlinkSync(nodePath.join(extractedPackage, 'codex-plugin'), pluginRoot, 'dir');
   writeFileSync(
     nodePath.join(manifestDirectory, 'marketplace.json'),
     `${JSON.stringify(
@@ -130,7 +144,7 @@ function createMarketplace(root: string): string {
   return marketplaceRoot;
 }
 
-function writeBunxShim(root: string): string {
+function writeBunxShim(root: string, version: string): string {
   const binDirectory = nodePath.join(root, 'bin');
   const shimPath = nodePath.join(binDirectory, 'bunx');
   mkdirSync(binDirectory, { recursive: true });
@@ -138,7 +152,7 @@ function writeBunxShim(root: string): string {
     shimPath,
     `#!/bin/sh
 set -eu
-if [ "\${1:-}" = "--bun" ] && [ "\${2:-}" = "safeword@0.68.0" ]; then
+if [ "\${1:-}" = "--bun" ] && [ "\${2:-}" = "safeword@${version}" ]; then
   printf '%s\\n' "$*" >> "$SAFEWORD_BUNX_SHIM_LOG"
   shift 2
   exec "${process.execPath}" "${CLI_PATH}" "$@"
@@ -155,7 +169,7 @@ function installPlugin(
   projectRoot: string,
   codexHome: string,
   marketplaceRoot: string,
-): void {
+): string {
   const environment = { CODEX_HOME: codexHome };
   assertSuccess(
     run(codex, ['plugin', 'marketplace', 'add', marketplaceRoot, '--json'], {
@@ -164,13 +178,61 @@ function installPlugin(
     }),
     'codex plugin marketplace add',
   );
-  assertSuccess(
-    run(codex, ['plugin', 'add', `safeword@${LIVE_MARKETPLACE_NAME}`, '--json'], {
-      cwd: projectRoot,
-      env: environment,
-    }),
-    'codex plugin add',
+  const pluginAdd = run(codex, ['plugin', 'add', `safeword@${LIVE_MARKETPLACE_NAME}`, '--json'], {
+    cwd: projectRoot,
+    env: environment,
+  });
+  assertSuccess(pluginAdd, 'codex plugin add');
+  return parsePluginInstalledPath(pluginAdd.stdout);
+}
+
+function assertNoProjectWorkflowTree(projectRoot: string): void {
+  for (const directory of WORKFLOW_DIRECTORIES) {
+    expect(existsSync(nodePath.join(projectRoot, directory)), `${directory} must not exist`).toBe(
+      false,
+    );
+  }
+}
+
+function runUntrustedPluginCheck(
+  codex: string,
+  projectRoot: string,
+  environment: NodeJS.ProcessEnv,
+): void {
+  const result = run(
+    codex,
+    [
+      'exec',
+      '--json',
+      '--dangerously-bypass-approvals-and-sandbox',
+      '-C',
+      projectRoot,
+      'Reply with exactly OK. Do not use tools.',
+    ],
+    { cwd: projectRoot, env: environment, timeout: 180_000 },
   );
+  assertSuccess(result, 'codex exec untrusted plugin check');
+}
+
+function runCachedSkillProbe(
+  codex: string,
+  projectRoot: string,
+  environment: NodeJS.ProcessEnv,
+): string {
+  const result = run(
+    codex,
+    [
+      'exec',
+      '--json',
+      '--dangerously-bypass-approvals-and-sandbox',
+      '-C',
+      projectRoot,
+      'Use $safeword:bdd. Reply with exactly SAFEWORD_CACHE_SKILL_READY. Do not use tools.',
+    ],
+    { cwd: projectRoot, env: environment, timeout: 180_000 },
+  );
+  assertSuccess(result, 'codex exec cached skill probe');
+  return `${result.stdout}\n${result.stderr}`;
 }
 
 function runVettedPluginDispatch(
@@ -195,26 +257,6 @@ function runVettedPluginDispatch(
   return `${result.stdout}\n${result.stderr}`;
 }
 
-function runUntrustedPluginCheck(
-  codex: string,
-  projectRoot: string,
-  environment: NodeJS.ProcessEnv,
-): void {
-  const result = run(
-    codex,
-    [
-      'exec',
-      '--json',
-      '--dangerously-bypass-approvals-and-sandbox',
-      '-C',
-      projectRoot,
-      'Reply with exactly OK. Do not use tools.',
-    ],
-    { cwd: projectRoot, env: environment, timeout: 180_000 },
-  );
-  assertSuccess(result, 'codex exec untrusted plugin check');
-}
-
 const CODEX = resolveCodex();
 const CAN_RUN = process.env.SAFEWORD_RUN_CODEX_LIVE_SMOKE === '1' && CODEX !== undefined;
 
@@ -222,15 +264,25 @@ describe.skipIf(!CAN_RUN)('live smoke: Codex packaged plugin parity', () => {
   let projectRoot: string;
   let codexHome: string;
   let bunxBinDirectory: string;
-  let marketplaceRoot: string;
+  let installedPath: string;
+  let packDestination: string;
 
   beforeAll(() => {
     if (!CODEX) throw new Error('unreachable: CAN_RUN guards codex presence');
+
     projectRoot = createFixture();
     codexHome = createAuthenticatedCodexHome();
-    bunxBinDirectory = writeBunxShim(codexHome);
-    marketplaceRoot = createMarketplace(codexHome);
-    installPlugin(CODEX, projectRoot, codexHome, marketplaceRoot);
+    bunxBinDirectory = writeBunxShim(codexHome, packageVersion());
+    packDestination = nodePath.join(codexHome, 'packed-plugin');
+    mkdirSync(packDestination, { recursive: true });
+    const archive = packCliPackage(CLI_ROOT, packDestination);
+    const extractedPackage = extractPackedCliPackage(archive, packDestination);
+    const marketplaceRoot = createMarketplace(codexHome, extractedPackage);
+    installedPath = installPlugin(CODEX, projectRoot, codexHome, marketplaceRoot);
+
+    rmSync(archive, { force: true });
+    rmSync(nodePath.dirname(extractedPackage), { recursive: true, force: true });
+    rmSync(marketplaceRoot, { recursive: true, force: true });
   });
 
   afterAll(() => {
@@ -238,16 +290,18 @@ describe.skipIf(!CAN_RUN)('live smoke: Codex packaged plugin parity', () => {
     rmSync(codexHome, { recursive: true, force: true });
   });
 
-  it('runs this checkout CLI through the installed plugin lifecycle', () => {
+  it('loads the complete plugin from Codex cache after every source is removed', () => {
     if (!CODEX) throw new Error('unreachable: CAN_RUN guards codex presence');
 
-    expect(existsSync(nodePath.join(codexHome, 'config.toml'))).toBe(true);
+    expect(readdirSync(packDestination)).toEqual([]);
+    expect(existsSync(nodePath.join(codexHome, 'marketplace'))).toBe(false);
     expect(readFileSync(nodePath.join(codexHome, 'config.toml'), 'utf8')).toContain(
       `plugins."safeword@${LIVE_MARKETPLACE_NAME}"`,
     );
-    expect(existsSync(nodePath.join(projectRoot, '.codex'))).toBe(false);
-    expect(existsSync(nodePath.join(projectRoot, '.safeword'))).toBe(false);
-    expect(existsSync(nodePath.join(projectRoot, '.agents'))).toBe(false);
+    assertNoProjectWorkflowTree(projectRoot);
+
+    const cachedPluginPath = assertCachedCodexPlugin(CLI_ROOT, codexHome, installedPath);
+    expect(cachedPluginPath).not.toContain(nodePath.join(codexHome, 'packed-plugin'));
 
     const shimLog = nodePath.join(codexHome, BUNX_SHIM_LOG);
     const environment = {
@@ -259,11 +313,15 @@ describe.skipIf(!CAN_RUN)('live smoke: Codex packaged plugin parity', () => {
     runUntrustedPluginCheck(CODEX, projectRoot, environment);
     expect(existsSync(shimLog)).toBe(false);
 
-    const liveOutput = runVettedPluginDispatch(CODEX, projectRoot, environment);
+    const skillOutput = runCachedSkillProbe(CODEX, projectRoot, environment);
+    expect(skillOutput).toContain('SAFEWORD_CACHE_SKILL_READY');
+    expect(existsSync(shimLog)).toBe(false);
 
+    const liveOutput = runVettedPluginDispatch(CODEX, projectRoot, environment);
     expect(
       readFileSync(shimLog, 'utf8'),
-      `Codex did not invoke plugin SessionStart.\n${liveOutput}`,
-    ).toContain('--bun safeword@0.68.0 hook codex session-start');
+      `Codex did not invoke cached plugin SessionStart.\n${liveOutput}`,
+    ).toContain(`--bun safeword@${packageVersion()} hook codex session-start`);
+    assertNoProjectWorkflowTree(projectRoot);
   });
 });
