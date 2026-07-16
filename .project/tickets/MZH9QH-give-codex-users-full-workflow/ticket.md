@@ -32,7 +32,7 @@ done_when:
   - Codex persona-lineage coverage reads the packaged plugin model rather than retired repository-local BDD files, and Claude Code and Cursor regression checks remain unchanged.
   - The published documentation explains complete scoped skill availability, the two-step migration, and Bunx-only hooks.
 created: 2026-07-15T18:26:26.899Z
-last_modified: 2026-07-16T15:44:26.000Z
+last_modified: 2026-07-16T15:45:00.000Z
 ---
 
 # Give Codex users the full Safe Word workflow
@@ -49,3 +49,4 @@ last_modified: 2026-07-16T15:44:26.000Z
 - 2026-07-16T15:40:03.000Z GREEN: `6e5492f3` removed the empty project-local Codex scaffold, centralized Bunx hook policy, and aligned migration and published documentation with the explicit trust handoff.
 - 2026-07-16T15:41:42.000Z GREEN: `47f89f44` bound every deterministic scenario to real generator, package, cache, setup, and hook-policy contracts; `bun run --cwd packages/cli test:bdd` passed 83 scenarios and 986 steps.
 - 2026-07-16T15:44:26.000Z Phase transition: all executable scenarios are green; manual Codex trust evidence is recorded in `packages/cli/tests/smoke/codex-plugin-manual-acceptance.md`. Moving to verification.
+- 2026-07-16T15:45:00.000Z Process correction: normalized the R/G/R ledger to the ticket validator's one-distinct-SHA-per-RED/GREEN contract; explanatory provenance remains in the ticket work log.

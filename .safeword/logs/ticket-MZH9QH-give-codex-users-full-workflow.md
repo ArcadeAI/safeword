@@ -11,3 +11,4 @@
 - [15:40] Committed the plugin-only project boundary, shared Bunx hook-command policy, and staged migration documentation as `6e5492f3`.
 - [15:41] Committed executable acceptance bindings as `47f89f44`; the safe BDD lane passed 83 scenarios and 986 steps.
 - [15:44] Recorded TDD, characterization, and manual-live evidence separately in the R/G/R ledger. Manual trust acceptance remains explicitly outside ordinary CI because Codex exposes the warning only in its interactive TUI.
+- [15:45] Corrected the ledger to its machine-readable contract: RED and GREEN cells contain distinct single commit SHAs, while explanation remains in this log and the manual-acceptance document.
