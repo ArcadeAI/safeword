@@ -1,7 +1,15 @@
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
+
+import {
+  assertCodexPluginCatalogue,
+  assertCodexSkillMetadataBudget,
+  CODEX_SKILL_METADATA_LIMIT,
+  generateCodexPluginAssets,
+} from '../src/codex-plugin/catalogue.js';
 
 const CLI_ROOT = nodePath.resolve(import.meta.dirname, '..');
 const CANONICAL_SKILLS = nodePath.join(CLI_ROOT, 'templates/skills');
@@ -41,5 +49,35 @@ describe('generated Codex plugin catalogue', () => {
     const bddSkill = readFileSync(nodePath.join(PLUGIN_SKILLS, 'bdd/SKILL.md'), 'utf8');
     expect(bddSkill).toContain('references/DISCOVERY.md');
     expect(existsSync(nodePath.join(PLUGIN_SKILLS, 'bdd/references/DISCOVERY.md'))).toBe(true);
+  });
+
+  it('rejects missing phase material and unexpected generated workflow drift', () => {
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-plugin-catalogue-'));
+    const pluginDirectory = nodePath.join(fixture, 'codex-plugin');
+    try {
+      cpSync(nodePath.dirname(PLUGIN_SKILLS), pluginDirectory, { recursive: true });
+      assertCodexPluginCatalogue(CANONICAL_SKILLS, pluginDirectory);
+
+      rmSync(nodePath.join(pluginDirectory, 'skills/bdd/references/DISCOVERY.md'));
+      expect(() => assertCodexPluginCatalogue(CANONICAL_SKILLS, pluginDirectory)).toThrow(
+        'missing expected asset',
+      );
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
+  it('enforces Codex metadata discovery budget from generated skill frontmatter', () => {
+    const assets = generateCodexPluginAssets(CANONICAL_SKILLS);
+    expect(() => assertCodexSkillMetadataBudget(assets)).not.toThrow();
+
+    const oversized = [
+      ...assets,
+      {
+        relativePath: 'skills/oversized/SKILL.md',
+        content: `---\nname: oversized\ndescription: ${'x'.repeat(CODEX_SKILL_METADATA_LIMIT)}\n---\n`,
+      },
+    ];
+    expect(() => assertCodexSkillMetadataBudget(oversized)).toThrow('8000');
   });
 });
