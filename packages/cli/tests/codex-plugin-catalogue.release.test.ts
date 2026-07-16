@@ -1,4 +1,13 @@
-import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -62,6 +71,79 @@ describe('generated Codex plugin catalogue', () => {
       expect(() => {
         assertCodexPluginCatalogue(CANONICAL_SKILLS, pluginDirectory);
       }).toThrow('missing expected asset');
+
+      writeFileSync(
+        nodePath.join(pluginDirectory, 'skills/bdd/references/DISCOVERY.md'),
+        '# restored\n',
+      );
+      mkdirSync(nodePath.join(pluginDirectory, 'skills/unexpected'), { recursive: true });
+      writeFileSync(nodePath.join(pluginDirectory, 'skills/unexpected/SKILL.md'), '# unexpected\n');
+      expect(() => {
+        assertCodexPluginCatalogue(CANONICAL_SKILLS, pluginDirectory);
+      }).toThrow('unexpected asset');
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
+  it('allows only the documented source-to-Codex skill transformations', () => {
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-plugin-transform-'));
+    const canonicalSkillsDirectory = nodePath.join(fixture, 'skills');
+    try {
+      mkdirSync(nodePath.join(canonicalSkillsDirectory, 'alpha'), { recursive: true });
+      mkdirSync(nodePath.join(canonicalSkillsDirectory, 'beta'), { recursive: true });
+      writeFileSync(
+        nodePath.join(canonicalSkillsDirectory, 'alpha/SKILL.md'),
+        [
+          '---',
+          'name: alpha',
+          'description: Example transformation',
+          'allowed-tools: Bash',
+          '---',
+          '',
+          'Run /beta, preserve /outside, and consult TDD.md.',
+          '',
+        ].join('\n'),
+      );
+      writeFileSync(nodePath.join(canonicalSkillsDirectory, 'alpha/TDD.md'), '# TDD detail\n');
+      writeFileSync(
+        nodePath.join(canonicalSkillsDirectory, 'beta/SKILL.md'),
+        ['---', 'name: beta', 'description: Referenced skill', '---', '', '# Beta', ''].join('\n'),
+      );
+
+      expect(generateCodexPluginAssets(canonicalSkillsDirectory)).toEqual([
+        {
+          relativePath: nodePath.join('skills', 'alpha', 'SKILL.md'),
+          content:
+            '---\nname: alpha\ndescription: Example transformation\n---\n\nRun $safeword:beta, preserve /outside, and consult references/TDD.md.\n',
+        },
+        {
+          relativePath: nodePath.join('skills', 'alpha', 'references', 'TDD.md'),
+          content: '# TDD detail\n',
+        },
+        {
+          relativePath: nodePath.join('skills', 'beta', 'SKILL.md'),
+          content: '---\nname: beta\ndescription: Referenced skill\n---\n\n# Beta\n',
+        },
+      ]);
+
+      mkdirSync(nodePath.join(canonicalSkillsDirectory, 'unsupported'));
+      writeFileSync(
+        nodePath.join(canonicalSkillsDirectory, 'unsupported/SKILL.md'),
+        [
+          '---',
+          'name: unsupported',
+          'description: Unsupported metadata',
+          'not-supported: true',
+          '---',
+          '',
+          '# Unsupported',
+          '',
+        ].join('\n'),
+      );
+      expect(() => generateCodexPluginAssets(canonicalSkillsDirectory)).toThrow(
+        'unsupported metadata',
+      );
     } finally {
       rmSync(fixture, { recursive: true, force: true });
     }
