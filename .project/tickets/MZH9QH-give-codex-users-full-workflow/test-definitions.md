@@ -102,15 +102,15 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Packed package contains the complete generated plugin
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 1c047ebf
+- [x] GREEN 92f5b4c1
+- [x] REFACTOR skip: archive packing, extraction, and package validation are independently reusable helpers
 
 ### Scenario: Missing packed plugin asset rejects publication
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 1c047ebf
+- [x] GREEN 92f5b4c1
+- [x] REFACTOR skip: the deletion case calls the same archive validation path used for the real tarball
 
 ## Rule: workflow-maintenance.SWM1.R3 - Real cached installation
 
@@ -139,3 +139,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
+
+## Cross-scenario refactor
+
+- [ ] cross-scenario
