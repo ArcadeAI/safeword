@@ -4,9 +4,7 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-/* eslint-disable import-x/no-unresolved -- added in the GREEN phase below. */
-const cacheContract = await import('./helpers/codex-plugin-cache.js');
-/* eslint-enable import-x/no-unresolved */
+import * as cacheContract from './helpers/codex-plugin-cache.js';
 
 const CLI_ROOT = nodePath.resolve(import.meta.dirname, '..');
 const PLUGIN_ROOT = nodePath.join(CLI_ROOT, 'codex-plugin');
