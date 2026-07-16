@@ -44,7 +44,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 04c93b26
 - [x] GREEN 2263c57a
-- [ ] REFACTOR
+- [x] REFACTOR skip: GREEN decomposed scanner, block classification, and durable file operations into focused helpers
 
 ### Scenario: Initial migration does not clean up hooks without an explicit handoff request
 
