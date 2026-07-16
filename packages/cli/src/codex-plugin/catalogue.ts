@@ -54,7 +54,9 @@ function parseSkill(content: string, skill: string): { body: string; description
 }
 
 function adaptSkillBody(body: string, skillNames: string[], referenceNames: string[]): string {
-  let adapted = body;
+  // Canonical skills have one blank line after frontmatter. The generated
+  // frontmatter supplies that separator, so avoid duplicating it here.
+  let adapted = body.replace(/^\r?\n/u, '');
   for (const referenceName of referenceNames) {
     adapted = adapted.split(referenceName).join(`references/${referenceName}`);
   }
