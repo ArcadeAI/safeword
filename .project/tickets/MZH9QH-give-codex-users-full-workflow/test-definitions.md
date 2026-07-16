@@ -36,7 +36,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Initial plugin migration preserves legacy hooks and explains the handoff
 
-- [ ] RED
+- [x] RED 57971514
 - [ ] GREEN
 - [ ] REFACTOR
 

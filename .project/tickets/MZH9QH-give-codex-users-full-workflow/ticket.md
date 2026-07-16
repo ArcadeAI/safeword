@@ -44,3 +44,4 @@ last_modified: 2026-07-16T14:58:24.000Z
 
 - 2026-07-15T18:26:26.899Z Started: Created ticket MZH9QH
 - 2026-07-16T15:08:00.000Z RED: `bun run --cwd packages/cli test:bdd -- --tags '@codex-workflow.TBU1.R1'` reported two undefined scenarios and nine undefined steps for the first plugin-catalogue acceptance contract.
+- 2026-07-16T15:15:00.000Z RED: `bun run --cwd packages/cli test tests/commands/migrate-codex-plugin.test.ts` proved initial migration deletes legacy hooks and rejects the explicit `--remove-legacy-hooks` handoff command.
