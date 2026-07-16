@@ -177,6 +177,14 @@ command = 'safeword-tools hook codex pre-tool-use'
 [[hooks.PreToolUse.hooks]]
 type = "command"
 command = 'npx --yes safeword@evil hook codex pre-tool-use'
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = 'bunx --bun safeword@1.2.3 hook codex pre-tool-use'
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = 'safeword hook codex pre-tool-use'
 `;
     const configPath = nodePath.join(directory, '.codex/config.toml');
     writeFileSync(configPath, original);
@@ -195,6 +203,8 @@ command = 'npx --yes safeword@evil hook codex pre-tool-use'
     expect(migrated).not.toContain("command = 'npx --yes safeword hook codex pre-tool-use'");
     expect(migrated).toContain("command = 'safeword-tools hook codex pre-tool-use'");
     expect(migrated).toContain("command = 'npx --yes safeword@evil hook codex pre-tool-use'");
+    expect(migrated).toContain("command = 'bunx --bun safeword@1.2.3 hook codex pre-tool-use'");
+    expect(migrated).toContain("command = 'safeword hook codex pre-tool-use'");
     expect(readFileSync(`${configPath}.safeword.bak`, 'utf8')).toBe(original);
   });
 

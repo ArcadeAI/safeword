@@ -149,33 +149,11 @@ function isNpxSafeWordCommand(parts: string[]): boolean {
   return parts[0] === 'npx' && parts[1] === '--yes' && parts[2] === 'safeword';
 }
 
-function isDecimal(value: string): boolean {
-  if (value === '') return false;
-  for (const character of value) {
-    if (character < '0' || character > '9') return false;
-  }
-  return true;
-}
-
-function isPinnedSafeWordVersion(value: string): boolean {
-  const segments = value.split('.');
-  return segments.length === 3 && segments.every(segment => isDecimal(segment));
-}
-
-function isBunxSafeWordCommand(parts: string[]): boolean {
-  const packageVersion = parts[2]?.slice('safeword@'.length);
-  return (
-    parts[0] === 'bunx' &&
-    parts[1] === '--bun' &&
-    parts[2]?.startsWith('safeword@') === true &&
-    packageVersion !== undefined &&
-    isPinnedSafeWordVersion(packageVersion)
-  );
-}
-
 function safeWordCommandOffset(parts: string[]): number | undefined {
-  if (parts[0] === 'safeword') return 0;
-  if (isNpxSafeWordCommand(parts) || isBunxSafeWordCommand(parts)) return 2;
+  // Only project-local npx hooks were historically installed by Safe Word.
+  // Bunx commands belong to the profile plugin, and bare `safeword` commands
+  // may be user-authored, so neither can be retired automatically.
+  if (isNpxSafeWordCommand(parts)) return 2;
   return undefined;
 }
 
