@@ -4,13 +4,11 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-/* eslint-disable import-x/no-unresolved -- added in the GREEN phase below. */
 import {
   assertPackedCodexPlugin,
   extractPackedCliPackage,
   packCliPackage,
 } from './helpers/codex-plugin-package.js';
-/* eslint-enable import-x/no-unresolved */
 
 type HookEntry = { hooks?: { command?: string }[]; matcher?: string };
 
@@ -57,7 +55,9 @@ describe('Codex plugin release contract', () => {
       const archive = packCliPackage(root, fixture);
       const packageDirectory = extractPackedCliPackage(archive, fixture);
 
-      expect(() => assertPackedCodexPlugin(root, packageDirectory)).not.toThrow();
+      expect(() => {
+        assertPackedCodexPlugin(root, packageDirectory);
+      }).not.toThrow();
     } finally {
       rmSync(fixture, { recursive: true, force: true });
     }
@@ -71,9 +71,9 @@ describe('Codex plugin release contract', () => {
       const packageDirectory = extractPackedCliPackage(archive, fixture);
       rmSync(nodePath.join(packageDirectory, 'codex-plugin/skills/bdd/references/DISCOVERY.md'));
 
-      expect(() => assertPackedCodexPlugin(root, packageDirectory)).toThrow(
-        'missing expected asset',
-      );
+      expect(() => {
+        assertPackedCodexPlugin(root, packageDirectory);
+      }).toThrow('missing expected asset');
     } finally {
       rmSync(fixture, { recursive: true, force: true });
     }
