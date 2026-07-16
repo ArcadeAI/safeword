@@ -25,6 +25,7 @@ import {
 } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import nodePath from 'node:path';
+import process from 'node:process';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -259,6 +260,7 @@ function runVettedPluginDispatch(
 
 const CODEX = resolveCodex();
 const CAN_RUN = process.env.SAFEWORD_RUN_CODEX_LIVE_SMOKE === '1' && CODEX !== undefined;
+const KEEP_LIVE_FIXTURE = process.env.SAFEWORD_KEEP_CODEX_LIVE_FIXTURE === '1';
 
 describe.skipIf(!CAN_RUN)('live smoke: Codex packaged plugin parity', () => {
   let projectRoot: string;
@@ -286,6 +288,12 @@ describe.skipIf(!CAN_RUN)('live smoke: Codex packaged plugin parity', () => {
   });
 
   afterAll(() => {
+    if (KEEP_LIVE_FIXTURE) {
+      process.stdout.write(
+        `Preserved Codex trust fixture:\nCODEX_HOME=${codexHome}\nPROJECT_ROOT=${projectRoot}\nINSTALLED_PATH=${installedPath}\nBUNX_LOG=${nodePath.join(codexHome, BUNX_SHIM_LOG)}\n`,
+      );
+      return;
+    }
     rmSync(projectRoot, { recursive: true, force: true });
     rmSync(codexHome, { recursive: true, force: true });
   });

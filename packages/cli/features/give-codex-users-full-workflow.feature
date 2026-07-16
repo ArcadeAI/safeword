@@ -69,6 +69,7 @@ Feature: Give Codex users the full Safe Word workflow
   @codex-workflow.TBU1.R4
   Rule: codex-workflow.TBU1.R4 - An unreviewed or changed Safe Word plugin hook is visibly skipped until the builder trusts it in Codex
 
+    @live @manual
     Scenario: New plugin hooks require review before they run
       Given the generated Safe Word plugin is installed in a fresh isolated Codex profile
       And an unreviewed Safe Word plugin hook writes a unique marker when invoked
@@ -76,7 +77,7 @@ Feature: Give Codex users the full Safe Word workflow
       Then the session displays Codex's review-required warning with /hooks remediation
       And the Safe Word hook marker is absent
 
-    @rejection
+    @rejection @live @manual
     Scenario: Changed plugin hooks require review again
       Given the builder previously reviewed a Safe Word plugin hook through Codex /hooks
       And the generated Safe Word plugin is installed in an isolated Codex profile
