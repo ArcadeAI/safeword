@@ -78,10 +78,14 @@ const migrate = program.command('migrate').description('Migrate an agent integra
 
 migrate
   .command('codex-plugin')
-  .description('Move this project from legacy Codex hooks to the Safe Word plugin')
-  .action(async () => {
+  .description('Install the Safe Word Codex plugin and complete its explicit hook handoff')
+  .option(
+    '--remove-legacy-hooks',
+    'Remove Safe Word-owned legacy project hooks after reviewing the plugin hooks in Codex /hooks',
+  )
+  .action(async (options: { removeLegacyHooks?: boolean }) => {
     const { migrateCodexPlugin } = await import('./commands/migrate-codex-plugin.js');
-    migrateCodexPlugin();
+    migrateCodexPlugin(process.cwd(), { removeLegacyHooks: options.removeLegacyHooks === true });
   });
 
 program

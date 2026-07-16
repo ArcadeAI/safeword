@@ -6,6 +6,11 @@ Safe Word's Codex integration should be a plugin, not a set of installed project
 files. Existing projects need a deliberate migration that does not accidentally
 turn off their gates, duplicate hooks, or overwrite their own Codex settings.
 
+> **Superseded migration acceptance:** Ticket `MZH9QH` replaces this ticket's
+> one-step legacy-hook deletion with install, `/hooks` review, and explicit
+> `--remove-legacy-hooks` cleanup. Its feature source is authoritative for the
+> staged handoff and hook-trust behavior.
+
 ## Intake Brief
 
 - **Requested by:** Alex, while completing GitHub PR #993.

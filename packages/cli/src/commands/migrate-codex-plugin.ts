@@ -86,7 +86,10 @@ function removeLegacyHooks(cwd: string): { removed: boolean; backupCreated: bool
   return { removed: true, backupCreated };
 }
 
-export function migrateCodexPlugin(cwd = process.cwd()): void {
+export function migrateCodexPlugin(
+  cwd = process.cwd(),
+  options: { removeLegacyHooks?: boolean } = {},
+): void {
   run('bun', ['--version']);
   run('codex', ['--version']);
   run('codex', [
@@ -116,8 +119,15 @@ export function migrateCodexPlugin(cwd = process.cwd()): void {
     );
   }
 
-  const cleanup = removeLegacyHooks(cwd);
   success('Safe Word Codex plugin is enabled for this profile.');
+  if (!options.removeLegacyHooks) {
+    info(
+      'Legacy project hooks were left unchanged. Review the Safe Word plugin hooks in Codex with /hooks, then run `safeword migrate codex-plugin --remove-legacy-hooks` to complete the handoff.',
+    );
+    return;
+  }
+
+  const cleanup = removeLegacyHooks(cwd);
   if (cleanup.backupCreated) {
     info('Backed up the legacy Codex configuration to .codex/config.toml.safeword.bak.');
   }

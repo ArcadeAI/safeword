@@ -2,6 +2,11 @@
 
 Feature source: `packages/cli/features/migrate-codex-to-plugin.feature`
 
+> **Superseded migration acceptance:** Ticket `MZH9QH` owns the staged
+> install-review-cleanup handoff. This historical ledger remains as the record
+> of the original migration work; do not use its old one-step cleanup acceptance
+> as current behavior.
+
 ## Rule: migrate-codex-to-plugin.TB1.R1 - Standard setup and upgrade never change a user's Codex profile or remove existing legacy hooks
 
 ### Scenario: Upgrade retains legacy hooks until explicit migration
