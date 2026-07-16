@@ -66,7 +66,7 @@ describe('migrate codex-plugin command', () => {
     directories.length = 0;
   });
 
-  it('removes legacy hooks only after Codex reports the plugin enabled', async () => {
+  it('leaves legacy hooks untouched and explains the reviewed-plugin handoff', async () => {
     const directory = createTemporaryDirectory();
     directories.push(directory);
     mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
@@ -85,13 +85,16 @@ describe('migrate codex-plugin command', () => {
     });
 
     expect(result.exitCode, result.stderr).toBe(0);
-    expect(readFileSync(nodePath.join(directory, '.codex/config.toml'), 'utf8')).not.toContain(
-      'safeword hook codex pre-tool-use',
+    expect(readFileSync(nodePath.join(directory, '.codex/config.toml'), 'utf8')).toBe(
+      LEGACY_HOOK_CONFIG,
     );
+    expect(`${result.stdout}\n${result.stderr}`).toContain('/hooks');
+    expect(`${result.stdout}\n${result.stderr}`).toContain('--remove-legacy-hooks');
+    expect(existsSync(nodePath.join(directory, '.codex/config.toml.safeword.bak'))).toBe(false);
     expect(readFileSync(log, 'utf8')).toContain('plugin list --json');
   });
 
-  it('preserves trailing user configuration and creates a Safe Word backup', async () => {
+  it('removes legacy hooks only after the explicit handoff cleanup request', async () => {
     const directory = createTemporaryDirectory();
     directories.push(directory);
     mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
@@ -102,7 +105,7 @@ describe('migrate codex-plugin command', () => {
     writeFileSync(configPath, original);
     const bin = installFakeRuntime(directory, true);
 
-    const result = await runCli(['migrate', 'codex-plugin'], {
+    const result = await runCli(['migrate', 'codex-plugin', '--remove-legacy-hooks'], {
       cwd: directory,
       env: {
         PATH: `${bin}:${process.env.PATH ?? ''}`,
@@ -120,7 +123,7 @@ describe('migrate codex-plugin command', () => {
     );
   });
 
-  it('removes only the Safe Word handler when an event group also has a custom handler', async () => {
+  it('removes only the Safe Word handler during explicit handoff cleanup', async () => {
     const directory = createTemporaryDirectory();
     directories.push(directory);
     mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
@@ -131,7 +134,7 @@ describe('migrate codex-plugin command', () => {
     writeFileSync(configPath, original);
     const bin = installFakeRuntime(directory, true);
 
-    const result = await runCli(['migrate', 'codex-plugin'], {
+    const result = await runCli(['migrate', 'codex-plugin', '--remove-legacy-hooks'], {
       cwd: directory,
       env: {
         PATH: `${bin}:${process.env.PATH ?? ''}`,
