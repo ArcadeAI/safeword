@@ -137,3 +137,23 @@ The automated run measures false POSITIVES (bad findings) — run #2 = zero. It 
 - **2088 (IAM — a miss = over-broad cloud permission).** The reviewer's least-privilege silence: verified `Resource="*"` appears only on `ecr-public:GetAuthorizationToken` + `sts:GetServiceBearerToken` (the two auth actions AWS requires it for); all write actions are ARN-scoped to `charts-staging/*`. **Holds.**
 
 Combined with the two verified findings that also held (2049, 2111): across the full checkable sample, **zero false negatives found.** This is corroboration, not proof — most of the 7 safe calls still need a human who knows the code (the architect question). But the two scariest are independently checked.
+
+## Open-PR run (2026-07-16) — the LIVE use case, 5 currently-open arcade PRs
+
+First run against **unmerged** PRs (the actual product surface — review before merge). Same skill, pinned trees, nothing posted.
+
+| PR | verdict | finding |
+| --- | --- | --- |
+| 2133 (Google Picker app_id) | safe-to-merge | 0 — applied the "ticket plainly describes more work → treat as broader" fallback, declined a disclosed-follow-up false gap |
+| 2144 (tool-search impl) | safe-to-merge | 0 — verified the search filter runs AFTER access hooks (no back-door to hidden tools), impl matches spec #2061 |
+| 2119 (gmail triage, 3031L) | safe-to-merge | 1 — **scope**: an OAuth scope reduction on `who_am_i` (drops userinfo.profile/email) bundled into a triage-verbs PR |
+| 2145 (MCP OAuth elicitation) | **needs-a-human** | 1 — **doc-drift**: PR body documents an abandoned `-32021`/HTTP-400 path; code ships a non-error auth steer — opposite behavior, and the body is the permanent squash record |
+| 2118 (auth redirect-loop fix) | **needs-a-human** | 1 — **evidence-integrity**: the test named for the anti-loop invariant uses `toMatchObject`, so it'd pass even if the fallback re-added `auto_login` and the loop returned |
+
+**5 PRs, 3 findings, 0 blocking, 2 needs-a-human, 3 safe-to-merge. I independently verified all 3 findings at the head SHA — zero false positives.**
+
+Why these matter (the wedge on live PRs): none is a generic bug a linter/Bugbot catches — each needed the change read against its intent/context. A tiny auth-scope change buried in 3k lines; a body that will mislead the next debugger on an OAuth path; a test that looks like it guards the exact bug the PR fixes but doesn't. Both needs-a-human verdicts are legitimate: 2145 (durable record contradicts code on a security path) and 2118 (production-correctness depends on out-of-repo Ory-console config a human must coordinate; PR is CONFLICTING; empty body = zero self-disclosure on a high-stakes auth PR).
+
+Discipline observed: 2145 navigated a real trap — the ticket AC says the degraded path should be an error, so "code violates AC" looked true; the reviewer read the review thread, saw the maintainer had flipped that design to non-error and the author complied, subtracted the false reading, and landed on the real (stale-body) issue. That is the counter-evidence/subtraction machinery preventing a confident false positive on exactly the kind of intent-vs-code mismatch that is this tool's headline risk.
+
+**Caveats unchanged:** same-model (declared), my classification, actively-reviewed PRs so cleanliness is partly the corpus, nothing posted, n=5. Distinct from the two merged runs in that these findings are actionable NOW (pre-merge) if the authors want them.
