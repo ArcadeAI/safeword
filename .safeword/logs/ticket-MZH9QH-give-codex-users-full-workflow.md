@@ -12,3 +12,4 @@
 - [15:41] Committed executable acceptance bindings as `47f89f44`; the safe BDD lane passed 83 scenarios and 986 steps.
 - [15:44] Recorded TDD, characterization, and manual-live evidence separately in the R/G/R ledger. Manual trust acceptance remains explicitly outside ordinary CI because Codex exposes the warning only in its interactive TUI.
 - [15:45] Corrected the ledger to its machine-readable contract: RED and GREEN cells contain distinct single commit SHAs, while explanation remains in this log and the manual-acceptance document.
+- [16:22] Verification found and isolated an unrelated setup failure: generated Rust skill files under `.agents` and `.claude` contaminated shell-source detection after dependency selection. Added a detector regression; excluding agent configuration roots restored all 48 Rust golden-path tests.

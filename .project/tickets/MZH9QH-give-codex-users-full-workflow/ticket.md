@@ -2,6 +2,7 @@
 id: MZH9QH
 slug: give-codex-users-full-workflow
 type: feature
+subtype: bug-investigated
 phase: verify
 status: in_progress
 phase_anchors:
@@ -32,7 +33,7 @@ done_when:
   - Codex persona-lineage coverage reads the packaged plugin model rather than retired repository-local BDD files, and Claude Code and Cursor regression checks remain unchanged.
   - The published documentation explains complete scoped skill availability, the two-step migration, and Bunx-only hooks.
 created: 2026-07-15T18:26:26.899Z
-last_modified: 2026-07-16T15:45:00.000Z
+last_modified: 2026-07-16T16:22:18.000Z
 ---
 
 # Give Codex users the full Safe Word workflow
@@ -50,3 +51,28 @@ last_modified: 2026-07-16T15:45:00.000Z
 - 2026-07-16T15:41:42.000Z GREEN: `47f89f44` bound every deterministic scenario to real generator, package, cache, setup, and hook-policy contracts; `bun run --cwd packages/cli test:bdd` passed 83 scenarios and 986 steps.
 - 2026-07-16T15:44:26.000Z Phase transition: all executable scenarios are green; manual Codex trust evidence is recorded in `packages/cli/tests/smoke/codex-plugin-manual-acceptance.md`. Moving to verification.
 - 2026-07-16T15:45:00.000Z Process correction: normalized the R/G/R ledger to the ticket validator's one-distinct-SHA-per-RED/GREEN contract; explanatory provenance remains in the ticket work log.
+- 2026-07-16T16:22:18.000Z Verification fix: full-suite Rust setup exposed an unrelated detector self-contamination bug. The targeted detector and full Rust golden-path suites pass after the narrow correction; see Root Cause below.
+
+## Root Cause
+
+Fresh Rust setup initially finds no project shell source, so it correctly omits
+`prettier-plugin-sh` from the first dependency install. Before the setup
+self-health check, language-skill installation creates
+`.agents/skills/rust-skills/checks/check.sh` and a matching `.claude` copy.
+The second project scan incorrectly treats those generated agent files as user
+shell source, reports the plugin as missing, and makes an otherwise successful
+setup exit 1.
+
+Confirmed by a retained fresh Rust fixture: dependency installation completed,
+then health reported only `prettier-plugin-sh` missing. The regression test
+fails before agent configuration roots are excluded and passes after; the full
+Rust golden-path file then passes 48 tests.
+
+Ruled out:
+
+- The Codex plugin-only schema change: it changes only the `.codex` shared
+  scaffold and does not participate in package detection.
+- Safe Word's own `.safeword` hook scripts: the shell detector already excluded
+  that directory.
+- A package-manager failure: setup reported successful dependency installation;
+  the false missing-package result came from the later health scan.
