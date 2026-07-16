@@ -14,9 +14,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Missing phase material rejects the plugin release
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED b7b0d9a1
+- [x] GREEN 0779e386
+- [x] REFACTOR skip: exact checked-in asset comparison is already isolated in the catalogue contract
 
 ## Rule: codex-workflow.TBU1.R2 - Project stays free of workflow material
 
@@ -76,21 +76,21 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Allowed adaptations preserve workflow meaning
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 5c6996c8
+- [x] GREEN 6c46b259
+- [x] REFACTOR skip: parsing, transformation, and output formatting remain independently named helpers
 
 ### Scenario: Generated skill metadata fits Codex's documented fallback discovery budget
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED b7b0d9a1
+- [x] GREEN 0779e386
+- [x] REFACTOR skip: budget measurement is a small pure helper shared by source and release contracts
 
 ### Scenario: Over-budget skill metadata rejects the plugin release
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED b7b0d9a1
+- [x] GREEN 0779e386
+- [x] REFACTOR skip: the contract injects only metadata and exercises the production budget guard directly
 
 ### Scenario: Unexpected workflow drift rejects generation
 
