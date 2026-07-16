@@ -155,9 +155,13 @@ A team drowning in agent-written PRs needs one thing above all: **which PRs to o
 | `needs-a-human` | Something warrants real attention. Say what, in one line, actionable **without opening the diff**. |
 | `not-reviewable-as-is` | So many real problems that enumerating them is the wrong response — it needs restructuring or splitting. Use this **instead of** a flood. |
 
-### 7a. Off-topic-but-real findings — route, never drop, never comment
+### 7a. Off-topic-but-real findings — report in the run summary, never on the PR
 
-A finding that fails §3.5's on-topic test (true, but equally true before this PR) is not worthless — it is mis-addressed. It does **not** go on the PR. It goes to the codebase-sweep backlog: a separate, severity-ranked queue for latent bugs, triaged across the whole repo rather than bolted onto whoever happened to touch the file. Whether safeword owns that sweep or feeds an existing one (arcade already runs a security-sweep agent) is an open product question — see the epic. Until it is answered, collect these in the run summary under `off_topic_routed`, do not post them, and do not lose them.
+A finding that fails §3.5's on-topic test (true, but equally true before this PR) is not worthless — it is mis-addressed. **Decided 2026-07-16: this reviewer is PR-scoped only. There is no sweep, and we build no routing infrastructure for these** — a whole codebase-sweep product to catch the ~9% of findings that are off-topic is the tail wagging the dog, and the pain we were hired to fix is on PRs.
+
+So an off-topic finding goes in **one** place: the reviewer's own run summary, under `off_topic_observations`, which is **never posted to the PR**. Whoever runs or monitors the reviewer sees it in the run output; the PR author never does. The rare real one is a human's to carry wherever it belongs. This adds no queue, no nightly job, no repo scan — the finding was already a byproduct of reviewing *this diff* (the trial's leak surfaced from a deflake's own test comment), so capturing it costs nothing and scanning nothing.
+
+**Watch the off-topic rate.** In the trial it was 1 of 11. If it climbs, the reviewer is using this section as an escape hatch to dodge the on-topic bar — that is a miscalibrated §3.5 gate, not a productivity gain.
 
 ## 8. Independence — declare it, never imply it
 

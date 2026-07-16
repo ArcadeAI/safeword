@@ -136,7 +136,7 @@
 ### autonomous-pr-review
 
 - **Autonomous PR review at the intent-conformance bar (WAWQA6)** (in_progress, epic: autonomous-pr-review)
-  Review open PRs autonomously via GitHub Action, on the dimensions no linter or generic AI reviewer covers: intent conformance, scope discipline, alternatives, blast radius.
+  Review open PRs autonomously via GitHub Action — route human attention with a triage verdict, and report only what a project's own tooling cannot: what breaks in production, whether the tests prove anything, and whether the change matches the intent declared before the code.
   blocks: Detect the authoring model for cross-model PR review (X1Z5MG)
   → `.project/tickets/WAWQA6-autonomous-pr-review`
 

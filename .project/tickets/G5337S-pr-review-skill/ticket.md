@@ -87,3 +87,17 @@ The probe's local arcade checkout was **483 commits behind origin/main, on a WIP
 4. **`gh pr view --json mergeCommitOid` returned EMPTY for all four merged PRs** (squash-merge and/or permissions). So "pin to the merge commit" is not reliably available — the skill needs a fallback chain (head SHA → base SHA → diff-only) rather than assuming a merge SHA exists.
 
 **Meta-observation worth keeping:** the deepest verification in the entire session (the adversarial pass, 23 tool calls, `gh api` against the merged tree) produced the most consequential result — catching that the flagship's fix was a regression. Depth of digging correlated with value of finding, exactly as Bacchelli & Bird predict ("finding defects requires the most understanding of any outcome"). The corollary is uncomfortable: the probe's *median* reviewer dug less than that, so its findings deserve less confidence than its confident prose implies.
+
+## Design decision 2026-07-16: PR-scoped only (no sweep)
+
+User: "stay on PR. that's where we feel pain today." Settles the fork the architect's noise complaint opened.
+
+Grounded in a re-audit of all 11 trial findings against §3.5's on-topic test ("would this be equally true if the PR didn't exist?"): **exactly 1 of 11 is off-topic** — the posted goroutine leak, i.e. the one that drew the complaint. Staying PR-only costs 9% of findings on this sample, and the 9% is precisely what a maintainer told us was noise. Cheap trade.
+
+What it changes here:
+
+- §7a: off-topic findings → run-summary `off_topic_observations` only, never on the PR, **no routing infrastructure**. A sweep product to catch 9% is the tail wagging the dog.
+- §3.5's on-topic gate becomes **critical-path**: with no sweep as a safety net, it is the only defense against the exact noise we already shipped once. Its calibration matters more than any other single rule.
+- Dimension re-rank under the on-topic filter: **evidence integrity 3/3 change-caused, co-leads blast radius 3/4.** "The tests this PR added don't prove what they claim" is the most PR-native value and is invisible to Bugbot + skimming humans because CI is green. Elevate it in the skill's framing.
+- Delivery surface confirmed with zero ambiguity: GitHub PR review comments + verdict, on ready-for-review/label. No dashboard, no digest, no Linear auto-post.
+- Cost/context bounded: per-PR (diff + linked ticket + targeted reads), ~225 runs/month, never a whole-repo scan.
