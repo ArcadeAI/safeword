@@ -32,12 +32,16 @@ matcher = "^custom$"
 type = "command"
 command = 'echo custom'
 `;
+const CUSTOM_CODEX_CONFIGURATION = `[mcp_servers.github]
+command = "gh-mcp"
+`;
 
 interface MigrationWorld extends SafewordWorld {
   migrationDirectory?: string;
   migrationBin?: string;
   migrationResult?: { stdout: string; stderr: string; exitCode: number };
   originalCodexConfig?: string;
+  customCodexConfiguration?: string;
   releaseContractRejected?: boolean;
   packedPlugin?: boolean;
 }
@@ -104,9 +108,11 @@ esac
   world.migrationBin = bin;
 }
 
-function migrate(world: MigrationWorld, withoutBun = false): void {
+function migrate(world: MigrationWorld, shouldRemoveLegacyHooks = false, withoutBun = false): void {
   const directory = worldDirectory(world);
-  world.migrationResult = runCli(['migrate', 'codex-plugin'], directory, {
+  const arguments_ = ['migrate', 'codex-plugin'];
+  if (shouldRemoveLegacyHooks) arguments_.push('--remove-legacy-hooks');
+  world.migrationResult = runCli(arguments_, directory, {
     PATH: withoutBun ? '' : `${world.migrationBin}:${process.env.PATH ?? ''}`,
   });
 }
@@ -121,6 +127,10 @@ function migrationOutput(world: MigrationWorld): string {
 
 function codexConfigPath(world: MigrationWorld): string {
   return nodePath.join(worldDirectory(world), '.codex/config.toml');
+}
+
+function assertLegacyHooksUnchanged(world: MigrationWorld): void {
+  assert.equal(codexConfig(world), world.originalCodexConfig);
 }
 
 After(function (this: MigrationWorld) {
@@ -147,6 +157,42 @@ Given(
     installRuntime(this, 'enabled');
   },
 );
+
+Given(
+  'a project has Safe Word legacy hooks and custom Codex configuration',
+  function (this: MigrationWorld) {
+    createFixture(this, `${LEGACY_HOOK}\n${CUSTOM_HOOK}\n${CUSTOM_CODEX_CONFIGURATION}`);
+    this.customCodexConfiguration = `${CUSTOM_HOOK}\n${CUSTOM_CODEX_CONFIGURATION}`;
+    installRuntime(this, 'enabled');
+  },
+);
+
+Given('a project has Safe Word legacy hooks', function (this: MigrationWorld) {
+  createFixture(this, `${LEGACY_HOOK}\n`);
+  installRuntime(this, 'enabled');
+});
+
+Given(
+  'the Safe Word plugin is installed but its hooks have not been reviewed',
+  function (this: MigrationWorld) {
+    installRuntime(this, 'enabled');
+  },
+);
+
+Given(
+  'the Safe Word plugin is installed and the legacy hooks remain',
+  function (this: MigrationWorld) {
+    installRuntime(this, 'enabled');
+  },
+);
+
+Given('the Safe Word plugin is already installed', function (this: MigrationWorld) {
+  installRuntime(this, 'enabled');
+});
+
+Given('the Safe Word plugin cannot be installed', function (this: MigrationWorld) {
+  installRuntime(this, 'install-fails');
+});
 
 Given('a project has no Codex configuration', function (this: MigrationWorld) {
   const directory = createTemporaryDirectory();
@@ -189,6 +235,20 @@ When('the builder migrates Codex to the plugin', function (this: MigrationWorld)
   migrate(this);
 });
 
+When(
+  'the builder explicitly confirms hook review and requests handoff cleanup',
+  function (this: MigrationWorld) {
+    migrate(this, true);
+  },
+);
+
+When(
+  'the builder runs the initial Codex plugin migration without requesting handoff cleanup',
+  function (this: MigrationWorld) {
+    migrate(this);
+  },
+);
+
 Given('a plugin hook command is unpinned or uses npx', function (this: MigrationWorld) {
   this.releaseContractRejected = true;
 });
@@ -224,7 +284,15 @@ Then(
 );
 
 Then('the legacy Codex hooks remain unchanged', function (this: MigrationWorld) {
-  assert.equal(codexConfig(this), this.originalCodexConfig);
+  assertLegacyHooksUnchanged(this);
+});
+
+Then('the legacy Safe Word hooks remain in the project', function (this: MigrationWorld) {
+  assertLegacyHooksUnchanged(this);
+});
+
+Then('the legacy Safe Word hooks remain unchanged', function (this: MigrationWorld) {
+  assertLegacyHooksUnchanged(this);
 });
 
 Then('the project has no Safe Word Codex hook configuration', function (this: MigrationWorld) {
@@ -251,4 +319,41 @@ Then('the migration fails with a remediation message', function (this: Migration
 
 Then('the custom Codex hook remains unchanged', function (this: MigrationWorld) {
   assert.ok(codexConfig(this).includes("command = 'echo custom'"));
+});
+
+Then(
+  'the builder is told to review the Safe Word hooks in Codex before cleanup',
+  function (this: MigrationWorld) {
+    const output = migrationOutput(this);
+    assert.ok(output.includes('/hooks'));
+    assert.ok(output.includes('--remove-legacy-hooks'));
+  },
+);
+
+Then('the project has no legacy Safe Word hooks', function (this: MigrationWorld) {
+  assert.ok(!codexConfig(this).includes('safeword hook codex'));
+});
+
+Then('the custom Codex configuration remains unchanged', function (this: MigrationWorld) {
+  assert.ok(
+    this.customCodexConfiguration !== undefined,
+    'custom configuration was not initialized',
+  );
+  assert.ok(codexConfig(this).includes(this.customCodexConfiguration));
+});
+
+Then(
+  'Safe Word reports the installed plugin and the required hook-review handoff',
+  function (this: MigrationWorld) {
+    assert.equal(this.migrationResult?.exitCode, 0, migrationOutput(this));
+    const output = migrationOutput(this);
+    assert.ok(output.includes('enabled'));
+    assert.ok(output.includes('/hooks'));
+    assert.ok(output.includes('--remove-legacy-hooks'));
+  },
+);
+
+Then('the migration fails with remediation instructions', function (this: MigrationWorld) {
+  assert.notEqual(this.migrationResult?.exitCode, 0);
+  assert.ok(migrationOutput(this).length > 0);
 });
