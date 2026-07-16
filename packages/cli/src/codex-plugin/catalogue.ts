@@ -10,12 +10,21 @@ export interface GeneratedPluginAsset {
 
 export const CODEX_SKILL_METADATA_LIMIT = 8000;
 
-interface CanonicalSkillMetadata {
+interface CanonicalSkillMetadata extends Record<string, unknown> {
   name?: unknown;
   description?: unknown;
 }
 
 const FRONTMATTER = /^---\r?\n(?<metadata>[\s\S]*?)\r?\n---\r?\n/u;
+const SUPPORTED_SOURCE_METADATA = new Set([
+  'name',
+  'description',
+  'allowed-tools',
+  'disallowed-tools',
+  'disable-model-invocation',
+  'effort',
+  'user-invocable',
+]);
 
 function markdownFiles(directory: string, prefix = ''): string[] {
   return readdirSync(directory, { withFileTypes: true })
@@ -36,13 +45,28 @@ function canonicalSkillPath(relativePath: string): { skill: string; filename: st
   return { skill, filename };
 }
 
+function isCanonicalSkillMetadata(value: unknown): value is CanonicalSkillMetadata {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 function parseSkill(content: string, skill: string): { body: string; description: string } {
   const frontmatter = FRONTMATTER.exec(content);
   if (frontmatter?.groups?.metadata === undefined) {
     throw new Error(`canonical skill ${skill} has no YAML frontmatter`);
   }
 
-  const metadata = parse(frontmatter.groups.metadata) as CanonicalSkillMetadata;
+  const metadata = parse(frontmatter.groups.metadata);
+  if (!isCanonicalSkillMetadata(metadata)) {
+    throw new Error(`canonical skill ${skill} has invalid metadata`);
+  }
+
+  const unsupportedMetadata = Object.keys(metadata).find(
+    key => !SUPPORTED_SOURCE_METADATA.has(key),
+  );
+  if (unsupportedMetadata !== undefined) {
+    throw new Error(`canonical skill ${skill} has unsupported metadata: ${unsupportedMetadata}`);
+  }
+
   if (metadata.name !== skill || typeof metadata.description !== 'string') {
     throw new Error(`canonical skill ${skill} has invalid name or description metadata`);
   }
