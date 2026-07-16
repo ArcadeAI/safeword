@@ -153,6 +153,86 @@ describe('migrate codex-plugin command', () => {
     );
   });
 
+  it('refuses explicit cleanup when the Codex configuration is malformed', async () => {
+    const directory = createTemporaryDirectory();
+    directories.push(directory);
+    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+    mkdirSync(nodePath.join(directory, '.codex'), { recursive: true });
+    writeFileSync(nodePath.join(directory, '.safeword/version'), '0.68.0\n');
+    const original = `${LEGACY_HOOK_CONFIG}\n[broken\n`;
+    const configPath = nodePath.join(directory, '.codex/config.toml');
+    writeFileSync(configPath, original);
+    const bin = installFakeRuntime(directory, true);
+
+    const result = await runCli(['migrate', 'codex-plugin', '--remove-legacy-hooks'], {
+      cwd: directory,
+      env: {
+        PATH: `${bin}:${process.env.PATH ?? ''}`,
+        SAFEWORD_CODEX_LOG: nodePath.join(directory, 'codex.log'),
+      },
+    });
+
+    expect(result.exitCode).not.toBe(0);
+    expect(readFileSync(configPath, 'utf8')).toBe(original);
+    expect(existsSync(nodePath.join(directory, '.codex/config.toml.safeword.bak'))).toBe(false);
+  });
+
+  it('does not treat a Safe Word marker in a comment as an owned handler', async () => {
+    const directory = createTemporaryDirectory();
+    directories.push(directory);
+    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+    mkdirSync(nodePath.join(directory, '.codex'), { recursive: true });
+    writeFileSync(nodePath.join(directory, '.safeword/version'), '0.68.0\n');
+    const original = `[[hooks.PreToolUse]]
+matcher = "^custom$"
+
+[[hooks.PreToolUse.hooks]]
+# former command: bunx --bun safeword@0.68.0 hook codex pre-tool-use
+type = "command"
+command = 'echo "keep this user hook"'
+`;
+    const configPath = nodePath.join(directory, '.codex/config.toml');
+    writeFileSync(configPath, original);
+    const bin = installFakeRuntime(directory, true);
+
+    const result = await runCli(['migrate', 'codex-plugin', '--remove-legacy-hooks'], {
+      cwd: directory,
+      env: {
+        PATH: `${bin}:${process.env.PATH ?? ''}`,
+        SAFEWORD_CODEX_LOG: nodePath.join(directory, 'codex.log'),
+      },
+    });
+
+    expect(result.exitCode, result.stderr).toBe(0);
+    expect(readFileSync(configPath, 'utf8')).toBe(original);
+    expect(existsSync(nodePath.join(directory, '.codex/config.toml.safeword.bak'))).toBe(false);
+  });
+
+  it('refuses cleanup instead of replacing an existing Safe Word backup', async () => {
+    const directory = createTemporaryDirectory();
+    directories.push(directory);
+    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+    mkdirSync(nodePath.join(directory, '.codex'), { recursive: true });
+    writeFileSync(nodePath.join(directory, '.safeword/version'), '0.68.0\n');
+    const configPath = nodePath.join(directory, '.codex/config.toml');
+    writeFileSync(configPath, LEGACY_HOOK_CONFIG);
+    const backupPath = `${configPath}.safeword.bak`;
+    writeFileSync(backupPath, 'existing backup\n');
+    const bin = installFakeRuntime(directory, true);
+
+    const result = await runCli(['migrate', 'codex-plugin', '--remove-legacy-hooks'], {
+      cwd: directory,
+      env: {
+        PATH: `${bin}:${process.env.PATH ?? ''}`,
+        SAFEWORD_CODEX_LOG: nodePath.join(directory, 'codex.log'),
+      },
+    });
+
+    expect(result.exitCode).not.toBe(0);
+    expect(readFileSync(configPath, 'utf8')).toBe(LEGACY_HOOK_CONFIG);
+    expect(readFileSync(backupPath, 'utf8')).toBe('existing backup\n');
+  });
+
   it('retains legacy hooks when Codex reports the plugin disabled', async () => {
     const directory = createTemporaryDirectory();
     directories.push(directory);
