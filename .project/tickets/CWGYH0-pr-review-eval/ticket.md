@@ -128,3 +128,12 @@ I independently verified two silences/findings at the merge SHA: 2049's "cache-s
 **Caveats:** same-model-family (declared, not truly cross-model); my corpus selection + my classification; the harder corpus was also genuinely cleaner (more-scrutinized PRs), so high silence is partly the corpus, not only precision; still untriaged by arcade engineers. n=8, one repo.
 
 **What it settles:** the accumulated skill is markedly more disciplined than run #1 (which needed the fix gate invented mid-run). And it directly grounds the 2026-07-16 decision to reject the debug/figure-it-out import — the target behaviors already emerged here without those instructions.
+
+### False-negative spot-probe (2026-07-16, while awaiting architect triage)
+
+The automated run measures false POSITIVES (bad findings) — run #2 = zero. It structurally CANNOT measure false NEGATIVES (a wrong `safe-to-merge` that hides a real problem); only someone who knows the code can. As a bounded hedge, I adversarially probed the two highest-stakes `safe-to-merge` verdicts myself — the ones where a miss would hurt most — targeting each reviewer's most consequential judgment call:
+
+- **2064 (CI caching — a miss ships stale artifacts everywhere).** The reviewer waved off Bugbot's "remote cache lacks token scope" as harmless. Verified at merge SHA: `TURBO_CACHE_ACCESS = github.ref=='refs/heads/main' ? 'remote:rw' : 'remote:r'` — PRs are read-only on the remote cache, so a PR structurally cannot poison main's cache. Downgrade correct. **Holds.**
+- **2088 (IAM — a miss = over-broad cloud permission).** The reviewer's least-privilege silence: verified `Resource="*"` appears only on `ecr-public:GetAuthorizationToken` + `sts:GetServiceBearerToken` (the two auth actions AWS requires it for); all write actions are ARN-scoped to `charts-staging/*`. **Holds.**
+
+Combined with the two verified findings that also held (2049, 2111): across the full checkable sample, **zero false negatives found.** This is corroboration, not proof — most of the 7 safe calls still need a human who knows the code (the architect question). But the two scariest are independently checked.
