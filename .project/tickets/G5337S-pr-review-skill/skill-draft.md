@@ -82,9 +82,25 @@ A ticket often covers **more** work than the PR in front of you — an epic-gran
 
 This is the same move safeword already makes in `experiments/gepa-review-spec/src/evaluator.ts`: false alarms are counted **only** on bases certified clean, because "precision over an under-labeled positive corpus is formally unidentifiable." Generalized: **only measure the direction your reference set can support.**
 
+## 3.5 Scope every finding to THIS diff — the gate that decides noise
+
+**A finding can be true, verified, and still noise — because noise is not falseness, it is content in the wrong channel.** This gate is the one the other gates cannot cover: they all check whether a finding is *true*, and this one is about whether it *belongs here*.
+
+The test, applied to every finding before it is posted:
+
+> **Would this finding be equally true if this PR did not exist?**
+> **Yes** → the PR did not cause it, and the PR's author is not its owner. It is a *codebase* finding, not a *change* finding. Do **not** comment it on the PR. Route it elsewhere (§7a).
+> **No** — the finding exists only because of what this diff changed → it is on-topic. Proceed.
+
+Worked: a goroutine leak in code the PR merely *touched but did not modify* is equally true before the PR — **off-topic**, however real. A missing `connect_timeout` on a retry helper the PR *introduced* is not true before the PR — **on-topic**. Age is a tell: "this bug is 18 months old" almost always means "equally true before this PR."
+
+Commenting on code the diff only touched is the exact **scope-creep this reviewer exists to flag** (dimension 4) — committed by the reviewer, against the author. Run dimension 4 on your own output. Real external reaction that produced this gate: a maintainer read an off-topic-but-true finding on a clean PR and called it *"noise I would ignore… if it were a nightly codebase sweep, that's different."* The content was fine; the channel was wrong.
+
 ## 4. The dimensions — ordered by what actually pays
 
-Only these. Everything else belongs to someone else's tool. The order is not taste: it is what the arcade trial measured across 11 findings (blast radius 4, evidence integrity 3, intent conformance 2, doc drift 1, unanswered-author 1, alternatives **0**).
+Only these, and only when they pass §3.5's on-topic test. Everything else belongs to someone else's tool. The order is not taste: it is what the arcade trial measured across 11 findings (blast radius 4, evidence integrity 3, intent conformance 2, doc drift 1, unanswered-author 1, alternatives **0**).
+
+**Blast radius splits on the §3.5 test.** Some blast-radius findings are about code the diff *introduced* (on-topic); some are latent bugs in code it *touched* (off-topic, route to a sweep). The highest-yield dimension is also the one most likely to wander off-topic — the posted goroutine leak was exactly this failure. Check scope before severity.
 
 **The ticket is your evidence base, not your checklist.** Only 2 of 11 findings were "this didn't match the ticket." The ticket's real work is making a finding *sizable*: reading the code alone gives you "no `connect_timeout` is set" — true, unsizable, ignorable. The ticket's incident forensics ("a 134-second TCP timeout to Aurora") turn the same observation into "~7 minutes before anyone is paged instead of ~2." Same fact; only one of them gets acted on. Read the ticket for **what it lets you measure**, not for boxes to tick.
 
@@ -138,6 +154,10 @@ A team drowning in agent-written PRs needs one thing above all: **which PRs to o
 | `safe-to-merge` | Nothing here needs an engineer. |
 | `needs-a-human` | Something warrants real attention. Say what, in one line, actionable **without opening the diff**. |
 | `not-reviewable-as-is` | So many real problems that enumerating them is the wrong response — it needs restructuring or splitting. Use this **instead of** a flood. |
+
+### 7a. Off-topic-but-real findings — route, never drop, never comment
+
+A finding that fails §3.5's on-topic test (true, but equally true before this PR) is not worthless — it is mis-addressed. It does **not** go on the PR. It goes to the codebase-sweep backlog: a separate, severity-ranked queue for latent bugs, triaged across the whole repo rather than bolted onto whoever happened to touch the file. Whether safeword owns that sweep or feeds an existing one (arcade already runs a security-sweep agent) is an open product question — see the epic. Until it is answered, collect these in the run summary under `off_topic_routed`, do not post them, and do not lose them.
 
 ## 8. Independence — declare it, never imply it
 
