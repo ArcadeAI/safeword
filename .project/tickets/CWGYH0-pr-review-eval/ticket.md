@@ -103,3 +103,28 @@ The reviewer posts off-topic (latent, not-caused-by-this-PR) findings in a colla
 - **Track the off-topic section's action rate separately** from inline on-topic findings. Acted-on (fixed / filed / replied) vs scrolled-past.
 - If it is reliably ignored, the maintainer was right that this is a workflow problem a label can't fix, and §7a comes back out (reverts to run-summary-only or drop).
 - The off-topic *rate* is also the §3.5 calibration canary: 1/11 in the first probe. A rising rate means the gate is being used as an escape hatch from the on-topic bar.
+
+## Validation run #2 (2026-07-16) — the ACTUAL skill on a fresh, harder corpus
+
+Run #1 was a throwaway prompt on 10 rubber-stamped (zero-comment) PRs. Run #2 dogfooded the real `skill-draft.md` on **8 fresh, non-overlapping** PRs deliberately chosen HARDER: 5 had human/Bugbot comments, 1 was CHANGES_REQUESTED, 4 linked multi-PR (epic-granularity) tickets.
+
+| PR | verdict | findings |
+| --- | --- | --- |
+| 2140 | safe-to-merge | 0 (subtracted Bugbot) |
+| 2088 | safe-to-merge | 1 — completeness capped to `question` (PLT-2383 = 6 PRs) |
+| 2064 | safe-to-merge | 0 — formed 4 hypotheses, refuted all 4 vs the tree |
+| 2049 | safe-to-merge | 0 — granularity cap; verified signal-preserving |
+| 2112 | safe-to-merge | 1 — evidence-integrity (relaxed evals); **fix gate declined an unverifiable fix** |
+| 2061 | safe-to-merge | 0 — subtracted all human+bot; verified 2 novel clean |
+| 2135 | safe-to-merge | 2 — prose-lies (wrong metric tags → silent-empty dashboard) + doc-drift |
+| 2111 | **needs-a-human** | 4 — evidence-integrity (unproven wiring) + intent (capped) + prose-lies + scope |
+
+**Totals: 10 findings, 0 blocking, 0 false positives, 1 needs-a-human (legitimately), 7 safe-to-merge.**
+
+Every gate fired correctly where applicable: **granularity cap** capped completeness to `question` on all 4 multi-PR tickets (2088/2049/2061/2111) — no false gaps; **fix gate** declined unverifiable fixes twice (2112, 2111) — the exact behavior it was invented for after run #1's regression near-miss; **subtraction** dropped bot/human items on every commented PR; **on-topic gate** routed the monorepo-wide govulncheck off-topic twice (2049, 2135). Highest-value findings came from **evidence-integrity** (the co-headline dimension): tests that would pass with the feature reverted (2112), attribution wiring nothing proves fires (2111).
+
+I independently verified two silences/findings at the merge SHA: 2049's "cache-size metric was dead in prod" (held — no non-test caller) and 2111's prose-lies comment (held — ory.config.ts does not import the middleware). Both survived.
+
+**Caveats:** same-model-family (declared, not truly cross-model); my corpus selection + my classification; the harder corpus was also genuinely cleaner (more-scrutinized PRs), so high silence is partly the corpus, not only precision; still untriaged by arcade engineers. n=8, one repo.
+
+**What it settles:** the accumulated skill is markedly more disciplined than run #1 (which needed the fix gate invented mid-run). And it directly grounds the 2026-07-16 decision to reject the debug/figure-it-out import — the target behaviors already emerged here without those instructions.
