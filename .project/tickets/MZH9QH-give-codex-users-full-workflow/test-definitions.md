@@ -8,7 +8,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Complete profile plugin exposes every workflow entry and phase reference
 
-- [ ] RED
+- [x] RED e0633ddc
 - [ ] GREEN
 - [ ] REFACTOR
 
