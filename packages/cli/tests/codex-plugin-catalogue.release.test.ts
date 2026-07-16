@@ -98,11 +98,11 @@ describe('generated Codex plugin catalogue', () => {
         [
           '---',
           'name: alpha',
-          'description: Invoke /beta and retain /beta.md',
+          'description: Invoke /beta and retain /beta.md, /beta/README.md, and /beta/_draft.md',
           'allowed-tools: Bash',
           '---',
           '',
-          'Run /beta, preserve /outside, and consult TDD.md.',
+          'Run /beta, preserve /outside, /beta/README.md, and /beta/_draft.md, then consult TDD.md.',
           '',
         ].join('\n'),
       );
@@ -119,7 +119,7 @@ describe('generated Codex plugin catalogue', () => {
         {
           relativePath: nodePath.join('skills', 'alpha', 'SKILL.md'),
           content:
-            '---\nname: alpha\ndescription: Invoke $safeword:beta and retain /beta.md\n---\n\nRun $safeword:beta, preserve /outside, and consult references/TDD.md.\n',
+            '---\nname: alpha\ndescription: Invoke $safeword:beta and retain /beta.md, /beta/README.md, and /beta/_draft.md\n---\n\nRun $safeword:beta, preserve /outside, /beta/README.md, and /beta/_draft.md, then consult references/TDD.md.\n',
         },
         {
           relativePath: nodePath.join('skills', 'alpha', 'references', 'TDD.md'),

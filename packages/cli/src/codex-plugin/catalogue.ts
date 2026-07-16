@@ -81,6 +81,10 @@ function isAsciiLowercase(character: string): boolean {
   return character >= 'a' && character <= 'z';
 }
 
+function isAsciiUppercase(character: string): boolean {
+  return character >= 'A' && character <= 'Z';
+}
+
 function isAsciiDigit(character: string): boolean {
   return character >= '0' && character <= '9';
 }
@@ -89,8 +93,14 @@ function isWorkflowNameCharacter(character: string): boolean {
   return isAsciiLowercase(character) || character === '-';
 }
 
-function isWorkflowPathCharacter(character: string): boolean {
-  return isAsciiLowercase(character) || isAsciiDigit(character) || '.-/'.includes(character);
+function isWorkflowPathExtensionStart(character: string): boolean {
+  return (
+    isAsciiLowercase(character) ||
+    isAsciiUppercase(character) ||
+    isAsciiDigit(character) ||
+    character === '_' ||
+    character === '-'
+  );
 }
 
 function isWorkflowInvocationPrefix(character: string | undefined): boolean {
@@ -106,11 +116,7 @@ function isWorkflowInvocationPrefix(character: string | undefined): boolean {
 function hasWorkflowPathSuffix(markdown: string, nameEnd: number): boolean {
   const suffix = markdown[nameEnd];
   const firstPathCharacter = markdown[nameEnd + 1] ?? '';
-  return (
-    (suffix === '.' &&
-      (isAsciiLowercase(firstPathCharacter) || isAsciiDigit(firstPathCharacter))) ||
-    (suffix === '/' && isWorkflowPathCharacter(firstPathCharacter))
-  );
+  return suffix === '/' || (suffix === '.' && isWorkflowPathExtensionStart(firstPathCharacter));
 }
 
 function hasWorkflowInvocationBoundary(markdown: string, nameEnd: number): boolean {
