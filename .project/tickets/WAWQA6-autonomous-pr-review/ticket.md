@@ -7,7 +7,7 @@ status: in_progress
 epic: autonomous-pr-review
 children: ['G5337S', '36EEMY', 'CWGYH0']
 scope:
-  - A `pr-review` skill (the durable asset) that reviews any project's PR diff on four dimensions — intent conformance, scope discipline, alternatives, blast radius — three of which need no safeword artifacts.
+  - A `pr-review` skill (the durable asset) reviewing, in measured order of yield (arcade trial, 11 findings): blast radius (4), evidence integrity (3), intent conformance (2), scope discipline, alternatives (0 — on probation). Most need no artifacts at all; the ticket is the evidence base that makes a finding sizable, NOT a checklist — only 2 of 11 findings were ticket-matching.
   - A tiered intent resolver: artifacts in-diff (T0) → linked issue/ADR/CONTRIBUTING (T1) → PR body + issue (T2) → commits/nothing (T3). Same job at every tier, different sources, declared confidence.
   - Provenance-weighted intent: an intent source committed BEFORE the code is a contract; one shipped WITH the code is narrative. Derived from git, not asserted.
   - Dynamic subtraction: detect the project's existing quality surface (linters, types, tests, CI) and review only the gap — PRINCIPLES §3 (add-never-replace) applied to review.
@@ -46,7 +46,7 @@ last_modified: 2026-07-15T02:50:15.807Z
 
 # Autonomous PR review at the intent-conformance bar
 
-**Goal:** Review open PRs autonomously via GitHub Action, on the dimensions no linter or generic AI reviewer covers: intent conformance, scope discipline, alternatives, blast radius.
+**Goal:** Review open PRs autonomously via GitHub Action — route human attention with a triage verdict, and report only what a project's own tooling cannot: what breaks in production, whether the tests prove anything, and whether the change matches the intent declared before the code.
 
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
 

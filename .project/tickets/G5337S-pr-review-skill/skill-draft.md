@@ -1,6 +1,6 @@
 ---
 name: pr-review
-description: Review a pull request against the intent that was declared before the code — the linked issue, ticket, or spec. Use in CI on an open PR, or locally on a branch. Produces a triage verdict (does this need a human?) plus findings on intent conformance, scope, alternatives, and blast radius. Do NOT use for generic bug-hunting (use /code-review) or for anything the project's own linters, types, tests, or existing bots already report.
+description: Second-reader review of a pull request — tells a human whether this PR needs their eyes, and reports only what the project's own linters, tests, and bug-bots structurally cannot: what breaks in production, whether the tests actually prove anything, and whether the change matches the intent declared before the code. Use in CI on an open PR, or locally on a branch. Do NOT use for generic bug-hunting (use /code-review) or for anything the project's existing tooling already reports.
 allowed-tools: '*'
 ---
 
@@ -8,7 +8,7 @@ allowed-tools: '*'
 
 **DRAFT — not shipped. For review against `quality-review` and `refactor` before it lands in `.claude/skills/`.**
 
-You are the second reader. A different model wrote this code, and a human under time pressure is about to approve it — or already did. Your job is not to find bugs; the project's tests, linters, and bug-bots do that. Your job is the one thing nothing else does: **check the code against what was promised, and tell a human whether this needs their eyes.**
+You are the second reader. A different model wrote this code, and a human under time pressure is about to approve it — or already did. Your job is not to find bugs; the project's tests, linters, and bug-bots do that. Your job is the two things nothing else does: **tell a human whether this PR needs their eyes**, and report what only someone holding both the code and its declared intent can see.
 
 **Stakes set depth.** Your output lands on a working engineer's PR. A wrong comment costs more than a right one gains — the strongest predictor that a review comment gets acted on is that a *human* wrote it, so you start from a trust deficit and every false alarm deepens it. Review as if you get one comment per week and this is it.
 
@@ -82,14 +82,26 @@ A ticket often covers **more** work than the PR in front of you — an epic-gran
 
 This is the same move safeword already makes in `experiments/gepa-review-spec/src/evaluator.ts`: false alarms are counted **only** on bases certified clean, because "precision over an under-labeled positive corpus is formally unidentifiable." Generalized: **only measure the direction your reference set can support.**
 
-## 4. The four dimensions
+## 4. The dimensions — ordered by what actually pays
 
-Only these. Everything else belongs to someone else's tool.
+Only these. Everything else belongs to someone else's tool. The order is not taste: it is what the arcade trial measured across 11 findings (blast radius 4, evidence integrity 3, intent conformance 2, doc drift 1, unanswered-author 1, alternatives **0**).
 
-1. **Intent conformance** — does what the diff *did* match what was promised? Where it deviates from a stated requirement, that is a real gap at full severity. Where a stated requirement is simply **absent** from the diff, that is the completeness direction — bound it by §3's scope-certainty rule before you assert it.
-2. **Scope discipline** — did it do things nobody asked for? Bundle unrelated work? Touch something sensitive (auth, billing, migrations, public API) the intent never mentioned? **This is the always-safe direction** (§3) — run it even when the ticket is broader than the PR.
-3. **Alternatives** — a materially simpler shape. Only if concrete and substantial.
-4. **Blast radius / reversibility** — what breaks for an existing user or operator? Silent behavior changes, cardinality, migrations, config default flips, dropped error paths.
+**The ticket is your evidence base, not your checklist.** Only 2 of 11 findings were "this didn't match the ticket." The ticket's real work is making a finding *sizable*: reading the code alone gives you "no `connect_timeout` is set" — true, unsizable, ignorable. The ticket's incident forensics ("a 134-second TCP timeout to Aurora") turn the same observation into "~7 minutes before anyone is paged instead of ~2." Same fact; only one of them gets acted on. Read the ticket for **what it lets you measure**, not for boxes to tick.
+
+1. **Blast radius / reversibility** — what breaks for an existing user or operator? Silent behavior changes, cardinality, migrations, config default flips, dropped error paths, unbounded waits, leaked resources. **Needs no ticket.** The highest-yield dimension in the trial, and the one the headline finding came from.
+2. **Evidence integrity — does the proof actually prove it?** A green suite is not evidence; it is a claim. Ask what would still pass if the feature were deleted. Three shapes recurred, and all three are invisible to linters, bots, and a skimming human *because the tests pass*:
+   - **The test doesn't run.** Verify the suite is actually executed by CI — a workflow in the wrong directory, a build tag nothing sets, a path filter that never matches.
+   - **The test bypasses the code.** A "failure is recorded" test that calls the recorder directly rather than driving the failing path would pass with the real reporting deleted.
+   - **A fix quietly removed coverage.** A deflake that makes a test stop exercising the branch it is named for, still green via another path.
+     This is `tdd-review`'s vacuity guard — *"a test that would pass without the feature proves nothing"* — applied at the PR boundary, which is where agent-written tests arrive by the hundred.
+3. **Intent conformance** — does what the diff *did* match what was promised? Where it **deviates** from a stated requirement, that is a real gap at full severity. Where a requirement is simply **absent** from the diff, that is the completeness direction — bound it by §3's scope-certainty rule before you assert it.
+4. **Scope discipline** — did it do things nobody asked for? Bundle unrelated work? Touch something sensitive (auth, billing, migrations, public API) the intent never mentioned? **The always-safe direction** (§3) — run it even when the ticket is broader than the PR.
+5. **Alternatives — on probation.** A materially simpler shape, only if concrete and substantial. It produced **zero** findings in the trial. Bacchelli & Bird rank it the second-most understanding-demanding outcome after defect-finding, so a shallow pass here yields nothing but opinion. Raise it only when the simplification is obvious and large; if it keeps scoring zero, cut it.
+
+**Two smaller ones that paid unexpectedly, and cost nothing to run:**
+
+- **Prose that lies.** A comment or doc asserting a guarantee the code does not provide — e.g. naming a validator that the handler never calls. On a docs-only PR this is the *only* available defect class, and it is exactly where "no executable logic → low risk" reasoning goes blind.
+- **An unanswered author question.** An author who writes *"please sanity-check this reasoning"* and is approved with zero comments has been failed by the process, not served by it. Their self-disclosure is the highest-signal pointer in the PR — surface it.
 
 **When the diff adopts a new dependency or API**, dispatch: invoke `/quality-review` scoped to those changes and fold its Versions / Security / Documentation findings into yours. That skill owns ecosystem freshness; do not re-implement it. (Skip it otherwise — a refactor has no dependency surface, and running it anyway is the "more review is better" category error.)
 
@@ -150,7 +162,7 @@ Hunk-anchored findings, each carrying a concrete code block, batched into **one*
   "intent_source": "<what you checked against, and whether it is contract or narrative>",
   "findings": [
     {
-      "dimension": "intent|scope|alternative|blast-radius",
+      "dimension": "blast-radius|evidence-integrity|intent|scope|alternative|prose-lies|unanswered-author",
       "blocking": true|false,
       "file": "...", "line": 0,
       "claim": "<the defect, one sentence>",
