@@ -1,8 +1,16 @@
-import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
+
+/* eslint-disable import-x/no-unresolved -- added in the GREEN phase below. */
+import {
+  assertPackedCodexPlugin,
+  extractPackedCliPackage,
+  packCliPackage,
+} from './helpers/codex-plugin-package.js';
+/* eslint-enable import-x/no-unresolved */
 
 type HookEntry = { hooks?: { command?: string }[]; matcher?: string };
 
@@ -42,24 +50,32 @@ describe('Codex plugin release contract', () => {
     }
   });
 
-  it('includes every required plugin artifact in the packed package', () => {
+  it('includes the complete generated plugin in a Bun-packed archive', () => {
     const root = nodePath.resolve(import.meta.dirname, '..');
-    const result = spawnSync('npm', ['pack', '--dry-run', '--json'], {
-      cwd: root,
-      encoding: 'utf8',
-    });
-    expect(result.status, result.stderr).toBe(0);
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-plugin-pack-'));
+    try {
+      const archive = packCliPackage(root, fixture);
+      const packageDirectory = extractPackedCliPackage(archive, fixture);
 
-    const [pack] = JSON.parse(result.stdout) as [{ files: { path: string }[] }];
-    const paths = new Set(pack.files.map(file => file.path));
-    for (const path of [
-      'codex-plugin/.codex-plugin/plugin.json',
-      'codex-plugin/hooks.json',
-      'codex-plugin/skills/bdd/SKILL.md',
-      'codex-plugin/skills/explain/SKILL.md',
-      'codex-plugin/skills/verify/SKILL.md',
-    ]) {
-      expect(paths).toContain(path);
+      expect(() => assertPackedCodexPlugin(root, packageDirectory)).not.toThrow();
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  }, 15_000);
+
+  it('rejects a packed plugin with a missing generated asset', () => {
+    const root = nodePath.resolve(import.meta.dirname, '..');
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-plugin-pack-'));
+    try {
+      const archive = packCliPackage(root, fixture);
+      const packageDirectory = extractPackedCliPackage(archive, fixture);
+      rmSync(nodePath.join(packageDirectory, 'codex-plugin/skills/bdd/references/DISCOVERY.md'));
+
+      expect(() => assertPackedCodexPlugin(root, packageDirectory)).toThrow(
+        'missing expected asset',
+      );
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
     }
   }, 15_000);
 
