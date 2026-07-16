@@ -24,6 +24,7 @@ Feature: Move Codex users to the Safe Word plugin
       When the builder migrates Codex to the plugin
       Then the active Codex profile has the enabled Safe Word plugin
       And the legacy Codex hooks remain unchanged
+      And the builder is told to review the Safe Word hooks in Codex before cleanup
 
     @rejection
     Scenario: Failed plugin installation retains legacy hooks
@@ -57,6 +58,7 @@ Feature: Move Codex users to the Safe Word plugin
       And the Safe Word Codex plugin can be installed and is enabled
       When the builder migrates Codex to the plugin
       Then the custom Codex hook remains unchanged
+      And the legacy Codex hooks remain unchanged
 
     @rejection
     Scenario: Configuration without Safe Word hooks remains unchanged
@@ -77,10 +79,10 @@ Feature: Move Codex users to the Safe Word plugin
   @migrate-codex-to-plugin.SM1.R2
   Rule: migrate-codex-to-plugin.SM1.R2 - The packed package and a real isolated Codex profile prove the release contract
 
-    Scenario: Packed plugin installs and dispatches through Bunx
+    Scenario: Packed plugin preserves the Bunx dispatch contract
       Given the Safe Word package is packed
-      When Codex installs the plugin into an isolated profile
-      Then the installed plugin dispatches the packaged CLI through Bunx
+      When the packed plugin release contract runs
+      Then the packed plugin dispatches the packaged CLI through Bunx
 
     @rejection
     Scenario: Release rejects a package missing plugin assets

@@ -22,7 +22,7 @@ describe('persona-code authoring policy', () => {
 
   it.each([
     'packages/cli/templates/skills/bdd/DISCOVERY.md',
-    '.agents/skills/bdd/DISCOVERY.md',
+    'packages/cli/codex-plugin/skills/bdd/references/DISCOVERY.md',
     '.claude/skills/bdd/DISCOVERY.md',
   ])('%s carries the canonical persona code unchanged into JTBDs', relativePath => {
     const guidance = read(relativePath);
@@ -33,7 +33,7 @@ describe('persona-code authoring policy', () => {
 
   it.each([
     'packages/cli/templates/skills/bdd/SCENARIOS.md',
-    '.agents/skills/bdd/SCENARIOS.md',
+    'packages/cli/codex-plugin/skills/bdd/references/SCENARIOS.md',
     '.claude/skills/bdd/SCENARIOS.md',
   ])('%s carries the canonical persona code unchanged into Gherkin lineage', relativePath => {
     const guidance = read(relativePath);

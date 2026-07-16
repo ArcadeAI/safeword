@@ -84,7 +84,7 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
 
   </TabItem>
   <TabItem label="Codex">
-    Safeword's Codex support is plugin-backed. Run `safeword migrate codex-plugin` to install and verify the Safe Word plugin in your active Codex profile; setup and upgrade do not write project-local Codex hook configuration.
+    Safeword's Codex support is plugin-backed. Run `safeword migrate codex-plugin` to install and verify the Safe Word plugin in your active Codex profile; setup and upgrade do not write a project-local Codex configuration or workflow tree.
 
 | When                            | What happens                                              |
 | ------------------------------- | --------------------------------------------------------- |
@@ -102,7 +102,7 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
 
     ### Hook trust
 
-    Codex hooks only run after you review and trust the plugin in Codex. The plugin hook manifest uses version-pinned `bunx --bun safeword@<version> hook codex <event>` commands; Bun is required for this integration.
+    Codex hooks only run after you review and trust the plugin in Codex. Until then, Codex visibly reports that hooks need review and directs you to `/hooks`; Safe Word does not suppress that warning or bypass trust. After trusting the plugin, run `safeword migrate codex-plugin --remove-legacy-hooks` to remove only Safe Word-owned legacy project hooks. The plugin hook manifest uses version-pinned `bunx --bun safeword@<version> hook codex <event>` commands; Bun is required for this integration.
 
     Plugin skill files: bundled in the Safe Word package under `codex-plugin/skills/`
 

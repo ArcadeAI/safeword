@@ -467,11 +467,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude',
     '.claude/skills',
     '.claude/commands',
-    // Custom-agent homes (GH628F): safeword ships safeword-retro-filer here, but
-    // users keep their own agents in these dirs — add-to, never own.
+    // Custom-agent homes (GH628F): users keep their own agents in this dir —
+    // add-to, never own. Codex is plugin-only and receives no project scaffold.
     '.claude/agents',
-    '.codex',
-    '.codex/agents',
   ],
 
   // Created on setup but NOT deleted on reset (preserves user data)

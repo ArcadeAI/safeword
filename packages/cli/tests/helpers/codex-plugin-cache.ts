@@ -1,7 +1,7 @@
 import { existsSync, lstatSync, realpathSync, statSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { assertCodexPluginCatalogue } from '../../src/codex-plugin/catalogue.js';
+import { assertCodexPluginCatalogue } from '../../src/codex-plugin/catalogue.ts';
 
 function isDescendant(path: string, parent: string): boolean {
   const relative = nodePath.relative(parent, path);

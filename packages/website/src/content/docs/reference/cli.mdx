@@ -22,7 +22,6 @@ bunx safeword@latest setup
 | `.safeword/`            | Creates directory                                  | Hooks, guides, templates                              |
 | `.claude/settings.json` | Creates or merges                                  | Hook configuration                                    |
 | `.claude/skills/`       | Creates directory                                  | Workflow skills                                       |
-| `.codex/agents/`        | Creates directory                                  | Codex retro-filer agent configuration                 |
 | `.cursor/hooks.json`    | Creates or merges                                  | Hook configuration                                    |
 | `.cursor/rules/`        | Creates directory                                  | Behavior rules                                        |
 | `.cursor/commands/`     | Creates directory                                  | Slash commands                                        |
@@ -124,13 +123,19 @@ Safeword manages two types of files:
 
 ### safeword migrate codex-plugin
 
-Install the Safe Word plugin into the active Codex profile, verify Codex reports it enabled, then remove only Safe Word-owned legacy hook stanzas from the current project's `.codex/config.toml`.
+Install the Safe Word plugin into the active Codex profile and verify Codex reports it enabled. The initial migration preserves every legacy Safe Word hook in the current project until you review and trust the plugin in Codex.
 
 ```bash
 bunx safeword@latest migrate codex-plugin
 ```
 
-This command requires Bun. Normal `setup` and `upgrade` do not install a profile-scoped Codex plugin or recreate project-local Codex hooks.
+After Codex shows the plugin as trusted in `/hooks`, explicitly retire only Safe Word-owned legacy hook stanzas:
+
+```bash
+bunx safeword@latest migrate codex-plugin --remove-legacy-hooks
+```
+
+This command requires Bun. Normal `setup` and `upgrade` do not install a profile-scoped Codex plugin, create a `.codex` directory, or recreate project-local Codex hooks. Plugin hooks use version-pinned `bunx --bun safeword@<version>` commands; they never use npx or bypass Codex hook trust.
 
 Run `safeword diff` to see which files you've modified.
 

@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { assertCodexPluginCatalogue } from '../../src/codex-plugin/catalogue.js';
+import { assertCodexPluginCatalogue } from '../../src/codex-plugin/catalogue.ts';
 
 function commandFailure(command: string, stderr: string, status: number | null): Error {
   const detail = stderr.trim();

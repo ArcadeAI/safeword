@@ -5,38 +5,15 @@ import nodePath from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
+  assertPinnedBunxHookCommand,
+  codexPluginHookCommands,
+  type CodexPluginHookEntry,
+} from '../src/codex-plugin/hooks.js';
+import {
   assertPackedCodexPlugin,
   extractPackedCliPackage,
   packCliPackage,
 } from './helpers/codex-plugin-package.js';
-
-type HookEntry = { hooks?: { command?: string }[]; matcher?: string };
-
-function pluginCommands(hooks: Record<string, HookEntry[]>): string[] {
-  return Object.values(hooks).flatMap(entries =>
-    entries.flatMap(entry =>
-      (entry.hooks ?? []).flatMap(hook => (hook.command ? [hook.command] : [])),
-    ),
-  );
-}
-
-function assertPinnedBunxHookCommand(command: string, version: string): void {
-  if (command.includes('--dangerously-bypass-hook-trust')) {
-    throw new Error('Safe Word plugin hooks must not bypass Codex hook trust');
-  }
-  if (/\bnpx\b/u.test(command)) {
-    throw new Error('Safe Word plugin hooks must use Bunx, never npx');
-  }
-  if (!command.startsWith('bunx --bun safeword')) {
-    throw new Error('Safe Word plugin hooks must use pinned Bunx Safe Word commands');
-  }
-  if (!command.startsWith(`bunx --bun safeword@${version} `)) {
-    throw new Error(`Safe Word plugin hooks must pin safeword@${version}`);
-  }
-  if (!/^bunx --bun safeword@\S+ hook codex [a-z-]+$/u.test(command)) {
-    throw new Error('Safe Word plugin hooks must use the Safe Word Codex hook command form');
-  }
-}
 
 describe('Codex plugin release contract', () => {
   it('pins every hook to the published CLI version through Bunx only', () => {
@@ -49,11 +26,11 @@ describe('Codex plugin release contract', () => {
     const hooks = JSON.parse(
       readFileSync(nodePath.join(root, 'codex-plugin/hooks.json'), 'utf8'),
     ) as {
-      hooks: Record<string, HookEntry[]>;
+      hooks: Record<string, CodexPluginHookEntry[]>;
     };
 
     expect(manifest.version).toBe(version);
-    const commands = pluginCommands(hooks.hooks);
+    const commands = codexPluginHookCommands(hooks.hooks);
     expect(commands).toEqual([
       `bunx --bun safeword@${version} hook codex session-start`,
       `bunx --bun safeword@${version} hook codex pre-tool-use`,
@@ -123,7 +100,7 @@ describe('Codex plugin release contract', () => {
     const hooks = JSON.parse(
       readFileSync(nodePath.join(root, 'codex-plugin/hooks.json'), 'utf8'),
     ) as {
-      hooks: Record<string, HookEntry[]>;
+      hooks: Record<string, CodexPluginHookEntry[]>;
     };
 
     const preToolUseHooks = hooks.hooks.PreToolUse ?? [];

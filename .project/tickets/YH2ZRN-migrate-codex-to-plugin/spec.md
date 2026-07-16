@@ -68,7 +68,7 @@ Unaffected:
 
 #### migrate-codex-to-plugin.TB1.R1 - Standard setup and upgrade never change a user's Codex profile or remove existing legacy hooks
 
-#### migrate-codex-to-plugin.TB1.R2 - Explicit migration verifies the profile plugin before removing Safe Word-owned project hooks
+#### migrate-codex-to-plugin.TB1.R2 - Superseded by MZH9QH: initial migration verifies the profile plugin and preserves legacy hooks until the builder explicitly completes the trusted-plugin handoff
 
 #### migrate-codex-to-plugin.TB1.R3 - Migration preserves user-authored Codex configuration and hooks
 
@@ -93,8 +93,9 @@ skip: table-stakes migration safety.
 - `safeword setup` does not create Safe Word Codex hook configuration.
 - `safeword upgrade` leaves an existing legacy Codex configuration intact.
 - `safeword migrate codex-plugin` installs the trusted distribution source into
-  the active profile, verifies its enabled state, then removes only Safe Word
-  hook stanzas from the project.
+  the active profile and verifies its enabled state. Ticket `MZH9QH` supersedes
+  this historical one-step cleanup: legacy hooks remain until the builder
+  reviews the plugin in `/hooks` and explicitly requests cleanup.
 - When Codex, Bun, marketplace installation, or enablement fails, the command
   leaves the project untouched and says how to resolve the prerequisite.
 

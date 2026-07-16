@@ -27,6 +27,15 @@ test -f .safeword/SAFEWORD.md && echo ".safeword/SAFEWORD.md ✓"
 test -f AGENTS.md && echo "AGENTS.md ✓"
 ```
 
+**3. Enable Codex, if your team uses it:**
+
+```bash
+# Installs and verifies the profile-scoped plugin. Existing legacy hooks stay in place.
+bunx safeword@latest migrate codex-plugin
+```
+
+Review the Safe Word plugin in Codex with `/hooks`. After it is trusted, explicitly remove only Safe Word-owned legacy hooks with `bunx safeword@latest migrate codex-plugin --remove-legacy-hooks`.
+
 **Result**: Your project now has:
 
 - `.safeword/SAFEWORD.md` - Global patterns and workflows
@@ -103,7 +112,7 @@ flowchart TD
 - **Verify** — the agent runs the relevant tests itself, never handing you something untested.
 - **Done** — hard-blocked until `/verify` writes `verify.md` to the ticket.
 
-The framework is **project-local** for Claude Code and Cursor: it writes to `.safeword/`, `.claude/`, `.cursor/`, and `.agents/` in your repo. Codex uses the Safe Word plugin installed in each user's Codex profile. Guides and learnings live in-repo and evolve as you work.
+The framework is **project-local** for Claude Code and Cursor: it writes to `.safeword/`, `.claude/`, and `.cursor/` in your repo. Codex uses the Safe Word plugin installed in each user's Codex profile; it receives no Safe Word project-local config or workflow tree. Guides and learnings live in-repo and evolve as you work.
 
 ---
 
@@ -256,7 +265,10 @@ Key directories created in your project:
 Codex hooks live in the Safe Word plugin and run from the package with
 `bunx --bun safeword@<plugin-version> hook codex <event>`. Install and verify
 the profile-scoped plugin with `safeword migrate codex-plugin`; setup and upgrade
-do not create project-local Codex hooks. Codex edit-gate coverage is
+do not create project-local Codex hooks or workflow assets. Codex visibly skips
+unreviewed or changed plugin hooks and directs the builder to `/hooks`; after
+trusting the plugin, run `safeword migrate codex-plugin --remove-legacy-hooks`
+to retire only Safe Word-owned legacy hooks. Codex edit-gate coverage is
 limited to the documented PreToolUse tool calls Safeword configures (`Bash`,
 `apply_patch` edit payloads, and file-editing tools). Live Codex runs can also
 report `file_change` execution items; those are recorded as a runtime boundary,
@@ -358,7 +370,7 @@ ls < namespace-root > /learnings/
 
 ## Syncing Across Machines
 
-Commit `.safeword/`, `.claude/`, `.cursor/`, `.codex/`, and `.agents/` in your project repo for team consistency.
+Commit the Safe Word project configuration your team uses, such as `.safeword/`, `.claude/`, and `.cursor/`, for team consistency. Each Codex user runs `safeword migrate codex-plugin` in their own profile; Safe Word does not create a repository `.codex` configuration or workflow tree.
 
 ---
 
@@ -441,7 +453,7 @@ For JS/TS projects: ESLint, Prettier, supporting plugins, and `jiti` for TypeScr
 No. Safeword detects a non-Prettier formatter (`biome.json`, `dprint.json`, `.oxfmtrc.*`, `deno.json`) and steps aside: it skips Prettier at install **and** its auto-format hook leaves all formatting to your tool — agent edits are never run through Prettier, for any file type (JS/TS, JSON, CSS, YAML). Files your formatter doesn't cover are left untouched rather than Prettier-formatted. ESLint still runs, because those formatters don't cover security scanning (`eslint-plugin-security`), cyclomatic complexity (`sonarjs`), or framework rules (React hooks, Next.js, Astro); safeword's ESLint config disables formatting rules, so it lints without fighting your formatter.
 
 **Do teammates need to install safeword separately?**
-No. Commit the `.safeword/`, `.claude/`, `.cursor/`, and `.agents/` directories to git. Each Codex user installs the Safe Word plugin into their own profile with `safeword migrate codex-plugin`. The linting devDependencies install automatically with `npm install` / `bun install`.
+No. Commit the Safe Word project configuration your team uses, such as `.safeword/`, `.claude/`, and `.cursor/`. Each Codex user installs the Safe Word plugin into their own profile with `safeword migrate codex-plugin`, reviews it in `/hooks`, then explicitly chooses whether to run `--remove-legacy-hooks`. The linting devDependencies install automatically with `npm install` / `bun install`.
 
 **Will it interfere with my development workflow?**
 No. Safeword's hooks and stricter linting rules only fire during AI agent sessions. They don't run when you code normally. In husky repos, setup appends one warn-only boundary-check line to `pre-commit`/`pre-push` — it reports workflow-evidence gaps, never blocks a commit, and `safeword reset` removes it. Safeword never installs a hook manager. It also adds `lint`, `format`, and `test:bdd` scripts to `package.json` that you can optionally use in CI or precommit hooks.
@@ -532,10 +544,10 @@ The CLI installs matching workflow capabilities for Claude Code, Cursor, and Cod
 
 **Editing skills:**
 
-1. Edit templates in `packages/cli/templates/skills/` (Claude Code), `packages/cli/codex-plugin/skills/` (Codex), and `packages/cli/templates/cursor/rules/` (Cursor)
-2. Update `packages/cli/src/schema.ts` if adding/removing skills
-3. Run parity tests: `bun run test -- --testNamePattern="parity"`
-4. Run `bunx safeword upgrade` to sync to local project
+1. Edit canonical workflow templates in `packages/cli/templates/skills/` and Cursor rules in `packages/cli/templates/cursor/rules/`
+2. Run `bun run --cwd packages/cli generate:codex-plugin` to regenerate the checked-in Codex plugin catalogue
+3. Run the catalogue, package, cache, and parity tests
+4. Run `bunx safeword upgrade` to sync Claude Code and Cursor project assets; Codex users update through their profile plugin migration
 
 ---
 

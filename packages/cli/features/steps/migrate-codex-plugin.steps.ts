@@ -15,9 +15,20 @@ import process from 'node:process';
 
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
+import {
+  assertPinnedBunxHookCommand,
+  codexPluginHookCommands,
+  type CodexPluginHookEntry,
+} from '../../src/codex-plugin/hooks.ts';
+import {
+  assertPackedCodexPlugin,
+  extractPackedCliPackage,
+  packCliPackage,
+} from '../../tests/helpers/codex-plugin-package.ts';
 import type { SafewordWorld } from './world.js';
 
 const CLI_PATH = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
+const CLI_ROOT = nodePath.resolve(import.meta.dirname, '../..');
 const LEGACY_HOOK = `[[hooks.PreToolUse]]
 matcher = "^(apply_patch)$"
 
@@ -42,8 +53,9 @@ interface MigrationWorld extends SafewordWorld {
   migrationResult?: { stdout: string; stderr: string; exitCode: number };
   originalCodexConfig?: string;
   customCodexConfiguration?: string;
-  releaseContractRejected?: boolean;
-  packedPlugin?: boolean;
+  packedPackageDirectory?: string;
+  releaseContract?: () => void;
+  releaseContractError?: Error;
 }
 
 function createTemporaryDirectory(): string {
@@ -127,6 +139,39 @@ function migrationOutput(world: MigrationWorld): string {
 
 function codexConfigPath(world: MigrationWorld): string {
   return nodePath.join(worldDirectory(world), '.codex/config.toml');
+}
+
+function packageVersion(): string {
+  return JSON.parse(readFileSync(nodePath.join(CLI_ROOT, 'package.json'), 'utf8'))
+    .version as string;
+}
+
+function pluginHookCommands(packageDirectory: string): string[] {
+  const hooks = JSON.parse(
+    readFileSync(nodePath.join(packageDirectory, 'codex-plugin/hooks.json'), 'utf8'),
+  ) as { hooks: Record<string, CodexPluginHookEntry[]> };
+  return codexPluginHookCommands(hooks.hooks);
+}
+
+function packPlugin(world: MigrationWorld): string {
+  const directory = createTemporaryDirectory();
+  world.migrationDirectory = directory;
+  const archive = packCliPackage(CLI_ROOT, directory);
+  const packageDirectory = extractPackedCliPackage(archive, directory);
+  world.packedPackageDirectory = packageDirectory;
+  return packageDirectory;
+}
+
+function recordReleaseContract(world: MigrationWorld): void {
+  if (world.releaseContract === undefined) {
+    throw new Error('release contract was not initialized');
+  }
+  try {
+    world.releaseContract();
+    world.releaseContractError = undefined;
+  } catch (error) {
+    world.releaseContractError = error instanceof Error ? error : new Error(String(error));
+  }
 }
 
 function assertLegacyHooksUnchanged(world: MigrationWorld): void {
@@ -250,38 +295,53 @@ When(
 );
 
 Given('a plugin hook command is unpinned or uses npx', function (this: MigrationWorld) {
-  this.releaseContractRejected = true;
+  const version = packageVersion();
+  this.releaseContract = () => {
+    assertPinnedBunxHookCommand(`npx safeword@${version} hook codex session-start`, version);
+  };
 });
 
 Given('the Safe Word package is packed', function (this: MigrationWorld) {
-  this.packedPlugin = true;
+  const packageDirectory = packPlugin(this);
+  this.releaseContract = () => {
+    assertPackedCodexPlugin(CLI_ROOT, packageDirectory);
+  };
 });
 
 Given(
   'the Safe Word package is packed without a required plugin asset',
   function (this: MigrationWorld) {
-    this.releaseContractRejected = true;
+    const packageDirectory = packPlugin(this);
+    rmSync(nodePath.join(packageDirectory, 'codex-plugin/skills/bdd/references/DISCOVERY.md'));
+    this.releaseContract = () => {
+      assertPackedCodexPlugin(CLI_ROOT, packageDirectory);
+    };
   },
 );
 
 When('the release contract runs', function (this: MigrationWorld) {
-  assert.equal(this.releaseContractRejected, true);
+  recordReleaseContract(this);
 });
 
-When('Codex installs the plugin into an isolated profile', function (this: MigrationWorld) {
-  assert.equal(this.packedPlugin, true);
+When('the packed plugin release contract runs', function (this: MigrationWorld) {
+  recordReleaseContract(this);
 });
 
 Then('the release contract fails', function (this: MigrationWorld) {
-  assert.equal(this.releaseContractRejected, true);
+  assert.ok(
+    this.releaseContractError !== undefined,
+    'expected release contract to reject the fixture',
+  );
 });
 
-Then(
-  'the installed plugin dispatches the packaged CLI through Bunx',
-  function (this: MigrationWorld) {
-    assert.equal(this.packedPlugin, true);
-  },
-);
+Then('the packed plugin dispatches the packaged CLI through Bunx', function (this: MigrationWorld) {
+  assert.equal(this.releaseContractError, undefined);
+  assert.ok(this.packedPackageDirectory !== undefined, 'packed plugin fixture was not initialized');
+  const version = packageVersion();
+  for (const command of pluginHookCommands(this.packedPackageDirectory)) {
+    assertPinnedBunxHookCommand(command, version);
+  }
+});
 
 Then('the legacy Codex hooks remain unchanged', function (this: MigrationWorld) {
   assertLegacyHooksUnchanged(this);

@@ -196,6 +196,7 @@ describe('Setup Command - Reconcile Integration', () => {
       await setupReconcileTest(temporaryDirectory);
 
       expect(existsSync(nodePath.join(temporaryDirectory, '.codex/config.toml'))).toBe(false);
+      expect(existsSync(nodePath.join(temporaryDirectory, '.codex'))).toBe(false);
     });
 
     it('tells users how to migrate Codex to the plugin after setup', async () => {

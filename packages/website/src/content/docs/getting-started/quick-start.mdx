@@ -76,8 +76,9 @@ Open your project and ask your agent to build something real:
     1. Run `safeword migrate codex-plugin`, then review/trust the Safe Word plugin in Codex
     2. Your agent follows scoped plugin skills such as `safeword:bdd`
     3. Before supported edits, Codex runs the plugin's version-pinned Bunx PreToolUse hook
-    4. If a safeword gate blocks the edit, your agent gets the denial before changing files
-    5. When the agent stops, Codex runs the plugin's Bunx Stop hook for continuation nudges such as ARCHITECTURE.md drift reminders
+    4. After trust, run `safeword migrate codex-plugin --remove-legacy-hooks` to remove only Safe Word-owned legacy hooks
+    5. If a safeword gate blocks the edit, your agent gets the denial before changing files
+    6. When the agent stops, Codex runs the plugin's Bunx Stop hook for continuation nudges such as ARCHITECTURE.md drift reminders
 
   </TabItem>
 </Tabs>
@@ -97,7 +98,7 @@ Safeword added a few folders to your project:
 | `.cursor/commands/`     | Slash commands for Cursor                                |
 | `.safeword/`            | Config files, guides, and templates                      |
 
-These files commit to your repo. When your team pulls, they get the same setup automatically.
+These project files commit to your repo. The Safe Word Codex plugin is profile-scoped: each Codex user runs `safeword migrate codex-plugin` and reviews it in `/hooks`; no Safe Word Codex workflow files are added to the repository.
 
 For JS/TS projects, safeword also adds ESLint and Prettier as **devDependencies** in your `package.json`. These are development-only code quality tools — they don't ship with your application.
 
