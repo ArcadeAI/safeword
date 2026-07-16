@@ -20,6 +20,24 @@ function pluginCommands(hooks: Record<string, HookEntry[]>): string[] {
   );
 }
 
+function assertPinnedBunxHookCommand(command: string, version: string): void {
+  if (command.includes('--dangerously-bypass-hook-trust')) {
+    throw new Error('Safe Word plugin hooks must not bypass Codex hook trust');
+  }
+  if (/\bnpx\b/u.test(command)) {
+    throw new Error('Safe Word plugin hooks must use Bunx, never npx');
+  }
+  if (!command.startsWith('bunx --bun safeword')) {
+    throw new Error('Safe Word plugin hooks must use pinned Bunx Safe Word commands');
+  }
+  if (!command.startsWith(`bunx --bun safeword@${version} `)) {
+    throw new Error(`Safe Word plugin hooks must pin safeword@${version}`);
+  }
+  if (!/^bunx --bun safeword@\S+ hook codex [a-z-]+$/u.test(command)) {
+    throw new Error('Safe Word plugin hooks must use the Safe Word Codex hook command form');
+  }
+}
+
 describe('Codex plugin release contract', () => {
   it('pins every hook to the published CLI version through Bunx only', () => {
     const root = nodePath.resolve(import.meta.dirname, '..');
@@ -44,8 +62,29 @@ describe('Codex plugin release contract', () => {
       `bunx --bun safeword@${version} hook codex stop`,
     ]);
     for (const command of commands) {
-      expect(command).not.toContain('npx');
+      expect(() => {
+        assertPinnedBunxHookCommand(command, version);
+      }).not.toThrow();
     }
+  });
+
+  it('rejects unsafe plugin hook execution paths', () => {
+    const root = nodePath.resolve(import.meta.dirname, '..');
+    const version = JSON.parse(readFileSync(nodePath.join(root, 'package.json'), 'utf8'))
+      .version as string;
+
+    expect(() => {
+      assertPinnedBunxHookCommand('npx safeword@0.68.0 hook codex session-start', version);
+    }).toThrow('Bunx');
+    expect(() => {
+      assertPinnedBunxHookCommand('bunx --bun safeword hook codex session-start', version);
+    }).toThrow(`safeword@${version}`);
+    expect(() => {
+      assertPinnedBunxHookCommand(
+        `bunx --bun safeword@${version} hook codex session-start --dangerously-bypass-hook-trust`,
+        version,
+      );
+    }).toThrow('must not bypass');
   });
 
   it('includes the complete generated plugin in a Bun-packed archive', () => {
