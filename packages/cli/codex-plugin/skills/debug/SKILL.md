@@ -1,0 +1,246 @@
+---
+name: debug
+description: Root cause debugging before fixes. Use when investigating bugs,
+  diagnosing test failures, troubleshooting unexpected behavior, or when
+  previous fix attempts failed. Enforces investigate-first discipline.
+---
+
+# Systematic Debugger
+
+Find root cause before fixing. Symptom fixes are failure.
+
+Investigate the root cause before attempting any fix.
+
+## When to Use
+
+Use for bugs, errors, test failures, unexpected behavior, repeated failed fixes,
+or performance problems — skip for greenfield work.
+
+**Use especially when:**
+
+- Under time pressure (emergencies make guessing tempting)
+- "Quick fix" seems obvious (red flag)
+- Already tried 1+ fixes that didn't work
+
+## The Four Phases
+
+Complete each phase before proceeding.
+
+### Phase 1: Root Cause Investigation
+
+**BEFORE attempting ANY fix:**
+
+#### 1. Read Error Messages Completely
+
+```text
+Don't skip past errors. They often contain the exact solution.
+- Full stack trace (note line numbers, file paths)
+- Error codes and messages
+- Warnings that preceded the error
+```
+
+**When the error mentions a library/framework symbol** (a function, class, or module from a dependency) — read the installed version's docs before forming a hypothesis. Signatures, defaults, and deprecation behavior change between versions; training memory may describe a different version than the one running. Check `package.json` / lockfile, then the source wired up (Context7, official docs, README at the pinned ref).
+
+#### 2. Reproduce Consistently
+
+| Can reproduce?  | Action                                               |
+| --------------- | ---------------------------------------------------- |
+| Yes, every time | Proceed to step 3                                    |
+| Sometimes       | Gather more data - when does it happen vs not?       |
+| Never           | Cannot debug what you cannot reproduce - gather logs |
+
+**When repro hinges on user-only context** (env, timeline, "what were you doing"), call `$safeword:elicit` — its multiple-choice format constrains the answer space better than open prompts.
+
+#### 3. Check Recent Changes
+
+```bash
+git diff HEAD~5       # Recent code changes
+git log --oneline -10 # Recent commits
+```
+
+What changed that could cause this? Dependencies? Config? Environment?
+
+#### 4. Trace Data Flow (Root Cause Tracing)
+
+When error is deep in call stack:
+
+```text
+Symptom: Error at line 50 in utils.js
+    ↑ Called by handler.js:120
+    ↑ Called by router.js:45
+    ↑ Called by app.js:10 ← ROOT CAUSE: bad input here
+```
+
+**Technique:**
+
+1. Find where error occurs (symptom)
+2. Ask: "What called this with bad data?"
+3. Trace up until you find the SOURCE
+4. Fix at source, not at symptom
+
+#### 5. Multi-Component Systems
+
+When system has multiple layers (API → service → database):
+
+```bash
+# Log at EACH boundary before proposing fixes
+echo "=== Layer 1 (API): request=$REQUEST ==="
+echo "=== Layer 2 (Service): input=$INPUT ==="
+echo "=== Layer 3 (DB): query=$QUERY ==="
+```
+
+Run once to find WHERE it breaks. Then investigate that layer.
+
+#### 6. Bisect to the Fault
+
+When the bug appeared after some change, or lives somewhere in a large input/state, **binary-search it** instead of reading linearly. Each step halves the suspect space — a maximally-discriminating disconfirming test:
+
+- **History:** mark the range first (`git bisect start && git bisect bad && git bisect good <known-good-ref>`), then `git bisect run <script>` — a non-interactive predicate (e.g. `bun test foo`; exit 0 = good, non-0 = bad). git finds the first bad commit for you; `git bisect reset` when done.
+- **Input/state:** halve the failing input (or toggle half the config/flags) and re-test; keep the half that still fails (delta debugging).
+
+Prefer the cheapest bisection that splits the space — it usually beats linear tracing.
+
+### Phase 2: Pattern Analysis
+
+#### 1. Find Working Examples
+
+Locate similar working code in same codebase. What works that's similar?
+
+#### 2. Identify Differences
+
+| Working code     | Broken code    | Could this matter? |
+| ---------------- | -------------- | ------------------ |
+| Uses async/await | Uses callbacks | Yes - timing       |
+| Validates input  | No validation  | Yes - bad data     |
+
+List ALL differences. Don't assume "that can't matter."
+
+### Phase 3: Hypothesis Testing
+
+#### 1. Form 2–3 Competing Hypotheses
+
+List 2–3 candidate causes, ranked by plausibility — not one. A single locked-in hypothesis invites confirmation bias; competing ones force you to discriminate ("consider the opposite" reliably reduces that bias).
+
+Write each as "X could be root cause because Y", then ask: what evidence would _rule it out_?
+
+- ❌ "Something's wrong with the database"
+- ✅ (a) pool exhausted — connections not released on the error path; (b) pool size mis-set for this env; (c) a slow query holds connections past timeout
+
+**Test the cheapest _disconfirming_ check first** — the one that eliminates the most candidates. Rule hypotheses _out_; don't hunt to confirm a favorite. (Bisection — Phase 1 §6 — is often the cheapest discriminator.)
+
+#### 2. Test Minimally
+
+| Rule                     | Why                    |
+| ------------------------ | ---------------------- |
+| ONE change at a time     | Isolate what works     |
+| Smallest possible change | Avoid side effects     |
+| Don't bundle fixes       | Can't tell what helped |
+
+#### 3. Evaluate Result
+
+| Result                | Action                                                                      |
+| --------------------- | --------------------------------------------------------------------------- |
+| Confirms a hypothesis | Phase 4 (verify the fix)                                                    |
+| Rules one out         | Eliminate it; test the next live hypothesis. None left? Form new ones (3.1) |
+| Inconclusive          | Pick a more discriminating (cheaper-to-disconfirm) test                     |
+
+### Root Cause Checkpoint
+
+Before proceeding to Phase 4:
+
+1. **Document root cause** in ticket (under "## Root Cause" section):
+   - What is the actual cause (not symptom)?
+   - Why did this happen?
+   - How was it confirmed?
+   - Which competing hypotheses were **ruled out**, and the disconfirming evidence for each — don't silently drop them, so a later session won't re-walk dead ends
+2. **If using tickets:** Update frontmatter to `subtype: bug-investigated`
+
+**Example:**
+
+```markdown
+## Root Cause
+
+Connection pool exhausted because connections aren't released in error path.
+Confirmed by adding pool logging - saw connections increment without decrement on errors.
+
+Ruled out: pool size mis-set (config matches env); slow query (query times well under timeout in logs).
+```
+
+### Phase 4: Implementation
+
+#### 1. Create Failing Test
+
+Before fixing, write test that fails due to the bug:
+
+```javascript
+it('handles empty input without crashing', () => {
+  // This test should FAIL before fix, PASS after
+  expect(() => processData('')).not.toThrow();
+});
+```
+
+#### 2. Implement Fix
+
+- Address ROOT CAUSE identified in Phase 1
+- ONE change
+- No "while I'm here" improvements
+
+#### 3. Verify
+
+- [ ] New test passes
+- [ ] Existing tests still pass
+- [ ] Issue actually resolved (not just test passing)
+
+Close the fix report with a `**Next:**` line — imperative: the commit message to use, the ticket to mark done, or a follow-up issue for related debt the investigation surfaced (the stop hook reads it for the re-entry brief).
+
+Examples:
+
+- **Next:** commit with `fix(auth): release pool connection in error path`, mark ticket 234 done.
+- **Next:** commit the fix, then open a ticket for the unrelated logging gap surfaced at `src/auth.ts:88`.
+
+#### 4. If Fix Doesn't Work
+
+| Fix attempts | Action                                   |
+| ------------ | ---------------------------------------- |
+| 1-2          | Return to Phase 1 with new information   |
+| 3+           | STOP - Question architecture (see below) |
+
+#### 5. After 3+ Failed Fixes: Question Architecture
+
+Pattern indicating architectural problem:
+
+- Each fix reveals new coupling/shared state
+- Fixes require "massive refactoring"
+- Each fix creates new symptoms elsewhere
+
+**STOP and ask:**
+
+- Is this pattern fundamentally sound?
+- Should we refactor vs. continue patching?
+- Discuss with user before more fix attempts
+- If user confirms the pattern is fundamentally unsound, call `$safeword:figure-it-out` to evaluate approaches (refactor / redesign / extract) before implementing anything.
+
+## Red Flags - STOP Immediately
+
+If you catch yourself thinking:
+
+| Thought                                        | Reality                           |
+| ---------------------------------------------- | --------------------------------- |
+| "Quick fix for now, investigate later"         | Investigate NOW or you never will |
+| "Just try changing X"                          | That's guessing, not debugging    |
+| "I'll add multiple fixes and test"             | Can't isolate what worked         |
+| "I don't fully understand but this might work" | You need to understand first      |
+| "One more fix attempt" (after 2+ failures)     | 3+ failures = wrong approach      |
+
+**ALL mean: STOP. Return to Phase 1.**
+
+## Quick Reference
+
+| Phase             | Key Question                          | Success Criteria                            |
+| ----------------- | ------------------------------------- | ------------------------------------------- |
+| 1. Root Cause     | "WHY is this happening?"              | Understand cause, not just symptom          |
+| 2. Pattern        | "What's different from working code?" | Identified key differences                  |
+| 3. Hypothesis     | "Which competing cause survives?"     | Ruled out alternatives; one cause confirmed |
+| 4. Implementation | "Does the fix work?"                  | Test passes, issue resolved                 |
+
+**Voice:** plainspoken and concise — write to be scanned.
