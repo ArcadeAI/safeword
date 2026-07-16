@@ -629,6 +629,21 @@ safeword accepts this trade — **consistency and enforcement over independent b
 
 ---
 
+### Profile-Scoped Generated Codex Plugin and Staged Hook Migration
+
+**Status:** Accepted
+**Date:** 2026-07-16
+**Supersedes:** none
+
+| Field          | Value                                                                                                                                                                                                                                                                                                                      |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Context        | Codex needs the full Safe Word workflow without copying workflow files into each repository. Plugin hooks are not trusted merely because a plugin is installed, so initial migration cannot safely remove working legacy hooks.                                                                                            |
+| Decision       | Generate the checked-in Codex skill catalogue from canonical workflow templates; distribute and test it through the packed package and isolated profile cache; install the profile plugin first and remove only Safe Word legacy hook handlers through a later explicit `--remove-legacy-hooks` action.                    |
+| Consequences   | The package owns a generated catalogue and requires release/cache drift checks. The automated live lane proves no untrusted hook runs, while an interactive manual acceptance records Codex's review screen for new or changed hooks. Initial migration preserves legacy hooks and gives the builder the `/hooks` handoff. |
+| Alternatives   | Manually maintain plugin skills: rejected because the existing thin catalogue drifted. Generate at customer runtime: rejected because it adds a customer-time failure mode and cannot prove the installed cache. Delete hooks on plugin enablement: rejected because enabled does not mean trusted.                        |
+| Reassess when  | Codex adds a public trust-status or approval API, changes plugin/cache or hook schemas, introduces project-scoped plugins, or the canonical workflow adopts metadata/reference syntax outside the generator allowlist.                                                                                                     |
+| Implementation | Ticket MZH9QH: `packages/cli/src/codex-plugin/`, generated `packages/cli/codex-plugin/skills/`, staged migration command, tarball/cache proof, and documented interactive hook acceptance.                                                                                                                                 |
+
 ## References
 
 - Language Pack Spec: `packages/cli/src/packs/LANGUAGE_PACK_SPEC.md`
