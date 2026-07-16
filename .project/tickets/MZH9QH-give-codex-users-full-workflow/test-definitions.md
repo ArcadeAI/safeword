@@ -43,7 +43,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Completed handoff removes only legacy Safe Word hooks
 
 - [x] RED 04c93b26
-- [ ] GREEN
+- [x] GREEN 2263c57a
 - [ ] REFACTOR
 
 ### Scenario: Initial migration does not clean up hooks without an explicit handoff request
