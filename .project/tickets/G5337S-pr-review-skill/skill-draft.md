@@ -60,16 +60,34 @@ Use whatever the project exposes, richest first:
 - **Contract** — written *before* the code (a ticket that predates the branch). Check the diff against it.
 - **Narrative** — shipped *with* the code, by the author. Read last, skeptically. It cannot alone justify a blocking finding.
 
-**Granularity check — mandatory.** Confirm the intent's scope matches *this diff's* scope. An issue written at epic granularity bundles work this PR never owned; a follow-up PR reusing a parent's link looks like it has a contract but carries no obligation. **If the intent is broader than the PR, say so and do not file conformance gaps against the parts it never claimed.** This is the most likely source of a confidently-wrong finding in this skill.
-
 **If intent is thin, say so.** Thin intent does not mean a clean PR — it means nobody can tell. That is a finding about the process, not the code.
+
+### Conformance has two directions. Only one is always safe.
+
+A ticket often covers **more** work than the PR in front of you — an epic-granularity issue, or a follow-up PR reusing a parent's link. Checking a subset against a superset manufactures gaps that aren't there. Traceability tools have a name for this: **false gaps**. It is the most likely source of a confidently-wrong finding in this skill, so it gets a rule rather than a warning.
+
+| Direction | The question | Safe when the ticket is broader? |
+| --- | --- | --- |
+| **Scope** — PR → ticket | "Did this PR do something the ticket never sanctioned?" | **Always.** A subset is still sanctioned, so a broader ticket cannot produce a false positive. |
+| **Completeness** — ticket → PR | "Did this PR do everything the ticket asked?" | **No.** Every unbuilt item reads as a gap. |
+
+**Run the scope direction always. Bound the completeness direction by scope certainty:**
+
+- **The ticket is 1:1 with this PR** — no earlier PR references it — → you may assert a completeness gap, and it may block.
+- **Anything else** → a completeness observation **caps at `question` and never blocks**: _"the ticket asks for X and I don't see it here — follow-up?"_ Asking is honest; asserting is a false gap.
+
+**The detector, cheapest first:** count PRs that already reference this ticket. More than zero → not 1:1 → cap. It is one search, and it is not a guess — on the corpus that produced this rule, the two tickets linked by 5 and 3 PRs are exactly the two that generated false gaps, while the 1:1 ticket carried real blocking findings.
+
+**Known hole — do not paper over it.** The **first** PR of an unannounced series looks 1:1, because its siblings don't exist yet. The cap cannot save you there; the direction split only limits the damage to a wrong *question* instead of a wrong *assertion*. If the ticket plainly describes more work than one PR could carry, treat it as broader regardless of the count.
+
+This is the same move safeword already makes in `experiments/gepa-review-spec/src/evaluator.ts`: false alarms are counted **only** on bases certified clean, because "precision over an under-labeled positive corpus is formally unidentifiable." Generalized: **only measure the direction your reference set can support.**
 
 ## 4. The four dimensions
 
 Only these. Everything else belongs to someone else's tool.
 
-1. **Intent conformance** — does the diff do what was promised? Fully? Is a stated goal quietly unmet?
-2. **Scope discipline** — did it do things nobody asked for? Bundle unrelated work? Touch something sensitive (auth, billing, migrations, public API) the intent never mentioned?
+1. **Intent conformance** — does what the diff *did* match what was promised? Where it deviates from a stated requirement, that is a real gap at full severity. Where a stated requirement is simply **absent** from the diff, that is the completeness direction — bound it by §3's scope-certainty rule before you assert it.
+2. **Scope discipline** — did it do things nobody asked for? Bundle unrelated work? Touch something sensitive (auth, billing, migrations, public API) the intent never mentioned? **This is the always-safe direction** (§3) — run it even when the ticket is broader than the PR.
 3. **Alternatives** — a materially simpler shape. Only if concrete and substantial.
 4. **Blast radius / reversibility** — what breaks for an existing user or operator? Silent behavior changes, cardinality, migrations, config default flips, dropped error paths.
 
