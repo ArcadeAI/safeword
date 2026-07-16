@@ -59,9 +59,9 @@ describe('generated Codex plugin catalogue', () => {
       assertCodexPluginCatalogue(CANONICAL_SKILLS, pluginDirectory);
 
       rmSync(nodePath.join(pluginDirectory, 'skills/bdd/references/DISCOVERY.md'));
-      expect(() => assertCodexPluginCatalogue(CANONICAL_SKILLS, pluginDirectory)).toThrow(
-        'missing expected asset',
-      );
+      expect(() => {
+        assertCodexPluginCatalogue(CANONICAL_SKILLS, pluginDirectory);
+      }).toThrow('missing expected asset');
     } finally {
       rmSync(fixture, { recursive: true, force: true });
     }
@@ -69,7 +69,9 @@ describe('generated Codex plugin catalogue', () => {
 
   it('enforces Codex metadata discovery budget from generated skill frontmatter', () => {
     const assets = generateCodexPluginAssets(CANONICAL_SKILLS);
-    expect(() => assertCodexSkillMetadataBudget(assets)).not.toThrow();
+    expect(() => {
+      assertCodexSkillMetadataBudget(assets);
+    }).not.toThrow();
 
     const oversized = [
       ...assets,
@@ -78,6 +80,8 @@ describe('generated Codex plugin catalogue', () => {
         content: `---\nname: oversized\ndescription: ${'x'.repeat(CODEX_SKILL_METADATA_LIMIT)}\n---\n`,
       },
     ];
-    expect(() => assertCodexSkillMetadataBudget(oversized)).toThrow('8000');
+    expect(() => {
+      assertCodexSkillMetadataBudget(oversized);
+    }).toThrow('8000');
   });
 });

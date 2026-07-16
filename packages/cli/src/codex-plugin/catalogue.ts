@@ -1,4 +1,4 @@
-import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { parse, stringify } from 'yaml';
@@ -7,6 +7,8 @@ export interface GeneratedPluginAsset {
   relativePath: string;
   content: string;
 }
+
+export const CODEX_SKILL_METADATA_LIMIT = 8000;
 
 interface CanonicalSkillMetadata {
   name?: unknown;
@@ -102,6 +104,69 @@ export function generateCodexPluginAssets(
       )}`,
     };
   });
+}
+
+function skillMetadataLength(asset: GeneratedPluginAsset): number {
+  if (!asset.relativePath.endsWith(nodePath.join('SKILL.md'))) return 0;
+  const frontmatter = FRONTMATTER.exec(asset.content);
+  if (frontmatter?.groups?.metadata === undefined) {
+    throw new Error(`generated skill ${asset.relativePath} has no YAML frontmatter`);
+  }
+  return frontmatter.groups.metadata.length;
+}
+
+export function codexSkillMetadataCharacters(assets: GeneratedPluginAsset[]): number {
+  return assets.reduce((total, asset) => total + skillMetadataLength(asset), 0);
+}
+
+export function assertCodexSkillMetadataBudget(assets: GeneratedPluginAsset[]): void {
+  const characters = codexSkillMetadataCharacters(assets);
+  if (characters > CODEX_SKILL_METADATA_LIMIT) {
+    throw new Error(
+      `Generated Codex skill metadata is ${characters} characters; limit is ${CODEX_SKILL_METADATA_LIMIT}.`,
+    );
+  }
+}
+
+function expectedAssetPaths(assets: GeneratedPluginAsset[]): Set<string> {
+  return new Set(assets.map(asset => asset.relativePath));
+}
+
+function pluginAssetPaths(pluginDirectory: string): string[] {
+  const skillsDirectory = nodePath.join(pluginDirectory, 'skills');
+  if (!existsSync(skillsDirectory)) return [];
+  return markdownFiles(skillsDirectory).map(relativePath => nodePath.join('skills', relativePath));
+}
+
+/** Ensure the checked-in plugin is the exact allowed transformation of canonical skills. */
+export function assertCodexPluginCatalogue(
+  canonicalSkillsDirectory: string,
+  pluginDirectory: string,
+): void {
+  const expectedAssets = generateCodexPluginAssets(canonicalSkillsDirectory);
+  assertCodexSkillMetadataBudget(expectedAssets);
+
+  const expectedPaths = expectedAssetPaths(expectedAssets);
+  const actualPaths = pluginAssetPaths(pluginDirectory);
+  const missingPath = [...expectedPaths].find(path => !actualPaths.includes(path));
+  if (missingPath !== undefined) {
+    throw new Error(`Codex plugin is missing expected asset: ${missingPath}`);
+  }
+
+  const unexpectedPath = actualPaths.find(path => !expectedPaths.has(path));
+  if (unexpectedPath !== undefined) {
+    throw new Error(`Codex plugin has unexpected asset: ${unexpectedPath}`);
+  }
+
+  for (const asset of expectedAssets) {
+    const actualPath = nodePath.join(pluginDirectory, asset.relativePath);
+    const actualContent = readFileSync(actualPath, 'utf8');
+    if (actualContent !== asset.content) {
+      throw new Error(
+        `Codex plugin asset differs from the canonical transformation: ${asset.relativePath}`,
+      );
+    }
+  }
 }
 
 export function writeCodexPluginCatalogue(
