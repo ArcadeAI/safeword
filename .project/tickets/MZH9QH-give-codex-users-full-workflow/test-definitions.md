@@ -42,7 +42,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Completed handoff removes only legacy Safe Word hooks
 
-- [ ] RED
+- [x] RED 04c93b26
 - [ ] GREEN
 - [ ] REFACTOR
 
