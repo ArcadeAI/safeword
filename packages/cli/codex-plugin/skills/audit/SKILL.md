@@ -272,10 +272,10 @@ After running the outdated checks above, **classify each outdated package** usin
 Present results as a structured table:
 
 ```text
-| Package | Current | Latest | Type | Bump | Risk |
-|---------|---------|--------|------|------|------|
-| knip | 5.86.0 | 5.88.1 | dev | patch | Low |
-| eslint | 9.39.4 | 10.0.3 | dev | major | High |
+| Package | Current | Latest | Type | Bump  | Risk |
+| ------- | ------- | ------ | ---- | ----- | ---- |
+| knip    | 5.86.0  | 5.88.1 | dev  | patch | Low  |
+| eslint  | 9.39.4  | 10.0.3 | dev  | major | High |
 ```
 
 Then give a **verdict per risk tier**:

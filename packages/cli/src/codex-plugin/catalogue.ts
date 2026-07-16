@@ -62,11 +62,65 @@ function adaptSkillBody(body: string, skillNames: string[], referenceNames: stri
   }
 
   const knownSkillNames = new Set(skillNames);
-  return adapted.replaceAll(
+  adapted = adapted.replaceAll(
     /(^|[^\w-])\/([a-z][a-z-]*)\b/gu,
     (match, prefix: string, name: string) =>
       knownSkillNames.has(name) ? `${prefix}$safeword:${name}` : match,
   );
+
+  return formatMarkdownTables(adapted);
+}
+
+function tableCells(line: string): string[] {
+  return line
+    .slice(1, -1)
+    .split('|')
+    .map(cell => cell.trim());
+}
+
+function isTableDelimiter(cells: string[], columnCount: number): boolean {
+  return cells.length === columnCount && cells.every(cell => /^:?-{3,}:?$/u.test(cell));
+}
+
+function formatMarkdownTable(rows: string[][]): string[] {
+  const contentRows = rows.filter((_, rowIndex) => rowIndex !== 1);
+  const widths = rows[0]?.map((headerCell, column) =>
+    Math.max(headerCell.length, ...contentRows.map(cells => cells[column]?.length ?? 0)),
+  );
+  if (widths === undefined) return [];
+
+  return rows.map((cells, row) => {
+    const formattedCells = cells.map((cell, column) => {
+      const width = widths[column];
+      if (width === undefined) throw new Error('Markdown table has an invalid column width');
+      return row === 1 ? '-'.repeat(Math.max(3, width)) : cell.padEnd(width);
+    });
+    return `| ${formattedCells.join(' | ')} |`;
+  });
+}
+
+/** Keep transformed Markdown tables stable under the repository's Prettier config. */
+function formatMarkdownTables(markdown: string): string {
+  const lines = markdown.split('\n');
+
+  for (let start = 0; start < lines.length; start += 1) {
+    const header = lines[start];
+    const delimiter = lines[start + 1];
+    if (header === undefined || delimiter === undefined || !header.startsWith('|')) continue;
+
+    const headerCells = tableCells(header);
+    if (!isTableDelimiter(tableCells(delimiter), headerCells.length)) continue;
+
+    let end = start + 2;
+    while (lines[end]?.startsWith('|') === true) end += 1;
+    const rows = lines.slice(start, end).map(line => tableCells(line));
+    if (rows.some(cells => cells.length !== headerCells.length)) continue;
+
+    lines.splice(start, end - start, ...formatMarkdownTable(rows));
+    start = end - 1;
+  }
+
+  return lines.join('\n');
 }
 
 /**
