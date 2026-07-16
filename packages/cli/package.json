@@ -43,6 +43,7 @@
     "test:smoke:live": "node scripts/run-vitest-with-build-lock.mjs --config vitest.live.config.ts",
     "test:release": "node scripts/run-vitest-with-build-lock.mjs --config vitest.release.config.ts",
     "test:slow": "node scripts/run-vitest-with-build-lock.mjs --config vitest.slow.config.ts",
+    "generate:codex-plugin": "bun scripts/generate-codex-plugin.ts",
     "generate:cursor-wrappers": "bun scripts/generate-cursor-wrappers.ts",
     "parity:fix": "bun ../../scripts/parity-check.ts --fix",
     "pretest:watch": "tsup",

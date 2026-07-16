@@ -14,13 +14,13 @@ Run the cleanup script — it previews what would be killed (nothing dies withou
 explicit consent; the preview-first ritual is script-enforced):
 
 ```bash
-./.safeword/scripts$safeword:cleanup-zombies.sh
+./.safeword/scripts/cleanup-zombies.sh
 ```
 
 If the preview looks correct, confirm the kill with `--yes`:
 
 ```bash
-./.safeword/scripts$safeword:cleanup-zombies.sh --yes
+./.safeword/scripts/cleanup-zombies.sh --yes
 ```
 
 ## What It Does
@@ -36,10 +36,10 @@ If auto-detection fails or you need a specific port:
 
 ```bash
 # Explicit port (preview, then add --yes to kill)
-./.safeword/scripts$safeword:cleanup-zombies.sh 5173
+./.safeword/scripts/cleanup-zombies.sh 5173
 
 # Port + additional pattern
-./.safeword/scripts$safeword:cleanup-zombies.sh --yes 5173 "electron"
+./.safeword/scripts/cleanup-zombies.sh --yes 5173 "electron"
 ```
 
 ## When to Use

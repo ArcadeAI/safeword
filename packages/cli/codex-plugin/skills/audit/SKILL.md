@@ -301,7 +301,7 @@ If no configuration hints are found, skip this section.
 #### Findings triage — baselines, not re-litigation
 
 - **Knip:** `knip.json`'s ignore lists ARE the accepted-false-positive baseline — persist confirmed FPs there instead of re-triaging them every run (W005 flags any entry that goes stale, so the baseline self-cleans). Report only findings not already covered by the ignore lists.
-- **jscpd:** record the clone count in the audit summary **with its scope named next to the count** — e.g. `Clones: 416 (8.9%) [repo minus .safeword,.project]` — and compare against the previous audit's recorded count at the SAME scope (last verify.md$safeword:audit record, if any). A count whose scope differs from the prior record is a new baseline, not a delta (issue #825: unscoped counts spanning 84→594 proved incomparable). Deltas are the findings; a flat count is the baseline, not a finding. Never report a raw total as if it were new.
+- **jscpd:** record the clone count in the audit summary **with its scope named next to the count** — e.g. `Clones: 416 (8.9%) [repo minus .safeword,.project]` — and compare against the previous audit's recorded count at the SAME scope (last verify.md/audit record, if any). A count whose scope differs from the prior record is a new baseline, not a delta (issue #825: unscoped counts spanning 84→594 proved incomparable). Deltas are the findings; a flat count is the baseline, not a finding. Never report a raw total as if it were new.
 
 ### 2. Agent Config Checks
 
@@ -353,7 +353,7 @@ If all files conform, skip this section.
 
 ### 4. Test Quality Review
 
-Review existing test files for quality issues. Sample test files from the project and check against the iron laws and anti-patterns in `.claude/skills$safeword:testing/SKILL.md`.
+Review existing test files for quality issues. Sample test files from the project and check against the iron laws and anti-patterns in `.claude/skills/testing/SKILL.md`.
 
 **Find test files:**
 

@@ -72,7 +72,7 @@ before anything is filed.
   ```
 
 - **In-context (any harness):** extract the friction yourself following
-  `.safeword/guides$safeword:retro.md` (fresh-context read of the transcript → structured findings
+  `.safeword/guides/retro.md` (fresh-context read of the transcript → structured findings
   JSON), then hand them off:
 
   ```bash
@@ -96,7 +96,7 @@ Everything flows through the egress guard, then files upstream:
   using your GitHub access. Never re-word or re-sanitize a spooled draft — the body is
   already code-assembled and egress-clean; the sanitizer is the security boundary.
   Enforced at the code-owned seams: each body is sealed with a `bodyDigest` at
-  assembly, and `verifyDraftBody` (`hooks/lib$safeword:retro-draft-spool.ts`) refuses a
+  assembly, and `verifyDraftBody` (`hooks/lib/retro-draft-spool.ts`) refuses a
   mismatch — a re-worded draft stays spooled instead of filing.
 
 ## Reminders

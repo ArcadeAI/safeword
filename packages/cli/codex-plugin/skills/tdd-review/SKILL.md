@@ -13,7 +13,7 @@ These per-step reviews are **advisory self-checks** — the only hard gates in t
 
 **Stakes set depth.** Advisory means it won't block you — not that it can be shallow. The done-gate only runs tests, so a bug your eyes miss here ships. Review each step as if no later gate re-reads this code.
 
-**Visibility:** ordinary RED/GREEN/REFACTOR reviews stay quiet. Do not surface a chat-facing review after each checkbox flip unless you found a real blocker, a user/scope decision, or a risky external dependency/API finding. Report the review$safeword:refactor work in the implementation-exit summary.
+**Visibility:** ordinary RED/GREEN/REFACTOR reviews stay quiet. Do not surface a chat-facing review after each checkbox flip unless you found a real blocker, a user/scope decision, or a risky external dependency/API finding. Report the review/refactor work in the implementation-exit summary.
 
 ## Detect Step
 
@@ -79,7 +79,7 @@ Illustrative only — apply the checks in your own words, not this exact wording
 >
 > Clean.
 >
-> **Next:** implement minimum code in `packages/cli/src$safeword:lint.ts` to make `expect(output).toContain('src/index.ts: pass')` pass, then commit.
+> **Next:** implement minimum code in `packages/cli/src/lint.ts` to make `expect(output).toContain('src/index.ts: pass')` pass, then commit.
 
 ## Output discipline
 

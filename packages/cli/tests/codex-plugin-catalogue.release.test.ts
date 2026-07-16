@@ -19,14 +19,16 @@ function markdownFiles(directory: string, prefix = ''): string[] {
 }
 
 function expectedPluginAssets(): string[] {
-  return markdownFiles(CANONICAL_SKILLS).map(relativePath => {
-    const [skill, filename, ...rest] = relativePath.split(nodePath.sep);
-    if (skill === undefined || filename === undefined) {
-      throw new Error(`unexpected canonical skill path: ${relativePath}`);
-    }
-    if (filename === 'SKILL.md') return nodePath.join(skill, filename, ...rest);
-    return nodePath.join(skill, 'references', filename, ...rest);
-  });
+  return markdownFiles(CANONICAL_SKILLS)
+    .map(relativePath => {
+      const [skill, filename, ...rest] = relativePath.split(nodePath.sep);
+      if (skill === undefined || filename === undefined) {
+        throw new Error(`unexpected canonical skill path: ${relativePath}`);
+      }
+      if (filename === 'SKILL.md') return nodePath.join(skill, filename, ...rest);
+      return nodePath.join(skill, 'references', filename, ...rest);
+    })
+    .toSorted((left, right) => left.localeCompare(right));
 }
 
 describe('generated Codex plugin catalogue', () => {

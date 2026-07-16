@@ -58,7 +58,7 @@ Run these in sequence, reporting each result:
 
 **Safeword runtime vs target project:** Safeword may use Bun for installed helpers such as `.safeword/hooks/*.ts`; that does not mean the target project uses Bun. Use Bun for installed helpers, then choose target project verification commands from stack manifests, lockfiles, and available scripts. A `package.json` may be safeword lane-host evidence in pure Python, Rust, and Go installs, so do not treat `package.json` as proof the target project is only JavaScript.
 
-Per-language test/build/typecheck$safeword:bdd/deps commands all come from `safeword
+Per-language test/build/typecheck/bdd/deps commands all come from `safeword
 test-plan` — one source of truth (the same plan the stop-hook gate runs). Eval its
 shell plan in a child shell: an absent toolchain prints a visible skip, and a
 failing suite exits non-zero so the gate blocks. The Gherkin acceptance lane is

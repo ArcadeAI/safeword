@@ -45,7 +45,7 @@ Fallback (lowest scope):
 
 State the test-scope choice and why in one line, unless it's obvious from context.
 
-For the full decision tree, bug detection matrix, and edge cases: `.safeword/guides$safeword:testing-guide.md`
+For the full decision tree, bug detection matrix, and edge cases: `.safeword/guides/testing-guide.md`
 
 ---
 
@@ -304,7 +304,7 @@ it('preserves user input after validation error');
 
 | Need                             | Action                                            |
 | -------------------------------- | ------------------------------------------------- |
-| Full test type selection guide   | `.safeword/guides$safeword:testing-guide.md`      |
+| Full test type selection guide   | `.safeword/guides/testing-guide.md`               |
 | Smoke/live/release lane guidance | `.safeword/guides/verification-lanes-guide.md`    |
 | LLM eval design guide            | `.safeword/guides/llm-evals-guide.md`             |
 | Test definition template (BDD)   | `.safeword/templates/test-definitions-feature.md` |
