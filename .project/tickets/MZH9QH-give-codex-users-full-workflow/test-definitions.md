@@ -37,7 +37,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Initial plugin migration preserves legacy hooks and explains the handoff
 
 - [x] RED 57971514
-- [ ] GREEN
+- [x] GREEN a7de06e5
 - [ ] REFACTOR
 
 ### Scenario: Completed handoff removes only legacy Safe Word hooks
