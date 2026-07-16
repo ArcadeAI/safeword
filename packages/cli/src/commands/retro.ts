@@ -314,6 +314,7 @@ function unavailableTransportFailure(): Promise<never> {
 function unavailableTransport(): IssueTracker {
   return {
     searchBySignature: unavailableTransportFailure,
+    searchByCanonical: unavailableTransportFailure,
     createIssue: unavailableTransportFailure,
     listComments: unavailableTransportFailure,
     createComment: unavailableTransportFailure,

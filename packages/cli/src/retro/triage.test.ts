@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { type RetroDraft, signatureMarker } from './draft.js';
+import { canonicalMarker, type RetroDraft, signatureMarker } from './draft.js';
 import { shortHash } from './hash.js';
 import { LEDGER_MARKER, renderLedger } from './ledger.js';
 import {
@@ -25,6 +25,7 @@ class FakeGitHub implements IssueTracker {
   private nextIssue = 1;
   private nextComment = 1;
   failListComments = false;
+  failCanonicalSearch = false;
   readonly issues: StoredIssue[] = [];
   readonly commentsByIssue = new Map<number, IssueComment[]>();
   readonly calls = { createIssue: 0, createComment: 0, updateComment: 0 };
@@ -33,13 +34,14 @@ class FakeGitHub implements IssueTracker {
     title: string,
     ledger?: { sessions: string[]; manifestations: string[] },
     signature = `retro:${title}`,
+    canonicalSignature = `canonical:${title}`,
   ): StoredIssue {
     // Embed the signature marker in the body so searchBySignature finds it, exactly
     // as a real retro-filed issue carries it (buildDraft → signatureMarker).
     const issue: StoredIssue = {
       number: this.nextIssue++,
       title,
-      body: signatureMarker(signature),
+      body: `${signatureMarker(signature)}\n${canonicalMarker(canonicalSignature)}`,
       labels: [],
     };
     this.issues.push(issue);
@@ -65,6 +67,16 @@ class FakeGitHub implements IssueTracker {
     return Promise.resolve(
       this.issues
         .filter(i => i.body.includes(signature))
+        .map(i => ({ number: i.number, title: i.title })),
+    );
+  }
+
+  searchByCanonical(canonicalSignature: string): Promise<IssueReference[]> {
+    if (this.failCanonicalSearch)
+      return Promise.reject(new Error('canonical lookup should not run'));
+    return Promise.resolve(
+      this.issues
+        .filter(i => i.body.includes(canonicalMarker(canonicalSignature)))
         .map(i => ({ number: i.number, title: i.title })),
     );
   }
@@ -104,9 +116,11 @@ class FakeGitHub implements IssueTracker {
 }
 
 const draft = (title: string, signature = `retro:${title}`): RetroDraft => {
-  const body = `body for ${title}\n${signatureMarker(signature)}`;
+  const canonicalSignature = `canonical:${title}`;
+  const body = `body for ${title}\n${signatureMarker(signature)}\n${canonicalMarker(canonicalSignature)}`;
   return {
     signature,
+    canonicalSignature,
     title,
     body,
     bodyDigest: shortHash(body),
@@ -178,6 +192,28 @@ describe('triage — never a duplicate issue (SM1.AC2)', () => {
 });
 
 describe('triage — dedupe by content signature, not title (ZFGWS1 SM2.AC1)', () => {
+  it('prevent-retro-duplicate-issues.SM1.R1.canonical_repro_match_with_drift_updates_the_existing_issue', async () => {
+    const gh = new FakeGitHub();
+    gh.seedIssue(
+      'Original wording',
+      { sessions: ['old'], manifestations: ['m1'] },
+      'retro:old-signature',
+      'canonical:same-repro',
+    );
+    const recurrence: Encounter = {
+      draft: {
+        ...draft('Different title', 'retro:new-signature'),
+        canonicalSignature: 'canonical:same-repro',
+      },
+      manifestation: 'm1',
+    };
+
+    const result = await triage(gh, [recurrence], ctx({ sessionId: 'sess-new' }));
+
+    expect(gh.calls.createIssue).toBe(0);
+    expect(result.bumped).toEqual(['Original wording']);
+  });
+
   it('retro-recall.SM2.AC1.repeat_signature_under_a_different_title_opens_no_second_issue', async () => {
     const gh = new FakeGitHub();
     // An issue already filed for signature S under one (model-generated) title.
@@ -194,6 +230,17 @@ describe('triage — dedupe by content signature, not title (ZFGWS1 SM2.AC1)', (
     );
     expect(gh.calls.createIssue).toBe(0);
     expect(result.created).toEqual([]);
+  });
+
+  it('prevent-retro-duplicate-issues.SM1.R2.legacy_signature_match_does_not_request_canonical_lookup', async () => {
+    const gh = new FakeGitHub();
+    gh.seedIssue('Known friction', { sessions: ['old'], manifestations: ['m1'] }, 'retro:legacy');
+    gh.failCanonicalSearch = true;
+
+    const result = await triage(gh, [enc('Different title', 'm1', 'retro:legacy')], ctx());
+
+    expect(result.created).toEqual([]);
+    expect(result.failed).toEqual([]);
   });
 
   it('retro-recall.SM2.AC1.a_genuinely_new_signature_opens_a_new_issue', async () => {
@@ -220,6 +267,28 @@ describe('triage — dedupe by content signature, not title (ZFGWS1 SM2.AC1)', (
 });
 
 describe('triage — count every encounter, record novel shapes (SM1.AC3)', () => {
+  it('prevent-retro-duplicate-issues.SM1.R3.canonical_recurrence_in_the_same_session_does_not_double_count', async () => {
+    const gh = new FakeGitHub();
+    gh.seedIssue(
+      'Known friction',
+      { sessions: ['sess-a'], manifestations: ['m1'] },
+      'retro:old-signature',
+      'canonical:same-repro',
+    );
+    const recurrence: Encounter = {
+      draft: {
+        ...draft('Different title', 'retro:new-signature'),
+        canonicalSignature: 'canonical:same-repro',
+      },
+      manifestation: 'm1',
+    };
+
+    await triage(gh, [recurrence], ctx({ sessionId: 'sess-a' }));
+
+    expect(gh.calls.createIssue).toBe(0);
+    expect(gh.calls.updateComment).toBe(0);
+  });
+
   it('retro-transcript-mining.SM1.AC3.known_issue_hit_bumps_the_ledger_once', async () => {
     const gh = new FakeGitHub();
     gh.seedIssue('Known friction', { sessions: ['old'], manifestations: ['m1'] });
