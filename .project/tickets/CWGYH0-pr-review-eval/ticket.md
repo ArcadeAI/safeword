@@ -95,3 +95,11 @@ Three PRs (2056, 2093, 2109) hit the same trap: the linked Linear issue is writt
 
 
 **Final: 10/10. 11 findings, 2 blocking, 3 silences (30%), 3 needs-a-human (30%), 7 safe-to-merge (70%).**
+
+## Added measurement 2026-07-16: does the "Noticed nearby" section get acted on?
+
+The reviewer posts off-topic (latent, not-caused-by-this-PR) findings in a collapsed, non-blocking "Noticed nearby" section (G5337S §7a) — a user call that overrides a maintainer's stated "I'd ignore it." The eval must settle who's right:
+
+- **Track the off-topic section's action rate separately** from inline on-topic findings. Acted-on (fixed / filed / replied) vs scrolled-past.
+- If it is reliably ignored, the maintainer was right that this is a workflow problem a label can't fix, and §7a comes back out (reverts to run-summary-only or drop).
+- The off-topic *rate* is also the §3.5 calibration canary: 1/11 in the first probe. A rising rate means the gate is being used as an escape hatch from the on-topic bar.

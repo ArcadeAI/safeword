@@ -86,15 +86,17 @@ This is the same move safeword already makes in `experiments/gepa-review-spec/sr
 
 **A finding can be true, verified, and still noise — because noise is not falseness, it is content in the wrong channel.** This gate is the one the other gates cannot cover: they all check whether a finding is *true*, and this one is about whether it *belongs here*.
 
-The test, applied to every finding before it is posted:
+The test does not decide whether a finding is *posted* — it decides **where it goes and how loud it is**:
 
 > **Would this finding be equally true if this PR did not exist?**
-> **Yes** → the PR did not cause it, and the PR's author is not its owner. It is a *codebase* finding, not a *change* finding. Do **not** comment it on the PR. Route it elsewhere (§7a).
-> **No** — the finding exists only because of what this diff changed → it is on-topic. Proceed.
+> **No** — it exists only because of what this diff changed → **on-topic.** Post it **inline, anchored to the changed line**, and let it count toward the verdict.
+> **Yes** — the PR merely sits near it → **off-topic.** It goes in a **collapsed, labeled "Noticed nearby" section of the review body** (§7a) — never inline, never in the verdict.
 
-Worked: a goroutine leak in code the PR merely *touched but did not modify* is equally true before the PR — **off-topic**, however real. A missing `connect_timeout` on a retry helper the PR *introduced* is not true before the PR — **on-topic**. Age is a tell: "this bug is 18 months old" almost always means "equally true before this PR."
+Worked: a goroutine leak in code the PR merely *touched but did not modify* is equally true before the PR — **off-topic**. A missing `connect_timeout` on a retry helper the PR *introduced* is not true before the PR — **on-topic**. Age is a tell: "18 months old" almost always means "equally true before this PR."
 
-Commenting on code the diff only touched is the exact **scope-creep this reviewer exists to flag** (dimension 4) — committed by the reviewer, against the author. Run dimension 4 on your own output. Real external reaction that produced this gate: a maintainer read an off-topic-but-true finding on a clean PR and called it *"noise I would ignore… if it were a nightly codebase sweep, that's different."* The content was fine; the channel was wrong.
+**The medium enforces the label.** A GitHub review has two surfaces: inline comments that sit *on* the changed lines, and a summary body that does not. On-topic findings anchor to the diff; off-topic ones can't (the code didn't change), so they belong in the body — structurally separated, not just verbally. This directly answers the complaint that produced this rule: a maintainer read an off-topic finding mixed into normal feedback and asked *"is this talking to me or someone else?"* — the confusion was that it wasn't labeled or separated, and it ran on like PR feedback. Fix the separation, keep the finding.
+
+**Off-topic findings never touch the verdict.** `needs-a-human` answers "does this *change* need review." A latent bug in a nearby file does not make the change need review. Keep them fully apart, or the FYI stuff poisons the one output that matters.
 
 ## 4. The dimensions — ordered by what actually pays
 
@@ -155,13 +157,29 @@ A team drowning in agent-written PRs needs one thing above all: **which PRs to o
 | `needs-a-human` | Something warrants real attention. Say what, in one line, actionable **without opening the diff**. |
 | `not-reviewable-as-is` | So many real problems that enumerating them is the wrong response — it needs restructuring or splitting. Use this **instead of** a flood. |
 
-### 7a. Off-topic-but-real findings — report in the run summary, never on the PR
+### 7a. Off-topic-but-real findings — a collapsed, labeled "Noticed nearby" section
 
-A finding that fails §3.5's on-topic test (true, but equally true before this PR) is not worthless — it is mis-addressed. **Decided 2026-07-16: this reviewer is PR-scoped only. There is no sweep, and we build no routing infrastructure for these** — a whole codebase-sweep product to catch the ~9% of findings that are off-topic is the tail wagging the dog, and the pain we were hired to fix is on PRs.
+**Decided 2026-07-16 (revised): post them on the PR, clearly separated from the review of the change.** The author just touched these files and has the most context on them right now — they are the warmest person to see a latent issue, even if it isn't their PR's fault. The earlier "never on the PR" rule over-corrected for a *labeling* failure (an off-topic finding mixed into normal feedback) by throwing the finding away; the fix is to label it hard, not to hide it.
 
-So an off-topic finding goes in **one** place: the reviewer's own run summary, under `off_topic_observations`, which is **never posted to the PR**. Whoever runs or monitors the reviewer sees it in the run output; the PR author never does. The rare real one is a human's to carry wherever it belongs. This adds no queue, no nightly job, no repo scan — the finding was already a byproduct of reviewing *this diff* (the trial's leak surfaced from a deflake's own test comment), so capturing it costs nothing and scanning nothing.
+Structure, in the review **body** (never inline, never in the verdict):
 
-**Watch the off-topic rate.** In the trial it was 1 of 11. If it climbs, the reviewer is using this section as an escape hatch to dodge the on-topic bar — that is a miscalibrated §3.5 gate, not a productivity gain.
+```
+<details>
+<summary>🔭 Noticed nearby — not about this PR (N, non-blocking)</summary>
+
+Latent issues in code this change touches but did not modify. You have the
+most context on these files right now, so flagging FYI — ignore freely, or
+file if useful. This is not review feedback on your change.
+
+- <one line each + file:line>
+</details>
+```
+
+The `<details>` collapse is load-bearing: it answers *"is this talking to me?"* before the author reads a word — folded away, labeled "not about this PR," opt-in. It cannot dominate the comment or bury the on-topic review.
+
+**Two hard caps.** The section is capped (≤3; if there are more, say how many were dropped) and **never contributes to the verdict**. A team drowning in PRs cannot afford an FYI section that grows into a second review.
+
+**Watch the off-topic rate — it is the canary.** In the trial it was 1 of 11. If it climbs, the reviewer is dodging the on-topic bar by dumping borderline findings into "nearby," which is a miscalibrated §3.5 gate, not productivity. And the open bet worth measuring (CWGYH0): does the "Noticed nearby" section get *acted on*, or scrolled past? If engineers ignore it, the maintainer who called it noise was right about workflow, not just labeling — and it comes back out.
 
 ## 8. Independence — declare it, never imply it
 
