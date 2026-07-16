@@ -116,15 +116,15 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Cached installation exposes scoped workflow skills without project files
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 9b7065d2
+- [x] GREEN 890367e2
+- [x] REFACTOR skip: cache-path parsing and complete cache validation are separate reusable helpers
 
 ### Scenario: Project copies cannot mask a missing cached plugin asset
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 9b7065d2
+- [x] GREEN 26435864
+- [x] REFACTOR skip: the deterministic fixture directly proves the negative case without a live model dependency
 
 ## Rule: workflow-maintenance.SWM1.R4 - Safe Bunx-only hook commands
 
