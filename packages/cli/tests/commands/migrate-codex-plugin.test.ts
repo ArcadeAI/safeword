@@ -61,19 +61,25 @@ esac
 describe('migrate codex-plugin command', () => {
   const directories: string[] = [];
 
+  function createMigrationFixture(config: string, pluginEnabled = true) {
+    const directory = createTemporaryDirectory();
+    directories.push(directory);
+    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+    mkdirSync(nodePath.join(directory, '.codex'), { recursive: true });
+    writeFileSync(nodePath.join(directory, '.safeword/version'), '0.68.0\n');
+    const configPath = nodePath.join(directory, '.codex/config.toml');
+    writeFileSync(configPath, config);
+
+    return { directory, configPath, bin: installFakeRuntime(directory, pluginEnabled) };
+  }
+
   afterEach(() => {
     for (const directory of directories) removeTemporaryDirectory(directory);
     directories.length = 0;
   });
 
   it('leaves legacy hooks untouched and explains the reviewed-plugin handoff', async () => {
-    const directory = createTemporaryDirectory();
-    directories.push(directory);
-    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
-    mkdirSync(nodePath.join(directory, '.codex'), { recursive: true });
-    writeFileSync(nodePath.join(directory, '.safeword/version'), '0.68.0\n');
-    writeFileSync(nodePath.join(directory, '.codex/config.toml'), LEGACY_HOOK_CONFIG);
-    const bin = installFakeRuntime(directory, true);
+    const { directory, configPath, bin } = createMigrationFixture(LEGACY_HOOK_CONFIG);
     const log = nodePath.join(directory, 'codex.log');
 
     const result = await runCli(['migrate', 'codex-plugin'], {
@@ -85,9 +91,7 @@ describe('migrate codex-plugin command', () => {
     });
 
     expect(result.exitCode, result.stderr).toBe(0);
-    expect(readFileSync(nodePath.join(directory, '.codex/config.toml'), 'utf8')).toBe(
-      LEGACY_HOOK_CONFIG,
-    );
+    expect(readFileSync(configPath, 'utf8')).toBe(LEGACY_HOOK_CONFIG);
     expect(`${result.stdout}\n${result.stderr}`).toContain('/hooks');
     expect(`${result.stdout}\n${result.stderr}`).toContain('--remove-legacy-hooks');
     expect(existsSync(nodePath.join(directory, '.codex/config.toml.safeword.bak'))).toBe(false);
@@ -99,15 +103,8 @@ describe('migrate codex-plugin command', () => {
   });
 
   it('removes legacy hooks only after the explicit handoff cleanup request', async () => {
-    const directory = createTemporaryDirectory();
-    directories.push(directory);
-    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
-    mkdirSync(nodePath.join(directory, '.codex'), { recursive: true });
-    writeFileSync(nodePath.join(directory, '.safeword/version'), '0.68.0\n');
     const original = `${LEGACY_HOOK_CONFIG}${USER_CODEX_CONFIG}`;
-    const configPath = nodePath.join(directory, '.codex/config.toml');
-    writeFileSync(configPath, original);
-    const bin = installFakeRuntime(directory, true);
+    const { directory, configPath, bin } = createMigrationFixture(original);
 
     const result = await runCli(['migrate', 'codex-plugin', '--remove-legacy-hooks'], {
       cwd: directory,
@@ -128,15 +125,8 @@ describe('migrate codex-plugin command', () => {
   });
 
   it('removes only the Safe Word handler during explicit handoff cleanup', async () => {
-    const directory = createTemporaryDirectory();
-    directories.push(directory);
-    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
-    mkdirSync(nodePath.join(directory, '.codex'), { recursive: true });
-    writeFileSync(nodePath.join(directory, '.safeword/version'), '0.68.0\n');
     const original = `${LEGACY_HOOK_CONFIG}${CUSTOM_PRE_TOOL_HOOK}${USER_CODEX_CONFIG}`;
-    const configPath = nodePath.join(directory, '.codex/config.toml');
-    writeFileSync(configPath, original);
-    const bin = installFakeRuntime(directory, true);
+    const { directory, configPath, bin } = createMigrationFixture(original);
 
     const result = await runCli(['migrate', 'codex-plugin', '--remove-legacy-hooks'], {
       cwd: directory,
@@ -158,11 +148,6 @@ describe('migrate codex-plugin command', () => {
   });
 
   it('preserves lookalike user hook commands during explicit handoff cleanup', async () => {
-    const directory = createTemporaryDirectory();
-    directories.push(directory);
-    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
-    mkdirSync(nodePath.join(directory, '.codex'), { recursive: true });
-    writeFileSync(nodePath.join(directory, '.safeword/version'), '0.68.0\n');
     const original = `[[hooks.PreToolUse]]
 matcher = "^(apply_patch)$"
 
@@ -186,9 +171,7 @@ command = 'bunx --bun safeword@1.2.3 hook codex pre-tool-use'
 type = "command"
 command = 'safeword hook codex pre-tool-use'
 `;
-    const configPath = nodePath.join(directory, '.codex/config.toml');
-    writeFileSync(configPath, original);
-    const bin = installFakeRuntime(directory, true);
+    const { directory, configPath, bin } = createMigrationFixture(original);
 
     const result = await runCli(['migrate', 'codex-plugin', '--remove-legacy-hooks'], {
       cwd: directory,
@@ -209,11 +192,6 @@ command = 'safeword hook codex pre-tool-use'
   });
 
   it('preserves user scripts beside an exact historical Safe Word hook', async () => {
-    const directory = createTemporaryDirectory();
-    directories.push(directory);
-    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
-    mkdirSync(nodePath.join(directory, '.codex'), { recursive: true });
-    writeFileSync(nodePath.join(directory, '.safeword/version'), '0.68.0\n');
     const original = `[[hooks.PreToolUse]]
 matcher = "^(apply_patch)$"
 
@@ -225,9 +203,7 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
 type = "command"
 command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/custom.ts"'
 `;
-    const configPath = nodePath.join(directory, '.codex/config.toml');
-    writeFileSync(configPath, original);
-    const bin = installFakeRuntime(directory, true);
+    const { directory, configPath, bin } = createMigrationFixture(original);
 
     const result = await runCli(['migrate', 'codex-plugin', '--remove-legacy-hooks'], {
       cwd: directory,
@@ -245,15 +221,8 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/custom.ts
   });
 
   it('refuses explicit cleanup when the Codex configuration is malformed', async () => {
-    const directory = createTemporaryDirectory();
-    directories.push(directory);
-    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
-    mkdirSync(nodePath.join(directory, '.codex'), { recursive: true });
-    writeFileSync(nodePath.join(directory, '.safeword/version'), '0.68.0\n');
     const original = `${LEGACY_HOOK_CONFIG}\n[broken\n`;
-    const configPath = nodePath.join(directory, '.codex/config.toml');
-    writeFileSync(configPath, original);
-    const bin = installFakeRuntime(directory, true);
+    const { directory, configPath, bin } = createMigrationFixture(original);
 
     const result = await runCli(['migrate', 'codex-plugin', '--remove-legacy-hooks'], {
       cwd: directory,
@@ -269,11 +238,6 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/custom.ts
   });
 
   it('does not treat a Safe Word marker in a comment as an owned handler', async () => {
-    const directory = createTemporaryDirectory();
-    directories.push(directory);
-    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
-    mkdirSync(nodePath.join(directory, '.codex'), { recursive: true });
-    writeFileSync(nodePath.join(directory, '.safeword/version'), '0.68.0\n');
     const original = `[[hooks.PreToolUse]]
 matcher = "^custom$"
 
@@ -282,9 +246,7 @@ matcher = "^custom$"
 type = "command"
 command = 'echo "keep this user hook"'
 `;
-    const configPath = nodePath.join(directory, '.codex/config.toml');
-    writeFileSync(configPath, original);
-    const bin = installFakeRuntime(directory, true);
+    const { directory, configPath, bin } = createMigrationFixture(original);
 
     const result = await runCli(['migrate', 'codex-plugin', '--remove-legacy-hooks'], {
       cwd: directory,
@@ -300,16 +262,9 @@ command = 'echo "keep this user hook"'
   });
 
   it('refuses cleanup instead of replacing an existing Safe Word backup', async () => {
-    const directory = createTemporaryDirectory();
-    directories.push(directory);
-    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
-    mkdirSync(nodePath.join(directory, '.codex'), { recursive: true });
-    writeFileSync(nodePath.join(directory, '.safeword/version'), '0.68.0\n');
-    const configPath = nodePath.join(directory, '.codex/config.toml');
-    writeFileSync(configPath, LEGACY_HOOK_CONFIG);
+    const { directory, configPath, bin } = createMigrationFixture(LEGACY_HOOK_CONFIG);
     const backupPath = `${configPath}.safeword.bak`;
     writeFileSync(backupPath, 'existing backup\n');
-    const bin = installFakeRuntime(directory, true);
 
     const result = await runCli(['migrate', 'codex-plugin', '--remove-legacy-hooks'], {
       cwd: directory,
@@ -325,14 +280,8 @@ command = 'echo "keep this user hook"'
   });
 
   it('retains legacy hooks when Codex reports the plugin disabled', async () => {
-    const directory = createTemporaryDirectory();
-    directories.push(directory);
-    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
-    mkdirSync(nodePath.join(directory, '.codex'), { recursive: true });
-    writeFileSync(nodePath.join(directory, '.safeword/version'), '0.68.0\n');
-    writeFileSync(nodePath.join(directory, '.codex/config.toml'), LEGACY_HOOK_CONFIG);
-    const before = readFileSync(nodePath.join(directory, '.codex/config.toml'), 'utf8');
-    const bin = installFakeRuntime(directory, false);
+    const { directory, configPath, bin } = createMigrationFixture(LEGACY_HOOK_CONFIG, false);
+    const before = readFileSync(configPath, 'utf8');
 
     const result = await runCli(['migrate', 'codex-plugin'], {
       cwd: directory,
@@ -344,7 +293,7 @@ command = 'echo "keep this user hook"'
 
     expect(result.exitCode).not.toBe(0);
     expect(`${result.stdout}\n${result.stderr}`).toContain('enabled');
-    expect(readFileSync(nodePath.join(directory, '.codex/config.toml'), 'utf8')).toBe(before);
-    expect(existsSync(nodePath.join(directory, '.codex/config.toml'))).toBe(true);
+    expect(readFileSync(configPath, 'utf8')).toBe(before);
+    expect(existsSync(configPath)).toBe(true);
   });
 });
