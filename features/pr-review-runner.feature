@@ -90,20 +90,20 @@ Feature: PR review runner — the mechanized gates
       Then the report is a question
       And the report does not block
 
-  Rule: autonomous-pr-review.TB2.R2 — a change to a sensitive surface is never verdicted safe-to-merge on size alone
+  Rule: autonomous-pr-review.TB1.R16 — a change to a sensitive surface is never verdicted safe-to-merge on size alone
 
     Measured: <100-line PRs get a human comment 18% of the time vs 62% for 500+,
     and 11 of 14 small PRs touching auth or infra got zero human comments.
 
     @surface.safeword-cli
-    Scenario: autonomous-pr-review.TB2.R2.a_small_change_to_a_sensitive_surface_is_reviewed_at_full_depth
+    Scenario: autonomous-pr-review.TB1.R16.a_small_change_to_a_sensitive_surface_is_reviewed_at_full_depth
       Given a pull request of fewer than one hundred changed lines
       And the diff modifies an authorization control
       When the reviewer sets its review depth
       Then the reviewer evaluates the change on every dimension
 
     @surface.safeword-cli
-    Scenario: autonomous-pr-review.TB2.R3.an_unanswered_author_request_for_review_reaches_a_human
+    Scenario: autonomous-pr-review.TB1.R17.an_unanswered_author_request_for_review_reaches_a_human
       Given a pull request whose description asks a reviewer to check a specific decision
       And no existing comment answers that request
       When the reviewer decides the verdict
@@ -159,13 +159,29 @@ Feature: PR review runner — the mechanized gates
       When the review is produced
       Then the second vendor is not invoked
 
-  Rule: autonomous-pr-review.SM1.R3 — the reviewer never holds a credential that can write while reading untrusted content
+  Rule: autonomous-pr-review.SM1.R3 — the reviewer never executes fork-PR code while holding a write token or secrets
+
+    Refined 2026-07-17 (/figure-it-out, GitHub Security Lab "pwn requests"). The
+    pwn-request threat is EXECUTION of untrusted code with secrets present — not
+    reading it. Reading the diff as data and sending it to the model is safe in a
+    privileged job; running the fork's code is not. So the reviewer may read and
+    post; the executing gates (R13 fix-run, R12 base-repro) must degrade on a
+    fork or run in an unprivileged sidecar. The tripwire is EXECUTION, worded so
+    any new run-fork-code step is visibly in violation.
 
     @surface.safeword-cli
-    Scenario: autonomous-pr-review.SM1.R3.a_pull_request_from_a_fork_is_reviewed_without_a_write_credential
+    Scenario: autonomous-pr-review.SM1.R3.a_fork_pull_request_is_reviewed_without_executing_its_code
       Given a pull request opened from a fork
-      When the reviewer reads the diff
-      Then the reviewer holds no credential that can comment on the pull request
+      When the reviewer produces its review while holding a token that can post
+      Then the reviewer does not execute any code from the fork
+
+    @surface.safeword-cli
+    Scenario: autonomous-pr-review.SM1.R3.the_fix_gate_degrades_on_a_fork_rather_than_running_fork_code
+      Given a fork pull request whose finding carries a suggested fix
+      And running the affected tests would execute the fork's code
+      When the reviewer decides whether to validate the fix
+      Then the reviewer posts the finding without a validated fix
+      And the finding states the fix was not run
 
     @surface.safeword-cli
     Scenario: autonomous-pr-review.SM1.R3.instructions_inside_a_diff_do_not_direct_the_reviewer
