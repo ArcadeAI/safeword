@@ -18,6 +18,7 @@ scope:
   - Make Codex migration a safe two-step handoff: install and enable the profile plugin without removing legacy hooks, then retire only Safe Word-owned hooks through an explicit post-trust cleanup action.
   - Make missing or stale plugin-hook trust visible and blocking: Codex must skip the affected hook and direct the user to review it, while Safe Word preserves legacy hooks and never bypasses or edits Codex trust state.
   - Extend release, integration, live-smoke, and documentation coverage for the generated profile plugin while retaining Bunx-only hook commands.
+  - Apply audit-directed patch updates to development-only Codex, Cucumber, and Knip tooling and remove stale Knip binary suppressions as part of final verification.
 out_of_scope:
   - Rewriting Safe Word workflow policy or changing the canonical template content except for unavoidable Codex path and invocation adaptation.
   - Changing Claude Code or Cursor workflow delivery, schema ownership, or behavior.
@@ -33,7 +34,7 @@ done_when:
   - Codex persona-lineage coverage reads the packaged plugin model rather than retired repository-local BDD files, and Claude Code and Cursor regression checks remain unchanged.
   - The published documentation explains complete scoped skill availability, the two-step migration, and Bunx-only hooks.
 created: 2026-07-15T18:26:26.899Z
-last_modified: 2026-07-16T16:22:18.000Z
+last_modified: 2026-07-16T23:56:41Z
 ---
 
 # Give Codex users the full Safe Word workflow
@@ -52,6 +53,13 @@ last_modified: 2026-07-16T16:22:18.000Z
 - 2026-07-16T15:44:26.000Z Phase transition: all executable scenarios are green; manual Codex trust evidence is recorded in `packages/cli/tests/smoke/codex-plugin-manual-acceptance.md`. Moving to verification.
 - 2026-07-16T15:45:00.000Z Process correction: normalized the R/G/R ledger to the ticket validator's one-distinct-SHA-per-RED/GREEN contract; explanatory provenance remains in the ticket work log.
 - 2026-07-16T16:22:18.000Z Verification fix: full-suite Rust setup exposed an unrelated detector self-contamination bug. The targeted detector and full Rust golden-path suites pass after the narrow correction; see Root Cause below.
+- 2026-07-16T17:01:00.000Z Verification fix: the generated Codex catalogue scoped commands in primary skill documents but copied reference assets verbatim. The generator now adapts all Markdown workflow invocations; the migration contract distinguishes command-shaped invocations from slash-delimited prose.
+- 2026-07-16T22:00:00.000Z Audit maintenance: updated development-only Codex, Cucumber, and Knip tooling; `bunx knip` is clean after removing stale binary suppressions.
+- 2026-07-16T22:08:20.000Z Independent quality review found that explicit cleanup could delete a user hook whose command merely began with `safeword`.
+- 2026-07-16T22:34:55Z GREEN: `09c3e8eed` restricts cleanup to exact package invocations and known historical scripts, adds mixed-block preservation regressions, pins the live smoke to `codex-cli 0.144.5`, and records current interactive trust evidence.
+- 2026-07-16T23:31:03Z Independent quality review found two remaining boundary defects: cleanup still recognized arbitrary pinned Bunx and bare `safeword` commands, and the catalogue could rewrite `/verify/README.md` or `/verify/_draft.md` as skill invocations.
+- 2026-07-16T23:35:05Z Re-review approved the fix: cleanup now recognizes only the exact historical `npx --yes safeword` project-hook form; the catalogue treats every slash suffix as a path boundary. Focused migration, release, lint, and typecheck checks passed.
+- 2026-07-16T23:56:41Z Final verification: 5,202/5,202 tests passed (5 skipped), the BDD lane passed 484 scenarios (3 skipped), lint/typecheck passed, and audit passed with expected generated/parity clone warnings plus pre-existing persona aliases.
 
 ## Root Cause
 
@@ -76,3 +84,83 @@ Ruled out:
   that directory.
 - A package-manager failure: setup reported successful dependency installation;
   the false missing-package result came from the later health scan.
+
+### Codex reference-asset command transformation
+
+The original catalogue generator adapted scoped invocations only in a skill's
+`SKILL.md`. Supporting reference assets were copied verbatim, so Codex could
+read an instruction such as `Run /verify` even though Codex plugins expose the
+skill as `$safeword:verify`. The migration-residue test found the problem, then
+its broad slash matcher also falsely classified `test/build/typecheck/bdd` as a
+bare command.
+
+Confirmed by a RED release-contract fixture whose reference asset says
+`Run /beta`: it produced `/beta` before the change and `$safeword:beta` after.
+The focused migration scenario now passes with a command-shaped invocation
+matcher.
+
+Ruled out:
+
+- A stale checked-in catalogue: regenerating after the generator change
+  produced the scoped reference assets.
+- A Codex plugin alias: the installed skill names remain scoped; this was
+  documentation guidance, not runtime skill discovery.
+
+### Codex legacy hook ownership
+
+The cleanup detector identified ownership with `startsWith('safeword')`, so a
+user command such as `safeword-tools hook codex pre-tool-use` or
+`npx --yes safeword@evil hook codex pre-tool-use` could be deleted during the
+explicit post-trust handoff. It also treated any script under
+`.safeword/hooks/codex/` as Safe Word-owned.
+
+Confirmed by a CLI-level RED regression that mixed a genuine historical Safe
+Word hook with those user commands; the old cleanup removed the whole handler
+section. The replacement matches only exact historic package forms, known
+Codex hook events, and the finite set of scripts Safe Word shipped. A second
+regression preserves a user script adjacent to an exact historical hook.
+
+Ruled out:
+
+- Initial migration: it never removes project hooks, so this is confined to
+  the explicit `--remove-legacy-hooks` action.
+- Codex trust state: cleanup still runs only after Codex reports the profile
+  plugin enabled and never reads or writes Codex's trust hashes.
+
+### Codex legacy-command re-review
+
+The first ownership hardening still classified any semver-pinned
+`bunx --bun safeword@X.Y.Z` command and any bare `safeword` command as
+Safe Word-owned. Neither form is a finite historical project-hook identity:
+the former is the profile-plugin delivery shape and the latter can be a
+user-authored command.
+
+Confirmed by a CLI-level fixture that preserves both forms while removing the
+genuine historical `npx --yes safeword hook codex pre-tool-use` command. The
+reviewer independently approved the narrowed detector.
+
+Ruled out:
+
+- The current profile plugin: its Bunx commands are not project-local legacy
+  hooks and must never be removed by migration cleanup.
+- Bare CLI use: Safe Word never generated a bare `safeword` project hook, so
+  preserving it cannot leave a shipped legacy artifact behind.
+
+### Codex scoped-command path boundary
+
+The catalogue's command adaptation originally treated only lowercase and
+numeric slash suffixes as paths. A valid reference such as
+`/verify/README.md` or `/verify/_draft.md` could therefore be rewritten as a
+scoped skill invocation plus a broken suffix.
+
+Confirmed by source-to-plugin release fixtures covering uppercase and
+underscore path names. The path guard now treats any slash immediately after a
+known skill name as a path delimiter, while retaining transformation of a
+standalone `/verify` invocation.
+
+Ruled out:
+
+- A plugin skill-name collision: the problem was parser boundary detection,
+  not Codex discovery or plugin metadata.
+- Link adaptation: sibling-document link relocation remains a separate,
+  allowlisted transformation.
