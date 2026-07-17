@@ -11,6 +11,8 @@ phase_anchors:
   - 'implement: .project/tickets/YH2ZRN-migrate-codex-to-plugin/impl-plan.md'
   - 'verify: .project/tickets/YH2ZRN-migrate-codex-to-plugin/test-definitions.md'
   - 'done: .project/tickets/YH2ZRN-migrate-codex-to-plugin/verify.md'
+phase_skips:
+  - 'verify: This historical ticket was superseded by MZH9QH before it reached its own verification phase; the combined delivery has fresh verification evidence in this ticket and MZH9QH.'
 scope:
   - Add an explicit `safeword migrate codex-plugin` command that installs Safe Word's Codex plugin into the active Codex profile and verifies it is enabled before changing the project.
   - Retire Safe Word-owned project-local Codex hook stanzas after verified migration, while preserving user-authored Codex configuration and hooks.
