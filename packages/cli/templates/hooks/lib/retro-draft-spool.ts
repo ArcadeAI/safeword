@@ -117,6 +117,15 @@ export function canonicalSignatureForDraft(draft: SpooledDraft): string | undefi
   return draft.body.includes(marker) ? draft.canonicalSignature : undefined;
 }
 
+/** Remove canonical metadata when it disagrees with the code-assembled body. */
+function draftForPosting(draft: SpooledDraft): SpooledDraft {
+  if (canonicalSignatureForDraft(draft) !== undefined || draft.canonicalSignature === undefined) {
+    return draft;
+  }
+  const { canonicalSignature: _canonicalSignature, ...withoutCanonicalSignature } = draft;
+  return withoutCanonicalSignature;
+}
+
 /**
  * True unless the draft carries a seal that no longer matches its body. The
  * digest algorithm MUST stay byte-identical to the CLI's `src/retro/hash.ts`
@@ -220,7 +229,7 @@ export async function fileSpooledDrafts(
       continue;
     }
     try {
-      const { issue } = await post(draft);
+      const { issue } = await post(draftForPosting(draft));
       // Ack IMMEDIATELY after the post, before any drain (GH644A): a crash
       // between post and drain must read as "posted but undrained", never as a
       // bare drain. Uncapped by design — the filer appends, the gate reads.
