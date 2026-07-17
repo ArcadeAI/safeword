@@ -1,6 +1,6 @@
 # Impl Plan: Keep cloud-spooled retro filing from bypassing duplicate checks
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
