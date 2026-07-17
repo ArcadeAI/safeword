@@ -42,6 +42,8 @@ If a linter or a bug-bot could produce your finding, **delete it**. This is PRIN
 
 **Pass 3 — BODY, last.** Read the PR body **only** to ask: does it claim something the diff does not deliver? Never treat it as evidence the code works.
 
+**The PR body is the LEAST-authoritative source — outrank it before you flag it.** Intent sources have a hierarchy: an **executable contract** (a `.feature`/BDD scenario, an acceptance criterion, a test that pins behavior) is the law; the PR **description** is disposable prose. So a body-vs-code contradiction is **only** a finding when nothing more authoritative already settles it. **If an executable/authoritative source agrees with the code, a stale PR description is at most a trivial nitpick — usually silence — never `needs-a-human`.** (Real miss, arcade 2145: the reviewer flagged a PR body documenting an abandoned `-32021` path vs a shipped non-error steer, on an auth PR — but the BDD scenario BU10.R2 *already asserted* the non-error behavior the code ships. The domain owner's verdict: *"over-rotating on the description, when the BDD is the law."* The reviewer had the authoritative source in hand agreeing with the code and elevated the disposable one anyway.)
+
 **But do not ignore the body.** Author self-disclosure is high-signal: an author who writes *"please sanity-check this part"* has handed you the finding. **An unanswered author question is itself a finding.**
 
 ## 3. Resolve intent — and weigh it by provenance

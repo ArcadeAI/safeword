@@ -157,3 +157,26 @@ Why these matter (the wedge on live PRs): none is a generic bug a linter/Bugbot 
 Discipline observed: 2145 navigated a real trap — the ticket AC says the degraded path should be an error, so "code violates AC" looked true; the reviewer read the review thread, saw the maintainer had flipped that design to non-error and the author complied, subtracted the false reading, and landed on the real (stale-body) issue. That is the counter-evidence/subtraction machinery preventing a confident false positive on exactly the kind of intent-vs-code mismatch that is this tool's headline risk.
 
 **Caveats unchanged:** same-model (declared), my classification, actively-reviewed PRs so cleanliness is partly the corpus, nothing posted, n=5. Distinct from the two merged runs in that these findings are actionable NOW (pre-merge) if the authors want them.
+
+## First real human triage (2026-07-16, Nate — senior eng) — the gate the project was blocked on
+
+Nate reacted to both the merged-PR run (7 skip / 1 look) and the 3 live open-PR findings we posted. Scorecard:
+
+**Findings landed 3 of 4 useful — one confirmed by the code owner:**
+
+- **#2118 (login redirect `toMatchObject`)** — routed to Sergio (owns the code); **Sergio: "a good one."** A real evidence-integrity catch on a live PR, confirmed by the domain owner who had no reason to flatter it. Strongest single data point of the project.
+- **#2119 (who_am_i scope reduction)** — "useful comment… a good catch just so we are sure!" Intentional, exactly as the reviewer framed it (a question, not an assertion). Correct call.
+- **MARTECH-52 (the 1 needs-a-human on the merged run)** — "a useful note. I would flag it as minor, but useful." Directionally right; we over-pitched the severity.
+
+**One real MISS — and it's diagnostic:**
+
+- **#2145 (MCP OAuth doc-drift)** — Nate: **"over-rotating on the description, when the BDD is the law."** The reviewer flagged a stale PR body vs the code, but the BDD scenario (BU10.R2) — the executable contract — already matched the code. The skill treated the PR body as "the durable squash record"; arcade treats the BDD as law and the description as disposable. **Fix applied to skill-draft Pass 3: the PR body is the least-authoritative source; when an executable/authoritative source agrees with the code, a stale description is a trivial nitpick at most, never needs-a-human.** This is the highest-value feedback of the project — a specific, expert-sourced over-rotation with a clean provenance-ranking fix.
+
+**Methodological caveat Nate raised (must own):**
+
+- The 7 safe-to-merge are "mostly chores… evaluating very easy ones. Seems correct, but weak evidence." Independent confirmation of our own caveat: the merged corpus was too easy to prove much.
+- **#2061 specifically: he asked whether we reviewed it before or after his comments — Sergio and he had gone several review rounds, and we reviewed the FINAL (already-scrubbed) state.** So "safe-to-merge" there is near-worthless evidence: of course pre-reviewed code is clean. The merged-PR runs systematically reviewed post-human-review states → the precision numbers are inflated by corpus contamination. The OPEN-PR run (2118/2119/2145) is the real evidence, because those weren't yet resolved.
+
+**The load-bearing question is STILL unanswered.** Q2 was "would a green safe-to-merge actually make you skip a PR, or open it anyway?" Nate engaged with whether the calls were *correct*, not with whether he'd *change his behavior*. The capacity thesis (verdict-as-product) remains unvalidated — the tool has shown it can produce good findings, not yet that a green verdict earns enough trust to skip.
+
+**Net:** promising, not proven. Real value demonstrated on live substantive PRs (2118 owner-confirmed); one specific correctable over-rotation (2145, fixed); the merged-run precision evidence discounted as corpus-too-easy; the behavioral/capacity question open.
