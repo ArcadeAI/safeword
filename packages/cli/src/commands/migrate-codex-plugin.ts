@@ -364,15 +364,15 @@ function backupAndReplace(configPath: string, original: string, cleaned: string)
   }
 }
 
-function removeLegacyHooks(cwd: string): { removed: boolean; backupCreated: boolean } {
+function removeLegacyHooks(cwd: string): boolean {
   const configPath = nodePath.join(cwd, CODEX_CONFIG_PATH);
-  if (!existsSync(configPath)) return { removed: false, backupCreated: false };
+  if (!existsSync(configPath)) return false;
   const original = readFileSync(configPath, 'utf8');
   const cleaned = removeLegacyCodexHooks(original);
-  if (cleaned === original) return { removed: false, backupCreated: false };
+  if (cleaned === original) return false;
 
   backupAndReplace(configPath, original, cleaned);
-  return { removed: true, backupCreated: true };
+  return true;
 }
 
 export function migrateCodexPlugin(
@@ -418,12 +418,12 @@ export function migrateCodexPlugin(
     return;
   }
 
-  const cleanup = removeLegacyHooks(cwd);
-  if (cleanup.backupCreated) {
+  const removedLegacyHooks = removeLegacyHooks(cwd);
+  if (removedLegacyHooks) {
     info('Backed up the legacy Codex configuration to .codex/config.toml.safeword.bak.');
   }
   info(
-    cleanup.removed
+    removedLegacyHooks
       ? 'Removed Safe Word legacy Codex hooks from this project.'
       : 'No Safe Word legacy Codex hooks were found in this project.',
   );
