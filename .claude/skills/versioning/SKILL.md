@@ -80,7 +80,7 @@ The publish path is CI-driven via OIDC trusted publishing. Tag push → GitHub A
 
 2. **Bump version in all four release-tracked artifacts** (pre-commit and release-contract tests enforce the Codex match):
    - `packages/cli/package.json` → `version`
-   - `marketplace.json` → `plugins[0].version`
+   - `.claude-plugin/marketplace.json` → `plugins[0].version`
    - `packages/cli/codex-plugin/.codex-plugin/plugin.json` → `version`
    - `packages/cli/codex-plugin/hooks.json` → all five `bunx` commands pin `safeword@<version>`
 
@@ -96,7 +96,7 @@ The publish path is CI-driven via OIDC trusted publishing. Tag push → GitHub A
 
    ```bash
    git checkout -b release/vX.Y.Z
-   git add packages/cli/package.json marketplace.json packages/cli/codex-plugin/.codex-plugin/plugin.json packages/cli/codex-plugin/hooks.json bun.lock
+   git add packages/cli/package.json .claude-plugin/marketplace.json packages/cli/codex-plugin/.codex-plugin/plugin.json packages/cli/codex-plugin/hooks.json bun.lock
    git commit -m "chore(release): vX.Y.Z"
    git push -u origin release/vX.Y.Z
    gh pr create --title "chore(release): vX.Y.Z" --body "..."
