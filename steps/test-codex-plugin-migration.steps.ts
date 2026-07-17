@@ -996,34 +996,7 @@ Then(
 Given(
   'a fresh repo with the Safe Word Codex plugin installed and enabled',
   function (this: CodexPluginMigrationWorld) {
-    const repoRoot = createFreshCodexPluginRepo();
-    const { codexHome, marketplaceRoot } = createIsolatedCodexMarketplace();
-
-    const marketplacePreparation = prepareMarketplacePlugin(marketplaceRoot);
-    assert.equal(marketplacePreparation, undefined, marketplacePreparation?.stderr);
-
-    this.codexPluginRepoRoot = repoRoot;
-    this.codexPluginCodexHome = codexHome;
-    this.codexPluginMarketplaceRoot = marketplaceRoot;
-
-    const addMarketplaceResult = runCodexPluginCommand.call(this, [
-      'plugin',
-      'marketplace',
-      'add',
-      marketplaceRoot,
-      '--json',
-    ]);
-    assert.equal(addMarketplaceResult.exitCode, 0, addMarketplaceResult.stderr);
-
-    const installResult = runCodexPluginCommand.call(this, [
-      'plugin',
-      'add',
-      'safeword',
-      '--marketplace',
-      'safeword-local',
-      '--json',
-    ]);
-    assert.equal(installResult.exitCode, 0, installResult.stderr);
+    installSafeWordPluginFixture(this);
   },
 );
 
