@@ -377,11 +377,11 @@ function recordMarketplaceValidationFailure(
   return true;
 }
 
-function runCodexPluginCommand(this: CodexPluginMigrationWorld, args: string[]): CommandResult {
+function runCodexPluginCommand(world: CodexPluginMigrationWorld, args: string[]): CommandResult {
   return runCommand('codex', args, {
-    cwd: requirePath(this.codexPluginRepoRoot, 'fresh repo root'),
+    cwd: requirePath(world.codexPluginRepoRoot, 'fresh repo root'),
     env: {
-      CODEX_HOME: requirePath(this.codexPluginCodexHome, 'isolated CODEX_HOME'),
+      CODEX_HOME: requirePath(world.codexPluginCodexHome, 'isolated CODEX_HOME'),
     },
   });
 }
@@ -465,17 +465,17 @@ function summarizePromptAvailability(
   return 'plugin unavailable';
 }
 
-function installSafeWordCodexPlugin(this: CodexPluginMigrationWorld): void {
-  const marketplaceRoot = requirePath(this.codexPluginMarketplaceRoot, 'local marketplace root');
+function installSafeWordCodexPlugin(world: CodexPluginMigrationWorld): void {
+  const marketplaceRoot = requirePath(world.codexPluginMarketplaceRoot, 'local marketplace root');
   const marketplacePreparation = prepareMarketplacePlugin(marketplaceRoot);
   if (marketplacePreparation) {
-    this.codexPluginInstallResult = marketplacePreparation;
+    world.codexPluginInstallResult = marketplacePreparation;
     return;
   }
 
-  if (recordMarketplaceValidationFailure(this, marketplaceRoot)) return;
+  if (recordMarketplaceValidationFailure(world, marketplaceRoot)) return;
 
-  const addMarketplaceResult = runCodexPluginCommand.call(this, [
+  const addMarketplaceResult = runCodexPluginCommand(world, [
     'plugin',
     'marketplace',
     'add',
@@ -483,11 +483,11 @@ function installSafeWordCodexPlugin(this: CodexPluginMigrationWorld): void {
     '--json',
   ]);
   if (addMarketplaceResult.exitCode !== 0) {
-    this.codexPluginInstallResult = addMarketplaceResult;
+    world.codexPluginInstallResult = addMarketplaceResult;
     return;
   }
 
-  const installResult = runCodexPluginCommand.call(this, [
+  const installResult = runCodexPluginCommand(world, [
     'plugin',
     'add',
     'safeword',
@@ -495,11 +495,11 @@ function installSafeWordCodexPlugin(this: CodexPluginMigrationWorld): void {
     'safeword-local',
     '--json',
   ]);
-  this.codexPluginInstallResult = installResult;
-  this.codexPluginInstallSummary = summarizePluginInstallResult(installResult);
+  world.codexPluginInstallResult = installResult;
+  world.codexPluginInstallSummary = summarizePluginInstallResult(installResult);
 
   if (installResult.exitCode === 0) {
-    this.codexPluginListResult = runCodexPluginCommand.call(this, ['plugin', 'list', '--json']);
+    world.codexPluginListResult = runCodexPluginCommand(world, ['plugin', 'list', '--json']);
   }
 }
 
@@ -665,7 +665,7 @@ function installSafeWordPluginFixture(
   world.codexPluginCodexHome = codexHome;
   world.codexPluginMarketplaceRoot = marketplaceRoot;
 
-  installSafeWordCodexPlugin.call(world);
+  installSafeWordCodexPlugin(world);
   assert.equal(world.codexPluginInstallResult?.exitCode, 0, world.codexPluginInstallResult?.stderr);
   if (options.liveAuthenticated) installLocalSafewordNpxShim(repoRoot);
 }
@@ -865,7 +865,7 @@ Given('the repo file tree has been recorded', function (this: CodexPluginMigrati
 When(
   'the plugin install harness installs the Safe Word Codex plugin',
   function (this: CodexPluginMigrationWorld) {
-    installSafeWordCodexPlugin.call(this);
+    installSafeWordCodexPlugin(this);
   },
 );
 
@@ -876,7 +876,7 @@ When(
 
     if (recordMarketplaceValidationFailure(this, marketplaceRoot)) return;
 
-    const addMarketplaceResult = runCodexPluginCommand.call(this, [
+    const addMarketplaceResult = runCodexPluginCommand(this, [
       'plugin',
       'marketplace',
       'add',
@@ -888,7 +888,7 @@ When(
       return;
     }
 
-    this.codexPluginInstallResult = runCodexPluginCommand.call(this, [
+    this.codexPluginInstallResult = runCodexPluginCommand(this, [
       'plugin',
       'add',
       'safeword',
@@ -901,7 +901,7 @@ When(
 );
 
 When('the isolated plugin install harness runs', function (this: CodexPluginMigrationWorld) {
-  installSafeWordCodexPlugin.call(this);
+  installSafeWordCodexPlugin(this);
 });
 
 Then(
@@ -1023,7 +1023,7 @@ Given(
     this.codexPluginCodexHome = codexHome;
     this.codexPluginMarketplaceRoot = marketplaceRoot;
 
-    installSafeWordCodexPlugin.call(this);
+    installSafeWordCodexPlugin(this);
     assert.equal(this.codexPluginInstallResult?.exitCode, 0, this.codexPluginInstallResult?.stderr);
 
     const configPath = nodePath.join(codexHome, 'config.toml');
@@ -1035,7 +1035,7 @@ Given(
     );
     writeFileSync(configPath, config.replace(/^enabled = true$/mu, 'enabled = false'));
 
-    this.codexPluginListResult = runCodexPluginCommand.call(this, ['plugin', 'list', '--json']);
+    this.codexPluginListResult = runCodexPluginCommand(this, ['plugin', 'list', '--json']);
     assert.equal(this.codexPluginListResult.exitCode, 0, this.codexPluginListResult.stderr);
   },
 );
@@ -1090,12 +1090,12 @@ Given(
 When(
   'the prompt surface is inspected with `codex debug prompt-input`',
   function (this: CodexPluginMigrationWorld) {
-    this.codexPluginPromptResult = runCodexPluginCommand.call(this, [
+    this.codexPluginPromptResult = runCodexPluginCommand(this, [
       'debug',
       'prompt-input',
       'Use Safe Word for this feature.',
     ]);
-    this.codexPluginListResult = runCodexPluginCommand.call(this, ['plugin', 'list', '--json']);
+    this.codexPluginListResult = runCodexPluginCommand(this, ['plugin', 'list', '--json']);
     this.codexPluginPromptAvailabilitySummary = summarizePromptAvailability(
       this.codexPluginPromptResult,
       this.codexPluginListResult,
