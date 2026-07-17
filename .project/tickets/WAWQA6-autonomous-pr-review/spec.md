@@ -280,7 +280,19 @@ the product. -->
 ## Rave Moment
 
 
-_Pending — deliberately not authored yet._ DISCOVERY requires grounding this via `/figure-it-out` rather than writing it from priors, and it is advisory (never blocks intake exit). The candidate worth researching: **NTB1** — _"I merged something I couldn't read, and it told me in English what would break."_ Whether that clears the beaten-expectation bar, or is table-stakes once you've accepted agent-written code, is exactly what the research must settle. Deferred to the Rules gate.
+Authored 2026-07-17 via `/figure-it-out` (grounded, not from priors). The rave lives at the **highest persona-facing surface — TB**. NTB is deferred (below), with a reason.
+
+### TB — "It caught the thing that was green"
+
+- **The moment:** the reviewer flags a defect that every existing safety net missed *because the tests passed* — a test that would still pass if the bug came back (2118, `toMatchObject` where the anti-loop invariant needed `toEqual`), a test suite that never runs at all (2146, CI job gated on a path the change doesn't touch; 2056, workflow in a folder GitHub Actions doesn't read), or a metric that reports `success` while writing nothing (2113). The peak: the author stares at a green check and a real bug in the same breath.
+- **The expectation it beats:** *everything I own goes quiet exactly when the tests pass.* CI is green, the linters are green, Bugbot said "low risk," a teammate skimmed and clicked approve — and the dread, live in 2026, is that an AI reviewer is just one more thing to mute (the "cry wolf" effect is the #1 reason teams abandon AI review; 70–90% of comments get ignored). This beats that dread at its own game: it is loudest precisely where everything else fell silent.
+- **The one-sentence test (does it travel?):** *"Our reviewer caught a test that would've let an infinite-loop bug back in — and CI was green."* That sentence makes the **teller** look sharp for running it (Berger's Social Currency — the mechanism of word-of-mouth), it is a specific Story with Practical Value, and it already happened: the code owner (Sergio) called the 2118 catch *"a good one"* unprompted. Not luck — evidence-integrity was 3/3 in the trial, so the green-catch is a **repeatable class**, not a one-off.
+
+**Why the green-catch and not the near-misses:** "it found a bug" is table-stakes — Bugbot finds bugs. "It got quieter when we were slammed" (the floating bar) is a real delight but an *average*, not a peak you screenshot, and it is unbuilt. "It refused to ship a fix it couldn't verify" is the **trust foundation** that makes the green-catch believable rather than another bot crying wolf — but it makes the *tool* look careful, not the *teller* look smart, so it seeds the rave; it isn't the rave.
+
+### NTB — `skip: table-stakes / premature for v1`
+
+The candidate was *"I merged something I couldn't read, and it told me in English what would break."* It does not clear the bar **yet**, for three reasons the research made concrete: (1) an NTB who cannot read code has **no prior experience of code review to beat** — beating nothing is a first, not a rave; (2) their delight is **fragile** — they cannot verify the review is right, so one confident-but-wrong "safe to merge" collapses the trust the rave depends on; (3) the user has scoped NTB as *not the v1 target*. The NTB rave is real and downstream — it becomes authorable once the verdict has *earned* enough trust that a non-coder can rely on it — but writing it now would be aspirational fiction, which is the exact failure the "run `/figure-it-out`, don't invent" rule guards against.
 
 ## Outcomes
 
