@@ -14,6 +14,7 @@ import { shortHash } from './hash.js';
 
 export interface RetroDraft {
   signature: string;
+  canonicalSignature: string;
   title: string;
   body: string;
   labels: string[];
@@ -40,6 +41,11 @@ export function retroSignature(finding: Finding): string {
   return `retro:${shortHash(key)}`;
 }
 
+/** `canonical:<12-hex>` keyed only on the normalized command-oriented repro. */
+export function retroCanonicalSignature(repro: string): string {
+  return `canonical:${shortHash(normalizeForKey(repro))}`;
+}
+
 /**
  * A hidden, searchable marker that carries the content signature into the issue
  * body. Dedupe matches on THIS (via `searchBySignature` → `in:body`), not the
@@ -54,15 +60,22 @@ export function signatureMarker(signature: string): string {
 /** The tracker label marking process-level (no single-file) friction (PNZM3B). */
 const PROCESS_LABEL = 'process';
 
+/** Hidden exact-match marker for the code-derived canonical repro identity. */
+export function canonicalMarker(canonicalSignature: string): string {
+  return `<!-- safeword-retro-canonical: ${canonicalSignature} -->`;
+}
+
 /** Build the namespaced draft from a normalized finding. */
 export function buildDraft(finding: Finding): RetroDraft {
   const signature = retroSignature(finding);
+  const canonicalSignature = retroCanonicalSignature(finding.repro);
   const processLabel = isProcessSurface(finding.safewordSurface) ? [PROCESS_LABEL] : [];
   // Embed the signature marker so re-fires (and recurrences) dedupe on the
   // stable signature, not the variable title.
-  const body = `${assembleBody(finding)}\n${signatureMarker(signature)}`;
+  const body = `${assembleBody(finding)}\n${signatureMarker(signature)}\n${canonicalMarker(canonicalSignature)}`;
   return {
     signature,
+    canonicalSignature,
     title: finding.title,
     body,
     bodyDigest: shortHash(body),
