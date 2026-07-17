@@ -86,6 +86,21 @@ PRs the verdict IS the product — it routes scarce human attention. Is_Human
 rho=0.99: the strongest predictor a comment gets acted on is that a human wrote
 it, so the reviewer's job is to aim human review, not replace it. -->
 
+#### autonomous-pr-review.TB1.R15 — A simpler-shape observation is offered as a provocation, never asserted as a defect
+
+<!-- product-scout reframe 4/5: the autonomy curve is U-shaped — high at the
+edges (detect, verify), LOW in the creative middle. "Is there a simpler design?"
+is the creative middle. The `alternatives` dimension scored 0/11 not because it
+is worthless but because it was framed as a FINDING (an assertion the human must
+rebut) instead of a PROVOCATION (an option the human may take). A confident
+single alternative anchors the author the same way a single JTBD draft anchors —
+which is exactly why product-scout emits a divergent spread and lets the human
+own the leap. So: alternatives never blocks, never counts toward the verdict,
+and is phrased as an invitation ("worth considering: X would collapse these
+three branches") not a verdict ("this should be X"). If it keeps getting
+ignored, that is fine — a provocation nobody takes is cheap; a false defect is
+not. -->
+
 #### autonomous-pr-review.TB1.R11 — The reviewer runs on a different VENDOR than the agent that wrote the code, and never implies an independence it cannot establish
 
 <!-- STRENGTHENED 2026-07-17 (user): different MODEL -> different VENDOR. Claude
@@ -175,6 +190,22 @@ table" is not served. The sub-operations only make sense together; the job is
 one decision (merge or push back). So: one JTBD, two Rules. -->
 
 #### autonomous-pr-review.NTB1.R1 — Every finding names its consequence in plain language, without requiring the reader to read code
+
+<!-- The delivery contract (product-scout reframe 7, "every human surface is
+plainspoken"): a surface that needs decoding spends the very attention the tool
+exists to protect. Fixed shape on every finding:
+
+  [what happens, one sentence] → [what to do] → [evidence on demand]
+
+Not "index_writes uses Add(ctx,1) so the counter is batch-scoped" but
+"this metric can't tell you when the model migration is safe — it counts
+batches, not items. → confirm before cutover. → (details)."
+
+This RESOLVES the NTB1.R1-vs-TB1.R4 conflict (plain language vs mandatory code
+block): they are not in tension, they are LAYERS. The plain-English consequence
+is the surface; the code block is the evidence one level deeper. Same reason the
+body is read last — a wall of code anchors, a one-line stake orients. TB reads
+the code; NTB reads the stake; both are served by the same finding. -->
 
 #### autonomous-pr-review.NTB1.R2 — The review states whether the change did what was asked, in the asker's own terms
 
@@ -266,8 +297,9 @@ _Deferred to the Rules sub-phase._ Outcomes are the product counterpart to `done
 - **What sets the Tier-2 bar for SM1's "measured evidence"?** The Tier-0 shadow run is unscored (triage outstanding) and n=1 repo. Per the pre-registration discipline, the number must be set before a non-safeword corpus is read. **Sharpened by the quality-review:** the Tier-0 bar's own rationale was mis-derived (anchored to a filter statistic, not an addressing rate — see ticket.md); the corrected anchors are AI 0.9–19.2% / human 60%. Any Tier-2 bar must be justified against those, and against the fact that Metric A is a more permissive quantity than either.
 - **Who triages ~395 findings/month?** 282 merges/month × the probe's 1.4 findings/PR. If the review vacuum is an *attention* problem rather than a missing-reviewer problem, this feature taxes the bottleneck instead of relieving it — and the 10-PR triage already sitting outstanding is that bottleneck in miniature. Reframes TB1.R2/R3/R8 (silence, cap, trigger gating) from hygiene into the primary feature. **Needs a user answer before Rules close.**
 - **Where does an NTB actually read this review?** The output surface is inline GitHub review comments on the Files-changed tab. An NTB directing an agent in natural language plausibly never opens it. NTB1 currently has **no named delivery surface** — and if the answer is "a summary comment," that collides head-on with the hunk-anchored discipline TB1 rests on (file-level sources address at 0.9–4.2% vs hunk-level 6.5–19.2%).
-- **Does NTB1.R1 conflict with TB1.R4?** TB1.R4 requires every finding to carry a concrete code block (code-to-text ratio ρ=0.89); NTB1.R1 requires findings readable without reading code. Both target the same inline comment. Possibly reconcilable (consequence-first prose, code block second) — but currently unproven and unstated.
+- ~~**Does NTB1.R1 conflict with TB1.R4?**~~ **RESOLVED 2026-07-17 (product-scout reframe 7).** Not a conflict — they are LAYERS. Plain-English consequence at the surface, code block as evidence one click deeper. Fixed contract: [what happens] → [what to do] → [evidence on demand]. Encoded under NTB1.R1.
 - **Is NTB1 grounded, or inferred from `personas.md`?** The independent review's sharpest observation: TB1 traces to the ≤19.2% data and SM1 traces near-verbatim to the persona file's "needs to trust and verify the rule set before it ships"; NTB1's cost-of-inaction echoes the persona file's own "the only thing standing between them and an agent that confidently ships broken code." Legitimate inference — but the most differentiated persona claim is the least grounded, and **no NTB has been asked.** `/elicit` before Rules close.
+- ~~**Should the `alternatives` dimension be cut (0/11 findings)?**~~ **RESOLVED 2026-07-17 (product-scout reframe 4/5 — the U-shaped autonomy curve).** Zero findings was the wrong diagnosis. Alternatives IS the creative middle of the curve, where autonomy should be LOW by design — a confident "here's a simpler shape" anchors exactly like a single JTBD draft does. Fix: alternatives stops being a *finding* (asserted defect) and becomes a *provocation* (offered as input, human owns the leap). Reframed as TB1.R15 below; do not delete the dimension.
 - **Is the 4-tier model over-built for v1?** Only one of four dimensions degrades with tier. If T1/T2/T3 all collapse to "read whatever intent exists, weight it by provenance," a 4-tier taxonomy earns its complexity nowhere — 2 tiers (artifacts-in-diff vs not) + provenance weighting may deliver ~all the value at a fraction of the surface. PRINCIPLES §5: don't abstract for hypothetical reuse.
 - **Unresolved tension in the artifact-free claim.** Bacchelli ranks *alternative solutions* the 2nd-most understanding-demanding outcome, right after defect-finding — yet this spec lists alternatives as needing "no artifacts, high at every tier." Tier measures *declared-intent* artifacts, not code familiarity, so it isn't a refutation — but our own source says the artifact-free dimensions are the understanding-hungriest ones, which undercuts "differentiated at Tier 3 already" more than the ticket admits.
 - **Does TB1's "skips what my tooling covers" need per-project config, or pure detection?** Detection is cleaner (PRINCIPLES §3) but every project's CI is idiosyncratic; a `.safeword/config.json` escape hatch may be unavoidable. Affects whether TB1 has a configuration Rule.

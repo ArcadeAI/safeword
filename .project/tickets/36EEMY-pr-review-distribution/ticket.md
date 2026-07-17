@@ -41,3 +41,17 @@ last_modified: 2026-07-15T14:24:45.733Z
 ## Work Log
 
 - 2026-07-15T14:24:45.733Z Started: Created ticket 36EEMY
+
+## Steals from product-scout (2026-07-17) — the routing/attention layer
+
+`~/projects/product-scout` is the same machine pointed at a different input: `reconcile(watchlist ↔ world) → collisions → route by attention budget`, vs our `reconcile(diff ↔ intent) → findings → route by attention budget`. Both exist to protect human attention. Four of its solved problems are our open ones. Two corrections already landed in the spec/skill (alternatives→provocation; the plain-language contract). Three need the frozen ledger's act-rate data first, so they live here as design, not code:
+
+1. **Floating attention bar, not a fixed threshold.** product-scout: *"static thresholds are the #1 cause of false positives — the bar floats with human capacity and upstream volume."* Our evidence bar is currently fixed. This is the real answer to "who triages ~225 findings/month": the bar rises when the team is slammed / the PR queue is deep, falls when it's quiet. **Rave candidate — "it got quieter when we got slammed"; no bot does this.** Needs the ledger to calibrate what "slammed" means.
+
+2. **Earned autonomy per finding-type (the flywheel).** product-scout: *"log the agent's leap vs the human's final; when keep-rate is high for a change-type, raise its autonomy — you earn the curve from data, you don't decree it."* Our frozen ledger is the ONE-SHOT version of this; this is the continuous version. Measure act-rate per dimension (evidence-integrity acted-on 80% → let it escalate toward blocking; alternatives 0% → keep it a provocation forever). This is the Tricorder kill-switch as a gradient, and it is how a finding-type ever *earns* the right to block. **Rave candidate — "it asked to block, and it had the receipts."** Precondition: ≥1 scored ledger cycle.
+
+3. **Mutes — "declined, don't re-nag."** We have zero memory: if a maintainer says "that's noise," we say it again next PR — cry-wolf with a loop. product-scout's split: **config = the accepted set; dashboard = pending + mutes.** A muted finding-shape (per repo, per path, per dimension) is suppressed until un-muted. Cheapest of the three and the one most directly tied to the trust deficit; buildable as soon as there's a store for it.
+
+Also noted, lower priority: **tiered routing / the "3 AM test"** (a blocking finding pages; a `noticed-nearby` goes to a weekly digest, NOT onto the PR) and **role-aware routing `(target × role) → owner`** rather than "the PR author" — the honest fix for the scope-finding-on-the-wrong-person's-PR problem.
+
+**Open architecture question (do not resolve unilaterally):** product-scout and pr-review are the same reconcile+route machine. The attention bar, the act-rate flywheel, the mute store, and role routing are a **shared layer**, not pr-review-specific. Whether to build that layer once (serving both) or twice is a real fork — flag to the user before either ticket implements it.
