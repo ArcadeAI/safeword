@@ -1,6 +1,6 @@
 # Impl Plan: Give Codex users the full Safe Word workflow
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 

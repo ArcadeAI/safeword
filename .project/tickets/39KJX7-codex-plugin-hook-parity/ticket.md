@@ -2,12 +2,15 @@
 id: 39KJX7
 slug: codex-plugin-hook-parity
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 phase_anchors:
   - 'define-behavior: .project/tickets/39KJX7-codex-plugin-hook-parity/spec.md'
   - 'scenario-gate: packages/cli/features/codex-plugin-hook-parity.feature'
+  - 'plan-implementation: packages/cli/features/codex-plugin-hook-parity.feature'
+  - 'implement: .project/tickets/39KJX7-codex-plugin-hook-parity/impl-plan.md'
   - 'verify: .project/tickets/39KJX7-codex-plugin-hook-parity/test-definitions.md'
+  - 'done: .project/tickets/39KJX7-codex-plugin-hook-parity/verify.md'
 scope:
   - Make `safeword hook codex <event>` preserve the behavior of the legacy repo-local Codex hook adapters for supported Codex events.
   - Keep plugin hook commands package-runner based, with no dependency on customer repo-local `.safeword/hooks/codex/*` implementation files.
@@ -21,7 +24,7 @@ done_when:
   - Every must-preserve behavior has a scenario and test-backed implementation, or an explicit defer decision in the ticket artifacts.
   - Default verification, quality review, and opt-in live smoke evidence are recorded before the PR is considered ready.
 created: 2026-07-13T04:56:40.447Z
-last_modified: 2026-07-13T05:02:00.000Z
+last_modified: 2026-07-17T15:58:30Z
 ---
 
 # Preserve Codex hook behavior through the plugin CLI
@@ -39,3 +42,4 @@ last_modified: 2026-07-13T05:02:00.000Z
 - 2026-07-13T05:18:00Z Phase: define-behavior -> plan-implementation after Gherkin lint passed, independent scenario review issues were fixed, and impl-plan.md captured proof layers and sequencing.
 - 2026-07-13T16:51:00Z Phase: plan-implementation -> implement after impl-plan.md was corrected to include required sections, explicit self-report defer, constrained legacy-adapter cleanup, and concrete proof owners.
 - 2026-07-13T18:16:00Z Phase: implement -> verify after packaged hook parity, isolated plugin smoke coverage, and the independent quality-review fixes were completed.
+- 2026-07-17T15:58:30Z Complete: Full regression verification passed after the plugin catalogue and migration integration work landed: 5,210 tests (5 skipped), 484 deterministic BDD scenarios (3 skipped), lint, typecheck, audit, and an isolated trusted-plugin smoke. User approved closure with the combined Codex plugin delivery.

@@ -3,14 +3,15 @@ id: MZH9QH
 slug: give-codex-users-full-workflow
 type: feature
 subtype: bug-investigated
-phase: verify
-status: in_progress
+phase: done
+status: done
 phase_anchors:
   - 'define-behavior: .project/tickets/MZH9QH-give-codex-users-full-workflow/spec.md'
   - 'scenario-gate: packages/cli/features/give-codex-users-full-workflow.feature'
   - 'plan-implementation: packages/cli/features/give-codex-users-full-workflow.feature'
   - 'implement: .project/tickets/MZH9QH-give-codex-users-full-workflow/impl-plan.md'
   - 'verify: .project/tickets/MZH9QH-give-codex-users-full-workflow/test-definitions.md'
+  - 'done: .project/tickets/MZH9QH-give-codex-users-full-workflow/verify.md'
 scope:
   - Generate the Codex plugin skill catalogue from every workflow under `packages/cli/templates/skills/`, including supporting phase documents as plugin references.
   - Define and test the small, explicit transformation allowlist required for Codex-compatible skill metadata, scoped skill invocation, and packaged reference paths.
@@ -34,7 +35,7 @@ done_when:
   - Codex persona-lineage coverage reads the packaged plugin model rather than retired repository-local BDD files, and Claude Code and Cursor regression checks remain unchanged.
   - The published documentation explains complete scoped skill availability, the two-step migration, and Bunx-only hooks.
 created: 2026-07-15T18:26:26.899Z
-last_modified: 2026-07-16T23:56:41Z
+last_modified: 2026-07-17T15:58:30Z
 ---
 
 # Give Codex users the full Safe Word workflow
@@ -60,6 +61,7 @@ last_modified: 2026-07-16T23:56:41Z
 - 2026-07-16T23:31:03Z Independent quality review found two remaining boundary defects: cleanup still recognized arbitrary pinned Bunx and bare `safeword` commands, and the catalogue could rewrite `/verify/README.md` or `/verify/_draft.md` as skill invocations.
 - 2026-07-16T23:35:05Z Re-review approved the fix: cleanup now recognizes only the exact historical `npx --yes safeword` project-hook form; the catalogue treats every slash suffix as a path boundary. Focused migration, release, lint, and typecheck checks passed.
 - 2026-07-16T23:56:41Z Final verification: 5,202/5,202 tests passed (5 skipped), the BDD lane passed 484 scenarios (3 skipped), lint/typecheck passed, and audit passed with expected generated/parity clone warnings plus pre-existing persona aliases.
+- 2026-07-17T15:58:30Z Complete: Retested after the latest main catch-up and corrected the stale BDD assertion to inspect the actual packaged planning reference. The current full suite, BDD lane, lint, typecheck, audit, live-smoke evidence, and independent review all support closure; user approved the done transition.
 
 ## Root Cause
 

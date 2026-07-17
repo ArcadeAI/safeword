@@ -112,7 +112,7 @@ flowchart TD
 - **Verify** — the agent runs the relevant tests itself, never handing you something untested.
 - **Done** — hard-blocked until `/verify` writes `verify.md` to the ticket.
 
-The framework is **project-local** for Claude Code and Cursor: it writes to `.safeword/`, `.claude/`, and `.cursor/` in your repo. Codex uses the Safe Word plugin installed in each user's Codex profile; it receives no Safe Word project-local config or workflow tree. Guides and learnings live in-repo and evolve as you work.
+The framework is **project-local** for Claude Code and Cursor: it writes to `.safeword/`, `.claude/`, and `.cursor/` in your repo. Codex uses the Safe Word plugin installed in each user's Codex profile; it receives no Codex-specific project-local configuration or workflow tree. Guides and learnings live in-repo and evolve as you work.
 
 ---
 

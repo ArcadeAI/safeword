@@ -1,6 +1,6 @@
 # Impl Plan: Preserve Codex hook behavior through the plugin CLI
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
