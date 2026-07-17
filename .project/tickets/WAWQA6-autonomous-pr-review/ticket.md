@@ -5,7 +5,7 @@ type: epic
 phase: intake
 status: in_progress
 epic: autonomous-pr-review
-children: ['G5337S', '36EEMY', 'CWGYH0']
+children: ['G5337S', '36EEMY', 'CWGYH0', 'MD915N']
 scope:
   - A `pr-review` skill (the durable asset) reviewing, in measured order of yield (arcade trial, 11 findings): blast radius (4), evidence integrity (3), intent conformance (2), scope discipline, alternatives (0 — on probation). Most need no artifacts at all; the ticket is the evidence base that makes a finding sizable, NOT a checklist — only 2 of 11 findings were ticket-matching.
   - A tiered intent resolver: artifacts in-diff (T0) → linked issue/ADR/CONTRIBUTING (T1) → PR body + issue (T2) → commits/nothing (T3). Same job at every tier, different sources, declared confidence.
@@ -65,7 +65,7 @@ last_modified: 2026-07-15T02:50:15.807Z
 | Intent tier | T0 — `spec.md` in-diff | **T1 — Linear; zero tickets, zero specs** |
 | Stack | TypeScript | **Python (2,637) + Go (959) + TS/TSX (1,334)** |
 
-**The pain is rubber-stamp review, not absent review.** Coverage says 96%; depth says otherwise — **1 of 202 reviews requested changes (0.5%)**, **21 of 25 PRs have zero inline comments**, and 3 of the 4 that got comments were commented by Bugbot, not a human. The ritual is intact; the substance is not. User's framing: *"we're drowning under PRs because of agent coding and we don't have enough eng capacity to review everything **well**."* They review everything. Not well.
+**The pain is rubber-stamp review, not absent review.** ~~3 of the 4 commented PRs were commented by Bugbot, not a human~~ — **CORRECTED 2026-07-17 by a 50-PR pull: that was a 25-PR-sample artifact and it was wrong.** Humans out-comment the bot **5:1** (140 vs 35 inline) and **every** PR has an independent human approver. The real shape is **bimodal and size-triaged**: 64% of merged PRs get zero human inline comments, but 5 PRs hold ~70% of them; <100-line PRs get comments 18% of the time vs 62% for 500+. And **0 of 50 merged PRs ever had changes requested** — below the automation-bias literature's <1% "just passing things through" threshold, i.e. the code-review axis is hollow by the published diagnostic. Meanwhile **55% of human review attention lands on specs/scenarios/docs, not code** — see child MD915N. User's framing: *"we're drowning under PRs because of agent coding and we don't have enough eng capacity to review everything **well**."* They review everything. Not well.
 
 **The wedge survives — it relocates to Linear.** Arcade has no safeword artifacts, but `.github/workflows/check-linear.yml` enforces a **required status check**: every PR must carry a Linear issue (`PLT-2414`) in its title, branch, or via the linear[bot] linkback. That is a **mandatory, pre-committed** intent source — created before the code, therefore a *contract*, not narrative. It is arguably stronger than safeword's own artifacts, because branch protection cannot be rationalized around the way a hook can. Nothing reads it today: Bugbot does not open Linear, and a 0.5%-changes-requested human is not checking the diff against it either. **"Did this PR do what PLT-2414 said, and what else did it quietly touch?" is the feature.**
 

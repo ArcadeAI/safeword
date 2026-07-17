@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (423)
+## Tickets (424)
 
 ### 001
 
@@ -767,6 +767,9 @@
   The cross-model reviewer skill: read a PR against its declared intent (Linear contract), return a triage verdict plus uncapped bar-cleared findings. Serves TB1 + NTB1.
   blocks: pr-review-distribution (36EEMY)
   → `.project/tickets/G5337S-pr-review-skill`
+- **move-the-gate-upstream (MD915N)** (backlog, epic: —)
+  Review the ticket/spec BEFORE the code exists, so the PR reviewer becomes a thin last net instead of the main control — humans review specs, not PRs.
+  → `.project/tickets/MD915N-move-the-gate-upstream`
 
 ### workflow-gate-hygiene
 

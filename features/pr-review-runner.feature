@@ -1,0 +1,135 @@
+@wip
+Feature: PR review runner — the mechanized gates
+
+  The reviewer's JUDGMENT is prompt (G5337S) and is proven by eval, not Gherkin —
+  you cannot Gherkin a prompt. What IS mechanically testable is the runner around
+  it (36EEMY): which tree it reads, what it refuses to post, and what it never
+  says twice. These scenarios cover exactly that surface.
+
+  Two of these Rules exist because the corresponding PROSE rule already failed in
+  a live trial. PRINCIPLES §1: instructions are the weakest enforcement tier.
+
+  Rule: autonomous-pr-review.TB1.R12 — a finding that reproduces on the base branch is not this PR's feedback
+
+    Mechanizes the on-topic gate. The prose version failed once: a true, verified
+    goroutine leak was posted on a PR that merely touched the file, and the
+    maintainer called it noise. base+head turns the judgment into a check.
+
+    @surface.safeword-cli
+    Scenario: autonomous-pr-review.TB1.R12.latent_finding_is_withheld_from_the_pull_request
+      Given a pull request whose diff does not modify the authorization module
+      And a defect in that module that is present on the base branch
+      When the reviewer evaluates the defect against the base branch
+      Then the defect is absent from the pull request's review comments
+
+    @surface.safeword-cli
+    Scenario: autonomous-pr-review.TB1.R12.change_caused_finding_is_posted_inline
+      Given a pull request that introduces a retry helper with no connection timeout
+      And the helper does not exist on the base branch
+      When the reviewer evaluates the finding against the base branch
+      Then the finding is posted as an inline comment on the changed line
+
+    @surface.safeword-cli
+    Scenario: autonomous-pr-review.TB1.R12.a_latent_finding_never_reaches_the_verdict
+      Given a pull request whose only finding reproduces on the base branch
+      When the reviewer decides the verdict
+      Then the verdict is safe-to-merge
+
+  Rule: autonomous-pr-review.TB1.R13 — a suggested fix is not posted unless it has been run against the tests it could break
+
+    Mechanizes the fix gate. It exists because a true finding shipped with a patch
+    that would have made a failure counter unable to increment and turned a shipped
+    test red. Only fires when a finding carries a patch, so the cost is bounded.
+
+    @surface.safeword-cli
+    Scenario: autonomous-pr-review.TB1.R13.a_fix_that_breaks_a_shipped_test_is_withheld
+      Given a finding whose suggested fix causes an existing test to fail
+      When the reviewer runs that test against the suggested fix
+      Then the finding is posted without a suggested fix
+      And the finding states that no validated fix is offered
+
+    @surface.safeword-cli
+    Scenario: autonomous-pr-review.TB1.R13.a_verified_fix_is_posted_with_the_finding
+      Given a finding whose suggested fix leaves every affected test passing
+      When the reviewer runs those tests against the suggested fix
+      Then the finding is posted with the suggested fix
+
+  Rule: autonomous-pr-review.TB1.R1 — a concern the project's own tooling already reports is never surfaced
+
+    @surface.safeword-cli
+    Scenario: autonomous-pr-review.TB1.R1.a_concern_already_raised_by_another_reviewer_is_not_repeated
+      Given a pull request carrying a review comment from an existing code-review bot
+      When the reviewer would report the same concern
+      Then that concern is absent from the reviewer's comments
+
+  Rule: autonomous-pr-review.TB1.R2 — a pull request with nothing worth saying receives no comment at all
+
+    @surface.safeword-cli
+    Scenario: autonomous-pr-review.TB1.R2.a_clean_pull_request_receives_nothing
+      Given a pull request the reviewer finds nothing to report on
+      When the reviewer finishes
+      Then no comment is posted on the pull request
+
+  Rule: autonomous-pr-review.TB1.R6 — the reviewer uses whatever declared intent the project exposes
+
+    The linked issue is rendered into the pull request by the tracker's own bot, so
+    the intent is reachable through the code host alone — no tracker credentials.
+
+    @surface.safeword-cli
+    Scenario: autonomous-pr-review.TB1.R6.intent_is_read_from_the_tracker_linkback_without_tracker_credentials
+      Given a pull request carrying a tracker linkback comment containing the issue body
+      And no tracker credentials are configured
+      When the reviewer resolves the declared intent
+      Then the reviewer reads the issue body from the linkback comment
+
+    @surface.safeword-cli
+    Scenario: autonomous-pr-review.TB1.R7.a_ticket_shared_by_several_pull_requests_caps_completeness_at_a_question
+      Given a pull request whose ticket is referenced by more than one pull request
+      And the diff does not implement every item the ticket names
+      When the reviewer reports the unimplemented items
+      Then the report is a question
+      And the report does not block
+
+  Rule: autonomous-pr-review.TB2.R2 — a change to a sensitive surface is never verdicted safe-to-merge on size alone
+
+    Measured: <100-line PRs get a human comment 18% of the time vs 62% for 500+,
+    and 11 of 14 small PRs touching auth or infra got zero human comments.
+
+    @surface.safeword-cli
+    Scenario: autonomous-pr-review.TB2.R2.a_small_change_to_a_sensitive_surface_is_reviewed_at_full_depth
+      Given a pull request of fewer than one hundred changed lines
+      And the diff modifies an authorization control
+      When the reviewer sets its review depth
+      Then the reviewer evaluates the change on every dimension
+
+    @surface.safeword-cli
+    Scenario: autonomous-pr-review.TB2.R3.an_unanswered_author_request_for_review_reaches_a_human
+      Given a pull request whose description asks a reviewer to check a specific decision
+      And no existing comment answers that request
+      When the reviewer decides the verdict
+      Then the verdict is needs-a-human
+      And the verdict names the author's unanswered request
+
+  Rule: autonomous-pr-review.SM1.R3 — the reviewer never holds a credential that can write while reading untrusted content
+
+    @surface.safeword-cli
+    Scenario: autonomous-pr-review.SM1.R3.a_pull_request_from_a_fork_is_reviewed_without_a_write_credential
+      Given a pull request opened from a fork
+      When the reviewer reads the diff
+      Then the reviewer holds no credential that can comment on the pull request
+
+    @surface.safeword-cli
+    Scenario: autonomous-pr-review.SM1.R3.instructions_inside_a_diff_do_not_direct_the_reviewer
+      Given a pull request whose diff contains text addressed to the reviewer
+      When the reviewer reads the diff
+      Then the reviewer reports the text as content
+      And the reviewer does not follow the text as an instruction
+
+  Rule: autonomous-pr-review.SM1.R2 — a maintainer can turn the reviewer off without deleting it
+
+    @surface.safeword-cli
+    Scenario: autonomous-pr-review.SM1.R2.a_disabled_reviewer_posts_nothing_and_stays_installed
+      Given a project whose configuration disables the reviewer
+      When a pull request is opened
+      Then no review is posted
+      And the reviewer's workflow remains installed

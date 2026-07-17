@@ -88,6 +88,22 @@ it, so the reviewer's job is to aim human review, not replace it. -->
 
 #### autonomous-pr-review.TB1.R11 — The reviewer runs on a different, never-weaker model than the agent that wrote the code, and never implies an independence it cannot establish
 
+#### autonomous-pr-review.TB1.R12 — A finding that reproduces unchanged on the base branch is not reported as feedback on this pull request
+
+<!-- MECHANIZES §3.5. Today the on-topic test is prose the model applies by
+judgment — and it already failed once: the goroutine leak was true, verified,
+and off-topic, and a maintainer called it noise. With base+head checked out the
+question "would this be equally true if this PR didn't exist?" stops being a
+judgment and becomes a check. PRINCIPLES §1: instructions are the weakest tier. -->
+
+#### autonomous-pr-review.TB1.R13 — A suggested fix is not posted unless it has been run against the tests it could break
+
+<!-- MECHANIZES the fix gate. It exists because a true finding shipped with a
+patch that would have made a failure counter unable to increment and turned a
+shipped test red. "Read the tests, don't assume" is an instruction; running them
+is a gate. Only fires on the rare finding carrying a patch, so the cost is
+bounded. -->
+
 <!-- R11 is PRINCIPLES §1's class-1 rule at the PR boundary: correlated blind
 spots are the threat, so the reviewer must not share the author's. v1 implies
 the author model by configuration; detection is X1Z5MG. The second clause is the
@@ -173,7 +189,34 @@ flagged the lopsidedness; it is real but is a symptom of the epic split (below),
 not of over-decomposition — TB1+NTB1 are one child feature, SM1 is another. -->
 
 
+### autonomous-pr-review.TB2 — Stop me from waving through the small change that matters
+
+**Persona:** Technical Builder (TB)
+
+> When a 60-line change touches auth or infra, I want it reviewed at the
+> depth its risk deserves rather than the depth its size suggests, so the
+> dangerous small ones stop sliding through while I'm busy reading the big
+> ones.
+
+<!-- MEASURED, not assumed (50 merged arcade PRs, 2026-07-17): review here is
+triaged by SIZE — <100 lines get a human comment 18% of the time, 500+ get 62%.
+11 of 14 small PRs touching auth/infra got ZERO human comments. The sharpest:
+#2096, 65 lines, whose body literally says "## For the security reviewer 👀 —
+this intentionally removes a nominal security control... please sanity-check
+that reasoning." It got one bare APPROVED, zero comments, and merged. The size
+heuristic is rational and it has a systematic blind spot; this job is that gap.
+NOTE this INVERTS the original product bet: `safe-to-merge` saves nothing (they
+already skip 82% of small PRs). `needs-a-human` on what they'd wave through IS
+the product. -->
+
+#### autonomous-pr-review.TB2.R1 — Review depth is set by what the change touches, never by how many lines it has
+
+#### autonomous-pr-review.TB2.R2 — A change to a sensitive surface (auth, permissions, migrations, public API, CI credentials) is never verdicted safe-to-merge on size alone
+
+#### autonomous-pr-review.TB2.R3 — When an author asks in the PR for a specific review, an answer to that request appears or the PR is verdicted needs-a-human
+
 ## Rave Moment
+
 
 _Pending — deliberately not authored yet._ DISCOVERY requires grounding this via `/figure-it-out` rather than writing it from priors, and it is advisory (never blocks intake exit). The candidate worth researching: **NTB1** — _"I merged something I couldn't read, and it told me in English what would break."_ Whether that clears the beaten-expectation bar, or is table-stakes once you've accepted agent-written code, is exactly what the research must settle. Deferred to the Rules gate.
 
