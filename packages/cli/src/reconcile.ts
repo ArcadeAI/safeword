@@ -5,6 +5,7 @@
  * This is the single source of truth for all file/dir/config operations.
  */
 
+import { lstatSync, unlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import type {
@@ -317,14 +318,27 @@ function planExistingFilesRemoval(
   const actions: Action[] = [];
   const removed: string[] = [];
   for (const filePath of files) {
-    if (!exists(nodePath.join(cwd, filePath))) {
-      continue;
-    }
+    const fullPath = nodePath.join(cwd, filePath);
+    const stat = lstatIfExists(fullPath);
+    if (stat === undefined) continue;
+    // A schema file entry is never allowed to recursively remove a directory.
+    // Symlinks are safe to unlink; unexpected directories are user content.
+    if (!stat.isFile() && !stat.isSymbolicLink()) continue;
 
     actions.push({ type: 'rm', path: filePath });
     removed.push(filePath);
   }
   return { actions, removed };
+}
+
+function lstatIfExists(path: string): ReturnType<typeof lstatSync> | undefined {
+  try {
+    return lstatSync(path);
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === 'ENOENT' || code === 'ENOTDIR') return undefined;
+    throw error;
+  }
 }
 
 /** Check if a .claude path needs parent dir cleanup */
@@ -856,8 +870,7 @@ function executeAction(action: Action, ctx: ProjectContext, result: ExecutionRes
       break;
     }
     case 'rm': {
-      remove(nodePath.join(ctx.cwd, action.path));
-      result.removed.push(action.path);
+      executeFileRemoval(ctx.cwd, action.path, result);
       break;
     }
     case 'chmod': {
@@ -880,6 +893,31 @@ function executeAction(action: Action, ctx: ProjectContext, result: ExecutionRes
       executeTextUnpatch(ctx.cwd, action.path, action.definition);
       break;
     }
+  }
+}
+
+function executeFileRemoval(cwd: string, path: string, result: ExecutionResult): void {
+  const fullPath = nodePath.join(cwd, path);
+  const stat = lstatIfExists(fullPath);
+  if (stat === undefined) return;
+  if (!stat.isFile() && !stat.isSymbolicLink()) {
+    result.warnings.push(`Skipped file removal because ${path} is not a file or symlink.`);
+    return;
+  }
+
+  try {
+    // unlinkSync never recurses, so a path swapped to a directory after the
+    // lstat check remains intact rather than being removed by a recursive rm.
+    unlinkSync(fullPath);
+    result.removed.push(path);
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === 'ENOENT' || code === 'ENOTDIR') return;
+    if (code === 'EISDIR' || code === 'EPERM') {
+      result.warnings.push(`Skipped file removal because ${path} is no longer a file or symlink.`);
+      return;
+    }
+    throw error;
   }
 }
 

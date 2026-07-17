@@ -719,7 +719,7 @@ describe('Schema - Single Source of Truth', () => {
       ).toEqual([]);
     });
 
-    it('should track all deployed .safeword/ files in ownedFiles or deprecatedFiles', async () => {
+    it('should track all deployed .safeword/ files in the schema', async () => {
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
       const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
       const safewordDirectory = nodePath.join(repoRoot, '.safeword');
@@ -738,6 +738,7 @@ describe('Schema - Single Source of Truth', () => {
       ]);
 
       const ownedPaths = new Set(Object.keys(SAFEWORD_SCHEMA.ownedFiles));
+      const managedPaths = new Set(Object.keys(SAFEWORD_SCHEMA.managedFiles));
       const deprecatedPaths = new Set(SAFEWORD_SCHEMA.deprecatedFiles);
       // preservedDirs (e.g. .safeword/logs) hold runtime/user data the schema
       // intentionally does not own — files under them are not drift.
@@ -766,6 +767,7 @@ describe('Schema - Single Source of Truth', () => {
         const filename = file.split('/').pop() ?? '';
         if (DYNAMIC_FILES.has(filename)) continue;
         if (ownedPaths.has(file)) continue;
+        if (managedPaths.has(file)) continue;
         if (deprecatedPaths.has(file)) continue;
         if (preservedDirectories.some(dir => file === dir || file.startsWith(`${dir}/`))) continue;
         untracked.push(file);
@@ -773,7 +775,7 @@ describe('Schema - Single Source of Truth', () => {
 
       expect(
         untracked,
-        `Files in .safeword/ not tracked by schema ownedFiles or deprecatedFiles:\n  ${untracked.join('\n  ')}`,
+        `Files in .safeword/ not tracked by schema:\n  ${untracked.join('\n  ')}`,
       ).toEqual([]);
     });
   });

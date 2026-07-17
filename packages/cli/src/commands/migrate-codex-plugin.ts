@@ -364,15 +364,34 @@ function backupAndReplace(configPath: string, original: string, cleaned: string)
   }
 }
 
-function removeLegacyHooks(cwd: string): boolean {
+interface PreparedLegacyHookRemoval {
+  configPath: string;
+  original: string;
+  cleaned: string;
+}
+
+function prepareLegacyHookRemoval(cwd: string): PreparedLegacyHookRemoval | undefined {
   const configPath = nodePath.join(cwd, CODEX_CONFIG_PATH);
-  if (!existsSync(configPath)) return false;
+  if (!existsSync(configPath)) return undefined;
   const original = readFileSync(configPath, 'utf8');
   const cleaned = removeLegacyCodexHooks(original);
-  if (cleaned === original) return false;
+  if (cleaned === original) return undefined;
 
-  backupAndReplace(configPath, original, cleaned);
-  return true;
+  return { configPath, original, cleaned };
+}
+
+function removePreparedLegacyHooks(removal: PreparedLegacyHookRemoval): void {
+  if (!existsSync(removal.configPath)) {
+    throw new Error(
+      'Codex configuration changed during plugin installation; no legacy hooks were removed.',
+    );
+  }
+  if (readFileSync(removal.configPath, 'utf8') !== removal.original) {
+    throw new Error(
+      'Codex configuration changed during plugin installation; no legacy hooks were removed.',
+    );
+  }
+  backupAndReplace(removal.configPath, removal.original, removal.cleaned);
 }
 
 export function migrateCodexPlugin(
@@ -381,6 +400,12 @@ export function migrateCodexPlugin(
   // test validate a pushed release branch before its marketplace reaches main.
   options: { marketplaceSource?: string; removeLegacyHooks?: boolean } = {},
 ): void {
+  // Validate the requested handoff before installing a profile plugin. A malformed
+  // project config must leave both the project and the Codex profile unchanged.
+  const preparedLegacyHookRemoval = options.removeLegacyHooks
+    ? prepareLegacyHookRemoval(cwd)
+    : undefined;
+
   run('bun', ['--version']);
   run('codex', ['--version']);
   run('codex', [
@@ -418,13 +443,14 @@ export function migrateCodexPlugin(
     return;
   }
 
-  const removedLegacyHooks = removeLegacyHooks(cwd);
+  const removedLegacyHooks = preparedLegacyHookRemoval !== undefined;
   if (removedLegacyHooks) {
+    removePreparedLegacyHooks(preparedLegacyHookRemoval);
     info('Backed up the legacy Codex configuration to .codex/config.toml.safeword.bak.');
   }
   info(
     removedLegacyHooks
-      ? 'Removed Safe Word legacy Codex hooks from this project.'
+      ? 'Removed Safe Word legacy Codex hook configuration from this project. Legacy runtime files were preserved.'
       : 'No Safe Word legacy Codex hooks were found in this project.',
   );
 }

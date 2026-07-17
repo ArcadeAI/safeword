@@ -46,6 +46,9 @@ function installFakeRuntime(directory: string, pluginEnabled: boolean): string {
     String.raw`#!/bin/sh
 set -eu
 printf '%s\\n' "$*" >> "$SAFEWORD_CODEX_LOG"
+if [ "$(printenv SAFEWORD_MUTATE_CONFIG 2>/dev/null || true)" = "1" ] && [ "$*" = "plugin add safeword@safeword --json" ]; then
+  printf '# concurrent config update\\n' >> "$SAFEWORD_CONFIG_PATH"
+fi
 case "$*" in
   '--version') echo 'codex 0.141.0' ;;
   'plugin marketplace add '* ) echo '{"marketplaceName":"safeword"}' ;;
@@ -105,6 +108,12 @@ describe('migrate codex-plugin command', () => {
   it('removes legacy hooks only after the explicit handoff cleanup request', async () => {
     const original = `${LEGACY_HOOK_CONFIG}${USER_CODEX_CONFIG}`;
     const { directory, configPath, bin } = createMigrationFixture(original);
+    const legacyHooksDirectory = nodePath.join(directory, '.safeword/hooks/codex');
+    const legacyRuntimeHookPath = nodePath.join(legacyHooksDirectory, 'pre-tool-quality.ts');
+    const userHookPath = nodePath.join(legacyHooksDirectory, 'custom.ts');
+    mkdirSync(legacyHooksDirectory, { recursive: true });
+    writeFileSync(legacyRuntimeHookPath, '// legacy Safe Word hook\n');
+    writeFileSync(userHookPath, '// user hook\n');
 
     const result = await runCli(['migrate', 'codex-plugin', '--remove-legacy-hooks'], {
       cwd: directory,
@@ -115,6 +124,7 @@ describe('migrate codex-plugin command', () => {
     });
 
     expect(result.exitCode, result.stderr).toBe(0);
+    expect(`${result.stdout}\n${result.stderr}`).toContain('Legacy runtime files were preserved.');
     const migrated = readFileSync(configPath, 'utf8');
     expect(migrated).not.toContain('safeword hook codex pre-tool-use');
     expect(migrated).not.toContain('[[hooks.PreToolUse]]');
@@ -122,6 +132,26 @@ describe('migrate codex-plugin command', () => {
     expect(readFileSync(nodePath.join(directory, '.codex/config.toml.safeword.bak'), 'utf8')).toBe(
       original,
     );
+    expect(existsSync(legacyRuntimeHookPath)).toBe(true);
+    expect(existsSync(userHookPath)).toBe(true);
+  });
+
+  it('refuses cleanup when config changes during plugin installation', async () => {
+    const { directory, configPath, bin } = createMigrationFixture(LEGACY_HOOK_CONFIG);
+
+    const result = await runCli(['migrate', 'codex-plugin', '--remove-legacy-hooks'], {
+      cwd: directory,
+      env: {
+        PATH: `${bin}:${process.env.PATH ?? ''}`,
+        SAFEWORD_CODEX_LOG: nodePath.join(directory, 'codex.log'),
+        SAFEWORD_CONFIG_PATH: configPath,
+        SAFEWORD_MUTATE_CONFIG: '1',
+      },
+    });
+
+    expect(result.exitCode).not.toBe(0);
+    expect(readFileSync(configPath, 'utf8')).toContain('# concurrent config update');
+    expect(existsSync(`${configPath}.safeword.bak`)).toBe(false);
   });
 
   it('removes only the Safe Word handler during explicit handoff cleanup', async () => {
@@ -223,18 +253,27 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/custom.ts
   it('refuses explicit cleanup when the Codex configuration is malformed', async () => {
     const original = `${LEGACY_HOOK_CONFIG}\n[broken\n`;
     const { directory, configPath, bin } = createMigrationFixture(original);
+    const codexLogPath = nodePath.join(directory, 'codex.log');
+    const legacyRuntimeHookPath = nodePath.join(
+      directory,
+      '.safeword/hooks/codex/pre-tool-quality.ts',
+    );
+    mkdirSync(nodePath.dirname(legacyRuntimeHookPath), { recursive: true });
+    writeFileSync(legacyRuntimeHookPath, '// legacy Safe Word hook\n');
 
     const result = await runCli(['migrate', 'codex-plugin', '--remove-legacy-hooks'], {
       cwd: directory,
       env: {
         PATH: `${bin}:${process.env.PATH ?? ''}`,
-        SAFEWORD_CODEX_LOG: nodePath.join(directory, 'codex.log'),
+        SAFEWORD_CODEX_LOG: codexLogPath,
       },
     });
 
     expect(result.exitCode).not.toBe(0);
     expect(readFileSync(configPath, 'utf8')).toBe(original);
     expect(existsSync(nodePath.join(directory, '.codex/config.toml.safeword.bak'))).toBe(false);
+    expect(existsSync(legacyRuntimeHookPath)).toBe(true);
+    expect(existsSync(codexLogPath)).toBe(false);
   });
 
   it('does not treat a Safe Word marker in a comment as an owned handler', async () => {

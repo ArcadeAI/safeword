@@ -564,7 +564,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // Keep cleanup file-scoped for `.agents/skills/*` because `.agents/skills` is a shared
     // agent directory; a user-authored sibling skill must survive migration.
     ...CODEX_SKILL_DEPRECATED_FILES,
-    ...CODEX_RUNTIME_ASSET_FILENAMES.map(file => `.safeword/hooks/codex/${file}`),
+    // This agent is superseded by the Codex plugin. It was formerly owned by
+    // Safe Word, so it is safe to retire without touching custom agent files.
+    '.codex/agents/safeword-retro-filer.toml',
   ],
 
   // Packages to uninstall on upgrade (now bundled in safeword/eslint or replaced)
@@ -606,8 +608,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/skills/safeword-quality-reviewing',
     '.claude/skills/safeword-refactoring',
     '.claude/skills/safeword-bdd-orchestrating',
-    // Empty after deprecated Codex hook files are removed.
-    '.safeword/hooks/codex',
     // Empty after deprecated Codex skill files are removed; non-empty user-modified dirs survive.
     ...CODEX_SKILL_DEPRECATED_DIRS,
   ],

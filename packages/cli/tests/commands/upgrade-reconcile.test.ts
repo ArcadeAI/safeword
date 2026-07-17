@@ -7,7 +7,15 @@
  * TDD RED phase - these tests verify reconcile integration.
  */
 
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -174,8 +182,6 @@ describe('Upgrade Command - Reconcile Integration', () => {
       const { reconcile } = await import('../../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../../src/schema.js');
       const { createProjectContext } = await import('../../src/utils/context.js');
-      const { existsSync } = await import('node:fs');
-
       createConfiguredProject('0.5.0');
 
       // Don't create some directories that should exist
@@ -194,8 +200,6 @@ describe('Upgrade Command - Reconcile Integration', () => {
       const { reconcile } = await import('../../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../../src/schema.js');
       const { createProjectContext } = await import('../../src/utils/context.js');
-      const { existsSync } = await import('node:fs');
-
       createConfiguredProject('0.5.0');
 
       // Create user learning file
@@ -334,6 +338,16 @@ timeout = 30
 statusMessage = "Checking safeword PreToolUse gates"
 `,
       );
+      const legacyRuntimeHookPaths = Object.keys(SAFEWORD_SCHEMA.managedFiles)
+        .filter(filePath => filePath.startsWith('.safeword/hooks/codex/'))
+        .map(filePath => nodePath.join(temporaryDirectory, filePath));
+      expect(legacyRuntimeHookPaths).toHaveLength(5);
+      const userHookPath = nodePath.join(temporaryDirectory, '.safeword/hooks/codex/custom.ts');
+      mkdirSync(nodePath.dirname(userHookPath), { recursive: true });
+      for (const legacyHookPath of legacyRuntimeHookPaths) {
+        writeFileSync(legacyHookPath, '// legacy Safe Word hook\n');
+      }
+      writeFileSync(userHookPath, '// user hook\n');
 
       const before = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
       const ctx = createProjectContext(temporaryDirectory);
@@ -344,6 +358,10 @@ statusMessage = "Checking safeword PreToolUse gates"
         'utf8',
       );
       expect(upgraded).toBe(before);
+      for (const legacyHookPath of legacyRuntimeHookPaths) {
+        expect(existsSync(legacyHookPath)).toBe(true);
+      }
+      expect(existsSync(userHookPath)).toBe(true);
 
       await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
       const upgradedAgain = readFileSync(
@@ -351,6 +369,83 @@ statusMessage = "Checking safeword PreToolUse gates"
         'utf8',
       );
       expect(upgradedAgain).toBe(before);
+      for (const legacyHookPath of legacyRuntimeHookPaths) {
+        expect(existsSync(legacyHookPath)).toBe(true);
+      }
+      expect(existsSync(userHookPath)).toBe(true);
+    });
+
+    it('removes the retired Codex retro filer without touching user agents', async () => {
+      const { reconcile } = await import('../../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../../src/schema.js');
+      const { createProjectContext } = await import('../../src/utils/context.js');
+
+      createConfiguredProject('0.5.0');
+      const agentsDirectory = nodePath.join(temporaryDirectory, '.codex/agents');
+      const retiredAgentPath = nodePath.join(agentsDirectory, 'safeword-retro-filer.toml');
+      const userAgentPath = nodePath.join(agentsDirectory, 'custom.toml');
+      mkdirSync(agentsDirectory, { recursive: true });
+      writeFileSync(retiredAgentPath, 'name = "safeword-retro-filer"\n');
+      writeFileSync(userAgentPath, 'name = "custom"\n');
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', createProjectContext(temporaryDirectory));
+
+      expect(existsSync(retiredAgentPath)).toBe(false);
+      expect(existsSync(userAgentPath)).toBe(true);
+    });
+
+    it('leaves a user directory at the retired Codex agent path untouched', async () => {
+      const { reconcile } = await import('../../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../../src/schema.js');
+      const { createProjectContext } = await import('../../src/utils/context.js');
+
+      createConfiguredProject('0.5.0');
+      const retiredAgentDirectory = nodePath.join(
+        temporaryDirectory,
+        '.codex/agents/safeword-retro-filer.toml',
+      );
+      const userFilePath = nodePath.join(retiredAgentDirectory, 'custom.md');
+      mkdirSync(retiredAgentDirectory, { recursive: true });
+      writeFileSync(userFilePath, 'user content\n');
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', createProjectContext(temporaryDirectory));
+
+      expect(existsSync(retiredAgentDirectory)).toBe(true);
+      expect(existsSync(userFilePath)).toBe(true);
+    });
+
+    it('removes a dangling symlink at the retired Codex agent path', async () => {
+      const { reconcile } = await import('../../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../../src/schema.js');
+      const { createProjectContext } = await import('../../src/utils/context.js');
+
+      createConfiguredProject('0.5.0');
+      const retiredAgentPath = nodePath.join(
+        temporaryDirectory,
+        '.codex/agents/safeword-retro-filer.toml',
+      );
+      mkdirSync(nodePath.dirname(retiredAgentPath), { recursive: true });
+      symlinkSync('missing-agent.toml', retiredAgentPath);
+      expect(lstatSync(retiredAgentPath).isSymbolicLink()).toBe(true);
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', createProjectContext(temporaryDirectory));
+
+      expect(() => lstatSync(retiredAgentPath)).toThrow();
+    });
+
+    it('leaves a retired Codex agent path alone when its parent is a user file', async () => {
+      const { reconcile } = await import('../../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../../src/schema.js');
+      const { createProjectContext } = await import('../../src/utils/context.js');
+
+      createConfiguredProject('0.5.0');
+      const agentsPath = nodePath.join(temporaryDirectory, '.codex/agents');
+      mkdirSync(nodePath.dirname(agentsPath), { recursive: true });
+      writeFileSync(agentsPath, 'user content\n');
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', createProjectContext(temporaryDirectory));
+
+      expect(readFileSync(agentsPath, 'utf8')).toBe('user content\n');
     });
 
     it('retains a customized legacy Codex config until explicit migration', async () => {
