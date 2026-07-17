@@ -12,6 +12,7 @@ phase_anchors:
   - "define-behavior: .project/tickets/H1P0D7-canonical-retro-spool-dedupe/spec.md"
   - "plan-implementation: .project/tickets/H1P0D7-canonical-retro-spool-dedupe/impl-plan.md"
   - "implement: .project/tickets/H1P0D7-canonical-retro-spool-dedupe/impl-plan.md"
+  - "verify: .project/tickets/H1P0D7-canonical-retro-spool-dedupe/test-definitions.md"
 created: 2026-07-16T20:30:38.408Z
 last_modified: 2026-07-16T20:30:38.408Z
 ---
