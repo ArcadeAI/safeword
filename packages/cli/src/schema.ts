@@ -232,14 +232,16 @@ function skipCodexRuntimeAssetInstall(): undefined {
   return;
 }
 
+const CODEX_RUNTIME_ASSET_FILENAMES = [
+  'pre-tool-quality.ts',
+  'pre-tool-quality-helpers.ts',
+  'post-tool-quality.ts',
+  'post-tool-skill-nudge.ts',
+  'stop.ts',
+] as const;
+
 const CODEX_RUNTIME_ASSETS: Record<string, ManagedFileDefinition> = Object.fromEntries(
-  [
-    'pre-tool-quality.ts',
-    'pre-tool-quality-helpers.ts',
-    'post-tool-quality.ts',
-    'post-tool-skill-nudge.ts',
-    'stop.ts',
-  ].map(file => [
+  CODEX_RUNTIME_ASSET_FILENAMES.map(file => [
     `.safeword/hooks/codex/${file}`,
     { template: `hooks/codex/${file}`, generator: skipCodexRuntimeAssetInstall },
   ]),
@@ -566,11 +568,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // Keep cleanup file-scoped for `.agents/skills/*` because `.agents/skills` is a shared
     // agent directory; a user-authored sibling skill must survive migration.
     ...CODEX_SKILL_DEPRECATED_FILES,
-    '.safeword/hooks/codex/pre-tool-quality.ts',
-    '.safeword/hooks/codex/pre-tool-quality-helpers.ts',
-    '.safeword/hooks/codex/stop.ts',
-    '.safeword/hooks/codex/post-tool-quality.ts',
-    '.safeword/hooks/codex/post-tool-skill-nudge.ts',
+    ...CODEX_RUNTIME_ASSET_FILENAMES.map(file => `.safeword/hooks/codex/${file}`),
   ],
 
   // Packages to uninstall on upgrade (now bundled in safeword/eslint or replaced)
