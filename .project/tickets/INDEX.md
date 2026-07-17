@@ -8,6 +8,7 @@
 ## Tickets (418)
 
 ## Tickets (417)
+## Tickets (423)
 
 ### 001
 
@@ -1047,6 +1048,10 @@
 - **Strengthen weak assertions flagged by the full audit (A7192X)** (in_progress, epic: —)
   The four audit test-quality findings no longer reproduce: golden-path graceful-handling tests and git.test no-op cases assert observable outcomes, config.test.ts stops pinning codegen internals and dedups via it.each
   → `.project/tickets/A7192X-audit-test-quality-fixes`
+- **Prevent repeated retro findings from opening duplicate issues (A8NNZV)** (done, epic: —)
+  Match recurring retro findings to their canonical GitHub issue despite model-derived metadata drift.
+  external issue: https://github.com/ArcadeAI/safeword/issues/1032
+  → `.project/tickets/A8NNZV-prevent-retro-duplicate-issues`
 - **Re-sync safeword's own depcruise-config.cjs (AK8REW)** (done, epic: —)
   Make `safeword sync-config --check` on this repo exit 0. The committed file was historically prettier-reformatted (long comment string wrapped to two lines); the generator emits it single-line. With v0.37.0's `/audit` change, every audit run on this repo emits W007 until the committed file is re-synced.
   → `.project/tickets/AK8REW`
@@ -1157,6 +1162,9 @@
 - **Extract stop-quality gate logic into testable hook libs (suite-time + unit-testability) (EK16X4)** (in_progress, epic: —)
   Extract the pure gate decisions from `templates/hooks/stop-quality.ts` (~550 lines: cumulative artifacts, impl-plan existence/validity/status gates, done-gate evidence checks) into `hooks/lib/` functions so gate cells run as millisecond unit tests instead of spawn-per-test integration tests.
   → `.project/tickets/EK16X4-stop-quality-gate-extraction`
+- **Stabilize zombie process discovery (EKK1HA)** (done, epic: —)
+  Make the cleanup-zombies behavioral test reliably discover and terminate its project-scoped process.
+  → `.project/tickets/EKK1HA-stabilize-zombie-process-discovery`
 - **ctx-aware + re-rendered .prettierignore for a custom projectRoot (#293) (EXP1PE)** (done, epic: —)
   Make `.prettierignore` exclude a custom `paths.projectRoot` (the last formatter #273 left uncovered).
   → `.project/tickets/EXP1PE-prettierignore-ctx-rerender`
@@ -1167,6 +1175,9 @@
 - **ticket new --parent links epic and child (F9W3JP)** (done, epic: —)
   One command wires a new child ticket to its epic across navigation and the index, with no dual-write drift
   → `.project/tickets/F9W3JP-epic-child-linker`
+- **Keep persona lineage readable for builders (FAJV19)** (done, epic: —)
+  Give every persona a concise 2–4 letter authored code or 3–4 letter automatic code and carry it unchanged into JTBD and Gherkin lineage without breaking legacy projects.
+  → `.project/tickets/FAJV19-keep-persona-lineage-readable`
 - **Unify session-id sanitizers behind a parity contract (FG6V57)** (done, epic: —)
   One sanitization rule (charset + substitute + length cap) pinned byte-identical across triage.ts, retro-draft-spool.ts, and self-report.ts via the parity contracts schema
   → `.project/tickets/FG6V57-unify-session-token`
@@ -1199,6 +1210,10 @@
 - **Lazy-load stack-specific ESLint plugins via createRequire (H150ZW)** (done, epic: —)
   Stop loading 7 stack-specific ESLint plugins (~7 × ~20ms each = ~140ms saved) into Node memory on every ESLint invocation for customers whose stack doesn't include them. The customer's generated `eslint.config.mjs` already gates plugin _usage_ with `detect.hasStorybook(deps)` etc.; this ticket gates plugin _loading_ to match.
   → `.project/tickets/H150ZW`
+- **Keep cloud-spooled retro filing from bypassing duplicate checks (H1P0D7)** (in_progress, epic: —)
+  Ensure cloud-spooled retro drafts use the same exact canonical duplicate check as direct CLI filing.
+  external issue: https://github.com/ArcadeAI/safeword/issues/1031
+  → `.project/tickets/H1P0D7-canonical-retro-spool-dedupe`
 - **Investigate + address per-scenario TDD discipline bypass (H7M3KQ)** (in_progress, epic: —)
   Investigate the root causes that let an agent in good faith batch 31 scenarios' worth of implementation without doing per-scenario RED → GREEN → REFACTOR, and ship concrete guardrails that prevent it.
   → `.project/tickets/H7M3KQ`
@@ -1300,6 +1315,9 @@
   Prevent SafeWord from pausing for human approval between implementation and verification.
   external issue: https://github.com/ArcadeAI/safeword/issues/483
   → `.project/tickets/MZAHAW-run-verification-automatically-after-implementation`
+- **Audit checks namespace domain docs for emptiness and drift (N0W5KG)** (done, epic: —)
+  {One sentence: what are we trying to achieve?}
+  → `.project/tickets/N0W5KG-audit-domain-docs-freshness`
 - **Boundary push tier: evaluate phase legality per commit in the range, not at endpoints (N76NQ0)** (done, epic: —)
   A multi-commit push whose intermediate commits legally traversed phases must not warn; a range whose commits actually skipped a phase still warns.
   → `.project/tickets/N76NQ0-push-tier-per-commit-legality`
@@ -1342,7 +1360,7 @@
 - **Capture safeword's own runtime signals to a sanitized local spool (#345) (QYYC5Y)** (done, epic: —)
   {One sentence: what are we trying to achieve?}
   → `.project/tickets/QYYC5Y-self-report-capture`
-- **Rename DEV persona code to TB across the corpus (R4S85Y)** (in_progress, epic: —)
+- **Rename DEV persona code to TB across the corpus (R4S85Y)** (done, epic: —)
   Eliminate the redundant DEV persona code by renaming DEV<n> -> TB<n> (828 occ) and Agent-Driven Developer (DEV) -> Technical Builder (TB) (2 occ) across 103 files, clearing the E009 drift by elimination and making a personas.md DEV entry unnecessary
   → `.project/tickets/R4S85Y-rename-dev-persona-to-tb`
 - **Stop-hook escalation path may be dead (0/10 BLOCKED) — revalidate post-F14BG2, recalibrate if needed (RAS9N8)** (pending, epic: —)
@@ -1390,6 +1408,9 @@
   The lintable subset of testing-guide's Test Integrity table (.skip/.only/xit/.todo, commented-out tests) and the no-arbitrary-sleep rule are ESLint-enforced in the vitest lane, and the prose trims to pointers
   external issue: https://github.com/ArcadeAI/safeword/issues/773
   → `.project/tickets/VFD6X1-test-lint-graduation`
+- **Stabilize Rust lint-hook proof (VNNM1N)** (done, epic: —)
+  Make the Rust lint-hook integration test prove package-targeted Clippy execution without relying on version-specific autofix output.
+  → `.project/tickets/VNNM1N-stabilize-rust-clippy-lint-proof`
 - **General managed-block replacement in executeTextPatch (clean textPatch upgrades) (VZCADV)** (backlog, epic: —)
   Give `executeTextPatch` an opt-in way to replace a superseded managed block on upgrade — locate the old block by its stable header substring, cut it (header → next blank line), then append the current block — so a structural change to a managed block doesn't leave a stale second block in the customer's file.
   → `.project/tickets/VZCADV-managed-block-replacement`

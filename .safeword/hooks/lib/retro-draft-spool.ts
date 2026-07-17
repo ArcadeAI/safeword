@@ -24,6 +24,12 @@ import { appendJsonlRecords, atomicWriteFile, readJsonlRecords } from './jsonl-s
 /** The code-assembled, post-egress fields — structurally the CLI's RetroDraft. */
 export interface SpooledDraft {
   signature: string;
+  /**
+   * Code-derived canonical identity from a current CLI draft. Optional so old
+   * JSONL records remain readable. It is usable for matching only when its
+   * exact marker is also present in the code-assembled body.
+   */
+  canonicalSignature?: string;
   title: string;
   body: string;
   labels: string[];
@@ -59,7 +65,7 @@ export function draftSpoolPath(projectDirectory: string, sessionId: string): str
 function toDraft(value: unknown): SpooledDraft | undefined {
   if (typeof value !== 'object' || value === null) return undefined;
   const record = value as Record<string, unknown>;
-  const { signature, title, body, labels, bodyDigest } = record;
+  const { signature, canonicalSignature, title, body, labels, bodyDigest } = record;
   if (
     typeof signature !== 'string' ||
     typeof title !== 'string' ||
@@ -71,9 +77,15 @@ function toDraft(value: unknown): SpooledDraft | undefined {
   }
   // The seal is optional (legacy lines predate it) but must be a string when present.
   if (bodyDigest !== undefined && typeof bodyDigest !== 'string') return undefined;
-  return bodyDigest === undefined
-    ? { signature, title, body, labels }
-    : { signature, title, body, labels, bodyDigest };
+  if (canonicalSignature !== undefined && typeof canonicalSignature !== 'string') return undefined;
+  return {
+    signature,
+    ...(canonicalSignature === undefined ? {} : { canonicalSignature }),
+    title,
+    body,
+    labels,
+    ...(bodyDigest === undefined ? {} : { bodyDigest }),
+  };
 }
 
 /**
@@ -89,12 +101,20 @@ export function readSpooledDrafts(projectDirectory: string, sessionId: string): 
 function draftLine(draft: SpooledDraft): string {
   return JSON.stringify({
     signature: draft.signature,
+    canonicalSignature: draft.canonicalSignature,
     title: draft.title,
     body: draft.body,
     labels: draft.labels,
     // JSON.stringify drops an undefined seal, so legacy drafts stay four-field.
     bodyDigest: draft.bodyDigest,
   });
+}
+
+/** Return a canonical identity only when the immutable body carries its exact marker. */
+export function canonicalSignatureForDraft(draft: SpooledDraft): string | undefined {
+  if (draft.canonicalSignature === undefined) return undefined;
+  const marker = `<!-- safeword-retro-canonical: ${draft.canonicalSignature} -->`;
+  return draft.body.includes(marker) ? draft.canonicalSignature : undefined;
 }
 
 /**

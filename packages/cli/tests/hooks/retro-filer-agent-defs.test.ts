@@ -50,3 +50,24 @@ describe('filer ack procedure in shipped prompts (GH644A)', () => {
     expect(guideText.toLowerCase()).toMatch(/ack record|ack line/);
   });
 });
+
+describe('canonical spool dedupe contract (#1031)', () => {
+  const tomlText = readFileSync(nodePath.join(AGENTS_DIR, 'safeword-retro-filer.toml'), 'utf8');
+  const mdText = readFileSync(nodePath.join(AGENTS_DIR, 'safeword-retro-filer.md'), 'utf8');
+
+  it.each([
+    ['markdown (Claude/Cursor)', mdText],
+    ['TOML (Codex)', tomlText],
+  ])('%s follows the exact legacy-first canonical contract', (_label, text) => {
+    const legacy = text.indexOf('safeword-retro-signature');
+    const canonical = text.indexOf('safeword-retro-canonical');
+    expect(legacy).toBeGreaterThanOrEqual(0);
+    expect(canonical).toBeGreaterThan(legacy);
+    expect(text).toContain('canonicalSignature');
+    expect(text).toContain('is:issue');
+    expect(text).toContain('is:open');
+    expect(text.toLowerCase()).toMatch(/never.*title/);
+    expect(text.toLowerCase()).toContain('body contains its exact');
+    expect(text).toContain('safeword-retro-canonical');
+  });
+});

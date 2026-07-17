@@ -44,6 +44,20 @@ describe('fileSpooledDrafts (BNGK9W — the agent filing seam: post each verbati
     expect(readSpooledDrafts(projectDirectory, 'sess-1')).toEqual([]);
   });
 
+  it('forwards a spooled canonical signature unchanged to the posting boundary', async () => {
+    const canonical: SpooledDraft = {
+      ...draft('retro:aaaaaaaaaaaa', 'Canonical'),
+      canonicalSignature: 'canonical:aaaaaaaaaaaa',
+    };
+    spoolDrafts(projectDirectory, 'sess-1', [canonical]);
+    const posted: SpooledDraft[] = [];
+    await fileSpooledDrafts(projectDirectory, 'sess-1', value => {
+      posted.push(value);
+      return Promise.resolve({ issue: 101 });
+    });
+    expect(posted).toEqual([canonical]);
+  });
+
   it('files nothing and posts nothing at a drained boundary (no re-file, no re-nudge)', async () => {
     // Everything already filed → an empty spool. A later boundary must not re-post.
     let posts = 0;
