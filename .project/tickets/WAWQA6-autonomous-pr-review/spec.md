@@ -86,21 +86,6 @@ PRs the verdict IS the product — it routes scarce human attention. Is_Human
 rho=0.99: the strongest predictor a comment gets acted on is that a human wrote
 it, so the reviewer's job is to aim human review, not replace it. -->
 
-#### autonomous-pr-review.TB1.R16 — A change to a sensitive surface is reviewed at full depth regardless of size
-
-<!-- Measured on the arcade corpus: <100-line PRs drew a human comment ~18% of
-the time vs ~62% for 500+, and 11 of 14 small PRs touching auth/infra/migrations
-got ZERO human comments. Small + sensitive is the blind spot human review has,
-so the reviewer must NOT let size lower its depth on auth, billing, migrations,
-or public-API surfaces. -->
-
-#### autonomous-pr-review.TB1.R17 — An author's unanswered request for review reaches a human
-
-<!-- Author self-disclosure is the highest-signal pointer in a PR (arcade 2096:
-"For the security reviewer 👀 ... please sanity-check", approved with zero
-comments). An explicit ask that no existing comment answers is a needs-a-human
-by itself. -->
-
 #### autonomous-pr-review.TB1.R15 — A simpler-shape observation is offered as a provocation, never asserted as a defect
 
 <!-- product-scout reframe 4/5: the autonomy curve is U-shaped — high at the

@@ -9,6 +9,9 @@ Feature: PR review runner — the mechanized gates
   Two of these Rules exist because the corresponding PROSE rule already failed in
   a live trial. PRINCIPLES §1: instructions are the weakest enforcement tier.
 
+  Non-event assertions (nothing posted, not invoked) are each paired with a
+  discriminating positive in the same scenario, so a do-nothing runner fails.
+
   Rule: autonomous-pr-review.TB1.R12 — a finding that reproduces on the base branch is not this PR's feedback
 
     Mechanizes the on-topic gate. The prose version failed once: a true, verified
@@ -16,11 +19,11 @@ Feature: PR review runner — the mechanized gates
     maintainer called it noise. base+head turns the judgment into a check.
 
     @surface.safeword-cli
-    Scenario: autonomous-pr-review.TB1.R12.latent_finding_is_withheld_from_the_pull_request
-      Given a pull request whose diff does not modify the authorization module
-      And a defect in that module that is present on the base branch
-      When the reviewer evaluates the defect against the base branch
-      Then the defect is absent from the pull request's review comments
+    Scenario: autonomous-pr-review.TB1.R12.a_latent_finding_is_dropped_while_the_change_caused_one_posts
+      Given a pull request carrying two defects — one it introduced on a changed line, one already present on the base branch
+      When the reviewer evaluates both defects against the base branch
+      Then the change-caused defect is posted as an inline comment
+      And the base-reproducing defect is absent from the review comments
 
     @surface.safeword-cli
     Scenario: autonomous-pr-review.TB1.R12.change_caused_finding_is_posted_inline
@@ -30,8 +33,9 @@ Feature: PR review runner — the mechanized gates
       Then the finding is posted as an inline comment on the changed line
 
     @surface.safeword-cli
-    Scenario: autonomous-pr-review.TB1.R12.a_latent_finding_never_reaches_the_verdict
-      Given a pull request whose only finding reproduces on the base branch
+    Scenario: autonomous-pr-review.TB1.R12.a_pr_whose_only_finding_is_latent_is_verdicted_safe_to_merge
+      Given a pull request whose only finding reproduces unchanged on the base branch
+      And that finding would be verdicted needs-a-human if the PR had caused it
       When the reviewer decides the verdict
       Then the verdict is safe-to-merge
 
@@ -57,18 +61,25 @@ Feature: PR review runner — the mechanized gates
   Rule: autonomous-pr-review.TB1.R1 — a concern the project's own tooling already reports is never surfaced
 
     @surface.safeword-cli
-    Scenario: autonomous-pr-review.TB1.R1.a_concern_already_raised_by_another_reviewer_is_not_repeated
-      Given a pull request carrying a review comment from an existing code-review bot
-      When the reviewer would report the same concern
-      Then that concern is absent from the reviewer's comments
+    Scenario: autonomous-pr-review.TB1.R1.a_concern_another_reviewer_already_raised_is_dropped_but_a_fresh_one_posts
+      Given a pull request carrying a code-review bot's comment on concern X
+      And the reviewer independently identifies concern X and a distinct concern Y
+      When the reviewer posts its review
+      Then concern Y appears in the review
+      And concern X is absent from the review
 
   Rule: autonomous-pr-review.TB1.R2 — a pull request with nothing worth saying receives no comment at all
 
     @surface.safeword-cli
-    Scenario: autonomous-pr-review.TB1.R2.a_clean_pull_request_receives_nothing
-      Given a pull request the reviewer finds nothing to report on
-      When the reviewer finishes
-      Then no comment is posted on the pull request
+    Scenario Outline: autonomous-pr-review.TB1.R2.silence_only_when_there_is_nothing_to_say
+      Given a pull request whose findings are <finding-state>
+      When the reviewer runs to completion
+      Then the review comment count is <count>
+
+      Examples:
+        | finding-state                            | count |
+        | all already covered by the project tests | 0     |
+        | one uncovered defect on a changed line   | 1     |
 
   Rule: autonomous-pr-review.TB1.R6 — the reviewer uses whatever declared intent the project exposes
 
@@ -76,11 +87,14 @@ Feature: PR review runner — the mechanized gates
     the intent is reachable through the code host alone — no tracker credentials.
 
     @surface.safeword-cli
-    Scenario: autonomous-pr-review.TB1.R6.intent_is_read_from_the_tracker_linkback_without_tracker_credentials
+    Scenario: autonomous-pr-review.TB1.R6.intent_is_read_from_the_linkback_without_calling_the_tracker
       Given a pull request carrying a tracker linkback comment containing the issue body
       And no tracker credentials are configured
       When the reviewer resolves the declared intent
-      Then the reviewer reads the issue body from the linkback comment
+      Then the reviewer makes no request to the tracker API
+      And the review cites intent drawn from the linkback comment
+
+  Rule: autonomous-pr-review.TB1.R7 — a finding never claims more certainty than the intent source it rests on supports
 
     @surface.safeword-cli
     Scenario: autonomous-pr-review.TB1.R7.a_ticket_shared_by_several_pull_requests_caps_completeness_at_a_question
@@ -90,26 +104,6 @@ Feature: PR review runner — the mechanized gates
       Then the report is a question
       And the report does not block
 
-  Rule: autonomous-pr-review.TB1.R16 — a change to a sensitive surface is never verdicted safe-to-merge on size alone
-
-    Measured: <100-line PRs get a human comment 18% of the time vs 62% for 500+,
-    and 11 of 14 small PRs touching auth or infra got zero human comments.
-
-    @surface.safeword-cli
-    Scenario: autonomous-pr-review.TB1.R16.a_small_change_to_a_sensitive_surface_is_reviewed_at_full_depth
-      Given a pull request of fewer than one hundred changed lines
-      And the diff modifies an authorization control
-      When the reviewer sets its review depth
-      Then the reviewer evaluates the change on every dimension
-
-    @surface.safeword-cli
-    Scenario: autonomous-pr-review.TB1.R17.an_unanswered_author_request_for_review_reaches_a_human
-      Given a pull request whose description asks a reviewer to check a specific decision
-      And no existing comment answers that request
-      When the reviewer decides the verdict
-      Then the verdict is needs-a-human
-      And the verdict names the author's unanswered request
-
   Rule: autonomous-pr-review.TB1.R11 — the reviewer runs on a different vendor than the agent that wrote the code
 
     Claude reviewing Claude shares a training lineage and therefore its blind
@@ -117,10 +111,11 @@ Feature: PR review runner — the mechanized gates
     fails toward cross-vendor when detection is uncertain.
 
     @surface.safeword-cli
-    Scenario: autonomous-pr-review.TB1.R11.an_undetectable_author_defaults_to_the_other_vendor
+    Scenario: autonomous-pr-review.TB1.R11.an_undetectable_author_defaults_to_reviewing_with_codex
       Given a pull request whose authoring agent cannot be identified
+      And the default assumes an unidentified author is Claude
       When the reviewer chooses which vendor reviews it
-      Then the reviewer runs on a vendor other than the one assumed by default
+      Then the reviewer runs on Codex
 
     @surface.safeword-cli
     Scenario: autonomous-pr-review.TB1.R11.a_review_that_cannot_establish_independence_says_so
@@ -130,50 +125,93 @@ Feature: PR review runner — the mechanized gates
 
     @surface.safeword-cli
     Scenario: autonomous-pr-review.TB1.R11.an_author_from_the_reviewing_vendor_flips_the_reviewer
-      Given a pull request whose authoring agent is identified as the reviewing vendor
+      Given a pull request whose authoring agent is identified as Codex
       When the reviewer chooses which vendor reviews it
-      Then the reviewer runs on the other vendor
+      Then the reviewer runs on Claude
 
   Rule: autonomous-pr-review.TB1.R14 — when a finding exists, a second vendor tries to refute it before anyone sees it
 
     Author -> adversary, never a vote: the popularity trap is already rejected by
-    ADR. The adversary only runs when findings exist, so the cost is bounded.
+    ADR. The adversary only runs when findings exist, so the cost is bounded. The
+    second vendor's verdict is a stubbed input here — this tests the runner's
+    routing, not a live model's judgment.
 
     @surface.safeword-cli
-    Scenario: autonomous-pr-review.TB1.R14.a_finding_the_second_vendor_refutes_is_not_posted
-      Given a finding produced by the first vendor
-      And the second vendor refutes that finding
+    Scenario: autonomous-pr-review.TB1.R14.a_refuted_finding_is_dropped_while_a_surviving_one_posts
+      Given two findings from the first vendor
+      And the second vendor is stubbed to refute the first finding and not the second
       When the review is produced
-      Then the finding is absent from the review
+      Then the second finding is posted
+      And the first finding is absent from the review
 
     @surface.safeword-cli
-    Scenario: autonomous-pr-review.TB1.R14.a_finding_that_survives_refutation_is_posted
-      Given a finding produced by the first vendor
-      And the second vendor cannot refute that finding
+    Scenario Outline: autonomous-pr-review.TB1.R14.the_second_vendor_runs_only_when_findings_exist
+      Given the first vendor produces <first-vendor-findings>
       When the review is produced
-      Then the finding is posted
+      Then the second vendor is invoked exactly <adversary-runs> time(s)
+
+      Examples:
+        | first-vendor-findings | adversary-runs |
+        | one finding           | 1              |
+        | no findings           | 0              |
+
+  Rule: autonomous-pr-review.TB2.R1 — review depth is set by what the change touches, never by how many lines it has
+
+    Measured: <100-line PRs get a human comment 18% of the time vs 62% for 500+,
+    and 11 of 14 small PRs touching auth or infra got zero human comments. Small +
+    sensitive is the human blind spot.
 
     @surface.safeword-cli
-    Scenario: autonomous-pr-review.TB1.R14.a_review_with_no_findings_never_pays_for_a_second_vendor
-      Given a pull request the first vendor finds nothing to report on
-      When the review is produced
-      Then the second vendor is not invoked
+    Scenario: autonomous-pr-review.TB2.R1.a_small_change_to_a_sensitive_surface_is_reviewed_at_full_depth
+      Given a pull request of fewer than one hundred changed lines
+      And the diff modifies an authorization control
+      When the reviewer produces its review
+      Then the review reports an assessment for every review dimension
+
+  Rule: autonomous-pr-review.TB2.R2 — a change to a sensitive surface is never verdicted safe-to-merge on size alone
+
+    @surface.safeword-cli
+    Scenario: autonomous-pr-review.TB2.R2.a_tiny_auth_change_with_an_open_question_is_not_verdicted_safe_on_size
+      Given a two-line pull request that modifies an authorization control
+      And the reviewer holds an unresolved question about that control
+      When the reviewer decides the verdict
+      Then the verdict is not safe-to-merge
+
+  Rule: autonomous-pr-review.TB2.R3 — an author's unanswered request for review reaches a human
+
+    @surface.safeword-cli
+    Scenario: autonomous-pr-review.TB2.R3.an_unanswered_author_request_reaches_a_human
+      Given a pull request whose description asks a reviewer to check a specific decision
+      And no existing comment answers that request
+      When the reviewer decides the verdict
+      Then the verdict is needs-a-human
+      And the verdict names the author's unanswered request
+
+    @surface.safeword-cli
+    Scenario: autonomous-pr-review.TB2.R3.an_answered_author_request_does_not_force_a_human
+      Given a pull request whose description asks a reviewer to check a specific decision
+      And an existing comment answers that request
+      And the reviewer finds nothing else worth a human's attention
+      When the reviewer decides the verdict
+      Then the verdict is not needs-a-human on the basis of that request
 
   Rule: autonomous-pr-review.SM1.R3 — the reviewer never executes fork-PR code while holding a write token or secrets
 
     Refined 2026-07-17 (/figure-it-out, GitHub Security Lab "pwn requests"). The
     pwn-request threat is EXECUTION of untrusted code with secrets present — not
     reading it. Reading the diff as data and sending it to the model is safe in a
-    privileged job; running the fork's code is not. So the reviewer may read and
-    post; the executing gates (R13 fix-run, R12 base-repro) must degrade on a
-    fork or run in an unprivileged sidecar. The tripwire is EXECUTION, worded so
-    any new run-fork-code step is visibly in violation.
+    privileged job; running the fork's code is not. The two gates that execute
+    (R13 fix-run, R12 base-repro) must degrade on a fork or run in an unprivileged
+    sidecar. The tripwire is EXECUTION, so any new run-fork-code step is visibly in
+    violation.
 
     @surface.safeword-cli
-    Scenario: autonomous-pr-review.SM1.R3.a_fork_pull_request_is_reviewed_without_executing_its_code
+    Scenario: autonomous-pr-review.SM1.R3.a_fork_is_reviewed_and_posted_without_running_the_forks_gates
       Given a pull request opened from a fork
-      When the reviewer produces its review while holding a token that can post
-      Then the reviewer does not execute any code from the fork
+      And the reviewer holds a token that can post comments
+      When the reviewer produces and posts its review
+      Then the review is posted to the pull request
+      And no fix-run or base-reproduction step executes the fork's head in the privileged job
 
     @surface.safeword-cli
     Scenario: autonomous-pr-review.SM1.R3.the_fix_gate_degrades_on_a_fork_rather_than_running_fork_code
@@ -184,17 +222,22 @@ Feature: PR review runner — the mechanized gates
       And the finding states the fix was not run
 
     @surface.safeword-cli
-    Scenario: autonomous-pr-review.SM1.R3.instructions_inside_a_diff_do_not_direct_the_reviewer
-      Given a pull request whose diff contains text addressed to the reviewer
+    Scenario: autonomous-pr-review.SM1.R3.an_injected_instruction_in_the_diff_is_quoted_not_obeyed
+      Given a pull request whose diff contains a comment instructing the reviewer to approve it unconditionally
       When the reviewer reads the diff
-      Then the reviewer reports the text as content
-      And the reviewer does not follow the text as an instruction
+      Then the review quotes that text as diff content
+      And the verdict is not safe-to-merge on the basis of that text
 
   Rule: autonomous-pr-review.SM1.R2 — a maintainer can turn the reviewer off without deleting it
 
     @surface.safeword-cli
-    Scenario: autonomous-pr-review.SM1.R2.a_disabled_reviewer_posts_nothing_and_stays_installed
-      Given a project whose configuration disables the reviewer
-      When a pull request is opened
-      Then no review is posted
+    Scenario Outline: autonomous-pr-review.SM1.R2.the_config_switch_toggles_posting_but_never_uninstalls
+      Given a project whose configuration <config-state> the reviewer
+      When a pull request worth one comment is opened
+      Then the review comment count is <count>
       And the reviewer's workflow remains installed
+
+      Examples:
+        | config-state | count |
+        | enables      | 1     |
+        | disables     | 0     |
