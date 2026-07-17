@@ -319,11 +319,7 @@ Given(
   },
 );
 
-When('the release contract runs', function (this: MigrationWorld) {
-  recordReleaseContract(this);
-});
-
-When('the packed plugin release contract runs', function (this: MigrationWorld) {
+When(/^the (?:packed plugin )?release contract runs$/u, function (this: MigrationWorld) {
   recordReleaseContract(this);
 });
 
