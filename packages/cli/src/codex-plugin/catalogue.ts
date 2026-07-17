@@ -15,6 +15,12 @@ interface CanonicalSkillMetadata extends Record<string, unknown> {
   description?: unknown;
 }
 
+interface CanonicalSkillAsset {
+  relativePath: string;
+  skill: string;
+  filename: string;
+}
+
 const FRONTMATTER = /^---\r?\n(?<metadata>[\s\S]*?)\r?\n---\r?\n/u;
 const SUPPORTED_SOURCE_METADATA = new Set([
   'name',
@@ -233,14 +239,20 @@ function formatMarkdownTables(markdown: string): string {
 export function generateCodexPluginAssets(
   canonicalSkillsDirectory: string,
 ): GeneratedPluginAsset[] {
-  const canonicalFiles = markdownFiles(canonicalSkillsDirectory);
-  const skillNames = canonicalFiles
-    .map(relativePath => canonicalSkillPath(relativePath).skill)
-    .filter((value, index, values) => values.indexOf(value) === index);
-  const knownSkillNames = new Set(skillNames);
+  const canonicalAssets: CanonicalSkillAsset[] = markdownFiles(canonicalSkillsDirectory).map(
+    relativePath => ({ relativePath, ...canonicalSkillPath(relativePath) }),
+  );
+  const knownSkillNames = new Set(canonicalAssets.map(asset => asset.skill));
+  const referenceNamesBySkill = new Map<string, string[]>();
 
-  return canonicalFiles.map(relativePath => {
-    const { skill, filename } = canonicalSkillPath(relativePath);
+  for (const asset of canonicalAssets) {
+    if (asset.filename === 'SKILL.md') continue;
+    const referenceNames = referenceNamesBySkill.get(asset.skill) ?? [];
+    referenceNames.push(asset.filename);
+    referenceNamesBySkill.set(asset.skill, referenceNames);
+  }
+
+  return canonicalAssets.map(({ relativePath, skill, filename }) => {
     const content = readFileSync(nodePath.join(canonicalSkillsDirectory, relativePath), 'utf8');
     if (filename !== 'SKILL.md') {
       return {
@@ -250,10 +262,7 @@ export function generateCodexPluginAssets(
     }
 
     const { body, description } = parseSkill(content, skill);
-    const referenceNames = canonicalFiles
-      .map(relativeCandidatePath => canonicalSkillPath(relativeCandidatePath))
-      .filter(candidate => candidate.skill === skill && candidate.filename !== 'SKILL.md')
-      .map(candidate => candidate.filename);
+    const referenceNames = referenceNamesBySkill.get(skill) ?? [];
 
     return {
       relativePath: nodePath.join('skills', skill, 'SKILL.md'),
