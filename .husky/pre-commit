@@ -17,8 +17,9 @@ fi
 # Uses schema-derived patterns to stay in sync with what safeword creates
 bun scripts/check-nested-configs.ts || exit 1
 
-# Version sync: package.json is source of truth; plugin manifests must match.
-node -e 'var c=require("./packages/cli/package.json").version,m=require("./.claude-plugin/marketplace.json").plugins[0].version,p=require("./packages/cli/codex-plugin/.codex-plugin/plugin.json").version;if(c!=m||c!=p){console.error("Version mismatch: package.json="+c+" marketplace.json="+m+" codex-plugin="+p+". Update plugin manifests.");process.exit(1)}'
+# Version sync: package.json is source of truth; plugin manifests and all
+# packaged Codex hook commands must use the same CLI version.
+bun scripts/check-version-sync.ts || exit 1
 
 # Parity contracts: SAFEWORD_SCHEMA.contracts must hold (ticket 144).
 # Pairs are NOT enforced here — release test catches pair drift; template

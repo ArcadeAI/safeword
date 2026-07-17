@@ -1,12 +1,13 @@
 ## Version Management
 
-When bumping the CLI version, update all **three** files:
+When bumping the CLI version, update all **four release-tracked artifacts**:
 
 1. `packages/cli/package.json` — source of truth for npm
 2. `.claude-plugin/marketplace.json` → `plugins[0].version` — source of truth for Claude Code plugin
 3. `packages/cli/codex-plugin/.codex-plugin/plugin.json` → `version` — source of truth for Codex plugin
+4. `packages/cli/codex-plugin/hooks.json` — all five `bunx` commands pin `safeword@<version>`
 
-Do NOT add version to `plugin/.claude-plugin/plugin.json` — per Claude Code docs, relative-path plugins use the marketplace entry only. Release-contract tests block a mismatch between the CLI and Codex plugin versions.
+Do NOT add version to `plugin/.claude-plugin/plugin.json` — per Claude Code docs, relative-path plugins use the marketplace entry only. Pre-commit and release-contract tests block a mismatch between the CLI, plugin manifests, and Codex hook commands.
 
 ### Releasing
 
