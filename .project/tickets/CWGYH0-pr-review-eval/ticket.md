@@ -180,3 +180,16 @@ Nate reacted to both the merged-PR run (7 skip / 1 look) and the 3 live open-PR 
 **The load-bearing question is STILL unanswered.** Q2 was "would a green safe-to-merge actually make you skip a PR, or open it anyway?" Nate engaged with whether the calls were *correct*, not with whether he'd *change his behavior*. The capacity thesis (verdict-as-product) remains unvalidated — the tool has shown it can produce good findings, not yet that a green verdict earns enough trust to skip.
 
 **Net:** promising, not proven. Real value demonstrated on live substantive PRs (2118 owner-confirmed); one specific correctable over-rotation (2145, fixed); the merged-run precision evidence discounted as corpus-too-easy; the behavioral/capacity question open.
+
+## PRE-REGISTERED predictiveness experiment (2026-07-17, 20 open arcade PRs)
+
+Frozen BEFORE any outcome is known, so the 1–2-week scoring is honest. Design (user): mark every open PR; watch what the team does organically; later score whether the verdict predicted the outcome. Marker format (user): emoji + "trial reviewer: no findings" on clean ones (NO "safeword", NO "safe to merge"); findings as trial comments on flagged ones.
+
+**Prediction under test = the verdict.** safe-to-merge → predict merges without a human requesting substantive changes. needs-a-human → predict it draws changes / discussion / a hold.
+
+**safe-to-merge (11):** 2174, 2170, 2005, 2014, 2158, 2043, 2121, 2168, 2120*, 1959*, 2119 — (*carry a non-blocking FYI finding)
+**needs-a-human (9):** 2073, 2122, 2026, 2150, 1998, 2128, 2146, 2046, 2118
+
+Verdicts + head SHAs are in scratchpad/arcade-sweep/ledger.tsv (frozen at review time). Scoring in ~2 weeks: for each PR, did the outcome (merged-clean / changes-requested / still-open-with-discussion / closed) match the verdict?
+
+**Quality note:** across the 18 fresh reviews, the findings skew genuinely useful — the two strongest (2128: an eval proxy that would execute REAL tools + an untested API-key redirect guard; 2146: a CI job that never runs on test-only changes + a semver test that can't catch its own bug) are exactly the evidence-integrity catches humans miss because CI is green. And 2150 explicitly applied the just-added #2145 fix (suppressed a description-vs-code over-rotation because the BDD agreed), validating that fix live. 2122 is the one at-risk finding (2145-adjacent over-rotation) — held pending review.
