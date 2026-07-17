@@ -176,42 +176,38 @@ const MCP_JSON_MERGE: JsonMergeDefinition = {
  */
 const MARKDOWNLINT_CLI2_IGNORES_MERGE = dirGlobExcludeMerge('ignores', dir => `**/${dir}/**`);
 
-const CODEX_SKILL_TEMPLATE_FILES = [
-  ['audit/SKILL.md', 'skills/audit/SKILL.md'],
-  ['bdd/SKILL.md', 'skills/bdd/SKILL.md'],
-  ['bdd/DISCOVERY.md', 'skills/bdd/DISCOVERY.md'],
-  ['bdd/PLAN_IMPLEMENTATION.md', 'skills/bdd/PLAN_IMPLEMENTATION.md'],
-  ['bdd/SCENARIOS.md', 'skills/bdd/SCENARIOS.md'],
-  ['bdd/TDD.md', 'skills/bdd/TDD.md'],
-  ['bdd/DONE.md', 'skills/bdd/DONE.md'],
-  ['bdd/SPLITTING.md', 'skills/bdd/SPLITTING.md'],
-  ['bdd/VERIFY.md', 'skills/bdd/VERIFY.md'],
-  ['brainstorm/SKILL.md', 'skills/brainstorm/SKILL.md'],
-  ['cleanup-zombies/SKILL.md', 'skills/cleanup-zombies/SKILL.md'],
-  ['debug/SKILL.md', 'skills/debug/SKILL.md'],
-  ['elicit/SKILL.md', 'skills/elicit/SKILL.md'],
-  ['explain/SKILL.md', 'skills/explain/SKILL.md'],
-  ['figure-it-out/SKILL.md', 'skills/figure-it-out/SKILL.md'],
-  ['lint/SKILL.md', 'skills/lint/SKILL.md'],
-  ['quality-review/SKILL.md', 'skills/quality-review/SKILL.md'],
-  ['refactor/SKILL.md', 'skills/refactor/SKILL.md'],
-  ['retro/SKILL.md', 'skills/retro/SKILL.md'],
-  ['review-spec/SKILL.md', 'skills/review-spec/SKILL.md'],
-  ['self-review/SKILL.md', 'skills/self-review/SKILL.md'],
-  ['tdd-review/SKILL.md', 'skills/tdd-review/SKILL.md'],
-  ['testing/SKILL.md', 'skills/testing/SKILL.md'],
-  ['ticket-system/SKILL.md', 'skills/ticket-system/SKILL.md'],
-  ['verify/SKILL.md', 'skills/verify/SKILL.md'],
+const CODEX_LEGACY_SKILL_FILES = [
+  'audit/SKILL.md',
+  'bdd/SKILL.md',
+  'bdd/DISCOVERY.md',
+  'bdd/PLAN_IMPLEMENTATION.md',
+  'bdd/SCENARIOS.md',
+  'bdd/TDD.md',
+  'bdd/DONE.md',
+  'bdd/SPLITTING.md',
+  'bdd/VERIFY.md',
+  'brainstorm/SKILL.md',
+  'cleanup-zombies/SKILL.md',
+  'debug/SKILL.md',
+  'elicit/SKILL.md',
+  'explain/SKILL.md',
+  'figure-it-out/SKILL.md',
+  'lint/SKILL.md',
+  'quality-review/SKILL.md',
+  'refactor/SKILL.md',
+  'retro/SKILL.md',
+  'review-spec/SKILL.md',
+  'self-review/SKILL.md',
+  'tdd-review/SKILL.md',
+  'testing/SKILL.md',
+  'ticket-system/SKILL.md',
+  'verify/SKILL.md',
 ] as const;
 
-const CODEX_SKILL_DEPRECATED_FILES = CODEX_SKILL_TEMPLATE_FILES.map(
-  ([target]) => `.agents/skills/${target}`,
-);
+const CODEX_SKILL_DEPRECATED_FILES = CODEX_LEGACY_SKILL_FILES.map(file => `.agents/skills/${file}`);
 
 const CODEX_SKILL_DEPRECATED_DIRS = [
-  ...new Set(
-    CODEX_SKILL_TEMPLATE_FILES.map(([target]) => `.agents/skills/${target.split('/', 1)[0]}`),
-  ),
+  ...new Set(CODEX_LEGACY_SKILL_FILES.map(file => `.agents/skills/${file.split('/', 1)[0]}`)),
 ];
 
 const CURSOR_RULE_WRAPPER_OWNED_FILES: Record<string, FileDefinition> = Object.fromEntries(
