@@ -44,3 +44,12 @@ WAWQA6 ships with the model **implied by configuration** ("our agents are Claude
 
 - 2026-07-15T14:15:27.235Z Started: Created ticket X1Z5MG
 - 2026-07-15T14:16:00.000Z Filed (backlog) from the WAWQA6 intake conversation — user: "the model will be implied for now. later it will be detected. file that as a follow on ticket." Depends on WAWQA6 shipping the reviewer that would consume this.
+
+
+## PROMOTED 2026-07-17 — this now routes the vendor, not just a label
+
+The user set the policy: **detect the authoring model and review with a different VENDOR** (assume Claude by default → run Codex). That changes this ticket's weight. It was "a label the review declares"; it is now **the input that selects which binary runs.** Detection being wrong no longer produces a mislabeled review — it produces a *same-vendor* review wearing a cross-vendor claim, which is the exact blind-spot laundering R11's second clause forbids.
+
+**Default policy makes the failure mode benign, though:** unknown → assume Claude → review with Codex. That fails *toward* cross-vendor. Detection's job is therefore to catch the *exceptions* (a human-authored PR, a Codex-authored PR, a mixed-authorship PR), not to establish the common case.
+
+Arcade evidence that the exceptions are real: `pmdroid`'s review replies read *"🐕 Written by Kyoto, an AI agent, on Pascal's behalf"* — agent authorship is disclosed in prose, in the PR body, by convention, not in any structured field. And branch names (`polecat/mutant/...` vs `ericgustin/...`) distinguish fleet-agent from human authorship without naming a vendor.

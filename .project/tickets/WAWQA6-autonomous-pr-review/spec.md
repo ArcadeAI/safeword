@@ -86,7 +86,38 @@ PRs the verdict IS the product — it routes scarce human attention. Is_Human
 rho=0.99: the strongest predictor a comment gets acted on is that a human wrote
 it, so the reviewer's job is to aim human review, not replace it. -->
 
-#### autonomous-pr-review.TB1.R11 — The reviewer runs on a different, never-weaker model than the agent that wrote the code, and never implies an independence it cannot establish
+#### autonomous-pr-review.TB1.R11 — The reviewer runs on a different VENDOR than the agent that wrote the code, and never implies an independence it cannot establish
+
+<!-- STRENGTHENED 2026-07-17 (user): different MODEL -> different VENDOR. Claude
+reviewing Claude shares a training lineage, an RLHF approach, and therefore its
+failure modes — the exact correlated blind spot PRINCIPLES §1's class-1 rule
+exists to break. A different vendor is the most decorrelated reviewer available.
+Default: assume the author was Claude and review with Codex; that fails toward
+cross-vendor, which is the safe direction when detection is uncertain.
+Every review this session ran same-vendor and declared `cross_model: false` —
+this closes a gap we have been declaring, not discovering. -->
+
+#### autonomous-pr-review.TB1.R14 — When a finding exists, a second vendor tries to refute it before anyone sees it
+
+<!-- This is how "run both" is answered WITHOUT rebuilding the voting panel the
+ADR rejected (the "popularity trap": correlated models converge on shared wrong
+answers and underperform a single adversarial reviewer). Two vendors, but
+author->adversary, never a vote:
+
+  - Union of both vendors' findings  -> doubles the noise. Noise is the enemy.
+  - Intersection                     -> kills recall; the best findings this
+                                        session were single-reviewer insights.
+  - Majority vote                    -> the rejected popularity trap.
+  - Author -> adversary              -> attacks false certainty (metric C, the
+                                        kill criterion) with the strongest
+                                        instrument available: a different vendor
+                                        trying to prove you wrong.
+
+Session evidence: the two highest-value passes were both adversarial — an
+independent review killed a bloated proposal, and an adversarial pass caught
+that a true finding shipped with a regressing fix. Cost is bounded because the
+adversary only runs when findings exist (~25-30% of PRs) and only reads the
+findings, not the whole diff: ~10% on the per-PR average. -->
 
 #### autonomous-pr-review.TB1.R12 — A finding that reproduces unchanged on the base branch is not reported as feedback on this pull request
 

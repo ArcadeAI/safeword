@@ -153,6 +153,32 @@ The evidence is already in hand and it is unflattering: the maintainer triage fo
 
 This is not fatal, but it reorders the design. It argues that TB1.R2 (silence), TB1.R3 (cap), and TB1.R7 (trigger gating) are not noise-hygiene niceties — they are **the primary feature**, and the review content is what happens on the rare PR that survives them. It may also argue for a much higher blocking bar and a much smaller findings cap than 5. Unresolved; belongs at the Rules gate.
 
+## ARCHITECTURE INVERSION 2026-07-17 — cross-vendor makes the CLI the primary runner
+
+**User: detect the authoring model and review with a different VENDOR. Assume Claude by default; run Codex against it.** That single requirement overturns the v1 runner decision.
+
+`anthropics/claude-code-action` runs Claude. It **cannot run Codex.** If the default case is "Codex reviews Claude's work," the Action cannot execute the default. So:
+
+- **`safeword review-pr` (the CLI) is now the PRIMARY runner**, not the deferred "second surface" — it is the only thing that can spawn either vendor.
+- The workflow becomes a plain GH Action running the safeword CLI, which shells to the right vendor. **That is already the in-repo pattern** — `retro-reconcile.yml` runs `bun packages/cli/src/cli.ts retro-reconcile` on a schedule.
+- `claude-code-action` drops to an option for the Claude half, or drops entirely.
+
+**This is a reuse, not a new capability.** `hooks/lib/retro-extract.ts` already ships `RetroAgent = 'claude' | 'codex'`, `DEFAULT_CODEX_RETRO_MODEL = 'gpt-5.5'`, `buildCodexExtractArgv()` (headless `codex exec --output-schema` → structured JSON), and both `runHeadlessExtraction` / `runCodexHeadlessExtractionChecked` with fail-open discipline and injectable spawn seams. The two-vendor spawn is proven in this codebase.
+
+### Config
+
+`review.crossVendor`:
+
+- **`auto`** (default) — detect the author's vendor (X1Z5MG); review with the other. Unknown → assume Claude → review with Codex. Fails *toward* cross-vendor, the safe direction.
+- **`always`** — run the adversary pass regardless of what detection says.
+- **`off`** — same-vendor, and the review must declare it (R11's second clause).
+
+### The open question this creates — and its free test
+
+**Is Codex weaker than Claude at this task?** PRINCIPLES §1 says *never weaker*, and different-vendor maximizes decorrelation but may sacrifice capability. **We have never run Codex on this corpus and we do not know.** The tension is real: cross-vendor could be a downgrade dressed as independence.
+
+**Cheapest test, and the corpus is already built:** run the Codex reviewer over the same 8 fresh PRs (arcade2 scratchpad, all four input files per PR already fetched) and compare against the Claude run — same prompt, same inputs, same frozen verdicts. That is a same-day answer to a rule we would otherwise be adopting on faith.
+
 ## Risks that only exist at any-project scale
 
 These never surfaced in the shadow probe because safeword's repo is 37/40 self-authored, Tier 0, and low-volume.

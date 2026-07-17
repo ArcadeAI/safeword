@@ -110,6 +110,55 @@ Feature: PR review runner — the mechanized gates
       Then the verdict is needs-a-human
       And the verdict names the author's unanswered request
 
+  Rule: autonomous-pr-review.TB1.R11 — the reviewer runs on a different vendor than the agent that wrote the code
+
+    Claude reviewing Claude shares a training lineage and therefore its blind
+    spots. Default: assume the author was Claude and review with Codex — that
+    fails toward cross-vendor when detection is uncertain.
+
+    @surface.safeword-cli
+    Scenario: autonomous-pr-review.TB1.R11.an_undetectable_author_defaults_to_the_other_vendor
+      Given a pull request whose authoring agent cannot be identified
+      When the reviewer chooses which vendor reviews it
+      Then the reviewer runs on a vendor other than the one assumed by default
+
+    @surface.safeword-cli
+    Scenario: autonomous-pr-review.TB1.R11.a_review_that_cannot_establish_independence_says_so
+      Given a project configured to review with the same vendor that authored the code
+      When the review is produced
+      Then the review declares that it is not cross-vendor
+
+    @surface.safeword-cli
+    Scenario: autonomous-pr-review.TB1.R11.an_author_from_the_reviewing_vendor_flips_the_reviewer
+      Given a pull request whose authoring agent is identified as the reviewing vendor
+      When the reviewer chooses which vendor reviews it
+      Then the reviewer runs on the other vendor
+
+  Rule: autonomous-pr-review.TB1.R14 — when a finding exists, a second vendor tries to refute it before anyone sees it
+
+    Author -> adversary, never a vote: the popularity trap is already rejected by
+    ADR. The adversary only runs when findings exist, so the cost is bounded.
+
+    @surface.safeword-cli
+    Scenario: autonomous-pr-review.TB1.R14.a_finding_the_second_vendor_refutes_is_not_posted
+      Given a finding produced by the first vendor
+      And the second vendor refutes that finding
+      When the review is produced
+      Then the finding is absent from the review
+
+    @surface.safeword-cli
+    Scenario: autonomous-pr-review.TB1.R14.a_finding_that_survives_refutation_is_posted
+      Given a finding produced by the first vendor
+      And the second vendor cannot refute that finding
+      When the review is produced
+      Then the finding is posted
+
+    @surface.safeword-cli
+    Scenario: autonomous-pr-review.TB1.R14.a_review_with_no_findings_never_pays_for_a_second_vendor
+      Given a pull request the first vendor finds nothing to report on
+      When the review is produced
+      Then the second vendor is not invoked
+
   Rule: autonomous-pr-review.SM1.R3 — the reviewer never holds a credential that can write while reading untrusted content
 
     @surface.safeword-cli
