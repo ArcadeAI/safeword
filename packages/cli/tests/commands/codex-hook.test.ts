@@ -14,6 +14,20 @@ describe('packagedNamespaceRootLabel', () => {
   const directories: string[] = [];
   const CLI_PATH = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
 
+  function runCodexHook(
+    projectDirectory: string,
+    event: string,
+    input: object | string,
+    env?: NodeJS.ProcessEnv,
+  ) {
+    return spawnSync(process.execPath, [CLI_PATH, 'hook', 'codex', event], {
+      cwd: projectDirectory,
+      input: typeof input === 'string' ? input : JSON.stringify(input),
+      encoding: 'utf8',
+      ...(env !== undefined && { env: { ...process.env, ...env } }),
+    });
+  }
+
   afterEach(() => {
     for (const directory of directories) {
       rmSync(directory, { recursive: true, force: true });
@@ -77,17 +91,16 @@ describe('packagedNamespaceRootLabel', () => {
     );
     chmodSync(bunxPath, 0o755);
 
-    const result = spawnSync(process.execPath, [CLI_PATH, 'hook', 'codex', 'session-start'], {
-      cwd: projectDirectory,
-      input: JSON.stringify({ hook_event_name: 'SessionStart', cwd: projectDirectory }),
-      encoding: 'utf8',
-      env: {
-        ...process.env,
+    const result = runCodexHook(
+      projectDirectory,
+      'session-start',
+      { hook_event_name: 'SessionStart', cwd: projectDirectory },
+      {
         CI: '',
         SAFEWORD_NO_AUTO_UPGRADE: '',
         PATH: `${binDirectory}:${process.env.PATH ?? ''}`,
       },
-    });
+    );
 
     expect(result.status, result.stderr).toBe(0);
     expect(run('git', ['show', '--format=', '--name-only', 'HEAD']).stdout).toContain(
@@ -104,12 +117,12 @@ describe('packagedNamespaceRootLabel', () => {
       'PROJECT-LOCAL INSTRUCTIONS MUST NOT APPEAR',
     );
 
-    const result = spawnSync(process.execPath, [CLI_PATH, 'hook', 'codex', 'session-start'], {
-      cwd: projectDirectory,
-      input: JSON.stringify({ hook_event_name: 'SessionStart', cwd: projectDirectory }),
-      encoding: 'utf8',
-      env: { ...process.env, SAFEWORD_NO_AUTO_UPGRADE: '1' },
-    });
+    const result = runCodexHook(
+      projectDirectory,
+      'session-start',
+      { hook_event_name: 'SessionStart', cwd: projectDirectory },
+      { SAFEWORD_NO_AUTO_UPGRADE: '1' },
+    );
 
     expect(result.status, result.stderr).toBe(0);
     expect(result.stdout).toContain('SAFEWORD Agent Instructions');
@@ -133,10 +146,9 @@ describe('packagedNamespaceRootLabel', () => {
     );
 
     const runPromptHook = () =>
-      spawnSync(process.execPath, [CLI_PATH, 'hook', 'codex', 'user-prompt-submit'], {
-        cwd: projectDirectory,
-        input: JSON.stringify({ hook_event_name: 'UserPromptSubmit', session_id: sessionId }),
-        encoding: 'utf8',
+      runCodexHook(projectDirectory, 'user-prompt-submit', {
+        hook_event_name: 'UserPromptSubmit',
+        session_id: sessionId,
       });
 
     const first = runPromptHook();
@@ -165,16 +177,16 @@ describe('packagedNamespaceRootLabel', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-'));
     directories.push(projectDirectory);
 
-    const result = spawnSync(process.execPath, [CLI_PATH, 'hook', 'codex', 'pre-tool-use'], {
-      cwd: projectDirectory,
-      input: JSON.stringify({
+    const result = runCodexHook(
+      projectDirectory,
+      'pre-tool-use',
+      {
         session_id: 'deny-session',
         tool_name: 'Bash',
         tool_input: { command: 'pkill node' },
-      }),
-      encoding: 'utf8',
-      env: { ...process.env, SAFEWORD_CODEX_DENY_MODE: 'exit-code' },
-    });
+      },
+      { SAFEWORD_CODEX_DENY_MODE: 'exit-code' },
+    );
 
     expect(result.status).toBe(2);
     expect(result.stderr).toContain('Broad process kill blocked');
@@ -184,12 +196,12 @@ describe('packagedNamespaceRootLabel', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-'));
     directories.push(projectDirectory);
 
-    const result = spawnSync(process.execPath, [CLI_PATH, 'hook', 'codex', 'pre-tool-use'], {
-      cwd: projectDirectory,
-      input: JSON.stringify({ tool_name: 'Bash', tool_input: { command: 'echo allowed' } }),
-      encoding: 'utf8',
-      env: { ...process.env, PATH: '' },
-    });
+    const result = runCodexHook(
+      projectDirectory,
+      'pre-tool-use',
+      { tool_name: 'Bash', tool_input: { command: 'echo allowed' } },
+      { PATH: '' },
+    );
 
     expect(result.status).toBe(2);
     expect(result.stderr).toContain('bun');
@@ -199,11 +211,7 @@ describe('packagedNamespaceRootLabel', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-'));
     directories.push(projectDirectory);
 
-    const result = spawnSync(process.execPath, [CLI_PATH, 'hook', 'codex', 'before-tool-use'], {
-      cwd: projectDirectory,
-      input: '{}',
-      encoding: 'utf8',
-    });
+    const result = runCodexHook(projectDirectory, 'before-tool-use', '{}');
 
     expect(result.status).toBe(0);
     expect(result.stdout).toBe('');
