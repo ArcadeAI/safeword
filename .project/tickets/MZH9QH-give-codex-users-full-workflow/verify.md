@@ -31,7 +31,7 @@ commit.
   instructions and hooks share one ordered source/distribution lookup helper.
 - [x] R4. Extract the Codex hook CLI subprocess runner in `codex-hook.test.ts`
   to make each behavior test describe only its event-specific inputs.
-- [ ] R5. Extract the migration CLI subprocess runner in
+- [x] R5. Extract the migration CLI subprocess runner in
   `migrate-codex-plugin.test.ts` to centralize fixture runtime environment
   setup.
 - [ ] R6. Unify root Git-repository fixture setup in

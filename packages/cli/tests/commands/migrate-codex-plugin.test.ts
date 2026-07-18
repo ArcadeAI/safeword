@@ -99,22 +99,37 @@ describe('migrate codex-plugin command', () => {
     return { directory, configPath, bin: installFakeRuntime(directory, pluginEnabled) };
   }
 
+  function runMigration(
+    fixture: ReturnType<typeof createMigrationFixture>,
+    {
+      cleanupLegacyHooks = false,
+      environment = {},
+    }: { cleanupLegacyHooks?: boolean; environment?: NodeJS.ProcessEnv } = {},
+  ) {
+    return runCli(
+      ['migrate', 'codex-plugin', ...(cleanupLegacyHooks ? ['--remove-legacy-hooks'] : [])],
+      {
+        cwd: fixture.directory,
+        env: {
+          PATH: `${fixture.bin}:${process.env.PATH ?? ''}`,
+          SAFEWORD_CODEX_LOG: nodePath.join(fixture.directory, 'codex.log'),
+          ...environment,
+        },
+      },
+    );
+  }
+
   afterEach(() => {
     for (const directory of directories) removeTemporaryDirectory(directory);
     directories.length = 0;
   });
 
   it('leaves legacy hooks untouched and explains the reviewed-plugin handoff', async () => {
-    const { directory, configPath, bin } = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    const { directory, configPath } = fixture;
     const log = nodePath.join(directory, 'codex.log');
 
-    const result = await runCli(['migrate', 'codex-plugin'], {
-      cwd: directory,
-      env: {
-        PATH: `${bin}:${process.env.PATH ?? ''}`,
-        SAFEWORD_CODEX_LOG: log,
-      },
-    });
+    const result = await runMigration(fixture);
 
     expect(result.exitCode, result.stderr).toBe(0);
     expect(readFileSync(configPath, 'utf8')).toBe(LEGACY_HOOK_CONFIG);
@@ -130,7 +145,8 @@ describe('migrate codex-plugin command', () => {
 
   it('removes legacy hooks only after the explicit handoff cleanup request', async () => {
     const original = `${LEGACY_HOOK_CONFIG}${LEGACY_PROMPT_CONTEXT_CONFIG}${USER_CODEX_CONFIG}`;
-    const { directory, configPath, bin } = createMigrationFixture(original);
+    const fixture = createMigrationFixture(original);
+    const { directory, configPath } = fixture;
     const legacyHooksDirectory = nodePath.join(directory, '.safeword/hooks/codex');
     const legacyRuntimeHookPath = nodePath.join(legacyHooksDirectory, 'pre-tool-quality.ts');
     const userHookPath = nodePath.join(legacyHooksDirectory, 'custom.ts');
@@ -138,13 +154,7 @@ describe('migrate codex-plugin command', () => {
     writeFileSync(legacyRuntimeHookPath, '// legacy Safe Word hook\n');
     writeFileSync(userHookPath, '// user hook\n');
 
-    const result = await runCli(['migrate', 'codex-plugin', '--remove-legacy-hooks'], {
-      cwd: directory,
-      env: {
-        PATH: `${bin}:${process.env.PATH ?? ''}`,
-        SAFEWORD_CODEX_LOG: nodePath.join(directory, 'codex.log'),
-      },
-    });
+    const result = await runMigration(fixture, { cleanupLegacyHooks: true });
 
     expect(result.exitCode, result.stderr).toBe(0);
     expect(`${result.stdout}\n${result.stderr}`).toContain('Legacy runtime files were preserved.');
@@ -162,13 +172,12 @@ describe('migrate codex-plugin command', () => {
   });
 
   it('refuses cleanup when config changes during plugin installation', async () => {
-    const { directory, configPath, bin } = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    const { configPath } = fixture;
 
-    const result = await runCli(['migrate', 'codex-plugin', '--remove-legacy-hooks'], {
-      cwd: directory,
-      env: {
-        PATH: `${bin}:${process.env.PATH ?? ''}`,
-        SAFEWORD_CODEX_LOG: nodePath.join(directory, 'codex.log'),
+    const result = await runMigration(fixture, {
+      cleanupLegacyHooks: true,
+      environment: {
         SAFEWORD_CONFIG_PATH: configPath,
         SAFEWORD_MUTATE_CONFIG: '1',
       },
@@ -181,15 +190,10 @@ describe('migrate codex-plugin command', () => {
 
   it('removes only the Safe Word handler during explicit handoff cleanup', async () => {
     const original = `${LEGACY_HOOK_CONFIG}${CUSTOM_PRE_TOOL_HOOK}${USER_CODEX_CONFIG}`;
-    const { directory, configPath, bin } = createMigrationFixture(original);
+    const fixture = createMigrationFixture(original);
+    const { directory, configPath } = fixture;
 
-    const result = await runCli(['migrate', 'codex-plugin', '--remove-legacy-hooks'], {
-      cwd: directory,
-      env: {
-        PATH: `${bin}:${process.env.PATH ?? ''}`,
-        SAFEWORD_CODEX_LOG: nodePath.join(directory, 'codex.log'),
-      },
-    });
+    const result = await runMigration(fixture, { cleanupLegacyHooks: true });
 
     expect(result.exitCode, result.stderr).toBe(0);
     const migrated = readFileSync(configPath, 'utf8');
@@ -226,15 +230,10 @@ command = 'bunx --bun safeword@1.2.3 hook codex pre-tool-use'
 type = "command"
 command = 'safeword hook codex pre-tool-use'
 `;
-    const { directory, configPath, bin } = createMigrationFixture(original);
+    const fixture = createMigrationFixture(original);
+    const { configPath } = fixture;
 
-    const result = await runCli(['migrate', 'codex-plugin', '--remove-legacy-hooks'], {
-      cwd: directory,
-      env: {
-        PATH: `${bin}:${process.env.PATH ?? ''}`,
-        SAFEWORD_CODEX_LOG: nodePath.join(directory, 'codex.log'),
-      },
-    });
+    const result = await runMigration(fixture, { cleanupLegacyHooks: true });
 
     expect(result.exitCode, result.stderr).toBe(0);
     const migrated = readFileSync(configPath, 'utf8');
@@ -258,15 +257,10 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
 type = "command"
 command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/custom.ts"'
 `;
-    const { directory, configPath, bin } = createMigrationFixture(original);
+    const fixture = createMigrationFixture(original);
+    const { configPath } = fixture;
 
-    const result = await runCli(['migrate', 'codex-plugin', '--remove-legacy-hooks'], {
-      cwd: directory,
-      env: {
-        PATH: `${bin}:${process.env.PATH ?? ''}`,
-        SAFEWORD_CODEX_LOG: nodePath.join(directory, 'codex.log'),
-      },
-    });
+    const result = await runMigration(fixture, { cleanupLegacyHooks: true });
 
     expect(result.exitCode, result.stderr).toBe(0);
     const migrated = readFileSync(configPath, 'utf8');
@@ -277,7 +271,8 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/custom.ts
 
   it('refuses explicit cleanup when the Codex configuration is malformed', async () => {
     const original = `${LEGACY_HOOK_CONFIG}\n[broken\n`;
-    const { directory, configPath, bin } = createMigrationFixture(original);
+    const fixture = createMigrationFixture(original);
+    const { directory, configPath } = fixture;
     const codexLogPath = nodePath.join(directory, 'codex.log');
     const legacyRuntimeHookPath = nodePath.join(
       directory,
@@ -286,13 +281,7 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/custom.ts
     mkdirSync(nodePath.dirname(legacyRuntimeHookPath), { recursive: true });
     writeFileSync(legacyRuntimeHookPath, '// legacy Safe Word hook\n');
 
-    const result = await runCli(['migrate', 'codex-plugin', '--remove-legacy-hooks'], {
-      cwd: directory,
-      env: {
-        PATH: `${bin}:${process.env.PATH ?? ''}`,
-        SAFEWORD_CODEX_LOG: codexLogPath,
-      },
-    });
+    const result = await runMigration(fixture, { cleanupLegacyHooks: true });
 
     expect(result.exitCode).not.toBe(0);
     expect(readFileSync(configPath, 'utf8')).toBe(original);
@@ -302,20 +291,15 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/custom.ts
   });
 
   it('refuses cleanup before profile mutation when the Codex configuration is a symbolic link', async () => {
-    const { directory, configPath, bin } = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    const { directory, configPath } = fixture;
     const targetPath = nodePath.join(directory, 'dotfiles-config.toml');
     const codexLogPath = nodePath.join(directory, 'codex.log');
     writeFileSync(targetPath, LEGACY_HOOK_CONFIG);
     rmSync(configPath);
     symlinkSync('dotfiles-config.toml', configPath);
 
-    const result = await runCli(['migrate', 'codex-plugin', '--remove-legacy-hooks'], {
-      cwd: directory,
-      env: {
-        PATH: `${bin}:${process.env.PATH ?? ''}`,
-        SAFEWORD_CODEX_LOG: codexLogPath,
-      },
-    });
+    const result = await runMigration(fixture, { cleanupLegacyHooks: true });
 
     expect(result.exitCode).not.toBe(0);
     expect(readFileSync(targetPath, 'utf8')).toBe(LEGACY_HOOK_CONFIG);
@@ -333,15 +317,10 @@ matcher = "^custom$"
 type = "command"
 command = 'echo "keep this user hook"'
 `;
-    const { directory, configPath, bin } = createMigrationFixture(original);
+    const fixture = createMigrationFixture(original);
+    const { directory, configPath } = fixture;
 
-    const result = await runCli(['migrate', 'codex-plugin', '--remove-legacy-hooks'], {
-      cwd: directory,
-      env: {
-        PATH: `${bin}:${process.env.PATH ?? ''}`,
-        SAFEWORD_CODEX_LOG: nodePath.join(directory, 'codex.log'),
-      },
-    });
+    const result = await runMigration(fixture, { cleanupLegacyHooks: true });
 
     expect(result.exitCode, result.stderr).toBe(0);
     expect(readFileSync(configPath, 'utf8')).toBe(original);
@@ -349,17 +328,12 @@ command = 'echo "keep this user hook"'
   });
 
   it('refuses cleanup instead of replacing an existing Safe Word backup', async () => {
-    const { directory, configPath, bin } = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    const { configPath } = fixture;
     const backupPath = `${configPath}.safeword.bak`;
     writeFileSync(backupPath, 'existing backup\n');
 
-    const result = await runCli(['migrate', 'codex-plugin', '--remove-legacy-hooks'], {
-      cwd: directory,
-      env: {
-        PATH: `${bin}:${process.env.PATH ?? ''}`,
-        SAFEWORD_CODEX_LOG: nodePath.join(directory, 'codex.log'),
-      },
-    });
+    const result = await runMigration(fixture, { cleanupLegacyHooks: true });
 
     expect(result.exitCode).not.toBe(0);
     expect(readFileSync(configPath, 'utf8')).toBe(LEGACY_HOOK_CONFIG);
@@ -367,16 +341,11 @@ command = 'echo "keep this user hook"'
   });
 
   it('retains legacy hooks when Codex reports the plugin disabled', async () => {
-    const { directory, configPath, bin } = createMigrationFixture(LEGACY_HOOK_CONFIG, false);
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, false);
+    const { configPath } = fixture;
     const before = readFileSync(configPath, 'utf8');
 
-    const result = await runCli(['migrate', 'codex-plugin'], {
-      cwd: directory,
-      env: {
-        PATH: `${bin}:${process.env.PATH ?? ''}`,
-        SAFEWORD_CODEX_LOG: nodePath.join(directory, 'codex.log'),
-      },
-    });
+    const result = await runMigration(fixture);
 
     expect(result.exitCode).not.toBe(0);
     expect(`${result.stdout}\n${result.stderr}`).toContain('enabled');
