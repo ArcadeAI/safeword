@@ -12,6 +12,7 @@ Feature: PR review runner — the mechanized gates
   Non-event assertions (nothing posted, not invoked) are each paired with a
   discriminating positive in the same scenario, so a do-nothing runner fails.
 
+  @autonomous-pr-review.TB1.R12
   Rule: autonomous-pr-review.TB1.R12 — a finding that reproduces on the base branch is not this PR's feedback
 
     Mechanizes the on-topic gate. The prose version failed once: a true, verified
@@ -39,6 +40,7 @@ Feature: PR review runner — the mechanized gates
       When the reviewer decides the verdict
       Then the verdict is safe-to-merge
 
+  @autonomous-pr-review.TB1.R13
   Rule: autonomous-pr-review.TB1.R13 — a suggested fix is not posted unless it has been run against the tests it could break
 
     Mechanizes the fix gate. It exists because a true finding shipped with a patch
@@ -58,6 +60,7 @@ Feature: PR review runner — the mechanized gates
       When the reviewer runs those tests against the suggested fix
       Then the finding is posted with the suggested fix
 
+  @autonomous-pr-review.TB1.R1
   Rule: autonomous-pr-review.TB1.R1 — a concern the project's own tooling already reports is never surfaced
 
     @surface.safeword-cli
@@ -68,6 +71,7 @@ Feature: PR review runner — the mechanized gates
       Then concern Y appears in the review
       And concern X is absent from the review
 
+  @autonomous-pr-review.TB1.R2
   Rule: autonomous-pr-review.TB1.R2 — a pull request with nothing worth saying receives no comment at all
 
     @surface.safeword-cli
@@ -81,6 +85,7 @@ Feature: PR review runner — the mechanized gates
         | all already covered by the project tests | 0     |
         | one uncovered defect on a changed line   | 1     |
 
+  @autonomous-pr-review.TB1.R6
   Rule: autonomous-pr-review.TB1.R6 — the reviewer uses whatever declared intent the project exposes
 
     The linked issue is rendered into the pull request by the tracker's own bot, so
@@ -94,6 +99,7 @@ Feature: PR review runner — the mechanized gates
       Then the reviewer makes no request to the tracker API
       And the review cites intent drawn from the linkback comment
 
+  @autonomous-pr-review.TB1.R7
   Rule: autonomous-pr-review.TB1.R7 — a finding never claims more certainty than the intent source it rests on supports
 
     @surface.safeword-cli
@@ -108,6 +114,7 @@ Feature: PR review runner — the mechanized gates
         | more than one | is a question and does not block |
         | exactly one   | blocks as a completeness finding |
 
+  @autonomous-pr-review.TB1.R11
   Rule: autonomous-pr-review.TB1.R11 — the reviewer runs on a different vendor than the agent that wrote the code
 
     Claude reviewing Claude shares a training lineage and therefore its blind
@@ -139,6 +146,7 @@ Feature: PR review runner — the mechanized gates
       When the reviewer chooses which vendor reviews it
       Then the reviewer runs on Claude
 
+  @autonomous-pr-review.TB1.R14
   Rule: autonomous-pr-review.TB1.R14 — when a finding exists, a second vendor tries to refute it before anyone sees it
 
     Author -> adversary, never a vote: the popularity trap is already rejected by
@@ -165,6 +173,7 @@ Feature: PR review runner — the mechanized gates
         | one finding           | 1              |
         | no findings           | 0              |
 
+  @autonomous-pr-review.TB2.R1
   Rule: autonomous-pr-review.TB2.R1 — review depth is set by what the change touches, never by how many lines it has
 
     Measured: <100-line PRs get a human comment 18% of the time vs 62% for 500+,
@@ -178,6 +187,7 @@ Feature: PR review runner — the mechanized gates
       When the reviewer produces its review
       Then the review reports an assessment for every review dimension
 
+  @autonomous-pr-review.TB2.R2
   Rule: autonomous-pr-review.TB2.R2 — a change to a sensitive surface is never verdicted safe-to-merge on size alone
 
     @surface.safeword-cli
@@ -187,6 +197,7 @@ Feature: PR review runner — the mechanized gates
       When the reviewer decides the verdict
       Then the verdict is not safe-to-merge
 
+  @autonomous-pr-review.TB2.R3
   Rule: autonomous-pr-review.TB2.R3 — an author's unanswered request for review reaches a human
 
     @surface.safeword-cli
@@ -205,6 +216,7 @@ Feature: PR review runner — the mechanized gates
       When the reviewer decides the verdict
       Then the verdict is not needs-a-human
 
+  @autonomous-pr-review.SM1.R3
   Rule: autonomous-pr-review.SM1.R3 — the reviewer never executes fork-PR code while holding a write token or secrets
 
     Refined 2026-07-17 (/figure-it-out, GitHub Security Lab "pwn requests"). The
@@ -239,6 +251,7 @@ Feature: PR review runner — the mechanized gates
       Then the review quotes the instruction as diff content
       And the verdict remains needs-a-human
 
+  @autonomous-pr-review.SM1.R2
   Rule: autonomous-pr-review.SM1.R2 — a maintainer can turn the reviewer off without deleting it
 
     @surface.safeword-cli
