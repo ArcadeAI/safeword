@@ -342,6 +342,7 @@ CLI command
 | ------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | `commander`                                       | CLI argument parsing                                                                       |
 | `yaml`                                            | YAML config parsing (failsafe mode)                                                        |
+| `smol-toml`                                       | TOML parse/validate for Codex config migration (`migrate-codex-plugin.ts`)                 |
 | `@secretlint/core`                                | Retro egress: in-process secret detection over a raw string (returns spans)                |
 | `@secretlint/secretlint-rule-preset-recommend`    | Retro egress: maintained provider-key rule-packs (28 formats) layered over the regex floor |
 | `@cucumber/gherkin`                               | Gherkin parse engine for `lint-gherkin` and `.feature` scenario-source validation          |
@@ -411,7 +412,7 @@ Published files: `dist/` + `templates/` (bundled for setup/upgrade) + `codex-plu
 ### Settled Decisions (2025-12)
 
 - **Graceful Linter Fallback:** Skip linter silently if not installed (`.nothrow().quiet()`). Hook should never block Claude's workflow. (`lint.ts`)
-- **TOML Parsing Without Dependencies:** Line-based extraction for pyproject.toml. Only need `[tool.poetry]`/`[tool.uv]` detection — no TOML parser dependency. (`project-detector.ts`)
+- **TOML Parsing — line-based for detection, `smol-toml` for Codex config:** pyproject.toml detection uses line-based extraction; it only needs `[tool.poetry]`/`[tool.uv]` and pulls in no TOML parser (`project-detector.ts`). Codex plugin migration is the one exception — it uses `smol-toml` to validate config parseability before its line-based hook surgery (`migrate-codex-plugin.ts`).
 - **Ruff in Hook, mypy in Command Only:** Ruff is ms/file (safe for hooks); mypy is seconds/project (only runs via `/lint` command).
 
 **Linter crash resilience:** `captureRemainingErrors()` reads stderr when stdout is empty on non-zero exit. This distinguishes "linter found no issues" from "linter crashed" (e.g., golangci-lint Go version mismatch). Crashes surface as warnings via the existing `warnings` array, not as lint errors. This prevents silent failures where a broken linter reports success.
