@@ -549,14 +549,10 @@ function createCompleteFeatureTicket(projectRoot: string): void {
 }
 
 function createCodexHookContractFixture(): string {
-  const repoRoot = createTemporaryDirectory('safeword-codex-hook-contract-');
-  writeFileSync(
-    nodePath.join(repoRoot, 'package.json'),
-    `${JSON.stringify({ name: 'codex-hook-contract-fixture', version: '1.0.0' }, undefined, 2)}\n`,
-  );
-
-  const initResult = runCommand('git', ['init', '--quiet'], { cwd: repoRoot });
-  assert.equal(initResult.exitCode, 0, initResult.stderr);
+  const repoRoot = createFreshCodexPluginRepo({
+    packageName: 'codex-hook-contract-fixture',
+    prefix: 'safeword-codex-hook-contract-',
+  });
 
   createIncompleteFeatureTicket(repoRoot);
   mkdirSync(nodePath.join(repoRoot, '.project'), { recursive: true });
@@ -584,14 +580,10 @@ function createCodexHookContractFixture(): string {
 }
 
 function createMalformedCodexHookFixture(): string {
-  const repoRoot = createTemporaryDirectory('safeword-codex-hook-malformed-');
-  writeFileSync(
-    nodePath.join(repoRoot, 'package.json'),
-    `${JSON.stringify({ name: 'codex-hook-malformed-fixture', version: '1.0.0' }, undefined, 2)}\n`,
-  );
-
-  const initResult = runCommand('git', ['init', '--quiet'], { cwd: repoRoot });
-  assert.equal(initResult.exitCode, 0, initResult.stderr);
+  const repoRoot = createFreshCodexPluginRepo({
+    packageName: 'codex-hook-malformed-fixture',
+    prefix: 'safeword-codex-hook-malformed-',
+  });
 
   mkdirSync(nodePath.join(repoRoot, '.safeword/self-reports'), { recursive: true });
   writeFileSync(
@@ -696,14 +688,10 @@ function readUserDataSnapshot(projectRoot: string): Record<string, string> {
 }
 
 function createProjectLocalCodexInstallFixture(): string {
-  const repoRoot = createTemporaryDirectory('safeword-codex-migration-repo-');
-  writeFileSync(
-    nodePath.join(repoRoot, 'package.json'),
-    `${JSON.stringify({ name: 'codex-migration-fixture', version: '1.0.0' }, undefined, 2)}\n`,
-  );
-
-  const initResult = runCommand('git', ['init', '--quiet'], { cwd: repoRoot });
-  assert.equal(initResult.exitCode, 0, initResult.stderr);
+  const repoRoot = createFreshCodexPluginRepo({
+    packageName: 'codex-migration-fixture',
+    prefix: 'safeword-codex-migration-repo-',
+  });
 
   mkdirSync(nodePath.join(repoRoot, '.safeword/hooks/codex'), { recursive: true });
   mkdirSync(nodePath.join(repoRoot, '.agents/skills/bdd'), { recursive: true });

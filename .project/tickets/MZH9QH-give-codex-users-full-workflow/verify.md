@@ -34,7 +34,7 @@ commit.
 - [x] R5. Extract the migration CLI subprocess runner in
   `migrate-codex-plugin.test.ts` to centralize fixture runtime environment
   setup.
-- [ ] R6. Unify root Git-repository fixture setup in
+- [x] R6. Unify root Git-repository fixture setup in
   `steps/test-codex-plugin-migration.steps.ts`.
 - [ ] R7. Route every root packaged-Codex-hook fixture invocation through its
   existing executor, including raw malformed input.
