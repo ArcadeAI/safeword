@@ -84,15 +84,15 @@ derive the active RED/GREEN/REFACTOR step.
 
 ### Scenario: Packaged UserPromptSubmit emits timestamp and queued Safe Word prompt context
 
-- [x] RED: packaged dispatch emitted neither the timestamp nor the retro-draft nudge after legacy cleanup
-- [x] GREEN: one Codex response now merges the timestamp, an optional one-time packaged retro nudge, and optional project-owned queued context
-- [x] REFACTOR: packaged-hook JSON parsing is fail-open so an advisory nudge never blocks a prompt
+- [x] RED skip: post-implementation quality review added the regression before its repair in one review slice
+- [x] GREEN 08fb83c69
+- [x] REFACTOR skip: no separate refactor was needed after the focused review pass
 
 ### Scenario: Packaged UserPromptSubmit emits a timestamp with no queued prompt context
 
-- [x] RED: the legacy empty-queue assertion rejected the required timestamp context
-- [x] GREEN: the scenario asserts structured UserPromptSubmit context containing `Current time:`
-- [x] REFACTOR: timestamp formatting remains isolated from optional project context
+- [x] RED skip: post-implementation quality review corrected the stale empty-queue expectation in one review slice
+- [x] GREEN 08fb83c69
+- [x] REFACTOR skip: no separate refactor was needed after the focused review pass
 
 ## Rule: codex-plugin-hook-parity.SM1.R1 - The parity audit names every preserved redesigned and deferred behavior
 
