@@ -7,7 +7,15 @@
  * TDD RED phase - these tests should FAIL until src/reconcile.ts is implemented.
  */
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -121,23 +129,6 @@ describe('Reconcile - Reconciliation Engine', () => {
         sql: false,
       },
     };
-  }
-
-  function readCodexConfigTemplate(): string {
-    return readFileSync(
-      nodePath.resolve(import.meta.dirname, '../templates/codex/config.toml'),
-      'utf8',
-    );
-  }
-
-  function readLegacyCodexConfigWithoutPromptTimestamp(): string {
-    const template = readCodexConfigTemplate();
-    const promptStart = template.indexOf('\n[[hooks.UserPromptSubmit]]');
-    const preToolStart = template.indexOf('\n[[hooks.PreToolUse]]');
-    if (promptStart === -1 || preToolStart === -1 || preToolStart <= promptStart) {
-      throw new Error('Codex config template no longer has the expected hook block order');
-    }
-    return template.slice(0, promptStart) + template.slice(preToolStart);
   }
 
   describe('reconcile() - install mode', () => {
@@ -974,6 +965,49 @@ describe('Reconcile - Reconciliation Engine', () => {
       expect(result.removed).not.toContain('.safeword/templates/user-stories-template.md');
     });
 
+    it('should unlink a deprecated symlink without touching its target', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      const ctx = createContext();
+      await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
+
+      const deprecatedPath = nodePath.join(
+        temporaryDirectory,
+        '.safeword/templates/user-stories-template.md',
+      );
+      const targetPath = nodePath.join(temporaryDirectory, 'user-owned-template.md');
+      writeFileSync(targetPath, '# User-owned template');
+      symlinkSync(targetPath, deprecatedPath);
+
+      const result = await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
+
+      expect(result.removed).toContain('.safeword/templates/user-stories-template.md');
+      expect(existsSync(deprecatedPath)).toBe(false);
+      expect(readFileSync(targetPath, 'utf8')).toBe('# User-owned template');
+    });
+
+    it('should preserve a directory at a deprecated file path', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      const ctx = createContext();
+      await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
+
+      const deprecatedPath = nodePath.join(
+        temporaryDirectory,
+        '.safeword/templates/user-stories-template.md',
+      );
+      mkdirSync(deprecatedPath);
+
+      const result = await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
+
+      expect(result.removed).not.toContain('.safeword/templates/user-stories-template.md');
+      expect(existsSync(deprecatedPath)).toBe(true);
+    });
+
     it('should include deprecated files in dryRun upgrade actions', async () => {
       const { reconcile } = await import('../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
@@ -1176,60 +1210,20 @@ describe('Reconcile - Reconciliation Engine', () => {
       expect(content).toContain('Custom content here');
     });
 
-    it('should remove safeword-only Codex config on uninstall', async () => {
-      const { reconcile } = await import('../src/reconcile.js');
-      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
-
-      createPackageJson();
-      const ctx = createContext();
-
-      await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
-      expect(existsSync(nodePath.join(temporaryDirectory, '.codex/config.toml'))).toBe(true);
-
-      await reconcile(SAFEWORD_SCHEMA, 'uninstall', ctx);
-
-      expect(existsSync(nodePath.join(temporaryDirectory, '.codex/config.toml'))).toBe(false);
-    });
-
-    it('should strip safeword hooks from user-extended Codex config on uninstall', async () => {
-      const { reconcile } = await import('../src/reconcile.js');
-      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
-
-      createPackageJson();
-      const ctx = createContext();
-
-      await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
-      writeFileSync(
-        nodePath.join(temporaryDirectory, '.codex/config.toml'),
-        `${readCodexConfigTemplate()}\nmodel = "gpt-5-codex"\n`,
-      );
-
-      await reconcile(SAFEWORD_SCHEMA, 'uninstall', ctx);
-
-      const content = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
-      expect(content).toContain('model = "gpt-5-codex"');
-      expect(content).not.toContain('.safeword/hooks/prompt-timestamp.ts');
-      expect(content).not.toContain('.safeword/hooks/codex/pre-tool-quality.ts');
-      expect(content).not.toContain('.safeword/hooks/codex/post-tool-skill-nudge.ts');
-      expect(content).not.toContain('.safeword/hooks/codex/post-tool-quality.ts');
-      expect(content).not.toContain('.safeword/hooks/codex/stop.ts');
-      expect(content).not.toContain('[[hooks.Stop]]');
-    });
-
-    it('should clean legacy Codex config that only has the safeword PreToolUse hook', async () => {
+    it('does not alter an existing Codex config on uninstall', async () => {
       const { reconcile } = await import('../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
 
       createPackageJson();
       mkdirSync(nodePath.join(temporaryDirectory, '.codex'), { recursive: true });
-      writeFileSync(
-        nodePath.join(temporaryDirectory, '.codex/config.toml'),
-        readLegacyCodexConfigWithoutPromptTimestamp(),
-      );
+      const config = '[features]\nhooks = false\nmodel = "gpt-5-codex"\n';
+      writeFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), config);
 
       await reconcile(SAFEWORD_SCHEMA, 'uninstall', createContext());
 
-      expect(existsSync(nodePath.join(temporaryDirectory, '.codex/config.toml'))).toBe(false);
+      expect(readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8')).toBe(
+        config,
+      );
     });
 
     it('should remove owned directories but preserve user content', async () => {
@@ -1435,170 +1429,6 @@ describe('Reconcile - Reconciliation Engine', () => {
 
       // Idempotent: byte-identical, no key reordering churn.
       expect(readFileSync(mcpPath, 'utf8')).toBe(onDisk);
-    });
-  });
-
-  describe('reconcile() - Codex MCP parity (#269)', () => {
-    it('configures context7 and playwright MCP servers in Codex config on install', async () => {
-      const { reconcile } = await import('../src/reconcile.js');
-      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
-
-      createPackageJson();
-      const ctx = createContext();
-
-      await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
-
-      const content = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
-      // context7 over the hosted streamable-HTTP transport (parity with MCP_SERVERS).
-      expect(content).toContain('[mcp_servers.context7]');
-      expect(content).toContain('url = "https://mcp.context7.com/mcp"');
-      // playwright over stdio.
-      expect(content).toContain('[mcp_servers.playwright]');
-      expect(content).toContain('command = "bunx"');
-      expect(content).toContain('args = ["@playwright/mcp@latest"]');
-    });
-
-    it('strips safeword MCP servers from a user-extended Codex config on uninstall', async () => {
-      const { reconcile } = await import('../src/reconcile.js');
-      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
-
-      createPackageJson();
-      const ctx = createContext();
-
-      await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
-      // User appends their own config below safeword's managed content.
-      writeFileSync(
-        nodePath.join(temporaryDirectory, '.codex/config.toml'),
-        `${readCodexConfigTemplate()}\nmodel = "gpt-5-codex"\n`,
-      );
-
-      await reconcile(SAFEWORD_SCHEMA, 'uninstall', ctx);
-
-      const content = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
-      // User content survives; safeword's MCP servers are removed.
-      expect(content).toContain('model = "gpt-5-codex"');
-      expect(content).not.toContain('[mcp_servers.context7]');
-      expect(content).not.toContain('[mcp_servers.playwright]');
-    });
-
-    it('retrofits MCP servers into an existing pre-MCP Codex config on upgrade', async () => {
-      const { reconcile } = await import('../src/reconcile.js');
-      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
-
-      createPackageJson();
-      const ctx = createContext();
-
-      // Simulate a config from a safeword version that predates MCP parity:
-      // the hooks scaffold, but no [mcp_servers.*] tables. Strip the exact MCP
-      // block so this stays correct regardless of template section ordering.
-      const { CODEX_MCP_SERVERS_BLOCK } = await import('../src/schema.js');
-      const preMcp = readCodexConfigTemplate().replace(CODEX_MCP_SERVERS_BLOCK, '');
-      mkdirSync(nodePath.join(temporaryDirectory, '.codex'), { recursive: true });
-      writeFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), preMcp);
-
-      await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
-
-      const content = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
-      expect(content).toContain('[mcp_servers.context7]');
-      expect(content).toContain('url = "https://mcp.context7.com/mcp"');
-      expect(content).toContain('[mcp_servers.playwright]');
-      // Idempotent: retrofit appends exactly one context7 table, not a duplicate.
-      expect(content.match(/\[mcp_servers\.context7\]/g)).toHaveLength(1);
-    });
-
-    it('does not overwrite or duplicate a user-authored context7 on upgrade', async () => {
-      const { reconcile } = await import('../src/reconcile.js');
-      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
-
-      createPackageJson();
-      const ctx = createContext();
-
-      // User already has a customized context7 in their Codex config.
-      const { CODEX_MCP_SERVERS_BLOCK } = await import('../src/schema.js');
-      const base = readCodexConfigTemplate().replace(CODEX_MCP_SERVERS_BLOCK, '').trimEnd();
-      const customized = `${base}\n[mcp_servers.context7]\nurl = "https://example.test/custom"\n`;
-      mkdirSync(nodePath.join(temporaryDirectory, '.codex'), { recursive: true });
-      writeFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), customized);
-
-      await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
-
-      const content = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
-      // User's customization survives; no duplicate table injected.
-      expect(content).toContain('url = "https://example.test/custom"');
-      expect(content).not.toContain('url = "https://mcp.context7.com/mcp"');
-      expect(content.match(/\[mcp_servers\.context7\]/g)).toHaveLength(1);
-    });
-  });
-
-  describe('reconcile() - Codex retro parity (#602)', () => {
-    it('configures the silent Stop retro hook and prompt nudge hook on install', async () => {
-      const { reconcile } = await import('../src/reconcile.js');
-      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
-
-      createPackageJson();
-      const ctx = createContext();
-
-      await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
-
-      const content = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
-      expect(content).toContain('.safeword/hooks/codex/stop.ts');
-      expect(content).toContain('timeout = 600');
-      expect(content).toContain('Running safeword retro if this session is substantial');
-      expect(content).toContain('.safeword/hooks/prompt-retro-nudge.ts');
-      expect(content).toContain('Checking spooled safeword retro drafts');
-    });
-
-    it('retrofits the Codex prompt retro nudge into an existing pre-nudge config', async () => {
-      const { reconcile } = await import('../src/reconcile.js');
-      const { CODEX_PROMPT_RETRO_NUDGE_HOOK_PATCH, SAFEWORD_SCHEMA } =
-        await import('../src/schema.js');
-
-      createPackageJson();
-      const ctx = createContext();
-
-      const preNudge = readCodexConfigTemplate().replace(CODEX_PROMPT_RETRO_NUDGE_HOOK_PATCH, '');
-      mkdirSync(nodePath.join(temporaryDirectory, '.codex'), { recursive: true });
-      writeFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), preNudge);
-
-      await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
-
-      const content = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
-      expect(content).toContain('.safeword/hooks/prompt-retro-nudge.ts');
-      expect(content.match(/\.safeword\/hooks\/prompt-retro-nudge\.ts/g)).toHaveLength(1);
-    });
-  });
-
-  describe('reconcile() - Codex quality-state parity (#630)', () => {
-    it('configures the PostToolUse quality-state hook on install', async () => {
-      const { reconcile } = await import('../src/reconcile.js');
-      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
-
-      createPackageJson();
-      const ctx = createContext();
-
-      await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
-
-      const content = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
-      expect(content).toContain('.safeword/hooks/codex/post-tool-quality.ts');
-      expect(content).toContain('Updating safeword quality state');
-    });
-
-    it('retrofits the PostToolUse quality-state hook into an existing pre-#630 config', async () => {
-      const { reconcile } = await import('../src/reconcile.js');
-      const { CODEX_POST_TOOL_QUALITY_HOOK_PATCH, SAFEWORD_SCHEMA } =
-        await import('../src/schema.js');
-
-      createPackageJson();
-      const ctx = createContext();
-
-      const preQuality = readCodexConfigTemplate().replace(CODEX_POST_TOOL_QUALITY_HOOK_PATCH, '');
-      mkdirSync(nodePath.join(temporaryDirectory, '.codex'), { recursive: true });
-      writeFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), preQuality);
-
-      await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
-
-      const content = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
-      expect(content.match(/\.safeword\/hooks\/codex\/post-tool-quality\.ts/g)).toHaveLength(1);
     });
   });
 

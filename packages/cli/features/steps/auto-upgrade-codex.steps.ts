@@ -46,7 +46,7 @@ function createProjectDirectory(): string {
 function runSafeword(projectDirectory: string, command: SafewordCommand): void {
   execFileSync(process.execPath, [CLI_PATH, command], {
     cwd: projectDirectory,
-    env: { ...process.env, SAFEWORD_NO_AUTO_UPGRADE: '1' },
+    env: { ...process.env, SAFEWORD_NO_AUTO_UPGRADE: '1', SAFEWORD_SKIP_INSTALL: '1' },
     stdio: 'pipe',
   });
 }
@@ -242,9 +242,12 @@ Then('exactly one safeword SessionStart command is wired', function (this: AutoU
   assert.equal(this.codexSessionStartCommands?.length, 1);
 });
 
-Then('the command runs `session-codex-start.ts`', function (this: AutoUpgradeCodexWorld) {
-  assert.match(this.codexSessionStartCommands?.[0] ?? '', /session-codex-start\.ts/);
-});
+Then(
+  'the command runs `safeword hook codex session-start`',
+  function (this: AutoUpgradeCodexWorld) {
+    assert.match(this.codexSessionStartCommands?.[0] ?? '', /safeword hook codex session-start/);
+  },
+);
 
 Then(
   'the command does not run `session-safeword-context.ts` directly',

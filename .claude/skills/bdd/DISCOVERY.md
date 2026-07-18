@@ -35,7 +35,7 @@ At intake start, read the configured personas file (`paths.personas`, default `<
 
 - **If a persona reference comes up during intake that isn't in the file** — flag it, don't invent. Ask whether it's a new persona to add, or a typo for an existing one. Use `validatePersonaReference` semantics (case-sensitive match; offer the suggestion when only casing differs).
 
-Short codes auto-derive from names on the next `safeword check` (e.g., `Platform Operator` → `PO`). Codes can be overridden with explicit `## Name (CODE)` syntax. Never edit derived codes manually except via the override path — `safeword check` will rewrite them.
+Short codes auto-derive as 3–4 letter identifiers on the next `safeword check` (e.g., `Platform Operator` → `PLO`). Explicit `## Name (CODE)` overrides may use 2–4 letters (for example, `## Platform Operator (PO)`). Preserve existing 5–6 character codes as legacy compatibility. Never edit derived codes manually except via the override path — `safeword check` will rewrite them.
 
 ## Load project glossary
 
@@ -81,7 +81,7 @@ Before converging on scope, frame the product intent: what jobs does this featur
 
 Each JTBD is:
 
-- A `### <slug>.<persona-code><n> — <title>` heading (e.g., `### oauth-flow.PO1 — rotate credentials without downtime`).
+- A `### <slug>.<persona-code><n> — <title>` heading (e.g., `### oauth-flow.PLO1 — rotate credentials without downtime`).
 - A `**Persona:** <ref>` line naming **exactly one** persona from the configured personas file — one persona per JTBD. A job that serves two personas is two jobs.
 - A `> When I …, I want …, so I can …` statement capturing the trigger, the desired action, and the outcome.
 
@@ -93,7 +93,7 @@ Resolve each persona reference against the loaded personas before writing it. A 
 
 Once the JTBDs are confirmed, decompose each into **numbered Rules** — the rung between a job and its scenarios. A Rule is a single testable business invariant the persona relies on; the define-behavior scenarios prove its specifics, and the rules sum to JTBD fulfillment. Write them under their JTBD in `spec.md`:
 
-- A `#### <jtbd-id>.R<n> — <invariant>` heading (e.g., `### oauth-flow.PO1` → `#### oauth-flow.PO1.R1 — a rotated key's predecessor keeps working for a bounded grace window`).
+- A `#### <jtbd-id>.R<n> — <invariant>` heading (e.g., `### oauth-flow.PLO1` → `#### oauth-flow.PLO1.R1 — a rotated key's predecessor keeps working for a bounded grace window`).
 - Each JTBD needs **≥1 Rule** (or ≥1 legacy Acceptance Criterion), or a `skip: <reason>` under it for a job with no user-observable behavior to enumerate. The intake-exit gate enforces this (denies `test-definitions.md` until every JTBD has a criterion or a skip).
 - Legacy alternative (soft-deprecated): a JTBD may instead declare **Acceptance Criteria** (`#### <jtbd-id>.AC<n> — <capability>`) — one criteria kind per job, never both. The gate accepts either; numbered Rules need a `.feature` scenario source while the legacy `test-definitions.md` path stays AC-only. The full rule grammar lives in the bdd skill's SCENARIOS.md.
 
@@ -151,19 +151,19 @@ One feature walked through all four artifacts and every sub-phase gate. Slug `oa
 **1 · Personas — load and reference.** Intake reads the configured personas file and finds the persona this feature serves:
 
 ```markdown
-## Platform Operator (PO)
+## Platform Operator (PLO)
 
 **Role:** Owns the fleet's servers and their credentials.
 ```
 
-The job below names `Platform Operator (PO)`; it resolves against the file, so intake continues. An unknown reference stops here — flag it, don't invent.
+The job below names `Platform Operator (PLO)`; it resolves against the file, so intake continues. An unknown reference stops here — flag it, don't invent.
 
 **2 · Jobs To Be Done — motivation first.** Capture who and why before anything else, in `spec.md`:
 
 ```markdown
-### oauth-flow.PO1 — Rotate credentials without a flag day
+### oauth-flow.PLO1 — Rotate credentials without a flag day
 
-**Persona:** Platform Operator (PO)
+**Persona:** Platform Operator (PLO)
 
 > When I rotate a server's API key, I want the previous key to keep
 > working for a short grace period, so I can roll the change across my
@@ -175,9 +175,9 @@ The job below names `Platform Operator (PO)`; it resolves against the file, so i
 **3 · Rules — invariants under the job.** Each Rule is one testable invariant the operator relies on, not a mechanism:
 
 ```markdown
-#### oauth-flow.PO1.R1 — A rotated key's predecessor keeps authenticating for a bounded grace window
+#### oauth-flow.PLO1.R1 — A rotated key's predecessor keeps authenticating for a bounded grace window
 
-#### oauth-flow.PO1.R2 — Every currently-issued key is visible to the operator as live, grace, or expired
+#### oauth-flow.PLO1.R2 — Every currently-issued key is visible to the operator as live, grace, or expired
 ```
 
 **Criteria gate** → present the criteria grouped under their job, ask _"Does each job's criteria capture what 'done' means?"_, wait. (R2 split out by the split-test — "see which keys are live" delivers value on its own.)
@@ -201,7 +201,7 @@ done_when:
 **5 · Scenario lineage — the chain stays machine-checkable.** In define-behavior each scenario title carries the criterion it proves, so persona → JTBD → Rule → scenario is traceable, not eyeballed:
 
 ```text
-### Scenario: oauth-flow.PO1.R1.previous_key_authenticates_within_grace_window
+### Scenario: oauth-flow.PLO1.R1.previous_key_authenticates_within_grace_window
 ```
 
 `safeword check` reads these titles and reports coverage gaps as advisories — a Rule no scenario references (R2, until you write one) is **uncovered**; a scenario naming a renumbered or missing Rule is a **stale ref** or **orphan**. The full scheme lives in the bdd skill's SCENARIOS.md.

@@ -49,7 +49,10 @@ const PRETTIER_EXTENSIONS = new Set([
 ]);
 
 // Cache safeword config paths
-const projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+const configuredProjectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+const projectDir = existsSync(configuredProjectDir)
+  ? realpathSync(configuredProjectDir)
+  : configuredProjectDir;
 const SAFEWORD_ESLINT = `${projectDir}/.safeword/eslint.config.mjs`;
 const SAFEWORD_RUFF = `${projectDir}/.safeword/ruff.toml`;
 const SAFEWORD_GOLANGCI = `${projectDir}/.safeword/.golangci.yml`;
@@ -90,7 +93,7 @@ async function isCommandAvailable(command: string): Promise<boolean> {
  */
 function findUpward(filePath: string, markerFile: string): string | undefined {
   let currentDirectory = nodePath.dirname(filePath);
-  const normalizedProjectDir = nodePath.resolve(projectDir);
+  const normalizedProjectDir = normalizeExistingDirectory(projectDir);
 
   while (currentDirectory.startsWith(normalizedProjectDir)) {
     if (existsSync(nodePath.join(currentDirectory, markerFile))) {
@@ -149,6 +152,10 @@ function safewordCliCommand(): string[] {
   return ['bunx', 'safeword'];
 }
 
+function normalizeExistingDirectory(directory: string): string {
+  return existsSync(directory) ? realpathSync(directory) : nodePath.resolve(directory);
+}
+
 /**
  * Regex to extract package name from Cargo.toml.
  * Matches: [package] ... name = "package-name"
@@ -166,7 +173,7 @@ const CARGO_PACKAGE_NAME_REGEX = /\[package\][^[]*name\s*=\s*"([^"]+)"/;
  */
 function detectRustPackage(filePath: string): string | undefined {
   let currentDirectory = nodePath.dirname(filePath);
-  const normalizedProjectDir = nodePath.resolve(projectDir);
+  const normalizedProjectDir = normalizeExistingDirectory(projectDir);
 
   while (currentDirectory.startsWith(normalizedProjectDir)) {
     const cargoPath = nodePath.join(currentDirectory, 'Cargo.toml');

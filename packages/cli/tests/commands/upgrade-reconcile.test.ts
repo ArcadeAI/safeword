@@ -7,14 +7,22 @@
  * TDD RED phase - these tests verify reconcile integration.
  */
 
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { ESLINT_PACKAGE } from '../../src/packs/typescript/files.js';
-import { installFakeCodexCli, removeTemporaryDirectory, runCli, runCommandSync } from '../helpers';
+import { removeTemporaryDirectory, runCli, runCommandSync } from '../helpers';
 
 const __dirname = import.meta.dirname;
 
@@ -174,8 +182,6 @@ describe('Upgrade Command - Reconcile Integration', () => {
       const { reconcile } = await import('../../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../../src/schema.js');
       const { createProjectContext } = await import('../../src/utils/context.js');
-      const { existsSync } = await import('node:fs');
-
       createConfiguredProject('0.5.0');
 
       // Don't create some directories that should exist
@@ -194,8 +200,6 @@ describe('Upgrade Command - Reconcile Integration', () => {
       const { reconcile } = await import('../../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../../src/schema.js');
       const { createProjectContext } = await import('../../src/utils/context.js');
-      const { existsSync } = await import('node:fs');
-
       createConfiguredProject('0.5.0');
 
       // Create user learning file
@@ -284,7 +288,7 @@ describe('Upgrade Command - Reconcile Integration', () => {
       expect(content).toBe('# My Project\n\nSome content.');
     });
 
-    it('should preserve existing Codex config while creating missing Codex skills', async () => {
+    it('should preserve fully custom Codex config without creating repo-local Codex skills', async () => {
       const { reconcile } = await import('../../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../../src/schema.js');
       const { createProjectContext } = await import('../../src/utils/context.js');
@@ -302,14 +306,12 @@ describe('Upgrade Command - Reconcile Integration', () => {
         customCodexConfig,
       );
       expect(fileExists(nodePath.join(temporaryDirectory, '.agents/skills/bdd/SKILL.md'))).toBe(
-        true,
+        false,
       );
-      expect(
-        fileExists(nodePath.join(temporaryDirectory, '.agents/skills/figure-it-out/SKILL.md')),
-      ).toBe(true);
+      expect(fileExists(nodePath.join(temporaryDirectory, '.safeword/hooks/codex'))).toBe(false);
     });
 
-    it('should add missing Codex hooks to existing safeword Codex config', async () => {
+    it('retains existing Safe Word Codex hooks until explicit migration', async () => {
       const { reconcile } = await import('../../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../../src/schema.js');
       const { createProjectContext } = await import('../../src/utils/context.js');
@@ -336,7 +338,18 @@ timeout = 30
 statusMessage = "Checking safeword PreToolUse gates"
 `,
       );
+      const legacyRuntimeHookPaths = Object.keys(SAFEWORD_SCHEMA.managedFiles)
+        .filter(filePath => filePath.startsWith('.safeword/hooks/codex/'))
+        .map(filePath => nodePath.join(temporaryDirectory, filePath));
+      expect(legacyRuntimeHookPaths).toHaveLength(5);
+      const userHookPath = nodePath.join(temporaryDirectory, '.safeword/hooks/codex/custom.ts');
+      mkdirSync(nodePath.dirname(userHookPath), { recursive: true });
+      for (const legacyHookPath of legacyRuntimeHookPaths) {
+        writeFileSync(legacyHookPath, '// legacy Safe Word hook\n');
+      }
+      writeFileSync(userHookPath, '// user hook\n');
 
+      const before = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
       const ctx = createProjectContext(temporaryDirectory);
       await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
 
@@ -344,28 +357,100 @@ statusMessage = "Checking safeword PreToolUse gates"
         nodePath.join(temporaryDirectory, '.codex/config.toml'),
         'utf8',
       );
-      expect(upgraded).toContain('[[hooks.UserPromptSubmit]]');
-      expect(upgraded).toContain('.safeword/hooks/prompt-timestamp.ts');
-      expect(upgraded).toContain('.safeword/hooks/codex/pre-tool-quality.ts');
-      expect(upgraded).toContain('[[hooks.Stop]]');
-      expect(upgraded).toContain('.safeword/hooks/codex/stop.ts');
+      expect(upgraded).toBe(before);
+      for (const legacyHookPath of legacyRuntimeHookPaths) {
+        expect(existsSync(legacyHookPath)).toBe(true);
+      }
+      expect(existsSync(userHookPath)).toBe(true);
 
       await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
       const upgradedAgain = readFileSync(
         nodePath.join(temporaryDirectory, '.codex/config.toml'),
         'utf8',
       );
-      const timestampHookCount =
-        upgradedAgain.split('.safeword/hooks/prompt-timestamp.ts').length - 1;
-      expect(timestampHookCount).toBe(1);
-      const stopHookCount = upgradedAgain.split('.safeword/hooks/codex/stop.ts').length - 1;
-      expect(stopHookCount).toBe(1);
+      expect(upgradedAgain).toBe(before);
+      for (const legacyHookPath of legacyRuntimeHookPaths) {
+        expect(existsSync(legacyHookPath)).toBe(true);
+      }
+      expect(existsSync(userHookPath)).toBe(true);
     });
 
-    it('migrates a customized legacy Codex config: swaps the context-only SessionStart hook for the auto-upgrade dispatcher', async () => {
+    it('removes the retired Codex retro filer without touching user agents', async () => {
       const { reconcile } = await import('../../src/reconcile.js');
-      const { SAFEWORD_SCHEMA, CODEX_LEGACY_CONTEXT_SESSION_START_HOOK_PATCH } =
-        await import('../../src/schema.js');
+      const { SAFEWORD_SCHEMA } = await import('../../src/schema.js');
+      const { createProjectContext } = await import('../../src/utils/context.js');
+
+      createConfiguredProject('0.5.0');
+      const agentsDirectory = nodePath.join(temporaryDirectory, '.codex/agents');
+      const retiredAgentPath = nodePath.join(agentsDirectory, 'safeword-retro-filer.toml');
+      const userAgentPath = nodePath.join(agentsDirectory, 'custom.toml');
+      mkdirSync(agentsDirectory, { recursive: true });
+      writeFileSync(retiredAgentPath, 'name = "safeword-retro-filer"\n');
+      writeFileSync(userAgentPath, 'name = "custom"\n');
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', createProjectContext(temporaryDirectory));
+
+      expect(existsSync(retiredAgentPath)).toBe(false);
+      expect(existsSync(userAgentPath)).toBe(true);
+    });
+
+    it('leaves a user directory at the retired Codex agent path untouched', async () => {
+      const { reconcile } = await import('../../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../../src/schema.js');
+      const { createProjectContext } = await import('../../src/utils/context.js');
+
+      createConfiguredProject('0.5.0');
+      const retiredAgentDirectory = nodePath.join(
+        temporaryDirectory,
+        '.codex/agents/safeword-retro-filer.toml',
+      );
+      const userFilePath = nodePath.join(retiredAgentDirectory, 'custom.md');
+      mkdirSync(retiredAgentDirectory, { recursive: true });
+      writeFileSync(userFilePath, 'user content\n');
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', createProjectContext(temporaryDirectory));
+
+      expect(existsSync(retiredAgentDirectory)).toBe(true);
+      expect(existsSync(userFilePath)).toBe(true);
+    });
+
+    it('removes a dangling symlink at the retired Codex agent path', async () => {
+      const { reconcile } = await import('../../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../../src/schema.js');
+      const { createProjectContext } = await import('../../src/utils/context.js');
+
+      createConfiguredProject('0.5.0');
+      const retiredAgentPath = nodePath.join(
+        temporaryDirectory,
+        '.codex/agents/safeword-retro-filer.toml',
+      );
+      mkdirSync(nodePath.dirname(retiredAgentPath), { recursive: true });
+      symlinkSync('missing-agent.toml', retiredAgentPath);
+      expect(lstatSync(retiredAgentPath).isSymbolicLink()).toBe(true);
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', createProjectContext(temporaryDirectory));
+
+      expect(() => lstatSync(retiredAgentPath)).toThrow();
+    });
+
+    it('leaves a retired Codex agent path alone when its parent is a user file', async () => {
+      const { reconcile } = await import('../../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../../src/schema.js');
+      const { createProjectContext } = await import('../../src/utils/context.js');
+
+      createConfiguredProject('0.5.0');
+      const agentsPath = nodePath.join(temporaryDirectory, '.codex/agents');
+      mkdirSync(nodePath.dirname(agentsPath), { recursive: true });
+      writeFileSync(agentsPath, 'user content\n');
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', createProjectContext(temporaryDirectory));
+
+      expect(readFileSync(agentsPath, 'utf8')).toBe('user content\n');
+    });
+
+    it('retains a customized legacy Codex config until explicit migration', async () => {
+      const { reconcile } = await import('../../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../../src/schema.js');
       const { createProjectContext } = await import('../../src/utils/context.js');
 
       createConfiguredProject('0.5.0');
@@ -380,7 +465,12 @@ statusMessage = "Checking safeword PreToolUse gates"
 
 [features]
 hooks = true
-${CODEX_LEGACY_CONTEXT_SESSION_START_HOOK_PATCH}
+[[hooks.SessionStart]]
+matcher = ""
+
+[[hooks.SessionStart.hooks]]
+type = "command"
+command = 'npx --yes safeword hook codex session-start'
 [[hooks.PreToolUse]]
 matcher = "^(apply_patch|Bash|Edit|Write|MultiEdit|NotebookEdit)$"
 
@@ -399,21 +489,14 @@ statusMessage = "Checking safeword PreToolUse gates"
         nodePath.join(temporaryDirectory, '.codex/config.toml'),
         'utf8',
       );
-      // Legacy context-only hook is gone; the auto-upgrade dispatcher is wired.
-      expect(upgraded).not.toContain('session-safeword-context.ts" --agent=codex');
-      expect(upgraded).toContain('.safeword/hooks/session-codex-start.ts');
-      // Exactly one SessionStart dispatcher — concurrent Codex hooks make a
-      // double-wire double-emit context, so the swap must not leave two.
-      expect(upgraded.split('.safeword/hooks/session-codex-start.ts').length - 1).toBe(1);
+      expect(upgraded).toBe(legacyConfig);
 
-      // Idempotent: re-running upgrade keeps exactly one dispatcher, no legacy.
       await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
       const again = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
-      expect(again.split('.safeword/hooks/session-codex-start.ts').length - 1).toBe(1);
-      expect(again).not.toContain('session-safeword-context.ts" --agent=codex');
+      expect(again).toBe(legacyConfig);
     });
 
-    it('should tell users to trust generated Codex hooks after upgrade creates Codex config', async () => {
+    it('tells users how to migrate Codex to the plugin after upgrade', async () => {
       createConfiguredProject('0.5.0');
 
       const result = await runCli(['upgrade', '--no-migrate-namespace'], {
@@ -422,25 +505,7 @@ statusMessage = "Checking safeword PreToolUse gates"
       });
 
       expect(result.exitCode).toBe(0);
-      expect(`${result.stdout}\n${result.stderr}`).toContain('/hooks');
-      expect(`${result.stdout}\n${result.stderr}`).toContain('trust safeword project hooks');
-    });
-
-    it('should warn when the installed Codex CLI is below the safeword hook floor during upgrade', async () => {
-      createConfiguredProject('0.5.0');
-      const fakeBin = installFakeCodexCli(temporaryDirectory, '0.132.0');
-
-      const result = await runCli(['upgrade', '--no-migrate-namespace'], {
-        cwd: temporaryDirectory,
-        env: {
-          PATH: `${fakeBin}${nodePath.delimiter}${process.env.PATH ?? ''}`,
-          SAFEWORD_SKIP_INSTALL: '1',
-        },
-      });
-
-      expect(result.exitCode).toBe(0);
-      expect(`${result.stdout}\n${result.stderr}`).toContain('Codex 0.132.0 is below safeword');
-      expect(`${result.stdout}\n${result.stderr}`).toContain('0.133.0');
+      expect(`${result.stdout}\n${result.stderr}`).toContain('migrate codex-plugin');
     });
 
     it('should preserve customer .prettierignore entries and append idempotently', async () => {

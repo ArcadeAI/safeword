@@ -231,14 +231,14 @@ describe.each([
 
   it('exercises all four intake artifact types in one walkthrough', () => {
     // 1 — persona reference (from personas.md)
-    expect(section).toMatch(/Platform Operator \(PO\)/);
+    expect(section).toMatch(/Platform Operator \(PLO\)/);
     // 2 — JTBD: the id plus the "When I…, I want…, so I can…" form
-    expect(section).toMatch(/oauth-flow\.PO1/);
+    expect(section).toMatch(/oauth-flow\.PLO1/);
     expect(section).toMatch(/When I /);
     expect(section).toMatch(/I want /);
     expect(section).toMatch(/so I can/);
     // 3 — numbered Rule under the JTBD (ACs are the legacy alternative)
-    expect(section).toMatch(/#### oauth-flow\.PO1\.R1/);
+    expect(section).toMatch(/#### oauth-flow\.PLO1\.R1/);
     // 4 — engineering scope / out-of-scope / done-when
     expect(section).toMatch(/scope:/);
     expect(section).toMatch(/out_of_scope:/);
@@ -246,7 +246,7 @@ describe.each([
   });
 
   it('shows the numbered define-behavior scenario lineage and the coverage report', () => {
-    expect(section).toMatch(/oauth-flow\.PO1\.R1\.[a-z_]+/);
+    expect(section).toMatch(/oauth-flow\.PLO1\.R1\.[a-z_]+/);
     expect(section).toMatch(/safeword check/);
     expect(section).toMatch(/uncovered/);
   });

@@ -6,7 +6,7 @@
  */
 
 import { type ChildProcess, execSync, spawn } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -240,11 +240,12 @@ describe('cleanup-zombies.sh', () => {
     });
 
     function spawnVictim(): number {
-      // The marker + temp-dir path in the raw argv is what the script's
-      // project-scoped pgrep ("<pattern>.*<project dir>") matches. The `; exit 0`
-      // keeps bash resident (a lone simple command would exec-optimize into
-      // `sleep 60`, discarding the marker from the command line).
-      victim = spawn('bash', ['-c', `sleep 60; exit 0 # swzombie ${temporaryDirectory}`], {
+      // The script path gives pgrep a stable argv containing both the marker
+      // ("swzombie") and temp project path. A shell comment is not stable across
+      // process-list implementations.
+      const victimScript = nodePath.join(realpathSync(temporaryDirectory), 'swzombie-victim.sh');
+      writeFileSync(victimScript, '#!/usr/bin/env bash\nsleep 60\n');
+      victim = spawn('bash', [victimScript], {
         detached: true,
         stdio: 'ignore',
       });

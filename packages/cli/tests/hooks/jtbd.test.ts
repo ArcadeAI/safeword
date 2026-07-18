@@ -6,6 +6,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { derivePersonaCode } from '../../src/utils/personas.js';
 import {
   evaluateJtbdGate,
   knownPersonaRefs as knownPersonaReferences,
@@ -88,6 +89,21 @@ describe('parseJtbdSection (Rule 4)', () => {
 });
 
 describe('knownPersonaRefs (Rule 5)', () => {
+  it.each([
+    ['Auditor', 'AUD'],
+    ['Platform Operator', 'PLO'],
+    ['Site Reliability Engineer', 'SRE'],
+    ['International Atomic Energy Agency Inspector', 'IAEA'],
+    ['Co-Founder', 'COF'],
+    ["Bob's Burger", 'BOB'],
+    ['Level 3 Operator', 'L3O'],
+  ])('matches CLI canonical derivation for %s', (name, expectedCode) => {
+    const references = knownPersonaReferences(`## ${name}\n`);
+    expect(derivePersonaCode(name)).toBe(expectedCode);
+    expect(references.has(expectedCode)).toBe(true);
+    expect(references.has(`${name} (${expectedCode})`)).toBe(true);
+  });
+
   it('contributes name, code, and combined form', () => {
     const references = knownPersonaReferences('## Platform Operator (PO)\n');
     expect(references.has('Platform Operator (PO)')).toBe(true);
@@ -98,8 +114,28 @@ describe('knownPersonaRefs (Rule 5)', () => {
   it('contributes the derived code for a bare-named persona (G9BXE9)', () => {
     const references = knownPersonaReferences('## Platform Operator\n');
     expect(references.has('Platform Operator')).toBe(true);
-    expect(references.has('PO')).toBe(true);
-    expect(references.has('Platform Operator (PO)')).toBe(true);
+    expect(references.has('PLO')).toBe(true);
+    expect(references.has('Platform Operator (PLO)')).toBe(true);
+  });
+
+  it('allocates canonical collision suffixes in persona source order', () => {
+    const references = knownPersonaReferences('## Platform Operator\n\n## Planning Owner\n');
+    expect(references.has('Platform Operator (PLO)')).toBe(true);
+    expect(references.has('Planning Owner (PLO2)')).toBe(true);
+  });
+
+  it('does not let an explicit canonical code reserve its own derived alias', () => {
+    const references = knownPersonaReferences('## Platform Operator (PLO)\n\n## Planning Owner\n');
+
+    expect(references.has('Platform Operator (PLO)')).toBe(true);
+    expect(references.has('Planning Owner (PLO2)')).toBe(true);
+  });
+
+  it('never exposes a derived collision code longer than four characters', () => {
+    const content = Array.from({ length: 1000 }, (_, index) => `## Pl${index} Operator`).join('\n');
+    const references = knownPersonaReferences(content);
+    expect(references.has('Pl999 Operator (PLO1000)')).toBe(false);
+    expect([...references].some(reference => /^PLO\d{4,}$/.test(reference))).toBe(false);
   });
 
   it('does not contain an undeclared reference', () => {
@@ -142,6 +178,27 @@ describe('evaluateJtbdGate (Rule 6)', () => {
     expect(verdict.ok).toBe(true);
   });
 
+  it('resolves a legacy initials reference after the persona adopts a canonical code', () => {
+    const personas = '## Safeword Maintainer (SWM)\n\n**Role:** Maintains safeword.\n';
+    const verdict = evaluateJtbdGate(spec('### x.SM1 — t\n\n**Persona:** SM'), personas);
+
+    expect(verdict.ok).toBe(true);
+  });
+
+  it('resolves six-character and collision-suffixed former derivations', () => {
+    const references = knownPersonaReferences(
+      [
+        '## Alpha Beta Charlie Delta Echo Foxtrot (ABCD)',
+        '## Platform Operator',
+        '## Planning Owner',
+      ].join('\n\n'),
+    );
+
+    expect(references.has('ABCDEF')).toBe(true);
+    expect(references.has('Platform Operator (PO)')).toBe(true);
+    expect(references.has('Planning Owner (PO2)')).toBe(true);
+  });
+
   it('still denies an unknown persona after derivation (G9BXE9)', () => {
     const personas = '## Platform Operator\n\n**Role:** Owns infra.\n';
     const verdict = evaluateJtbdGate(spec('### a\n\n**Persona:** Ghost Persona'), personas);
@@ -152,6 +209,22 @@ describe('evaluateJtbdGate (Rule 6)', () => {
     const verdict = evaluateJtbdGate(spec('skip:   '), PERSONAS);
     expect(verdict.ok).toBe(false);
     expect(verdict).toMatchObject({ reason: expect.stringContaining('no reason') });
+  });
+
+  it('denies the gate with an actionable error when canonical collision space is exhausted', () => {
+    const personas = Array.from(
+      { length: 1000 },
+      (_, index) => `## Pl${index} Operator\n\n**Role:** Owns platform ${index}.`,
+    ).join('\n\n');
+    const verdict = evaluateJtbdGate(
+      spec('### x.PLO1 — t\n\n**Persona:** Pl999 Operator'),
+      personas,
+    );
+
+    expect(verdict.ok).toBe(false);
+    expect(verdict).toMatchObject({
+      reason: expect.stringMatching(/collision.*exhausted.*explicit.*2[–-]4/i),
+    });
   });
 
   it('still resolves personas when a later JTBD carries an AC skip (31W8M3)', () => {

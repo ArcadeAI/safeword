@@ -127,7 +127,14 @@ if [ -z "$PATTERN" ]; then
   PATTERN=$(detect_pattern)
 fi
 
-PROJECT_DIR="$(pwd)"
+PROJECT_DIR="$(pwd -P)"
+# macOS exposes its temporary directory through both /var and /private/var.
+# A process may carry either spelling in its argv, so keep the equivalent alias
+# for the project-scoped match without broadening the directory boundary.
+PROJECT_DIR_ALIASES=("$PROJECT_DIR")
+if [[ "$PROJECT_DIR" == /private/var/* ]]; then
+  PROJECT_DIR_ALIASES+=("/var/${PROJECT_DIR#/private/var/}")
+fi
 PROJECT_NAME="$(basename "$PROJECT_DIR")"
 
 echo "Cleanup zombies for: $PROJECT_NAME"
@@ -170,8 +177,12 @@ cleanup_port() {
 cleanup_pattern() {
   local pattern=$1
   local pids
+  local project_dir
   # Match pattern AND project directory for safety
-  pids=$(pgrep -f "$pattern.*$PROJECT_DIR" 2> /dev/null || pgrep -f "$PROJECT_DIR.*$pattern" 2> /dev/null || true)
+  for project_dir in "${PROJECT_DIR_ALIASES[@]}"; do
+    pids=$(pgrep -f "$pattern.*$project_dir" 2> /dev/null || pgrep -f "$project_dir.*$pattern" 2> /dev/null || true)
+    [ -n "$pids" ] && break
+  done
 
   if [ -n "$pids" ]; then
     local count

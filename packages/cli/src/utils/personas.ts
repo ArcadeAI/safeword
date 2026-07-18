@@ -6,12 +6,10 @@
  * parenthesized short code (auto-derived if absent), a `**Role:**` line,
  * and an optional `**Context:**` block.
  *
- * Short codes follow the pattern `^[A-Z][A-Z0-9]{1,5}$` — 2-6 chars,
- * uppercase letter first, then letters and digits. Codes are derived
- * conventionally from the name (first-letter-of-each-word for multi-word,
- * first-2-chars for single-word), with non-alpha characters stripped before
- * derivation. Users can override the derived code with explicit
- * `## Name (CODE)` syntax.
+ * Persisted short codes follow the compatibility pattern
+ * `^[A-Z][A-Z0-9]{1,5}$` (2-6 chars). Newly derived codes use the narrower
+ * canonical 3-4 character convention; explicitly authored new codes should use
+ * 2-4 characters, while persisted 5-6 character codes remain compatible.
  *
  * See ticket 7YN5QB for the full spec.
  */
@@ -32,21 +30,23 @@ import { findDuplicates, groupByLine } from './validation.js';
 // become a breaking change), and there's no current consumer that needs
 // that commitment.
 
-/** Maximum length of a derived short code (overflow is truncated silently). */
-const MAX_CODE_LENGTH = 6;
+/** Maximum length of a newly derived canonical short code. */
+const MAX_DERIVED_CODE_LENGTH = 4;
 /** Minimum persona name length — single-char names are rejected at validation. */
 const MIN_NAME_LENGTH = 2;
 /** Pattern for a valid persona short code. */
 export const PERSONA_CODE_PATTERN = /^[A-Z][A-Z0-9]{1,5}$/;
+/** Pattern for a newly derived canonical persona short code. */
+export const CANONICAL_PERSONA_CODE_PATTERN = /^[A-Z][A-Z0-9]{2,3}$/;
 
 /**
  * Derive a short code from a persona name.
  *
- * Multi-word names use first-letter-of-each-word ("Platform Operator" → "PO").
- * Single-word names use first-2-chars uppercased ("Auditor" → "AU").
- * Non-alpha characters (apostrophes, hyphens) are stripped before derivation;
- * digits are preserved within the resulting code.
- * Overflow is truncated to the first {@link MAX_CODE_LENGTH} characters.
+ * Single-word names use their first 3 characters ("Auditor" → "AUD").
+ * Two-word names use two characters from the first word plus the second word's
+ * initial ("Platform Operator" → "PLO"). Names with 3+ words use their first
+ * 4 initials. Apostrophes are removed within a word; other punctuation separates
+ * words; digits are preserved.
  *
  * Note: the returned code may not pass {@link PERSONA_CODE_PATTERN} for
  * pathological inputs (e.g., digit-first names like "3 Amigos" → "3A").
@@ -56,9 +56,8 @@ export function derivePersonaCode(name: string): string {
   const trimmed = name.trim();
   if (trimmed.length === 0) return '';
 
-  // Strip non-alphanumeric except whitespace — keeps digits, removes
-  // apostrophes/hyphens/punctuation. Whitespace remains as the word separator.
-  const cleaned = trimmed.replaceAll(/[^A-Z0-9\s]/gi, '');
+  const withoutApostrophes = trimmed.replaceAll(/['’]/g, '');
+  const cleaned = withoutApostrophes.replaceAll(/[^A-Z0-9\s]/gi, ' ');
   const words = cleaned.split(/\s+/).filter(word => word.length > 0);
 
   const [firstWord] = words;
@@ -67,10 +66,28 @@ export function derivePersonaCode(name: string): string {
   // String.charAt returns '' for empty strings — no narrowing needed and
   // no non-null assertion (each word is non-empty per the filter above,
   // but TypeScript can't prove that on indexed access).
+  let derived: string;
+  if (words.length === 1) {
+    derived = firstWord.slice(0, 3);
+  } else if (words.length === 2) {
+    derived = `${firstWord.slice(0, 2)}${words[1]?.charAt(0) ?? ''}`;
+  } else {
+    derived = words.map(word => word.charAt(0)).join('');
+  }
+
+  return derived.toUpperCase().slice(0, MAX_DERIVED_CODE_LENGTH);
+}
+
+/** Derive the pre-canonical code used by safeword before 3–4 letter defaults. */
+function deriveLegacyPersonaCode(name: string): string {
+  const cleaned = name.trim().replaceAll(/[^A-Z0-9\s]/gi, '');
+  const words = cleaned.split(/\s+/).filter(word => word.length > 0);
+  const [firstWord] = words;
+  if (!firstWord) return '';
+
   const derived =
     words.length === 1 ? firstWord.slice(0, 2) : words.map(word => word.charAt(0)).join('');
-
-  return derived.toUpperCase().slice(0, MAX_CODE_LENGTH);
+  return derived.toUpperCase().slice(0, 6);
 }
 
 /** Whether a persona name passes the minimum-length requirement. */
@@ -103,6 +120,7 @@ export interface ParsedPersona {
 /** A resolved persona — code is always populated (derived if not explicit). */
 export interface ResolvedPersona extends ParsedPersona {
   code: string;
+  codeError?: 'non-canonical-derived-code' | 'collision-space-exhausted';
 }
 
 /** A validation error with a 1-indexed line reference into the source content. */
@@ -175,6 +193,22 @@ export function parsePersonas(content: string): ParsedPersona[] {
   return personas;
 }
 
+/** Allocate a deterministic collision suffix without exceeding four characters. */
+function allocateDerivedCode(
+  base: string,
+  claimed: ReadonlySet<string>,
+): { code: string; exhausted: boolean } {
+  if (!claimed.has(base)) return { code: base, exhausted: false };
+
+  for (let suffix = 2; ; suffix += 1) {
+    const suffixText = String(suffix);
+    const prefixLength = MAX_DERIVED_CODE_LENGTH - suffixText.length;
+    if (prefixLength < 1) return { code: base, exhausted: true };
+    const candidate = `${base.slice(0, prefixLength)}${suffixText}`;
+    if (!claimed.has(candidate)) return { code: candidate, exhausted: false };
+  }
+}
+
 /**
  * Resolve auto-derived codes with collision avoidance.
  *
@@ -201,14 +235,15 @@ export function resolvePersonaCodes(parsed: readonly ParsedPersona[]): ResolvedP
       continue;
     }
     const base = derivePersonaCode(persona.name);
-    let candidate = base;
-    let suffix = 2;
-    while (claimed.has(candidate)) {
-      candidate = `${base}${suffix}`;
-      suffix += 1;
+    const allocation = allocateDerivedCode(base, claimed);
+    if (!allocation.exhausted) claimed.add(allocation.code);
+    let codeError: ResolvedPersona['codeError'];
+    if (allocation.exhausted) {
+      codeError = 'collision-space-exhausted';
+    } else if (!CANONICAL_PERSONA_CODE_PATTERN.test(allocation.code)) {
+      codeError = 'non-canonical-derived-code';
     }
-    claimed.add(candidate);
-    resolved.push({ ...persona, code: candidate });
+    resolved.push({ ...persona, code: allocation.code, codeError });
   }
 
   return resolved;
@@ -249,6 +284,20 @@ function findPatternErrors(resolved: readonly ResolvedPersona[]): PersonaValidat
   const errors: PersonaValidationError[] = [];
   for (const persona of resolved) {
     if (persona.code.length === 0) continue;
+    if (persona.codeError === 'non-canonical-derived-code') {
+      errors.push({
+        line: persona.lineNumber,
+        message: `name produces non-canonical code "${persona.code}" — author an explicit 2–4 letter code via \`## Name (CODE)\``,
+      });
+      continue;
+    }
+    if (persona.codeError === 'collision-space-exhausted') {
+      errors.push({
+        line: persona.lineNumber,
+        message: `canonical collision space exhausted for "${persona.code}" — author an explicit 2–4 letter code via \`## Name (CODE)\``,
+      });
+      continue;
+    }
     if (isValidPersonaCode(persona.code)) continue;
     const message = persona.explicit
       ? `code "${persona.code}" violates pattern ${PERSONA_CODE_PATTERN.source}`
@@ -285,6 +334,52 @@ export function validatePersonas(parsed: readonly ParsedPersona[]): PersonaValid
 export type PersonaReferenceResult =
   { status: 'valid'; match: ResolvedPersona } | { status: 'unknown'; suggestion?: string };
 
+interface LegacyPersonaAlias {
+  code: string;
+  persona: ResolvedPersona;
+}
+
+function resolveLegacyPersonaAliases(personas: readonly ResolvedPersona[]): LegacyPersonaAlias[] {
+  const claimed = new Set(
+    personas.filter(persona => persona.codeError === undefined).map(persona => persona.code),
+  );
+  const aliases: LegacyPersonaAlias[] = [];
+
+  for (const persona of personas) {
+    if (persona.codeError !== undefined) continue;
+    const base = deriveLegacyPersonaCode(persona.name);
+    if (base === '' || base === persona.code) continue;
+
+    let candidate = base;
+    let suffix = 2;
+    while (claimed.has(candidate)) {
+      candidate = `${base}${suffix}`;
+      suffix += 1;
+    }
+    if (!isValidPersonaCode(candidate)) continue;
+    claimed.add(candidate);
+    aliases.push({ code: candidate, persona });
+  }
+
+  return aliases;
+}
+
+function findCasingSuggestion(
+  personas: readonly ResolvedPersona[],
+  legacyAliases: readonly LegacyPersonaAlias[],
+  input: string,
+): string | undefined {
+  const lowered = input.toLowerCase();
+  for (const persona of personas) {
+    if (persona.codeError !== undefined) continue;
+    if (persona.code.toLowerCase() === lowered) return persona.code;
+    if (persona.name.toLowerCase() === lowered) return persona.name;
+  }
+  const legacyAlias = legacyAliases.find(alias => alias.code.toLowerCase() === lowered);
+  if (legacyAlias) return legacyAlias.code;
+  return undefined;
+}
+
 /**
  * Look up a persona reference against a parsed-and-resolved list.
  *
@@ -305,23 +400,17 @@ export function lookupPersonaReference(
   if (input.length === 0) return { status: 'unknown' };
 
   for (const persona of personas) {
+    if (persona.codeError !== undefined) continue;
     if (persona.code === input || persona.name === input) {
       return { status: 'valid', match: persona };
     }
   }
 
-  // Casing-mismatch detection — search again with lowercase comparison.
-  const lowered = input.toLowerCase();
-  for (const persona of personas) {
-    if (persona.code.toLowerCase() === lowered) {
-      return { status: 'unknown', suggestion: persona.code };
-    }
-    if (persona.name.toLowerCase() === lowered) {
-      return { status: 'unknown', suggestion: persona.name };
-    }
-  }
+  const legacyAliases = resolveLegacyPersonaAliases(personas);
+  const legacyMatch = legacyAliases.find(alias => alias.code === input);
+  if (legacyMatch) return { status: 'valid', match: legacyMatch.persona };
 
-  return { status: 'unknown' };
+  return { status: 'unknown', suggestion: findCasingSuggestion(personas, legacyAliases, input) };
 }
 
 /**

@@ -11,13 +11,21 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import { afterEach, beforeEach, describe, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { expectHookAllow, expectHookDeny, type HookResult } from '../helpers';
+import {
+  createTypeScriptPackageJson,
+  expectHookAllow,
+  expectHookDeny,
+  type HookResult,
+  initGitRepo,
+  runCli,
+  SKIP_INSTALL_ENV,
+} from '../helpers';
 
 const HOOK_PATH = nodePath.resolve(__dirname, '../../templates/hooks/pre-tool-quality.ts');
 
@@ -36,8 +44,8 @@ const TICKET_FRONTMATTER = [
 
 const PERSONAS = '# Personas\n\n## Platform Operator (PO)\n\n**Role:** Owns infra.\n';
 
-function runHook(input: object): HookResult {
-  const result = spawnSync('bun', [HOOK_PATH], {
+function runHook(input: object, hookPath = HOOK_PATH): HookResult {
+  const result = spawnSync('bun', [hookPath], {
     input: JSON.stringify(input),
     encoding: 'utf8',
     stdio: ['pipe', 'pipe', 'pipe'],
@@ -45,18 +53,72 @@ function runHook(input: object): HookResult {
   return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
 }
 
+describe('setup-installed JTBD hook persona compatibility', () => {
+  let projectRoot: string;
+
+  beforeEach(() => {
+    projectRoot = mkdtempSync(nodePath.join(tmpdir(), 'installed-jtbd-gate-'));
+  });
+
+  afterEach(() => {
+    rmSync(projectRoot, { recursive: true, force: true });
+  });
+
+  it('executes the copied hook with canonical and former collision references', async () => {
+    createTypeScriptPackageJson(projectRoot);
+    initGitRepo(projectRoot);
+    const setup = await runCli(['setup', '--yes', '--no-modify'], {
+      cwd: projectRoot,
+      env: { ...SKIP_INSTALL_ENV, SAFEWORD_SKIP_SKILLS: '1' },
+    });
+    expect(setup.exitCode).toBe(0);
+
+    const installedHook = nodePath.join(projectRoot, '.safeword/hooks/pre-tool-quality.ts');
+    expect(existsSync(installedHook)).toBe(true);
+
+    const ticketDirectory = nodePath.join(projectRoot, '.project/tickets/ABC123');
+    mkdirSync(ticketDirectory, { recursive: true });
+    writeFileSync(nodePath.join(ticketDirectory, 'ticket.md'), `---\n${TICKET_FRONTMATTER}\n---\n`);
+    writeFileSync(nodePath.join(ticketDirectory, 'dimensions.md'), 'skip: one obvious dimension');
+    writeFileSync(
+      nodePath.join(projectRoot, '.project/personas.md'),
+      [
+        '# Personas',
+        '## Safeword Maintainer (SWM)\n\n**Role:** Maintains safeword.',
+        '## Platform Operator\n\n**Role:** First collision persona.',
+        '## Planning Owner\n\n**Role:** Second collision persona.',
+      ].join('\n\n'),
+    );
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'spec.md'),
+      jtbdSpec(
+        [
+          '### x.SWM1 — canonical\n\n**Persona:** SWM\n\n#### x.SWM1.AC1 — canonical resolves',
+          '### x.SM1 — former base\n\n**Persona:** SM\n\n#### x.SM1.AC1 — former base resolves',
+          '### x.PO2 — former collision\n\n**Persona:** PO2\n\n#### x.PO2.AC1 — former collision resolves',
+        ].join('\n\n'),
+      ),
+    );
+
+    expectHookAllow(attemptTestDefinitions(ticketDirectory, installedHook));
+  });
+});
+
 function jtbdSpec(jtbdBody: string): string {
   return `# Spec: x\n\n## Intent\n\nWhy.\n\n## Jobs To Be Done\n\n${jtbdBody}\n\n## Outcomes\n\nDone.\n`;
 }
 
-function attemptTestDefinitions(ticketDirectory: string): HookResult {
-  return runHook({
-    tool_name: 'Write',
-    tool_input: {
-      file_path: nodePath.join(ticketDirectory, 'test-definitions.md'),
-      content: '# Test Definitions\n',
+function attemptTestDefinitions(ticketDirectory: string, hookPath = HOOK_PATH): HookResult {
+  return runHook(
+    {
+      tool_name: 'Write',
+      tool_input: {
+        file_path: nodePath.join(ticketDirectory, 'test-definitions.md'),
+        content: '# Test Definitions\n',
+      },
     },
-  });
+    hookPath,
+  );
 }
 
 describe('intake-exit JTBD gate (Rule 7)', () => {

@@ -45,6 +45,8 @@ export interface IssueTracker {
    * triage opens no duplicate for a signature already filed.
    */
   searchBySignature(signature: string): Promise<IssueReference[]>;
+  /** Find open issues carrying the exact deterministic canonical repro marker. */
+  searchByCanonical(canonicalSignature: string): Promise<IssueReference[]>;
   createIssue(input: CreateIssueInput): Promise<IssueReference>;
   listComments(issueNumber: number): Promise<IssueComment[]>;
   createComment(issueNumber: number, body: string): Promise<IssueComment>;
@@ -111,7 +113,11 @@ export async function triage(
     // Isolate each encounter: a transport error (or a poisoned upstream ledger)
     // on one issue must not abort the rest of the session's findings (C3).
     try {
-      const matches = await transport.searchBySignature(encounter.draft.signature);
+      const signatureMatches = await transport.searchBySignature(encounter.draft.signature);
+      const matches =
+        signatureMatches.length > 0
+          ? signatureMatches
+          : await transport.searchByCanonical(encounter.draft.canonicalSignature);
       const [existing] = matches;
 
       if (existing) {

@@ -41,6 +41,12 @@ const BDD_SKILL_ROOTS = [
   nodePath.join(PROJECT_ROOT, '.claude/skills/bdd'),
 ];
 
+/** Shipped Codex plugin reference for the BDD planning phase. */
+const CODEX_BDD_PLAN_REFERENCE = nodePath.join(
+  PROJECT_ROOT,
+  'packages/cli/codex-plugin/skills/bdd/references/PLAN_IMPLEMENTATION.md',
+);
+
 /** Both shipped copies of the impl-plan scaffold template. */
 const IMPL_PLAN_TEMPLATE_COPIES = [
   nodePath.join(PROJECT_ROOT, 'packages/cli/templates/doc-templates/impl-plan-template.md'),
@@ -1078,10 +1084,8 @@ Then(
       'schema.ts must register the Claude skill copy',
     );
     assert.ok(
-      this.schemaSource?.includes(
-        "['bdd/PLAN_IMPLEMENTATION.md', 'skills/bdd/PLAN_IMPLEMENTATION.md']",
-      ),
-      'schema.ts must register the Codex skill copy',
+      existsSync(CODEX_BDD_PLAN_REFERENCE),
+      'the Codex plugin must package the BDD planning reference',
     );
     assert.ok(
       this.cursorWrapperSource?.includes("'bdd-plan-implementation'"),

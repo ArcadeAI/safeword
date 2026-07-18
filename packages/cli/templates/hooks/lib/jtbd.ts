@@ -13,8 +13,9 @@
 const JTBD_HEADING = 'jobs to be done';
 const PERSONA_PREFIX = '**Persona:**';
 const SKIP_PREFIX = 'skip:';
-/** Max persona short-code length — mirrors the CLI's `MAX_CODE_LENGTH`. */
-const MAX_CODE_LENGTH = 6;
+/** Max newly derived persona-code length — mirrors the CLI canonical bound. */
+const MAX_CODE_LENGTH = 4;
+const PERSISTED_CODE_PATTERN = /^[A-Z][A-Z0-9]{1,5}$/;
 /**
  * A level-4 heading only counts toward the AC gate when it carries a real
  * lineage id — `<jtbd>.AC<n>` or `<jtbd>.R<n>` (#696). Without this, any
@@ -37,6 +38,11 @@ export interface JtbdSection {
 }
 
 export type JtbdGateVerdict = { ok: true } | { ok: false; reason: string };
+
+interface PersonaReferenceResolution {
+  references: Set<string>;
+  collisionExhaustedFor: string[];
+}
 
 /**
  * Parse the `## Jobs To Be Done` section of a spec.md. Content inside HTML
@@ -87,18 +93,42 @@ function addCodeForms(references: Set<string>, name: string, code: string): void
   references.add(`${name} (${code})`);
 }
 
+/** Allocate a deterministic collision suffix without exceeding four characters. */
+function allocateDerivedCode(base: string, claimed: ReadonlySet<string>): string | undefined {
+  if (!claimed.has(base)) return base;
+  for (let suffix = 2; ; suffix += 1) {
+    const suffixText = String(suffix);
+    const prefixLength = MAX_CODE_LENGTH - suffixText.length;
+    if (prefixLength < 1) return undefined;
+    const candidate = `${base.slice(0, prefixLength)}${suffixText}`;
+    if (!claimed.has(candidate)) return candidate;
+  }
+}
+
+/** Reconstruct the former source-ordered suffix allocation within persisted bounds. */
+function allocateLegacyCode(base: string, claimed: ReadonlySet<string>): string | undefined {
+  if (!claimed.has(base)) return PERSISTED_CODE_PATTERN.test(base) ? base : undefined;
+  for (let suffix = 2; ; suffix += 1) {
+    const candidate = `${base}${suffix}`;
+    if (!PERSISTED_CODE_PATTERN.test(candidate)) return undefined;
+    if (!claimed.has(candidate)) return candidate;
+  }
+}
+
 /**
  * The set of persona references a JTBD may resolve against. Each `## Name` or
  * `## Name (CODE)` header contributes the name, its short code — the explicit
- * `(CODE)` when present AND the auto-derived code (`Platform Operator` → `PO`,
+ * `(CODE)` when present AND the auto-derived code (`Platform Operator` → `PLO`,
  * matching the CLI's `derivePersonaCode` and DISCOVERY.md's "codes auto-derive"
  * promise) — plus the combined `Name (code)` forms. Without the derived code a
  * bare-named persona would falsely block a JTBD that references its code.
  * Exact-string membership; the richer case-suggestion contract stays in the
  * agent/authoring path. Empty/unreadable content yields an empty set.
  */
-export function knownPersonaRefs(personasContent: string): Set<string> {
+function resolvePersonaRefs(personasContent: string): PersonaReferenceResolution {
   const references = new Set<string>();
+  const collisionExhaustedFor: string[] = [];
+  const personas: { name: string; code?: string }[] = [];
 
   for (const { text } of activeLines(personasContent)) {
     const heading = parseSectionHeading(text);
@@ -106,14 +136,52 @@ export function knownPersonaRefs(personasContent: string): Set<string> {
 
     const parsed = splitNameAndCode(heading);
     if (parsed.name === '') continue;
-    references.add(parsed.name);
-
-    const derived = derivePersonaCode(parsed.name);
-    if (derived !== '') addCodeForms(references, parsed.name, derived);
-    if (parsed.code !== undefined) addCodeForms(references, parsed.name, parsed.code);
+    personas.push(parsed);
   }
 
-  return references;
+  const claimed = new Set<string>();
+  for (const persona of personas) {
+    if (persona.code !== undefined) claimed.add(persona.code);
+  }
+
+  const currentCodes: Array<string | undefined> = [];
+  for (const [index, persona] of personas.entries()) {
+    references.add(persona.name);
+
+    if (persona.code !== undefined) {
+      currentCodes[index] = persona.code;
+      addCodeForms(references, persona.name, persona.code);
+      continue;
+    }
+
+    const derived = derivePersonaCode(persona.name);
+    if (derived !== '') {
+      const candidate = allocateDerivedCode(derived, claimed);
+      if (candidate !== undefined) {
+        claimed.add(candidate);
+        currentCodes[index] = candidate;
+        addCodeForms(references, persona.name, candidate);
+      } else {
+        collisionExhaustedFor.push(persona.name);
+      }
+    }
+  }
+
+  const legacyClaimed = new Set(currentCodes.filter(code => code !== undefined));
+  for (const [index, persona] of personas.entries()) {
+    const base = deriveLegacyPersonaCode(persona.name);
+    if (base === '' || base === currentCodes[index]) continue;
+    const alias = allocateLegacyCode(base, legacyClaimed);
+    if (alias === undefined) continue;
+    legacyClaimed.add(alias);
+    addCodeForms(references, persona.name, alias);
+  }
+
+  return { references, collisionExhaustedFor };
+}
+
+export function knownPersonaRefs(personasContent: string): Set<string> {
+  return resolvePersonaRefs(personasContent).references;
 }
 
 /**
@@ -142,7 +210,16 @@ export function evaluateJtbdGate(specContent: string, personasContent: string): 
     };
   }
 
-  const known = knownPersonaRefs(personasContent);
+  const resolution = resolvePersonaRefs(personasContent);
+  const exhausted = resolution.collisionExhaustedFor[0];
+  if (exhausted !== undefined) {
+    return {
+      ok: false,
+      reason: `canonical persona-code collision space exhausted for "${exhausted}" — author an explicit 2–4 letter code in personas.md`,
+    };
+  }
+
+  const known = resolution.references;
   const unresolved = entries.find(entry => !known.has(entry.persona));
   if (unresolved !== undefined) {
     const named = unresolved.persona === '' ? '(empty)' : `"${unresolved.persona}"`;
@@ -349,27 +426,45 @@ function parseSectionHeading(trimmed: string): string | null {
 /**
  * Derive a short code from a persona name — a deliberate cross-runtime copy of
  * the CLI's `derivePersonaCode` (src/utils/personas.ts), since deployed hooks
- * can't import the CLI dist. Multi-word → first letter of each word ("Platform
- * Operator" → "PO"); single-word → first 2 chars ("Auditor" → "AU"); non-
- * alphanumerics stripped (digits kept); uppercased; truncated to MAX_CODE_LENGTH.
- * The gate is a lenient backstop — it does NOT apply the CLI's collision
- * suffixes (PO → PO2), so a derived code resolves to any persona deriving it.
- * Kept in agreement with the CLI by tests (see ticket P58R22).
+ * can't import the CLI dist. Single-word → first 3 chars; two-word → first 2
+ * chars plus the second initial; 3+ words → first 4 initials. Apostrophes are
+ * removed within words, other punctuation separates words, and digits remain.
+ * Canonical and former source-ordered collision suffixes are applied by the
+ * resolver above. Kept in agreement with the CLI by tests (see ticket P58R22).
  */
 function derivePersonaCode(name: string): string {
   const trimmed = name.trim();
   if (trimmed.length === 0) return '';
 
-  const cleaned = trimmed.replaceAll(/[^A-Z0-9\s]/gi, '');
+  const withoutApostrophes = trimmed.replaceAll(/['’]/g, '');
+  const cleaned = withoutApostrophes.replaceAll(/[^A-Z0-9\s]/gi, ' ');
   const words = cleaned.split(/\s+/).filter(word => word.length > 0);
 
   const [firstWord] = words;
   if (!firstWord) return '';
 
-  const derived =
-    words.length === 1 ? firstWord.slice(0, 2) : words.map(word => word.charAt(0)).join('');
+  let derived: string;
+  if (words.length === 1) {
+    derived = firstWord.slice(0, 3);
+  } else if (words.length === 2) {
+    derived = `${firstWord.slice(0, 2)}${words[1]?.charAt(0) ?? ''}`;
+  } else {
+    derived = words.map(word => word.charAt(0)).join('');
+  }
 
   return derived.toUpperCase().slice(0, MAX_CODE_LENGTH);
+}
+
+/** Preserve references authored under safeword's former 2–6 character derivation. */
+function deriveLegacyPersonaCode(name: string): string {
+  const cleaned = name.trim().replaceAll(/[^A-Z0-9\s]/gi, '');
+  const words = cleaned.split(/\s+/).filter(word => word.length > 0);
+  const [firstWord] = words;
+  if (!firstWord) return '';
+
+  const derived =
+    words.length === 1 ? firstWord.slice(0, 2) : words.map(word => word.charAt(0)).join('');
+  return derived.toUpperCase().slice(0, 6);
 }
 
 /** `Platform Operator (PO)` → { name, code }; bare names → { name }. */

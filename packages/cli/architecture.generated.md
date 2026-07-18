@@ -1,6 +1,6 @@
 ---
 generator: safeword-architecture
-fingerprint: 775eecda88726a4e3534dd13ba6eb4ffcdcbf5ca42582940435de969ba860f80
+fingerprint: 46c36d5f38a649de87c0efdc15506fc108e44f584fdbcd3547d5958a1682bb89
 ---
 
 # Architecture
@@ -12,6 +12,16 @@ fingerprint: 775eecda88726a4e3534dd13ba6eb4ffcdcbf5ca42582940435de969ba860f80
 <!-- reconciled: 775eecda88726a4e3534dd13ba6eb4ffcdcbf5ca42582940435de969ba860f80 -->
 
 `src/boundary`
+
+No description yet — awaiting prose.
+
+> ⚠ stale: structure changed since this section was reconciled.
+
+### codex-plugin
+
+<!-- reconciled: 46c36d5f38a649de87c0efdc15506fc108e44f584fdbcd3547d5958a1682bb89 -->
+
+`src/codex-plugin`
 
 No description yet — awaiting prose.
 

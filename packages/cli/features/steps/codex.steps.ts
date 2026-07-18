@@ -17,10 +17,6 @@ import { After, Given, Then, When } from '@cucumber/cucumber';
 
 import type { SafewordWorld } from './world.js';
 
-const HOOK_PATH = nodePath.resolve(
-  import.meta.dirname,
-  '../../templates/hooks/codex/pre-tool-quality.ts',
-);
 const CLI_PATH = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
 const TICKET_ID = 'ABC123';
 const TEST_DEFINITIONS_PATCH = `*** Begin Patch
@@ -163,7 +159,7 @@ function runCodexHook(
   projectRoot: string,
   options: { command?: string; fallbackMode?: boolean } = {},
 ) {
-  const result = spawnSync('bun', [HOOK_PATH], {
+  const result = spawnSync(process.execPath, [CLI_PATH, 'hook', 'codex', 'pre-tool-use'], {
     cwd: projectRoot,
     input: JSON.stringify({
       hook_event_name: 'PreToolUse',
@@ -190,6 +186,14 @@ function runCodexHook(
 
 function assertFileExists(projectRoot: string, relativePath: string): void {
   assert.ok(existsSync(nodePath.join(projectRoot, relativePath)), `${relativePath} should exist`);
+}
+
+function assertPathAbsent(projectRoot: string, relativePath: string): void {
+  assert.equal(
+    existsSync(nodePath.join(projectRoot, relativePath)),
+    false,
+    `${relativePath} should not exist`,
+  );
 }
 
 function assertCodexBaselineWarning(
@@ -231,11 +235,17 @@ When('safeword setup reconciles the project', function (this: SafewordWorld) {
 });
 
 Then(
-  /^the project has `\.codex\/config\.toml` and `\.agents\/skills` safeword skill files$/,
+  /^the project has `\.codex\/config\.toml` with packaged Safe Word hook commands and no repo-local Codex implementation files$/,
   function (this: SafewordWorld) {
     assertFileExists(this.temporaryDirectory, '.codex/config.toml');
-    assertFileExists(this.temporaryDirectory, '.agents/skills/bdd/SKILL.md');
-    assertFileExists(this.temporaryDirectory, '.agents/skills/figure-it-out/SKILL.md');
+    const config = readFileSync(
+      nodePath.join(this.temporaryDirectory, '.codex/config.toml'),
+      'utf8',
+    );
+    assert.ok(config.includes('npx --yes safeword hook codex pre-tool-use'));
+    assert.ok(config.includes('npx --yes safeword hook codex session-start'));
+    assertPathAbsent(this.temporaryDirectory, '.agents/skills/bdd/SKILL.md');
+    assertPathAbsent(this.temporaryDirectory, '.safeword/hooks/codex');
   },
 );
 
@@ -279,14 +289,15 @@ When('the config is inspected', function (this: SafewordWorld) {
 });
 
 Then(
-  /^hooks are enabled and supported edit\/shell calls point at `\.safeword\/hooks\/codex\/pre-tool-quality\.ts`$/,
+  /^hooks are enabled and supported edit\/shell calls run `safeword hook codex pre-tool-use`$/,
   function (this: SafewordWorld) {
     assert.equal(this.result.exitCode, 0);
     assert.ok(this.result.stdout.includes('[features]'));
     assert.ok(this.result.stdout.includes('hooks = true'));
     assert.ok(this.result.stdout.includes('[[hooks.PreToolUse]]'));
     assert.ok(this.result.stdout.includes('apply_patch'));
-    assert.ok(this.result.stdout.includes('.safeword/hooks/codex/pre-tool-quality.ts'));
+    assert.ok(this.result.stdout.includes('npx --yes safeword hook codex pre-tool-use'));
+    assert.ok(!this.result.stdout.includes('.safeword/hooks/codex'));
   },
 );
 
@@ -318,15 +329,15 @@ When('safeword upgrade reconciles the project', function (this: SafewordWorld) {
 });
 
 Then(
-  /^the existing Codex config content is preserved while missing `\.agents\/skills` assets are created$/,
+  /^the existing Codex config content is preserved without creating repo-local Codex implementation files$/,
   function (this: SafewordWorld) {
     const codexConfig = readFileSync(
       nodePath.join(this.temporaryDirectory, '.codex/config.toml'),
       'utf8',
     );
     assert.equal(codexConfig, CUSTOM_CODEX_CONFIG);
-    assertFileExists(this.temporaryDirectory, '.agents/skills/bdd/SKILL.md');
-    assertFileExists(this.temporaryDirectory, '.agents/skills/figure-it-out/SKILL.md');
+    assertPathAbsent(this.temporaryDirectory, '.agents/skills/bdd/SKILL.md');
+    assertPathAbsent(this.temporaryDirectory, '.safeword/hooks/codex');
   },
 );
 
