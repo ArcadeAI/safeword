@@ -97,7 +97,7 @@ Feature: Test Codex plugin migration
       And each command invokes a packaged Safe Word command entrypoint
 
   @test-codex-plugin-migration.TB1.R4 @surface.openai-codex
-  Rule: test-codex-plugin-migration.TB1.R4 — Upgrading an old project-local Codex install leaves user-owned project data intact while removing or ignoring obsolete Safe Word implementation assets
+  Rule: test-codex-plugin-migration.TB1.R4 — Upgrading an old project-local Codex install leaves user-owned project data intact, removes obsolete skills, and preserves legacy hook runtime assets for an explicit handoff
 
     Scenario: Old project-local Codex install migrates to plugin-backed Codex support
       Given a repo installed with today's project-local Codex assets
@@ -105,7 +105,7 @@ Feature: Test Codex plugin migration
       When the plugin migration upgrade runs
       Then the user-owned tickets and learnings remain byte-identical
       And Safe Word no longer requires repo-local `.agents/skills` to expose Codex skills
-      And Safe Word no longer requires repo-local `.safeword/hooks/codex` scripts to run Codex hooks
+      And legacy Safe Word Codex hook runtime files remain until explicit handoff cleanup
 
     Scenario: User-authored Codex skills survive the migration
       Given an old project-local Codex install with a user-authored `.agents/skills/company-workflow/SKILL.md`

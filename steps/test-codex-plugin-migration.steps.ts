@@ -1798,10 +1798,14 @@ Then(
 );
 
 Then(
-  /^Safe Word no longer requires repo-local `\.safeword\/hooks\/codex` scripts to run Codex hooks$/,
+  'legacy Safe Word Codex hook runtime files remain until explicit handoff cleanup',
   function (this: CodexPluginMigrationWorld) {
     const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
-    assert.equal(existsSync(nodePath.join(repoRoot, '.safeword/hooks/codex')), false);
+    assert.equal(
+      existsSync(nodePath.join(repoRoot, '.safeword/hooks/codex/pre-tool-quality.ts')),
+      true,
+    );
+    assert.equal(existsSync(nodePath.join(repoRoot, '.safeword/hooks/codex/stop.ts')), true);
   },
 );
 
