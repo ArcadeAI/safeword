@@ -51,6 +51,7 @@ command = "gh-mcp"
 interface MigrationWorld extends SafewordWorld {
   migrationDirectory?: string;
   migrationBin?: string;
+  bunUnavailable?: boolean;
   migrationResult?: { stdout: string; stderr: string; exitCode: number };
   originalCodexConfig?: string;
   customCodexConfiguration?: string;
@@ -121,12 +122,15 @@ esac
   world.migrationBin = bin;
 }
 
-function migrate(world: MigrationWorld, shouldRemoveLegacyHooks = false, withoutBun = false): void {
+function migrate(world: MigrationWorld, shouldRemoveLegacyHooks = false): void {
   const directory = worldDirectory(world);
   const arguments_ = ['migrate', 'codex-plugin'];
   if (shouldRemoveLegacyHooks) arguments_.push('--remove-legacy-hooks');
   world.migrationResult = runCli(arguments_, directory, {
-    PATH: withoutBun ? '' : `${world.migrationBin}:${process.env.PATH ?? ''}`,
+    // Deterministically remove bun/codex for the "Bun is unavailable" scenario via an
+    // empty PATH, rather than relying on the ambient PATH happening to lack them (which
+    // made the scenario pass in CI but fail on a dev machine that has bun/codex on PATH).
+    PATH: world.bunUnavailable ? '' : `${world.migrationBin}:${process.env.PATH ?? ''}`,
   });
 }
 
@@ -257,7 +261,7 @@ Given('Codex reports the Safe Word plugin is disabled', function (this: Migratio
 });
 
 Given('Bun is unavailable', function (this: MigrationWorld) {
-  this.migrationBin = undefined;
+  this.bunUnavailable = true;
 });
 
 When('the builder upgrades Safe Word', function (this: MigrationWorld) {
