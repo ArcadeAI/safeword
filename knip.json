@@ -17,6 +17,8 @@
     "mypy",
     "rustfmt",
     "which",
+    "claude",
+    "codex",
     "architecture",
     "boundary",
     "test-plan",
@@ -27,6 +29,7 @@
   ],
   "ignoreDependencies": [
     "safeword",
+    "@openai/codex",
     "tsx",
     "@next/eslint-plugin-next",
     "@tanstack/eslint-plugin-query",

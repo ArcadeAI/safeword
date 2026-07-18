@@ -5,6 +5,7 @@ import process from 'node:process';
 import { Command } from 'commander';
 
 import { installCliCrashCapture } from './self-report-capture.js';
+import { error } from './utils/output.js';
 import { VERSION } from './version.js';
 
 // Self-observation (issues #345 / #720): capture safeword's own genuine crashes
@@ -322,5 +323,14 @@ if (process.argv.length === 2) {
   program.help();
 }
 
-// Parse arguments
-program.parse();
+// Parse arguments. parseAsync (not parse) so an error thrown by an async command
+// action rejects the returned promise and reliably sets a non-zero exit code on
+// every runtime. With sync parse(), an async action's rejection is only an
+// unhandledRejection — node surfaces that as a non-zero exit, but bun does not, so
+// `bunx safeword <cmd>` (e.g. the packaged Codex hooks) could exit 0 on a fatal error.
+try {
+  await program.parseAsync();
+} catch (parseError: unknown) {
+  error(parseError instanceof Error ? parseError.message : String(parseError));
+  process.exit(1);
+}
