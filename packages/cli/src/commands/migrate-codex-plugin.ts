@@ -363,7 +363,7 @@ function backupAndReplace(configPath: string, original: string, cleaned: string)
   const configMetadata = regularCodexConfigMetadata(configPath);
   if (configMetadata.kind === 'missing') {
     throw new Error(
-      'Codex configuration changed during plugin installation; no legacy hooks were removed.',
+      'Codex configuration changed during plugin verification; no legacy hooks were removed.',
     );
   }
   const mode = configMetadata.metadata.mode & 0o777;
@@ -409,15 +409,30 @@ function prepareLegacyHookRemoval(cwd: string): PreparedLegacyHookRemoval | unde
 function removePreparedLegacyHooks(removal: PreparedLegacyHookRemoval): void {
   if (regularCodexConfigMetadata(removal.configPath).kind === 'missing') {
     throw new Error(
-      'Codex configuration changed during plugin installation; no legacy hooks were removed.',
+      'Codex configuration changed during plugin verification; no legacy hooks were removed.',
     );
   }
   if (readFileSync(removal.configPath, 'utf8') !== removal.original) {
     throw new Error(
-      'Codex configuration changed during plugin installation; no legacy hooks were removed.',
+      'Codex configuration changed during plugin verification; no legacy hooks were removed.',
     );
   }
   backupAndReplace(removal.configPath, removal.original, removal.cleaned);
+}
+
+function installCodexPlugin(marketplaceSource: string | undefined): void {
+  run('codex', [
+    'plugin',
+    'marketplace',
+    'add',
+    marketplaceSource ?? MARKETPLACE_SOURCE,
+    '--sparse',
+    '.agents/plugins',
+    '--sparse',
+    'packages/cli/codex-plugin',
+    '--json',
+  ]);
+  run('codex', ['plugin', 'add', PLUGIN_ID, '--json']);
 }
 
 export function migrateCodexPlugin(
@@ -426,26 +441,15 @@ export function migrateCodexPlugin(
   // test validate a pushed release branch before its marketplace reaches main.
   options: { marketplaceSource?: string; removeLegacyHooks?: boolean } = {},
 ): void {
-  // Validate the requested handoff before installing a profile plugin. A malformed
-  // project config must leave both the project and the Codex profile unchanged.
+  // Validate cleanup before mutating the project. A malformed project config must
+  // leave both it and the Codex profile unchanged.
   const preparedLegacyHookRemoval = options.removeLegacyHooks
     ? prepareLegacyHookRemoval(cwd)
     : undefined;
 
   run('bun', ['--version']);
   run('codex', ['--version']);
-  run('codex', [
-    'plugin',
-    'marketplace',
-    'add',
-    options.marketplaceSource ?? MARKETPLACE_SOURCE,
-    '--sparse',
-    '.agents/plugins',
-    '--sparse',
-    'packages/cli/codex-plugin',
-    '--json',
-  ]);
-  run('codex', ['plugin', 'add', PLUGIN_ID, '--json']);
+  if (!options.removeLegacyHooks) installCodexPlugin(options.marketplaceSource);
 
   let pluginList: string;
   try {

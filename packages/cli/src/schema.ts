@@ -90,10 +90,9 @@ export interface SafewordSchema {
   ownedFiles: Record<string, FileDefinition>; // Overwrite on upgrade (if changed)
   managedFiles: Record<string, ManagedFileDefinition>; // Create if missing, update if safeword content
   jsonMerges: Record<string, JsonMergeDefinition>;
-  // A file may carry an ordered list of patches (e.g. .codex/config.toml's hook
-  // retrofit + MCP-server retrofit). Patches apply in list order and unpatch in
-  // reverse, so the patch that owns file removal (removeFileIfContentEquals)
-  // runs last on uninstall. See #269.
+  // A file may carry an ordered list of patches. Patches apply in list order and
+  // unpatch in reverse, so the patch that owns file removal
+  // (removeFileIfContentEquals) runs last on uninstall. See #269.
   textPatches: Record<string, TextPatchDefinition | TextPatchDefinition[]>;
   legacyTextPatches: Record<string, TextPatchDefinition>; // Remove old managed text patches without installing them
   contracts: Record<string, ContractDefinition>; // Files that must contain specific strings (predicate parity)

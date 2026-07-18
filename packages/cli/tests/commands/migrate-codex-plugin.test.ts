@@ -69,7 +69,7 @@ function installFakeRuntime(directory: string, pluginEnabled: boolean): string {
     String.raw`#!/bin/sh
 set -eu
 printf '%s\\n' "$*" >> "$SAFEWORD_CODEX_LOG"
-if [ "$(printenv SAFEWORD_MUTATE_CONFIG 2>/dev/null || true)" = "1" ] && [ "$*" = "plugin add safeword@safeword --json" ]; then
+if [ "$(printenv SAFEWORD_MUTATE_CONFIG 2>/dev/null || true)" = "1" ] && [ "$*" = "plugin list --json" ]; then
   printf '# concurrent config update\\n' >> "$SAFEWORD_CONFIG_PATH"
 fi
 case "$*" in
@@ -140,6 +140,7 @@ describe('migrate codex-plugin command', () => {
     expect(calls).toContain(
       'plugin marketplace add ArcadeAI/safeword --sparse .agents/plugins --sparse packages/cli/codex-plugin --json',
     );
+    expect(calls).toContain('plugin add safeword@safeword --json');
     expect(calls).toContain('plugin list --json');
   });
 
@@ -171,7 +172,21 @@ describe('migrate codex-plugin command', () => {
     expect(existsSync(userHookPath)).toBe(true);
   });
 
-  it('refuses cleanup when config changes during plugin installation', async () => {
+  it('removes legacy hooks after review without reinstalling the profile plugin', async () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    const { directory, configPath } = fixture;
+
+    const result = await runMigration(fixture, { cleanupLegacyHooks: true });
+
+    expect(result.exitCode, result.stderr).toBe(0);
+    expect(readFileSync(configPath, 'utf8')).not.toContain('safeword hook codex pre-tool-use');
+    const calls = readFileSync(nodePath.join(directory, 'codex.log'), 'utf8');
+    expect(calls).toContain('plugin list --json');
+    expect(calls).not.toContain('plugin marketplace add');
+    expect(calls).not.toContain('plugin add safeword@safeword --json');
+  });
+
+  it('refuses cleanup when config changes during final plugin verification', async () => {
     const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
     const { configPath } = fixture;
 
@@ -184,6 +199,9 @@ describe('migrate codex-plugin command', () => {
     });
 
     expect(result.exitCode).not.toBe(0);
+    expect(`${result.stdout}\n${result.stderr}`).toContain(
+      'Codex configuration changed during plugin verification',
+    );
     expect(readFileSync(configPath, 'utf8')).toContain('# concurrent config update');
     expect(existsSync(`${configPath}.safeword.bak`)).toBe(false);
   });
