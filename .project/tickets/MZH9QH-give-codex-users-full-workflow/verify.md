@@ -27,7 +27,7 @@ commit.
   never directory" safety rule.
 - [x] R2. Share the Codex catalogue frontmatter reader while retaining
   source-specific and generated-asset-specific validation at their callers.
-- [ ] R3. Normalize the packaged-template lookup in `codex-hook.ts` so
+- [x] R3. Normalize the packaged-template lookup in `codex-hook.ts` so
   instructions and hooks share one ordered source/distribution lookup helper.
 - [ ] R4. Extract the Codex hook CLI subprocess runner in `codex-hook.test.ts`
   to make each behavior test describe only its event-specific inputs.

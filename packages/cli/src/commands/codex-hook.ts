@@ -63,13 +63,9 @@ const EXPLAIN_HINT = 'Run `$explain` for a plain-English version of this block.'
 const EXIT_CODE_DENY_MODE = 'exit-code';
 const REQUIRED_INTAKE_FIELDS = ['scope', 'out_of_scope', 'done_when'] as const;
 const MODULE_DIRECTORY = import.meta.dirname;
-const SAFEWORD_INSTRUCTIONS_PATHS = [
-  nodePath.resolve(MODULE_DIRECTORY, '../templates/SAFEWORD.md'),
-  nodePath.resolve(MODULE_DIRECTORY, '../../templates/SAFEWORD.md'),
-];
-const TEMPLATE_HOOKS_DIRECTORIES = [
-  nodePath.resolve(MODULE_DIRECTORY, '../templates/hooks'),
-  nodePath.resolve(MODULE_DIRECTORY, '../../templates/hooks'),
+const TEMPLATE_DIRECTORIES = [
+  nodePath.resolve(MODULE_DIRECTORY, '../templates'),
+  nodePath.resolve(MODULE_DIRECTORY, '../../templates'),
 ];
 const POST_TOOL_GUIDANCE_PATH = '.project/codex-post-tool-guidance.txt';
 const PROMPT_CONTEXT_PATH = '.project/codex-prompt-context.txt';
@@ -302,18 +298,18 @@ function deny(reason: string): void {
 }
 
 function readPackagedSafewordInstructions(): string | undefined {
-  const instructionsPath = findPackagedSafewordInstructionsPath();
+  const instructionsPath = findPackagedTemplate('SAFEWORD.md');
   return instructionsPath ? readFileSync(instructionsPath, 'utf8') : undefined;
 }
 
-function findPackagedSafewordInstructionsPath(): string | undefined {
-  return SAFEWORD_INSTRUCTIONS_PATHS.find(candidate => existsSync(candidate));
+function findPackagedTemplate(relativePath: string): string | undefined {
+  return TEMPLATE_DIRECTORIES.map(directory => nodePath.join(directory, relativePath)).find(
+    candidate => existsSync(candidate),
+  );
 }
 
 function resolvePackagedHook(relativePath: string): string | undefined {
-  return TEMPLATE_HOOKS_DIRECTORIES.map(directory => nodePath.join(directory, relativePath)).find(
-    candidate => existsSync(candidate),
-  );
+  return findPackagedTemplate(nodePath.join('hooks', relativePath));
 }
 
 export function normalizeNamespaceRootLabel(label: string): string | undefined {
@@ -374,7 +370,7 @@ function runPackagedHook(
         // must inject package-owned instructions rather than project-local text.
         SAFEWORD_PACKAGED_CONTEXT_PATH:
           relativePath === 'session-codex-start.ts'
-            ? (findPackagedSafewordInstructionsPath() ?? '')
+            ? (findPackagedTemplate('SAFEWORD.md') ?? '')
             : '',
       },
       stdio: ['pipe', 'pipe', 'pipe'],
