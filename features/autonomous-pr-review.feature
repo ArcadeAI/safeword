@@ -173,6 +173,75 @@ Feature: PR review runner — the mechanized gates
         | one finding           | 1              |
         | no findings           | 0              |
 
+  @autonomous-pr-review.TB1.R8
+  Rule: autonomous-pr-review.TB1.R8 — the reviewer runs once per change the author has declared ready, not once per push
+
+    @rejection @surface.safeword-cli
+    Scenario Outline: autonomous-pr-review.TB1.R8.a_review_triggers_on_ready_not_on_each_push
+      Given a pull request <event>
+      When the trigger is evaluated
+      Then the reviewer is invoked exactly <runs> time(s)
+
+      Examples:
+        | event                              | runs |
+        | pushed to while still a draft      | 0    |
+        | marked ready for review            | 1    |
+        | pushed to after being marked ready | 0    |
+
+  @autonomous-pr-review.TB1.R17
+  Rule: autonomous-pr-review.TB1.R17 — the reviewer works from a full checkout of the head branch, not the diff alone
+
+    The sharpest human catches rest on context the diff does not carry — a caller
+    in an unchanged file, a primitive that already exists. The full checkout is the
+    substrate R18 (reinvention) and the run gates require; execution stays bound by
+    SM1.R3.
+
+    @surface.safeword-cli
+    Scenario: autonomous-pr-review.TB1.R17.a_finding_rests_on_a_file_the_diff_did_not_touch
+      Given a pull request whose changed line calls a helper defined in an unchanged file
+      And that helper's behavior makes the change unsafe
+      When the reviewer produces its review
+      Then the finding cites the unchanged file as its evidence
+
+  @autonomous-pr-review.TB1.R19
+  Rule: autonomous-pr-review.TB1.R19 — the review states the change's work type, judged by what it touches not its line count
+
+    @surface.safeword-cli
+    Scenario Outline: autonomous-pr-review.TB1.R19.work_type_is_read_from_what_the_change_touches
+      Given a pull request that carries a posted finding, whose change <shape>
+      When the reviewer produces its review
+      Then the stated work type is <work-type>
+
+      Examples:
+        | shape                                        | work-type    |
+        | wires up a new user-facing flow in two lines | new behavior |
+        | adds a branch inside an existing function     | logic change |
+        | renames a symbol across many files            | patch        |
+
+  @autonomous-pr-review.TB1.R20
+  Rule: autonomous-pr-review.TB1.R20 — a change is flagged when its test coverage falls short of what its work type demands
+
+    The finding is a mismatch between R19's work type and the coverage present, in
+    the project's own idiom — it never demands a .feature or a safeword artifact,
+    and never re-reports the line-percentage codecov already posts (R1). The demand
+    varies BY work type: a patch with no test is not the same gap as a new behavior
+    with nothing exercising it, so a runner that flags every untested change fails
+    the patch row.
+
+    @rejection @surface.safeword-cli
+    Scenario Outline: autonomous-pr-review.TB1.R20.coverage_is_judged_against_work_type_in_the_projects_idiom
+      Given a <work-type> change in a project with no feature-file lane
+      And its behavior is <coverage>
+      When the reviewer produces its review
+      Then a test-coverage finding is <presence>
+      And no finding demands a feature file or a test-definitions artifact
+
+      Examples:
+        | work-type    | coverage                         | presence               |
+        | new behavior | exercised by no test             | posted                 |
+        | new behavior | exercised by an integration test | absent from the review |
+        | patch        | exercised by no test             | absent from the review |
+
   @autonomous-pr-review.TB2.R1
   Rule: autonomous-pr-review.TB2.R1 — review depth is set by what the change touches, never by how many lines it has
 
@@ -215,6 +284,16 @@ Feature: PR review runner — the mechanized gates
       And the reviewer finds nothing else worth a human's attention
       When the reviewer decides the verdict
       Then the verdict is not needs-a-human
+
+  @autonomous-pr-review.NTB1.R4
+  Rule: autonomous-pr-review.NTB1.R4 — the review ends in a decision the reader can act on, not just a list of problems
+
+    @surface.safeword-cli
+    Scenario: autonomous-pr-review.NTB1.R4.a_review_with_findings_ends_in_one_actionable_decision
+      Given a pull request whose review carries three findings
+      When the reviewer produces its review
+      Then the review's final element is exactly one routing decision — push back or ask
+      And that decision appears after the findings, not in place of them
 
   @autonomous-pr-review.SM1.R3
   Rule: autonomous-pr-review.SM1.R3 — the reviewer never executes fork-PR code while holding a write token or secrets
