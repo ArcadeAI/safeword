@@ -107,7 +107,7 @@ Unaffected:
 
 #### codex-plugin-hook-parity.TB1.R4 - SessionStart preserves package-owned context and auto-upgrade behavior through one dispatcher
 
-#### codex-plugin-hook-parity.TB1.R5 - UserPromptSubmit preserves queued prompt context
+#### codex-plugin-hook-parity.TB1.R5 - UserPromptSubmit preserves timestamp, retro nudge, and queued prompt context
 
 ### codex-plugin-hook-parity.SM1 - Diagnose parity through layered evidence
 

@@ -1,4 +1,13 @@
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
@@ -16,6 +25,20 @@ matcher = "^(apply_patch)$"
 [[hooks.PreToolUse.hooks]]
 type = "command"
 command = 'npx --yes safeword hook codex pre-tool-use'
+`;
+
+const LEGACY_PROMPT_CONTEXT_CONFIG = `
+[[hooks.UserPromptSubmit]]
+
+[[hooks.UserPromptSubmit.hooks]]
+type = "command"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/prompt-timestamp.ts"'
+
+[[hooks.UserPromptSubmit]]
+
+[[hooks.UserPromptSubmit.hooks]]
+type = "command"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/prompt-retro-nudge.ts"'
 `;
 
 const USER_CODEX_CONFIG = `
@@ -106,7 +129,7 @@ describe('migrate codex-plugin command', () => {
   });
 
   it('removes legacy hooks only after the explicit handoff cleanup request', async () => {
-    const original = `${LEGACY_HOOK_CONFIG}${USER_CODEX_CONFIG}`;
+    const original = `${LEGACY_HOOK_CONFIG}${LEGACY_PROMPT_CONTEXT_CONFIG}${USER_CODEX_CONFIG}`;
     const { directory, configPath, bin } = createMigrationFixture(original);
     const legacyHooksDirectory = nodePath.join(directory, '.safeword/hooks/codex');
     const legacyRuntimeHookPath = nodePath.join(legacyHooksDirectory, 'pre-tool-quality.ts');
@@ -128,6 +151,8 @@ describe('migrate codex-plugin command', () => {
     const migrated = readFileSync(configPath, 'utf8');
     expect(migrated).not.toContain('safeword hook codex pre-tool-use');
     expect(migrated).not.toContain('[[hooks.PreToolUse]]');
+    expect(migrated).not.toContain('prompt-timestamp.ts');
+    expect(migrated).not.toContain('prompt-retro-nudge.ts');
     expect(migrated).toContain(USER_CODEX_CONFIG.trim());
     expect(readFileSync(nodePath.join(directory, '.codex/config.toml.safeword.bak'), 'utf8')).toBe(
       original,
@@ -273,6 +298,29 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/custom.ts
     expect(readFileSync(configPath, 'utf8')).toBe(original);
     expect(existsSync(nodePath.join(directory, '.codex/config.toml.safeword.bak'))).toBe(false);
     expect(existsSync(legacyRuntimeHookPath)).toBe(true);
+    expect(existsSync(codexLogPath)).toBe(false);
+  });
+
+  it('refuses cleanup before profile mutation when the Codex configuration is a symbolic link', async () => {
+    const { directory, configPath, bin } = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    const targetPath = nodePath.join(directory, 'dotfiles-config.toml');
+    const codexLogPath = nodePath.join(directory, 'codex.log');
+    writeFileSync(targetPath, LEGACY_HOOK_CONFIG);
+    rmSync(configPath);
+    symlinkSync('dotfiles-config.toml', configPath);
+
+    const result = await runCli(['migrate', 'codex-plugin', '--remove-legacy-hooks'], {
+      cwd: directory,
+      env: {
+        PATH: `${bin}:${process.env.PATH ?? ''}`,
+        SAFEWORD_CODEX_LOG: codexLogPath,
+      },
+    });
+
+    expect(result.exitCode).not.toBe(0);
+    expect(readFileSync(targetPath, 'utf8')).toBe(LEGACY_HOOK_CONFIG);
+    expect(lstatSync(configPath).isSymbolicLink()).toBe(true);
+    expect(existsSync(`${configPath}.safeword.bak`)).toBe(false);
     expect(existsSync(codexLogPath)).toBe(false);
   });
 

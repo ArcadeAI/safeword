@@ -79,7 +79,7 @@ Feature: Test Codex plugin migration
       Given the Safe Word package has been packed and installed into a fixture project
       And the fixture has queued Safe Word prompt context for Codex
       When the packaged Codex UserPromptSubmit entrypoint receives a prompt JSON fixture
-      Then the hook output returns the queued context as Codex additional context
+      Then the hook output returns the queued context and current timestamp as Codex additional context
 
     Scenario: Stop continuation runs through the packaged CLI entrypoint
       Given the Safe Word package has been packed and installed into a fixture project

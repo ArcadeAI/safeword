@@ -85,7 +85,7 @@ Feature: Codex plugin hook parity
       Then the notice is included in SessionStart additionalContext
       And the command exits successfully
 
-  Rule: UserPromptSubmit preserves queued prompt context
+  Rule: UserPromptSubmit preserves timestamp and queued prompt context
 
     @codex-plugin-hook-parity.TB1.R5 @surface.openai-codex @surface.safe-word-packaged-cli
     Scenario: Packaged UserPromptSubmit emits queued Safe Word prompt context
@@ -95,10 +95,10 @@ Feature: Codex plugin hook parity
       And the queued context remains project-owned data, not plugin implementation
 
     @codex-plugin-hook-parity.TB1.R5 @surface.openai-codex @surface.safe-word-packaged-cli
-    Scenario: Packaged UserPromptSubmit stays quiet with no queued prompt context
+    Scenario: Packaged UserPromptSubmit emits a current timestamp with no queued prompt context
       Given no queued Safe Word prompt context for a Codex project
       When the packaged Codex UserPromptSubmit command runs
-      Then it exits successfully with no additionalContext
+      Then it emits Codex UserPromptSubmit additionalContext containing the current timestamp
 
   Rule: Parity evidence is layered before live smoke
 

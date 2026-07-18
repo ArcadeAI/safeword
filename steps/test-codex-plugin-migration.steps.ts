@@ -1931,7 +1931,7 @@ Then(
 );
 
 Then(
-  'the hook output returns the queued context as Codex additional context',
+  'the hook output returns the queued context and current timestamp as Codex additional context',
   function (this: CodexPluginMigrationWorld) {
     const result = this.codexPluginHookResult;
     assert.ok(result, 'hook result was not captured');
@@ -1941,7 +1941,11 @@ Then(
       hookSpecificOutput?: { hookEventName?: unknown; additionalContext?: unknown };
     };
     assert.equal(parsed.hookSpecificOutput?.hookEventName, 'UserPromptSubmit');
-    assert.equal(parsed.hookSpecificOutput?.additionalContext, PROMPT_CONTEXT_LINE);
+    assert.match(String(parsed.hookSpecificOutput?.additionalContext), /Current time:/u);
+    assert.match(
+      String(parsed.hookSpecificOutput?.additionalContext),
+      new RegExp(PROMPT_CONTEXT_LINE),
+    );
   },
 );
 

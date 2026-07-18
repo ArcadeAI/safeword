@@ -744,10 +744,17 @@ Then(
   },
 );
 
-Then('it exits successfully with no additionalContext', function (this: SafewordWorld) {
-  assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
-  assert.equal(this.result.stdout.trim(), '');
-});
+Then(
+  'it emits Codex UserPromptSubmit additionalContext containing the current timestamp',
+  function (this: SafewordWorld) {
+    assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
+    const parsed = JSON.parse(this.result.stdout) as {
+      hookSpecificOutput?: { hookEventName?: string; additionalContext?: string };
+    };
+    assert.equal(parsed.hookSpecificOutput?.hookEventName, 'UserPromptSubmit');
+    assert.match(parsed.hookSpecificOutput?.additionalContext ?? '', /Current time:/u);
+  },
+);
 
 Then(
   'every behavior is marked preserve redesign or defer with a rationale',
@@ -758,7 +765,7 @@ Then(
       'PostToolUse quality state and skill nudge',
       'Stop architecture, retro extraction, and filing',
       'SessionStart auto-upgrade and context',
-      'UserPromptSubmit queued context',
+      'UserPromptSubmit timestamp, retro nudge, and queued context',
       'Adapter-local crash capture',
     ]) {
       assert.ok(map.includes(`| ${behavior} |`), `missing parity decision for ${behavior}`);

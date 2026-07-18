@@ -414,6 +414,44 @@ function emitAdditionalContext(output: AdditionalContextOutput): void {
   process.stdout.write(`${JSON.stringify(output)}\n`);
 }
 
+function currentTimestampContext(now = new Date()): string {
+  const natural = now.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'UTC',
+    timeZoneName: 'short',
+  });
+  const local = now.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  });
+  return `Current time: ${natural} (${now.toISOString()}) | Local: ${local}`;
+}
+
+function packagedAdditionalContext(
+  result: PackagedHookResult,
+  hookEventName: AdditionalContextHookEvent,
+): string | undefined {
+  if (result.error || result.status !== 0 || result.stdout.trim() === '') return undefined;
+
+  try {
+    const output = JSON.parse(result.stdout) as Partial<AdditionalContextOutput>;
+    const hookOutput = output.hookSpecificOutput;
+    return hookOutput?.hookEventName === hookEventName &&
+      typeof hookOutput.additionalContext === 'string' &&
+      hookOutput.additionalContext.trim() !== ''
+      ? hookOutput.additionalContext.trim()
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function emitStopNoop(): void {
   process.stdout.write('{}\n');
 }
@@ -489,25 +527,6 @@ async function runSessionStart(): Promise<void> {
   });
 }
 
-async function runProjectAdditionalContext(
-  hookEventName: AdditionalContextHookEvent,
-  relativePath: string,
-): Promise<void> {
-  const input = parseCodexHookInput(await readStdin());
-  if (!input) return;
-
-  const projectDirectory = resolveProjectDirectory();
-  const additionalContext = readProjectTextFile(projectDirectory, relativePath)?.trim();
-  if (!additionalContext) return;
-
-  emitAdditionalContext({
-    hookSpecificOutput: {
-      hookEventName,
-      additionalContext,
-    },
-  });
-}
-
 async function runPostToolUse(): Promise<void> {
   const rawInput = await readStdin();
   const projectDirectory = resolveProjectDirectory();
@@ -539,7 +558,24 @@ async function runPostToolUse(): Promise<void> {
 }
 
 async function runUserPromptSubmit(): Promise<void> {
-  await runProjectAdditionalContext('UserPromptSubmit', PROMPT_CONTEXT_PATH);
+  const rawInput = await readStdin();
+  const projectDirectory = resolveProjectDirectory();
+  const contexts = [currentTimestampContext()];
+  const retroNudge = packagedAdditionalContext(
+    runPackagedHook('prompt-retro-nudge.ts', rawInput, projectDirectory),
+    'UserPromptSubmit',
+  );
+  if (retroNudge) contexts.push(retroNudge);
+
+  const queuedContext = readProjectTextFile(projectDirectory, PROMPT_CONTEXT_PATH)?.trim();
+  if (queuedContext) contexts.push(queuedContext);
+
+  emitAdditionalContext({
+    hookSpecificOutput: {
+      hookEventName: 'UserPromptSubmit',
+      additionalContext: contexts.join('\n\n'),
+    },
+  });
 }
 
 async function runStop(): Promise<void> {

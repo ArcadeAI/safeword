@@ -116,6 +116,51 @@ describe('packagedNamespaceRootLabel', () => {
     expect(result.stdout).not.toContain('PROJECT-LOCAL INSTRUCTIONS MUST NOT APPEAR');
   });
 
+  it('preserves legacy timestamp and retro-nudge prompt context through the plugin dispatcher', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-'));
+    directories.push(projectDirectory);
+    const sessionId = 'prompt-parity-session';
+    const spoolDirectory = nodePath.join(projectDirectory, '.safeword', 'retro-drafts');
+    mkdirSync(spoolDirectory, { recursive: true });
+    writeFileSync(
+      nodePath.join(spoolDirectory, `${sessionId}.jsonl`),
+      `${JSON.stringify({
+        signature: 'retro:prompt-parity',
+        title: 'Prompt parity',
+        body: 'Sanitized finding.',
+        labels: ['bug'],
+      })}\n`,
+    );
+
+    const runPromptHook = () =>
+      spawnSync(process.execPath, [CLI_PATH, 'hook', 'codex', 'user-prompt-submit'], {
+        cwd: projectDirectory,
+        input: JSON.stringify({ hook_event_name: 'UserPromptSubmit', session_id: sessionId }),
+        encoding: 'utf8',
+      });
+
+    const first = runPromptHook();
+    expect(first.status, first.stderr).toBe(0);
+    const firstOutput = JSON.parse(first.stdout) as {
+      hookSpecificOutput?: { additionalContext?: unknown; hookEventName?: unknown };
+    };
+    expect(firstOutput.hookSpecificOutput?.hookEventName).toBe('UserPromptSubmit');
+    expect(String(firstOutput.hookSpecificOutput?.additionalContext)).toContain('Current time:');
+    expect(String(firstOutput.hookSpecificOutput?.additionalContext)).toContain(
+      "Safeword's retro spooled 1 unfiled finding",
+    );
+
+    const second = runPromptHook();
+    expect(second.status, second.stderr).toBe(0);
+    const secondOutput = JSON.parse(second.stdout) as {
+      hookSpecificOutput?: { additionalContext?: unknown };
+    };
+    expect(String(secondOutput.hookSpecificOutput?.additionalContext)).toContain('Current time:');
+    expect(String(secondOutput.hookSpecificOutput?.additionalContext)).not.toContain(
+      "Safeword's retro spooled",
+    );
+  });
+
   it('propagates an exit-code denial from the packaged PreToolUse adapter', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-'));
     directories.push(projectDirectory);

@@ -29,8 +29,9 @@ Build order:
 6. Expand packaged SessionStart to call the shared auto-upgrade core before
    returning SAFEWORD.md context, with notices appended to successful
    additionalContext output and no exit-code blocking.
-7. Keep UserPromptSubmit as project-owned queued context, with explicit empty
-   queue silence.
+7. Make UserPromptSubmit emit a package-owned timestamp on every prompt, merge
+   the one-time packaged retro nudge when drafts are spooled, and append optional
+   project-owned queued context.
 8. Run deterministic BDD/integration verification first, then the opt-in live
    trusted plugin smoke through isolated `CODEX_HOME`.
 
@@ -48,8 +49,8 @@ Build order:
 | Packaged Stop fails open with valid JSON | BDD direct subprocess malformed-input test. | Guards the lifecycle boundary every Stop run crosses. |
 | Packaged SessionStart runs auto-upgrade before emitting package-owned SAFEWORD context | `packages/cli/features/steps/auto-upgrade-codex.steps.ts` extension or BDD step with shared auto-upgrade core controlled as no-op. | Proves single-dispatcher sequencing without repo-local instructions. |
 | Packaged SessionStart includes upgrade notices without exit-code blocking | `packages/cli/tests/hooks/auto-upgrade-core.test.ts` plus CLI subprocess exit-code coverage. | Preserves Codex notice semantics without blocking session startup. |
-| Packaged UserPromptSubmit emits queued Safe Word prompt context | BDD direct subprocess test with `.project/codex-prompt-context.txt`. | Proves queued context remains project-owned data. |
-| Packaged UserPromptSubmit stays quiet with no queued prompt context | BDD direct subprocess test with no queue file. | Guards stale/default context emission. |
+| Packaged UserPromptSubmit emits timestamp and queued Safe Word prompt context | BDD direct subprocess test with `.project/codex-prompt-context.txt`. | Proves queued context remains project-owned data alongside package-owned timestamp context. |
+| Packaged UserPromptSubmit emits a timestamp with no queued prompt context | BDD direct subprocess test with no queue file. | Guards the required timestamp behavior without inventing project context. |
 | Event-by-event parity map covers every legacy adapter behavior | Static BDD step over a checked-in parity map or table exported from tests. | Prevents future behavior from disappearing without a decision. |
 | Plugin manifest commands all use the packaged hook command | Existing `schema.test.ts`, release contract checks, and BDD manifest assertion. | Catches accidental fallback to repo-local hook scripts. |
 | Hidden compatibility alias preserves the packaged hook contract | BDD subprocess test comparing alias output to public command output for the same payload. | Proves old command strings remain safe during rollout. |
@@ -72,7 +73,7 @@ Build order:
 | PostToolUse | Translate edit/shell payloads; run shared quality state accumulator; forward review additionalContext; run language skill nudge. | Partial: only reads a queued context file. | Preserve. |
 | Stop | Run retro extraction invisibly; emit architecture continuation; emit retro filing continuation; fail open with `{}`. | Partial: only reads queued stop continuation file. | Preserve, while keeping queued continuation as an additive compatibility path if tests prove no conflict. |
 | SessionStart | Emit package-owned SAFEWORD.md context and run Codex auto-upgrade through one dispatcher. | Partial: emits SAFEWORD.md only. | Preserve. |
-| UserPromptSubmit | Surface queued prompt context, including retro filing nudges. | Mostly preserved through queued context file. | Preserve; empty queue must stay silent. |
+| UserPromptSubmit | Emit timestamp context, surface packaged retro filing nudges, and append queued project context. | Timestamp and retro behavior were missing; queued context existed. | Preserve through one merged structured response. |
 | Self-report crash capture | Attribute unexpected hook crashes to Codex without breaking the user turn. | CLI-level crash capture already exists; legacy adapter-local capture is not yet proven through packaged hook scenarios. | Defer: file a follow-up if implementation removes adapter-local crash capture or if quality review finds package-level crash attribution insufficient. |
 
 ## Arch alignment

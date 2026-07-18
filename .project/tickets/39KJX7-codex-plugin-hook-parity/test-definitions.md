@@ -80,19 +80,19 @@ derive the active RED/GREEN/REFACTOR step.
 - [x] GREEN 7d5d8561
 - [x] REFACTOR skip: notice serialization remains in the shared auto-upgrade core
 
-## Rule: codex-plugin-hook-parity.TB1.R5 - UserPromptSubmit preserves queued prompt context
+## Rule: codex-plugin-hook-parity.TB1.R5 - UserPromptSubmit preserves timestamp, retro nudge, and queued prompt context
 
-### Scenario: Packaged UserPromptSubmit emits queued Safe Word prompt context
+### Scenario: Packaged UserPromptSubmit emits timestamp and queued Safe Word prompt context
 
-- [x] RED skip: existing command already carried project-owned prompt context; this slice is characterization coverage
-- [x] GREEN 70f9ed72
-- [x] REFACTOR skip: no production change required
+- [x] RED: packaged dispatch emitted neither the timestamp nor the retro-draft nudge after legacy cleanup
+- [x] GREEN: one Codex response now merges the timestamp, an optional one-time packaged retro nudge, and optional project-owned queued context
+- [x] REFACTOR: packaged-hook JSON parsing is fail-open so an advisory nudge never blocks a prompt
 
-### Scenario: Packaged UserPromptSubmit stays quiet with no queued prompt context
+### Scenario: Packaged UserPromptSubmit emits a timestamp with no queued prompt context
 
-- [x] RED skip: existing empty-queue behavior is characterization coverage
-- [x] GREEN 70f9ed72
-- [x] REFACTOR skip: no production change required
+- [x] RED: the legacy empty-queue assertion rejected the required timestamp context
+- [x] GREEN: the scenario asserts structured UserPromptSubmit context containing `Current time:`
+- [x] REFACTOR: timestamp formatting remains isolated from optional project context
 
 ## Rule: codex-plugin-hook-parity.SM1.R1 - The parity audit names every preserved redesigned and deferred behavior
 

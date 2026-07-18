@@ -5,11 +5,12 @@ import {
   existsSync,
   fsyncSync,
   linkSync,
+  lstatSync,
   openSync,
   readFileSync,
   renameSync,
   rmSync,
-  statSync,
+  type Stats,
   writeFileSync,
 } from 'node:fs';
 import nodePath from 'node:path';
@@ -337,10 +338,35 @@ function writeDurableFile(path: string, content: string, mode: number): void {
   }
 }
 
+type CodexConfigMetadata = { kind: 'missing' } | { kind: 'regular'; metadata: Stats };
+
+function regularCodexConfigMetadata(configPath: string): CodexConfigMetadata {
+  let metadata;
+  try {
+    metadata = lstatSync(configPath);
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === 'ENOENT' || code === 'ENOTDIR') return { kind: 'missing' };
+    throw error;
+  }
+
+  if (!metadata.isFile()) {
+    const kind = metadata.isSymbolicLink() ? 'a symbolic link' : 'not a regular file';
+    throw new Error(`Codex configuration is ${kind}; no legacy hooks were removed.`);
+  }
+  return { kind: 'regular', metadata };
+}
+
 function backupAndReplace(configPath: string, original: string, cleaned: string): void {
   const directory = nodePath.dirname(configPath);
   const filename = nodePath.basename(configPath);
-  const mode = statSync(configPath).mode & 0o777;
+  const configMetadata = regularCodexConfigMetadata(configPath);
+  if (configMetadata.kind === 'missing') {
+    throw new Error(
+      'Codex configuration changed during plugin installation; no legacy hooks were removed.',
+    );
+  }
+  const mode = configMetadata.metadata.mode & 0o777;
   const backupPath = `${configPath}${LEGACY_CONFIG_BACKUP_SUFFIX}`;
   if (existsSync(backupPath)) {
     throw new Error(`Legacy Codex backup already exists at ${backupPath}; no hooks were removed.`);
@@ -372,7 +398,7 @@ interface PreparedLegacyHookRemoval {
 
 function prepareLegacyHookRemoval(cwd: string): PreparedLegacyHookRemoval | undefined {
   const configPath = nodePath.join(cwd, CODEX_CONFIG_PATH);
-  if (!existsSync(configPath)) return undefined;
+  if (regularCodexConfigMetadata(configPath).kind === 'missing') return;
   const original = readFileSync(configPath, 'utf8');
   const cleaned = removeLegacyCodexHooks(original);
   if (cleaned === original) return undefined;
@@ -381,7 +407,7 @@ function prepareLegacyHookRemoval(cwd: string): PreparedLegacyHookRemoval | unde
 }
 
 function removePreparedLegacyHooks(removal: PreparedLegacyHookRemoval): void {
-  if (!existsSync(removal.configPath)) {
+  if (regularCodexConfigMetadata(removal.configPath).kind === 'missing') {
     throw new Error(
       'Codex configuration changed during plugin installation; no legacy hooks were removed.',
     );
