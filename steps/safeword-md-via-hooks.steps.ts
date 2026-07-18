@@ -20,7 +20,6 @@ interface SafewordMdWorld extends SafewordWorld {
   projectDirectory?: string;
   wiring?: {
     claudeSettings: string;
-    codexConfig: string;
     cursorHooks: string;
   };
 }
@@ -59,7 +58,6 @@ function readProjectFile(projectDirectory: string, relativePath: string): string
 function readInstalledWiring(projectDirectory: string): SafewordMdWorld['wiring'] {
   return {
     claudeSettings: readProjectFile(projectDirectory, '.claude/settings.json'),
-    codexConfig: readProjectFile(projectDirectory, '.codex/config.toml'),
     cursorHooks: readProjectFile(projectDirectory, '.cursor/hooks.json'),
   };
 }
@@ -120,13 +118,10 @@ Given('each file also contains customer-authored instructions', function (this: 
   assert.match(readProjectFile(this.projectDirectory, 'CLAUDE.md'), /Customer/);
 });
 
-Given(
-  "safeword's generated Claude settings Cursor hooks and Codex config",
-  function (this: SafewordMdWorld) {
-    this.projectDirectory = createProjectDirectory();
-    runSafeword(this.projectDirectory, 'setup');
-  },
-);
+Given("safeword's generated Claude settings and Cursor hooks", function (this: SafewordMdWorld) {
+  this.projectDirectory = createProjectDirectory();
+  runSafeword(this.projectDirectory, 'setup');
+});
 
 Given(
   'an installed safeword project with .safeword\\/SAFEWORD.md',
@@ -162,7 +157,7 @@ When('the generated hook wiring is inspected', function (this: SafewordMdWorld) 
 });
 
 When(
-  'the SAFEWORD context hook runs for Claude, Cursor, and Codex modes',
+  'the SAFEWORD context hook runs for Claude and Cursor modes',
   function (this: SafewordMdWorld) {
     assert.ok(this.projectDirectory, 'project directory was not created');
     const hookPath = nodePath.join(
@@ -170,7 +165,7 @@ When(
       '.safeword/hooks/session-safeword-context.ts',
     );
     this.hookOutputs = Object.fromEntries(
-      ['claude', 'cursor', 'codex'].map(agent => {
+      ['claude', 'cursor'].map(agent => {
         const stdout = execFileSync('bun', [hookPath, `--agent=${agent}`], {
           cwd: this.projectDirectory,
           input: JSON.stringify({ cwd: this.projectDirectory }),
@@ -203,8 +198,6 @@ Then(
     const wiring = readInstalledWiring(this.projectDirectory);
     assert.match(wiring.claudeSettings, /session-safeword-context\.ts/);
     assert.match(wiring.cursorHooks, /session-safeword-context\.ts/);
-    assert.match(wiring.codexConfig, /session-codex-start\.ts/);
-    assert.doesNotMatch(wiring.codexConfig, /session-safeword-context\.ts.+--agent=codex/);
   },
 );
 
@@ -251,21 +244,12 @@ Then('Cursor sessionStart runs the SAFEWORD context hook', function (this: Safew
   assert.match(this.wiring?.cursorHooks ?? '', /session-safeword-context\.ts/);
 });
 
-Then('Codex SessionStart runs the SAFEWORD context hook', function (this: SafewordMdWorld) {
-  assert.match(this.wiring?.codexConfig ?? '', /session-codex-start\.ts/);
-  assert.doesNotMatch(
-    this.wiring?.codexConfig ?? '',
-    /session-safeword-context\.ts.+--agent=codex/,
-  );
-});
-
 Then(
   'each output contains the SAFEWORD.md standing instructions as model-visible context',
   function (this: SafewordMdWorld) {
     const outputs = this.hookOutputs ?? {};
     assert.match(JSON.stringify(outputs.claude), /SAFEWORD Agent Instructions/);
     assert.match(JSON.stringify(outputs.cursor), /SAFEWORD Agent Instructions/);
-    assert.match(JSON.stringify(outputs.codex), /SAFEWORD Agent Instructions/);
   },
 );
 
@@ -274,11 +258,9 @@ Then(
   function (this: SafewordMdWorld) {
     const outputs = this.hookOutputs as {
       claude?: { hookSpecificOutput?: { additionalContext?: string } };
-      codex?: { hookSpecificOutput?: { additionalContext?: string } };
       cursor?: { additional_context?: string };
     };
     assert.equal(typeof outputs.claude?.hookSpecificOutput?.additionalContext, 'string');
-    assert.equal(typeof outputs.codex?.hookSpecificOutput?.additionalContext, 'string');
     assert.equal(typeof outputs.cursor?.additional_context, 'string');
   },
 );

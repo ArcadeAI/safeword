@@ -26,10 +26,6 @@ const CURSOR_BEFORE_SHELL_PATH = nodePath.resolve(
   __dirname,
   '../../templates/hooks/cursor/before-shell-execution.ts',
 );
-const CODEX_PRE_TOOL_PATH = nodePath.resolve(
-  __dirname,
-  '../../templates/hooks/codex/pre-tool-quality.ts',
-);
 const TICKET_ID = 'ABC123';
 
 const TICKET_FRONTMATTER = [
@@ -428,21 +424,6 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
   describe('run-identity bridge on Codex/Cursor (#630)', () => {
     const STAMP_COMMAND = 'bun .safeword/hooks/write-review-stamp.ts spec';
 
-    function runCodexPreShell(sessionId: string): void {
-      const result = spawnSync('bun', [CODEX_PRE_TOOL_PATH], {
-        cwd: projectRoot,
-        input: JSON.stringify({
-          session_id: sessionId,
-          tool_name: 'Bash',
-          tool_input: { command: STAMP_COMMAND },
-        }),
-        encoding: 'utf8',
-        stdio: ['pipe', 'pipe', 'pipe'],
-        env: { ...process.env, CLAUDE_PROJECT_DIR: projectRoot },
-      });
-      expect(result.status).toBe(0);
-    }
-
     function runCursorBeforeShell(conversationId: string): void {
       const result = spawnSync('bun', [CURSOR_BEFORE_SHELL_PATH], {
         cwd: projectRoot,
@@ -468,17 +449,6 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
       );
     }
 
-    it('Codex: the pre-shell stash lets the stamp resolve the codex-bound session ticket', () => {
-      createSecondTicket();
-      bindRuntimeSessionTicket('codex-sess-9');
-
-      runCodexPreShell('sess-9');
-      const stamp = runStampWithoutRuntimeIdentity('spec');
-
-      expect(stamp.status).toBe(0);
-      expect(readLog()).toContain(`review:${reviewScope(TICKET_ID, 'spec', hashArtifact(SPEC))}`);
-    });
-
     it('Cursor: the pre-shell stash lets the stamp resolve the cursor-bound session ticket', () => {
       createSecondTicket();
       bindRuntimeSessionTicket('cursor-conv-1');
@@ -492,9 +462,9 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
 
     it('the stash is single-use: a second stamp without a new pre-shell event fails loudly', () => {
       createSecondTicket();
-      bindRuntimeSessionTicket('codex-sess-9');
+      bindRuntimeSessionTicket('cursor-conv-1');
 
-      runCodexPreShell('sess-9');
+      runCursorBeforeShell('conv-1');
       expect(runStampWithoutRuntimeIdentity('spec').status).toBe(0);
 
       const secondStamp = runStampWithoutRuntimeIdentity('spec');

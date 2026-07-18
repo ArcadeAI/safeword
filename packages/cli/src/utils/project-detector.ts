@@ -140,12 +140,20 @@ export function detectPythonType(cwd: string): PythonProjectType | undefined {
 
 /**
  * Checks if a directory contains any .sh files up to specified depth.
- * Excludes node_modules and .git directories.
+ * Excludes dependency, VCS, and agent-configuration directories.
  * @param cwd
  * @param maxDepth
  */
 function hasShellScripts(cwd: string, maxDepth = 4): boolean {
-  const excludeDirectories = new Set(['node_modules', '.git', '.safeword']);
+  const excludeDirectories = new Set([
+    'node_modules',
+    '.git',
+    '.agents',
+    '.claude',
+    '.codex',
+    '.cursor',
+    '.safeword',
+  ]);
 
   function scan(dir: string, depth: number): boolean {
     if (depth > maxDepth) return false;

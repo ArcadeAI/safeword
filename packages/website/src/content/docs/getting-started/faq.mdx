@@ -37,7 +37,7 @@ Both tools coexist — ESLint handles code analysis while Biome handles formatti
 
 ### Do my teammates need to install Safeword?
 
-No. Commit the `.safeword/`, `.claude/`, `.cursor/`, `.codex/`, and `.agents/` directories to your repo. When teammates pull, they get the full setup automatically. The linting devDependencies install with their normal `npm install` / `bun install`.
+No. Commit the Safe Word project configuration for the surfaces your team uses, such as `.safeword/`, `.claude/`, and `.cursor/`. Each Codex user installs the Safe Word plugin into their own profile with `safeword migrate codex-plugin`, reviews it in `/hooks`, then optionally runs `--remove-legacy-hooks`. No Safe Word Codex workflow tree belongs in the repository. The linting devDependencies install with their normal `npm install` / `bun install`.
 
 ### Will it interfere with my development workflow?
 
@@ -92,7 +92,7 @@ Yes. Run `bunx safeword reset --full` to remove all Safeword files and linting p
 
 ### What if I only want some of the features?
 
-Safeword's hooks are configured in `.claude/settings.json` (Claude Code), `.cursor/hooks.json` (Cursor), and `.codex/config.toml` (Codex). For Codex, review and trust project hooks before relying on safeword gates. You can disable individual hooks by removing them from the settings. See [Configuration](/reference/configuration) for details.
+Safeword's hooks are configured in `.claude/settings.json` (Claude Code) and `.cursor/hooks.json` (Cursor). Codex uses the profile-scoped Safe Word plugin, installed with `safeword migrate codex-plugin`; Codex visibly skips unreviewed or changed plugin hooks until you trust them in `/hooks`. You can disable individual Claude Code or Cursor hooks by removing them from the settings. See [Configuration](/reference/configuration) for details.
 
 <footer class="docs-footer">
 

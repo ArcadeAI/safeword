@@ -35,11 +35,11 @@ You use Claude Code, Cursor, or Codex the same way you always have. Type a promp
 
   </TabItem>
   <TabItem label="Codex">
-    **Your agent gets the same safeword skills.** Safeword adds repo-scoped skills (`.agents/skills/`) for debugging, BDD/TDD, refactoring, testing, review, and verification.
+    **Your agent gets scoped safeword plugin skills.** The Safe Word Codex plugin exposes names such as `safeword:bdd`, `safeword:verify`, and `safeword:explain` instead of installing Safe Word workflow files into your repo.
 
-    **PreToolUse gates run through Codex hooks.** Safeword writes `.codex/config.toml` and a Codex adapter at `.safeword/hooks/codex/pre-tool-quality.ts`. After setup or upgrade, review and trust the project hooks in Codex before relying on those gates. Safeword guards the documented Codex PreToolUse paths it configures: `Bash`, `apply_patch` edit payloads, and MCP tools.
+    **PreToolUse gates run through the plugin.** Run `safeword migrate codex-plugin` to install and verify the profile-scoped plugin, then review and trust it in Codex. Its hooks use version-pinned Bunx commands. Safeword guards the documented Codex PreToolUse paths it configures: `Bash`, `apply_patch` edit payloads, and file-editing tools.
 
-    **Stop nudges run through Codex continuations.** Safeword also installs `.safeword/hooks/codex/stop.ts`, which can continue the turn with advisory text after the agent stops. That is how done-phase reminders such as ARCHITECTURE.md drift nudges reach Codex; it is not hard done-gate enforcement.
+    **Stop nudges run through Codex continuations.** The packaged `safeword hook codex stop` entrypoint can continue the turn with advisory text after the agent stops. That is how done-phase reminders such as ARCHITECTURE.md drift nudges reach Codex; it is not hard done-gate enforcement.
 
   </TabItem>
 </Tabs>
@@ -73,11 +73,12 @@ Open your project and ask your agent to build something real:
   <TabItem label="Codex">
     Watch what happens:
 
-    1. Review and trust project hooks in Codex
-    2. Your agent follows the safeword skills in `.agents/skills/`
-    3. Before supported edits, Codex runs `.safeword/hooks/codex/pre-tool-quality.ts`
-    4. If a safeword gate blocks the edit, your agent gets the denial before changing files
-    5. When the agent stops, Codex runs `.safeword/hooks/codex/stop.ts` for continuation nudges such as ARCHITECTURE.md drift reminders
+    1. Run `safeword migrate codex-plugin`, then review/trust the Safe Word plugin in Codex
+    2. Your agent follows scoped plugin skills such as `safeword:bdd`
+    3. Before supported edits, Codex runs the plugin's version-pinned Bunx PreToolUse hook
+    4. After trust, run `safeword migrate codex-plugin --remove-legacy-hooks` to remove only Safe Word-owned legacy hooks
+    5. If a safeword gate blocks the edit, your agent gets the denial before changing files
+    6. When the agent stops, Codex runs the plugin's Bunx Stop hook for continuation nudges such as ARCHITECTURE.md drift reminders
 
   </TabItem>
 </Tabs>
@@ -91,14 +92,13 @@ Safeword added a few folders to your project:
 | `.safeword/hooks/`      | Scripts that run automatically (lint, quality checks)    |
 | `.claude/skills/`       | Structured workflows for debugging, BDD/TDD, refactoring |
 | `.claude/settings.json` | Hook configuration for Claude Code                       |
-| `.agents/skills/`       | Structured workflows for Codex                           |
-| `.codex/config.toml`    | Hook configuration for Codex                             |
+| Safe Word Codex plugin  | Profile-scoped Codex workflow skills and hooks           |
 | `.cursor/hooks.json`    | Hook configuration for Cursor                            |
 | `.cursor/rules/`        | Rules for Cursor                                         |
 | `.cursor/commands/`     | Slash commands for Cursor                                |
 | `.safeword/`            | Config files, guides, and templates                      |
 
-These files commit to your repo. When your team pulls, they get the same setup automatically.
+These project files commit to your repo. The Safe Word Codex plugin is profile-scoped: each Codex user runs `safeword migrate codex-plugin` and reviews it in `/hooks`; no Safe Word Codex workflow files are added to the repository.
 
 For JS/TS projects, safeword also adds ESLint and Prettier as **devDependencies** in your `package.json`. These are development-only code quality tools — they don't ship with your application.
 

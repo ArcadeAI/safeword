@@ -25,6 +25,8 @@ const CUCUMBER_TEMPLATE_REVISION_HASHES: ReadonlySet<string> = new Set([
   '3d22842f73c62e497a525dbe0a126b42bf2202fb8369ede29ba45b6d1e493fb6',
   // 56JCFZ — runtime paths.features/paths.steps config read (current)
   '929014fb4ce6ca1483b292757b6044be89932028f5bb21ba82c28ffd66b09e53',
+  // 4DK9H4 — live profile excludes @manual while selecting @live scenarios
+  '1295e832b1b3bdd0faa963e218bd489c9c252a981fc8e315d4814d4208384a5f',
 ]);
 
 /** True when `content` is a shipped revision of safeword's lane template. */

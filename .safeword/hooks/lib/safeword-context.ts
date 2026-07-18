@@ -50,7 +50,11 @@ export function resolveProjectDir(input: HookInput): string {
 }
 
 export function readSafewordContext(projectDir: string): string | null {
-  const safewordPath = nodePath.join(projectDir, '.safeword/SAFEWORD.md');
+  const packagedContextPath = process.env.SAFEWORD_PACKAGED_CONTEXT_PATH;
+  const safewordPath =
+    packagedContextPath && existsSync(packagedContextPath)
+      ? packagedContextPath
+      : nodePath.join(projectDir, '.safeword/SAFEWORD.md');
   if (!existsSync(safewordPath)) return null;
 
   const content = readFileSync(safewordPath, 'utf8').trim();

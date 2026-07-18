@@ -17,7 +17,6 @@ import {
   createTemporaryDirectory,
   createTypeScriptProjectReadyForSetup,
   getReconcileTestUtilities,
-  installFakeCodexCli,
   removeTemporaryDirectory,
   runCli,
   runCommandSync,
@@ -193,70 +192,14 @@ describe('Setup Command - Reconcile Integration', () => {
       expect(existsSync(nodePath.join(temporaryDirectory, 'AGENTS.md'))).toBe(false);
     });
 
-    it('should create Codex project assets when applied', async () => {
+    it('does not create Codex project assets', async () => {
       await setupReconcileTest(temporaryDirectory);
 
-      expect(existsSync(nodePath.join(temporaryDirectory, '.codex/config.toml'))).toBe(true);
-      expect(existsSync(nodePath.join(temporaryDirectory, '.agents/skills/bdd/SKILL.md'))).toBe(
-        true,
-      );
-      expect(
-        existsSync(nodePath.join(temporaryDirectory, '.agents/skills/figure-it-out/SKILL.md')),
-      ).toBe(true);
-      expect(
-        existsSync(nodePath.join(temporaryDirectory, '.safeword/hooks/codex/pre-tool-quality.ts')),
-      ).toBe(true);
-      expect(
-        existsSync(
-          nodePath.join(temporaryDirectory, '.safeword/hooks/codex/pre-tool-quality-helpers.ts'),
-        ),
-      ).toBe(true);
-      expect(existsSync(nodePath.join(temporaryDirectory, '.safeword/hooks/codex/stop.ts'))).toBe(
-        true,
-      );
+      expect(existsSync(nodePath.join(temporaryDirectory, '.codex/config.toml'))).toBe(false);
+      expect(existsSync(nodePath.join(temporaryDirectory, '.codex'))).toBe(false);
     });
 
-    it('should wire Codex hooks through a single SessionStart dispatcher', async () => {
-      await setupReconcileTest(temporaryDirectory);
-
-      const content = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
-      expect(content).toContain('[features]');
-      expect(content).toContain('hooks = true');
-      expect(content).toContain('[[hooks.UserPromptSubmit]]');
-      expect(content).toContain('.safeword/hooks/prompt-timestamp.ts');
-      expect(content).toContain('[[hooks.PreToolUse]]');
-      expect(content).toContain('apply_patch');
-      expect(content).toContain('.safeword/hooks/codex/pre-tool-quality.ts');
-      expect(content).toContain('[[hooks.SessionStart]]');
-      expect(content.match(/\[\[hooks\.SessionStart\]\]/g)).toHaveLength(1);
-      expect(content).toContain('.safeword/hooks/session-codex-start.ts');
-      expect(content).toContain('[[hooks.Stop]]');
-      expect(content).toContain('.safeword/hooks/codex/stop.ts');
-      expect(content.match(/\[\[hooks\.Stop\]\]/g)).toHaveLength(1);
-      expect(content).not.toContain('.safeword/hooks/session-safeword-context.ts" --agent=codex');
-    });
-
-    it('should warn when the installed Codex CLI is below the safeword hook floor', async () => {
-      writeFileSync(
-        nodePath.join(temporaryDirectory, 'package.json'),
-        JSON.stringify({ name: 'test', version: '1.0.0' }, undefined, 2),
-      );
-      const fakeBin = installFakeCodexCli(temporaryDirectory, '0.132.0');
-
-      const result = await runCli(['setup', '--yes', '--no-modify'], {
-        cwd: temporaryDirectory,
-        env: {
-          PATH: `${fakeBin}${nodePath.delimiter}${process.env.PATH ?? ''}`,
-          SAFEWORD_SKIP_INSTALL: '1',
-        },
-      });
-
-      expect(result.exitCode).toBe(0);
-      expect(`${result.stdout}\n${result.stderr}`).toContain('Codex 0.132.0 is below safeword');
-      expect(`${result.stdout}\n${result.stderr}`).toContain('0.133.0');
-    });
-
-    it('should tell users to trust generated Codex hooks after setup', async () => {
+    it('tells users how to migrate Codex to the plugin after setup', async () => {
       writeFileSync(
         nodePath.join(temporaryDirectory, 'package.json'),
         JSON.stringify({ name: 'test', version: '1.0.0' }, undefined, 2),
@@ -268,8 +211,7 @@ describe('Setup Command - Reconcile Integration', () => {
       });
 
       expect(result.exitCode).toBe(0);
-      expect(`${result.stdout}\n${result.stderr}`).toContain('/hooks');
-      expect(`${result.stdout}\n${result.stderr}`).toContain('trust safeword project hooks');
+      expect(`${result.stdout}\n${result.stderr}`).toContain('migrate codex-plugin');
     });
 
     it('should preserve existing AGENTS.md without prepending safeword text', async () => {
@@ -324,6 +266,7 @@ describe('Setup Command - Reconcile Integration', () => {
       expect(result.exitCode, result.stderr).toBe(0);
       expect(result.stdout).toContain('Setup');
       expect(existsSync(nodePath.join(temporaryDirectory, '.safeword'))).toBe(true);
+      expect(existsSync(nodePath.join(temporaryDirectory, '.codex/config.toml'))).toBe(false);
     });
 
     it('should error on already configured project', () => {

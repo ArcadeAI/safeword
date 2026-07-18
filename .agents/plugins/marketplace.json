@@ -1,0 +1,22 @@
+{
+  "name": "safeword",
+  "description": "Safe Word workflow tools for coding agents.",
+  "owner": {
+    "name": "Arcade AI"
+  },
+  "plugins": [
+    {
+      "name": "safeword",
+      "description": "BDD/TDD workflow guidance and package-backed gates for Codex.",
+      "source": {
+        "source": "local",
+        "path": "./packages/cli/codex-plugin"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

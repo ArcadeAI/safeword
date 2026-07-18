@@ -8,11 +8,8 @@
     "packages/cli/vitest.slow.config.ts"
   ],
   "ignoreBinaries": [
-    "shellcheck",
     "shfmt",
     "dot",
-    "claude",
-    "codex",
     "shellcheck",
     "rustup",
     "ruff",
@@ -23,8 +20,6 @@
     "architecture",
     "boundary",
     "test-plan",
-    "verify",
-    "quality-review",
     "setup",
     "check",
     "lint-gherkin",

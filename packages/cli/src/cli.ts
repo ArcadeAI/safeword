@@ -74,6 +74,20 @@ program
     });
   });
 
+const migrate = program.command('migrate').description('Migrate an agent integration');
+
+migrate
+  .command('codex-plugin')
+  .description('Install the Safe Word Codex plugin and complete its explicit hook handoff')
+  .option(
+    '--remove-legacy-hooks',
+    'Remove Safe Word-owned legacy project hooks after reviewing the plugin hooks in Codex /hooks',
+  )
+  .action(async (options: { removeLegacyHooks?: boolean }) => {
+    const { migrateCodexPlugin } = await import('./commands/migrate-codex-plugin.js');
+    migrateCodexPlugin(process.cwd(), { removeLegacyHooks: options.removeLegacyHooks === true });
+  });
+
 program
   .command('diff')
   .description('Preview changes that would be made by upgrade')
@@ -195,6 +209,24 @@ program
   .action(async (ticketId: string, options: { format?: string; red?: boolean; out?: string }) => {
     const { codify } = await import('./commands/codify.js');
     await codify(ticketId, options);
+  });
+
+const hook = program.command('hook').description('Run packaged Safe Word hooks');
+
+hook
+  .command('codex <event>')
+  .description('Run a packaged Safe Word Codex hook entrypoint')
+  .action(async (event: string) => {
+    const { codexHook } = await import('./commands/codex-hook.js');
+    await codexHook(event);
+  });
+
+program
+  .command('codex-hook <event>', { hidden: true })
+  .description('Compatibility alias for `safeword hook codex <event>`')
+  .action(async (event: string) => {
+    const { codexHook } = await import('./commands/codex-hook.js');
+    await codexHook(event);
   });
 
 program

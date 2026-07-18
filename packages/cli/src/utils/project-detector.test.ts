@@ -320,6 +320,30 @@ describe('detectProjectType', () => {
     });
   });
 
+  describe('Detects project shell source', () => {
+    let cwd: string;
+
+    beforeEach(() => {
+      cwd = createTemporaryDirectory();
+    });
+
+    afterEach(() => {
+      removeTemporaryDirectory(cwd);
+    });
+
+    it('ignores agent configuration scripts while retaining project shell detection', () => {
+      writeTestFile(cwd, '.agents/skills/rust-skills/checks/check.sh', '#!/usr/bin/env bash\n');
+      writeTestFile(cwd, '.claude/skills/rust-skills/checks/check.sh', '#!/usr/bin/env bash\n');
+      writeTestFile(cwd, '.safeword/hooks/session-bun-check.sh', '#!/usr/bin/env bash\n');
+
+      expect(detectProjectType({}, cwd).shell).toBe(false);
+
+      writeTestFile(cwd, 'scripts/release.sh', '#!/usr/bin/env bash\n');
+
+      expect(detectProjectType({}, cwd).shell).toBe(true);
+    });
+  });
+
   describe('Detects existing prettier config (cwd-based)', () => {
     let cwd: string;
 
