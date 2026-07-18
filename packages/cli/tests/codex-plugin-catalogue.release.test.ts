@@ -181,4 +181,23 @@ describe('generated Codex plugin catalogue', () => {
       asset.relativePath.length + 'alpha'.length + 'Describe alpha'.length,
     );
   });
+
+  it.each([
+    {
+      content: '# No frontmatter\n',
+      message: 'generated skill skills/alpha/SKILL.md has no YAML frontmatter',
+    },
+    {
+      content: '---\nnot-a-mapping\n---\n',
+      message: 'generated skill skills/alpha/SKILL.md has invalid name or description metadata',
+    },
+    {
+      content: '---\nname: alpha\n---\n',
+      message: 'generated skill skills/alpha/SKILL.md has invalid name or description metadata',
+    },
+  ])('preserves generated skill validation for $message', ({ content, message }) => {
+    expect(() => {
+      codexSkillMetadataCharacters([{ relativePath: 'skills/alpha/SKILL.md', content }]);
+    }).toThrow(message);
+  });
 });

@@ -55,13 +55,23 @@ function isCanonicalSkillMetadata(value: unknown): value is CanonicalSkillMetada
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function parseSkill(content: string, skill: string): { body: string; description: string } {
+function readFrontmatter(content: string): { body: string; metadata: unknown } | undefined {
   const frontmatter = FRONTMATTER.exec(content);
-  if (frontmatter?.groups?.metadata === undefined) {
+  if (frontmatter?.groups?.metadata === undefined) return undefined;
+
+  return {
+    body: content.slice(frontmatter[0].length),
+    metadata: parse(frontmatter.groups.metadata),
+  };
+}
+
+function parseSkill(content: string, skill: string): { body: string; description: string } {
+  const frontmatter = readFrontmatter(content);
+  if (frontmatter === undefined) {
     throw new Error(`canonical skill ${skill} has no YAML frontmatter`);
   }
 
-  const metadata = parse(frontmatter.groups.metadata);
+  const { metadata } = frontmatter;
   if (!isCanonicalSkillMetadata(metadata)) {
     throw new Error(`canonical skill ${skill} has invalid metadata`);
   }
@@ -78,7 +88,7 @@ function parseSkill(content: string, skill: string): { body: string; description
   }
 
   return {
-    body: content.slice(frontmatter[0].length),
+    body: frontmatter.body,
     description: metadata.description,
   };
 }
@@ -276,11 +286,11 @@ export function generateCodexPluginAssets(
 
 function skillMetadataLength(asset: GeneratedPluginAsset): number {
   if (!asset.relativePath.endsWith(nodePath.join('SKILL.md'))) return 0;
-  const frontmatter = FRONTMATTER.exec(asset.content);
-  if (frontmatter?.groups?.metadata === undefined) {
+  const frontmatter = readFrontmatter(asset.content);
+  if (frontmatter === undefined) {
     throw new Error(`generated skill ${asset.relativePath} has no YAML frontmatter`);
   }
-  const metadata = parse(frontmatter.groups.metadata);
+  const { metadata } = frontmatter;
   if (
     !isCanonicalSkillMetadata(metadata) ||
     typeof metadata.name !== 'string' ||
