@@ -7,7 +7,15 @@
  * TDD RED phase - these tests should FAIL until src/reconcile.ts is implemented.
  */
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -955,6 +963,49 @@ describe('Reconcile - Reconciliation Engine', () => {
       expect(result.applied).toBe(true);
       // Deprecated file not in removed list since it didn't exist
       expect(result.removed).not.toContain('.safeword/templates/user-stories-template.md');
+    });
+
+    it('should unlink a deprecated symlink without touching its target', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      const ctx = createContext();
+      await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
+
+      const deprecatedPath = nodePath.join(
+        temporaryDirectory,
+        '.safeword/templates/user-stories-template.md',
+      );
+      const targetPath = nodePath.join(temporaryDirectory, 'user-owned-template.md');
+      writeFileSync(targetPath, '# User-owned template');
+      symlinkSync(targetPath, deprecatedPath);
+
+      const result = await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
+
+      expect(result.removed).toContain('.safeword/templates/user-stories-template.md');
+      expect(existsSync(deprecatedPath)).toBe(false);
+      expect(readFileSync(targetPath, 'utf8')).toBe('# User-owned template');
+    });
+
+    it('should preserve a directory at a deprecated file path', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      const ctx = createContext();
+      await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
+
+      const deprecatedPath = nodePath.join(
+        temporaryDirectory,
+        '.safeword/templates/user-stories-template.md',
+      );
+      mkdirSync(deprecatedPath);
+
+      const result = await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
+
+      expect(result.removed).not.toContain('.safeword/templates/user-stories-template.md');
+      expect(existsSync(deprecatedPath)).toBe(true);
     });
 
     it('should include deprecated files in dryRun upgrade actions', async () => {

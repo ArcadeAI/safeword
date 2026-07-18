@@ -321,9 +321,7 @@ function planExistingFilesRemoval(
     const fullPath = nodePath.join(cwd, filePath);
     const stat = lstatIfExists(fullPath);
     if (stat === undefined) continue;
-    // A schema file entry is never allowed to recursively remove a directory.
-    // Symlinks are safe to unlink; unexpected directories are user content.
-    if (!stat.isFile() && !stat.isSymbolicLink()) continue;
+    if (!isRemovableFile(stat)) continue;
 
     actions.push({ type: 'rm', path: filePath });
     removed.push(filePath);
@@ -339,6 +337,11 @@ function lstatIfExists(path: string): ReturnType<typeof lstatSync> | undefined {
     if (code === 'ENOENT' || code === 'ENOTDIR') return undefined;
     throw error;
   }
+}
+
+/** A schema file entry may unlink a file or symlink, but must preserve directories. */
+function isRemovableFile(stat: ReturnType<typeof lstatSync>): boolean {
+  return stat.isFile() || stat.isSymbolicLink();
 }
 
 /** Check if a .claude path needs parent dir cleanup */
@@ -900,7 +903,7 @@ function executeFileRemoval(cwd: string, path: string, result: ExecutionResult):
   const fullPath = nodePath.join(cwd, path);
   const stat = lstatIfExists(fullPath);
   if (stat === undefined) return;
-  if (!stat.isFile() && !stat.isSymbolicLink()) {
+  if (!isRemovableFile(stat)) {
     result.warnings.push(`Skipped file removal because ${path} is not a file or symlink.`);
     return;
   }
