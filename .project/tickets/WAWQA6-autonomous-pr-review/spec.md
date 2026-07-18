@@ -101,7 +101,70 @@ own the leap. So: alternatives never blocks, never counts toward the verdict,
 and is phrased as an invitation ("worth considering: X would collapse these
 three branches") not a verdict ("this should be X"). If it keeps getting
 ignored, that is fine — a provocation nobody takes is cheap; a false defect is
-not. -->
+not. See R16: a design concern that names a concrete consequence in the change
+as written — not merely a simpler shape — is not a provocation and can route to
+a human. -->
+
+#### autonomous-pr-review.TB1.R16 — A design concern that names a concrete consequence in the change as written can raise the verdict to needs-a-human
+
+<!-- Added 2026-07-18 from the 42-PR human-review study (arcade, the last 50 PRs
+where a human commented). The highest-value human move in the set is
+blocking-grade design pushback: itsthatriver asked to CLOSE a 2,872-line PR for
+a load-bearing design flaw (PLT-2489); wdawson pushed to delete "a fragile
+invariant with no validation in code" (2184); teallarson repeatedly refused
+reinvented primitives (2122). R15 (provocation, never blocks) is correct for a
+pure alternative — a nicer shape the author may decline freely. It is WRONG when
+the concern names a concrete consequence in the change AS WRITTEN: a bug class,
+a scaling wall, a maintenance trap that will drift. The distinguishing test is
+NTB1.R1's — does it name a consequence, or only a different shape? A
+consequence-bearing design concern routes to needs-a-human. It is NOT a mandated
+fix (that stays R4/R15's line) and NOT a "block" in R5's sense: needs-a-human IS
+the "inform a human" action R5 prescribes for what the reviewer cannot itself
+resolve. It aims scarce human attention (R9); it does not redesign. -->
+
+#### autonomous-pr-review.TB1.R17 — The reviewer works from a full checkout of the PR's head branch — the whole codebase, not the diff alone — and, where the code is trusted to run, an environment it can exercise
+
+<!-- Added 2026-07-18. The study showed the sharpest human catches rest on
+context the diff does not carry: a TOCTOU race across two Gmail calls giving a
+false confirmation on a destructive op (byrro, 2120); "the Engine paginates
+in-memory and prod has ~8k tools, so this is 80x slower" (EricGustin, 2073);
+"you reinvented our Tabs component" (teallarson, 2122). A diff-scoped reviewer
+structurally cannot produce these. A full checkout collapses most of the gap: it
+reads the file the diff doesn't touch, greps for the primitive that already
+exists (R18), and — where the code is trusted — builds it, runs the tests, and
+reproduces (which is how R12 base-repro and R13 fix-run already execute). This
+is the substrate, not a nicety: R18 and the fix/repro gates are IMPOSSIBLE on
+the diff alone.
+
+Composes with SM1.R3: reading the whole tree is always safe; EXECUTING it is
+gated — a fork's head runs only in a secretless/unprivileged environment or not
+at all, because "an environment it can exercise" is precisely the pwn-request
+execution surface. Cost is tiered, not uniform: the checkout+read is cheap and
+runs on every PR; standing up and exercising a live environment is reserved for
+where execution buys verification (a finding carrying a patch, a base-repro, a
+high-blast-radius surface), never as a per-PR default — the target is drowning
+in PRs and cannot afford a full environment spin-up on each.
+
+The residual a full checkout still cannot confirm — a project-external fact like
+a production tool count — stays R5's case: it can inform, never block, and R7
+caps the certainty claimed. -->
+
+#### autonomous-pr-review.TB1.R18 — A change that reimplements a capability the project already provides is flagged, and the existing capability is named
+
+<!-- Added 2026-07-18 from the study: a large share of human review — teallarson's
+entire 2122 pass — is "we already have this; compose it, don't rebuild it" (a
+base Callout, the Tabs component, a tri-state checkbox atom). None of it is
+something linters/types/tests catch (so it is in R1's gap), and it is absent
+from the v1 dimension set (blast-radius, evidence-integrity, intent, scope,
+alternatives). It is only POSSIBLE with R17's full checkout — you cannot know
+what already exists from the diff. Delivery weight follows the same split as
+everything else: naming the existing capability is the finding; whether it rises
+above a provocation depends on consequence. Pure "consider consolidating" is R15
+(a provocation the author may decline); reinvention that creates a concrete
+hazard — two sources of truth that will drift, a divergent second implementation
+of a security-relevant control — is R16 (routes to a human). This keeps R18 from
+degenerating into a nitpick generator: it flags and names; R15/R16 set the
+volume. -->
 
 #### autonomous-pr-review.TB1.R11 — The reviewer runs on a different VENDOR than the agent that wrote the code, and never implies an independence it cannot establish
 
@@ -231,7 +294,7 @@ the code; NTB reads the stake; both are served by the same finding. -->
 
 #### autonomous-pr-review.SM1.R3 — The reviewer never executes fork-PR code while holding a credential that can write, comment, or approve
 
-<!-- Refined 2026-07-17 (/figure-it-out, GitHub Security Lab "pwn requests"): the threat is EXECUTING untrusted code with secrets present, not reading it. Reading the diff as data and sending it to the model is safe in a privileged job; the two gates that execute (R13 fix-run, R12 base-repro) degrade on forks or run in an unprivileged sidecar. Earlier wording ("never holds a write credential while reading") forbade the safe act and missed the real hazard. -->
+<!-- Refined 2026-07-17 (/figure-it-out, GitHub Security Lab "pwn requests"): the threat is EXECUTING untrusted code with secrets present, not reading it. Reading the diff as data and sending it to the model is safe in a privileged job; the two gates that execute (R13 fix-run, R12 base-repro) degrade on forks or run in an unprivileged sidecar. Earlier wording ("never holds a write credential while reading") forbade the safe act and missed the real hazard. R17's live environment is the same execution surface under a broader name: a fork's head is exercised only in a secretless/unprivileged job or not at all — "clone everything and read it" is always safe; "spin it up and bang on it" is the gated act. -->
 
 <!-- R3 REWORDED at the quality-review gate. It previously read "Content inside a
 pull request cannot direct the reviewer's behavior" — an absolute the platform
