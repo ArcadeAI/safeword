@@ -340,7 +340,7 @@ function lstatIfExists(path: string): ReturnType<typeof lstatSync> | undefined {
 }
 
 /** A schema file entry may unlink a file or symlink, but must preserve directories. */
-function isRemovableFile(stat: ReturnType<typeof lstatSync>): boolean {
+function isRemovableFile(stat: NonNullable<ReturnType<typeof lstatSync>>): boolean {
   return stat.isFile() || stat.isSymbolicLink();
 }
 

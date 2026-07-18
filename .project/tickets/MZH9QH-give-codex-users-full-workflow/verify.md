@@ -24,7 +24,8 @@ commit.
 
 - [x] R1. Characterize then centralize the removable-file predicate in
   `reconcile.ts` so plan and execution share the "regular file or symlink,
-  never directory" safety rule.
+  never directory" safety rule. Follow-up: its helper accepts the narrowed
+  non-null `lstat` result so the package typecheck also proves that invariant.
 - [x] R2. Share the Codex catalogue frontmatter reader while retaining
   source-specific and generated-asset-specific validation at their callers.
 - [x] R3. Normalize the packaged-template lookup in `codex-hook.ts` so
