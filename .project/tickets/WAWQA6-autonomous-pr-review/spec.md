@@ -66,7 +66,9 @@ Spec-local pending curation (see Open Questions — these are absent from `.proj
 
 #### autonomous-pr-review.TB1.R3 — Every finding that clears the bar is surfaced, and nothing that doesn't — the review neither pads nor truncates
 
-#### autonomous-pr-review.TB1.R9 — Every review ends in a verdict that tells an engineer whether this PR needs their eyes, without opening the diff
+#### autonomous-pr-review.TB1.R9 — Every review reaches a verdict on whether the PR needs a human; a needs-a-human verdict is surfaced without opening the diff, and safe-to-merge is delivered as silence (R2), not a posted comment
+
+<!-- Clarified 2026-07-18 to reconcile with R2 ("a clean PR receives no comment at all"): the verdict always EXISTS, but only needs-a-human is POSTED; safe-to-merge is the absence of a review. So R2 and R9 do not contradict — silence IS the safe-to-merge signal. -->
 
 #### autonomous-pr-review.TB1.R10 — A pull request with more real problems than are worth enumerating is verdicted unreviewable-as-is, not flooded with comments
 
@@ -158,7 +160,9 @@ correlated blind spots as independent verification, which is worse than a
 same-model review that admits it. -->
 
 
-#### autonomous-pr-review.TB1.R4 — Every finding carries a concrete proposed change, not just a concern
+#### autonomous-pr-review.TB1.R4 — A finding that proposes a fix carries a concrete, verified change — not a vague concern
+
+<!-- Softened from "every finding" 2026-07-18: absolute "every" contradicted R13 (a finding whose fix can't be verified is posted WITHOUT a fix) and R15 (a simpler-shape is a provocation, not a defect carrying a mandated fix). The rule is about the QUALITY of a fix when one is offered — concrete + verified — not that every finding must carry one. -->
 
 #### autonomous-pr-review.TB1.R5 — A finding the reviewer could not verify can inform, but never blocks
 
@@ -225,7 +229,9 @@ the code; NTB reads the stake; both are served by the same finding. -->
 
 #### autonomous-pr-review.SM1.R2 — A maintainer can turn the reviewer off without deleting it, and the signal that should trigger that is named
 
-#### autonomous-pr-review.SM1.R3 — The reviewer never holds a credential that can write, comment, or approve while it is reading untrusted content
+#### autonomous-pr-review.SM1.R3 — The reviewer never executes fork-PR code while holding a credential that can write, comment, or approve
+
+<!-- Refined 2026-07-17 (/figure-it-out, GitHub Security Lab "pwn requests"): the threat is EXECUTING untrusted code with secrets present, not reading it. Reading the diff as data and sending it to the model is safe in a privileged job; the two gates that execute (R13 fix-run, R12 base-repro) degrade on forks or run in an unprivileged sidecar. Earlier wording ("never holds a write credential while reading") forbade the safe act and missed the real hazard. -->
 
 <!-- R3 REWORDED at the quality-review gate. It previously read "Content inside a
 pull request cannot direct the reviewer's behavior" — an absolute the platform
