@@ -158,15 +158,14 @@ function runCommand(
 }
 
 function runPackagedCodexHook(
-  world: CodexPluginMigrationWorld,
+  repoRoot: string,
   commandName: string,
-  input: Record<string, unknown>,
+  input: Record<string, unknown> | string,
 ): CommandResult {
-  const repoRoot = requirePath(world.codexPluginRepoRoot, 'repo root');
   return runCommand(process.execPath, [SAFEWORD_CLI_PATH, 'hook', 'codex', commandName], {
     cwd: repoRoot,
     env: { CLAUDE_PROJECT_DIR: repoRoot },
-    input: JSON.stringify(input),
+    input: typeof input === 'string' ? input : JSON.stringify(input),
   });
 }
 
@@ -1365,12 +1364,16 @@ Given(
 When(
   "the packaged Codex PreToolUse entrypoint receives a supported edit payload for that ticket's `test-definitions.md`",
   function (this: CodexPluginMigrationWorld) {
-    this.codexPluginHookResult = runPackagedCodexHook(this, 'pre-tool-use', {
-      hook_event_name: 'PreToolUse',
-      session_id: 'codex-test-session',
-      tool_name: 'apply_patch',
-      tool_input: { command: TEST_DEFINITIONS_PATCH },
-    });
+    this.codexPluginHookResult = runPackagedCodexHook(
+      requirePath(this.codexPluginRepoRoot, 'repo root'),
+      'pre-tool-use',
+      {
+        hook_event_name: 'PreToolUse',
+        session_id: 'codex-test-session',
+        tool_name: 'apply_patch',
+        tool_input: { command: TEST_DEFINITIONS_PATCH },
+      },
+    );
   },
 );
 
@@ -1381,7 +1384,7 @@ When(
     mkdirSync(nodePath.join(repoRoot, '.safeword'), { recursive: true });
     writeFileSync(nodePath.join(repoRoot, '.safeword/SAFEWORD.md'), REPO_LOCAL_SAFEWORD_SENTINEL);
 
-    this.codexPluginHookResult = runPackagedCodexHook(this, 'session-start', {
+    this.codexPluginHookResult = runPackagedCodexHook(repoRoot, 'session-start', {
       hook_event_name: 'SessionStart',
       session_id: 'codex-test-session',
     });
@@ -1403,7 +1406,7 @@ When(
       SOURCE_CHECKOUT_HOOK_SENTINEL,
     );
 
-    this.codexPluginHookResult = runPackagedCodexHook(this, 'post-tool-use', {
+    this.codexPluginHookResult = runPackagedCodexHook(repoRoot, 'post-tool-use', {
       hook_event_name: 'PostToolUse',
       session_id: 'codex-test-session',
       tool_name: 'Edit',
@@ -1415,21 +1418,29 @@ When(
 When(
   'the packaged Codex UserPromptSubmit entrypoint receives a prompt JSON fixture',
   function (this: CodexPluginMigrationWorld) {
-    this.codexPluginHookResult = runPackagedCodexHook(this, 'user-prompt-submit', {
-      hook_event_name: 'UserPromptSubmit',
-      session_id: 'codex-test-session',
-      prompt: 'continue',
-    });
+    this.codexPluginHookResult = runPackagedCodexHook(
+      requirePath(this.codexPluginRepoRoot, 'repo root'),
+      'user-prompt-submit',
+      {
+        hook_event_name: 'UserPromptSubmit',
+        session_id: 'codex-test-session',
+        prompt: 'continue',
+      },
+    );
   },
 );
 
 When(
   'the packaged Codex Stop entrypoint receives the stop JSON fixture',
   function (this: CodexPluginMigrationWorld) {
-    this.codexPluginHookResult = runPackagedCodexHook(this, 'stop', {
-      hook_event_name: 'Stop',
-      session_id: 'codex-test-session',
-    });
+    this.codexPluginHookResult = runPackagedCodexHook(
+      requirePath(this.codexPluginRepoRoot, 'repo root'),
+      'stop',
+      {
+        hook_event_name: 'Stop',
+        session_id: 'codex-test-session',
+      },
+    );
   },
 );
 
@@ -1453,15 +1464,7 @@ When(
       }
 
       const fixture = codexHookFixture(commandName);
-      const result = runCommand(
-        process.execPath,
-        [SAFEWORD_CLI_PATH, 'hook', 'codex', commandName],
-        {
-          cwd: repoRoot,
-          env: { CLAUDE_PROJECT_DIR: repoRoot },
-          input: JSON.stringify(fixture.input),
-        },
-      );
+      const result = runPackagedCodexHook(repoRoot, commandName, fixture.input);
 
       return {
         command,
@@ -1481,15 +1484,7 @@ When('the entrypoint receives malformed JSON on stdin', function (this: CodexPlu
     this.codexPluginMalformedHookCommandName,
     'malformed hook command name',
   );
-  this.codexPluginHookResult = runCommand(
-    process.execPath,
-    [SAFEWORD_CLI_PATH, 'hook', 'codex', commandName],
-    {
-      cwd: repoRoot,
-      env: { CLAUDE_PROJECT_DIR: repoRoot },
-      input: '{not valid json',
-    },
-  );
+  this.codexPluginHookResult = runPackagedCodexHook(repoRoot, commandName, '{not valid json');
 });
 
 When(

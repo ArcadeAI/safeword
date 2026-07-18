@@ -36,7 +36,7 @@ commit.
   setup.
 - [x] R6. Unify root Git-repository fixture setup in
   `steps/test-codex-plugin-migration.steps.ts`.
-- [ ] R7. Route every root packaged-Codex-hook fixture invocation through its
+- [x] R7. Route every root packaged-Codex-hook fixture invocation through its
   existing executor, including raw malformed input.
 - [ ] R8. Centralize the repeated package-BDD contract-error capture helper
   without changing each scenario world's stored error state.
