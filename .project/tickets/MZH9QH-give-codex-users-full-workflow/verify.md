@@ -39,7 +39,7 @@ commit.
   `steps/test-codex-plugin-migration.steps.ts`.
 - [x] R7. Route every root packaged-Codex-hook fixture invocation through its
   existing executor, including raw malformed input.
-- [ ] R8. Centralize the repeated package-BDD contract-error capture helper
+- [x] R8. Centralize the repeated package-BDD contract-error capture helper
   without changing each scenario world's stored error state.
 - [deferred] D1. Do not consolidate legacy-command recognition in
   `migrate-codex-plugin.ts`: the current narrow predicates document the

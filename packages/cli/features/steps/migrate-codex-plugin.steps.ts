@@ -25,6 +25,7 @@ import {
   extractPackedCliPackage,
   packCliPackage,
 } from '../../tests/helpers/codex-plugin-package.ts';
+import { captureContractError } from './contracts.ts';
 import type { SafewordWorld } from './world.js';
 
 const CLI_PATH = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
@@ -166,12 +167,7 @@ function recordReleaseContract(world: MigrationWorld): void {
   if (world.releaseContract === undefined) {
     throw new Error('release contract was not initialized');
   }
-  try {
-    world.releaseContract();
-    world.releaseContractError = undefined;
-  } catch (error) {
-    world.releaseContractError = error instanceof Error ? error : new Error(String(error));
-  }
+  world.releaseContractError = captureContractError(world.releaseContract);
 }
 
 function assertLegacyHooksUnchanged(world: MigrationWorld): void {

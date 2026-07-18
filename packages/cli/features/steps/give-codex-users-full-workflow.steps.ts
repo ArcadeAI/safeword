@@ -34,6 +34,7 @@ import {
   extractPackedCliPackage,
   packCliPackage,
 } from '../../tests/helpers/codex-plugin-package.ts';
+import { captureContractError } from './contracts.ts';
 import type { SafewordWorld } from './world.js';
 
 const CLI_ROOT = nodePath.resolve(import.meta.dirname, '../..');
@@ -68,12 +69,7 @@ function fixtureRoot(world: WorkflowWorld): string {
 }
 
 function recordContract(world: WorkflowWorld, contract: Contract): void {
-  try {
-    contract();
-    world.contractError = undefined;
-  } catch (error) {
-    world.contractError = error instanceof Error ? error : new Error(String(error));
-  }
+  world.contractError = captureContractError(contract);
 }
 
 function assertContractRejected(world: WorkflowWorld, detail?: string): void {
@@ -423,12 +419,7 @@ Given('the generated Safe Word plugin hooks', function (this: WorkflowWorld) {
 
 When('the hook release contract runs', function (this: WorkflowWorld) {
   assert.ok(this.hookContract !== undefined, 'hook release contract was not initialized');
-  try {
-    this.hookContract();
-    this.hookContractError = undefined;
-  } catch (error) {
-    this.hookContractError = error instanceof Error ? error : new Error(String(error));
-  }
+  this.hookContractError = captureContractError(this.hookContract);
 });
 
 Then('every Safe Word hook invokes a version-pinned Bunx command', function (this: WorkflowWorld) {
