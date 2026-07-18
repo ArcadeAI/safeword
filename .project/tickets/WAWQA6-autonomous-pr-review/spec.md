@@ -166,6 +166,41 @@ of a security-relevant control — is R16 (routes to a human). This keeps R18 fr
 degenerating into a nitpick generator: it flags and names; R15/R16 set the
 volume. -->
 
+#### autonomous-pr-review.TB1.R19 — The review states the change's work type — patch, logic change, or new behavior — judged by what it touches, not its line count
+
+<!-- Added 2026-07-18 (user directive). Test rigor cannot be assessed without
+first naming the work type: a one-line config bump, a new pure function, and a
+new user-visible flow demand different coverage, and line count does not tell
+them apart (TB2.R1's principle, reused). Signals are structural, not size-based:
+a new state machine or user-facing flow => new behavior (BDD-worthy); new
+branches/logic inside an existing unit => logic change (TDD-worthy); an isolated
+fix or a pure refactor => patch. R17's full checkout is what makes this knowable
+— you cannot see "this wires up a new flow" from the diff alone. The
+classification is STATED so the author can contest it (same posture as every
+finding); it is the input to R20, never a verdict on its own. Reconciles with
+R2/R9: the assessment always runs (R20 needs it), but it is SURFACED only when it
+grounds a posted finding or a needs-a-human verdict — a clean PR stays silent,
+work type computed but unspoken. -->
+
+#### autonomous-pr-review.TB1.R20 — A change is flagged when its test coverage falls short of what its work type demands — in the project's own idiom, never safeword's artifacts
+
+<!-- Added 2026-07-18 (user directive). The finding is a MISMATCH between R19's
+work type and the coverage present: new behavior shipped with no test that
+exercises it end-to-end; new logic with no discriminating unit test (the
+constant-implementation lens from review-spec — a test whose assertions do not
+vary with the input is not coverage); a bug-fix patch with no regression test.
+Three boundaries keep it from becoming a nag: (1) Artifact-hungry, not
+artifact-dependent — it checks whether the BEHAVIOR is covered in whatever form
+the repo already uses (arcade has no .feature lane), and never demands a .feature
+or a test-definitions.md. (2) It does NOT re-report line-percentage coverage —
+codecov already posts that (R1); its value is the judgment codecov cannot make
+("a new flow with nothing exercising it," not "coverage fell 0.3%"). (3)
+Over-demand guard — when the work type is ambiguous, default to the LIGHTER
+expectation; demanding tests a change does not need is the cry-wolf failure that
+gets AI review switched off. Judgment rule: proven by the eval (CWGYH0), not by
+Gherkin — and the eval must include a patch that correctly draws ZERO
+test-coverage findings, or the guard is untested. -->
+
 #### autonomous-pr-review.TB1.R11 — The reviewer runs on a different VENDOR than the agent that wrote the code, and never implies an independence it cannot establish
 
 <!-- STRENGTHENED 2026-07-17 (user): different MODEL -> different VENDOR. Claude
@@ -230,6 +265,21 @@ same-model review that admits it. -->
 #### autonomous-pr-review.TB1.R5 — A finding the reviewer could not verify can inform, but never blocks
 
 #### autonomous-pr-review.TB1.R6 — The reviewer uses whatever declared intent the project exposes, however little that is
+
+<!-- Identity model (added 2026-07-18, user decision). The reviewer runs in a
+sandbox and reaches the tracker through Arcade, brokered AS THE PR AUTHOR — so it
+reads exactly what the author could (the full Linear issue: description,
+acceptance criteria, comments, linked work), scoped to that author's own
+permissions: no service account, no privilege escalation. This EXTENDS the intent
+ladder upward. Brokered full-ticket read becomes the top tier and the primary
+path; the PR-linkback snippet (reachable with no credential at all) drops to the
+FALLBACK — for an external fork contributor with no brokered access, or where
+Arcade is not configured. Two constraints ride along: (1) it makes author
+detection (X1Z5MG) LOAD-BEARING, not cosmetic — you cannot broker an identity you
+have not established, and a wrong author brokers the wrong permissions; (2)
+identity is not permission to RUN — reading the ticket as the author is safe, but
+SM1.R3 stands: a fork's head still executes only secretless/unprivileged. R7
+still caps the certainty a richer source licenses. -->
 
 #### autonomous-pr-review.TB1.R7 — A finding never claims more certainty than the intent source it rests on supports
 

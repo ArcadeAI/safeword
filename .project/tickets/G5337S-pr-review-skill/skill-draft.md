@@ -125,6 +125,14 @@ Only these, and only when they pass §3.5's on-topic test. Everything else belon
 
 **When the diff adopts a new dependency or API**, dispatch: invoke `/quality-review` scoped to those changes and fold its Versions / Security / Documentation findings into yours. That skill owns ecosystem freshness; do not re-implement it. (Skip it otherwise — a refactor has no dependency surface, and running it anyway is the "more review is better" category error.)
 
+**The general-purpose passes are borrowed, not rebuilt** — the reviewer carries safeword's own review procedures and aims them at the PR, the same "compose, don't reinvent" it enforces on the code (R18):
+
+- **Design judgment (§4.5 / R16)** applies `architecture-guide`'s rule directly: conform to the codebase's existing patterns by default; a different shape is a finding only when it is a _real_ improvement or a concrete hazard — "not your taste." That line is what separates an R15 provocation from an R16 consequence.
+- **Reinvention (R18) and duplication** borrow `audit`'s dead-code/architecture lens and `refactor`'s de-duplication lens — as _procedure_ run against the full checkout, not the safeword-project commands (the target is not a safeword repo).
+- **Running the suite (R17)** uses the _project's own_ test/build/lint, read for signal — never `/verify`, which checks safeword ticket criteria a foreign repo does not have.
+
+Invoke each scoped and non-interactive: hand it the checkout and the changed paths, cap what executes (R17's tiered cost), fold its output into your findings. A borrowed pass that has been proven beats a reinvented one that has not.
+
 ## 5. Evidence, and the two gates
 
 **Provenance gate (from PRINCIPLES §1).** Severity is bounded by evidence. A **blocking** finding must cite something you verified *this session* by reading the actual diff or file. Inference caps at non-blocking. Cannot verify → mark it a question, or drop it. An unverified blocker is false certainty.

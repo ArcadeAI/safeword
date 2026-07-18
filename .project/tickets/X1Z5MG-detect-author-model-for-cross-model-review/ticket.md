@@ -53,3 +53,18 @@ The user set the policy: **detect the authoring model and review with a differen
 **Default policy makes the failure mode benign, though:** unknown → assume Claude → review with Codex. That fails *toward* cross-vendor. Detection's job is therefore to catch the *exceptions* (a human-authored PR, a Codex-authored PR, a mixed-authorship PR), not to establish the common case.
 
 Arcade evidence that the exceptions are real: `pmdroid`'s review replies read *"🐕 Written by Kyoto, an AI agent, on Pascal's behalf"* — agent authorship is disclosed in prose, in the PR body, by convention, not in any structured field. And branch names (`polecat/mutant/...` vs `ericgustin/...`) distinguish fleet-agent from human authorship without naming a vendor.
+
+
+## PROMOTED AGAIN 2026-07-18 — now the auth identity depends on it, not just the review label
+
+The user set the sandbox identity model (WAWQA6 R6): the reviewer reaches the
+tracker through **Arcade, brokered as the PR author**. That makes author
+detection **doubly load-bearing** — it already routed which vendor reviews (the
+2026-07-17 promotion); it now also selects **whose permissions the sandbox
+borrows** to read intent. A wrong author no longer just mislabels the review — it
+brokers the wrong identity: too little access (can't read the ticket) or, worse,
+the wrong person's access. The benign-default still holds for the vendor routing
+(unknown → assume Claude → review with Codex), but there is **no benign default
+for identity**: an unresolved author means fall back to the credential-free
+linkback snippet (R6 fallback), never a guessed identity. This is the input two
+WAWQA6 rules now consume, not one.
