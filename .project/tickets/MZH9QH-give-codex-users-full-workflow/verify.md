@@ -56,3 +56,21 @@ commit.
   oracle, and the payoff from a type-only import is negligible.
 - [deferred] D5. Do not combine package pack/extract helpers: the call sites
   intentionally retain different archive lifetimes and cleanup boundaries.
+
+### Refactor Audit (2026-07-17)
+
+- `bun run lint` passed, including Gherkin lint and package typecheck.
+- Package BDD passed: 83 scenarios and 986 steps. The root Codex migration
+  feature also passed: 22 scenarios and 704 steps.
+- Focused reconciliation, catalogue, hook-dispatch, and migration command tests
+  passed after their respective commits.
+- The aggregate `bun run test` build succeeded but the Vitest process emitted no
+  test result for six minutes and was stopped. This is the pre-existing
+  aggregate-runner hang; it is not treated as refactor evidence in place of the
+  focused and BDD lanes above.
+- Audit checks found no config drift, dependency-cruiser violation, relevant
+  Knip finding, or package vulnerability. The 469 repository-wide jscpd clones
+  are the existing generated/parity baseline, not refactor-introduced copies.
+- Audit warnings deferred outside this ticket: legacy persona aliases `SM` and
+  `TB` lack current persona entries; `markdownlint-cli2` has a dev-only patch
+  update from 0.23.0 to 0.23.1.
