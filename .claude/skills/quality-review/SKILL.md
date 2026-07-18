@@ -8,13 +8,15 @@ allowed-tools: '*'
 
 # Quality Reviewing
 
-Deep review with web research to verify against current ecosystem. Complements automatic hook.
+Deep review with web research to verify against the current ecosystem.
 
 **Stakes set depth.** Review as if your verdict is the last gate before this ships — no one re-checks behind you. That standard, not "the hook already looked," sets how hard you research. Before searching, write your review plan: which angles (§2–3) this diff actually needs and the specific question each must answer, then work the list — don't stop at the first finding.
 
+**When to use (vs. the automatic hook):** the hook does a fast check from existing knowledge; this skill adds web research (~2-3 min). Reach for it on explicit verification ("double check against latest docs", "verify versions", "check security"), deep dives (performance, architecture, trade-offs), or pre-change review — the hook only fires after edits.
+
 ## Invocation log
 
-This skill is required at the done-gate for tickets with **two or more RGR loops** (W610WW) — the whole-ticket review half of the cross-scenario pass. The line below appends a current-run entry to `skill-invocations.log` under the project namespace root (`.project/`, or legacy `.safeword-project/` where that exists) so the done-gate hook can verify /quality-review was actually invoked. Claude Code expands the `!` line automatically and passes `${CLAUDE_SESSION_ID}` when available. The helper also resolves Claude remote-container ids from the runtime environment, and on Cursor and Codex the pre-shell hook (beforeShellExecution / PreToolUse) bridges the session id to the helper — so on all three runtimes the fallback runs without hand-picking an id. Hand-writing review notes cannot produce this gate proof.
+Required at the done-gate for tickets with **two or more RGR loops** (W610WW). The line below logs a current-run entry to `skill-invocations.log` under the project namespace root so the done-gate hook can verify /quality-review actually ran; Claude Code expands the `!` line automatically. On Cursor and Codex the pre-shell hook (beforeShellExecution / PreToolUse) bridges the session id, so the fallback runs on all three runtimes without hand-picking one. Hand-writing review notes cannot produce this gate proof.
 
 !`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" quality-review "${CLAUDE_SESSION_ID:-}" || echo "[skill-invocation-log] FAILED - no current-run proof logged"`
 
@@ -25,17 +27,9 @@ PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null 
 bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" quality-review "${CLAUDE_SESSION_ID:-}"
 ```
 
-**If the automatic line or fallback prints `[skill-invocation-log] FAILED`, prints `no run identity`, or still does not print `quality-review ✓`**: a ≥2-loop ticket must fail closed if no real current-session proof can be logged. Do not mark such a ticket done or hand-write review notes as a substitute for the gate proof. Report the failure to the user (most likely cause: inline shell execution was denied, the runtime did not expose a usable run identity, or Bun could not run the installed helper) and ask them to resolve it before re-invoking /quality-review.
+**If the automatic line or fallback prints `[skill-invocation-log] FAILED`, prints `no run identity`, or still does not print `quality-review ✓`**: a ≥2-loop ticket must fail closed — don't mark it done or substitute hand-written notes for the gate proof. Report the failure to the user (usual causes: inline shell execution was denied, the runtime exposed no usable run identity, or Bun could not run the installed helper) and ask them to resolve it before re-invoking /quality-review.
 
 Single-loop tickets, patches, and no-ticket reviews may continue after recording that session-scoped proof was unavailable and not required by the gate.
-
-**When to use this skill (not automatic hook):**
-
-- **Explicit web research**: "double check against latest docs", "verify versions", "check security"
-- **Deep dive needed**: Performance, architecture, trade-offs beyond automatic hook
-- **Pre-change review**: Review before making changes (hook only triggers after)
-
-**Relationship:** Automatic hook does fast check with existing knowledge. This skill does deep dive with web research (2-3 min).
 
 ## 1. Detect Phase
 
@@ -51,7 +45,7 @@ If in BDD workflow, read the current ticket from `<namespace-root>/tickets/` and
 | verify              | Flaky-test & regression patterns, coverage gaps |
 | done                | CI/CD patterns, release checklists              |
 
-## 2. Research Angles (Primary Value)
+## 2. Research Angles
 
 Run each angle that applies — angle _diversity_ is the lever, not search volume: **version-currency** + **CVE/security** (this section), **deprecation** + **primary-source docs** (§3). If the user gave a focus or scope restriction, apply it to **every** angle — don't use it only for the first search.
 
@@ -70,7 +64,7 @@ Search for: "[library name] security vulnerabilities"
 - Security vulnerabilities -> CRITICAL (upgrade now)
 - Using latest -> Confirm
 
-## 3. Verify Documentation — deprecation + primary-source (Primary Value)
+## 3. Verify Documentation — deprecation + primary-source
 
 Fetch official documentation for libraries in use.
 
@@ -116,35 +110,28 @@ Severity is bounded by evidence: **a CRITICAL or REQUEST CHANGES verdict must ci
 
 ## Loop: review → fix → re-review
 
-Run the review in passes until it comes back clean — not one-and-done, but not an endless loop either (a couple of passes is usually plenty).
+Run the review in passes until **Critical issues** come back None. A couple of passes is usually plenty — don't loop indefinitely.
 
 Each pass:
 
-1. **Review with a fresh, independent reviewer** — one that doesn't share your
-   blind spots. A same-model, same-context reviewer shares them, and ungrounded
-   self-correction can _degrade_ code rather than improve it. **Prefer a
-   different model of comparable-or-better capability; if you don't have one,
-   run a fresh-context pass on your own model** — the usual path, since most
-   setups run a single model. Never review on a _weaker_ model: a fresh context
-   on your own model beats a weaker different one. Hand the reviewer only the
-   diff and the ticket scope, have it apply §1–3, and return the Output Format
-   above.
+1. **Review with a fresh, independent reviewer.** A same-model, same-context
+   reviewer shares your blind spots, and ungrounded self-correction can
+   _degrade_ code rather than improve it. Prefer a different model of
+   comparable-or-better capability; otherwise run a fresh-context pass on your
+   own model (the usual path, since most setups run one model) — never a
+   _weaker_ one. Hand the reviewer only the diff and the ticket scope, have it
+   apply §1–3, and return the Output Format above.
    - Claude Code: Agent/Task tool. Codex: ask in your prompt — subagents never
-     auto-spawn, and `/agent` only switches between existing threads. Cursor:
-     subagents.
-   - No sub-agent? Re-read in a fresh context (a different comparable-or-better
-     model if you can switch to one). Independence is the point, not the
-     mechanism.
+     auto-spawn, and `/agent` only switches existing threads. Cursor: subagents.
+     No sub-agent? Re-read in a fresh context — independence is the point, not
+     the mechanism.
 2. **Triage.** Fix every **Critical issue** this pass. Apply the **Suggested
    improvements** worth the change; list the rest — don't chase them.
-3. **Decide.** Stop when **Critical issues = None** — remaining suggestions are
-   optional, not a reason to loop. Don't loop indefinitely; a couple of passes is
-   the practical ceiling. Re-review only if you edited code this pass.
+3. **Decide.** Stop when **Critical issues = None**; remaining suggestions are
+   optional. Re-review only if you edited code this pass.
 
-A pass isn't done until `/verify` (tests, lint, typecheck) is green. That
-objective signal — not the reviewer running out of suggestions — is the real
-stop condition; tests are the ground truth.
+A pass isn't done until `/verify` (tests, lint, typecheck) is green — that
+objective signal, not the reviewer running out of suggestions, is the real stop
+condition; tests are the ground truth.
 
-**Voice:** plainspoken and concise — write to be scanned.
-
-**Avoid bloat.**
+**Voice:** plainspoken and concise — write to be scanned. **Avoid bloat.**
