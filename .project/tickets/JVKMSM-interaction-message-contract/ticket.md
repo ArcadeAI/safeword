@@ -1,6 +1,7 @@
 ---
 id: JVKMSM
 slug: interaction-message-contract
+parent: GD88WJ-interaction-design-uplift
 type: feature
 phase: intake
 status: backlog
@@ -20,4 +21,4 @@ last_modified: 2026-07-19T12:52:26.450Z
 ## Work Log
 
 - 2026-07-19T12:52:26.450Z Started: Created ticket JVKMSM
-- 2026-07-19T12:55:00Z Parked as the broad follow-on (user: "ticket both, start narrow"). Motivation: interaction is safeword's product but the one surface it doesn't hold to its own enforcement bar — behavior gets a spec/rubric/gate/evidence, talking gets prose in SAFEWORD.md. This ticket generalizes 64J9R1's plain-first move into a named message contract + a boundary-fired judge (the "observable fact → cheap observation" reviewer tier). Intake deferred until the narrow ticket proves the plain-first pattern. status: backlog.
+- 2026-07-19T12:55:00Z Parked as the broad follow-on (user: "ticket both, start narrow"). Motivation: interaction is safeword's product but the one surface it doesn't hold to its own enforcement bar — behavior gets a spec/rubric/gate/evidence, talking gets prose in SAFEWORD.md. This ticket generalizes 64J9R1's plain-first move into a named message contract + a boundary-fired judge (the "observable fact → cheap observation" reviewer tier). Intake deferred until the narrow ticket proves the plain-first pattern. status: backlog. GitHub: [#1158](https://github.com/ArcadeAI/safeword/issues/1158) under epic [#1156](https://github.com/ArcadeAI/safeword/issues/1156).
