@@ -2,6 +2,13 @@
 
 Feature source: `features/autonomous-pr-review.feature`
 
+> **⚠ This binding does not resolve, and the ledger is currently unenforced.**
+> Coverage resolves a ticket's scenarios by slug —
+> 36EEMY ⇒ `features/pr-review-distribution.feature`, which does not exist.
+> `autonomous-pr-review` is the parent **epic's** slug. Until the file is split
+> or the ledger is re-homed, nothing machine-checks these 29 entries. See
+> `impl-plan.md` → Known deviations. Decide before slice 1.
+
 test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature`
 source; this file tracks per-scenario RED → GREEN → REFACTOR with commit SHAs.
 
