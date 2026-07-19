@@ -59,6 +59,15 @@ the configured glossary file. Optional. -->
 
 ## Jobs To Be Done
 
+skip: inherited from the parent epic WAWQA6. The personas (TB / NTB / SM), the
+JTBDs, and all 19 numbered Rules this runner implements live in
+`../WAWQA6-autonomous-pr-review/spec.md` and are not duplicated here. This child
+serves **TB1's delivery** (ship the reviewer into a customer repo) and **SM1**
+(fork safety, kill switch, trust-before-it-fires). Its scenario source is the
+epic's `features/autonomous-pr-review.feature`; its R/G/R ledger is
+`test-definitions.md` beside this file. Sibling precedent: G5337S removed its own
+stub spec for the same reason.
+
 <!--
 One persona per JTBD, in the form "When I …, I want …, so I can …". If two
 personas share a motivation, write two JTBDs. The heading id is

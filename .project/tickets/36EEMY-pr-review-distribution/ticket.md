@@ -2,7 +2,7 @@
 id: 36EEMY
 slug: pr-review-distribution
 type: feature
-phase: intake
+phase: define-behavior
 status: in_progress
 depends_on: [G5337S, CWGYH0]
 scope:
@@ -58,3 +58,5 @@ last_modified: 2026-07-15T14:24:45.733Z
 Also noted, lower priority: **tiered routing / the "3 AM test"** (a blocking finding pages; a `noticed-nearby` goes to a weekly digest, NOT onto the PR) and **role-aware routing `(target × role) → owner`** rather than "the PR author" — the honest fix for the scope-finding-on-the-wrong-person's-PR problem.
 
 **Open architecture question (do not resolve unilaterally):** product-scout and pr-review are the same reconcile+route machine. The attention bar, the act-rate flywheel, the mute store, and role routing are a **shared layer**, not pr-review-specific. Whether to build that layer once (serving both) or twice is a real fork — flag to the user before either ticket implements it.
+
+- 2026-07-19T23:05:10.523Z Phase: intake → define-behavior
