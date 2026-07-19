@@ -10,9 +10,11 @@ phase_anchors:
   - scenario-gate: features/plain-first-gate-blocks.feature
   - plan-implementation: features/plain-first-gate-blocks.feature
 scope: |
-  Rewrite every hard-block message so it reads plain-first, without changing
-  what any gate enforces. Hard blocks in scope: LOC, phase, plan, done,
-  spec/JTBD/criteria, bash-ledger-write, broad process-kill. For each:
+  Rewrite the seven in-scope hard-block messages so each reads plain-first,
+  without changing what any gate enforces. One representative message per gate:
+  LOC (threshold), phase (still-in-intake), plan (no impl-plan), done
+  (no valid verify evidence), spec/JTBD/criteria (feature needs a spec), bash-
+  ledger-write, broad process-kill. For each:
     - Lead with one plain-English sentence: what happened and why (R1).
     - Name exactly one concrete next action the reader can take (R2).
     - Replace or gloss bare internal terms — phase names, artifact filenames,
@@ -23,19 +25,24 @@ scope: |
   Ship via template sync + Cursor/Codex block-variant parity.
 out_of_scope: |
   - Changing any gate's trigger, threshold, or condition — this is text-only.
+  - The long-tail sub-messages of the done/spec/phase families (a dozen-plus
+    other `hardBlockDone`/phase-provenance/readiness blocks) — deferred to a
+    follow-up under the epic once the shape proves out here.
   - Adding an `audience`/persona config signal or persona branching (→ JVKMSM).
   - The `/explain` capability itself, and soft (bypassable) block copy.
   - Non-block surfaces: `safeword check`/`ticket` CLI output, per-turn reminders.
   - A general interaction judge across other surfaces (→ JVKMSM).
 done_when: |
-  - Every hard-block message leads with a plain sentence before any
-    file/phase/verdict name (R1), verified on a real block fire.
-  - Every hard-block message names exactly one next action (R2).
-  - No bare internal term stands alone in a block; each is glossed or
+  - Each of the seven in-scope gate blocks leads with a plain sentence before
+    any file/phase/verdict name (R1), verified on a real block fire.
+  - Each of the seven names exactly one next action (R2).
+  - No bare internal term stands alone in those blocks; each is glossed or
     replaced (R3).
-  - The block is understandable and actionable without running `/explain`;
+  - Each block is understandable and actionable without running `/explain`;
     `/explain` is offered as optional deepening (R4).
-  - A regression guard/test locks the plainness invariants for block messages.
+  - A regression guard/test locks the plainness invariants over all seven
+    in-scope blocks, and a per-gate wiring assert proves each real gate emits
+    its builder's output.
   - Templates synced; Cursor/Codex block variants hold parity.
   - `npx vitest run` for touched test files passes from packages/cli/.
 created: 2026-07-19T12:52:23.158Z
