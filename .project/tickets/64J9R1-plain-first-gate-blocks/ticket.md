@@ -8,6 +8,7 @@ status: in_progress
 phase_anchors:
   - define-behavior: .project/tickets/64J9R1-plain-first-gate-blocks/spec.md
   - scenario-gate: features/plain-first-gate-blocks.feature
+  - plan-implementation: features/plain-first-gate-blocks.feature
 scope: |
   Rewrite every hard-block message so it reads plain-first, without changing
   what any gate enforces. Hard blocks in scope: LOC, phase, plan, done,
