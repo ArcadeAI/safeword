@@ -5,6 +5,8 @@ type: feature
 phase: define-behavior
 status: in_progress
 depends_on: [G5337S, CWGYH0]
+phase_anchors:
+  - 'define-behavior: .project/tickets/36EEMY-pr-review-distribution/spec.md'
 scope:
   - Runner is a vendor-agnostic, HEADLESS driver — `codex exec` for V1 (author assumed Claude → review cross-vendor), `claude -p` for V2 — reusing the proven two-vendor spawn seams in `hooks/lib/retro-extract.ts` (RetroAgent, buildCodexExtractArgv, runHeadlessExtraction). NOT `claude-code-action` (Claude-only; cannot run headless Codex, which is the cross-vendor default's whole point).
   - Full checkout of the PR head branch (R17); the vendor invoked headless with the G5337S prompt over the diff + surrounding tree.
