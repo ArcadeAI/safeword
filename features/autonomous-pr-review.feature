@@ -67,13 +67,23 @@ Feature: PR review runner — the mechanized gates
   @autonomous-pr-review.TB1.R1
   Rule: autonomous-pr-review.TB1.R1 — a concern the project's own tooling already reports is never surfaced
 
+    Subtract on COVERAGE, not mere mention: a deterministic tooling check that
+    resolved the concern is coverage; a bot merely commenting on it is not. Dropping
+    the reviewer's own verified, higher-severity version because a noisy bot named it
+    discards the strongest signal (Is_Human rho=0.99).
+
     @rejection @surface.safeword-cli
-    Scenario: autonomous-pr-review.TB1.R1.a_concern_another_reviewer_already_raised_is_dropped_but_a_fresh_one_posts
-      Given a pull request carrying a code-review bot's comment on concern X
-      And the reviewer's findings are stubbed to concern X and a distinct concern Y
+    Scenario Outline: autonomous-pr-review.TB1.R1.a_concern_is_dropped_only_when_the_tooling_actually_covered_it
+      Given a pull request whose concern X is <other-tool-state>
+      And the reviewer holds a <reviewer-version> of concern X, plus a distinct concern Y
       When the reviewer posts its review
       Then concern Y appears in the review
-      And concern X is absent from the review
+      And concern X is <x-presence>
+
+      Examples:
+        | other-tool-state                          | reviewer-version            | x-presence             |
+        | resolved by a deterministic tooling check | no new severity or evidence | absent from the review |
+        | merely mentioned by a code-review bot     | verified and higher-severity | present in the review  |
 
   @autonomous-pr-review.TB1.R2
   Rule: autonomous-pr-review.TB1.R2 — a pull request with nothing worth saying receives no comment at all
@@ -112,16 +122,21 @@ Feature: PR review runner — the mechanized gates
   @autonomous-pr-review.TB1.R6
   Rule: autonomous-pr-review.TB1.R6 — the reviewer uses whatever declared intent the project exposes
 
-    The linked issue is rendered into the pull request by the tracker's own bot, so
-    the intent is reachable through the code host alone — no tracker credentials.
+    A public team's linkback carries the issue body, so intent is reachable through
+    the code host alone. A private team's linkback (arcade's real case) carries only
+    a bare link, so intent must fall through to a brokered read as the PR author.
 
     @surface.safeword-cli
-    Scenario: autonomous-pr-review.TB1.R6.intent_is_read_from_the_linkback_without_calling_the_tracker
-      Given a pull request carrying a tracker linkback comment containing the issue body
-      And no tracker credentials are configured
+    Scenario Outline: autonomous-pr-review.TB1.R6.intent_falls_through_to_a_brokered_read_when_the_linkback_is_bare
+      Given a pull request whose <team> Linear linkback <linkback-body>
       When the reviewer resolves the declared intent
-      Then the reviewer makes no request to the tracker API
-      And the review cites intent drawn from the linkback comment
+      Then intent is resolved from <source>
+      And the reviewer calls the tracker API <tracker-calls>
+
+      Examples:
+        | team    | linkback-body            | source                        | tracker-calls |
+        | public  | carries the issue body   | the linkback comment          | never         |
+        | private | carries only a bare link | the tracker, as the PR author | once          |
 
   @autonomous-pr-review.TB1.R7
   Rule: autonomous-pr-review.TB1.R7 — a finding never claims more certainty than the intent source it rests on supports
@@ -163,6 +178,8 @@ Feature: PR review runner — the mechanized gates
         | author-vendor | review-vendor | claim |
         | Claude        | Claude        | false |
         | Claude        | Codex         | true  |
+        | Codex         | Codex         | false |
+        | Codex         | Claude        | true  |
 
     @surface.safeword-cli
     Scenario: autonomous-pr-review.TB1.R11.an_author_from_the_reviewing_vendor_flips_the_reviewer
@@ -174,17 +191,30 @@ Feature: PR review runner — the mechanized gates
   Rule: autonomous-pr-review.TB1.R14 — when a finding exists, a second vendor tries to refute it before anyone sees it
 
     Author -> adversary, never a vote: the popularity trap is already rejected by
-    ADR. The adversary only runs when findings exist, so the cost is bounded. The
-    second vendor's verdict is a stubbed input here — this tests the runner's
-    routing, not a live model's judgment.
+    ADR. The adversary only runs when findings exist, so the cost is bounded. It
+    ANNOTATES, never deletes: with only two vendors, an author-was-Claude review
+    runs on Codex and the refuter is Claude — the author's own lineage — so a
+    refutation can share the author's blind spot. A refuted finding is therefore
+    marked contested (down-weighted), not dropped; an adversary that errors leaves
+    the finding posted-but-unchecked. The second vendor's verdict is a stubbed
+    input here — this tests the runner's routing, not a live model's judgment.
 
-    @rejection @surface.safeword-cli
-    Scenario: autonomous-pr-review.TB1.R14.a_refuted_finding_is_dropped_while_a_surviving_one_posts
+    @surface.safeword-cli
+    Scenario: autonomous-pr-review.TB1.R14.a_refuted_finding_is_marked_contested_not_dropped
       Given two findings from the first vendor
       And the second vendor is stubbed to refute the first finding and not the second
       When the review is produced
-      Then the second finding is posted
-      And the first finding is absent from the review
+      Then both findings are posted
+      And the first finding is marked contested by the second vendor
+      And the second finding carries no contested mark
+
+    @surface.safeword-cli
+    Scenario: autonomous-pr-review.TB1.R14.an_adversary_that_errors_leaves_the_finding_posted_and_unchecked
+      Given a finding from the first vendor
+      And the second vendor errors when invoked
+      When the review is produced
+      Then the finding is posted
+      And the finding is marked as not adversarially checked
 
     @surface.safeword-cli
     Scenario Outline: autonomous-pr-review.TB1.R14.the_second_vendor_runs_only_when_findings_exist
@@ -200,17 +230,22 @@ Feature: PR review runner — the mechanized gates
   @autonomous-pr-review.TB1.R8
   Rule: autonomous-pr-review.TB1.R8 — the reviewer runs once per change the author has declared ready, not once per push
 
+    "Not once per push" bounds cost on draft iteration — but a MATERIAL code change
+    after ready is a fresh ready-state, and going blind to it would let code land
+    unreviewed. Trivial (docs-only) post-ready pushes stay at zero.
+
     @rejection @surface.safeword-cli
-    Scenario Outline: autonomous-pr-review.TB1.R8.a_review_triggers_on_ready_not_on_each_push
+    Scenario Outline: autonomous-pr-review.TB1.R8.a_review_triggers_on_ready_and_on_material_change_not_on_each_push
       Given a pull request <event>
       When the trigger is evaluated
       Then the reviewer is invoked exactly <runs> time(s)
 
       Examples:
-        | event                              | runs |
-        | pushed to while still a draft      | 0    |
-        | marked ready for review            | 1    |
-        | pushed to after being marked ready | 0    |
+        | event                                     | runs |
+        | pushed to while still a draft             | 0    |
+        | marked ready for review                   | 1    |
+        | pushed a docs-only change after ready     | 0    |
+        | pushed a material code change after ready | 1    |
 
   @autonomous-pr-review.TB1.R17
   Rule: autonomous-pr-review.TB1.R17 — the reviewer works from a full checkout of the head branch, not the diff alone

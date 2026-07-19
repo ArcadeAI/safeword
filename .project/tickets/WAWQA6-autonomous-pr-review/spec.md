@@ -236,6 +236,15 @@ that a true finding shipped with a regressing fix. Cost is bounded because the
 adversary only runs when findings exist (~25-30% of PRs) and only reads the
 findings, not the whole diff: ~10% on the per-PR average. -->
 
+<!-- Annotate, never delete (quality-review gate, 2026-07-19): with two vendors
+and author-assumed-Claude, the reviewer runs on Codex and the refuter is Claude —
+the author's own lineage — so a refutation can share the author's blind spot and
+wrongly reject a true finding. A third decorrelated vendor is unavailable in the
+2-vendor default, so the refuter DOWN-WEIGHTS instead of dropping: a refuted
+finding is marked contested (still posted), and an adversary that errors leaves
+the finding posted-but-unchecked. The adversary can lower confidence; it can
+never make a true finding vanish. -->
+
 #### autonomous-pr-review.TB1.R12 — A finding that reproduces unchanged on the base branch is not reported as feedback on this pull request
 
 <!-- MECHANIZES §3.5. Today the on-topic test is prose the model applies by
@@ -364,6 +373,21 @@ doing something irreversible. Vendor's concrete pattern to adopt: check out the
 base ref at the workspace root, put the PR head in a subdirectory, pass it via
 `--add-dir`; never check an untrusted ref into the workspace root under
 `pull_request_target`. -->
+<!-- Two hardenings (quality-review gate, 2026-07-19):
+(1) The poster credential must carry NO review-submission or merge capability.
+`pull-requests: write` — the scope that posts comments — ALSO permits submitting
+an APPROVING review, which can satisfy required-approval branch protection unless
+"require approval of most recent push" is set, so a hijacked reviewer could
+launder an approval. The "says something wrong, not something irreversible"
+argument only holds if approve/merge is structurally withheld (feature SM1.R3:
+"issues no approving review and triggers no merge").
+(2) The `pull_request_target` + `--add-dir` pattern is dating: actions/checkout
+v7 now refuses fork-PR head under `pull_request_target` by default (loud
+`allow-unsafe-pr-checkout` opt-in; backport to floating tags mid-2026). Prefer
+reading the head in an unprivileged `pull_request` (or `workflow_run` stage-1)
+job — read-only token, no secrets, safe to even execute — and hand artifacts to
+the privileged poster. Enable "Require approval for all external contributors"
+so the reviewer runs on a fork only when a maintainer allows it. -->
 
 <!-- SM1.R1: "measured" was untestable as written (no bar). Now bound to "a
 recorded bar" — the bar's VALUE stays an Open Question, but the Rule is

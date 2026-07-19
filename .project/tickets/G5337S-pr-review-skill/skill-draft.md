@@ -163,9 +163,9 @@ A team drowning in agent-written PRs needs one thing above all: **which PRs to o
 
 | Verdict | Meaning |
 | --- | --- |
-| `safe-to-merge` | Nothing here needs an engineer. |
-| `needs-a-human` | Something warrants real attention. Say what, in one line, actionable **without opening the diff**. |
-| `not-reviewable-as-is` | So many real problems that enumerating them is the wrong response — it needs restructuring or splitting. Use this **instead of** a flood. |
+| `reviewed` | The reviewer ran and nothing rises to a human. A neutral RECEIPT (status mark, not a comment), **never a merge approval** — `safe-to-merge` is retired until efficacy is proven. |
+| `needs-a-human` | Something warrants real attention. Say what, in one line, actionable **without opening the diff**. Reads to the human as push-back (a concern) or ask (an open question). |
+| `unreviewable-as-is` | So many real problems that enumerating them is the wrong response — it needs restructuring or splitting. Use this **instead of** a flood. |
 
 ### 7a. Off-topic-but-real findings — a collapsed, labeled "Noticed nearby" section
 
@@ -214,7 +214,7 @@ The plain-English consequence is the *surface*; the `code_block` is the *evidenc
 
 ```json
 {
-  "verdict": "safe-to-merge|needs-a-human|not-reviewable-as-is",
+  "verdict": "reviewed|needs-a-human|unreviewable-as-is",
   "verdict_reason": "<one line, actionable without opening the diff>",
   "cross_model": true|false,
   "intent_source": "<what you checked against, and whether it is contract or narrative>",
