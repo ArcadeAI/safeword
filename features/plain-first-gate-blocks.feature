@@ -28,7 +28,7 @@ Feature: Plain-first gate blocks
       When each gate's message is checked
       Then every one of the seven gates produced a message
       And each opens with a plain-English sentence naming what happened and why
-      And none begins with a file name, phase name, or status label
+      And none begins with a file name, phase name, or verdict label
 
     @rejection
     Scenario Outline: A block that opens with an internal token is flagged
@@ -93,7 +93,8 @@ Feature: Plain-first gate blocks
 
     Scenario: /explain appears only as optional detail
       When each gate's message is checked
-      Then in each message /explain appears only as an optional way to get more detail, never as a required step
+      Then every one of the seven gates produced a message
+      And in each message /explain appears only as an optional way to get more detail, never as a required step
 
     @rejection
     Scenario: A block whose only next step is /explain is flagged
@@ -116,5 +117,5 @@ Feature: Plain-first gate blocks
     Scenario: The same block renders plain-first on Cursor and Codex
       Given a hard block rendered through the Cursor and Codex adapters
       When the adapter-rendered message is checked
-      Then it leads with a plain sentence, names exactly one next action, and stands alone without the detail command
+      Then it leads with a plain sentence, names exactly one next action, names no bare internal term, and stands alone without the detail command
       And the optional-detail pointer is the harness-appropriate command

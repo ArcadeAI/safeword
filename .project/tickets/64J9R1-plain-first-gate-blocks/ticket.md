@@ -3,7 +3,7 @@ id: 64J9R1
 slug: plain-first-gate-blocks
 parent: GD88WJ-interaction-design-uplift
 type: feature
-phase: scenario-gate
+phase: plan-implementation
 status: in_progress
 phase_anchors:
   - define-behavior: .project/tickets/64J9R1-plain-first-gate-blocks/spec.md
@@ -53,3 +53,4 @@ last_modified: 2026-07-19T12:52:23.158Z
 - 2026-07-19T12:55:00Z Intake framed (user: "make safeword exceptional at interaction design → ticket both, start narrow"). Explored the human↔agent interaction surfaces; scoped this ticket to the highest-pain moment — gate blocks. Key constraint found: no runtime persona signal exists (QQJK5S plainness is instruction-only, quality.ts:29), so chose **plain-first for everyone** (progressive disclosure) over a persona branch — avoids a new config flag. spec.md authored (Intake Brief · one NTB job · four Rules R1–R4); scope/out_of_scope/done_when set. Follow-on (contract + boundary judge across all surfaces) split to JVKMSM. Ready for define-behavior on user go. GitHub: [#1157](https://github.com/ArcadeAI/safeword/issues/1157) under epic [#1156](https://github.com/ArcadeAI/safeword/issues/1156).
 - 2026-07-19T13:00:58.436Z Phase: intake → define-behavior
 - 2026-07-19T15:04:34.544Z Phase: define-behavior → scenario-gate
+- 2026-07-19T16:18:33.969Z Phase: scenario-gate → plan-implementation
