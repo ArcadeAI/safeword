@@ -6,6 +6,7 @@ phase: intake
 status: in_progress
 created: 2026-07-19T16:06:08.779Z
 last_modified: 2026-07-19T16:06:08.779Z
+external_issue: 1166
 ---
 
 # Anthropic claude-code plugins vs safeword capability comparison
@@ -39,8 +40,18 @@ last_modified: 2026-07-19T16:06:08.779Z
 
 **Recommended first moves:** S1, S2, and G1 — high value, low risk, no philosophy change.
 
+## GitHub tracking
+
+Epic **#1166** `[Epic] Borrow & sharpen from Anthropic claude-code plugins [WNMCH1]` with 11 sub-issues:
+
+- Recommended: S1 #1167 · S2 #1168 · G1 #1169
+- Backlog: S3 #1170 · S4 #1171 · S5 #1172 · G2 #1173 · G3 #1174 · G4 #1175 · G5 #1176 · G6 #1177
+
+(Adjacent: #1165 autonomous cross-vendor PR review — related to G2/S3, cross-linked not duplicated.)
+
 ## Work Log
 
 - 2026-07-19T16:06:08.779Z Started: Created ticket WNMCH1
 - 2026-07-19T16:06Z Filed comparison.md deliverable into ticket; research task complete (documentation artifact, no code change).
 - 2026-07-19T16:19Z Added §7 action candidates to comparison.md (gaps to borrow + overlap to sharpen) and summarized recommended first moves here.
+- 2026-07-19T17:03Z Filed epic #1166 + 11 sub-issues (#1167–#1177) on ArcadeAI/safeword; linked external_issue: 1166. Structure decided via /figure-it-out (epic + all 11, tiered).
