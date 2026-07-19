@@ -6,25 +6,28 @@ phase: intake
 status: in_progress
 depends_on: [G5337S, CWGYH0]
 scope:
-  - GitHub Action workflow template wrapping `anthropics/claude-code-action@v1` (v1.0.174 current, verified 2026-07-15).
-  - Auth: WIF (GitHub OIDC, no static secret) preferred; `claude_code_oauth_token` / `anthropic_api_key` fallbacks.
-  - Trigger gating — `ready_for_review` / `label_trigger` (a native input, default "claude"), NOT every `synchronize`. Noise AND cost control.
-  - Fork-PR safety: no write credential while reading untrusted content; vendor pattern is base ref at workspace root, PR head in a subdirectory via `--add-dir`; never check an untrusted ref into the workspace root under `pull_request_target`.
-  - Dynamic subtraction: detect the project's existing quality surface — linters, types, tests, AND peer AI reviewers (arcade already runs Cursor Bugbot) — and review only the gap.
+  - Runner is a vendor-agnostic, HEADLESS driver — `codex exec` for V1 (author assumed Claude → review cross-vendor), `claude -p` for V2 — reusing the proven two-vendor spawn seams in `hooks/lib/retro-extract.ts` (RetroAgent, buildCodexExtractArgv, runHeadlessExtraction). NOT `claude-code-action` (Claude-only; cannot run headless Codex, which is the cross-vendor default's whole point).
+  - Full checkout of the PR head branch (R17); the vendor invoked headless with the G5337S prompt over the diff + surrounding tree.
+  - Auth per vendor, WIF/OIDC preferred, scoped to the single headless invocation: `CODEX_API_KEY` (Codex) / `claude_code_oauth_token`|`anthropic_api_key` (Claude); never a job-level env var in a job that checks out fork code.
+  - Trigger gating (R8): fire once when a PR is ready AND CI is green (on check-suite conclusion=success), re-fire only on a material post-ready change that re-greens — never every push, never while red.
+  - Verdict output (R9): `needs-a-human` posts a comment; `reviewed` writes a NON-required status-check receipt (not a comment, not an approval); `unreviewable-as-is` posts one note.
+  - Fork-PR safety (SM1.R3): read untrusted head as DATA in an unprivileged job (read-only token, no secrets); hand artifacts to a privileged poster carrying NO approve/merge capability. Do not obtain head via `pull_request_target` checkout (actions/checkout v7 refuses it by default); enable "require approval for external contributors".
+  - Declared-intent access (R6): reach the tracker as the PR author via arcade.dev MCP over HTTP (bearer token) for private-team linkbacks that omit the issue body.
+  - Dynamic subtraction (R1): detect the project's existing quality surface — linters, types, tests, AND peer AI reviewers (arcade runs Cursor Bugbot) — and review only the gap, subtracting on coverage not mention.
   - `safeword setup` distribution: ownedFiles in schema.ts, template↔dogfood parity pairs.
   - Kill switch + per-project trust calibration in `.safeword/config.json` (Tricorder precedent).
 out_of_scope:
   - The review judgment itself — G5337S.
   - A required status check / hard block. Warn-mode only (precedent: done-flip guard #460 held to warn-mode).
-  - A server/daemon — claude-code-action runs on the customer's runners.
+  - A server/daemon — the runner executes on the customer's CI runners.
 done_when:
   - A customer repo gets the reviewer from `safeword setup` with no hand-editing.
-  - A fork PR carrying injected instructions is reviewed without those instructions taking effect and without a write token.
+  - The runner drives a review headlessly on the configured vendor (codex exec V1 / claude -p V2), never on claude-code-action.
+  - The reviewer fires only after CI is green on a ready PR, and re-reviews a material re-green.
+  - A fork PR carrying injected instructions is reviewed without those instructions taking effect and without a write/approve token.
   - Nothing Bugbot or the project's CI already reports is surfaced again.
+  - A clean PR gets a `reviewed` receipt (status mark), never a comment or an approval.
   - The reviewer can be disabled by config without deleting the workflow.
-scope:
-out_of_scope:
-done_when:
 parent: WAWQA6
 created: 2026-07-15T14:24:45.733Z
 last_modified: 2026-07-15T14:24:45.733Z
