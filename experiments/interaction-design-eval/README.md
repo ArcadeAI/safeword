@@ -106,12 +106,41 @@ Grader re-calibrated on the same fixtures (known-bad 0/3, known-good 3/3).
   scorer artifact — the strict scorer recovers the signal.
 - **confirmation — real headroom.** Unchanged: clean 0→4/4.
 
-**Conclusion.** Two reliable lifts, not one: **(1) confirmation before an irreversible autonomous
-action, and (2) actual failure recovery (retry/dead-letter), not a silent `failed` flag.** Both
-are delegation-gulf affordances for _unattended_ actions. Interrupt is free. The broad
-"interaction-design" hypothesis stays dead — the durable capability is narrow and specific:
-_when the system acts on the user's behalf unattended, gate it behind confirmation and make its
-failures recoverable._
+**Provisional conclusion (corrected below).** Read as two lifts — confirmation + recovery.
+The red-team arm overturns the recovery half.
+
+### Red-team: the diligence arm (`grade-strict.mjs`) — recovery was a confound
+
+Threat: the treatment prompt names "recovery" and "confirmation," and the grader checks for
+recovery and confirmation — so the swing might be instruction-following, not a capability the
+framing unlocks. Test: a third arm with **generic diligence** framing ("build it like a senior
+engineer, whole lifecycle, not just the happy path") — no gulf vocabulary, no affordance names.
+
+| Arm                          | interrupt | recovery (retry/DLQ) | confirmation | n/3    |
+| ---------------------------- | --------- | -------------------- | ------------ | ------ |
+| A — control (bare task)      | 4/4       | 0/4                  | 0/4          | 1/3 ×4 |
+| C — diligence (generic)      | 4/4       | **4/4**              | **0/4**      | 2/3 ×4 |
+| B — treatment (gulf framing) | 4/4       | 4/4                  | **4/4**      | 3/3 ×4 |
+
+- **recovery — NOT a design lift.** Generic diligence gets retry/backoff every run. Control only
+  failed it because the prompt said "keep it focused"; remove that suppression with any "be
+  thorough" nudge and recovery appears. It's engineering diligence, not interaction design.
+- **confirmation — the one irreducible lift.** A thorough senior engineer builds retry and cancel
+  but **still fires the send on schedule with no consent gate** (diligence 0/4). Only the
+  interaction framing produces the confirm gate (4/4). This is precisely the value: the consent
+  gate before an irreversible autonomous action is the thing "write good code" does not get you.
+- **interrupt — free** across all three arms.
+
+**Corrected conclusion.** One durable, framing-specific lift, not two: **surface the consent
+decision before an irreversible action the system takes on the user's behalf.** Everything else a
+frontier model already writes given either the bare task (interrupt) or a generic "be thorough"
+nudge (recovery). The broad interaction-design hypothesis is dead; the wedge is sharp and narrow —
+_interaction design is the part that isn't engineering diligence._
+
+Note: confirmation is still _elicited by naming it_ — that's expected and fine; a rule/skill exists
+to reliably surface a consideration the model omits. The non-trivial result is that generic
+diligence does **not** surface it, so the framing earns its keep. Open: the rule should surface the
+_consent question_, not hard-code "always add a confirm step" (a `ci-bot` persona would invert it).
 
 ## Caveats
 
