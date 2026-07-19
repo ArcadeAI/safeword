@@ -300,7 +300,9 @@ weighting). Split test: tiering without provenance-weighting is a working
 reviewer; provenance-weighting without tiering is a working safeguard. Each
 ships standalone value → two Rules. -->
 
-#### autonomous-pr-review.TB1.R8 — The reviewer runs once per change the author has declared ready, not once per push
+#### autonomous-pr-review.TB1.R8 — The reviewer runs once per change the author has declared ready AND whose CI is green — not on every push, and never while CI is red
+
+<!-- CI-green gate added 2026-07-19 (user: "only review AFTER a PR goes green on CI"). Reviewing red code wastes the pass: it is still changing (the author is fixing CI), and its mechanical failures are CI's job, not the reviewer's (R1). The reviewer reads the SETTLED green state — ready (not draft) AND all required checks passed. Trigger: on CI conclusion=success for a ready PR. A material change that re-reds CI waits for green again before re-review; a trivial (docs-only) push never re-fires. The reviewer's own "reviewed" receipt is a NON-required status, so it is not part of the green it waits on — no self-deadlock. -->
 
 ### autonomous-pr-review.NTB1 — Be my eyes on a diff I can't read
 

@@ -234,24 +234,29 @@ Feature: PR review runner — the mechanized gates
         | no findings           | 0              |
 
   @autonomous-pr-review.TB1.R8
-  Rule: autonomous-pr-review.TB1.R8 — the reviewer runs once per change the author has declared ready, not once per push
+  Rule: autonomous-pr-review.TB1.R8 — the reviewer runs once per ready change whose CI is green, not on every push and never while CI is red
 
-    "Not once per push" bounds cost on draft iteration — but a MATERIAL code change
-    after ready is a fresh ready-state, and going blind to it would let code land
-    unreviewed. Trivial (docs-only) post-ready pushes stay at zero.
+    Reviewing red code wastes the pass — it is still changing as the author fixes
+    CI, and its mechanical failures are CI's job, not the reviewer's (R1). The
+    reviewer reads the SETTLED green state. A material change that re-reds CI waits
+    for green again; a trivial (docs-only) push never re-fires. The reviewer's own
+    "reviewed" receipt is non-required, so it is not part of the green it waits on.
 
     @rejection @surface.safeword-cli
-    Scenario Outline: autonomous-pr-review.TB1.R8.a_review_triggers_on_ready_and_on_material_change_not_on_each_push
-      Given a pull request <event>
+    Scenario Outline: autonomous-pr-review.TB1.R8.fires_once_on_a_ready_green_pr_and_re_fires_only_on_a_material_re_green
+      Given a pull request on which <event> occurs, with CI <ci-state>
       When the trigger is evaluated
       Then the reviewer is invoked exactly <runs> time(s)
 
       Examples:
-        | event                                              | runs |
-        | pushed to while still a draft                      | 0    |
-        | marked ready for review                            | 1    |
-        | pushed a change touching only Markdown after ready | 0    |
-        | pushed a change touching a source file after ready | 1    |
+        | event                                     | ci-state | runs |
+        | a push while still a draft                | green    | 0    |
+        | being marked ready for review             | red      | 0    |
+        | being marked ready for review             | pending  | 0    |
+        | being marked ready for review             | green    | 1    |
+        | a docs-only push after the first review   | green    | 0    |
+        | a source-file push after the first review | red      | 0    |
+        | a source-file push after the first review | green    | 1    |
 
   @autonomous-pr-review.TB1.R17
   Rule: autonomous-pr-review.TB1.R17 — the reviewer works from a full checkout of the head branch, not the diff alone
