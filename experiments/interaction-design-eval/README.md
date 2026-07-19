@@ -88,10 +88,30 @@ warning: core affordances are low-headroom). The one durable, reliable lift is t
 confirmation / consent gate before an irreversible autonomous action** — the sharpest, least-
 internalized corner of the delegation gulf.
 
-**Before concluding:** tighten the interrupt + recovery scorers to test _robustness_ (race-safe
-cancel; actual retry vs. a mere `failed` flag) and re-grade. If headroom reappears there, the
-lift is wider than one dimension. If not, the capability is narrow enough to be a one-line rule,
-not a skill.
+### Strict re-grade (`grade-strict.mjs`) — recovery headroom reappeared
+
+Re-scored the same 8 runs asking "is the affordance _robust_?" instead of "present?"
+(recovery must retry/back-off/dead-letter, not just flag `failed`; cancel must be race-safe).
+Grader re-calibrated on the same fixtures (known-bad 0/3, known-good 3/3).
+
+| Arm           | interrupt (race-safe) | recovery (retry/DLQ) | confirmation | n/3    |
+| ------------- | --------------------- | -------------------- | ------------ | ------ |
+| A — control   | 4/4                   | **0/4**              | **0/4**      | 1/3 ×4 |
+| B — treatment | 4/4                   | **4/4**              | **4/4**      | 3/3 ×4 |
+
+- **interrupt — genuinely 0 headroom.** Even strictly, every control run writes a race-safe
+  cancel (send re-checks state before firing). The model does this well unprompted.
+- **recovery — real headroom, hidden by the lenient scorer.** Control _marks_ `failed` but
+  never retries; treatment retries with backoff + dead-letters, 4/4. The lenient pass was a
+  scorer artifact — the strict scorer recovers the signal.
+- **confirmation — real headroom.** Unchanged: clean 0→4/4.
+
+**Conclusion.** Two reliable lifts, not one: **(1) confirmation before an irreversible autonomous
+action, and (2) actual failure recovery (retry/dead-letter), not a silent `failed` flag.** Both
+are delegation-gulf affordances for _unattended_ actions. Interrupt is free. The broad
+"interaction-design" hypothesis stays dead — the durable capability is narrow and specific:
+_when the system acts on the user's behalf unattended, gate it behind confirmation and make its
+failures recoverable._
 
 ## Caveats
 
