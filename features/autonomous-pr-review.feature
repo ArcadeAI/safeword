@@ -1,16 +1,19 @@
 @wip
-Feature: PR review runner — the mechanized gates
+Feature: PR review — the deterministically-checkable behavior
 
-  The reviewer's JUDGMENT is prompt (G5337S) and is proven by eval, not Gherkin —
-  you cannot Gherkin a prompt. What IS mechanically testable is the runner around
-  it (36EEMY): which tree it reads, what it refuses to post, and what it never
-  says twice. These scenarios cover exactly that surface.
+  The reviewer's JUDGMENT (does this finding clear the bar? is this design wrong?)
+  is prompt (G5337S) and is proven by eval, not Gherkin — you cannot Gherkin a
+  prompt. What IS deterministically checkable is the reviewer's observable
+  behavior: which tree it reads, when it speaks, what it refuses to post, what
+  verdict it records, and what it never says twice. These scenarios cover that
+  behavior — independent of the mechanism (codex exec / claude -p, a GitHub
+  Action) that produces it, which lives in the runner (36EEMY).
 
   Two of these Rules exist because the corresponding PROSE rule already failed in
   a live trial. PRINCIPLES §1: instructions are the weakest enforcement tier.
 
-  Non-event assertions (nothing posted, not invoked) are each paired with a
-  discriminating positive in the same scenario, so a do-nothing runner fails.
+  Non-event assertions (nothing posted, no review produced) are each paired with a
+  discriminating positive in the same scenario, so a do-nothing implementation fails.
 
   @autonomous-pr-review.TB1.R12
   Rule: autonomous-pr-review.TB1.R12 — a finding that reproduces on the base branch is not this PR's feedback
@@ -197,13 +200,14 @@ Feature: PR review runner — the mechanized gates
     runs on Codex and the refuter is Claude — the author's own lineage — so a
     refutation can share the author's blind spot. A refuted finding is therefore
     marked contested (down-weighted), not dropped; an adversary that errors leaves
-    the finding posted-but-unchecked. The second vendor's verdict is a stubbed
-    input here — this tests the runner's routing, not a live model's judgment.
+    the finding posted-but-unchecked. These scenarios set the second vendor's
+    verdict as a given and check the reviewer's observable handling of it, not a
+    live model's judgment.
 
     @surface.safeword-cli
     Scenario: autonomous-pr-review.TB1.R14.a_refuted_finding_is_marked_contested_not_dropped
       Given two findings from the first vendor
-      And the second vendor is stubbed to refute the first finding and not the second
+      And the second vendor refutes the first finding and not the second
       When the review is produced
       Then both findings are posted
       And the posted first finding carries a visible contested annotation
@@ -212,26 +216,26 @@ Feature: PR review runner — the mechanized gates
     @surface.safeword-cli
     Scenario Outline: autonomous-pr-review.TB1.R14.the_adversary_outcome_sets_the_findings_check_mark
       Given a finding from the first vendor
-      And the second vendor <adversary-outcome> when invoked
+      And the second vendor <adversary-outcome>
       When the review is produced
       Then the finding is posted
       And the finding's adversarial mark is <mark>
 
       Examples:
-        | adversary-outcome   | mark                               |
-        | errors              | not adversarially checked          |
-        | runs and affirms it | adversarially checked, uncontested |
+        | adversary-outcome | mark                               |
+        | errors on it      | not adversarially checked          |
+        | affirms it        | adversarially checked, uncontested |
 
     @surface.safeword-cli
-    Scenario Outline: autonomous-pr-review.TB1.R14.the_second_vendor_runs_only_when_findings_exist
+    Scenario Outline: autonomous-pr-review.TB1.R14.a_finding_is_adversarially_marked_only_when_a_finding_exists
       Given the first vendor produces <first-vendor-findings>
       When the review is produced
-      Then the second vendor is invoked exactly <adversary-runs> time(s)
+      Then the review carries an adversarial mark on <marked>
 
       Examples:
-        | first-vendor-findings | adversary-runs |
-        | one finding           | 1              |
-        | no findings           | 0              |
+        | first-vendor-findings | marked       |
+        | one finding           | that finding |
+        | no findings           | nothing      |
 
   @autonomous-pr-review.TB1.R8
   Rule: autonomous-pr-review.TB1.R8 — the reviewer runs once per ready change whose CI is green, not on every push and never while CI is red
@@ -245,18 +249,18 @@ Feature: PR review runner — the mechanized gates
     @rejection @surface.safeword-cli
     Scenario Outline: autonomous-pr-review.TB1.R8.fires_once_on_a_ready_green_pr_and_re_fires_only_on_a_material_re_green
       Given a pull request on which <event> occurs, with CI <ci-state>
-      When the trigger is evaluated
-      Then the reviewer is invoked exactly <runs> time(s)
+      When that state is reached
+      Then the reviewer <outcome>
 
       Examples:
-        | event                                     | ci-state | runs |
-        | a push while still a draft                | green    | 0    |
-        | being marked ready for review             | red      | 0    |
-        | being marked ready for review             | pending  | 0    |
-        | being marked ready for review             | green    | 1    |
-        | a docs-only push after the first review   | green    | 0    |
-        | a source-file push after the first review | red      | 0    |
-        | a source-file push after the first review | green    | 1    |
+        | event                                     | ci-state | outcome                    |
+        | a push while still a draft                | green    | produces no review         |
+        | being marked ready for review             | red      | produces no review         |
+        | being marked ready for review             | pending  | produces no review         |
+        | being marked ready for review             | green    | produces a review          |
+        | a docs-only push after the first review   | green    | produces no further review |
+        | a source-file push after the first review | red      | produces no further review |
+        | a source-file push after the first review | green    | produces a further review  |
 
   @autonomous-pr-review.TB1.R17
   Rule: autonomous-pr-review.TB1.R17 — the reviewer works from a full checkout of the head branch, not the diff alone
@@ -375,15 +379,17 @@ Feature: PR review runner — the mechanized gates
       And that decision appears after the findings, not in place of them
 
   @autonomous-pr-review.SM1.R3
-  Rule: autonomous-pr-review.SM1.R3 — the reviewer never executes fork-PR code while holding a write token or secrets
+  Rule: autonomous-pr-review.SM1.R3 — the reviewer never executes fork-PR code while holding a credential that can write, comment, or approve
 
     Refined 2026-07-17 (/figure-it-out, GitHub Security Lab "pwn requests"). The
-    pwn-request threat is EXECUTION of untrusted code with secrets present — not
-    reading it. Reading the diff as data and sending it to the model is safe in a
-    privileged job; running the fork's code is not. The two gates that execute
-    (R13 fix-run, R12 base-repro) must degrade on a fork or run in an unprivileged
-    sidecar. The tripwire is EXECUTION, so any new run-fork-code step is visibly in
-    violation.
+    pwn-request threat is EXECUTION of untrusted code while a credential is present
+    — not reading it. Reading the diff as data and sending it to the model is safe
+    while a credential is held; running the fork's code is not. The two gates that
+    execute (R13 fix-run, R12 base-repro) must degrade on a fork rather than run its
+    code while a write/approve credential is present. The tripwire is EXECUTION of
+    fork code with a credential, so any new run-fork-code step is visibly in
+    violation. (The GitHub instantiation — read in an unprivileged job, hand off to
+    a privileged poster — lives in the runner, 36EEMY.)
 
     @surface.safeword-cli
     Scenario: autonomous-pr-review.SM1.R3.a_fork_is_reviewed_and_posted_without_running_the_forks_gates
@@ -391,7 +397,7 @@ Feature: PR review runner — the mechanized gates
       And the reviewer holds a token that can post comments
       When the reviewer produces and posts its review
       Then the review is posted to the pull request
-      And no fix-run or base-reproduction step executes the fork's head in the privileged job
+      And no fix-run or base-reproduction step executes the fork's head while that token is held
 
     @rejection @surface.safeword-cli
     Scenario: autonomous-pr-review.SM1.R3.the_fix_gate_degrades_on_a_fork_rather_than_running_fork_code
