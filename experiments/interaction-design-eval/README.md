@@ -63,17 +63,35 @@ mean nothing. `--calibrate` enforces this.
 4. **Scorer catches known-bad?** Enforced by `--calibrate`.
 5. **Clear action on result?** Swing → build the skill. No swing → don't. Go/no-go.
 
-## Result
+## Result (2026-07-19, N=4/arm, session frontier model)
 
-_Pending run. Log per-arm n/3 and the per-scorer breakdown in the issue work log._
+Split verdict — headroom is real but **narrow**, not broad.
 
-| Arm           | interrupt | recovery | confirmation | n/3 |
-| ------------- | --------- | -------- | ------------ | --- |
-| A — control   |           |          |              |     |
-| B — treatment |           |          |              |     |
+| Arm           | interrupt | recovery | confirmation | n/3    |
+| ------------- | --------- | -------- | ------------ | ------ |
+| A — control   | 4/4       | 4/4      | **0/4**      | 2/3 ×4 |
+| B — treatment | 4/4       | 4/4      | **4/4**      | 3/3 ×4 |
 
-Read: a clean **control-fails → treatment-passes** swing (esp. on interrupt + recovery)
-means real headroom → build the skill. Control already passing means zero headroom → don't.
+- **interrupt — 0 headroom.** Every control run added `cancel`/`delete` unprompted.
+- **recovery — 0 headroom on this scorer.** Every control run surfaced a `failed` status.
+  _Caveat: the scorer is coarse — control only **marks** failure; treatment **retries with
+  backoff + dead-letters**. There is a robustness delta a binary "surfaced-or-retried" scorer
+  can't see._
+- **confirmation — clean 0→4/4 swing.** No control run gated the send; every control fires on
+  create (`setTimeout` on schedule). Every treatment run added an explicit `draft → confirm`
+  two-step so a mistaken blast is caught before it commits. Spot-checked as real wiring, not a
+  keyword match.
+
+**Read:** a broad "interaction-design" skill would be mostly decorative on a frontier model —
+it already writes cancel and a visible failure state unprompted (exactly the `skill-pack-efficacy-gate`
+warning: core affordances are low-headroom). The one durable, reliable lift is the **pre-send
+confirmation / consent gate before an irreversible autonomous action** — the sharpest, least-
+internalized corner of the delegation gulf.
+
+**Before concluding:** tighten the interrupt + recovery scorers to test _robustness_ (race-safe
+cancel; actual retry vs. a mere `failed` flag) and re-grade. If headroom reappears there, the
+lift is wider than one dimension. If not, the capability is narrow enough to be a one-line rule,
+not a skill.
 
 ## Caveats
 
