@@ -34,11 +34,15 @@ Feature: PR review runner — the mechanized gates
       Then the finding is posted as an inline comment on the changed line
 
     @surface.safeword-cli
-    Scenario: autonomous-pr-review.TB1.R12.a_pr_whose_only_finding_is_latent_is_verdicted_safe_to_merge
-      Given a pull request whose only finding reproduces unchanged on the base branch
-      And that finding would be verdicted needs-a-human if the PR had caused it
+    Scenario Outline: autonomous-pr-review.TB1.R12.the_same_defect_verdicts_differently_by_whether_the_pr_caused_it
+      Given a pull request whose only finding <origin>
       When the reviewer decides the verdict
-      Then the verdict is safe-to-merge
+      Then the verdict is <verdict>
+
+      Examples:
+        | origin                                  | verdict       |
+        | reproduces unchanged on the base branch | reviewed      |
+        | appears only on a line the PR changed   | needs-a-human |
 
   @autonomous-pr-review.TB1.R13
   Rule: autonomous-pr-review.TB1.R13 — a suggested fix is not posted unless it has been run against the tests it could break
@@ -85,6 +89,26 @@ Feature: PR review runner — the mechanized gates
         | all already covered by the project tests | 0     |
         | one uncovered defect on a changed line   | 1     |
 
+  @autonomous-pr-review.TB1.R9
+  Rule: autonomous-pr-review.TB1.R9 — every review records a verdict; a clean PR is marked reviewed, never left as bare silence
+
+    The reviewed receipt is a recorded status mark, not a comment (so R2 holds). It
+    exists because pure silence is ambiguous with "the reviewer never ran" — the
+    receipt proves the pass happened without endorsing merge. safe-to-merge is
+    retired; the closed verdict set is needs-a-human, reviewed, unreviewable-as-is.
+
+    @surface.safeword-cli
+    Scenario Outline: autonomous-pr-review.TB1.R9.a_clean_pr_is_marked_reviewed_and_a_flagged_one_needs_a_human
+      Given a pull request whose findings are <finding-state>
+      When the reviewer runs to completion
+      Then the recorded verdict is <verdict>
+      And the review comment count is <comments>
+
+      Examples:
+        | finding-state                       | verdict       | comments |
+        | nothing rising to a human           | reviewed      | 0        |
+        | one uncovered defect on a changed line | needs-a-human | 1     |
+
   @autonomous-pr-review.TB1.R6
   Rule: autonomous-pr-review.TB1.R6 — the reviewer uses whatever declared intent the project exposes
 
@@ -103,16 +127,16 @@ Feature: PR review runner — the mechanized gates
   Rule: autonomous-pr-review.TB1.R7 — a finding never claims more certainty than the intent source it rests on supports
 
     @rejection @surface.safeword-cli
-    Scenario Outline: autonomous-pr-review.TB1.R7.completeness_severity_is_bound_by_ticket_to_pr_cardinality
+    Scenario Outline: autonomous-pr-review.TB1.R7.completeness_certainty_is_bound_by_ticket_to_pr_cardinality
       Given a pull request whose ticket is referenced by <pr-count>
       And the diff does not implement every item the ticket names
       When the reviewer reports the unimplemented items
-      Then the report <outcome>
+      Then the completeness report is posted as <severity>
 
       Examples:
-        | pr-count      | outcome                          |
-        | more than one | is a question and does not block |
-        | exactly one   | blocks as a completeness finding |
+        | pr-count      | severity                                         |
+        | more than one | a question that does not assert the gap          |
+        | exactly one   | a completeness finding asserted at full severity |
 
   @autonomous-pr-review.TB1.R11
   Rule: autonomous-pr-review.TB1.R11 — the reviewer runs on a different vendor than the agent that wrote the code
@@ -261,14 +285,19 @@ Feature: PR review runner — the mechanized gates
         | changes 800 lines of generated fixture data  | assesses fewer than every dimension       |
 
   @autonomous-pr-review.TB2.R2
-  Rule: autonomous-pr-review.TB2.R2 — a change to a sensitive surface is never verdicted safe-to-merge on size alone
+  Rule: autonomous-pr-review.TB2.R2 — a change to a sensitive surface is never marked reviewed on size alone
 
     @rejection @surface.safeword-cli
-    Scenario: autonomous-pr-review.TB2.R2.a_tiny_auth_change_with_an_open_question_is_not_verdicted_safe_on_size
+    Scenario Outline: autonomous-pr-review.TB2.R2.size_never_buys_a_reviewed_receipt_on_a_sensitive_surface
       Given a two-line pull request that modifies an authorization control
-      And the reviewer holds an unresolved question about that control
+      And the reviewer <concern-state> about that control
       When the reviewer decides the verdict
-      Then the verdict is not safe-to-merge
+      Then the verdict is <verdict>
+
+      Examples:
+        | concern-state                       | verdict       |
+        | holds an unresolved question        | needs-a-human |
+        | has every question resolved cleanly | reviewed      |
 
   @autonomous-pr-review.TB2.R3
   Rule: autonomous-pr-review.TB2.R3 — an author's unanswered request for review reaches a human

@@ -64,11 +64,13 @@ Spec-local pending curation (see Open Questions — these are absent from `.proj
 
 #### autonomous-pr-review.TB1.R2 — A pull request with nothing worth saying receives no comment at all
 
+<!-- Holds under the reviewed-receipt (R9): the receipt is a status/check mark, not a comment. "No comment" is not "no signal" — the PR is still marked reviewed. -->
+
 #### autonomous-pr-review.TB1.R3 — Every finding that clears the bar is surfaced, and nothing that doesn't — the review neither pads nor truncates
 
-#### autonomous-pr-review.TB1.R9 — Every review reaches a verdict on whether the PR needs a human; a needs-a-human verdict is surfaced without opening the diff, and safe-to-merge is delivered as silence (R2), not a posted comment
+#### autonomous-pr-review.TB1.R9 — Every review reaches one verdict from a closed set — needs-a-human, reviewed, or unreviewable-as-is; needs-a-human is surfaced without opening the diff, and reviewed is a marked receipt, never a merge endorsement
 
-<!-- Clarified 2026-07-18 to reconcile with R2 ("a clean PR receives no comment at all"): the verdict always EXISTS, but only needs-a-human is POSTED; safe-to-merge is the absence of a review. So R2 and R9 do not contradict — silence IS the safe-to-merge signal. -->
+<!-- Verdict vocabulary settled 2026-07-19 (user). Closed set: {needs-a-human, reviewed, unreviewable-as-is}. safe-to-merge is RETIRED — the reviewer will not assert merge-safety while its efficacy is unproven ("one confident-but-wrong safe-to-merge collapses the trust"), and it saved nothing anyway (the team already skips small PRs). "reviewed" replaces it: a neutral RECEIPT that the reviewer ran and found nothing rising to needs-a-human — emitted as a status/check mark, NOT a posted comment (so R2's no-noise holds) and NOT a merge approval. The receipt exists because pure silence is ambiguous with "the reviewer never ran"; the user needs to see it was reviewed. needs-a-human is the ONLY verdict that POSTS; the reader sees it as push-back (a concern) or ask (an open question). "block" is retired as a verdict value (R7) — the reviewer is advisory and gates nothing; R5/R15's "never blocks" prose IS that advisory stance and stays. -->
 
 #### autonomous-pr-review.TB1.R10 — A pull request with more real problems than are worth enumerating is verdicted unreviewable-as-is, not flooded with comments
 
@@ -328,7 +330,9 @@ the code; NTB reads the stake; both are served by the same finding. -->
 
 #### autonomous-pr-review.NTB1.R3 — The review names what could break if the change is wrong
 
-#### autonomous-pr-review.NTB1.R4 — The review ends in a decision the reader can act on — merge, push back, or ask — not just a list of problems
+#### autonomous-pr-review.NTB1.R4 — The review ends in a decision the reader can act on — push back or ask — not just a list of problems
+
+<!-- "merge" dropped 2026-07-19 with the verdict-vocabulary settle (R9): a POSTED review is always needs-a-human, whose reader-facing flavors are push-back (a concern) and ask (an open question). A PR with nothing to post gets the "reviewed" receipt (R9), not a posted "merge" decision — the reviewer never endorses merge-safety. -->
 
 ### autonomous-pr-review.SM1 — Trust the reviewer before it fires on someone else's repo
 
@@ -386,13 +390,14 @@ triaged by SIZE — <100 lines get a human comment 18% of the time, 500+ get 62%
 this intentionally removes a nominal security control... please sanity-check
 that reasoning." It got one bare APPROVED, zero comments, and merged. The size
 heuristic is rational and it has a systematic blind spot; this job is that gap.
-NOTE this INVERTS the original product bet: `safe-to-merge` saves nothing (they
-already skip 82% of small PRs). `needs-a-human` on what they'd wave through IS
-the product. -->
+NOTE this INVERTS the original product bet, and is WHY safe-to-merge is retired
+(R9): a safe-to-merge verdict saves nothing (they already skip 82% of small
+PRs). `needs-a-human` on what they'd wave through IS the product; the neutral
+`reviewed` receipt just proves the pass happened, without endorsing merge. -->
 
 #### autonomous-pr-review.TB2.R1 — Review depth is set by what the change touches, never by how many lines it has
 
-#### autonomous-pr-review.TB2.R2 — A change to a sensitive surface (auth, permissions, migrations, public API, CI credentials) is never verdicted safe-to-merge on size alone
+#### autonomous-pr-review.TB2.R2 — A change to a sensitive surface (auth, permissions, migrations, public API, CI credentials) is never marked reviewed on size alone — an unresolved question on it routes to needs-a-human
 
 #### autonomous-pr-review.TB2.R3 — When an author asks in the PR for a specific review, an answer to that request appears or the PR is verdicted needs-a-human
 
