@@ -252,4 +252,35 @@ Opportunities safeword could borrow or run alongside:
 
 ---
 
+## 7. Action candidates for safeword
+
+Two kinds of follow-up: **net-new gaps to borrow** (capabilities we lack) and **overlap to sharpen** (things we already have where Anthropic's version carries a mechanic worth adopting). Prioritized.
+
+### 7a. Gaps worth borrowing (net-new capability)
+
+| # | Borrow | From | Value | Effort |
+|---|---|---|---|---|
+| G1 | Explicit commit/PR/cleanup commands — esp. `clean_gone` (delete `[gone]` branches + worktrees), one-shot commit→push→PR | `commit-commands` | Fills an action safeword has no equivalent for; complements our commit-cadence enforcement | Low |
+| G2 | Discrete specialist review agents with per-axis rubrics — `type-design-analyzer` (4-axis), `silent-failure-hunter` (error-handling), `code-simplifier` | `pr-review-toolkit` | Adds review axes our holistic pass doesn't isolate | Med |
+| G3 | User-authored guardrail DSL — markdown rule files + transcript-mining to propose rules | `hookify` | Lets a project mint its own guardrails; we only ship fixed ones | Med |
+| G4 | Dedicated agentic security tracer — cross-file taint tracing + vuln taxonomy | `security-guidance` | Deeper on security than our general Stop-gate | High |
+| G5 | Frontend/visual design skill — anti-templating, subject-derived design doctrine | `frontend-design` | Total gap; only matters if UI work is in scope | Med |
+| G6 | Teaching/pairing output modes — hand the human the load-bearing decisions | `learning-output-style` | No safeword equivalent; optional pedagogy mode | Low |
+
+_Lower priority / narrow: plugin-authoring toolkit (`plugin-dev`), SDK scaffolder (`agent-sdk-dev`), model-migration helper, the Ralph iterate-until-true loop._
+
+### 7b. Overlap to sharpen (we have a counterpart; borrow the mechanic)
+
+| # | Sharpen | Our asset | Borrow the mechanic from | Value | Effort | Rec |
+|---|---|---|---|---|---|---|
+| S1 | Scope the auto Stop-review to **only this session's diff** via a `git stash create` baseline SHA that advances each turn | `stop-quality.ts` | `security-guidance` layer 2 | Kills "complaining about code I didn't touch" noise; cheaper review | Low–Med | **Pursue** |
+| S2 | Render each scenario/test with **the specific regression it prevents** ("what breaks if deleted?") | `testing` / `test-definitions` | `pr-test-analyzer` | Directly lifts scenario quality; fits our existing doctrine | Low | **Pursue** |
+| S3 | Explicit **cheap-triage-first model ladder** (skip trivial diffs) + a distinct **validate-then-filter** stage before reporting findings | `quality-review` / `stop-quality` cross-model review | `code-review` | Better cost/signal on the Stop-gate | Med | Consider |
+| S4 | **Biased-parallel option generation** — fan out 2-3 sub-agents with different biases (minimal/clean/pragmatic), user picks | `figure-it-out` | `feature-dev` | Genuine independence for one-way-door decisions | Med | Consider (big decisions only) |
+| S5 | **Escalating-cost review tiers** (regex → single-shot LLM → agentic cross-file) for depth-on-demand | single-tier quality gate | `security-guidance` 3-layer | Depth only where warranted | High | Later |
+
+**Recommendation:** pursue **S1 and S2** first (high value, low risk, no philosophy change), plus **G1** (cheap, clear gap). Everything else is "consider," gated on appetite.
+
+---
+
 _End of comparison._

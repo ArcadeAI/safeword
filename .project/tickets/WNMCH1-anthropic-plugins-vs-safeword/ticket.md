@@ -31,7 +31,16 @@ last_modified: 2026-07-19T16:06:08.779Z
 - Anthropic-only territory: frontend design, plugin/SDK authoring, specialist review agents, commit commands, hookify DSL, teaching output modes, Ralph loop, model migration.
 - Highest-value plugins to run alongside safeword: `pr-review-toolkit`, `security-guidance`, `frontend-design`, `commit-commands`.
 
+## Action candidates (see comparison.md §7)
+
+**Gaps worth borrowing (net-new):** G1 commit/PR/cleanup commands incl. `clean_gone` (low) · G2 specialist review agents w/ per-axis rubrics (med) · G3 hookify-style user-authored guardrail DSL (med) · G4 agentic security tracer (high) · G5 frontend-design skill (med) · G6 teaching output modes (low).
+
+**Overlap to sharpen (borrow the mechanic):** S1 scope Stop-review to this-session's diff via git-stash baseline (**pursue**) · S2 render each test with "the regression it prevents" (**pursue**) · S3 cheap-triage model ladder + validate-then-filter stage (consider) · S4 biased-parallel option generation in figure-it-out (consider) · S5 escalating-cost review tiers (later).
+
+**Recommended first moves:** S1, S2, and G1 — high value, low risk, no philosophy change.
+
 ## Work Log
 
 - 2026-07-19T16:06:08.779Z Started: Created ticket WNMCH1
 - 2026-07-19T16:06Z Filed comparison.md deliverable into ticket; research task complete (documentation artifact, no code change).
+- 2026-07-19T16:19Z Added §7 action candidates to comparison.md (gaps to borrow + overlap to sharpen) and summarized recommended first moves here.
