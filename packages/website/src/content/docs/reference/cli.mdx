@@ -113,6 +113,27 @@ bunx safeword@latest sync-config
 
 ---
 
+## safeword review-pr
+
+Run the autonomous PR reviewer against one pull request.
+
+```bash
+safeword review-pr --repository owner/repo --pull 123
+```
+
+**When to use:** Almost never by hand — the installed `.github/workflows/pr-review.yml`
+invokes it, taking the repository and pull number from the workflow context.
+Reach for it directly only to debug why a review did or didn't fire; it prints
+the trigger decision and which source answered "what is required here".
+
+Exits 0 whether or not it reviews. Declining to review — not enabled, still a
+draft, CI not green, nothing material since the last pass — is a normal outcome
+and must not redden CI. Only a genuine fault fails the command. See
+[Autonomous PR review](/reference/configuration#autonomous-pr-review) for the
+config keys and the two repository settings to set first.
+
+---
+
 ## File Ownership
 
 Safeword manages two types of files:

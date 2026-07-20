@@ -141,6 +141,62 @@ Two opt-in review gates (both default off) add independent-review requirements o
 
 When enabled, the agent presents the reviewed plan (riskiest assumption, build order, decisions) and waits for approval before entering the implement phase. In headless/cloud sessions the pending approval is recorded in the ticket work log and the plan surfaces in the session's reviewable output instead of stalling the run.
 
+## Autonomous PR review
+
+`safeword setup` installs `.github/workflows/pr-review.yml`. It **ships off** — both
+jobs exit immediately unless you opt in, so upgrading never starts commenting on
+your pull requests. Turn it on in `.safeword/config.json`:
+
+```json
+{
+  "prReview": {
+    "enabled": true,
+    "post": false
+  }
+}
+```
+
+| Key              | Default | Meaning                                                                                                                                                                                         |
+| ---------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `enabled`        | `false` | Whether the reviewer runs at all. Only a literal `true` enables it — `"true"` as a string stays off.                                                                                            |
+| `post`           | `false` | Whether it may write to the pull request. `enabled: true, post: false` is **shadow mode**: it runs and stays completely silent, which is how you watch it for a week before spending any trust. |
+| `requiredChecks` | `[]`    | Which checks must be green before it reviews. Only needed on repos still using classic branch protection — with rulesets, safeword reads the required set itself.                               |
+| `arcade.userId`  | —       | Arcade user whose tracker access is brokered, for reading the linked issue.                                                                                                                     |
+
+The reviewer waits for a **ready, green** pull request, reviews once per commit,
+and re-reviews only when a material (non-docs) change goes green again.
+
+### Before you enable it
+
+GitHub has no token scope that allows commenting while forbidding approval, so
+the guarantee that this reviewer can never approve or merge rests partly on two
+repository settings. Set both:
+
+1. **Settings → Actions → General → Workflow permissions**: uncheck _"Allow
+   GitHub Actions to create and approve pull requests."_ This is the real
+   structural control — without it, a workflow token's approval counts toward
+   required-approval branch protection.
+2. **Branch protection → "Require approval of the most recent reviewable push."**
+
+For forks, also enable _"Require approval for all external contributors"_ so the
+reviewer only runs on a fork when a maintainer allows it.
+
+Two behaviours that surprise people:
+
+- **It cannot review the pull request that installs it.** GitHub only triggers
+  `workflow_run` from the workflow file on your default branch, so the first
+  review happens after that PR merges.
+- **The enable switch is read from your base branch, never from the pull
+  request.** Otherwise any fork could switch off its own review.
+
+### Current status
+
+The runner is complete through trigger gating, verdict recording, and posting,
+but **the headless vendor invocation is not wired yet**. Enabling it today
+produces a green job that logs `no vendor configured` and posts nothing. It is
+safe to turn on early to watch the trigger behave; it will not review until that
+slice lands.
+
 ## Customizing Without Losing Upgrades
 
 Safeword has two types of files:
