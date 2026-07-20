@@ -111,8 +111,8 @@ _Slice 5 (`resolveIntent()` — linkback body ⇒ 0 tracker calls; bare linkback
 
 ### Scenario Outline: autonomous-pr-review.TB1.R6.intent_falls_through_to_a_brokered_read_when_the_linkback_is_bare
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 0147fd4c5
+- [x] GREEN 9264f83a2
 - [ ] REFACTOR
 
 ## Rule: autonomous-pr-review.TB1.R7 — a finding never claims more certainty than the intent source it rests on supports
