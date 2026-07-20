@@ -132,19 +132,19 @@ _Slice 6 (`selectVendor()` + `crossModelClaim()`; **unit** for the 4-row pairing
 ### Scenario: autonomous-pr-review.TB1.R11.an_undetectable_author_defaults_to_reviewing_with_codex
 
 - [x] RED 7424d6f74
-- [x] GREEN VENDORGREEN
+- [x] GREEN 6288c0d68
 - [ ] REFACTOR
 
 ### Scenario Outline: autonomous-pr-review.TB1.R11.the_cross_vendor_declaration_tracks_the_actual_pairing
 
 - [x] RED 7424d6f74
-- [x] GREEN VENDORGREEN
+- [x] GREEN 6288c0d68
 - [ ] REFACTOR
 
 ### Scenario: autonomous-pr-review.TB1.R11.an_author_from_the_reviewing_vendor_flips_the_reviewer
 
 - [x] RED 7424d6f74
-- [x] GREEN VENDORGREEN
+- [x] GREEN 6288c0d68
 - [ ] REFACTOR
 
 ## Rule: autonomous-pr-review.TB1.R14 — when a finding exists, a second vendor tries to refute it before anyone sees it
