@@ -27,6 +27,8 @@ Common vacuous patterns, each with its fix:
 - **Trivially-true setup** — the `Given` already makes the `Then` true regardless of the `When` → move the real precondition out of the assertion.
 - **Non-claim `Then`** ("the system remains running") → assert a falsifiable outcome the feature produces.
 
+**Constant-implementation lens** — sharper than deleting the feature: replace it with a _constant_ that ignores the input and always returns the asserted value. Could the scenario still pass? A non-event `Then` (nothing posted, not invoked) **with no positive sibling** in the same scenario, a flag asserted at a single value, or a `Scenario Outline` whose rows don't force different outputs all survive a constant — none of them show the result varying with the input. Fix: pair the assertion with the discriminating case (the input that must produce the _other_ output) in the same scenario, so the constant is forced to fail.
+
 ## AODI validation
 
 Validate each scenario against four criteria:
@@ -72,7 +74,7 @@ Report findings the way safeword talks to the user — lead with the answer, str
 
 - **Lead with a tally** — `**Findings:** N must-fix, M should-strengthen, P looks-good.`
 - **Three tiers** — Must Fix (correctness/structure), Should Strengthen (clarity/specificity), Looks Good (specific acknowledgement, never padding).
-- **One `####` per finding** with the scenario id + a short issue; under it, **Current** (quote the G/W/T, bold the offending phrase) → why → **Proposed** (the rewrite). Fix last, so the explanation reads as the answer, not justification.
+- **One `####` per finding** with the scenario id + a short issue; under it, **Current** (quote the G/W/T, bold the offending phrase) → why → **Proposed** (the rewrite). Fix last, so the explanation reads as the answer, not justification. **The `Proposed` rewrite is a claim in its own right** — it must still prove the same Rule and survive the checks above (a rewrite that fixes AODI but no longer covers the criterion is a regression). PRINCIPLES §1, _verify the remedy, not just the finding_.
 - **Bulk** — when one pattern hits ≥3 scenarios: one header, an **Affected** id list, one **Representative** quote, one **Proposed pattern**.
 - **End with `**Next:**`** — the single fix to start.
 
