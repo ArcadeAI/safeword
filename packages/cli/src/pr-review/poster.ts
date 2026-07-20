@@ -41,8 +41,18 @@ export interface ReviewPoster {
   postInlineComment(comment: { path: string; line: number; body: string }): Promise<void>;
   /** A conversation comment — used for notes that do not anchor to a line. */
   postIssueComment(body: string): Promise<void>;
-  /** The non-required `reviewed` receipt. Never a comment, never an approval. */
-  createCheckRun(run: { name: string; conclusion: 'neutral'; summary: string }): Promise<void>;
+  /**
+   * The non-required receipt that records the verdict. Never a comment, never
+   * an approval, and never a failure — the reviewer is advisory and gates
+   * nothing, so `neutral` is the only conclusion it may write.
+   */
+  createCheckRun(run: {
+    name: string;
+    conclusion: 'neutral';
+    /** The recorded verdict — what a reader checks to see what the pass concluded. */
+    title: string;
+    summary: string;
+  }): Promise<void>;
 }
 
 /**
@@ -97,7 +107,7 @@ export function createReviewPoster(request: GitHubRequest, context: PullContext)
         head_sha: headSha,
         status: 'completed',
         conclusion: run.conclusion,
-        output: { title: run.name, summary: run.summary },
+        output: { title: run.title, summary: run.summary },
       }),
   };
 }

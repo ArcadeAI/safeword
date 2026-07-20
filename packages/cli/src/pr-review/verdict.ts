@@ -51,14 +51,15 @@ function renderFinding(finding: ReviewFinding): string {
  * hijacked by injected diff content still only produces comments (SM1.R3).
  */
 export async function postVerdict(review: Review, poster: ReviewPoster): Promise<void> {
-  if (review.verdict === 'reviewed') {
-    await poster.createCheckRun({
-      name: RECEIPT_CHECK_NAME,
-      conclusion: 'neutral',
-      summary: 'Reviewed — nothing rising to a human. This is a receipt, not an approval.',
-    });
-    return;
-  }
+  // The verdict is recorded on EVERY path, including the ones that also post.
+  // Recording only on silence would leave a reader unable to tell "flagged" from
+  // "the reviewer never ran" — the ambiguity the receipt exists to remove (R9).
+  await poster.createCheckRun({
+    name: RECEIPT_CHECK_NAME,
+    conclusion: 'neutral',
+    title: review.verdict,
+    summary: RECEIPT_SUMMARY[review.verdict],
+  });
 
   if (review.verdict === 'unreviewable-as-is') {
     await poster.postIssueComment(
@@ -68,6 +69,10 @@ export async function postVerdict(review: Review, poster: ReviewPoster): Promise
     return;
   }
 
+  // `reviewed` posts nothing: nothing rose to a human, and a comment saying so
+  // would be exactly the noise R2 forbids.
+  if (review.verdict === 'reviewed') return;
+
   for (const finding of review.findings) {
     await poster.postInlineComment({
       path: finding.path,
@@ -76,3 +81,9 @@ export async function postVerdict(review: Review, poster: ReviewPoster): Promise
     });
   }
 }
+
+const RECEIPT_SUMMARY: Record<Verdict, string> = {
+  reviewed: 'Reviewed — nothing rising to a human. A receipt that the pass ran, not an approval.',
+  'needs-a-human': 'Needs a human — see the review comments on the changed lines.',
+  'unreviewable-as-is': 'Unreviewable as is — see the note on the conversation.',
+};
