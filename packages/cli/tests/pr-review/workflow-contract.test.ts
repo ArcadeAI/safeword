@@ -89,6 +89,23 @@ describe('the shipped workflow keeps its fork-safety shape (36EEMY, SM1.R3)', ()
     expect(directives).toMatch(/^permissions:\s*\{\}\s*$/m);
   });
 
+  it('SHA-pins the third-party actions that handle the untrusted bundle', () => {
+    // This workflow ships into other people's repositories, so a movable tag on
+    // a third-party action is a supply-chain foothold — and these two are the
+    // ones that carry the artifact built from fork-controlled code. Asserts the
+    // CLASS (pinned to a 40-char SHA) rather than specific SHAs, so routine
+    // version bumps do not churn the test while a regression to a floating tag
+    // still fails.
+    for (const action of ['actions/upload-artifact', 'actions/download-artifact']) {
+      const marker = `${action}@`;
+      const index = directives.indexOf(marker);
+      expect(index, `${action} should appear in the workflow`).toBeGreaterThan(-1);
+
+      const ref = directives.slice(index + marker.length).split(/\s/, 1)[0] ?? '';
+      expect(ref, `${action} must be SHA-pinned, not a floating tag`).toMatch(/^[\da-f]{40}$/);
+    }
+  });
+
   it('gates on the project having opted in before it does any work', () => {
     expect(directives).toContain('prReview?.enabled===true');
     expect(jobBlock('bundle')).toContain("steps.gate.outputs.enabled == 'true'");
