@@ -9,7 +9,7 @@ description: Run comprehensive code audit for architecture, dead code, and test
 
 Run a comprehensive code audit. Execute checks and report results by severity.
 
-**Reviewer class:** _class-2 — independent observation_ (PRINCIPLES.md §1): every check confirms an observable fact, so no cross-model reviewer applies. Judging whether the architecture is _sound_ is not audit's job — that lives in the Architecture Review Gate (`ARCHITECTURE.md`) and `quality-review`.
+**Reviewer class:** _class-2 — independent observation_: every check confirms an observable fact, so no cross-model reviewer applies. Judging whether the architecture is _sound_ is not audit's job — that lives in the Architecture Review Gate (`ARCHITECTURE.md`) and `quality-review`.
 
 ## Invocation log
 
