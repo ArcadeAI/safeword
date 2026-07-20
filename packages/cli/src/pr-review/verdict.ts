@@ -38,8 +38,11 @@ export interface Review {
   decision?: Decision;
 }
 
-/** The check-run name the receipt is recorded under; also the de-dupe marker (R8). */
-export const RECEIPT_CHECK_NAME = 'safeword/pr-review';
+// The receipt's check-run name is owned by poster.ts (the guard enforces it) and
+// re-exported here for the verdict-side callers that already import from this
+// module.
+export { RECEIPT_CHECK_NAME } from './poster.js';
+import { RECEIPT_CHECK_NAME } from './poster.js';
 
 /**
  * Render one finding. The fixed shape is [what happens] → [what to do], with
@@ -66,16 +69,7 @@ export function renderFinding(finding: ReviewFinding): string {
  * hijacked by injected diff content still only produces comments (SM1.R3).
  */
 export async function postVerdict(review: Review, poster: ReviewPoster): Promise<void> {
-  // The verdict is recorded on EVERY path, including the ones that also post.
-  // Recording only on silence would leave a reader unable to tell "flagged" from
-  // "the reviewer never ran" — the ambiguity the receipt exists to remove (R9).
-  await poster.createCheckRun({
-    name: RECEIPT_CHECK_NAME,
-    conclusion: 'neutral',
-    title: review.verdict,
-    summary: RECEIPT_SUMMARY[review.verdict],
-  });
-
+  // One note, no receipt — the contract this file documents above.
   if (review.verdict === 'unreviewable-as-is') {
     await poster.postIssueComment(
       'This pull request has more open problems than are worth enumerating inline, ' +
@@ -84,10 +78,11 @@ export async function postVerdict(review: Review, poster: ReviewPoster): Promise
     return;
   }
 
-  // `reviewed` posts nothing: nothing rose to a human, and a comment saying so
-  // would be exactly the noise R2 forbids.
-  if (review.verdict === 'reviewed') return;
-
+  // Findings FIRST, receipt last. GitHub rejects an inline comment whose line
+  // falls outside a diff hunk, so posting can fail partway; a receipt written
+  // first would leave a verdict on the pull request claiming a review that never
+  // fully appeared. `reviewed` has no findings to post — a comment saying
+  // "nothing to say" is exactly the noise R2 forbids.
   for (const finding of review.findings) {
     await poster.postInlineComment({
       path: finding.path,
@@ -95,10 +90,19 @@ export async function postVerdict(review: Review, poster: ReviewPoster): Promise
       body: renderFinding(finding),
     });
   }
+
+  // Recording only on silence would leave a reader unable to tell "flagged" from
+  // "the reviewer never ran" — the ambiguity the receipt exists to remove (R9).
+  await poster.createCheckRun({
+    name: RECEIPT_CHECK_NAME,
+    conclusion: 'neutral',
+    title: review.verdict,
+    summary: RECEIPT_SUMMARY[review.verdict],
+  });
 }
 
-const RECEIPT_SUMMARY: Record<Verdict, string> = {
+/** Only the two verdicts that record a receipt; `unreviewable-as-is` returns early. */
+const RECEIPT_SUMMARY: Record<Exclude<Verdict, 'unreviewable-as-is'>, string> = {
   reviewed: 'Reviewed — nothing rising to a human. A receipt that the pass ran, not an approval.',
   'needs-a-human': 'Needs a human — see the review comments on the changed lines.',
-  'unreviewable-as-is': 'Unreviewable as is — see the note on the conversation.',
 };

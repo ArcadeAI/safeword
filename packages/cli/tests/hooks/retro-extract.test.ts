@@ -11,9 +11,11 @@ import {
   CODEX_RETRO_OUTPUT_SCHEMA,
   DEFAULT_CLAUDE_RETRO_MODEL,
   DEFAULT_CODEX_RETRO_MODEL,
+  EXTRACT_SYSTEM_PROMPT,
   isRetroChild,
   resolveRetroModel,
   RETRO_CHILD_ENV,
+  RETRO_JOB,
   retroChildArgs as retroChildArguments,
   runCodexHeadlessExtraction,
   runCodexHeadlessExtractionChecked,
@@ -457,14 +459,20 @@ describe('headless job parameterization (36EEMY slice 0)', () => {
 
   // A non-retro job: different schema, different prompt, different input
   // reduction, and an output shape that is an OBJECT, not a findings array.
+  const parseReview = (raw: string) => {
+    const parsed = tryJson(raw) as { verdict?: unknown } | undefined;
+    return typeof parsed?.verdict === 'string' ? parsed : undefined;
+  };
+
   const reviewJob = {
     systemPrompt: 'You review a pull request. Output only the review JSON.',
     schema: REVIEW_SCHEMA,
     prepareInput: (raw: string) => `DIFF>>${raw.slice(0, 20)}`,
-    parseOutput: (raw: string) => {
-      const parsed = tryJson(raw) as { verdict?: unknown } | undefined;
-      return typeof parsed?.verdict === 'string' ? parsed : undefined;
-    },
+    buildCodexPrompt: (input: string) =>
+      `You review a pull request. Output only the review JSON.\n\nDIFF-INPUT:\n${input}`,
+    buildClaudeTaskPrompt: (path: string) => `Review the pull request described in ${path}.`,
+    parseCodexOutput: parseReview,
+    parseClaudeResult: parseReview,
   };
 
   it('the codex runner uses the job’s schema, prompt, and input reduction', async () => {
@@ -592,9 +600,37 @@ describe('headless job parameterization (36EEMY slice 0)', () => {
   });
 });
 
+// Regression pin: the job refactor (36EEMY slice 0) silently dropped three
+// pieces of retro's Codex prompt, and nothing failed because nothing pinned the
+// wording. The empty-array sentence is the load-bearing one — without it a
+// frictionless session tends to answer in prose, which the strict parser then
+// reports as a FAILED extraction instead of a clean silent run.
+describe("the retro job's Codex prompt keeps the wording its behavior depends on", () => {
+  it('instructs the schema shape, the empty-array case, and labels the digest', () => {
+    const prompt = RETRO_JOB.buildCodexPrompt('DIGEST_BODY');
+
+    expect(prompt).toContain('{"findings":[...]}');
+    expect(prompt).toContain('Use an empty findings array when there is no safeword friction.');
+    expect(prompt).toContain('Transcript digest:\nDIGEST_BODY');
+    expect(prompt).toContain(EXTRACT_SYSTEM_PROMPT);
+  });
+
+  it('parses only the schema shape from Codex — prose and bare arrays are failures', () => {
+    // `ok` is what separates "the model answered empty" from "the model ignored
+    // the schema". Accepting a bare array or scraping one out of prose blurs
+    // them and weakens the fail-loud posture.
+    expect(RETRO_JOB.parseCodexOutput('{"findings":[]}')).toEqual([]);
+    expect(RETRO_JOB.parseCodexOutput('[]')).toBeUndefined();
+    expect(RETRO_JOB.parseCodexOutput('Here you go: [{"a":1}]')).toBeUndefined();
+  });
+
+  it("still tolerates Claude's fenced array, which is a different envelope", () => {
+    expect(RETRO_JOB.parseClaudeResult('```json\n[{"a":1}]\n```')).toEqual([{ a: 1 }]);
+  });
+});
+
 describe('extraction guidance offers the process namespace (PNZM3B)', () => {
-  it('the shared extraction prompt offers process/<area> for friction with no single-file surface', async () => {
-    const { EXTRACT_SYSTEM_PROMPT } = await import('../../templates/hooks/lib/retro-extract.js');
+  it('the shared extraction prompt offers process/<area> for friction with no single-file surface', () => {
     expect(EXTRACT_SYSTEM_PROMPT).toContain('process/<area>');
     expect(EXTRACT_SYSTEM_PROMPT).toMatch(/no single-file surface/i);
   });

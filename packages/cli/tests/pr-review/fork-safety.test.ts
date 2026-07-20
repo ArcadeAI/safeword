@@ -6,7 +6,7 @@ import {
   createReviewPoster,
   type GitHubCall,
 } from '../../src/pr-review/poster.js';
-import { postVerdict } from '../../src/pr-review/verdict.js';
+import { postVerdict, RECEIPT_CHECK_NAME } from '../../src/pr-review/verdict.js';
 
 const CONTEXT = { owner: 'acme', repo: 'monorepo', pull: 42, headSha: 'deadbeef' };
 
@@ -119,6 +119,35 @@ describe('autonomous-pr-review.SM1.R3 — fork safety (36EEMY slice 1)', () => {
     }).toThrow(/not permitted/i);
   });
 
+  it('the check-run surface cannot be used to satisfy a required status check', async () => {
+    // The path allow-list alone is not enough. A check run's NAME is
+    // caller-supplied and `conclusion: 'neutral'` is a TypeScript-only
+    // constraint erased at runtime — and GitHub counts a neutral conclusion as
+    // SATISFYING a required status check, matched by context name. So an
+    // unconstrained check-run write is a merge-gate primitive: name it after a
+    // required context and the reviewer has DONE something, not said something.
+    const { request } = recordingRequest();
+    const poster = createReviewPoster(request, CONTEXT);
+
+    await expect(
+      poster.createCheckRun({
+        name: 'ci/build',
+        conclusion: 'neutral',
+        title: 'reviewed',
+        summary: 's',
+      }),
+    ).rejects.toThrow(/only record its own receipt/i);
+
+    await expect(
+      poster.createCheckRun({
+        name: RECEIPT_CHECK_NAME,
+        conclusion: 'success' as 'neutral',
+        title: 'reviewed',
+        summary: 's',
+      }),
+    ).rejects.toThrow(/neutral/i);
+  });
+
   it('a clean pull request records a receipt instead of commenting', async () => {
     const { calls, request } = recordingRequest();
     const poster = createReviewPoster(request, CONTEXT);
@@ -126,8 +155,17 @@ describe('autonomous-pr-review.SM1.R3 — fork safety (36EEMY slice 1)', () => {
     await postVerdict({ verdict: 'reviewed', findings: [], decision: undefined }, poster);
 
     expect(calls.filter(c => c.path.endsWith('/comments'))).toHaveLength(0);
+
     const receipt = calls.find(c => c.path.endsWith('/check-runs'));
-    expect(receipt).toBeDefined();
-    expect((receipt?.body as { conclusion?: string })?.conclusion).toBe('neutral');
+    if (!receipt) throw new Error('expected a receipt check-run to be recorded');
+
+    // Assert the receipt's actual shape, not merely that one exists: a check-run
+    // with the wrong verdict or a failing conclusion would satisfy "defined".
+    expect(receipt.method).toBe('POST');
+    expect(receipt.body).toMatchObject({
+      name: RECEIPT_CHECK_NAME,
+      conclusion: 'neutral',
+      output: { title: 'reviewed' },
+    });
   });
 });

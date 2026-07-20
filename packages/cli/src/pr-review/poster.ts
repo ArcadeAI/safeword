@@ -12,6 +12,13 @@
 // PRINCIPLES §1: instructions are the weakest enforcement tier. "Don't call the
 // approve endpoint" is an instruction; an allow-list that throws is a mechanism.
 
+/**
+ * The single check-run name the reviewer may write, and the de-dupe marker R8
+ * reads. Owned here rather than by verdict.ts because the guard below has to
+ * enforce it: it is a property of the write surface, not of the verdict.
+ */
+export const RECEIPT_CHECK_NAME = 'safeword/pr-review';
+
 /** One recorded GitHub request — the unit the audit and the tests observe. */
 export interface GitHubCall {
   method: string;
@@ -101,13 +108,34 @@ export function createReviewPoster(request: GitHubRequest, context: PullContext)
       }),
     postIssueComment: body =>
       guarded('POST', `/repos/${owner}/${repo}/issues/${pull}/comments`, { body }),
-    createCheckRun: run =>
-      guarded('POST', `/repos/${owner}/${repo}/check-runs`, {
+    // The path allow-list is not sufficient here. A check run's NAME is
+    // caller-supplied and `conclusion: 'neutral'` is a TypeScript constraint
+    // that is erased at runtime — and GitHub counts a neutral conclusion as
+    // SATISFYING a required status check, matched by context name unless the
+    // ruleset pins an integration_id. An unconstrained check-run write is
+    // therefore a merge-gate primitive: name it after a required context and the
+    // reviewer has DONE something irreversible, which is exactly what SM1.R3
+    // withholds. Constrain the body, not just the path.
+    createCheckRun: async run => {
+      if (run.name !== RECEIPT_CHECK_NAME) {
+        throw new Error(
+          `pr-review: the reviewer may only record its own receipt (${RECEIPT_CHECK_NAME}), ` +
+            `not a check run named "${run.name}" — naming another context could satisfy branch protection (SM1.R3).`,
+        );
+      }
+      if (run.conclusion !== 'neutral') {
+        throw new Error(
+          `pr-review: the receipt conclusion must be neutral, not "${String(run.conclusion)}" — ` +
+            'the reviewer is advisory and gates nothing.',
+        );
+      }
+      await guarded('POST', `/repos/${owner}/${repo}/check-runs`, {
         name: run.name,
         head_sha: headSha,
         status: 'completed',
         conclusion: run.conclusion,
         output: { title: run.title, summary: run.summary },
-      }),
+      });
+    },
   };
 }

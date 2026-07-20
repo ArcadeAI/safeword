@@ -63,6 +63,47 @@ describe('autonomous-pr-review.TB1.R9 — every review records a verdict (36EEMY
   });
 });
 
+describe('the receipt must not outrun the findings it summarises', () => {
+  it('posts the comments BEFORE recording the receipt', async () => {
+    const { calls, poster } = recordingPoster();
+    await postVerdict({ verdict: 'needs-a-human', findings: [uncoveredDefect] }, poster);
+
+    const commentIndex = calls.findIndex(c => c.path.endsWith('/comments'));
+    const receiptIndex = calls.findIndex(c => c.path.endsWith('/check-runs'));
+    expect(commentIndex).toBeGreaterThanOrEqual(0);
+    expect(commentIndex).toBeLessThan(receiptIndex);
+  });
+
+  it('does not record a needs-a-human receipt when posting the finding fails', async () => {
+    // GitHub rejects an inline comment whose line is outside a diff hunk. If the
+    // receipt is already written, the pull request carries a verdict claiming a
+    // review that never actually appeared.
+    const calls: GitHubCall[] = [];
+    const poster = createReviewPoster((method, path, body) => {
+      calls.push({ method, path, body });
+      return path.endsWith('/comments')
+        ? Promise.reject(new Error('422 line must be part of the diff'))
+        : Promise.resolve({});
+    }, CONTEXT);
+
+    await expect(
+      postVerdict({ verdict: 'needs-a-human', findings: [uncoveredDefect] }, poster),
+    ).rejects.toThrow(/422/);
+
+    expect(calls.some(c => c.path.endsWith('/check-runs'))).toBe(false);
+  });
+});
+
+describe('unreviewable-as-is posts one note and records no receipt', () => {
+  it('matches its documented contract — a note, not a receipt', async () => {
+    const { calls, poster } = recordingPoster();
+    await postVerdict({ verdict: 'unreviewable-as-is', findings: [] }, poster);
+
+    expect(calls.filter(c => c.path.includes('/issues/'))).toHaveLength(1);
+    expect(calls.some(c => c.path.endsWith('/check-runs'))).toBe(false);
+  });
+});
+
 describe('autonomous-pr-review.TB1.R2 — silence only when there is nothing to say', () => {
   const rows = [
     { state: 'all already covered by the project tests', findings: [], count: 0 },

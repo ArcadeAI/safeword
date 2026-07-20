@@ -36,21 +36,45 @@ const MARK_FOR: Record<AdversaryOutcome, NonNullable<ReviewFinding['adversarial'
  * A thrown adversary is caught and becomes `unchecked`: an infrastructure
  * failure must not silently upgrade a finding to "verified", nor drop it.
  */
+/**
+ * How many refutations may be in flight at once.
+ *
+ * Each one is a headless vendor process. `Promise.all` over the findings would
+ * start ALL of them simultaneously — a 20-finding review spawning 20 concurrent
+ * `codex exec` processes on a CI runner — and this repo has already been bitten
+ * by machine overload from exactly that shape. "Cost is bounded" has to mean
+ * bounded in parallelism, not only in how often the pass runs.
+ */
+export const ADVERSARY_CONCURRENCY = 4;
+
 export async function runAdversary(
   findings: ReviewFinding[],
   adversary: AdversaryRunner,
+  concurrency: number = ADVERSARY_CONCURRENCY,
 ): Promise<ReviewFinding[]> {
   if (findings.length === 0) return [];
 
-  return Promise.all(
-    findings.map(async finding => {
+  const annotated: ReviewFinding[] = Array.from({ length: findings.length });
+  let next = 0;
+
+  // Fixed pool of workers pulling from a shared cursor: output stays in input
+  // order (each worker writes to its own index) while at most `concurrency`
+  // vendor processes exist at any moment.
+  const worker = async (): Promise<void> => {
+    while (next < findings.length) {
+      const index = next++;
+      const finding = findings[index];
+      if (finding === undefined) continue;
       let outcome: AdversaryOutcome;
       try {
         outcome = await adversary(finding);
       } catch {
         outcome = 'error';
       }
-      return { ...finding, adversarial: MARK_FOR[outcome] };
-    }),
-  );
+      annotated[index] = { ...finding, adversarial: MARK_FOR[outcome] };
+    }
+  };
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, findings.length) }, () => worker()));
+  return annotated;
 }

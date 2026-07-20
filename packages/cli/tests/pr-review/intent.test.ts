@@ -140,8 +140,18 @@ describe('prReview config — default-off, and unreadable config never enables i
     expect(resolvePrReviewConfig(directory).identityMode).toBe('shared');
   });
 
-  it('is per-author when no fixed identity is configured', () => {
+  it('assumes SHARED identity when none is configured — the safe default', () => {
+    // Corrected 2026-07-20 (independent review). An earlier version of this test
+    // pinned `per-author` here, which failed OPEN on the security-relevant field:
+    // per-author brokering is not implemented yet, so the runtime identity is a
+    // shared service account no matter what this says — and `per-author` is what
+    // re-enables tracker reads on forks. Absence of config must not be read as
+    // the more permissive mode.
     writeConfig({ prReview: { enabled: true } });
-    expect(resolvePrReviewConfig(directory).identityMode).toBe('per-author');
+    expect(resolvePrReviewConfig(directory).identityMode).toBe('shared');
+  });
+
+  it('is shared even when the reviewer is disabled entirely', () => {
+    expect(resolvePrReviewConfig(directory).identityMode).toBe('shared');
   });
 });

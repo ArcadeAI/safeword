@@ -12,9 +12,11 @@
 // heuristic is rational and it has a systematic blind spot; reproducing it would
 // rebuild the gap this feature exists to close.
 
-import type { ReviewFinding, Verdict } from './verdict.js';
+import { type Decision, renderFinding, type ReviewFinding, type Verdict } from './verdict.js';
 
-export type Decision = 'push back' | 'ask';
+// `Decision` is owned by verdict.ts and imported, never redeclared: two copies of
+// the same closed set are two things to keep in step, and they drift silently the
+// first time the set grows.
 
 export interface VerdictInput {
   findings: ReviewFinding[];
@@ -57,7 +59,13 @@ export interface ReviewBodyInput {
 export function assembleReviewBody(input: ReviewBodyInput): string {
   if (input.findings.length === 0) return '';
 
-  const sections = input.findings.map(finding => finding.consequence);
+  // Renders through `renderFinding`, NOT `finding.consequence` raw: the raw
+  // field omits R14's contested/unchecked annotation, so a body built from it
+  // would silently drop the adversary's down-weighting the moment this becomes
+  // the wired delivery path.
+  const sections = input.findings.map(finding => renderFinding(finding));
   if (input.decision !== undefined) sections.push(`→ ${input.decision}`);
   return sections.join('\n\n');
 }
+
+export { type Decision } from './verdict.js';

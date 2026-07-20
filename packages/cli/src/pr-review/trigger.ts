@@ -69,16 +69,25 @@ export function computeCiState(checks: CheckRun[], required: string[] | undefine
   const observed = checks.filter(check => check.name !== RECEIPT_CHECK_NAME);
   const requiredNames = required?.filter(name => name !== RECEIPT_CHECK_NAME);
 
-  // No known required set (tier 3): every observed check must pass.
+  // No known required set (tier 3): every observed check must satisfy.
   if (requiredNames === undefined) {
+    // Nothing observed is NOT green. `[].every()` is true, so this has to be
+    // explicit — and a repo whose CI reports only through the legacy
+    // commit-status API produces zero check runs, which would otherwise read as
+    // green and review red code.
+    if (observed.length === 0) return 'pending';
     if (observed.some(check => isFailure(check))) return 'red';
-    return observed.every(check => check.conclusion === 'success') ? 'green' : 'pending';
+    return observed.every(check => isSatisfied(check)) ? 'green' : 'pending';
   }
+
+  // Same fail-closed rule once the receipt is excluded: an empty required set
+  // means we learned nothing, not that everything passed.
+  if (requiredNames.length === 0) return 'pending';
 
   const states = requiredNames.map(name => observed.find(check => check.name === name));
   if (states.some(check => check !== undefined && isFailure(check))) return 'red';
   // A required check that has not reported at all is pending, never green.
-  return states.every(check => check?.conclusion === 'success') ? 'green' : 'pending';
+  return states.every(check => isSatisfied(check)) ? 'green' : 'pending';
 }
 
 /** Conclusions that mean the check did not pass. `neutral`/`skipped` are not failures. */
@@ -92,8 +101,28 @@ function isFailure(check: CheckRun): boolean {
   return FAILING_CONCLUSIONS.has(check.conclusion);
 }
 
+/**
+ * Conclusions GitHub accepts as satisfying a required status check — success,
+ * skipped, AND neutral. Demanding `success` alone is a permanent silent no-fire
+ * on any repo whose required jobs are path-filtered or `if:`-guarded, since a
+ * skipped required job is routine rather than exceptional.
+ */
+const SATISFYING_CONCLUSIONS: ReadonlySet<CheckRun['conclusion'] | undefined> = new Set([
+  'success',
+  'skipped',
+  'neutral',
+]);
+
+function isSatisfied(check: CheckRun | undefined): boolean {
+  return check !== undefined && SATISFYING_CONCLUSIONS.has(check.conclusion);
+}
+
 const DOCS_EXTENSION = /\.(?:md|mdx|txt)$/i;
-const DOCS_FILENAME = /^(?:README|CHANGELOG|LICENSE)/i;
+// Anchored at BOTH ends, and the optional extension is restricted to doc
+// formats. An open-ended prefix match swallows real source whose name merely
+// starts the same way — `licenses.ts`, `changelog.ts`, `LICENSE-checker.js` —
+// and a push touching only those would never re-fire the review.
+const DOCS_FILENAME = /^(?:README|CHANGELOG|LICENSE)(?:\.(?:md|mdx|txt|rst))?$/i;
 
 /** Whether a single path is documentation rather than behavior. */
 function isDocumentationPath(path: string): boolean {

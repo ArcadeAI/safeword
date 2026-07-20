@@ -41,7 +41,7 @@ export interface PrReviewConfig {
 const DISABLED: PrReviewConfig = {
   enabled: false,
   post: false,
-  identityMode: 'per-author',
+  identityMode: 'shared',
   requiredChecks: [],
 };
 
@@ -49,6 +49,7 @@ interface RawPrReview {
   enabled?: unknown;
   post?: unknown;
   arcade?: { userId?: unknown };
+  identityMode?: unknown;
   requiredChecks?: unknown;
 }
 
@@ -78,7 +79,14 @@ export function resolvePrReviewConfig(projectDirectory: string): PrReviewConfig 
     enabled: raw.enabled === true,
     post: raw.post === true,
     arcadeUserId,
-    identityMode: arcadeUserId === undefined ? 'per-author' : 'shared',
+    // `shared` unless per-author is EXPLICITLY opted into. Absence must not
+    // resolve to the more permissive mode: `per-author` is what re-enables
+    // tracker reads on forks, and per-author brokering is not implemented yet —
+    // the runtime identity is a shared service account regardless of this field.
+    // Deriving it from `arcade.userId` being unset (as an earlier version did)
+    // meant a project that configured a bearer but omitted the id got exactly
+    // the confused-deputy disclosure the containment exists to prevent.
+    identityMode: raw.identityMode === 'per-author' ? 'per-author' : 'shared',
     requiredChecks: Array.isArray(raw.requiredChecks)
       ? raw.requiredChecks.filter(entry => nonEmptyString(entry))
       : [],

@@ -67,6 +67,7 @@ ESLint configs are bundled in the main package and accessed via `import safeword
 packages/cli/
 ├── codex-plugin/    # Codex plugin bundle (manifest, hooks.json, scoped safeword:<skill> skills)
 ├── src/
+│   ├── boundary/         # Commit/push boundary reconciliation gate: ticket-artifact evidence, phase anchors, ledger annotations
 │   ├── commands/         # CLI commands (setup, upgrade, check, diff, reset, sync-config, sync-learnings, …)
 │   ├── learning-sync/    # Generates <namespace-root>/learnings/INDEX.md from learning files
 │   ├── packs/            # Language packs + registry
@@ -75,6 +76,7 @@ packages/cli/
 │   │   ├── config.ts     # Pack config management (.safeword/config.json)
 │   │   ├── install.ts    # Pack installation logic
 │   │   └── types.ts      # Shared type definitions
+│   ├── pr-review/        # Autonomous PR reviewer runner: trigger/green gate, capability-narrow poster, verdict, cross-vendor + adversarial passes (judgment lives in the skill, not here)
 │   ├── presets/          # ESLint presets (exported as safeword/eslint)
 │   │   └── typescript/   # ESLint configs, rules, detection
 │   ├── retro/            # Retro pipeline: finding sanitization, drafts, egress guard, GitHub REST transport (miner front-end lives in commands/retro.ts)

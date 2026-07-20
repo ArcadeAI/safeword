@@ -235,19 +235,30 @@ export function buildCodexExtractArgv(options: CodexExtractArgvOptions): string[
  * without forking them (ticket 36EEMY, the PR-review runner).
  */
 export interface HeadlessJob<T = unknown[]> {
-  /** `claude --append-system-prompt`; prepended to the Codex prompt. */
+  /** `claude --append-system-prompt`. */
   systemPrompt: string;
   /** JSON schema handed to `codex exec --output-schema`. */
   schema: unknown;
   /** Reduce raw input to the bounded text the model sees. */
   prepareInput: (raw: string) => string;
   /**
-   * Parse the vendor's answer. Receives Claude's unwrapped `.result` text or
-   * Codex's `-o` file contents — the runners strip the vendor envelope first.
-   * Return `undefined` for unusable output; the caller distinguishes that from
-   * a genuine empty result.
+   * The full inline Codex prompt. Codex gets no tools, so the instructions AND
+   * the input travel in the prompt itself.
    */
-  parseOutput: (raw: string) => T | undefined;
+  buildCodexPrompt: (preparedInput: string) => string;
+  /**
+   * The Claude task prompt. Claude reads its input from a file, so this points
+   * at the written path rather than embedding the content.
+   */
+  buildClaudeTaskPrompt: (inputPath: string) => string;
+  /**
+   * Parse Codex's `-o` file. Return `undefined` for unusable output — the caller
+   * distinguishes that from a genuine empty result, which is the whole point of
+   * the `ok` bit.
+   */
+  parseCodexOutput: (raw: string) => T | undefined;
+  /** Parse the text inside Claude's `--output-format json` envelope. */
+  parseClaudeResult: (resultText: string) => T | undefined;
   /** Value the fail-open runner returns when extraction fails. */
   fallback?: T;
 }
@@ -317,39 +328,49 @@ export const RETRO_JOB: HeadlessJob<unknown[]> = {
   systemPrompt: EXTRACT_SYSTEM_PROMPT,
   schema: CODEX_RETRO_OUTPUT_SCHEMA,
   prepareInput: (raw: string) => buildDigest(raw),
-  parseOutput: (raw: string) => {
+
+  // Wording preserved verbatim from before the job refactor. The empty-array
+  // sentence is load-bearing, not decoration: without it a frictionless session
+  // tends to answer with prose instead of `{"findings":[]}`, which the strict
+  // parser below then reports as a FAILED extraction rather than a clean silent
+  // run. Pinned by a test, since nothing pinned it when it was first dropped.
+  buildCodexPrompt: (preparedInput: string) =>
+    `${EXTRACT_SYSTEM_PROMPT}\n\n` +
+    'Return only JSON matching the provided output schema: {"findings":[...]}. ' +
+    'Use an empty findings array when there is no safeword friction.\n\n' +
+    `Transcript digest:\n${preparedInput}`,
+
+  buildClaudeTaskPrompt: (inputPath: string) =>
+    `Read the file ${inputPath} and extract SAFEWORD's own friction as the JSON array described. Output only the JSON array.`,
+
+  // Strict on purpose: only the schema's own shape counts. Accepting a bare
+  // array or scraping one out of prose would blur "the model answered empty"
+  // into "the model ignored the schema", and `ok` is exactly the bit that
+  // separates a genuine empty result from a vendor failure.
+  parseCodexOutput: (raw: string) => {
     try {
-      const parsed = JSON.parse(raw) as unknown;
-      if (Array.isArray(parsed)) return parsed;
-      const findings = (parsed as { findings?: unknown }).findings;
+      const findings = (JSON.parse(raw) as { findings?: unknown }).findings;
       return Array.isArray(findings) ? findings : undefined;
     } catch {
-      // The model's text may be fenced (```json … ```); pull the first array literal.
-      const match = raw.match(/\[[\S\s]*\]/);
-      if (!match) return undefined;
-      try {
-        const findings = JSON.parse(match[0]) as unknown;
-        return Array.isArray(findings) ? findings : undefined;
-      } catch {
-        return undefined;
-      }
+      return undefined;
     }
   },
+
+  // Claude returns the array as text that may be fenced (```json … ```), so the
+  // first array literal is pulled out.
+  parseClaudeResult: (resultText: string) => {
+    const match = resultText.match(/\[[\S\s]*\]/);
+    if (!match) return undefined;
+    try {
+      const findings = JSON.parse(match[0]) as unknown;
+      return Array.isArray(findings) ? findings : undefined;
+    } catch {
+      return undefined;
+    }
+  },
+
   fallback: [],
 };
-
-/** The task prompt: point the read-only child at the digest file. */
-function buildExtractPrompt(digestPath: string): string {
-  return `Read the file ${digestPath} and extract SAFEWORD's own friction as the JSON array described. Output only the JSON array.`;
-}
-
-function buildCodexExtractPrompt(systemPrompt: string, preparedInput: string): string {
-  return (
-    `${systemPrompt}\n\n` +
-    'Return only JSON matching the provided output schema.\n\n' +
-    `Input:\n${preparedInput}`
-  );
-}
 
 /**
  * Strip the `claude -p --output-format json` envelope and hand the model's own
@@ -359,7 +380,7 @@ function buildCodexExtractPrompt(systemPrompt: string, preparedInput: string): s
 function unwrapClaudeEnvelope<T>(stdout: string, job: HeadlessJob<T>): T | undefined {
   try {
     const parsed = JSON.parse(stdout) as { result?: unknown };
-    return typeof parsed.result === 'string' ? job.parseOutput(parsed.result) : undefined;
+    return typeof parsed.result === 'string' ? job.parseClaudeResult(parsed.result) : undefined;
   } catch {
     return undefined;
   }
@@ -453,7 +474,7 @@ export async function runHeadlessExtraction<T = unknown[]>(
     const argv = buildExtractArgv({
       model: dependencies.model ?? DEFAULT_RETRO_MODEL,
       systemPrompt: job.systemPrompt,
-      prompt: buildExtractPrompt(digestPath),
+      prompt: job.buildClaudeTaskPrompt(digestPath),
     });
     const { code, stdout } = await dependencies.spawn(argv, {
       cwd: dependencies.cwd,
@@ -488,7 +509,7 @@ export async function runCodexHeadlessExtractionChecked<T = unknown[]>(
       model: dependencies.model ?? DEFAULT_CODEX_RETRO_MODEL,
       schemaPath,
       outputPath,
-      prompt: buildCodexExtractPrompt(job.systemPrompt, job.prepareInput(input)),
+      prompt: job.buildCodexPrompt(job.prepareInput(input)),
       mcpServers: dependencies.mcpServers,
       sandbox: dependencies.sandbox,
       skipGitRepoCheck: dependencies.skipGitRepoCheck,
@@ -507,7 +528,7 @@ export async function runCodexHeadlessExtractionChecked<T = unknown[]>(
     } catch {
       return { ok: false, failureReason: 'missing_output', findings: [] };
     }
-    const output = job.parseOutput(rawOutput);
+    const output = job.parseCodexOutput(rawOutput);
     return output === undefined
       ? { ok: false, failureReason: 'invalid_output', findings: [] }
       : { ok: true, output, findings: Array.isArray(output) ? output : [] };

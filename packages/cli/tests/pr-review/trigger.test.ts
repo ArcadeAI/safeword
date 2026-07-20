@@ -79,6 +79,28 @@ describe('the green gate reads the required set, not every check', () => {
     expect(computeCiState([green('build'), green('lint')], undefined)).toBe('green');
   });
 
+  it('an empty check set is NOT green — the gate fails closed', () => {
+    // A repo whose CI reports only through the legacy commit-status API creates
+    // zero check runs. Reading that as green would review red code, which is the
+    // one thing R8 exists to prevent. `[].every(...)` is true, so this has to be
+    // handled explicitly rather than falling out of the reduction.
+    expect(computeCiState([], undefined)).toBe('pending');
+  });
+
+  it('a required set that is empty after excluding the receipt is NOT green', () => {
+    // Reachable from prReview.requiredChecks: configure only the reviewer's own
+    // check and the required set filters down to nothing.
+    expect(computeCiState([green('build')], [RECEIPT_CHECK_NAME])).toBe('pending');
+  });
+
+  const satisfying = ['success', 'skipped', 'neutral'] as const;
+  it.each(satisfying)('a required check concluding %s satisfies the gate', conclusion => {
+    // GitHub treats success, skipped AND neutral as satisfying a required check.
+    // Skipped required jobs are routine (path filters, `if:` guards), so demanding
+    // `success` alone is a permanent silent no-fire.
+    expect(computeCiState([{ name: 'build', conclusion }], ['build'])).toBe('green');
+  });
+
   it("the reviewer's own receipt is never part of the green it waits on", () => {
     // Self-deadlock guard: the receipt is written by this reviewer AFTER it
     // runs, so counting it would mean CI is never green until the review that
@@ -122,6 +144,26 @@ describe('material change — a docs-only push never re-fires the reviewer', () 
   it('classifies any source change as material', () => {
     expect(isMaterialChange(['README.md', 'src/auth.ts'])).toBe(true);
   });
+
+  it.each([
+    'src/licenses.ts',
+    'src/changelog.ts',
+    'src/readme-generator.ts',
+    'LICENSE-checker.js',
+    'READMEish.ts',
+  ])('does not mistake source named like a doc for a doc: %s', path => {
+    // A prefix match on README/CHANGELOG/LICENSE swallows real source files whose
+    // names merely start the same way, and a push touching only those would
+    // never re-fire the review.
+    expect(isMaterialChange([path])).toBe(true);
+  });
+
+  it.each(['README.md', 'docs/guide.md', 'LICENSE', 'CHANGELOG.md', 'sub/docs/a.png'])(
+    'still classifies genuine documentation as immaterial: %s',
+    path => {
+      expect(isMaterialChange([path])).toBe(false);
+    },
+  );
 
   it('treats an empty change set as immaterial', () => {
     expect(isMaterialChange([])).toBe(false);
