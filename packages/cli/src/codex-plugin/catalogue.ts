@@ -333,7 +333,11 @@ function pluginAssetPaths(pluginDirectory: string): string[] {
 // git combines an edit to templates/skills/ with an untouched generated plugin
 // cleanly, because they are different files — it has no notion that one derives
 // from the other.
-const REGENERATE_REMEDY = 'Regenerate it with `bun run --cwd packages/cli generate:codex-plugin`.';
+// Name the directory rather than using `--cwd packages/cli`: that flag resolves
+// against the caller's cwd, so it fails from packages/cli — which is exactly
+// where `bun run test:release` surfaces these errors.
+const REGENERATE_REMEDY =
+  'Regenerate the catalogue: `bun run generate:codex-plugin` from packages/cli.';
 
 /** Ensure the checked-in plugin is the exact allowed transformation of canonical skills. */
 export function assertCodexPluginCatalogue(
