@@ -106,6 +106,23 @@ describe('the shipped workflow keeps its fork-safety shape (36EEMY, SM1.R3)', ()
     }
   });
 
+  it('pins the CLI to THIS release, like the Codex hook manifest', async () => {
+    // `bunx safeword` unpinned resolves to whatever is latest AT RUN TIME, in a
+    // job holding pull-requests/checks/id-token write, in every customer repo.
+    // An npm compromise would become a fleet-wide write primitive. Pinned in the
+    // template because FileDefinition has no content-transform hook, so this
+    // test is what keeps the pin from going stale across a version bump.
+    const { VERSION } = await import('../../src/version.js');
+    expect(directives).toContain(`bunx --bun safeword@${VERSION} review-pr`);
+  });
+
+  it('does not install the host project dependencies', () => {
+    // `bunx` fetches safeword itself. Running the host's install would hard-fail
+    // every Rust, Python or Go project safeword supports — and reviewing a diff
+    // never needed them.
+    expect(directives).not.toContain('bun install');
+  });
+
   it('gates on the project having opted in before it does any work', () => {
     expect(directives).toContain('prReview?.enabled===true');
     expect(jobBlock('bundle')).toContain("steps.gate.outputs.enabled == 'true'");

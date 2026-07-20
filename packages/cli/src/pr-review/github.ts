@@ -59,6 +59,8 @@ interface PullResponse {
 
 interface CheckRunsResponse {
   check_runs?: { name?: string; conclusion?: string | null }[];
+  /** Total across all pages — how the paginating loop knows it is done. */
+  total_count?: number;
 }
 
 interface RulesResponse {
@@ -93,21 +95,80 @@ export async function fetchPullFacts(
   };
 }
 
+/** GitHub's maximum page size, and the bound on how many pages we will walk. */
+const PER_PAGE = 100;
+const MAX_CHECK_PAGES = 20; // 2000 check runs; far past any real commit.
+
+/**
+ * Every check run on a commit, across pages.
+ *
+ * Pagination is not a nicety here. A matrix-heavy monorepo routinely exceeds one
+ * page on a single commit, and a truncated list is not merely incomplete — in
+ * the all-checks tier every RETURNED check passes, so `computeCiState` reports
+ * green while CI is red and the reviewer reviews broken code.
+ */
 export async function fetchCheckRuns(
+  request: GitHubRequest,
+  context: { owner: string; repo: string },
+  sha: string,
+): Promise<CheckRun[]> {
+  const collected: CheckRun[] = [];
+
+  for (let page = 1; page <= MAX_CHECK_PAGES; page += 1) {
+    const response = (await request(
+      'GET',
+      `/repos/${context.owner}/${context.repo}/commits/${sha}/check-runs?per_page=${PER_PAGE}&page=${page}`,
+    )) as CheckRunsResponse;
+
+    const runs = response.check_runs ?? [];
+    collected.push(
+      ...runs.map(run => ({
+        name: run.name ?? '',
+        // GitHub reports a null conclusion while a check is still running; the
+        // pure layer models that as an absent conclusion.
+        conclusion: (run.conclusion ?? undefined) as CheckRun['conclusion'],
+      })),
+    );
+
+    const total = response.total_count;
+    const done = runs.length < PER_PAGE || (total !== undefined && collected.length >= total);
+    if (done) break;
+  }
+
+  return collected;
+}
+
+/** Commit-status states that mean the context did not pass. */
+const STATUS_CONCLUSION: Record<string, CheckRun['conclusion']> = {
+  success: 'success',
+  failure: 'failure',
+  error: 'failure',
+};
+
+/**
+ * Legacy commit statuses on a commit, shaped as check runs.
+ *
+ * Required-check contexts in a ruleset routinely name STATUSES rather than
+ * check runs — CircleCI, Buildkite, Jenkins, Vercel and Codecov all report this
+ * way. Those never appear in `/check-runs`, so a runner that reads only check
+ * runs leaves such a context permanently unmatched and waits forever for a green
+ * that has already happened. Merged with check runs before the required set is
+ * evaluated.
+ */
+export async function fetchCommitStatuses(
   request: GitHubRequest,
   context: { owner: string; repo: string },
   sha: string,
 ): Promise<CheckRun[]> {
   const response = (await request(
     'GET',
-    `/repos/${context.owner}/${context.repo}/commits/${sha}/check-runs?per_page=100`,
-  )) as CheckRunsResponse;
+    `/repos/${context.owner}/${context.repo}/commits/${sha}/status?per_page=${PER_PAGE}`,
+  )) as { statuses?: { context?: string; state?: string }[] };
 
-  return (response.check_runs ?? []).map(run => ({
-    name: run.name ?? '',
-    // GitHub reports a null conclusion while a check is still running; the
-    // pure layer models that as an absent conclusion.
-    conclusion: (run.conclusion ?? undefined) as CheckRun['conclusion'],
+  return (response.statuses ?? []).map(status => ({
+    name: status.context ?? '',
+    // `pending` maps to an absent conclusion — the pure layer's "still running".
+    conclusion: STATUS_CONCLUSION[status.state ?? ''],
   }));
 }
 

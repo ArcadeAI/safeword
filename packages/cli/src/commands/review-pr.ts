@@ -12,6 +12,7 @@ import {
   createGitHubRequest,
   fetchChangedPathsBetween,
   fetchCheckRuns,
+  fetchCommitStatuses,
   fetchPullFacts,
   fetchRulesetRequiredChecks,
   findReviewedSha,
@@ -97,7 +98,12 @@ export async function reviewPrCommand(options: ReviewPrOptions = {}): Promise<Re
   const context = { owner, repo, pull };
 
   const facts = await fetchPullFacts(request, context);
-  const checks = await fetchCheckRuns(request, context, facts.headSha);
+  // Both sources, always. A required context may be a check RUN or a legacy
+  // commit STATUS, and reading only one leaves the other permanently unmatched.
+  const checks = [
+    ...(await fetchCheckRuns(request, context, facts.headSha)),
+    ...(await fetchCommitStatuses(request, context, facts.headSha)),
+  ];
   const rulesetChecks = await fetchRulesetRequiredChecks(request, context, facts.baseRef);
   const required = resolveRequiredChecks({
     rulesetChecks,

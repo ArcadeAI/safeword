@@ -80,7 +80,7 @@ _Slice 5 (`subtractCoverage()` — subtract on coverage, never on mere mention).
 
 - [x] RED b758de69b
 - [x] GREEN ef3fb6b74
-- [ ] REFACTOR
+- [x] REFACTOR skip: no separate behavior-preserving refactor step. This implementation was reshaped by the audit and quality-review passes (46d9bb1ee, 945eb43ca) — which fixed defects and added tests, so they were GREEN-shaped work, not a refactor. Recorded rather than back-filled.
 
 ## Rule: autonomous-pr-review.TB1.R2 — a pull request with nothing worth saying receives no comment at all
 
@@ -93,7 +93,7 @@ _Slice 4 (`postVerdict()` — empty findings ⇒ 0 comments, still a `reviewed` 
       capture. Its discriminating positive (one finding ⇒ exactly one comment) is
       asserted alongside, so the row is not vacuous.
 - [x] GREEN 99576ac60
-- [ ] REFACTOR
+- [x] REFACTOR skip: no separate behavior-preserving refactor step. This implementation was reshaped by the audit and quality-review passes (46d9bb1ee, 945eb43ca) — which fixed defects and added tests, so they were GREEN-shaped work, not a refactor. Recorded rather than back-filled.
 
 ## Rule: autonomous-pr-review.TB1.R9 — every review records a verdict; a clean PR is marked reviewed, never left as bare silence
 
@@ -103,7 +103,7 @@ _Slice 4 (comment vs NON-required neutral check-run receipt; never an approval).
 
 - [x] RED e5b939cac
 - [x] GREEN 99576ac60
-- [ ] REFACTOR
+- [x] REFACTOR skip: no separate behavior-preserving refactor step. This implementation was reshaped by the audit and quality-review passes (46d9bb1ee, 945eb43ca) — which fixed defects and added tests, so they were GREEN-shaped work, not a refactor. Recorded rather than back-filled.
 
 ## Rule: autonomous-pr-review.TB1.R6 — the reviewer uses whatever declared intent the project exposes
 
@@ -113,7 +113,7 @@ _Slice 5 (`resolveIntent()` — linkback body ⇒ 0 tracker calls; bare linkback
 
 - [x] RED 0147fd4c5
 - [x] GREEN 9264f83a2
-- [ ] REFACTOR
+- [x] REFACTOR skip: no separate behavior-preserving refactor step. This implementation was reshaped by the audit and quality-review passes (46d9bb1ee, 945eb43ca) — which fixed defects and added tests, so they were GREEN-shaped work, not a refactor. Recorded rather than back-filled.
 
 ## Rule: autonomous-pr-review.TB1.R7 — a finding never claims more certainty than the intent source it rests on supports
 
@@ -123,7 +123,7 @@ _Slice 5 (`boundCompletenessSeverity()` — PR-cross-reference count caps comple
 
 - [x] RED b758de69b
 - [x] GREEN ef3fb6b74
-- [ ] REFACTOR
+- [x] REFACTOR skip: no separate behavior-preserving refactor step. This implementation was reshaped by the audit and quality-review passes (46d9bb1ee, 945eb43ca) — which fixed defects and added tests, so they were GREEN-shaped work, not a refactor. Recorded rather than back-filled.
 
 ## Rule: autonomous-pr-review.TB1.R11 — the reviewer runs on a different vendor than the agent that wrote the code
 
@@ -133,19 +133,19 @@ _Slice 6 (`selectVendor()` + `crossModelClaim()`; **unit** for the 4-row pairing
 
 - [x] RED 7424d6f74
 - [x] GREEN 6288c0d68
-- [ ] REFACTOR
+- [x] REFACTOR skip: no separate behavior-preserving refactor step. This implementation was reshaped by the audit and quality-review passes (46d9bb1ee, 945eb43ca) — which fixed defects and added tests, so they were GREEN-shaped work, not a refactor. Recorded rather than back-filled.
 
 ### Scenario Outline: autonomous-pr-review.TB1.R11.the_cross_vendor_declaration_tracks_the_actual_pairing
 
 - [x] RED 7424d6f74
 - [x] GREEN 6288c0d68
-- [ ] REFACTOR
+- [x] REFACTOR skip: no separate behavior-preserving refactor step. This implementation was reshaped by the audit and quality-review passes (46d9bb1ee, 945eb43ca) — which fixed defects and added tests, so they were GREEN-shaped work, not a refactor. Recorded rather than back-filled.
 
 ### Scenario: autonomous-pr-review.TB1.R11.an_author_from_the_reviewing_vendor_flips_the_reviewer
 
 - [x] RED 7424d6f74
 - [x] GREEN 6288c0d68
-- [ ] REFACTOR
+- [x] REFACTOR skip: no separate behavior-preserving refactor step. This implementation was reshaped by the audit and quality-review passes (46d9bb1ee, 945eb43ca) — which fixed defects and added tests, so they were GREEN-shaped work, not a refactor. Recorded rather than back-filled.
 
 ## Rule: autonomous-pr-review.TB1.R14 — when a finding exists, a second vendor tries to refute it before anyone sees it
 
@@ -155,19 +155,19 @@ _Slice 6 (`runAdversary()` — second spawn only when findings exist; ANNOTATES 
 
 - [x] RED 364b32114
 - [x] GREEN ed3641557
-- [ ] REFACTOR
+- [x] REFACTOR skip: no separate behavior-preserving refactor step. This implementation was reshaped by the audit and quality-review passes (46d9bb1ee, 945eb43ca) — which fixed defects and added tests, so they were GREEN-shaped work, not a refactor. Recorded rather than back-filled.
 
 ### Scenario Outline: autonomous-pr-review.TB1.R14.the_adversary_outcome_sets_the_findings_check_mark
 
 - [x] RED 364b32114
 - [x] GREEN ed3641557
-- [ ] REFACTOR
+- [x] REFACTOR skip: no separate behavior-preserving refactor step. This implementation was reshaped by the audit and quality-review passes (46d9bb1ee, 945eb43ca) — which fixed defects and added tests, so they were GREEN-shaped work, not a refactor. Recorded rather than back-filled.
 
 ### Scenario Outline: autonomous-pr-review.TB1.R14.a_finding_is_adversarially_marked_only_when_a_finding_exists
 
 - [x] RED 364b32114
 - [x] GREEN ed3641557
-- [ ] REFACTOR
+- [x] REFACTOR skip: no separate behavior-preserving refactor step. This implementation was reshaped by the audit and quality-review passes (46d9bb1ee, 945eb43ca) — which fixed defects and added tests, so they were GREEN-shaped work, not a refactor. Recorded rather than back-filled.
 
 ## Rule: autonomous-pr-review.TB1.R8 — the reviewer runs once per ready change whose CI is green, not on every push and never while CI is red
 
@@ -178,7 +178,12 @@ _**Slice 2 — load-bearing #2.** `evaluateTrigger()`: the event is the coarse t
 - [x] RED skip: observed failing before implementing (unresolved import), but
       committed together with GREEN rather than as its own step
 - [x] GREEN 47ef8c105
-- [ ] REFACTOR
+- [x] REFACTOR skip: the follow-up work on this Rule was not behavior-preserving.
+      A quality review found the CI-state read was incomplete in two ways —
+      unpaginated check-runs (green while red) and check-runs-only (never fires
+      on repos whose required contexts are legacy commit statuses). Fixing those
+      ADDED behavior and needed its own RED tests, so it landed as GREEN-shaped
+      work rather than a refactor.
 
 ## Rule: autonomous-pr-review.TB1.R17 — the reviewer works from a full checkout of the head branch, not the diff alone
 
@@ -200,7 +205,7 @@ with zero findings, forbids a `reviewed` receipt)._
 
 - [x] RED 2babe6b63
 - [x] GREEN 8ed89b006
-- [ ] REFACTOR
+- [x] REFACTOR skip: no separate behavior-preserving refactor step. This implementation was reshaped by the audit and quality-review passes (46d9bb1ee, 945eb43ca) — which fixed defects and added tests, so they were GREEN-shaped work, not a refactor. Recorded rather than back-filled.
 
 ## Rule: autonomous-pr-review.NTB1.R4 — the review ends in a decision the reader can act on, not just a list of problems
 
@@ -210,7 +215,7 @@ _Slice 9 (review-body assembly: exactly one routing decision, positioned AFTER t
 
 - [x] RED 2babe6b63
 - [x] GREEN 8ed89b006
-- [ ] REFACTOR
+- [x] REFACTOR skip: no separate behavior-preserving refactor step. This implementation was reshaped by the audit and quality-review passes (46d9bb1ee, 945eb43ca) — which fixed defects and added tests, so they were GREEN-shaped work, not a refactor. Recorded rather than back-filled.
 
 ## Rule: autonomous-pr-review.SM1.R3 — the reviewer never executes fork-PR code while holding a credential that can write, comment, or approve
 
@@ -222,7 +227,7 @@ _**Slice 1 — load-bearing #1, build FIRST.** Two-job split: unprivileged secre
       genuine assertion failure that corrected the test), but committed together
       with GREEN rather than as its own step
 - [x] GREEN cb252d82e
-- [ ] REFACTOR
+- [x] REFACTOR skip: no separate behavior-preserving refactor step. This implementation was reshaped by the audit and quality-review passes (46d9bb1ee, 945eb43ca) — which fixed defects and added tests, so they were GREEN-shaped work, not a refactor. Recorded rather than back-filled.
 
 ### Scenario: autonomous-pr-review.SM1.R3.the_fix_gate_degrades_on_a_fork_rather_than_running_fork_code
 
@@ -236,7 +241,7 @@ _**Slice 1 — load-bearing #1, build FIRST.** Two-job split: unprivileged secre
       genuine assertion failure that corrected the test), but committed together
       with GREEN rather than as its own step
 - [x] GREEN cb252d82e
-- [ ] REFACTOR
+- [x] REFACTOR skip: no separate behavior-preserving refactor step. This implementation was reshaped by the audit and quality-review passes (46d9bb1ee, 945eb43ca) — which fixed defects and added tests, so they were GREEN-shaped work, not a refactor. Recorded rather than back-filled.
 
 ## Rule: autonomous-pr-review.SM1.R2 — a maintainer can turn the reviewer off without deleting it
 
@@ -246,7 +251,7 @@ _Slice 8 (`resolvePrReviewConfig` — `prReview.enabled`/`post`, default-off, fa
 
 - [x] RED 144588231
 - [x] GREEN e11586cda
-- [ ] REFACTOR
+- [x] REFACTOR skip: no separate behavior-preserving refactor step. This implementation was reshaped by the audit and quality-review passes (46d9bb1ee, 945eb43ca) — which fixed defects and added tests, so they were GREEN-shaped work, not a refactor. Recorded rather than back-filled.
 
 ---
 

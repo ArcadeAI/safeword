@@ -648,6 +648,10 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // must receive fixes; create-if-absent would strand a fork-safety patch in
     // projects that installed the first version. `.github/workflows` is a
     // sharedDir, so we add this one file and never own the directory.
+    // The `bunx safeword@<version>` pin inside the template is checked against
+    // VERSION by a release contract, the same way the Codex hook manifest is —
+    // FileDefinition has no content-transform hook, and a generator returning
+    // undefined SKIPS the file rather than templating it.
     '.github/workflows/pr-review.yml': { template: 'workflows/pr-review.yml' },
     // Note: knip.json is in typescriptManagedFiles (with context-aware ignoreDependencies)
 
