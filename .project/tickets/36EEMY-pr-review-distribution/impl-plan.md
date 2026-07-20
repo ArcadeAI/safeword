@@ -75,15 +75,30 @@ alignment_).
   happens only after the `safeword setup` PR merges. Say this in the docs; it is
   the #1 "it didn't work" report to expect.
 - **The green gate is an API read, not the event.** The event only says
-  "something finished." Authoritative green = read the head SHA's checks and
-  intersect with branch protection's _required_ set:
-  `GET /repos/{o}/{r}/commits/{sha}/check-runs` + `GET /commits/{sha}/status`
-  (combined status) filtered to
-  `GET /repos/{o}/{r}/branches/{branch}/protection/required_status_checks`.
-  Fire only when every required check is `success` AND the PR is
-  `ready_for_review` (not draft). The reviewer's own `reviewed` receipt is a
-  **non-required** check, so it is never part of the green it waits on — no
-  self-deadlock (R8's closing note).
+  "something finished." Authoritative green = read the head SHA's checks
+  (`GET /repos/{o}/{r}/commits/{sha}/check-runs` + `GET /commits/{sha}/status`)
+  and intersect with the branch's _required_ set. Fire only when every required
+  check is `success` AND the PR is `ready_for_review` (not draft). The reviewer's
+  own `reviewed` receipt is a **non-required** check, so it is never part of the
+  green it waits on — no self-deadlock (R8's closing note).
+- **Resolving the required set — three tiers, and log which one answered.**
+  1. **`GET /repos/{o}/{r}/rules/branches/{branch}`** (rulesets) — returns active
+     rules including `required_status_checks` with their contexts, and needs only
+     **Metadata: read**, which an ordinary workflow token has. _(verified:
+     [REST rules](https://docs.github.com/en/rest/repos/rules))_ **Not**
+     `/branches/{branch}/protection/required_status_checks` — that one needs
+     **Administration: read**, i.e. admin, which a customer's runner will not
+     have. An earlier draft named the admin-gated endpoint.
+  2. **`.safeword/config.json` → `prReview.requiredChecks`** — the declared
+     override, and the fallback for repos still on _classic_ branch protection,
+     where the rules endpoint legitimately returns nothing.
+  3. **Every check must pass** — last resort when neither above answers.
+     Over-strict by design: it can never review red code, but one flaky optional
+     check will suppress reviews indefinitely.
+
+  Tier 3 is the dangerous one — it fails as "the reviewer seems broken" rather
+  than as an error. So `evaluateTrigger()` **logs which tier resolved the gate on
+  every run**; "why didn't it fire?" must be answerable from one line of output.
 - **Fire-once + material re-review (R8).** De-dupe on head SHA: the presence of
   our own `safeword/pr-review` check-run (or a hidden marker) on a SHA means
   "already reviewed." Re-fire only when a _material_ push re-greens CI —
@@ -100,7 +115,14 @@ alignment_).
   - `reviewed` → a neutral **check-run receipt**
     (`POST /repos/{o}/{r}/check-runs`, `conclusion: neutral`,
     `name: safeword/pr-review`), NON-required. Not a comment (R2 holds), not an
-    approval.
+    approval. **Confirmed usable from the workflow token**: the Checks docs say
+    creation requires a GitHub App, and the Actions `GITHUB_TOKEN` is an App
+    installation token — the permissions reference states plainly that
+    "`checks: write` permits an action to create a check run", and `neutral` is a
+    valid `conclusion`. No GitHub App of our own is needed, and the commit-status
+    fallback an earlier draft reserved is unnecessary. _(verified:
+    [REST checks/runs](https://docs.github.com/en/rest/checks/runs),
+    [workflow permissions](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#permissions))_
   - `unreviewable-as-is` → one posted note (comment), no receipt. (So two
     verdicts post; only `reviewed` is silent.)
   - **CORRECTION — capability-absence is not achievable at token scope.** An
@@ -229,6 +251,39 @@ Two fields are **runner-owned and must be overwritten after parse**:
 laundering R11 exists to stop) and `adversarial` (R14 — set by the second
 spawn's outcome). A parse failure is a vendor failure ⇒ no receipt, loud.
 
+#### E. Vendor auth — WIF/OIDC is available, and it is the default
+
+Verified 2026-07-20, and it upgrades the threat model: **both vendors are OIDC
+relying parties**, so the runner can hold no standing secret at all.
+
+- **Anthropic** — Workload Identity Federation (shipped June 2026). The workflow
+  requests an Actions OIDC token, posts it to `POST /v1/oauth/token` (RFC 7523
+  `jwt-bearer` grant); Anthropic verifies it against
+  `https://token.actions.githubusercontent.com`'s JWKS and the federation rule's
+  match conditions, returning a short-lived `sk-ant-oat01-…` (60s–24h, default
+  1h) bound to a service account. _(verified:
+  [WIF](https://platform.claude.com/docs/en/manage-claude/workload-identity-federation),
+  [WIF with GitHub Actions](https://platform.claude.com/docs/en/manage-claude/wif-providers/github-actions))_
+- **OpenAI** — equivalent workload identity federation with its own Actions
+  guide; match on `repository` / `ref` / `environment` rather than org-wide
+  trust. _(verified:
+  [OpenAI WIF for GitHub Actions](https://developers.openai.com/api/docs/guides/workload-identity-federation/github-actions))_
+- Both require `permissions: id-token: write` on the job.
+
+**But WIF cannot be the only path.** Registering an issuer and a service account
+needs **admin on the customer's vendor org** — a step `safeword setup` cannot
+perform. This ticket's `done_when` says a customer repo gets the reviewer "with
+no hand-editing", so a WIF-only design is an adoption cliff that contradicts the
+contract. Therefore:
+
+| Tier | Mechanism | Posture |
+| --- | --- | --- |
+| Preferred | WIF/OIDC → short-lived token | No standing secret. Documented as the recommended setup. |
+| Fallback | Static key in a GitHub **environment** secret, reachable only by the privileged stage 2 | Works out of the box; a standing secret exists, so scope it to the environment and never expose it to stage 1. |
+
+`resolvePrReviewConfig` picks the tier; the runner logs which one authenticated,
+for the same reason the green gate does.
+
 #### The two injected inputs (the eval's reshape surface)
 
 1. **Vendor** — `RetroAgent`, chosen per R11: default assume author=Claude ⇒
@@ -246,7 +301,7 @@ spawn's outcome). A parse failure is a vendor failure ⇒ no receipt, loud.
 | Threat | Vector | Structural mitigation (survives a successful injection) |
 | --- | --- | --- |
 | **Fork injection / pwn-request** | Untrusted head code + "approve me" / "run this" instructions in the diff or body | Fork head is checked out only in the unprivileged secretless stage 1; the credentialed stage 2 sees it as an inert data bundle and never executes it. A hijacked reviewer _says_ something wrong, never _does_ something irreversible — because approve is blocked by the org/repo Actions-approval setting and the runner never calls the review-submission endpoint (SM1.R3). |
-| **Secret exposure** | Vendor API key (`CODEX_API_KEY` / `anthropic_api_key`\|`claude_code_oauth_token`) or arcade bearer present while fork code executes | WIF/OIDC preferred: short-lived, scoped to the single headless invocation. The job that _executes_ fork code (R12 base-repro, R13 fix-run, R17 live env) holds **no** secret; on a fork those gates **degrade** rather than run (SM1.R3). Never a job-level env secret in a job that checks out fork code. |
+| **Secret exposure** | A vendor credential or the arcade bearer present while fork code executes | **WIF/OIDC is real on both vendors and is the default** (see §E) — the workflow exchanges its Actions OIDC token for a short-lived vendor token, so there is no standing secret to steal. Static-key fallback lives in an environment secret reachable only by stage 2. The job that _executes_ fork code (R12, R13, R17 live env) holds **no** credential either way; on a fork those gates **degrade** rather than run (SM1.R3). |
 | **Trust boundary** | The tripwire is _execution of fork code with a credential_, not reading it | "Clone everything and read it" is always safe (privileged job OK). "Spin it up and bang on it" is the gated act — non-fork or secretless-only. Any new run-fork-code step is visibly in violation of the R13 fork-degrade scenario. |
 | **Laundered approval** | `pull-requests: write` also grants APPROVE, and a `github-actions` approval **counts** toward required-approval protection (verified) | No token scope separates comment from approve, so this is defence-in-depth, not a single structural gate: (1) org/repo "Allow GitHub Actions to create and approve pull requests" → **OFF** (the real structural control, and an install prerequisite); (2) "require approval of the most recent reviewable push"; (3) the runner only ever calls `POST /pulls/{n}/comments`, never `/pulls/{n}/reviews` — asserted by the SM1.R3 injected-approve test. |
 
@@ -499,6 +554,16 @@ voting panel (popularity trap). Reassess-when: see _Assessment triggers_.
 - (G5337S owns the skill's own 7-surface docs; not duplicated here.)
 
 ## Assessment triggers
+
+- **Three platform assumptions were verified 2026-07-20 and are no longer open**
+  — vendor WIF/OIDC (available on both, now the default), check-run creation from
+  the workflow token (works; no App needed), and reading the required-check set
+  (use the rulesets endpoint at Metadata scope, not the admin-gated
+  branch-protection one). Re-verify if any vendor retires WIF or GitHub changes
+  the rules endpoint's permission. Still unverified and owed before slice 5: the
+  arcade bearer's identity semantics (does it really read **as the PR author**,
+  or as the token owner? — R6's non-escalation premise), and the codex/claude
+  MCP + sandbox flag details.
 
 - **X1Z5MG lands** (real author-vendor detection) — cross-vendor stops being
   config-implied; revisit `selectVendor()` and R11's default.
