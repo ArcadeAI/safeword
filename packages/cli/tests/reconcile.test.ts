@@ -417,7 +417,13 @@ describe('Reconcile - Reconciliation Engine', () => {
         // from the host's own formatter would be overreach, so it is exempt
         // from the owned-dir ignore guarantee (husky's generated `.husky/_`
         // stays excluded via managedPrettierPaths).
-        .filter(dir => dir !== '.husky');
+        .filter(dir => dir !== '.husky')
+        // `.github` is likewise USER-owned — safeword contributes exactly one
+        // file to it (the PR-review workflow, 36EEMY). Adding `.github` to the
+        // ignore list would drop the project's own CI out of its own formatter,
+        // the same overreach the `.husky` exemption avoids. The single owned
+        // file is excluded by path instead, via `managedPrettierPaths`.
+        .filter(dir => dir !== '.github');
 
       // Every dot-directory the schema actually manages must be in the single
       // ignore list, so a newly-owned dir can't silently escape the formatters'
@@ -467,6 +473,10 @@ describe('Reconcile - Reconciliation Engine', () => {
     const PRETTIER_HEADER = '# Safeword - managed prettier exclusions (owned dirs)';
     const prettierDirectories = [
       '.husky/_',
+      // Safeword-owned FILE inside a customer-owned directory (36EEMY) —
+      // excluded by path, since excluding all of `.github/` would drop the
+      // project's own CI out of its own formatter.
+      '.github/workflows/pr-review.yml',
       '.safeword/',
       '.claude/',
       '.cursor/',

@@ -320,7 +320,16 @@ const NAMESPACE_GITIGNORE_CONTENT = `# Safeword - transient session state (auto-
  * default/legacy install's `.prettierignore` block is byte-identical (no churn).
  */
 function managedPrettierPaths(ctx: ProjectContext): string[] {
-  return ['.husky/_', ...resolvedIgnoreDirectories(ctx).map(dir => `${dir}/`)];
+  return [
+    '.husky/_',
+    // The PR-review workflow (36EEMY) is a safeword-owned FILE inside a
+    // customer-owned directory, so it is excluded by path rather than by dir —
+    // excluding all of `.github/` would take the project's own CI out of its own
+    // formatter. Without this, the host's prettier reformats the file, the next
+    // upgrade rewrites it, and the two churn against each other forever.
+    '.github/workflows/pr-review.yml',
+    ...resolvedIgnoreDirectories(ctx).map(dir => `${dir}/`),
+  ];
 }
 
 // Header line of the managed .prettierignore block — also its marker (re-applied
@@ -467,6 +476,11 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // Custom-agent homes (GH628F): users keep their own agents in this dir —
     // add-to, never own. Codex is plugin-only and receives no project scaffold.
     '.claude/agents',
+    // The customer's own workflows live here. Safeword adds ONE file
+    // (pr-review.yml, ticket 36EEMY) and must never own the directory —
+    // owning it would make reset/uninstall delete the project's CI.
+    '.github',
+    '.github/workflows',
   ],
 
   // Created on setup but NOT deleted on reset (preserves user data)
@@ -620,6 +634,14 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // working files (features/, steps/) are customer-owned in managedFiles.
     // Suppressed when the repo has its own cucumber harness (56JCFZ).
     'cucumber.mjs': bddLaneFile('cucumber/cucumber.mjs'),
+    // Autonomous PR review (36EEMY). Lands in every project on upgrade and is
+    // INERT until `.safeword/config.json` sets `prReview.enabled: true` — the
+    // workflow's own first step gates on it. ownedFiles rather than
+    // managedFiles because a security-relevant workflow must receive fixes;
+    // create-if-absent would strand a fork-safety patch in projects that
+    // installed the first version. `.github/workflows` is a sharedDir, so we
+    // add this one file and never own the directory.
+    '.github/workflows/pr-review.yml': { template: 'workflows/pr-review.yml' },
     // Note: knip.json is in typescriptManagedFiles (with context-aware ignoreDependencies)
 
     // Core files

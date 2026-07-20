@@ -290,6 +290,19 @@ program
   });
 
 program
+  .command('review-pr')
+  .description('Review a pull request against its declared intent (36EEMY; default-off)')
+  .option('--repository <owner/repo>', 'target repository (defaults to $GITHUB_REPOSITORY)')
+  .option('--pull <number>', 'pull request number (defaults to $SAFEWORD_PR_NUMBER)')
+  .action(async (options: { repository?: string; pull?: string }) => {
+    const { reviewPrCommand } = await import('./commands/review-pr.js');
+    // A skipped review is a normal outcome, so the exit code stays 0. Only a
+    // thrown fault reddens the job — a silent no-op would be indistinguishable
+    // from a clean pull request.
+    await reviewPrCommand(options);
+  });
+
+program
   .command('lint-gherkin')
   .description('Lint Gherkin feature files using Safeword-owned checks')
   .argument(
