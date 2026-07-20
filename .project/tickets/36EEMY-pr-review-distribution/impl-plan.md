@@ -594,6 +594,30 @@ voting panel (popularity trap). Reassess-when: see _Assessment triggers_.
     `per-author` and re-enables fork reads by construction. The code already
     takes that path; only the config has to change.
 
+### Five modules are staged, not dead (decided 2026-07-20)
+
+`vendor.ts`, `execution.ts`, `certainty.ts`, `subtraction.ts` and `intent.ts`
+have **no production callers**, and knip will report them. They are staged, and
+they stay:
+
+- Each implements a Rule whose ledger row is closed, with its own tests. Their
+  scenarios are proven; only the wiring waits.
+- Every one is blocked on the same missing piece — the headless vendor
+  invocation. `subtractCoverage` filters findings that carry a coverage state the
+  MODEL supplies; `boundCompletenessSeverity` takes a referencing-PR count that
+  comes from intent resolution; `resolveExecutionTier` is consumed by the R12/R13
+  run gates (slice 7). Wiring them now would mean inventing callers for data that
+  does not exist yet — speculative structure, which is worse than an unused
+  export.
+- Deleting and rebuilding them later would discard working, tested code to
+  satisfy a linter.
+
+**Not** added to a knip ignore list. An ignore entry would silence them
+permanently and mask the day one of them really does become dead; a reader who
+hits the report should find this note and see the reason. Revisit when the vendor
+slice lands — at that point every one of them acquires a caller, and any that
+does not is genuinely dead.
+
 ## Doc impact
 
 - `README.md` — `safeword setup` now ships an autonomous PR reviewer; default-off;
