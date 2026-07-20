@@ -88,8 +88,11 @@ _Slice 4 (`postVerdict()` — empty findings ⇒ 0 comments, still a `reviewed` 
 
 ### Scenario Outline: autonomous-pr-review.TB1.R2.silence_only_when_there_is_nothing_to_say
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED skip: emerged green — slice 1a's postVerdict already posted one comment
+      per finding and none for an empty set, so this Rule had no failing state to
+      capture. Its discriminating positive (one finding ⇒ exactly one comment) is
+      asserted alongside, so the row is not vacuous.
+- [x] GREEN 99576ac60
 - [ ] REFACTOR
 
 ## Rule: autonomous-pr-review.TB1.R9 — every review records a verdict; a clean PR is marked reviewed, never left as bare silence
@@ -98,8 +101,8 @@ _Slice 4 (comment vs NON-required neutral check-run receipt; never an approval).
 
 ### Scenario Outline: autonomous-pr-review.TB1.R9.a_clean_pr_is_marked_reviewed_and_a_flagged_one_needs_a_human
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED e5b939cac
+- [x] GREEN 99576ac60
 - [ ] REFACTOR
 
 ## Rule: autonomous-pr-review.TB1.R6 — the reviewer uses whatever declared intent the project exposes
@@ -128,20 +131,20 @@ _Slice 6 (`selectVendor()` + `crossModelClaim()`; **unit** for the 4-row pairing
 
 ### Scenario: autonomous-pr-review.TB1.R11.an_undetectable_author_defaults_to_reviewing_with_codex
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 7424d6f74
+- [x] GREEN VENDORGREEN
 - [ ] REFACTOR
 
 ### Scenario Outline: autonomous-pr-review.TB1.R11.the_cross_vendor_declaration_tracks_the_actual_pairing
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 7424d6f74
+- [x] GREEN VENDORGREEN
 - [ ] REFACTOR
 
 ### Scenario: autonomous-pr-review.TB1.R11.an_author_from_the_reviewing_vendor_flips_the_reviewer
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 7424d6f74
+- [x] GREEN VENDORGREEN
 - [ ] REFACTOR
 
 ## Rule: autonomous-pr-review.TB1.R14 — when a finding exists, a second vendor tries to refute it before anyone sees it
