@@ -172,8 +172,9 @@ _**Slice 2 — load-bearing #2.** `evaluateTrigger()`: the event is the coarse t
 
 ### Scenario Outline: autonomous-pr-review.TB1.R8.fires_once_on_a_ready_green_pr_and_re_fires_only_on_a_material_re_green
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED skip: observed failing before implementing (unresolved import), but
+      committed together with GREEN rather than as its own step
+- [x] GREEN 47ef8c105
 - [ ] REFACTOR
 
 ## Rule: autonomous-pr-review.TB1.R17 — the reviewer works from a full checkout of the head branch, not the diff alone
@@ -214,7 +215,9 @@ _**Slice 1 — load-bearing #1, build FIRST.** Two-job split: unprivileged secre
 
 ### Scenario: autonomous-pr-review.SM1.R3.a_fork_is_reviewed_and_posted_without_running_the_forks_gates
 
-- [x] RED cb252d82e
+- [x] RED skip: observed failing before implementing (unresolved imports, then a
+      genuine assertion failure that corrected the test), but committed together
+      with GREEN rather than as its own step
 - [x] GREEN cb252d82e
 - [ ] REFACTOR
 
@@ -226,7 +229,9 @@ _**Slice 1 — load-bearing #1, build FIRST.** Two-job split: unprivileged secre
 
 ### Scenario: autonomous-pr-review.SM1.R3.an_injected_approve_instruction_cannot_produce_an_approval
 
-- [x] RED cb252d82e
+- [x] RED skip: observed failing before implementing (unresolved imports, then a
+      genuine assertion failure that corrected the test), but committed together
+      with GREEN rather than as its own step
 - [x] GREEN cb252d82e
 - [ ] REFACTOR
 
@@ -239,6 +244,15 @@ _Slice 8 (`resolvePrReviewConfig` — `prReview.enabled`/`post`, default-off, fa
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
+
+---
+
+## Cross-scenario refactor
+
+One pass over the whole runner once the slices are green — not per-scenario
+cleanup, which each REFACTOR row already owns.
+
+- [ ] cross-scenario
 
 ---
 
