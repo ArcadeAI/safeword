@@ -24,6 +24,12 @@ export interface ReviewFinding {
   line: number;
   /** Plain-language consequence — the surface an NTB reads (NTB1.R1). */
   consequence: string;
+  /**
+   * What the second vendor made of it (R14). Absent until the adversarial pass
+   * has run; `unchecked` means the adversary was asked and failed, which is not
+   * the same as never having been asked.
+   */
+  adversarial?: 'contested' | 'affirmed' | 'unchecked';
 }
 
 export interface Review {
@@ -38,8 +44,17 @@ export const RECEIPT_CHECK_NAME = 'safeword/pr-review';
 /**
  * Render one finding. The fixed shape is [what happens] → [what to do], with
  * evidence a layer deeper — a wall of code anchors, a one-line stake orients.
+ *
+ * A contested finding says so in the body: down-weighting a finding the reader
+ * cannot see is down-weighted achieves nothing (R14).
  */
-function renderFinding(finding: ReviewFinding): string {
+export function renderFinding(finding: ReviewFinding): string {
+  if (finding.adversarial === 'contested') {
+    return `${finding.consequence}\n\n_Contested — a second vendor disputed this finding. It is posted anyway, at lower confidence._`;
+  }
+  if (finding.adversarial === 'unchecked') {
+    return `${finding.consequence}\n\n_Not adversarially checked — the second vendor errored._`;
+  }
   return finding.consequence;
 }
 

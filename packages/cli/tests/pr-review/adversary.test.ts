@@ -50,12 +50,15 @@ describe('autonomous-pr-review.TB1.R14 — the adversarial pass (36EEMY slice 6)
     // refutation can share the author's blind spot. The adversary may lower
     // confidence; it may never make a true finding vanish.
     expect(annotated).toHaveLength(2);
-    expect(annotated[0]?.adversarial).toBe('contested');
-    expect(annotated[1]?.adversarial).toBe('affirmed');
+    const [refuted, affirmed] = annotated;
+    if (!refuted || !affirmed) throw new Error('expected both findings to survive');
+
+    expect(refuted.adversarial).toBe('contested');
+    expect(affirmed.adversarial).toBe('affirmed');
 
     // "Contested" is worthless if the reader cannot see it.
-    expect(renderFinding(annotated[0] as ReviewFinding)).toMatch(/contested/i);
-    expect(renderFinding(annotated[1] as ReviewFinding)).not.toMatch(/contested/i);
+    expect(renderFinding(refuted)).toMatch(/contested/i);
+    expect(renderFinding(affirmed)).not.toMatch(/contested/i);
   });
 
   const outcomes = [
