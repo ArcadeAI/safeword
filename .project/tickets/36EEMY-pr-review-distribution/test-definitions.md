@@ -214,8 +214,8 @@ _**Slice 1 — load-bearing #1, build FIRST.** Two-job split: unprivileged secre
 
 ### Scenario: autonomous-pr-review.SM1.R3.a_fork_is_reviewed_and_posted_without_running_the_forks_gates
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED cb252d82e
+- [x] GREEN cb252d82e
 - [ ] REFACTOR
 
 ### Scenario: autonomous-pr-review.SM1.R3.the_fix_gate_degrades_on_a_fork_rather_than_running_fork_code
@@ -226,8 +226,8 @@ _**Slice 1 — load-bearing #1, build FIRST.** Two-job split: unprivileged secre
 
 ### Scenario: autonomous-pr-review.SM1.R3.an_injected_approve_instruction_cannot_produce_an_approval
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED cb252d82e
+- [x] GREEN cb252d82e
 - [ ] REFACTOR
 
 ## Rule: autonomous-pr-review.SM1.R2 — a maintainer can turn the reviewer off without deleting it

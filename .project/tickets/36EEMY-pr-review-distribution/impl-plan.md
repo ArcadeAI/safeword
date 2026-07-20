@@ -403,12 +403,26 @@ _quality_ by the CWGYH0 **eval** (named, not duplicated here).
    the `.safeword/` ↔ `templates/` parity pair in sync, keep
    `tests/hooks/retro-extract.test.ts` green. Without this, slice 3 has nothing
    to call. (Discovered by review — an earlier draft assumed free reuse.)
-1. **Fork-safe two-stage skeleton + a minimal comment poster** — enough posting
-   to make the proof real, and no more. Proves
+1. **The trust model, at module level** — the capability-narrow poster
+   (endpoint allow-list; approve and merge absent by construction) and the
+   fork-based execution tier. Proves
    `an_injected_approve_instruction_cannot_produce_an_approval` and
    `a_fork_is_reviewed_and_posted_without_running_the_forks_gates`. The third
    SM1.R3 scenario (`the_fix_gate_degrades_on_a_fork`) **cannot be proven here**
    — a gate that does not exist degrades trivially — so it moves to slice 7.
+
+   **Corrected while building (2026-07-20): the workflow YAML is NOT in this
+   slice.** The plan originally put the "two-stage skeleton" here, but any file
+   under `templates/` must be registered in `schema.ts` — `checkOrphanTemplates`
+   runs in pre-commit's contracts-only mode and hard-blocks an unregistered
+   template (`src/parity.ts`). Registering it makes `safeword setup` write the
+   workflow into every project, and a workflow invoking a `safeword review-pr`
+   command that does not exist yet is a broken install shipped to customers. So
+   the YAML and its structural contract test (no `pull_request_target`, stage 1
+   secretless, stage 2 never checks out the fork head, no
+   `allow-unsafe-pr-checkout`) move to **slice 8**, after the CLI entry point
+   exists in slice 3. The trust properties themselves are proven here and do not
+   wait on it.
 2. **Trigger + authoritative green gate** — R8 (unit truth table, then the
    event→check-runs integration).
 3. **Headless invocation + parse** — wire the slice-0 generalized runner behind
