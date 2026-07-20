@@ -15,7 +15,7 @@ Feature: Move Codex users to the Safe Word plugin
       When the builder sets up Safe Word
       Then the project has no Safe Word Codex hook configuration
 
-  @surface.safe-word-packaged-cli @migrate-codex-to-plugin.TB1.R2
+  @surface.safeword-cli @migrate-codex-to-plugin.TB1.R2
   Rule: migrate-codex-to-plugin.TB1.R2 - Explicit migration verifies the profile plugin and preserves Safe Word-owned project hooks until the reviewed handoff cleanup
 
     Scenario: Verified plugin migration preserves legacy hooks pending review
