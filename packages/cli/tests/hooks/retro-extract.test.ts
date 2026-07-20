@@ -8,6 +8,7 @@ import {
   buildCodexExtractArgv,
   buildDigest,
   buildExtractArgv,
+  CODEX_RETRO_OUTPUT_SCHEMA,
   DEFAULT_CLAUDE_RETRO_MODEL,
   DEFAULT_CODEX_RETRO_MODEL,
   isRetroChild,
@@ -410,8 +411,13 @@ describe('runCodexHeadlessExtraction', () => {
       },
     });
 
+    // `output` is the job's parsed answer (36EEMY slice 0); for the retro job it
+    // is the same array as `findings`. Asserted explicitly rather than relaxing
+    // to toMatchObject — the strictness is what separates this from the
+    // missing-output case below.
     await expect(runCodexHeadlessExtractionChecked('t', empty.deps)).resolves.toEqual({
       ok: true,
+      output: [],
       findings: [],
     });
   });
@@ -429,6 +435,163 @@ describe('runCodexHeadlessExtraction', () => {
   });
 });
 
+// Slice 0 of the PR-review runner (36EEMY): the headless spawn seams were
+// retro-shaped — schema, prompt, and input were hardcoded inside the runners, so
+// a second job (reviewing a PR) could not reuse them. These prove the runners
+// take a JOB, and that the retro job stays the default and behaves identically.
+function tryJson(raw: string): unknown {
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return undefined;
+  }
+}
+
+describe('headless job parameterization (36EEMY slice 0)', () => {
+  const REVIEW_SCHEMA = {
+    type: 'object',
+    additionalProperties: false,
+    properties: { verdict: { type: 'string' } },
+    required: ['verdict'],
+  };
+
+  // A non-retro job: different schema, different prompt, different input
+  // reduction, and an output shape that is an OBJECT, not a findings array.
+  const reviewJob = {
+    systemPrompt: 'You review a pull request. Output only the review JSON.',
+    schema: REVIEW_SCHEMA,
+    prepareInput: (raw: string) => `DIFF>>${raw.slice(0, 20)}`,
+    parseOutput: (raw: string) => {
+      const parsed = tryJson(raw) as { verdict?: unknown } | undefined;
+      return typeof parsed?.verdict === 'string' ? parsed : undefined;
+    },
+  };
+
+  it('the codex runner uses the job’s schema, prompt, and input reduction', async () => {
+    const files = new Map<string, string>();
+    const calls: string[][] = [];
+    const dependencies = {
+      spawn: (argv: string[]) => {
+        calls.push(argv);
+        files.set('/tmp/n/out.json', JSON.stringify({ verdict: 'needs-a-human' }));
+        return Promise.resolve({ code: 0, stdout: '' });
+      },
+      writeFile: (path: string, content: string) => files.set(path, content),
+      readFile: (path: string) => {
+        const content = files.get(path);
+        if (content === undefined) throw new Error(`missing file: ${path}`);
+        return content;
+      },
+      cwd: '/tmp/n',
+      env: {},
+      model: 'gpt-5.5',
+      schemaPath: '/tmp/n/schema.json',
+      outputPath: '/tmp/n/out.json',
+    };
+
+    const result = await runCodexHeadlessExtractionChecked(
+      'RAW_PR_DIFF_INPUT',
+      dependencies,
+      reviewJob,
+    );
+
+    // the job's schema was written, NOT the retro findings schema
+    expect(JSON.parse(files.get('/tmp/n/schema.json') ?? '{}')).toEqual(REVIEW_SCHEMA);
+    // the job's prompt + input reduction reached the child, not retro's
+    const prompt = calls[0]?.at(-1) ?? '';
+    expect(prompt).toContain('You review a pull request');
+    expect(prompt).toContain('DIFF>>RAW_PR_DIFF_INPUT');
+    expect(prompt).not.toContain("SAFEWORD's OWN friction");
+    // the job's parse ran: an OBJECT survives, where retro would have taken .findings
+    expect(result.ok).toBe(true);
+    expect(result.output).toEqual({ verdict: 'needs-a-human' });
+  });
+
+  it('the claude runner uses the job’s system prompt and parse', async () => {
+    const calls: string[][] = [];
+    const dependencies = {
+      spawn: (argv: string[]) => {
+        calls.push(argv);
+        return Promise.resolve({
+          code: 0,
+          stdout: JSON.stringify({ result: '{"verdict":"reviewed"}' }),
+        });
+      },
+      writeDigest: () => '/tmp/n/input.txt',
+      env: {},
+      cwd: '/tmp/n',
+      model: 'sonnet',
+    };
+
+    const output = await runHeadlessExtraction('RAW_PR_DIFF_INPUT', dependencies, reviewJob);
+
+    expect(calls[0]).toContain('You review a pull request. Output only the review JSON.');
+    expect(output).toEqual({ verdict: 'reviewed' });
+  });
+
+  it('a malformed vendor payload is a failure, never a silent empty success', async () => {
+    const files = new Map<string, string>([['/tmp/n/out.json', 'not json at all']]);
+    const dependencies = {
+      spawn: () => Promise.resolve({ code: 0, stdout: '' }),
+      writeFile: (path: string, content: string) => files.set(path, content),
+      readFile: (path: string) => files.get(path) ?? '',
+      cwd: '/tmp/n',
+      env: {},
+      schemaPath: '/tmp/n/schema.json',
+      outputPath: '/tmp/n/out.json',
+    };
+
+    const result = await runCodexHeadlessExtractionChecked('x', dependencies, reviewJob);
+
+    expect(result.ok).toBe(false);
+    expect(result.failureReason).toBe('invalid_output');
+  });
+
+  it('the codex argv honors mcp-server and sandbox overrides, defaulting to retro’s gating', () => {
+    const base = { model: 'm', schemaPath: '/s', outputPath: '/o', prompt: 'p' };
+
+    const defaults = buildCodexExtractArgv(base);
+    expect(defaults).toContain('mcp_servers={}');
+    expect(defaults[defaults.indexOf('--sandbox') + 1]).toBe('read-only');
+    expect(defaults).toContain('--skip-git-repo-check');
+
+    const overridden = buildCodexExtractArgv({
+      ...base,
+      mcpServers: '{"arcade":{"url":"https://api.arcade.dev/mcp"}}',
+      sandbox: 'workspace-write',
+      skipGitRepoCheck: false,
+    });
+    expect(overridden).toContain('mcp_servers={"arcade":{"url":"https://api.arcade.dev/mcp"}}');
+    expect(overridden[overridden.indexOf('--sandbox') + 1]).toBe('workspace-write');
+    expect(overridden).not.toContain('--skip-git-repo-check');
+  });
+
+  it('the retro job remains the default — omitting a job preserves today’s behavior', async () => {
+    const files = new Map<string, string>();
+    const calls: string[][] = [];
+    const dependencies = {
+      spawn: (argv: string[]) => {
+        calls.push(argv);
+        files.set('/tmp/n/out.json', JSON.stringify({ findings: JSON.parse(validFindings) }));
+        return Promise.resolve({ code: 0, stdout: '' });
+      },
+      writeFile: (path: string, content: string) => files.set(path, content),
+      readFile: (path: string) => files.get(path) ?? '',
+      cwd: '/tmp/n',
+      env: {},
+      schemaPath: '/tmp/n/schema.json',
+      outputPath: '/tmp/n/out.json',
+    };
+
+    const result = await runCodexHeadlessExtractionChecked('a transcript', dependencies);
+
+    expect(result.ok).toBe(true);
+    expect(result.findings).toHaveLength(1);
+    expect(calls[0]?.at(-1)).toContain("SAFEWORD's OWN friction");
+    expect(JSON.parse(files.get('/tmp/n/schema.json') ?? '{}')).toEqual(CODEX_RETRO_OUTPUT_SCHEMA);
+  });
+});
+
 describe('extraction guidance offers the process namespace (PNZM3B)', () => {
   it('the shared extraction prompt offers process/<area> for friction with no single-file surface', async () => {
     const { EXTRACT_SYSTEM_PROMPT } = await import('../../templates/hooks/lib/retro-extract.js');
@@ -436,9 +599,7 @@ describe('extraction guidance offers the process namespace (PNZM3B)', () => {
     expect(EXTRACT_SYSTEM_PROMPT).toMatch(/no single-file surface/i);
   });
 
-  it("the Codex schema's surface description names the identical process form", async () => {
-    const { CODEX_RETRO_OUTPUT_SCHEMA } =
-      await import('../../templates/hooks/lib/retro-extract.js');
+  it("the Codex schema's surface description names the identical process form", () => {
     const surface = CODEX_RETRO_OUTPUT_SCHEMA.properties.findings.items.properties
       .safeword_surface as {
       description?: string;
