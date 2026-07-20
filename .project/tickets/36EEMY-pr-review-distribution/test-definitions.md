@@ -198,8 +198,8 @@ with zero findings, forbids a `reviewed` receipt)._
 
 ### Scenario Outline: autonomous-pr-review.TB2.R2.size_never_buys_a_reviewed_receipt_on_a_sensitive_surface
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 2babe6b63
+- [x] GREEN 8ed89b006
 - [ ] REFACTOR
 
 ## Rule: autonomous-pr-review.NTB1.R4 — the review ends in a decision the reader can act on, not just a list of problems
@@ -208,8 +208,8 @@ _Slice 9 (review-body assembly: exactly one routing decision, positioned AFTER t
 
 ### Scenario: autonomous-pr-review.NTB1.R4.a_review_with_findings_ends_in_one_actionable_decision
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 2babe6b63
+- [x] GREEN 8ed89b006
 - [ ] REFACTOR
 
 ## Rule: autonomous-pr-review.SM1.R3 — the reviewer never executes fork-PR code while holding a credential that can write, comment, or approve
