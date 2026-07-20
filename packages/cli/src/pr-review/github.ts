@@ -173,16 +173,25 @@ export async function findReviewedSha(
   return undefined;
 }
 
-export async function fetchChangedPaths(
+/**
+ * Paths changed BETWEEN two commits — the diff since the last review, not the
+ * pull request's whole diff.
+ *
+ * `GET /pulls/{n}/files` is the wrong endpoint here and was the original bug:
+ * it returns every file the pull request has ever touched, so a docs-only push
+ * onto a branch that earlier changed source still looks "material" and the
+ * reviewer re-fires on every push forever (R8's re-review gate never binds).
+ */
+export async function fetchChangedPathsBetween(
   request: GitHubRequest,
-  context: { owner: string; repo: string; pull: number },
+  context: { owner: string; repo: string },
+  baseSha: string,
+  headSha: string,
 ): Promise<string[]> {
-  const files = (await request(
+  const comparison = (await request(
     'GET',
-    `/repos/${context.owner}/${context.repo}/pulls/${context.pull}/files?per_page=100`,
-  )) as { filename?: string }[];
+    `/repos/${context.owner}/${context.repo}/compare/${baseSha}...${headSha}?per_page=100`,
+  )) as { files?: { filename?: string }[] };
 
-  return (Array.isArray(files) ? files : [])
-    .map(file => file.filename ?? '')
-    .filter(name => name.length > 0);
+  return (comparison.files ?? []).map(file => file.filename ?? '').filter(name => name.length > 0);
 }

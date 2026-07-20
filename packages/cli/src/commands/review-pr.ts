@@ -10,7 +10,7 @@ import process from 'node:process';
 import { resolvePrReviewConfig } from '../pr-review/config.js';
 import {
   createGitHubRequest,
-  fetchChangedPaths,
+  fetchChangedPathsBetween,
   fetchCheckRuns,
   fetchPullFacts,
   fetchRulesetRequiredChecks,
@@ -110,7 +110,7 @@ export async function reviewPrCommand(options: ReviewPrOptions = {}): Promise<Re
   const changedPathsSinceReview =
     reviewedSha === undefined || reviewedSha === facts.headSha
       ? undefined
-      : await fetchChangedPaths(request, context);
+      : await fetchChangedPathsBetween(request, context, reviewedSha, facts.headSha);
 
   process.stdout.write(
     `pr-review: required-check set resolved from ${required.tier} (${required.checks?.join(', ') ?? 'all checks'})\n`,
