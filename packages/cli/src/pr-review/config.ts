@@ -13,6 +13,9 @@
 import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import type { ReviewPoster } from './poster.js';
+import { postVerdict, type Review } from './verdict.js';
+
 /**
  * Whose tracker credentials the reviewer reads with.
  *
@@ -91,4 +94,47 @@ export function resolvePrReviewConfig(projectDirectory: string): PrReviewConfig 
       ? raw.requiredChecks.filter(entry => nonEmptyString(entry))
       : [],
   };
+}
+
+export interface DeliveryResult {
+  posted: boolean;
+  /** Why — a reviewer that was switched off must not read as one that broke. */
+  reason: string;
+}
+
+/**
+ * The last gate before anything reaches the pull request (SM1.R2).
+ *
+ * Deliberately at DELIVERY rather than at the start of the run. What the switch
+ * governs is speech, not thought: a disabled reviewer that still computes its
+ * review can be measured in shadow before it ever fires on someone else's repo,
+ * which is precisely the evidence SM1.R1 asks for.
+ *
+ * Two gates, not one. `enabled` off means the project never opted in at all, so
+ * nothing runs. `post` off means it runs and stays quiet — the posture a
+ * maintainer uses to watch it for a week before spending any trust. Neither
+ * writes so much as a receipt: a receipt is still the reviewer speaking on a
+ * pull request nobody invited it to.
+ */
+export async function deliverReview(
+  review: Review,
+  poster: ReviewPoster,
+  config: PrReviewConfig,
+): Promise<DeliveryResult> {
+  if (!config.enabled) {
+    return {
+      posted: false,
+      reason: 'disabled for this project (.safeword/config.json → prReview.enabled)',
+    };
+  }
+
+  if (!config.post) {
+    return {
+      posted: false,
+      reason: `shadow mode — computed ${review.verdict}, posting is off (prReview.post)`,
+    };
+  }
+
+  await postVerdict(review, poster);
+  return { posted: true, reason: `posted ${review.verdict}` };
 }

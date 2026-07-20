@@ -43,20 +43,16 @@ describe('pr-review configuration and the kill switch (36EEMY slice 8)', () => {
     );
   }
 
-  function writeRaw(contents: string): void {
-    writeFileSync(nodePath.join(projectDirectory, '.safeword', 'config.json'), contents);
-  }
-
   describe('autonomous-pr-review.SM1.R2 — a maintainer can turn it off without deleting it', () => {
     const rows = [
-      { state: 'enables', enabled: true, count: 1 },
-      { state: 'disables', enabled: false, count: 0 },
+      { state: 'enables', prReview: { enabled: true, post: true }, count: 1 },
+      { state: 'disables', prReview: { enabled: false }, count: 0 },
     ] as const;
 
     it.each(rows)(
       'autonomous-pr-review.SM1.R2.the_config_switch_toggles_posting_but_never_uninstalls [$state]',
-      async ({ enabled, count }) => {
-        writeConfig({ prReview: { enabled } });
+      async ({ prReview, count }) => {
+        writeConfig({ prReview });
         const { calls, poster } = recordingPoster();
 
         await deliverReview(worthOneComment, poster, resolvePrReviewConfig(projectDirectory));
@@ -67,6 +63,24 @@ describe('pr-review configuration and the kill switch (36EEMY slice 8)', () => {
         if (count === 0) expect(calls).toHaveLength(0);
       },
     );
+
+    it('runs quiet when enabled but not permitted to post — the shadow posture', async () => {
+      // SM1.R1 wants measured evidence BEFORE the reviewer fires on someone
+      // else's repo. `post: false` is how a maintainer watches it run without
+      // spending a single unit of trust.
+      writeConfig({ prReview: { enabled: true, post: false } });
+      const { calls, poster } = recordingPoster();
+
+      const result = await deliverReview(
+        worthOneComment,
+        poster,
+        resolvePrReviewConfig(projectDirectory),
+      );
+
+      expect(calls).toHaveLength(0);
+      expect(result.posted).toBe(false);
+      expect(result.reason).toMatch(/shadow|post/i);
+    });
 
     it('explains its silence, so a disabled reviewer is not mistaken for a broken one', async () => {
       writeConfig({ prReview: { enabled: false } });
@@ -95,25 +109,23 @@ describe('pr-review configuration and the kill switch (36EEMY slice 8)', () => {
     });
 
     it('stays disabled on malformed JSON', () => {
-      writeRaw('{ not json');
-      expect(resolvePrReviewConfig(projectDirectory).enabled).toBe(false);
-    });
-
-    it('stays disabled when prReview is not an object', () => {
-      writeConfig({ prReview: 'yes' });
+      writeFileSync(nodePath.join(projectDirectory, '.safeword', 'config.json'), '{ not json');
       expect(resolvePrReviewConfig(projectDirectory).enabled).toBe(false);
     });
 
     it('stays disabled when enabled is a truthy string rather than a boolean', () => {
-      // Fail-SAFE, not fail-open: everything this gate protects is an outbound
-      // write to someone else's pull request. Only an explicit `true` enables.
-      writeConfig({ prReview: { enabled: 'true' } });
-      expect(resolvePrReviewConfig(projectDirectory).enabled).toBe(false);
+      // Fail-CLOSED: everything this gate protects is an outbound write to
+      // someone else's pull request. A hand-written config is exactly where
+      // `"true"` shows up, so only a literal boolean enables.
+      writeConfig({ prReview: { enabled: 'true', post: 'true' } });
+      const config = resolvePrReviewConfig(projectDirectory);
+      expect(config.enabled).toBe(false);
+      expect(config.post).toBe(false);
     });
 
     it('reads the required-check override and the arcade user when present', () => {
       writeConfig({
-        prReview: { enabled: true, requiredChecks: ['ci/build'], arcadeUserId: 'a@b.com' },
+        prReview: { enabled: true, requiredChecks: ['ci/build'], arcade: { userId: 'a@b.com' } },
       });
       const config = resolvePrReviewConfig(projectDirectory);
 
@@ -125,6 +137,16 @@ describe('pr-review configuration and the kill switch (36EEMY slice 8)', () => {
     it('ignores a non-array requiredChecks rather than crashing the run', () => {
       writeConfig({ prReview: { enabled: true, requiredChecks: 'ci/build' } });
       expect(resolvePrReviewConfig(projectDirectory).requiredChecks).toEqual([]);
+    });
+
+    it('resolves shared identity unless per-author is explicitly opted into', () => {
+      // Absence must not pick the more permissive mode: per-author is what
+      // re-enables tracker reads on forks, and it is not implemented yet.
+      writeConfig({ prReview: { enabled: true, arcade: { userId: 'a@b.com' } } });
+      expect(resolvePrReviewConfig(projectDirectory).identityMode).toBe('shared');
+
+      writeConfig({ prReview: { enabled: true, identityMode: 'per-author' } });
+      expect(resolvePrReviewConfig(projectDirectory).identityMode).toBe('per-author');
     });
   });
 });
