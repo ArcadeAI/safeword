@@ -181,12 +181,30 @@ alignment_).
 
 #### B. arcade.dev MCP — brokered tracker read as the PR author (R6)
 
-- **Contract:** arcade.dev MCP over HTTP with a bearer token, exposing the
-  tracker as `Linear_*` tools (`Linear_GetIssue`, issue search by identifier) —
-  the same MCP surface this repo's own sessions carry. The reviewer resolves the
-  Linear identifier from the PR/branch linkback, then calls the tracker **once**
-  as the PR author (author's own permissions — no service account, no privilege
-  escalation; identity is v1's config-implied author, X1Z5MG deferred).
+- **Contract (verified 2026-07-20):** arcade.dev MCP over HTTP, exposing the
+  tracker as `Linear_*` tools (`Linear_GetIssue`, issue search by identifier).
+  Arcade separates **two** identities, which is exactly what R6's
+  no-privilege-escalation premise needs:
+  - `Authorization: Bearer <ARCADE_API_KEY>` authenticates the **application**.
+  - `Arcade-User-ID: <end user>` selects **whose** vaulted OAuth token executes
+    the call. The runtime stores tokens per user id and retrieves that user's
+    token, so the read really is scoped to that person's own permissions — not
+    the key owner's, and not a service account.
+
+  _(verified: [Arcade auth model](https://docs.arcade.dev/home/auth/how-arcade-helps),
+  [user sources / MCP gateways](https://docs.arcade.dev/en/guides/user-sources))_
+
+  **The precondition this creates is load-bearing.** The PR author must exist as
+  an arcade user with an authorized Linear connection. If they have not
+  authorized, arcade raises an authorization interrupt — which **cannot be
+  satisfied inside CI**, since there is no human present to complete an OAuth
+  flow. That is not a failure case to handle late; it is the common case for any
+  contributor who has never used the tool. The runner treats it as R6's existing
+  fallback: degrade to the bare linkback and lower the certainty R7 permits.
+
+  **Residual, and it is a deployment question rather than a design one:** how a
+  GitHub author maps to an arcade user id (email? a configured table?). Built as
+  an injected parameter so the mapping is config, not code.
 - **Fall-through ladder (R6 scenario):** a public linkback that carries the
   issue body ⇒ intent from the comment, **tracker called never**. A bare
   linkback (arcade's real private-team case) ⇒ tracker called **once**. Arcade
