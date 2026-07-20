@@ -45,7 +45,7 @@ const MARK_FOR: Record<AdversaryOutcome, NonNullable<ReviewFinding['adversarial'
  * by machine overload from exactly that shape. "Cost is bounded" has to mean
  * bounded in parallelism, not only in how often the pass runs.
  */
-export const ADVERSARY_CONCURRENCY = 4;
+const ADVERSARY_CONCURRENCY = 4;
 
 export async function runAdversary(
   findings: ReviewFinding[],

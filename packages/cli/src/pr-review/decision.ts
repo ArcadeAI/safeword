@@ -67,5 +67,3 @@ export function assembleReviewBody(input: ReviewBodyInput): string {
   if (input.decision !== undefined) sections.push(`→ ${input.decision}`);
   return sections.join('\n\n');
 }
-
-export { type Decision } from './verdict.js';
