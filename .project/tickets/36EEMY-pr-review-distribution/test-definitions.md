@@ -78,8 +78,8 @@ _Slice 5 (`subtractCoverage()` — subtract on coverage, never on mere mention).
 
 ### Scenario Outline: autonomous-pr-review.TB1.R1.a_concern_is_dropped_only_when_the_tooling_actually_covered_it
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED b758de69b
+- [x] GREEN ef3fb6b74
 - [ ] REFACTOR
 
 ## Rule: autonomous-pr-review.TB1.R2 — a pull request with nothing worth saying receives no comment at all
@@ -121,8 +121,8 @@ _Slice 5 (`boundCompletenessSeverity()` — PR-cross-reference count caps comple
 
 ### Scenario Outline: autonomous-pr-review.TB1.R7.completeness_certainty_is_bound_by_ticket_to_pr_cardinality
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED b758de69b
+- [x] GREEN ef3fb6b74
 - [ ] REFACTOR
 
 ## Rule: autonomous-pr-review.TB1.R11 — the reviewer runs on a different vendor than the agent that wrote the code
