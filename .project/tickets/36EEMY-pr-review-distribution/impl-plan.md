@@ -596,9 +596,9 @@ voting panel (popularity trap). Reassess-when: see _Assessment triggers_.
 
 ### Five modules are staged, not dead (decided 2026-07-20)
 
-`vendor.ts`, `execution.ts`, `certainty.ts`, `subtraction.ts` and `intent.ts`
-have **no production callers**, and knip will report them. They are staged, and
-they stay:
+`vendor.ts`, `execution.ts`, `certainty.ts`, `subtraction.ts`, `intent.ts` and —
+since 2026-07-20 — `prompt.ts` and `invoke.ts` have **no production callers**,
+and knip will report them. They are staged, and they stay:
 
 - Each implements a Rule whose ledger row is closed, with its own tests. Their
   scenarios are proven; only the wiring waits.

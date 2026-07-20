@@ -132,7 +132,7 @@ export async function reviewPrCommand(options: ReviewPrOptions = {}): Promise<Re
       changedPathsSinceReview,
     },
     poster: createReviewPoster(request, { ...context, headSha: facts.headSha }),
-    review: options.review ?? undefined,
+    review: options.review,
   });
 
   process.stdout.write(`pr-review: ${outcome.reason}\n`);
