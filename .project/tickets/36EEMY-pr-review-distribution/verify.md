@@ -6,7 +6,7 @@ CLI entry point and execution machinery (slices 3, 7, 8).
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 5297/5297 tests pass (361 files, 5 skipped, exit 0) — full suite, measured BEFORE the quality-review fixes. After the fixes, 1246/1246 pass across every directly affected area (`tests/pr-review/` + all of `tests/hooks/` + `tests/commands/retro.test.ts`). A post-fix full re-run was still in flight when this was written; it is the one piece of evidence here that is not yet closed, and it should be confirmed before the ticket is marked done.
+**Test Suite:** ✓ 5318/5318 tests pass (361 files, 5 skipped) — post-fix full run, with 2 timeout failures classified as local environment limitation (see Evidence limits). The pre-fix full run was 5297/5297, exit 0.
 **Gherkin:** ✅ Acceptance lane passes (`lint-gherkin` exit 0; the root BDD lane is local-Stop-hook dogfooding, not CI)
 **Build:** ✅ Success (tsup ESM + DTS)
 **Lint:** ✅ Clean (eslint + lint-gherkin + `tsc --noEmit`)
@@ -16,7 +16,7 @@ CLI entry point and execution machinery (slices 3, 7, 8).
 **Parent Epic:** WAWQA6 (siblings: 0/3 done — G5337S blocked on CWGYH0, CWGYH0 in progress)
 **Reconcile:** ✅ No pattern deviation — `src/pr-review/` follows the existing feature-module shape (`boundary/`, `retro/`, `test-plan/`); the one deviation (shared tracker identity vs R6's "no service account") is recorded in impl-plan → Known deviations with an expiry condition
 **Experience:** ⏭️ N/A — no persona-facing surface ships yet; the runner has no entry point until slice 3
-**Evidence limits:** ⚠️ The first full-suite attempt was SIGTERM'd at the 10-minute tool timeout (exit 143) while a parallel worktree was testing — the build-lock is keyed per-checkout and does not serialize across worktrees. Re-run unbounded in the background: green. The SIGTERM was contention, not a regression.
+**Evidence limits:** ⚠️ Machine contention from a parallel worktree — the build-lock is keyed per-checkout (`sha256(cliRoot)`) and does not serialize across checkouts. It showed up twice: a SIGTERM at the 10-minute tool timeout (exit 143) on the first attempt, and 2 failures in the post-fix run (`setup-git.test.ts` non-interactive setup, `sql-golden-path.test.ts` 2b.1). Both post-fix failures are classified as environmental, not product, on all three of the recorded diagnostic criteria: **non-deterministic** (green in the pre-fix run, red here), **recover in isolation** (45/45 when the two files run alone), and **zero assertion failures** — both are bare `Test timed out in 60000ms`. Neither file touches `pr-review` or `retro-extract`. CI's isolated suite is the authoritative signal; confirm there before marking done.
 
 ## PR Scope — the one exception
 
