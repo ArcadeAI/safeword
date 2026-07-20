@@ -12,15 +12,15 @@ surfaces.md from packages/cli/templates/surfaces-template.md and then own it.
 **Audience:** Technical Builder (TBU), Non-Technical Builder (NTB), Safeword Maintainer (SWM)
 **Examples:** `.claude/skills`, `.claude/settings.json`, slash commands, Claude hooks, VS Code / JetBrains IDE extensions
 **Coverage notes:** Tag feature scenarios with `@surface.claude-code` when behavior must work through Claude Code's installed files or workflow on a developer's local machine.
-**Do not confuse with:** Claude Code on the Web — runs in an ephemeral cloud container instead of the developer's machine; local-only mechanics (e.g. `claude --resume`, an interactively-authenticated MCP server) don't carry over.
+**Do not confuse with:** Claude Code Cloud — runs in an ephemeral, Anthropic-managed cloud VM instead of the developer's machine; local-only mechanics (e.g. `claude --resume`, an interactively-authenticated MCP server) don't carry over.
 
-## Claude Code on the Web
+## Claude Code Cloud
 
 **Kind:** Agent runtime
-**Description:** Cloud-hosted Claude Code sessions launched from claude.ai/code, the Claude mobile/desktop app, a GitHub Action, or a scheduled Routine. Each session clones the repo into an ephemeral, isolated container governed by the environment's network policy, and is reclaimed when the session ends or after inactivity.
+**Description:** Cloud-hosted Claude Code sessions (officially "Claude Code on the web") launched from claude.ai/code, the Claude mobile/desktop app, `claude --cloud` from the terminal, or a scheduled Routine — plus Claude Code GitHub Actions, which runs Claude Code inside a GitHub-hosted CI runner rather than an Anthropic VM. Each cloud session clones the repo into an ephemeral, isolated Anthropic-managed VM governed by the environment's network policy, and is reclaimed when the session ends or after inactivity.
 **Audience:** Technical Builder (TBU), Non-Technical Builder (NTB), Safeword Maintainer (SWM)
-**Examples:** claude.ai/code web UI, Claude mobile app, GitHub Action integration, scheduled/event-driven Routines, `add_repo` for extra repo sources, per-environment network policy
-**Coverage notes:** Tag feature scenarios with `@surface.claude-code-on-the-web` when behavior depends on the cloud session lifecycle (ephemeral container, network policy, triggers) rather than a developer's local setup. Lifecycle hooks (`SessionStart`, `UserPromptSubmit`, etc.) do fire in cloud sessions, but interactively-authenticated MCP servers may be unavailable in headless runs.
+**Examples:** claude.ai/code web UI, Claude mobile app, `claude --cloud` / `--teleport`, scheduled/event-driven Routines, Claude Code GitHub Actions (`anthropics/claude-code-action`, `@claude` issue/PR triggers), the **+ → Add from GitHub** repo picker, per-environment network policy
+**Coverage notes:** Tag feature scenarios with `@surface.claude-code-cloud` when behavior depends on a cloud / off-machine lifecycle (ephemeral VM or CI runner, network policy, GitHub-event triggers) rather than a developer's local setup. Lifecycle hooks (`SessionStart`, `UserPromptSubmit`, etc.) do fire in cloud sessions, but interactively-authenticated MCP servers may be unavailable in headless runs.
 **Do not confuse with:** Claude Code — runs on the developer's own persistent machine, not a reclaimed container.
 
 ## OpenAI Codex

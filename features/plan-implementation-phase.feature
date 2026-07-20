@@ -272,7 +272,7 @@ Feature: plan-implementation phase before TDD
   @plan-implementation-phase.NTB2.R3
   Rule: plan-implementation-phase.NTB2.R3 — headless sessions record pending approval instead of blocking
 
-    @surface.claude-code-on-the-web @surface.openai-codex-cloud @surface.cursor-cloud-agents
+    @surface.claude-code-cloud @surface.openai-codex-cloud @surface.cursor-cloud-agents
     Scenario: Headless session with approval enabled surfaces the plan instead of stalling
       Given the shipped bdd skill documents
       When PLAN_IMPLEMENTATION.md is read
@@ -372,7 +372,7 @@ Feature: plan-implementation phase before TDD
   @plan-implementation-phase.SM1.R4
   Rule: plan-implementation-phase.SM1.R4 — the phase contract runs on current harnesses including cloud surfaces
 
-    @surface.claude-code @surface.openai-codex @surface.cursor @surface.claude-code-on-the-web @surface.openai-codex-cloud @surface.cursor-cloud-agents
+    @surface.claude-code @surface.openai-codex @surface.cursor @surface.claude-code-cloud @surface.openai-codex-cloud @surface.cursor-cloud-agents
     Scenario: The phase contract carries no interactive-only dependencies
       Given the shipped bdd skill documents
       When PLAN_IMPLEMENTATION.md is read
