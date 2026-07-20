@@ -51,6 +51,31 @@ export const META_PATHS = [
   '.safeword-project/',
 ];
 
+/**
+ * Is `filePath` a safeword-owned meta path *within this project*?
+ *
+ * Match the path RELATIVE to the project root, never a substring of the absolute
+ * path. A bare `absolutePath.includes('.claude/')` also matches every file in a
+ * checkout that merely LIVES under a directory of that name — safeword's own
+ * worktrees sit in `<repo>/.claude/worktrees/<name>/`, which silently disabled
+ * EVERY pre-tool gate (phase freeze, test-definitions, LOC) for every file in
+ * them. Found reviewing #1163, which widened the blast radius by adding
+ * `.codex/` and `.agents/` to the list.
+ *
+ * A path outside the project resolves to a `..` escape and stays exempt — the
+ * gates below reason about project code, and an out-of-tree edit was never
+ * theirs to block.
+ */
+export function isMetaPath(filePath: string, projectDirectory: string): boolean {
+  if (filePath.length === 0) return false;
+  const relative = nodePath.isAbsolute(filePath)
+    ? nodePath.relative(projectDirectory, filePath)
+    : filePath;
+  if (relative.startsWith('..')) return true; // outside the project — not ours to gate
+  const normalized = relative.split(nodePath.sep).join('/');
+  return META_PATHS.some(meta => normalized.startsWith(meta) || normalized === meta.slice(0, -1));
+}
+
 export interface FailureEntry {
   pattern: string;
   timestamp: string;

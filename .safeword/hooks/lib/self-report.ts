@@ -18,7 +18,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { appendJsonlRecords, readJsonlRecords } from './jsonl-spool.js';
+import { appendJsonlRecords, readJsonlRecords, tryAppendJsonlRecords } from './jsonl-spool.js';
 
 /** The agent harness safeword is running under. */
 export type AgentId = 'claude' | 'cursor' | 'codex' | 'unknown';
@@ -506,20 +506,32 @@ export function readSurfacedSignatures(projectDirectory: string, sessionId: stri
 }
 
 /**
- * Persist `signatures` as surfaced. BEST-EFFORT — a failed write risks one
- * repeat surfacing, never a broken Stop. Shares MAX_RECORDS_PER_FILE with the
- * spool it mirrors: a session can hold at most that many records, so it can
- * never produce more distinct signatures than the marker has room for.
+ * Persist `signatures` as surfaced, returning whether the marker durably holds
+ * ALL of them. Never throws; a `false` tells the caller it has no durable record
+ * and so must not emit (emitting unrecorded is what loops).
+ *
+ * Self-deduping: signatures already in the marker are skipped, so the file holds
+ * at most one line per distinct signature. That is what keeps it under
+ * MAX_RECORDS_PER_FILE — the spool it mirrors caps at the same number of records,
+ * hence at most that many distinct signatures. Doing it HERE rather than relying
+ * on the caller's pre-filter matters because this is exported: a second caller,
+ * a future SubagentStop wiring, or two overlapping Stops would otherwise burn
+ * headroom and eventually silence real signals permanently.
  */
 export function markSignaturesSurfaced(
   projectDirectory: string,
   sessionId: string,
   signatures: readonly string[],
-): void {
+): boolean {
+  const already = readSurfacedSignatures(projectDirectory, sessionId);
+  const fresh = [...new Set(signatures)].filter(signature => !already.has(signature));
+  // Nothing fresh means every signature is already recorded (or none were asked
+  // for) — the marker already holds them all, so the caller may emit.
+  if (fresh.length === 0) return true;
   const ts = new Date().toISOString();
-  appendJsonlRecords(
+  return tryAppendJsonlRecords(
     surfacedMarkerPath(projectDirectory, sessionId),
-    signatures.map(signature => JSON.stringify({ ts, signature } satisfies SurfacedMarker)),
+    fresh.map(signature => JSON.stringify({ ts, signature } satisfies SurfacedMarker)),
     MAX_RECORDS_PER_FILE,
   );
 }

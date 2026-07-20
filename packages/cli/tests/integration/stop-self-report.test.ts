@@ -37,6 +37,13 @@ function runHook(directory: string, sessionId: string) {
   });
 }
 
+/** The exact record shape that drove the observed #1163 wake loop. */
+const LOOP_SIGNAL = {
+  source: 'loc-exceeded',
+  agent: 'claude',
+  errorClass: 'GateEscalation',
+} as const;
+
 describe('stop-self-report hook (QYYC5Y)', () => {
   let projectDirectory: string;
 
@@ -92,13 +99,7 @@ describe('stop-self-report hook (QYYC5Y)', () => {
   // -------------------------------------------------------------------------
 
   it('surfaces a signature once, then stays silent on every later stop (#1163)', () => {
-    // The exact record shape that drove the observed loop.
-    recordSignal(
-      projectDirectory,
-      'sess-loop',
-      { source: 'loc-exceeded', agent: 'claude', errorClass: 'GateEscalation' },
-      '0.68.0',
-    );
+    recordSignal(projectDirectory, 'sess-loop', LOOP_SIGNAL, '0.68.0');
 
     const first = runHook(projectDirectory, 'sess-loop');
     expect(first.status).toBe(0);
@@ -114,29 +115,19 @@ describe('stop-self-report hook (QYYC5Y)', () => {
   });
 
   it('stays silent when an ALREADY-surfaced signature recurs (#1163)', () => {
-    const signal = {
-      source: 'loc-exceeded',
-      agent: 'claude',
-      errorClass: 'GateEscalation',
-    } as const;
-    recordSignal(projectDirectory, 'sess-repeat', signal, '0.68.0');
+    recordSignal(projectDirectory, 'sess-repeat', LOOP_SIGNAL, '0.68.0');
     expect(runHook(projectDirectory, 'sess-repeat').stdout).toContain('GateEscalation');
 
     // A second occurrence of the SAME signature is not new information — dedupe
     // is by signature, not by record count, so a gate that keeps firing cannot
     // wake the agent once per firing.
-    recordSignal(projectDirectory, 'sess-repeat', signal, '0.68.0');
+    recordSignal(projectDirectory, 'sess-repeat', LOOP_SIGNAL, '0.68.0');
 
     expect(runHook(projectDirectory, 'sess-repeat').stdout.trim()).toBe('');
   });
 
   it('surfaces only the NEW signature when a different one lands later (#1163)', () => {
-    recordSignal(
-      projectDirectory,
-      'sess-new',
-      { source: 'loc-exceeded', agent: 'claude', errorClass: 'GateEscalation' },
-      '0.68.0',
-    );
+    recordSignal(projectDirectory, 'sess-new', LOOP_SIGNAL, '0.68.0');
     expect(runHook(projectDirectory, 'sess-new').stdout).toContain('GateEscalation@loc-exceeded');
 
     recordSignal(
@@ -153,13 +144,8 @@ describe('stop-self-report hook (QYYC5Y)', () => {
   });
 
   it('dedupes per session — a second session still gets its own surfacing (#1163)', () => {
-    const signal = {
-      source: 'loc-exceeded',
-      agent: 'claude',
-      errorClass: 'GateEscalation',
-    } as const;
-    recordSignal(projectDirectory, 'sess-a', signal, '0.68.0');
-    recordSignal(projectDirectory, 'sess-b', signal, '0.68.0');
+    recordSignal(projectDirectory, 'sess-a', LOOP_SIGNAL, '0.68.0');
+    recordSignal(projectDirectory, 'sess-b', LOOP_SIGNAL, '0.68.0');
 
     expect(runHook(projectDirectory, 'sess-a').stdout).toContain('GateEscalation');
     expect(runHook(projectDirectory, 'sess-a').stdout.trim()).toBe('');

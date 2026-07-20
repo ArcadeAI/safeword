@@ -8,7 +8,7 @@
  * that strips the actionable frame must also fail).
  */
 
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -405,6 +405,31 @@ describe('self-report capture (QYYC5Y)', () => {
       expect(markerDirectory).toBe(nodePath.join(spoolDirectory, 'surfaced'));
       expect(readReports(projectDirectory)).toHaveLength(1);
       expect(readSessionReports(projectDirectory, 's')).toHaveLength(1);
+    });
+
+    it('reports failure when the marker cannot be written, so the caller stays silent', () => {
+      // The loop guard proper: emitting without a durable marker is what loops.
+      // An unwritable spool dir must be reported, never silently swallowed.
+      const spoolDirectory = nodePath.dirname(spoolPath(projectDirectory, 's'));
+      mkdirSync(spoolDirectory, { recursive: true });
+      chmodSync(spoolDirectory, 0o555);
+      try {
+        expect(markSignaturesSurfaced(projectDirectory, 's', ['claude:exit1@check'])).toBe(false);
+      } finally {
+        chmodSync(spoolDirectory, 0o755);
+      }
+    });
+
+    it('does not burn marker headroom on a repeated signature', () => {
+      // Self-deduping: without it, a repeat append per stop fills the cap and
+      // permanently silences later, genuinely-new signals.
+      for (let index = 0; index < 5; index++) {
+        expect(markSignaturesSurfaced(projectDirectory, 's', ['claude:exit1@check'])).toBe(true);
+      }
+      const lines = readFileSync(surfacedMarkerPath(projectDirectory, 's'), 'utf8')
+        .split('\n')
+        .filter(line => line.trim().length > 0);
+      expect(lines).toHaveLength(1);
     });
 
     it('is fail-open on a torn marker line', () => {

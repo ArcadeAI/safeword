@@ -21,7 +21,7 @@ import {
 import type { ProjectContext } from '../src/packs/types.js';
 import type { SafewordSchema } from '../src/schema.js';
 import { SAFEWORD_SCHEMA } from '../src/schema.js';
-import { META_PATHS } from '../templates/hooks/lib/quality-state.js';
+import { isMetaPath, META_PATHS } from '../templates/hooks/lib/quality-state.js';
 
 // Minimal context for resolvedNamespaceDirectory: it only reads cwd + namespaceRoot.
 const ctxWith = (cwd: string, namespaceRoot?: string): ProjectContext =>
@@ -163,6 +163,22 @@ describe('META_PATHS ↔ SAFEWORD_IGNORE_DIRS drift (#1163)', () => {
     for (const directory of ['.safeword/', '.claude/', '.cursor/', '.codex/', '.agents/']) {
       expect(META_PATHS).toContain(directory);
     }
+  });
+
+  it('matches project-relative paths, not substrings of the absolute path', () => {
+    // The gate bypass: safeword's own worktrees live at `<repo>/.claude/worktrees/<n>/`,
+    // so a substring test against the ABSOLUTE path matched every file in them and
+    // silently disabled every pre-tool gate — phase freeze, test-definitions, LOC.
+    const project = '/home/u/code/.claude/worktrees/wt';
+    expect(isMetaPath(`${project}/src/app.ts`, project)).toBe(false);
+    expect(isMetaPath(`${project}/packages/cli/src/index.ts`, project)).toBe(false);
+    // Real in-project meta paths still exempt, absolute or relative.
+    expect(isMetaPath(`${project}/.claude/settings.json`, project)).toBe(true);
+    expect(isMetaPath(`${project}/.agents/skills/x.md`, project)).toBe(true);
+    expect(isMetaPath('.safeword/hooks/x.ts', project)).toBe(true);
+    // A directory whose name merely STARTS with a meta name is not a meta path.
+    expect(isMetaPath(`${project}/.clauderc/app.ts`, project)).toBe(false);
+    expect(isMetaPath(`${project}/src/.claude-notes/app.ts`, project)).toBe(false);
   });
 
   it('does not exclude config files safeword merely merges into', () => {
