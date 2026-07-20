@@ -279,7 +279,7 @@ continuation semantics (`decision: "block"`, `reason`) for done-phase reminders.
 
 - `bdd/` - BDD orchestrator for feature-level work (Discovery, Scenarios, TDD, Verify, Splitting, Done)
 - `debug/` - Four-phase debugging (investigate before fixing)
-- `quality-review/` - Deep code review with web research
+- `quality-review/` - Deep review of any work-product with web research
 - `refactor/` - Small-step refactoring with test verification
 - `testing/` - Test writing methodology (iron laws, anti-patterns)
 - `ticket-system/` - Ticket system and work logs for context anchoring
@@ -296,7 +296,7 @@ continuation semantics (`decision: "block"`, `reason`) for done-phase reminders.
 - `/debug` - Four-phase debugging framework
 - `/explain` - Plain-English version of any safeword block, verdict, or your current state
 - `/lint` - Run linters and formatters
-- `/quality-review` - Deep code review with web research
+- `/quality-review` - Deep review of any work-product with web research
 - `/refactor` - Systematic refactoring with small-step discipline
 - `/testing` - Test writing guidance and best practices
 - `/verify` - Verify ticket criteria (tests, build, lint, scenarios, dep drift)
