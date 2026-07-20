@@ -244,8 +244,8 @@ _Slice 8 (`resolvePrReviewConfig` — `prReview.enabled`/`post`, default-off, fa
 
 ### Scenario Outline: autonomous-pr-review.SM1.R2.the_config_switch_toggles_posting_but_never_uninstalls
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 144588231
+- [x] GREEN e11586cda
 - [ ] REFACTOR
 
 ---
