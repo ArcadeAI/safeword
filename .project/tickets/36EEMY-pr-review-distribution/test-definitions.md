@@ -1,21 +1,25 @@
 # Test Definitions: pr-review-distribution — the runner
 
-Feature source: `features/autonomous-pr-review.feature`
+Feature source: `features/pr-review-distribution.feature` — **binding verified**
+(`findFeatureSourcePath` resolves 36EEMY to this file, 2026-07-19).
 
-> **⚠ This binding does not resolve, and the ledger is currently unenforced.**
-> Coverage resolves a ticket's scenarios by slug —
-> 36EEMY ⇒ `features/pr-review-distribution.feature`, which does not exist.
-> `autonomous-pr-review` is the parent **epic's** slug. Until the file is split
-> or the ledger is re-homed, nothing machine-checks these 29 entries. See
-> `impl-plan.md` → Known deviations. Decide before slice 1.
+Split from `autonomous-pr-review.feature` (the parent epic's slug, which never
+bound to this ticket and left every entry unenforced). Five judgment-bound Rules
+— R19, R20, TB2.R1, TB2.R3 — moved to that file as an eval holding pen and are
+owed to CWGYH0; they are listed under "Not in this ledger" below.
 
 test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature`
 source; this file tracks per-scenario RED → GREEN → REFACTOR with commit SHAs.
 
-**29 scenarios / 19 Rules.** Ordered by feature-file lineage (for coverage
+**24 scenarios / 15 Rules.** Ordered by feature-file lineage (for coverage
 traceability), annotated with the build slice from `impl-plan.md` — implement in
 **slice order**, not file order, so the load-bearing trust split fails first
 while it is still cheap to change.
+
+Membership rule: a scenario is here only if it can **fail for a runner reason**.
+With the vendor faked at the `spawn` seam, a scenario whose Given describes code
+shape and whose Then asserts the model's judgment asserts its own stub — so it
+belongs to the eval, not to this ledger.
 
 Determinism note: the vendor is faked at the injected `spawn` seam
 (`RunExtractionDeps` / `RunCodexExtractionDeps` in `hooks/lib/retro-extract.ts`)
@@ -182,57 +186,13 @@ _Slice 3 (checkout pinned to the head SHA; loud on mismatch — the substrate R1
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: autonomous-pr-review.TB1.R19 — the review states the change's work type, judged by what it touches not its line count
-
-_Slice 9 (runner surfaces the INJECTED work type without dropping or garbling it; quality is CWGYH0's)._
-
-### Scenario Outline: autonomous-pr-review.TB1.R19.work_type_is_read_from_what_the_change_touches
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-## Rule: autonomous-pr-review.TB1.R20 — a change is flagged when its test coverage falls short of what its work type demands
-
-_Slice 9 (pass-through; the `patch`-with-no-test row is the over-demand guard — a runner that flags every untested change fails it)._
-
-### Scenario Outline: autonomous-pr-review.TB1.R20.coverage_is_judged_against_work_type_in_the_projects_idiom
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-## Rule: autonomous-pr-review.TB2.R1 — review depth is set by what the change touches, never by how many lines it has
-
-_Slice 9 (pass-through of the injected per-dimension assessment set)._
-
-### Scenario Outline: autonomous-pr-review.TB2.R1.review_depth_tracks_the_surface_not_the_line_count
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
 ## Rule: autonomous-pr-review.TB2.R2 — a change to a sensitive surface is never marked reviewed on size alone
 
-_Slice 9 (verdict mapping: an unresolved question on a sensitive surface must map to `needs-a-human`, never a `reviewed` receipt)._
+_Slice 9 (verdict mapping — **kept deliberately**: the rows vary by an injectable
+concern-state, and this carries a rule R9 does not — an unresolved QUESTION, even
+with zero findings, forbids a `reviewed` receipt)._
 
 ### Scenario Outline: autonomous-pr-review.TB2.R2.size_never_buys_a_reviewed_receipt_on_a_sensitive_surface
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-## Rule: autonomous-pr-review.TB2.R3 — an author's unanswered request for review reaches a human
-
-_Slice 9 (verdict mapping + existing-comment read)._
-
-### Scenario: autonomous-pr-review.TB2.R3.an_unanswered_author_request_reaches_a_human
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: autonomous-pr-review.TB2.R3.an_answered_author_request_does_not_force_a_human
 
 - [ ] RED
 - [ ] GREEN
@@ -290,6 +250,14 @@ _Slice 8 (`resolvePrReviewConfig` — `prReview.enabled`/`post`, default-off, fa
   G5337S's prose, proven by **CWGYH0's eval** against a bar recorded before
   triage. Adding vacuous scenarios for them would be the eval-gaming failure the
   epic already rejected.
+- **Five Rules that DID have scenarios but could not fail for a runner reason**
+  — R19 (work type), R20 (test coverage), TB2.R1 (depth), TB2.R3 (author request,
+  2 scenarios). Their Givens describe code shape; their Thens assert the model's
+  judgment about it. Under a faked `spawn` they assert the fixture. Moved verbatim
+  to `features/autonomous-pr-review.feature` (`@eval-bound`) and written into
+  CWGYH0's `done_when` so the holding pen cannot quietly become a graveyard. This
+  applies the same standard as the bullet above — previously it was applied
+  inconsistently.
 - **Distribution mechanics** beyond SM1.R2 (the schema `ownedFiles` entry, the
   template↔dogfood parity pair, and the net-new `.github/workflows/` shared-dir
   overwrite path) are proven by the **release/parity lane** (`test:release`),

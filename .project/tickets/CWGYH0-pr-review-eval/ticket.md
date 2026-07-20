@@ -13,6 +13,7 @@ out_of_scope:
   - The reviewer skill — G5337S. The workflow — 36EEMY.
   - Scoring by the authoring agent. Greptile's postmortem: an LLM's judgment of its own output was "nearly random".
 done_when:
+  - The five judgment-bound Rules split out of the runner on 2026-07-19 — R19 (work type), R20 (test coverage), TB2.R1 (review depth), TB2.R3 (author request) — are scored eval cases here. They live verbatim in `features/autonomous-pr-review.feature` under `@eval-bound` as a holding pen; each Given describes code shape and each Then asserts the model's judgment about it, so a stubbed runner test would only assert its own fixture. Until they are scored here, nothing proves them.
   - A bar exists in git before any verdict does.
   - Arcade engineers have triaged the corpus, and the result is honoured — a failed bar kills or reshapes the epic rather than licensing a prompt-tuning loop until it passes.
   - False-certainty count is reported separately and can veto a ship on its own.

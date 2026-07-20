@@ -337,7 +337,8 @@ _quality_ by the CWGYH0 **eval** (named, not duplicated here).
 | R12 base-repro / R13 fix-run | `runGate()` (execute in checkout; **fork ⇒ degrade**) | integration | ties to SM1.R3 |
 | R14 adversarial | `runAdversary()` (2nd spawn on findings; contested/annotate, never drop) | integration | vendor verdict injected |
 | R17 full checkout | checkout step + "cite an unchanged file" pass-through | integration | substrate for R12/R18 |
-| R19 / R20 / TB2.R1 / TB2.R2 / TB2.R3 / NTB1.R4 | runner surfaces / maps the **injected** judgment (work type, coverage, depth, sensitive verdict, author-request, decision-last assembly) | integration (pass-through) + **eval (CWGYH0)** for quality | runner proves it doesn't drop/garble the judgment; the eval proves the judgment |
+| TB2.R2 / NTB1.R4 | verdict mapping (an open question forbids a `reviewed` receipt) + review-body assembly (exactly one decision, positioned last) | integration | the two survivors of the split — both fail for a real runner reason |
+| ~~R19 / R20 / TB2.R1 / TB2.R3~~ | **moved to CWGYH0's eval** — judgment-bound, cannot fail for a runner reason | eval | see Known deviations |
 
 ### Build order (load-bearing first, each slice builds on green)
 
@@ -365,8 +366,10 @@ _quality_ by the CWGYH0 **eval** (named, not duplicated here).
    which only becomes falsifiable once `runGate()` exists.
 8. **Distribution + kill switch** — schema `ownedFiles`, parity pair, `prReview`
    config, SM1.R2.
-9. **Judgment-surfacing pass-throughs** — R19, R20, TB2.\*, NTB1.R4 (thin runner
-   tests; defer quality to CWGYH0).
+9. **Verdict mapping + body assembly** — TB2.R2 (an open question forbids a
+   `reviewed` receipt) and NTB1.R4 (exactly one decision, positioned last). The
+   four judgment-bound Rules that used to sit here moved to CWGYH0's eval; this
+   slice is now two real tests instead of six pass-throughs.
 
 ---
 
@@ -424,30 +427,31 @@ voting panel (popularity trap). Reassess-when: see _Assessment triggers_.
 
 ## Known deviations
 
-- **⚠ BLOCKER — this ticket's ledger currently binds to no feature file.**
-  `findFeatureSourcePath` (`packages/cli/src/utils/feature-source.ts:18-20`)
-  resolves a ticket's scenarios as `<slug>.feature`, where slug is the ticket
-  folder after the first dash. 36EEMY ⇒ `features/pr-review-distribution.feature`,
-  **which does not exist**; the scenarios live in `autonomous-pr-review.feature`,
-  which is the parent **epic's** slug. So 36EEMY gets zero coverage/lineage
-  enforcement and its 29-scenario ledger is unenforced prose — the exact failure
-  mode recorded in `project_feature_file_ticket_slug_binding.md`, where a
-  mismatched name silently orphans a feature from ALL coverage while still
-  linting clean. Needs a decision before slice 1: either split the runner's
-  provable subset into `features/pr-review-distribution.feature`, or move the
-  ledger up to the epic (which is still `phase: intake` and carries no ledger).
-  **Not fixed here — it restructures a settled artifact.**
-- **⚠ ~9 of the 29 ledger scenarios may be vacuous for a runner.** Slice 9
-  (R19 work-type, R20 coverage, TB2.R1 depth, TB2.R3 author-request) varies its
-  outline rows by _model judgment_, but the runner's own stated rule is that it
-  "never encodes review judgment" — so under a faked `spawn` every row collapses
-  to "the canned output round-tripped," which cannot fail for a runner reason.
-  The ledger's own R20 note ("a runner that flags every untested change fails
-  it") contradicts this: a pass-through runner flags nothing; the model does.
-  NTB1.R4 (body assembly ordering) and TB2.R2 (verdict mapping) survive as
-  genuinely deterministic. This is the same argument the ledger already uses to
-  exclude the other judgment Rules — applied inconsistently. **Not fixed here —
-  removing scenarios from a settled feature file is a scope decision.**
+- **RESOLVED 2026-07-19 — the scenario source was split by proof mechanism.**
+  Both of this plan's former blockers were one problem. `findFeatureSourcePath`
+  (`packages/cli/src/utils/feature-source.ts:18-20`) resolves a ticket's
+  scenarios as `<slug>.feature`, so 36EEMY was looking for
+  `pr-review-distribution.feature` while the scenarios sat under the parent
+  **epic's** slug — the whole ledger was unenforced prose
+  (`project_feature_file_ticket_slug_binding.md`: a mismatched name silently
+  orphans a feature from ALL coverage while still linting clean). Fixed by
+  `git mv` + subtraction, so the 24 retained scenarios are byte-identical to the
+  originals:
+  - `features/pr-review-distribution.feature` — **24 scenarios / 15 Rules**,
+    binding verified.
+  - `features/autonomous-pr-review.feature` — **5 scenarios / 4 Rules**
+    (`@eval-bound` holding pen): R19, R20, TB2.R1, TB2.R3. Their Givens describe
+    code shape and their Thens assert the model's judgment about it, so under a
+    faked `spawn` they assert their own fixture (the tautological-mock
+    antipattern; schema validation checks shape, not whether the model read the
+    diff correctly). Written into **CWGYH0's `done_when`** so the pen cannot
+    become a graveyard.
+  - **TB2.R2 stayed with the runner** — its rows vary by an injectable
+    concern-state, and it carries a rule R9 does not: an unresolved *question*,
+    even with zero findings, forbids a `reviewed` receipt.
+  Convention check: children own feature files, epics do not (epic Q4FX8Y holds
+  only `ticket.md`; its children carry the full artifact set). The old layout was
+  the repo's only epic-with-a-feature-file.
 - **The trigger deviates from this ticket's own settled scope, deliberately.**
   `ticket.md` scope says fire "on check-suite conclusion=success". This plan
   makes the event a coarse trigger and puts the authoritative gate on the
