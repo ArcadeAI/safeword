@@ -2,11 +2,13 @@
 id: 36EEMY
 slug: pr-review-distribution
 type: feature
-phase: define-behavior
+phase: implement
 status: in_progress
 depends_on: [G5337S, CWGYH0]
 phase_anchors:
   - 'define-behavior: .project/tickets/36EEMY-pr-review-distribution/spec.md'
+  - 'scenario-gate: features/pr-review-distribution.feature'
+  - 'plan-implementation: .project/tickets/36EEMY-pr-review-distribution/impl-plan.md'
 scope:
   - Runner is a vendor-agnostic, HEADLESS driver — `codex exec` for V1 (author assumed Claude → review cross-vendor), `claude -p` for V2 — reusing the proven two-vendor spawn seams in `hooks/lib/retro-extract.ts` (RetroAgent, buildCodexExtractArgv, runHeadlessExtraction). NOT `claude-code-action` (Claude-only; cannot run headless Codex, which is the cross-vendor default's whole point).
   - Full checkout of the PR head branch (R17); the vendor invoked headless with the G5337S prompt over the diff + surrounding tree.
@@ -62,3 +64,6 @@ Also noted, lower priority: **tiered routing / the "3 AM test"** (a blocking fin
 **Open architecture question (do not resolve unilaterally):** product-scout and pr-review are the same reconcile+route machine. The attention bar, the act-rate flywheel, the mute store, and role routing are a **shared layer**, not pr-review-specific. Whether to build that layer once (serving both) or twice is a real fork — flag to the user before either ticket implements it.
 
 - 2026-07-19T23:05:10.523Z Phase: intake → define-behavior
+- 2026-07-20T05:37:00.465Z Phase: define-behavior → scenario-gate
+- 2026-07-20T05:37:40.250Z Phase: scenario-gate → plan-implementation
+- 2026-07-20T05:37:53.470Z Phase: plan-implementation → implement
