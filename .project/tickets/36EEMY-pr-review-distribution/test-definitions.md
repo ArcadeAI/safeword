@@ -153,20 +153,20 @@ _Slice 6 (`runAdversary()` — second spawn only when findings exist; ANNOTATES 
 
 ### Scenario: autonomous-pr-review.TB1.R14.a_refuted_finding_is_marked_contested_not_dropped
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 364b32114
+- [x] GREEN ed3641557
 - [ ] REFACTOR
 
 ### Scenario Outline: autonomous-pr-review.TB1.R14.the_adversary_outcome_sets_the_findings_check_mark
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 364b32114
+- [x] GREEN ed3641557
 - [ ] REFACTOR
 
 ### Scenario Outline: autonomous-pr-review.TB1.R14.a_finding_is_adversarially_marked_only_when_a_finding_exists
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 364b32114
+- [x] GREEN ed3641557
 - [ ] REFACTOR
 
 ## Rule: autonomous-pr-review.TB1.R8 — the reviewer runs once per ready change whose CI is green, not on every push and never while CI is red
