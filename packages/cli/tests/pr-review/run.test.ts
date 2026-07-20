@@ -151,6 +151,21 @@ describe('runPrReview — composition order (36EEMY slice 3)', () => {
     expect(result.posted).toBe(true);
   });
 
+  it('degrades to silence when no vendor is wired — never a red job', async () => {
+    // This is what makes it safe to SHIP the workflow before the vendor slice
+    // lands. A customer who reads the docs and sets prReview.enabled gets a
+    // green job that explains itself. An earlier version threw here, which
+    // would have reddened CI on every ready-and-green pull request.
+    const { calls, poster } = harness();
+
+    const result = await runPrReview({ config: ON, trigger: READY_AND_GREEN, poster });
+
+    expect(result.ran).toBe(false);
+    expect(result.posted).toBe(false);
+    expect(result.reason).toMatch(/no vendor configured/i);
+    expect(calls).toHaveLength(0);
+  });
+
   it('propagates a vendor fault instead of swallowing it into a clean review', async () => {
     const { calls, poster } = harness();
 

@@ -126,3 +126,58 @@ describe('the workflow is distributed, not hand-installed (36EEMY slice 8)', () 
     expect(SAFEWORD_SCHEMA.ownedDirs).not.toContain('.github/workflows');
   });
 });
+
+describe('the bundle handoff can actually carry files (36EEMY)', () => {
+  it('stages the bundle outside the checkout, not in a dot-directory', () => {
+    // upload-artifact defaults `include-hidden-files: false`, and defines hidden
+    // as "any file beginning with . or files within folders beginning with ." —
+    // so a dot-prefixed staging path matches ZERO files. With the default
+    // `if-no-files-found: warn` the step still SUCCEEDS, stage 1 goes green, and
+    // the failure only appears in the privileged job. That combination is why
+    // this is asserted rather than trusted.
+    // Scoped to the UPLOAD job: stage 2 downloading into a dot-directory is
+    // harmless (it is the base checkout, and download has no hidden-file rule).
+    expect(jobBlock('bundle')).toContain('runner.temp');
+    expect(jobBlock('bundle')).not.toMatch(/path:\s*\.safeword-pr-review/);
+  });
+
+  it('fails the upload loudly rather than shipping an empty bundle', () => {
+    expect(directives).toContain('if-no-files-found: error');
+  });
+
+  it('grants stage 2 actions:read so the cross-run download can authenticate', () => {
+    // `permissions:` is an allowlist — anything unlisted resolves to none, and
+    // download-artifact takes the Actions API path whenever github-token is set,
+    // even same-repo. Without this the download 403s.
+    expect(jobBlock('review')).toContain('actions: read');
+  });
+
+  it('does not re-trigger itself on its own completion', () => {
+    // workflow_run watches this workflow's own name, so a stage-2 run completing
+    // would re-enter the workflow and look for an artifact that is not there.
+    expect(jobBlock('review')).toContain("github.event.workflow_run.event == 'pull_request'");
+  });
+});
+
+describe('the enable switch cannot be flipped by the pull request under review', () => {
+  it('reads config from the base ref, never the head', () => {
+    // A fork setting `enabled: false` — or deleting the file — must not be able
+    // to suppress its own review. That is the one direction of this gate that is
+    // a security control rather than a convenience.
+    expect(jobBlock('bundle')).toContain('github.event.pull_request.base.sha');
+  });
+
+  it('parses the config instead of require()-ing it', () => {
+    // `require` resolves a DIRECTORY named config.json to its index.js, so a
+    // fork committing that shape would get arbitrary code execution.
+    expect(directives).not.toContain('require(&apos;./.safeword');
+    expect(directives).toContain('JSON.parse');
+  });
+
+  it('keeps no credential on disk while untrusted code is checked out', () => {
+    // actions/checkout defaults persist-credentials: true, which leaves the
+    // job's token in .git/config — so "this job holds no credential" is only
+    // true if we say so explicitly.
+    expect(jobBlock('bundle')).toContain('persist-credentials: false');
+  });
+});

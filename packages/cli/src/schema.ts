@@ -635,12 +635,19 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // Suppressed when the repo has its own cucumber harness (56JCFZ).
     'cucumber.mjs': bddLaneFile('cucumber/cucumber.mjs'),
     // Autonomous PR review (36EEMY). Lands in every project on upgrade and is
-    // INERT until `.safeword/config.json` sets `prReview.enabled: true` — the
-    // workflow's own first step gates on it. ownedFiles rather than
-    // managedFiles because a security-relevant workflow must receive fixes;
-    // create-if-absent would strand a fork-safety patch in projects that
-    // installed the first version. `.github/workflows` is a sharedDir, so we
-    // add this one file and never own the directory.
+    // INERT until `.safeword/config.json` sets `prReview.enabled: true`.
+    //
+    // Ships before the vendor slice is wired, which is only acceptable because
+    // the whole path degrades to SILENCE rather than failure: with no vendor
+    // configured `runPrReview` returns a skip with a reason, so an opted-in
+    // customer gets a green job that explains itself, never a red one. A quality
+    // review on 2026-07-20 found the earlier version threw instead — that is
+    // fixed, and `run.test.ts` holds the line.
+    //
+    // ownedFiles rather than managedFiles because a security-relevant workflow
+    // must receive fixes; create-if-absent would strand a fork-safety patch in
+    // projects that installed the first version. `.github/workflows` is a
+    // sharedDir, so we add this one file and never own the directory.
     '.github/workflows/pr-review.yml': { template: 'workflows/pr-review.yml' },
     // Note: knip.json is in typescriptManagedFiles (with context-aware ignoreDependencies)
 

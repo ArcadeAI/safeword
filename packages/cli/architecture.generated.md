@@ -1,6 +1,6 @@
 ---
 generator: safeword-architecture
-fingerprint: 46c36d5f38a649de87c0efdc15506fc108e44f584fdbcd3547d5958a1682bb89
+fingerprint: 800db3e3615f2d7617083c1c35cd6660d78c8cd649f20c4aa3ca5056109f9af0
 ---
 
 # Architecture
@@ -24,6 +24,8 @@ No description yet — awaiting prose.
 `src/codex-plugin`
 
 No description yet — awaiting prose.
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### commands
 
@@ -54,6 +56,14 @@ No description yet — awaiting prose.
 No description yet — awaiting prose.
 
 > ⚠ stale: structure changed since this section was reconciled.
+
+### pr-review
+
+<!-- reconciled: 800db3e3615f2d7617083c1c35cd6660d78c8cd649f20c4aa3ca5056109f9af0 -->
+
+`src/pr-review`
+
+No description yet — awaiting prose.
 
 ### presets
 

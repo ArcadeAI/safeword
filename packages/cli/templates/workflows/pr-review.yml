@@ -59,24 +59,47 @@ jobs:
       contents: read
 
     steps:
-      - name: Check out the pull request head
+      # The enable switch is read from the BASE ref, never from the pull
+      # request's own tree. Reading it from the head would let any fork disable
+      # its own review by setting `enabled: false` — or by deleting the file —
+      # which is the opposite of a security control.
+      - name: Check out the base ref for the enable switch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+
+      - name: Stop unless the PROJECT (not the pull request) enabled the reviewer
+        id: gate
+        run: |
+          enabled=false
+          if [ -f .safeword/config.json ]; then
+            # JSON.parse, never require(): `require` resolves a DIRECTORY named
+            # config.json to its index.js, so a fork committing that shape would
+            # get arbitrary code execution in this job.
+            enabled=$(node -e "const {readFileSync}=require('node:fs');try{const c=JSON.parse(readFileSync('.safeword/config.json','utf8'));process.stdout.write(String(c?.prReview?.enabled===true))}catch{process.stdout.write('false')}")
+          fi
+          echo "enabled=$enabled" >> "$GITHUB_OUTPUT"
+
+      - name: Check out the pull request for review
+        if: steps.gate.outputs.enabled == 'true'
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
-
-      - name: Stop unless the project enabled the reviewer
-        id: gate
-        run: |
-          if [ ! -f .safeword/config.json ]; then echo "enabled=false" >> "$GITHUB_OUTPUT"; exit 0; fi
-          enabled=$(node -e "try{const c=require('./.safeword/config.json');process.stdout.write(String(c?.prReview?.enabled===true))}catch{process.stdout.write('false')}")
-          echo "enabled=$enabled" >> "$GITHUB_OUTPUT"
+          # No credential on disk while untrusted code is checked out.
+          persist-credentials: false
 
       - name: Record the pull request context
         if: steps.gate.outputs.enabled == 'true'
+        # Staged in the runner temp dir, NOT inside the checkout: a fork can
+        # pre-commit a directory of the same name and ride extra files into the
+        # bundle. It also dodges upload-artifact's `include-hidden-files: false`
+        # default, under which a dot-prefixed path matches ZERO files while
+        # `if-no-files-found: warn` still lets the step succeed — an empty
+        # bundle that only fails later, in the privileged job.
         run: |
-          mkdir -p .safeword-pr-review
-          printf '%s' "${{ github.event.pull_request.number }}" > .safeword-pr-review/pull-number
-          printf '%s' "${{ github.event.pull_request.head.sha }}" > .safeword-pr-review/head-sha
+          mkdir -p "$RUNNER_TEMP/safeword-pr-review"
+          printf '%s' "${{ github.event.pull_request.number }}" > "$RUNNER_TEMP/safeword-pr-review/pull-number"
 
       - name: Upload the review bundle
         if: steps.gate.outputs.enabled == 'true'
@@ -86,18 +109,28 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: safeword-pr-review-bundle
-          path: .safeword-pr-review/
+          path: ${{ runner.temp }}/safeword-pr-review/
           retention-days: 1
+          # Fail loudly rather than uploading nothing and going green.
+          if-no-files-found: error
 
   # ── stage 2 ────────────────────────────────────────────────────────────────
   # Privileged. Runs in the BASE repository's context, so it may hold
   # credentials — and therefore must never check out the head.
   review:
-    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
+    # The `event == 'pull_request'` clause matters: this workflow's own name is
+    # what workflow_run watches, so a stage-2 run completing would otherwise
+    # re-trigger the workflow. Bounded by GitHub's 3-deep chain limit, but each
+    # review would still spawn a follow-up run that finds no artifact and fails.
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
       contents: read # read the BASE repo only — never the pull request head
+      actions: read # REQUIRED to download an artifact from the stage-1 run
       pull-requests: write # post inline comments (see the three-layer note above)
       checks: write # write the non-required `safeword/pr-review` receipt
       id-token: write # exchange for a short-lived vendor token (WIF/OIDC)

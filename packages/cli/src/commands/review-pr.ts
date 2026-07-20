@@ -126,13 +126,7 @@ export async function reviewPrCommand(options: ReviewPrOptions = {}): Promise<Re
       changedPathsSinceReview,
     },
     poster: createReviewPoster(request, { ...context, headSha: facts.headSha }),
-    review:
-      options.review ??
-      (() => {
-        throw new Error(
-          'pr-review: no vendor configured — the headless review invocation is not yet wired',
-        );
-      }),
+    review: options.review ?? undefined,
   });
 
   process.stdout.write(`pr-review: ${outcome.reason}\n`);

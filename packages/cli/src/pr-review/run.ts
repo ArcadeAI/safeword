@@ -26,8 +26,14 @@ export interface RunPrReviewDependencies {
   /** Facts about the pull request, already gathered from the GitHub API. */
   trigger: TriggerContext;
   poster: ReviewPoster;
-  /** Invoke the vendor headlessly and parse its answer. Injected (slice 0's seam). */
-  review: () => Promise<Review>;
+  /**
+   * Invoke the vendor headlessly and parse its answer. Injected (slice 0's seam).
+   *
+   * Absent means the vendor is not wired yet, which is a SKIP, not a fault: a
+   * half-built runner must degrade to saying nothing, never to reddening every
+   * pull request of a customer who followed the docs and opted in.
+   */
+  review?: () => Promise<Review>;
   /** The second vendor. Absent means the adversarial pass is not configured. */
   adversary?: AdversaryRunner;
 }
@@ -61,6 +67,14 @@ export async function runPrReview(
   const decision = evaluateTrigger(trigger);
   if (!decision.fire) {
     return { ran: false, posted: false, reason: decision.reason };
+  }
+
+  if (dependencies.review === undefined) {
+    return {
+      ran: false,
+      posted: false,
+      reason: 'no vendor configured — the headless review invocation is not wired yet',
+    };
   }
 
   const review = await dependencies.review();
