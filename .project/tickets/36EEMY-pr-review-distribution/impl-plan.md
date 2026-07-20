@@ -573,6 +573,26 @@ voting panel (popularity trap). Reassess-when: see _Assessment triggers_.
 - **v1 implies the author vendor by config** (cross-vendor defaults to
   author=Claude ⇒ review with Codex). Real author detection is X1Z5MG, deferred;
   the default fails toward cross-vendor, the safe direction.
+- **INTERIM: the tracker is read through one shared service account, not as the
+  PR author** (user decision, 2026-07-20). This contradicts R6 in the spec's own
+  words — _"no service account, no privilege escalation"_ — so it is logged
+  rather than absorbed.
+  - **Why now:** per-author brokering needs a GitHub-author → arcade-user id
+    mapping that does not exist yet. Waiting on it blocks the entire intent
+    wedge, which is the feature's whole differentiator.
+  - **The hazard it creates:** the reviewer quotes ticket contents into PR
+    comments — that is the product, not a defect in it. A reading identity
+    broader than the PR author's turns the reviewer into a confused deputy that
+    prints private tickets for whoever can open a pull request.
+  - **Containment:** a dedicated **read-only** tracker bot scoped to specific
+    teams (never a personal account, and never org-wide), plus
+    `shouldReadTracker` refusing the read on fork PRs for as long as identity is
+    shared. Same-repo contributors can already read the tracker, so the
+    disclosure surface there is ~zero.
+  - **Expiry — delete this entry when:** the author → arcade-user mapping lands
+    and `prReview.arcade.userId` is unset, which flips `identityMode` to
+    `per-author` and re-enables fork reads by construction. The code already
+    takes that path; only the config has to change.
 
 ## Doc impact
 
