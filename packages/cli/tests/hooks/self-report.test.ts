@@ -20,14 +20,18 @@ import {
   detectAgent,
   formatIssueDrafts,
   formatSelfReportSurfacing,
+  markSignaturesSurfaced,
   readReports,
   readSelfReportConfig,
   readSessionReports,
+  readSurfacedSignatures,
   recordSignal,
   sanitizeStackFrames,
   type SelfReportSignal,
+  signatureOf,
   spoolPath,
   summarizeReports,
+  surfacedMarkerPath,
 } from '../../templates/hooks/lib/self-report.js';
 
 describe('self-report capture (QYYC5Y)', () => {
@@ -353,6 +357,66 @@ describe('self-report capture (QYYC5Y)', () => {
       // Factual framing — no imperative "you must / file an issue" command.
       expect(line?.toLowerCase()).not.toContain('you must');
       expect(line?.toLowerCase()).not.toContain('file an issue');
+    });
+  });
+
+  describe('surfaced-signature marker (#1163)', () => {
+    it('round-trips surfaced signatures per session', () => {
+      expect(readSurfacedSignatures(projectDirectory, 's')).toEqual(new Set());
+
+      markSignaturesSurfaced(projectDirectory, 's', ['claude:GateEscalation@loc-exceeded']);
+      expect(readSurfacedSignatures(projectDirectory, 's')).toEqual(
+        new Set(['claude:GateEscalation@loc-exceeded']),
+      );
+
+      // Appends accumulate; a different session is unaffected.
+      markSignaturesSurfaced(projectDirectory, 's', ['claude:TypeError@post-tool-quality']);
+      expect(readSurfacedSignatures(projectDirectory, 's').size).toBe(2);
+      expect(readSurfacedSignatures(projectDirectory, 'other')).toEqual(new Set());
+    });
+
+    it('keys the marker by the same signature the spool records produce', () => {
+      recordSignal(
+        projectDirectory,
+        's',
+        { source: 'loc-exceeded', agent: 'claude', errorClass: 'GateEscalation' },
+        '0.68.0',
+      );
+      const signatures = readSessionReports(projectDirectory, 's').map(record =>
+        signatureOf(record),
+      );
+      expect(signatures).toEqual(['claude:GateEscalation@loc-exceeded']);
+
+      markSignaturesSurfaced(projectDirectory, 's', signatures);
+
+      // Mirrors the membership test the hook filters records by.
+      const surfaced = readSurfacedSignatures(projectDirectory, 's');
+      expect(signatures.every(signature => surfaced.has(signature))).toBe(true);
+    });
+
+    it('lives outside the spool glob so readReports never ingests it', () => {
+      recordSignal(projectDirectory, 's', { source: 'check', exitCode: 1 }, '0.68.0');
+      markSignaturesSurfaced(projectDirectory, 's', ['claude:exit1@check']);
+
+      // The marker is JSONL in a `surfaced/` SUBDIR; a sibling `*.jsonl` would be
+      // parsed as SelfReportRecords and inflate every summary and issue draft.
+      const spoolDirectory = nodePath.dirname(spoolPath(projectDirectory, 's'));
+      const markerDirectory = nodePath.dirname(surfacedMarkerPath(projectDirectory, 's'));
+      expect(markerDirectory).toBe(nodePath.join(spoolDirectory, 'surfaced'));
+      expect(readReports(projectDirectory)).toHaveLength(1);
+      expect(readSessionReports(projectDirectory, 's')).toHaveLength(1);
+    });
+
+    it('is fail-open on a torn marker line', () => {
+      mkdirSync(nodePath.dirname(surfacedMarkerPath(projectDirectory, 's')), { recursive: true });
+      writeFileSync(
+        surfacedMarkerPath(projectDirectory, 's'),
+        `{not json\n${JSON.stringify({ ts: 'now', signature: 'claude:exit1@check' })}\n`,
+      );
+
+      expect(readSurfacedSignatures(projectDirectory, 's')).toEqual(
+        new Set(['claude:exit1@check']),
+      );
     });
   });
 

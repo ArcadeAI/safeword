@@ -7,11 +7,22 @@
 // fact — never an imperative — because out-of-band/command phrasing trips
 // Claude's prompt-injection defenses and gets surfaced verbatim instead of acted
 // on (https://code.claude.com/docs/en/hooks). Best-effort: never blocks Stop.
+//
+// EMIT ONLY ON CHANGE (issue #1163). Stop additionalContext wakes the agent as a
+// fresh turn with no user message; the agent must say something to end that turn,
+// which fires Stop again. So an unconditional emit from a Stop hook is an
+// infinite wake-loop generator, and the session spool never drains — every Stop
+// would re-surface a byte-identical line. Each signature is therefore surfaced at
+// most once per session, tracked in the `surfaced/` marker; a Stop with nothing
+// new emits nothing at all.
 
 import {
   formatSelfReportSurfacing,
+  markSignaturesSurfaced,
   readSelfReportConfig,
   readSessionReports,
+  readSurfacedSignatures,
+  signatureOf,
 } from './lib/self-report.ts';
 
 interface HookInput {
@@ -33,11 +44,23 @@ async function main(): Promise<void> {
   const config = readSelfReportConfig(projectDirectory);
   if (!config.surface) return; // selfReport.surface = false → stay silent
 
-  const additionalContext = formatSelfReportSurfacing(
-    readSessionReports(projectDirectory, sessionId),
-    { file: config.file },
+  const surfaced = readSurfacedSignatures(projectDirectory, sessionId);
+  const fresh = readSessionReports(projectDirectory, sessionId).filter(
+    record => !surfaced.has(signatureOf(record)),
   );
+
+  const additionalContext = formatSelfReportSurfacing(fresh, { file: config.file });
   if (!additionalContext) return;
+
+  // Persist BEFORE emitting, and emit only once the marker has actually landed.
+  // The marker write is best-effort (it swallows I/O errors), so confirm it by
+  // reading back: with no durable marker the next Stop re-surfaces this same
+  // line, and Stop additionalContext re-wakes the agent — that is the infinite
+  // loop, not a cosmetic repeat. Silence is the safe failure here.
+  const signatures = [...new Set(fresh.map(record => signatureOf(record)))];
+  markSignaturesSurfaced(projectDirectory, sessionId, signatures);
+  const persisted = readSurfacedSignatures(projectDirectory, sessionId);
+  if (!signatures.every(signature => persisted.has(signature))) return;
 
   process.stdout.write(
     `${JSON.stringify({

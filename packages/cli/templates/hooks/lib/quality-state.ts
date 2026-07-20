@@ -23,9 +23,33 @@ export const ESCALATION_THRESHOLD = 3;
  */
 export const EXPLAIN_HINT = 'Run `/explain` for a plain-English version of this block.';
 
-/** Tooling/meta paths that are not application code.
- *  Used by pre-tool (skip blocking) and post-tool (skip LOC counting). */
-export const META_PATHS = ['.project/', '.safeword-project/', '.safeword/', '.claude/', '.cursor/'];
+/**
+ * Tooling/meta paths that are not application code.
+ * Used by pre-tool (skip blocking) and post-tool (skip LOC counting).
+ *
+ * Must stay the trailing-slash mirror of `SAFEWORD_IGNORE_DIRS` (src/owned-paths.ts) —
+ * the same "safeword owns this directory, it is never the customer's work product"
+ * set, enforced by a drift test. The hooks can't import from `src/`, so the list is
+ * restated here rather than shared.
+ *
+ * `.agents/` and `.codex/` were missing until issue #1163: session-auto-upgrade
+ * relocating skills out of `.agents/` counted ~3800 deletions of safeword's own
+ * churn against the 400-line gate, hard-blocking the agent's next edit over work
+ * neither it nor the user authored.
+ *
+ * Files safeword only MERGES INTO (package.json, eslint.config.mjs, …) are
+ * deliberately absent: those are shared with the customer, and excluding them
+ * would blind the gate to real work.
+ */
+export const META_PATHS = [
+  '.safeword/',
+  '.claude/',
+  '.cursor/',
+  '.codex/',
+  '.agents/',
+  '.project/',
+  '.safeword-project/',
+];
 
 export interface FailureEntry {
   pattern: string;

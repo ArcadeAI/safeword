@@ -21,6 +21,7 @@ import {
 import type { ProjectContext } from '../src/packs/types.js';
 import type { SafewordSchema } from '../src/schema.js';
 import { SAFEWORD_SCHEMA } from '../src/schema.js';
+import { META_PATHS } from '../templates/hooks/lib/quality-state.js';
 
 // Minimal context for resolvedNamespaceDirectory: it only reads cwd + namespaceRoot.
 const ctxWith = (cwd: string, namespaceRoot?: string): ProjectContext =>
@@ -138,6 +139,37 @@ describe('generateOwnedPathsModule', () => {
   it('emits a filterSafewordFiles helper for the auto-upgrade hook to consume', () => {
     const source = generateOwnedPathsModule(stubSchema({ ownedFiles: ['.safeword/x.ts'] }));
     expect(source).toContain('export function filterSafewordFiles');
+  });
+});
+
+describe('META_PATHS ↔ SAFEWORD_IGNORE_DIRS drift (#1163)', () => {
+  // The LOC gate measures `git diff HEAD` minus META_PATHS. Any safeword-owned
+  // directory missing from that list gets counted as the agent's uncommitted
+  // work, so safeword's own auto-upgrade churn can hard-block the next edit.
+  // That is exactly how #1163 fired: `.agents/` (3801 tracked LOC in the
+  // safeword repo) was absent, so relocating skills out of it counted ~3800
+  // deletions against a 400-line threshold.
+  //
+  // The hooks can't import from `src/`, so the list is restated in
+  // templates/hooks/lib/quality-state.ts. This test is the seam that keeps the
+  // two honest — adding an owned dir to one without the other fails here.
+  it('META_PATHS is the trailing-slash mirror of SAFEWORD_IGNORE_DIRS', () => {
+    expect(new Set(META_PATHS)).toEqual(new Set(SAFEWORD_IGNORE_DIRS.map(dir => `${dir}/`)));
+  });
+
+  it('covers the agent-harness dirs safeword rewrites during auto-upgrade', () => {
+    // Named explicitly so a future edit that drops one has to argue with a test
+    // rather than silently re-open the gate bug.
+    for (const directory of ['.safeword/', '.claude/', '.cursor/', '.codex/', '.agents/']) {
+      expect(META_PATHS).toContain(directory);
+    }
+  });
+
+  it('does not exclude config files safeword merely merges into', () => {
+    // package.json / eslint.config.mjs are shared with the customer — excluding
+    // them would blind the gate to real work. Only whole owned DIRS are exempt.
+    expect(META_PATHS.every(path => path.endsWith('/'))).toBe(true);
+    expect(META_PATHS).not.toContain('package.json');
   });
 });
 
