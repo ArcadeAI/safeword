@@ -82,6 +82,55 @@ describe('the headless vendor adapter (36EEMY)', () => {
     expect(sandboxOf(executing.calls)).toBe('workspace-write');
   });
 
+  const allowedToolsOf = (argv: string[]): string =>
+    argv[argv.indexOf('--allowed-tools') + 1] ?? '';
+
+  it('grants the trusted tier full tools, so it can run the project’s own suite', async () => {
+    const { calls, spawn } = recordingSpawn({
+      status: 0,
+      stdout: JSON.stringify({ result: CLEAN_REVIEW }),
+    });
+
+    await createVendorRunner({
+      vendor: 'claude',
+      cwd: '/tmp/r',
+      env: {},
+      executionTier: 'execute',
+      spawn,
+      writeFile: () => {},
+      readFile: () => '',
+    })(JOB, 'a diff');
+
+    // R13's fix gate runs the tests a patch could break; R17 exercises the
+    // project. Both need Bash. Read-only made those gates untestable in prod.
+    const tools = allowedToolsOf(calls[0]?.argv ?? []);
+    expect(tools).toContain('Bash');
+    expect(tools).toContain('Read');
+  });
+
+  it('withholds execution on a fork — read-only, the pwn-request tripwire', async () => {
+    const { calls, spawn } = recordingSpawn({
+      status: 0,
+      stdout: JSON.stringify({ result: CLEAN_REVIEW }),
+    });
+
+    await createVendorRunner({
+      vendor: 'claude',
+      cwd: '/tmp/r',
+      env: {},
+      executionTier: 'degrade',
+      spawn,
+      writeFile: () => {},
+      readFile: () => '',
+    })(JOB, 'a diff');
+
+    // Reading a fork's tree is safe; executing it with a credential present is
+    // the exact act SM1.R3 forbids. Grep/Glob are reads; Bash is not.
+    const tools = allowedToolsOf(calls[0]?.argv ?? []);
+    expect(tools).toContain('Read');
+    expect(tools).not.toContain('Bash');
+  });
+
   it('runs claude with the injected prompt and no --bare', async () => {
     const { calls, spawn } = recordingSpawn({
       status: 0,
