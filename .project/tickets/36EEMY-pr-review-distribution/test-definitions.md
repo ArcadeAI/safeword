@@ -268,7 +268,7 @@ _Slice 8 (`resolvePrReviewConfig` — `prReview.enabled`/`post`, default-off, fa
 One pass over the whole runner once the slices are green — not per-scenario
 cleanup, which each REFACTOR row already owns.
 
-- [ ] cross-scenario
+- [x] cross-scenario de77e0c56
 
 ---
 
