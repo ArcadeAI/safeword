@@ -151,6 +151,12 @@ export interface ExtractArgvOptions {
    * repo change — passes a broader set here. It stays read-only on a fork.
    */
   allowedTools?: string;
+  /**
+   * Path to an MCP server config file for `--mcp-config`. A PATH, never inline
+   * JSON: the config carries a bearer token, and inline would put it in argv
+   * (the process listing). Omitted → no `--mcp-config` flag. Retro sets neither.
+   */
+  mcpConfigPath?: string;
 }
 
 /**
@@ -165,6 +171,7 @@ export function buildExtractArgv(options: ExtractArgvOptions): string[] {
     '-p',
     '--model',
     options.model,
+    ...(options.mcpConfigPath === undefined ? [] : ['--mcp-config', options.mcpConfigPath]),
     '--allowed-tools',
     options.allowedTools ?? READ_ONLY_TOOLS,
     '--output-format',
@@ -416,6 +423,8 @@ export interface RunExtractionDeps {
   model?: string;
   /** `--allowed-tools` for the child. Omitted → read-only (retro's default). */
   allowedTools?: string;
+  /** Path to an MCP config file for `--mcp-config` (a path, never inline). */
+  mcpConfigPath?: string;
 }
 
 export interface CodexSpawnOptions {
@@ -485,6 +494,7 @@ export async function runHeadlessExtraction<T = unknown[]>(
       systemPrompt: job.systemPrompt,
       prompt: job.buildClaudeTaskPrompt(digestPath),
       allowedTools: dependencies.allowedTools,
+      mcpConfigPath: dependencies.mcpConfigPath,
     });
     const { code, stdout } = await dependencies.spawn(argv, {
       cwd: dependencies.cwd,

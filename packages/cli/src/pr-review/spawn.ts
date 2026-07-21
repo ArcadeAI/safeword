@@ -47,8 +47,19 @@ export interface VendorRunnerOptions {
   env: Record<string, string | undefined>;
   /** Whether this pull request's code may be executed (SM1.R3). */
   executionTier: ExecutionTier;
-  /** `-c mcp_servers=<value>` for the tracker broker. Omitted means no MCP. */
+  /** `-c mcp_servers=<value>` for the tracker broker (Codex). Omitted means no MCP. */
   mcpServers?: string;
+  /**
+   * Path to the MCP config file for the Claude path's `--mcp-config` (a path,
+   * never inline — the config carries a bearer token). Omitted means no MCP.
+   */
+  mcpConfigPath?: string;
+  /**
+   * The allow-list entry for the gateway's tools, e.g. `mcp__arcade`. Injected,
+   * not hardcoded: arcade.dev is a GATEWAY, so the server name is whatever the
+   * config file assigns. Without it, an attached config is inert.
+   */
+  mcpToolGrant?: string;
   model?: string;
   /** Seams — real implementations by default. */
   spawn?: RawSpawn;
@@ -162,7 +173,8 @@ async function runClaude(
       env: options.env,
       cwd: options.cwd,
       model: options.model,
-      allowedTools: claudeToolsFor(options.executionTier),
+      allowedTools: claudeToolsFor(options.executionTier, options.mcpToolGrant),
+      mcpConfigPath: options.mcpConfigPath,
     },
     job,
   );
@@ -182,9 +194,10 @@ async function runClaude(
  * is always safe, but executing it while a credential is present is the exact
  * pwn-request act SM1.R3 forbids. Grep/Glob are reads and stay; Bash does not.
  */
-function claudeToolsFor(tier: ExecutionTier): string {
+function claudeToolsFor(tier: ExecutionTier, mcpToolGrant?: string): string {
   const readOnly = ['Read', 'Grep', 'Glob'];
-  return tier === 'execute'
-    ? [...readOnly, 'Bash', 'WebSearch', 'WebFetch'].join(',')
-    : readOnly.join(',');
+  const base = tier === 'execute' ? [...readOnly, 'Bash', 'WebSearch', 'WebFetch'] : readOnly;
+  // The tracker read (R6) is safe in BOTH tiers — reading an issue as the PR
+  // author is identity, not execution — so the MCP grant is not gated by trust.
+  return (mcpToolGrant === undefined ? base : [...base, mcpToolGrant]).join(',');
 }

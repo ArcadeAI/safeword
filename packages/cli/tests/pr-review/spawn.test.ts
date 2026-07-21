@@ -155,6 +155,60 @@ describe('the headless vendor adapter (36EEMY)', () => {
     expect(result.ok).toBe(true);
   });
 
+  it('attaches the tracker gateway to claude by FILE PATH, never inline', async () => {
+    const { calls, spawn } = recordingSpawn({
+      status: 0,
+      stdout: JSON.stringify({ result: CLEAN_REVIEW }),
+    });
+
+    // The config is passed as a path, and the tool-allow name is injected —
+    // both because arcade.dev is a GATEWAY: the server name and endpoint are a
+    // deployment detail (the real gateway is https://api.bosslevel.dev/mcp/gw_…),
+    // and the config file carries a bearer token. Passing that JSON inline would
+    // put the token in argv, i.e. the process listing — the exact leak the
+    // credentials-never-in-argv test forbids.
+    await createVendorRunner({
+      vendor: 'claude',
+      cwd: '/tmp/r',
+      env: { ARCADE_API_KEY: 'arc-secret-value' },
+      executionTier: 'degrade',
+      mcpConfigPath: '/tmp/r/mcp.json',
+      mcpToolGrant: 'mcp__arcade',
+      spawn,
+      writeFile: () => {},
+      readFile: () => '',
+    })(JOB, 'a diff');
+
+    const argv = calls[0]?.argv ?? [];
+    // Verified flag: claude -p attaches MCP via --mcp-config, and it takes a
+    // path so the token stays on disk, out of the argument vector.
+    expect(argv[argv.indexOf('--mcp-config') + 1]).toBe('/tmp/r/mcp.json');
+    expect(argv.join(' ')).not.toContain('arc-secret-value');
+    // The tracker tools must be allow-listed or the config is inert. R6's read
+    // is safe on a fork (identity is not execution), so it is granted in both
+    // tiers. The grant is injected, not "arcade" hardcoded.
+    expect(allowedToolsOf(argv)).toContain('mcp__arcade');
+  });
+
+  it('omits --mcp-config entirely when no broker is configured', async () => {
+    const { calls, spawn } = recordingSpawn({
+      status: 0,
+      stdout: JSON.stringify({ result: CLEAN_REVIEW }),
+    });
+
+    await createVendorRunner({
+      vendor: 'claude',
+      cwd: '/tmp/r',
+      env: {},
+      executionTier: 'degrade',
+      spawn,
+      writeFile: () => {},
+      readFile: () => '',
+    })(JOB, 'a diff');
+
+    expect(calls[0]?.argv).not.toContain('--mcp-config');
+  });
+
   it('reports a non-zero exit as a failure, never as an empty review', async () => {
     const { spawn } = recordingSpawn({ status: 1, stdout: '' });
 
