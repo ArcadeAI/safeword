@@ -74,9 +74,10 @@ describe('autonomous-pr-review.TB1.R13 — the fix gate', () => {
     const [gated] = await applyFixGate([withFix], {
       runAffectedTests: () => Promise.resolve({ passed: false }),
     });
+    if (!gated) throw new Error('the finding itself must survive the gate');
 
-    expect(gated?.suggestedFix).toBeUndefined();
-    expect(renderFinding(gated as ReviewFinding)).toMatch(/no validated fix|not run|withheld/i);
+    expect(gated.suggestedFix).toBeUndefined();
+    expect(renderFinding(gated)).toMatch(/no validated fix|not run|withheld/i);
   });
 
   it('autonomous-pr-review.TB1.R13.a_verified_fix_is_posted_with_the_finding', async () => {
@@ -113,9 +114,10 @@ describe('autonomous-pr-review.TB1.R13 — the fix gate', () => {
       },
     });
 
+    if (!gated) throw new Error('the finding itself must survive the gate');
     expect(executed).toBe(0);
-    expect(gated?.suggestedFix).toBeUndefined();
-    expect(renderFinding(gated as ReviewFinding)).toMatch(/not run|fork/i);
+    expect(gated.suggestedFix).toBeUndefined();
+    expect(renderFinding(gated)).toMatch(/not run|fork/i);
   });
 
   it('withholds the fix when the test run itself errors', async () => {

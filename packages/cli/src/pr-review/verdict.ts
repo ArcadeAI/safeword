@@ -30,6 +30,15 @@ export interface ReviewFinding {
    * the same as never having been asked.
    */
   adversarial?: 'contested' | 'affirmed' | 'unchecked';
+  /**
+   * A concrete patch. Only ever present after the fix gate has RUN it against
+   * the tests it could break (R13) — an unvalidated patch is stripped, never
+   * posted, because a code block is the strongest predictor that a comment gets
+   * applied and a wrong one lands.
+   */
+  suggestedFix?: string;
+  /** Why a fix was removed: the fork could not be executed, or the tests failed. */
+  fixWithheld?: 'fork' | 'failed';
 }
 
 export interface Review {
@@ -51,14 +60,31 @@ import { RECEIPT_CHECK_NAME } from './poster.js';
  * A contested finding says so in the body: down-weighting a finding the reader
  * cannot see is down-weighted achieves nothing (R14).
  */
+/** Why a patch is missing, said plainly. Silence would read as having none. */
+const FIX_WITHHELD_NOTE: Record<NonNullable<ReviewFinding['fixWithheld']>, string> = {
+  fork: "_A fix was drafted but **not run** — validating it would mean executing this fork's code, which the reviewer will not do._",
+  failed:
+    '_A fix was drafted and **withheld**: running it against the affected tests broke one. No validated fix is offered._',
+};
+
+const ADVERSARIAL_NOTE: Partial<Record<NonNullable<ReviewFinding['adversarial']>, string>> = {
+  contested:
+    '_Contested — a second vendor disputed this finding. It is posted anyway, at lower confidence._',
+  unchecked: '_Not adversarially checked — the second vendor errored._',
+};
+
 export function renderFinding(finding: ReviewFinding): string {
-  if (finding.adversarial === 'contested') {
-    return `${finding.consequence}\n\n_Contested — a second vendor disputed this finding. It is posted anyway, at lower confidence._`;
-  }
-  if (finding.adversarial === 'unchecked') {
-    return `${finding.consequence}\n\n_Not adversarially checked — the second vendor errored._`;
-  }
-  return finding.consequence;
+  // Additive, not a chain of early returns: a finding can be BOTH contested and
+  // carrying a withheld fix, and dropping either note would misrepresent it.
+  const notes = [
+    finding.adversarial === undefined ? undefined : ADVERSARIAL_NOTE[finding.adversarial],
+    finding.fixWithheld === undefined ? undefined : FIX_WITHHELD_NOTE[finding.fixWithheld],
+    finding.suggestedFix === undefined
+      ? undefined
+      : `**Suggested fix** (run against the affected tests):\n\n\`\`\`\n${finding.suggestedFix}\n\`\`\``,
+  ].filter((note): note is string => note !== undefined);
+
+  return [finding.consequence, ...notes].join('\n\n');
 }
 
 /**
