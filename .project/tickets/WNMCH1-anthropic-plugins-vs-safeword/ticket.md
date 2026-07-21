@@ -22,6 +22,7 @@ external_issue: 1166
 ## Sources
 
 - Anthropic marketplace `anthropics/claude-code` — 13 plugins, read from file contents (commands/agents/skills/hooks).
+- Anthropic marketplace `anthropics/knowledge-work-plugins` — `product-management` (8 skills) + `design` (7 skills) role playbooks, read from SKILL.md contents (§8).
 - Safeword v0.69.0 surface — ~20 skills, 40+ hooks, CLI, 5-phase workflow, read from `.claude/skills`, `.safeword/`, templates.
 
 ## Key findings
@@ -34,9 +35,9 @@ external_issue: 1166
 
 ## Action candidates (see comparison.md §7)
 
-**Gaps worth borrowing (net-new):** G1 commit/PR/cleanup commands incl. `clean_gone` (low) · G2 specialist review agents w/ per-axis rubrics (med) · G3 hookify-style user-authored guardrail DSL (med) · G4 agentic security tracer (high) · G5 frontend-design skill (med) · G6 teaching output modes (low).
+**Gaps worth borrowing (net-new):** G1 commit/PR/cleanup commands incl. `clean_gone` (low) · G2 specialist review agents w/ per-axis rubrics (med) · G3 hookify-style user-authored guardrail DSL (med) · G4 agentic security tracer (high) · G5 frontend-design skill (med) · G6 teaching output modes (low) · **G7 connector-agnostic `~~category` placeholder pattern** from the PM/design role plugins (med).
 
-**Overlap to sharpen (borrow the mechanic):** S1 scope Stop-review to this-session's diff via git-stash baseline (**pursue**) · S2 render each test with "the regression it prevents" (**pursue**) · S3 cheap-triage model ladder + validate-then-filter stage (consider) · S4 biased-parallel option generation in figure-it-out (consider) · S5 escalating-cost review tiers (later).
+**Overlap to sharpen (borrow the mechanic):** S1 scope Stop-review to this-session's diff via git-stash baseline (**pursue**) · S2 render each test with "the regression it prevents" (**pursue**) · S3 cheap-triage model ladder + validate-then-filter stage (consider) · S4 biased-parallel option generation in figure-it-out (consider) · S5 escalating-cost review tiers (later) · **S6 fold write-spec PM rigor (outcomes-not-outputs, non-goals, INVEST) into spec/self-review** (consider).
 
 **Recommended first moves:** S1, S2, and G1 — high value, low risk, no philosophy change.
 
@@ -55,3 +56,4 @@ Epic **#1166** `[Epic] Borrow & sharpen from Anthropic claude-code plugins [WNMC
 - 2026-07-19T16:06Z Filed comparison.md deliverable into ticket; research task complete (documentation artifact, no code change).
 - 2026-07-19T16:19Z Added §7 action candidates to comparison.md (gaps to borrow + overlap to sharpen) and summarized recommended first moves here.
 - 2026-07-19T17:03Z Filed epic #1166 + 11 sub-issues (#1167–#1177) on ArcadeAI/safeword; linked external_issue: 1166. Structure decided via /figure-it-out (epic + all 11, tiered).
+- 2026-07-21T03:48Z PR #1160 merged. Restarted branch from origin/main and added §8 (product-management + design role plugins from anthropics/knowledge-work-plugins) as follow-up; added borrow candidates G7 (connector-agnostic `~~category` pattern) and S6 (write-spec PM rigor → spec/self-review).
