@@ -1,11 +1,12 @@
 ## Version Management
 
-When bumping the CLI version, update all **four release-tracked artifacts**:
+When bumping the CLI version, update all **five release-tracked artifacts**:
 
 1. `packages/cli/package.json` — source of truth for npm
 2. `.claude-plugin/marketplace.json` → `plugins[0].version` — source of truth for Claude Code plugin
 3. `packages/cli/codex-plugin/.codex-plugin/plugin.json` → `version` — source of truth for Codex plugin
 4. `packages/cli/codex-plugin/hooks.json` — all five `bunx` commands pin `safeword@<version>`
+5. `packages/cli/templates/workflows/pr-review.yml` — the `bunx --bun safeword@<version> review-pr` pin (ticket 36EEMY). It executes in customer repos holding write scopes, so it is pinned rather than floating; `tests/pr-review/workflow-contract.test.ts` binds it to `VERSION` and goes red on a bump that forgets it.
 
 Do NOT add version to `plugin/.claude-plugin/plugin.json` — per Claude Code docs, relative-path plugins use the marketplace entry only. Pre-commit and release-contract tests block a mismatch between the CLI, plugin manifests, and Codex hook commands.
 
