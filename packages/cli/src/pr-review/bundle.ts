@@ -11,7 +11,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import nodePath from 'node:path';
 
-export interface BundledFile {
+interface BundledFile {
   /** Repo-relative path, e.g. `src/helper.ts`. */
   path: string;
   contents: string;

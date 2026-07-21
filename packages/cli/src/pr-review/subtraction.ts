@@ -10,7 +10,7 @@
 // verified, higher-severity version because a noisy bot named it discards the
 // strongest signal available — the one most likely to be acted on.
 
-export type CoverageState =
+type CoverageState =
   /** A deterministic tooling check resolved it. Real coverage. */
   | 'tooling-resolved'
   /** A code-review bot mentioned it. Not coverage. */

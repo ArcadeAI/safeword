@@ -65,7 +65,7 @@ export function buildReviewInput(parts: ReviewInputParts): string {
 }
 
 /** The structured answer the runner requires back. See impl-plan §D. */
-export const REVIEW_OUTPUT_SCHEMA = {
+const REVIEW_OUTPUT_SCHEMA = {
   type: 'object',
   additionalProperties: false,
   properties: {
@@ -147,7 +147,7 @@ function parseReview(raw: string): Review | undefined {
 }
 
 /** What the generalized headless runner returns (slice 0's checked variant). */
-export interface VendorRunResult {
+interface VendorRunResult {
   ok: boolean;
   output?: Review;
   findings: unknown[];

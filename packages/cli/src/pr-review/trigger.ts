@@ -32,7 +32,7 @@ export interface CheckRun {
 }
 
 /** Which source answered "what is required here", for the run log. */
-export type RequiredSetTier = 'rulesets' | 'config' | 'all-checks';
+type RequiredSetTier = 'rulesets' | 'config' | 'all-checks';
 
 export interface RequiredSetInput {
   /** `required_status_checks` contexts from GET /repos/{o}/{r}/rules/branches/{branch}. */
