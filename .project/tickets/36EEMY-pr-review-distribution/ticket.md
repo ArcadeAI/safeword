@@ -56,31 +56,35 @@ Gherkin green, audit passed with 0 errors. Held rather than marked done because
 `done_when` #2 — "the runner drives a review headlessly on the configured
 vendor" — is NOT met. Everything else in `done_when` is.
 
-Two separate things are missing. Only one of them is blocked, and conflating
-them would hide real work behind someone else's gate.
+Two things were missing. The first was ours and is now done; only the
+human-gated one remains. They are kept separate below because conflating them
+would have hidden real work behind someone else's gate — and did, briefly.
 
-### 1. The vendor spawn adapter — OURS, not blocked
+### 1. The vendor spawn adapter — DONE 2026-07-21 (d031a4bf8)
 
-`vendorRunner` is injected everywhere and constructed nowhere. Nothing in
-`src/` builds a real `codex exec` / `claude -p` child: `assembleVendorReview`
-(review-pr.ts) returns undefined when `options.vendorRunner` is absent, and
-production never sets it. Confirmed by grep — no call site for
-`runCodexHeadlessExtractionChecked` outside retro.
+Built and wired end to end: `reviewPrCommand` → `assembleVendorReview` →
+`createVendorRunner` → `spawnSync`. `spawn.ts` is the only place in the runner
+that knows a binary name, and it carries the review job's three divergences from
+retro's headless child — a real MCP broker instead of `mcp_servers={}`, a
+sandbox tiered by execution trust, and a 15-minute cap.
 
-Everything it needs already exists: slice 0 made the headless runners
-job-agnostic, `createReviewJob` supplies schema + prompt + parse, and
-`buildReviewInput` composes the diff and tree. What is missing is the adapter
-that hands those to a real child process with the tiered sandbox and arcade MCP
-config, plus a WIF or key credential.
+Two things worth knowing for whoever touches this next:
 
-Estimated shape: one module, one integration test against the injected spawn
-seam. This is the next piece of work on this ticket and needs nobody's
-permission.
+- **Unknown provenance counts as FOREIGN.** `isFork` comes from head-repo
+  identity, and an absent `head.repo` (a deleted fork) resolves to `true`, not
+  `false`. The first version had this backwards. Skipping a run gate costs one
+  finding; executing code we cannot identify is the pwn-request the two-stage
+  split exists to prevent.
+- **`arcade.mcpServers` must never contain a credential.** It is passed as
+  argv, where it would appear in process listings and CI logs. Auth belongs in
+  the child's environment, and a test asserts no secret reaches argv.
 
 ### 2. The review prompt — NOT ours, human-gated
 
-Even with the adapter, the runner has nothing to ask. The prompt is G5337S's
-deliverable and the chain is:
+**This is now the only thing standing between the runner and a real review.**
+Everything else is built: the adapter starts a child, the bundle carries the
+diff and tree, the job supplies schema and parsing. The runner has nothing to
+ASK. The prompt is G5337S's deliverable and the chain is:
 
     36EEMY (this)   needs a prompt
       └─ G5337S     status: blocked, blocked_on: [CWGYH0]
