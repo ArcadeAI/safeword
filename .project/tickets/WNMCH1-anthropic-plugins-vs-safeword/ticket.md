@@ -47,8 +47,11 @@ Epic **#1166** `[Epic] Borrow & sharpen from Anthropic claude-code plugins [WNMC
 
 - Recommended: S1 #1167 · S2 #1168 · G1 #1169
 - Backlog: S3 #1170 · S4 #1171 · S5 #1172 · G2 #1173 · G3 #1174 · G4 #1175 · G5 #1176 · G6 #1177
+- §8 follow-up: G7 #1291 (connector-agnostic `~~category` pattern) · S6 #1292 (write-spec PM rigor → spec/self-review)
 
 (Adjacent: #1165 autonomous cross-vendor PR review — related to G2/S3, cross-linked not duplicated.)
+
+PRs: #1160 (§1–§7, merged) · #1290 (§8 follow-up).
 
 ## Work Log
 
