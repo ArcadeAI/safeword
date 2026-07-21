@@ -12,9 +12,10 @@ name: Safeword PR review
 # The threat is executing untrusted code while a credential is present, NOT
 # reading it. So:
 #
-#   stage 1 (`bundle`)  pull_request — checks out the fork's head, holds NO
-#                       secrets, and only reads. Nothing here can leak, because
-#                       there is nothing here to leak.
+#   stage 1 (`bundle`)  pull_request — checks out the pull request's MERGE ref
+#                       (what `actions/checkout` gives you for this event with no
+#                       explicit `ref:`), holds NO secrets, and only reads.
+#                       Nothing here can leak, because there is nothing to leak.
 #   stage 2 (`review`)  workflow_run — holds the credentials, and NEVER checks
 #                       out the head. It reads the uploaded bundle as inert data.
 #
@@ -43,8 +44,15 @@ on:
 
 permissions: {}
 
+# Keyed on the PULL REQUEST in both stages. `workflow_run.id` is unique per run,
+# so keying on it would put every stage-2 run in its own group and
+# cancel-in-progress would never fire — two quick pushes would review the same PR
+# concurrently and post duplicate comments and receipts.
 concurrency:
-  group: safeword-pr-review-${{ github.event.pull_request.number || github.event.workflow_run.id }}
+  group: >-
+    safeword-pr-review-${{ github.event.pull_request.number
+    || github.event.workflow_run.pull_requests[0].number
+    || github.event.workflow_run.id }}
   cancel-in-progress: true
 
 jobs:

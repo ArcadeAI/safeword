@@ -163,6 +163,12 @@ your pull requests. Turn it on in `.safeword/config.json`:
 | `requiredChecks` | `[]`    | Which checks must be green before it reviews. Only needed on repos still using classic branch protection — with rulesets, safeword reads the required set itself.                               |
 | `arcade.userId`  | —       | Arcade user whose tracker access is brokered, for reading the linked issue.                                                                                                                     |
 
+Shadow mode costs more than you might expect. The reviewer knows it already
+looked at a commit by finding its own receipt on that SHA — and shadow mode
+writes no receipt, because a receipt is still visible. So it re-reviews on every
+push for as long as it stays silent. That is fine for a week of watching; it is
+not a posture to leave on indefinitely.
+
 The reviewer waits for a **ready, green** pull request, reviews once per commit,
 and re-reviews only when a material (non-docs) change goes green again.
 

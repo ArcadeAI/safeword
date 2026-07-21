@@ -18,7 +18,17 @@ export type CiState = 'green' | 'red' | 'pending';
 export interface CheckRun {
   name: string;
   /** Absent while the check is still running — GitHub reports a null conclusion. */
-  conclusion?: 'success' | 'failure' | 'neutral' | 'cancelled' | 'skipped' | 'timed_out';
+  conclusion?:
+    | 'success'
+    | 'failure'
+    | 'neutral'
+    | 'cancelled'
+    | 'skipped'
+    | 'timed_out'
+    // Real GitHub conclusions that are neither pass nor fail. Listed rather than
+    // cast away: both mean "not green yet", so they fall through to pending.
+    | 'action_required'
+    | 'stale';
 }
 
 /** Which source answered "what is required here", for the run log. */
@@ -44,8 +54,10 @@ export interface RequiredSet {
  *    an ordinary workflow token can read it. (The classic
  *    `/branches/{branch}/protection/required_status_checks` needs
  *    Administration: read, which a customer's runner will not have.)
- * 2. **config** — a declared override, and the honest fallback for repos still
- *    on classic branch protection, where the rules endpoint returns nothing.
+ * 2. **config** — the fallback for repos still on classic branch protection,
+ *    where the rules endpoint returns nothing. NOT an override: rulesets win
+ *    when present, because the repository's own enforced rules are closer to
+ *    the truth than a hand-maintained list that drifts.
  * 3. **all-checks** — last resort. Over-strict by design: it can never review
  *    red code, but one flaky optional check suppresses reviews indefinitely,
  *    which reads as "the reviewer is broken". That is why the tier is reported
