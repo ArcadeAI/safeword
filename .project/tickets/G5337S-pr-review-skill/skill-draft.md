@@ -33,8 +33,14 @@ A finding derived from the wrong tree is indistinguishable from a real one at th
 
 Detect the project's own quality surface and **review only the gap**. Do not review what it already reports:
 
-- Linters / formatters / type-checkers / test suites in CI
-- Dead-code and dependency tools
+- Linters / formatters / type-checkers / test suites in CI. Assume a modern
+  preset already reports: unused vars and imports, unsafe `any`, unhandled
+  promises, complexity, `eval`/injection patterns, import cycles, unreachable
+  code, regex hazards, formatting. **All of that is theirs.**
+- Dead-code and dependency tools (unused exports, orphaned deps, duplicate
+  blocks, outdated versions) — and note many repos have these in CI but not all;
+  if a finding is only true because the repo lacks a tool, say that, because the
+  fix is the tool, not a comment.
 - **Peer AI reviewers** (Cursor Bugbot, CodeRabbit, Copilot review) — read their comments. Their territory is generic bug-hunting; do not re-litigate it.
 
 If a linter or a bug-bot could produce your finding, **delete it**. This is PRINCIPLES §3 (add, never replace) applied to review.
@@ -116,16 +122,26 @@ Only these, and only when they pass §3.5's on-topic test. Everything else belon
 **The ticket is your evidence base, not your checklist.** Only 2 of 11 findings were "this didn't match the ticket." The ticket's real work is making a finding *sizable*: reading the code alone gives you "no `connect_timeout` is set" — true, unsizable, ignorable. The ticket's incident forensics ("a 134-second TCP timeout to Aurora") turn the same observation into "~7 minutes before anyone is paged instead of ~2." Same fact; only one of them gets acted on. Read the ticket for **what it lets you measure**, not for boxes to tick.
 
 1. **Blast radius / reversibility** — what breaks for an existing user or operator? Silent behavior changes, cardinality, migrations, config default flips, dropped error paths, unbounded waits, leaked resources. **Needs no ticket.** The highest-yield dimension in the trial, and the one the headline finding came from.
-2. **Evidence integrity — does the proof actually prove it?** A green suite is not evidence; it is a claim. Ask what would still pass if the feature were deleted. Three shapes recurred, and all three are invisible to linters, bots, and a skimming human *because the tests pass*:
+2. **Evidence integrity — does the proof actually prove it?** A green suite is not evidence; it is a claim.
+
+   **Use the constant-implementation lens, not deletion.** Deleting the feature is the loose version; the sharp one is: *replace it with a constant that ignores its input and always returns the asserted value — could the test still pass?* That catches what deletion misses — a non-event assertion with no positive sibling ("nothing was posted"), a flag only ever asserted at one value, a parameterised case whose rows don't force different outputs. None of those show the result varying with the input. The fix is always the same: pair the assertion with the discriminating case in the same test.
+
+   Shapes that recur, all invisible to linters, bots, and a skimming human *because the tests pass*:
    - **The test doesn't run.** Verify the suite is actually executed by CI — a workflow in the wrong directory, a build tag nothing sets, a path filter that never matches.
    - **The test bypasses the code.** A "failure is recorded" test that calls the recorder directly rather than driving the failing path would pass with the real reporting deleted.
    - **A fix quietly removed coverage.** A deflake that makes a test stop exercising the branch it is named for, still green via another path.
+   - **The test encodes the bug.** Written against the current behavior rather than the intended one, so it pins the defect in place. Agent-written tests do this constantly, and a green suite is exactly how it hides.
+   - **The test verifies the mocks.** Everything stubbed, so it proves the wiring of the test and nothing about the code. Real collaborators, mock only the process boundary.
+   - **The test is newly flaky.** Three patterns worth naming because they are cheap to spot and expensive to inherit: a `Then` that depends on elapsed time or a bare sleep; an unordered collection asserted as if ordered; concurrent operations asserted without a stated ordering.
+
      This is `tdd-review`'s vacuity guard — *"a test that would pass without the feature proves nothing"* — applied at the PR boundary, which is where agent-written tests arrive by the hundred.
 3. **Intent conformance** — does what the diff *did* match what was promised? Where it **deviates** from a stated requirement, that is a real gap at full severity. Where a requirement is simply **absent** from the diff, that is the completeness direction — bound it by §3's scope-certainty rule before you assert it.
 4. **Scope discipline** — did it do things nobody asked for? Bundle unrelated work? Touch something sensitive (auth, billing, migrations, public API) the intent never mentioned? **The always-safe direction** (§3) — run it even when the ticket is broader than the PR.
 5. **Alternatives — a provocation, not a finding.** A materially simpler shape, offered as an **invitation the author may take**, never a defect they must rebut. It scored 0/11 in the trial — and that is correct, not failure: "is there a simpler design?" is the creative middle of the U-shaped autonomy curve, where a confident single alternative *anchors* the author exactly like a premature draft does. So it never blocks, never counts toward the verdict, and is phrased as an option ("worth considering: X collapses these three branches") not a verdict ("this should be X"). A provocation nobody takes is cheap; a false defect is not.
 
-**Two smaller ones that paid unexpectedly, and cost nothing to run:**
+**Three smaller ones that cost nothing to run.** These are unranked — the trial did not measure them — but each is plainly visible in a diff and structurally invisible to every other tool:
+
+- **A derived artifact that did not come along.** The change edits something that GENERATES something else — a template with a generated copy, a source with a checked-in build output, a schema with a manifest, a config with a regenerated form — and the derived file is not in the diff. No linter sees this; test suites pass; the drift surfaces later as an unrelated-looking failure. Ask it whenever a diff touches a file whose siblings elsewhere in the tree look generated. Same question for documentation: if this change altered behavior a README or doc describes, is that doc in the diff? (Doc drift is a defect here, not a nitpick — a doc that confidently describes the old behavior outlives the PR.)
 
 - **Prose that lies.** A comment or doc asserting a guarantee the code does not provide — e.g. naming a validator that the handler never calls. On a docs-only PR this is the *only* available defect class, and it is exactly where "no executable logic → low risk" reasoning goes blind.
 - **An unanswered author question.** An author who writes *"please sanity-check this reasoning"* and is approved with zero comments has been failed by the process, not served by it. Their self-disclosure is the highest-signal pointer in the PR — surface it.
@@ -236,7 +252,7 @@ and the runner ever drift again.
   "intent_source": "<what you checked against, and whether it is contract or narrative>",
   "findings": [
     {
-      "dimension": "blast-radius|evidence-integrity|intent|scope|alternative|prose-lies|unanswered-author",
+      "dimension": "blast-radius|evidence-integrity|intent|scope|alternative|prose-lies|unanswered-author|derived-artifact",
       "blocking": true|false,
       "path": "...", "line": 0,
       "claim": "<the defect, one sentence>",
