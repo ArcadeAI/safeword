@@ -64,7 +64,7 @@ describe('reading the facts the trigger decides on', () => {
     const { request } = stubRequest({
       '/repos/acme/monorepo/pulls/42': {
         draft: true,
-        head: { sha: 'abc123' },
+        head: { sha: 'abc123', repo: { full_name: 'acme/monorepo' } },
         base: { ref: 'main' },
       },
     });
@@ -73,7 +73,37 @@ describe('reading the facts the trigger decides on', () => {
       isDraft: true,
       headSha: 'abc123',
       baseRef: 'main',
+      isFork: false,
     });
+  });
+
+  it('reads fork-ness from the head repo, since it decides whether code may RUN', async () => {
+    // The one fact SM1.R3 turns on. Derived from head-repo identity rather than
+    // GitHub's `fork` flag: that flag is true for any repo which is itself a
+    // fork, even when the branch lives here — what matters is whether the head
+    // is ours.
+    const { request } = stubRequest({
+      '/repos/acme/monorepo/pulls/42': {
+        draft: false,
+        head: { sha: 'abc123', repo: { full_name: 'contributor/monorepo' } },
+        base: { ref: 'main' },
+      },
+    });
+
+    await expect(fetchPullFacts(request, CONTEXT)).resolves.toMatchObject({ isFork: true });
+  });
+
+  it('treats an UNIDENTIFIABLE head repo as foreign, not as ours', async () => {
+    // An absent head.repo (a deleted fork) means provenance could not be
+    // established. This is a security decision, not an availability one: the
+    // only safe reading of "we don't know whose code this is" is "not ours".
+    // Skipping a run gate costs one finding; executing unidentified code is the
+    // pwn-request the two-stage split exists to prevent.
+    const { request } = stubRequest({
+      '/repos/acme/monorepo/pulls/42': { draft: false, head: { sha: 'abc' }, base: { ref: 'main' } },
+    });
+
+    await expect(fetchPullFacts(request, CONTEXT)).resolves.toMatchObject({ isFork: true });
   });
 
   it('maps a still-running check to an absent conclusion, not a failure', async () => {

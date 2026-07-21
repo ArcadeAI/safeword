@@ -49,11 +49,13 @@ export interface PullFacts {
   isDraft: boolean;
   headSha: string;
   baseRef: string;
+  /** Head lives in another repository — its code may be read but not run. */
+  isFork: boolean;
 }
 
 interface PullResponse {
   draft?: boolean;
-  head?: { sha?: string };
+  head?: { sha?: string; repo?: { full_name?: string } };
   base?: { ref?: string };
 }
 
@@ -92,6 +94,17 @@ export async function fetchPullFacts(
     isDraft: pull.draft === true,
     headSha: pull.head?.sha ?? '',
     baseRef: pull.base?.ref ?? '',
+    // Fork-ness decides whether this pull request's code may be EXECUTED
+    // (SM1.R3). Derived from the head repo's identity rather than GitHub's
+    // `fork` flag: `fork` is true for any repo that is itself a fork, even when
+    // the branch lives in THIS repo — what matters is whether the head is ours.
+    //
+    // UNKNOWN COUNTS AS FOREIGN. An absent head.repo (a deleted fork) means we
+    // could not establish provenance, and the only safe reading of "we don't
+    // know whose code this is" is "not ours". Skipping a run gate costs a
+    // finding; executing unidentified code is the pwn-request this whole split
+    // exists to prevent.
+    isFork: pull.head?.repo?.full_name !== `${context.owner}/${context.repo}`,
   };
 }
 

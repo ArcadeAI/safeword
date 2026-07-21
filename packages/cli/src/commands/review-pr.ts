@@ -8,7 +8,8 @@
 import process from 'node:process';
 
 import { readReviewBundle } from '../pr-review/bundle.js';
-import { resolvePrReviewConfig } from '../pr-review/config.js';
+import { type PrReviewConfig, resolvePrReviewConfig } from '../pr-review/config.js';
+import { resolveExecutionTier } from '../pr-review/execution.js';
 import {
   createGitHubRequest,
   fetchChangedPathsBetween,
@@ -22,7 +23,9 @@ import { buildReviewInput, createVendorReview, type VendorRunner } from '../pr-r
 import { createReviewPoster } from '../pr-review/poster.js';
 import { resolveReviewPrompt } from '../pr-review/prompt.js';
 import { runPrReview } from '../pr-review/run.js';
+import { createVendorRunner } from '../pr-review/spawn.js';
 import { computeCiState, resolveRequiredChecks } from '../pr-review/trigger.js';
+import { selectReviewVendor } from '../pr-review/vendor.js';
 import type { Review } from '../pr-review/verdict.js';
 import { resolveGitHubToken } from '../retro/github-rest.js';
 
@@ -102,6 +105,8 @@ function resolveInvocation(options: ReviewPrOptions): Invocation {
 function assembleVendorReview(
   projectDirectory: string,
   options: ReviewPrOptions,
+  facts: { isFork: boolean },
+  config: PrReviewConfig,
 ): (() => Promise<Review>) | undefined {
   const prompt = resolveReviewPrompt(projectDirectory, options.promptPath);
   if (prompt === undefined) return undefined;
@@ -109,8 +114,21 @@ function assembleVendorReview(
   const bundle = readReviewBundle(options.bundleDirectory ?? DEFAULT_BUNDLE_DIRECTORY);
   if (bundle === undefined) return undefined;
 
-  const run = options.vendorRunner;
-  if (run === undefined) return undefined;
+  // Injected in tests; production builds the real child here. The vendor is
+  // whichever one did NOT write the code (R11) — with no author detection yet,
+  // that defaults to Codex, which fails toward cross-vendor.
+  const run =
+    options.vendorRunner ??
+    createVendorRunner({
+      vendor: config.vendor ?? selectReviewVendor(undefined),
+      cwd: projectDirectory,
+      // Credentials live in the environment, never in argv.
+      env: process.env,
+      // A fork is read-only. This is the one place the tier is decided.
+      executionTier: resolveExecutionTier({ isFork: facts.isFork }),
+      mcpServers: config.arcadeMcpServers,
+      model: config.model,
+    });
 
   return createVendorReview({
     prompt,
@@ -173,7 +191,7 @@ export async function reviewPrCommand(options: ReviewPrOptions = {}): Promise<Re
       changedPathsSinceReview,
     },
     poster: createReviewPoster(request, { ...context, headSha: facts.headSha }),
-    review: options.review ?? assembleVendorReview(projectDirectory, options),
+    review: options.review ?? assembleVendorReview(projectDirectory, options, facts, config),
   });
 
   process.stdout.write(`pr-review: ${outcome.reason}\n`);

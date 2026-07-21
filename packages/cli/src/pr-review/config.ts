@@ -14,6 +14,7 @@ import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import type { ReviewPoster } from './poster.js';
+import type { Vendor } from './vendor.js';
 import { postVerdict, type Review } from './verdict.js';
 
 /**
@@ -39,6 +40,26 @@ export interface PrReviewConfig {
   identityMode: IdentityMode;
   /** Override for the required-check set when rulesets are unavailable. */
   requiredChecks: string[];
+  /**
+   * Pin the reviewing vendor. Normally unset — R11 picks whichever one did not
+   * write the code, and pinning defeats that.
+   */
+  vendor?: Vendor;
+  /** Model override for the headless child. */
+  model?: string;
+  /**
+   * Raw `-c mcp_servers=<value>` for the tracker broker.
+   *
+   * MUST NOT contain a credential. This string is passed as ARGV, where it is
+   * visible in process listings and CI logs — the bearer belongs in the child's
+   * environment. Kept as an opaque string rather than assembled here so safeword
+   * does not have to model a broker's config schema.
+   */
+  arcadeMcpServers?: string;
+}
+
+function readVendor(value: unknown): Vendor | undefined {
+  return value === 'claude' || value === 'codex' ? value : undefined;
 }
 
 const DISABLED: PrReviewConfig = {
@@ -51,9 +72,11 @@ const DISABLED: PrReviewConfig = {
 interface RawPrReview {
   enabled?: unknown;
   post?: unknown;
-  arcade?: { userId?: unknown };
+  arcade?: { userId?: unknown; mcpServers?: unknown };
   identityMode?: unknown;
   requiredChecks?: unknown;
+  vendor?: unknown;
+  model?: unknown;
 }
 
 function nonEmptyString(value: unknown): value is string {
@@ -93,6 +116,9 @@ export function resolvePrReviewConfig(projectDirectory: string): PrReviewConfig 
     requiredChecks: Array.isArray(raw.requiredChecks)
       ? raw.requiredChecks.filter(entry => nonEmptyString(entry))
       : [],
+    vendor: readVendor(raw.vendor),
+    model: nonEmptyString(raw.model) ? raw.model : undefined,
+    arcadeMcpServers: nonEmptyString(raw.arcade?.mcpServers) ? raw.arcade.mcpServers : undefined,
   };
 }
 
