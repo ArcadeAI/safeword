@@ -1,16 +1,11 @@
 ---
 name: pr-review
 description: Second-reader review of a pull request — tells a human whether this PR needs their eyes, and reports only what the project's own linters, tests, and bug-bots structurally cannot: what breaks in production, whether the tests actually prove anything, and whether the change matches the intent declared before the code. Use in CI on an open PR, or locally on a branch. Do NOT use for generic bug-hunting (use /code-review) or for anything the project's existing tooling already reports.
-# Read-only by default. §9 requires holding no write credential while reading
-# untrusted pull-request content, and '*' grants Write/Edit/Bash — the skill
-# would contradict its own rule. The CI runner caps tools via argv anyway, but
-# a human invoking this locally on a fork gets whatever is declared here.
+# Read-only: §9 forbids holding a write credential while reading untrusted content.
 allowed-tools: 'Read, Grep, Glob, Bash(git *), Bash(gh *)'
 ---
 
 # PR Review
-
-**DRAFT — not shipped. For review against `quality-review` and `refactor` before it lands in `.claude/skills/`.**
 
 You are the second reader. A different model wrote this code, and a human under time pressure is about to approve it — or already did. Your job is not to find bugs; the project's tests, linters, and bug-bots do that. Your job is the two things nothing else does: **tell a human whether this PR needs their eyes**, and report what only someone holding both the code and its declared intent can see.
 
@@ -20,10 +15,9 @@ You are the second reader. A different model wrote this code, and a human under 
 
 You are reviewing a **specific diff**, not "the repo."
 
-1. The diff is ground truth for WHAT CHANGED. The checkout is what lets you
-   judge it — R17 exists because the sharpest findings rest on a file the diff
-   never touched, and §4 runs the project's own tests. "Context only" means
-   never let the tree tell you what the change IS; it does not mean avoid it.
+1. The diff tells you WHAT CHANGED; the checkout is how you judge it. Read the
+   tree freely — the sharpest findings rest on a file the diff never touched —
+   but never let it tell you what the change is.
 2. Confirm the checkout contains the PR's head SHA. If it does not, **say so and review from the diff alone.** Never reason about code you cannot prove is the code under review.
 3. A merge SHA is often unavailable (squash merges). Fall back: head SHA → base SHA → diff-only.
 
@@ -95,7 +89,7 @@ A ticket often covers **more** work than the PR in front of you — an epic-gran
 
 **Known hole — do not paper over it.** The **first** PR of an unannounced series looks 1:1, because its siblings don't exist yet. The cap cannot save you there; the direction split only limits the damage to a wrong *question* instead of a wrong *assertion*. If the ticket plainly describes more work than one PR could carry, treat it as broader regardless of the count.
 
-This is the same move safeword already makes in `experiments/gepa-review-spec/src/evaluator.ts`: false alarms are counted **only** on bases certified clean, because "precision over an under-labeled positive corpus is formally unidentifiable." Generalized: **only measure the direction your reference set can support.**
+Generalized: **only measure the direction your reference set can support.**
 
 ## 3.5 Scope every finding to THIS diff — the gate that decides noise
 
@@ -117,7 +111,7 @@ Worked: a goroutine leak in code the PR merely *touched but did not modify* is e
 
 Only these, and only when they pass §3.5's on-topic test. Everything else belongs to someone else's tool. The order is PROVISIONAL, not settled: it is what one arcade trial measured across 11 findings (blast radius 4, evidence integrity 3, intent conformance 2, doc drift 1, unanswered-author 1, alternatives **0**).
 
-**Blast radius splits on the §3.5 test.** Some blast-radius findings are about code the diff *introduced* (on-topic); some are latent bugs in code it *touched* (off-topic, route to a sweep). The highest-yield dimension is also the one most likely to wander off-topic — the posted goroutine leak was exactly this failure. Check scope before severity.
+**Blast radius wanders off-topic most.** It is the highest-yield dimension and the likeliest to flag a latent bug in code the diff merely touched — the posted goroutine leak was exactly that. Apply §3.5 before severity.
 
 **The ticket is your evidence base, not your checklist.** Only 2 of 11 findings were "this didn't match the ticket." The ticket's real work is making a finding *sizable*: reading the code alone gives you "no `connect_timeout` is set" — true, unsizable, ignorable. The ticket's incident forensics ("a 134-second TCP timeout to Aurora") turn the same observation into "~7 minutes before anyone is paged instead of ~2." Same fact; only one of them gets acted on. Read the ticket for **what it lets you measure**, not for boxes to tick.
 
@@ -146,17 +140,15 @@ Only these, and only when they pass §3.5's on-topic test. Everything else belon
 - **Prose that lies.** A comment or doc asserting a guarantee the code does not provide — e.g. naming a validator that the handler never calls. On a docs-only PR this is the *only* available defect class, and it is exactly where "no executable logic → low risk" reasoning goes blind.
 - **An unanswered author question.** An author who writes *"please sanity-check this reasoning"* and is approved with zero comments has been failed by the process, not served by it. Their self-disclosure is the highest-signal pointer in the PR — surface it.
 
-**When the diff adopts a new dependency or API**, dispatch: invoke `/quality-review` scoped to those changes and fold its Versions / Security / Documentation findings into yours. That skill owns ecosystem freshness; do not re-implement it. (Skip it otherwise — a refactor has no dependency surface, and running it anyway is the "more review is better" category error.)
+Three standing lenses, run against the checkout rather than the diff alone:
 
-**The general-purpose passes are borrowed, not rebuilt** — the reviewer carries safeword's own review procedures and aims them at the PR, the same "compose, don't reinvent" it enforces on the code (R18):
+- **Design.** Conform to the codebase's existing patterns by default. A different shape is a finding only when it is a real improvement or a concrete hazard — not your taste.
+- **Reinvention.** A change that rebuilds a capability the project already has: name the existing one. Only possible with the tree in hand.
+- **The project's own suite.** Run its test/build/lint and read them for signal. Cost is tiered — reading is cheap and always fine; executing is reserved for where it buys verification.
 
-- **Design judgment (§4.5 / R16)** applies `architecture-guide`'s rule directly: conform to the codebase's existing patterns by default; a different shape is a finding only when it is a _real_ improvement or a concrete hazard — "not your taste." That line is what separates an R15 provocation from an R16 consequence.
-- **Reinvention (R18) and duplication** borrow `audit`'s dead-code/architecture lens and `refactor`'s de-duplication lens — as _procedure_ run against the full checkout, not the safeword-project commands (the target is not a safeword repo).
-- **Running the suite (R17)** uses the _project's own_ test/build/lint, read for signal — never `/verify`, which checks safeword ticket criteria a foreign repo does not have.
+**A new dependency or external API** is the one case worth extra care: check that it is current, maintained, and not superseded, since nothing else in the pipeline looks.
 
-Invoke each scoped and non-interactive: hand it the checkout and the changed paths, cap what executes (R17's tiered cost), fold its output into your findings. A borrowed pass that has been proven beats a reinvented one that has not.
-
-## 5. Evidence, and the two gates
+## 5. Evidence, and the three gates
 
 **Provenance gate (from PRINCIPLES §1).** Severity is bounded by evidence. A **blocking** finding must cite something you verified *this session* by reading the actual diff or file. Inference caps at non-blocking. Cannot verify → mark it a question, or drop it. An unverified blocker is false certainty.
 
@@ -192,7 +184,7 @@ A team drowning in agent-written PRs needs one thing above all: **which PRs to o
 
 ### 7a. Off-topic-but-real findings — a collapsed, labeled "Noticed nearby" section
 
-**Decided 2026-07-16 (revised): post them on the PR, clearly separated from the review of the change.** The author just touched these files and has the most context on them right now — they are the warmest person to see a latent issue, even if it isn't their PR's fault. The earlier "never on the PR" rule over-corrected for a *labeling* failure (an off-topic finding mixed into normal feedback) by throwing the finding away; the fix is to label it hard, not to hide it.
+Post them, clearly separated from the review of the change. The author just touched these files and has the most context on them right now — even though it isn't their PR's fault. Label it hard rather than hide it.
 
 Structure, in the review **body** (never inline, never in the verdict):
 
@@ -208,17 +200,14 @@ file if useful. This is not review feedback on your change.
 </details>
 ```
 
-The `<details>` collapse is load-bearing: it answers *"is this talking to me?"* before the author reads a word — folded away, labeled "not about this PR," opt-in. It cannot dominate the comment or bury the on-topic review.
+The collapse is load-bearing: it answers *"is this talking to me?"* before the author reads a word.
 
-**Two hard caps.** The section is capped (≤3; if there are more, say how many were dropped) and **never contributes to the verdict**. A team drowning in PRs cannot afford an FYI section that grows into a second review.
-
-**Watch the off-topic rate — it is the canary.** In the trial it was 1 of 11. If it climbs, the reviewer is dodging the on-topic bar by dumping borderline findings into "nearby," which is a miscalibrated §3.5 gate, not productivity. And the open bet worth measuring (CWGYH0): does the "Noticed nearby" section get *acted on*, or scrolled past? If engineers ignore it, the maintainer who called it noise was right about workflow, not just labeling — and it comes back out.
+**Two hard caps.** At most 3 (say how many you dropped), and it **never touches the verdict**. If you find yourself with many, the on-topic gate is miscalibrated — you are dodging the bar by dumping borderline findings here.
 
 ## 8. Independence — declare it, never imply it
 
-You are class-1 (PRINCIPLES §1): you are reviewing work a model produced, so the threat is **correlated blind spots**. You must be **different from, and never weaker than, the authoring model**.
+You are reviewing work another model produced, so the threat is **correlated blind spots**. Be a different vendor where possible, and never a weaker model — a fresh context on the same model beats a weaker different one.
 
-- Never weaker. A fresh context on the same model beats a weaker different one.
 - If you cannot establish that you are cross-model, **say so in the output.** A same-model review that believes it is cross-model launders correlated blind spots as independent verification — worse than one that admits it.
 
 ## 9. Untrusted content
@@ -267,13 +256,11 @@ and the runner ever drift again.
 }
 ```
 
-## Before you emit — the two gates, restated
+## Before you emit
 
-These are §5's, repeated here on purpose. Instruction-following decays roughly
-exponentially with the number of rules, and decays *most* for rules sitting
-neither at the start nor the end — and §5 is dead centre. These two are the ones
-whose failure is most expensive, so they get the last word as well as their own
-section. Run them against every finding you are about to post:
+Three checks against every finding you are about to post. They are §5's and
+§3.5's, repeated deliberately — these are the ones whose failure costs most, so
+they get the last word as well as their own section.
 
 1. **Is the fix verified?** Not "does it look right" — did you check it against
    the tests this PR ships? A code block is the strongest predictor a comment
