@@ -97,9 +97,33 @@ jobs:
         # default, under which a dot-prefixed path matches ZERO files while
         # `if-no-files-found: warn` still lets the step succeed — an empty
         # bundle that only fails later, in the privileged job.
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          mkdir -p "$RUNNER_TEMP/safeword-pr-review"
-          printf '%s' "${{ github.event.pull_request.number }}" > "$RUNNER_TEMP/safeword-pr-review/pull-number"
+          set -euo pipefail
+          BUNDLE="$RUNNER_TEMP/safeword-pr-review"
+          mkdir -p "$BUNDLE/files"
+          printf '%s' "${{ github.event.pull_request.number }}" > "$BUNDLE/pull-number"
+
+          # What changed. Three dots: the diff against the merge base, not
+          # against whatever else has landed on the base branch meanwhile.
+          git diff "$BASE_SHA...$HEAD_SHA" > "$BUNDLE/diff.patch"
+
+          # ...and the code around it. A reviewer that sees only the diff cannot
+          # produce the findings that matter most — the ones resting on a file
+          # the change never touched (R17). Each changed file's whole directory
+          # comes along, which is language-agnostic and usually catches the
+          # helper the change now calls.
+          git diff --name-only "$BASE_SHA...$HEAD_SHA" \
+            | xargs -r -n1 dirname \
+            | sort -u \
+            | while read -r dir; do
+                find "$dir" -maxdepth 1 -type f -size -200k 2>/dev/null | while read -r file; do
+                  mkdir -p "$BUNDLE/files/$(dirname "$file")"
+                  cp "$file" "$BUNDLE/files/$file" 2>/dev/null || true
+                done
+              done
 
       - name: Upload the review bundle
         if: steps.gate.outputs.enabled == 'true'

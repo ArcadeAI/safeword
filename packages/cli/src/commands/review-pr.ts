@@ -7,6 +7,7 @@
 
 import process from 'node:process';
 
+import { readReviewBundle } from '../pr-review/bundle.js';
 import { resolvePrReviewConfig } from '../pr-review/config.js';
 import {
   createGitHubRequest,
@@ -17,7 +18,9 @@ import {
   fetchRulesetRequiredChecks,
   findReviewedSha,
 } from '../pr-review/github.js';
+import { buildReviewInput, createVendorReview, type VendorRunner } from '../pr-review/invoke.js';
 import { createReviewPoster } from '../pr-review/poster.js';
+import { resolveReviewPrompt } from '../pr-review/prompt.js';
 import { runPrReview } from '../pr-review/run.js';
 import { computeCiState, resolveRequiredChecks } from '../pr-review/trigger.js';
 import type { Review } from '../pr-review/verdict.js';
@@ -28,9 +31,18 @@ export interface ReviewPrOptions {
   repository?: string;
   pull?: string;
   projectDirectory?: string;
-  /** Injected in tests; production builds one from the resolved token. */
+  /** Injected in tests; production assembles one from the bundle and prompt. */
   review?: () => Promise<Review>;
+  /** Where stage 1 left the diff and tree. Defaults to the workflow's path. */
+  bundleDirectory?: string;
+  /** Override the review prompt's location (the eval swaps judgment here). */
+  promptPath?: string;
+  /** The headless vendor. Absent means no review can run — a skip, not a fault. */
+  vendorRunner?: VendorRunner;
 }
+
+/** Where the shipped workflow downloads the stage-1 artifact. */
+const DEFAULT_BUNDLE_DIRECTORY = '.safeword-pr-review';
 
 export interface ReviewPrOutcome {
   ran: boolean;
@@ -76,6 +88,35 @@ function resolveInvocation(options: ReviewPrOptions): Invocation {
   }
 
   return { owner, repo, pull, credential };
+}
+
+/**
+ * Assemble the real vendor thunk, or `undefined` when a prerequisite is missing.
+ *
+ * Three things must all be present: the stage-1 bundle (the diff and tree), the
+ * review prompt (G5337S's skill), and a vendor runner. Any one absent is a SKIP
+ * with a reason — never a review of an empty diff, which would come back with an
+ * inevitable "no findings" and post as a clean bill of health for a change
+ * nobody looked at.
+ */
+function assembleVendorReview(
+  projectDirectory: string,
+  options: ReviewPrOptions,
+): (() => Promise<Review>) | undefined {
+  const prompt = resolveReviewPrompt(projectDirectory, options.promptPath);
+  if (prompt === undefined) return undefined;
+
+  const bundle = readReviewBundle(options.bundleDirectory ?? DEFAULT_BUNDLE_DIRECTORY);
+  if (bundle === undefined) return undefined;
+
+  const run = options.vendorRunner;
+  if (run === undefined) return undefined;
+
+  return createVendorReview({
+    prompt,
+    input: buildReviewInput({ diff: bundle.diff, files: bundle.files }),
+    run,
+  });
 }
 
 /**
@@ -132,7 +173,7 @@ export async function reviewPrCommand(options: ReviewPrOptions = {}): Promise<Re
       changedPathsSinceReview,
     },
     poster: createReviewPoster(request, { ...context, headSha: facts.headSha }),
-    review: options.review,
+    review: options.review ?? assembleVendorReview(projectDirectory, options),
   });
 
   process.stdout.write(`pr-review: ${outcome.reason}\n`);

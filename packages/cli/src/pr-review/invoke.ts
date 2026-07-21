@@ -155,10 +155,18 @@ export interface VendorRunResult {
   exitCode?: number | null;
 }
 
+/**
+ * Spawns the headless vendor. Injected at the command boundary so the whole
+ * pipeline is exercisable without a live model — and so the vendor stays a
+ * swappable input, which is what lets R11 pick the one that did not write the
+ * code.
+ */
+export type VendorRunner = (job: ReviewJob, input: string) => Promise<VendorRunResult>;
+
 export interface VendorReviewDependencies {
   prompt: string;
   input: string;
-  run: (job: ReviewJob, input: string) => Promise<VendorRunResult>;
+  run: VendorRunner;
 }
 
 /**
