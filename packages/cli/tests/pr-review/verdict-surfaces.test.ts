@@ -2,20 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { createReviewPoster, type GitHubCall } from '../../src/pr-review/poster.js';
 import { postVerdict, RECEIPT_CHECK_NAME, type Review } from '../../src/pr-review/verdict.js';
-
-const CONTEXT = { owner: 'acme', repo: 'monorepo', pull: 42, headSha: 'deadbeef' };
-
-function recordingPoster() {
-  const calls: GitHubCall[] = [];
-  const poster = createReviewPoster((method: string, path: string, body?: unknown) => {
-    calls.push({ method, path, body });
-    return Promise.resolve({});
-  }, CONTEXT);
-  return { calls, poster };
-}
-
-const commentCount = (calls: GitHubCall[]) =>
-  calls.filter(c => c.path.endsWith('/comments')).length;
+import { commentCount, recordingPoster, REVIEW_CONTEXT as CONTEXT } from './harness.js';
 
 const recordedVerdict = (calls: GitHubCall[]) => {
   const receipt = calls.find(c => c.path.endsWith('/check-runs'));

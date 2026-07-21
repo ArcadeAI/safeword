@@ -5,24 +5,13 @@ import nodePath from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { deliverReview, resolvePrReviewConfig } from '../../src/pr-review/config.js';
-import { createReviewPoster, type GitHubCall } from '../../src/pr-review/poster.js';
 import type { Review } from '../../src/pr-review/verdict.js';
-
-const CONTEXT = { owner: 'acme', repo: 'monorepo', pull: 42, headSha: 'deadbeef' };
+import { recordingPoster } from './harness.js';
 
 const worthOneComment: Review = {
   verdict: 'needs-a-human',
   findings: [{ path: 'src/auth.ts', line: 12, consequence: 'A prefix match authenticates.' }],
 };
-
-function recordingPoster() {
-  const calls: GitHubCall[] = [];
-  const poster = createReviewPoster((method: string, path: string, body?: unknown) => {
-    calls.push({ method, path, body });
-    return Promise.resolve({});
-  }, CONTEXT);
-  return { calls, poster };
-}
 
 describe('pr-review configuration and the kill switch (36EEMY slice 8)', () => {
   let projectDirectory: string;

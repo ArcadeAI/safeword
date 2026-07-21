@@ -1,12 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import type { PrReviewConfig } from '../../src/pr-review/config.js';
-import { createReviewPoster, type GitHubCall } from '../../src/pr-review/poster.js';
 import { runPrReview } from '../../src/pr-review/run.js';
 import type { TriggerContext } from '../../src/pr-review/trigger.js';
 import type { Review } from '../../src/pr-review/verdict.js';
-
-const CONTEXT = { owner: 'acme', repo: 'monorepo', pull: 42, headSha: 'deadbeef' };
+import { recordingPoster as harness } from './harness.js';
 
 const ON: PrReviewConfig = {
   enabled: true,
@@ -25,17 +23,6 @@ const oneFinding: Review = {
   verdict: 'needs-a-human',
   findings: [{ path: 'src/auth.ts', line: 12, consequence: 'A prefix match authenticates.' }],
 };
-
-function harness() {
-  const calls: GitHubCall[] = [];
-  const order: string[] = [];
-  const poster = createReviewPoster((method: string, path: string, body?: unknown) => {
-    calls.push({ method, path, body });
-    order.push('post');
-    return Promise.resolve({});
-  }, CONTEXT);
-  return { calls, order, poster };
-}
 
 describe('runPrReview — composition order (36EEMY slice 3)', () => {
   it('never invokes the vendor when the project has it switched off', async () => {

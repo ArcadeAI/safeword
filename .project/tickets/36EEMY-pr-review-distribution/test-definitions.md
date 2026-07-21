@@ -40,21 +40,21 @@ _Slice 7 (base-repro runs in the checkout; degrades on forks per SM1.R3)._
 
 ### Scenario: autonomous-pr-review.TB1.R12.a_latent_finding_is_dropped_while_the_change_caused_one_posts
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 684c080d0
+- [x] GREEN ffaf1ba0b
+- [x] REFACTOR skip: shipped in its final shape — the gates were written against the scenarios directly, with no intermediate design to clean up.
 
 ### Scenario: autonomous-pr-review.TB1.R12.change_caused_finding_is_posted_inline
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 684c080d0
+- [x] GREEN ffaf1ba0b
+- [x] REFACTOR skip: shipped in its final shape — the gates were written against the scenarios directly, with no intermediate design to clean up.
 
 ### Scenario Outline: autonomous-pr-review.TB1.R12.the_same_defect_verdicts_differently_by_whether_the_pr_caused_it
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 684c080d0
+- [x] GREEN ffaf1ba0b
+- [x] REFACTOR skip: shipped in its final shape — the gates were written against the scenarios directly, with no intermediate design to clean up.
 
 ## Rule: autonomous-pr-review.TB1.R13 — a suggested fix is not posted unless it has been run against the tests it could break
 
@@ -62,15 +62,15 @@ _Slice 7 (execution gate; the fork path is proven by slice 1's degrade scenario)
 
 ### Scenario: autonomous-pr-review.TB1.R13.a_fix_that_breaks_a_shipped_test_is_withheld
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 684c080d0
+- [x] GREEN ffaf1ba0b
+- [x] REFACTOR skip: shipped in its final shape — the gates were written against the scenarios directly, with no intermediate design to clean up.
 
 ### Scenario: autonomous-pr-review.TB1.R13.a_verified_fix_is_posted_with_the_finding
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 684c080d0
+- [x] GREEN ffaf1ba0b
+- [x] REFACTOR skip: shipped in its final shape — the gates were written against the scenarios directly, with no intermediate design to clean up.
 
 ## Rule: autonomous-pr-review.TB1.R1 — a concern the project's own tooling already reports is never surfaced
 
@@ -191,9 +191,17 @@ _Slice 3 (checkout pinned to the head SHA; loud on mismatch — the substrate R1
 
 ### Scenario: autonomous-pr-review.TB1.R17.a_finding_rests_on_a_file_the_diff_did_not_touch
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 2fa5cd2ac
+- [x] GREEN 9fc72f268
+- [x] REFACTOR skip: shipped in its final shape.
+
+> **Half a scenario, deliberately.** What is proven is the RUNNER's part:
+> `buildReviewInput` puts files the diff never touched in front of the vendor,
+> and stage 1 bundles each changed file's whole directory to supply them. A
+> diff-only input makes this class of finding structurally impossible, so this
+> is the necessary condition. Whether the model then CITES that file is
+> judgment, and belongs to CWGYH0 — asserting it here against a faked vendor
+> would assert the fixture.
 
 ## Rule: autonomous-pr-review.TB2.R2 — a change to a sensitive surface is never marked reviewed on size alone
 
@@ -231,9 +239,9 @@ _**Slice 1 — load-bearing #1, build FIRST.** Two-job split: unprivileged secre
 
 ### Scenario: autonomous-pr-review.SM1.R3.the_fix_gate_degrades_on_a_fork_rather_than_running_fork_code
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 684c080d0
+- [x] GREEN ffaf1ba0b
+- [x] REFACTOR skip: shipped in its final shape — the gates were written against the scenarios directly, with no intermediate design to clean up.
 
 ### Scenario: autonomous-pr-review.SM1.R3.an_injected_approve_instruction_cannot_produce_an_approval
 
