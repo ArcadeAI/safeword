@@ -37,6 +37,17 @@ export interface TypecheckGateInput {
 }
 
 /**
+ * A `node_modules` path is a dependency's code, never the developer's change.
+ * A project whose `.gitignore` misses `node_modules` reports vendored files as
+ * changed; find-up from one lands on that dependency's own `tsconfig.json`, and
+ * typechecking that reports errors the developer does not own and cannot fix
+ * (missing peer `@types`, unresolved `extends`).
+ */
+function isVendored(file: string): boolean {
+  return file.split(/[/\\]/u).includes('node_modules');
+}
+
+/**
  * Decide whether the implement-phase stop should run `tsc --noEmit`.
  * Returns every distinct tsconfig the changed files resolve to, or
  * { run: false } to skip entirely.
@@ -48,7 +59,7 @@ export interface TypecheckGateInput {
 export function shouldRunTypecheck(input: TypecheckGateInput): TypecheckTarget {
   if (input.phase === DONE_PHASE) return { run: false };
 
-  const tsFiles = input.changedFiles.filter(file => isTypeScriptFile(file));
+  const tsFiles = input.changedFiles.filter(file => isTypeScriptFile(file) && !isVendored(file));
   if (tsFiles.length === 0) return { run: false };
 
   const tsconfigPaths: string[] = [];

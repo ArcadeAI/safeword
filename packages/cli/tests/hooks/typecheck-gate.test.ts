@@ -138,6 +138,41 @@ describe('shouldRunTypecheck (Rule 1 — run-gate)', () => {
     }
   });
 
+  it('ignores changed files inside node_modules', () => {
+    // A project whose .gitignore misses node_modules reports vendored files as
+    // changed. They are a dependency's code, never the developer's change — and
+    // find-up from one lands on that dependency's own tsconfig.
+    const projectDirectory = makeProject();
+    touch(nodePath.join(projectDirectory, 'tsconfig.json'));
+
+    const result = shouldRunTypecheck({
+      projectDirectory,
+      changedFiles: ['node_modules/@cucumber/gherkin/src/index.ts'],
+      phase: 'implement',
+    });
+
+    expect(result.run).toBe(false);
+  });
+
+  it('never returns a tsconfig that lives inside node_modules', () => {
+    // Typechecking a dependency's config reports errors in code the developer
+    // does not own and cannot fix (missing peer @types, unresolved `extends`).
+    const projectDirectory = makeProject();
+    touch(nodePath.join(projectDirectory, 'tsconfig.json'));
+    touch(nodePath.join(projectDirectory, 'node_modules/@cucumber/gherkin/tsconfig.json'));
+
+    const result = shouldRunTypecheck({
+      projectDirectory,
+      changedFiles: ['src/mine.ts', 'node_modules/@cucumber/gherkin/src/index.ts'],
+      phase: 'implement',
+    });
+
+    expect(result.run).toBe(true);
+    if (result.run) {
+      expect(result.tsconfigPaths).toEqual([nodePath.join(projectDirectory, 'tsconfig.json')]);
+    }
+  });
+
   it('deduplicates when several changed files resolve to the same config', () => {
     const projectDirectory = makeProject();
     touch(nodePath.join(projectDirectory, 'tsconfig.json'));
