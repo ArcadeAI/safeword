@@ -17,6 +17,28 @@ exit codes — the two disagreed three times this session.
 **Experience:** ⚠️ Walked the Safeword Maintainer through enabling the reviewer on a fresh repo; worst step = **the reviewer cannot review** — a maintainer who reads the docs, sets `prReview.enabled`, and satisfies both repo settings gets a green job that says `no vendor configured`. New steps vs before = 2 (one config key, two repository settings). The docs now say this outright, so the failure is honest rather than mysterious, but the peak is not reachable yet — soft, does not block.
 **Evidence limits:** ✅ None — the 2 Gherkin failures reported earlier are FIXED, not excused. Root cause was two independent drifts: the generated Codex copies of quality-review, review-spec and tdd-review had fallen behind their canonical sources, and `.github/workflows/pr-review.yml` was registered as an ownedFile without safeword's own dogfood copy. `test:release` is 22/22 (was 3 failed). A concurrent agent is editing this same worktree; its uncommitted work is excluded from this ticket's commits.
 
+## Audit
+
+Audit passed with warnings — 0 errors, 3 warnings, all pre-existing and none in
+this ticket's code.
+
+- **Architecture:** ✅ no dependency violations (662 modules, 2092 dependencies);
+  depcruise config in sync (no W007).
+- **Dead code:** 5 unused exports, all in this ticket's modules, all verified to
+  have zero external consumers and now un-exported (62c5e7d12).
+- **Duplication:** 468 clones, 9.91% [repo minus .safeword, .project] — a new
+  BASELINE at this scope, not a delta; no prior audit recorded a count at the
+  same scope to compare against.
+- **[W005] Stale knip config (×3, pre-existing):** `@openai/codex` can leave
+  `ignoreDependencies`; `claude` and `codex` can leave `ignoreBinaries`. Left
+  alone deliberately — `knip.json` is shared config and another agent is editing
+  this worktree.
+- **Outdated:** 5 dev dependencies, all patch/minor (cucumber 13.1.1→13.2.0,
+  lint-staged, markdownlint-cli2, prettier, @openai/codex). Low risk; none is a
+  runtime dependency.
+- **Domain docs:** ✅ personas 3, surfaces 7, glossary 27 entries; no W006, W008,
+  E008 or E009. Every `@surface.*` tag in `features/` resolves.
+
 ## Scope note
 
 Every file in this session's commits serves the ticket: the runner
