@@ -1,7 +1,11 @@
 ---
 name: pr-review
 description: Second-reader review of a pull request — tells a human whether this PR needs their eyes, and reports only what the project's own linters, tests, and bug-bots structurally cannot: what breaks in production, whether the tests actually prove anything, and whether the change matches the intent declared before the code. Use in CI on an open PR, or locally on a branch. Do NOT use for generic bug-hunting (use /code-review) or for anything the project's existing tooling already reports.
-allowed-tools: '*'
+# Read-only by default. §9 requires holding no write credential while reading
+# untrusted pull-request content, and '*' grants Write/Edit/Bash — the skill
+# would contradict its own rule. The CI runner caps tools via argv anyway, but
+# a human invoking this locally on a fork gets whatever is declared here.
+allowed-tools: 'Read, Grep, Glob, Bash(git *), Bash(gh *)'
 ---
 
 # PR Review
@@ -16,7 +20,10 @@ You are the second reader. A different model wrote this code, and a human under 
 
 You are reviewing a **specific diff**, not "the repo."
 
-1. The diff is ground truth. The working tree is context only.
+1. The diff is ground truth for WHAT CHANGED. The checkout is what lets you
+   judge it — R17 exists because the sharpest findings rest on a file the diff
+   never touched, and §4 runs the project's own tests. "Context only" means
+   never let the tree tell you what the change IS; it does not mean avoid it.
 2. Confirm the checkout contains the PR's head SHA. If it does not, **say so and review from the diff alone.** Never reason about code you cannot prove is the code under review.
 3. A merge SHA is often unavailable (squash merges). Fall back: head SHA → base SHA → diff-only.
 
@@ -102,7 +109,7 @@ Worked: a goroutine leak in code the PR merely *touched but did not modify* is e
 
 ## 4. The dimensions — ordered by what actually pays
 
-Only these, and only when they pass §3.5's on-topic test. Everything else belongs to someone else's tool. The order is not taste: it is what the arcade trial measured across 11 findings (blast radius 4, evidence integrity 3, intent conformance 2, doc drift 1, unanswered-author 1, alternatives **0**).
+Only these, and only when they pass §3.5's on-topic test. Everything else belongs to someone else's tool. The order is PROVISIONAL, not settled: it is what one arcade trial measured across 11 findings (blast radius 4, evidence integrity 3, intent conformance 2, doc drift 1, unanswered-author 1, alternatives **0**).
 
 **Blast radius splits on the §3.5 test.** Some blast-radius findings are about code the diff *introduced* (on-topic); some are latent bugs in code it *touched* (off-topic, route to a sweep). The highest-yield dimension is also the one most likely to wander off-topic — the posted goroutine leak was exactly this failure. Check scope before severity.
 
@@ -212,22 +219,31 @@ Hunk-anchored findings, each carrying a concrete code block, batched into **one*
 
 The plain-English consequence is the *surface*; the `code_block` is the *evidence one layer deeper*. This is not two audiences fighting over one comment (the NTB1.R1-vs-TB1.R4 tension) — it is one finding in two layers: the non-coder reads the stake and stops; the coder clicks into the diff. Never open with `index_writes uses Add(ctx,1)`; open with *"this metric can't tell you when the model migration is safe — it counts batches, not items."*
 
+These field names are a CONTRACT with the runner, not a style choice. It anchors
+comments by `path`, renders `consequence` as the comment body, and withholds
+`suggestedFix` until the fix gate has run it. A renamed field is silently
+dropped — the review posts nothing and the pull request reads as clean.
+`packages/cli/tests/pr-review/output-contract.test.ts` goes red if this block
+and the runner ever drift again.
+
 ```json
 {
   "verdict": "reviewed|needs-a-human|unreviewable-as-is",
   "verdict_reason": "<one line, actionable without opening the diff>",
+  "work_type": "patch|logic change|new behavior",
+  "decision": "push back|ask",
   "cross_model": true|false,
   "intent_source": "<what you checked against, and whether it is contract or narrative>",
   "findings": [
     {
       "dimension": "blast-radius|evidence-integrity|intent|scope|alternative|prose-lies|unanswered-author",
       "blocking": true|false,
-      "file": "...", "line": 0,
+      "path": "...", "line": 0,
       "claim": "<the defect, one sentence>",
       "evidence": "<quoted line/clause you verified, and where>",
       "why_it_matters": "<concrete consequence>",
-      "plain_language": "<the consequence, no jargon>",
-      "code_block": "<verified fix — you checked it against the PR's tests>",
+      "consequence": "<the consequence, no jargon — the plain-language surface>",
+      "suggestedFix": "<verified fix — you checked it against the PR's tests>",
       "counter_evidence": "<guards you found that mitigate this, or 'none found'>",
       "confidence": "verified|inferred"
     }
