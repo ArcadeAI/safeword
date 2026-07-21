@@ -182,6 +182,38 @@ Nate reacted to both the merged-PR run (7 skip / 1 look) and the 3 live open-PR 
 
 **Net:** promising, not proven. Real value demonstrated on live substantive PRs (2118 owner-confirmed); one specific correctable over-rotation (2145, fixed); the merged-run precision evidence discounted as corpus-too-easy; the behavioral/capacity question open.
 
+## Note for whoever scores the frozen experiment (added 2026-07-21)
+
+**The experiment is unaffected by the runner's development — but it does not
+measure the runner.** Worth stating plainly, because the distinction decides
+what a good score entitles you to conclude.
+
+Every trial in this ticket — run #1, run #2, the open-PR run, and the
+pre-registered experiment frozen 2026-07-17 — was executed **by hand in an agent
+session**: fresh-context model, pinned trees, nothing posted. None of them went
+through the shipped pipeline, which did not exist yet (`src/pr-review/invoke.ts`
+was created 2026-07-21, four days after the freeze).
+
+So:
+
+- **A good score means the JUDGMENT is good.** That is what was measured, and it
+  is the thing worth measuring first.
+- **It says nothing about whether the runner delivers that judgment.** Different
+  code path, different failure modes, measured separately.
+
+That distinction is not hypothetical. Until 2026-07-21 the prompt and the runner
+disagreed on field names — the prompt emitted `file`/`plain_language`/`code_block`
+while the parser required `path`/`consequence`. Had anything run through the
+pipeline, `verdict` would have parsed while EVERY finding was silently dropped:
+a pull request nobody reviewed coming back `reviewed` with zero findings. The
+hand-run trials are clean precisely because they bypassed it.
+
+Now reconciled, with `packages/cli/tests/pr-review/output-contract.test.ts`
+failing if the two ever drift again. But the shipped path still has no end-to-end
+run against a real pull request — so when the prompt clears its bar, the next
+question is not "does it review well" but "does the runner deliver what the
+trials proved it can say."
+
 ## PRE-REGISTERED predictiveness experiment (2026-07-17, 20 open arcade PRs)
 
 Frozen BEFORE any outcome is known, so the 1–2-week scoring is honest. Design (user): mark every open PR; watch what the team does organically; later score whether the verdict predicted the outcome. Marker format (user): emoji + "trial reviewer: no findings" on clean ones (NO "safeword", NO "safe to merge"); findings as trial comments on flagged ones.
