@@ -142,6 +142,39 @@ to reliably surface a consideration the model omits. The non-trivial result is t
 diligence does **not** surface it, so the framing earns its keep. Open: the rule should surface the
 _consent question_, not hard-code "always add a confirm step" (a `ci-bot` persona would invert it).
 
+### Second trap (generalization) — the confirmation lift does NOT generalize
+
+The email finding is one task. Ran a second, differently-shaped trap — **bulk-delete**
+(synchronous + irreversible, not a background worker) — grading the one dimension at stake, the
+consent gate (`grade-delete.mjs`, calibrated known-bad 0/1, known-good 1/1). Discriminating pair,
+N=4: diligence vs. treatment.
+
+| Arm (bulk-delete)            | consent gate | n/1    |
+| ---------------------------- | ------------ | ------ |
+| C — diligence (generic)      | **4/4**      | 1/1 ×4 |
+| B — treatment (gulf framing) | 4/4          | 1/1 ×4 |
+
+**Both arms gate the delete.** On bulk-delete, generic diligence already produces preview→confirm
+every run — so here the framing adds nothing. Opposite of the email trap. The diligence prompt
+never mentions confirm, so this isn't a leak: the model simply _knows_ to gate a mass delete.
+
+**What actually generalizes.** Not "confirmation is a lift" — that flipped between two tasks. The
+real pattern across both traps: the framing adds value **only where the consent decision is not
+already an established engineering idiom.**
+
+- **Mass delete** → "confirm before deleting" is ingrained engineering safety → 0 headroom.
+- **Automated send** → "confirm before an auto-send" is _not_ a standard idiom → real headroom.
+
+So interaction design's measurable value concentrates on **actions whose consequences aren't
+obvious to an engineer** (send / post / charge / share) — not the obviously-destructive ones. That
+is a real but much smaller and more situational claim than "one durable lift," and it rests on two
+data points with opposite results. It is **not** strong enough to build a rule on yet.
+
+**Honest status.** The probe did its job: it killed the broad hypothesis, killed the recovery lift,
+and now shows the surviving confirmation lift is task-dependent. The strongest live hypothesis —
+_value concentrates on non-obvious-consequence actions_ — needs targeted traps (auto-post,
+auto-charge) to confirm before any rule is written. Don't ship on two traps.
+
 ## Caveats
 
 - Heuristic structural grader, not execution. Calibration fixtures bound the risk; ambiguous
