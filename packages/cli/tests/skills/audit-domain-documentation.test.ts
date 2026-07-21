@@ -26,6 +26,7 @@ function extractDomainDocumentationBlock(): string {
 }
 
 function writeExecutable(directory: string, name: string, body: string): void {
+  mkdirSync(directory, { recursive: true });
   const executablePath = nodePath.join(directory, name);
   writeFileSync(executablePath, `#!/usr/bin/env bash\n${body}\n`);
   chmodSync(executablePath, 0o755);
@@ -37,7 +38,10 @@ function writeExecutable(directory: string, name: string, body: string): void {
  * `[ -d "$NS_ROOT" ]` fallback resolves the fixture's `.project/` even though
  * the real resolver hook is absent in the temp dir.
  */
-function runDomainDocumentationCheck(files: Record<string, string>): {
+function runDomainDocumentationCheck(
+  files: Record<string, string>,
+  resolver: 'available' | 'unavailable' = 'available',
+): {
   output: string;
   status: number;
 } {
@@ -45,12 +49,13 @@ function runDomainDocumentationCheck(files: Record<string, string>): {
   const binDirectory = nodePath.join(projectDirectory, 'fake-bin');
   try {
     mkdirSync(binDirectory);
-    // The source checkout uses `bun`; installed projects use `bunx safeword`.
-    // This shim returns root, workspace, and configured lanes as the CLI resolver does.
+    // Exercise the pinned local-CLI rung before the source or bunx fallbacks.
     writeExecutable(
-      binDirectory,
-      'bunx',
-      String.raw`if [ "$2" = "feature-directories" ]; then printf "%s\n%s\n%s\n" "$PWD/features" "$PWD/packages/cli/features" "$PWD/custom/features"; fi`,
+      nodePath.join(projectDirectory, 'node_modules', '.bin'),
+      'safeword',
+      resolver === 'available'
+        ? String.raw`if [ "$1" = "feature-directories" ]; then printf "%s\n%s\n%s\n" "$PWD/features" "$PWD/packages/cli/features" "$PWD/custom/features"; fi`
+        : 'exit 1',
     );
     for (const [relativePath, content] of Object.entries(files)) {
       const absolutePath = nodePath.join(projectDirectory, relativePath);
@@ -164,6 +169,21 @@ describe('audit domain-documentation surface drift (E008)', () => {
       'custom/features/x.feature': tagLineFeature('@surface.safeword-cli'),
     });
 
+    expect(output).toContain('[E008]');
+    expect(output).toContain('safeword-cli');
+  });
+
+  it('warns and falls back to root features when the resolver is unavailable', () => {
+    const { output, status } = runDomainDocumentationCheck(
+      {
+        '.project/surfaces.md': POPULATED_SURFACES,
+        'features/x.feature': tagLineFeature('@surface.safeword-cli'),
+      },
+      'unavailable',
+    );
+
+    expect(status).toBe(0);
+    expect(output).toContain('[W009]');
     expect(output).toContain('[E008]');
     expect(output).toContain('safeword-cli');
   });
@@ -327,6 +347,7 @@ describe('audit domain-documentation skill guidance parity', () => {
     expect(content).toContain('[E008] Surface drift');
     expect(content).toContain('[E009] Persona drift');
     expect(content).toContain('[W008] Empty domain doc');
+    expect(content).toContain('[W009] Feature-directory resolver unavailable');
     // R4: human-curated content is advisory-only, never an error.
     expect(content).toContain('advisory');
     expect(content).toMatch(/never (an? )?error/i);

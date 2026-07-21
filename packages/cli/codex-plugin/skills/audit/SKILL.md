@@ -476,11 +476,22 @@ done
 # --- Surface drift (E008): @surface.<slug> tag referenced but undefined ---
 # Suppressed when surfaces.md is empty/absent — W008 already says "fill it".
 # Use the CLI's shared resolver: root, workspace, and configured feature lanes
-# must stay aligned with executable Gherkin discovery.
-if [ -f "$PROJECT_DIR/packages/cli/src/cli.ts" ]; then
-  FEATURE_DIRECTORIES="$(bun "$PROJECT_DIR/packages/cli/src/cli.ts" feature-directories 2> /dev/null)"
-else
-  FEATURE_DIRECTORIES="$(bunx safeword feature-directories 2> /dev/null)"
+# must stay aligned with executable Gherkin discovery. Match the pinned-CLI
+# ladder used by the config-drift check above.
+feature_directories() {
+  if [ -x "$PROJECT_DIR/node_modules/.bin/safeword" ]; then
+    "$PROJECT_DIR/node_modules/.bin/safeword" feature-directories
+  elif [ -f "$PROJECT_DIR/packages/cli/src/cli.ts" ]; then
+    bun "$PROJECT_DIR/packages/cli/src/cli.ts" feature-directories
+  elif command -v bunx > /dev/null 2>&1; then
+    bunx safeword feature-directories
+  else
+    return 127
+  fi
+}
+if ! FEATURE_DIRECTORIES="$(feature_directories 2> /dev/null)"; then
+  echo "[W009] Feature-directory resolver unavailable; E008 scanned root features/ only"
+  FEATURE_DIRECTORIES="$PROJECT_DIR/features"
 fi
 surfaces_file="$NS_ROOT/surfaces.md"
 dd_file="$surfaces_file"
@@ -546,7 +557,7 @@ fi
 
 **Empty-doc offer (W008):** report the empty doc and point the user to its template — do **not** draft entries or write the file during the audit pass (read-only). Filling it is a follow-up the user approves.
 
-**Coverage limitation:** the block reads the default namespace-root locations; per-file `paths.personas` / `paths.surfaces` / `paths.glossary` overrides are validated by `safeword check` (structure), not here. Persona drift reads spec `**Persona:**` lines only — feature lineage tags are not a reliable persona source.
+**Coverage limitation:** the block reads the default namespace-root locations; per-file `paths.personas` / `paths.surfaces` / `paths.glossary` overrides are validated by `safeword check` (structure), not here. If the safeword feature-directory resolver is unavailable, W009 says E008 fell back to root `features/` only. Persona drift reads spec `**Persona:**` lines only — feature lineage tags are not a reliable persona source.
 
 ---
 
@@ -575,6 +586,7 @@ Report findings by severity with codes:
 - [W006] Learning file missing Covers: — `<namespace-root>/learnings/foo.md` (absent from INDEX.md)
 - [W007] Stale .safeword/depcruise-config.cjs — run `safeword sync-config` to refresh and commit
 - [W008] Empty domain doc: `surfaces.md` has no uncommented entries — fill from its template (BDD intake references degrade until filled)
+- [W009] Feature-directory resolver unavailable — E008 scanned root `features/` only
 
 ### Code Quality
 
