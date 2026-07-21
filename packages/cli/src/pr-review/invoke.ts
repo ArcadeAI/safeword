@@ -3,6 +3,7 @@
 // The runner supplies CONTEXT and shape; the injected prompt supplies judgment.
 // Nothing here decides whether a finding is good — that is CWGYH0's to score.
 
+import type { HeadlessJob } from '../../templates/hooks/lib/retro-extract.js';
 import type { Review, ReviewFinding, Verdict } from './verdict.js';
 
 /** Verdicts the runner will accept. Anything else is unusable output. */
@@ -90,13 +91,14 @@ const REVIEW_OUTPUT_SCHEMA = {
   required: ['verdict', 'findings'],
 };
 
-/** Minimal shape of the generalized headless job (slice 0). */
-export interface ReviewJob {
-  systemPrompt: string;
-  schema: unknown;
-  prepareInput: (raw: string) => string;
-  parseOutput: (raw: string) => Review | undefined;
-}
+/**
+ * The review job, in slice 0's real shape.
+ *
+ * Typed `Review | undefined` because both vendors' parsers return undefined for
+ * unusable output, and the Claude runner is fail-open — so "no usable review" is
+ * a value the type has to carry rather than an exception.
+ */
+export type ReviewJob = HeadlessJob<Review | undefined>;
 
 /**
  * The review job: the injected prompt plus the schema the runner can read.
@@ -110,8 +112,19 @@ export function createReviewJob(prompt: string): ReviewJob {
   return {
     systemPrompt: prompt,
     schema: REVIEW_OUTPUT_SCHEMA,
+    // Already composed by buildReviewInput — no further reduction.
     prepareInput: (raw: string) => raw,
-    parseOutput: (raw: string) => parseReview(raw),
+    // Codex gets no tools, so the instructions AND the diff travel inline.
+    buildCodexPrompt: (preparedInput: string) =>
+      `${prompt}\n\nReturn only JSON matching the provided output schema.\n\n${preparedInput}`,
+    // Claude reads from a file, so it gets a pointer rather than the content.
+    buildClaudeTaskPrompt: (inputPath: string) =>
+      `Read the file ${inputPath} and review the pull request it describes. Output only the review JSON.`,
+    // Same parser both ways: the runners strip each vendor's envelope first, so
+    // what reaches here is the model's own text in both cases.
+    parseCodexOutput: (raw: string) => parseReview(raw),
+    parseClaudeResult: (raw: string) => parseReview(raw),
+    fallback: undefined,
   };
 }
 
@@ -147,7 +160,7 @@ function parseReview(raw: string): Review | undefined {
 }
 
 /** What the generalized headless runner returns (slice 0's checked variant). */
-interface VendorRunResult {
+export interface VendorRunResult {
   ok: boolean;
   output?: Review;
   findings: unknown[];

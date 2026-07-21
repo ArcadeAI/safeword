@@ -96,13 +96,13 @@ describe('the review job and its invocation', () => {
   it('parses a well-formed review and rejects a malformed one', () => {
     const job = createReviewJob(PROMPT);
 
-    expect(job.parseOutput('{"verdict":"reviewed","findings":[],"decision":null}')).toMatchObject({
+    expect(job.parseCodexOutput('{"verdict":"reviewed","findings":[],"decision":null}')).toMatchObject({
       verdict: 'reviewed',
       findings: [],
     });
     // A verdict outside the closed set is unusable, not "probably fine".
-    expect(job.parseOutput('{"verdict":"looks-good","findings":[]}')).toBeUndefined();
-    expect(job.parseOutput('not json')).toBeUndefined();
+    expect(job.parseCodexOutput('{"verdict":"looks-good","findings":[]}')).toBeUndefined();
+    expect(job.parseCodexOutput('not json')).toBeUndefined();
   });
 
   it('turns a vendor failure into a thrown fault, never a clean empty review', async () => {
