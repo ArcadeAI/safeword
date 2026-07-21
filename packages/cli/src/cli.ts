@@ -212,6 +212,14 @@ program
     await codify(ticketId, options);
   });
 
+program
+  .command('feature-directories', { hidden: true })
+  .description('Print executable feature directories for internal shell consumers')
+  .action(async () => {
+    const { featureDirectories } = await import('./commands/feature-directories.js');
+    featureDirectories(process.cwd());
+  });
+
 const hook = program.command('hook').description('Run packaged Safe Word hooks');
 
 hook

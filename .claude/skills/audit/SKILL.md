@@ -476,18 +476,25 @@ done
 
 # --- Surface drift (E008): @surface.<slug> tag referenced but undefined ---
 # Suppressed when surfaces.md is empty/absent — W008 already says "fill it".
-FEATURES_DIR="$PROJECT_DIR/features"
+# Use the CLI's shared resolver: root, workspace, and configured feature lanes
+# must stay aligned with executable Gherkin discovery.
+if [ -f "$PROJECT_DIR/packages/cli/src/cli.ts" ]; then
+  FEATURE_DIRECTORIES="$(bun "$PROJECT_DIR/packages/cli/src/cli.ts" feature-directories 2> /dev/null)"
+else
+  FEATURE_DIRECTORIES="$(bunx safeword feature-directories 2> /dev/null)"
+fi
 surfaces_file="$NS_ROOT/surfaces.md"
 dd_file="$surfaces_file"
-if [ -f "$surfaces_file" ] && [ "$(domain_docs_entry_count)" -gt 0 ] && [ -d "$FEATURES_DIR" ]; then
+if [ -f "$surfaces_file" ] && [ "$(domain_docs_entry_count)" -gt 0 ] && [ -n "$FEATURE_DIRECTORIES" ]; then
   # Defined slugs: slugify each uncommented `## ` heading. Portable casing via
   # `tr` — BSD/macOS sed lacks `\L`.
   defined_slugs="$(sed "$strip_html_comments" "$surfaces_file" | grep -E '^## ' | sed 's/^## //' \
     | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9][^a-z0-9]*/-/g; s/^-//; s/-$//')"
   # Referenced slugs: @surface.<slug> on Gherkin tag lines only (line starts
   # with @), so a slug mentioned in step prose is not a reference.
-  referenced_slugs="$(grep -rhE '^[[:space:]]*@' "$FEATURES_DIR" 2> /dev/null \
-    | grep -oE '@surface\.[a-z0-9-]+' | sed 's/^@surface\.//' | sort -u)"
+  referenced_slugs="$(printf '%s\n' "$FEATURE_DIRECTORIES" | while IFS= read -r features_directory; do
+    [ -d "$features_directory" ] && grep -rhE '^[[:space:]]*@' "$features_directory" 2> /dev/null
+  done | grep -oE '@surface\.[a-z0-9-]+' | sed 's/^@surface\.//' | sort -u)"
   for slug in $referenced_slugs; do
     if ! printf '%s\n' $defined_slugs | grep -qxF "$slug"; then
       echo "[E008] Surface drift: @surface.$slug referenced in features/ but no matching entry in surfaces.md"

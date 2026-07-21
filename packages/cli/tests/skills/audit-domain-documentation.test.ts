@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -25,6 +25,12 @@ function extractDomainDocumentationBlock(): string {
   return block;
 }
 
+function writeExecutable(directory: string, name: string, body: string): void {
+  const executablePath = nodePath.join(directory, name);
+  writeFileSync(executablePath, `#!/usr/bin/env bash\n${body}\n`);
+  chmodSync(executablePath, 0o755);
+}
+
 /**
  * Materialize a fixture project, run the extracted domain-docs block against it,
  * and return combined stdout+stderr. `bun` is NOT stubbed: the block's
@@ -36,7 +42,16 @@ function runDomainDocumentationCheck(files: Record<string, string>): {
   status: number;
 } {
   const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-domain-docs-'));
+  const binDirectory = nodePath.join(projectDirectory, 'fake-bin');
   try {
+    mkdirSync(binDirectory);
+    // The source checkout uses `bun`; installed projects use `bunx safeword`.
+    // This shim returns root, workspace, and configured lanes as the CLI resolver does.
+    writeExecutable(
+      binDirectory,
+      'bunx',
+      String.raw`if [ "$2" = "feature-directories" ]; then printf "%s\n%s\n%s\n" "$PWD/features" "$PWD/packages/cli/features" "$PWD/custom/features"; fi`,
+    );
     for (const [relativePath, content] of Object.entries(files)) {
       const absolutePath = nodePath.join(projectDirectory, relativePath);
       mkdirSync(nodePath.dirname(absolutePath), { recursive: true });
@@ -44,7 +59,11 @@ function runDomainDocumentationCheck(files: Record<string, string>): {
     }
     const result = spawnSync('bash', ['-c', extractDomainDocumentationBlock()], {
       cwd: projectDirectory,
-      env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory, PATH: process.env.PATH ?? '' },
+      env: {
+        ...process.env,
+        CLAUDE_PROJECT_DIR: projectDirectory,
+        PATH: `${binDirectory}:${process.env.PATH ?? ''}`,
+      },
       encoding: 'utf8',
     });
     return { output: `${result.stdout ?? ''}${result.stderr ?? ''}`, status: result.status ?? 0 };
@@ -122,6 +141,27 @@ describe('audit domain-documentation surface drift (E008)', () => {
     const { output } = runDomainDocumentationCheck({
       '.project/surfaces.md': POPULATED_SURFACES,
       'features/x.feature': tagLineFeature('@surface.safeword-cli'),
+    });
+
+    expect(output).toContain('[E008]');
+    expect(output).toContain('safeword-cli');
+  });
+
+  it('reports a surface tag from a workspace feature lane', () => {
+    const { output } = runDomainDocumentationCheck({
+      '.project/surfaces.md': POPULATED_SURFACES,
+      'packages/cli/features/x.feature': tagLineFeature('@surface.safeword-cli'),
+    });
+
+    expect(output).toContain('[E008]');
+    expect(output).toContain('safeword-cli');
+  });
+
+  it('reports a surface tag from a configured feature lane', () => {
+    const { output } = runDomainDocumentationCheck({
+      '.project/surfaces.md': POPULATED_SURFACES,
+      '.safeword/config.json': JSON.stringify({ paths: { features: 'custom/features' } }),
+      'custom/features/x.feature': tagLineFeature('@surface.safeword-cli'),
     });
 
     expect(output).toContain('[E008]');
