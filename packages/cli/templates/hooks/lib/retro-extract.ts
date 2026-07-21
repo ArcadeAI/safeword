@@ -144,6 +144,13 @@ export interface ExtractArgvOptions {
   systemPrompt: string;
   /** The task prompt (trailing positional) — instructs reading the digest. */
   prompt: string;
+  /**
+   * `--allowed-tools` value. Defaults to read-only, which is retro's posture and
+   * the only safe one for untrusted input. A job that must EXECUTE the tree it
+   * reads — the PR reviewer running the project's own suite on a trusted, same-
+   * repo change — passes a broader set here. It stays read-only on a fork.
+   */
+  allowedTools?: string;
 }
 
 /**
@@ -159,7 +166,7 @@ export function buildExtractArgv(options: ExtractArgvOptions): string[] {
     '--model',
     options.model,
     '--allowed-tools',
-    READ_ONLY_TOOLS,
+    options.allowedTools ?? READ_ONLY_TOOLS,
     '--output-format',
     'json',
     '--append-system-prompt',
@@ -407,6 +414,8 @@ export interface RunExtractionDeps {
   cwd: string;
   /** Extraction model (cheap by default). */
   model?: string;
+  /** `--allowed-tools` for the child. Omitted → read-only (retro's default). */
+  allowedTools?: string;
 }
 
 export interface CodexSpawnOptions {
@@ -475,6 +484,7 @@ export async function runHeadlessExtraction<T = unknown[]>(
       model: dependencies.model ?? DEFAULT_RETRO_MODEL,
       systemPrompt: job.systemPrompt,
       prompt: job.buildClaudeTaskPrompt(digestPath),
+      allowedTools: dependencies.allowedTools,
     });
     const { code, stdout } = await dependencies.spawn(argv, {
       cwd: dependencies.cwd,

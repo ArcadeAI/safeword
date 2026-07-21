@@ -162,6 +162,7 @@ async function runClaude(
       env: options.env,
       cwd: options.cwd,
       model: options.model,
+      allowedTools: claudeToolsFor(options.executionTier),
     },
     job,
   );
@@ -169,4 +170,21 @@ async function runClaude(
   return output === undefined
     ? { ok: false, failureReason: 'invalid_output', findings: [] }
     : { ok: true, output, findings: output.findings };
+}
+
+/**
+ * The `--allowed-tools` grant for the Claude reviewer, tiered by execution
+ * trust — the codex path does the same through its `--sandbox` value.
+ *
+ * `execute` (a trusted, same-repo change) gets the full set, because the review
+ * that matters runs the project's own suite (R13's fix gate, R17) and researches
+ * a new dependency's freshness. `degrade` (a fork) is read-only: reading the tree
+ * is always safe, but executing it while a credential is present is the exact
+ * pwn-request act SM1.R3 forbids. Grep/Glob are reads and stay; Bash does not.
+ */
+function claudeToolsFor(tier: ExecutionTier): string {
+  const readOnly = ['Read', 'Grep', 'Glob'];
+  return tier === 'execute'
+    ? [...readOnly, 'Bash', 'WebSearch', 'WebFetch'].join(',')
+    : readOnly.join(',');
 }
