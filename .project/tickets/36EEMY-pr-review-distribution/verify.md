@@ -6,7 +6,7 @@ exit codes — the two disagreed three times this session.
 ## Verify Checklist
 
 **Test Suite:** ✓ 5398/5398 tests pass (370 files, 5 skipped, `VERIFY_PLAN_EXIT=0`)
-**Gherkin:** ❌ Failed — 2 of 487 scenarios, both pre-existing and unrelated (see Evidence limits)
+**Gherkin:** ✅ Acceptance lane passes — 487 scenarios, 484 passed, 3 skipped, 0 failed
 **Build:** ✅ Success (`BUILD_PLAN_EXIT=0`)
 **Lint:** ✅ Clean (eslint exit 0, `tsc --noEmit` exit 0, prettier exit 0 on the touched docs)
 **Scenarios:** All 24 scenarios marked complete (73/73 ledger checkboxes, 0 unchecked, cross-scenario refactor closed)
@@ -15,7 +15,7 @@ exit codes — the two disagreed three times this session.
 **Parent Epic:** WAWQA6 (siblings: 0/3 done — G5337S blocked on CWGYH0, CWGYH0 in_progress)
 **Reconcile:** ✅ No pattern deviation — the runner reuses the established injected-seam shape (`retro-extract`'s spawn dependency), and `.github/workflows/` shipping follows the existing `ownedFiles`-into-a-`sharedDir` mechanism
 **Experience:** ⚠️ Walked the Safeword Maintainer through enabling the reviewer on a fresh repo; worst step = **the reviewer cannot review** — a maintainer who reads the docs, sets `prReview.enabled`, and satisfies both repo settings gets a green job that says `no vendor configured`. New steps vs before = 2 (one config key, two repository settings). The docs now say this outright, so the failure is honest rather than mysterious, but the peak is not reachable yet — soft, does not block.
-**Evidence limits:** ⚠️ The 2 Gherkin failures are `Codex plugin asset differs from the canonical transformation: skills/quality-review/SKILL.md` — both the same root cause, in `migrate-codex-plugin.steps.ts`'s release contract. Not product evidence for this ticket: `quality-review/SKILL.md` is untouched by any commit in this session, and the same failure reproduced at HEAD earlier with this ticket's changes stashed. Already filed as its own task. This ticket's own 24 scenarios are `@wip`-tagged and correctly excluded from the lane, so they contribute no undefined steps.
+**Evidence limits:** ✅ None — the 2 Gherkin failures reported earlier are FIXED, not excused. Root cause was two independent drifts: the generated Codex copies of quality-review, review-spec and tdd-review had fallen behind their canonical sources, and `.github/workflows/pr-review.yml` was registered as an ownedFile without safeword's own dogfood copy. `test:release` is 22/22 (was 3 failed). A concurrent agent is editing this same worktree; its uncommitted work is excluded from this ticket's commits.
 
 ## Scope note
 
