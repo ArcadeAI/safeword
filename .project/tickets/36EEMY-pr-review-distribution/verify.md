@@ -1,61 +1,35 @@
 # Verify: pr-review-distribution (36EEMY)
 
-Run 2026-07-20, mid-`implement`. This is a checkpoint verification, **not** a
-done-gate pass — 16 of 24 scenarios are complete and the remaining 8 need the
-CLI entry point and execution machinery (slices 3, 7, 8).
+Run 2026-07-21, implement exit. Evidence read from run logs, not from wrapper
+exit codes — the two disagreed three times this session.
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 5318/5318 tests pass (361 files, 5 skipped) — post-fix full run, with 2 timeout failures classified as local environment limitation (see Evidence limits). The pre-fix full run was 5297/5297, exit 0.
-**Gherkin:** ✅ Acceptance lane passes (`lint-gherkin` exit 0; the root BDD lane is local-Stop-hook dogfooding, not CI)
-**Build:** ✅ Success (tsup ESM + DTS)
-**Lint:** ✅ Clean (eslint + lint-gherkin + `tsc --noEmit`)
-**Scenarios:** ❌ 16/24 complete — R12 ×3, R13 ×2, R17, SM1.R3 fix-gate-degrades, SM1.R2 remain; all blocked on the CLI entry point and checkout/execution machinery, not on unknowns
-**PR Scope:** ✅ Diff matches ticket scope — one deliberate exception noted below
-**Dep Drift:** ✅ Clean — this ticket adds **zero** dependencies; `pr-review` and the pre-existing `boundary` module are now documented in ARCHITECTURE.md (both were [E006] structural gaps)
-**Parent Epic:** WAWQA6 (siblings: 0/3 done — G5337S blocked on CWGYH0, CWGYH0 in progress)
-**Reconcile:** ✅ No pattern deviation — `src/pr-review/` follows the existing feature-module shape (`boundary/`, `retro/`, `test-plan/`); the one deviation (shared tracker identity vs R6's "no service account") is recorded in impl-plan → Known deviations with an expiry condition
-**Experience:** ⏭️ N/A — no persona-facing surface ships yet; the runner has no entry point until slice 3
-**Evidence limits:** ⚠️ Machine contention from a parallel worktree — the build-lock is keyed per-checkout (`sha256(cliRoot)`) and does not serialize across checkouts. It showed up twice: a SIGTERM at the 10-minute tool timeout (exit 143) on the first attempt, and 2 failures in the post-fix run (`setup-git.test.ts` non-interactive setup, `sql-golden-path.test.ts` 2b.1). Both post-fix failures are classified as environmental, not product, on all three of the recorded diagnostic criteria: **non-deterministic** (green in the pre-fix run, red here), **recover in isolation** (45/45 when the two files run alone), and **zero assertion failures** — both are bare `Test timed out in 60000ms`. Neither file touches `pr-review` or `retro-extract`. CI's isolated suite is the authoritative signal; confirm there before marking done.
+**Test Suite:** ✓ 5398/5398 tests pass (370 files, 5 skipped, `VERIFY_PLAN_EXIT=0`)
+**Gherkin:** ❌ Failed — 2 of 487 scenarios, both pre-existing and unrelated (see Evidence limits)
+**Build:** ✅ Success (`BUILD_PLAN_EXIT=0`)
+**Lint:** ✅ Clean (eslint exit 0, `tsc --noEmit` exit 0, prettier exit 0 on the touched docs)
+**Scenarios:** All 24 scenarios marked complete (73/73 ledger checkboxes, 0 unchecked, cross-scenario refactor closed)
+**PR Scope:** ✅ Diff matches ticket scope
+**Dep Drift:** ✅ Clean — no runtime dependency added; the runner is stdlib + existing seams
+**Parent Epic:** WAWQA6 (siblings: 0/3 done — G5337S blocked on CWGYH0, CWGYH0 in_progress)
+**Reconcile:** ✅ No pattern deviation — the runner reuses the established injected-seam shape (`retro-extract`'s spawn dependency), and `.github/workflows/` shipping follows the existing `ownedFiles`-into-a-`sharedDir` mechanism
+**Experience:** ⚠️ Walked the Safeword Maintainer through enabling the reviewer on a fresh repo; worst step = **the reviewer cannot review** — a maintainer who reads the docs, sets `prReview.enabled`, and satisfies both repo settings gets a green job that says `no vendor configured`. New steps vs before = 2 (one config key, two repository settings). The docs now say this outright, so the failure is honest rather than mysterious, but the peak is not reachable yet — soft, does not block.
+**Evidence limits:** ⚠️ The 2 Gherkin failures are `Codex plugin asset differs from the canonical transformation: skills/quality-review/SKILL.md` — both the same root cause, in `migrate-codex-plugin.steps.ts`'s release contract. Not product evidence for this ticket: `quality-review/SKILL.md` is untouched by any commit in this session, and the same failure reproduced at HEAD earlier with this ticket's changes stashed. Already filed as its own task. This ticket's own 24 scenarios are `@wip`-tagged and correctly excluded from the lane, so they contribute no undefined steps.
 
-## PR Scope — the one exception
+## Scope note
 
-`ARCHITECTURE.md` gained a line documenting `src/boundary/` (from PR #938),
-which this ticket did not create. It is a one-line audit finding ([E006]) that
-surfaced while fixing the same gap for `pr-review`, and leaving a known
-structural gap undocumented to preserve scope purity seemed the worse trade.
-Flagged rather than silently bundled.
+Every file in this session's commits serves the ticket: the runner
+(`src/pr-review/`), its tests, the shipped workflow template and its `schema.ts`
+entry, the two reference docs, the `ARCHITECTURE.md` ADR the plan called for,
+and the ticket's own artifacts. `retro-extract.ts` was generalized as slice 0
+because the runner reuses its headless spawn seams — a prerequisite, not a
+drive-by.
 
-## Audit result
+## Known merge-time action
 
-Audit passed with warnings.
-
-- **Architecture:** ✅ no dependency violations (644 modules, 2022 dependencies cruised); no circular deps
-- **Config drift:** ✅ `sync-config --check` in sync (W007 clean)
-- **Learnings:** ✅ all carry `Covers:` (W006 clean)
-- **Domain docs:** ✅ personas 3 / surfaces 7 / glossary 27 entries; no surface or persona drift (E008/E009 clean)
-- **Dead code (knip):** 2 dead exports in `pr-review` found and removed. Remaining unused exports are all in `src/upstream-monitor/` and pre-date this ticket. `CoverageState` / `RequiredSetTier` kept exported deliberately — field types on exported interfaces.
-- **W005 config hints:** `@openai/codex` (ignoreDependencies) and `claude` (ignoreBinaries) reported stale. **Not acted on** — this is the recorded false-positive pattern: `templates/hooks/**` is outside knip's src graph, so the binaries those entries cover are invisible to it. Removing them would re-flag every audit.
-- **Duplication (jscpd):** 470 clones [scope: repo minus `.safeword`, `.project`]. New baseline at this scope — no prior recorded count to diff against. **Zero clones in `src/pr-review/`.**
-- **Outdated packages:** all dev/lint tooling, all pre-existing (this ticket adds no dependencies). Low risk: `@cucumber/messages` 34.1→34.2, `eslint-plugin-jsdoc` 63.0→63.2 (patch/minor, dev). Medium: `eslint-plugin-astro` 2→3, `eslint-plugin-simple-import-sort` 13→14, `@cucumber/gherkin` 41→42 (dev majors — review changelogs). None blocks this ticket.
-- **Test quality:** 8 files / 112 tests reviewed. One weak assertion found and fixed (a receipt asserted merely "defined"; now asserts its shape). No sleeps, no shared mutable state, no duplicate tests (table-driven via `it.each`).
-
-## Quality review result
-
-An independent fresh-context reviewer returned **REQUEST CHANGES with 14
-findings**. All 14 reproduced; 15 new tests failed before the fixes. All are
-fixed — see commit `46d9bb1ee`. The consequential ones:
-
-1. The check-run surface was an unconstrained **merge-gate primitive** — name was caller-supplied, `conclusion: 'neutral'` was erased at runtime, and GitHub counts neutral as *satisfying* a required check. The guard now constrains the body, not just the path.
-2. `identityMode` failed **open** — absent config resolved to `per-author`, the mode that re-enables fork tracker reads.
-3. `computeCiState` returned **green for an empty check set** (`[].every()` is true) — a repo reporting via the legacy commit-status API would have been reviewed while red.
-4. A required check concluding `skipped`/`neutral` could never reach green — a permanent silent no-fire.
-5. The receipt was written **before** the comments, so a 422 left a verdict claiming a review that never appeared.
-6. Slice 0 had silently dropped retro's *"Use an empty findings array…"* prompt instruction, converting clean retro runs into extraction failures. Now pinned by a test.
-
-## Next
-
-Decide whether to cross the shipping threshold (registering the workflow in
-`schema.ts` starts writing `.github/workflows/pr-review.yml` into every safeword
-project on upgrade). That gates slices 3, 7 and 8, which own the remaining 8
-scenarios.
+This branch is at 0.68.0; main has moved to 0.69.0. The workflow pins
+`bunx --bun safeword@0.68.0`, and `tests/pr-review/workflow-contract.test.ts`
+binds that pin to `VERSION` — so a rebase onto main turns it red until the pin
+is bumped. That is the contract working. `CLAUDE.md` now lists the workflow as
+the fifth release-tracked artifact so the next bump does not miss it.
