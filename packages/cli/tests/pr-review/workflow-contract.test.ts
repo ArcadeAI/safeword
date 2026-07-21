@@ -89,14 +89,18 @@ describe('the shipped workflow keeps its fork-safety shape (36EEMY, SM1.R3)', ()
     expect(directives).toMatch(/^permissions:\s*\{\}\s*$/m);
   });
 
-  it('SHA-pins the third-party actions that handle the untrusted bundle', () => {
+  it('SHA-pins every action that is not first-party GitHub', () => {
     // This workflow ships into other people's repositories, so a movable tag on
-    // a third-party action is a supply-chain foothold — and these two are the
-    // ones that carry the artifact built from fork-controlled code. Asserts the
-    // CLASS (pinned to a 40-char SHA) rather than specific SHAs, so routine
-    // version bumps do not churn the test while a regression to a floating tag
-    // still fails.
-    for (const action of ['actions/upload-artifact', 'actions/download-artifact']) {
+    // third-party code is a supply-chain foothold — and setup-bun is the sharpest
+    // case, because it executes in the job holding pull-requests, checks and
+    // id-token write. Asserts the CLASS (a 40-char SHA) rather than specific
+    // SHAs, so routine bumps do not churn the test while a regression to a
+    // floating tag still fails.
+    for (const action of [
+      'actions/upload-artifact',
+      'actions/download-artifact',
+      'oven-sh/setup-bun',
+    ]) {
       const marker = `${action}@`;
       const index = directives.indexOf(marker);
       expect(index, `${action} should appear in the workflow`).toBeGreaterThan(-1);
@@ -104,6 +108,25 @@ describe('the shipped workflow keeps its fork-safety shape (36EEMY, SM1.R3)', ()
       const ref = directives.slice(index + marker.length).split(/\s/, 1)[0] ?? '';
       expect(ref, `${action} must be SHA-pinned, not a floating tag`).toMatch(/^[\da-f]{40}$/);
     }
+  });
+
+  it('deliberately leaves actions/checkout on a floating major', () => {
+    // Reversing the obvious advice, on purpose. checkout is FIRST-PARTY GitHub,
+    // and the fork-refusal protection this whole two-stage design leans on
+    // arrived as a BACKPORT to the floating majors (2026-07-16). A SHA pin taken
+    // before that date would have silently opted out of the very protection the
+    // security argument rests on, and future security backports too.
+    //
+    // Pinned here for a different threat than setup-bun faces: tag movement on
+    // third-party code you do not control, versus losing security updates from
+    // the vendor who publishes the runner itself. Asserted so a well-meaning
+    // future "pin everything" pass has to read this before undoing it.
+    const marker = 'actions/checkout@';
+    const index = directives.indexOf(marker);
+    expect(index, 'actions/checkout should appear in the workflow').toBeGreaterThan(-1);
+
+    const ref = directives.slice(index + marker.length).split(/\s/, 1)[0] ?? '';
+    expect(ref, 'actions/checkout stays on a floating major — see the comment').toMatch(/^v\d+$/);
   });
 
   it('pins the CLI to THIS release, like the Codex hook manifest', async () => {
