@@ -42,6 +42,8 @@ Focused review (~1 minute). Check the test that was just written:
 
 If issues found: fix before implementing. If clean: commit and proceed to implementation.
 
+**Verify the remedy, not just the finding** (PRINCIPLES §1). Every "fix before implementing" is a second claim — that _this_ change fixes it — and it's the one that lands. Re-run after fixing: a test edited to stop being vacuous must still fail for the right reason, and a "fix" that makes RED go green without an implementation has traded a vacuous test for a broken gate.
+
 ## After GREEN — review the implementation
 
 Moderate review (~1-2 minutes). Check the implementation:

@@ -1,0 +1,197 @@
+name: Safeword PR review
+
+# Autonomous PR review at the intent-conformance bar (safeword ticket 36EEMY).
+#
+# SHIPS DEFAULT-OFF. Both jobs exit immediately unless `.safeword/config.json`
+# sets `prReview.enabled: true`. Deleting this file is supported but unnecessary
+# — the switch is config, so an upgrade will not reinstate a choice you made.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# The two-stage split, and why it is shaped this way
+#
+# The threat is executing untrusted code while a credential is present, NOT
+# reading it. So:
+#
+#   stage 1 (`bundle`)  pull_request — checks out the pull request's MERGE ref
+#                       (what `actions/checkout` gives you for this event with no
+#                       explicit `ref:`), holds NO secrets, and only reads.
+#                       Nothing here can leak, because there is nothing to leak.
+#   stage 2 (`review`)  workflow_run — holds the credentials, and NEVER checks
+#                       out the head. It reads the uploaded bundle as inert data.
+#
+# `actions/checkout@v7` refuses fork-PR head under BOTH `pull_request_target`
+# and `workflow_run` by default (opt-out `allow-unsafe-pr-checkout`), which is
+# why stage 1 must be `pull_request` and stage 2 must never attempt a checkout.
+#
+# GitHub gives no token scope that permits commenting while forbidding approval,
+# so "it cannot approve" is enforced three ways, not one:
+#   1. repo/org setting "Allow GitHub Actions to create and approve pull
+#      requests" → OFF  (the real structural control; an install prerequisite)
+#   2. branch protection "Require approval of the most recent reviewable push"
+#   3. the runner only ever calls POST /pulls/{n}/comments and /check-runs —
+#      never /pulls/{n}/reviews, which is what an approval would require
+#
+# NOTE: `workflow_run` only triggers from the workflow file on the DEFAULT
+# branch, so this cannot review the pull request that installs it. The first
+# review happens after that PR merges.
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+  workflow_run:
+    workflows: ['Safeword PR review']
+    types: [completed]
+
+permissions: {}
+
+# Keyed on the PULL REQUEST in both stages. `workflow_run.id` is unique per run,
+# so keying on it would put every stage-2 run in its own group and
+# cancel-in-progress would never fire — two quick pushes would review the same PR
+# concurrently and post duplicate comments and receipts.
+concurrency:
+  group: >-
+    safeword-pr-review-${{ github.event.pull_request.number
+    || github.event.workflow_run.pull_requests[0].number
+    || github.event.workflow_run.id }}
+  cancel-in-progress: true
+
+jobs:
+  # ── stage 1 ────────────────────────────────────────────────────────────────
+  # Unprivileged and secretless. Safe to run against a fork's head because
+  # there is no credential present for injected code to reach.
+  bundle:
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      # The enable switch is read from the BASE ref, never from the pull
+      # request's own tree. Reading it from the head would let any fork disable
+      # its own review by setting `enabled: false` — or by deleting the file —
+      # which is the opposite of a security control.
+      - name: Check out the base ref for the enable switch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+
+      - name: Stop unless the PROJECT (not the pull request) enabled the reviewer
+        id: gate
+        run: |
+          enabled=false
+          if [ -f .safeword/config.json ]; then
+            # JSON.parse, never require(): `require` resolves a DIRECTORY named
+            # config.json to its index.js, so a fork committing that shape would
+            # get arbitrary code execution in this job.
+            enabled=$(node -e "const {readFileSync}=require('node:fs');try{const c=JSON.parse(readFileSync('.safeword/config.json','utf8'));process.stdout.write(String(c?.prReview?.enabled===true))}catch{process.stdout.write('false')}")
+          fi
+          echo "enabled=$enabled" >> "$GITHUB_OUTPUT"
+
+      - name: Check out the pull request for review
+        if: steps.gate.outputs.enabled == 'true'
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          # No credential on disk while untrusted code is checked out.
+          persist-credentials: false
+
+      - name: Record the pull request context
+        if: steps.gate.outputs.enabled == 'true'
+        # Staged in the runner temp dir, NOT inside the checkout: a fork can
+        # pre-commit a directory of the same name and ride extra files into the
+        # bundle. It also dodges upload-artifact's `include-hidden-files: false`
+        # default, under which a dot-prefixed path matches ZERO files while
+        # `if-no-files-found: warn` still lets the step succeed — an empty
+        # bundle that only fails later, in the privileged job.
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          BUNDLE="$RUNNER_TEMP/safeword-pr-review"
+          mkdir -p "$BUNDLE/files"
+          printf '%s' "${{ github.event.pull_request.number }}" > "$BUNDLE/pull-number"
+
+          # What changed. Three dots: the diff against the merge base, not
+          # against whatever else has landed on the base branch meanwhile.
+          git diff "$BASE_SHA...$HEAD_SHA" > "$BUNDLE/diff.patch"
+
+          # ...and the code around it. A reviewer that sees only the diff cannot
+          # produce the findings that matter most — the ones resting on a file
+          # the change never touched (R17). Each changed file's whole directory
+          # comes along, which is language-agnostic and usually catches the
+          # helper the change now calls.
+          git diff --name-only "$BASE_SHA...$HEAD_SHA" \
+            | xargs -r -n1 dirname \
+            | sort -u \
+            | while read -r dir; do
+                find "$dir" -maxdepth 1 -type f -size -200k 2>/dev/null | while read -r file; do
+                  mkdir -p "$BUNDLE/files/$(dirname "$file")"
+                  cp "$file" "$BUNDLE/files/$file" 2>/dev/null || true
+                done
+              done
+
+      - name: Upload the review bundle
+        if: steps.gate.outputs.enabled == 'true'
+        # SHA-pinned, not a floating tag: this workflow ships into other people's
+        # repositories, and a movable tag on a third-party action is a
+        # supply-chain foothold. Comment records the human-readable version.
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: safeword-pr-review-bundle
+          path: ${{ runner.temp }}/safeword-pr-review/
+          retention-days: 1
+          # Fail loudly rather than uploading nothing and going green.
+          if-no-files-found: error
+
+  # ── stage 2 ────────────────────────────────────────────────────────────────
+  # Privileged. Runs in the BASE repository's context, so it may hold
+  # credentials — and therefore must never check out the head.
+  review:
+    # The `event == 'pull_request'` clause matters: this workflow's own name is
+    # what workflow_run watches, so a stage-2 run completing would otherwise
+    # re-trigger the workflow. Bounded by GitHub's 3-deep chain limit, but each
+    # review would still spawn a follow-up run that finds no artifact and fails.
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read # read the BASE repo only — never the pull request head
+      actions: read # REQUIRED to download an artifact from the stage-1 run
+      pull-requests: write # post inline comments (see the three-layer note above)
+      checks: write # write the non-required `safeword/pr-review` receipt
+      id-token: write # exchange for a short-lived vendor token (WIF/OIDC)
+
+    steps:
+      - name: Check out the base repository
+        uses: actions/checkout@v7
+        # No `ref:` — deliberately the base, never the pull request head.
+
+      - name: Download the review bundle
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: safeword-pr-review-bundle
+          path: .safeword-pr-review
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # SHA-pinned like the artifact actions, and for a stronger reason: this is
+      # third-party code executing in the job that holds pull-requests: write,
+      # checks: write and id-token: write.
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@735837bfcbde5b8c9d1a80d02bcf4f9a2ffb1660 # v2.2.0
+
+      # No `bun install`. `bunx` fetches safeword itself, and the host's
+      # dependencies are irrelevant to reviewing a diff — installing them would
+      # hard-fail every Rust, Python or Go project safeword supports.
+      - name: Review
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SAFEWORD_PR_NUMBER="$(cat .safeword-pr-review/pull-number)" \
+            bunx --bun safeword@0.68.0 review-pr
