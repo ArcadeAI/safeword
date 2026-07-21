@@ -65,28 +65,61 @@ export function buildReviewInput(parts: ReviewInputParts): string {
   return header + rendered.join('\n') + note;
 }
 
-/** The structured answer the runner requires back. See impl-plan §D. */
+/**
+ * The structured answer the runner requires back.
+ *
+ * WIDE ON PURPOSE. `additionalProperties: false` means codex's constrained
+ * decoding rejects anything absent here, so every field the prompt asks the
+ * model to produce must appear — otherwise the model cannot emit the shape it
+ * was instructed to, however well it followed the instructions.
+ *
+ * Narrowing this to only what the runner reads was the tempting fix and the
+ * wrong one: the extra fields ARE the review's substance (the counter-evidence
+ * pass, the confidence cap, the verified fix), and they are what the eval needs
+ * to score. `tests/pr-review/output-contract.test.ts` fails if the two drift.
+ */
 const REVIEW_OUTPUT_SCHEMA = {
   type: 'object',
   additionalProperties: false,
   properties: {
     verdict: { type: 'string', enum: [...VERDICTS] },
+    /** One line, actionable without opening the diff. */
+    verdict_reason: { type: 'string' },
+    /** The model's claim; the runner OVERWRITES it from the actual pairing (R11). */
+    cross_model: { type: 'boolean' },
+    /** What intent was checked against, and whether it is contract or narrative. */
+    intent_source: { type: 'string' },
+    /** patch | logic change | new behavior (R19). */
     work_type: { type: 'string' },
+    /** push back | ask — the routing decision a posted review ends on (NTB1.R4). */
+    decision: { type: 'string' },
     findings: {
       type: 'array',
       items: {
         type: 'object',
         additionalProperties: false,
         properties: {
+          // Anchoring. Without these a finding cannot become an inline comment.
           path: { type: 'string' },
           line: { type: 'number' },
+          // The two layers of the finding: the stake a non-coder reads, and the
+          // evidence a coder clicks into.
           consequence: { type: 'string' },
           evidence: { type: 'string' },
+          claim: { type: 'string' },
+          why_it_matters: { type: 'string' },
+          // Which rule produced it, and how hard it pushes.
+          dimension: { type: 'string' },
+          blocking: { type: 'boolean' },
+          confidence: { type: 'string' },
+          // The guards the author already had — the counter-evidence pass.
+          counter_evidence: { type: 'string' },
+          // A patch, present only once the fix gate has RUN it (R13).
+          suggestedFix: { type: 'string' },
         },
         required: ['path', 'line', 'consequence'],
       },
     },
-    decision: { type: 'string' },
   },
   required: ['verdict', 'findings'],
 };
@@ -103,10 +136,11 @@ export type ReviewJob = HeadlessJob<Review | undefined>;
 /**
  * The review job: the injected prompt plus the schema the runner can read.
  *
- * `cross_model` and `adversarial` are deliberately absent from the schema. Both
- * are runner-owned — a model asserting its own independence is exactly the
- * laundering R11 exists to stop, and the adversarial mark is set by the second
- * vendor's outcome, not claimed by the first.
+ * `cross_model` is IN the schema so constrained decoding accepts it, but the
+ * runner overwrites it from the pairing that actually ran — a model asserting
+ * its own independence is the laundering R11 exists to stop. `adversarial` is
+ * absent entirely: it is set by the second vendor's outcome, so the first
+ * vendor has no business claiming it.
  */
 export function createReviewJob(prompt: string): ReviewJob {
   return {
