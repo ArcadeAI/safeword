@@ -49,6 +49,74 @@ last_modified: 2026-07-15T14:24:45.733Z
 
 - 2026-07-15T14:24:45.733Z Started: Created ticket 36EEMY
 
+## HELD at implement, 2026-07-21 — what this is waiting for
+
+The runner is built and proven: 24/24 scenarios closed, full suite 5398/5398,
+Gherkin green, audit passed with 0 errors. Held rather than marked done because
+`done_when` #2 — "the runner drives a review headlessly on the configured
+vendor" — is NOT met. Everything else in `done_when` is.
+
+Two separate things are missing. Only one of them is blocked, and conflating
+them would hide real work behind someone else's gate.
+
+### 1. The vendor spawn adapter — OURS, not blocked
+
+`vendorRunner` is injected everywhere and constructed nowhere. Nothing in
+`src/` builds a real `codex exec` / `claude -p` child: `assembleVendorReview`
+(review-pr.ts) returns undefined when `options.vendorRunner` is absent, and
+production never sets it. Confirmed by grep — no call site for
+`runCodexHeadlessExtractionChecked` outside retro.
+
+Everything it needs already exists: slice 0 made the headless runners
+job-agnostic, `createReviewJob` supplies schema + prompt + parse, and
+`buildReviewInput` composes the diff and tree. What is missing is the adapter
+that hands those to a real child process with the tiered sandbox and arcade MCP
+config, plus a WIF or key credential.
+
+Estimated shape: one module, one integration test against the injected spawn
+seam. This is the next piece of work on this ticket and needs nobody's
+permission.
+
+### 2. The review prompt — NOT ours, human-gated
+
+Even with the adapter, the runner has nothing to ask. The prompt is G5337S's
+deliverable and the chain is:
+
+    36EEMY (this)   needs a prompt
+      └─ G5337S     status: blocked, blocked_on: [CWGYH0]
+           └─ CWGYH0  status: in_progress
+                └─ arcade engineers must triage the corpus
+
+G5337S's `done_when` is explicit: "The skill scores against CWGYH0's corpus at
+or above the bar CWGYH0 recorded BEFORE triage. The eval is this ticket's test
+suite — there is no other proof of a prompt's judgment." So the prompt cannot
+ship on our say-so.
+
+CWGYH0 is further along than "not started": a pre-registered predictiveness
+experiment was frozen on 2026-07-17 over 20 open arcade PRs, with verdicts and
+head SHAs recorded before any outcome was known. Scoring was set at ~2 weeks,
+so roughly **2026-07-31**. A validated `skill-draft.md` already exists (23KB,
+three trial runs plus Nate's triage: 3 of 4 findings useful, one over-rotation
+found and fixed).
+
+**The unblock is a human action, not a code change:** arcade engineers scoring
+that frozen experiment. If they are too underwater to triage it, CWGYH0's own
+ticket says that is itself the answer about whether this reviewer earns its
+place.
+
+### What is safe about holding here
+
+The workflow already ships and is inert: default-off, and when enabled it
+degrades to a green job logging `no vendor configured` rather than reddening
+CI. Nothing is half-installed in a customer repo.
+
+### Merge-time action, independent of the above
+
+This branch is 0.68.0; main is 0.69.0. The workflow pins
+`bunx --bun safeword@0.68.0` and `tests/pr-review/workflow-contract.test.ts`
+binds that pin to VERSION, so a rebase goes red until it is bumped. CLAUDE.md
+now lists the workflow as the fifth release-tracked artifact.
+
 ## Steals from product-scout (2026-07-17) — the routing/attention layer
 
 `~/projects/product-scout` is the same machine pointed at a different input: `reconcile(watchlist ↔ world) → collisions → route by attention budget`, vs our `reconcile(diff ↔ intent) → findings → route by attention budget`. Both exist to protect human attention. Four of its solved problems are our open ones. Two corrections already landed in the spec/skill (alternatives→provocation; the plain-language contract). Three need the frozen ledger's act-rate data first, so they live here as design, not code:
