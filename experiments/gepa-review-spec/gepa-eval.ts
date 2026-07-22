@@ -5,7 +5,7 @@
  *   ANTHROPIC_API_KEY=... bun gepa-eval.ts --candidate <promptFile> --fixtures a,b,c
  *   ANTHROPIC_API_KEY=... bun gepa-eval.ts --candidate <promptFile> --split train
  *
- * The TS side owns the model call (createAnthropicRunner) AND the metric
+ * The TS side owns the model call (createRunnerFromEnv) AND the metric
  * (scoreFixture) so the evaluator stays the single source of truth — the Python
  * adapter only orchestrates GEPA's loop and the reflection LM.
  *
@@ -19,7 +19,7 @@ import { readFileSync } from 'node:fs';
 
 import { loadFixtures, testSplit, trainSplit } from './src/dataset';
 import { scoreFixture, type FixtureScore } from './src/evaluator';
-import { createAnthropicRunner } from './src/task';
+import { createRunnerFromEnv } from './src/task';
 import type { Fixture } from './src/types';
 
 function arg(name: string): string | undefined {
@@ -85,7 +85,7 @@ async function main(): Promise<void> {
     fixtures = names.map(n => byName.get(n)).filter((f): f is Fixture => f !== undefined);
   }
 
-  const runner = createAnthropicRunner({ model: process.env.SAFEWORD_EVAL_MODEL });
+  const runner = createRunnerFromEnv();
   const results = [];
   for (const fx of fixtures) {
     try {
