@@ -19,9 +19,9 @@ surfaces.md from packages/cli/templates/surfaces-template.md and then own it.
 **Kind:** Agent runtime
 **Description:** Cloud-hosted Claude Code sessions (officially "Claude Code on the web") launched from claude.ai/code, the Claude mobile/desktop app, `claude --cloud` from the terminal, or a scheduled Routine — plus Claude Code GitHub Actions, which runs Claude Code inside a GitHub-hosted CI runner rather than an Anthropic VM. Each cloud session clones the repo into an ephemeral, isolated Anthropic-managed VM governed by the environment's network policy, and is reclaimed when the session ends or after inactivity.
 **Audience:** Technical Builder (TBU), Non-Technical Builder (NTB), Safeword Maintainer (SWM)
-**Examples:** claude.ai/code web UI, Claude mobile app, `claude --cloud` / `--teleport`, scheduled/event-driven Routines, Claude Code GitHub Actions (`anthropics/claude-code-action`, `@claude` issue/PR triggers), the **+ → Add from GitHub** repo picker, per-environment network policy
+**Examples:** claude.ai/code web UI, Claude mobile app, `claude --cloud` / `--teleport`, scheduled/event-driven Routines, Claude Code GitHub Actions (`anthropics/claude-code-action`, `@claude` issue/PR triggers), the repository selector below the input box (repos synced via the Claude GitHub App or `/web-setup`), per-environment network policy
 **Coverage notes:** Tag feature scenarios with `@surface.claude-code-cloud` when behavior depends on a cloud / off-machine lifecycle (ephemeral VM or CI runner, network policy, GitHub-event triggers) rather than a developer's local setup. Lifecycle hooks (`SessionStart`, `UserPromptSubmit`, etc.) do fire in cloud sessions, but interactively-authenticated MCP servers may be unavailable in headless runs.
-**Do not confuse with:** Claude Code — runs on the developer's own persistent machine, not a reclaimed container.
+**Do not confuse with:** Claude Code — runs on the developer's own persistent machine, not a reclaimed VM.
 
 ## OpenAI Codex
 
