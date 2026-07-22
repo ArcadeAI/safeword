@@ -1,0 +1,12 @@
+{
+  "split": "test",
+  "certifiedClean": true,
+  "defects": [
+    {
+      "scenarioId": "The readiness pointer stays within the length cap",
+      "defectType": "vacuous-non-claim",
+      "severity": "must-fix",
+      "note": "mutation operator: Then-to-non-claim. 'the readiness pointer renders without error' asserts only that rendering did not crash — a non-falsifiable non-claim that says nothing about the length-cap behaviour the scenario name claims (a do-nothing render satisfies it). Same operator as resolver-vacuous-non-claim ('does not crash'). Held-out (test) split. Other two scenarios unchanged & clean."
+    }
+  ]
+}
