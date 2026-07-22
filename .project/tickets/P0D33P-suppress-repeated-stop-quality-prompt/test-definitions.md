@@ -17,7 +17,7 @@ deterministically controlled.
 ### Scenario: A complete BLOCKED brief completes the edited-work stop
 
 - [x] RED skip: shared recognizer was introduced by the prior CONFIDENT red slice before this independent verdict fixture
-- [ ] GREEN
+- [x] GREEN 4b948f508
 - [ ] REFACTOR
 
 ## Rule: suppress-repeated-stop-quality-prompt.TBU1.R3 — Done-phase hard gates take precedence over a compliant brief
