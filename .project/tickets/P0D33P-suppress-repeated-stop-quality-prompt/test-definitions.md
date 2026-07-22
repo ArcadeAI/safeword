@@ -20,6 +20,12 @@ deterministically controlled.
 - [x] GREEN 4b948f508
 - [x] REFACTOR skip: BLOCKED reuses the same ordered-marker helper without new structure
 
+### Scenario: An out-of-order CONFIDENT brief is corrected
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: suppress-repeated-stop-quality-prompt.TBU1.R3 — Done-phase hard gates take precedence over a compliant brief
 
 ### Scenario: A complete brief cannot bypass a missing done-phase requirement

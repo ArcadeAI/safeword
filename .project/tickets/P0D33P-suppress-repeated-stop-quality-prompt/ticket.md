@@ -22,6 +22,7 @@ phase_anchors:
   - 'define-behavior: .project/tickets/P0D33P-suppress-repeated-stop-quality-prompt/spec.md'
   - 'scenario-gate: features/suppress-repeated-stop-quality-prompt.feature'
   - 'plan-implementation: .project/tickets/P0D33P-suppress-repeated-stop-quality-prompt/impl-plan.md'
+  - 'implement: .project/tickets/P0D33P-suppress-repeated-stop-quality-prompt/impl-plan.md'
 created: 2026-07-22T00:34:33.968Z
 last_modified: 2026-07-22T00:50:03.000Z
 ---

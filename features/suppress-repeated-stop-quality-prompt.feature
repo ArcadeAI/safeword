@@ -26,9 +26,18 @@ Feature: Suppress repeated stop-quality prompts in a session
       When the quality stop hook evaluates the response
       Then it exits without JSON output or a quality-prompt continuation
 
+    @rejection
+    Scenario: An out-of-order CONFIDENT brief is corrected
+      Given a non-done Claude Code session with a recent edit-tool transcript entry
+      And this is a later ordinary stop after a prior quality continuation with stop_hook_active false
+      And the latest assistant response places its Next paragraph before its Decided paragraph
+      When the quality stop hook evaluates the response
+      Then it emits the existing quality-prompt JSON block with the controlled phase guidance
+
   @suppress-repeated-stop-quality-prompt.TBU1.R3 @surface.claude-code
   Rule: suppress-repeated-stop-quality-prompt.TBU1.R3 — Done-phase hard gates take precedence over a compliant brief
 
+    @rejection
     Scenario: A complete brief cannot bypass a missing done-phase requirement
       Given a done-phase Claude Code session with a recent edit-tool transcript entry
       And the latest assistant response is a complete CONFIDENT decision brief
