@@ -269,6 +269,13 @@ Two fields are **runner-owned and must be overwritten after parse**:
 laundering R11 exists to stop) and `adversarial` (R14 — set by the second
 spawn's outcome). A parse failure is a vendor failure ⇒ no receipt, loud.
 
+Drift-safety is **asymmetric**: `--output-schema` makes a renamed field
+structurally impossible on codex; the claude path instead relies on the appended
+schema being honored, so `tests/pr-review/output-contract.test.ts` binds the
+prompt's field names to the runner's parser (they cannot drift in source) and the
+loud parse-failure path above is the runtime backstop. If `claude -p` ever
+exposes a custom output-schema flag, adopt it to close the asymmetry.
+
 #### E. Vendor auth — WIF/OIDC is available, and it is the default
 
 Verified 2026-07-20, and it upgrades the threat model: **both vendors are OIDC
@@ -473,6 +480,7 @@ _quality_ by the CWGYH0 **eval** (named, not duplicated here).
 | Verdict surfaces | `needs-a-human` ⇒ comment; `reviewed` ⇒ non-required neutral check-run; `unreviewable-as-is` ⇒ one note | Always-comment (incl. clean); required check | Always-comment breaks R2 silence; a required check contradicts warn-mode `out_of_scope` and would self-deadlock R8. |
 | Distribution | Workflow `.yml` + skill as `ownedFiles`; workflow keyed into the **shared** `.github/workflows/` dir; template↔dogfood parity pair | `ownedDir` for `.github/workflows/`; managedFiles (create-if-absent) | Customers own other workflows (must not own the dir); `ownedFiles` overwrite keeps the reviewer upgradeable — managed-if-absent would strand fixes. |
 | Kill switch | `.safeword/config.json` `prReview.{enabled,post,…}`, default-off, runtime-read fail-open-to-disabled | Env var; delete the workflow to disable | Config is the Tricorder precedent (killable without uninstall, SM1.R2); env is invisible to `safeword check`. |
+| Reviewer model defaults (2026-07-22) | Codex → `gpt-5.6-sol`; Claude → `sonnet` (Sonnet 5, inherited from retro); Fable/Mythos **warned, not blocked**; all overridable via `prReview.model` | Inherit retro's `gpt-5.5` codex default; hard-block Fable | Retro's `gpt-5.5` is a _summariser_ default — this reads code, and the ask was 5.6. Sol is GPT-5.6's coding + strongest-cybersecurity flagship, the tier a reviewer that inspects auth/billing/injection wants. Fable/Mythos refuse cyber content and _exclude_ security bug-finding, so routing there silently underperforms — but a maintainer may pick it for a non-security repo, so `spawn.ts` warns rather than blocks. (verified: claude-api model guidance; codex GA 2026-07-09.) |
 
 ---
 
@@ -655,6 +663,29 @@ does not is genuinely dead.
 - **CWGYH0's recorded bar fails on a non-safeword corpus** — the eval reshapes or
   kills the epic; the runner's injected-prompt seam absorbs a prompt change with
   no runner edit, but a kill retires the distribution.
+- **CWGYH0's scoring target decides the prompt's suppression posture** — the
+  G5337S draft is deliberately precision-first: it _hard-drops_ sub-bar findings
+  (§1 "delete it", §5 "or drop it", §6 the bar). Anthropic's current model
+  guidance is explicit that Opus 4.8 / Sonnet 5 / Fable 5 follow drop
+  instructions _more literally_, so a recall-scoring eval understates the model
+  (it found the bug, then self-suppressed). If CWGYH0 scores posted-verdict
+  usefulness the drops are correct and nothing changes; if it scores finding
+  recall, the surgical fix is §1/§5/§6 emitting low-confidence/non-blocking
+  (the draft already carries `confidence`/`blocking` fields for this) instead of
+  dropping. A prompt decision for the eval owner, not a runner change. (verified:
+  claude-api migration guidance; skills best-practices "evaluations are your
+  source of truth", 2026-07.)
+- **A Fable/Mythos model becomes a review candidate** — the runner already warns
+  (security refusal + excluded security bug-finding), but if the eval tests it,
+  also A/B a _de-scaffolded_ prompt variant: prior-model scaffolding (this draft's
+  ~8 gates) reduces Fable output quality, and Anthropic's skills guide calls code
+  review a _high-freedom_ task ("give general direction and trust the model").
+- **The read-only guarantee is the runner's `--allowed-tools` argv + the
+  secretless stage-1 job, not the skill's `allowed-tools` frontmatter** — that
+  frontmatter only _pre-approves_ tools (verified: skills best-practices), so if
+  the skill is ever driven through a harness that treats frontmatter as the sole
+  gate, re-confirm the read-only tier still holds structurally (`spawn.ts`
+  `claudeToolsFor`).
 - **The product-scout shared attention-layer fork** (ticket.md's open
   architecture question) — floating attention bar (R8/R9 calibration), per-type
   earned-autonomy flywheel, and the mute store are a layer shared with
