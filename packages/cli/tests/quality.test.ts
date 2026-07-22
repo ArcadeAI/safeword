@@ -338,4 +338,36 @@ describe('hasCompleteDecisionBrief (P0D33P)', () => {
 **Open:** none.`),
     ).toBe(false);
   });
+
+  it('rejects a complete brief followed by substantive prose', () => {
+    expect(
+      hasCompleteDecisionBrief(`**CONFIDENT** — The change is ready.
+
+**Decided:** Added the requested behavior.
+
+**Open:** none.
+
+**Next:** Review the change.
+
+One more thing: this response is not terminal.`),
+    ).toBe(false);
+  });
+
+  it('rejects two complete terminal briefs in one response', () => {
+    expect(
+      hasCompleteDecisionBrief(`**CONFIDENT** — The change is ready.
+
+**Decided:** Added the requested behavior.
+
+**Open:** none.
+
+**Next:** Review the change.
+
+**BLOCKED** — A later concern remains.
+
+**Tried:** Read the current hook contract.
+
+**Need:** A decision about the desired behavior.`),
+    ).toBe(false);
+  });
 });
