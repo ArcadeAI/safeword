@@ -1,0 +1,19 @@
+{
+  "split": "test",
+  "certifiedClean": true,
+  "defects": [
+    {
+      "scenarioId": "The pointer names all five dimensions",
+      "defectType": "vacuous-non-claim",
+      "severity": "must-fix",
+      "note": "mutation operator: Then-to-non-claim. 'the readiness pointer renders without error' asserts only no-crash, not that the pointer names the five dimensions the scenario claims."
+    },
+    {
+      "scenarioId": "The constraint dimension is scoped to what must not break",
+      "defectType": "vacuous-existence-only",
+      "severity": "must-fix",
+      "note": "mutation operator: weaken-Then-to-existence. 'a constraint dimension is present in the pointer' asserts mere existence, not that the dimension is scoped to what-must-not-break as the scenario claims."
+    }
+  ],
+  "note": "Held-out (test) split, TWO seeded defects — deliberately breaks the one-defect-per-fixture regularity that E2D8S5's gamed GEPA winner exploited ('fixtures typically have exactly one seeded defect; be skeptical of a second'). With 0/1/2-defect fixtures in the held-out, a candidate that under-reports a second defect now FAILS on held-out, closing the structural blind spot. Two clean scenarios (pointer present / absent at implement) frame the two mutants (non-claim + existence-only)."
+}
