@@ -36,7 +36,11 @@ posting seam test that proves the field reaches the transport unchanged.
 | Codex carrier | Packaged `retro-filer` skill invoked by the Stop continuation | Project-scoped custom agent | Codex plugins cannot package custom agents; restoring one would undo #993's plugin-only migration |
 
 Evidence: GitHub documents `is:issue` filtering; JSON Lines supports independent
-records with optional properties; #1032 is the direct CLI contract this mirrors.
+records with optional properties; [Codex plugin documentation](https://learn.chatgpt.com/docs/build-plugins)
+lists skills, MCP-backed apps, and lifecycle hooks as plugin components, while
+[Codex subagent documentation](https://learn.chatgpt.com/docs/agent-configuration/subagents)
+keeps custom agents in separate agent directories; #1032 is the direct CLI
+contract this mirrors.
 
 ## Arch alignment
 

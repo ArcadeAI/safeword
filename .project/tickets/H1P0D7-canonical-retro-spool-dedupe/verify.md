@@ -1,26 +1,52 @@
 # Verification: Keep cloud-spooled retro filing from bypassing duplicate checks
 
-**Test Suite:** ✅ Focused retro filing suite passed: 59 tests across spool,
-filing seam, filer definitions, filing gate, and stop integration.
+## Verify Checklist
 
-**Acceptance:** ✅ `bun run --cwd packages/cli test:bdd` passed.
+**Test Suite:** ✓ 41/41 tests pass in the focused carrier suite: generated
+Cursor rule, generated Codex plugin skill, filing gate, and real Codex Stop
+adapter.
 
-**Lint:** ✅ Root lint, Gherkin lint, and TypeScript typecheck passed.
+**Gherkin:** ✅ Acceptance lane passes (`bun run test:bdd`).
 
-**Build:** ✅ `bun run --cwd packages/cli build` passed.
+**Build:** ✅ Success (`bun run --cwd packages/cli build`).
 
-**Audit:** ✅ Dependency-cruiser found no violations. Knip reports three
-pre-existing unlisted `gh` binaries outside this ticket's files.
+**Lint:** ✅ Clean (`bun run lint`).
 
-**Quality Review:** ✅ Fresh independent review approved after the transport
-boundary, valid-seal, and malformed-record tests were added.
+**Scenarios:** All 13 scenarios marked complete.
 
-**Refactor:** ✅ No structural refactor warranted; canonical eligibility remains
-one pure helper and filer-definition checks are table-driven.
+**PR Scope:** ✅ Diff matches #1031 / H1P0D7 scope: canonical spool identity,
+runtime-specific filing carriers, generated assets, tests, and their BDD
+artifacts only.
 
-**Full Suite:** ⚠️ `bun run test` was started but its Vitest wrapper remained
-idle after test startup and was stopped after a bounded wait. This reproduces
-the known local runner hang; direct focused and Cucumber lanes passed.
+**Dep Drift:** ⚠️ Dependency-cruiser has one pre-existing `no-orphans` warning
+for `packages/cli/src/codex-plugin/hooks.ts`; it reports no errors and this PR
+adds no dependency or lockfile changes.
 
-**PR Scope:** ✅ Only #1031's spool metadata, agent filing instructions,
-template mirrors, tests, and BDD ticket artifacts changed.
+**Parent Epic:** N/A.
+
+**Reconcile:** ✅ No pattern deviation: the Cursor rule is generated from the
+canonical wrapper metadata and Codex uses the plugin skill carrier documented
+by current Codex plugin guidance.
+
+**Experience:** ✅ N/A — internal tracker transport. Walked Safeword Maintainer
+through an unfiled cloud draft; worst step is the external tracker write, and
+new steps versus before = 0.
+
+**Evidence limits:** ⚠️ The aggregate Vitest runner remains long-running in the
+local and CI matrix runs after setup, a known runner limitation unrelated to
+the focused carrier path. Focused runtime tests, the direct Cucumber lane,
+lint, build, format, schema-drift checks, and dependency-cruiser complete.
+
+**Audit:** Audit passed — no architecture, dead-code, wiring, or new dependency
+finding in this diff. `bun audit` still reports two pre-existing website/tooling
+advisories (`fast-uri` high and Astro moderate); neither is introduced by this
+PR.
+
+**Quality Review:** APPROVE — current Codex documentation confirms plugins are
+the supported carrier for skills and hooks, while custom subagents remain
+separate configuration; the real Stop adapter and generated artifacts have
+focused wiring coverage.
+
+**Refactor:** ✅ No structural refactor warranted; the small runtime formatter
+split keeps a shared dispatch gate and prevents a Codex-only special case from
+leaking into Claude/Cursor behavior.

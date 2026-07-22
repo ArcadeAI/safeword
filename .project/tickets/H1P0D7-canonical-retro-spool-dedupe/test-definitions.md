@@ -71,8 +71,8 @@ Feature source: `packages/cli/features/canonical-retro-spool-dedupe.feature`
 ### Scenario: The Claude/Cursor filing carriers and Codex plugin filer skill direct the current spool contract
 
 - [x] RED skip: the pre-push parity test failed before the generated Cursor wrapper existed
-- [x] GREEN 2568dd7a1
-- [ ] REFACTOR
+- [x] GREEN 805fef077
+- [x] REFACTOR skip: runtime-specific carriers stay separate because Codex plugins do not package custom agents
 
 ## Rule: Older spool records remain fileable through legacy signature matching
 
