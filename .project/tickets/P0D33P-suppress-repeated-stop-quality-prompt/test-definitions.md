@@ -26,7 +26,7 @@ deterministically controlled.
 
 - [x] RED skip: the existing done gate already blocked this fixture before recognition was introduced; this is a characterization of required precedence
 - [x] GREEN 4b948f508
-- [ ] REFACTOR
+- [x] REFACTOR skip: no structural change; the scenario protects branch ordering only
 
 ## Rule: suppress-repeated-stop-quality-prompt.TBU1.R2 — An incomplete decision brief still receives the corrective quality prompt
 
