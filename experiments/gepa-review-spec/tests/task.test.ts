@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createOpenAIRunner, createRunnerFromEnv } from '../src/task';
+import { createAnthropicRunner, createOpenAIRunner, createRunnerFromEnv } from '../src/task';
 
 interface ChatBody {
   model: string;
@@ -14,6 +14,22 @@ interface ChatBody {
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
+    headers: { 'content-type': 'application/json' },
+  });
+}
+
+interface AnthropicBody {
+  model: string;
+  max_tokens: number;
+  temperature?: number;
+  thinking: { type: string };
+  output_config?: { effort: string };
+  messages: { role: string; content: string }[];
+}
+
+function anthropicResponse(text: string): Response {
+  return new Response(JSON.stringify({ content: [{ type: 'text', text }] }), {
+    status: 200,
     headers: { 'content-type': 'application/json' },
   });
 }
@@ -102,5 +118,68 @@ describe('createRunnerFromEnv — one harness, either vendor', () => {
         });
       });
     });
+  });
+});
+
+describe('effort knob — thinking/reasoning level per vendor', () => {
+  it('OpenAI: an effort level passes through to reasoning_effort with a bigger budget', async () => {
+    let captured: ChatBody | undefined;
+    const fetchImpl: typeof fetch = async (_input, init) => {
+      captured = JSON.parse(String(init?.body)) as ChatBody;
+      return jsonResponse({
+        choices: [
+          { finish_reason: 'stop', message: { content: '```json\n{"detections":[]}\n```' } },
+        ],
+      });
+    };
+    await createOpenAIRunner({ apiKey: 'k', effort: 'high', fetchImpl }).run('p', 'f');
+    expect(captured?.reasoning_effort).toBe('high');
+    // Reasoning tokens eat the budget, so thinking-on must get more headroom.
+    expect(captured?.max_completion_tokens ?? 0).toBeGreaterThan(8192);
+  });
+
+  it('Anthropic: default disables thinking (the prompt-isolating baseline)', async () => {
+    let captured: AnthropicBody | undefined;
+    const fetchImpl: typeof fetch = async (_input, init) => {
+      captured = JSON.parse(String(init?.body)) as AnthropicBody;
+      return anthropicResponse('```json\n{"detections":[]}\n```');
+    };
+    await createAnthropicRunner({ apiKey: 'k', model: 'claude-sonnet-5', fetchImpl }).run('p', 'f');
+    expect(captured?.thinking.type).toBe('disabled');
+    expect(captured?.output_config).toBeUndefined();
+  });
+
+  it('Anthropic: an effort level switches to adaptive thinking at that effort', async () => {
+    let captured: AnthropicBody | undefined;
+    const fetchImpl: typeof fetch = async (_input, init) => {
+      captured = JSON.parse(String(init?.body)) as AnthropicBody;
+      return anthropicResponse('```json\n{"detections":[]}\n```');
+    };
+    await createAnthropicRunner({
+      apiKey: 'k',
+      model: 'claude-opus-4-8',
+      effort: 'high',
+      fetchImpl,
+    }).run('p', 'f');
+    expect(captured?.thinking.type).toBe('adaptive');
+    expect(captured?.output_config?.effort).toBe('high');
+    expect(captured?.max_tokens).toBeGreaterThan(8192);
+  });
+
+  it('Anthropic: Fable is NEVER sent disabled thinking (it 400s) — floors at adaptive-low', async () => {
+    let captured: AnthropicBody | undefined;
+    const fetchImpl: typeof fetch = async (_input, init) => {
+      captured = JSON.parse(String(init?.body)) as AnthropicBody;
+      return anthropicResponse('```json\n{"detections":[]}\n```');
+    };
+    // 'off' on Fable must STILL be adaptive — `disabled` would 400 on every call.
+    await createAnthropicRunner({
+      apiKey: 'k',
+      model: 'claude-fable-5',
+      effort: 'off',
+      fetchImpl,
+    }).run('p', 'f');
+    expect(captured?.thinking.type).toBe('adaptive');
+    expect(captured?.output_config?.effort).toBe('low');
   });
 });

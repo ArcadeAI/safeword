@@ -68,21 +68,39 @@ export interface AnthropicRunnerOptions {
   /** Pin one model for reproducible scoring. */
   model?: string;
   maxTokens?: number;
+  /**
+   * Thinking depth. `off`/undefined disables thinking (except on always-on models
+   * like Fable/Mythos); `low`..`max` → adaptive thinking + `output_config.effort`.
+   */
+  effort?: string;
+  /** Test seam — defaults to the global fetch. */
+  fetchImpl?: typeof fetch;
 }
 
 /** Default runner: calls the Anthropic Messages API on Sonnet 5, thinking disabled. */
 export function createAnthropicRunner(options: AnthropicRunnerOptions = {}): SkillRunner {
   const apiKey = options.apiKey ?? process.env.ANTHROPIC_API_KEY;
   const model = options.model ?? 'claude-sonnet-5';
-  // Bumped from 4096: Sonnet 5's tokenizer runs ~30% larger, so the review JSON
-  // needs headroom or it can truncate mid-object and fail to parse.
-  const maxTokens = options.maxTokens ?? 8192;
+  const fetchImpl = options.fetchImpl ?? fetch;
   if (!apiKey) {
     throw new Error('createAnthropicRunner: ANTHROPIC_API_KEY is not set');
   }
+  // Sonnet 5 rejects `temperature` (400) and runs adaptive thinking when
+  // `thinking` is omitted, so both are set explicitly. `effort` off/undefined
+  // DISABLES thinking (the prompt-isolating default) — except on Fable/Mythos,
+  // which think ALWAYS (`disabled` 400s) and so floor at adaptive-low. Off keeps
+  // the lean 8192 budget; thinking-on gets headroom (32000) so reasoning tokens,
+  // which count against max_tokens, don't crowd out the JSON and truncate it.
+  const alwaysThinking = /fable|mythos/.test(model);
+  const off = options.effort === undefined || options.effort === 'off' || options.effort === 'none';
+  const thinking =
+    off && !alwaysThinking
+      ? { thinking: { type: 'disabled' } }
+      : { thinking: { type: 'adaptive' }, output_config: { effort: off ? 'low' : options.effort } };
+  const maxTokens = options.maxTokens ?? (off && !alwaysThinking ? 8192 : 32000);
   return {
     async run(skillPrompt, featureSource): Promise<RunOutput> {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
+      const res = await fetchImpl('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -92,11 +110,7 @@ export function createAnthropicRunner(options: AnthropicRunnerOptions = {}): Ski
         body: JSON.stringify({
           model,
           max_tokens: maxTokens,
-          // Sonnet 5 rejects `temperature` (400) and turns adaptive thinking ON
-          // when `thinking` is omitted (4.6 ran without it). Disable it so the
-          // model is the ONLY changed variable vs. the 4.6 baseline this harness
-          // was tuned against — a scoring instrument must move one knob at a time.
-          thinking: { type: 'disabled' },
+          ...thinking,
           system: `${skillPrompt}\n${EVAL_OUTPUT_CONTRACT}`,
           messages: [{ role: 'user', content: featureSource }],
         }),
@@ -116,6 +130,8 @@ export interface OpenAIRunnerOptions {
   /** Pin one model for reproducible scoring. Defaults to production's codex model. */
   model?: string;
   maxCompletionTokens?: number;
+  /** Reasoning depth: `off`/undefined → `reasoning_effort:'none'`; `low`..`max` pass through. */
+  effort?: string;
   /** Test seam — defaults to the global fetch. */
   fetchImpl?: typeof fetch;
 }
@@ -137,7 +153,14 @@ export interface OpenAIRunnerOptions {
 export function createOpenAIRunner(options: OpenAIRunnerOptions = {}): SkillRunner {
   const apiKey = options.apiKey ?? process.env.OPENAI_API_KEY;
   const model = options.model ?? 'gpt-5.6-sol';
-  const maxCompletionTokens = options.maxCompletionTokens ?? 8192;
+  const reasoningEffort =
+    options.effort === undefined || options.effort === 'off' || options.effort === 'none'
+      ? 'none'
+      : options.effort;
+  // Reasoning tokens count against this budget, so give thinking-on headroom or
+  // the JSON truncates; `none` keeps the lean 8192.
+  const maxCompletionTokens =
+    options.maxCompletionTokens ?? (reasoningEffort === 'none' ? 8192 : 32000);
   const fetchImpl = options.fetchImpl ?? fetch;
   if (!apiKey) {
     throw new Error('createOpenAIRunner: OPENAI_API_KEY is not set');
@@ -153,7 +176,7 @@ export function createOpenAIRunner(options: OpenAIRunnerOptions = {}): SkillRunn
         body: JSON.stringify({
           model,
           max_completion_tokens: maxCompletionTokens,
-          reasoning_effort: 'none',
+          reasoning_effort: reasoningEffort,
           messages: [
             { role: 'system', content: `${skillPrompt}\n${EVAL_OUTPUT_CONTRACT}` },
             { role: 'user', content: featureSource },
@@ -188,9 +211,10 @@ export function createOpenAIRunner(options: OpenAIRunnerOptions = {}): SkillRunn
  * (`SAFEWORD_EVAL_MODEL` / `SAFEWORD_EVAL_OPENAI_MODEL`) so they never collide.
  */
 export function createRunnerFromEnv(): SkillRunner {
+  const effort = process.env.SAFEWORD_EVAL_EFFORT;
   return process.env.SAFEWORD_EVAL_VENDOR === 'openai'
-    ? createOpenAIRunner({ model: process.env.SAFEWORD_EVAL_OPENAI_MODEL })
-    : createAnthropicRunner({ model: process.env.SAFEWORD_EVAL_MODEL });
+    ? createOpenAIRunner({ model: process.env.SAFEWORD_EVAL_OPENAI_MODEL, effort })
+    : createAnthropicRunner({ model: process.env.SAFEWORD_EVAL_MODEL, effort });
 }
 
 /**

@@ -84,13 +84,14 @@ async function main(): Promise<void> {
   const fixtures = loadFixtures();
   const model =
     vendor === 'openai' ? process.env.SAFEWORD_EVAL_OPENAI_MODEL : process.env.SAFEWORD_EVAL_MODEL;
+  const effort = process.env.SAFEWORD_EVAL_EFFORT ?? 'off';
   const runner = createRunnerFromEnv();
 
   console.log(
     `Corpus: ${fixtures.length} fixtures (${trainSplit(fixtures).length} train, ${testSplit(fixtures).length} test)`,
   );
   console.log(
-    `Vendor: ${vendor}   Model: ${model ?? '(runner default)'}   reasoning/thinking off\n`,
+    `Vendor: ${vendor}   Model: ${model ?? '(runner default)'}   thinking/reasoning: ${effort}\n`,
   );
 
   for (const [label, split] of [
