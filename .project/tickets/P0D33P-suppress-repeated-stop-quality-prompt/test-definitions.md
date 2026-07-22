@@ -10,7 +10,7 @@ deterministically controlled.
 
 ### Scenario: A complete CONFIDENT brief completes the edited-work stop
 
-- [ ] RED
+- [x] RED af8c5303d
 - [ ] GREEN
 - [ ] REFACTOR
 
