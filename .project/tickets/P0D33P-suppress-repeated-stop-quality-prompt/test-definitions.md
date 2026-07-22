@@ -22,7 +22,7 @@ deterministically controlled.
 
 ### Scenario: An out-of-order CONFIDENT brief is corrected
 
-- [ ] RED
+- [x] RED skip: the shared CONFIDENT grammar was already green before its independent ordering contract was added
 - [ ] GREEN
 - [ ] REFACTOR
 
