@@ -286,6 +286,29 @@ describe('the headless vendor adapter (36EEMY)', () => {
     expect(argv).not.toContain('gpt-5.6-sol');
   });
 
+  it('pins the claude reviewer to an explicit claude-sonnet-5, not the floating sonnet alias', async () => {
+    const { calls, spawn } = recordingSpawn({
+      status: 0,
+      stdout: JSON.stringify({ result: CLEAN_REVIEW }),
+    });
+
+    await createVendorRunner({
+      vendor: 'claude',
+      cwd: '/tmp/r',
+      env: {},
+      executionTier: 'degrade',
+      spawn,
+      writeFile: () => {},
+      readFile: () => '',
+    })(JOB, 'a diff');
+
+    // Pinned, not `sonnet`: the reviewer runs in customer repos and must not shift
+    // when the alias is repointed, and it has to match the model the prompt eval
+    // scores on for that verdict to transfer to production.
+    const argv = calls[0]?.argv ?? [];
+    expect(argv[argv.indexOf('--model') + 1]).toBe('claude-sonnet-5');
+  });
+
   it('warns when the claude reviewer is pointed at a Fable or Mythos model', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {

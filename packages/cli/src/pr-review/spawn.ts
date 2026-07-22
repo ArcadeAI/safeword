@@ -52,6 +52,17 @@ const VENDOR_TIMEOUT_MS = 15 * 60 * 1000;
  */
 const PR_REVIEW_CODEX_MODEL = 'gpt-5.6-sol';
 
+/**
+ * The reviewer's default Claude model. Pinned to the explicit `claude-sonnet-5`,
+ * not the floating `sonnet` alias retro leans on: the reviewer runs in customer
+ * repos and must review the same way every time, so its model can't shift when
+ * Anthropic repoints the alias. Sonnet 5 is near-Opus on coding/agentic work at a
+ * fraction of the cost — the right tier for a per-PR reviewer. The prompt eval
+ * (CWGYH0) must score on this same id for its verdict to transfer to production —
+ * see the impl-plan model-routing row. `prReview.model` overrides it.
+ */
+const PR_REVIEW_CLAUDE_MODEL = 'claude-sonnet-5';
+
 export interface VendorRunnerOptions {
   vendor: Vendor;
   /** Working directory for the child. */
@@ -187,7 +198,7 @@ async function runClaude(
       },
       env: options.env,
       cwd: options.cwd,
-      model: options.model,
+      model: options.model ?? PR_REVIEW_CLAUDE_MODEL,
       allowedTools: claudeToolsFor(options.executionTier, options.mcpToolGrant),
       mcpConfigPath: options.mcpConfigPath,
     },
