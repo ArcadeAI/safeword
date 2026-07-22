@@ -22,6 +22,13 @@ import {
 const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 const STOP_QUALITY = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/stop-quality.ts');
 const ADVICE_MARKER = 'TypeScript errors reported by the configs covering your changes';
+const COMPLETE_CONFIDENT = `**CONFIDENT** — The change is ready.
+
+**Decided:** Added the requested behavior.
+
+**Open:** none.
+
+**Next:** Review the change.`;
 
 interface HookRun {
   status: number | null;
@@ -78,12 +85,16 @@ function transcriptLine(): string {
   });
 }
 
-function runStop(cwd: string, stopHookActive = false): HookRun {
+function runStop(
+  cwd: string,
+  stopHookActive = false,
+  lastAssistantMessage = 'Made changes.',
+): HookRun {
   const result = spawnSync('bun', [STOP_QUALITY], {
     input: JSON.stringify({
       session_id: 'test-session',
       transcript_path: nodePath.join(cwd, 'transcript.jsonl'),
-      last_assistant_message: 'Made changes.',
+      last_assistant_message: lastAssistantMessage,
       stop_hook_active: stopHookActive,
     }),
     cwd,
@@ -126,6 +137,17 @@ describe('stop-quality implement-stop typecheck gate (SW1SE5 Rules 2-4)', () => 
     // Bypass cycle: the hook exits 0 with no block, so the agent can stop.
     expect(second.status).toBe(0);
     expect(second.stdout.trim()).toBe('');
+  });
+
+  it('keeps typecheck advice ahead of a complete CONFIDENT brief', () => {
+    cwd = buildProject('implement');
+
+    const run = runStop(cwd, false, COMPLETE_CONFIDENT);
+
+    expect(run.status).toBe(0);
+    const parsed = JSON.parse(run.stdout) as { decision?: string; reason?: string };
+    expect(parsed.decision).toBe('block');
+    expect(parsed.reason).toContain(ADVICE_MARKER);
   });
 
   it('does not fire the typecheck-advice path at the done phase (Rule 4)', () => {

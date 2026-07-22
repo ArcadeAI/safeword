@@ -55,9 +55,10 @@ function buildProject(): string {
   return projectDirectory;
 }
 
-function runStop(projectDirectory: string, lastAssistantMessage: string) {
+function runStop(projectDirectory: string, lastAssistantMessage: string, sessionId?: string) {
   return spawnSync('bun', [STOP_QUALITY], {
     input: JSON.stringify({
+      session_id: sessionId,
       transcript_path: nodePath.join(projectDirectory, 'transcript.jsonl'),
       last_assistant_message: lastAssistantMessage,
       stop_hook_active: false,
@@ -74,6 +75,26 @@ function writeDoneTicket(projectDirectory: string): void {
     projectDirectory,
     '.project/tickets/099-done/ticket.md',
     ['---', 'id: 099', 'status: in_progress', 'type: task', 'phase: done', '---'].join('\n'),
+  );
+}
+
+function writeDisqualifiedImplementSession(projectDirectory: string): void {
+  writeTestFile(
+    projectDirectory,
+    '.project/tickets/099-implement/ticket.md',
+    ['---', 'id: 099', 'status: in_progress', 'type: task', 'phase: implement', '---'].join('\n'),
+  );
+  writeTestFile(
+    projectDirectory,
+    '.project/quality-state-test-session.json',
+    JSON.stringify({
+      activeTicket: '099',
+      gate: undefined,
+      incrementedPatterns: [],
+      lastCommitHash: '',
+      locSinceCommit: 0,
+      recentFailures: [{ pattern: 'loc-exceeded', timestamp: '2026-07-22T00:00:00.000Z' }],
+    }),
   );
 }
 
@@ -124,5 +145,17 @@ describe('Stop Hook: complete decision brief recognition (P0D33P)', () => {
     const output = JSON.parse(result.stdout) as { decision?: string; reason?: string };
     expect(output.decision).toBe('block');
     expect(output.reason).toMatch(/verify/i);
+  });
+
+  it('keeps a phase-relevant disqualification ahead of a complete CONFIDENT brief', () => {
+    projectDirectory = buildProject();
+    writeDisqualifiedImplementSession(projectDirectory);
+
+    const result = runStop(projectDirectory, COMPLETE_CONFIDENT, 'test-session');
+
+    expect(result.status).toBe(0);
+    const output = JSON.parse(result.stdout) as { decision?: string; reason?: string };
+    expect(output.decision).toBe('block');
+    expect(output.reason).toContain('loc-exceeded');
   });
 });
