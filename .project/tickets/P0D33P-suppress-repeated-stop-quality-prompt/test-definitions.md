@@ -24,7 +24,7 @@ deterministically controlled.
 
 - [x] RED skip: the shared CONFIDENT grammar was already green before its independent ordering contract was added
 - [x] GREEN 4b948f508
-- [ ] REFACTOR
+- [x] REFACTOR skip: no structural change; ordered marker matching is already shared
 
 ## Rule: suppress-repeated-stop-quality-prompt.TBU1.R3 — Done-phase hard gates take precedence over a compliant brief
 
