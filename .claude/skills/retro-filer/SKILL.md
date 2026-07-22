@@ -17,7 +17,7 @@ the host project.
 2. For each draft, search only open issues in `ArcadeAI/safeword` using
    `is:issue is:open`, then exact-check the raw issue body. First check the exact
    `<!-- safeword-retro-signature: <signature> -->` marker. Only when that misses
-   and `canonicalSignature` is present, confirm the draft body contains the exact
+   and `canonicalSignature` is present, confirm the draft body contains its exact
    `<!-- safeword-retro-canonical: <canonicalSignature> -->` marker, then check
    that canonical marker. A missing or mismatched body marker disables canonical
    fallback. Never use a title as duplicate authority.
