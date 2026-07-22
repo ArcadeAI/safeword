@@ -163,6 +163,13 @@ describe('audit test quality severity', () => {
 });
 
 describe('audit installed-project stack awareness', () => {
+  it('keeps dogfood agent audit skills synchronized with the shipped template', () => {
+    const template = readAuditSurface('packages/cli/templates/skills/audit/SKILL.md');
+
+    expect(readAuditSurface('.claude/skills/audit/SKILL.md')).toBe(template);
+    expect(readAuditSurface('.agents/skills/audit/SKILL.md')).toBe(template);
+  });
+
   it.each(AUDIT_SURFACES)('%s gates JavaScript checks on package.json evidence', relativePath => {
     const content = readAuditSurface(relativePath);
 
@@ -250,14 +257,18 @@ describe('audit installed-project stack awareness', () => {
       'apps/engine/go.mod': 'module example.com/engine\n',
       'node_modules/dependency/go.mod': 'module example.com/dependency\n',
       '.venv/lib/python/pyproject.toml': '[project]\nname = "ignored"\n',
+      'venv/lib/python/pyproject.toml': '[project]\nname = "ignored"\n',
       'vendor/dependency/go.mod': 'module example.com/vendor\n',
+      'target/debug/dependency/Cargo.toml': '[package]\nname = "ignored"\nversion = "0.1.0"\n',
     });
 
     expect(result.status).toBe(0);
     expect(result.stdout).toContain('Go dead-code — ./apps/engine');
     expect(result.stdout).not.toContain('./node_modules/dependency');
     expect(result.stdout).not.toContain('./.venv/lib/python');
+    expect(result.stdout).not.toContain('./venv/lib/python');
     expect(result.stdout).not.toContain('./vendor/dependency');
+    expect(result.stdout).not.toContain('./target/debug/dependency');
   });
 
   it('runs Knip from each workspace-local configuration when the root has none', () => {

@@ -71,7 +71,7 @@ detect_package_manager() {
 # not applications the audit owns and would make the results both noisy and slow.
 find_manifest_dirs() {
   find . \
-    -type d \( -name .git -o -name node_modules -o -name .venv -o -name vendor \) -prune -o \
+    -type d \( -name .git -o -name node_modules -o -name .venv -o -name venv -o -name vendor -o -name target \) -prune -o \
     -type f \( "$@" \) -print 2> /dev/null \
     | while IFS= read -r manifest; do dirname "$manifest"; done \
     | LC_ALL=C sort -u
@@ -102,7 +102,7 @@ PYTHON_AUDIT_DIRS="$(printf '%s\n' "$PYTHON_PROJECT_DIRS" | python_audit_roots)"
 # from its own directory so its entry/project patterns have their intended scope.
 find_knip_configs() {
   find . \
-    -type d \( -name .git -o -name node_modules -o -name .venv -o -name vendor \) -prune -o \
+    -type d \( -name .git -o -name node_modules -o -name .venv -o -name venv -o -name vendor -o -name target \) -prune -o \
     -type f \( -name knip.json -o -name knip.jsonc -o -name .knip.json -o -name .knip.jsonc -o -name knip.ts -o -name knip.js -o -name knip.config.ts -o -name knip.config.js \) -print 2> /dev/null \
     | LC_ALL=C sort
 }
