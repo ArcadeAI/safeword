@@ -12,7 +12,7 @@ deterministically controlled.
 
 - [x] RED af8c5303d
 - [x] GREEN 6f950b16e
-- [ ] REFACTOR
+- [x] REFACTOR skip: ordered marker helper already removes the shared grammar duplication
 
 ### Scenario: A complete BLOCKED brief completes the edited-work stop
 
