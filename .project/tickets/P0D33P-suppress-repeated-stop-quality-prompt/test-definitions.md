@@ -18,7 +18,7 @@ deterministically controlled.
 
 - [x] RED skip: shared recognizer was introduced by the prior CONFIDENT red slice before this independent verdict fixture
 - [x] GREEN 4b948f508
-- [ ] REFACTOR
+- [x] REFACTOR skip: BLOCKED reuses the same ordered-marker helper without new structure
 
 ## Rule: suppress-repeated-stop-quality-prompt.TBU1.R3 — Done-phase hard gates take precedence over a compliant brief
 
