@@ -77,7 +77,11 @@ function runAuditAutomation(
       'deadcode',
     ]) {
       if (options.missingCommands?.includes(command)) continue;
-      writeExecutable(binDirectory, command, `echo "[fake-${command}] $@"`);
+      const body =
+        command === 'bunx'
+          ? 'if [ "$1" = "knip" ]; then echo "[fake-knip] cwd=$PWD args=$@"; else echo "[fake-bunx] $@"; fi'
+          : `echo "[fake-${command}] $@"`;
+      writeExecutable(binDirectory, command, body);
     }
     writeExecutable(
       binDirectory,
@@ -254,6 +258,23 @@ describe('audit installed-project stack awareness', () => {
     expect(result.stdout).not.toContain('./node_modules/dependency');
     expect(result.stdout).not.toContain('./.venv/lib/python');
     expect(result.stdout).not.toContain('./vendor/dependency');
+  });
+
+  it('runs Knip from each workspace-local configuration when the root has none', () => {
+    const result = runAuditAutomation({
+      'package.json': JSON.stringify({ name: 'monorepo' }),
+      'apps/dashboard/package.json': JSON.stringify({ name: 'dashboard' }),
+      'apps/dashboard/knip.config.ts': 'export default {};\n',
+      'apps/admin/package.json': JSON.stringify({ name: 'admin' }),
+      'apps/admin/knip.json': '{}\n',
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('Knip — ./apps/admin (knip.json)');
+    expect(result.stdout).toContain('Knip — ./apps/dashboard (knip.config.ts)');
+    expect(result.stdout).toContain('apps/admin args=knip --config knip.json');
+    expect(result.stdout).toContain('apps/dashboard args=knip --config knip.config.ts');
+    expect(result.stdout).not.toContain('Knip — repository root');
   });
 
   it('does not run Yarn Classic outdated command for Yarn modern projects', () => {

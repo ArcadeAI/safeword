@@ -96,6 +96,49 @@ python_audit_roots() {
 
 PYTHON_AUDIT_DIRS="$(printf '%s\n' "$PYTHON_PROJECT_DIRS" | python_audit_roots)"
 
+# Knip resolves a config relative to its current directory. In a monorepo a
+# root invocation therefore does not automatically apply apps/*/knip.config.*.
+# A root config owns the whole repository; without one, run each leaf config
+# from its own directory so its entry/project patterns have their intended scope.
+find_knip_configs() {
+  find . \
+    -type d \( -name .git -o -name node_modules -o -name .venv -o -name vendor \) -prune -o \
+    -type f \( -name knip.json -o -name knip.jsonc -o -name .knip.json -o -name .knip.jsonc -o -name knip.ts -o -name knip.js -o -name knip.config.ts -o -name knip.config.js \) -print 2> /dev/null \
+    | LC_ALL=C sort
+}
+
+root_knip_config() {
+  for config in knip.json knip.jsonc .knip.json .knip.jsonc knip.ts knip.js knip.config.ts knip.config.js; do
+    [ -f "$config" ] && {
+      printf '%s\n' "$config"
+      return
+    }
+  done
+}
+
+KNIP_CONFIG_FILES="$(find_knip_configs)"
+
+run_knip_check() {
+  root_config="$(root_knip_config)"
+  if [ -n "$root_config" ]; then
+    echo "Knip — repository root ($root_config)"
+    bunx knip --config "$root_config" 2>&1 || true
+  elif [ -n "$KNIP_CONFIG_FILES" ]; then
+    while IFS= read -r config_path; do
+      [ -n "$config_path" ] || continue
+      config_dir="$(dirname "$config_path")"
+      config_name="$(basename "$config_path")"
+      echo "Knip — $config_dir ($config_name)"
+      (cd "$config_dir" && bunx knip --config "$config_name" 2>&1 || true)
+    done << EOF
+$KNIP_CONFIG_FILES
+EOF
+  else
+    echo "Knip — repository root (no workspace config found)"
+    bunx knip 2>&1 || true
+  fi
+}
+
 run_yarn_outdated_check() {
   YARN_VERSION="$(yarn --version 2> /dev/null || true)"
   case "$YARN_VERSION" in
@@ -222,9 +265,9 @@ fi
 # =========================================================================
 
 # 2a. Dead code - TypeScript/JS (knip — read-only, reports unused exports/deps/config hints)
-[ -f package.json ] && {
-  bunx knip 2>&1 || true
-}
+# Leaf Knip configs are executed from their workspace so monorepo audits do not
+# silently ignore their entry/project rules.
+([ -f package.json ] || [ -n "$KNIP_CONFIG_FILES" ]) && run_knip_check
 
 # 2b. Dead code - Python (deadcode)
 # A missing tool must be loud — `|| true` alone would make "not installed"
