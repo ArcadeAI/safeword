@@ -23,7 +23,7 @@ deterministically controlled.
 ### Scenario: An out-of-order CONFIDENT brief is corrected
 
 - [x] RED skip: the shared CONFIDENT grammar was already green before its independent ordering contract was added
-- [ ] GREEN
+- [x] GREEN 4b948f508
 - [ ] REFACTOR
 
 ## Rule: suppress-repeated-stop-quality-prompt.TBU1.R3 — Done-phase hard gates take precedence over a compliant brief
