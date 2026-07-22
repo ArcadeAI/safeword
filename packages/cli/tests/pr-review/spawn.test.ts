@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { createReviewJob } from '../../src/pr-review/invoke.js';
 import { createVendorRunner, type RawSpawn } from '../../src/pr-review/spawn.js';
@@ -245,5 +245,93 @@ describe('the headless vendor adapter (36EEMY)', () => {
     const argv = (calls[0]?.argv ?? []).join(' ');
     expect(argv).not.toContain('sk-secret-value');
     expect(argv).not.toContain('arc-secret');
+  });
+
+  it('defaults the codex reviewer to gpt-5.6 Sol, not retro’s gpt-5.5', async () => {
+    const { calls, spawn } = recordingSpawn({ status: 0, stdout: '' });
+
+    await createVendorRunner({
+      vendor: 'codex',
+      cwd: '/tmp/r',
+      env: {},
+      executionTier: 'degrade',
+      spawn,
+      writeFile: () => {},
+      readFile: () => CLEAN_REVIEW,
+    })(JOB, 'd');
+
+    // Sol is GPT-5.6’s coding + cybersecurity flagship; retro’s gpt-5.5 default
+    // is the wrong tier for a reviewer that reads code and inspects auth paths.
+    const argv = (calls[0]?.argv ?? []).join(' ');
+    expect(argv).toContain('gpt-5.6-sol');
+    expect(argv).not.toContain('gpt-5.5');
+  });
+
+  it('lets an explicit prReview.model override the codex default', async () => {
+    const { calls, spawn } = recordingSpawn({ status: 0, stdout: '' });
+
+    await createVendorRunner({
+      vendor: 'codex',
+      cwd: '/tmp/r',
+      env: {},
+      executionTier: 'degrade',
+      model: 'gpt-5.6-terra',
+      spawn,
+      writeFile: () => {},
+      readFile: () => CLEAN_REVIEW,
+    })(JOB, 'd');
+
+    const argv = (calls[0]?.argv ?? []).join(' ');
+    expect(argv).toContain('gpt-5.6-terra');
+    expect(argv).not.toContain('gpt-5.6-sol');
+  });
+
+  it('warns when the claude reviewer is pointed at a Fable or Mythos model', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      for (const model of ['claude-fable-5', 'fable', 'claude-mythos-5']) {
+        warnSpy.mockClear();
+        createVendorRunner({
+          vendor: 'claude',
+          cwd: '/tmp/r',
+          env: {},
+          executionTier: 'degrade',
+          model,
+          spawn: () => ({ status: 0, stdout: '' }),
+          writeFile: () => {},
+          readFile: () => '',
+        });
+        // Fable/Mythos refuse cyber content and exclude security bug-finding,
+        // and this reviewer inspects auth/billing/injection — so warn loudly
+        // rather than run a review that will silently underperform or refuse.
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+        expect(String(warnSpy.mock.calls[0]?.[0])).toMatch(/security|fable|mythos/i);
+      }
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it('stays silent for a well-suited model, an unset model, or the codex vendor', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const base = {
+        cwd: '/tmp/r',
+        env: {},
+        executionTier: 'degrade' as const,
+        spawn: () => ({ status: 0, stdout: '' }),
+        writeFile: () => {},
+        readFile: () => '',
+      };
+      createVendorRunner({ ...base, vendor: 'claude', model: 'claude-opus-4-8' });
+      createVendorRunner({ ...base, vendor: 'claude', model: 'sonnet' });
+      createVendorRunner({ ...base, vendor: 'claude' });
+      // Fable is unreachable via codex anyway (OpenAI models only), so a codex
+      // model string is never something this guard should fire on.
+      createVendorRunner({ ...base, vendor: 'codex', model: 'gpt-5.6-sol' });
+      expect(warnSpy).not.toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 });

@@ -8,8 +8,9 @@
 // fail-open parsing — belongs to the generalized runners in
 // `hooks/lib/retro-extract.ts` (slice 0). What is here is the review job's
 // divergence from retro's: a real MCP broker instead of `mcp_servers={}`, a
-// sandbox tiered by execution trust instead of always read-only, and a bounded
-// timeout so a hung model cannot hold a CI runner for its whole job budget.
+// sandbox tiered by execution trust instead of always read-only, a review-fit
+// default model (GPT-5.6 Sol) instead of retro's summariser default, and a
+// bounded timeout so a hung model cannot hold a CI runner for its whole job budget.
 
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
@@ -20,6 +21,7 @@ import {
   runCodexHeadlessExtractionChecked,
   runHeadlessExtraction,
 } from '../../templates/hooks/lib/retro-extract.js';
+import { warn } from '../utils/output.js';
 import type { ExecutionTier } from './execution.js';
 import type { ReviewJob, VendorRunner, VendorRunResult } from './invoke.js';
 import type { Vendor } from './vendor.js';
@@ -38,6 +40,17 @@ export type RawSpawn = (
  * anyway, so the cap is well inside it.
  */
 const VENDOR_TIMEOUT_MS = 15 * 60 * 1000;
+
+/**
+ * The reviewer's default codex model. Sol is GPT-5.6's deep-reasoning flagship —
+ * OpenAI's own "best coding model" and "strongest cybersecurity model," the tier
+ * a reviewer that inspects auth/billing/injection wants. Pinned to the explicit
+ * id (not the floating `gpt-5.6` alias) for legibility and repeatable reviews.
+ * Deliberately diverges from retro's `gpt-5.5`: retro summarises a transcript,
+ * this reads code. `.safeword/config.json → prReview.model` overrides it.
+ * Verified: gpt-5.6-{sol,terra,luna}; codex GA 2026-07-09.
+ */
+const PR_REVIEW_CODEX_MODEL = 'gpt-5.6-sol';
 
 export interface VendorRunnerOptions {
   vendor: Vendor;
@@ -90,6 +103,7 @@ const realSpawn: RawSpawn = (binary, argv, options) => {
  */
 export function createVendorRunner(options: VendorRunnerOptions): VendorRunner {
   const spawn = options.spawn ?? realSpawn;
+  warnIfUnsuitedForSecurityReview(options.vendor, options.model);
 
   // Not `async`: it returns the runner's promise directly, and marking it async
   // would only add a wrapper tick.
@@ -138,7 +152,8 @@ async function runCodex(
       readFile,
       env: options.env,
       cwd: options.cwd,
-      model: options.model,
+      // The reviewer pins Sol by default; retro's gpt-5.5 is the wrong tier here.
+      model: options.model ?? PR_REVIEW_CODEX_MODEL,
       schemaPath: nodePath.join(workspace, 'review-schema.json'),
       outputPath: nodePath.join(workspace, 'review.json'),
       // The review job's three divergences from retro's, all deliberate:
@@ -200,4 +215,25 @@ function claudeToolsFor(tier: ExecutionTier, mcpToolGrant?: string): string {
   // The tracker read (R6) is safe in BOTH tiers — reading an issue as the PR
   // author is identity, not execution — so the MCP grant is not gated by trust.
   return (mcpToolGrant === undefined ? base : [...base, mcpToolGrant]).join(',');
+}
+
+/**
+ * Warn — never block — when the Claude reviewer is pointed at a Fable or Mythos
+ * model. Those tiers' safety classifiers can refuse benign security-adjacent
+ * code, and their published bug-finding gains explicitly EXCLUDE security
+ * analysis — yet this reviewer inspects auth, billing, and injection paths
+ * (prompt §1/§4). A maintainer who chose the model on purpose keeps agency; a
+ * silent misconfiguration into a model that will underperform-or-refuse does
+ * not. Codex can't reach these models (OpenAI-only), so the check is Claude-side.
+ * Verified against the claude-api model guidance, 2026-07.
+ */
+function warnIfUnsuitedForSecurityReview(vendor: Vendor, model: string | undefined): void {
+  if (vendor !== 'claude' || model === undefined) return;
+  if (/\b(?:fable|mythos)\b/i.test(model)) {
+    warn(
+      `pr-review: model "${model}" is ill-suited to this reviewer — Fable/Mythos refuse ` +
+        `cyber content and exclude security bug-finding, while this review inspects ` +
+        `auth/billing/injection. Prefer claude-opus-4-8, claude-sonnet-5, or codex gpt-5.6-sol.`,
+    );
+  }
 }
