@@ -65,12 +65,17 @@ detect_package_manager() {
   node -e 'try { const pm = JSON.parse(require("fs").readFileSync("package.json", "utf8")).packageManager || ""; console.log(pm.split("@")[0] || "npm"); } catch { console.log("npm"); }'
 }
 
-# Native manifests may belong to leaf applications rather than the repository
-# root. Exclude dependency and virtual-environment trees: their manifests are
-# not applications the audit owns and would make the results both noisy and slow.
-find_manifest_dirs() {
+# Native manifests and Knip configs may belong to leaf applications rather than
+# the repository root. Exclude dependency and virtual-environment trees: their
+# files are not applications the audit owns and would make results noisy and slow.
+find_audit_files() {
   find . \
-    -type d \( -name .git -o -name node_modules -o -name .venv -o -name vendor \) -prune -o \
+    -type d \( -name .git -o -name node_modules -o -name .venv -o -name venv -o -name vendor -o -name target \) -prune -o \
+    "$@"
+}
+
+find_manifest_dirs() {
+  find_audit_files \
     -type f \( "$@" \) -print 2> /dev/null \
     | while IFS= read -r manifest; do dirname "$manifest"; done \
     | LC_ALL=C sort -u
@@ -100,8 +105,7 @@ PYTHON_AUDIT_DIRS="$(printf '%s\n' "$PYTHON_PROJECT_DIRS" | python_audit_roots)"
 # A root config owns the whole repository; without one, run each leaf config
 # from its own directory so its entry/project patterns have their intended scope.
 find_knip_configs() {
-  find . \
-    -type d \( -name .git -o -name node_modules -o -name .venv -o -name vendor \) -prune -o \
+  find_audit_files \
     -type f \( -name knip.json -o -name knip.jsonc -o -name .knip.json -o -name .knip.jsonc -o -name knip.ts -o -name knip.js -o -name knip.config.ts -o -name knip.config.js \) -print 2> /dev/null \
     | LC_ALL=C sort
 }
