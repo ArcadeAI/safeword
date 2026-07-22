@@ -1,0 +1,12 @@
+{
+  "split": "test",
+  "certifiedClean": true,
+  "defects": [
+    {
+      "scenarioId": "An active ticket lists the epic label before the type label",
+      "defectType": "determinism-order",
+      "severity": "must-fix",
+      "note": "mutation operator: assert-unordered-as-ordered. Labels are a SET (epic + type, no specified order); asserting first/second position is flaky. Fix: assert membership (labels include the epic AND type labels), not position. Other two scenarios unchanged & clean."
+    }
+  ]
+}

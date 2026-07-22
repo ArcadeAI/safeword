@@ -1,0 +1,6 @@
+{
+  "split": "test",
+  "certifiedClean": true,
+  "defects": [],
+  "note": "New held-out domain (excerpted from features/sync-tracker.feature). Three atomic scenarios, each asserting a concrete/falsifiable value (open, no-calls, closed), one negative case; deterministic. Certified-clean negative AND parent of the tracker-* single-mutation positives. Adds a SECOND held-out domain so held-out can measure a subtle precision change (ticket 21RAT9; E2D8S5 held-out was formatter-only)."
+}

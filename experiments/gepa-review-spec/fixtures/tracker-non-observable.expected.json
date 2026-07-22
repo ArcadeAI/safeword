@@ -1,0 +1,12 @@
+{
+  "split": "test",
+  "certifiedClean": true,
+  "defects": [
+    {
+      "scenarioId": "An active ticket is marked projected",
+      "defectType": "non-observable",
+      "severity": "must-fix",
+      "note": "mutation operator: externalize->internalize. 'the builder's internal projected flag' asserts a private implementation detail, not an externally observable outcome (the emitted payload). Fix: assert the observable projection (payload state / labels). Other two scenarios unchanged & clean."
+    }
+  ]
+}

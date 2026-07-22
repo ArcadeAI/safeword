@@ -1,0 +1,12 @@
+{
+  "split": "test",
+  "certifiedClean": true,
+  "defects": [
+    {
+      "scenarioId": "An active ticket projects to an open issue",
+      "defectType": "vacuous-non-claim",
+      "severity": "must-fix",
+      "note": "mutation operator: Then-to-non-claim. 'the sync does not error' is a non-falsifiable non-claim that asserts nothing about the projection behaviour (payload state / labels / body). Other two scenarios unchanged & clean."
+    }
+  ]
+}
