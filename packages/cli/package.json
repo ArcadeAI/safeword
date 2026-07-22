@@ -1,6 +1,6 @@
 {
   "name": "safeword",
-  "version": "0.68.0",
+  "version": "0.69.0",
   "description": "CLI for setting up and managing safeword development environments",
   "repository": {
     "type": "git",
@@ -23,6 +23,7 @@
     }
   },
   "files": [
+    "codex-plugin",
     "dist",
     "templates"
   ],
@@ -34,7 +35,8 @@
     "dev": "tsup --watch",
     "test": "node scripts/run-vitest-with-build-lock.mjs",
     "pretest:bdd": "tsup",
-    "test:bdd": "cucumber-js",
+    "test:bdd": "cucumber-js --tags 'not @wip and not @manual and not @live'",
+    "test:bdd:live": "cucumber-js --tags '@live and not @manual'",
     "test:done": "node scripts/run-vitest-with-build-lock.mjs tests/hooks/ tests/schema.test.ts",
     "test:integration": "node scripts/run-vitest-with-build-lock.mjs tests/integration/",
     "test:smoke:fast": "node scripts/run-vitest-with-build-lock.mjs tests/hooks/ tests/schema.test.ts tests/integration/quality-gates.test.ts tests/integration/jtbd-gate.test.ts tests/smoke/hook-coverage.test.ts",
@@ -42,6 +44,7 @@
     "test:smoke:live": "node scripts/run-vitest-with-build-lock.mjs --config vitest.live.config.ts",
     "test:release": "node scripts/run-vitest-with-build-lock.mjs --config vitest.release.config.ts",
     "test:slow": "node scripts/run-vitest-with-build-lock.mjs --config vitest.slow.config.ts",
+    "generate:codex-plugin": "bun scripts/generate-codex-plugin.ts",
     "generate:cursor-wrappers": "bun scripts/generate-cursor-wrappers.ts",
     "parity:fix": "bun ../../scripts/parity-check.ts --fix",
     "pretest:watch": "tsup",
@@ -82,22 +85,23 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-regexp": "3.1.1",
     "eslint-plugin-security": "4.0.1",
-    "eslint-plugin-simple-import-sort": "^13.0.0",
+    "eslint-plugin-simple-import-sort": "^14.0.0",
     "eslint-plugin-sonarjs": "4.1.0",
     "eslint-plugin-storybook": "10.5.0",
     "eslint-plugin-turbo": "2.10.4",
     "eslint-plugin-unicorn": "71.1.0",
+    "smol-toml": "1.7.0",
     "typescript-eslint": "8.63.0",
     "yaml": "^2.9.0"
   },
   "devDependencies": {
-    "@cucumber/cucumber": "^13.0.0",
+    "@cucumber/cucumber": "^13.1.1",
     "@types/estree": "^1.0.9",
     "@types/node": "^26.1.1",
     "@vitest/coverage-v8": "^4.1.9",
     "eslint": "^10.6.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
-    "knip": "6.26.0",
+    "knip": "6.27.0",
     "prettier": "^3.9.5",
     "publint": "^0.3.21",
     "tsup": "^8.5.1",

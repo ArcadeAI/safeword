@@ -1,0 +1,617 @@
+import { execFileSync, spawnSync } from 'node:child_process';
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import nodePath from 'node:path';
+import process from 'node:process';
+
+import { generateOwnedPathsModule } from '../owned-paths.js';
+import { SAFEWORD_SCHEMA } from '../schema.js';
+import { resolveNamespaceRoot } from '../utils/configured-paths.js';
+
+type AdditionalContextHookEvent = 'PostToolUse' | 'SessionStart' | 'UserPromptSubmit';
+type SupportedCodexHookEvent =
+  'post-tool-use' | 'pre-tool-use' | 'session-start' | 'stop' | 'user-prompt-submit';
+
+interface CodexHookInput {
+  hook_event_name?: string;
+  session_id?: string;
+  tool_name?: string;
+  tool_input?: {
+    command?: string;
+    file_path?: string;
+    notebook_path?: string;
+  };
+}
+
+interface DenialOutput {
+  systemMessage: string;
+  hookSpecificOutput: {
+    hookEventName: 'PreToolUse';
+    permissionDecision: 'deny';
+    permissionDecisionReason: string;
+  };
+}
+
+interface AdditionalContextOutput {
+  hookSpecificOutput: {
+    hookEventName: AdditionalContextHookEvent;
+    additionalContext: string;
+  };
+}
+
+interface StopContinuationOutput {
+  decision: 'block';
+  reason: string;
+}
+
+interface PackagedHookResult {
+  error?: Error;
+  status?: number;
+  stderr: string;
+  stdout: string;
+}
+
+const EXPLAIN_HINT = 'Run `$explain` for a plain-English version of this block.';
+const EXIT_CODE_DENY_MODE = 'exit-code';
+const REQUIRED_INTAKE_FIELDS = ['scope', 'out_of_scope', 'done_when'] as const;
+const MODULE_DIRECTORY = import.meta.dirname;
+const TEMPLATE_DIRECTORIES = [
+  nodePath.resolve(MODULE_DIRECTORY, '../templates'),
+  nodePath.resolve(MODULE_DIRECTORY, '../../templates'),
+];
+const POST_TOOL_GUIDANCE_PATH = '.project/codex-post-tool-guidance.txt';
+const PROMPT_CONTEXT_PATH = '.project/codex-prompt-context.txt';
+const STOP_CONTINUATION_PATH = '.project/codex-stop-continuation.txt';
+const CODEX_RUN_IDENTITY_CACHE = 'codex-run-identity.json';
+const CODEX_REVIEW_STAMP_IDENTITY_CACHE = 'codex-review-stamp-identity.json';
+const RECORD_SKILL_INVOCATION_SCRIPT = '.safeword/hooks/record-skill-invocation.ts';
+const WRITE_REVIEW_STAMP_SCRIPT = '.safeword/hooks/write-review-stamp.ts';
+const REVIEW_STAMP_CACHE_KEY = 'review-stamp';
+const SKILL_NAME_PATTERN = /^[a-z][a-z0-9-]*$/u;
+const SHELL_SEPARATORS = ';&|';
+const SHELL_WHITESPACE = ' \n\r\t\v\f';
+const SUPPORTED_CODEX_HOOK_EVENTS: ReadonlySet<string> = new Set([
+  'post-tool-use',
+  'pre-tool-use',
+  'session-start',
+  'stop',
+  'user-prompt-submit',
+]);
+
+async function readStdin(): Promise<string> {
+  let body = '';
+  process.stdin.setEncoding('utf8');
+  for await (const chunk of process.stdin) {
+    body += String(chunk);
+  }
+  return body;
+}
+
+function parseCodexHookInput(raw: string): CodexHookInput | undefined {
+  try {
+    return JSON.parse(raw) as CodexHookInput;
+  } catch {
+    return undefined;
+  }
+}
+
+function normalizeEvent(event: string): SupportedCodexHookEvent | undefined {
+  if (SUPPORTED_CODEX_HOOK_EVENTS.has(event)) return event as SupportedCodexHookEvent;
+  return undefined;
+}
+
+function resolveProjectDirectory(): string {
+  if (process.env.CLAUDE_PROJECT_DIR) return process.env.CLAUDE_PROJECT_DIR;
+
+  try {
+    const root = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 5000,
+    }).trim();
+    if (root.length > 0) return root;
+  } catch {
+    // Fall back to cwd when the hook runs outside git or git is unavailable.
+  }
+
+  return process.cwd();
+}
+
+function isShellWhitespace(character: string | undefined): boolean {
+  return character !== undefined && SHELL_WHITESPACE.includes(character);
+}
+
+function isShellSeparator(character: string | undefined): boolean {
+  return character !== undefined && SHELL_SEPARATORS.includes(character);
+}
+
+function readShellArgument(
+  command: string,
+  startIndex: number,
+): { value: string; nextIndex: number } | undefined {
+  let index = startIndex;
+  while (isShellWhitespace(command[index])) index += 1;
+
+  const quote = command[index];
+  if (quote === '"' || quote === "'") {
+    const endIndex = command.indexOf(quote, index + 1);
+    if (endIndex === -1) return undefined;
+    return { value: command.slice(index + 1, endIndex), nextIndex: endIndex + 1 };
+  }
+
+  let endIndex = index;
+  while (
+    endIndex < command.length &&
+    !isShellWhitespace(command[endIndex]) &&
+    !isShellSeparator(command[endIndex])
+  ) {
+    endIndex += 1;
+  }
+
+  if (endIndex === index) return undefined;
+  return { value: command.slice(index, endIndex), nextIndex: endIndex };
+}
+
+function parseRecordSkillInvocationCommand(command: string): string | undefined {
+  const scriptIndex = command.indexOf(RECORD_SKILL_INVOCATION_SCRIPT);
+  if (scriptIndex === -1) return undefined;
+
+  let nextIndex = scriptIndex + RECORD_SKILL_INVOCATION_SCRIPT.length;
+  const closingQuote = command[nextIndex];
+  if (closingQuote === '"' || closingQuote === "'") nextIndex += 1;
+
+  const projectArgument = readShellArgument(command, nextIndex);
+  if (!projectArgument) return undefined;
+
+  const skillArgument = readShellArgument(command, projectArgument.nextIndex);
+  const skillName = skillArgument?.value;
+  return skillName && SKILL_NAME_PATTERN.test(skillName) ? skillName : undefined;
+}
+
+function commandInvokesWriteReviewStamp(command: string): boolean {
+  return command.replaceAll('\\', '/').includes(WRITE_REVIEW_STAMP_SCRIPT);
+}
+
+function writeCodexIdentityCache(input: {
+  projectDirectory: string;
+  cacheFile: string;
+  sessionId: string | undefined;
+  skillName: string | undefined;
+}): void {
+  const sessionId = input.sessionId?.trim();
+  const skillName = input.skillName?.trim();
+  if (!sessionId || !skillName) return;
+
+  try {
+    const cachePath = nodePath.join(resolveNamespaceRoot(input.projectDirectory), input.cacheFile);
+    mkdirSync(nodePath.dirname(cachePath), { recursive: true });
+    writeFileSync(
+      cachePath,
+      JSON.stringify({ id: sessionId, skillName, recordedAt: new Date().toISOString() }),
+      'utf8',
+    );
+  } catch {
+    // This bridge only enables proof helpers. It must never block a tool call.
+  }
+}
+
+function rememberCodexRunIdentity(input: {
+  projectDirectory: string;
+  sessionId: string | undefined;
+  skillName: string | undefined;
+}): void {
+  writeCodexIdentityCache({ ...input, cacheFile: CODEX_RUN_IDENTITY_CACHE });
+}
+
+function rememberCodexReviewStampIdentity(input: {
+  projectDirectory: string;
+  sessionId: string | undefined;
+}): void {
+  writeCodexIdentityCache({
+    projectDirectory: input.projectDirectory,
+    cacheFile: CODEX_REVIEW_STAMP_IDENTITY_CACHE,
+    sessionId: input.sessionId,
+    skillName: REVIEW_STAMP_CACHE_KEY,
+  });
+}
+
+function extractPatchTargets(command: string): string[] {
+  const targets: string[] = [];
+  for (const line of command.split(/\r?\n/)) {
+    const match = /^\*\*\* (?:Add|Update|Delete) File: (.+)$/.exec(line.trim());
+    if (match?.[1]) targets.push(match[1].trim());
+  }
+  return targets;
+}
+
+function extractTargetPaths(input: CodexHookInput): string[] {
+  if (input.tool_name === 'apply_patch') {
+    return extractPatchTargets(input.tool_input?.command ?? '');
+  }
+
+  const filePath = input.tool_input?.file_path ?? input.tool_input?.notebook_path;
+  return filePath ? [filePath] : [];
+}
+
+function frontmatterBody(content: string): string | undefined {
+  const normalized = content.replaceAll('\r\n', '\n');
+  if (!normalized.startsWith('---\n')) return undefined;
+  const end = normalized.indexOf('\n---', 4);
+  return end === -1 ? undefined : normalized.slice(4, end);
+}
+
+function frontmatterHasField(body: string, field: string): boolean {
+  const lines = body.split('\n');
+  const fieldPrefix = `${field}:`;
+
+  for (const [index, line] of lines.entries()) {
+    if (!line.startsWith(fieldPrefix)) continue;
+
+    const afterColon = line.slice(fieldPrefix.length).trim();
+    if (afterColon.length > 0) return true;
+
+    return lines.slice(index + 1).some(nextLine => /^\s+-\s*\S/u.test(nextLine));
+  }
+
+  return false;
+}
+
+function missingIntakeFields(ticketContent: string): string[] {
+  const body = frontmatterBody(ticketContent);
+  if (body === undefined) return [...REQUIRED_INTAKE_FIELDS];
+  return REQUIRED_INTAKE_FIELDS.filter(field => !frontmatterHasField(body, field));
+}
+
+function testDefinitionsTicketFolder(targetPath: string): string | undefined {
+  const normalized = targetPath.replaceAll('\\', '/');
+  const match = /^\.project\/tickets\/([^/]+)\/test-definitions\.md$/u.exec(normalized);
+  return match?.[1];
+}
+
+function buildDenyOutput(reason: string): DenialOutput {
+  return {
+    systemMessage: EXPLAIN_HINT,
+    hookSpecificOutput: {
+      hookEventName: 'PreToolUse',
+      permissionDecision: 'deny',
+      permissionDecisionReason: `${reason}\n\n${EXPLAIN_HINT}`,
+    },
+  };
+}
+
+function deny(reason: string): void {
+  const output = buildDenyOutput(reason);
+  if (process.env.SAFEWORD_CODEX_DENY_MODE === EXIT_CODE_DENY_MODE) {
+    process.stderr.write(`${output.hookSpecificOutput.permissionDecisionReason}\n`);
+    process.exit(2);
+  }
+
+  process.stdout.write(`${JSON.stringify(output)}\n`);
+}
+
+function readPackagedSafewordInstructions(): string | undefined {
+  const instructionsPath = findPackagedTemplate('SAFEWORD.md');
+  return instructionsPath ? readFileSync(instructionsPath, 'utf8') : undefined;
+}
+
+function findPackagedTemplate(relativePath: string): string | undefined {
+  return TEMPLATE_DIRECTORIES.map(directory => nodePath.join(directory, relativePath)).find(
+    candidate => existsSync(candidate),
+  );
+}
+
+function resolvePackagedHook(relativePath: string): string | undefined {
+  return findPackagedTemplate(nodePath.join('hooks', relativePath));
+}
+
+export function normalizeNamespaceRootLabel(label: string): string | undefined {
+  const normalizedLabel = label.replaceAll('\\', '/');
+  return normalizedLabel === '.' ||
+    normalizedLabel.startsWith('..') ||
+    ['.project', '.safeword-project'].includes(normalizedLabel)
+    ? undefined
+    : normalizedLabel;
+}
+
+export function packagedNamespaceRootLabel(projectDirectory: string): string | undefined {
+  return normalizeNamespaceRootLabel(
+    nodePath.relative(projectDirectory, resolveNamespaceRoot(projectDirectory)) || '.',
+  );
+}
+
+function runPackagedHook(
+  relativePath: string,
+  rawInput: string,
+  projectDirectory: string,
+): PackagedHookResult {
+  const hookPath = resolvePackagedHook(relativePath);
+  if (!hookPath) {
+    return {
+      error: new Error(`Safe Word packaged hook is missing: ${relativePath}`),
+      stderr: '',
+      stdout: '',
+    };
+  }
+
+  let executableHookPath = hookPath;
+  let temporaryHookDirectory: string | undefined;
+
+  try {
+    if (relativePath === 'session-codex-start.ts') {
+      // The installed dispatcher imports a project-generated ownership list. Build
+      // that one generated dependency in a temporary package copy for CLI delivery.
+      temporaryHookDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-'));
+      cpSync(nodePath.dirname(hookPath), temporaryHookDirectory, { recursive: true });
+      writeFileSync(
+        nodePath.join(temporaryHookDirectory, 'lib', 'owned-paths.ts'),
+        generateOwnedPathsModule(SAFEWORD_SCHEMA, packagedNamespaceRootLabel(projectDirectory)),
+        'utf8',
+      );
+      executableHookPath = nodePath.join(temporaryHookDirectory, nodePath.basename(hookPath));
+    }
+
+    const result = spawnSync('bun', [executableHookPath], {
+      cwd: projectDirectory,
+      input: rawInput,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        CLAUDE_PROJECT_DIR: projectDirectory,
+        SAFEWORD_AGENT_RUNTIME: 'codex',
+        // The copied dispatcher keeps its auto-upgrade behavior, but the plugin
+        // must inject package-owned instructions rather than project-local text.
+        SAFEWORD_PACKAGED_CONTEXT_PATH:
+          relativePath === 'session-codex-start.ts'
+            ? (findPackagedTemplate('SAFEWORD.md') ?? '')
+            : '',
+      },
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+
+    return {
+      error: result.error,
+      status: result.status ?? undefined,
+      stderr: result.stderr ?? '',
+      stdout: result.stdout ?? '',
+    };
+  } finally {
+    if (temporaryHookDirectory) rmSync(temporaryHookDirectory, { recursive: true, force: true });
+  }
+}
+
+function denyForPackagedHookFailure(result: PackagedHookResult): never {
+  const detail =
+    result.stderr.trim() || result.error?.message || 'exited without a failure message';
+  process.stderr.write(`Safe Word packaged PreToolUse hook failed: ${detail}\n`);
+  process.exit(2);
+}
+
+function emitPackagedPreToolResult(result: PackagedHookResult): boolean {
+  if (result.error || result.status !== 0) denyForPackagedHookFailure(result);
+  if (result.stdout.trim() === '') return false;
+  process.stdout.write(result.stdout);
+  return true;
+}
+
+function readProjectTextFile(projectDirectory: string, relativePath: string): string | undefined {
+  const filePath = nodePath.join(projectDirectory, relativePath);
+  return existsSync(filePath) ? readFileSync(filePath, 'utf8') : undefined;
+}
+
+function emitAdditionalContext(output: AdditionalContextOutput): void {
+  process.stdout.write(`${JSON.stringify(output)}\n`);
+}
+
+function currentTimestampContext(now = new Date()): string {
+  const natural = now.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'UTC',
+    timeZoneName: 'short',
+  });
+  const local = now.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  });
+  return `Current time: ${natural} (${now.toISOString()}) | Local: ${local}`;
+}
+
+function packagedAdditionalContext(
+  result: PackagedHookResult,
+  hookEventName: AdditionalContextHookEvent,
+): string | undefined {
+  if (result.error || result.status !== 0 || result.stdout.trim() === '') return undefined;
+
+  try {
+    const output = JSON.parse(result.stdout) as Partial<AdditionalContextOutput>;
+    const hookOutput = output.hookSpecificOutput;
+    return hookOutput?.hookEventName === hookEventName &&
+      typeof hookOutput.additionalContext === 'string' &&
+      hookOutput.additionalContext.trim() !== ''
+      ? hookOutput.additionalContext.trim()
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function emitStopNoop(): void {
+  process.stdout.write('{}\n');
+}
+
+function emitStopContinuation(output: StopContinuationOutput): void {
+  process.stdout.write(`${JSON.stringify(output)}\n`);
+}
+
+function maybeDenyTestDefinitionsWrite(projectDirectory: string, targetPath: string): boolean {
+  const ticketFolder = testDefinitionsTicketFolder(targetPath);
+  if (!ticketFolder) return false;
+
+  const ticketPath = nodePath.join(projectDirectory, '.project/tickets', ticketFolder, 'ticket.md');
+  const ticketContent = existsSync(ticketPath) ? readFileSync(ticketPath, 'utf8') : '';
+  const missing = missingIntakeFields(ticketContent);
+  if (missing.length === 0) return false;
+
+  deny(
+    `Cannot create test-definitions.md for ${ticketFolder} until ticket.md declares ${missing.join(
+      ', ',
+    )}.`,
+  );
+  return true;
+}
+
+async function runPreToolUse(): Promise<void> {
+  const rawInput = await readStdin();
+  const projectDirectory = resolveProjectDirectory();
+  const qualityResult = runPackagedHook('codex/pre-tool-quality.ts', rawInput, projectDirectory);
+  if (emitPackagedPreToolResult(qualityResult)) return;
+
+  const input = parseCodexHookInput(rawInput);
+  if (!input) return;
+
+  rememberCodexRunIdentity({
+    projectDirectory,
+    sessionId: input.session_id,
+    skillName: parseRecordSkillInvocationCommand(input.tool_input?.command ?? ''),
+  });
+
+  if (commandInvokesWriteReviewStamp(input.tool_input?.command ?? '')) {
+    rememberCodexReviewStampIdentity({
+      projectDirectory,
+      sessionId: input.session_id,
+    });
+  }
+
+  for (const targetPath of extractTargetPaths(input)) {
+    if (maybeDenyTestDefinitionsWrite(projectDirectory, targetPath)) return;
+  }
+}
+
+async function runSessionStart(): Promise<void> {
+  const rawInput = await readStdin();
+  const projectDirectory = resolveProjectDirectory();
+  const packagedResult = runPackagedHook('session-codex-start.ts', rawInput, projectDirectory);
+  if (packagedResult.stdout.trim() !== '') {
+    process.stdout.write(packagedResult.stdout);
+    return;
+  }
+
+  const input = parseCodexHookInput(rawInput);
+  if (!input) return;
+
+  const additionalContext = readPackagedSafewordInstructions();
+  if (!additionalContext) return;
+
+  emitAdditionalContext({
+    hookSpecificOutput: {
+      hookEventName: 'SessionStart',
+      additionalContext,
+    },
+  });
+}
+
+async function runPostToolUse(): Promise<void> {
+  const rawInput = await readStdin();
+  const projectDirectory = resolveProjectDirectory();
+  const qualityResult = runPackagedHook('codex/post-tool-quality.ts', rawInput, projectDirectory);
+  if (qualityResult.stdout.trim() !== '') {
+    process.stdout.write(qualityResult.stdout);
+    return;
+  }
+
+  const skillNudgeResult = runPackagedHook(
+    'codex/post-tool-skill-nudge.ts',
+    rawInput,
+    projectDirectory,
+  );
+  if (skillNudgeResult.stdout.trim() !== '') {
+    process.stdout.write(skillNudgeResult.stdout);
+    return;
+  }
+
+  const additionalContext = readProjectTextFile(projectDirectory, POST_TOOL_GUIDANCE_PATH)?.trim();
+  if (!additionalContext) return;
+
+  emitAdditionalContext({
+    hookSpecificOutput: {
+      hookEventName: 'PostToolUse',
+      additionalContext,
+    },
+  });
+}
+
+async function runUserPromptSubmit(): Promise<void> {
+  const rawInput = await readStdin();
+  const projectDirectory = resolveProjectDirectory();
+  const contexts = [currentTimestampContext()];
+  const retroNudge = packagedAdditionalContext(
+    runPackagedHook('prompt-retro-nudge.ts', rawInput, projectDirectory),
+    'UserPromptSubmit',
+  );
+  if (retroNudge) contexts.push(retroNudge);
+
+  const queuedContext = readProjectTextFile(projectDirectory, PROMPT_CONTEXT_PATH)?.trim();
+  if (queuedContext) contexts.push(queuedContext);
+
+  emitAdditionalContext({
+    hookSpecificOutput: {
+      hookEventName: 'UserPromptSubmit',
+      additionalContext: contexts.join('\n\n'),
+    },
+  });
+}
+
+async function runStop(): Promise<void> {
+  const rawInput = await readStdin();
+  const projectDirectory = resolveProjectDirectory();
+  const packagedResult = runPackagedHook('codex/stop.ts', rawInput, projectDirectory);
+  const trimmedPackagedOutput = packagedResult.stdout.trim();
+  if (trimmedPackagedOutput !== '' && trimmedPackagedOutput !== '{}') {
+    process.stdout.write(packagedResult.stdout);
+    return;
+  }
+
+  // `{}` is an intentional packaged no-op, so project-owned continuations still apply.
+  const reason = readProjectTextFile(projectDirectory, STOP_CONTINUATION_PATH)?.trim();
+  if (reason) {
+    emitStopContinuation({ decision: 'block', reason });
+    return;
+  }
+
+  if (trimmedPackagedOutput !== '') {
+    process.stdout.write(packagedResult.stdout);
+    return;
+  }
+
+  emitStopNoop();
+}
+
+const CODEX_HOOK_RUNNERS: Record<SupportedCodexHookEvent, () => Promise<void>> = {
+  'post-tool-use': runPostToolUse,
+  'pre-tool-use': runPreToolUse,
+  'session-start': runSessionStart,
+  stop: runStop,
+  'user-prompt-submit': runUserPromptSubmit,
+};
+
+export async function codexHook(event: string): Promise<void> {
+  const normalized = normalizeEvent(event);
+  if (normalized === undefined) {
+    process.stderr.write(`Safe Word ignored unknown Codex hook event: ${event}\n`);
+    return;
+  }
+  await CODEX_HOOK_RUNNERS[normalized]();
+}

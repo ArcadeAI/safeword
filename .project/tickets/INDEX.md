@@ -5,6 +5,8 @@
 
 <!-- prettier-ignore-start -->
 
+## Tickets (418)
+
 ## Tickets (417)
 
 ### 001
@@ -934,6 +936,9 @@
 - **Stabilize CLI startup performance test under full-suite load (34FRZR)** (in_progress, epic: —)
   Make the CLI startup performance constraint deterministic enough that full-suite verification fails only on real startup regressions, not incidental machine contention.
   → `.project/tickets/34FRZR-stabilize-cli-startup-performance-test`
+- **Preserve Codex hook behavior through the plugin CLI (39KJX7)** (in_progress, epic: —)
+  Make the Codex plugin CLI path preserve the legacy Codex hook behavior and prove it with executable parity tests plus live smoke evidence.
+  → `.project/tickets/39KJX7-codex-plugin-hook-parity`
 - **Configure documentation sources for audit (3BTGMW)** (in_progress, epic: —)
   Let projects tell safeword where documentation lives so audit can compare repo reality against the right docs instead of guessing.
   → `.project/tickets/3BTGMW-configure-audit-doc-sources`
@@ -945,6 +950,9 @@
   → `.project/tickets/3N3Q7B`
 - **Serialize package tests across checkouts (419)** (done, epic: —)
   → `.project/tickets/419-global-package-test-lock`
+- **Test Codex plugin migration (4DK9H4)** (done, epic: —)
+  Prove Safe Word works in Codex through a plugin and package-runner CLI entrypoints without installing bulky repo-local assets.
+  → `.project/tickets/4DK9H4-test-codex-plugin-migration`
 - **dependency-readiness false-positive stale after rebase (mtime vs content) (4JMBXT)** (in_progress, epic: —)
   Make the dependency-readiness stale decision content-based (fingerprint marker) so rebase/checkout/clone no longer falsely block dependency-backed commands.
   → `.project/tickets/4JMBXT-dep-readiness-mtime-stale`
@@ -1423,6 +1431,9 @@
 - **Document Codex parity for developers (Y5GS4X)** (done, epic: —)
   Make safeword's public developer docs reflect Codex as a first-class installed surface alongside Claude Code and Cursor.
   → `.project/tickets/Y5GS4X-document-codex-parity-for-developers`
+- **Move Codex users to the Safe Word plugin (YH2ZRN)** (in_progress, epic: —)
+  Let existing Safe Word Codex projects move to the profile-scoped plugin without duplicate hooks or lost enforcement.
+  → `.project/tickets/YH2ZRN-migrate-codex-to-plugin`
 - **Rust language pack — Cargo workspace discovery, src extraction, Cargo.toml fingerprint (YKFA5X)** (done, epic: —)
   Teach the generated architecture doc to introspect **Rust** projects —
   → `.project/tickets/YKFA5X-architecture-rust-language-pack`

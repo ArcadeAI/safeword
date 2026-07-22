@@ -5,6 +5,7 @@ import process from 'node:process';
 import { Command } from 'commander';
 
 import { installCliCrashCapture } from './self-report-capture.js';
+import { error } from './utils/output.js';
 import { VERSION } from './version.js';
 
 // Self-observation (issues #345 / #720): capture safeword's own genuine crashes
@@ -72,6 +73,20 @@ program
       // Commander leaves the tri-state undefined when neither flag is passed.
       migrateNamespace: options.migrateNamespace as boolean | undefined,
     });
+  });
+
+const migrate = program.command('migrate').description('Migrate an agent integration');
+
+migrate
+  .command('codex-plugin')
+  .description('Install the Safe Word Codex plugin and complete its explicit hook handoff')
+  .option(
+    '--remove-legacy-hooks',
+    'Remove Safe Word-owned legacy project hooks after reviewing the plugin hooks in Codex /hooks',
+  )
+  .action(async (options: { removeLegacyHooks?: boolean }) => {
+    const { migrateCodexPlugin } = await import('./commands/migrate-codex-plugin.js');
+    migrateCodexPlugin(process.cwd(), { removeLegacyHooks: options.removeLegacyHooks === true });
   });
 
 program
@@ -205,6 +220,24 @@ program
     await codify(ticketId, options);
   });
 
+const hook = program.command('hook').description('Run packaged Safe Word hooks');
+
+hook
+  .command('codex <event>')
+  .description('Run a packaged Safe Word Codex hook entrypoint')
+  .action(async (event: string) => {
+    const { codexHook } = await import('./commands/codex-hook.js');
+    await codexHook(event);
+  });
+
+program
+  .command('codex-hook <event>', { hidden: true })
+  .description('Compatibility alias for `safeword hook codex <event>`')
+  .action(async (event: string) => {
+    const { codexHook } = await import('./commands/codex-hook.js');
+    await codexHook(event);
+  });
+
 program
   .command('self-report')
   .description("View safeword's own captured runtime signals (zero-egress local spool)")
@@ -298,5 +331,14 @@ if (process.argv.length === 2) {
   program.help();
 }
 
-// Parse arguments
-program.parse();
+// Parse arguments. parseAsync (not parse) so an error thrown by an async command
+// action rejects the returned promise and reliably sets a non-zero exit code on
+// every runtime. With sync parse(), an async action's rejection is only an
+// unhandledRejection — node surfaces that as a non-zero exit, but bun does not, so
+// `bunx safeword <cmd>` (e.g. the packaged Codex hooks) could exit 0 on a fatal error.
+try {
+  await program.parseAsync();
+} catch (parseError: unknown) {
+  error(parseError instanceof Error ? parseError.message : String(parseError));
+  process.exit(1);
+}

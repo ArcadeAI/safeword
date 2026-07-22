@@ -65,6 +65,7 @@ ESLint configs are bundled in the main package and accessed via `import safeword
 
 ```text
 packages/cli/
+├── codex-plugin/    # Codex plugin bundle (manifest, hooks.json, scoped safeword:<skill> skills)
 ├── src/
 │   ├── commands/         # CLI commands (setup, upgrade, check, diff, reset, sync-config, sync-learnings, …)
 │   ├── learning-sync/    # Generates <namespace-root>/learnings/INDEX.md from learning files
@@ -91,14 +92,13 @@ packages/cli/
 │   ├── SAFEWORD.md     # Core instructions (installed to .safeword/)
 │   ├── AGENTS.md       # Project context template
 │   ├── commands/       # Slash commands (see templates/commands/ for full list)
-│   ├── codex/          # Codex hook config
 │   ├── cursor/         # Cursor IDE rules (.mdc files)
 │   ├── doc-templates/  # Feature specs, design docs, tickets
 │   ├── guides/         # Methodology guides (TDD, planning, etc.)
-│   ├── hooks/          # Claude Code, Cursor, and Codex hook adapters
+│   ├── hooks/          # Claude Code and Cursor hook adapters plus shared hook libraries
 │   ├── prompts/        # Prompt templates for commands
 │   ├── scripts/        # Shell scripts (cleanup, bisect)
-│   └── skills/         # Claude Code and Codex skills (see templates/skills/ for full list)
+│   └── skills/         # Claude Code skills (Codex workflow skills live in codex-plugin/skills)
 ```
 
 ---
@@ -342,6 +342,7 @@ CLI command
 | ------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | `commander`                                       | CLI argument parsing                                                                       |
 | `yaml`                                            | YAML config parsing (failsafe mode)                                                        |
+| `smol-toml`                                       | TOML parse/validate for Codex config migration (`migrate-codex-plugin.ts`)                 |
 | `@secretlint/core`                                | Retro egress: in-process secret detection over a raw string (returns spans)                |
 | `@secretlint/secretlint-rule-preset-recommend`    | Retro egress: maintained provider-key rule-packs (28 formats) layered over the regex floor |
 | `@cucumber/gherkin`                               | Gherkin parse engine for `lint-gherkin` and `.feature` scenario-source validation          |
@@ -400,7 +401,7 @@ tsup → dist/
   └── *.d.ts              # Type declarations
 ```
 
-Published files: `dist/` + `templates/` (bundled for setup/upgrade).
+Published files: `dist/` + `templates/` (bundled for setup/upgrade) + `codex-plugin/` (bundled for Codex plugin install).
 
 **Publish gate:** `prepublishOnly` runs `test:release` (dogfood parity) then `build`.
 
@@ -411,7 +412,7 @@ Published files: `dist/` + `templates/` (bundled for setup/upgrade).
 ### Settled Decisions (2025-12)
 
 - **Graceful Linter Fallback:** Skip linter silently if not installed (`.nothrow().quiet()`). Hook should never block Claude's workflow. (`lint.ts`)
-- **TOML Parsing Without Dependencies:** Line-based extraction for pyproject.toml. Only need `[tool.poetry]`/`[tool.uv]` detection — no TOML parser dependency. (`project-detector.ts`)
+- **TOML Parsing — line-based for detection, `smol-toml` for Codex config:** pyproject.toml detection uses line-based extraction; it only needs `[tool.poetry]`/`[tool.uv]` and pulls in no TOML parser (`project-detector.ts`). Codex plugin migration is the one exception — it uses `smol-toml` to validate config parseability before its line-based hook surgery (`migrate-codex-plugin.ts`).
 - **Ruff in Hook, mypy in Command Only:** Ruff is ms/file (safe for hooks); mypy is seconds/project (only runs via `/lint` command).
 
 **Linter crash resilience:** `captureRemainingErrors()` reads stderr when stdout is empty on non-zero exit. This distinguishes "linter found no issues" from "linter crashed" (e.g., golangci-lint Go version mismatch). Crashes surface as warnings via the existing `warnings` array, not as lint errors. This prevents silent failures where a broken linter reports success.
@@ -459,7 +460,7 @@ Published files: `dist/` + `templates/` (bundled for setup/upgrade).
 | Why            | BDD skill's discovery phase covers brainstorming; Phase 6 includes full TDD; Claude Code has native plan mode |
 | Trade-off      | Less granular skill invocation; users must use `/bdd` for structured workflows                                |
 | Removed        | `safeword-tdd-enforcing`, `safeword-brainstorming`, `safeword-writing-plans` skills; `/tdd` command           |
-| Remaining      | See `templates/skills/` for current list                                                                      |
+| Remaining      | See `templates/skills/` for Claude Code and `packages/cli/codex-plugin/skills/` for Codex plugin skills       |
 | Implementation | Deprecated files listed in `packages/cli/src/schema.ts` deprecatedFiles/deprecatedDirs                        |
 
 ### Hard Block for Done Phase (Exit Code 2)
@@ -530,7 +531,7 @@ Published files: `dist/` + `templates/` (bundled for setup/upgrade).
 
 **Quality review cadence (SXSCJQ; implement-step reviews quieted by JENFZX):** The quality review fires at phase boundaries, not on a LOC throttle. PostToolUse surfaces a phase-appropriate review (`getQualityMessage`) as `additionalContext` on each `phase:` change in `ticket.md` — at the edit, so it works in long autonomous runs where the Stop hook never fires. Ordinary implement-step (RED/GREEN/REFACTOR) reviews no longer surface per step; they are folded into the whole-ticket review at the implement→verify exit (JENFZX). The Stop hook is a deduped backstop: it reviews per phase, but only for a boundary not already marked (`lastReviewedPhase` in session state), and still fires a generic review when there is no active ticket. The former implement-phase LOC review throttle (`LOC_REVIEW_THRESHOLD`) is removed. Shared decision logic lives in `lib/review-trigger.ts` (`shouldReviewPhase`); checkbox-flip detection in `lib/checkbox-transitions.ts`.
 
-**Cross-agent Stop delivery (JN403D):** Claude Code keeps the hard done-gate/review behavior in `stop-quality.ts`. Cursor and Codex use lighter local Stop adapters for continuation nudges, not hard done-gate enforcement: `cursor/stop.ts` appends `followup_message`, while `codex/stop.ts` emits Codex continuation output (`decision: "block"`, `reason`). Both reuse `architectureDocumentNudgeForProject` so the ARCHITECTURE.md drift advisory has one detector and agent-specific delivery wrappers.
+**Cross-agent Stop delivery (JN403D/P30CRP):** Claude Code keeps the hard done-gate/review behavior in `stop-quality.ts`. Cursor uses a lighter local Stop adapter for continuation nudges (`cursor/stop.ts` appends `followup_message`). Codex uses the profile-scoped Safe Word plugin, whose hook manifest calls the packaged, version-pinned `bunx --bun safeword@<version> hook codex stop` entrypoint. It emits Codex continuation output (`decision: "block"`, `reason`) from queued project context. Codex Stop delivery is advisory continuation, not hard done-gate enforcement.
 
 **Gate clearing:** All gates clear automatically when `git rev-parse --short HEAD` changes (i.e., a commit happened). No manual intervention needed. TDD gates have priority over LOC gate (LOC gate cannot overwrite an active TDD gate).
 
@@ -628,6 +629,21 @@ safeword accepts this trade — **consistency and enforcement over independent b
 | Implementation | Pure helpers in `lib/review-ledger.ts` (`isArchitectureReviewGateEnabled`, `isCrossModelReviewRequired`, `modelsMatch`, model tag on the stamp) and `lib/impl-plan.ts` (`hasCitation`, `sectionBody`); gate branch in `stop-quality.ts`, hoisted with the sibling artifact gates above the edit-activity early-exit so it enforces on phase/state. Author model captured at SessionStart (`session-author-model.ts`) into `CLAUDE_ENV_FILE`, since Stop hooks receive no model field (Claude Code docs). Default-off behind `architectureReviewGate`; tasks and grandfathered features exempt; every requirement carries an auditable `skip:`. Shipped #208 (2026-06-12). Decision and mid-build correction (reviewer cannot self-report its model → orchestrator-recorded; cross-model review is an explicit different-model subagent, not a `context: fork`) via `/figure-it-out` against the Claude Code docs. Follow-up `7A0B2K`: extend cross-model to the scenario-gate review. |
 
 ---
+
+### Profile-Scoped Generated Codex Plugin and Staged Hook Migration
+
+**Status:** Accepted
+**Date:** 2026-07-16
+**Supersedes:** none
+
+| Field          | Value                                                                                                                                                                                                                                                                                                                      |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Context        | Codex needs the full Safe Word workflow without copying workflow files into each repository. Plugin hooks are not trusted merely because a plugin is installed, so initial migration cannot safely remove working legacy hooks.                                                                                            |
+| Decision       | Generate the checked-in Codex skill catalogue from canonical workflow templates; distribute and test it through the packed package and isolated profile cache; install the profile plugin first and remove only Safe Word legacy hook handlers through a later explicit `--remove-legacy-hooks` action.                    |
+| Consequences   | The package owns a generated catalogue and requires release/cache drift checks. The automated live lane proves no untrusted hook runs, while an interactive manual acceptance records Codex's review screen for new or changed hooks. Initial migration preserves legacy hooks and gives the builder the `/hooks` handoff. |
+| Alternatives   | Manually maintain plugin skills: rejected because the existing thin catalogue drifted. Generate at customer runtime: rejected because it adds a customer-time failure mode and cannot prove the installed cache. Delete hooks on plugin enablement: rejected because enabled does not mean trusted.                        |
+| Reassess when  | Codex adds a public trust-status or approval API, changes plugin/cache or hook schemas, introduces project-scoped plugins, or the canonical workflow adopts metadata/reference syntax outside the generator allowlist.                                                                                                     |
+| Implementation | Ticket MZH9QH: `packages/cli/src/codex-plugin/`, generated `packages/cli/codex-plugin/skills/`, staged migration command, tarball/cache proof, and documented interactive hook acceptance.                                                                                                                                 |
 
 ## References
 

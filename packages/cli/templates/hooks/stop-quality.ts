@@ -666,8 +666,12 @@ const typecheckAdvice = evaluateImplementStopTypecheck({
   phase: currentPhase,
 });
 if (typecheckAdvice.advice !== null) {
+  // "reported by" rather than "in your changed files": the gate guarantees the
+  // config covers something you touched, not that every diagnostic sits in it.
+  // A narrowed export surfaces in an unchanged consumer, and that is the catch
+  // worth keeping — so the header says what it actually means.
   softBlock(
-    `TypeScript errors in your changed files — advisory, not a block (fix now, or stop and address later). The done gate still requires a clean typecheck.\n\n${typecheckAdvice.advice}`,
+    `TypeScript errors reported by the configs covering your changes — advisory, not a block (fix now, or stop and address later). Some may sit in files you did not touch. The done gate still requires a clean typecheck.\n\n${typecheckAdvice.advice}`,
   );
 }
 

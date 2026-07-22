@@ -789,9 +789,8 @@ describe('E2E: Rust Lint Hook Package Targeting', () => {
       writeTestFile(
         projectDirectory,
         'crates/core/src/lib.rs',
-        `pub fn test_function() -> bool {
-    let s = "hello";
-    s.contains("l")
+        `pub fn test_function() -> String {
+    format!("hello")
 }
 `,
       );

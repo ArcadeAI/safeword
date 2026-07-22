@@ -50,6 +50,9 @@ const workspaceStepImports = [
   ...(configuredStepsDirectory ? [`${configuredStepsDirectory}/**/*.ts`] : []),
 ];
 
+const defaultTags = 'not @manual and not @live';
+const liveTags = '@live and not @manual';
+
 const cliFeatureDirectories = new Set([
   'features',
   'packages',
@@ -80,7 +83,7 @@ export function hasCliFeaturePath(argv = process.argv.slice(2)) {
 export function buildCucumberConfig(argv = process.argv.slice(2)) {
   const config = {
     import: workspaceStepImports,
-    tags: 'not @manual and not @live',
+    tags: defaultTags,
   };
 
   if (!hasCliFeaturePath(argv)) {
@@ -89,5 +92,14 @@ export function buildCucumberConfig(argv = process.argv.slice(2)) {
 
   return config;
 }
+
+function buildLiveCucumberConfig(argv = process.argv.slice(2)) {
+  return {
+    ...buildCucumberConfig(argv),
+    tags: liveTags,
+  };
+}
+
+export const live = buildLiveCucumberConfig();
 
 export default buildCucumberConfig();

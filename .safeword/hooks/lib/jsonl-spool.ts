@@ -81,15 +81,34 @@ export function readJsonlRecords<T>(
  * break the host path that called it.
  */
 export function appendJsonlRecords(filePath: string, lines: readonly string[], cap: number): void {
+  tryAppendJsonlRecords(filePath, lines, cap);
+}
+
+/**
+ * {@link appendJsonlRecords}, but REPORTS whether every line was durably written:
+ * `false` when the write threw or the cap truncated it. Still never throws.
+ *
+ * Callers that must not act on an unrecorded write need this signal — the
+ * void-returning wrapper cannot distinguish "written" from "silently dropped",
+ * and re-reading the file to check introduces its own false-negative (a transient
+ * read failure after a good write). See the surfaced-signature marker (#1163).
+ */
+export function tryAppendJsonlRecords(
+  filePath: string,
+  lines: readonly string[],
+  cap: number,
+): boolean {
+  if (lines.length === 0) return true;
   try {
     const room = cap - countJsonlRecords(filePath);
-    if (room <= 0) return;
+    if (room <= 0) return false;
     const toWrite = lines.slice(0, room);
-    if (toWrite.length === 0) return;
     mkdirSync(nodePath.dirname(filePath), { recursive: true });
     appendFileSync(filePath, `${toWrite.join('\n')}\n`);
+    return toWrite.length === lines.length;
   } catch {
-    // Self-observation must never break the host. Swallow.
+    // Self-observation must never break the host. Swallow, but report failure.
+    return false;
   }
 }
 

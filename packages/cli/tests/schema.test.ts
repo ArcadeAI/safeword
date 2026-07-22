@@ -35,6 +35,32 @@ const isDefined = <T>(x: T | undefined): x is T => x !== undefined;
 const isAutoCleanedClaudePath = (parent: string): boolean =>
   parent.startsWith('.claude/') && parent !== '.claude/skills' && parent !== '.claude/commands';
 
+interface CodexHookEntry {
+  matcher?: string;
+  hooks?: { command?: string }[];
+}
+
+function commandMatcherByCodexEventFromPlugin(): Map<string, string | undefined> {
+  const hooksPath = nodePath.join(import.meta.dirname, '../codex-plugin/hooks.json');
+  const parsed = JSON.parse(readFileSync(hooksPath, 'utf8')) as {
+    hooks: Record<string, CodexHookEntry[]>;
+  };
+  const entries = new Map<string, string | undefined>();
+  const hookEntries = Object.entries(parsed.hooks);
+
+  for (const [eventName, eventEntries] of hookEntries) {
+    for (const entry of eventEntries) {
+      const hookCommands = entry.hooks ?? [];
+      for (const hook of hookCommands) {
+        const match = /safeword@[\d.]+ hook codex ([a-z-]+)/u.exec(hook.command ?? '');
+        if (match?.[1]) entries.set(`${eventName}:${match[1]}`, entry.matcher);
+      }
+    }
+  }
+
+  return entries;
+}
+
 describe('Schema - Single Source of Truth', () => {
   /** Recursively collect all files in templates/ directory (skips _ prefixed dirs) */
   function collectTemplateFiles(dir: string, prefix = ''): string[] {
@@ -192,11 +218,9 @@ describe('Schema - Single Source of Truth', () => {
   });
 
   describe('BDD lane surface constants (56JCFZ)', () => {
-    // BDD_LANE_FILE_PATHS feeds the check leftover-scaffold advisory. The lane
-    // entries are the only definitions carrying BOTH template and generator
-    // (the bddLaneFile shape), so the constant and the schema must enumerate
-    // exactly the same paths — otherwise the advisory silently under- or
-    // over-reports leftovers.
+    // BDD_LANE_FILE_PATHS feeds the check leftover-scaffold advisory. Other
+    // migration-cleanup entries may also carry template+generator, so pin that
+    // every advertised lane file is still generator-gated by the schema.
     it('BDD_LANE_FILE_PATHS matches the gated lane entries in the schema', async () => {
       const { BDD_LANE_FILE_PATHS, SAFEWORD_SCHEMA } = await import('../src/schema.js');
 
@@ -204,7 +228,11 @@ describe('Schema - Single Source of Truth', () => {
         ...SAFEWORD_SCHEMA.ownedFiles,
         ...SAFEWORD_SCHEMA.managedFiles,
       })
-        .filter(([, definition]) => definition.template && definition.generator)
+        .filter(([filePath, definition]) =>
+          BDD_LANE_FILE_PATHS.includes(filePath as (typeof BDD_LANE_FILE_PATHS)[number])
+            ? definition.template && definition.generator
+            : false,
+        )
         .map(([filePath]) => filePath)
         .toSorted((a, b) => a.localeCompare(b));
 
@@ -320,6 +348,46 @@ describe('Schema - Single Source of Truth', () => {
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
       expect(SAFEWORD_SCHEMA.textPatches).not.toHaveProperty('AGENTS.md');
       expect(SAFEWORD_SCHEMA.textPatches).not.toHaveProperty('CLAUDE.md');
+    });
+  });
+
+  describe('Codex plugin hook parity', () => {
+    it('declares the complete Codex hook surface in the plugin manifest', () => {
+      expect(commandMatcherByCodexEventFromPlugin()).toEqual(
+        new Map([
+          ['SessionStart:session-start', ''],
+          ['PreToolUse:pre-tool-use', '^(apply_patch|Bash|Edit|Write)$'],
+          ['PostToolUse:post-tool-use', '^(apply_patch|Bash|Edit|Write)$'],
+          ['UserPromptSubmit:user-prompt-submit', ''],
+          ['Stop:stop', ''],
+        ]),
+      );
+    });
+
+    it('pins every plugin hook to the packaged CLI version', () => {
+      const packageVersion = JSON.parse(
+        readFileSync(nodePath.join(import.meta.dirname, '../package.json'), 'utf8'),
+      ).version as string;
+      const pluginVersion = JSON.parse(
+        readFileSync(
+          nodePath.join(import.meta.dirname, '../codex-plugin/.codex-plugin/plugin.json'),
+          'utf8',
+        ),
+      ).version as string;
+      const hooks = JSON.parse(
+        readFileSync(nodePath.join(import.meta.dirname, '../codex-plugin/hooks.json'), 'utf8'),
+      ) as { hooks: Record<string, CodexHookEntry[]> };
+
+      expect(pluginVersion).toBe(packageVersion);
+      const hookEntryGroups = Object.values(hooks.hooks);
+      for (const entries of hookEntryGroups) {
+        for (const entry of entries) {
+          const hookCommands = entry.hooks ?? [];
+          for (const hook of hookCommands) {
+            expect(hook.command).toContain(`bunx --bun safeword@${packageVersion} hook codex`);
+          }
+        }
+      }
     });
   });
 
@@ -651,7 +719,7 @@ describe('Schema - Single Source of Truth', () => {
       ).toEqual([]);
     });
 
-    it('should track all deployed .safeword/ files in ownedFiles or deprecatedFiles', async () => {
+    it('should track all deployed .safeword/ files in the schema', async () => {
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
       const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
       const safewordDirectory = nodePath.join(repoRoot, '.safeword');
@@ -670,6 +738,7 @@ describe('Schema - Single Source of Truth', () => {
       ]);
 
       const ownedPaths = new Set(Object.keys(SAFEWORD_SCHEMA.ownedFiles));
+      const managedPaths = new Set(Object.keys(SAFEWORD_SCHEMA.managedFiles));
       const deprecatedPaths = new Set(SAFEWORD_SCHEMA.deprecatedFiles);
       // preservedDirs (e.g. .safeword/logs) hold runtime/user data the schema
       // intentionally does not own — files under them are not drift.
@@ -698,6 +767,7 @@ describe('Schema - Single Source of Truth', () => {
         const filename = file.split('/').pop() ?? '';
         if (DYNAMIC_FILES.has(filename)) continue;
         if (ownedPaths.has(file)) continue;
+        if (managedPaths.has(file)) continue;
         if (deprecatedPaths.has(file)) continue;
         if (preservedDirectories.some(dir => file === dir || file.startsWith(`${dir}/`))) continue;
         untracked.push(file);
@@ -705,7 +775,7 @@ describe('Schema - Single Source of Truth', () => {
 
       expect(
         untracked,
-        `Files in .safeword/ not tracked by schema ownedFiles or deprecatedFiles:\n  ${untracked.join('\n  ')}`,
+        `Files in .safeword/ not tracked by schema:\n  ${untracked.join('\n  ')}`,
       ).toEqual([]);
     });
   });

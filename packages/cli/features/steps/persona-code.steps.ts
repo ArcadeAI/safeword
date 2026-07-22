@@ -87,19 +87,16 @@ function installAndReadAssets(current: PersonaCodeState): void {
   });
   assert.equal(setup.status, 0, `${setup.stdout}\n${setup.stderr}`);
 
-  const skillRoot = current.surface === 'OpenAI Codex' ? '.agents' : '.claude';
+  const bddGuidanceRoot =
+    current.surface === 'OpenAI Codex'
+      ? nodePath.join(repoRoot, 'packages/cli/codex-plugin/skills/bdd/references')
+      : nodePath.join(current.projectRoot, '.claude/skills/bdd');
   current.personaGuidance = readFileSync(
     nodePath.join(current.projectRoot, '.project/personas.md'),
     'utf8',
   );
-  current.discoveryGuidance = readFileSync(
-    nodePath.join(current.projectRoot, skillRoot, 'skills/bdd/DISCOVERY.md'),
-    'utf8',
-  );
-  current.scenarioGuidance = readFileSync(
-    nodePath.join(current.projectRoot, skillRoot, 'skills/bdd/SCENARIOS.md'),
-    'utf8',
-  );
+  current.discoveryGuidance = readFileSync(nodePath.join(bddGuidanceRoot, 'DISCOVERY.md'), 'utf8');
+  current.scenarioGuidance = readFileSync(nodePath.join(bddGuidanceRoot, 'SCENARIOS.md'), 'utf8');
 }
 
 Given('a persona named {string} without an explicit code', function (this: SafewordWorld, name) {
