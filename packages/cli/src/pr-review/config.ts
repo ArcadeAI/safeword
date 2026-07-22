@@ -36,6 +36,8 @@ export interface PrReviewConfig {
   post: boolean;
   /** Fixed arcade user id, when one identity serves every review. */
   arcadeUserId?: string;
+  /** The arcade.dev MCP gateway endpoint the reviewer reads the tracker through (R6). */
+  arcadeGatewayUrl?: string;
   /** Derived: a fixed identity means shared, its absence means per-author. */
   identityMode: IdentityMode;
   /** Override for the required-check set when rulesets are unavailable. */
@@ -72,7 +74,7 @@ const DISABLED: PrReviewConfig = {
 interface RawPrReview {
   enabled?: unknown;
   post?: unknown;
-  arcade?: { userId?: unknown; mcpServers?: unknown };
+  arcade?: { userId?: unknown; mcpServers?: unknown; gatewayUrl?: unknown };
   identityMode?: unknown;
   requiredChecks?: unknown;
   vendor?: unknown;
@@ -99,12 +101,10 @@ export function resolvePrReviewConfig(projectDirectory: string): PrReviewConfig 
     return DISABLED;
   }
 
-  const arcadeUserId = nonEmptyString(raw.arcade?.userId) ? raw.arcade.userId : undefined;
-
   return {
     enabled: raw.enabled === true,
     post: raw.post === true,
-    arcadeUserId,
+    ...readArcade(raw.arcade),
     // `shared` unless per-author is EXPLICITLY opted into. Absence must not
     // resolve to the more permissive mode: `per-author` is what re-enables
     // tracker reads on forks, and per-author brokering is not implemented yet —
@@ -118,7 +118,17 @@ export function resolvePrReviewConfig(projectDirectory: string): PrReviewConfig 
       : [],
     vendor: readVendor(raw.vendor),
     model: nonEmptyString(raw.model) ? raw.model : undefined,
-    arcadeMcpServers: nonEmptyString(raw.arcade?.mcpServers) ? raw.arcade.mcpServers : undefined,
+  };
+}
+
+/** The tracker-broker fields, pulled out to keep the resolver under the complexity cap. */
+function readArcade(
+  arcade: RawPrReview['arcade'],
+): Pick<PrReviewConfig, 'arcadeUserId' | 'arcadeGatewayUrl' | 'arcadeMcpServers'> {
+  return {
+    arcadeUserId: nonEmptyString(arcade?.userId) ? arcade.userId : undefined,
+    arcadeGatewayUrl: nonEmptyString(arcade?.gatewayUrl) ? arcade.gatewayUrl : undefined,
+    arcadeMcpServers: nonEmptyString(arcade?.mcpServers) ? arcade.mcpServers : undefined,
   };
 }
 

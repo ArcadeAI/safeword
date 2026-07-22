@@ -123,6 +123,12 @@ describe('pr-review configuration and the kill switch (36EEMY slice 8)', () => {
       expect(config.arcadeUserId).toBe('a@b.com');
     });
 
+    it('reads the arcade gateway URL that the tracker read is brokered through', () => {
+      const gateway = 'https://api.bosslevel.dev/mcp/gw_example';
+      writeConfig({ prReview: { enabled: true, arcade: { gatewayUrl: gateway } } });
+      expect(resolvePrReviewConfig(projectDirectory).arcadeGatewayUrl).toBe(gateway);
+    });
+
     it('ignores a non-array requiredChecks rather than crashing the run', () => {
       writeConfig({ prReview: { enabled: true, requiredChecks: 'ci/build' } });
       expect(resolvePrReviewConfig(projectDirectory).requiredChecks).toEqual([]);
