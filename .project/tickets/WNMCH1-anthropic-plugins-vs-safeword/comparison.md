@@ -266,8 +266,9 @@ Two kinds of follow-up: **net-new gaps to borrow** (capabilities we lack) and **
 | G4 | Dedicated agentic security tracer — cross-file taint tracing + vuln taxonomy | `security-guidance` | Deeper on security than our general Stop-gate | High |
 | G5 | Frontend/visual design skill — anti-templating, subject-derived design doctrine | `frontend-design` | Total gap; only matters if UI work is in scope | Med |
 | G6 | Teaching/pairing output modes — hand the human the load-bearing decisions | `learning-output-style` | No safeword equivalent; optional pedagogy mode | Low |
+| G7 | Connector-agnostic `~~category` placeholder pattern — skills reference `~~project tracker` / `~~design tool`, resolve to whatever MCP server is connected; "standalone always works, supercharged with tools, never nag to connect" | `product-management` / `design` role plugins | Decouples safeword skills from hardcoded tool assumptions; cleaner multi-tool story | Med |
 
-_Lower priority / narrow: plugin-authoring toolkit (`plugin-dev`), SDK scaffolder (`agent-sdk-dev`), model-migration helper, the Ralph iterate-until-true loop._
+_Lower priority / narrow: plugin-authoring toolkit (`plugin-dev`), SDK scaffolder (`agent-sdk-dev`), model-migration helper, the Ralph iterate-until-true loop, and the PM/design role playbooks themselves (`product-management`, `design`) — adjacent domains safeword doesn't cover; adopt only if safeword expands past code into PM/design work (see §8)._
 
 ### 7b. Overlap to sharpen (we have a counterpart; borrow the mechanic)
 
@@ -278,8 +279,54 @@ _Lower priority / narrow: plugin-authoring toolkit (`plugin-dev`), SDK scaffolde
 | S3 | Explicit **cheap-triage-first model ladder** (skip trivial diffs) + a distinct **validate-then-filter** stage before reporting findings | `quality-review` / `stop-quality` cross-model review | `code-review` | Better cost/signal on the Stop-gate | Med | Consider |
 | S4 | **Biased-parallel option generation** — fan out 2-3 sub-agents with different biases (minimal/clean/pragmatic), user picks | `figure-it-out` | `feature-dev` | Genuine independence for one-way-door decisions | Med | Consider (big decisions only) |
 | S5 | **Escalating-cost review tiers** (regex → single-shot LLM → agentic cross-file) for depth-on-demand | single-tier quality gate | `security-guidance` 3-layer | Depth only where warranted | High | Later |
+| S6 | Fold PM-spec rigor into the spec/self-review gate — **outcomes-not-outputs** goals, **non-goals as first-class scope defense**, INVEST user stories, "if everything is P0, nothing is P0" | `spec.md` / `self-review` | `product-management:write-spec` | Sharpens spec quality with proven PM discipline; fits our existing JTBD/Rules framing | Low–Med | Consider |
 
 **Recommendation:** pursue **S1 and S2** first (high value, low risk, no philosophy change), plus **G1** (cheap, clear gap). Everything else is "consider," gated on appetite.
+
+---
+
+## 8. Product & design role plugins (knowledge-work marketplace)
+
+Separate from the 13 `claude-code-plugins`, Anthropic also ships **role playbooks** in the open-source `anthropics/knowledge-work-plugins` marketplace (built for Cowork, run in Claude Code too). Two are directly product/design-relevant. Unlike everything in §1–§6, these carry **zero enforcement** — no hooks, gates, tickets, or state. They are pure **domain knowledge + MCP connector orchestration**: closest in kind to safeword's own *skills* (`brainstorm`, `elicit`, `figure-it-out`), pointed at PM/design work safeword doesn't cover at all.
+
+### 8a. `product-management` (v1.2.0 — 7 commands, 8 skills, 16 connectors)
+
+Pattern: **interview → pull from connectors → emit a structured document**, with embedded frameworks and honesty gates.
+
+| Skill | Encodes | Sharpest rule |
+|---|---|---|
+| `write-spec` | PRD (Problem→Goals→Non-Goals→Stories→Reqs→Metrics→Open Qs); INVEST, P0/P1/P2 + MoSCoW, Given/When/Then | "Goals are outcomes not outputs; if everything is P0, nothing is P0" |
+| `roadmap-update` | Now/Next/Later + OKR + themes; RICE/ICE/MoSCoW/Value×Effort; 70/20/10 capacity | "Roadmaps are zero-sum — adding something means asking what comes off" |
+| `synthesize-research` | 6-step thematic analysis, affinity mapping, triangulation, personas, opportunity sizing | "A finding from 2 interviews is a hypothesis; behavior > stated preference" |
+| `metrics-review` | North Star→L1→L2 hierarchy, AARRR, OKR scoring, cadences, dashboards | "If the review doesn't lead to an action, it wasn't useful" |
+| `stakeholder-update` | Audience templates, Green/Yellow/Red, ROAM risk, ADR | "Don't bury the lead; Yellow is not a failure" |
+| `competitive-brief` | Web-first research (incl. job postings), feature matrices, positioning, win/loss | "A comparison that always shows you winning is not credible" |
+| `sprint-planning` | Capacity table, P0/P1/P2, DoD | "Plan to 70-80% capacity, you will get interrupts" |
+| `product-brainstorming` | The outlier — conversational sparring partner, **anti-deliverable**; 4 modes + How Might We / JTBD / Opportunity Solution Trees / SCAMPER / OODA | "Your job is not to generate deliverables… be opinionated, push back" |
+
+Connectors: Slack, Linear/Asana/monday/ClickUp/Jira, Notion, Figma, Amplitude/Pendo, Intercom, Fireflies, Similarweb, Gmail/Calendar.
+
+### 8b. `design` (v1.2.0 — 6 commands, 7 skills, Figma-centric)
+
+Pattern: **artifact in → filled template out**; shorter skills, emoji severity (🔴🟡🟢), connectors as optional appendix.
+
+| Skill | Encodes | Sharpest rule |
+|---|---|---|
+| `accessibility-review` | **WCAG 2.1 AA** rubric by POUR; contrast ≥4.5:1, touch ≥44×44px; 5-step test approach | "Automated scan catches only ~30%; manual VoiceOver/NVDA catches what I can't" |
+| `design-critique` | 5-lens framework (First Impression 2s → Usability → Hierarchy → Consistency → A11y), mandated positives | Stage-matched feedback (exploration ≠ final polish) |
+| `design-handoff` | Spec sheet: tokens/states/breakpoints/edge-cases/motion | "Use tokens, not values — reference `spacing-md`, not `16px`" |
+| `design-system` | 3 modes (audit/document/extend); audit emits /100 + component-completeness X/10 | "If it's not documented, it doesn't exist" |
+| `research-synthesis` | Lighter twin; delegates method depth to `user-research` | "Separate observations from interpretations; quantify — '7 of 10' not 'most'" |
+| `user-research` | Pure methodology backbone (method table, interview-guide structure, JTBD) — no template, no connectors | — |
+| `ux-copy` | Formulas (error = what happened + why + how to fix; label buttons with the action), voice/tone matrix | "Consider the user's emotional state — errors need empathy" |
+
+Connectors: Figma, Slack, Linear/Asana/Jira, Notion, Intercom.
+
+### 8c. What these add to the borrow list
+
+- **G7 (new gap):** the **connector-agnostic `~~category` placeholder** contract — tool-agnostic workflows + "standalone always works, supercharged with connectors, never nag." A clean pattern safeword could adopt to decouple its skills from hardcoded tool assumptions.
+- **S6 (new sharpen):** fold `write-spec`'s PM rigor (outcomes-not-outputs, non-goals as first-class, INVEST, ruthless P0s) into safeword's `spec.md`/`self-review` gate — same JTBD/Rules spirit, sharper.
+- **Adjacency, not overlap:** `product-brainstorming` ≈ safeword's `brainstorm` (both anti-deliverable), and `synthesize-research` ≈ `elicit`+research. But safeword has **no** counterpart for specs-as-PM-artifacts, roadmaps, metrics, stakeholder comms, or any design work — these are genuinely new domains, worth adopting only if safeword expands past code.
 
 ---
 
