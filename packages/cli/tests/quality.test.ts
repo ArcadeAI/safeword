@@ -4,6 +4,7 @@ import {
   type BddPhase,
   getDisqualificationMessage,
   getQualityMessage,
+  hasCompleteDecisionBrief,
   QUALITY_REVIEW_MESSAGE,
 } from '../templates/hooks/lib/quality.js';
 
@@ -289,5 +290,52 @@ describe('getQualityMessage — universal binary terminal (143 + F14BG2 + QSNKBB
       const result = getDisqualificationMessage({});
       expect(result).toBeUndefined();
     });
+  });
+});
+
+describe('hasCompleteDecisionBrief (P0D33P)', () => {
+  it.each([
+    [
+      'CONFIDENT',
+      `**CONFIDENT** — The change is ready.
+
+**Decided:** Added the requested behavior.
+
+**Open:** none.
+
+**Next:** Review the change.`,
+    ],
+    [
+      'BLOCKED',
+      `**BLOCKED** — The required service behavior is unknown.
+
+**Tried:** Read the current hook contract.
+
+**Need:** A decision about the desired behavior.`,
+    ],
+  ])('recognizes a complete %s terminal brief', (_verdict, brief) => {
+    expect(hasCompleteDecisionBrief(brief)).toBe(true);
+  });
+
+  it('rejects a CONFIDENT brief with the required paragraphs out of order', () => {
+    expect(
+      hasCompleteDecisionBrief(`**CONFIDENT** — The change is ready.
+
+**Next:** Review the change.
+
+**Decided:** Added the requested behavior.
+
+**Open:** none.`),
+    ).toBe(false);
+  });
+
+  it('rejects a CONFIDENT brief missing its Next paragraph', () => {
+    expect(
+      hasCompleteDecisionBrief(`**CONFIDENT** — The change is ready.
+
+**Decided:** Added the requested behavior.
+
+**Open:** none.`),
+    ).toBe(false);
   });
 });

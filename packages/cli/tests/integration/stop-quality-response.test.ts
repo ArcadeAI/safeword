@@ -27,6 +27,18 @@ const COMPLETE_CONFIDENT = `**CONFIDENT** — The change is ready.
 
 **Next:** Review the change.`;
 
+const COMPLETE_BLOCKED = `**BLOCKED** — The required service behavior is unknown.
+
+**Tried:** Read the current hook contract.
+
+**Need:** A decision about the desired behavior.`;
+
+const INCOMPLETE_CONFIDENT = `**CONFIDENT** — The change is ready.
+
+**Decided:** Added the requested behavior.
+
+**Open:** none.`;
+
 function buildProject(): string {
   const projectDirectory = createTemporaryDirectory();
   initGitRepo(projectDirectory);
@@ -57,6 +69,14 @@ function runStop(projectDirectory: string, lastAssistantMessage: string) {
   });
 }
 
+function writeDoneTicket(projectDirectory: string): void {
+  writeTestFile(
+    projectDirectory,
+    '.project/tickets/099-done/ticket.md',
+    ['---', 'id: 099', 'status: in_progress', 'type: task', 'phase: done', '---'].join('\n'),
+  );
+}
+
 describe('Stop Hook: complete decision brief recognition (P0D33P)', () => {
   let projectDirectory = '';
 
@@ -72,5 +92,37 @@ describe('Stop Hook: complete decision brief recognition (P0D33P)', () => {
 
     expect(result.status).toBe(0);
     expect(result.stdout.trim()).toBe('');
+  });
+
+  it('allows a later ordinary edited-work stop with a complete BLOCKED brief', () => {
+    projectDirectory = buildProject();
+
+    const result = runStop(projectDirectory, COMPLETE_BLOCKED);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('');
+  });
+
+  it('keeps the existing quality continuation for a CONFIDENT brief missing Next', () => {
+    projectDirectory = buildProject();
+
+    const result = runStop(projectDirectory, INCOMPLETE_CONFIDENT);
+
+    expect(result.status).toBe(0);
+    const output = JSON.parse(result.stdout) as { decision?: string; reason?: string };
+    expect(output.decision).toBe('block');
+    expect(output.reason).toContain('**Next:**');
+  });
+
+  it('keeps the done-gate block ahead of a complete CONFIDENT brief', () => {
+    projectDirectory = buildProject();
+    writeDoneTicket(projectDirectory);
+
+    const result = runStop(projectDirectory, COMPLETE_CONFIDENT);
+
+    expect(result.status).toBe(0);
+    const output = JSON.parse(result.stdout) as { decision?: string; reason?: string };
+    expect(output.decision).toBe('block');
+    expect(output.reason).toMatch(/verify/i);
   });
 });
