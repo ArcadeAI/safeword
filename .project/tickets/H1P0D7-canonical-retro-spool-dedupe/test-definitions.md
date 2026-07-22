@@ -68,11 +68,11 @@ Feature source: `packages/cli/features/canonical-retro-spool-dedupe.feature`
 - [x] GREEN skip: focused verification is recorded in verify.md
 - [x] REFACTOR skip: table-driven contract test
 
-### Scenario: Both shipped filer definitions direct the current spool contract
+### Scenario: The shipped Claude/Cursor filer agent and Codex plugin filer skill direct the current spool contract
 
-- [x] RED skip: tests were authored and implemented in one local TDD pass
-- [x] GREEN skip: focused verification is recorded in verify.md
-- [x] REFACTOR skip: table-driven assertions avoid duplication
+- [x] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ## Rule: Older spool records remain fileable through legacy signature matching
 

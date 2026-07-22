@@ -78,9 +78,9 @@ Feature: Keep cloud-spooled retro filing from bypassing duplicate checks
       And the closed issue receives no acknowledgement
 
     @surface.claude-code-on-the-web @surface.openai-codex-cloud
-    Scenario: Both shipped filer definitions direct the current spool contract
+    Scenario: The shipped Claude/Cursor filer agent and Codex plugin filer skill direct the current spool contract
       Given a current JSONL spool line read by the executable spool reference
-      When the Claude/Cursor and Codex filer definitions are loaded
+      When the Claude/Cursor filer agent and Codex plugin filer skill are loaded
       Then each directs an exact legacy-marker search first and a canonical-marker fallback only when supplied
       And each limits candidates to open issues and never uses a title match as duplicate authority
 

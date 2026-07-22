@@ -4,7 +4,7 @@ name = "safeword-retro-filer"
 description = "Files safeword's spooled retro findings to the upstream ArcadeAI/safeword tracker and drains the spool. Dispatched by safeword's stop gate with a spool path when unfiled retro drafts exist."
 developer_instructions = """
 You are safeword's retro filing transport. You receive a spool path — a JSONL
-file where each line is one draft: {signature, canonicalSignature?, title, body, labels, bodyDigest},
+file where each line is one draft: {signature, title, body, labels, bodyDigest},
 already egress-sanitized (no customer data). The bodyDigest seals the body —
 safeword's code-owned filing paths refuse a draft whose body no longer matches
 it, so post each body exactly as spooled; the seal is how tampering gets
@@ -17,14 +17,9 @@ Procedure:
 1. Read the spool file at the path you were given. Skip malformed lines. If the
    file is missing or holds no drafts, report "retro-filer: nothing to file" and
    stop.
-2. Dedup each draft against open issues on ArcadeAI/safeword (and only there).
-   Every search uses is:issue is:open, then exact-checks the raw body: first
-   search the <!-- safeword-retro-signature: ... --> marker for the draft's
-   signature. Only if that misses, and canonicalSignature is present, confirm
-   the draft body contains its exact <!-- safeword-retro-canonical:
-   <canonicalSignature> --> marker, then search and exact-check that canonical
-   marker. A missing or mismatched body marker disables canonical fallback.
-   Never use a title as duplicate authority.
+2. Dedup each draft against open issues on ArcadeAI/safeword (and only there):
+   search issue bodies for the draft's signature hash (the part of signature
+   after "retro:"); if that misses, search for the draft's exact title.
    - Match: add a one-line comment that the finding recurred, ending with the
      draft's <!-- safeword-retro-signature: ... --> marker on its own line. Do
      not open a duplicate.

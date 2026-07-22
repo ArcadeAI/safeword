@@ -7,11 +7,13 @@
 The existing CLI `RetroDraft` already carries a canonical signature and embeds
 its marker in the code-assembled body. The cloud spool currently narrows that
 draft to legacy fields, so this feature preserves the same identity as an
-optional JSONL field and tells both shipped cloud filers to use it only as an
-exact fallback after legacy lookup.
+optional JSONL field and tells both shipped cloud filing carriers to use it only
+as an exact fallback after legacy lookup. Claude and Cursor receive that
+procedure through their dedicated filer agent; Codex receives it through a
+packaged skill because Codex plugins do not package custom agents.
 
 ```text
-RetroDraft → JSONL spool (canonicalSignature?) → cloud filer prompt → exact issue match → comment or create
+RetroDraft → JSONL spool (canonicalSignature?) → runtime-specific filer carrier → exact issue match → comment or create
 ```
 
 ## Components
@@ -29,16 +31,20 @@ does not match the exact code-owned marker in the sealed body.
 
 **Tests:** Current-record round trip; malformed-field rejection; legacy read.
 
-### Component 2: Shipped filer definitions
+### Component 2: Runtime-specific filing carriers
 
 **What:** Gives Claude/Cursor and Codex the same deterministic matching
 procedure: exact legacy marker, then optional exact canonical marker, open
-issues only, never title matching.
+issues only, never title matching. The Codex Stop adapter names the packaged
+skill instead of the retired project-scoped custom agent.
 
-**Where:** `packages/cli/templates/agents/safeword-retro-filer.{md,toml}`
+**Where:** `packages/cli/templates/agents/safeword-retro-filer.md`,
+`packages/cli/templates/skills/retro-filer/SKILL.md`, and
+`packages/cli/templates/hooks/codex/stop.ts`
 
-**Tests:** Parse both formats and pin the ordered contract in
-`retro-filer-agent-defs.test.ts`.
+**Tests:** Pin the Markdown agent and generated plugin skill's ordered contract
+in `retro-filer-agent-defs.test.ts`, then assert the real Codex Stop adapter
+names the plugin skill.
 
 ### Component 3: Executable transport reference
 
@@ -97,8 +103,8 @@ issue rather than being guessed into an old one.
 
 ## Implementation Notes
 
-- Preserve body assembly in CLI code; the agent only reads the supplied value
-  and posts body/title/labels verbatim.
+- Preserve body assembly in CLI code; the agent or plugin skill only reads the
+  supplied value and posts body/title/labels verbatim.
 - Keep `bodyDigest` validation unchanged.
 - No customer documentation changes: this is an internal cloud transport fix.
 

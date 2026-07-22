@@ -10,6 +10,8 @@ import { describe, expect, it } from 'vitest';
 import { FILER_AGENT_NAME } from '../../templates/hooks/lib/retro-filing-gate.js';
 
 const AGENTS_DIR = nodePath.resolve(import.meta.dirname, '../../templates/agents');
+const SKILLS_DIR = nodePath.resolve(import.meta.dirname, '../../templates/skills');
+const PLUGIN_SKILLS_DIR = nodePath.resolve(import.meta.dirname, '../../codex-plugin/skills');
 
 describe('safeword-retro-filer agent definitions (GH628F — shipped artifacts parse)', () => {
   it('the Claude/Cursor markdown frontmatter carries the gate-matching name and a description', () => {
@@ -52,12 +54,16 @@ describe('filer ack procedure in shipped prompts (GH644A)', () => {
 });
 
 describe('canonical spool dedupe contract (#1031)', () => {
-  const tomlText = readFileSync(nodePath.join(AGENTS_DIR, 'safeword-retro-filer.toml'), 'utf8');
   const mdText = readFileSync(nodePath.join(AGENTS_DIR, 'safeword-retro-filer.md'), 'utf8');
+  const codexText = readFileSync(nodePath.join(PLUGIN_SKILLS_DIR, 'retro-filer/SKILL.md'), 'utf8');
+  const guideText = readFileSync(
+    nodePath.resolve(import.meta.dirname, '../../templates/guides/self-report-filing.md'),
+    'utf8',
+  );
 
   it.each([
     ['markdown (Claude/Cursor)', mdText],
-    ['TOML (Codex)', tomlText],
+    ['plugin skill (Codex)', codexText],
   ])('%s follows the exact legacy-first canonical contract', (_label, text) => {
     const legacy = text.indexOf('safeword-retro-signature');
     const canonical = text.indexOf('safeword-retro-canonical');
@@ -69,5 +75,27 @@ describe('canonical spool dedupe contract (#1031)', () => {
     expect(text.toLowerCase()).toMatch(/never.*title/);
     expect(text.toLowerCase()).toContain('body contains its exact');
     expect(text).toContain('safeword-retro-canonical');
+  });
+
+  it('ships the Codex filer skill from the canonical template through the schema', async () => {
+    const source = readFileSync(nodePath.join(SKILLS_DIR, 'retro-filer/SKILL.md'), 'utf8');
+    const { generateCodexPluginAssets } = await import('../../src/codex-plugin/catalogue.js');
+    const generatedSkill = generateCodexPluginAssets(SKILLS_DIR).find(
+      asset => asset.relativePath === 'skills/retro-filer/SKILL.md',
+    );
+    expect(source).toContain('name: retro-filer');
+    expect(codexText).toBe(generatedSkill?.content);
+
+    const { SAFEWORD_SCHEMA } = await import('../../src/schema.js');
+    expect(SAFEWORD_SCHEMA.ownedFiles['.claude/skills/retro-filer/SKILL.md']?.template).toBe(
+      'skills/retro-filer/SKILL.md',
+    );
+  });
+
+  it('keeps the shared inline fallback on the exact-marker contract', () => {
+    expect(guideText).toContain('canonicalSignature');
+    expect(guideText).toContain('is:issue is:open');
+    expect(guideText.toLowerCase()).toContain('never by title');
+    expect(guideText).toContain('safeword-retro-canonical');
   });
 });

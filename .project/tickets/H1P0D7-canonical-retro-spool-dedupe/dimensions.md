@@ -12,5 +12,7 @@ canonicalSignature is malformed rather than silently treated as legacy.
 Boundary: an unmatched legacy record is filed as new; it never falls back to a
 title guess.
 
-Wiring: both shipped filer-definition formats consume the same current JSONL
-shape through the executable spool reference and direct the same lookup order.
+Wiring: the shipped Claude/Cursor filer agent and packaged Codex filer skill
+consume the same current JSONL shape through the executable spool reference and
+direct the same lookup order. The Codex Stop continuation must invoke the skill,
+not the retired project-scoped custom agent.

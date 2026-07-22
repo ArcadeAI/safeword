@@ -33,7 +33,8 @@ issue regardless of transport.
 Affected:
 
 - Claude Code on the Web — the cloud agent path reads and files the spool.
-- OpenAI Codex Cloud — its filer definition follows the same spool contract.
+- OpenAI Codex Cloud — its packaged `retro-filer` skill follows the same spool
+  contract when the trusted Stop continuation directs it to file a spool.
 
 Unaffected:
 
@@ -59,7 +60,7 @@ Unaffected:
 
 #### canonical-retro-spool-dedupe.SWM1.R2 — Cloud filing uses a canonical identity only when it agrees with the code-owned body marker
 
-#### canonical-retro-spool-dedupe.SWM1.R3 — Cloud filing uses exact legacy-first canonical matching without title guesses
+#### canonical-retro-spool-dedupe.SWM1.R3 — Cloud filing uses exact legacy-first canonical matching without title guesses across its runtime-specific carriers
 
 #### canonical-retro-spool-dedupe.SWM1.R4 — Older spool records remain fileable through legacy signature matching
 
@@ -74,6 +75,8 @@ skip: internal consistency fix; no persona-facing moment beyond correct tracker 
 - The cloud filer checks the exact legacy marker first, then the exact canonical
   marker when supplied, and comments on a match rather than filing anew.
 - The filer never treats an exact title as a duplicate authority.
+- The Claude/Cursor filer agent and Codex plugin filer skill prescribe the same
+  ordered contract, despite their different runtime mechanisms.
 
 ## Open Questions
 
