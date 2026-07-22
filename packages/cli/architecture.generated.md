@@ -1,7 +1,6 @@
 ---
 generator: safeword-architecture
-fingerprint: a76d4be663184b56a45feac236f76e81ba795425708ea67fd56b76bcb0058ee8
-fingerprint: 46c36d5f38a649de87c0efdc15506fc108e44f584fdbcd3547d5958a1682bb89
+fingerprint: f52377673755a2c75e868a34ded612abfdca8d662b03d926b425c4629f97601e
 ---
 
 # Architecture
@@ -25,6 +24,8 @@ No description yet — awaiting prose.
 `src/codex-plugin`
 
 No description yet — awaiting prose.
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### commands
 
