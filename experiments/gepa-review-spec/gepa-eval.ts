@@ -15,10 +15,12 @@
  * reflective signal — it names every false alarm and tells the reflector the
  * boundary to sharpen.
  */
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import { loadFixtures, testSplit, trainSplit } from './src/dataset';
 import { scoreFixture, type FixtureScore } from './src/evaluator';
+import { loadProtectedSet, protectedMisses, seedKey, type ProtectedSet } from './src/protected';
 import { createRunnerFromEnv } from './src/task';
 import type { Fixture } from './src/types';
 
@@ -37,12 +39,16 @@ function arg(name: string): string | undefined {
  * at 0.4) so precision is the gradient GEPA climbs. Final acceptance ALSO requires
  * aggregate must-fix recall == 1.0 (the Phase-5 gate), independent of this score.
  */
-function objective(s: FixtureScore): number {
-  if (s.falseNegatives.length > 0) return -1000 * s.falseNegatives.length;
+function objective(s: FixtureScore, protectedSet: ProtectedSet | null): number {
+  // Only misses of BASELINE-PROTECTED seeds breach the floor — a stubborn seed
+  // the base model never catches (e.g. determinism-order) can't reject a
+  // candidate (see src/protected.ts). Recall is still MEASURED over all seeds.
+  const misses = protectedMisses(s, protectedSet);
+  if (misses.length > 0) return -1000 * misses.length;
   return Math.max(0.4, 1 - 0.1 * s.falseAlarms.length);
 }
 
-function feedback(s: FixtureScore, fx: Fixture): string {
+function feedback(s: FixtureScore, fx: Fixture, protectedSet: ProtectedSet | null): string {
   // NOTE: this text is shown to the GEPA reflection LM. Keep it to per-finding
   // corrections — never reveal the corpus's structure (e.g. "exactly one seeded
   // defect", "certified-clean base"). Telling the reflector the eval's shape is a
@@ -52,10 +58,13 @@ function feedback(s: FixtureScore, fx: Fixture): string {
   for (const d of s.truePositives) {
     lines.push(`  GOOD — you correctly flagged "${d.scenarioId}" as ${d.defectType}.`);
   }
+  const floorKeys = new Set(protectedMisses(s, protectedSet).map(seedKey));
   for (const e of s.falseNegatives) {
     const where = e.scope === 'fixture' ? '<set-level>' : (e.scenarioId ?? '?');
     lines.push(
-      `  MISS (must catch) — "${where}" has a seeded ${e.defectType}${e.note ? `: ${e.note}` : ''}. You failed to report it. Missing a real defect is the worst outcome.`,
+      floorKeys.has(seedKey(e))
+        ? `  MISS (must catch) — "${where}" has a seeded ${e.defectType}${e.note ? `: ${e.note}` : ''}. You failed to report it. Missing a real defect is the worst outcome.`
+        : `  MISS (bonus, not required) — "${where}" has a seeded ${e.defectType} the baseline also misses; catching it is a plus but does not reject you.`,
     );
   }
   for (const d of s.falseAlarms) {
@@ -85,6 +94,10 @@ async function main(): Promise<void> {
     fixtures = names.map(n => byName.get(n)).filter((f): f is Fixture => f !== undefined);
   }
 
+  const protectedPath = join(import.meta.dirname, 'baseline-protected.json');
+  const protectedSet = loadProtectedSet(() =>
+    existsSync(protectedPath) ? readFileSync(protectedPath, 'utf8') : null,
+  );
   const runner = createRunnerFromEnv();
   const results = [];
   for (const fx of fixtures) {
@@ -93,12 +106,13 @@ async function main(): Promise<void> {
       const s = scoreFixture(fx.name, out.detections, fx.expected, fx.certifiedClean);
       results.push({
         name: fx.name,
-        score: objective(s),
+        score: objective(s, protectedSet),
         recall: s.recall,
         caught: s.truePositives.length,
         missed: s.falseNegatives.length,
+        protectedMissed: protectedMisses(s, protectedSet).length,
         falseAlarms: s.falseAlarms.length,
-        feedback: feedback(s, fx),
+        feedback: feedback(s, fx, protectedSet),
       });
     } catch (error) {
       // Never fail the whole batch on one fixture (GEPA contract): score 0.
