@@ -1,0 +1,76 @@
+/**
+ * Integration coverage for the Claude Code Stop hook's decision-brief response
+ * recognition. This drives the installed dogfood hook with its real JSON stdin
+ * and a recent edit transcript, asserting only the observable stdout contract.
+ */
+
+import { execSync, spawnSync } from 'node:child_process';
+import nodePath from 'node:path';
+
+import { afterEach, describe, expect, it } from 'vitest';
+
+import {
+  createTemporaryDirectory,
+  initGitRepo,
+  removeTemporaryDirectory,
+  writeTestFile,
+} from '../helpers';
+
+const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
+const STOP_QUALITY = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/stop-quality.ts');
+
+const COMPLETE_CONFIDENT = `**CONFIDENT** — The change is ready.
+
+**Decided:** Added the requested behavior.
+
+**Open:** none.
+
+**Next:** Review the change.`;
+
+function buildProject(): string {
+  const projectDirectory = createTemporaryDirectory();
+  initGitRepo(projectDirectory);
+  writeTestFile(projectDirectory, '.safeword/.gitkeep', '');
+  writeTestFile(
+    projectDirectory,
+    'transcript.jsonl',
+    JSON.stringify({
+      type: 'assistant',
+      message: { content: [{ type: 'tool_use', name: 'Edit', id: 'toolu_1' }] },
+    }),
+  );
+  execSync('git add . && git commit -qm baseline', { cwd: projectDirectory, stdio: 'pipe' });
+  return projectDirectory;
+}
+
+function runStop(projectDirectory: string, lastAssistantMessage: string) {
+  return spawnSync('bun', [STOP_QUALITY], {
+    input: JSON.stringify({
+      transcript_path: nodePath.join(projectDirectory, 'transcript.jsonl'),
+      last_assistant_message: lastAssistantMessage,
+      stop_hook_active: false,
+    }),
+    cwd: projectDirectory,
+    env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
+    encoding: 'utf8',
+    timeout: 60_000,
+  });
+}
+
+describe('Stop Hook: complete decision brief recognition (P0D33P)', () => {
+  let projectDirectory = '';
+
+  afterEach(() => {
+    if (projectDirectory) removeTemporaryDirectory(projectDirectory);
+    projectDirectory = '';
+  });
+
+  it('allows a later ordinary edited-work stop with a complete CONFIDENT brief', () => {
+    projectDirectory = buildProject();
+
+    const result = runStop(projectDirectory, COMPLETE_CONFIDENT);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('');
+  });
+});
