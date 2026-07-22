@@ -74,13 +74,14 @@ function formatTrace(trace: FixtureTrace, fixtures: Fixture[]): string {
 }
 
 async function main(): Promise<void> {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    console.error('Set ANTHROPIC_API_KEY to run the baseline (it spends tokens).');
+  const vendor = process.env.SAFEWORD_EVAL_VENDOR === 'openai' ? 'openai' : 'anthropic';
+  const keyVar = vendor === 'openai' ? 'OPENAI_API_KEY' : 'ANTHROPIC_API_KEY';
+  if (!process.env[keyVar]) {
+    console.error(`Set ${keyVar} to run the ${vendor} baseline (it spends tokens).`);
     process.exit(1);
   }
   const skillPrompt = readFileSync(SKILL_PATH, 'utf8');
   const fixtures = loadFixtures();
-  const vendor = process.env.SAFEWORD_EVAL_VENDOR === 'openai' ? 'openai' : 'anthropic';
   const model =
     vendor === 'openai' ? process.env.SAFEWORD_EVAL_OPENAI_MODEL : process.env.SAFEWORD_EVAL_MODEL;
   const runner = createRunnerFromEnv();
