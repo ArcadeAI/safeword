@@ -44,7 +44,7 @@ function hasOrderedMarkers(message: string, markers: readonly RegExp[]): boolean
     if (match === null) return false;
     remaining = remaining.slice(match.index + match[0].length);
   }
-  return true;
+  return remaining.trim().length === 0;
 }
 
 /**
@@ -53,6 +53,10 @@ function hasOrderedMarkers(message: string, markers: readonly RegExp[]): boolean
  * reliable and proportionate than a general Markdown parser.
  */
 export function hasCompleteDecisionBrief(message: string): boolean {
+  const terminalVerdictCount = (message.match(/^[ \t]*\*\*(?:CONFIDENT|BLOCKED)\*\*/gm) ?? [])
+    .length;
+  if (terminalVerdictCount !== 1) return false;
+
   return (
     hasOrderedMarkers(message, CONFIDENT_BRIEF_MARKERS) ||
     hasOrderedMarkers(message, BLOCKED_BRIEF_MARKERS)
