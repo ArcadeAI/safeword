@@ -476,18 +476,36 @@ done
 
 # --- Surface drift (E008): @surface.<slug> tag referenced but undefined ---
 # Suppressed when surfaces.md is empty/absent — W008 already says "fill it".
-FEATURES_DIR="$PROJECT_DIR/features"
+# Use the CLI's shared resolver: root, workspace, and configured feature lanes
+# must stay aligned with executable Gherkin discovery. Match the pinned-CLI
+# ladder used by the config-drift check above.
+feature_directories() {
+  if [ -x "$PROJECT_DIR/node_modules/.bin/safeword" ]; then
+    "$PROJECT_DIR/node_modules/.bin/safeword" feature-directories
+  elif [ -f "$PROJECT_DIR/packages/cli/src/cli.ts" ]; then
+    bun "$PROJECT_DIR/packages/cli/src/cli.ts" feature-directories
+  elif command -v bunx > /dev/null 2>&1; then
+    bunx safeword feature-directories
+  else
+    return 127
+  fi
+}
+if ! FEATURE_DIRECTORIES="$(feature_directories 2> /dev/null)"; then
+  echo "[W009] Feature-directory resolver unavailable; E008 scanned root features/ only"
+  FEATURE_DIRECTORIES="$PROJECT_DIR/features"
+fi
 surfaces_file="$NS_ROOT/surfaces.md"
 dd_file="$surfaces_file"
-if [ -f "$surfaces_file" ] && [ "$(domain_docs_entry_count)" -gt 0 ] && [ -d "$FEATURES_DIR" ]; then
+if [ -f "$surfaces_file" ] && [ "$(domain_docs_entry_count)" -gt 0 ] && [ -n "$FEATURE_DIRECTORIES" ]; then
   # Defined slugs: slugify each uncommented `## ` heading. Portable casing via
   # `tr` — BSD/macOS sed lacks `\L`.
   defined_slugs="$(sed "$strip_html_comments" "$surfaces_file" | grep -E '^## ' | sed 's/^## //' \
     | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9][^a-z0-9]*/-/g; s/^-//; s/-$//')"
   # Referenced slugs: @surface.<slug> on Gherkin tag lines only (line starts
   # with @), so a slug mentioned in step prose is not a reference.
-  referenced_slugs="$(grep -rhE '^[[:space:]]*@' "$FEATURES_DIR" 2> /dev/null \
-    | grep -oE '@surface\.[a-z0-9-]+' | sed 's/^@surface\.//' | sort -u)"
+  referenced_slugs="$(printf '%s\n' "$FEATURE_DIRECTORIES" | while IFS= read -r features_directory; do
+    [ -d "$features_directory" ] && grep -rhE '^[[:space:]]*@' "$features_directory" 2> /dev/null
+  done | grep -oE '@surface\.[a-z0-9-]+' | sed 's/^@surface\.//' | sort -u)"
   for slug in $referenced_slugs; do
     if ! printf '%s\n' $defined_slugs | grep -qxF "$slug"; then
       echo "[E008] Surface drift: @surface.$slug referenced in features/ but no matching entry in surfaces.md"
@@ -540,7 +558,7 @@ fi
 
 **Empty-doc offer (W008):** report the empty doc and point the user to its template — do **not** draft entries or write the file during the audit pass (read-only). Filling it is a follow-up the user approves.
 
-**Coverage limitation:** the block reads the default namespace-root locations; per-file `paths.personas` / `paths.surfaces` / `paths.glossary` overrides are validated by `safeword check` (structure), not here. Persona drift reads spec `**Persona:**` lines only — feature lineage tags are not a reliable persona source.
+**Coverage limitation:** the block reads the default namespace-root locations; per-file `paths.personas` / `paths.surfaces` / `paths.glossary` overrides are validated by `safeword check` (structure), not here. If the safeword feature-directory resolver is unavailable, W009 says E008 fell back to root `features/` only. Persona drift reads spec `**Persona:**` lines only — feature lineage tags are not a reliable persona source.
 
 ---
 
@@ -569,6 +587,7 @@ Report findings by severity with codes:
 - [W006] Learning file missing Covers: — `<namespace-root>/learnings/foo.md` (absent from INDEX.md)
 - [W007] Stale .safeword/depcruise-config.cjs — run `safeword sync-config` to refresh and commit
 - [W008] Empty domain doc: `surfaces.md` has no uncommented entries — fill from its template (BDD intake references degrade until filled)
+- [W009] Feature-directory resolver unavailable — E008 scanned root `features/` only
 
 ### Code Quality
 

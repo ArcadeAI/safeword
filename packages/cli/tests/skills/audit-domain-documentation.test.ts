@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -25,18 +25,38 @@ function extractDomainDocumentationBlock(): string {
   return block;
 }
 
+function writeExecutable(directory: string, name: string, body: string): void {
+  mkdirSync(directory, { recursive: true });
+  const executablePath = nodePath.join(directory, name);
+  writeFileSync(executablePath, `#!/usr/bin/env bash\n${body}\n`);
+  chmodSync(executablePath, 0o755);
+}
+
 /**
  * Materialize a fixture project, run the extracted domain-docs block against it,
  * and return combined stdout+stderr. `bun` is NOT stubbed: the block's
  * `[ -d "$NS_ROOT" ]` fallback resolves the fixture's `.project/` even though
  * the real resolver hook is absent in the temp dir.
  */
-function runDomainDocumentationCheck(files: Record<string, string>): {
+function runDomainDocumentationCheck(
+  files: Record<string, string>,
+  resolver: 'available' | 'unavailable' = 'available',
+): {
   output: string;
   status: number;
 } {
   const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-domain-docs-'));
+  const binDirectory = nodePath.join(projectDirectory, 'fake-bin');
   try {
+    mkdirSync(binDirectory);
+    // Exercise the pinned local-CLI rung before the source or bunx fallbacks.
+    writeExecutable(
+      nodePath.join(projectDirectory, 'node_modules', '.bin'),
+      'safeword',
+      resolver === 'available'
+        ? String.raw`if [ "$1" = "feature-directories" ]; then printf "%s\n%s\n%s\n" "$PWD/features" "$PWD/packages/cli/features" "$PWD/custom/features"; fi`
+        : 'exit 1',
+    );
     for (const [relativePath, content] of Object.entries(files)) {
       const absolutePath = nodePath.join(projectDirectory, relativePath);
       mkdirSync(nodePath.dirname(absolutePath), { recursive: true });
@@ -44,7 +64,11 @@ function runDomainDocumentationCheck(files: Record<string, string>): {
     }
     const result = spawnSync('bash', ['-c', extractDomainDocumentationBlock()], {
       cwd: projectDirectory,
-      env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory, PATH: process.env.PATH ?? '' },
+      env: {
+        ...process.env,
+        CLAUDE_PROJECT_DIR: projectDirectory,
+        PATH: `${binDirectory}:${process.env.PATH ?? ''}`,
+      },
       encoding: 'utf8',
     });
     return { output: `${result.stdout ?? ''}${result.stderr ?? ''}`, status: result.status ?? 0 };
@@ -124,6 +148,42 @@ describe('audit domain-documentation surface drift (E008)', () => {
       'features/x.feature': tagLineFeature('@surface.safeword-cli'),
     });
 
+    expect(output).toContain('[E008]');
+    expect(output).toContain('safeword-cli');
+  });
+
+  it('reports a surface tag from a workspace feature lane', () => {
+    const { output } = runDomainDocumentationCheck({
+      '.project/surfaces.md': POPULATED_SURFACES,
+      'packages/cli/features/x.feature': tagLineFeature('@surface.safeword-cli'),
+    });
+
+    expect(output).toContain('[E008]');
+    expect(output).toContain('safeword-cli');
+  });
+
+  it('reports a surface tag from a configured feature lane', () => {
+    const { output } = runDomainDocumentationCheck({
+      '.project/surfaces.md': POPULATED_SURFACES,
+      '.safeword/config.json': JSON.stringify({ paths: { features: 'custom/features' } }),
+      'custom/features/x.feature': tagLineFeature('@surface.safeword-cli'),
+    });
+
+    expect(output).toContain('[E008]');
+    expect(output).toContain('safeword-cli');
+  });
+
+  it('warns and falls back to root features when the resolver is unavailable', () => {
+    const { output, status } = runDomainDocumentationCheck(
+      {
+        '.project/surfaces.md': POPULATED_SURFACES,
+        'features/x.feature': tagLineFeature('@surface.safeword-cli'),
+      },
+      'unavailable',
+    );
+
+    expect(status).toBe(0);
+    expect(output).toContain('[W009]');
     expect(output).toContain('[E008]');
     expect(output).toContain('safeword-cli');
   });
@@ -287,6 +347,7 @@ describe('audit domain-documentation skill guidance parity', () => {
     expect(content).toContain('[E008] Surface drift');
     expect(content).toContain('[E009] Persona drift');
     expect(content).toContain('[W008] Empty domain doc');
+    expect(content).toContain('[W009] Feature-directory resolver unavailable');
     // R4: human-curated content is advisory-only, never an error.
     expect(content).toContain('advisory');
     expect(content).toMatch(/never (an? )?error/i);
