@@ -70,8 +70,8 @@ Feature source: `packages/cli/features/canonical-retro-spool-dedupe.feature`
 
 ### Scenario: The Claude/Cursor filing carriers and Codex plugin filer skill direct the current spool contract
 
-- [x] RED skip: the failing test was exercised locally before the combined implementation commit
-- [x] GREEN 7e31bd70d
+- [x] RED skip: the pre-push parity test failed before the generated Cursor wrapper existed
+- [x] GREEN 2568dd7a1
 - [ ] REFACTOR
 
 ## Rule: Older spool records remain fileable through legacy signature matching

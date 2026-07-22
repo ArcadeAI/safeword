@@ -14,7 +14,7 @@ phase_anchors:
   - "implement: .project/tickets/H1P0D7-canonical-retro-spool-dedupe/impl-plan.md"
   - "verify: .project/tickets/H1P0D7-canonical-retro-spool-dedupe/test-definitions.md"
 created: 2026-07-16T20:30:38.408Z
-last_modified: 2026-07-21T22:02:00Z
+last_modified: 2026-07-21T22:16:00Z
 ---
 
 # Keep cloud-spooled retro filing from bypassing duplicate checks
@@ -33,3 +33,4 @@ last_modified: 2026-07-21T22:02:00Z
 - 2026-07-17T08:55:00Z Verified: focused retro tests, lint/typecheck, build, Cucumber, dependency audit, parity, and a fresh quality re-review pass. The full Vitest wrapper reproduced its known local idle hang after startup; direct lanes are recorded in verify.md.
 - 2026-07-21T21:50:00Z Replanned after rebasing through #993: Codex plugins package skills and hooks but not custom agents. The obsolete Codex agent-template assertion is replaced by a packaged `retro-filer` skill plus a Codex-specific Stop continuation; Claude/Cursor retain their isolated filer agent.
 - 2026-07-21T22:02:00Z Implemented: added the canonical `retro-filer` skill, generated it into the Codex plugin, routed the Codex Stop continuation to that skill, and updated the shared inline fallback to exact legacy-first canonical matching. Focused Vitest is queued behind an unrelated idle full-suite process; lint, typecheck, BDD, formatting, generator parity, and dispatch smoke pass locally.
+- 2026-07-21T22:16:00Z Corrected before push: schema-drift tests caught the missing Cursor rule required by Safe Word's Claude/Cursor parity contract. Added the generated `safeword-retro-filer` rule over the canonical skill while retaining Cursor's stop-dispatched agent; isolated CI remains the focused Vitest proof.
