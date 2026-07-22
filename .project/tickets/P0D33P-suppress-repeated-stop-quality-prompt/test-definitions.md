@@ -44,4 +44,4 @@ deterministically controlled.
 
 ## Feature-level cross-scenario refactor
 
-- [ ] cross-scenario
+- [x] cross-scenario skip: the two verdict grammars deliberately share one ordered-marker helper; independent quality review found no duplicate or structural follow-up.

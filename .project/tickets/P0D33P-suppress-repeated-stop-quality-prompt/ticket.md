@@ -2,7 +2,7 @@
 id: P0D33P
 slug: suppress-repeated-stop-quality-prompt
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 external_issue: https://github.com/ArcadeAI/safeword/issues/1089
 scope:
@@ -23,8 +23,9 @@ phase_anchors:
   - 'scenario-gate: features/suppress-repeated-stop-quality-prompt.feature'
   - 'plan-implementation: .project/tickets/P0D33P-suppress-repeated-stop-quality-prompt/impl-plan.md'
   - 'implement: .project/tickets/P0D33P-suppress-repeated-stop-quality-prompt/impl-plan.md'
+  - 'verify: .project/tickets/P0D33P-suppress-repeated-stop-quality-prompt/test-definitions.md'
 created: 2026-07-22T00:34:33.968Z
-last_modified: 2026-07-22T00:50:03.000Z
+last_modified: 2026-07-22T01:15:07.000Z
 ---
 
 # Suppress repeated stop-quality prompts in a session
@@ -43,3 +44,4 @@ last_modified: 2026-07-22T00:50:03.000Z
 - 2026-07-22T00:50:03Z Plan implementation: Independent fresh-context review passed. The plan limits the recognizer to the non-done Claude quality-soft-block path, proves both verdict families through real hook stdin/stdout, retains existing done-gate characterization coverage, and leaves Cursor/Codex untouched. Architecture review and design-approval gates are disabled in project config, so implementation advances autonomously.
 - 2026-07-22T00:51:16Z RED: `bun run test tests/integration/stop-quality-response.test.ts` failed as intended. A complete CONFIDENT brief produced the existing `decision: "block"` quality continuation instead of silent stdout (commit af8c5303d).
 - 2026-07-22T00:55:11Z GREEN: Added ordered, non-empty terminal-brief recognition to the canonical quality library and applied it only after done, immediate-loop, typecheck, and disqualification gates. Regenerated the two dogfood hook files from template source; the focused integration test now passes (commit 6f950b16e).
+- 2026-07-22T01:15:07Z Implement reconcile: Quality review initially found that a valid brief could be followed by prose or a second verdict. The recognizer now requires exactly one terminal verdict and no trailing content; unit and real-hook integration fixtures cover terminal shape plus done, typecheck, and disqualification precedence (commits 77e337b13 and 7cd05af14). Independent re-review approved. The implementation plan is reconciled as implemented and the ticket advances to verification.

@@ -1,6 +1,6 @@
 # Impl Plan: Suppress repeated stop-quality prompts in a session
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
@@ -39,3 +39,7 @@ skip: internal hook behavior only; configured README and website sources do not 
 ## Assessment triggers
 
 Revisit if Claude Code changes the `last_assistant_message` payload contract, if the quality response template renames required labels, or if another runtime adopts this same shared recognition path.
+
+## Implementation reconciliation
+
+Implemented as planned in the Claude Code hook only. Quality review required one tightening that is consistent with the plan's terminal-response assumption: a marker sequence must consume the entire remaining response and only one CONFIDENT/BLOCKED verdict may appear. The additional typecheck and disqualification integration assertions characterize existing gate precedence; no new adapter, state, dependency, or documentation surface was introduced.
