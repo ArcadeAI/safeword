@@ -11,10 +11,10 @@
 // Bold-led sub-fields separated by blank lines render as a scannable stacked
 // column. Indent inside a paragraph is a no-op.
 //
-// Style discipline: this prompt is reinjected every Stop. Keep it terse and
-// load-bearing. Project philosophy (research-depth, critical-review,
-// investigate-on-uncertainty) lives in SAFEWORD.md which loads every
-// conversation — don't duplicate it here.
+// Style discipline: this prompt is reinjected whenever an ordinary edited-work
+// Stop needs correction. Keep it terse and load-bearing. Project philosophy
+// (research-depth, critical-review, investigate-on-uncertainty) lives in
+// SAFEWORD.md which loads every conversation — don't duplicate it here.
 //
 // Calibration grounding: Kadavath 2022, Lin 2022, Tian 2023 — tokenized
 // verdicts beat free-form uncertainty descriptions for calibration.
@@ -23,6 +23,41 @@ import type { CANONICAL_PHASES } from './phase-provenance.js';
 
 /** Derived from CANONICAL_PHASES so a new phase is a compile error here, not drift. */
 export type BddPhase = (typeof CANONICAL_PHASES)[number];
+
+const CONFIDENT_BRIEF_MARKERS = [
+  /^[ \t]*\*\*CONFIDENT\*\*[ \t]*—[ \t]*\S.*$/m,
+  /^[ \t]*\*\*Decided:\*\*[ \t]+\S.*$/m,
+  /^[ \t]*\*\*Open:\*\*[ \t]+\S.*$/m,
+  /^[ \t]*\*\*Next:\*\*[ \t]+\S.*$/m,
+] as const;
+
+const BLOCKED_BRIEF_MARKERS = [
+  /^[ \t]*\*\*BLOCKED\*\*[ \t]*—[ \t]*\S.*$/m,
+  /^[ \t]*\*\*Tried:\*\*[ \t]+\S.*$/m,
+  /^[ \t]*\*\*Need:\*\*[ \t]+\S.*$/m,
+] as const;
+
+function hasOrderedMarkers(message: string, markers: readonly RegExp[]): boolean {
+  let remaining = message;
+  for (const marker of markers) {
+    const match = marker.exec(remaining);
+    if (match === null) return false;
+    remaining = remaining.slice(match.index + match[0].length);
+  }
+  return true;
+}
+
+/**
+ * Whether an assistant response already contains one complete terminal brief.
+ * The hook owns this fixed Markdown contract, so ordered line markers are more
+ * reliable and proportionate than a general Markdown parser.
+ */
+export function hasCompleteDecisionBrief(message: string): boolean {
+  return (
+    hasOrderedMarkers(message, CONFIDENT_BRIEF_MARKERS) ||
+    hasOrderedMarkers(message, BLOCKED_BRIEF_MARKERS)
+  );
+}
 
 const UNIVERSAL_HEADER = `Apply SAFEWORD.md "Talking to the user" rules to your reply: scan-not-read, lead with the answer, named structure only when it carries weight, end with **Next:**.
 

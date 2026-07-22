@@ -27,7 +27,12 @@ import {
   reviewGateForNextAsset,
   reviewScope,
 } from './lib/review-ledger.ts';
-import { type BddPhase, getDisqualificationMessage, getQualityMessage } from './lib/quality.ts';
+import {
+  type BddPhase,
+  getDisqualificationMessage,
+  getQualityMessage,
+  hasCompleteDecisionBrief,
+} from './lib/quality.ts';
 import {
   EXPLAIN_HINT,
   type FailureEntry,
@@ -704,10 +709,6 @@ if (!fireReview) {
   process.exit(0);
 }
 
-if (currentPhase) {
-  recordReviewMarker(input.session_id, { lastReviewedPhase: currentPhase });
-}
-
 // Disqualification: when novelResearchReminder is unconsumed or a phase-relevant
 // recent failure exists, append an explicit "CONFIDENT requires X first" line so
 // the agent doesn't rubber-stamp confidence (143).
@@ -725,4 +726,16 @@ const disqual = getDisqualificationMessage({
   pendingLearningsNudges: sessionState?.learningsNudgesPending ?? [],
   recentRelevantFailure: recentRelevant,
 });
+
+// A later ordinary Stop should not repeat the full correction template after
+// the assistant already supplied the complete terminal brief. Done, immediate
+// continuation, typecheck, and disqualification gates all take precedence.
+if (disqual === undefined && hasCompleteDecisionBrief(combinedText)) {
+  process.exit(0);
+}
+
+if (currentPhase) {
+  recordReviewMarker(input.session_id, { lastReviewedPhase: currentPhase });
+}
+
 softBlock(disqual ? `${baseMessage}\n\n${disqual}` : baseMessage);
