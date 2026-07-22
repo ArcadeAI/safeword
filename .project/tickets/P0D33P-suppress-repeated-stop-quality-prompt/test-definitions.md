@@ -32,7 +32,7 @@ deterministically controlled.
 
 ### Scenario: A response missing a required decision-brief field is corrected
 
-- [ ] RED
+- [x] RED skip: the existing corrective prompt already passed this incomplete fixture before recognition; characterization guards against a blanket allow
 - [ ] GREEN
 - [ ] REFACTOR
 
