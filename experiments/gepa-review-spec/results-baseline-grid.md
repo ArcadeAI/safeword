@@ -67,7 +67,35 @@ these 20 fixtures, that score carries the same ±17% variance. Reliable scoring 
 fixtures first**, then bootstrap/clustered/paired CIs — and a power analysis to check whether
 20 fixtures can detect a real model/prompt difference at all (§2 suggests not).
 
-## 4. Thinking sweep — 5 models × {low, high} effort
+## 4. Thinking sweep — 5 models × {low, high} effort (N=1 per cell)
 
-_Pending (run `b1iy0nq3k`). Appended when complete. Reads against the §2 stability bands,
-not as point values. Fable 5 appears only here (it cannot disable thinking)._
+> ⚠️ **Confound (my slip):** the config-loader fixtures (§corpus) landed _mid-sweep_, so 8
+> of 10 runs used the 20-fixture corpus but the last two (sol/terra at **high**) ran on 23.
+> Their test column is not comparable and is marked `*`. The headline rests on the 8
+> consistent runs. Read everything against the §2 noise bands, not as point values.
+
+| Model         | low train/test R | high train/test R | low FA/fx tr·te | high FA/fx tr·te |
+| ------------- | ---------------- | ----------------- | --------------- | ---------------- |
+| Opus 4.8      | 92 / 100         | 92 / 100          | 1.10 · 1.13     | 1.20 · 1.25      |
+| Sonnet 5      | 92 / 100         | 92 / 100          | 0.60 · 1.38     | 1.10 · 1.75      |
+| Fable 5       | 100 / 100        | 100 / 100         | 1.20 · 1.13     | 1.20 · 1.50      |
+| gpt-5.6-sol   | 92 / 83          | 92 / 87*          | 1.60 · 1.75     | 1.70 · 1.36*     |
+| gpt-5.6-terra | 92 / 83          | 92 / 87*          | 1.20 · 1.88     | 1.40 · —*        |
+
+### Findings
+
+- **Thinking level does essentially nothing.** For the clean low-vs-high comparison
+  (Opus/Sonnet/Fable, all on 20 fixtures), recall is identical and FA moves only within
+  the §2 noise band. More reasoning does **not** close the determinism-order gaps or the
+  vacuous-non-claim over-flagging. The blind spots are prompt/model properties, invariant
+  to effort — you can't crank effort to fix them.
+- **Fable 5 uniquely catches `resolver-determinism-order`** (100% train at BOTH low and
+  high; every other model misses it, or catches it flakily per §2). A **model** edge, not
+  an effort edge. Cost: Fable has the heaviest vacuous-non-claim over-flagging (11–12 FA).
+- **`vacuous-non-claim` over-flag is universal and effort-invariant** — every model, both
+  levels (train FA 2–17). Robustly a **prompt** problem — the clearest post-scoring fix target.
+- **sol's `formatter-determinism-order` miss persists at high effort** — reasoning doesn't rescue it.
+- **New fixtures validated behaviorally:** sol@high caught `config-loader-vacuous-non-claim`
+  (tp 1, FA 0) on the clean base — the seeded label is sound, not just structurally valid.
+
+_(Fable's edge is 2/2 samples; needs repeats to separate a real capability from luck.)_
