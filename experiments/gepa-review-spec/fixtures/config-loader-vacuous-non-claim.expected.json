@@ -1,0 +1,12 @@
+{
+  "split": "test",
+  "certifiedClean": true,
+  "defects": [
+    {
+      "scenarioId": "A missing optional field falls back to its default",
+      "defectType": "vacuous-non-claim",
+      "severity": "must-fix",
+      "note": "Single mutation off config-loader (certified clean): the Then 'the configuration is handled appropriately' makes no falsifiable claim — a do-nothing implementation satisfies it. Contrast the base's concrete 'the resolved timeout is 30'. The other two scenarios are unchanged and clean. Targets vacuous-non-claim (only 1 fixture prior) and the exact type models over-flag on clean specs, so it also stresses precision."
+    }
+  ]
+}
