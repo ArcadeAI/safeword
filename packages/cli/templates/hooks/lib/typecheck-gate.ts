@@ -21,10 +21,35 @@ import nodePath from 'node:path';
 /** Hard cap on a single tsc run so a pathological project can't hang the stop. */
 const TYPECHECK_TIMEOUT_MS = 60_000;
 
+/**
+ * Total budget for typechecking across every config in one stop, divided among
+ * them. A per-spawn cap alone turns N configs into N × the cap, and the Stop
+ * hook declares no timeout of its own — so the harness default would kill the
+ * whole hook rather than just the typecheck step.
+ */
+export const TYPECHECK_BUDGET_MS = 60_000;
+
+/** Floor so a wide change still gives each config a usable slice. */
+const MIN_CONFIG_TIMEOUT_MS = 5_000;
+
+/**
+ * `--showConfig` output runs ~52 bytes per file; the 1 MB spawnSync default
+ * overflows near 19k files, which is exactly where the per-config cost is
+ * worst. Overflow degrades to "unknown", so the filter would go inert on the
+ * largest configs without this.
+ */
+const SHOW_CONFIG_MAX_BUFFER = 64 * 1024 * 1024;
+
 const TS_EXTENSIONS = new Set(['.ts', '.tsx', '.mts', '.cts']);
 const DONE_PHASE = 'done';
 
-export type TypecheckTarget = { run: false } | { run: true; tsconfigPaths: string[] };
+export interface TypecheckConfigTarget {
+  tsconfigPath: string;
+  /** The changed files that selected this config via find-up. */
+  selectingFiles: string[];
+}
+
+export type TypecheckTarget = { run: false } | { run: true; targets: TypecheckConfigTarget[] };
 
 export interface TypecheckGateInput {
   /** Absolute project root (where to start find-up bounds). */
@@ -49,12 +74,17 @@ function isVendored(file: string): boolean {
 
 /**
  * Decide whether the implement-phase stop should run `tsc --noEmit`.
- * Returns every distinct tsconfig the changed files resolve to, or
- * { run: false } to skip entirely.
+ * Returns every distinct tsconfig the changed files resolve to — each paired
+ * with the files that selected it — or { run: false } to skip entirely.
  *
  * Every config, not the first: returning on the first match meant a change
  * spanning two packages only ever typechecked one of them, and the other's
  * silence read as "clean".
+ *
+ * Each config carries its own selecting files because relevance is per-config.
+ * Asking "does this config cover anything that changed anywhere" let a root
+ * config ride in on a file that had already selected a nearer config, which is
+ * how the original symptom (errors in an untouched tree) survived the fix.
  */
 export function shouldRunTypecheck(input: TypecheckGateInput): TypecheckTarget {
   if (input.phase === DONE_PHASE) return { run: false };
@@ -62,13 +92,23 @@ export function shouldRunTypecheck(input: TypecheckGateInput): TypecheckTarget {
   const tsFiles = input.changedFiles.filter(file => isTypeScriptFile(file) && !isVendored(file));
   if (tsFiles.length === 0) return { run: false };
 
-  const tsconfigPaths: string[] = [];
+  const targets = new Map<string, string[]>();
   for (const file of tsFiles) {
     const tsconfig = findTsconfigUp(input.projectDirectory, file);
-    if (tsconfig !== null && !tsconfigPaths.includes(tsconfig)) tsconfigPaths.push(tsconfig);
+    if (tsconfig === null) continue;
+    const selecting = targets.get(tsconfig);
+    if (selecting === undefined) targets.set(tsconfig, [file]);
+    else selecting.push(file);
   }
-  if (tsconfigPaths.length === 0) return { run: false };
-  return { run: true, tsconfigPaths };
+  if (targets.size === 0) return { run: false };
+
+  return {
+    run: true,
+    targets: [...targets].map(([tsconfigPath, selectingFiles]) => ({
+      tsconfigPath,
+      selectingFiles,
+    })),
+  };
 }
 
 function isTypeScriptFile(file: string): boolean {
@@ -111,6 +151,7 @@ export interface TypecheckRunResult {
 export type TypecheckRunner = (
   projectDirectory: string,
   tsconfigPath: string,
+  timeoutMs?: number,
 ) => TypecheckRunResult;
 
 /** Locate a `tsc` binary by walking up from the tsconfig's dir to projectDirectory. */
@@ -145,8 +186,18 @@ export type ConfigCoverageResolver = (
 
 /**
  * Real resolver: ask tsc itself. `--showConfig` resolves `extends`, `include`,
- * `exclude`, and the default-extension rules exactly as a real run would, so
- * coverage never depends on us reimplementing tsconfig glob semantics.
+ * `exclude`, and the default-extension rules as a real run would, so coverage
+ * never depends on us reimplementing tsconfig glob semantics.
+ *
+ * Two shapes return `undefined` rather than an answer, and both degrade to
+ * running the check:
+ *
+ * - Configs that resolve to no `files` key — `${configDir}` templates and bases
+ *   pulled from `node_modules` (astro, `@tsconfig/*`, expo) emit absolute
+ *   include specs instead. Such projects get no benefit from this filter.
+ * - Changed files that no longer exist on disk. `--showConfig` lists what is
+ *   there, so a deletion could never be "covered" — and deleting an exported
+ *   module is exactly when its consumers break.
  */
 export function resolveConfigCoverage(
   projectDirectory: string,
@@ -156,10 +207,18 @@ export function resolveConfigCoverage(
   const tscBin = findTscBin(projectDirectory, tsconfigPath);
   if (tscBin === null) return undefined;
 
+  // A deleted file can never appear in the resolved set; judging coverage on
+  // what remains would turn a deletion into silence.
+  const presentFiles = changedFiles.filter(file =>
+    existsSync(nodePath.resolve(projectDirectory, file)),
+  );
+  if (presentFiles.length === 0) return undefined;
+
   const result = spawnSync(tscBin, ['--showConfig', '--project', tsconfigPath], {
     cwd: projectDirectory,
     encoding: 'utf8',
     timeout: TYPECHECK_TIMEOUT_MS,
+    maxBuffer: SHOW_CONFIG_MAX_BUFFER,
   });
   if (result.error || result.status !== 0) return undefined;
 
@@ -179,7 +238,7 @@ export function resolveConfigCoverage(
       .filter((file): file is string => typeof file === 'string')
       .map(file => nodePath.resolve(configDirectory, file)),
   );
-  return changedFiles.some(file => covered.has(nodePath.resolve(projectDirectory, file)));
+  return presentFiles.some(file => covered.has(nodePath.resolve(projectDirectory, file)));
 }
 
 /**
@@ -198,6 +257,7 @@ function tsBuildInfoPath(tsconfigPath: string): string {
 export function runIncrementalTypecheck(
   projectDirectory: string,
   tsconfigPath: string,
+  timeoutMs: number = TYPECHECK_TIMEOUT_MS,
 ): TypecheckRunResult {
   const tscBin = findTscBin(projectDirectory, tsconfigPath);
   if (tscBin === null) return { available: false, ok: false, output: '' };
@@ -214,7 +274,7 @@ export function runIncrementalTypecheck(
       '--project',
       tsconfigPath,
     ],
-    { cwd: projectDirectory, encoding: 'utf8', timeout: TYPECHECK_TIMEOUT_MS },
+    { cwd: projectDirectory, encoding: 'utf8', timeout: timeoutMs },
   );
 
   // Timed out or failed to spawn → stay silent (can't trust partial output).
@@ -238,25 +298,44 @@ export function evaluateImplementStopTypecheck(
   const gate = shouldRunTypecheck(input);
   if (!gate.run) return { advice: null };
 
+  const timeoutMs = Math.max(
+    MIN_CONFIG_TIMEOUT_MS,
+    Math.floor(TYPECHECK_BUDGET_MS / gate.targets.length),
+  );
+
   const advice: string[] = [];
-  for (const tsconfigPath of gate.tsconfigPaths) {
+  for (const { tsconfigPath, selectingFiles } of gate.targets) {
+    // Coverage is judged against this config's own selecting files, never the
+    // whole changed set — otherwise a config runs on the strength of a file
+    // that already had a nearer config of its own.
+    //
     // Skip only on a definite "covers nothing you touched". Unknown coverage
     // degrades to the previous behaviour and still runs: this filter is the new
     // part, so when it cannot do its job it must not hide what tsc already found.
-    if (coversChangedFiles(input.projectDirectory, tsconfigPath, input.changedFiles) === false) {
+    if (coversChangedFiles(input.projectDirectory, tsconfigPath, selectingFiles) === false) {
       continue;
     }
 
-    const result = runner(input.projectDirectory, tsconfigPath);
+    const result = runner(input.projectDirectory, tsconfigPath, timeoutMs);
     if (!result.available || result.ok) continue;
     // Only surface real type errors in code (`file(line,col): error TS…`). tsc can
     // also fail for config reasons (e.g. TS18003 "no inputs found") with no file
     // diagnostic — that's not a type error in the change, so stay silent.
     if (!hasFileLevelTypeError(result.output)) continue;
-    advice.push(result.output);
+    advice.push(`${describeConfig(input.projectDirectory, tsconfigPath)}\n${result.output}`);
   }
 
   return { advice: advice.length > 0 ? advice.join('\n\n') : null };
+}
+
+/**
+ * Label a config's diagnostics. Overlapping configs can report the same file
+ * with different `module`/`lib`, so an unlabelled block leaves no way to tell
+ * why the same line appears twice.
+ */
+function describeConfig(projectDirectory: string, tsconfigPath: string): string {
+  const relative = nodePath.relative(nodePath.resolve(projectDirectory), tsconfigPath);
+  return `[${relative === '' ? tsconfigPath : relative}]`;
 }
 
 /** True iff tsc output has a file-level diagnostic, not just a config-level error. */
