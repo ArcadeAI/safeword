@@ -170,10 +170,18 @@ ticket
     '--parent <epicId>',
     'Link this ticket to an epic (sets parent: and appends to its children)',
   )
+  .option('--issue <key>', 'Adopt an existing tracker issue key as the ticket identity')
   .action(
     async (
       slug: string,
-      options: { type?: string; title?: string; goal?: string; why?: string; parent?: string },
+      options: {
+        type?: string;
+        title?: string;
+        goal?: string;
+        why?: string;
+        parent?: string;
+        issue?: string;
+      },
     ) => {
       const { ticketNew } = await import('./commands/ticket-new.js');
       await ticketNew(slug, options);

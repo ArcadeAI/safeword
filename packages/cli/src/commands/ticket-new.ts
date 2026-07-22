@@ -5,16 +5,26 @@
  * Replaces the prompt-driven "find highest folder + 1" instruction in the
  * ticket-system skill, which was a race condition across parallel sessions
  * and silently colliding across git branches.
+ *
+ * Identity routing (KKNFZA DGH59K): `provider:none` keeps the local minter
+ * exactly as before; a configured GitHub/Linear provider mints identity from
+ * the tracker (issue-first), keying the folder to the issue key. Epics always
+ * route local — an epic is a safeword-internal coordination container whose
+ * `children[]` reverse-index is over local folder ids, so its identity does not
+ * off-board. `--parent` epic-linking composes on top of whichever route runs.
  */
 
 import process from 'node:process';
 
+import { createTicketRouted } from '../ticket-create/index.js';
+import { buildWriterRegistry } from '../tracker-sync/clients.js';
+import { readTicketBridgeConfig } from '../tracker-sync/config.js';
 import { linkChildToEpic, validateEpicParent } from '../utils/epic-linker.js';
 import { cryptoIdMinter, type IdMinter } from '../utils/id-minter.js';
 import { header, info, success } from '../utils/output.js';
 import { normalizeSlug, SlugError } from '../utils/slug.js';
 import { formatTicketReference } from '../utils/ticket-reference.js';
-import { createTicket, TicketIdCollisionError, type TicketType } from '../utils/ticket-writer.js';
+import { TicketIdCollisionError, type TicketType } from '../utils/ticket-writer.js';
 
 const VALID_TYPES: ReadonlySet<TicketType> = new Set(['patch', 'task', 'feature', 'epic']);
 
@@ -24,67 +34,43 @@ export interface TicketNewOptions {
   goal?: string;
   why?: string;
   parent?: string;
+  /** Adopt an existing tracker issue key as identity (issue-first providers only). */
+  issue?: string;
 }
 
-export function ticketNew(slug: string, options: TicketNewOptions): Promise<void> {
-  ticketNewSync(slug, options);
-  return Promise.resolve();
-}
-
-/** Validate all option constraints, exiting before anything is created;
- * returns the type narrowed past the `invalid` sentinel. */
-function assertOptionsValid(
+export async function ticketNew(
+  slug: string,
   options: TicketNewOptions,
-  type: TicketType | undefined | 'invalid',
-): TicketType | undefined {
-  if (type === 'invalid') {
-    fail(`Invalid --type=${String(options.type)}. Must be one of: patch, task, feature, epic.`);
-  }
-  // Features keep motivation in spec.md (single source of truth), so they have
-  // no **Why:** field for --why to fill — fail loud rather than silently drop it.
-  if (options.why !== undefined && type === 'feature') {
-    fail(
-      '--why does not apply to features — their motivation lives in spec.md. Use --goal, or edit spec.md.',
-    );
-  }
-  // Validate --parent BEFORE creating anything, so a bad epic reference leaves
-  // no half-linked child behind (AC3).
-  if (options.parent !== undefined) {
-    const check = validateEpicParent(process.cwd(), options.parent);
-    if (!check.ok) fail(check.reason);
-  }
-  return type;
-}
-
-function resolveSlug(slug: string): string {
-  try {
-    return normalizeSlug(slug);
-  } catch (error: unknown) {
-    if (error instanceof SlugError) fail(error.message);
-    throw error;
-  }
-}
-
-function ticketNewSync(slug: string, options: TicketNewOptions): void {
-  const type = assertOptionsValid(options, resolveType(options.type));
+  cwd: string = process.cwd(),
+): Promise<void> {
+  const type = assertOptionsValid(options, resolveType(options.type), cwd);
   const normalizedSlug = resolveSlug(slug);
 
   header('Create ticket');
 
   try {
-    const result = createTicket(process.cwd(), resolveMinter(), {
-      slug: normalizedSlug,
-      type,
-      title: options.title,
-      goal: options.goal,
-      why: options.why,
-      parent: options.parent,
-    });
+    const result = await createTicketRouted(
+      cwd,
+      {
+        slug: normalizedSlug,
+        type,
+        title: options.title,
+        goal: options.goal,
+        why: options.why,
+        parent: options.parent,
+        issue: options.issue,
+      },
+      {
+        config: readTicketBridgeConfig(cwd),
+        buildWriter: (provider, target) => buildWriterRegistry(provider, target)[provider],
+        minter: resolveMinter(),
+      },
+    );
     // Write the reverse index on the epic: append the child to its children[].
     // The epic was validated pre-create, but could have changed since — the
     // child already exists here, so surface a recoverable warning, not a fail.
     if (options.parent !== undefined) {
-      const linked = linkChildToEpic(process.cwd(), result.id, options.parent);
+      const linked = linkChildToEpic(cwd, result.id, options.parent);
       if (!linked.ok) {
         process.stderr.write(
           `Warning: ${linked.reason} — created ${result.id} with parent: ${options.parent}, but the epic's children list was not updated. Add '${result.id}' to its children: manually.\n`,
@@ -102,6 +88,44 @@ function ticketNewSync(slug: string, options: TicketNewOptions): void {
     if (error instanceof TicketIdCollisionError) {
       fail(error.message);
     }
+    // Issue-first creation mints identity before any folder, so a tracker failure
+    // here leaves no orphan. Surface the message (gh/Arcade never echo the token).
+    process.stderr.write(`Failed to create ticket: ${errorMessage(error)}\n`);
+    process.exit(1);
+  }
+}
+
+/** Validate all option constraints, exiting before anything is created;
+ * returns the type narrowed past the `invalid` sentinel. */
+function assertOptionsValid(
+  options: TicketNewOptions,
+  type: TicketType | undefined | 'invalid',
+  cwd: string,
+): TicketType | undefined {
+  if (type === 'invalid') {
+    fail(`Invalid --type=${String(options.type)}. Must be one of: patch, task, feature, epic.`);
+  }
+  // Features keep motivation in spec.md (single source of truth), so they have
+  // no **Why:** field for --why to fill — fail loud rather than silently drop it.
+  if (options.why !== undefined && type === 'feature') {
+    fail(
+      '--why does not apply to features — their motivation lives in spec.md. Use --goal, or edit spec.md.',
+    );
+  }
+  // Validate --parent BEFORE creating anything, so a bad epic reference leaves
+  // no half-linked child behind (AC3).
+  if (options.parent !== undefined) {
+    const check = validateEpicParent(cwd, options.parent);
+    if (!check.ok) fail(check.reason);
+  }
+  return type;
+}
+
+function resolveSlug(slug: string): string {
+  try {
+    return normalizeSlug(slug);
+  } catch (error: unknown) {
+    if (error instanceof SlugError) fail(error.message);
     throw error;
   }
 }
@@ -110,6 +134,10 @@ function ticketNewSync(slug: string, options: TicketNewOptions): void {
 function fail(message: string): never {
   process.stderr.write(`${message}\n`);
   process.exit(1);
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function resolveType(value: string | undefined): TicketType | undefined | 'invalid' {
