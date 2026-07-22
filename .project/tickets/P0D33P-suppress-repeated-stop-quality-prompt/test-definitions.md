@@ -24,7 +24,7 @@ deterministically controlled.
 
 ### Scenario: A complete brief cannot bypass a missing done-phase requirement
 
-- [ ] RED
+- [x] RED skip: the existing done gate already blocked this fixture before recognition was introduced; this is a characterization of required precedence
 - [ ] GREEN
 - [ ] REFACTOR
 
