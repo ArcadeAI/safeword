@@ -16,7 +16,7 @@ deterministically controlled.
 
 ### Scenario: A complete BLOCKED brief completes the edited-work stop
 
-- [ ] RED
+- [x] RED skip: shared recognizer was introduced by the prior CONFIDENT red slice before this independent verdict fixture
 - [ ] GREEN
 - [ ] REFACTOR
 
