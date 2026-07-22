@@ -68,11 +68,13 @@ export interface AnthropicRunnerOptions {
   maxTokens?: number;
 }
 
-/** Default runner: calls the Anthropic Messages API at temperature 0. */
+/** Default runner: calls the Anthropic Messages API on Sonnet 5, thinking disabled. */
 export function createAnthropicRunner(options: AnthropicRunnerOptions = {}): SkillRunner {
   const apiKey = options.apiKey ?? process.env.ANTHROPIC_API_KEY;
-  const model = options.model ?? 'claude-sonnet-4-6';
-  const maxTokens = options.maxTokens ?? 4096;
+  const model = options.model ?? 'claude-sonnet-5';
+  // Bumped from 4096: Sonnet 5's tokenizer runs ~30% larger, so the review JSON
+  // needs headroom or it can truncate mid-object and fail to parse.
+  const maxTokens = options.maxTokens ?? 8192;
   if (!apiKey) {
     throw new Error('createAnthropicRunner: ANTHROPIC_API_KEY is not set');
   }
@@ -88,7 +90,11 @@ export function createAnthropicRunner(options: AnthropicRunnerOptions = {}): Ski
         body: JSON.stringify({
           model,
           max_tokens: maxTokens,
-          temperature: 0,
+          // Sonnet 5 rejects `temperature` (400) and turns adaptive thinking ON
+          // when `thinking` is omitted (4.6 ran without it). Disable it so the
+          // model is the ONLY changed variable vs. the 4.6 baseline this harness
+          // was tuned against — a scoring instrument must move one knob at a time.
+          thinking: { type: 'disabled' },
           system: `${skillPrompt}\n${EVAL_OUTPUT_CONTRACT}`,
           messages: [{ role: 'user', content: featureSource }],
         }),

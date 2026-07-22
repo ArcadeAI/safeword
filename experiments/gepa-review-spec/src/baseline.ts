@@ -86,7 +86,7 @@ async function main(): Promise<void> {
   console.log(
     `Corpus: ${fixtures.length} fixtures (${trainSplit(fixtures).length} train, ${testSplit(fixtures).length} test)`,
   );
-  console.log(`Model:  ${model ?? 'claude-sonnet-4-6 (default)'}  temp 0\n`);
+  console.log(`Model:  ${model ?? 'claude-sonnet-5 (default)'}  (thinking off)\n`);
 
   for (const [label, split] of [
     ['TRAIN', trainSplit(fixtures)],
