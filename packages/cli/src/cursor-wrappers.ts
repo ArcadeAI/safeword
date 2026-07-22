@@ -161,6 +161,14 @@ export const CURSOR_RULE_WRAPPERS: readonly CursorRuleWrapper[] = [
     skill: 'ticket-system',
   },
   {
+    name: 'safeword-retro-filer',
+    alwaysApply: false,
+    description:
+      "Files Safe Word's sanitized spooled retrospective drafts to its upstream tracker. Use only when a trusted Safe Word Stop continuation names a spool path. Do not use for ordinary retros, project issues, or user-authored drafts.",
+    referencePath: '.claude/skills/retro-filer/SKILL.md',
+    skill: 'retro-filer',
+  },
+  {
     name: 'bdd-core',
     alwaysApply: false,
     frontmatterOrder: 'description-first',

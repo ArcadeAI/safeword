@@ -5,9 +5,9 @@ type: feature
 phase: verify
 status: in_progress
 external_issue: https://github.com/ArcadeAI/safeword/issues/1031
-scope: Preserve a code-derived canonical identity in new retro spool records; direct cloud filing to check exact legacy then canonical markers; preserve legacy spool compatibility; pin the transport contract in spool, Claude/Cursor agent, and Codex plugin-skill tests.
+scope: Preserve a code-derived canonical identity in new retro spool records; direct cloud filing to check exact legacy then canonical markers; preserve legacy spool compatibility; pin the transport contract in spool, Claude/Cursor filing carriers, and Codex plugin-skill tests.
 out_of_scope: Fuzzy or title-based issue matching, changing direct CLI triage, GitHub MCP implementation, and altering issue-body assembly.
-done_when: A spooled draft with a canonical identity is acknowledged against an open issue with that exact canonical marker rather than opening a duplicate; an old spool record without canonical metadata continues legacy signature-only behavior; the shipped Claude/Cursor filer agent, packaged Codex filer skill, and executable spool reference share that contract.
+done_when: A spooled draft with a canonical identity is acknowledged against an open issue with that exact canonical marker rather than opening a duplicate; an old spool record without canonical metadata continues legacy signature-only behavior; the shipped Claude/Cursor filing carriers, packaged Codex filer skill, and executable spool reference share that contract.
 phase_anchors:
   - "define-behavior: .project/tickets/H1P0D7-canonical-retro-spool-dedupe/spec.md"
   - "plan-implementation: .project/tickets/H1P0D7-canonical-retro-spool-dedupe/impl-plan.md"

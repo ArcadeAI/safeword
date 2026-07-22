@@ -12,6 +12,7 @@ import { FILER_AGENT_NAME } from '../../templates/hooks/lib/retro-filing-gate.js
 const AGENTS_DIR = nodePath.resolve(import.meta.dirname, '../../templates/agents');
 const SKILLS_DIR = nodePath.resolve(import.meta.dirname, '../../templates/skills');
 const PLUGIN_SKILLS_DIR = nodePath.resolve(import.meta.dirname, '../../codex-plugin/skills');
+const CURSOR_RULES_DIR = nodePath.resolve(import.meta.dirname, '../../templates/cursor/rules');
 
 describe('safeword-retro-filer agent definitions (GH628F — shipped artifacts parse)', () => {
   it('the Claude/Cursor markdown frontmatter carries the gate-matching name and a description', () => {
@@ -89,6 +90,34 @@ describe('canonical spool dedupe contract (#1031)', () => {
     const { SAFEWORD_SCHEMA } = await import('../../src/schema.js');
     expect(SAFEWORD_SCHEMA.ownedFiles['.claude/skills/retro-filer/SKILL.md']?.template).toBe(
       'skills/retro-filer/SKILL.md',
+    );
+  });
+
+  it('pairs the Claude fallback skill with the generated Cursor rule', async () => {
+    const { CURSOR_RULE_WRAPPERS, renderCursorRuleWrapper } =
+      await import('../../src/cursor-wrappers.js');
+    const wrapper = CURSOR_RULE_WRAPPERS.find(entry => entry.name === 'safeword-retro-filer');
+    const expected = renderCursorRuleWrapper({
+      wrapper: {
+        name: 'safeword-retro-filer',
+        alwaysApply: false,
+        description:
+          "Files Safe Word's sanitized spooled retrospective drafts to its upstream tracker. Use only when a trusted Safe Word Stop continuation names a spool path. Do not use for ordinary retros, project issues, or user-authored drafts.",
+        referencePath: '.claude/skills/retro-filer/SKILL.md',
+        skill: 'retro-filer',
+      },
+    });
+
+    expect(wrapper).toEqual({
+      name: 'safeword-retro-filer',
+      alwaysApply: false,
+      description:
+        "Files Safe Word's sanitized spooled retrospective drafts to its upstream tracker. Use only when a trusted Safe Word Stop continuation names a spool path. Do not use for ordinary retros, project issues, or user-authored drafts.",
+      referencePath: '.claude/skills/retro-filer/SKILL.md',
+      skill: 'retro-filer',
+    });
+    expect(readFileSync(nodePath.join(CURSOR_RULES_DIR, 'safeword-retro-filer.mdc'), 'utf8')).toBe(
+      expected,
     );
   });
 

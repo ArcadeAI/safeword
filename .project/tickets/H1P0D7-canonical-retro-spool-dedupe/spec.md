@@ -75,8 +75,8 @@ skip: internal consistency fix; no persona-facing moment beyond correct tracker 
 - The cloud filer checks the exact legacy marker first, then the exact canonical
   marker when supplied, and comments on a match rather than filing anew.
 - The filer never treats an exact title as a duplicate authority.
-- The Claude/Cursor filer agent and Codex plugin filer skill prescribe the same
-  ordered contract, despite their different runtime mechanisms.
+- The Claude/Cursor filing carriers and Codex plugin filer skill prescribe the
+  same ordered contract, despite their different runtime mechanisms.
 
 ## Open Questions
 

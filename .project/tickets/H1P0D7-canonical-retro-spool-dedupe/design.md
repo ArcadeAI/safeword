@@ -35,16 +35,18 @@ does not match the exact code-owned marker in the sealed body.
 
 **What:** Gives Claude/Cursor and Codex the same deterministic matching
 procedure: exact legacy marker, then optional exact canonical marker, open
-issues only, never title matching. The Codex Stop adapter names the packaged
-skill instead of the retired project-scoped custom agent.
+issues only, never title matching. Claude and Cursor retain their filing agent;
+Cursor also gets a generated rule wrapper over the canonical skill. The Codex
+Stop adapter names the packaged skill instead of the retired project-scoped
+custom agent.
 
 **Where:** `packages/cli/templates/agents/safeword-retro-filer.md`,
 `packages/cli/templates/skills/retro-filer/SKILL.md`, and
 `packages/cli/templates/hooks/codex/stop.ts`
 
-**Tests:** Pin the Markdown agent and generated plugin skill's ordered contract
-in `retro-filer-agent-defs.test.ts`, then assert the real Codex Stop adapter
-names the plugin skill.
+**Tests:** Pin the Markdown agent, generated Cursor wrapper, and generated
+plugin skill's ordered contract in `retro-filer-agent-defs.test.ts`, then
+assert the real Codex Stop adapter names the plugin skill.
 
 ### Component 3: Executable transport reference
 

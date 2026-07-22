@@ -68,7 +68,7 @@ Feature source: `packages/cli/features/canonical-retro-spool-dedupe.feature`
 - [x] GREEN f59c2a3af
 - [x] REFACTOR skip: table-driven contract test needed no distinct refactor commit
 
-### Scenario: The shipped Claude/Cursor filer agent and Codex plugin filer skill direct the current spool contract
+### Scenario: The Claude/Cursor filing carriers and Codex plugin filer skill direct the current spool contract
 
 - [x] RED skip: the failing test was exercised locally before the combined implementation commit
 - [x] GREEN 7e31bd70d
