@@ -65,17 +65,35 @@ detect_package_manager() {
   node -e 'try { const pm = JSON.parse(require("fs").readFileSync("package.json", "utf8")).packageManager || ""; console.log(pm.split("@")[0] || "npm"); } catch { console.log("npm"); }'
 }
 
-has_python_project() {
-  [ -f pyproject.toml ] || [ -f requirements.txt ] || [ -f setup.py ] || [ -f setup.cfg ] || [ -f Pipfile ]
+# Native manifests may belong to leaf applications rather than the repository
+# root. Exclude dependency and virtual-environment trees: their manifests are
+# not applications the audit owns and would make the results both noisy and slow.
+find_manifest_dirs() {
+  find . \
+    -type d \( -name .git -o -name node_modules -o -name .venv -o -name vendor \) -prune -o \
+    -type f \( "$@" \) -print 2> /dev/null \
+    | while IFS= read -r manifest; do dirname "$manifest"; done \
+    | LC_ALL=C sort -u
 }
 
-has_go_project() {
-  [ -f go.mod ]
+PYTHON_PROJECT_DIRS="$(find_manifest_dirs -name pyproject.toml -o -name requirements.txt -o -name setup.py -o -name setup.cfg -o -name Pipfile)"
+GO_MODULE_DIRS="$(find_manifest_dirs -name go.mod)"
+RUST_CRATE_DIRS="$(find_manifest_dirs -name Cargo.toml)"
+
+# Run Python dead-code checks once per application, not once per toolkit/package.
+# Conventional apps/<app>/... manifests collapse to apps/<app>; jobs are one lane.
+python_audit_roots() {
+  while IFS= read -r project_dir; do
+    [ -n "$project_dir" ] || continue
+    case "$project_dir" in
+      ./apps/*/*) printf '%s\n' "$(printf '%s' "$project_dir" | cut -d/ -f1-3)" ;;
+      ./jobs/*) printf '%s\n' './jobs' ;;
+      *) printf '%s\n' "$project_dir" ;;
+    esac
+  done | LC_ALL=C sort -u
 }
 
-has_rust_project() {
-  [ -f Cargo.toml ]
-}
+PYTHON_AUDIT_DIRS="$(printf '%s\n' "$PYTHON_PROJECT_DIRS" | python_audit_roots)"
 
 run_yarn_outdated_check() {
   YARN_VERSION="$(yarn --version 2> /dev/null || true)"
@@ -94,16 +112,24 @@ run_yarn_outdated_check() {
 }
 
 run_python_outdated_check() {
-  if [ -f uv.lock ]; then
-    uv pip list --outdated 2>&1 || true
-  elif [ -f poetry.lock ] || grep -q '^\[tool\.poetry\]' pyproject.toml 2> /dev/null; then
-    poetry show --outdated 2>&1 || true
-  elif [ -f Pipfile ]; then
-    pipenv update --outdated 2>&1 || true
-  else
-    python -m pip list --outdated 2>&1 || pip list --outdated 2>&1 || true
-  fi
+  project_dir="$1"
+  (
+    cd "$project_dir" || exit 0
+    if [ -f uv.lock ]; then
+      uv pip list --outdated 2>&1 || true
+    elif [ -f poetry.lock ] || grep -q '^\[tool\.poetry\]' pyproject.toml 2> /dev/null; then
+      poetry show --outdated 2>&1 || true
+    elif [ -f Pipfile ]; then
+      pipenv update --outdated 2>&1 || true
+    else
+      python -m pip list --outdated 2>&1 || pip list --outdated 2>&1 || true
+    fi
+  )
 }
+
+[ -n "$PYTHON_PROJECT_DIRS" ] || echo "No Python projects found — Python architecture, dead-code, and outdated checks not applicable"
+[ -n "$GO_MODULE_DIRS" ] || echo "No Go modules found — Go architecture, dead-code, and outdated checks not applicable"
+[ -n "$RUST_CRATE_DIRS" ] || echo "No Rust crates found — Rust architecture, dead-code, and outdated checks not applicable"
 
 # =========================================================================
 # DETECT CONFIG DRIFT (read-only — no writes)
@@ -123,7 +149,7 @@ $SW sync-config --check 2>&1 || echo "[W007] Stale .safeword/depcruise-config.cj
 # Config-drift coverage is JS/TS-only (W005 knip hints, W007 depcruise config).
 # Native stacks have no comparable drift check yet — say so instead of letting
 # silence read as "no drift" (#831).
-(has_python_project || has_go_project || has_rust_project) && echo "Coverage limitation: config-drift checks (W005/W007) cover JS/TS tooling only — native lint configs (ruff.toml, .golangci.yml, Cargo [lints]) are not drift-checked; review them manually."
+([ -n "$PYTHON_PROJECT_DIRS" ] || [ -n "$GO_MODULE_DIRS" ] || [ -n "$RUST_CRATE_DIRS" ]) && echo "Coverage limitation: config-drift checks (W005/W007) cover JS/TS tooling only — native lint configs (ruff.toml, .golangci.yml, Cargo [lints]) are not drift-checked; review them manually."
 
 # =========================================================================
 # ARCHITECTURE CHECKS (circular deps, layer violations)
@@ -142,17 +168,25 @@ DEPCRUISE_CONFIG=""
 # not-yet-defined name, so a passing test run is NOT proof of an acyclic import
 # graph. import-linter is the static gate, but it is config-driven (it enforces only
 # declared contracts, nothing by default), so gate on its config and never force it.
-([ -f pyproject.toml ] || [ -f requirements.txt ] || [ -f setup.py ] || [ -f setup.cfg ]) && {
-  if [ -f .importlinter ] || grep -q '^\[importlinter\]' setup.cfg 2> /dev/null || grep -q '^\[tool\.importlinter\]' pyproject.toml 2> /dev/null; then
-    if command -v lint-imports > /dev/null 2>&1; then
-      lint-imports 2>&1 || true
-    else
-      echo "Manual evidence required: import-linter contracts found but 'lint-imports' not installed — Python architecture check skipped"
-    fi
-  else
-    echo "Manual evidence required: no import-linter contracts (.importlinter / [tool.importlinter] / setup.cfg [importlinter]) — Python import cycles are NOT statically checked (runtime does not reliably catch them). Add import-linter, or run 'pylint --disable=all --enable=cyclic-import <pkg>' for a config-free heuristic."
-  fi
-}
+if [ -n "$PYTHON_PROJECT_DIRS" ]; then
+  while IFS= read -r project_dir; do
+    [ -n "$project_dir" ] || continue
+    (
+      cd "$project_dir" || exit 0
+      if [ -f .importlinter ] || grep -q '^\[importlinter\]' setup.cfg 2> /dev/null || grep -q '^\[tool\.importlinter\]' pyproject.toml 2> /dev/null; then
+        if command -v lint-imports > /dev/null 2>&1; then
+          lint-imports 2>&1 || true
+        else
+          echo "Manual evidence required: import-linter contracts found in $project_dir but 'lint-imports' not installed — Python architecture check skipped"
+        fi
+      else
+        echo "Manual evidence required: no import-linter contracts for $project_dir (.importlinter / [tool.importlinter] / setup.cfg [importlinter]) — Python import cycles are NOT statically checked (runtime does not reliably catch them). Add import-linter, or run 'pylint --disable=all --enable=cyclic-import <pkg>' for a config-free heuristic."
+      fi
+    )
+  done << EOF
+$PYTHON_PROJECT_DIRS
+EOF
+fi
 
 # 1c. Architecture - Go. The compiler REJECTS import cycles at build, so a green
 # `go build ./...` / `go test ./...` already guarantees an acyclic package graph —
@@ -160,7 +194,13 @@ DEPCRUISE_CONFIG=""
 # depguard, which runs INSIDE the golangci-lint pass below when `.golangci.yml`
 # configures it — do NOT force-enable it (an unconfigured depguard flags every
 # non-stdlib import as a false positive).
-[ -f go.mod ] && echo "Go architecture: import cycles are compiler-guaranteed absent (a passing build proves it); boundary contracts run via depguard in the golangci-lint pass when .golangci.yml configures them."
+if [ -n "$GO_MODULE_DIRS" ]; then
+  while IFS= read -r module_dir; do
+    [ -n "$module_dir" ] && echo "Go architecture — $module_dir: import cycles are compiler-guaranteed absent (a passing build proves it); boundary contracts run via depguard in the golangci-lint pass when .golangci.yml configures them."
+  done << EOF
+$GO_MODULE_DIRS
+EOF
+fi
 
 # 1d. Architecture - Rust. Cargo rejects circular crate deps and rustc forbids
 # mutually-recursive modules, so a compiling project cannot contain cycles — no
@@ -168,7 +208,13 @@ DEPCRUISE_CONFIG=""
 # Rust (cargo-modules only visualizes); teams enforce boundaries structurally via
 # separate crates + visibility. (cargo-deny covers dependency supply-chain —
 # advisories/licenses/bans — a different axis, not architecture.)
-[ -f Cargo.toml ] && echo "Rust architecture: crate/module cycles are compiler-guaranteed absent (a passing build proves it); no standard layer-boundary tool exists — enforce structurally via crates."
+if [ -n "$RUST_CRATE_DIRS" ]; then
+  while IFS= read -r crate_dir; do
+    [ -n "$crate_dir" ] && echo "Rust architecture — $crate_dir: crate/module cycles are compiler-guaranteed absent (a passing build proves it); no standard layer-boundary tool exists — enforce structurally via crates."
+  done << EOF
+$RUST_CRATE_DIRS
+EOF
+fi
 
 # =========================================================================
 # DEAD CODE DETECTION
@@ -182,34 +228,52 @@ DEPCRUISE_CONFIG=""
 # 2b. Dead code - Python (deadcode)
 # A missing tool must be loud — `|| true` alone would make "not installed"
 # read as "no findings".
-([ -f pyproject.toml ] || [ -f requirements.txt ]) && {
+if [ -n "$PYTHON_AUDIT_DIRS" ]; then
   if command -v deadcode > /dev/null 2>&1; then
-    deadcode . 2>&1 || true
+    while IFS= read -r project_dir; do
+      [ -n "$project_dir" ] || continue
+      echo "Python dead-code — $project_dir"
+      (cd "$project_dir" && deadcode . 2>&1 || true)
+    done << EOF
+$PYTHON_AUDIT_DIRS
+EOF
   else
-    echo "Manual evidence required: deadcode not installed — Python dead-code check skipped"
+    echo "Manual evidence required: deadcode not installed — Python dead-code checks skipped for discovered Python projects"
   fi
-}
+fi
 
 # 2c. Dead code - Go (golangci-lint unused)
-[ -f go.mod ] && {
+if [ -n "$GO_MODULE_DIRS" ]; then
   if command -v golangci-lint > /dev/null 2>&1; then
-    golangci-lint run --enable unused --out-format colored-line-number 2>&1 || true
+    while IFS= read -r module_dir; do
+      [ -n "$module_dir" ] || continue
+      echo "Go dead-code — $module_dir"
+      (cd "$module_dir" && golangci-lint run --enable unused 2>&1 || true)
+    done << EOF
+$GO_MODULE_DIRS
+EOF
   else
-    echo "Manual evidence required: golangci-lint not installed — Go dead-code check skipped"
+    echo "Manual evidence required: golangci-lint not installed — Go dead-code checks skipped for discovered Go modules"
   fi
-}
+fi
 
 # 2d. Rust-specific checks (Clippy catches unused code and quality issues)
 # Gate on `cargo-clippy` (the binary `cargo clippy` runs), not `cargo`: clippy
 # is a rustup component that can be absent while cargo is on PATH, and `|| true`
 # would otherwise swallow its failure into a false "clean" result.
-[ -f Cargo.toml ] && {
+if [ -n "$RUST_CRATE_DIRS" ]; then
   if command -v cargo-clippy > /dev/null 2>&1; then
-    cargo clippy --all-targets --all-features -- -D warnings 2>&1 || true
+    while IFS= read -r crate_dir; do
+      [ -n "$crate_dir" ] || continue
+      echo "Rust clippy — $crate_dir"
+      (cd "$crate_dir" && cargo clippy --all-targets --all-features -- -D warnings 2>&1 || true)
+    done << EOF
+$RUST_CRATE_DIRS
+EOF
   else
-    echo "Manual evidence required: cargo clippy not available — Rust clippy check skipped"
+    echo "Manual evidence required: cargo clippy not available — Rust clippy checks skipped for discovered Rust crates"
   fi
-}
+fi
 
 # =========================================================================
 # CODE DUPLICATION
@@ -240,18 +304,36 @@ bunx jscpd . --min-lines 10 --reporters console --ignore "**/node_modules/**,**/
 } || echo "Skipping outdated JavaScript dependencies: no package.json; skip JavaScript package checks"
 
 # 4b. Outdated - Python-specific checks (uv > poetry > pipenv > pip)
-if has_python_project; then
-  run_python_outdated_check
+if [ -n "$PYTHON_AUDIT_DIRS" ]; then
+  while IFS= read -r project_dir; do
+    [ -n "$project_dir" ] || continue
+    echo "Python outdated dependencies — $project_dir"
+    run_python_outdated_check "$project_dir"
+  done << EOF
+$PYTHON_AUDIT_DIRS
+EOF
 fi
 
 # 4c. Outdated - Go-specific checks
-if has_go_project; then
-  go list -m -u all 2>&1 | grep '\[' || echo "All Go modules up to date"
+if [ -n "$GO_MODULE_DIRS" ]; then
+  while IFS= read -r module_dir; do
+    [ -n "$module_dir" ] || continue
+    echo "Go outdated dependencies — $module_dir"
+    (cd "$module_dir" && (go list -m -u all 2>&1 | grep '\[' || echo "All Go modules up to date"))
+  done << EOF
+$GO_MODULE_DIRS
+EOF
 fi
 
 # 4d. Outdated - Rust-specific checks
-if has_rust_project; then
-  cargo update --dry-run 2>&1 || true
+if [ -n "$RUST_CRATE_DIRS" ]; then
+  while IFS= read -r crate_dir; do
+    [ -n "$crate_dir" ] || continue
+    echo "Rust outdated dependencies — $crate_dir"
+    (cd "$crate_dir" && cargo update --dry-run 2>&1 || true)
+  done << EOF
+$RUST_CRATE_DIRS
+EOF
 fi
 ```
 

@@ -39,7 +39,10 @@ function writeExecutable(directory: string, name: string, body: string): void {
   chmodSync(executablePath, 0o755);
 }
 
-function runAuditAutomation(files: Record<string, string>): {
+function runAuditAutomation(
+  files: Record<string, string>,
+  options: { missingCommands?: string[] } = {},
+): {
   stdout: string;
   stderr: string;
   status: number;
@@ -69,9 +72,11 @@ function runAuditAutomation(files: Record<string, string>): {
       'pip',
       'go',
       'cargo',
+      'cargo-clippy',
       'golangci-lint',
       'deadcode',
     ]) {
+      if (options.missingCommands?.includes(command)) continue;
       writeExecutable(binDirectory, command, `echo "[fake-${command}] $@"`);
     }
     writeExecutable(
@@ -85,7 +90,9 @@ function runAuditAutomation(files: Record<string, string>): {
       env: {
         ...process.env,
         CLAUDE_PROJECT_DIR: projectDirectory,
-        PATH: `${binDirectory}:${process.env.PATH ?? ''}`,
+        // Keep host-installed analyzers out of the fixture so omitted tools
+        // exercise the skill's loud manual-evidence path deterministically.
+        PATH: `${binDirectory}:/usr/bin:/bin`,
       },
       encoding: 'utf8',
     });
@@ -188,6 +195,65 @@ describe('audit installed-project stack awareness', () => {
     expect(content).toContain('Rust-specific checks');
     expect(content).toContain('cargo clippy');
     expect(content).toContain('cargo update --dry-run');
+  });
+
+  it('runs native checks from nested monorepo manifests', () => {
+    const result = runAuditAutomation({
+      'apps/engine/go.mod': 'module example.com/engine\n',
+      'apps/usage/go.mod': 'module example.com/usage\n',
+      'apps/coordinator/pyproject.toml': '[project]\nname = "coordinator"\n',
+      'apps/worker/toolkits/example/requirements.txt': 'requests\n',
+      'services/api/Cargo.toml': '[package]\nname = "api"\nversion = "0.1.0"\n',
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('Go dead-code — ./apps/engine');
+    expect(result.stdout).toContain('Go dead-code — ./apps/usage');
+    expect(result.stdout).toContain('Python dead-code — ./apps/coordinator');
+    expect(result.stdout).toContain('Python dead-code — ./apps/worker');
+    expect(result.stdout).toContain('Go outdated dependencies — ./apps/engine');
+    expect(result.stdout).toContain('Go outdated dependencies — ./apps/usage');
+    expect(result.stdout).toContain('[fake-golangci-lint] run --enable unused');
+    expect(result.stdout).toContain('[fake-deadcode] .');
+    expect(result.stdout).toContain(
+      '[fake-cargo] clippy --all-targets --all-features -- -D warnings',
+    );
+  });
+
+  it('makes absent native stacks and missing native tools explicit', () => {
+    const noManifests = runAuditAutomation({});
+    expect(noManifests.stdout).toContain('No Go modules found');
+    expect(noManifests.stdout).toContain('No Python projects found');
+    expect(noManifests.stdout).toContain('No Rust crates found');
+
+    const missingTools = runAuditAutomation(
+      {
+        'apps/engine/go.mod': 'module example.com/engine\n',
+        'apps/coordinator/pyproject.toml': '[project]\nname = "coordinator"\n',
+      },
+      { missingCommands: ['deadcode', 'golangci-lint'] },
+    );
+    expect(missingTools.stdout).toContain(
+      'Manual evidence required: golangci-lint not installed — Go dead-code checks skipped',
+    );
+    expect(missingTools.stdout).toContain(
+      'Manual evidence required: deadcode not installed — Python dead-code checks skipped',
+    );
+  });
+
+  it('ignores manifests in dependency and virtual-environment trees', () => {
+    const result = runAuditAutomation({
+      'apps/engine/go.mod': 'module example.com/engine\n',
+      'node_modules/dependency/go.mod': 'module example.com/dependency\n',
+      '.venv/lib/python/pyproject.toml': '[project]\nname = "ignored"\n',
+      'vendor/dependency/go.mod': 'module example.com/vendor\n',
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('Go dead-code — ./apps/engine');
+    expect(result.stdout).not.toContain('./node_modules/dependency');
+    expect(result.stdout).not.toContain('./.venv/lib/python');
+    expect(result.stdout).not.toContain('./vendor/dependency');
   });
 
   it('does not run Yarn Classic outdated command for Yarn modern projects', () => {
