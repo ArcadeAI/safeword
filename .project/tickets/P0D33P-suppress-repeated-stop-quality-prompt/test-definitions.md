@@ -34,7 +34,7 @@ deterministically controlled.
 
 - [x] RED skip: the existing corrective prompt already passed this incomplete fixture before recognition; characterization guards against a blanket allow
 - [x] GREEN 4b948f508
-- [ ] REFACTOR
+- [x] REFACTOR skip: no structural change; the fixture shares the existing hook runner
 
 ## Feature-level cross-scenario refactor
 
