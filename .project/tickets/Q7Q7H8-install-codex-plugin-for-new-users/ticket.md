@@ -2,15 +2,15 @@
 id: Q7Q7H8
 slug: install-codex-plugin-for-new-users
 type: feature
-phase: define-behavior
+phase: scenario-gate
 status: done
 phase_anchors:
-  - define-behavior: Q7Q7H8-install-codex-plugin-for-new-users/spec.md
-  - scenario-gate: Q7Q7H8-install-codex-plugin-for-new-users/test-definitions.md
-  - plan-implementation: Q7Q7H8-install-codex-plugin-for-new-users/impl-plan.md
-  - implement: Q7Q7H8-install-codex-plugin-for-new-users/impl-plan.md
-  - verify: Q7Q7H8-install-codex-plugin-for-new-users/test-definitions.md
-  - done: Q7Q7H8-install-codex-plugin-for-new-users/verify.md
+  - define-behavior: tickets/Q7Q7H8-install-codex-plugin-for-new-users/spec.md
+  - scenario-gate: tickets/Q7Q7H8-install-codex-plugin-for-new-users/test-definitions.md
+  - plan-implementation: tickets/Q7Q7H8-install-codex-plugin-for-new-users/impl-plan.md
+  - implement: tickets/Q7Q7H8-install-codex-plugin-for-new-users/impl-plan.md
+  - verify: tickets/Q7Q7H8-install-codex-plugin-for-new-users/test-definitions.md
+  - done: tickets/Q7Q7H8-install-codex-plugin-for-new-users/verify.md
 scope: Add a profile-scoped `safeword codex install` command; make setup, upgrade, and public documentation direct new Codex users to it; expose explicit legacy-hook cleanup as `safeword codex migrate --remove-legacy-hooks`; preserve the existing `safeword migrate codex-plugin` command as a compatible legacy alias.
 out_of_scope: Automatically installing or trusting a profile plugin during setup or upgrade; changing Codex's profile-vs-project scope; removing legacy hooks without an explicit cleanup request; removing the existing migration command.
 done_when: A new user can run setup followed by `safeword codex install` and get a verified profile plugin with no project Codex files, while a legacy user can explicitly clean Safe Word hook registrations without reinstalling the plugin or changing custom configuration.
