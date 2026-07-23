@@ -20,7 +20,7 @@ import { join } from 'node:path';
 
 import { loadFixtures, testSplit, trainSplit } from './src/dataset';
 import { scoreFixture, type FixtureScore } from './src/evaluator';
-import { loadProtectedSet, protectedMisses, seedKey, type ProtectedSet } from './src/protected';
+import { loadProtectedSet, protectedMisses, type ProtectedSet } from './src/protected';
 import { createRunnerFromEnv } from './src/task';
 import type { Fixture } from './src/types';
 
@@ -48,23 +48,22 @@ function objective(s: FixtureScore, protectedSet: ProtectedSet | null): number {
   return Math.max(0.4, 1 - 0.1 * s.falseAlarms.length);
 }
 
-function feedback(s: FixtureScore, fx: Fixture, protectedSet: ProtectedSet | null): string {
+function feedback(s: FixtureScore, fx: Fixture): string {
   // NOTE: this text is shown to the GEPA reflection LM. Keep it to per-finding
   // corrections — never reveal the corpus's structure (e.g. "exactly one seeded
-  // defect", "certified-clean base"). Telling the reflector the eval's shape is a
-  // gaming accelerant: an earlier version leaked it and GEPA promptly wrote a
-  // "be skeptical of a second defect" rule that games the eval (quality-review).
+  // defect", "certified-clean base", OR which defects are protected/unprotected).
+  // Telling the reflector the eval's shape is a gaming accelerant: an earlier
+  // version leaked it and GEPA promptly wrote a "be skeptical of a second defect"
+  // rule that games the eval (quality-review). Every miss reads the same here —
+  // the protected/unprotected split lives ONLY in the score, never the feedback.
   const lines: string[] = [`Review of feature "${fx.name}":`];
   for (const d of s.truePositives) {
     lines.push(`  GOOD — you correctly flagged "${d.scenarioId}" as ${d.defectType}.`);
   }
-  const floorKeys = new Set(protectedMisses(s, protectedSet).map(seedKey));
   for (const e of s.falseNegatives) {
     const where = e.scope === 'fixture' ? '<set-level>' : (e.scenarioId ?? '?');
     lines.push(
-      floorKeys.has(seedKey(e))
-        ? `  MISS (must catch) — "${where}" has a seeded ${e.defectType}${e.note ? `: ${e.note}` : ''}. You failed to report it. Missing a real defect is the worst outcome.`
-        : `  MISS (bonus, not required) — "${where}" has a seeded ${e.defectType} the baseline also misses; catching it is a plus but does not reject you.`,
+      `  MISS (must catch) — "${where}" has a seeded ${e.defectType}${e.note ? `: ${e.note}` : ''}. You failed to report it. Missing a real defect is the worst outcome.`,
     );
   }
   for (const d of s.falseAlarms) {
@@ -112,7 +111,7 @@ async function main(): Promise<void> {
         missed: s.falseNegatives.length,
         protectedMissed: protectedMisses(s, protectedSet).length,
         falseAlarms: s.falseAlarms.length,
-        feedback: feedback(s, fx, protectedSet),
+        feedback: feedback(s, fx),
       });
     } catch (error) {
       // Never fail the whole batch on one fixture (GEPA contract): score 0.

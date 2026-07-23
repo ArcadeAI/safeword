@@ -21,7 +21,7 @@ import {
   type BaselineRunCatches,
 } from './src/protected';
 import { createRunnerFromEnv } from './src/task';
-import type { RunOutput, SkillRunner } from './src/types';
+import { DEFAULT_SEVERITY, type RunOutput, type SkillRunner } from './src/types';
 
 const SKILL_PATH = join(
   import.meta.dirname,
@@ -66,7 +66,14 @@ async function main(): Promise<void> {
       try {
         const out = await runWithRetry(runner, skill, fx.featureSource);
         const s = scoreFixture(fx.name, out.detections, fx.expected, fx.certifiedClean);
-        perFixture.push({ name: fx.name, caughtKeys: s.caughtSeeds.map(seedKey) });
+        // Protect MUST-FIX seeds only — the floor guards must-fix (should-strengthen
+        // lenses are advisory, measured but never gated).
+        perFixture.push({
+          name: fx.name,
+          caughtKeys: s.caughtSeeds
+            .filter(e => DEFAULT_SEVERITY[e.defectType] === 'must-fix')
+            .map(seedKey),
+        });
       } catch (error) {
         process.stderr.write(
           `    ${fx.name}: FAILED after retries (${(error as Error).message}) — no catches counted this run\n`,
