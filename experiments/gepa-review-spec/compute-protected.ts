@@ -21,6 +21,7 @@ import {
   type BaselineRunCatches,
 } from './src/protected';
 import { createRunnerFromEnv } from './src/task';
+import type { RunOutput, SkillRunner } from './src/types';
 
 const SKILL_PATH = join(
   import.meta.dirname,
@@ -33,6 +34,25 @@ const SKILL_PATH = join(
 );
 const OUT_PATH = join(import.meta.dirname, 'baseline-protected.json');
 
+/** Retry a transient runner failure (e.g. a fetch timeout) before giving up — a
+ * long paid batch must not die on one hiccup (gepa-eval.ts already does this). */
+async function runWithRetry(
+  runner: SkillRunner,
+  skill: string,
+  feature: string,
+): Promise<RunOutput> {
+  const attempts = 4;
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      return await runner.run(skill, feature);
+    } catch (error) {
+      if (i === attempts - 1) throw error;
+      process.stderr.write(`    retry ${i + 1}: ${(error as Error).message}\n`);
+    }
+  }
+  throw new Error('unreachable');
+}
+
 async function main(): Promise<void> {
   const runs = Number(process.argv[2] ?? 3);
   const skill = readFileSync(SKILL_PATH, 'utf8');
@@ -43,9 +63,16 @@ async function main(): Promise<void> {
   for (let i = 0; i < runs; i += 1) {
     const perFixture: BaselineRunCatches[] = [];
     for (const fx of fixtures) {
-      const out = await runner.run(skill, fx.featureSource);
-      const s = scoreFixture(fx.name, out.detections, fx.expected, fx.certifiedClean);
-      perFixture.push({ name: fx.name, caughtKeys: s.caughtSeeds.map(seedKey) });
+      try {
+        const out = await runWithRetry(runner, skill, fx.featureSource);
+        const s = scoreFixture(fx.name, out.detections, fx.expected, fx.certifiedClean);
+        perFixture.push({ name: fx.name, caughtKeys: s.caughtSeeds.map(seedKey) });
+      } catch (error) {
+        process.stderr.write(
+          `    ${fx.name}: FAILED after retries (${(error as Error).message}) — no catches counted this run\n`,
+        );
+        perFixture.push({ name: fx.name, caughtKeys: [] });
+      }
     }
     allRuns.push(perFixture);
     process.stderr.write(`run ${i + 1}/${runs} done\n`);
