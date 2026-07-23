@@ -330,8 +330,11 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
     return { warnings, ...(errors && { errors }) };
   }
 
-  // Go files - golangci-lint run (fix code), then golangci-lint fmt (format)
-  // Auto-upgrades safeword if Go pack is missing
+  // Go files - golangci-lint run (fix code), then golangci-lint fmt (format).
+  // The Safeword config is optional at post-edit time: upgrade is a networked
+  // operation and can consume the whole hook timeout before the installed Go
+  // formatter gets a chance to run. When it is absent, use golangci-lint's
+  // configless fallback immediately instead.
   if (GO_EXTENSIONS.has(extension)) {
     if (
       !(await checkToolAvailable(
@@ -360,8 +363,8 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
       }
       toolWarnings.add('golangci-lint-v2-ok');
     }
-    const hasGolangci = await ensurePackInstalled('Go', SAFEWORD_GOLANGCI);
-    const cfg = configArgs(SAFEWORD_GOLANGCI, hasGolangci);
+    const hasSafewordGolangciConfig = hasConfig(SAFEWORD_GOLANGCI);
+    const cfg = configArgs(SAFEWORD_GOLANGCI, hasSafewordGolangciConfig);
     await $`golangci-lint run ${cfg} --fix ${normalizedFile}`.nothrow().quiet();
     await $`golangci-lint fmt ${cfg} ${normalizedFile}`.nothrow().quiet();
     const errors = await captureRemainingErrors(

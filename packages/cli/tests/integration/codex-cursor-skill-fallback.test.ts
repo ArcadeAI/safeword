@@ -75,6 +75,18 @@ function runFallback(
   return { exitCode: result.status ?? 0, output: `${result.stdout}${result.stderr}` };
 }
 
+function runFallbackShell(
+  projectDirectory: string,
+  command: string,
+): { exitCode: number; output: string } {
+  const result = spawnSync('bash', ['-c', command], {
+    cwd: projectDirectory,
+    env: fallbackEnvironment(projectDirectory),
+    encoding: 'utf8',
+  });
+  return { exitCode: result.status ?? 0, output: `${result.stdout}${result.stderr}` };
+}
+
 function logContents(projectDirectory: string): string {
   const logPath = nodePath.join(projectDirectory, '.project', 'skill-invocations.log');
   return existsSync(logPath) ? readFileSync(logPath, 'utf8') : '';
@@ -85,6 +97,14 @@ function logContents(projectDirectory: string): string {
 // the short-lived cache the fallback then reads — no env var, no explicit arg.
 function bindCodexSession(projectDirectory: string, skill: string, sessionId: string): void {
   const command = `bun "${projectDirectory}/.safeword/hooks/record-skill-invocation.ts" "${projectDirectory}" ${skill}`;
+  bindCodexSessionForCommand(projectDirectory, command, sessionId);
+}
+
+function bindCodexSessionForCommand(
+  projectDirectory: string,
+  command: string,
+  sessionId: string,
+): void {
   const result = spawnSync(
     process.execPath,
     [nodePath.join(repoRoot, 'packages/cli/dist/cli.js'), 'hook', 'codex', 'pre-tool-use'],
@@ -102,25 +122,39 @@ function bindCodexSession(projectDirectory: string, skill: string, sessionId: st
   expect(result.status ?? 0).toBe(0);
 }
 
-// Drive Cursor's real beforeShellExecution adapter with the supported relative
-// helper command. The helper relies on this adapter to bridge conversation_id;
-// it receives neither a session argument nor a runtime identity in its env.
-function bindCursorSession(projectDirectory: string, skill: string, conversationId: string): void {
-  const command = `bun .safeword/hooks/record-skill-invocation.ts "${projectDirectory}" ${skill}`;
+// Cursor invokes its installed beforeShellExecution adapter directly. Feed it
+// the same pre-execution command and then run the real fallback shell command
+// so this exercises the adapter → queue → helper handoff, rather than writing
+// a receipt or cache file in the test.
+function bindCursorConversationForCommand(
+  projectDirectory: string,
+  command: string,
+  conversationId: string,
+): void {
   const result = spawnSync('bun', ['.safeword/hooks/cursor/before-shell-execution.ts'], {
     cwd: projectDirectory,
     input: JSON.stringify({
-      workspace_roots: [projectDirectory],
       conversation_id: conversationId,
       command,
+      workspace_roots: [projectDirectory],
     }),
-    env: fallbackEnvironment(projectDirectory),
+    env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
     encoding: 'utf8',
+    stdio: ['pipe', 'pipe', 'pipe'],
   });
-  expect(result.status ?? 0).toBe(0);
-  expect(JSON.parse(result.stdout)).toEqual({ permission: 'allow' });
+  expect(result.status ?? 0, `${result.stdout}${result.stderr}`).toBe(0);
+  expect(result.stdout).toContain('"permission":"allow"');
 }
 
+type RuntimeBridge = {
+  name: 'Codex' | 'Cursor';
+  bind: (projectDirectory: string, command: string, sessionId: string) => void;
+};
+
+const RUNTIME_BRIDGES: RuntimeBridge[] = [
+  { name: 'Codex', bind: bindCodexSessionForCommand },
+  { name: 'Cursor', bind: bindCursorConversationForCommand },
+];
 describe('Codex/Cursor skill-invocation fallback → done-gate E2E (#295)', () => {
   let projectDirectory: string;
 
@@ -181,22 +215,119 @@ describe('Codex/Cursor skill-invocation fallback → done-gate E2E (#295)', () =
     expect(result.stdout).not.toContain('Required skill invocation');
   });
 
-  it('feature done PASSES when Cursor binds the supported relative helper command', () => {
-    writeFeatureTicketAtDone(projectDirectory, '953');
-    const conversationId = 'cursor-session-953';
+  for (const runtime of RUNTIME_BRIDGES) {
+    it(`records a documented relative helper through ${runtime.name}`, () => {
+      const sessionId = `${runtime.name.toLowerCase()}-relative-single`;
+      const command = `bun .safeword/hooks/record-skill-invocation.ts "${projectDirectory}" verify`;
 
-    for (const skill of ['verify', 'audit'] as const) {
-      bindCursorSession(projectDirectory, skill, conversationId);
-      const fallback = runFallback(projectDirectory, skill, '');
-      expect(fallback.exitCode).toBe(0);
-      expect(fallback.output).toContain(`${skill} ✓`);
-    }
+      runtime.bind(projectDirectory, command, sessionId);
+      const result = runFallbackShell(projectDirectory, command);
 
-    const result = runDoneGate(projectDirectory, conversationId);
+      expect(result.exitCode, result.output).toBe(0);
+      expect(result.output).toContain('verify ✓');
+      expect(logContents(projectDirectory)).toContain(`${sessionId} verify`);
+    });
 
-    expect(result.exitCode).toBe(0);
-    expect(result.stdout).not.toContain('Required skill invocation');
-  });
+    it(`records the installed absolute helper through ${runtime.name}`, () => {
+      const sessionId = `${runtime.name.toLowerCase()}-absolute-single`;
+      const helper = nodePath.join(
+        projectDirectory,
+        '.safeword',
+        'hooks',
+        'record-skill-invocation.ts',
+      );
+      const command = `bun "${helper}" "${projectDirectory}" audit`;
+
+      runtime.bind(projectDirectory, command, sessionId);
+      const result = runFallbackShell(projectDirectory, command);
+
+      expect(result.exitCode, result.output).toBe(0);
+      expect(result.output).toContain('audit ✓');
+      expect(logContents(projectDirectory)).toContain(`${sessionId} audit`);
+    });
+
+    it(`records each documented relative-path helper in an ordered ${runtime.name} shell chain`, () => {
+      const sessionId = `${runtime.name.toLowerCase()}-relative-chain`;
+      const helper = '.safeword/hooks/record-skill-invocation.ts';
+      const command = `bun ${helper} "${projectDirectory}" verify && bun ${helper} "${projectDirectory}" audit`;
+
+      // The runtime observes the entire upcoming shell command once; the two
+      // real helper processes must each consume only their own receipt.
+      runtime.bind(projectDirectory, command, sessionId);
+      const result = runFallbackShell(projectDirectory, command);
+
+      expect(result.exitCode, result.output).toBe(0);
+      expect(result.output).toContain('verify ✓');
+      expect(result.output).toContain('audit ✓');
+      const log = logContents(projectDirectory);
+      const verifyIndex = log.indexOf(`${sessionId} verify`);
+      expect(verifyIndex).toBeGreaterThanOrEqual(0);
+      expect(log.indexOf(`${sessionId} audit`)).toBeGreaterThan(verifyIndex);
+    });
+
+    it(`records each repeated helper through ${runtime.name}`, () => {
+      const sessionId = `${runtime.name.toLowerCase()}-repeated-chain`;
+      const helper = '.safeword/hooks/record-skill-invocation.ts';
+      const command = `bun ${helper} "${projectDirectory}" verify && bun ${helper} "${projectDirectory}" verify`;
+
+      runtime.bind(projectDirectory, command, sessionId);
+      const result = runFallbackShell(projectDirectory, command);
+
+      expect(result.exitCode, result.output).toBe(0);
+      const records = logContents(projectDirectory)
+        .split('\n')
+        .filter(line => line.includes(`${sessionId} verify`));
+      expect(records).toHaveLength(2);
+    });
+
+    it(`does not arm a short-circuited ${runtime.name} chain tail`, () => {
+      const sessionId = `${runtime.name.toLowerCase()}-short-circuit`;
+      const helper = '.safeword/hooks/record-skill-invocation.ts';
+      const command = `bun ${helper} "${projectDirectory}" verify && false && bun ${helper} "${projectDirectory}" audit`;
+
+      runtime.bind(projectDirectory, command, sessionId);
+      const chained = runFallbackShell(projectDirectory, command);
+      expect(chained.exitCode).toBe(1);
+      expect(logContents(projectDirectory)).toContain(`${sessionId} verify`);
+
+      const audit = runFallback(projectDirectory, 'audit', '');
+      expect(audit.output.toLowerCase()).toContain('no run identity');
+      expect(logContents(projectDirectory)).not.toContain(`${sessionId} audit`);
+    });
+
+    it(`does not arm ${runtime.name} from a foreign-root helper path`, () => {
+      const sessionId = `${runtime.name.toLowerCase()}-foreign-root`;
+      const foreignCommand = `bun /other/.safeword/hooks/record-skill-invocation.ts "${projectDirectory}" audit`;
+      const realCommand = `bun .safeword/hooks/record-skill-invocation.ts "${projectDirectory}" audit`;
+
+      runtime.bind(projectDirectory, foreignCommand, sessionId);
+      const audit = runFallbackShell(projectDirectory, realCommand);
+
+      expect(audit.output.toLowerCase()).toContain('no run identity');
+      expect(logContents(projectDirectory)).not.toContain(`${sessionId} audit`);
+    });
+
+    it(`does not arm ${runtime.name} from a lookalike helper path`, () => {
+      const sessionId = `${runtime.name.toLowerCase()}-lookalike`;
+      const lookalikeCommand = `bun .safeword/hooks/record-skill-invocation.ts.bak "${projectDirectory}" audit`;
+      const realCommand = `bun .safeword/hooks/record-skill-invocation.ts "${projectDirectory}" audit`;
+
+      runtime.bind(projectDirectory, lookalikeCommand, sessionId);
+      const audit = runFallbackShell(projectDirectory, realCommand);
+
+      expect(audit.output.toLowerCase()).toContain('no run identity');
+      expect(logContents(projectDirectory)).not.toContain(`${sessionId} audit`);
+    });
+
+    it(`does not record a ${runtime.name} helper without a session identity`, () => {
+      const command = `bun .safeword/hooks/record-skill-invocation.ts "${projectDirectory}" verify`;
+
+      runtime.bind(projectDirectory, command, '');
+      const result = runFallbackShell(projectDirectory, command);
+
+      expect(result.output.toLowerCase()).toContain('no run identity');
+    });
+  }
 
   it('feature done PASSES the skill gate when verify+audit are recorded via the fallback (non-Claude runtime)', () => {
     writeFeatureTicketAtDone(projectDirectory, '951');

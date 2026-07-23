@@ -2,6 +2,7 @@
 .husky/_
 .safeword/
 .cursor/
+packages/website/.astro/
 .project/tickets/INDEX.md
 .project/tickets/INDEX-completed.md
 .project/learnings/INDEX.md

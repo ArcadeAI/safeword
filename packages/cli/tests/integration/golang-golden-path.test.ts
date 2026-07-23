@@ -13,7 +13,7 @@
  */
 
 import { execSync, spawnSync } from 'node:child_process';
-import { unlinkSync } from 'node:fs';
+import { chmodSync, unlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -253,4 +253,42 @@ func fallback(){println("test")}`,
     const result = readTestFile(projectDirectory, 'fallback.go');
     expect(result).toContain('func fallback() {');
   });
+
+  it.skipIf(!IS_GOLANGCI_LINT_AVAILABLE)(
+    'falls back to direct formatting when Safe Word Go configuration is unavailable',
+    () => {
+      const fakeBin = nodePath.join(projectDirectory, 'fake-bin');
+      const upgradeLog = nodePath.join(projectDirectory, 'upgrade-invocation.log');
+      const fakeBunx = nodePath.join(fakeBin, process.platform === 'win32' ? 'bunx.cmd' : 'bunx');
+      writeTestFile(
+        projectDirectory,
+        process.platform === 'win32' ? 'fake-bin/bunx.cmd' : 'fake-bin/bunx',
+        process.platform === 'win32'
+          ? '@echo off\r\necho %* > "%UPGRADE_LOG%"\r\n'
+          : '#!/usr/bin/env bash\nprintf "%s\\n" "$*" > "$UPGRADE_LOG"\n',
+      );
+      if (process.platform !== 'win32') {
+        chmodSync(fakeBunx, 0o755);
+      }
+
+      writeTestFile(
+        projectDirectory,
+        'direct-fallback.go',
+        `package main
+func directFallback(){println("test")}`,
+      );
+      const filePath = nodePath.join(projectDirectory, 'direct-fallback.go');
+
+      const hook = runLintHook(projectDirectory, filePath, {
+        PATH: `${fakeBin}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+        UPGRADE_LOG: upgradeLog,
+      });
+
+      expect(hook.status, `${hook.stdout ?? ''}${hook.stderr ?? ''}`).toBe(0);
+      expect(readTestFile(projectDirectory, 'direct-fallback.go')).toContain(
+        'func directFallback() {',
+      );
+      expect(fileExists(projectDirectory, 'upgrade-invocation.log')).toBe(false);
+    },
+  );
 });
