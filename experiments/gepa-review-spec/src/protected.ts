@@ -69,10 +69,9 @@ export interface BaselineRunCatches {
  * if caught in at least `threshold` runs (default ⌈2k/3⌉ — a MARGIN above half
  * so a seed straddling the flip point is not protected on noise alone).
  */
-export function computeProtectedSet(
-  runs: BaselineRunCatches[][],
-  threshold: number = Math.ceil((2 * runs.length) / 3),
-): ProtectedSet {
+/** Per-fixture per-key catch count across runs — shared by the floor builder and
+ * the multi-run accept gate so both derive "reliably caught" the same way. */
+function tallyCatches(runs: BaselineRunCatches[][]): Map<string, Map<string, number>> {
   const counts = new Map<string, Map<string, number>>();
   for (const run of runs) {
     for (const f of run) {
@@ -81,13 +80,63 @@ export function computeProtectedSet(
       counts.set(f.name, m);
     }
   }
+  return counts;
+}
+
+export function computeProtectedSet(
+  runs: BaselineRunCatches[][],
+  threshold: number = Math.ceil((2 * runs.length) / 3),
+): ProtectedSet {
   const out: ProtectedSet = new Map();
-  for (const [name, m] of counts) {
+  for (const [name, m] of tallyCatches(runs)) {
     const prot = new Set<string>();
     for (const [k, c] of m) if (c >= threshold) prot.add(k);
     out.set(name, prot);
   }
   return out;
+}
+
+/** A protected seed the candidate fails to RELIABLY catch across its runs. */
+export interface ConsensusBreach {
+  fixture: string;
+  key: string;
+  caughtRuns: number;
+  runs: number;
+}
+
+/**
+ * The MULTI-RUN accept-gate floor check (ticket 21RAT9). A single run is too noisy
+ * to gate on: the runner sends no temperature, so default-sampling variance makes
+ * even the BASELINE miss a protected seed ~1/3 of runs — a one-run gate therefore
+ * spuriously rejects good candidates (measured: the winner breaches a one-run floor
+ * 2/3 of runs yet holds it on consensus). Instead, run the candidate `runs` times
+ * and require it to catch each protected seed on the SAME ⌈2k/3⌉ supermajority that
+ * DEFINED the protected set — symmetric reliability for baseline and candidate. A
+ * protected seed caught in fewer than ⌈2*runs/3⌉ runs is a real (consensus) breach.
+ *
+ * `manifest` is the canonical protected set (baseline-protected.json); `fixtures`
+ * restricts the check to one split's fixtures. Per-SEED keys (not a per-fixture
+ * count) so a two-seed fixture where each seed misses in a DIFFERENT single run —
+ * both still caught ⌈2*runs/3⌉ — correctly does NOT breach.
+ */
+export function consensusFloorBreaches(
+  candidateRuns: BaselineRunCatches[][],
+  manifest: ProtectedSet,
+  fixtures: string[],
+): ConsensusBreach[] {
+  const runs = candidateRuns.length;
+  const threshold = Math.ceil((2 * runs) / 3);
+  const counts = tallyCatches(candidateRuns);
+  const breaches: ConsensusBreach[] = [];
+  for (const name of fixtures) {
+    const protectedKeys = manifest.get(name) ?? new Set<string>();
+    const caughtCounts = counts.get(name) ?? new Map<string, number>();
+    for (const k of protectedKeys) {
+      const caughtRuns = caughtCounts.get(k) ?? 0;
+      if (caughtRuns < threshold) breaches.push({ fixture: name, key: k, caughtRuns, runs });
+    }
+  }
+  return breaches;
 }
 
 interface ProtectedManifest {
