@@ -21,6 +21,7 @@
     "test-plan",
     "setup",
     "check",
+    "feature-directories",
     "lint-gherkin",
     "lint-imports"
   ],

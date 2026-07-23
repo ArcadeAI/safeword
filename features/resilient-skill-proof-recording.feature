@@ -20,6 +20,16 @@ Feature: Skill proof recording survives normal shell commands
         | Codex | installed absolute | /repo | /repo/.safeword/hooks/record-skill-invocation.ts |
         | Cursor | installed absolute | /repo | /repo/.safeword/hooks/record-skill-invocation.ts |
 
+    Scenario Outline: Complete automatic skill line records proof on each runtime
+      Given <runtime> supplies a current session identity
+      When the documented `PROJECT_DIR && bun record-skill-invocation || echo` line runs
+      Then the requested skill has a receipt for that session
+
+      Examples:
+        | runtime |
+        | Codex |
+        | Cursor |
+
   @resilient-skill-proof-recording.SWM1.R2
   @surface.openai-codex @surface.cursor
   Rule: resilient-skill-proof-recording.SWM1.R2 — Each helper command in one shell command retains its own current-session proof

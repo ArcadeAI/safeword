@@ -16,6 +16,7 @@ const CODEX_REVIEW_STAMP_IDENTITY_CACHE = 'codex-review-stamp-identity.json';
 
 /** Fixed cache key for the stamp-helper bridge — not a skill, so not skill-named. */
 const REVIEW_STAMP_CACHE_KEY = 'review-stamp';
+const FAILURE_NOTICE = '[skill-invocation-log] FAILED - no current-run proof logged';
 
 const DEFAULT_MAX_AGE_MS = 5 * 60 * 1000;
 
@@ -180,6 +181,22 @@ function usesOverriddenProjectDirectoryVariable(segment: string): boolean {
   return /(?:^|\s)(?:env\s+)?(?:PROJECT_DIR|CLAUDE_PROJECT_DIR)=/u.test(segment);
 }
 
+function withoutDocumentedFailureNotice(segment: string): string {
+  // The automatic invocation line appends this notice with `||` so a failed
+  // helper becomes visible. The helper still runs first, so it is safe to
+  // recognize; any other shell continuation remains an untrusted boundary.
+  const separator = segment.lastIndexOf('||');
+  if (separator === -1) return segment;
+
+  const command = segment.slice(0, separator).trim();
+  const fallbackWords = commandWords(segment.slice(separator + '||'.length));
+  return fallbackWords.length === 2 &&
+    fallbackWords[0] === 'echo' &&
+    fallbackWords[1] === FAILURE_NOTICE
+    ? command
+    : segment;
+}
+
 /**
  * Parse the contiguous, execution-order `&&` prefix of trusted proof helpers.
  *
@@ -206,7 +223,8 @@ export function parseRecordSkillInvocationCommands(
   }
 
   for (const segment of segments) {
-    const words = commandWords(segment);
+    const executableSegment = withoutDocumentedFailureNotice(segment);
+    const words = commandWords(executableSegment);
     if (!hasHelper && words.length === 0) {
       if (hasDocumentedProjectDirectoryPrelude(segment)) {
         trustedProjectDirectoryVariables.add('$PROJECT_DIR');
@@ -218,10 +236,10 @@ export function parseRecordSkillInvocationCommands(
     // Do not treat a helper found after a newline, pipe, `||`, or `;` as an
     // executable `&&` continuation. splitShellSegments is the shared shell
     // tokenizer; a multi-segment result is therefore never a trusted queue item.
-    if (splitShellSegments(segment).length !== 1) break;
-    if (usesOverriddenProjectDirectoryVariable(segment)) break;
+    if (splitShellSegments(executableSegment).length !== 1) break;
+    if (usesOverriddenProjectDirectoryVariable(executableSegment)) break;
 
-    const parsed = parseRecordSkillInvocationCommand(segment);
+    const parsed = parseRecordSkillInvocationCommand(executableSegment);
     if (
       parsed === undefined ||
       !isTrustedInvocationPath({

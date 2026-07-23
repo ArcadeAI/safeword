@@ -216,6 +216,22 @@ describe('Codex/Cursor skill-invocation fallback → done-gate E2E (#295)', () =
   });
 
   for (const runtime of RUNTIME_BRIDGES) {
+    it(`records the complete documented automatic skill line through ${runtime.name}`, () => {
+      const sessionId = `${runtime.name.toLowerCase()}-automatic-line`;
+      const command = [
+        'PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"',
+        'bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" audit "${CLAUDE_SESSION_ID:-}"',
+      ].join(' && ');
+      const automaticLine = `${command} || echo "[skill-invocation-log] FAILED - no current-run proof logged"`;
+
+      runtime.bind(projectDirectory, automaticLine, sessionId);
+      const result = runFallbackShell(projectDirectory, automaticLine);
+
+      expect(result.exitCode, result.output).toBe(0);
+      expect(result.output).toContain('audit ✓');
+      expect(logContents(projectDirectory)).toContain(`${sessionId} audit`);
+    });
+
     it(`records a documented relative helper through ${runtime.name}`, () => {
       const sessionId = `${runtime.name.toLowerCase()}-relative-single`;
       const command = `bun .safeword/hooks/record-skill-invocation.ts "${projectDirectory}" verify`;

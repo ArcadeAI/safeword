@@ -23,3 +23,7 @@ APPROVE — the implementation centralizes trusted command recognition and order
 ## Verification update
 
 SQ5KFS removed the Go hook's timeout-prone automatic upgrade. The project-generated plan now passes its full Vitest suite, BDD lane, and TypeScript typecheck. The BDD bridge assertion was also extracted into shared helpers to meet the complexity rule; its exact scenario passes. Audit/refactor follow-up renamed the Go config predicate, removed obsolete Knip suppressions, registered legacy personas, and updated patched development dependencies. This feature remains in `verify` pending user confirmation.
+
+## Verification update — documented automatic invocation
+
+The full automatic proof line ends with `|| echo` so an unavailable identity is visible. A quality-review rerun found that the strict parser treated that documented notice as an untrusted second command and skipped the valid helper. The parser now strips only that exact trailing notice before applying its existing path and project-root checks. The focused parser suite passes 33/33 tests, and the real Codex/Cursor adapter-to-helper suite passes 27/27 tests. Lint, formatting, typecheck, Knip, dependency-cruiser, dependency audit, freshness, namespace-domain checks, and targeted duplication checks are clean. The quality-review invocation itself could not be session-proofed in this Codex runtime (`no run identity`), so this feature remains in `verify` rather than being marked done.

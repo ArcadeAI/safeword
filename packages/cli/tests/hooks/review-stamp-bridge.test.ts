@@ -208,6 +208,15 @@ describe('parseRecordSkillInvocationCommands (ordered proof bridge)', () => {
     ).toEqual([{ skillName: 'verify' }]);
   });
 
+  it('recognizes the complete documented automatic line with its failure notice', () => {
+    expect(
+      parseRecordSkillInvocationCommands(
+        'PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" audit "${CLAUDE_SESSION_ID:-}" || echo "[skill-invocation-log] FAILED - no current-run proof logged"',
+        PROJECT_DIRECTORY,
+      ),
+    ).toEqual([{ skillName: 'audit' }]);
+  });
+
   it('recognizes the established CLAUDE_PROJECT_DIR form only for the active project', () => {
     const command =
       'bun "$CLAUDE_PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$CLAUDE_PROJECT_DIR" bdd';

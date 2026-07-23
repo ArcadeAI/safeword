@@ -14,7 +14,7 @@
         "husky": "^9.1.7",
         "jiti": "^2.7.0",
         "knip": "6.29.0",
-        "lint-staged": "^17.1.1",
+        "lint-staged": "^17.2.0",
         "markdownlint-cli2": "^0.23.1",
         "prettier": "^3.9.6",
         "prettier-plugin-sh": "^0.19.0",
@@ -1780,7 +1780,7 @@
 
     "linkify-it": ["linkify-it@5.0.2", "", { "dependencies": { "uc.micro": "^2.0.0" } }, "sha512-ONTm2jCMAVZjgQa/Fy1kScXsuOoF5NPTsoFBdE1KVIZ2vAh/r9+Bqo+0jINCBYnavTPQZz38QzFTme79ENoN3Q=="],
 
-    "lint-staged": ["lint-staged@17.1.1", "", { "dependencies": { "picomatch": "^4.0.5", "string-argv": "^0.3.2", "tinyexec": "^1.2.4" }, "optionalDependencies": { "yaml": "^2.9.0" }, "bin": { "lint-staged": "bin/lint-staged.js" } }, "sha512-FnHWpSe5cPRtrDG+soOuNdBxb4XQb2gN5EqpEWKdweyqyOfpl4QSjbrz3ilcIf0WXmkiNQGZZRQ23R5YtB3TEw=="],
+    "lint-staged": ["lint-staged@17.2.0", "", { "dependencies": { "picomatch": "^4.0.5", "string-argv": "^0.3.2", "tinyexec": "^1.2.4" }, "optionalDependencies": { "yaml": "^2.9.0" }, "bin": { "lint-staged": "bin/lint-staged.js" } }, "sha512-FchGnFe4i4B1C/a35SPU9bNGPEHSC1+1iV0plLjzBmKVe9klZrlRfSgK6Cw4VeHyqOXbJUXP0vON61uRftNQ0A=="],
 
     "load-tsconfig": ["load-tsconfig@0.2.5", "", {}, "sha512-IXO6OCs9yg8tMKzfPZ1YmheJbZCiEsnBdcB03l0OcfK9prKnJb96siuHCr5Fl37/yo9DnKU+TLpxzTUspw9shg=="],
 

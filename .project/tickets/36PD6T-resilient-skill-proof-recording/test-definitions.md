@@ -10,6 +10,12 @@ Feature source: `features/resilient-skill-proof-recording.feature`
 - [x] GREEN 2026-07-22: Codex and Cursor record both exact relative and installed absolute helpers in `codex-cursor-skill-fallback.test.ts`; the full Codex parity scenario accepts `$CLAUDE_PROJECT_DIR` only when the hook environment proves it names the active root.
 - [x] REFACTOR 2026-07-22: path comparison canonicalizes only existing absolute paths; relative and documented project variables remain explicit allow-list entries, while arbitrary variable reassignment is rejected.
 
+### Scenario: Complete automatic skill line records proof on each runtime
+
+- [x] RED 2026-07-23: the strict queue parser rejected the documented automatic `PROJECT_DIR && bun … || echo` line because its failure notice formed a second shell segment.
+- [x] GREEN 2026-07-23: real Codex and Cursor adapter-to-helper tests run that complete line and record its `audit` receipt.
+- [x] REFACTOR 2026-07-23: only the exact documented failure notice is stripped before trust evaluation; all other shell continuations remain rejection boundaries.
+
 ## Rule: resilient-skill-proof-recording.SWM1.R2 — Each helper command in one shell command retains its own current-session proof
 
 ### Scenario: Distinct chained skills record ordered proof on each runtime
