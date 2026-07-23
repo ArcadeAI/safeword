@@ -41,7 +41,7 @@
     "husky": "^9.1.7",
     "jiti": "^2.7.0",
     "knip": "6.27.0",
-    "lint-staged": "^17.0.8",
+    "lint-staged": "^17.2.0",
     "markdownlint-cli2": "^0.23.0",
     "prettier": "^3.9.5",
     "prettier-plugin-sh": "^0.19.0",
