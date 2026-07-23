@@ -6,9 +6,7 @@
       "A missing optional field falls back to its default::vacuous"
     ],
     "formatter-clean": [],
-    "formatter-determinism-order": [
-      "The session lint check lists findings in a fixed order::determinism"
-    ],
+    "formatter-determinism-order": [],
     "formatter-non-atomic": [
       "The hook respects both customer Prettier and greenfield defaults::non-atomic"
     ],
