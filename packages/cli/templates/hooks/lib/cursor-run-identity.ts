@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { resolveNamespaceRoot } from './namespace-root.js';
@@ -20,6 +20,10 @@ const REVIEW_STAMP_CACHE_KEY = 'review-stamp';
 const DEFAULT_MAX_AGE_MS = 5 * 60 * 1000;
 
 interface ShellRunIdentityCache {
+  entries: ShellRunIdentityEntry[];
+}
+
+interface ShellRunIdentityEntry {
   id: string;
   skillName: string;
   recordedAt: string;
@@ -29,7 +33,7 @@ interface RememberShellRunIdentityInput {
   projectDirectory: string;
   cacheFile: string;
   id: string | undefined;
-  skillName: string | undefined;
+  skillNames: string[];
   now?: Date;
 }
 
@@ -44,14 +48,14 @@ interface ReadFreshShellRunIdentityInput {
 interface RememberCursorRunIdentityInput {
   projectDirectory: string;
   conversationId: string | undefined;
-  skillName: string | undefined;
+  skillNames: string[];
   now?: Date;
 }
 
 interface RememberCodexRunIdentityInput {
   projectDirectory: string;
   sessionId: string | undefined;
-  skillName: string | undefined;
+  skillNames: string[];
   now?: Date;
 }
 
@@ -123,6 +127,120 @@ export function parseRecordSkillInvocationCommand(
   return undefined;
 }
 
+function isTrustedInvocationPath(input: {
+  helperPath: string | undefined;
+  projectArgument: string | undefined;
+  projectDirectory: string;
+  trustedProjectDirectoryVariables: ReadonlySet<string>;
+}): boolean {
+  const { helperPath, projectArgument, projectDirectory, trustedProjectDirectoryVariables } = input;
+  if (helperPath === undefined || projectArgument === undefined) return false;
+
+  const normalizedHelper = normalizeComparablePath(helperPath);
+  const normalizedProject = normalizeComparablePath(projectDirectory);
+  const expectedHelper = `${normalizedProject}/.safeword/hooks/record-skill-invocation.ts`;
+  const relativeHelper = '.safeword/hooks/record-skill-invocation.ts';
+  if (normalizedHelper === relativeHelper || normalizedHelper === expectedHelper) {
+    return normalizeComparablePath(projectArgument) === normalizedProject;
+  }
+
+  return [...trustedProjectDirectoryVariables].some(variable => {
+    const helperForVariable = `${variable}/.safeword/hooks/record-skill-invocation.ts`;
+    return normalizedHelper === helperForVariable && projectArgument === variable;
+  });
+}
+
+// macOS commonly exposes the same checkout through both `/var/...` and its
+// physical `/private/var/...` path. Cursor's `chdir` reports the latter while
+// a documented command can retain the former. Resolve only absolute existing
+// paths, keeping the exact relative and `$PROJECT_DIR` forms as explicit
+// allow-list entries rather than broadening helper recognition.
+function normalizeComparablePath(path: string): string {
+  const normalized = path.replaceAll('\\', '/').replace(/\/+$/, '');
+  if (!nodePath.isAbsolute(normalized)) return normalized;
+
+  try {
+    return realpathSync.native(normalized).replaceAll('\\', '/').replace(/\/+$/, '');
+  } catch {
+    return normalized;
+  }
+}
+
+function hasDocumentedProjectDirectoryPrelude(segment: string): boolean {
+  // Every proof skill emits this exact root resolver. It is the only shell
+  // assignment form we can establish as same-project before the shell executes:
+  // it resolves the inherited project root, then the current Git worktree, then
+  // the current directory. Arbitrary PROJECT_DIR assignments remain untrusted.
+  return /^PROJECT_DIR="\$\{CLAUDE_PROJECT_DIR:-\$\(git rev-parse --show-toplevel 2>\s*\/dev\/null \|\| pwd\)\}"$/u.test(
+    segment.trim(),
+  );
+}
+
+function usesOverriddenProjectDirectoryVariable(segment: string): boolean {
+  return /(?:^|\s)(?:env\s+)?(?:PROJECT_DIR|CLAUDE_PROJECT_DIR)=/u.test(segment);
+}
+
+/**
+ * Parse the contiguous, execution-order `&&` prefix of trusted proof helpers.
+ *
+ * A leading `PROJECT_DIR=…` assignment is the documented skill prelude, not a
+ * helper command. Once a real command appears, any non-helper stops the queue
+ * so a short-circuited tail cannot borrow the current session's proof.
+ */
+export function parseRecordSkillInvocationCommands(
+  command: string,
+  projectDirectory: string,
+  options: { claudeProjectDirectory?: string } = {},
+): { skillName: string }[] {
+  const commands: { skillName: string }[] = [];
+  const segments = command.split(/\s+&&\s+/);
+  let hasHelper = false;
+  const trustedProjectDirectoryVariables = new Set<string>();
+
+  if (
+    options.claudeProjectDirectory !== undefined &&
+    normalizeComparablePath(options.claudeProjectDirectory) ===
+      normalizeComparablePath(projectDirectory)
+  ) {
+    trustedProjectDirectoryVariables.add('$CLAUDE_PROJECT_DIR');
+  }
+
+  for (const segment of segments) {
+    const words = commandWords(segment);
+    if (!hasHelper && words.length === 0) {
+      if (hasDocumentedProjectDirectoryPrelude(segment)) {
+        trustedProjectDirectoryVariables.add('$PROJECT_DIR');
+        continue;
+      }
+      break;
+    }
+
+    // Do not treat a helper found after a newline, pipe, `||`, or `;` as an
+    // executable `&&` continuation. splitShellSegments is the shared shell
+    // tokenizer; a multi-segment result is therefore never a trusted queue item.
+    if (splitShellSegments(segment).length !== 1) break;
+    if (usesOverriddenProjectDirectoryVariable(segment)) break;
+
+    const parsed = parseRecordSkillInvocationCommand(segment);
+    if (
+      parsed === undefined ||
+      !isTrustedInvocationPath({
+        helperPath: words[1],
+        projectArgument: words[2],
+        projectDirectory,
+        trustedProjectDirectoryVariables,
+      })
+    ) {
+      break;
+    }
+
+    commands.push(parsed);
+    hasHelper = true;
+  }
+
+  return commands;
+}
+
 /** True when any segment of `command` runs write-review-stamp.ts under bun. */
 export function commandInvokesWriteReviewStamp(command: string): boolean {
   return splitShellSegments(command).some(segment => {
@@ -142,8 +260,8 @@ export function commandInvokesWriteReviewStamp(command: string): boolean {
  */
 function rememberShellRunIdentity(input: RememberShellRunIdentityInput): boolean {
   const id = nonEmptyString(input.id);
-  const skillName = nonEmptyString(input.skillName);
-  if (id === undefined || skillName === undefined) return false;
+  const skillNames = input.skillNames.filter(skillName => SKILL_NAME_PATTERN.test(skillName));
+  if (id === undefined || skillNames.length === 0) return false;
 
   try {
     const cachePath = cachePathForProject(input.projectDirectory, input.cacheFile);
@@ -151,9 +269,11 @@ function rememberShellRunIdentity(input: RememberShellRunIdentityInput): boolean
     writeFileSync(
       cachePath,
       JSON.stringify({
-        id,
-        skillName,
-        recordedAt: (input.now ?? new Date()).toISOString(),
+        entries: skillNames.map(skillName => ({
+          id,
+          skillName,
+          recordedAt: (input.now ?? new Date()).toISOString(),
+        })),
       }),
       'utf8',
     );
@@ -169,23 +289,44 @@ function readFreshShellRunIdentity(input: ReadFreshShellRunIdentityInput): strin
   if (!existsSync(cachePath)) return undefined;
 
   try {
-    const parsed = JSON.parse(readFileSync(cachePath, 'utf8')) as Partial<ShellRunIdentityCache>;
-    const id = nonEmptyString(parsed.id);
-    if (id === undefined) return undefined;
-    if (parsed.skillName !== input.skillName) return undefined;
+    const parsed = JSON.parse(readFileSync(cachePath, 'utf8')) as Partial<ShellRunIdentityCache> &
+      Partial<ShellRunIdentityEntry>;
+    // A previous packaged bridge can still write the single-entry shape while
+    // the installed recorder has already upgraded. Reading that one entry is
+    // safe and keeps a legitimate first proof from being discarded; all new
+    // writers emit the ordered `entries` shape.
+    const entries = Array.isArray(parsed.entries)
+      ? parsed.entries
+      : parsed.id && parsed.skillName && parsed.recordedAt
+        ? [parsed as ShellRunIdentityEntry]
+        : [];
+    const entry = entries[0];
+    const id = nonEmptyString(entry?.id);
+    if (id === undefined || entry?.skillName !== input.skillName) {
+      rmSync(cachePath, { force: true });
+      return undefined;
+    }
 
-    const recordedAtMs = Date.parse(parsed.recordedAt ?? '');
-    if (!Number.isFinite(recordedAtMs)) return undefined;
+    const recordedAtMs = Date.parse(entry.recordedAt ?? '');
+    if (!Number.isFinite(recordedAtMs)) {
+      rmSync(cachePath, { force: true });
+      return undefined;
+    }
 
     const nowMs = (input.now ?? new Date()).getTime();
     const maxAgeMs = input.maxAgeMs ?? DEFAULT_MAX_AGE_MS;
-    if (nowMs - recordedAtMs > maxAgeMs) return undefined;
+    if (nowMs - recordedAtMs > maxAgeMs) {
+      rmSync(cachePath, { force: true });
+      return undefined;
+    }
 
+    const rest = entries.slice(1);
+    if (rest.length > 0) writeFileSync(cachePath, JSON.stringify({ entries: rest }), 'utf8');
+    else rmSync(cachePath, { force: true });
     return id;
   } catch {
-    return undefined;
-  } finally {
     rmSync(cachePath, { force: true });
+    return undefined;
   }
 }
 
@@ -194,7 +335,7 @@ export function rememberCursorRunIdentity(input: RememberCursorRunIdentityInput)
     projectDirectory: input.projectDirectory,
     cacheFile: CURSOR_RUN_IDENTITY_CACHE,
     id: input.conversationId,
-    skillName: input.skillName,
+    skillNames: input.skillNames,
     now: input.now,
   });
 }
@@ -214,7 +355,7 @@ export function rememberCodexRunIdentity(input: RememberCodexRunIdentityInput): 
     projectDirectory: input.projectDirectory,
     cacheFile: CODEX_RUN_IDENTITY_CACHE,
     id: input.sessionId,
-    skillName: input.skillName,
+    skillNames: input.skillNames,
     now: input.now,
   });
 }
@@ -248,7 +389,7 @@ export function rememberCursorReviewStampIdentity(
     projectDirectory: input.projectDirectory,
     cacheFile: CURSOR_REVIEW_STAMP_IDENTITY_CACHE,
     id: input.id,
-    skillName: REVIEW_STAMP_CACHE_KEY,
+    skillNames: [REVIEW_STAMP_CACHE_KEY],
     now: input.now,
   });
 }
@@ -270,7 +411,7 @@ export function rememberCodexReviewStampIdentity(input: RememberReviewStampIdent
     projectDirectory: input.projectDirectory,
     cacheFile: CODEX_REVIEW_STAMP_IDENTITY_CACHE,
     id: input.id,
-    skillName: REVIEW_STAMP_CACHE_KEY,
+    skillNames: [REVIEW_STAMP_CACHE_KEY],
     now: input.now,
   });
 }

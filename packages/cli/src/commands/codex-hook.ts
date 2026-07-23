@@ -1,13 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import {
-  cpSync,
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
@@ -70,14 +62,6 @@ const TEMPLATE_DIRECTORIES = [
 const POST_TOOL_GUIDANCE_PATH = '.project/codex-post-tool-guidance.txt';
 const PROMPT_CONTEXT_PATH = '.project/codex-prompt-context.txt';
 const STOP_CONTINUATION_PATH = '.project/codex-stop-continuation.txt';
-const CODEX_RUN_IDENTITY_CACHE = 'codex-run-identity.json';
-const CODEX_REVIEW_STAMP_IDENTITY_CACHE = 'codex-review-stamp-identity.json';
-const RECORD_SKILL_INVOCATION_SCRIPT = '.safeword/hooks/record-skill-invocation.ts';
-const WRITE_REVIEW_STAMP_SCRIPT = '.safeword/hooks/write-review-stamp.ts';
-const REVIEW_STAMP_CACHE_KEY = 'review-stamp';
-const SKILL_NAME_PATTERN = /^[a-z][a-z0-9-]*$/u;
-const SHELL_SEPARATORS = ';&|';
-const SHELL_WHITESPACE = ' \n\r\t\v\f';
 const SUPPORTED_CODEX_HOOK_EVENTS: ReadonlySet<string> = new Set([
   'post-tool-use',
   'pre-tool-use',
@@ -123,104 +107,6 @@ function resolveProjectDirectory(): string {
   }
 
   return process.cwd();
-}
-
-function isShellWhitespace(character: string | undefined): boolean {
-  return character !== undefined && SHELL_WHITESPACE.includes(character);
-}
-
-function isShellSeparator(character: string | undefined): boolean {
-  return character !== undefined && SHELL_SEPARATORS.includes(character);
-}
-
-function readShellArgument(
-  command: string,
-  startIndex: number,
-): { value: string; nextIndex: number } | undefined {
-  let index = startIndex;
-  while (isShellWhitespace(command[index])) index += 1;
-
-  const quote = command[index];
-  if (quote === '"' || quote === "'") {
-    const endIndex = command.indexOf(quote, index + 1);
-    if (endIndex === -1) return undefined;
-    return { value: command.slice(index + 1, endIndex), nextIndex: endIndex + 1 };
-  }
-
-  let endIndex = index;
-  while (
-    endIndex < command.length &&
-    !isShellWhitespace(command[endIndex]) &&
-    !isShellSeparator(command[endIndex])
-  ) {
-    endIndex += 1;
-  }
-
-  if (endIndex === index) return undefined;
-  return { value: command.slice(index, endIndex), nextIndex: endIndex };
-}
-
-function parseRecordSkillInvocationCommand(command: string): string | undefined {
-  const scriptIndex = command.indexOf(RECORD_SKILL_INVOCATION_SCRIPT);
-  if (scriptIndex === -1) return undefined;
-
-  let nextIndex = scriptIndex + RECORD_SKILL_INVOCATION_SCRIPT.length;
-  const closingQuote = command[nextIndex];
-  if (closingQuote === '"' || closingQuote === "'") nextIndex += 1;
-
-  const projectArgument = readShellArgument(command, nextIndex);
-  if (!projectArgument) return undefined;
-
-  const skillArgument = readShellArgument(command, projectArgument.nextIndex);
-  const skillName = skillArgument?.value;
-  return skillName && SKILL_NAME_PATTERN.test(skillName) ? skillName : undefined;
-}
-
-function commandInvokesWriteReviewStamp(command: string): boolean {
-  return command.replaceAll('\\', '/').includes(WRITE_REVIEW_STAMP_SCRIPT);
-}
-
-function writeCodexIdentityCache(input: {
-  projectDirectory: string;
-  cacheFile: string;
-  sessionId: string | undefined;
-  skillName: string | undefined;
-}): void {
-  const sessionId = input.sessionId?.trim();
-  const skillName = input.skillName?.trim();
-  if (!sessionId || !skillName) return;
-
-  try {
-    const cachePath = nodePath.join(resolveNamespaceRoot(input.projectDirectory), input.cacheFile);
-    mkdirSync(nodePath.dirname(cachePath), { recursive: true });
-    writeFileSync(
-      cachePath,
-      JSON.stringify({ id: sessionId, skillName, recordedAt: new Date().toISOString() }),
-      'utf8',
-    );
-  } catch {
-    // This bridge only enables proof helpers. It must never block a tool call.
-  }
-}
-
-function rememberCodexRunIdentity(input: {
-  projectDirectory: string;
-  sessionId: string | undefined;
-  skillName: string | undefined;
-}): void {
-  writeCodexIdentityCache({ ...input, cacheFile: CODEX_RUN_IDENTITY_CACHE });
-}
-
-function rememberCodexReviewStampIdentity(input: {
-  projectDirectory: string;
-  sessionId: string | undefined;
-}): void {
-  writeCodexIdentityCache({
-    projectDirectory: input.projectDirectory,
-    cacheFile: CODEX_REVIEW_STAMP_IDENTITY_CACHE,
-    sessionId: input.sessionId,
-    skillName: REVIEW_STAMP_CACHE_KEY,
-  });
 }
 
 function extractPatchTargets(command: string): string[] {
@@ -481,19 +367,6 @@ async function runPreToolUse(): Promise<void> {
 
   const input = parseCodexHookInput(rawInput);
   if (!input) return;
-
-  rememberCodexRunIdentity({
-    projectDirectory,
-    sessionId: input.session_id,
-    skillName: parseRecordSkillInvocationCommand(input.tool_input?.command ?? ''),
-  });
-
-  if (commandInvokesWriteReviewStamp(input.tool_input?.command ?? '')) {
-    rememberCodexReviewStampIdentity({
-      projectDirectory,
-      sessionId: input.session_id,
-    });
-  }
 
   for (const targetPath of extractTargetPaths(input)) {
     if (maybeDenyTestDefinitionsWrite(projectDirectory, targetPath)) return;

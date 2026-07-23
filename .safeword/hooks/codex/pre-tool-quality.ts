@@ -17,7 +17,7 @@ import {
 } from './pre-tool-quality-helpers.ts';
 import {
   commandInvokesWriteReviewStamp,
-  parseRecordSkillInvocationCommand,
+  parseRecordSkillInvocationCommands,
   rememberCodexReviewStampIdentity,
   rememberCodexRunIdentity,
 } from '../lib/cursor-run-identity.ts';
@@ -67,12 +67,17 @@ if (!input) process.exit(0);
 // SAME namespace root the helper resolves from, so derive the project root the
 // way the helper command does — CLAUDE_PROJECT_DIR, else the git toplevel, else
 // cwd — never the raw hook cwd, which can be a subdirectory of the repo.
-const proofCommand = parseRecordSkillInvocationCommand(input.tool_input?.command ?? '');
-if (proofCommand !== undefined) {
+const projectDirectory = resolveProjectRoot();
+const proofCommands = parseRecordSkillInvocationCommands(
+  input.tool_input?.command ?? '',
+  projectDirectory,
+  { claudeProjectDirectory: process.env.CLAUDE_PROJECT_DIR },
+);
+if (proofCommands.length > 0) {
   rememberCodexRunIdentity({
-    projectDirectory: resolveProjectRoot(),
+    projectDirectory,
     sessionId: input.session_id,
-    skillName: proofCommand.skillName,
+    skillNames: proofCommands.map(command => command.skillName),
   });
 }
 
@@ -116,7 +121,7 @@ const failedResult = results.find(result => (result.status ?? 0) !== 0);
 // write-review-stamp` feeds both consumers.
 if (failedResult === undefined && commandInvokesWriteReviewStamp(input.tool_input?.command ?? '')) {
   rememberCodexReviewStampIdentity({
-    projectDirectory: resolveProjectRoot(),
+    projectDirectory,
     id: input.session_id,
   });
 }

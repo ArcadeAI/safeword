@@ -53,6 +53,7 @@
     "@types/estree": "^1.0.9",
     "@xhmikosr/decompress-unzip": "8.2.1",
     "esbuild": "^0.28.1",
+    "fast-uri": "3.1.4",
     "file-type": "^21.3.2",
     "js-yaml": "^4.3.0",
     "markdown-it": "^14.2.0",

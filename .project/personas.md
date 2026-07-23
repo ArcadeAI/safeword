@@ -13,6 +13,10 @@ packages/cli/templates/personas-template.md.
 
 **Context:** Stack-agnostic and harness-agnostic — safeword is a process layer, not a framework opinion, so this persona ships Next, Django, Gin, anything across Claude Code, Cursor, or Codex. Doesn't want to learn safeword's internals; expects it to feel like an experienced teammate that "just does things well." Guardrails fire only during agent sessions, never blocking their own hand-written commits. Drives the agent across many sessions and leans on tickets, gates, and BDD/TDD to stay oriented and to get unblocked when a gate fires. Can read the diff and unblock themselves with technical reasoning when a gate fires.
 
+## Technical Builder (TB)
+
+**Role:** Legacy short-code alias for Technical Builder (TBU), retained for historical spec lineage.
+
 ## Non-Technical Builder (NTB)
 
 **Role:** Someone who ships software by directing an AI coding agent but doesn't read or write the code themselves — leans entirely on safeword's guardrails to keep the agent honest.
@@ -24,3 +28,7 @@ packages/cli/templates/personas-template.md.
 **Role:** A contributor who builds and extends safeword itself — authoring hooks, gates, skills, and enforcement rules in this repo.
 
 **Context:** Works in the safeword repo, which dogfoods safeword, so a Maintainer is always also a TB in their own sessions. Needs enforcement defined in one declarative place rather than scattered through TypeScript, and needs to trust and verify the rule set before it ships and fires on real projects.
+
+## Safeword Maintainer (SM)
+
+**Role:** Legacy short-code alias for Safeword Maintainer (SWM), retained for historical spec lineage.

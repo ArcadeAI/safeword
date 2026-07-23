@@ -40,6 +40,32 @@ interface CodexPluginHookParityWorld extends SafewordWorld {
   parityMap?: string;
 }
 
+interface CodexRunIdentityEntry {
+  id?: string;
+  skillName?: string;
+  recordedAt?: string;
+}
+
+function readCodexRunIdentityEntry(projectRoot: string, filename: string): CodexRunIdentityEntry {
+  const identityPath = nodePath.join(projectRoot, '.project', filename);
+  assert.equal(existsSync(identityPath), true, `missing ${filename}`);
+
+  const identity = JSON.parse(readFileSync(identityPath, 'utf8')) as {
+    entries?: CodexRunIdentityEntry[];
+  };
+  const [entry] = identity.entries ?? [];
+  assert.ok(entry, `missing identity entry in ${filename}`);
+  return entry;
+}
+
+function assertCodexRunIdentityEntry(entry: CodexRunIdentityEntry, skillName: string): void {
+  assert.deepEqual(
+    { id: entry.id, skillName: entry.skillName },
+    { id: 'codex-session-1', skillName },
+  );
+  assert.match(entry.recordedAt ?? '', /^\d{4}-\d{2}-\d{2}T/u);
+}
+
 function createProject(prefix: string): string {
   const projectRoot = mkdtempSync(nodePath.join(tmpdir(), prefix));
   writeFileSync(
@@ -549,46 +575,17 @@ Then(
   function (this: SafewordWorld) {
     assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
 
-    const runIdentityPath = nodePath.join(
+    const runIdentityEntry = readCodexRunIdentityEntry(
       this.temporaryDirectory,
-      '.project',
       'codex-run-identity.json',
     );
-    const reviewStampIdentityPath = nodePath.join(
+    const reviewStampIdentityEntry = readCodexRunIdentityEntry(
       this.temporaryDirectory,
-      '.project',
       'codex-review-stamp-identity.json',
     );
 
-    assert.equal(existsSync(runIdentityPath), true, 'missing codex-run-identity.json');
-    assert.equal(
-      existsSync(reviewStampIdentityPath),
-      true,
-      'missing codex-review-stamp-identity.json',
-    );
-
-    const runIdentity = JSON.parse(readFileSync(runIdentityPath, 'utf8')) as {
-      id?: string;
-      skillName?: string;
-      recordedAt?: string;
-    };
-    const reviewStampIdentity = JSON.parse(readFileSync(reviewStampIdentityPath, 'utf8')) as {
-      id?: string;
-      skillName?: string;
-      recordedAt?: string;
-    };
-
-    assert.deepEqual(
-      { id: runIdentity.id, skillName: runIdentity.skillName },
-      { id: 'codex-session-1', skillName: 'bdd' },
-    );
-    assert.match(runIdentity.recordedAt ?? '', /^\d{4}-\d{2}-\d{2}T/u);
-
-    assert.deepEqual(
-      { id: reviewStampIdentity.id, skillName: reviewStampIdentity.skillName },
-      { id: 'codex-session-1', skillName: 'review-stamp' },
-    );
-    assert.match(reviewStampIdentity.recordedAt ?? '', /^\d{4}-\d{2}-\d{2}T/u);
+    assertCodexRunIdentityEntry(runIdentityEntry, 'bdd');
+    assertCodexRunIdentityEntry(reviewStampIdentityEntry, 'review-stamp');
   },
 );
 

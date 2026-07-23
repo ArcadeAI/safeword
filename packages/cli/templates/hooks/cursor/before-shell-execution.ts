@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 
 import {
   commandInvokesWriteReviewStamp,
-  parseRecordSkillInvocationCommand,
+  parseRecordSkillInvocationCommands,
   rememberCursorReviewStampIdentity,
   rememberCursorRunIdentity,
 } from '../lib/cursor-run-identity.ts';
@@ -71,14 +71,16 @@ function stashReviewStampIdentity(): void {
   });
 }
 
-const proofCommand = parseRecordSkillInvocationCommand(command);
+const proofCommands = parseRecordSkillInvocationCommands(command, process.cwd(), {
+  claudeProjectDirectory: process.env.CLAUDE_PROJECT_DIR,
+});
 const needsFailClosedGate = requiresFailClosedShellGate({ command });
 if (!needsFailClosedGate) {
-  if (proofCommand !== undefined) {
+  if (proofCommands.length > 0) {
     rememberCursorRunIdentity({
       projectDirectory: process.cwd(),
       conversationId: input.conversation_id,
-      skillName: proofCommand.skillName,
+      skillNames: proofCommands.map(proofCommand => proofCommand.skillName),
     });
   }
   stashReviewStampIdentity();
@@ -105,11 +107,11 @@ const decision = decideFromGate(
   }),
 );
 if (decision.permission === 'allow') {
-  if (proofCommand !== undefined) {
+  if (proofCommands.length > 0) {
     rememberCursorRunIdentity({
       projectDirectory: process.cwd(),
       conversationId: input.conversation_id,
-      skillName: proofCommand.skillName,
+      skillNames: proofCommands.map(proofCommand => proofCommand.skillName),
     });
   }
   stashReviewStampIdentity();
