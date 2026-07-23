@@ -2,8 +2,8 @@
 id: Q7Q7H8
 slug: install-codex-plugin-for-new-users
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 phase_anchors:
   - define-behavior: .project/tickets/Q7Q7H8-install-codex-plugin-for-new-users/spec.md
   - scenario-gate: packages/cli/features/install-codex-plugin-for-new-users.feature
@@ -38,3 +38,4 @@ last_modified: 2026-07-22T06:29:59.354Z
 - 2026-07-23T16:41:00Z Done: Full Vitest passed 353 files / 5225 tests with 5 intentional skips. Final BDD passed 92/92 scenarios and 1096/1096 steps. Focused Codex command regression passed 49/49; lint and TypeScript checks passed. No separate issue is needed: the only closeout gaps were resolved within this ticket.
 - 2026-07-23T16:45:00Z Plan implementation: Recorded the reviewed implementation plan as the basis for the implementation phase.
 - 2026-07-23T16:46:00Z Implement: Recorded the completed behavior and command changes against the reviewed test-definition ledger.
+- 2026-07-23T16:47:00Z Verify: Recorded the passing full-suite, BDD, focused regression, lint, and typecheck evidence in verify.md.
