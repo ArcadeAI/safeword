@@ -299,8 +299,9 @@ describe('E2E: TypeScript Lint Hook Fallback', () => {
     writeTestFile(projectDirectory, 'src/fallback.ts', 'const x=1\n');
     const filePath = nodePath.join(projectDirectory, 'src/fallback.ts');
 
-    // Hook should use fallback path (ESLint without --config, then Prettier)
-    runLintHook(projectDirectory, filePath);
+    // Opt out of repair so the hook must use the fallback path (ESLint without
+    // --config, then Prettier), rather than reaching the registry in a test.
+    runLintHook(projectDirectory, filePath, { SAFEWORD_NO_AUTO_UPGRADE: '1' });
 
     // File should still be formatted by Prettier
     const result = readTestFile(projectDirectory, 'src/fallback.ts');

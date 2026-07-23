@@ -88,6 +88,28 @@ migrate
     migrateCodexPlugin(process.cwd(), { removeLegacyHooks: options.removeLegacyHooks === true });
   });
 
+const codex = program.command('codex').description('Manage the Safe Word Codex plugin');
+
+codex
+  .command('install')
+  .description('Install and verify the Safe Word plugin in the active Codex profile')
+  .action(async () => {
+    const { installCodexPlugin } = await import('./commands/migrate-codex-plugin.js');
+    installCodexPlugin();
+  });
+
+codex
+  .command('migrate')
+  .description('Remove Safe Word-owned legacy Codex project hooks after plugin review')
+  .requiredOption(
+    '--remove-legacy-hooks',
+    'Confirm removal of Safe Word-owned legacy project hooks after reviewing the plugin in Codex /hooks',
+  )
+  .action(async () => {
+    const { removeLegacyCodexHooks } = await import('./commands/migrate-codex-plugin.js');
+    removeLegacyCodexHooks(process.cwd());
+  });
+
 program
   .command('diff')
   .description('Preview changes that would be made by upgrade')
