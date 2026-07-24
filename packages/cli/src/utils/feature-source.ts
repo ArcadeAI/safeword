@@ -26,6 +26,11 @@ export function collectExecutableFeatureFiles(cwd: string, fileName?: string): s
   );
 }
 
+/** Whether Safeword's built-in feature locations already contain a real suite. */
+export function hasDefaultExecutableFeatureFiles(cwd: string): boolean {
+  return collectDefaultFeatureDirectories(cwd).some(directory => containsFeatureFile(directory));
+}
+
 /**
  * Return every directory that contributes executable feature files.
  *
@@ -33,12 +38,7 @@ export function collectExecutableFeatureFiles(cwd: string, fileName?: string): s
  * on this shared enumeration rather than reconstructing workspace discovery.
  */
 export function collectExecutableFeatureDirectories(cwd: string): string[] {
-  const directories = [
-    nodePath.join(cwd, 'features'),
-    ...WORKSPACE_ROOTS.flatMap(root =>
-      collectWorkspaceFeatureDirectories(nodePath.join(cwd, root)),
-    ),
-  ];
+  const directories = collectDefaultFeatureDirectories(cwd);
 
   // paths.features AUGMENTS the defaults (ticket 56JCFZ) — relocated/host
   // lanes become readable without abandoning root features/.
@@ -47,6 +47,15 @@ export function collectExecutableFeatureDirectories(cwd: string): string[] {
     directories.push(configured);
   }
   return directories;
+}
+
+function collectDefaultFeatureDirectories(cwd: string): string[] {
+  return [
+    nodePath.join(cwd, 'features'),
+    ...WORKSPACE_ROOTS.flatMap(root =>
+      collectWorkspaceFeatureDirectories(nodePath.join(cwd, root)),
+    ),
+  ];
 }
 
 function collectWorkspaceFeatureDirectories(workspaceDirectory: string): string[] {
@@ -74,6 +83,21 @@ function findFeatureFiles(directory: string, fileName?: string): string[] {
     }
   }
   return matches.toSorted((a, b) => a.localeCompare(b));
+}
+
+function containsFeatureFile(directory: string): boolean {
+  let entries;
+  try {
+    entries = readdirSync(directory, { withFileTypes: true });
+  } catch {
+    return false;
+  }
+  return entries.some(entry => {
+    const absolute = nodePath.join(directory, entry.name);
+    return entry.isDirectory()
+      ? containsFeatureFile(absolute)
+      : entry.isFile() && entry.name.endsWith('.feature');
+  });
 }
 
 function isMatchingFeatureFile(entryName: string, fileName: string | undefined): boolean {
