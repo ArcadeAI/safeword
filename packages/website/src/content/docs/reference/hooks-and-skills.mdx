@@ -140,7 +140,7 @@ When safeword sets up (or upgrades) a project, it installs a small third-party *
 
 Language coding-skills install into `.claude/skills/` and, where supported by the agent, `.agents/skills/` via the `npx skills` CLI. These are third-party language helpers, not Safe Word Codex workflow aliases. The install is **best-effort** — a missing network or installer error degrades to a warning and never blocks setup. It runs once; later upgrades skip it when the skill is already present.
 
-**What you see:** edit a `.go` / `.py` / `.ts` / `.tsx` / `.rs` file and, in Claude Code, a one-line reminder points your agent at the matching skill and surfaces the skill's own description. It fires once per scenario and stays silent for other file types. The Cursor adapter is built but dormant until Cursor fixes an upstream injection bug ([#534](https://github.com/TheMostlyGreat/safeword/issues/534)). Codex's Safe Word workflow guidance now comes from the Codex plugin rather than repo-local `.agents/skills/` aliases.
+**What you see:** edit a `.go` / `.py` / `.ts` / `.tsx` / `.rs` file and, in Claude Code, a one-line reminder points your agent at the matching skill and surfaces the skill's own description. It fires once per scenario and stays silent for other file types. The Cursor adapter is built but dormant until Cursor fixes an upstream injection bug ([#534](https://github.com/ArcadeAI/safeword/issues/534)). Codex's Safe Word workflow guidance now comes from the Codex plugin rather than repo-local `.agents/skills/` aliases.
 
 To skip the skill install, set `SAFEWORD_SKIP_SKILLS=1` (or `SAFEWORD_SKIP_INSTALL=1` to skip all network installs during setup).
 
@@ -211,6 +211,6 @@ Your agent will create a structured ticket folder with a spec, test definitions,
 
 <footer class="docs-footer">
 
-[GitHub](https://github.com/TheMostlyGreat/safeword) · MIT License · © 2026
+[GitHub](https://github.com/ArcadeAI/safeword) · MIT License · © 2026
 
 </footer>

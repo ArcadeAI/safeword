@@ -65,7 +65,7 @@ export default defineConfig({
         {
           icon: 'github',
           label: 'GitHub',
-          href: 'https://github.com/TheMostlyGreat/safeword',
+          href: 'https://github.com/ArcadeAI/safeword',
         },
       ],
       sidebar: [
@@ -83,7 +83,7 @@ export default defineConfig({
         },
       ],
       editLink: {
-        baseUrl: 'https://github.com/TheMostlyGreat/safeword/edit/main/packages/website/',
+        baseUrl: 'https://github.com/ArcadeAI/safeword/edit/main/packages/website/',
       },
     }),
   ],

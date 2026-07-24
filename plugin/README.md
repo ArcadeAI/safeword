@@ -23,7 +23,7 @@ Safeword configures AI coding agents with proven development workflows:
 ### From GitHub
 
 ```
-/plugin marketplace add TheMostlyGreat/safeword
+/plugin marketplace add ArcadeAI/safeword
 /plugin install safeword@safeword
 ```
 
@@ -58,5 +58,5 @@ Once setup completes, everything is installed locally in your project (`.safewor
 ## Learn more
 
 - [Website](https://safeword.dev)
-- [GitHub](https://github.com/TheMostlyGreat/safeword)
-- [CLI documentation](https://github.com/TheMostlyGreat/safeword/tree/main/packages/cli)
+- [GitHub](https://github.com/ArcadeAI/safeword)
+- [CLI documentation](https://github.com/ArcadeAI/safeword/tree/main/packages/cli)
