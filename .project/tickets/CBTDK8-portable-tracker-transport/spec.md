@@ -93,17 +93,22 @@ silently corrupting the map.
 
 ## Contract & design decisions (resolved from the cold-start check)
 
-The cold-start check confirmed the mechanism is ready to reuse — `planTicketSync` (`tracker-map.ts`)
-and `buildPayload` (`payload.ts`) already compute the create/update/close decision offline, and
-`TrackerMap.record()` already stores `{ provider, id, url }` keyed per ticket — and flagged that the
-**JSON contract** and its edge semantics were undefined. Pinned here (the schema is the one-way door):
+The cold-start check confirmed the mechanism is largely ready to reuse — `planTicketSync`
+(`tracker-map.ts`) decides **create / update / reconcile** offline, `buildPayload` (`payload.ts`)
+derives the `state` (`closed` on a terminal status), and `TrackerMap.record()` stores
+`{ provider, id, url }` keyed per ticket. The independent plan review then corrected two reuse
+misreadings (see the fold + edge notes below): **close is not a `planTicketSync` kind** (it is
+derived from payload state), and `buildGraphProjection` is the **executor-side** resolver (it maps
+only *already-recorded* prerequisites to issue numbers), so it cannot compute plan-side edges.
+Pinned here (the schema is the one-way door):
 
 ### The JSON contract (versioned from day one)
 
 - `sync-tracker --plan` writes a **SyncPlan** to **stdout** (Unix-composable; pipe to a file or an
   executor): `{ "version": 1, "intents": Intent[] }`.
 - `Intent` is discriminated on `kind`:
-  - `create` → `{ kind, ticketId, payload: { title, body, labels, state } }`
+  - `create` → `{ kind, ticketId, payload: { title, body, labels, state } }` — `payload.state` may be
+    `open` or `closed` (a terminal never-synced ticket is a create whose payload is `closed`).
   - `update` → `{ kind, ticketId, ref: { provider, number, url }, payload }`
   - `close` → `{ kind, ticketId, ref: { provider, number, url }, stateReason? }`
   - a `create`/`update` intent carries `graph?: { parentTicketId?, blockedByTicketIds? }` — edges
@@ -111,11 +116,28 @@ and `buildPayload` (`payload.ts`) already compute the create/update/close decisi
     until it's created. The executor resolves ticket id → number after creates land (create-then-
     link, a second pass — mirroring today's `gh` `projectGraph`-after-create). Linking is execution
     work only: it mints no identity, so `--apply-results` records nothing for edges.
+- **The kind fold** (`computePlan` layers close + reconcile on top of `planTicketSync`):
+  - `planTicketSync = create` → `create` intent (payload state open or closed).
+  - `planTicketSync = update` + payload `state: open` → `update` intent.
+  - `planTicketSync = update` + payload `state: closed` → `close` intent.
+  - `planTicketSync = reconcile` (a `pending` map entry, only ever written by the `gh` path
+    mid-create) → `update` intent carrying the existing ref (the issue was captured; an update
+    reconciles it, and fails loud if it does not exist). `--apply-results` never writes `pending`,
+    so it never produces this state itself.
+- **Edges are computed plan-side by corpus membership**, not via `buildGraphProjection`: resolve
+  `parent`/`epic` and `dependsOn`/`blockedOn` through `aliasMap` + `resolveTicketReference`
+  (`index.ts`), keep only ids present in the corpus (a dangling edge is dropped), and emit them as
+  ticket ids. `buildGraphProjection` stays on the `gh` path untouched.
 - The executor produces a separate **SyncResults**: `{ "version": 1, "results": [{ ticketId,
-  number, url, status }] }`.
+  number, url, status }] }`. **`number` is a string** (e.g. `"549"`) — `TrackerReference.id` is a
+  string (`types.ts`), and the `gh` path records `"549"`, so results MUST carry `number` as a string
+  and `--apply-results` stores it verbatim, or the map entry would differ from the `gh` path's and
+  break both idempotency and byte-for-byte parity.
 - `sync-tracker --apply-results <file>` reads SyncResults from a path and folds each **create**
   result into the map via `record()` as `recorded` (no `pending` — the network already happened in
-  the executor), storing `ref = { provider, id: number, url }`.
+  the executor), storing `ref = { provider, id: number, url }`. A create result is **rejected**
+  (map untouched) when it is missing `number` **or** missing `url`, or when the `url` tail ≠
+  `number` — `url` is required so the internal-id cross-check can never be silently skipped.
 
 ### Decisions
 
@@ -134,8 +156,9 @@ and `buildPayload` (`payload.ts`) already compute the create/update/close decisi
     **fail-loud consistency cross-check**, not a way to derive identity. It is structure-dependent
     by design: a future GitHub URL change would fail every result *loudly* (never silent map
     corruption), which is the acceptable failure mode.
-- **Malformed** = invalid JSON / missing `ticketId`|`number` / `ticketId` not in the corpus /
-  `url` tail ≠ `number` → rejected with an actionable error, the map left untouched.
+- **Malformed** = invalid JSON / unsupported contract `version` / a create result missing
+  `ticketId`|`number`|`url` / `ticketId` not in the corpus / `url` tail ≠ `number` → rejected with an
+  actionable error, the map left untouched.
 - **Results scope:** required for `create` intents (they mint identity); `update`/`close` act on a
   ref already in the map, so their results are acks (optional) and fold to no map change.
 - **Versioning:** the contract `version` is independent of the sidecar `SIDECAR_VERSION`
