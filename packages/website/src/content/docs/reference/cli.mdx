@@ -121,21 +121,27 @@ Safeword manages two types of files:
 
 **Managed files** — Created if missing, but never overwritten. You can customize these freely. Examples: `eslint.config.mjs`, `.prettierrc`, `tsconfig.json`, `knip.json`, `ruff.toml`, `.golangci.yml`, `clippy.toml`, `.sqlfluff`.
 
-### safeword migrate codex-plugin
+### safeword codex install
 
-Install the Safe Word plugin into the active Codex profile and verify Codex reports it enabled. The initial migration preserves every legacy Safe Word hook in the current project until you review and trust the plugin in Codex.
-
-```bash
-bunx safeword@latest migrate codex-plugin
-```
-
-After Codex shows the plugin as trusted in `/hooks`, explicitly retire only Safe Word-owned legacy hook stanzas:
+Install the Safe Word plugin into the active Codex profile and verify Codex reports it enabled. This profile-only action does not create or modify project Codex configuration. Start a new Codex session after installation to load the plugin's skills and hooks.
 
 ```bash
-bunx safeword@latest migrate codex-plugin --remove-legacy-hooks
+bunx safeword@latest codex install
 ```
 
-This command requires Bun. Normal `setup` and `upgrade` do not install a profile-scoped Codex plugin, create a `.codex` directory, or recreate project-local Codex hooks. Plugin hooks use version-pinned `bunx --bun safeword@<version>` commands; they never use npx or bypass Codex hook trust.
+### safeword codex migrate --remove-legacy-hooks
+
+After Codex shows the plugin as trusted in `/hooks`, explicitly retire only Safe Word-owned legacy hook stanzas from the current project:
+
+```bash
+bunx safeword@latest codex migrate --remove-legacy-hooks
+```
+
+Both commands require Bun. Normal `setup` and `upgrade` do not install a profile-scoped Codex plugin, create a `.codex` directory, or recreate project-local Codex hooks. Plugin hooks use version-pinned `bunx --bun safeword@<version>` commands; they never use npx or bypass Codex hook trust.
+
+### Legacy: safeword migrate codex-plugin
+
+`safeword migrate codex-plugin` remains supported for existing scripts. New users should use `safeword codex install` instead.
 
 Run `safeword diff` to see which files you've modified.
 

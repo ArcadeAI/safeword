@@ -562,7 +562,7 @@ Review recent commits (since last tag or last 20 commits). For each significantl
 
 Reconcile the three namespace domain docs — `personas.md`, `surfaces.md`, `glossary.md` — against what the code actually references, and report empty scaffolds. These docs feed the BDD intake flow, so silent rot there degrades every downstream spec. This check is **read-only and class-2** (observable facts only): it reports and offers, it never rewrites a doc. **Run the block below verbatim, as ONE bash invocation.**
 
-```bash
+````bash
 # domain-docs-check — read-only reconciliation of the namespace domain docs.
 # Class-2: observable facts only. Emits W008 (empty). Never writes the tree.
 cd "${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}" || exit 1
@@ -648,28 +648,116 @@ personas_file="$NS_ROOT/personas.md"
 tickets_dir="$NS_ROOT/tickets"
 dd_file="$personas_file"
 if [ -f "$personas_file" ] && [ "$(domain_docs_entry_count)" -gt 0 ] && [ -d "$tickets_dir" ]; then
-  # Defined codes: explicit trailing `## Name (CODE)` wins; else derived
-  # best-effort (multi-word -> initials, single -> first two chars, uppercased).
-  # Derivation is naive (particles/hyphens mis-derive, e.g. Site-Reliability
-  # Engineer -> SE not SRE), and codes are the project's `[A-Z][A-Z0-9]{1,5}`
-  # (>=2 chars) — prefer the explicit `(CODE)` heading, which `safeword check`
-  # writes, to avoid a spurious E009.
-  defined_codes="$(sed "$strip_html_comments" "$personas_file" | grep -E '^## ' | while IFS= read -r heading; do
-    name="${heading#\#\# }"
-    # Trailing-whitespace-tolerant so `## Name (CODE)` still reads explicitly
-    # after a stripped inline comment left a trailing space; capture only the code.
-    explicit="$(printf '%s' "$name" | sed -nE 's/.*\(([A-Z][A-Z0-9]{1,5})\)[[:space:]]*$/\1/p')"
-    if [ -n "$explicit" ]; then
-      printf '%s\n' "$explicit"
-      continue
-    fi
-    base="${name%% (*}"
-    if [ "$(printf '%s' "$base" | wc -w | tr -d ' ')" -ge 2 ]; then
-      printf '%s' "$base" | awk '{s="";for(i=1;i<=NF;i++)s=s toupper(substr($i,1,1));print s}'
-    else
-      printf '%s' "$base" | cut -c1-2 | tr '[:lower:]' '[:upper:]'
-    fi
-  done)"
+  # Defined codes mirror safeword's resolver, including canonical derivation,
+  # collision allocation, and historical aliases. A simpler initials-only
+  # derivation would falsely flag existing TB/SM lineage after those personas
+  # adopted their canonical TBU/SWM codes.
+  defined_codes="$(PERSONAS_FILE="$personas_file" bun -e '
+const fs = require("node:fs");
+
+const lines = fs.readFileSync(process.env.PERSONAS_FILE, "utf8").split("\n");
+const validCode = code => /^[A-Z][A-Z0-9]{1,5}$/.test(code);
+const canonicalCode = code => /^[A-Z][A-Z0-9]{2,3}$/.test(code);
+
+const skip = [];
+let isInsideCodeFence = false;
+let isInsideComment = false;
+for (const line of lines) {
+  if (line.trimStart().startsWith("```")) {
+    skip.push(true);
+    isInsideCodeFence = !isInsideCodeFence;
+    continue;
+  }
+  if (isInsideCodeFence) {
+    skip.push(true);
+    continue;
+  }
+  if (!isInsideComment && line.trimStart().startsWith("<!--")) isInsideComment = true;
+  if (isInsideComment) {
+    skip.push(true);
+    if (line.includes("-->")) isInsideComment = false;
+    continue;
+  }
+  skip.push(false);
+}
+
+function stripInlineComments(line) {
+  let result = "";
+  let position = 0;
+  while (position < line.length) {
+    const open = line.indexOf("<!--", position);
+    if (open === -1) return result + line.slice(position);
+    result += line.slice(position, open);
+    const close = line.indexOf("-->", open + 4);
+    if (close === -1) return result + line.slice(open);
+    position = close + 3;
+  }
+  return result;
+}
+
+function parseHeading(line) {
+  const body = stripInlineComments(line.slice(3)).trimEnd();
+  if (body.endsWith(")")) {
+    const openParen = body.lastIndexOf("(");
+    if (openParen !== -1) {
+      return { name: body.slice(0, openParen).trim(), rawCode: body.slice(openParen + 1, -1).trim(), explicit: true };
+    }
+  }
+  return { name: body.trim(), rawCode: "", explicit: false };
+}
+
+function deriveCanonical(name) {
+  const words = name.trim().replace(/[\x27\u2019]/g, "").replace(/[^A-Z0-9\s]/gi, " ").split(/\s+/).filter(Boolean);
+  if (words.length === 0) return "";
+  let code;
+  if (words.length === 1) code = words[0].slice(0, 3);
+  else if (words.length === 2) code = `${words[0].slice(0, 2)}${words[1].charAt(0)}`;
+  else code = words.map(word => word.charAt(0)).join("");
+  return code.toUpperCase().slice(0, 4);
+}
+
+function deriveLegacy(name) {
+  const words = name.trim().replace(/[^A-Z0-9\s]/gi, "").split(/\s+/).filter(Boolean);
+  if (words.length === 0) return "";
+  const code = words.length === 1 ? words[0].slice(0, 2) : words.map(word => word.charAt(0)).join("");
+  return code.toUpperCase().slice(0, 6);
+}
+
+function allocateCanonical(base, claimed) {
+  if (!claimed.has(base)) return { code: base, exhausted: false };
+  for (let suffix = 2; ; suffix += 1) {
+    const suffixText = String(suffix);
+    const prefixLength = 4 - suffixText.length;
+    if (prefixLength < 1) return { code: base, exhausted: true };
+    const candidate = `${base.slice(0, prefixLength)}${suffixText}`;
+    if (!claimed.has(candidate)) return { code: candidate, exhausted: false };
+  }
+}
+
+const parsed = lines.filter((line, index) => !skip[index] && line.startsWith("## ")).map(parseHeading);
+const claimed = new Set(parsed.filter(persona => persona.explicit && persona.rawCode.length > 0).map(persona => persona.rawCode));
+const resolved = parsed.map(persona => {
+  if (persona.explicit) return { ...persona, code: persona.rawCode, codeError: false };
+  const allocation = allocateCanonical(deriveCanonical(persona.name), claimed);
+  if (!allocation.exhausted) claimed.add(allocation.code);
+  return { ...persona, code: allocation.code, codeError: allocation.exhausted || !canonicalCode(allocation.code) };
+});
+
+const aliases = [];
+for (const persona of resolved) {
+  if (persona.codeError) continue;
+  const base = deriveLegacy(persona.name);
+  if (base === "" || base === persona.code) continue;
+  let candidate = base;
+  for (let suffix = 2; claimed.has(candidate); suffix += 1) candidate = `${base}${suffix}`;
+  if (!validCode(candidate)) continue;
+  claimed.add(candidate);
+  aliases.push(candidate);
+}
+
+for (const persona of resolved) if (!persona.codeError) console.log(persona.code);
+for (const alias of aliases) console.log(alias);
+')"
   # Referenced codes: (CODE) from spec **Persona:** lines, comments stripped.
   referenced_codes="$(for spec in "$tickets_dir"/*/spec.md; do
     [ -f "$spec" ] && sed "$strip_html_comments" "$spec"
@@ -680,7 +768,7 @@ if [ -f "$personas_file" ] && [ "$(domain_docs_entry_count)" -gt 0 ] && [ -d "$t
     fi
   done
 fi
-```
+````
 
 **Content is human-owned — advisory only, never an error.** This check judges _references_ (a slug/code that is or isn't defined) and _emptiness_ — observable facts. Whether a glossary term's meaning, or a persona/surface _description_, is still accurate is a human judgment: raise it as an advisory note at most, never as an error code. Only the three codes above (E008, E009, W008) are emitted here.
 
