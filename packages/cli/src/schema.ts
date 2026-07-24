@@ -873,6 +873,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/guides/planning-guide.md': {
       template: 'guides/planning-guide.md',
     },
+    '.safeword/guides/skill-eval-optimization-guide.md': {
+      template: 'guides/skill-eval-optimization-guide.md',
+    },
     '.safeword/guides/testing-guide.md': {
       template: 'guides/testing-guide.md',
     },
