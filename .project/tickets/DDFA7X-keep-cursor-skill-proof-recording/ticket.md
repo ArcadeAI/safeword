@@ -2,10 +2,10 @@
 id: DDFA7X
 slug: keep-cursor-skill-proof-recording
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-07-22T06:34:45.732Z
-last_modified: 2026-07-22T06:34:45.732Z
+last_modified: 2026-07-24T03:22:18Z
 ---
 
 # Keep Cursor quality proof recording reliable
@@ -40,3 +40,4 @@ Ruled out: a general Cursor bridge failure (the absolute form records the suppli
 - 2026-07-22T10:08:00Z RED/GREEN: Added parser and real Cursor `beforeShellExecution` regression coverage. Both failed before the matcher change, then passed after accepting only the exact bare-relative path alongside the existing slash-anchored absolute form. Focused suite: 28 tests passed.
 - 2026-07-22T10:13:00Z Quality review: independent reviewer approved the minimal matcher expansion, real adapter → helper → done-gate wiring test, and template/dogfood mirror. Corrected an imprecise "documented" description to "supported" in the ticket, tests, and GitHub issue #1337; no code change required.
 - 2026-07-22T10:16:00Z Verification: focused regression suite (28 tests), release parity (25 tests), ESLint, Gherkin lint, TypeScript typecheck, and `git diff --check` passed. Full Vitest suite remained idle for three minutes with 0% CPU and was stopped; this is an environment runner limitation, not a product-test failure.
+- 2026-07-24T03:22:18Z Complete: GitHub issue #1337 was closed automatically when PR #1343 merged. Both Node CI matrices and lint passed; user confirmed administrative closure.
