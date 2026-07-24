@@ -2,7 +2,7 @@
 id: CBTDK8
 slug: portable-tracker-transport
 type: feature
-phase: define-behavior
+phase: scenario-gate
 status: in_progress
 epic: offboard-local-ticketing
 parent: KKNFZA
@@ -38,3 +38,4 @@ last_modified: 2026-06-29T02:29:45.594Z
 - 2026-06-29T02:29:45.594Z Started: Created ticket CBTDK8
 - 2026-06-30T00:50:00.000Z Complete: intake — scope converged; cold-start check run (INSUFFICIENT → contract pinned); graph-edge fork decided B (link them); dimensions.md authored. → define-behavior
 - 2026-07-24T17:50:00.000Z Re-homed onto current main (old branch claude/ticketing-migration-safeword-m73r9p / PR #548 superseded by #1086; this ticket + design already on main). define-behavior: 16 scenarios across 7 rules saved to features/portable-tracker-transport.feature (@wip; proof via vitest units) + test-definitions.md ledger. Dangling edge → omit silently; no-token-in-plan guard kept. Paused before scenario-gate review.
+- 2026-07-24T17:57:21.127Z Phase: define-behavior → scenario-gate

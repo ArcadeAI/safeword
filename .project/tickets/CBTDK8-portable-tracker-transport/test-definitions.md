@@ -25,6 +25,12 @@ vitest unit tests over the pure plan + apply-results functions (no live tracker,
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: An empty corpus yields an empty but valid plan
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: --plan carries the ticket graph by ticket id
 
 ### Scenario: A ticket with a parent carries a parent edge

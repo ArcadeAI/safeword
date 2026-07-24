@@ -32,6 +32,12 @@ Feature: Environment-portable tracker transport
       When I run sync-tracker in plan mode
       Then the plan contains a close intent for that ticket carrying its recorded reference
 
+    @portable-tracker-transport.TB1.AC1
+    Scenario: An empty corpus yields an empty but valid plan
+      Given no tickets exist
+      When I run sync-tracker in plan mode
+      Then the plan is emitted with no intents and carries a version
+
   Rule: --plan carries the ticket graph by ticket id
 
     @portable-tracker-transport.TB1.AC1
@@ -58,7 +64,8 @@ Feature: Environment-portable tracker transport
     Scenario: Planning needs no credential and contacts no tracker
       Given no tracker credential is available
       When I run sync-tracker in plan mode
-      Then the plan is produced without contacting the tracker
+      Then the plan still lists the tickets' intents
+      And no tracker credential is resolved and no tracker call is made
 
   Rule: --apply-results folds executor results into the map idempotently
 
@@ -78,7 +85,8 @@ Feature: Environment-portable tracker transport
     Scenario: An update or close result makes no identity change
       Given an executor result acknowledging an update to an already-recorded issue
       When I apply the results
-      Then the tracker map's reference for that ticket is unchanged
+      Then applying succeeds
+      And the tracker map's reference for that ticket is unchanged
 
   Rule: Malformed results are rejected without corrupting the map
 
@@ -90,18 +98,20 @@ Feature: Environment-portable tracker transport
       And the tracker map on disk is unchanged
 
       Examples:
-        | defect                                             |
-        | not valid JSON                                     |
-        | missing an issue number                            |
+        | defect                                               |
+        | not valid JSON                                       |
+        | absent from disk                                     |
+        | missing an issue number                              |
         | reporting a number that does not match its issue url |
-        | naming a ticket absent from the corpus             |
+        | naming a ticket absent from the corpus               |
 
     @portable-tracker-transport.SM1.AC1
     Scenario: A planned create round-trips through results back into the map
       Given a plan containing a create intent for a ticket
       And an executor result for that create carrying the versioned results envelope
       When I apply the results
-      Then the tracker map records the ticket exactly as a gh-path projection would
+      Then the tracker map records that ticket with the created issue number and url as recorded
+      And both the plan and the results carry a version
 
   Rule: The new modes are additive; the gh path is unchanged
 
