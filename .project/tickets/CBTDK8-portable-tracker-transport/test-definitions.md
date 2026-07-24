@@ -3,7 +3,8 @@
 Feature source: `features/portable-tracker-transport.feature`
 
 test-definitions.md is the R/G/R ledger. Behavior lives in the `.feature`; proof is via
-vitest unit tests over the pure plan + apply-results functions (no live tracker, #363).
+vitest unit tests over the pure plan + apply-results functions, plus wiring tests through the
+real `sync-tracker` command for the `--plan`/`--apply-results` flags (no live tracker, #363).
 
 ## Rule: --plan emits the right intent for each ticket's sync state
 
@@ -39,13 +40,19 @@ vitest unit tests over the pure plan + apply-results functions (no live tracker,
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A blocked ticket carries blocked-by edges
+### Scenario: A blocked ticket carries its blocked-by edges as a set
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: An edge to a ticket outside the corpus is dropped
+### Scenario: A ticket with both a parent and a blocked-by edge carries both
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Only the unresolvable edge is dropped; resolvable edges remain
 
 - [ ] RED
 - [ ] GREEN
@@ -93,9 +100,15 @@ vitest unit tests over the pure plan + apply-results functions (no live tracker,
 - [ ] GREEN
 - [ ] REFACTOR
 
-## Rule: The new modes are additive; the gh path is unchanged
+## Rule: The command surface is wired — stdout contract and mode routing
 
-### Scenario: Running sync-tracker with no mode flag projects via the existing path
+### Scenario: --plan writes a valid SyncPlan to stdout and nothing else
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: With no mode flag, the command routes to the gh path
 
 - [ ] RED
 - [ ] GREEN

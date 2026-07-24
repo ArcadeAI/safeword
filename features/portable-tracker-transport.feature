@@ -47,32 +47,39 @@ Feature: Environment-portable tracker transport
       Then that ticket's intent carries a parent edge naming the parent's ticket id
 
     @portable-tracker-transport.TB1.AC1
-    Scenario: A blocked ticket carries blocked-by edges
-      Given a ticket blocked by other tickets in the corpus
+    Scenario: A blocked ticket carries its blocked-by edges as a set
+      Given a ticket blocked by two other tickets in the corpus
       When I run sync-tracker in plan mode
-      Then that ticket's intent carries blocked-by edges naming those ticket ids
+      Then that ticket's intent carries blocked-by edges naming exactly those two ticket ids, in any order
 
     @portable-tracker-transport.TB1.AC1
-    Scenario: An edge to a ticket outside the corpus is dropped
-      Given a ticket whose parent is not present in the corpus
+    Scenario: A ticket with both a parent and a blocked-by edge carries both
+      Given a ticket with a parent and a blocked-by edge, both present in the corpus
       When I run sync-tracker in plan mode
-      Then that ticket's intent omits the unresolvable edge and the plan is still produced
+      Then that ticket's intent carries the parent edge and the blocked-by edge
+
+    @portable-tracker-transport.TB1.AC1
+    Scenario: Only the unresolvable edge is dropped; resolvable edges remain
+      Given a ticket whose parent is in the corpus and whose blocked-by edge names a ticket that is not
+      When I run sync-tracker in plan mode
+      Then that ticket's intent carries the parent edge
+      And its blocked-by edges omit the absent ticket, leaving no blocked-by edge
 
   Rule: --plan runs offline
 
     @portable-tracker-transport.TB1.AC1 @portable-tracker-transport.TB1.AC4
     Scenario: Planning needs no credential and contacts no tracker
-      Given no tracker credential is available
+      Given a credential resolver and tracker client that fail if they are called
       When I run sync-tracker in plan mode
       Then the plan still lists the tickets' intents
-      And no tracker credential is resolved and no tracker call is made
+      And neither the credential resolver nor the tracker client was called
 
   Rule: --apply-results folds executor results into the map idempotently
 
     @portable-tracker-transport.TB1.AC2
     Scenario: A create result is recorded with its issue number and url
-      Given an executor result reporting a created issue number and url for a ticket
-      When I apply the results
+      Given a results file reporting a created issue number and url for a ticket
+      When I run sync-tracker --apply-results with that file
       Then the tracker map records that ticket with the bare issue number and url as recorded
 
     @portable-tracker-transport.TB1.AC2
@@ -98,12 +105,13 @@ Feature: Environment-portable tracker transport
       And the tracker map on disk is unchanged
 
       Examples:
-        | defect                                               |
-        | not valid JSON                                       |
-        | absent from disk                                     |
-        | missing an issue number                              |
-        | reporting a number that does not match its issue url |
-        | naming a ticket absent from the corpus               |
+        | defect                                                       |
+        | not valid JSON                                               |
+        | absent from disk                                             |
+        | declaring an unsupported contract version                    |
+        | missing an issue number                                      |
+        | reporting number 4764539863 for an issue whose url ends /549 |
+        | naming a ticket absent from the corpus                       |
 
     @portable-tracker-transport.SM1.AC1
     Scenario: A planned create round-trips through results back into the map
@@ -111,15 +119,21 @@ Feature: Environment-portable tracker transport
       And an executor result for that create carrying the versioned results envelope
       When I apply the results
       Then the tracker map records that ticket with the created issue number and url as recorded
-      And both the plan and the results carry a version
 
-  Rule: The new modes are additive; the gh path is unchanged
+  Rule: The command surface is wired — stdout contract and mode routing
+
+    @portable-tracker-transport.TB1.AC1
+    Scenario: --plan writes a valid SyncPlan to stdout and nothing else
+      Given a corpus with one never-synced ticket
+      When I invoke the sync-tracker command with --plan
+      Then stdout is a single valid SyncPlan JSON document carrying a version and the create intent
+      And stdout contains no log or diagnostic lines
 
     @portable-tracker-transport.TB1.AC3
-    Scenario: Running sync-tracker with no mode flag projects via the existing path
-      Given a connected tracker
+    Scenario: With no mode flag, the command routes to the gh path
       When I run sync-tracker with neither plan nor apply mode
-      Then it projects tickets through the existing gh path unchanged
+      Then it dispatches to the gh executor path
+      And it neither computes a plan nor reads a results file
 
     @portable-tracker-transport.TB1.AC3
     Scenario: Plan and apply modes cannot be combined
