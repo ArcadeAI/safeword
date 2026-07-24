@@ -13,5 +13,5 @@ And none contains `rm -rf "$GIT_PROBE_DIR"`
 And the generated Codex plugin remains in catalogue parity with the canonical template
 
 - [x] RED skip: expected failure was demonstrated before creating the green commit
-- [x] GREEN 7a050ae38
+- [x] GREEN af1d44a7a
 - [x] REFACTOR skip: no refactoring was needed for the narrow cleanup contract
