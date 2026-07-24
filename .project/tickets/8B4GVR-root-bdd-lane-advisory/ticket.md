@@ -2,11 +2,11 @@
 id: 8B4GVR
 slug: root-bdd-lane-advisory
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/1105
 created: 2026-07-23T13:17:28.289Z
-last_modified: 2026-07-23T21:27:32Z
+last_modified: 2026-07-24T03:18:00Z
 ---
 
 # Keep default BDD lanes visible without manual configuration
@@ -61,3 +61,5 @@ last_modified: 2026-07-23T21:27:32Z
 - 2026-07-23T21:27:32Z Audit: config sync and dependency-cruiser are clean; Knip, docs/domain reconciliation, and test-quality review have no current actionable finding. The 478-clone count is the established mirror-heavy baseline. Updated dev-only `lint-staged` from 17.1.1 to 17.2.0; `bun outdated` is clean.
 - 2026-07-23T21:27:32Z Quality/refactor: official Node and Cucumber references support the filesystem and feature-lane approach. Reworked the default-lane predicate to short-circuit on its first `.feature` file. A first version tripped `unicorn/no-useless-undefined`; it was reverted, narrowed, and the real setup/check integration suite passed 7/7 with ESLint clean. No commit was made because this worktree combines the active task change and user-directed audit remediation.
 - 2026-07-23T21:27:32Z Skill evidence: `/verify`, `/audit`, and `/quality-review` were invoked, but the helper could not bind this Codex run identity. This is a task ticket, so the unavailable session proof is recorded but non-gating.
+- 2026-07-24T03:19:23.700Z Phase: verify → done
+- 2026-07-24T03:19:23.700Z Done-flip: independent review confirmed all three Done-When behaviors are backed by real, passing assertions in `check-cucumber-advisories.test.ts` (default lane → no `paths.*` advice; no discoverable feature → guidance retained; configured path → silent), CI green on node 22/24, 0 commits behind main. Flipped to clear the done-gate so the PR can merge.
