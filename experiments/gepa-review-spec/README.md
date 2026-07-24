@@ -29,7 +29,7 @@ else changes.
 SAFEWORD_EVAL_MODEL=claude-sonnet-5 bun compute-protected.ts 5 # → baseline-protected.json
 
 # Multi-run accept gate: seed vs candidate on the held-out split (the ship gate)
-bun validate-skill.ts gepa/candidate.md 5 test # ACCEPT / REJECT (floor) + precision
+bun validate-skill.ts gepa/candidate-lean.md 5 test # ACCEPT / REJECT (floor) + precision
 
 # Stability probe: per-fixture variance + which seeds flip (diagnosis, not a gate)
 bun stability.ts 3
