@@ -1,0 +1,12 @@
+{
+  "split": "train",
+  "certifiedClean": true,
+  "defects": [
+    {
+      "scenarioId": "A JTBD declaring numbered Rules and no ACs passes the intake-exit gate",
+      "defectType": "vacuous-non-claim",
+      "severity": "must-fix",
+      "note": "mutation operator: Then-to-non-claim. 'the gate finishes evaluating the JTBD' asserts only that the gate RAN, not its outcome (allow/deny) — a do-nothing gate that always finishes would satisfy it, and it no longer backs the scenario's 'passes the gate' claim. Adversarially adjacent to the clean allow/deny outcomes in the sibling scenarios. Other two scenarios unchanged & clean."
+    }
+  ]
+}

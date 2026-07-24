@@ -5,7 +5,7 @@
  *   ANTHROPIC_API_KEY=... bun gepa-eval.ts --candidate <promptFile> --fixtures a,b,c
  *   ANTHROPIC_API_KEY=... bun gepa-eval.ts --candidate <promptFile> --split train
  *
- * The TS side owns the model call (createAnthropicRunner) AND the metric
+ * The TS side owns the model call (createRunnerFromEnv) AND the metric
  * (scoreFixture) so the evaluator stays the single source of truth — the Python
  * adapter only orchestrates GEPA's loop and the reflection LM.
  *
@@ -15,11 +15,13 @@
  * reflective signal — it names every false alarm and tells the reflector the
  * boundary to sharpen.
  */
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import { loadFixtures, testSplit, trainSplit } from './src/dataset';
 import { scoreFixture, type FixtureScore } from './src/evaluator';
-import { createAnthropicRunner } from './src/task';
+import { loadProtectedSet, protectedMisses, type ProtectedSet } from './src/protected';
+import { createRunnerFromEnv } from './src/task';
 import type { Fixture } from './src/types';
 
 function arg(name: string): string | undefined {
@@ -37,17 +39,23 @@ function arg(name: string): string | undefined {
  * at 0.4) so precision is the gradient GEPA climbs. Final acceptance ALSO requires
  * aggregate must-fix recall == 1.0 (the Phase-5 gate), independent of this score.
  */
-function objective(s: FixtureScore): number {
-  if (s.falseNegatives.length > 0) return -1000 * s.falseNegatives.length;
+function objective(s: FixtureScore, protectedSet: ProtectedSet | null): number {
+  // Only misses of BASELINE-PROTECTED seeds breach the floor — a stubborn seed
+  // the base model never catches (e.g. determinism-order) can't reject a
+  // candidate (see src/protected.ts). Recall is still MEASURED over all seeds.
+  const misses = protectedMisses(s, protectedSet);
+  if (misses.length > 0) return -1000 * misses.length;
   return Math.max(0.4, 1 - 0.1 * s.falseAlarms.length);
 }
 
 function feedback(s: FixtureScore, fx: Fixture): string {
   // NOTE: this text is shown to the GEPA reflection LM. Keep it to per-finding
   // corrections — never reveal the corpus's structure (e.g. "exactly one seeded
-  // defect", "certified-clean base"). Telling the reflector the eval's shape is a
-  // gaming accelerant: an earlier version leaked it and GEPA promptly wrote a
-  // "be skeptical of a second defect" rule that games the eval (quality-review).
+  // defect", "certified-clean base", OR which defects are protected/unprotected).
+  // Telling the reflector the eval's shape is a gaming accelerant: an earlier
+  // version leaked it and GEPA promptly wrote a "be skeptical of a second defect"
+  // rule that games the eval (quality-review). Every miss reads the same here —
+  // the protected/unprotected split lives ONLY in the score, never the feedback.
   const lines: string[] = [`Review of feature "${fx.name}":`];
   for (const d of s.truePositives) {
     lines.push(`  GOOD — you correctly flagged "${d.scenarioId}" as ${d.defectType}.`);
@@ -85,7 +93,11 @@ async function main(): Promise<void> {
     fixtures = names.map(n => byName.get(n)).filter((f): f is Fixture => f !== undefined);
   }
 
-  const runner = createAnthropicRunner({ model: process.env.SAFEWORD_EVAL_MODEL });
+  const protectedPath = join(import.meta.dirname, 'baseline-protected.json');
+  const protectedSet = loadProtectedSet(() =>
+    existsSync(protectedPath) ? readFileSync(protectedPath, 'utf8') : null,
+  );
+  const runner = createRunnerFromEnv();
   const results = [];
   for (const fx of fixtures) {
     try {
@@ -93,10 +105,11 @@ async function main(): Promise<void> {
       const s = scoreFixture(fx.name, out.detections, fx.expected, fx.certifiedClean);
       results.push({
         name: fx.name,
-        score: objective(s),
+        score: objective(s, protectedSet),
         recall: s.recall,
         caught: s.truePositives.length,
         missed: s.falseNegatives.length,
+        protectedMissed: protectedMisses(s, protectedSet).length,
         falseAlarms: s.falseAlarms.length,
         feedback: feedback(s, fx),
       });
