@@ -26,7 +26,13 @@ export function collectExecutableFeatureFiles(cwd: string, fileName?: string): s
   );
 }
 
-function collectExecutableFeatureDirectories(cwd: string): string[] {
+/**
+ * Return every directory that contributes executable feature files.
+ *
+ * Keep consumers that need feature-lane coverage (for example, audit checks)
+ * on this shared enumeration rather than reconstructing workspace discovery.
+ */
+export function collectExecutableFeatureDirectories(cwd: string): string[] {
   const directories = [
     nodePath.join(cwd, 'features'),
     ...WORKSPACE_ROOTS.flatMap(root =>
