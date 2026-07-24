@@ -153,6 +153,24 @@ export const vitestConfig: any[] = [
       // ordering (expect(files.sort()).toEqual(...)) — not a code-smell
       // in test contexts.
       'sonarjs/no-alphabetical-sort': 'off',
+      //
+      // parameterized-tests (new in sonarjs 4.2.0's recommended set): demands
+      // repetitive similar cases collapse into one it.each table. That is a
+      // readability *preference*, not a correctness rule — explicit separate
+      // cases keep a failure pointing at the exact scenario, which we value over
+      // table density. Enforcing it at error-level would force a large,
+      // mechanical rewrite of customer test suites for no correctness gain.
+      'sonarjs/parameterized-tests': 'off',
+      //
+      // explicit-test-skip (new in sonarjs 4.2.0's recommended set): flags a
+      // guard that `return`s early instead of calling ctx.skip(). Our
+      // data-driven validation tests use `if (!precondition) return` for
+      // conditional applicability; whether that reads better as ctx.skip() is a
+      // style call, not a test-quality gate we impose on customer suites. (The
+      // handful of internal early-return guards are tracked for a separate
+      // assert-or-skip tightening pass — off here is not an endorsement of
+      // vacuous passes.)
+      'sonarjs/explicit-test-skip': 'off',
     },
   },
 ];
