@@ -21,7 +21,7 @@ import {
 
 const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 const STOP_QUALITY = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/stop-quality.ts');
-const ADVICE_MARKER = 'TypeScript errors in your changed files';
+const ADVICE_MARKER = 'TypeScript errors reported by the configs covering your changes';
 
 interface HookRun {
   status: number | null;

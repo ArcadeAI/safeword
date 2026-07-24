@@ -1,6 +1,6 @@
 ---
 generator: safeword-architecture
-fingerprint: 46c36d5f38a649de87c0efdc15506fc108e44f584fdbcd3547d5958a1682bb89
+fingerprint: f52377673755a2c75e868a34ded612abfdca8d662b03d926b425c4629f97601e
 ---
 
 # Architecture
@@ -24,6 +24,8 @@ No description yet — awaiting prose.
 `src/codex-plugin`
 
 No description yet — awaiting prose.
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### commands
 
@@ -100,6 +102,16 @@ No description yet — awaiting prose.
 <!-- reconciled: baf84fad13ff152cf8bceed63ef6a6e65c6edbb3dcf8ac0cbf76fc4caa39fe38 -->
 
 `src/test-plan`
+
+No description yet — awaiting prose.
+
+> ⚠ stale: structure changed since this section was reconciled.
+
+### ticket-create
+
+<!-- reconciled: a48bcc3820c9cca4a78184f53ae752117d461b6ed53541d3b3cddaad10d4a349 -->
+
+`src/ticket-create`
 
 No description yet — awaiting prose.
 

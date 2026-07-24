@@ -124,7 +124,7 @@ export const CURSOR_RULE_WRAPPERS: readonly CursorRuleWrapper[] = [
     name: 'safeword-quality-reviewing',
     alwaysApply: false,
     description:
-      "Deep code quality review with web research. Use when user explicitly requests verification against latest docs ('double check against latest', 'verify versions', 'check security'), needs deeper analysis beyond automatic hook, or is working on projects without SAFEWORD.md/CLAUDE.md. Fetches current documentation, checks latest versions, and provides deep analysis (performance, security, alternatives).",
+      "Deep quality review of any work-product — code, docs, specs, plans, decisions — with web research. Use when explicitly verifying against latest docs ('double check against latest', 'verify versions', 'check security'), pressure-testing correctness and elegance, or needing deeper analysis beyond the automatic hook. Fetches current sources, checks versions and claims, and weighs alternatives.",
     referencePath: '.claude/skills/quality-review/SKILL.md',
     skill: 'quality-review',
   },
@@ -159,6 +159,14 @@ export const CURSOR_RULE_WRAPPERS: readonly CursorRuleWrapper[] = [
     globs: ['.project/tickets/**', '.safeword-project/tickets/**', '.safeword/logs/**'],
     referencePath: '.claude/skills/ticket-system/SKILL.md',
     skill: 'ticket-system',
+  },
+  {
+    name: 'safeword-retro-filer',
+    alwaysApply: false,
+    description:
+      "Files Safe Word's sanitized spooled retrospective drafts to its upstream tracker. Use only when a trusted Safe Word Stop continuation names a spool path. Do not use for ordinary retros, project issues, or user-authored drafts.",
+    referencePath: '.claude/skills/retro-filer/SKILL.md',
+    skill: 'retro-filer',
   },
   {
     name: 'bdd-core',

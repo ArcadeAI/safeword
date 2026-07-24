@@ -1,20 +1,20 @@
 ---
 name: quality-review
-description: Deep code review with web research. Use when double-checking code
-  against latest docs, verifying dependency versions, or reviewing security
-  concerns. Complements automatic quality hook with ecosystem verification.
+description: Deep review of any work-product — code, docs, specs, plans, decisions — grounded in current authoritative sources. Use when double-checking against latest docs, verifying versions or claims, checking security, or pressure-testing correctness and elegance before something ships. Complements the automatic quality hook with ecosystem verification. NOT for divergent ideation (brainstorm), weighing still-open options (figure-it-out), your own spec's framing (self-review), or scenario review (review-spec).
 allowed-tools: '*'
 ---
 
 # Quality Reviewing
 
-Deep review with web research to verify against current ecosystem. Complements automatic hook.
+Deep review with research to verify a work-product — code, docs, specs, plans, decisions — against current, authoritative sources.
 
-**Stakes set depth.** Review as if your verdict is the last gate before this ships — no one re-checks behind you. That standard, not "the hook already looked," sets how hard you research. Before searching, write your review plan: which angles (§2–3) this diff actually needs and the specific question each must answer, then work the list — don't stop at the first finding.
+**Stakes set depth.** Review as if your verdict is the last gate before this ships — no one re-checks behind you. That standard, not "the hook already looked," sets how hard you research. Before searching, write your review plan: which angles (§2–3) this work-product actually needs and the specific question each must answer, then work the list — don't stop at the first finding.
+
+**When to use (vs. the automatic hook):** the hook does a fast, code-only check from existing knowledge after an edit; this skill adds research (~2-3 min) and works on any work-product. Reach for it on explicit verification ("double check against latest docs", "verify versions", "check security"), deep dives (performance, architecture, trade-offs, an argument's soundness), or pre-change review.
 
 ## Invocation log
 
-This skill is required at the done-gate for tickets with **two or more RGR loops** (W610WW) — the whole-ticket review half of the cross-scenario pass. The line below appends a current-run entry to `skill-invocations.log` under the project namespace root (`.project/`, or legacy `.safeword-project/` where that exists) so the done-gate hook can verify /quality-review was actually invoked. Claude Code expands the `!` line automatically and passes `${CLAUDE_SESSION_ID}` when available. The helper also resolves Claude remote-container ids from the runtime environment, and on Cursor and Codex the pre-shell hook (beforeShellExecution / PreToolUse) bridges the session id to the helper — so on all three runtimes the fallback runs without hand-picking an id. Hand-writing review notes cannot produce this gate proof.
+Required at the done-gate for tickets with **two or more RGR loops** (W610WW). The line below logs a current-run entry to `skill-invocations.log` under the project namespace root so the done-gate hook can verify /quality-review actually ran; Claude Code expands the `!` line automatically. On Cursor and Codex the pre-shell hook (beforeShellExecution / PreToolUse) bridges the session id, so the fallback runs on all three runtimes without hand-picking one. Hand-writing review notes cannot produce this gate proof.
 
 !`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" quality-review "${CLAUDE_SESSION_ID:-}" || echo "[skill-invocation-log] FAILED - no current-run proof logged"`
 
@@ -25,21 +25,13 @@ PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null 
 bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" quality-review "${CLAUDE_SESSION_ID:-}"
 ```
 
-**If the automatic line or fallback prints `[skill-invocation-log] FAILED`, prints `no run identity`, or still does not print `quality-review ✓`**: a ≥2-loop ticket must fail closed if no real current-session proof can be logged. Do not mark such a ticket done or hand-write review notes as a substitute for the gate proof. Report the failure to the user (most likely cause: inline shell execution was denied, the runtime did not expose a usable run identity, or Bun could not run the installed helper) and ask them to resolve it before re-invoking /quality-review.
+**If the automatic line or fallback prints `[skill-invocation-log] FAILED`, prints `no run identity`, or still does not print `quality-review ✓`**: a ≥2-loop ticket must fail closed — don't mark it done or substitute hand-written notes for the gate proof. Report the failure to the user (usual causes: inline shell execution was denied, the runtime exposed no usable run identity, or Bun could not run the installed helper) and ask them to resolve it before re-invoking /quality-review.
 
 Single-loop tickets, patches, and no-ticket reviews may continue after recording that session-scoped proof was unavailable and not required by the gate.
 
-**When to use this skill (not automatic hook):**
+## 1. Detect phase (code / BDD tickets)
 
-- **Explicit web research**: "double check against latest docs", "verify versions", "check security"
-- **Deep dive needed**: Performance, architecture, trade-offs beyond automatic hook
-- **Pre-change review**: Review before making changes (hook only triggers after)
-
-**Relationship:** Automatic hook does fast check with existing knowledge. This skill does deep dive with web research (2-3 min).
-
-## 1. Detect Phase
-
-If in BDD workflow, read the current ticket from `<namespace-root>/tickets/` and apply phase-appropriate research:
+If in a BDD workflow, read the current ticket from `<namespace-root>/tickets/` and apply phase-appropriate research:
 
 | Phase               | Research Focus                                  |
 | ------------------- | ----------------------------------------------- |
@@ -51,64 +43,66 @@ If in BDD workflow, read the current ticket from `<namespace-root>/tickets/` and
 | verify              | Flaky-test & regression patterns, coverage gaps |
 | done                | CI/CD patterns, release checklists              |
 
-## 2. Research Angles (Primary Value)
+## 2. Research Angles
 
-Run each angle that applies — angle _diversity_ is the lever, not search volume: **version-currency** + **CVE/security** (this section), **deprecation** + **primary-source docs** (§3). If the user gave a focus or scope restriction, apply it to **every** angle — don't use it only for the first search.
+Run each angle that applies — angle _diversity_ is the lever, not search volume: **source-currency** + **risk/security** (this section), **supersession** + **primary-source docs** (§3). If the user gave a focus or scope restriction, apply it to **every** angle — don't use it only for the first search.
 
-### Version-currency & security
+### Source-currency & risk
 
 This is your main differentiator from the automatic hook.
 
-Read the live `Current time:` line from the prompt timestamp hook and use that date as the current prompt timestamp.
-Search for: "[library name] latest stable version as of <current prompt timestamp date>"
-Search for: "[library name] security vulnerabilities"
+Read the live `Current time:` line from the prompt timestamp hook and use that date as the current prompt timestamp. Then check the work-product's dependencies and load-bearing claims against the current state of their sources:
 
-**Flag if outdated:**
+- **Code:** "[library name] latest stable version as of <current prompt timestamp date>" and "[library name] security vulnerabilities".
+- **Docs / specs / decisions:** are the facts, guidance, or standards it relies on still current as of that date — or superseded, retracted, or overtaken?
 
-- Major versions behind -> WARN (e.g., React 17 when 19 is stable)
-- Minor versions behind -> NOTE
-- Security vulnerabilities -> CRITICAL (upgrade now)
-- Using latest -> Confirm
+**Flag if outdated or unsupported:**
 
-## 3. Verify Documentation — deprecation + primary-source (Primary Value)
+- A generation behind (major version, or guidance overtaken by newer practice) -> WARN (e.g., React 17 when 19 is stable)
+- A small drift behind (minor version, minor staleness) -> NOTE
+- A security vulnerability, or a load-bearing claim with no current source -> CRITICAL
+- Current and well-sourced -> Confirm
 
-Fetch official documentation for libraries in use.
+## 3. Verify against primary sources — supersession + authority
+
+Fetch the authoritative source for each dependency or load-bearing claim.
 
 **Look for:**
 
-- Deprecated APIs being used?
-- Newer, better patterns available?
-- Recent recommendation changes?
+- Deprecated or superseded — APIs, facts, guidance, or standards no longer current?
+- A more established pattern or more authoritative source available?
+- Recommendation changes since the work-product was written?
 
 ## Output Format
 
 ```markdown
 ## Quality Review
 
-**Versions:** [✓/⚠️/❌] [Latest version check]
-**Documentation:** [✓/⚠️/❌] [Current docs check]
-**Security:** [✓/⚠️/❌] [Vulnerability check]
+**Currency:** [✓/⚠️/❌] [sources/versions current as of the prompt date]
+**Sources:** [✓/⚠️/❌] [each load-bearing claim traced to a primary source]
+**Correct:** [✓/⚠️/❌] [solves the actual problem, edge cases included]
+**Elegant:** [✓/⚠️/❌] [minimal, readable, no incidental complexity]
 **No-bloat:** [✓/⚠️/❌] [smallest thing that works, or name the cut]
-**Wiring:** [✓/⚠️/❌] [each new entry-point has a real-collaborator test; mocks only the boundary — name it or justify absence]
+**Wiring (code only):** [✓/⚠️/❌] [each new entry-point has a real-collaborator test; mocks only the boundary — name it or justify absence]
 
 **Verdict:** [APPROVE / REQUEST CHANGES / NEEDS DISCUSSION]
 
 **Critical issues:** [List or "None"]
 **Suggested improvements:** [List or "None"]
-**Provenance:** For version/API claims:
+**Provenance:** For every version, API, or factual claim:
 
 - (verified: [source URL or doc title]) — fetched this session
 - (training data: may be outdated) — not verified
 - (uncertain) — could not verify
 
-**Next:** [concrete action — upgrade X from a.b.c to x.y.z, refactor {file}:{line}, ask team about Z, or proceed to implementation if APPROVE]
+**Next:** [concrete action — upgrade X from a.b.c to x.y.z, revise {file}:{line}, ask team about Z, or proceed if APPROVE]
 ```
 
 The `**Next:**` line is required. On APPROVE, name what to do now (proceed, commit, run /verify). On REQUEST CHANGES, name the specific edit and re-review trigger. On NEEDS DISCUSSION, name the question to ask. A verdict that doesn't tell the reader what to do next is incomplete.
 
-### Wiring gate (required)
+### Wiring gate (code changes, required)
 
-For each new entry point or command in the diff, confirm a test built from **real collaborators** that mocks only the process boundary (network / fs / clock / subprocess) — and **name it**, or justify its absence. A fully-mocked suite can be green while the real config→module wiring is broken (see `testing/SKILL.md` → Wiring Tests). Internal-seam mocks and `provider: none`-style short circuits do not count as wiring coverage.
+For each new entry point or command in a code change, confirm a test built from **real collaborators** that mocks only the process boundary (network / fs / clock / subprocess) — and **name it**, or justify its absence. A fully-mocked suite can be green while the real config→module wiring is broken (see `testing/SKILL.md` → Wiring Tests). Internal-seam mocks and `provider: none`-style short circuits do not count as wiring coverage.
 
 ### Provenance gate (required)
 
@@ -116,35 +110,29 @@ Severity is bounded by evidence: **a CRITICAL or REQUEST CHANGES verdict must ci
 
 ## Loop: review → fix → re-review
 
-Run the review in passes until it comes back clean — not one-and-done, but not an endless loop either (a couple of passes is usually plenty).
+Run the review in passes until **Critical issues** come back None. A couple of passes is usually plenty — don't loop indefinitely.
 
 Each pass:
 
-1. **Review with a fresh, independent reviewer** — one that doesn't share your
-   blind spots. A same-model, same-context reviewer shares them, and ungrounded
-   self-correction can _degrade_ code rather than improve it. **Prefer a
-   different model of comparable-or-better capability; if you don't have one,
-   run a fresh-context pass on your own model** — the usual path, since most
-   setups run a single model. Never review on a _weaker_ model: a fresh context
-   on your own model beats a weaker different one. Hand the reviewer only the
-   diff and the ticket scope, have it apply §1–3, and return the Output Format
-   above.
+1. **Review with a fresh, independent reviewer.** A same-model, same-context
+   reviewer shares your blind spots, and ungrounded self-correction can
+   _degrade_ the work rather than improve it. Prefer a different model of
+   comparable-or-better capability; otherwise run a fresh-context pass on your
+   own model (the usual path, since most setups run one model) — never a
+   _weaker_ one. Hand the reviewer only the work-product and its scope, have it
+   apply §1–3, and return the Output Format above.
    - Claude Code: Agent/Task tool. Codex: ask in your prompt — subagents never
-     auto-spawn, and `/agent` only switches between existing threads. Cursor:
-     subagents.
-   - No sub-agent? Re-read in a fresh context (a different comparable-or-better
-     model if you can switch to one). Independence is the point, not the
-     mechanism.
+     auto-spawn, and `/agent` only switches existing threads. Cursor: subagents.
+     No sub-agent? Re-read in a fresh context — independence is the point, not
+     the mechanism.
 2. **Triage.** Fix every **Critical issue** this pass. Apply the **Suggested
    improvements** worth the change; list the rest — don't chase them.
-3. **Decide.** Stop when **Critical issues = None** — remaining suggestions are
-   optional, not a reason to loop. Don't loop indefinitely; a couple of passes is
-   the practical ceiling. Re-review only if you edited code this pass.
+3. **Decide.** Stop when **Critical issues = None**; remaining suggestions are
+   optional. Re-review only if you changed the work-product this pass.
 
-A pass isn't done until `/verify` (tests, lint, typecheck) is green. That
-objective signal — not the reviewer running out of suggestions — is the real
-stop condition; tests are the ground truth.
+A pass isn't done until the objective check passes — for code that's `/verify`
+(tests, lint, typecheck); for other work-products it's whatever measurable
+acceptance you can run. That objective signal, not the reviewer running out of
+suggestions, is the real stop condition.
 
-**Voice:** plainspoken and concise — write to be scanned.
-
-**Avoid bloat.**
+**Voice:** plainspoken and concise — write to be scanned. **Avoid bloat.**

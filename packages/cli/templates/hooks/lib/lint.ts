@@ -200,6 +200,10 @@ async function ensurePackInstalled(packName: string, configPath: string): Promis
   // Already have config
   if (hasConfig(configPath)) return true;
 
+  // Match the project-wide auto-upgrade policy. The fallback linter below can
+  // still run with the host defaults when a user or CI opts out of repair.
+  if (process.env.SAFEWORD_NO_AUTO_UPGRADE || process.env.CI) return false;
+
   // Already tried upgrading this session
   if (upgradeAttempted) return false;
   upgradeAttempted = true;

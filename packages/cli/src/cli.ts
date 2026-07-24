@@ -89,6 +89,28 @@ migrate
     migrateCodexPlugin(process.cwd(), { removeLegacyHooks: options.removeLegacyHooks === true });
   });
 
+const codex = program.command('codex').description('Manage the Safe Word Codex plugin');
+
+codex
+  .command('install')
+  .description('Install and verify the Safe Word plugin in the active Codex profile')
+  .action(async () => {
+    const { installCodexPlugin } = await import('./commands/migrate-codex-plugin.js');
+    installCodexPlugin();
+  });
+
+codex
+  .command('migrate')
+  .description('Remove Safe Word-owned legacy Codex project hooks after plugin review')
+  .requiredOption(
+    '--remove-legacy-hooks',
+    'Confirm removal of Safe Word-owned legacy project hooks after reviewing the plugin in Codex /hooks',
+  )
+  .action(async () => {
+    const { removeLegacyCodexHooks } = await import('./commands/migrate-codex-plugin.js');
+    removeLegacyCodexHooks(process.cwd());
+  });
+
 program
   .command('diff')
   .description('Preview changes that would be made by upgrade')
@@ -170,10 +192,18 @@ ticket
     '--parent <epicId>',
     'Link this ticket to an epic (sets parent: and appends to its children)',
   )
+  .option('--issue <key>', 'Adopt an existing tracker issue key as the ticket identity')
   .action(
     async (
       slug: string,
-      options: { type?: string; title?: string; goal?: string; why?: string; parent?: string },
+      options: {
+        type?: string;
+        title?: string;
+        goal?: string;
+        why?: string;
+        parent?: string;
+        issue?: string;
+      },
     ) => {
       const { ticketNew } = await import('./commands/ticket-new.js');
       await ticketNew(slug, options);
@@ -210,6 +240,14 @@ program
   .action(async (ticketId: string, options: { format?: string; red?: boolean; out?: string }) => {
     const { codify } = await import('./commands/codify.js');
     await codify(ticketId, options);
+  });
+
+program
+  .command('feature-directories', { hidden: true })
+  .description('Print executable feature directories for internal shell consumers')
+  .action(async () => {
+    const { featureDirectories } = await import('./commands/feature-directories.js');
+    featureDirectories(process.cwd());
   });
 
 const hook = program.command('hook').description('Run packaged Safe Word hooks');
@@ -323,11 +361,8 @@ if (process.argv.length === 2) {
   program.help();
 }
 
-// Parse arguments. parseAsync (not parse) so an error thrown by an async command
-// action rejects the returned promise and reliably sets a non-zero exit code on
-// every runtime. With sync parse(), an async action's rejection is only an
-// unhandledRejection — node surfaces that as a non-zero exit, but bun does not, so
-// `bunx safeword <cmd>` (e.g. the packaged Codex hooks) could exit 0 on a fatal error.
+// parseAsync lets async command failures consistently produce a non-zero exit
+// status under Bun and Node.
 try {
   await program.parseAsync();
 } catch (parseError: unknown) {

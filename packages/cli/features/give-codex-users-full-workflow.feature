@@ -25,7 +25,7 @@ Feature: Give Codex users the full Safe Word workflow
     Scenario: Fresh setup keeps workflow material out of the project
       Given an empty project has no Safe Word workflow material
       When the builder sets up Safe Word for Codex
-      Then Safe Word directs the builder to the explicit Codex plugin migration command
+      Then Safe Word directs the builder to the explicit Codex plugin install command
       And the project contains no Safe Word workflow tree in .agents, .codex, or .safeword
 
     @rejection
