@@ -1,0 +1,58 @@
+{
+  "protected": {
+    "config-loader": [],
+    "config-loader-non-atomic": ["Loading resolves defaults and rejects unknown keys::non-atomic"],
+    "config-loader-vacuous-non-claim": [
+      "A missing optional field falls back to its default::vacuous"
+    ],
+    "formatter-clean": [],
+    "formatter-determinism-order": [],
+    "formatter-non-atomic": [
+      "The hook respects both customer Prettier and greenfield defaults::non-atomic"
+    ],
+    "formatter-non-observable": [
+      "No Prettier nag at session start in a Biome repo::non-observable"
+    ],
+    "formatter-vacuous-existence": [
+      "Edits follow the customer's Prettier style, not safeword's::vacuous"
+    ],
+    "formatter-vacuous-given-echo": [
+      "A file already written with double quotes still has double quotes::vacuous"
+    ],
+    "formatter-vacuous-trivially-true": [
+      "A repo already in safeword style stays in safeword style::vacuous"
+    ],
+    "inventory-sync": [],
+    "payment-refund": ["*::missing-negative-case", "Refund a completed payment::vacuous"],
+    "pmgrade-clean": [],
+    "pmgrade-two-defects": [
+      "The constraint dimension is scoped to what must not break::vacuous",
+      "The pointer names all five dimensions::vacuous"
+    ],
+    "pmgrade-vacuous-non-claim": ["The readiness pointer stays within the length cap::vacuous"],
+    "resolver-clean": [],
+    "resolver-conflict": ["*::conflict"],
+    "resolver-determinism-order": [],
+    "resolver-determinism-time": ["A slow toolchain probe still resolves the command::determinism"],
+    "resolver-non-atomic": ["The resolver handles tox repos and empty repos::non-atomic"],
+    "resolver-non-observable": [
+      "A manifest inside an excluded directory is ignored::non-observable"
+    ],
+    "resolver-vacuous-existence": ["Python with a tox.ini runs tox::vacuous"],
+    "resolver-vacuous-given-echo": ["A cached python command is read back::vacuous"],
+    "resolver-vacuous-non-claim": ["Python with a tox.ini runs tox::vacuous"],
+    "resolver-vacuous-trivially-true": ["Requesting a plan that already lists python::vacuous"],
+    "ruletier-clean": [],
+    "ruletier-vacuous-non-claim": [
+      "A JTBD declaring numbered Rules and no ACs passes the intake-exit gate::vacuous"
+    ],
+    "tracker-clean": [],
+    "tracker-determinism-order": [],
+    "tracker-non-observable": ["An active ticket is marked projected::non-observable"],
+    "tracker-vacuous-non-claim": ["An active ticket projects to an open issue::vacuous"],
+    "user-session": [
+      "Session expires after inactivity::determinism",
+      "User logs in and then logs out::non-atomic"
+    ]
+  }
+}

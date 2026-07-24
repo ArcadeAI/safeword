@@ -1,0 +1,12 @@
+{
+  "split": "test",
+  "certifiedClean": true,
+  "defects": [
+    {
+      "scenarioId": "Loading resolves defaults and rejects unknown keys",
+      "defectType": "non-atomic",
+      "severity": "must-fix",
+      "note": "Single mutation off config-loader (certified clean): this one scenario bundles two independent behaviors — default resolution and unknown-key rejection — over two separate inputs, and should be two scenarios (the base keeps them apart). The remaining scenario is unchanged and clean."
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "split": "train",
+  "certifiedClean": true,
+  "defects": [],
+  "note": "Excerpt shaped from features/rule-tier.feature (fresh domain). Three single-Then concrete scenarios matching safeword's own rule-tier conventions, hand-adjudicated clean: an orphan advisory naming a reference, a gate-allows outcome, a gate-denies negative case. (Earlier cuts tried a multi-rule advisory-list scenario as a determinism-order host; certification correctly flagged it first non-atomic, then given-echo — rule-tier has no natural concrete ordered-list, so the det-order host was dropped and deferred to a resolver-style domain.) Certified-clean negative AND parent of ruletier-vacuous-non-claim."
+}

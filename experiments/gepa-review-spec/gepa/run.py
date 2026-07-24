@@ -36,7 +36,7 @@ EXPERIMENT_DIR = HERE.parent
 SKILL_PATH = EXPERIMENT_DIR.parent.parent / ".claude" / "skills" / "review-spec" / "SKILL.md"
 EVAL_SCRIPT = EXPERIMENT_DIR / "gepa-eval.ts"
 BUN = os.environ.get("BUN_BIN", "bun")
-TASK_MODEL = os.environ.get("SAFEWORD_EVAL_MODEL", "claude-sonnet-4-6")
+TASK_MODEL = os.environ.get("SAFEWORD_EVAL_MODEL", "claude-sonnet-5")
 REFLECTION_MODEL = os.environ.get("SAFEWORD_REFLECTION_MODEL", "claude-sonnet-4-6")
 
 

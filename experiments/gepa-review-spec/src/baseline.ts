@@ -19,7 +19,7 @@ import { join } from 'node:path';
 
 import { loadFixtures, testSplit, trainSplit } from './dataset';
 import { formatReport, runEvalWithTraces, type FixtureTrace } from './harness';
-import { createAnthropicRunner } from './task';
+import { createRunnerFromEnv } from './task';
 import type { Fixture } from './types';
 
 const SKILL_PATH = join(
@@ -74,19 +74,25 @@ function formatTrace(trace: FixtureTrace, fixtures: Fixture[]): string {
 }
 
 async function main(): Promise<void> {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    console.error('Set ANTHROPIC_API_KEY to run the baseline (it spends tokens).');
+  const vendor = process.env.SAFEWORD_EVAL_VENDOR === 'openai' ? 'openai' : 'anthropic';
+  const keyVar = vendor === 'openai' ? 'OPENAI_API_KEY' : 'ANTHROPIC_API_KEY';
+  if (!process.env[keyVar]) {
+    console.error(`Set ${keyVar} to run the ${vendor} baseline (it spends tokens).`);
     process.exit(1);
   }
   const skillPrompt = readFileSync(SKILL_PATH, 'utf8');
   const fixtures = loadFixtures();
-  const model = process.env.SAFEWORD_EVAL_MODEL;
-  const runner = createAnthropicRunner({ model });
+  const model =
+    vendor === 'openai' ? process.env.SAFEWORD_EVAL_OPENAI_MODEL : process.env.SAFEWORD_EVAL_MODEL;
+  const effort = process.env.SAFEWORD_EVAL_EFFORT ?? 'off';
+  const runner = createRunnerFromEnv();
 
   console.log(
     `Corpus: ${fixtures.length} fixtures (${trainSplit(fixtures).length} train, ${testSplit(fixtures).length} test)`,
   );
-  console.log(`Model:  ${model ?? 'claude-sonnet-4-6 (default)'}  temp 0\n`);
+  console.log(
+    `Vendor: ${vendor}   Model: ${model ?? '(runner default)'}   thinking/reasoning: ${effort}\n`,
+  );
 
   for (const [label, split] of [
     ['TRAIN', trainSplit(fixtures)],
