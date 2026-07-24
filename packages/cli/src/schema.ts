@@ -991,6 +991,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       template: 'skills/cleanup-zombies/SKILL.md',
     },
     '.claude/skills/retro/SKILL.md': { template: 'skills/retro/SKILL.md' },
+    '.claude/skills/retro-filer/SKILL.md': {
+      template: 'skills/retro-filer/SKILL.md',
+    },
     // Claude skills — contextual (auto-triggered, no slash command)
     '.claude/skills/brainstorm/SKILL.md': {
       template: 'skills/brainstorm/SKILL.md',

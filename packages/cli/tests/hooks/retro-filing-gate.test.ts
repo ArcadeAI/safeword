@@ -11,9 +11,11 @@ import {
   spoolDrafts,
 } from '../../templates/hooks/lib/retro-draft-spool.js';
 import {
+  CODEX_FILER_SKILL_NAME,
   decideRetroFilingGate,
   FILER_AGENT_NAME,
   FILING_ATTEMPT_CAP,
+  formatCodexFilingDispatch,
   formatFilingDispatch,
 } from '../../templates/hooks/lib/retro-filing-gate.js';
 import { appendRetroAck, retroDraft as draft, writeSelfReportConfig } from '../helpers.js';
@@ -91,6 +93,16 @@ describe('formatFilingDispatch (GH628F — one dispatch action plus silence cont
 
   it('contains no inline filing procedure (no dedup/search/create steps)', () => {
     const text = formatFilingDispatch(3, '/proj/.safeword/retro-drafts/sess-1.jsonl');
+    for (const procedureWord of [/dedup/i, /search issues/i, /create an issue/i, /\blabels\b/i]) {
+      expect(procedureWord.test(text)).toBe(false);
+    }
+  });
+
+  it('routes Codex through the packaged filer skill without embedding a procedure', () => {
+    const text = formatCodexFilingDispatch(3, '/proj/.safeword/retro-drafts/sess-1.jsonl');
+    expect(text).toContain(CODEX_FILER_SKILL_NAME);
+    expect(text).toContain('/proj/.safeword/retro-drafts/sess-1.jsonl');
+    expect(text).not.toContain(FILER_AGENT_NAME);
     for (const procedureWord of [/dedup/i, /search issues/i, /create an issue/i, /\blabels\b/i]) {
       expect(procedureWord.test(text)).toBe(false);
     }

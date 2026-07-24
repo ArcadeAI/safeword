@@ -16,7 +16,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { spoolDrafts } from '../../templates/hooks/lib/retro-draft-spool.js';
 import {
-  FILER_AGENT_NAME,
+  CODEX_FILER_SKILL_NAME,
   FILING_ATTEMPT_CAP,
 } from '../../templates/hooks/lib/retro-filing-gate.js';
 import { offsetStatePath, sentinelPath } from '../../templates/hooks/lib/retro-trigger.js';
@@ -368,7 +368,7 @@ describe('codex/stop.ts retro adapter (CDX602)', () => {
       expect(result.status).toBe(0);
       const out = JSON.parse(result.stdout.trim());
       expect(out.decision).toBe('block');
-      expect(out.reason).toContain(FILER_AGENT_NAME);
+      expect(out.reason).toContain(CODEX_FILER_SKILL_NAME);
       expect(out.reason).toContain('.safeword/retro-drafts');
     });
 
