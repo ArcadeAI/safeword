@@ -237,6 +237,18 @@ const basePluginsUnscoped: any[] = [
       // Keep this off while safeword supports Node 22: the rule autofixes to the
       // Node 24-only Error static brand check and would break generated projects.
       'unicorn/prefer-error-is-error': 'off',
+      //
+      // prefer-simple-condition-first (new in unicorn 72's recommended set):
+      // demands the "simpler" operand lead in an && / || chain, but reordering
+      // operands changes short-circuit behavior whenever one guards another
+      // (`x && x.foo`, `m && Number(m[1])`). The rule is deliberately NOT
+      // autofixable — its own message says "after verifying short-circuit
+      // behavior" — i.e. it cannot tell a safe reorder from a guard swap. We ship
+      // at error-level into customer agent code, so a rule that requires per-site
+      // manual short-circuit verification (and silently corrupts a guard when
+      // applied blindly) is unsafe to enforce. Ordering is a readability judgment,
+      // not a correctness one.
+      'unicorn/prefer-simple-condition-first': 'off',
       'unicorn/no-array-reduce': 'error', // LLMs write confusing reduce
       // Renamed from unicorn/prevent-abbreviations in eslint-plugin-unicorn 68.
       'unicorn/name-replacements': [
