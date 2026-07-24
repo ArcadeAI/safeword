@@ -273,7 +273,10 @@ limited to the documented PreToolUse tool calls Safeword configures (`Bash`,
 `apply_patch` edit payloads, and file-editing tools). Live Codex runs can also
 report `file_change` execution items; those are recorded as a runtime boundary,
 not as edits Safeword claims to guard through PreToolUse. Codex Stop hooks use
-continuation semantics (`decision: "block"`, `reason`) for done-phase reminders.
+continuation semantics (`decision: "block"`, `reason`) for done-phase reminders
+and evidence remediation. When a Codex session is bound to an in-progress
+done-phase ticket and shared evidence passes, Stop also marks that ticket done;
+it never stages, commits, or opens a PR.
 
 **Skills** (in `.claude/skills/`): Specialized agent capabilities
 

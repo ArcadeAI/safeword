@@ -8,12 +8,21 @@
  * no child. Decision logic is unit-tested in tests/hooks/retro-trigger-codex.
  */
 
-import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { execSync, spawnSync } from 'node:child_process';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { evaluateDoneEvidence } from '../../templates/hooks/lib/done-gate.js';
 import { spoolDrafts } from '../../templates/hooks/lib/retro-draft-spool.js';
 import {
   CODEX_FILER_SKILL_NAME,
@@ -23,11 +32,13 @@ import { offsetStatePath, sentinelPath } from '../../templates/hooks/lib/retro-t
 import { readSessionReports } from '../../templates/hooks/lib/self-report.js';
 import {
   createTemporaryDirectory,
+  initGitRepo,
   readJsonlFile,
   removeTemporaryDirectory,
   retroDraft,
   TIMEOUT_QUICK,
   writeSelfReportConfig as writeConfig,
+  writeTestFile,
 } from '../helpers';
 
 const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
@@ -63,7 +74,7 @@ function installFakeLocalCli(directory: string, options: { exitCode?: number } =
   writeFileSync(
     cliPath,
     `#!/usr/bin/env bun
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 writeFileSync(process.env.RECORD_PATH!, JSON.stringify({
   argv: Bun.argv.slice(2),
   cwd: process.cwd(),
@@ -71,6 +82,7 @@ writeFileSync(process.env.RECORD_PATH!, JSON.stringify({
     SAFEWORD_RETRO_AGENT: process.env.SAFEWORD_RETRO_AGENT,
     SAFEWORD_RETRO_CHILD: process.env.SAFEWORD_RETRO_CHILD,
 	  },
+	ticketContent: process.env.TICKET_PATH ? readFileSync(process.env.TICKET_PATH, 'utf8') : undefined,
 	}));
 	${exitCode === 0 ? '' : `process.exit(${exitCode});`}
 	`,
@@ -81,12 +93,43 @@ function readRecord(path: string): {
   argv: string[];
   cwd: string;
   env: { SAFEWORD_RETRO_AGENT?: string; SAFEWORD_RETRO_CHILD?: string };
+  ticketContent?: string;
 } {
   return JSON.parse(readFileSync(path, 'utf8')) as {
     argv: string[];
     cwd: string;
     env: { SAFEWORD_RETRO_AGENT?: string; SAFEWORD_RETRO_CHILD?: string };
+    ticketContent?: string;
   };
+}
+
+function generatedArchitectureDocument(fingerprint: string): string {
+  return `---\ngenerator: safeword-architecture\nfingerprint: ${fingerprint}\n---\n\n# Architecture\n`;
+}
+
+function enableArchitectureAdvisory(directory: string): void {
+  initGitRepo(directory);
+  writeTestFile(directory, 'ARCHITECTURE.md', '# Architecture\n\nHuman narrative.\n');
+  writeTestFile(
+    directory,
+    '.project/architecture.generated.md',
+    generatedArchitectureDocument('base-fingerprint'),
+  );
+  execSync('git add . && git commit -qm base', { cwd: directory, stdio: 'pipe' });
+  const baseBranch = execSync('git branch --show-current', {
+    cwd: directory,
+    encoding: 'utf8',
+  }).trim();
+  execSync('git checkout -q -b feature-architecture-advisory', { cwd: directory, stdio: 'pipe' });
+  execSync(`git branch --set-upstream-to=${baseBranch} feature-architecture-advisory`, {
+    cwd: directory,
+    stdio: 'pipe',
+  });
+  writeTestFile(
+    directory,
+    '.project/architecture.generated.md',
+    generatedArchitectureDocument('moved-fingerprint'),
+  );
 }
 
 function runHook(directory: string, input: unknown, env: Record<string, string | undefined> = {}) {
@@ -97,6 +140,70 @@ function runHook(directory: string, input: unknown, env: Record<string, string |
     encoding: 'utf8',
     timeout: TIMEOUT_QUICK,
   });
+}
+
+function writeTicket(
+  directory: string,
+  id: string,
+  options: { phase?: string; status?: string; type?: string; verify?: boolean } = {},
+): string {
+  const folder = `${id.toUpperCase()}-ticket`;
+  const ticketDirectory = nodePath.join(directory, '.project', 'tickets', folder);
+  mkdirSync(ticketDirectory, { recursive: true });
+  writeFileSync(
+    nodePath.join(ticketDirectory, 'ticket.md'),
+    [
+      '---',
+      `id: ${id}`,
+      `type: ${options.type ?? 'task'}`,
+      `phase: ${options.phase ?? 'done'}`,
+      `status: ${options.status ?? 'in_progress'}`,
+      'last_modified: 2026-07-24T00:00:00Z',
+      '---',
+      '',
+      '# Test ticket',
+    ].join('\n'),
+  );
+  if (options.verify ?? true) {
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'verify.md'),
+      '# Verify\n\n**PR Scope:** ✅ Diff matches ticket scope\n',
+    );
+  }
+  return ticketDirectory;
+}
+
+function evaluateFixtureEvidence(
+  projectDirectory: string,
+  ticketDirectory: string,
+  ticketType: string,
+) {
+  const previousCli = process.env.SAFEWORD_CLI;
+  process.env.SAFEWORD_CLI = nodePath.join(SAFEWORD_ROOT, 'packages/cli/src/cli.ts');
+  try {
+    return evaluateDoneEvidence({
+      projectDir: projectDirectory,
+      ticketDir: ticketDirectory,
+      ticketType,
+    });
+  } finally {
+    if (previousCli === undefined) delete process.env.SAFEWORD_CLI;
+    else process.env.SAFEWORD_CLI = previousCli;
+  }
+}
+
+function bindCodexTicket(directory: string, sessionId: string, ticketId: string): void {
+  mkdirSync(nodePath.join(directory, '.project'), { recursive: true });
+  writeFileSync(
+    nodePath.join(directory, '.project', `quality-state-codex-${sessionId}.json`),
+    JSON.stringify({
+      locSinceCommit: 0,
+      lastCommitHash: '',
+      activeTicket: ticketId,
+      recentFailures: [],
+      incrementedPatterns: [],
+    }),
+  );
 }
 
 function expectNoContinuation(result: ReturnType<typeof runHook>): void {
@@ -412,6 +519,289 @@ describe('codex/stop.ts retro adapter (CDX602)', () => {
         expect(out.decision).toBe('block');
       }
       expectNoContinuation(runHook(dir, { session_id: id, cwd: dir }));
+    });
+  });
+
+  describe('done transition (QRX2DN)', () => {
+    it('codex-done-gate.TBU1.R1.closes_only_the_verified_session_ticket', () => {
+      writeConfig(dir, { surface: false, file: false });
+      const sessionId = freshSession('done-pass');
+      const boundTicket = writeTicket(dir, 'CODONE');
+      const otherTicket = writeTicket(dir, 'OTHER1');
+      bindCodexTicket(dir, sessionId, 'CODONE');
+
+      const result = runHook(dir, { session_id: sessionId, cwd: dir });
+
+      expect(result.status).toBe(0);
+      expect(readFileSync(nodePath.join(boundTicket, 'ticket.md'), 'utf8')).toMatch(
+        /^status: done$/m,
+      );
+      expect(readFileSync(nodePath.join(otherTicket, 'ticket.md'), 'utf8')).toMatch(
+        /^status: in_progress$/m,
+      );
+    });
+
+    it.each([
+      {
+        name: 'no verify artifact',
+        type: 'task',
+        setup: (ticketDirectory: string) => {
+          rmSync(nodePath.join(ticketDirectory, 'verify.md'));
+        },
+      },
+      {
+        name: 'failed PR scope',
+        type: 'task',
+        setup: (ticketDirectory: string) => {
+          writeFileSync(
+            nodePath.join(ticketDirectory, 'verify.md'),
+            '# Verify\n\n**PR Scope:** ❌ piggybacked changes\n',
+          );
+        },
+      },
+      {
+        name: 'incomplete feature scenarios',
+        type: 'feature',
+        setup: (ticketDirectory: string) => {
+          writeFileSync(
+            nodePath.join(ticketDirectory, 'test-definitions.md'),
+            '## Rule\n- [x] passing case\n- [ ] remaining case\n',
+          );
+        },
+      },
+      {
+        name: 'missing dependencies',
+        type: 'task',
+        setup: () => {
+          writeFileSync(nodePath.join(dir, 'package.json'), '{"packageManager":"bun@1.3.14"}\n');
+          writeFileSync(nodePath.join(dir, 'bun.lock'), '\n');
+        },
+      },
+      {
+        name: 'stale dependencies',
+        type: 'task',
+        setup: () => {
+          mkdirSync(nodePath.join(dir, 'node_modules'));
+          writeFileSync(nodePath.join(dir, 'package.json'), '{"packageManager":"bun@1.3.14"}\n');
+          writeFileSync(nodePath.join(dir, 'bun.lock'), '\n');
+          const past = new Date(Date.now() - 60_000);
+          utimesSync(nodePath.join(dir, 'node_modules'), past, past);
+        },
+      },
+      {
+        name: 'failed test execution',
+        type: 'task',
+        setup: () => {
+          writeFileSync(
+            nodePath.join(dir, 'package.json'),
+            '{"packageManager":"bun@1.3.14","scripts":{"test":"false"}}\n',
+          );
+          writeFileSync(nodePath.join(dir, 'bun.lock'), '\n');
+          mkdirSync(nodePath.join(dir, 'node_modules'));
+        },
+      },
+    ])('codex-done-gate.TBU1.R2.blocks_and_preserves_state_for $name', ({ type, setup }) => {
+      writeConfig(dir, { surface: false, file: false });
+      const sessionId = freshSession('done-evidence-failure');
+      const ticket = writeTicket(dir, 'BLOCKED', { type });
+      bindCodexTicket(dir, sessionId, 'BLOCKED');
+      setup(ticket);
+      const verdict = evaluateFixtureEvidence(dir, ticket, type);
+
+      const result = runHook(
+        dir,
+        { session_id: sessionId, cwd: dir },
+        { SAFEWORD_CLI: nodePath.join(SAFEWORD_ROOT, 'packages/cli/src/cli.ts') },
+      );
+      const output = JSON.parse(result.stdout.trim()) as { decision?: string; reason?: string };
+
+      expect(verdict.ok).toBe(false);
+      expect(output).toEqual({ decision: 'block', reason: verdict.reason });
+      expect(readFileSync(nodePath.join(ticket, 'ticket.md'), 'utf8')).toMatch(
+        /^status: in_progress$/m,
+      );
+      expect(readFileSync(nodePath.join(ticket, 'ticket.md'), 'utf8')).toMatch(/^phase: done$/m);
+    });
+
+    it.each([
+      {
+        name: 'no session-bound ticket',
+        setup: () => {
+          writeTicket(dir, 'OTHER1');
+          return { boundId: undefined, expectedStatus: undefined };
+        },
+      },
+      {
+        name: 'a session-bound implement-phase ticket',
+        setup: (sessionId: string) => {
+          writeTicket(dir, 'OTHER1');
+          writeTicket(dir, 'NONDONE', { phase: 'implement' });
+          bindCodexTicket(dir, sessionId, 'NONDONE');
+          return { sessionId, boundId: 'NONDONE', expectedStatus: 'in_progress' };
+        },
+      },
+      {
+        name: 'an already-done session-bound ticket',
+        setup: (sessionId: string) => {
+          writeTicket(dir, 'OTHER1');
+          writeTicket(dir, 'ALREADY', { status: 'done' });
+          bindCodexTicket(dir, sessionId, 'ALREADY');
+          return { sessionId, boundId: 'ALREADY', expectedStatus: 'done' };
+        },
+      },
+    ])('codex-done-gate.TBU1.R1.never_uses_a_fallback_for $name', ({ setup }) => {
+      writeConfig(dir, { surface: false, file: false });
+      const sessionId = freshSession('done-noneligible');
+      const fixture = setup(sessionId);
+
+      const result = runHook(dir, { session_id: sessionId, cwd: dir });
+
+      expectNoContinuation(result);
+      expect(
+        readFileSync(nodePath.join(dir, '.project/tickets/OTHER1-ticket/ticket.md'), 'utf8'),
+      ).toMatch(/^status: in_progress$/m);
+      if (fixture.boundId) {
+        const boundTicket = readFileSync(
+          nodePath.join(dir, '.project', 'tickets', `${fixture.boundId}-ticket`, 'ticket.md'),
+          'utf8',
+        );
+        expect(boundTicket.split('\n')).toContain(`status: ${fixture.expectedStatus}`);
+      }
+    });
+
+    it('codex-done-gate.SWM1.R1.keeps_evidence_failure_ahead_of_architecture_and_filing', () => {
+      writeConfig(dir, { surface: true, file: true });
+      const sessionId = freshSession('done-priority');
+      const ticket = writeTicket(dir, 'PRIORITY', { verify: false });
+      bindCodexTicket(dir, sessionId, 'PRIORITY');
+      spoolDrafts(dir, sessionId, [retroDraft('retro:aaaaaaaaaaaa')]);
+      enableArchitectureAdvisory(dir);
+      const verdict = evaluateFixtureEvidence(dir, ticket, 'task');
+
+      const result = runHook(dir, { session_id: sessionId, cwd: dir });
+      const output = JSON.parse(result.stdout.trim()) as { decision?: string; reason?: string };
+
+      expect(output).toEqual({ decision: 'block', reason: verdict.reason });
+      expect(output.reason).not.toContain('Architecture narrative');
+      expect(output.reason).not.toContain(CODEX_FILER_SKILL_NAME);
+      expect(readFileSync(nodePath.join(ticket, 'ticket.md'), 'utf8')).toMatch(
+        /^status: in_progress$/m,
+      );
+    });
+
+    it('codex-done-gate.SWM1.R1.returns_filing_after_success_without_an_advisory', () => {
+      writeConfig(dir, { surface: true, file: true });
+      const sessionId = freshSession('done-filing-success');
+      const ticket = writeTicket(dir, 'FILEOK');
+      bindCodexTicket(dir, sessionId, 'FILEOK');
+      spoolDrafts(dir, sessionId, [retroDraft('retro:aaaaaaaaaaaa')]);
+
+      const result = runHook(dir, { session_id: sessionId, cwd: dir });
+      const output = JSON.parse(result.stdout.trim()) as { decision?: string; reason?: string };
+
+      expect(output.decision).toBe('block');
+      expect(output.reason).toContain(CODEX_FILER_SKILL_NAME);
+      expect(readFileSync(nodePath.join(ticket, 'ticket.md'), 'utf8')).toMatch(/^status: done$/m);
+    });
+
+    it('codex-done-gate.SWM1.R1.caches_architecture_advisory_before_success_and_prioritizes_it', () => {
+      writeConfig(dir, { surface: true, file: true });
+      const sessionId = freshSession('done-architecture-success');
+      const ticket = writeTicket(dir, 'ARCHOK');
+      bindCodexTicket(dir, sessionId, 'ARCHOK');
+      spoolDrafts(dir, sessionId, [retroDraft('retro:aaaaaaaaaaaa')]);
+      enableArchitectureAdvisory(dir);
+
+      const result = runHook(dir, { session_id: sessionId, cwd: dir });
+      const output = JSON.parse(result.stdout.trim()) as { decision?: string; reason?: string };
+
+      expect(output).toMatchObject({ decision: 'block' });
+      expect(output.reason).toContain('Architecture narrative');
+      expect(output.reason).not.toContain(CODEX_FILER_SKILL_NAME);
+      expect(readFileSync(nodePath.join(ticket, 'ticket.md'), 'utf8')).toMatch(/^status: done$/m);
+    });
+
+    it('codex-done-gate.SWM1.R1.retains_unbound_architecture_advice_without_transition', () => {
+      writeConfig(dir, { surface: false, file: false });
+      const ticket = writeTicket(dir, 'GLOBAL1');
+      enableArchitectureAdvisory(dir);
+
+      const result = runHook(dir, { session_id: freshSession('unbound-advisory'), cwd: dir });
+      const output = JSON.parse(result.stdout.trim()) as { decision?: string; reason?: string };
+
+      expect(output).toMatchObject({ decision: 'block' });
+      expect(output.reason).toContain('Architecture narrative');
+      expect(readFileSync(nodePath.join(ticket, 'ticket.md'), 'utf8')).toMatch(
+        /^status: in_progress$/m,
+      );
+      expect(readFileSync(nodePath.join(ticket, 'ticket.md'), 'utf8')).toMatch(/^phase: done$/m);
+    });
+
+    it.each([
+      { name: 'successful transition', verify: true },
+      { name: 'evidence-failure block', verify: false },
+    ])('codex-done-gate.SWM1.R1.extracts_before_the_$name', ({ verify }) => {
+      writeConfig(dir, { surface: true, file: false });
+      installFakeLocalCli(dir);
+      const sessionId = freshSession('done-extraction-order');
+      const ticket = writeTicket(dir, 'RETROORD', { verify });
+      bindCodexTicket(dir, sessionId, 'RETROORD');
+      const transcript = writeCodexRollout(dir, 'substantial.jsonl', 8);
+      const result = runHook(
+        dir,
+        { session_id: sessionId, transcript_path: transcript, cwd: dir },
+        { RECORD_PATH: recordPath, TICKET_PATH: nodePath.join(ticket, 'ticket.md') },
+      );
+
+      const record = readRecord(recordPath);
+      expect(record.ticketContent).toMatch(/^status: in_progress$/m);
+      expect(record.ticketContent).toMatch(/^phase: done$/m);
+      if (verify) {
+        expectNoContinuation(result);
+        expect(readFileSync(nodePath.join(ticket, 'ticket.md'), 'utf8')).toMatch(/^status: done$/m);
+      } else {
+        const verdict = evaluateFixtureEvidence(dir, ticket, 'task');
+        expect(JSON.parse(result.stdout.trim())).toEqual({
+          decision: 'block',
+          reason: verdict.reason,
+        });
+        expect(readFileSync(nodePath.join(ticket, 'ticket.md'), 'utf8')).toMatch(
+          /^status: in_progress$/m,
+        );
+      }
+    });
+
+    it('codex-done-gate.SWM1.R2.changes_only_ticket_lifecycle_without_git_ownership', () => {
+      writeConfig(dir, { surface: false, file: false });
+      const sessionId = freshSession('done-git-boundary');
+      writeTicket(dir, 'GITSAFE');
+      bindCodexTicket(dir, sessionId, 'GITSAFE');
+      initGitRepo(dir);
+      execSync('git add . && git commit -qm base', { cwd: dir, stdio: 'pipe' });
+      const headBefore = execSync('git rev-parse HEAD', { cwd: dir, encoding: 'utf8' }).trim();
+
+      const result = runHook(dir, { session_id: sessionId, cwd: dir });
+      const changedPaths = execSync('git diff --name-only', { cwd: dir, encoding: 'utf8' })
+        .trim()
+        .split('\n')
+        .filter(Boolean);
+
+      expectNoContinuation(result);
+      expect(changedPaths).toEqual(['.project/tickets/GITSAFE-ticket/ticket.md']);
+      expect(execSync('git diff --cached --name-only', { cwd: dir, encoding: 'utf8' }).trim()).toBe(
+        '',
+      );
+      expect(execSync('git rev-parse HEAD', { cwd: dir, encoding: 'utf8' }).trim()).toBe(
+        headBefore,
+      );
+      const ticketDiff = execSync('git diff -- .project/tickets/GITSAFE-ticket/ticket.md', {
+        cwd: dir,
+        encoding: 'utf8',
+      });
+      expect(ticketDiff).toContain('-status: in_progress');
+      expect(ticketDiff).toContain('+status: done');
+      expect(ticketDiff).not.toContain('-phase:');
+      expect(ticketDiff).not.toContain('+phase:');
     });
   });
 });
