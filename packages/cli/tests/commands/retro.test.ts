@@ -488,12 +488,16 @@ describe('runRetro transport selection (BNGK9W — spool → try-REST → drain 
     expect(raw).not.toContain('sk_live_TESTONLY1'); // recognized secret shape → redacted
     expect(raw).not.toContain('/acme-corp/prod/secrets.ts'); // customer path → redacted
     expect(raw).toContain('[redacted]');
-    // Only the code-assembled fields ever reach disk (bodyDigest is the JDK0F0 body seal).
+    // Only the code-assembled fields ever reach disk (bodyDigest is the JDK0F0 body
+    // seal; canonicalSignature is the H1P0D7 code-derived canonical identity — a hash
+    // of the normalized repro, never raw finding text, so the no-leak assertions above
+    // still guard it).
     const lines = raw.split('\n').filter(line => line.trim());
     for (const line of lines) {
       expect(Object.keys(JSON.parse(line)).toSorted((a, b) => a.localeCompare(b))).toEqual([
         'body',
         'bodyDigest',
+        'canonicalSignature',
         'labels',
         'signature',
         'title',

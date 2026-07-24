@@ -78,6 +78,7 @@ export default defineConfig({
             { label: 'CLI', slug: 'reference/cli' },
             { label: 'Hooks & Skills', slug: 'reference/hooks-and-skills' },
             { label: 'Configuration', slug: 'reference/configuration' },
+            { label: 'Tracker Integration', slug: 'reference/tracker-integration' },
           ],
         },
       ],

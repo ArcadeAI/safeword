@@ -102,6 +102,25 @@ function bindCodexSession(projectDirectory: string, skill: string, sessionId: st
   expect(result.status ?? 0).toBe(0);
 }
 
+// Drive Cursor's real beforeShellExecution adapter with the supported relative
+// helper command. The helper relies on this adapter to bridge conversation_id;
+// it receives neither a session argument nor a runtime identity in its env.
+function bindCursorSession(projectDirectory: string, skill: string, conversationId: string): void {
+  const command = `bun .safeword/hooks/record-skill-invocation.ts "${projectDirectory}" ${skill}`;
+  const result = spawnSync('bun', ['.safeword/hooks/cursor/before-shell-execution.ts'], {
+    cwd: projectDirectory,
+    input: JSON.stringify({
+      workspace_roots: [projectDirectory],
+      conversation_id: conversationId,
+      command,
+    }),
+    env: fallbackEnvironment(projectDirectory),
+    encoding: 'utf8',
+  });
+  expect(result.status ?? 0).toBe(0);
+  expect(JSON.parse(result.stdout)).toEqual({ permission: 'allow' });
+}
+
 describe('Codex/Cursor skill-invocation fallback → done-gate E2E (#295)', () => {
   let projectDirectory: string;
 
@@ -157,6 +176,23 @@ describe('Codex/Cursor skill-invocation fallback → done-gate E2E (#295)', () =
     }
 
     const result = runDoneGate(projectDirectory, sessionId);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).not.toContain('Required skill invocation');
+  });
+
+  it('feature done PASSES when Cursor binds the supported relative helper command', () => {
+    writeFeatureTicketAtDone(projectDirectory, '953');
+    const conversationId = 'cursor-session-953';
+
+    for (const skill of ['verify', 'audit'] as const) {
+      bindCursorSession(projectDirectory, skill, conversationId);
+      const fallback = runFallback(projectDirectory, skill, '');
+      expect(fallback.exitCode).toBe(0);
+      expect(fallback.output).toContain(`${skill} ✓`);
+    }
+
+    const result = runDoneGate(projectDirectory, conversationId);
 
     expect(result.exitCode).toBe(0);
     expect(result.stdout).not.toContain('Required skill invocation');

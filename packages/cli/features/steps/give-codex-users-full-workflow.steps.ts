@@ -178,9 +178,9 @@ When('the builder sets up Safe Word for Codex', function (this: WorkflowWorld) {
 });
 
 Then(
-  'Safe Word directs the builder to the explicit Codex plugin migration command',
+  'Safe Word directs the builder to the explicit Codex plugin install command',
   function (this: WorkflowWorld) {
-    assert.ok(this.result.stdout.includes('safeword migrate codex-plugin'), this.result.stdout);
+    assert.ok(this.result.stdout.includes('safeword codex install'), this.result.stdout);
   },
 );
 

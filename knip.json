@@ -16,20 +16,17 @@
     "golangci-lint",
     "mypy",
     "rustfmt",
-    "which",
-    "claude",
-    "codex",
     "architecture",
     "boundary",
     "test-plan",
     "setup",
     "check",
     "lint-gherkin",
-    "lint-imports"
+    "lint-imports",
+    "feature-directories"
   ],
   "ignoreDependencies": [
     "safeword",
-    "@openai/codex",
     "tsx",
     "@next/eslint-plugin-next",
     "@tanstack/eslint-plugin-query",

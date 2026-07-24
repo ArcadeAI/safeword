@@ -80,7 +80,11 @@ function isBunExecutable(token: string | undefined): boolean {
 
 function isInvocationHelperPath(token: string | undefined): boolean {
   if (token === undefined) return false;
-  return token.replaceAll('\\', '/').endsWith('/.safeword/hooks/record-skill-invocation.ts');
+  const normalized = token.replaceAll('\\', '/');
+  return (
+    normalized === '.safeword/hooks/record-skill-invocation.ts' ||
+    normalized.endsWith('/.safeword/hooks/record-skill-invocation.ts')
+  );
 }
 
 // Unlike the invocation-helper matcher (slash-anchored suffix only), the stamp

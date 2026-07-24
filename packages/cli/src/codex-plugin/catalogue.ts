@@ -328,6 +328,17 @@ function pluginAssetPaths(pluginDirectory: string): string[] {
   return markdownFiles(skillsDirectory).map(relativePath => nodePath.join('skills', relativePath));
 }
 
+// All three failures below mean the checked-in catalogue no longer matches its
+// canonical source, and share one remedy. The non-obvious trigger is a merge:
+// git combines an edit to templates/skills/ with an untouched generated plugin
+// cleanly, because they are different files — it has no notion that one derives
+// from the other.
+// Name the directory rather than using `--cwd packages/cli`: that flag resolves
+// against the caller's cwd, so it fails from packages/cli — which is exactly
+// where `bun run test:release` surfaces these errors.
+const REGENERATE_REMEDY =
+  'Regenerate the catalogue: `bun run generate:codex-plugin` from packages/cli.';
+
 /** Ensure the checked-in plugin is the exact allowed transformation of canonical skills. */
 export function assertCodexPluginCatalogue(
   canonicalSkillsDirectory: string,
@@ -340,12 +351,12 @@ export function assertCodexPluginCatalogue(
   const actualPaths = pluginAssetPaths(pluginDirectory);
   const missingPath = [...expectedPaths].find(path => !actualPaths.includes(path));
   if (missingPath !== undefined) {
-    throw new Error(`Codex plugin is missing expected asset: ${missingPath}`);
+    throw new Error(`Codex plugin is missing expected asset: ${missingPath}\n${REGENERATE_REMEDY}`);
   }
 
   const unexpectedPath = actualPaths.find(path => !expectedPaths.has(path));
   if (unexpectedPath !== undefined) {
-    throw new Error(`Codex plugin has unexpected asset: ${unexpectedPath}`);
+    throw new Error(`Codex plugin has unexpected asset: ${unexpectedPath}\n${REGENERATE_REMEDY}`);
   }
 
   for (const asset of expectedAssets) {
@@ -353,7 +364,7 @@ export function assertCodexPluginCatalogue(
     const actualContent = readFileSync(actualPath, 'utf8');
     if (actualContent !== asset.content) {
       throw new Error(
-        `Codex plugin asset differs from the canonical transformation: ${asset.relativePath}`,
+        `Codex plugin asset differs from the canonical transformation: ${asset.relativePath}\n${REGENERATE_REMEDY}`,
       );
     }
   }

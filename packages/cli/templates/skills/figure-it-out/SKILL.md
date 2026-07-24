@@ -1,6 +1,6 @@
 ---
 name: figure-it-out
-description: Explore and debate options with fresh documentation and research before committing. Use when facing a real decision with multiple plausible approaches — library/framework choice, architecture call, API or schema design, algorithm selection, or any communication / strategy call where being wrong has cost. Enumerates relevant research domains, looks up current docs and evidence-based methods, weighs options on correctness and elegance, resists bloat. Do NOT use for divergent ideation (brainstorm), extracting user intent (elicit), or reviewing already-written code (quality-review).
+description: Explore and debate options with fresh documentation and research before committing. Use when facing a real decision with multiple plausible approaches — library/framework choice, architecture call, API or schema design, algorithm selection, or any communication / strategy call where being wrong has cost. Enumerates relevant research domains, looks up current docs and evidence-based methods, weighs options on correctness and elegance, resists bloat. Do NOT use for divergent ideation (brainstorm), extracting user intent (elicit), or reviewing an already-written work-product (quality-review).
 allowed-tools: '*'
 ---
 
@@ -43,7 +43,7 @@ Two or three, concrete enough to debate. For each: **what** (one sentence), **lo
 
 ### Phase 3: Enumerate domains, then research
 
-**3a — Name the domains.** Before searching, list every domain your decision touches. Multiple, not one. Write them down explicitly. A single-domain list means you haven't looked hard enough — decisions live at the intersection of multiple bodies of work.
+**3a — Name the domains.** Before searching, list every domain your decision touches — explicitly, in writing. A single-domain list means you haven't looked hard enough; decisions live at the intersection of multiple bodies of work.
 
 Worked example — drafting a one-line block message for a CLI hook isn't just "writing copy." Domain list:
 
@@ -54,7 +54,7 @@ Worked example — drafting a one-line block message for a CLI hook isn't just "
 - Recovery ergonomics — can the user unblock themselves from this text alone?
 - Observability — does the message give enough to file a useful bug or self-diagnose?
 
-Each is a distinct body of work. Most agents pattern-match "it's just an error string" and skip all six.
+Most agents pattern-match "it's just an error string" and skip all six.
 
 **3b — Research each named domain.** For every one:
 

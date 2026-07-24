@@ -30,7 +30,7 @@ import {
   resolveTicketsDirectory,
 } from './utils/configured-paths.js';
 import { createProjectContext } from './utils/context.js';
-import { findFeatureSourcePath } from './utils/feature-source.js';
+import { findFeatureSourcePath, hasDefaultExecutableFeatureFiles } from './utils/feature-source.js';
 import { exists, isDirectory, readFileSafe, readJson } from './utils/fs.js';
 import { FeatureParseError, findFeatureLineageIssues } from './utils/gherkin-feature.js';
 import { parseGlossary, validateGlossary } from './utils/glossary.js';
@@ -200,7 +200,9 @@ function findCucumberHarnessAdvisories(
   // paths.features alone silences this: the readers consume only the
   // features directory. paths.steps matters only to the scaffolded runner
   // (relocated TypeScript steps), which a host-harness repo isn't using.
-  if (readConfiguredPath(cwd, 'features') !== undefined) return [];
+  if (readConfiguredPath(cwd, 'features') !== undefined || hasDefaultExecutableFeatureFiles(cwd)) {
+    return [];
+  }
   return [
     `Detected a cucumber harness (${existingCucumberHarness}) but paths.features is not set in .safeword/config.json — codify, lint-gherkin, and check cannot see your suite. Add e.g. "paths": { "features": "tests/behaviors", "steps": "tests/steps" } (paths.steps only matters when the scaffolded runner reads relocated TypeScript steps).`,
   ];

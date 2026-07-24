@@ -53,6 +53,37 @@ describe('check warns when a harness is detected and paths are unset (TB3.AC1)',
   );
 });
 
+describe('default root BDD lane is recognised when a host harness is detected (#1105)', () => {
+  let directory: string;
+  let setupOutput: string;
+
+  beforeAll(async () => {
+    directory = createTemporaryDirectory();
+    createTypeScriptPackageJson(directory);
+    writeTestFile(directory, 'cucumber.yaml', HOST_CUCUMBER_YAML);
+    writeTestFile(directory, 'features/host.feature', 'Feature: Host suite\n');
+    const result = await setupOrThrow(directory);
+    setupOutput = `${result.stdout}\n${result.stderr}`;
+  }, TIMEOUT_BUN_INSTALL);
+
+  afterAll(() => {
+    removeTemporaryDirectory(directory);
+  });
+
+  it('setup does not tell a discoverable root feature suite to configure paths', () => {
+    expect(setupOutput).not.toContain('paths.features');
+  });
+
+  it(
+    'check does not warn that a discoverable root feature suite is invisible',
+    async () => {
+      const output = await runCheck(directory);
+      expect(output).not.toContain('paths.features is not set');
+    },
+    TIMEOUT_QUICK,
+  );
+});
+
 describe('check stays silent when safeword’s own lane is the only harness (TB3.AC1)', () => {
   let directory: string;
 

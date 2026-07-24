@@ -101,6 +101,14 @@ describe('commandInvokesWriteReviewStamp (#630)', () => {
 describe('parseRecordSkillInvocationCommand (shared tokenizer, EDDABK follow-up)', () => {
   const HELPER = '/repo/.safeword/hooks/record-skill-invocation.ts';
 
+  it('parses the supported bare-relative form', () => {
+    expect(
+      parseRecordSkillInvocationCommand(
+        'bun .safeword/hooks/record-skill-invocation.ts /repo verify',
+      ),
+    ).toEqual({ skillName: 'verify' });
+  });
+
   it('parses the plain and quoted absolute forms', () => {
     expect(parseRecordSkillInvocationCommand(`bun ${HELPER} /repo verify`)).toEqual({
       skillName: 'verify',
@@ -129,6 +137,19 @@ describe('parseRecordSkillInvocationCommand (shared tokenizer, EDDABK follow-up)
 
   it('does not match the helper mentioned in a quoted string', () => {
     expect(parseRecordSkillInvocationCommand(`echo "bun ${HELPER} /repo x"`)).toBeUndefined();
+  });
+
+  it('does not match a helper-looking relative path', () => {
+    expect(
+      parseRecordSkillInvocationCommand(
+        'bun foo.safeword/hooks/record-skill-invocation.ts /repo verify',
+      ),
+    ).toBeUndefined();
+    expect(
+      parseRecordSkillInvocationCommand(
+        'bun .safeword/hooks/record-skill-invocation.ts.bak /repo verify',
+      ),
+    ).toBeUndefined();
   });
 });
 

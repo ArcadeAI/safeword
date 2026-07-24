@@ -496,7 +496,7 @@ statusMessage = "Checking safeword PreToolUse gates"
       expect(again).toBe(legacyConfig);
     });
 
-    it('tells users how to migrate Codex to the plugin after upgrade', async () => {
+    it('tells users how to install the Codex plugin after upgrade', async () => {
       createConfiguredProject('0.5.0');
 
       const result = await runCli(['upgrade', '--no-migrate-namespace'], {
@@ -505,7 +505,7 @@ statusMessage = "Checking safeword PreToolUse gates"
       });
 
       expect(result.exitCode).toBe(0);
-      expect(`${result.stdout}\n${result.stderr}`).toContain('migrate codex-plugin');
+      expect(`${result.stdout}\n${result.stderr}`).toContain('codex install');
     });
 
     it('should preserve customer .prettierignore entries and append idempotently', async () => {

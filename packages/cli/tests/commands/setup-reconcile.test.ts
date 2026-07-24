@@ -199,7 +199,7 @@ describe('Setup Command - Reconcile Integration', () => {
       expect(existsSync(nodePath.join(temporaryDirectory, '.codex'))).toBe(false);
     });
 
-    it('tells users how to migrate Codex to the plugin after setup', async () => {
+    it('tells users how to install the Codex plugin after setup', async () => {
       writeFileSync(
         nodePath.join(temporaryDirectory, 'package.json'),
         JSON.stringify({ name: 'test', version: '1.0.0' }, undefined, 2),
@@ -211,7 +211,7 @@ describe('Setup Command - Reconcile Integration', () => {
       });
 
       expect(result.exitCode).toBe(0);
-      expect(`${result.stdout}\n${result.stderr}`).toContain('migrate codex-plugin');
+      expect(`${result.stdout}\n${result.stderr}`).toContain('codex install');
     });
 
     it('should preserve existing AGENTS.md without prepending safeword text', async () => {

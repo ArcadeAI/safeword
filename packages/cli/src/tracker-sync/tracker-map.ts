@@ -7,10 +7,16 @@
  */
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import nodePath from 'node:path';
 
 import type { TrackerReference } from './types.js';
 
 const SIDECAR_VERSION = 1;
+
+/** Canonical path to the idempotency sidecar for a project. */
+export function trackerMapPath(cwd: string): string {
+  return nodePath.join(cwd, '.safeword', 'tracker-map.json');
+}
 
 /** Per-ticket record. `pending` = created but not yet confirmed recorded. */
 export interface TrackerMapEntry {
@@ -39,6 +45,18 @@ export class TrackerMap {
 
   lookup(ticketId: string): TrackerMapEntry | undefined {
     return this.issues.get(ticketId);
+  }
+
+  /**
+   * Reverse lookup: the ticket id whose recorded ref matches this tracker id.
+   * Backs the tracker-key → local-folder join reader (KKNFZA SM2.AC6) — the map
+   * is the index from a tracker's own id back to the local ticket.
+   */
+  findTicketIdByRefId(trackerId: string): string | undefined {
+    for (const [ticketId, entry] of this.issues) {
+      if (entry.ref.id === trackerId) return ticketId;
+    }
+    return undefined;
   }
 
   /** Mark a created issue whose ref is captured but not yet confirmed. */

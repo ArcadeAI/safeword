@@ -1,6 +1,6 @@
 ---
 generator: safeword-architecture
-fingerprint: 800db3e3615f2d7617083c1c35cd6660d78c8cd649f20c4aa3ca5056109f9af0
+fingerprint: 177e27b50a5fdde1d02d56a68b2939a699e8e397de7e62be10ffbfb2c18ec58a
 ---
 
 # Architecture
@@ -65,6 +65,8 @@ No description yet — awaiting prose.
 
 No description yet — awaiting prose.
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### presets
 
 <!-- reconciled: baf84fad13ff152cf8bceed63ef6a6e65c6edbb3dcf8ac0cbf76fc4caa39fe38 -->
@@ -110,6 +112,16 @@ No description yet — awaiting prose.
 <!-- reconciled: baf84fad13ff152cf8bceed63ef6a6e65c6edbb3dcf8ac0cbf76fc4caa39fe38 -->
 
 `src/test-plan`
+
+No description yet — awaiting prose.
+
+> ⚠ stale: structure changed since this section was reconciled.
+
+### ticket-create
+
+<!-- reconciled: a48bcc3820c9cca4a78184f53ae752117d461b6ed53541d3b3cddaad10d4a349 -->
+
+`src/ticket-create`
 
 No description yet — awaiting prose.
 

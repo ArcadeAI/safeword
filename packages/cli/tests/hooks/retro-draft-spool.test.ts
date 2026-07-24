@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
@@ -5,6 +6,7 @@ import nodePath from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  canonicalSignatureForDraft,
   draftSpoolPath,
   markDraftsFiled,
   readSpooledDrafts,
@@ -111,6 +113,20 @@ describe('retro draft spool (BNGK9W — persist post-egress drafts on filing fai
       'title',
     ]);
   });
+
+  it('round-trips a canonical signature only when it is part of the code-assembled draft', () => {
+    const base = draft('retro:aaaaaaaaaaaa', 'Canonical');
+    const body = `${base.body}\n<!-- safeword-retro-canonical: canonical:aaaaaaaaaaaa -->`;
+    const current = {
+      ...base,
+      canonicalSignature: 'canonical:aaaaaaaaaaaa',
+      body,
+      bodyDigest: createHash('sha256').update(body).digest('hex').slice(0, 12),
+    };
+    spoolDrafts(projectDirectory, 'sess-1', [current]);
+    expect(readSpooledDrafts(projectDirectory, 'sess-1')).toEqual([current]);
+    expect(verifyDraftBody(current)).toBe(true);
+  });
 });
 
 describe('verifyDraftBody (JDK0F0 — refuse a body modified after sealing)', () => {
@@ -143,6 +159,42 @@ describe('verifyDraftBody (JDK0F0 — refuse a body modified after sealing)', ()
     const line = { ...draft('retro:aaaaaaaaaaaa'), bodyDigest: 123 };
     writeFileSync(file, `${JSON.stringify(line)}\n`, 'utf8');
     expect(readSpooledDrafts(projectDirectory, 'sess-bad-seal')).toEqual([]);
+  });
+
+  it('drops a spool line whose canonicalSignature is not a string', () => {
+    const file = draftSpoolPath(projectDirectory, 'sess-bad-canonical');
+    mkdirSync(nodePath.dirname(file), { recursive: true });
+    writeFileSync(
+      file,
+      `${JSON.stringify({ ...draft('retro:aaaaaaaaaaaa'), canonicalSignature: 123 })}\n`,
+      'utf8',
+    );
+    expect(readSpooledDrafts(projectDirectory, 'sess-bad-canonical')).toEqual([]);
+  });
+
+  it('permits canonical fallback only when the exact code-owned body marker agrees', () => {
+    const body =
+      'body\n<!-- safeword-retro-signature: retro:aaaaaaaaaaaa -->\n<!-- safeword-retro-canonical: canonical:aaaaaaaaaaaa -->';
+    expect(
+      canonicalSignatureForDraft({
+        ...draft('retro:aaaaaaaaaaaa'),
+        body,
+        canonicalSignature: 'canonical:aaaaaaaaaaaa',
+      }),
+    ).toBe('canonical:aaaaaaaaaaaa');
+    expect(
+      canonicalSignatureForDraft({
+        ...draft('retro:aaaaaaaaaaaa'),
+        body,
+        canonicalSignature: 'canonical:bbbbbbbbbbbb',
+      }),
+    ).toBeUndefined();
+    expect(
+      canonicalSignatureForDraft({
+        ...draft('retro:aaaaaaaaaaaa'),
+        canonicalSignature: 'canonical:aaaaaaaaaaaa',
+      }),
+    ).toBeUndefined();
   });
 });
 

@@ -8,7 +8,7 @@
 //      sessions; any unfiled drafts surface later through UserPromptSubmit.
 //   3. Retro FILING gate (#628/GH628F): when extraction (this stop or an earlier
 //      one) left unfiled drafts spooled, emit the sanctioned continuation that
-//      dispatches the safeword-retro-filer subagent — extraction itself stays
+//      invokes the packaged safeword:retro-filer skill — extraction itself stays
 //      invisible (CDX602); only the rare, attempt-capped filing dispatch may
 //      block a stop. The architecture advisory keeps precedence; filing retries
 //      at the next stop.
@@ -24,7 +24,7 @@ import { getActiveTicket } from '../lib/active-ticket.ts';
 import { architectureDocumentNudgeForProject } from '../lib/architecture-document-nudge.ts';
 import { readSessionActiveTicket } from '../lib/quality-state.ts';
 import { recordRetroDebugEvent } from '../lib/retro-debug.ts';
-import { decideRetroFilingGate } from '../lib/retro-filing-gate.ts';
+import { decideRetroFilingGate, formatCodexFilingDispatch } from '../lib/retro-filing-gate.ts';
 import { RETRO_CHILD_ENV, retroChildArgs } from '../lib/retro-extract.ts';
 import { resolveRunIdentity } from '../lib/run-identity.ts';
 import { installCrashCapture, readSelfReportConfig } from '../lib/self-report.ts';
@@ -182,7 +182,11 @@ async function main(): Promise<string> {
   // The gate reads selfReport config itself (GH644A): capture gates the
   // tripwire, file gates the dispatch — evaluate unconditionally.
   const sessionId = resolveCodexSessionId(input, process.env);
-  const dispatch = sessionId ? decideRetroFilingGate(projectDirectory, sessionId) : undefined;
+  const dispatch = sessionId
+    ? decideRetroFilingGate(projectDirectory, sessionId, {
+        formatDispatch: formatCodexFilingDispatch,
+      })
+    : undefined;
   recordRetroDebugEvent({
     event: 'codex_stop_filing_gate',
     sessionId,

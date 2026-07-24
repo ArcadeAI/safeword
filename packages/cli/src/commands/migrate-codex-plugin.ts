@@ -307,7 +307,7 @@ function removalRanges(lines: string[]): TextRange[] {
   return removals;
 }
 
-function removeLegacyCodexHooks(content: string): string {
+function removeLegacyCodexHookBlocks(content: string): string {
   try {
     parse(content);
   } catch (error) {
@@ -400,7 +400,7 @@ function prepareLegacyHookRemoval(cwd: string): PreparedLegacyHookRemoval | unde
   const configPath = nodePath.join(cwd, CODEX_CONFIG_PATH);
   if (regularCodexConfigMetadata(configPath).kind === 'missing') return;
   const original = readFileSync(configPath, 'utf8');
-  const cleaned = removeLegacyCodexHooks(original);
+  const cleaned = removeLegacyCodexHookBlocks(original);
   if (cleaned === original) return undefined;
 
   return { configPath, original, cleaned };
@@ -420,7 +420,7 @@ function removePreparedLegacyHooks(removal: PreparedLegacyHookRemoval): void {
   backupAndReplace(removal.configPath, removal.original, removal.cleaned);
 }
 
-function installCodexPlugin(marketplaceSource: string | undefined): void {
+function addCodexPluginToProfile(marketplaceSource: string | undefined): void {
   run('codex', [
     'plugin',
     'marketplace',
@@ -435,22 +435,7 @@ function installCodexPlugin(marketplaceSource: string | undefined): void {
   run('codex', ['plugin', 'add', PLUGIN_ID, '--json']);
 }
 
-export function migrateCodexPlugin(
-  cwd = process.cwd(),
-  // The CLI always uses MARKETPLACE_SOURCE. The source override lets the live
-  // test validate a pushed release branch before its marketplace reaches main.
-  options: { marketplaceSource?: string; removeLegacyHooks?: boolean } = {},
-): void {
-  // Validate cleanup before mutating the project. A malformed project config must
-  // leave both it and the Codex profile unchanged.
-  const preparedLegacyHookRemoval = options.removeLegacyHooks
-    ? prepareLegacyHookRemoval(cwd)
-    : undefined;
-
-  run('bun', ['--version']);
-  run('codex', ['--version']);
-  if (!options.removeLegacyHooks) installCodexPlugin(options.marketplaceSource);
-
+function verifyCodexPluginIsEnabled(): void {
   let pluginList: string;
   try {
     pluginList = run('codex', ['plugin', 'list', '--json']);
@@ -464,14 +449,34 @@ export function migrateCodexPlugin(
       'Codex did not report the Safe Word plugin as enabled. Enable safeword@safeword, then re-run this command; project hooks were left unchanged.',
     );
   }
+}
+
+export function installCodexPlugin(
+  // The CLI always uses MARKETPLACE_SOURCE. The source override lets the live
+  // test validate a pushed release branch before its marketplace reaches main.
+  options: { marketplaceSource?: string } = {},
+): void {
+  run('bun', ['--version']);
+  run('codex', ['--version']);
+  addCodexPluginToProfile(options.marketplaceSource);
+  verifyCodexPluginIsEnabled();
 
   success('Safe Word Codex plugin is enabled for this profile.');
-  if (!options.removeLegacyHooks) {
-    info(
-      'Legacy project hooks were left unchanged. Review the Safe Word plugin hooks in Codex with /hooks, then run `safeword migrate codex-plugin --remove-legacy-hooks` to complete the handoff.',
-    );
-    return;
-  }
+  info(
+    'Start a new Codex session to load the plugin skills and hooks. Then review the Safe Word plugin hooks in Codex with /hooks. If this project uses Safe Word legacy hooks, run `safeword codex migrate --remove-legacy-hooks` to remove only those hooks.',
+  );
+}
+
+export function removeLegacyCodexHooks(cwd = process.cwd()): void {
+  // Validate cleanup before verifying the profile. A malformed project config
+  // leaves both it and the Codex profile unchanged.
+  const preparedLegacyHookRemoval = prepareLegacyHookRemoval(cwd);
+
+  run('bun', ['--version']);
+  run('codex', ['--version']);
+  verifyCodexPluginIsEnabled();
+
+  success('Safe Word Codex plugin is enabled for this profile.');
 
   const removedLegacyHooks = preparedLegacyHookRemoval !== undefined;
   if (removedLegacyHooks) {
@@ -483,4 +488,19 @@ export function migrateCodexPlugin(
       ? 'Removed Safe Word legacy Codex hook configuration from this project. Legacy runtime files were preserved.'
       : 'No Safe Word legacy Codex hooks were found in this project.',
   );
+}
+
+/**
+ * Compatibility facade for the pre-`codex install` command shape. New users
+ * should use `safeword codex install`; existing scripts retain their behavior.
+ */
+export function migrateCodexPlugin(
+  cwd = process.cwd(),
+  options: { marketplaceSource?: string; removeLegacyHooks?: boolean } = {},
+): void {
+  if (options.removeLegacyHooks) {
+    removeLegacyCodexHooks(cwd);
+    return;
+  }
+  installCodexPlugin({ marketplaceSource: options.marketplaceSource });
 }

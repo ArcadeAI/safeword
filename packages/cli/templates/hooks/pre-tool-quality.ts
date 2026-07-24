@@ -36,8 +36,8 @@ import {
 } from './lib/review-ledger.ts';
 import {
   EXPLAIN_HINT,
+  isMetaPath,
   LOC_THRESHOLD,
-  META_PATHS,
   readSessionState,
   recordFailure,
 } from './lib/quality-state.ts';
@@ -642,7 +642,8 @@ if (editedFile.endsWith('test-definitions.md') && isNamespacePath(editedFile, 't
 
 // Never block edits to tooling/meta files — these are not application code.
 // (After artifact prerequisite check, which targets files in .safeword-project/)
-if (META_PATHS.some(p => editedFile.includes(p))) {
+// Project-relative match, NOT a substring of the absolute path — see isMetaPath.
+if (isMetaPath(editedFile, projectDirectory)) {
   process.exit(0);
 }
 

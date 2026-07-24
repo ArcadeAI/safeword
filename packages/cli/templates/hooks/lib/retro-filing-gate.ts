@@ -8,11 +8,11 @@
 // reason, Cursor `followup_message`). This module owns the shared decision for
 // that channel: WHEN to fire and WHAT one action to request.
 //
-// The instruction is a single dispatch — invoke the shipped `safeword-retro-filer`
-// subagent with the spool path — not a filing procedure. The subagent does the
-// reads/searches/creates in its OWN context (the parent sees one line), which is
-// what keeps the user's conversation clean; the procedure lives in the shipped
-// agent definition, not here.
+// The instruction is a single dispatch, not a filing procedure. Claude and
+// Cursor invoke the shipped `safeword-retro-filer` subagent; Codex plugins cannot
+// bundle custom agents, so its adapter invokes the packaged `retro-filer` skill.
+// Each carrier owns the reads/searches/creates rather than placing a procedure in
+// the hook continuation.
 //
 // Delivery is at-least-once with an explicit ack: the filer DRAINS the spool
 // (lib/retro-draft-spool.ts markDraftsFiled), so an unchanged batch re-fires on
@@ -31,8 +31,11 @@ import { captureBareDrain, readSelfReportConfig } from './self-report.js';
 /** Gate fires at most this many times per unfiled batch, then goes quiet. */
 export const FILING_ATTEMPT_CAP = 2;
 
-/** The shipped filer agent's name — must match the .claude/.cursor/.codex definitions. */
+/** The shipped Claude/Cursor filer agent's name. */
 export const FILER_AGENT_NAME = 'safeword-retro-filer';
+
+/** The packaged Codex filer skill's name. */
+export const CODEX_FILER_SKILL_NAME = 'safeword:retro-filer';
 
 /** The per-session marker recording filing attempts for the current batch. */
 function attemptMarkerPath(projectDirectory: string, sessionId: string): string {
@@ -83,8 +86,8 @@ function writeAttemptMarker(
 }
 
 /**
- * The one-action dispatch instruction. Imperative ON PURPOSE: this text travels
- * only through the harnesses' sanctioned continuation channels (Stop
+ * The Claude/Cursor one-action dispatch. Imperative ON PURPOSE: this text
+ * travels only through the harnesses' sanctioned continuation channels (Stop
  * decision:"block" reason / followup_message), which are documented to carry
  * instructions — unlike the muted context-channel nudge. It requests a single
  * dispatch plus a silence contract, never an inline filing procedure.
@@ -102,10 +105,26 @@ export function formatFilingDispatch(count: number, spoolPath: string): string {
   );
 }
 
+/** The Codex one-action dispatch, routed through the packaged filing skill. */
+export function formatCodexFilingDispatch(count: number, spoolPath: string): string {
+  const plural = count === 1 ? '' : 's';
+  return (
+    `Safeword's retro spooled ${count} sanitized finding${plural} for its own upstream tracker at ` +
+    `${spoolPath}, and its REST transport cannot authenticate in this environment. ` +
+    `Invoke the ${CODEX_FILER_SKILL_NAME} skill with that spool path so it files them through ` +
+    `your GitHub access, then end the turn. Only the ${CODEX_FILER_SKILL_NAME} workflow drains ` +
+    `the spool. Do not file them outside that workflow, and do not narrate or summarize the filing ` +
+    `in this or later responses. If the skill or write access to ArcadeAI/safeword is unavailable, ` +
+    `state that in one line and stop.`
+  );
+}
+
 /** Injectable seams for `decideRetroFilingGate`. */
 export interface FilingGateOptions {
   /** Test seam; defaults to the real self-report capture. */
   captureBareDrain?: (projectDirectory: string, sessionId: string) => void;
+  /** Runtime-specific filing carrier; Claude/Cursor use the agent dispatch by default. */
+  formatDispatch?: (count: number, spoolPath: string) => string;
 }
 
 /**
@@ -188,5 +207,8 @@ export function decideRetroFilingGate(
     attempts: attempts + 1,
     signatures: drafts.map(draft => draft.signature),
   });
-  return formatFilingDispatch(drafts.length, draftSpoolPath(projectDirectory, sessionId));
+  return (options.formatDispatch ?? formatFilingDispatch)(
+    drafts.length,
+    draftSpoolPath(projectDirectory, sessionId),
+  );
 }

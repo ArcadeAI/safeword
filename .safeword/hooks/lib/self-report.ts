@@ -18,7 +18,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { appendJsonlRecords, readJsonlRecords } from './jsonl-spool.js';
+import { appendJsonlRecords, readJsonlRecords, tryAppendJsonlRecords } from './jsonl-spool.js';
 
 /** The agent harness safeword is running under. */
 export type AgentId = 'claude' | 'cursor' | 'codex' | 'unknown';
@@ -472,10 +472,82 @@ export function formatIssueDrafts(records: SelfReportRecord[]): SelfReportIssueD
 }
 
 /**
+ * Absolute path of the per-session "already surfaced" marker (issue #1163).
+ *
+ * Deliberately a `surfaced/` SUBDIR of the spool dir, not a sibling file:
+ * `readReports` globs `*.jsonl` at the spool dir's top level, so a sibling
+ * marker would be parsed as if it held SelfReportRecords and would pollute
+ * every summary and issue draft. Derived from `spoolPath` so the FG6V57
+ * session-token rule stays in exactly one place.
+ */
+export function surfacedMarkerPath(projectDirectory: string, sessionId: string): string {
+  const spool = spoolPath(projectDirectory, sessionId);
+  return nodePath.join(nodePath.dirname(spool), 'surfaced', nodePath.basename(spool));
+}
+
+/** One persisted "this signature has been shown to the agent" marker. */
+interface SurfacedMarker {
+  ts: string;
+  signature: string;
+}
+
+/**
+ * The signatures already surfaced to the agent this session. Fail-open: an
+ * absent or unreadable marker yields an empty set, which costs at most one
+ * repeat surfacing — never a throw inside a Stop hook.
+ */
+export function readSurfacedSignatures(projectDirectory: string, sessionId: string): Set<string> {
+  return new Set(
+    readJsonlRecords(surfacedMarkerPath(projectDirectory, sessionId), value => {
+      const { signature } = value as Partial<SurfacedMarker>;
+      return typeof signature === 'string' && signature.length > 0 ? signature : undefined;
+    }),
+  );
+}
+
+/**
+ * Persist `signatures` as surfaced, returning whether the marker durably holds
+ * ALL of them. Never throws; a `false` tells the caller it has no durable record
+ * and so must not emit (emitting unrecorded is what loops).
+ *
+ * Self-deduping: signatures already in the marker are skipped, so the file holds
+ * at most one line per distinct signature. That is what keeps it under
+ * MAX_RECORDS_PER_FILE — the spool it mirrors caps at the same number of records,
+ * hence at most that many distinct signatures. Doing it HERE rather than relying
+ * on the caller's pre-filter matters because this is exported: a second caller,
+ * a future SubagentStop wiring, or two overlapping Stops would otherwise burn
+ * headroom and eventually silence real signals permanently.
+ */
+export function markSignaturesSurfaced(
+  projectDirectory: string,
+  sessionId: string,
+  signatures: readonly string[],
+): boolean {
+  const already = readSurfacedSignatures(projectDirectory, sessionId);
+  const fresh = [...new Set(signatures)].filter(signature => !already.has(signature));
+  // Nothing fresh means every signature is already recorded (or none were asked
+  // for) — the marker already holds them all, so the caller may emit.
+  if (fresh.length === 0) return true;
+  const ts = new Date().toISOString();
+  return tryAppendJsonlRecords(
+    surfacedMarkerPath(projectDirectory, sessionId),
+    fresh.map(signature => JSON.stringify({ ts, signature } satisfies SurfacedMarker)),
+    MAX_RECORDS_PER_FILE,
+  );
+}
+
+/**
  * Build the Stop-time surfacing line for a session's records, or null when there
  * is nothing to surface. Phrased as a FACTUAL statement (no imperative / no
  * out-of-band command) so Claude treats it as context rather than tripping its
  * prompt-injection defenses (https://code.claude.com/docs/en/hooks).
+ *
+ * Pure formatter over the records it is HANDED — it has no idea what was already
+ * shown. The session spool never drains, so a caller that passes it every record
+ * on every Stop re-emits a byte-identical line forever; because Stop
+ * additionalContext wakes the agent as a fresh turn, that is an infinite wake
+ * loop, not just noise (issue #1163). Stop callers MUST filter by
+ * {@link readSurfacedSignatures} first and {@link markSignaturesSurfaced} after.
  */
 export function formatSelfReportSurfacing(
   records: SelfReportRecord[],
