@@ -1,0 +1,132 @@
+# Tagged @wip to exclude this feature from the cucumber acceptance lane: the plan
+# and apply-results code is pure (no CLI-driven live tracker), and the executor that
+# actually calls GitHub is external (agent/gh), so there is no live-tracker-free way
+# to drive the end-to-end mirror here ("no live tracker in tests", per #363 — same
+# stance as sync-tracker.feature and tracker-identity-and-join.feature). Behavior is
+# proven by vitest unit tests over the pure plan + apply-results functions; this
+# .feature is the canonical scenario source (feature-files-as-source).
+@wip
+Feature: Environment-portable tracker transport
+  safeword computes a network-free sync plan (create/update/close intents from local
+  tickets diffed against the tracker-map) and folds an executor's results back into the
+  map — so the mirror works through whatever GitHub access an environment has, not only
+  where the gh binary is installed. The gh path stays the default when present.
+
+  Rule: --plan emits the right intent for each ticket's sync state
+
+    @portable-tracker-transport.TB1.AC1
+    Scenario: A never-synced ticket becomes a create intent
+      Given a ticket with no entry in the tracker map
+      When I run sync-tracker in plan mode
+      Then the plan contains a create intent for that ticket with its minimal issue payload
+
+    @portable-tracker-transport.TB1.AC1
+    Scenario: An already-recorded ticket becomes an update intent
+      Given a ticket recorded in the tracker map with an issue reference
+      When I run sync-tracker in plan mode
+      Then the plan contains an update intent for that ticket carrying its recorded reference
+
+    @portable-tracker-transport.TB1.AC1
+    Scenario: A terminal ticket becomes a close intent
+      Given a recorded ticket whose status is terminal
+      When I run sync-tracker in plan mode
+      Then the plan contains a close intent for that ticket carrying its recorded reference
+
+  Rule: --plan carries the ticket graph by ticket id
+
+    @portable-tracker-transport.TB1.AC1
+    Scenario: A ticket with a parent carries a parent edge
+      Given a ticket whose parent is another ticket in the corpus
+      When I run sync-tracker in plan mode
+      Then that ticket's intent carries a parent edge naming the parent's ticket id
+
+    @portable-tracker-transport.TB1.AC1
+    Scenario: A blocked ticket carries blocked-by edges
+      Given a ticket blocked by other tickets in the corpus
+      When I run sync-tracker in plan mode
+      Then that ticket's intent carries blocked-by edges naming those ticket ids
+
+    @portable-tracker-transport.TB1.AC1
+    Scenario: An edge to a ticket outside the corpus is dropped
+      Given a ticket whose parent is not present in the corpus
+      When I run sync-tracker in plan mode
+      Then that ticket's intent omits the unresolvable edge and the plan is still produced
+
+  Rule: --plan runs offline
+
+    @portable-tracker-transport.TB1.AC1 @portable-tracker-transport.TB1.AC4
+    Scenario: Planning needs no credential and contacts no tracker
+      Given no tracker credential is available
+      When I run sync-tracker in plan mode
+      Then the plan is produced without contacting the tracker
+
+  Rule: --apply-results folds executor results into the map idempotently
+
+    @portable-tracker-transport.TB1.AC2
+    Scenario: A create result is recorded with its issue number and url
+      Given an executor result reporting a created issue number and url for a ticket
+      When I apply the results
+      Then the tracker map records that ticket with the bare issue number and url as recorded
+
+    @portable-tracker-transport.TB1.AC2
+    Scenario: Re-applying the same results changes nothing
+      Given results that have already been applied to the tracker map
+      When I apply the same results again
+      Then the tracker map is unchanged
+
+    @portable-tracker-transport.TB1.AC2
+    Scenario: An update or close result makes no identity change
+      Given an executor result acknowledging an update to an already-recorded issue
+      When I apply the results
+      Then the tracker map's reference for that ticket is unchanged
+
+  Rule: Malformed results are rejected without corrupting the map
+
+    @portable-tracker-transport.SM1.AC1
+    Scenario Outline: A malformed results file is rejected and the map is left intact
+      Given a results file that is <defect>
+      When I apply the results
+      Then the command fails with an actionable error
+      And the tracker map on disk is unchanged
+
+      Examples:
+        | defect                                             |
+        | not valid JSON                                     |
+        | missing an issue number                            |
+        | reporting a number that does not match its issue url |
+        | naming a ticket absent from the corpus             |
+
+    @portable-tracker-transport.SM1.AC1
+    Scenario: A planned create round-trips through results back into the map
+      Given a plan containing a create intent for a ticket
+      And an executor result for that create carrying the versioned results envelope
+      When I apply the results
+      Then the tracker map records the ticket exactly as a gh-path projection would
+
+  Rule: The new modes are additive; the gh path is unchanged
+
+    @portable-tracker-transport.TB1.AC3
+    Scenario: Running sync-tracker with no mode flag projects via the existing path
+      Given a connected tracker
+      When I run sync-tracker with neither plan nor apply mode
+      Then it projects tickets through the existing gh path unchanged
+
+    @portable-tracker-transport.TB1.AC3
+    Scenario: Plan and apply modes cannot be combined
+      When I run sync-tracker in both plan and apply modes at once
+      Then the command fails telling me the two modes are mutually exclusive
+
+  Rule: Egress discipline is preserved
+
+    @portable-tracker-transport.TB1.AC4
+    Scenario: A create intent body carries only minimal egress
+      Given a ticket with a spec and a work log
+      When I run sync-tracker in plan mode
+      Then the create intent's body carries only the title, status, labels and back-link
+      And it carries neither the spec nor the work log
+
+    @portable-tracker-transport.TB1.AC4
+    Scenario: The emitted plan contains no credential
+      Given a tracker credential is present in the environment
+      When I run sync-tracker in plan mode
+      Then the emitted plan contains no credential or token
