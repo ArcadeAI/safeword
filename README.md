@@ -1,12 +1,12 @@
 # SAFEWORD - AI Agent Configuration CLI
 
-[![CI](https://github.com/TheMostlyGreat/safeword/actions/workflows/ci.yml/badge.svg)](https://github.com/TheMostlyGreat/safeword/actions/workflows/ci.yml)
+[![CI](https://github.com/ArcadeAI/safeword/actions/workflows/ci.yml/badge.svg)](https://github.com/ArcadeAI/safeword/actions/workflows/ci.yml)
 
 **Problem**: AI agents write code without tests, skip design validation, and lack consistency across projects.
 
 **Solution**: Portable patterns and guides that enforce test-first development (BDD/TDD), quality standards, and best practices across all your projects.
 
-**Repository**: <https://github.com/TheMostlyGreat/safeword>
+**Repository**: <https://github.com/ArcadeAI/safeword>
 
 ---
 
@@ -555,4 +555,4 @@ The CLI installs matching workflow capabilities for Claude Code, Cursor, and Cod
 
 - **Claude Code docs**: <https://docs.claude.com/en/docs/claude-code>
 - **OpenAI Codex docs**: <https://developers.openai.com/codex>
-- **This repo**: <https://github.com/TheMostlyGreat/safeword>
+- **This repo**: <https://github.com/ArcadeAI/safeword>
