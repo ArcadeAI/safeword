@@ -300,6 +300,12 @@ When('the builder installs the Safe Word Codex plugin', function (this: Migratio
   runCodexCommand(this, ['codex', 'install']);
 });
 
+When('the builder installs the Safe Word Codex plugin twice', function (this: MigrationWorld) {
+  runCodexCommand(this, ['codex', 'install']);
+  if (this.migrationResult?.exitCode !== 0) return;
+  runCodexCommand(this, ['codex', 'install']);
+});
+
 When('the builder explicitly cleans up legacy Codex hooks', function (this: MigrationWorld) {
   runCodexCommand(this, ['codex', 'migrate', '--remove-legacy-hooks']);
 });

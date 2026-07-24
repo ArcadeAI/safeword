@@ -31,6 +31,13 @@ Feature: Install the Safe Word Codex plugin for new users
       And the project has no Safe Word Codex hook configuration
       And the builder is told to start a new Codex session
 
+    Scenario: Repeating Codex installation remains profile-only
+      Given a project has no Codex configuration
+      And the Safe Word Codex plugin can be installed and is enabled
+      When the builder installs the Safe Word Codex plugin twice
+      Then the active Codex profile has the enabled Safe Word plugin
+      And the project has no Safe Word Codex hook configuration
+
     @rejection
     Scenario: Failed profile installation leaves no project Codex configuration
       Given a project has no Codex configuration
