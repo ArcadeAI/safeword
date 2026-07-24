@@ -133,7 +133,7 @@ function readGoModuleRequires(projectDirectory: string): string[] {
 /** Module paths from the `require (\n … \n)` block, stopping at the closing paren. */
 function collectGoRequireBlock(lines: string[], modules: Set<string>): void {
   for (const entry of readDelimitedBlock(lines, /^require\s*\(\s*$/)) {
-    const [modulePath] = entry.split(/\s+/);
+    const [modulePath] = entry.split(/\s+/, 1);
     if (modulePath !== undefined && modulePath.length > 0) modules.add(modulePath);
   }
 }

@@ -1219,7 +1219,7 @@ export function ticketFolderBySlug(projectDirectory: string, slug: string): stri
 
 /** The minted id portion of a `{id}-{slug}` ticket folder, found by slug. */
 export function ticketIdBySlug(projectDirectory: string, slug: string): string {
-  const [id] = nodePath.basename(ticketFolderBySlug(projectDirectory, slug)).split('-');
+  const [id] = nodePath.basename(ticketFolderBySlug(projectDirectory, slug)).split('-', 1);
   if (id === undefined) throw new Error(`no id in folder for slug ${slug}`);
   return id;
 }
