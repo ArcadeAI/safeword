@@ -298,6 +298,57 @@ describe('audit domain-documentation persona drift (E009)', () => {
 
     expect(output).not.toContain('[E009]');
   });
+
+  it('resolves legacy aliases for personas with canonical explicit codes', () => {
+    const { output } = runDomainDocumentationCheck({
+      '.project/personas.md': [
+        '# Personas',
+        '',
+        '## Technical Builder (TBU)',
+        '',
+        '**Role:** Runs the agent.',
+        '',
+        '## Safeword Maintainer (SWM)',
+        '',
+        '**Role:** Maintains safeword.',
+        '',
+      ].join('\n'),
+      '.project/tickets/T1-x/spec.md': [
+        '# Spec',
+        '',
+        '**Persona:** Technical Builder (TB)',
+        '',
+        '**Persona:** Safeword Maintainer (SM)',
+        '',
+      ].join('\n'),
+    });
+
+    expect(output).not.toContain('[E009]');
+  });
+
+  it('ignores persona-like headings inside fenced code blocks', () => {
+    const { output } = runDomainDocumentationCheck({
+      '.project/personas.md': [
+        '# Personas',
+        '',
+        '```markdown',
+        '## Phantom Builder (PB)',
+        '',
+        '**Role:** This is an example, not a persona.',
+        '```',
+        '',
+        '## Technical Builder (TBU)',
+        '',
+        '**Role:** Runs the agent.',
+        '',
+      ].join('\n'),
+      '.project/tickets/T1-x/spec.md': ['# Spec', '', '**Persona:** Phantom Builder (PB)', ''].join(
+        '\n',
+      ),
+    });
+
+    expect(output).toContain('[E009] Persona drift: code PB');
+  });
 });
 
 const IN_SYNC_FIXTURE: Record<string, string> = {
