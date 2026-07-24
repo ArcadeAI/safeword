@@ -20,8 +20,9 @@ import {
   serializeProtectedSet,
   type BaselineRunCatches,
 } from './src/protected';
+import { runWithRetry } from './src/retry';
 import { createRunnerFromEnv } from './src/task';
-import { DEFAULT_SEVERITY, type RunOutput, type SkillRunner } from './src/types';
+import { DEFAULT_SEVERITY } from './src/types';
 
 const SKILL_PATH = join(
   import.meta.dirname,
@@ -33,25 +34,6 @@ const SKILL_PATH = join(
   'SKILL.md',
 );
 const OUT_PATH = join(import.meta.dirname, 'baseline-protected.json');
-
-/** Retry a transient runner failure (e.g. a fetch timeout) before giving up — a
- * long paid batch must not die on one hiccup (gepa-eval.ts already does this). */
-async function runWithRetry(
-  runner: SkillRunner,
-  skill: string,
-  feature: string,
-): Promise<RunOutput> {
-  const attempts = 4;
-  for (let i = 0; i < attempts; i += 1) {
-    try {
-      return await runner.run(skill, feature);
-    } catch (error) {
-      if (i === attempts - 1) throw error;
-      process.stderr.write(`    retry ${i + 1}: ${(error as Error).message}\n`);
-    }
-  }
-  throw new Error('unreachable');
-}
 
 async function main(): Promise<void> {
   const runs = Number(process.argv[2] ?? 3);
