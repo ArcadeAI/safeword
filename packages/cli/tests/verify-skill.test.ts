@@ -23,6 +23,10 @@ const dogfoodClaudeSkillContent = readFileSync(
   nodePath.join(repoRoot, '.claude/skills/verify/SKILL.md'),
   'utf8',
 );
+const codexPluginSkillContent = readFileSync(
+  nodePath.join(repoRoot, 'packages/cli/codex-plugin/skills/verify/SKILL.md'),
+  'utf8',
+);
 const dogfoodCursorCommandContent = readFileSync(
   nodePath.join(repoRoot, '.cursor/commands/verify.md'),
   'utf8',
@@ -38,6 +42,7 @@ const allVerifySurfaces: [string, string][] = [
   ['template skill', skillContent],
   ['dogfood agents skill', dogfoodAgentsSkillContent],
   ['dogfood claude skill', dogfoodClaudeSkillContent],
+  ['Codex plugin skill', codexPluginSkillContent],
 ];
 
 describe('verify command pointer (7PG694)', () => {
@@ -219,6 +224,14 @@ describe('verify report structure (146)', () => {
       expect(content).toContain('Temporary git repos');
       expect(content).toContain('.git/hooks/: Operation not permitted');
     });
+
+    it.each(allVerifySurfaces)(
+      '%s cleans up the probe without blocked rm -rf syntax',
+      (_name, content) => {
+        expect(content).toContain('find "$GIT_PROBE_DIR" -depth -delete');
+        expect(content).not.toContain('rm -rf "$GIT_PROBE_DIR"');
+      },
+    );
 
     it.each(allVerifySurfaces)(
       '%s reports environment limits separately from product failures',

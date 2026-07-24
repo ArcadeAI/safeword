@@ -23,6 +23,15 @@ surfaces.md from packages/cli/templates/surfaces-template.md and then own it.
 **Coverage notes:** Tag feature scenarios with `@surface.claude-code-cloud` when behavior depends on a cloud / off-machine lifecycle (ephemeral VM or CI runner, network policy, GitHub-event triggers) rather than a developer's local setup. Lifecycle hooks (`SessionStart`, `UserPromptSubmit`, etc.) do fire in cloud sessions, but interactively-authenticated MCP servers may be unavailable in headless runs.
 **Do not confuse with:** Claude Code — runs on the developer's own persistent machine, not a reclaimed VM.
 
+## Claude Code on the Web
+
+**Kind:** Agent runtime
+**Description:** Anthropic's browser-hosted Claude Code surface at `claude.ai/code`. It runs in the same ephemeral, Anthropic-managed cloud environment described by the Claude Code Cloud surface, rather than on the developer's local checkout.
+**Audience:** Technical Builder (TBU), Non-Technical Builder (NTB), Safeword Maintainer (SWM)
+**Examples:** `claude.ai/code`, repository selection through the Claude GitHub App, web-launched coding tasks
+**Coverage notes:** Tag feature scenarios with `@surface.claude-code-on-the-web` when the browser-hosted entry point itself matters. Use `@surface.claude-code-cloud` for behavior common to all Claude Code cloud entry points.
+**Do not confuse with:** Claude Code — the local CLI and IDE runtime on a developer machine.
+
 ## OpenAI Codex
 
 **Kind:** Agent runtime
