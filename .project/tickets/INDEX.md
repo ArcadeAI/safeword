@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (433)
+## Tickets (434)
 
 ### 001
 
@@ -1294,6 +1294,11 @@
 - **Epic: Make safeword legible to the Non-Technical Builder (K6CAJN)** (done, epic: —)
   Close the gaps where safeword speaks to the Non-Technical Builder (NTB) in raw jargon — across the CLI terminal, first-run runtime checks, gate blocks, and the framing rules that govern translation — so a user who can't read the diff always gets a plain-language explanation and a concrete next action.
   → `.project/tickets/K6CAJN-ntb-experience-epic`
+- **Keep verification preflight runnable in restricted agent shells (KCFH00)** (done, epic: —)
+  Let the verification skill classify temporary Git-repository limits without being rejected by safe command policies.
+  external issue: https://github.com/ArcadeAI/safeword/issues/469
+  external PRs: https://github.com/ArcadeAI/safeword/pull/1384
+  → `.project/tickets/KCFH00-verify-preflight-safe-cleanup`
 - **Off-board local ticketing: tracker canonical for identity + status mirror; status/phase stay tracked (KKNFZA)** (in_progress, epic: —)
   Make the tracker canonical for ticket identity and a one-way status mirror, kill the real
   → `.project/tickets/KKNFZA-offboard-local-ticketing`

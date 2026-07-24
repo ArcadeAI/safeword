@@ -2,11 +2,12 @@
 id: KCFH00
 slug: verify-preflight-safe-cleanup
 type: patch
-phase: verify
-status: in_progress
+phase: done
+status: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/469
+external_prs: [https://github.com/ArcadeAI/safeword/pull/1384]
 created: 2026-07-24T04:03:12.849Z
-last_modified: 2026-07-24T04:36:00Z
+last_modified: 2026-07-24T14:13:44Z
 ---
 
 # Keep verification preflight runnable in restricted agent shells
@@ -25,3 +26,4 @@ last_modified: 2026-07-24T04:36:00Z
 - 2026-07-24T04:21:06Z Revalidated: current `origin/main` still uses the safe-policy-rejected `rm -rf "$GIT_PROBE_DIR"` cleanup. Open issue #469 already owns this environment-classification defect and explicitly requires a temporary-Git preflight across agents; no duplicate GitHub issue is needed. Linked this patch ticket to #469.
 - 2026-07-24T04:35:00Z Audit: scoped change is clean (config sync and dependency architecture pass). Kept unrelated documentation-link and Knip hygiene findings out of this patch; legacy persona aliases explain the audit script's TB/SM false positives.
 - 2026-07-24T04:36:00Z Quality review: approved the Git probe and `find -depth -delete` cleanup against current Git and GNU Findutils documentation. Refactor pass found no safe simplification beyond the existing table-driven contract.
+- 2026-07-24T14:13:44Z Complete: PR #1384 merged after lint and both Node CI jobs passed; linked issue #469 is closed. User confirmed this ticket can be closed.
