@@ -9,7 +9,7 @@ description: Run comprehensive code audit for architecture, dead code, and test
 
 Run a comprehensive code audit. Execute checks and report results by severity.
 
-**Reviewer class:** _class-2 — independent observation_ (PRINCIPLES.md §1): every check confirms an observable fact, so no cross-model reviewer applies. Judging whether the architecture is _sound_ is not audit's job — that lives in the Architecture Review Gate (`ARCHITECTURE.md`) and `quality-review`.
+**Reviewer class:** _class-2 — independent observation_: every check confirms an observable fact, so no cross-model reviewer applies. Judging whether the architecture is _sound_ is not audit's job — that lives in the Architecture Review Gate (`ARCHITECTURE.md`) and `quality-review`.
 
 ## Invocation log
 
@@ -65,16 +65,81 @@ detect_package_manager() {
   node -e 'try { const pm = JSON.parse(require("fs").readFileSync("package.json", "utf8")).packageManager || ""; console.log(pm.split("@")[0] || "npm"); } catch { console.log("npm"); }'
 }
 
-has_python_project() {
-  [ -f pyproject.toml ] || [ -f requirements.txt ] || [ -f setup.py ] || [ -f setup.cfg ] || [ -f Pipfile ]
+# Native manifests and Knip configs may belong to leaf applications rather than
+# the repository root. Exclude dependency and virtual-environment trees: their
+# files are not applications the audit owns and would make results noisy and slow.
+find_audit_files() {
+  find . \
+    -type d \( -name .git -o -name node_modules -o -name .venv -o -name venv -o -name vendor -o -name target \) -prune -o \
+    "$@"
 }
 
-has_go_project() {
-  [ -f go.mod ]
+find_manifest_dirs() {
+  find_audit_files \
+    -type f \( "$@" \) -print 2> /dev/null \
+    | while IFS= read -r manifest; do dirname "$manifest"; done \
+    | LC_ALL=C sort -u
 }
 
-has_rust_project() {
-  [ -f Cargo.toml ]
+PYTHON_PROJECT_DIRS="$(find_manifest_dirs -name pyproject.toml -o -name requirements.txt -o -name setup.py -o -name setup.cfg -o -name Pipfile)"
+GO_MODULE_DIRS="$(find_manifest_dirs -name go.mod)"
+RUST_CRATE_DIRS="$(find_manifest_dirs -name Cargo.toml)"
+
+# Run Python dead-code checks once per application, not once per toolkit/package.
+# Conventional apps/<app>/... manifests collapse to apps/<app>; jobs are one lane.
+python_audit_roots() {
+  while IFS= read -r project_dir; do
+    [ -n "$project_dir" ] || continue
+    case "$project_dir" in
+      ./apps/*/*) printf '%s\n' "$(printf '%s' "$project_dir" | cut -d/ -f1-3)" ;;
+      ./jobs/*) printf '%s\n' './jobs' ;;
+      *) printf '%s\n' "$project_dir" ;;
+    esac
+  done | LC_ALL=C sort -u
+}
+
+PYTHON_AUDIT_DIRS="$(printf '%s\n' "$PYTHON_PROJECT_DIRS" | python_audit_roots)"
+
+# Knip resolves a config relative to its current directory. In a monorepo a
+# root invocation therefore does not automatically apply apps/*/knip.config.*.
+# A root config owns the whole repository; without one, run each leaf config
+# from its own directory so its entry/project patterns have their intended scope.
+find_knip_configs() {
+  find_audit_files \
+    -type f \( -name knip.json -o -name knip.jsonc -o -name .knip.json -o -name .knip.jsonc -o -name knip.ts -o -name knip.js -o -name knip.config.ts -o -name knip.config.js \) -print 2> /dev/null \
+    | LC_ALL=C sort
+}
+
+root_knip_config() {
+  for config in knip.json knip.jsonc .knip.json .knip.jsonc knip.ts knip.js knip.config.ts knip.config.js; do
+    [ -f "$config" ] && {
+      printf '%s\n' "$config"
+      return
+    }
+  done
+}
+
+KNIP_CONFIG_FILES="$(find_knip_configs)"
+
+run_knip_check() {
+  root_config="$(root_knip_config)"
+  if [ -n "$root_config" ]; then
+    echo "Knip — repository root ($root_config)"
+    bunx knip --config "$root_config" 2>&1 || true
+  elif [ -n "$KNIP_CONFIG_FILES" ]; then
+    while IFS= read -r config_path; do
+      [ -n "$config_path" ] || continue
+      config_dir="$(dirname "$config_path")"
+      config_name="$(basename "$config_path")"
+      echo "Knip — $config_dir ($config_name)"
+      (cd "$config_dir" && bunx knip --config "$config_name" 2>&1 || true)
+    done << EOF
+$KNIP_CONFIG_FILES
+EOF
+  else
+    echo "Knip — repository root (no workspace config found)"
+    bunx knip 2>&1 || true
+  fi
 }
 
 run_yarn_outdated_check() {
@@ -94,16 +159,24 @@ run_yarn_outdated_check() {
 }
 
 run_python_outdated_check() {
-  if [ -f uv.lock ]; then
-    uv pip list --outdated 2>&1 || true
-  elif [ -f poetry.lock ] || grep -q '^\[tool\.poetry\]' pyproject.toml 2> /dev/null; then
-    poetry show --outdated 2>&1 || true
-  elif [ -f Pipfile ]; then
-    pipenv update --outdated 2>&1 || true
-  else
-    python -m pip list --outdated 2>&1 || pip list --outdated 2>&1 || true
-  fi
+  project_dir="$1"
+  (
+    cd "$project_dir" || exit 0
+    if [ -f uv.lock ]; then
+      uv pip list --outdated 2>&1 || true
+    elif [ -f poetry.lock ] || grep -q '^\[tool\.poetry\]' pyproject.toml 2> /dev/null; then
+      poetry show --outdated 2>&1 || true
+    elif [ -f Pipfile ]; then
+      pipenv update --outdated 2>&1 || true
+    else
+      python -m pip list --outdated 2>&1 || pip list --outdated 2>&1 || true
+    fi
+  )
 }
+
+[ -n "$PYTHON_PROJECT_DIRS" ] || echo "No Python projects found — Python architecture, dead-code, and outdated checks not applicable"
+[ -n "$GO_MODULE_DIRS" ] || echo "No Go modules found — Go architecture, dead-code, and outdated checks not applicable"
+[ -n "$RUST_CRATE_DIRS" ] || echo "No Rust crates found — Rust architecture, dead-code, and outdated checks not applicable"
 
 # =========================================================================
 # DETECT CONFIG DRIFT (read-only — no writes)
@@ -123,7 +196,7 @@ $SW sync-config --check 2>&1 || echo "[W007] Stale .safeword/depcruise-config.cj
 # Config-drift coverage is JS/TS-only (W005 knip hints, W007 depcruise config).
 # Native stacks have no comparable drift check yet — say so instead of letting
 # silence read as "no drift" (#831).
-(has_python_project || has_go_project || has_rust_project) && echo "Coverage limitation: config-drift checks (W005/W007) cover JS/TS tooling only — native lint configs (ruff.toml, .golangci.yml, Cargo [lints]) are not drift-checked; review them manually."
+([ -n "$PYTHON_PROJECT_DIRS" ] || [ -n "$GO_MODULE_DIRS" ] || [ -n "$RUST_CRATE_DIRS" ]) && echo "Coverage limitation: config-drift checks (W005/W007) cover JS/TS tooling only — native lint configs (ruff.toml, .golangci.yml, Cargo [lints]) are not drift-checked; review them manually."
 
 # =========================================================================
 # ARCHITECTURE CHECKS (circular deps, layer violations)
@@ -142,17 +215,25 @@ DEPCRUISE_CONFIG=""
 # not-yet-defined name, so a passing test run is NOT proof of an acyclic import
 # graph. import-linter is the static gate, but it is config-driven (it enforces only
 # declared contracts, nothing by default), so gate on its config and never force it.
-([ -f pyproject.toml ] || [ -f requirements.txt ] || [ -f setup.py ] || [ -f setup.cfg ]) && {
-  if [ -f .importlinter ] || grep -q '^\[importlinter\]' setup.cfg 2> /dev/null || grep -q '^\[tool\.importlinter\]' pyproject.toml 2> /dev/null; then
-    if command -v lint-imports > /dev/null 2>&1; then
-      lint-imports 2>&1 || true
-    else
-      echo "Manual evidence required: import-linter contracts found but 'lint-imports' not installed — Python architecture check skipped"
-    fi
-  else
-    echo "Manual evidence required: no import-linter contracts (.importlinter / [tool.importlinter] / setup.cfg [importlinter]) — Python import cycles are NOT statically checked (runtime does not reliably catch them). Add import-linter, or run 'pylint --disable=all --enable=cyclic-import <pkg>' for a config-free heuristic."
-  fi
-}
+if [ -n "$PYTHON_PROJECT_DIRS" ]; then
+  while IFS= read -r project_dir; do
+    [ -n "$project_dir" ] || continue
+    (
+      cd "$project_dir" || exit 0
+      if [ -f .importlinter ] || grep -q '^\[importlinter\]' setup.cfg 2> /dev/null || grep -q '^\[tool\.importlinter\]' pyproject.toml 2> /dev/null; then
+        if command -v lint-imports > /dev/null 2>&1; then
+          lint-imports 2>&1 || true
+        else
+          echo "Manual evidence required: import-linter contracts found in $project_dir but 'lint-imports' not installed — Python architecture check skipped"
+        fi
+      else
+        echo "Manual evidence required: no import-linter contracts for $project_dir (.importlinter / [tool.importlinter] / setup.cfg [importlinter]) — Python import cycles are NOT statically checked (runtime does not reliably catch them). Add import-linter, or run 'pylint --disable=all --enable=cyclic-import <pkg>' for a config-free heuristic."
+      fi
+    )
+  done << EOF
+$PYTHON_PROJECT_DIRS
+EOF
+fi
 
 # 1c. Architecture - Go. The compiler REJECTS import cycles at build, so a green
 # `go build ./...` / `go test ./...` already guarantees an acyclic package graph —
@@ -160,7 +241,13 @@ DEPCRUISE_CONFIG=""
 # depguard, which runs INSIDE the golangci-lint pass below when `.golangci.yml`
 # configures it — do NOT force-enable it (an unconfigured depguard flags every
 # non-stdlib import as a false positive).
-[ -f go.mod ] && echo "Go architecture: import cycles are compiler-guaranteed absent (a passing build proves it); boundary contracts run via depguard in the golangci-lint pass when .golangci.yml configures them."
+if [ -n "$GO_MODULE_DIRS" ]; then
+  while IFS= read -r module_dir; do
+    [ -n "$module_dir" ] && echo "Go architecture — $module_dir: import cycles are compiler-guaranteed absent (a passing build proves it); boundary contracts run via depguard in the golangci-lint pass when .golangci.yml configures them."
+  done << EOF
+$GO_MODULE_DIRS
+EOF
+fi
 
 # 1d. Architecture - Rust. Cargo rejects circular crate deps and rustc forbids
 # mutually-recursive modules, so a compiling project cannot contain cycles — no
@@ -168,48 +255,72 @@ DEPCRUISE_CONFIG=""
 # Rust (cargo-modules only visualizes); teams enforce boundaries structurally via
 # separate crates + visibility. (cargo-deny covers dependency supply-chain —
 # advisories/licenses/bans — a different axis, not architecture.)
-[ -f Cargo.toml ] && echo "Rust architecture: crate/module cycles are compiler-guaranteed absent (a passing build proves it); no standard layer-boundary tool exists — enforce structurally via crates."
+if [ -n "$RUST_CRATE_DIRS" ]; then
+  while IFS= read -r crate_dir; do
+    [ -n "$crate_dir" ] && echo "Rust architecture — $crate_dir: crate/module cycles are compiler-guaranteed absent (a passing build proves it); no standard layer-boundary tool exists — enforce structurally via crates."
+  done << EOF
+$RUST_CRATE_DIRS
+EOF
+fi
 
 # =========================================================================
 # DEAD CODE DETECTION
 # =========================================================================
 
 # 2a. Dead code - TypeScript/JS (knip — read-only, reports unused exports/deps/config hints)
-[ -f package.json ] && {
-  bunx knip 2>&1 || true
-}
+# Leaf Knip configs are executed from their workspace so monorepo audits do not
+# silently ignore their entry/project rules.
+([ -f package.json ] || [ -n "$KNIP_CONFIG_FILES" ]) && run_knip_check
 
 # 2b. Dead code - Python (deadcode)
 # A missing tool must be loud — `|| true` alone would make "not installed"
 # read as "no findings".
-([ -f pyproject.toml ] || [ -f requirements.txt ]) && {
+if [ -n "$PYTHON_AUDIT_DIRS" ]; then
   if command -v deadcode > /dev/null 2>&1; then
-    deadcode . 2>&1 || true
+    while IFS= read -r project_dir; do
+      [ -n "$project_dir" ] || continue
+      echo "Python dead-code — $project_dir"
+      (cd "$project_dir" && deadcode . 2>&1 || true)
+    done << EOF
+$PYTHON_AUDIT_DIRS
+EOF
   else
-    echo "Manual evidence required: deadcode not installed — Python dead-code check skipped"
+    echo "Manual evidence required: deadcode not installed — Python dead-code checks skipped for discovered Python projects"
   fi
-}
+fi
 
 # 2c. Dead code - Go (golangci-lint unused)
-[ -f go.mod ] && {
+if [ -n "$GO_MODULE_DIRS" ]; then
   if command -v golangci-lint > /dev/null 2>&1; then
-    golangci-lint run --enable unused --out-format colored-line-number 2>&1 || true
+    while IFS= read -r module_dir; do
+      [ -n "$module_dir" ] || continue
+      echo "Go dead-code — $module_dir"
+      (cd "$module_dir" && golangci-lint run --enable unused 2>&1 || true)
+    done << EOF
+$GO_MODULE_DIRS
+EOF
   else
-    echo "Manual evidence required: golangci-lint not installed — Go dead-code check skipped"
+    echo "Manual evidence required: golangci-lint not installed — Go dead-code checks skipped for discovered Go modules"
   fi
-}
+fi
 
 # 2d. Rust-specific checks (Clippy catches unused code and quality issues)
 # Gate on `cargo-clippy` (the binary `cargo clippy` runs), not `cargo`: clippy
 # is a rustup component that can be absent while cargo is on PATH, and `|| true`
 # would otherwise swallow its failure into a false "clean" result.
-[ -f Cargo.toml ] && {
+if [ -n "$RUST_CRATE_DIRS" ]; then
   if command -v cargo-clippy > /dev/null 2>&1; then
-    cargo clippy --all-targets --all-features -- -D warnings 2>&1 || true
+    while IFS= read -r crate_dir; do
+      [ -n "$crate_dir" ] || continue
+      echo "Rust clippy — $crate_dir"
+      (cd "$crate_dir" && cargo clippy --all-targets --all-features -- -D warnings 2>&1 || true)
+    done << EOF
+$RUST_CRATE_DIRS
+EOF
   else
-    echo "Manual evidence required: cargo clippy not available — Rust clippy check skipped"
+    echo "Manual evidence required: cargo clippy not available — Rust clippy checks skipped for discovered Rust crates"
   fi
-}
+fi
 
 # =========================================================================
 # CODE DUPLICATION
@@ -240,18 +351,36 @@ bunx jscpd . --min-lines 10 --reporters console --ignore "**/node_modules/**,**/
 } || echo "Skipping outdated JavaScript dependencies: no package.json; skip JavaScript package checks"
 
 # 4b. Outdated - Python-specific checks (uv > poetry > pipenv > pip)
-if has_python_project; then
-  run_python_outdated_check
+if [ -n "$PYTHON_AUDIT_DIRS" ]; then
+  while IFS= read -r project_dir; do
+    [ -n "$project_dir" ] || continue
+    echo "Python outdated dependencies — $project_dir"
+    run_python_outdated_check "$project_dir"
+  done << EOF
+$PYTHON_AUDIT_DIRS
+EOF
 fi
 
 # 4c. Outdated - Go-specific checks
-if has_go_project; then
-  go list -m -u all 2>&1 | grep '\[' || echo "All Go modules up to date"
+if [ -n "$GO_MODULE_DIRS" ]; then
+  while IFS= read -r module_dir; do
+    [ -n "$module_dir" ] || continue
+    echo "Go outdated dependencies — $module_dir"
+    (cd "$module_dir" && (go list -m -u all 2>&1 | grep '\[' || echo "All Go modules up to date"))
+  done << EOF
+$GO_MODULE_DIRS
+EOF
 fi
 
 # 4d. Outdated - Rust-specific checks
-if has_rust_project; then
-  cargo update --dry-run 2>&1 || true
+if [ -n "$RUST_CRATE_DIRS" ]; then
+  while IFS= read -r crate_dir; do
+    [ -n "$crate_dir" ] || continue
+    echo "Rust outdated dependencies — $crate_dir"
+    (cd "$crate_dir" && cargo update --dry-run 2>&1 || true)
+  done << EOF
+$RUST_CRATE_DIRS
+EOF
 fi
 ```
 
@@ -475,18 +604,36 @@ done
 
 # --- Surface drift (E008): @surface.<slug> tag referenced but undefined ---
 # Suppressed when surfaces.md is empty/absent — W008 already says "fill it".
-FEATURES_DIR="$PROJECT_DIR/features"
+# Use the CLI's shared resolver: root, workspace, and configured feature lanes
+# must stay aligned with executable Gherkin discovery. Match the pinned-CLI
+# ladder used by the config-drift check above.
+feature_directories() {
+  if [ -x "$PROJECT_DIR/node_modules/.bin/safeword" ]; then
+    "$PROJECT_DIR/node_modules/.bin/safeword" feature-directories
+  elif [ -f "$PROJECT_DIR/packages/cli/src/cli.ts" ]; then
+    bun "$PROJECT_DIR/packages/cli/src/cli.ts" feature-directories
+  elif command -v bunx > /dev/null 2>&1; then
+    bunx safeword feature-directories
+  else
+    return 127
+  fi
+}
+if ! FEATURE_DIRECTORIES="$(feature_directories 2> /dev/null)"; then
+  echo "[W009] Feature-directory resolver unavailable; E008 scanned root features/ only"
+  FEATURE_DIRECTORIES="$PROJECT_DIR/features"
+fi
 surfaces_file="$NS_ROOT/surfaces.md"
 dd_file="$surfaces_file"
-if [ -f "$surfaces_file" ] && [ "$(domain_docs_entry_count)" -gt 0 ] && [ -d "$FEATURES_DIR" ]; then
+if [ -f "$surfaces_file" ] && [ "$(domain_docs_entry_count)" -gt 0 ] && [ -n "$FEATURE_DIRECTORIES" ]; then
   # Defined slugs: slugify each uncommented `## ` heading. Portable casing via
   # `tr` — BSD/macOS sed lacks `\L`.
   defined_slugs="$(sed "$strip_html_comments" "$surfaces_file" | grep -E '^## ' | sed 's/^## //' \
     | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9][^a-z0-9]*/-/g; s/^-//; s/-$//')"
   # Referenced slugs: @surface.<slug> on Gherkin tag lines only (line starts
   # with @), so a slug mentioned in step prose is not a reference.
-  referenced_slugs="$(grep -rhE '^[[:space:]]*@' "$FEATURES_DIR" 2> /dev/null \
-    | grep -oE '@surface\.[a-z0-9-]+' | sed 's/^@surface\.//' | sort -u)"
+  referenced_slugs="$(printf '%s\n' "$FEATURE_DIRECTORIES" | while IFS= read -r features_directory; do
+    [ -d "$features_directory" ] && grep -rhE '^[[:space:]]*@' "$features_directory" 2> /dev/null
+  done | grep -oE '@surface\.[a-z0-9-]+' | sed 's/^@surface\.//' | sort -u)"
   for slug in $referenced_slugs; do
     if ! printf '%s\n' $defined_slugs | grep -qxF "$slug"; then
       echo "[E008] Surface drift: @surface.$slug referenced in features/ but no matching entry in surfaces.md"
@@ -539,7 +686,7 @@ fi
 
 **Empty-doc offer (W008):** report the empty doc and point the user to its template — do **not** draft entries or write the file during the audit pass (read-only). Filling it is a follow-up the user approves.
 
-**Coverage limitation:** the block reads the default namespace-root locations; per-file `paths.personas` / `paths.surfaces` / `paths.glossary` overrides are validated by `safeword check` (structure), not here. Persona drift reads spec `**Persona:**` lines only — feature lineage tags are not a reliable persona source.
+**Coverage limitation:** the block reads the default namespace-root locations; per-file `paths.personas` / `paths.surfaces` / `paths.glossary` overrides are validated by `safeword check` (structure), not here. If the safeword feature-directory resolver is unavailable, W009 says E008 fell back to root `features/` only. Persona drift reads spec `**Persona:**` lines only — feature lineage tags are not a reliable persona source.
 
 ---
 
@@ -568,6 +715,7 @@ Report findings by severity with codes:
 - [W006] Learning file missing Covers: — `<namespace-root>/learnings/foo.md` (absent from INDEX.md)
 - [W007] Stale .safeword/depcruise-config.cjs — run `safeword sync-config` to refresh and commit
 - [W008] Empty domain doc: `surfaces.md` has no uncommented entries — fill from its template (BDD intake references degrade until filled)
+- [W009] Feature-directory resolver unavailable — E008 scanned root `features/` only
 
 ### Code Quality
 

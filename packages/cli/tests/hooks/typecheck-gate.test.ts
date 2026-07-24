@@ -23,8 +23,10 @@ import { describe, expect, it } from 'vitest';
 import {
   changedFilesSinceHead,
   evaluateImplementStopTypecheck,
+  resolveConfigCoverage,
   runIncrementalTypecheck,
   shouldRunTypecheck,
+  TYPECHECK_BUDGET_MS,
   type TypecheckRunResult,
 } from '../../templates/hooks/lib/typecheck-gate.js';
 
@@ -65,7 +67,9 @@ describe('shouldRunTypecheck (Rule 1 — run-gate)', () => {
 
     expect(result.run).toBe(true);
     if (result.run) {
-      expect(result.tsconfigPath).toBe(nodePath.join(projectDirectory, 'tsconfig.json'));
+      expect(result.targets.map(target => target.tsconfigPath)).toEqual([
+        nodePath.join(projectDirectory, 'tsconfig.json'),
+      ]);
     }
   });
 
@@ -108,9 +112,87 @@ describe('shouldRunTypecheck (Rule 1 — run-gate)', () => {
 
     expect(result.run).toBe(true);
     if (result.run) {
-      expect(result.tsconfigPath).toBe(
+      expect(result.targets.map(target => target.tsconfigPath)).toEqual([
         nodePath.join(projectDirectory, 'packages/cli/tsconfig.json'),
-      );
+      ]);
+    }
+  });
+
+  it('returns a config for every package that changed, not just the first', () => {
+    // Regression: the gate used to return on the first changed file that found
+    // any tsconfig, so a second package's types were never checked at all — a
+    // silent pass, which reads as "clean".
+    const projectDirectory = makeProject();
+    touch(nodePath.join(projectDirectory, 'packages/alpha/tsconfig.json'));
+    touch(nodePath.join(projectDirectory, 'packages/beta/tsconfig.json'));
+
+    const result = shouldRunTypecheck({
+      projectDirectory,
+      changedFiles: ['packages/alpha/src/a.ts', 'packages/beta/src/b.ts'],
+      phase: 'implement',
+    });
+
+    expect(result.run).toBe(true);
+    if (result.run) {
+      expect(result.targets.map(target => target.tsconfigPath)).toEqual([
+        nodePath.join(projectDirectory, 'packages/alpha/tsconfig.json'),
+        nodePath.join(projectDirectory, 'packages/beta/tsconfig.json'),
+      ]);
+    }
+  });
+
+  it('ignores changed files inside node_modules', () => {
+    // A project whose .gitignore misses node_modules reports vendored files as
+    // changed. They are a dependency's code, never the developer's change — and
+    // find-up from one lands on that dependency's own tsconfig.
+    const projectDirectory = makeProject();
+    touch(nodePath.join(projectDirectory, 'tsconfig.json'));
+
+    const result = shouldRunTypecheck({
+      projectDirectory,
+      changedFiles: ['node_modules/@cucumber/gherkin/src/index.ts'],
+      phase: 'implement',
+    });
+
+    expect(result.run).toBe(false);
+  });
+
+  it('never returns a tsconfig that lives inside node_modules', () => {
+    // Typechecking a dependency's config reports errors in code the developer
+    // does not own and cannot fix (missing peer @types, unresolved `extends`).
+    const projectDirectory = makeProject();
+    touch(nodePath.join(projectDirectory, 'tsconfig.json'));
+    touch(nodePath.join(projectDirectory, 'node_modules/@cucumber/gherkin/tsconfig.json'));
+
+    const result = shouldRunTypecheck({
+      projectDirectory,
+      changedFiles: ['src/mine.ts', 'node_modules/@cucumber/gherkin/src/index.ts'],
+      phase: 'implement',
+    });
+
+    expect(result.run).toBe(true);
+    if (result.run) {
+      expect(result.targets.map(target => target.tsconfigPath)).toEqual([
+        nodePath.join(projectDirectory, 'tsconfig.json'),
+      ]);
+    }
+  });
+
+  it('deduplicates when several changed files resolve to the same config', () => {
+    const projectDirectory = makeProject();
+    touch(nodePath.join(projectDirectory, 'tsconfig.json'));
+
+    const result = shouldRunTypecheck({
+      projectDirectory,
+      changedFiles: ['src/a.ts', 'src/nested/b.ts', 'other/c.ts'],
+      phase: 'implement',
+    });
+
+    expect(result.run).toBe(true);
+    if (result.run) {
+      expect(result.targets.map(target => target.tsconfigPath)).toEqual([
+        nodePath.join(projectDirectory, 'tsconfig.json'),
+      ]);
     }
   });
 
@@ -203,6 +285,277 @@ describe('evaluateImplementStopTypecheck (Rules 2 + 4 — surface as advice)', (
     });
 
     expect(evaluateImplementStopTypecheck(gatePassingInput(), runner).advice).toBeNull();
+  });
+});
+
+describe('evaluateImplementStopTypecheck — coverage attribution (#1284)', () => {
+  const cleanRunner = (): TypecheckRunResult => ({ available: true, ok: true, output: '' });
+
+  /** A mixed session: a hook change and a packages/cli change, two configs. */
+  function mixedSession(): { projectDirectory: string; changedFiles: string[]; phase: string } {
+    const projectDirectory = makeProject();
+    touch(nodePath.join(projectDirectory, 'tsconfig.json'));
+    touch(nodePath.join(projectDirectory, 'packages/cli/tsconfig.json'));
+    return {
+      projectDirectory,
+      changedFiles: ['.safeword/hooks/lib/a.ts', 'packages/cli/src/b.ts'],
+      phase: 'implement',
+    };
+  }
+
+  it('checks each config against only the files that selected it', () => {
+    const input = mixedSession();
+    const seen = new Map<string, string[]>();
+
+    evaluateImplementStopTypecheck(input, cleanRunner, (_project, tsconfigPath, files) => {
+      seen.set(tsconfigPath, files);
+      return true;
+    });
+
+    expect(seen.get(nodePath.join(input.projectDirectory, 'tsconfig.json'))).toEqual([
+      '.safeword/hooks/lib/a.ts',
+    ]);
+    expect(seen.get(nodePath.join(input.projectDirectory, 'packages/cli/tsconfig.json'))).toEqual([
+      'packages/cli/src/b.ts',
+    ]);
+  });
+
+  it('skips a config whose own selecting file is uncovered, even in a mixed session', () => {
+    // The #1225 symptom returning: the root config covers packages/cli/src/**,
+    // so passing every changed file made it "covered" and it ran anyway —
+    // reporting errors across a tree the developer had not touched.
+    const input = mixedSession();
+    const coversPackagesOnly = (
+      _project: string,
+      _tsconfigPath: string,
+      files: string[],
+    ): boolean => files.some(file => file.startsWith('packages/cli/'));
+    const runner = (_project: string, tsconfigPath: string): TypecheckRunResult => ({
+      available: true,
+      ok: false,
+      output: tsconfigPath.includes('packages/cli')
+        ? 'packages/cli/src/b.ts(1,7): error TS2222: real error in a touched file.'
+        : 'packages/cli/src/untouched.ts(1,7): error TS1111: noise from the root config.',
+    });
+
+    const { advice } = evaluateImplementStopTypecheck(input, runner, coversPackagesOnly);
+
+    expect(advice).toContain('real error in a touched file');
+    expect(advice).not.toContain('noise from the root config');
+  });
+});
+
+describe('evaluateImplementStopTypecheck — config coverage', () => {
+  const failingRunner = (): TypecheckRunResult => ({
+    available: true,
+    ok: false,
+    output: 'packages/cli/src/other.ts(1,7): error TS2322: Type error in an untouched file.',
+  });
+
+  /** Safeword's own shape: a root config whose `include` misses the changed file. */
+  function hookChangeInput(): { projectDirectory: string; changedFiles: string[]; phase: string } {
+    const projectDirectory = makeProject();
+    touch(nodePath.join(projectDirectory, 'tsconfig.json'));
+    return {
+      projectDirectory,
+      changedFiles: ['.safeword/hooks/lib/changed.ts'],
+      phase: 'implement',
+    };
+  }
+
+  it('does not run a config that covers none of the changed files', () => {
+    // The real failure: a change under .safeword/hooks finds the root tsconfig,
+    // whose include is packages/*/src/**/*. Typechecking it reported errors in
+    // ~30 untouched files and checked none of the changed ones.
+    let isRan = false;
+    const runner = (): TypecheckRunResult => {
+      isRan = true;
+      return failingRunner();
+    };
+
+    const { advice } = evaluateImplementStopTypecheck(hookChangeInput(), runner, () => false);
+
+    expect(advice).toBeNull();
+    expect(isRan).toBe(false);
+  });
+
+  it('runs a config that does cover a changed file', () => {
+    const { advice } = evaluateImplementStopTypecheck(hookChangeInput(), failingRunner, () => true);
+
+    expect(advice).toContain('error TS2322');
+  });
+
+  it('runs when coverage cannot be determined, degrading to the prior behavior', () => {
+    // Unknown coverage must not suppress the check: the filter is the new part,
+    // so when it cannot do its job it should never hide what tsc already found.
+    const coverageUnknown: boolean | undefined = undefined;
+
+    const { advice } = evaluateImplementStopTypecheck(
+      hookChangeInput(),
+      failingRunner,
+      () => coverageUnknown,
+    );
+
+    expect(advice).toContain('error TS2322');
+  });
+
+  it('labels each block with the config that produced it', () => {
+    // The root and packages/cli configs overlap on packages/cli/src/** with
+    // different module/lib, so the same file can be reported twice with
+    // divergent diagnostics. Without a marker there is no way to tell why.
+    const projectDirectory = makeProject();
+    touch(nodePath.join(projectDirectory, 'tsconfig.json'));
+    touch(nodePath.join(projectDirectory, 'packages/cli/tsconfig.json'));
+    const runner = (_projectDirectory: string, tsconfigPath: string): TypecheckRunResult => ({
+      available: true,
+      ok: false,
+      output: `x.ts(1,7): error TS2322: from ${nodePath.basename(nodePath.dirname(tsconfigPath))}.`,
+    });
+
+    const { advice } = evaluateImplementStopTypecheck(
+      {
+        projectDirectory,
+        changedFiles: ['src/a.ts', 'packages/cli/src/b.ts'],
+        phase: 'implement',
+      },
+      runner,
+      () => true,
+    );
+
+    expect(advice).toContain('tsconfig.json');
+    expect(advice).toContain('packages/cli/tsconfig.json');
+  });
+
+  it('divides one timeout budget across the configs it runs', () => {
+    // Per-spawn timeouts turn N configs into N × the budget, and the Stop hook
+    // has no timeout of its own — so a wide monorepo change gets the whole hook
+    // killed rather than just the typecheck step.
+    const projectDirectory = makeProject();
+    touch(nodePath.join(projectDirectory, 'packages/alpha/tsconfig.json'));
+    touch(nodePath.join(projectDirectory, 'packages/beta/tsconfig.json'));
+    const timeouts: (number | undefined)[] = [];
+    const runner = (
+      _projectDirectory: string,
+      _tsconfigPath: string,
+      timeoutMs?: number,
+    ): TypecheckRunResult => {
+      timeouts.push(timeoutMs);
+      return { available: true, ok: true, output: '' };
+    };
+
+    evaluateImplementStopTypecheck(
+      {
+        projectDirectory,
+        changedFiles: ['packages/alpha/src/a.ts', 'packages/beta/src/b.ts'],
+        phase: 'implement',
+      },
+      runner,
+      () => true,
+    );
+
+    expect(timeouts).toHaveLength(2);
+    expect(timeouts[0]).toBe(Math.floor(TYPECHECK_BUDGET_MS / 2));
+    expect(timeouts.reduce((sum, ms) => (sum ?? 0) + (ms ?? 0), 0)).toBeLessThanOrEqual(
+      TYPECHECK_BUDGET_MS,
+    );
+  });
+
+  it('surfaces advice from every covered config, not just the first', () => {
+    const projectDirectory = makeProject();
+    touch(nodePath.join(projectDirectory, 'packages/alpha/tsconfig.json'));
+    touch(nodePath.join(projectDirectory, 'packages/beta/tsconfig.json'));
+    const runner = (_projectDirectory: string, tsconfigPath: string): TypecheckRunResult => ({
+      available: true,
+      ok: false,
+      output: tsconfigPath.includes('alpha')
+        ? 'packages/alpha/src/a.ts(1,7): error TS1111: alpha broke.'
+        : 'packages/beta/src/b.ts(1,7): error TS2222: beta broke.',
+    });
+
+    const { advice } = evaluateImplementStopTypecheck(
+      {
+        projectDirectory,
+        changedFiles: ['packages/alpha/src/a.ts', 'packages/beta/src/b.ts'],
+        phase: 'implement',
+      },
+      runner,
+      () => true,
+    );
+
+    expect(advice).toContain('alpha broke');
+    expect(advice).toContain('beta broke');
+  });
+});
+
+describe('resolveConfigCoverage (real tsc — integration)', () => {
+  /** Root config that only includes packages/*, mirroring safeword's own layout. */
+  function projectWithNarrowRootConfig(): string {
+    const cliTsc = nodePath.resolve(import.meta.dirname, '../../node_modules/.bin/tsc');
+    expect(existsSync(cliTsc)).toBe(true);
+    const project = mkdtempSync(nodePath.join(tmpdir(), 'tccov-'));
+    mkdirSync(nodePath.join(project, 'node_modules/.bin'), { recursive: true });
+    symlinkSync(realpathSync(cliTsc), nodePath.join(project, 'node_modules/.bin/tsc'));
+    writeFileSync(
+      nodePath.join(project, 'tsconfig.json'),
+      JSON.stringify({ include: ['packages/*/src/**/*'] }),
+    );
+    touch(nodePath.join(project, 'packages/cli/src/real.ts'));
+    touch(nodePath.join(project, '.safeword/hooks/lib/changed.ts'));
+    return project;
+  }
+
+  it('reports uncovered for a changed file outside the config include', () => {
+    const project = projectWithNarrowRootConfig();
+
+    const covered = resolveConfigCoverage(project, nodePath.join(project, 'tsconfig.json'), [
+      '.safeword/hooks/lib/changed.ts',
+    ]);
+
+    expect(covered).toBe(false);
+  });
+
+  it('reports covered for a changed file inside the config include', () => {
+    const project = projectWithNarrowRootConfig();
+
+    const covered = resolveConfigCoverage(project, nodePath.join(project, 'tsconfig.json'), [
+      'packages/cli/src/real.ts',
+    ]);
+
+    expect(covered).toBe(true);
+  });
+
+  it('returns undefined for a deleted file rather than reporting it uncovered', () => {
+    // `--showConfig` lists on-disk files, so a deleted path is never "covered".
+    // Deleting an exported module is exactly when consumers break — treating
+    // that as "skip" would be new silence in a gate whose thesis is that
+    // silence reads as clean.
+    const project = projectWithNarrowRootConfig();
+
+    const covered = resolveConfigCoverage(project, nodePath.join(project, 'tsconfig.json'), [
+      'packages/cli/src/deleted.ts',
+    ]);
+
+    expect(covered).toBeUndefined();
+  });
+
+  it('still reports coverage from the surviving files when only some were deleted', () => {
+    const project = projectWithNarrowRootConfig();
+
+    const covered = resolveConfigCoverage(project, nodePath.join(project, 'tsconfig.json'), [
+      'packages/cli/src/deleted.ts',
+      'packages/cli/src/real.ts',
+    ]);
+
+    expect(covered).toBe(true);
+  });
+
+  it('returns undefined when no tsc binary exists to resolve the config', () => {
+    const project = makeProject();
+    touch(nodePath.join(project, 'tsconfig.json'));
+
+    expect(
+      resolveConfigCoverage(project, nodePath.join(project, 'tsconfig.json'), ['src/foo.ts']),
+    ).toBeUndefined();
   });
 });
 

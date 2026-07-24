@@ -111,6 +111,9 @@ with two differences:
 ```
 
 - `capture` (default `true`) — record signals to the local spool.
-- `surface` (default `true`) — mention captured signals at the end of a turn.
+- `surface` (default `true`) — mention captured signals at the end of a turn. Each
+  distinct signature is mentioned **once per session**: a turn that captured
+  nothing new stays silent, because Stop context re-wakes the agent and an
+  unconditional mention would loop forever (issue #1163).
 - `file` (default `true`) — file them autonomously per this playbook. Set `false`
   to keep an install watch-only (capture + surface, no GitHub issues).

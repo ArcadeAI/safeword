@@ -5,6 +5,7 @@ import process from 'node:process';
 import { Command } from 'commander';
 
 import { installCliCrashCapture } from './self-report-capture.js';
+import { error } from './utils/output.js';
 import { VERSION } from './version.js';
 
 // Self-observation (issues #345 / #720): capture safeword's own genuine crashes
@@ -191,10 +192,18 @@ ticket
     '--parent <epicId>',
     'Link this ticket to an epic (sets parent: and appends to its children)',
   )
+  .option('--issue <key>', 'Adopt an existing tracker issue key as the ticket identity')
   .action(
     async (
       slug: string,
-      options: { type?: string; title?: string; goal?: string; why?: string; parent?: string },
+      options: {
+        type?: string;
+        title?: string;
+        goal?: string;
+        why?: string;
+        parent?: string;
+        issue?: string;
+      },
     ) => {
       const { ticketNew } = await import('./commands/ticket-new.js');
       await ticketNew(slug, options);
@@ -231,6 +240,14 @@ program
   .action(async (ticketId: string, options: { format?: string; red?: boolean; out?: string }) => {
     const { codify } = await import('./commands/codify.js');
     await codify(ticketId, options);
+  });
+
+program
+  .command('feature-directories', { hidden: true })
+  .description('Print executable feature directories for internal shell consumers')
+  .action(async () => {
+    const { featureDirectories } = await import('./commands/feature-directories.js');
+    featureDirectories(process.cwd());
   });
 
 const hook = program.command('hook').description('Run packaged Safe Word hooks');
@@ -344,5 +361,11 @@ if (process.argv.length === 2) {
   program.help();
 }
 
-// Parse arguments
-program.parse();
+// parseAsync lets async command failures consistently produce a non-zero exit
+// status under Bun and Node.
+try {
+  await program.parseAsync();
+} catch (parseError: unknown) {
+  error(parseError instanceof Error ? parseError.message : String(parseError));
+  process.exit(1);
+}

@@ -9,7 +9,7 @@ description: Verify ticket completion criteria — use when finishing a ticket,
 
 Prove a ticket meets its criteria. Works with or without an active ticket.
 
-**Reviewer class:** _class-2 — independent observation_ (PRINCIPLES.md §1): the test suite and parsers are the independent party, so no fresh-context or cross-model reviewer applies.
+**Reviewer class:** _class-2 — independent observation_: the test suite and parsers are the independent party, so no fresh-context or cross-model reviewer applies.
 
 ## Invocation log
 
