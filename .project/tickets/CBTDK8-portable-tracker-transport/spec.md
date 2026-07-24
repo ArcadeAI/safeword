@@ -127,6 +127,13 @@ and `buildPayload` (`payload.ts`) already compute the create/update/close decisi
   internal id `4764539863` — it's also numeric. So results carry both `number` and `url`, and
   `--apply-results` **rejects a result whose `url` path tail ≠ `number`**. The issue url is
   `.../issues/549`, so a mistaken internal id fails the tail check structurally.
+  - **`number` is authoritative** — GitHub's REST best practice is to read the `number` field, not
+    parse the html_url (verified 2026-07-24: docs.github.com/en/rest/issues/issues; the response
+    carries `id` = global id and `number` = repo issue number, and warns URL structure may change).
+    So the executor MUST populate `number` from the API's `number` field; the `url`-tail check is a
+    **fail-loud consistency cross-check**, not a way to derive identity. It is structure-dependent
+    by design: a future GitHub URL change would fail every result *loudly* (never silent map
+    corruption), which is the acceptable failure mode.
 - **Malformed** = invalid JSON / missing `ticketId`|`number` / `ticketId` not in the corpus /
   `url` tail ≠ `number` → rejected with an actionable error, the map left untouched.
 - **Results scope:** required for `create` intents (they mint identity); `update`/`close` act on a
