@@ -6,7 +6,7 @@ phase: done
 status: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/1096
 created: 2026-07-22T13:13:56.518Z
-last_modified: 2026-07-24T04:28:07Z
+last_modified: 2026-07-24T16:40:00Z
 ---
 
 # Keep stop-quality prompts scoped to edited-work turns
@@ -33,6 +33,8 @@ adapters.
 - [x] An explanatory follow-up after an earlier edited-work turn exits without a decision-brief continuation.
 - [x] An incomplete final response from a user turn that did edit still receives the existing quality continuation.
 - [x] A malformed transcript without a reliable user-turn boundary retains the conservative existing review behavior.
+- [x] Metadata and system-notification transcript records do not end the edited-work turn.
+- [x] A string-form genuine user prompt ends the edited-work turn.
 
 **Tests:**
 
@@ -50,8 +52,9 @@ brief even though the response is not a handoff.
 ## Decision Record
 
 **Decision:** Scan backward only to the most recent genuine user prompt, while
-ignoring `tool_result` messages; if that boundary cannot be recovered, keep the
-current bounded scan.
+ignoring `tool_result`, metadata, and system-notification messages. Normalize
+both array and string content before recognizing prompt text; if that boundary
+cannot be recovered, keep the current bounded scan.
 
 **Alternatives considered:** (1) use only the final assistant message — rejected
 because an edited turn's final prose normally contains no `tool_use`; (2) retain
@@ -73,3 +76,4 @@ disqualification precedence before the review decision.
 - 2026-07-22T13:23:14Z Implemented: added current-user-turn detection with a bounded legacy fallback; added three regression integrations. Targeted, focused, lint, and fast-smoke suites pass. Status remains in progress pending user acceptance; no commit was created in the shared dirty worktree.
 - 2026-07-23T07:25:48Z Review: completed `/audit`, `/quality-review`, and `/refactor`. The audit found no WSFBVS-attributable issue; the quality review approved the change after checking current primary tool-use docs and the real-hook integration. Extracted the duplicated edit-tool predicate, then reran lint, focused integration tests, full fast smoke, parity, and audit. Status remains in progress pending user acceptance.
 - 2026-07-24T04:28:07Z Accepted: user approved the verified change for commit.
+- 2026-07-24T16:40:00Z Review remediation: preserved the active #1392 branch; added real-envelope regressions for injected metadata, string-form prompts, and system reminders; normalized boundary content and excluded non-user records.

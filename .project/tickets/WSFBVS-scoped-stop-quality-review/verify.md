@@ -2,11 +2,11 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 18/18 tests pass (focused stop-hook integration); ✓ 1,253/1,253 fast-smoke tests pass
+**Test Suite:** ✓ 40/40 tests pass (focused stop-hook and done-gate integrations)
 **Gherkin:** ⏭️ Skipped — task ticket has no BDD scenarios
-**Build:** ✅ Success — the focused and smoke suites rebuilt the CLI with `tsup`
-**Lint:** ✅ Clean — `bun run lint` passed (ESLint, Gherkin lint, TypeScript)
-**Scenarios:** All 0 scenarios marked complete
+**Build:** ✅ Success — `tsc --noEmit` passed; CI will rebuild the package
+**Lint:** ✅ Clean — Prettier, ESLint, Gherkin lint, and TypeScript checks passed
+**Scenarios:** All 0 scenarios marked complete (task test definitions use an example table)
 **PR Scope:** ✅ WSFBVS hook, dogfood mirror, regression tests, and ticket artifacts match the task; unrelated pre-existing worktree changes are excluded
 **Dep Drift:** ✅ Clean — no dependency or architectural technology change
 **Parent Epic:** N/A
@@ -14,10 +14,9 @@
 **Experience:** ⏭️ N/A — internal hook behavior; the regression specifically removes a conversational interruption
 **Evidence limits:** ⚠️ Audit, quality-review, and verify proof helpers could not bind a current Codex run identity; this task ticket is not gated on feature proof
 
-Audit passed for WSFBVS scope. Existing repository-wide audit findings remain
-outside this ticket: nested-worktree dependency-cruiser warnings, stale Knip
-configuration hints, dependency freshness, and an SM/TB persona-code report
-despite matching aliases in `.project/personas.md`.
+Audit passed for the earlier WSFBVS scope. The amended boundary logic has no
+new dependencies, architecture changes, or template-dogfood drift; final CI
+is the full-suite confirmation for this review-remediation commit.
 
 ## Quality Review
 
@@ -25,12 +24,14 @@ despite matching aliases in `.project/personas.md`.
 **Sources:** ✓ Tool-use message semantics were checked against current Anthropic
 primary documentation.
 **Correct:** ✓ A genuine later user text prompt ends edit inheritance; a
-user-role tool result does not; malformed/no-boundary history preserves the
-bounded legacy review.
+user-role tool result, injected metadata, and system notification do not; a
+string-form prompt is normalized before recognition; malformed/no-boundary
+history preserves the bounded legacy review.
 **Elegant:** ✓ The shared edit-tool predicate now has one implementation.
-**No-bloat:** ✓ One small helper and three integration regressions.
-**Wiring:** ✓ `stop-quality-response.test.ts` runs the real dogfood hook through
-Bun with actual JSON stdin, a temporary project, and a JSONL transcript.
+**No-bloat:** ✓ One normalization helper, one prompt predicate, and three
+real-envelope integration regressions.
+**Wiring:** ✓ `stop-hook-transcript-format.test.ts` runs the real dogfood hook
+through Bun with actual JSON stdin, a temporary project, and JSONL transcripts.
 
 **Verdict:** APPROVE
 
