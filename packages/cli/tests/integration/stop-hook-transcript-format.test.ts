@@ -255,6 +255,36 @@ describe('Stop Hook: Frozen Transcript Format Compatibility', () => {
 });
 
 describe('Stop Hook: Ticket Resolution Context', () => {
+  it('skips the review prompt after a genuine user follow-up to an earlier edit', () => {
+    const transcriptPath = nodePath.join(state.projectDirectory, 'transcript.jsonl');
+    writeFileSync(
+      transcriptPath,
+      [
+        JSON.stringify({
+          type: 'assistant',
+          message: { role: 'assistant', content: [{ type: 'tool_use', name: 'Edit', id: 'edit-1' }] },
+        }),
+        JSON.stringify({
+          type: 'user',
+          message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'edit-1' }] },
+        }),
+        JSON.stringify({
+          type: 'user',
+          message: { role: 'user', content: [{ type: 'text', text: 'Explain that in plain English.' }] },
+        }),
+        JSON.stringify({
+          type: 'assistant',
+          message: { role: 'assistant', content: [{ type: 'text', text: 'It makes the hook quieter.' }] },
+        }),
+      ].join('\n'),
+    );
+
+    const result = runStopHook(state.projectDirectory, transcriptPath);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('');
+  });
+
   it('shows quality review when active ticket at implement phase', () => {
     createTicket(state.projectDirectory, '099', 'test', {
       phase: 'implement',
