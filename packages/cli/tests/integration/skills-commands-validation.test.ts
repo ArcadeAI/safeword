@@ -358,7 +358,7 @@ describe('Skills Validation (Claude Code Format)', () => {
       // File reference validation
       it('should have valid markdown file references in body', () => {
         if (!parsed?.body) {
-          return;
+          expect.fail('Shipped skill must have a body to validate its markdown links');
         }
 
         const brokenLinks = findBrokenMarkdownLinks(
@@ -428,7 +428,7 @@ describe('Commands Validation (Claude Code Format)', () => {
       it('should have description field for /help display', () => {
         // Safeword commands should have descriptions
         if (!parsed) {
-          return;
+          expect.fail('Shipped command must have valid frontmatter');
         }
 
         expect(
@@ -440,7 +440,7 @@ describe('Commands Validation (Claude Code Format)', () => {
 
       it('should have markdown body (not just frontmatter)', () => {
         if (!parsed) {
-          return;
+          expect.fail('Shipped command must have valid frontmatter, not just fail to parse');
         }
 
         expect(parsed.body, 'Command needs content after frontmatter').not.toBe('');
@@ -516,7 +516,7 @@ describe('Commands Validation (Claude Code Format)', () => {
       // File reference validation for commands
       it('should have valid markdown file references in body', () => {
         if (!parsed?.body) {
-          return;
+          expect.fail('Shipped command must have a body to validate its markdown links');
         }
 
         const brokenLinks = findBrokenMarkdownLinks(parsed.body, COMMANDS_DIR);
