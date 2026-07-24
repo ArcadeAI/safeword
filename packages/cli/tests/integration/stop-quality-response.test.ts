@@ -135,6 +135,85 @@ describe('Stop Hook: complete decision brief recognition (P0D33P)', () => {
     expect(output.reason).toContain('**Next:**');
   });
 
+  it('does not inherit an edit from before a later user follow-up', () => {
+    projectDirectory = buildProject();
+    writeTestFile(
+      projectDirectory,
+      'transcript.jsonl',
+      [
+        JSON.stringify({
+          type: 'assistant',
+          message: { content: [{ type: 'tool_use', name: 'Edit', id: 'toolu_1' }] },
+        }),
+        JSON.stringify({
+          type: 'user',
+          message: { content: [{ type: 'tool_result', tool_use_id: 'toolu_1' }] },
+        }),
+        JSON.stringify({
+          type: 'assistant',
+          message: { content: [{ type: 'text', text: 'The implementation is complete.' }] },
+        }),
+        JSON.stringify({
+          type: 'user',
+          message: { content: [{ type: 'text', text: 'Explain that in plain English.' }] },
+        }),
+        JSON.stringify({
+          type: 'assistant',
+          message: { content: [{ type: 'text', text: 'It makes the hook less noisy.' }] },
+        }),
+      ].join('\n'),
+    );
+
+    const result = runStop(projectDirectory, 'It makes the hook less noisy.');
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('');
+  });
+
+  it('keeps tool results inside the current edited-work turn', () => {
+    projectDirectory = buildProject();
+    writeTestFile(
+      projectDirectory,
+      'transcript.jsonl',
+      [
+        JSON.stringify({
+          type: 'user',
+          message: { content: [{ type: 'text', text: 'Update the hook.' }] },
+        }),
+        JSON.stringify({
+          type: 'assistant',
+          message: { content: [{ type: 'tool_use', name: 'Edit', id: 'toolu_1' }] },
+        }),
+        JSON.stringify({
+          type: 'user',
+          message: { content: [{ type: 'tool_result', tool_use_id: 'toolu_1' }] },
+        }),
+        JSON.stringify({
+          type: 'assistant',
+          message: { content: [{ type: 'text', text: 'The hook was updated.' }] },
+        }),
+      ].join('\n'),
+    );
+
+    const result = runStop(projectDirectory, INCOMPLETE_CONFIDENT);
+
+    expect(result.status).toBe(0);
+    const output = JSON.parse(result.stdout) as { decision?: string; reason?: string };
+    expect(output.decision).toBe('block');
+    expect(output.reason).toContain('**Next:**');
+  });
+
+  it('uses the bounded legacy scan when no user prompt boundary exists', () => {
+    projectDirectory = buildProject();
+
+    const result = runStop(projectDirectory, INCOMPLETE_CONFIDENT);
+
+    expect(result.status).toBe(0);
+    const output = JSON.parse(result.stdout) as { decision?: string; reason?: string };
+    expect(output.decision).toBe('block');
+    expect(output.reason).toContain('**Next:**');
+  });
+
   it('keeps the done-gate block ahead of a complete CONFIDENT brief', () => {
     projectDirectory = buildProject();
     writeDoneTicket(projectDirectory);
