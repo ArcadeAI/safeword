@@ -13,6 +13,8 @@
  * deterministic instead of leaning on an LLM judge.
  */
 
+import { execFileSync } from 'node:child_process';
+
 import type { Detection, RunOutput, SkillRunner } from './types';
 import { DEFECT_TYPES } from './types';
 
@@ -204,15 +206,81 @@ export function createOpenAIRunner(options: OpenAIRunnerOptions = {}): SkillRunn
   };
 }
 
+export interface HeadlessRunnerOptions {
+  /** Pin one model for reproducible scoring. */
+  model?: string;
+  /** `claude` binary; overridable for a shimmed/pinned install. */
+  claudeBin?: string;
+  /** Per-call wall clock — the agentic harness is slower than a bare call. */
+  timeoutMs?: number;
+}
+
+/**
+ * TIER-2 runner — drive the candidate skill through the REAL `claude -p` headless
+ * harness (full Claude Code system prompt + agentic model), not a bare Messages
+ * call. This is the honest ship gate the bare-model proxy can't be: it exposes the
+ * candidate to the large-context conditions (context rot / lost-in-the-middle) that
+ * only appear once the skill sits inside the full CC system prompt — exactly where
+ * a +124% monolith would degrade and a lean skill would not.
+ *
+ * Fidelity note: the skill is injected via `--append-system-prompt`, not loaded
+ * from `.claude/skills/`. That keeps the runner hermetic and symmetric with Tier-1
+ * (skill = system, feature = user turn) while still placing the candidate after the
+ * full CC system prompt — the context-rot surface we're testing. File tools are
+ * disallowed so the model reviews the inline feature instead of hunting a ticket on
+ * disk (the skill says "read the active ticket's .feature"; there is none here).
+ * Uses local Claude Code auth — no API key / op needed.
+ */
+export function createHeadlessClaudeRunner(options: HeadlessRunnerOptions = {}): SkillRunner {
+  const model = options.model ?? 'claude-sonnet-5';
+  const claudeBin = options.claudeBin ?? process.env.SAFEWORD_CLAUDE_BIN ?? 'claude';
+  const timeout = options.timeoutMs ?? 300_000;
+  return {
+    async run(skillPrompt, featureSource): Promise<RunOutput> {
+      const system = `${skillPrompt}\n${EVAL_OUTPUT_CONTRACT}`;
+      let raw: string;
+      try {
+        raw = execFileSync(
+          claudeBin,
+          [
+            '-p',
+            '--model',
+            model,
+            '--append-system-prompt',
+            system,
+            '--disallowedTools',
+            'Read,Edit,Write,Bash,Glob,Grep,WebFetch,WebSearch,Task,NotebookEdit',
+            '--permission-mode',
+            'bypassPermissions',
+            featureSource,
+          ],
+          { encoding: 'utf8', timeout, maxBuffer: 32 * 1024 * 1024 },
+        );
+      } catch (error) {
+        // Surface stdout/stderr the CLI captured before dying, so a truncation or
+        // auth failure never scores as a clean empty review.
+        const e = error as { message: string; stdout?: string; stderr?: string };
+        throw new Error(`claude -p failed: ${e.message}${e.stderr ? ` — ${e.stderr}` : ''}`);
+      }
+      return { detections: parseDetections(raw), raw };
+    },
+  };
+}
+
 /**
  * Pick the runner from the environment so one harness grades either vendor.
- * `SAFEWORD_EVAL_VENDOR=openai` grades on production's codex engine; anything else
- * (the default) stays on Anthropic. Model overrides are per-vendor
- * (`SAFEWORD_EVAL_MODEL` / `SAFEWORD_EVAL_OPENAI_MODEL`) so they never collide.
+ * `SAFEWORD_EVAL_VENDOR=openai` grades on production's codex engine;
+ * `claude-headless` grades through the real `claude -p` harness (Tier-2); anything
+ * else (the default) stays on the bare Anthropic API (Tier-1). Model overrides are
+ * per-vendor (`SAFEWORD_EVAL_MODEL` / `SAFEWORD_EVAL_OPENAI_MODEL`) so they never collide.
  */
 export function createRunnerFromEnv(): SkillRunner {
   const effort = process.env.SAFEWORD_EVAL_EFFORT;
-  return process.env.SAFEWORD_EVAL_VENDOR === 'openai'
+  const vendor = process.env.SAFEWORD_EVAL_VENDOR;
+  if (vendor === 'claude-headless') {
+    return createHeadlessClaudeRunner({ model: process.env.SAFEWORD_EVAL_MODEL });
+  }
+  return vendor === 'openai'
     ? createOpenAIRunner({ model: process.env.SAFEWORD_EVAL_OPENAI_MODEL, effort })
     : createAnthropicRunner({ model: process.env.SAFEWORD_EVAL_MODEL, effort });
 }
