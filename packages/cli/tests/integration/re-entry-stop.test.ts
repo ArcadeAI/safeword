@@ -125,7 +125,7 @@ describe('stop-reentry hook — Rule 1: records intent when present', () => {
     // Timestamp must be the wall clock at write time (ISO-8601, within a 1s tolerance).
     // Split-and-parse rather than one big regex — the chained-bounded-quantifier
     // form trips the unsafe-regex linter false-positive even though it's safe.
-    const [timestamp] = line.split(' ');
+    const [timestamp] = line.split(' ', 1);
     if (timestamp === undefined || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(timestamp)) {
       throw new Error(`Log line missing ISO-8601 timestamp prefix: ${line}`);
     }
