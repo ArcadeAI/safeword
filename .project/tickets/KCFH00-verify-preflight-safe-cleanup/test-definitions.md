@@ -12,6 +12,6 @@ Then each surface contains `find "$GIT_PROBE_DIR" -depth -delete`
 And none contains `rm -rf "$GIT_PROBE_DIR"`
 And the generated Codex plugin remains in catalogue parity with the canonical template
 
-- [x] RED (uncommitted: four shipped surfaces failed the cleanup contract)
-- [x] GREEN (62/62 verify-skill tests and 8/8 Codex catalogue release tests)
-- [x] REFACTOR skip: one narrow cleanup contract with no shared fixture or duplication to extract
+- [x] RED skip: expected failure was demonstrated before creating the green commit
+- [x] GREEN 7a050ae38
+- [x] REFACTOR skip: no refactoring was needed for the narrow cleanup contract
