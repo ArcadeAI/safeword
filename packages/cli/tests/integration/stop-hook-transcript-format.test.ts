@@ -78,6 +78,12 @@ function createTranscript(directory: string): string {
   return transcriptPath;
 }
 
+function writeTranscript(directory: string, entries: unknown[]): string {
+  const transcriptPath = nodePath.join(directory, 'transcript.jsonl');
+  writeFileSync(transcriptPath, entries.map(entry => JSON.stringify(entry)).join('\n'));
+  return transcriptPath;
+}
+
 function createTicket(
   directory: string,
   id: string,
@@ -200,6 +206,64 @@ describe('Stop Hook: Done-gate fires without recent edit tools (AP3FGJ)', () => 
 
     expect(result.status).toBe(0);
     expect(result.stdout.trim()).toBe('');
+  });
+});
+
+describe('Stop Hook: current user turn edit detection (#1096)', () => {
+  it('does not inherit an edit from before a later user follow-up', () => {
+    const transcriptPath = writeTranscript(state.projectDirectory, [
+      {
+        type: 'assistant',
+        message: { content: [{ type: 'tool_use', name: 'Edit', id: 'toolu_1' }] },
+      },
+      {
+        type: 'user',
+        message: { content: [{ type: 'tool_result', tool_use_id: 'toolu_1' }] },
+      },
+      { type: 'assistant', message: { content: [{ type: 'text', text: 'Updated it.' }] } },
+      {
+        type: 'user',
+        message: { content: [{ type: 'text', text: 'Explain that in plain English.' }] },
+      },
+      {
+        type: 'assistant',
+        message: { content: [{ type: 'text', text: 'It makes the hook less noisy.' }] },
+      },
+    ]);
+
+    const result = runStopHook(state.projectDirectory, transcriptPath);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('');
+  });
+
+  it('keeps tool results inside the current edited-work turn', () => {
+    const transcriptPath = writeTranscript(state.projectDirectory, [
+      { type: 'user', message: { content: [{ type: 'text', text: 'Update the hook.' }] } },
+      {
+        type: 'assistant',
+        message: { content: [{ type: 'tool_use', name: 'Edit', id: 'toolu_1' }] },
+      },
+      {
+        type: 'user',
+        message: { content: [{ type: 'tool_result', tool_use_id: 'toolu_1' }] },
+      },
+      { type: 'assistant', message: { content: [{ type: 'text', text: 'Updated it.' }] } },
+    ]);
+
+    const result = runStopHook(state.projectDirectory, transcriptPath);
+
+    expect(result.status).toBe(0);
+    const parsed = JSON.parse(result.stdout.trim()) as { decision?: string };
+    expect(parsed.decision).toBe('block');
+  });
+
+  it('uses the bounded legacy scan when no user prompt boundary exists', () => {
+    const result = runStopHook(state.projectDirectory, createTranscript(state.projectDirectory));
+
+    expect(result.status).toBe(0);
+    const parsed = JSON.parse(result.stdout.trim()) as { decision?: string };
+    expect(parsed.decision).toBe('block');
   });
 });
 

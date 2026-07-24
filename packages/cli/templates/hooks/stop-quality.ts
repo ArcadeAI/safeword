@@ -363,9 +363,13 @@ checkCumulativeArtifacts(ticketInfo);
 checkImplPlanArtifact(ticketInfo);
 checkArchitectureReviewGate(ticketInfo);
 
-// No edit tools used → skip the review path (a conversational response has
-// nothing to review). The done phase is the exception: fall through to its gate.
-if (!detectEditToolsUsed(lines) && currentPhase !== 'done') {
+// No edit tools used in the current user turn → skip the review path (a
+// conversational follow-up has nothing to review). If the transcript cannot
+// recover that turn boundary, retain the prior bounded scan. The done phase is
+// the exception: fall through to its gate.
+const editsInCurrentTurn = detectEditToolsUsedInCurrentUserTurn(lines);
+const editsToReview = editsInCurrentTurn ?? detectEditToolsUsed(lines);
+if (!editsToReview && currentPhase !== 'done') {
   process.exit(0);
 }
 
@@ -409,15 +413,46 @@ function detectEditToolsUsed(transcriptLines: string[]): boolean {
       const message: TranscriptMessage = JSON.parse(transcriptLines[i]);
       if (message.type === 'assistant' && message.message?.content) {
         checked++;
-        for (const item of message.message.content) {
-          if (item.type === 'tool_use' && item.name && EDIT_TOOLS.has(item.name)) return true;
-        }
+        if (containsEditToolUse(message.message.content)) return true;
       }
     } catch {
       // Skip invalid JSON lines
     }
   }
   return false;
+}
+
+/**
+ * Stop at a genuine human prompt, but not at the user-role tool-result message
+ * Claude emits while completing that same turn. Returns undefined when the
+ * bounded scan cannot find a reliable prompt boundary, so callers preserve the
+ * existing fail-closed behavior.
+ */
+function detectEditToolsUsedInCurrentUserTurn(transcriptLines: string[]): boolean | undefined {
+  let checked = 0;
+  for (let i = transcriptLines.length - 1; i >= 0 && checked < MAX_MESSAGES_FOR_TOOLS; i--) {
+    try {
+      const message: TranscriptMessage = JSON.parse(transcriptLines[i]);
+      const content = message.message?.content ?? [];
+      if (
+        message.type === 'user' &&
+        content.some(item => item.type === 'text' && item.text?.trim().length)
+      ) {
+        return false;
+      }
+      if (message.type === 'assistant' && message.message?.content) {
+        checked++;
+        if (containsEditToolUse(message.message.content)) return true;
+      }
+    } catch {
+      // Skip invalid JSON lines and preserve the legacy bounded scan if no prompt is found.
+    }
+  }
+  return undefined;
+}
+
+function containsEditToolUse(content: ContentItem[]): boolean {
+  return content.some(item => item.type === 'tool_use' && item.name && EDIT_TOOLS.has(item.name));
 }
 
 /**
