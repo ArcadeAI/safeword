@@ -61,15 +61,17 @@ interface ContentItem {
 
 interface TranscriptMessage {
   type: string; // "assistant" | "user" | etc at top level
+  isMeta?: boolean;
   message?: {
     role?: string;
-    content?: ContentItem[];
+    content?: ContentItem[] | string;
   };
 }
 
 const EDIT_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 /** How many recent assistant messages to scan for edit tool usage. */
 const MAX_MESSAGES_FOR_TOOLS = 5;
+const TRANSCRIPT_SYSTEM_MESSAGE_PATTERN = /^\s*<(?:system-reminder|task-notification)\b/i;
 
 /** Evidence patterns for done-phase validation (matched against Claude's last message text). */
 const TEST_EVIDENCE_PATTERN = /\d+\/\d+\s*tests?\s*pass/i; // "156/156 tests pass" or "✓ 156/156 tests pass"
@@ -363,9 +365,13 @@ checkCumulativeArtifacts(ticketInfo);
 checkImplPlanArtifact(ticketInfo);
 checkArchitectureReviewGate(ticketInfo);
 
-// No edit tools used → skip the review path (a conversational response has
-// nothing to review). The done phase is the exception: fall through to its gate.
-if (!detectEditToolsUsed(lines) && currentPhase !== 'done') {
+// No edit tools used in the current user turn → skip the review path (a
+// conversational follow-up has nothing to review). If the transcript cannot
+// recover that turn boundary, retain the prior bounded scan. The done phase is
+// the exception: fall through to its gate.
+const editsInCurrentTurn = detectEditToolsUsedInCurrentUserTurn(lines);
+const editsToReview = editsInCurrentTurn ?? detectEditToolsUsed(lines);
+if (!editsToReview && currentPhase !== 'done') {
   process.exit(0);
 }
 
@@ -379,7 +385,7 @@ function checkUsageLimit(transcriptLines: string[]): void {
     const lastLine = transcriptLines[transcriptLines.length - 1] ?? '';
     const lastMessage: TranscriptMessage = JSON.parse(lastLine);
     const textContent =
-      lastMessage.message?.content
+      normalizeContentItems(lastMessage.message?.content)
         ?.filter(
           (item): item is ContentItem & { text: string } => item.type === 'text' && !!item.text,
         )
@@ -407,17 +413,61 @@ function detectEditToolsUsed(transcriptLines: string[]): boolean {
   for (let i = transcriptLines.length - 1; i >= 0 && checked < MAX_MESSAGES_FOR_TOOLS; i--) {
     try {
       const message: TranscriptMessage = JSON.parse(transcriptLines[i]);
-      if (message.type === 'assistant' && message.message?.content) {
+      if (message.type === 'assistant' && message.message?.content !== undefined) {
         checked++;
-        for (const item of message.message.content) {
-          if (item.type === 'tool_use' && item.name && EDIT_TOOLS.has(item.name)) return true;
-        }
+        if (containsEditToolUse(normalizeContentItems(message.message.content))) return true;
       }
     } catch {
       // Skip invalid JSON lines
     }
   }
   return false;
+}
+
+/**
+ * Stop at a genuine human prompt, but not at the user-role tool-result message
+ * Claude emits while completing that same turn. Returns undefined when the
+ * bounded scan cannot find a reliable prompt boundary, so callers preserve the
+ * existing fail-closed behavior.
+ */
+function detectEditToolsUsedInCurrentUserTurn(transcriptLines: string[]): boolean | undefined {
+  let checked = 0;
+  for (let i = transcriptLines.length - 1; i >= 0 && checked < MAX_MESSAGES_FOR_TOOLS; i--) {
+    try {
+      const message: TranscriptMessage = JSON.parse(transcriptLines[i]);
+      if (isGenuineUserPrompt(message)) {
+        return false;
+      }
+      if (message.type === 'assistant' && message.message?.content !== undefined) {
+        checked++;
+        if (containsEditToolUse(normalizeContentItems(message.message.content))) return true;
+      }
+    } catch {
+      // Skip invalid JSON lines and preserve the legacy bounded scan if no prompt is found.
+    }
+  }
+  return undefined;
+}
+
+function normalizeContentItems(content: ContentItem[] | string | undefined): ContentItem[] {
+  if (typeof content === 'string') return [{ type: 'text', text: content }];
+  return Array.isArray(content) ? content : [];
+}
+
+function isGenuineUserPrompt(message: TranscriptMessage): boolean {
+  if (message.type !== 'user' || message.isMeta) return false;
+
+  const text = normalizeContentItems(message.message?.content)
+    .filter((item): item is ContentItem & { text: string } => item.type === 'text' && !!item.text)
+    .map(item => item.text)
+    .join('\n')
+    .trim();
+
+  return text.length > 0 && !TRANSCRIPT_SYSTEM_MESSAGE_PATTERN.test(text);
+}
+
+function containsEditToolUse(content: ContentItem[]): boolean {
+  return content.some(item => item.type === 'tool_use' && item.name && EDIT_TOOLS.has(item.name));
 }
 
 /**
