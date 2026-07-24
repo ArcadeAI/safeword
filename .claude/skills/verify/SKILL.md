@@ -78,11 +78,11 @@ cd "$PROJECT_DIR" || exit 1
 # fail for environment reasons instead of product reasons.
 LOCAL_EVIDENCE_LIMITS=""
 if GIT_PROBE_DIR="$(mktemp -d 2> /dev/null)" && git init "$GIT_PROBE_DIR" > /dev/null 2>&1; then
-  rm -rf "$GIT_PROBE_DIR"
+  find "$GIT_PROBE_DIR" -depth -delete
 else
   LOCAL_EVIDENCE_LIMITS="${LOCAL_EVIDENCE_LIMITS}
 - Temporary git repos: local environment cannot run git init in temp dirs. Treat git-backed test failures as local environment limitations until reproduced outside the sandbox or in CI."
-  [ -n "${GIT_PROBE_DIR:-}" ] && rm -rf "$GIT_PROBE_DIR"
+  [ -d "${GIT_PROBE_DIR:-}" ] && find "$GIT_PROBE_DIR" -depth -delete
 fi
 if [ -n "$LOCAL_EVIDENCE_LIMITS" ]; then
   printf '%s\n' "Local evidence limits detected:${LOCAL_EVIDENCE_LIMITS}"
