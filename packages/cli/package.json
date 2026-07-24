@@ -76,7 +76,7 @@
     "commander": "15.0.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-import-resolver-typescript": "^4.4.5",
-    "eslint-plugin-astro": "~2.1.1",
+    "eslint-plugin-astro": "~3.0.1",
     "eslint-plugin-better-tailwindcss": "4.6.1",
     "eslint-plugin-import-x": "^4.17.1",
     "eslint-plugin-jsdoc": "^63.0.13",
