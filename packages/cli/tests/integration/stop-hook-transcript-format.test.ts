@@ -262,7 +262,10 @@ describe('Stop Hook: Ticket Resolution Context', () => {
       [
         JSON.stringify({
           type: 'assistant',
-          message: { role: 'assistant', content: [{ type: 'tool_use', name: 'Edit', id: 'edit-1' }] },
+          message: {
+            role: 'assistant',
+            content: [{ type: 'tool_use', name: 'Edit', id: 'edit-1' }],
+          },
         }),
         JSON.stringify({
           type: 'user',
@@ -270,11 +273,17 @@ describe('Stop Hook: Ticket Resolution Context', () => {
         }),
         JSON.stringify({
           type: 'user',
-          message: { role: 'user', content: [{ type: 'text', text: 'Explain that in plain English.' }] },
+          message: {
+            role: 'user',
+            content: [{ type: 'text', text: 'Explain that in plain English.' }],
+          },
         }),
         JSON.stringify({
           type: 'assistant',
-          message: { role: 'assistant', content: [{ type: 'text', text: 'It makes the hook quieter.' }] },
+          message: {
+            role: 'assistant',
+            content: [{ type: 'text', text: 'It makes the hook quieter.' }],
+          },
         }),
       ].join('\n'),
     );
