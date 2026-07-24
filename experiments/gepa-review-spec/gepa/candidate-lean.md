@@ -11,7 +11,7 @@ Adversarially review a ticket's scenarios: treat them as if you're trying to bre
 - **Auto-fire** — the bdd flow invokes this on entering the `scenario-gate` phase.
 - **Manual re-run** — invoke `/review-spec` anytime after `define-behavior` (e.g., scenarios changed during implement and you want to re-validate). Allowed on a closed ticket too — a post-hoc audit is still readable.
 
-Read the active ticket's `.feature` source first; use `test-definitions.md` only as the R/G/R ledger and as a legacy scenario fallback when no feature source exists. Run every check below against the scenarios, and present findings in the **Findings format** at the end. **Review every scenario on its own merits** — a fixture can hold multiple independent defects on different scenarios, and finding one never lowers the bar for the rest; report EACH. (Not a `spec.md` framing review — JTBD/criteria/persona checks live in `self-review`.)
+Read the active ticket's `.feature` source first; use `test-definitions.md` only as the R/G/R ledger and as a legacy scenario fallback when no feature source exists. test-definitions.md is the R/G/R ledger. Run every check below against the scenarios, and present findings in the **Findings format** at the end. **Review every scenario on its own merits** — a fixture can hold multiple independent defects on different scenarios, and finding one never lowers the bar for the rest; report EACH. (Not a `spec.md` framing review — JTBD/criteria/persona checks live in `self-review`.)
 
 ## Vacuous-pass test
 
