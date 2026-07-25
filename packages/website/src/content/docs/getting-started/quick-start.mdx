@@ -39,7 +39,7 @@ You use Claude Code, Cursor, or Codex the same way you always have. Type a promp
 
     **PreToolUse gates run through the plugin.** Run `safeword codex install` to install and verify the profile-scoped plugin, start a new Codex session to load it, then review and trust it in Codex. Its hooks use version-pinned Bunx commands. Safeword guards the documented Codex PreToolUse paths it configures: `Bash`, `apply_patch` edit payloads, and file-editing tools.
 
-    **Stop nudges run through Codex continuations.** The packaged `safeword hook codex stop` entrypoint can continue the turn with advisory text after the agent stops. That is how done-phase reminders such as ARCHITECTURE.md drift nudges reach Codex; it is not hard done-gate enforcement.
+    **Stop completion and nudges run through Codex continuations.** The packaged `safeword hook codex stop` entrypoint checks shared evidence for the session-bound, in-progress done-phase ticket and marks it done only when that evidence passes. It otherwise continues the turn with exact remediation or advisory text such as an ARCHITECTURE.md drift nudge; it never stages, commits, or opens a PR.
 
   </TabItem>
 </Tabs>
@@ -79,7 +79,7 @@ Open your project and ask your agent to build something real:
     4. Before supported edits, Codex runs the plugin's version-pinned Bunx PreToolUse hook
     5. After trust, run `safeword codex migrate --remove-legacy-hooks` to remove only Safe Word-owned legacy hooks
     6. If a safeword gate blocks the edit, your agent gets the denial before changing files
-    7. When the agent stops, Codex runs the plugin's Bunx Stop hook for continuation nudges such as ARCHITECTURE.md drift reminders
+    7. When the agent stops, Codex runs the plugin's Bunx Stop hook to complete verified session-bound done-phase tickets or surface remediation and advisories such as ARCHITECTURE.md drift
 
   </TabItem>
 </Tabs>
