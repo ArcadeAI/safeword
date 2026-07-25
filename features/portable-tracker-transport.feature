@@ -109,7 +109,8 @@ Feature: Environment-portable tracker transport
         | not valid JSON                                               |
         | absent from disk                                             |
         | declaring an unsupported contract version                    |
-        | missing an issue number                                      |
+        | a create result missing an issue number                      |
+        | a create result missing the issue url                        |
         | reporting number 4764539863 for an issue whose url ends /549 |
         | naming a ticket absent from the corpus                       |
 

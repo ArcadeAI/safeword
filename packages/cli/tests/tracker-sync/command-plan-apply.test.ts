@@ -107,4 +107,16 @@ describe('sync-tracker --plan / --apply-results command wiring', () => {
     expect(process.exitCode).toBe(1);
     expect(stdout.join('')).toBe(''); // no plan emitted
   });
+
+  it('never emits a credential in the plan, even when one is in the environment', async () => {
+    const previous = process.env.GITHUB_TOKEN;
+    process.env.GITHUB_TOKEN = 'sw-sentinel-token-xyz';
+    try {
+      await syncTrackerCommand({ plan: true });
+      expect(stdout.join('')).not.toContain('sw-sentinel-token-xyz');
+    } finally {
+      if (previous === undefined) delete process.env.GITHUB_TOKEN;
+      else process.env.GITHUB_TOKEN = previous;
+    }
+  });
 });
