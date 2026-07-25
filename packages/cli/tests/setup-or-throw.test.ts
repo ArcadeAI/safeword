@@ -9,14 +9,18 @@
  * by injecting a scripted runner (no real subprocess, no real timeout).
  */
 
-import { execFileSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   createTemporaryDirectory,
+  createTypeScriptPackageJson,
+  initGitRepo,
   removeTemporaryDirectory,
   setupOrThrow,
+  TIMEOUT_SETUP,
   wasKilledByTimeout,
 } from './helpers';
 
@@ -87,32 +91,22 @@ describe('setupOrThrow retry policy', () => {
     expect(calls[1]?.env).toMatchObject({ SAFEWORD_SKIP_INSTALL: '' });
   });
 
-  it('links the local safeword package for a skipped-install fixture', async () => {
-    const directory = createTemporaryDirectory();
-    const runner = (() =>
-      Promise.resolve({ stdout: '', stderr: '', exitCode: 0, timedOut: false })) as SetupRunner;
+  it(
+    'keeps a real skipped-install setup fixture free of node_modules',
+    async () => {
+      const directory = createTemporaryDirectory();
+      createTypeScriptPackageJson(directory);
+      initGitRepo(directory);
 
-    try {
-      await setupOrThrow(directory, ['setup'], {}, runner);
-
-      expect(() =>
-        execFileSync(
-          process.execPath,
-          [
-            '--input-type=module',
-            '--eval',
-            "await Promise.all([import('safeword'), import('eslint')])",
-          ],
-          {
-            cwd: directory,
-            stdio: 'pipe',
-          },
-        ),
-      ).not.toThrow();
-    } finally {
-      removeTemporaryDirectory(directory);
-    }
-  });
+      try {
+        await setupOrThrow(directory);
+        expect(existsSync(nodePath.join(directory, 'node_modules'))).toBe(false);
+      } finally {
+        removeTemporaryDirectory(directory);
+      }
+    },
+    TIMEOUT_SETUP,
+  );
 
   it('retries once on a timeout, then returns the succeeding result', async () => {
     const stderrSpy = vi.spyOn(process.stderr, 'write').mockReturnValue(true);

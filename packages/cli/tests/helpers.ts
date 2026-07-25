@@ -7,7 +7,6 @@ import {
   readFileSync,
   rmSync,
   statSync,
-  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -73,45 +72,10 @@ export const SKIP_INSTALL_ENV = {
   SAFEWORD_SKIP_INSTALL: '1',
 };
 
-/**
- * A skipped-install fixture still needs the CLI package and its already-installed
- * test tools when it runs generated configs or package scripts (for example
- * test:bdd). Link its installed dependency entries, package self-link, and
- * executables separately rather than symlinking the whole module directory:
- * the CLI package is not installed inside its own node_modules directory. This
- * keeps default tests offline and hermetic.
- */
-function linkFixtureDependencies(projectDirectory: string): void {
-  const fixtureModules = nodePath.join(projectDirectory, 'node_modules');
-  const testModules = nodePath.join(SAFEWORD_PATH, 'node_modules');
-  if (!existsSync(projectDirectory) || existsSync(fixtureModules) || !existsSync(testModules)) {
-    return;
-  }
-
-  mkdirSync(fixtureModules, { recursive: true });
-  for (const entry of readdirSync(testModules)) {
-    if (entry === '.bin') {
-      continue;
-    }
-    const source = nodePath.join(testModules, entry);
-    symlinkSync(
-      source,
-      nodePath.join(fixtureModules, entry),
-      statSync(source).isDirectory() ? 'dir' : 'file',
-    );
-  }
-  symlinkSync(SAFEWORD_PATH, nodePath.join(fixtureModules, 'safeword'), 'dir');
-  symlinkSync(nodePath.join(testModules, '.bin'), nodePath.join(fixtureModules, '.bin'), 'dir');
-}
-
-function linkSkippedInstallFixtureDependencies(
-  projectDirectory: string,
-  environment: Record<string, string> | undefined,
-): void {
-  if (environment?.SAFEWORD_SKIP_INSTALL ?? SKIP_INSTALL_ENV.SAFEWORD_SKIP_INSTALL) {
-    linkFixtureDependencies(projectDirectory);
-  }
-}
+/** Explicit opt-in for fixtures that execute generated package tooling. */
+export const INSTALL_DEPENDENCIES_ENV = {
+  SAFEWORD_SKIP_INSTALL: '',
+};
 
 /**
  * Skip ONLY the skills pull (`npx skills add`) while still installing JS/Python
@@ -705,7 +669,6 @@ export async function setupOrThrow(
       env: { ...SKIP_INSTALL_ENV, ...cliOptions.env },
     });
     if (result.exitCode === 0) {
-      linkSkippedInstallFixtureDependencies(projectDirectory, cliOptions.env);
       return result;
     }
     lastResult = result;

@@ -20,6 +20,7 @@ import {
   createTypeScriptPackageJson,
   fileExists,
   initGitRepo,
+  INSTALL_DEPENDENCIES_ENV,
   isRuffInstalled,
   readSafewordConfig,
   readTestFile,
@@ -39,7 +40,7 @@ describe('E2E: Add Language to Existing Project', () => {
     createTypeScriptPackageJson(projectDirectory);
     initGitRepo(projectDirectory);
     // Initial setup with TypeScript only
-    await setupOrThrow(projectDirectory, ['setup']);
+    await setupOrThrow(projectDirectory, ['setup'], { env: INSTALL_DEPENDENCIES_ENV });
   });
 
   afterAll(() => {

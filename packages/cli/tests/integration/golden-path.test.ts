@@ -21,6 +21,7 @@ import {
   createTypeScriptPackageJson,
   fileExists,
   initGitRepo,
+  INSTALL_DEPENDENCIES_ENV,
   readTestFile,
   removeTemporaryDirectory,
   runCli,
@@ -48,7 +49,7 @@ describe('E2E: Golden Path', () => {
     projectDirectory = createTemporaryDirectory();
     createTypeScriptPackageJson(projectDirectory);
     initGitRepo(projectDirectory);
-    await setupOrThrow(projectDirectory);
+    await setupOrThrow(projectDirectory, ['setup', '--yes'], { env: INSTALL_DEPENDENCIES_ENV });
   });
 
   afterAll(() => {
@@ -213,7 +214,7 @@ describe('E2E: TypeScript Setup Idempotency', () => {
     createTypeScriptPackageJson(projectDirectory);
     initGitRepo(projectDirectory);
     // Run setup TWICE
-    await setupOrThrow(projectDirectory);
+    await setupOrThrow(projectDirectory, ['setup', '--yes'], { env: INSTALL_DEPENDENCIES_ENV });
     // Second call intentionally allowed to fail with "Already configured" exit 1 —
     // we verify file state survives an accidental re-run, not that setup is idempotent.
     await runCli(['setup', '--yes'], { cwd: projectDirectory });
@@ -280,7 +281,7 @@ describe('E2E: TypeScript Lint Hook Fallback', () => {
     projectDirectory = createTemporaryDirectory();
     createTypeScriptPackageJson(projectDirectory);
     initGitRepo(projectDirectory);
-    await setupOrThrow(projectDirectory);
+    await setupOrThrow(projectDirectory, ['setup', '--yes'], { env: INSTALL_DEPENDENCIES_ENV });
 
     // Delete .safeword/eslint.config.mjs AFTER setup to test fallback path
     const eslintConfig = nodePath.join(projectDirectory, '.safeword/eslint.config.mjs');

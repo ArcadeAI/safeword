@@ -13,6 +13,7 @@ import {
   createGoProject,
   createTemporaryDirectory,
   createTypeScriptPackageJson,
+  INSTALL_DEPENDENCIES_ENV,
   removeTemporaryDirectory,
   setupOrThrow,
   SKIP_SKILLS_ENV,
@@ -81,11 +82,13 @@ describe('scaffolded lane runs green (AC3)', () => {
   beforeAll(async () => {
     tsDirectory = createTemporaryDirectory();
     createTypeScriptPackageJson(tsDirectory);
-    await setupOrThrow(tsDirectory);
+    await setupOrThrow(tsDirectory, ['setup', '--yes'], { env: INSTALL_DEPENDENCIES_ENV });
 
     goDirectory = createTemporaryDirectory();
     createGoProject(goDirectory);
-    await setupOrThrow(goDirectory, ['setup', '--yes'], { env: SKIP_SKILLS_ENV });
+    await setupOrThrow(goDirectory, ['setup', '--yes'], {
+      env: { ...SKIP_SKILLS_ENV, ...INSTALL_DEPENDENCIES_ENV },
+    });
     // ×3 (was ×2): two sequential setups, each of which setupOrThrow may retry
     // once on a contention timeout (issue #419). ×3 contains one retry plus the
     // other setup running normally; a both-retry hang is real and fails here.

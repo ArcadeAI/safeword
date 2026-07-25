@@ -20,11 +20,11 @@
 - [x] GREEN 4d6792e6a
 - [x] REFACTOR skip: dependency linking stays localized to the setup test helper.
 
-### Scenario: A skipped-install fixture resolves generated-config imports
+### Scenario: A skipped-install fixture does not share mutable dependencies
 
-- [x] RED skip: `setup-or-throw.test.ts` could not import `safeword` from a skipped-install fixture because the whole `node_modules` symlink omitted the package self-link.
-- [x] GREEN 8ce09c281
-- [x] REFACTOR skip: the setup helper remains the sole linking seam.
+- [x] RED skip: the initial whole-`node_modules` link omitted Safeword itself; the attempted entry-by-entry link then exposed mutable source dependencies to fixture upgrades.
+- [ ] GREEN: a real skipped-install setup fixture has no `node_modules`; suites that execute generated tooling explicitly opt into installation.
+- [ ] REFACTOR: remove shared dependency linking from the setup helper.
 
 ---
 

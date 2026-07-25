@@ -17,6 +17,7 @@ last_modified: 2026-07-25T16:30:00Z
 
 ## Work Log
 
+- 2026-07-25T18:15:00Z Corrected: Removed the shared fixture dependency links after CI showed broad missing-peer failures. Default skipped-install fixtures now remain dependency-free; only integration suites that execute generated tooling explicitly opt into installation. Added a real-subprocess guard that default setup leaves no `node_modules`. Clean-CI verification pending because this worktree retains the earlier run's damaged Cucumber dependency link.
 - 2026-07-25T16:30:00Z Fixed: CI showed that symlinking a skipped-install fixture's entire `node_modules` exposed package dependencies and binaries but not Safeword itself, because a package is not installed inside its own dependency directory. The fixture now links dependency entries, the local `safeword` package, and `.bin` separately. A regression test imports both `safeword` and `eslint` from the fixture. Ruled out: a host-toolchain failure (the failing config could not resolve its first import); a registry/network failure (the default setup had correctly skipped installation).
 - 2026-07-25T15:53:30Z Improved: Recorded the three R/G/R loops with durable commit or skip evidence so the ticket ledger passes the boundary gate.
 - 2026-07-25T15:51:00Z Fixed: CI exposed that skipped-install fixtures could not run generated BDD scripts. Successful skipped-install setup now links the CLI package's already-installed test dependencies, preserving offline fixture setup.
