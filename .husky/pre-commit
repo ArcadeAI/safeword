@@ -54,6 +54,32 @@ fi
 # explicit path has no PATH dependency.
 node_modules/.bin/lint-staged
 
+# Template->mirror auto-heal (#768/#1146): lint-staged's `prettier --write` above
+# reformats packages/cli/templates/** but NOT the .claude/.agents/.safeword/.cursor
+# mirrors (they are prettier-ignored), silently desyncing the pair. Re-sync the
+# mirrors from the just-formatted templates and stage them — the same
+# auto-fix-and-restage model lint-staged already uses for eslint/prettier. Only
+# runs when a template is staged; parity:fix touches schema-registered pairs
+# only (repo-local skills like versioning have no template and are untouched).
+# Bypassable with --no-verify.
+PARITY_MIRROR_DIRS=".claude .agents .cursor .safeword packages/cli/codex-plugin"
+if git diff --cached --name-only | grep -q '^packages/cli/templates/'; then
+  if [ -n "$(git diff --name-only -- $PARITY_MIRROR_DIRS)" ]; then
+    # Pre-existing UNSTAGED mirror edits: auto-staging could sweep them into this
+    # commit. Skip the auto-sync and tell the committer to resolve it explicitly.
+    echo "pre-commit: unstaged mirror changes present — skipping parity auto-sync." >&2
+    echo "  Run \`bun scripts/parity-check.ts --fix\` and stage the result if a pair drifted." >&2
+  else
+    bun scripts/parity-check.ts --fix > /dev/null 2>&1 || true
+    PARITY_HEALED=$(git diff --name-only -- $PARITY_MIRROR_DIRS)
+    if [ -n "$PARITY_HEALED" ]; then
+      echo "→ parity: re-synced mirror(s) from templates —"
+      echo "$PARITY_HEALED" | sed 's/^/    /'
+      git add -- $PARITY_MIRROR_DIRS
+    fi
+  fi
+fi
+
 # Boundary reconciliation gate (CDRJTW, #810 slice 1): warn-and-record over
 # staged ticket artifacts. Exits 0 by contract — `|| true` is belt-and-braces
 # so a broken bun/CLI can never block a commit.
