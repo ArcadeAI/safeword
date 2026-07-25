@@ -10,27 +10,27 @@ real `sync-tracker` command for the `--plan`/`--apply-results` flags (no live tr
 
 ### Scenario: A never-synced ticket becomes a create intent
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 2e1d42c
+- [x] GREEN 2e1d42c
+- [x] REFACTOR skip: none needed
 
 ### Scenario: An already-recorded ticket becomes an update intent
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 4b5fc89
+- [x] GREEN 4b5fc89
+- [x] REFACTOR skip: none needed
 
 ### Scenario: A terminal ticket becomes a close intent
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 4b5fc89
+- [x] GREEN 4b5fc89
+- [x] REFACTOR skip: none needed
 
 ### Scenario: An empty corpus yields an empty but valid plan
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 2e1d42c
+- [x] GREEN 2e1d42c
+- [x] REFACTOR skip: none needed
 
 ## Rule: --plan carries the ticket graph by ticket id
 
