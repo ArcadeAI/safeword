@@ -523,32 +523,58 @@ async function runSessionStart(): Promise<void> {
   });
 }
 
+function postToolLintInputs(
+  input: CodexHookInput | undefined,
+  rawInput: string,
+  projectDirectory: string,
+): string[] {
+  if (input?.tool_name !== 'apply_patch') return [rawInput];
+
+  return extractTargetPaths(input).map(filePath =>
+    JSON.stringify({
+      tool_input: { file_path: nodePath.resolve(projectDirectory, filePath) },
+    }),
+  );
+}
+
+function collectPostToolLintContexts(lintInputs: string[], projectDirectory: string): string[] {
+  const contexts: string[] = [];
+  for (const lintInput of lintInputs) {
+    const lintResult = runPackagedHook('post-tool-lint.ts', lintInput, projectDirectory);
+    const context = packagedAdditionalContext(lintResult, 'PostToolUse');
+    const output = lintResult.stdout.trim();
+    if (context) contexts.push(context);
+    else if (output) contexts.push(output);
+  }
+  return contexts;
+}
+
 async function runPostToolUse(): Promise<void> {
   const rawInput = await readStdin();
   const projectDirectory = resolveProjectDirectory();
+  const input = parseCodexHookInput(rawInput);
+  const lintInputs = postToolLintInputs(input, rawInput, projectDirectory);
+  const contexts = collectPostToolLintContexts(lintInputs, projectDirectory);
   const qualityResult = runPackagedHook('codex/post-tool-quality.ts', rawInput, projectDirectory);
-  if (qualityResult.stdout.trim() !== '') {
-    process.stdout.write(qualityResult.stdout);
-    return;
-  }
+  const qualityContext = packagedAdditionalContext(qualityResult, 'PostToolUse');
+  if (qualityContext) contexts.push(qualityContext);
 
   const skillNudgeResult = runPackagedHook(
     'codex/post-tool-skill-nudge.ts',
     rawInput,
     projectDirectory,
   );
-  if (skillNudgeResult.stdout.trim() !== '') {
-    process.stdout.write(skillNudgeResult.stdout);
-    return;
-  }
+  const skillContext = packagedAdditionalContext(skillNudgeResult, 'PostToolUse');
+  if (skillContext) contexts.push(skillContext);
 
   const additionalContext = readProjectTextFile(projectDirectory, POST_TOOL_GUIDANCE_PATH)?.trim();
-  if (!additionalContext) return;
+  if (additionalContext) contexts.push(additionalContext);
+  if (contexts.length === 0) return;
 
   emitAdditionalContext({
     hookSpecificOutput: {
       hookEventName: 'PostToolUse',
-      additionalContext,
+      additionalContext: contexts.join('\n\n'),
     },
   });
 }

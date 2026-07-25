@@ -11,6 +11,7 @@ import nodePath from 'node:path';
 
 import { $ } from 'bun';
 
+import { resolveHostToolchain, runHostToolchain } from './host-toolchain.js';
 import {
   hostFormatsSqlWithPrettier,
   projectOwnsAlternativeFormatter,
@@ -299,6 +300,32 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
   // JS/TS and framework files - ESLint first (fix code), then Prettier (format)
   // Auto-upgrades safeword if TypeScript pack is missing
   if (JS_EXTENSIONS.has(extension)) {
+    const canonicalRoot = normalizeExistingDirectory(_projectDir);
+    const safewordDirectory = nodePath.join(canonicalRoot, '.safeword');
+    if (
+      normalizedFile === safewordDirectory ||
+      normalizedFile.startsWith(`${safewordDirectory}/`)
+    ) {
+      return { warnings };
+    }
+    const host = resolveHostToolchain(normalizedFile, _projectDir);
+    if (host?.kind === 'unavailable') {
+      return {
+        warnings: [
+          `The ${host.owner} toolchain for ${normalizedFile} has no project-local executable. ` +
+            'Install it in this workspace or its Safeword project root; Safeword will not use PATH or download a replacement.',
+        ],
+      };
+    }
+    if (host?.kind === 'outside-root') {
+      return {
+        warnings: [
+          `Edited file ${host.file} resolves outside the Safeword project root ${host.root}. ` +
+            'Safeword will not run a host toolchain or generic JavaScript formatter for this path.',
+        ],
+      };
+    }
+    if (host) return runHostToolchain(host);
     const hasEslint = await ensurePackInstalled('TypeScript', SAFEWORD_ESLINT);
     const cfg = configArgs(SAFEWORD_ESLINT, hasEslint);
     await $`bunx eslint ${cfg} --fix ${normalizedFile}`.nothrow().quiet();
