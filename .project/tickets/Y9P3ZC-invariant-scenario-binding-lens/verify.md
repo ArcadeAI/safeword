@@ -2,8 +2,9 @@
 
 ## Verify Checklist
 
-**Test Suite:** ⚠️ Targeted suites green (132 passed across 13 files); the full
-suite is not claimable in this environment — see Evidence limits.
+**Test Suite:** ✅ Full suite green in CI on Node 22.22.3 and Node 24 —
+[run 30177280263](https://github.com/ArcadeAI/safeword/actions/runs/30177280263).
+Targeted suites also green locally (132 passed across 13 files).
 **Build:** ✅ Success (tsup ESM + DTS via the vitest build lock)
 **Lint:** ✅ Clean (eslint, lint-gherkin, tsc --noEmit)
 **Format:** ✅ Prettier clean
@@ -46,15 +47,14 @@ named-but-weaker clause — the defect that shipped as issue #1425.
 
 ## Evidence limits
 
-The full package suite is not green in this container and this is not claimed
-as passing. `tests/hooks/self-report.test.ts:410` chmods a directory to `0o555`
-and asserts the write fails; the session runs as uid 0, and root bypasses
-permission bits — verified directly, not assumed. It is unrelated to this
-change (self-report spool markers) and passes in CI, which runs non-root. The
-suites this change can affect were run and are green.
+The full package suite could not be run green in the authoring container:
+`tests/hooks/self-report.test.ts:410` chmods a directory to `0o555` and asserts
+the write fails, but the session runs as uid 0 and root bypasses permission
+bits — verified directly, not assumed. The diagnosis was confirmed rather than
+assumed: the same test passes in CI on both Node lanes, which run non-root.
 
-Because the full suite cannot be shown green here, this ticket is left at
-`phase: verify` / `status: in_progress` rather than being marked done. The
-done-gate's test requirement is not satisfiable in this environment, and
-writing a done stamp around it would be exactly the evidence-shaped-hole this
-ticket is about.
+That limit is now closed by CI rather than argued around. Run 30177280263
+executed lint, Dogfood parity, and the full suite on Node 22.22.3 and Node 24,
+all green, against the merge of this branch with `main` at 45a304a — so the
+result also covers integration with #1422, which landed after this branch was
+cut and touches none of these files.

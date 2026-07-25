@@ -2,8 +2,8 @@
 id: Y9P3ZC
 slug: invariant-scenario-binding-lens
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/1425
 scope:
   - Add an invariant-binding lens to review-spec's cross-cutting checks that pairs each normative spec.md clause with a scenario whose failure would falsify it.
@@ -46,3 +46,5 @@ review-spec-vs-self-review question and the evidence-limits reasoning.
 
 - 2026-07-25T21:57:19.992Z Started: Created ticket Y9P3ZC
 - 2026-07-25T22:06:16.916Z Phase: intake → verify
+- 2026-07-25T22:50:31.946Z Phase: verify → done
+- 2026-07-25T22:50:31.946Z Done: CI run 30177280263 green on lint, Dogfood parity, and the full suite on Node 22.22.3 + Node 24, supplying the full-suite evidence the authoring container could not (uid 0 bypasses the `0o555` assertion in an unrelated self-report test). Evidence in verify.md; PR #1433.
