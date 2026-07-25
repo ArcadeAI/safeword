@@ -1,6 +1,6 @@
 # Impl Plan: Environment-portable tracker transport
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
@@ -56,11 +56,11 @@ mirror close never leaves title/labels/edges stale.
 | --- | --- | --- | --- |
 | Plan computation | Factor `computePlan` reusing `planTicketSync` + `buildPayload`; fold close/reconcile on top; compute edges plan-side by corpus membership | Reimplement the diff; reuse `buildGraphProjection` for edges | Divergence from the gh path is the bug class to avoid; `buildGraphProjection` resolves only *recorded* prereqs to numbers → wrong plan-side |
 | Kind fold | close derived from payload `state`; reconcile → `update` carrying the ref | Add `reconcile`/`close` as `planTicketSync` kinds | Keeps the contract's three intents; close/reconcile are derivations, not new SyncActions |
-| Shared helpers | Extract `aliasMap` / `resolveTicketReference` / `orderTicketsForProjection` (private in `index.ts`) into a shared module both paths import; leave `buildGraphProjection` on the gh path | Duplicate them into `plan.ts`; move `buildGraphProjection` too | Duplication re-opens drift; `buildGraphProjection` is executor-side, not shared |
+| Shared helpers | Extract `aliasMap` / `resolveTicketReference` into `ticket-references.ts` (both paths import); leave `buildGraphProjection` on the gh path | Duplicate them into `plan.ts`; move `buildGraphProjection` too | Duplication re-opens drift; `buildGraphProjection` is executor-side, not shared. _Shipped: `orderTicketsForProjection` was NOT extracted — the plan path emits intents in corpus order (the executor orders via create-then-link), so it isn't needed shared._ |
 | Edge reference | By **ticket id** (corpus membership), resolved to number by the executor create-then-link | By issue number in the plan | A new issue's number is unknown until it is created |
 | Results `number` type | string (e.g. `"549"`) | JSON number | `TrackerReference.id` is a string and the gh path records `"549"`; a number would break idempotency + byte-for-byte parity |
 | Contract shape | Separate versioned `SyncPlan` and `SyncResults` schemas | One combined annotated-intents doc | Clean plan↔executor boundary; results are the executor's product |
-| Identity capture | `number` authoritative (from API `number` field); `url`-tail==`number` a fail-loud cross-check | Parse the html_url for the number | GitHub best practice: read `number`, don't parse the URL (verified 2026-07-24) |
+| Identity capture | `number` authoritative (from API `number` field); `url`-tail==`number` a fail-loud cross-check | Parse the html_url for the number | GitHub best practice: read `number`, don't parse the URL (verified 2026-07-24). _Shipped refinement (quality-review): the guard is provider-gated to GitHub and also requires `number` to be `/^\d+$/`; `urlTail` strips any query/fragment before comparing._ |
 | `--plan` sink | stdout | a `--out <file>` flag | Unix-composable (`--plan \| executor`); a file is `> plan.json` away |
 | Apply status | `record` as `recorded` directly | mark `pending` then promote | No crash-mid-network window in apply — the network already happened in the executor |
 
@@ -71,21 +71,28 @@ projection of the ticket corpus into the configured tracker"): the plan/executor
 projection strictly outward and adds no inward path. Honors the **offline-first invariant** — gates
 and now `--plan`/`--apply-results` touch no network.
 
-**ADR candidate (flagging, not blocking):** the versioned `SyncPlan`/`SyncResults` JSON is an
-explicit **one-way-door public contract**, which meets the ADR bar ("difficult to reverse"). Recommend
-drafting the first repo ADR for it (`ARCHITECTURE.md` has a Key Decisions section but no ADR dir yet).
-Offered to the user at the plan-exit.
+**ADR candidate (open — not drafted):** the versioned `SyncPlan`/`SyncResults` JSON is an explicit
+**one-way-door public contract**, which meets the ADR bar ("difficult to reverse"). Not recorded this
+ticket — recommend the repo's first ADR when a second executor (the token+REST CI co-executor) adopts
+the contract. Captured in Assessment triggers.
 
 ## Known deviations
 
-None. (The one eyes-open choice — the structure-dependent `url`-tail cross-check — is recorded in the
-Decisions table's identity-capture row and `spec.md`; not repeated here.)
+- **`orderTicketsForProjection` not extracted / plan not topologically sorted.** The plan emits
+  intents in corpus order; the executor resolves edges create-then-link, so ordering is its concern.
+  Acceptable — the gh path's ordering is untouched.
+- **`computeGraph` self-excludes a `blocked-by → self` edge; the gh path's `buildGraphProjection`
+  does not.** Differs only for the degenerate self-dependency input; omitting it is the more correct
+  behavior. Documented in `plan.ts`.
+- **The `url`-tail guard applies to GitHub only.** Linear (out of scope, unwired — `linearNotWired()`
+  throws) uses slug URLs that never end in the number; validation for a wired Linear executor is
+  deferred to that provider's slice. Documented in `apply-results.ts`.
 
 ## Doc impact
 
-`packages/website/src/content/docs/reference/tracker-integration.mdx` gains a short "portable
-executor (`--plan` / `--apply-results`)" section once the flags land — folded into the build order as
-a final task (customer-visible). No other configured `docs.sources` surface is touched.
+`packages/website/src/content/docs/reference/tracker-integration.mdx` — **done** (commit `ab2f576`):
+added a "Portable transport (`--plan` / `--apply-results`)" section. No other configured
+`docs.sources` surface is touched.
 
 ## Assessment triggers
 
