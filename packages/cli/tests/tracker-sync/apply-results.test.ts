@@ -88,6 +88,47 @@ describe('applyResults (portable-tracker-transport.TB1.AC2 / SM1.AC1)', () => {
     expect(outcome.ok).toBe(false);
     expect(map.lookup('GHOST')).toBeUndefined();
   });
+
+  it('validates all rows before mutating: a valid row is NOT recorded when a later row is rejected', () => {
+    const map = new TrackerMap();
+    const ctx = { provider: 'github' as const, ticketIds: new Set(['T1']) };
+    const outcome = applyResults(
+      map,
+      results(
+        { ticketId: 'T1', number: '549', url: 'https://github.com/o/r/issues/549' },
+        { ticketId: 'GHOST', number: '550', url: 'https://github.com/o/r/issues/550' },
+      ),
+      ctx,
+    );
+
+    expect(outcome.ok).toBe(false);
+    // The valid T1 row must NOT have been recorded — the map is left untouched.
+    expect(map.lookup('T1')).toBeUndefined();
+  });
+
+  it('accepts a github url carrying a query string or fragment (tail still matches number)', () => {
+    const map = new TrackerMap();
+    const outcome = applyResults(
+      map,
+      results({ ticketId: 'T1', number: '549', url: 'https://github.com/o/r/issues/549?utm=x' }),
+      CTX,
+    );
+
+    expect(outcome).toEqual({ ok: true });
+    expect(map.lookup('T1')?.ref.id).toBe('549');
+  });
+
+  it('rejects a github result whose number is not purely numeric, leaving the map untouched', () => {
+    const map = new TrackerMap();
+    const outcome = applyResults(
+      map,
+      results({ ticketId: 'T1', number: '549x', url: 'https://github.com/o/r/issues/549x' }),
+      CTX,
+    );
+
+    expect(outcome.ok).toBe(false);
+    expect(map.lookup('T1')).toBeUndefined();
+  });
 });
 
 describe('parseResults (portable-tracker-transport.SM1.AC1)', () => {

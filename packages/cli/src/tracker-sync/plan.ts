@@ -33,6 +33,9 @@ function computeGraph(ticket: TicketInput, aliases: Map<string, string>): GraphE
     ...new Set(
       [...(ticket.dependsOn ?? []), ...(ticket.blockedOn ?? [])]
         .map(reference => resolveTicketReference(reference, aliases))
+        // Drop unresolvable (out-of-corpus) edges and a self-blocked-by edge. The gh
+        // path's buildGraphProjection does not self-exclude blocked-by, but a ticket
+        // blocking itself is degenerate; omitting it is the more correct behavior.
         .filter((id): id is string => id !== undefined && id !== ticket.id),
     ),
   ];

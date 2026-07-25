@@ -101,6 +101,26 @@ describe('sync-tracker --plan / --apply-results command wiring', () => {
     expect(existsSync(sidecar())).toBe(false);
   });
 
+  it('refuses to apply against a corrupt sidecar, leaving it untouched', async () => {
+    writeFileSync(sidecar(), '{ corrupt not json');
+    const resultsFile = nodePath.join(cwd, 'results.json');
+    writeFileSync(
+      resultsFile,
+      JSON.stringify({
+        version: 1,
+        results: [
+          { ticketId: 'AB12CD', number: '549', url: 'https://github.com/acme/demo/issues/549' },
+        ],
+      }),
+    );
+
+    await syncTrackerCommand({ applyResults: resultsFile });
+
+    expect(process.exitCode).toBe(1);
+    // The corrupt sidecar is left exactly as-is — never silently reset then overwritten.
+    expect(readFileSync(sidecar(), 'utf8')).toBe('{ corrupt not json');
+  });
+
   it('rejects combining --plan and --apply-results', async () => {
     await syncTrackerCommand({ plan: true, applyResults: nodePath.join(cwd, 'results.json') });
 

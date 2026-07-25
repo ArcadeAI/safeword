@@ -124,4 +124,19 @@ describe('computePlan (portable-tracker-transport.TB1.AC1)', () => {
     // GHOST is not in the corpus → dropped; the resolvable parent edge remains.
     expect(intentFor([p, t], 'T1')?.graph).toEqual({ parentTicketId: 'P1' });
   });
+
+  it('emits a create intent with a closed payload for a terminal never-synced ticket', () => {
+    const t = ticket({ status: 'done' }); // terminal, absent from the map
+    const plan = computePlan({ tickets: [t], map: new TrackerMap(), bodyMode: 'minimal' });
+    const intent = plan.intents[0];
+    expect(intent?.kind).toBe('create');
+    expect(intent?.payload.state).toBe('closed');
+  });
+
+  it('prefers the parent over the epic for the parent edge', () => {
+    const parent = ticket({ id: 'P1' });
+    const epic = ticket({ id: 'E1' });
+    const t = ticket({ id: 'T1', parent: 'P1', epic: 'E1' });
+    expect(intentFor([parent, epic, t], 'T1')?.graph).toEqual({ parentTicketId: 'P1' });
+  });
 });
