@@ -124,6 +124,18 @@ fs concern covered by the --apply-results command wiring test (slice 5). -->
 - [x] GREEN dcf20aa
 - [x] REFACTOR skip: none needed
 
+### Scenario: Planning an unconfigured project yields an empty plan, not a plan full of creates
+
+- [x] RED skip: parity gap found in PR review (#1441); test and fix landed together
+- [x] GREEN bd89815
+- [x] REFACTOR skip: none needed
+
+### Scenario: Planning full ticket bodies to GitHub warns about egress without polluting the plan
+
+- [x] RED skip: parity gap found in PR review (#1441); test and fix landed together
+- [x] GREEN bd89815
+- [x] REFACTOR skip: none needed
+
 ### Scenario: With no mode flag, the command routes to the gh path
 
 - [x] RED skip: no-flag path is the pre-existing gh path (command-egress.test.ts covers it)

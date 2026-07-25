@@ -144,6 +144,20 @@ Feature: Environment-portable tracker transport
       And stdout contains no log or diagnostic lines
 
     @portable-tracker-transport.TB1.AC3
+    Scenario: Planning an unconfigured project yields an empty plan, not a plan full of creates
+      Given no tracker is configured
+      When I invoke the sync-tracker command with --plan
+      Then stdout is an empty but valid SyncPlan document
+      And the notice that nothing was planned is kept off stdout
+
+    @portable-tracker-transport.TB1.AC4
+    Scenario: Planning full ticket bodies to GitHub warns about egress without polluting the plan
+      Given the project projects full ticket bodies to a GitHub repo
+      When I invoke the sync-tracker command with --plan
+      Then an egress warning is reported away from stdout
+      And stdout is still a single valid SyncPlan document
+
+    @portable-tracker-transport.TB1.AC3
     Scenario: With no mode flag, the command routes to the gh path
       When I run sync-tracker with neither plan nor apply mode
       Then it dispatches to the gh executor path

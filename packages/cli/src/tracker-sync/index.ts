@@ -15,7 +15,7 @@ import { loadTrackerMap, planTicketSync, TrackerMap } from './tracker-map.js';
 import type { BodyMode, Provider, TicketInput, TrackerReference } from './types.js';
 import { dispatchCreate, type GraphProjection, type TrackerWriter } from './writers.js';
 
-export const SUPPORTED_PROVIDERS = new Set<Provider>(['linear', 'github']);
+const SUPPORTED_PROVIDERS = new Set<Provider>(['linear', 'github']);
 const BACKOFF = { maxRetries: 3, baseMs: 50 };
 
 export interface TicketBridgeConfig {
