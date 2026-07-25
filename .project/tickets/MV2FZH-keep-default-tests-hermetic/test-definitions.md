@@ -23,7 +23,7 @@
 ### Scenario: A skipped-install fixture resolves generated-config imports
 
 - [x] RED skip: `setup-or-throw.test.ts` could not import `safeword` from a skipped-install fixture because the whole `node_modules` symlink omitted the package self-link.
-- [x] GREEN 8ce09c281: the fixture exposes its dependency entries, local `safeword` package, and executables independently.
+- [x] GREEN 8ce09c281
 - [x] REFACTOR skip: the setup helper remains the sole linking seam.
 
 ---
