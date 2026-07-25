@@ -14,6 +14,14 @@ Feature: Codex completes tickets after evidence passes
       Then that ticket has status and phase done
       And no other in-progress ticket changes state
 
+    @codex-done-gate.TBU1.R1 @surface.openai-codex
+    Scenario: Desktop PostToolUse fallback binds the ticket that Stop evaluates
+      Given a Codex Desktop PostToolUse event omits its session identifier
+      And its hook process has a stable Codex thread identifier
+      And it edits an in-progress done-phase ticket with passing shared done evidence
+      When the Codex PostToolUse hook runs and that thread's Stop hook runs
+      Then that ticket has status and phase done
+
     @codex-done-gate.TBU1.R1 @rejection @surface.openai-codex
     Scenario Outline: A noneligible ticket is never closed as a fallback
       Given <ticket binding and state>

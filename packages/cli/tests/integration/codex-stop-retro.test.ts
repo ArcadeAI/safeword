@@ -43,6 +43,7 @@ import {
 
 const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 const HOOK = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/codex/stop.ts');
+const POST_TOOL_HOOK = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/codex/post-tool-quality.ts');
 
 /** A Codex rollout JSONL with `n` function_call tool events. */
 function writeCodexRollout(directory: string, name: string, toolEvents: number): string {
@@ -135,6 +136,20 @@ function enableArchitectureAdvisory(directory: string): void {
 function runHook(directory: string, input: unknown, env: Record<string, string | undefined> = {}) {
   return spawnSync('bun', [HOOK], {
     input: typeof input === 'string' ? input : JSON.stringify(input),
+    cwd: directory,
+    env: { ...process.env, CLAUDE_PROJECT_DIR: directory, ...env },
+    encoding: 'utf8',
+    timeout: TIMEOUT_QUICK,
+  });
+}
+
+function runPostToolHook(
+  directory: string,
+  input: unknown,
+  env: Record<string, string | undefined> = {},
+) {
+  return spawnSync('bun', [POST_TOOL_HOOK], {
+    input: JSON.stringify(input),
     cwd: directory,
     env: { ...process.env, CLAUDE_PROJECT_DIR: directory, ...env },
     encoding: 'utf8',
@@ -539,6 +554,30 @@ describe('codex/stop.ts retro adapter (CDX602)', () => {
       expect(readFileSync(nodePath.join(otherTicket, 'ticket.md'), 'utf8')).toMatch(
         /^status: in_progress$/m,
       );
+    });
+
+    it('codex-done-gate.TBU1.R1.binds_desktop_post_tool_work_to_the_same_stop_session', () => {
+      writeConfig(dir, { surface: false, file: false });
+      const threadId = freshSession('desktop-thread');
+      const ticket = writeTicket(dir, 'DESKTOP');
+      initGitRepo(dir);
+
+      const postTool = runPostToolHook(
+        dir,
+        {
+          tool_name: 'Edit',
+          tool_input: { file_path: nodePath.join(ticket, 'ticket.md') },
+        },
+        { CODEX_THREAD_ID: threadId },
+      );
+      expect(postTool.status).toBe(0);
+
+      const stop = runHook(dir, { cwd: dir }, { CODEX_THREAD_ID: threadId });
+
+      expect(stop.status).toBe(0);
+      expectNoContinuation(stop);
+      expect(readFileSync(nodePath.join(ticket, 'ticket.md'), 'utf8')).toMatch(/^status: done$/m);
+      expect(readFileSync(nodePath.join(ticket, 'ticket.md'), 'utf8')).toMatch(/^phase: done$/m);
     });
 
     it.each([

@@ -17,6 +17,7 @@ phase_skips:
   - 'plan-implementation: The implementation plan was reviewed before the isolated delivery branch was created; its reconciliation is recorded in impl-plan.md.'
 scope:
   - Evaluate a Codex session's in-progress done-phase ticket with the shared evidence predicate already used by the Cursor close-edit gate.
+  - Bind Codex Desktop PostToolUse work to the same durable session identity that Codex Stop evaluates when the hook payload omits `session_id`.
   - Atomically change that ticket to status and phase done only after all applicable shared evidence succeeds.
   - Preserve Codex Stop's retro extraction, filing, and architecture-nudge composition while preventing a failed evidence check from closing a ticket.
   - Cover the real Codex Stop adapter with passing and failing done-evidence fixtures.
@@ -26,6 +27,7 @@ out_of_scope:
   - Auto-closing GitHub issues or creating commits from a hook.
 done_when:
   - A Codex Stop for a session-bound in-progress done-phase ticket closes it before PR readiness when the shared evidence predicate passes.
+  - A Codex Desktop PostToolUse payload without `session_id` still binds through its durable thread identity, so its subsequent Stop can evaluate that ticket.
   - Invalid or absent evidence leaves the ticket in progress and returns a remediation continuation without hiding the failure.
   - Existing Codex retro and architecture Stop behavior stays ordered and functional, and the template/dogfood regression suites pass.
 created: 2026-07-24T16:17:08.104Z

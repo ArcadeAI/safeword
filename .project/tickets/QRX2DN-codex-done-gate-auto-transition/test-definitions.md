@@ -7,6 +7,7 @@ filesystem fixture; the only process boundary is the hook subprocess.
 ## Scenario ledger
 
 - [x] `codex-done-gate.TBU1.R1` closes only a valid session-bound ticket.
+- [ ] `codex-done-gate.TBU1.R1` lets a Codex Desktop PostToolUse payload without `session_id` bind the ticket that the same thread's Stop evaluates.
 - [x] `codex-done-gate.TBU1.R1` never selects a fallback for unbound, non-done, or already-done state.
 - [x] `codex-done-gate.TBU1.R2` returns exact remediation and preserves state for no verify artifact.
 - [x] `codex-done-gate.TBU1.R2` returns exact remediation and preserves state for failed PR scope.

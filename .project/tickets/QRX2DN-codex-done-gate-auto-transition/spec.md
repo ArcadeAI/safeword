@@ -37,6 +37,11 @@ session from in-progress done-phase state to done when all shared evidence
 checks pass. An unbound, non-done-phase, or already-done ticket is never an
 implicit fallback closure target.
 
+When Codex Desktop omits `session_id` from a PostToolUse payload but exposes
+`CODEX_THREAD_ID` to the hook process, PostToolUse and Stop resolve that same
+durable identity. The edited ticket is therefore bound to the session Stop
+evaluates; if neither durable identity is available, the session stays unbound.
+
 #### codex-done-gate.TBU1.R2 — Failed evidence remains visible and cannot close work
 
 When any shared evidence check fails, Codex leaves the ticket in progress and
