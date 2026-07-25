@@ -47,3 +47,43 @@ introduce runtime API assumptions beyond the project baseline. Sources checked:
 The feature-gate invocation helper reported `no run identity` in this Codex
 desktop session. This report is not a substitute for its signed current-run
 proof, and the ticket was intentionally not moved to `done`.
+
+## 2026-07-25 Desktop fallback re-review
+
+**Currency:** ✓ No dependency was added or changed. The use of inherited
+process environment is stable Node behavior.
+
+**Sources:** ✓ Node documents `process.env` as the child process environment
+interface; the Codex-specific durable identity contract is implemented by the
+project's shared `resolveRunIdentity` helper and its current #1411 regression
+tests.
+
+**Correct:** ✓ Codex PostToolUse now resolves the same runtime-scoped identity
+as Codex Stop. When Desktop omits `session_id`, both address the
+`CODEX_THREAD_ID` state key; when a hook supplies `session_id`, it remains the
+precedence-preserving key.
+
+**Elegant:** ✓ The state writer has one narrowly scoped Codex branch. Cursor
+and Claude retain their existing translated raw-id paths.
+
+**No-bloat:** ✓ No new helper, state format, or adapter interface was added.
+
+**Wiring:** ✓ The real filesystem/subprocess integration test runs Codex
+PostToolUse with an omitted payload id and then runs Codex Stop. It asserts the
+persisted binding and the observable ticket transition; no internal collaborator
+is mocked.
+
+**Verdict:** APPROVE
+
+**Critical issues:** None
+
+**Suggested improvements:** None
+
+**Provenance:**
+
+- (verified: https://nodejs.org/api/process.html) — `process.env` provides the
+  process environment used by the spawned hook.
+- (verified: `packages/cli/tests/integration/codex-stop-retro.test.ts`) — the
+  Desktop fallback contract is exercised through both deployed Codex adapters.
+
+**Next:** Run the ticket verification lane and wait for refreshed PR CI.

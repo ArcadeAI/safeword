@@ -7,7 +7,7 @@ The ticket-scoped audit passed.
 - Managed configuration is in sync.
 - Dependency Cruiser found no violations (647 modules, 2,103 dependencies).
 - Go dead-code scan found no issues.
-- Test definitions are complete (12/12) and use real adapter fixtures without
+- Test definitions are complete (13/13) and use real adapter fixtures without
   arbitrary waits or weak truthiness assertions.
 - The managed template and dogfood hooks are byte-identical and parity passes.
 - A documentation audit found stale public claims that Codex Stop was
@@ -40,5 +40,26 @@ subsequently passed alone in 24.0 seconds and the check-reconcile fixture
 passed alone in 36.9 seconds, confirming that the two non-language-specific
 timeouts were load-sensitive.
 
-The audit invocation helper could not find a current Codex run identity, so
-this artifact does not satisfy the feature ticket's done-gate proof.
+## 2026-07-25 Desktop fallback re-audit
+
+The expanded ticket-scoped audit passed with no new errors or scoped warnings.
+
+- Managed configuration is in sync and Dependency Cruiser still reports no
+  violations (647 modules, 2,103 dependencies).
+- The complete Desktop PostToolUse → Stop adapter fixture has 31 focused tests
+  passing. It uses fresh filesystem and subprocess boundaries, specific
+  assertions, and no arbitrary waits.
+- The dogfood and template state writers remain byte-identical; no new
+  duplication beyond the managed mirror was introduced.
+- The domain-doc reconciliation emitted no E008, E009, or W008 findings.
+- The `/audit` invocation proof now records against the current Codex thread.
+
+Repository-wide baseline notices remain unchanged: Knip's `which` hint (owned
+by MZH9QH/X6EFPN), mirror-heavy duplicate scan, unavailable Python dead-code
+tools, and the low-risk dev-only ESLint 10.7.0 → 10.8.0 patch update. None is
+introduced by QRX2DN.
+
+**Audit passed with warnings.**
+
+**Next:** Run the ticket verification lane and use refreshed PR CI for the
+full-suite result.

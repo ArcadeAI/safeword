@@ -31,6 +31,7 @@ change to GREEN, then add the next behavior. Do not rely solely on fast
 | --- | --- | --- |
 | Evidence source | Reuse `evaluateDoneEvidence` | Relaxing the PR guard or duplicating the predicate would weaken or drift policy. |
 | Ticket selection | Require Codex session binding for lifecycle mutation | Global fallback could close another session's ticket. |
+| Desktop session identity | Resolve the Codex runtime identity in PostToolUse before writing state | Writing a raw missing `session_id` leaves Stop unable to read Desktop's `CODEX_THREAD_ID` binding. |
 | Continuation priority | Cache eligible advisory before mutation; block only on failure; advisory before filer on success | Recomputing after status mutation loses the qualifying advisory. |
 | Git ownership | Update ticket lifecycle fields only | Hook auto-stage/commit violates builder ownership. |
 
