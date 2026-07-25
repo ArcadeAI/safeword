@@ -74,6 +74,12 @@ function detectRuntime(
   ) {
     return 'claude';
   }
+  // Codex Desktop code-mode can omit a hook payload while exposing a stable
+  // thread id to its helper process. Keep this after Claude detection so an
+  // explicit Claude environment never adopts a Codex runtime accidentally.
+  if (nonEmptyString(env.CODEX_THREAD_ID) !== null) {
+    return 'codex';
+  }
   return 'unknown';
 }
 
@@ -96,7 +102,12 @@ export function resolveRunIdentity(
   }
 
   if (runtime === 'codex') {
-    const session = firstString('input.session_id', input.session_id);
+    const session = firstString(
+      'input.session_id',
+      input.session_id,
+      'CODEX_THREAD_ID',
+      env.CODEX_THREAD_ID,
+    );
     return {
       runtime,
       sessionKey: session?.value ?? null,

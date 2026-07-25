@@ -533,6 +533,15 @@ Published files: `dist/` + `templates/` (bundled for setup/upgrade) + `codex-plu
 
 **Cross-agent Stop delivery (JN403D/P30CRP):** Claude Code keeps the hard done-gate/review behavior in `stop-quality.ts`. Cursor uses a lighter local Stop adapter for continuation nudges (`cursor/stop.ts` appends `followup_message`). Codex uses the profile-scoped Safe Word plugin, whose hook manifest calls the packaged, version-pinned `bunx --bun safeword@<version> hook codex stop` entrypoint. It emits Codex continuation output (`decision: "block"`, `reason`) from queued project context. Codex Stop delivery is advisory continuation, not hard done-gate enforcement.
 
+**Codex Desktop session identity (S2CWBE):** Hook payload `session_id` and a
+fresh Codex proof-bridge cache remain the preferred sources. When Codex Desktop
+code-mode does not deliver the documented PreToolUse bridge, the shared
+run-identity resolver may use non-empty `CODEX_THREAD_ID` as a Codex-only,
+session-stable fallback. This comes after explicit and cached identities, never
+uses `turn_id`, and is unavailable to explicit Claude and Cursor callers. The
+single resolver is shared by invocation proof, review-stamp session binding,
+and Codex Stop so all three address the same state key.
+
 **Gate clearing:** All gates clear automatically when `git rev-parse --short HEAD` changes (i.e., a commit happened). No manual intervention needed. TDD gates have priority over LOC gate (LOC gate cannot overwrite an active TDD gate).
 
 ### Frozen Transcript Fixture Testing
