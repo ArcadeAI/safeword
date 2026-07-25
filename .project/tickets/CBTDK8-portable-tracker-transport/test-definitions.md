@@ -36,27 +36,27 @@ real `sync-tracker` command for the `--plan`/`--apply-results` flags (no live tr
 
 ### Scenario: A ticket with a parent carries a parent edge
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED afb5108
+- [x] GREEN a3a92a9
+- [x] REFACTOR skip: shared-helper extraction folded into GREEN
 
 ### Scenario: A blocked ticket carries its blocked-by edges as a set
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED afb5108
+- [x] GREEN a3a92a9
+- [x] REFACTOR skip: shared-helper extraction folded into GREEN
 
 ### Scenario: A ticket with both a parent and a blocked-by edge carries both
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED afb5108
+- [x] GREEN a3a92a9
+- [x] REFACTOR skip: shared-helper extraction folded into GREEN
 
 ### Scenario: Only the unresolvable edge is dropped; resolvable edges remain
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED afb5108
+- [x] GREEN a3a92a9
+- [x] REFACTOR skip: shared-helper extraction folded into GREEN
 
 ## Rule: --plan runs offline
 
