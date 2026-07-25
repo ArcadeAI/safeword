@@ -658,7 +658,11 @@ export async function setupOrThrow(
   let lastResult: CliResult | undefined;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const result = await runner(setupArguments, { cwd: projectDirectory, ...cliOptions });
+    const result = await runner(setupArguments, {
+      cwd: projectDirectory,
+      ...cliOptions,
+      env: { ...SKIP_INSTALL_ENV, ...cliOptions.env },
+    });
     if (result.exitCode === 0) {
       return result;
     }

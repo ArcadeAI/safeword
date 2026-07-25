@@ -66,6 +66,20 @@ describe('setupOrThrow retry policy', () => {
     expect(callCount()).toBe(1);
   });
 
+  it('skips package installation by default while allowing an explicit override', async () => {
+    const calls: { env?: Record<string, string> }[] = [];
+    const runner = ((_, options) => {
+      calls.push(options ?? {});
+      return Promise.resolve({ stdout: '', stderr: '', exitCode: 0, timedOut: false });
+    }) as SetupRunner;
+
+    await setupOrThrow('/fake/project', ['setup'], {}, runner);
+    await setupOrThrow('/fake/project', ['setup'], { env: { SAFEWORD_SKIP_INSTALL: '' } }, runner);
+
+    expect(calls[0]?.env).toMatchObject({ SAFEWORD_SKIP_INSTALL: '1' });
+    expect(calls[1]?.env).toMatchObject({ SAFEWORD_SKIP_INSTALL: '' });
+  });
+
   it('retries once on a timeout, then returns the succeeding result', async () => {
     const stderrSpy = vi.spyOn(process.stderr, 'write').mockReturnValue(true);
     const { runner, callCount } = scriptedRunner([TIMEOUT, SUCCESS]);
