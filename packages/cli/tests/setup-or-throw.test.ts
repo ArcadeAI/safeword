@@ -9,9 +9,20 @@
  * by injecting a scripted runner (no real subprocess, no real timeout).
  */
 
+import { existsSync } from 'node:fs';
+import nodePath from 'node:path';
+
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { setupOrThrow, wasKilledByTimeout } from './helpers';
+import {
+  createTemporaryDirectory,
+  createTypeScriptPackageJson,
+  initGitRepo,
+  removeTemporaryDirectory,
+  setupOrThrow,
+  TIMEOUT_SETUP,
+  wasKilledByTimeout,
+} from './helpers';
 
 interface FakeResult {
   exitCode: number;
@@ -65,6 +76,37 @@ describe('setupOrThrow retry policy', () => {
     expect(result.stdout).toBe('setup complete');
     expect(callCount()).toBe(1);
   });
+
+  it('skips package installation by default while allowing an explicit override', async () => {
+    const calls: { env?: Record<string, string> }[] = [];
+    const runner = ((_, options) => {
+      calls.push(options ?? {});
+      return Promise.resolve({ stdout: '', stderr: '', exitCode: 0, timedOut: false });
+    }) as SetupRunner;
+
+    await setupOrThrow('/fake/project', ['setup'], {}, runner);
+    await setupOrThrow('/fake/project', ['setup'], { env: { SAFEWORD_SKIP_INSTALL: '' } }, runner);
+
+    expect(calls[0]?.env).toMatchObject({ SAFEWORD_SKIP_INSTALL: '1' });
+    expect(calls[1]?.env).toMatchObject({ SAFEWORD_SKIP_INSTALL: '' });
+  });
+
+  it(
+    'keeps a real skipped-install setup fixture free of node_modules',
+    async () => {
+      const directory = createTemporaryDirectory();
+      createTypeScriptPackageJson(directory);
+      initGitRepo(directory);
+
+      try {
+        await setupOrThrow(directory);
+        expect(existsSync(nodePath.join(directory, 'node_modules'))).toBe(false);
+      } finally {
+        removeTemporaryDirectory(directory);
+      }
+    },
+    TIMEOUT_SETUP,
+  );
 
   it('retries once on a timeout, then returns the succeeding result', async () => {
     const stderrSpy = vi.spyOn(process.stderr, 'write').mockReturnValue(true);

@@ -72,6 +72,11 @@ export const SKIP_INSTALL_ENV = {
   SAFEWORD_SKIP_INSTALL: '1',
 };
 
+/** Explicit opt-in for fixtures that execute generated package tooling. */
+export const INSTALL_DEPENDENCIES_ENV = {
+  SAFEWORD_SKIP_INSTALL: '',
+};
+
 /**
  * Skip ONLY the skills pull (`npx skills add`) while still installing JS/Python
  * dependencies. Use for Go setup tests that need real deps (e.g. eslint) but must
@@ -658,7 +663,11 @@ export async function setupOrThrow(
   let lastResult: CliResult | undefined;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const result = await runner(setupArguments, { cwd: projectDirectory, ...cliOptions });
+    const result = await runner(setupArguments, {
+      cwd: projectDirectory,
+      ...cliOptions,
+      env: { ...SKIP_INSTALL_ENV, ...cliOptions.env },
+    });
     if (result.exitCode === 0) {
       return result;
     }

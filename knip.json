@@ -23,8 +23,7 @@
     "check",
     "lint-gherkin",
     "lint-imports",
-    "feature-directories",
-    "which"
+    "feature-directories"
   ],
   "ignoreDependencies": [
     "safeword",

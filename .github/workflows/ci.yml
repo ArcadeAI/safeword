@@ -16,6 +16,26 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  dogfood-parity:
+    name: Dogfood parity
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Check template and dogfood parity
+        # Kept as its own PR status so template/dogfood drift is immediately
+        # visible and can be made a required branch-protection check.
+        run: bun scripts/parity-check.ts --mode=all
+
   test:
     name: test (node ${{ matrix.node-version }})
     runs-on: ubuntu-latest

@@ -656,6 +656,19 @@ safeword accepts this trade — **consistency and enforcement over independent b
 
 ## References
 
+### Per-file host JavaScript toolchain ownership
+
+**Status:** Accepted
+**Date:** 2026-07-24
+
+| Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| What           | The shared post-edit JS/TS hook resolves a recognized host toolchain from the edited file's canonical directory ancestry, bounded by the canonical Safeword project root. A recognized Ultracite Biome preset takes precedence over direct Biome; the owner runs only through its local executable, with owner `cwd`, owner-relative `--`-guarded operand, and a child environment without `BIOME_CONFIG_PATH` or `BIOME_BINARY`. |
+| Why            | Root-only detection causes nested polyglot workspaces to use the wrong policy; PATH/package-runner execution and ambient Biome overrides can run a different tool or configuration than the project declared.                                                                                                                                                                                                                     |
+| Trade-off      | The hook owns path/config parsing and executable lookup instead of delegating to package runners. Unsupported formatters remain on the existing no-Prettier path until a dedicated adapter and scenarios are added.                                                                                                                                                                                                               |
+| Alternatives   | Root-wide formatter detection: rejected because it crosses workspace boundaries. Generic package-manager invocation: rejected because it can download or select a global binary. Shell commands: rejected because filenames are operands, not code.                                                                                                                                                                               |
+| Implementation | `packages/cli/templates/hooks/lib/host-toolchain.ts` and the shared `lintFile` entry point; ticket 13E3EN.                                                                                                                                                                                                                                                                                                                        |
+
 - Language Pack Spec: `packages/cli/src/packs/LANGUAGE_PACK_SPEC.md`
 - Ruff docs: https://docs.astral.sh/ruff/
 - golangci-lint docs: https://golangci-lint.run/

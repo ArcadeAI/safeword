@@ -1,5 +1,14 @@
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -26,6 +35,26 @@ describe('packagedNamespaceRootLabel', () => {
       encoding: 'utf8',
       ...(env !== undefined && { env: { ...process.env, ...env } }),
     });
+  }
+
+  function createLocalBiomeFixture(projectDirectory: string, relativeFile = 'source.ts') {
+    const sourceFile = nodePath.join(projectDirectory, relativeFile);
+    const executable = nodePath.join(projectDirectory, 'node_modules', '.bin', 'biome');
+    const log = nodePath.join(projectDirectory, 'biome.log');
+    mkdirSync(nodePath.dirname(executable), { recursive: true });
+    mkdirSync(nodePath.dirname(sourceFile), { recursive: true });
+    writeFileSync(nodePath.join(projectDirectory, 'biome.json'), '{}\n');
+    writeFileSync(sourceFile, 'export const source = 1;\n');
+    writeFileSync(executable, `#!/bin/sh\necho "$*" >> ${JSON.stringify(log)}\n`);
+    chmodSync(executable, 0o755);
+    return { sourceFile, log };
+  }
+
+  function expectBiomeChecked(log: string, operand: string) {
+    expect(readFileSync(log, 'utf8').trim().split('\n')).toEqual([
+      `check --write -- ${operand}`,
+      `check -- ${operand}`,
+    ]);
   }
 
   afterEach(() => {
@@ -127,6 +156,121 @@ describe('packagedNamespaceRootLabel', () => {
     expect(result.status, result.stderr).toBe(0);
     expect(result.stdout).toContain('SAFEWORD Agent Instructions');
     expect(result.stdout).not.toContain('PROJECT-LOCAL INSTRUCTIONS MUST NOT APPEAR');
+  });
+
+  it('routes a Codex file edit through the packaged local Biome hook', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-host-toolchain-'));
+    directories.push(projectDirectory);
+    const { sourceFile, log } = createLocalBiomeFixture(projectDirectory);
+
+    const result = runCodexHook(projectDirectory, 'post-tool-use', {
+      hook_event_name: 'PostToolUse',
+      tool_name: 'Write',
+      tool_input: { file_path: sourceFile },
+    });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(existsSync(log)).toBe(true);
+    expectBiomeChecked(log, 'source.ts');
+  });
+
+  it('warns through the packaged Codex hook when an edited-file symlink escapes the project', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-host-escape-'));
+    const outside = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-host-escape-outside-'));
+    const binDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-host-escape-bin-'));
+    directories.push(projectDirectory, outside, binDirectory);
+    const outsideSource = nodePath.join(outside, 'source.ts');
+    const linkedSource = nodePath.join(projectDirectory, 'linked.ts');
+    const executable = nodePath.join(projectDirectory, 'node_modules', '.bin', 'biome');
+    const hostLog = nodePath.join(projectDirectory, 'biome.log');
+    const genericLog = nodePath.join(projectDirectory, 'generic.log');
+    mkdirSync(nodePath.dirname(executable), { recursive: true });
+    writeFileSync(nodePath.join(projectDirectory, 'biome.json'), '{}\n');
+    writeFileSync(outsideSource, 'export const source = 1;\n');
+    symlinkSync(outsideSource, linkedSource);
+    writeFileSync(executable, `#!/bin/sh\necho host >> ${JSON.stringify(hostLog)}\n`);
+    writeFileSync(
+      nodePath.join(binDirectory, 'bunx'),
+      `#!/bin/sh\necho generic >> ${JSON.stringify(genericLog)}\n`,
+    );
+    chmodSync(executable, 0o755);
+    chmodSync(nodePath.join(binDirectory, 'bunx'), 0o755);
+
+    const result = runCodexHook(
+      projectDirectory,
+      'post-tool-use',
+      {
+        hook_event_name: 'PostToolUse',
+        tool_name: 'Write',
+        tool_input: { file_path: linkedSource },
+      },
+      { PATH: `${binDirectory}:${process.env.PATH ?? ''}` },
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(
+      JSON.parse(result.stdout) as { hookSpecificOutput: { additionalContext: string } },
+    ).toMatchObject({
+      hookSpecificOutput: {
+        additionalContext: expect.stringMatching(/outside.*Safeword project root/i),
+      },
+    });
+    expect(existsSync(hostLog)).toBe(false);
+    expect(existsSync(genericLog)).toBe(false);
+  });
+
+  it('routes Codex apply_patch targets through the packaged local Biome hook', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-host-patch-'));
+    directories.push(projectDirectory);
+    const { log } = createLocalBiomeFixture(projectDirectory);
+
+    const result = runCodexHook(projectDirectory, 'post-tool-use', {
+      hook_event_name: 'PostToolUse',
+      tool_name: 'apply_patch',
+      tool_input: { command: '*** Begin Patch\n*** Update File: source.ts\n*** End Patch' },
+    });
+
+    expect(result.status, result.stderr).toBe(0);
+    expectBiomeChecked(log, 'source.ts');
+  });
+
+  it('continues linting later apply_patch targets after an earlier host warning', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-host-multi-'));
+    directories.push(projectDirectory);
+    const first = nodePath.join(projectDirectory, 'first.ts');
+    const nested = nodePath.join(projectDirectory, 'apps', 'web');
+    const second = nodePath.join(nested, 'second.ts');
+    const executable = nodePath.join(nested, 'node_modules', '.bin', 'biome');
+    const log = nodePath.join(projectDirectory, 'biome.log');
+    mkdirSync(nodePath.dirname(executable), { recursive: true });
+    writeFileSync(nodePath.join(projectDirectory, 'biome.json'), '{}\n');
+    writeFileSync(nodePath.join(nested, 'biome.json'), '{}\n');
+    writeFileSync(first, 'export const first = 1;\n');
+    writeFileSync(second, 'export const second = 1;\n');
+    writeFileSync(executable, `#!/bin/sh\necho "$*" >> ${JSON.stringify(log)}\n`);
+    chmodSync(executable, 0o755);
+
+    const result = runCodexHook(projectDirectory, 'post-tool-use', {
+      hook_event_name: 'PostToolUse',
+      tool_name: 'apply_patch',
+      tool_input: {
+        command:
+          '*** Begin Patch\n*** Update File: first.ts\n*** Update File: apps/web/second.ts\n*** End Patch',
+      },
+    });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(
+      JSON.parse(result.stdout) as { hookSpecificOutput: { additionalContext: string } },
+    ).toMatchObject({
+      hookSpecificOutput: {
+        additionalContext: expect.stringMatching(/no project-local executable/i),
+      },
+    });
+    expect(readFileSync(log, 'utf8').trim().split('\n')).toEqual([
+      'check --write -- second.ts',
+      'check -- second.ts',
+    ]);
   });
 
   it('preserves legacy timestamp and retro-nudge prompt context through the plugin dispatcher', () => {

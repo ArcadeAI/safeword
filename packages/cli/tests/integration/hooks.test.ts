@@ -28,6 +28,7 @@ import {
   createTypeScriptPackageJson,
   fileExists,
   initGitRepo,
+  INSTALL_DEPENDENCIES_ENV,
   isRuffInstalled,
   readTestFile,
   removeTemporaryDirectory,
@@ -48,7 +49,9 @@ beforeAll(async () => {
   shared.projectDirectory = createTemporaryDirectory();
   createTypeScriptPackageJson(shared.projectDirectory);
   initGitRepo(shared.projectDirectory);
-  await setupOrThrow(shared.projectDirectory);
+  await setupOrThrow(shared.projectDirectory, ['setup', '--yes'], {
+    env: INSTALL_DEPENDENCIES_ENV,
+  });
 });
 
 afterAll(() => {

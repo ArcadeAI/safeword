@@ -19,6 +19,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   createTemporaryDirectory,
   initGitRepo,
+  INSTALL_DEPENDENCIES_ENV,
   isRuffInstalled,
   readSafewordConfig,
   readTestFile,
@@ -61,7 +62,7 @@ version = "0.1.0"
     );
 
     initGitRepo(projectDirectory);
-    await setupOrThrow(projectDirectory);
+    await setupOrThrow(projectDirectory, ['setup', '--yes'], { env: INSTALL_DEPENDENCIES_ENV });
   });
 
   afterAll(() => {

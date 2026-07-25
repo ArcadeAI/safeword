@@ -17,6 +17,7 @@ import {
   createTemporaryDirectory,
   createTypeScriptPackageJson,
   initGitRepo,
+  INSTALL_DEPENDENCIES_ENV,
   removeTemporaryDirectory,
   setupOrThrow,
   writeTestFile,
@@ -28,7 +29,9 @@ beforeAll(async () => {
   fixture.projectDirectory = createTemporaryDirectory();
   createTypeScriptPackageJson(fixture.projectDirectory);
   initGitRepo(fixture.projectDirectory);
-  await setupOrThrow(fixture.projectDirectory);
+  await setupOrThrow(fixture.projectDirectory, ['setup', '--yes'], {
+    env: INSTALL_DEPENDENCIES_ENV,
+  });
 });
 
 afterAll(() => {
