@@ -47,4 +47,43 @@ describe('computePlan (portable-tracker-transport.TB1.AC1)', () => {
 
     expect(plan).toEqual({ version: 1, intents: [] });
   });
+
+  it('emits an update intent carrying the recorded ref for a recorded open ticket', () => {
+    const t = ticket({ status: 'in_progress' });
+    const map = new TrackerMap();
+    const ref = { provider: 'github' as const, id: '549', url: 'https://x/issues/549' };
+    map.record('T1', ref);
+
+    const plan = computePlan({ tickets: [t], map, bodyMode: 'minimal' });
+
+    expect(plan.intents).toEqual([
+      { kind: 'update', ticketId: 'T1', ref, payload: buildPayload(t, { bodyMode: 'minimal' }) },
+    ]);
+  });
+
+  it('emits a close intent with the ref and full (closed) payload for a recorded terminal ticket', () => {
+    const t = ticket({ status: 'done' });
+    const map = new TrackerMap();
+    const ref = { provider: 'github' as const, id: '549', url: 'https://x/issues/549' };
+    map.record('T1', ref);
+    const payload = buildPayload(t, { bodyMode: 'minimal' });
+
+    const plan = computePlan({ tickets: [t], map, bodyMode: 'minimal' });
+
+    expect(payload.state).toBe('closed');
+    expect(plan.intents).toEqual([{ kind: 'close', ticketId: 'T1', ref, payload }]);
+  });
+
+  it('folds a pending (reconcile) entry into an update intent carrying its ref', () => {
+    const t = ticket({ status: 'in_progress' });
+    const map = new TrackerMap();
+    const ref = { provider: 'github' as const, id: '549', url: 'https://x/issues/549' };
+    map.markPending('T1', ref);
+
+    const plan = computePlan({ tickets: [t], map, bodyMode: 'minimal' });
+
+    expect(plan.intents).toEqual([
+      { kind: 'update', ticketId: 'T1', ref, payload: buildPayload(t, { bodyMode: 'minimal' }) },
+    ]);
+  });
 });

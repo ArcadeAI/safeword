@@ -23,10 +23,18 @@ export function computePlan(input: ComputePlanInput): SyncPlan {
   for (const ticket of input.tickets) {
     const payload = buildPayload(ticket, { bodyMode: input.bodyMode });
     const action = planTicketSync(input.map, ticket.id);
+    // The fold: planTicketSync decides create / update / reconcile; close is derived
+    // from the payload's terminal state. reconcile (a pending entry, only the gh path
+    // writes it) folds to update carrying the existing ref. The close intent carries
+    // the full payload + graph — the gh path has no field-less close.
     if (action.kind === 'create') {
       intents.push({ kind: 'create', ticketId: ticket.id, payload });
+    } else if (payload.state === 'closed') {
+      intents.push({ kind: 'close', ticketId: ticket.id, ref: action.ref, payload });
+    } else {
+      intents.push({ kind: 'update', ticketId: ticket.id, ref: action.ref, payload });
     }
-    // update/close/reconcile fold and plan-side graph edges land in later slices.
+    // Plan-side graph edges land in the next slice.
   }
   return { version: PLAN_CONTRACT_VERSION, intents };
 }
