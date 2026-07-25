@@ -3,7 +3,7 @@
 ## Verify Checklist
 
 **Test Suite:** ✓ 109/109 tests pass (focused host-toolchain, lint, schema, Codex-hook, and skill-nudge regression lane).
-**Gherkin:** ✅ Acceptance lane passes; feature-specific Gherkin lint passes.
+**Gherkin:** ✅ Acceptance lane passes; the feature is `@wip`-excluded because its executable proof lives in the real subprocess Vitest lane named in the feature header. Feature-specific Gherkin lint passes.
 **Build:** ✅ Success (tsup and declaration build)
 **Lint:** ✅ Clean (ESLint, Gherkin lint, TypeScript typecheck)
 **Scenarios:** All 16 scenarios marked complete (48/48 R/G/R ledger entries). The 14 late RED entries were reconstructed in an isolated `f8cf83556` baseline worktree, where importing the required host-toolchain seam failed because it did not exist.
