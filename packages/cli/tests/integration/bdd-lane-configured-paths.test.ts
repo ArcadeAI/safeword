@@ -15,6 +15,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   createTemporaryDirectory,
   createTypeScriptPackageJson,
+  INSTALL_DEPENDENCIES_ENV,
   removeTemporaryDirectory,
   setupOrThrow,
   TIMEOUT_BUN_INSTALL,
@@ -69,7 +70,7 @@ describe('scaffolded runner honors configured paths (TB2.AC2 + TB2.AC3)', () => 
   beforeAll(async () => {
     directory = createTemporaryDirectory();
     createTypeScriptPackageJson(directory);
-    await setupOrThrow(directory);
+    await setupOrThrow(directory, ['setup', '--yes'], { env: INSTALL_DEPENDENCIES_ENV });
   }, TIMEOUT_BUN_INSTALL);
 
   afterAll(() => {

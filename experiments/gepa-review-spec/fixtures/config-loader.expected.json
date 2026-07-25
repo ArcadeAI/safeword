@@ -1,0 +1,6 @@
+{
+  "split": "test",
+  "certifiedClean": true,
+  "defects": [],
+  "note": "New clean base in a domain distinct from resolver/formatter, added to grow the held-out split's n (the primary variance lever per Miller 2024, arXiv 2411.00640). Hand-adjudicated clean: each scenario is atomic (a single load), asserts an observable value (30, a specific error string, the documented default set), is deterministic (no time/order/concurrency), and two are negative cases (rejection, absent file). Parent of the config-loader-* single-mutation positives."
+}

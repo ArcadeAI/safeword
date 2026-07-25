@@ -20,6 +20,7 @@ import {
   createTemporaryDirectory,
   fileExists,
   initGitRepo,
+  INSTALL_DEPENDENCIES_ENV,
   isGolangciLintInstalled,
   readSafewordConfig,
   readTestFile,
@@ -78,7 +79,9 @@ func main() {
     );
 
     initGitRepo(projectDirectory);
-    await setupOrThrow(projectDirectory, ['setup', '--yes'], { env: SKIP_SKILLS_ENV });
+    await setupOrThrow(projectDirectory, ['setup', '--yes'], {
+      env: { ...SKIP_SKILLS_ENV, ...INSTALL_DEPENDENCIES_ENV },
+    });
   });
 
   afterAll(() => {

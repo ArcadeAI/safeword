@@ -31,6 +31,63 @@ describe('run identity normalization (WHFTDK)', () => {
     expect(getRunStorageKey(identity)).toBe('codex-codex-session');
   });
 
+  it('falls back to CODEX_THREAD_ID as a Codex session when the payload omits session_id', () => {
+    const identity = resolveRunIdentity(
+      { turn_id: 'per-turn-id' },
+      { runtime: 'codex', env: { CODEX_THREAD_ID: 'desktop-thread' } },
+    );
+
+    expect(identity).toEqual({
+      runtime: 'codex',
+      sessionKey: 'desktop-thread',
+      turnKey: 'per-turn-id',
+      source: 'CODEX_THREAD_ID',
+    });
+    expect(getRunStorageKey(identity)).toBe('codex-desktop-thread');
+  });
+
+  it('keeps a Codex payload session_id ahead of CODEX_THREAD_ID', () => {
+    const identity = resolveRunIdentity(
+      { session_id: 'hook-session' },
+      { runtime: 'codex', env: { CODEX_THREAD_ID: 'desktop-thread' } },
+    );
+
+    expect(identity.sessionKey).toBe('hook-session');
+    expect(identity.source).toBe('input.session_id');
+  });
+
+  it('does not treat a Codex turn id as a session when no durable identity is available', () => {
+    const identity = resolveRunIdentity({ turn_id: 'per-turn-id' }, { runtime: 'codex', env: {} });
+
+    expect(identity.sessionKey).toBeNull();
+    expect(identity.turnKey).toBe('per-turn-id');
+    expect(identity.source).toBe('missing');
+  });
+
+  it('does not let CODEX_THREAD_ID override an explicitly selected non-Codex runtime', () => {
+    const identity = resolveRunIdentity(
+      {},
+      { runtime: 'claude', env: { CODEX_THREAD_ID: 'desktop-thread' } },
+    );
+
+    expect(identity.runtime).toBe('claude');
+    expect(identity.sessionKey).toBeNull();
+    expect(identity.turnKey).toBeNull();
+    expect(identity.source).toBe('missing');
+  });
+
+  it('keeps a detected Claude environment ahead of CODEX_THREAD_ID', () => {
+    const identity = resolveRunIdentity(
+      {},
+      {
+        env: { CLAUDE_SESSION_ID: 'claude-session', CODEX_THREAD_ID: 'desktop-thread' },
+      },
+    );
+
+    expect(identity.runtime).toBe('claude');
+    expect(identity.sessionKey).toBe('claude-session');
+  });
+
   it('normalizes Cursor conversation_id and generation_id into durable and turn keys', () => {
     const identity = resolveRunIdentity({
       conversation_id: 'cursor-conversation',

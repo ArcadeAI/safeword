@@ -1,0 +1,6 @@
+{
+  "split": "test",
+  "certifiedClean": true,
+  "defects": [],
+  "note": "Held-out (test) split — fresh domain shaped from features/pm-grade-intake-readiness-gate.feature, added to diversify the held-out set so it can detect overfitting/gaming (E2D8S5's blind spot; GEPA's known failure mode). Three single-Then concrete scenarios, hand-adjudicated clean: pointer present (positive), pointer absent at implement (negative), pointer within length cap. Certified-clean negative AND parent of pmgrade-vacuous-non-claim."
+}

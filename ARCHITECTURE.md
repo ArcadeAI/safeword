@@ -533,6 +533,15 @@ Published files: `dist/` + `templates/` (bundled for setup/upgrade) + `codex-plu
 
 **Cross-agent Stop delivery (JN403D/P30CRP):** Claude Code keeps the hard done-gate/review behavior in `stop-quality.ts`. Cursor uses a lighter local Stop adapter for continuation nudges (`cursor/stop.ts` appends `followup_message`). Codex uses the profile-scoped Safe Word plugin, whose hook manifest calls the packaged, version-pinned `bunx --bun safeword@<version> hook codex stop` entrypoint. It emits Codex continuation output (`decision: "block"`, `reason`) from queued project context. Codex Stop delivery is advisory continuation, not hard done-gate enforcement.
 
+**Codex Desktop session identity (S2CWBE):** Hook payload `session_id` and a
+fresh Codex proof-bridge cache remain the preferred sources. When Codex Desktop
+code-mode does not deliver the documented PreToolUse bridge, the shared
+run-identity resolver may use non-empty `CODEX_THREAD_ID` as a Codex-only,
+session-stable fallback. This comes after explicit and cached identities, never
+uses `turn_id`, and is unavailable to explicit Claude and Cursor callers. The
+single resolver is shared by invocation proof, review-stamp session binding,
+and Codex Stop so all three address the same state key.
+
 **Gate clearing:** All gates clear automatically when `git rev-parse --short HEAD` changes (i.e., a commit happened). No manual intervention needed. TDD gates have priority over LOC gate (LOC gate cannot overwrite an active TDD gate).
 
 ### Frozen Transcript Fixture Testing
@@ -646,6 +655,19 @@ safeword accepts this trade — **consistency and enforcement over independent b
 | Implementation | Ticket MZH9QH: `packages/cli/src/codex-plugin/`, generated `packages/cli/codex-plugin/skills/`, staged migration command, tarball/cache proof, and documented interactive hook acceptance.                                                                                                                                 |
 
 ## References
+
+### Per-file host JavaScript toolchain ownership
+
+**Status:** Accepted
+**Date:** 2026-07-24
+
+| Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| What           | The shared post-edit JS/TS hook resolves a recognized host toolchain from the edited file's canonical directory ancestry, bounded by the canonical Safeword project root. A recognized Ultracite Biome preset takes precedence over direct Biome; the owner runs only through its local executable, with owner `cwd`, owner-relative `--`-guarded operand, and a child environment without `BIOME_CONFIG_PATH` or `BIOME_BINARY`. |
+| Why            | Root-only detection causes nested polyglot workspaces to use the wrong policy; PATH/package-runner execution and ambient Biome overrides can run a different tool or configuration than the project declared.                                                                                                                                                                                                                     |
+| Trade-off      | The hook owns path/config parsing and executable lookup instead of delegating to package runners. Unsupported formatters remain on the existing no-Prettier path until a dedicated adapter and scenarios are added.                                                                                                                                                                                                               |
+| Alternatives   | Root-wide formatter detection: rejected because it crosses workspace boundaries. Generic package-manager invocation: rejected because it can download or select a global binary. Shell commands: rejected because filenames are operands, not code.                                                                                                                                                                               |
+| Implementation | `packages/cli/templates/hooks/lib/host-toolchain.ts` and the shared `lintFile` entry point; ticket 13E3EN.                                                                                                                                                                                                                                                                                                                        |
 
 - Language Pack Spec: `packages/cli/src/packs/LANGUAGE_PACK_SPEC.md`
 - Ruff docs: https://docs.astral.sh/ruff/

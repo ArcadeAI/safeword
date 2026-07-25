@@ -668,6 +668,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/re-entry.ts': { template: 'hooks/lib/re-entry.ts' },
     '.safeword/hooks/lib/hierarchy.ts': { template: 'hooks/lib/hierarchy.ts' },
     '.safeword/hooks/lib/lint.ts': { template: 'hooks/lib/lint.ts' },
+    '.safeword/hooks/lib/host-toolchain.ts': { template: 'hooks/lib/host-toolchain.ts' },
     '.safeword/hooks/lib/quality.ts': { template: 'hooks/lib/quality.ts' },
     '.safeword/hooks/lib/quality-state.ts': { template: 'hooks/lib/quality-state.ts' },
     '.safeword/hooks/lib/run-identity.ts': { template: 'hooks/lib/run-identity.ts' },
@@ -872,6 +873,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/guides/planning-guide.md': {
       template: 'guides/planning-guide.md',
+    },
+    '.safeword/guides/skill-eval-optimization-guide.md': {
+      template: 'guides/skill-eval-optimization-guide.md',
     },
     '.safeword/guides/testing-guide.md': {
       template: 'guides/testing-guide.md',

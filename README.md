@@ -1,12 +1,12 @@
 # SAFEWORD - AI Agent Configuration CLI
 
-[![CI](https://github.com/TheMostlyGreat/safeword/actions/workflows/ci.yml/badge.svg)](https://github.com/TheMostlyGreat/safeword/actions/workflows/ci.yml)
+[![CI](https://github.com/ArcadeAI/safeword/actions/workflows/ci.yml/badge.svg)](https://github.com/ArcadeAI/safeword/actions/workflows/ci.yml)
 
 **Problem**: AI agents write code without tests, skip design validation, and lack consistency across projects.
 
 **Solution**: Portable patterns and guides that enforce test-first development (BDD/TDD), quality standards, and best practices across all your projects.
 
-**Repository**: <https://github.com/TheMostlyGreat/safeword>
+**Repository**: <https://github.com/ArcadeAI/safeword>
 
 ---
 
@@ -273,7 +273,10 @@ limited to the documented PreToolUse tool calls Safeword configures (`Bash`,
 `apply_patch` edit payloads, and file-editing tools). Live Codex runs can also
 report `file_change` execution items; those are recorded as a runtime boundary,
 not as edits Safeword claims to guard through PreToolUse. Codex Stop hooks use
-continuation semantics (`decision: "block"`, `reason`) for done-phase reminders.
+continuation semantics (`decision: "block"`, `reason`) for done-phase reminders
+and evidence remediation. When a Codex session is bound to an in-progress
+done-phase ticket and shared evidence passes, Stop also marks that ticket done;
+it never stages, commits, or opens a PR.
 
 **Skills** (in `.claude/skills/`): Specialized agent capabilities
 
@@ -555,4 +558,4 @@ The CLI installs matching workflow capabilities for Claude Code, Cursor, and Cod
 
 - **Claude Code docs**: <https://docs.claude.com/en/docs/claude-code>
 - **OpenAI Codex docs**: <https://developers.openai.com/codex>
-- **This repo**: <https://github.com/TheMostlyGreat/safeword>
+- **This repo**: <https://github.com/ArcadeAI/safeword>

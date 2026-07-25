@@ -86,15 +86,15 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
   <TabItem label="Codex">
     Safeword's Codex support is plugin-backed. Run `safeword codex install` to install and verify the Safe Word plugin in your active Codex profile, then start a new Codex session to load it; setup and upgrade do not write a project-local Codex configuration or workflow tree.
 
-| When                            | What happens                                              |
-| ------------------------------- | --------------------------------------------------------- |
-| Session starts                  | Loads packaged Safe Word standing instructions            |
-| Before supported tools          | Runs the packaged `safeword hook codex pre-tool-use` gate |
-| Agent finishes a supported tool | Surfaces queued Safe Word post-tool context               |
-| You submit a prompt             | Surfaces queued Safe Word prompt context                  |
-| You stop the session            | Emits queued Stop continuation nudges                     |
+| When                            | What happens                                                                      |
+| ------------------------------- | --------------------------------------------------------------------------------- |
+| Session starts                  | Loads packaged Safe Word standing instructions                                    |
+| Before supported tools          | Runs the packaged `safeword hook codex pre-tool-use` gate                         |
+| Agent finishes a supported tool | Surfaces queued Safe Word post-tool context                                       |
+| You submit a prompt             | Surfaces queued Safe Word prompt context                                          |
+| You stop the session            | Evaluates eligible done-phase ticket evidence and emits queued Stop continuations |
 
-    Safeword's Codex edit-gate command covers the documented PreToolUse paths it configures: `Bash`, `apply_patch` edit payloads, and file-editing tools. Live Codex runs can also report `file_change` execution items; Safeword records that as a Codex runtime boundary, not as a PreToolUse path it claims to guard. The Codex Stop command is separate: it uses continuation output for done-phase reminders such as ARCHITECTURE.md drift.
+    Safeword's Codex edit-gate command covers the documented PreToolUse paths it configures: `Bash`, `apply_patch` edit payloads, and file-editing tools. Live Codex runs can also report `file_change` execution items; Safeword records that as a Codex runtime boundary, not as a PreToolUse path it claims to guard. The Codex Stop command is separate: for a session-bound, in-progress done-phase ticket, it reuses shared evidence checks and marks the ticket done only when they pass. Otherwise it uses continuation output for exact evidence remediation and done-phase advisories such as ARCHITECTURE.md drift; it never stages, commits, or opens a PR.
 
     ### Skills
 
@@ -140,7 +140,7 @@ When safeword sets up (or upgrades) a project, it installs a small third-party *
 
 Language coding-skills install into `.claude/skills/` and, where supported by the agent, `.agents/skills/` via the `npx skills` CLI. These are third-party language helpers, not Safe Word Codex workflow aliases. The install is **best-effort** — a missing network or installer error degrades to a warning and never blocks setup. It runs once; later upgrades skip it when the skill is already present.
 
-**What you see:** edit a `.go` / `.py` / `.ts` / `.tsx` / `.rs` file and, in Claude Code, a one-line reminder points your agent at the matching skill and surfaces the skill's own description. It fires once per scenario and stays silent for other file types. The Cursor adapter is built but dormant until Cursor fixes an upstream injection bug ([#534](https://github.com/TheMostlyGreat/safeword/issues/534)). Codex's Safe Word workflow guidance now comes from the Codex plugin rather than repo-local `.agents/skills/` aliases.
+**What you see:** edit a `.go` / `.py` / `.ts` / `.tsx` / `.rs` file and, in Claude Code, a one-line reminder points your agent at the matching skill and surfaces the skill's own description. It fires once per scenario and stays silent for other file types. The Cursor adapter is built but dormant until Cursor fixes an upstream injection bug ([#534](https://github.com/ArcadeAI/safeword/issues/534)). Codex's Safe Word workflow guidance now comes from the Codex plugin rather than repo-local `.agents/skills/` aliases.
 
 To skip the skill install, set `SAFEWORD_SKIP_SKILLS=1` (or `SAFEWORD_SKIP_INSTALL=1` to skip all network installs during setup).
 
@@ -211,6 +211,6 @@ Your agent will create a structured ticket folder with a spec, test definitions,
 
 <footer class="docs-footer">
 
-[GitHub](https://github.com/TheMostlyGreat/safeword) · MIT License · © 2026
+[GitHub](https://github.com/ArcadeAI/safeword) · MIT License · © 2026
 
 </footer>

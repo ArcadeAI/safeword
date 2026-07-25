@@ -30,6 +30,7 @@ import {
   createTemporaryDirectory,
   createTypeScriptPackageJson,
   initGitRepo,
+  INSTALL_DEPENDENCIES_ENV,
   removeTemporaryDirectory,
   repoRoot,
   setupOrThrow,
@@ -128,7 +129,7 @@ describe('Codex/Cursor skill-invocation fallback → done-gate E2E (#295)', () =
     projectDirectory = createTemporaryDirectory();
     createTypeScriptPackageJson(projectDirectory);
     initGitRepo(projectDirectory);
-    await setupOrThrow(projectDirectory);
+    await setupOrThrow(projectDirectory, ['setup', '--yes'], { env: INSTALL_DEPENDENCIES_ENV });
   });
 
   afterAll(() => {
@@ -179,6 +180,34 @@ describe('Codex/Cursor skill-invocation fallback → done-gate E2E (#295)', () =
 
     expect(result.exitCode).toBe(0);
     expect(result.stdout).not.toContain('Required skill invocation');
+  });
+
+  it('records proof from CODEX_THREAD_ID when Codex Desktop did not create a bridge cache (S2CWBE)', () => {
+    const sessionId = 'codex-desktop-thread-no-cache';
+    const before = logContents(projectDirectory);
+
+    const result = runFallback(projectDirectory, 'verify', '', { CODEX_THREAD_ID: sessionId });
+
+    expect(result.exitCode, result.output).toBe(0);
+    expect(result.output).toContain('verify ✓');
+    const after = logContents(projectDirectory);
+    expect(after.startsWith(before)).toBe(true);
+    expect(after).toContain(`${sessionId} verify`);
+  });
+
+  it('keeps a fresh Codex bridge identity ahead of CODEX_THREAD_ID (S2CWBE)', () => {
+    const bridgeSessionId = 'codex-bridge-wins';
+    const environmentSessionId = 'codex-desktop-thread-loses';
+    bindCodexSession(projectDirectory, 'audit', bridgeSessionId);
+
+    const result = runFallback(projectDirectory, 'audit', '', {
+      CODEX_THREAD_ID: environmentSessionId,
+    });
+
+    expect(result.exitCode, result.output).toBe(0);
+    expect(result.output).toContain('audit ✓');
+    expect(logContents(projectDirectory)).toContain(`${bridgeSessionId} audit`);
+    expect(logContents(projectDirectory)).not.toContain(`${environmentSessionId} audit`);
   });
 
   it('feature done PASSES when Cursor binds the supported relative helper command', () => {
