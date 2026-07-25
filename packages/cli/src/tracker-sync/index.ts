@@ -10,6 +10,7 @@
 import { withBackoff } from './backoff.js';
 import { buildPayload } from './payload.js';
 import { resolveCredential } from './secrets.js';
+import { aliasMap, resolveTicketReference } from './ticket-references.js';
 import { loadTrackerMap, planTicketSync, TrackerMap } from './tracker-map.js';
 import type { BodyMode, Provider, TicketInput, TrackerReference } from './types.js';
 import { dispatchCreate, type GraphProjection, type TrackerWriter } from './writers.js';
@@ -53,26 +54,6 @@ function supportedProvider(provider: string): Provider | undefined {
 
 function isString(value: string | undefined): value is string {
   return value !== undefined;
-}
-
-function ticketAliases(ticket: TicketInput): string[] {
-  return [ticket.id, ticket.slug, ticket.folder].filter(isString);
-}
-
-function aliasMap(tickets: TicketInput[]): Map<string, string> {
-  const aliases = new Map<string, string>();
-  for (const ticket of tickets) {
-    for (const alias of ticketAliases(ticket)) aliases.set(alias, ticket.id);
-  }
-  return aliases;
-}
-
-function resolveTicketReference(
-  raw: string | undefined,
-  aliases: Map<string, string>,
-): string | undefined {
-  if (raw === undefined || raw.length === 0) return undefined;
-  return aliases.get(raw);
 }
 
 function prerequisiteIds(ticket: TicketInput, aliases: Map<string, string>): string[] {

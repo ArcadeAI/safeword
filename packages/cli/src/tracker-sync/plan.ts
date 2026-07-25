@@ -7,8 +7,9 @@
  * tracker.
  */
 
-import { type Intent, PLAN_CONTRACT_VERSION, type SyncPlan } from './contract.js';
+import { type GraphEdges, type Intent, PLAN_CONTRACT_VERSION, type SyncPlan } from './contract.js';
 import { buildPayload } from './payload.js';
+import { aliasMap, resolveTicketReference } from './ticket-references.js';
 import { planTicketSync, type TrackerMap } from './tracker-map.js';
 import type { BodyMode, TicketInput } from './types.js';
 
@@ -18,7 +19,32 @@ export interface ComputePlanInput {
   bodyMode: BodyMode;
 }
 
+/**
+ * Plan-side graph edges, resolved by **corpus membership** (via the alias map),
+ * not by tracker-map recordedness — a new issue's number isn't known pre-create,
+ * so edges are expressed by ticket id and the executor resolves them create-then-
+ * link. An edge to a ticket outside the corpus resolves to `undefined` and is
+ * dropped; an intent with no resolvable edge carries no `graph` key at all.
+ */
+function computeGraph(ticket: TicketInput, aliases: Map<string, string>): GraphEdges | undefined {
+  const parentTicketId =
+    resolveTicketReference(ticket.parent, aliases) ?? resolveTicketReference(ticket.epic, aliases);
+  const blockedByTicketIds = [
+    ...new Set(
+      [...(ticket.dependsOn ?? []), ...(ticket.blockedOn ?? [])]
+        .map(reference => resolveTicketReference(reference, aliases))
+        .filter((id): id is string => id !== undefined && id !== ticket.id),
+    ),
+  ];
+
+  const graph: GraphEdges = {};
+  if (parentTicketId !== undefined) graph.parentTicketId = parentTicketId;
+  if (blockedByTicketIds.length > 0) graph.blockedByTicketIds = blockedByTicketIds;
+  return Object.keys(graph).length > 0 ? graph : undefined;
+}
+
 export function computePlan(input: ComputePlanInput): SyncPlan {
+  const aliases = aliasMap(input.tickets);
   const intents: Intent[] = [];
   for (const ticket of input.tickets) {
     const payload = buildPayload(ticket, { bodyMode: input.bodyMode });
@@ -27,14 +53,17 @@ export function computePlan(input: ComputePlanInput): SyncPlan {
     // from the payload's terminal state. reconcile (a pending entry, only the gh path
     // writes it) folds to update carrying the existing ref. The close intent carries
     // the full payload + graph — the gh path has no field-less close.
+    let intent: Intent;
     if (action.kind === 'create') {
-      intents.push({ kind: 'create', ticketId: ticket.id, payload });
+      intent = { kind: 'create', ticketId: ticket.id, payload };
     } else if (payload.state === 'closed') {
-      intents.push({ kind: 'close', ticketId: ticket.id, ref: action.ref, payload });
+      intent = { kind: 'close', ticketId: ticket.id, ref: action.ref, payload };
     } else {
-      intents.push({ kind: 'update', ticketId: ticket.id, ref: action.ref, payload });
+      intent = { kind: 'update', ticketId: ticket.id, ref: action.ref, payload };
     }
-    // Plan-side graph edges land in the next slice.
+    const graph = computeGraph(ticket, aliases);
+    if (graph !== undefined) intent.graph = graph;
+    intents.push(intent);
   }
   return { version: PLAN_CONTRACT_VERSION, intents };
 }
