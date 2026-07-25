@@ -10,25 +10,25 @@ real `sync-tracker` command for the `--plan`/`--apply-results` flags (no live tr
 
 ### Scenario: A never-synced ticket becomes a create intent
 
-- [x] RED 2e1d42c
+- [x] RED skip: combined with GREEN in 2e1d42c (early slice — RED+GREEN one commit; separated from slice 3 on)
 - [x] GREEN 2e1d42c
 - [x] REFACTOR skip: none needed
 
 ### Scenario: An already-recorded ticket becomes an update intent
 
-- [x] RED 4b5fc89
+- [x] RED skip: combined with GREEN in 4b5fc89 (early slice — RED+GREEN one commit; separated from slice 3 on)
 - [x] GREEN 4b5fc89
 - [x] REFACTOR skip: none needed
 
 ### Scenario: A terminal ticket becomes a close intent
 
-- [x] RED 4b5fc89
+- [x] RED skip: combined with GREEN in 4b5fc89 (early slice — RED+GREEN one commit; separated from slice 3 on)
 - [x] GREEN 4b5fc89
 - [x] REFACTOR skip: none needed
 
 ### Scenario: An empty corpus yields an empty but valid plan
 
-- [x] RED 2e1d42c
+- [x] RED skip: combined with GREEN in 2e1d42c (early slice — RED+GREEN one commit; separated from slice 3 on)
 - [x] GREEN 2e1d42c
 - [x] REFACTOR skip: none needed
 
@@ -62,9 +62,9 @@ real `sync-tracker` command for the `--plan`/`--apply-results` flags (no live tr
 
 ### Scenario: Planning needs no credential and contacts no tracker
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: computePlan is pure (no credential/client param) — structurally offline
+- [x] GREEN dcf20aa
+- [x] REFACTOR skip: none needed
 
 ## Rule: --apply-results folds executor results into the map idempotently
 
@@ -108,36 +108,36 @@ fs concern covered by the --apply-results command wiring test (slice 5). -->
 
 ### Scenario: --plan writes a valid SyncPlan to stdout and nothing else
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED dc1b66a
+- [x] GREEN dcf20aa
+- [x] REFACTOR skip: none needed
 
 ### Scenario: With no mode flag, the command routes to the gh path
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: no-flag path is the pre-existing gh path (command-egress.test.ts covers it)
+- [x] GREEN dcf20aa
+- [x] REFACTOR skip: none needed
 
 ### Scenario: Plan and apply modes cannot be combined
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED dc1b66a
+- [x] GREEN dcf20aa
+- [x] REFACTOR skip: none needed
 
 ## Rule: Egress discipline is preserved
 
 ### Scenario: A create intent body carries only minimal egress
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: buildPayload minimal-body is unit-tested (payload.test.ts); computePlan uses it
+- [x] GREEN dcf20aa
+- [x] REFACTOR skip: none needed
 
 ### Scenario: The emitted plan contains no credential
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: structural (plan built from corpus+map only)
+- [x] GREEN ed66f9c
+- [x] REFACTOR skip: none needed
 
 ## Cross-scenario
 
-- [ ] cross-scenario
+- [x] cross-scenario skip: scenarios are independent (pure functions + a stateless command surface); no cross-scenario refactor emerged
