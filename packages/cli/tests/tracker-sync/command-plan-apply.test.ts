@@ -121,6 +121,19 @@ describe('sync-tracker --plan / --apply-results command wiring', () => {
     expect(readFileSync(sidecar(), 'utf8')).toBe('{ corrupt not json');
   });
 
+  // A corrupt sidecar must NOT plan as if nothing were synced: every recorded ticket
+  // would come back as a `create` and the executor would duplicate every issue.
+  it('refuses to --plan against a corrupt sidecar instead of emitting creates', async () => {
+    writeFileSync(sidecar(), '{ corrupt not json');
+
+    await syncTrackerCommand({ plan: true });
+
+    expect(process.exitCode).toBe(1);
+    expect(stdout.join('')).toBe('');
+    // The corrupt file is left exactly as it was.
+    expect(readFileSync(sidecar(), 'utf8')).toBe('{ corrupt not json');
+  });
+
   it('rejects combining --plan and --apply-results', async () => {
     await syncTrackerCommand({ plan: true, applyResults: nodePath.join(cwd, 'results.json') });
 

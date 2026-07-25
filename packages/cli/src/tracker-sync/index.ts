@@ -48,7 +48,7 @@ export interface SyncTrackerResult {
 }
 
 /** Narrow a configured provider to a supported one, else undefined. */
-function supportedProvider(provider: string): Provider | undefined {
+export function supportedProvider(provider: string): Provider | undefined {
   return SUPPORTED_PROVIDERS.has(provider as Provider) ? (provider as Provider) : undefined;
 }
 

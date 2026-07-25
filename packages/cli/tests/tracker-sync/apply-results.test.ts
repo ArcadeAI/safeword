@@ -91,14 +91,13 @@ describe('applyResults (portable-tracker-transport.TB1.AC2 / SM1.AC1)', () => {
 
   it('validates all rows before mutating: a valid row is NOT recorded when a later row is rejected', () => {
     const map = new TrackerMap();
-    const ctx = { provider: 'github' as const, ticketIds: new Set(['T1']) };
     const outcome = applyResults(
       map,
       results(
         { ticketId: 'T1', number: '549', url: 'https://github.com/o/r/issues/549' },
         { ticketId: 'GHOST', number: '550', url: 'https://github.com/o/r/issues/550' },
       ),
-      ctx,
+      CTX,
     );
 
     expect(outcome.ok).toBe(false);
@@ -106,7 +105,7 @@ describe('applyResults (portable-tracker-transport.TB1.AC2 / SM1.AC1)', () => {
     expect(map.lookup('T1')).toBeUndefined();
   });
 
-  it('accepts a github url carrying a query string or fragment (tail still matches number)', () => {
+  it('accepts a github url carrying a query string (tail still matches number)', () => {
     const map = new TrackerMap();
     const outcome = applyResults(
       map,
@@ -116,6 +115,69 @@ describe('applyResults (portable-tracker-transport.TB1.AC2 / SM1.AC1)', () => {
 
     expect(outcome).toEqual({ ok: true });
     expect(map.lookup('T1')?.ref.id).toBe('549');
+  });
+
+  // Separate from the query-string case: with only that one, dropping `#` from the
+  // urlTail split would leave the suite green.
+  it('accepts a github url carrying a fragment (tail still matches number)', () => {
+    const map = new TrackerMap();
+    const outcome = applyResults(
+      map,
+      results({
+        ticketId: 'T1',
+        number: '549',
+        url: 'https://github.com/o/r/issues/549#issuecomment-1',
+      }),
+      CTX,
+    );
+
+    expect(outcome).toEqual({ ok: true });
+    expect(map.lookup('T1')?.ref.id).toBe('549');
+  });
+
+  // The provider-neutral floor: non-github providers skip the url-tail/numeric guard,
+  // but must still reject a blank number or a non-http url — without the floor a
+  // linear row like { number: ' ', url: 'banana' } was recorded verbatim.
+  it('rejects a blank issue number for a non-github provider, leaving the map untouched', () => {
+    const map = new TrackerMap();
+    const linear = { provider: 'linear' as const, ticketIds: new Set(['T1']) };
+    const outcome = applyResults(
+      map,
+      results({ ticketId: 'T1', number: ' ', url: 'https://linear.app/acme/issue/ENG-45' }),
+      linear,
+    );
+
+    expect(outcome.ok).toBe(false);
+    expect(map.lookup('T1')).toBeUndefined();
+  });
+
+  it('rejects a non-http url for a non-github provider, leaving the map untouched', () => {
+    const map = new TrackerMap();
+    const linear = { provider: 'linear' as const, ticketIds: new Set(['T1']) };
+    const outcome = applyResults(
+      map,
+      results({ ticketId: 'T1', number: 'ENG-45', url: 'banana' }),
+      linear,
+    );
+
+    expect(outcome.ok).toBe(false);
+    expect(map.lookup('T1')).toBeUndefined();
+  });
+
+  it('records a well-formed non-github result (the floor accepts a slug id)', () => {
+    const map = new TrackerMap();
+    const linear = { provider: 'linear' as const, ticketIds: new Set(['T1']) };
+    const outcome = applyResults(
+      map,
+      results({ ticketId: 'T1', number: 'ENG-45', url: 'https://linear.app/acme/issue/ENG-45' }),
+      linear,
+    );
+
+    expect(outcome).toEqual({ ok: true });
+    expect(map.lookup('T1')).toEqual({
+      ref: { provider: 'linear', id: 'ENG-45', url: 'https://linear.app/acme/issue/ENG-45' },
+      status: 'recorded',
+    });
   });
 
   it('rejects a github result whose number is not purely numeric, leaving the map untouched', () => {

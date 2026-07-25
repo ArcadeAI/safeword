@@ -14,13 +14,13 @@ import { readTicketBridgeConfig } from '../tracker-sync/config.js';
 import { parseResults } from '../tracker-sync/contract.js';
 import { readCorpus } from '../tracker-sync/corpus.js';
 import {
-  SUPPORTED_PROVIDERS,
+  supportedProvider,
   syncTracker,
   type SyncTrackerDependencies,
   type TicketBridgeConfig,
 } from '../tracker-sync/index.js';
 import { computePlan } from '../tracker-sync/plan.js';
-import { loadTrackerMap, TrackerMap } from '../tracker-sync/tracker-map.js';
+import { loadTrackerMap, TrackerMap, trackerMapPath } from '../tracker-sync/tracker-map.js';
 import type { Provider } from '../tracker-sync/types.js';
 
 export interface SyncTrackerCommandOptions {
@@ -31,22 +31,27 @@ export interface SyncTrackerCommandOptions {
   applyResults?: string;
 }
 
-const sidecarPathFor = (cwd: string): string => `${cwd}/.safeword/tracker-map.json`;
-
 /** `--plan`: compute the sync plan offline and write it as JSON to stdout only. */
 function runPlan(cwd: string, config: TicketBridgeConfig): void {
-  const tickets = readCorpus(cwd, config.target?.repo);
-  const loaded = loadTrackerMap(sidecarPathFor(cwd));
+  const sidecarPath = trackerMapPath(cwd);
+  const loaded = loadTrackerMap(sidecarPath);
+  // Refuse on a corrupt sidecar rather than planning against an empty map: every
+  // recorded ticket would come back as a `create`, and the executor would then
+  // duplicate every issue in the corpus. Matches `runApply` and the live path's
+  // `loadSidecarOrRefuse` — a missing sidecar is the legitimate first run.
+  if (!loaded.ok && loaded.reason === 'corrupt') {
+    fail(`${sidecarPath} is corrupt; refusing to plan against it (every ticket would re-create)`);
+    return;
+  }
   const map = loaded.ok ? loaded.map : new TrackerMap();
+  const tickets = readCorpus(cwd, config.target?.repo);
   const plan = computePlan({ tickets, map, bodyMode: config.body ?? 'minimal' });
   process.stdout.write(`${JSON.stringify(plan, undefined, 2)}\n`);
 }
 
 /** `--apply-results <file>`: fold an executor's results into the sidecar offline. */
 function runApply(cwd: string, config: TicketBridgeConfig, filePath: string): void {
-  const provider = SUPPORTED_PROVIDERS.has(config.provider as Provider)
-    ? (config.provider as Provider)
-    : undefined;
+  const provider = supportedProvider(config.provider);
   if (provider === undefined) {
     fail('no tracker provider is configured');
     return;
@@ -64,7 +69,7 @@ function runApply(cwd: string, config: TicketBridgeConfig, filePath: string): vo
     return;
   }
 
-  const sidecarPath = sidecarPathFor(cwd);
+  const sidecarPath = trackerMapPath(cwd);
   const loaded = loadTrackerMap(sidecarPath);
   if (!loaded.ok && loaded.reason === 'corrupt') {
     fail(`${sidecarPath} is corrupt`);
@@ -81,7 +86,12 @@ function runApply(cwd: string, config: TicketBridgeConfig, filePath: string): vo
   map.save(sidecarPath);
 }
 
-/** Report a `--plan`/`--apply-results` failure to stderr and set exit code 1. */
+/**
+ * Report a `--plan`/`--apply-results` failure to stderr and set exit code 1.
+ * Unlike the sibling commands' `fail(): never`, this returns (so each caller pairs
+ * it with a `return`): the offline flags are driven in-process by tests that assert
+ * `process.exitCode`, and `process.exit` would take the test runner down with it.
+ */
 function fail(reason: string): void {
   process.stderr.write(`sync-tracker: ${reason}.\n`);
   process.exitCode = 1;
@@ -123,13 +133,11 @@ async function runLiveSync(
   config: TicketBridgeConfig,
   options: SyncTrackerCommandOptions,
 ): Promise<void> {
-  const provider = SUPPORTED_PROVIDERS.has(config.provider as Provider)
-    ? (config.provider as Provider)
-    : undefined;
+  const provider = supportedProvider(config.provider);
   const dependencies: SyncTrackerDependencies = {
     config,
     tickets: provider === undefined ? [] : readCorpus(cwd, config.target?.repo),
-    sidecarPath: `${cwd}/.safeword/tracker-map.json`,
+    sidecarPath: trackerMapPath(cwd),
     writers:
       provider === undefined
         ? ({} as SyncTrackerDependencies['writers'])

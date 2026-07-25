@@ -139,4 +139,24 @@ describe('computePlan (portable-tracker-transport.TB1.AC1)', () => {
     const t = ticket({ id: 'T1', parent: 'P1', epic: 'E1' });
     expect(intentFor([parent, epic, t], 'T1')?.graph).toEqual({ parentTicketId: 'P1' });
   });
+
+  // Pairs with the test above: without this one, deleting the `?? epic` fallback
+  // entirely still passes (the parent-wins case never exercises the fallback).
+  it('falls back to the epic when no parent is set', () => {
+    const epic = ticket({ id: 'E1' });
+    const t = ticket({ id: 'T1', epic: 'E1' });
+    expect(intentFor([epic, t], 'T1')?.graph).toEqual({ parentTicketId: 'E1' });
+  });
+
+  // A ticket whose parent names its own slug resolves back to its own id — emitting
+  // it would tell the executor to make the issue its own parent.
+  it('drops a self-referential parent edge', () => {
+    const t = ticket({ id: 'T1', slug: 'login', parent: 'login' });
+    expect(intentFor([t], 'T1')?.graph).toBeUndefined();
+  });
+
+  it('drops a self-referential blocked-by edge', () => {
+    const t = ticket({ id: 'T1', slug: 'login', blockedOn: ['login'] });
+    expect(intentFor([t], 'T1')?.graph).toBeUndefined();
+  });
 });

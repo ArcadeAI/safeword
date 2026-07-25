@@ -26,17 +26,27 @@ export interface ComputePlanInput {
  * link. An edge to a ticket outside the corpus resolves to `undefined` and is
  * dropped; an intent with no resolvable edge carries no `graph` key at all.
  */
-function computeGraph(ticket: TicketInput, aliases: Map<string, string>): GraphEdges | undefined {
-  const parentTicketId =
+function buildGraphEdges(
+  ticket: TicketInput,
+  aliases: Map<string, string>,
+): GraphEdges | undefined {
+  // Self-edges are dropped on BOTH sides: a ticket whose parent/epic names its own
+  // slug or folder resolves back to its own id, which would tell the executor to make
+  // the issue its own parent. The gh path's buildGraphProjection does not self-exclude,
+  // but a ticket parented to or blocked by itself is degenerate — omitting it is the
+  // more correct behavior, and the intent is expressed once here for both edge kinds.
+  const selfExcluded = (id: string | undefined): id is string =>
+    id !== undefined && id !== ticket.id;
+
+  const parentCandidate =
     resolveTicketReference(ticket.parent, aliases) ?? resolveTicketReference(ticket.epic, aliases);
+  const parentTicketId = selfExcluded(parentCandidate) ? parentCandidate : undefined;
   const blockedByTicketIds = [
     ...new Set(
       [...(ticket.dependsOn ?? []), ...(ticket.blockedOn ?? [])]
+        // Drop unresolvable (out-of-corpus) edges as well as self-edges.
         .map(reference => resolveTicketReference(reference, aliases))
-        // Drop unresolvable (out-of-corpus) edges and a self-blocked-by edge. The gh
-        // path's buildGraphProjection does not self-exclude blocked-by, but a ticket
-        // blocking itself is degenerate; omitting it is the more correct behavior.
-        .filter((id): id is string => id !== undefined && id !== ticket.id),
+        .filter(id => selfExcluded(id)),
     ),
   ];
 
@@ -46,6 +56,7 @@ function computeGraph(ticket: TicketInput, aliases: Map<string, string>): GraphE
   return Object.keys(graph).length > 0 ? graph : undefined;
 }
 
+/** Diff the corpus against the tracker-map into a versioned, network-free `SyncPlan`. */
 export function computePlan(input: ComputePlanInput): SyncPlan {
   const aliases = aliasMap(input.tickets);
   const intents: Intent[] = [];
@@ -64,7 +75,7 @@ export function computePlan(input: ComputePlanInput): SyncPlan {
     } else {
       intent = { kind: 'update', ticketId: ticket.id, ref: action.ref, payload };
     }
-    const graph = computeGraph(ticket, aliases);
+    const graph = buildGraphEdges(ticket, aliases);
     if (graph !== undefined) intent.graph = graph;
     intents.push(intent);
   }

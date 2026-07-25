@@ -4,15 +4,16 @@
  * `number` + `url` as `recorded` (no `pending` — the network already happened in
  * the executor); idempotent by ticket id; validates every row BEFORE mutating so
  * a rejection leaves the map untouched. Rejects a result naming a ticket outside
- * the corpus, and (GitHub) a non-numeric `number` or a `url` whose tail ≠ `number`
- * (the internal-id guard).
+ * the corpus, one carrying a blank number or a non-http url (the provider-neutral
+ * floor), and — for GitHub — a non-numeric `number` or a `url` whose tail ≠
+ * `number` (the internal-id guard).
  */
 
 import type { SyncResults } from './contract.js';
 import type { TrackerMap } from './tracker-map.js';
 import type { Provider } from './types.js';
 
-export interface ApplyContext {
+export interface ApplyResultsInput {
   provider: Provider;
   ticketIds: Set<string>;
 }
@@ -33,16 +34,27 @@ function urlTail(url: string): string {
 }
 
 /** Validate one result against the corpus + provider shape; a reason string means reject. */
-function rejectReason(result: ResultRow, context: ApplyContext): string | undefined {
-  if (!context.ticketIds.has(result.ticketId)) {
+function rejectReason(result: ResultRow, input: ApplyResultsInput): string | undefined {
+  if (!input.ticketIds.has(result.ticketId)) {
     return `result names ticket "${result.ticketId}", which is not in the corpus`;
   }
-  // GitHub: `number` is the bare issue number (authoritative) and a well-formed url
-  // ends in it — both guard the internal-id trap (a numeric internal db id whose url
-  // tail differs). Linear (out of scope, unwired) uses slug urls that never end in the
-  // number, so the url-tail guard does not apply there; validation for a wired Linear
-  // executor is deferred to that provider's slice.
-  if (context.provider === 'github') {
+  // Provider-neutral floor, applied to EVERY provider (including ones added later):
+  // a ref is only useful if it carries a non-blank id and a real http(s) url. The
+  // provider-specific block below can only tighten this, never replace it — without
+  // the floor, a non-github provider would fail open and record whitespace/garbage
+  // into the sidecar, which `computePlan` would then echo back as an update ref.
+  if (result.number.trim().length === 0) {
+    return `result "${result.ticketId}": issue number is blank`;
+  }
+  if (!isHttpUrl(result.url)) {
+    return `result "${result.ticketId}": "${result.url}" is not an http(s) issue url`;
+  }
+  // GitHub adds the identity guard: `number` is the bare issue number (authoritative)
+  // and a well-formed url ends in it — together they catch the internal-id trap (a
+  // numeric internal db id whose url tail differs). Linear uses slug urls that never
+  // end in the number, so the tail check cannot apply there; its executor slice owns
+  // any tighter Linear-specific validation.
+  if (input.provider === 'github') {
     if (!/^\d+$/.test(result.number)) {
       return `result "${result.ticketId}": "${result.number}" is not a numeric GitHub issue number`;
     }
@@ -53,10 +65,18 @@ function rejectReason(result: ResultRow, context: ApplyContext): string | undefi
   return undefined;
 }
 
+/** True for a syntactically valid http/https URL — the floor every provider's ref must clear. */
+function isHttpUrl(value: string): boolean {
+  if (!URL.canParse(value)) return false;
+  const { protocol } = new URL(value);
+  return protocol === 'http:' || protocol === 'https:';
+}
+
+/** Fold an executor's results into the map, or reject without mutating it. */
 export function applyResults(
   map: TrackerMap,
   results: SyncResults,
-  context: ApplyContext,
+  context: ApplyResultsInput,
 ): ApplyOutcome {
   // Validate every row BEFORE mutating, so a rejection leaves the map untouched.
   for (const result of results.results) {
