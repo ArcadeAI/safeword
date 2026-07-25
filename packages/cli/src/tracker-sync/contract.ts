@@ -73,6 +73,11 @@ interface SyncResult {
   status?: string;
 }
 
+/** A valid plan with nothing to do — an executor consumes it as a clean no-op. */
+export function emptyPlan(): SyncPlan {
+  return { version: PLAN_CONTRACT_VERSION, intents: [] };
+}
+
 /** What an executor produces and `--apply-results` consumes. */
 export interface SyncResults {
   version: number;

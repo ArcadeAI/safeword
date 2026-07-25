@@ -18,6 +18,7 @@ import { syncTrackerCommand } from '../../src/commands/sync-tracker.js';
 describe('sync-tracker --plan / --apply-results command wiring', () => {
   let cwd: string;
   let stdout: string[];
+  let stderr: string[];
 
   beforeEach(() => {
     cwd = mkdtempSync(nodePath.join(tmpdir(), 'sync-plan-'));
@@ -43,12 +44,16 @@ describe('sync-tracker --plan / --apply-results command wiring', () => {
     );
 
     stdout = [];
+    stderr = [];
     vi.spyOn(process, 'cwd').mockReturnValue(cwd);
     vi.spyOn(process.stdout, 'write').mockImplementation(chunk => {
       stdout.push(String(chunk));
       return true;
     });
-    vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    vi.spyOn(process.stderr, 'write').mockImplementation(chunk => {
+      stderr.push(String(chunk));
+      return true;
+    });
     process.exitCode = 0;
   });
 
@@ -59,6 +64,9 @@ describe('sync-tracker --plan / --apply-results command wiring', () => {
   });
 
   const sidecar = () => nodePath.join(cwd, '.safeword', 'tracker-map.json');
+  const writeConfig = (ticketBridge: Record<string, unknown>) => {
+    writeFileSync(nodePath.join(cwd, '.safeword', 'config.json'), JSON.stringify({ ticketBridge }));
+  };
 
   it('--plan writes a single valid SyncPlan JSON document to stdout and nothing else', async () => {
     await syncTrackerCommand({ plan: true });
@@ -132,6 +140,38 @@ describe('sync-tracker --plan / --apply-results command wiring', () => {
     expect(stdout.join('')).toBe('');
     // The corrupt file is left exactly as it was.
     expect(readFileSync(sidecar(), 'utf8')).toBe('{ corrupt not json');
+  });
+
+  // #1441 provider parity: the live path is a friendly no-op with no provider, so
+  // --plan must not hand an executor an all-`create` plan for an unconfigured tracker.
+  it('--plan on an unconfigured project emits an empty plan, not a plan full of creates', async () => {
+    writeConfig({ provider: 'none' });
+
+    await syncTrackerCommand({ plan: true });
+
+    expect(process.exitCode).toBe(0);
+    const parsed: unknown = JSON.parse(stdout.join(''));
+    expect(parsed).toEqual({ version: 1, intents: [] });
+    // The advisory goes to stderr so stdout stays a pure SyncPlan.
+    expect(stderr.join('')).toContain('no tracker configured');
+  });
+
+  // #1441 egress parity: a `full` body puts ticket bodies in the plan document.
+  it('--plan warns on stderr when planning full bodies to github, keeping stdout pure', async () => {
+    writeConfig({ provider: 'github', body: 'full', target: { repo: 'acme/demo' } });
+
+    await syncTrackerCommand({ plan: true });
+
+    expect(stderr.join('')).toContain('Egress warning');
+    // The warning must not pollute the machine-readable plan.
+    const parsed: unknown = JSON.parse(stdout.join(''));
+    expect(parsed).toMatchObject({ version: 1 });
+  });
+
+  it('--plan does not warn about egress under the default minimal body', async () => {
+    await syncTrackerCommand({ plan: true });
+
+    expect(stderr.join('')).not.toContain('Egress warning');
   });
 
   it('rejects combining --plan and --apply-results', async () => {

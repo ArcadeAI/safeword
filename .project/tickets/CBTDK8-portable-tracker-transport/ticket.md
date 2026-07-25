@@ -2,15 +2,14 @@
 id: CBTDK8
 slug: portable-tracker-transport
 type: feature
-phase: done
+phase: implement
 phase_anchors:
   - intake: e1c4733
   - define-behavior: 35b4b81
   - scenario-gate: f1a97fb
   - plan-implementation: b5983b6
   - implement: 8d57cb9
-  - verify: 27699d5
-status: done
+status: in_progress
 epic: offboard-local-ticketing
 parent: KKNFZA
 scope:

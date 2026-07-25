@@ -11,7 +11,7 @@ import process from 'node:process';
 import { applyResults } from '../tracker-sync/apply-results.js';
 import { buildWriterRegistry, resolveRepoVisibility } from '../tracker-sync/clients.js';
 import { readTicketBridgeConfig } from '../tracker-sync/config.js';
-import { parseResults } from '../tracker-sync/contract.js';
+import { emptyPlan, parseResults } from '../tracker-sync/contract.js';
 import { readCorpus } from '../tracker-sync/corpus.js';
 import {
   supportedProvider,
@@ -33,6 +33,28 @@ export interface SyncTrackerCommandOptions {
 
 /** `--plan`: compute the sync plan offline and write it as JSON to stdout only. */
 function runPlan(cwd: string, config: TicketBridgeConfig): void {
+  // Provider parity with the live path (#1441): an unconfigured project is a
+  // friendly no-op there, so planning must not hand an executor an all-`create`
+  // plan for a tracker nobody configured. Emit an empty (but valid) plan so
+  // `--plan | executor` pipelines still receive a parseable document, and put the
+  // notice on stderr — stdout stays a pure SyncPlan.
+  if (supportedProvider(config.provider) === undefined) {
+    note('no tracker configured; planning nothing (run `safeword connect` to add one)');
+    process.stdout.write(`${JSON.stringify(emptyPlan(), undefined, 2)}\n`);
+    return;
+  }
+  // Egress parity with the live path (#1441): a `full` body projects ticket bodies,
+  // and the plan carries them in a file an executor may pipe or store. The live
+  // path's fail-safe warns unless the repo is *confirmed* private; confirming that
+  // shells out to `gh`, which planning must not do — so an unconfirmed repo warns,
+  // exactly as the live path does when visibility is unknown.
+  if ((config.body ?? 'minimal') === 'full' && config.provider === 'github') {
+    note(
+      '⚠️  Egress warning: this plan carries full ticket bodies for a GitHub repo whose ' +
+        'visibility was not confirmed (planning stays offline and cannot check)',
+    );
+  }
+
   const sidecarPath = trackerMapPath(cwd);
   const loaded = loadTrackerMap(sidecarPath);
   // Refuse on a corrupt sidecar rather than planning against an empty map: every
@@ -84,6 +106,11 @@ function runApply(cwd: string, config: TicketBridgeConfig, filePath: string): vo
     return;
   }
   map.save(sidecarPath);
+}
+
+/** An advisory on stderr — never stdout, which must stay a pure SyncPlan document. */
+function note(message: string): void {
+  process.stderr.write(`sync-tracker: ${message}.\n`);
 }
 
 /**
