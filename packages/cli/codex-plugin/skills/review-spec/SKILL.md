@@ -70,7 +70,7 @@ One lens to always run — **negative-case coverage**: for each happy-path scena
 
 ## Cross-cutting checks
 
-Six lenses across the whole scenario set (not per scenario) — each asks "what's missing?":
+Eight lenses across the whole scenario set (not per scenario) — each asks "what's missing?":
 
 - **Conflict** — do two scenarios contradict (one allows X, another rejects it) with no distinguishing precondition?
 - **Boundary** — zero / one / max / empty / null covered where they apply?
@@ -78,6 +78,7 @@ Six lenses across the whole scenario set (not per scenario) — each asks "what'
 - **Security** — authn/authz failures and abuse vectors covered?
 - **Persona consistency** — is each scenario's triggering persona clear, and would another persona experience it differently?
 - **Surface coverage** — if `spec.md` lists affected surfaces, does each affected surface have a matching `@surface.<slug>` scenario tag or an explicit `skip:` reason, and are any `@surface.*` tags stale?
+- **Invariant binding** — for each normative clause in `spec.md` (never / must not / always / only), name the scenario whose failure would falsify it **and** the condition under which it fails; a bare scenario reference is not a binding, it's a pointer that survives the invariant being violated. An invariant no scenario would catch is a **must-fix** — cheapest to write now, while no code exists to work around. Worse than a gap is the scenario whose title names the invariant while its `Given` establishes a weaker precondition: it reads as coverage and proves nothing, so report it as a vacuous pass, not a missing scenario. Found live in QRX2DN — the spec forbade an unbound session mutating ticket state, every row named `never_uses_a_fallback_for` bound a session id, and the no-identity case the invariant actually named shipped as a defect (#1425).
 - **Wiring** — for each behavior that crosses a module/command boundary, is there a scenario exercised end-to-end through the real entry point (real config → real collaborators, mocking only the process boundary), not only via injected internals? A path reachable solely through a `provider: none`-style short circuit has no wiring coverage (see `testing/SKILL.md` → Wiring Tests).
 
 ## Findings format

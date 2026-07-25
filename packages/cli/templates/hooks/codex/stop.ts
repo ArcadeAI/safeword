@@ -83,6 +83,15 @@ function completeSessionDoneTicket(
   input: CodexStopInput,
 ): DoneTransitionResult {
   const runIdentity = resolveRunIdentity(input, { runtime: 'codex' });
+  // No session id and no CODEX_THREAD_ID means no identity at all, and the state
+  // path would collapse to the unscoped `quality-state-undefined.json` every
+  // id-less hook run shares — whatever ticket it names belongs to some other
+  // session. Stop before the read: an unbound session keeps the architecture
+  // advisory's global fallback (isDonePhaseWork, above) but is never a
+  // lifecycle-mutation fallback. Issue #1425; spec SWM1.R1.
+  if (runIdentity.sessionKey === null) {
+    return { completed: false, architectureAdvisory: null };
+  }
   const ticket = readSessionActiveTicket(projectDirectory, runIdentity);
   if (!ticket?.folder || ticket.status !== 'in_progress' || ticket.phase !== 'done') {
     return { completed: false, architectureAdvisory: null };

@@ -712,6 +712,37 @@ describe('codex/stop.ts retro adapter (CDX602)', () => {
       }
     });
 
+    // The rows above all carry a session id, so their "unbound" means "no state
+    // for THIS id". A Codex payload with neither `session_id` nor
+    // CODEX_THREAD_ID has no identity at all: `getRunStorageKey` returns null
+    // and the state path collapses to the unscoped `quality-state-undefined.json`
+    // bucket every id-less hook run shares. Reading another session's active
+    // ticket from there and closing it is the lifecycle-mutation fallback
+    // spec SWM1.R1 forbids (issue #1425).
+    it('codex-done-gate.TBU1.R1.never_mutates_from_the_unscoped_state_bucket', () => {
+      writeConfig(dir, { surface: false, file: false });
+      const ticket = writeTicket(dir, 'FOREIGN');
+      writeFileSync(
+        nodePath.join(dir, '.project', 'quality-state-undefined.json'),
+        JSON.stringify({
+          locSinceCommit: 0,
+          lastCommitHash: '',
+          activeTicket: 'FOREIGN',
+          recentFailures: [],
+          incrementedPatterns: [],
+        }),
+      );
+
+      const result = runHook(dir, { cwd: dir }, { CODEX_THREAD_ID: undefined });
+
+      expect(result.status).toBe(0);
+      expectNoContinuation(result);
+      expect(readFileSync(nodePath.join(ticket, 'ticket.md'), 'utf8')).toMatch(
+        /^status: in_progress$/m,
+      );
+      expect(readFileSync(nodePath.join(ticket, 'ticket.md'), 'utf8')).toMatch(/^phase: done$/m);
+    });
+
     it('codex-done-gate.SWM1.R1.keeps_evidence_failure_ahead_of_architecture_and_filing', () => {
       writeConfig(dir, { surface: true, file: true });
       const sessionId = freshSession('done-priority');
