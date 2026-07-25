@@ -24,3 +24,9 @@
 - [00:12] Confirmed the existing cache hardening remains intact: the complete
   invocation-helper (28) and review-stamp bridge (34) suites pass, including
   expired, out-of-order, foreign-path, and no-identity cases.
+
+## Session: 2026-07-25
+
+- [22:26] User confirmed closure after draft PR #1411 merged as `0c1215e5e`.
+  GitHub CI passed lint and both Node test lanes; ticket frontmatter now records
+  the merged PR and done state.
