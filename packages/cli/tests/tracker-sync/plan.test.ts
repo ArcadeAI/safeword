@@ -86,4 +86,42 @@ describe('computePlan (portable-tracker-transport.TB1.AC1)', () => {
       { kind: 'update', ticketId: 'T1', ref, payload: buildPayload(t, { bodyMode: 'minimal' }) },
     ]);
   });
+
+  function intentFor(tickets: TicketInput[], ticketId: string) {
+    const plan = computePlan({ tickets, map: new TrackerMap(), bodyMode: 'minimal' });
+    return plan.intents.find(intent => intent.ticketId === ticketId);
+  }
+
+  it('carries a parent edge naming the parent ticket id', () => {
+    const parent = ticket({ id: 'P1', slug: 'parent' });
+    const child = ticket({ id: 'C1', parent: 'P1' });
+    expect(intentFor([parent, child], 'C1')?.graph).toEqual({ parentTicketId: 'P1' });
+  });
+
+  it('carries blocked-by edges as an unordered set of ticket ids', () => {
+    const a = ticket({ id: 'A1' });
+    const b = ticket({ id: 'B1' });
+    const t = ticket({ id: 'T1', dependsOn: ['A1', 'B1'] });
+    const graph = intentFor([a, b, t], 'T1')?.graph;
+    expect(graph?.blockedByTicketIds).toHaveLength(2);
+    expect(new Set(graph?.blockedByTicketIds)).toEqual(new Set(['A1', 'B1']));
+    expect(graph?.parentTicketId).toBeUndefined();
+  });
+
+  it('carries both a parent and a blocked-by edge', () => {
+    const p = ticket({ id: 'P1' });
+    const b = ticket({ id: 'B1' });
+    const t = ticket({ id: 'T1', parent: 'P1', blockedOn: ['B1'] });
+    expect(intentFor([p, b, t], 'T1')?.graph).toEqual({
+      parentTicketId: 'P1',
+      blockedByTicketIds: ['B1'],
+    });
+  });
+
+  it('drops only the unresolvable edge, keeping resolvable ones', () => {
+    const p = ticket({ id: 'P1' });
+    const t = ticket({ id: 'T1', parent: 'P1', blockedOn: ['GHOST'] });
+    // GHOST is not in the corpus → dropped; the resolvable parent edge remains.
+    expect(intentFor([p, t], 'T1')?.graph).toEqual({ parentTicketId: 'P1' });
+  });
 });
