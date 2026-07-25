@@ -31,7 +31,7 @@ done_when:
   - Invalid or absent evidence leaves the ticket in progress and returns a remediation continuation without hiding the failure.
   - Existing Codex retro and architecture Stop behavior stays ordered and functional, and the template/dogfood regression suites pass.
 created: 2026-07-24T16:17:08.104Z
-last_modified: 2026-07-25T05:04:56Z
+last_modified: 2026-07-25T05:28:40Z
 ---
 
 # Close Codex tickets when evidence passes
@@ -51,4 +51,5 @@ last_modified: 2026-07-25T05:04:56Z
 - 2026-07-24T18:14:00Z Scenario implementation complete: 30 focused real-adapter Codex Stop tests pass. Coverage includes session-only success, all shared-evidence failure partitions (including stale dependencies and a real failed test command), continuation priority, extraction-before-transition observation, global advisory fallback, and Git ownership boundary. Entering review and verification.
 - 2026-07-24T19:02:00Z Review and audit complete: root lint, typecheck, formatting, template parity (192 pairs/8 contracts), and focused Codex Stop plus parity suites pass. Audit found and corrected public Stop-hook documentation that still described advisory-only behavior; no scoped refactor improved the small sequencing operation. The all-repository verification attempt hit three unrelated fixture timeouts under concurrent workspace load (golden-path, Go golden-path, and check-reconcile); the TypeScript golden-path and check-reconcile cases then passed in isolation. See audit.md. This desktop session cannot log the required real /quality-review, /audit, or /verify invocation identity, so the feature remains in_progress and no verify.md substitute was written.
 - 2026-07-25T05:04:56Z Desktop identity regression RED/GREEN: a real Codex PostToolUse payload without `session_id` wrote no state at the durable Stop key; resolving the Codex runtime identity in the shared state writer now binds `CODEX_THREAD_ID` consistently. The real PostToolUse → Stop adapter test passes (31 focused tests total). Re-review, full audit, and refactor assessment found no further scoped improvement; their current-run invocation proofs are recorded.
+- 2026-07-25T05:28:40Z Verification complete: full package suite passed (5,387 passed, 5 skipped), Gherkin passed (494 passed, 3 skipped), and lint/typecheck passed. verify.md records the scope, audit, and baseline dependency evidence. The harness does not dispatch genuine Codex hook events, so no synthetic binding or Stop was used to self-transition the ticket.
 - 2026-07-24T16:17:08.104Z Started: Created ticket QRX2DN
