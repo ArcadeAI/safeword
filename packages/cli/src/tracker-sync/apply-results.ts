@@ -18,10 +18,41 @@ export interface ApplyContext {
 
 export type ApplyOutcome = { ok: true } | { ok: false; reason: string };
 
+/** Last non-empty path segment of an issue url — the issue number if the url is well-formed. */
+function urlTail(url: string): string {
+  const segments = url.split('/').filter(segment => segment.length > 0);
+  return segments.at(-1) ?? '';
+}
+
 export function applyResults(
-  _map: TrackerMap,
+  map: TrackerMap,
   results: SyncResults,
-  _context: ApplyContext,
+  context: ApplyContext,
 ): ApplyOutcome {
-  return { ok: false, reason: `unimplemented (${results.results.length} results)` };
+  // Validate every row BEFORE mutating, so a rejection leaves the map untouched.
+  for (const result of results.results) {
+    if (!context.ticketIds.has(result.ticketId)) {
+      return {
+        ok: false,
+        reason: `result names ticket "${result.ticketId}", which is not in the corpus`,
+      };
+    }
+    // The internal-id guard: `number` is authoritative, and a well-formed url ends
+    // in it. A mismatch means the executor reported the wrong field (e.g. the
+    // internal database id) — reject rather than record a bad ref.
+    if (urlTail(result.url) !== result.number) {
+      return {
+        ok: false,
+        reason: `result "${result.ticketId}": url does not end in issue number ${result.number} (${result.url})`,
+      };
+    }
+  }
+  for (const result of results.results) {
+    map.record(result.ticketId, {
+      provider: context.provider,
+      id: result.number,
+      url: result.url,
+    });
+  }
+  return { ok: true };
 }

@@ -88,6 +88,59 @@ export type ParseOutcome = { ok: true; value: SyncResults } | { ok: false; reaso
  * `number`, and `url`. Semantic checks (corpus membership, url-tail==number)
  * live in `applyResults`. Slice-4 GREEN implements the body.
  */
+type RowOutcome = { ok: true; value: SyncResult } | { ok: false; reason: string };
+
+/** Validate one results row into a `SyncResult` (string ticketId, number, url required). */
+function parseResultRow(raw: unknown, index: number): RowOutcome {
+  if (typeof raw !== 'object' || raw === null) {
+    return { ok: false, reason: `result ${index} is not an object` };
+  }
+  const row = raw as Record<string, unknown>;
+  if (typeof row.ticketId !== 'string' || row.ticketId.length === 0) {
+    return { ok: false, reason: `result ${index} is missing a ticketId` };
+  }
+  if (typeof row.number !== 'string' || row.number.length === 0) {
+    return { ok: false, reason: `result "${row.ticketId}" is missing an issue number` };
+  }
+  if (typeof row.url !== 'string' || row.url.length === 0) {
+    return { ok: false, reason: `result "${row.ticketId}" is missing an issue url` };
+  }
+  return {
+    ok: true,
+    value: {
+      ticketId: row.ticketId,
+      number: row.number,
+      url: row.url,
+      ...(typeof row.status === 'string' && { status: row.status }),
+    },
+  };
+}
+
 export function parseResults(jsonText: string): ParseOutcome {
-  return { ok: false, reason: `unimplemented (${jsonText.length} chars)` };
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(jsonText);
+  } catch {
+    return { ok: false, reason: 'results file is not valid JSON' };
+  }
+  if (typeof parsed !== 'object' || parsed === null) {
+    return { ok: false, reason: 'results must be a JSON object' };
+  }
+  const document_ = parsed as { version?: unknown; results?: unknown };
+  if (document_.version !== PLAN_CONTRACT_VERSION) {
+    return {
+      ok: false,
+      reason: `unsupported results version ${String(document_.version)} (expected ${PLAN_CONTRACT_VERSION})`,
+    };
+  }
+  if (!Array.isArray(document_.results)) {
+    return { ok: false, reason: 'results must be an array' };
+  }
+  const rows: SyncResult[] = [];
+  for (const [index, raw] of document_.results.entries()) {
+    const row = parseResultRow(raw, index);
+    if (!row.ok) return row;
+    rows.push(row.value);
+  }
+  return { ok: true, value: { version: PLAN_CONTRACT_VERSION, results: rows } };
 }
