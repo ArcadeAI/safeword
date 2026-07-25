@@ -2,7 +2,7 @@
 id: CBTDK8
 slug: portable-tracker-transport
 type: feature
-phase: implement
+phase: verify
 phase_anchors:
   - intake: e1c4733
   - define-behavior: 35b4b81
