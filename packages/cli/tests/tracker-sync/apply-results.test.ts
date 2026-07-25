@@ -9,7 +9,9 @@ import { describe, expect, it } from 'vitest';
 
 import { applyResults } from '../../src/tracker-sync/apply-results.js';
 import { parseResults, PLAN_CONTRACT_VERSION } from '../../src/tracker-sync/contract.js';
+import { computePlan } from '../../src/tracker-sync/plan.js';
 import { TrackerMap } from '../../src/tracker-sync/tracker-map.js';
+import type { TicketInput } from '../../src/tracker-sync/types.js';
 
 const CTX = { provider: 'github' as const, ticketIds: new Set(['T1']) };
 
@@ -122,5 +124,50 @@ describe('parseResults (portable-tracker-transport.SM1.AC1)', () => {
       results: [{ ticketId: 'T1', number: '549' }],
     });
     expect(parseResults(bad).ok).toBe(false);
+  });
+});
+
+describe('plan → results → map round-trip (portable-tracker-transport.SM1.AC1)', () => {
+  it('a planned create, executed and applied, records the ticket in the map', () => {
+    const ticket: TicketInput = {
+      id: 'T1',
+      title: 'Login bug',
+      status: 'in_progress',
+      type: 'task',
+      epic: undefined,
+      ticketUrl: 'https://github.com/o/r/tree/main/.project/tickets/T1-login',
+    };
+    const map = new TrackerMap();
+
+    // Plan a create for a never-synced ticket.
+    const plan = computePlan({ tickets: [ticket], map, bodyMode: 'minimal' });
+    expect(plan.intents[0]?.kind).toBe('create');
+
+    // The executor creates the issue and reports the result; apply folds it back.
+    const raw = JSON.stringify({
+      version: PLAN_CONTRACT_VERSION,
+      results: [
+        {
+          ticketId: 'T1',
+          number: '549',
+          url: 'https://github.com/o/r/issues/549',
+          status: 'created',
+        },
+      ],
+    });
+    const parsed = parseResults(raw);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+
+    const outcome = applyResults(map, parsed.value, {
+      provider: 'github',
+      ticketIds: new Set(['T1']),
+    });
+
+    expect(outcome).toEqual({ ok: true });
+    expect(map.lookup('T1')).toEqual({
+      ref: { provider: 'github', id: '549', url: 'https://github.com/o/r/issues/549' },
+      status: 'recorded',
+    });
   });
 });
