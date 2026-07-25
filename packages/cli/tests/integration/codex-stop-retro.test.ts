@@ -561,6 +561,7 @@ describe('codex/stop.ts retro adapter (CDX602)', () => {
       const threadId = freshSession('desktop-thread');
       const ticket = writeTicket(dir, 'DESKTOP');
       initGitRepo(dir);
+      execSync('git add . && git commit -qm fixture', { cwd: dir, stdio: 'pipe' });
 
       const postTool = runPostToolHook(
         dir,
@@ -571,6 +572,9 @@ describe('codex/stop.ts retro adapter (CDX602)', () => {
         { CODEX_THREAD_ID: threadId },
       );
       expect(postTool.status).toBe(0);
+      const statePath = nodePath.join(dir, '.project', `quality-state-codex-${threadId}.json`);
+      const state = JSON.parse(readFileSync(statePath, 'utf8')) as { activeTicket?: string };
+      expect(state.activeTicket).toBe('DESKTOP');
 
       const stop = runHook(dir, { cwd: dir }, { CODEX_THREAD_ID: threadId });
 
