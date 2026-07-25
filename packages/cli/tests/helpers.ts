@@ -74,16 +74,34 @@ export const SKIP_INSTALL_ENV = {
 };
 
 /**
- * A skipped-install fixture still needs the CLI package's already-installed
- * test tools when it runs its generated package scripts (for example test:bdd).
- * Link rather than install so default tests remain offline and hermetic.
+ * A skipped-install fixture still needs the CLI package and its already-installed
+ * test tools when it runs generated configs or package scripts (for example
+ * test:bdd). Link its installed dependency entries, package self-link, and
+ * executables separately rather than symlinking the whole module directory:
+ * the CLI package is not installed inside its own node_modules directory. This
+ * keeps default tests offline and hermetic.
  */
 function linkFixtureDependencies(projectDirectory: string): void {
   const fixtureModules = nodePath.join(projectDirectory, 'node_modules');
   const testModules = nodePath.join(SAFEWORD_PATH, 'node_modules');
-  if (existsSync(projectDirectory) && !existsSync(fixtureModules) && existsSync(testModules)) {
-    symlinkSync(testModules, fixtureModules, 'dir');
+  if (!existsSync(projectDirectory) || existsSync(fixtureModules) || !existsSync(testModules)) {
+    return;
   }
+
+  mkdirSync(fixtureModules, { recursive: true });
+  for (const entry of readdirSync(testModules)) {
+    if (entry === '.bin') {
+      continue;
+    }
+    const source = nodePath.join(testModules, entry);
+    symlinkSync(
+      source,
+      nodePath.join(fixtureModules, entry),
+      statSync(source).isDirectory() ? 'dir' : 'file',
+    );
+  }
+  symlinkSync(SAFEWORD_PATH, nodePath.join(fixtureModules, 'safeword'), 'dir');
+  symlinkSync(nodePath.join(testModules, '.bin'), nodePath.join(fixtureModules, '.bin'), 'dir');
 }
 
 function linkSkippedInstallFixtureDependencies(

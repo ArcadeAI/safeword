@@ -9,9 +9,16 @@
  * by injecting a scripted runner (no real subprocess, no real timeout).
  */
 
+import { execFileSync } from 'node:child_process';
+
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { setupOrThrow, wasKilledByTimeout } from './helpers';
+import {
+  createTemporaryDirectory,
+  removeTemporaryDirectory,
+  setupOrThrow,
+  wasKilledByTimeout,
+} from './helpers';
 
 interface FakeResult {
   exitCode: number;
@@ -78,6 +85,33 @@ describe('setupOrThrow retry policy', () => {
 
     expect(calls[0]?.env).toMatchObject({ SAFEWORD_SKIP_INSTALL: '1' });
     expect(calls[1]?.env).toMatchObject({ SAFEWORD_SKIP_INSTALL: '' });
+  });
+
+  it('links the local safeword package for a skipped-install fixture', async () => {
+    const directory = createTemporaryDirectory();
+    const runner = (() =>
+      Promise.resolve({ stdout: '', stderr: '', exitCode: 0, timedOut: false })) as SetupRunner;
+
+    try {
+      await setupOrThrow(directory, ['setup'], {}, runner);
+
+      expect(() =>
+        execFileSync(
+          process.execPath,
+          [
+            '--input-type=module',
+            '--eval',
+            "await Promise.all([import('safeword'), import('eslint')])",
+          ],
+          {
+            cwd: directory,
+            stdio: 'pipe',
+          },
+        ),
+      ).not.toThrow();
+    } finally {
+      removeTemporaryDirectory(directory);
+    }
   });
 
   it('retries once on a timeout, then returns the succeeding result', async () => {

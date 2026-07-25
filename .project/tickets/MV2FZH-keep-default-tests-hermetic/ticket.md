@@ -2,10 +2,11 @@
 id: MV2FZH
 slug: keep-default-tests-hermetic
 type: patch
+subtype: bug-investigated
 phase: verify
 status: in_progress
 created: 2026-07-25T14:34:21.269Z
-last_modified: 2026-07-25T15:53:30Z
+last_modified: 2026-07-25T16:30:00Z
 ---
 
 # Keep default tests hermetic
@@ -16,6 +17,7 @@ last_modified: 2026-07-25T15:53:30Z
 
 ## Work Log
 
+- 2026-07-25T16:30:00Z Fixed: CI showed that symlinking a skipped-install fixture's entire `node_modules` exposed package dependencies and binaries but not Safeword itself, because a package is not installed inside its own dependency directory. The fixture now links dependency entries, the local `safeword` package, and `.bin` separately. A regression test imports both `safeword` and `eslint` from the fixture. Ruled out: a host-toolchain failure (the failing config could not resolve its first import); a registry/network failure (the default setup had correctly skipped installation).
 - 2026-07-25T15:53:30Z Improved: Recorded the three R/G/R loops with durable commit or skip evidence so the ticket ledger passes the boundary gate.
 - 2026-07-25T15:51:00Z Fixed: CI exposed that skipped-install fixtures could not run generated BDD scripts. Successful skipped-install setup now links the CLI package's already-installed test dependencies, preserving offline fixture setup.
 - 2026-07-25T14:34:21.269Z Started: Created ticket MV2FZH
