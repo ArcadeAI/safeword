@@ -2,13 +2,15 @@
 id: CBTDK8
 slug: portable-tracker-transport
 type: feature
-phase: verify
+phase: done
 phase_anchors:
   - intake: e1c4733
   - define-behavior: 35b4b81
   - scenario-gate: f1a97fb
   - plan-implementation: b5983b6
-status: in_progress
+  - implement: dcf20aa
+  - verify: 5971b29
+status: done
 epic: offboard-local-ticketing
 parent: KKNFZA
 scope:
@@ -51,3 +53,6 @@ last_modified: 2026-06-29T02:29:45.594Z
 - 2026-07-24T17:57:21.127Z Phase: define-behavior → scenario-gate
 - 2026-07-24T23:03:54.908Z Phase: scenario-gate → plan-implementation
 - 2026-07-25T00:11:37.715Z Phase: plan-implementation → implement
+- 2026-07-25T14:32:35.247Z Phase: verify → done
+- 2026-07-25T14:40:00.000Z Complete: implement — 5 slices GREEN (contract, computePlan fold, plan-side graph edges, apply-results, command wiring); 24 new tests; gh path preserved. Full suite 5378 passed (1 unrelated root-perms failure excluded).
+- 2026-07-25T14:45:00.000Z Complete: verify + audit — verify.md written (all gates green); /audit passed (depcruise 0 errors, config in sync, knip cleaned). → done.
