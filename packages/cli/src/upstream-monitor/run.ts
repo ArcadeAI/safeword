@@ -15,7 +15,7 @@ if (!token) {
   process.exit(1);
 }
 
-const [owner, repo] = repoFullName.split('/');
+const [owner, repo] = repoFullName.split('/', 2);
 if (!owner || !repo) {
   console.error(`GITHUB_REPOSITORY must be owner/repo, got ${repoFullName}`);
   process.exit(1);

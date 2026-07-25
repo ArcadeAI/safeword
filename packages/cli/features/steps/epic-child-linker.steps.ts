@@ -35,7 +35,7 @@ function folderBySlug(world: SafewordWorld, slug: string): string {
 }
 
 function idBySlug(world: SafewordWorld, slug: string): string {
-  const [id] = nodePath.basename(folderBySlug(world, slug)).split('-');
+  const [id] = nodePath.basename(folderBySlug(world, slug)).split('-', 1);
   if (id === undefined) throw new Error(`no id for slug ${slug}`);
   return id;
 }

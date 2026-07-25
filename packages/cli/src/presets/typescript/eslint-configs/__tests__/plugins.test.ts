@@ -62,13 +62,14 @@ describe('vitestConfig', () => {
     );
   });
 
-  // Twelve rules were promoted into the preset from the project-local
+  // Fourteen rules were promoted into the preset from the project-local
   // cli-tests-override block. They target test-code patterns (throwaway
   // fixtures, regex-heavy assertions, describe-block helpers) where the
   // rule's intent doesn't apply. If the preset is reorganized, these
   // turn-offs need to survive — table-driven so each rule gets its own
   // test case (failure isolation: if 3 rules regress, you see all 3 at
-  // once instead of just the first).
+  // once instead of just the first). The last two arrived with sonarjs
+  // 4.2.0, which promoted them into its recommended set (see vitest.ts).
   it.each([
     'sonarjs/no-unused-vars',
     'sonarjs/no-dead-store',
@@ -82,6 +83,8 @@ describe('vitestConfig', () => {
     'unicorn/no-array-callback-reference',
     'sonarjs/publicly-writable-directories',
     'sonarjs/no-alphabetical-sort',
+    'sonarjs/parameterized-tests',
+    'sonarjs/explicit-test-skip',
   ])('disables %s for test files', rule => {
     expect(getSeverityNumber(getRuleConfig(vitestConfig, rule))).toBe(0);
   });

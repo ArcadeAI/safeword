@@ -32,6 +32,14 @@ import { createTemporaryDirectory, removeTemporaryDirectory, TIMEOUT_QUICK } fro
 const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 const STOP_QUALITY = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/stop-quality.ts');
 const FIXTURE_PATH = nodePath.join(import.meta.dirname, '../fixtures/stop-hook-transcript.jsonl');
+const REAL_ENVELOPE = {
+  isSidechain: false,
+  userType: 'external',
+  cwd: '/test/project',
+  sessionId: 'fixture-session-001',
+  version: '2.1.42',
+  gitBranch: 'main',
+};
 
 // Module-scope helpers — pure (no closure over describe-local state).
 
@@ -255,6 +263,175 @@ describe('Stop Hook: Frozen Transcript Format Compatibility', () => {
 });
 
 describe('Stop Hook: Ticket Resolution Context', () => {
+  it('keeps an injected meta message inside the current edited-work turn', () => {
+    const transcriptPath = nodePath.join(state.projectDirectory, 'transcript.jsonl');
+    writeFileSync(
+      transcriptPath,
+      [
+        JSON.stringify({
+          ...REAL_ENVELOPE,
+          type: 'assistant',
+          uuid: 'assistant-edit',
+          message: {
+            role: 'assistant',
+            content: [{ type: 'tool_use', name: 'Edit', id: 'edit-1' }],
+          },
+        }),
+        JSON.stringify({
+          ...REAL_ENVELOPE,
+          type: 'user',
+          uuid: 'meta-message',
+          isMeta: true,
+          message: {
+            role: 'user',
+            content: [{ type: 'text', text: 'Base directory for this skill: /test/project' }],
+          },
+        }),
+        JSON.stringify({
+          ...REAL_ENVELOPE,
+          type: 'assistant',
+          uuid: 'assistant-final',
+          message: {
+            role: 'assistant',
+            content: [{ type: 'text', text: 'The hook was updated.' }],
+          },
+        }),
+      ].join('\n'),
+    );
+
+    const result = runStopHook(state.projectDirectory, transcriptPath);
+
+    expect(result.status).toBe(0);
+    expect(JSON.parse(result.stdout) as { decision?: string }).toMatchObject({ decision: 'block' });
+  });
+
+  it('skips the review prompt after a string-form user follow-up', () => {
+    const transcriptPath = nodePath.join(state.projectDirectory, 'transcript.jsonl');
+    writeFileSync(
+      transcriptPath,
+      [
+        JSON.stringify({
+          ...REAL_ENVELOPE,
+          type: 'assistant',
+          uuid: 'assistant-edit',
+          message: {
+            role: 'assistant',
+            content: [{ type: 'tool_use', name: 'Edit', id: 'edit-1' }],
+          },
+        }),
+        JSON.stringify({
+          ...REAL_ENVELOPE,
+          type: 'tool_result',
+          uuid: 'tool-result',
+          message: {
+            role: 'user',
+            content: [{ type: 'tool_result', tool_use_id: 'edit-1', content: 'Updated.' }],
+          },
+        }),
+        JSON.stringify({
+          ...REAL_ENVELOPE,
+          type: 'user',
+          uuid: 'user-follow-up',
+          message: { role: 'user', content: 'Explain that in plain English.' },
+        }),
+        JSON.stringify({
+          ...REAL_ENVELOPE,
+          type: 'assistant',
+          uuid: 'assistant-final',
+          message: {
+            role: 'assistant',
+            content: [{ type: 'text', text: 'It makes the hook quieter.' }],
+          },
+        }),
+      ].join('\n'),
+    );
+
+    const result = runStopHook(state.projectDirectory, transcriptPath);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('');
+  });
+
+  it('keeps a system reminder inside the current edited-work turn', () => {
+    const transcriptPath = nodePath.join(state.projectDirectory, 'transcript.jsonl');
+    writeFileSync(
+      transcriptPath,
+      [
+        JSON.stringify({
+          ...REAL_ENVELOPE,
+          type: 'assistant',
+          uuid: 'assistant-edit',
+          message: {
+            role: 'assistant',
+            content: [{ type: 'tool_use', name: 'Edit', id: 'edit-1' }],
+          },
+        }),
+        JSON.stringify({
+          ...REAL_ENVELOPE,
+          type: 'user',
+          uuid: 'system-reminder',
+          message: {
+            role: 'user',
+            content: [{ type: 'text', text: '<system-reminder>Task complete.</system-reminder>' }],
+          },
+        }),
+        JSON.stringify({
+          ...REAL_ENVELOPE,
+          type: 'assistant',
+          uuid: 'assistant-final',
+          message: {
+            role: 'assistant',
+            content: [{ type: 'text', text: 'The hook was updated.' }],
+          },
+        }),
+      ].join('\n'),
+    );
+
+    const result = runStopHook(state.projectDirectory, transcriptPath);
+
+    expect(result.status).toBe(0);
+    expect(JSON.parse(result.stdout) as { decision?: string }).toMatchObject({ decision: 'block' });
+  });
+
+  it('skips the review prompt after a genuine user follow-up to an earlier edit', () => {
+    const transcriptPath = nodePath.join(state.projectDirectory, 'transcript.jsonl');
+    writeFileSync(
+      transcriptPath,
+      [
+        JSON.stringify({
+          type: 'assistant',
+          message: {
+            role: 'assistant',
+            content: [{ type: 'tool_use', name: 'Edit', id: 'edit-1' }],
+          },
+        }),
+        JSON.stringify({
+          type: 'user',
+          message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'edit-1' }] },
+        }),
+        JSON.stringify({
+          type: 'user',
+          message: {
+            role: 'user',
+            content: [{ type: 'text', text: 'Explain that in plain English.' }],
+          },
+        }),
+        JSON.stringify({
+          type: 'assistant',
+          message: {
+            role: 'assistant',
+            content: [{ type: 'text', text: 'It makes the hook quieter.' }],
+          },
+        }),
+      ].join('\n'),
+    );
+
+    const result = runStopHook(state.projectDirectory, transcriptPath);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('');
+  });
+
   it('shows quality review when active ticket at implement phase', () => {
     createTicket(state.projectDirectory, '099', 'test', {
       phase: 'implement',

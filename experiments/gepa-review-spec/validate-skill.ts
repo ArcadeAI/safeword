@@ -26,28 +26,11 @@ import {
   type ConsensusBreach,
   type ProtectedSet,
 } from './src/protected';
+import { runWithRetry } from './src/retry';
 import { createRunnerFromEnv } from './src/task';
-import { DEFAULT_SEVERITY, type Fixture, type RunOutput, type SkillRunner } from './src/types';
+import { DEFAULT_SEVERITY, type Fixture, type SkillRunner } from './src/types';
 
 const SEED = join(import.meta.dirname, '..', '..', '.claude', 'skills', 'review-spec', 'SKILL.md');
-
-/** Retry a transient failure; a persistent one aborts the gate LOUD (never a
- * partial run masquerading as a verdict — see stability.ts's drop-guard rationale). */
-async function runWithRetry(
-  runner: SkillRunner,
-  skill: string,
-  feature: string,
-): Promise<RunOutput> {
-  for (let index = 0; index < 4; index += 1) {
-    try {
-      return await runner.run(skill, feature);
-    } catch (error) {
-      if (index === 3) throw error;
-      process.stderr.write(`    retry ${index + 1}: ${(error as Error).message}\n`);
-    }
-  }
-  throw new Error('unreachable');
-}
 
 interface CandidateResult {
   perRunFalseAlarms: number[];
@@ -114,6 +97,11 @@ function report(label: string, r: CandidateResult): void {
 async function main(): Promise<void> {
   const candidatePath = process.argv[2] ?? 'gepa/winner.md';
   const runs = Number(process.argv[3] ?? 5);
+  // A non-numeric or <1 runs collapses the ⌈2N/3⌉ threshold to 0 → zero breaches →
+  // a vacuous ACCEPT (and NaN mean-FA). Fail loud instead of green-lighting on noise.
+  if (!Number.isInteger(runs) || runs < 1) {
+    throw new Error(`runs must be a positive integer (got "${process.argv[3]}")`);
+  }
   const splitArg = process.argv[4] ?? 'test';
   const all = loadFixtures();
   const splits: [string, Fixture[]][] =

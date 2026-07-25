@@ -105,7 +105,7 @@ describe('emitGherkinFeature — AC1: faithful Gherkin emission', () => {
     expect(scenariosOf(out)[0]?.tags).toEqual(['@gherkin-typescript.TB1.AC1']);
     // Placement: the line directly above `Scenario:` is exactly the tag token.
     const lines = out.split('\n');
-    const scenarioIndex = lines.findIndex(line => line.trim().startsWith('Scenario:'));
+    const scenarioIndex = lines.findIndex(line => line.trimStart().startsWith('Scenario:'));
     expect(lines[scenarioIndex - 1]?.trim()).toBe('@gherkin-typescript.TB1.AC1');
   });
 

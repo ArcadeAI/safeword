@@ -24,31 +24,14 @@ import { join } from 'node:path';
 import { loadFixtures, testSplit } from './src/dataset';
 import { scoreFixture, type FixtureScore } from './src/evaluator';
 import { loadProtectedSet, protectedMisses } from './src/protected';
+import { runWithRetry } from './src/retry';
 import { createRunnerFromEnv } from './src/task';
-import { DEFAULT_SEVERITY, type RunOutput, type SkillRunner } from './src/types';
+import { DEFAULT_SEVERITY } from './src/types';
 
 const CANDIDATES = [
   ['SEED', join(import.meta.dirname, '..', '..', '.claude', 'skills', 'review-spec', 'SKILL.md')],
   ['WINNER', join(import.meta.dirname, 'gepa', 'winner.md')],
 ] as const;
-
-/** Survive a transient timeout before giving up — a long paid batch must not die
- * on one hiccup (mirrors compute-protected.ts / gepa-eval.ts). */
-async function runWithRetry(
-  runner: SkillRunner,
-  skill: string,
-  feature: string,
-): Promise<RunOutput> {
-  for (let index = 0; index < 4; index += 1) {
-    try {
-      return await runner.run(skill, feature);
-    } catch (error) {
-      if (index === 3) throw error;
-      process.stderr.write(`    retry ${index + 1}: ${(error as Error).message}\n`);
-    }
-  }
-  throw new Error('unreachable');
-}
 
 interface Cell {
   falseAlarms: number;

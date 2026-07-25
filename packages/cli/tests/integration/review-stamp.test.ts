@@ -26,6 +26,10 @@ const CURSOR_BEFORE_SHELL_PATH = nodePath.resolve(
   __dirname,
   '../../templates/hooks/cursor/before-shell-execution.ts',
 );
+const CODEX_PRE_TOOL_PATH = nodePath.resolve(
+  __dirname,
+  '../../templates/hooks/codex/pre-tool-quality.ts',
+);
 const TICKET_ID = 'ABC123';
 
 const TICKET_FRONTMATTER = [
@@ -79,6 +83,20 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
     delete env.CLAUDE_SESSION_ID;
     delete env.CLAUDE_CODE_SESSION_ID;
     delete env.CODEX_THREAD_ID;
+
+    const result = spawnSync('bun', [STAMP_PATH, ...args], {
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env,
+    });
+    return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
+  }
+
+  function runStampWithCodexDesktopThread(threadId: string, ...args: string[]): HookResult {
+    const env: NodeJS.ProcessEnv = { ...process.env, CLAUDE_PROJECT_DIR: projectRoot };
+    delete env.CLAUDE_SESSION_ID;
+    delete env.CLAUDE_CODE_SESSION_ID;
+    env.CODEX_THREAD_ID = threadId;
 
     const result = spawnSync('bun', [STAMP_PATH, ...args], {
       encoding: 'utf8',
@@ -442,10 +460,25 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
       });
     }
 
-    function bindRuntimeSessionTicket(storageKey: string): void {
+    function runCodexPreTool(sessionId: string): void {
+      const result = spawnSync('bun', [CODEX_PRE_TOOL_PATH], {
+        cwd: projectRoot,
+        input: JSON.stringify({
+          session_id: sessionId,
+          tool_name: 'Bash',
+          tool_input: { command: STAMP_COMMAND },
+        }),
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env: { ...process.env, CLAUDE_PROJECT_DIR: projectRoot },
+      });
+      expect(result.status).toBe(0);
+    }
+
+    function bindRuntimeSessionTicket(storageKey: string, ticketId: string = TICKET_ID): void {
       writeFileSync(
         nodePath.join(projectRoot, '.safeword-project', `quality-state-${storageKey}.json`),
-        JSON.stringify({ activeTicket: TICKET_ID }),
+        JSON.stringify({ activeTicket: ticketId }),
       );
     }
 
@@ -455,6 +488,31 @@ describe('NMSD94 stamp-earning step (write-review-stamp.ts)', () => {
 
       runCursorBeforeShell('conv-1');
       const stamp = runStampWithoutRuntimeIdentity('spec');
+
+      expect(stamp.status).toBe(0);
+      expect(readLog()).toContain(`review:${reviewScope(TICKET_ID, 'spec', hashArtifact(SPEC))}`);
+    });
+
+    it('Codex Desktop: CODEX_THREAD_ID resolves the Codex-bound session ticket without a bridge cache (S2CWBE)', () => {
+      createSecondTicket();
+      const threadId = 'desktop-thread';
+      bindRuntimeSessionTicket(`codex-${threadId}`);
+
+      const stamp = runStampWithCodexDesktopThread(threadId, 'spec');
+
+      expect(stamp.status).toBe(0);
+      expect(readLog()).toContain(`review:${reviewScope(TICKET_ID, 'spec', hashArtifact(SPEC))}`);
+    });
+
+    it('Codex Desktop: a fresh bridge identity wins over CODEX_THREAD_ID (S2CWBE)', () => {
+      createSecondTicket();
+      const bridgeSessionId = 'bridge-session';
+      const environmentThreadId = 'desktop-thread';
+      bindRuntimeSessionTicket(`codex-${bridgeSessionId}`);
+      bindRuntimeSessionTicket(`codex-${environmentThreadId}`, 'XYZ789');
+
+      runCodexPreTool(bridgeSessionId);
+      const stamp = runStampWithCodexDesktopThread(environmentThreadId, 'spec');
 
       expect(stamp.status).toBe(0);
       expect(readLog()).toContain(`review:${reviewScope(TICKET_ID, 'spec', hashArtifact(SPEC))}`);
