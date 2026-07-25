@@ -19,6 +19,8 @@ filesystem fixture; the only process boundary is the hook subprocess.
 - [x] `codex-done-gate.SWM1.R1` captures a qualifying architecture advisory before transition and returns it before filing.
 - [x] `codex-done-gate.SWM1.R1` preserves advisory-only global fallback with no session-bound mutation.
 - [x] `codex-done-gate.SWM1.R2` changes only ticket lifecycle fields and leaves Git ownership state untouched.
+- [x] `codex-done-gate.TBU1.R2` lets the required BDD acceptance lane finish before the bounded Codex Stop timeout.
+- [x] `codex-done-gate.TBU1.R2` keeps Codex hook identity isolated from the done-gate test subprocess.
 
 ## Definition of done
 

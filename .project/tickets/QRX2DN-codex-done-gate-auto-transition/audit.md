@@ -63,3 +63,25 @@ introduced by QRX2DN.
 
 **Next:** Run the ticket verification lane and use refreshed PR CI for the
 full-suite result.
+
+## 2026-07-25 Final audit
+
+**Audit passed with warnings.** No QRX2DN-scoped error or warning was found.
+
+- `sync-config --check` is in sync; Dependency Cruiser reports no violations
+  across 647 modules and 2,103 dependencies; Go dead-code reports 0 issues.
+- The changed runner and its nine focused tests use specific behavioral
+  assertions, isolated temporary projects, explicit environment restoration,
+  and no arbitrary waits. The domain-doc reconciliation emitted no E008, E009,
+  or W008 finding.
+- The managed template and dogfood copies remain byte-identical. The full-suite
+  verification subsequently passed: 5,389 tests (5 skipped) and 494 Gherkin
+  scenarios (3 skipped).
+
+Repository-wide warnings remain intentionally out of scope: Knip's stale
+`which` ignore-binary entry (owned by MZH9QH/X6EFPN), the mirror-heavy jscpd
+baseline (488 clones in the documented audit scope), unavailable Python
+dead-code/import-linter tooling for an experiment, and the dev-only ESLint
+10.7.0 → 10.8.0 patch update.
+
+**Next:** Commit the scoped runner and evidence updates, then refresh PR CI.

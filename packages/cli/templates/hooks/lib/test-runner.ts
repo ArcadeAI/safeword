@@ -50,8 +50,20 @@ export interface TestResult {
   toolchainMissing?: boolean;
 }
 
-/** Timeout for test suite execution (60 seconds). */
+/** Fast feedback cap for test-plan commands (60 seconds). */
 const TEST_TIMEOUT_MS = 60_000;
+
+/**
+ * The explicit acceptance lane can be materially slower than its unit-test
+ * counterpart. Keep it bounded below Codex Stop's 600-second timeout without
+ * rejecting a passing BDD suite solely for taking longer than a minute.
+ */
+const BDD_TEST_TIMEOUT_MS = 5 * 60_000;
+
+/** Resolve the bounded execution budget for a planned test command. */
+export function timeoutMsForTestCommand(script: string): number {
+  return script === 'test:bdd' ? BDD_TEST_TIMEOUT_MS : TEST_TIMEOUT_MS;
+}
 
 /** Maximum lines of test output to inject into the block reason. */
 const MAX_OUTPUT_LINES = 30;
@@ -162,17 +174,31 @@ function truncateOutput(output: string): string {
   return '...(truncated)\n' + tail.slice(-MAX_OUTPUT_CHARS);
 }
 
+/**
+ * Test commands are application processes, not hook children. A Codex Stop
+ * handler carries its own runtime identity in these variables; forwarding them
+ * makes tests that intentionally exercise another runtime misidentify itself.
+ */
+function testSubprocessEnvironment(): NodeJS.ProcessEnv {
+  const environment = { ...process.env };
+  delete environment.SAFEWORD_AGENT_RUNTIME;
+  delete environment.CODEX_THREAD_ID;
+  return environment;
+}
+
 function runSingleTestCommand(testCommand: TestCommand): {
   passed: boolean;
   output: string;
   toolchainMissing?: boolean;
 } {
+  const timeoutMs = timeoutMsForTestCommand(testCommand.script);
   try {
     const output = execSync(testCommand.command, {
       cwd: testCommand.cwd,
-      timeout: TEST_TIMEOUT_MS,
+      timeout: timeoutMs,
       stdio: 'pipe',
       encoding: 'utf8',
+      env: testSubprocessEnvironment(),
     });
     return { passed: true, output: formatCommandOutput(testCommand, output) };
   } catch (error) {
@@ -187,7 +213,7 @@ function runSingleTestCommand(testCommand: TestCommand): {
       return {
         passed: false,
         output: `$ ${testCommand.command}\n${testCommand.script} timed out after ${
-          TEST_TIMEOUT_MS / 1000
+          timeoutMs / 1000
         }s — tests may be too slow or the runner hung.`,
       };
     }

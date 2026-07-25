@@ -87,3 +87,31 @@ is mocked.
   Desktop fallback contract is exercised through both deployed Codex adapters.
 
 **Next:** Run the ticket verification lane and wait for refreshed PR CI.
+
+## 2026-07-25 Final re-review
+
+**Verdict: APPROVE**
+
+- **Correctness:** `testSubprocessEnvironment()` removes only the two
+  hook-scoped Codex identity variables. It leaves all normal test environment
+  values intact, so runtime-specific unit tests again observe their intended
+  input.
+- **Bounded execution:** ordinary test-plan commands retain the 60-second fast
+  cap; only the explicit `test:bdd` acceptance lane receives five minutes,
+  below the Stop hook's 600-second bound.
+- **Coverage:** focused tests prove both policies, and the native source
+  PostToolUse → Stop lifecycle completed the real evidence suite and moved the
+  session-bound ticket to `done`.
+- **Design:** a generic environment-filter abstraction would obscure the two
+  names that are unsafe to propagate. No behavior-preserving refactor improves
+  this small, explicit boundary.
+
+**Sources checked:** the current [Codex manual](https://developers.openai.com/codex/codex-manual.md)
+and [Hooks documentation](https://learn.chatgpt.com/docs/hooks) confirm that
+hook timeouts are seconds, default to 600 seconds, and matching hooks can run
+from multiple active sources. The implementation's explicit BDD cap is
+therefore deliberately bounded inside Codex's documented Stop budget.
+
+**Critical issues:** None
+
+**Suggested improvements:** None

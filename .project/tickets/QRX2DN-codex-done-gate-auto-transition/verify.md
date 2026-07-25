@@ -2,7 +2,7 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 5387/5392 tests pass (5 skipped)
+**Test Suite:** ✓ 5389/5394 tests pass (5 skipped)
 **Gherkin:** ✅ Acceptance lane passes (494 passed, 3 skipped)
 **Build:** ✅ Success
 **Lint:** ✅ Clean
@@ -20,7 +20,7 @@ the ESLint patch update remain outside QRX2DN scope.
 
 ## Evidence
 
-- `bun run --cwd packages/cli test` — 361 files, 5,387 passed, 5 skipped.
+- `bun run --cwd packages/cli test` — 361 files, 5,389 passed, 5 skipped.
 - `cucumber-js --tags 'not @wip and not @manual and not @live'` — 494 passed,
   3 skipped.
 - `bun run --cwd packages/cli typecheck` — pass.
@@ -28,10 +28,11 @@ the ESLint patch update remain outside QRX2DN scope.
 - `bun scripts/parity-check.ts --mode=all` — 193 pairs and 8 contracts in sync.
 - `bun run test tests/integration/codex-stop-retro.test.ts` — 31 passed.
 
-## Hook-lifecycle limitation
+## Native hook-lifecycle proof
 
-This Codex harness does not dispatch its tool calls through project PostToolUse
-and Stop hooks. The Desktop fallback is proven by the real adapter integration
-test, but this ticket has not been synthetically bound or self-closed; a genuine
-Codex hook lifecycle (or PR CI plus a normal Desktop session) must perform that
-final transition.
+The ChatGPT-bundled Codex CLI ran the current source PostToolUse and Stop
+handlers through documented CLI configuration overrides. PostToolUse bound
+QRX2DN to the native session; Stop then ran the real evidence suite, including
+the BDD acceptance lane, and changed the ticket's `phase` and `status` to
+`done`. This also proved that hook-scoped Codex identity is no longer inherited
+by the test subprocess.

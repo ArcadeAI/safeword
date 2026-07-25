@@ -4,7 +4,7 @@ import nodePath from 'node:path';
 
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
-import { runTests } from '../../../../.safeword/hooks/lib/test-runner';
+import { runTests, timeoutMsForTestCommand } from '../../../../.safeword/hooks/lib/test-runner';
 
 const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
 const temporaryDirectories: string[] = [];
@@ -44,6 +44,32 @@ afterEach(() => {
 });
 
 describe('runTests (resolves its suite via safeword test-plan)', () => {
+  it('allows the required BDD acceptance lane to use the Stop hook budget', () => {
+    expect(timeoutMsForTestCommand('test:bdd')).toBe(5 * 60_000);
+    expect(timeoutMsForTestCommand('bun')).toBe(60_000);
+  });
+
+  it('does not leak Codex hook identity into test subprocesses', () => {
+    const originalRuntime = process.env.SAFEWORD_AGENT_RUNTIME;
+    const originalThreadId = process.env.CODEX_THREAD_ID;
+    process.env.SAFEWORD_AGENT_RUNTIME = 'codex';
+    process.env.CODEX_THREAD_ID = 'hook-thread';
+
+    try {
+      const project = makeProject({
+        'test:done':
+          'node -e "process.exit(process.env.SAFEWORD_AGENT_RUNTIME || process.env.CODEX_THREAD_ID ? 1 : 0)"',
+      });
+
+      expect(runTests(project).passed).toBe(true);
+    } finally {
+      if (originalRuntime === undefined) delete process.env.SAFEWORD_AGENT_RUNTIME;
+      else process.env.SAFEWORD_AGENT_RUNTIME = originalRuntime;
+      if (originalThreadId === undefined) delete process.env.CODEX_THREAD_ID;
+      else process.env.CODEX_THREAD_ID = originalThreadId;
+    }
+  });
+
   it('blocks when the Gherkin acceptance lane fails after primary tests pass', () => {
     const project = makeProject({
       'test:done': 'node -e "console.log(\'PRIMARY_OK\')"',
