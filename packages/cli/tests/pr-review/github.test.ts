@@ -100,7 +100,11 @@ describe('reading the facts the trigger decides on', () => {
     // Skipping a run gate costs one finding; executing unidentified code is the
     // pwn-request the two-stage split exists to prevent.
     const { request } = stubRequest({
-      '/repos/acme/monorepo/pulls/42': { draft: false, head: { sha: 'abc' }, base: { ref: 'main' } },
+      '/repos/acme/monorepo/pulls/42': {
+        draft: false,
+        head: { sha: 'abc' },
+        base: { ref: 'main' },
+      },
     });
 
     await expect(fetchPullFacts(request, CONTEXT)).resolves.toMatchObject({ isFork: true });

@@ -96,7 +96,9 @@ describe('the review job and its invocation', () => {
   it('parses a well-formed review and rejects a malformed one', () => {
     const job = createReviewJob(PROMPT);
 
-    expect(job.parseCodexOutput('{"verdict":"reviewed","findings":[],"decision":null}')).toMatchObject({
+    expect(
+      job.parseCodexOutput('{"verdict":"reviewed","findings":[],"decision":null}'),
+    ).toMatchObject({
       verdict: 'reviewed',
       findings: [],
     });
