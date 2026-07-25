@@ -133,3 +133,7 @@ real `sync-tracker` command for the `--plan`/`--apply-results` flags (no live tr
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
+
+## Cross-scenario
+
+- [ ] cross-scenario
