@@ -25,7 +25,7 @@ export interface GraphEdges {
 }
 
 /** Create a new issue. `payload.state` may be `open` or `closed` (terminal never-synced). */
-export interface CreateIntent {
+interface CreateIntent {
   kind: 'create';
   ticketId: string;
   payload: IssuePayload;
@@ -33,7 +33,7 @@ export interface CreateIntent {
 }
 
 /** Update an existing issue's fields (open state). */
-export interface UpdateIntent {
+interface UpdateIntent {
   kind: 'update';
   ticketId: string;
   ref: TrackerReference;
@@ -47,7 +47,7 @@ export interface UpdateIntent {
  * ticket in one pass), so a close that dropped them would leave title/labels/edges
  * stale versus `gh`. `stateReason` is an optional richer-than-`gh` nicety.
  */
-export interface CloseIntent {
+interface CloseIntent {
   kind: 'close';
   ticketId: string;
   ref: TrackerReference;
@@ -65,7 +65,7 @@ export interface SyncPlan {
 }
 
 /** One executor outcome. `number` is the bare issue number as a string (e.g. `"549"`). */
-export interface SyncResult {
+interface SyncResult {
   ticketId: string;
   number: string;
   url: string;
@@ -82,12 +82,6 @@ export interface SyncResults {
 /** Structural parse outcome for a results document (a discriminated result). */
 export type ParseOutcome = { ok: true; value: SyncResults } | { ok: false; reason: string };
 
-/**
- * Structurally validate a results JSON document: valid JSON, a supported
- * `version`, and a `results` array whose every row has string `ticketId`,
- * `number`, and `url`. Semantic checks (corpus membership, url-tail==number)
- * live in `applyResults`. Slice-4 GREEN implements the body.
- */
 type RowOutcome = { ok: true; value: SyncResult } | { ok: false; reason: string };
 
 /** Validate one results row into a `SyncResult` (string ticketId, number, url required). */
@@ -116,6 +110,12 @@ function parseResultRow(raw: unknown, index: number): RowOutcome {
   };
 }
 
+/**
+ * Structurally validate a results JSON document: valid JSON, a supported
+ * `version`, and a `results` array whose every row has string `ticketId`,
+ * `number`, and `url`. Semantic checks (corpus membership, url-tail==number)
+ * live in `applyResults`.
+ */
 export function parseResults(jsonText: string): ParseOutcome {
   let parsed: unknown;
   try {
