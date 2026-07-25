@@ -30,6 +30,7 @@ import {
   createTemporaryDirectory,
   createTypeScriptPackageJson,
   initGitRepo,
+  INSTALL_DEPENDENCIES_ENV,
   removeTemporaryDirectory,
   repoRoot,
   setupOrThrow,
@@ -128,7 +129,7 @@ describe('Codex/Cursor skill-invocation fallback → done-gate E2E (#295)', () =
     projectDirectory = createTemporaryDirectory();
     createTypeScriptPackageJson(projectDirectory);
     initGitRepo(projectDirectory);
-    await setupOrThrow(projectDirectory);
+    await setupOrThrow(projectDirectory, ['setup', '--yes'], { env: INSTALL_DEPENDENCIES_ENV });
   });
 
   afterAll(() => {
