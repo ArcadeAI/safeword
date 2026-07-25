@@ -2,14 +2,15 @@
 id: CBTDK8
 slug: portable-tracker-transport
 type: feature
-phase: verify
+phase: done
 phase_anchors:
   - intake: e1c4733
   - define-behavior: 35b4b81
   - scenario-gate: f1a97fb
   - plan-implementation: b5983b6
-  - implement: dcf20aa
-status: in_progress
+  - implement: 8d57cb9
+  - verify: 27699d5
+status: done
 epic: offboard-local-ticketing
 parent: KKNFZA
 scope:
@@ -57,3 +58,5 @@ last_modified: 2026-06-29T02:29:45.594Z
 - 2026-07-25T14:45:00.000Z Complete: verify + audit — verify.md written (all gates green); /audit passed (depcruise 0 errors, config in sync, knip cleaned). → done.
 - 2026-07-25T14:49:40.686Z Phase: done → verify
 - 2026-07-25T14:46:00.000Z Re-opened (done → verify): the earlier done was premature — verify/audit were run partially (shortcut the canonical test-plan block + full-repo lint; skipped jscpd/outdated/docs/domain/test-quality), and /quality-review on the implementation code + /refactor were not run. Running all four properly before re-closing.
+- 2026-07-25T15:16:00.868Z Phase: verify → done
+- 2026-07-25T15:20:00.000Z Complete: verify (2nd pass, all four gates genuinely run). /quality-review on the SHIPPED CODE by an independent fresh-context reviewer → APPROVE, no critical bugs (fold traced across all 6 state combinations; stdout purity confirmed); its 7 findings applied as the /refactor + hardening pass (8d57cb9): urlTail strips query/fragment, identity guard provider-gated to github + numeric `number`, rejectReason extracted, 6 test gaps closed. Full /verify: 5384 passed / 7 skipped, full-repo lint clean (eslint + gherkin + tsc, zero output), builds green. Full /audit: depcruise 0 errors, config in sync, knip clean, jscpd 0 clones, outdated = eslint dev/patch only, docs updated (ab2f576) + site builds. impl-plan reconciled → implemented (27699d5). Two behaviors that emerged during hardening were added as scenarios (terminal-never-synced create-closed; corrupt-sidecar refusal) → 21 scenarios, 0 unchecked. → done.

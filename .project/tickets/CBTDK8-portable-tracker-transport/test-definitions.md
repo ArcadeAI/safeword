@@ -26,6 +26,12 @@ real `sync-tracker` command for the `--plan`/`--apply-results` flags (no live tr
 - [x] GREEN 4b5fc89
 - [x] REFACTOR skip: none needed
 
+### Scenario: A never-synced ticket that is already terminal becomes a create carrying a closed state
+
+- [x] RED skip: edge surfaced by the quality-review hardening pass (behavior already correct; test added to lock it)
+- [x] GREEN 8d57cb9
+- [x] REFACTOR skip: none needed
+
 ### Scenario: An empty corpus yields an empty but valid plan
 
 - [x] RED skip: combined with GREEN in 2e1d42c (early slice — RED+GREEN one commit; separated from slice 3 on)
@@ -97,6 +103,12 @@ real `sync-tracker` command for the `--plan`/`--apply-results` flags (no live tr
 <!-- Unit-covered: bad JSON, unsupported version, missing number, missing url,
 url-tail!=number, ticketId-not-in-corpus. The "absent from disk" example is an
 fs concern covered by the --apply-results command wiring test (slice 5). -->
+
+### Scenario: Applying against a corrupt tracker map is refused, leaving the file intact
+
+- [x] RED skip: edge surfaced by the quality-review hardening pass (guard already present; test added to lock it)
+- [x] GREEN 8d57cb9
+- [x] REFACTOR skip: none needed
 
 ### Scenario: A planned create round-trips through results back into the map
 

@@ -33,6 +33,12 @@ Feature: Environment-portable tracker transport
       Then the plan contains a close intent for that ticket carrying its recorded reference
 
     @portable-tracker-transport.TB1.AC1
+    Scenario: A never-synced ticket that is already terminal becomes a create carrying a closed state
+      Given a ticket with no entry in the tracker map whose status is terminal
+      When I run sync-tracker in plan mode
+      Then the plan contains a create intent for that ticket whose payload state is closed
+
+    @portable-tracker-transport.TB1.AC1
     Scenario: An empty corpus yields an empty but valid plan
       Given no tickets exist
       When I run sync-tracker in plan mode
@@ -113,6 +119,13 @@ Feature: Environment-portable tracker transport
         | a create result missing the issue url                        |
         | reporting number 4764539863 for an issue whose url ends /549 |
         | naming a ticket absent from the corpus                       |
+
+    @portable-tracker-transport.SM1.AC1
+    Scenario: Applying against a corrupt tracker map is refused, leaving the file intact
+      Given the tracker map on disk is corrupt
+      When I run sync-tracker --apply-results with a well-formed results file
+      Then the command fails with an actionable error
+      And the corrupt tracker map is left exactly as it was
 
     @portable-tracker-transport.SM1.AC1
     Scenario: A planned create round-trips through results back into the map
