@@ -2,11 +2,12 @@
 id: CBTDK8
 slug: portable-tracker-transport
 type: feature
-phase: plan-implementation
+phase: implement
 phase_anchors:
   - intake: e1c4733
   - define-behavior: 35b4b81
   - scenario-gate: f1a97fb
+  - plan-implementation: b5983b6
 status: in_progress
 epic: offboard-local-ticketing
 parent: KKNFZA
@@ -42,5 +43,8 @@ last_modified: 2026-06-29T02:29:45.594Z
 - 2026-06-29T02:29:45.594Z Started: Created ticket CBTDK8
 - 2026-06-30T00:50:00.000Z Complete: intake — scope converged; cold-start check run (INSUFFICIENT → contract pinned); graph-edge fork decided B (link them); dimensions.md authored. → define-behavior
 - 2026-07-24T17:50:00.000Z Re-homed onto current main (old branch claude/ticketing-migration-safeword-m73r9p / PR #548 superseded by #1086; this ticket + design already on main). define-behavior: 16 scenarios across 7 rules saved to features/portable-tracker-transport.feature (@wip; proof via vitest units) + test-definitions.md ledger. Dangling edge → omit silently; no-token-in-plan guard kept. Paused before scenario-gate review.
+- 2026-07-25T00:09:00.000Z Complete: scenario-gate — inline + independent review → 19 scenarios (3 must-fix caught: vacuous dangling-edge, missing --plan-stdout wiring, unfalsifiable no-flag-unchanged); review stamped. → plan-implementation.
+- 2026-07-25T00:09:30.000Z Complete: plan-implementation — impl-plan.md (status planned); TWO independent plan reviews. Round 1 (REQUEST CHANGES) fixed MF1 buildGraphProjection-is-executor-side (compute edges plan-side by corpus membership), MF2 planTicketSync is create/update/RECONCILE not close (documented the fold), MF3 number-as-string + require url. Round 2 caught N1: close intent must carry full payload+graph (gh path has no field-less close, index.ts:220,232) — fixed; N2 ref.number string pinned. Review stamped. → implement. NEXT: build slice 1 = graph-parity (parent edge to an unrecorded corpus ticket), RED first; .feature needs the missing-url outline example added during implement.
 - 2026-07-24T17:57:21.127Z Phase: define-behavior → scenario-gate
 - 2026-07-24T23:03:54.908Z Phase: scenario-gate → plan-implementation
+- 2026-07-25T00:11:37.715Z Phase: plan-implementation → implement

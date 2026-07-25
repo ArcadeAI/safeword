@@ -17,7 +17,10 @@ the wrong tool plan-side. Cheapest proof: the load-bearing slice _"a ticket whos
 **The kind fold** (`computePlan` layers over `planTicketSync = create | update | reconcile`):
 `create → create` (payload state open/closed); `update` + open `→ update`; `update` + closed
 `→ close`; `reconcile` (a `pending` entry, only the `gh` path writes it) `→ update` carrying the
-existing ref. Close is derived from `buildPayload`'s `state`, not a `planTicketSync` kind.
+existing ref. Close is derived from `buildPayload`'s `state`, not a `planTicketSync` kind — and the
+`close` intent carries the **full payload + graph** (the `gh` path has no field-less close; it
+`update`s fields and `projectGraph`s on a closing ticket in one pass, `index.ts:220,232`), so a
+mirror close never leaves title/labels/edges stale.
 
 **Proof plan** (per `testing/SKILL.md` highest-practical-scope; no live tracker per #363):
 

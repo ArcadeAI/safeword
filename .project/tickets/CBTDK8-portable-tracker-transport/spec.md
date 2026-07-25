@@ -106,12 +106,17 @@ Pinned here (the schema is the one-way door):
 
 - `sync-tracker --plan` writes a **SyncPlan** to **stdout** (Unix-composable; pipe to a file or an
   executor): `{ "version": 1, "intents": Intent[] }`.
-- `Intent` is discriminated on `kind`:
+- `Intent` is discriminated on `kind` (every `ref.number` is a **string**, like results):
   - `create` → `{ kind, ticketId, payload: { title, body, labels, state } }` — `payload.state` may be
     `open` or `closed` (a terminal never-synced ticket is a create whose payload is `closed`).
   - `update` → `{ kind, ticketId, ref: { provider, number, url }, payload }`
-  - `close` → `{ kind, ticketId, ref: { provider, number, url }, stateReason? }`
-  - a `create`/`update` intent carries `graph?: { parentTicketId?, blockedByTicketIds? }` — edges
+  - `close` → `{ kind, ticketId, ref: { provider, number, url }, payload, stateReason? }` — carries
+    the **full payload** (title, body, labels, `state: closed`), NOT just the ref. The `gh` path has
+    no field-less close: for a recorded ticket it always `update(ref, payload)`s the fields and
+    `projectGraph`s in the same pass (`index.ts:220,232`), so a close that dropped payload/graph
+    would leave title/labels/edges stale versus the `gh` path — the exact divergence this feature
+    avoids. `stateReason` (`completed`/`not_planned`) is an optional richer-than-gh nicety.
+  - a `create`/`update`/`close` intent carries `graph?: { parentTicketId?, blockedByTicketIds? }` — edges
     are expressed by **ticket id**, not issue number, because a new issue's number isn't known
     until it's created. The executor resolves ticket id → number after creates land (create-then-
     link, a second pass — mirroring today's `gh` `projectGraph`-after-create). Linking is execution
