@@ -9,7 +9,6 @@ const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
 // no Gherkin guidance of its own.
 const verifyGuidanceFiles = [
   nodePath.join(repoRoot, 'packages/cli/templates/skills/verify/SKILL.md'),
-  nodePath.join(repoRoot, '.agents/skills/verify/SKILL.md'),
   nodePath.join(repoRoot, '.claude/skills/verify/SKILL.md'),
 ];
 

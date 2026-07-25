@@ -14,10 +14,6 @@ const refactorSkillSurfaces: [string, string][] = [
     ),
   ],
   [
-    'dogfood agents skill',
-    readFileSync(nodePath.join(repoRoot, '.agents/skills/refactor/SKILL.md'), 'utf8'),
-  ],
-  [
     'dogfood claude skill',
     readFileSync(nodePath.join(repoRoot, '.claude/skills/refactor/SKILL.md'), 'utf8'),
   ],
