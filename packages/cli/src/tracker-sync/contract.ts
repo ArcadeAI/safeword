@@ -78,3 +78,16 @@ export interface SyncResults {
   version: number;
   results: SyncResult[];
 }
+
+/** Structural parse outcome for a results document (a discriminated result). */
+export type ParseOutcome = { ok: true; value: SyncResults } | { ok: false; reason: string };
+
+/**
+ * Structurally validate a results JSON document: valid JSON, a supported
+ * `version`, and a `results` array whose every row has string `ticketId`,
+ * `number`, and `url`. Semantic checks (corpus membership, url-tail==number)
+ * live in `applyResults`. Slice-4 GREEN implements the body.
+ */
+export function parseResults(jsonText: string): ParseOutcome {
+  return { ok: false, reason: `unimplemented (${jsonText.length} chars)` };
+}
