@@ -13,3 +13,9 @@
 - [x] RED — explicit environment precedence was unprotected.
 - [x] GREEN — the focused test proves an explicit empty value overrides the default.
 - [x] REFACTOR — one environment merge keeps the opt-in path local.
+
+### Scenario: A skipped-install fixture can run generated package scripts
+
+- [x] RED — the BDD golden path failed because Cucumber was absent from the fixture.
+- [x] GREEN — the fixture links the CLI test dependencies without accessing a registry.
+- [x] REFACTOR — dependency linking stays localized to the setup test helper.

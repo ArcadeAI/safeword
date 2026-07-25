@@ -7,6 +7,7 @@ import {
   readFileSync,
   rmSync,
   statSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -71,6 +72,28 @@ export const SAFEWORD_VERSION = `file:${SAFEWORD_PATH}`;
 export const SKIP_INSTALL_ENV = {
   SAFEWORD_SKIP_INSTALL: '1',
 };
+
+/**
+ * A skipped-install fixture still needs the CLI package's already-installed
+ * test tools when it runs its generated package scripts (for example test:bdd).
+ * Link rather than install so default tests remain offline and hermetic.
+ */
+function linkFixtureDependencies(projectDirectory: string): void {
+  const fixtureModules = nodePath.join(projectDirectory, 'node_modules');
+  const testModules = nodePath.join(SAFEWORD_PATH, 'node_modules');
+  if (existsSync(projectDirectory) && !existsSync(fixtureModules) && existsSync(testModules)) {
+    symlinkSync(testModules, fixtureModules, 'dir');
+  }
+}
+
+function linkSkippedInstallFixtureDependencies(
+  projectDirectory: string,
+  environment: Record<string, string> | undefined,
+): void {
+  if (environment?.SAFEWORD_SKIP_INSTALL ?? SKIP_INSTALL_ENV.SAFEWORD_SKIP_INSTALL) {
+    linkFixtureDependencies(projectDirectory);
+  }
+}
 
 /**
  * Skip ONLY the skills pull (`npx skills add`) while still installing JS/Python
@@ -664,6 +687,7 @@ export async function setupOrThrow(
       env: { ...SKIP_INSTALL_ENV, ...cliOptions.env },
     });
     if (result.exitCode === 0) {
+      linkSkippedInstallFixtureDependencies(projectDirectory, cliOptions.env);
       return result;
     }
     lastResult = result;
