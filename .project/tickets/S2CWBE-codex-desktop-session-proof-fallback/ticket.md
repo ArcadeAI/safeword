@@ -2,8 +2,10 @@
 id: S2CWBE
 slug: codex-desktop-session-proof-fallback
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
+external_prs:
+  - https://github.com/ArcadeAI/safeword/pull/1411
 scope:
   - Restore current-session proof recording in Codex Desktop code-mode when its PreToolUse cache bridge did not arm.
   - Use the runtime-provided CODEX_THREAD_ID only as a Codex session-identity fallback after explicit and fresh bridged identities are unavailable.
@@ -18,7 +20,7 @@ done_when:
   - Codex Stop resolves the same thread identity when a Stop payload lacks session_id.
   - Template and dogfood hook copies remain synchronized, with focused behavioral regression evidence.
 created: 2026-07-24T23:01:29.838Z
-last_modified: 2026-07-25T00:12:00Z
+last_modified: 2026-07-25T22:26:42Z
 ---
 
 # Keep Codex Desktop proof session-bound
@@ -62,3 +64,4 @@ delivered an identity.
 - 2026-07-24T23:20:49Z GREEN: made the bridge authoritative over the environment fallback while retaining Claude's direct identity precedence; the two Codex Desktop review-stamp regressions pass.
 - 2026-07-24T23:25:00Z Validated: focused resolver, proof-helper, review-stamp, and Stop tests pass; lint, typecheck, build, parity, and diff checks pass. Fresh quality review approved the corrected precedence.
 - 2026-07-25T00:12:00Z REFACTOR evidence: the full existing ordered proof-bridge cache suites pass (28 invocation-helper and 34 review-stamp bridge tests), covering expiry, ordering, foreign paths, and missing identity. The complete S2CWBE ledger is now green.
+- 2026-07-25T22:26:42Z Complete: user confirmed closure after PR #1411 merged as 0c1215e5e. GitHub CI passed lint and Node 22/24 tests; the ticket's done criteria and test-definition ledger are satisfied.
