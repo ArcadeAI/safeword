@@ -1,4 +1,4 @@
-import { spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
@@ -39,6 +39,40 @@ function writeExecutable(directory: string, name: string, body: string): void {
   chmodSync(executablePath, 0o755);
 }
 
+function git(directory: string, ...args: string[]): string {
+  return execFileSync('git', args, { cwd: directory, encoding: 'utf8' }).trim();
+}
+
+function writeAuditToolStubs(binDirectory: string): void {
+  for (const command of [
+    'bunx',
+    'bun',
+    'npm',
+    'pnpm',
+    'uv',
+    'poetry',
+    'pipenv',
+    'python',
+    'pip',
+    'go',
+    'cargo',
+    'cargo-clippy',
+    'golangci-lint',
+    'deadcode',
+  ]) {
+    const body =
+      command === 'bunx'
+        ? 'if [ "$1" = "knip" ]; then echo "[fake-knip] cwd=$PWD args=$@"; else echo "[fake-bunx] $@"; fi'
+        : `echo "[fake-${command}] $@"`;
+    writeExecutable(binDirectory, command, body);
+  }
+  writeExecutable(
+    binDirectory,
+    'yarn',
+    'if [ "$1" = "--version" ]; then echo "4.9.0"; else echo "[fake-yarn] $@"; fi',
+  );
+}
+
 function runAuditAutomation(
   files: Record<string, string>,
   options: { missingCommands?: string[] } = {},
@@ -60,34 +94,11 @@ function runAuditAutomation(
       writeProjectFile(projectDirectory, relativePath, content);
     }
 
-    for (const command of [
-      'bunx',
-      'bun',
-      'npm',
-      'pnpm',
-      'uv',
-      'poetry',
-      'pipenv',
-      'python',
-      'pip',
-      'go',
-      'cargo',
-      'cargo-clippy',
-      'golangci-lint',
-      'deadcode',
-    ]) {
-      if (options.missingCommands?.includes(command)) continue;
-      const body =
-        command === 'bunx'
-          ? 'if [ "$1" = "knip" ]; then echo "[fake-knip] cwd=$PWD args=$@"; else echo "[fake-bunx] $@"; fi'
-          : `echo "[fake-${command}] $@"`;
-      writeExecutable(binDirectory, command, body);
+    writeAuditToolStubs(binDirectory);
+    const missingCommands = options.missingCommands ?? [];
+    for (const command of missingCommands) {
+      rmSync(nodePath.join(binDirectory, command), { force: true });
     }
-    writeExecutable(
-      binDirectory,
-      'yarn',
-      'if [ "$1" = "--version" ]; then echo "4.9.0"; else echo "[fake-yarn] $@"; fi',
-    );
 
     const result = spawnSync('bash', ['-c', extractBashBlock(auditSkillContent, 2)], {
       cwd: projectDirectory,
@@ -96,6 +107,65 @@ function runAuditAutomation(
         CLAUDE_PROJECT_DIR: projectDirectory,
         // Keep host-installed analyzers out of the fixture so omitted tools
         // exercise the skill's loud manual-evidence path deterministically.
+        PATH: `${binDirectory}:/usr/bin:/bin`,
+      },
+      encoding: 'utf8',
+    });
+
+    return {
+      stdout: result.stdout,
+      stderr: result.stderr,
+      status: result.status ?? 0,
+    };
+  } finally {
+    rmSync(projectDirectory, { recursive: true, force: true });
+  }
+}
+
+function runDiffScopedAuditAutomation(options: {
+  baselineFiles: Record<string, string>;
+  changedFiles: Record<string, string>;
+  includeOriginMain?: boolean;
+  staleLocalMain?: boolean;
+  scopeRequest?: 'repository';
+}): { stdout: string; stderr: string; status: number } {
+  const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-audit-diff-'));
+  const binDirectory = nodePath.join(projectDirectory, 'fake-bin');
+  const auditSkillContent = readAuditSurface('packages/cli/templates/skills/audit/SKILL.md');
+
+  try {
+    mkdirSync(binDirectory);
+    for (const [relativePath, content] of Object.entries(options.baselineFiles)) {
+      writeProjectFile(projectDirectory, relativePath, content);
+    }
+    git(projectDirectory, 'init', '--initial-branch=main', '--quiet');
+    git(projectDirectory, 'config', 'user.email', 'test@example.com');
+    git(projectDirectory, 'config', 'user.name', 'Test User');
+    git(projectDirectory, 'add', '.');
+    git(projectDirectory, 'commit', '--quiet', '--message', 'base');
+    const baseSha = git(projectDirectory, 'rev-parse', 'HEAD');
+
+    if (options.includeOriginMain) {
+      git(projectDirectory, 'update-ref', 'refs/remotes/origin/main', baseSha);
+    }
+    if (options.staleLocalMain) {
+      writeProjectFile(projectDirectory, 'src/stale-main.ts', 'export const stale = true;\n');
+      git(projectDirectory, 'add', 'src/stale-main.ts');
+      git(projectDirectory, 'commit', '--quiet', '--message', 'stale local main');
+    }
+    git(projectDirectory, 'checkout', '--quiet', '-b', 'feature', baseSha);
+
+    for (const [relativePath, content] of Object.entries(options.changedFiles)) {
+      writeProjectFile(projectDirectory, relativePath, content);
+    }
+    writeAuditToolStubs(binDirectory);
+
+    const result = spawnSync('bash', ['-c', extractBashBlock(auditSkillContent, 2)], {
+      cwd: projectDirectory,
+      env: {
+        ...process.env,
+        AUDIT_SCOPE_REQUEST: options.scopeRequest ?? 'diff',
+        CLAUDE_PROJECT_DIR: projectDirectory,
         PATH: `${binDirectory}:/usr/bin:/bin`,
       },
       encoding: 'utf8',
@@ -299,5 +369,74 @@ describe('audit installed-project stack awareness', () => {
     expect(result.stdout).toContain('Yarn modern detected');
     expect(result.stdout).toContain('Manual evidence required');
     expect(result.stdout).not.toContain('[fake-yarn] outdated');
+  });
+});
+
+describe('audit diff scope', () => {
+  const javascriptProject = {
+    'package.json': JSON.stringify({ name: 'fixture', packageManager: 'npm@11.0.0' }),
+    '.dependency-cruiser.cjs': 'module.exports = { forbidden: [] };\n',
+    'src/changed.ts': 'export const value = 1;\n',
+    'README.md': '# Fixture\n',
+  };
+
+  it('prefers origin/main and reports only the feature diff when local main is stale', () => {
+    const result = runDiffScopedAuditAutomation({
+      baselineFiles: javascriptProject,
+      changedFiles: { 'src/changed.ts': 'export const value = 2;\n' },
+      includeOriginMain: true,
+      staleLocalMain: true,
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('Audit scope: origin/main');
+    expect(result.stdout).toContain('src/changed.ts');
+    expect(result.stdout).not.toContain('src/stale-main.ts');
+    expect(result.stdout).toMatch(/\[fake-bunx\] depcruise .*--affected [0-9a-f]{40}/);
+    expect(result.stdout).toContain(
+      'Knip: skipped in diff scope — run a repository audit for whole-workspace unused-code discovery',
+    );
+    expect(result.stdout).toContain(
+      'Duplication: skipped in diff scope — run a repository audit for cross-file clone discovery',
+    );
+  });
+
+  it('falls back to local main when no origin/main ref exists', () => {
+    const result = runDiffScopedAuditAutomation({
+      baselineFiles: javascriptProject,
+      changedFiles: { 'src/changed.ts': 'export const value = 2;\n' },
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('Audit scope: main');
+  });
+
+  it('does not run code-quality analyzers for a documentation-only diff', () => {
+    const result = runDiffScopedAuditAutomation({
+      baselineFiles: javascriptProject,
+      changedFiles: { 'README.md': '# Updated fixture\n' },
+      includeOriginMain: true,
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('Code quality scope: no changed source or manifest files');
+    expect(result.stdout).not.toContain('[fake-bunx] depcruise');
+    expect(result.stdout).not.toContain('[fake-knip]');
+    expect(result.stdout).not.toContain('[fake-bunx] jscpd');
+  });
+
+  it('retains a whole-repository audit when the user explicitly requests one', () => {
+    const result = runDiffScopedAuditAutomation({
+      baselineFiles: javascriptProject,
+      changedFiles: { 'README.md': '# Updated fixture\n' },
+      includeOriginMain: true,
+      scopeRequest: 'repository',
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain(
+      'Audit scope: repository (explicit user request; full audit retained)',
+    );
+    expect(result.stdout).toContain('Knip — repository root');
   });
 });
