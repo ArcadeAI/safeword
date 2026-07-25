@@ -21,5 +21,3 @@
 **Quality review:** APPROVE. Fresh independent review confirmed canonical owner selection, local-only binaries, environment isolation, containment, no-fallback behavior, and real Codex wiring.
 
 **Refactor:** Complete. The persisted ledger records the two completed behavior-preserving changes and one explicitly deferred marginal extraction.
-
-The ticket remains `status: in_progress` in verify phase pending explicit user confirmation to complete it.
