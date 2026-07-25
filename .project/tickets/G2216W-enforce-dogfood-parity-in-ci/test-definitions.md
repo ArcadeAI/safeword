@@ -4,6 +4,6 @@
 
 ### Scenario: Pull request runs the parity command
 
-- [x] RED — a focused workflow test fails until the job and command exist.
-- [x] GREEN — the workflow declares `dogfood-parity` and runs the all-mode parity check.
-- [x] REFACTOR — the check remains a small standalone job with no duplicate implementation.
+- [x] RED skip: the focused workflow test was added with the initial implementation and was observed failing before the job existed.
+- [x] GREEN 783aa4927
+- [x] REFACTOR skip: a standalone job is already the smallest non-duplicative shape.
