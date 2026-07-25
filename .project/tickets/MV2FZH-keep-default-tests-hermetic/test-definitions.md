@@ -23,8 +23,8 @@
 ### Scenario: A skipped-install fixture does not share mutable dependencies
 
 - [x] RED skip: the initial whole-`node_modules` link omitted Safeword itself; the attempted entry-by-entry link then exposed mutable source dependencies to fixture upgrades.
-- [ ] GREEN: a real skipped-install setup fixture has no `node_modules`; suites that execute generated tooling explicitly opt into installation.
-- [ ] REFACTOR: remove shared dependency linking from the setup helper.
+- [x] GREEN 3c9bce0e3
+- [x] REFACTOR skip: removing the shared linker leaves the setup helper as the sole setup seam.
 
 ---
 
