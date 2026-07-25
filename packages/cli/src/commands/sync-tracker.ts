@@ -19,6 +19,10 @@ import type { Provider } from '../tracker-sync/types.js';
 
 export interface SyncTrackerCommandOptions {
   resetTrackerMap?: boolean;
+  /** Emit the sync plan as JSON to stdout (offline); mutually exclusive with applyResults. */
+  plan?: boolean;
+  /** Path to an executor's results file to fold into the tracker-map (offline). */
+  applyResults?: string;
 }
 
 /** Resolve repo visibility only when it can gate egress (github + full body). */
