@@ -70,35 +70,39 @@ real `sync-tracker` command for the `--plan`/`--apply-results` flags (no live tr
 
 ### Scenario: A create result is recorded with its issue number and url
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 0cac69f
+- [x] GREEN b73d7a4
+- [x] REFACTOR skip: none needed
 
 ### Scenario: Re-applying the same results changes nothing
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 0cac69f
+- [x] GREEN b73d7a4
+- [x] REFACTOR skip: none needed
 
 ### Scenario: An update or close result makes no identity change
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 0cac69f
+- [x] GREEN b73d7a4
+- [x] REFACTOR skip: none needed
 
 ## Rule: Malformed results are rejected without corrupting the map
 
 ### Scenario Outline: A malformed results file is rejected and the map is left intact
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 0cac69f
+- [x] GREEN b73d7a4
+- [x] REFACTOR skip: none needed
+
+<!-- Unit-covered: bad JSON, unsupported version, missing number, missing url,
+url-tail!=number, ticketId-not-in-corpus. The "absent from disk" example is an
+fs concern covered by the --apply-results command wiring test (slice 5). -->
 
 ### Scenario: A planned create round-trips through results back into the map
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: emergent from computePlan (slice 2) + applyResults (slice 4)
+- [x] GREEN ff90189
+- [x] REFACTOR skip: none needed
 
 ## Rule: The command surface is wired — stdout contract and mode routing
 
