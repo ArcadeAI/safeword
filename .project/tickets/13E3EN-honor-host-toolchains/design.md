@@ -28,7 +28,8 @@ agent edit → lintFile → resolveHostToolchain(file, canonical root)
 type HostToolchain =
   | { kind: 'ultracite'; cwd: string; executable: string; relativeFile: string }
   | { kind: 'biome'; cwd: string; executable: string; relativeFile: string }
-  | { kind: 'unavailable'; owner: 'ultracite' | 'biome'; cwd: string };
+  | { kind: 'unavailable'; owner: 'ultracite' | 'biome'; cwd: string }
+  | { kind: 'outside-root'; file: string; root: string };
 
 function resolveHostToolchain(file: string, projectRoot: string): HostToolchain | undefined;
 ```
@@ -59,7 +60,7 @@ No persistent data model. Resolver results are ephemeral, fully canonicalized co
 
 ## Component Interaction
 
-`lintFile` first excludes Safeword-managed paths, then calls the resolver for JavaScript extensions. A runnable result goes to the runner; `unavailable` returns a warning; `undefined` retains the existing ESLint/Prettier behavior. Both Claude and Cursor already call `lintFile`, so no adapter-specific wiring is added.
+`lintFile` first excludes Safeword-managed paths, then calls the resolver for JavaScript extensions. A runnable result goes to the runner; `unavailable` and `outside-root` return warnings; `undefined` retains the existing ESLint/Prettier behavior. Claude and Cursor already call `lintFile`; Codex routes PostToolUse edits through the same shared entry point.
 
 ## User Flow
 
@@ -100,4 +101,4 @@ No persistent data model. Resolver results are ephemeral, fully canonicalized co
 
 - [Biome CLI](https://biomejs.dev/reference/cli/)
 - [Biome configuration](https://biomejs.dev/reference/configuration/)
-- [Ultracite v6 presets](https://docs.ultracite.ai/upgrade/v6)
+- [Ultracite CLI and presets](https://github.com/haydenbleasel/ultracite)

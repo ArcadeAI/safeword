@@ -7,8 +7,8 @@
 **Build:** ✅ Success (tsup and declaration build)
 **Lint:** ✅ Clean (ESLint, Gherkin lint, TypeScript typecheck)
 **Scenarios:** All 16 scenarios marked complete (48/48 R/G/R ledger entries). The 14 late RED entries were reconstructed in an isolated `f8cf83556` baseline worktree, where importing the required host-toolchain seam failed because it did not exist.
-**PR Scope:** ✅ Diff matches ticket scope, including the supporting host-toolchain refactor and verification artifacts.
-**Dep Drift:** ✅ No dependency changes introduced by this ticket.
+**PR Scope:** ✅ The host-toolchain diff matches this ticket, including its supporting refactor and verification artifacts. The combined PR also carries separately ticketed audit hygiene (`6F971C`), hermetic test-fixture work (`MV2FZH`), and the parity CI gate (`G2216W`); none is attributed to `13E3EN`.
+**Dep Drift:** ✅ No dependency changes introduced by this ticket; the PR-level dependency updates belong to `6F971C`.
 **Parent Epic:** N/A
 **Reconcile:** ✅ No pattern deviation; host-toolchain dispatch is documented in ARCHITECTURE.md.
 **Experience:** ⏭️ N/A — internal developer-tooling behavior.
