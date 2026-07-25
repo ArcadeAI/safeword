@@ -72,9 +72,12 @@ function readBridgedRunIdentity(): RunIdentity | undefined {
 
 const environmentIdentity = resolveRunIdentity({}, { env: process.env });
 const runIdentity =
-  environmentIdentity.sessionKey === null
-    ? (readBridgedRunIdentity() ?? environmentIdentity)
-    : environmentIdentity;
+  // Claude exposes its session to this helper directly. Codex Desktop's
+  // CODEX_THREAD_ID is a cache-miss fallback, so a fresh pre-tool bridge must
+  // still win when one is available.
+  environmentIdentity.runtime === 'claude' && environmentIdentity.sessionKey !== null
+    ? environmentIdentity
+    : (readBridgedRunIdentity() ?? environmentIdentity);
 const sessionId = runIdentity.sessionKey ?? fail('missing run identity for review stamp');
 
 // Collapse all whitespace (incl. newlines) to single spaces. The log is one
