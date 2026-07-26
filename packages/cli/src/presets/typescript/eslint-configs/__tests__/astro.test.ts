@@ -102,9 +102,8 @@ describe('Astro config', () => {
     // `flat/recommended`. Both are still exported by the plugin, so the preset
     // COULD re-enable them explicitly — deliberately not done: no-omitted-end-tags
     // is a no-op in v3 (Astro's compiler rejects omitted end tags at parse time),
-    // and valid-compile is slated for removal, with `astro check` as its
-    // replacement. Pinning a rule upstream plans to delete buys coverage that
-    // expires. See the note in astro.ts.
+    // and upstream's own docs for valid-compile tell users to remove it from
+    // their ESLint config and run `astro check` instead. See the note in astro.ts.
     it('does not assert the rules v3 deprecated out of flat/recommended', () => {
       expect(getRuleConfig(astroConfig, 'astro/no-omitted-end-tags')).toBeUndefined();
       expect(getRuleConfig(astroConfig, 'astro/valid-compile')).toBeUndefined();

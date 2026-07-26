@@ -38,8 +38,10 @@ interface BuildAstroConfigOptions {
  * Compile errors, previously surfaced through ESLint by `astro/valid-compile`,
  * are now upstream's job for the `astro check` command — projects that relied
  * on ESLint alone for that signal should add `astro check` to their pipeline.
- * Both rules are still exported by the plugin, but re-enabling a rule upstream
- * plans to remove would buy coverage that expires at the next major.
+ * Both rules are still exported by the plugin, so this config could re-enable
+ * them; it does not, because upstream's own rule documentation tells users to
+ * remove `astro/valid-compile` from their ESLint config and run `astro check`
+ * instead. Re-adding it here would contradict that guidance.
  *
  * Config objects are assembled lazily — only when this config is actually accessed.
  */
