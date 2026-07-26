@@ -34,11 +34,11 @@ import type { TrackerWriter } from '../../src/tracker-sync/writers.js';
 
 /** One write the live path performed, in the order it performed it. */
 type WriteCall =
-  | { kind: 'create'; title: string; payload: IssuePayload }
+  | { kind: 'create'; title: string; ref: TrackerReference; payload: IssuePayload }
   | { kind: 'update'; title: string; ref: TrackerReference; payload: IssuePayload };
 
 /**
- * Records every writer call into ONE ordered log, so the live path's real
+ * Records every create/update call into ONE ordered log, so the live path's real
  * interleaved sequence is recoverable. Separate per-kind arrays would only allow
  * reconstructing an order (creates-then-updates), which is not the order the path
  * actually acted in — and an order assertion built on a reconstruction cannot fail
@@ -56,9 +56,10 @@ function recordingWriter(provider: Provider): TrackerWriter & {
     calls,
     graphs,
     create(payload) {
-      calls.push({ kind: 'create', title: payload.title, payload });
       minted += 1;
-      return Promise.resolve({ provider, id: `new-${minted}` });
+      const ref: TrackerReference = { provider, id: `new-${minted}` };
+      calls.push({ kind: 'create', title: payload.title, ref, payload });
+      return Promise.resolve(ref);
     },
     update(ref, payload) {
       calls.push({ kind: 'update', title: payload.title, ref, payload });
@@ -127,9 +128,22 @@ function corpus(): TicketInput[] {
     ticket({ id: 'FRESH1', title: 'Never synced' }),
     ticket({ id: 'RECORDED1', title: 'Already synced', status: 'in_progress' }),
     ticket({ id: 'TERMINAL1', title: 'Finished', status: 'done' }),
-    // A child of RECORDED1 so the graph edge and the ordering are both exercised.
+    // A child of RECORDED1 so the graph edge is exercised against a recorded parent.
     ticket({ id: 'CHILD1', title: 'Child of recorded', parent: 'RECORDED1' }),
     ticket({ id: 'PENDING1', title: 'Interrupted mid-create' }),
+    // A FRESH parent/child pair — listed child-first so a corpus-order plan would put
+    // the child before its parent. This is the actual executor hazard: neither issue
+    // exists yet, so the edge names a ticket a later intent still has to create.
+    ticket({ id: 'FCHILD1', title: 'Fresh child', parent: 'FPARENT1' }),
+    ticket({ id: 'FPARENT1', title: 'Fresh parent' }),
+    // A blocker pair the sort can ONLY order via the dependsOn edge: the blocked
+    // ticket is listed first, and its blocker is reachable by no other edge (pointing
+    // it at FPARENT1 instead would be pulled into place by the parent edge above, so
+    // the assertion would hold even if blocker edges were ignored entirely).
+    ticket({ id: 'BLOCKED1', title: 'Blocked ticket', dependsOn: ['BLOCKER1'] }),
+    ticket({ id: 'BLOCKER1', title: 'Blocker ticket' }),
+    // A blocker edge, so the sort's dependsOn/blockedOn handling is exercised at all.
+    ticket({ id: 'BLOCKED1', title: 'Blocked by fresh parent', dependsOn: ['FPARENT1'] }),
   ];
 }
 
@@ -177,9 +191,9 @@ describe('--plan parity with the gh path (#1443)', () => {
     const live = await runLivePath(corpus(), startingMap(), bodyMode, sidecarPath);
     const plan = computePlan({ tickets: corpus(), map: startingMap(), bodyMode });
 
-    // Same tickets, same COUNT, same ORDER. A set comparison would let a plan that
-    // duplicates or drops an intent pass (titles dedupe); comparing ordered arrays
-    // pins cardinality and the dependency-first sequence an executor relies on.
+    // Same tickets and same COUNT. Length + set equality over unique titles pins
+    // cardinality (a duplicated or dropped intent fails here); ORDER is not asserted
+    // in this test — the sequence comparison lives in the ordering test below.
     const liveTitles = liveWriteOrder(live);
     const plannedTitles = plan.intents.map(intent => intent.payload.title);
     expect(plan.intents).toHaveLength(liveTitles.length);
@@ -220,8 +234,15 @@ describe('--plan parity with the gh path (#1443)', () => {
       const parentTicketId = intent?.graph?.parentTicketId;
       expect(parentTicketId).toBeDefined();
       // The live ref id maps back to the very ticket the plan names.
-      const named = startingMap().lookup(parentTicketId ?? '');
-      expect(named?.ref.id).toBe(graphCall.parent);
+      expect(parentTicketId).toBeDefined();
+      const parentTitle = corpus().find(t => t.id === parentTicketId)?.title;
+      const createdParent = live.calls.find(
+        call => call.kind === 'create' && call.title === parentTitle,
+      );
+      const expectedReferenceId =
+        startingMap().lookup(parentTicketId ?? '')?.ref.id ??
+        (createdParent?.kind === 'create' ? createdParent.ref.id : undefined);
+      expect(expectedReferenceId).toBe(graphCall.parent);
     }
   });
 
@@ -236,9 +257,22 @@ describe('--plan parity with the gh path (#1443)', () => {
     expect(planOrder).toEqual(liveWriteOrder(live));
 
     // And that shared sequence is dependency-first, which is what an executor applying
-    // intents top-to-bottom depends on: a parent is created before the ticket naming it.
-    expect(planOrder.indexOf('Child of recorded')).toBeGreaterThan(
-      planOrder.indexOf('Already synced'),
+    // intents top-to-bottom depends on: a fresh parent is CREATED before the fresh
+    // ticket whose graph edge names it. Both titles are asserted present first —
+    // `indexOf` returns -1 on a miss, so a drifted title would otherwise read as a
+    // silent pass (`3 > -1`).
+    // Absolute invariants, not parity: both sides share the sort, so a change there
+    // moves them together and the sequence comparison above stays green. These pin the
+    // property itself. `indexOf` returns -1 on a miss, so assert presence first — a
+    // drifted title would otherwise read as a silent pass (`3 > -1`).
+    for (const title of ['Fresh parent', 'Fresh child', 'Blocked ticket', 'Blocker ticket']) {
+      expect(planOrder).toContain(title);
+    }
+    expect(planOrder.indexOf('Fresh child')).toBeGreaterThan(planOrder.indexOf('Fresh parent'));
+    // Blocker edges order too — without this, a sort that ignored dependsOn/blockedOn
+    // entirely would survive (parity holds because both sides lose it identically).
+    expect(planOrder.indexOf('Blocked ticket')).toBeGreaterThan(
+      planOrder.indexOf('Blocker ticket'),
     );
   });
 
