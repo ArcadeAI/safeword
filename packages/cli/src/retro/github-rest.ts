@@ -35,6 +35,10 @@ const MAX_ISSUE_PAGES = 10;
 // listOpenIssues), so it halts filing entirely — it needs real headroom above
 // the repo's open count, not just enough for one sweep.
 const MAX_DEDUP_PAGES = 30;
+// How many times a run will re-take the two confirmation sweeps before giving up.
+// Instability is a one-off (someone closed an issue), so retrying usually works —
+// but a genuinely churning tracker must not spin the whole session on it.
+const MAX_CONFIRMATION_ATTEMPTS = 3;
 
 /** Ask the `gh` CLI for the environment's GitHub token, or undefined if unavailable. */
 function ghAuthToken(): string | undefined {
@@ -142,6 +146,7 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
    */
   let terminalFailure: Error | undefined;
   let stabilityConfirmed = false;
+  let confirmationAttempts = 0;
 
   function latchTerminal(message: string): Error {
     terminalFailure = new Error(message);
@@ -221,51 +226,52 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
    * across a page boundary unseen. If that item carried the marker, the sweep
    * reports "no duplicate" and files one — the failure this module exists to stop.
    *
-   * So a MISS is not trusted until a second sweep confirms it. Note which way the
-   * evidence points: a skip makes the second sweep a SUPERSET, not a subset. If an
-   * issue closes mid-sweep, the sweep that lost a position never sees the item that
-   * shifted across the boundary, while the later, settled sweep does. So the tell
-   * is an issue APPEARING in the second sweep, not vanishing from the first.
+   * A MISS is therefore answered from a freshly-swept `later`, never from the
+   * cached snapshot — so an item the CACHED sweep skipped is already healed by the
+   * time the answer is given. The only completeness that matters is `later`'s.
    *
-   * Appearing is also what a legitimately new issue does, and the two are told
-   * apart by number: issue numbers are handed out in creation order and the sweep
-   * is sorted by creation ascending, so anything created after the first sweep must
-   * number above everything in it. An issue appearing BELOW that high-water mark
-   * existed all along and the first sweep missed it — proof of a skip.
+   * `earlier` exists solely to test that. If a close lands during `later`'s window
+   * it shifts `later`'s pages, and the item that fell through appears in `earlier`
+   * and not in `later` — so an issue going MISSING between the two is the tell. An
+   * issue merely appearing is benign: ascending order appends new issues to the
+   * last page, where they displace nothing.
    *
-   * The disappearing case is still checked: an issue read on an early page and
-   * closed before the sweep ended shifts the pages behind it just the same.
+   * Both sweeps are taken here rather than reusing the cached one, so the window
+   * under test is these two calls — not every `listComments`/`createIssue` round
+   * trip since the run began, during which an unrelated close is routine.
+   *
+   * Instability is NOT latched: unlike truncation it is a one-off, so it fails
+   * this encounter (triage isolates it, the draft stays spooled) and the next
+   * encounter re-confirms. Bounded, so a genuinely churning tracker cannot spin.
    *
    * Paid once per run, and only on the answer that can cause a duplicate — a hit
    * needs no confirmation, because a skipped item cannot invent one.
    */
   async function confirmedSnapshot(): Promise<OpenIssue[]> {
-    const first = await currentSnapshot();
-    if (stabilityConfirmed) return first;
-
-    const second = await listOpenIssues();
-    const firstNumbers = new Set(first.map(issue => issue.number));
-    const secondNumbers = new Set(second.map(issue => issue.number));
-    const highWaterMark = Math.max(0, ...firstNumbers);
-
-    const vanished = first.filter(issue => !secondNumbers.has(issue.number));
-    // Appeared below the high-water mark: it predates the first sweep, so the
-    // first sweep skipped it. Above the mark is an ordinary new issue — benign,
-    // because ascending order appends those to the last page.
-    const surfacedLate = second.filter(
-      issue => !firstNumbers.has(issue.number) && issue.number <= highWaterMark,
-    );
-
-    const unstable = [...vanished, ...surfacedLate];
-    if (unstable.length > 0) {
+    if (stabilityConfirmed) return await currentSnapshot();
+    if (confirmationAttempts >= MAX_CONFIRMATION_ATTEMPTS) {
       throw latchTerminal(
-        `retro dedup: the open-issue set shifted between sweeps ` +
-          `(e.g. #${unstable[0]?.number}); a page-boundary skip cannot be ruled out`,
+        `retro dedup: the open-issue set kept shifting across ` +
+          `${MAX_CONFIRMATION_ATTEMPTS} confirmation attempts; cannot rule out a skip`,
+      );
+    }
+    confirmationAttempts += 1;
+
+    const earlier = await listOpenIssues();
+    const later = await listOpenIssues();
+    const laterNumbers = new Set(later.map(issue => issue.number));
+    const vanished = earlier.filter(issue => !laterNumbers.has(issue.number));
+    if (vanished.length > 0) {
+      // Deliberately not latched — see the note above.
+      throw new Error(
+        `retro dedup: ${vanished.length} open issue(s) closed mid-enumeration ` +
+          `(e.g. #${vanished[0]?.number}); a page-boundary skip in this sweep ` +
+          `cannot be ruled out`,
       );
     }
     stabilityConfirmed = true;
-    openIssues = Promise.resolve(second);
-    return second;
+    openIssues = Promise.resolve(later);
+    return later;
   }
 
   /**

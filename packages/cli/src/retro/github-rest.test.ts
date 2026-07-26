@@ -198,9 +198,11 @@ describe('createRestTransport', () => {
     expect(calls).toHaveLength(2);
 
     // A second lookup reuses the enumeration — triage runs two per encounter.
-    // This one MISSES, so it pays for the one-time stability confirmation.
+    // This one MISSES, so it pays for the one-time stability confirmation: two
+    // FRESH sweeps (2 pages each), so the window under test is those two calls
+    // rather than everything since the run began.
     await transport.searchByCanonical('canonical:abc123def456');
-    expect(calls).toHaveLength(4);
+    expect(calls).toHaveLength(6);
   });
 
   // The bug this replaces was invisible because a zero result was
@@ -238,9 +240,9 @@ describe('createRestTransport', () => {
     if (!transport) throw new Error('expected a transport');
 
     await expect(transport.searchBySignature('retro:abc123def456')).resolves.toEqual([]);
-    // 31 for the sweep, then 31 again to confirm the miss is real (nothing
-    // vanished mid-sweep). Both sweeps see the same set, so the miss stands.
-    expect(calls).toHaveLength(62);
+    // 31 for the cached sweep, then two fresh 31-page sweeps to confirm the miss.
+    // All three see the same set, so the miss stands.
+    expect(calls).toHaveLength(93);
   });
 
   // The cap has to mean what it says. Appending the probe page instead of
@@ -263,65 +265,9 @@ describe('createRestTransport', () => {
     expect(calls).toHaveLength(31);
   });
 
-  // Ascending order stops an INSERT from shifting already-read pages, but a close
-  // shifts every later item back one, so an item can cross a page boundary unseen.
-  // If it carried the marker, the sweep says "no duplicate" and files one.
-  it('#1453: refuses to trust a miss when an issue vanishes mid-enumeration', async () => {
-    const firstSweep = Array.from({ length: 100 }, (_, i) => ({
-      number: i,
-      title: `t${i}`,
-      body: 'no marker',
-    }));
-    let sweep = 0;
-    mockFetch(url => {
-      if (!url.endsWith('page=1')) return { json: () => [] };
-      sweep += 1;
-      // Second sweep is missing issue #0 — it closed in between, so the first
-      // sweep's page boundaries cannot be trusted.
-      const page = sweep === 1 ? firstSweep : firstSweep.slice(1);
-      return { json: () => page };
-    });
-    const transport = createRestTransport('tok');
-    if (!transport) throw new Error('expected a transport');
-
-    await expect(transport.searchBySignature('retro:abc123def456')).rejects.toThrow(
-      /shifted between sweeps/,
-    );
-  });
-
-  // The shape a real skip actually takes, and the one a subset check misses
-  // entirely: an issue closing mid-sweep shifts a still-open issue across a page
-  // boundary, so the FIRST sweep is short and the settled second sweep is a strict
-  // SUPERSET. The skipped issue surfaces late, below the high-water mark.
-  it('#1453: refuses to trust a miss when an issue surfaces only in the second sweep', async () => {
-    const settled = Array.from({ length: 60 }, (_, i) => ({
-      number: i + 1,
-      title: `t${i + 1}`,
-      body: 'no marker',
-    }));
-    // First sweep misses #30 — it shifted across a boundary when an earlier issue
-    // closed. Nothing vanished, so the old subset check saw this as clean.
-    const skipped = settled.filter(issue => issue.number !== 30);
-    let sweep = 0;
-    mockFetch(url => {
-      if (!url.endsWith('page=1')) return { json: () => [] };
-      sweep += 1;
-      const page = sweep === 1 ? skipped : settled;
-      return { json: () => page };
-    });
-    const transport = createRestTransport('tok');
-    if (!transport) throw new Error('expected a transport');
-
-    await expect(transport.searchBySignature('retro:abc123def456')).rejects.toThrow(
-      /shifted between sweeps/,
-    );
-  });
-
-  // The benign twin of the case above: ascending order appends genuinely new
-  // issues to the LAST page, so they cannot displace anything already read. Their
-  // numbers sit above the first sweep's high-water mark, and treating them as
-  // instability would fail closed on every session that files while a human is
-  // opening issues.
+  // Ascending order appends genuinely new issues to the LAST page, where they
+  // displace nothing already read. Treating that as instability would fail closed
+  // on every session that files while a human is opening issues.
   it('#1453: tolerates a genuinely new issue appearing between sweeps', async () => {
     const settled = Array.from({ length: 60 }, (_, i) => ({
       number: i + 1,
@@ -340,6 +286,40 @@ describe('createRestTransport', () => {
     if (!transport) throw new Error('expected a transport');
 
     await expect(transport.searchBySignature('retro:abc123def456')).resolves.toEqual([]);
+  });
+
+  // Instability is a one-off, unlike truncation: someone closed an issue. Latching
+  // it would defer the whole session's filing over one unlucky close — the very
+  // "nothing reaches the tracker" symptom #1453 reported. It must fail only its own
+  // encounter and let the next one re-confirm.
+  it('#1453: retries confirmation after instability instead of latching the run', async () => {
+    // Two pages, so the mechanic under test is a real page boundary: a close that
+    // lands mid-sweep shifts page 2 back and an item falls through unseen.
+    const pageOne = Array.from({ length: 100 }, (_, i) => ({
+      number: i + 1,
+      title: `t${i + 1}`,
+      body: 'no marker',
+    }));
+    const pageTwo = [{ number: 101, title: 't101', body: 'no marker' }];
+    let sweep = 0;
+    mockFetch(url => {
+      if (!url.endsWith('page=1')) return { json: () => pageTwo };
+      sweep += 1;
+      // Sweeps: 1 = the cached snapshot, 2+3 = the first confirmation pair.
+      // #1 closes during sweep 3, so sweep 3 is short — it is the `later` half,
+      // and an issue missing from IT is what proves it may have skipped an item.
+      const page = sweep === 3 ? pageOne.slice(1) : pageOne;
+      return { json: () => page };
+    });
+    const transport = createRestTransport('tok');
+    if (!transport) throw new Error('expected a transport');
+
+    await expect(transport.searchBySignature('retro:abc123def456')).rejects.toThrow(
+      /closed mid-enumeration/,
+    );
+    // Not latched: the next encounter re-confirms against a settled tracker
+    // (sweeps 4 and 5) and gets a real answer.
+    await expect(transport.searchByCanonical('canonical:abc123def456')).resolves.toEqual([]);
   });
 
   // Truncation is deterministic: re-running it burns another 31 requests to reach
