@@ -12,15 +12,12 @@ export function toRepoRelativePath(cwd: string, absolutePath: string): string {
 
 /** Normalize a configured directory that must remain inside the repository. */
 export function toRepoDirectory(cwd: string, configuredPath: string): string | undefined {
+  if (configuredPath === '') return undefined;
   const repoPath = nodePath.isAbsolute(configuredPath)
     ? toRepoRelativePath(cwd, configuredPath)
     : toRepoPath(configuredPath);
   const canonical = nodePath.posix.normalize(repoPath);
   const normalized = canonical.endsWith('/') ? canonical.slice(0, -1) : canonical;
-  return normalized !== '' &&
-    normalized !== '.' &&
-    normalized !== '..' &&
-    !normalized.startsWith('../')
-    ? normalized
-    : undefined;
+  if (normalized === '' || normalized === '.') return '';
+  return normalized !== '..' && !normalized.startsWith('../') ? normalized : undefined;
 }

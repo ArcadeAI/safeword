@@ -181,13 +181,13 @@ partitions after real CLI probes found two anchor-substitution gaps.
 
 ### Scenario: Repository-root ticket and feature lanes remain enforceable
 
-- [ ] RED
+- [x] RED 23278c9
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: A configured project root outside the repository warns instead of failing open
 
-- [ ] RED
+- [x] RED 23278c9
 - [ ] GREEN
 - [ ] REFACTOR
 

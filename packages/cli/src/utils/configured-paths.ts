@@ -268,7 +268,12 @@ export function ticketDirectoriesForConfiguredRoot(
     ];
   }
   const projectRoot = toRepoDirectory(cwd, configuredProjectRoot);
-  return projectRoot === undefined ? [] : [nodePath.posix.join(projectRoot, 'tickets')];
+  if (projectRoot === undefined) {
+    throw new Error(
+      `Configured project root "${configuredProjectRoot}" is outside the repository.`,
+    );
+  }
+  return [nodePath.posix.join(projectRoot, 'tickets')];
 }
 
 /** Absolute learnings directory under the resolved namespace root. */

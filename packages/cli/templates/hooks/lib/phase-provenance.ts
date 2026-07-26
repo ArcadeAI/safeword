@@ -556,7 +556,7 @@ function validateAnchor(
   const ticketSlug = slugSeparator === -1 ? ticketFolder : ticketFolder.slice(slugSeparator + 1);
   const anchorSegments = anchor.split('/');
   const isConfiguredOrDefaultFeature =
-    scope?.featureRoots.some(root => anchor.startsWith(`${root}/`)) ?? false;
+    scope?.featureRoots.some(root => root === '' || anchor.startsWith(`${root}/`)) ?? false;
   const isWorkspaceFeature =
     anchorSegments.length >= 4 &&
     (scope?.workspaceRoots.includes(anchorSegments[0] ?? '') ?? false) &&
