@@ -2,8 +2,10 @@
 
 ## Verify Checklist
 
-**Test Suite:** ⚠️ Affected suites green (1368 passed, 92 files); one unrelated
-pre-existing failure in this container — see Evidence limits. CI is the arbiter.
+**Test Suite:** ⚠️ Vitest green in CI (5404 passed, 365 files, both Node lanes);
+one unrelated pre-existing failure in this container — see Evidence limits.
+**Gherkin:** ✅ Acceptance lane passes locally (494 passed, 3 skipped) — after a
+CI-caught miss, see below.
 **Build:** ✅ Success
 **Lint:** ✅ Clean (eslint, lint-gherkin, tsc --noEmit)
 **Format:** ✅ Prettier clean
@@ -62,6 +64,28 @@ still cleans installed projects, and a non-safeword sibling still tracked.
 The deprecation entries were deliberately left in place. Removing them
 alongside the files would strand the copies already on customer disks with
 nothing left to clean them up.
+
+## Miss caught by CI
+
+The first push passed vitest in full (5404 tests) and failed the Gherkin
+acceptance lane on both Node lanes. Two root-level cucumber step files read the
+deleted paths from the real repo:
+
+- `steps/feature-surfaces-bdd.steps.ts:22` — `.agents/skills/bdd/DISCOVERY.md`
+- `steps/plan-implementation-phase.steps.ts:1104` — `.agents/skills/bdd/PLAN_IMPLEMENTATION.md`
+
+Both are retargeted: the first onto the Codex plugin's packaged reference, the
+second onto `.claude/` alone, because the Codex surface there is the generated
+plugin — whose packaging that scenario's *previous* step already asserts via
+`CODEX_BDD_PLAN_REFERENCE`, and whose derivation from the template is asserted
+by `codex-plugin-catalogue.release.test.ts`. The scenario had already migrated
+to the plugin in its first half; the byte-identity loop was the stale half.
+
+Cause of the miss: the pre-push audit grep was capped with `head -20` and the
+truncated list was treated as complete, which hid the root-level `steps/`
+directory entirely. The re-audit was run untruncated, per file. `bun run lint`
+does not invoke cucumber, so nothing local would have caught it either — the
+acceptance lane is now run before pushing, not just the vitest suites.
 
 ## Evidence limits
 

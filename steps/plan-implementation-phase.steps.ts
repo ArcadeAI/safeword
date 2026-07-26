@@ -1099,9 +1099,13 @@ Then('each installed copy is byte-identical to its template', function (this: Pl
     nodePath.join(PROJECT_ROOT, 'packages/cli/templates/skills/bdd/PLAN_IMPLEMENTATION.md'),
     'utf8',
   );
+  // Only `.claude/` is a byte-identical installed copy. The Codex surface is the
+  // generated plugin, whose assets are transformed at generation and asserted to
+  // derive from the template by codex-plugin-catalogue.release.test.ts; its
+  // packaging is already checked by the `registered` step above. `.agents/skills/`
+  // was retired in V5V4YP — the schema deletes those paths on upgrade.
   for (const installed of [
     nodePath.join(PROJECT_ROOT, '.claude/skills/bdd/PLAN_IMPLEMENTATION.md'),
-    nodePath.join(PROJECT_ROOT, '.agents/skills/bdd/PLAN_IMPLEMENTATION.md'),
   ]) {
     assert.equal(readFileSync(installed, 'utf8'), template, `${installed} drifted from template`);
   }
