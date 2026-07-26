@@ -2,14 +2,15 @@
 id: CBTDK8
 slug: portable-tracker-transport
 type: feature
-phase: implement
+phase: done
 phase_anchors:
   - intake: e1c4733
   - define-behavior: 35b4b81
   - scenario-gate: f1a97fb
   - plan-implementation: b5983b6
-  - implement: 8d57cb9
-status: in_progress
+  - implement: 65d3e61
+  - verify: 65d3e61
+status: done
 epic: offboard-local-ticketing
 parent: KKNFZA
 scope:
@@ -59,3 +60,4 @@ last_modified: 2026-06-29T02:29:45.594Z
 - 2026-07-25T14:46:00.000Z Re-opened (done → verify): the earlier done was premature — verify/audit were run partially (shortcut the canonical test-plan block + full-repo lint; skipped jscpd/outdated/docs/domain/test-quality), and /quality-review on the implementation code + /refactor were not run. Running all four properly before re-closing.
 - 2026-07-25T15:16:00.868Z Phase: verify → done
 - 2026-07-25T15:20:00.000Z Complete: verify (2nd pass, all four gates genuinely run). /quality-review on the SHIPPED CODE by an independent fresh-context reviewer → APPROVE, no critical bugs (fold traced across all 6 state combinations; stdout purity confirmed); its 7 findings applied as the /refactor + hardening pass (8d57cb9): urlTail strips query/fragment, identity guard provider-gated to github + numeric `number`, rejectReason extracted, 6 test gaps closed. Full /verify: 5384 passed / 7 skipped, full-repo lint clean (eslint + gherkin + tsc, zero output), builds green. Full /audit: depcruise 0 errors, config in sync, knip clean, jscpd 0 clones, outdated = eslint dev/patch only, docs updated (ab2f576) + site builds. impl-plan reconciled → implemented (27699d5). Two behaviors that emerged during hardening were added as scenarios (terminal-never-synced create-closed; corrupt-sidecar refusal) → 21 scenarios, 0 unchecked. → done.
+- 2026-07-26T00:26:00.000Z Complete: verify (3rd pass — PR review round). All four skills genuinely run on this round's code. /quality-review returned REQUEST CHANGES with 3 critical issues, each verified by executing probes: C3 computePlan used corpus order while the live path sorts topologically (a v1 one-way-door contract silently pushing a topological sort onto every executor) — fixed by sharing orderTicketsForProjection via ticket-references; C1 the parity suite compared Sets with no cardinality assertion, so extra/dropped intents passed green — now asserts length + order; C2 projectGraph recorded nothing and the fixture had no edges — now recorded and asserted, with the deliberate self-edge divergence named. /refactor: 9 applied, 11 rejected as churn. Also: reconcile arm covered, full-vs-minimal body content pinned (a silent egress downgrade previously passed every test). Every fix mutation-verified. Full suite 5469 passed / 7 skipped (1 known container-root failure in hooks/self-report, outside this diff); lint + gherkin + typecheck clean; depcruise 0 errors; knip clean. Caught up to main (703760e). → done.

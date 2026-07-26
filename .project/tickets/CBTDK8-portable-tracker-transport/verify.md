@@ -7,7 +7,7 @@ The results below are from the full runs on the final code._
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 5384/5384 tests pass (7 skipped; 1 environment-limited failure excluded — see Evidence limits). Feature coverage: 39 tests across `plan.test.ts`, `apply-results.test.ts`, `command-plan-apply.test.ts` (wiring) and `plan-gh-parity.test.ts` (equivalence); the full `tracker-sync` suite is **135 green**, which covers both `gh`-path regression and `gh`-path parity.
+**Test Suite:** ✓ 5469 pass (7 skipped; 1 environment-limited failure excluded — see Evidence limits). Feature coverage: 39 tests across `plan.test.ts`, `apply-results.test.ts`, `command-plan-apply.test.ts` (wiring) and `plan-gh-parity.test.ts` (equivalence); the full `tracker-sync` suite is **138 green**, which covers both `gh`-path regression and `gh`-path parity.
 **Gherkin:** ✅ Acceptance lane passes — `lint-gherkin` clean; the cucumber lane is green. This feature's `.feature` is `@wip`-excluded (#363, no live tracker in tests) and proven by the vitest units above.
 **Build:** ✅ Success — tsup ESM + DTS build succeeded in the verify run; the website build is clean (9 pages) after the docs addition.
 **Lint:** ✅ Clean — full-repo `bun run lint` (eslint `src tests` + `lint:gherkin` + `tsc --noEmit`) completed with zero error/warning output; `tsc --noEmit` re-run independently exits 0.
