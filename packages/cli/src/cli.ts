@@ -143,9 +143,18 @@ program
   .command('sync-tracker')
   .description('Project the ticket corpus one-way into the configured tracker (Linear/GitHub)')
   .option('--reset-tracker-map', 'Rebuild the tracker-map sidecar from scratch')
-  .action(async (options: { resetTrackerMap?: boolean }) => {
+  .option('--plan', 'Emit the sync plan as JSON to stdout (offline; for a pluggable executor)')
+  .option(
+    '--apply-results <file>',
+    "Fold an executor's results file into the tracker-map (offline)",
+  )
+  .action(async (options: { resetTrackerMap?: boolean; plan?: boolean; applyResults?: string }) => {
     const { syncTrackerCommand } = await import('./commands/sync-tracker.js');
-    await syncTrackerCommand({ resetTrackerMap: options.resetTrackerMap });
+    await syncTrackerCommand({
+      resetTrackerMap: options.resetTrackerMap,
+      plan: options.plan,
+      applyResults: options.applyResults,
+    });
   });
 
 program

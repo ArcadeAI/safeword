@@ -1,14 +1,14 @@
 ---
 name: audit
-description: Run comprehensive code audit for architecture, dead code, and test
-  quality. Use when reviewing overall codebase health, checking for architectural
-  violations, or before marking a feature complete.
+description: Run a diff-scoped code audit for architecture, dead code, and test
+  quality. Uses the change from main to focus feature reviews; request a
+  repository audit for whole-codebase discovery.
 allowed-tools: '*'
 ---
 
 # Audit
 
-Run a comprehensive code audit. Execute checks and report results by severity.
+Run a diff-scoped code audit. Execute checks and report results by severity.
 
 **Reviewer class:** _class-2 — independent observation_: every check confirms an observable fact, so no cross-model reviewer applies. Judging whether the architecture is _sound_ is not audit's job — that lives in the Architecture Review Gate (`ARCHITECTURE.md`) and `quality-review`.
 
@@ -29,6 +29,32 @@ bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" aud
 
 Task, patch, and no-ticket audit work may continue after recording that session-scoped proof was unavailable and not required by the gate.
 
+## Scope
+
+Default to the current working tree's change from `origin/main`, falling back to
+local `main`. The shared scope helper prints its exact merge-base SHA and changed
+files. Treat that printed list as the audit boundary for every review below.
+
+- Review changed source, tests, agent configuration, documentation, and learning
+  files; follow direct references from them when a missing reference could make
+  the change invalid.
+- Deleted and type-changed paths are evidence for broken-reference review,
+  never analyzer inputs. The helper prints them under `Reference review scope`.
+- Whole-workspace Knip, repository clone totals, and dependency-freshness
+  discovery are intentionally skipped in this mode because their pre-existing
+  findings are noise for a feature diff.
+
+Run a **repository audit** only when the user explicitly asks for a full,
+repository-wide, or baseline audit, or when neither `origin/main` nor `main`
+exists. In that mode retain the prior whole-project checks and report the mode
+prominently. Do not silently widen a Git-aware diff audit.
+
+For an explicit repository audit, set `AUDIT_SCOPE_REQUEST=repository` in the
+environment of **every executable audit block** below. That is what widens code,
+agent configuration, learnings, tests, documentation, and domain docs together.
+Leave the variable unset for the default diff audit; do not edit the blocks'
+commands.
+
 ## Instructions
 
 ### 1. Code Quality Checks
@@ -36,8 +62,28 @@ Task, patch, and no-ticket audit work may continue after recording that session-
 **Run the block below verbatim, as ONE bash invocation.** Do not extract or paraphrase individual commands — the manifest gates, package-manager routing, and tool-absence messages are load-bearing, and a hand-rolled subset silently skips whole check families.
 
 ```bash
-# Ensure we're in the project root regardless of prior CWD state
-cd "${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}" || exit 1
+# Ensure we're in the project root regardless of prior CWD state, then load the
+# same scope contract every executable audit block uses.
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
+cd "$PROJECT_DIR" || exit 1
+source "$PROJECT_DIR/.safeword/hooks/lib/audit-scope.sh"
+audit_scope_initialize "$PROJECT_DIR"
+audit_scope_print
+
+AUDIT_HAS_JS_CHANGE=false
+AUDIT_HAS_PYTHON_CHANGE=false
+AUDIT_HAS_GO_CHANGE=false
+AUDIT_HAS_RUST_CHANGE=false
+if [ "$AUDIT_SCOPE_MODE" = "diff" ]; then
+  audit_scope_has_path_matching '(^|/)(package\.json|package-lock\.json|pnpm-lock\.yaml|yarn\.lock|bun\.lockb?|knip(\.config)?\.(json|jsonc|js|ts)|\.knip\.jsonc?|\.dependency-cruiser\.(cjs|js|mjs|json))$|\.(cjs|cts|js|jsx|mjs|mts|ts|tsx|vue|svelte)$' && AUDIT_HAS_JS_CHANGE=true
+  audit_scope_has_path_matching '(^|/)(pyproject\.toml|requirements\.txt|setup\.py|setup\.cfg|Pipfile|uv\.lock|poetry\.lock)$|\.py$' && AUDIT_HAS_PYTHON_CHANGE=true
+  audit_scope_has_path_matching '(^|/)(go\.mod|go\.sum)$|\.go$' && AUDIT_HAS_GO_CHANGE=true
+  audit_scope_has_path_matching '(^|/)(Cargo\.toml|Cargo\.lock)$|\.rs$' && AUDIT_HAS_RUST_CHANGE=true
+fi
+AUDIT_HAS_CODE_OR_MANIFEST_CHANGE=false
+if [ "$AUDIT_SCOPE_MODE" = "repository" ] || [ "$AUDIT_HAS_JS_CHANGE" = true ] || [ "$AUDIT_HAS_PYTHON_CHANGE" = true ] || [ "$AUDIT_HAS_GO_CHANGE" = true ] || [ "$AUDIT_HAS_RUST_CHANGE" = true ]; then
+  AUDIT_HAS_CODE_OR_MANIFEST_CHANGE=true
+fi
 
 # Stack-specific checks are gated by project manifests. A package.json may be a
 # safeword lane host in Python, Rust, or Go installs, so JavaScript checks run
@@ -85,6 +131,27 @@ find_manifest_dirs() {
 PYTHON_PROJECT_DIRS="$(find_manifest_dirs -name pyproject.toml -o -name requirements.txt -o -name setup.py -o -name setup.cfg -o -name Pipfile)"
 GO_MODULE_DIRS="$(find_manifest_dirs -name go.mod)"
 RUST_CRATE_DIRS="$(find_manifest_dirs -name Cargo.toml)"
+
+# Keep native tools inside the changed application(s). A language change at the
+# repository root correctly selects the root project; a docs-only diff selects
+# none. Repository-mode audits retain the complete discovered set.
+if [ "$AUDIT_SCOPE_MODE" = "diff" ]; then
+  if [ "$AUDIT_HAS_PYTHON_CHANGE" = true ]; then
+    PYTHON_PROJECT_DIRS="$(printf '%s\n' "$PYTHON_PROJECT_DIRS" | filter_audit_dirs_to_diff)"
+  else
+    PYTHON_PROJECT_DIRS=""
+  fi
+  if [ "$AUDIT_HAS_GO_CHANGE" = true ]; then
+    GO_MODULE_DIRS="$(printf '%s\n' "$GO_MODULE_DIRS" | filter_audit_dirs_to_diff)"
+  else
+    GO_MODULE_DIRS=""
+  fi
+  if [ "$AUDIT_HAS_RUST_CHANGE" = true ]; then
+    RUST_CRATE_DIRS="$(printf '%s\n' "$RUST_CRATE_DIRS" | filter_audit_dirs_to_diff)"
+  else
+    RUST_CRATE_DIRS=""
+  fi
+fi
 
 # Run Python dead-code checks once per application, not once per toolkit/package.
 # Conventional apps/<app>/... manifests collapse to apps/<app>; jobs are one lane.
@@ -175,217 +242,245 @@ run_python_outdated_check() {
   )
 }
 
-[ -n "$PYTHON_PROJECT_DIRS" ] || echo "No Python projects found — Python architecture, dead-code, and outdated checks not applicable"
-[ -n "$GO_MODULE_DIRS" ] || echo "No Go modules found — Go architecture, dead-code, and outdated checks not applicable"
-[ -n "$RUST_CRATE_DIRS" ] || echo "No Rust crates found — Rust architecture, dead-code, and outdated checks not applicable"
+if [ "$AUDIT_HAS_CODE_OR_MANIFEST_CHANGE" != true ]; then
+  echo "Code quality scope: no changed source or manifest files"
+else
+  [ -n "$PYTHON_PROJECT_DIRS" ] || echo "No Python projects found — Python architecture, dead-code, and outdated checks not applicable"
+  [ -n "$GO_MODULE_DIRS" ] || echo "No Go modules found — Go architecture, dead-code, and outdated checks not applicable"
+  [ -n "$RUST_CRATE_DIRS" ] || echo "No Rust crates found — Rust architecture, dead-code, and outdated checks not applicable"
 
-# =========================================================================
-# DETECT CONFIG DRIFT (read-only — no writes)
-# =========================================================================
+  # =========================================================================
+  # DETECT CONFIG DRIFT (read-only — no writes)
+  # =========================================================================
 
-# 0. Compare generated vs on-disk depcruise config. Non-zero exit = drift.
-#    /audit must never mutate the working tree; surface stale config as W007.
-#    Resolve the locally installed safeword CLI first so the check reflects the
-#    repo's pinned version, not whatever the npm registry currently calls @latest.
-if [ -x node_modules/.bin/safeword ]; then
-  SW="node_modules/.bin/safeword"
-elif [ -f packages/cli/src/cli.ts ]; then
-  SW="bun packages/cli/src/cli.ts"
-else SW="bunx safeword"; fi
-$SW sync-config --check 2>&1 || echo "[W007] Stale .safeword/depcruise-config.cjs — run \`safeword sync-config\` to refresh and commit"
+  # 0. Compare generated vs on-disk depcruise config. Non-zero exit = drift.
+  #    /audit must never mutate the working tree; surface stale config as W007.
+  #    Resolve the locally installed safeword CLI first so the check reflects the
+  #    repo's pinned version, not whatever the npm registry currently calls @latest.
+  if [ "$AUDIT_SCOPE_MODE" = "repository" ] || [ "$AUDIT_HAS_JS_CHANGE" = true ]; then
+    if [ -x node_modules/.bin/safeword ]; then
+      SW="node_modules/.bin/safeword"
+    elif [ -f packages/cli/src/cli.ts ]; then
+      SW="bun packages/cli/src/cli.ts"
+    else SW="bunx safeword"; fi
+    $SW sync-config --check 2>&1 || echo "[W007] Stale .safeword/depcruise-config.cjs — run \`safeword sync-config\` to refresh and commit"
 
-# Config-drift coverage is JS/TS-only (W005 knip hints, W007 depcruise config).
-# Native stacks have no comparable drift check yet — say so instead of letting
-# silence read as "no drift" (#831).
-([ -n "$PYTHON_PROJECT_DIRS" ] || [ -n "$GO_MODULE_DIRS" ] || [ -n "$RUST_CRATE_DIRS" ]) && echo "Coverage limitation: config-drift checks (W005/W007) cover JS/TS tooling only — native lint configs (ruff.toml, .golangci.yml, Cargo [lints]) are not drift-checked; review them manually."
+    # Config-drift coverage is JS/TS-only (W005 knip hints, W007 depcruise config).
+    # Native stacks have no comparable drift check yet — say so instead of letting
+    # silence read as "no drift" (#831).
+    ([ -n "$PYTHON_PROJECT_DIRS" ] || [ -n "$GO_MODULE_DIRS" ] || [ -n "$RUST_CRATE_DIRS" ]) && echo "Coverage limitation: config-drift checks (W005/W007) cover JS/TS tooling only — native lint configs (ruff.toml, .golangci.yml, Cargo [lints]) are not drift-checked; review them manually."
+  fi
 
-# =========================================================================
-# ARCHITECTURE CHECKS (circular deps, layer violations)
-# =========================================================================
+  # =========================================================================
+  # ARCHITECTURE CHECKS (circular deps, layer violations)
+  # =========================================================================
 
-# 1a. Architecture - TypeScript/JS (depcruise)
-DEPCRUISE_CONFIG=""
-[ -f .dependency-cruiser.cjs ] && DEPCRUISE_CONFIG=".dependency-cruiser.cjs"
-[ -f .dependency-cruiser.js ] && DEPCRUISE_CONFIG=".dependency-cruiser.js"
-[ -n "$DEPCRUISE_CONFIG" ] && {
-  bunx depcruise --output-type err --config "$DEPCRUISE_CONFIG" . 2>&1 || true
-}
+  # 1a. Architecture - TypeScript/JS (depcruise)
+  DEPCRUISE_CONFIG=""
+  [ -f .dependency-cruiser.cjs ] && DEPCRUISE_CONFIG=".dependency-cruiser.cjs"
+  [ -f .dependency-cruiser.js ] && DEPCRUISE_CONFIG=".dependency-cruiser.js"
+  if [ -n "$DEPCRUISE_CONFIG" ] && { [ "$AUDIT_SCOPE_MODE" = "repository" ] || [ "$AUDIT_HAS_JS_CHANGE" = true ]; }; then
+    if [ "$AUDIT_SCOPE_MODE" = "diff" ]; then
+      bunx depcruise --output-type err --config "$DEPCRUISE_CONFIG" --affected "$AUDIT_BASE_SHA" . 2>&1 || true
+    else
+      bunx depcruise --output-type err --config "$DEPCRUISE_CONFIG" . 2>&1 || true
+    fi
+  fi
 
-# 1b. Architecture - Python (import-linter). Python does NOT reliably catch cycles
-# at runtime — an ImportError fires only when the import order happens to touch a
-# not-yet-defined name, so a passing test run is NOT proof of an acyclic import
-# graph. import-linter is the static gate, but it is config-driven (it enforces only
-# declared contracts, nothing by default), so gate on its config and never force it.
-if [ -n "$PYTHON_PROJECT_DIRS" ]; then
-  while IFS= read -r project_dir; do
-    [ -n "$project_dir" ] || continue
-    (
-      cd "$project_dir" || exit 0
-      if [ -f .importlinter ] || grep -q '^\[importlinter\]' setup.cfg 2> /dev/null || grep -q '^\[tool\.importlinter\]' pyproject.toml 2> /dev/null; then
-        if command -v lint-imports > /dev/null 2>&1; then
-          lint-imports 2>&1 || true
-        else
-          echo "Manual evidence required: import-linter contracts found in $project_dir but 'lint-imports' not installed — Python architecture check skipped"
-        fi
-      else
-        echo "Manual evidence required: no import-linter contracts for $project_dir (.importlinter / [tool.importlinter] / setup.cfg [importlinter]) — Python import cycles are NOT statically checked (runtime does not reliably catch them). Add import-linter, or run 'pylint --disable=all --enable=cyclic-import <pkg>' for a config-free heuristic."
-      fi
-    )
-  done << EOF
-$PYTHON_PROJECT_DIRS
-EOF
-fi
-
-# 1c. Architecture - Go. The compiler REJECTS import cycles at build, so a green
-# `go build ./...` / `go test ./...` already guarantees an acyclic package graph —
-# no separate cycle check exists or is needed. Layer/boundary rules are enforced by
-# depguard, which runs INSIDE the golangci-lint pass below when `.golangci.yml`
-# configures it — do NOT force-enable it (an unconfigured depguard flags every
-# non-stdlib import as a false positive).
-if [ -n "$GO_MODULE_DIRS" ]; then
-  while IFS= read -r module_dir; do
-    [ -n "$module_dir" ] && echo "Go architecture — $module_dir: import cycles are compiler-guaranteed absent (a passing build proves it); boundary contracts run via depguard in the golangci-lint pass when .golangci.yml configures them."
-  done << EOF
-$GO_MODULE_DIRS
-EOF
-fi
-
-# 1d. Architecture - Rust. Cargo rejects circular crate deps and rustc forbids
-# mutually-recursive modules, so a compiling project cannot contain cycles — no
-# check needed. No mature standard tool enforces directional layer boundaries in
-# Rust (cargo-modules only visualizes); teams enforce boundaries structurally via
-# separate crates + visibility. (cargo-deny covers dependency supply-chain —
-# advisories/licenses/bans — a different axis, not architecture.)
-if [ -n "$RUST_CRATE_DIRS" ]; then
-  while IFS= read -r crate_dir; do
-    [ -n "$crate_dir" ] && echo "Rust architecture — $crate_dir: crate/module cycles are compiler-guaranteed absent (a passing build proves it); no standard layer-boundary tool exists — enforce structurally via crates."
-  done << EOF
-$RUST_CRATE_DIRS
-EOF
-fi
-
-# =========================================================================
-# DEAD CODE DETECTION
-# =========================================================================
-
-# 2a. Dead code - TypeScript/JS (knip — read-only, reports unused exports/deps/config hints)
-# Leaf Knip configs are executed from their workspace so monorepo audits do not
-# silently ignore their entry/project rules.
-([ -f package.json ] || [ -n "$KNIP_CONFIG_FILES" ]) && run_knip_check
-
-# 2b. Dead code - Python (deadcode)
-# A missing tool must be loud — `|| true` alone would make "not installed"
-# read as "no findings".
-if [ -n "$PYTHON_AUDIT_DIRS" ]; then
-  if command -v deadcode > /dev/null 2>&1; then
+  # 1b. Architecture - Python (import-linter). Python does NOT reliably catch cycles
+  # at runtime — an ImportError fires only when the import order happens to touch a
+  # not-yet-defined name, so a passing test run is NOT proof of an acyclic import
+  # graph. import-linter is the static gate, but it is config-driven (it enforces only
+  # declared contracts, nothing by default), so gate on its config and never force it.
+  if [ -n "$PYTHON_PROJECT_DIRS" ]; then
     while IFS= read -r project_dir; do
       [ -n "$project_dir" ] || continue
-      echo "Python dead-code — $project_dir"
-      (cd "$project_dir" && deadcode . 2>&1 || true)
+      (
+        cd "$project_dir" || exit 0
+        if [ -f .importlinter ] || grep -q '^\[importlinter\]' setup.cfg 2> /dev/null || grep -q '^\[tool\.importlinter\]' pyproject.toml 2> /dev/null; then
+          if command -v lint-imports > /dev/null 2>&1; then
+            lint-imports 2>&1 || true
+          else
+            echo "Manual evidence required: import-linter contracts found in $project_dir but 'lint-imports' not installed — Python architecture check skipped"
+          fi
+        else
+          echo "Manual evidence required: no import-linter contracts for $project_dir (.importlinter / [tool.importlinter] / setup.cfg [importlinter]) — Python import cycles are NOT statically checked (runtime does not reliably catch them). Add import-linter, or run 'pylint --disable=all --enable=cyclic-import <pkg>' for a config-free heuristic."
+        fi
+      )
     done << EOF
-$PYTHON_AUDIT_DIRS
+$PYTHON_PROJECT_DIRS
 EOF
-  else
-    echo "Manual evidence required: deadcode not installed — Python dead-code checks skipped for discovered Python projects"
   fi
-fi
 
-# 2c. Dead code - Go (golangci-lint unused)
-if [ -n "$GO_MODULE_DIRS" ]; then
-  if command -v golangci-lint > /dev/null 2>&1; then
+  # 1c. Architecture - Go. The compiler REJECTS import cycles at build, so a green
+  # `go build ./...` / `go test ./...` already guarantees an acyclic package graph —
+  # no separate cycle check exists or is needed. Layer/boundary rules are enforced by
+  # depguard, which runs INSIDE the golangci-lint pass below when `.golangci.yml`
+  # configures it — do NOT force-enable it (an unconfigured depguard flags every
+  # non-stdlib import as a false positive).
+  if [ -n "$GO_MODULE_DIRS" ]; then
     while IFS= read -r module_dir; do
-      [ -n "$module_dir" ] || continue
-      echo "Go dead-code — $module_dir"
-      (cd "$module_dir" && golangci-lint run --enable unused 2>&1 || true)
+      [ -n "$module_dir" ] && echo "Go architecture — $module_dir: import cycles are compiler-guaranteed absent (a passing build proves it); boundary contracts run via depguard in the golangci-lint pass when .golangci.yml configures them."
     done << EOF
 $GO_MODULE_DIRS
 EOF
-  else
-    echo "Manual evidence required: golangci-lint not installed — Go dead-code checks skipped for discovered Go modules"
   fi
-fi
 
-# 2d. Rust-specific checks (Clippy catches unused code and quality issues)
-# Gate on `cargo-clippy` (the binary `cargo clippy` runs), not `cargo`: clippy
-# is a rustup component that can be absent while cargo is on PATH, and `|| true`
-# would otherwise swallow its failure into a false "clean" result.
-if [ -n "$RUST_CRATE_DIRS" ]; then
-  if command -v cargo-clippy > /dev/null 2>&1; then
+  # 1d. Architecture - Rust. Cargo rejects circular crate deps and rustc forbids
+  # mutually-recursive modules, so a compiling project cannot contain cycles — no
+  # check needed. No mature standard tool enforces directional layer boundaries in
+  # Rust (cargo-modules only visualizes); teams enforce boundaries structurally via
+  # separate crates + visibility. (cargo-deny covers dependency supply-chain —
+  # advisories/licenses/bans — a different axis, not architecture.)
+  if [ -n "$RUST_CRATE_DIRS" ]; then
     while IFS= read -r crate_dir; do
-      [ -n "$crate_dir" ] || continue
-      echo "Rust clippy — $crate_dir"
-      (cd "$crate_dir" && cargo clippy --all-targets --all-features -- -D warnings 2>&1 || true)
+      [ -n "$crate_dir" ] && echo "Rust architecture — $crate_dir: crate/module cycles are compiler-guaranteed absent (a passing build proves it); no standard layer-boundary tool exists — enforce structurally via crates."
     done << EOF
 $RUST_CRATE_DIRS
 EOF
-  else
-    echo "Manual evidence required: cargo clippy not available — Rust clippy checks skipped for discovered Rust crates"
   fi
-fi
 
-# =========================================================================
-# CODE DUPLICATION
-# =========================================================================
+  # =========================================================================
+  # DEAD CODE DETECTION
+  # =========================================================================
 
-# 3. Copy/paste detection (all languages). Generated/vendored trees are
-# guaranteed clones, so exclude them — findings should be hand-written dupes.
-# The ignore list IS the recorded scope (issue #825): `.safeword/**` is a
-# parity-enforced byte-mirror of templates (clones by design) and the
-# namespace root (`.project/**` / legacy `.safeword-project/**`) is the ticket
-# archive — both drown real findings. Keep this list stable so clone counts
-# stay comparable across audits.
-bunx jscpd . --min-lines 10 --reporters console --ignore "**/node_modules/**,**/dist/**,**/build/**,**/coverage/**,**/.safeword/**,**/.project/**,**/.safeword-project/**" 2>&1 || true
+  # 2a. Dead code - TypeScript/JS (knip — read-only, reports unused exports/deps/config hints)
+  # Leaf Knip configs are executed from their workspace so monorepo audits do not
+  # silently ignore their entry/project rules. Knip's CLI scopes by workspace, not
+  # by changed source path, so a default diff audit must not emit its unrelated
+  # whole-workspace baseline. Run the repository audit when that discovery is wanted.
+  if [ "$AUDIT_SCOPE_MODE" = "repository" ]; then
+    ([ -f package.json ] || [ -n "$KNIP_CONFIG_FILES" ]) && run_knip_check
+  elif [ "$AUDIT_HAS_JS_CHANGE" = true ]; then
+    echo "Knip: skipped in diff scope — run a repository audit for whole-workspace unused-code discovery"
+  fi
 
-# =========================================================================
-# OUTDATED DEPENDENCIES
-# =========================================================================
-
-# 4a. Outdated - TypeScript/JS
-[ -f package.json ] && {
-  case "$(detect_package_manager)" in
-    bun) bun outdated 2>&1 || true ;;
-    npm) npm outdated 2>&1 || true ;;
-    pnpm) pnpm outdated 2>&1 || true ;;
-    yarn) run_yarn_outdated_check ;;
-    *) echo "Skipping outdated JavaScript dependencies: unsupported package manager" ;;
-  esac
-} || echo "Skipping outdated JavaScript dependencies: no package.json; skip JavaScript package checks"
-
-# 4b. Outdated - Python-specific checks (uv > poetry > pipenv > pip)
-if [ -n "$PYTHON_AUDIT_DIRS" ]; then
-  while IFS= read -r project_dir; do
-    [ -n "$project_dir" ] || continue
-    echo "Python outdated dependencies — $project_dir"
-    run_python_outdated_check "$project_dir"
-  done << EOF
+  # 2b. Dead code - Python (deadcode)
+  # A missing tool must be loud — `|| true` alone would make "not installed"
+  # read as "no findings".
+  if [ -n "$PYTHON_AUDIT_DIRS" ]; then
+    if command -v deadcode > /dev/null 2>&1; then
+      while IFS= read -r project_dir; do
+        [ -n "$project_dir" ] || continue
+        echo "Python dead-code — $project_dir"
+        (cd "$project_dir" && deadcode . 2>&1 || true)
+      done << EOF
 $PYTHON_AUDIT_DIRS
 EOF
-fi
+    else
+      echo "Manual evidence required: deadcode not installed — Python dead-code checks skipped for discovered Python projects"
+    fi
+  fi
 
-# 4c. Outdated - Go-specific checks
-if [ -n "$GO_MODULE_DIRS" ]; then
-  while IFS= read -r module_dir; do
-    [ -n "$module_dir" ] || continue
-    echo "Go outdated dependencies — $module_dir"
-    (cd "$module_dir" && (go list -m -u all 2>&1 | grep '\[' || echo "All Go modules up to date"))
-  done << EOF
+  # 2c. Dead code - Go (golangci-lint unused)
+  if [ -n "$GO_MODULE_DIRS" ]; then
+    if command -v golangci-lint > /dev/null 2>&1; then
+      while IFS= read -r module_dir; do
+        [ -n "$module_dir" ] || continue
+        echo "Go dead-code — $module_dir"
+        (cd "$module_dir" && golangci-lint run --enable unused 2>&1 || true)
+      done << EOF
 $GO_MODULE_DIRS
 EOF
-fi
+    else
+      echo "Manual evidence required: golangci-lint not installed — Go dead-code checks skipped for discovered Go modules"
+    fi
+  fi
 
-# 4d. Outdated - Rust-specific checks
-if [ -n "$RUST_CRATE_DIRS" ]; then
-  while IFS= read -r crate_dir; do
-    [ -n "$crate_dir" ] || continue
-    echo "Rust outdated dependencies — $crate_dir"
-    (cd "$crate_dir" && cargo update --dry-run 2>&1 || true)
-  done << EOF
+  # 2d. Rust-specific checks (Clippy catches unused code and quality issues)
+  # Gate on `cargo-clippy` (the binary `cargo clippy` runs), not `cargo`: clippy
+  # is a rustup component that can be absent while cargo is on PATH, and `|| true`
+  # would otherwise swallow its failure into a false "clean" result.
+  if [ -n "$RUST_CRATE_DIRS" ]; then
+    if command -v cargo-clippy > /dev/null 2>&1; then
+      while IFS= read -r crate_dir; do
+        [ -n "$crate_dir" ] || continue
+        echo "Rust clippy — $crate_dir"
+        (cd "$crate_dir" && cargo clippy --all-targets --all-features -- -D warnings 2>&1 || true)
+      done << EOF
 $RUST_CRATE_DIRS
 EOF
+    else
+      echo "Manual evidence required: cargo clippy not available — Rust clippy checks skipped for discovered Rust crates"
+    fi
+  fi
+
+  # =========================================================================
+  # CODE DUPLICATION
+  # =========================================================================
+
+  # 3. Copy/paste detection (all languages). Generated/vendored trees are
+  # guaranteed clones, so exclude them — findings should be hand-written dupes.
+  # The ignore list IS the recorded scope (issue #825): `.safeword/**` is a
+  # parity-enforced byte-mirror of templates (clones by design) and the
+  # namespace root (`.project/**` / legacy `.safeword-project/**`) is the ticket
+  # archive — both drown real findings. Keep this list stable so clone counts
+  # stay comparable across audits. A changed-only input would miss a new clone
+  # against an unchanged file, so keep this as explicit repository discovery.
+  if [ "$AUDIT_SCOPE_MODE" = "repository" ]; then
+    bunx jscpd . --min-lines 10 --reporters console --ignore "**/node_modules/**,**/dist/**,**/build/**,**/coverage/**,**/.safeword/**,**/.project/**,**/.safeword-project/**" 2>&1 || true
+  elif [ "$AUDIT_HAS_CODE_OR_MANIFEST_CHANGE" = true ]; then
+    echo "Duplication: skipped in diff scope — run a repository audit for cross-file clone discovery"
+  fi
+
+  # =========================================================================
+  # OUTDATED DEPENDENCIES
+  # =========================================================================
+
+  # Dependency freshness is inherently repository-wide: every installed version
+  # can be outdated regardless of this diff. Keep it in repository mode instead
+  # of flooding a feature audit with unrelated upgrade work.
+  if [ "$AUDIT_SCOPE_MODE" = "repository" ]; then
+    # 4a. Outdated - TypeScript/JS
+    [ -f package.json ] && {
+      case "$(detect_package_manager)" in
+        bun) bun outdated 2>&1 || true ;;
+        npm) npm outdated 2>&1 || true ;;
+        pnpm) pnpm outdated 2>&1 || true ;;
+        yarn) run_yarn_outdated_check ;;
+        *) echo "Skipping outdated JavaScript dependencies: unsupported package manager" ;;
+      esac
+    } || echo "Skipping outdated JavaScript dependencies: no package.json; skip JavaScript package checks"
+
+    # 4b. Outdated - Python-specific checks (uv > poetry > pipenv > pip)
+    if [ -n "$PYTHON_AUDIT_DIRS" ]; then
+      while IFS= read -r project_dir; do
+        [ -n "$project_dir" ] || continue
+        echo "Python outdated dependencies — $project_dir"
+        run_python_outdated_check "$project_dir"
+      done << EOF
+$PYTHON_AUDIT_DIRS
+EOF
+    fi
+
+    # 4c. Outdated - Go-specific checks
+    if [ -n "$GO_MODULE_DIRS" ]; then
+      while IFS= read -r module_dir; do
+        [ -n "$module_dir" ] || continue
+        echo "Go outdated dependencies — $module_dir"
+        (cd "$module_dir" && (go list -m -u all 2>&1 | grep '\[' || echo "All Go modules up to date"))
+      done << EOF
+$GO_MODULE_DIRS
+EOF
+    fi
+
+    # 4d. Outdated - Rust-specific checks
+    if [ -n "$RUST_CRATE_DIRS" ]; then
+      while IFS= read -r crate_dir; do
+        [ -n "$crate_dir" ] || continue
+        echo "Rust outdated dependencies — $crate_dir"
+        (cd "$crate_dir" && cargo update --dry-run 2>&1 || true)
+      done << EOF
+$RUST_CRATE_DIRS
+EOF
+    fi
+  elif [ "$AUDIT_HAS_CODE_OR_MANIFEST_CHANGE" = true ]; then
+    echo "Dependency freshness: skipped in diff scope — run a repository audit for upgrade discovery"
+  fi
 fi
 ```
 
-#### Outdated Package Triage
+#### Outdated Package Triage (repository audits only)
 
 After running the outdated checks above, **classify each outdated package** using this matrix:
 
@@ -416,7 +511,7 @@ Then give a **verdict per risk tier**:
 
 If all packages are up to date, report: `✅ All packages up to date`
 
-#### Knip Configuration Hints (W005)
+#### Knip Configuration Hints (W005, repository audits only)
 
 Check the knip output above for "Configuration hints" lines. If knip reports **configuration hints** (unused entries in `ignoreDependencies`, `ignoreBinaries`, `ignoreUnresolved`, or `ignoreWorkspaces`), flag each as:
 
@@ -435,7 +530,9 @@ If no configuration hints are found, skip this section.
 
 ### 2. Agent Config Checks
 
-Find and check all agent configuration files (excluding `.safeword/`):
+In a diff audit, find and check changed agent configuration files (excluding
+`.safeword/`) and direct references from them. In a repository audit, check
+every matching configuration file.
 
 **Files to check:**
 
@@ -444,26 +541,36 @@ Find and check all agent configuration files (excluding `.safeword/`):
 - `.cursor/rules/*.mdc` or `.cursor/rules/*/` (root and subdirectories)
 - `.cursorrules` (legacy)
 
-**For each config file, check:**
+For each changed config file, check:
 
-| Check      | Criteria                                                            | Severity |
-| ---------- | ------------------------------------------------------------------- | -------- |
-| Size limit | CLAUDE.md/AGENTS.md: ~150-200 instructions; Cursor rules: 500 lines | warn     |
-| Structure  | Has WHAT/WHY/HOW sections                                           | warn     |
-| Dead refs  | All referenced files/paths exist (skip URLs starting with http)     | error    |
-| Staleness  | Last modified 30+ days ago AND commits exist since                  | warn     |
+| Check      | Criteria                                                                  | Severity |
+| ---------- | ------------------------------------------------------------------------- | -------- |
+| Size limit | CLAUDE.md/AGENTS.md: ~150-200 instructions; Cursor rules: 500 lines       | warn     |
+| Structure  | Has WHAT/WHY/HOW sections                                                 | warn     |
+| Dead refs  | All referenced files/paths exist (skip URLs starting with http)           | error    |
+| Staleness  | Do not report date-only staleness in a diff audit; use a repository audit | n/a      |
 
 ### 3. Learning Files Check
 
-Project learnings in the resolved namespace root's `learnings/*.md` must have a `Covers:` line on line 3 — the auto-generated `INDEX.md` is built from these lines, and files without them don't appear in the index.
+Changed project learnings in the resolved namespace root's `learnings/*.md` must have a `Covers:` line on line 3 — the auto-generated `INDEX.md` is built from these lines, and files without them don't appear in the index. In a repository audit, check every learning as before.
 
 ```bash
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
+source "$PROJECT_DIR/.safeword/hooks/lib/audit-scope.sh"
+audit_scope_initialize "$PROJECT_DIR"
 NS_ROOT="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR")"
+
+learning_is_in_audit_scope() {
+  [ "$AUDIT_SCOPE_MODE" = "repository" ] && return 0
+  learning_path="${1#"$PROJECT_DIR"/}"
+  audit_scope_path_changed "$learning_path"
+}
+
 if [ -d "$NS_ROOT/learnings" ]; then
   for f in "$NS_ROOT"/learnings/*.md; do
     [ -e "$f" ] || continue
     [ "$(basename "$f")" = "INDEX.md" ] && continue
+    learning_is_in_audit_scope "$f" || continue
     line3=$(sed -n '3p' "$f")
     case "$line3" in
       Covers:*) ;;
@@ -483,12 +590,17 @@ If all files conform, skip this section.
 
 ### 4. Test Quality Review
 
-Review existing test files for quality issues. Sample test files from the project and check against the iron laws and anti-patterns in `.claude/skills/testing/SKILL.md`.
+Review changed test files for quality issues, plus a changed source file's
+co-located test when present. Check them against the iron laws and anti-patterns
+in `.claude/skills/testing/SKILL.md`. A repository audit may use the former
+project-wide sample.
 
 **Find test files:**
 
 ```bash
-# Find test files (common patterns)
+# Start with test files named in the printed audit scope. For a changed
+# `src/foo.ts`, also inspect `src/foo.test.ts` / `src/foo.spec.ts` when present.
+# Repository audit fallback (common patterns):
 find . -name "*.test.*" -o -name "*.spec.*" -o -name "*_test.*" | grep -v node_modules | grep -v dist | head -20
 ```
 
@@ -528,7 +640,7 @@ Test Quality:
 - If `docs.sources` is absent, prompt the user: "Where should audit look for project documentation? I can add local paths, URLs, git repos, or set `docs.sources: []` to keep fallback discovery and stop asking." Wait for the answer before continuing unless the run is explicitly autonomous; in autonomous runs, use fallback discovery and report that no decision was recorded.
 - If the user chooses not to configure documentation sources, write `docs.sources: []` in `.safeword/config.json`. Treat that explicit empty list as a durable no-prompt decision in future audits.
 - If `docs.sources: []` is configured, do not prompt. Fall back to local discovery: `README.md`, `docs/`, `documentation/`, package docs folders, and known docs-site configs.
-- Always report docs coverage: configured vs fallback, sources checked, and sources skipped.
+- Always report docs coverage: configured vs fallback, sources checked, and sources skipped. In a diff audit, inspect sources directly affected by changed code or changed docs. In a repository audit, inspect the entire configured or fallback source inventory; date-only staleness and a last-20-commits sweep belong there too.
 
 **ARCHITECTURE.md (the architecture narrative):**
 
@@ -548,26 +660,41 @@ Test Quality:
 
 **README.md:**
 
-- Check staleness (last modified vs recent commits)
+- Check changed claims and impacted references. Check date-only staleness only in a repository audit.
 
-**Docs site (if exists):**
+**Docs site (if changed or directly impacted):**
 
 - Detect `docs/`, `documentation/` with Starlight/Docusaurus/etc config
 - Check staleness of docs content
 
 **Documentation impact check:**
 
-Review recent commits (since last tag or last 20 commits). For each significantly changed area, check if related docs, readmes, or guides across the project need updating. Flag stale, missing, or contradictory impacted documentation as errors. Documentation drift is never a warning; only date-based staleness with no changed-code contradiction stays a warning.
+Review the changed area from the printed scope. For each significantly changed area, check if related docs, readmes, or guides need updating. Flag stale, missing, or contradictory impacted documentation as errors. Documentation drift is never a warning; date-only staleness with no changed-code contradiction is repository-audit context, not a diff finding.
 
 ### 6. Namespace Domain Docs
 
-Reconcile the three namespace domain docs — `personas.md`, `surfaces.md`, `glossary.md` — against what the code actually references, and report empty scaffolds. These docs feed the BDD intake flow, so silent rot there degrades every downstream spec. This check is **read-only and class-2** (observable facts only): it reports and offers, it never rewrites a doc. **Run the block below verbatim, as ONE bash invocation.**
+When a changed feature/spec or changed domain doc references them, reconcile the
+three namespace domain docs — `personas.md`, `surfaces.md`, `glossary.md` —
+against those changed references and report empty scaffolds. A repository audit
+reconciles the whole corpus. This check is **read-only and class-2** (observable
+facts only): it reports and offers, it never rewrites a doc. **Run the block
+below verbatim, as ONE bash invocation.**
 
 ````bash
 # domain-docs-check — read-only reconciliation of the namespace domain docs.
 # Class-2: observable facts only. Emits W008 (empty). Never writes the tree.
 cd "${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}" || exit 1
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
+source "$PROJECT_DIR/.safeword/hooks/lib/audit-scope.sh"
+audit_scope_initialize "$PROJECT_DIR"
+
+# A branch audit skips unrelated domain-doc corpus drift. Deleted and
+# type-changed feature/spec/domain files remain in reference review scope, so
+# they still trigger this check for broken-reference review. A repository audit
+# deliberately checks every domain doc and every discovered feature/spec.
+if [ "$AUDIT_SCOPE_MODE" = "diff" ] && ! audit_scope_has_review_path_matching '(^|/)(personas|surfaces|glossary)\.md$|\.feature$|(^|/)spec\.md$'; then
+  exit 0
+fi
 
 # Resolve the namespace root (honors config paths.projectRoot in real runs).
 # Fall back on directory existence — robust when the resolver hook is absent.
@@ -595,9 +722,13 @@ domain_docs_entry_count() {
 }
 
 # --- Emptiness (W008): a domain doc with no uncommented entries ---
+# In a diff audit, report only a changed domain doc. An unchanged empty scaffold
+# is existing debt, not a finding caused by an unrelated feature or spec change.
 for doc in personas surfaces glossary; do
   dd_file="$NS_ROOT/$doc.md"
   [ -f "$dd_file" ] || continue
+  domain_doc_path="${dd_file#"$PROJECT_DIR"/}"
+  [ "$AUDIT_SCOPE_MODE" = "repository" ] || audit_scope_path_changed "$domain_doc_path" || continue
   if [ "$(domain_docs_entry_count)" -eq 0 ]; then
     echo "[W008] Empty domain doc: $doc.md — fill from packages/cli/templates/$doc-template.md (BDD intake references degrade until filled)"
   fi
@@ -619,21 +750,31 @@ feature_directories() {
     return 127
   fi
 }
-if ! FEATURE_DIRECTORIES="$(feature_directories 2> /dev/null)"; then
-  echo "[W009] Feature-directory resolver unavailable; E008 scanned root features/ only"
-  FEATURE_DIRECTORIES="$PROJECT_DIR/features"
-fi
 surfaces_file="$NS_ROOT/surfaces.md"
 dd_file="$surfaces_file"
-if [ -f "$surfaces_file" ] && [ "$(domain_docs_entry_count)" -gt 0 ] && [ -n "$FEATURE_DIRECTORIES" ]; then
+surfaces_path="${surfaces_file#"$PROJECT_DIR"/}"
+if [ "$AUDIT_SCOPE_MODE" = "repository" ] || audit_scope_path_changed "$surfaces_path"; then
+  if ! FEATURE_DIRECTORIES="$(feature_directories 2> /dev/null)"; then
+    echo "[W009] Feature-directory resolver unavailable; E008 scanned root features/ only"
+    FEATURE_DIRECTORIES="$PROJECT_DIR/features"
+  fi
+  SURFACE_FEATURE_FILES="$(printf '%s\n' "$FEATURE_DIRECTORIES" | while IFS= read -r features_directory; do
+    [ -d "$features_directory" ] && find "$features_directory" -type f -name '*.feature' -print
+  done)"
+else
+  SURFACE_FEATURE_FILES="$(audit_scope_files_matching '\.feature$' | while IFS= read -r feature_path; do
+    printf '%s/%s\n' "$PROJECT_DIR" "$feature_path"
+  done)"
+fi
+if [ -f "$surfaces_file" ] && [ "$(domain_docs_entry_count)" -gt 0 ] && [ -n "$SURFACE_FEATURE_FILES" ]; then
   # Defined slugs: slugify each uncommented `## ` heading. Portable casing via
   # `tr` — BSD/macOS sed lacks `\L`.
   defined_slugs="$(sed "$strip_html_comments" "$surfaces_file" | grep -E '^## ' | sed 's/^## //' \
     | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9][^a-z0-9]*/-/g; s/^-//; s/-$//')"
   # Referenced slugs: @surface.<slug> on Gherkin tag lines only (line starts
   # with @), so a slug mentioned in step prose is not a reference.
-  referenced_slugs="$(printf '%s\n' "$FEATURE_DIRECTORIES" | while IFS= read -r features_directory; do
-    [ -d "$features_directory" ] && grep -rhE '^[[:space:]]*@' "$features_directory" 2> /dev/null
+  referenced_slugs="$(printf '%s\n' "$SURFACE_FEATURE_FILES" | while IFS= read -r feature_file; do
+    [ -f "$feature_file" ] && grep -hE '^[[:space:]]*@' "$feature_file" 2> /dev/null
   done | grep -oE '@surface\.[a-z0-9-]+' | sed 's/^@surface\.//' | sort -u)"
   for slug in $referenced_slugs; do
     if ! printf '%s\n' $defined_slugs | grep -qxF "$slug"; then
@@ -648,7 +789,15 @@ fi
 personas_file="$NS_ROOT/personas.md"
 tickets_dir="$NS_ROOT/tickets"
 dd_file="$personas_file"
-if [ -f "$personas_file" ] && [ "$(domain_docs_entry_count)" -gt 0 ] && [ -d "$tickets_dir" ]; then
+personas_path="${personas_file#"$PROJECT_DIR"/}"
+if [ "$AUDIT_SCOPE_MODE" = "repository" ] || audit_scope_path_changed "$personas_path"; then
+  PERSONA_SPEC_FILES="$(find "$tickets_dir" -type f -name spec.md -print 2> /dev/null)"
+else
+  PERSONA_SPEC_FILES="$(audit_scope_files_matching '(^|/)spec\.md$' | while IFS= read -r spec_path; do
+    printf '%s/%s\n' "$PROJECT_DIR" "$spec_path"
+  done)"
+fi
+if [ -f "$personas_file" ] && [ "$(domain_docs_entry_count)" -gt 0 ] && [ -n "$PERSONA_SPEC_FILES" ]; then
   # Defined codes mirror safeword's resolver, including canonical derivation,
   # collision allocation, and historical aliases. A simpler initials-only
   # derivation would falsely flag existing TB/SM lineage after those personas
@@ -760,8 +909,8 @@ for (const persona of resolved) if (!persona.codeError) console.log(persona.code
 for (const alias of aliases) console.log(alias);
 ')"
   # Referenced codes: (CODE) from spec **Persona:** lines, comments stripped.
-  referenced_codes="$(for spec in "$tickets_dir"/*/spec.md; do
-    [ -f "$spec" ] && sed "$strip_html_comments" "$spec"
+  referenced_codes="$(printf '%s\n' "$PERSONA_SPEC_FILES" | while IFS= read -r spec_file; do
+    [ -f "$spec_file" ] && sed "$strip_html_comments" "$spec_file"
   done 2> /dev/null | grep -E '^\*\*Persona:\*\*' | grep -oE '\([A-Z][A-Z0-9]{1,5}\)' | tr -d '()' | sort -u)"
   for code in $referenced_codes; do
     if ! printf '%s\n' $defined_codes | grep -qxF "$code"; then

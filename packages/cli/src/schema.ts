@@ -641,6 +641,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/session-bun-check.sh': {
       template: 'hooks/session-bun-check.sh',
     },
+    '.safeword/hooks/lib/audit-scope.sh': {
+      template: 'hooks/lib/audit-scope.sh',
+    },
     '.safeword/hooks/resolve-namespace-root.ts': {
       template: 'hooks/resolve-namespace-root.ts',
     },
