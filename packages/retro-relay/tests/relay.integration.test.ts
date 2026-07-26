@@ -24,6 +24,10 @@ afterEach(async () => {
     openServers.map(
       server =>
         new Promise<void>((resolve, reject) => {
+          if (!server.listening) {
+            resolve();
+            return;
+          }
           server.close(error => {
             if (error === undefined) resolve();
             else reject(error);
