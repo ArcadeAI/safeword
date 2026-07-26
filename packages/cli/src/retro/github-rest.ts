@@ -158,7 +158,7 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
    * signature, which is why this read as flaky for so long.
    *
    * The listing endpoint returns raw bodies verbatim, so the marker check becomes
-   * a local string compare — exact, index-independent, and lag-free. No label
+   * a local string compare — exact and search-index-independent. No label
    * filter: this keeps the old query's recall, so a marker hand-copied into an
    * unlabeled issue (as happens when issues are merged) still dedups.
    *
