@@ -387,6 +387,81 @@ describe('safeword boundary (slice 1: engine core)', () => {
       expect(result.exitCode).toBe(0);
       expect(`${result.stdout}\n${result.stderr}`).toMatch(/impl-plan-shape.*missing/is);
     });
+
+    it('discovers root-level tickets when staged projectRoot is the repository root', async () => {
+      const ticket = 'tickets/BND018-owner';
+      const config = '.safeword/config.json';
+      writeTestFile(dir, config, JSON.stringify({ paths: { projectRoot: '.' } }, undefined, 2));
+      writeTestFile(dir, `${ticket}/impl-plan.md`, '# hollow plan\n');
+      writeTestFile(
+        dir,
+        `${ticket}/ticket.md`,
+        boundaryTicketContent({
+          id: 'BND018',
+          phase: 'implement',
+          anchors: [`implement: ${ticket}/impl-plan.md`],
+        }),
+      );
+      git(dir, 'add -A');
+      writeTestFile(dir, config, '{}\n');
+
+      const result = await runCli(['boundary', '--at', 'commit'], { cwd: dir });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toMatch(/impl-plan-shape.*missing/is);
+    });
+
+    it('accepts a root-level configured feature lane from the staged config', async () => {
+      const ticket = '.project/tickets/BND019-owner';
+      const feature = 'docs/owner.feature';
+      const config = '.safeword/config.json';
+      writeTestFile(
+        dir,
+        `${ticket}/ticket.md`,
+        boundaryTicketContent({ id: 'BND019', phase: 'define-behavior' }),
+      );
+      git(dir, 'add -A');
+      git(dir, 'commit -m seed --quiet');
+      writeTestFile(dir, config, JSON.stringify({ paths: { features: '.' } }, undefined, 2));
+      writeTestFile(
+        dir,
+        feature,
+        ['Feature: owner', '', '  Scenario: root lane', '    Then it exists', ''].join('\n'),
+      );
+      writeTestFile(
+        dir,
+        `${ticket}/ticket.md`,
+        boundaryTicketContent({
+          id: 'BND019',
+          phase: 'scenario-gate',
+          anchors: [`scenario-gate: ${feature}`],
+        }),
+      );
+      git(dir, 'add -A');
+      unlinkSync(nodePath.join(dir, config));
+
+      const result = await runCli(['boundary', '--at', 'commit'], { cwd: dir });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).not.toMatch(/phase-anchor/i);
+    });
+
+    it('warns instead of silently skipping a project root outside the repository', async () => {
+      const config = '.safeword/config.json';
+      writeTestFile(
+        dir,
+        config,
+        JSON.stringify({ paths: { projectRoot: '../outside' } }, undefined, 2),
+      );
+      git(dir, 'add -A');
+
+      const result = await runCli(['boundary', '--at', 'commit'], { cwd: dir });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toMatch(
+        /outside.*repository|repository.*outside/i,
+      );
+    });
   });
 
   describe('CDRJTW.TB1.AC1: silence for changes touching no ticket artifacts', () => {

@@ -16,4 +16,9 @@ describe('toRepoDirectory', () => {
   it('normalizes dot segments and duplicate separators before Git path matching', () => {
     expect(toRepoDirectory('/repo', 'shadow/../.project//')).toBe('.project');
   });
+
+  it('represents the repository root as an empty Git path prefix', () => {
+    expect(toRepoDirectory('/repo', '.')).toBe('');
+    expect(toRepoDirectory('/repo', '/repo')).toBe('');
+  });
 });

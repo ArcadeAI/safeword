@@ -179,6 +179,18 @@ partitions after real CLI probes found two anchor-substitution gaps.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Repository-root ticket and feature lanes remain enforceable
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A configured project root outside the repository warns instead of failing open
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A backward phase move is not flagged
 
 - [x] RED e90eb07
