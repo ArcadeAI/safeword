@@ -29,7 +29,8 @@ Safeword is a CLI tool that configures linting, hooks, and development guides fo
 
 | Category        | Choice             | Rationale                                                                              |
 | --------------- | ------------------ | -------------------------------------------------------------------------------------- |
-| Runtime         | Bun                | Fast startup, TypeScript native                                                        |
+| CLI Runtime     | Bun                | Fast startup, TypeScript native                                                        |
+| Relay Runtime   | Node 22            | Stable native SQLite addon support for the separately deployed retro relay             |
 | Package Manager | npm/bun            | Standard for JS ecosystem                                                              |
 | JS Linting      | ESLint             | Industry standard, extensive rule set                                                  |
 | Python Linting  | Ruff               | Fast, replaces flake8/black/isort                                                      |
@@ -48,16 +49,35 @@ Safeword is a CLI tool that configures linting, hooks, and development guides fo
 ```text
 packages/
 ├── cli/            # Main CLI tool + ESLint configs (bunx safeword)
+├── retro-relay/    # Private retry-safe GitHub filing service
 └── website/        # Documentation site (Astro/Starlight)
 plugin/             # Claude Code plugin (commands, hooks) — not a workspace package; distributed via .claude-plugin/marketplace.json
 ```
 
-| Package             | Purpose                                                 | Published As |
-| ------------------- | ------------------------------------------------------- | ------------ |
-| `packages/cli/`     | CLI + bundled ESLint configs (`safeword/eslint` export) | `safeword`   |
-| `packages/website/` | Documentation website                                   | Private      |
+| Package                 | Purpose                                                 | Published As |
+| ----------------------- | ------------------------------------------------------- | ------------ |
+| `packages/cli/`         | CLI + bundled ESLint configs (`safeword/eslint` export) | `safeword`   |
+| `packages/retro-relay/` | Durable, authenticated retro filing boundary            | Private      |
+| `packages/website/`     | Documentation website                                   | Private      |
 
 ESLint configs are bundled in the main package and accessed via `import safeword from "safeword/eslint"`.
+
+### Retro relay boundary
+
+`packages/retro-relay` is deliberately separate from the published CLI. All
+harness adapters send the same tenant/installation/repository/request ID
+identity; harness and subject are authorization and audit attributes only.
+SQLite WAL is the smallest supported durable store for one active process on
+one host. Multi-host deployment or a network filesystem requires migration
+through the store boundary to PostgreSQL.
+
+The relay stores request payloads only as AES-256-GCM envelopes and keeps
+GitHub App credentials server-side. Ambiguous create outcomes are quarantined
+until a privileged reconciliation route finds exactly one reserved marker in a
+complete raw REST issue-body scan. Sanitized MCP reads are never duplicate
+authority. The destination lifecycle is a 24-hour retry deadline, one-hour
+dispatch grace, 30-day filed-payload retention, and indefinite tombstones; the
+timed maintenance worker remains a later rollout slice.
 
 ---
 

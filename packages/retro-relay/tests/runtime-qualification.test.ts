@@ -1,9 +1,10 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { ProcessLock } from '../src/process-lock.js';
 import { RelayStore } from '../src/store.js';
 
 const temporaryDirectories: string[] = [];
@@ -30,5 +31,19 @@ describe('retro relay runtime qualification', () => {
     expect(reopened.journalMode()).toBe('wal');
     expect(reopened.schemaVersion()).toBe(1);
     reopened.close();
+  });
+
+  it('excludes another process owner and recovers a stale lock', () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-lock-'));
+    temporaryDirectories.push(directory);
+    const lockPath = path.join(directory, 'relay.lock');
+
+    const lock = ProcessLock.acquire(lockPath);
+    expect(() => ProcessLock.acquire(lockPath)).toThrow('already locked');
+    lock.release();
+
+    writeFileSync(lockPath, '2147483647', 'utf8');
+    const recovered = ProcessLock.acquire(lockPath);
+    recovered.release();
   });
 });
