@@ -367,7 +367,7 @@ describe('safeword boundary (slice 1: engine core)', () => {
       writeTestFile(
         dir,
         config,
-        JSON.stringify({ paths: { projectRoot: 'custom' } }, undefined, 2),
+        JSON.stringify({ paths: { projectRoot: 'shadow/../custom//' } }, undefined, 2),
       );
       writeTestFile(dir, `${ticket}/impl-plan.md`, '# hollow plan\n');
       writeTestFile(

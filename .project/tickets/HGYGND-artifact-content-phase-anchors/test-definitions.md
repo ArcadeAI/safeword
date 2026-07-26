@@ -173,6 +173,12 @@ partitions after real CLI probes found two anchor-substitution gaps.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Configured project roots normalize dot and separator segments
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A backward phase move is not flagged
 
 - [x] RED e90eb07
