@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -60,8 +60,9 @@ async function startGitHubFixture(
     createDelayMs?: number;
     rawBodies?: string[];
   } = {},
-): Promise<{ baseUrl: string; createBodies: string[] }> {
+): Promise<{ baseUrl: string; createBodies: string[]; authorizationHeaders: string[] }> {
   const createdBodies: string[] = [];
+  const authorizationHeaders: string[] = [];
   const rawBodies = options.rawBodies ?? [];
   const handleRequest = async (request: IncomingMessage, response: ServerResponse) => {
     if (request.method === 'GET' && request.url?.includes('/issues')) {
@@ -77,6 +78,7 @@ async function startGitHubFixture(
       return;
     }
     if (request.method === 'POST' && request.url?.endsWith('/issues')) {
+      authorizationHeaders.push(request.headers.authorization ?? '');
       let body = '';
       for await (const chunk of request) body += String(chunk);
       createdBodies.push(JSON.parse(body).body as string);
@@ -98,7 +100,11 @@ async function startGitHubFixture(
   servers.push(server);
   const address = server.address();
   if (address === null || typeof address === 'string') throw new Error('missing fixture address');
-  return { baseUrl: `http://127.0.0.1:${address.port}`, createBodies: createdBodies };
+  return {
+    baseUrl: `http://127.0.0.1:${address.port}`,
+    createBodies: createdBodies,
+    authorizationHeaders,
+  };
 }
 
 async function fixture(options: { createDelayMs?: number; rawBodies?: string[] } = {}) {
@@ -152,6 +158,22 @@ describe('retry-safe retro relay', () => {
 
     await expect(adapter.file(draft({ body: 'changed' }))).rejects.toMatchObject({
       status: 409,
+    });
+    expect(setup.createBodies).toHaveLength(1);
+  });
+
+  it('reuses the filed receipt after response delivery is lost', async () => {
+    const setup = await fixture();
+    setup.relay.faults.afterReceiptCommit = () => {
+      throw new Error('drop response');
+    };
+    const adapter = createHarnessAdapters(setup.relay.url, setup.credential).claude;
+    await expect(adapter.file(draft())).rejects.toThrow();
+    setup.relay.faults.afterReceiptCommit = undefined;
+
+    await expect(adapter.file(draft())).resolves.toMatchObject({
+      issueNumber: 901,
+      state: 'filed',
     });
     expect(setup.createBodies).toHaveLength(1);
   });
@@ -250,6 +272,32 @@ describe('retry-safe retro relay', () => {
         createHarnessAdapters(setup.relay.url, credential).cursor.file(draft()),
       ).rejects.toMatchObject({ status: credential === unauthorized ? 403 : 401 });
     }
+    expect(setup.createBodies).toHaveLength(0);
+  });
+
+  it('uses a server-held installation token without persisting or observing secrets', async () => {
+    const setup = await fixture();
+    await createHarnessAdapters(setup.relay.url, setup.credential).claude.file(draft());
+
+    expect(setup.authorizationHeaders).toEqual(['Bearer ghs_installation_secret']);
+    const observable = JSON.stringify(setup.relay.observability);
+    expect(observable).toContain('request-1479');
+    expect(observable).toContain('filed');
+    expect(observable).not.toContain(setup.credential);
+    expect(observable).not.toContain('ghs_installation_secret');
+
+    const databaseText = readFileSync(path.join(setup.directory, 'relay.sqlite')).toString('utf8');
+    expect(databaseText).not.toContain(setup.credential);
+    expect(databaseText).not.toContain('ghs_installation_secret');
+    expect(databaseText).not.toContain(draft().body);
+  });
+
+  it('fails closed when raw REST marker enumeration is non-unique', async () => {
+    const marker = '<!-- safeword-retro-canonical: canonical:abc123 -->';
+    const setup = await fixture({ rawBodies: [marker, marker] });
+    const adapter = createHarnessAdapters(setup.relay.url, setup.credential).claude;
+
+    await expect(adapter.file(draft())).rejects.toMatchObject({ status: 503 });
     expect(setup.createBodies).toHaveLength(0);
   });
 });

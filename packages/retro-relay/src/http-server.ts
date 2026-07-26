@@ -33,8 +33,16 @@ export async function startRelayServer(input: {
   server: ReturnType<typeof createServer>;
   url: string;
   faults: RelayFaults;
+  observability: {
+    logs: Record<string, unknown>[];
+    metrics: Record<string, unknown>[];
+  };
 }> {
   const faults: RelayFaults = {};
+  const observability = {
+    logs: [] as Record<string, unknown>[],
+    metrics: [] as Record<string, unknown>[],
+  };
   const service = new RelayService({ ...input, faults });
   const server = createServer((request, response) => {
     void handle(request, response);
@@ -51,6 +59,22 @@ export async function startRelayServer(input: {
           principal,
           (await readJson(request)) as FileRetroDraftRequest,
         );
+        observability.logs.push({
+          event: 'retro_filing',
+          requestId: receipt.requestId,
+          state: receipt.state,
+        });
+        observability.metrics.push({
+          metric: 'retro_filing_outcome',
+          requestId: receipt.requestId,
+          state: receipt.state,
+        });
+        try {
+          faults.afterReceiptCommit?.();
+        } catch {
+          response.destroy();
+          return;
+        }
         sendJson(response, receipt.state === 'filed' ? 201 : 202, receipt);
         return;
       }
@@ -88,5 +112,6 @@ export async function startRelayServer(input: {
     server,
     url: `http://127.0.0.1:${address.port}`,
     faults,
+    observability,
   };
 }

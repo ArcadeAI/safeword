@@ -22,6 +22,7 @@ import type {
 
 export interface RelayFaults {
   afterGitHubCreate?: () => void;
+  afterReceiptCommit?: () => void;
 }
 
 function authorize(
