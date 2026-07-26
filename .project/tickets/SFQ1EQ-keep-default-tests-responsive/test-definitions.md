@@ -49,4 +49,4 @@
 
 ## Task-level refactor
 
-- [x] cross-scenario — shared `runCliWithoutInstall` helper makes the boundary explicit
+- [x] cross-scenario 956ec69a6
