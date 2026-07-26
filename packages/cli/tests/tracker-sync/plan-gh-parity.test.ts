@@ -88,17 +88,19 @@ const TERMINAL_REF: TrackerReference = {
   url: 'https://github.com/o/r/issues/550',
 };
 
-/**
- * `IssuePayload` carries no ticket id, so `title` is the only join key between a
- * recorded writer call and a plan intent — every ticket in `corpus()` needs a
- * unique one (the default derives from `id` to preserve that).
- */
 const PENDING_REF: TrackerReference = {
   provider: 'github',
   id: '551',
   url: 'https://github.com/o/r/issues/551',
 };
 
+/**
+ * `IssuePayload` carries no ticket id, so `title` is the only join key between a
+ * recorded writer call and a plan intent — every ticket in `corpus()` needs a
+ * unique one (the default derives from `id` to preserve that). Ticket ids must be
+ * unique too: a repeated id makes the map lookup and every graph edge naming it
+ * ambiguous, silently changing what the fixture means.
+ */
 function ticket(overrides: Partial<TicketInput> & { id: string }): TicketInput {
   return {
     title: `Title ${overrides.id}`,
@@ -142,8 +144,6 @@ function corpus(): TicketInput[] {
     // the assertion would hold even if blocker edges were ignored entirely).
     ticket({ id: 'BLOCKED1', title: 'Blocked ticket', dependsOn: ['BLOCKER1'] }),
     ticket({ id: 'BLOCKER1', title: 'Blocker ticket' }),
-    // A blocker edge, so the sort's dependsOn/blockedOn handling is exercised at all.
-    ticket({ id: 'BLOCKED1', title: 'Blocked by fresh parent', dependsOn: ['FPARENT1'] }),
   ];
 }
 
@@ -234,7 +234,6 @@ describe('--plan parity with the gh path (#1443)', () => {
       const parentTicketId = intent?.graph?.parentTicketId;
       expect(parentTicketId).toBeDefined();
       // The live ref id maps back to the very ticket the plan names.
-      expect(parentTicketId).toBeDefined();
       const parentTitle = corpus().find(t => t.id === parentTicketId)?.title;
       const createdParent = live.calls.find(
         call => call.kind === 'create' && call.title === parentTitle,
@@ -258,13 +257,13 @@ describe('--plan parity with the gh path (#1443)', () => {
 
     // And that shared sequence is dependency-first, which is what an executor applying
     // intents top-to-bottom depends on: a fresh parent is CREATED before the fresh
-    // ticket whose graph edge names it. Both titles are asserted present first —
-    // `indexOf` returns -1 on a miss, so a drifted title would otherwise read as a
-    // silent pass (`3 > -1`).
-    // Absolute invariants, not parity: both sides share the sort, so a change there
-    // moves them together and the sequence comparison above stays green. These pin the
-    // property itself. `indexOf` returns -1 on a miss, so assert presence first — a
-    // drifted title would otherwise read as a silent pass (`3 > -1`).
+    // ticket whose graph edge names it.
+    //
+    // These are ABSOLUTE invariants, not parity: both sides share the sort, so a change
+    // there moves them together and the sequence comparison above stays green. Only an
+    // absolute anchor can catch a bug in the shared helper. Assert presence first —
+    // `indexOf` returns -1 on a miss, so a drifted title would read as a silent pass
+    // (`3 > -1`).
     for (const title of ['Fresh parent', 'Fresh child', 'Blocked ticket', 'Blocker ticket']) {
       expect(planOrder).toContain(title);
     }
