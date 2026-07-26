@@ -25,18 +25,9 @@ procedure, your target repo, or your tools.
    which issue read/list tools strip from the bodies they return and which no
    available search matches as query text (#1453) — a zero from such a query
    means "could not tell", not "not filed", and never authorizes a create.
-   Work the two reads for what each is actually good for:
-   - **`list_issues` (labels: `retro`, state: `OPEN`) is your candidate
-     universe.** Page through it to the end — it is exhaustive and
-     deterministic. Its bodies come back with HTML comments stripped, so it
-     cannot confirm a marker, but it is the only read that can tell you nothing
-     matches.
-   - **`search_issues` is your marker check.** It is the one read path whose
-     payload returns raw bodies with markers intact — but it is
-     relevance-ranked and capped, so it is **never exhaustive**. Use it to
-     confirm a candidate, never to prove absence.
-
-   Exact-check the raw bodies it returns: first the draft's
+   Use `search_issues` for the check: it is the one read path whose payload
+   returns raw bodies with markers intact. Query it by **topic**, then
+   exact-check the bodies it returns: first the draft's
    `<!-- safeword-retro-signature: ... -->` marker. Only if that misses, and
    `canonicalSignature` is present, confirm the draft body contains its exact
    `<!-- safeword-retro-canonical: <canonicalSignature> -->` marker, then
@@ -45,19 +36,27 @@ procedure, your target repo, or your tools.
    - **Marker confirmed** → add a one-line comment that the finding recurred,
      ending with the draft's `<!-- safeword-retro-signature: ... -->` marker on
      its own line. Do not open a duplicate.
-   - **No candidate anywhere in the exhaustive `list_issues` enumeration** →
-     create a new issue with the draft's `title`, `body`, and `labels`
-     **verbatim**. Never add, remove, or rephrase content — the draft is the
-     sanitized surface, and the signature marker inside the body is what future
-     dedup depends on.
-   - **A plausible candidate you could not confirm** — same
-     `**Safeword surface:**` line or substantially the same title, but no marker
-     you could verify — → comment on it rather than create. Those rendered
-     fields are weak identity (they drift between sessions, #631), so they may
-     never merge two findings on their own; they are only ever enough to make
-     you withhold a create. **An empty `search_issues` result is not absence**
-     — creating on one is the same "could not tell means not filed" mistake
-     #1453 was about, one layer up.
+   - **No marker confirmed** → create a new issue with the draft's `title`,
+     `body`, and `labels` **verbatim**. Never add, remove, or rephrase content —
+     the draft is the sanitized surface, and the signature marker inside the
+     body is what future dedup depends on.
+
+   **This path is best-effort by construction, and you should know why.** No
+   read available to you can prove a finding is absent: `search_issues` returns
+   raw bodies but is relevance-ranked and capped, and the reads that enumerate
+   exhaustively (`list_issues`, `issue_read`) strip HTML comments, so they can
+   never see a marker. A duplicate is therefore possible. File anyway — a
+   duplicate is recoverable (the reconcile sweep closes confirmed ones), while a
+   finding you decline to file is simply lost, because this path runs precisely
+   when the code-owned REST path could not authenticate (#834) and no later
+   retry exists.
+
+   What that licence does **not** cover: never merge two findings on a
+   resemblance. A matching `**Safeword surface:**` or a similar title is weak
+   identity that drifts between sessions (#631). Commenting-and-acking on that
+   basis binds the signature to that issue permanently and throws the draft body
+   away — a silent, lossy merge, and the worse error of the two. Only a
+   confirmed marker may join a draft to an existing issue.
 
 3. **Ack each post before you drain it.** After each successful post (create or
    comment), append exactly one COMPACT single-line JSON object `{"signature": "<signature>", "issue": <number>}`

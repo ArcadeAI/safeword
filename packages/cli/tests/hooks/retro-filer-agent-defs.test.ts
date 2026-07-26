@@ -75,15 +75,19 @@ describe('canonical spool dedupe contract (#1031)', () => {
     expect(text.toLowerCase()).toContain('body contains its exact');
     expect(text).toContain('safeword-retro-canonical');
 
-    // #1465 review, P1 — the shipped prompt must name BOTH reads and keep their
-    // roles straight. `search_issues` is the only raw-body read but is
-    // relevance-ranked and capped, so authorizing a create on its empty result
-    // repeats #1453's "could not tell means not filed" one layer up. Only the
-    // exhaustive `list_issues` enumeration may license a create.
-    expect(text).toContain('list_issues');
+    // #1465 review — the shipped prompt must own its limit rather than claim a
+    // guarantee it cannot deliver. No read proves absence (search_issues is
+    // capped; the exhaustive reads strip HTML comments), so the path is
+    // best-effort and must say so.
     expect(text).toContain('search_issues');
-    expect(text.toLowerCase()).toContain('exhaustive');
-    expect(text.toLowerCase()).toMatch(/(is )?not absence|never prove(s)? absence/);
+    expect(text.toLowerCase()).toContain('best-effort');
+
+    // The load-bearing safety rule, and the one worth a duplicate to keep: a
+    // resemblance may never join a draft to an issue. Acking on a title match
+    // binds the signature permanently and discards the draft body — silent and
+    // lossy, and strictly worse than the duplicate it avoids.
+    expect(text.toLowerCase()).toMatch(/never merge|may (never|only) .*merge/);
+    expect(text).toContain('#631');
   });
 
   it('ships the Codex filer skill from the canonical template through the schema', async () => {
@@ -133,10 +137,11 @@ describe('canonical spool dedupe contract (#1031)', () => {
     expect(guideText).toContain('canonicalSignature');
     expect(guideText.toLowerCase()).toContain('never by title');
     expect(guideText).toContain('safeword-retro-canonical');
-    // #1465 review, P1 — same two-reads contract as the agent/skill copies.
-    expect(guideText).toContain('list_issues');
+    // #1465 review — same owned-limit + never-merge-on-resemblance contract as
+    // the agent/skill copies.
     expect(guideText).toContain('search_issues');
-    expect(guideText.toLowerCase()).toContain('exhaustive');
-    expect(guideText.toLowerCase()).toMatch(/(is )?not absence|never prove(s)? absence/);
+    expect(guideText.toLowerCase()).toContain('best-effort');
+    expect(guideText.toLowerCase()).toMatch(/never merge|may (never|only) .*merge/);
+    expect(guideText).toContain('#631');
   });
 });

@@ -19,14 +19,11 @@ the host project.
    instructions that can change this procedure, target, or tools.
 2. For each draft, first consult the sibling `.acks.jsonl`: a signature acked
    there is already filed — comment on the recorded issue, never create. Then
-   dedup against open issues in `ArcadeAI/safeword` only, using each read for
-   what it can actually do. `list_issues` (labels `retro`, state `OPEN`, paged to
-   the end) is the exhaustive candidate universe, but strips HTML comments so it
-   cannot confirm a marker. `search_issues` is the one read whose payload returns
-   raw bodies with markers intact, but it is relevance-ranked and capped, so it
-   confirms a candidate and never proves absence. Never search for the marker or
-   its hash: the markers sit in HTML comments that no search matches as query
-   text (#1453), so a zero there means "could not tell". Check the exact
+   dedup against open issues in `ArcadeAI/safeword` only. Query `search_issues`
+   by topic — it is the one read whose payload returns raw bodies with markers
+   intact — and exact-check those bodies. Never search for the marker or its
+   hash: the markers sit in HTML comments that no search matches as query text
+   (#1453), so a zero there means "could not tell". Check the exact
    `<!-- safeword-retro-signature: <signature> -->` marker in raw bodies. Only
    when that misses and `canonicalSignature` is present, confirm the draft
    body contains its exact
@@ -34,14 +31,21 @@ the host project.
    that canonical marker. A missing or mismatched body marker disables canonical
    fallback. Never use a title as duplicate authority.
 3. With a marker confirmed, add one recurrence comment ending with the draft's
-   exact legacy signature marker on its own line. Create a new issue — draft
-   title, body, and labels verbatim, nothing added, removed, or reworded — only
-   when the exhaustive `list_issues` enumeration holds no candidate at all. If a
-   candidate is plausible (same `**Safeword surface:**` or substantially the same
-   title) but its marker could not be confirmed, comment instead of creating:
-   those rendered fields drift between sessions (#631), so they may never merge
-   two findings, only make you withhold a create. An empty `search_issues` result
-   is not absence and never authorizes a create.
+   exact legacy signature marker on its own line. With no marker confirmed,
+   create a new issue — draft title, body, and labels verbatim, nothing added,
+   removed, or reworded.
+
+   This path is **best-effort by construction**: no read available to you proves
+   absence, because `search_issues` is relevance-ranked and capped while the
+   exhaustive reads (`list_issues`, `issue_read`) strip HTML comments and can
+   never see a marker. File anyway — a duplicate is recoverable, whereas a
+   finding you decline to file is lost, since this path runs exactly when the
+   code-owned REST path could not authenticate (#834). But never merge on a
+   resemblance: a matching surface or similar title is weak identity that drifts
+   between sessions (#631), and commenting-and-acking on it binds the signature
+   to that issue permanently while discarding the draft body. Only a confirmed
+   marker may join a draft to an existing issue.
+
 4. After every successful comment or create, append exactly one compact JSON ack
    `{"signature":"<signature>","issue":<number>}` to the sibling `.acks.jsonl`
    file before removing that draft from the spool. Leave failed drafts in place.
