@@ -4,6 +4,11 @@ import { setTimeout as delay } from 'node:timers/promises';
 
 import type { FileRetroDraftRequest, FilingReceipt } from './types.js';
 
+function retryAfterMilliseconds(response: Response): number {
+  const seconds = Number(response.headers.get('retry-after') ?? '1');
+  return Number.isFinite(seconds) && seconds >= 0 ? seconds * 1000 : 1000;
+}
+
 export class RelayClientError extends Error {
   readonly status: number;
   readonly details: Record<string, unknown>;
@@ -17,38 +22,65 @@ export class RelayClientError extends Error {
 
 class FilingAdapter {
   readonly #credential: string;
+  readonly #pollBudgetMs: number;
   readonly #relayUrl: string;
+  readonly #sleep: (milliseconds: number) => Promise<void>;
 
-  constructor(relayUrl: string, credential: string) {
+  constructor(
+    relayUrl: string,
+    credential: string,
+    options: {
+      pollBudgetMs: number;
+      sleep: (milliseconds: number) => Promise<void>;
+    },
+  ) {
     this.#relayUrl = relayUrl;
     this.#credential = credential;
+    this.#pollBudgetMs = options.pollBudgetMs;
+    this.#sleep = options.sleep;
   }
 
   async file(request: FileRetroDraftRequest): Promise<FilingReceipt> {
-    const receipt = await this.#request('/v1/retro-filings', request, 'POST');
-    return receipt.state === 'filed' ? receipt : this.#poll(receipt.receiptId);
+    const result = await this.#request('/v1/retro-filings', request, 'POST');
+    return result.receipt.state === 'filed'
+      ? result.receipt
+      : this.#poll(result.receipt, result.retryAfterMs);
   }
 
-  async #poll(receiptId: string): Promise<FilingReceipt> {
-    for (let attempt = 0; attempt < 400; attempt += 1) {
-      const receipt = await this.#request(
-        `/v1/retro-filings/${encodeURIComponent(receiptId)}`,
+  async #poll(initialReceipt: FilingReceipt, initialRetryAfterMs: number): Promise<FilingReceipt> {
+    const deadline = Date.now() + this.#pollBudgetMs;
+    let latestReceipt = initialReceipt;
+    let retryAfterMs = initialRetryAfterMs;
+    while (Date.now() + retryAfterMs <= deadline) {
+      await this.#sleep(retryAfterMs);
+      const result = await this.#request(
+        `/v1/retro-filings/${encodeURIComponent(initialReceipt.receiptId)}`,
         undefined,
         'GET',
       );
+      const receipt = result.receipt;
+      latestReceipt = receipt;
+      retryAfterMs = result.retryAfterMs;
       if (receipt.state === 'filed') return receipt;
       if (receipt.state === 'ambiguous') {
         throw new RelayClientError(503, 'filing outcome is ambiguous', {
-          receiptId,
+          receiptId: receipt.receiptId,
           state: receipt.state,
+          latestReceipt: receipt,
         });
       }
-      await delay(5);
     }
-    throw new RelayClientError(202, 'filing remains in progress', { receiptId });
+    throw new RelayClientError(202, 'filing remains in progress', {
+      receiptId: latestReceipt.receiptId,
+      latestReceipt,
+    });
   }
 
-  async #request(path: string, body: unknown, method: 'GET' | 'POST'): Promise<FilingReceipt> {
+  async #request(
+    path: string,
+    body: unknown,
+    method: 'GET' | 'POST',
+  ): Promise<{ receipt: FilingReceipt; retryAfterMs: number }> {
     const headers: Record<string, string> = { 'content-type': 'application/json' };
     if (this.#credential.length > 0) headers.authorization = `Bearer ${this.#credential}`;
     const response = await fetch(`${this.#relayUrl}${path}`, {
@@ -71,7 +103,10 @@ class FilingAdapter {
     ) {
       throw new RelayClientError(502, 'relay returned an invalid receipt', result);
     }
-    return result as unknown as FilingReceipt;
+    return {
+      receipt: result as unknown as FilingReceipt,
+      retryAfterMs: retryAfterMilliseconds(response),
+    };
   }
 
   async reconcile(request: FileRetroDraftRequest): Promise<FilingReceipt> {
@@ -85,11 +120,12 @@ class FilingAdapter {
       }
       if (receiptId === undefined) throw error;
     }
-    return this.#request(
+    const result = await this.#request(
       `/v1/retro-filings/${encodeURIComponent(receiptId)}/reconcile`,
       undefined,
       'POST',
     );
+    return result.receipt;
   }
 }
 
@@ -103,6 +139,10 @@ export function createHarnessAdapters(
         cursor: string;
         operator: string;
       },
+  options: {
+    pollBudgetMs?: number;
+    sleep?: (milliseconds: number) => Promise<void>;
+  } = {},
 ): {
   claude: FilingAdapter;
   codex: FilingAdapter;
@@ -113,10 +153,14 @@ export function createHarnessAdapters(
     typeof credential === 'string'
       ? { claude: credential, codex: credential, cursor: credential, operator: credential }
       : credential;
+  const adapterOptions = {
+    pollBudgetMs: options.pollBudgetMs ?? 24 * 60 * 60 * 1000,
+    sleep: options.sleep ?? delay,
+  };
   return {
-    claude: new FilingAdapter(relayUrl, credentials.claude),
-    codex: new FilingAdapter(relayUrl, credentials.codex),
-    cursor: new FilingAdapter(relayUrl, credentials.cursor),
-    operator: new FilingAdapter(relayUrl, credentials.operator),
+    claude: new FilingAdapter(relayUrl, credentials.claude, adapterOptions),
+    codex: new FilingAdapter(relayUrl, credentials.codex, adapterOptions),
+    cursor: new FilingAdapter(relayUrl, credentials.cursor, adapterOptions),
+    operator: new FilingAdapter(relayUrl, credentials.operator, adapterOptions),
   };
 }

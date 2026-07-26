@@ -18,6 +18,7 @@ interface RequestRow {
   state: ReceiptState;
   issue_number: number | null;
   request_marker: string;
+  alias_owner_request_id: string | null;
 }
 
 export interface DurableRequest {
@@ -28,6 +29,7 @@ export interface DurableRequest {
   state: ReceiptState;
   issueNumber?: number;
   requestMarker: string;
+  aliasOwnerRequestId?: string;
 }
 
 export interface AcceptInput {
@@ -57,6 +59,9 @@ function rowToRequest(row: RequestRow): DurableRequest {
     state: row.state,
     ...(row.issue_number !== null && { issueNumber: row.issue_number }),
     requestMarker: row.request_marker,
+    ...(row.alias_owner_request_id !== null && {
+      aliasOwnerRequestId: row.alias_owner_request_id,
+    }),
   };
 }
 
@@ -97,6 +102,7 @@ export class RelayStore {
         )),
         issue_number INTEGER,
         request_marker TEXT NOT NULL,
+        alias_owner_request_id TEXT,
         accepted_at TEXT NOT NULL,
         filed_at TEXT,
         PRIMARY KEY (tenant_id, installation_id, repository, request_id)
@@ -113,6 +119,16 @@ export class RelayStore {
         FOREIGN KEY (tenant_id, installation_id, repository, request_id)
           REFERENCES retro_requests (tenant_id, installation_id, repository, request_id)
       ) STRICT;
+
+      CREATE TABLE IF NOT EXISTS reconciliation_audit (
+        audit_id INTEGER PRIMARY KEY,
+        receipt_id TEXT NOT NULL,
+        actor_subject TEXT NOT NULL,
+        disposition TEXT NOT NULL,
+        match_count INTEGER NOT NULL,
+        recorded_at TEXT NOT NULL,
+        FOREIGN KEY (receipt_id) REFERENCES retro_requests (receipt_id)
+      ) STRICT;
     `);
     return new RelayStore(database);
   }
@@ -121,6 +137,18 @@ export class RelayStore {
 
   private constructor(database: Database.Database) {
     this.#database = database;
+  }
+
+  #resolvedAliasReceipt(record: DurableRequest): FilingReceipt {
+    if (record.aliasOwnerRequestId === undefined) return receipt(record);
+    const owner = this.load({
+      ...record.scope,
+      requestId: record.aliasOwnerRequestId,
+    });
+    if (owner?.state === 'filed' && owner.issueNumber !== undefined && record.state !== 'filed') {
+      return this.markFiled(record.scope, owner.issueNumber);
+    }
+    return receipt(record);
   }
 
   accept(input: AcceptInput): { record: DurableRequest; inserted: boolean } {
@@ -201,6 +229,29 @@ export class RelayStore {
     return row === undefined ? undefined : rowToRequest(row);
   }
 
+  linkAlias(scope: RequestScope, owner: DurableRequest): FilingReceipt {
+    this.#database
+      .prepare(
+        `UPDATE retro_requests
+         SET alias_owner_request_id = ?
+         WHERE tenant_id = ? AND installation_id = ? AND repository = ?
+           AND request_id = ? AND state = 'claimed'`,
+      )
+      .run(
+        owner.scope.requestId,
+        scope.tenantId,
+        scope.installationId,
+        scope.repository,
+        scope.requestId,
+      );
+    return (
+      this.receipt(scope) ??
+      (() => {
+        throw new Error('alias request disappeared');
+      })()
+    );
+  }
+
   markAmbiguous(scope: RequestScope): void {
     this.#database
       .prepare(
@@ -237,14 +288,53 @@ export class RelayStore {
       .prepare(
         `UPDATE retro_requests SET state = 'retryable'
          WHERE tenant_id = ? AND installation_id = ? AND repository = ?
-           AND request_id = ? AND state = 'claimed'`,
+           AND request_id = ? AND state IN ('claimed', 'dispatching')`,
       )
       .run(scope.tenantId, scope.installationId, scope.repository, scope.requestId);
   }
 
   receipt(scope: RequestScope): FilingReceipt | undefined {
     const record = this.load(scope);
-    return record === undefined ? undefined : receipt(record);
+    if (record === undefined) return undefined;
+    return this.#resolvedAliasReceipt(record);
+  }
+
+  receiptById(receiptId: string): FilingReceipt | undefined {
+    const record = this.loadByReceipt(receiptId);
+    return record === undefined ? undefined : this.#resolvedAliasReceipt(record);
+  }
+
+  recordReconciliation(
+    receiptId: string,
+    actorSubject: string,
+    disposition: 'adopted' | 'incomplete' | 'multiple' | 'zero',
+    matchCount: number,
+  ): void {
+    this.#database
+      .prepare(
+        `INSERT INTO reconciliation_audit (
+          receipt_id, actor_subject, disposition, match_count, recorded_at
+        ) VALUES (?, ?, ?, ?, ?)`,
+      )
+      .run(receiptId, actorSubject, disposition, matchCount, new Date().toISOString());
+  }
+
+  reconciliationAudit(receiptId: string): {
+    actorSubject: string;
+    disposition: string;
+    matchCount: number;
+  }[] {
+    return this.#database
+      .prepare<[string], { actor_subject: string; disposition: string; match_count: number }>(
+        `SELECT actor_subject, disposition, match_count
+         FROM reconciliation_audit WHERE receipt_id = ? ORDER BY audit_id`,
+      )
+      .all(receiptId)
+      .map(row => ({
+        actorSubject: row.actor_subject,
+        disposition: row.disposition,
+        matchCount: row.match_count,
+      }));
   }
 
   reserveEvidence(

@@ -97,12 +97,29 @@ export class RelayService {
       repository: record.scope.repository,
       marker: record.requestMarker,
     });
-    if (!scan.complete || scan.issueNumbers.length !== 1) {
+    if (!scan.complete) {
+      this.#store.recordReconciliation(receiptId, principal.subject, 'incomplete', 0);
       throw new RelayError(503, 'raw reconciliation is incomplete or non-unique', {
         receiptId,
         state: 'ambiguous',
+        disposition: 'incomplete',
       });
     }
+    if (scan.issueNumbers.length !== 1) {
+      const disposition = scan.issueNumbers.length === 0 ? 'zero' : 'multiple';
+      this.#store.recordReconciliation(
+        receiptId,
+        principal.subject,
+        disposition,
+        scan.issueNumbers.length,
+      );
+      throw new RelayError(503, 'raw reconciliation is incomplete or non-unique', {
+        receiptId,
+        state: 'ambiguous',
+        disposition,
+      });
+    }
+    this.#store.recordReconciliation(receiptId, principal.subject, 'adopted', 1);
     return this.#store.markFiled(record.scope, scan.issueNumbers[0]);
   }
 
@@ -111,7 +128,9 @@ export class RelayService {
     if (record === undefined || !belongsTo(record, principal)) {
       throw new RelayError(404, 'filing receipt not found');
     }
-    return receiptFromRecord(record);
+    const resolved = this.#store.receiptById(receiptId);
+    if (resolved === undefined) throw new RelayError(404, 'filing receipt not found');
+    return resolved;
   }
 
   // eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- The branches mirror the durable state machine and stay together intentionally.
@@ -152,7 +171,7 @@ export class RelayService {
         { kind: 'legacy', value: durableRequest.legacySignature },
       ]);
       if (owner.scope.requestId !== scope.requestId) {
-        return receiptFromRecord(owner);
+        return this.#store.linkAlias(scope, owner);
       }
       installationToken = await this.#github.installationToken(
         scope.installationId,

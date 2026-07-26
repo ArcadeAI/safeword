@@ -200,12 +200,19 @@ POST returns 201 for `filed|existing`, 202 with `Retry-After` for nonterminal
 receipts, 409 for mismatch, 401 for missing/invalid/expired/revoked
 authentication, and 403 for a known principal lacking repository permission.
 Adapters poll only within a configured call budget; timeout leaves the spool
-unacknowledged and returns the latest receipt.
+unacknowledged and returns the latest receipt. They honor the relay's
+`Retry-After` value on both acceptance and status responses.
 
 `receiptId` is a random 256-bit URL-safe locator generated at first durable
 acceptance and stored under a unique index. It is addressing material, not
 request identity: retries still resolve exclusively by the
 transport-independent primary key and return the same locator.
+
+When different request identities converge on the same canonical or legacy
+evidence, the losing request is durably linked as an alias of the evidence
+owner. It retains its own request identity and receipt locator; status
+resolution copies the owner's terminal issue number into the alias row without
+another GitHub create.
 
 ## Authentication, authorization, and secrets
 

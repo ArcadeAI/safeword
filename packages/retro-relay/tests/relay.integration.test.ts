@@ -3,6 +3,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -68,6 +69,7 @@ function draft(overrides: Partial<FileRetroDraftRequest> = {}): FileRetroDraftRe
 async function startGitHubFixture(
   options: {
     createDelayMs?: number;
+    createStatus?: number;
     failSecondPage?: boolean;
     failToken?: boolean;
     rawBodies?: string[];
@@ -147,8 +149,13 @@ async function startGitHubFixture(
       let body = '';
       for await (const chunk of request) body += String(chunk);
       createdBodies.push(JSON.parse(body).body as string);
+      if (options.createStatus !== undefined) {
+        response.statusCode = options.createStatus;
+        response.end();
+        return;
+      }
       if (options.createDelayMs !== undefined) {
-        await new Promise<void>(resolve => setImmediate(resolve));
+        await delay(options.createDelayMs);
       }
       response.statusCode = 201;
       response.setHeader('content-type', 'application/json');
@@ -178,6 +185,7 @@ async function startGitHubFixture(
 async function fixture(
   options: {
     createDelayMs?: number;
+    createStatus?: number;
     failSecondPage?: boolean;
     failToken?: boolean;
     rawBodies?: string[];
@@ -297,6 +305,22 @@ describe('retry-safe retro relay', () => {
     ).toBe('retryable');
   });
 
+  it('quarantines a GitHub 5xx because the create outcome is ambiguous', async () => {
+    const setup = await fixture({ createStatus: 500 });
+    const adapter = createHarnessAdapters(setup.relay.url, setup.credential).claude;
+
+    await expect(adapter.file(draft())).rejects.toMatchObject({ status: 503 });
+    expect(setup.createBodies).toHaveLength(1);
+    expect(
+      setup.store.load({
+        tenantId: 'tenant-1',
+        installationId: 42,
+        repository: 'arcadeai/safeword',
+        requestId: draft().requestId,
+      })?.state,
+    ).toBe('ambiguous');
+  });
+
   it('elects one creator across concurrent database connections', async () => {
     const setup = await fixture({ createDelayMs: 50 });
     const secondStore = RelayStore.open(path.join(setup.directory, 'relay.sqlite'));
@@ -322,6 +346,29 @@ describe('retry-safe retro relay', () => {
     secondStore.close();
   });
 
+  it('returns the latest stable receipt when the configured polling budget expires', async () => {
+    const setup = await fixture({ createDelayMs: 100 });
+    const creator = createHarnessAdapters(setup.relay.url, setup.credentials).claude.file(draft());
+    while (setup.createBodies.length === 0) {
+      await new Promise<void>(resolve => setImmediate(resolve));
+    }
+
+    await expect(
+      createHarnessAdapters(setup.relay.url, setup.credentials, {
+        pollBudgetMs: 0,
+      }).codex.file(draft()),
+    ).rejects.toMatchObject({
+      status: 202,
+      details: {
+        latestReceipt: {
+          requestId: draft().requestId,
+          state: 'dispatching',
+        },
+      },
+    });
+    await expect(creator).resolves.toMatchObject({ state: 'filed', issueNumber: 901 });
+  });
+
   it('converges different requestIds that reserve the same semantic evidence', async () => {
     const setup = await fixture({ createDelayMs: 50 });
     const secondStore = RelayStore.open(path.join(setup.directory, 'relay.sqlite'));
@@ -337,16 +384,34 @@ describe('retry-safe retro relay', () => {
     });
     servers.push(secondRelay.server);
 
+    const retryAfterSleeps: number[] = [];
+    const adapterOptions = {
+      sleep: async (milliseconds: number) => {
+        retryAfterSleeps.push(milliseconds);
+        await new Promise<void>(resolve => setImmediate(resolve));
+      },
+    };
     const [first, second] = await Promise.all([
-      createHarnessAdapters(setup.relay.url, setup.credentials).claude.file(
+      createHarnessAdapters(setup.relay.url, setup.credentials, adapterOptions).claude.file(
         draft({ requestId: 'semantic-owner-a' }),
       ),
-      createHarnessAdapters(secondRelay.url, setup.credentials).codex.file(
+      createHarnessAdapters(secondRelay.url, setup.credentials, adapterOptions).codex.file(
         draft({ requestId: 'semantic-owner-b' }),
       ),
     ]);
 
     expect(first.issueNumber).toBe(second.issueNumber);
+    expect(first.requestId).toBe('semantic-owner-a');
+    expect(second.requestId).toBe('semantic-owner-b');
+    expect(first.receiptId).not.toBe(second.receiptId);
+    const scope = {
+      tenantId: 'tenant-1',
+      installationId: 42,
+      repository: 'arcadeai/safeword',
+    };
+    expect(setup.store.load({ ...scope, requestId: 'semantic-owner-a' })?.state).toBe('filed');
+    expect(setup.store.load({ ...scope, requestId: 'semantic-owner-b' })?.state).toBe('filed');
+    expect(retryAfterSleeps).toContain(1000);
     expect(setup.createBodies).toHaveLength(1);
     secondStore.close();
   });
@@ -382,6 +447,17 @@ describe('retry-safe retro relay', () => {
       draft(),
     );
     expect(receipt).toMatchObject({ issueNumber: 700, state: 'filed' });
+    expect(reopened.reconciliationAudit(receipt.receiptId)).toEqual([
+      {
+        actorSubject: 'operator-subject',
+        disposition: 'adopted',
+        matchCount: 1,
+      },
+    ]);
+    expect(relay.observability.metrics).toContainEqual({
+      metric: 'retro_reconciliation_outcome',
+      disposition: 'adopted',
+    });
     expect(github.createBodies).toHaveLength(0);
     reopened.close();
   });
@@ -418,6 +494,26 @@ describe('retry-safe retro relay', () => {
       await expect(
         createHarnessAdapters(relay.url, setup.credentials).operator.reconcile(draft()),
       ).rejects.toMatchObject({ status: 503 });
+      const durable = reopened.load({
+        tenantId: 'tenant-1',
+        installationId: 42,
+        repository: 'arcadeai/safeword',
+        requestId: draft().requestId,
+      });
+      expect(reopened.reconciliationAudit(durable?.receiptId ?? '')).toEqual([
+        {
+          actorSubject: 'operator-subject',
+          disposition: matchCount === 0 ? 'zero' : 'multiple',
+          matchCount,
+        },
+      ]);
+      expect(relay.observability.logs).toContainEqual(
+        expect.objectContaining({
+          alert: true,
+          disposition: matchCount === 0 ? 'zero' : 'multiple',
+          event: 'retro_reconciliation',
+        }),
+      );
       expect(github.createBodies).toHaveLength(0);
       reopened.close();
     },

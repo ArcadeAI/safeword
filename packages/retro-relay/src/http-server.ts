@@ -46,7 +46,12 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
 }> {
   const processLock =
     input.lockPath === undefined ? undefined : ProcessLock.acquire(input.lockPath);
-  input.store.recoverInFlight();
+  try {
+    input.store.recoverInFlight();
+  } catch (error) {
+    processLock?.release();
+    throw error;
+  }
   const faults: RelayFaults = {};
   const observability = {
     logs: [] as Record<string, unknown>[],
@@ -92,13 +97,47 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
       }
       const reconciliation = /^\/v1\/retro-filings\/([^/]+)\/reconcile$/u.exec(url.pathname);
       if (request.method === 'POST' && reconciliation?.[1] !== undefined) {
-        const receipt = await service.reconcile(principal, decodeURIComponent(reconciliation[1]));
-        sendJson(response, 200, receipt);
+        const decodedReceipt = decodeURIComponent(reconciliation[1]);
+        try {
+          const receipt = await service.reconcile(principal, decodedReceipt);
+          observability.logs.push({
+            event: 'retro_reconciliation',
+            receiptId: decodedReceipt,
+            subject: principal.subject,
+            disposition: 'adopted',
+          });
+          observability.metrics.push({
+            metric: 'retro_reconciliation_outcome',
+            disposition: 'adopted',
+          });
+          sendJson(response, 200, receipt);
+        } catch (error) {
+          const disposition =
+            error instanceof RelayError && typeof error.details?.disposition === 'string'
+              ? error.details.disposition
+              : undefined;
+          if (disposition !== undefined) {
+            observability.logs.push({
+              event: 'retro_reconciliation',
+              receiptId: decodedReceipt,
+              subject: principal.subject,
+              disposition,
+              alert: true,
+            });
+            observability.metrics.push({
+              metric: 'retro_reconciliation_outcome',
+              disposition,
+            });
+          }
+          throw error;
+        }
         return;
       }
       const status = /^\/v1\/retro-filings\/([^/]+)$/u.exec(url.pathname);
       if (request.method === 'GET' && status?.[1] !== undefined) {
-        sendJson(response, 200, service.status(principal, decodeURIComponent(status[1])));
+        const receipt = service.status(principal, decodeURIComponent(status[1]));
+        if (receipt.state !== 'filed') response.setHeader('retry-after', '1');
+        sendJson(response, 200, receipt);
         return;
       }
       throw new RelayError(404, 'route not found');
@@ -114,7 +153,15 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
     }
   }
 
-  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+  try {
+    await new Promise<void>((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(0, '127.0.0.1', resolve);
+    });
+  } catch (error) {
+    processLock?.release();
+    throw error;
+  }
   const address = server.address();
   if (address === null || typeof address === 'string') {
     server.close();
