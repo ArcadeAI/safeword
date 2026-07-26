@@ -362,7 +362,7 @@ describe('detectUnanchoredPhaseTransition — no real artifact behind the advanc
         anchors: [`scenario-gate: ${foreignFeature}`],
       }),
       readerFor({ [foreignFeature]: SHAPE_VALID_FEATURE }),
-      { ticketPath: TICKET_DIR, featurePath: FEATURE_PATH },
+      { ticketPath: TICKET_DIR },
     );
     expect(verdict.kind).toBe('unanchored');
     if (verdict.kind === 'unanchored') expect(verdict.reason).toMatch(/ticket/i);

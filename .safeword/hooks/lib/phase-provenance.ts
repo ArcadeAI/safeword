@@ -449,8 +449,6 @@ export type PhaseAnchorVerdict =
 export interface PhaseAnchorScope {
   /** Repo-relative ticket folder, using Git's forward-slashed path grammar. */
   ticketPath: string;
-  /** Exact canonical feature source, when the ticket has one. */
-  featurePath?: string;
 }
 
 const NOT_APPLICABLE: PhaseAnchorVerdict = { kind: 'not-applicable' };
@@ -546,13 +544,17 @@ function validateAnchor(
       `phase_anchors entry for "${phase}" is "${anchor}", not the expected artifact kind — "${phase}" expects ${kind.label}, e.g. ${expectedLine}.`,
     );
   }
-  // A feature source must be this ticket's canonical source. Every other
-  // accepted kind is ticket-local and must be this ticket's own output, not a
-  // same-kind artifact borrowed from elsewhere.
+  // Feature source identity follows the repository convention
+  // `<any configured feature lane>/<ticket slug>.feature`; deriving the
+  // basename from the ticket path keeps ownership independent of unstaged
+  // worktree state. Every other kind must live in this ticket's own folder.
+  const ticketFolder = basenameOf(scope?.ticketPath ?? '');
+  const slugSeparator = ticketFolder.indexOf('-');
+  const ticketSlug = slugSeparator === -1 ? ticketFolder : ticketFolder.slice(slugSeparator + 1);
   const isOwnedArtifact =
     scope === undefined ||
     (isFeatureSource(anchor)
-      ? anchor === scope.featurePath
+      ? basenameOf(anchor) === `${ticketSlug}.feature`
       : dirnameOf(anchor) === scope.ticketPath);
   if (!isOwnedArtifact) {
     return unanchored(

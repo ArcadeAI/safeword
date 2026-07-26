@@ -157,7 +157,7 @@ partitions after real CLI probes found two anchor-substitution gaps.
 
 ### Scenario: Canonical feature ownership is independent of unstaged worktree state
 
-- [ ] RED
+- [x] RED 713d352
 - [ ] GREEN
 - [ ] REFACTOR
 

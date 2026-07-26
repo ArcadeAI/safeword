@@ -25,7 +25,6 @@ import {
   type TicketChange,
 } from '../boundary/engine.js';
 import { resolveTicketsDirectory } from '../utils/configured-paths.js';
-import { findRepoFeatureSourcePath } from '../utils/feature-source.js';
 import { readFileSafe } from '../utils/fs.js';
 import { warn } from '../utils/output.js';
 import { toRepoRelativePath } from '../utils/repo-path.js';
@@ -142,7 +141,6 @@ function collectChanges(cwd: string, range: BoundaryRange, at: Boundary): Ticket
     const change = byTicket.get(parsed.ticketFolder) ?? {
       ticketFolder: parsed.ticketFolder,
       ticketPath: `${ticketsDirectory}/${parsed.ticketFolder}`,
-      featurePath: findRepoFeatureSourcePath(cwd, parsed.ticketFolder),
       artifacts: [],
       hasLedger: false,
     };

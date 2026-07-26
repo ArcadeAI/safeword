@@ -30,11 +30,7 @@ import {
   resolveTicketsDirectory,
 } from './utils/configured-paths.js';
 import { createProjectContext } from './utils/context.js';
-import {
-  findFeatureSourcePath,
-  findRepoFeatureSourcePath,
-  hasDefaultExecutableFeatureFiles,
-} from './utils/feature-source.js';
+import { findFeatureSourcePath, hasDefaultExecutableFeatureFiles } from './utils/feature-source.js';
 import { exists, isDirectory, readFileSafe, readJson } from './utils/fs.js';
 import { FeatureParseError, findFeatureLineageIssues } from './utils/gherkin-feature.js';
 import { parseGlossary, validateGlossary } from './utils/glossary.js';
@@ -361,7 +357,6 @@ function phaseAnchorAdvisoryForTicket(
     relpath => readFileSafe(nodePath.join(cwd, relpath)),
     {
       ticketPath: toRepoRelativePath(cwd, nodePath.join(ticketsRoot, ticketId)),
-      featurePath: findRepoFeatureSourcePath(cwd, ticketId),
     },
   );
   if (verdict.kind !== 'unanchored') return undefined;

@@ -464,6 +464,7 @@ const ticket = (phase, anchors) => ['---','id: BGT','type: feature','phase: '+ph
 const anchor = 'implement: .project/tickets/BGT001-fixture/impl-plan.md';
 const verdicts = reconcileChange([{
   ticketFolder: 'BGT001-fixture',
+  ticketPath: '.project/tickets/BGT001-fixture',
   artifacts: [{ artifact: 'ticket.md', prior: ticket('define-behavior'), proposed: ticket('implement', [anchor]) }],
   ticketCurrent: ticket('implement', [anchor]),
   hasLedger: true,
