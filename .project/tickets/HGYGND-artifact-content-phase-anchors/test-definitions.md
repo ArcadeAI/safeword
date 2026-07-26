@@ -167,6 +167,12 @@ partitions after real CLI probes found two anchor-substitution gaps.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Ticket discovery uses the staged project-root configuration
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A backward phase move is not flagged
 
 - [x] RED e90eb07

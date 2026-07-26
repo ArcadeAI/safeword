@@ -351,6 +351,42 @@ describe('safeword boundary (slice 1: engine core)', () => {
       expect(result.exitCode).toBe(0);
       expect(`${result.stdout}\n${result.stderr}`).not.toMatch(/phase-anchor/i);
     });
+
+    it('discovers tickets from a project root recorded only in the staged config', async () => {
+      const oldTicket = '.project/tickets/BND017-owner/ticket.md';
+      const ticket = 'custom/tickets/BND017-owner';
+      const config = '.safeword/config.json';
+      writeTestFile(
+        dir,
+        oldTicket,
+        boundaryTicketContent({ id: 'BND017', phase: 'scenario-gate' }),
+      );
+      git(dir, 'add -A');
+      git(dir, 'commit -m seed --quiet');
+      unlinkSync(nodePath.join(dir, oldTicket));
+      writeTestFile(
+        dir,
+        config,
+        JSON.stringify({ paths: { projectRoot: 'custom' } }, undefined, 2),
+      );
+      writeTestFile(dir, `${ticket}/impl-plan.md`, '# hollow plan\n');
+      writeTestFile(
+        dir,
+        `${ticket}/ticket.md`,
+        boundaryTicketContent({
+          id: 'BND017',
+          phase: 'implement',
+          anchors: [`implement: ${ticket}/impl-plan.md`],
+        }),
+      );
+      git(dir, 'add -A');
+      writeTestFile(dir, config, '{}\n');
+
+      const result = await runCli(['boundary', '--at', 'commit'], { cwd: dir });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toMatch(/phase-anchor.*shape/is);
+    });
   });
 
   describe('CDRJTW.TB1.AC1: silence for changes touching no ticket artifacts', () => {
