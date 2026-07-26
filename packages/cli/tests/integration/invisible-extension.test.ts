@@ -19,7 +19,7 @@ import {
   initGitRepo,
   readTestFile,
   removeTemporaryDirectory,
-  runCli,
+  runCliWithoutInstall,
   SKIP_SKILLS_ENV,
   writeTestFile,
 } from '../helpers';
@@ -56,7 +56,7 @@ export default [
         // asserts the .safeword/eslint.config.mjs *extension* mechanism,
         // not the project-config-mutation behavior (which has dedicated
         // tests in src/utils/eslint-auto-patch.test.ts).
-        await runCli(['setup', '--no-modify'], {
+        await runCliWithoutInstall(['setup', '--no-modify'], {
           cwd: projectDirectory,
           timeout: SETUP_TIMEOUT,
         });
@@ -97,7 +97,7 @@ export default [
         );
         writeTestFile(projectDirectory, '.eslintrc.json', legacyConfig);
 
-        await runCli(['setup'], {
+        await runCliWithoutInstall(['setup'], {
           cwd: projectDirectory,
           timeout: SETUP_TIMEOUT,
         });
@@ -126,7 +126,7 @@ export default [
         createTypeScriptPackageJson(projectDirectory);
         initGitRepo(projectDirectory);
 
-        await runCli(['setup'], {
+        await runCliWithoutInstall(['setup'], {
           cwd: projectDirectory,
           timeout: SETUP_TIMEOUT,
         });
@@ -167,7 +167,7 @@ select = ["E", "F"]
 `;
         writeTestFile(projectDirectory, 'pyproject.toml', pyprojectContent);
 
-        await runCli(['setup'], {
+        await runCliWithoutInstall(['setup'], {
           cwd: projectDirectory,
           timeout: SETUP_TIMEOUT,
         });
@@ -204,7 +204,7 @@ version = "1.0.0"
 `;
         writeTestFile(projectDirectory, 'pyproject.toml', pyprojectContent);
 
-        await runCli(['setup'], {
+        await runCliWithoutInstall(['setup'], {
           cwd: projectDirectory,
           timeout: SETUP_TIMEOUT,
         });
@@ -253,7 +253,7 @@ formatters:
 `;
         writeTestFile(projectDirectory, '.golangci.yml', golangciConfig);
 
-        await runCli(['setup'], {
+        await runCliWithoutInstall(['setup'], {
           cwd: projectDirectory,
           timeout: SETUP_TIMEOUT,
           env: SKIP_SKILLS_ENV,
@@ -296,7 +296,7 @@ formatters:
         // Create go.mod to mark as Go project
         writeTestFile(projectDirectory, 'go.mod', 'module example.com/myproject\n\ngo 1.21\n');
 
-        await runCli(['setup'], {
+        await runCliWithoutInstall(['setup'], {
           cwd: projectDirectory,
           timeout: SETUP_TIMEOUT,
           env: SKIP_SKILLS_ENV,
@@ -326,7 +326,7 @@ formatters:
         createTypeScriptPackageJson(projectDirectory);
         initGitRepo(projectDirectory);
 
-        await runCli(['setup'], {
+        await runCliWithoutInstall(['setup'], {
           cwd: projectDirectory,
           timeout: SETUP_TIMEOUT,
         });

@@ -3,7 +3,7 @@ id: SFQ1EQ
 slug: keep-default-tests-responsive
 type: task
 subtype: bug-investigated
-phase: intake
+phase: implement
 status: in_progress
 parent: S3T6JA
 epic: agent-surface-refactor
@@ -21,7 +21,7 @@ done_when:
   - Slow install-backed coverage still runs through a named script.
   - Documentation/comments identify which lane maintainers should use for default, smoke, slow, and release validation.
 created: 2026-06-15T14:11:50.893Z
-last_modified: 2026-07-02T03:05:28Z
+last_modified: 2026-07-26T04:19:46Z
 ---
 
 # Keep default tests responsive for maintainers
@@ -44,6 +44,9 @@ last_modified: 2026-07-02T03:05:28Z
 - 2026-07-02T03:05:28Z Residual cluster confirmed during #597 verification: the default full suite timed out in `setup-core.test.ts`, `setup-architecture.test.ts`, and then `setup-linting.test.ts`. All three were config/script generation assertions using bare TypeScript fixtures, so setup could still enter package-manager work before reaching assertions that did not test installation.
 - 2026-07-02T03:05:28Z Fix: added `createTypeScriptProjectReadyForSetup()` for config-only TypeScript setup fixtures. The helper predeclares safeword's base JS/BDD devDependencies while preserving each test's override behavior, then `setup-core`, `setup-architecture`, and `setup-linting` switched to that helper. Real install coverage remains in the existing install-proof paths instead of these config-only assertions.
 - 2026-07-02T03:05:28Z Verification: the exact lint timeout repro passed in 4.18s; the affected setup batch (`setup-core`, `setup-architecture`, `setup-linting`, `setup-python-phase2`) passed 42 tests in 58.78s; `bun run lint`, `bun run typecheck`, full `bun run test`, and `bun run test:bdd` all passed. Full Vitest result: 280 files passed, 4097 tests passed, 3 skipped, in 945.02s. BDD result: 181 scenarios and 3414 steps passed in 1m 59.569s.
+- 2026-07-26T03:56:32Z Reprofiled current main before changing the scheduler: 369 files / 5467 tests passed, with 449.27s runner wall time. The slowest files were `setup-cursor.test.ts` (95.47s), `conditional-setup.test.ts` (92.65s), and `setup-hooks.test.ts` (86.13s); 282 files completed in under one second.
+- 2026-07-26T03:56:32Z `/figure-it-out`: rejected a higher worker cap and Vitest project split for this slice. A `SAFEWORD_SKIP_INSTALL=1` probe cut the three leading files to 3.51–4.42s; 39/40 tests passed, and the sole failure was the genuine non-git installation proof that belongs in `conditional-setup.slow.test.ts`. Decision: finish the default/slow boundary before revisiting CQJBSN scheduler work.
+- 2026-07-26T04:19:46Z Implemented two profile-guided slices: six config-only suites now use an explicit no-install runner, the non-git physical-install proof runs in the slow lane, and a source contract prevents those audited files from regressing to raw setup calls. Final profile passed 370 files / 5474 tests in 321.79s runner wall, down 127.48s (28.4%) from the 449.27s baseline. Lint, typecheck, focused slow proof, and full BDD also passed. Ticket remains in progress: the next dominant file (`override-survival`, 68.27s) already skips installs and needs a separate root-cause slice.
 
 ## Root Cause
 

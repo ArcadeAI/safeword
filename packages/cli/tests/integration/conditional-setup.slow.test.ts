@@ -14,6 +14,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   createPackageJson,
   createTemporaryDirectory,
+  createTypeScriptPackageJson,
   initGitRepo,
   readTestFile,
   removeTemporaryDirectory,
@@ -141,6 +142,28 @@ describe('E2E: Conditional Setup - Slow Framework Detection', () => {
       const pkg = JSON.parse(readTestFile(projectDirectory, 'package.json'));
       expect(pkg.devDependencies).toHaveProperty('publint');
       expect(pkg.scripts).toHaveProperty('publint');
+    },
+    SETUP_TIMEOUT,
+  );
+
+  it(
+    'installs base dependencies in a non-git directory',
+    async () => {
+      projectDirectory = createTemporaryDirectory();
+      createTypeScriptPackageJson(projectDirectory);
+      // Deliberately do not initialize Git: this is the real-install proof for
+      // setup's non-repository path, so it belongs in the explicit slow lane.
+
+      const result = await runCli(['setup', '--yes'], {
+        cwd: projectDirectory,
+        timeout: SETUP_TIMEOUT,
+      });
+
+      expect(result.exitCode).toBe(0);
+
+      const pkg = JSON.parse(readTestFile(projectDirectory, 'package.json'));
+      expect(pkg.devDependencies?.eslint).toBeDefined();
+      expect(pkg.devDependencies).toHaveProperty('safeword');
     },
     SETUP_TIMEOUT,
   );

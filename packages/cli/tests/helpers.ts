@@ -441,6 +441,32 @@ export async function runCli(
 }
 
 /**
+ * Run the CLI while explicitly disabling dependency installation.
+ *
+ * Use this for fixture tests that assert generated configuration, scripts, or
+ * package metadata rather than the physical contents of node_modules. Tests
+ * whose purpose is to prove installation must use runCli directly in the slow
+ * lane.
+ */
+export async function runCliWithoutInstall(
+  args: string[],
+  options: {
+    cwd?: string;
+    env?: Record<string, string>;
+    timeout?: number;
+  } = {},
+  runner: typeof runCli = runCli,
+): Promise<CliResult> {
+  return runner(args, {
+    ...options,
+    env: {
+      ...SKIP_INSTALL_ENV,
+      ...options.env,
+    },
+  });
+}
+
+/**
  * Runs the CLI synchronously (for simple tests)
  * @param args
  * @param options
