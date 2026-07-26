@@ -7,7 +7,7 @@
  */
 
 import { execSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, unlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -242,6 +242,39 @@ describe('safeword boundary (slice 1: engine core)', () => {
 
       expect(result.exitCode).toBe(0);
       expect(`${result.stdout}\n${result.stderr}`).toMatch(/ticket/i);
+    });
+
+    it('uses the staged tree, not an unstaged removal, to identify the canonical feature', async () => {
+      const ticket = '.project/tickets/BND014-owner';
+      const feature = 'features/owner.feature';
+      writeTestFile(
+        dir,
+        `${ticket}/ticket.md`,
+        boundaryTicketContent({ id: 'BND014', phase: 'define-behavior' }),
+      );
+      git(dir, 'add -A');
+      git(dir, 'commit -m seed --quiet');
+      writeTestFile(
+        dir,
+        feature,
+        ['Feature: owner', '', '  Scenario: owned evidence', '    Then it exists', ''].join('\n'),
+      );
+      writeTestFile(
+        dir,
+        `${ticket}/ticket.md`,
+        boundaryTicketContent({
+          id: 'BND014',
+          phase: 'scenario-gate',
+          anchors: [`scenario-gate: ${feature}`],
+        }),
+      );
+      git(dir, 'add -A');
+      unlinkSync(nodePath.join(dir, feature));
+
+      const result = await runCli(['boundary', '--at', 'commit'], { cwd: dir });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).not.toMatch(/phase-anchor/i);
     });
   });
 

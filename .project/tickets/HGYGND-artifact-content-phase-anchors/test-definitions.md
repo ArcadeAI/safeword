@@ -155,6 +155,12 @@ partitions after real CLI probes found two anchor-substitution gaps.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Canonical feature ownership is independent of unstaged worktree state
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A backward phase move is not flagged
 
 - [x] RED e90eb07
