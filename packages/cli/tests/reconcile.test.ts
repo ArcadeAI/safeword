@@ -191,6 +191,17 @@ describe('Reconcile - Reconciliation Engine', () => {
       // Check a sample of owned files exist
       expect(existsSync(nodePath.join(temporaryDirectory, '.safeword/SAFEWORD.md'))).toBe(true);
       expect(existsSync(nodePath.join(temporaryDirectory, '.safeword/version'))).toBe(true);
+      expect(
+        readFileSync(
+          nodePath.join(temporaryDirectory, '.safeword/hooks/lib/audit-scope.sh'),
+          'utf8',
+        ),
+      ).toBe(
+        readFileSync(
+          nodePath.join(import.meta.dirname, '../templates/hooks/lib/audit-scope.sh'),
+          'utf8',
+        ),
+      );
 
       // created should include all owned files
       expect(result.created.length).toBeGreaterThan(0);

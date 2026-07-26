@@ -62,6 +62,9 @@ function runDomainDocumentationCheck(
       mkdirSync(nodePath.dirname(absolutePath), { recursive: true });
       writeFileSync(absolutePath, content);
     }
+    const auditScopePath = nodePath.join(projectDirectory, '.safeword/hooks/lib/audit-scope.sh');
+    mkdirSync(nodePath.dirname(auditScopePath), { recursive: true });
+    writeFileSync(auditScopePath, readSurface('packages/cli/templates/hooks/lib/audit-scope.sh'));
     const result = spawnSync('bash', ['-c', extractDomainDocumentationBlock()], {
       cwd: projectDirectory,
       env: {

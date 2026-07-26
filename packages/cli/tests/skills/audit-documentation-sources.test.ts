@@ -1,5 +1,14 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -43,6 +52,20 @@ function git(directory: string, ...args: string[]): string {
   return execFileSync('git', args, { cwd: directory, encoding: 'utf8' }).trim();
 }
 
+function auditToolStubBody(command: string): string {
+  if (command === 'bunx') {
+    return 'if [ "$1" = "knip" ]; then echo "[fake-knip] cwd=$PWD args=$@"; else echo "[fake-bunx] $@"; fi';
+  }
+  if (command === 'bun') {
+    return String.raw`case "$1" in
+  */resolve-namespace-root.ts) printf '%s\n' "$2/.project" ;;
+  */packages/cli/src/cli.ts) [ "$2" = "feature-directories" ] && printf '%s\n' "$PWD/features" ;;
+  *) echo "[fake-bun] $@" ;;
+esac`;
+  }
+  return `echo "[fake-${command}] $@"`;
+}
+
 function writeAuditToolStubs(binDirectory: string): void {
   for (const command of [
     'bunx',
@@ -60,17 +83,45 @@ function writeAuditToolStubs(binDirectory: string): void {
     'golangci-lint',
     'deadcode',
   ]) {
-    const body =
-      command === 'bunx'
-        ? 'if [ "$1" = "knip" ]; then echo "[fake-knip] cwd=$PWD args=$@"; else echo "[fake-bunx] $@"; fi'
-        : `echo "[fake-${command}] $@"`;
-    writeExecutable(binDirectory, command, body);
+    writeExecutable(binDirectory, command, auditToolStubBody(command));
   }
   writeExecutable(
     binDirectory,
     'yarn',
     'if [ "$1" = "--version" ]; then echo "4.9.0"; else echo "[fake-yarn] $@"; fi',
   );
+}
+
+function writeAuditScopeHelper(projectDirectory: string): void {
+  const sourcePath = nodePath.join(ROOT, 'packages/cli/templates/hooks/lib/audit-scope.sh');
+  if (existsSync(sourcePath)) {
+    writeProjectFile(
+      projectDirectory,
+      '.safeword/hooks/lib/audit-scope.sh',
+      readFileSync(sourcePath, 'utf8'),
+    );
+  }
+}
+
+function applyWorktreeChanges(
+  projectDirectory: string,
+  changedFiles: Record<string, string>,
+  deletedFiles: string[] = [],
+  typeChangedFiles: Record<string, string> = {},
+): void {
+  const changedFileEntries = Object.entries(changedFiles);
+  for (const [relativePath, content] of changedFileEntries) {
+    writeProjectFile(projectDirectory, relativePath, content);
+  }
+  for (const relativePath of deletedFiles) {
+    rmSync(nodePath.join(projectDirectory, relativePath));
+  }
+  const typeChangedFileEntries = Object.entries(typeChangedFiles);
+  for (const [relativePath, target] of typeChangedFileEntries) {
+    const absolutePath = nodePath.join(projectDirectory, relativePath);
+    rmSync(absolutePath);
+    symlinkSync(target, absolutePath);
+  }
 }
 
 function runAuditAutomation(
@@ -95,6 +146,7 @@ function runAuditAutomation(
     }
 
     writeAuditToolStubs(binDirectory);
+    writeAuditScopeHelper(projectDirectory);
     const missingCommands = options.missingCommands ?? [];
     for (const command of missingCommands) {
       rmSync(nodePath.join(binDirectory, command), { force: true });
@@ -125,9 +177,12 @@ function runAuditAutomation(
 function runDiffScopedAuditAutomation(options: {
   baselineFiles: Record<string, string>;
   changedFiles: Record<string, string>;
+  blockOrdinal?: number;
+  deletedFiles?: string[];
   includeOriginMain?: boolean;
   staleLocalMain?: boolean;
   scopeRequest?: 'repository';
+  typeChangedFiles?: Record<string, string>;
 }): { stdout: string; stderr: string; status: number } {
   const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-audit-diff-'));
   const binDirectory = nodePath.join(projectDirectory, 'fake-bin');
@@ -155,21 +210,29 @@ function runDiffScopedAuditAutomation(options: {
     }
     git(projectDirectory, 'checkout', '--quiet', '-b', 'feature', baseSha);
 
-    for (const [relativePath, content] of Object.entries(options.changedFiles)) {
-      writeProjectFile(projectDirectory, relativePath, content);
-    }
+    applyWorktreeChanges(
+      projectDirectory,
+      options.changedFiles,
+      options.deletedFiles,
+      options.typeChangedFiles,
+    );
     writeAuditToolStubs(binDirectory);
+    writeAuditScopeHelper(projectDirectory);
 
-    const result = spawnSync('bash', ['-c', extractBashBlock(auditSkillContent, 2)], {
-      cwd: projectDirectory,
-      env: {
-        ...process.env,
-        AUDIT_SCOPE_REQUEST: options.scopeRequest ?? 'diff',
-        CLAUDE_PROJECT_DIR: projectDirectory,
-        PATH: `${binDirectory}:/usr/bin:/bin`,
+    const result = spawnSync(
+      'bash',
+      ['-c', extractBashBlock(auditSkillContent, options.blockOrdinal ?? 2)],
+      {
+        cwd: projectDirectory,
+        env: {
+          ...process.env,
+          AUDIT_SCOPE_REQUEST: options.scopeRequest ?? 'diff',
+          CLAUDE_PROJECT_DIR: projectDirectory,
+          PATH: `${binDirectory}:/usr/bin:/bin`,
+        },
+        encoding: 'utf8',
       },
-      encoding: 'utf8',
-    });
+    );
 
     return {
       stdout: result.stdout,
@@ -438,5 +501,125 @@ describe('audit diff scope', () => {
       'Audit scope: repository (explicit user request; full audit retained)',
     );
     expect(result.stdout).toContain('Knip — repository root');
+  });
+
+  it('keeps deleted and type-changed paths out of analyzers but visible for reference review', () => {
+    const result = runDiffScopedAuditAutomation({
+      baselineFiles: {
+        ...javascriptProject,
+        'docs/removed.md': '# Removed\n',
+        'docs/type-change.md': '# Type change\n',
+      },
+      changedFiles: {},
+      deletedFiles: ['docs/removed.md'],
+      includeOriginMain: true,
+      typeChangedFiles: { 'docs/type-change.md': '../README.md' },
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('Reference review scope:');
+    expect(result.stdout).toContain('docs/removed.md');
+    expect(result.stdout).toContain('docs/type-change.md');
+    expect(result.stdout).toContain('Code quality scope: no changed source or manifest files');
+    expect(result.stdout).not.toContain('[fake-bunx] depcruise');
+  });
+
+  it('skips unrelated domain-doc drift in a diff audit', () => {
+    const result = runDiffScopedAuditAutomation({
+      baselineFiles: {
+        ...javascriptProject,
+        'packages/cli/src/cli.ts': 'export {};\n',
+        '.project/surfaces.md': '## Known\n',
+        'features/unrelated.feature': '@surface.missing\nFeature: unrelated\n',
+      },
+      changedFiles: { 'README.md': '# Updated fixture\n' },
+      blockOrdinal: 5,
+      includeOriginMain: true,
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).not.toContain('[E008] Surface drift');
+  });
+
+  it('scans only changed feature inputs when surface definitions are unchanged', () => {
+    const result = runDiffScopedAuditAutomation({
+      baselineFiles: {
+        ...javascriptProject,
+        'packages/cli/src/cli.ts': 'export {};\n',
+        '.project/surfaces.md': '## Known\n',
+        'features/unrelated.feature': '@surface.missing\nFeature: unrelated\n',
+      },
+      changedFiles: { 'features/changed.feature': '@surface.known\nFeature: changed\n' },
+      blockOrdinal: 5,
+      includeOriginMain: true,
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).not.toContain('@surface.missing');
+  });
+
+  it('reports surface drift from a changed feature file', () => {
+    const result = runDiffScopedAuditAutomation({
+      baselineFiles: {
+        ...javascriptProject,
+        'packages/cli/src/cli.ts': 'export {};\n',
+        '.project/surfaces.md': '## Known\n',
+      },
+      changedFiles: { 'features/invalid.feature': '@surface.missing\nFeature: invalid\n' },
+      blockOrdinal: 5,
+      includeOriginMain: true,
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('[E008] Surface drift: @surface.missing');
+  });
+
+  it('reports persona drift from a changed spec file', () => {
+    const result = runDiffScopedAuditAutomation({
+      baselineFiles: {
+        ...javascriptProject,
+        '.project/personas.md': '## Designer (DES)\n',
+      },
+      changedFiles: { '.project/tickets/fixture/spec.md': '**Persona:** (GM)\n' },
+      blockOrdinal: 5,
+      includeOriginMain: true,
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('[E009] Persona drift: code GM');
+  });
+
+  it('runs domain-doc drift checks in an explicit repository audit', () => {
+    const result = runDiffScopedAuditAutomation({
+      baselineFiles: {
+        ...javascriptProject,
+        'packages/cli/src/cli.ts': 'export {};\n',
+        '.project/surfaces.md': '## Known surface\n',
+        'features/unrelated.feature': '@surface.missing\nFeature: unrelated\n',
+      },
+      changedFiles: { 'README.md': '# Updated fixture\n' },
+      blockOrdinal: 5,
+      includeOriginMain: true,
+      scopeRequest: 'repository',
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('[E008] Surface drift');
+  });
+
+  it('checks unchanged learning files in an explicit repository audit', () => {
+    const result = runDiffScopedAuditAutomation({
+      baselineFiles: {
+        ...javascriptProject,
+        '.project/learnings/without-covers.md': '# Learning\n\nMissing Covers line\n',
+      },
+      changedFiles: { 'README.md': '# Updated fixture\n' },
+      blockOrdinal: 3,
+      includeOriginMain: true,
+      scopeRequest: 'repository',
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('[W006] Missing Covers: line on line 3');
   });
 });

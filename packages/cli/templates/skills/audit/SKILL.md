@@ -32,14 +32,14 @@ Task, patch, and no-ticket audit work may continue after recording that session-
 ## Scope
 
 Default to the current working tree's change from `origin/main`, falling back to
-local `main`. The code-quality block prints its exact merge-base SHA and changed
+local `main`. The shared scope helper prints its exact merge-base SHA and changed
 files. Treat that printed list as the audit boundary for every review below.
 
 - Review changed source, tests, agent configuration, documentation, and learning
   files; follow direct references from them when a missing reference could make
   the change invalid.
-- A deleted path is evidence for broken-reference review, never an analyzer
-  input.
+- Deleted and type-changed paths are evidence for broken-reference review,
+  never analyzer inputs. The helper prints them under `Reference review scope`.
 - Whole-workspace Knip, repository clone totals, and dependency-freshness
   discovery are intentionally skipped in this mode because their pre-existing
   findings are noise for a feature diff.
@@ -49,9 +49,11 @@ repository-wide, or baseline audit, or when neither `origin/main` nor `main`
 exists. In that mode retain the prior whole-project checks and report the mode
 prominently. Do not silently widen a Git-aware diff audit.
 
-For an explicit repository audit, run the code-quality block with
-`AUDIT_SCOPE_REQUEST=repository` in its environment. Leave that variable unset
-for the default diff audit; do not edit the block's commands.
+For an explicit repository audit, set `AUDIT_SCOPE_REQUEST=repository` in the
+environment of **every executable audit block** below. That is what widens code,
+agent configuration, learnings, tests, documentation, and domain docs together.
+Leave the variable unset for the default diff audit; do not edit the blocks'
+commands.
 
 ## Instructions
 
@@ -60,75 +62,13 @@ for the default diff audit; do not edit the block's commands.
 **Run the block below verbatim, as ONE bash invocation.** Do not extract or paraphrase individual commands — the manifest gates, package-manager routing, and tool-absence messages are load-bearing, and a hand-rolled subset silently skips whole check families.
 
 ```bash
-# Ensure we're in the project root regardless of prior CWD state
-cd "${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}" || exit 1
-
-# Default to the change set under review. Prefer the remote-tracking branch:
-# a local `main` can be stale in a long-lived worktree. Fall back to local main
-# for repositories without a remote. Repositories with neither retain the
-# complete audit — there is no trustworthy diff scope to apply.
-AUDIT_SCOPE_MODE="repository"
-AUDIT_BASE_REF=""
-AUDIT_BASE_SHA=""
-AUDIT_CHANGED_FILES=""
-AUDIT_SCOPE_REQUEST="${AUDIT_SCOPE_REQUEST:-diff}"
-if [ "$AUDIT_SCOPE_REQUEST" != "repository" ] && git rev-parse --verify --quiet origin/main^{commit} > /dev/null; then
-  AUDIT_BASE_REF="origin/main"
-elif [ "$AUDIT_SCOPE_REQUEST" != "repository" ] && git rev-parse --verify --quiet main^{commit} > /dev/null; then
-  AUDIT_BASE_REF="main"
-fi
-
-if [ -n "$AUDIT_BASE_REF" ]; then
-  AUDIT_SCOPE_MODE="diff"
-  AUDIT_BASE_SHA="$(git merge-base "$AUDIT_BASE_REF" HEAD)"
-  # `--merge-base` includes committed, staged, and unstaged changes relative to
-  # the branch point. Include untracked files too: they are new code even though
-  # `git diff` does not name them. Deleted files stay out of tool inputs and are
-  # still reviewed for broken references in the documentation/config sections.
-  AUDIT_CHANGED_FILES="$({
-    git diff --name-only --diff-filter=ACMR --find-renames --merge-base "$AUDIT_BASE_REF"
-    git ls-files --others --exclude-standard
-  } | LC_ALL=C sort -u)"
-  echo "Audit scope: $AUDIT_BASE_REF (merge base: $AUDIT_BASE_SHA)"
-  if [ -n "$AUDIT_CHANGED_FILES" ]; then
-    printf '%s\n' "$AUDIT_CHANGED_FILES" | sed 's/^/  - /'
-  else
-    echo "  - No added, copied, modified, renamed, or untracked files"
-  fi
-else
-  if [ "$AUDIT_SCOPE_REQUEST" = "repository" ]; then
-    echo "Audit scope: repository (explicit user request; full audit retained)"
-  else
-    echo "Audit scope: repository (no origin/main or main ref; full audit retained)"
-  fi
-fi
-
-# A diff audit runs only code-quality families with changed inputs. The helper
-# stays deliberately shell-portable: project file names with embedded newlines
-# are unsupported by the surrounding analyzer CLIs as well.
-audit_scope_has_path_matching() {
-  [ -n "$AUDIT_CHANGED_FILES" ] && printf '%s\n' "$AUDIT_CHANGED_FILES" | grep -Eq "$1"
-}
-
-audit_scope_dir_changed() {
-  scope_directory="${1#./}"
-  [ "$scope_directory" = "." ] && [ -n "$AUDIT_CHANGED_FILES" ] && return 0
-  while IFS= read -r scope_file; do
-    case "$scope_file" in
-      "$scope_directory"/*) return 0 ;;
-    esac
-  done << EOF
-$AUDIT_CHANGED_FILES
-EOF
-  return 1
-}
-
-filter_audit_dirs_to_diff() {
-  while IFS= read -r scope_dir; do
-    [ -n "$scope_dir" ] || continue
-    audit_scope_dir_changed "$scope_dir" && printf '%s\n' "$scope_dir"
-  done
-}
+# Ensure we're in the project root regardless of prior CWD state, then load the
+# same scope contract every executable audit block uses.
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
+cd "$PROJECT_DIR" || exit 1
+source "$PROJECT_DIR/.safeword/hooks/lib/audit-scope.sh"
+audit_scope_initialize "$PROJECT_DIR"
+audit_scope_print
 
 AUDIT_HAS_JS_CHANGE=false
 AUDIT_HAS_PYTHON_CHANGE=false
@@ -590,7 +530,9 @@ If no configuration hints are found, skip this section.
 
 ### 2. Agent Config Checks
 
-Find and check changed agent configuration files (excluding `.safeword/`):
+In a diff audit, find and check changed agent configuration files (excluding
+`.safeword/`) and direct references from them. In a repository audit, check
+every matching configuration file.
 
 **Files to check:**
 
@@ -614,21 +556,14 @@ Changed project learnings in the resolved namespace root's `learnings/*.md` must
 
 ```bash
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
+source "$PROJECT_DIR/.safeword/hooks/lib/audit-scope.sh"
+audit_scope_initialize "$PROJECT_DIR"
 NS_ROOT="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR")"
-LEARNING_AUDIT_BASE=""
-if git -C "$PROJECT_DIR" rev-parse --verify --quiet origin/main^{commit} > /dev/null; then
-  LEARNING_AUDIT_BASE="origin/main"
-elif git -C "$PROJECT_DIR" rev-parse --verify --quiet main^{commit} > /dev/null; then
-  LEARNING_AUDIT_BASE="main"
-fi
 
 learning_is_in_audit_scope() {
-  [ -z "$LEARNING_AUDIT_BASE" ] && return 0
+  [ "$AUDIT_SCOPE_MODE" = "repository" ] && return 0
   learning_path="${1#"$PROJECT_DIR"/}"
-  if ! git -C "$PROJECT_DIR" diff --quiet --diff-filter=ACMR --merge-base "$LEARNING_AUDIT_BASE" -- "$learning_path"; then
-    return 0
-  fi
-  git -C "$PROJECT_DIR" ls-files --others --exclude-standard -- "$learning_path" | grep -qxF "$learning_path"
+  audit_scope_path_changed "$learning_path"
 }
 
 if [ -d "$NS_ROOT/learnings" ]; then
@@ -705,7 +640,7 @@ Test Quality:
 - If `docs.sources` is absent, prompt the user: "Where should audit look for project documentation? I can add local paths, URLs, git repos, or set `docs.sources: []` to keep fallback discovery and stop asking." Wait for the answer before continuing unless the run is explicitly autonomous; in autonomous runs, use fallback discovery and report that no decision was recorded.
 - If the user chooses not to configure documentation sources, write `docs.sources: []` in `.safeword/config.json`. Treat that explicit empty list as a durable no-prompt decision in future audits.
 - If `docs.sources: []` is configured, do not prompt. Fall back to local discovery: `README.md`, `docs/`, `documentation/`, package docs folders, and known docs-site configs.
-- Always report docs coverage: configured vs fallback, sources checked, and sources skipped. In a diff audit, inspect sources directly affected by changed code or changed docs; date-only staleness and a last-20-commits sweep belong to a repository audit.
+- Always report docs coverage: configured vs fallback, sources checked, and sources skipped. In a diff audit, inspect sources directly affected by changed code or changed docs. In a repository audit, inspect the entire configured or fallback source inventory; date-only staleness and a last-20-commits sweep belong there too.
 
 **ARCHITECTURE.md (the architecture narrative):**
 
@@ -750,6 +685,16 @@ below verbatim, as ONE bash invocation.**
 # Class-2: observable facts only. Emits W008 (empty). Never writes the tree.
 cd "${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}" || exit 1
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
+source "$PROJECT_DIR/.safeword/hooks/lib/audit-scope.sh"
+audit_scope_initialize "$PROJECT_DIR"
+
+# A branch audit skips unrelated domain-doc corpus drift. Deleted and
+# type-changed feature/spec/domain files remain in reference review scope, so
+# they still trigger this check for broken-reference review. A repository audit
+# deliberately checks every domain doc and every discovered feature/spec.
+if [ "$AUDIT_SCOPE_MODE" = "diff" ] && ! audit_scope_has_review_path_matching '(^|/)(personas|surfaces|glossary)\.md$|\.feature$|(^|/)spec\.md$'; then
+  exit 0
+fi
 
 # Resolve the namespace root (honors config paths.projectRoot in real runs).
 # Fall back on directory existence — robust when the resolver hook is absent.
@@ -777,9 +722,13 @@ domain_docs_entry_count() {
 }
 
 # --- Emptiness (W008): a domain doc with no uncommented entries ---
+# In a diff audit, report only a changed domain doc. An unchanged empty scaffold
+# is existing debt, not a finding caused by an unrelated feature or spec change.
 for doc in personas surfaces glossary; do
   dd_file="$NS_ROOT/$doc.md"
   [ -f "$dd_file" ] || continue
+  domain_doc_path="${dd_file#"$PROJECT_DIR"/}"
+  [ "$AUDIT_SCOPE_MODE" = "repository" ] || audit_scope_path_changed "$domain_doc_path" || continue
   if [ "$(domain_docs_entry_count)" -eq 0 ]; then
     echo "[W008] Empty domain doc: $doc.md — fill from packages/cli/templates/$doc-template.md (BDD intake references degrade until filled)"
   fi
@@ -801,21 +750,31 @@ feature_directories() {
     return 127
   fi
 }
-if ! FEATURE_DIRECTORIES="$(feature_directories 2> /dev/null)"; then
-  echo "[W009] Feature-directory resolver unavailable; E008 scanned root features/ only"
-  FEATURE_DIRECTORIES="$PROJECT_DIR/features"
-fi
 surfaces_file="$NS_ROOT/surfaces.md"
 dd_file="$surfaces_file"
-if [ -f "$surfaces_file" ] && [ "$(domain_docs_entry_count)" -gt 0 ] && [ -n "$FEATURE_DIRECTORIES" ]; then
+surfaces_path="${surfaces_file#"$PROJECT_DIR"/}"
+if [ "$AUDIT_SCOPE_MODE" = "repository" ] || audit_scope_path_changed "$surfaces_path"; then
+  if ! FEATURE_DIRECTORIES="$(feature_directories 2> /dev/null)"; then
+    echo "[W009] Feature-directory resolver unavailable; E008 scanned root features/ only"
+    FEATURE_DIRECTORIES="$PROJECT_DIR/features"
+  fi
+  SURFACE_FEATURE_FILES="$(printf '%s\n' "$FEATURE_DIRECTORIES" | while IFS= read -r features_directory; do
+    [ -d "$features_directory" ] && find "$features_directory" -type f -name '*.feature' -print
+  done)"
+else
+  SURFACE_FEATURE_FILES="$(audit_scope_files_matching '\.feature$' | while IFS= read -r feature_path; do
+    printf '%s/%s\n' "$PROJECT_DIR" "$feature_path"
+  done)"
+fi
+if [ -f "$surfaces_file" ] && [ "$(domain_docs_entry_count)" -gt 0 ] && [ -n "$SURFACE_FEATURE_FILES" ]; then
   # Defined slugs: slugify each uncommented `## ` heading. Portable casing via
   # `tr` — BSD/macOS sed lacks `\L`.
   defined_slugs="$(sed "$strip_html_comments" "$surfaces_file" | grep -E '^## ' | sed 's/^## //' \
     | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9][^a-z0-9]*/-/g; s/^-//; s/-$//')"
   # Referenced slugs: @surface.<slug> on Gherkin tag lines only (line starts
   # with @), so a slug mentioned in step prose is not a reference.
-  referenced_slugs="$(printf '%s\n' "$FEATURE_DIRECTORIES" | while IFS= read -r features_directory; do
-    [ -d "$features_directory" ] && grep -rhE '^[[:space:]]*@' "$features_directory" 2> /dev/null
+  referenced_slugs="$(printf '%s\n' "$SURFACE_FEATURE_FILES" | while IFS= read -r feature_file; do
+    [ -f "$feature_file" ] && grep -hE '^[[:space:]]*@' "$feature_file" 2> /dev/null
   done | grep -oE '@surface\.[a-z0-9-]+' | sed 's/^@surface\.//' | sort -u)"
   for slug in $referenced_slugs; do
     if ! printf '%s\n' $defined_slugs | grep -qxF "$slug"; then
@@ -830,7 +789,15 @@ fi
 personas_file="$NS_ROOT/personas.md"
 tickets_dir="$NS_ROOT/tickets"
 dd_file="$personas_file"
-if [ -f "$personas_file" ] && [ "$(domain_docs_entry_count)" -gt 0 ] && [ -d "$tickets_dir" ]; then
+personas_path="${personas_file#"$PROJECT_DIR"/}"
+if [ "$AUDIT_SCOPE_MODE" = "repository" ] || audit_scope_path_changed "$personas_path"; then
+  PERSONA_SPEC_FILES="$(find "$tickets_dir" -type f -name spec.md -print 2> /dev/null)"
+else
+  PERSONA_SPEC_FILES="$(audit_scope_files_matching '(^|/)spec\.md$' | while IFS= read -r spec_path; do
+    printf '%s/%s\n' "$PROJECT_DIR" "$spec_path"
+  done)"
+fi
+if [ -f "$personas_file" ] && [ "$(domain_docs_entry_count)" -gt 0 ] && [ -n "$PERSONA_SPEC_FILES" ]; then
   # Defined codes mirror safeword's resolver, including canonical derivation,
   # collision allocation, and historical aliases. A simpler initials-only
   # derivation would falsely flag existing TB/SM lineage after those personas
@@ -942,8 +909,8 @@ for (const persona of resolved) if (!persona.codeError) console.log(persona.code
 for (const alias of aliases) console.log(alias);
 ')"
   # Referenced codes: (CODE) from spec **Persona:** lines, comments stripped.
-  referenced_codes="$(for spec in "$tickets_dir"/*/spec.md; do
-    [ -f "$spec" ] && sed "$strip_html_comments" "$spec"
+  referenced_codes="$(printf '%s\n' "$PERSONA_SPEC_FILES" | while IFS= read -r spec_file; do
+    [ -f "$spec_file" ] && sed "$strip_html_comments" "$spec_file"
   done 2> /dev/null | grep -E '^\*\*Persona:\*\*' | grep -oE '\([A-Z][A-Z0-9]{1,5}\)' | tr -d '()' | sort -u)"
   for code in $referenced_codes; do
     if ! printf '%s\n' $defined_codes | grep -qxF "$code"; then
