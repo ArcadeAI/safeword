@@ -69,6 +69,14 @@ Feature: Artifact-content phase anchors — a phase advance is evidenced by the 
       Given a project whose ticket recorded a path anchor in a commit that was then amended
       When the boundary command runs at the push boundary
       Then it exits zero with no anchor warning
+      And the audit entry records a passing phase-anchor verdict
+
+    @artifact-content-phase-anchors.SM1.R2
+    Scenario: A rebased commit does not disturb a recorded anchor
+      Given a project whose ticket recorded a path anchor in a commit that was then rebased
+      When the boundary command runs at the push boundary
+      Then it exits zero with no anchor warning
+      And the audit entry records a passing phase-anchor verdict
 
     @artifact-content-phase-anchors.SM1.R2
     Scenario: A shallow clone's anchor check passes with no unreachable-history hedging

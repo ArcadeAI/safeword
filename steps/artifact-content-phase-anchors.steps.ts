@@ -577,6 +577,30 @@ Given(
 );
 
 Given(
+  'a project whose ticket recorded a path anchor in a commit that was then rebased',
+  function (this: AnchorWorld) {
+    const dir = createProject(this);
+    writeFileAt(dir, `${TICKET_DIR}/ticket.md`, ticketContent('feature', 'scenario-gate'));
+    addPushedBaseline(this);
+    const branch = git(dir, 'branch --show-current').trim();
+    writeFileAt(dir, IMPL_PLAN, SHAPE_VALID_IMPL_PLAN);
+    writeFileAt(
+      dir,
+      `${TICKET_DIR}/ticket.md`,
+      ticketContent('feature', 'implement', [`implement: ${IMPL_PLAN}`]),
+    );
+    git(dir, 'add -A');
+    git(dir, 'commit -m advance --quiet');
+    git(dir, 'checkout --quiet -b rewritten-base @{u}');
+    writeFileAt(dir, 'README.md', '# rewritten base\n');
+    git(dir, 'add README.md');
+    git(dir, 'commit -m upstream-base --quiet');
+    git(dir, `checkout --quiet ${branch}`);
+    git(dir, 'rebase rewritten-base --quiet');
+  },
+);
+
+Given(
   'a shallow single-depth clone of a project with an anchored feature ticket in the outgoing range',
   function (this: AnchorWorld) {
     const dir = createProject(this);

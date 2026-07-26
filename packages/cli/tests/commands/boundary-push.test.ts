@@ -148,6 +148,26 @@ describe('safeword boundary (push tier: artifact-content anchors)', () => {
 
     expect(result.exitCode).toBe(0);
     expect(combinedOutput(result)).not.toMatch(/phase-anchor|unreachable|not reachable/i);
+    expect(lastAuditEntry(dir)).toMatch(/phase-anchor.*pass|pass.*phase-anchor/);
+  });
+
+  it('a rebased commit does not disturb a recorded anchor (SM1.R2)', async () => {
+    const branch = git(dir, 'branch --show-current').trim();
+    commitAnchoredAdvance();
+    const beforeRebase = git(dir, 'rev-parse HEAD').trim();
+    git(dir, 'checkout --quiet -b rewritten-base @{u}');
+    writeTestFile(dir, 'README.md', '# rewritten base\n');
+    git(dir, 'add README.md');
+    git(dir, 'commit -m upstream-base --quiet');
+    git(dir, `checkout --quiet ${branch}`);
+    git(dir, 'rebase rewritten-base --quiet');
+    expect(git(dir, 'rev-parse HEAD').trim()).not.toBe(beforeRebase);
+
+    const result = await runCli(['boundary', '--at', 'push'], { cwd: dir });
+
+    expect(result.exitCode).toBe(0);
+    expect(combinedOutput(result)).not.toMatch(/phase-anchor|unreachable|not reachable/i);
+    expect(lastAuditEntry(dir)).toMatch(/phase-anchor.*pass|pass.*phase-anchor/);
   });
 
   it('a squash-merged history still verifies at the next boundary (SM1.R2/R4)', async () => {

@@ -91,6 +91,120 @@ describe('safeword boundary (slice 1: engine core)', () => {
       expect(result.exitCode).toBe(0);
       expect(`${result.stdout}\n${result.stderr}`).toMatch(/missing/i);
     });
+
+    it("warns when a ticket reuses another ticket's same-kind artifact", async () => {
+      const ticket = '.project/tickets/BND010-owner';
+      const foreignTicket = '.project/tickets/BND011-foreign';
+      writeTestFile(
+        dir,
+        `${ticket}/ticket.md`,
+        boundaryTicketContent({ id: 'BND010', phase: 'scenario-gate' }),
+      );
+      writeTestFile(dir, `${foreignTicket}/impl-plan.md`, '# foreign plan\n');
+      git(dir, 'add -A');
+      git(dir, 'commit -m seed --quiet');
+      writeTestFile(
+        dir,
+        `${foreignTicket}/impl-plan.md`,
+        [
+          '# Impl Plan: foreign',
+          '',
+          '**Status:** planned',
+          '',
+          '## Approach',
+          '',
+          'Foreign evidence.',
+          '',
+          '## Decisions',
+          '',
+          'skip: fixture',
+          '',
+          '## Arch alignment',
+          '',
+          'skip: fixture',
+          '',
+          '## Known deviations',
+          '',
+          'skip: fixture',
+          '',
+          '## Assessment triggers',
+          '',
+          'skip: fixture',
+          '',
+        ].join('\n'),
+      );
+      writeTestFile(
+        dir,
+        `${ticket}/ticket.md`,
+        boundaryTicketContent({
+          id: 'BND010',
+          phase: 'implement',
+          anchors: [`implement: ${foreignTicket}/impl-plan.md`],
+        }),
+      );
+      git(dir, 'add -A');
+
+      const result = await runCli(['boundary', '--at', 'commit'], { cwd: dir });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toMatch(/ticket.*artifact|artifact.*ticket/i);
+    });
+
+    it('warns when an index-stage prefix aliases an existing staged artifact', async () => {
+      const ticket = '.project/tickets/BND012-stage-alias';
+      writeTestFile(
+        dir,
+        `${ticket}/ticket.md`,
+        boundaryTicketContent({ id: 'BND012', phase: 'scenario-gate' }),
+      );
+      git(dir, 'add -A');
+      git(dir, 'commit -m seed --quiet');
+      writeTestFile(
+        dir,
+        `${ticket}/impl-plan.md`,
+        [
+          '# Impl Plan: owner',
+          '',
+          '**Status:** planned',
+          '',
+          '## Approach',
+          '',
+          'Real evidence.',
+          '',
+          '## Decisions',
+          '',
+          'skip: fixture',
+          '',
+          '## Arch alignment',
+          '',
+          'skip: fixture',
+          '',
+          '## Known deviations',
+          '',
+          'skip: fixture',
+          '',
+          '## Assessment triggers',
+          '',
+          'skip: fixture',
+          '',
+        ].join('\n'),
+      );
+      writeTestFile(
+        dir,
+        `${ticket}/ticket.md`,
+        boundaryTicketContent({
+          id: 'BND012',
+          phase: 'implement',
+          anchors: [`implement: 0:${ticket}/impl-plan.md`],
+        }),
+      );
+      git(dir, 'add -A');
+
+      const result = await runCli(['boundary', '--at', 'commit'], { cwd: dir });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toMatch(/repo-relative/i);
+    });
   });
 
   describe('CDRJTW.TB1.AC1: silence for changes touching no ticket artifacts', () => {

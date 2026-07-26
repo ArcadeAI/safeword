@@ -12,10 +12,10 @@ green.
 
 Deliberate coverage notes (from the independent scenario review, applied
 2026-07-08): per-kind shape partitions for spec.md / feature source / ledger /
-verify.md are unit-lane only (dimensions.md test-layers note); the post-rebase
-history partition is subsumed by the squash scenario (a strictly harsher
-rewrite); done-gate ledger isolation is carried by the existing regression
-suites.
+verify.md are unit-lane only (dimensions.md test-layers note); done-gate ledger
+isolation is carried by the existing regression suites. The 2026-07-25 quality
+review added explicit rebase coverage and adversarial ticket/path binding
+partitions after real CLI probes found two anchor-substitution gaps.
 
 ## Rule: A forward advance anchors the entered phase to the exited phase's artifact
 
@@ -68,6 +68,12 @@ suites.
 - [x] RED 73b9759
 - [x] GREEN ea8bcf6
 - [x] REFACTOR 5bd56ea
+
+### Scenario: A rebased commit does not disturb a recorded anchor
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ### Scenario: A shallow clone's anchor check passes with no unreachable-history hedging
 
@@ -124,6 +130,18 @@ suites.
 - [x] RED e90eb07
 - [x] GREEN 73b9759
 - [x] REFACTOR 5bd56ea
+
+### Scenario: A ticket cannot reuse another ticket's same-kind artifact
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A Git index-stage prefix cannot alias a different artifact path
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ### Scenario: A backward phase move is not flagged
 

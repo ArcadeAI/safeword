@@ -329,6 +329,29 @@ describe('detectUnanchoredPhaseTransition — no real artifact behind the advanc
     if (verdict.kind === 'unanchored') expect(verdict.reason).toMatch(/shape/i);
   });
 
+  it('a Git index-stage prefix cannot alias a different artifact path', () => {
+    const stagedAlias = `0:${IMPL_PLAN_PATH}`;
+    const verdict = detectUnanchoredPhaseTransition(
+      ticket({ type: 'feature', phase: 'scenario-gate' }),
+      ticket({ type: 'feature', phase: 'implement', anchors: [`implement: ${stagedAlias}`] }),
+      readerFor({ [stagedAlias]: SHAPE_VALID_IMPL_PLAN }),
+    );
+    expect(verdict.kind).toBe('unanchored');
+    if (verdict.kind === 'unanchored') expect(verdict.reason).toMatch(/repo-relative/i);
+  });
+
+  it("a ticket cannot reuse another ticket's same-kind artifact", () => {
+    const foreignPlan = '.project/tickets/OTHER-fixture/impl-plan.md';
+    const verdict = detectUnanchoredPhaseTransition(
+      ticket({ type: 'feature', phase: 'scenario-gate' }),
+      ticket({ type: 'feature', phase: 'implement', anchors: [`implement: ${foreignPlan}`] }),
+      readerFor({ [foreignPlan]: SHAPE_VALID_IMPL_PLAN }),
+      TICKET_DIR,
+    );
+    expect(verdict.kind).toBe('unanchored');
+    if (verdict.kind === 'unanchored') expect(verdict.reason).toMatch(/ticket/i);
+  });
+
   it('a path absent from the tree is unanchored, saying it is missing', () => {
     const verdict = detectUnanchoredPhaseTransition(
       ticket({ type: 'feature', phase: 'scenario-gate' }),
