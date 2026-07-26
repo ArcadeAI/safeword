@@ -25,6 +25,7 @@ import {
   createBoundaryProject,
   git,
   readAudit,
+  shapeValidImplPlan,
 } from './boundary-helpers';
 
 function writeIntakeFeatureTicket(dir: string, folder: string): void {
@@ -103,36 +104,7 @@ describe('safeword boundary (slice 1: engine core)', () => {
       writeTestFile(dir, `${foreignTicket}/impl-plan.md`, '# foreign plan\n');
       git(dir, 'add -A');
       git(dir, 'commit -m seed --quiet');
-      writeTestFile(
-        dir,
-        `${foreignTicket}/impl-plan.md`,
-        [
-          '# Impl Plan: foreign',
-          '',
-          '**Status:** planned',
-          '',
-          '## Approach',
-          '',
-          'Foreign evidence.',
-          '',
-          '## Decisions',
-          '',
-          'skip: fixture',
-          '',
-          '## Arch alignment',
-          '',
-          'skip: fixture',
-          '',
-          '## Known deviations',
-          '',
-          'skip: fixture',
-          '',
-          '## Assessment triggers',
-          '',
-          'skip: fixture',
-          '',
-        ].join('\n'),
-      );
+      writeTestFile(dir, `${foreignTicket}/impl-plan.md`, shapeValidImplPlan());
       writeTestFile(
         dir,
         `${ticket}/ticket.md`,
@@ -159,36 +131,7 @@ describe('safeword boundary (slice 1: engine core)', () => {
       );
       git(dir, 'add -A');
       git(dir, 'commit -m seed --quiet');
-      writeTestFile(
-        dir,
-        `${ticket}/impl-plan.md`,
-        [
-          '# Impl Plan: owner',
-          '',
-          '**Status:** planned',
-          '',
-          '## Approach',
-          '',
-          'Real evidence.',
-          '',
-          '## Decisions',
-          '',
-          'skip: fixture',
-          '',
-          '## Arch alignment',
-          '',
-          'skip: fixture',
-          '',
-          '## Known deviations',
-          '',
-          'skip: fixture',
-          '',
-          '## Assessment triggers',
-          '',
-          'skip: fixture',
-          '',
-        ].join('\n'),
-      );
+      writeTestFile(dir, `${ticket}/impl-plan.md`, shapeValidImplPlan());
       writeTestFile(
         dir,
         `${ticket}/ticket.md`,
