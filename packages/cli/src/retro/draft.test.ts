@@ -28,8 +28,8 @@ describe('buildDraft', () => {
 
   it('retro-recall.SM2.AC1.body_embeds_the_searchable_signature_marker', () => {
     const draft = buildDraft(finding);
-    // The signature must appear verbatim in the body so searchBySignature (in:body
-    // + exact-filter) can dedupe re-fires on it rather than the variable title.
+    // The signature must appear verbatim in the body so searchBySignature can
+    // dedupe re-fires on it rather than on the variable title.
     expect(draft.body).toContain(draft.signature);
   });
 
