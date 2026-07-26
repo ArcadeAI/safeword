@@ -445,6 +445,14 @@ export type PhaseAnchorVerdict =
   | { kind: 'anchored' }
   | { kind: 'unanchored'; phase: string; reason: string };
 
+/** Canonical artifact ownership for the ticket being checked. */
+export interface PhaseAnchorScope {
+  /** Repo-relative ticket folder, using Git's forward-slashed path grammar. */
+  ticketPath: string;
+  /** Exact canonical feature source, when the ticket has one. */
+  featurePath?: string;
+}
+
 const NOT_APPLICABLE: PhaseAnchorVerdict = { kind: 'not-applicable' };
 
 /**
@@ -466,7 +474,7 @@ export function detectUnanchoredPhaseTransition(
   priorContent: string | undefined,
   proposedContent: string,
   readArtifact?: ArtifactReader,
-  expectedTicketPath?: string,
+  scope?: PhaseAnchorScope,
 ): PhaseAnchorVerdict {
   // A creation is a birth, not a transition.
   if (priorContent === undefined) return NOT_APPLICABLE;
@@ -492,7 +500,7 @@ export function detectUnanchoredPhaseTransition(
   if (toIndex <= canonicalIndex(effectivePrior)) return NOT_APPLICABLE; // backward or lateral
 
   // Policed: a forward feature advance must carry a valid anchor for the phase entered.
-  return validateAnchor(proposed, proposedPhase, readArtifact, expectedTicketPath);
+  return validateAnchor(proposed, proposedPhase, readArtifact, scope);
 }
 
 /**
@@ -506,7 +514,7 @@ function validateAnchor(
   meta: Record<string, string | string[]>,
   phase: string,
   readArtifact?: ArtifactReader,
-  expectedTicketPath?: string,
+  scope?: PhaseAnchorScope,
 ): PhaseAnchorVerdict {
   const kind = (ANCHOR_KINDS as Record<string, AnchorKind | undefined>)[phase];
   if (kind === undefined) return NOT_APPLICABLE; // intake/off-enum — nothing enterable to anchor
@@ -538,14 +546,15 @@ function validateAnchor(
       `phase_anchors entry for "${phase}" is "${anchor}", not the expected artifact kind — "${phase}" expects ${kind.label}, e.g. ${expectedLine}.`,
     );
   }
-  // Feature sources are repository-level artifacts. Every other accepted kind
-  // is ticket-local and must be the changed ticket's own output, not a
-  // same-basename artifact borrowed from another ticket.
-  if (
-    expectedTicketPath !== undefined &&
-    !isFeatureSource(anchor) &&
-    dirnameOf(anchor) !== expectedTicketPath
-  ) {
+  // A feature source must be this ticket's canonical source. Every other
+  // accepted kind is ticket-local and must be this ticket's own output, not a
+  // same-kind artifact borrowed from elsewhere.
+  const isOwnedArtifact =
+    scope === undefined ||
+    (isFeatureSource(anchor)
+      ? anchor === scope.featurePath
+      : dirnameOf(anchor) === scope.ticketPath);
+  if (!isOwnedArtifact) {
     return unanchored(
       `phase_anchors entry for "${phase}" is "${anchor}", an artifact outside this ticket — record this ticket's own artifact, e.g. ${expectedLine}.`,
     );
@@ -580,7 +589,7 @@ function validateAnchor(
 export function detectUnanchoredPhaseState(
   content: string,
   readArtifact?: ArtifactReader,
-  expectedTicketPath?: string,
+  scope?: PhaseAnchorScope,
 ): PhaseAnchorVerdict {
   const meta = frontmatterOf(normalizeNewlines(content));
   if (meta === undefined) return NOT_APPLICABLE;
@@ -594,5 +603,5 @@ export function detectUnanchoredPhaseState(
   const anchor = parseAnchors(meta).get(phase);
   if (anchor !== undefined && isValidSha(anchor)) return NOT_APPLICABLE;
 
-  return validateAnchor(meta, phase, readArtifact, expectedTicketPath);
+  return validateAnchor(meta, phase, readArtifact, scope);
 }

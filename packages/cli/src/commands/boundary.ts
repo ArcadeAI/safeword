@@ -25,8 +25,10 @@ import {
   type TicketChange,
 } from '../boundary/engine.js';
 import { resolveTicketsDirectory } from '../utils/configured-paths.js';
+import { findRepoFeatureSourcePath } from '../utils/feature-source.js';
 import { readFileSafe } from '../utils/fs.js';
 import { warn } from '../utils/output.js';
+import { toRepoRelativePath } from '../utils/repo-path.js';
 
 export interface BoundaryOptions {
   at: string;
@@ -130,7 +132,7 @@ function parseTicketPath(
 
 /** Map changed paths to per-ticket changes with prior/proposed + at-rest context. */
 function collectChanges(cwd: string, range: BoundaryRange, at: Boundary): TicketChange[] {
-  const ticketsDirectory = nodePath.relative(cwd, resolveTicketsDirectory(cwd));
+  const ticketsDirectory = toRepoRelativePath(cwd, resolveTicketsDirectory(cwd));
   const prefix = `${ticketsDirectory}/`;
   const byTicket = new Map<string, TicketChange>();
 
@@ -140,6 +142,7 @@ function collectChanges(cwd: string, range: BoundaryRange, at: Boundary): Ticket
     const change = byTicket.get(parsed.ticketFolder) ?? {
       ticketFolder: parsed.ticketFolder,
       ticketPath: `${ticketsDirectory}/${parsed.ticketFolder}`,
+      featurePath: findRepoFeatureSourcePath(cwd, parsed.ticketFolder),
       artifacts: [],
       hasLedger: false,
     };

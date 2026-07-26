@@ -30,12 +30,17 @@ import {
   resolveTicketsDirectory,
 } from './utils/configured-paths.js';
 import { createProjectContext } from './utils/context.js';
-import { findFeatureSourcePath, hasDefaultExecutableFeatureFiles } from './utils/feature-source.js';
+import {
+  findFeatureSourcePath,
+  findRepoFeatureSourcePath,
+  hasDefaultExecutableFeatureFiles,
+} from './utils/feature-source.js';
 import { exists, isDirectory, readFileSafe, readJson } from './utils/fs.js';
 import { FeatureParseError, findFeatureLineageIssues } from './utils/gherkin-feature.js';
 import { parseGlossary, validateGlossary } from './utils/glossary.js';
 import { header, info, listItem, success, warn } from './utils/output.js';
 import { parsePersonas, validatePersonas } from './utils/personas.js';
+import { toRepoRelativePath } from './utils/repo-path.js';
 import {
   buildCoverageReport,
   buildCoverageReportFromFeature,
@@ -354,7 +359,10 @@ function phaseAnchorAdvisoryForTicket(
   const verdict = detectUnanchoredPhaseState(
     content,
     relpath => readFileSafe(nodePath.join(cwd, relpath)),
-    nodePath.relative(cwd, nodePath.join(ticketsRoot, ticketId)),
+    {
+      ticketPath: toRepoRelativePath(cwd, nodePath.join(ticketsRoot, ticketId)),
+      featurePath: findRepoFeatureSourcePath(cwd, ticketId),
+    },
   );
   if (verdict.kind !== 'unanchored') return undefined;
   return `${formatCoverageTicketLabel(ticketId)}: ${verdict.reason} The anchor is the exited phase's artifact — boundary checks verify it against the tree.`;

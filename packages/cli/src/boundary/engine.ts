@@ -17,6 +17,7 @@ import {
   detectUnanchoredPhaseTransition,
   evaluateTicketWrite,
   frontmatterOf as parseTicketFrontmatter,
+  type PhaseAnchorScope,
   scalar,
 } from '../../templates/hooks/lib/phase-provenance.js';
 
@@ -51,7 +52,9 @@ export interface TicketChange {
   /** Ticket folder name, e.g. `BND001-clean`. */
   ticketFolder: string;
   /** Repo-relative path of this ticket's folder, for ticket-local anchors. */
-  ticketPath?: string;
+  ticketPath: string;
+  /** Exact canonical feature source path, when this ticket has one. */
+  featurePath?: string;
   artifacts: ChangedArtifact[];
   /** ticket.md as it stands after the change (staged version, else on-disk). */
   ticketCurrent?: string;
@@ -151,14 +154,14 @@ function legalityVerdict(
 function phaseAnchorVerdict(
   ticketFile: ChangedArtifact,
   readArtifact?: ArtifactReader,
-  expectedTicketPath?: string,
+  scope?: PhaseAnchorScope,
 ): CheckVerdict {
   try {
     const anchor = detectUnanchoredPhaseTransition(
       ticketFile.prior,
       ticketFile.proposed ?? '',
       readArtifact,
-      expectedTicketPath,
+      scope,
     );
     return anchor.kind === 'unanchored'
       ? warnVerdict('phase-anchor', anchor.reason)
@@ -175,7 +178,7 @@ function phaseAnchorVerdict(
 function ticketFileChecks(
   ticketFile: ChangedArtifact,
   readArtifact?: ArtifactReader,
-  expectedTicketPath?: string,
+  scope?: PhaseAnchorScope,
   legalitySteps?: LegalityStep[],
 ): CheckVerdict[] {
   if (ticketFile.proposed === undefined) return [];
@@ -192,7 +195,7 @@ function ticketFileChecks(
 
   checks.push(
     legalityVerdict(ticketFile, legalitySteps),
-    phaseAnchorVerdict(ticketFile, readArtifact, expectedTicketPath),
+    phaseAnchorVerdict(ticketFile, readArtifact, scope),
   );
 
   return checks;
@@ -308,10 +311,9 @@ function reconcileTicket(
   readArtifact?: ArtifactReader,
 ): CheckVerdict[] {
   const ticketFile = change.artifacts.find(a => a.artifact === 'ticket.md');
+  const scope = { ticketPath: change.ticketPath, featurePath: change.featurePath };
   return [
-    ...(ticketFile
-      ? ticketFileChecks(ticketFile, readArtifact, change.ticketPath, change.legalitySteps)
-      : []),
+    ...(ticketFile ? ticketFileChecks(ticketFile, readArtifact, scope, change.legalitySteps) : []),
     ...atRestBirthCheck(change),
     ...ledgerChecks(change, resolveSha),
     ...artifactShapeChecks(change),

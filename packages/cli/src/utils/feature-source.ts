@@ -2,6 +2,7 @@ import { existsSync, readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { resolveConfiguredLaneDirectory } from './configured-paths.js';
+import { toRepoRelativePath } from './repo-path.js';
 import { WORKSPACE_ROOTS } from './workspaces.js';
 
 /** Ticket folder `ID-slug` -> `slug`; legacy `ID` -> `ID`. */
@@ -18,6 +19,12 @@ function slugFromTicketFolder(ticketFolder: string): string {
 export function findFeatureSourcePath(cwd: string, ticketFolder: string): string | undefined {
   const fileName = `${slugFromTicketFolder(ticketFolder)}.feature`;
   return collectExecutableFeatureFiles(cwd, fileName)[0];
+}
+
+/** Find a ticket's canonical feature source in Git's repo-relative path grammar. */
+export function findRepoFeatureSourcePath(cwd: string, ticketFolder: string): string | undefined {
+  const absolutePath = findFeatureSourcePath(cwd, ticketFolder);
+  return absolutePath === undefined ? undefined : toRepoRelativePath(cwd, absolutePath);
 }
 
 export function collectExecutableFeatureFiles(cwd: string, fileName?: string): string[] {

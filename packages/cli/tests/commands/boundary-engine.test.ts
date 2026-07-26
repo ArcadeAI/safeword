@@ -19,6 +19,7 @@ function ticketContent(phase: string, anchors?: string[]): string {
 function advanceChange(anchors: string[] | undefined): TicketChange {
   return {
     ticketFolder: 'ENG001-fixture',
+    ticketPath: '.project/tickets/ENG001-fixture',
     artifacts: [
       {
         artifact: 'ticket.md',
@@ -65,6 +66,7 @@ describe('boundary engine — reader/resolver failure degrades to indeterminate'
     ].join('\n');
     const change: TicketChange = {
       ticketFolder: 'ENG002-fixture',
+      ticketPath: '.project/tickets/ENG002-fixture',
       artifacts: [{ artifact: 'test-definitions.md', proposed: ledger }],
       ticketCurrent: ticketContent('implement', [`implement: ${IMPL_PLAN}`]),
       hasLedger: true,

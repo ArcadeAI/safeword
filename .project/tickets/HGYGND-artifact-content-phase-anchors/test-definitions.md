@@ -139,7 +139,7 @@ partitions after real CLI probes found two anchor-substitution gaps.
 
 ### Scenario: A ticket cannot reuse another ticket's feature source
 
-- [ ] RED
+- [x] RED b612e91
 - [ ] GREEN
 - [ ] REFACTOR
 
@@ -151,7 +151,7 @@ partitions after real CLI probes found two anchor-substitution gaps.
 
 ### Scenario: OS-native ticket paths are normalized to the anchor grammar
 
-- [ ] RED
+- [x] RED b612e91
 - [ ] GREEN
 - [ ] REFACTOR
 
