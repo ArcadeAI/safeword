@@ -93,29 +93,56 @@ silently corrupting the map.
 
 ## Contract & design decisions (resolved from the cold-start check)
 
-The cold-start check confirmed the mechanism is ready to reuse — `planTicketSync` (`tracker-map.ts`)
-and `buildPayload` (`payload.ts`) already compute the create/update/close decision offline, and
-`TrackerMap.record()` already stores `{ provider, id, url }` keyed per ticket — and flagged that the
-**JSON contract** and its edge semantics were undefined. Pinned here (the schema is the one-way door):
+The cold-start check confirmed the mechanism is largely ready to reuse — `planTicketSync`
+(`tracker-map.ts`) decides **create / update / reconcile** offline, `buildPayload` (`payload.ts`)
+derives the `state` (`closed` on a terminal status), and `TrackerMap.record()` stores
+`{ provider, id, url }` keyed per ticket. The independent plan review then corrected two reuse
+misreadings (see the fold + edge notes below): **close is not a `planTicketSync` kind** (it is
+derived from payload state), and `buildGraphProjection` is the **executor-side** resolver (it maps
+only *already-recorded* prerequisites to issue numbers), so it cannot compute plan-side edges.
+Pinned here (the schema is the one-way door):
 
 ### The JSON contract (versioned from day one)
 
 - `sync-tracker --plan` writes a **SyncPlan** to **stdout** (Unix-composable; pipe to a file or an
   executor): `{ "version": 1, "intents": Intent[] }`.
-- `Intent` is discriminated on `kind`:
-  - `create` → `{ kind, ticketId, payload: { title, body, labels, state } }`
+- `Intent` is discriminated on `kind` (every `ref.number` is a **string**, like results):
+  - `create` → `{ kind, ticketId, payload: { title, body, labels, state } }` — `payload.state` may be
+    `open` or `closed` (a terminal never-synced ticket is a create whose payload is `closed`).
   - `update` → `{ kind, ticketId, ref: { provider, number, url }, payload }`
-  - `close` → `{ kind, ticketId, ref: { provider, number, url }, stateReason? }`
-  - a `create`/`update` intent carries `graph?: { parentTicketId?, blockedByTicketIds? }` — edges
+  - `close` → `{ kind, ticketId, ref: { provider, number, url }, payload, stateReason? }` — carries
+    the **full payload** (title, body, labels, `state: closed`), NOT just the ref. The `gh` path has
+    no field-less close: for a recorded ticket it always `update(ref, payload)`s the fields and
+    `projectGraph`s in the same pass (`index.ts:220,232`), so a close that dropped payload/graph
+    would leave title/labels/edges stale versus the `gh` path — the exact divergence this feature
+    avoids. `stateReason` (`completed`/`not_planned`) is an optional richer-than-gh nicety.
+  - a `create`/`update`/`close` intent carries `graph?: { parentTicketId?, blockedByTicketIds? }` — edges
     are expressed by **ticket id**, not issue number, because a new issue's number isn't known
     until it's created. The executor resolves ticket id → number after creates land (create-then-
     link, a second pass — mirroring today's `gh` `projectGraph`-after-create). Linking is execution
     work only: it mints no identity, so `--apply-results` records nothing for edges.
+- **The kind fold** (`computePlan` layers close + reconcile on top of `planTicketSync`):
+  - `planTicketSync = create` → `create` intent (payload state open or closed).
+  - `planTicketSync = update` + payload `state: open` → `update` intent.
+  - `planTicketSync = update` + payload `state: closed` → `close` intent.
+  - `planTicketSync = reconcile` (a `pending` map entry, only ever written by the `gh` path
+    mid-create) → `update` intent carrying the existing ref (the issue was captured; an update
+    reconciles it, and fails loud if it does not exist). `--apply-results` never writes `pending`,
+    so it never produces this state itself.
+- **Edges are computed plan-side by corpus membership**, not via `buildGraphProjection`: resolve
+  `parent`/`epic` and `dependsOn`/`blockedOn` through `aliasMap` + `resolveTicketReference`
+  (`index.ts`), keep only ids present in the corpus (a dangling edge is dropped), and emit them as
+  ticket ids. `buildGraphProjection` stays on the `gh` path untouched.
 - The executor produces a separate **SyncResults**: `{ "version": 1, "results": [{ ticketId,
-  number, url, status }] }`.
+  number, url, status }] }`. **`number` is a string** (e.g. `"549"`) — `TrackerReference.id` is a
+  string (`types.ts`), and the `gh` path records `"549"`, so results MUST carry `number` as a string
+  and `--apply-results` stores it verbatim, or the map entry would differ from the `gh` path's and
+  break both idempotency and byte-for-byte parity.
 - `sync-tracker --apply-results <file>` reads SyncResults from a path and folds each **create**
   result into the map via `record()` as `recorded` (no `pending` — the network already happened in
-  the executor), storing `ref = { provider, id: number, url }`.
+  the executor), storing `ref = { provider, id: number, url }`. A create result is **rejected**
+  (map untouched) when it is missing `number` **or** missing `url`, or when the `url` tail ≠
+  `number` — `url` is required so the internal-id cross-check can never be silently skipped.
 
 ### Decisions
 
@@ -127,8 +154,16 @@ and `buildPayload` (`payload.ts`) already compute the create/update/close decisi
   internal id `4764539863` — it's also numeric. So results carry both `number` and `url`, and
   `--apply-results` **rejects a result whose `url` path tail ≠ `number`**. The issue url is
   `.../issues/549`, so a mistaken internal id fails the tail check structurally.
-- **Malformed** = invalid JSON / missing `ticketId`|`number` / `ticketId` not in the corpus /
-  `url` tail ≠ `number` → rejected with an actionable error, the map left untouched.
+  - **`number` is authoritative** — GitHub's REST best practice is to read the `number` field, not
+    parse the html_url (verified 2026-07-24: docs.github.com/en/rest/issues/issues; the response
+    carries `id` = global id and `number` = repo issue number, and warns URL structure may change).
+    So the executor MUST populate `number` from the API's `number` field; the `url`-tail check is a
+    **fail-loud consistency cross-check**, not a way to derive identity. It is structure-dependent
+    by design: a future GitHub URL change would fail every result *loudly* (never silent map
+    corruption), which is the acceptable failure mode.
+- **Malformed** = invalid JSON / unsupported contract `version` / a create result missing
+  `ticketId`|`number`|`url` / `ticketId` not in the corpus / `url` tail ≠ `number` → rejected with an
+  actionable error, the map left untouched.
 - **Results scope:** required for `create` intents (they mint identity); `update`/`close` act on a
   ref already in the map, so their results are acks (optional) and fold to no map change.
 - **Versioning:** the contract `version` is independent of the sidecar `SIDECAR_VERSION`

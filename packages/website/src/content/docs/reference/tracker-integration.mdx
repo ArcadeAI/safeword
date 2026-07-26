@@ -84,6 +84,29 @@ resolves — it never silently exits 0 and does nothing, so a misconfigured CI j
 of quietly drifting. In a non-interactive run authenticated by an `ARCADE_USER_ID` (a user
 identity, not a service account), it also warns that a lapsed grant would otherwise fail silently.
 
+### Portable transport (`--plan` / `--apply-results`)
+
+Plain `sync-tracker` reaches GitHub through the `gh` CLI. Where `gh` isn't installed — an agent
+session, a token-only runner — you can drive the sync in two offline steps and let **whatever has
+GitHub access** do the actual calls:
+
+```bash
+# 1. Compute the plan (no network, no credential) — JSON on stdout.
+safeword sync-tracker --plan > plan.json
+
+# 2. Your executor (an agent via its GitHub tools, a token+API script, …) reads plan.json,
+#    creates/updates/closes the issues, and writes back a results file:
+#    { "version": 1, "results": [{ "ticketId": "…", "number": "549", "url": "…/549" }] }
+
+# 3. Fold the results back into the local tracker-map (also offline).
+safeword sync-tracker --apply-results results.json
+```
+
+`--plan` writes only the plan JSON to stdout (safe to pipe); `--apply-results` records each created
+issue's number and back-link, and is idempotent — re-applying the same file changes nothing. The two
+flags are mutually exclusive, and a malformed results file is rejected without touching the map.
+Running `sync-tracker` with neither flag is the usual `gh` path, unchanged.
+
 ## Egress
 
 The projected issue body defaults to **minimal** (title, status, labels, back-link to the
