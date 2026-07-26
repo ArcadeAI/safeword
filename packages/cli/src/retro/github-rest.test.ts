@@ -73,14 +73,22 @@ describe('createRestTransport', () => {
     const [url = ''] = calls;
     expect(url).not.toContain('/search/');
     expect(url).toBe(
-      'https://api.github.com/repos/ArcadeAI/safeword/issues?state=open&per_page=100&page=1',
+      'https://api.github.com/repos/ArcadeAI/safeword/issues' +
+        '?state=open&sort=created&direction=asc&per_page=100&page=1',
     );
   });
 
   it('C2: rejects a fuzzy near-miss whose body lacks the exact signature', async () => {
     mockFetch(() => ({
       json: () => [
-        { number: 1, title: 'near miss', body: 'has retro:zzzzzzzzzzzz only' },
+        // A hash the requested one is a strict PREFIX of. Only matching the full
+        // marker — terminator included — rejects this; a bare-hash substring
+        // check would accept it and dedupe against the wrong issue.
+        {
+          number: 1,
+          title: 'near miss',
+          body: '<!-- safeword-retro-signature: retro:abc123def4567 -->',
+        },
         {
           number: 2,
           title: 'exact',
@@ -207,7 +215,52 @@ describe('createRestTransport', () => {
     if (!transport) throw new Error('expected a transport');
 
     await expect(transport.searchBySignature('retro:abc123def456')).rejects.toThrow(/truncated/);
-    expect(calls).toHaveLength(30);
+    // 30 bound pages + the probe page, which was also full → a genuine tail.
+    expect(calls).toHaveLength(31);
+  });
+
+  // The boundary the bound alone cannot distinguish: at exactly 30 full pages the
+  // enumeration is COMPLETE, and throwing there would halt every session's filing
+  // over a tail that does not exist.
+  it('#1453: completes rather than throwing at exactly the page bound', async () => {
+    const fullPage = Array.from({ length: 100 }, (_, i) => ({
+      number: i,
+      title: `t${i}`,
+      body: 'no marker',
+    }));
+    const calls = mockFetch(url => ({
+      json: () => (url.endsWith('page=31') ? [] : fullPage),
+    }));
+    const transport = createRestTransport('tok');
+    if (!transport) throw new Error('expected a transport');
+
+    await expect(transport.searchBySignature('retro:abc123def456')).resolves.toEqual([]);
+    expect(calls).toHaveLength(31);
+  });
+
+  // The enumeration is a snapshot from before the first create, and
+  // prepareEncounters does not dedupe by signature — so one batch can carry two
+  // findings with the same signature. Without this, the second consults the
+  // pre-create snapshot, misses, and files the duplicate this module prevents.
+  it('#1453: a lookup matches an issue created earlier in the same run', async () => {
+    mockFetch(url =>
+      url.includes('state=open')
+        ? { json: () => [] }
+        : { json: () => ({ number: 7, title: 'just filed' }) },
+    );
+    const transport = createRestTransport('tok');
+    if (!transport) throw new Error('expected a transport');
+
+    const marker = '<!-- safeword-retro-signature: retro:abc123def456 -->';
+
+    // Nothing upstream yet: the first encounter legitimately files.
+    await expect(transport.searchBySignature('retro:abc123def456')).resolves.toEqual([]);
+    await transport.createIssue({ title: 'just filed', body: marker, labels: ['retro'] });
+
+    // A second encounter with the SAME signature must now see it, not re-file.
+    await expect(transport.searchBySignature('retro:abc123def456')).resolves.toEqual([
+      { number: 7, title: 'just filed' },
+    ]);
   });
 
   it('#1453: retries the enumeration after a transient failure', async () => {

@@ -23,8 +23,9 @@ the host project.
    exact-check the raw issue body. Search by **topic**, never by the marker or
    its hash: the markers sit in HTML comments, which issue read/list tools strip
    and no search matches as query text (#1453), so a zero from such a query means
-   "could not tell" and never authorizes a create. Use a search whose payload
-   returns raw bodies, then check the exact
+   "could not tell" and never authorizes a create. Use GitHub MCP `search_issues`
+   — the one read path whose payload returns raw bodies with markers intact —
+   then check the exact
    `<!-- safeword-retro-signature: <signature> -->` marker in them. Only when
    that misses and `canonicalSignature` is present, confirm the draft
    body contains its exact

@@ -98,8 +98,9 @@ with two differences:
    the body they return, and which no available search can match as query text
    (#1453). A marker or hash query returning zero therefore means "could not
    tell", not "not filed" — it never authorizes a create. Retrieve candidates by
-   **topic** instead (scoped `repo:ArcadeAI/safeword is:issue is:open`, using a
-   search whose payload returns **raw** bodies), then exact-check the draft's
+   **topic** instead (scoped `repo:ArcadeAI/safeword is:issue is:open`, via GitHub
+   MCP `search_issues` — the one read path whose payload returns **raw** bodies
+   with markers intact), then exact-check the draft's
    `<!-- safeword-retro-signature: ... -->` marker in those raw bodies. Only if
    that misses, and `canonicalSignature` is present, confirm the spooled body
    itself contains the exact

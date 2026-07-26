@@ -64,6 +64,12 @@ class FakeGitHub implements IssueTracker {
   searchBySignature(signature: string): Promise<IssueReference[]> {
     // Match on the signature embedded in the body (as the real REST transport
     // does, by string-matching the enumerated issue bodies), NOT the title.
+    //
+    // Note this searches `this.issues` LIVE, so it sees issues created earlier in
+    // the same triage run. That made the double strictly more correct than the
+    // transport once was — and is why same-batch duplicate filing (#1453) went
+    // unnoticed here. The transport now keeps its own created-this-run view;
+    // github-rest.test.ts is where that behavior is pinned.
     return Promise.resolve(
       this.issues
         .filter(i => i.body.includes(signature))

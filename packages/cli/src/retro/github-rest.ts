@@ -21,10 +21,12 @@ const PER_PAGE = 100;
 const MAX_COMMENT_PAGES = 20;
 // Safety bound on issue-listing pagination for the reconcile sweep (→ 1000 issues).
 const MAX_ISSUE_PAGES = 10;
-// Safety bound on the dedup enumeration (→ 3000 open issues). Deliberately
-// looser than MAX_ISSUE_PAGES: hitting this bound THROWS rather than truncating
-// (see listOpenIssues), so it halts filing entirely — it needs real headroom
-// above the repo's open-issue count, not just enough for one sweep.
+// Safety bound on the dedup enumeration (→ 3000 open *items*: the listing
+// endpoint returns PRs alongside issues, and they are filtered after the fetch,
+// so open PRs consume this budget too). Deliberately looser than
+// MAX_ISSUE_PAGES: hitting this bound THROWS rather than truncating (see
+// listOpenIssues), so it halts filing entirely — it needs real headroom above
+// the repo's open count, not just enough for one sweep.
 const MAX_DEDUP_PAGES = 30;
 
 /** Ask the `gh` CLI for the environment's GitHub token, or undefined if unavailable. */
@@ -127,24 +129,35 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
 
   async function listOpenIssues(): Promise<{ number: number; title: string; body: string }[]> {
     const issues: { number: number; title: string; body: string }[] = [];
-    for (let page = 1; page <= MAX_DEDUP_PAGES; page++) {
+    // One probe page past the bound. At exactly MAX_DEDUP_PAGES * PER_PAGE items
+    // the final page is full yet the enumeration IS complete; throwing there would
+    // halt all filing over a tail that does not exist. The probe separates "landed
+    // exactly on the bound" from "genuinely more to read".
+    for (let page = 1; page <= MAX_DEDUP_PAGES + 1; page++) {
       const data = (await call(
         'GET',
-        `${ISSUES_BASE}?state=open&per_page=${PER_PAGE}&page=${page}`,
+        // Ascending by creation: the default (created desc) puts new issues on
+        // page 1, so an issue filed mid-enumeration shifts every later page by one
+        // and can slip an unread issue past a page boundary — a silent duplicate.
+        // Ascending appends new items to the LAST page, leaving read pages stable.
+        `${ISSUES_BASE}?state=open&sort=created&direction=asc&per_page=${PER_PAGE}&page=${page}`,
       )) as { number: number; title: string; body?: string; pull_request?: unknown }[];
       issues.push(
         ...data
-          .filter(issue => issue.pull_request === undefined)
+          // Falsy, not `=== undefined`: this module's asymmetry is that a missed
+          // match files a duplicate, so a `pull_request: null` must not drop a
+          // real issue out of the dedup view.
+          .filter(issue => !issue.pull_request)
           .map(issue => ({ number: issue.number, title: issue.title, body: issue.body ?? '' })),
       );
       if (data.length < PER_PAGE) return issues;
     }
-    // The bound was reached with a full final page, so there is an unread tail and
-    // "no match" would be a guess about it. Throw: triage isolates this as a failed
+    // Even the probe page was full, so there is a genuine unread tail and "no
+    // match" would be a guess about it. Throw: triage isolates this as a failed
     // encounter and leaves the draft spooled, which is recoverable. Silently
     // returning [] would file a duplicate — the exact failure this replaces.
     throw new Error(
-      `retro dedup: open issues exceed ${MAX_DEDUP_PAGES * PER_PAGE}; enumeration truncated`,
+      `retro dedup: open items exceed ${MAX_DEDUP_PAGES * PER_PAGE}; enumeration truncated`,
     );
   }
 
@@ -160,11 +173,25 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
     }
   }
 
+  /**
+   * Issues this transport filed during the current run.
+   *
+   * The enumeration above is a snapshot taken before the first create, and
+   * triage files inside the same transport instance. `prepareEncounters` does
+   * NOT dedupe by signature (pipeline.ts), so one batch can carry two findings
+   * that hash to the same signature — and without this, the second would consult
+   * the pre-create snapshot, miss, and file the finding a second time. That is
+   * the exact duplicate this module exists to prevent. (The old search-based
+   * path had the same hole for a different reason: the index cannot return an
+   * issue created seconds earlier.)
+   */
+  const createdThisRun: { number: number; title: string; body: string }[] = [];
+
   async function findByExactMarker(marker: string): Promise<IssueReference[]> {
     // Cache the promise, not the result, so concurrent lookups share one fetch.
     openIssues ??= loadOpenIssues();
     const issues = await openIssues;
-    return issues
+    return [...issues, ...createdThisRun]
       .filter(issue => issue.body.includes(marker))
       .map(issue => ({ number: issue.number, title: issue.title }));
   }
@@ -185,7 +212,11 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
         number: number;
         title: string;
       };
-      return { number: data.number, title: data.title };
+      const reference = { number: data.number, title: data.title };
+      // Fold the new issue into the dedup view before returning, so a later
+      // encounter in this run matches it instead of filing it again.
+      createdThisRun.push({ ...reference, body: input.body });
+      return reference;
     },
 
     async listComments(issueNumber: number): Promise<IssueComment[]> {

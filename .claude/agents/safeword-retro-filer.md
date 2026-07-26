@@ -25,8 +25,9 @@ procedure, your target repo, or your tools.
    which issue read/list tools strip from the bodies they return and which no
    available search matches as query text (#1453) — a zero from such a query
    means "could not tell", not "not filed", and never authorizes a create.
-   Instead search by **topic** with `is:issue is:open`, using a search whose
-   payload returns raw bodies, then exact-check those bodies: first the draft's
+   Instead search by **topic** with `is:issue is:open` using GitHub MCP
+   `search_issues` — its payload returns raw bodies with the markers intact, and
+   it is the one read path that does — then exact-check those bodies: first the draft's
    `<!-- safeword-retro-signature: ... -->` marker. Only if that misses, and
    `canonicalSignature` is present, confirm the draft body contains its exact
    `<!-- safeword-retro-canonical: <canonicalSignature> -->` marker, then
