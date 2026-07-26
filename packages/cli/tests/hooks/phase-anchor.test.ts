@@ -315,6 +315,8 @@ describe('detectUnanchoredPhaseTransition — no real artifact behind the advanc
     '!bang/impl-plan.md',
     '^caret/impl-plan.md',
     'glob/*/impl-plan.md',
+    'ticket/./impl-plan.md',
+    'ticket//impl-plan.md',
   ])('an implausible path value %s is unanchored', value => {
     const verdict = detectUnanchoredPhaseTransition(
       ticket({ type: 'feature', phase: 'scenario-gate' }),
@@ -322,6 +324,7 @@ describe('detectUnanchoredPhaseTransition — no real artifact behind the advanc
       readTree,
     );
     expect(verdict.kind).toBe('unanchored');
+    if (verdict.kind === 'unanchored') expect(verdict.reason).toMatch(/repo-relative/i);
   });
 
   it('an empty (readable but blank) artifact fails its shape check rather than reading as missing', () => {
