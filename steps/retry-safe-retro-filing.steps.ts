@@ -11,23 +11,56 @@ const execFileAsync = promisify(execFile);
 
 setDefaultTimeout(60_000);
 
-Before({ tags: '@retry-safe-retro-filing' }, async function (this: SafewordWorld) {
-  try {
-    const { stdout, stderr } = await execFileAsync(
-      'bun',
-      ['run', '--cwd', 'packages/retro-relay', 'test', 'tests/relay.integration.test.ts'],
-      { cwd: process.cwd() },
-    );
-    this.result = { stdout, stderr, exitCode: 0 };
-  } catch (error: unknown) {
-    const failure = error as { stdout?: string; stderr?: string; code?: number };
-    this.result = {
-      stdout: failure.stdout ?? '',
-      stderr: failure.stderr ?? '',
-      exitCode: failure.code ?? 1,
-    };
-  }
-});
+const scenarioTests: Record<string, string> = {
+  'Every named harness adapter retries through the real relay route': 'uses one request identity',
+  'Changing an approved payload field is rejected': 'rejects a changed',
+  'Concurrent first attempts return one durable receipt': 'elects one creator',
+  'Losing the relay response after filing is safe to retry': 'reuses the filed receipt',
+  'A crash after GitHub create becomes ambiguous without acknowledgement or recreation':
+    'recovers a post-create crash',
+  'The admin route adopts exactly one raw request-marker match':
+    'recovers a post-create crash|keeps an ambiguous request',
+  'Repository authorization determines whether filing proceeds': 'authorizes the exact repository',
+  'Invalid authentication is rejected before GitHub': 'authorizes the exact repository',
+  'Authorized filing credentials never enter durable state or observability':
+    'server-held installation token',
+  'GitHub creation uses a repository-scoped relay credential': 'server-held installation token',
+  'Only the raw REST body can authorize semantic marker adoption':
+    'uses raw REST bodies|adopts an exact legacy',
+  'Incomplete or non-unique raw enumeration never authorizes creation':
+    'non-unique|pagination is incomplete',
+};
+
+Before(
+  { tags: '@retry-safe-retro-filing' },
+  async function (this: SafewordWorld, scenario: { pickle: { name: string } }) {
+    const testPattern = scenarioTests[scenario.pickle.name];
+    assert.ok(testPattern, `missing Vitest proof mapping for ${scenario.pickle.name}`);
+    try {
+      const { stdout, stderr } = await execFileAsync(
+        'bun',
+        [
+          'run',
+          '--cwd',
+          'packages/retro-relay',
+          'test',
+          'tests/relay.integration.test.ts',
+          '-t',
+          testPattern,
+        ],
+        { cwd: process.cwd() },
+      );
+      this.result = { stdout, stderr, exitCode: 0 };
+    } catch (error: unknown) {
+      const failure = error as { stdout?: string; stderr?: string; code?: number };
+      this.result = {
+        stdout: failure.stdout ?? '',
+        stderr: failure.stderr ?? '',
+        exitCode: failure.code ?? 1,
+      };
+    }
+  },
+);
 
 const feature = readFileSync(
   new URL('../features/retry-safe-retro-filing.feature', import.meta.url),

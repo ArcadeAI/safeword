@@ -1,7 +1,5 @@
 /* eslint-disable unicorn/consistent-class-member-order -- Public state-machine operations precede internal transition helpers. */
 
-import { setTimeout as delay } from 'node:timers/promises';
-
 import { RelayError } from './errors.js';
 import type { GitHubRestClient } from './github.js';
 import {
@@ -13,6 +11,7 @@ import {
 } from './identity.js';
 import { decryptPayload, encryptPayload } from './payload.js';
 import type { DurableRequest, RelayStore } from './store.js';
+import { SemanticEvidenceConflictError } from './store.js';
 import type {
   FileRetroDraftRequest,
   FilingReceipt,
@@ -115,7 +114,7 @@ export class RelayService {
     return receiptFromRecord(record);
   }
 
-  // eslint-disable-next-line complexity -- The branches mirror the durable state machine and stay together intentionally.
+  // eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- The branches mirror the durable state machine and stay together intentionally.
   async submit(principal: RelayPrincipal, request: FileRetroDraftRequest): Promise<FilingReceipt> {
     const scope = authorize(principal, request, 'file');
     const hash = payloadHash(request);
@@ -137,10 +136,15 @@ export class RelayService {
         state: 'ambiguous',
       });
     }
-    if (!this.#store.claim(scope)) return this.#waitForTerminal(scope);
-    const durableRequest = decryptPayload(accepted.record.envelope, scope, hash, this.#payloadKey);
-
+    if (!this.#store.claim(scope)) {
+      const current = this.#store.receipt(scope);
+      if (current === undefined) throw new RelayError(404, 'filing receipt not found');
+      return current;
+    }
+    let durableRequest: FileRetroDraftRequest;
+    let installationToken: string;
     try {
+      durableRequest = decryptPayload(accepted.record.envelope, scope, hash, this.#payloadKey);
       const adopted = await this.#adoptExisting(scope, durableRequest);
       if (adopted !== undefined) return adopted;
       const owner = this.#store.reserveEvidence(scope, [
@@ -148,14 +152,36 @@ export class RelayService {
         { kind: 'legacy', value: durableRequest.legacySignature },
       ]);
       if (owner.scope.requestId !== scope.requestId) {
-        return await this.#waitForTerminal(owner.scope);
+        return receiptFromRecord(owner);
       }
+      installationToken = await this.#github.installationToken(
+        scope.installationId,
+        scope.repository,
+      );
+    } catch (error) {
+      if (error instanceof SemanticEvidenceConflictError) {
+        this.#store.markAmbiguous(scope);
+        throw new RelayError(409, 'canonical and legacy evidence conflict', {
+          receiptId: accepted.record.receiptId,
+          state: 'ambiguous',
+        });
+      }
+      this.#store.markRetryable(scope);
+      if (error instanceof RelayError) throw error;
+      throw new RelayError(503, 'filing preparation failed before dispatch');
+    }
+    if (!this.#store.beginDispatch(scope)) {
+      const current = this.#store.receipt(scope);
+      if (current === undefined) throw new RelayError(404, 'filing receipt not found');
+      return current;
+    }
+    try {
       const issueNumber = await this.#github.createIssue({
-        installationId: scope.installationId,
         repository: scope.repository,
         title: durableRequest.title,
         body: `${durableRequest.body}\n\n${marker}`,
         labels: durableRequest.labels,
+        installationToken,
       });
       this.faults.afterGitHubCreate?.();
       return this.#store.markFiled(scope, issueNumber);
@@ -170,50 +196,45 @@ export class RelayService {
     }
   }
 
+  // eslint-disable-next-line complexity -- Marker completeness and conflict branches are the raw-authority contract.
   async #adoptExisting(
     scope: RequestScope,
     request: FileRetroDraftRequest,
   ): Promise<FilingReceipt | undefined> {
+    const scans = [];
     for (const marker of [
       canonicalMarker(request.canonicalKey),
       legacyMarker(request.legacySignature),
     ]) {
-      const scan = await this.#github.scanExactMarker({
-        installationId: scope.installationId,
-        repository: scope.repository,
-        marker,
-      });
+      scans.push(
+        await this.#github.scanExactMarker({
+          installationId: scope.installationId,
+          repository: scope.repository,
+          marker,
+        }),
+      );
+    }
+    for (const scan of scans) {
       if (!scan.complete || scan.issueNumbers.length > 1) {
-        this.#store.markRetryable(scope);
         throw new RelayError(503, 'raw marker scan is incomplete or non-unique');
       }
-      if (scan.issueNumbers.length === 1) {
-        this.#store.reserveEvidence(scope, [
-          { kind: 'canonical', value: request.canonicalKey },
-          { kind: 'legacy', value: request.legacySignature },
-        ]);
-        return this.#store.markFiled(scope, scan.issueNumbers[0]);
-      }
     }
-    return undefined;
-  }
-
-  async #waitForTerminal(scope: RequestScope): Promise<FilingReceipt> {
-    for (let attempt = 0; attempt < 400; attempt += 1) {
-      const record = this.#store.load(scope);
-      if (record === undefined) throw new RelayError(404, 'filing receipt not found');
-      if (record.state === 'filed') return receiptFromRecord(record);
-      if (record.state === 'ambiguous') {
-        throw new RelayError(503, 'filing outcome is ambiguous', {
-          receiptId: record.receiptId,
-          state: 'ambiguous',
-        });
-      }
-      await delay(5);
+    const canonicalIssue = scans[0]?.issueNumbers.at(0);
+    const legacyIssue = scans[1]?.issueNumbers.at(0);
+    if (
+      canonicalIssue !== undefined &&
+      legacyIssue !== undefined &&
+      canonicalIssue !== legacyIssue
+    ) {
+      this.#store.markAmbiguous(scope);
+      throw new RelayError(409, 'canonical and legacy raw markers conflict');
     }
-    const record = this.#store.load(scope);
-    throw new RelayError(202, 'filing remains in progress', {
-      ...(record !== undefined && { receiptId: record.receiptId }),
-    });
+    const issueNumber = canonicalIssue ?? legacyIssue;
+    if (issueNumber === undefined) return undefined;
+    this.#store.reserveEvidence(scope, [
+      { kind: 'canonical', value: request.canonicalKey },
+      { kind: 'legacy', value: request.legacySignature },
+    ]);
+    return this.#store.markFiled(scope, issueNumber);
   }
 }

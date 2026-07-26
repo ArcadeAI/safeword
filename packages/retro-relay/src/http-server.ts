@@ -3,6 +3,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import type { CredentialRegistry } from './auth.js';
 import { RelayError } from './errors.js';
 import type { GitHubRestClient } from './github.js';
+import { ProcessLock } from './process-lock.js';
 import { type RelayFaults, RelayService } from './service.js';
 import type { RelayStore } from './store.js';
 import type { FileRetroDraftRequest } from './types.js';
@@ -24,12 +25,17 @@ function bearer(request: IncomingMessage): string | undefined {
   return request.headers.authorization;
 }
 
-export async function startRelayServer(input: {
+type RelayServerOptions = {
   credentials: CredentialRegistry;
   store: RelayStore;
   github: GitHubRestClient;
   payloadKey: Buffer;
-}): Promise<{
+} & (
+  | { lockPath: string; allowUnlockedForTests?: never }
+  | { lockPath?: never; allowUnlockedForTests: true }
+);
+
+export async function startRelayServer(input: RelayServerOptions): Promise<{
   server: ReturnType<typeof createServer>;
   url: string;
   faults: RelayFaults;
@@ -38,6 +44,9 @@ export async function startRelayServer(input: {
     metrics: Record<string, unknown>[];
   };
 }> {
+  const processLock =
+    input.lockPath === undefined ? undefined : ProcessLock.acquire(input.lockPath);
+  input.store.recoverInFlight();
   const faults: RelayFaults = {};
   const observability = {
     logs: [] as Record<string, unknown>[],
@@ -47,8 +56,9 @@ export async function startRelayServer(input: {
   const server = createServer((request, response) => {
     void handle(request, response);
   });
+  server.once('close', () => processLock?.release());
 
-  // eslint-disable-next-line complexity -- A single composition-root router keeps the public contract visible.
+  // eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- A single composition-root router keeps the public contract visible.
   async function handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
     try {
       const principal = input.credentials.authenticate(bearer(request));
@@ -61,6 +71,7 @@ export async function startRelayServer(input: {
         );
         observability.logs.push({
           event: 'retro_filing',
+          harness: principal.harness,
           requestId: receipt.requestId,
           state: receipt.state,
         });
@@ -75,6 +86,7 @@ export async function startRelayServer(input: {
           response.destroy();
           return;
         }
+        if (receipt.state !== 'filed') response.setHeader('retry-after', '1');
         sendJson(response, receipt.state === 'filed' ? 201 : 202, receipt);
         return;
       }
@@ -106,6 +118,7 @@ export async function startRelayServer(input: {
   const address = server.address();
   if (address === null || typeof address === 'string') {
     server.close();
+    processLock?.release();
     throw new Error('relay did not bind a TCP address');
   }
   return {

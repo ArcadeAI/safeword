@@ -28,18 +28,17 @@ export class GitHubRestClient {
   }
 
   async createIssue(input: {
-    installationId: number;
     repository: string;
     title: string;
     body: string;
     labels: string[];
+    installationToken: string;
   }): Promise<number> {
-    const token = await this.#installationToken(input.installationId, input.repository);
     const response = await fetch(`${this.#baseUrl}/repos/${input.repository}/issues`, {
       method: 'POST',
       headers: {
         accept: 'application/vnd.github+json',
-        authorization: `Bearer ${token}`,
+        authorization: `Bearer ${input.installationToken}`,
         'content-type': 'application/json',
       },
       body: JSON.stringify({ title: input.title, body: input.body, labels: input.labels }),
@@ -47,6 +46,10 @@ export class GitHubRestClient {
     if (!response.ok) throw new Error(`GitHub create failed with ${response.status}`);
     const issue = (await response.json()) as Pick<GitHubIssue, 'number'>;
     return issue.number;
+  }
+
+  installationToken(installationId: number, repo: string): Promise<string> {
+    return this.#installationToken(installationId, repo);
   }
 
   async scanExactMarker(input: {

@@ -20,5 +20,6 @@ bun run --cwd packages/retro-relay build
 ```
 
 The package currently proves the relay boundary and fault behavior. Deployment,
-real harness spool routing, the timed retry/dead-letter/compaction worker, and
+its environment-specific composition root and process-lock acquisition, real
+harness spool routing, the timed retry/dead-letter/compaction worker, and
 fallback retirement remain rollout gates tracked by GitHub issue #1479.

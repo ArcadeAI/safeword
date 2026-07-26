@@ -19,7 +19,8 @@ export interface RelayPrincipal {
   roles: ('file' | 'reconcile')[];
 }
 
-export type ReceiptState = 'accepted' | 'dispatching' | 'filed' | 'ambiguous' | 'retryable';
+export type ReceiptState =
+  'accepted' | 'claimed' | 'dispatching' | 'filed' | 'ambiguous' | 'retryable';
 
 export interface FilingReceipt {
   receiptId: string;

@@ -1,3 +1,4 @@
+import { generateKeyPairSync } from 'node:crypto';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { tmpdir } from 'node:os';
@@ -9,10 +10,19 @@ import {
   createHarnessAdapters,
   CredentialRegistry,
   type FileRetroDraftRequest,
+  GitHubAppTokenProvider,
   GitHubRestClient,
   RelayStore,
   startRelayServer,
 } from '../src/index.js';
+
+const { privateKey: githubAppPrivateKey } = generateKeyPairSync('rsa', {
+  modulusLength: 2048,
+});
+const githubAppPrivateKeyPem = githubAppPrivateKey.export({
+  format: 'pem',
+  type: 'pkcs8',
+});
 
 const directories: string[] = [];
 const servers: Server[] = [];
@@ -58,21 +68,76 @@ function draft(overrides: Partial<FileRetroDraftRequest> = {}): FileRetroDraftRe
 async function startGitHubFixture(
   options: {
     createDelayMs?: number;
+    failSecondPage?: boolean;
+    failToken?: boolean;
     rawBodies?: string[];
+    rawPullRequestBodies?: string[];
+    sanitizedMcpBodies?: string[];
   } = {},
-): Promise<{ baseUrl: string; createBodies: string[]; authorizationHeaders: string[] }> {
+): Promise<{
+  baseUrl: string;
+  createBodies: string[];
+  authorizationHeaders: string[];
+  rawAcceptHeaders: string[];
+  sanitizedMcpBodies: string[];
+  tokenRequests: { authorization: string; body: Record<string, unknown> }[];
+}> {
   const createdBodies: string[] = [];
   const authorizationHeaders: string[] = [];
+  const rawAcceptHeaders: string[] = [];
+  const tokenRequests: { authorization: string; body: Record<string, unknown> }[] = [];
   const rawBodies = options.rawBodies ?? [];
+  // eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- The fake collaborator exposes pagination, token, and create boundaries in one server.
   const handleRequest = async (request: IncomingMessage, response: ServerResponse) => {
+    if (request.method === 'POST' && request.url === '/app/installations/42/access_tokens') {
+      if (options.failToken === true) {
+        response.statusCode = 500;
+        response.end();
+        return;
+      }
+      let body = '';
+      for await (const chunk of request) body += String(chunk);
+      tokenRequests.push({
+        authorization: request.headers.authorization ?? '',
+        body: JSON.parse(body) as Record<string, unknown>,
+      });
+      response.statusCode = 201;
+      response.setHeader('content-type', 'application/json');
+      const expiresAt = new Date(Date.now() + 60 * 60_000).toISOString();
+      response.end(
+        JSON.stringify({
+          token: 'ghs_installation_secret',
+          expires_at: expiresAt,
+          permissions: { issues: 'write' },
+        }),
+      );
+      return;
+    }
     if (request.method === 'GET' && request.url?.includes('/issues')) {
+      rawAcceptHeaders.push(request.headers.accept ?? '');
+
+      const page = Number(new URL(request.url, 'https://github.invalid').searchParams.get('page'));
+      if (page > 1 && options.failSecondPage === true) {
+        response.statusCode = 500;
+        response.end();
+        return;
+      }
       response.setHeader('content-type', 'application/json');
       response.end(
         JSON.stringify(
-          rawBodies.map((body, index) => ({
-            number: 700 + index,
-            body,
-          })),
+          page > 1
+            ? []
+            : [
+                ...rawBodies.map((body, index) => ({
+                  number: 700 + index,
+                  body,
+                })),
+                ...(options.rawPullRequestBodies ?? []).map((body, index) => ({
+                  number: 800 + index,
+                  body,
+                  pull_request: {},
+                })),
+              ],
         ),
       );
       return;
@@ -104,42 +169,72 @@ async function startGitHubFixture(
     baseUrl: `http://127.0.0.1:${address.port}`,
     createBodies: createdBodies,
     authorizationHeaders,
+    rawAcceptHeaders,
+    sanitizedMcpBodies: options.sanitizedMcpBodies ?? [],
+    tokenRequests,
   };
 }
 
-async function fixture(options: { createDelayMs?: number; rawBodies?: string[] } = {}) {
+async function fixture(
+  options: {
+    createDelayMs?: number;
+    failSecondPage?: boolean;
+    failToken?: boolean;
+    rawBodies?: string[];
+    rawPullRequestBodies?: string[];
+    sanitizedMcpBodies?: string[];
+  } = {},
+) {
   const directory = mkdtempSync(path.join(tmpdir(), 'safeword-relay-integration-'));
   directories.push(directory);
   const githubFixture = await startGitHubFixture(options);
   const registry = new CredentialRegistry('deployment-pepper');
-  const credential = registry.issue({
-    credentialId: 'harness-1',
-    harness: 'claude',
-    installationId: 42,
-    repository: 'arcadeai/safeword',
-    roles: ['file', 'reconcile'],
-    secret: 'a'.repeat(64),
-    subject: 'integration',
-    tenantId: 'tenant-1',
-  });
+  const issueCredential = (
+    harness: 'claude' | 'codex' | 'cursor' | 'operator',
+    secretCharacter: string,
+    roles: ('file' | 'reconcile')[] = ['file'],
+  ) =>
+    registry.issue({
+      credentialId: `${harness}-integration`,
+      harness,
+      installationId: 42,
+      repository: 'arcadeai/safeword',
+      roles,
+      secret: secretCharacter.repeat(64),
+      subject: `${harness}-subject`,
+      tenantId: 'tenant-1',
+    });
+  const credentials = {
+    claude: issueCredential('claude', 'a'),
+    codex: issueCredential('codex', 'b'),
+    cursor: issueCredential('cursor', 'c'),
+    operator: issueCredential('operator', 'd', ['file', 'reconcile']),
+  };
+  const credential = credentials.claude;
   const store = RelayStore.open(path.join(directory, 'relay.sqlite'));
+  const tokenProvider = new GitHubAppTokenProvider({
+    appId: '1234',
+    baseUrl: githubFixture.baseUrl,
+    privateKey: githubAppPrivateKeyPem,
+  });
   const relay = await startRelayServer({
     credentials: registry,
     github: new GitHubRestClient({
       baseUrl: githubFixture.baseUrl,
-      installationToken: () => Promise.resolve('ghs_installation_secret'),
+      installationToken: (installationId, repo) => tokenProvider.token(installationId, repo),
     }),
+    lockPath: path.join(directory, 'relay.lock'),
     payloadKey: Buffer.alloc(32, 7),
     store,
   });
   servers.push(relay.server);
-  return { ...githubFixture, credential, directory, registry, relay, store };
+  return { ...githubFixture, credential, credentials, directory, registry, relay, store };
 }
 
 describe('retry-safe retro relay', () => {
   it('uses one request identity across Claude, Codex, and Cursor', async () => {
     const setup = await fixture();
-    const adapters = createHarnessAdapters(setup.relay.url, setup.credential);
+    const adapters = createHarnessAdapters(setup.relay.url, setup.credentials);
 
     const receipts = await Promise.all([
       adapters.claude.file(draft()),
@@ -149,6 +244,11 @@ describe('retry-safe retro relay', () => {
 
     expect(receipts.map(receipt => receipt.issueNumber)).toEqual([901, 901, 901]);
     expect(setup.createBodies).toHaveLength(1);
+    expect(
+      setup.relay.observability.logs
+        .map(log => log.harness)
+        .toSorted((left, right) => String(left).localeCompare(String(right))),
+    ).toEqual(['claude', 'codex', 'cursor']);
   });
 
   it.each([
@@ -181,10 +281,27 @@ describe('retry-safe retro relay', () => {
     expect(setup.createBodies).toHaveLength(1);
   });
 
+  it('keeps token acquisition failure retryable before dispatch', async () => {
+    const setup = await fixture({ failToken: true });
+    const adapter = createHarnessAdapters(setup.relay.url, setup.credential).claude;
+
+    await expect(adapter.file(draft())).rejects.toMatchObject({ status: 503 });
+    expect(setup.createBodies).toHaveLength(0);
+    expect(
+      setup.store.load({
+        tenantId: 'tenant-1',
+        installationId: 42,
+        repository: 'arcadeai/safeword',
+        requestId: draft().requestId,
+      })?.state,
+    ).toBe('retryable');
+  });
+
   it('elects one creator across concurrent database connections', async () => {
     const setup = await fixture({ createDelayMs: 50 });
     const secondStore = RelayStore.open(path.join(setup.directory, 'relay.sqlite'));
     const secondRelay = await startRelayServer({
+      allowUnlockedForTests: true,
       credentials: setup.registry,
       github: new GitHubRestClient({
         baseUrl: setup.baseUrl,
@@ -196,8 +313,37 @@ describe('retry-safe retro relay', () => {
     servers.push(secondRelay.server);
 
     const [first, second] = await Promise.all([
-      createHarnessAdapters(setup.relay.url, setup.credential).claude.file(draft()),
-      createHarnessAdapters(secondRelay.url, setup.credential).codex.file(draft()),
+      createHarnessAdapters(setup.relay.url, setup.credentials).claude.file(draft()),
+      createHarnessAdapters(secondRelay.url, setup.credentials).codex.file(draft()),
+    ]);
+
+    expect(first.issueNumber).toBe(second.issueNumber);
+    expect(setup.createBodies).toHaveLength(1);
+    secondStore.close();
+  });
+
+  it('converges different requestIds that reserve the same semantic evidence', async () => {
+    const setup = await fixture({ createDelayMs: 50 });
+    const secondStore = RelayStore.open(path.join(setup.directory, 'relay.sqlite'));
+    const secondRelay = await startRelayServer({
+      allowUnlockedForTests: true,
+      credentials: setup.registry,
+      github: new GitHubRestClient({
+        baseUrl: setup.baseUrl,
+        installationToken: () => Promise.resolve('ghs_installation_secret'),
+      }),
+      payloadKey: Buffer.alloc(32, 7),
+      store: secondStore,
+    });
+    servers.push(secondRelay.server);
+
+    const [first, second] = await Promise.all([
+      createHarnessAdapters(setup.relay.url, setup.credentials).claude.file(
+        draft({ requestId: 'semantic-owner-a' }),
+      ),
+      createHarnessAdapters(secondRelay.url, setup.credentials).codex.file(
+        draft({ requestId: 'semantic-owner-b' }),
+      ),
     ]);
 
     expect(first.issueNumber).toBe(second.issueNumber);
@@ -221,6 +367,7 @@ describe('retry-safe retro relay', () => {
     const github = await startGitHubFixture({ rawBodies: [marker ?? ''] });
     const reopened = RelayStore.open(path.join(setup.directory, 'relay.sqlite'));
     const relay = await startRelayServer({
+      allowUnlockedForTests: true,
       credentials: setup.registry,
       github: new GitHubRestClient({
         baseUrl: github.baseUrl,
@@ -231,13 +378,50 @@ describe('retry-safe retro relay', () => {
     });
     servers.push(relay.server);
 
-    const receipt = await createHarnessAdapters(relay.url, setup.credential).operator.reconcile(
+    const receipt = await createHarnessAdapters(relay.url, setup.credentials).operator.reconcile(
       draft(),
     );
     expect(receipt).toMatchObject({ issueNumber: 700, state: 'filed' });
     expect(github.createBodies).toHaveLength(0);
     reopened.close();
   });
+
+  it.each([0, 2])(
+    'keeps an ambiguous request quarantined for %i raw request-marker matches',
+    async matchCount => {
+      const setup = await fixture();
+      setup.relay.faults.afterGitHubCreate = () => {
+        throw new Error('simulated crash');
+      };
+      const adapter = createHarnessAdapters(setup.relay.url, setup.credential).claude;
+      await expect(adapter.file(draft())).rejects.toMatchObject({ status: 503 });
+      const marker = setup.createBodies[0]?.split('\n').at(-1) ?? '';
+
+      setup.store.close();
+      setup.relay.server.close();
+      const github = await startGitHubFixture({
+        rawBodies: Array.from({ length: matchCount }, () => marker),
+      });
+      const reopened = RelayStore.open(path.join(setup.directory, 'relay.sqlite'));
+      const relay = await startRelayServer({
+        allowUnlockedForTests: true,
+        credentials: setup.registry,
+        github: new GitHubRestClient({
+          baseUrl: github.baseUrl,
+          installationToken: () => Promise.resolve('ghs_installation_secret'),
+        }),
+        payloadKey: Buffer.alloc(32, 7),
+        store: reopened,
+      });
+      servers.push(relay.server);
+
+      await expect(
+        createHarnessAdapters(relay.url, setup.credentials).operator.reconcile(draft()),
+      ).rejects.toMatchObject({ status: 503 });
+      expect(github.createBodies).toHaveLength(0);
+      reopened.close();
+    },
+  );
 
   it('uses raw REST bodies as marker authority and has no MCP decision input', async () => {
     const canonicalMarker = '<!-- safeword-retro-canonical: canonical:abc123 -->';
@@ -248,17 +432,56 @@ describe('retry-safe retro relay', () => {
     ).claude.file(draft());
     expect(adopted.issueNumber).toBe(700);
     expect(existing.createBodies).toHaveLength(0);
+    expect(existing.rawAcceptHeaders).toContain('application/vnd.github.raw+json');
 
-    const absent = await fixture({ rawBodies: ['sanitized representation has no raw marker'] });
+    const absent = await fixture({
+      rawBodies: ['raw body has no marker'],
+      sanitizedMcpBodies: [canonicalMarker],
+    });
     const created = await createHarnessAdapters(absent.relay.url, absent.credential).codex.file(
       draft({ requestId: 'raw-absent' }),
     );
     expect(created.issueNumber).toBe(901);
+    expect(created.issueNumber).not.toBe(700);
+    expect(absent.sanitizedMcpBodies).toContain(canonicalMarker);
     expect(absent.createBodies).toHaveLength(1);
   });
 
-  it('rejects missing, malformed, and repository-unauthorized credentials before GitHub', async () => {
+  it('adopts an exact legacy raw marker and ignores matching pull requests', async () => {
+    const legacy = '<!-- safeword-retro-signature: retro:def456 -->';
+    const existing = await fixture({ rawBodies: [legacy] });
+    await expect(
+      createHarnessAdapters(existing.relay.url, existing.credential).claude.file(draft()),
+    ).resolves.toMatchObject({ issueNumber: 700, state: 'filed' });
+    expect(existing.createBodies).toHaveLength(0);
+
+    const pullRequestOnly = await fixture({ rawPullRequestBodies: [legacy] });
+    await expect(
+      createHarnessAdapters(pullRequestOnly.relay.url, pullRequestOnly.credential).claude.file(
+        draft({ requestId: 'pull-request-marker' }),
+      ),
+    ).resolves.toMatchObject({ issueNumber: 901, state: 'filed' });
+    expect(pullRequestOnly.createBodies).toHaveLength(1);
+  });
+
+  it('quarantines conflicting canonical and legacy raw matches', async () => {
+    const setup = await fixture({
+      rawBodies: [
+        '<!-- safeword-retro-canonical: canonical:abc123 -->',
+        '<!-- safeword-retro-signature: retro:def456 -->',
+      ],
+    });
+    const adapter = createHarnessAdapters(setup.relay.url, setup.credential).claude;
+
+    await expect(adapter.file(draft())).rejects.toMatchObject({ status: 409 });
+    expect(setup.createBodies).toHaveLength(0);
+  });
+
+  it('authorizes the exact repository and rejects invalid credentials before GitHub', async () => {
     const setup = await fixture();
+    await expect(
+      createHarnessAdapters(setup.relay.url, setup.credential).claude.file(draft()),
+    ).resolves.toMatchObject({ issueNumber: 901, state: 'filed' });
     const unauthorized = setup.registry.issue({
       credentialId: 'wrong-repository',
       harness: 'cursor',
@@ -277,10 +500,41 @@ describe('retry-safe retro relay', () => {
       unauthorized,
     ]) {
       await expect(
-        createHarnessAdapters(setup.relay.url, credential).cursor.file(draft()),
+        createHarnessAdapters(setup.relay.url, credential).cursor.file(
+          draft({ requestId: `unauthorized-${credential.length}` }),
+        ),
       ).rejects.toMatchObject({ status: credential === unauthorized ? 403 : 401 });
     }
-    expect(setup.createBodies).toHaveLength(0);
+    expect(setup.createBodies).toHaveLength(1);
+  });
+
+  it('keeps receipt lookup non-enumerating and requires the reconcile role', async () => {
+    const setup = await fixture();
+    const receipt = await createHarnessAdapters(setup.relay.url, setup.credential).claude.file(
+      draft(),
+    );
+    const wrongScope = setup.registry.issue({
+      credentialId: 'wrong-scope-status',
+      harness: 'cursor',
+      installationId: 99,
+      repository: 'arcadeai/other',
+      roles: ['file'],
+      secret: 'e'.repeat(64),
+      subject: 'wrong-scope',
+      tenantId: 'tenant-1',
+    });
+    const hidden = await fetch(`${setup.relay.url}/v1/retro-filings/${receipt.receiptId}`, {
+      headers: { authorization: `Bearer ${wrongScope}` },
+    });
+    expect(hidden.status).toBe(404);
+
+    const ambiguous = await fixture();
+    ambiguous.relay.faults.afterGitHubCreate = () => {
+      throw new Error('simulated crash');
+    };
+    await expect(
+      createHarnessAdapters(ambiguous.relay.url, ambiguous.credential).operator.reconcile(draft()),
+    ).rejects.toMatchObject({ status: 403 });
   });
 
   it('uses a server-held installation token without persisting or observing secrets', async () => {
@@ -288,6 +542,12 @@ describe('retry-safe retro relay', () => {
     await createHarnessAdapters(setup.relay.url, setup.credential).claude.file(draft());
 
     expect(setup.authorizationHeaders).toEqual(['Bearer ghs_installation_secret']);
+    expect(setup.tokenRequests).toHaveLength(1);
+    expect(setup.tokenRequests[0]?.authorization).toMatch(/^Bearer [\w-]+\.[\w-]+\.[\w-]+$/u);
+    expect(setup.tokenRequests[0]?.body).toEqual({
+      repositories: ['safeword'],
+      permissions: { issues: 'write' },
+    });
     const observable = JSON.stringify(setup.relay.observability);
     expect(observable).toContain('request-1479');
     expect(observable).toContain('filed');
@@ -303,6 +563,17 @@ describe('retry-safe retro relay', () => {
   it('fails closed when raw REST marker enumeration is non-unique', async () => {
     const marker = '<!-- safeword-retro-canonical: canonical:abc123 -->';
     const setup = await fixture({ rawBodies: [marker, marker] });
+    const adapter = createHarnessAdapters(setup.relay.url, setup.credential).claude;
+
+    await expect(adapter.file(draft())).rejects.toMatchObject({ status: 503 });
+    expect(setup.createBodies).toHaveLength(0);
+  });
+
+  it('fails closed when raw REST pagination is incomplete', async () => {
+    const setup = await fixture({
+      failSecondPage: true,
+      rawBodies: Array.from({ length: 100 }, (_, index) => `issue ${index}`),
+    });
     const adapter = createHarnessAdapters(setup.relay.url, setup.credential).claude;
 
     await expect(adapter.file(draft())).rejects.toMatchObject({ status: 503 });

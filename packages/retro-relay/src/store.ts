@@ -37,6 +37,8 @@ export interface AcceptInput {
   requestMarker: string;
 }
 
+export class SemanticEvidenceConflictError extends Error {}
+
 function rowToRequest(row: RequestRow): DurableRequest {
   return {
     scope: {
@@ -91,7 +93,7 @@ export class RelayStore {
         payload_ciphertext BLOB NOT NULL,
         payload_tag BLOB NOT NULL,
         state TEXT NOT NULL CHECK (state IN (
-          'accepted', 'dispatching', 'filed', 'ambiguous', 'retryable'
+          'accepted', 'claimed', 'dispatching', 'filed', 'ambiguous', 'retryable'
         )),
         issue_number INTEGER,
         request_marker TEXT NOT NULL,
@@ -112,9 +114,7 @@ export class RelayStore {
           REFERENCES retro_requests (tenant_id, installation_id, repository, request_id)
       ) STRICT;
     `);
-    const store = new RelayStore(database);
-    store.recoverInFlight();
-    return store;
+    return new RelayStore(database);
   }
 
   readonly #database: Database.Database;
@@ -156,9 +156,21 @@ export class RelayStore {
     return (
       this.#database
         .prepare(
-          `UPDATE retro_requests SET state = 'dispatching'
+          `UPDATE retro_requests SET state = 'claimed'
            WHERE tenant_id = ? AND installation_id = ? AND repository = ?
              AND request_id = ? AND state IN ('accepted', 'retryable')`,
+        )
+        .run(scope.tenantId, scope.installationId, scope.repository, scope.requestId).changes === 1
+    );
+  }
+
+  beginDispatch(scope: RequestScope): boolean {
+    return (
+      this.#database
+        .prepare(
+          `UPDATE retro_requests SET state = 'dispatching'
+           WHERE tenant_id = ? AND installation_id = ? AND repository = ?
+             AND request_id = ? AND state = 'claimed'`,
         )
         .run(scope.tenantId, scope.installationId, scope.repository, scope.requestId).changes === 1
     );
@@ -194,7 +206,7 @@ export class RelayStore {
       .prepare(
         `UPDATE retro_requests SET state = 'ambiguous'
          WHERE tenant_id = ? AND installation_id = ? AND repository = ?
-           AND request_id = ? AND state = 'dispatching'`,
+           AND request_id = ? AND state IN ('claimed', 'dispatching')`,
       )
       .run(scope.tenantId, scope.installationId, scope.repository, scope.requestId);
   }
@@ -205,7 +217,7 @@ export class RelayStore {
         `UPDATE retro_requests
          SET state = 'filed', issue_number = ?, filed_at = ?
          WHERE tenant_id = ? AND installation_id = ? AND repository = ?
-           AND request_id = ? AND state IN ('dispatching', 'ambiguous')`,
+           AND request_id = ? AND state IN ('claimed', 'dispatching', 'ambiguous')`,
       )
       .run(
         issueNumber,
@@ -225,7 +237,7 @@ export class RelayStore {
       .prepare(
         `UPDATE retro_requests SET state = 'retryable'
          WHERE tenant_id = ? AND installation_id = ? AND repository = ?
-           AND request_id = ? AND state = 'dispatching'`,
+           AND request_id = ? AND state = 'claimed'`,
       )
       .run(scope.tenantId, scope.installationId, scope.repository, scope.requestId);
   }
@@ -240,6 +252,7 @@ export class RelayStore {
     evidence: { kind: 'canonical' | 'legacy'; value: string }[],
   ): DurableRequest {
     const reserve = this.#database.transaction(() => {
+      let existingOwner: DurableRequest | undefined;
       for (const item of evidence) {
         const owner = this.#database
           .prepare<
@@ -260,9 +273,18 @@ export class RelayStore {
             requestId: owner.request_id,
           });
           if (record === undefined) throw new Error('evidence owner disappeared');
-          return record;
+          if (
+            existingOwner !== undefined &&
+            existingOwner.scope.requestId !== record.scope.requestId
+          ) {
+            throw new SemanticEvidenceConflictError(
+              'canonical and legacy evidence belong to different requests',
+            );
+          }
+          existingOwner = record;
         }
       }
+      if (existingOwner !== undefined) return existingOwner;
       for (const item of evidence) {
         this.#database
           .prepare(
@@ -283,7 +305,7 @@ export class RelayStore {
       if (record === undefined) throw new Error('evidence request disappeared');
       return record;
     });
-    return reserve();
+    return reserve.immediate();
   }
 
   schemaVersion(): number {
@@ -295,6 +317,9 @@ export class RelayStore {
   }
 
   recoverInFlight(): void {
+    this.#database
+      .prepare(`UPDATE retro_requests SET state = 'retryable' WHERE state = 'claimed'`)
+      .run();
     this.#database
       .prepare(`UPDATE retro_requests SET state = 'ambiguous' WHERE state = 'dispatching'`)
       .run();
