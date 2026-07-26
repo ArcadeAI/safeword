@@ -26,12 +26,11 @@ import {
 } from '../boundary/engine.js';
 import {
   readConfiguredPathFromContent,
-  resolveTicketsDirectory,
+  ticketDirectoriesForConfiguredRoot,
 } from '../utils/configured-paths.js';
 import { createPhaseAnchorScope } from '../utils/feature-source.js';
 import { readFileSafe } from '../utils/fs.js';
 import { warn } from '../utils/output.js';
-import { toRepoRelativePath } from '../utils/repo-path.js';
 
 export interface BoundaryOptions {
   at: string;
@@ -134,35 +133,45 @@ function parseTicketPath(
   return { ticketFolder, basename };
 }
 
+function findChangedTicket(
+  path: string,
+  ticketsDirectories: string[],
+): { ticketFolder: string; basename: string; ticketsDirectory: string } | undefined {
+  for (const ticketsDirectory of ticketsDirectories) {
+    const parsed = parseTicketPath(path, `${ticketsDirectory}/`);
+    if (parsed !== undefined) return { ...parsed, ticketsDirectory };
+  }
+  return undefined;
+}
+
 /** Map changed paths to per-ticket changes with prior/proposed + at-rest context. */
 function collectChanges(
   cwd: string,
   range: BoundaryRange,
   at: Boundary,
+  ticketsDirectories: string[],
   configuredFeatures?: string,
 ): TicketChange[] {
-  const ticketsDirectory = toRepoRelativePath(cwd, resolveTicketsDirectory(cwd));
-  const prefix = `${ticketsDirectory}/`;
   const byTicket = new Map<string, TicketChange>();
 
   for (const path of range.paths) {
-    const parsed = parseTicketPath(path, prefix);
+    const parsed = findChangedTicket(path, ticketsDirectories);
     if (parsed === undefined) continue;
-    const ticketPath = `${ticketsDirectory}/${parsed.ticketFolder}`;
-    const change = byTicket.get(parsed.ticketFolder) ?? {
+    const ticketPath = `${parsed.ticketsDirectory}/${parsed.ticketFolder}`;
+    const change = byTicket.get(ticketPath) ?? {
       ticketFolder: parsed.ticketFolder,
       ...createPhaseAnchorScope(cwd, ticketPath, configuredFeatures),
       artifacts: [],
       hasLedger: false,
     };
     change.artifacts.push(readChangedArtifact(cwd, path, parsed.basename, range, at));
-    byTicket.set(parsed.ticketFolder, change);
+    byTicket.set(ticketPath, change);
   }
 
   // At-rest context per touched ticket: ticket.md as it stands after the
   // change (staged version wins over disk) and whether a ledger exists.
   for (const change of byTicket.values()) {
-    const folder = nodePath.join(cwd, ticketsDirectory, change.ticketFolder);
+    const folder = nodePath.join(cwd, change.ticketPath);
     const staged = change.artifacts.find(a => a.artifact === 'ticket.md')?.proposed;
     change.ticketCurrent = staged ?? readFileSafe(nodePath.join(folder, 'ticket.md'));
     change.hasLedger =
@@ -173,7 +182,7 @@ function collectChanges(
     // endpoints (N76NQ0 — a range that traversed phases one legal step at a
     // time must not read as a skip).
     if (at === 'push' && change.artifacts.some(a => a.artifact === 'ticket.md')) {
-      const path = `${prefix}${change.ticketFolder}/ticket.md`;
+      const path = `${change.ticketPath}/ticket.md`;
       change.legalitySteps = legalityStepsFor(cwd, path, range.priorRef);
     }
   }
@@ -216,11 +225,11 @@ function reconcileBoundary(cwd: string, at: Boundary): void {
   const resolveSha = at === 'push' ? createLedgerShaResolver(cwd) : undefined;
   const readTreeArtifact = (relpath: string): string | undefined =>
     contentAt(cwd, at === 'commit' ? `:${relpath}` : `HEAD:${relpath}`);
-  const configuredFeatures = readConfiguredPathFromContent(
-    readTreeArtifact(CONFIG_REPO_PATH),
-    'features',
-  );
-  const changes = collectChanges(cwd, range, at, configuredFeatures);
+  const configContent = readTreeArtifact(CONFIG_REPO_PATH);
+  const configuredFeatures = readConfiguredPathFromContent(configContent, 'features');
+  const configuredProjectRoot = readConfiguredPathFromContent(configContent, 'projectRoot');
+  const ticketsDirectories = ticketDirectoriesForConfiguredRoot(cwd, configuredProjectRoot);
+  const changes = collectChanges(cwd, range, at, ticketsDirectories, configuredFeatures);
   if (changes.length === 0) return;
 
   const reconciliations = reconcileChange(changes, resolveSha, readTreeArtifact);

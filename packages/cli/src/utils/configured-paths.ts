@@ -19,6 +19,7 @@
 import nodePath from 'node:path';
 
 import { isDirectory, readFileSafe } from './fs.js';
+import { toRepoDirectory } from './repo-path.js';
 
 /** Logical project-knowledge keys safeword knows how to override via `paths.*`. */
 export type ConfiguredPathKey = 'personas' | 'glossary' | 'surfaces' | 'architecture';
@@ -249,6 +250,25 @@ export function resolveNamespaceRoot(cwd: string): string {
 /** Absolute tickets directory under the resolved namespace root. */
 export function resolveTicketsDirectory(cwd: string): string {
   return nodePath.join(resolveNamespaceRoot(cwd), 'tickets');
+}
+
+/**
+ * Repo-relative ticket directories for a caller-supplied project-root config.
+ * With no explicit root, both supported conventional roots are candidates;
+ * the changed-tree path determines which one is present.
+ */
+export function ticketDirectoriesForConfiguredRoot(
+  cwd: string,
+  configuredProjectRoot?: string,
+): string[] {
+  if (configuredProjectRoot === undefined) {
+    return [
+      nodePath.posix.join(NAMESPACE_ROOT_DEFAULT, 'tickets'),
+      nodePath.posix.join(NAMESPACE_ROOT_LEGACY, 'tickets'),
+    ];
+  }
+  const projectRoot = toRepoDirectory(cwd, configuredProjectRoot);
+  return projectRoot === undefined ? [] : [nodePath.posix.join(projectRoot, 'tickets')];
 }
 
 /** Absolute learnings directory under the resolved namespace root. */

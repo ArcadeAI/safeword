@@ -3,7 +3,7 @@ import nodePath from 'node:path';
 
 import type { PhaseAnchorScope } from '../../templates/hooks/lib/phase-provenance.js';
 import { resolveConfiguredLaneDirectory } from './configured-paths.js';
-import { toRepoPath, toRepoRelativePath } from './repo-path.js';
+import { toRepoDirectory } from './repo-path.js';
 import { WORKSPACE_ROOTS } from './workspaces.js';
 
 /** Ticket folder `ID-slug` -> `slug`; legacy `ID` -> `ID`. */
@@ -30,19 +30,9 @@ export function createPhaseAnchorScope(
 ): PhaseAnchorScope {
   const featureRoots = ['features'];
   if (configuredFeatures !== undefined) {
-    const configuredRoot = nodePath.isAbsolute(configuredFeatures)
-      ? toRepoRelativePath(cwd, configuredFeatures)
-      : toRepoPath(configuredFeatures);
-    let normalizedRoot = configuredRoot.startsWith('./') ? configuredRoot.slice(2) : configuredRoot;
-    while (normalizedRoot.endsWith('/')) normalizedRoot = normalizedRoot.slice(0, -1);
-    if (
-      normalizedRoot !== '' &&
-      normalizedRoot !== '.' &&
-      normalizedRoot !== '..' &&
-      !normalizedRoot.startsWith('../') &&
-      !featureRoots.includes(normalizedRoot)
-    ) {
-      featureRoots.push(normalizedRoot);
+    const configuredRoot = toRepoDirectory(cwd, configuredFeatures);
+    if (configuredRoot !== undefined && !featureRoots.includes(configuredRoot)) {
+      featureRoots.push(configuredRoot);
     }
   }
   return { ticketPath, featureRoots, workspaceRoots: [...WORKSPACE_ROOTS] };

@@ -169,7 +169,7 @@ partitions after real CLI probes found two anchor-substitution gaps.
 
 ### Scenario: Ticket discovery uses the staged project-root configuration
 
-- [ ] RED
+- [x] RED caa410f
 - [ ] GREEN
 - [ ] REFACTOR
 

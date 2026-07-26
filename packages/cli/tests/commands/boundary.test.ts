@@ -385,7 +385,7 @@ describe('safeword boundary (slice 1: engine core)', () => {
       const result = await runCli(['boundary', '--at', 'commit'], { cwd: dir });
 
       expect(result.exitCode).toBe(0);
-      expect(`${result.stdout}\n${result.stderr}`).toMatch(/phase-anchor.*shape/is);
+      expect(`${result.stdout}\n${result.stderr}`).toMatch(/impl-plan-shape.*missing/is);
     });
   });
 
