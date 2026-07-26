@@ -14,7 +14,7 @@ import { parseImplPlan } from '../../templates/hooks/lib/impl-plan.js';
 import { type ShaResolver, validateLedger } from '../../templates/hooks/lib/ledger-validation.js';
 import {
   type ArtifactReader,
-  detectUnanchoredPhaseTransition,
+  detectScopedUnanchoredPhaseTransition,
   evaluateTicketWrite,
   frontmatterOf as parseTicketFrontmatter,
   type PhaseAnchorScope,
@@ -155,15 +155,15 @@ function legalityVerdict(
  */
 function phaseAnchorVerdict(
   ticketFile: ChangedArtifact,
+  scope: PhaseAnchorScope,
   readArtifact?: ArtifactReader,
-  scope?: PhaseAnchorScope,
 ): CheckVerdict {
   try {
-    const anchor = detectUnanchoredPhaseTransition(
+    const anchor = detectScopedUnanchoredPhaseTransition(
       ticketFile.prior,
       ticketFile.proposed ?? '',
-      readArtifact,
       scope,
+      readArtifact,
     );
     return anchor.kind === 'unanchored'
       ? warnVerdict('phase-anchor', anchor.reason)
@@ -179,8 +179,8 @@ function phaseAnchorVerdict(
 /** Transition checks over a staged/changed ticket.md. */
 function ticketFileChecks(
   ticketFile: ChangedArtifact,
+  scope: PhaseAnchorScope,
   readArtifact?: ArtifactReader,
-  scope?: PhaseAnchorScope,
   legalitySteps?: LegalityStep[],
 ): CheckVerdict[] {
   if (ticketFile.proposed === undefined) return [];
@@ -197,7 +197,7 @@ function ticketFileChecks(
 
   checks.push(
     legalityVerdict(ticketFile, legalitySteps),
-    phaseAnchorVerdict(ticketFile, readArtifact, scope),
+    phaseAnchorVerdict(ticketFile, scope, readArtifact),
   );
 
   return checks;
@@ -319,7 +319,7 @@ function reconcileTicket(
     workspaceRoots: change.workspaceRoots,
   };
   return [
-    ...(ticketFile ? ticketFileChecks(ticketFile, readArtifact, scope, change.legalitySteps) : []),
+    ...(ticketFile ? ticketFileChecks(ticketFile, scope, readArtifact, change.legalitySteps) : []),
     ...atRestBirthCheck(change),
     ...ledgerChecks(change, resolveSha),
     ...artifactShapeChecks(change),

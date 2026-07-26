@@ -14,7 +14,7 @@
 import { readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { detectUnanchoredPhaseState } from '../templates/hooks/lib/phase-provenance.js';
+import { detectScopedUnanchoredPhaseState } from '../templates/hooks/lib/phase-provenance.js';
 import { getMissingPacks } from './packs/registry.js';
 import type { ProjectType } from './packs/types.js';
 import { typescriptPackages } from './packs/typescript/files.js';
@@ -360,10 +360,8 @@ function phaseAnchorAdvisoryForTicket(
   const ticketPath = toRepoRelativePath(cwd, ticketDirectory);
   const configuredFeatures = readConfiguredPath(cwd, 'features');
   const scope = createPhaseAnchorScope(cwd, ticketPath, configuredFeatures);
-  const verdict = detectUnanchoredPhaseState(
-    content,
-    relpath => readFileSafe(nodePath.join(cwd, relpath)),
-    scope,
+  const verdict = detectScopedUnanchoredPhaseState(content, scope, relpath =>
+    readFileSafe(nodePath.join(cwd, relpath)),
   );
   if (verdict.kind !== 'unanchored') return undefined;
   return `${formatCoverageTicketLabel(ticketId)}: ${verdict.reason} The anchor is the exited phase's artifact — boundary checks verify it against the tree.`;

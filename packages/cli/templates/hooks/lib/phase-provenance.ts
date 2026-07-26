@@ -505,6 +505,16 @@ export function detectUnanchoredPhaseTransition(
   return validateAnchor(proposed, proposedPhase, readArtifact, scope);
 }
 
+/** Enforcement entry point: ownership scope is required, tree reading remains optional. */
+export function detectScopedUnanchoredPhaseTransition(
+  priorContent: string | undefined,
+  proposedContent: string,
+  scope: PhaseAnchorScope,
+  readArtifact?: ArtifactReader,
+): PhaseAnchorVerdict {
+  return detectUnanchoredPhaseTransition(priorContent, proposedContent, readArtifact, scope);
+}
+
 /**
  * Shared anchor validation ladder: entry present → path-shaped (hex is the
  * legacy branch) → expected kind for the phase → (with a reader) present in
@@ -618,4 +628,13 @@ export function detectUnanchoredPhaseState(
   if (anchor !== undefined && isValidSha(anchor)) return NOT_APPLICABLE;
 
   return validateAnchor(meta, phase, readArtifact, scope);
+}
+
+/** At-rest enforcement entry point with required canonical ownership scope. */
+export function detectScopedUnanchoredPhaseState(
+  content: string,
+  scope: PhaseAnchorScope,
+  readArtifact?: ArtifactReader,
+): PhaseAnchorVerdict {
+  return detectUnanchoredPhaseState(content, readArtifact, scope);
 }
