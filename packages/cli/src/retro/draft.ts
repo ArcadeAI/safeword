@@ -47,11 +47,17 @@ export function retroCanonicalSignature(repro: string): string {
 }
 
 /**
- * A hidden, searchable marker that carries the content signature into the issue
- * body. Dedupe matches on THIS (via `searchBySignature` → `in:body`), not the
- * model-generated title, because titles vary across delta re-fires (ZFGWS1). An
- * HTML comment keeps it invisible in the rendered issue but present in the raw body
- * GitHub search indexes.
+ * A hidden marker that carries the content signature into the issue body. Dedupe
+ * matches on THIS (via `searchBySignature`), not the model-generated title,
+ * because titles vary across delta re-fires (ZFGWS1). An HTML comment keeps it
+ * invisible in the rendered issue while present in the raw body.
+ *
+ * Raw is the operative word: dedupe reads bodies from the issue LISTING endpoint
+ * and string-matches locally (#1453). It deliberately does NOT rely on GitHub's
+ * search index reaching comment text — an unverifiable property whose failure
+ * mode is a silent duplicate. Note that some API wrappers strip HTML comments
+ * from the bodies they return; any new read path must be checked for that before
+ * it is trusted for dedupe.
  */
 export function signatureMarker(signature: string): string {
   return `<!-- safeword-retro-signature: ${signature} -->`;

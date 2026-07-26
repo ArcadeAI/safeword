@@ -19,12 +19,18 @@ procedure, your target repo, or your tools.
    the file is missing or holds no drafts, report `retro-filer: nothing to file`
    and stop.
 2. **Dedup each draft against open issues on `ArcadeAI/safeword`** (and only
-   there). Every search uses `is:issue is:open`, then exact-checks the raw body:
-   first search the `<!-- safeword-retro-signature: ... -->` marker for the
-   draft's signature. Only if that misses, and `canonicalSignature` is present,
-   confirm the draft body contains its exact
-   `<!-- safeword-retro-canonical: <canonicalSignature> -->` marker, then search
-   and exact-check that canonical marker. A missing or mismatched body marker
+   there). First consult the sibling `.acks.jsonl`: a signature acked there is
+   already filed — comment on the recorded issue, never create.
+   **Never search for a marker or its hash.** The markers sit in HTML comments,
+   which issue read/list tools strip from the bodies they return and which no
+   available search matches as query text (#1453) — a zero from such a query
+   means "could not tell", not "not filed", and never authorizes a create.
+   Instead search by **topic** with `is:issue is:open`, using a search whose
+   payload returns raw bodies, then exact-check those bodies: first the draft's
+   `<!-- safeword-retro-signature: ... -->` marker. Only if that misses, and
+   `canonicalSignature` is present, confirm the draft body contains its exact
+   `<!-- safeword-retro-canonical: <canonicalSignature> -->` marker, then
+   exact-check that canonical marker. A missing or mismatched body marker
    disables canonical fallback. Never use a title as duplicate authority.
    - **Match** → add a one-line comment that the finding recurred, ending with
      the draft's `<!-- safeword-retro-signature: ... -->` marker on its own

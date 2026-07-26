@@ -21,6 +21,11 @@ const PER_PAGE = 100;
 const MAX_COMMENT_PAGES = 20;
 // Safety bound on issue-listing pagination for the reconcile sweep (→ 1000 issues).
 const MAX_ISSUE_PAGES = 10;
+// Safety bound on the dedup enumeration (→ 3000 open issues). Deliberately
+// looser than MAX_ISSUE_PAGES: hitting this bound THROWS rather than truncating
+// (see listOpenIssues), so it halts filing entirely — it needs real headroom
+// above the repo's open-issue count, not just enough for one sweep.
+const MAX_DEDUP_PAGES = 30;
 
 /** Ask the `gh` CLI for the environment's GitHub token, or undefined if unavailable. */
 function ghAuthToken(): string | undefined {
@@ -98,31 +103,81 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
 
   const call = buildCall(token);
 
-  async function searchByExactMarker(hashToken: string, marker: string): Promise<IssueReference[]> {
-    const query = encodeURIComponent(
-      `repo:${UPSTREAM_REPO} is:issue in:body state:open ${hashToken}`,
+  /**
+   * Every open issue body, fetched once per transport (#1453).
+   *
+   * Dedup used to ask `/search/issues` for the signature's hash token and filter
+   * the hits. That made the search INDEX the arbiter of "already filed", and the
+   * marker lives in an HTML comment — whether the index tokenizes comment text is
+   * undocumented and could not be verified. The fatal part is not the uncertainty
+   * but the shape of a wrong answer: an unindexed marker and a genuinely absent
+   * one both return an empty array, so triage cannot tell "no duplicate" from
+   * "could not tell" and confidently files a duplicate. Index lag had the same
+   * signature, which is why this read as flaky for so long.
+   *
+   * The listing endpoint returns raw bodies verbatim, so the marker check becomes
+   * a local string compare — exact, index-independent, and lag-free. No label
+   * filter: this keeps the old query's recall, so a marker hand-copied into an
+   * unlabeled issue (as happens when issues are merged) still dedups.
+   *
+   * Cached because triage runs up to two lookups per encounter; a 12-finding
+   * session would otherwise re-list 24 times.
+   */
+  let openIssues: Promise<{ number: number; title: string; body: string }[]> | undefined;
+
+  async function listOpenIssues(): Promise<{ number: number; title: string; body: string }[]> {
+    const issues: { number: number; title: string; body: string }[] = [];
+    for (let page = 1; page <= MAX_DEDUP_PAGES; page++) {
+      const data = (await call(
+        'GET',
+        `${ISSUES_BASE}?state=open&per_page=${PER_PAGE}&page=${page}`,
+      )) as { number: number; title: string; body?: string; pull_request?: unknown }[];
+      issues.push(
+        ...data
+          .filter(issue => issue.pull_request === undefined)
+          .map(issue => ({ number: issue.number, title: issue.title, body: issue.body ?? '' })),
+      );
+      if (data.length < PER_PAGE) return issues;
+    }
+    // The bound was reached with a full final page, so there is an unread tail and
+    // "no match" would be a guess about it. Throw: triage isolates this as a failed
+    // encounter and leaves the draft spooled, which is recoverable. Silently
+    // returning [] would file a duplicate — the exact failure this replaces.
+    throw new Error(
+      `retro dedup: open issues exceed ${MAX_DEDUP_PAGES * PER_PAGE}; enumeration truncated`,
     );
-    const data = (await call('GET', `/search/issues?q=${query}&per_page=${PER_PAGE}`)) as {
-      items?: { number: number; title: string; body?: string; pull_request?: unknown }[];
-    };
-    return (data.items ?? [])
-      .filter(item => !item.pull_request && (item.body ?? '').includes(marker))
-      .map(item => ({ number: item.number, title: item.title }));
+  }
+
+  // Drop the cached promise on failure, or one transient 5xx would sink every
+  // later encounter in the session instead of just its own. The reset lands after
+  // the await, by which point the assignment below has already completed.
+  async function loadOpenIssues(): Promise<{ number: number; title: string; body: string }[]> {
+    try {
+      return await listOpenIssues();
+    } catch (error) {
+      openIssues = undefined;
+      throw error;
+    }
+  }
+
+  async function findByExactMarker(marker: string): Promise<IssueReference[]> {
+    // Cache the promise, not the result, so concurrent lookups share one fetch.
+    openIssues ??= loadOpenIssues();
+    const issues = await openIssues;
+    return issues
+      .filter(issue => issue.body.includes(marker))
+      .map(issue => ({ number: issue.number, title: issue.title }));
   }
 
   return {
     async searchBySignature(signature: string): Promise<IssueReference[]> {
-      // Search the body for the signature's hash token (the `retro:` prefix carries
-      // a `:` that GitHub's grammar reads as a qualifier, degrading recall), then
-      // exact-filter on the FULL signature in the returned body — GitHub search is
-      // fuzzy, so a hash near-miss must be rejected to avoid matching the wrong issue.
-      const hashToken = signature.replace(/^retro:/, '');
-      return searchByExactMarker(hashToken, signatureMarker(signature));
+      // Match the FULL marker, not the bare hash: the body is ours and the marker
+      // is exact, so a near-miss hash sharing a prefix must never count as filed.
+      return findByExactMarker(signatureMarker(signature));
     },
 
     async searchByCanonical(canonicalSignature: string): Promise<IssueReference[]> {
-      const hashToken = canonicalSignature.replace(/^canonical:/, '');
-      return searchByExactMarker(hashToken, canonicalMarker(canonicalSignature));
+      return findByExactMarker(canonicalMarker(canonicalSignature));
     },
 
     async createIssue(input: CreateIssueInput): Promise<IssueReference> {

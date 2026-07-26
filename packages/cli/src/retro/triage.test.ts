@@ -62,8 +62,8 @@ class FakeGitHub implements IssueTracker {
   }
 
   searchBySignature(signature: string): Promise<IssueReference[]> {
-    // Match on the signature embedded in the body (as the real REST transport does
-    // via in:body + exact-filter), NOT the title.
+    // Match on the signature embedded in the body (as the real REST transport
+    // does, by string-matching the enumerated issue bodies), NOT the title.
     return Promise.resolve(
       this.issues
         .filter(i => i.body.includes(signature))

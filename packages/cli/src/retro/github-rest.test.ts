@@ -59,34 +59,34 @@ describe('createRestTransport', () => {
     expect(createRestTransport('')).toBeUndefined();
   });
 
-  it('C2: searches the body for the signature hash token and requests per_page=100', async () => {
-    const calls = mockFetch(() => ({ json: () => ({ items: [] }) }));
+  // #1453 — dedup must not route through GitHub's search index. The marker lives
+  // in an HTML comment, and an unindexed marker returns the same empty array as a
+  // genuinely absent one, so triage cannot tell "no duplicate" from "could not
+  // tell". These tests pin the listing endpoint as the source of truth.
+  it('C2: enumerates open issues via the listing endpoint, never the search index', async () => {
+    const calls = mockFetch(() => ({ json: () => [] }));
     const transport = createRestTransport('tok');
     if (!transport) throw new Error('expected a transport');
 
     await transport.searchBySignature('retro:abc123def456');
 
-    const decoded = decodeURIComponent(calls[0] ?? '');
-    expect(calls[0]).toContain('per_page=100');
-    // searches the body, by the bare hash token (no `retro:` colon qualifier)
-    expect(decoded).toContain('in:body');
-    expect(decoded).toContain('is:issue');
-    expect(decoded).toContain('abc123def456');
-    expect(decoded).not.toContain('retro:abc123def456');
+    const [url = ''] = calls;
+    expect(url).not.toContain('/search/');
+    expect(url).toBe(
+      'https://api.github.com/repos/ArcadeAI/safeword/issues?state=open&per_page=100&page=1',
+    );
   });
 
   it('C2: rejects a fuzzy near-miss whose body lacks the exact signature', async () => {
     mockFetch(() => ({
-      json: () => ({
-        items: [
-          { number: 1, title: 'near miss', body: 'has retro:zzzzzzzzzzzz only' },
-          {
-            number: 2,
-            title: 'exact',
-            body: '<!-- safeword-retro-signature: retro:abc123def456 -->',
-          },
-        ],
-      }),
+      json: () => [
+        { number: 1, title: 'near miss', body: 'has retro:zzzzzzzzzzzz only' },
+        {
+          number: 2,
+          title: 'exact',
+          body: '<!-- safeword-retro-signature: retro:abc123def456 -->',
+        },
+      ],
     }));
     const transport = createRestTransport('tok');
     if (!transport) throw new Error('expected a transport');
@@ -98,16 +98,14 @@ describe('createRestTransport', () => {
 
   it('prevent-retro-duplicate-issues.SM1.R2.rejects a canonical hash token without its exact marker', async () => {
     mockFetch(() => ({
-      json: () => ({
-        items: [
-          { number: 1, title: 'near miss', body: 'contains canonical:abc123def456-suffix' },
-          {
-            number: 2,
-            title: 'exact',
-            body: '<!-- safeword-retro-canonical: canonical:abc123def456 -->',
-          },
-        ],
-      }),
+      json: () => [
+        { number: 1, title: 'near miss', body: 'contains canonical:abc123def456-suffix' },
+        {
+          number: 2,
+          title: 'exact',
+          body: '<!-- safeword-retro-canonical: canonical:abc123def456 -->',
+        },
+      ],
     }));
     const transport = createRestTransport('tok');
     if (!transport) throw new Error('expected a transport');
@@ -117,39 +115,124 @@ describe('createRestTransport', () => {
     expect(matches).toEqual([{ number: 2, title: 'exact' }]);
   });
 
-  it('searches canonical identities as issues, never pull requests', async () => {
-    const calls = mockFetch(() => ({ json: () => ({ items: [] }) }));
-    const transport = createRestTransport('tok');
-    if (!transport) throw new Error('expected a transport');
-
-    await transport.searchByCanonical('canonical:abc123def456');
-
-    expect(decodeURIComponent(calls[0] ?? '')).toContain('is:issue');
-  });
-
   it('rejects an exact canonical marker copied into a pull request', async () => {
     mockFetch(() => ({
-      json: () => ({
-        items: [
-          {
-            number: 1,
-            title: 'copied marker PR',
-            body: '<!-- safeword-retro-canonical: canonical:abc123def456 -->',
-            pull_request: {},
-          },
-          {
-            number: 2,
-            title: 'canonical issue',
-            body: '<!-- safeword-retro-canonical: canonical:abc123def456 -->',
-          },
-        ],
-      }),
+      json: () => [
+        {
+          number: 1,
+          title: 'copied marker PR',
+          body: '<!-- safeword-retro-canonical: canonical:abc123def456 -->',
+          pull_request: {},
+        },
+        {
+          number: 2,
+          title: 'canonical issue',
+          body: '<!-- safeword-retro-canonical: canonical:abc123def456 -->',
+        },
+      ],
     }));
     const transport = createRestTransport('tok');
     if (!transport) throw new Error('expected a transport');
 
     await expect(transport.searchByCanonical('canonical:abc123def456')).resolves.toEqual([
       { number: 2, title: 'canonical issue' },
+    ]);
+  });
+
+  // The marker can be hand-copied into an ordinary issue when two are merged
+  // (#1453 documents exactly that on #1425), so dedup must not filter by label.
+  it('#1453: matches a marker on an issue that carries no retro label', async () => {
+    const calls = mockFetch(() => ({
+      json: () => [
+        {
+          number: 1425,
+          title: 'hand-merged issue',
+          body: 'merged\n<!-- safeword-retro-signature: retro:9230b08d2fb3 -->',
+          labels: [],
+        },
+      ],
+    }));
+    const transport = createRestTransport('tok');
+    if (!transport) throw new Error('expected a transport');
+
+    await expect(transport.searchBySignature('retro:9230b08d2fb3')).resolves.toEqual([
+      { number: 1425, title: 'hand-merged issue' },
+    ]);
+    expect(calls[0]).not.toContain('labels=');
+  });
+
+  it('#1453: paginates the enumeration and reuses it across lookups', async () => {
+    const fullPage = Array.from({ length: 100 }, (_, i) => ({
+      number: i,
+      title: `t${i}`,
+      body: 'nothing here',
+    }));
+    const calls = mockFetch(url => ({
+      json: () =>
+        url.endsWith('page=1')
+          ? fullPage
+          : [
+              {
+                number: 999,
+                title: 'on page two',
+                body: '<!-- safeword-retro-signature: retro:abc123def456 -->',
+              },
+            ],
+    }));
+    const transport = createRestTransport('tok');
+    if (!transport) throw new Error('expected a transport');
+
+    await expect(transport.searchBySignature('retro:abc123def456')).resolves.toEqual([
+      { number: 999, title: 'on page two' },
+    ]);
+    expect(calls).toHaveLength(2);
+
+    // A second lookup reuses the enumeration — triage runs two per encounter.
+    await transport.searchByCanonical('canonical:abc123def456');
+    expect(calls).toHaveLength(2);
+  });
+
+  // The bug this replaces was invisible because a zero result was
+  // indistinguishable from success. A truncated enumeration must fail loudly:
+  // triage isolates the throw and leaves the draft spooled (recoverable) rather
+  // than reading the empty result as "no duplicate" and filing one.
+  it('#1453: throws instead of returning no match when the enumeration truncates', async () => {
+    const fullPage = Array.from({ length: 100 }, (_, i) => ({
+      number: i,
+      title: `t${i}`,
+      body: 'no marker',
+    }));
+    const calls = mockFetch(() => ({ json: () => fullPage }));
+    const transport = createRestTransport('tok');
+    if (!transport) throw new Error('expected a transport');
+
+    await expect(transport.searchBySignature('retro:abc123def456')).rejects.toThrow(/truncated/);
+    expect(calls).toHaveLength(30);
+  });
+
+  it('#1453: retries the enumeration after a transient failure', async () => {
+    let attempt = 0;
+    mockFetch(() => {
+      attempt += 1;
+      return attempt === 1
+        ? { ok: false, status: 502, json: () => ({}) }
+        : {
+            json: () => [
+              {
+                number: 7,
+                title: 'found on retry',
+                body: '<!-- safeword-retro-signature: retro:abc123def456 -->',
+              },
+            ],
+          };
+    });
+    const transport = createRestTransport('tok');
+    if (!transport) throw new Error('expected a transport');
+
+    await expect(transport.searchBySignature('retro:abc123def456')).rejects.toThrow('502');
+    // The poisoned promise was dropped, so the next encounter gets a real answer.
+    await expect(transport.searchBySignature('retro:abc123def456')).resolves.toEqual([
+      { number: 7, title: 'found on retry' },
     ]);
   });
 
