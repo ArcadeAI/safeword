@@ -2,7 +2,7 @@
 id: CBTDK8
 slug: portable-tracker-transport
 type: feature
-phase: verify
+phase: done
 phase_anchors:
   - intake: e1c4733
   - define-behavior: 35b4b81
@@ -10,7 +10,8 @@ phase_anchors:
   - plan-implementation: b5983b6
   - implement: 65d3e61
   - verify: 65d3e61
-status: in_progress
+  - done: .project/tickets/CBTDK8-portable-tracker-transport/verify.md
+status: done
 epic: offboard-local-ticketing
 parent: KKNFZA
 scope:
