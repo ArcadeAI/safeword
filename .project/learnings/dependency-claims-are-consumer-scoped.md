@@ -4,10 +4,10 @@ Covers: dependency bump descriptions, transitive dependencies, monorepo lockfile
 
 **Finding:** PR #1467 (eslint-plugin-astro 2 → 3) described the `@astrojs/compiler` → `@astrojs/compiler-rs` swap as "not a new dependency / net reduction." That was true of `bun.lock` and false for everyone who installs safeword from npm. Both halves of the claim came from looking at the wrong graph.
 
-**Mechanism:** `@astrojs/compiler-rs` was already in this repo's lockfile before the bump — `packages/website` dev-depends on `astro@7`, which depends on it. So the bump added no lockfile entry and the diff genuinely looked like a net reduction. But `packages/website` is not published; safeword's consumers install `packages/cli`, where `eslint-plugin-astro` is a **production** dependency. What reaches them is a substitution:
+**Mechanism:** `@astrojs/compiler-rs` was already in this repo's lockfile before the bump — `packages/website` depends on `astro@7`, which depends on it. So the bump added no lockfile entry and the diff genuinely looked like a net reduction. But `packages/website` is not published; safeword's consumers install `packages/cli`, where `eslint-plugin-astro` is a **production** dependency. What reaches them is a substitution:
 
 - v2: `@astrojs/compiler` (WASM) + `astrojs-compiler-sync` + `entities`
-- v3: `@astrojs/compiler-rs` → `@astrojs/compiler-binding` → one of nine platform-specific native binaries (`linux-x64-gnu`, `darwin-arm64`, …, plus a `wasm32-wasi` fallback)
+- v3: `@astrojs/compiler-rs` → `@astrojs/compiler-binding` → one of nine platform binding packages (`linux-x64-gnu`, `darwin-arm64`, … — eight native, plus a `wasm32-wasi` fallback)
 
 A pure-JS/WASM parse path became a native NAPI one. For a consumer that is a new class of dependency — new install-time platform resolution, new prebuilt-binary supply-chain surface, new failure mode on unsupported platforms — regardless of the package count moving down by one.
 

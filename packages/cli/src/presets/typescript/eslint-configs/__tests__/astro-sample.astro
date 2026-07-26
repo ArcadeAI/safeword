@@ -1,7 +1,9 @@
 ---
 // Lint fixture: a valid .astro file the preset must accept with zero messages.
-// Exercises frontmatter, markup expressions, and the a11y-sensitive elements
-// (img, heading, anchor) that the jsx-a11y-strict block guards.
+// Exercises frontmatter, markup expressions, and a11y-sensitive elements
+// (img, heading, anchor) in their compliant form. That the a11y block actually
+// fires is the violation fixture's job — clean here only proves no false
+// positives.
 const title = 'Safeword';
 const steps = ['lint', 'test', 'ship'];
 ---

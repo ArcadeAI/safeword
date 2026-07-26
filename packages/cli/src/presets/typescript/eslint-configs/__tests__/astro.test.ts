@@ -255,13 +255,17 @@ describe('Astro config', () => {
       expect(await lintAstroFixture('astro-sample.astro')).toEqual([]);
     });
 
-    it('flags set:html in markup with astro/no-set-html-directive', async () => {
-      // `set:html` lives in the template, not the frontmatter, so catching it
-      // proves the Astro AST was built rather than the frontmatter alone.
+    it('flags markup violations from both rule blocks', async () => {
+      // Both live in the template, not the frontmatter, so catching them proves
+      // the Astro AST was built rather than the frontmatter alone. One rule per
+      // block the config assembles: if either block stops reaching .astro
+      // markup, the valid fixture above stays green but this fails.
       const messages = await lintAstroFixture('astro-violation-sample.astro');
 
-      expect(messages.map(message => message.ruleId)).toEqual(['astro/no-set-html-directive']);
-      expect(messages.at(0)?.severity).toBe(ERROR);
+      expect(messages.map(message => message.ruleId)).toEqual([
+        'astro/no-set-html-directive',
+        'astro/jsx-a11y/alt-text',
+      ]);
     });
   });
 });
