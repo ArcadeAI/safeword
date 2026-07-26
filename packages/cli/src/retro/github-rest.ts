@@ -59,6 +59,7 @@ function ghAuthToken(): string | undefined {
  */
 function looksLikeGitHubToken(value: string): boolean {
   return (
+    /^ghs_[\w.-]{36,}$/.test(value) ||
     /^gh[opusr]_[A-Za-z0-9]{20,}$/.test(value) ||
     /^github_pat_\w{20,}$/.test(value) ||
     /^[0-9a-f]{40}$/.test(value)

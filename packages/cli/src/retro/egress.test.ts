@@ -149,6 +149,51 @@ describe('scrubSecrets — formats from review #543 round 2', () => {
   });
 });
 
+describe('scrubSecrets — stateless GitHub installation tokens (#1495)', () => {
+  const redacted = '[redacted]';
+  const classicGitHub = /\bgh[pousr]_\w{20,}\b/g;
+  const genericJwt = /\beyJ[\w-]{10,}\.[\w-]{10,}\.[\w-]{10,}\b/g;
+  const statelessGitHub = /\bghs_[\w.-]{36,}/g;
+  const token = `ghs_${'A'.repeat(40)}.${'B'.repeat(40)}.${'C'.repeat(40)}`;
+  const minimumToken = `ghs_${'A'.repeat(10)}_${'B'.repeat(10)}.${'C'.repeat(6)}.${'D'.repeat(7)}`;
+
+  function scrubWith(patterns: readonly RegExp[]): string {
+    let out = `token is ${token}`;
+    for (const pattern of patterns) out = out.replaceAll(pattern, () => redacted);
+    return out;
+  }
+
+  it('pins the four load-bearing rule-ordering mutations', () => {
+    expect(scrubWith([classicGitHub, genericJwt])).toBe(
+      `token is ${redacted}.${'B'.repeat(40)}.${'C'.repeat(40)}`,
+    );
+    expect(scrubWith([genericJwt])).toBe(`token is ${token}`);
+    expect(scrubWith([statelessGitHub, classicGitHub, genericJwt])).toBe(`token is ${redacted}`);
+    expect(scrubWith([classicGitHub, statelessGitHub, genericJwt])).toBe(
+      `token is ${redacted}.${'B'.repeat(40)}.${'C'.repeat(40)}`,
+    );
+  });
+
+  it.each([
+    ['minimum-length', minimumToken],
+    ['hyphen-ending', `ghs_${'A'.repeat(40)}.${'B'.repeat(40)}.${'C'.repeat(39)}-`],
+    ['underscore-ending', `ghs_${'A'.repeat(40)}.${'B'.repeat(40)}.${'C'.repeat(39)}_`],
+  ])('fully redacts a %s stateless token without residue', (_label, shaped) => {
+    const [, payload, signature] = shaped.split('.', 3);
+    const out = scrubSecrets(`token is ${shaped}`);
+
+    expect(out).toBe(`token is ${redacted}`);
+    expect(out).not.toContain(shaped);
+    expect(out).not.toContain(payload);
+    expect(out).not.toContain(signature);
+    expect(out).not.toMatch(/\.[\w.-]+/);
+  });
+
+  it('keeps classic GitHub token redaction as a regression control', () => {
+    expect(scrubSecrets(`token is ghs_${'A'.repeat(40)}`)).toBe(`token is ${redacted}`);
+  });
+});
+
 // SPNZKM: the maintained @secretlint rule-packs catch well-formed modern
 // provider keys that the broad regex floor does not target. These prove the
 // secretlint layer (via sanitizeTextDeep / redactKnownSecrets) actually fires.
