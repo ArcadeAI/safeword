@@ -584,10 +584,16 @@ describe('E2E: Rust Lint Hook Fallback', () => {
     initGitRepo(projectDirectory);
     // Run setup to get the hook infrastructure
     await setupOrThrow(projectDirectory);
-    // Delete .safeword/rustfmt.toml to test fallback path
-    const rustfmtConfig = nodePath.join(projectDirectory, '.safeword/rustfmt.toml');
-    if (fileExists(projectDirectory, '.safeword/rustfmt.toml')) {
-      unlinkSync(rustfmtConfig);
+    // Delete BOTH rustfmt configs to test the fallback path. Deleting only the
+    // .safeword copy is not enough: rustfmt searches the target file's directory and
+    // its PARENTS for a rustfmt.toml, so the project-root config setup wrote is still
+    // discovered and plain `rustfmt <file>` keeps running under safeword's settings.
+    // (Verified: a root `max_width = 40` visibly changes wrapping vs. the default.)
+    // See https://github.com/rust-lang/rustfmt#configuring-rustfmt
+    for (const config of ['.safeword/rustfmt.toml', 'rustfmt.toml']) {
+      if (fileExists(projectDirectory, config)) {
+        unlinkSync(nodePath.join(projectDirectory, config));
+      }
     }
   });
 
@@ -615,8 +621,11 @@ describe('E2E: Rust Lint Hook Fallback', () => {
     expect(hook.signal ?? undefined).toBeUndefined();
     expect(hook.status).toBe(0);
 
-    // The fallback path was genuinely taken: the config did not come back.
+    // The fallback path was genuinely taken: neither config came back. The ROOT one is
+    // load-bearing here — rustfmt's parent-directory search means a surviving
+    // rustfmt.toml at the project root silently keeps this on the configured path.
     expect(fileExists(projectDirectory, '.safeword/rustfmt.toml')).toBe(false);
+    expect(fileExists(projectDirectory, 'rustfmt.toml')).toBe(false);
 
     // File should still be formatted (rustfmt works without config)
     const result = readTestFile(projectDirectory, 'src/fallback-test.rs');
