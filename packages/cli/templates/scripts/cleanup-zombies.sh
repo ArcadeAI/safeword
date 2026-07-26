@@ -148,28 +148,77 @@ echo ""
 FOUND_COUNT=0
 KILLED_COUNT=0
 
+# Return success only when a path is the project root or one of its descendants.
+path_belongs_to_project() {
+  local candidate=$1
+  local project_dir
+  for project_dir in "${PROJECT_DIR_ALIASES[@]}"; do
+    case "$candidate" in
+      "$project_dir" | "$project_dir"/*) return 0 ;;
+    esac
+  done
+  return 1
+}
+
+# Port ownership is machine-wide, so verify each matching process belongs to this
+# project before presenting it as a cleanup candidate. Deny by default when
+# its working directory does not establish ownership.
+process_belongs_to_project() {
+  local pid=$1
+  local field
+  local process_cwd
+
+  process_cwd=""
+  while IFS= read -r -d '' field; do
+    case "$field" in
+      n*)
+        process_cwd=${field#n}
+        break
+        ;;
+    esac
+  done < <(lsof -a -p "$pid" -d cwd -Fn0 2> /dev/null || true)
+
+  if [ -n "$process_cwd" ] && path_belongs_to_project "$process_cwd"; then
+    return 0
+  fi
+  return 1
+}
+
 # Function to find and optionally kill processes by port
 cleanup_port() {
   local port=$1
   local pids
+  local project_pids=()
   pids=$(lsof -ti:"$port" 2> /dev/null || true)
 
-  if [ -n "$pids" ]; then
-    local count
-    count=$(echo "$pids" | wc -l | tr -d ' ')
-    FOUND_COUNT=$((FOUND_COUNT + count))
-
-    echo "Port $port: $count process(es)"
-    for pid in $pids; do
-      local cmd
-      cmd=$(ps -p "$pid" -o command= 2> /dev/null | head -c 80 || echo "unknown")
-      echo "  PID $pid: $cmd"
-    done
-
-    if [ "$DRY_RUN" = false ]; then
-      echo "$pids" | xargs kill -9 2> /dev/null || true
-      KILLED_COUNT=$((KILLED_COUNT + count))
+  for pid in $pids; do
+    if process_belongs_to_project "$pid"; then
+      project_pids+=("$pid")
     fi
+  done
+
+  if [ "${#project_pids[@]}" -eq 0 ]; then
+    return
+  fi
+
+  local count
+  count=${#project_pids[@]}
+  FOUND_COUNT=$((FOUND_COUNT + count))
+
+  echo "Port $port: $count process(es)"
+  for pid in "${project_pids[@]}"; do
+    local cmd
+    cmd=$(ps -p "$pid" -o command= 2> /dev/null | head -c 80 || echo "unknown")
+    echo "  PID $pid: $cmd"
+  done
+
+  if [ "$DRY_RUN" = false ]; then
+    for pid in "${project_pids[@]}"; do
+      if process_belongs_to_project "$pid"; then
+        printf '%s\n' "$pid" | xargs -n 1 kill -9 2> /dev/null || true
+        KILLED_COUNT=$((KILLED_COUNT + 1))
+      fi
+    done
   fi
 }
 

@@ -6,13 +6,25 @@
  */
 
 import { type ChildProcess, execSync, spawn } from 'node:child_process';
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 const SCRIPT_PATH = nodePath.join(__dirname, '../../templates/scripts/cleanup-zombies.sh');
+const MOCK_PORT = 5173;
+const MOCK_PID = 4242;
+const MOCK_SECOND_PID = 4343;
 
 describe('cleanup-zombies.sh', () => {
   let temporaryDirectory: string;
@@ -26,9 +38,13 @@ describe('cleanup-zombies.sh', () => {
   });
 
   /** Run the real script with the args exactly as given. */
-  function runScriptRaw(args: string[] = []): string {
+  function runScriptRaw(args: string[] = [], environmentOverrides: NodeJS.ProcessEnv = {}): string {
     const command = `bash "${SCRIPT_PATH}" ${args.join(' ')}`;
-    return execSync(command, { cwd: temporaryDirectory, encoding: 'utf8' });
+    return execSync(command, {
+      cwd: temporaryDirectory,
+      encoding: 'utf8',
+      env: { ...process.env, ...environmentOverrides },
+    });
   }
 
   /** Detection-suite default: always preview explicitly. */
@@ -43,6 +59,67 @@ describe('cleanup-zombies.sh', () => {
       mkdirSync(dir, { recursive: true });
     }
     writeFileSync(fullPath, content);
+  }
+
+  function mockPortOwner(
+    processDirectory?: string,
+    processCommand?: string,
+    subsequentProcessDirectory?: string,
+  ): NodeJS.ProcessEnv {
+    const binaryDirectory = nodePath.join(temporaryDirectory, 'bin');
+    const killPath = nodePath.join(binaryDirectory, 'kill');
+    const lsofPath = nodePath.join(binaryDirectory, 'lsof');
+    const psPath = nodePath.join(binaryDirectory, 'ps');
+    mkdirSync(binaryDirectory);
+    writeFileSync(
+      lsofPath,
+      String.raw`#!/usr/bin/env bash
+if [[ "$*" == "-ti:${MOCK_PORT}" ]]; then
+  if [[ -n "$MOCK_PORT_PIDS" ]]; then
+    printf '%s\n' "$MOCK_PORT_PIDS"
+  else
+    echo ${MOCK_PID}
+  fi
+elif [[ "$*" == "-a -p ${MOCK_PID} -d cwd -Fn0" ]] && [[ -n "$MOCK_PROCESS_CWD" ]]; then
+  process_cwd="$MOCK_PROCESS_CWD"
+  if [[ -n "$MOCK_PROCESS_CWD_AFTER_FIRST" ]]; then
+    read_count=0
+    [[ -f "$MOCK_LSOF_CWD_COUNT" ]] && read_count=$(<"$MOCK_LSOF_CWD_COUNT")
+    if [[ "$read_count" -gt 0 ]]; then
+      process_cwd="$MOCK_PROCESS_CWD_AFTER_FIRST"
+    fi
+    printf '%s\n' "$((read_count + 1))" > "$MOCK_LSOF_CWD_COUNT"
+  fi
+  printf 'p${MOCK_PID}\0\nfcwd\0n%s\0\n' "$process_cwd"
+elif [[ "$*" == "-a -p ${MOCK_SECOND_PID} -d cwd -Fn0" ]] && [[ -n "$MOCK_SECOND_PROCESS_CWD" ]]; then
+  printf 'p${MOCK_SECOND_PID}\0\nfcwd\0n%s\0\n' "$MOCK_SECOND_PROCESS_CWD"
+fi
+`,
+    );
+    writeFileSync(
+      psPath,
+      String.raw`#!/usr/bin/env bash
+if [[ -n "$MOCK_PROCESS_COMMAND" ]]; then
+  printf '%s\n' "$MOCK_PROCESS_COMMAND"
+fi
+`,
+    );
+    writeFileSync(
+      killPath,
+      String.raw`#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$MOCK_KILL_LOG"
+`,
+    );
+    chmodSync(killPath, 0o755);
+    chmodSync(lsofPath, 0o755);
+    chmodSync(psPath, 0o755);
+    return {
+      MOCK_LSOF_CWD_COUNT: nodePath.join(temporaryDirectory, 'lsof-cwd-count'),
+      MOCK_PROCESS_COMMAND: processCommand,
+      MOCK_PROCESS_CWD: processDirectory,
+      MOCK_PROCESS_CWD_AFTER_FIRST: subsequentProcessDirectory,
+      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+    };
   }
 
   describe('framework detection (root)', () => {
@@ -285,6 +362,138 @@ describe('cleanup-zombies.sh', () => {
       // Output format: "Port: 5173 (+ test port 6173)"
       expect(output).toContain('Port: 5173');
       expect(output).toContain('test port 6173');
+    });
+  });
+
+  describe('Rule: port cleanup stays scoped to the current project', () => {
+    beforeEach(() => {
+      createFile('vite.config.ts');
+    });
+
+    it("Scenario: an unrelated project's process is excluded from the preview", () => {
+      const output = runScriptRaw([], mockPortOwner('/tmp/unrelated-project'));
+
+      expect(output).not.toContain(`Port ${MOCK_PORT}:`);
+      expect(output).not.toContain(`PID ${MOCK_PID}`);
+      expect(output).toContain('already clean');
+    });
+
+    it("Scenario: the current project's process remains in the preview", () => {
+      const output = runScriptRaw([], mockPortOwner(realpathSync(temporaryDirectory)));
+
+      expect(output).toContain(`Port ${MOCK_PORT}: 1 process(es)`);
+      expect(output).toContain(`PID ${MOCK_PID}`);
+      expect(output).toContain('Found 1 process(es) that would be killed');
+    });
+
+    it("Scenario: a process beneath the current project's root remains in the preview", () => {
+      const projectChild = nodePath.join(realpathSync(temporaryDirectory), 'packages', 'app');
+      const output = runScriptRaw([], mockPortOwner(projectChild));
+
+      expect(output).toContain(`Port ${MOCK_PORT}: 1 process(es)`);
+      expect(output).toContain(`PID ${MOCK_PID}`);
+    });
+
+    it('Scenario: a process with unknown ownership is excluded from the preview', () => {
+      const output = runScriptRaw([], mockPortOwner());
+
+      expect(output).not.toContain(`Port ${MOCK_PORT}:`);
+      expect(output).not.toContain(`PID ${MOCK_PID}`);
+      expect(output).toContain('already clean');
+    });
+
+    it("Scenario: a similarly prefixed project's command is excluded", () => {
+      const projectDirectory = realpathSync(temporaryDirectory);
+      const output = runScriptRaw(
+        [],
+        mockPortOwner('/tmp/unrelated-project', `${projectDirectory}-other/node_modules/.bin/vite`),
+      );
+
+      expect(output).not.toContain(`Port ${MOCK_PORT}:`);
+      expect(output).not.toContain(`PID ${MOCK_PID}`);
+      expect(output).toContain('already clean');
+    });
+
+    it('Scenario: an unrelated command argument referencing this project is excluded', () => {
+      const projectDirectory = realpathSync(temporaryDirectory);
+      const output = runScriptRaw(
+        [],
+        mockPortOwner(
+          '/tmp/unrelated-project',
+          `/usr/bin/vite --log-file ${projectDirectory}/server.log`,
+        ),
+      );
+
+      expect(output).not.toContain(`Port ${MOCK_PORT}:`);
+      expect(output).not.toContain(`PID ${MOCK_PID}`);
+      expect(output).toContain('already clean');
+    });
+
+    it('Scenario: an unrelated cwd containing a newline is excluded', () => {
+      const projectDirectory = realpathSync(temporaryDirectory);
+      const output = runScriptRaw([], mockPortOwner(`${projectDirectory}\nn${projectDirectory}`));
+
+      expect(output).not.toContain(`Port ${MOCK_PORT}:`);
+      expect(output).not.toContain(`PID ${MOCK_PID}`);
+      expect(output).toContain('already clean');
+    });
+
+    it('Scenario: --yes never passes an unrelated port owner to kill', () => {
+      const killLog = nodePath.join(temporaryDirectory, 'kill.log');
+      const environment = {
+        ...mockPortOwner('/tmp/unrelated-project'),
+        MOCK_KILL_LOG: killLog,
+      };
+
+      const output = runScriptRaw(['--yes'], environment);
+
+      expect(output).toContain('already clean');
+      expect(existsSync(killLog)).toBe(false);
+    });
+
+    it('Scenario: --yes passes a current-project port owner to kill', () => {
+      const killLog = nodePath.join(temporaryDirectory, 'kill.log');
+      const environment = {
+        ...mockPortOwner(realpathSync(temporaryDirectory)),
+        MOCK_KILL_LOG: killLog,
+      };
+
+      const output = runScriptRaw(['--yes'], environment);
+
+      expect(output).toContain('Killed 1 process(es)');
+      expect(readFileSync(killLog, 'utf8')).toContain(`-9 ${MOCK_PID}`);
+    });
+
+    it('Scenario: --yes revalidates each PID immediately before signaling it', () => {
+      const killLog = nodePath.join(temporaryDirectory, 'kill.log');
+      const projectDirectory = realpathSync(temporaryDirectory);
+      const environment = {
+        ...mockPortOwner(projectDirectory, undefined, '/tmp/unrelated-project'),
+        MOCK_KILL_LOG: killLog,
+        MOCK_PORT_PIDS: `${MOCK_PID}\n${MOCK_SECOND_PID}`,
+        MOCK_SECOND_PROCESS_CWD: projectDirectory,
+      };
+
+      const output = runScriptRaw(['--yes'], environment);
+
+      expect(output).toContain('Killed 1 process(es)');
+      expect(readFileSync(killLog, 'utf8')).toBe(`-9 ${MOCK_SECOND_PID}\n`);
+    });
+
+    it('Scenario: --yes signals verified PIDs individually', () => {
+      const killLog = nodePath.join(temporaryDirectory, 'kill.log');
+      const projectDirectory = realpathSync(temporaryDirectory);
+      const environment = {
+        ...mockPortOwner(projectDirectory),
+        MOCK_KILL_LOG: killLog,
+        MOCK_PORT_PIDS: `${MOCK_PID}\n${MOCK_SECOND_PID}`,
+        MOCK_SECOND_PROCESS_CWD: projectDirectory,
+      };
+
+      const output = runScriptRaw(['--yes'], environment);
+
+      expect(output).toContain('Killed 2 process(es)');
+      expect(readFileSync(killLog, 'utf8')).toBe(`-9 ${MOCK_PID}\n-9 ${MOCK_SECOND_PID}\n`);
     });
   });
 });

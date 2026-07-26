@@ -91,7 +91,8 @@ Safeword includes a cleanup script at `.safeword/scripts/cleanup-zombies.sh`:
 **Features:**
 
 - Auto-detects port from config files (vite.config.ts, next.config.js, etc.)
-- Kills dev port AND test port (port + 1000)
+- Checks dev port AND test port (port + 1000), then keeps only processes whose
+  working directory belongs to the current project
 - Scopes all pattern matching to current project directory
 - `--dry-run` shows what would be killed without killing
 
