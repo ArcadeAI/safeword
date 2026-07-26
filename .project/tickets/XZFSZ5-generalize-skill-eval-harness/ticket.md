@@ -2,8 +2,8 @@
 id: XZFSZ5
 slug: generalize-skill-eval-harness
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 parent: 7ZLTWB
 depends_on: [21RAT9]
 scope:
@@ -35,3 +35,4 @@ last_modified: 2026-07-24T17:57:01.000Z
 - 2026-07-24 Created. The reusable-harness half of the eval-driven-skill-optimization epic. First consumer: pr-review (WAWQA6/CWGYH0).
 - 2026-07-24 **Reframed via /figure-it-out (B: playbook + reference impl, not a shared framework).** Evidence: eval frameworks (Braintrust/promptfoo) keep the regression gate at the abstract-score layer — exactly the layer where our per-SEED floor gives up its anti-gaming value; and rule-of-three / "duplication is cheaper than the wrong abstraction" (Metz) warns against abstracting N=2 semantically-divergent consumers. CWGYH0 uses real-PR + human-triage (no seeded set), so the floor/consensus has nothing to protect there — it is NOT a consumer of a shared seeded harness. Rewrote scope/done_when: deliver the methodology playbook + review-spec as a copyable reference impl; extract shared code only at the THIRD seeded-corpus skill (the Tier-2 runner the first candidate). Supersedes the original "parameterize the harness, zero review-spec-specific code" goal.
 - 2026-07-24T18:15:16.583Z Phase: intake → implement
+- 2026-07-25T00:11:36.712Z Phase: implement → done
