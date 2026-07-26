@@ -100,10 +100,39 @@ function buildCall(token: string) {
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     if (!response.ok) {
-      throw new Error(`GitHub ${method} ${path} → ${response.status}`);
+      // Carry the status on the error. The dedup enumeration retries a failed
+      // sweep on the next encounter, and without the status it cannot tell a
+      // 502 worth retrying from a 401 that will fail identically every time —
+      // so a bad token would burn a full sweep per finding (#1465 review).
+      throw new HttpError(`GitHub ${method} ${path} → ${response.status}`, response.status);
     }
     return response.json();
   };
+}
+
+/** A failed GitHub response, with the status kept for retry classification. */
+class HttpError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'HttpError';
+    this.status = status;
+  }
+}
+
+/**
+ * Statuses that will not change on retry within a run: the credential is wrong
+ * or absent (401/403), the resource is gone (404), or the request itself is
+ * invalid (422). Rate limiting also arrives as 403, but a retry-per-encounter
+ * makes that strictly worse, so it belongs on this side of the line too.
+ *
+ * Deliberately NOT here: 5xx and 429, which are transient by definition.
+ * Honoring `Retry-After` with real backoff is a separate concern that predates
+ * this module's retry behavior — this only stops the amplification.
+ */
+function isTerminalStatus(error: unknown): boolean {
+  return error instanceof HttpError && [401, 403, 404, 422].includes(error.status);
 }
 
 /**
@@ -208,6 +237,12 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
     try {
       return await listOpenIssues();
     } catch (error) {
+      // A wrong or missing credential fails identically every time, so retrying
+      // it once per finding just burns a full sweep each. Latch it; only
+      // genuinely transient statuses earn the retry.
+      if (isTerminalStatus(error)) {
+        terminalFailure = error as Error;
+      }
       openIssues = undefined;
       throw error;
     }

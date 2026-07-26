@@ -293,23 +293,30 @@ describe('createRestTransport', () => {
   // "nothing reaches the tracker" symptom #1453 reported. It must fail only its own
   // encounter and let the next one re-confirm.
   it('#1453: retries confirmation after instability instead of latching the run', async () => {
-    // Two pages, so the mechanic under test is a real page boundary: a close that
-    // lands mid-sweep shifts page 2 back and an item falls through unseen.
-    const pageOne = Array.from({ length: 100 }, (_, i) => ({
+    // Models the mechanic faithfully rather than just the set difference: three
+    // pages, and the close lands BETWEEN page 1 and page 2 of one sweep so the
+    // shift actually drops an item across the boundary.
+    //
+    // Settled: #1..#201. Sweep 3 reads page 1 (#1..#100), then #1 closes, so the
+    // list becomes #2..#201 and page 2 now returns #102..#201 — #101 is skipped,
+    // exactly the silent-duplicate mechanic. Page 1 stays FULL, so pagination
+    // continues past the boundary instead of stopping short of it.
+    const settled = Array.from({ length: 201 }, (_, i) => ({
       number: i + 1,
       title: `t${i + 1}`,
       body: 'no marker',
     }));
-    const pageTwo = [{ number: 101, title: 't101', body: 'no marker' }];
+    const pageOf = (list: typeof settled, page: number) => list.slice((page - 1) * 100, page * 100);
+
     let sweep = 0;
     mockFetch(url => {
-      if (!url.endsWith('page=1')) return { json: () => pageTwo };
-      sweep += 1;
-      // Sweeps: 1 = the cached snapshot, 2+3 = the first confirmation pair.
-      // #1 closes during sweep 3, so sweep 3 is short — it is the `later` half,
-      // and an issue missing from IT is what proves it may have skipped an item.
-      const page = sweep === 3 ? pageOne.slice(1) : pageOne;
-      return { json: () => page };
+      // Anchored: a bare /page=(\d+)/ matches `per_page=100` first.
+      const page = Number(/&page=(\d+)$/.exec(url)?.[1] ?? '1');
+      if (page === 1) sweep += 1;
+      // Sweeps: 1 = cached snapshot, 2+3 = the first confirmation pair. Only
+      // sweep 3 sees the close, and only from page 2 onward.
+      const shifted = sweep === 3 && page > 1;
+      return { json: () => pageOf(shifted ? settled.slice(1) : settled, page) };
     });
     const transport = createRestTransport('tok');
     if (!transport) throw new Error('expected a transport');
@@ -320,6 +327,37 @@ describe('createRestTransport', () => {
     // Not latched: the next encounter re-confirms against a settled tracker
     // (sweeps 4 and 5) and gets a real answer.
     await expect(transport.searchByCanonical('canonical:abc123def456')).resolves.toEqual([]);
+  });
+
+  // A wrong credential fails the same way every time. Retrying it once per
+  // finding burns a whole sweep each and can trip rate limits (#1465 review).
+  it('#1465: latches a terminal auth failure instead of re-sweeping per encounter', async () => {
+    const calls = mockFetch(() => ({ ok: false, status: 401, json: () => ({}) }));
+    const transport = createRestTransport('tok');
+    if (!transport) throw new Error('expected a transport');
+
+    await expect(transport.searchBySignature('retro:abc123def456')).rejects.toThrow('401');
+    expect(calls).toHaveLength(1);
+
+    // The next encounter fails from the latch — no second request.
+    await expect(transport.searchByCanonical('canonical:abc123def456')).rejects.toThrow('401');
+    expect(calls).toHaveLength(1);
+  });
+
+  // 5xx is transient by definition, so it must stay retryable — latching it
+  // would sink a whole session on one blip.
+  it('#1465: still retries a transient 5xx on the next encounter', async () => {
+    let attempt = 0;
+    const calls = mockFetch(() => {
+      attempt += 1;
+      return attempt === 1 ? { ok: false, status: 503, json: () => ({}) } : { json: () => [] };
+    });
+    const transport = createRestTransport('tok');
+    if (!transport) throw new Error('expected a transport');
+
+    await expect(transport.searchBySignature('retro:abc123def456')).rejects.toThrow('503');
+    await expect(transport.searchByCanonical('canonical:abc123def456')).resolves.toEqual([]);
+    expect(calls.length).toBeGreaterThan(1);
   });
 
   // Truncation is deterministic: re-running it burns another 31 requests to reach
