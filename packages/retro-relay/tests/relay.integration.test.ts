@@ -151,12 +151,15 @@ describe('retry-safe retro relay', () => {
     expect(setup.createBodies).toHaveLength(1);
   });
 
-  it('rejects a changed payload under the same identity', async () => {
+  it.each([
+    ['title', { title: 'changed' }],
+    ['body', { body: 'changed' }],
+  ] as const)('rejects a changed %s under the same identity', async (_field, change) => {
     const setup = await fixture();
     const adapter = createHarnessAdapters(setup.relay.url, setup.credential).claude;
     await adapter.file(draft());
 
-    await expect(adapter.file(draft({ body: 'changed' }))).rejects.toMatchObject({
+    await expect(adapter.file(draft(change))).rejects.toMatchObject({
       status: 409,
     });
     expect(setup.createBodies).toHaveLength(1);
@@ -267,7 +270,12 @@ describe('retry-safe retro relay', () => {
       tenantId: 'tenant-1',
     });
 
-    for (const credential of ['', 'malformed', unauthorized]) {
+    for (const credential of [
+      '',
+      'malformed',
+      `swc_unknown-${'c'.repeat(8)}_${'c'.repeat(64)}`,
+      unauthorized,
+    ]) {
       await expect(
         createHarnessAdapters(setup.relay.url, credential).cursor.file(draft()),
       ).rejects.toMatchObject({ status: credential === unauthorized ? 403 : 401 });

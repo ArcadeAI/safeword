@@ -11,7 +11,7 @@ import {
   payloadHash,
   requestMarker,
 } from './identity.js';
-import { encryptPayload } from './payload.js';
+import { decryptPayload, encryptPayload } from './payload.js';
 import type { DurableRequest, RelayStore } from './store.js';
 import type {
   FileRetroDraftRequest,
@@ -138,13 +138,14 @@ export class RelayService {
       });
     }
     if (!this.#store.claim(scope)) return this.#waitForTerminal(scope);
+    const durableRequest = decryptPayload(accepted.record.envelope, scope, hash, this.#payloadKey);
 
     try {
-      const adopted = await this.#adoptExisting(scope, request);
+      const adopted = await this.#adoptExisting(scope, durableRequest);
       if (adopted !== undefined) return adopted;
       const owner = this.#store.reserveEvidence(scope, [
-        { kind: 'canonical', value: request.canonicalKey },
-        { kind: 'legacy', value: request.legacySignature },
+        { kind: 'canonical', value: durableRequest.canonicalKey },
+        { kind: 'legacy', value: durableRequest.legacySignature },
       ]);
       if (owner.scope.requestId !== scope.requestId) {
         return await this.#waitForTerminal(owner.scope);
@@ -152,9 +153,9 @@ export class RelayService {
       const issueNumber = await this.#github.createIssue({
         installationId: scope.installationId,
         repository: scope.repository,
-        title: request.title,
-        body: `${request.body}\n\n${marker}`,
-        labels: request.labels,
+        title: durableRequest.title,
+        body: `${durableRequest.body}\n\n${marker}`,
+        labels: durableRequest.labels,
       });
       this.faults.afterGitHubCreate?.();
       return this.#store.markFiled(scope, issueNumber);
