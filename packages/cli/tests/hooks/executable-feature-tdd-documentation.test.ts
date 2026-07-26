@@ -7,7 +7,6 @@ const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
 
 const bddSkillCopies = [
   nodePath.join(repoRoot, 'packages/cli/templates/skills/bdd'),
-  nodePath.join(repoRoot, '.agents/skills/bdd'),
   nodePath.join(repoRoot, '.claude/skills/bdd'),
 ];
 

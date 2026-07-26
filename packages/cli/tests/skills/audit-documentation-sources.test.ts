@@ -18,7 +18,6 @@ const ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 
 const AUDIT_SURFACES = [
   'packages/cli/templates/skills/audit/SKILL.md',
-  '.agents/skills/audit/SKILL.md',
   '.claude/skills/audit/SKILL.md',
 ];
 
@@ -300,7 +299,6 @@ describe('audit installed-project stack awareness', () => {
     const template = readAuditSurface('packages/cli/templates/skills/audit/SKILL.md');
 
     expect(readAuditSurface('.claude/skills/audit/SKILL.md')).toBe(template);
-    expect(readAuditSurface('.agents/skills/audit/SKILL.md')).toBe(template);
   });
 
   it.each(AUDIT_SURFACES)('%s gates JavaScript checks on package.json evidence', relativePath => {

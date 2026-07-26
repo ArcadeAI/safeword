@@ -15,10 +15,6 @@ const commandContent = readFileSync(
   nodePath.join(templatesDirectory, 'commands/verify.md'),
   'utf8',
 );
-const dogfoodAgentsSkillContent = readFileSync(
-  nodePath.join(repoRoot, '.agents/skills/verify/SKILL.md'),
-  'utf8',
-);
 const dogfoodClaudeSkillContent = readFileSync(
   nodePath.join(repoRoot, '.claude/skills/verify/SKILL.md'),
   'utf8',
@@ -40,7 +36,6 @@ const templateFiles: [string, string][] = [['skill', skillContent]];
 
 const allVerifySurfaces: [string, string][] = [
   ['template skill', skillContent],
-  ['dogfood agents skill', dogfoodAgentsSkillContent],
   ['dogfood claude skill', dogfoodClaudeSkillContent],
   ['Codex plugin skill', codexPluginSkillContent],
 ];

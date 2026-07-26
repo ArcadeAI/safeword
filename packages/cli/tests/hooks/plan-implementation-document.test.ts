@@ -226,12 +226,7 @@ describe('surfaces rewritten by the phase introduction (TXRHMD)', () => {
   });
 
   it('no shipped surface keeps a six-phase adjacency (scenario-gate directly to implement)', () => {
-    const roots = [
-      'packages/cli/templates',
-      '.claude/skills',
-      '.agents/skills',
-      '.safeword/templates',
-    ];
+    const roots = ['packages/cli/templates', '.claude/skills', '.safeword/templates'];
     expectNoShippedSurfaceMatches('scenario-gate | implement', roots);
     expectNoShippedSurfaceMatches('scenario-gate → implement', roots);
   });

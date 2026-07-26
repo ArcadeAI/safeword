@@ -37,7 +37,10 @@ describe('dependency freshness instructions', () => {
   it.each([
     ['canonical quality-review skill', 'packages/cli/templates/skills/quality-review/SKILL.md'],
     ['dogfood Claude quality-review skill', '.claude/skills/quality-review/SKILL.md'],
-    ['dogfood Codex quality-review skill', '.agents/skills/quality-review/SKILL.md'],
+    [
+      'Codex plugin quality-review skill',
+      'packages/cli/codex-plugin/skills/quality-review/SKILL.md',
+    ],
   ])('%s uses the prompt timestamp instead of a hardcoded year', (_label, path) => {
     const content = readRepoFile(path);
 

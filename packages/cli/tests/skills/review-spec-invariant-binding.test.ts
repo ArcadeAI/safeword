@@ -6,15 +6,15 @@ import { describe, expect, it } from 'vitest';
 const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
 
 /**
- * Every surface that ships review-spec. `.agents/skills` is included
- * deliberately: it is git-tracked and byte-identical to the template for every
- * other skill, but `parity:fix` does not sync it, so it is the copy that drifts
- * silently.
+ * Every surface that ships review-spec. `.agents/skills/` was listed here when
+ * this test was written, because it was git-tracked and byte-identical to the
+ * template; V5V4YP retired it — the schema deletes those paths on upgrade, and
+ * Cursor loads `.claude/skills/` as a compatibility directory — so the surface
+ * is gone rather than unsynced.
  */
 const surfaces = [
   'packages/cli/templates/skills/review-spec/SKILL.md',
   '.claude/skills/review-spec/SKILL.md',
-  '.agents/skills/review-spec/SKILL.md',
   'packages/cli/codex-plugin/skills/review-spec/SKILL.md',
 ].map(relative => nodePath.join(repoRoot, relative));
 

@@ -386,7 +386,6 @@ describe('audit domain-documentation content is advisory only (R4)', () => {
 
 const AUDIT_SURFACES = [
   'packages/cli/templates/skills/audit/SKILL.md',
-  '.agents/skills/audit/SKILL.md',
   '.claude/skills/audit/SKILL.md',
 ];
 
