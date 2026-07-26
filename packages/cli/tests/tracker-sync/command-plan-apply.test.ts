@@ -42,6 +42,8 @@ describe('sync-tracker --plan / --apply-results command wiring', () => {
         'title: Login bug',
         '---',
         '',
+        'secret body text',
+        '',
       ].join('\n'),
     );
 
@@ -163,6 +165,19 @@ describe('sync-tracker --plan / --apply-results command wiring', () => {
     // The warning must not pollute the machine-readable plan.
     const parsed: unknown = JSON.parse(stdout.join(''));
     expect(parsed).toMatchObject({ version: 1 });
+  });
+
+  // Nothing else pins that `full` actually reaches the emitted document: a --plan that
+  // silently downgraded to minimal (the egress-relevant bug) would pass every other test.
+  it('--plan emits full ticket bodies under body:full and withholds them under minimal', async () => {
+    writeConfig({ provider: 'github', body: 'full', target: { repo: 'acme/demo' } });
+    await syncTrackerCommand({ plan: true });
+    expect(stdout.join('')).toContain('secret body text');
+
+    stdout.length = 0;
+    writeConfig({ provider: 'github', target: { repo: 'acme/demo' } }); // minimal default
+    await syncTrackerCommand({ plan: true });
+    expect(stdout.join('')).not.toContain('secret body text');
   });
 
   it('--plan does not warn about egress under the default minimal body', async () => {

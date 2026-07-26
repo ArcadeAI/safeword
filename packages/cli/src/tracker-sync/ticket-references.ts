@@ -9,10 +9,6 @@
 
 import type { TicketInput } from './types.js';
 
-function isString(value: string | undefined): value is string {
-  return value !== undefined;
-}
-
 function ticketAliases(ticket: TicketInput): string[] {
   return [ticket.id, ticket.slug, ticket.folder].filter(isString);
 }
@@ -33,4 +29,49 @@ export function resolveTicketReference(
 ): string | undefined {
   if (raw === undefined || raw.length === 0) return undefined;
   return aliases.get(raw);
+}
+
+function isString(value: string | undefined): value is string {
+  return value !== undefined;
+}
+
+/** Every corpus ticket this one depends on (parent, epic, dependsOn, blockedOn). */
+function prerequisiteIds(ticket: TicketInput, aliases: Map<string, string>): string[] {
+  const prerequisites = [
+    resolveTicketReference(ticket.parent, aliases),
+    resolveTicketReference(ticket.epic, aliases),
+    ...(ticket.dependsOn ?? []).map(id => resolveTicketReference(id, aliases)),
+    ...(ticket.blockedOn ?? []).map(id => resolveTicketReference(id, aliases)),
+  ];
+  return [...new Set(prerequisites.filter(isString).filter(id => id !== ticket.id))];
+}
+
+/**
+ * Dependency-first ordering: a ticket appears after every corpus ticket it depends
+ * on. Shared by the live `gh` projection and `computePlan` so a plan's intent order
+ * matches the order the live path acts in — an executor applying intents top to
+ * bottom never references an issue that a later intent still has to create.
+ */
+export function orderTicketsForProjection(tickets: TicketInput[]): TicketInput[] {
+  const aliases = aliasMap(tickets);
+  const byId = new Map(tickets.map(ticket => [ticket.id, ticket]));
+  const ordered: TicketInput[] = [];
+  const visiting = new Set<string>();
+  const visited = new Set<string>();
+
+  function visit(ticket: TicketInput): void {
+    if (visited.has(ticket.id)) return;
+    if (visiting.has(ticket.id)) return;
+    visiting.add(ticket.id);
+    for (const prerequisite of prerequisiteIds(ticket, aliases)) {
+      const target = byId.get(prerequisite);
+      if (target !== undefined) visit(target);
+    }
+    visiting.delete(ticket.id);
+    visited.add(ticket.id);
+    ordered.push(ticket);
+  }
+
+  for (const ticket of tickets) visit(ticket);
+  return ordered;
 }

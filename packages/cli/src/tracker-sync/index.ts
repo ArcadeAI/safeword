@@ -10,7 +10,11 @@
 import { withBackoff } from './backoff.js';
 import { buildPayload } from './payload.js';
 import { resolveCredential } from './secrets.js';
-import { aliasMap, resolveTicketReference } from './ticket-references.js';
+import {
+  aliasMap,
+  orderTicketsForProjection,
+  resolveTicketReference,
+} from './ticket-references.js';
 import { loadTrackerMap, planTicketSync, TrackerMap } from './tracker-map.js';
 import type { BodyMode, Provider, TicketInput, TrackerReference } from './types.js';
 import { dispatchCreate, type GraphProjection, type TrackerWriter } from './writers.js';
@@ -50,44 +54,6 @@ export interface SyncTrackerResult {
 /** Narrow a configured provider to a supported one, else undefined. */
 export function supportedProvider(provider: string): Provider | undefined {
   return SUPPORTED_PROVIDERS.has(provider as Provider) ? (provider as Provider) : undefined;
-}
-
-function isString(value: string | undefined): value is string {
-  return value !== undefined;
-}
-
-function prerequisiteIds(ticket: TicketInput, aliases: Map<string, string>): string[] {
-  const prerequisites = [
-    resolveTicketReference(ticket.parent, aliases),
-    resolveTicketReference(ticket.epic, aliases),
-    ...(ticket.dependsOn ?? []).map(id => resolveTicketReference(id, aliases)),
-    ...(ticket.blockedOn ?? []).map(id => resolveTicketReference(id, aliases)),
-  ];
-  return [...new Set(prerequisites.filter(isString).filter(id => id !== ticket.id))];
-}
-
-function orderTicketsForProjection(tickets: TicketInput[]): TicketInput[] {
-  const aliases = aliasMap(tickets);
-  const byId = new Map(tickets.map(ticket => [ticket.id, ticket]));
-  const ordered: TicketInput[] = [];
-  const visiting = new Set<string>();
-  const visited = new Set<string>();
-
-  function visit(ticket: TicketInput): void {
-    if (visited.has(ticket.id)) return;
-    if (visiting.has(ticket.id)) return;
-    visiting.add(ticket.id);
-    for (const prerequisite of prerequisiteIds(ticket, aliases)) {
-      const target = byId.get(prerequisite);
-      if (target !== undefined) visit(target);
-    }
-    visiting.delete(ticket.id);
-    visited.add(ticket.id);
-    ordered.push(ticket);
-  }
-
-  for (const ticket of tickets) visit(ticket);
-  return ordered;
 }
 
 function sameProviderReference(

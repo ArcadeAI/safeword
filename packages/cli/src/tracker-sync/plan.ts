@@ -9,7 +9,11 @@
 
 import { type GraphEdges, type Intent, PLAN_CONTRACT_VERSION, type SyncPlan } from './contract.js';
 import { buildPayload } from './payload.js';
-import { aliasMap, resolveTicketReference } from './ticket-references.js';
+import {
+  aliasMap,
+  orderTicketsForProjection,
+  resolveTicketReference,
+} from './ticket-references.js';
 import { planTicketSync, type TrackerMap } from './tracker-map.js';
 import type { BodyMode, TicketInput } from './types.js';
 
@@ -59,8 +63,12 @@ function buildGraphEdges(
 /** Diff the corpus against the tracker-map into a versioned, network-free `SyncPlan`. */
 export function computePlan(input: ComputePlanInput): SyncPlan {
   const aliases = aliasMap(input.tickets);
+  // Dependency-first, exactly like the live path: an intent's graph edges may name
+  // tickets whose issues do not exist yet, so an executor applying the plan top to
+  // bottom must meet the parent/blocker before the ticket that references it. Sharing
+  // the live sort also keeps plan order == live order, which the parity suite asserts.
   const intents: Intent[] = [];
-  for (const ticket of input.tickets) {
+  for (const ticket of orderTicketsForProjection(input.tickets)) {
     const payload = buildPayload(ticket, { bodyMode: input.bodyMode });
     const action = planTicketSync(input.map, ticket.id);
     // The fold: planTicketSync decides create / update / reconcile; close is derived

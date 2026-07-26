@@ -76,16 +76,16 @@ function isHttpUrl(value: string): boolean {
 export function applyResults(
   map: TrackerMap,
   results: SyncResults,
-  context: ApplyResultsInput,
+  input: ApplyResultsInput,
 ): ApplyOutcome {
   // Validate every row BEFORE mutating, so a rejection leaves the map untouched.
   for (const result of results.results) {
-    const reason = rejectReason(result, context);
+    const reason = rejectReason(result, input);
     if (reason !== undefined) return { ok: false, reason };
   }
   for (const result of results.results) {
     map.record(result.ticketId, {
-      provider: context.provider,
+      provider: input.provider,
       id: result.number,
       url: result.url,
     });

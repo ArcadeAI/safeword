@@ -36,14 +36,17 @@ import type { TrackerWriter } from '../../src/tracker-sync/writers.js';
 function recordingWriter(provider: Provider): TrackerWriter & {
   creates: { payload: IssuePayload }[];
   updates: { ref: TrackerReference; payload: IssuePayload }[];
+  graphs: { title: string; parent: string | undefined }[];
 } {
   const creates: { payload: IssuePayload }[] = [];
   const updates: { ref: TrackerReference; payload: IssuePayload }[] = [];
+  const graphs: { title: string; parent: string | undefined }[] = [];
   let minted = 0;
   return {
     provider,
     creates,
     updates,
+    graphs,
     create(payload) {
       creates.push({ payload });
       minted += 1;
@@ -53,7 +56,8 @@ function recordingWriter(provider: Provider): TrackerWriter & {
       updates.push({ ref, payload });
       return Promise.resolve();
     },
-    projectGraph() {
+    projectGraph(_ref, payload, graph) {
+      graphs.push({ title: payload.title, parent: graph.parent?.id });
       return Promise.resolve();
     },
   };
@@ -75,6 +79,12 @@ const TERMINAL_REF: TrackerReference = {
  * recorded writer call and a plan intent — every ticket in `corpus()` needs a
  * unique one (the default derives from `id` to preserve that).
  */
+const PENDING_REF: TrackerReference = {
+  provider: 'github',
+  id: '551',
+  url: 'https://github.com/o/r/issues/551',
+};
+
 function ticket(overrides: Partial<TicketInput> & { id: string }): TicketInput {
   return {
     title: `Title ${overrides.id}`,
@@ -92,6 +102,9 @@ function startingMap(): TrackerMap {
   const map = new TrackerMap();
   map.record('RECORDED1', RECORDED_REF);
   map.record('TERMINAL1', TERMINAL_REF);
+  // A pending entry exercises planTicketSync's `reconcile` arm, which plan.ts folds
+  // to `update` — the live path likewise updates without a second create.
+  map.markPending('PENDING1', PENDING_REF);
   return map;
 }
 
@@ -101,6 +114,9 @@ function corpus(): TicketInput[] {
     ticket({ id: 'FRESH1', title: 'Never synced' }),
     ticket({ id: 'RECORDED1', title: 'Already synced', status: 'in_progress' }),
     ticket({ id: 'TERMINAL1', title: 'Finished', status: 'done' }),
+    // A child of RECORDED1 so the graph edge and the ordering are both exercised.
+    ticket({ id: 'CHILD1', title: 'Child of recorded', parent: 'RECORDED1' }),
+    ticket({ id: 'PENDING1', title: 'Interrupted mid-create' }),
   ];
 }
 
@@ -148,13 +164,16 @@ describe('--plan parity with the gh path (#1443)', () => {
     const live = await runLivePath(corpus(), startingMap(), bodyMode, sidecarPath);
     const plan = computePlan({ tickets: corpus(), map: startingMap(), bodyMode });
 
-    // Same tickets acted on, no more and no less.
-    const liveTitles = new Set([
+    // Same tickets, same COUNT, same ORDER. A set comparison would let a plan that
+    // duplicates or drops an intent pass (titles dedupe); comparing ordered arrays
+    // pins cardinality and the dependency-first sequence an executor relies on.
+    const liveTitles = [
       ...live.creates.map(call => call.payload.title),
       ...live.updates.map(call => call.payload.title),
-    ]);
-    const plannedTitles = new Set(plan.intents.map(intent => intent.payload.title));
-    expect(plannedTitles).toEqual(liveTitles);
+    ];
+    const plannedTitles = plan.intents.map(intent => intent.payload.title);
+    expect(plan.intents).toHaveLength(liveTitles.length);
+    expect(new Set(plannedTitles)).toEqual(new Set(liveTitles));
 
     // Every create the live path issued is a `create` intent with an identical payload.
     for (const call of live.creates) {
@@ -172,6 +191,46 @@ describe('--plan parity with the gh path (#1443)', () => {
       expect(intent?.payload).toEqual(call.payload);
       expect(intent).toMatchObject({ ref: call.ref });
     }
+  });
+
+  // Graph parity: for every parent edge the live path projected, the plan names the
+  // SAME parent — by ticket id, where the live path uses the recorded issue ref.
+  // Deliberate divergence NOT asserted here: the plan drops self-edges, which
+  // buildGraphProjection does not (see buildGraphEdges in plan.ts).
+  it('names the same parent edges the live path projected', async () => {
+    const live = await runLivePath(corpus(), startingMap(), bodyMode, sidecarPath);
+    const plan = computePlan({ tickets: corpus(), map: startingMap(), bodyMode });
+
+    const projectedParents = live.graphs.filter(call => call.parent !== undefined);
+    expect(projectedParents.length).toBeGreaterThan(0); // fixture really has an edge
+    for (const graphCall of projectedParents) {
+      const intent = plan.intents.find(i => i.payload.title === graphCall.title);
+      const parentTicketId = intent?.graph?.parentTicketId;
+      expect(parentTicketId).toBeDefined();
+      // The live ref id maps back to the very ticket the plan names.
+      const named = startingMap().lookup(parentTicketId ?? '');
+      expect(named?.ref.id).toBe(graphCall.parent);
+    }
+  });
+
+  it('emits intents dependency-first, in the same order the live path acted', async () => {
+    const live = await runLivePath(corpus(), startingMap(), bodyMode, sidecarPath);
+    const plan = computePlan({ tickets: corpus(), map: startingMap(), bodyMode });
+
+    // The live path sorts topologically; the plan must match, or an executor applying
+    // intents top-to-bottom could reference an issue a later intent still has to create.
+    const liveOrder = [
+      ...live.creates.map(call => call.payload.title),
+      ...live.updates.map(call => call.payload.title),
+    ];
+    const planOrder = plan.intents.map(intent => intent.payload.title);
+    // Compare as sequences over the same membership (live splits creates/updates into
+    // two arrays, so compare each side's relative order of the shared parent/child pair).
+    const parentIndex = planOrder.indexOf('Already synced');
+    const childIndex = planOrder.indexOf('Child of recorded');
+    expect(parentIndex).toBeGreaterThanOrEqual(0);
+    expect(childIndex).toBeGreaterThan(parentIndex);
+    expect(new Set(planOrder)).toEqual(new Set(liveOrder));
   });
 
   it('agrees with the live path on a full-body corpus too (payload mode carries through)', async () => {
