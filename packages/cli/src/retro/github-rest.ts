@@ -221,24 +221,46 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
    * across a page boundary unseen. If that item carried the marker, the sweep
    * reports "no duplicate" and files one — the failure this module exists to stop.
    *
-   * So a MISS is not trusted until a second sweep confirms it: if the first sweep
-   * is a subset of the second, nothing vanished during either window and both are
-   * complete. Anything missing means the window was unstable and the miss cannot
-   * be believed. Paid once per run, and only on the answer that can cause a
-   * duplicate — a positive match needs no confirmation, because a skipped item
-   * cannot invent one.
+   * So a MISS is not trusted until a second sweep confirms it. Note which way the
+   * evidence points: a skip makes the second sweep a SUPERSET, not a subset. If an
+   * issue closes mid-sweep, the sweep that lost a position never sees the item that
+   * shifted across the boundary, while the later, settled sweep does. So the tell
+   * is an issue APPEARING in the second sweep, not vanishing from the first.
+   *
+   * Appearing is also what a legitimately new issue does, and the two are told
+   * apart by number: issue numbers are handed out in creation order and the sweep
+   * is sorted by creation ascending, so anything created after the first sweep must
+   * number above everything in it. An issue appearing BELOW that high-water mark
+   * existed all along and the first sweep missed it — proof of a skip.
+   *
+   * The disappearing case is still checked: an issue read on an early page and
+   * closed before the sweep ended shifts the pages behind it just the same.
+   *
+   * Paid once per run, and only on the answer that can cause a duplicate — a hit
+   * needs no confirmation, because a skipped item cannot invent one.
    */
   async function confirmedSnapshot(): Promise<OpenIssue[]> {
     const first = await currentSnapshot();
     if (stabilityConfirmed) return first;
 
     const second = await listOpenIssues();
+    const firstNumbers = new Set(first.map(issue => issue.number));
     const secondNumbers = new Set(second.map(issue => issue.number));
+    const highWaterMark = Math.max(0, ...firstNumbers);
+
     const vanished = first.filter(issue => !secondNumbers.has(issue.number));
-    if (vanished.length > 0) {
+    // Appeared below the high-water mark: it predates the first sweep, so the
+    // first sweep skipped it. Above the mark is an ordinary new issue — benign,
+    // because ascending order appends those to the last page.
+    const surfacedLate = second.filter(
+      issue => !firstNumbers.has(issue.number) && issue.number <= highWaterMark,
+    );
+
+    const unstable = [...vanished, ...surfacedLate];
+    if (unstable.length > 0) {
       throw latchTerminal(
-        `retro dedup: ${vanished.length} open issue(s) disappeared mid-enumeration ` +
-          `(e.g. #${vanished[0]?.number}); a page-boundary skip cannot be ruled out`,
+        `retro dedup: the open-issue set shifted between sweeps ` +
+          `(e.g. #${unstable[0]?.number}); a page-boundary skip cannot be ruled out`,
       );
     }
     stabilityConfirmed = true;

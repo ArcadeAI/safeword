@@ -285,8 +285,61 @@ describe('createRestTransport', () => {
     if (!transport) throw new Error('expected a transport');
 
     await expect(transport.searchBySignature('retro:abc123def456')).rejects.toThrow(
-      /disappeared mid-enumeration/,
+      /shifted between sweeps/,
     );
+  });
+
+  // The shape a real skip actually takes, and the one a subset check misses
+  // entirely: an issue closing mid-sweep shifts a still-open issue across a page
+  // boundary, so the FIRST sweep is short and the settled second sweep is a strict
+  // SUPERSET. The skipped issue surfaces late, below the high-water mark.
+  it('#1453: refuses to trust a miss when an issue surfaces only in the second sweep', async () => {
+    const settled = Array.from({ length: 60 }, (_, i) => ({
+      number: i + 1,
+      title: `t${i + 1}`,
+      body: 'no marker',
+    }));
+    // First sweep misses #30 — it shifted across a boundary when an earlier issue
+    // closed. Nothing vanished, so the old subset check saw this as clean.
+    const skipped = settled.filter(issue => issue.number !== 30);
+    let sweep = 0;
+    mockFetch(url => {
+      if (!url.endsWith('page=1')) return { json: () => [] };
+      sweep += 1;
+      const page = sweep === 1 ? skipped : settled;
+      return { json: () => page };
+    });
+    const transport = createRestTransport('tok');
+    if (!transport) throw new Error('expected a transport');
+
+    await expect(transport.searchBySignature('retro:abc123def456')).rejects.toThrow(
+      /shifted between sweeps/,
+    );
+  });
+
+  // The benign twin of the case above: ascending order appends genuinely new
+  // issues to the LAST page, so they cannot displace anything already read. Their
+  // numbers sit above the first sweep's high-water mark, and treating them as
+  // instability would fail closed on every session that files while a human is
+  // opening issues.
+  it('#1453: tolerates a genuinely new issue appearing between sweeps', async () => {
+    const settled = Array.from({ length: 60 }, (_, i) => ({
+      number: i + 1,
+      title: `t${i + 1}`,
+      body: 'no marker',
+    }));
+    const withNewcomer = [...settled, { number: 5000, title: 'brand new', body: 'no marker' }];
+    let sweep = 0;
+    mockFetch(url => {
+      if (!url.endsWith('page=1')) return { json: () => [] };
+      sweep += 1;
+      const page = sweep === 1 ? settled : withNewcomer;
+      return { json: () => page };
+    });
+    const transport = createRestTransport('tok');
+    if (!transport) throw new Error('expected a transport');
+
+    await expect(transport.searchBySignature('retro:abc123def456')).resolves.toEqual([]);
   });
 
   // Truncation is deterministic: re-running it burns another 31 requests to reach
