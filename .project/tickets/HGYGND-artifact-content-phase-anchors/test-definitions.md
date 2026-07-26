@@ -71,9 +71,9 @@ partitions after real CLI probes found two anchor-substitution gaps.
 
 ### Scenario: A rebased commit does not disturb a recorded anchor
 
-- [x] RED 4b546cd
-- [x] GREEN ca68343
-- [x] REFACTOR f78c62e
+- [x] RED 2cd0ef5
+- [x] GREEN 356c4ee
+- [x] REFACTOR a611f69
 
 ### Scenario: A shallow clone's anchor check passes with no unreachable-history hedging
 
@@ -133,63 +133,63 @@ partitions after real CLI probes found two anchor-substitution gaps.
 
 ### Scenario: A ticket cannot reuse another ticket's same-kind artifact
 
-- [x] RED 4b546cd
-- [x] GREEN ca68343
-- [x] REFACTOR 6751bcf
+- [x] RED 2cd0ef5
+- [x] GREEN 356c4ee
+- [x] REFACTOR a0e95de
 
 ### Scenario: A ticket cannot reuse another ticket's feature source
 
-- [x] RED b612e91
-- [x] GREEN 5a3b22d
-- [x] REFACTOR 93bf3fe
+- [x] RED b5ed264
+- [x] GREEN bdcb3cb
+- [x] REFACTOR da20049
 
 ### Scenario: A Git index-stage prefix cannot alias a different artifact path
 
-- [x] RED 4b546cd
-- [x] GREEN ca68343
-- [x] REFACTOR 6751bcf
+- [x] RED 2cd0ef5
+- [x] GREEN 356c4ee
+- [x] REFACTOR a0e95de
 
 ### Scenario: OS-native ticket paths are normalized to the anchor grammar
 
-- [x] RED b612e91
-- [x] GREEN 5a3b22d
-- [x] REFACTOR 93bf3fe
+- [x] RED b5ed264
+- [x] GREEN bdcb3cb
+- [x] REFACTOR da20049
 
 ### Scenario: Canonical feature ownership is independent of unstaged worktree state
 
-- [x] RED 713d352
-- [x] GREEN 511ea43
-- [x] REFACTOR 93bf3fe
+- [x] RED ae77c9d
+- [x] GREEN 6a179bc
+- [x] REFACTOR da20049
 
 ### Scenario: Feature anchors must live in an executable or configured feature lane
 
-- [x] RED 8c8c4ca
-- [x] GREEN 8eee17d
-- [x] REFACTOR 93bf3fe
+- [x] RED 4f1475d
+- [x] GREEN eb7ef1e
+- [x] REFACTOR da20049
 
 ### Scenario: Ticket discovery uses the staged project-root configuration
 
-- [x] RED caa410f
-- [x] GREEN 430a493
-- [x] REFACTOR 93bf3fe
+- [x] RED dfec6ce
+- [x] GREEN 27ba49d
+- [x] REFACTOR da20049
 
 ### Scenario: Configured project roots normalize dot and separator segments
 
-- [x] RED 32ead6b
-- [x] GREEN 492b4cd
-- [x] REFACTOR 93bf3fe
+- [x] RED ccc5783
+- [x] GREEN 4dd7121
+- [x] REFACTOR da20049
 
 ### Scenario: Repository-root ticket and feature lanes remain enforceable
 
-- [x] RED 23278c9
-- [x] GREEN 1186488
-- [x] REFACTOR 93bf3fe
+- [x] RED 1f9fce8
+- [x] GREEN fcb6d78
+- [x] REFACTOR da20049
 
 ### Scenario: A configured project root outside the repository warns instead of failing open
 
-- [x] RED 23278c9
-- [x] GREEN 1186488
-- [x] REFACTOR 93bf3fe
+- [x] RED 1f9fce8
+- [x] GREEN fcb6d78
+- [x] REFACTOR da20049
 
 ### Scenario: A backward phase move is not flagged
 
