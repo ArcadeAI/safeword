@@ -601,8 +601,22 @@ describe('E2E: Rust Lint Hook Fallback', () => {
     const filePath = nodePath.join(projectDirectory, 'src/fallback-test.rs');
     writeTestFile(projectDirectory, 'src/fallback-test.rs', `fn fallback_test(){println!("test")}`);
 
-    // Run lint hook - should use plain rustfmt (no --config-path)
-    runLintHook(projectDirectory, filePath);
+    // SAFEWORD_NO_AUTO_UPGRADE is load-bearing, not hygiene. Without it the hook sees
+    // the missing Rust pack and shells `bunx safeword@latest upgrade`, which (a) is a
+    // live network install whose latency is unbounded — the 30s spawn cap then SIGKILLs
+    // it and the file is never touched, which is how this test flaked — and (b) RESTORES
+    // the config, so the run lints via the normal configured path and the fallback this
+    // test is named for is never exercised at all.
+    const hook = runLintHook(projectDirectory, filePath, { SAFEWORD_NO_AUTO_UPGRADE: '1' });
+
+    // Assert the hook actually ran. Discarding this result is what let the flake surface
+    // as a baffling content mismatch instead of "the hook was killed". A set `signal`
+    // means the 30s cap killed it — asserted first so a timeout names itself.
+    expect(hook.signal ?? undefined).toBeUndefined();
+    expect(hook.status).toBe(0);
+
+    // The fallback path was genuinely taken: the config did not come back.
+    expect(fileExists(projectDirectory, '.safeword/rustfmt.toml')).toBe(false);
 
     // File should still be formatted (rustfmt works without config)
     const result = readTestFile(projectDirectory, 'src/fallback-test.rs');
