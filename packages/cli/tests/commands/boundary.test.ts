@@ -276,6 +276,81 @@ describe('safeword boundary (slice 1: engine core)', () => {
       expect(result.exitCode).toBe(0);
       expect(`${result.stdout}\n${result.stderr}`).not.toMatch(/phase-anchor/i);
     });
+
+    it('rejects a correctly named feature outside every executable feature lane', async () => {
+      const ticket = '.project/tickets/BND015-owner';
+      const lookalike = 'docs/owner.feature';
+      writeTestFile(
+        dir,
+        `${ticket}/ticket.md`,
+        boundaryTicketContent({ id: 'BND015', phase: 'define-behavior' }),
+      );
+      git(dir, 'add -A');
+      git(dir, 'commit -m seed --quiet');
+      writeTestFile(
+        dir,
+        lookalike,
+        ['Feature: lookalike', '', '  Scenario: not executable', '    Then it exists', ''].join(
+          '\n',
+        ),
+      );
+      writeTestFile(
+        dir,
+        `${ticket}/ticket.md`,
+        boundaryTicketContent({
+          id: 'BND015',
+          phase: 'scenario-gate',
+          anchors: [`scenario-gate: ${lookalike}`],
+        }),
+      );
+      git(dir, 'add -A');
+
+      const result = await runCli(['boundary', '--at', 'commit'], { cwd: dir });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toMatch(/phase-anchor/i);
+    });
+
+    it('accepts a configured feature lane recorded only in the staged config', async () => {
+      const ticket = '.project/tickets/BND016-owner';
+      const feature = 'tests/behaviors/owner.feature';
+      const config = '.safeword/config.json';
+      writeTestFile(
+        dir,
+        `${ticket}/ticket.md`,
+        boundaryTicketContent({ id: 'BND016', phase: 'define-behavior' }),
+      );
+      git(dir, 'add -A');
+      git(dir, 'commit -m seed --quiet');
+      writeTestFile(
+        dir,
+        config,
+        JSON.stringify({ paths: { features: 'tests/behaviors' } }, undefined, 2),
+      );
+      writeTestFile(
+        dir,
+        feature,
+        ['Feature: owner', '', '  Scenario: configured evidence', '    Then it exists', ''].join(
+          '\n',
+        ),
+      );
+      writeTestFile(
+        dir,
+        `${ticket}/ticket.md`,
+        boundaryTicketContent({
+          id: 'BND016',
+          phase: 'scenario-gate',
+          anchors: [`scenario-gate: ${feature}`],
+        }),
+      );
+      git(dir, 'add -A');
+      unlinkSync(nodePath.join(dir, config));
+
+      const result = await runCli(['boundary', '--at', 'commit'], { cwd: dir });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).not.toMatch(/phase-anchor/i);
+    });
   });
 
   describe('CDRJTW.TB1.AC1: silence for changes touching no ticket artifacts', () => {

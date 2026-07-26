@@ -161,6 +161,12 @@ partitions after real CLI probes found two anchor-substitution gaps.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Feature anchors must live in an executable or configured feature lane
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A backward phase move is not flagged
 
 - [x] RED e90eb07
