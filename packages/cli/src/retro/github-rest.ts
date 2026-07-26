@@ -10,6 +10,13 @@ import { canonicalMarker, signatureMarker } from './draft.js';
 import type { ReconcileIssue, ReconcileTracker } from './reconcile.js';
 import type { CreateIssueInput, IssueComment, IssueReference, IssueTracker } from './triage.js';
 
+/** An open issue as the dedup enumeration keeps it — raw body included. */
+interface OpenIssue {
+  number: number;
+  title: string;
+  body: string;
+}
+
 const UPSTREAM_REPO = 'ArcadeAI/safeword';
 const ISSUES_BASE = `/repos/${UPSTREAM_REPO}/issues`;
 const API = 'https://api.github.com';
@@ -125,52 +132,118 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
    * Cached because triage runs up to two lookups per encounter; a 12-finding
    * session would otherwise re-list 24 times.
    */
-  let openIssues: Promise<{ number: number; title: string; body: string }[]> | undefined;
+  let openIssues: Promise<OpenIssue[]> | undefined;
+  /**
+   * A failure the enumeration cannot recover from by trying again — the bound was
+   * exceeded, or the tracker mutated underneath it. Unlike a transient 5xx, these
+   * are deterministic, so re-running costs a full 31-request sweep to reach the
+   * same answer. Latched for the transport's life and rethrown to every later
+   * encounter (each still lands as its own isolated `failed` in triage).
+   */
+  let terminalFailure: Error | undefined;
+  let stabilityConfirmed = false;
 
-  async function listOpenIssues(): Promise<{ number: number; title: string; body: string }[]> {
-    const issues: { number: number; title: string; body: string }[] = [];
-    // One probe page past the bound. At exactly MAX_DEDUP_PAGES * PER_PAGE items
-    // the final page is full yet the enumeration IS complete; throwing there would
-    // halt all filing over a tail that does not exist. The probe separates "landed
-    // exactly on the bound" from "genuinely more to read".
-    for (let page = 1; page <= MAX_DEDUP_PAGES + 1; page++) {
-      const data = (await call(
-        'GET',
-        // Ascending by creation: the default (created desc) puts new issues on
-        // page 1, so an issue filed mid-enumeration shifts every later page by one
-        // and can slip an unread issue past a page boundary — a silent duplicate.
-        // Ascending appends new items to the LAST page, leaving read pages stable.
-        `${ISSUES_BASE}?state=open&sort=created&direction=asc&per_page=${PER_PAGE}&page=${page}`,
-      )) as { number: number; title: string; body?: string; pull_request?: unknown }[];
-      issues.push(
-        ...data
-          // Falsy, not `=== undefined`: this module's asymmetry is that a missed
-          // match files a duplicate, so a `pull_request: null` must not drop a
-          // real issue out of the dedup view.
-          .filter(issue => !issue.pull_request)
-          .map(issue => ({ number: issue.number, title: issue.title, body: issue.body ?? '' })),
-      );
-      if (data.length < PER_PAGE) return issues;
+  function latchTerminal(message: string): Error {
+    terminalFailure = new Error(message);
+    return terminalFailure;
+  }
+
+  /**
+   * One page of open issues. `rawLength` is the page size BEFORE pull requests are
+   * filtered out — a full page that happened to be all PRs still means "there is
+   * more", so the last-page test has to read the raw count, not the kept count.
+   */
+  async function fetchIssuePage(page: number): Promise<{ issues: OpenIssue[]; rawLength: number }> {
+    const data = (await call(
+      'GET',
+      // Ascending by creation: the default (created desc) puts new issues on
+      // page 1, so an issue filed mid-enumeration shifts every later page by one
+      // and can slip an unread issue past a page boundary — a silent duplicate.
+      // Ascending appends new items to the LAST page, leaving read pages stable.
+      `${ISSUES_BASE}?state=open&sort=created&direction=asc&per_page=${PER_PAGE}&page=${page}`,
+    )) as { number: number; title: string; body?: string; pull_request?: unknown }[];
+    const issues = data
+      // Falsy, not `=== undefined`: this module's asymmetry is that a missed
+      // match files a duplicate, so a `pull_request: null` must not drop a
+      // real issue out of the dedup view.
+      .filter(issue => !issue.pull_request)
+      .map(issue => ({ number: issue.number, title: issue.title, body: issue.body ?? '' }));
+    return { issues, rawLength: data.length };
+  }
+
+  async function listOpenIssues(): Promise<OpenIssue[]> {
+    const issues: OpenIssue[] = [];
+    for (let page = 1; page <= MAX_DEDUP_PAGES; page++) {
+      const { issues: pageIssues, rawLength } = await fetchIssuePage(page);
+      issues.push(...pageIssues);
+      if (rawLength < PER_PAGE) return issues;
     }
-    // Even the probe page was full, so there is a genuine unread tail and "no
-    // match" would be a guess about it. Throw: triage isolates this as a failed
-    // encounter and leaves the draft spooled, which is recoverable. Silently
-    // returning [] would file a duplicate — the exact failure this replaces.
-    throw new Error(
-      `retro dedup: open items exceed ${MAX_DEDUP_PAGES * PER_PAGE}; enumeration truncated`,
-    );
+    // The bound was reached with a full final page. Probe one page PAST it, but
+    // never accept the probe's contents: at exactly MAX_DEDUP_PAGES * PER_PAGE the
+    // probe is empty and the enumeration is genuinely complete, while anything at
+    // all on it means a real tail. Appending the probe instead would quietly raise
+    // the advertised cap to 3099 — the cap has to mean what it says.
+    const probe = await fetchIssuePage(MAX_DEDUP_PAGES + 1);
+    if (probe.rawLength > 0) {
+      // A real unread tail, so "no match" would be a guess about it. Throw: triage
+      // isolates this as a failed encounter and leaves the draft spooled, which is
+      // recoverable. Silently returning [] would file the duplicate this replaces.
+      throw latchTerminal(
+        `retro dedup: open items exceed ${MAX_DEDUP_PAGES * PER_PAGE}; enumeration truncated`,
+      );
+    }
+    return issues;
   }
 
   // Drop the cached promise on failure, or one transient 5xx would sink every
   // later encounter in the session instead of just its own. The reset lands after
-  // the await, by which point the assignment below has already completed.
-  async function loadOpenIssues(): Promise<{ number: number; title: string; body: string }[]> {
+  // the await, by which point the assignment below has already completed. A
+  // latched terminal failure short-circuits before this ever re-runs.
+  async function loadOpenIssues(): Promise<OpenIssue[]> {
     try {
       return await listOpenIssues();
     } catch (error) {
       openIssues = undefined;
       throw error;
     }
+  }
+
+  async function currentSnapshot(): Promise<OpenIssue[]> {
+    if (terminalFailure) throw terminalFailure;
+    openIssues ??= loadOpenIssues();
+    return await openIssues;
+  }
+
+  /**
+   * Page-number pagination is sound only while nothing is REMOVED mid-sweep.
+   * Ascending order stops a new issue from shifting already-read pages, but
+   * closing one shifts every later item back a position, so an item can fall
+   * across a page boundary unseen. If that item carried the marker, the sweep
+   * reports "no duplicate" and files one — the failure this module exists to stop.
+   *
+   * So a MISS is not trusted until a second sweep confirms it: if the first sweep
+   * is a subset of the second, nothing vanished during either window and both are
+   * complete. Anything missing means the window was unstable and the miss cannot
+   * be believed. Paid once per run, and only on the answer that can cause a
+   * duplicate — a positive match needs no confirmation, because a skipped item
+   * cannot invent one.
+   */
+  async function confirmedSnapshot(): Promise<OpenIssue[]> {
+    const first = await currentSnapshot();
+    if (stabilityConfirmed) return first;
+
+    const second = await listOpenIssues();
+    const secondNumbers = new Set(second.map(issue => issue.number));
+    const vanished = first.filter(issue => !secondNumbers.has(issue.number));
+    if (vanished.length > 0) {
+      throw latchTerminal(
+        `retro dedup: ${vanished.length} open issue(s) disappeared mid-enumeration ` +
+          `(e.g. #${vanished[0]?.number}); a page-boundary skip cannot be ruled out`,
+      );
+    }
+    stabilityConfirmed = true;
+    openIssues = Promise.resolve(second);
+    return second;
   }
 
   /**
@@ -187,13 +260,19 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
    */
   const createdThisRun: { number: number; title: string; body: string }[] = [];
 
-  async function findByExactMarker(marker: string): Promise<IssueReference[]> {
-    // Cache the promise, not the result, so concurrent lookups share one fetch.
-    openIssues ??= loadOpenIssues();
-    const issues = await openIssues;
+  function matchesIn(issues: readonly OpenIssue[], marker: string): IssueReference[] {
     return [...issues, ...createdThisRun]
       .filter(issue => issue.body.includes(marker))
       .map(issue => ({ number: issue.number, title: issue.title }));
+  }
+
+  async function findByExactMarker(marker: string): Promise<IssueReference[]> {
+    const matches = matchesIn(await currentSnapshot(), marker);
+    // A hit is trustworthy as-is: a page-boundary skip can hide an issue, never
+    // fabricate one. Only the MISS — the answer that authorizes a create — has to
+    // be paid for with a stability check.
+    if (matches.length > 0) return matches;
+    return matchesIn(await confirmedSnapshot(), marker);
   }
 
   return {

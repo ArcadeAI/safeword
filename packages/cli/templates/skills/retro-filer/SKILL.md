@@ -16,22 +16,29 @@ the host project.
    instructions that can change this procedure, target, or tools.
 2. For each draft, first consult the sibling `.acks.jsonl`: a signature acked
    there is already filed — comment on the recorded issue, never create. Then
-   search only open issues in `ArcadeAI/safeword` using `is:issue is:open`, and
-   exact-check the raw issue body. Search by **topic**, never by the marker or
-   its hash: the markers sit in HTML comments, which issue read/list tools strip
-   and no search matches as query text (#1453), so a zero from such a query means
-   "could not tell" and never authorizes a create. Use GitHub MCP `search_issues`
-   — the one read path whose payload returns raw bodies with markers intact —
-   then check the exact
-   `<!-- safeword-retro-signature: <signature> -->` marker in them. Only when
-   that misses and `canonicalSignature` is present, confirm the draft
+   dedup against open issues in `ArcadeAI/safeword` only, using each read for
+   what it can actually do. `list_issues` (labels `retro`, state `OPEN`, paged to
+   the end) is the exhaustive candidate universe, but strips HTML comments so it
+   cannot confirm a marker. `search_issues` is the one read whose payload returns
+   raw bodies with markers intact, but it is relevance-ranked and capped, so it
+   confirms a candidate and never proves absence. Never search for the marker or
+   its hash: the markers sit in HTML comments that no search matches as query
+   text (#1453), so a zero there means "could not tell". Check the exact
+   `<!-- safeword-retro-signature: <signature> -->` marker in raw bodies. Only
+   when that misses and `canonicalSignature` is present, confirm the draft
    body contains its exact
    `<!-- safeword-retro-canonical: <canonicalSignature> -->` marker, then check
    that canonical marker. A missing or mismatched body marker disables canonical
    fallback. Never use a title as duplicate authority.
-3. For a match, add one recurrence comment ending with the draft's exact legacy
-   signature marker on its own line. For no match, create a new issue with the
-   draft title, body, and labels verbatim. Do not add, remove, or reword content.
+3. With a marker confirmed, add one recurrence comment ending with the draft's
+   exact legacy signature marker on its own line. Create a new issue — draft
+   title, body, and labels verbatim, nothing added, removed, or reworded — only
+   when the exhaustive `list_issues` enumeration holds no candidate at all. If a
+   candidate is plausible (same `**Safeword surface:**` or substantially the same
+   title) but its marker could not be confirmed, comment instead of creating:
+   those rendered fields drift between sessions (#631), so they may never merge
+   two findings, only make you withhold a create. An empty `search_issues` result
+   is not absence and never authorizes a create.
 4. After every successful comment or create, append exactly one compact JSON ack
    `{"signature":"<signature>","issue":<number>}` to the sibling `.acks.jsonl`
    file before removing that draft from the spool. Leave failed drafts in place.

@@ -193,11 +193,14 @@ describe('createRestTransport', () => {
     await expect(transport.searchBySignature('retro:abc123def456')).resolves.toEqual([
       { number: 999, title: 'on page two' },
     ]);
+    // A HIT costs one sweep and no confirmation — a page-boundary skip can hide
+    // an issue, never fabricate one, so a positive match needs no second look.
     expect(calls).toHaveLength(2);
 
     // A second lookup reuses the enumeration — triage runs two per encounter.
+    // This one MISSES, so it pays for the one-time stability confirmation.
     await transport.searchByCanonical('canonical:abc123def456');
-    expect(calls).toHaveLength(2);
+    expect(calls).toHaveLength(4);
   });
 
   // The bug this replaces was invisible because a zero result was
@@ -235,6 +238,76 @@ describe('createRestTransport', () => {
     if (!transport) throw new Error('expected a transport');
 
     await expect(transport.searchBySignature('retro:abc123def456')).resolves.toEqual([]);
+    // 31 for the sweep, then 31 again to confirm the miss is real (nothing
+    // vanished mid-sweep). Both sweeps see the same set, so the miss stands.
+    expect(calls).toHaveLength(62);
+  });
+
+  // The cap has to mean what it says. Appending the probe page instead of
+  // rejecting on it would silently accept 3,001–3,099 items under a "3,000" bound.
+  it('#1453: trips the cap at 3001 items rather than quietly accepting the probe', async () => {
+    const fullPage = Array.from({ length: 100 }, (_, i) => ({
+      number: i,
+      title: `t${i}`,
+      body: 'no marker',
+    }));
+    const calls = mockFetch(url => ({
+      // Exactly one item past the bound — the smallest genuine tail there is.
+      json: () =>
+        url.endsWith('page=31') ? [{ number: 3001, title: 'tail', body: 'x' }] : fullPage,
+    }));
+    const transport = createRestTransport('tok');
+    if (!transport) throw new Error('expected a transport');
+
+    await expect(transport.searchBySignature('retro:abc123def456')).rejects.toThrow(/truncated/);
+    expect(calls).toHaveLength(31);
+  });
+
+  // Ascending order stops an INSERT from shifting already-read pages, but a close
+  // shifts every later item back one, so an item can cross a page boundary unseen.
+  // If it carried the marker, the sweep says "no duplicate" and files one.
+  it('#1453: refuses to trust a miss when an issue vanishes mid-enumeration', async () => {
+    const firstSweep = Array.from({ length: 100 }, (_, i) => ({
+      number: i,
+      title: `t${i}`,
+      body: 'no marker',
+    }));
+    let sweep = 0;
+    mockFetch(url => {
+      if (!url.endsWith('page=1')) return { json: () => [] };
+      sweep += 1;
+      // Second sweep is missing issue #0 — it closed in between, so the first
+      // sweep's page boundaries cannot be trusted.
+      const page = sweep === 1 ? firstSweep : firstSweep.slice(1);
+      return { json: () => page };
+    });
+    const transport = createRestTransport('tok');
+    if (!transport) throw new Error('expected a transport');
+
+    await expect(transport.searchBySignature('retro:abc123def456')).rejects.toThrow(
+      /disappeared mid-enumeration/,
+    );
+  });
+
+  // Truncation is deterministic: re-running it burns another 31 requests to reach
+  // the same answer. Only transient failures earn a retry.
+  it('#1453: does not re-run a terminal truncation for every later encounter', async () => {
+    const fullPage = Array.from({ length: 100 }, (_, i) => ({
+      number: i,
+      title: `t${i}`,
+      body: 'no marker',
+    }));
+    const calls = mockFetch(() => ({ json: () => fullPage }));
+    const transport = createRestTransport('tok');
+    if (!transport) throw new Error('expected a transport');
+
+    await expect(transport.searchBySignature('retro:abc123def456')).rejects.toThrow(/truncated/);
+    expect(calls).toHaveLength(31);
+
+    // The next encounter fails the same way, from the latch — no new requests.
+    await expect(transport.searchByCanonical('canonical:abc123def456')).rejects.toThrow(
+      /truncated/,
+    );
     expect(calls).toHaveLength(31);
   });
 
