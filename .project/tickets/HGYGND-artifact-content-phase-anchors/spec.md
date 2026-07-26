@@ -212,7 +212,7 @@ Unaffected:
 ## Vocabulary
 
 - **Artifact-content anchor** — a `phase_anchors` entry tying an entered phase
-  to the exit artifact of the phase being left, as `<relpath>@<content-hash>`;
+  to the exit artifact of the phase being left, as a bare repo-relative path;
   verified against the final tree, never against git history.
 - **Final-tree verification** — checking anchors in the tree being
   committed/pushed/PR'd, requiring no history and therefore surviving

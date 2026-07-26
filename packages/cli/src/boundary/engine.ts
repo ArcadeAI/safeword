@@ -50,6 +50,8 @@ export interface LegalityStep {
 export interface TicketChange {
   /** Ticket folder name, e.g. `BND001-clean`. */
   ticketFolder: string;
+  /** Repo-relative path of this ticket's folder, for ticket-local anchors. */
+  ticketPath?: string;
   artifacts: ChangedArtifact[];
   /** ticket.md as it stands after the change (staged version, else on-disk). */
   ticketCurrent?: string;
@@ -149,12 +151,14 @@ function legalityVerdict(
 function phaseAnchorVerdict(
   ticketFile: ChangedArtifact,
   readArtifact?: ArtifactReader,
+  expectedTicketPath?: string,
 ): CheckVerdict {
   try {
     const anchor = detectUnanchoredPhaseTransition(
       ticketFile.prior,
       ticketFile.proposed ?? '',
       readArtifact,
+      expectedTicketPath,
     );
     return anchor.kind === 'unanchored'
       ? warnVerdict('phase-anchor', anchor.reason)
@@ -171,6 +175,7 @@ function phaseAnchorVerdict(
 function ticketFileChecks(
   ticketFile: ChangedArtifact,
   readArtifact?: ArtifactReader,
+  expectedTicketPath?: string,
   legalitySteps?: LegalityStep[],
 ): CheckVerdict[] {
   if (ticketFile.proposed === undefined) return [];
@@ -187,7 +192,7 @@ function ticketFileChecks(
 
   checks.push(
     legalityVerdict(ticketFile, legalitySteps),
-    phaseAnchorVerdict(ticketFile, readArtifact),
+    phaseAnchorVerdict(ticketFile, readArtifact, expectedTicketPath),
   );
 
   return checks;
@@ -304,7 +309,9 @@ function reconcileTicket(
 ): CheckVerdict[] {
   const ticketFile = change.artifacts.find(a => a.artifact === 'ticket.md');
   return [
-    ...(ticketFile ? ticketFileChecks(ticketFile, readArtifact, change.legalitySteps) : []),
+    ...(ticketFile
+      ? ticketFileChecks(ticketFile, readArtifact, change.ticketPath, change.legalitySteps)
+      : []),
     ...atRestBirthCheck(change),
     ...ledgerChecks(change, resolveSha),
     ...artifactShapeChecks(change),

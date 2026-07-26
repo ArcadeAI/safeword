@@ -139,6 +139,7 @@ function collectChanges(cwd: string, range: BoundaryRange, at: Boundary): Ticket
     if (parsed === undefined) continue;
     const change = byTicket.get(parsed.ticketFolder) ?? {
       ticketFolder: parsed.ticketFolder,
+      ticketPath: `${ticketsDirectory}/${parsed.ticketFolder}`,
       artifacts: [],
       hasLedger: false,
     };

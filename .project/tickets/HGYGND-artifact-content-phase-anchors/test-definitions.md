@@ -71,7 +71,7 @@ partitions after real CLI probes found two anchor-substitution gaps.
 
 ### Scenario: A rebased commit does not disturb a recorded anchor
 
-- [ ] RED
+- [x] RED 4b546cd
 - [ ] GREEN
 - [ ] REFACTOR
 
@@ -133,13 +133,13 @@ partitions after real CLI probes found two anchor-substitution gaps.
 
 ### Scenario: A ticket cannot reuse another ticket's same-kind artifact
 
-- [ ] RED
+- [x] RED 4b546cd
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: A Git index-stage prefix cannot alias a different artifact path
 
-- [ ] RED
+- [x] RED 4b546cd
 - [ ] GREEN
 - [ ] REFACTOR
 

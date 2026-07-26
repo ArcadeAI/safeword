@@ -351,8 +351,10 @@ function phaseAnchorAdvisoryForTicket(
 ): string | undefined {
   const content = readFileSafe(nodePath.join(ticketsRoot, ticketId, 'ticket.md'));
   if (content === undefined || !isInProgress(content)) return undefined;
-  const verdict = detectUnanchoredPhaseState(content, relpath =>
-    readFileSafe(nodePath.join(cwd, relpath)),
+  const verdict = detectUnanchoredPhaseState(
+    content,
+    relpath => readFileSafe(nodePath.join(cwd, relpath)),
+    nodePath.relative(cwd, nodePath.join(ticketsRoot, ticketId)),
   );
   if (verdict.kind !== 'unanchored') return undefined;
   return `${formatCoverageTicketLabel(ticketId)}: ${verdict.reason} The anchor is the exited phase's artifact — boundary checks verify it against the tree.`;
