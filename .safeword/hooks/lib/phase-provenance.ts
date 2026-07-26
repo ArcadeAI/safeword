@@ -422,8 +422,8 @@ const ANCHOR_KINDS = {
 
 /**
  * A plausible repo-relative path: non-empty, forward-slashed, not absolute
- * (POSIX or Windows), free of `..` traversal, and free of git pathspec
- * magic/glob characters — a value opening with `(` or `:` would activate
+ * (POSIX or Windows), free of empty, `.` or `..` segments, and free of git
+ * pathspec magic/glob characters — a value opening with `(` or `:` would activate
  * pathspec magic inside a `git show :<path>` read (`:(top)x` exits 0 with
  * commit text, a false "anchored"), and glob characters are never a single
  * artifact's path. Deliberately permissive beyond that — existence and kind
@@ -437,7 +437,7 @@ function isPlausibleRepoPath(value: string): boolean {
   // commit-tier reader prepends its own colon.
   if (/^[0-3]:/.test(value)) return false;
   if (/^[(:!^]/.test(value) || /[*?[\]]/.test(value)) return false;
-  return !value.split('/').includes('..');
+  return !value.split('/').some(segment => segment === '' || segment === '.' || segment === '..');
 }
 
 export type PhaseAnchorVerdict =
