@@ -23,10 +23,10 @@ describe('Astro config', () => {
     expect(astroConfig.length).toBeGreaterThan(0);
   });
 
-  it('ships latest Astro 2 linting with a matching Node engine contract', async () => {
+  it('ships latest Astro 3 linting with a matching Node engine contract', async () => {
     const packageJson = await readCliPackageJson();
 
-    expect(packageJson.dependencies?.['eslint-plugin-astro']).toBe('~2.1.1');
+    expect(packageJson.dependencies?.['eslint-plugin-astro']).toBe('~3.0.1');
     expect(packageJson.engines?.node).toBe('^22.22.3 || ^24.16.0 || >=26.3.0');
   });
 
@@ -90,11 +90,6 @@ describe('Astro config', () => {
       expect(severity).toBe('error');
     });
 
-    it('astro/no-omitted-end-tags is error', () => {
-      const severity = getSeverity(getRuleConfig(astroConfig, 'astro/no-omitted-end-tags'));
-      expect(severity).toBe('error');
-    });
-
     it('astro/no-prerender-export-outside-pages is error', () => {
       const severity = getSeverity(
         getRuleConfig(astroConfig, 'astro/no-prerender-export-outside-pages'),
@@ -102,9 +97,17 @@ describe('Astro config', () => {
       expect(severity).toBe('error');
     });
 
-    it('astro/valid-compile is error', () => {
-      const severity = getSeverity(getRuleConfig(astroConfig, 'astro/valid-compile'));
-      expect(severity).toBe('error');
+    // `astro/no-omitted-end-tags` and `astro/valid-compile` were asserted here
+    // until eslint-plugin-astro v3 deprecated both and dropped them from
+    // `flat/recommended`. Both are still exported by the plugin, so the preset
+    // COULD re-enable them explicitly — deliberately not done: no-omitted-end-tags
+    // is a no-op in v3 (Astro's compiler rejects omitted end tags at parse time),
+    // and valid-compile is slated for removal, with `astro check` as its
+    // replacement. Pinning a rule upstream plans to delete buys coverage that
+    // expires. See the note in astro.ts.
+    it('does not assert the rules v3 deprecated out of flat/recommended', () => {
+      expect(getRuleConfig(astroConfig, 'astro/no-omitted-end-tags')).toBeUndefined();
+      expect(getRuleConfig(astroConfig, 'astro/valid-compile')).toBeUndefined();
     });
   });
 
@@ -140,11 +143,42 @@ describe('Astro config', () => {
   });
 
   describe('Astro rule coverage', () => {
-    it('keeps expanded Astro 2.1 coverage plus Safeword custom rules', () => {
-      const allRules = getAllRules(astroConfig);
-      const astroRules = Object.keys(allRules).filter(name => name.startsWith('astro/'));
+    /**
+     * Named explicitly rather than counted. A bare floor passes as long as
+     * SOME rules survive, so an upstream release that emptied
+     * `flat/recommended` would read as full coverage — the config is derived
+     * from that preset, so the count and the source move together. Naming the
+     * rules makes the assertion fail on the change that matters.
+     */
+    const REQUIRED_ASTRO_RULES = [
+      // v3 flat/recommended
+      'astro/missing-client-only-directive-value',
+      'astro/no-conflict-set-directives',
+      'astro/no-deprecated-astro-canonicalurl',
+      'astro/no-deprecated-astro-fetchcontent',
+      'astro/no-deprecated-astro-resolve',
+      'astro/no-deprecated-getentrybyslug',
+      'astro/no-exports-from-components',
+      'astro/no-prerender-export-outside-pages',
+      'astro/no-unused-define-vars-in-style',
+      // Safeword's LLM-critical additions
+      'astro/no-set-html-directive',
+      'astro/no-unsafe-inline-scripts',
+    ];
 
-      expect(astroRules.length).toBeGreaterThanOrEqual(46);
+    it.each(REQUIRED_ASTRO_RULES)('%s is configured at error', rule => {
+      expect(getSeverity(getRuleConfig(astroConfig, rule))).toBe('error');
+    });
+
+    it('keeps the jsx-a11y-strict rules on top of the named core', () => {
+      const astroRules = Object.keys(getAllRules(astroConfig)).filter(name =>
+        name.startsWith('astro/'),
+      );
+
+      // The bulk above the named core is the adapted jsx-a11y set; the floor
+      // guards that block specifically, since naming 30+ a11y rules would
+      // duplicate upstream's list without adding signal.
+      expect(astroRules.length).toBeGreaterThanOrEqual(44);
     });
   });
 

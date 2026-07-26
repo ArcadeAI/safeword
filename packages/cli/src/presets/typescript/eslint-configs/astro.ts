@@ -31,6 +31,16 @@ interface BuildAstroConfigOptions {
  * provides wrapped versions that understand Astro's JSX-like syntax.
  * Using eslint-plugin-jsx-a11y directly on Astro files does NOT work.
  *
+ * Coverage change in eslint-plugin-astro v3: `astro/valid-compile` and
+ * `astro/no-omitted-end-tags` were deprecated and dropped from
+ * `flat/recommended`, so this config no longer carries them. Omitted end tags
+ * are now rejected by Astro's compiler at parse time, so that rule is a no-op.
+ * Compile errors, previously surfaced through ESLint by `astro/valid-compile`,
+ * are now upstream's job for the `astro check` command — projects that relied
+ * on ESLint alone for that signal should add `astro check` to their pipeline.
+ * Both rules are still exported by the plugin, but re-enabling a rule upstream
+ * plans to remove would buy coverage that expires at the next major.
+ *
  * Config objects are assembled lazily — only when this config is actually accessed.
  */
 export function buildAstroConfig({
