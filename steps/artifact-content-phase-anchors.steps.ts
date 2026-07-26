@@ -501,6 +501,22 @@ function lastAuditEntry(dir: string): string {
   return entry === undefined ? '' : JSON.stringify(entry);
 }
 
+function createCommittedAnchoredAdvance(world: AnchorWorld): { dir: string; branch: string } {
+  const dir = createProject(world);
+  writeFileAt(dir, `${TICKET_DIR}/ticket.md`, ticketContent('feature', 'scenario-gate'));
+  addPushedBaseline(world);
+  const branch = git(dir, 'branch --show-current').trim();
+  writeFileAt(dir, IMPL_PLAN, SHAPE_VALID_IMPL_PLAN);
+  writeFileAt(
+    dir,
+    `${TICKET_DIR}/ticket.md`,
+    ticketContent('feature', 'implement', [`implement: ${IMPL_PLAN}`]),
+  );
+  git(dir, 'add -A');
+  git(dir, 'commit -m advance --quiet');
+  return { dir, branch };
+}
+
 Given(
   'a project whose ticket advanced phases across several commits — an earlier phase anchored by a legacy hex SHA — that were then squash-merged into one',
   function (this: AnchorWorld) {
@@ -561,17 +577,7 @@ When(
 Given(
   'a project whose ticket recorded a path anchor in a commit that was then amended',
   function (this: AnchorWorld) {
-    const dir = createProject(this);
-    writeFileAt(dir, `${TICKET_DIR}/ticket.md`, ticketContent('feature', 'scenario-gate'));
-    addPushedBaseline(this);
-    writeFileAt(dir, IMPL_PLAN, SHAPE_VALID_IMPL_PLAN);
-    writeFileAt(
-      dir,
-      `${TICKET_DIR}/ticket.md`,
-      ticketContent('feature', 'implement', [`implement: ${IMPL_PLAN}`]),
-    );
-    git(dir, 'add -A');
-    git(dir, 'commit -m advance --quiet');
+    const { dir } = createCommittedAnchoredAdvance(this);
     git(dir, 'commit --amend --quiet -m amended-advance');
   },
 );
@@ -579,18 +585,7 @@ Given(
 Given(
   'a project whose ticket recorded a path anchor in a commit that was then rebased',
   function (this: AnchorWorld) {
-    const dir = createProject(this);
-    writeFileAt(dir, `${TICKET_DIR}/ticket.md`, ticketContent('feature', 'scenario-gate'));
-    addPushedBaseline(this);
-    const branch = git(dir, 'branch --show-current').trim();
-    writeFileAt(dir, IMPL_PLAN, SHAPE_VALID_IMPL_PLAN);
-    writeFileAt(
-      dir,
-      `${TICKET_DIR}/ticket.md`,
-      ticketContent('feature', 'implement', [`implement: ${IMPL_PLAN}`]),
-    );
-    git(dir, 'add -A');
-    git(dir, 'commit -m advance --quiet');
+    const { branch, dir } = createCommittedAnchoredAdvance(this);
     git(dir, 'checkout --quiet -b rewritten-base @{u}');
     writeFileAt(dir, 'README.md', '# rewritten base\n');
     git(dir, 'add README.md');
