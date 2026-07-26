@@ -9,7 +9,7 @@
  * for the full Gherkin spec.
  */
 
-import { realpathSync } from 'node:fs';
+import { existsSync, realpathSync, symlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -22,12 +22,26 @@ import {
   isRuffInstalled,
   readTestFile,
   removeTemporaryDirectory,
+  repoRoot,
   runCli,
   runLintHook,
   setupOrThrow,
+  SKIP_INSTALL_ENV,
   TIMEOUT_BUN_INSTALL,
   writeTestFile,
 } from '../helpers';
+
+function linkRepoToolchain(projectDirectory: string): void {
+  const repoNodeModules = nodePath.join(repoRoot, 'node_modules');
+  if (!existsSync(repoNodeModules)) {
+    throw new Error(`Repository toolchain is missing: ${repoNodeModules}`);
+  }
+  symlinkSync(
+    repoNodeModules,
+    nodePath.join(projectDirectory, 'node_modules'),
+    process.platform === 'win32' ? 'junction' : 'dir',
+  );
+}
 
 function applyOverride(existingConfig: string, overrideBlock: string): string {
   // Insert override just before the closing bracket so it wins over safeword's presets.
@@ -45,7 +59,7 @@ async function runUpgradeAndAssertFileUnchanged(
   relativePath: string,
 ): Promise<void> {
   const before = readTestFile(projectDirectory, relativePath);
-  await runCli(['upgrade'], { cwd: projectDirectory });
+  await runCli(['upgrade'], { cwd: projectDirectory, env: SKIP_INSTALL_ENV });
   const after = readTestFile(projectDirectory, relativePath);
   expect(after).toBe(before);
 }
@@ -53,7 +67,11 @@ async function runUpgradeAndAssertFileUnchanged(
 function runHookAndGetOutput(projectDirectory: string, violationRelativePath: string): string {
   const violationPath = nodePath.join(projectDirectory, violationRelativePath);
   const hookResult = runLintHook(projectDirectory, violationPath);
-  return `${hookResult.stdout ?? ''}${hookResult.stderr ?? ''}`;
+  const hookOutput = `${hookResult.stdout ?? ''}${hookResult.stderr ?? ''}`;
+  expect(hookResult.error).toBeUndefined();
+  expect(hookResult.status).toBe(0);
+  expect(hookOutput).not.toContain('bunx failed');
+  return hookOutput;
 }
 
 describe('Customer override survival (#137)', () => {
@@ -68,6 +86,7 @@ describe('Customer override survival (#137)', () => {
       createTypeScriptPackageJson(projectDirectory);
       initGitRepo(projectDirectory);
       await setupOrThrow(projectDirectory);
+      linkRepoToolchain(projectDirectory);
       originalConfig = readTestFile(projectDirectory, 'eslint.config.mjs');
     });
 
@@ -223,6 +242,7 @@ export default defineConfig([
       );
       initGitRepo(projectDirectory);
       await setupOrThrow(projectDirectory);
+      linkRepoToolchain(projectDirectory);
     });
 
     afterAll(() => {
@@ -267,6 +287,7 @@ select = ["E", "F"]
       );
       initGitRepo(projectDirectory);
       await setupOrThrow(projectDirectory);
+      linkRepoToolchain(projectDirectory);
       originalRuffToml = readTestFile(projectDirectory, 'ruff.toml');
     });
 
@@ -362,6 +383,7 @@ extend-select = ["D"]
         // Note: NO pre-existing ruff.toml — let safeword generate the bare one.
         initGitRepo(projectDirectory);
         await setupOrThrow(projectDirectory);
+        linkRepoToolchain(projectDirectory);
         bareRuffToml = readTestFile(projectDirectory, 'ruff.toml');
       });
 
