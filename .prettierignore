@@ -1,3 +1,9 @@
+# Astro lint fixtures (packages/cli astro preset smoke test). Prettier has no
+# .astro parser without prettier-plugin-astro, and lint-staged passes staged
+# .astro paths to it explicitly. These files are fed to ESLint's Linter API by
+# the test itself, so nothing in this repo formats or lints them.
+packages/cli/src/presets/typescript/eslint-configs/__tests__/*.astro
+
 # Safeword - managed prettier exclusions
 .husky/_
 .safeword/

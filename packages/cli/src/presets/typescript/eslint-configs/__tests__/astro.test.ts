@@ -1,10 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- ESLint config types are incompatible across plugin packages */
 import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 
+import { Linter } from 'eslint';
 import { describe, expect, it } from 'vitest';
 
 import { astroConfig, buildAstroConfig } from '../astro.js';
-import { getAllRules, getRuleConfig, getSeverity } from './test-utilities.js';
+import { getAllRules, getRuleConfig, getSeverity, getSeverityNumber } from './test-utilities.js';
+
+const ERROR = 2;
 
 async function readCliPackageJson(): Promise<{
   dependencies?: Record<string, string>;
@@ -169,15 +173,30 @@ describe('Astro config', () => {
       expect(getSeverity(getRuleConfig(astroConfig, rule))).toBe('error');
     });
 
-    it('keeps the jsx-a11y-strict rules on top of the named core', () => {
-      const astroRules = Object.keys(getAllRules(astroConfig)).filter(name =>
-        name.startsWith('astro/'),
-      );
+    it('keeps the jsx-a11y-strict rules enforcing on top of the named core', () => {
+      const enforcedA11yRules = Object.entries(getAllRules(astroConfig))
+        .filter(([name]) => name.startsWith('astro/jsx-a11y/'))
+        .filter(([, config]) => getSeverityNumber(config) === ERROR)
+        .map(([name]) => name);
 
-      // The bulk above the named core is the adapted jsx-a11y set; the floor
-      // guards that block specifically, since naming 30+ a11y rules would
-      // duplicate upstream's list without adding signal.
-      expect(astroRules.length).toBeGreaterThanOrEqual(44);
+      // Scoped to the `astro/jsx-a11y/` prefix and to error severity, because
+      // a floor over every `astro/` rule at any severity hides the two ways
+      // this block degrades: a dropped a11y rule masked by a newly added
+      // `flat/recommended` rule, or an a11y rule switched off upstream.
+      // eslint-plugin-astro 3.0.1's `flat/jsx-a11y-strict` configures 33, of
+      // which it deliberately ships `control-has-associated-label` and
+      // `label-has-for` off — so 31 enforce. Naming all 31 would duplicate
+      // upstream's list without adding signal; the floor plus the anchors
+      // below covers it.
+      expect(enforcedA11yRules.length).toBeGreaterThanOrEqual(31);
+      expect(enforcedA11yRules).toEqual(
+        expect.arrayContaining([
+          'astro/jsx-a11y/alt-text',
+          'astro/jsx-a11y/aria-props',
+          'astro/jsx-a11y/html-has-lang',
+          'astro/jsx-a11y/role-has-required-aria-props',
+        ]),
+      );
     });
   });
 
@@ -209,6 +228,40 @@ describe('Astro config', () => {
       expect(getSeverity(getRuleConfig(config, 'astro/valid-compile'))).toBe('error');
       expect(getRuleConfig(config, 'astro/jsx-a11y/alt-text')).toBeUndefined();
       expect(getSeverity(getRuleConfig(config, 'astro/no-set-html-directive'))).toBe('error');
+    });
+  });
+
+  describe('linting real .astro files', () => {
+    /**
+     * Every other test here reads config shape, which stays green even if no
+     * .astro file can be parsed at all. These two lint committed fixtures
+     * through ESLint proper, so the whole eslint-plugin-astro →
+     * astro-eslint-parser → @astrojs/compiler-rs path (a native binding since
+     * plugin v3) has to work. This repo ships no .astro sources, so nothing
+     * else exercises it.
+     */
+    async function lintAstroFixture(fixture: string): Promise<Linter.LintMessage[]> {
+      const fixtureUrl = new URL(fixture, import.meta.url);
+      const source = await readFile(fixtureUrl, 'utf8');
+
+      return new Linter({ configType: 'flat' }).verify(source, astroConfig, {
+        filename: fileURLToPath(fixtureUrl),
+      });
+    }
+
+    it('reports nothing on a valid .astro file', async () => {
+      // Empty, not "no errors": a parse failure surfaces as a fatal message
+      // here, which is the regression this fixture is for.
+      expect(await lintAstroFixture('astro-sample.astro')).toEqual([]);
+    });
+
+    it('flags set:html in markup with astro/no-set-html-directive', async () => {
+      // `set:html` lives in the template, not the frontmatter, so catching it
+      // proves the Astro AST was built rather than the frontmatter alone.
+      const messages = await lintAstroFixture('astro-violation-sample.astro');
+
+      expect(messages.map(message => message.ruleId)).toEqual(['astro/no-set-html-directive']);
+      expect(messages.at(0)?.severity).toBe(ERROR);
     });
   });
 });

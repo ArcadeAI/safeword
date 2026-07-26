@@ -1,0 +1,9 @@
+---
+// Lint fixture: a known violation the preset must catch.
+// `set:html` is markup-level syntax, so flagging it proves the whole
+// eslint-plugin-astro -> astro-eslint-parser -> @astrojs/compiler-rs path ran,
+// not just that a rule name is present in the config.
+const untrustedHtml = '<b>from a CMS</b>';
+---
+
+<div set:html={untrustedHtml}></div>

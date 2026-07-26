@@ -1,0 +1,22 @@
+---
+// Lint fixture: a valid .astro file the preset must accept with zero messages.
+// Exercises frontmatter, markup expressions, and the a11y-sensitive elements
+// (img, heading, anchor) that the jsx-a11y-strict block guards.
+const title = 'Safeword';
+const steps = ['lint', 'test', 'ship'];
+---
+
+<section aria-labelledby="astro-smoke-heading">
+  <h1 id="astro-smoke-heading">{title}</h1>
+  <img src="/logo.svg" alt="Safeword logo" />
+  <ul>
+    {steps.map(step => <li>{step}</li>)}
+  </ul>
+  <a href="/docs">Read the docs</a>
+</section>
+
+<!-- Self-closing, external src: the shape whose preprocessing threw a
+     TypeError in eslint-plugin-astro 3.0.0 (fixed in 3.0.1), and the only
+     script form the preset allows — inline scripts trip
+     astro/no-unsafe-inline-scripts. -->
+<script src="/client.js" />

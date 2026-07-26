@@ -16,7 +16,10 @@ const framework = detect.detectFramework(dependencies);
 const tsconfigRootDirectory = import.meta.dirname;
 // ESLint 10 resolves flat configs from the linted file, so root `eslint .`
 // reaches this package config for packages/cli/** files.
-const ignores = [...detect.getIgnores(), 'templates/**', 'packages/cli/templates/**'];
+// `**/*.astro`: this package ships the Astro preset but is not an Astro app, so
+// its own config has no Astro parser. The only .astro files here are lint
+// fixtures that the preset's tests feed to ESLint's `Linter` API themselves.
+const ignores = [...detect.getIgnores(), 'templates/**', 'packages/cli/templates/**', '**/*.astro'];
 
 // Map framework to base config
 // Note: Astro config only lints .astro files, so we combine it with TypeScript config
