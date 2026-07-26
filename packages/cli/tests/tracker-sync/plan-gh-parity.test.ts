@@ -59,7 +59,7 @@ function recordingWriter(provider: Provider): TrackerWriter & {
   };
 }
 
-const RECORDED: TrackerReference = {
+const RECORDED_REF: TrackerReference = {
   provider: 'github',
   id: '549',
   url: 'https://github.com/o/r/issues/549',
@@ -70,6 +70,11 @@ const TERMINAL_REF: TrackerReference = {
   url: 'https://github.com/o/r/issues/550',
 };
 
+/**
+ * `IssuePayload` carries no ticket id, so `title` is the only join key between a
+ * recorded writer call and a plan intent — every ticket in `corpus()` needs a
+ * unique one (the default derives from `id` to preserve that).
+ */
 function ticket(overrides: Partial<TicketInput> & { id: string }): TicketInput {
   return {
     title: `Title ${overrides.id}`,
@@ -85,7 +90,7 @@ function ticket(overrides: Partial<TicketInput> & { id: string }): TicketInput {
 /** The starting sidecar state, rebuilt fresh for each side (syncTracker mutates it). */
 function startingMap(): TrackerMap {
   const map = new TrackerMap();
-  map.record('RECORDED1', RECORDED);
+  map.record('RECORDED1', RECORDED_REF);
   map.record('TERMINAL1', TERMINAL_REF);
   return map;
 }
@@ -107,6 +112,9 @@ async function runLivePath(
   sidecarPath: string,
 ): Promise<ReturnType<typeof recordingWriter>> {
   const github = recordingWriter('github');
+  // The orchestrator refuses on a missing sidecar, so seed it; and the exit-0
+  // assertion below matters — a live path that bailed early writes nothing, which
+  // would let the empty-corpus parity test pass vacuously.
   map.save(sidecarPath);
   const dependencies: SyncTrackerDependencies = {
     config: { provider: 'github', body: bodyMode, target: { repo: 'o/r' } },
@@ -141,12 +149,12 @@ describe('--plan parity with the gh path (#1443)', () => {
     const plan = computePlan({ tickets: corpus(), map: startingMap(), bodyMode });
 
     // Same tickets acted on, no more and no less.
-    const livePathTicketIds = new Set([
+    const liveTitles = new Set([
       ...live.creates.map(call => call.payload.title),
       ...live.updates.map(call => call.payload.title),
     ]);
     const plannedTitles = new Set(plan.intents.map(intent => intent.payload.title));
-    expect(plannedTitles).toEqual(livePathTicketIds);
+    expect(plannedTitles).toEqual(liveTitles);
 
     // Every create the live path issued is a `create` intent with an identical payload.
     for (const call of live.creates) {
@@ -162,7 +170,7 @@ describe('--plan parity with the gh path (#1443)', () => {
       const intent = plan.intents.find(i => i.payload.title === call.payload.title);
       expect(intent?.kind).toBe(call.payload.state === 'closed' ? 'close' : 'update');
       expect(intent?.payload).toEqual(call.payload);
-      expect(intent && 'ref' in intent ? intent.ref : undefined).toEqual(call.ref);
+      expect(intent).toMatchObject({ ref: call.ref });
     }
   });
 

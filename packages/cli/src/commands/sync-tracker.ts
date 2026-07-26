@@ -38,17 +38,21 @@ function runPlan(cwd: string, config: TicketBridgeConfig): void {
   // plan for a tracker nobody configured. Emit an empty (but valid) plan so
   // `--plan | executor` pipelines still receive a parseable document, and put the
   // notice on stderr — stdout stays a pure SyncPlan.
-  if (supportedProvider(config.provider) === undefined) {
+  const provider = supportedProvider(config.provider);
+  if (provider === undefined) {
     note('no tracker configured; planning nothing (run `safeword connect` to add one)');
     process.stdout.write(`${JSON.stringify(emptyPlan(), undefined, 2)}\n`);
     return;
   }
+  // One body-mode binding for both the advisory and the plan, so the advisory is
+  // provably about the same bodies the plan was built with.
+  const bodyMode = config.body ?? 'minimal';
   // Egress parity with the live path (#1441): a `full` body projects ticket bodies,
   // and the plan carries them in a file an executor may pipe or store. The live
   // path's fail-safe warns unless the repo is *confirmed* private; confirming that
   // shells out to `gh`, which planning must not do — so an unconfirmed repo warns,
   // exactly as the live path does when visibility is unknown.
-  if ((config.body ?? 'minimal') === 'full' && config.provider === 'github') {
+  if (bodyMode === 'full' && provider === 'github') {
     note(
       '⚠️  Egress warning: this plan carries full ticket bodies for a GitHub repo whose ' +
         'visibility was not confirmed (planning stays offline and cannot check)',
@@ -57,17 +61,15 @@ function runPlan(cwd: string, config: TicketBridgeConfig): void {
 
   const sidecarPath = trackerMapPath(cwd);
   const loaded = loadTrackerMap(sidecarPath);
-  // Refuse on a corrupt sidecar rather than planning against an empty map: every
-  // recorded ticket would come back as a `create`, and the executor would then
-  // duplicate every issue in the corpus. Matches `runApply` and the live path's
-  // `loadSidecarOrRefuse` — a missing sidecar is the legitimate first run.
+  // Mirrors `runApply` and the live path's `loadSidecarOrRefuse`. Only *corrupt*
+  // refuses: a missing sidecar is the legitimate first run.
   if (!loaded.ok && loaded.reason === 'corrupt') {
     fail(`${sidecarPath} is corrupt; refusing to plan against it (every ticket would re-create)`);
     return;
   }
   const map = loaded.ok ? loaded.map : new TrackerMap();
   const tickets = readCorpus(cwd, config.target?.repo);
-  const plan = computePlan({ tickets, map, bodyMode: config.body ?? 'minimal' });
+  const plan = computePlan({ tickets, map, bodyMode });
   process.stdout.write(`${JSON.stringify(plan, undefined, 2)}\n`);
 }
 
@@ -120,7 +122,7 @@ function note(message: string): void {
  * `process.exitCode`, and `process.exit` would take the test runner down with it.
  */
 function fail(reason: string): void {
-  process.stderr.write(`sync-tracker: ${reason}.\n`);
+  note(reason);
   process.exitCode = 1;
 }
 

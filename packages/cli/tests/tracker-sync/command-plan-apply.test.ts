@@ -20,13 +20,15 @@ describe('sync-tracker --plan / --apply-results command wiring', () => {
   let stdout: string[];
   let stderr: string[];
 
+  const sidecar = () => nodePath.join(cwd, '.safeword', 'tracker-map.json');
+  const writeConfig = (ticketBridge: Record<string, unknown>) => {
+    writeFileSync(nodePath.join(cwd, '.safeword', 'config.json'), JSON.stringify({ ticketBridge }));
+  };
+
   beforeEach(() => {
     cwd = mkdtempSync(nodePath.join(tmpdir(), 'sync-plan-'));
     mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
-    writeFileSync(
-      nodePath.join(cwd, '.safeword', 'config.json'),
-      JSON.stringify({ ticketBridge: { provider: 'github', target: { repo: 'acme/demo' } } }),
-    );
+    writeConfig({ provider: 'github', target: { repo: 'acme/demo' } });
     const ticketDirectory = nodePath.join(cwd, '.project', 'tickets', 'AB12CD-login');
     mkdirSync(ticketDirectory, { recursive: true });
     writeFileSync(
@@ -62,11 +64,6 @@ describe('sync-tracker --plan / --apply-results command wiring', () => {
     process.exitCode = 0;
     rmSync(cwd, { recursive: true, force: true });
   });
-
-  const sidecar = () => nodePath.join(cwd, '.safeword', 'tracker-map.json');
-  const writeConfig = (ticketBridge: Record<string, unknown>) => {
-    writeFileSync(nodePath.join(cwd, '.safeword', 'config.json'), JSON.stringify({ ticketBridge }));
-  };
 
   it('--plan writes a single valid SyncPlan JSON document to stdout and nothing else', async () => {
     await syncTrackerCommand({ plan: true });
