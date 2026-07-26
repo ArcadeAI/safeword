@@ -82,11 +82,13 @@ hashes.
   last-wins-on-re-advance all carry over.
 - **Canonical per-phase artifact** (phase entered ← exit artifact of phase
   left): define-behavior ← `spec.md` · scenario-gate ← the feature source
-  (`features/<slug>.feature` or configured path) · implement ← `impl-plan.md` ·
-  verify ← `test-definitions.md` (the R/G/R ledger) · done ← `verify.md`. The
-  explicit path (rather than a derived map) pins per-ticket ambiguity —
-  configurable features dir, legacy AC-path tickets — and keeps the traversal
-  trail the shipped birth check already reads (`engine.ts:198`).
+  (`features/<slug>.feature`, a direct workspace's `features/` lane, or the
+  configured feature lane; same-named `.feature` files elsewhere are not
+  executable evidence) · implement ← `impl-plan.md` · verify ←
+  `test-definitions.md` (the R/G/R ledger) · done ← `verify.md`. The explicit
+  path (rather than a derived map) pins per-ticket ambiguity — configurable
+  features dir, legacy AC-path tickets — and keeps the traversal trail the
+  shipped birth check already reads (`engine.ts:198`).
 - **Boundary verification (#810):** for the entered phase of a transition in
   the change — the anchored artifact exists in the shipped tree and passes the
   artifact's existing shape predicate (`parseImplPlan`, `checkVerifyArtifact`,

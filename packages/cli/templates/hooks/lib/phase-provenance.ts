@@ -449,6 +449,10 @@ export type PhaseAnchorVerdict =
 export interface PhaseAnchorScope {
   /** Repo-relative ticket folder, using Git's forward-slashed path grammar. */
   ticketPath: string;
+  /** Concrete repo-relative feature-lane roots (default + configured). */
+  featureRoots: readonly string[];
+  /** Conventional roots whose direct members may own a features/ lane. */
+  workspaceRoots: readonly string[];
 }
 
 const NOT_APPLICABLE: PhaseAnchorVerdict = { kind: 'not-applicable' };
@@ -544,17 +548,25 @@ function validateAnchor(
       `phase_anchors entry for "${phase}" is "${anchor}", not the expected artifact kind — "${phase}" expects ${kind.label}, e.g. ${expectedLine}.`,
     );
   }
-  // Feature source identity follows the repository convention
-  // `<any configured feature lane>/<ticket slug>.feature`; deriving the
-  // basename from the ticket path keeps ownership independent of unstaged
-  // worktree state. Every other kind must live in this ticket's own folder.
+  // Feature source identity follows the executable-lane convention plus
+  // `<ticket slug>.feature`; callers supply roots from the same tree as the
+  // artifact reader. Every other kind must live in this ticket's own folder.
   const ticketFolder = basenameOf(scope?.ticketPath ?? '');
   const slugSeparator = ticketFolder.indexOf('-');
   const ticketSlug = slugSeparator === -1 ? ticketFolder : ticketFolder.slice(slugSeparator + 1);
+  const anchorSegments = anchor.split('/');
+  const isConfiguredOrDefaultFeature =
+    scope?.featureRoots.some(root => anchor.startsWith(`${root}/`)) ?? false;
+  const isWorkspaceFeature =
+    anchorSegments.length >= 4 &&
+    (scope?.workspaceRoots.includes(anchorSegments[0] ?? '') ?? false) &&
+    anchorSegments[1] !== '' &&
+    anchorSegments[2] === 'features';
   const isOwnedArtifact =
     scope === undefined ||
     (isFeatureSource(anchor)
-      ? basenameOf(anchor) === `${ticketSlug}.feature`
+      ? basenameOf(anchor) === `${ticketSlug}.feature` &&
+        (isConfiguredOrDefaultFeature || isWorkspaceFeature)
       : dirnameOf(anchor) === scope.ticketPath);
   if (!isOwnedArtifact) {
     return unanchored(

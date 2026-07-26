@@ -1,7 +1,9 @@
 import { existsSync, readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import type { PhaseAnchorScope } from '../../templates/hooks/lib/phase-provenance.js';
 import { resolveConfiguredLaneDirectory } from './configured-paths.js';
+import { toRepoPath, toRepoRelativePath } from './repo-path.js';
 import { WORKSPACE_ROOTS } from './workspaces.js';
 
 /** Ticket folder `ID-slug` -> `slug`; legacy `ID` -> `ID`. */
@@ -18,6 +20,32 @@ function slugFromTicketFolder(ticketFolder: string): string {
 export function findFeatureSourcePath(cwd: string, ticketFolder: string): string | undefined {
   const fileName = `${slugFromTicketFolder(ticketFolder)}.feature`;
   return collectExecutableFeatureFiles(cwd, fileName)[0];
+}
+
+/** Build feature ownership policy without consulting feature-file existence. */
+export function createPhaseAnchorScope(
+  cwd: string,
+  ticketPath: string,
+  configuredFeatures?: string,
+): PhaseAnchorScope {
+  const featureRoots = ['features'];
+  if (configuredFeatures !== undefined) {
+    const configuredRoot = nodePath.isAbsolute(configuredFeatures)
+      ? toRepoRelativePath(cwd, configuredFeatures)
+      : toRepoPath(configuredFeatures);
+    let normalizedRoot = configuredRoot.startsWith('./') ? configuredRoot.slice(2) : configuredRoot;
+    while (normalizedRoot.endsWith('/')) normalizedRoot = normalizedRoot.slice(0, -1);
+    if (
+      normalizedRoot !== '' &&
+      normalizedRoot !== '.' &&
+      normalizedRoot !== '..' &&
+      !normalizedRoot.startsWith('../') &&
+      !featureRoots.includes(normalizedRoot)
+    ) {
+      featureRoots.push(normalizedRoot);
+    }
+  }
+  return { ticketPath, featureRoots, workspaceRoots: [...WORKSPACE_ROOTS] };
 }
 
 export function collectExecutableFeatureFiles(cwd: string, fileName?: string): string[] {

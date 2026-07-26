@@ -64,8 +64,10 @@ export const NAMESPACE_ROOT_LEGACY = '.safeword-project';
 function readSafewordConfig(cwd: string): SafewordConfigShape | undefined {
   const configPath = nodePath.join(cwd, ...CONFIG_SUBPATH);
   const content = readFileSafe(configPath);
-  if (content === undefined) return undefined;
+  return content === undefined ? undefined : parseSafewordConfig(content);
+}
 
+function parseSafewordConfig(content: string): SafewordConfigShape | undefined {
   try {
     return JSON.parse(content) as SafewordConfigShape;
   } catch {
@@ -123,6 +125,16 @@ export function readConfiguredPath(
   const raw = parsed?.paths?.[key];
   if (!nonEmptyString(raw)) return undefined;
   return raw;
+}
+
+/** Read a configured path from caller-supplied config content (e.g. a Git tree). */
+export function readConfiguredPathFromContent(
+  content: string | undefined,
+  key: ConfiguredPathKey | ConfiguredDirectoryKey,
+): string | undefined {
+  if (content === undefined) return undefined;
+  const raw = parseSafewordConfig(content)?.paths?.[key];
+  return nonEmptyString(raw) ? raw : undefined;
 }
 
 /**

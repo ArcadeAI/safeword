@@ -25,6 +25,11 @@ const SPEC_PATH = `${TICKET_DIR}/spec.md`;
 const LEDGER_PATH = `${TICKET_DIR}/test-definitions.md`;
 const VERIFY_PATH = `${TICKET_DIR}/verify.md`;
 const FEATURE_PATH = 'features/fixture.feature';
+const ANCHOR_SCOPE = {
+  ticketPath: TICKET_DIR,
+  featureRoots: ['features'],
+  workspaceRoots: ['packages', 'apps', 'libs', 'modules'],
+};
 
 const SHAPE_VALID_IMPL_PLAN = [
   '# Impl Plan: fixture',
@@ -346,7 +351,7 @@ describe('detectUnanchoredPhaseTransition — no real artifact behind the advanc
       ticket({ type: 'feature', phase: 'scenario-gate' }),
       ticket({ type: 'feature', phase: 'implement', anchors: [`implement: ${foreignPlan}`] }),
       readerFor({ [foreignPlan]: SHAPE_VALID_IMPL_PLAN }),
-      { ticketPath: TICKET_DIR },
+      ANCHOR_SCOPE,
     );
     expect(verdict.kind).toBe('unanchored');
     if (verdict.kind === 'unanchored') expect(verdict.reason).toMatch(/ticket/i);
@@ -362,7 +367,7 @@ describe('detectUnanchoredPhaseTransition — no real artifact behind the advanc
         anchors: [`scenario-gate: ${foreignFeature}`],
       }),
       readerFor({ [foreignFeature]: SHAPE_VALID_FEATURE }),
-      { ticketPath: TICKET_DIR },
+      ANCHOR_SCOPE,
     );
     expect(verdict.kind).toBe('unanchored');
     if (verdict.kind === 'unanchored') expect(verdict.reason).toMatch(/ticket/i);

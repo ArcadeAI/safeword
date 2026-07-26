@@ -53,6 +53,10 @@ export interface TicketChange {
   ticketFolder: string;
   /** Repo-relative path of this ticket's folder, for ticket-local anchors. */
   ticketPath: string;
+  /** Concrete repo-relative feature-lane roots (default + configured). */
+  featureRoots: readonly string[];
+  /** Conventional roots whose direct members may own a features/ lane. */
+  workspaceRoots: readonly string[];
   artifacts: ChangedArtifact[];
   /** ticket.md as it stands after the change (staged version, else on-disk). */
   ticketCurrent?: string;
@@ -309,7 +313,11 @@ function reconcileTicket(
   readArtifact?: ArtifactReader,
 ): CheckVerdict[] {
   const ticketFile = change.artifacts.find(a => a.artifact === 'ticket.md');
-  const scope = { ticketPath: change.ticketPath };
+  const scope = {
+    ticketPath: change.ticketPath,
+    featureRoots: change.featureRoots,
+    workspaceRoots: change.workspaceRoots,
+  };
   return [
     ...(ticketFile ? ticketFileChecks(ticketFile, readArtifact, scope, change.legalitySteps) : []),
     ...atRestBirthCheck(change),

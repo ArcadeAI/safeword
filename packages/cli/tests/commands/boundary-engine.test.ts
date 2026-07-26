@@ -11,6 +11,8 @@ import { reconcileChange, type TicketChange } from '../../src/boundary/engine.js
 import { boundaryTicketContent, shapeValidImplPlan } from './boundary-helpers';
 
 const IMPL_PLAN = '.project/tickets/ENG001-fixture/impl-plan.md';
+const FEATURE_ROOTS = ['features'];
+const WORKSPACE_ROOTS = ['packages', 'apps', 'libs', 'modules'];
 
 function ticketContent(phase: string, anchors?: string[]): string {
   return boundaryTicketContent({ id: 'ZZENG', phase, anchors });
@@ -20,6 +22,8 @@ function advanceChange(anchors: string[] | undefined): TicketChange {
   return {
     ticketFolder: 'ENG001-fixture',
     ticketPath: '.project/tickets/ENG001-fixture',
+    featureRoots: FEATURE_ROOTS,
+    workspaceRoots: WORKSPACE_ROOTS,
     artifacts: [
       {
         artifact: 'ticket.md',
@@ -67,6 +71,8 @@ describe('boundary engine — reader/resolver failure degrades to indeterminate'
     const change: TicketChange = {
       ticketFolder: 'ENG002-fixture',
       ticketPath: '.project/tickets/ENG002-fixture',
+      featureRoots: FEATURE_ROOTS,
+      workspaceRoots: WORKSPACE_ROOTS,
       artifacts: [{ artifact: 'test-definitions.md', proposed: ledger }],
       ticketCurrent: ticketContent('implement', [`implement: ${IMPL_PLAN}`]),
       hasLedger: true,

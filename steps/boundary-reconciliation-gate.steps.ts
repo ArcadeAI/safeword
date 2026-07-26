@@ -465,6 +465,8 @@ const anchor = 'implement: .project/tickets/BGT001-fixture/impl-plan.md';
 const verdicts = reconcileChange([{
   ticketFolder: 'BGT001-fixture',
   ticketPath: '.project/tickets/BGT001-fixture',
+  featureRoots: ['features'],
+  workspaceRoots: ['packages', 'apps', 'libs', 'modules'],
   artifacts: [{ artifact: 'ticket.md', prior: ticket('define-behavior'), proposed: ticket('implement', [anchor]) }],
   ticketCurrent: ticket('implement', [anchor]),
   hasLedger: true,

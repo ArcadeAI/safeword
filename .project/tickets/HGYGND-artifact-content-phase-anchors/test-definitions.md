@@ -163,7 +163,7 @@ partitions after real CLI probes found two anchor-substitution gaps.
 
 ### Scenario: Feature anchors must live in an executable or configured feature lane
 
-- [ ] RED
+- [x] RED 8c8c4ca
 - [ ] GREEN
 - [ ] REFACTOR
 
