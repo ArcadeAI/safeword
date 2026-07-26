@@ -205,6 +205,44 @@ describe('safeword boundary (slice 1: engine core)', () => {
       expect(result.exitCode).toBe(0);
       expect(`${result.stdout}\n${result.stderr}`).toMatch(/repo-relative/i);
     });
+
+    it("warns when a ticket reuses another ticket's feature source", async () => {
+      const ticket = '.project/tickets/BND013-owner';
+      const foreignFeature = 'features/another-ticket.feature';
+      writeTestFile(
+        dir,
+        `${ticket}/ticket.md`,
+        boundaryTicketContent({ id: 'BND013', phase: 'define-behavior' }),
+      );
+      writeTestFile(
+        dir,
+        foreignFeature,
+        [
+          'Feature: another ticket',
+          '',
+          '  Scenario: foreign evidence',
+          '    Then it exists',
+          '',
+        ].join('\n'),
+      );
+      git(dir, 'add -A');
+      git(dir, 'commit -m seed --quiet');
+      writeTestFile(
+        dir,
+        `${ticket}/ticket.md`,
+        boundaryTicketContent({
+          id: 'BND013',
+          phase: 'scenario-gate',
+          anchors: [`scenario-gate: ${foreignFeature}`],
+        }),
+      );
+      git(dir, 'add -A');
+
+      const result = await runCli(['boundary', '--at', 'commit'], { cwd: dir });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toMatch(/ticket/i);
+    });
   });
 
   describe('CDRJTW.TB1.AC1: silence for changes touching no ticket artifacts', () => {

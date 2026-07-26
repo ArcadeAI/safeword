@@ -352,6 +352,22 @@ describe('detectUnanchoredPhaseTransition — no real artifact behind the advanc
     if (verdict.kind === 'unanchored') expect(verdict.reason).toMatch(/ticket/i);
   });
 
+  it("a ticket cannot reuse another ticket's feature source", () => {
+    const foreignFeature = 'features/another-ticket.feature';
+    const verdict = detectUnanchoredPhaseTransition(
+      ticket({ type: 'feature', phase: 'define-behavior' }),
+      ticket({
+        type: 'feature',
+        phase: 'scenario-gate',
+        anchors: [`scenario-gate: ${foreignFeature}`],
+      }),
+      readerFor({ [foreignFeature]: SHAPE_VALID_FEATURE }),
+      TICKET_DIR,
+    );
+    expect(verdict.kind).toBe('unanchored');
+    if (verdict.kind === 'unanchored') expect(verdict.reason).toMatch(/ticket/i);
+  });
+
   it('a path absent from the tree is unanchored, saying it is missing', () => {
     const verdict = detectUnanchoredPhaseTransition(
       ticket({ type: 'feature', phase: 'scenario-gate' }),

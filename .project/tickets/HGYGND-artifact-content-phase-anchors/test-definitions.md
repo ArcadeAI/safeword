@@ -137,9 +137,21 @@ partitions after real CLI probes found two anchor-substitution gaps.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A ticket cannot reuse another ticket's feature source
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A Git index-stage prefix cannot alias a different artifact path
 
 - [x] RED 4b546cd
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: OS-native ticket paths are normalized to the anchor grammar
+
+- [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
