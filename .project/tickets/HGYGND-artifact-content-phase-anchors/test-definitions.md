@@ -175,7 +175,7 @@ partitions after real CLI probes found two anchor-substitution gaps.
 
 ### Scenario: Configured project roots normalize dot and separator segments
 
-- [ ] RED
+- [x] RED 32ead6b
 - [ ] GREEN
 - [ ] REFACTOR
 

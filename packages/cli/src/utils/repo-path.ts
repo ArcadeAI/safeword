@@ -15,8 +15,8 @@ export function toRepoDirectory(cwd: string, configuredPath: string): string | u
   const repoPath = nodePath.isAbsolute(configuredPath)
     ? toRepoRelativePath(cwd, configuredPath)
     : toRepoPath(configuredPath);
-  let normalized = repoPath.startsWith('./') ? repoPath.slice(2) : repoPath;
-  while (normalized.endsWith('/')) normalized = normalized.slice(0, -1);
+  const canonical = nodePath.posix.normalize(repoPath);
+  const normalized = canonical.endsWith('/') ? canonical.slice(0, -1) : canonical;
   return normalized !== '' &&
     normalized !== '.' &&
     normalized !== '..' &&
