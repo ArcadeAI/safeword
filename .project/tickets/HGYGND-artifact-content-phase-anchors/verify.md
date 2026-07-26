@@ -27,3 +27,33 @@ fixture; cli-test and steps lanes each share theirs); outdated: knip 6.24.0→6.
 (dev, minor, Low — safe to update, not this ticket); learnings Covers-lines clean;
 no documentation drift (anchor convention documented in ticket-system skill + glossary,
 both updated in this ticket).
+
+## Issue #904 hardening verification — 2026-07-25
+
+Evidence from the repository-generated test plan after the complete audit,
+independent quality review, and refactor ledger.
+
+## Verify Checklist
+
+**Test Suite:** ✓ 5492/5492 tests pass (366 files; 5 skipped)
+**Gherkin:** ✅ Acceptance lane passes (495/498 scenarios; 3 skipped; 15345/15345 executed steps pass)
+**Build:** ✅ Success (tsup + DTS)
+**Lint:** ✅ Clean (ESLint + Gherkin lint + `tsc --noEmit`)
+**Scenarios:** All 37 scenarios marked complete (112/112 R/G/R cells)
+**PR Scope:** ✅ Diff matches issue #904 hardening scope: canonical artifact ownership, staged-tree configuration authority, repository-root handling, adversarial path grammar, regression evidence, and behavior-preserving test-fixture/enforcement-seam refactors
+**Dep Drift:** ✅ Clean (no dependencies added or removed)
+**Parent Epic:** N/A (external epic #808; no local parent ticket)
+**Reconcile:** ✅ No pattern deviation
+**Experience:** ⏭️ N/A — internal boundary-enforcement hardening, not persona-facing
+**Evidence limits:** ✅ None
+
+Audit passed with warnings — 0 errors. Config parity is clean; dependency-cruiser
+reports 0 violations across 653 modules and 2124 dependencies; Knip and outdated
+dependency checks are clean; Go modules are current; learning and namespace-domain
+checks are clean; changed-test quality and configured documentation sources
+(`README.md`, website docs) show no drift. Clones: 490 (10.55% overall / 3.65%
+TypeScript) [repo minus `.safeword`, `.project`] versus the 2026-07-08 baseline
+of 423; the broader repository grew substantially and its shipped template/install
+mirrors are intentional, while this pass removed duplicated boundary and history
+fixtures. Coverage warnings are limited to the pre-existing Python experiment,
+which has no import-linter or dead-code executable installed.
