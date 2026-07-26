@@ -2,10 +2,10 @@
 
 ## Verify Checklist
 
-**Test Suite:** ⚠️ Vitest green in CI (5404 passed, 365 files, both Node lanes);
-one unrelated pre-existing failure in this container — see Evidence limits.
-**Gherkin:** ✅ Acceptance lane passes locally (494 passed, 3 skipped) — after a
-CI-caught miss, see below.
+**Test Suite:** ✅ Full suite green in CI on Node 22.22.3 and Node 24 —
+[run 30180644637](https://github.com/ArcadeAI/safeword/actions/runs/30180644637).
+**Gherkin:** ✅ Acceptance lane green in that same run, and locally (494 passed,
+3 skipped) — after a CI-caught miss, see below.
 **Build:** ✅ Success
 **Lint:** ✅ Clean (eslint, lint-gherkin, tsc --noEmit)
 **Format:** ✅ Prettier clean
@@ -92,5 +92,9 @@ acceptance lane is now run before pushing, not just the vitest suites.
 `tests/hooks/self-report.test.ts:410` fails in this container and is unrelated
 to this change: it chmods a directory to `0o555` and asserts the write fails,
 but the session runs as uid 0 and root bypasses permission bits. Confirmed
-rather than assumed — the same test passed on both CI lanes in run
-30178350157. CI supplies the full-suite verdict.
+rather than assumed — the same test passes on both CI lanes, which run
+non-root.
+
+That limit is closed by CI rather than argued around. Run 30180644637 executed
+lint, Dogfood parity, and both the vitest suite and the Gherkin acceptance lane
+on Node 22.22.3 and Node 24 — all green.

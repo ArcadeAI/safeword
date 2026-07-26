@@ -2,8 +2,8 @@
 id: V5V4YP
 slug: retire-agents-skills-residue
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/1442
 scope:
   - Delete the 25 safeword-owned files under `.agents/skills/` — exactly the set already in SAFEWORD_SCHEMA.deprecatedFiles.
@@ -31,3 +31,4 @@ last_modified: 2026-07-25T23:35:32.378Z
 ## Work Log
 
 - 2026-07-25T23:35:32.378Z Started: Created ticket V5V4YP
+- 2026-07-26T00:28:00.000Z Done: CI run 30180644637 green on lint, Dogfood parity, and both the vitest suite and Gherkin acceptance lane across Node 22.22.3 + Node 24. The prior run failed the cucumber lane on two root-level step files reading the retired paths; both retargeted in c269536. Evidence in verify.md; PR #1450.
