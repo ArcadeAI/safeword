@@ -416,6 +416,38 @@ describe('retry-safe retro relay', () => {
     secondStore.close();
   });
 
+  it('quarantines an alias when its semantic evidence owner is ambiguous', async () => {
+    const setup = await fixture({ createStatus: 500 });
+    const adapters = createHarnessAdapters(setup.relay.url, setup.credentials, {
+      sleep: () => Promise.resolve(),
+    });
+
+    await expect(
+      adapters.claude.file(draft({ requestId: 'ambiguous-owner' })),
+    ).rejects.toMatchObject({ status: 503 });
+    await expect(
+      adapters.codex.file(draft({ requestId: 'ambiguous-alias' })),
+    ).rejects.toMatchObject({
+      status: 503,
+      details: {
+        latestReceipt: {
+          requestId: 'ambiguous-alias',
+          state: 'ambiguous',
+        },
+      },
+    });
+
+    expect(setup.createBodies).toHaveLength(1);
+    expect(
+      setup.store.load({
+        tenantId: 'tenant-1',
+        installationId: 42,
+        repository: 'arcadeai/safeword',
+        requestId: 'ambiguous-alias',
+      }),
+    ).toMatchObject({ state: 'ambiguous' });
+  });
+
   it('recovers a post-create crash as ambiguous and reconciles from raw REST', async () => {
     const setup = await fixture();
     setup.relay.faults.afterGitHubCreate = () => {

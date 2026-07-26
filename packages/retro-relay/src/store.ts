@@ -148,6 +148,12 @@ export class RelayStore {
     if (owner?.state === 'filed' && owner.issueNumber !== undefined && record.state !== 'filed') {
       return this.markFiled(record.scope, owner.issueNumber);
     }
+    if (owner?.state === 'ambiguous' && record.state !== 'ambiguous') {
+      this.markAmbiguous(record.scope);
+      const quarantined = this.load(record.scope);
+      if (quarantined === undefined) throw new Error('alias request disappeared');
+      return receipt(quarantined);
+    }
     return receipt(record);
   }
 
