@@ -226,3 +226,63 @@ Frozen BEFORE any outcome is known, so the 1–2-week scoring is honest. Design 
 Verdicts + head SHAs are in scratchpad/arcade-sweep/ledger.tsv (frozen at review time). Scoring in ~2 weeks: for each PR, did the outcome (merged-clean / changes-requested / still-open-with-discussion / closed) match the verdict?
 
 **Quality note:** across the 18 fresh reviews, the findings skew genuinely useful — the two strongest (2128: an eval proxy that would execute REAL tools + an untested API-key redirect guard; 2146: a CI job that never runs on test-only changes + a semver test that can't catch its own bug) are exactly the evidence-integrity catches humans miss because CI is green. And 2150 explicitly applied the just-added #2145 fix (suppressed a description-vs-code over-rotation because the BDD agreed), validating that fix live. 2122 is the one at-risk finding (2145-adjacent over-rotation) — held pending review.
+
+## SCORING the frozen experiment — day 8 (2026-07-25, PARTIAL: plan said ~day 14)
+
+Scored from GitHub state, 8 days after the 2026-07-17 freeze. **6 of 20 are still
+unresolved (open)**, so this is an interim read — re-score at day 14+.
+
+**`safe-to-merge` (11): 6 resolved, 6 hits, 0 misses.** Every one that closed merged
+clean with zero changes-requested (2174, 2170, 2005, 2121, 2120, 2119). Still open:
+2014, 2158, 2043, 2168, 1959. **This half of the verdict is validated so far.**
+
+**`needs-a-human` (9): 2 hits, ~5 misses, 1 ambiguous, 1 pending.**
+
+| PR | outcome | scored |
+| --- | --- | --- |
+| 2122 | CLOSED after 2× changes-requested; **split into a 6-part stack** (#2232→#2237) | ✅ hit — and this was the ticket's flagged "at-risk" finding, posted deliberately AS A QUESTION. The caution was right. |
+| 2150 | CLOSED after 1× changes-requested | ✅ hit |
+| 2146 | MERGED with **zero approvals**, 8 comments of author back-and-forth | ~ ambiguous |
+| 2046 | still OPEN at day 8 | pending |
+| 2073, 2026, 1998, 2128, 2118 | MERGED clean, approved, no changes requested | ✖ miss *by the rubric* |
+
+### The rubric is broken for `needs-a-human` — and 2118 proves it
+
+On **2118**, nbarbettini asked the author directly: *"We're testing something, I'm
+curious if the above reviewer comment is helpful? Lmk!"* — sdserranog replied:
+**"@nbarbettini, that was a good comment."**
+
+2118 is scored a MISS above. An engineer called it good. **So the outcome proxy is
+measuring the wrong thing.** "Merged without changes requested" conflates *nothing
+was wrong* with *nobody looked* — and WAWQA6's own 42-PR study found this team has
+ceded mechanical review to Bugbot (8/42 PRs got zero human review). Team behaviour
+is not a correctness oracle on a team that merges fast.
+
+**Consequence for any future eval (incl. the log-mining corpus): the labels are
+ASYMMETRIC.** "Acted on" is a strong POSITIVE label. "Merged clean" is a WEAK
+NEGATIVE — it is not evidence the finding was wrong. Scoring them as symmetric
+hit/miss teaches a reviewer to suppress good findings.
+
+### Data-hygiene facts worth keeping
+
+- **18 of 20 got a trial comment. 2073 and 1998 never did** (no issue comment, no
+  inline review comment). They are valid data for the organic-outcome prediction,
+  but invalid for "did our comment change anything."
+- **Engagement was near-zero: 1 reaction (👍 on 2119) and 1 reply thread (2118)
+  across 18 posted comments.** That is a real signal on this ticket's stated risk —
+  whether engineers would read the output at all — and it is independent of whether
+  the findings were correct.
+- **`scratchpad/arcade-sweep/ledger.tsv` is GONE** (scratchpad is session-scoped and
+  was cleaned). The frozen head SHAs are lost, so a strict re-score cannot pin each
+  PR to the exact reviewed tree. The verdict lists survive above, which is what
+  carries the prediction. **Lesson: freeze the ledger IN the ticket, not a scratchpad.**
+- **Confound to declare:** posting comments intervened in the thing being measured.
+  The design said "watch what the team does organically"; on the 18 commented PRs the
+  outcome is no longer purely organic.
+
+### Open question this scoring could not answer
+
+Did the 5 "merged clean" PRs **silently fix** the finding — commits pushed after the
+comment that address it, with no reply? Only 2026, 2128, 2118 can be tested (2073 and
+1998 got no comment). A silent fix flips a MISS to a HIT and would further indict the
+outcome proxy. Untested as of day 8.
