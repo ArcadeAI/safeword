@@ -8,6 +8,7 @@
 ## Tickets (458)
 ## Tickets (457)
 ## Tickets (455)
+## Tickets (452)
 
 ### 001
 
@@ -1414,6 +1415,10 @@
 - **Audit checks namespace domain docs for emptiness and drift (N0W5KG)** (done, epic: —)
   {One sentence: what are we trying to achieve?}
   → `.project/tickets/N0W5KG-audit-domain-docs-freshness`
+- **Prove the retry-safe retro relay foundation across harness adapters (N30CKR)** (in_progress, epic: —)
+  Build the durable relay slice that production harness routing can adopt without changing request identity.
+  external issue: https://github.com/ArcadeAI/safeword/issues/1479
+  → `.project/tickets/N30CKR-retry-safe-retro-filing`
 - **Boundary push tier: evaluate phase legality per commit in the range, not at endpoints (N76NQ0)** (done, epic: —)
   A multi-commit push whose intermediate commits legally traversed phases must not warn; a range whose commits actually skipped a phase still warns.
   → `.project/tickets/N76NQ0-push-tier-per-commit-legality`
