@@ -448,6 +448,52 @@ describe('retry-safe retro relay', () => {
     ).toMatchObject({ state: 'ambiguous' });
   });
 
+  it('restores alias quarantine after restart recovery', () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'retro-relay-restart-alias-'));
+    directories.push(directory);
+    const databasePath = path.join(directory, 'relay.sqlite');
+    const store = RelayStore.open(databasePath);
+    const baseScope = {
+      tenantId: 'tenant-1',
+      installationId: 42,
+      repository: 'arcadeai/safeword',
+    };
+    const envelope = {
+      nonce: Buffer.alloc(12),
+      ciphertext: Buffer.from('durable payload'),
+      tag: Buffer.alloc(16),
+    };
+    const ownerScope = { ...baseScope, requestId: 'restart-owner' };
+    const aliasScope = { ...baseScope, requestId: 'restart-alias' };
+    for (const scope of [ownerScope, aliasScope]) {
+      store.accept({
+        scope,
+        payloadHash: `hash-${scope.requestId}`,
+        envelope,
+        requestMarker: `marker-${scope.requestId}`,
+      });
+      expect(store.claim(scope)).toBe(true);
+    }
+    const evidence = [
+      { kind: 'canonical' as const, value: 'canonical:restart' },
+      { kind: 'legacy' as const, value: 'retro:restart' },
+    ];
+    const owner = store.reserveEvidence(ownerScope, evidence);
+    expect(store.beginDispatch(ownerScope)).toBe(true);
+    expect(store.reserveEvidence(aliasScope, evidence).scope.requestId).toBe('restart-owner');
+    store.linkAlias(aliasScope, owner);
+    store.close();
+
+    const reopened = RelayStore.open(databasePath);
+    reopened.recoverInFlight();
+    expect(reopened.receipt(aliasScope)).toMatchObject({
+      requestId: 'restart-alias',
+      state: 'ambiguous',
+    });
+    expect(reopened.load(aliasScope)).toMatchObject({ state: 'ambiguous' });
+    reopened.close();
+  });
+
   it('recovers a post-create crash as ambiguous and reconciles from raw REST', async () => {
     const setup = await fixture();
     setup.relay.faults.afterGitHubCreate = () => {
