@@ -2,8 +2,8 @@
 id: 4PCMAE
 slug: parity-order-assertion
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/1463
 scope:
   - "recordingWriter records ONE ordered call log so the live path's true interleaved call sequence is recoverable (creates/updates/graphs are separate arrays today, so concatenating them reconstructs rather than records the order)"
@@ -35,3 +35,5 @@ last_modified: 2026-07-26T02:49:40.472Z
 - 2026-07-26T03:12:00.000Z Reviewer's mutant E (sort ignores dependsOn/blockedOn) survived THREE fixture attempts — its suggested fix (add a dependsOn ticket) is insufficient on its own, because both paths share the sort so parity moves together, and my first blocker fixtures were satisfied by corpus position or pulled into place by an existing parent edge. Probed the real orderings to find it, then added a blocker pair whose target is reachable ONLY via the dependsOn edge, plus an absolute (non-parity) ordering assertion. All five mutants now fail: rotate plan order, reverse plan-side sort, reverse shared sort, drop blocker edges, drift a fixture title. 138 tracker-sync green; lint + typecheck clean.
 - 2026-07-26T03:47:27.489Z Phase: intake → verify
 - 2026-07-26T03:48:00.000Z verify: verify.md written. Full suite 5459 pass / 7 skipped / 369 files, 1 failure (self-report root-chmod, environmental, fails identically on clean main b68d2d7). Full-repo lint (eslint + lint-gherkin + tsc --noEmit) zero output. Ran the two golden-path integration failures to ground: they FAILED in a targeted 3-file run on clean main and PASSED in the full run on this branch — same code, opposite outcomes, so they are FLAKY, not a property of either tree, and not caused by this diff. Recorded as an evidence limit and a follow-up ticket candidate rather than re-run until green.
+- 2026-07-26T03:47:49.937Z Phase: verify → done
+- 2026-07-26T03:52:00.000Z Complete: verify → done. All three done_when met: (1) a plan whose order differs from live now fails the ordering test — mutant A, which passed pre-fix, fails; (2) reversing the projection sort fails on either side — mutants B and C; (3) tracker-sync 138 green, lint + typecheck clean. Two mutants beyond the ticket's done_when also fail (E: sort ignores blocker edges; H: fixture title drift), the latter restoring a vacuity guard the first cut had dropped.
