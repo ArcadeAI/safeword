@@ -20,11 +20,9 @@ import {
   readTestFile,
   removeTemporaryDirectory,
   runCliWithoutInstall,
+  TIMEOUT_SETUP,
   writeTestFile,
 } from '../helpers';
-
-/** Setup timeout: 10 minutes - bun install can take time under load */
-const SETUP_TIMEOUT = 600_000;
 
 describe('E2E: Invisible Extension - Config Separation', () => {
   let projectDirectory: string;
@@ -57,7 +55,7 @@ export default [
         // tests in src/utils/eslint-auto-patch.test.ts).
         await runCliWithoutInstall(['setup', '--no-modify'], {
           cwd: projectDirectory,
-          timeout: SETUP_TIMEOUT,
+          timeout: TIMEOUT_SETUP,
         });
 
         // Existing config should be byte-identical (not modified)
@@ -75,7 +73,7 @@ export default [
         expect(safewordConfig).toContain('safewordStrictRules');
         expect(safewordConfig).toContain('no-unused-vars');
       },
-      SETUP_TIMEOUT,
+      TIMEOUT_SETUP,
     );
 
     it(
@@ -98,7 +96,7 @@ export default [
 
         await runCliWithoutInstall(['setup'], {
           cwd: projectDirectory,
-          timeout: SETUP_TIMEOUT,
+          timeout: TIMEOUT_SETUP,
         });
 
         // Legacy config should be preserved
@@ -115,7 +113,7 @@ export default [
         // Should warn about legacy format
         expect(safewordConfig).toContain('Legacy .eslintrc.*');
       },
-      SETUP_TIMEOUT,
+      TIMEOUT_SETUP,
     );
 
     it(
@@ -127,7 +125,7 @@ export default [
 
         await runCliWithoutInstall(['setup'], {
           cwd: projectDirectory,
-          timeout: SETUP_TIMEOUT,
+          timeout: TIMEOUT_SETUP,
         });
 
         // Project-level config gets generated (managedFiles)
@@ -143,7 +141,7 @@ export default [
         // existsSync gate (ticket 139)
         expect(safewordConfig).toContain('existsSync(projectConfigPath)');
       },
-      SETUP_TIMEOUT,
+      TIMEOUT_SETUP,
     );
   });
 
@@ -168,7 +166,7 @@ select = ["E", "F"]
 
         await runCliWithoutInstall(['setup'], {
           cwd: projectDirectory,
-          timeout: SETUP_TIMEOUT,
+          timeout: TIMEOUT_SETUP,
         });
 
         // Original pyproject.toml should be preserved
@@ -186,7 +184,7 @@ select = ["E", "F"]
         expect(safewordRuff).toContain('extend-select');
         expect(safewordRuff).not.toContain('select = ["ALL"]');
       },
-      SETUP_TIMEOUT,
+      TIMEOUT_SETUP,
     );
 
     it(
@@ -205,7 +203,7 @@ version = "1.0.0"
 
         await runCliWithoutInstall(['setup'], {
           cwd: projectDirectory,
-          timeout: SETUP_TIMEOUT,
+          timeout: TIMEOUT_SETUP,
         });
 
         // Ticket 138 unification: safeword generates a bare project-level ruff.toml and
@@ -221,7 +219,7 @@ version = "1.0.0"
         expect(safewordRuff).toContain('extend-select = [');
         expect(safewordRuff).not.toContain('select = ["ALL"]');
       },
-      SETUP_TIMEOUT,
+      TIMEOUT_SETUP,
     );
   });
 
@@ -254,7 +252,7 @@ formatters:
 
         await runCliWithoutInstall(['setup'], {
           cwd: projectDirectory,
-          timeout: SETUP_TIMEOUT,
+          timeout: TIMEOUT_SETUP,
         });
 
         // Original config should be preserved
@@ -281,7 +279,7 @@ formatters:
         expect(safewordConfig).toContain('goimports');
         expect(safewordConfig).toContain('gofumpt');
       },
-      SETUP_TIMEOUT,
+      TIMEOUT_SETUP,
     );
 
     it(
@@ -296,7 +294,7 @@ formatters:
 
         await runCliWithoutInstall(['setup'], {
           cwd: projectDirectory,
-          timeout: SETUP_TIMEOUT,
+          timeout: TIMEOUT_SETUP,
         });
 
         // Project-level config should be created (since no existing)
@@ -311,7 +309,7 @@ formatters:
         expect(safewordConfig).toContain('default: standard');
         expect(safewordConfig).not.toContain('default: all');
       },
-      SETUP_TIMEOUT,
+      TIMEOUT_SETUP,
     );
   });
 
@@ -325,7 +323,7 @@ formatters:
 
         await runCliWithoutInstall(['setup'], {
           cwd: projectDirectory,
-          timeout: SETUP_TIMEOUT,
+          timeout: TIMEOUT_SETUP,
         });
 
         // Check hook lib uses explicit config paths
@@ -341,7 +339,7 @@ formatters:
         // with and without these files is covered by lint-config-fallback.test.ts.
         expect(lintHook).toContain('--config');
       },
-      SETUP_TIMEOUT,
+      TIMEOUT_SETUP,
     );
   });
 });

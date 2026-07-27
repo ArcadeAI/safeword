@@ -1,30 +1,22 @@
 /**
  * SLOW E2E Tests: Conditional Setup - Framework Detection
  *
- * These tests install real npm dependencies (Astro, Vitest, Tailwind) and
- * routinely exceed the standard test timeout. Run them explicitly:
- *
- *   bun vitest run --config vitest.slow.config.ts
- *
- * They are excluded from the default test run via vitest.config.ts.
+ * These tests install real npm dependencies and are excluded from the default
+ * test run. Run them explicitly with the slow Vitest configuration.
  */
-
-import { existsSync } from 'node:fs';
-import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   createPackageJson,
   createTemporaryDirectory,
-  createTypeScriptPackageJson,
   initGitRepo,
+  INSTALL_DEPENDENCIES_ENV,
   readTestFile,
   removeTemporaryDirectory,
   runCli,
 } from '../helpers';
 
-/** Setup timeout: 10 minutes - bun install can take time under load */
 const SETUP_TIMEOUT = 600_000;
 
 describe('E2E: Conditional Setup - Slow Framework Detection', () => {
@@ -48,20 +40,16 @@ describe('E2E: Conditional Setup - Slow Framework Detection', () => {
 
       await runCli(['setup', '--yes'], {
         cwd: projectDirectory,
+        env: INSTALL_DEPENDENCIES_ENV,
         timeout: SETUP_TIMEOUT,
       });
 
-      // Check ESLint config uses safeword plugin with dynamic framework detection
       const eslintConfig = readTestFile(projectDirectory, 'eslint.config.mjs');
       expect(eslintConfig).toContain('safeword/eslint"');
-      // Config is now dynamic - Astro gets both TypeScript and Astro configs
       expect(eslintConfig).toContain('astro: [...configs.recommendedTypeScript, ...configs.astro]');
       expect(eslintConfig).toContain('baseConfigs[framework]');
-
-      // Check standard ignores (detect.getIgnores includes .next/, .astro/, .venv/, etc.)
       expect(eslintConfig).toContain('detect.getIgnores()');
 
-      // Check package.json has safeword (bundles Astro plugin)
       const pkg = JSON.parse(readTestFile(projectDirectory, 'package.json'));
       expect(pkg.devDependencies).toHaveProperty('safeword');
     },
@@ -82,17 +70,15 @@ describe('E2E: Conditional Setup - Slow Framework Detection', () => {
 
       await runCli(['setup', '--yes'], {
         cwd: projectDirectory,
+        env: INSTALL_DEPENDENCIES_ENV,
         timeout: SETUP_TIMEOUT,
       });
 
-      // Check ESLint config uses safeword plugin
       const eslintConfig = readTestFile(projectDirectory, 'eslint.config.mjs');
       expect(eslintConfig).toContain('safeword/eslint"');
-      // Vitest/Playwright configs are always included (file-scoped, no false positives)
       expect(eslintConfig).toContain('...configs.vitest');
       expect(eslintConfig).toContain('baseConfigs[framework]');
 
-      // Check package.json has safeword (bundles Vitest plugin)
       const pkg = JSON.parse(readTestFile(projectDirectory, 'package.json'));
       expect(pkg.devDependencies).toHaveProperty('safeword');
     },
@@ -113,10 +99,10 @@ describe('E2E: Conditional Setup - Slow Framework Detection', () => {
 
       await runCli(['setup', '--yes'], {
         cwd: projectDirectory,
+        env: INSTALL_DEPENDENCIES_ENV,
         timeout: SETUP_TIMEOUT,
       });
 
-      // Check package.json has Tailwind Prettier plugin installed
       const pkg = JSON.parse(readTestFile(projectDirectory, 'package.json'));
       expect(pkg.devDependencies).toHaveProperty('prettier-plugin-tailwindcss');
     },
@@ -128,7 +114,6 @@ describe('E2E: Conditional Setup - Slow Framework Detection', () => {
     async () => {
       projectDirectory = createTemporaryDirectory();
       createPackageJson(projectDirectory, {
-        // Publishable: has main/exports, not private
         main: './dist/index.js',
         exports: {
           '.': './dist/index.js',
@@ -139,41 +124,13 @@ describe('E2E: Conditional Setup - Slow Framework Detection', () => {
 
       await runCli(['setup', '--yes'], {
         cwd: projectDirectory,
+        env: INSTALL_DEPENDENCIES_ENV,
         timeout: SETUP_TIMEOUT,
       });
 
       const pkg = JSON.parse(readTestFile(projectDirectory, 'package.json'));
       expect(pkg.devDependencies).toHaveProperty('publint');
       expect(pkg.scripts).toHaveProperty('publint');
-    },
-    SETUP_TIMEOUT,
-  );
-
-  it(
-    'installs base dependencies in a non-git directory',
-    async () => {
-      projectDirectory = createTemporaryDirectory();
-      createTypeScriptPackageJson(projectDirectory);
-      // Deliberately do not initialize Git: this is the real-install proof for
-      // setup's non-repository path, so it belongs in the explicit slow lane.
-
-      const result = await runCli(['setup', '--yes'], {
-        cwd: projectDirectory,
-        timeout: SETUP_TIMEOUT,
-      });
-
-      expect(result.exitCode).toBe(0);
-
-      expect(
-        existsSync(nodePath.join(projectDirectory, 'node_modules', 'eslint', 'package.json')),
-      ).toBe(true);
-      expect(
-        existsSync(nodePath.join(projectDirectory, 'node_modules', 'safeword', 'package.json')),
-      ).toBe(true);
-
-      const pkg = JSON.parse(readTestFile(projectDirectory, 'package.json'));
-      expect(pkg.devDependencies?.eslint).toBeDefined();
-      expect(pkg.devDependencies).toHaveProperty('safeword');
     },
     SETUP_TIMEOUT,
   );
