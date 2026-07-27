@@ -13,8 +13,9 @@ Raw issue bodies read through GitHub REST are the only marker authority.
 Sanitized MCP issue representations are intentionally absent from the service
 interface.
 
-Clients do not install or run SQLite. The native SQLite dependency belongs to
-this server package and Railway stores its database on the mounted volume. The
+Clients do not install or run SQLite. The relay uses Node's built-in SQLite
+runtime, so neither users nor server operators install SQLite separately;
+Railway stores its database on the mounted volume. The
 CLI persists each sanitized request once as immutable bytes, uses that same
 UUID and body from every harness, and gives the relay 750 ms to durably accept
 it. A missing response leaves the request retryable; it never authorizes a

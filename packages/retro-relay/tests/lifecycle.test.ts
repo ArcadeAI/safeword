@@ -2,12 +2,12 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import Database from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { CredentialRegistry } from '../src/auth.js';
 import { GitHubRestClient } from '../src/github.js';
 import { startRelayServer } from '../src/http-server.js';
+import Database from '../src/sqlite.js';
 import { RelayStore } from '../src/store.js';
 import type { RequestScope } from '../src/types.js';
 
@@ -78,8 +78,24 @@ function createVersionOne(databaseFile: string): void {
       actor_subject TEXT NOT NULL,
       disposition TEXT NOT NULL,
       match_count INTEGER NOT NULL,
-      recorded_at TEXT NOT NULL
+      recorded_at TEXT NOT NULL,
+      FOREIGN KEY (receipt_id) REFERENCES retro_requests (receipt_id)
     ) STRICT;
+    INSERT INTO retro_requests (
+      tenant_id, installation_id, repository, request_id, receipt_id,
+      payload_hash, payload_nonce, payload_ciphertext, payload_tag, state,
+      issue_number, request_marker, accepted_at, filed_at
+    ) VALUES (
+      'tenant-1', 42, 'arcadeai/safeword', 'migrated-v1', 'receipt-v1',
+      'hash-v1', x'01', x'02', x'03', 'filed',
+      41, '<!-- request:migrated-v1 -->', '2026-01-01T00:00:00.000Z',
+      '2026-01-01T00:01:00.000Z'
+    );
+    INSERT INTO reconciliation_audit (
+      receipt_id, actor_subject, disposition, match_count, recorded_at
+    ) VALUES (
+      'receipt-v1', 'operator', 'adopted', 1, '2026-01-01T00:01:00.000Z'
+    );
   `);
   database.close();
 }
@@ -99,8 +115,14 @@ function createVersionTwo(databaseFile: string): void {
       receipt_id TEXT NOT NULL,
       state TEXT NOT NULL,
       created_at TEXT NOT NULL,
-      delivered_at TEXT
+      delivered_at TEXT,
+      FOREIGN KEY (receipt_id) REFERENCES retro_requests (receipt_id)
     ) STRICT;
+    INSERT INTO alert_outbox (
+      event_id, receipt_id, state, created_at, delivered_at
+    ) VALUES (
+      'alert-v2', 'receipt-v1', 'ambiguous', '2026-01-01T00:02:00.000Z', NULL
+    );
     INSERT INTO retro_requests (
       tenant_id, installation_id, repository, request_id, receipt_id,
       payload_hash, payload_nonce, payload_ciphertext, payload_tag, state,
@@ -185,6 +207,40 @@ describe('schema version three migration', () => {
     expect(store.load(scope('migrated-v2'))?.retryDeadlineAt).toBe('2026-01-02T00:00:00.000Z');
     store.close();
   });
+
+  it.each(['version-one', 'version-two'] as const)(
+    'preserves the version-three retry deadline constraint after migrating %s',
+    version => {
+      const file = databasePath();
+      if (version === 'version-one') createVersionOne(file);
+      else createVersionTwo(file);
+
+      RelayStore.open(file).close();
+
+      const database = new Database(file, { readonly: true });
+      const deadline = database
+        .prepare<[], { name: string; notnull: number }>('PRAGMA table_info(retro_requests)')
+        .all()
+        .find(column => column.name === 'retry_deadline_at');
+      expect(deadline?.notnull).toBe(1);
+      expect(
+        database
+          .prepare<[string], { count: number }>(
+            'SELECT COUNT(*) AS count FROM reconciliation_audit WHERE receipt_id = ?',
+          )
+          .get('receipt-v1')?.count,
+      ).toBe(1);
+      expect(
+        database
+          .prepare<[string], { count: number }>(
+            'SELECT COUNT(*) AS count FROM alert_outbox WHERE receipt_id = ?',
+          )
+          .get('receipt-v1')?.count,
+      ).toBe(version === 'version-one' ? 0 : 1);
+      expect(database.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
+      database.close();
+    },
+  );
 });
 
 describe('durable retry and terminal lifecycle', () => {

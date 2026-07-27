@@ -15,8 +15,9 @@ retirement complete.
 ## Runtime and components
 
 `packages/retro-relay` is a Node service package, separate from the published
-CLI. Its production image uses Node 24.18.0 and `better-sqlite3` 13.0.1; it
-does not use experimental `node:sqlite`.
+CLI. Its production image uses Node 24.18.0 and the built-in `node:sqlite`
+synchronous API. No native npm addon, compiler toolchain, or separate SQLite
+installation is required.
 
 ```text
 named harness adapter → HTTP client → authenticated relay route
@@ -53,7 +54,7 @@ interface Principal {
 ```
 
 The primary key is `(tenant_id, installation_id, repository, request_id)`.
-The HTTP boundary accepts only UUIDv4 request IDs, preventing session text or
+The HTTP boundary accepts only canonical lowercase UUIDv4 request IDs, preventing session text or
 other private identifiers from entering plaintext indexes. Harness and subject
 are audit fields, never identity fields. The versioned
 payload hash covers canonical repository, request identity and deadline, exact title/body,

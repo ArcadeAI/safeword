@@ -184,8 +184,8 @@ function captureClaudeHookArguments(
     `#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs';\nwriteFileSync(process.env.SAFEWORD_CAPTURE_PATH, JSON.stringify(process.argv.slice(2)));\n`,
     { mode: 0o755 },
   );
-  const bunExecutable = path.join(process.env.BUN_INSTALL ?? '/missing-bun-install', 'bin', 'bun');
-  const result = spawnSync(bunExecutable, [hook], {
+  // eslint-disable-next-line sonarjs/no-os-command-from-path -- CI exposes Bun on PATH without requiring BUN_INSTALL.
+  const result = spawnSync('bun', [hook], {
     cwd: project,
     encoding: 'utf8',
     env: {
@@ -196,7 +196,8 @@ function captureClaudeHookArguments(
     },
     input: JSON.stringify({ session_id: sessionId, transcript_path: transcript }),
   });
-  expect(result.status, result.stderr).toBe(0);
+  expect(result.error, String(result.error)).toBeUndefined();
+  expect(result.status, result.stderr || '<no stderr>').toBe(0);
   const arguments_ = JSON.parse(readFileSync(capture, 'utf8')) as string[];
   rmSync(offsetStatePath(sessionId), { force: true });
   return arguments_;

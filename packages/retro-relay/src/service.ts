@@ -78,7 +78,7 @@ function validateRequest(request: unknown): asserts request is FileRetroDraftReq
   if (
     keys.join('\0') !== expectedKeys.join('\0') ||
     !validText(candidate.requestId, 36) ||
-    !/^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/iu.test(
+    !/^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/u.test(
       candidate.requestId,
     ) ||
     !validText(candidate.retryDeadlineAt, 30) ||
@@ -102,10 +102,10 @@ function validateRequest(request: unknown): asserts request is FileRetroDraftReq
 
 export class RelayService {
   readonly #github: GitHubRestClient;
+  readonly #faults: RelayFaults;
   readonly #now: () => Date;
   readonly #payloadKey: Buffer;
   readonly #store: RelayStore;
-  readonly faults: RelayFaults;
 
   constructor(input: {
     store: RelayStore;
@@ -118,7 +118,7 @@ export class RelayService {
     this.#github = input.github;
     this.#payloadKey = input.payloadKey;
     this.#now = input.now ?? (() => new Date());
-    this.faults = input.faults ?? {};
+    this.#faults = { ...input.faults };
   }
 
   operations(principal: RelayPrincipal): ReturnType<RelayStore['operations']> {
@@ -263,7 +263,7 @@ export class RelayService {
         labels: durableRequest.labels,
         installationToken,
       });
-      this.faults.afterGitHubCreate?.();
+      this.#faults.afterGitHubCreate?.();
       return this.#store.markFiled(scope, issueNumber, this.#now());
     } catch (error) {
       if (error instanceof RelayError) throw error;

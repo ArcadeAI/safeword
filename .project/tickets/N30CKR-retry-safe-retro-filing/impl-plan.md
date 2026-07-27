@@ -11,7 +11,7 @@ server and file database, with only GitHub HTTP mocked.
 
 | Build order | Deliverable | Primary proof |
 | --- | --- | --- |
-| 0 | Disposable runtime qualification: clean workspace install, native `better-sqlite3` load on the supported Node 24 LTS image, WAL migration/reopen, package build/start, exclusive process lock with stale-lock recovery | Qualification test and recorded fallback to PostgreSQL if any check fails |
+| 0 | Disposable runtime qualification: clean workspace install, built-in `node:sqlite` load on the supported Node 24 LTS image, WAL migration/reopen, package build/start, exclusive process lock with stale-lock recovery | Qualification test and recorded fallback to PostgreSQL if any check fails |
 | 1 | First scenario RED through the real HTTP fixture; minimum request validation/hash, SQLite store, auth registry, server/client, and named adapters | Cross-adapter Cucumber + Vitest wiring proof |
 | 2 | Mismatch scenario outline | Unit hash partitions plus public-route 409 proof |
 | 3 | Concurrent-first RED; minimum CAS election and bounded receipt polling | Two independent DB connections, no transaction held over delayed GitHub I/O, both clients return one issue |
@@ -40,7 +40,7 @@ rollout evidence.
 | Decision | Choice | Alternatives | Why |
 | --- | --- | --- | --- |
 | Package/runtime | separate `packages/retro-relay`, Node 24.18.0 production image | CLI `src/retro`; Bun-only daemon | keeps a credential-bearing service out of the published CLI and tests the declared Node baseline |
-| SQLite driver | `better-sqlite3` 13.0.1 | experimental `node:sqlite`; PostgreSQL now | current release supports Node >=22; smallest durable slice; store interface preserves migration |
+| SQLite driver | built-in `node:sqlite` synchronous API | `better-sqlite3`; PostgreSQL now | supported by the relay's Node range, removes native-addon build prerequisites, and keeps the smallest durable slice |
 | Topology | one active process/host with process lock | multi-process/multi-host | WAL is same-host and single-writer; multi-host triggers PostgreSQL |
 | Convergence | POST receipt + client status polling | return `creating`; in-memory waiter | every caller can receive the same filed receipt across processes/restarts |
 | Dispatch boundary | `claimed` then durable `dispatching` | one `creating` state | separates confirmed pre-dispatch retry from downstream uncertainty |
@@ -50,7 +50,7 @@ rollout evidence.
 
 Sources:
 
-- better-sqlite3 Node support/API: https://github.com/WiseLibs/better-sqlite3
+- Node SQLite API: https://nodejs.org/api/sqlite.html
 - SQLite WAL limits: https://sqlite.org/wal.html
 - SQLite uniqueness behavior: https://sqlite.org/lang_conflict.html
 - GitHub raw issue bodies: https://docs.github.com/en/rest/issues/issues

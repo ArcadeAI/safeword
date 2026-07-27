@@ -15,6 +15,7 @@ import {
   RelayStore,
   startRelayServer,
 } from '../src/index.js';
+import type { RelayFaults } from '../src/service.js';
 import { createHarnessAdapters } from './support/harness-client.js';
 
 const { privateKey: githubAppPrivateKey } = generateKeyPairSync('rsa', {
@@ -207,6 +208,7 @@ async function fixture(
     createStatus?: number;
     failSecondPage?: boolean;
     failToken?: boolean;
+    faults?: RelayFaults;
     githubRequestTimeoutMs?: number;
     installationToken?: string;
     rawBodies?: string[];
@@ -265,6 +267,7 @@ async function fixture(
     lockPath: path.join(directory, 'relay.lock'),
     payloadKey: Buffer.alloc(32, 7),
     store,
+    ...(options.faults !== undefined && { faults: options.faults }),
     ...(options.now !== undefined && { now: options.now }),
   };
   const relay = await startRelayServer(serverOptions);
@@ -464,13 +467,18 @@ describe('retry-safe retro relay', () => {
   });
 
   it('reuses the filed receipt after response delivery is lost', async () => {
-    const setup = await fixture();
-    setup.relay.faults.afterReceiptCommit = () => {
-      throw new Error('drop response');
-    };
+    let responseDropped = false;
+    const setup = await fixture({
+      faults: {
+        afterReceiptCommit: () => {
+          if (responseDropped) return;
+          responseDropped = true;
+          throw new Error('drop response');
+        },
+      },
+    });
     const adapter = createHarnessAdapters(setup.relay.url, setup.credential).claude;
     await expect(adapter.file(draft())).rejects.toThrow();
-    setup.relay.faults.afterReceiptCommit = undefined;
 
     await expect(adapter.file(draft())).resolves.toMatchObject({
       issueNumber: 901,
@@ -493,6 +501,24 @@ describe('retry-safe retro relay', () => {
         requestId: draft().requestId,
       })?.state,
     ).toBe('retryable');
+  });
+
+  it('rejects non-canonical uppercase request identities at the HTTP boundary', async () => {
+    const setup = await fixture();
+    const request = draft();
+    request.requestId = request.requestId.toUpperCase();
+
+    const response = await fetch(`${setup.relay.url}/v1/retro-filings`, {
+      body: JSON.stringify(request),
+      headers: {
+        authorization: `Bearer ${setup.credentials.claude}`,
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    });
+
+    expect(response.status).toBe(400);
+    expect(setup.createBodies).toHaveLength(0);
   });
 
   it('quarantines a GitHub 5xx because the create outcome is ambiguous', async () => {
@@ -673,10 +699,13 @@ describe('retry-safe retro relay', () => {
   });
 
   it('recovers a post-create crash as ambiguous and reconciles from raw REST', async () => {
-    const setup = await fixture();
-    setup.relay.faults.afterGitHubCreate = () => {
-      throw new Error('simulated crash');
-    };
+    const setup = await fixture({
+      faults: {
+        afterGitHubCreate: () => {
+          throw new Error('simulated crash');
+        },
+      },
+    });
     const adapter = createHarnessAdapters(setup.relay.url, setup.credential).claude;
     await expect(adapter.file(draft())).rejects.toMatchObject({ status: 503 });
     expect(setup.createBodies).toHaveLength(1);
@@ -770,10 +799,13 @@ describe('retry-safe retro relay', () => {
   it.each([0, 2])(
     'keeps an ambiguous request quarantined for %i raw request-marker matches',
     async matchCount => {
-      const setup = await fixture();
-      setup.relay.faults.afterGitHubCreate = () => {
-        throw new Error('simulated crash');
-      };
+      const setup = await fixture({
+        faults: {
+          afterGitHubCreate: () => {
+            throw new Error('simulated crash');
+          },
+        },
+      });
       const adapter = createHarnessAdapters(setup.relay.url, setup.credential).claude;
       await expect(adapter.file(draft())).rejects.toMatchObject({ status: 503 });
       const marker = setup.createBodies[0]?.split('\n').at(-1) ?? '';
@@ -880,10 +912,13 @@ describe('retry-safe retro relay', () => {
     });
     expect(hidden.status).toBe(404);
 
-    const ambiguous = await fixture();
-    ambiguous.relay.faults.afterGitHubCreate = () => {
-      throw new Error('simulated crash');
-    };
+    const ambiguous = await fixture({
+      faults: {
+        afterGitHubCreate: () => {
+          throw new Error('simulated crash');
+        },
+      },
+    });
     await expect(
       createHarnessAdapters(ambiguous.relay.url, ambiguous.credential).operator.reconcileReceipt(
         'missing',
@@ -954,10 +989,13 @@ describe('retry-safe retro relay', () => {
   );
 
   it('fails closed when raw REST pagination is incomplete', async () => {
-    const setup = await fixture();
-    setup.relay.faults.afterGitHubCreate = () => {
-      throw new Error('simulated crash');
-    };
+    const setup = await fixture({
+      faults: {
+        afterGitHubCreate: () => {
+          throw new Error('simulated crash');
+        },
+      },
+    });
     await expect(
       createHarnessAdapters(setup.relay.url, setup.credential).claude.file(draft()),
     ).rejects.toMatchObject({ status: 503 });

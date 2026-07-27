@@ -1,8 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 
-import Database from 'better-sqlite3';
-
 import type { PayloadEnvelope } from './payload.js';
+import Database from './sqlite.js';
 import type { FilingReceipt, ReceiptState, RelayPrincipal, RequestScope } from './types.js';
 
 type StoredState =
@@ -135,7 +134,7 @@ function receipt(record: DurableRequest): FilingReceipt {
   };
 }
 
-function tableExists(database: Database.Database, table: string): boolean {
+function tableExists(database: Database, table: string): boolean {
   return (
     database
       .prepare<[string], { present: number }>(
@@ -145,7 +144,7 @@ function tableExists(database: Database.Database, table: string): boolean {
   );
 }
 
-function columns(database: Database.Database, table: string): string[] {
+function columns(database: Database, table: string): string[] {
   return database
     .prepare<[], { name: string }>(`PRAGMA table_info(${table})`)
     .all()
@@ -156,12 +155,9 @@ function exactColumns(actual: string[], expected: readonly string[]): boolean {
   return actual.length === expected.length && expected.every(column => actual.includes(column));
 }
 
-function createVersionThree(database: Database.Database): void {
-  database.exec(`
-    CREATE TABLE schema_version (version INTEGER NOT NULL) STRICT;
-    INSERT INTO schema_version VALUES (3);
-
-    CREATE TABLE retro_requests (
+function retroRequestsTable(table: 'retro_requests' | 'retro_requests_v3'): string {
+  return `
+    CREATE TABLE ${table} (
       tenant_id TEXT NOT NULL,
       installation_id INTEGER NOT NULL,
       repository TEXT NOT NULL,
@@ -187,6 +183,15 @@ function createVersionThree(database: Database.Database): void {
       dispatch_started_at TEXT,
       PRIMARY KEY (tenant_id, installation_id, repository, request_id)
     ) STRICT;
+  `;
+}
+
+function createVersionThree(database: Database): void {
+  database.exec(`
+    CREATE TABLE schema_version (version INTEGER NOT NULL) STRICT;
+    INSERT INTO schema_version VALUES (3);
+
+    ${retroRequestsTable('retro_requests')}
 
     CREATE TABLE reconciliation_audit (
       audit_id INTEGER PRIMARY KEY,
@@ -209,7 +214,7 @@ function createVersionThree(database: Database.Database): void {
   `);
 }
 
-function readSchemaVersion(database: Database.Database): number {
+function readSchemaVersion(database: Database): number {
   if (!tableExists(database, 'schema_version')) throw new Error('schema version table is missing');
   const rows = database
     .prepare<[], { version: number }>('SELECT version FROM schema_version')
@@ -220,33 +225,59 @@ function readSchemaVersion(database: Database.Database): number {
   return version;
 }
 
-function validateVersionThree(database: Database.Database): void {
+function validateVersionThree(database: Database): void {
   const expected = [...V1_COLUMNS, ...V2_EXTRA_COLUMNS, ...V3_EXTRA_COLUMNS];
   if (!exactColumns(columns(database, 'retro_requests'), expected)) {
     throw new Error('schema version three layout is partial or incompatible');
+  }
+  const deadline = database
+    .prepare<[], { name: string; notnull: number }>('PRAGMA table_info(retro_requests)')
+    .all()
+    .find(column => column.name === 'retry_deadline_at');
+  if (deadline?.notnull !== 1) {
+    throw new Error('schema version three retry deadline constraint is missing');
   }
   for (const table of ['reconciliation_audit', 'alert_outbox']) {
     if (!tableExists(database, table)) throw new Error(`schema table ${table} is missing`);
   }
 }
 
-function migrateVersionOne(database: Database.Database, fault?: MigrationFault): void {
+function migrateVersionOne(database: Database, fault?: MigrationFault): void {
   if (!exactColumns(columns(database, 'retro_requests'), V1_COLUMNS)) {
     throw new Error('schema version one layout is partial or incompatible');
   }
   const migrate = database.transaction(() => {
     database.exec(`
-      ALTER TABLE retro_requests ADD COLUMN dead_lettered_at TEXT;
-      ALTER TABLE retro_requests ADD COLUMN tombstoned_at TEXT;
-      ALTER TABLE retro_requests ADD COLUMN payload_compacted_at TEXT;
-      ALTER TABLE retro_requests ADD COLUMN next_attempt_at TEXT;
-      ALTER TABLE retro_requests ADD COLUMN attempt_count INTEGER NOT NULL DEFAULT 0;
-      ALTER TABLE retro_requests ADD COLUMN dispatch_started_at TEXT;
-      ALTER TABLE retro_requests ADD COLUMN retry_deadline_at TEXT;
-      UPDATE retro_requests SET next_attempt_at = accepted_at WHERE next_attempt_at IS NULL;
-      UPDATE retro_requests
-      SET retry_deadline_at = strftime('%Y-%m-%dT%H:%M:%fZ', accepted_at, '+24 hours')
-      WHERE retry_deadline_at IS NULL;
+      PRAGMA defer_foreign_keys = ON;
+      ${retroRequestsTable('retro_requests_v3')}
+      INSERT INTO retro_requests_v3 (
+        tenant_id, installation_id, repository, request_id, receipt_id,
+        payload_hash, payload_nonce, payload_ciphertext, payload_tag, state,
+        issue_number, request_marker, accepted_at, retry_deadline_at, filed_at,
+        next_attempt_at, attempt_count
+      )
+      SELECT
+        tenant_id, installation_id, repository, request_id, receipt_id,
+        payload_hash, payload_nonce, payload_ciphertext, payload_tag, state,
+        issue_number, request_marker, accepted_at,
+        strftime('%Y-%m-%dT%H:%M:%fZ', accepted_at, '+24 hours'), filed_at,
+        accepted_at, 0
+      FROM retro_requests;
+      CREATE TABLE reconciliation_audit_v3 (
+        audit_id INTEGER PRIMARY KEY,
+        receipt_id TEXT NOT NULL,
+        actor_subject TEXT NOT NULL,
+        disposition TEXT NOT NULL,
+        match_count INTEGER NOT NULL,
+        recorded_at TEXT NOT NULL,
+        FOREIGN KEY (receipt_id) REFERENCES retro_requests_v3 (receipt_id)
+      ) STRICT;
+      INSERT INTO reconciliation_audit_v3
+      SELECT * FROM reconciliation_audit;
+      DROP TABLE reconciliation_audit;
+      DROP TABLE retro_requests;
+      ALTER TABLE retro_requests_v3 RENAME TO retro_requests;
+      ALTER TABLE reconciliation_audit_v3 RENAME TO reconciliation_audit;
     `);
     fault?.('after-columns');
     database.exec(`
@@ -266,16 +297,56 @@ function migrateVersionOne(database: Database.Database, fault?: MigrationFault):
   migrate.immediate();
 }
 
-function migrateVersionTwo(database: Database.Database): void {
+function migrateVersionTwo(database: Database): void {
   if (!exactColumns(columns(database, 'retro_requests'), [...V1_COLUMNS, ...V2_EXTRA_COLUMNS])) {
     throw new Error('schema version two layout is partial or incompatible');
   }
   const migrate = database.transaction(() => {
     database.exec(`
-      ALTER TABLE retro_requests ADD COLUMN retry_deadline_at TEXT;
-      UPDATE retro_requests
-      SET retry_deadline_at = strftime('%Y-%m-%dT%H:%M:%fZ', accepted_at, '+24 hours')
-      WHERE retry_deadline_at IS NULL;
+      PRAGMA defer_foreign_keys = ON;
+      ${retroRequestsTable('retro_requests_v3')}
+      INSERT INTO retro_requests_v3 (
+        tenant_id, installation_id, repository, request_id, receipt_id,
+        payload_hash, payload_nonce, payload_ciphertext, payload_tag, state,
+        issue_number, request_marker, accepted_at, retry_deadline_at, filed_at,
+        dead_lettered_at, tombstoned_at, payload_compacted_at, next_attempt_at,
+        attempt_count, dispatch_started_at
+      )
+      SELECT
+        tenant_id, installation_id, repository, request_id, receipt_id,
+        payload_hash, payload_nonce, payload_ciphertext, payload_tag, state,
+        issue_number, request_marker, accepted_at,
+        strftime('%Y-%m-%dT%H:%M:%fZ', accepted_at, '+24 hours'), filed_at,
+        dead_lettered_at, tombstoned_at, payload_compacted_at, next_attempt_at,
+        attempt_count, dispatch_started_at
+      FROM retro_requests;
+      CREATE TABLE reconciliation_audit_v3 (
+        audit_id INTEGER PRIMARY KEY,
+        receipt_id TEXT NOT NULL,
+        actor_subject TEXT NOT NULL,
+        disposition TEXT NOT NULL,
+        match_count INTEGER NOT NULL,
+        recorded_at TEXT NOT NULL,
+        FOREIGN KEY (receipt_id) REFERENCES retro_requests_v3 (receipt_id)
+      ) STRICT;
+      INSERT INTO reconciliation_audit_v3
+      SELECT * FROM reconciliation_audit;
+      CREATE TABLE alert_outbox_v3 (
+        event_id TEXT PRIMARY KEY,
+        receipt_id TEXT NOT NULL,
+        state TEXT NOT NULL CHECK (state IN ('ambiguous', 'dead-letter')),
+        created_at TEXT NOT NULL,
+        delivered_at TEXT,
+        FOREIGN KEY (receipt_id) REFERENCES retro_requests_v3 (receipt_id)
+      ) STRICT;
+      INSERT INTO alert_outbox_v3
+      SELECT * FROM alert_outbox;
+      DROP TABLE alert_outbox;
+      DROP TABLE reconciliation_audit;
+      DROP TABLE retro_requests;
+      ALTER TABLE retro_requests_v3 RENAME TO retro_requests;
+      ALTER TABLE reconciliation_audit_v3 RENAME TO reconciliation_audit;
+      ALTER TABLE alert_outbox_v3 RENAME TO alert_outbox;
       UPDATE schema_version SET version = 3;
     `);
   });
@@ -283,7 +354,7 @@ function migrateVersionTwo(database: Database.Database): void {
 }
 
 function prepareDatabase(
-  database: Database.Database,
+  database: Database,
   fault?: (step: 'after-columns' | 'after-outbox' | 'before-version') => void,
 ): void {
   if (!tableExists(database, 'schema_version')) {
@@ -336,10 +407,10 @@ export class RelayStore {
     }
   }
 
-  readonly #database: Database.Database;
+  readonly #database: Database;
   readonly #now: () => Date;
 
-  private constructor(database: Database.Database, now: () => Date) {
+  private constructor(database: Database, now: () => Date) {
     this.#database = database;
     this.#now = now;
   }

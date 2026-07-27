@@ -1,6 +1,6 @@
 ---
 generator: safeword-architecture
-fingerprint: 68561caa81fab6a55b196b7e803ad56dce2bd2712e99412a342f0e6dc2f668b4
+fingerprint: 06bde091ae7c8e8a047ff9843e9f95a34241e2a3459e893f3f85cc61ff161774
 ---
 
 # Architecture
@@ -147,6 +147,14 @@ No description yet — awaiting prose.
 
 > ⚠ stale: structure changed since this section was reconciled.
 
+### sqlite
+
+<!-- reconciled: 06bde091ae7c8e8a047ff9843e9f95a34241e2a3459e893f3f85cc61ff161774 -->
+
+`src/sqlite.ts`
+
+No description yet — awaiting prose.
+
 ### store
 
 <!-- reconciled: f6a9f843b24e8bcd1464a57943dbfa0b9d03e4471c41ceb00d551f19e3a5cf7a -->
@@ -166,7 +174,3 @@ No description yet — awaiting prose.
 No description yet — awaiting prose.
 
 > ⚠ stale: structure changed since this section was reconciled.
-
-### client
-
-> ⚠ orphaned: this section describes a module that no longer exists.

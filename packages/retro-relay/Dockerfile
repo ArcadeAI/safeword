@@ -15,13 +15,6 @@ FROM node:24.18.0-bookworm-slim AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 COPY packages/retro-relay/package.json package.json
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends g++ make python3 \
-  && npm install --omit=dev --no-audit --no-fund --build-from-source \
-  && rm -f node_modules/better-sqlite3/prebuilds/linux*.node \
-  && npm rebuild better-sqlite3 --build-from-source \
-  && apt-get purge -y --auto-remove g++ make python3 \
-  && rm -rf /var/lib/apt/lists/*
 COPY --from=build /workspace/packages/retro-relay/dist dist
 
 CMD ["node", "dist/main.js"]

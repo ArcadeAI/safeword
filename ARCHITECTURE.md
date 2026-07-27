@@ -30,7 +30,7 @@ Safeword is a CLI tool that configures linting, hooks, and development guides fo
 | Category        | Choice             | Rationale                                                                              |
 | --------------- | ------------------ | -------------------------------------------------------------------------------------- |
 | CLI Runtime     | Bun                | Fast startup, TypeScript native                                                        |
-| Relay Runtime   | Node 24 LTS        | Production-qualified native SQLite addon support for the separately deployed relay     |
+| Relay Runtime   | Node 24 LTS        | Built-in SQLite support for the separately deployed relay without a native npm addon   |
 | Package Manager | npm/bun            | Standard for JS ecosystem                                                              |
 | JS Linting      | ESLint             | Industry standard, extensive rule set                                                  |
 | Python Linting  | Ruff               | Fast, replaces flake8/black/isort                                                      |
@@ -72,6 +72,8 @@ readiness evidence below is satisfied.
 SQLite WAL is the smallest supported durable store for one active process on
 one host. Multi-host deployment or a network filesystem requires migration
 through the store boundary to PostgreSQL.
+The relay uses Node's built-in `node:sqlite` API, avoiding host compiler and
+native-addon prerequisites for contributors and deploys.
 
 The Railway deployment profile therefore fixes one replica and one persistent
 `/data` volume. Readiness must query SQLite's schema version. A random

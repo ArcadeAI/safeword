@@ -13,11 +13,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {
-    "better-sqlite3": "13.0.1"
-  },
+  "dependencies": {},
   "devDependencies": {
-    "@types/better-sqlite3": "7.6.13",
     "@types/node": "^26.1.1",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",

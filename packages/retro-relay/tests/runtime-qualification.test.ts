@@ -1,6 +1,8 @@
+import { spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -17,7 +19,22 @@ afterEach(() => {
 });
 
 describe('retro relay runtime qualification', () => {
-  it('loads the native driver, enables WAL, migrates, and reopens on Node 22', () => {
+  it('loads the built public entrypoint on the active Node runtime', () => {
+    const packageRoot = fileURLToPath(new URL('..', import.meta.url));
+    const result = spawnSync(
+      process.execPath,
+      ['--input-type=module', '--eval', "await import('./dist/index.js')"],
+      {
+        cwd: packageRoot,
+        encoding: 'utf8',
+      },
+    );
+
+    expect(result.error, String(result.error)).toBeUndefined();
+    expect(result.status, result.stderr || '<no stderr>').toBe(0);
+  });
+
+  it('loads the built-in driver, enables WAL, migrates, and reopens on the active runtime', () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-relay-'));
     temporaryDirectories.push(directory);
     const databasePath = path.join(directory, 'relay.sqlite');

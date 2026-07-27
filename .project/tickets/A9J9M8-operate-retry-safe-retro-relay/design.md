@@ -208,10 +208,12 @@ retention policies. Secure deletion would require per-record external key
 management and is explicitly not claimed by #1479.
 
 Migration runs under one `BEGIN IMMEDIATE` transaction. It validates exactly
-one version row, applies additive columns and the outbox table, performs
-integrity checks, and updates the schema version last. Any fault rolls back the
-entire transaction. Startup rejects partial layouts and versions newer than the
-binary before opening the listener.
+one version row, rebuilds the request table into the constrained version-three
+layout while preserving rows and foreign-key references, adds the outbox table,
+performs integrity checks, and updates the schema version last. Any fault rolls
+back the entire transaction. Startup validates both column names and the
+non-null retry-deadline constraint, rejecting partial layouts and versions
+newer than the binary before opening the listener.
 
 One process-local maintenance timer invokes database-CAS operations:
 

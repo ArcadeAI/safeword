@@ -13,7 +13,7 @@ function isFiledResult(receipt: FilingReceipt): boolean {
   return ['dead-letter', 'filed', 'rejected', 'tombstone'].includes(receipt.state);
 }
 
-export class RelayClientError extends Error {
+class RelayClientError extends Error {
   readonly status: number;
   readonly details: Record<string, unknown>;
 

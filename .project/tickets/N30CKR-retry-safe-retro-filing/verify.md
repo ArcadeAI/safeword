@@ -1,16 +1,16 @@
 # Verify: Retry-safe retro relay foundation
 
-Verified 2026-07-26 against the final PR worktree.
+Verified 2026-07-27 against the final PR worktree.
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 5,498 passed, 5 skipped across 370 CLI test files; 110/110 relay tests passed
+**Test Suite:** ✓ 5,498 passed, 5 skipped across 370 CLI test files; 114/114 relay tests passed
 **Gherkin:** ✓ 612 scenarios (609 passed, 3 skipped); 19,518 steps (19,514 passed, 4 skipped)
 **Build:** ✓ Relay and CLI ESM/DTS builds passed
 **Lint:** ✓ ESLint, Gherkin lint, and TypeScript checks passed
 **Scenarios:** ✓ Shared absolute deadline, schema migration, durable local/server dead letters, ambiguous-create recovery, real CLI wiring, and fault injection have RED/GREEN/REFACTOR evidence
 **PR Scope:** ✓ Changes match the gated end-to-end relay slice; public activation and fallback retirement remain out of scope until readiness evidence passes
-**Dep Drift:** ✓ `better-sqlite3` is documented in `ARCHITECTURE.md`; generated dependency plan passed
+**Dep Drift:** ✓ The qualified Node runtime's built-in `node:sqlite` driver is documented in `ARCHITECTURE.md`; generated dependency plan passed with no native add-on
 **Parent Epic:** N/A
 **Reconcile:** ✓ No undocumented pattern deviation
 **Experience:** ✓ Six fresh local/cloud runtime filesystems carry the same explicitly persisted UUIDv4 request bytes through the real installed CLI path
@@ -30,5 +30,8 @@ Verified 2026-07-26 against the final PR worktree.
 - CI runs relay and CLI tests/typechecks; release tests passed 22/22, both builds
   passed, formatting/dependency/architecture gates passed, and the production
   dependency audit reported no vulnerabilities.
+- The built production entrypoint loads on the active Node runtime, and the
+  built-in SQLite driver reopens a migrated WAL database without a compiler or
+  native package installation.
 - #1479 remains open for readiness evidence, production activation, and fallback
   retirement.

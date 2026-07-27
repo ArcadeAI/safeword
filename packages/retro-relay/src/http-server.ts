@@ -53,6 +53,7 @@ type RelayServerOptions = {
   mode?: 'production' | 'spike';
   maintenanceIntervalMs?: number;
   now?: () => Date;
+  faults?: RelayFaults;
   resourceLimits?: {
     maxBodyBytes?: number;
     maxRequestsPerWindow?: number;
@@ -73,7 +74,6 @@ type RelayServerOptions = {
 export async function startRelayServer(input: RelayServerOptions): Promise<{
   server: ReturnType<typeof createServer>;
   url: string;
-  faults: RelayFaults;
   observability: {
     logs: Record<string, unknown>[];
     metrics: Record<string, unknown>[];
@@ -88,7 +88,7 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
     processLock?.release();
     throw error;
   }
-  const faults: RelayFaults = {};
+  const faults: RelayFaults = { ...input.faults };
   const observability = {
     logs: [] as Record<string, unknown>[],
     metrics: [] as Record<string, unknown>[],
@@ -297,7 +297,6 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
   return {
     server,
     url: `http://${input.host === '0.0.0.0' ? '127.0.0.1' : (input.host ?? '127.0.0.1')}:${address.port}`,
-    faults,
     observability,
     maintain,
   };
