@@ -210,8 +210,23 @@ function appendAudit(cwd: string, entry: object): void {
   appendFileSync(auditPath, `${JSON.stringify(entry)}\n`);
 }
 
-function resolveBoundaryTicketDirectories(cwd: string, configuredProjectRoot?: string): string[] {
-  const directories = ticketDirectoriesForConfiguredRoot(cwd, configuredProjectRoot);
+function treeContainsPath(cwd: string, at: Boundary, repoRelativeRoot: string): boolean {
+  const args =
+    at === 'commit'
+      ? ['ls-files', '--cached', '--', `${repoRelativeRoot}/`]
+      : ['ls-tree', '-r', '--name-only', 'HEAD', '--', `${repoRelativeRoot}/`];
+  const listing = tryGit(cwd, args);
+  return (listing?.trim().length ?? 0) > 0;
+}
+
+function resolveBoundaryTicketDirectories(
+  cwd: string,
+  at: Boundary,
+  configuredProjectRoot?: string,
+): string[] {
+  const directories = ticketDirectoriesForConfiguredRoot(cwd, configuredProjectRoot, root =>
+    treeContainsPath(cwd, at, root),
+  );
   if (configuredProjectRoot !== undefined && directories.length === 0) {
     warn(`Configured project root "${configuredProjectRoot}" is outside the repository.`);
   }
@@ -235,7 +250,7 @@ function reconcileBoundary(cwd: string, at: Boundary): void {
   const configContent = readTreeArtifact(CONFIG_REPO_PATH);
   const configuredFeatures = readConfiguredPathFromContent(configContent, 'features');
   const configuredProjectRoot = readConfiguredPathFromContent(configContent, 'projectRoot');
-  const ticketsDirectories = resolveBoundaryTicketDirectories(cwd, configuredProjectRoot);
+  const ticketsDirectories = resolveBoundaryTicketDirectories(cwd, at, configuredProjectRoot);
   const changes = collectChanges(cwd, range, at, ticketsDirectories, configuredFeatures);
   if (changes.length === 0) return;
 

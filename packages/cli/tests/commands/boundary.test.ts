@@ -354,6 +354,59 @@ describe('safeword boundary (slice 1: engine core)', () => {
       expect(`${result.stdout}\n${result.stderr}`).toMatch(/impl-plan-shape.*missing/is);
     });
 
+    it('ignores legacy tickets when the staged tree contains the authoritative .project root', async () => {
+      writeIntakeFeatureTicket(dir, 'BND020-authoritative');
+      const legacyTicket = '.safeword-project/tickets/BND020-legacy/ticket.md';
+      writeTestFile(
+        dir,
+        legacyTicket,
+        boundaryTicketContent({ id: 'BND020', phase: 'scenario-gate' }),
+      );
+      git(dir, 'add -A');
+      git(dir, 'commit -m seed --quiet');
+      writeTestFile(dir, legacyTicket, boundaryTicketContent({ id: 'BND020', phase: 'implement' }));
+      git(dir, `add ${legacyTicket}`);
+
+      const result = await runCli(['boundary', '--at', 'commit'], { cwd: dir });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`.trim()).toBe('');
+      expect(readAudit(dir)).toHaveLength(0);
+    });
+
+    it('ignores legacy tickets when the pushed tree contains the authoritative .project root', async () => {
+      const remote = createTemporaryDirectory();
+      try {
+        execSync('git init --bare --quiet', { cwd: remote, stdio: 'pipe' });
+        writeIntakeFeatureTicket(dir, 'BND021-authoritative');
+        const legacyTicket = '.safeword-project/tickets/BND021-legacy/ticket.md';
+        writeTestFile(
+          dir,
+          legacyTicket,
+          boundaryTicketContent({ id: 'BND021', phase: 'scenario-gate' }),
+        );
+        git(dir, 'add -A');
+        git(dir, 'commit -m seed --quiet');
+        git(dir, `remote add origin ${remote}`);
+        git(dir, 'push -u origin HEAD --quiet');
+        writeTestFile(
+          dir,
+          legacyTicket,
+          boundaryTicketContent({ id: 'BND021', phase: 'implement' }),
+        );
+        git(dir, `add ${legacyTicket}`);
+        git(dir, 'commit -m legacy-only --quiet');
+
+        const result = await runCli(['boundary', '--at', 'push'], { cwd: dir });
+
+        expect(result.exitCode).toBe(0);
+        expect(`${result.stdout}\n${result.stderr}`.trim()).toBe('');
+        expect(readAudit(dir)).toHaveLength(0);
+      } finally {
+        removeTemporaryDirectory(remote);
+      }
+    });
+
     it('accepts a root-level configured feature lane from the staged config', async () => {
       const ticket = '.project/tickets/BND019-owner';
       const feature = 'docs/owner.feature';

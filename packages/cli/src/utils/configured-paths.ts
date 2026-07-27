@@ -254,18 +254,20 @@ export function resolveTicketsDirectory(cwd: string): string {
 
 /**
  * Repo-relative ticket directories for a caller-supplied project-root config.
- * With no explicit root, both supported conventional roots are candidates;
- * the changed-tree path determines which one is present.
+ * With no explicit root, preserve namespace precedence: `.project` wins over
+ * legacy `.safeword-project`, and a fresh project defaults to `.project`.
  */
 export function ticketDirectoriesForConfiguredRoot(
   cwd: string,
   configuredProjectRoot?: string,
+  rootExists: (repoRelativeRoot: string) => boolean = root => isDirectory(nodePath.join(cwd, root)),
 ): string[] {
   if (configuredProjectRoot === undefined) {
-    return [
-      nodePath.posix.join(NAMESPACE_ROOT_DEFAULT, 'tickets'),
-      nodePath.posix.join(NAMESPACE_ROOT_LEGACY, 'tickets'),
-    ];
+    let projectRoot = NAMESPACE_ROOT_DEFAULT;
+    if (!rootExists(projectRoot) && rootExists(NAMESPACE_ROOT_LEGACY)) {
+      projectRoot = NAMESPACE_ROOT_LEGACY;
+    }
+    return [nodePath.posix.join(projectRoot, 'tickets')];
   }
   const projectRoot = toRepoDirectory(cwd, configuredProjectRoot);
   if (projectRoot === undefined) return [];
