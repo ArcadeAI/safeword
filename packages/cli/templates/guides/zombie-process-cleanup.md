@@ -87,7 +87,9 @@ Safeword includes a cleanup script at `.safeword/scripts/cleanup-zombies.sh`:
 The script requires `lsof`, `pgrep`, and `ps` to discover processes, verify
 working directories, and exclude its invoking process tree. If any is
 unavailable, it exits without inspecting or signaling processes and explains
-how to recover.
+how to recover. Kill mode also uses PATH-resolved `xargs` and `kill`; if either
+cannot signal a selected process, the summary reports a failed signal instead
+of claiming a successful kill.
 
 **Features:**
 
@@ -108,38 +110,32 @@ how to recover.
 ### Next.js Projects
 
 ```bash
-# Kill Next.js dev server (port 3000)
-lsof -ti:3000 | xargs kill -9 2> /dev/null
-
-# Kill Next.js build processes for this project
-ps aux | grep "next dev" | grep "$(pwd)" | grep -v grep | awk '{print $2}' | xargs kill -9 2> /dev/null
+# Preview project-owned Next.js processes (auto-detects port 3000)
+./.safeword/scripts/cleanup-zombies.sh
 ```
 
 ### Playwright E2E Tests
 
 ```bash
-# Kill Playwright browsers and test runners
-pkill -f "playwright.*$(pwd)" 2> /dev/null
-
-# Or more specific (by project name)
-pkill -f "playwright.*my-project-name" 2> /dev/null
+# Preview project-owned Playwright browsers and test runners
+./.safeword/scripts/cleanup-zombies.sh
 ```
 
 ### Vite Projects
 
 ```bash
-# Kill Vite dev server (typically port 5173)
-lsof -ti:5173 | xargs kill -9 2> /dev/null
+# Preview project-owned Vite processes (auto-detects port 5173)
+./.safeword/scripts/cleanup-zombies.sh
 ```
 
 ### React Native / Expo
 
 ```bash
-# Kill Metro bundler (port 8081)
-lsof -ti:8081 | xargs kill -9 2> /dev/null
+# Preview a project-owned Metro bundler on port 8081
+./.safeword/scripts/cleanup-zombies.sh 8081 "metro"
 
-# Kill Expo dev tools (port 19000-19006)
-lsof -ti:19000-19006 | xargs kill -9 2> /dev/null
+# Preview project-owned Expo tools on a known port
+./.safeword/scripts/cleanup-zombies.sh 19000 "expo"
 ```
 
 ---
