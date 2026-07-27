@@ -57,7 +57,12 @@ export async function startRelayRuntime(
         if (closed) return;
         closed = true;
         await new Promise<void>((resolve, reject) => {
+          const forceClose = setTimeout(() => {
+            relay.server.closeAllConnections();
+          }, 25_000);
+          forceClose.unref();
           relay.server.close(error => {
+            clearTimeout(forceClose);
             if (error === undefined) resolve();
             else reject(error);
           });

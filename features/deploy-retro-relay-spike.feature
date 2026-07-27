@@ -128,7 +128,7 @@ Feature: Deploy the retro relay spike
     Scenario: Provisioning creates a new clearly named Railway project
       Given the Railway projects that existed before this spike are recorded
       When the spike project is provisioned
-      Then its name begins with "safeword-retro-relay-spike-"
+      Then its name begins with "safeword-relay-spike-"
       And none of the previously existing Railway projects are selected or changed
 
     @deploy-retro-relay-spike.SWM1.R4

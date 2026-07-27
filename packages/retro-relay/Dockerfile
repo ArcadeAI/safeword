@@ -10,7 +10,7 @@ RUN bun install --frozen-lockfile --ignore-scripts
 COPY packages/retro-relay packages/retro-relay
 RUN bun run --cwd packages/retro-relay build
 
-FROM node:22.22.3-bookworm-slim AS runtime
+FROM node:24.18.0-bookworm-slim AS runtime
 
 ENV NODE_ENV=production
 WORKDIR /app

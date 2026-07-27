@@ -47,7 +47,7 @@ than command arguments, checks health, sends SIGTERM, and requires a clean exit.
 
 **Where:** `packages/retro-relay/src/http-server.ts`
 
-`GET /healthz` requires no relay credential and returns success only while the
+`GET /health` requires no relay credential and returns success only while the
 SQLite schema is accessible. It includes `RAILWAY_REPLICA_ID` as a non-secret
 replacement identity. Existing filing and reconciliation routes retain their
 authentication requirements.
