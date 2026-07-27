@@ -36,8 +36,7 @@ describe('cleanup-zombies.sh', () => {
     mkdirSync(isolatedBinaryDirectory);
     for (const command of ['lsof', 'pgrep']) {
       const commandPath = nodePath.join(isolatedBinaryDirectory, command);
-      writeFileSync(commandPath, '#!/usr/bin/env bash\nexit 1\n');
-      chmodSync(commandPath, 0o755);
+      writeExecutable(commandPath, '#!/usr/bin/env bash\nexit 1\n');
     }
     isolatedPath = `${isolatedBinaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`;
   });
@@ -70,6 +69,11 @@ describe('cleanup-zombies.sh', () => {
     writeFileSync(fullPath, content);
   }
 
+  function writeExecutable(filePath: string, content: string): void {
+    writeFileSync(filePath, content);
+    chmodSync(filePath, 0o755);
+  }
+
   function mockLiveProcessOwnership(
     pid: number,
     pattern: string,
@@ -79,7 +83,7 @@ describe('cleanup-zombies.sh', () => {
     const lsofPath = nodePath.join(binaryDirectory, 'lsof');
     const pgrepPath = nodePath.join(binaryDirectory, 'pgrep');
     mkdirSync(binaryDirectory);
-    writeFileSync(
+    writeExecutable(
       lsofPath,
       String.raw`#!/usr/bin/env bash
 if [[ "$1" == "-a" ]] && [[ "$2" == "-p" ]] &&
@@ -90,7 +94,7 @@ fi
 `,
     );
     if (mockDiscovery) {
-      writeFileSync(
+      writeExecutable(
         pgrepPath,
         String.raw`#!/usr/bin/env bash
 if [[ "$*" == "-f $MOCK_LIVE_PATTERN" ]]; then
@@ -98,9 +102,7 @@ if [[ "$*" == "-f $MOCK_LIVE_PATTERN" ]]; then
 fi
 `,
       );
-      chmodSync(pgrepPath, 0o755);
     }
-    chmodSync(lsofPath, 0o755);
     return {
       MOCK_LIVE_CWD: realpathSync(temporaryDirectory),
       MOCK_LIVE_PATTERN: pattern,
@@ -113,7 +115,7 @@ fi
     const binaryDirectory = nodePath.join(temporaryDirectory, 'all-live-bin');
     const lsofPath = nodePath.join(binaryDirectory, 'lsof');
     mkdirSync(binaryDirectory);
-    writeFileSync(
+    writeExecutable(
       lsofPath,
       String.raw`#!/usr/bin/env bash
 if [[ "$1" == "-a" ]] && [[ "$2" == "-p" ]] && [[ "$4" == "-d" ]] &&
@@ -126,7 +128,6 @@ if [[ "$1" == "-a" ]] && [[ "$2" == "-p" ]] && [[ "$4" == "-d" ]] &&
 fi
 `,
     );
-    chmodSync(lsofPath, 0o755);
     return {
       MOCK_LIVE_CWD: realpathSync(temporaryDirectory),
       PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
@@ -144,7 +145,7 @@ fi
     const pgrepPath = nodePath.join(binaryDirectory, 'pgrep');
     const psPath = nodePath.join(binaryDirectory, 'ps');
     mkdirSync(binaryDirectory);
-    writeFileSync(
+    writeExecutable(
       lsofPath,
       String.raw`#!/usr/bin/env bash
 if [[ -n "$MOCK_LSOF_LOG" ]]; then
@@ -181,7 +182,7 @@ elif [[ "$*" == "-a -p ${MOCK_PID},${MOCK_SECOND_PID} -d cwd -Fpn0" ]]; then
 fi
 `,
     );
-    writeFileSync(
+    writeExecutable(
       pgrepPath,
       String.raw`#!/usr/bin/env bash
 if [[ -n "$MOCK_PGREP_LOG" ]]; then
@@ -195,7 +196,7 @@ if [[ -n "$MOCK_PATTERN" ]] && [[ "$*" == *"$MOCK_PATTERN"* ]]; then
 fi
 `,
     );
-    writeFileSync(
+    writeExecutable(
       psPath,
       String.raw`#!/usr/bin/env bash
 if [[ -n "$MOCK_PROCESS_COMMAND" ]]; then
@@ -203,7 +204,7 @@ if [[ -n "$MOCK_PROCESS_COMMAND" ]]; then
 fi
 `,
     );
-    writeFileSync(
+    writeExecutable(
       killPath,
       String.raw`#!/usr/bin/env bash
 printf '%s\n' "$*" >> "$MOCK_KILL_LOG"
@@ -212,10 +213,6 @@ if [[ "$MOCK_KILL_EXIT_CODE" == "1" ]]; then
 fi
 `,
     );
-    chmodSync(killPath, 0o755);
-    chmodSync(lsofPath, 0o755);
-    chmodSync(pgrepPath, 0o755);
-    chmodSync(psPath, 0o755);
     return {
       MOCK_LSOF_CWD_COUNT: nodePath.join(temporaryDirectory, 'lsof-cwd-count'),
       MOCK_PROCESS_COMMAND: processCommand,
@@ -333,8 +330,7 @@ value=\${1%/}
 printf '%s\n' "\${value##*/}"
 `
               : '#!/bin/sh\nexit 1\n';
-          writeFileSync(toolPath, content);
-          chmodSync(toolPath, 0o755);
+          writeExecutable(toolPath, content);
         }
 
         const result = spawnSync('/bin/bash', [SCRIPT_PATH], {
@@ -611,10 +607,8 @@ printf '%s\n' "\${value##*/}"
       const marker = `swzombie-ancestor-${process.pid}`;
       const outerWrapper = nodePath.join(temporaryDirectory, `${marker}.sh`);
       const innerWrapper = nodePath.join(temporaryDirectory, 'inner-wrapper.sh');
-      writeFileSync(outerWrapper, `#!/usr/bin/env bash\nbash "${innerWrapper}"\n`);
-      writeFileSync(innerWrapper, `#!/usr/bin/env bash\nbash "${SCRIPT_PATH}" "${marker}"\n`);
-      chmodSync(outerWrapper, 0o755);
-      chmodSync(innerWrapper, 0o755);
+      writeExecutable(outerWrapper, `#!/usr/bin/env bash\nbash "${innerWrapper}"\n`);
+      writeExecutable(innerWrapper, `#!/usr/bin/env bash\nbash "${SCRIPT_PATH}" "${marker}"\n`);
 
       const result = spawnSync('bash', [outerWrapper], {
         cwd: temporaryDirectory,
