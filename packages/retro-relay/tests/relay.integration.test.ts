@@ -240,6 +240,19 @@ async function fixture(
 }
 
 describe('retry-safe retro relay', () => {
+  it('reports the open SQLite schema and replica identity without authentication', async () => {
+    const setup = await fixture();
+
+    const response = await fetch(`${setup.relay.url}/health`);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      status: 'ok',
+      schemaVersion: 1,
+      replicaId: 'local',
+    });
+  });
+
   it('uses one request identity across Claude, Codex, and Cursor', async () => {
     const setup = await fixture();
     const adapters = createHarnessAdapters(setup.relay.url, setup.credentials);

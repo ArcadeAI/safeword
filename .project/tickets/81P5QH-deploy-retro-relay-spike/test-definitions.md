@@ -13,14 +13,14 @@ Feature source: `features/deploy-retro-relay-spike.feature`
 ### Scenario: Startup rejects every malformed runtime value class
 
 - [x] RED e8c75da81
-- [ ] GREEN
+- [x] GREEN 91b80c39a
 - [ ] REFACTOR
 
 ## Rule: A healthy instance proves its durable store is open and ready
 
 ### Scenario: Railway health reports the hosted SQLite schema ready
 
-- [ ] RED
+- [x] RED skip: pending commit — Vitest received 401 instead of the required unauthenticated 200 health response
 - [ ] GREEN
 - [ ] REFACTOR
 
