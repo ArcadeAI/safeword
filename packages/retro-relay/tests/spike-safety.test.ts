@@ -104,9 +104,18 @@ describe('Railway spike safety', () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'railway-spike-command-'));
     directories.push(directory);
     const statePath = path.join(directory, 'state.json');
-    writeFileSync(statePath, JSON.stringify(state));
     const scriptPath = path.join(process.cwd(), 'scripts', 'railway-spike.ts');
     const tsxPath = path.join(process.cwd(), '..', '..', 'node_modules', '.bin', 'tsx');
+    const record = spawnSync(tsxPath, [scriptPath, 'record-state', statePath], {
+      encoding: 'utf8',
+      input: JSON.stringify(state),
+    });
+    expect(record.status).toBe(0);
+    const topology = spawnSync(tsxPath, [scriptPath, 'validate-topology', statePath], {
+      encoding: 'utf8',
+      input: JSON.stringify(validTopology()),
+    });
+    expect(topology.status).toBe(0);
     const result = spawnSync(tsxPath, [scriptPath, 'teardown-preview', statePath], {
       encoding: 'utf8',
     });
@@ -134,5 +143,19 @@ describe('Railway spike safety', () => {
     expect(() => {
       validateSpikeReport(`${report}\nsecret-value`, ['secret-value']);
     }).toThrow('credential material');
+
+    const directory = mkdtempSync(path.join(tmpdir(), 'railway-spike-report-'));
+    directories.push(directory);
+    const reportPath = path.join(directory, 'report.md');
+    writeFileSync(reportPath, `${report}\nsecret-value`);
+    const scriptPath = path.join(process.cwd(), 'scripts', 'railway-spike.ts');
+    const tsxPath = path.join(process.cwd(), '..', '..', 'node_modules', '.bin', 'tsx');
+    const result = spawnSync(tsxPath, [scriptPath, 'validate-report', reportPath], {
+      encoding: 'utf8',
+      input: JSON.stringify(['secret-value']),
+    });
+    expect(result.status).not.toBe(0);
+    expect(result.stdout).not.toContain('secret-value');
+    expect(result.stderr).not.toContain('secret-value');
   });
 });
