@@ -9,7 +9,7 @@
  * These fixtures reuse the repository toolchain so this suite stays focused on
  * upgrade reconciliation and generated-hook behavior.
  *
- * See `.safeword-project/tickets/137-customer-override-survival/test-definitions.md`
+ * See `.project/tickets/completed/137-customer-override-survival/test-definitions.md`
  * for the full Gherkin spec.
  */
 
