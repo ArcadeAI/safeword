@@ -20,7 +20,6 @@ import {
   readTestFile,
   removeTemporaryDirectory,
   runCliWithoutInstall,
-  SKIP_SKILLS_ENV,
   writeTestFile,
 } from '../helpers';
 
@@ -256,7 +255,6 @@ formatters:
         await runCliWithoutInstall(['setup'], {
           cwd: projectDirectory,
           timeout: SETUP_TIMEOUT,
-          env: SKIP_SKILLS_ENV,
         });
 
         // Original config should be preserved
@@ -299,7 +297,6 @@ formatters:
         await runCliWithoutInstall(['setup'], {
           cwd: projectDirectory,
           timeout: SETUP_TIMEOUT,
-          env: SKIP_SKILLS_ENV,
         });
 
         // Project-level config should be created (since no existing)

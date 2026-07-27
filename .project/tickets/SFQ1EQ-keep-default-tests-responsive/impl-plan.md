@@ -11,8 +11,10 @@
    installation while preserving their existing assertions.
 3. Move the non-git dependency-installation proof to
    `conditional-setup.slow.test.ts`.
-4. Run the focused default and slow lanes, then reprofile the full default suite.
-5. Keep `maxWorkers: 3`; do not introduce Vitest projects unless the new profile
+4. Assert physical `node_modules` artifacts and wire that one focused slow proof
+   into CI without running the broader slow suite on every pull request.
+5. Run the focused default and slow lanes, then reprofile the full default suite.
+6. Keep `maxWorkers: 3`; do not introduce Vitest projects unless the new profile
    identifies a genuine shared-resource or contention-sensitive lane.
 
 ## Decisions
@@ -22,6 +24,8 @@
 - Make the no-install boundary explicit through a shared test helper.
 - Keep one physical non-git dependency-install proof in the slow lane so the
   optimization does not reduce product coverage.
+- Run only that physical-install proof in CI; the rest of `test:slow` remains
+  opt-in because it covers broader, expensive framework-install scenarios.
 
 ## Arch alignment
 

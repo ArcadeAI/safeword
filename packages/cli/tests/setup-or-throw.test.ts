@@ -64,7 +64,7 @@ const TIMEOUT: FakeResult = { exitCode: 1, timedOut: true, stderr: 'killed after
 const REAL_FAILURE: FakeResult = { exitCode: 2, timedOut: false, stderr: 'dist/cli.js not found' };
 
 describe('runCliWithoutInstall', () => {
-  it('disables installation while preserving caller environment overrides', async () => {
+  it('disables installation while preserving unrelated caller environment', async () => {
     const calls: {
       args: string[];
       options?: { cwd?: string; env?: Record<string, string>; timeout?: number };
@@ -78,7 +78,10 @@ describe('runCliWithoutInstall', () => {
       ['setup', '--yes'],
       {
         cwd: '/fake/project',
-        env: { SAFEWORD_SKIP_SKILLS: '1' },
+        env: {
+          SAFEWORD_SKIP_INSTALL: '',
+          SAFEWORD_SKIP_SKILLS: '1',
+        },
         timeout: 42,
       },
       runner,

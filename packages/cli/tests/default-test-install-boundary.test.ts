@@ -18,7 +18,7 @@ describe('default test install boundary', () => {
     const source = readFileSync(nodePath.join(CLI_ROOT, relativePath), 'utf8');
 
     expect(source).toContain('runCliWithoutInstall');
-    expect(source).not.toMatch(/\brunCli\(/);
+    expect(source).not.toMatch(/\brunCli(Sync)?\(/);
   });
 
   it('keeps the non-git dependency installation proof in the slow lane', () => {
@@ -34,5 +34,27 @@ describe('default test install boundary', () => {
     expect(defaultSource).not.toContain('installs base dependencies in a non-git directory');
     expect(slowSource).toContain('installs base dependencies in a non-git directory');
     expect(slowSource).toMatch(/\brunCli\(\['setup', '--yes'\]/);
+    expect(slowSource).toContain("node_modules', 'eslint', 'package.json");
+    expect(slowSource).toContain("node_modules', 'safeword', 'package.json");
+  });
+
+  it('runs the focused physical-install proof in CI', () => {
+    const packageJson = JSON.parse(
+      readFileSync(nodePath.join(CLI_ROOT, 'package.json'), 'utf8'),
+    ) as {
+      scripts?: Record<string, string>;
+    };
+    const workflowSource = readFileSync(
+      nodePath.resolve(CLI_ROOT, '..', '..', '.github/workflows/ci.yml'),
+      'utf8',
+    );
+
+    expect(packageJson.scripts?.['test:slow:install-proof']).toContain(
+      '--config vitest.slow.config.ts',
+    );
+    expect(packageJson.scripts?.['test:slow:install-proof']).toContain(
+      'conditional-setup.slow.test.ts',
+    );
+    expect(workflowSource).toContain('bun run --cwd packages/cli test:slow:install-proof');
   });
 });

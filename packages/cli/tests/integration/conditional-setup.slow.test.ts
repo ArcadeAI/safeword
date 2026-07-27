@@ -9,6 +9,9 @@
  * They are excluded from the default test run via vitest.config.ts.
  */
 
+import { existsSync } from 'node:fs';
+import nodePath from 'node:path';
+
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
@@ -160,6 +163,13 @@ describe('E2E: Conditional Setup - Slow Framework Detection', () => {
       });
 
       expect(result.exitCode).toBe(0);
+
+      expect(
+        existsSync(nodePath.join(projectDirectory, 'node_modules', 'eslint', 'package.json')),
+      ).toBe(true);
+      expect(
+        existsSync(nodePath.join(projectDirectory, 'node_modules', 'safeword', 'package.json')),
+      ).toBe(true);
 
       const pkg = JSON.parse(readTestFile(projectDirectory, 'package.json'));
       expect(pkg.devDependencies?.eslint).toBeDefined();

@@ -32,9 +32,21 @@
 - [x] GREEN
 - [x] REFACTOR
 
+### Scenario: The no-install helper cannot be overridden by caller environment
+
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
+
 ## Rule: Real installation evidence remains explicit
 
 ### Scenario: Non-git setup installs base dependencies in the slow lane
+
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
+
+### Scenario: CI runs the focused non-git physical-install proof
 
 - [x] RED
 - [x] GREEN

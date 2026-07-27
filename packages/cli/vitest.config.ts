@@ -10,8 +10,9 @@ export default mergeConfig(
       // Slow files (`*.slow.test.ts`) and live real-model smoke
       // (`*.live.test.ts`, spends tokens, needs claude + ANTHROPIC_API_KEY)
       // are excluded by default. Real install-proof scenarios are guarded by
-      // SAFEWORD_RUN_INSTALL_TESTS and run through test:slow.
-      // Run via test:slow / test:smoke / test:smoke:live as needed.
+      // SAFEWORD_RUN_INSTALL_TESTS and run through test:slow. CI runs the
+      // focused non-git install proof via test:slow:install-proof.
+      // Run broader lanes via test:slow / test:smoke / test:smoke:live as needed.
       exclude: ['tests/**/*.slow.test.ts', 'tests/**/*.release.test.ts', 'tests/**/*.live.test.ts'],
       coverage: {
         provider: 'v8',

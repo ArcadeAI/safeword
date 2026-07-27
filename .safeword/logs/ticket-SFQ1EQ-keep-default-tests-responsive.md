@@ -41,3 +41,14 @@
   68.27s, but it already uses skipped-install setup. Investigate its repeated
   upgrade/lint-hook subprocess work separately; do not change Vitest scheduling
   based on this slice.
+
+## Session: 2026-07-27
+
+- [08:00] Caught the PR branch up to current `origin/main` without conflicts.
+- [08:00] RED: focused boundary tests failed for caller override protection,
+  physical artifact assertions, and missing CI wiring.
+- [08:01] GREEN: 26 focused tests passed; the physical-install proof passed in
+  6.59s and a forced `SAFEWORD_SKIP_INSTALL=1` mutation made it fail.
+- [08:01] REFACTOR: documented why `runCliWithoutInstall` exists alongside
+  `setupOrThrow`, removed redundant skills-skip plumbing, and widened the raw
+  runner contract to reject both `runCli` and `runCliSync`.

@@ -24,3 +24,4 @@ slow lane so that faster local feedback does not create a coverage gap.
 - The non-git installation scenario still proves base dependencies are installed.
 - That proof runs through `test:slow`, not the default Vitest configuration.
 - The slow-lane scenario remains opt-in and clearly named as installation proof.
+- CI runs the focused physical-install proof without running the full slow suite.
