@@ -114,6 +114,7 @@ describe('E2E: Conditional Setup - Slow Framework Detection', () => {
     async () => {
       projectDirectory = createTemporaryDirectory();
       createPackageJson(projectDirectory, {
+        // Entry points and the absence of private: true make this fixture publishable.
         main: './dist/index.js',
         exports: {
           '.': './dist/index.js',

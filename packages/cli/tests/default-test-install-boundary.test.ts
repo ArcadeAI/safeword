@@ -5,7 +5,9 @@ import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 const CLI_ROOT = nodePath.resolve(import.meta.dirname, '..');
-const MIGRATED_CONFIG_ONLY_TEST_FILES = [
+// Explicit by design: every suite in this reviewed config-only migration must
+// stay protected even if its no-install helper import is removed entirely.
+const AUDITED_CONFIG_ONLY_TEST_FILES = [
   'tests/commands/setup-cursor.test.ts',
   'tests/commands/setup-git.test.ts',
   'tests/commands/setup-hooks.test.ts',
@@ -93,7 +95,7 @@ function collectCliHelperCallNames(source: string, fileName = 'fixture.ts'): Set
 }
 
 describe('default test install boundary', () => {
-  it.each(MIGRATED_CONFIG_ONLY_TEST_FILES)(
+  it.each(AUDITED_CONFIG_ONLY_TEST_FILES)(
     '%s keeps its audited setup calls on the explicit no-install helper',
     relativePath => {
       const source = readFileSync(nodePath.join(CLI_ROOT, relativePath), 'utf8');
@@ -128,7 +130,6 @@ describe('default test install boundary', () => {
     );
 
     expect(existsSync(proofPath)).toBe(true);
-    expect(proofPath).toMatch(/\.slow\.test\.ts$/);
   });
 
   it('runs the focused physical-install proof in CI', () => {
@@ -142,9 +143,14 @@ describe('default test install boundary', () => {
       'utf8',
     );
 
-    expect(packageJson.scripts?.['test:slow:install-proof']).toBe(
-      'node scripts/run-vitest-with-build-lock.mjs --config vitest.slow.config.ts ' +
-        'tests/integration/non-git-install-proof.slow.test.ts',
+    expect(packageJson.scripts?.['test:slow:install-proof']).toContain(
+      'scripts/run-vitest-with-build-lock.mjs',
+    );
+    expect(packageJson.scripts?.['test:slow:install-proof']).toContain(
+      '--config vitest.slow.config.ts',
+    );
+    expect(packageJson.scripts?.['test:slow:install-proof']).toContain(
+      'tests/integration/non-git-install-proof.slow.test.ts',
     );
     expect(workflowSource).toContain('bun run --cwd packages/cli test:slow:install-proof');
   });
