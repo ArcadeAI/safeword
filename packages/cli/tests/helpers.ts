@@ -78,9 +78,9 @@ export const INSTALL_DEPENDENCIES_ENV = {
 };
 
 /**
- * Skip ONLY the skills pull (`npx skills add`) while still installing JS/Python
- * dependencies. Use for Go setup tests that need real deps (e.g. eslint) but must
- * not make the slow/flaky skills network call.
+ * Skip ONLY the skills pull (`npx skills add`) while still allowing JS/Python
+ * dependency installation. Use only for install-backed language fixtures that
+ * must avoid the slow/flaky skills network call; no-install fixtures do not need it.
  */
 export const SKIP_SKILLS_ENV = {
   SAFEWORD_SKIP_SKILLS: '1',
@@ -438,6 +438,33 @@ export async function runCli(
       timedOut,
     };
   }
+}
+
+/**
+ * Run the CLI while explicitly disabling dependency installation.
+ *
+ * Use this for fixture tests that assert generated configuration, scripts, or
+ * package metadata rather than the physical contents of node_modules. Tests
+ * whose purpose is to prove installation must use runCli directly in the slow
+ * lane. Unlike setupOrThrow, this helper returns non-zero results so callers can
+ * assert expected CLI failures without duplicating the skip-install boundary.
+ */
+export async function runCliWithoutInstall(
+  args: string[],
+  options: {
+    cwd?: string;
+    env?: Record<string, string>;
+    timeout?: number;
+  } = {},
+  runner: typeof runCli = runCli,
+): Promise<CliResult> {
+  return runner(args, {
+    ...options,
+    env: {
+      ...options.env,
+      ...SKIP_INSTALL_ENV,
+    },
+  });
 }
 
 /**

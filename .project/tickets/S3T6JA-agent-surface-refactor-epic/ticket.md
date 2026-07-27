@@ -14,7 +14,7 @@ children:
   - 6SE3MR
   - 2YZDKQ
 created: 2026-06-14T01:38:54.925Z
-last_modified: 2026-06-14T03:24:46Z
+last_modified: 2026-07-27T16:24:00Z
 ---
 
 # Epic: Reduce agent surface drift for Safeword maintainers
@@ -69,6 +69,7 @@ last_modified: 2026-06-14T03:24:46Z
 
 ## Work Log
 
+- 2026-07-27T16:24:00Z Completed SFQ1EQ: default tests remain responsive while a focused CI slow lane preserves physical dependency-install coverage.
 - 2026-06-27T14:20:00Z Revalidated 1833FW: dogfood Cursor verify content is aligned with the shipped verify template, including Gherkin evidence. F1HTQ4 can proceed from the current verify content; the child ticket's final done flip is blocked by GitHub issue #469.
 - 2026-06-14T03:24:46Z Decided: 2YZDKQ keeps `versioning` Claude-local maintainer-only (`audience: maintainer`), so Y06KJS must exclude maintainer-only dogfood skills from shared customer-facing manifests.
 - 2026-06-14T02:05:00Z Reviewed: Quality-review pass approved the epic direction and added sequencing/runtime guardrails.

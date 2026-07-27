@@ -3,8 +3,8 @@ id: SFQ1EQ
 slug: keep-default-tests-responsive
 type: task
 subtype: bug-investigated
-phase: intake
-status: in_progress
+phase: done
+status: done
 parent: S3T6JA
 epic: agent-surface-refactor
 scope:
@@ -21,7 +21,7 @@ done_when:
   - Slow install-backed coverage still runs through a named script.
   - Documentation/comments identify which lane maintainers should use for default, smoke, slow, and release validation.
 created: 2026-06-15T14:11:50.893Z
-last_modified: 2026-07-02T03:05:28Z
+last_modified: 2026-07-27T16:24:00Z
 ---
 
 # Keep default tests responsive for maintainers
@@ -32,6 +32,7 @@ last_modified: 2026-07-02T03:05:28Z
 
 ## Work Log
 
+- 2026-07-27T16:24:00Z Done: Full verification, audit, refactor, and independent quality review passed; PR #1470 carries the implementation and completion evidence.
 - 2026-06-15T14:11:50.893Z Started: Created ticket SFQ1EQ
 - 2026-06-15T14:12:02Z Scoped: Created from quality-review/Vitest investigation on `codex/skill-invocation-log-helper`; verbose full-suite output showed older setup/golden-path tests advancing slowly while package-manager subprocesses ran under Vitest workers.
 - 2026-06-15T14:56:00Z Root cause confirmed: `setup-python.test.ts` took 76.7s in isolation because each scenario ran `safeword setup` without `SAFEWORD_SKIP_INSTALL`, so most assertions paid a real package-manager install cost. Re-running the same file with `SAFEWORD_SKIP_INSTALL=1` dropped runtime to 3.1s, with only the install-proof scenario failing as expected.
@@ -44,6 +45,11 @@ last_modified: 2026-07-02T03:05:28Z
 - 2026-07-02T03:05:28Z Residual cluster confirmed during #597 verification: the default full suite timed out in `setup-core.test.ts`, `setup-architecture.test.ts`, and then `setup-linting.test.ts`. All three were config/script generation assertions using bare TypeScript fixtures, so setup could still enter package-manager work before reaching assertions that did not test installation.
 - 2026-07-02T03:05:28Z Fix: added `createTypeScriptProjectReadyForSetup()` for config-only TypeScript setup fixtures. The helper predeclares safeword's base JS/BDD devDependencies while preserving each test's override behavior, then `setup-core`, `setup-architecture`, and `setup-linting` switched to that helper. Real install coverage remains in the existing install-proof paths instead of these config-only assertions.
 - 2026-07-02T03:05:28Z Verification: the exact lint timeout repro passed in 4.18s; the affected setup batch (`setup-core`, `setup-architecture`, `setup-linting`, `setup-python-phase2`) passed 42 tests in 58.78s; `bun run lint`, `bun run typecheck`, full `bun run test`, and `bun run test:bdd` all passed. Full Vitest result: 280 files passed, 4097 tests passed, 3 skipped, in 945.02s. BDD result: 181 scenarios and 3414 steps passed in 1m 59.569s.
+- 2026-07-26T03:56:32Z Reprofiled current main before changing the scheduler: 369 files / 5467 tests passed, with 449.27s runner wall time. The slowest files were `setup-cursor.test.ts` (95.47s), `conditional-setup.test.ts` (92.65s), and `setup-hooks.test.ts` (86.13s); 282 files completed in under one second.
+- 2026-07-26T03:56:32Z `/figure-it-out`: rejected a higher worker cap and Vitest project split for this slice. A `SAFEWORD_SKIP_INSTALL=1` probe cut the three leading files to 3.51–4.42s; 39/40 tests passed, and the sole failure was the genuine non-git installation proof that belongs in `conditional-setup.slow.test.ts`. Decision: finish the default/slow boundary before revisiting CQJBSN scheduler work.
+- 2026-07-26T04:19:46Z Implemented two profile-guided slices: six config-only suites now use an explicit no-install runner, the non-git physical-install proof runs in the slow lane, and a source contract prevents those audited files from regressing to raw setup calls. Final profile passed 370 files / 5474 tests in 321.79s runner wall, down 127.48s (28.4%) from the 449.27s baseline. Lint, typecheck, focused slow proof, and full BDD also passed. Ticket remains in progress: the next dominant file (`override-survival`, 68.27s) already skips installs and needs a separate root-cause slice.
+- 2026-07-27T08:01:00Z Review hardening: caught the branch up to current `main`; made the no-install helper override-proof; strengthened the non-git proof to require installed ESLint and safeword package artifacts; added a focused `test:slow:install-proof` CI step; and closed the raw `runCliSync` boundary gap. The focused proof passed in 6.59s and failed when `SAFEWORD_SKIP_INSTALL=1`, confirming the physical-install assertion is sensitive to installation being disabled.
+- 2026-07-27T09:20:00Z Full audit/refactor closeout: isolated the physical install proof into a dedicated slow file selected without title matching; made install opt-in explicit; shortened stale config-only timeouts; hardened the migrated-suite boundary with TypeScript import analysis for direct, aliased, and namespace calls; and updated authoritative lane documentation. Full Vitest (5556 passed, 5 skipped), BDD (505 passed, 3 skipped), lint, typecheck, build, audit, and focused install evidence passed.
 
 ## Root Cause
 
