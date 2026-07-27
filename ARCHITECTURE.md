@@ -71,6 +71,12 @@ SQLite WAL is the smallest supported durable store for one active process on
 one host. Multi-host deployment or a network filesystem requires migration
 through the store boundary to PostgreSQL.
 
+The Railway deployment profile therefore fixes one replica and one persistent
+`/data` volume. Readiness must query SQLite's schema version. A random
+per-process boot ID proves that an in-place restart replaced the process;
+`RAILWAY_REPLICA_ID` identifies the hosted replica but may remain stable across
+that restart and is not a restart oracle.
+
 The relay stores request payloads only as AES-256-GCM envelopes and keeps
 GitHub App credentials server-side. Ambiguous create outcomes are quarantined
 until a privileged reconciliation route finds exactly one reserved marker in a
