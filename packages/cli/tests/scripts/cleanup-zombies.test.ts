@@ -497,6 +497,12 @@ printf '%s\n' "\${value##*/}"
     it('Scenario: the victim survives a bare preview and dies under --yes', async () => {
       const { marker, pid } = spawnVictim();
       await expect.poll(() => isAlive(pid)).toBe(true);
+      await expect
+        .poll(() => {
+          const result = spawnSync('pgrep', ['-f', marker], { encoding: 'utf8' });
+          return result.stdout.split(/\s+/).filter(Boolean).map(Number);
+        })
+        .toContain(pid);
 
       const liveProcessEnvironment = mockLiveProcessOwnership(pid, marker, false);
       const preview = runScriptRaw([marker], liveProcessEnvironment);
