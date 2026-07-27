@@ -128,13 +128,6 @@ if [ -z "$PATTERN" ]; then
 fi
 
 PROJECT_DIR="$(pwd -P)"
-# macOS exposes its temporary directory through both /var and /private/var.
-# A process may carry either spelling in its argv, so keep the equivalent alias
-# for the project-scoped match without broadening the directory boundary.
-PROJECT_DIR_ALIASES=("$PROJECT_DIR")
-if [[ "$PROJECT_DIR" == /private/var/* ]]; then
-  PROJECT_DIR_ALIASES+=("/var/${PROJECT_DIR#/private/var/}")
-fi
 PROJECT_NAME="$(basename "$PROJECT_DIR")"
 
 echo "Cleanup zombies for: $PROJECT_NAME"
@@ -147,22 +140,21 @@ echo ""
 # Track what we find/kill
 FOUND_COUNT=0
 KILLED_COUNT=0
+FAILED_KILL_COUNT=0
+SKIPPED_PORT_COUNT=0
 
 # Return success only when a path is the project root or one of its descendants.
 path_belongs_to_project() {
   local candidate=$1
-  local project_dir
-  for project_dir in "${PROJECT_DIR_ALIASES[@]}"; do
-    case "$candidate" in
-      "$project_dir" | "$project_dir"/*) return 0 ;;
-    esac
-  done
-  return 1
+  case "$candidate" in
+    "$PROJECT_DIR" | "$PROJECT_DIR"/*) return 0 ;;
+    *) return 1 ;;
+  esac
 }
 
-# Port ownership is machine-wide, so verify each matching process belongs to this
-# project before presenting it as a cleanup candidate. Deny by default when
-# its working directory does not establish ownership.
+# Verify each matching process belongs to this project before presenting it as a
+# cleanup candidate. Deny by default when its working directory does not
+# establish ownership.
 process_belongs_to_project() {
   local pid=$1
   local field
@@ -184,6 +176,30 @@ process_belongs_to_project() {
   return 1
 }
 
+# Use xargs so kill is PATH-resolved instead of invoking Bash's kill builtin.
+# Besides being portable, this preserves the subprocess seam used by tests.
+signal_process() {
+  local pid=$1
+  printf '%s\n' "$pid" | xargs -n 1 kill -9 2> /dev/null
+}
+
+signal_project_processes() {
+  local count_skipped_port_owners=$1
+  shift
+  local pid
+  for pid in "$@"; do
+    if process_belongs_to_project "$pid"; then
+      if signal_process "$pid"; then
+        KILLED_COUNT=$((KILLED_COUNT + 1))
+      else
+        FAILED_KILL_COUNT=$((FAILED_KILL_COUNT + 1))
+      fi
+    elif [ "$count_skipped_port_owners" = true ]; then
+      SKIPPED_PORT_COUNT=$((SKIPPED_PORT_COUNT + 1))
+    fi
+  done
+}
+
 # Function to find and optionally kill processes by port
 cleanup_port() {
   local port=$1
@@ -194,6 +210,8 @@ cleanup_port() {
   for pid in $pids; do
     if process_belongs_to_project "$pid"; then
       project_pids+=("$pid")
+    else
+      SKIPPED_PORT_COUNT=$((SKIPPED_PORT_COUNT + 1))
     fi
   done
 
@@ -213,12 +231,7 @@ cleanup_port() {
   done
 
   if [ "$DRY_RUN" = false ]; then
-    for pid in "${project_pids[@]}"; do
-      if process_belongs_to_project "$pid"; then
-        printf '%s\n' "$pid" | xargs -n 1 kill -9 2> /dev/null || true
-        KILLED_COUNT=$((KILLED_COUNT + 1))
-      fi
-    done
+    signal_project_processes true "${project_pids[@]}"
   fi
 }
 
@@ -226,29 +239,43 @@ cleanup_port() {
 cleanup_pattern() {
   local pattern=$1
   local pids
-  local project_dir
-  # Match pattern AND project directory for safety
-  for project_dir in "${PROJECT_DIR_ALIASES[@]}"; do
-    pids=$(pgrep -f "$pattern.*$project_dir" 2> /dev/null || pgrep -f "$project_dir.*$pattern" 2> /dev/null || true)
-    [ -n "$pids" ] && break
+  local project_pids=()
+  pids=$(pgrep -f "$pattern" 2> /dev/null || true)
+
+  for pid in $pids; do
+    # Explicit patterns can appear in the cleanup command's own argv.
+    if [ "$pid" = "$$" ] || [ "$pid" = "$PPID" ]; then
+      continue
+    fi
+    if process_belongs_to_project "$pid"; then
+      project_pids+=("$pid")
+    fi
   done
 
-  if [ -n "$pids" ]; then
-    local count
-    count=$(echo "$pids" | wc -l | tr -d ' ')
-    FOUND_COUNT=$((FOUND_COUNT + count))
+  if [ "${#project_pids[@]}" -eq 0 ]; then
+    return
+  fi
 
-    echo "Pattern '$pattern' (project-scoped): $count process(es)"
-    for pid in $pids; do
-      local cmd
-      cmd=$(ps -p "$pid" -o command= 2> /dev/null | head -c 80 || echo "unknown")
-      echo "  PID $pid: $cmd"
-    done
+  local count
+  count=${#project_pids[@]}
+  FOUND_COUNT=$((FOUND_COUNT + count))
 
-    if [ "$DRY_RUN" = false ]; then
-      echo "$pids" | xargs kill -9 2> /dev/null || true
-      KILLED_COUNT=$((KILLED_COUNT + count))
-    fi
+  echo "Pattern '$pattern' (project-scoped): $count process(es)"
+  for pid in "${project_pids[@]}"; do
+    local cmd
+    cmd=$(ps -p "$pid" -o command= 2> /dev/null | head -c 80 || echo "unknown")
+    echo "  PID $pid: $cmd"
+  done
+
+  if [ "$DRY_RUN" = false ]; then
+    signal_project_processes false "${project_pids[@]}"
+  fi
+}
+
+report_skipped_processes() {
+  if [ "$SKIPPED_PORT_COUNT" -gt 0 ]; then
+    echo -e "${YELLOW}Skipped $SKIPPED_PORT_COUNT process(es) on detected ports; ownership was not verified for this project${NC}"
+    echo "   A detected port may still be in use by another project"
   fi
 }
 
@@ -279,12 +306,22 @@ fi
 # 5. Summary
 echo ""
 if [ "$FOUND_COUNT" -eq 0 ]; then
-  echo -e "${GREEN}No zombie processes found - already clean!${NC}"
+  if [ "$SKIPPED_PORT_COUNT" -gt 0 ]; then
+    echo -e "${YELLOW}No project-owned zombie processes found${NC}"
+    report_skipped_processes
+  else
+    echo -e "${GREEN}No zombie processes found - already clean!${NC}"
+  fi
 elif [ "$DRY_RUN" = true ]; then
   echo -e "${YELLOW}Found $FOUND_COUNT process(es) that would be killed${NC}"
   echo "   Re-run with --yes to kill them"
+  report_skipped_processes
 else
   echo -e "${GREEN}Killed $KILLED_COUNT process(es)${NC}"
+  if [ "$FAILED_KILL_COUNT" -gt 0 ]; then
+    echo -e "${YELLOW}Failed to kill $FAILED_KILL_COUNT process(es)${NC}"
+  fi
+  report_skipped_processes
 
   # Verify port is free
   if [ -n "$PORT" ]; then

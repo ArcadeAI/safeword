@@ -295,7 +295,7 @@ it never stages, commits, or opens a PR.
 
 - `/audit` - Run architecture and dead code analysis
 - `/bdd` - Force BDD flow for current task
-- `/cleanup-zombies` - Preview or kill current-project zombie processes on ports
+- `/cleanup-zombies` - Preview or kill current-project zombie processes
 - `/debug` - Four-phase debugging framework
 - `/explain` - Plain-English version of any safeword block, verdict, or your current state
 - `/lint` - Run linters and formatters

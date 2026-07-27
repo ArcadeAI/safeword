@@ -35,9 +35,11 @@ Broad kills by bare runtime name (`killall node`, `pkill -9 node`) hit ALL proje
 
 ---
 
-## Port-Based Cleanup (Safest for Multi-Project)
+## Port-Based Cleanup
 
-**Prerequisite:** Each project must use a different port (e.g., Project A: 3000, Project B: 3001)
+**Recommended:** Give each project a different port (for example, Project A:
+3000 and Project B: 3001). The built-in script still verifies process ownership
+when ports overlap.
 
 **Port convention:** Dev and test instances use different ports within the same project:
 
@@ -46,27 +48,21 @@ Broad kills by bare runtime name (`killall node`, `pkill -9 node`) hit ALL proje
 
 See `development-workflow.md` → "E2E Testing with Persistent Dev Servers" for full port isolation strategy.
 
-**Decision rule:** If unsure which cleanup method to use → port-based first (safest), then project script, then tmux.
+**Decision rule:** Use the built-in project script first. Use raw port or pattern
+commands only after inspecting their matches.
 
-**Recommended cleanup pattern** (replace ports with your project's ports):
+**Manual cleanup** (replace ports with your project's ports):
 
 ```bash
-# Kill both dev server AND test server ports
-# Example: Next.js (3000/4000), Vite (5173/6173), or your project's ports
-lsof -ti:3000 -ti:4000 | xargs kill -9 2> /dev/null
+# Inspect both dev server AND test server ports
+lsof -i:3000 -i:4000
 
-# Kill Playwright processes launched from THIS directory
-pkill -f "playwright.*$(pwd)" 2> /dev/null
-
-# Wait for cleanup
-sleep 2
+# Inspect Playwright command lines before signaling anything
+pgrep -af "playwright"
 ```
 
-**Why this works:**
-
-- ✅ Dev + test ports are unique to this project → safe to kill
-- ✅ `$(pwd)` ensures only THIS project's tests are killed
-- ✅ Other projects completely untouched
+Raw `lsof | xargs kill` and `pkill -f` commands are machine-wide. A command line
+that mentions this project does not prove that the process belongs to it.
 
 ---
 
@@ -93,7 +89,9 @@ Safeword includes a cleanup script at `.safeword/scripts/cleanup-zombies.sh`:
 - Auto-detects port from config files (vite.config.ts, next.config.js, etc.)
 - Checks dev port AND test port (port + 1000), then keeps only processes whose
   working directory belongs to the current project
-- Scopes all pattern matching to current project directory
+- Finds pattern candidates by command line, then applies the same working-directory
+  ownership check
+- Reports port owners it skipped because project ownership could not be verified
 - `--dry-run` shows what would be killed without killing
 
 **Supported frameworks:** Vite, Next.js, Nuxt, SvelteKit, Astro, Angular
@@ -200,16 +198,16 @@ ps aux | grep "/Users/alex/projects/my-project"
 
 ## Quick Reference
 
-| Situation                                | Command                                                          |
-| ---------------------------------------- | ---------------------------------------------------------------- |
-| Preview zombies (recommended first step) | `./.safeword/scripts/cleanup-zombies.sh`                         |
-| Kill what the preview showed             | `./.safeword/scripts/cleanup-zombies.sh --yes`                   |
-| Kill dev + test servers (use your ports) | `lsof -ti:$DEV_PORT -ti:$TEST_PORT \| xargs kill -9 2>/dev/null` |
-| Kill Playwright (this project)           | `pkill -f "playwright.*$(pwd)"`                                  |
-| Check what's on port                     | `lsof -i:3000`                                                   |
-| Find zombie processes                    | `ps aux \| grep -E "(node\|playwright\|chromium)"`               |
-| Preview what `pkill -f` would kill       | `pgrep -f "pattern"` (verify before running pkill)               |
-| Kill by process ID                       | `kill -9 <PID>`                                                  |
+| Situation                                | Command                                            |
+| ---------------------------------------- | -------------------------------------------------- |
+| Preview zombies (recommended first step) | `./.safeword/scripts/cleanup-zombies.sh`           |
+| Kill what the preview showed             | `./.safeword/scripts/cleanup-zombies.sh --yes`     |
+| Inspect dev + test servers               | `lsof -i:$DEV_PORT -i:$TEST_PORT`                  |
+| Inspect Playwright commands              | `pgrep -af "playwright"`                           |
+| Check what's on port                     | `lsof -i:3000`                                     |
+| Find zombie processes                    | `ps aux \| grep -E "(node\|playwright\|chromium)"` |
+| Preview what `pkill -f` would kill       | `pgrep -f "pattern"` (verify before running pkill) |
+| Kill by process ID                       | `kill -9 <PID>`                                    |
 
 ---
 

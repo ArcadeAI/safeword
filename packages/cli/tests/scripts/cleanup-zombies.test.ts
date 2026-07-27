@@ -27,10 +27,19 @@ const MOCK_PID = 4242;
 const MOCK_SECOND_PID = 4343;
 
 describe('cleanup-zombies.sh', () => {
+  let isolatedPath: string;
   let temporaryDirectory: string;
 
   beforeEach(() => {
     temporaryDirectory = mkdtempSync(nodePath.join(tmpdir(), 'cleanup-zombies-test-'));
+    const isolatedBinaryDirectory = nodePath.join(temporaryDirectory, 'isolated-bin');
+    mkdirSync(isolatedBinaryDirectory);
+    for (const command of ['lsof', 'pgrep']) {
+      const commandPath = nodePath.join(isolatedBinaryDirectory, command);
+      writeFileSync(commandPath, '#!/usr/bin/env bash\nexit 1\n');
+      chmodSync(commandPath, 0o755);
+    }
+    isolatedPath = `${isolatedBinaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`;
   });
 
   afterEach(() => {
@@ -43,7 +52,7 @@ describe('cleanup-zombies.sh', () => {
     return execSync(command, {
       cwd: temporaryDirectory,
       encoding: 'utf8',
-      env: { ...process.env, ...environmentOverrides },
+      env: { ...process.env, PATH: isolatedPath, ...environmentOverrides },
     });
   }
 
@@ -69,6 +78,7 @@ describe('cleanup-zombies.sh', () => {
     const binaryDirectory = nodePath.join(temporaryDirectory, 'bin');
     const killPath = nodePath.join(binaryDirectory, 'kill');
     const lsofPath = nodePath.join(binaryDirectory, 'lsof');
+    const pgrepPath = nodePath.join(binaryDirectory, 'pgrep');
     const psPath = nodePath.join(binaryDirectory, 'ps');
     mkdirSync(binaryDirectory);
     writeFileSync(
@@ -97,6 +107,17 @@ fi
 `,
     );
     writeFileSync(
+      pgrepPath,
+      String.raw`#!/usr/bin/env bash
+if [[ -n "$MOCK_PGREP_LOG" ]]; then
+  printf '%s\n' "$*" >> "$MOCK_PGREP_LOG"
+fi
+if [[ -n "$MOCK_PATTERN" ]] && [[ "$*" == *"$MOCK_PATTERN"* ]]; then
+  printf '%s\n' "$MOCK_PATTERN_PIDS"
+fi
+`,
+    );
+    writeFileSync(
       psPath,
       String.raw`#!/usr/bin/env bash
 if [[ -n "$MOCK_PROCESS_COMMAND" ]]; then
@@ -108,10 +129,14 @@ fi
       killPath,
       String.raw`#!/usr/bin/env bash
 printf '%s\n' "$*" >> "$MOCK_KILL_LOG"
+if [[ "$MOCK_KILL_EXIT_CODE" == "1" ]]; then
+  exit 1
+fi
 `,
     );
     chmodSync(killPath, 0o755);
     chmodSync(lsofPath, 0o755);
+    chmodSync(pgrepPath, 0o755);
     chmodSync(psPath, 0o755);
     return {
       MOCK_LSOF_CWD_COUNT: nodePath.join(temporaryDirectory, 'lsof-cwd-count'),
@@ -323,6 +348,7 @@ printf '%s\n' "$*" >> "$MOCK_KILL_LOG"
       const victimScript = nodePath.join(realpathSync(temporaryDirectory), 'swzombie-victim.sh');
       writeFileSync(victimScript, '#!/usr/bin/env bash\nsleep 60\n');
       victim = spawn('bash', [victimScript], {
+        cwd: temporaryDirectory,
         detached: true,
         stdio: 'ignore',
       });
@@ -343,12 +369,13 @@ printf '%s\n' "$*" >> "$MOCK_KILL_LOG"
       const pid = spawnVictim();
       await expect.poll(() => isAlive(pid)).toBe(true);
 
-      const preview = runScriptRaw(['swzombie']);
+      const liveProcessEnvironment = { PATH: process.env.PATH ?? '' };
+      const preview = runScriptRaw(['swzombie'], liveProcessEnvironment);
       expect(preview).toContain('swzombie');
       expect(preview).toContain('Re-run with --yes to kill them');
       expect(isAlive(pid)).toBe(true); // preview never kills
 
-      runScriptRaw(['--yes', 'swzombie']);
+      runScriptRaw(['--yes', 'swzombie'], liveProcessEnvironment);
       await expect.poll(() => isAlive(pid)).toBe(false); // consent kills
     });
   });
@@ -365,6 +392,51 @@ printf '%s\n' "$*" >> "$MOCK_KILL_LOG"
     });
   });
 
+  describe('Rule: pattern cleanup stays scoped to the current project', () => {
+    it('Scenario: an unrelated pattern match whose argv references this project is excluded', () => {
+      const projectDirectory = realpathSync(temporaryDirectory);
+      const environment = {
+        ...mockPortOwner(
+          '/tmp/unrelated-project',
+          `/usr/bin/playwright ${projectDirectory}/report`,
+        ),
+        MOCK_PATTERN: 'playwright',
+        MOCK_PATTERN_PIDS: String(MOCK_PID),
+      };
+
+      const output = runScriptRaw([], environment);
+
+      expect(output).not.toContain("Pattern 'playwright' (project-scoped):");
+      expect(output).not.toContain(`PID ${MOCK_PID}`);
+      expect(output).toContain('already clean');
+    });
+
+    it("Scenario: the current project's pattern match remains eligible", () => {
+      const environment = {
+        ...mockPortOwner(realpathSync(temporaryDirectory), '/usr/bin/playwright test'),
+        MOCK_PATTERN: 'playwright',
+        MOCK_PATTERN_PIDS: String(MOCK_PID),
+      };
+
+      const output = runScriptRaw([], environment);
+
+      expect(output).toContain("Pattern 'playwright' (project-scoped): 1 process(es)");
+      expect(output).toContain(`PID ${MOCK_PID}`);
+    });
+
+    it('Scenario: project paths are not interpolated into pgrep regular expressions', () => {
+      const pgrepLog = nodePath.join(temporaryDirectory, 'pgrep.log');
+      const environment = {
+        ...mockPortOwner(),
+        MOCK_PGREP_LOG: pgrepLog,
+      };
+
+      runScriptRaw([], environment);
+
+      expect(readFileSync(pgrepLog, 'utf8').split('\n')).toContain('-f playwright');
+    });
+  });
+
   describe('Rule: port cleanup stays scoped to the current project', () => {
     beforeEach(() => {
       createFile('vite.config.ts');
@@ -375,7 +447,10 @@ printf '%s\n' "$*" >> "$MOCK_KILL_LOG"
 
       expect(output).not.toContain(`Port ${MOCK_PORT}:`);
       expect(output).not.toContain(`PID ${MOCK_PID}`);
-      expect(output).toContain('already clean');
+      expect(output).toContain('No project-owned zombie processes found');
+      expect(output).toContain(
+        'Skipped 1 process(es) on detected ports; ownership was not verified for this project',
+      );
     });
 
     it("Scenario: the current project's process remains in the preview", () => {
@@ -399,7 +474,7 @@ printf '%s\n' "$*" >> "$MOCK_KILL_LOG"
 
       expect(output).not.toContain(`Port ${MOCK_PORT}:`);
       expect(output).not.toContain(`PID ${MOCK_PID}`);
-      expect(output).toContain('already clean');
+      expect(output).toContain('No project-owned zombie processes found');
     });
 
     it("Scenario: a similarly prefixed project's command is excluded", () => {
@@ -411,7 +486,7 @@ printf '%s\n' "$*" >> "$MOCK_KILL_LOG"
 
       expect(output).not.toContain(`Port ${MOCK_PORT}:`);
       expect(output).not.toContain(`PID ${MOCK_PID}`);
-      expect(output).toContain('already clean');
+      expect(output).toContain('No project-owned zombie processes found');
     });
 
     it('Scenario: an unrelated command argument referencing this project is excluded', () => {
@@ -426,7 +501,7 @@ printf '%s\n' "$*" >> "$MOCK_KILL_LOG"
 
       expect(output).not.toContain(`Port ${MOCK_PORT}:`);
       expect(output).not.toContain(`PID ${MOCK_PID}`);
-      expect(output).toContain('already clean');
+      expect(output).toContain('No project-owned zombie processes found');
     });
 
     it('Scenario: an unrelated cwd containing a newline is excluded', () => {
@@ -435,7 +510,7 @@ printf '%s\n' "$*" >> "$MOCK_KILL_LOG"
 
       expect(output).not.toContain(`Port ${MOCK_PORT}:`);
       expect(output).not.toContain(`PID ${MOCK_PID}`);
-      expect(output).toContain('already clean');
+      expect(output).toContain('No project-owned zombie processes found');
     });
 
     it('Scenario: --yes never passes an unrelated port owner to kill', () => {
@@ -447,7 +522,7 @@ printf '%s\n' "$*" >> "$MOCK_KILL_LOG"
 
       const output = runScriptRaw(['--yes'], environment);
 
-      expect(output).toContain('already clean');
+      expect(output).toContain('No project-owned zombie processes found');
       expect(existsSync(killLog)).toBe(false);
     });
 
@@ -494,6 +569,21 @@ printf '%s\n' "$*" >> "$MOCK_KILL_LOG"
 
       expect(output).toContain('Killed 2 process(es)');
       expect(readFileSync(killLog, 'utf8')).toBe(`-9 ${MOCK_PID}\n-9 ${MOCK_SECOND_PID}\n`);
+    });
+
+    it('Scenario: a failed signal is not reported as a successful kill', () => {
+      const killLog = nodePath.join(temporaryDirectory, 'kill.log');
+      const environment = {
+        ...mockPortOwner(realpathSync(temporaryDirectory)),
+        MOCK_KILL_EXIT_CODE: '1',
+        MOCK_KILL_LOG: killLog,
+      };
+
+      const output = runScriptRaw(['--yes'], environment);
+
+      expect(output).toContain('Killed 0 process(es)');
+      expect(output).toContain('Failed to kill 1 process(es)');
+      expect(readFileSync(killLog, 'utf8')).toBe(`-9 ${MOCK_PID}\n`);
     });
   });
 });

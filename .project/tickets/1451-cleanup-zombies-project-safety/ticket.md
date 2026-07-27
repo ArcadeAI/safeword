@@ -13,11 +13,12 @@ external_issue: https://github.com/ArcadeAI/safeword/issues/1451
 
 **Type:** Bug
 
-**Scope:** Restrict processes found through auto-detected dev and test ports to
-the current project before previewing or killing them.
+**Scope:** Restrict processes found through auto-detected ports or command
+patterns to the current project before previewing or killing them. Report
+unverified candidates and failed signals accurately.
 
-**Out of Scope:** Changing framework detection, port conventions, pattern-based
-cleanup, or the explicit consent flow.
+**Out of Scope:** Changing framework detection, port conventions, or the
+explicit consent flow.
 
 **Done When:**
 
@@ -27,6 +28,10 @@ cleanup, or the explicit consent flow.
       auto-detected port.
 - [x] Port ownership checks deny by default when project ownership cannot be
       established.
+- [x] Pattern ownership uses the same working-directory boundary as port
+      ownership.
+- [x] The summary distinguishes a clean project from candidates that were
+      skipped or could not be killed.
 
 **Tests:**
 
@@ -42,3 +47,8 @@ cleanup, or the explicit consent flow.
 - [x] Integration: kill mode revalidates ownership immediately before signaling.
 - [x] Integration: multiple verified PIDs are signaled individually rather than
       after a batched ownership check.
+- [x] Integration: a foreign pattern match is excluded even when its argv names
+      the current project.
+- [x] Integration: project paths are not interpolated into `pgrep` regular
+      expressions.
+- [x] Integration: failed signals are not counted as successful kills.
