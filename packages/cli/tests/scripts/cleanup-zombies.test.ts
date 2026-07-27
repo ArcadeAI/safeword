@@ -134,7 +134,7 @@ fi
     };
   }
 
-  function mockPortOwner(
+  function mockCleanupEnvironment(
     processDirectory?: string,
     processCommand?: string,
     subsequentProcessDirectory?: string,
@@ -353,7 +353,7 @@ printf '%s\n' "\${value##*/}"
         encoding: 'utf8',
         env: {
           ...process.env,
-          ...mockPortOwner(),
+          ...mockCleanupEnvironment(),
           MOCK_PGREP_ERROR_PATTERN: '[',
           MOCK_PGREP_EXIT_CODE: '2',
         },
@@ -544,7 +544,7 @@ printf '%s\n' "\${value##*/}"
     it('Scenario: an unrelated pattern match whose argv references this project is excluded', () => {
       const projectDirectory = realpathSync(temporaryDirectory);
       const environment = {
-        ...mockPortOwner(
+        ...mockCleanupEnvironment(
           '/tmp/unrelated-project',
           `/usr/bin/playwright ${projectDirectory}/report`,
         ),
@@ -561,7 +561,7 @@ printf '%s\n' "\${value##*/}"
 
     it("Scenario: the current project's pattern match remains eligible", () => {
       const environment = {
-        ...mockPortOwner(realpathSync(temporaryDirectory), '/usr/bin/playwright test'),
+        ...mockCleanupEnvironment(realpathSync(temporaryDirectory), '/usr/bin/playwright test'),
         MOCK_PATTERN: 'playwright',
         MOCK_PATTERN_PIDS: String(MOCK_PID),
       };
@@ -575,7 +575,7 @@ printf '%s\n' "\${value##*/}"
     it('Scenario: project paths are not interpolated into pgrep regular expressions', () => {
       const pgrepLog = nodePath.join(temporaryDirectory, 'pgrep.log');
       const environment = {
-        ...mockPortOwner(),
+        ...mockCleanupEnvironment(),
         MOCK_PGREP_LOG: pgrepLog,
       };
 
@@ -588,7 +588,7 @@ printf '%s\n' "\${value##*/}"
       const lsofLog = nodePath.join(temporaryDirectory, 'lsof.log');
       const projectDirectory = realpathSync(temporaryDirectory);
       const environment = {
-        ...mockPortOwner(projectDirectory),
+        ...mockCleanupEnvironment(projectDirectory),
         MOCK_LSOF_LOG: lsofLog,
         MOCK_PATTERN: 'playwright',
         MOCK_PATTERN_PIDS: `${MOCK_PID}\n${MOCK_SECOND_PID}`,
@@ -628,7 +628,7 @@ printf '%s\n' "\${value##*/}"
     });
 
     it("Scenario: an unrelated project's process is excluded from the preview", () => {
-      const output = runScriptRaw([], mockPortOwner('/tmp/unrelated-project'));
+      const output = runScriptRaw([], mockCleanupEnvironment('/tmp/unrelated-project'));
 
       expect(output).not.toContain(`Port ${MOCK_PORT}:`);
       expect(output).not.toContain(`PID ${MOCK_PID}`);
@@ -639,7 +639,7 @@ printf '%s\n' "\${value##*/}"
     });
 
     it("Scenario: the current project's process remains in the preview", () => {
-      const output = runScriptRaw([], mockPortOwner(realpathSync(temporaryDirectory)));
+      const output = runScriptRaw([], mockCleanupEnvironment(realpathSync(temporaryDirectory)));
 
       expect(output).toContain(`Port ${MOCK_PORT}: 1 process(es)`);
       expect(output).toContain(`PID ${MOCK_PID}`);
@@ -648,14 +648,14 @@ printf '%s\n' "\${value##*/}"
 
     it("Scenario: a process beneath the current project's root remains in the preview", () => {
       const projectChild = nodePath.join(realpathSync(temporaryDirectory), 'packages', 'app');
-      const output = runScriptRaw([], mockPortOwner(projectChild));
+      const output = runScriptRaw([], mockCleanupEnvironment(projectChild));
 
       expect(output).toContain(`Port ${MOCK_PORT}: 1 process(es)`);
       expect(output).toContain(`PID ${MOCK_PID}`);
     });
 
     it('Scenario: a process with unknown ownership is excluded from the preview', () => {
-      const output = runScriptRaw([], mockPortOwner());
+      const output = runScriptRaw([], mockCleanupEnvironment());
 
       expect(output).not.toContain(`Port ${MOCK_PORT}:`);
       expect(output).not.toContain(`PID ${MOCK_PID}`);
@@ -666,7 +666,10 @@ printf '%s\n' "\${value##*/}"
       const projectDirectory = realpathSync(temporaryDirectory);
       const output = runScriptRaw(
         [],
-        mockPortOwner('/tmp/unrelated-project', `${projectDirectory}-other/node_modules/.bin/vite`),
+        mockCleanupEnvironment(
+          '/tmp/unrelated-project',
+          `${projectDirectory}-other/node_modules/.bin/vite`,
+        ),
       );
 
       expect(output).not.toContain(`Port ${MOCK_PORT}:`);
@@ -678,7 +681,7 @@ printf '%s\n' "\${value##*/}"
       const projectDirectory = realpathSync(temporaryDirectory);
       const output = runScriptRaw(
         [],
-        mockPortOwner(
+        mockCleanupEnvironment(
           '/tmp/unrelated-project',
           `/usr/bin/vite --log-file ${projectDirectory}/server.log`,
         ),
@@ -691,7 +694,10 @@ printf '%s\n' "\${value##*/}"
 
     it('Scenario: an unrelated cwd containing a newline is excluded', () => {
       const projectDirectory = realpathSync(temporaryDirectory);
-      const output = runScriptRaw([], mockPortOwner(`${projectDirectory}\nn${projectDirectory}`));
+      const output = runScriptRaw(
+        [],
+        mockCleanupEnvironment(`${projectDirectory}\nn${projectDirectory}`),
+      );
 
       expect(output).not.toContain(`Port ${MOCK_PORT}:`);
       expect(output).not.toContain(`PID ${MOCK_PID}`);
@@ -701,7 +707,7 @@ printf '%s\n' "\${value##*/}"
     it('Scenario: --yes never passes an unrelated port owner to kill', () => {
       const killLog = nodePath.join(temporaryDirectory, 'kill.log');
       const environment = {
-        ...mockPortOwner('/tmp/unrelated-project'),
+        ...mockCleanupEnvironment('/tmp/unrelated-project'),
         MOCK_KILL_LOG: killLog,
       };
 
@@ -714,7 +720,7 @@ printf '%s\n' "\${value##*/}"
     it('Scenario: --yes passes a current-project port owner to kill', () => {
       const killLog = nodePath.join(temporaryDirectory, 'kill.log');
       const environment = {
-        ...mockPortOwner(realpathSync(temporaryDirectory)),
+        ...mockCleanupEnvironment(realpathSync(temporaryDirectory)),
         MOCK_KILL_LOG: killLog,
       };
 
@@ -728,7 +734,7 @@ printf '%s\n' "\${value##*/}"
       const killLog = nodePath.join(temporaryDirectory, 'kill.log');
       const projectDirectory = realpathSync(temporaryDirectory);
       const environment = {
-        ...mockPortOwner(projectDirectory, undefined, '/tmp/unrelated-project'),
+        ...mockCleanupEnvironment(projectDirectory, undefined, '/tmp/unrelated-project'),
         MOCK_KILL_LOG: killLog,
         MOCK_PORT_PIDS: `${MOCK_PID}\n${MOCK_SECOND_PID}`,
         MOCK_SECOND_PROCESS_CWD: projectDirectory,
@@ -744,7 +750,7 @@ printf '%s\n' "\${value##*/}"
       const killLog = nodePath.join(temporaryDirectory, 'kill.log');
       const projectDirectory = realpathSync(temporaryDirectory);
       const environment = {
-        ...mockPortOwner(projectDirectory),
+        ...mockCleanupEnvironment(projectDirectory),
         MOCK_KILL_LOG: killLog,
         MOCK_PORT_PIDS: `${MOCK_PID}\n${MOCK_SECOND_PID}`,
         MOCK_SECOND_PROCESS_CWD: projectDirectory,
@@ -759,7 +765,7 @@ printf '%s\n' "\${value##*/}"
     it('Scenario: a failed signal is not reported as a successful kill', () => {
       const killLog = nodePath.join(temporaryDirectory, 'kill.log');
       const environment = {
-        ...mockPortOwner(realpathSync(temporaryDirectory)),
+        ...mockCleanupEnvironment(realpathSync(temporaryDirectory)),
         MOCK_KILL_EXIT_CODE: '1',
         MOCK_KILL_LOG: killLog,
       };
