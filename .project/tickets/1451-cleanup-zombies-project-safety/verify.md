@@ -14,13 +14,16 @@
 **Experience:** ✅ Preview, skipped-owner, and failed-signal output exercised by integration tests
 **Evidence limits:** ✅ None
 
-Audit passed with warnings for issue #1451 scope. The full-repository audit
-reported pre-existing orphan warnings in hidden worktrees, unavailable Python
-audit tools for experimental projects, one low-risk dev dependency update, and
-the repository-wide 461-clone baseline outside this ticket's files. The changed
-script and test have no detected clones.
+Audit passed with warnings for issue #1451 scope. Knip's only changed-scope
+finding, the test fixture's externally provided `pgrep` binary, is now
+registered and Knip is clean. Changed-scope duplication is 0%. The
+full-repository audit also reported pre-existing orphan warnings and unavailable
+Python audit tools in transient hidden worktrees, low-risk patch updates for dev
+dependencies, and 506 repository-wide clones outside this ticket's files; that
+global count is inflated by hidden worktree copies and is not a comparable
+changed-scope signal.
 
 The PR review findings were incorporated into dependency handling, project
 ownership, signal accounting, recovery messaging, performance, tests, and
-documentation. A fresh independent quality re-review found no critical issues
-or remaining suggestions.
+documentation. The final independent quality re-review approved the result with
+no critical issues or suggested improvements.
