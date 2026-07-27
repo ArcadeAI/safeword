@@ -29,4 +29,18 @@ describe('runFixtureUpgradeWithoutInstall boundary', () => {
       },
     ]);
   });
+
+  it('rejects a failed upgrade instead of allowing an unchanged fixture to false-green', async () => {
+    const runner = (() =>
+      Promise.resolve({
+        stdout: '',
+        stderr: 'upgrade failed',
+        exitCode: 23,
+        timedOut: false,
+      })) as Parameters<typeof runFixtureUpgradeWithoutInstall>[1];
+
+    await expect(runFixtureUpgradeWithoutInstall('/fake/project', runner)).rejects.toThrow(
+      'Fixture upgrade failed (exit 23)',
+    );
+  });
 });

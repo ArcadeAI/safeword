@@ -641,7 +641,14 @@ export async function runFixtureUpgradeWithoutInstall(
   cwd: string,
   runner: typeof runCli = runCli,
 ): Promise<CliResult> {
-  return runner(['upgrade'], { cwd, env: SKIP_INSTALL_ENV });
+  const result = await runner(['upgrade'], { cwd, env: SKIP_INSTALL_ENV });
+  if (result.exitCode !== 0) {
+    throw new Error(
+      `Fixture upgrade failed (exit ${result.exitCode}) in ${cwd}.\n` +
+        `stderr: ${result.stderr || '(empty)'}`,
+    );
+  }
+  return result;
 }
 
 /**
