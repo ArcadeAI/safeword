@@ -36,7 +36,7 @@ Feature: Prevent repeated retro findings from opening duplicate issues
 
     @prevent-retro-duplicate-issues.SM1.R2
     Scenario: Canonical search rejects a body without the exact marker
-      Given GitHub search returns a body containing the requested canonical hash token in a non-identical marker
+      Given the open issue listing returns a body containing the requested canonical hash token in a non-identical marker
       When CLI triage searches for a canonical marker
       Then that issue is not considered a match
 
