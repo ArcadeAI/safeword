@@ -188,8 +188,10 @@ lsof -i:3000 -P -n
 # List all node processes
 ps aux | grep -E "(node|playwright|chromium)"
 
-# More detailed (with working directory)
-lsof -p $(pgrep node) | grep cwd
+# Print each Node process working directory (safe for zero or many matches)
+while IFS= read -r pid; do
+  lsof -a -p "$pid" -d cwd -Fn
+done < <(pgrep node)
 ```
 
 ### Find Processes by Project Directory
