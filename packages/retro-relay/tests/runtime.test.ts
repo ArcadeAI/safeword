@@ -125,15 +125,20 @@ describe('production runtime configuration', () => {
 
     const response = await fetch(`${runtime.url}/health`);
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({
+    const firstHealth = (await response.json()) as Record<string, unknown>;
+    expect(firstHealth).toMatchObject({
       status: 'ok',
       schemaVersion: 1,
       replicaId: 'replica-test',
+      bootId: expect.any(String),
     });
 
     await runtime.close();
     expect(existsSync(config.lockPath)).toBe(false);
     const reopened = await startRelayRuntime(config, () => {});
+    const reopenedResponse = await fetch(`${reopened.url}/health`);
+    const reopenedHealth = (await reopenedResponse.json()) as Record<string, unknown>;
+    expect(reopenedHealth.bootId).not.toBe(firstHealth.bootId);
     await reopened.close();
   });
 });

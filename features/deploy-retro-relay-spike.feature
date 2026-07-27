@@ -89,10 +89,11 @@ Feature: Deploy the retro relay spike
     @live
     Scenario: A request mismatch remains rejected after an actual Railway restart
       Given the hosted relay durably accepts a request before GitHub token acquisition fails
-      And I record the healthy Railway replica identity
+      And I record the healthy relay boot identity and Railway replica identity
       When I restart the Railway service
       And I poll observable health within a 120 second deadline until the replacement instance is ready
-      And I observe a healthy Railway replica identity different from the recorded identity
+      And I observe a healthy relay boot identity different from the recorded identity
+      And the Railway replica identity still identifies the hosted replica
       And I resend changed content with the same request identity
       Then it rejects the mismatch without attempting issue creation
 

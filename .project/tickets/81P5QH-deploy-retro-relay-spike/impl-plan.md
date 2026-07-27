@@ -4,11 +4,12 @@
 
 ## Approach
 
-The riskiest assumption is that one Railway instance can reopen the same SQLite
+The riskiest assumption is that one Railway process can reopen the same SQLite
 state after Railway replaces its process. The cheapest decisive proof is the
 live mismatch scenario: durably accept a request, record the healthy
-`RAILWAY_REPLICA_ID`, restart through an exact service/project ID, wait up to
-120 seconds for a different healthy replica identity, then prove changed
+boot identity and `RAILWAY_REPLICA_ID`, restart through an exact
+service/project ID, wait up to 120 seconds for a different healthy boot
+identity, then prove changed
 content under that request ID still returns 409.
 
 Proof plan and build order:
@@ -36,7 +37,7 @@ Proof plan and build order:
    `/data` volume; generate secrets in memory and pass each value only to
    `railway variable set <NAME> --stdin`; generate a public domain; deploy; and
    run the hosted health/non-filing/restart/mismatch sequence. Require a changed
-   `RAILWAY_REPLICA_ID`; poll state/health without fixed sleeps. On interruption,
+   process boot identity; poll state/health without fixed sleeps. On interruption,
    the state file supports exact-ID inspection and teardown.
 6. **Evidence:** capture live resource IDs, deployment/replica IDs, topology, summarized
    CPU/memory/volume metrics, Railway pricing/docs provenance, limitations,
@@ -64,7 +65,7 @@ and report are one coupled disposable deployment proof.
 | Provisioning | Railway CLI with exact JSON IDs and a new prefixed project | Reuse an existing project; dashboard-only setup | Exact IDs make targeting and teardown reviewable; reuse risks changing unrelated services |
 | Teardown | Dry-run validator by default; explicit execution deferred | Automatic teardown; name-only delete | The user asked to get it running; automatic removal defeats that goal, while name-only targeting is unsafe |
 | Secret injection | Generate in one orchestrator process and send values only over child stdin | CLI argv; dotenv/temp files; report/state persistence | All alternatives expose values to process listings, tool logs, filesystem, or commits |
-| Restart oracle | Require `RAILWAY_REPLICA_ID` to change before the post-restart 409 | Health-only poll; deployment status only | An unchanged healthy process could otherwise produce a false pass |
+| Restart oracle | Generate a process boot UUID and require it to change before the post-restart 409; retain `RAILWAY_REPLICA_ID` as hosting identity | Health-only poll; require Railway replica ID to change | An unchanged healthy process could otherwise produce a false pass; live evidence showed Railway keeps `RAILWAY_REPLICA_ID` stable across an in-place service restart |
 
 Evidence consulted:
 

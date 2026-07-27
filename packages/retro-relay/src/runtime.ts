@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { mkdir } from 'node:fs/promises';
 
 import { CredentialRegistry } from './auth.js';
@@ -34,6 +35,7 @@ export async function startRelayRuntime(
     const relay = await startRelayServer({
       credentials,
       store,
+      bootId: randomUUID(),
       github: new GitHubRestClient({
         baseUrl: config.github.baseUrl,
         installationToken: async (installationId, repo) => {

@@ -31,6 +31,7 @@ type RelayServerOptions = {
   github: GitHubRestClient;
   payloadKey: Buffer;
   replicaId?: string;
+  bootId?: string;
   host?: string;
   port?: number;
 } & (
@@ -77,6 +78,7 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
             status: 'ok',
             schemaVersion: input.store.schemaVersion(),
             replicaId: input.replicaId ?? 'local',
+            bootId: input.bootId ?? 'local',
           });
         } catch {
           sendJson(response, 503, { status: 'unavailable' });

@@ -250,6 +250,7 @@ describe('retry-safe retro relay', () => {
       status: 'ok',
       schemaVersion: 1,
       replicaId: 'local',
+      bootId: 'local',
     });
   });
 
