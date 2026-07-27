@@ -151,31 +151,7 @@ describe('scrubSecrets — formats from review #543 round 2', () => {
 
 describe('scrubSecrets — stateless GitHub installation tokens (#1495)', () => {
   const redacted = '[redacted]';
-  const classicGitHub = /\bgh[pousr]_\w{20,}\b/g;
-  const genericJwt = /\beyJ[\w-]{10,}\.[\w-]{10,}\.[\w-]{10,}\b/g;
-  const statelessGitHub = /\bghs_[\w.-]{36,}/g;
-  const token = `ghs_${'A'.repeat(40)}.${'B'.repeat(40)}.${'C'.repeat(40)}`;
   const minimumToken = `ghs_${'A'.repeat(10)}_${'B'.repeat(10)}.${'C'.repeat(6)}.${'D'.repeat(7)}`;
-
-  function scrubWith(patterns: readonly RegExp[]): string {
-    let out = `token is ${token}`;
-    for (const pattern of patterns) out = out.replaceAll(pattern, () => redacted);
-    return out;
-  }
-
-  // These local pattern copies intentionally document the ordering failure
-  // modes. The parameterized scrubSecrets tests below pin production behavior;
-  // keep the copies aligned if the production rules change.
-  it('documents why stateless-before-classic rule ordering matters', () => {
-    expect(scrubWith([classicGitHub, genericJwt])).toBe(
-      `token is ${redacted}.${'B'.repeat(40)}.${'C'.repeat(40)}`,
-    );
-    expect(scrubWith([genericJwt])).toBe(`token is ${token}`);
-    expect(scrubWith([statelessGitHub, classicGitHub, genericJwt])).toBe(`token is ${redacted}`);
-    expect(scrubWith([classicGitHub, statelessGitHub, genericJwt])).toBe(
-      `token is ${redacted}.${'B'.repeat(40)}.${'C'.repeat(40)}`,
-    );
-  });
 
   it.each([
     ['minimum-length', minimumToken],
