@@ -73,6 +73,7 @@ describe('cleanup-zombies.sh', () => {
   function mockLiveProcessOwnership(pid: number): NodeJS.ProcessEnv {
     const binaryDirectory = nodePath.join(temporaryDirectory, 'live-bin');
     const lsofPath = nodePath.join(binaryDirectory, 'lsof');
+    const pgrepPath = nodePath.join(binaryDirectory, 'pgrep');
     mkdirSync(binaryDirectory);
     writeFileSync(
       lsofPath,
@@ -83,9 +84,19 @@ if [[ "$*" == "-a -p $MOCK_LIVE_PID -d cwd -Fn0" ]] ||
 fi
 `,
     );
+    writeFileSync(
+      pgrepPath,
+      String.raw`#!/usr/bin/env bash
+if [[ "$*" == "-f $MOCK_LIVE_PATTERN" ]]; then
+  printf '%s\n' "$MOCK_LIVE_PID"
+fi
+`,
+    );
     chmodSync(lsofPath, 0o755);
+    chmodSync(pgrepPath, 0o755);
     return {
       MOCK_LIVE_CWD: realpathSync(temporaryDirectory),
+      MOCK_LIVE_PATTERN: 'swzombie',
       MOCK_LIVE_PID: String(pid),
       PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
     };
@@ -423,9 +434,9 @@ printf '%s\n' "\${value##*/}"
     });
 
     function spawnVictim(): number {
-      // The script path gives pgrep a stable argv containing both the marker
-      // ("swzombie") and temp project path. A shell comment is not stable across
-      // process-list implementations.
+      // The fixture uses a real process so consent mode reaches kill(1).
+      // Discovery is mocked separately because Bash may replace itself with its
+      // final command on Linux, removing the script path from the process list.
       const victimScript = nodePath.join(realpathSync(temporaryDirectory), 'swzombie-victim.sh');
       writeFileSync(victimScript, '#!/usr/bin/env bash\nsleep 60\n');
       victim = spawn('bash', [victimScript], {
