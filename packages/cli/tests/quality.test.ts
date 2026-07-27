@@ -5,9 +5,20 @@ import {
   getDisqualificationMessage,
   getQualityMessage,
   QUALITY_REVIEW_MESSAGE,
+  REPLY_FORMAT_LEAD,
+  REPLY_FORMAT_REMINDER,
 } from '../templates/hooks/lib/quality.js';
 
 describe('getQualityMessage — universal binary terminal (143 + F14BG2 + QSNKBB)', () => {
+  it('exports the compact reply-format pointers used by pre-response hooks', () => {
+    expect(REPLY_FORMAT_LEAD).toBe('Reply format: lead with the answer.');
+    expect(REPLY_FORMAT_REMINDER).toContain(REPLY_FORMAT_LEAD);
+    expect(REPLY_FORMAT_REMINDER).toContain('**CONFIDENT**/**BLOCKED**');
+    expect(REPLY_FORMAT_REMINDER).toContain('**Next:**');
+    expect(getQualityMessage('intake')).toContain(REPLY_FORMAT_LEAD);
+    expect(getQualityMessage('intake')).not.toContain('answer.,');
+  });
+
   describe('Rule: Every Stop emits the binary terminal across phases', () => {
     it('intake includes the universal header with bolded verdict tokens', () => {
       const message = getQualityMessage('intake');

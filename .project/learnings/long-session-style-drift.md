@@ -51,7 +51,11 @@ The lookup question when adding or moving a rule: "if the model goes 50 turns wi
 ## When NOT to apply
 
 - **Don't preemptively wrap every rule.** Preamble inflation is its own problem — see ticket QSNKBB-prompt-brevity-cut where 7 lines of philosophical preamble were cut precisely because they were re-injecting content already in SAFEWORD.md.
-- **Don't add per-turn UserPromptSubmit re-injection** for rules that have natural Stop-fire cadence. 50× the token cost of a Stop-hook pointer for no extra steering benefit.
+- **Don't add per-turn UserPromptSubmit re-injection** merely because a rule has
+  natural Stop-fire cadence. Add it only when evidence shows that Stop arrives
+  too late or is intentionally quiet for the relevant turn. Issue #1524 is the
+  counter-example for the compact reply-format rule: its reminder is gated to
+  lead-only during active TDD steps, preserving the Stop hook's quiet workflow.
 - **Don't add pointers to every skill output template.** Skill outputs aren't system reminders, so they don't bypass the dismissive wrapper anyway. High maintenance burden, no actual fix.
 
 ## Tickets where this pattern was established

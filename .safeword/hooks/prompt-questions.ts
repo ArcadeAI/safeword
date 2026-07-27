@@ -12,6 +12,7 @@ import {
 } from './lib/active-ticket.ts';
 import { READINESS_POINTER, shouldSurfaceReadiness } from './lib/readiness-pointer.ts';
 import { evaluateReplan } from './lib/replan.ts';
+import { REPLY_FORMAT_LEAD, REPLY_FORMAT_REMINDER } from './lib/quality.ts';
 import {
   ESCALATION_THRESHOLD,
   type FailureEntry,
@@ -41,14 +42,9 @@ try {
   input = {};
 }
 
-// One behavioral anchor (SAFEWORD.md has the full methodology; this survives as a compressed reminder)
-const REPLY_FORMAT_REMINDER =
-  'Reply format: lead with the outcome. A substantive work update uses one **CONFIDENT**/**BLOCKED** decision brief and ends with **Next:**.';
-
-const lines = [
-  'Contribute before asking. Embed open questions in your contribution.',
-  REPLY_FORMAT_REMINDER,
-];
+// Compact behavioral anchors; SAFEWORD.md carries the full methodology.
+const lines = ['- Contribute before asking. Embed open questions in your contribution.'];
+let replyFormatReminder = REPLY_FORMAT_REMINDER;
 
 // Effective Clarify phase: the active in-progress ticket's phase, else undefined
 // (no ticket, pre-classify, or a ticket that isn't in_progress — all treated as
@@ -75,6 +71,13 @@ if (existsSync(stateFile)) {
           phase === 'implement' && ticketInfo.folder
             ? deriveTddStep(projectDirectory, ticketInfo.folder)
             : null;
+
+        // Stop reviews deliberately stay quiet inside an active TDD step. Keep
+        // only the lead-first cue here so the prompt hook does not reintroduce
+        // the decision-brief demand that Stop suppresses.
+        if (phase === 'implement' && tddStep !== null) {
+          replyFormatReminder = REPLY_FORMAT_LEAD;
+        }
 
         // Phase-specific one-liner
         // satisfies proves every canonical phase has a reminder (a missing key was
@@ -166,6 +169,8 @@ if (existsSync(stateFile)) {
     // State file corrupted or unreadable — skip reminder, keep core principles
   }
 }
+
+lines.splice(1, 0, `- ${replyFormatReminder}`);
 
 // Readiness pointer (TPP6Y2): compressed five-dimension self-test, surfaced
 // during Clarify (no active ticket or intake phase) and suppressed once a build

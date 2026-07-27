@@ -461,10 +461,53 @@ describe('E2E: UserPromptSubmit Hooks', () => {
         },
       );
 
-      expect(output).toContain('Reply format: lead with the outcome.');
+      expect(output).toContain('- Reply format: lead with the answer.');
       expect(output).toContain('substantive work update');
       expect(output).toContain('**CONFIDENT**/**BLOCKED**');
       expect(output).toContain('**Next:**');
+    });
+
+    it('keeps active implement/TDD prompts free of the decision-brief demand', () => {
+      setupIssuesDirectory(shared.projectDirectory, [
+        {
+          id: 'TDD123',
+          type: 'feature',
+          phase: 'implement',
+          status: 'in_progress',
+          lastModified: VERIFIED_AT,
+        },
+      ]);
+      writeTestFile(
+        shared.projectDirectory,
+        '.project/tickets/TDD123/test-definitions.md',
+        ['## Scenario: implement work', '- [x] RED', '- [ ] GREEN', '- [ ] REFACTOR', ''].join(
+          '\n',
+        ),
+      );
+      writeTestFile(
+        shared.projectDirectory,
+        '.project/quality-state-test-session.json',
+        JSON.stringify({ activeTicket: 'TDD123' }),
+      );
+
+      try {
+        const result = spawnSync('bun', ['.safeword/hooks/prompt-questions.ts'], {
+          input: JSON.stringify({ session_id: 'test-session', prompt: 'Continue implementation' }),
+          cwd: shared.projectDirectory,
+          env: { ...process.env, CLAUDE_PROJECT_DIR: shared.projectDirectory },
+          encoding: 'utf8',
+        });
+
+        expect(result.status).toBe(0);
+        expect(result.stdout).toContain('- Reply format: lead with the answer.');
+        expect(result.stdout).not.toContain('**CONFIDENT**/**BLOCKED**');
+        expect(result.stdout).not.toContain('**Next:**');
+      } finally {
+        clearIssuesDirectory(shared.projectDirectory);
+        rmSync(`${shared.projectDirectory}/.project/quality-state-test-session.json`, {
+          force: true,
+        });
+      }
     });
 
     it('exits silently for non-safeword project', () => {

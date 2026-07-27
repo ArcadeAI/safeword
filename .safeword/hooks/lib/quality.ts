@@ -24,7 +24,13 @@ import type { CANONICAL_PHASES } from './phase-provenance.js';
 /** Derived from CANONICAL_PHASES so a new phase is a compile error here, not drift. */
 export type BddPhase = (typeof CANONICAL_PHASES)[number];
 
-const UNIVERSAL_HEADER = `Apply SAFEWORD.md "Talking to the user" rules to your reply: scan-not-read, lead with the answer, named structure only when it carries weight, end with **Next:**.
+/** Canonical compact reply-format pointer for pre-response hooks. */
+export const REPLY_FORMAT_LEAD = 'Reply format: lead with the answer.';
+
+/** Full pre-response pointer, used outside intentionally quiet TDD steps. */
+export const REPLY_FORMAT_REMINDER = `${REPLY_FORMAT_LEAD} For substantive work updates, use one **CONFIDENT**/**BLOCKED** decision brief and end with **Next:**.`;
+
+const UNIVERSAL_HEADER = `Apply SAFEWORD.md "Talking to the user" rules to your reply: scan-not-read; named structure only when it carries weight; end with **Next:**. ${REPLY_FORMAT_LEAD}
 
 End with one verdict as its own scannable decision brief — the reader is choosing whether to continue, redirect, or intervene with this block as their only context. Plain English; no jargon the reader hasn't seen this turn — make the CONFIDENT/BLOCKED line clear from the words after the dash, not the label alone (a non-coder may not know the labels). Reproduce the shape below exactly: bolded labels, blank line between each paragraph.
 

@@ -1324,7 +1324,14 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       // BLOCKED, Tried:, Need:) define the binary-terminal shape from ticket 143.
       // Removing any of them would silently regress the prompt back to legacy
       // free-form review.
-      requires: ['QUALITY_REVIEW_MESSAGE', 'CONFIDENT', 'BLOCKED', 'Tried:', 'Need:'],
+      requires: [
+        'QUALITY_REVIEW_MESSAGE',
+        'REPLY_FORMAT_REMINDER',
+        'CONFIDENT',
+        'BLOCKED',
+        'Tried:',
+        'Need:',
+      ],
     },
     'packages/cli/templates/doc-templates/test-definitions-feature.md': {
       // Canonical test-definitions.md format. Rule grouping (Gherkin 6+
