@@ -149,6 +149,25 @@ describe('scrubSecrets — formats from review #543 round 2', () => {
   });
 });
 
+describe('scrubSecrets — stateless GitHub installation tokens (#1495)', () => {
+  const redacted = '[redacted]';
+  const minimumToken = `ghs_${'A'.repeat(10)}_${'B'.repeat(10)}.${'C'.repeat(6)}.${'D'.repeat(7)}`;
+
+  it.each([
+    ['minimum-length', minimumToken],
+    ['hyphen-ending', `ghs_${'A'.repeat(40)}.${'B'.repeat(40)}.${'C'.repeat(39)}-`],
+    ['underscore-ending', `ghs_${'A'.repeat(40)}.${'B'.repeat(40)}.${'C'.repeat(39)}_`],
+  ])('fully redacts a %s stateless token without residue', (_label, shaped) => {
+    const out = scrubSecrets(`token is ${shaped}`);
+
+    expect(out).toBe(`token is ${redacted}`);
+  });
+
+  it('keeps classic GitHub token redaction as a regression control', () => {
+    expect(scrubSecrets(`token is ghs_${'A'.repeat(40)}`)).toBe(`token is ${redacted}`);
+  });
+});
+
 // SPNZKM: the maintained @secretlint rule-packs catch well-formed modern
 // provider keys that the broad regex floor does not target. These prove the
 // secretlint layer (via sanitizeTextDeep / redactKnownSecrets) actually fires.

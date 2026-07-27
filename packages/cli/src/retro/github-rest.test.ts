@@ -507,6 +507,11 @@ describe('resolveGitHubToken (7D8PJP — no hard GITHUB_TOKEN requirement)', () 
   // a literal that looks like a real credential.
   const envToken = `ghp_${'a'.repeat(32)}`;
   const ghToken = `ghp_${'b'.repeat(32)}`;
+  // GitHub's published matcher requires at least 36 allowed characters after
+  // `ghs_`; pin that exact boundary separately from the representative ~520-char
+  // `ghs_APPID_JWT` rollout shape.
+  const minimumStatelessToken = `ghs_${'a'.repeat(10)}_${'b'.repeat(10)}.${'c'.repeat(6)}.${'d'.repeat(7)}`;
+  const representativeStatelessToken = `ghs_1234567_${'a'.repeat(160)}.${'b'.repeat(160)}.${'c'.repeat(186)}`;
 
   // #634 — every accepted GitHub token shape must survive resolution, or a
   // regex that quietly stopped matching one form (e.g. fine-grained PATs) would
@@ -515,6 +520,8 @@ describe('resolveGitHubToken (7D8PJP — no hard GITHUB_TOKEN requirement)', () 
     ['classic PAT (ghp_)', `ghp_${'a'.repeat(32)}`],
     ['OAuth (gho_)', `gho_${'b'.repeat(32)}`],
     ['app server-to-server (ghs_)', `ghs_${'c'.repeat(32)}`],
+    ['minimum-length stateless app server-to-server (ghs_)', minimumStatelessToken],
+    ['representative stateless app server-to-server (ghs_APPID_JWT)', representativeStatelessToken],
     ['fine-grained PAT (github_pat_)', `github_pat_${'d'.repeat(40)}`],
     ['legacy 40-char hex', '0123456789'.repeat(4)],
   ])('accepts a %s from GITHUB_TOKEN without consulting gh', (_label, shaped) => {
@@ -528,8 +535,32 @@ describe('resolveGitHubToken (7D8PJP — no hard GITHUB_TOKEN requirement)', () 
   });
 
   it.each([
+    ['classic opaque', `ghs_${'a'.repeat(40)}`],
+    ['stateless', representativeStatelessToken],
+  ])('passes a selected %s GITHUB_TOKEN to the REST transport', async (_label, shaped) => {
+    const calls = mockFetchCapturing(() => ({ json: () => ({ id: 99, body: 'hi' }) }));
+    const token = resolveGitHubToken({ GITHUB_TOKEN: shaped }, () => {
+      throw new Error('gh fallback must not be consulted');
+    });
+    const transport = createRestTransport(token);
+    if (!transport) throw new Error('expected a transport');
+
+    await transport.createComment(42, 'hi');
+
+    expect((calls[0]?.init.headers as Record<string, string>).Authorization).toBe(
+      `Bearer ${shaped}`,
+    );
+  });
+
+  it.each([
     ['a proxy placeholder', 'proxy-injected'],
     ['an unknown prefix', `gha_${'a'.repeat(32)}`],
+    ['a 35-character stateless token', minimumStatelessToken.slice(0, -1)],
+    ['a stateless token embedded in prose', `prefix-ghs_${'a'.repeat(40)}.${'b'.repeat(40)}`],
+    [
+      'a stateless token followed by trailing prose',
+      `ghs_${'a'.repeat(40)}.${'b'.repeat(40)} extra`,
+    ],
     ['an empty string', ''],
   ])('rejects %s and falls back to gh', (_label, bogus) => {
     const token = resolveGitHubToken({ GITHUB_TOKEN: bogus }, () => ghToken);

@@ -56,9 +56,12 @@ function ghAuthToken(): string | undefined {
  * (`ghp_`/`gho_`/`ghu_`/`ghs_`/`ghr_`, or fine-grained `github_pat_`) or a
  * legacy 40-char hex PAT. Deliberately narrow so proxy-injected placeholders
  * such as `proxy-injected` are rejected before they reach the API (#634).
+ * Stateless `ghs_` tokens use GitHub's published `{36,}` matcher:
+ * https://github.blog/changelog/2026-05-15-github-app-installation-tokens-per-request-override-header/
  */
 function looksLikeGitHubToken(value: string): boolean {
   return (
+    /^ghs_[\w.-]{36,}$/.test(value) ||
     /^gh[opusr]_[A-Za-z0-9]{20,}$/.test(value) ||
     /^github_pat_\w{20,}$/.test(value) ||
     /^[0-9a-f]{40}$/.test(value)
