@@ -3,8 +3,8 @@ id: SFQ1EQ
 slug: keep-default-tests-responsive
 type: task
 subtype: bug-investigated
-phase: implement
-status: in_progress
+phase: done
+status: done
 parent: S3T6JA
 epic: agent-surface-refactor
 scope:
@@ -21,7 +21,7 @@ done_when:
   - Slow install-backed coverage still runs through a named script.
   - Documentation/comments identify which lane maintainers should use for default, smoke, slow, and release validation.
 created: 2026-06-15T14:11:50.893Z
-last_modified: 2026-07-26T04:19:46Z
+last_modified: 2026-07-27T16:24:00Z
 ---
 
 # Keep default tests responsive for maintainers
@@ -32,6 +32,7 @@ last_modified: 2026-07-26T04:19:46Z
 
 ## Work Log
 
+- 2026-07-27T16:24:00Z Done: Full verification, audit, refactor, and independent quality review passed; PR #1470 carries the implementation and completion evidence.
 - 2026-06-15T14:11:50.893Z Started: Created ticket SFQ1EQ
 - 2026-06-15T14:12:02Z Scoped: Created from quality-review/Vitest investigation on `codex/skill-invocation-log-helper`; verbose full-suite output showed older setup/golden-path tests advancing slowly while package-manager subprocesses ran under Vitest workers.
 - 2026-06-15T14:56:00Z Root cause confirmed: `setup-python.test.ts` took 76.7s in isolation because each scenario ran `safeword setup` without `SAFEWORD_SKIP_INSTALL`, so most assertions paid a real package-manager install cost. Re-running the same file with `SAFEWORD_SKIP_INSTALL=1` dropped runtime to 3.1s, with only the install-proof scenario failing as expected.
