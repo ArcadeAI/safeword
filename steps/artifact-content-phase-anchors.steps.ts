@@ -21,6 +21,7 @@ import { pathToFileURL } from 'node:url';
 import { Given, Then, When } from '@cucumber/cucumber';
 
 import { toRepoPath } from '../packages/cli/src/utils/repo-path.ts';
+import { WORKSPACE_ROOTS } from '../packages/cli/src/utils/workspace-roots.ts';
 import { git, implPlanContent, readAuditEntries, writeFileAt } from './support/repo-fixtures.ts';
 import type { SafewordWorld } from './world.js';
 
@@ -121,7 +122,7 @@ const { readFileSync } = await import('node:fs');
 const scope = {
   ticketPath: ${JSON.stringify(TICKET_DIR)},
   featureRoots: ['features'],
-  workspaceRoots: ['packages', 'apps', 'libs', 'modules'],
+  workspaceRoots: ${JSON.stringify(WORKSPACE_ROOTS)},
 };
 const read = tree === null ? undefined
   : tree === 'fs' ? (p) => { try { return readFileSync(p, 'utf8'); } catch { return undefined; } }
