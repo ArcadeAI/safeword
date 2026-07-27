@@ -674,7 +674,19 @@ printf '%s\n' "\${value##*/}"
 
       runScriptRaw([], environment);
 
-      expect(readFileSync(pgrepLog, 'utf8').split('\n')).toContain('-f playwright');
+      expect(readFileSync(pgrepLog, 'utf8').split('\n')).toContain('-f -- playwright');
+    });
+
+    it('Scenario: a leading-dash pattern is passed as an operand', () => {
+      const pgrepLog = nodePath.join(temporaryDirectory, 'pgrep.log');
+      const environment = {
+        ...mockCleanupEnvironment(),
+        MOCK_PGREP_LOG: pgrepLog,
+      };
+
+      runScriptRaw(['-custom'], environment);
+
+      expect(readFileSync(pgrepLog, 'utf8').split('\n')).toContain('-f -- -custom');
     });
 
     it('Scenario: pattern ownership is read in one lsof call per candidate set', () => {

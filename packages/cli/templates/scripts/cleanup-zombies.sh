@@ -338,7 +338,7 @@ cleanup_pattern() {
     return 0
   fi
 
-  if pids=$(pgrep -f "$pattern" 2> /dev/null); then
+  if pids=$(pgrep -f -- "$pattern" 2> /dev/null); then
     :
   else
     pgrep_status=$?
