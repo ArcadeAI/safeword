@@ -5,7 +5,7 @@ type: task
 phase: verify
 status: in_progress
 created: 2026-07-26T14:35:33.508Z
-last_modified: 2026-07-27T01:21:44Z
+last_modified: 2026-07-27T03:00:41Z
 ---
 
 # Keep override regressions fast for maintainers
@@ -41,6 +41,14 @@ and make hook-launch failures explicit.
 
 ## Work Log
 
+- 2026-07-27T03:00:41Z Final verification: merged current `origin/main`;
+  full suite passed 5,503 tests across 371 files with 5 skipped; 494/494
+  runnable Gherkin scenarios passed; build, lint, typecheck, audit, and
+  independent quality review are green.
+- 2026-07-27T02:46:00Z Review repairs: made failed upgrades throw, rejected
+  Bun/Ruff infrastructure false greens, preflighted linked ESLint/Prettier,
+  added direct result-branch contracts, isolated helper tests, centralized
+  TypeScript fixture setup, and repaired the scenario-document reference.
 - 2026-07-27T01:21:44Z Verified: Full default suite passed 5,484 tests
   with 5 skipped and 0 failed; lint, Gherkin validation, and typechecking passed.
 - 2026-07-27T01:08:47Z Focused GREEN: 20 tests passed serially in 42.15s.
