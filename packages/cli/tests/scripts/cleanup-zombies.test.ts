@@ -73,11 +73,15 @@ describe('cleanup-zombies.sh', () => {
     chmodSync(filePath, 0o755);
   }
 
-  function mockLiveProcessOwnership(
-    pid: number,
-    pattern: string,
+  function mockLiveProcessOwnership({
+    pid,
+    pattern,
     mockDiscovery = true,
-  ): NodeJS.ProcessEnv {
+  }: {
+    pid: number;
+    pattern: string;
+    mockDiscovery?: boolean;
+  }): NodeJS.ProcessEnv {
     const binaryDirectory = nodePath.join(temporaryDirectory, 'live-bin');
     const lsofPath = nodePath.join(binaryDirectory, 'lsof');
     const pgrepPath = nodePath.join(binaryDirectory, 'pgrep');
@@ -568,7 +572,11 @@ printf '%s\n' "\${value##*/}"
         })
         .toBe(true);
 
-      const liveProcessEnvironment = mockLiveProcessOwnership(ownedPid, marker, false);
+      const liveProcessEnvironment = mockLiveProcessOwnership({
+        pid: ownedPid,
+        pattern: marker,
+        mockDiscovery: false,
+      });
       const preview = runScriptRaw([marker], liveProcessEnvironment);
       expect(preview).toContain(marker);
       expect(preview).toContain(`PID ${ownedPid}`);
