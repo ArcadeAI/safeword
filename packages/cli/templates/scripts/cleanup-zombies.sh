@@ -266,6 +266,15 @@ signal_process() {
   printf '%s\n' "$pid" | xargs -n 1 kill -9 2> /dev/null
 }
 
+print_process_details() {
+  local pid
+  local cmd
+  for pid in "$@"; do
+    cmd=$(ps -p "$pid" -o command= 2> /dev/null | head -c 80 || echo "unknown")
+    echo "  PID $pid: $cmd"
+  done
+}
+
 signal_project_processes() {
   local count_skipped_port_owners=$1
   shift
@@ -307,11 +316,7 @@ cleanup_port() {
   FOUND_COUNT=$((FOUND_COUNT + count))
 
   echo "Port $port: $count process(es)"
-  for pid in "${project_pids[@]}"; do
-    local cmd
-    cmd=$(ps -p "$pid" -o command= 2> /dev/null | head -c 80 || echo "unknown")
-    echo "  PID $pid: $cmd"
-  done
+  print_process_details "${project_pids[@]}"
 
   if [ "$DRY_RUN" = false ]; then
     signal_project_processes true "${project_pids[@]}"
@@ -367,11 +372,7 @@ cleanup_pattern() {
   FOUND_COUNT=$((FOUND_COUNT + count))
 
   echo "Pattern '$pattern' (project-scoped): $count process(es)"
-  for pid in "${project_pids[@]}"; do
-    local cmd
-    cmd=$(ps -p "$pid" -o command= 2> /dev/null | head -c 80 || echo "unknown")
-    echo "  PID $pid: $cmd"
-  done
+  print_process_details "${project_pids[@]}"
 
   if [ "$DRY_RUN" = false ]; then
     signal_project_processes false "${project_pids[@]}"
