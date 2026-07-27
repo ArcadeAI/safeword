@@ -9,7 +9,7 @@ phase_anchors:
   - 'scenario-gate: features/operate-retry-safe-retro-relay.feature'
   - 'plan-implementation: features/operate-retry-safe-retro-relay.feature'
   - 'implement: .project/tickets/A9J9M8-operate-retry-safe-retro-relay/impl-plan.md'
-  - 'verify: .project/tickets/A9J9M8-operate-retry-safe-retro-relay/verify.md'
+  - 'verify: .project/tickets/A9J9M8-operate-retry-safe-retro-relay/test-definitions.md'
 scope:
   - one bounded relay acceptance path used by the shared safeword retro command in Claude, Cursor, and Codex
   - persist an opaque requestId and the exact sanitized payload before the first delivery attempt
