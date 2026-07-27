@@ -50,6 +50,12 @@ function linkRepoToolchain(projectDirectory: string): void {
   );
 }
 
+async function setupTypeScriptFixture(projectDirectory: string): Promise<void> {
+  initGitRepo(projectDirectory);
+  await setupOrThrow(projectDirectory);
+  linkRepoToolchain(projectDirectory);
+}
+
 function applyOverride(existingConfig: string, overrideBlock: string): string {
   // Insert override just before the closing bracket so it wins over safeword's presets.
   // Flat config is "later wins" — FAQ recommends customer overrides go at the end.
@@ -89,9 +95,7 @@ describe('Customer override survival (#137)', () => {
       // that make ESLint ignore absolute-path inputs with "outside of base path" warning.
       projectDirectory = realpathSync(createTemporaryDirectory());
       createTypeScriptPackageJson(projectDirectory);
-      initGitRepo(projectDirectory);
-      await setupOrThrow(projectDirectory);
-      linkRepoToolchain(projectDirectory);
+      await setupTypeScriptFixture(projectDirectory);
       originalConfig = readTestFile(projectDirectory, 'eslint.config.mjs');
     });
 
@@ -254,9 +258,7 @@ export default defineConfig([
 ]);
 `,
       );
-      initGitRepo(projectDirectory);
-      await setupOrThrow(projectDirectory);
-      linkRepoToolchain(projectDirectory);
+      await setupTypeScriptFixture(projectDirectory);
     });
 
     afterAll(() => {
