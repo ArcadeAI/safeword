@@ -30,6 +30,7 @@ type RelayServerOptions = {
   store: RelayStore;
   github: GitHubRestClient;
   payloadKey: Buffer;
+  replicaId?: string;
 } & (
   | { lockPath: string; allowUnlockedForTests?: never }
   | { lockPath?: never; allowUnlockedForTests: true }
@@ -66,9 +67,21 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
   // eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- A single composition-root router keeps the public contract visible.
   async function handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
     try {
+      const url = new URL(request.url ?? '/', 'https://relay.invalid');
+      if (request.method === 'GET' && url.pathname === '/health') {
+        try {
+          sendJson(response, 200, {
+            status: 'ok',
+            schemaVersion: input.store.schemaVersion(),
+            replicaId: input.replicaId ?? 'local',
+          });
+        } catch {
+          sendJson(response, 503, { status: 'unavailable' });
+        }
+        return;
+      }
       const principal = input.credentials.authenticate(bearer(request));
       if (principal === undefined) throw new RelayError(401, 'authentication is required');
-      const url = new URL(request.url ?? '/', 'https://relay.invalid');
       if (request.method === 'POST' && url.pathname === '/v1/retro-filings') {
         const receipt = await service.submit(
           principal,

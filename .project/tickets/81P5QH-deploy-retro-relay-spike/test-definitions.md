@@ -20,7 +20,7 @@ Feature source: `features/deploy-retro-relay-spike.feature`
 
 ### Scenario: Railway health reports the hosted SQLite schema ready
 
-- [x] RED skip: pending commit — Vitest received 401 instead of the required unauthenticated 200 health response
+- [x] RED d8a2332cd
 - [ ] GREEN
 - [ ] REFACTOR
 
