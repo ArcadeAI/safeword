@@ -253,6 +253,16 @@ describe('retry-safe retro relay', () => {
     });
   });
 
+  it('fails health closed when SQLite is unavailable', async () => {
+    const setup = await fixture();
+    setup.store.close();
+
+    const response = await fetch(`${setup.relay.url}/health`);
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({ status: 'unavailable' });
+  });
+
   it('uses one request identity across Claude, Codex, and Cursor', async () => {
     const setup = await fixture();
     const adapters = createHarnessAdapters(setup.relay.url, setup.credentials);

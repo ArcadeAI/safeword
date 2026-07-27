@@ -31,11 +31,14 @@ type RelayServerOptions = {
   github: GitHubRestClient;
   payloadKey: Buffer;
   replicaId?: string;
+  host?: string;
+  port?: number;
 } & (
   | { lockPath: string; allowUnlockedForTests?: never }
   | { lockPath?: never; allowUnlockedForTests: true }
 );
 
+// eslint-disable-next-line complexity -- Lifecycle setup and the public server contract stay visible together.
 export async function startRelayServer(input: RelayServerOptions): Promise<{
   server: ReturnType<typeof createServer>;
   url: string;
@@ -169,7 +172,7 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
   try {
     await new Promise<void>((resolve, reject) => {
       server.once('error', reject);
-      server.listen(0, '127.0.0.1', resolve);
+      server.listen(input.port ?? 0, input.host ?? '127.0.0.1', resolve);
     });
   } catch (error) {
     processLock?.release();
@@ -183,7 +186,7 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
   }
   return {
     server,
-    url: `http://127.0.0.1:${address.port}`,
+    url: `http://${input.host === '0.0.0.0' ? '127.0.0.1' : (input.host ?? '127.0.0.1')}:${address.port}`,
     faults,
     observability,
   };

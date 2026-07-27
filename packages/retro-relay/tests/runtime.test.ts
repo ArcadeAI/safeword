@@ -1,10 +1,12 @@
 import { generateKeyPairSync, randomBytes } from 'node:crypto';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { createServer } from 'node:http';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
-import { parseRuntimeConfig } from '../src/runtime-config.js';
+import { parseRuntimeConfig, startRelayRuntime } from '../src/index.js';
 
 const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
 const privateKeyBase64 = Buffer.from(privateKey.export({ format: 'pem', type: 'pkcs8' })).toString(
@@ -28,6 +30,30 @@ function validEnvironment(dataDirectory: string): NodeJS.ProcessEnv {
     GITHUB_INSTALLATION_ID: '1',
     GITHUB_REPOSITORY: 'ArcadeAI/safeword',
   };
+}
+
+const runtimeDirectories: string[] = [];
+
+afterEach(() => {
+  for (const directory of runtimeDirectories) rmSync(directory, { force: true, recursive: true });
+  runtimeDirectories.length = 0;
+});
+
+async function availablePort(): Promise<number> {
+  const server = createServer();
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+  const address = server.address();
+  if (address === null || typeof address === 'string') throw new Error('missing test port');
+  await new Promise<void>((resolve, reject) => {
+    server.close(error => {
+      if (error === undefined) resolve();
+      else reject(error);
+    });
+  });
+  return address.port;
 }
 
 describe('production runtime configuration', () => {
@@ -86,5 +112,28 @@ describe('production runtime configuration', () => {
 
     expect(() => parseRuntimeConfig(environment)).toThrow();
     expect(existsSync(dataDirectory)).toBe(false);
+  });
+
+  it('binds the configured port, reports its replica, and releases its lock on shutdown', async () => {
+    const dataDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-runtime-'));
+    runtimeDirectories.push(dataDirectory);
+    const environment = validEnvironment(dataDirectory);
+    environment.PORT = String(await availablePort());
+    environment.RAILWAY_REPLICA_ID = 'replica-test';
+    const config = parseRuntimeConfig(environment);
+    const runtime = await startRelayRuntime(config, () => {});
+
+    const response = await fetch(`${runtime.url}/health`);
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      status: 'ok',
+      schemaVersion: 1,
+      replicaId: 'replica-test',
+    });
+
+    await runtime.close();
+    expect(existsSync(config.lockPath)).toBe(false);
+    const reopened = await startRelayRuntime(config, () => {});
+    await reopened.close();
   });
 });
