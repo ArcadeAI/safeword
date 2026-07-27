@@ -29,10 +29,12 @@ const UNRELATED_PROJECT_DIRECTORY = '/tmp/unrelated-project';
 
 describe('cleanup-zombies.sh', () => {
   let isolatedPath: string;
+  let projectDirectory: string;
   let temporaryDirectory: string;
 
   beforeEach(() => {
     temporaryDirectory = mkdtempSync(nodePath.join(tmpdir(), 'cleanup-zombies-test-'));
+    projectDirectory = realpathSync(temporaryDirectory);
     const isolatedBinaryDirectory = nodePath.join(temporaryDirectory, 'isolated-bin');
     mkdirSync(isolatedBinaryDirectory);
     for (const command of ['lsof', 'pgrep']) {
@@ -108,7 +110,7 @@ fi
       );
     }
     return {
-      MOCK_LIVE_CWD: realpathSync(temporaryDirectory),
+      MOCK_LIVE_CWD: projectDirectory,
       MOCK_LIVE_PATTERN: pattern,
       MOCK_LIVE_PID: String(pid),
       PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
@@ -133,7 +135,7 @@ fi
 `,
     );
     return {
-      MOCK_LIVE_CWD: realpathSync(temporaryDirectory),
+      MOCK_LIVE_CWD: projectDirectory,
       PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
     };
   }
@@ -380,7 +382,7 @@ printf '%s\n' "\${value##*/}"
         env: {
           ...process.env,
           ...mockCleanupEnvironment({
-            processDirectory: realpathSync(temporaryDirectory),
+            processDirectory: projectDirectory,
           }),
           MOCK_KILL_LOG: killLog,
           MOCK_PGREP_ERROR_PATTERN: 'playwright',
@@ -534,7 +536,7 @@ printf '%s\n' "\${value##*/}"
       // script's real pgrep discovery and batched ownership paths are exercised
       // on every platform.
       const marker = `swzombie-${process.pid}-${Date.now()}`;
-      const victimScript = nodePath.join(realpathSync(temporaryDirectory), `${marker}.mjs`);
+      const victimScript = nodePath.join(projectDirectory, `${marker}.mjs`);
       writeFileSync(victimScript, 'setInterval(() => {}, 60_000);\n');
       const ownedVictim = spawn(process.execPath, [victimScript], {
         cwd: temporaryDirectory,
@@ -606,7 +608,6 @@ printf '%s\n' "\${value##*/}"
 
   describe('Rule: pattern cleanup stays scoped to the current project', () => {
     it('Scenario: an unrelated pattern match whose argv references this project is excluded', () => {
-      const projectDirectory = realpathSync(temporaryDirectory);
       const environment = {
         ...mockCleanupEnvironment({
           processDirectory: UNRELATED_PROJECT_DIRECTORY,
@@ -626,7 +627,7 @@ printf '%s\n' "\${value##*/}"
     it("Scenario: the current project's pattern match remains eligible", () => {
       const environment = {
         ...mockCleanupEnvironment({
-          processDirectory: realpathSync(temporaryDirectory),
+          processDirectory: projectDirectory,
           processCommand: '/usr/bin/playwright test',
         }),
         MOCK_PATTERN: 'playwright',
@@ -653,7 +654,6 @@ printf '%s\n' "\${value##*/}"
 
     it('Scenario: pattern ownership is read in one lsof call per candidate set', () => {
       const lsofLog = nodePath.join(temporaryDirectory, 'lsof.log');
-      const projectDirectory = realpathSync(temporaryDirectory);
       const environment = {
         ...mockCleanupEnvironment({ processDirectory: projectDirectory }),
         MOCK_LSOF_LOG: lsofLog,
@@ -711,7 +711,7 @@ printf '%s\n' "\${value##*/}"
     it("Scenario: the current project's process remains in the preview", () => {
       const output = runScriptRaw(
         [],
-        mockCleanupEnvironment({ processDirectory: realpathSync(temporaryDirectory) }),
+        mockCleanupEnvironment({ processDirectory: projectDirectory }),
       );
 
       expect(output).toContain(`Port ${MOCK_PORT}: 1 process(es)`);
@@ -720,7 +720,7 @@ printf '%s\n' "\${value##*/}"
     });
 
     it("Scenario: a process beneath the current project's root remains in the preview", () => {
-      const projectChild = nodePath.join(realpathSync(temporaryDirectory), 'packages', 'app');
+      const projectChild = nodePath.join(projectDirectory, 'packages', 'app');
       const output = runScriptRaw([], mockCleanupEnvironment({ processDirectory: projectChild }));
 
       expect(output).toContain(`Port ${MOCK_PORT}: 1 process(es)`);
@@ -736,7 +736,6 @@ printf '%s\n' "\${value##*/}"
     });
 
     it("Scenario: a similarly prefixed project's command is excluded", () => {
-      const projectDirectory = realpathSync(temporaryDirectory);
       const output = runScriptRaw(
         [],
         mockCleanupEnvironment({
@@ -751,7 +750,6 @@ printf '%s\n' "\${value##*/}"
     });
 
     it('Scenario: an unrelated command argument referencing this project is excluded', () => {
-      const projectDirectory = realpathSync(temporaryDirectory);
       const output = runScriptRaw(
         [],
         mockCleanupEnvironment({
@@ -766,7 +764,6 @@ printf '%s\n' "\${value##*/}"
     });
 
     it('Scenario: an unrelated cwd containing a newline is excluded', () => {
-      const projectDirectory = realpathSync(temporaryDirectory);
       const output = runScriptRaw(
         [],
         mockCleanupEnvironment({
@@ -796,7 +793,7 @@ printf '%s\n' "\${value##*/}"
       const killLog = nodePath.join(temporaryDirectory, 'kill.log');
       const environment = {
         ...mockCleanupEnvironment({
-          processDirectory: realpathSync(temporaryDirectory),
+          processDirectory: projectDirectory,
         }),
         MOCK_KILL_LOG: killLog,
       };
@@ -809,7 +806,6 @@ printf '%s\n' "\${value##*/}"
 
     it('Scenario: --yes revalidates each PID immediately before signaling it', () => {
       const killLog = nodePath.join(temporaryDirectory, 'kill.log');
-      const projectDirectory = realpathSync(temporaryDirectory);
       const environment = {
         ...mockCleanupEnvironment({
           processDirectory: projectDirectory,
@@ -828,7 +824,6 @@ printf '%s\n' "\${value##*/}"
 
     it('Scenario: --yes signals verified PIDs individually', () => {
       const killLog = nodePath.join(temporaryDirectory, 'kill.log');
-      const projectDirectory = realpathSync(temporaryDirectory);
       const environment = {
         ...mockCleanupEnvironment({ processDirectory: projectDirectory }),
         MOCK_KILL_LOG: killLog,
@@ -846,7 +841,7 @@ printf '%s\n' "\${value##*/}"
       const killLog = nodePath.join(temporaryDirectory, 'kill.log');
       const environment = {
         ...mockCleanupEnvironment({
-          processDirectory: realpathSync(temporaryDirectory),
+          processDirectory: projectDirectory,
         }),
         MOCK_KILL_EXIT_CODE: '1',
         MOCK_KILL_LOG: killLog,
