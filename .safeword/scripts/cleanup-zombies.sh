@@ -276,7 +276,7 @@ print_process_details() {
 }
 
 signal_project_processes() {
-  local count_skipped_port_owners=$1
+  local cleanup_source=$1
   shift
   local pid
   for pid in "$@"; do
@@ -286,7 +286,7 @@ signal_project_processes() {
       else
         FAILED_KILL_COUNT=$((FAILED_KILL_COUNT + 1))
       fi
-    elif [ "$count_skipped_port_owners" = true ]; then
+    elif [ "$cleanup_source" = "port" ]; then
       SKIPPED_PORT_COUNT=$((SKIPPED_PORT_COUNT + 1))
     fi
   done
@@ -319,7 +319,7 @@ cleanup_port() {
   print_process_details "${project_pids[@]}"
 
   if [ "$DRY_RUN" = false ]; then
-    signal_project_processes true "${project_pids[@]}"
+    signal_project_processes "port" "${project_pids[@]}"
   fi
 }
 
@@ -375,7 +375,7 @@ cleanup_pattern() {
   print_process_details "${project_pids[@]}"
 
   if [ "$DRY_RUN" = false ]; then
-    signal_project_processes false "${project_pids[@]}"
+    signal_project_processes "pattern" "${project_pids[@]}"
   fi
 }
 
