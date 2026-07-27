@@ -2,14 +2,15 @@
 id: N30CKR
 slug: retry-safe-retro-filing
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 phase_anchors:
   - 'define-behavior: .project/tickets/N30CKR-retry-safe-retro-filing/spec.md'
   - 'scenario-gate: features/retry-safe-retro-filing.feature'
   - 'plan-implementation: features/retry-safe-retro-filing.feature'
   - 'implement: .project/tickets/N30CKR-retry-safe-retro-filing/impl-plan.md'
   - 'verify: .project/tickets/N30CKR-retry-safe-retro-filing/test-definitions.md'
+  - 'done: .project/tickets/N30CKR-retry-safe-retro-filing/verify.md'
 scope:
   - one relay HTTP filing operation and named adapters for Claude, Cursor, and Codex
   - durable SQLite request records keyed by tenant, installation, repository, and requestId
@@ -50,3 +51,4 @@ external_issue: https://github.com/ArcadeAI/safeword/issues/1479
 - 2026-07-26 Phase: define-behavior → plan-implementation after Gherkin lint and independent scenario review passed.
 - 2026-07-26 Phase: plan-implementation → implement after independent plan review passed with the durable payload, receipt addressing, restart recovery, marker grammar, and proof boundaries made explicit.
 - 2026-07-26 Phase: implement → verify after all 12 scenario ledgers completed, the full generated verification plan passed, and independent quality review approved commit 6eea11b96.
+- 2026-07-26 Phase: verify → done for the local relay-foundation slice. GitHub #1479 remains open for the maintenance worker, deployment, real-harness routing, production evidence, and fallback retirement; #834 is not yet superseded.
