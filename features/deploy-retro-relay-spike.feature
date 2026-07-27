@@ -14,6 +14,7 @@ Feature: Deploy the retro relay spike
 
       Examples:
         | variable                        |
+        | HOST                            |
         | PORT                            |
         | RELAY_DATA_DIR                  |
         | RELAY_PAYLOAD_KEY               |
@@ -36,6 +37,8 @@ Feature: Deploy the retro relay spike
 
       Examples:
         | variable                      | invalid value       |
+        | HOST                          | 127.0.0.1           |
+        | HOST                          | whitespace-only     |
         | PORT                          | 0                   |
         | PORT                          | 65536               |
         | PORT                          | not-a-port          |
@@ -65,6 +68,7 @@ Feature: Deploy the retro relay spike
       Given the newly created Railway spike project is deployed
       When I request its public health endpoint
       Then it reports the expected SQLite schema version
+      And it reports a non-secret Railway replica identity
 
     @deploy-retro-relay-spike.SWM1.R2
     Scenario: Local shutdown closes the server, database, and process lock
@@ -84,8 +88,10 @@ Feature: Deploy the retro relay spike
     @live
     Scenario: A request mismatch remains rejected after an actual Railway restart
       Given the hosted relay durably accepts a request before GitHub token acquisition fails
+      And I record the healthy Railway replica identity
       When I restart the Railway service
       And I poll observable health within a 120 second deadline until the replacement instance is ready
+      And I observe a healthy Railway replica identity different from the recorded identity
       And I resend changed content with the same request identity
       Then it rejects the mismatch without attempting issue creation
 
@@ -128,11 +134,13 @@ Feature: Deploy the retro relay spike
     Scenario: Generated credentials cannot create a GitHub issue
       Given the hosted Railway service matches the freshly generated spike credential and uninstalled GitHub App identity
       When a filing through its public endpoint reaches GitHub token acquisition
-      Then it fails before issue creation and retains the durable request
+      Then hosted logs report a GitHub installation-token-stage failure
+      And the GitHub network-boundary proof reports zero issue-create requests
+      And the hosted relay retains the durable request
 
     @deploy-retro-relay-spike.SWM1.R4 @rejection
     Scenario Outline: Teardown refuses an unrecorded or non-disposable target
-      Given the spike report records exact project, service, and volume IDs
+      Given the atomic spike state records exact project, service, and volume IDs
       When teardown is previewed for "<unsafe target>"
       Then teardown refuses without changing Railway
 
@@ -145,7 +153,7 @@ Feature: Deploy the retro relay spike
 
     @deploy-retro-relay-spike.SWM1.R4
     Scenario: Teardown previews only the recorded disposable resource IDs
-      Given the spike report records exact project, service, and volume IDs
+      Given the atomic spike state records exact project, service, and volume IDs
       And the recorded project has the required spike name prefix
       When teardown is previewed for the recorded target
       Then it prints only the exact recorded resource IDs

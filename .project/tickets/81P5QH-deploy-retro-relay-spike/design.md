@@ -38,13 +38,19 @@ Constructs `RelayStore`, `CredentialRegistry`, `GitHubAppTokenProvider`,
 `GitHubRestClient`, and `startRelayServer`. It owns graceful shutdown and emits
 structured, secret-free startup/shutdown events.
 
+The bundled executable is `dist/main.js`, launched as
+`node /app/dist/main.js`. A built-image smoke starts that exact command with a
+real mounted data directory, injects environment values through stdin rather
+than command arguments, checks health, sends SIGTERM, and requires a clean exit.
+
 ### HTTP readiness
 
 **Where:** `packages/retro-relay/src/http-server.ts`
 
 `GET /healthz` requires no relay credential and returns success only while the
-SQLite schema is accessible. Existing filing and reconciliation routes retain
-their authentication requirements.
+SQLite schema is accessible. It includes `RAILWAY_REPLICA_ID` as a non-secret
+replacement identity. Existing filing and reconciliation routes retain their
+authentication requirements.
 
 ### Railway deployment
 
@@ -53,6 +59,21 @@ their authentication requirements.
 The container builds the private workspace package and runs its production
 entrypoint. Railway mounts `/data`, supplies `PORT`, terminates TLS, and runs
 exactly one replica.
+
+### Spike orchestrator
+
+**Where:** `packages/retro-relay/scripts/railway-spike.ts`
+
+Creates a new prefixed project, service, volume, variables, domain, deployment,
+and restart proof through exact-ID Railway CLI calls. After every successful
+mutation it atomically rewrites a non-secret state file under `.project/tmp/`
+before continuing. That file is the sole teardown authority.
+
+Generated credential values exist only in process memory. They enter Railway
+through `railway variable set <NAME> --stdin`; values never appear in argv,
+stdout, logs, state, reports, or committed files. Any detected exposure stops
+the spike, rotates the affected Railway value through stdin, and records only
+the variable name and rotation event.
 
 ## Key decisions
 
@@ -91,10 +112,17 @@ check.
 
 - Missing, malformed, or relative durable paths fail startup.
 - `PORT` must be an integer in the TCP port range.
+- `HOST` must be exactly `0.0.0.0` for the hosted runtime.
 - Health never includes filesystem paths, credentials, or payload content.
 - SIGTERM and SIGINT stop accepting connections, close SQLite, and release the
   process lock.
 - Railway remains at one replica for the entire SQLite deployment.
+- Restart proof requires `RAILWAY_REPLICA_ID` to change; readiness from the
+  original process cannot satisfy it.
+- Hosted GitHub failure emits a secret-free
+  `stage=github_installation_token` event. A real-collaborator integration test
+  independently proves that this stage produces one token request and zero
+  issue-create requests.
 
 ## Deferred production work
 

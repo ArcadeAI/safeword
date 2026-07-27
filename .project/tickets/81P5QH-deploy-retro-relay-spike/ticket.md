@@ -2,11 +2,12 @@
 id: 81P5QH
 slug: deploy-retro-relay-spike
 type: feature
-phase: scenario-gate
+phase: implement
 status: in_progress
 phase_anchors:
   - 'define-behavior: .project/tickets/81P5QH-deploy-retro-relay-spike/spec.md'
   - 'scenario-gate: features/deploy-retro-relay-spike.feature'
+  - 'implement: .project/tickets/81P5QH-deploy-retro-relay-spike/impl-plan.md'
 scope:
   - production entrypoint with explicit host, port, health, shutdown, and fail-closed environment parsing
   - single Railway service with one persistent volume mounted at /data
@@ -41,3 +42,8 @@ last_modified: 2026-07-27T00:28:08.780Z
 - 2026-07-27 Scope: disposable health and restart-durability proof only. A successful GitHub issue create remains gated on a dedicated production GitHub App.
 - 2026-07-27 Phase: intake → define-behavior after resolving the spike boundary, reversibility, persona, and deferred production GitHub App question.
 - 2026-07-27 Phase: define-behavior → scenario-gate after the saved Gherkin and R/G/R ledger covered local runtime, live Railway topology/restart, disposable safety, and evidence reporting.
+- 2026-07-27 Independent scenario review passed after tightening malformed-input partitions, live topology and restart wiring, hosted credential safety, exact-ID teardown previews, and report validation.
+- 2026-07-27 Phase: scenario-gate → plan-implementation. The riskiest assumption is Railway replacement reopening the same SQLite request identity; the live 409 mismatch is the decisive oracle.
+- 2026-07-27 Split checkpoint: kept one coupled feature because runtime, container, volume, live smoke, teardown preview, and report have no independent user value.
+- 2026-07-27 Independent plan review passed after requiring changed Railway replica identity, atomic resource-ID capture, stdin-only secret injection, built-image wiring, explicit 0.0.0.0 binding, and stage-specific zero-create proof.
+- 2026-07-27 Phase: plan-implementation → implement with six RED/GREEN/REFACTOR slices; the live Railway replacement proof remains the decisive slice.
