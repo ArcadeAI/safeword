@@ -6,7 +6,7 @@ phase: verify
 status: in_progress
 external_issue: https://github.com/ArcadeAI/safeword/issues/1524
 created: 2026-07-27T16:11:23.968Z
-last_modified: 2026-07-27T19:46:34Z
+last_modified: 2026-07-27T20:05:46Z
 ---
 
 # Surface reply format before Claude responds
@@ -91,6 +91,13 @@ open.
 - The earlier local `REPLY_FORMAT_REMINDER` extraction was deliberately
   superseded during PR review because it did not prevent cross-hook vocabulary
   drift. This scoped cleanup stays in the same commit as the behavior change.
+- [x] Extract the repeated real installed `prompt-questions.ts` subprocess
+  setup in `packages/cli/tests/integration/hooks.test.ts` into one helper, so
+  the ordinary, TDD, and non-Safeword contracts cannot diverge in how they
+  invoke the hook.
+- [x] Scout disposition: retain the production hook's local line construction
+  and phase state flow. A further extraction would add parameters without
+  removing duplicated behavior or improving a tested boundary.
 
 ## Work Log
 
@@ -125,3 +132,8 @@ open.
   now covers it. Full verification passed: Vitest 5,551 passed (5 skipped),
   Cucumber 505 passed (3 skipped), lint, Gherkin lint, typecheck, template
   parity, diff hygiene, and the follow-up audit all completed.
+- 2026-07-27T20:05:46Z Quality-review follow-up approved the final implementation
+  and identified one stale verification summary, corrected separately. Refactor
+  scout then unified the three installed prompt-hook test launchers behind one
+  helper; the real integration suite passed 59/59 with unchanged stdin and
+  project-directory behavior.

@@ -170,6 +170,25 @@ function runStopHook(
   };
 }
 
+/** Run the installed UserPromptSubmit question hook. */
+function runPromptQuestionsHook(
+  targetDirectory: string,
+  input: string,
+  claudeProjectDirectory = targetDirectory,
+): { stdout: string; stderr: string; exitCode: number } {
+  const result = spawnSync('bun', ['.safeword/hooks/prompt-questions.ts'], {
+    input,
+    cwd: targetDirectory,
+    env: { ...process.env, CLAUDE_PROJECT_DIR: claudeProjectDirectory },
+    encoding: 'utf8',
+  });
+  return {
+    stdout: result.stdout ?? '',
+    stderr: result.stderr ?? '',
+    exitCode: result.status ?? 0,
+  };
+}
+
 /** Parse JSON output from stop hook */
 function parseStopOutput(result: { stdout: string }): {
   decision?: string;
@@ -438,33 +457,27 @@ describe('E2E: UserPromptSubmit Hooks', () => {
 
   describe('prompt-questions.ts', () => {
     it('outputs question guidance for prompts', () => {
-      const output = execSync(
-        'echo "Help me implement a new feature for user authentication" | bun .safeword/hooks/prompt-questions.ts',
-        {
-          cwd: shared.projectDirectory,
-          env: { ...process.env, CLAUDE_PROJECT_DIR: shared.projectDirectory },
-          encoding: 'utf8',
-        },
+      const result = runPromptQuestionsHook(
+        shared.projectDirectory,
+        'Help me implement a new feature for user authentication',
       );
 
-      expect(output).toContain('Contribute before asking');
-      expect(output.trim().split('\n').at(-1)).toBe('- Avoid bloat.');
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('Contribute before asking');
+      expect(result.stdout.trim().split('\n').at(-1)).toBe('- Avoid bloat.');
     });
 
     it('proactively reminds Claude how to format substantive work updates', () => {
-      const output = execSync(
-        'echo "Summarize the completed work" | bun .safeword/hooks/prompt-questions.ts',
-        {
-          cwd: shared.projectDirectory,
-          env: { ...process.env, CLAUDE_PROJECT_DIR: shared.projectDirectory },
-          encoding: 'utf8',
-        },
+      const result = runPromptQuestionsHook(
+        shared.projectDirectory,
+        'Summarize the completed work',
       );
 
-      expect(output).toContain('- Reply format: lead with the answer.');
-      expect(output).toContain('substantive work update');
-      expect(output).toContain('**CONFIDENT**/**BLOCKED**');
-      expect(output).toContain('**Next:**');
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('- Reply format: lead with the answer.');
+      expect(result.stdout).toContain('substantive work update');
+      expect(result.stdout).toContain('**CONFIDENT**/**BLOCKED**');
+      expect(result.stdout).toContain('**Next:**');
     });
 
     it('keeps active implement/TDD prompts free of the decision-brief demand', () => {
@@ -491,14 +504,12 @@ describe('E2E: UserPromptSubmit Hooks', () => {
       );
 
       try {
-        const result = spawnSync('bun', ['.safeword/hooks/prompt-questions.ts'], {
-          input: JSON.stringify({ session_id: 'test-session', prompt: 'Continue implementation' }),
-          cwd: shared.projectDirectory,
-          env: { ...process.env, CLAUDE_PROJECT_DIR: shared.projectDirectory },
-          encoding: 'utf8',
-        });
+        const result = runPromptQuestionsHook(
+          shared.projectDirectory,
+          JSON.stringify({ session_id: 'test-session', prompt: 'Continue implementation' }),
+        );
 
-        expect(result.status).toBe(0);
+        expect(result.exitCode).toBe(0);
         expect(result.stdout).toContain('- Reply format: lead with the answer.');
         expect(result.stdout).not.toContain('**CONFIDENT**/**BLOCKED**');
         expect(result.stdout).not.toContain('**Next:**');
@@ -513,16 +524,14 @@ describe('E2E: UserPromptSubmit Hooks', () => {
     it('exits silently for non-safeword project', () => {
       const nonSafewordDirectory = createTemporaryDirectory();
       try {
-        const output = execSync(
-          'echo "Help me implement a new feature for user authentication" | bun .safeword/hooks/prompt-questions.ts',
-          {
-            cwd: shared.projectDirectory,
-            env: { ...process.env, CLAUDE_PROJECT_DIR: nonSafewordDirectory },
-            encoding: 'utf8',
-          },
+        const result = runPromptQuestionsHook(
+          shared.projectDirectory,
+          'Help me implement a new feature for user authentication',
+          nonSafewordDirectory,
         );
 
-        expect(output.trim()).toBe('');
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout.trim()).toBe('');
       } finally {
         removeTemporaryDirectory(nonSafewordDirectory);
       }
