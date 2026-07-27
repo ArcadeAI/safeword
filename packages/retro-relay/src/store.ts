@@ -145,11 +145,14 @@ function tableExists(database: Database, table: string): boolean {
   );
 }
 
-function columns(database: Database, table: string): string[] {
+function tableInfo(database: Database, table: string): { name: string; notnull: number }[] {
   return database
-    .prepare<[], { name: string }>(`PRAGMA table_info(${table})`)
-    .all()
-    .map(column => column.name);
+    .prepare<[], { name: string; notnull: number }>(`PRAGMA table_info(${table})`)
+    .all();
+}
+
+function columns(database: Database, table: string): string[] {
+  return tableInfo(database, table).map(column => column.name);
 }
 
 function exactColumns(actual: string[], expected: readonly string[]): boolean {
@@ -244,13 +247,16 @@ function readSchemaVersion(database: Database): number {
 
 function validateVersionThree(database: Database): void {
   const expected = [...V1_COLUMNS, ...V2_EXTRA_COLUMNS, ...V3_EXTRA_COLUMNS];
-  if (!exactColumns(columns(database, 'retro_requests'), expected)) {
+  const requestColumns = tableInfo(database, 'retro_requests');
+  if (
+    !exactColumns(
+      requestColumns.map(column => column.name),
+      expected,
+    )
+  ) {
     throw new Error('schema version three layout is partial or incompatible');
   }
-  const deadline = database
-    .prepare<[], { name: string; notnull: number }>('PRAGMA table_info(retro_requests)')
-    .all()
-    .find(column => column.name === 'retry_deadline_at');
+  const deadline = requestColumns.find(column => column.name === 'retry_deadline_at');
   if (deadline?.notnull !== 1) {
     throw new Error('schema version three retry deadline constraint is missing');
   }
