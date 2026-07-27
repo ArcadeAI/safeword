@@ -36,5 +36,7 @@
 
 ## Task-level cross-scenario refactor
 
-- [x] cross-scenario — removed the repeated-sweep state machine and centralized
-      realistic default issue states in the network fixture
+- [x] cross-scenario 809d662b0
+
+Removed the repeated-sweep state machine and centralized realistic default
+issue states in the network fixture.
