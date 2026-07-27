@@ -25,11 +25,53 @@ function validEnvironment(dataDirectory: string): NodeJS.ProcessEnv {
     RELAY_TENANT_ID: 'safeword-spike',
     RELAY_SUBJECT: 'railway-spike',
     RELAY_HARNESS: 'codex',
+    RELAY_MODE: 'spike',
     GITHUB_APP_ID: '1',
     GITHUB_APP_PRIVATE_KEY_BASE64: privateKeyBase64,
     GITHUB_INSTALLATION_ID: '1',
     GITHUB_REPOSITORY: 'ArcadeAI/safeword',
   };
+}
+
+function productionEnvironment(dataDirectory: string): NodeJS.ProcessEnv {
+  const environment = validEnvironment(dataDirectory);
+  environment.RELAY_MODE = 'production';
+  const installationId = 1;
+  const repo = 'arcadeai/safeword';
+  const credential = (
+    credentialId: string,
+    harness: 'claude' | 'codex' | 'cursor' | 'operator',
+    secret: string,
+    roles: ('file' | 'reconcile' | 'operate')[],
+  ) => ({
+    credentialId,
+    harness,
+    installationId,
+    repository: repo,
+    roles,
+    secret,
+    subject: `${harness}-subject`,
+    tenantId: 'safeword-production',
+  });
+  const credentials = [
+    credential('claude-prod', 'claude', 'a'.repeat(64), ['file']),
+    credential('codex-prod', 'codex', 'b'.repeat(64), ['file']),
+    credential('cursor-prod', 'cursor', 'c'.repeat(64), ['file']),
+    credential('operator-prod', 'operator', 'd'.repeat(64), ['reconcile', 'operate']),
+  ];
+  environment.RELAY_CREDENTIALS_BASE64 = Buffer.from(JSON.stringify(credentials)).toString(
+    'base64',
+  );
+  for (const name of [
+    'RELAY_CREDENTIAL_ID',
+    'RELAY_CREDENTIAL_SECRET',
+    'RELAY_TENANT_ID',
+    'RELAY_SUBJECT',
+    'RELAY_HARNESS',
+  ]) {
+    Reflect.deleteProperty(environment, name);
+  }
+  return environment;
 }
 
 const runtimeDirectories: string[] = [];
@@ -60,6 +102,7 @@ describe('production runtime configuration', () => {
   it.each([
     'HOST',
     'PORT',
+    'RELAY_MODE',
     'RELAY_DATA_DIR',
     'RELAY_PAYLOAD_KEY',
     'RELAY_CREDENTIAL_PEPPER',
@@ -128,7 +171,7 @@ describe('production runtime configuration', () => {
     const firstHealth = (await response.json()) as Record<string, unknown>;
     expect(firstHealth).toMatchObject({
       status: 'ok',
-      schemaVersion: 1,
+      schemaVersion: 2,
       replicaId: 'replica-test',
       bootId: expect.any(String),
     });
@@ -140,5 +183,96 @@ describe('production runtime configuration', () => {
     const reopenedHealth = (await reopenedResponse.json()) as Record<string, unknown>;
     expect(reopenedHealth.bootId).not.toBe(firstHealth.bootId);
     await reopened.close();
+  });
+
+  it('loads independently rotatable production principals with the exact role matrix', () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'safeword-runtime-principals-'));
+    runtimeDirectories.push(directory);
+    const config = parseRuntimeConfig(productionEnvironment(directory));
+
+    expect(config.mode).toBe('production');
+    expect(config.credentials.map(item => [item.harness, item.roles])).toEqual([
+      ['claude', ['file']],
+      ['codex', ['file']],
+      ['cursor', ['file']],
+      ['operator', ['reconcile', 'operate']],
+    ]);
+  });
+
+  it('rejects legacy credentials outside explicit spike mode', () => {
+    const directory = path.join(process.cwd(), '.tmp-never-created', 'legacy-production');
+    const environment = validEnvironment(directory);
+    environment.RELAY_MODE = 'production';
+
+    expect(() => parseRuntimeConfig(environment)).toThrow('RELAY_CREDENTIALS_BASE64');
+    expect(existsSync(directory)).toBe(false);
+  });
+
+  it('exposes health only in spike mode before auth storage or GitHub collaborators', async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'safeword-runtime-health-only-'));
+    runtimeDirectories.push(directory);
+    const environment = validEnvironment(directory);
+    environment.PORT = String(await availablePort());
+    const runtime = await startRelayRuntime(parseRuntimeConfig(environment), () => {});
+
+    const attempts = [
+      ['POST', '/v1/retro-filings'],
+      ['GET', '/v1/retro-filings/receipt'],
+      ['POST', '/v1/retro-filings/receipt/reconcile'],
+      ['GET', '/v1/operations/retro-filings'],
+    ] as const;
+    for (const [method, route] of attempts) {
+      const response = await fetch(`${runtime.url}${route}`, {
+        method,
+        headers: { authorization: runtime.authorization },
+        ...(method === 'POST' && {
+          body: JSON.stringify({
+            body: 'body',
+            canonicalKey: 'canonical:key',
+            installationId: 1,
+            labels: ['retro'],
+            legacySignature: 'retro:key',
+            repository: 'arcadeai/safeword',
+            requestId: 'request',
+            title: 'title',
+          }),
+        }),
+      });
+      expect(response.status).toBe(503);
+    }
+    const healthResponse = await fetch(`${runtime.url}/health`);
+    expect(healthResponse.status).toBe(200);
+    await runtime.close();
+  });
+
+  it('denies operator filing and harness reconciliation before GitHub access', async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'safeword-runtime-role-denials-'));
+    runtimeDirectories.push(directory);
+    const environment = productionEnvironment(directory);
+    environment.PORT = String(await availablePort());
+    const runtime = await startRelayRuntime(parseRuntimeConfig(environment), () => {});
+    const body = JSON.stringify({
+      body: 'body',
+      canonicalKey: 'canonical:key',
+      installationId: 1,
+      labels: ['retro'],
+      legacySignature: 'retro:key',
+      repository: 'arcadeai/safeword',
+      requestId: 'request',
+      title: 'title',
+    });
+
+    const operatorFile = await fetch(`${runtime.url}/v1/retro-filings`, {
+      body,
+      headers: { authorization: runtime.authorizations.operator },
+      method: 'POST',
+    });
+    expect(operatorFile.status).toBe(403);
+    const harnessReconcile = await fetch(`${runtime.url}/v1/retro-filings/missing/reconcile`, {
+      headers: { authorization: runtime.authorizations.claude },
+      method: 'POST',
+    });
+    expect(harnessReconcile.status).toBe(403);
+    await runtime.close();
   });
 });

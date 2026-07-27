@@ -10,6 +10,7 @@
 ## Tickets (455)
 ## Tickets (452)
 ## Tickets (453)
+## Tickets (454)
 
 ### 001
 
@@ -1125,6 +1126,9 @@
   Match recurring retro findings to their canonical GitHub issue despite model-derived metadata drift.
   external issue: https://github.com/ArcadeAI/safeword/issues/1032
   → `.project/tickets/A8NNZV-prevent-retro-duplicate-issues`
+- **Deliver retry-safe retro findings across every harness (A9J9M8)** (in_progress, epic: —)
+  Route Claude, Cursor, and Codex through one bounded durable relay operation with production lifecycle enforcement and safe local fallback.
+  → `.project/tickets/A9J9M8-operate-retry-safe-retro-relay`
 - **Re-sync safeword's own depcruise-config.cjs (AK8REW)** (done, epic: —)
   Make `safeword sync-config --check` on this repo exit 0. The committed file was historically prettier-reformatted (long comment string wrapped to two lines); the generator emits it single-line. With v0.37.0's `/audit` change, every audit run on this repo emits W007 until the committed file is re-synced.
   → `.project/tickets/AK8REW`
