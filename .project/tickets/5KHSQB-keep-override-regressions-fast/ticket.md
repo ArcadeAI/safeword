@@ -2,10 +2,11 @@
 id: 5KHSQB
 slug: keep-override-regressions-fast
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-07-26T14:35:33.508Z
-last_modified: 2026-07-27T03:00:41Z
+last_modified: 2026-07-27T06:22:22Z
+external_prs: [https://github.com/ArcadeAI/safeword/pull/1478]
 ---
 
 # Keep override regressions fast for maintainers
@@ -41,6 +42,9 @@ and make hook-launch failures explicit.
 
 ## Work Log
 
+- 2026-07-27T06:22:22Z Closed: PR #1478 admin-squash-merged as
+  `060813804fea791618143040f24daae8ae1c552a`; local verification and all four
+  GitHub CI checks passed.
 - 2026-07-27T03:00:41Z Final verification: merged current `origin/main`;
   full suite passed 5,503 tests across 371 files with 5 skipped; 494/494
   runnable Gherkin scenarios passed; build, lint, typecheck, audit, and
