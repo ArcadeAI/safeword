@@ -40,9 +40,11 @@ function linkRepoToolchain(projectDirectory: string): void {
   if (!existsSync(repoNodeModules)) {
     throw new Error(`Repository toolchain is missing: ${repoNodeModules}`);
   }
-  const repoEslint = nodePath.join(repoNodeModules, '.bin', 'eslint');
-  if (!existsSync(repoEslint)) {
-    throw new Error(`Repository ESLint executable is missing: ${repoEslint}`);
+  for (const executable of ['eslint', 'prettier']) {
+    const executablePath = nodePath.join(repoNodeModules, '.bin', executable);
+    if (!existsSync(executablePath)) {
+      throw new Error(`Repository ${executable} executable is missing: ${executablePath}`);
+    }
   }
 
   const fixtureNodeModules = nodePath.join(projectDirectory, 'node_modules');
