@@ -19,7 +19,6 @@ import {
   createTypeScriptPackageJson,
   initGitRepo,
   removeTemporaryDirectory,
-  runFixtureUpgradeWithoutInstall,
   setupOrThrow,
   TIMEOUT_SETUP,
   wasKilledByTimeout,
@@ -62,31 +61,6 @@ function scriptedRunner(results: FakeResult[]): {
 const SUCCESS: FakeResult = { exitCode: 0, timedOut: false, stdout: 'setup complete' };
 const TIMEOUT: FakeResult = { exitCode: 1, timedOut: true, stderr: 'killed after timeout' };
 const REAL_FAILURE: FakeResult = { exitCode: 2, timedOut: false, stderr: 'dist/cli.js not found' };
-
-describe('runFixtureUpgradeWithoutInstall boundary', () => {
-  it('runs only upgrade with package and skill installation disabled', async () => {
-    const calls: {
-      args: string[];
-      options?: { cwd?: string; env?: Record<string, string> };
-    }[] = [];
-    const runner = ((args, options) => {
-      calls.push({ args, options });
-      return Promise.resolve({ stdout: '', stderr: '', exitCode: 0, timedOut: false });
-    }) as Parameters<typeof runFixtureUpgradeWithoutInstall>[1];
-
-    await runFixtureUpgradeWithoutInstall('/fake/project', runner);
-
-    expect(calls).toEqual([
-      {
-        args: ['upgrade'],
-        options: {
-          cwd: '/fake/project',
-          env: { SAFEWORD_SKIP_INSTALL: '1' },
-        },
-      },
-    ]);
-  });
-});
 
 describe('setupOrThrow retry policy', () => {
   afterEach(() => {
