@@ -409,6 +409,35 @@ printf '%s\n' "\${value##*/}"
       expect(output).toContain('Port: 9000');
       expect(output).toContain('Pattern: custom');
     });
+
+    it('normalizes a leading-zero port as decimal', () => {
+      const output = runScript(['00080']);
+
+      expect(output).toContain('Port: 80');
+      expect(output).toContain('test port 1080');
+    });
+
+    it('does not derive a test port beyond the valid port range', () => {
+      const output = runScript(['65535']);
+
+      expect(output).toContain('Port: 65535');
+      expect(output).not.toContain('test port');
+      expect(output).not.toContain('66535');
+    });
+
+    for (const invalidPort of ['0', '65536']) {
+      it(`rejects invalid numeric port ${invalidPort}`, () => {
+        const result = spawnSync('/bin/bash', [SCRIPT_PATH, invalidPort], {
+          cwd: temporaryDirectory,
+          encoding: 'utf8',
+          env: { ...process.env, PATH: isolatedPath },
+        });
+
+        expect(result.status).toBe(2);
+        expect(result.stderr).toContain('port must be between 1 and 65535');
+        expect(result.stdout).not.toContain('Cleanup zombies for:');
+      });
+    }
   });
 
   describe('--dry-run behavior', () => {

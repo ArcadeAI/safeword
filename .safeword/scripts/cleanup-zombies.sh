@@ -127,6 +127,33 @@ if [ -z "$PATTERN" ]; then
   PATTERN=$(detect_pattern)
 fi
 
+normalize_port() {
+  local normalized=$1
+
+  while [[ "$normalized" == 0* ]] && [ "${#normalized}" -gt 1 ]; do
+    normalized=${normalized#0}
+  done
+
+  if [ "$normalized" = "0" ] \
+    || [ "${#normalized}" -gt 5 ] \
+    || [ "$normalized" -gt 65535 ]; then
+    echo "Error: port must be between 1 and 65535." >&2
+    return 1
+  fi
+
+  printf '%s\n' "$normalized"
+}
+
+TEST_PORT=""
+if [ -n "$PORT" ]; then
+  if ! PORT=$(normalize_port "$PORT"); then
+    exit 2
+  fi
+  if [ "$PORT" -le 64535 ]; then
+    TEST_PORT=$((PORT + 1000))
+  fi
+fi
+
 PROJECT_DIR="$(pwd -P)"
 PROJECT_NAME="$(basename "$PROJECT_DIR")"
 
@@ -140,7 +167,11 @@ done
 
 echo "Cleanup zombies for: $PROJECT_NAME"
 echo "   Directory: $PROJECT_DIR"
-[ -n "$PORT" ] && echo "   Port: $PORT (+ test port $((PORT + 1000)))"
+if [ -n "$TEST_PORT" ]; then
+  echo "   Port: $PORT (+ test port $TEST_PORT)"
+elif [ -n "$PORT" ]; then
+  echo "   Port: $PORT"
+fi
 [ -n "$PATTERN" ] && echo "   Pattern: $PATTERN"
 $DRY_RUN && echo -e "   ${YELLOW}DRY RUN (default) - no processes will be killed; pass --yes to kill${NC}"
 echo ""
@@ -358,9 +389,10 @@ report_skipped_processes() {
 if [ -n "$PORT" ]; then
   cleanup_port "$PORT"
 
-  # Also kill test port (dev port + 1000, common convention)
-  TEST_PORT=$((PORT + 1000))
-  cleanup_port "$TEST_PORT"
+  # Also kill test port (dev port + 1000) when it remains in range.
+  if [ -n "$TEST_PORT" ]; then
+    cleanup_port "$TEST_PORT"
+  fi
 fi
 
 # 2. Kill Playwright/test processes scoped to this project
