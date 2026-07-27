@@ -27,7 +27,7 @@ import {
   readTestFile,
   removeTemporaryDirectory,
   repoRoot,
-  runFixtureUpgrade,
+  runFixtureUpgradeWithoutInstall,
   runLintHook,
   setupOrThrow,
   TIMEOUT_BUN_INSTALL,
@@ -65,7 +65,7 @@ async function runUpgradeAndAssertFileUnchanged(
   relativePath: string,
 ): Promise<void> {
   const before = readTestFile(projectDirectory, relativePath);
-  await runFixtureUpgrade(projectDirectory);
+  await runFixtureUpgradeWithoutInstall(projectDirectory);
   const after = readTestFile(projectDirectory, relativePath);
   expect(after).toBe(before);
 }

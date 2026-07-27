@@ -637,7 +637,7 @@ function buildSetupFailureError(
  * the link into the developer checkout. Keep that invariant in this helper
  * instead of repeating environment options at call sites.
  */
-export async function runFixtureUpgrade(
+export async function runFixtureUpgradeWithoutInstall(
   cwd: string,
   runner: typeof runCli = runCli,
 ): Promise<CliResult> {
