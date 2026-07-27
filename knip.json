@@ -11,6 +11,7 @@
     "shfmt",
     "dot",
     "shellcheck",
+    "pgrep",
     "rustup",
     "ruff",
     "golangci-lint",
