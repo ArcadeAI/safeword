@@ -1021,6 +1021,8 @@ export function runLintHook(
  *
  * The hook intentionally exits successfully after reporting some tool crashes,
  * so process status alone cannot prove that the target file was linted.
+ * Keep the tool names below aligned with the `${command[0]} failed:` warning
+ * emitted by the hook when this suite adds another language.
  */
 export function assertLintHookSucceeded(result: SpawnSyncReturns<string>): string {
   if (result.error) {

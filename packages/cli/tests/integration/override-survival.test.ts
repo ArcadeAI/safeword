@@ -5,7 +5,7 @@
  * customer-owned config file is (a) honored by the LLM hook lint run and
  * (b) not mutated by `safeword upgrade`.
  *
- * Dependency installation is covered by `conditional-setup.slow.test.ts`.
+ * Upgrade-time dependency installation is covered by `add-language.test.ts`.
  * These fixtures reuse the repository toolchain so this suite stays focused on
  * upgrade reconciliation and generated-hook behavior.
  *
