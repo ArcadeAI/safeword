@@ -451,6 +451,22 @@ describe('E2E: UserPromptSubmit Hooks', () => {
       expect(output.trim().split('\n').at(-1)).toBe('- Avoid bloat.');
     });
 
+    it('proactively reminds Claude how to format substantive work updates', () => {
+      const output = execSync(
+        'echo "Summarize the completed work" | bun .safeword/hooks/prompt-questions.ts',
+        {
+          cwd: shared.projectDirectory,
+          env: { ...process.env, CLAUDE_PROJECT_DIR: shared.projectDirectory },
+          encoding: 'utf8',
+        },
+      );
+
+      expect(output).toContain('Reply format: lead with the outcome.');
+      expect(output).toContain('substantive work update');
+      expect(output).toContain('**CONFIDENT**/**BLOCKED**');
+      expect(output).toContain('**Next:**');
+    });
+
     it('exits silently for non-safeword project', () => {
       const nonSafewordDirectory = createTemporaryDirectory();
       try {

@@ -42,7 +42,13 @@ try {
 }
 
 // One behavioral anchor (SAFEWORD.md has the full methodology; this survives as a compressed reminder)
-const lines = ['Contribute before asking. Embed open questions in your contribution.'];
+const REPLY_FORMAT_REMINDER =
+  'Reply format: lead with the outcome. A substantive work update uses one **CONFIDENT**/**BLOCKED** decision brief and ends with **Next:**.';
+
+const lines = [
+  'Contribute before asking. Embed open questions in your contribution.',
+  REPLY_FORMAT_REMINDER,
+];
 
 // Effective Clarify phase: the active in-progress ticket's phase, else undefined
 // (no ticket, pre-classify, or a ticket that isn't in_progress — all treated as
