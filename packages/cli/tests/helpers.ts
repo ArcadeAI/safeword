@@ -630,6 +630,28 @@ function buildSetupFailureError(
 }
 
 /**
+ * Run a fixture upgrade with package and skill installation disabled.
+ *
+ * Fixtures that link repository tooling into `node_modules` must never invoke
+ * an install-capable upgrade: a package manager could otherwise write through
+ * the link into the developer checkout. Keep that invariant in this helper
+ * instead of repeating environment options at call sites.
+ */
+export async function runFixtureUpgradeWithoutInstall(
+  cwd: string,
+  runner: typeof runCli = runCli,
+): Promise<CliResult> {
+  const result = await runner(['upgrade'], { cwd, env: SKIP_INSTALL_ENV });
+  if (result.exitCode !== 0) {
+    throw new Error(
+      `Fixture upgrade failed (exit ${result.exitCode}) in ${cwd}.\n` +
+        `stderr: ${result.stderr || '(empty)'}`,
+    );
+  }
+  return result;
+}
+
+/**
  * Run `safeword setup` (or variant) in a fixture and throw a loud, actionable
  * error if it fails. Use this in `beforeAll`/`beforeEach` blocks where a silent
  * setup failure would cascade into misleading test failures across the file.
@@ -992,6 +1014,29 @@ export function runLintHook(
     timeout: 30_000,
     killSignal: 'SIGKILL',
   });
+}
+
+/**
+ * Return hook output only when the hook and its language tool both ran.
+ *
+ * The hook intentionally exits successfully after reporting some tool crashes,
+ * so process status alone cannot prove that the target file was linted.
+ * Keep the tool names below aligned with the `${command[0]} failed:` warning
+ * emitted by the hook when this suite adds another language.
+ */
+export function assertLintHookSucceeded(result: SpawnSyncReturns<string>): string {
+  if (result.error) {
+    throw new Error(`Lint hook failed to start: ${result.error.message}`);
+  }
+  if (result.status !== 0) {
+    throw new Error(`Lint hook exited with status ${String(result.status)}`);
+  }
+
+  const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
+  if (/\b(?:bunx|ruff) failed:/iu.test(output)) {
+    throw new Error(`Lint hook reported an infrastructure failure:\n${output}`);
+  }
+  return output;
 }
 
 // ============================================================================
