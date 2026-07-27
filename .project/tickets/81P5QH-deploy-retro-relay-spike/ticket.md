@@ -47,3 +47,4 @@ last_modified: 2026-07-27T00:28:08.780Z
 - 2026-07-27 Split checkpoint: kept one coupled feature because runtime, container, volume, live smoke, teardown preview, and report have no independent user value.
 - 2026-07-27 Independent plan review passed after requiring changed Railway replica identity, atomic resource-ID capture, stdin-only secret injection, built-image wiring, explicit 0.0.0.0 binding, and stage-specific zero-create proof.
 - 2026-07-27 Phase: plan-implementation → implement with six RED/GREEN/REFACTOR slices; the live Railway replacement proof remains the decisive slice.
+- 2026-07-27 RED: `bun run --cwd packages/retro-relay test tests/runtime.test.ts` failed because `runtime-config` does not exist. The RED test could not be committed because the lint gate rejects unresolved imports; recorded the workflow's uncommittable-partial-state escape hatch before GREEN.
