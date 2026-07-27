@@ -57,8 +57,8 @@ commands only after inspecting their matches.
 # Inspect both dev server AND test server ports
 lsof -i:3000 -i:4000
 
-# Inspect Playwright command lines before signaling anything
-pgrep -af "playwright"
+# Inspect matching Playwright processes before signaling anything
+pgrep -l -f "playwright"
 ```
 
 Raw `lsof | xargs kill` and `pkill -f` commands are machine-wide. A command line
@@ -83,6 +83,9 @@ Safeword includes a cleanup script at `.safeword/scripts/cleanup-zombies.sh`:
 # Port + additional pattern
 ./.safeword/scripts/cleanup-zombies.sh --yes 5173 "electron"
 ```
+
+The script requires `lsof` to verify process working directories. If `lsof` is
+unavailable, it exits without signaling anything and explains how to recover.
 
 **Features:**
 
@@ -203,7 +206,7 @@ ps aux | grep "/Users/alex/projects/my-project"
 | Preview zombies (recommended first step) | `./.safeword/scripts/cleanup-zombies.sh`           |
 | Kill what the preview showed             | `./.safeword/scripts/cleanup-zombies.sh --yes`     |
 | Inspect dev + test servers               | `lsof -i:$DEV_PORT -i:$TEST_PORT`                  |
-| Inspect Playwright commands              | `pgrep -af "playwright"`                           |
+| Inspect Playwright processes             | `pgrep -l -f "playwright"`                         |
 | Check what's on port                     | `lsof -i:3000`                                     |
 | Find zombie processes                    | `ps aux \| grep -E "(node\|playwright\|chromium)"` |
 | Preview what `pkill -f` would kill       | `pgrep -f "pattern"` (verify before running pkill) |

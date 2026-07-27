@@ -130,6 +130,12 @@ fi
 PROJECT_DIR="$(pwd -P)"
 PROJECT_NAME="$(basename "$PROJECT_DIR")"
 
+if ! command -v lsof > /dev/null 2>&1; then
+  echo "Error: lsof is required to verify project ownership; no processes were inspected or signaled." >&2
+  echo "Install lsof and retry." >&2
+  exit 1
+fi
+
 echo "Cleanup zombies for: $PROJECT_NAME"
 echo "   Directory: $PROJECT_DIR"
 [ -n "$PORT" ] && echo "   Port: $PORT (+ test port $((PORT + 1000)))"
@@ -142,6 +148,34 @@ FOUND_COUNT=0
 KILLED_COUNT=0
 FAILED_KILL_COUNT=0
 SKIPPED_PORT_COUNT=0
+
+# A user-supplied pattern can appear in the argv of the cleanup process and any
+# shell or task runner that invoked it. Exclude the whole ancestor chain.
+CLEANUP_ANCESTOR_PIDS=("$$" "$PPID")
+collect_cleanup_ancestors() {
+  local current_pid=$PPID
+  local parent_pid
+
+  while [[ "$current_pid" =~ ^[0-9]+$ ]] && [ "$current_pid" -gt 1 ]; do
+    parent_pid=$(ps -p "$current_pid" -o ppid= 2> /dev/null | tr -d '[:space:]')
+    if ! [[ "$parent_pid" =~ ^[0-9]+$ ]] || [ "$parent_pid" -le 1 ] || [ "$parent_pid" = "$current_pid" ]; then
+      break
+    fi
+    CLEANUP_ANCESTOR_PIDS+=("$parent_pid")
+    current_pid=$parent_pid
+  done
+}
+
+process_is_cleanup_ancestor() {
+  local candidate=$1
+  local ancestor_pid
+  for ancestor_pid in "${CLEANUP_ANCESTOR_PIDS[@]}"; do
+    [ "$candidate" = "$ancestor_pid" ] && return 0
+  done
+  return 1
+}
+
+collect_cleanup_ancestors
 
 # Return success only when a path is the project root or one of its descendants.
 path_belongs_to_project() {
@@ -174,6 +208,31 @@ process_belongs_to_project() {
     return 0
   fi
   return 1
+}
+
+# Print the project-owned subset of a PID list, one PID per line. Batch the cwd
+# lookup so broad patterns such as "chrome" do not fork lsof once per match.
+project_owned_pids() {
+  [ "$#" -gt 0 ] || return
+
+  local current_pid=""
+  local field
+  local pid_list
+  local IFS=,
+  pid_list="$*"
+
+  while IFS= read -r -d '' field; do
+    # lsof terminates each process field set with a newline even in NUL mode.
+    field=${field#$'\n'}
+    case "$field" in
+      p*) current_pid=${field#p} ;;
+      n*)
+        if [ -n "$current_pid" ] && path_belongs_to_project "${field#n}"; then
+          printf '%s\n' "$current_pid"
+        fi
+        ;;
+    esac
+  done < <(lsof -a -p "$pid_list" -d cwd -Fpn0 2> /dev/null || true)
 }
 
 # Use xargs so kill is PATH-resolved instead of invoking Bash's kill builtin.
@@ -239,18 +298,22 @@ cleanup_port() {
 cleanup_pattern() {
   local pattern=$1
   local pids
+  local candidate_pids=()
   local project_pids=()
   pids=$(pgrep -f "$pattern" 2> /dev/null || true)
 
   for pid in $pids; do
-    # Explicit patterns can appear in the cleanup command's own argv.
-    if [ "$pid" = "$$" ] || [ "$pid" = "$PPID" ]; then
+    if process_is_cleanup_ancestor "$pid"; then
       continue
     fi
-    if process_belongs_to_project "$pid"; then
-      project_pids+=("$pid")
-    fi
+    candidate_pids+=("$pid")
   done
+
+  if [ "${#candidate_pids[@]}" -gt 0 ]; then
+    while IFS= read -r pid; do
+      [ -n "$pid" ] && project_pids+=("$pid")
+    done < <(project_owned_pids "${candidate_pids[@]}")
+  fi
 
   if [ "${#project_pids[@]}" -eq 0 ]; then
     return

@@ -5,7 +5,7 @@
  * in temp directories with mock config files.
  */
 
-import { type ChildProcess, execSync, spawn } from 'node:child_process';
+import { type ChildProcess, execSync, spawn, spawnSync } from 'node:child_process';
 import {
   chmodSync,
   existsSync,
@@ -70,6 +70,51 @@ describe('cleanup-zombies.sh', () => {
     writeFileSync(fullPath, content);
   }
 
+  function mockLiveProcessOwnership(pid: number): NodeJS.ProcessEnv {
+    const binaryDirectory = nodePath.join(temporaryDirectory, 'live-bin');
+    const lsofPath = nodePath.join(binaryDirectory, 'lsof');
+    mkdirSync(binaryDirectory);
+    writeFileSync(
+      lsofPath,
+      String.raw`#!/usr/bin/env bash
+if [[ "$*" == "-a -p $MOCK_LIVE_PID -d cwd -Fn0" ]] ||
+  [[ "$*" == "-a -p $MOCK_LIVE_PID -d cwd -Fpn0" ]]; then
+  printf 'p%s\0\nfcwd\0n%s\0\n' "$MOCK_LIVE_PID" "$MOCK_LIVE_CWD"
+fi
+`,
+    );
+    chmodSync(lsofPath, 0o755);
+    return {
+      MOCK_LIVE_CWD: realpathSync(temporaryDirectory),
+      MOCK_LIVE_PID: String(pid),
+      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+    };
+  }
+
+  function mockAllLiveProcessOwnership(): NodeJS.ProcessEnv {
+    const binaryDirectory = nodePath.join(temporaryDirectory, 'all-live-bin');
+    const lsofPath = nodePath.join(binaryDirectory, 'lsof');
+    mkdirSync(binaryDirectory);
+    writeFileSync(
+      lsofPath,
+      String.raw`#!/usr/bin/env bash
+if [[ "$1" == "-a" ]] && [[ "$2" == "-p" ]] && [[ "$4" == "-d" ]] &&
+  [[ "$5" == "cwd" ]] && [[ "$6" == "-Fpn0" ]]; then
+  for pid in \${3//,/ }; do
+    if kill -0 "$pid" 2> /dev/null; then
+      printf 'p%s\0\nfcwd\0n%s\0\n' "$pid" "$MOCK_LIVE_CWD"
+    fi
+  done
+fi
+`,
+    );
+    chmodSync(lsofPath, 0o755);
+    return {
+      MOCK_LIVE_CWD: realpathSync(temporaryDirectory),
+      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+    };
+  }
+
   function mockPortOwner(
     processDirectory?: string,
     processCommand?: string,
@@ -84,13 +129,18 @@ describe('cleanup-zombies.sh', () => {
     writeFileSync(
       lsofPath,
       String.raw`#!/usr/bin/env bash
+if [[ -n "$MOCK_LSOF_LOG" ]]; then
+  printf '%s\n' "$*" >> "$MOCK_LSOF_LOG"
+fi
 if [[ "$*" == "-ti:${MOCK_PORT}" ]]; then
   if [[ -n "$MOCK_PORT_PIDS" ]]; then
     printf '%s\n' "$MOCK_PORT_PIDS"
   else
     echo ${MOCK_PID}
   fi
-elif [[ "$*" == "-a -p ${MOCK_PID} -d cwd -Fn0" ]] && [[ -n "$MOCK_PROCESS_CWD" ]]; then
+elif { [[ "$*" == "-a -p ${MOCK_PID} -d cwd -Fn0" ]] ||
+  [[ "$*" == "-a -p ${MOCK_PID} -d cwd -Fpn0" ]]; } &&
+  [[ -n "$MOCK_PROCESS_CWD" ]]; then
   process_cwd="$MOCK_PROCESS_CWD"
   if [[ -n "$MOCK_PROCESS_CWD_AFTER_FIRST" ]]; then
     read_count=0
@@ -103,6 +153,11 @@ elif [[ "$*" == "-a -p ${MOCK_PID} -d cwd -Fn0" ]] && [[ -n "$MOCK_PROCESS_CWD" 
   printf 'p${MOCK_PID}\0\nfcwd\0n%s\0\n' "$process_cwd"
 elif [[ "$*" == "-a -p ${MOCK_SECOND_PID} -d cwd -Fn0" ]] && [[ -n "$MOCK_SECOND_PROCESS_CWD" ]]; then
   printf 'p${MOCK_SECOND_PID}\0\nfcwd\0n%s\0\n' "$MOCK_SECOND_PROCESS_CWD"
+elif [[ "$*" == "-a -p ${MOCK_PID},${MOCK_SECOND_PID} -d cwd -Fpn0" ]]; then
+  [[ -n "$MOCK_PROCESS_CWD" ]] &&
+    printf 'p${MOCK_PID}\0\nfcwd\0n%s\0\n' "$MOCK_PROCESS_CWD"
+  [[ -n "$MOCK_SECOND_PROCESS_CWD" ]] &&
+    printf 'p${MOCK_SECOND_PID}\0\nfcwd\0n%s\0\n' "$MOCK_SECOND_PROCESS_CWD"
 fi
 `,
     );
@@ -239,6 +294,32 @@ fi
     });
   });
 
+  describe('required ownership tooling', () => {
+    it('refuses loudly instead of reporting success when lsof is unavailable', () => {
+      const missingLsofBin = nodePath.join(temporaryDirectory, 'missing-lsof-bin');
+      const basenamePath = nodePath.join(missingLsofBin, 'basename');
+      mkdirSync(missingLsofBin);
+      writeFileSync(
+        basenamePath,
+        String.raw`#!/bin/sh
+value=\${1%/}
+printf '%s\n' "\${value##*/}"
+`,
+      );
+      chmodSync(basenamePath, 0o755);
+
+      const result = spawnSync('/bin/bash', [SCRIPT_PATH], {
+        cwd: temporaryDirectory,
+        encoding: 'utf8',
+        env: { ...process.env, PATH: missingLsofBin },
+      });
+
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain('lsof is required to verify project ownership');
+      expect(result.stdout).not.toContain('already clean');
+    });
+  });
+
   describe('explicit port override', () => {
     it('uses provided port instead of auto-detection', () => {
       createFile('vite.config.ts'); // Would normally detect 5173
@@ -369,7 +450,7 @@ fi
       const pid = spawnVictim();
       await expect.poll(() => isAlive(pid)).toBe(true);
 
-      const liveProcessEnvironment = { PATH: process.env.PATH ?? '' };
+      const liveProcessEnvironment = mockLiveProcessOwnership(pid);
       const preview = runScriptRaw(['swzombie'], liveProcessEnvironment);
       expect(preview).toContain('swzombie');
       expect(preview).toContain('Re-run with --yes to kill them');
@@ -434,6 +515,45 @@ fi
       runScriptRaw([], environment);
 
       expect(readFileSync(pgrepLog, 'utf8').split('\n')).toContain('-f playwright');
+    });
+
+    it('Scenario: pattern ownership is read in one lsof call per candidate set', () => {
+      const lsofLog = nodePath.join(temporaryDirectory, 'lsof.log');
+      const projectDirectory = realpathSync(temporaryDirectory);
+      const environment = {
+        ...mockPortOwner(projectDirectory),
+        MOCK_LSOF_LOG: lsofLog,
+        MOCK_PATTERN: 'playwright',
+        MOCK_PATTERN_PIDS: `${MOCK_PID}\n${MOCK_SECOND_PID}`,
+        MOCK_SECOND_PROCESS_CWD: projectDirectory,
+      };
+
+      const output = runScriptRaw([], environment);
+
+      expect(output).toContain("Pattern 'playwright' (project-scoped): 2 process(es)");
+      expect(readFileSync(lsofLog, 'utf8').trim()).toBe(
+        `-a -p ${MOCK_PID},${MOCK_SECOND_PID} -d cwd -Fpn0`,
+      );
+    });
+
+    it('Scenario: a matching grandparent process is excluded from cleanup candidates', () => {
+      const marker = `swzombie-ancestor-${process.pid}`;
+      const outerWrapper = nodePath.join(temporaryDirectory, `${marker}.sh`);
+      const innerWrapper = nodePath.join(temporaryDirectory, 'inner-wrapper.sh');
+      writeFileSync(outerWrapper, `#!/usr/bin/env bash\nbash "${innerWrapper}"\n`);
+      writeFileSync(innerWrapper, `#!/usr/bin/env bash\nbash "${SCRIPT_PATH}" "${marker}"\n`);
+      chmodSync(outerWrapper, 0o755);
+      chmodSync(innerWrapper, 0o755);
+
+      const result = spawnSync('bash', [outerWrapper], {
+        cwd: temporaryDirectory,
+        encoding: 'utf8',
+        env: { ...process.env, ...mockAllLiveProcessOwnership() },
+      });
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).not.toContain(`Pattern '${marker}' (project-scoped):`);
+      expect(result.stdout).toContain('already clean');
     });
   });
 
