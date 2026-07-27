@@ -10,6 +10,7 @@
 
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
+import { WORKSPACE_ROOTS } from '../../src/utils/workspace-roots.js';
 import type {
   ArtifactReader,
   PhaseAnchorScope,
@@ -31,7 +32,7 @@ const FEATURE_PATH = 'features/fixture.feature';
 const ANCHOR_SCOPE = {
   ticketPath: TICKET_DIR,
   featureRoots: ['features'],
-  workspaceRoots: ['packages', 'apps', 'libs', 'modules'],
+  workspaceRoots: [...WORKSPACE_ROOTS],
 };
 
 it('requires ownership scope at the detector API boundary', () => {
