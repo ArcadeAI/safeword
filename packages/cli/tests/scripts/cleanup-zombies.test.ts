@@ -599,10 +599,10 @@ printf '%s\n' "\${value##*/}"
       createFile('vite.config.ts');
 
       const output = runScript();
+      const expectedTestPort = MOCK_PORT + 1000;
 
-      // Output format: "Port: 5173 (+ test port 6173)"
-      expect(output).toContain('Port: 5173');
-      expect(output).toContain('test port 6173');
+      expect(output).toContain(`Port: ${MOCK_PORT}`);
+      expect(output).toContain(`test port ${expectedTestPort}`);
     });
   });
 
