@@ -403,9 +403,10 @@ cleanup_pattern "chromium"
 cleanup_pattern "electron"
 
 # 3. Kill framework-specific processes scoped to this project
-if [ -n "$PATTERN" ]; then
-  cleanup_pattern "$PATTERN"
-fi
+case "$PATTERN" in
+  "" | playwright | chromium | electron) ;;
+  *) cleanup_pattern "$PATTERN" ;;
+esac
 
 # 4. Wait for cleanup
 if [ "$DRY_RUN" = false ] && [ "$KILLED_COUNT" -gt 0 ]; then

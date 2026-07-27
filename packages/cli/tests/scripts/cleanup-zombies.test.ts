@@ -652,6 +652,19 @@ printf '%s\n' "\${value##*/}"
       expect(output).toContain(`PID ${MOCK_PID}: unknown`);
     });
 
+    it('Scenario: a custom pattern matching a built-in is inspected once', () => {
+      const environment = {
+        ...mockCleanupEnvironment({ processDirectory: projectDirectory }),
+        MOCK_PATTERN: 'playwright',
+        MOCK_PATTERN_PIDS: String(MOCK_PID),
+      };
+
+      const output = runScriptRaw(['playwright'], environment);
+
+      expect(output.match(/Pattern 'playwright' \(project-scoped\)/g)).toHaveLength(1);
+      expect(output).toContain('Found 1 process(es) that would be killed');
+    });
+
     it('Scenario: project paths are not interpolated into pgrep regular expressions', () => {
       const pgrepLog = nodePath.join(temporaryDirectory, 'pgrep.log');
       const environment = {
