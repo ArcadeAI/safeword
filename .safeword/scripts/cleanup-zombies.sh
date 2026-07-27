@@ -270,7 +270,8 @@ print_process_details() {
   local pid
   local cmd
   for pid in "$@"; do
-    cmd=$(ps -p "$pid" -o command= 2> /dev/null | head -c 80 || echo "unknown")
+    cmd=$(ps -p "$pid" -o command= 2> /dev/null | head -c 80)
+    [ -n "$cmd" ] || cmd="unknown"
     echo "  PID $pid: $cmd"
   done
 }

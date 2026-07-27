@@ -640,6 +640,18 @@ printf '%s\n' "\${value##*/}"
       expect(output).toContain(`PID ${MOCK_PID}`);
     });
 
+    it('Scenario: an unavailable process command is reported as unknown', () => {
+      const environment = {
+        ...mockCleanupEnvironment({ processDirectory: projectDirectory }),
+        MOCK_PATTERN: 'playwright',
+        MOCK_PATTERN_PIDS: String(MOCK_PID),
+      };
+
+      const output = runScriptRaw([], environment);
+
+      expect(output).toContain(`PID ${MOCK_PID}: unknown`);
+    });
+
     it('Scenario: project paths are not interpolated into pgrep regular expressions', () => {
       const pgrepLog = nodePath.join(temporaryDirectory, 'pgrep.log');
       const environment = {
