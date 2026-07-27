@@ -22,9 +22,10 @@ hook output was shown absent; the installed hook now emits the concise reminder;
 the formatting contract is shared without duplicating the Stop template; and an
 active implement/TDD state keeps only the answer-first cue.
 
-**PR Scope:** ✅ Diff is limited to the prompt hook and shared-quality template
-sources with their synced dogfood mirrors, schema and integration contracts,
-and this ticket's records.
+**PR Scope:** ✅ Diff is limited to the reply-format change: the prompt hook and
+shared-quality template sources with their synced dogfood mirrors, schema and
+integration contracts, the K8D3M4 ticket, the related long-session learning,
+and the narrow 5ARWDG coordination record.
 
 **Dep Drift:** ✅ No dependencies changed. `bun run deps:validate` reported one
 pre-existing `no-orphans` warning on `packages/cli/src/codex-plugin/hooks.ts`,
