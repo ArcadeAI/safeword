@@ -19,6 +19,7 @@ import nodePath from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  assertLintHookSucceeded,
   createPythonProject,
   createTemporaryDirectory,
   createTypeScriptPackageJson,
@@ -70,14 +71,12 @@ async function runUpgradeAndAssertFileUnchanged(
   expect(after).toBe(before);
 }
 
-function runHookAndGetOutput(projectDirectory: string, violationRelativePath: string): string {
+function runHookSuccessfullyAndGetOutput(
+  projectDirectory: string,
+  violationRelativePath: string,
+): string {
   const violationPath = nodePath.join(projectDirectory, violationRelativePath);
-  const hookResult = runLintHook(projectDirectory, violationPath);
-  const hookOutput = `${hookResult.stdout ?? ''}${hookResult.stderr ?? ''}`;
-  expect(hookResult.error).toBeUndefined();
-  expect(hookResult.status).toBe(0);
-  expect(hookOutput).not.toContain('bunx failed');
-  return hookOutput;
+  return assertLintHookSucceeded(runLintHook(projectDirectory, violationPath));
 }
 
 describe('Customer override survival (#137)', () => {
@@ -131,7 +130,10 @@ export function loadUserFile(userPath: string): string {
 
         await runUpgradeAndAssertFileUnchanged(projectDirectory, 'eslint.config.mjs');
 
-        const hookOutput = runHookAndGetOutput(projectDirectory, 'src/violation-1-1.ts');
+        const hookOutput = runHookSuccessfullyAndGetOutput(
+          projectDirectory,
+          'src/violation-1-1.ts',
+        );
         expect(hookOutput).not.toContain('security/detect-non-literal-fs-filename');
       },
       TIMEOUT_BUN_INSTALL,
@@ -176,7 +178,10 @@ export function loadUserFile(userPath: string): string {
 
         await runUpgradeAndAssertFileUnchanged(projectDirectory, 'eslint.config.mjs');
 
-        const hookOutput = runHookAndGetOutput(projectDirectory, 'src/violation-1-2.ts');
+        const hookOutput = runHookSuccessfullyAndGetOutput(
+          projectDirectory,
+          'src/violation-1-2.ts',
+        );
         expect(hookOutput).not.toContain('has a complexity of');
       },
       TIMEOUT_BUN_INSTALL,
@@ -208,7 +213,10 @@ export function loadUserFile(userPath: string): string {
 
         await runUpgradeAndAssertFileUnchanged(projectDirectory, 'eslint.config.mjs');
 
-        const hookOutput = runHookAndGetOutput(projectDirectory, 'src/violation-1-3.ts');
+        const hookOutput = runHookSuccessfullyAndGetOutput(
+          projectDirectory,
+          'src/violation-1-3.ts',
+        );
         expect(hookOutput).toContain('no-console');
       },
       TIMEOUT_BUN_INSTALL,
@@ -268,7 +276,10 @@ export const used = 2;
 
         await runUpgradeAndAssertFileUnchanged(projectDirectory, 'eslint.config.mjs');
 
-        const hookOutput = runHookAndGetOutput(projectDirectory, 'src/violation-1-4.ts');
+        const hookOutput = runHookSuccessfullyAndGetOutput(
+          projectDirectory,
+          'src/violation-1-4.ts',
+        );
         expect(hookOutput).not.toContain('no-unused-vars');
       },
       TIMEOUT_BUN_INSTALL,
@@ -316,7 +327,10 @@ ignore = ["E501"]
 
         await runUpgradeAndAssertFileUnchanged(projectDirectory, 'ruff.toml');
 
-        const hookOutput = runHookAndGetOutput(projectDirectory, 'src/violation_2_1.py');
+        const hookOutput = runHookSuccessfullyAndGetOutput(
+          projectDirectory,
+          'src/violation_2_1.py',
+        );
         expect(hookOutput).not.toContain('E501');
       },
       TIMEOUT_BUN_INSTALL,
@@ -341,7 +355,10 @@ ignore = ["E501"]
 
         await runUpgradeAndAssertFileUnchanged(projectDirectory, 'ruff.toml');
 
-        const hookOutput = runHookAndGetOutput(projectDirectory, 'tests/violation_2_2.py');
+        const hookOutput = runHookSuccessfullyAndGetOutput(
+          projectDirectory,
+          'tests/violation_2_2.py',
+        );
         expect(hookOutput).not.toContain('S101');
       },
       TIMEOUT_BUN_INSTALL,
@@ -364,7 +381,10 @@ extend-select = ["D"]
 
         await runUpgradeAndAssertFileUnchanged(projectDirectory, 'ruff.toml');
 
-        const hookOutput = runHookAndGetOutput(projectDirectory, 'src/violation_2_3.py');
+        const hookOutput = runHookSuccessfullyAndGetOutput(
+          projectDirectory,
+          'src/violation_2_3.py',
+        );
         expect(hookOutput).toContain('D103');
       },
       TIMEOUT_BUN_INSTALL,
@@ -443,7 +463,7 @@ extend-select = ["D"]
 
           await runUpgradeAndAssertFileUnchanged(projectDirectory, 'ruff.toml');
 
-          const hookOutput = runHookAndGetOutput(projectDirectory, violationPath);
+          const hookOutput = runHookSuccessfullyAndGetOutput(projectDirectory, violationPath);
           if (expectAbsent !== undefined) expect(hookOutput).not.toContain(expectAbsent);
           if (expectPresent !== undefined) expect(hookOutput).toContain(expectPresent);
         },

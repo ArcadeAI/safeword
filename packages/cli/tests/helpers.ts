@@ -1016,6 +1016,27 @@ export function runLintHook(
   });
 }
 
+/**
+ * Return hook output only when the hook and its language tool both ran.
+ *
+ * The hook intentionally exits successfully after reporting some tool crashes,
+ * so process status alone cannot prove that the target file was linted.
+ */
+export function assertLintHookSucceeded(result: SpawnSyncReturns<string>): string {
+  if (result.error) {
+    throw new Error(`Lint hook failed to start: ${result.error.message}`);
+  }
+  if (result.status !== 0) {
+    throw new Error(`Lint hook exited with status ${String(result.status)}`);
+  }
+
+  const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
+  if (/\b(?:bunx|ruff) failed:/iu.test(output)) {
+    throw new Error(`Lint hook reported an infrastructure failure:\n${output}`);
+  }
+  return output;
+}
+
 // ============================================================================
 // Rust Test Helpers
 // ============================================================================
