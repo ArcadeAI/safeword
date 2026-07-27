@@ -377,7 +377,7 @@ describe('detectUnanchoredPhaseTransition — no real artifact behind the advanc
       readerFor({ [foreignPlan]: SHAPE_VALID_IMPL_PLAN }),
     );
     expect(verdict.kind).toBe('unanchored');
-    if (verdict.kind === 'unanchored') expect(verdict.reason).toMatch(/ticket/i);
+    if (verdict.kind === 'unanchored') expect(verdict.reason).toMatch(/outside this ticket/i);
   });
 
   it("a ticket cannot reuse another ticket's feature source", () => {
@@ -392,7 +392,7 @@ describe('detectUnanchoredPhaseTransition — no real artifact behind the advanc
       readerFor({ [foreignFeature]: SHAPE_VALID_FEATURE }),
     );
     expect(verdict.kind).toBe('unanchored');
-    if (verdict.kind === 'unanchored') expect(verdict.reason).toMatch(/ticket/i);
+    if (verdict.kind === 'unanchored') expect(verdict.reason).toMatch(/outside this ticket/i);
   });
 
   it('a path absent from the tree is unanchored, saying it is missing', () => {
