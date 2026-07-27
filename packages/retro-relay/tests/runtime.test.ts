@@ -54,4 +54,37 @@ describe('production runtime configuration', () => {
     expect(() => parseRuntimeConfig(environment)).toThrow(`missing ${variable}`);
     expect(existsSync(dataDirectory)).toBe(false);
   });
+
+  it.each([
+    ['HOST', '127.0.0.1'],
+    ['HOST', ' '.repeat(3)],
+    ['PORT', '0'],
+    ['PORT', '65536'],
+    ['PORT', 'not-a-port'],
+    ['RELAY_DATA_DIR', 'relative/data'],
+    ['RELAY_DATA_DIR', path.parse(process.cwd()).root],
+    ['RELAY_PAYLOAD_KEY', 'invalid-base64'],
+    ['RELAY_PAYLOAD_KEY', randomBytes(16).toString('base64')],
+    ['RELAY_CREDENTIAL_SECRET', 'not-64-hex'],
+    ['RELAY_HARNESS', 'unknown'],
+    ['GITHUB_APP_ID', '0'],
+    ['GITHUB_APP_ID', '1.5'],
+    ['GITHUB_APP_ID', 'not-an-id'],
+    ['GITHUB_APP_PRIVATE_KEY_BASE64', 'invalid-base64'],
+    ['GITHUB_APP_PRIVATE_KEY_BASE64', Buffer.from('not a key').toString('base64')],
+    ['GITHUB_INSTALLATION_ID', '0'],
+    ['GITHUB_INSTALLATION_ID', '1.5'],
+    ['GITHUB_INSTALLATION_ID', '-1'],
+    ['GITHUB_REPOSITORY', 'missing-owner'],
+    ['GITHUB_REPOSITORY', ' '.repeat(3)],
+    ['RELAY_SUBJECT', ''],
+    ['RELAY_TENANT_ID', ' '.repeat(3)],
+  ])('rejects malformed %s=%s before touching the durable directory', (variable, value) => {
+    const dataDirectory = path.join(process.cwd(), '.tmp-never-created', 'malformed');
+    const environment = validEnvironment(dataDirectory);
+    Reflect.set(environment, variable, value);
+
+    expect(() => parseRuntimeConfig(environment)).toThrow();
+    expect(existsSync(dataDirectory)).toBe(false);
+  });
 });

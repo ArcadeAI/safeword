@@ -45,6 +45,7 @@ Feature: Deploy the retro relay spike
         | GITHUB_APP_ID                 | 0                   |
         | GITHUB_APP_ID                 | 1.5                 |
         | RELAY_DATA_DIR                | relative/data       |
+        | RELAY_DATA_DIR                | filesystem-root     |
         | RELAY_PAYLOAD_KEY             | invalid-base64      |
         | RELAY_PAYLOAD_KEY             | base64-16-byte-key  |
         | RELAY_CREDENTIAL_SECRET       | not-64-hex          |

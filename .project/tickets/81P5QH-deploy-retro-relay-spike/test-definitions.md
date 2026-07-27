@@ -7,8 +7,8 @@ Feature source: `features/deploy-retro-relay-spike.feature`
 ### Scenario: Startup rejects each missing required runtime value
 
 - [x] RED skip: uncommittable partial state — runtime Vitest failed on the missing runtime-config module and the commit lint gate rejected that unresolved import
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 909c25463
+- [x] REFACTOR 909c25463
 
 ### Scenario: Startup rejects every malformed runtime value class
 
