@@ -131,6 +131,44 @@ partitions after real CLI probes found two anchor-substitution gaps.
 - [x] GREEN 73b9759
 - [x] REFACTOR 5bd56ea
 
+### Scenario: A backward phase move is not flagged
+
+- [x] RED e90eb07
+- [x] GREEN 73b9759
+- [x] REFACTOR 5bd56ea
+
+### Scenario: Re-declaring the same phase is not flagged
+
+- [x] RED e90eb07
+- [x] GREEN 73b9759
+- [x] REFACTOR 5bd56ea
+
+### Scenario: A non-feature ticket advancing is not flagged
+
+- [x] RED e90eb07
+- [x] GREEN 73b9759
+- [x] REFACTOR 5bd56ea
+
+### Scenario: A ticket becoming a feature past intake is not flagged
+
+- [x] RED e90eb07
+- [x] GREEN 73b9759
+- [x] REFACTOR 5bd56ea
+
+### Scenario: An edit that leaves the phase unchanged is not flagged
+
+- [x] RED e90eb07
+- [x] GREEN 73b9759
+- [x] REFACTOR 5bd56ea
+
+### Scenario: The at-rest advisory nudges a missing anchor with the path grammar
+
+- [x] RED e90eb07
+- [x] GREEN 73b9759
+- [x] REFACTOR 5bd56ea
+
+## Rule: Ownership and configured lanes are resolved from canonical staged paths
+
 ### Scenario: A ticket cannot reuse another ticket's same-kind artifact
 
 - [x] RED 2cd0ef5
@@ -190,42 +228,6 @@ partitions after real CLI probes found two anchor-substitution gaps.
 - [x] RED 1f9fce8
 - [x] GREEN fcb6d78
 - [x] REFACTOR da20049
-
-### Scenario: A backward phase move is not flagged
-
-- [x] RED e90eb07
-- [x] GREEN 73b9759
-- [x] REFACTOR 5bd56ea
-
-### Scenario: Re-declaring the same phase is not flagged
-
-- [x] RED e90eb07
-- [x] GREEN 73b9759
-- [x] REFACTOR 5bd56ea
-
-### Scenario: A non-feature ticket advancing is not flagged
-
-- [x] RED e90eb07
-- [x] GREEN 73b9759
-- [x] REFACTOR 5bd56ea
-
-### Scenario: A ticket becoming a feature past intake is not flagged
-
-- [x] RED e90eb07
-- [x] GREEN 73b9759
-- [x] REFACTOR 5bd56ea
-
-### Scenario: An edit that leaves the phase unchanged is not flagged
-
-- [x] RED e90eb07
-- [x] GREEN 73b9759
-- [x] REFACTOR 5bd56ea
-
-### Scenario: The at-rest advisory nudges a missing anchor with the path grammar
-
-- [x] RED e90eb07
-- [x] GREEN 73b9759
-- [x] REFACTOR 5bd56ea
 
 ## Rule: Legacy SHA anchors neither warn at rest nor block new work
 

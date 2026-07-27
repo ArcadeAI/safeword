@@ -77,7 +77,8 @@ Evidence after addressing all nine unresolved PR review threads:
   upstream Astro preset expectation (`astro/no-omitted-end-tags` is `"error"`
   under the installed eslint-plugin-astro 3.0.1 while the test expects it to be
   absent). The Astro preset, test, manifests, and lockfile are unchanged from
-  `origin/main`; Node 22 and Node 24 CI passed on remediation head `a36e0d027`.
+  `origin/main`; Node 22 and Node 24 CI passed on the remediation branch after
+  all runtime changes.
 - Audit: 0 change-scoped errors; config parity clean; dependency-cruiser 0
   violations across 662 modules / 2,166 dependencies; Knip clean; dependencies
   current; domain and learning checks clean. Clones improved from 490 to 455

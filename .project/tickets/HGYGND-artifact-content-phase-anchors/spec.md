@@ -266,6 +266,13 @@ hex-shaped anchor for its entered phase draws the migrate-to-path remediation.
 resolution, and done-gate validation exactly as shipped — the redesign removes
 the phase-anchor dependency on git history, not the ledger's.
 
+#### artifact-content-phase-anchors.SM1.R6 — Ownership and configured lanes are resolved from canonical staged paths
+
+An anchor belongs to the ticket being advanced and, for feature sources, to an
+executable or configured feature lane. Ticket-root discovery, path
+normalization, and ownership checks use the staged tree's configuration and
+paths rather than unstaged worktree state.
+
 ## Rave Moment
 
 skip: table-stakes — evidence-substrate plumbing; the persona-facing moment

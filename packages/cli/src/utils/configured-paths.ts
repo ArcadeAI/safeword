@@ -259,8 +259,8 @@ export function resolveTicketsDirectory(cwd: string): string {
  */
 export function ticketDirectoriesForConfiguredRoot(
   cwd: string,
-  configuredProjectRoot?: string,
-  rootExists: (repoRelativeRoot: string) => boolean = root => isDirectory(nodePath.join(cwd, root)),
+  configuredProjectRoot: string | undefined,
+  rootExists: (repoRelativeRoot: string) => boolean,
 ): string[] {
   if (configuredProjectRoot === undefined) {
     let projectRoot = NAMESPACE_ROOT_DEFAULT;
