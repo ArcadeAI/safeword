@@ -162,6 +162,12 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
    * filter: this keeps the old query's recall, so a marker hand-copied into an
    * unlabeled issue (as happens when issues are merged) still dedups.
    *
+   * Reviewer: index-independent is not lag-free. GitHub documents no
+   * read-after-write guarantee on the listing endpoint, and API reads can be
+   * served from a replica, so an issue another run filed moments ago may not
+   * appear here. `createdThisRun` below closes the same-transport case; the
+   * cross-run one is #1479.
+   *
    * Cached because triage runs up to two lookups per encounter; a 12-finding
    * session would otherwise re-list 24 times.
    */
