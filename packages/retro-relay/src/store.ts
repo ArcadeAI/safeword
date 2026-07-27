@@ -186,31 +186,47 @@ function retroRequestsTable(table: 'retro_requests' | 'retro_requests_v3'): stri
   `;
 }
 
-function createVersionThree(database: Database): void {
-  database.exec(`
-    CREATE TABLE schema_version (version INTEGER NOT NULL) STRICT;
-    INSERT INTO schema_version VALUES (3);
-
-    ${retroRequestsTable('retro_requests')}
-
-    CREATE TABLE reconciliation_audit (
+function reconciliationAuditTable(
+  table: 'reconciliation_audit' | 'reconciliation_audit_v3',
+  requestsTable: 'retro_requests' | 'retro_requests_v3',
+): string {
+  return `
+    CREATE TABLE ${table} (
       audit_id INTEGER PRIMARY KEY,
       receipt_id TEXT NOT NULL,
       actor_subject TEXT NOT NULL,
       disposition TEXT NOT NULL,
       match_count INTEGER NOT NULL,
       recorded_at TEXT NOT NULL,
-      FOREIGN KEY (receipt_id) REFERENCES retro_requests (receipt_id)
+      FOREIGN KEY (receipt_id) REFERENCES ${requestsTable} (receipt_id)
     ) STRICT;
+  `;
+}
 
-    CREATE TABLE alert_outbox (
+function alertOutboxTable(
+  table: 'alert_outbox' | 'alert_outbox_v3',
+  requestsTable: 'retro_requests' | 'retro_requests_v3',
+): string {
+  return `
+    CREATE TABLE ${table} (
       event_id TEXT PRIMARY KEY,
       receipt_id TEXT NOT NULL,
       state TEXT NOT NULL CHECK (state IN ('ambiguous', 'dead-letter')),
       created_at TEXT NOT NULL,
       delivered_at TEXT,
-      FOREIGN KEY (receipt_id) REFERENCES retro_requests (receipt_id)
+      FOREIGN KEY (receipt_id) REFERENCES ${requestsTable} (receipt_id)
     ) STRICT;
+  `;
+}
+
+function createVersionThree(database: Database): void {
+  database.exec(`
+    CREATE TABLE schema_version (version INTEGER NOT NULL) STRICT;
+    INSERT INTO schema_version VALUES (3);
+
+    ${retroRequestsTable('retro_requests')}
+    ${reconciliationAuditTable('reconciliation_audit', 'retro_requests')}
+    ${alertOutboxTable('alert_outbox', 'retro_requests')}
   `);
 }
 
@@ -263,15 +279,7 @@ function migrateVersionOne(database: Database, fault?: MigrationFault): void {
         strftime('%Y-%m-%dT%H:%M:%fZ', accepted_at, '+24 hours'), filed_at,
         accepted_at, 0
       FROM retro_requests;
-      CREATE TABLE reconciliation_audit_v3 (
-        audit_id INTEGER PRIMARY KEY,
-        receipt_id TEXT NOT NULL,
-        actor_subject TEXT NOT NULL,
-        disposition TEXT NOT NULL,
-        match_count INTEGER NOT NULL,
-        recorded_at TEXT NOT NULL,
-        FOREIGN KEY (receipt_id) REFERENCES retro_requests_v3 (receipt_id)
-      ) STRICT;
+      ${reconciliationAuditTable('reconciliation_audit_v3', 'retro_requests_v3')}
       INSERT INTO reconciliation_audit_v3
       SELECT * FROM reconciliation_audit;
       DROP TABLE reconciliation_audit;
@@ -281,14 +289,7 @@ function migrateVersionOne(database: Database, fault?: MigrationFault): void {
     `);
     fault?.('after-columns');
     database.exec(`
-      CREATE TABLE alert_outbox (
-        event_id TEXT PRIMARY KEY,
-        receipt_id TEXT NOT NULL,
-        state TEXT NOT NULL CHECK (state IN ('ambiguous', 'dead-letter')),
-        created_at TEXT NOT NULL,
-        delivered_at TEXT,
-        FOREIGN KEY (receipt_id) REFERENCES retro_requests (receipt_id)
-      ) STRICT;
+      ${alertOutboxTable('alert_outbox', 'retro_requests')}
     `);
     fault?.('after-outbox');
     fault?.('before-version');
@@ -320,25 +321,10 @@ function migrateVersionTwo(database: Database): void {
         dead_lettered_at, tombstoned_at, payload_compacted_at, next_attempt_at,
         attempt_count, dispatch_started_at
       FROM retro_requests;
-      CREATE TABLE reconciliation_audit_v3 (
-        audit_id INTEGER PRIMARY KEY,
-        receipt_id TEXT NOT NULL,
-        actor_subject TEXT NOT NULL,
-        disposition TEXT NOT NULL,
-        match_count INTEGER NOT NULL,
-        recorded_at TEXT NOT NULL,
-        FOREIGN KEY (receipt_id) REFERENCES retro_requests_v3 (receipt_id)
-      ) STRICT;
+      ${reconciliationAuditTable('reconciliation_audit_v3', 'retro_requests_v3')}
       INSERT INTO reconciliation_audit_v3
       SELECT * FROM reconciliation_audit;
-      CREATE TABLE alert_outbox_v3 (
-        event_id TEXT PRIMARY KEY,
-        receipt_id TEXT NOT NULL,
-        state TEXT NOT NULL CHECK (state IN ('ambiguous', 'dead-letter')),
-        created_at TEXT NOT NULL,
-        delivered_at TEXT,
-        FOREIGN KEY (receipt_id) REFERENCES retro_requests_v3 (receipt_id)
-      ) STRICT;
+      ${alertOutboxTable('alert_outbox_v3', 'retro_requests_v3')}
       INSERT INTO alert_outbox_v3
       SELECT * FROM alert_outbox;
       DROP TABLE alert_outbox;
