@@ -34,6 +34,12 @@
 - [x] GREEN
 - [x] REFACTOR
 
+### Scenario: The all-state guard retains a measured one-year safety horizon
+
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
+
 ## Task-level cross-scenario refactor
 
 - [x] cross-scenario 809d662b0

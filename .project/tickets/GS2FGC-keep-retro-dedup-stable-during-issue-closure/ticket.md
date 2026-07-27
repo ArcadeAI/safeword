@@ -2,11 +2,13 @@
 id: GS2FGC
 slug: keep-retro-dedup-stable-during-issue-closure
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-07-27T17:29:00.567Z
-last_modified: 2026-07-27T18:11:37Z
+last_modified: 2026-07-27T20:19:54Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/1481
+external_prs:
+  - https://github.com/ArcadeAI/safeword/pull/1541
 scope: |
   Enumerate the stable all-state repository issue universe in creation order,
   then retain only open non-pull-request issues for exact retro marker matching.
@@ -27,6 +29,12 @@ done_when: |
 
 ## Work Log
 
+- 2026-07-27T20:19:54Z DONE: Fresh-build Safeword verification passed on the exact final tree: 5,549/5,549 Vitest tests, 505/508 acceptance scenarios (3 skipped), 15,645/15,645 executed steps, build, and TypeScript. Post-fix quality review approved with no critical findings.
+- 2026-07-27T19:50:18Z FOLLOW-UP: Filed #1552 to design Link traversal, safe cross-run caching, reopen/deletion/transfer handling, equal-timestamp ordering, and a guard-monitoring threshold together.
+- 2026-07-27T19:47:57Z REFACTOR: Removed `normalizeIssueStates`; every GitHub issue fixture now declares `state` explicitly. Updated all cap boundary, probe, and latch assertions to 20,000/20,001 items. Focused transport suite: 41/41.
+- 2026-07-27T19:46:51Z GREEN: Raised the fail-closed guard to 200 pages and recorded the dated live census and safety-horizon calculation in the owning comment.
+- 2026-07-27T19:46:24Z RED: Changed the exact-bound behavior to accept 20,000 items; the 3,000-item implementation rejected it with `repository items exceed 3000`.
+- 2026-07-27T19:45:13Z REVIEW DECISION: Validated PR #1541 feedback against GitHub docs and a live 1,550-item census. The 3,000-item cap is blocking, but 150 pages buys only ~303 days at the trailing-7-day rate; chose 200 pages (~415 days) plus explicit-state fixtures. Link traversal and persistent incremental state remain a scoped follow-up because neither has a documented snapshot guarantee and both widen this fix.
 - 2026-07-27T18:11:37Z VERIFY: Final generated gate passed on the exact tree: 5,549/5,549 Vitest tests, 505/508 acceptance scenarios (3 skipped), 15,645/15,645 executed steps, build, lint, formatting, typecheck, and diff hygiene. Independent quality/engineering review: APPROVE with no critical findings; final delta re-check unchanged.
 - 2026-07-27T17:58:00Z AUDIT: No change-scoped errors. Config, dependency boundaries, dead-code scan, learning/domain docs, changed-test quality, architecture, and configured docs were clean. Repository-wide warnings were limited to duplication growth, two patch-level dev-tool updates, and the pre-existing Python experiment coverage limitation.
 - 2026-07-27T17:43:00Z REFACTOR: Removed the 55-line repeated-sweep state machine, made open-state eligibility explicit, and kept one cached all-state enumeration. Focused transport suite: 41/41; Prettier clean.
@@ -47,14 +55,34 @@ API compatibility but lose on correctness complexity; cursor plumbing was
 close on pagination mechanics but loses on scope and lacks a documented
 snapshot-consistency guarantee.
 
-**Premortem:** If this fails in six months, repository growth reaches the
-3,000-item fail-closed bound sooner because closed issues and pull requests now
-consume it; keep the explicit cap error and revisit the bound or cursor path
-before the live count approaches it.
+**Premortem:** If this fails in six months, repository growth accelerates beyond
+the measured rate and reaches the 20,000-item fail-closed bound sooner; keep the
+explicit cap error and land the monitoring/caching follow-up before the live
+count approaches it.
 
 **Next:** Add the mutation regression in
 `packages/cli/src/retro/github-rest.test.ts`, prove RED, then change
 `fetchIssuePage` in `packages/cli/src/retro/github-rest.ts`.
+
+## Review follow-up decision
+
+Recommend **a 200-page fail-closed guard plus explicit issue states in test
+fixtures** because it removes the verified near-term outage without changing
+normal-path requests or widening the transport contract. A 150-page guard was
+close on minimality but loses on its stated headroom: the 2026-07-27 live census
+was 1,550 items, with 1,020 created in 30 days and 311 in 7 days, so 150 pages
+buys about 303 days at the recent rate while 200 pages buys about 415. Following
+GitHub's `Link` header is documented best practice, but doing it here adds
+response-header plumbing without a documented snapshot-consistency gain; ETag
+or high-water persistence needs a separate state and invalidation design.
+
+**Premortem:** If the 200-page choice fails within six months, tracker growth
+accelerated beyond the measured seven-day rate and no threshold-based follow-up
+landed before the repository approached 20,000 items.
+
+**Next:** Change the bound behavior tests to 20,000/20,001 items, prove RED,
+then raise `MAX_DEDUP_PAGES` and replace implicit state normalization with
+explicit fixtures.
 
 ## Tests
 

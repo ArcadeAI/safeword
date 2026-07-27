@@ -8,19 +8,6 @@ interface MockResponse {
   json: () => unknown;
 }
 
-function normalizeIssueStates(value: unknown): unknown {
-  if (!Array.isArray(value)) return value;
-  return value.map(item =>
-    typeof item === 'object' &&
-    item !== null &&
-    'number' in item &&
-    'title' in item &&
-    !('state' in item)
-      ? { state: 'open', ...item }
-      : item,
-  );
-}
-
 function mockFetch(responder: (url: string) => MockResponse): string[] {
   const calls: string[] = [];
   vi.stubGlobal(
@@ -31,7 +18,7 @@ function mockFetch(responder: (url: string) => MockResponse): string[] {
       return Promise.resolve({
         ok: r.ok ?? true,
         status: r.status ?? 200,
-        json: () => Promise.resolve(normalizeIssueStates(r.json())),
+        json: () => Promise.resolve(r.json()),
       });
     }),
   );
@@ -101,11 +88,13 @@ describe('createRestTransport', () => {
           number: 1,
           title: 'near miss',
           body: '<!-- safeword-retro-signature: retro:abc123def4567 -->',
+          state: 'open',
         },
         {
           number: 2,
           title: 'exact',
           body: '<!-- safeword-retro-signature: retro:abc123def456 -->',
+          state: 'open',
         },
       ],
     }));
@@ -120,11 +109,17 @@ describe('createRestTransport', () => {
   it('prevent-retro-duplicate-issues.SM1.R2.rejects a canonical hash token without its exact marker', async () => {
     mockFetch(() => ({
       json: () => [
-        { number: 1, title: 'near miss', body: 'contains canonical:abc123def456-suffix' },
+        {
+          number: 1,
+          title: 'near miss',
+          body: 'contains canonical:abc123def456-suffix',
+          state: 'open',
+        },
         {
           number: 2,
           title: 'exact',
           body: '<!-- safeword-retro-canonical: canonical:abc123def456 -->',
+          state: 'open',
         },
       ],
     }));
@@ -143,12 +138,14 @@ describe('createRestTransport', () => {
           number: 1,
           title: 'copied marker PR',
           body: '<!-- safeword-retro-canonical: canonical:abc123def456 -->',
+          state: 'open',
           pull_request: {},
         },
         {
           number: 2,
           title: 'canonical issue',
           body: '<!-- safeword-retro-canonical: canonical:abc123def456 -->',
+          state: 'open',
         },
       ],
     }));
@@ -186,6 +183,7 @@ describe('createRestTransport', () => {
           number: 1425,
           title: 'hand-merged issue',
           body: 'merged\n<!-- safeword-retro-signature: retro:9230b08d2fb3 -->',
+          state: 'open',
           labels: [],
         },
       ],
@@ -204,6 +202,7 @@ describe('createRestTransport', () => {
       number: i,
       title: `t${i}`,
       body: 'nothing here',
+      state: 'open',
     }));
     const calls = mockFetch(url => ({
       json: () =>
@@ -214,6 +213,7 @@ describe('createRestTransport', () => {
                 number: 999,
                 title: 'on page two',
                 body: '<!-- safeword-retro-signature: retro:abc123def456 -->',
+                state: 'open',
               },
             ],
     }));
@@ -240,17 +240,18 @@ describe('createRestTransport', () => {
       number: i,
       title: `t${i}`,
       body: 'no marker',
+      state: 'open',
     }));
     const calls = mockFetch(() => ({ json: () => fullPage }));
     const transport = createRestTransport('tok');
     if (!transport) throw new Error('expected a transport');
 
     await expect(transport.searchBySignature('retro:abc123def456')).rejects.toThrow(/truncated/);
-    // 30 bound pages + the probe page, which was also full → a genuine tail.
-    expect(calls).toHaveLength(31);
+    // 200 bound pages + the probe page, which was also full → a genuine tail.
+    expect(calls).toHaveLength(201);
   });
 
-  // The boundary the bound alone cannot distinguish: at exactly 30 full pages the
+  // The boundary the bound alone cannot distinguish: at exactly 200 full pages the
   // enumeration is COMPLETE, and throwing there would halt every session's filing
   // over a tail that does not exist.
   it('#1453: completes rather than throwing at exactly the page bound', async () => {
@@ -258,35 +259,39 @@ describe('createRestTransport', () => {
       number: i,
       title: `t${i}`,
       body: 'no marker',
+      state: 'open',
     }));
     const calls = mockFetch(url => ({
-      json: () => (url.endsWith('page=31') ? [] : fullPage),
+      json: () => (url.endsWith('page=201') ? [] : fullPage),
     }));
     const transport = createRestTransport('tok');
     if (!transport) throw new Error('expected a transport');
 
     await expect(transport.searchBySignature('retro:abc123def456')).resolves.toEqual([]);
-    expect(calls).toHaveLength(31);
+    expect(calls).toHaveLength(201);
   });
 
-  // The cap has to mean what it says. Appending the probe page instead of
-  // rejecting on it would silently accept 3,001–3,099 items under a "3,000" bound.
-  it('#1453: trips the cap at 3001 items rather than quietly accepting the probe', async () => {
+  // The cap has to mean what it says. Appending the probe page instead of rejecting
+  // on it would silently accept 20,001–20,099 items under a "20,000" bound.
+  it('#1453: trips the cap at 20001 items rather than quietly accepting the probe', async () => {
     const fullPage = Array.from({ length: 100 }, (_, i) => ({
       number: i,
       title: `t${i}`,
       body: 'no marker',
+      state: 'open',
     }));
     const calls = mockFetch(url => ({
       // Exactly one item past the bound — the smallest genuine tail there is.
       json: () =>
-        url.endsWith('page=31') ? [{ number: 3001, title: 'tail', body: 'x' }] : fullPage,
+        url.endsWith('page=201')
+          ? [{ number: 20_001, title: 'tail', body: 'x', state: 'open' }]
+          : fullPage,
     }));
     const transport = createRestTransport('tok');
     if (!transport) throw new Error('expected a transport');
 
     await expect(transport.searchBySignature('retro:abc123def456')).rejects.toThrow(/truncated/);
-    expect(calls).toHaveLength(31);
+    expect(calls).toHaveLength(201);
   });
 
   // Ascending creation order appends genuinely new issues to the last page,
@@ -296,6 +301,7 @@ describe('createRestTransport', () => {
       number: i + 1,
       title: `t${i + 1}`,
       body: 'no marker',
+      state: 'open',
     }));
     mockFetch(url => ({
       json: () =>
@@ -306,6 +312,7 @@ describe('createRestTransport', () => {
                 number: 5000,
                 title: 'brand new',
                 body: '<!-- safeword-retro-signature: retro:abc123def456 -->',
+                state: 'open',
               },
             ],
     }));
@@ -381,26 +388,27 @@ describe('createRestTransport', () => {
     expect(calls.length).toBeGreaterThan(1);
   });
 
-  // Truncation is deterministic: re-running it burns another 31 requests to reach
+  // Truncation is deterministic: re-running it burns another 201 requests to reach
   // the same answer. Only transient failures earn a retry.
   it('#1453: does not re-run a terminal truncation for every later encounter', async () => {
     const fullPage = Array.from({ length: 100 }, (_, i) => ({
       number: i,
       title: `t${i}`,
       body: 'no marker',
+      state: 'open',
     }));
     const calls = mockFetch(() => ({ json: () => fullPage }));
     const transport = createRestTransport('tok');
     if (!transport) throw new Error('expected a transport');
 
     await expect(transport.searchBySignature('retro:abc123def456')).rejects.toThrow(/truncated/);
-    expect(calls).toHaveLength(31);
+    expect(calls).toHaveLength(201);
 
     // The next encounter fails the same way, from the latch — no new requests.
     await expect(transport.searchByCanonical('canonical:abc123def456')).rejects.toThrow(
       /truncated/,
     );
-    expect(calls).toHaveLength(31);
+    expect(calls).toHaveLength(201);
   });
 
   // The enumeration is a snapshot from before the first create, and
@@ -440,6 +448,7 @@ describe('createRestTransport', () => {
                 number: 7,
                 title: 'found on retry',
                 body: '<!-- safeword-retro-signature: retro:abc123def456 -->',
+                state: 'open',
               },
             ],
           };

@@ -28,13 +28,18 @@ const PER_PAGE = 100;
 const MAX_COMMENT_PAGES = 20;
 // Safety bound on issue-listing pagination for the reconcile sweep (→ 1000 issues).
 const MAX_ISSUE_PAGES = 10;
-// Safety bound on the dedup enumeration (→ 3000 repository *items*: the stable
+// Safety bound on the dedup enumeration (→ 20,000 repository *items*: the stable
 // all-state listing includes closed issues and PRs, which are filtered after the
 // fetch, so both consume this budget). Deliberately looser than
 // MAX_ISSUE_PAGES: hitting this bound THROWS rather than truncating (see
 // listOpenIssues), so it halts filing entirely — it needs real headroom above
 // the repo's total issue/PR count, not just enough for one sweep.
-const MAX_DEDUP_PAGES = 30;
+//
+// Measured 2026-07-27: 1,550 items (16 pages), with 1,020 created in the prior
+// 30 days and 311 in the prior 7. A 200-page guard leaves 18,450 items — about
+// 415 days even at the faster trailing-7-day rate — without adding a request to
+// the normal 16-page sweep. Revisit before the repository approaches 20,000.
+const MAX_DEDUP_PAGES = 200;
 
 /** Ask the `gh` CLI for the environment's GitHub token, or undefined if unavailable. */
 function ghAuthToken(): string | undefined {
@@ -174,7 +179,7 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
   /**
    * A failure the enumeration cannot recover from by trying again — the bound was
    * exceeded. Unlike a transient 5xx, this is deterministic, so re-running costs
-   * a full 31-request sweep to reach the same answer. Latched for the transport's
+   * a full 201-request sweep to reach the same answer. Latched for the transport's
    * life and rethrown to every later encounter (each still lands as its own
    * isolated `failed` in triage).
    */
@@ -225,7 +230,7 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
     // never accept the probe's contents: at exactly MAX_DEDUP_PAGES * PER_PAGE the
     // probe is empty and the enumeration is genuinely complete, while anything at
     // all on it means a real tail. Appending the probe instead would quietly raise
-    // the advertised cap to 3099 — the cap has to mean what it says.
+    // the advertised cap to 20,099 — the cap has to mean what it says.
     const probe = await fetchIssuePage(MAX_DEDUP_PAGES + 1);
     if (probe.rawLength > 0) {
       // A real unread tail, so "no match" would be a guess about it. Throw: triage

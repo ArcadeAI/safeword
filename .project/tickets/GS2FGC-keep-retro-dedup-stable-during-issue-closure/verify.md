@@ -1,6 +1,6 @@
 # Verify: Keep retro dedup stable during issue closure (GS2FGC)
 
-Evidence captured 2026-07-27 after the final reviewer-driven test refinement.
+Evidence captured 2026-07-27 after resolving the PR review feedback.
 
 ## Verify Checklist
 
@@ -8,7 +8,7 @@ Evidence captured 2026-07-27 after the final reviewer-driven test refinement.
 **Gherkin:** ✅ Acceptance lane passes (505/508 scenarios; 3 skipped; 15645/15645 executed steps)
 **Build:** ✅ Success (tsup + DTS)
 **Lint:** ✅ Clean (ESLint, Prettier, TypeScript, and diff hygiene)
-**Scenarios:** All 16 scenarios marked complete
+**Scenarios:** All 19 scenario checks marked complete
 **PR Scope:** ✅ Diff matches ticket scope
 **Dep Drift:** ✅ Clean
 **Parent Epic:** N/A
@@ -28,13 +28,16 @@ experiment still lacks import-linter and dead-code executables.
 
 ## Independent review
 
-Quality verdict: **APPROVE** — current GitHub primary documentation supports the
-all-state, creation-ascending listing contract; closed issues and pull requests
-remain locally ineligible; one bounded cached enumeration replaces the repeated
-confirmation state machine. Final delta re-check found no critical or suggested
-issues.
+Quality verdict: **APPROVE** — the review correctly identified that the original
+3,000-item guard had inadequate headroom and that implicit fixture state obscured
+the contract. The final implementation uses a measured 20,000-item guard
+(approximately 415 days of headroom at the trailing-seven-day rate), declares
+fixture states explicitly, and retains the all-state, creation-ascending listing
+contract. The post-fix review found no critical issues. Link traversal, caching,
+and mutation-lifecycle hardening are tracked in #1552.
 
 Engineering ratings: Security 5/5, Performance 4/5, Correctness 4.5/5,
 Maintainability 4.5/5.
 
-**Next:** Commit the verified change and open the pull request linked to #1481.
+**Next:** Commit and push the verified review resolution, then resolve the PR
+threads and confirm CI.
