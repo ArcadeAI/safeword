@@ -36,13 +36,17 @@ import {
 } from '../helpers';
 
 function linkRepoToolchain(projectDirectory: string): void {
-  const fixtureNodeModules = nodePath.join(projectDirectory, 'node_modules');
-  if (existsSync(fixtureNodeModules)) return;
-
   const repoNodeModules = nodePath.join(repoRoot, 'node_modules');
   if (!existsSync(repoNodeModules)) {
     throw new Error(`Repository toolchain is missing: ${repoNodeModules}`);
   }
+  const repoEslint = nodePath.join(repoNodeModules, '.bin', 'eslint');
+  if (!existsSync(repoEslint)) {
+    throw new Error(`Repository ESLint executable is missing: ${repoEslint}`);
+  }
+
+  const fixtureNodeModules = nodePath.join(projectDirectory, 'node_modules');
+  if (existsSync(fixtureNodeModules)) return;
   symlinkSync(
     repoNodeModules,
     fixtureNodeModules,
