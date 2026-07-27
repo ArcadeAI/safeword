@@ -1,6 +1,6 @@
 # Verify: Keep retro dedup stable during issue closure (GS2FGC)
 
-Evidence captured 2026-07-27 after resolving the PR review feedback.
+Evidence captured 2026-07-27 after resolving the follow-up review feedback.
 
 ## Verify Checklist
 
@@ -31,13 +31,14 @@ experiment still lacks import-linter and dead-code executables.
 Quality verdict: **APPROVE** — the review correctly identified that the original
 3,000-item guard had inadequate headroom and that implicit fixture state obscured
 the contract. The final implementation uses a measured 20,000-item guard
-(approximately 415 days of headroom at the trailing-seven-day rate), declares
-fixture states explicitly, and retains the all-state, creation-ascending listing
-contract. The post-fix review found no critical issues. Link traversal, caching,
-and mutation-lifecycle hardening are tracked in #1552.
+(a 415-day flat-rate capacity horizon, not a forecast), declares fixture states
+explicitly, and retains the all-state, creation-ascending listing contract.
+Follow-up review resolution replaced ambiguous cap literals with independent
+test-policy constants and made observability #1552's first deliverable. The
+post-fix review found no critical or suggested issues.
 
 Engineering ratings: Security 5/5, Performance 4/5, Correctness 4.5/5,
 Maintainability 4.5/5.
 
-**Next:** Commit and push the verified review resolution, then resolve the PR
-threads and confirm CI.
+**Next:** Commit and push the verified follow-up resolution, answer the
+top-level review comment, and confirm CI.

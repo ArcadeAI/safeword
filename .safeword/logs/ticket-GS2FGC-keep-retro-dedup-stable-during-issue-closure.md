@@ -29,3 +29,29 @@
   fixture explicit, and kept all 41 transport tests green.
 - [12:50] Filed GitHub follow-up #1552 for Link traversal, safe cross-run
   caching, state mutation handling, ordering, and guard observability.
+
+## Session: 2026-07-27 follow-up
+
+- [16:17] Fetched the new top-level review: APPROVE, no unresolved inline
+  threads; three nonblocking suggestions concern forecast wording, #1552
+  sequencing, and cap-derived test literals.
+- [16:22] Re-measured 1,554 total items. Exact rolling 30-day buckets are
+  18 → 110 → 365 → 1,014; exact trailing seven days contain 303 items.
+- [16:24] Quality review: APPROVE with no critical issues. Correct “plainly
+  super-linear” to “sharply increasing recent buckets” and “land and close
+  independently” to “land independently.”
+- [16:26] Figure-it-out: keep `MAX_DEDUP_PAGES` private and introduce
+  test-local specification constants. Importing the production value was close
+  on convenience but would make the boundary expectations self-referential.
+- [16:29] Updated #1552: observable threshold is now the first independent
+  deliverable; signal destination remains the explicit first decision.
+- [16:32] RED: set the test policy to 201 pages. The exact-bound test rejected
+  at production's 200-page cap, proving independent drift detection.
+- [16:33] GREEN: restored the test policy to 200 pages; exact-bound behavior
+  passed.
+- [16:33] REFACTOR: derived all nine cap literals from named test policy
+  constants and expressed the unrelated fixture as two pages plus one. All 41
+  focused tests, ESLint, Prettier, TypeScript, and diff hygiene passed.
+- [16:48] VERIFY: fresh-build full gate passed — 5,549 Vitest tests, 505/508
+  acceptance scenarios, 15,645 executed steps, build, and TypeScript.
+  Independent post-fix review approved with no findings.

@@ -78,3 +78,48 @@ ESLint, Prettier, TypeScript, and diff hygiene passed.
 
 **Next:** Commit and push the reviewed fixes, close the ticket through the done
 gate, then reply to and resolve the PR threads.
+
+## Follow-up review
+
+The 2026-07-27 follow-up review approved the fixes and raised three
+nonblocking improvements. A fresh quality pass reproduced the 415-day
+flat-rate arithmetic and exact recent 30-day buckets of 18, 110, 365, and
+1,014 items.
+
+**Verdict:** APPROVE
+
+**Critical issues:** None.
+
+Corrections and decisions:
+
+- Describe 415 days as a flat-rate capacity horizon, not a forecast. The recent
+  buckets increased sharply, but four observations do not establish a durable
+  growth model.
+- Make the observable threshold #1552's first independent deliverable. It still
+  requires a signal-destination decision, but not the other four investigations.
+- Keep the production bound private. Test-local specification constants remove
+  ambiguous cap-derived literals while deliberately retaining an independent
+  value that makes accidental production drift fail the behavioral tests.
+
+**Premortem:** If this resolution fails, the test-local policy value drifts
+without detection; retain the full-bound and first-tail transport tests as the
+cross-check.
+
+**Next:** Refactor the cap tests around named specification constants, clarify
+the source comment, and reorder #1552.
+
+### Follow-up post-fix review
+
+**Verdict:** APPROVE
+
+**Critical issues:** None.
+**Suggested improvements:** None.
+
+The independent reviewer confirmed that the test constants remain deliberately
+independent from `MAX_DEDUP_PAGES`, the unrelated fixture is expressed as two
+pages plus one, the source calls 415 days a flat-rate capacity horizon, and
+Issue #1552 makes the observable threshold its first independent deliverable. All 41
+focused transport tests and Prettier passed.
+
+**Next:** Run final Safeword verification, commit, push, and answer the
+top-level review comment.

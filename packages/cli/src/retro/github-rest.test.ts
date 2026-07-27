@@ -8,6 +8,14 @@ interface MockResponse {
   json: () => unknown;
 }
 
+const GITHUB_PAGE_SIZE = 100;
+// Deliberately independent from the production value: an accidental cap change
+// must fail the boundary contract instead of updating its own expectation.
+const EXPECTED_DEDUP_PAGE_BOUND = 200;
+const EXPECTED_DEDUP_PROBE_PAGE = EXPECTED_DEDUP_PAGE_BOUND + 1;
+const EXPECTED_DEDUP_ITEM_BOUND = EXPECTED_DEDUP_PAGE_BOUND * GITHUB_PAGE_SIZE;
+const PAGE_BOUNDARY_FIXTURE_SIZE = 2 * GITHUB_PAGE_SIZE + 1;
+
 function mockFetch(responder: (url: string) => MockResponse): string[] {
   const calls: string[] = [];
   vi.stubGlobal(
@@ -247,33 +255,33 @@ describe('createRestTransport', () => {
     if (!transport) throw new Error('expected a transport');
 
     await expect(transport.searchBySignature('retro:abc123def456')).rejects.toThrow(/truncated/);
-    // 200 bound pages + the probe page, which was also full → a genuine tail.
-    expect(calls).toHaveLength(201);
+    // The configured bound pages + a full probe page → a genuine tail.
+    expect(calls).toHaveLength(EXPECTED_DEDUP_PROBE_PAGE);
   });
 
-  // The boundary the bound alone cannot distinguish: at exactly 200 full pages the
-  // enumeration is COMPLETE, and throwing there would halt every session's filing
-  // over a tail that does not exist.
+  // The boundary the bound alone cannot distinguish: at exactly the configured
+  // number of full pages the enumeration is COMPLETE, and throwing there would
+  // halt every session's filing over a tail that does not exist.
   it('#1453: completes rather than throwing at exactly the page bound', async () => {
-    const fullPage = Array.from({ length: 100 }, (_, i) => ({
+    const fullPage = Array.from({ length: GITHUB_PAGE_SIZE }, (_, i) => ({
       number: i,
       title: `t${i}`,
       body: 'no marker',
       state: 'open',
     }));
     const calls = mockFetch(url => ({
-      json: () => (url.endsWith('page=201') ? [] : fullPage),
+      json: () => (url.endsWith(`page=${EXPECTED_DEDUP_PROBE_PAGE}`) ? [] : fullPage),
     }));
     const transport = createRestTransport('tok');
     if (!transport) throw new Error('expected a transport');
 
     await expect(transport.searchBySignature('retro:abc123def456')).resolves.toEqual([]);
-    expect(calls).toHaveLength(201);
+    expect(calls).toHaveLength(EXPECTED_DEDUP_PROBE_PAGE);
   });
 
-  // The cap has to mean what it says. Appending the probe page instead of rejecting
-  // on it would silently accept 20,001–20,099 items under a "20,000" bound.
-  it('#1453: trips the cap at 20001 items rather than quietly accepting the probe', async () => {
+  // The cap has to mean what it says. Appending the probe page instead of
+  // rejecting it would silently accept items beyond the configured bound.
+  it('#1453: trips the cap at the first item past the bound', async () => {
     const fullPage = Array.from({ length: 100 }, (_, i) => ({
       number: i,
       title: `t${i}`,
@@ -283,15 +291,15 @@ describe('createRestTransport', () => {
     const calls = mockFetch(url => ({
       // Exactly one item past the bound — the smallest genuine tail there is.
       json: () =>
-        url.endsWith('page=201')
-          ? [{ number: 20_001, title: 'tail', body: 'x', state: 'open' }]
+        url.endsWith(`page=${EXPECTED_DEDUP_PROBE_PAGE}`)
+          ? [{ number: EXPECTED_DEDUP_ITEM_BOUND + 1, title: 'tail', body: 'x', state: 'open' }]
           : fullPage,
     }));
     const transport = createRestTransport('tok');
     if (!transport) throw new Error('expected a transport');
 
     await expect(transport.searchBySignature('retro:abc123def456')).rejects.toThrow(/truncated/);
-    expect(calls).toHaveLength(201);
+    expect(calls).toHaveLength(EXPECTED_DEDUP_PROBE_PAGE);
   });
 
   // Ascending creation order appends genuinely new issues to the last page,
@@ -326,7 +334,7 @@ describe('createRestTransport', () => {
 
   it('#1481: finds a still-open marker when an earlier issue closes at a page boundary', async () => {
     const marker = '<!-- safeword-retro-signature: retro:abc123def456 -->';
-    const settled = Array.from({ length: 201 }, (_, i) => ({
+    const settled = Array.from({ length: PAGE_BOUNDARY_FIXTURE_SIZE }, (_, i) => ({
       number: i + 1,
       title: `t${i + 1}`,
       body: i === 100 ? marker : 'no marker',
@@ -388,8 +396,8 @@ describe('createRestTransport', () => {
     expect(calls.length).toBeGreaterThan(1);
   });
 
-  // Truncation is deterministic: re-running it burns another 201 requests to reach
-  // the same answer. Only transient failures earn a retry.
+  // Truncation is deterministic: re-running it burns another full bounded sweep
+  // plus the probe to reach the same answer. Only transient failures earn a retry.
   it('#1453: does not re-run a terminal truncation for every later encounter', async () => {
     const fullPage = Array.from({ length: 100 }, (_, i) => ({
       number: i,
@@ -402,13 +410,13 @@ describe('createRestTransport', () => {
     if (!transport) throw new Error('expected a transport');
 
     await expect(transport.searchBySignature('retro:abc123def456')).rejects.toThrow(/truncated/);
-    expect(calls).toHaveLength(201);
+    expect(calls).toHaveLength(EXPECTED_DEDUP_PROBE_PAGE);
 
     // The next encounter fails the same way, from the latch — no new requests.
     await expect(transport.searchByCanonical('canonical:abc123def456')).rejects.toThrow(
       /truncated/,
     );
-    expect(calls).toHaveLength(201);
+    expect(calls).toHaveLength(EXPECTED_DEDUP_PROBE_PAGE);
   });
 
   // The enumeration is a snapshot from before the first create, and

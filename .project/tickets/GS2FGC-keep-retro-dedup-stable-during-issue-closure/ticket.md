@@ -5,7 +5,7 @@ type: task
 phase: done
 status: done
 created: 2026-07-27T17:29:00.567Z
-last_modified: 2026-07-27T20:19:54Z
+last_modified: 2026-07-27T23:48:49Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/1481
 external_prs:
   - https://github.com/ArcadeAI/safeword/pull/1541
@@ -29,6 +29,12 @@ done_when: |
 
 ## Work Log
 
+- 2026-07-27T23:48:49Z DONE: Fresh-build Safeword verification passed: 5,549/5,549 Vitest tests, 505/508 acceptance scenarios (3 skipped), 15,645/15,645 executed steps, build, lint, formatting, typecheck, and diff hygiene. Independent post-fix quality review: APPROVE with no critical or suggested issues.
+- 2026-07-27T23:33:58Z REFACTOR: Replaced all nine cap-derived test literals with intentionally independent specification constants; expressed the unrelated two-pages-plus-one fixture semantically. Focused transport suite: 41/41; ESLint, Prettier, TypeScript, and diff hygiene clean.
+- 2026-07-27T23:33:11Z GREEN: Restored the test policy to the production contract (200 pages); the exact-bound behavior passed.
+- 2026-07-27T23:32:38Z RED: Set the independent test policy one page above production; the exact-bound behavior rejected at the production cap, proving the test specification detects drift rather than importing its own answer.
+- 2026-07-27T23:29:09Z FOLLOW-UP: Reordered #1552 so the observable guard threshold is its first independent deliverable, named the unresolved signal destination, and clarified that 415 days is a flat-rate capacity horizon rather than a forecast.
+- 2026-07-27T23:26:12Z FOLLOW-UP REVIEW: Reopened to resolve the approved nonblocking feedback. Independent re-measurement confirmed sharply increasing exact 30-day buckets (18 → 110 → 365 → 1,014), but corrected “plainly super-linear” to a capacity-horizon caveat. Figure-it-out chose test-local policy constants over exporting the production bound, preserving drift detection while removing ambiguous literals; #1552’s observable threshold will become its first independent deliverable.
 - 2026-07-27T20:19:54Z DONE: Fresh-build Safeword verification passed on the exact final tree: 5,549/5,549 Vitest tests, 505/508 acceptance scenarios (3 skipped), 15,645/15,645 executed steps, build, and TypeScript. Post-fix quality review approved with no critical findings.
 - 2026-07-27T19:50:18Z FOLLOW-UP: Filed #1552 to design Link traversal, safe cross-run caching, reopen/deletion/transfer handling, equal-timestamp ordering, and a guard-monitoring threshold together.
 - 2026-07-27T19:47:57Z REFACTOR: Removed `normalizeIssueStates`; every GitHub issue fixture now declares `state` explicitly. Updated all cap boundary, probe, and latch assertions to 20,000/20,001 items. Focused transport suite: 41/41.

@@ -37,8 +37,10 @@ const MAX_ISSUE_PAGES = 10;
 //
 // Measured 2026-07-27: 1,550 items (16 pages), with 1,020 created in the prior
 // 30 days and 311 in the prior 7. A 200-page guard leaves 18,450 items — about
-// 415 days even at the faster trailing-7-day rate — without adding a request to
-// the normal 16-page sweep. Revisit before the repository approaches 20,000.
+// 415 days at the faster trailing-7-day rate — without adding a request to the
+// normal 16-page sweep. That is a flat-rate capacity horizon, not a forecast:
+// recent rolling-window volume increased sharply. Issue #1552 makes an
+// observable revisit threshold its first independent deliverable.
 const MAX_DEDUP_PAGES = 200;
 
 /** Ask the `gh` CLI for the environment's GitHub token, or undefined if unavailable. */
