@@ -537,7 +537,7 @@ describe('resolveGitHubToken (7D8PJP — no hard GITHUB_TOKEN requirement)', () 
   it.each([
     ['classic opaque', `ghs_${'a'.repeat(40)}`],
     ['stateless', representativeStatelessToken],
-  ])('passes the selected %s installation token to the REST transport', async (_label, shaped) => {
+  ])('passes a selected %s GITHUB_TOKEN to the REST transport', async (_label, shaped) => {
     const calls = mockFetchCapturing(() => ({ json: () => ({ id: 99, body: 'hi' }) }));
     const token = resolveGitHubToken({ GITHUB_TOKEN: shaped }, () => {
       throw new Error('gh fallback must not be consulted');
