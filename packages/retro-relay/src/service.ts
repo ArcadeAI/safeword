@@ -80,13 +80,20 @@ export class RelayService {
     this.faults = input.faults ?? {};
   }
 
+  operations(principal: RelayPrincipal): ReturnType<RelayStore['operations']> {
+    if (!principal.roles.includes('operate')) {
+      throw new RelayError(403, 'operate role is required');
+    }
+    return this.#store.operations();
+  }
+
   async reconcile(principal: RelayPrincipal, receiptId: string): Promise<FilingReceipt> {
+    if (!principal.roles.includes('reconcile')) {
+      throw new RelayError(403, 'reconcile role is required');
+    }
     const record = this.#store.loadByReceipt(receiptId);
     if (record === undefined || !belongsTo(record, principal)) {
       throw new RelayError(404, 'filing receipt not found');
-    }
-    if (!principal.roles.includes('reconcile')) {
-      throw new RelayError(403, 'reconcile role is required');
     }
     if (record.state === 'filed') return receiptFromRecord(record);
     if (record.state !== 'ambiguous') {
@@ -120,10 +127,13 @@ export class RelayService {
       });
     }
     this.#store.recordReconciliation(receiptId, principal.subject, 'adopted', 1);
-    return this.#store.markFiled(record.scope, scan.issueNumbers[0]);
+    return this.#store.markReconciledFiled(record.scope, scan.issueNumbers[0]);
   }
 
   status(principal: RelayPrincipal, receiptId: string): FilingReceipt {
+    if (!principal.roles.includes('file')) {
+      throw new RelayError(403, 'file role is required');
+    }
     const record = this.#store.loadByReceipt(receiptId);
     if (record === undefined || !belongsTo(record, principal)) {
       throw new RelayError(404, 'filing receipt not found');
@@ -133,7 +143,22 @@ export class RelayService {
     return resolved;
   }
 
-  // eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- The branches mirror the durable state machine and stay together intentionally.
+  async maintain(now = new Date()): Promise<{
+    alerts: ReturnType<RelayStore['maintain']>['alerts'];
+    attempted: number;
+  }> {
+    const due = this.#store.claimDueRetries(now);
+    for (const record of due) {
+      try {
+        await this.#processClaimed(record, now);
+      } catch {
+        // The durable state records retryable/ambiguous outcomes per request.
+        // One poisoned request must not prevent the rest of the sweep.
+      }
+    }
+    return { attempted: due.length, ...this.#store.maintain(now) };
+  }
+
   async submit(principal: RelayPrincipal, request: FileRetroDraftRequest): Promise<FilingReceipt> {
     const scope = authorize(principal, request, 'file');
     const hash = payloadHash(request);
@@ -160,11 +185,20 @@ export class RelayService {
       if (current === undefined) throw new RelayError(404, 'filing receipt not found');
       return current;
     }
+    const claimed = this.#store.load(scope);
+    if (claimed === undefined) throw new RelayError(404, 'filing receipt not found');
+    return this.#processClaimed(claimed, new Date());
+  }
+
+  // eslint-disable-next-line complexity -- Preparation, dispatch, and ambiguity branches are the durable retry state machine.
+  async #processClaimed(record: DurableRequest, now: Date): Promise<FilingReceipt> {
+    const { scope } = record;
+    const hash = record.payloadHash;
     let durableRequest: FileRetroDraftRequest;
     let installationToken: string;
     try {
-      durableRequest = decryptPayload(accepted.record.envelope, scope, hash, this.#payloadKey);
-      const adopted = await this.#adoptExisting(scope, durableRequest);
+      durableRequest = decryptPayload(record.envelope, scope, hash, this.#payloadKey);
+      const adopted = await this.#adoptExisting(scope, durableRequest, now);
       if (adopted !== undefined) return adopted;
       const owner = this.#store.reserveEvidence(scope, [
         { kind: 'canonical', value: durableRequest.canonicalKey },
@@ -181,15 +215,15 @@ export class RelayService {
       if (error instanceof SemanticEvidenceConflictError) {
         this.#store.markAmbiguous(scope);
         throw new RelayError(409, 'canonical and legacy evidence conflict', {
-          receiptId: accepted.record.receiptId,
+          receiptId: record.receiptId,
           state: 'ambiguous',
         });
       }
-      this.#store.markRetryable(scope);
+      this.#store.markRetryable(scope, now);
       if (error instanceof RelayError) throw error;
       throw new RelayError(503, 'filing preparation failed before dispatch');
     }
-    if (!this.#store.beginDispatch(scope)) {
+    if (!this.#store.beginDispatch(scope, now)) {
       const current = this.#store.receipt(scope);
       if (current === undefined) throw new RelayError(404, 'filing receipt not found');
       return current;
@@ -198,18 +232,18 @@ export class RelayService {
       const issueNumber = await this.#github.createIssue({
         repository: scope.repository,
         title: durableRequest.title,
-        body: `${durableRequest.body}\n\n${marker}`,
+        body: `${durableRequest.body}\n\n${record.requestMarker}`,
         labels: durableRequest.labels,
         installationToken,
       });
       this.faults.afterGitHubCreate?.();
-      return this.#store.markFiled(scope, issueNumber);
+      return this.#store.markFiled(scope, issueNumber, now);
     } catch (error) {
       if (error instanceof RelayError) throw error;
       this.#store.markAmbiguous(scope);
-      const record = this.#store.load(scope);
+      const currentRecord = this.#store.load(scope);
       throw new RelayError(503, 'filing outcome is ambiguous', {
-        ...(record !== undefined && { receiptId: record.receiptId }),
+        ...(currentRecord !== undefined && { receiptId: currentRecord.receiptId }),
         state: 'ambiguous',
       });
     }
@@ -219,6 +253,7 @@ export class RelayService {
   async #adoptExisting(
     scope: RequestScope,
     request: FileRetroDraftRequest,
+    now: Date,
   ): Promise<FilingReceipt | undefined> {
     const scans = [];
     for (const marker of [
@@ -254,6 +289,6 @@ export class RelayService {
       { kind: 'canonical', value: request.canonicalKey },
       { kind: 'legacy', value: request.legacySignature },
     ]);
-    return this.#store.markFiled(scope, issueNumber);
+    return this.#store.markFiled(scope, issueNumber, now);
   }
 }

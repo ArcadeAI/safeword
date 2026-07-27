@@ -32,6 +32,7 @@ import { type RetroAgent, windowFor } from '../../templates/hooks/lib/retro-extr
 import { type Provenance, PROVENANCE_SHA } from '../retro/ledger.js';
 import { prepareEncounters } from '../retro/pipeline.js';
 import { reconcile, type ReconcileTracker } from '../retro/reconcile.js';
+import { deliverRelayRequests, persistRelayDraft } from '../retro/relay-delivery.js';
 import { type IssueTracker, triage, type TriageResult } from '../retro/triage.js';
 import { VERSION } from '../version.js';
 
@@ -57,6 +58,19 @@ export interface RetroDependencies {
    * return undefined) to file without provenance — capture never blocks filing.
    */
   resolveProvenance?: () => Provenance | undefined;
+  /**
+   * Internal wiring seam for the gated relay path. The public CLI does not
+   * populate it while CHECKED_IN_RELAY_READINESS is disabled.
+   */
+  relay?: {
+    credential: string;
+    deadlineMs?: number;
+    fetch?: typeof fetch;
+    installationId: number;
+    readiness: { enabled: boolean };
+    relayUrl: string;
+    repository: string;
+  };
 }
 
 export interface ProvenanceResolverOptions {
@@ -104,12 +118,25 @@ export interface RetroOutcome {
    * is opted out (no `projectDirectory`).
    */
   agentFilingNeeded?: boolean;
+  relay?: { accepted: number; retryable: number };
+}
+
+function emptyTriageResult(): TriageResult {
+  return {
+    bumped: [],
+    commented: [],
+    created: [],
+    deferred: [],
+    failed: [],
+    filedSignatures: [],
+  };
 }
 
 /**
  * Deterministic retro core. Never guesses the transcript path; fails loudly and
  * files nothing when it is missing or unreadable.
  */
+// eslint-disable-next-line complexity -- Native and gated relay paths share one egress pipeline by design.
 export async function runRetro(
   options: { transcript?: string; windowStart?: number },
   dependencies: RetroDependencies,
@@ -141,6 +168,35 @@ export async function runRetro(
   // Cloud-filing spool (BNGK9W): persist the post-egress drafts BEFORE filing so a
   // REST auth failure (cloud #568) can't lose them. Opt-in via projectDirectory.
   const { projectDirectory, sessionId } = dependencies;
+  const relay = dependencies.relay;
+  if (relay?.readiness.enabled === true && projectDirectory !== undefined) {
+    for (const encounter of encounters) {
+      await persistRelayDraft(projectDirectory, {
+        body: encounter.draft.body,
+        canonicalKey: encounter.draft.canonicalSignature,
+        installationId: relay.installationId,
+        labels: encounter.draft.labels,
+        legacySignature: encounter.draft.signature,
+        repository: relay.repository,
+        title: encounter.draft.title,
+      });
+    }
+    const delivery = await deliverRelayRequests(projectDirectory, {
+      credential: relay.credential,
+      deadlineMs: relay.deadlineMs ?? 750,
+      fetch: relay.fetch ?? fetch,
+      nativeFallback: () => false,
+      now: () => Date.now(),
+      relayUrl: relay.relayUrl,
+    });
+    return {
+      agentFilingNeeded: delivery.retryable > 0,
+      drops,
+      ok: true,
+      relay: delivery,
+      result: emptyTriageResult(),
+    };
+  }
   if (projectDirectory !== undefined) {
     const drafts = encounters.map(encounter => encounter.draft);
     recordRetroDebugEvent({
@@ -205,6 +261,32 @@ export interface AutoExtractDependencies {
 
 type AutoExtractSpawn = NonNullable<AutoExtractDependencies['spawn']>;
 
+const HEADLESS_ENVIRONMENT_KEYS = [
+  'ANTHROPIC_API_KEY',
+  'CODEX_HOME',
+  'HOME',
+  'LANG',
+  'LC_ALL',
+  'OPENAI_API_KEY',
+  'PATH',
+  'SHELL',
+  'TERM',
+  'TMPDIR',
+  'USER',
+  'XDG_CACHE_HOME',
+  'XDG_CONFIG_HOME',
+  'XDG_DATA_HOME',
+] as const;
+
+function headlessEnvironment(environment: NodeJS.ProcessEnv): Record<string, string | undefined> {
+  return Object.fromEntries(
+    HEADLESS_ENVIRONMENT_KEYS.flatMap(key => {
+      const value = environment[key];
+      return value === undefined ? [] : [[key, value]];
+    }),
+  );
+}
+
 function spawnClaudeExtractor(argv: string[], spawnOptions: Parameters<AutoExtractSpawn>[1]) {
   const result = spawnSync('claude', argv, {
     cwd: spawnOptions.cwd,
@@ -254,7 +336,7 @@ export async function buildAutoExtractor(
           writeFileSync(path, content);
         },
         readFile: (path: string) => readFileSync(path, 'utf8'),
-        env: process.env,
+        env: headlessEnvironment(process.env),
         cwd: workDirectory,
         model,
         schemaPath: nodePath.join(workDirectory, 'schema.json'),
@@ -281,7 +363,7 @@ export async function buildAutoExtractor(
         writeFileSync(path, digest);
         return path;
       },
-      env: process.env,
+      env: headlessEnvironment(process.env),
       cwd: workDirectory, // neutral cwd — not the user's project
       model,
     });

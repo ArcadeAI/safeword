@@ -5,21 +5,22 @@ import type { CredentialInput } from './auth.js';
 import type { RelayPrincipal } from './types.js';
 
 export interface RuntimeConfig {
-  host: '0.0.0.0';
-  port: number;
+  credentialPepper: string;
+  credentials: CredentialInput[];
   dataDirectory: string;
   databasePath: string;
-  lockPath: string;
-  payloadKey: Buffer;
-  credentialPepper: string;
-  credential: CredentialInput;
   github: {
     appId: string;
-    privateKey: string;
-    installationId: number;
-    repository: string;
     baseUrl: string;
+    installationId: number;
+    privateKey: string;
+    repository: string;
   };
+  host: '0.0.0.0';
+  lockPath: string;
+  mode: 'production' | 'spike';
+  payloadKey: Buffer;
+  port: number;
   replicaId: string;
 }
 
@@ -67,39 +68,117 @@ function parseStorage(
   return { dataDirectory, payloadKey };
 }
 
-function parseCredential(
+function credentialPepper(environment: NodeJS.ProcessEnv): string {
+  const pepper = required(environment, 'RELAY_CREDENTIAL_PEPPER');
+  if (!/^[\da-f]{64}$/u.test(pepper)) throw new Error('invalid RELAY_CREDENTIAL_PEPPER');
+  return pepper;
+}
+
+// eslint-disable-next-line complexity -- Strict JSON boundary validates every credential field without coercion.
+function credentialShape(value: unknown): value is CredentialInput {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  const keys = Object.keys(record).toSorted((left, right) => left.localeCompare(right));
+  const expected = [
+    'credentialId',
+    'harness',
+    'installationId',
+    'repository',
+    'roles',
+    'secret',
+    'subject',
+    'tenantId',
+  ];
+  return (
+    keys.join('\0') === expected.join('\0') &&
+    typeof record.credentialId === 'string' &&
+    typeof record.harness === 'string' &&
+    typeof record.installationId === 'number' &&
+    typeof record.repository === 'string' &&
+    Array.isArray(record.roles) &&
+    record.roles.every(role => typeof role === 'string') &&
+    typeof record.secret === 'string' &&
+    typeof record.subject === 'string' &&
+    typeof record.tenantId === 'string'
+  );
+}
+
+function validCredentialMaterial(credential: CredentialInput): boolean {
+  return (
+    /^[\da-z-]+$/u.test(credential.credentialId) &&
+    /^[\da-f]{64}$/u.test(credential.secret) &&
+    credential.subject.length > 0 &&
+    credential.tenantId.length > 0 &&
+    Number.isSafeInteger(credential.installationId) &&
+    credential.installationId > 0 &&
+    /^[\da-z_.-]+\/[\da-z_.-]+$/u.test(credential.repository.toLowerCase())
+  );
+}
+
+function expectedRoles(harness: RelayPrincipal['harness']): RelayPrincipal['roles'] {
+  return harness === 'operator' ? ['reconcile', 'operate'] : ['file'];
+}
+
+function parseProductionCredentials(environment: NodeJS.ProcessEnv): CredentialInput[] {
+  const bytes = strictBase64(
+    required(environment, 'RELAY_CREDENTIALS_BASE64'),
+    'RELAY_CREDENTIALS_BASE64',
+  );
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(bytes.toString('utf8')) as unknown;
+  } catch {
+    throw new Error('invalid RELAY_CREDENTIALS_BASE64');
+  }
+  if (!Array.isArray(parsed) || !parsed.every(credentialShape)) {
+    throw new Error('invalid RELAY_CREDENTIALS_BASE64');
+  }
+  const credentials = parsed.map(item => ({
+    ...item,
+    repository: item.repository.toLowerCase(),
+  }));
+  const harnesses = ['claude', 'codex', 'cursor', 'operator'] as const;
+  const ids = new Set<string>();
+  for (const harness of harnesses) {
+    const matching = credentials.filter(item => item.harness === harness);
+    if (matching.length !== 1) throw new Error(`invalid production ${harness} principal`);
+    const [credential] = matching;
+    if (
+      !validCredentialMaterial(credential) ||
+      JSON.stringify(credential.roles) !== JSON.stringify(expectedRoles(harness))
+    ) {
+      throw new Error(`invalid production ${harness} principal`);
+    }
+    if (ids.has(credential.credentialId)) throw new Error('duplicate relay credential id');
+    ids.add(credential.credentialId);
+  }
+  if (credentials.length !== harnesses.length) {
+    throw new Error('invalid production relay principals');
+  }
+  return credentials;
+}
+
+function parseSpikeCredential(
   environment: NodeJS.ProcessEnv,
   installationId: number,
   repo: string,
-): Pick<RuntimeConfig, 'credentialPepper' | 'credential'> {
-  const credentialPepper = required(environment, 'RELAY_CREDENTIAL_PEPPER');
-  if (!/^[\da-f]{64}$/u.test(credentialPepper)) {
-    throw new Error('invalid RELAY_CREDENTIAL_PEPPER');
-  }
+): CredentialInput {
   const credentialId = required(environment, 'RELAY_CREDENTIAL_ID');
-  if (!/^[\da-z-]+$/u.test(credentialId)) throw new Error('invalid RELAY_CREDENTIAL_ID');
-  const credentialSecret = required(environment, 'RELAY_CREDENTIAL_SECRET');
-  if (!/^[\da-f]{64}$/u.test(credentialSecret)) {
-    throw new Error('invalid RELAY_CREDENTIAL_SECRET');
-  }
-
+  const secret = required(environment, 'RELAY_CREDENTIAL_SECRET');
   const harness = required(environment, 'RELAY_HARNESS');
-  if (!['claude', 'codex', 'cursor', 'operator'].includes(harness)) {
-    throw new Error('invalid RELAY_HARNESS');
-  }
-  return {
-    credentialPepper,
-    credential: {
-      tenantId: required(environment, 'RELAY_TENANT_ID'),
-      credentialId,
-      secret: credentialSecret,
-      subject: required(environment, 'RELAY_SUBJECT'),
-      harness: harness as RelayPrincipal['harness'],
-      installationId,
-      repository: repo,
-      roles: harness === 'operator' ? ['file', 'reconcile'] : ['file'],
-    },
+  if (!['claude', 'codex', 'cursor'].includes(harness)) throw new Error('invalid RELAY_HARNESS');
+  const credential: CredentialInput = {
+    credentialId,
+    harness: harness as RelayPrincipal['harness'],
+    installationId,
+    repository: repo,
+    roles: ['file'],
+    secret,
+    subject: required(environment, 'RELAY_SUBJECT'),
+    tenantId: required(environment, 'RELAY_TENANT_ID'),
   };
+  if (!validCredentialMaterial(credential)) throw new Error('invalid relay credential material');
+  return credential;
 }
 
 function parseGitHub(environment: NodeJS.ProcessEnv): RuntimeConfig['github'] {
@@ -126,32 +205,43 @@ function parseGitHub(environment: NodeJS.ProcessEnv): RuntimeConfig['github'] {
   }
   return {
     appId,
-    privateKey,
-    installationId,
-    repository: repo,
     baseUrl: optional(environment, 'GITHUB_API_BASE_URL', 'https://api.github.com'),
+    installationId,
+    privateKey,
+    repository: repo,
   };
 }
 
 export function parseRuntimeConfig(environment: NodeJS.ProcessEnv): RuntimeConfig {
+  const mode = required(environment, 'RELAY_MODE');
+  if (!['production', 'spike'].includes(mode)) throw new Error('invalid RELAY_MODE');
   const { host, port } = parseNetwork(environment);
   const { dataDirectory, payloadKey } = parseStorage(environment);
   const github = parseGitHub(environment);
-  const { credentialPepper, credential } = parseCredential(
-    environment,
-    github.installationId,
-    github.repository,
-  );
+  const credentials =
+    mode === 'production'
+      ? parseProductionCredentials(environment)
+      : [parseSpikeCredential(environment, github.installationId, github.repository)];
+  if (
+    mode === 'production' &&
+    credentials.some(
+      item =>
+        item.installationId !== github.installationId || item.repository !== github.repository,
+    )
+  ) {
+    throw new Error('production credential scope must match the GitHub App installation');
+  }
   return {
-    host,
-    port,
+    credentialPepper: credentialPepper(environment),
+    credentials,
     dataDirectory,
     databasePath: path.join(dataDirectory, 'relay.sqlite'),
-    lockPath: path.join(dataDirectory, 'relay.lock'),
-    payloadKey,
-    credentialPepper,
-    credential,
     github,
+    host,
+    lockPath: path.join(dataDirectory, 'relay.lock'),
+    mode: mode as RuntimeConfig['mode'],
+    payloadKey,
+    port,
     replicaId: optional(environment, 'RAILWAY_REPLICA_ID', 'local'),
   };
 }

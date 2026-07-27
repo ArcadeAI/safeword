@@ -83,7 +83,24 @@ until a privileged reconciliation route finds exactly one reserved marker in a
 complete raw REST issue-body scan. Sanitized MCP reads are never duplicate
 authority. The destination lifecycle is a 24-hour retry deadline, one-hour
 dispatch grace, 30-day filed-payload retention, and indefinite tombstones; the
-timed maintenance worker remains a later rollout slice.
+timed maintenance worker persists its retry schedule and terminal alert outbox
+in the same database.
+
+Before transport, the CLI writes one immutable file containing the exact
+serialized request bytes and a UUIDv4 request ID. Claude, Codex, Cursor, and
+their cloud surfaces all claim and resend that same file; harness identity is
+never part of request identity. Atomic rename fences concurrent claims. An
+atomic acknowledgement journal is authoritative before recoverable payload
+cleanup, so a crash cannot convert an unknown relay response into permission
+for native GitHub fallback.
+
+Production authentication requires separate repository-scoped `file`
+principals for Claude, Codex, and Cursor and a `reconcile`/`operate` principal
+for operators. The single-principal Railway spike configuration is explicitly
+health-only. Relay routing is compiled fail-closed until #1474 and #1481,
+post-fix measurements, immutable artifact hashes, and Git ancestry bind the
+evidence to the running build. #834 remains active; #1495 gates readiness only
+if client credential helpers are reused.
 
 ---
 

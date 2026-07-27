@@ -5,6 +5,9 @@ import path from 'node:path';
 import Database from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { CredentialRegistry } from '../src/auth.js';
+import { GitHubRestClient } from '../src/github.js';
+import { startRelayServer } from '../src/http-server.js';
 import { RelayStore } from '../src/store.js';
 import type { RequestScope } from '../src/types.js';
 
@@ -261,6 +264,47 @@ describe('durable retry and terminal lifecycle', () => {
     store = RelayStore.open(file);
     expect(store.pendingAlerts()).toEqual(beforeRestart);
     expect(beforeRestart[0]?.eventId).toMatch(/^[0-9a-f]{64}$/u);
+    store.close();
+  });
+
+  it('redelivers the same alert event ID after a crash-after-log window', async () => {
+    const file = databasePath();
+    const acceptedAt = new Date('2026-01-01T00:00:00.000Z');
+    const store = RelayStore.open(file, { now: () => acceptedAt });
+    accept(store, 'alert-retry');
+    const observed: string[] = [];
+    let failAfterLog = true;
+    const relay = await startRelayServer({
+      allowUnlockedForTests: true,
+      credentials: new CredentialRegistry('pepper'),
+      github: new GitHubRestClient({
+        baseUrl: 'https://github.invalid',
+        installationToken: () => Promise.reject(new Error('must not call GitHub')),
+      }),
+      onAlert: event => {
+        observed.push(event.eventId);
+        if (failAfterLog) {
+          failAfterLog = false;
+          throw new Error('crash after logger write');
+        }
+      },
+      payloadKey: Buffer.alloc(32, 7),
+      store,
+    });
+
+    const deadline = new Date('2026-01-02T00:00:00.000Z');
+    await relay.maintain(deadline);
+    expect(store.pendingAlerts()).toHaveLength(1);
+    await relay.maintain(deadline);
+    expect(observed).toHaveLength(2);
+    expect(new Set(observed).size).toBe(1);
+    expect(store.pendingAlerts()).toHaveLength(0);
+
+    await new Promise<void>(resolve =>
+      relay.server.close(() => {
+        resolve();
+      }),
+    );
     store.close();
   });
 });

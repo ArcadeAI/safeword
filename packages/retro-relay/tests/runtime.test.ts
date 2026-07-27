@@ -264,15 +264,55 @@ describe('production runtime configuration', () => {
 
     const operatorFile = await fetch(`${runtime.url}/v1/retro-filings`, {
       body,
-      headers: { authorization: runtime.authorizations.operator },
+      headers: { authorization: `Bearer ${runtime.authorizations.operator}` },
       method: 'POST',
     });
     expect(operatorFile.status).toBe(403);
     const harnessReconcile = await fetch(`${runtime.url}/v1/retro-filings/missing/reconcile`, {
-      headers: { authorization: runtime.authorizations.claude },
+      headers: { authorization: `Bearer ${runtime.authorizations.claude}` },
       method: 'POST',
     });
     expect(harnessReconcile.status).toBe(403);
     await runtime.close();
+  });
+
+  it('rotates one harness credential without invalidating the other principals', async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'safeword-runtime-rotation-'));
+    runtimeDirectories.push(directory);
+    const environment = productionEnvironment(directory);
+    environment.PORT = String(await availablePort());
+    const first = await startRelayRuntime(parseRuntimeConfig(environment), () => {});
+    const oldClaude = first.authorizations.claude;
+    const retained = {
+      codex: first.authorizations.codex,
+      cursor: first.authorizations.cursor,
+      operator: first.authorizations.operator,
+    };
+    await first.close();
+
+    const credentials = JSON.parse(
+      Buffer.from(environment.RELAY_CREDENTIALS_BASE64 ?? '', 'base64').toString('utf8'),
+    ) as { credentialId: string; harness: string; secret: string }[];
+    const claude = credentials.find(item => item.harness === 'claude');
+    if (claude === undefined) throw new Error('missing Claude credential');
+    claude.credentialId = 'claude-rotated';
+    claude.secret = 'e'.repeat(64);
+    environment.RELAY_CREDENTIALS_BASE64 = Buffer.from(JSON.stringify(credentials)).toString(
+      'base64',
+    );
+
+    const second = await startRelayRuntime(parseRuntimeConfig(environment), () => {});
+    const statusFor = async (authorization: string) => {
+      const response = await fetch(`${second.url}/v1/operations/retro-filings`, {
+        headers: { authorization: `Bearer ${authorization}` },
+      });
+      return response.status;
+    };
+    await expect(statusFor(oldClaude)).resolves.toBe(401);
+    await expect(statusFor(second.authorizations.claude)).resolves.toBe(403);
+    await expect(statusFor(retained.codex)).resolves.toBe(403);
+    await expect(statusFor(retained.cursor)).resolves.toBe(403);
+    await expect(statusFor(retained.operator)).resolves.toBe(200);
+    await second.close();
   });
 });

@@ -255,11 +255,9 @@ describe('relay readiness provenance', () => {
       buildCommit: 'b'.repeat(40),
       isAncestor: (ancestor, descendant) =>
         Promise.resolve(
-          descendant === 'b'.repeat(40) &&
-            [
-              manifest.evidenceCommit,
-              ...manifest.prerequisites.map(item => item.mergedCommit),
-            ].includes(ancestor),
+          (ancestor === manifest.evidenceCommit && descendant === 'b'.repeat(40)) ||
+            (manifest.prerequisites.map(item => item.mergedCommit).includes(ancestor) &&
+              descendant === manifest.evidenceCommit),
         ),
       now: new Date('2026-07-26T12:00:00.000Z'),
       readArtifactAtCommit: (_commit, artifactPath) =>

@@ -34,6 +34,14 @@ type RelayServerOptions = {
   bootId?: string;
   host?: string;
   port?: number;
+  mode?: 'production' | 'spike';
+  maintenanceIntervalMs?: number;
+  onAlert?: (event: {
+    event: 'retro_lifecycle_alert';
+    eventId: string;
+    receiptId: string;
+    state: 'ambiguous' | 'dead-letter';
+  }) => void;
 } & (
   | { lockPath: string; allowUnlockedForTests?: never }
   | { lockPath?: never; allowUnlockedForTests: true }
@@ -48,6 +56,7 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
     logs: Record<string, unknown>[];
     metrics: Record<string, unknown>[];
   };
+  maintain: (now?: Date) => Promise<void>;
 }> {
   const processLock =
     input.lockPath === undefined ? undefined : ProcessLock.acquire(input.lockPath);
@@ -63,10 +72,48 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
     metrics: [] as Record<string, unknown>[],
   };
   const service = new RelayService({ ...input, faults });
+  let maintenanceRunning = false;
+  const maintain = async (now = new Date()): Promise<void> => {
+    if (maintenanceRunning || input.mode === 'spike') return;
+    maintenanceRunning = true;
+    try {
+      await service.maintain(now);
+      for (const alert of input.store.pendingAlerts()) {
+        const event = {
+          event: 'retro_lifecycle_alert' as const,
+          eventId: alert.eventId,
+          receiptId: alert.receiptId,
+          state: alert.state,
+        };
+        observability.logs.push(event);
+        observability.metrics.push({
+          metric: 'retro_lifecycle_alert',
+          eventId: alert.eventId,
+          state: alert.state,
+        });
+        input.onAlert?.(event);
+        input.store.markAlertDelivered(alert.eventId);
+      }
+    } catch {
+      observability.logs.push({ event: 'retro_maintenance_error' });
+    } finally {
+      maintenanceRunning = false;
+    }
+  };
   const server = createServer((request, response) => {
     void handle(request, response);
   });
-  server.once('close', () => processLock?.release());
+  const maintenanceTimer =
+    input.mode === 'spike'
+      ? undefined
+      : setInterval(() => {
+          void maintain();
+        }, input.maintenanceIntervalMs ?? 60_000);
+  maintenanceTimer?.unref();
+  server.once('close', () => {
+    if (maintenanceTimer !== undefined) clearInterval(maintenanceTimer);
+    processLock?.release();
+  });
 
   // eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- A single composition-root router keeps the public contract visible.
   async function handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
@@ -85,8 +132,18 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
         }
         return;
       }
+      if (input.mode === 'spike') {
+        throw new RelayError(503, 'spike mode exposes health only');
+      }
       const principal = input.credentials.authenticate(bearer(request));
       if (principal === undefined) throw new RelayError(401, 'authentication is required');
+      if (request.method === 'GET' && url.pathname === '/v1/operations/retro-filings') {
+        sendJson(response, 200, {
+          ...service.operations(principal),
+          bootId: input.bootId ?? 'local',
+        });
+        return;
+      }
       if (request.method === 'POST' && url.pathname === '/v1/retro-filings') {
         const receipt = await service.submit(
           principal,
@@ -191,5 +248,6 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
     url: `http://${input.host === '0.0.0.0' ? '127.0.0.1' : (input.host ?? '127.0.0.1')}:${address.port}`,
     faults,
     observability,
+    maintain,
   };
 }

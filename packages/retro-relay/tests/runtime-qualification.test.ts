@@ -24,12 +24,12 @@ describe('retro relay runtime qualification', () => {
 
     const first = RelayStore.open(databasePath);
     expect(first.journalMode()).toBe('wal');
-    expect(first.schemaVersion()).toBe(1);
+    expect(first.schemaVersion()).toBe(2);
     first.close();
 
     const reopened = RelayStore.open(databasePath);
     expect(reopened.journalMode()).toBe('wal');
-    expect(reopened.schemaVersion()).toBe(1);
+    expect(reopened.schemaVersion()).toBe(2);
     reopened.close();
   });
 

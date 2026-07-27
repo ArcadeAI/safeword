@@ -16,11 +16,18 @@ export interface RelayPrincipal {
   harness: 'claude' | 'codex' | 'cursor' | 'operator';
   installationId: number;
   repository: string;
-  roles: ('file' | 'reconcile')[];
+  roles: ('file' | 'operate' | 'reconcile')[];
 }
 
 export type ReceiptState =
-  'accepted' | 'claimed' | 'dispatching' | 'filed' | 'ambiguous' | 'retryable';
+  | 'accepted'
+  | 'claimed'
+  | 'dispatching'
+  | 'filed'
+  | 'ambiguous'
+  | 'retryable'
+  | 'dead-letter'
+  | 'tombstone';
 
 export interface FilingReceipt {
   receiptId: string;

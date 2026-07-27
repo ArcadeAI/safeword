@@ -17,14 +17,7 @@ async function runProof(): Promise<{ stdout: string; stderr: string; exitCode: n
     const [client, server] = await Promise.all([
       execFileAsync(
         'bun',
-        [
-          'run',
-          '--cwd',
-          'packages/cli',
-          'test',
-          'tests/retro/relay-delivery.test.ts',
-          'tests/integration/retro-relay-wiring.test.ts',
-        ],
+        ['run', '--cwd', 'packages/cli', 'test', 'tests/retro/relay-delivery.test.ts'],
         { cwd: process.cwd() },
       ),
       execFileAsync(
@@ -34,6 +27,7 @@ async function runProof(): Promise<{ stdout: string; stderr: string; exitCode: n
           '--cwd',
           'packages/retro-relay',
           'test',
+          'tests/cli-wiring.integration.test.ts',
           'tests/lifecycle.test.ts',
           'tests/runtime.test.ts',
           'tests/relay.integration.test.ts',

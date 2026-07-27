@@ -11,6 +11,7 @@ import { RelayStore } from './store.js';
 export interface RelayRuntime {
   url: string;
   authorization: string;
+  authorizations: Record<'claude' | 'codex' | 'cursor' | 'operator', string>;
   close: () => Promise<void>;
 }
 
@@ -24,7 +25,14 @@ export async function startRelayRuntime(
   await mkdir(config.dataDirectory, { recursive: true });
   const store = RelayStore.open(config.databasePath);
   const credentials = new CredentialRegistry(config.credentialPepper);
-  const authorization = credentials.issue(config.credential);
+  const issued = config.credentials.map(credential => ({
+    authorization: credentials.issue(credential),
+    harness: credential.harness,
+  }));
+  const authorizations = Object.fromEntries(
+    issued.map(item => [item.harness, item.authorization]),
+  ) as Partial<RelayRuntime['authorizations']>;
+  const authorization = issued[0].authorization;
   const tokenProvider = new GitHubAppTokenProvider({
     appId: config.github.appId,
     baseUrl: config.github.baseUrl,
@@ -48,11 +56,14 @@ export async function startRelayRuntime(
       payloadKey: config.payloadKey,
       port: config.port,
       replicaId: config.replicaId,
+      mode: config.mode,
+      onAlert: log,
     });
     let closed = false;
     return {
       url: relay.url,
       authorization,
+      authorizations: authorizations as RelayRuntime['authorizations'],
       close: async () => {
         if (closed) return;
         closed = true;

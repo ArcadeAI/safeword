@@ -120,6 +120,10 @@ class FilingAdapter {
       }
       if (receiptId === undefined) throw error;
     }
+    return this.reconcileReceipt(receiptId);
+  }
+
+  async reconcileReceipt(receiptId: string): Promise<FilingReceipt> {
     const result = await this.#request(
       `/v1/retro-filings/${encodeURIComponent(receiptId)}/reconcile`,
       undefined,

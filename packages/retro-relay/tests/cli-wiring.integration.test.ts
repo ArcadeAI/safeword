@@ -5,14 +5,14 @@ import path from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { runRetro } from '../../cli/src/commands/retro.js';
+import type { IssueTracker } from '../../cli/src/retro/triage.js';
 import {
   CredentialRegistry,
   GitHubRestClient,
   RelayStore,
   startRelayServer,
-} from '../../../retro-relay/src/index.js';
-import { runRetro } from '../../src/commands/retro.js';
-import type { IssueTracker } from '../../src/retro/triage.js';
+} from '../src/index.js';
 
 const directories: string[] = [];
 const servers: ReturnType<typeof createServer>[] = [];
@@ -161,4 +161,82 @@ describe('real shared CLI to relay wiring', () => {
       store.close();
     },
   );
+
+  it('reuses one request ID when another harness retries after the receipt response is lost', async () => {
+    const project = mkdtempSync(path.join(tmpdir(), 'safeword-cli-relay-retry-'));
+    directories.push(project);
+    const github = await githubFixture();
+    const registry = new CredentialRegistry('pepper');
+    const issueCredential = (harness: 'claude' | 'codex', character: string) =>
+      registry.issue({
+        credentialId: `${harness}-retry`,
+        harness,
+        installationId: 42,
+        repository: 'arcadeai/safeword',
+        roles: ['file'],
+        secret: character.repeat(64),
+        subject: harness,
+        tenantId: 'tenant-1',
+      });
+    const credentials = {
+      claude: issueCredential('claude', 'a'),
+      codex: issueCredential('codex', 'b'),
+    };
+    const store = RelayStore.open(path.join(project, 'relay.sqlite'));
+    const relay = await startRelayServer({
+      allowUnlockedForTests: true,
+      credentials: registry,
+      github: new GitHubRestClient({
+        baseUrl: github.baseUrl,
+        installationToken: () => Promise.resolve('ghs_installation_secret'),
+      }),
+      payloadKey: Buffer.alloc(32, 7),
+      store,
+    });
+    servers.push(relay.server);
+    const finding = {
+      category: 'rough-edge',
+      repro: 'run safeword retro after a lost response',
+      safeword_surface: 'hooks/stop-quality.ts',
+      title: 'Relay response can be lost',
+      what_happened: 'The response was lost after durable acceptance.',
+      why_friction: 'The next harness could open a duplicate.',
+    };
+    const run = (harness: string, credential: string, relayFetch?: typeof fetch) =>
+      runRetro(
+        { transcript: '/transcript.jsonl' },
+        {
+          extract: () => Promise.resolve([finding]),
+          harness,
+          projectDirectory: project,
+          readFile: () => 'transcript',
+          relay: {
+            credential,
+            ...(relayFetch !== undefined && { fetch: relayFetch }),
+            installationId: 42,
+            readiness: { enabled: true },
+            relayUrl: relay.url,
+            repository: 'arcadeai/safeword',
+          },
+          sessionId: 'session-1479',
+          transport: forbiddenNativeTransport(),
+        },
+      );
+
+    const lostResponseFetch: typeof fetch = async (input, init) => {
+      const response = await fetch(input, init);
+      await response.arrayBuffer();
+      throw new Error('simulated lost receipt response');
+    };
+    const first = await run('Claude Code', credentials.claude, lostResponseFetch);
+    expect(first.relay).toEqual({ accepted: 0, retryable: 1 });
+    const second = await run('OpenAI Codex', credentials.codex);
+    expect(second.relay).toEqual({ accepted: 1, retryable: 0 });
+
+    const requestIds = relay.observability.logs.map(log => log.requestId);
+    expect(requestIds).toHaveLength(2);
+    expect(new Set(requestIds).size).toBe(1);
+    expect(github.createdBodies).toHaveLength(1);
+    store.close();
+  });
 });
