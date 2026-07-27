@@ -158,14 +158,9 @@ describe('scrubSecrets — stateless GitHub installation tokens (#1495)', () => 
     ['hyphen-ending', `ghs_${'A'.repeat(40)}.${'B'.repeat(40)}.${'C'.repeat(39)}-`],
     ['underscore-ending', `ghs_${'A'.repeat(40)}.${'B'.repeat(40)}.${'C'.repeat(39)}_`],
   ])('fully redacts a %s stateless token without residue', (_label, shaped) => {
-    const [, payload, signature] = shaped.split('.', 3);
     const out = scrubSecrets(`token is ${shaped}`);
 
     expect(out).toBe(`token is ${redacted}`);
-    expect(out).not.toContain(shaped);
-    expect(out).not.toContain(payload);
-    expect(out).not.toContain(signature);
-    expect(out).not.toMatch(/\.[\w.-]+/);
   });
 
   it('keeps classic GitHub token redaction as a regression control', () => {
