@@ -407,6 +407,57 @@ describe('safeword boundary (slice 1: engine core)', () => {
       }
     });
 
+    it('falls back to legacy tickets when the staged tree has no .project root', async () => {
+      const legacyTicket = '.safeword-project/tickets/BND022-legacy/ticket.md';
+      git(dir, 'rm -r .project --quiet');
+      writeTestFile(
+        dir,
+        legacyTicket,
+        boundaryTicketContent({ id: 'BND022', phase: 'scenario-gate' }),
+      );
+      git(dir, 'add -A');
+      git(dir, 'commit -m legacy-baseline --quiet');
+      writeTestFile(dir, legacyTicket, boundaryTicketContent({ id: 'BND022', phase: 'implement' }));
+      git(dir, `add ${legacyTicket}`);
+
+      const result = await runCli(['boundary', '--at', 'commit'], { cwd: dir });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toMatch(/BND022-legacy.*phase-anchor/is);
+    });
+
+    it('falls back to legacy tickets when the pushed tree has no .project root', async () => {
+      const remote = createTemporaryDirectory();
+      try {
+        execSync('git init --bare --quiet', { cwd: remote, stdio: 'pipe' });
+        const legacyTicket = '.safeword-project/tickets/BND023-legacy/ticket.md';
+        git(dir, 'rm -r .project --quiet');
+        writeTestFile(
+          dir,
+          legacyTicket,
+          boundaryTicketContent({ id: 'BND023', phase: 'scenario-gate' }),
+        );
+        git(dir, 'add -A');
+        git(dir, 'commit -m legacy-baseline --quiet');
+        git(dir, `remote add origin ${remote}`);
+        git(dir, 'push -u origin HEAD --quiet');
+        writeTestFile(
+          dir,
+          legacyTicket,
+          boundaryTicketContent({ id: 'BND023', phase: 'implement' }),
+        );
+        git(dir, `add ${legacyTicket}`);
+        git(dir, 'commit -m legacy-advance --quiet');
+
+        const result = await runCli(['boundary', '--at', 'push'], { cwd: dir });
+
+        expect(result.exitCode).toBe(0);
+        expect(`${result.stdout}\n${result.stderr}`).toMatch(/BND023-legacy.*phase-anchor/is);
+      } finally {
+        removeTemporaryDirectory(remote);
+      }
+    });
+
     it('accepts a root-level configured feature lane from the staged config', async () => {
       const ticket = '.project/tickets/BND019-owner';
       const feature = 'docs/owner.feature';
