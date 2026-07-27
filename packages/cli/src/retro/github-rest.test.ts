@@ -555,7 +555,12 @@ describe('resolveGitHubToken (7D8PJP — no hard GITHUB_TOKEN requirement)', () 
   it.each([
     ['a proxy placeholder', 'proxy-injected'],
     ['an unknown prefix', `gha_${'a'.repeat(32)}`],
+    ['a 35-character stateless token', minimumStatelessToken.slice(0, -1)],
     ['a stateless token embedded in prose', `prefix-ghs_${'a'.repeat(40)}.${'b'.repeat(40)}`],
+    [
+      'a stateless token followed by trailing prose',
+      `ghs_${'a'.repeat(40)}.${'b'.repeat(40)} extra`,
+    ],
     ['an empty string', ''],
   ])('rejects %s and falls back to gh', (_label, bogus) => {
     const token = resolveGitHubToken({ GITHUB_TOKEN: bogus }, () => ghToken);

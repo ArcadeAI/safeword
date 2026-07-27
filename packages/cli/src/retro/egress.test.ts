@@ -163,7 +163,10 @@ describe('scrubSecrets — stateless GitHub installation tokens (#1495)', () => 
     return out;
   }
 
-  it('pins the four load-bearing rule-ordering mutations', () => {
+  // These local pattern copies intentionally document the ordering failure
+  // modes. The parameterized scrubSecrets tests below pin production behavior;
+  // keep the copies aligned if the production rules change.
+  it('documents why stateless-before-classic rule ordering matters', () => {
     expect(scrubWith([classicGitHub, genericJwt])).toBe(
       `token is ${redacted}.${'B'.repeat(40)}.${'C'.repeat(40)}`,
     );
