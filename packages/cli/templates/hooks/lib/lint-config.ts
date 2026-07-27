@@ -110,7 +110,7 @@ export function shouldWarnMissingPrettier(entries: readonly string[]): boolean {
  * declared check keeps this in step with the setup-side twin in
  * packs/sql/files.ts (kept in sync by hand — templates can't be imported from
  * src), so a declared-but-not-installed repo whose sqlfluff configs setup
- * suppressed doesn't fall through to the auto-upgrade path on every edit.
+ * suppressed still uses the host-owned formatting path.
  */
 export function hostFormatsSqlWithPrettier(projectDirectory: string): boolean {
   if (existsSync(nodePath.join(projectDirectory, 'node_modules', 'prettier-plugin-sql'))) {
