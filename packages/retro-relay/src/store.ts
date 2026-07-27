@@ -497,15 +497,20 @@ export class RelayStore {
     return linked;
   }
 
-  markAmbiguous(scope: RequestScope): void {
-    this.#database
-      .prepare(
-        `UPDATE retro_requests SET state = 'ambiguous'
-         WHERE tenant_id = ? AND installation_id = ? AND repository = ?
-           AND request_id = ? AND state IN ('claimed', 'dispatching')
-           AND dead_lettered_at IS NULL`,
-      )
-      .run(scope.tenantId, scope.installationId, scope.repository, scope.requestId);
+  markAmbiguous(scope: RequestScope, now = this.#now()): void {
+    const transition = this.#database.transaction(() => {
+      const row = this.#database
+        .prepare<[string, number, string, string], Pick<RequestRow, 'receipt_id'>>(
+          `UPDATE retro_requests SET state = 'ambiguous'
+           WHERE tenant_id = ? AND installation_id = ? AND repository = ?
+             AND request_id = ? AND state IN ('claimed', 'dispatching')
+             AND dead_lettered_at IS NULL
+           RETURNING receipt_id`,
+        )
+        .get(scope.tenantId, scope.installationId, scope.repository, scope.requestId);
+      if (row !== undefined) this.#insertAlert(row.receipt_id, 'ambiguous', now);
+    });
+    transition.immediate();
   }
 
   markFiled(scope: RequestScope, issueNumber: number, now = this.#now()): FilingReceipt {
@@ -702,18 +707,25 @@ export class RelayStore {
 
   recoverInFlight(): void {
     const now = this.#now().toISOString();
-    this.#database
-      .prepare(
-        `UPDATE retro_requests SET state = 'retryable', next_attempt_at = ?
-         WHERE state = 'claimed' AND dead_lettered_at IS NULL`,
-      )
-      .run(now);
-    this.#database
-      .prepare(
-        `UPDATE retro_requests SET state = 'ambiguous'
-         WHERE state = 'dispatching' AND dead_lettered_at IS NULL`,
-      )
-      .run();
+    const recover = this.#database.transaction(() => {
+      this.#database
+        .prepare(
+          `UPDATE retro_requests SET state = 'retryable', next_attempt_at = ?
+           WHERE state = 'claimed' AND dead_lettered_at IS NULL`,
+        )
+        .run(now);
+      const ambiguous = this.#database
+        .prepare<[], Pick<RequestRow, 'receipt_id'>>(
+          `UPDATE retro_requests SET state = 'ambiguous'
+           WHERE state = 'dispatching' AND dead_lettered_at IS NULL
+           RETURNING receipt_id`,
+        )
+        .all();
+      for (const row of ambiguous) {
+        this.#insertAlert(row.receipt_id, 'ambiguous', new Date(now));
+      }
+    });
+    recover.immediate();
   }
 
   maintain(now = this.#now()): { alerts: MaintenanceAlert[] } {

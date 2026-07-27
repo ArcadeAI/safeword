@@ -39,6 +39,11 @@ the `reconcile` and `operate` roles. Every principal is bound to the configured
 GitHub App installation and repository. GitHub App credentials and installation
 tokens remain server-side. `RELAY_MODE=spike` accepts the legacy single
 credential variables but makes every route except `GET /health` unavailable.
+The production listener caps filing bodies at 256 KiB, validates bounded fields,
+uses ten-second request/header timeouts, and permits 60 filing requests per
+principal per minute. These in-process limits match the supported single-replica
+topology; a multi-replica deployment must move both storage and rate limiting to
+shared infrastructure.
 
 The maintenance loop persists exponential retry scheduling, stops new
 dispatches at 24 hours, resolves an already-started dispatch for one additional

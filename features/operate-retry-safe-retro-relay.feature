@@ -178,6 +178,12 @@ Feature: Operate the retry-safe retro relay
         | classic opaque        |
         | stateless dotted ghs_ |
 
+    @operate-retry-safe-retro-relay.SWM1.R1 @rejection
+    Scenario: Production filing requests are resource bounded
+      Given an authenticated harness can reach the production filing route
+      When it exceeds the body field timeout or per-principal rate boundary
+      Then the relay rejects the request before durable or GitHub access
+
   Rule: Retry grace dead-letter compaction and tombstone deadlines are durable and alertable
 
     @operate-retry-safe-retro-relay.SWM1.R2
@@ -241,6 +247,13 @@ Feature: Operate the retry-safe retro relay
       And the changed payload is rejected
       And canonical and legacy semantic evidence remain reserved
 
+    @operate-retry-safe-retro-relay.SWM1.R2
+    Scenario: A compacted request immediately replays its original filed result
+      Given a filed request has crossed its 30-day payload retention boundary
+      When another harness resubmits its original requestId and exact payload hash
+      Then the relay immediately returns the original receipt and issue
+      And no new GitHub dispatch starts
+
   Rule: Operational state is readable without exposing approved payloads or credentials
 
     @operate-retry-safe-retro-relay.SWM1.R3 @rejection
@@ -256,3 +269,9 @@ Feature: Operate the retry-safe retro relay
       When the production runtime records the maintenance result
       Then each transitioned receipt owns one durable payload-free alert event
       And repeated delivery uses the same eventId
+
+    @operate-retry-safe-retro-relay.SWM1.R3
+    Scenario: Immediate ambiguous outcomes are durably alertable
+      Given a claimed request becomes ambiguous before maintenance
+      When the ambiguous transition commits
+      Then its payload-free alert event commits in the same transaction

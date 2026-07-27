@@ -64,9 +64,11 @@ ESLint configs are bundled in the main package and accessed via `import safeword
 
 ### Retro relay boundary
 
-`packages/retro-relay` is deliberately separate from the published CLI. All
-harness adapters send the same tenant/installation/repository/request ID
-identity; harness and subject are authorization and audit attributes only.
+`packages/retro-relay` is deliberately separate from the published CLI. The
+gated shared CLI core sends the same tenant/installation/repository/request ID
+identity from every harness surface; harness and subject are authorization and
+audit attributes only. Public relay routing remains compiled off until the
+readiness evidence below is satisfied.
 SQLite WAL is the smallest supported durable store for one active process on
 one host. Multi-host deployment or a network filesystem requires migration
 through the store boundary to PostgreSQL.
@@ -96,8 +98,10 @@ for native GitHub fallback.
 
 Production authentication requires separate repository-scoped `file`
 principals for Claude, Codex, and Cursor and a `reconcile`/`operate` principal
-for operators. The single-principal Railway spike configuration is explicitly
-health-only. Relay routing is compiled fail-closed until #1474 and #1481,
+for operators. Filing inputs have bounded bodies and fields, ten-second HTTP
+timeouts, and a per-principal in-process rate limit. The single-principal
+Railway spike configuration is explicitly health-only. Relay routing is
+compiled fail-closed until #1474 and #1481,
 post-fix measurements, immutable artifact hashes, and Git ancestry bind the
 evidence to the running build. #834 remains active; #1495 gates readiness only
 if client credential helpers are reused.

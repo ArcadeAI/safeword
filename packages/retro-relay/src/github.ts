@@ -18,6 +18,18 @@ function hasExactMarker(body: string | null, marker: string): boolean {
   return body?.split(/\r?\n/u).includes(marker) ?? false;
 }
 
+function hasNextPage(response: Response): boolean | undefined {
+  const link = response.headers.get('link');
+  if (link === null) return undefined;
+  return link.split(',').some(value => /;\s*rel="next"/u.test(value));
+}
+
+const GITHUB_HEADERS = {
+  accept: 'application/vnd.github+json',
+  'user-agent': 'safeword-retro-relay',
+  'x-github-api-version': '2022-11-28',
+} as const;
+
 export class GitHubRestClient {
   readonly #baseUrl: string;
   readonly #installationToken: GitHubRestClientOptions['installationToken'];
@@ -37,7 +49,7 @@ export class GitHubRestClient {
     const response = await fetch(`${this.#baseUrl}/repos/${input.repository}/issues`, {
       method: 'POST',
       headers: {
-        accept: 'application/vnd.github+json',
+        ...GITHUB_HEADERS,
         authorization: `Bearer ${input.installationToken}`,
         'content-type': 'application/json',
       },
@@ -68,6 +80,7 @@ export class GitHubRestClient {
       try {
         response = await fetch(url, {
           headers: {
+            ...GITHUB_HEADERS,
             accept: 'application/vnd.github.raw+json',
             authorization: `Bearer ${token}`,
           },
@@ -82,7 +95,10 @@ export class GitHubRestClient {
           matches.push(issue.number);
         }
       }
-      if (issues.length < 100) return { complete: true, issueNumbers: matches };
+      const linkedNextPage = hasNextPage(response);
+      if (linkedNextPage === false || (linkedNextPage === undefined && issues.length < 100)) {
+        return { complete: true, issueNumbers: matches };
+      }
     }
   }
 }

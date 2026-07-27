@@ -138,6 +138,12 @@ Feature source: `features/operate-retry-safe-retro-relay.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Production filing requests are resource bounded
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: Retry grace dead-letter compaction and tombstone deadlines are durable and alertable
 
 ### Scenario: Maintenance enforces each lifecycle boundary exactly once
@@ -182,6 +188,12 @@ Feature source: `features/operate-retry-safe-retro-relay.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A compacted request immediately replays its original filed result
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: Operational state is readable without exposing approved payloads or credentials
 
 ### Scenario: The operator sees lifecycle counts through the real HTTP route without secret content
@@ -191,6 +203,12 @@ Feature source: `features/operate-retry-safe-retro-relay.feature`
 - [ ] REFACTOR
 
 ### Scenario: Maintenance emits a deduplicable structured alert for each newly terminal request
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Immediate ambiguous outcomes are durably alertable
 
 - [ ] RED
 - [ ] GREEN

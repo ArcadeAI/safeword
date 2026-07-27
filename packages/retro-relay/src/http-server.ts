@@ -8,11 +8,27 @@ import { type RelayFaults, RelayService } from './service.js';
 import type { RelayStore } from './store.js';
 import type { FileRetroDraftRequest } from './types.js';
 
-async function readJson(request: IncomingMessage): Promise<unknown> {
-  let body = '';
-  for await (const chunk of request) body += String(chunk);
-
-  return JSON.parse(body) as unknown;
+async function readJson(request: IncomingMessage, maximumBytes: number): Promise<unknown> {
+  const contentLength = Number(request.headers['content-length'] ?? '0');
+  if (Number.isFinite(contentLength) && contentLength > maximumBytes) {
+    throw new RelayError(413, 'relay request body is too large');
+  }
+  const chunks: Buffer[] = [];
+  let size = 0;
+  for await (const chunk of request as AsyncIterable<Buffer>) {
+    const bytes = Buffer.from(chunk);
+    size += bytes.length;
+    if (size > maximumBytes) {
+      request.resume();
+      throw new RelayError(413, 'relay request body is too large');
+    }
+    chunks.push(bytes);
+  }
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown;
+  } catch {
+    throw new RelayError(400, 'relay request body is invalid JSON');
+  }
 }
 
 function sendJson(response: ServerResponse, status: number, value: unknown): void {
@@ -36,6 +52,12 @@ type RelayServerOptions = {
   port?: number;
   mode?: 'production' | 'spike';
   maintenanceIntervalMs?: number;
+  now?: () => Date;
+  resourceLimits?: {
+    maxBodyBytes?: number;
+    maxRequestsPerWindow?: number;
+    windowMs?: number;
+  };
   onAlert?: (event: {
     event: 'retro_lifecycle_alert';
     eventId: string;
@@ -72,6 +94,21 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
     metrics: [] as Record<string, unknown>[],
   };
   const service = new RelayService({ ...input, faults });
+  const maxBodyBytes = input.resourceLimits?.maxBodyBytes ?? 256 * 1024;
+  const maxRequestsPerWindow = input.resourceLimits?.maxRequestsPerWindow ?? 60;
+  const rateWindowMs = input.resourceLimits?.windowMs ?? 60_000;
+  const rateWindows = new Map<string, { count: number; startedAt: number }>();
+  const consumeFilingCapacity = (credentialId: string): boolean => {
+    const now = (input.now?.() ?? new Date()).getTime();
+    const current = rateWindows.get(credentialId);
+    if (current === undefined || now - current.startedAt >= rateWindowMs) {
+      rateWindows.set(credentialId, { count: 1, startedAt: now });
+      return true;
+    }
+    if (current.count >= maxRequestsPerWindow) return false;
+    current.count += 1;
+    return true;
+  };
   let maintenanceRunning = false;
   const maintain = async (now = new Date()): Promise<void> => {
     if (maintenanceRunning || input.mode === 'spike') return;
@@ -103,6 +140,8 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
   const server = createServer((request, response) => {
     void handle(request, response);
   });
+  server.requestTimeout = 10_000;
+  server.headersTimeout = 10_000;
   const maintenanceTimer =
     input.mode === 'spike'
       ? undefined
@@ -145,9 +184,12 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
         return;
       }
       if (request.method === 'POST' && url.pathname === '/v1/retro-filings') {
+        if (!consumeFilingCapacity(principal.credentialId)) {
+          throw new RelayError(429, 'relay filing rate limit exceeded');
+        }
         const receipt = await service.submit(
           principal,
-          (await readJson(request)) as FileRetroDraftRequest,
+          (await readJson(request, maxBodyBytes)) as FileRetroDraftRequest,
         );
         observability.logs.push({
           event: 'retro_filing',
@@ -166,8 +208,9 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
           response.destroy();
           return;
         }
-        if (receipt.state !== 'filed') response.setHeader('retry-after', '1');
-        sendJson(response, receipt.state === 'filed' ? 201 : 202, receipt);
+        const filed = receipt.state === 'filed' || receipt.state === 'tombstone';
+        if (!filed) response.setHeader('retry-after', '1');
+        sendJson(response, filed ? 201 : 202, receipt);
         return;
       }
       const reconciliation = /^\/v1\/retro-filings\/([^/]+)\/reconcile$/u.exec(url.pathname);
@@ -211,7 +254,9 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
       const status = /^\/v1\/retro-filings\/([^/]+)$/u.exec(url.pathname);
       if (request.method === 'GET' && status?.[1] !== undefined) {
         const receipt = service.status(principal, decodeURIComponent(status[1]));
-        if (receipt.state !== 'filed') response.setHeader('retry-after', '1');
+        if (receipt.state !== 'filed' && receipt.state !== 'tombstone') {
+          response.setHeader('retry-after', '1');
+        }
         sendJson(response, 200, receipt);
         return;
       }

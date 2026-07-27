@@ -62,8 +62,43 @@ function belongsTo(record: DurableRequest, principal: RelayPrincipal): boolean {
   );
 }
 
+function isFiledResult(record: DurableRequest): boolean {
+  return record.state === 'filed' || record.state === 'tombstone';
+}
+
+function validText(value: unknown, maximum: number, allowEmpty = false): value is string {
+  return (
+    typeof value === 'string' && value.length <= maximum && (allowEmpty || value.trim().length > 0)
+  );
+}
+
+// eslint-disable-next-line complexity -- Every externally supplied request field has an explicit bound.
+function validateRequest(request: unknown): asserts request is FileRetroDraftRequest {
+  if (typeof request !== 'object' || request === null) {
+    throw new RelayError(400, 'invalid relay filing request');
+  }
+  const candidate = request as Partial<FileRetroDraftRequest>;
+  if (
+    !validText(candidate.requestId, 128) ||
+    !Number.isSafeInteger(candidate.installationId) ||
+    (candidate.installationId ?? 0) <= 0 ||
+    !validText(candidate.repository, 200) ||
+    !/^[\w.-]+\/[\w.-]+$/u.test(candidate.repository) ||
+    !validText(candidate.canonicalKey, 256) ||
+    !validText(candidate.legacySignature, 256) ||
+    !validText(candidate.title, 256) ||
+    !validText(candidate.body, 128 * 1024, true) ||
+    !Array.isArray(candidate.labels) ||
+    candidate.labels.length > 20 ||
+    candidate.labels.some(label => !validText(label, 50))
+  ) {
+    throw new RelayError(400, 'invalid relay filing request');
+  }
+}
+
 export class RelayService {
   readonly #github: GitHubRestClient;
+  readonly #now: () => Date;
   readonly #payloadKey: Buffer;
   readonly #store: RelayStore;
   readonly faults: RelayFaults;
@@ -73,10 +108,12 @@ export class RelayService {
     github: GitHubRestClient;
     payloadKey: Buffer;
     faults?: RelayFaults;
+    now?: () => Date;
   }) {
     this.#store = input.store;
     this.#github = input.github;
     this.#payloadKey = input.payloadKey;
+    this.#now = input.now ?? (() => new Date());
     this.faults = input.faults ?? {};
   }
 
@@ -95,7 +132,7 @@ export class RelayService {
     if (record === undefined || !belongsTo(record, principal)) {
       throw new RelayError(404, 'filing receipt not found');
     }
-    if (record.state === 'filed') return receiptFromRecord(record);
+    if (isFiledResult(record)) return receiptFromRecord(record);
     if (record.state !== 'ambiguous') {
       throw new RelayError(409, 'only ambiguous filings can be reconciled');
     }
@@ -150,7 +187,7 @@ export class RelayService {
     const due = this.#store.claimDueRetries(now);
     for (const record of due) {
       try {
-        await this.#processClaimed(record, now);
+        await this.#processClaimed(record);
       } catch {
         // The durable state records retryable/ambiguous outcomes per request.
         // One poisoned request must not prevent the rest of the sweep.
@@ -160,6 +197,7 @@ export class RelayService {
   }
 
   async submit(principal: RelayPrincipal, request: FileRetroDraftRequest): Promise<FilingReceipt> {
+    validateRequest(request);
     const scope = authorize(principal, request, 'file');
     const hash = payloadHash(request);
     const marker = requestMarker(scope);
@@ -173,7 +211,7 @@ export class RelayService {
     if (accepted.record.payloadHash !== hash) {
       throw new RelayError(409, 'request identity was reused with a different payload');
     }
-    if (accepted.record.state === 'filed') return receiptFromRecord(accepted.record);
+    if (isFiledResult(accepted.record)) return receiptFromRecord(accepted.record);
     if (accepted.record.state === 'ambiguous') {
       throw new RelayError(503, 'filing outcome is ambiguous', {
         receiptId: accepted.record.receiptId,
@@ -187,18 +225,18 @@ export class RelayService {
     }
     const claimed = this.#store.load(scope);
     if (claimed === undefined) throw new RelayError(404, 'filing receipt not found');
-    return this.#processClaimed(claimed, new Date());
+    return this.#processClaimed(claimed);
   }
 
   // eslint-disable-next-line complexity -- Preparation, dispatch, and ambiguity branches are the durable retry state machine.
-  async #processClaimed(record: DurableRequest, now: Date): Promise<FilingReceipt> {
+  async #processClaimed(record: DurableRequest): Promise<FilingReceipt> {
     const { scope } = record;
     const hash = record.payloadHash;
     let durableRequest: FileRetroDraftRequest;
     let installationToken: string;
     try {
       durableRequest = decryptPayload(record.envelope, scope, hash, this.#payloadKey);
-      const adopted = await this.#adoptExisting(scope, durableRequest, now);
+      const adopted = await this.#adoptExisting(scope, durableRequest);
       if (adopted !== undefined) return adopted;
       const owner = this.#store.reserveEvidence(scope, [
         { kind: 'canonical', value: durableRequest.canonicalKey },
@@ -219,11 +257,13 @@ export class RelayService {
           state: 'ambiguous',
         });
       }
-      this.#store.markRetryable(scope, now);
+      this.#store.markRetryable(scope, this.#now());
       if (error instanceof RelayError) throw error;
       throw new RelayError(503, 'filing preparation failed before dispatch');
     }
-    if (!this.#store.beginDispatch(scope, now)) {
+    const dispatchAt = this.#now();
+    if (!this.#store.beginDispatch(scope, dispatchAt)) {
+      this.#store.maintain(dispatchAt);
       const current = this.#store.receipt(scope);
       if (current === undefined) throw new RelayError(404, 'filing receipt not found');
       return current;
@@ -237,7 +277,7 @@ export class RelayService {
         installationToken,
       });
       this.faults.afterGitHubCreate?.();
-      return this.#store.markFiled(scope, issueNumber, now);
+      return this.#store.markFiled(scope, issueNumber, this.#now());
     } catch (error) {
       if (error instanceof RelayError) throw error;
       this.#store.markAmbiguous(scope);
@@ -253,7 +293,6 @@ export class RelayService {
   async #adoptExisting(
     scope: RequestScope,
     request: FileRetroDraftRequest,
-    now: Date,
   ): Promise<FilingReceipt | undefined> {
     const scans = [];
     for (const marker of [
@@ -289,6 +328,6 @@ export class RelayService {
       { kind: 'canonical', value: request.canonicalKey },
       { kind: 'legacy', value: request.legacySignature },
     ]);
-    return this.#store.markFiled(scope, issueNumber, now);
+    return this.#store.markFiled(scope, issueNumber, this.#now());
   }
 }

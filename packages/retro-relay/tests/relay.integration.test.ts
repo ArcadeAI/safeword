@@ -726,7 +726,7 @@ describe('retry-safe retro relay', () => {
     });
     servers.push(relay.server);
 
-    const dueAt = new Date(new Date(retryable.acceptedAt).getTime() + 60_001);
+    const dueAt = new Date(new Date(retryable.nextAttemptAt ?? retryable.acceptedAt).getTime() + 1);
     await relay.maintain(dueAt);
 
     expect(github.createBodies).toHaveLength(1);

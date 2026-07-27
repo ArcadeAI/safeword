@@ -9,6 +9,10 @@ function retryAfterMilliseconds(response: Response): number {
   return Number.isFinite(seconds) && seconds >= 0 ? seconds * 1000 : 1000;
 }
 
+function isFiledResult(receipt: FilingReceipt): boolean {
+  return receipt.state === 'filed' || receipt.state === 'tombstone';
+}
+
 export class RelayClientError extends Error {
   readonly status: number;
   readonly details: Record<string, unknown>;
@@ -42,7 +46,7 @@ class FilingAdapter {
 
   async file(request: FileRetroDraftRequest): Promise<FilingReceipt> {
     const result = await this.#request('/v1/retro-filings', request, 'POST');
-    return result.receipt.state === 'filed'
+    return isFiledResult(result.receipt)
       ? result.receipt
       : this.#poll(result.receipt, result.retryAfterMs);
   }
@@ -61,7 +65,7 @@ class FilingAdapter {
       const receipt = result.receipt;
       latestReceipt = receipt;
       retryAfterMs = result.retryAfterMs;
-      if (receipt.state === 'filed') return receipt;
+      if (isFiledResult(receipt)) return receipt;
       if (receipt.state === 'ambiguous') {
         throw new RelayClientError(503, 'filing outcome is ambiguous', {
           receiptId: receipt.receiptId,
