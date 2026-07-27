@@ -4,9 +4,9 @@
 // Uses explicit --config flags pointing to .safeword/ configs for LLM enforcement.
 // This allows stricter rules for LLMs while humans use their normal project configs.
 //
-// Missing language-pack configs degrade to each linter's defaults. Upgrades are
-// owned by the session-start hook, so missing configs never trigger upgrade,
-// staging, or commit side effects from linting.
+// Missing language-pack configs never trigger upgrade, staging, or commit side
+// effects from linting. Version upgrades run at session start; pack repair is
+// manual, so fallback linting reports the missing config once per session.
 
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import nodePath from 'node:path';
@@ -218,6 +218,23 @@ function configArgs(configPath: string): string[] {
   return hasConfig(configPath) ? ['--config', configPath] : [];
 }
 
+/** Warn once per session when fallback linting cannot enforce Safeword rules. */
+function warnMissingSafewordConfig(
+  packName: string,
+  tool: string,
+  configPath: string,
+  warnings: string[],
+): void {
+  if (hasConfig(configPath)) return;
+  const warningKey = `pack:${packName}`;
+  if (toolWarnings.has(warningKey)) return;
+  toolWarnings.add(warningKey);
+  warnings.push(
+    `${packName} Safeword config is missing — linting with ${tool} defaults, not Safeword rules. ` +
+      'Run `safeword setup` or `safeword upgrade` to install it.',
+  );
+}
+
 /** Run prettier with safeword config if available */
 async function runPrettier(file: string): Promise<void> {
   // A non-Prettier formatter owns this repo — defer to it, don't restyle (V7GGJZ).
@@ -275,6 +292,7 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
       };
     }
     if (host) return runHostToolchain(host);
+    warnMissingSafewordConfig('TypeScript', 'ESLint', SAFEWORD_ESLINT, warnings);
     const configArguments = configArgs(SAFEWORD_ESLINT);
     await $`bunx eslint ${configArguments} --fix ${normalizedFile}`.nothrow().quiet();
     await runPrettier(normalizedFile);
@@ -297,6 +315,7 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
     ) {
       return { warnings };
     }
+    warnMissingSafewordConfig('Python', 'Ruff', SAFEWORD_RUFF, warnings);
     const configArguments = configArgs(SAFEWORD_RUFF);
     await $`ruff check ${configArguments} --fix ${normalizedFile}`.nothrow().quiet();
     await $`ruff format ${configArguments} ${normalizedFile}`.nothrow().quiet();
@@ -336,6 +355,7 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
       }
       toolWarnings.add('golangci-lint-v2-ok');
     }
+    warnMissingSafewordConfig('Go', 'golangci-lint', SAFEWORD_GOLANGCI, warnings);
     const configArguments = configArgs(SAFEWORD_GOLANGCI);
     await $`golangci-lint run ${configArguments} --fix ${normalizedFile}`.nothrow().quiet();
     await $`golangci-lint fmt ${configArguments} ${normalizedFile}`.nothrow().quiet();
@@ -349,6 +369,7 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
   // Rust files - clippy for linting (package-level), rustfmt for formatting (file-level)
   if (RUST_EXTENSIONS.has(extension)) {
     const hasRustConfig = hasConfig(SAFEWORD_RUSTFMT);
+    warnMissingSafewordConfig('Rust', 'rustfmt', SAFEWORD_RUSTFMT, warnings);
 
     // Run clippy with package targeting for workspaces
     const packageName = detectRustPackage(normalizedFile);

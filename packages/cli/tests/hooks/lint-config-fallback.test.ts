@@ -32,6 +32,8 @@ const LANGUAGE_CASES = [
     languageName: 'TypeScript',
     extension: 'ts',
     configRelativePath: undefined,
+    expectedWarning:
+      'TypeScript Safeword config is missing — linting with ESLint defaults, not Safeword rules. Run `safeword setup` or `safeword upgrade` to install it.',
     forbidConfigArgument: true,
     stubCommands: [],
     expectedInvocations: [
@@ -44,6 +46,7 @@ const LANGUAGE_CASES = [
     languageName: 'configured TypeScript',
     extension: 'ts',
     configRelativePath: '.safeword/eslint.config.mjs',
+    expectedWarning: undefined,
     forbidConfigArgument: false,
     stubCommands: [],
     expectedInvocations: [
@@ -56,6 +59,8 @@ const LANGUAGE_CASES = [
     languageName: 'Python',
     extension: 'py',
     configRelativePath: undefined,
+    expectedWarning:
+      'Python Safeword config is missing — linting with Ruff defaults, not Safeword rules. Run `safeword setup` or `safeword upgrade` to install it.',
     forbidConfigArgument: true,
     stubCommands: ['ruff'],
     expectedInvocations: [
@@ -68,6 +73,7 @@ const LANGUAGE_CASES = [
     languageName: 'configured Python',
     extension: 'py',
     configRelativePath: '.safeword/ruff.toml',
+    expectedWarning: undefined,
     forbidConfigArgument: false,
     stubCommands: ['ruff'],
     expectedInvocations: [
@@ -80,6 +86,8 @@ const LANGUAGE_CASES = [
     languageName: 'Go',
     extension: 'go',
     configRelativePath: undefined,
+    expectedWarning:
+      'Go Safeword config is missing — linting with golangci-lint defaults, not Safeword rules. Run `safeword setup` or `safeword upgrade` to install it.',
     forbidConfigArgument: true,
     stubCommands: ['golangci-lint'],
     expectedInvocations: [
@@ -93,6 +101,7 @@ const LANGUAGE_CASES = [
     languageName: 'configured Go',
     extension: 'go',
     configRelativePath: '.safeword/.golangci.yml',
+    expectedWarning: undefined,
     forbidConfigArgument: false,
     stubCommands: ['golangci-lint'],
     expectedInvocations: [
@@ -106,6 +115,8 @@ const LANGUAGE_CASES = [
     languageName: 'Rust',
     extension: 'rs',
     configRelativePath: undefined,
+    expectedWarning:
+      'Rust Safeword config is missing — linting with rustfmt defaults, not Safeword rules. Run `safeword setup` or `safeword upgrade` to install it.',
     forbidConfigArgument: true,
     stubCommands: ['rustfmt'],
     expectedInvocations: [/^rustfmt .*source\.rs$/],
@@ -114,6 +125,7 @@ const LANGUAGE_CASES = [
     languageName: 'configured Rust',
     extension: 'rs',
     configRelativePath: '.safeword/rustfmt.toml',
+    expectedWarning: undefined,
     forbidConfigArgument: false,
     stubCommands: ['rustfmt'],
     expectedInvocations: [/^rustfmt --config-path .*\/\.safeword\/rustfmt\.toml .*source\.rs$/],
@@ -122,6 +134,7 @@ const LANGUAGE_CASES = [
     languageName: 'SQL',
     extension: 'sql',
     configRelativePath: undefined,
+    expectedWarning: undefined,
     forbidConfigArgument: true,
     stubCommands: [],
     expectedInvocations: [],
@@ -130,6 +143,7 @@ const LANGUAGE_CASES = [
     languageName: 'configured SQL',
     extension: 'sql',
     configRelativePath: '.safeword/sqlfluff.cfg',
+    expectedWarning: undefined,
     forbidConfigArgument: false,
     stubCommands: ['sqlfluff'],
     expectedInvocations: [/^sqlfluff lint --config .*\/\.safeword\/sqlfluff\.cfg .*source\.sql$/],
@@ -155,11 +169,12 @@ describe('lintFile language-pack config ownership', () => {
       configRelativePath,
       extension,
       expectedInvocations,
+      expectedWarning,
       forbidConfigArgument,
       modulePath,
       stubCommands,
     }) => {
-      const directory = mkdtempSync(path.join(tmpdir(), 'lint-no-auto-upgrade-'));
+      const directory = mkdtempSync(path.join(tmpdir(), 'lint-config-fallback-'));
       directories.push(directory);
       const sourceFile = path.join(directory, `source.${extension}`);
       const stubBin = path.join(directory, 'stub-bin');
@@ -187,8 +202,9 @@ describe('lintFile language-pack config ownership', () => {
 
       const script = `
         const { lintFile } = await import(${JSON.stringify(modulePath)});
-        const result = await lintFile(${JSON.stringify(sourceFile)}, ${JSON.stringify(directory)});
-        console.log(JSON.stringify(result));
+        const first = await lintFile(${JSON.stringify(sourceFile)}, ${JSON.stringify(directory)});
+        const second = await lintFile(${JSON.stringify(sourceFile)}, ${JSON.stringify(directory)});
+        console.log(JSON.stringify({ first, second }));
       `;
       const { stdout } = await execFileAsync('bun', ['-e', script], {
         cwd: REPO_ROOT,
@@ -200,13 +216,22 @@ describe('lintFile language-pack config ownership', () => {
         timeout: 30_000,
       });
 
-      expect(JSON.parse(stdout.trim())).toEqual({ warnings: [] });
+      expect(JSON.parse(stdout.trim())).toEqual({
+        first: { warnings: expectedWarning ? [expectedWarning] : [] },
+        second: { warnings: [] },
+      });
       const invocations = existsSync(invocationLog)
         ? readFileSync(invocationLog, 'utf8').trim().split('\n')
         : [];
-      expect(invocations).toEqual(
-        expect.arrayContaining(expectedInvocations.map(pattern => expect.stringMatching(pattern))),
-      );
+      if (expectedInvocations.length === 0) {
+        expect(invocations).toEqual([]);
+      } else {
+        expect(invocations).toEqual(
+          expect.arrayContaining(
+            expectedInvocations.map(pattern => expect.stringMatching(pattern)),
+          ),
+        );
+      }
       const forbiddenSideEffect = [
         /^git /,
         /(?:^| )safeword(?:@| |$)/,

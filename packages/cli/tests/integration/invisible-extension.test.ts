@@ -341,7 +341,7 @@ formatters:
         expect(lintHook).toContain('.safeword/.golangci.yml');
 
         // The generated hook carries explicit config support. Runtime selection
-        // with and without these files is covered by lint-no-auto-upgrade.test.ts.
+        // with and without these files is covered by lint-config-fallback.test.ts.
         expect(lintHook).toContain('--config');
       },
       SETUP_TIMEOUT,
