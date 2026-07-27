@@ -82,8 +82,9 @@ describe('cleanup-zombies.sh', () => {
     writeFileSync(
       lsofPath,
       String.raw`#!/usr/bin/env bash
-if [[ "$*" == "-a -p $MOCK_LIVE_PID -d cwd -Fn0" ]] ||
-  [[ "$*" == "-a -p $MOCK_LIVE_PID -d cwd -Fpn0" ]]; then
+if [[ "$1" == "-a" ]] && [[ "$2" == "-p" ]] &&
+  [[ ",$3," == *",$MOCK_LIVE_PID,"* ]] &&
+  [[ "$4" == "-d" ]] && [[ "$5" == "cwd" ]] && [[ "$6" == "-Fpn0" ]]; then
   printf 'p%s\0\nfcwd\0n%s\0\n' "$MOCK_LIVE_PID" "$MOCK_LIVE_CWD"
 fi
 `,
@@ -457,32 +458,43 @@ printf '%s\n' "\${value##*/}"
   // bare preview and dies under --yes. Everything above proves messaging; this
   // proves the mode flip reaches kill(1).
   describe('Rule: --yes kills what the preview showed (behavioral pin)', () => {
-    let victim: ChildProcess | undefined;
+    let victims: ChildProcess[] = [];
 
     afterEach(() => {
-      if (victim?.pid && victim.exitCode === null) {
-        try {
-          process.kill(victim.pid, 'SIGKILL');
-        } catch {
-          // already dead — the desired end state
+      for (const victim of victims) {
+        if (victim.pid && victim.exitCode === null) {
+          try {
+            process.kill(victim.pid, 'SIGKILL');
+          } catch {
+            // already dead — the desired end state
+          }
         }
       }
-      victim = undefined;
+      victims = [];
     });
 
-    function spawnVictim(): { marker: string; pid: number } {
+    function spawnVictims(): { marker: string; ownedPid: number; unownedPid: number } {
       // Keep a unique marker in the argv of a real long-lived process so the
-      // script's real pgrep discovery path is exercised on every platform.
+      // script's real pgrep discovery and batched ownership paths are exercised
+      // on every platform.
       const marker = `swzombie-${process.pid}-${Date.now()}`;
       const victimScript = nodePath.join(realpathSync(temporaryDirectory), `${marker}.mjs`);
       writeFileSync(victimScript, 'setInterval(() => {}, 60_000);\n');
-      victim = spawn(process.execPath, [victimScript], {
+      const ownedVictim = spawn(process.execPath, [victimScript], {
         cwd: temporaryDirectory,
         detached: true,
         stdio: 'ignore',
       });
-      if (victim.pid === undefined) throw new Error('failed to spawn victim');
-      return { marker, pid: victim.pid };
+      const unownedVictim = spawn(process.execPath, [victimScript], {
+        cwd: tmpdir(),
+        detached: true,
+        stdio: 'ignore',
+      });
+      victims = [ownedVictim, unownedVictim];
+      if (ownedVictim.pid === undefined || unownedVictim.pid === undefined) {
+        throw new Error('failed to spawn victims');
+      }
+      return { marker, ownedPid: ownedVictim.pid, unownedPid: unownedVictim.pid };
     }
 
     function isAlive(pid: number): boolean {
@@ -495,23 +507,28 @@ printf '%s\n' "\${value##*/}"
     }
 
     it('Scenario: the victim survives a bare preview and dies under --yes', async () => {
-      const { marker, pid } = spawnVictim();
-      await expect.poll(() => isAlive(pid)).toBe(true);
+      const { marker, ownedPid, unownedPid } = spawnVictims();
+      await expect.poll(() => isAlive(ownedPid) && isAlive(unownedPid)).toBe(true);
       await expect
         .poll(() => {
           const result = spawnSync('pgrep', ['-f', marker], { encoding: 'utf8' });
-          return result.stdout.split(/\s+/).filter(Boolean).map(Number);
+          const discoveredPids = new Set(result.stdout.split(/\s+/).filter(Boolean).map(Number));
+          return discoveredPids.has(ownedPid) && discoveredPids.has(unownedPid);
         })
-        .toContain(pid);
+        .toBe(true);
 
-      const liveProcessEnvironment = mockLiveProcessOwnership(pid, marker, false);
+      const liveProcessEnvironment = mockLiveProcessOwnership(ownedPid, marker, false);
       const preview = runScriptRaw([marker], liveProcessEnvironment);
       expect(preview).toContain(marker);
+      expect(preview).toContain(`PID ${ownedPid}`);
+      expect(preview).not.toContain(`PID ${unownedPid}`);
       expect(preview).toContain('Re-run with --yes to kill them');
-      expect(isAlive(pid)).toBe(true); // preview never kills
+      expect(isAlive(ownedPid)).toBe(true); // preview never kills
+      expect(isAlive(unownedPid)).toBe(true);
 
       runScriptRaw(['--yes', marker], liveProcessEnvironment);
-      await expect.poll(() => isAlive(pid)).toBe(false); // consent kills
+      await expect.poll(() => isAlive(ownedPid)).toBe(false); // consent kills
+      expect(isAlive(unownedPid)).toBe(true); // unknown ownership fails closed
     });
   });
 
