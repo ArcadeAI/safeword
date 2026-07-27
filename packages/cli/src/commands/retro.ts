@@ -487,7 +487,7 @@ function artifactAtCommit(
   });
 }
 
-export async function resolveRetroRelayRoute(input: {
+async function resolveRetroRelayRoute(input: {
   composition?: RetroReadinessComposition;
   environment: NodeJS.ProcessEnv;
   projectDirectory: string;
