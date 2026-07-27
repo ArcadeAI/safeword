@@ -9,6 +9,7 @@
 ## Tickets (457)
 ## Tickets (455)
 ## Tickets (452)
+## Tickets (453)
 
 ### 001
 
@@ -1081,6 +1082,9 @@
 - **Eliminate ambiguous smoke ticket ID warning (7VEYAY)** (in_progress, epic: —)
   Remove or intentionally isolate the duplicate `7K9M3P` fixture warning from smoke-fast output.
   → `.project/tickets/7VEYAY-eliminate-ambiguous-smoke-ticket-id-warning`
+- **Prove the retro relay on Railway (81P5QH)** (in_progress, epic: —)
+  Deploy one disposable, single-instance retro relay with persistent SQLite storage and prove health and restart durability.
+  → `.project/tickets/81P5QH-deploy-retro-relay-spike`
 - **Keep default BDD lanes visible without manual configuration (8B4GVR)** (done, epic: —)
   Avoid a misleading Cucumber-harness advisory when Safeword already discovers a host suite under the default root features directory.
   external issue: https://github.com/ArcadeAI/safeword/issues/1105
@@ -1415,7 +1419,7 @@
 - **Audit checks namespace domain docs for emptiness and drift (N0W5KG)** (done, epic: —)
   {One sentence: what are we trying to achieve?}
   → `.project/tickets/N0W5KG-audit-domain-docs-freshness`
-- **Prove the retry-safe retro relay foundation across harness adapters (N30CKR)** (in_progress, epic: —)
+- **Prove the retry-safe retro relay foundation across harness adapters (N30CKR)** (done, epic: —)
   Build the durable relay slice that production harness routing can adopt without changing request identity.
   external issue: https://github.com/ArcadeAI/safeword/issues/1479
   → `.project/tickets/N30CKR-retry-safe-retro-filing`
