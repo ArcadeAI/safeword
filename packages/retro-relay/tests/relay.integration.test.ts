@@ -200,6 +200,14 @@ async function startGitHubFixture(
   };
 }
 
+function postCreateCrashFaults(): RelayFaults {
+  return {
+    afterGitHubCreate: () => {
+      throw new Error('simulated crash');
+    },
+  };
+}
+
 async function fixture(
   options: {
     afterCreate?: () => void;
@@ -700,11 +708,7 @@ describe('retry-safe retro relay', () => {
 
   it('recovers a post-create crash as ambiguous and reconciles from raw REST', async () => {
     const setup = await fixture({
-      faults: {
-        afterGitHubCreate: () => {
-          throw new Error('simulated crash');
-        },
-      },
+      faults: postCreateCrashFaults(),
     });
     const adapter = createHarnessAdapters(setup.relay.url, setup.credential).claude;
     await expect(adapter.file(draft())).rejects.toMatchObject({ status: 503 });
@@ -800,11 +804,7 @@ describe('retry-safe retro relay', () => {
     'keeps an ambiguous request quarantined for %i raw request-marker matches',
     async matchCount => {
       const setup = await fixture({
-        faults: {
-          afterGitHubCreate: () => {
-            throw new Error('simulated crash');
-          },
-        },
+        faults: postCreateCrashFaults(),
       });
       const adapter = createHarnessAdapters(setup.relay.url, setup.credential).claude;
       await expect(adapter.file(draft())).rejects.toMatchObject({ status: 503 });
@@ -913,11 +913,7 @@ describe('retry-safe retro relay', () => {
     expect(hidden.status).toBe(404);
 
     const ambiguous = await fixture({
-      faults: {
-        afterGitHubCreate: () => {
-          throw new Error('simulated crash');
-        },
-      },
+      faults: postCreateCrashFaults(),
     });
     await expect(
       createHarnessAdapters(ambiguous.relay.url, ambiguous.credential).operator.reconcileReceipt(
@@ -990,11 +986,7 @@ describe('retry-safe retro relay', () => {
 
   it('fails closed when raw REST pagination is incomplete', async () => {
     const setup = await fixture({
-      faults: {
-        afterGitHubCreate: () => {
-          throw new Error('simulated crash');
-        },
-      },
+      faults: postCreateCrashFaults(),
     });
     await expect(
       createHarnessAdapters(setup.relay.url, setup.credential).claude.file(draft()),
