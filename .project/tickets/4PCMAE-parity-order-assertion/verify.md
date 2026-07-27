@@ -12,7 +12,7 @@ tree._
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 5458/5458 tests pass (7 skipped; 369 files; 2 failures excluded — see Evidence limits). Ticket coverage: the full `tracker-sync` suite is **167 green across 22 files**, including the five assertions in `plan-gh-parity.test.ts` this ticket strengthened.
+**Test Suite:** ✓ 5458/5458 tests pass (7 skipped; 369 files; 2 failures excluded — see Evidence limits). Ticket coverage: `bun run test tests/tracker-sync/` is **138 green across 18 files**, including the assertions in `plan-gh-parity.test.ts` this ticket strengthened.
 **Mutation evidence (the point of the ticket):** re-proved against the cleaned fixture after the audit fixes — each mutant applied, run isolated, then reverted, with a guard that fails loudly if the mutation pattern misses (so a silently-unapplied mutant cannot read as a pass). All five fail:
 
 | # | Mutant | Pre-fix | Post-fix |
@@ -52,4 +52,4 @@ The golden-path flakiness is a real pre-existing defect deserving its own ticket
 
 - The reviewer's suggested fixture for mutant E (add a `dependsOn` ticket) was **insufficient on its own** and survived three attempts. Parity is symmetric: both sides share the sort, so dropping blocker edges moves plan and live together and the equality assertion stays green. An absolute assertion didn't close it either — corpus position already satisfied the ordering — nor did repositioning, because the parent edge from `FCHILD1` was already pulling `FPARENT1` to index 0. Closing it required a blocker pair (`BLOCKED1` listed before `BLOCKER1`) whose target ordering is reachable **only** via the `dependsOn` edge.
 - Generalization worth carrying: **a parity assertion between two paths that share a helper cannot detect a bug in that helper.** Equivalence tests need at least one absolute anchor, not only a cross-path comparison.
-- Process note: an earlier revision of this file claimed the `tracker-sync` suite was "138 green". The measured figure for the whole directory is 167 across 22 files; 138 came from a narrower selection than the label implied.
+- Process note, twice-corrected: this file first said the `tracker-sync` suite was "138 green", then I "corrected" it to "167 across 22 files". **The correction was the error.** `bun run test tests/tracker-sync/` is 138 across 18 files — the directory holds exactly 18 test files. The 167/22 figure came from `node scripts/run-vitest-with-build-lock.mjs run tests/tracker-sync/`, where the wrapper sweeps in four files that are not in the directory at all (`tests/commands/hook-shim-runtime`, `tests/hooks/run-identity`, `tests/hooks/test-runner`, `tests/test-runner-lock`). Caught in review on #1468. The lesson is narrower than "check your numbers": a count is only meaningful next to the exact command that produced it, and two different runners for the "same" selection can disagree.

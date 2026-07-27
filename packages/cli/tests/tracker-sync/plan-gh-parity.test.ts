@@ -187,6 +187,17 @@ describe('--plan parity with the gh path (#1443)', () => {
     rmSync(directory, { recursive: true, force: true });
   });
 
+  // Every assertion below joins writer calls to plan intents by TITLE via first-match
+  // `find`, and the graph fixtures address tickets by ID. A duplicate in either would
+  // silently pair or suppress the wrong ticket, weakening the suite without failing it
+  // — which is not hypothetical: this branch shipped a repeated `BLOCKED1` once and it
+  // took a review to catch. Assert the invariant instead of relying on review again.
+  it('draws its corpus from unique ticket ids and titles (the join keys everything else uses)', () => {
+    const tickets = corpus();
+    expect(new Set(tickets.map(t => t.id)).size).toBe(tickets.length);
+    expect(new Set(tickets.map(t => t.title)).size).toBe(tickets.length);
+  });
+
   it('plans exactly the tickets the live path wrote, with the same kind, ref and payload', async () => {
     const live = await runLivePath(corpus(), startingMap(), bodyMode, sidecarPath);
     const plan = computePlan({ tickets: corpus(), map: startingMap(), bodyMode });
