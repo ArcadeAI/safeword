@@ -269,7 +269,7 @@ function migrateVersionOne(database: Database, fault?: MigrationFault): void {
   if (!exactColumns(columns(database, 'retro_requests'), V1_COLUMNS)) {
     throw new Error('schema version one layout is partial or incompatible');
   }
-  const migrate = database.transaction(() => {
+  database.immediateTransaction(() => {
     database.exec(`
       PRAGMA defer_foreign_keys = ON;
       ${retroRequestsTable('retro_requests_v3')}
@@ -302,14 +302,13 @@ function migrateVersionOne(database: Database, fault?: MigrationFault): void {
     fault?.('before-version');
     database.exec(`UPDATE schema_version SET version = ${CURRENT_SCHEMA_VERSION};`);
   });
-  migrate.immediate();
 }
 
 function migrateVersionTwo(database: Database): void {
   if (!exactColumns(columns(database, 'retro_requests'), [...V1_COLUMNS, ...V2_EXTRA_COLUMNS])) {
     throw new Error('schema version two layout is partial or incompatible');
   }
-  const migrate = database.transaction(() => {
+  database.immediateTransaction(() => {
     database.exec(`
       PRAGMA defer_foreign_keys = ON;
       ${retroRequestsTable('retro_requests_v3')}
@@ -343,7 +342,6 @@ function migrateVersionTwo(database: Database): void {
       UPDATE schema_version SET version = ${CURRENT_SCHEMA_VERSION};
     `);
   });
-  migrate.immediate();
 }
 
 function prepareDatabase(
@@ -549,7 +547,7 @@ export class RelayStore {
   }
 
   markAmbiguous(scope: RequestScope, now = this.#now()): void {
-    const transition = this.#database.transaction(() => {
+    this.#database.immediateTransaction(() => {
       const row = this.#database
         .prepare<[string, number, string, string], Pick<RequestRow, 'receipt_id'>>(
           `UPDATE retro_requests SET state = 'ambiguous'
@@ -561,7 +559,6 @@ export class RelayStore {
         .get(scope.tenantId, scope.installationId, scope.repository, scope.requestId);
       if (row !== undefined) this.#insertAlert(row.receipt_id, 'ambiguous', now);
     });
-    transition.immediate();
   }
 
   markFiled(scope: RequestScope, issueNumber: number, now = this.#now()): FilingReceipt {
@@ -699,7 +696,7 @@ export class RelayStore {
 
   recoverInFlight(): void {
     const now = this.#now().toISOString();
-    const recover = this.#database.transaction(() => {
+    this.#database.immediateTransaction(() => {
       this.#database
         .prepare(
           `UPDATE retro_requests SET state = 'retryable', next_attempt_at = ?
@@ -717,11 +714,10 @@ export class RelayStore {
         this.#insertAlert(row.receipt_id, 'ambiguous', new Date(now));
       }
     });
-    recover.immediate();
   }
 
   maintain(now = this.#now()): { alerts: MaintenanceAlert[] } {
-    const maintain = this.#database.transaction(() => {
+    return this.#database.immediateTransaction(() => {
       const alerts: MaintenanceAlert[] = [];
       const deadLetters = this.#database
         .prepare<[string], Pick<RequestRow, 'receipt_id'>>(
@@ -779,7 +775,6 @@ export class RelayStore {
         .run(now.toISOString(), now.toISOString(), now.toISOString());
       return { alerts };
     });
-    return maintain.immediate();
   }
 
   // eslint-disable-next-line unicorn/consistent-class-member-order -- Kept next to the maintenance transaction that calls it.

@@ -43,11 +43,10 @@ class Statement<Bindings extends SQLInputValue[], Result extends object> {
     return normalizeRow(this.#statement.get(...bindings)) as Result | undefined;
   }
 
-  run(...bindings: Bindings): { changes: number; lastInsertRowid: number } {
+  run(...bindings: Bindings): { changes: number } {
     const result: StatementResultingChanges = this.#statement.run(...bindings);
     return {
       changes: Number(result.changes),
-      lastInsertRowid: Number(result.lastInsertRowid),
     };
   }
 }
@@ -83,20 +82,15 @@ export default class Database {
     return new Statement<Bindings, Result>(this.#database.prepare(sql));
   }
 
-  transaction<Result>(operation: () => Result): (() => Result) & { immediate: () => Result } {
-    const execute = (mode: 'DEFERRED' | 'IMMEDIATE'): Result => {
-      this.#database.exec(`BEGIN ${mode};`);
-      try {
-        const result = operation();
-        this.#database.exec('COMMIT;');
-        return result;
-      } catch (error) {
-        this.#database.exec('ROLLBACK;');
-        throw error;
-      }
-    };
-    return Object.assign(() => execute('DEFERRED'), {
-      immediate: () => execute('IMMEDIATE'),
-    });
+  immediateTransaction<Result>(operation: () => Result): Result {
+    this.#database.exec('BEGIN IMMEDIATE;');
+    try {
+      const result = operation();
+      this.#database.exec('COMMIT;');
+      return result;
+    } catch (error) {
+      this.#database.exec('ROLLBACK;');
+      throw error;
+    }
   }
 }
