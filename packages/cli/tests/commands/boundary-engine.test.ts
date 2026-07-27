@@ -8,11 +8,11 @@
 import { describe, expect, it } from 'vitest';
 
 import { reconcileChange, type TicketChange } from '../../src/boundary/engine.js';
+import { WORKSPACE_ROOTS } from '../../src/utils/workspace-roots.js';
 import { boundaryTicketContent, shapeValidImplPlan } from './boundary-helpers';
 
 const IMPL_PLAN = '.project/tickets/ENG001-fixture/impl-plan.md';
 const FEATURE_ROOTS = ['features'];
-const WORKSPACE_ROOTS = ['packages', 'apps', 'libs', 'modules'];
 
 function ticketContent(phase: string, anchors?: string[]): string {
   return boundaryTicketContent({ id: 'ZZENG', phase, anchors });
