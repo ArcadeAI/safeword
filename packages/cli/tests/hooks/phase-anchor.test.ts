@@ -8,12 +8,15 @@
  * the tier/history partitions.
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 
-import type { ArtifactReader } from '../../templates/hooks/lib/phase-provenance.js';
+import type {
+  ArtifactReader,
+  PhaseAnchorScope,
+} from '../../templates/hooks/lib/phase-provenance.js';
 import {
-  detectUnanchoredPhaseState,
-  detectUnanchoredPhaseTransition,
+  detectUnanchoredPhaseState as detectPhaseState,
+  detectUnanchoredPhaseTransition as detectPhaseTransition,
 } from '../../templates/hooks/lib/phase-provenance.js';
 
 /** A well-formed 7-hex abbreviated SHA — the legacy grammar. */
@@ -30,6 +33,23 @@ const ANCHOR_SCOPE = {
   featureRoots: ['features'],
   workspaceRoots: ['packages', 'apps', 'libs', 'modules'],
 };
+
+it('requires ownership scope at the detector API boundary', () => {
+  expectTypeOf(detectPhaseTransition).parameter(2).toEqualTypeOf<PhaseAnchorScope>();
+  expectTypeOf(detectPhaseState).parameter(1).toEqualTypeOf<PhaseAnchorScope>();
+});
+
+function detectUnanchoredPhaseTransition(
+  priorContent: string | undefined,
+  proposedContent: string,
+  readArtifact?: ArtifactReader,
+) {
+  return detectPhaseTransition(priorContent, proposedContent, ANCHOR_SCOPE, readArtifact);
+}
+
+function detectUnanchoredPhaseState(content: string, readArtifact?: ArtifactReader) {
+  return detectPhaseState(content, ANCHOR_SCOPE, readArtifact);
+}
 
 const SHAPE_VALID_IMPL_PLAN = [
   '# Impl Plan: fixture',
@@ -354,7 +374,6 @@ describe('detectUnanchoredPhaseTransition — no real artifact behind the advanc
       ticket({ type: 'feature', phase: 'scenario-gate' }),
       ticket({ type: 'feature', phase: 'implement', anchors: [`implement: ${foreignPlan}`] }),
       readerFor({ [foreignPlan]: SHAPE_VALID_IMPL_PLAN }),
-      ANCHOR_SCOPE,
     );
     expect(verdict.kind).toBe('unanchored');
     if (verdict.kind === 'unanchored') expect(verdict.reason).toMatch(/ticket/i);
@@ -370,7 +389,6 @@ describe('detectUnanchoredPhaseTransition — no real artifact behind the advanc
         anchors: [`scenario-gate: ${foreignFeature}`],
       }),
       readerFor({ [foreignFeature]: SHAPE_VALID_FEATURE }),
-      ANCHOR_SCOPE,
     );
     expect(verdict.kind).toBe('unanchored');
     if (verdict.kind === 'unanchored') expect(verdict.reason).toMatch(/ticket/i);
@@ -382,9 +400,9 @@ describe('detectUnanchoredPhaseTransition — no real artifact behind the advanc
       ticket({
         type: 'feature',
         phase: 'implement',
-        anchors: [`implement: ${TICKET_DIR}/gone/impl-plan.md`],
+        anchors: [`implement: ${IMPL_PLAN_PATH}`],
       }),
-      readTree,
+      readerFor({}),
     );
     expect(verdict.kind).toBe('unanchored');
     if (verdict.kind === 'unanchored') expect(verdict.reason).toMatch(/missing/i);

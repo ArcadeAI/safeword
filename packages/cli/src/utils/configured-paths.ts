@@ -268,11 +268,7 @@ export function ticketDirectoriesForConfiguredRoot(
     ];
   }
   const projectRoot = toRepoDirectory(cwd, configuredProjectRoot);
-  if (projectRoot === undefined) {
-    throw new Error(
-      `Configured project root "${configuredProjectRoot}" is outside the repository.`,
-    );
-  }
+  if (projectRoot === undefined) return [];
   return [nodePath.posix.join(projectRoot, 'tickets')];
 }
 

@@ -28,10 +28,11 @@ fixture; cli-test and steps lanes each share theirs); outdated: knip 6.24.0→6.
 no documentation drift (anchor convention documented in ticket-system skill + glossary,
 both updated in this ticket).
 
-## Issue #904 hardening verification — 2026-07-25
+## Issue #904 hardening verification — 2026-07-25 (pre-rebase baseline)
 
 Evidence from the repository-generated test plan after the complete audit,
-independent quality review, and refactor ledger.
+independent quality review, and refactor ledger, before rebasing this follow-up
+onto the current `main`.
 
 ## Verify Checklist
 
@@ -57,3 +58,30 @@ of 423; the broader repository grew substantially and its shipped template/insta
 mirrors are intentional, while this pass removed duplicated boundary and history
 fixtures. Coverage warnings are limited to the pre-existing Python experiment,
 which has no import-linter or dead-code executable installed.
+
+## PR review remediation — 2026-07-26
+
+Evidence after addressing all nine unresolved PR review threads:
+
+- The two original public detectors require `PhaseAnchorScope`; the redundant
+  scoped wrappers and their fail-open unscoped path are gone.
+- All 37 ledger scenarios now have executable Gherkin coverage, including the
+  ten ownership/configuration scenarios previously present only in lower lanes.
+- Focused Vitest: 76/76 pass across the phase-anchor, boundary engine, real CLI,
+  and repository-path suites.
+- Full Cucumber: 505/508 scenarios pass, 3 skip; 15,645/15,645 executed steps
+  pass. The issue-focused lane is 40/40 scenarios and 1,210/1,210 steps.
+- Build succeeds; ESLint, Gherkin lint, `tsc --noEmit`, diff hygiene, and
+  template/dogfood parity are clean.
+- Full local Vitest: 5,492 pass, 5 skip, with one failure in the untouched
+  upstream Astro preset expectation (`astro/no-omitted-end-tags` is `"error"`
+  under the installed eslint-plugin-astro 3.0.1 while the test expects it to be
+  absent). The Astro preset, test, manifests, and lockfile are unchanged from
+  `origin/main`; Node 22 and Node 24 CI were green on the prior PR head and will
+  rerun on this remediation.
+- Audit: 0 change-scoped errors; config parity clean; dependency-cruiser 0
+  violations across 662 modules / 2,166 dependencies; Knip clean; dependencies
+  current; domain and learning checks clean. Clones improved from 490 to 455
+  (8.37%) at the same `repo minus .safeword,.project` scope. Existing Python
+  experiment import-linter/dead-code tool coverage remains a reported
+  limitation.

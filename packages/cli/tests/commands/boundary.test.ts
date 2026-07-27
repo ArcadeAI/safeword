@@ -119,7 +119,7 @@ describe('safeword boundary (slice 1: engine core)', () => {
       const result = await runCli(['boundary', '--at', 'commit'], { cwd: dir });
 
       expect(result.exitCode).toBe(0);
-      expect(`${result.stdout}\n${result.stderr}`).toMatch(/ticket.*artifact|artifact.*ticket/i);
+      expect(`${result.stdout}\n${result.stderr}`).toMatch(/outside this ticket/i);
     });
 
     it('warns when an index-stage prefix aliases an existing staged artifact', async () => {
@@ -184,7 +184,7 @@ describe('safeword boundary (slice 1: engine core)', () => {
       const result = await runCli(['boundary', '--at', 'commit'], { cwd: dir });
 
       expect(result.exitCode).toBe(0);
-      expect(`${result.stdout}\n${result.stderr}`).toMatch(/ticket/i);
+      expect(`${result.stdout}\n${result.stderr}`).toMatch(/outside this ticket/i);
     });
 
     it('uses the staged tree, not an unstaged removal, to identify the canonical feature', async () => {

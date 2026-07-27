@@ -91,6 +91,68 @@ Feature: Artifact-content phase anchors — a phase advance is evidenced by the 
       When the boundary command runs at the commit boundary
       Then it exits zero and warns that the anchored artifact is missing from the staged tree
 
+  Rule: Ownership and configured lanes are resolved from canonical staged paths
+
+    @artifact-content-phase-anchors.SM1.R2
+    Scenario: A ticket cannot reuse another ticket's same-kind artifact
+      Given a staged advance anchored to another ticket's shape-valid impl-plan
+      When the boundary command runs at the commit boundary
+      Then it exits zero and warns that the anchor is outside this ticket
+
+    @artifact-content-phase-anchors.SM1.R2
+    Scenario: A ticket cannot reuse another ticket's feature source
+      Given a staged advance anchored to another ticket's feature source
+      When the boundary command runs at the commit boundary
+      Then it exits zero and warns that the anchor is outside this ticket
+
+    @artifact-content-phase-anchors.SM1.R2
+    Scenario: A Git index-stage prefix cannot alias a different artifact path
+      Given a staged advance whose anchor uses a Git index-stage prefix
+      When the boundary command runs at the commit boundary
+      Then it exits zero and warns that the anchor is not repo-relative
+
+    @artifact-content-phase-anchors.SM1.R2
+    Scenario: OS-native ticket paths are normalized to the anchor grammar
+      Given an OS-native ticket directory path
+      When the path is normalized for an anchor
+      Then it uses the forward-slashed anchor grammar
+
+    @artifact-content-phase-anchors.SM1.R2
+    Scenario: Canonical feature ownership is independent of unstaged worktree state
+      Given a staged owned feature source that is then removed from the worktree
+      When the boundary command runs at the commit boundary
+      Then it exits zero with no anchor warning
+
+    @artifact-content-phase-anchors.SM1.R2
+    Scenario: Feature anchors must live in an executable or configured feature lane
+      Given a staged advance anchored to a correctly named feature outside every feature lane
+      When the boundary command runs at the commit boundary
+      Then it exits zero and warns about the phase anchor
+
+    @artifact-content-phase-anchors.SM1.R2
+    Scenario: Ticket discovery uses the staged project-root configuration
+      Given a staged project-root configuration and a ticket in that configured root
+      When the boundary command runs at the commit boundary
+      Then it exits zero and reports the configured ticket's malformed plan
+
+    @artifact-content-phase-anchors.SM1.R2
+    Scenario: Configured project roots normalize dot and separator segments
+      Given a staged project root containing dot and duplicate separator segments
+      When the boundary command runs at the commit boundary
+      Then it exits zero and reports the configured ticket's malformed plan
+
+    @artifact-content-phase-anchors.SM1.R2
+    Scenario: Repository-root ticket and feature lanes remain enforceable
+      Given staged repository-root ticket and feature lanes with a valid owned anchor
+      When the boundary command runs at the commit boundary
+      Then it exits zero with no anchor warning
+
+    @artifact-content-phase-anchors.SM1.R2
+    Scenario: A configured project root outside the repository warns instead of failing open
+      Given a staged project-root configuration outside the repository
+      When the boundary command runs at the commit boundary
+      Then it exits zero and warns that the project root is outside the repository
+
   Rule: A forward advance without a real artifact behind it is detectable as unanchored
 
     @artifact-content-phase-anchors.SM1.R3

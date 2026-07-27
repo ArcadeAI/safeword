@@ -18,6 +18,7 @@ import nodePath from 'node:path';
 
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
+import { WORKSPACE_ROOTS } from '../packages/cli/src/utils/workspace-roots.ts';
 import {
   AUDIT_PATH,
   git,
@@ -463,10 +464,11 @@ const { reconcileChange } = await import(${JSON.stringify(
 const ticket = (phase, anchors) => ['---','id: BGT','type: feature','phase: '+phase,'status: in_progress', ...(anchors ? ['phase_anchors:', ...anchors.map(a=>'  - '+a)] : []), '---',''].join('\\n');
 const anchor = 'implement: .project/tickets/BGT001-fixture/impl-plan.md';
 const verdicts = reconcileChange([{
-  ticketFolder: 'BGT001-fixture',
-  ticketPath: '.project/tickets/BGT001-fixture',
-  featureRoots: ['features'],
-  workspaceRoots: ['packages', 'apps', 'libs', 'modules'],
+  anchorScope: {
+    ticketPath: '.project/tickets/BGT001-fixture',
+    featureRoots: ['features'],
+    workspaceRoots: ${JSON.stringify(WORKSPACE_ROOTS)},
+  },
   artifacts: [{ artifact: 'ticket.md', prior: ticket('define-behavior'), proposed: ticket('implement', [anchor]) }],
   ticketCurrent: ticket('implement', [anchor]),
   hasLedger: true,

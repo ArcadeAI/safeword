@@ -159,8 +159,7 @@ function collectChanges(
     if (parsed === undefined) continue;
     const ticketPath = `${parsed.ticketsDirectory}/${parsed.ticketFolder}`;
     const change = byTicket.get(ticketPath) ?? {
-      ticketFolder: parsed.ticketFolder,
-      ...createPhaseAnchorScope(cwd, ticketPath, configuredFeatures),
+      anchorScope: createPhaseAnchorScope(cwd, ticketPath, configuredFeatures),
       artifacts: [],
       hasLedger: false,
     };
@@ -171,7 +170,7 @@ function collectChanges(
   // At-rest context per touched ticket: ticket.md as it stands after the
   // change (staged version wins over disk) and whether a ledger exists.
   for (const change of byTicket.values()) {
-    const folder = nodePath.join(cwd, change.ticketPath);
+    const folder = nodePath.join(cwd, change.anchorScope.ticketPath);
     const staged = change.artifacts.find(a => a.artifact === 'ticket.md')?.proposed;
     change.ticketCurrent = staged ?? readFileSafe(nodePath.join(folder, 'ticket.md'));
     change.hasLedger =
@@ -182,7 +181,7 @@ function collectChanges(
     // endpoints (N76NQ0 — a range that traversed phases one legal step at a
     // time must not read as a skip).
     if (at === 'push' && change.artifacts.some(a => a.artifact === 'ticket.md')) {
-      const path = `${change.ticketPath}/ticket.md`;
+      const path = `${change.anchorScope.ticketPath}/ticket.md`;
       change.legalitySteps = legalityStepsFor(cwd, path, range.priorRef);
     }
   }
@@ -211,6 +210,14 @@ function appendAudit(cwd: string, entry: object): void {
   appendFileSync(auditPath, `${JSON.stringify(entry)}\n`);
 }
 
+function resolveBoundaryTicketDirectories(cwd: string, configuredProjectRoot?: string): string[] {
+  const directories = ticketDirectoriesForConfiguredRoot(cwd, configuredProjectRoot);
+  if (configuredProjectRoot !== undefined && directories.length === 0) {
+    warn(`Configured project root "${configuredProjectRoot}" is outside the repository.`);
+  }
+  return directories;
+}
+
 /** The reconciliation body — separated so the entry point stays a trivial guard. */
 function reconcileBoundary(cwd: string, at: Boundary): void {
   const range = boundaryRange(cwd, at);
@@ -228,7 +235,7 @@ function reconcileBoundary(cwd: string, at: Boundary): void {
   const configContent = readTreeArtifact(CONFIG_REPO_PATH);
   const configuredFeatures = readConfiguredPathFromContent(configContent, 'features');
   const configuredProjectRoot = readConfiguredPathFromContent(configContent, 'projectRoot');
-  const ticketsDirectories = ticketDirectoriesForConfiguredRoot(cwd, configuredProjectRoot);
+  const ticketsDirectories = resolveBoundaryTicketDirectories(cwd, configuredProjectRoot);
   const changes = collectChanges(cwd, range, at, ticketsDirectories, configuredFeatures);
   if (changes.length === 0) return;
 

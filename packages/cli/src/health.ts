@@ -14,7 +14,10 @@
 import { readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { detectScopedUnanchoredPhaseState } from '../templates/hooks/lib/phase-provenance.js';
+import {
+  detectUnanchoredPhaseState,
+  type PhaseAnchorScope,
+} from '../templates/hooks/lib/phase-provenance.js';
 import { getMissingPacks } from './packs/registry.js';
 import type { ProjectType } from './packs/types.js';
 import { typescriptPackages } from './packs/typescript/files.js';
@@ -31,7 +34,7 @@ import {
 } from './utils/configured-paths.js';
 import { createProjectContext } from './utils/context.js';
 import {
-  createPhaseAnchorScope,
+  createPhaseAnchorEnvironment,
   findFeatureSourcePath,
   hasDefaultExecutableFeatureFiles,
 } from './utils/feature-source.js';
@@ -330,11 +333,18 @@ function emptyCoverageDiagnostics(): CoverageDiagnostics {
 function findCoverageDiagnostics(cwd: string): CoverageDiagnostics {
   const ticketsRoot = resolveTicketsDirectory(cwd);
   const all = emptyCoverageDiagnostics();
+  const configuredFeatures = readConfiguredPath(cwd, 'features');
+  const anchorEnvironment = createPhaseAnchorEnvironment(cwd, configuredFeatures);
   for (const ticketId of listTicketIds(ticketsRoot)) {
     const ticketDiagnostics = coverageDiagnosticsForTicket(cwd, ticketsRoot, ticketId);
     all.issues.push(...ticketDiagnostics.issues);
     all.advisories.push(...ticketDiagnostics.advisories);
-    const anchorAdvisory = phaseAnchorAdvisoryForTicket(cwd, ticketsRoot, ticketId);
+    const anchorAdvisory = phaseAnchorAdvisoryForTicket(
+      cwd,
+      ticketsRoot,
+      ticketId,
+      anchorEnvironment,
+    );
     if (anchorAdvisory !== undefined) all.advisories.push(anchorAdvisory);
   }
   return all;
@@ -353,14 +363,14 @@ function phaseAnchorAdvisoryForTicket(
   cwd: string,
   ticketsRoot: string,
   ticketId: string,
+  anchorEnvironment: Omit<PhaseAnchorScope, 'ticketPath'>,
 ): string | undefined {
   const content = readFileSafe(nodePath.join(ticketsRoot, ticketId, 'ticket.md'));
   if (content === undefined || !isInProgress(content)) return undefined;
   const ticketDirectory = nodePath.join(ticketsRoot, ticketId);
   const ticketPath = toRepoRelativePath(cwd, ticketDirectory);
-  const configuredFeatures = readConfiguredPath(cwd, 'features');
-  const scope = createPhaseAnchorScope(cwd, ticketPath, configuredFeatures);
-  const verdict = detectScopedUnanchoredPhaseState(content, scope, relpath =>
+  const scope = { ticketPath, ...anchorEnvironment };
+  const verdict = detectUnanchoredPhaseState(content, scope, relpath =>
     readFileSafe(nodePath.join(cwd, relpath)),
   );
   if (verdict.kind !== 'unanchored') return undefined;

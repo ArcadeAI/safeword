@@ -461,9 +461,10 @@ const NOT_APPLICABLE: PhaseAnchorVerdict = { kind: 'not-applicable' };
  * Detect whether a feature ticket's forward phase advance carries a valid
  * artifact-path anchor for the phase it enters (HGYGND). Pure — the tree is
  * read through an injected ArtifactReader, so the predicate touches neither
- * filesystem nor git: the boundary gate supplies a staged-index or HEAD-tree
- * reader, `safeword check` a filesystem reader; a caller with no tree at hand
- * passes none (format-only).
+ * filesystem nor git: every caller supplies canonical ownership scope; the
+ * boundary gate also supplies a staged-index or HEAD-tree reader, `safeword
+ * check` a filesystem reader, and a caller with no tree at hand omits only
+ * the reader (format-only).
  *
  * Returns `anchored` / `unanchored` only for the policed act — a feature→feature
  * FORWARD phase change. Everything else is `not-applicable`: a creation/birth, a
@@ -475,8 +476,8 @@ const NOT_APPLICABLE: PhaseAnchorVerdict = { kind: 'not-applicable' };
 export function detectUnanchoredPhaseTransition(
   priorContent: string | undefined,
   proposedContent: string,
+  scope: PhaseAnchorScope,
   readArtifact?: ArtifactReader,
-  scope?: PhaseAnchorScope,
 ): PhaseAnchorVerdict {
   // A creation is a birth, not a transition.
   if (priorContent === undefined) return NOT_APPLICABLE;
@@ -502,17 +503,7 @@ export function detectUnanchoredPhaseTransition(
   if (toIndex <= canonicalIndex(effectivePrior)) return NOT_APPLICABLE; // backward or lateral
 
   // Policed: a forward feature advance must carry a valid anchor for the phase entered.
-  return validateAnchor(proposed, proposedPhase, readArtifact, scope);
-}
-
-/** Enforcement entry point: ownership scope is required, tree reading remains optional. */
-export function detectScopedUnanchoredPhaseTransition(
-  priorContent: string | undefined,
-  proposedContent: string,
-  scope: PhaseAnchorScope,
-  readArtifact?: ArtifactReader,
-): PhaseAnchorVerdict {
-  return detectUnanchoredPhaseTransition(priorContent, proposedContent, readArtifact, scope);
+  return validateAnchor(proposed, proposedPhase, scope, readArtifact);
 }
 
 /**
@@ -525,8 +516,8 @@ export function detectScopedUnanchoredPhaseTransition(
 function validateAnchor(
   meta: Record<string, string | string[]>,
   phase: string,
+  scope: PhaseAnchorScope,
   readArtifact?: ArtifactReader,
-  scope?: PhaseAnchorScope,
 ): PhaseAnchorVerdict {
   const kind = (ANCHOR_KINDS as Record<string, AnchorKind | undefined>)[phase];
   if (kind === undefined) return NOT_APPLICABLE; // intake/off-enum — nothing enterable to anchor
@@ -561,23 +552,22 @@ function validateAnchor(
   // Feature source identity follows the executable-lane convention plus
   // `<ticket slug>.feature`; callers supply roots from the same tree as the
   // artifact reader. Every other kind must live in this ticket's own folder.
-  const ticketFolder = basenameOf(scope?.ticketPath ?? '');
+  const ticketFolder = basenameOf(scope.ticketPath);
   const slugSeparator = ticketFolder.indexOf('-');
   const ticketSlug = slugSeparator === -1 ? ticketFolder : ticketFolder.slice(slugSeparator + 1);
   const anchorSegments = anchor.split('/');
-  const isConfiguredOrDefaultFeature =
-    scope?.featureRoots.some(root => root === '' || anchor.startsWith(`${root}/`)) ?? false;
+  const isConfiguredOrDefaultFeature = scope.featureRoots.some(
+    root => root === '' || anchor.startsWith(`${root}/`),
+  );
   const isWorkspaceFeature =
     anchorSegments.length >= 4 &&
-    (scope?.workspaceRoots.includes(anchorSegments[0] ?? '') ?? false) &&
+    scope.workspaceRoots.includes(anchorSegments[0] ?? '') &&
     anchorSegments[1] !== '' &&
     anchorSegments[2] === 'features';
-  const isOwnedArtifact =
-    scope === undefined ||
-    (isFeatureSource(anchor)
-      ? basenameOf(anchor) === `${ticketSlug}.feature` &&
-        (isConfiguredOrDefaultFeature || isWorkspaceFeature)
-      : dirnameOf(anchor) === scope.ticketPath);
+  const isOwnedArtifact = isFeatureSource(anchor)
+    ? basenameOf(anchor) === `${ticketSlug}.feature` &&
+      (isConfiguredOrDefaultFeature || isWorkspaceFeature)
+    : dirnameOf(anchor) === scope.ticketPath;
   if (!isOwnedArtifact) {
     return unanchored(
       `phase_anchors entry for "${phase}" is "${anchor}", an artifact outside this ticket — record this ticket's own artifact, e.g. ${expectedLine}.`,
@@ -612,8 +602,8 @@ function validateAnchor(
  */
 export function detectUnanchoredPhaseState(
   content: string,
+  scope: PhaseAnchorScope,
   readArtifact?: ArtifactReader,
-  scope?: PhaseAnchorScope,
 ): PhaseAnchorVerdict {
   const meta = frontmatterOf(normalizeNewlines(content));
   if (meta === undefined) return NOT_APPLICABLE;
@@ -627,14 +617,5 @@ export function detectUnanchoredPhaseState(
   const anchor = parseAnchors(meta).get(phase);
   if (anchor !== undefined && isValidSha(anchor)) return NOT_APPLICABLE;
 
-  return validateAnchor(meta, phase, readArtifact, scope);
-}
-
-/** At-rest enforcement entry point with required canonical ownership scope. */
-export function detectScopedUnanchoredPhaseState(
-  content: string,
-  scope: PhaseAnchorScope,
-  readArtifact?: ArtifactReader,
-): PhaseAnchorVerdict {
-  return detectUnanchoredPhaseState(content, readArtifact, scope);
+  return validateAnchor(meta, phase, scope, readArtifact);
 }
