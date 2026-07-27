@@ -182,10 +182,13 @@ function runPromptQuestionsHook(
     env: { ...process.env, CLAUDE_PROJECT_DIR: claudeProjectDirectory },
     encoding: 'utf8',
   });
+  if (result.error) {
+    throw result.error;
+  }
   return {
     stdout: result.stdout ?? '',
     stderr: result.stderr ?? '',
-    exitCode: result.status ?? 0,
+    exitCode: result.status ?? 1,
   };
 }
 
