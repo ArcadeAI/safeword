@@ -28,76 +28,76 @@ Feature source: `features/deploy-retro-relay-spike.feature`
 
 - [x] RED skip: uncommittable partial state — the lifecycle test imported the not-yet-exported production runtime
 - [x] GREEN b107850bd
-- [ ] REFACTOR
+- [x] REFACTOR 68ba2de1f
 
 ### Scenario: Health fails closed when the SQLite schema is unavailable
 
 - [x] RED skip: shared health implementation was required by the preceding readiness scenario
 - [x] GREEN b107850bd
-- [ ] REFACTOR
+- [x] REFACTOR 46abc318d
 
 ## Rule: Restarting the hosting instance preserves accepted request identity
 
 ### Scenario: A request mismatch remains rejected after an actual Railway restart
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: live Railway target did not exist before the deployment slice
+- [x] GREEN 4a4fa772d
+- [x] REFACTOR 46abc318d
 
 ### Scenario: Live Railway topology has one replica and one mounted data volume
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: live Railway target did not exist before the deployment slice
+- [x] GREEN 4a4fa772d
+- [x] REFACTOR e74746765
 
 ### Scenario: Live smoke validation rejects each unsafe Railway topology class
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: shared topology contract was first exercised by the live positive path
+- [x] GREEN 68ba2de1f
+- [x] REFACTOR e74746765
 
 ## Rule: The disposable spike cannot affect production systems
 
 ### Scenario: Provisioning creates a new clearly named Railway project
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: no disposable project existed before provisioning
+- [x] GREEN 4a4fa772d
+- [x] REFACTOR e74746765
 
 ### Scenario: Generated credentials cannot create a GitHub issue
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: no hosted credential boundary existed before deployment
+- [x] GREEN 4a4fa772d
+- [x] REFACTOR 68ba2de1f
 
 ### Scenario: Teardown refuses an unrecorded or non-disposable target
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: independent quality review found the safety path was not wired
+- [x] GREEN 68ba2de1f
+- [x] REFACTOR e74746765
 
 ### Scenario: Teardown previews only the recorded disposable resource IDs
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: independent quality review found the safety path was not wired
+- [x] GREEN 68ba2de1f
+- [x] REFACTOR e74746765
 
 ## Rule: The spike leaves an actionable operational decision
 
 ### Scenario: The spike report records evidence, limitations, promotion, and teardown
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: no live evidence existed before the Railway proof
+- [x] GREEN 4a4fa772d
+- [x] REFACTOR b775e98f0
 
 ### Scenario: Report validation distinguishes incomplete from secret-bearing evidence
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: independent quality review proved CLI redaction failed open without stdin secrets
+- [x] GREEN e74746765
+- [x] REFACTOR 2420730b4
 
 ---
 
 ## Feature-level cross-scenario refactor
 
-- [ ] cross-scenario
+- [x] cross-scenario 2420730b4
