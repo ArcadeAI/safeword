@@ -97,11 +97,9 @@ export function extractSkeleton(projectDirectory: string): Skeleton {
     return { nodes: rustModuleNodes(projectDirectory) };
   }
 
-  // The `src/` layout (TS/JS) is authoritative: its child DIRECTORIES are the
-  // modules, unchanged — a package that already has them never churns. Broadened
-  // (issue #843) so a flat `src/` — holding only files, no subdirectories — is
-  // introspected via those files, the same files-and-flat recognition the
-  // Python/Rust extractors above already have.
+  // The `src/` layout (TS/JS) is authoritative. Its immediate child directories
+  // AND loose source files are modules: mixed trees are conventional, and
+  // returning one kind or the other silently truncated them (issue #1551).
   const sourceNodes = enumerateJsSourceRoot(
     nodePath.join(projectDirectory, 'src'),
     name => `src/${name}`,
@@ -164,13 +162,10 @@ function declaresWorkspaces(projectDirectory: string): boolean {
 /**
  * A JS/TS source root (`src/` or `lib/`) as skeleton nodes, sorted by name
  * (readdirSync order is not guaranteed; the doc and fingerprint must be
- * deterministic). Its child DIRECTORIES when it has any — the directory is the
- * module unit, so a package with `src/` subdirectories is byte-for-byte
- * unchanged. Only when the root has NO subdirectories (a flat package — issue
- * #843) does it fall back to the root's source FILES, mirroring how the Rust and
- * Python extractors list `*.rs`/`*.py`. `pathFor` maps an entry name to its
- * forward-slashed code reference — platform-stable, the way the fingerprint
- * normalizes paths. `[]` when the root is absent.
+ * deterministic). Immediate child directories and source files are unioned.
+ * A same-named directory and file represent one concept; the directory wins
+ * because it is the broader architectural boundary (issue #1551). `pathFor`
+ * maps an entry name to its forward-slashed code reference. `[]` when absent.
  */
 function enumerateJsSourceRoot(
   directory: string,
@@ -183,13 +178,18 @@ function enumerateJsSourceRoot(
     return [];
   }
 
-  const directories = entries.filter(entry => entry.isDirectory());
-  if (directories.length > 0) {
-    return directories
-      .map(entry => ({ name: entry.name, path: pathFor(entry.name), purpose: PURPOSE_PLACEHOLDER }))
-      .toSorted(byNodeName);
+  const byName = new Map(
+    entries
+      .filter(entry => entry.isDirectory())
+      .map(entry => [
+        entry.name,
+        { name: entry.name, path: pathFor(entry.name), purpose: PURPOSE_PLACEHOLDER },
+      ]),
+  );
+  for (const node of jsFileNodes(entries, pathFor)) {
+    if (!byName.has(node.name)) byName.set(node.name, node);
   }
-  return jsFileNodes(entries, pathFor);
+  return byName.values().toArray().toSorted(byNodeName);
 }
 
 /**

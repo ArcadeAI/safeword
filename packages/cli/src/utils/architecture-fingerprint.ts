@@ -2,7 +2,7 @@
  * Shape-fingerprint of a project's architecture-relevant structure (ticket
  * QD5DTT, Slice 1).
  *
- * Hashes the *shape* — top-level module names, dependency names (not versions),
+ * Hashes the *shape* — top-level module names and canonical paths, dependency names (not versions),
  * the dependency-cruiser boundary config, and schema files — never source-file
  * bytes. So a structural change moves the fingerprint while semantics-preserving
  * noise (a version bump, a comment edit) does not. This is the cheap, LLM-free
@@ -37,8 +37,8 @@ const SHAPE_SCAN_EXCLUDED_DIRECTORIES = new Set([
 const byString = (a: string, b: string): number => a.localeCompare(b);
 
 interface ShapeInputs {
-  /** Top-level module names. */
-  moduleNames: string[];
+  /** Top-level module identities; paths distinguish file-backed from directory-backed nodes. */
+  modules: { name: string; path: string }[];
   /** Dependency names (keys only — versions are deliberately excluded). */
   dependencyNames: string[];
   /** Raw dependency-cruiser boundary config, or '' when none is present. */
@@ -48,12 +48,10 @@ interface ShapeInputs {
 }
 
 function collectShapeInputs(projectDirectory: string): ShapeInputs {
-  const moduleNames = extractSkeleton(projectDirectory)
-    .nodes.map(node => node.name)
-    .toSorted(byString);
+  const modules = extractSkeleton(projectDirectory).nodes.map(({ name, path }) => ({ name, path }));
 
   return {
-    moduleNames,
+    modules,
     dependencyNames: readDependencyNames(projectDirectory),
     boundaryConfig: readBoundaryConfig(projectDirectory),
     schemaFiles: collectSchemaFiles(projectDirectory),

@@ -1,6 +1,6 @@
 ---
 generator: safeword-architecture
-fingerprint: f52377673755a2c75e868a34ded612abfdca8d662b03d926b425c4629f97601e
+fingerprint: 41b56941957c005af2f9c8f78439faada884c97306a75cc3e7c06947aa54ed1d
 ---
 
 # Architecture
@@ -16,6 +16,14 @@ fingerprint: f52377673755a2c75e868a34ded612abfdca8d662b03d926b425c4629f97601e
 No description yet — awaiting prose.
 
 > ⚠ stale: structure changed since this section was reconciled.
+
+### cli
+
+<!-- reconciled: 41b56941957c005af2f9c8f78439faada884c97306a75cc3e7c06947aa54ed1d -->
+
+`src/cli.ts`
+
+No description yet — awaiting prose.
 
 ### codex-plugin
 
@@ -37,6 +45,30 @@ No description yet — awaiting prose.
 
 > ⚠ stale: structure changed since this section was reconciled.
 
+### cursor-wrappers
+
+<!-- reconciled: 41b56941957c005af2f9c8f78439faada884c97306a75cc3e7c06947aa54ed1d -->
+
+`src/cursor-wrappers.ts`
+
+No description yet — awaiting prose.
+
+### health
+
+<!-- reconciled: 41b56941957c005af2f9c8f78439faada884c97306a75cc3e7c06947aa54ed1d -->
+
+`src/health.ts`
+
+No description yet — awaiting prose.
+
+### index
+
+<!-- reconciled: 41b56941957c005af2f9c8f78439faada884c97306a75cc3e7c06947aa54ed1d -->
+
+`src/index.ts`
+
+No description yet — awaiting prose.
+
 ### learning-sync
 
 <!-- reconciled: baf84fad13ff152cf8bceed63ef6a6e65c6edbb3dcf8ac0cbf76fc4caa39fe38 -->
@@ -46,6 +78,14 @@ No description yet — awaiting prose.
 No description yet — awaiting prose.
 
 > ⚠ stale: structure changed since this section was reconciled.
+
+### owned-paths
+
+<!-- reconciled: 41b56941957c005af2f9c8f78439faada884c97306a75cc3e7c06947aa54ed1d -->
+
+`src/owned-paths.ts`
+
+No description yet — awaiting prose.
 
 ### packs
 
@@ -57,6 +97,14 @@ No description yet — awaiting prose.
 
 > ⚠ stale: structure changed since this section was reconciled.
 
+### parity
+
+<!-- reconciled: 41b56941957c005af2f9c8f78439faada884c97306a75cc3e7c06947aa54ed1d -->
+
+`src/parity.ts`
+
+No description yet — awaiting prose.
+
 ### presets
 
 <!-- reconciled: baf84fad13ff152cf8bceed63ef6a6e65c6edbb3dcf8ac0cbf76fc4caa39fe38 -->
@@ -67,6 +115,14 @@ No description yet — awaiting prose.
 
 > ⚠ stale: structure changed since this section was reconciled.
 
+### reconcile
+
+<!-- reconciled: 41b56941957c005af2f9c8f78439faada884c97306a75cc3e7c06947aa54ed1d -->
+
+`src/reconcile.ts`
+
+No description yet — awaiting prose.
+
 ### retro
 
 <!-- reconciled: 3dd53c1fa45850e6d2d4894c1c7556870663b58d05710e8dc248b4424eaf8b62 -->
@@ -76,6 +132,22 @@ No description yet — awaiting prose.
 No description yet — awaiting prose.
 
 > ⚠ stale: structure changed since this section was reconciled.
+
+### schema
+
+<!-- reconciled: 41b56941957c005af2f9c8f78439faada884c97306a75cc3e7c06947aa54ed1d -->
+
+`src/schema.ts`
+
+No description yet — awaiting prose.
+
+### self-report-capture
+
+<!-- reconciled: 41b56941957c005af2f9c8f78439faada884c97306a75cc3e7c06947aa54ed1d -->
+
+`src/self-report-capture.ts`
+
+No description yet — awaiting prose.
 
 ### skills
 
@@ -166,3 +238,11 @@ No description yet — awaiting prose.
 No description yet — awaiting prose.
 
 > ⚠ stale: structure changed since this section was reconciled.
+
+### version
+
+<!-- reconciled: 41b56941957c005af2f9c8f78439faada884c97306a75cc3e7c06947aa54ed1d -->
+
+`src/version.ts`
+
+No description yet — awaiting prose.

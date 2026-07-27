@@ -112,6 +112,15 @@ describe('shapeFingerprint — captures shape, not noise', () => {
       expect(after).toBe(before);
     }
   });
+
+  it('moves when a file-backed module becomes a same-named directory-backed module', () => {
+    writeFileSync(nodePath.join(context.directory, 'src', 'pipeline.ts'), 'export {};\n');
+    const before = shapeFingerprint(context.directory);
+
+    mkdirSync(nodePath.join(context.directory, 'src', 'pipeline'), { recursive: true });
+
+    expect(shapeFingerprint(context.directory)).not.toBe(before);
+  });
 });
 
 describe('shapeFingerprint — Go module dependencies (ticket ZD70P1)', () => {
