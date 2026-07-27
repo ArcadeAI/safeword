@@ -63,6 +63,7 @@ export interface MaintenanceAlert {
 type MigrationFault = (step: 'after-columns' | 'after-outbox' | 'before-version') => void;
 type ScopeRow = Pick<RequestRow, 'tenant_id' | 'installation_id' | 'repository' | 'request_id'>;
 
+const CURRENT_SCHEMA_VERSION = 3;
 const V1_COLUMNS = [
   'tenant_id',
   'installation_id',
@@ -222,7 +223,7 @@ function alertOutboxTable(
 function createVersionThree(database: Database): void {
   database.exec(`
     CREATE TABLE schema_version (version INTEGER NOT NULL) STRICT;
-    INSERT INTO schema_version VALUES (3);
+    INSERT INTO schema_version VALUES (${CURRENT_SCHEMA_VERSION});
 
     ${retroRequestsTable('retro_requests')}
     ${reconciliationAuditTable('reconciliation_audit', 'retro_requests')}
@@ -293,7 +294,7 @@ function migrateVersionOne(database: Database, fault?: MigrationFault): void {
     `);
     fault?.('after-outbox');
     fault?.('before-version');
-    database.exec('UPDATE schema_version SET version = 3;');
+    database.exec(`UPDATE schema_version SET version = ${CURRENT_SCHEMA_VERSION};`);
   });
   migrate.immediate();
 }
@@ -333,7 +334,7 @@ function migrateVersionTwo(database: Database): void {
       ALTER TABLE retro_requests_v3 RENAME TO retro_requests;
       ALTER TABLE reconciliation_audit_v3 RENAME TO reconciliation_audit;
       ALTER TABLE alert_outbox_v3 RENAME TO alert_outbox;
-      UPDATE schema_version SET version = 3;
+      UPDATE schema_version SET version = ${CURRENT_SCHEMA_VERSION};
     `);
   });
   migrate.immediate();
@@ -357,7 +358,7 @@ function prepareDatabase(
       migrateVersionTwo(database);
       break;
     }
-    case 3: {
+    case CURRENT_SCHEMA_VERSION: {
       validateVersionThree(database);
       break;
     }
