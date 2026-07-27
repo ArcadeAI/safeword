@@ -59,7 +59,9 @@ function parseStorage(
   environment: NodeJS.ProcessEnv,
 ): Pick<RuntimeConfig, 'dataDirectory' | 'payloadKey'> {
   const dataDirectory = required(environment, 'RELAY_DATA_DIR');
-  if (!path.isAbsolute(dataDirectory)) throw new Error('invalid RELAY_DATA_DIR');
+  if (!path.isAbsolute(dataDirectory) || dataDirectory === path.parse(dataDirectory).root) {
+    throw new Error('invalid RELAY_DATA_DIR');
+  }
   const payloadKey = strictBase64(required(environment, 'RELAY_PAYLOAD_KEY'), 'RELAY_PAYLOAD_KEY');
   if (payloadKey.length !== 32) throw new Error('invalid RELAY_PAYLOAD_KEY');
   return { dataDirectory, payloadKey };
