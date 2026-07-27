@@ -70,7 +70,11 @@ describe('cleanup-zombies.sh', () => {
     writeFileSync(fullPath, content);
   }
 
-  function mockLiveProcessOwnership(pid: number): NodeJS.ProcessEnv {
+  function mockLiveProcessOwnership(
+    pid: number,
+    pattern: string,
+    mockDiscovery = true,
+  ): NodeJS.ProcessEnv {
     const binaryDirectory = nodePath.join(temporaryDirectory, 'live-bin');
     const lsofPath = nodePath.join(binaryDirectory, 'lsof');
     const pgrepPath = nodePath.join(binaryDirectory, 'pgrep');
@@ -84,19 +88,21 @@ if [[ "$*" == "-a -p $MOCK_LIVE_PID -d cwd -Fn0" ]] ||
 fi
 `,
     );
-    writeFileSync(
-      pgrepPath,
-      String.raw`#!/usr/bin/env bash
+    if (mockDiscovery) {
+      writeFileSync(
+        pgrepPath,
+        String.raw`#!/usr/bin/env bash
 if [[ "$*" == "-f $MOCK_LIVE_PATTERN" ]]; then
   printf '%s\n' "$MOCK_LIVE_PID"
 fi
 `,
-    );
+      );
+      chmodSync(pgrepPath, 0o755);
+    }
     chmodSync(lsofPath, 0o755);
-    chmodSync(pgrepPath, 0o755);
     return {
       MOCK_LIVE_CWD: realpathSync(temporaryDirectory),
-      MOCK_LIVE_PATTERN: 'swzombie',
+      MOCK_LIVE_PATTERN: pattern,
       MOCK_LIVE_PID: String(pid),
       PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
     };
@@ -162,7 +168,9 @@ elif { [[ "$*" == "-a -p ${MOCK_PID} -d cwd -Fn0" ]] ||
     printf '%s\n' "$((read_count + 1))" > "$MOCK_LSOF_CWD_COUNT"
   fi
   printf 'p${MOCK_PID}\0\nfcwd\0n%s\0\n' "$process_cwd"
-elif [[ "$*" == "-a -p ${MOCK_SECOND_PID} -d cwd -Fn0" ]] && [[ -n "$MOCK_SECOND_PROCESS_CWD" ]]; then
+elif { [[ "$*" == "-a -p ${MOCK_SECOND_PID} -d cwd -Fn0" ]] ||
+  [[ "$*" == "-a -p ${MOCK_SECOND_PID} -d cwd -Fpn0" ]]; } &&
+  [[ -n "$MOCK_SECOND_PROCESS_CWD" ]]; then
   printf 'p${MOCK_SECOND_PID}\0\nfcwd\0n%s\0\n' "$MOCK_SECOND_PROCESS_CWD"
 elif [[ "$*" == "-a -p ${MOCK_PID},${MOCK_SECOND_PID} -d cwd -Fpn0" ]]; then
   [[ -n "$MOCK_PROCESS_CWD" ]] &&
@@ -177,6 +185,9 @@ fi
       String.raw`#!/usr/bin/env bash
 if [[ -n "$MOCK_PGREP_LOG" ]]; then
   printf '%s\n' "$*" >> "$MOCK_PGREP_LOG"
+fi
+if [[ -n "$MOCK_PGREP_EXIT_CODE" ]] && [[ "$*" == *"$MOCK_PGREP_ERROR_PATTERN"* ]]; then
+  exit "$MOCK_PGREP_EXIT_CODE"
 fi
 if [[ -n "$MOCK_PATTERN" ]] && [[ "$*" == *"$MOCK_PATTERN"* ]]; then
   printf '%s\n' "$MOCK_PATTERN_PIDS"
@@ -306,27 +317,53 @@ fi
   });
 
   describe('required ownership tooling', () => {
-    it('refuses loudly instead of reporting success when lsof is unavailable', () => {
-      const missingLsofBin = nodePath.join(temporaryDirectory, 'missing-lsof-bin');
-      const basenamePath = nodePath.join(missingLsofBin, 'basename');
-      mkdirSync(missingLsofBin);
-      writeFileSync(
-        basenamePath,
-        String.raw`#!/bin/sh
+    for (const missingTool of ['lsof', 'pgrep', 'ps']) {
+      it(`refuses loudly instead of reporting success when ${missingTool} is unavailable`, () => {
+        const requiredToolBin = nodePath.join(temporaryDirectory, `missing-${missingTool}-bin`);
+        mkdirSync(requiredToolBin);
+
+        for (const tool of ['basename', 'lsof', 'pgrep', 'ps']) {
+          if (tool === missingTool) continue;
+          const toolPath = nodePath.join(requiredToolBin, tool);
+          const content =
+            tool === 'basename'
+              ? String.raw`#!/bin/sh
 value=\${1%/}
 printf '%s\n' "\${value##*/}"
-`,
-      );
-      chmodSync(basenamePath, 0o755);
+`
+              : '#!/bin/sh\nexit 1\n';
+          writeFileSync(toolPath, content);
+          chmodSync(toolPath, 0o755);
+        }
 
-      const result = spawnSync('/bin/bash', [SCRIPT_PATH], {
+        const result = spawnSync('/bin/bash', [SCRIPT_PATH], {
+          cwd: temporaryDirectory,
+          encoding: 'utf8',
+          env: { ...process.env, PATH: requiredToolBin },
+        });
+
+        expect(result.status).not.toBe(0);
+        expect(result.stderr).toContain(
+          `${missingTool} is required for safe project-scoped cleanup`,
+        );
+        expect(result.stdout).not.toContain('already clean');
+      });
+    }
+
+    it('reports pgrep errors instead of treating them as no matches', () => {
+      const result = spawnSync('/bin/bash', [SCRIPT_PATH, '['], {
         cwd: temporaryDirectory,
         encoding: 'utf8',
-        env: { ...process.env, PATH: missingLsofBin },
+        env: {
+          ...process.env,
+          ...mockPortOwner(),
+          MOCK_PGREP_ERROR_PATTERN: '[',
+          MOCK_PGREP_EXIT_CODE: '2',
+        },
       });
 
-      expect(result.status).not.toBe(0);
-      expect(result.stderr).toContain('lsof is required to verify project ownership');
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain("pgrep failed for pattern '['");
       expect(result.stdout).not.toContain('already clean');
     });
   });
@@ -433,19 +470,19 @@ printf '%s\n' "\${value##*/}"
       victim = undefined;
     });
 
-    function spawnVictim(): number {
-      // The fixture uses a real process so consent mode reaches kill(1).
-      // Discovery is mocked separately because Bash may replace itself with its
-      // final command on Linux, removing the script path from the process list.
-      const victimScript = nodePath.join(realpathSync(temporaryDirectory), 'swzombie-victim.sh');
-      writeFileSync(victimScript, '#!/usr/bin/env bash\nsleep 60\n');
-      victim = spawn('bash', [victimScript], {
+    function spawnVictim(): { marker: string; pid: number } {
+      // Keep a unique marker in the argv of a real long-lived process so the
+      // script's real pgrep discovery path is exercised on every platform.
+      const marker = `swzombie-${process.pid}-${Date.now()}`;
+      const victimScript = nodePath.join(realpathSync(temporaryDirectory), `${marker}.mjs`);
+      writeFileSync(victimScript, 'setInterval(() => {}, 60_000);\n');
+      victim = spawn(process.execPath, [victimScript], {
         cwd: temporaryDirectory,
         detached: true,
         stdio: 'ignore',
       });
       if (victim.pid === undefined) throw new Error('failed to spawn victim');
-      return victim.pid;
+      return { marker, pid: victim.pid };
     }
 
     function isAlive(pid: number): boolean {
@@ -458,16 +495,16 @@ printf '%s\n' "\${value##*/}"
     }
 
     it('Scenario: the victim survives a bare preview and dies under --yes', async () => {
-      const pid = spawnVictim();
+      const { marker, pid } = spawnVictim();
       await expect.poll(() => isAlive(pid)).toBe(true);
 
-      const liveProcessEnvironment = mockLiveProcessOwnership(pid);
-      const preview = runScriptRaw(['swzombie'], liveProcessEnvironment);
-      expect(preview).toContain('swzombie');
+      const liveProcessEnvironment = mockLiveProcessOwnership(pid, marker, false);
+      const preview = runScriptRaw([marker], liveProcessEnvironment);
+      expect(preview).toContain(marker);
       expect(preview).toContain('Re-run with --yes to kill them');
       expect(isAlive(pid)).toBe(true); // preview never kills
 
-      runScriptRaw(['--yes', 'swzombie'], liveProcessEnvironment);
+      runScriptRaw(['--yes', marker], liveProcessEnvironment);
       await expect.poll(() => isAlive(pid)).toBe(false); // consent kills
     });
   });

@@ -84,8 +84,10 @@ Safeword includes a cleanup script at `.safeword/scripts/cleanup-zombies.sh`:
 ./.safeword/scripts/cleanup-zombies.sh --yes 5173 "electron"
 ```
 
-The script requires `lsof` to verify process working directories. If `lsof` is
-unavailable, it exits without signaling anything and explains how to recover.
+The script requires `lsof`, `pgrep`, and `ps` to discover processes, verify
+working directories, and exclude its invoking process tree. If any is
+unavailable, it exits without inspecting or signaling processes and explains
+how to recover.
 
 **Features:**
 

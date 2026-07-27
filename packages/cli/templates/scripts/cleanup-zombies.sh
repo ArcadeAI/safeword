@@ -130,11 +130,13 @@ fi
 PROJECT_DIR="$(pwd -P)"
 PROJECT_NAME="$(basename "$PROJECT_DIR")"
 
-if ! command -v lsof > /dev/null 2>&1; then
-  echo "Error: lsof is required to verify project ownership; no processes were inspected or signaled." >&2
-  echo "Install lsof and retry." >&2
-  exit 1
-fi
+for required_tool in lsof pgrep ps; do
+  if ! command -v "$required_tool" > /dev/null 2>&1; then
+    echo "Error: $required_tool is required for safe project-scoped cleanup; no processes were inspected or signaled." >&2
+    echo "Install $required_tool and retry." >&2
+    exit 1
+  fi
+done
 
 echo "Cleanup zombies for: $PROJECT_NAME"
 echo "   Directory: $PROJECT_DIR"
@@ -157,7 +159,8 @@ collect_cleanup_ancestors() {
   local parent_pid
 
   while [[ "$current_pid" =~ ^[0-9]+$ ]] && [ "$current_pid" -gt 1 ]; do
-    parent_pid=$(ps -p "$current_pid" -o ppid= 2> /dev/null | tr -d '[:space:]')
+    parent_pid=$(ps -p "$current_pid" -o ppid= 2> /dev/null)
+    parent_pid=${parent_pid//[[:space:]]/}
     if ! [[ "$parent_pid" =~ ^[0-9]+$ ]] || [ "$parent_pid" -le 1 ] || [ "$parent_pid" = "$current_pid" ]; then
       break
     fi
@@ -191,22 +194,11 @@ path_belongs_to_project() {
 # establish ownership.
 process_belongs_to_project() {
   local pid=$1
-  local field
-  local process_cwd
+  local owned_pid
 
-  process_cwd=""
-  while IFS= read -r -d '' field; do
-    case "$field" in
-      n*)
-        process_cwd=${field#n}
-        break
-        ;;
-    esac
-  done < <(lsof -a -p "$pid" -d cwd -Fn0 2> /dev/null || true)
-
-  if [ -n "$process_cwd" ] && path_belongs_to_project "$process_cwd"; then
-    return 0
-  fi
+  while IFS= read -r owned_pid; do
+    [ "$owned_pid" = "$pid" ] && return 0
+  done < <(project_owned_pids "$pid")
   return 1
 }
 
@@ -298,9 +290,20 @@ cleanup_port() {
 cleanup_pattern() {
   local pattern=$1
   local pids
+  local pgrep_status
   local candidate_pids=()
   local project_pids=()
-  pids=$(pgrep -f "$pattern" 2> /dev/null || true)
+  if pids=$(pgrep -f "$pattern" 2> /dev/null); then
+    :
+  else
+    pgrep_status=$?
+    if [ "$pgrep_status" -eq 1 ]; then
+      pids=""
+    else
+      echo "Error: pgrep failed for pattern '$pattern' (exit $pgrep_status); no matching processes were inspected or signaled." >&2
+      exit "$pgrep_status"
+    fi
+  fi
 
   for pid in $pids; do
     if process_is_cleanup_ancestor "$pid"; then
