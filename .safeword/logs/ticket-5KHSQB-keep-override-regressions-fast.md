@@ -6,6 +6,17 @@
 
 ## Session: 2026-07-26
 
+- [18:21] Full suite GREEN: 1,655 suites; 5,484 passed, 5 skipped, 0 failed.
+  Lint, Gherkin validation, and TypeScript typechecking also passed.
+- [18:08] Focused GREEN: helper contract plus override integration passed 20/20
+  serially in 42.15s.
+- [18:01] GREEN: `runFixtureUpgrade` owns the skip-install invariant; the
+  source-grep test is deleted; Python links are removed; existing
+  `node_modules` is tolerated.
+- [17:59] RED: helper contract failed with `runFixtureUpgrade is not a function`.
+- [17:58] Review decision: dedicated injectable helper beats local convention;
+  behavior test beats source grep; only TypeScript needs linked tooling.
+- [17:57] Merged current `main` into the PR branch without conflict.
 - [07:48] Full suite GREEN: 370 files; 5,473 passed, 5 skipped, 0 failed;
   397.95s runner wall. The target file measured 22.52s in-suite versus the
   earlier 68.27s profile.

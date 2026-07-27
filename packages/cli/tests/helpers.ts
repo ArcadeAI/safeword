@@ -630,6 +630,21 @@ function buildSetupFailureError(
 }
 
 /**
+ * Run a fixture upgrade with package and skill installation disabled.
+ *
+ * Fixtures that link repository tooling into `node_modules` must never invoke
+ * an install-capable upgrade: a package manager could otherwise write through
+ * the link into the developer checkout. Keep that invariant in this helper
+ * instead of repeating environment options at call sites.
+ */
+export async function runFixtureUpgrade(
+  cwd: string,
+  runner: typeof runCli = runCli,
+): Promise<CliResult> {
+  return runner(['upgrade'], { cwd, env: SKIP_INSTALL_ENV });
+}
+
+/**
  * Run `safeword setup` (or variant) in a fixture and throw a loud, actionable
  * error if it fails. Use this in `beforeAll`/`beforeEach` blocks where a silent
  * setup failure would cascade into misleading test failures across the file.

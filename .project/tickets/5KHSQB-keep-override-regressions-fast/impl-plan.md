@@ -4,12 +4,11 @@
 
 ## Approach
 
-1. Add a source-boundary regression test that requires override-survival
-   upgrades to disable installation, requires fixture-local access to the
-   repository toolchain, and requires hook-launch failures to be rejected.
-2. Link the repository's existing `node_modules` into each temporary fixture
-   after setup.
-3. Pass the skip-install environment to every upgrade and assert the generated
+1. Add a behavior-level helper contract test that requires fixture upgrades to
+   disable package and skill installation.
+2. Link the repository's existing `node_modules` into each TypeScript fixture
+   after setup, while tolerating an existing fixture `node_modules`.
+3. Route every upgrade through the structural helper and assert the generated
    lint hook did not fail to launch its tool.
 4. Re-run all ten examples and compare isolated wall time with the 91.03s
    baseline, then run repository validation.
@@ -20,6 +19,7 @@
   defines one observable example per language/override partition.
 - Reuse the repository toolchain because this suite verifies config survival and
   hook behavior, not dependency installation.
+- Keep Python fixtures unlinked because Ruff resolves from PATH.
 - Keep generated hooks real; do not mock ESLint, Ruff, or the CLI.
 
 ## Arch alignment
@@ -37,6 +37,10 @@ sources for artifact shape and behavior coverage.
 The final isolated runtime is 43.94s rather than the plan's 40s reassessment
 threshold. Profiling found the remaining time in four required real upgrades
 and four generated TypeScript hook runs, so no further cut fits this scope.
+
+PR review replaced the source-text boundary test with a behavior-level helper
+contract and narrowed repository toolchain links from four fixtures to the two
+TypeScript fixtures.
 
 ## Assessment triggers
 

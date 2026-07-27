@@ -5,6 +5,10 @@
  * customer-owned config file is (a) honored by the LLM hook lint run and
  * (b) not mutated by `safeword upgrade`.
  *
+ * Dependency installation is covered by `conditional-setup.slow.test.ts`.
+ * These fixtures reuse the repository toolchain so this suite stays focused on
+ * upgrade reconciliation and generated-hook behavior.
+ *
  * See `.safeword-project/tickets/137-customer-override-survival/test-definitions.md`
  * for the full Gherkin spec.
  */
@@ -23,22 +27,24 @@ import {
   readTestFile,
   removeTemporaryDirectory,
   repoRoot,
-  runCli,
+  runFixtureUpgrade,
   runLintHook,
   setupOrThrow,
-  SKIP_INSTALL_ENV,
   TIMEOUT_BUN_INSTALL,
   writeTestFile,
 } from '../helpers';
 
 function linkRepoToolchain(projectDirectory: string): void {
+  const fixtureNodeModules = nodePath.join(projectDirectory, 'node_modules');
+  if (existsSync(fixtureNodeModules)) return;
+
   const repoNodeModules = nodePath.join(repoRoot, 'node_modules');
   if (!existsSync(repoNodeModules)) {
     throw new Error(`Repository toolchain is missing: ${repoNodeModules}`);
   }
   symlinkSync(
     repoNodeModules,
-    nodePath.join(projectDirectory, 'node_modules'),
+    fixtureNodeModules,
     process.platform === 'win32' ? 'junction' : 'dir',
   );
 }
@@ -59,7 +65,7 @@ async function runUpgradeAndAssertFileUnchanged(
   relativePath: string,
 ): Promise<void> {
   const before = readTestFile(projectDirectory, relativePath);
-  await runCli(['upgrade'], { cwd: projectDirectory, env: SKIP_INSTALL_ENV });
+  await runFixtureUpgrade(projectDirectory);
   const after = readTestFile(projectDirectory, relativePath);
   expect(after).toBe(before);
 }
@@ -287,7 +293,6 @@ select = ["E", "F"]
       );
       initGitRepo(projectDirectory);
       await setupOrThrow(projectDirectory);
-      linkRepoToolchain(projectDirectory);
       originalRuffToml = readTestFile(projectDirectory, 'ruff.toml');
     });
 
@@ -383,7 +388,6 @@ extend-select = ["D"]
         // Note: NO pre-existing ruff.toml — let safeword generate the bare one.
         initGitRepo(projectDirectory);
         await setupOrThrow(projectDirectory);
-        linkRepoToolchain(projectDirectory);
         bareRuffToml = readTestFile(projectDirectory, 'ruff.toml');
       });
 

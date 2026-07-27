@@ -5,7 +5,7 @@ type: task
 phase: verify
 status: in_progress
 created: 2026-07-26T14:35:33.508Z
-last_modified: 2026-07-26T14:48:30Z
+last_modified: 2026-07-27T01:21:44Z
 ---
 
 # Keep override regressions fast for maintainers
@@ -16,9 +16,9 @@ last_modified: 2026-07-26T14:48:30Z
 
 ## Scope
 
-Use the repository's installed JavaScript toolchain in override-survival
-fixtures, skip package and skill installation during each upgrade, and make
-hook-launch failures explicit.
+Use the repository's installed JavaScript toolchain in TypeScript
+override-survival fixtures, make install-disabled fixture upgrades structural,
+and make hook-launch failures explicit.
 
 ## Out of Scope
 
@@ -35,13 +35,23 @@ hook-launch failures explicit.
 
 ## Tests
 
-- A boundary test rejects reintroduction of install-capable upgrades or silent
-  hook-launch failures in `override-survival.test.ts`.
+- A helper contract test rejects reintroduction of install-capable fixture upgrades.
 - The existing ten-example integration suite passes with the repository
-  toolchain linked into each fixture.
+  toolchain linked into TypeScript fixtures.
 
 ## Work Log
 
+- 2026-07-27T01:21:44Z Verified: Full default suite passed 5,484 tests
+  with 5 skipped and 0 failed; lint, Gherkin validation, and typechecking passed.
+- 2026-07-27T01:08:47Z Focused GREEN: 20 tests passed serially in 42.15s.
+- 2026-07-27T01:01:00Z GREEN: Added injectable `runFixtureUpgrade`, routed the
+  suite through it, deleted the brittle source-grep test, removed Python
+  toolchain links, and guarded an existing fixture `node_modules`.
+- 2026-07-27T00:59:37Z RED: Helper contract failed because
+  `runFixtureUpgrade` did not exist.
+- 2026-07-27T00:58:00Z Review: Accepted four actionable threads. Chose a
+  structural helper plus runtime assertions over source-text enforcement.
+- 2026-07-27T00:57:00Z Recalibrated: Merged current `main` into the PR branch.
 - 2026-07-26T14:49:30Z Reconciled: Marked the cross-scenario refactor row
   skipped because this task has one RGR loop and no cross-scenario boundary.
 - 2026-07-26T14:48:30Z Verified: Full default suite passed 5,473 tests
