@@ -70,7 +70,28 @@ function validEnvironment(directory: string): NodeJS.ProcessEnv {
     GITHUB_APP_PRIVATE_KEY_BASE64: privateKeyBase64,
     GITHUB_INSTALLATION_ID: '1',
     GITHUB_REPOSITORY: 'arcadeai/safeword',
+    RELAY_MODE: 'spike',
   };
+}
+
+function productionEnvironment(directory: string): NodeJS.ProcessEnv {
+  const environment = validEnvironment(directory);
+  environment.RELAY_MODE = 'production';
+  environment.RELAY_CREDENTIALS_BASE64 = Buffer.from(
+    JSON.stringify(
+      (['claude', 'codex', 'cursor', 'operator'] as const).map((harness, index) => ({
+        credentialId: `bdd-${harness}`,
+        harness,
+        installationId: 1,
+        repository: 'arcadeai/safeword',
+        roles: harness === 'operator' ? ['reconcile', 'operate'] : ['file'],
+        secret: String(index + 1).repeat(64),
+        subject: `bdd-${harness}`,
+        tenantId: 'bdd',
+      })),
+    ),
+  ).toString('base64');
+  return environment;
 }
 
 async function availablePort(): Promise<number> {
@@ -170,7 +191,7 @@ Then('startup fails before opening the durable store', function (this: SafewordW
 Given('a running production relay', async function (this: SafewordWorld) {
   const state = scenario(this);
   state.directory = mkdtempSync(path.join(tmpdir(), 'relay-bdd-runtime-'));
-  const environment = validEnvironment(state.directory);
+  const environment = productionEnvironment(state.directory);
   environment.PORT = String(await availablePort());
   state.runtime = await startRelayRuntime(parseRuntimeConfig(environment), () => {});
 });

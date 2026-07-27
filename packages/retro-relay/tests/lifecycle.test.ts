@@ -267,6 +267,25 @@ describe('durable retry and terminal lifecycle', () => {
     store.close();
   });
 
+  it('atomically records an alert when a request becomes immediately ambiguous', () => {
+    const file = databasePath();
+    const now = new Date('2026-01-01T00:00:00.000Z');
+    const store = RelayStore.open(file, { now: () => now });
+    accept(store, 'immediate-ambiguity');
+    expect(store.claim(scope('immediate-ambiguity'), now)).toBe(true);
+
+    store.markAmbiguous(scope('immediate-ambiguity'));
+
+    expect(store.receipt(scope('immediate-ambiguity'))?.state).toBe('ambiguous');
+    expect(store.pendingAlerts()).toEqual([
+      expect.objectContaining({
+        receiptId: expect.any(String),
+        state: 'ambiguous',
+      }),
+    ]);
+    store.close();
+  });
+
   it('redelivers the same alert event ID after a crash-after-log window', async () => {
     const file = databasePath();
     const acceptedAt = new Date('2026-01-01T00:00:00.000Z');

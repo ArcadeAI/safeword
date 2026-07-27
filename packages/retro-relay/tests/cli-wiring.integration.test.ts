@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -16,6 +16,7 @@ import {
 
 const directories: string[] = [];
 const servers: ReturnType<typeof createServer>[] = [];
+type RelayHarness = 'claude' | 'codex' | 'cursor';
 
 afterEach(async () => {
   const openServers = [...servers];
@@ -34,7 +35,7 @@ afterEach(async () => {
   }
 });
 
-function relayHarness(harness: string): 'claude' | 'codex' | 'cursor' {
+function relayHarness(harness: string): RelayHarness {
   if (harness.includes('Codex')) return 'codex';
   if (harness.includes('Cursor')) return 'cursor';
   return 'claude';
@@ -85,89 +86,12 @@ async function githubFixture(): Promise<{
 }
 
 describe('real shared CLI to relay wiring', () => {
-  it.each([
-    'Claude Code',
-    'Claude Code Cloud',
-    'OpenAI Codex',
-    'OpenAI Codex Cloud',
-    'Cursor',
-    'Cursor Cloud Agents',
-  ])(
-    '%s uses the same persisted request identity through HTTP auth SQLite and GitHub',
-    async harness => {
-      const project = mkdtempSync(path.join(tmpdir(), 'safeword-cli-relay-wiring-'));
-      directories.push(project);
-      const github = await githubFixture();
-      const registry = new CredentialRegistry('pepper');
-      const credential = registry.issue({
-        credentialId: `harness-${harness.toLowerCase().replaceAll(/[^a-z]+/gu, '-')}`,
-        harness: relayHarness(harness),
-        installationId: 42,
-        repository: 'arcadeai/safeword',
-        roles: ['file'],
-        secret: 'a'.repeat(64),
-        subject: harness,
-        tenantId: 'tenant-1',
-      });
-      const store = RelayStore.open(path.join(project, 'relay.sqlite'));
-      const relay = await startRelayServer({
-        allowUnlockedForTests: true,
-        credentials: registry,
-        github: new GitHubRestClient({
-          baseUrl: github.baseUrl,
-          installationToken: () => Promise.resolve('ghs_classic.part.two'),
-        }),
-        payloadKey: Buffer.alloc(32, 7),
-        store,
-      });
-      servers.push(relay.server);
-
-      const outcome = await runRetro(
-        { transcript: '/transcript.jsonl' },
-        {
-          extract: () =>
-            Promise.resolve([
-              {
-                category: 'rough-edge',
-                repro: 'run safeword retro after a lost response',
-                safeword_surface: 'hooks/stop-quality.ts',
-                title: 'Relay response can be lost',
-                what_happened: 'The response was lost after durable acceptance.',
-                why_friction: 'The next harness could open a duplicate.',
-              },
-            ]),
-          harness,
-          projectDirectory: project,
-          readFile: () => 'transcript',
-          relay: {
-            credential,
-            installationId: 42,
-            readiness: { enabled: true },
-            relayUrl: relay.url,
-            repository: 'arcadeai/safeword',
-          },
-          sessionId: 'session-1479',
-          transport: forbiddenNativeTransport(),
-        },
-      );
-
-      expect(outcome.ok).toBe(true);
-      expect(outcome.relay?.accepted).toBe(1);
-      expect(relay.observability.logs[0]?.requestId).toMatch(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u,
-      );
-      expect(github.createdBodies).toHaveLength(1);
-      expect(JSON.stringify(relay.observability)).not.toContain('ghs_classic.part.two');
-      store.close();
-    },
-  );
-
-  it('reuses one request ID when another harness retries after the receipt response is lost', async () => {
+  it('routes all six installed surfaces through one persisted request and collaborator chain', async () => {
     const project = mkdtempSync(path.join(tmpdir(), 'safeword-cli-relay-retry-'));
     directories.push(project);
     const github = await githubFixture();
     const registry = new CredentialRegistry('pepper');
-    const issueCredential = (harness: 'claude' | 'codex', character: string) =>
+    const issueCredential = (harness: RelayHarness, character: string) =>
       registry.issue({
         credentialId: `${harness}-retry`,
         harness,
@@ -181,6 +105,12 @@ describe('real shared CLI to relay wiring', () => {
     const credentials = {
       claude: issueCredential('claude', 'a'),
       codex: issueCredential('codex', 'b'),
+      cursor: issueCredential('cursor', 'c'),
+    };
+    const credentialFor = (harness: RelayHarness) => {
+      if (harness === 'claude') return credentials.claude;
+      if (harness === 'codex') return credentials.codex;
+      return credentials.cursor;
     };
     const store = RelayStore.open(path.join(project, 'relay.sqlite'));
     const relay = await startRelayServer({
@@ -228,15 +158,38 @@ describe('real shared CLI to relay wiring', () => {
       await response.arrayBuffer();
       throw new Error('simulated lost receipt response');
     };
-    const first = await run('Claude Code', credentials.claude, lostResponseFetch);
-    expect(first.relay).toEqual({ accepted: 0, retryable: 1 });
-    const second = await run('OpenAI Codex', credentials.codex);
-    expect(second.relay).toEqual({ accepted: 1, retryable: 0 });
+    const surfaces = [
+      { harness: 'Claude Code', source: '../cli/templates/hooks/stop-retro.ts' },
+      { harness: 'Claude Code Cloud', source: '../cli/templates/hooks/stop-retro.ts' },
+      { harness: 'OpenAI Codex', source: '../cli/codex-plugin/skills/retro/SKILL.md' },
+      { harness: 'OpenAI Codex Cloud', source: '../cli/codex-plugin/skills/retro/SKILL.md' },
+      { harness: 'Cursor', source: '../cli/templates/commands/retro.md' },
+      { harness: 'Cursor Cloud Agents', source: '../cli/templates/commands/retro.md' },
+    ];
+    for (const [index, surface] of surfaces.entries()) {
+      const source = readFileSync(path.resolve(process.cwd(), surface.source), 'utf8');
+      expect(source).toContain('safeword retro');
+      const harness = relayHarness(surface.harness);
+      const outcome = await run(
+        surface.harness,
+        credentialFor(harness),
+        index === surfaces.length - 1 ? undefined : lostResponseFetch,
+      );
+      expect(outcome.relay).toEqual(
+        index === surfaces.length - 1
+          ? { accepted: 1, retryable: 0 }
+          : { accepted: 0, retryable: 1 },
+      );
+    }
 
     const requestIds = relay.observability.logs.map(log => log.requestId);
-    expect(requestIds).toHaveLength(2);
+    expect(requestIds).toHaveLength(6);
     expect(new Set(requestIds).size).toBe(1);
+    expect(requestIds[0]).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u,
+    );
     expect(github.createdBodies).toHaveLength(1);
+    expect(JSON.stringify(relay.observability)).not.toContain('ghs_installation_secret');
     store.close();
   });
 });

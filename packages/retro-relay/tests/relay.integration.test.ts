@@ -68,6 +68,8 @@ function draft(overrides: Partial<FileRetroDraftRequest> = {}): FileRetroDraftRe
 
 async function startGitHubFixture(
   options: {
+    afterCreate?: () => void;
+    afterScan?: () => void;
     createDelayMs?: number;
     createStatus?: number;
     failSecondPage?: boolean;
@@ -126,6 +128,7 @@ async function startGitHubFixture(
         return;
       }
       response.setHeader('content-type', 'application/json');
+      options.afterScan?.();
       response.end(
         JSON.stringify(
           page > 1
@@ -150,6 +153,7 @@ async function startGitHubFixture(
       let body = '';
       for await (const chunk of request) body += String(chunk);
       createdBodies.push(JSON.parse(body).body as string);
+      options.afterCreate?.();
       if (options.createStatus !== undefined) {
         response.statusCode = options.createStatus;
         response.end();
@@ -185,6 +189,8 @@ async function startGitHubFixture(
 
 async function fixture(
   options: {
+    afterCreate?: () => void;
+    afterScan?: () => void;
     createDelayMs?: number;
     createStatus?: number;
     failSecondPage?: boolean;
@@ -193,6 +199,7 @@ async function fixture(
     rawBodies?: string[];
     rawPullRequestBodies?: string[];
     sanitizedMcpBodies?: string[];
+    now?: () => Date;
   } = {},
 ) {
   const directory = mkdtempSync(path.join(tmpdir(), 'safeword-relay-integration-'));
@@ -221,13 +228,15 @@ async function fixture(
     operator: issueCredential('operator', 'd', ['reconcile', 'operate']),
   };
   const credential = credentials.claude;
-  const store = RelayStore.open(path.join(directory, 'relay.sqlite'));
+  const store = RelayStore.open(path.join(directory, 'relay.sqlite'), {
+    ...(options.now !== undefined && { now: options.now }),
+  });
   const tokenProvider = new GitHubAppTokenProvider({
     appId: '1234',
     baseUrl: githubFixture.baseUrl,
     privateKey: githubAppPrivateKeyPem,
   });
-  const relay = await startRelayServer({
+  const serverOptions = {
     credentials: registry,
     github: new GitHubRestClient({
       baseUrl: githubFixture.baseUrl,
@@ -236,7 +245,9 @@ async function fixture(
     lockPath: path.join(directory, 'relay.lock'),
     payloadKey: Buffer.alloc(32, 7),
     store,
-  });
+    ...(options.now !== undefined && { now: options.now }),
+  };
+  const relay = await startRelayServer(serverOptions);
   servers.push(relay.server);
   return { ...githubFixture, credential, credentials, directory, registry, relay, store };
 }
@@ -297,6 +308,117 @@ describe('retry-safe retro relay', () => {
       status: 409,
     });
     expect(setup.createBodies).toHaveLength(1);
+  });
+
+  it('immediately returns the original filed result after 30-day payload compaction', async () => {
+    const start = new Date();
+    const setup = await fixture({ now: () => start });
+    const adapters = createHarnessAdapters(setup.relay.url, setup.credentials, {
+      pollBudgetMs: 0,
+    });
+    const original = await adapters.claude.file(draft());
+    setup.store.maintain(new Date(start.getTime() + 30 * 24 * 60 * 60 * 1000 + 10_000));
+
+    const replay = await adapters.codex.file(draft());
+
+    expect(replay).toEqual({
+      issueNumber: original.issueNumber,
+      receiptId: original.receiptId,
+      requestId: original.requestId,
+      state: 'tombstone',
+    });
+    expect(setup.createBodies).toHaveLength(1);
+  });
+
+  it('does not start a dispatch when raw enumeration crosses the 24-hour deadline', async () => {
+    const acceptedAt = new Date();
+    let current = acceptedAt;
+    const setup = await fixture({
+      afterScan: () => {
+        current = new Date(acceptedAt.getTime() + 24 * 60 * 60 * 1000);
+      },
+      now: () => current,
+    });
+
+    const response = await fetch(`${setup.relay.url}/v1/retro-filings`, {
+      body: JSON.stringify(draft({ requestId: 'crossed-retry-deadline' })),
+      headers: {
+        authorization: `Bearer ${setup.credentials.claude}`,
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    });
+
+    expect(response.status).toBe(202);
+    expect(setup.createBodies).toHaveLength(0);
+    expect(setup.store.operations(current).counts['dead-letter']).toBe(1);
+  });
+
+  it('cannot commit a filed result when GitHub work crosses the one-hour grace', async () => {
+    const acceptedAt = new Date();
+    let current = acceptedAt;
+    const setup = await fixture({
+      afterCreate: () => {
+        current = new Date(acceptedAt.getTime() + 25 * 60 * 60 * 1000);
+      },
+      now: () => current,
+    });
+
+    const response = await fetch(`${setup.relay.url}/v1/retro-filings`, {
+      body: JSON.stringify(draft({ requestId: 'crossed-grace-deadline' })),
+      headers: {
+        authorization: `Bearer ${setup.credentials.claude}`,
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    });
+
+    expect(response.status).toBe(503);
+    expect(setup.store.operations(current).counts.ambiguous).toBe(1);
+    expect(setup.store.pendingAlerts()).toEqual([expect.objectContaining({ state: 'ambiguous' })]);
+  });
+
+  it('bounds request size fields timeouts and per-principal filing rate', async () => {
+    const setup = await fixture();
+    expect(setup.relay.server.requestTimeout).toBeLessThanOrEqual(10_000);
+    expect(setup.relay.server.headersTimeout).toBeLessThanOrEqual(15_000);
+
+    const oversizedBody = 'x'.repeat(300_000);
+    const oversized = await fetch(`${setup.relay.url}/v1/retro-filings`, {
+      body: JSON.stringify(draft({ body: oversizedBody })),
+      headers: {
+        authorization: `Bearer ${setup.credentials.claude}`,
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    });
+    expect(oversized.status).toBe(413);
+
+    const oversizedTitle = 'x'.repeat(300);
+    const invalidField = await fetch(`${setup.relay.url}/v1/retro-filings`, {
+      body: JSON.stringify(draft({ requestId: 'bounded-fields', title: oversizedTitle })),
+      headers: {
+        authorization: `Bearer ${setup.credentials.codex}`,
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    });
+    expect(invalidField.status).toBe(400);
+
+    const statuses: number[] = [];
+    for (let index = 0; index < 61; index += 1) {
+      const response = await fetch(`${setup.relay.url}/v1/retro-filings`, {
+        body: JSON.stringify(draft({ requestId: `rate-${index}` })),
+        headers: {
+          authorization: `Bearer ${setup.credentials.cursor}`,
+          'content-type': 'application/json',
+        },
+        method: 'POST',
+      });
+      statuses.push(response.status);
+    }
+    expect(statuses.slice(0, 60).every(status => status === 201)).toBe(true);
+    expect(statuses[60]).toBe(429);
   });
 
   it('reuses the filed receipt after response delivery is lost', async () => {
