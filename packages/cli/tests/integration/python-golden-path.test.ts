@@ -218,10 +218,25 @@ describe('E2E: Python Lint Hook Fallback', () => {
     writeTestFile(projectDirectory, 'src/fallback.py', 'x=1;y=2');
     const filePath = nodePath.join(projectDirectory, 'src/fallback.py');
 
-    // Hook should use fallback path (Ruff without --config)
-    runLintHook(projectDirectory, filePath);
+    // SAFEWORD_NO_AUTO_UPGRADE is load-bearing, not hygiene. Without it the hook sees
+    // the missing Python pack and shells `bunx safeword@latest upgrade`, which (a) is a
+    // live network install whose latency is unbounded — the 30s spawn cap then SIGKILLs
+    // it and the file is never touched, which is how this test flaked — and (b) RESTORES
+    // both configs, so the run lints via the normal configured path and the fallback
+    // this test is named for is never exercised at all.
+    const hook = runLintHook(projectDirectory, filePath, { SAFEWORD_NO_AUTO_UPGRADE: '1' });
 
-    // File should still be formatted by Ruff
+    // Assert the hook actually ran. Discarding this result is what let the flake surface
+    // as a baffling content mismatch instead of "the hook was killed". A set `signal`
+    // means the 30s cap killed it — asserted first so a timeout names itself.
+    expect(hook.signal ?? undefined).toBeUndefined();
+    expect(hook.status).toBe(0);
+
+    // The fallback path was genuinely taken: neither config came back.
+    expect(fileExists(projectDirectory, 'ruff.toml')).toBe(false);
+    expect(fileExists(projectDirectory, '.safeword/ruff.toml')).toBe(false);
+
+    // File should still be formatted by Ruff, using its own defaults.
     const result = readTestFile(projectDirectory, 'src/fallback.py');
     expect(result).toContain('x = 1');
   });

@@ -1225,6 +1225,27 @@ describe('Test Suite 8: Health Check', () => {
       expect(`${result.stdout}\n${result.stderr}`).not.toMatch(/ANC006/);
     });
 
+    it("reports a feature-source anchor that belongs to another ticket's slug", async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTestFile(
+        temporaryDirectory,
+        'features/another-ticket.feature',
+        ['Feature: another ticket', '', '  Scenario: foreign', '    Then it exists', ''].join('\n'),
+      );
+      writeAnchorTicket('ANC008-demo', [
+        'type: feature',
+        'phase: scenario-gate',
+        'status: in_progress',
+        'phase_anchors:',
+        '  - scenario-gate: features/another-ticket.feature',
+      ]);
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toMatch(/ANC008.*outside this ticket/is);
+    });
+
     it('reports a path anchor whose artifact is missing from disk', async () => {
       await createConfiguredProject(temporaryDirectory);
       writeAnchorTicket('ANC007-demo', [

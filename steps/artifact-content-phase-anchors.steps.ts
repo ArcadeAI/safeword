@@ -13,13 +13,15 @@
 
 import { strict as assert } from 'node:assert';
 import { execFileSync, execSync, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, unlinkSync, writeFileSync } from 'node:fs';
 import nodeOs from 'node:os';
 import nodePath from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { Given, Then, When } from '@cucumber/cucumber';
 
+import { toRepoPath } from '../packages/cli/src/utils/repo-path.ts';
+import { WORKSPACE_ROOTS } from '../packages/cli/src/utils/workspace-roots.ts';
 import { git, implPlanContent, readAuditEntries, writeFileAt } from './support/repo-fixtures.ts';
 import type { SafewordWorld } from './world.js';
 
@@ -83,6 +85,8 @@ interface AnchorWorld extends SafewordWorld {
   dir?: string;
   remote?: string;
   cli?: { exitCode: number; output: string };
+  nativePath?: string;
+  normalizedPath?: string;
 }
 
 function ticketContent(
@@ -115,12 +119,17 @@ const RUNNER = `
 const { detectUnanchoredPhaseTransition, detectUnanchoredPhaseState } = await import(${JSON.stringify(LIB_URL)});
 const { prior, proposed, tree, mode } = JSON.parse(await new Response(Bun.stdin).text());
 const { readFileSync } = await import('node:fs');
+const scope = {
+  ticketPath: ${JSON.stringify(TICKET_DIR)},
+  featureRoots: ['features'],
+  workspaceRoots: ${JSON.stringify(WORKSPACE_ROOTS)},
+};
 const read = tree === null ? undefined
   : tree === 'fs' ? (p) => { try { return readFileSync(p, 'utf8'); } catch { return undefined; } }
   : (p) => (Object.hasOwn(tree, p) ? tree[p] : undefined);
 const verdict = mode === 'state'
-  ? detectUnanchoredPhaseState(proposed, read)
-  : detectUnanchoredPhaseTransition(prior, proposed, read);
+  ? detectUnanchoredPhaseState(proposed, scope, read)
+  : detectUnanchoredPhaseTransition(prior, proposed, scope, read);
 console.log(JSON.stringify(verdict));
 `;
 
@@ -351,7 +360,7 @@ When(
 );
 
 When('it advances to implement recording that path for implement', function (this: AnchorWorld) {
-  advance(this, { phase: 'implement', anchors: [`implement: ${GONE}`] });
+  advance(this, { phase: 'implement', anchors: [`implement: ${IMPL_PLAN}`] });
 });
 
 When(
@@ -501,6 +510,181 @@ function lastAuditEntry(dir: string): string {
   return entry === undefined ? '' : JSON.stringify(entry);
 }
 
+function createCommittedAnchoredAdvance(world: AnchorWorld): { dir: string; branch: string } {
+  const dir = createProject(world);
+  writeFileAt(dir, `${TICKET_DIR}/ticket.md`, ticketContent('feature', 'scenario-gate'));
+  addPushedBaseline(world);
+  const branch = git(dir, 'branch --show-current').trim();
+  writeFileAt(dir, IMPL_PLAN, SHAPE_VALID_IMPL_PLAN);
+  writeFileAt(
+    dir,
+    `${TICKET_DIR}/ticket.md`,
+    ticketContent('feature', 'implement', [`implement: ${IMPL_PLAN}`]),
+  );
+  git(dir, 'add -A');
+  git(dir, 'commit -m advance --quiet');
+  return { dir, branch };
+}
+
+function seedTicket(world: AnchorWorld, ticketPath: string, phase: string): string {
+  const dir = createProject(world);
+  writeFileAt(dir, `${ticketPath}/ticket.md`, ticketContent('feature', phase));
+  git(dir, 'add -A');
+  git(dir, 'commit -m seed --quiet');
+  return dir;
+}
+
+Given(
+  "a staged advance anchored to another ticket's shape-valid impl-plan",
+  function (this: AnchorWorld) {
+    const foreignTicket = '.project/tickets/ACA002-foreign';
+    const foreignPlan = `${foreignTicket}/impl-plan.md`;
+    const dir = seedTicket(this, TICKET_DIR, 'scenario-gate');
+    writeFileAt(dir, foreignPlan, SHAPE_VALID_IMPL_PLAN);
+    writeFileAt(
+      dir,
+      `${TICKET_DIR}/ticket.md`,
+      ticketContent('feature', 'implement', [`implement: ${foreignPlan}`]),
+    );
+    git(dir, 'add -A');
+  },
+);
+
+Given("a staged advance anchored to another ticket's feature source", function (this: AnchorWorld) {
+  const foreignFeature = 'features/another-ticket.feature';
+  const dir = seedTicket(this, TICKET_DIR, 'define-behavior');
+  writeFileAt(dir, foreignFeature, FEATURE_CONTENT);
+  writeFileAt(
+    dir,
+    `${TICKET_DIR}/ticket.md`,
+    ticketContent('feature', 'scenario-gate', [`scenario-gate: ${foreignFeature}`]),
+  );
+  git(dir, 'add -A');
+});
+
+Given('a staged advance whose anchor uses a Git index-stage prefix', function (this: AnchorWorld) {
+  const stagedAlias = `0:${IMPL_PLAN}`;
+  const dir = seedTicket(this, TICKET_DIR, 'scenario-gate');
+  writeFileAt(dir, IMPL_PLAN, SHAPE_VALID_IMPL_PLAN);
+  writeFileAt(
+    dir,
+    `${TICKET_DIR}/ticket.md`,
+    ticketContent('feature', 'implement', [`implement: ${stagedAlias}`]),
+  );
+  git(dir, 'add -A');
+});
+
+Given('an OS-native ticket directory path', function (this: AnchorWorld) {
+  this.nativePath = nodePath.win32.join('.project', 'tickets', 'ACA001-fixture');
+});
+
+When('the path is normalized for an anchor', function (this: AnchorWorld) {
+  this.normalizedPath = toRepoPath(this.nativePath ?? '');
+});
+
+Then('it uses the forward-slashed anchor grammar', function (this: AnchorWorld) {
+  assert.equal(this.normalizedPath, TICKET_DIR);
+});
+
+Given(
+  'a staged owned feature source that is then removed from the worktree',
+  function (this: AnchorWorld) {
+    const dir = seedTicket(this, TICKET_DIR, 'define-behavior');
+    writeFileAt(dir, FEATURE_SRC, FEATURE_CONTENT);
+    writeFileAt(
+      dir,
+      `${TICKET_DIR}/ticket.md`,
+      ticketContent('feature', 'scenario-gate', [`scenario-gate: ${FEATURE_SRC}`]),
+    );
+    git(dir, 'add -A');
+    unlinkSync(nodePath.join(dir, FEATURE_SRC));
+  },
+);
+
+Given(
+  'a staged advance anchored to a correctly named feature outside every feature lane',
+  function (this: AnchorWorld) {
+    const lookalike = 'docs/fixture.feature';
+    const dir = seedTicket(this, TICKET_DIR, 'define-behavior');
+    writeFileAt(dir, lookalike, FEATURE_CONTENT);
+    writeFileAt(
+      dir,
+      `${TICKET_DIR}/ticket.md`,
+      ticketContent('feature', 'scenario-gate', [`scenario-gate: ${lookalike}`]),
+    );
+    git(dir, 'add -A');
+  },
+);
+
+function stageConfiguredTicket(
+  world: AnchorWorld,
+  configuredProjectRoot: string,
+  ticketRoot = 'custom',
+): void {
+  const ticketPath = `${ticketRoot}/tickets/ACA001-fixture`;
+  const dir = seedTicket(world, ticketPath, 'scenario-gate');
+  writeFileAt(
+    dir,
+    '.safeword/config.json',
+    JSON.stringify({ paths: { projectRoot: configuredProjectRoot } }, undefined, 2),
+  );
+  writeFileAt(dir, `${ticketPath}/impl-plan.md`, '# hollow plan\n');
+  writeFileAt(
+    dir,
+    `${ticketPath}/ticket.md`,
+    ticketContent('feature', 'implement', [`implement: ${ticketPath}/impl-plan.md`]),
+  );
+  git(dir, 'add -A');
+}
+
+Given(
+  'a staged project-root configuration and a ticket in that configured root',
+  function (this: AnchorWorld) {
+    stageConfiguredTicket(this, 'custom');
+  },
+);
+
+Given(
+  'a staged project root containing dot and duplicate separator segments',
+  function (this: AnchorWorld) {
+    stageConfiguredTicket(this, 'shadow/../custom//');
+  },
+);
+
+Given(
+  'staged repository-root ticket and feature lanes with a valid owned anchor',
+  function (this: AnchorWorld) {
+    const rootTicket = 'tickets/ACA001-fixture';
+    const rootFeature = 'fixture.feature';
+    const dir = createProject(this);
+    writeFileAt(
+      dir,
+      '.safeword/config.json',
+      JSON.stringify({ paths: { projectRoot: '.', features: '.' } }, undefined, 2),
+    );
+    writeFileAt(dir, `${rootTicket}/ticket.md`, ticketContent('feature', 'define-behavior'));
+    git(dir, 'add -A');
+    git(dir, 'commit -m seed --quiet');
+    writeFileAt(dir, rootFeature, FEATURE_CONTENT);
+    writeFileAt(
+      dir,
+      `${rootTicket}/ticket.md`,
+      ticketContent('feature', 'scenario-gate', [`scenario-gate: ${rootFeature}`]),
+    );
+    git(dir, 'add -A');
+  },
+);
+
+Given('a staged project-root configuration outside the repository', function (this: AnchorWorld) {
+  const dir = createProject(this);
+  writeFileAt(
+    dir,
+    '.safeword/config.json',
+    JSON.stringify({ paths: { projectRoot: '../outside' } }, undefined, 2),
+  );
+  git(dir, 'add -A');
+});
+
 Given(
   'a project whose ticket advanced phases across several commits — an earlier phase anchored by a legacy hex SHA — that were then squash-merged into one',
   function (this: AnchorWorld) {
@@ -561,18 +745,21 @@ When(
 Given(
   'a project whose ticket recorded a path anchor in a commit that was then amended',
   function (this: AnchorWorld) {
-    const dir = createProject(this);
-    writeFileAt(dir, `${TICKET_DIR}/ticket.md`, ticketContent('feature', 'scenario-gate'));
-    addPushedBaseline(this);
-    writeFileAt(dir, IMPL_PLAN, SHAPE_VALID_IMPL_PLAN);
-    writeFileAt(
-      dir,
-      `${TICKET_DIR}/ticket.md`,
-      ticketContent('feature', 'implement', [`implement: ${IMPL_PLAN}`]),
-    );
-    git(dir, 'add -A');
-    git(dir, 'commit -m advance --quiet');
+    const { dir } = createCommittedAnchoredAdvance(this);
     git(dir, 'commit --amend --quiet -m amended-advance');
+  },
+);
+
+Given(
+  'a project whose ticket recorded a path anchor in a commit that was then rebased',
+  function (this: AnchorWorld) {
+    const { branch, dir } = createCommittedAnchoredAdvance(this);
+    git(dir, 'checkout --quiet -b rewritten-base @{u}');
+    writeFileAt(dir, 'README.md', '# rewritten base\n');
+    git(dir, 'add README.md');
+    git(dir, 'commit -m upstream-base --quiet');
+    git(dir, `checkout --quiet ${branch}`);
+    git(dir, 'rebase rewritten-base --quiet');
   },
 );
 
@@ -681,3 +868,37 @@ Then('the anchor check passes', function (this: AnchorWorld) {
 Then('the ledger check still warns about the unreachable tick SHA', function (this: AnchorWorld) {
   assert.match(this.cli?.output ?? '', /deadbee|ledger/i);
 });
+
+Then(
+  'it exits zero and warns that the anchor is outside this ticket',
+  function (this: AnchorWorld) {
+    assert.equal(this.cli?.exitCode, 0);
+    assert.match(this.cli?.output ?? '', /outside this ticket/i);
+  },
+);
+
+Then('it exits zero and warns that the anchor is not repo-relative', function (this: AnchorWorld) {
+  assert.equal(this.cli?.exitCode, 0);
+  assert.match(this.cli?.output ?? '', /repo-relative/i);
+});
+
+Then('it exits zero and warns about the phase anchor', function (this: AnchorWorld) {
+  assert.equal(this.cli?.exitCode, 0);
+  assert.match(this.cli?.output ?? '', /phase-anchor/i);
+});
+
+Then(
+  "it exits zero and reports the configured ticket's malformed plan",
+  function (this: AnchorWorld) {
+    assert.equal(this.cli?.exitCode, 0);
+    assert.match(this.cli?.output ?? '', /impl-plan-shape.*missing/is);
+  },
+);
+
+Then(
+  'it exits zero and warns that the project root is outside the repository',
+  function (this: AnchorWorld) {
+    assert.equal(this.cli?.exitCode, 0);
+    assert.match(this.cli?.output ?? '', /outside.*repository|repository.*outside/i);
+  },
+);

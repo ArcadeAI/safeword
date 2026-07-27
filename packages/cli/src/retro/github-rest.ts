@@ -10,6 +10,13 @@ import { canonicalMarker, signatureMarker } from './draft.js';
 import type { ReconcileIssue, ReconcileTracker } from './reconcile.js';
 import type { CreateIssueInput, IssueComment, IssueReference, IssueTracker } from './triage.js';
 
+/** An open issue as the dedup enumeration keeps it — raw body included. */
+interface OpenIssue {
+  number: number;
+  title: string;
+  body: string;
+}
+
 const UPSTREAM_REPO = 'ArcadeAI/safeword';
 const ISSUES_BASE = `/repos/${UPSTREAM_REPO}/issues`;
 const API = 'https://api.github.com';
@@ -21,6 +28,17 @@ const PER_PAGE = 100;
 const MAX_COMMENT_PAGES = 20;
 // Safety bound on issue-listing pagination for the reconcile sweep (→ 1000 issues).
 const MAX_ISSUE_PAGES = 10;
+// Safety bound on the dedup enumeration (→ 3000 open *items*: the listing
+// endpoint returns PRs alongside issues, and they are filtered after the fetch,
+// so open PRs consume this budget too). Deliberately looser than
+// MAX_ISSUE_PAGES: hitting this bound THROWS rather than truncating (see
+// listOpenIssues), so it halts filing entirely — it needs real headroom above
+// the repo's open count, not just enough for one sweep.
+const MAX_DEDUP_PAGES = 30;
+// How many times a run will re-take the two confirmation sweeps before giving up.
+// Instability is a one-off (someone closed an issue), so retrying usually works —
+// but a genuinely churning tracker must not spin the whole session on it.
+const MAX_CONFIRMATION_ATTEMPTS = 3;
 
 /** Ask the `gh` CLI for the environment's GitHub token, or undefined if unavailable. */
 function ghAuthToken(): string | undefined {
@@ -38,9 +56,12 @@ function ghAuthToken(): string | undefined {
  * (`ghp_`/`gho_`/`ghu_`/`ghs_`/`ghr_`, or fine-grained `github_pat_`) or a
  * legacy 40-char hex PAT. Deliberately narrow so proxy-injected placeholders
  * such as `proxy-injected` are rejected before they reach the API (#634).
+ * Stateless `ghs_` tokens use GitHub's published `{36,}` matcher:
+ * https://github.blog/changelog/2026-05-15-github-app-installation-tokens-per-request-override-header/
  */
 function looksLikeGitHubToken(value: string): boolean {
   return (
+    /^ghs_[\w.-]{36,}$/.test(value) ||
     /^gh[opusr]_[A-Za-z0-9]{20,}$/.test(value) ||
     /^github_pat_\w{20,}$/.test(value) ||
     /^[0-9a-f]{40}$/.test(value)
@@ -82,10 +103,39 @@ function buildCall(token: string) {
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     if (!response.ok) {
-      throw new Error(`GitHub ${method} ${path} → ${response.status}`);
+      // Carry the status on the error. The dedup enumeration retries a failed
+      // sweep on the next encounter, and without the status it cannot tell a
+      // 502 worth retrying from a 401 that will fail identically every time —
+      // so a bad token would burn a full sweep per finding (#1465 review).
+      throw new HttpError(`GitHub ${method} ${path} → ${response.status}`, response.status);
     }
     return response.json();
   };
+}
+
+/** A failed GitHub response, with the status kept for retry classification. */
+class HttpError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'HttpError';
+    this.status = status;
+  }
+}
+
+/**
+ * Statuses that will not change on retry within a run: the credential is wrong
+ * or absent (401/403), the resource is gone (404), or the request itself is
+ * invalid (422). Rate limiting also arrives as 403, but a retry-per-encounter
+ * makes that strictly worse, so it belongs on this side of the line too.
+ *
+ * Deliberately NOT here: 5xx and 429, which are transient by definition.
+ * Honoring `Retry-After` with real backoff is a separate concern that predates
+ * this module's retry behavior — this only stops the amplification.
+ */
+function isTerminalStatus(error: unknown): boolean {
+  return error instanceof HttpError && [401, 403, 404, 422].includes(error.status);
 }
 
 /**
@@ -98,31 +148,208 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
 
   const call = buildCall(token);
 
-  async function searchByExactMarker(hashToken: string, marker: string): Promise<IssueReference[]> {
-    const query = encodeURIComponent(
-      `repo:${UPSTREAM_REPO} is:issue in:body state:open ${hashToken}`,
-    );
-    const data = (await call('GET', `/search/issues?q=${query}&per_page=${PER_PAGE}`)) as {
-      items?: { number: number; title: string; body?: string; pull_request?: unknown }[];
-    };
-    return (data.items ?? [])
-      .filter(item => !item.pull_request && (item.body ?? '').includes(marker))
-      .map(item => ({ number: item.number, title: item.title }));
+  /**
+   * Every open issue body, fetched once per transport (#1453).
+   *
+   * Dedup used to ask `/search/issues` for the signature's hash token and filter
+   * the hits. That made the search INDEX the arbiter of "already filed", and the
+   * marker lives in an HTML comment — whether the index tokenizes comment text is
+   * undocumented and could not be verified. The fatal part is not the uncertainty
+   * but the shape of a wrong answer: an unindexed marker and a genuinely absent
+   * one both return an empty array, so triage cannot tell "no duplicate" from
+   * "could not tell" and confidently files a duplicate. Index lag had the same
+   * signature, which is why this read as flaky for so long.
+   *
+   * The listing endpoint returns raw bodies verbatim, so the marker check becomes
+   * a local string compare — exact, index-independent, and lag-free. No label
+   * filter: this keeps the old query's recall, so a marker hand-copied into an
+   * unlabeled issue (as happens when issues are merged) still dedups.
+   *
+   * Cached because triage runs up to two lookups per encounter; a 12-finding
+   * session would otherwise re-list 24 times.
+   */
+  let openIssues: Promise<OpenIssue[]> | undefined;
+  /**
+   * A failure the enumeration cannot recover from by trying again — the bound was
+   * exceeded, or the tracker mutated underneath it. Unlike a transient 5xx, these
+   * are deterministic, so re-running costs a full 31-request sweep to reach the
+   * same answer. Latched for the transport's life and rethrown to every later
+   * encounter (each still lands as its own isolated `failed` in triage).
+   */
+  let terminalFailure: Error | undefined;
+  let stabilityConfirmed = false;
+  let confirmationAttempts = 0;
+
+  function latchTerminal(message: string): Error {
+    terminalFailure = new Error(message);
+    return terminalFailure;
+  }
+
+  /**
+   * One page of open issues. `rawLength` is the page size BEFORE pull requests are
+   * filtered out — a full page that happened to be all PRs still means "there is
+   * more", so the last-page test has to read the raw count, not the kept count.
+   */
+  async function fetchIssuePage(page: number): Promise<{ issues: OpenIssue[]; rawLength: number }> {
+    const data = (await call(
+      'GET',
+      // Ascending by creation: the default (created desc) puts new issues on
+      // page 1, so an issue filed mid-enumeration shifts every later page by one
+      // and can slip an unread issue past a page boundary — a silent duplicate.
+      // Ascending appends new items to the LAST page, leaving read pages stable.
+      `${ISSUES_BASE}?state=open&sort=created&direction=asc&per_page=${PER_PAGE}&page=${page}`,
+    )) as { number: number; title: string; body?: string; pull_request?: unknown }[];
+    const issues = data
+      // Falsy, not `=== undefined`: this module's asymmetry is that a missed
+      // match files a duplicate, so a `pull_request: null` must not drop a
+      // real issue out of the dedup view.
+      .filter(issue => !issue.pull_request)
+      .map(issue => ({ number: issue.number, title: issue.title, body: issue.body ?? '' }));
+    return { issues, rawLength: data.length };
+  }
+
+  async function listOpenIssues(): Promise<OpenIssue[]> {
+    const issues: OpenIssue[] = [];
+    for (let page = 1; page <= MAX_DEDUP_PAGES; page++) {
+      const { issues: pageIssues, rawLength } = await fetchIssuePage(page);
+      issues.push(...pageIssues);
+      if (rawLength < PER_PAGE) return issues;
+    }
+    // The bound was reached with a full final page. Probe one page PAST it, but
+    // never accept the probe's contents: at exactly MAX_DEDUP_PAGES * PER_PAGE the
+    // probe is empty and the enumeration is genuinely complete, while anything at
+    // all on it means a real tail. Appending the probe instead would quietly raise
+    // the advertised cap to 3099 — the cap has to mean what it says.
+    const probe = await fetchIssuePage(MAX_DEDUP_PAGES + 1);
+    if (probe.rawLength > 0) {
+      // A real unread tail, so "no match" would be a guess about it. Throw: triage
+      // isolates this as a failed encounter and leaves the draft spooled, which is
+      // recoverable. Silently returning [] would file the duplicate this replaces.
+      throw latchTerminal(
+        `retro dedup: open items exceed ${MAX_DEDUP_PAGES * PER_PAGE}; enumeration truncated`,
+      );
+    }
+    return issues;
+  }
+
+  // Drop the cached promise on failure, or one transient 5xx would sink every
+  // later encounter in the session instead of just its own. The reset lands after
+  // the await, by which point the assignment below has already completed. A
+  // latched terminal failure short-circuits before this ever re-runs.
+  async function loadOpenIssues(): Promise<OpenIssue[]> {
+    try {
+      return await listOpenIssues();
+    } catch (error) {
+      // A wrong or missing credential fails identically every time, so retrying
+      // it once per finding just burns a full sweep each. Latch it; only
+      // genuinely transient statuses earn the retry.
+      if (isTerminalStatus(error)) {
+        terminalFailure = error as Error;
+      }
+      openIssues = undefined;
+      throw error;
+    }
+  }
+
+  async function currentSnapshot(): Promise<OpenIssue[]> {
+    if (terminalFailure) throw terminalFailure;
+    openIssues ??= loadOpenIssues();
+    return await openIssues;
+  }
+
+  /**
+   * Page-number pagination is sound only while nothing is REMOVED mid-sweep.
+   * Ascending order stops a new issue from shifting already-read pages, but
+   * closing one shifts every later item back a position, so an item can fall
+   * across a page boundary unseen. If that item carried the marker, the sweep
+   * reports "no duplicate" and files one — the failure this module exists to stop.
+   *
+   * A MISS is therefore answered from a freshly-swept `later`, never from the
+   * cached snapshot — so an item the CACHED sweep skipped is already healed by the
+   * time the answer is given. The only completeness that matters is `later`'s.
+   *
+   * `earlier` exists solely to test that. If a close lands during `later`'s window
+   * it shifts `later`'s pages, and the item that fell through appears in `earlier`
+   * and not in `later` — so an issue going MISSING between the two is the tell. An
+   * issue merely appearing is benign: ascending order appends new issues to the
+   * last page, where they displace nothing.
+   *
+   * Both sweeps are taken here rather than reusing the cached one, so the window
+   * under test is these two calls — not every `listComments`/`createIssue` round
+   * trip since the run began, during which an unrelated close is routine.
+   *
+   * Instability is NOT latched: unlike truncation it is a one-off, so it fails
+   * this encounter (triage isolates it, the draft stays spooled) and the next
+   * encounter re-confirms. Bounded, so a genuinely churning tracker cannot spin.
+   *
+   * Paid once per run, and only on the answer that can cause a duplicate — a hit
+   * needs no confirmation, because a skipped item cannot invent one.
+   */
+  async function confirmedSnapshot(): Promise<OpenIssue[]> {
+    if (stabilityConfirmed) return await currentSnapshot();
+    if (confirmationAttempts >= MAX_CONFIRMATION_ATTEMPTS) {
+      throw latchTerminal(
+        `retro dedup: the open-issue set kept shifting across ` +
+          `${MAX_CONFIRMATION_ATTEMPTS} confirmation attempts; cannot rule out a skip`,
+      );
+    }
+    confirmationAttempts += 1;
+
+    const earlier = await listOpenIssues();
+    const later = await listOpenIssues();
+    const laterNumbers = new Set(later.map(issue => issue.number));
+    const vanished = earlier.filter(issue => !laterNumbers.has(issue.number));
+    if (vanished.length > 0) {
+      // Deliberately not latched — see the note above.
+      throw new Error(
+        `retro dedup: ${vanished.length} open issue(s) closed mid-enumeration ` +
+          `(e.g. #${vanished[0]?.number}); a page-boundary skip in this sweep ` +
+          `cannot be ruled out`,
+      );
+    }
+    stabilityConfirmed = true;
+    openIssues = Promise.resolve(later);
+    return later;
+  }
+
+  /**
+   * Issues this transport filed during the current run.
+   *
+   * The enumeration above is a snapshot taken before the first create, and
+   * triage files inside the same transport instance. `prepareEncounters` does
+   * NOT dedupe by signature (pipeline.ts), so one batch can carry two findings
+   * that hash to the same signature — and without this, the second would consult
+   * the pre-create snapshot, miss, and file the finding a second time. That is
+   * the exact duplicate this module exists to prevent. (The old search-based
+   * path had the same hole for a different reason: the index cannot return an
+   * issue created seconds earlier.)
+   */
+  const createdThisRun: { number: number; title: string; body: string }[] = [];
+
+  function matchesIn(issues: readonly OpenIssue[], marker: string): IssueReference[] {
+    return [...issues, ...createdThisRun]
+      .filter(issue => issue.body.includes(marker))
+      .map(issue => ({ number: issue.number, title: issue.title }));
+  }
+
+  async function findByExactMarker(marker: string): Promise<IssueReference[]> {
+    const matches = matchesIn(await currentSnapshot(), marker);
+    // A hit is trustworthy as-is: a page-boundary skip can hide an issue, never
+    // fabricate one. Only the MISS — the answer that authorizes a create — has to
+    // be paid for with a stability check.
+    if (matches.length > 0) return matches;
+    return matchesIn(await confirmedSnapshot(), marker);
   }
 
   return {
     async searchBySignature(signature: string): Promise<IssueReference[]> {
-      // Search the body for the signature's hash token (the `retro:` prefix carries
-      // a `:` that GitHub's grammar reads as a qualifier, degrading recall), then
-      // exact-filter on the FULL signature in the returned body — GitHub search is
-      // fuzzy, so a hash near-miss must be rejected to avoid matching the wrong issue.
-      const hashToken = signature.replace(/^retro:/, '');
-      return searchByExactMarker(hashToken, signatureMarker(signature));
+      // Match the FULL marker, not the bare hash: the body is ours and the marker
+      // is exact, so a near-miss hash sharing a prefix must never count as filed.
+      return findByExactMarker(signatureMarker(signature));
     },
 
     async searchByCanonical(canonicalSignature: string): Promise<IssueReference[]> {
-      const hashToken = canonicalSignature.replace(/^canonical:/, '');
-      return searchByExactMarker(hashToken, canonicalMarker(canonicalSignature));
+      return findByExactMarker(canonicalMarker(canonicalSignature));
     },
 
     async createIssue(input: CreateIssueInput): Promise<IssueReference> {
@@ -130,7 +357,11 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
         number: number;
         title: string;
       };
-      return { number: data.number, title: data.title };
+      const reference = { number: data.number, title: data.title };
+      // Fold the new issue into the dedup view before returning, so a later
+      // encounter in this run matches it instead of filing it again.
+      createdThisRun.push({ ...reference, body: input.body });
+      return reference;
     },
 
     async listComments(issueNumber: number): Promise<IssueComment[]> {

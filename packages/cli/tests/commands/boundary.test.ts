@@ -7,7 +7,7 @@
  */
 
 import { execSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, unlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -25,6 +25,7 @@ import {
   createBoundaryProject,
   git,
   readAudit,
+  shapeValidImplPlan,
 } from './boundary-helpers';
 
 function writeIntakeFeatureTicket(dir: string, folder: string): void {
@@ -90,6 +91,423 @@ describe('safeword boundary (slice 1: engine core)', () => {
 
       expect(result.exitCode).toBe(0);
       expect(`${result.stdout}\n${result.stderr}`).toMatch(/missing/i);
+    });
+
+    it("warns when a ticket reuses another ticket's same-kind artifact", async () => {
+      const ticket = '.project/tickets/BND010-owner';
+      const foreignTicket = '.project/tickets/BND011-foreign';
+      writeTestFile(
+        dir,
+        `${ticket}/ticket.md`,
+        boundaryTicketContent({ id: 'BND010', phase: 'scenario-gate' }),
+      );
+      writeTestFile(dir, `${foreignTicket}/impl-plan.md`, '# foreign plan\n');
+      git(dir, 'add -A');
+      git(dir, 'commit -m seed --quiet');
+      writeTestFile(dir, `${foreignTicket}/impl-plan.md`, shapeValidImplPlan());
+      writeTestFile(
+        dir,
+        `${ticket}/ticket.md`,
+        boundaryTicketContent({
+          id: 'BND010',
+          phase: 'implement',
+          anchors: [`implement: ${foreignTicket}/impl-plan.md`],
+        }),
+      );
+      git(dir, 'add -A');
+
+      const result = await runCli(['boundary', '--at', 'commit'], { cwd: dir });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toMatch(/outside this ticket/i);
+    });
+
+    it('warns when an index-stage prefix aliases an existing staged artifact', async () => {
+      const ticket = '.project/tickets/BND012-stage-alias';
+      writeTestFile(
+        dir,
+        `${ticket}/ticket.md`,
+        boundaryTicketContent({ id: 'BND012', phase: 'scenario-gate' }),
+      );
+      git(dir, 'add -A');
+      git(dir, 'commit -m seed --quiet');
+      writeTestFile(dir, `${ticket}/impl-plan.md`, shapeValidImplPlan());
+      writeTestFile(
+        dir,
+        `${ticket}/ticket.md`,
+        boundaryTicketContent({
+          id: 'BND012',
+          phase: 'implement',
+          anchors: [`implement: 0:${ticket}/impl-plan.md`],
+        }),
+      );
+      git(dir, 'add -A');
+
+      const result = await runCli(['boundary', '--at', 'commit'], { cwd: dir });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toMatch(/repo-relative/i);
+    });
+
+    it("warns when a ticket reuses another ticket's feature source", async () => {
+      const ticket = '.project/tickets/BND013-owner';
+      const foreignFeature = 'features/another-ticket.feature';
+      writeTestFile(
+        dir,
+        `${ticket}/ticket.md`,
+        boundaryTicketContent({ id: 'BND013', phase: 'define-behavior' }),
+      );
+      writeTestFile(
+        dir,
+        foreignFeature,
+        [
+          'Feature: another ticket',
+          '',
+          '  Scenario: foreign evidence',
+          '    Then it exists',
+          '',
+        ].join('\n'),
+      );
+      git(dir, 'add -A');
+      git(dir, 'commit -m seed --quiet');
+      writeTestFile(
+        dir,
+        `${ticket}/ticket.md`,
+        boundaryTicketContent({
+          id: 'BND013',
+          phase: 'scenario-gate',
+          anchors: [`scenario-gate: ${foreignFeature}`],
+        }),
+      );
+      git(dir, 'add -A');
+
+      const result = await runCli(['boundary', '--at', 'commit'], { cwd: dir });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toMatch(/outside this ticket/i);
+    });
+
+    it('uses the staged tree, not an unstaged removal, to identify the canonical feature', async () => {
+      const ticket = '.project/tickets/BND014-owner';
+      const feature = 'features/owner.feature';
+      writeTestFile(
+        dir,
+        `${ticket}/ticket.md`,
+        boundaryTicketContent({ id: 'BND014', phase: 'define-behavior' }),
+      );
+      git(dir, 'add -A');
+      git(dir, 'commit -m seed --quiet');
+      writeTestFile(
+        dir,
+        feature,
+        ['Feature: owner', '', '  Scenario: owned evidence', '    Then it exists', ''].join('\n'),
+      );
+      writeTestFile(
+        dir,
+        `${ticket}/ticket.md`,
+        boundaryTicketContent({
+          id: 'BND014',
+          phase: 'scenario-gate',
+          anchors: [`scenario-gate: ${feature}`],
+        }),
+      );
+      git(dir, 'add -A');
+      unlinkSync(nodePath.join(dir, feature));
+
+      const result = await runCli(['boundary', '--at', 'commit'], { cwd: dir });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).not.toMatch(/phase-anchor/i);
+    });
+
+    it('rejects a correctly named feature outside every executable feature lane', async () => {
+      const ticket = '.project/tickets/BND015-owner';
+      const lookalike = 'docs/owner.feature';
+      writeTestFile(
+        dir,
+        `${ticket}/ticket.md`,
+        boundaryTicketContent({ id: 'BND015', phase: 'define-behavior' }),
+      );
+      git(dir, 'add -A');
+      git(dir, 'commit -m seed --quiet');
+      writeTestFile(
+        dir,
+        lookalike,
+        ['Feature: lookalike', '', '  Scenario: not executable', '    Then it exists', ''].join(
+          '\n',
+        ),
+      );
+      writeTestFile(
+        dir,
+        `${ticket}/ticket.md`,
+        boundaryTicketContent({
+          id: 'BND015',
+          phase: 'scenario-gate',
+          anchors: [`scenario-gate: ${lookalike}`],
+        }),
+      );
+      git(dir, 'add -A');
+
+      const result = await runCli(['boundary', '--at', 'commit'], { cwd: dir });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toMatch(/phase-anchor/i);
+    });
+
+    it('accepts a configured feature lane recorded only in the staged config', async () => {
+      const ticket = '.project/tickets/BND016-owner';
+      const feature = 'tests/behaviors/owner.feature';
+      const config = '.safeword/config.json';
+      writeTestFile(
+        dir,
+        `${ticket}/ticket.md`,
+        boundaryTicketContent({ id: 'BND016', phase: 'define-behavior' }),
+      );
+      git(dir, 'add -A');
+      git(dir, 'commit -m seed --quiet');
+      writeTestFile(
+        dir,
+        config,
+        JSON.stringify({ paths: { features: 'tests/behaviors' } }, undefined, 2),
+      );
+      writeTestFile(
+        dir,
+        feature,
+        ['Feature: owner', '', '  Scenario: configured evidence', '    Then it exists', ''].join(
+          '\n',
+        ),
+      );
+      writeTestFile(
+        dir,
+        `${ticket}/ticket.md`,
+        boundaryTicketContent({
+          id: 'BND016',
+          phase: 'scenario-gate',
+          anchors: [`scenario-gate: ${feature}`],
+        }),
+      );
+      git(dir, 'add -A');
+      unlinkSync(nodePath.join(dir, config));
+
+      const result = await runCli(['boundary', '--at', 'commit'], { cwd: dir });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).not.toMatch(/phase-anchor/i);
+    });
+
+    it('discovers tickets from a project root recorded only in the staged config', async () => {
+      const oldTicket = '.project/tickets/BND017-owner/ticket.md';
+      const ticket = 'custom/tickets/BND017-owner';
+      const config = '.safeword/config.json';
+      writeTestFile(
+        dir,
+        oldTicket,
+        boundaryTicketContent({ id: 'BND017', phase: 'scenario-gate' }),
+      );
+      git(dir, 'add -A');
+      git(dir, 'commit -m seed --quiet');
+      unlinkSync(nodePath.join(dir, oldTicket));
+      writeTestFile(
+        dir,
+        config,
+        JSON.stringify({ paths: { projectRoot: 'shadow/../custom//' } }, undefined, 2),
+      );
+      writeTestFile(dir, `${ticket}/impl-plan.md`, '# hollow plan\n');
+      writeTestFile(
+        dir,
+        `${ticket}/ticket.md`,
+        boundaryTicketContent({
+          id: 'BND017',
+          phase: 'implement',
+          anchors: [`implement: ${ticket}/impl-plan.md`],
+        }),
+      );
+      git(dir, 'add -A');
+      writeTestFile(dir, config, '{}\n');
+
+      const result = await runCli(['boundary', '--at', 'commit'], { cwd: dir });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toMatch(/impl-plan-shape.*missing/is);
+    });
+
+    it('discovers root-level tickets when staged projectRoot is the repository root', async () => {
+      const ticket = 'tickets/BND018-owner';
+      const config = '.safeword/config.json';
+      writeTestFile(dir, config, JSON.stringify({ paths: { projectRoot: '.' } }, undefined, 2));
+      writeTestFile(dir, `${ticket}/impl-plan.md`, '# hollow plan\n');
+      writeTestFile(
+        dir,
+        `${ticket}/ticket.md`,
+        boundaryTicketContent({
+          id: 'BND018',
+          phase: 'implement',
+          anchors: [`implement: ${ticket}/impl-plan.md`],
+        }),
+      );
+      git(dir, 'add -A');
+      writeTestFile(dir, config, '{}\n');
+
+      const result = await runCli(['boundary', '--at', 'commit'], { cwd: dir });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toMatch(/impl-plan-shape.*missing/is);
+    });
+
+    it('ignores legacy tickets when the staged tree contains the authoritative .project root', async () => {
+      writeIntakeFeatureTicket(dir, 'BND020-authoritative');
+      const legacyTicket = '.safeword-project/tickets/BND020-legacy/ticket.md';
+      writeTestFile(
+        dir,
+        legacyTicket,
+        boundaryTicketContent({ id: 'BND020', phase: 'scenario-gate' }),
+      );
+      git(dir, 'add -A');
+      git(dir, 'commit -m seed --quiet');
+      writeTestFile(dir, legacyTicket, boundaryTicketContent({ id: 'BND020', phase: 'implement' }));
+      git(dir, `add ${legacyTicket}`);
+
+      const result = await runCli(['boundary', '--at', 'commit'], { cwd: dir });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`.trim()).toBe('');
+      expect(readAudit(dir)).toHaveLength(0);
+    });
+
+    it('ignores legacy tickets when the pushed tree contains the authoritative .project root', async () => {
+      const remote = createTemporaryDirectory();
+      try {
+        execSync('git init --bare --quiet', { cwd: remote, stdio: 'pipe' });
+        writeIntakeFeatureTicket(dir, 'BND021-authoritative');
+        const legacyTicket = '.safeword-project/tickets/BND021-legacy/ticket.md';
+        writeTestFile(
+          dir,
+          legacyTicket,
+          boundaryTicketContent({ id: 'BND021', phase: 'scenario-gate' }),
+        );
+        git(dir, 'add -A');
+        git(dir, 'commit -m seed --quiet');
+        git(dir, `remote add origin ${remote}`);
+        git(dir, 'push -u origin HEAD --quiet');
+        writeTestFile(
+          dir,
+          legacyTicket,
+          boundaryTicketContent({ id: 'BND021', phase: 'implement' }),
+        );
+        git(dir, `add ${legacyTicket}`);
+        git(dir, 'commit -m legacy-only --quiet');
+
+        const result = await runCli(['boundary', '--at', 'push'], { cwd: dir });
+
+        expect(result.exitCode).toBe(0);
+        expect(`${result.stdout}\n${result.stderr}`.trim()).toBe('');
+        expect(readAudit(dir)).toHaveLength(0);
+      } finally {
+        removeTemporaryDirectory(remote);
+      }
+    });
+
+    it('falls back to legacy tickets when the staged tree has no .project root', async () => {
+      const legacyTicket = '.safeword-project/tickets/BND022-legacy/ticket.md';
+      git(dir, 'rm -r .project --quiet');
+      writeTestFile(
+        dir,
+        legacyTicket,
+        boundaryTicketContent({ id: 'BND022', phase: 'scenario-gate' }),
+      );
+      git(dir, 'add -A');
+      git(dir, 'commit -m legacy-baseline --quiet');
+      writeTestFile(dir, legacyTicket, boundaryTicketContent({ id: 'BND022', phase: 'implement' }));
+      git(dir, `add ${legacyTicket}`);
+
+      const result = await runCli(['boundary', '--at', 'commit'], { cwd: dir });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toMatch(/BND022-legacy.*phase-anchor/is);
+    });
+
+    it('falls back to legacy tickets when the pushed tree has no .project root', async () => {
+      const remote = createTemporaryDirectory();
+      try {
+        execSync('git init --bare --quiet', { cwd: remote, stdio: 'pipe' });
+        const legacyTicket = '.safeword-project/tickets/BND023-legacy/ticket.md';
+        git(dir, 'rm -r .project --quiet');
+        writeTestFile(
+          dir,
+          legacyTicket,
+          boundaryTicketContent({ id: 'BND023', phase: 'scenario-gate' }),
+        );
+        git(dir, 'add -A');
+        git(dir, 'commit -m legacy-baseline --quiet');
+        git(dir, `remote add origin ${remote}`);
+        git(dir, 'push -u origin HEAD --quiet');
+        writeTestFile(
+          dir,
+          legacyTicket,
+          boundaryTicketContent({ id: 'BND023', phase: 'implement' }),
+        );
+        git(dir, `add ${legacyTicket}`);
+        git(dir, 'commit -m legacy-advance --quiet');
+
+        const result = await runCli(['boundary', '--at', 'push'], { cwd: dir });
+
+        expect(result.exitCode).toBe(0);
+        expect(`${result.stdout}\n${result.stderr}`).toMatch(/BND023-legacy.*phase-anchor/is);
+      } finally {
+        removeTemporaryDirectory(remote);
+      }
+    });
+
+    it('accepts a root-level configured feature lane from the staged config', async () => {
+      const ticket = '.project/tickets/BND019-owner';
+      const feature = 'docs/owner.feature';
+      const config = '.safeword/config.json';
+      writeTestFile(
+        dir,
+        `${ticket}/ticket.md`,
+        boundaryTicketContent({ id: 'BND019', phase: 'define-behavior' }),
+      );
+      git(dir, 'add -A');
+      git(dir, 'commit -m seed --quiet');
+      writeTestFile(dir, config, JSON.stringify({ paths: { features: '.' } }, undefined, 2));
+      writeTestFile(
+        dir,
+        feature,
+        ['Feature: owner', '', '  Scenario: root lane', '    Then it exists', ''].join('\n'),
+      );
+      writeTestFile(
+        dir,
+        `${ticket}/ticket.md`,
+        boundaryTicketContent({
+          id: 'BND019',
+          phase: 'scenario-gate',
+          anchors: [`scenario-gate: ${feature}`],
+        }),
+      );
+      git(dir, 'add -A');
+      unlinkSync(nodePath.join(dir, config));
+
+      const result = await runCli(['boundary', '--at', 'commit'], { cwd: dir });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).not.toMatch(/phase-anchor/i);
+    });
+
+    it('warns instead of silently skipping a project root outside the repository', async () => {
+      const config = '.safeword/config.json';
+      writeTestFile(
+        dir,
+        config,
+        JSON.stringify({ paths: { projectRoot: '../outside' } }, undefined, 2),
+      );
+      git(dir, 'add -A');
+
+      const result = await runCli(['boundary', '--at', 'commit'], { cwd: dir });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toMatch(
+        /outside.*repository|repository.*outside/i,
+      );
     });
   });
 

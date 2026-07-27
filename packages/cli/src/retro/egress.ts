@@ -31,6 +31,10 @@ const REDACTED = '[redacted]';
 const SECRET_PATTERNS: readonly RegExp[] = [
   /\bsk_(?:live|test)_\w{8,}\b/g, // Stripe secret keys
   /\bsk-[\w-]{20,}\b/g, // Anthropic (sk-ant-…) / OpenAI (sk-proj-…, sk-…) keys
+  // Must precede the classic GitHub rule: that rule stops at the first dot and
+  // would leave the stateless token's payload and signature behind. Deliberately
+  // no trailing `\b`: it can backtrack and leave an allowed `-` tail (#1495).
+  /\bghs_[\w.-]{36,}/g, // GitHub stateless installation tokens
   /\bgh[pousr]_\w{20,}\b/g, // GitHub classic/oauth tokens
   /\bgithub_pat_\w{20,}\b/g, // GitHub fine-grained PAT (the current default format)
   /\bglpat-[\w-]{20,}\b/g, // GitLab personal access tokens
