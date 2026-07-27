@@ -4,8 +4,8 @@ slug: keep-lint-hook-off-network
 title: Keep lint-hook edits free of Safeword upgrades
 type: task
 subtype: bug
-phase: verify
-status: in_progress
+phase: done
+status: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/1511
 scope:
   - Remove the lint hook's language-pack self-repair path.
