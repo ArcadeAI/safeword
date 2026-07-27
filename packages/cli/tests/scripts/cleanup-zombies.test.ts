@@ -5,7 +5,7 @@
  * in temp directories with mock config files.
  */
 
-import { type ChildProcess, execSync, spawn, spawnSync } from 'node:child_process';
+import { type ChildProcess, execFileSync, spawn, spawnSync } from 'node:child_process';
 import {
   chmodSync,
   existsSync,
@@ -47,8 +47,7 @@ describe('cleanup-zombies.sh', () => {
 
   /** Run the real script with the args exactly as given. */
   function runScriptRaw(args: string[] = [], environmentOverrides: NodeJS.ProcessEnv = {}): string {
-    const command = `bash "${SCRIPT_PATH}" ${args.join(' ')}`;
-    return execSync(command, {
+    return execFileSync('/bin/bash', [SCRIPT_PATH, ...args], {
       cwd: temporaryDirectory,
       encoding: 'utf8',
       env: { ...process.env, PATH: isolatedPath, ...environmentOverrides },
