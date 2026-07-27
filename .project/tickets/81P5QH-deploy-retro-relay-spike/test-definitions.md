@@ -8,32 +8,32 @@ Feature source: `features/deploy-retro-relay-spike.feature`
 
 - [x] RED skip: uncommittable partial state — runtime Vitest failed on the missing runtime-config module and the commit lint gate rejected that unresolved import
 - [x] GREEN 909c25463
-- [ ] REFACTOR
+- [x] REFACTOR b107850bd
 
 ### Scenario: Startup rejects every malformed runtime value class
 
 - [x] RED e8c75da81
 - [x] GREEN 91b80c39a
-- [ ] REFACTOR
+- [x] REFACTOR b107850bd
 
 ## Rule: A healthy instance proves its durable store is open and ready
 
 ### Scenario: Railway health reports the hosted SQLite schema ready
 
 - [x] RED d8a2332cd
-- [x] GREEN skip: pending implementation commit — health now reads schema_version before returning ready
-- [ ] REFACTOR
+- [x] GREEN 91c22f7d0
+- [x] REFACTOR b107850bd
 
 ### Scenario: Local shutdown closes the server, database, and process lock
 
 - [x] RED skip: uncommittable partial state — the lifecycle test imported the not-yet-exported production runtime
-- [x] GREEN skip: pending implementation commit — lifecycle test reopens the same port and lock after close
+- [x] GREEN b107850bd
 - [ ] REFACTOR
 
 ### Scenario: Health fails closed when the SQLite schema is unavailable
 
 - [x] RED skip: shared health implementation was required by the preceding readiness scenario
-- [x] GREEN skip: pending implementation commit — integration test closes SQLite and requires HTTP 503
+- [x] GREEN b107850bd
 - [ ] REFACTOR
 
 ## Rule: Restarting the hosting instance preserves accepted request identity
