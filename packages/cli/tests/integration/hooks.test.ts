@@ -470,6 +470,18 @@ describe('E2E: UserPromptSubmit Hooks', () => {
       expect(result.stdout.trim().split('\n').at(-1)).toBe('- Avoid bloat.');
     });
 
+    it('leads with the two anchor bullets in a stable order', () => {
+      const result = runPromptQuestionsHook(shared.projectDirectory, 'Ship the auth fix');
+
+      // Position, not just presence: the anchors are assembled separately from the
+      // situational lines precisely so no later push can displace them.
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout.trim().split('\n').slice(0, 2)).toEqual([
+        '- Contribute before asking. Embed open questions in your contribution.',
+        '- Reply format: lead with the answer. For substantive work updates, use one **CONFIDENT**/**BLOCKED** decision brief and end with **Next:**.',
+      ]);
+    });
+
     it('proactively reminds Claude how to format substantive work updates', () => {
       const result = runPromptQuestionsHook(
         shared.projectDirectory,

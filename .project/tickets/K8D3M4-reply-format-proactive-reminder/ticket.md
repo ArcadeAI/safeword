@@ -21,7 +21,9 @@ last_modified: 2026-07-27T20:05:46Z
 `UserPromptSubmit` hook so it reaches the model beside each new user prompt.
 Keep the Stop hook's detailed validation as the post-response safety net. During
 an active implement/TDD step, retain only the lead-with-the-answer cue because
-the Stop hook intentionally keeps that workflow quiet.
+the Stop hook intentionally keeps that workflow quiet. The pre-existing first
+anchor line also gains the `-` bullet prefix every other emitted line already
+carries, so the injected block is uniform now that it leads with two anchors.
 
 **Out of Scope:** Changing the verdict contract, modifying Cursor or Codex
 adapters (tracked by [#1547](https://github.com/ArcadeAI/safeword/issues/1547)),
@@ -67,6 +69,10 @@ open.
       the decision-brief demand that Stop deliberately suppresses on those turns.
 - [x] The compact reminder is exported from `hooks/lib/quality.ts` and uses the
       same `answer` vocabulary as the Stop contract.
+- [x] Both anchor lines lead the injected block in a fixed order, asserted by
+      position rather than presence, and both carry the `-` bullet prefix.
+- [x] The Stop pointer keeps its original one-sentence prose with the shared lead
+      rule inline, not appended as a trailing labelled sentence.
 
 ## Test Definitions:
 
@@ -137,3 +143,18 @@ open.
   scout then unified the three installed prompt-hook test launchers behind one
   helper; the real integration suite passed 59/59 with unchanged stdin and
   project-directory behavior.
+- 2026-07-27T23:30:00Z Second PR #1540 review pass, polish only (no behavior
+  change): replaced the positional `lines.splice(1, 0, …)` with a separate
+  `anchors` array concatenated at output, so no later push can displace an
+  anchor; restored the Stop pointer's original one-sentence prose by making
+  `REPLY_FORMAT_LEAD_RULE` a bare inline fragment (retiring the `answer.,`
+  comma-splice guard the interpolation had needed); declared the `-` prefix
+  change in Scope with a position-asserting test; refreshed the now-stale
+  `hooks/lib/quality.ts` header comment for its third consumer; pinned all three
+  pointer exports in the schema contract; normalized the lone `./lib/quality.js`
+  type specifier to the `.ts` form this file uses elsewhere; and added the
+  K8D3M4 entry plus the corrected token-cost note to the
+  `long-session-style-drift` learning. Targeted verification: quality +
+  installed-hook suites 104/104, schema/parity 61/61, `bun run lint`
+  (eslint + Gherkin + typecheck) clean, `bun run parity:fix` re-synced both
+  dogfood mirrors.

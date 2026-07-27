@@ -56,6 +56,10 @@ The lookup question when adding or moving a rule: "if the model goes 50 turns wi
   too late or is intentionally quiet for the relevant turn. Issue #1524 is the
   counter-example for the compact reply-format rule: its reminder is gated to
   lead-only during active TDD steps, preserving the Stop hook's quiet workflow.
+  Note the cost correction: this bullet once claimed "50× the token cost of a
+  Stop-hook pointer," which was wrong. Stop and UserPromptSubmit both fire
+  roughly once per turn, so a one-line pointer costs about the same either way
+  (~40 tokens per prompt). Weigh the two on **timing**, not cost.
 - **Don't add pointers to every skill output template.** Skill outputs aren't system reminders, so they don't bypass the dismissive wrapper anyway. High maintenance burden, no actual fix.
 
 ## Tickets where this pattern was established
@@ -63,6 +67,7 @@ The lookup question when adding or moving a rule: "if the model goes 50 turns wi
 - F14BG2-stop-hook-verdict-shape — reshaped the Stop-hook verdict to a scannable decision brief.
 - QSNKBB-prompt-brevity-cut — cut SAFEWORD.md-duplicated preamble from the same hook.
 - 68SRC8-long-session-rule-stickiness — applied the pattern (recency placement + hook pointer) and wrote this learning file.
+- K8D3M4-reply-format-proactive-reminder — hit 68SRC8's own revisit trigger (issue #1524) and narrowed the "When NOT to apply" bullet above: added the per-turn reminder for the reply-format rule only, gated off intentionally quiet TDD steps, with the shared wording owned by `hooks/lib/quality.ts`.
 
 ## Provenance of the claims here
 

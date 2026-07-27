@@ -1326,6 +1326,11 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       // free-form review.
       requires: [
         'QUALITY_REVIEW_MESSAGE',
+        // prompt-questions.ts imports all three pre-response pointers; the Stop
+        // header composes the bare rule inline. Removing any one forks the
+        // reply-shape vocabulary back across two hooks.
+        'REPLY_FORMAT_LEAD_RULE',
+        'REPLY_FORMAT_LEAD',
         'REPLY_FORMAT_REMINDER',
         'CONFIDENT',
         'BLOCKED',

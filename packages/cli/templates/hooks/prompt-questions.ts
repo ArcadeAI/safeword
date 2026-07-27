@@ -12,6 +12,7 @@ import {
 } from './lib/active-ticket.ts';
 import { READINESS_POINTER, shouldSurfaceReadiness } from './lib/readiness-pointer.ts';
 import { evaluateReplan } from './lib/replan.ts';
+import type { BddPhase } from './lib/quality.ts';
 import { REPLY_FORMAT_LEAD, REPLY_FORMAT_REMINDER } from './lib/quality.ts';
 import {
   ESCALATION_THRESHOLD,
@@ -42,9 +43,13 @@ try {
   input = {};
 }
 
-// Compact behavioral anchors; SAFEWORD.md carries the full methodology.
-const lines = ['- Contribute before asking. Embed open questions in your contribution.'];
+// Compact behavioral anchors; SAFEWORD.md carries the full methodology. These
+// always lead the block, so they live in their own array — `lines` below is the
+// situational tail, and the two are concatenated at output. Keeping them apart
+// means no push into `lines` can displace an anchor.
+const anchors = ['- Contribute before asking. Embed open questions in your contribution.'];
 let replyFormatReminder = REPLY_FORMAT_REMINDER;
+const lines: string[] = [];
 
 // Effective Clarify phase: the active in-progress ticket's phase, else undefined
 // (no ticket, pre-classify, or a ticket that isn't in_progress — all treated as
@@ -96,7 +101,7 @@ if (existsSync(stateFile)) {
             : 'Phase: implement.',
           verify: 'Phase: verify. Cross-scenario refactor if needed, then run /verify and /audit.',
           done: 'Phase: done. Close ticket (verify.md exists).',
-        } satisfies Record<import('./lib/quality.js').BddPhase, string> & Record<string, string>;
+        } satisfies Record<BddPhase, string> & Record<string, string>;
 
         // Name the active ticket slug-first (ZRXM6Q) so the per-turn reminder
         // reads in names, not the opaque ID — recognition over recall. The slug
@@ -170,7 +175,9 @@ if (existsSync(stateFile)) {
   }
 }
 
-lines.splice(1, 0, `- ${replyFormatReminder}`);
+// Resolved only after the state block above, which decides whether an active
+// TDD step reduces this to the lead-only cue.
+anchors.push(`- ${replyFormatReminder}`);
 
 // Readiness pointer (TPP6Y2): compressed five-dimension self-test, surfaced
 // during Clarify (no active ticket or intake phase) and suppressed once a build
@@ -205,7 +212,7 @@ try {
 }
 
 lines.push('- Avoid bloat.');
-console.log(lines.join('\n'));
+console.log([...anchors, ...lines].join('\n'));
 
 function tddNextStep(step: string): string {
   const next: Record<string, string> = {
