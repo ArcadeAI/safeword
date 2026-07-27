@@ -15,6 +15,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
@@ -33,6 +34,12 @@ import { type Provenance, PROVENANCE_SHA } from '../retro/ledger.js';
 import { prepareEncounters } from '../retro/pipeline.js';
 import { reconcile, type ReconcileTracker } from '../retro/reconcile.js';
 import { deliverRelayRequests, persistRelayDraft } from '../retro/relay-delivery.js';
+import {
+  CHECKED_IN_RELAY_READINESS,
+  type RelayReadinessManifest,
+  SAFEWORD_BUILD_COMMIT,
+  validateRelayReadiness,
+} from '../retro/relay-readiness.js';
 import { type IssueTracker, triage, type TriageResult } from '../retro/triage.js';
 import { VERSION } from '../version.js';
 
@@ -404,10 +411,146 @@ function unavailableTransport(): IssueTracker {
   };
 }
 
-interface RetroCommandOutput {
+export interface RetroCommandOutput {
   error: (message: string) => void;
   info: (message: string) => void;
   success: (message: string) => void;
+}
+
+type RelayRoute = NonNullable<RetroDependencies['relay']>;
+
+export interface RetroReadinessComposition {
+  buildCommit?: string;
+  configuration?: () => Omit<RelayRoute, 'readiness'> | undefined;
+  isAncestor?: (ancestor: string, descendant: string) => Promise<boolean>;
+  manifest?: RelayReadinessManifest | typeof CHECKED_IN_RELAY_READINESS;
+  now?: Date;
+  readArtifactAtCommit?: (
+    commit: string,
+    artifactPath: string,
+  ) => Promise<{ sha256: string } | undefined>;
+}
+
+// eslint-disable-next-line complexity -- Fail-closed runtime parsing keeps every credential field explicit.
+function defaultRelayConfig(
+  environment: NodeJS.ProcessEnv,
+): Omit<RelayRoute, 'readiness'> | undefined {
+  const relayUrl = environment.SAFEWORD_RETRO_RELAY_URL?.trim();
+  const credential = environment.SAFEWORD_RETRO_RELAY_CREDENTIAL?.trim();
+  const repo = environment.SAFEWORD_RETRO_RELAY_REPOSITORY?.trim().toLowerCase();
+  const installation = environment.SAFEWORD_RETRO_RELAY_INSTALLATION_ID?.trim();
+  if (
+    relayUrl === undefined ||
+    relayUrl.length === 0 ||
+    credential === undefined ||
+    credential.length === 0 ||
+    repo === undefined ||
+    repo.length === 0 ||
+    installation === undefined ||
+    !relayUrl.startsWith('https://') ||
+    !/^[\w.-]+\/[\w.-]+$/u.test(repo) ||
+    !/^[1-9]\d*$/u.test(installation)
+  ) {
+    return undefined;
+  }
+  const installationId = Number(installation);
+  if (!Number.isSafeInteger(installationId)) return undefined;
+  return { credential, installationId, relayUrl, repository: repo };
+}
+
+function gitIsAncestor(
+  projectDirectory: string,
+  ancestor: string,
+  descendant: string,
+): Promise<boolean> {
+  const result = spawnSync('git', ['merge-base', '--is-ancestor', ancestor, descendant], {
+    cwd: projectDirectory,
+    stdio: 'ignore',
+    timeout: 10_000,
+  });
+  return Promise.resolve(result.status === 0);
+}
+
+function artifactAtCommit(
+  projectDirectory: string,
+  commit: string,
+  artifactPath: string,
+): Promise<{ sha256: string } | undefined> {
+  const result = spawnSync('git', ['show', `${commit}:${artifactPath}`], {
+    cwd: projectDirectory,
+    maxBuffer: 16 * 1024 * 1024,
+    timeout: 10_000,
+  });
+  if (result.status !== 0 || !Buffer.isBuffer(result.stdout)) return Promise.resolve(undefined);
+  return Promise.resolve({
+    sha256: createHash('sha256').update(result.stdout).digest('hex'),
+  });
+}
+
+export async function resolveRetroRelayRoute(input: {
+  composition?: RetroReadinessComposition;
+  environment: NodeJS.ProcessEnv;
+  projectDirectory: string;
+}): Promise<RelayRoute | undefined> {
+  const composition = input.composition ?? {};
+  const readiness = await validateRelayReadiness(
+    composition.manifest ?? CHECKED_IN_RELAY_READINESS,
+    {
+      buildCommit: composition.buildCommit ?? SAFEWORD_BUILD_COMMIT,
+      isAncestor:
+        composition.isAncestor ??
+        ((ancestor, descendant) => gitIsAncestor(input.projectDirectory, ancestor, descendant)),
+      now: composition.now ?? new Date(),
+      readArtifactAtCommit:
+        composition.readArtifactAtCommit ??
+        ((commit, artifactPath) => artifactAtCommit(input.projectDirectory, commit, artifactPath)),
+    },
+  );
+  if (!readiness.enabled) return undefined;
+  const config =
+    composition.configuration === undefined
+      ? defaultRelayConfig(input.environment)
+      : composition.configuration();
+  return config === undefined ? undefined : { ...config, readiness };
+}
+
+export async function executeRetroCommand(
+  options: RetroCliOptions,
+  dependencies: {
+    environment: NodeJS.ProcessEnv;
+    extract: FindingExtractor;
+    extractionSucceeded: () => boolean;
+    harness: string;
+    output: RetroCommandOutput;
+    projectDirectory: string;
+    relay?: RetroReadinessComposition;
+    resolveProvenance?: () => Provenance | undefined;
+    restTransportAvailable: boolean;
+    sessionId: string;
+    transport: IssueTracker;
+  },
+): Promise<RetroOutcome> {
+  const relay = await resolveRetroRelayRoute({
+    composition: dependencies.relay,
+    environment: dependencies.environment,
+    projectDirectory: dependencies.projectDirectory,
+  });
+  const outcome = await runRetro(options, {
+    extract: dependencies.extract,
+    harness: dependencies.harness,
+    projectDirectory: dependencies.projectDirectory,
+    readFile: (path: string) => readFileSync(path, 'utf8'),
+    ...(relay !== undefined && { relay }),
+    resolveProvenance: dependencies.resolveProvenance,
+    sessionId: dependencies.sessionId,
+    transport: dependencies.transport,
+  });
+  reportRetroCommandOutcome(outcome, {
+    extractionSucceeded: dependencies.extractionSucceeded(),
+    output: dependencies.output,
+    restTransportAvailable: dependencies.restTransportAvailable,
+  });
+  return outcome;
 }
 
 /**
@@ -483,18 +626,17 @@ export async function retroCommand(options: RetroCliOptions): Promise<void> {
   const restTransport = createRestTransport(resolveGitHubToken());
   const transport = restTransport ?? unavailableTransport();
 
-  const outcome = await runRetro(options, {
+  await executeRetroCommand(options, {
+    environment: process.env,
     extract,
-    transport,
+    extractionSucceeded: () => extractionSucceeded,
+    harness: resolveRetroHarness(autoExtractAgent, detectAgent),
+    output: { error, info, success },
+    projectDirectory,
     // Prefer the session id the hook resolved and forwarded (cloud sets
     // CLAUDE_CODE_REMOTE_SESSION_ID, not CLAUDE_SESSION_ID, so the env fallback
     // alone resolved to 'unknown' and broke ledger session-accounting; ZFGWS1).
     sessionId: options.sessionId ?? process.env.CLAUDE_SESSION_ID ?? 'unknown',
-    harness: resolveRetroHarness(autoExtractAgent, detectAgent),
-    readFile: (path: string) => readFileSync(path, 'utf8'),
-    // Enable the cloud-filing spool: on a REST failure the drafts survive on disk
-    // for the agent path (BNGK9W) instead of being lost.
-    projectDirectory,
     // Environment-aware code-state provenance (G19QG7): dogfood SHA / installed
     // version. Fail-open — capture never blocks filing.
     resolveProvenance: buildProvenanceResolver({
@@ -508,12 +650,8 @@ export async function retroCommand(options: RetroCliOptions): Promise<void> {
       now: () => new Date(),
       version: VERSION,
     }),
-  });
-
-  reportRetroCommandOutcome(outcome, {
-    extractionSucceeded,
     restTransportAvailable: restTransport !== undefined,
-    output: { error, info, success },
+    transport,
   });
 }
 

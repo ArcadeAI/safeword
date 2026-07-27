@@ -4,6 +4,7 @@ import process from 'node:process';
 
 import { Command } from 'commander';
 
+import { registerRetroCommand } from './retro/command-registration.js';
 import { installCliCrashCapture } from './self-report-capture.js';
 import { error } from './utils/output.js';
 import { VERSION } from './version.js';
@@ -291,40 +292,7 @@ program
     await selfReport({ json: options.json, format });
   });
 
-program
-  .command('retro')
-  .description('Mine a session transcript for qualitative safeword friction and file it (RV9JT4)')
-  .requiredOption('--transcript <path>', 'Path to the session transcript (never guessed)')
-  .option('--findings <path>', 'Path to agent-produced raw findings JSON to sanitize and file')
-  .option(
-    '--auto-extract',
-    'Extract findings out-of-band via a headless `claude -p` session (no --findings needed)',
-  )
-  .option(
-    '--window-start <chars>',
-    'Delta re-arm: digest only the transcript from this char offset onward (ZFGWS1)',
-  )
-  .option('--session-id <id>', 'Stable session id to attribute findings to (ledger accounting)')
-  .action(
-    async (options: {
-      transcript?: string;
-      findings?: string;
-      autoExtract?: boolean;
-      windowStart?: string;
-      sessionId?: string;
-    }) => {
-      const { retroCommand } = await import('./commands/retro.js');
-      const windowStart =
-        options.windowStart === undefined ? undefined : Number(options.windowStart);
-      await retroCommand({
-        transcript: options.transcript,
-        findings: options.findings,
-        autoExtract: options.autoExtract,
-        windowStart: Number.isFinite(windowStart) ? windowStart : undefined,
-        sessionId: options.sessionId,
-      });
-    },
-  );
+registerRetroCommand(program);
 
 program
   .command('retro-reconcile')

@@ -331,19 +331,7 @@ export class RelayStore {
       return this.markFiled(record.scope, owner.issueNumber, this.#now());
     }
     if (owner?.state === 'ambiguous' && record.state !== 'ambiguous') {
-      this.#database
-        .prepare(
-          `UPDATE retro_requests SET state = 'ambiguous'
-           WHERE tenant_id = ? AND installation_id = ? AND repository = ?
-             AND request_id = ? AND alias_owner_request_id IS NOT NULL
-             AND state IN ('claimed', 'dispatching', 'retryable')`,
-        )
-        .run(
-          record.scope.tenantId,
-          record.scope.installationId,
-          record.scope.repository,
-          record.scope.requestId,
-        );
+      this.markAmbiguous(record.scope);
       const quarantined = this.load(record.scope);
       if (quarantined === undefined) throw new Error('alias request disappeared');
       return receipt(quarantined);
@@ -503,7 +491,7 @@ export class RelayStore {
         .prepare<[string, number, string, string], Pick<RequestRow, 'receipt_id'>>(
           `UPDATE retro_requests SET state = 'ambiguous'
            WHERE tenant_id = ? AND installation_id = ? AND repository = ?
-             AND request_id = ? AND state IN ('claimed', 'dispatching')
+             AND request_id = ? AND state IN ('claimed', 'dispatching', 'retryable')
              AND dead_lettered_at IS NULL
            RETURNING receipt_id`,
         )

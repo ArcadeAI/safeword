@@ -39,8 +39,8 @@ function resolveExtractCommand(
   decision: { transcriptPath: string; windowStart: number; sessionId: string },
 ): [string, string[]] {
   const override = process.env[RETRO_EXTRACT_CMD_ENV];
-  if (override && override.length > 0) return [override, []];
   const retroArgs = retroChildArgs(decision);
+  if (override && override.length > 0) return [override, retroArgs];
   const localCli = nodePath.join(projectDirectory, 'packages/cli/src/cli.ts');
   return existsSync(localCli)
     ? ['bun', [localCli, ...retroArgs]]
