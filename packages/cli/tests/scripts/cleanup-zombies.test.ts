@@ -25,6 +25,7 @@ const SCRIPT_PATH = nodePath.join(__dirname, '../../templates/scripts/cleanup-zo
 const MOCK_PORT = 5173;
 const MOCK_PID = 4242;
 const MOCK_SECOND_PID = 4343;
+const UNRELATED_PROJECT_DIRECTORY = '/tmp/unrelated-project';
 
 describe('cleanup-zombies.sh', () => {
   let isolatedPath: string;
@@ -608,7 +609,7 @@ printf '%s\n' "\${value##*/}"
       const projectDirectory = realpathSync(temporaryDirectory);
       const environment = {
         ...mockCleanupEnvironment({
-          processDirectory: '/tmp/unrelated-project',
+          processDirectory: UNRELATED_PROJECT_DIRECTORY,
           processCommand: `/usr/bin/playwright ${projectDirectory}/report`,
         }),
         MOCK_PATTERN: 'playwright',
@@ -696,7 +697,7 @@ printf '%s\n' "\${value##*/}"
     it("Scenario: an unrelated project's process is excluded from the preview", () => {
       const output = runScriptRaw(
         [],
-        mockCleanupEnvironment({ processDirectory: '/tmp/unrelated-project' }),
+        mockCleanupEnvironment({ processDirectory: UNRELATED_PROJECT_DIRECTORY }),
       );
 
       expect(output).not.toContain(`Port ${MOCK_PORT}:`);
@@ -739,7 +740,7 @@ printf '%s\n' "\${value##*/}"
       const output = runScriptRaw(
         [],
         mockCleanupEnvironment({
-          processDirectory: '/tmp/unrelated-project',
+          processDirectory: UNRELATED_PROJECT_DIRECTORY,
           processCommand: `${projectDirectory}-other/node_modules/.bin/vite`,
         }),
       );
@@ -754,7 +755,7 @@ printf '%s\n' "\${value##*/}"
       const output = runScriptRaw(
         [],
         mockCleanupEnvironment({
-          processDirectory: '/tmp/unrelated-project',
+          processDirectory: UNRELATED_PROJECT_DIRECTORY,
           processCommand: `/usr/bin/vite --log-file ${projectDirectory}/server.log`,
         }),
       );
@@ -781,7 +782,7 @@ printf '%s\n' "\${value##*/}"
     it('Scenario: --yes never passes an unrelated port owner to kill', () => {
       const killLog = nodePath.join(temporaryDirectory, 'kill.log');
       const environment = {
-        ...mockCleanupEnvironment({ processDirectory: '/tmp/unrelated-project' }),
+        ...mockCleanupEnvironment({ processDirectory: UNRELATED_PROJECT_DIRECTORY }),
         MOCK_KILL_LOG: killLog,
       };
 
@@ -812,7 +813,7 @@ printf '%s\n' "\${value##*/}"
       const environment = {
         ...mockCleanupEnvironment({
           processDirectory: projectDirectory,
-          subsequentProcessDirectory: '/tmp/unrelated-project',
+          subsequentProcessDirectory: UNRELATED_PROJECT_DIRECTORY,
         }),
         MOCK_KILL_LOG: killLog,
         MOCK_PORT_PIDS: `${MOCK_PID}\n${MOCK_SECOND_PID}`,
