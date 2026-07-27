@@ -367,6 +367,29 @@ printf '%s\n' "\${value##*/}"
       expect(result.stderr).toContain("pgrep failed for pattern '['");
       expect(result.stdout).not.toContain('already clean');
     });
+
+    it('reports completed kills before exiting after a later pgrep error', () => {
+      const killLog = nodePath.join(temporaryDirectory, 'kill.log');
+      const result = spawnSync('/bin/bash', [SCRIPT_PATH, '--yes', String(MOCK_PORT)], {
+        cwd: temporaryDirectory,
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          ...mockCleanupEnvironment({
+            processDirectory: realpathSync(temporaryDirectory),
+          }),
+          MOCK_KILL_LOG: killLog,
+          MOCK_PGREP_ERROR_PATTERN: 'playwright',
+          MOCK_PGREP_EXIT_CODE: '2',
+        },
+      });
+
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain("pgrep failed for pattern 'playwright'");
+      expect(result.stdout).toContain(`Port ${MOCK_PORT}: 1 process(es)`);
+      expect(result.stdout).toContain('Killed 1 process(es)');
+      expect(readFileSync(killLog, 'utf8')).toBe(`-9 ${MOCK_PID}\n`);
+    });
   });
 
   describe('explicit port override', () => {

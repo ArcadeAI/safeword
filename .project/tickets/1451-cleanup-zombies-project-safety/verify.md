@@ -2,7 +2,7 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 5,505/5,505 tests pass; 5 skipped
+**Test Suite:** ✓ 5,506/5,506 tests pass; 5 skipped
 **Gherkin:** ✅ 494/494 acceptance scenarios and 15,313/15,313 steps pass; 3 scenarios and 4 steps skipped
 **Build:** ✅ Success
 **Lint:** ✅ ESLint, Gherkin lint, TypeScript, Bash syntax, and ShellCheck clean
@@ -27,3 +27,7 @@ The PR review findings were incorporated into dependency handling, project
 ownership, signal accounting, recovery messaging, performance, tests, and
 documentation. The final independent quality re-review approved the result with
 no critical issues or suggested improvements.
+
+The latest PR follow-up is also resolved: port-range behavior is documented,
+and a `pgrep` discovery error now preserves the summary for already-completed
+work before returning the original nonzero status.

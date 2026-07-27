@@ -150,6 +150,7 @@ FOUND_COUNT=0
 KILLED_COUNT=0
 FAILED_KILL_COUNT=0
 SKIPPED_PORT_COUNT=0
+DISCOVERY_ERROR_STATUS=0
 
 # A user-supplied pattern can appear in the argv of the cleanup process and any
 # shell or task runner that invoked it. Exclude the whole ancestor chain.
@@ -293,6 +294,13 @@ cleanup_pattern() {
   local pgrep_status
   local candidate_pids=()
   local project_pids=()
+
+  # A previous pattern-discovery error makes later sweeps unsafe. Preserve any
+  # work already completed, then report it before exiting nonzero.
+  if [ "$DISCOVERY_ERROR_STATUS" -ne 0 ]; then
+    return 0
+  fi
+
   if pids=$(pgrep -f "$pattern" 2> /dev/null); then
     :
   else
@@ -300,8 +308,9 @@ cleanup_pattern() {
     if [ "$pgrep_status" -eq 1 ]; then
       pids=""
     else
-      echo "Error: pgrep failed for pattern '$pattern' (exit $pgrep_status); no matching processes were inspected or signaled." >&2
-      exit "$pgrep_status"
+      echo "Error: pgrep failed for pattern '$pattern' (exit $pgrep_status); no matching processes were inspected or signaled for this pattern." >&2
+      DISCOVERY_ERROR_STATUS=$pgrep_status
+      return 0
     fi
   fi
 
@@ -372,7 +381,10 @@ fi
 # 5. Summary
 echo ""
 if [ "$FOUND_COUNT" -eq 0 ]; then
-  if [ "$SKIPPED_PORT_COUNT" -gt 0 ]; then
+  if [ "$DISCOVERY_ERROR_STATUS" -ne 0 ]; then
+    echo -e "${YELLOW}Cleanup incomplete: process discovery failed before any project-owned zombies were found${NC}"
+    report_skipped_processes
+  elif [ "$SKIPPED_PORT_COUNT" -gt 0 ]; then
     echo -e "${YELLOW}No project-owned zombie processes found${NC}"
     report_skipped_processes
   else
@@ -398,4 +410,8 @@ else
       echo "   Port $PORT is now free"
     fi
   fi
+fi
+
+if [ "$DISCOVERY_ERROR_STATUS" -ne 0 ]; then
+  exit "$DISCOVERY_ERROR_STATUS"
 fi

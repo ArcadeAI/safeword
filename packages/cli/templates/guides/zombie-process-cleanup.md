@@ -138,6 +138,10 @@ of claiming a successful kill.
 ./.safeword/scripts/cleanup-zombies.sh 19000 "expo"
 ```
 
+Port ranges are not supported. To inspect ports `19000` through `19006`, run
+the command once per port; a value such as `19000-19006` is treated as a
+process pattern, not a port.
+
 ---
 
 ## Alternative: tmux/Screen Sessions
