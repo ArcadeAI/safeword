@@ -340,9 +340,9 @@ formatters:
         expect(lintHook).toContain('.safeword/ruff.toml');
         expect(lintHook).toContain('.safeword/.golangci.yml');
 
-        // Should use --config flag when safeword configs exist
+        // The generated hook carries explicit config support. Runtime selection
+        // with and without these files is covered by lint-no-auto-upgrade.test.ts.
         expect(lintHook).toContain('--config');
-        expect(lintHook).toContain('hasEslint');
       },
       SETUP_TIMEOUT,
     );

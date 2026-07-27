@@ -90,6 +90,8 @@ Safeword auto-detects your stack and configures linting accordingly:
 
 Detection is stored in `.safeword/config.json`. To force a refresh, delete that file and run `safeword setup` again.
 
+Edit-time linting uses the generated language-pack config when it exists. If that config is missing, linting falls back to the tool's defaults; the lint hook does not repair the pack, run `safeword upgrade`, stage files, or create a commit. Safeword updates remain the responsibility of the session-start auto-upgrade.
+
 ## Biome & Alternative Formatters
 
 If your project uses Biome, dprint, or Rome, Safeword detects it automatically and skips Prettier installation. Your formatter keeps running as-is.
