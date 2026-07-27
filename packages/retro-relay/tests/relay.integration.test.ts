@@ -7,6 +7,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import type { RelayServerFaults } from '../src/http-server.js';
 import {
   CredentialRegistry,
   type FileRetroDraftRequest,
@@ -15,7 +16,6 @@ import {
   RelayStore,
   startRelayServer,
 } from '../src/index.js';
-import type { RelayFaults } from '../src/service.js';
 import { createHarnessAdapters } from './support/harness-client.js';
 
 const { privateKey: githubAppPrivateKey } = generateKeyPairSync('rsa', {
@@ -200,7 +200,7 @@ async function startGitHubFixture(
   };
 }
 
-function postCreateCrashFaults(): RelayFaults {
+function postCreateCrashFaults(): RelayServerFaults {
   return {
     afterGitHubCreate: () => {
       throw new Error('simulated crash');
@@ -216,7 +216,7 @@ async function fixture(
     createStatus?: number;
     failSecondPage?: boolean;
     failToken?: boolean;
-    faults?: RelayFaults;
+    faults?: RelayServerFaults;
     githubRequestTimeoutMs?: number;
     installationToken?: string;
     rawBodies?: string[];

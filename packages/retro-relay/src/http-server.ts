@@ -41,6 +41,10 @@ function bearer(request: IncomingMessage): string | undefined {
   return request.headers.authorization;
 }
 
+export interface RelayServerFaults extends RelayFaults {
+  afterReceiptCommit?: () => void;
+}
+
 type RelayServerOptions = {
   credentials: CredentialRegistry;
   store: RelayStore;
@@ -53,7 +57,7 @@ type RelayServerOptions = {
   mode?: 'production' | 'spike';
   maintenanceIntervalMs?: number;
   now?: () => Date;
-  faults?: RelayFaults;
+  faults?: RelayServerFaults;
   resourceLimits?: {
     maxBodyBytes?: number;
     maxRequestsPerWindow?: number;
@@ -88,12 +92,12 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
     processLock?.release();
     throw error;
   }
-  const faults: RelayFaults = { ...input.faults };
+  const { afterReceiptCommit, ...serviceFaults } = input.faults ?? {};
   const observability = {
     logs: [] as Record<string, unknown>[],
     metrics: [] as Record<string, unknown>[],
   };
-  const service = new RelayService({ ...input, faults });
+  const service = new RelayService({ ...input, faults: serviceFaults });
   const maxBodyBytes = input.resourceLimits?.maxBodyBytes ?? 256 * 1024;
   const maxRequestsPerWindow = input.resourceLimits?.maxRequestsPerWindow ?? 60;
   const rateWindowMs = input.resourceLimits?.windowMs ?? 60_000;
@@ -203,7 +207,7 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
           state: receipt.state,
         });
         try {
-          faults.afterReceiptCommit?.();
+          afterReceiptCommit?.();
         } catch {
           response.destroy();
           return;
