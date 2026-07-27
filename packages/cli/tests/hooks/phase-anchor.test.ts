@@ -8,12 +8,16 @@
  * the tier/history partitions.
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 
-import type { ArtifactReader } from '../../templates/hooks/lib/phase-provenance.js';
+import { WORKSPACE_ROOTS } from '../../src/utils/workspace-roots.js';
+import type {
+  ArtifactReader,
+  PhaseAnchorScope,
+} from '../../templates/hooks/lib/phase-provenance.js';
 import {
-  detectUnanchoredPhaseState,
-  detectUnanchoredPhaseTransition,
+  detectUnanchoredPhaseState as detectPhaseState,
+  detectUnanchoredPhaseTransition as detectPhaseTransition,
 } from '../../templates/hooks/lib/phase-provenance.js';
 
 /** A well-formed 7-hex abbreviated SHA — the legacy grammar. */
@@ -25,6 +29,28 @@ const SPEC_PATH = `${TICKET_DIR}/spec.md`;
 const LEDGER_PATH = `${TICKET_DIR}/test-definitions.md`;
 const VERIFY_PATH = `${TICKET_DIR}/verify.md`;
 const FEATURE_PATH = 'features/fixture.feature';
+const ANCHOR_SCOPE = {
+  ticketPath: TICKET_DIR,
+  featureRoots: ['features'],
+  workspaceRoots: [...WORKSPACE_ROOTS],
+};
+
+it('requires ownership scope at the detector API boundary', () => {
+  expectTypeOf(detectPhaseTransition).parameter(2).toEqualTypeOf<PhaseAnchorScope>();
+  expectTypeOf(detectPhaseState).parameter(1).toEqualTypeOf<PhaseAnchorScope>();
+});
+
+function detectUnanchoredPhaseTransition(
+  priorContent: string | undefined,
+  proposedContent: string,
+  readArtifact?: ArtifactReader,
+) {
+  return detectPhaseTransition(priorContent, proposedContent, ANCHOR_SCOPE, readArtifact);
+}
+
+function detectUnanchoredPhaseState(content: string, readArtifact?: ArtifactReader) {
+  return detectPhaseState(content, ANCHOR_SCOPE, readArtifact);
+}
 
 const SHAPE_VALID_IMPL_PLAN = [
   '# Impl Plan: fixture',
@@ -310,6 +336,8 @@ describe('detectUnanchoredPhaseTransition — no real artifact behind the advanc
     '!bang/impl-plan.md',
     '^caret/impl-plan.md',
     'glob/*/impl-plan.md',
+    'ticket/./impl-plan.md',
+    'ticket//impl-plan.md',
   ])('an implausible path value %s is unanchored', value => {
     const verdict = detectUnanchoredPhaseTransition(
       ticket({ type: 'feature', phase: 'scenario-gate' }),
@@ -317,6 +345,7 @@ describe('detectUnanchoredPhaseTransition — no real artifact behind the advanc
       readTree,
     );
     expect(verdict.kind).toBe('unanchored');
+    if (verdict.kind === 'unanchored') expect(verdict.reason).toMatch(/repo-relative/i);
   });
 
   it('an empty (readable but blank) artifact fails its shape check rather than reading as missing', () => {
@@ -329,15 +358,52 @@ describe('detectUnanchoredPhaseTransition — no real artifact behind the advanc
     if (verdict.kind === 'unanchored') expect(verdict.reason).toMatch(/shape/i);
   });
 
+  it('a Git index-stage prefix cannot alias a different artifact path', () => {
+    const stagedAlias = `0:${IMPL_PLAN_PATH}`;
+    const verdict = detectUnanchoredPhaseTransition(
+      ticket({ type: 'feature', phase: 'scenario-gate' }),
+      ticket({ type: 'feature', phase: 'implement', anchors: [`implement: ${stagedAlias}`] }),
+      readerFor({ [stagedAlias]: SHAPE_VALID_IMPL_PLAN }),
+    );
+    expect(verdict.kind).toBe('unanchored');
+    if (verdict.kind === 'unanchored') expect(verdict.reason).toMatch(/repo-relative/i);
+  });
+
+  it("a ticket cannot reuse another ticket's same-kind artifact", () => {
+    const foreignPlan = '.project/tickets/OTHER-fixture/impl-plan.md';
+    const verdict = detectUnanchoredPhaseTransition(
+      ticket({ type: 'feature', phase: 'scenario-gate' }),
+      ticket({ type: 'feature', phase: 'implement', anchors: [`implement: ${foreignPlan}`] }),
+      readerFor({ [foreignPlan]: SHAPE_VALID_IMPL_PLAN }),
+    );
+    expect(verdict.kind).toBe('unanchored');
+    if (verdict.kind === 'unanchored') expect(verdict.reason).toMatch(/outside this ticket/i);
+  });
+
+  it("a ticket cannot reuse another ticket's feature source", () => {
+    const foreignFeature = 'features/another-ticket.feature';
+    const verdict = detectUnanchoredPhaseTransition(
+      ticket({ type: 'feature', phase: 'define-behavior' }),
+      ticket({
+        type: 'feature',
+        phase: 'scenario-gate',
+        anchors: [`scenario-gate: ${foreignFeature}`],
+      }),
+      readerFor({ [foreignFeature]: SHAPE_VALID_FEATURE }),
+    );
+    expect(verdict.kind).toBe('unanchored');
+    if (verdict.kind === 'unanchored') expect(verdict.reason).toMatch(/outside this ticket/i);
+  });
+
   it('a path absent from the tree is unanchored, saying it is missing', () => {
     const verdict = detectUnanchoredPhaseTransition(
       ticket({ type: 'feature', phase: 'scenario-gate' }),
       ticket({
         type: 'feature',
         phase: 'implement',
-        anchors: [`implement: ${TICKET_DIR}/gone/impl-plan.md`],
+        anchors: [`implement: ${IMPL_PLAN_PATH}`],
       }),
-      readTree,
+      readerFor({}),
     );
     expect(verdict.kind).toBe('unanchored');
     if (verdict.kind === 'unanchored') expect(verdict.reason).toMatch(/missing/i);

@@ -1,7 +1,9 @@
 import { existsSync, readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import type { PhaseAnchorScope } from '../../templates/hooks/lib/phase-provenance.js';
 import { resolveConfiguredLaneDirectory } from './configured-paths.js';
+import { toRepoDirectory, toRepoPath } from './repo-path.js';
 import { WORKSPACE_ROOTS } from './workspaces.js';
 
 /** Ticket folder `ID-slug` -> `slug`; legacy `ID` -> `ID`. */
@@ -18,6 +20,33 @@ function slugFromTicketFolder(ticketFolder: string): string {
 export function findFeatureSourcePath(cwd: string, ticketFolder: string): string | undefined {
   const fileName = `${slugFromTicketFolder(ticketFolder)}.feature`;
   return collectExecutableFeatureFiles(cwd, fileName)[0];
+}
+
+/** Build the ticket-invariant feature ownership policy once per tree/config. */
+export function createPhaseAnchorEnvironment(
+  cwd: string,
+  configuredFeatures?: string,
+): Omit<PhaseAnchorScope, 'ticketPath'> {
+  const featureRoots = ['features'];
+  if (configuredFeatures !== undefined) {
+    const configuredRoot = toRepoDirectory(cwd, configuredFeatures);
+    if (configuredRoot !== undefined && !featureRoots.includes(configuredRoot)) {
+      featureRoots.push(configuredRoot);
+    }
+  }
+  return { featureRoots, workspaceRoots: [...WORKSPACE_ROOTS] };
+}
+
+/** Build feature ownership policy without consulting feature-file existence. */
+export function createPhaseAnchorScope(
+  cwd: string,
+  ticketPath: string,
+  configuredFeatures?: string,
+): PhaseAnchorScope {
+  return {
+    ticketPath: toRepoPath(ticketPath),
+    ...createPhaseAnchorEnvironment(cwd, configuredFeatures),
+  };
 }
 
 export function collectExecutableFeatureFiles(cwd: string, fileName?: string): string[] {
