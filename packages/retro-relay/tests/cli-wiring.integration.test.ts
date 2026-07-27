@@ -1,15 +1,19 @@
 import { spawnSync } from 'node:child_process';
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { assertCodexPluginCatalogue } from '../../cli/src/codex-plugin/catalogue.js';
 import { executeRetroCommand, type RetroOutcome } from '../../cli/src/commands/retro.js';
+import { reconcile } from '../../cli/src/reconcile.js';
 import { parseRetroCommandArguments } from '../../cli/src/retro/command-registration.js';
 import type { RelayReadinessManifest } from '../../cli/src/retro/relay-readiness.js';
 import type { IssueTracker } from '../../cli/src/retro/triage.js';
+import { SAFEWORD_SCHEMA } from '../../cli/src/schema.js';
+import { createProjectContext } from '../../cli/src/utils/context.js';
 import { offsetStatePath } from '../../cli/templates/hooks/lib/retro-trigger.js';
 import {
   CredentialRegistry,
@@ -89,29 +93,62 @@ function noOutput(): { error: () => void; info: () => void; success: () => void 
   return { error: () => {}, info: () => {}, success: () => {} };
 }
 
-function installSurfaceFixtures(project: string): {
+async function installSurfaceFixtures(project: string): Promise<{
   claudeHook: string;
   codexSkill: string;
   cursorCommand: string;
-} {
+}> {
   const cli = path.resolve(process.cwd(), '../cli');
-  const installedHooks = path.join(project, '.safeword', 'hooks');
-  cpSync(path.join(cli, 'templates', 'hooks'), installedHooks, { recursive: true });
-  const codexSkill = path.join(project, '.agents', 'skills', 'retro', 'SKILL.md');
-  const cursorCommand = path.join(project, '.cursor', 'commands', 'retro.md');
-  mkdirSync(path.dirname(codexSkill), { recursive: true });
-  mkdirSync(path.dirname(cursorCommand), { recursive: true });
-  cpSync(path.join(cli, 'codex-plugin', 'skills', 'retro', 'SKILL.md'), codexSkill);
-  cpSync(path.join(cli, 'templates', 'commands', 'retro.md'), cursorCommand);
+  writeFileSync(path.join(project, 'package.json'), JSON.stringify({ name: 'relay-fixture' }));
+  await reconcile(SAFEWORD_SCHEMA, 'install', createProjectContext(project));
+
+  const canonicalSkills = path.join(cli, 'templates', 'skills');
+  const packagedPlugin = path.join(cli, 'codex-plugin');
+  assertCodexPluginCatalogue(canonicalSkills, packagedPlugin);
+  const installedPlugin = path.join(project, '.codex', 'plugins', 'safeword');
+  cpSync(packagedPlugin, installedPlugin, { recursive: true });
+
   writeFileSync(
     path.join(project, '.safeword', 'config.json'),
     JSON.stringify({ selfReport: { surface: true } }),
   );
   return {
-    claudeHook: path.join(installedHooks, 'stop-retro.ts'),
-    codexSkill,
-    cursorCommand,
+    claudeHook: path.join(project, '.safeword', 'hooks', 'stop-retro.ts'),
+    codexSkill: path.join(installedPlugin, 'skills', 'retro', 'SKILL.md'),
+    cursorCommand: path.join(project, '.cursor', 'commands', 'retro.md'),
   };
+}
+
+function instructionArguments(source: string, transcript: string, findings: string): string[] {
+  const command = source
+    .split('\n')
+    .map(line => line.trim())
+    .find(line => line.startsWith('safeword retro ') && line.includes('--findings'));
+  if (command === undefined) throw new Error('installed retro instructions have no CLI command');
+  const replacements = new Map([
+    ['<findings.json>', findings],
+    ['<path>', transcript],
+  ]);
+  return command
+    .split(/\s+/u)
+    .slice(1)
+    .map(token => replacements.get(token) ?? token);
+}
+
+function cursorInstructionArguments(
+  commandPath: string,
+  project: string,
+  transcript: string,
+  findings: string,
+): string[] {
+  const wrapper = readFileSync(commandPath, 'utf8');
+  const reference = /Read and follow the instructions in (?<path>\S+)/u.exec(wrapper)?.groups?.path;
+  if (reference === undefined) throw new Error('installed Cursor command has no skill reference');
+  return instructionArguments(
+    readFileSync(path.join(project, reference), 'utf8'),
+    transcript,
+    findings,
+  );
 }
 
 function substantialTranscript(project: string): string {
@@ -243,7 +280,7 @@ describe('real shared CLI to relay wiring', () => {
       store,
     });
     servers.push(relay.server);
-    const installed = installSurfaceFixtures(project);
+    const installed = await installSurfaceFixtures(project);
     const transcript = substantialTranscript(project);
     const findings = path.join(project, 'findings.json');
     const finding = {
@@ -298,7 +335,17 @@ describe('real shared CLI to relay wiring', () => {
       await response.arrayBuffer();
       throw new Error('simulated lost receipt response');
     };
-    const inContextArguments = ['retro', '--transcript', transcript, '--findings', findings];
+    const codexArguments = instructionArguments(
+      readFileSync(installed.codexSkill, 'utf8'),
+      transcript,
+      findings,
+    );
+    const cursorArguments = cursorInstructionArguments(
+      installed.cursorCommand,
+      project,
+      transcript,
+      findings,
+    );
     const surfaces = [
       {
         arguments: captureClaudeHookArguments(
@@ -321,25 +368,23 @@ describe('real shared CLI to relay wiring', () => {
         source: installed.claudeHook,
       },
       {
-        arguments: inContextArguments,
+        arguments: codexArguments,
         harness: 'OpenAI Codex',
         source: installed.codexSkill,
       },
       {
-        arguments: inContextArguments,
+        arguments: codexArguments,
         harness: 'OpenAI Codex Cloud',
         source: installed.codexSkill,
       },
-      { arguments: inContextArguments, harness: 'Cursor', source: installed.cursorCommand },
+      { arguments: cursorArguments, harness: 'Cursor', source: installed.cursorCommand },
       {
-        arguments: inContextArguments,
+        arguments: cursorArguments,
         harness: 'Cursor Cloud Agents',
         source: installed.cursorCommand,
       },
     ];
     for (const [index, surface] of surfaces.entries()) {
-      const source = readFileSync(path.resolve(process.cwd(), surface.source), 'utf8');
-      expect(source).toContain('safeword retro');
       const harness = relayHarness(surface.harness);
       const outcome = await run(
         surface.arguments,
