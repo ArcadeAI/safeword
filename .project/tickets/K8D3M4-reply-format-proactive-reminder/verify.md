@@ -1,12 +1,14 @@
 # Verify: Surface reply format before Claude responds (K8D3M4)
 
-Verified 2026-07-27 after revalidating GitHub issue #1524 and completing the
-task's RED → GREEN → REFACTOR cycle.
+Verified 2026-07-27 after revalidating GitHub issue #1524, completing the
+task's RED → GREEN → REFACTOR cycle, and addressing the shared-constant and
+active-TDD review remediation.
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 5,549 passed (373 files; 5 skipped). The new real-installed
-hook integration contract is included; its focused run passed 58/58 tests.
+**Test Suite:** ✓ 5,551 passed (373 files; 5 skipped). The real-installed hook
+integration and shared quality-contract tests are included; their focused run
+passed 163/163 tests.
 
 **Gherkin:** ✅ 505 passed, 3 skipped (15,645 passed steps; 4 skipped).
 
@@ -15,12 +17,14 @@ hook integration contract is included; its focused run passed 58/58 tests.
 **Lint:** ✅ `bun run lint`, `bun run typecheck`, `bun run knip`, and
 `git diff --check` passed.
 
-**Scenarios:** All three task test-definition rows are complete: the original
-hook output was shown absent, the installed hook now emits the concise reminder,
-and the formatting contract is covered without duplicating the Stop template.
+**Scenarios:** All six task test-definition rows are complete: the original
+hook output was shown absent; the installed hook now emits the concise reminder;
+the formatting contract is shared without duplicating the Stop template; and an
+active implement/TDD state keeps only the answer-first cue.
 
-**PR Scope:** ✅ Diff is limited to the prompt hook template and synced dogfood
-mirror, its integration contract, and this ticket's records.
+**PR Scope:** ✅ Diff is limited to the prompt hook and shared-quality template
+sources with their synced dogfood mirrors, schema and integration contracts,
+and this ticket's records.
 
 **Dep Drift:** ✅ No dependencies changed. `bun run deps:validate` reported one
 pre-existing `no-orphans` warning on `packages/cli/src/codex-plugin/hooks.ts`,
@@ -30,15 +34,15 @@ outside this ticket's diff.
 `bun run parity:fix`; existing Stop-hook validation and non-Claude adapters are
 unchanged.
 
-**Quality review:** ✅ Independent review approved. The chosen
-`UserPromptSubmit` timing is correct for #1524, the reminder remains compact,
-and the test executes the installed hook in a real temporary Safeword project.
+**Quality review:** ✅ Independent review approved after the remediation. The
+chosen `UserPromptSubmit` timing is correct for #1524; its active-TDD condition
+matches the Stop hook's quiet condition; and the test executes the installed
+hook in a real temporary Safeword project.
 
-**Refactor:** ✅ The dedicated refactor pass replaced the reply-format inline
-literal with the named `REPLY_FORMAT_REMINDER` constant. The real-installed-hook
-suite still passes 58/58, lint/typecheck and template parity are clean, and the
-one-item ledger is complete. Commit is deferred because this cleanup shares the
-uncommitted #1524 source files and cannot be isolated honestly.
+**Refactor:** ✅ The dedicated refactor pass moved both reply-format variants
+into `hooks/lib/quality.ts`, preventing vocabulary drift between the prompt and
+Stop hooks. The real-installed-hook suite passed 163/163, lint/typecheck and
+template parity are clean, and the one-item ledger is complete.
 
 **Audit:** ✅ Passed with non-blocking repository observations. Config sync,
 dependency-cruiser (0 violations across 666 modules and 2,179 dependencies),
