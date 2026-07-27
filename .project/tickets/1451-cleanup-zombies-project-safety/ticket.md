@@ -5,7 +5,7 @@ type: task
 phase: done
 status: done
 created: 2026-07-25
-last_modified: 2026-07-26
+last_modified: 2026-07-27
 external_issue: https://github.com/ArcadeAI/safeword/issues/1451
 ---
 
@@ -15,7 +15,9 @@ external_issue: https://github.com/ArcadeAI/safeword/issues/1451
 
 **Scope:** Restrict processes found through auto-detected ports or command
 patterns to the current project before previewing or killing them. Report
-unverified candidates and failed signals accurately.
+unverified detected-port owners and failed signals accurately. Pattern matches
+whose working directory is outside the project remain silently ineligible so
+broad built-in patterns do not produce machine-wide skip noise.
 
 **Out of Scope:** Changing framework detection, port conventions, or the
 explicit consent flow.
@@ -30,8 +32,8 @@ explicit consent flow.
       established.
 - [x] Pattern ownership uses the same working-directory boundary as port
       ownership.
-- [x] The summary distinguishes a clean project from candidates that were
-      skipped or could not be killed.
+- [x] The summary distinguishes a clean project from detected-port candidates
+      that were skipped or eligible candidates that could not be killed.
 
 **Tests:**
 
