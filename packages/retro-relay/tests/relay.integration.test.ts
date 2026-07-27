@@ -594,6 +594,14 @@ describe('retry-safe retro relay', () => {
         requestId: 'ambiguous-alias',
       }),
     ).toMatchObject({ state: 'ambiguous' });
+    expect(new Set(setup.store.pendingAlerts().map(alert => alert.receiptId))).toHaveProperty(
+      'size',
+      2,
+    );
+    expect(new Set(setup.store.pendingAlerts().map(alert => alert.eventId))).toHaveProperty(
+      'size',
+      2,
+    );
   });
 
   it('restores alias quarantine after restart recovery', () => {
@@ -639,6 +647,11 @@ describe('retry-safe retro relay', () => {
       state: 'ambiguous',
     });
     expect(reopened.load(aliasScope)).toMatchObject({ state: 'ambiguous' });
+    expect(new Set(reopened.pendingAlerts().map(alert => alert.receiptId))).toHaveProperty(
+      'size',
+      2,
+    );
+    expect(new Set(reopened.pendingAlerts().map(alert => alert.eventId))).toHaveProperty('size', 2);
     reopened.close();
   });
 
