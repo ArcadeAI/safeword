@@ -39,17 +39,19 @@ the `reconcile` and `operate` roles. Every principal is bound to the configured
 GitHub App installation and repository. GitHub App credentials and installation
 tokens remain server-side. `RELAY_MODE=spike` accepts the legacy single
 credential variables but makes every route except `GET /health` unavailable.
-The production listener caps filing bodies at 256 KiB, validates bounded fields,
-uses ten-second request/header timeouts, and permits 60 filing requests per
-principal per minute. These in-process limits match the supported single-replica
-topology; a multi-replica deployment must move both storage and rate limiting to
-shared infrastructure.
+The production listener caps filing bodies at 256 KiB, validates bounded fields
+and UUIDv4 request identities, uses ten-second inbound and GitHub deadlines,
+bounds concurrent GitHub work, and permits 60 filing or reconciliation requests
+per principal per minute. These in-process limits match the supported
+single-replica topology; a multi-replica deployment must move both storage and
+rate limiting to shared infrastructure.
 
-The maintenance loop persists exponential retry scheduling, stops new
-dispatches at 24 hours, resolves an already-started dispatch for one additional
-hour, then creates an alerted ambiguous tombstone if the outcome is still
+The maintenance loop persists exponential retry scheduling against the
+client-supplied absolute deadline (capped at 24 hours after acceptance), stops
+new dispatches at that deadline, resolves an already-started dispatch for one
+additional hour, then creates an alerted ambiguous tombstone if the outcome is still
 unknown. Filed payload envelopes become application-inaccessible after 30 days;
-request identity and semantic evidence remain indefinitely. This is an
+request identity remains non-reusable indefinitely. This is an
 application-retention promise, not forensic erasure of SQLite pages, WAL files,
 or provider backups.
 
@@ -58,6 +60,11 @@ Operators can read payload-free lifecycle counts at
 `POST /v1/retro-filings/:receiptId/reconcile`. Terminal alerts use stable event
 IDs and are delivered at least once, so the downstream alert sink must
 deduplicate by event ID.
+
+Installation-token requests for the same repository scope are coalesced.
+Ambiguous-create reconciliation uses raw REST bodies only and stops at the
+configured overall deadline or page budget; an incomplete scan never authorizes
+a duplicate decision.
 
 ```sh
 bun run --cwd packages/retro-relay test
@@ -69,6 +76,8 @@ The implementation remains fail-closed in the published CLI. Production relay
 routing cannot be enabled until issues #1474 and #1481 are closed, their commits
 are ancestors of fresh collision-measurement evidence, the evidence artifacts
 match their recorded hashes, and that evidence is an ancestor of the running
-build. Issue #834 is not superseded. Issue #1495 becomes a readiness dependency
+build. Semantic marker adoption and cross-request aliasing are deliberately
+deferred until that gate is satisfied. Issue #834 is not superseded. GitHub
+issue #1495 becomes a readiness dependency
 only if a later change reuses its client credential helpers; this slice does
 not.

@@ -33,7 +33,11 @@ import { type RetroAgent, windowFor } from '../../templates/hooks/lib/retro-extr
 import { type Provenance, PROVENANCE_SHA } from '../retro/ledger.js';
 import { prepareEncounters } from '../retro/pipeline.js';
 import { reconcile, type ReconcileTracker } from '../retro/reconcile.js';
-import { deliverRelayRequests, persistRelayDraft } from '../retro/relay-delivery.js';
+import {
+  deliverRelayRequests,
+  persistRelayDraft,
+  relaySourceKey,
+} from '../retro/relay-delivery.js';
 import {
   CHECKED_IN_RELAY_READINESS,
   type RelayReadinessManifest,
@@ -177,7 +181,9 @@ export async function runRetro(
   const { projectDirectory, sessionId } = dependencies;
   const relay = dependencies.relay;
   if (relay?.readiness.enabled === true && projectDirectory !== undefined) {
-    for (const encounter of encounters) {
+    const sourceSession =
+      sessionId.trim().length === 0 || sessionId === 'unknown' ? options.transcript : sessionId;
+    for (const [index, encounter] of encounters.entries()) {
       await persistRelayDraft(projectDirectory, {
         body: encounter.draft.body,
         canonicalKey: encounter.draft.canonicalSignature,
@@ -185,6 +191,7 @@ export async function runRetro(
         labels: encounter.draft.labels,
         legacySignature: encounter.draft.signature,
         repository: relay.repository,
+        sourceKey: relaySourceKey(sourceSession, options.windowStart ?? 0, index),
         title: encounter.draft.title,
       });
     }
@@ -192,12 +199,11 @@ export async function runRetro(
       credential: relay.credential,
       deadlineMs: relay.deadlineMs ?? 750,
       fetch: relay.fetch ?? fetch,
-      nativeFallback: () => false,
       now: () => Date.now(),
       relayUrl: relay.relayUrl,
     });
     return {
-      agentFilingNeeded: delivery.retryable > 0,
+      agentFilingNeeded: delivery.retryable > 0 || delivery.deadLettered > 0,
       drops,
       ok: true,
       relay: delivery,
@@ -636,7 +642,8 @@ export async function retroCommand(options: RetroCliOptions): Promise<void> {
     // Prefer the session id the hook resolved and forwarded (cloud sets
     // CLAUDE_CODE_REMOTE_SESSION_ID, not CLAUDE_SESSION_ID, so the env fallback
     // alone resolved to 'unknown' and broke ledger session-accounting; ZFGWS1).
-    sessionId: options.sessionId ?? process.env.CLAUDE_SESSION_ID ?? 'unknown',
+    sessionId:
+      options.sessionId ?? process.env.CLAUDE_SESSION_ID ?? options.transcript ?? 'unknown',
     // Environment-aware code-state provenance (G19QG7): dogfood SHA / installed
     // version. Fail-open — capture never blocks filing.
     resolveProvenance: buildProvenanceResolver({

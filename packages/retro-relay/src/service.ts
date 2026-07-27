@@ -1,17 +1,10 @@
 /* eslint-disable unicorn/consistent-class-member-order -- Public state-machine operations precede internal transition helpers. */
 
 import { RelayError } from './errors.js';
-import type { GitHubRestClient } from './github.js';
-import {
-  canonicalMarker,
-  legacyMarker,
-  normalizeRepo,
-  payloadHash,
-  requestMarker,
-} from './identity.js';
+import { GitHubCreateError, type GitHubRestClient } from './github.js';
+import { normalizeRepo, payloadHash, requestMarker } from './identity.js';
 import { decryptPayload, encryptPayload } from './payload.js';
 import type { DurableRequest, RelayStore } from './store.js';
-import { SemanticEvidenceConflictError } from './store.js';
 import type {
   FileRetroDraftRequest,
   FilingReceipt,
@@ -54,16 +47,8 @@ function receiptFromRecord(record: DurableRequest): FilingReceipt {
   };
 }
 
-function belongsTo(record: DurableRequest, principal: RelayPrincipal): boolean {
-  return (
-    record.scope.tenantId === principal.tenantId &&
-    record.scope.installationId === principal.installationId &&
-    record.scope.repository === principal.repository
-  );
-}
-
 function isFiledResult(record: DurableRequest): boolean {
-  return record.state === 'filed' || record.state === 'tombstone';
+  return ['filed', 'rejected', 'tombstone'].includes(record.state);
 }
 
 function validText(value: unknown, maximum: number, allowEmpty = false): value is string {
@@ -78,8 +63,27 @@ function validateRequest(request: unknown): asserts request is FileRetroDraftReq
     throw new RelayError(400, 'invalid relay filing request');
   }
   const candidate = request as Partial<FileRetroDraftRequest>;
+  const keys = Object.keys(request).toSorted((left, right) => left.localeCompare(right));
+  const expectedKeys = [
+    'body',
+    'canonicalKey',
+    'installationId',
+    'labels',
+    'legacySignature',
+    'repository',
+    'requestId',
+    'retryDeadlineAt',
+    'title',
+  ];
   if (
-    !validText(candidate.requestId, 128) ||
+    keys.join('\0') !== expectedKeys.join('\0') ||
+    !validText(candidate.requestId, 36) ||
+    !/^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/iu.test(
+      candidate.requestId,
+    ) ||
+    !validText(candidate.retryDeadlineAt, 30) ||
+    !Number.isFinite(Date.parse(candidate.retryDeadlineAt)) ||
+    new Date(candidate.retryDeadlineAt).toISOString() !== candidate.retryDeadlineAt ||
     !Number.isSafeInteger(candidate.installationId) ||
     (candidate.installationId ?? 0) <= 0 ||
     !validText(candidate.repository, 200) ||
@@ -128,8 +132,8 @@ export class RelayService {
     if (!principal.roles.includes('reconcile')) {
       throw new RelayError(403, 'reconcile role is required');
     }
-    const record = this.#store.loadByReceipt(receiptId);
-    if (record === undefined || !belongsTo(record, principal)) {
+    const record = this.#store.loadByReceiptForPrincipal(receiptId, principal);
+    if (record === undefined) {
       throw new RelayError(404, 'filing receipt not found');
     }
     if (isFiledResult(record)) return receiptFromRecord(record);
@@ -171,13 +175,11 @@ export class RelayService {
     if (!principal.roles.includes('file')) {
       throw new RelayError(403, 'file role is required');
     }
-    const record = this.#store.loadByReceipt(receiptId);
-    if (record === undefined || !belongsTo(record, principal)) {
+    const record = this.#store.loadByReceiptForPrincipal(receiptId, principal);
+    if (record === undefined) {
       throw new RelayError(404, 'filing receipt not found');
     }
-    const resolved = this.#store.receiptById(receiptId);
-    if (resolved === undefined) throw new RelayError(404, 'filing receipt not found');
-    return resolved;
+    return receiptFromRecord(record);
   }
 
   async maintain(now = new Date()): Promise<{
@@ -206,6 +208,7 @@ export class RelayService {
       payloadHash: hash,
       envelope: encryptPayload(request, scope, hash, this.#payloadKey),
       requestMarker: marker,
+      retryDeadlineAt: request.retryDeadlineAt,
     });
     // eslint-disable-next-line security/detect-possible-timing-attacks -- Both values are non-secret digests.
     if (accepted.record.payloadHash !== hash) {
@@ -228,7 +231,7 @@ export class RelayService {
     return this.#processClaimed(claimed);
   }
 
-  // eslint-disable-next-line complexity -- Preparation, dispatch, and ambiguity branches are the durable retry state machine.
+  // eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- Preparation, dispatch, and ambiguity branches are the durable retry state machine.
   async #processClaimed(record: DurableRequest): Promise<FilingReceipt> {
     const { scope } = record;
     const hash = record.payloadHash;
@@ -236,27 +239,11 @@ export class RelayService {
     let installationToken: string;
     try {
       durableRequest = decryptPayload(record.envelope, scope, hash, this.#payloadKey);
-      const adopted = await this.#adoptExisting(scope, durableRequest);
-      if (adopted !== undefined) return adopted;
-      const owner = this.#store.reserveEvidence(scope, [
-        { kind: 'canonical', value: durableRequest.canonicalKey },
-        { kind: 'legacy', value: durableRequest.legacySignature },
-      ]);
-      if (owner.scope.requestId !== scope.requestId) {
-        return this.#store.linkAlias(scope, owner);
-      }
       installationToken = await this.#github.installationToken(
         scope.installationId,
         scope.repository,
       );
     } catch (error) {
-      if (error instanceof SemanticEvidenceConflictError) {
-        this.#store.markAmbiguous(scope);
-        throw new RelayError(409, 'canonical and legacy evidence conflict', {
-          receiptId: record.receiptId,
-          state: 'ambiguous',
-        });
-      }
       this.#store.markRetryable(scope, this.#now());
       if (error instanceof RelayError) throw error;
       throw new RelayError(503, 'filing preparation failed before dispatch');
@@ -280,6 +267,15 @@ export class RelayService {
       return this.#store.markFiled(scope, issueNumber, this.#now());
     } catch (error) {
       if (error instanceof RelayError) throw error;
+      if (error instanceof GitHubCreateError) {
+        if (error.outcome === 'rejected') {
+          return this.#store.markRejected(scope, this.#now());
+        }
+        if (error.outcome === 'retryable') {
+          this.#store.markRetryable(scope, this.#now());
+          throw new RelayError(503, 'GitHub rejected create; retry scheduled');
+        }
+      }
       this.#store.markAmbiguous(scope);
       const currentRecord = this.#store.load(scope);
       throw new RelayError(503, 'filing outcome is ambiguous', {
@@ -287,47 +283,5 @@ export class RelayService {
         state: 'ambiguous',
       });
     }
-  }
-
-  // eslint-disable-next-line complexity -- Marker completeness and conflict branches are the raw-authority contract.
-  async #adoptExisting(
-    scope: RequestScope,
-    request: FileRetroDraftRequest,
-  ): Promise<FilingReceipt | undefined> {
-    const scans = [];
-    for (const marker of [
-      canonicalMarker(request.canonicalKey),
-      legacyMarker(request.legacySignature),
-    ]) {
-      scans.push(
-        await this.#github.scanExactMarker({
-          installationId: scope.installationId,
-          repository: scope.repository,
-          marker,
-        }),
-      );
-    }
-    for (const scan of scans) {
-      if (!scan.complete || scan.issueNumbers.length > 1) {
-        throw new RelayError(503, 'raw marker scan is incomplete or non-unique');
-      }
-    }
-    const canonicalIssue = scans[0]?.issueNumbers.at(0);
-    const legacyIssue = scans[1]?.issueNumbers.at(0);
-    if (
-      canonicalIssue !== undefined &&
-      legacyIssue !== undefined &&
-      canonicalIssue !== legacyIssue
-    ) {
-      this.#store.markAmbiguous(scope);
-      throw new RelayError(409, 'canonical and legacy raw markers conflict');
-    }
-    const issueNumber = canonicalIssue ?? legacyIssue;
-    if (issueNumber === undefined) return undefined;
-    this.#store.reserveEvidence(scope, [
-      { kind: 'canonical', value: request.canonicalKey },
-      { kind: 'legacy', value: request.legacySignature },
-    ]);
-    return this.#store.markFiled(scope, issueNumber, this.#now());
   }
 }

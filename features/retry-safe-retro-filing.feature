@@ -108,31 +108,26 @@ Feature: Retry-safe retro relay foundation
       When the relay files through GitHub
       Then GitHub receives one create authenticated with a relay-minted installation token scoped to that repository
 
-  Rule: Only complete raw REST issue bodies are marker authority
+  Rule: Only complete raw REST issue bodies are request-marker authority
 
     @retry-safe-retro-filing.SWM1.R2 @rejection
-    Scenario Outline: Only the raw REST body can authorize semantic marker adoption
-      Given raw REST <raw_state> the exact <marker_kind> marker
-      And a sanitized MCP representation <mcp_state> the exact <marker_kind> marker
-      When a new request carries the matching semantic evidence
+    Scenario Outline: Sanitized MCP bodies never decide ambiguous-create recovery
+      Given an ambiguous request owns an exact request marker
+      And raw REST <raw_state> that exact request marker
+      And a sanitized MCP representation <mcp_state> that exact request marker
+      When an operator reconciles the original request
       Then the relay <outcome>
-      And GitHub receives <create_count> create requests
-
-      Examples:
-        | marker_kind | raw_state | mcp_state | outcome                                                   | create_count |
-        | canonical   | contains  | omits     | returns the existing issue                                | 0            |
-        | legacy      | contains  | omits     | returns the existing issue                                | 0            |
-        | canonical   | omits     | contains  | creates a new issue and does not return the MCP issue      | 1            |
-        | legacy      | omits     | contains  | creates a new issue and does not return the MCP issue      | 1            |
-
-    @retry-safe-retro-filing.SWM1.R2
-    Scenario Outline: Incomplete or non-unique raw enumeration never authorizes creation
-      Given the raw REST issue scan <condition>
-      When a new request carries semantic evidence not yet registered
-      Then the relay returns a retryable reconciliation result
       And GitHub receives no create request
 
       Examples:
-        | condition                      |
-        | fails before the final page    |
-        | finds multiple marker matches  |
+        | raw_state | mcp_state | outcome                                         |
+        | contains  | omits     | returns the raw issue and becomes filed         |
+        | omits     | contains  | remains ambiguous with no-match alert            |
+
+    @retry-safe-retro-filing.SWM1.R2
+    Scenario: Incomplete raw enumeration never resolves an ambiguous create
+      Given an ambiguous request owns an exact request marker
+      And the raw REST issue scan fails before the final page
+      When an operator reconciles the original request
+      Then the relay returns an incomplete reconciliation result
+      And GitHub receives no create request

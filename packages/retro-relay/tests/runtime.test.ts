@@ -171,7 +171,7 @@ describe('production runtime configuration', () => {
     const firstHealth = (await response.json()) as Record<string, unknown>;
     expect(firstHealth).toMatchObject({
       status: 'ok',
-      schemaVersion: 2,
+      schemaVersion: 3,
       replicaId: 'replica-test',
       bootId: expect.any(String),
     });
@@ -233,7 +233,8 @@ describe('production runtime configuration', () => {
             labels: ['retro'],
             legacySignature: 'retro:key',
             repository: 'arcadeai/safeword',
-            requestId: 'request',
+            requestId: '00000000-0000-4000-8000-000000000001',
+            retryDeadlineAt: '2099-01-01T00:00:00.000Z',
             title: 'title',
           }),
         }),
@@ -258,7 +259,8 @@ describe('production runtime configuration', () => {
       labels: ['retro'],
       legacySignature: 'retro:key',
       repository: 'arcadeai/safeword',
-      requestId: 'request',
+      requestId: '00000000-0000-4000-8000-000000000001',
+      retryDeadlineAt: '2099-01-01T00:00:00.000Z',
       title: 'title',
     });
 

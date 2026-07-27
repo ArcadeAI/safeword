@@ -25,10 +25,8 @@ const scenarioTests: Record<string, string> = {
   'Authorized filing credentials never enter durable state or observability':
     'server-held installation token',
   'GitHub creation uses a repository-scoped relay credential': 'server-held installation token',
-  'Only the raw REST body can authorize semantic marker adoption':
-    'uses raw REST bodies|adopts an exact legacy',
-  'Incomplete or non-unique raw enumeration never authorizes creation':
-    'non-unique|pagination is incomplete',
+  'Sanitized MCP bodies never decide ambiguous-create recovery': 'keeps an ambiguous request',
+  'Incomplete raw enumeration never resolves an ambiguous create': 'pagination is incomplete',
 };
 
 Before(
@@ -81,15 +79,13 @@ function placeholderPattern(stepText: string, placeholder: string): string {
     if (stepText.startsWith('the relay returns ')) {
       return '(?:the filed issue number|an authorization error)';
     }
-    return '(?:returns the existing issue|creates a new issue and does not return the MCP issue)';
+    return '(?:returns the raw issue and becomes filed|remains ambiguous with no-match alert)';
   }
   const patterns: Record<string, string> = {
     '<authorization>': '(?:authorized|unauthorized)',
-    '<condition>': '(?:fails before the final page|finds multiple marker matches)',
     '<create_count>': '[01]',
     '<credential_state>': '(?:missing|malformed|unknown)',
     '<field>': '(?:title|body)',
-    '<marker_kind>': '(?:canonical|legacy)',
     '<match_count>': '[012]',
     '<mcp_state>': '(?:contains|omits)',
     '<raw_state>': '(?:contains|omits)',

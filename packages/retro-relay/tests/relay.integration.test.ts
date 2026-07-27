@@ -1,4 +1,4 @@
-import { generateKeyPairSync } from 'node:crypto';
+import { createHash, generateKeyPairSync } from 'node:crypto';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { tmpdir } from 'node:os';
@@ -8,7 +8,6 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
-  createHarnessAdapters,
   CredentialRegistry,
   type FileRetroDraftRequest,
   GitHubAppTokenProvider,
@@ -16,6 +15,7 @@ import {
   RelayStore,
   startRelayServer,
 } from '../src/index.js';
+import { createHarnessAdapters } from './support/harness-client.js';
 
 const { privateKey: githubAppPrivateKey } = generateKeyPairSync('rsa', {
   modulusLength: 2048,
@@ -53,8 +53,9 @@ afterEach(async () => {
 });
 
 function draft(overrides: Partial<FileRetroDraftRequest> = {}): FileRetroDraftRequest {
-  return {
+  const request = {
     requestId: 'request-1479',
+    retryDeadlineAt: '2099-01-01T00:00:00.000Z',
     installationId: 42,
     repository: 'arcadeai/safeword',
     canonicalKey: 'canonical:abc123',
@@ -64,20 +65,28 @@ function draft(overrides: Partial<FileRetroDraftRequest> = {}): FileRetroDraftRe
     labels: ['retro'],
     ...overrides,
   };
+  const digest = createHash('sha256').update(request.requestId).digest('hex');
+  request.requestId = `${digest.slice(0, 8)}-${digest.slice(8, 12)}-4${digest.slice(
+    13,
+    16,
+  )}-8${digest.slice(17, 20)}-${digest.slice(20, 32)}`;
+  return request;
 }
 
 async function startGitHubFixture(
   options: {
     afterCreate?: () => void;
-    afterScan?: () => void;
+    afterToken?: () => void;
     createDelayMs?: number;
     createStatus?: number;
     failSecondPage?: boolean;
     failToken?: boolean;
+    githubRequestTimeoutMs?: number;
     installationToken?: string;
     rawBodies?: string[];
-    rawPullRequestBodies?: string[];
+    scanDelayMs?: number;
     sanitizedMcpBodies?: string[];
+    tokenDelayMs?: number;
   } = {},
 ): Promise<{
   baseUrl: string;
@@ -86,10 +95,13 @@ async function startGitHubFixture(
   rawAcceptHeaders: string[];
   sanitizedMcpBodies: string[];
   tokenRequests: { authorization: string; body: Record<string, unknown> }[];
+  maximumConcurrentCreates: () => number;
 }> {
   const createdBodies: string[] = [];
   const authorizationHeaders: string[] = [];
   const rawAcceptHeaders: string[] = [];
+  let activeCreates = 0;
+  let maximumConcurrentCreates = 0;
   const tokenRequests: { authorization: string; body: Record<string, unknown> }[] = [];
   const rawBodies = options.rawBodies ?? [];
   // eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- The fake collaborator exposes pagination, token, and create boundaries in one server.
@@ -102,6 +114,7 @@ async function startGitHubFixture(
       }
       let body = '';
       for await (const chunk of request) body += String(chunk);
+      if (options.tokenDelayMs !== undefined) await delay(options.tokenDelayMs);
       tokenRequests.push({
         authorization: request.headers.authorization ?? '',
         body: JSON.parse(body) as Record<string, unknown>,
@@ -109,6 +122,7 @@ async function startGitHubFixture(
       response.statusCode = 201;
       response.setHeader('content-type', 'application/json');
       const expiresAt = new Date(Date.now() + 60 * 60_000).toISOString();
+      options.afterToken?.();
       response.end(
         JSON.stringify({
           token: options.installationToken ?? 'ghs_installation_secret',
@@ -120,6 +134,7 @@ async function startGitHubFixture(
     }
     if (request.method === 'GET' && request.url?.includes('/issues')) {
       rawAcceptHeaders.push(request.headers.accept ?? '');
+      if (options.scanDelayMs !== undefined) await delay(options.scanDelayMs);
 
       const page = Number(new URL(request.url, 'https://github.invalid').searchParams.get('page'));
       if (page > 1 && options.failSecondPage === true) {
@@ -128,27 +143,21 @@ async function startGitHubFixture(
         return;
       }
       response.setHeader('content-type', 'application/json');
-      options.afterScan?.();
       response.end(
         JSON.stringify(
           page > 1
             ? []
-            : [
-                ...rawBodies.map((body, index) => ({
-                  number: 700 + index,
-                  body,
-                })),
-                ...(options.rawPullRequestBodies ?? []).map((body, index) => ({
-                  number: 800 + index,
-                  body,
-                  pull_request: {},
-                })),
-              ],
+            : rawBodies.map((body, index) => ({
+                number: 700 + index,
+                body,
+              })),
         ),
       );
       return;
     }
     if (request.method === 'POST' && request.url?.endsWith('/issues')) {
+      activeCreates += 1;
+      maximumConcurrentCreates = Math.max(maximumConcurrentCreates, activeCreates);
       authorizationHeaders.push(request.headers.authorization ?? '');
       let body = '';
       for await (const chunk of request) body += String(chunk);
@@ -157,6 +166,7 @@ async function startGitHubFixture(
       if (options.createStatus !== undefined) {
         response.statusCode = options.createStatus;
         response.end();
+        activeCreates -= 1;
         return;
       }
       if (options.createDelayMs !== undefined) {
@@ -165,6 +175,7 @@ async function startGitHubFixture(
       response.statusCode = 201;
       response.setHeader('content-type', 'application/json');
       response.end(JSON.stringify({ number: 900 + createdBodies.length }));
+      activeCreates -= 1;
       return;
     }
     response.statusCode = 404;
@@ -184,21 +195,24 @@ async function startGitHubFixture(
     rawAcceptHeaders,
     sanitizedMcpBodies: options.sanitizedMcpBodies ?? [],
     tokenRequests,
+    maximumConcurrentCreates: () => maximumConcurrentCreates,
   };
 }
 
 async function fixture(
   options: {
     afterCreate?: () => void;
-    afterScan?: () => void;
+    afterToken?: () => void;
     createDelayMs?: number;
     createStatus?: number;
     failSecondPage?: boolean;
     failToken?: boolean;
+    githubRequestTimeoutMs?: number;
     installationToken?: string;
     rawBodies?: string[];
-    rawPullRequestBodies?: string[];
+    scanDelayMs?: number;
     sanitizedMcpBodies?: string[];
+    tokenDelayMs?: number;
     now?: () => Date;
   } = {},
 ) {
@@ -235,12 +249,18 @@ async function fixture(
     appId: '1234',
     baseUrl: githubFixture.baseUrl,
     privateKey: githubAppPrivateKeyPem,
+    ...(options.githubRequestTimeoutMs !== undefined && {
+      requestTimeoutMs: options.githubRequestTimeoutMs,
+    }),
   });
   const serverOptions = {
     credentials: registry,
     github: new GitHubRestClient({
       baseUrl: githubFixture.baseUrl,
       installationToken: (installationId, repo) => tokenProvider.token(installationId, repo),
+      ...(options.githubRequestTimeoutMs !== undefined && {
+        requestTimeoutMs: options.githubRequestTimeoutMs,
+      }),
     }),
     lockPath: path.join(directory, 'relay.lock'),
     payloadKey: Buffer.alloc(32, 7),
@@ -253,6 +273,23 @@ async function fixture(
 }
 
 describe('retry-safe retro relay', () => {
+  it('coalesces concurrent installation-token minting for the same repository scope', async () => {
+    const github = await startGitHubFixture({ tokenDelayMs: 25 });
+    const provider = new GitHubAppTokenProvider({
+      appId: '1234',
+      baseUrl: github.baseUrl,
+      privateKey: githubAppPrivateKeyPem,
+    });
+
+    await expect(
+      Promise.all([
+        provider.token(42, 'arcadeai/safeword'),
+        provider.token(42, 'arcadeai/safeword'),
+      ]),
+    ).resolves.toEqual(['ghs_installation_secret', 'ghs_installation_secret']);
+    expect(github.tokenRequests).toHaveLength(1);
+  });
+
   it('reports the open SQLite schema and replica identity without authentication', async () => {
     const setup = await fixture();
 
@@ -261,7 +298,7 @@ describe('retry-safe retro relay', () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
       status: 'ok',
-      schemaVersion: 2,
+      schemaVersion: 3,
       replicaId: 'local',
       bootId: 'local',
     });
@@ -330,11 +367,11 @@ describe('retry-safe retro relay', () => {
     expect(setup.createBodies).toHaveLength(1);
   });
 
-  it('does not start a dispatch when raw enumeration crosses the 24-hour deadline', async () => {
+  it('does not start a dispatch when token acquisition crosses the 24-hour deadline', async () => {
     const acceptedAt = new Date();
     let current = acceptedAt;
     const setup = await fixture({
-      afterScan: () => {
+      afterToken: () => {
         current = new Date(acceptedAt.getTime() + 24 * 60 * 60 * 1000);
       },
       now: () => current,
@@ -349,9 +386,14 @@ describe('retry-safe retro relay', () => {
       method: 'POST',
     });
 
-    expect(response.status).toBe(202);
+    expect(response.status).toBe(200);
     expect(setup.createBodies).toHaveLength(0);
     expect(setup.store.operations(current).counts['dead-letter']).toBe(1);
+    await expect(
+      createHarnessAdapters(setup.relay.url, setup.credentials, {
+        pollBudgetMs: 0,
+      }).codex.file(draft({ requestId: 'crossed-retry-deadline' })),
+    ).resolves.toMatchObject({ state: 'dead-letter' });
   });
 
   it('cannot commit a filed result when GitHub work crosses the one-hour grace', async () => {
@@ -469,6 +511,119 @@ describe('retry-safe retro relay', () => {
     ).toBe('ambiguous');
   });
 
+  it('aborts a stalled GitHub create and quarantines its uncertain outcome', async () => {
+    const setup = await fixture({ createDelayMs: 100, githubRequestTimeoutMs: 10 });
+    const adapter = createHarnessAdapters(setup.relay.url, setup.credential).claude;
+
+    await expect(adapter.file(draft())).rejects.toMatchObject({ status: 503 });
+    expect(
+      setup.store.receipt({
+        tenantId: 'tenant-1',
+        installationId: 42,
+        repository: 'arcadeai/safeword',
+        requestId: draft().requestId,
+      }),
+    ).toMatchObject({ state: 'ambiguous' });
+  });
+
+  it('bounds concurrent GitHub creates at the outbound boundary', async () => {
+    const github = await startGitHubFixture({ createDelayMs: 25 });
+    const client = new GitHubRestClient({
+      baseUrl: github.baseUrl,
+      installationToken: () => Promise.resolve('unused'),
+      maxConcurrentRequests: 1,
+    });
+    const create = (title: string) =>
+      client.createIssue({
+        repository: 'arcadeai/safeword',
+        title,
+        body: title,
+        labels: ['retro'],
+        installationToken: 'ghs_installation_secret',
+      });
+
+    await Promise.all([create('first'), create('second')]);
+
+    expect(github.maximumConcurrentCreates()).toBe(1);
+  });
+
+  it.each([400, 404, 410])(
+    'records GitHub %i as a certain terminal rejection',
+    async statusCode => {
+      const setup = await fixture({ createStatus: statusCode });
+      const adapter = createHarnessAdapters(setup.relay.url, setup.credential).claude;
+
+      await expect(adapter.file(draft())).resolves.toMatchObject({ state: 'rejected' });
+      await expect(adapter.file(draft())).resolves.toMatchObject({ state: 'rejected' });
+      expect(setup.createBodies).toHaveLength(1);
+    },
+  );
+
+  it.each([401, 403, 422, 429])(
+    'keeps GitHub %i retryable because no issue was created',
+    async status => {
+      const setup = await fixture({ createStatus: status });
+      const adapter = createHarnessAdapters(setup.relay.url, setup.credential).claude;
+
+      await expect(adapter.file(draft())).rejects.toMatchObject({ status: 503 });
+      expect(
+        setup.store.load({
+          tenantId: 'tenant-1',
+          installationId: 42,
+          repository: 'arcadeai/safeword',
+          requestId: draft().requestId,
+        })?.state,
+      ).toBe('retryable');
+    },
+  );
+
+  it('rate-limits operator reconciliation independently of filing credentials', async () => {
+    const setup = await fixture();
+    const statuses: number[] = [];
+    for (let index = 0; index < 61; index += 1) {
+      const response = await fetch(`${setup.relay.url}/v1/retro-filings/missing/reconcile`, {
+        headers: { authorization: `Bearer ${setup.credentials.operator}` },
+        method: 'POST',
+      });
+      statuses.push(response.status);
+    }
+
+    expect(statuses.slice(0, 60).every(status => status === 404)).toBe(true);
+    expect(statuses[60]).toBe(429);
+  });
+
+  it('rejects non-UUID request identities before durable or GitHub access', async () => {
+    const setup = await fixture();
+    const response = await fetch(`${setup.relay.url}/v1/retro-filings`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${setup.credential}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ ...draft(), requestId: 'session-private-text' }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(setup.createBodies).toHaveLength(0);
+    expect(setup.store.operations().counts.accepted).toBe(0);
+  });
+
+  it('rejects unapproved request fields before durable or GitHub access', async () => {
+    const setup = await fixture();
+    const response = await fetch(`${setup.relay.url}/v1/retro-filings`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${setup.credential}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ ...draft(), privateSessionData: 'must-not-persist' }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(setup.createBodies).toHaveLength(0);
+    expect(setup.store.operations().counts.accepted).toBe(0);
+  });
+
   it('elects one creator across concurrent database connections', async () => {
     const setup = await fixture({ createDelayMs: 50 });
     const secondStore = RelayStore.open(path.join(setup.directory, 'relay.sqlite'));
@@ -515,144 +670,6 @@ describe('retry-safe retro relay', () => {
       },
     });
     await expect(creator).resolves.toMatchObject({ state: 'filed', issueNumber: 901 });
-  });
-
-  it('converges different requestIds that reserve the same semantic evidence', async () => {
-    const setup = await fixture({ createDelayMs: 50 });
-    const secondStore = RelayStore.open(path.join(setup.directory, 'relay.sqlite'));
-    const secondRelay = await startRelayServer({
-      allowUnlockedForTests: true,
-      credentials: setup.registry,
-      github: new GitHubRestClient({
-        baseUrl: setup.baseUrl,
-        installationToken: () => Promise.resolve('ghs_installation_secret'),
-      }),
-      payloadKey: Buffer.alloc(32, 7),
-      store: secondStore,
-    });
-    servers.push(secondRelay.server);
-
-    const retryAfterSleeps: number[] = [];
-    const adapterOptions = {
-      sleep: async (milliseconds: number) => {
-        retryAfterSleeps.push(milliseconds);
-        await new Promise<void>(resolve => setImmediate(resolve));
-      },
-    };
-    const [first, second] = await Promise.all([
-      createHarnessAdapters(setup.relay.url, setup.credentials, adapterOptions).claude.file(
-        draft({ requestId: 'semantic-owner-a' }),
-      ),
-      createHarnessAdapters(secondRelay.url, setup.credentials, adapterOptions).codex.file(
-        draft({ requestId: 'semantic-owner-b' }),
-      ),
-    ]);
-
-    expect(first.issueNumber).toBe(second.issueNumber);
-    expect(first.requestId).toBe('semantic-owner-a');
-    expect(second.requestId).toBe('semantic-owner-b');
-    expect(first.receiptId).not.toBe(second.receiptId);
-    const scope = {
-      tenantId: 'tenant-1',
-      installationId: 42,
-      repository: 'arcadeai/safeword',
-    };
-    expect(setup.store.load({ ...scope, requestId: 'semantic-owner-a' })?.state).toBe('filed');
-    expect(setup.store.load({ ...scope, requestId: 'semantic-owner-b' })?.state).toBe('filed');
-    expect(retryAfterSleeps).toContain(1000);
-    expect(setup.createBodies).toHaveLength(1);
-    secondStore.close();
-  });
-
-  it('quarantines an alias when its semantic evidence owner is ambiguous', async () => {
-    const setup = await fixture({ createStatus: 500 });
-    const adapters = createHarnessAdapters(setup.relay.url, setup.credentials, {
-      sleep: () => Promise.resolve(),
-    });
-
-    await expect(
-      adapters.claude.file(draft({ requestId: 'ambiguous-owner' })),
-    ).rejects.toMatchObject({ status: 503 });
-    await expect(
-      adapters.codex.file(draft({ requestId: 'ambiguous-alias' })),
-    ).rejects.toMatchObject({
-      status: 503,
-      details: {
-        latestReceipt: {
-          requestId: 'ambiguous-alias',
-          state: 'ambiguous',
-        },
-      },
-    });
-
-    expect(setup.createBodies).toHaveLength(1);
-    expect(
-      setup.store.load({
-        tenantId: 'tenant-1',
-        installationId: 42,
-        repository: 'arcadeai/safeword',
-        requestId: 'ambiguous-alias',
-      }),
-    ).toMatchObject({ state: 'ambiguous' });
-    expect(new Set(setup.store.pendingAlerts().map(alert => alert.receiptId))).toHaveProperty(
-      'size',
-      2,
-    );
-    expect(new Set(setup.store.pendingAlerts().map(alert => alert.eventId))).toHaveProperty(
-      'size',
-      2,
-    );
-  });
-
-  it('restores alias quarantine after restart recovery', () => {
-    const directory = mkdtempSync(path.join(tmpdir(), 'retro-relay-restart-alias-'));
-    directories.push(directory);
-    const databasePath = path.join(directory, 'relay.sqlite');
-    const store = RelayStore.open(databasePath);
-    const baseScope = {
-      tenantId: 'tenant-1',
-      installationId: 42,
-      repository: 'arcadeai/safeword',
-    };
-    const envelope = {
-      nonce: Buffer.alloc(12),
-      ciphertext: Buffer.from('durable payload'),
-      tag: Buffer.alloc(16),
-    };
-    const ownerScope = { ...baseScope, requestId: 'restart-owner' };
-    const aliasScope = { ...baseScope, requestId: 'restart-alias' };
-    for (const scope of [ownerScope, aliasScope]) {
-      store.accept({
-        scope,
-        payloadHash: `hash-${scope.requestId}`,
-        envelope,
-        requestMarker: `marker-${scope.requestId}`,
-      });
-      expect(store.claim(scope)).toBe(true);
-    }
-    const evidence = [
-      { kind: 'canonical' as const, value: 'canonical:restart' },
-      { kind: 'legacy' as const, value: 'retro:restart' },
-    ];
-    const owner = store.reserveEvidence(ownerScope, evidence);
-    expect(store.beginDispatch(ownerScope)).toBe(true);
-    expect(store.reserveEvidence(aliasScope, evidence).scope.requestId).toBe('restart-owner');
-    store.linkAlias(aliasScope, owner);
-    store.close();
-
-    const reopened = RelayStore.open(databasePath);
-    reopened.recoverInFlight();
-    expect(reopened.receipt(aliasScope)).toMatchObject({
-      requestId: 'restart-alias',
-      state: 'ambiguous',
-    });
-    expect(reopened.load(aliasScope)).toMatchObject({ state: 'ambiguous' });
-    expect(new Set(reopened.pendingAlerts().map(alert => alert.receiptId))).toHaveProperty(
-      'size',
-      2,
-    );
-    expect(new Set(reopened.pendingAlerts().map(alert => alert.eventId))).toHaveProperty('size', 2);
-    reopened.close();
   });
 
   it('recovers a post-create crash as ambiguous and reconciles from raw REST', async () => {
@@ -765,6 +782,7 @@ describe('retry-safe retro relay', () => {
       setup.relay.server.close();
       const github = await startGitHubFixture({
         rawBodies: Array.from({ length: matchCount }, () => marker),
+        ...(matchCount === 0 && { sanitizedMcpBodies: [marker] }),
       });
       const reopened = RelayStore.open(path.join(setup.directory, 'relay.sqlite'));
       const relay = await startRelayServer({
@@ -806,63 +824,10 @@ describe('retry-safe retro relay', () => {
         }),
       );
       expect(github.createBodies).toHaveLength(0);
+      if (matchCount === 0) expect(github.sanitizedMcpBodies).toContain(marker);
       reopened.close();
     },
   );
-
-  it('uses raw REST bodies as marker authority and has no MCP decision input', async () => {
-    const canonicalMarker = '<!-- safeword-retro-canonical: canonical:abc123 -->';
-    const existing = await fixture({ rawBodies: [canonicalMarker] });
-    const adopted = await createHarnessAdapters(
-      existing.relay.url,
-      existing.credential,
-    ).claude.file(draft());
-    expect(adopted.issueNumber).toBe(700);
-    expect(existing.createBodies).toHaveLength(0);
-    expect(existing.rawAcceptHeaders).toContain('application/vnd.github.raw+json');
-
-    const absent = await fixture({
-      rawBodies: ['raw body has no marker'],
-      sanitizedMcpBodies: [canonicalMarker],
-    });
-    const created = await createHarnessAdapters(absent.relay.url, absent.credential).codex.file(
-      draft({ requestId: 'raw-absent' }),
-    );
-    expect(created.issueNumber).toBe(901);
-    expect(created.issueNumber).not.toBe(700);
-    expect(absent.sanitizedMcpBodies).toContain(canonicalMarker);
-    expect(absent.createBodies).toHaveLength(1);
-  });
-
-  it('adopts an exact legacy raw marker and ignores matching pull requests', async () => {
-    const legacy = '<!-- safeword-retro-signature: retro:def456 -->';
-    const existing = await fixture({ rawBodies: [legacy] });
-    await expect(
-      createHarnessAdapters(existing.relay.url, existing.credential).claude.file(draft()),
-    ).resolves.toMatchObject({ issueNumber: 700, state: 'filed' });
-    expect(existing.createBodies).toHaveLength(0);
-
-    const pullRequestOnly = await fixture({ rawPullRequestBodies: [legacy] });
-    await expect(
-      createHarnessAdapters(pullRequestOnly.relay.url, pullRequestOnly.credential).claude.file(
-        draft({ requestId: 'pull-request-marker' }),
-      ),
-    ).resolves.toMatchObject({ issueNumber: 901, state: 'filed' });
-    expect(pullRequestOnly.createBodies).toHaveLength(1);
-  });
-
-  it('quarantines conflicting canonical and legacy raw matches', async () => {
-    const setup = await fixture({
-      rawBodies: [
-        '<!-- safeword-retro-canonical: canonical:abc123 -->',
-        '<!-- safeword-retro-signature: retro:def456 -->',
-      ],
-    });
-    const adapter = createHarnessAdapters(setup.relay.url, setup.credential).claude;
-
-    await expect(adapter.file(draft())).rejects.toMatchObject({ status: 409 });
-    expect(setup.createBodies).toHaveLength(0);
-  });
 
   it('authorizes the exact repository and rejects invalid credentials before GitHub', async () => {
     const setup = await fixture();
@@ -943,7 +908,7 @@ describe('retry-safe retro relay', () => {
     expect(operations).toMatchObject({
       bootId: 'local',
       counts: { filed: 1 },
-      schemaVersion: 2,
+      schemaVersion: 3,
     });
     const observable = JSON.stringify(operations);
     expect(observable).not.toContain(draft().body);
@@ -963,7 +928,7 @@ describe('retry-safe retro relay', () => {
       permissions: { issues: 'write' },
     });
     const observable = JSON.stringify(setup.relay.observability);
-    expect(observable).toContain('request-1479');
+    expect(observable).toContain(draft().requestId);
     expect(observable).toContain('filed');
     expect(observable).not.toContain(setup.credential);
     expect(observable).not.toContain('ghs_installation_secret');
@@ -988,23 +953,103 @@ describe('retry-safe retro relay', () => {
     },
   );
 
-  it('fails closed when raw REST marker enumeration is non-unique', async () => {
-    const marker = '<!-- safeword-retro-canonical: canonical:abc123 -->';
-    const setup = await fixture({ rawBodies: [marker, marker] });
-    const adapter = createHarnessAdapters(setup.relay.url, setup.credential).claude;
+  it('fails closed when raw REST pagination is incomplete', async () => {
+    const setup = await fixture();
+    setup.relay.faults.afterGitHubCreate = () => {
+      throw new Error('simulated crash');
+    };
+    await expect(
+      createHarnessAdapters(setup.relay.url, setup.credential).claude.file(draft()),
+    ).rejects.toMatchObject({ status: 503 });
+    const marker = setup.createBodies[0]?.split('\n').at(-1) ?? '';
+    const ambiguous = setup.store.load({
+      tenantId: 'tenant-1',
+      installationId: 42,
+      repository: 'arcadeai/safeword',
+      requestId: draft().requestId,
+    });
+    if (ambiguous === undefined) throw new Error('missing ambiguous request');
 
-    await expect(adapter.file(draft())).rejects.toMatchObject({ status: 503 });
-    expect(setup.createBodies).toHaveLength(0);
+    setup.store.close();
+    setup.relay.server.close();
+    const github = await startGitHubFixture({
+      failSecondPage: true,
+      rawBodies: [marker, ...Array.from({ length: 99 }, (_, index) => `issue ${index}`)],
+    });
+    const reopened = RelayStore.open(path.join(setup.directory, 'relay.sqlite'));
+    const relay = await startRelayServer({
+      allowUnlockedForTests: true,
+      credentials: setup.registry,
+      github: new GitHubRestClient({
+        baseUrl: github.baseUrl,
+        installationToken: () => Promise.resolve('ghs_installation_secret'),
+      }),
+      payloadKey: Buffer.alloc(32, 7),
+      store: reopened,
+    });
+    servers.push(relay.server);
+
+    await expect(
+      createHarnessAdapters(relay.url, setup.credentials).operator.reconcileReceipt(
+        ambiguous.receiptId,
+      ),
+    ).rejects.toMatchObject({
+      status: 503,
+      details: { disposition: 'incomplete' },
+    });
+    expect(github.createBodies).toHaveLength(0);
+    reopened.close();
   });
 
-  it('fails closed when raw REST pagination is incomplete', async () => {
-    const setup = await fixture({
-      failSecondPage: true,
+  it('fails reconciliation closed when the overall raw REST page budget is exhausted', async () => {
+    const github = await startGitHubFixture({
       rawBodies: Array.from({ length: 100 }, (_, index) => `issue ${index}`),
     });
-    const adapter = createHarnessAdapters(setup.relay.url, setup.credential).claude;
+    const client = new GitHubRestClient({
+      baseUrl: github.baseUrl,
+      installationToken: () => Promise.resolve('ghs_installation_secret'),
+      reconciliationMaxPages: 1,
+    });
 
-    await expect(adapter.file(draft())).rejects.toMatchObject({ status: 503 });
-    expect(setup.createBodies).toHaveLength(0);
+    await expect(
+      client.scanExactMarker({
+        installationId: 42,
+        marker: '<!-- no-match -->',
+        repository: 'arcadeai/safeword',
+      }),
+    ).resolves.toEqual({ complete: false, issueNumbers: [] });
+  });
+
+  it('bounds reconciliation across delayed token minting and a saturated request queue', async () => {
+    const github = await startGitHubFixture({ createDelayMs: 100 });
+    const client = new GitHubRestClient({
+      baseUrl: github.baseUrl,
+      installationToken: async () => {
+        await delay(10);
+        return 'ghs_installation_secret';
+      },
+      maxConcurrentRequests: 1,
+      reconciliationTimeoutMs: 30,
+      requestTimeoutMs: 250,
+    });
+    const occupyingCreate = client.createIssue({
+      body: 'occupy capacity',
+      installationToken: 'ghs_installation_secret',
+      labels: [],
+      repository: 'arcadeai/safeword',
+      title: 'occupy capacity',
+    });
+    await delay(5);
+    const started = performance.now();
+
+    await expect(
+      client.scanExactMarker({
+        installationId: 42,
+        marker: '<!-- no-match -->',
+        repository: 'arcadeai/safeword',
+      }),
+    ).resolves.toEqual({ complete: false, issueNumbers: [] });
+    expect(performance.now() - started).toBeLessThan(80);
+    await expect(occupyingCreate).resolves.toBeGreaterThan(0);
   });
 });

@@ -12,6 +12,7 @@ import {
   runRetro,
 } from '../../src/commands/retro.js';
 import { LEDGER_MARKER, parseLedger } from '../../src/retro/ledger.js';
+import { listRelayDeadLetters, listRelayRequests } from '../../src/retro/relay-delivery.js';
 import type {
   CreateIssueInput,
   IssueComment,
@@ -89,6 +90,106 @@ const dependencies = (over: Partial<Parameters<typeof runRetro>[1]> = {}) => ({
 });
 
 describe('runRetro', () => {
+  it('keeps consecutive relay fires distinct across pending dead-letter and ack states', async () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-fires-'));
+    let now = Date.parse('2026-07-01T00:00:00.000Z');
+    const nowSpy = vi.spyOn(Date, 'now').mockImplementation(() => now);
+    let finding = rawFinding({ title: 'First occurrence' });
+    let accept = false;
+    const transmittedRequestIds: string[] = [];
+    const relayFetch: typeof fetch = (_input, init) => {
+      let requestBody: string | undefined;
+      if (typeof init?.body === 'string') requestBody = init.body;
+      else if (init?.body instanceof Uint8Array) {
+        requestBody = Buffer.from(init.body).toString('utf8');
+      }
+      if (requestBody === undefined) return Promise.reject(new Error('missing relay body'));
+      const request = JSON.parse(requestBody) as { requestId: string };
+      transmittedRequestIds.push(request.requestId);
+      if (!accept) return Promise.reject(new Error('relay unavailable'));
+      return Promise.resolve(
+        Response.json(
+          {
+            receiptId: `receipt-${request.requestId}`,
+            requestId: request.requestId,
+            state: 'filed',
+          },
+          { status: 200 },
+        ),
+      );
+    };
+    const relay = {
+      credential: 'swc_test',
+      fetch: relayFetch,
+      installationId: 42,
+      readiness: { enabled: true },
+      relayUrl: 'https://relay.invalid',
+      repository: 'arcadeai/safeword',
+    };
+    const runFire = (windowStart: number) =>
+      runRetro(
+        { transcript: '/tmp/session.jsonl', windowStart },
+        dependencies({
+          extract: () => Promise.resolve([finding]),
+          projectDirectory,
+          relay,
+          sessionId: 'same-session',
+        }),
+      );
+
+    try {
+      await runFire(0);
+      const firstPending = await listRelayRequests(projectDirectory);
+      expect(firstPending).toHaveLength(1);
+      const firstRequestId = firstPending[0]?.requestId;
+      expect(transmittedRequestIds).toEqual([firstRequestId]);
+
+      now += 24 * 60 * 60 * 1000;
+      finding = rawFinding({ title: 'Second occurrence' });
+      await runFire(100);
+      const deadLetters = await listRelayDeadLetters(projectDirectory);
+      const secondPending = await listRelayRequests(projectDirectory);
+      expect(deadLetters.map(request => request.requestId)).toEqual([firstRequestId]);
+      expect(secondPending).toHaveLength(1);
+      const secondRequestId = secondPending[0]?.requestId;
+      expect(secondRequestId).not.toBe(firstRequestId);
+      expect(transmittedRequestIds).toEqual([firstRequestId, secondRequestId]);
+
+      finding = rawFinding({ title: 'First occurrence' });
+      await runFire(0);
+      const revisitedDeadLetters = await listRelayDeadLetters(projectDirectory);
+      const stillPending = await listRelayRequests(projectDirectory);
+      expect(revisitedDeadLetters).toHaveLength(1);
+      expect(stillPending).toHaveLength(1);
+      expect(revisitedDeadLetters[0]?.requestId).toBe(firstRequestId);
+      expect(stillPending[0]?.requestId).toBe(secondRequestId);
+      expect(transmittedRequestIds).toEqual([firstRequestId, secondRequestId, secondRequestId]);
+
+      accept = true;
+      finding = rawFinding({ title: 'Second occurrence' });
+      await runFire(100);
+      expect(await listRelayRequests(projectDirectory)).toHaveLength(0);
+      expect(transmittedRequestIds.at(-1)).toBe(secondRequestId);
+      const acknowledgedCallCount = transmittedRequestIds.length;
+      await runFire(100);
+      expect(await listRelayRequests(projectDirectory)).toHaveLength(0);
+      expect(transmittedRequestIds).toHaveLength(acknowledgedCallCount);
+
+      accept = false;
+      finding = rawFinding({ title: 'Third occurrence' });
+      await runFire(200);
+      const remaining = await listRelayRequests(projectDirectory);
+      expect(remaining).toHaveLength(1);
+      expect(remaining[0]?.requestId).not.toBe(firstRequestId);
+      expect(remaining[0]?.requestId).not.toBe(secondRequestId);
+      expect(remaining[0]?.bytes.toString()).toContain('Third occurrence');
+      expect(transmittedRequestIds.at(-1)).toBe(remaining[0]?.requestId);
+    } finally {
+      nowSpy.mockRestore();
+      rmSync(projectDirectory, { force: true, recursive: true });
+    }
+  });
+
   it('retro-transcript-mining.TB1.AC2.planted_friction_signal_is_extracted', async () => {
     const transport = new FakeGitHub();
     const outcome = await runRetro(

@@ -190,14 +190,15 @@ rewriting the version-1 table:
 - `next_attempt_at`
 - `attempt_count`
 - `dispatch_started_at`
+- `retry_deadline_at` (the client deadline, capped at acceptance plus 24 hours)
 - a durable alert outbox keyed by stable `event_id`
 
 The underlying filing state remains unchanged for compatibility; the public
 receipt state is projected to `dead-letter` or `tombstone` when those timestamps
 exist. Tombstone compaction zeroes the encrypted envelope while retaining
 scope, request ID, receipt ID, payload hash, issue number, request marker, and
-both canonical and legacy semantic evidence indefinitely. Retained evidence
-continues to reserve identity; compaction cannot change duplicate behavior.
+the non-reusable request identity indefinitely. Compaction cannot change
+same-request behavior.
 
 The 30-day promise is an application-access retention boundary, not forensic
 secure deletion. At the boundary, normal store/API paths can no longer decrypt
@@ -215,13 +216,13 @@ binary before opening the listener.
 One process-local maintenance timer invokes database-CAS operations:
 
 1. claim accepted/retryable requests only when `next_attempt_at <= now` and
-   `now < accepted_at + 24h`; increment `attempt_count` and schedule exponential
+   `now < retry_deadline_at`; increment `attempt_count` and schedule exponential
    backoff of 1m, 2m, 4m … capped at 1h and at the deadline;
-2. at `accepted_at + 24h`, move unresolved accepted/retryable/claimed requests
+2. at `retry_deadline_at`, move unresolved accepted/retryable/claimed requests
    to dead letter and enqueue an alert;
-3. permit `beginDispatch` only while `now < accepted_at + 24h`; requests already
-   dispatching may `markFiled` while `now < accepted_at + 25h`;
-4. at `accepted_at + 25h`, CAS unresolved dispatching requests to ambiguous and
+3. permit `beginDispatch` only while `now < retry_deadline_at`; requests already
+   dispatching may `markFiled` for one additional hour;
+4. one hour after `retry_deadline_at`, CAS unresolved dispatching requests to ambiguous and
    enqueue an alert;
 5. at `filed_at + 30d`, compact filed payloads into tombstones.
 
@@ -232,7 +233,7 @@ durable scopes and uses the server-held GitHub App collaborator directly; it
 does not synthesize a client principal. Every claim/dispatch/file/dead-letter/
 ambiguity transition includes the expected prior state and deadline predicate
 in one SQLite transaction. Boundary tests race maintenance against a worker at
-deadline-minus-epsilon and the exact deadline, including known-issue adoption
+deadline-minus-epsilon and the exact deadline, including request-marker reconciliation
 versus the 25-hour ambiguity CAS.
 
 ## Operations and alerts
@@ -257,8 +258,8 @@ evidence for:
 
 - concurrent same-request convergence;
 - post-create/pre-receipt ambiguity with no second create or acknowledgement;
-- canonical and legacy migration using raw REST bodies only;
-- sanitized MCP reads having no duplicate authority.
+- request-marker reconciliation using raw REST bodies only;
+- sanitized MCP reads having no reconciliation authority.
 
 Those behaviors are not extended or promoted here. Production uniqueness and
 live relay routing remain hard-disabled until #1474 and #1481 close and both

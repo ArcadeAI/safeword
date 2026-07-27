@@ -1,21 +1,27 @@
 ---
 generator: safeword-architecture
-fingerprint: 8787b9bdac85eb47beb60a6268f5989dd286a6239cdd43e75be0c4f48ee8e2e5
+fingerprint: d948961ce5a66c76b1b59f20c8ceec9945d7e6a0b4785433587897a5e98a19ff
 ---
 
 # Architecture
 
 ## Packages
 
+### @safeword/retro-relay
+
+<!-- reconciled: d948961ce5a66c76b1b59f20c8ceec9945d7e6a0b4785433587897a5e98a19ff -->
+
+No description yet — awaiting prose.
+
 ### @safeword/website
 
-<!-- reconciled: 8787b9bdac85eb47beb60a6268f5989dd286a6239cdd43e75be0c4f48ee8e2e5 -->
+<!-- reconciled: d948961ce5a66c76b1b59f20c8ceec9945d7e6a0b4785433587897a5e98a19ff -->
 
 No description yet — awaiting prose.
 
 ### safeword
 
-<!-- reconciled: 8787b9bdac85eb47beb60a6268f5989dd286a6239cdd43e75be0c4f48ee8e2e5 -->
+<!-- reconciled: d948961ce5a66c76b1b59f20c8ceec9945d7e6a0b4785433587897a5e98a19ff -->
 
 <!-- seeded-purpose: 0e986416eaf577ca5131761f4e6fabf37d674ca623d5ca8f554394d4abee4a24 -->
 

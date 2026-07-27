@@ -30,7 +30,7 @@ Safeword is a CLI tool that configures linting, hooks, and development guides fo
 | Category        | Choice             | Rationale                                                                              |
 | --------------- | ------------------ | -------------------------------------------------------------------------------------- |
 | CLI Runtime     | Bun                | Fast startup, TypeScript native                                                        |
-| Relay Runtime   | Node 22            | Stable native SQLite addon support for the separately deployed retro relay             |
+| Relay Runtime   | Node 24 LTS        | Production-qualified native SQLite addon support for the separately deployed relay     |
 | Package Manager | npm/bun            | Standard for JS ecosystem                                                              |
 | JS Linting      | ESLint             | Industry standard, extensive rule set                                                  |
 | Python Linting  | Ruff               | Fast, replaces flake8/black/isort                                                      |
@@ -83,23 +83,35 @@ The relay stores request payloads only as AES-256-GCM envelopes and keeps
 GitHub App credentials server-side. Ambiguous create outcomes are quarantined
 until a privileged reconciliation route finds exactly one reserved marker in a
 complete raw REST issue-body scan. Sanitized MCP reads are never duplicate
-authority. The destination lifecycle is a 24-hour retry deadline, one-hour
-dispatch grace, 30-day filed-payload retention, and indefinite tombstones; the
+authority. The client supplies one absolute creation-plus-24-hour retry
+deadline, which the server persists and may shorten but never extend, followed
+by one-hour dispatch grace, 30-day filed-payload retention, and indefinite tombstones; the
 timed maintenance worker persists its retry schedule and terminal alert outbox
 in the same database.
+Canonical/legacy semantic adoption and cross-request aliasing remain unbuilt
+until #1474 and #1481 land and collision rates are remeasured.
 
 Before transport, the CLI writes one immutable file containing the exact
 serialized request bytes and a UUIDv4 request ID. Claude, Codex, Cursor, and
-their cloud surfaces all claim and resend that same file; harness identity is
+their cloud surfaces claim and resend explicitly persisted bytes carrying that
+same identity; fresh cloud runtimes receive those bytes from a durable handoff
+and never rediscover identity from content. Harness identity is
 never part of request identity. Atomic rename fences concurrent claims. An
 atomic acknowledgement journal is authoritative before recoverable payload
 cleanup, so a crash cannot convert an unknown relay response into permission
-for native GitHub fallback.
+for native GitHub fallback. The immutable record carries its creation time and
+shared 24-hour retry deadline; expiry moves it to a visible local dead letter.
+Locally, a hashed session, delta-window boundary, and encounter slot correlates
+retries to that record while allowing later fires and unrelated findings to
+spool independently. It is stripped before transport and is never server-side
+semantic or duplicate authority.
 
 Production authentication requires separate repository-scoped `file`
 principals for Claude, Codex, and Cursor and a `reconcile`/`operate` principal
-for operators. Filing inputs have bounded bodies and fields, ten-second HTTP
-timeouts, and a per-principal in-process rate limit. The single-principal
+for operators. Filing inputs have bounded bodies and fields, UUIDv4 request
+identity, ten-second inbound/GitHub timeouts, bounded GitHub concurrency and
+reconciliation scans, coalesced installation-token minting, and a per-principal
+filing/reconciliation rate limit. The single-principal
 Railway spike configuration is explicitly health-only. Relay routing is
 compiled fail-closed until #1474 and #1481,
 post-fix measurements, immutable artifact hashes, and Git ancestry bind the

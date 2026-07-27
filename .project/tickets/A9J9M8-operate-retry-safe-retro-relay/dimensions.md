@@ -32,8 +32,7 @@ and the inherited N30CKR relay state machine.
   winner between filing and ambiguity.
 - Filed payload becomes application-inaccessible at exactly 30d. This is not a
   forensic disk or backup erasure promise.
-- Terminal identity plus canonical and legacy evidence remain reserved
-  indefinitely.
+- Terminal request identity remains non-reusable indefinitely.
 - External alert delivery is at-least-once and deduplicable by stable event ID,
   not exactly once.
 

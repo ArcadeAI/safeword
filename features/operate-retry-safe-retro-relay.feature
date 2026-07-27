@@ -245,7 +245,7 @@ Feature: Operate the retry-safe retro relay
       When a caller submits changed payload bytes for that requestId
       Then the original durable identity remains authoritative
       And the changed payload is rejected
-      And canonical and legacy semantic evidence remain reserved
+      And the original request identity remains permanently non-reusable
 
     @operate-retry-safe-retro-relay.SWM1.R2
     Scenario: A compacted request immediately replays its original filed result

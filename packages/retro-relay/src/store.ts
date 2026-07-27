@@ -3,13 +3,13 @@ import { createHash, randomBytes } from 'node:crypto';
 import Database from 'better-sqlite3';
 
 import type { PayloadEnvelope } from './payload.js';
-import type { FilingReceipt, ReceiptState, RequestScope } from './types.js';
+import type { FilingReceipt, ReceiptState, RelayPrincipal, RequestScope } from './types.js';
 
-type StoredState = 'accepted' | 'claimed' | 'dispatching' | 'filed' | 'ambiguous' | 'retryable';
+type StoredState =
+  'accepted' | 'claimed' | 'dispatching' | 'filed' | 'ambiguous' | 'rejected' | 'retryable';
 
 interface RequestRow {
   accepted_at: string;
-  alias_owner_request_id: string | null;
   attempt_count: number;
   dead_lettered_at: string | null;
   dispatch_started_at: string | null;
@@ -26,6 +26,7 @@ interface RequestRow {
   repository: string;
   request_id: string;
   request_marker: string;
+  retry_deadline_at: string;
   state: StoredState;
   tenant_id: string;
   tombstoned_at: string | null;
@@ -33,7 +34,6 @@ interface RequestRow {
 
 export interface DurableRequest {
   acceptedAt: string;
-  aliasOwnerRequestId?: string;
   attemptCount: number;
   dispatchStartedAt?: string;
   envelope: PayloadEnvelope;
@@ -42,6 +42,7 @@ export interface DurableRequest {
   payloadHash: string;
   receiptId: string;
   requestMarker: string;
+  retryDeadlineAt: string;
   scope: RequestScope;
   state: ReceiptState;
 }
@@ -50,6 +51,7 @@ export interface AcceptInput {
   envelope: PayloadEnvelope;
   payloadHash: string;
   requestMarker: string;
+  retryDeadlineAt: string;
   scope: RequestScope;
 }
 
@@ -58,8 +60,6 @@ export interface MaintenanceAlert {
   receiptId: string;
   state: 'ambiguous' | 'dead-letter';
 }
-
-export class SemanticEvidenceConflictError extends Error {}
 
 type MigrationFault = (step: 'after-columns' | 'after-outbox' | 'before-version') => void;
 type ScopeRow = Pick<RequestRow, 'tenant_id' | 'installation_id' | 'repository' | 'request_id'>;
@@ -77,7 +77,6 @@ const V1_COLUMNS = [
   'state',
   'issue_number',
   'request_marker',
-  'alias_owner_request_id',
   'accepted_at',
   'filed_at',
 ] as const;
@@ -90,6 +89,7 @@ const V2_EXTRA_COLUMNS = [
   'attempt_count',
   'dispatch_started_at',
 ] as const;
+const V3_EXTRA_COLUMNS = ['retry_deadline_at'] as const;
 
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
@@ -113,6 +113,7 @@ function rowToRequest(row: RequestRow): DurableRequest {
     payloadHash: row.payload_hash,
     receiptId: row.receipt_id,
     requestMarker: row.request_marker,
+    retryDeadlineAt: row.retry_deadline_at,
     scope: {
       installationId: row.installation_id,
       repository: row.repository,
@@ -120,9 +121,6 @@ function rowToRequest(row: RequestRow): DurableRequest {
       tenantId: row.tenant_id,
     },
     state: projectedState(row),
-    ...(row.alias_owner_request_id !== null && {
-      aliasOwnerRequestId: row.alias_owner_request_id,
-    }),
     ...(row.dispatch_started_at !== null && { dispatchStartedAt: row.dispatch_started_at }),
     ...(row.issue_number !== null && { issueNumber: row.issue_number }),
   };
@@ -158,10 +156,10 @@ function exactColumns(actual: string[], expected: readonly string[]): boolean {
   return actual.length === expected.length && expected.every(column => actual.includes(column));
 }
 
-function createVersionTwo(database: Database.Database): void {
+function createVersionThree(database: Database.Database): void {
   database.exec(`
     CREATE TABLE schema_version (version INTEGER NOT NULL) STRICT;
-    INSERT INTO schema_version VALUES (2);
+    INSERT INTO schema_version VALUES (3);
 
     CREATE TABLE retro_requests (
       tenant_id TEXT NOT NULL,
@@ -174,12 +172,12 @@ function createVersionTwo(database: Database.Database): void {
       payload_ciphertext BLOB NOT NULL,
       payload_tag BLOB NOT NULL,
       state TEXT NOT NULL CHECK (state IN (
-        'accepted', 'claimed', 'dispatching', 'filed', 'ambiguous', 'retryable'
+        'accepted', 'claimed', 'dispatching', 'filed', 'ambiguous', 'rejected', 'retryable'
       )),
       issue_number INTEGER,
       request_marker TEXT NOT NULL,
-      alias_owner_request_id TEXT,
       accepted_at TEXT NOT NULL,
+      retry_deadline_at TEXT NOT NULL,
       filed_at TEXT,
       dead_lettered_at TEXT,
       tombstoned_at TEXT,
@@ -188,18 +186,6 @@ function createVersionTwo(database: Database.Database): void {
       attempt_count INTEGER NOT NULL DEFAULT 0,
       dispatch_started_at TEXT,
       PRIMARY KEY (tenant_id, installation_id, repository, request_id)
-    ) STRICT;
-
-    CREATE TABLE semantic_evidence (
-      kind TEXT NOT NULL,
-      value TEXT NOT NULL,
-      tenant_id TEXT NOT NULL,
-      installation_id INTEGER NOT NULL,
-      repository TEXT NOT NULL,
-      request_id TEXT NOT NULL,
-      PRIMARY KEY (tenant_id, installation_id, repository, kind, value),
-      FOREIGN KEY (tenant_id, installation_id, repository, request_id)
-        REFERENCES retro_requests (tenant_id, installation_id, repository, request_id)
     ) STRICT;
 
     CREATE TABLE reconciliation_audit (
@@ -234,12 +220,12 @@ function readSchemaVersion(database: Database.Database): number {
   return version;
 }
 
-function validateVersionTwo(database: Database.Database): void {
-  const expected = [...V1_COLUMNS, ...V2_EXTRA_COLUMNS];
+function validateVersionThree(database: Database.Database): void {
+  const expected = [...V1_COLUMNS, ...V2_EXTRA_COLUMNS, ...V3_EXTRA_COLUMNS];
   if (!exactColumns(columns(database, 'retro_requests'), expected)) {
-    throw new Error('schema version two layout is partial or incompatible');
+    throw new Error('schema version three layout is partial or incompatible');
   }
-  for (const table of ['semantic_evidence', 'reconciliation_audit', 'alert_outbox']) {
+  for (const table of ['reconciliation_audit', 'alert_outbox']) {
     if (!tableExists(database, table)) throw new Error(`schema table ${table} is missing`);
   }
 }
@@ -256,7 +242,11 @@ function migrateVersionOne(database: Database.Database, fault?: MigrationFault):
       ALTER TABLE retro_requests ADD COLUMN next_attempt_at TEXT;
       ALTER TABLE retro_requests ADD COLUMN attempt_count INTEGER NOT NULL DEFAULT 0;
       ALTER TABLE retro_requests ADD COLUMN dispatch_started_at TEXT;
+      ALTER TABLE retro_requests ADD COLUMN retry_deadline_at TEXT;
       UPDATE retro_requests SET next_attempt_at = accepted_at WHERE next_attempt_at IS NULL;
+      UPDATE retro_requests
+      SET retry_deadline_at = strftime('%Y-%m-%dT%H:%M:%fZ', accepted_at, '+24 hours')
+      WHERE retry_deadline_at IS NULL;
     `);
     fault?.('after-columns');
     database.exec(`
@@ -271,7 +261,23 @@ function migrateVersionOne(database: Database.Database, fault?: MigrationFault):
     `);
     fault?.('after-outbox');
     fault?.('before-version');
-    database.exec('UPDATE schema_version SET version = 2;');
+    database.exec('UPDATE schema_version SET version = 3;');
+  });
+  migrate.immediate();
+}
+
+function migrateVersionTwo(database: Database.Database): void {
+  if (!exactColumns(columns(database, 'retro_requests'), [...V1_COLUMNS, ...V2_EXTRA_COLUMNS])) {
+    throw new Error('schema version two layout is partial or incompatible');
+  }
+  const migrate = database.transaction(() => {
+    database.exec(`
+      ALTER TABLE retro_requests ADD COLUMN retry_deadline_at TEXT;
+      UPDATE retro_requests
+      SET retry_deadline_at = strftime('%Y-%m-%dT%H:%M:%fZ', accepted_at, '+24 hours')
+      WHERE retry_deadline_at IS NULL;
+      UPDATE schema_version SET version = 3;
+    `);
   });
   migrate.immediate();
 }
@@ -281,13 +287,27 @@ function prepareDatabase(
   fault?: (step: 'after-columns' | 'after-outbox' | 'before-version') => void,
 ): void {
   if (!tableExists(database, 'schema_version')) {
-    createVersionTwo(database);
+    createVersionThree(database);
     return;
   }
   const version = readSchemaVersion(database);
-  if (version === 1) migrateVersionOne(database, fault);
-  else if (version === 2) validateVersionTwo(database);
-  else throw new Error(`schema version ${version} is newer than this relay`);
+  switch (version) {
+    case 1: {
+      migrateVersionOne(database, fault);
+      break;
+    }
+    case 2: {
+      migrateVersionTwo(database);
+      break;
+    }
+    case 3: {
+      validateVersionThree(database);
+      break;
+    }
+    default: {
+      throw new Error(`schema version ${version} is newer than this relay`);
+    }
+  }
 }
 
 function alertId(receiptId: string, state: string): string {
@@ -308,7 +328,7 @@ export class RelayStore {
       database.pragma('synchronous = FULL');
       database.pragma('foreign_keys = ON');
       prepareDatabase(database, options.migrationFault);
-      validateVersionTwo(database);
+      validateVersionThree(database);
       return new RelayStore(database, options.now ?? (() => new Date()));
     } catch (error) {
       database.close();
@@ -324,31 +344,22 @@ export class RelayStore {
     this.#now = now;
   }
 
-  #resolvedAliasReceipt(record: DurableRequest): FilingReceipt {
-    if (record.aliasOwnerRequestId === undefined) return receipt(record);
-    const owner = this.load({ ...record.scope, requestId: record.aliasOwnerRequestId });
-    if (owner?.state === 'filed' && owner.issueNumber !== undefined && record.state !== 'filed') {
-      return this.markFiled(record.scope, owner.issueNumber, this.#now());
-    }
-    if (owner?.state === 'ambiguous' && record.state !== 'ambiguous') {
-      this.markAmbiguous(record.scope);
-      const quarantined = this.load(record.scope);
-      if (quarantined === undefined) throw new Error('alias request disappeared');
-      return receipt(quarantined);
-    }
-    return receipt(record);
-  }
-
   accept(input: AcceptInput): { inserted: boolean; record: DurableRequest } {
-    const acceptedAt = this.#now().toISOString();
+    const acceptedAtDate = this.#now();
+    const acceptedAt = acceptedAtDate.toISOString();
+    const suppliedDeadline = new Date(input.retryDeadlineAt);
+    const maximumDeadline = new Date(acceptedAtDate.getTime() + DAY_MS);
+    const retryDeadlineAt = new Date(
+      Math.min(suppliedDeadline.getTime(), maximumDeadline.getTime()),
+    ).toISOString();
     const receiptId = randomBytes(32).toString('base64url');
     const result = this.#database
       .prepare(
         `INSERT INTO retro_requests (
           tenant_id, installation_id, repository, request_id, receipt_id,
           payload_hash, payload_nonce, payload_ciphertext, payload_tag,
-          state, issue_number, request_marker, accepted_at, next_attempt_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'accepted', NULL, ?, ?, ?)
+          state, issue_number, request_marker, accepted_at, retry_deadline_at, next_attempt_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'accepted', NULL, ?, ?, ?, ?)
         ON CONFLICT (tenant_id, installation_id, repository, request_id) DO NOTHING`,
       )
       .run(
@@ -363,6 +374,7 @@ export class RelayStore {
         input.envelope.tag,
         input.requestMarker,
         acceptedAt,
+        retryDeadlineAt,
         acceptedAt,
       );
     const record = this.load(input.scope);
@@ -379,7 +391,7 @@ export class RelayStore {
            WHERE tenant_id = ? AND installation_id = ? AND repository = ?
              AND request_id = ? AND state IN ('accepted', 'retryable')
              AND dead_lettered_at IS NULL
-             AND julianday(?) < julianday(accepted_at, '+24 hours')`,
+             AND julianday(?) < julianday(retry_deadline_at)`,
         )
         .run(
           scope.tenantId,
@@ -398,7 +410,7 @@ export class RelayStore {
          FROM retro_requests
          WHERE state IN ('accepted', 'retryable') AND dead_lettered_at IS NULL
            AND next_attempt_at <= ?
-           AND julianday(?) < julianday(accepted_at, '+24 hours')
+           AND julianday(?) < julianday(retry_deadline_at)
          ORDER BY next_attempt_at, accepted_at LIMIT ?`,
       )
       .all(now.toISOString(), now.toISOString(), limit);
@@ -424,7 +436,7 @@ export class RelayStore {
           `UPDATE retro_requests SET state = 'dispatching', dispatch_started_at = ?
            WHERE tenant_id = ? AND installation_id = ? AND repository = ?
              AND request_id = ? AND state = 'claimed' AND dead_lettered_at IS NULL
-             AND julianday(?) < julianday(accepted_at, '+24 hours')`,
+             AND julianday(?) < julianday(retry_deadline_at)`,
         )
         .run(
           now.toISOString(),
@@ -459,30 +471,17 @@ export class RelayStore {
     return row === undefined ? undefined : rowToRequest(row);
   }
 
-  loadByReceipt(receiptId: string): DurableRequest | undefined {
+  loadByReceiptForPrincipal(
+    receiptId: string,
+    principal: Pick<RelayPrincipal, 'installationId' | 'repository' | 'tenantId'>,
+  ): DurableRequest | undefined {
     const row = this.#database
-      .prepare<[string], RequestRow>('SELECT * FROM retro_requests WHERE receipt_id = ?')
-      .get(receiptId);
-    return row === undefined ? undefined : rowToRequest(row);
-  }
-
-  linkAlias(scope: RequestScope, owner: DurableRequest): FilingReceipt {
-    this.#database
-      .prepare(
-        `UPDATE retro_requests SET alias_owner_request_id = ?
-         WHERE tenant_id = ? AND installation_id = ? AND repository = ?
-           AND request_id = ? AND state = 'claimed' AND dead_lettered_at IS NULL`,
+      .prepare<[string, string, number, string], RequestRow>(
+        `SELECT * FROM retro_requests
+         WHERE receipt_id = ? AND tenant_id = ? AND installation_id = ? AND repository = ?`,
       )
-      .run(
-        owner.scope.requestId,
-        scope.tenantId,
-        scope.installationId,
-        scope.repository,
-        scope.requestId,
-      );
-    const linked = this.receipt(scope);
-    if (linked === undefined) throw new Error('alias request disappeared');
-    return linked;
+      .get(receiptId, principal.tenantId, principal.installationId, principal.repository);
+    return row === undefined ? undefined : rowToRequest(row);
   }
 
   markAmbiguous(scope: RequestScope, now = this.#now()): void {
@@ -508,9 +507,9 @@ export class RelayStore {
          WHERE tenant_id = ? AND installation_id = ? AND repository = ? AND request_id = ?
            AND dead_lettered_at IS NULL AND tombstoned_at IS NULL
            AND (
-             (state = 'claimed' AND julianday(?) < julianday(accepted_at, '+24 hours'))
+             (state = 'claimed' AND julianday(?) < julianday(retry_deadline_at))
              OR
-             (state = 'dispatching' AND julianday(?) < julianday(accepted_at, '+25 hours'))
+             (state = 'dispatching' AND julianday(?) < julianday(retry_deadline_at, '+1 hour'))
            )`,
       )
       .run(
@@ -550,10 +549,30 @@ export class RelayStore {
     return receipt(record);
   }
 
+  markRejected(scope: RequestScope, now = this.#now()): FilingReceipt {
+    const result = this.#database
+      .prepare(
+        `UPDATE retro_requests SET state = 'rejected', filed_at = ?
+         WHERE tenant_id = ? AND installation_id = ? AND repository = ? AND request_id = ?
+           AND state = 'dispatching' AND dead_lettered_at IS NULL`,
+      )
+      .run(
+        now.toISOString(),
+        scope.tenantId,
+        scope.installationId,
+        scope.repository,
+        scope.requestId,
+      );
+    if (result.changes !== 1) throw new Error('rejection transition lost');
+    const record = this.load(scope);
+    if (record === undefined) throw new Error('rejected request disappeared');
+    return receipt(record);
+  }
+
   markRetryable(scope: RequestScope, now = this.#now()): void {
     const record = this.load(scope);
     if (record === undefined) return;
-    const deadline = new Date(new Date(record.acceptedAt).getTime() + DAY_MS);
+    const deadline = new Date(record.retryDeadlineAt);
     const backoff = Math.min(2 ** Math.max(record.attemptCount - 1, 0) * 60_000, HOUR_MS);
     const nextAttempt = new Date(Math.min(now.getTime() + backoff, deadline.getTime()));
     this.#database
@@ -574,12 +593,7 @@ export class RelayStore {
 
   receipt(scope: RequestScope): FilingReceipt | undefined {
     const record = this.load(scope);
-    return record === undefined ? undefined : this.#resolvedAliasReceipt(record);
-  }
-
-  receiptById(receiptId: string): FilingReceipt | undefined {
-    const record = this.loadByReceipt(receiptId);
-    return record === undefined ? undefined : this.#resolvedAliasReceipt(record);
+    return record === undefined ? undefined : receipt(record);
   }
 
   recordReconciliation(
@@ -613,80 +627,6 @@ export class RelayStore {
         disposition: row.disposition,
         matchCount: row.match_count,
       }));
-  }
-
-  reserveEvidence(
-    scope: RequestScope,
-    evidence: { kind: 'canonical' | 'legacy'; value: string }[],
-  ): DurableRequest {
-    const reserve = this.#database.transaction(() => {
-      let existingOwner: DurableRequest | undefined;
-      for (const item of evidence) {
-        const owner = this.#database
-          .prepare<[string, number, string, string, string], ScopeRow>(
-            `SELECT tenant_id, installation_id, repository, request_id
-             FROM semantic_evidence
-             WHERE tenant_id = ? AND installation_id = ? AND repository = ?
-               AND kind = ? AND value = ?`,
-          )
-          .get(scope.tenantId, scope.installationId, scope.repository, item.kind, item.value);
-        if (owner === undefined) continue;
-        const record = this.load({
-          installationId: owner.installation_id,
-          repository: owner.repository,
-          requestId: owner.request_id,
-          tenantId: owner.tenant_id,
-        });
-        if (record === undefined) throw new Error('evidence owner disappeared');
-        if (
-          existingOwner !== undefined &&
-          existingOwner.scope.requestId !== record.scope.requestId
-        ) {
-          throw new SemanticEvidenceConflictError(
-            'canonical and legacy evidence belong to different requests',
-          );
-        }
-        existingOwner = record;
-      }
-      if (existingOwner !== undefined) return existingOwner;
-      for (const item of evidence) {
-        this.#database
-          .prepare(
-            `INSERT INTO semantic_evidence (
-              kind, value, tenant_id, installation_id, repository, request_id
-            ) VALUES (?, ?, ?, ?, ?, ?)`,
-          )
-          .run(
-            item.kind,
-            item.value,
-            scope.tenantId,
-            scope.installationId,
-            scope.repository,
-            scope.requestId,
-          );
-      }
-      const record = this.load(scope);
-      if (record === undefined) throw new Error('evidence request disappeared');
-      return record;
-    });
-    return reserve.immediate();
-  }
-
-  evidenceOwner(kind: 'canonical' | 'legacy', value: string): DurableRequest | undefined {
-    const row = this.#database
-      .prepare<[string, string], ScopeRow>(
-        `SELECT tenant_id, installation_id, repository, request_id
-         FROM semantic_evidence WHERE kind = ? AND value = ?`,
-      )
-      .get(kind, value);
-    return row === undefined
-      ? undefined
-      : this.load({
-          installationId: row.installation_id,
-          repository: row.repository,
-          requestId: row.request_id,
-          tenantId: row.tenant_id,
-        });
   }
 
   schemaVersion(): number {
@@ -724,7 +664,7 @@ export class RelayStore {
           `SELECT receipt_id FROM retro_requests
            WHERE state IN ('accepted', 'retryable', 'claimed')
              AND dead_lettered_at IS NULL
-             AND julianday(?) >= julianday(accepted_at, '+24 hours')`,
+             AND julianday(?) >= julianday(retry_deadline_at)`,
         )
         .all(now.toISOString());
       for (const item of deadLetters) {
@@ -733,7 +673,7 @@ export class RelayStore {
             `UPDATE retro_requests SET dead_lettered_at = ?
              WHERE receipt_id = ? AND state IN ('accepted', 'retryable', 'claimed')
                AND dead_lettered_at IS NULL
-               AND julianday(?) >= julianday(accepted_at, '+24 hours')`,
+               AND julianday(?) >= julianday(retry_deadline_at)`,
           )
           .run(now.toISOString(), item.receipt_id, now.toISOString());
         if (result.changes === 1) {
@@ -746,7 +686,7 @@ export class RelayStore {
         .prepare<[string], Pick<RequestRow, 'receipt_id'>>(
           `SELECT receipt_id FROM retro_requests
            WHERE state = 'dispatching' AND dead_lettered_at IS NULL
-             AND julianday(?) >= julianday(accepted_at, '+25 hours')`,
+             AND julianday(?) >= julianday(retry_deadline_at, '+1 hour')`,
         )
         .all(now.toISOString());
       for (const item of ambiguous) {
@@ -754,7 +694,7 @@ export class RelayStore {
           .prepare(
             `UPDATE retro_requests SET state = 'ambiguous'
              WHERE receipt_id = ? AND state = 'dispatching'
-               AND julianday(?) >= julianday(accepted_at, '+25 hours')`,
+               AND julianday(?) >= julianday(retry_deadline_at, '+1 hour')`,
           )
           .run(item.receipt_id, now.toISOString());
         if (result.changes === 1) {
@@ -822,6 +762,7 @@ export class RelayStore {
       'dead-letter': 0,
       dispatching: 0,
       filed: 0,
+      rejected: 0,
       retryable: 0,
       tombstone: 0,
     } satisfies Record<ReceiptState, number>;
@@ -834,7 +775,7 @@ export class RelayStore {
     return {
       counts,
       oldestQueuedAgeSeconds: Math.max(0, Math.floor((now.getTime() - oldest) / 1000)),
-      schemaVersion: 2,
+      schemaVersion: 3,
     };
   }
 }

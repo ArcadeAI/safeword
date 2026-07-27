@@ -2,7 +2,7 @@
 
 import { setTimeout as delay } from 'node:timers/promises';
 
-import type { FileRetroDraftRequest, FilingReceipt } from './types.js';
+import type { FileRetroDraftRequest, FilingReceipt } from '../../src/types.js';
 
 function retryAfterMilliseconds(response: Response): number {
   const seconds = Number(response.headers.get('retry-after') ?? '1');
@@ -10,7 +10,7 @@ function retryAfterMilliseconds(response: Response): number {
 }
 
 function isFiledResult(receipt: FilingReceipt): boolean {
-  return receipt.state === 'filed' || receipt.state === 'tombstone';
+  return ['dead-letter', 'filed', 'rejected', 'tombstone'].includes(receipt.state);
 }
 
 export class RelayClientError extends Error {

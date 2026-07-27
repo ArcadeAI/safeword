@@ -98,7 +98,7 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
   const maxRequestsPerWindow = input.resourceLimits?.maxRequestsPerWindow ?? 60;
   const rateWindowMs = input.resourceLimits?.windowMs ?? 60_000;
   const rateWindows = new Map<string, { count: number; startedAt: number }>();
-  const consumeFilingCapacity = (credentialId: string): boolean => {
+  const consumeRequestCapacity = (credentialId: string): boolean => {
     const now = (input.now?.() ?? new Date()).getTime();
     const current = rateWindows.get(credentialId);
     if (current === undefined || now - current.startedAt >= rateWindowMs) {
@@ -184,7 +184,7 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
         return;
       }
       if (request.method === 'POST' && url.pathname === '/v1/retro-filings') {
-        if (!consumeFilingCapacity(principal.credentialId)) {
+        if (!consumeRequestCapacity(principal.credentialId)) {
           throw new RelayError(429, 'relay filing rate limit exceeded');
         }
         const receipt = await service.submit(
@@ -208,13 +208,19 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
           response.destroy();
           return;
         }
-        const filed = receipt.state === 'filed' || receipt.state === 'tombstone';
-        if (!filed) response.setHeader('retry-after', '1');
-        sendJson(response, filed ? 201 : 202, receipt);
+        const terminal = ['dead-letter', 'filed', 'rejected', 'tombstone'].includes(receipt.state);
+        if (!terminal) response.setHeader('retry-after', '1');
+        let statusCode = 202;
+        if (receipt.state === 'filed') statusCode = 201;
+        else if (terminal) statusCode = 200;
+        sendJson(response, statusCode, receipt);
         return;
       }
       const reconciliation = /^\/v1\/retro-filings\/([^/]+)\/reconcile$/u.exec(url.pathname);
       if (request.method === 'POST' && reconciliation?.[1] !== undefined) {
+        if (!consumeRequestCapacity(principal.credentialId)) {
+          throw new RelayError(429, 'relay reconciliation rate limit exceeded');
+        }
         const decodedReceipt = decodeURIComponent(reconciliation[1]);
         try {
           const receipt = await service.reconcile(principal, decodedReceipt);
@@ -254,7 +260,7 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
       const status = /^\/v1\/retro-filings\/([^/]+)$/u.exec(url.pathname);
       if (request.method === 'GET' && status?.[1] !== undefined) {
         const receipt = service.status(principal, decodeURIComponent(status[1]));
-        if (receipt.state !== 'filed' && receipt.state !== 'tombstone') {
+        if (!['dead-letter', 'filed', 'rejected', 'tombstone'].includes(receipt.state)) {
           response.setHeader('retry-after', '1');
         }
         sendJson(response, 200, receipt);

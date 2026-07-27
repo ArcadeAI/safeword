@@ -14,9 +14,9 @@ retirement complete.
 
 ## Runtime and components
 
-`packages/retro-relay` is a Node 22 service package, separate from the
-published CLI. It uses `better-sqlite3` 13.0.1 on the repository's exact minimum
-Node 22.22.3 runtime; it does not use experimental `node:sqlite`.
+`packages/retro-relay` is a Node service package, separate from the published
+CLI. Its production image uses Node 24.18.0 and `better-sqlite3` 13.0.1; it
+does not use experimental `node:sqlite`.
 
 ```text
 named harness adapter → HTTP client → authenticated relay route
@@ -53,8 +53,10 @@ interface Principal {
 ```
 
 The primary key is `(tenant_id, installation_id, repository, request_id)`.
-Harness and subject are audit fields, never identity fields. The versioned
-payload hash covers canonical repository, semantic evidence, exact title/body,
+The HTTP boundary accepts only UUIDv4 request IDs, preventing session text or
+other private identifiers from entering plaintext indexes. Harness and subject
+are audit fields, never identity fields. The versioned
+payload hash covers canonical repository, request identity and deadline, exact title/body,
 and sorted unique labels. The stored hash version prevents later normalization
 changes from reinterpreting tombstones.
 
@@ -66,19 +68,28 @@ payload-hash version. Decryption or key lookup failure fails closed before
 dispatch. Compaction deletes the envelope while retaining identity, versioned
 hash, and issue receipt in the indefinite tombstone.
 
-Named Claude/Cursor/Codex adapters all accept a persisted request object; they
-cannot generate or replace `requestId`. Their public `file()` call POSTs the
-same body, then follows the receipt status endpoint until a terminal caller
-outcome. A 202 response never acknowledges a spool.
+The shared CLI transport accepts an explicitly persisted request object; it
+cannot generate or replace `requestId` while retrying. Fresh runtimes must be
+handed those exact persisted bytes rather than infer identity from payload
+content. The immutable client record also persists `createdAt` and
+`retryDeadlineAt = createdAt + 24h`; at the deadline it moves to a visible
+local dead letter without network access. A 202 response never acknowledges a
+spool.
+
+A hashed session, delta-window boundary, and encounter slot is local
+correlation metadata only. It retains the UUID for an exact extraction
+occurrence across retry, including after acknowledgement or dead letter, while
+later fires and distinct slots spool independently. The field is stripped from
+the wire and never participates in server duplicate decisions.
 
 ## Durable schema and concurrency
 
 SQLite runs `journal_mode=WAL`, `synchronous=FULL`, `foreign_keys=ON`, a five
 second busy timeout, STRICT tables, and a schema-version migration transaction.
-The request primary key and exact semantic-evidence unique index are database
-constraints. `BEGIN IMMEDIATE` plus compare-and-swap transitions elects one
-creator across independent connections. `SQLITE_BUSY` within the bounded busy
-timeout becomes a retryable relay result; uniqueness is never weakened.
+The request primary key is the only dedupe database constraint in this slice.
+`BEGIN IMMEDIATE` plus compare-and-swap transitions elects one creator across
+independent connections. Semantic-evidence uniqueness is not built until #1474
+and #1481 land and the collision rate is remeasured.
 
 The supported topology is one active relay process on one host. A process lock
 prevents a second server from opening the production database. Tests open two
@@ -116,16 +127,16 @@ accepted → claimed → dispatching → filed
 | dispatching | response missing or process reopens | ambiguous | never dispatch again |
 | ambiguous | admin raw-marker verification finds exactly one issue | filed | return stored filed receipt |
 
-## Destination maintenance policy (resolved, not implemented in this slice)
+## Destination maintenance policy
 
-A later `maintenance worker` owns periodic database sweeps. One process-local
-timer wakes it; every transition is a database CAS, so shutdown/restart is
-harmless and no timer state is trusted. Minimal service-open recovery of
-`claimed` and `dispatching` is part of this slice because crash safety depends
-on it; the worker later reuses the same idempotent recovery transaction.
+The maintenance worker owns periodic database sweeps. One process-local timer
+wakes it; every transition is a database CAS, so shutdown/restart is harmless
+and no timer state is trusted. Service-open recovery changes `claimed` to
+`retryable` and `dispatching` to `ambiguous`.
 
-- Server-persisted `accepted_at` derives
-  `retry_deadline_at = accepted_at + 24h` and `grace_until = accepted_at + 25h`.
+- The client sends its absolute `retryDeadlineAt = createdAt + 24h`. The server
+  persists `min(retryDeadlineAt, accepted_at + 24h)` so delayed acceptance
+  cannot restart or extend the retry window; grace ends one hour later.
 - At `now >= retry_deadline_at`, `accepted|retryable|claimed` becomes alerted
   `dead-letter`; creator claims require `now < retry_deadline_at`.
 - A dispatch committed before the deadline may persist a known issue through
@@ -141,7 +152,7 @@ on it; the worker later reuses the same idempotent recovery transaction.
 The maintenance slice must test deadline−ε/deadline, grace−ε/grace,
 compaction−ε/compaction, and interleaved issue-number/ambiguity CAS races.
 
-## Ambiguous and legacy reconciliation
+## Ambiguous reconciliation
 
 The create body contains one reserved request marker. Its digest input is
 versioned, length-prefixed UTF-8 fields—not concatenated strings:
@@ -163,26 +174,14 @@ pagination, and pull-request filtering.
 - one: fetch that issue raw, re-verify marker and repository, then CAS to filed;
 - multiple: remain ambiguous and alert.
 
-For migration, canonical and legacy markers use the local source-of-truth
-grammars already emitted by `packages/cli/src/retro/draft.ts`:
-`<!-- safeword-retro-canonical: <canonicalSignature> -->` and
-`<!-- safeword-retro-signature: <signature> -->`. The relay imports a shared
-parser/formatter extracted from that module so the grammar is not duplicated.
-A complete scan with one match atomically registers the semantic evidence and
-adopts it. Scan failure, incomplete pagination, or multiple matches is
-retryable and cannot authorize creation. A complete zero-match scan may create
-only after the semantic-evidence reservation commits; concurrent different
-requestIds sharing the evidence converge on that reservation. Different
-semantic identities remain allowed to create different issues, per #1479's
-explicit non-goal.
-
-If canonical and legacy evidence resolve to different issues, or the evidence
-reservation owner is ambiguous, the request is quarantined and alerted. No
-precedence guess or create is allowed. An operator with the scoped `reconcile`
-role invokes `POST /v1/retro-filings/{requestId}/reconcile`. Zero/multiple/
-conflicting matches remain quarantined. For a true zero-match dispatch-window
-case, the safe resolution is to manually create the reserved-marker issue and
-re-run reconciliation; no fresh requestId escapes the durable record.
+Canonical/legacy marker adoption and cross-request semantic reservations are
+not implemented in this slice. They remain behind the explicit #1474/#1481 and
+remeasurement gate in the canonical issue. An operator with the scoped
+`reconcile` role invokes `POST /v1/retro-filings/{receiptId}/reconcile`.
+Zero, multiple, or incomplete request-marker scans remain quarantined. For a
+true zero-match dispatch-window case, the safe resolution is to manually create
+the reserved-marker issue and re-run reconciliation; no fresh requestId escapes
+the durable record.
 
 Sanitized MCP reads are absent from the service interface. Test fixtures may
 provide an MCP representation only to prove it has no effect. Neither marker
@@ -196,8 +195,8 @@ presence nor absence there can authorize or suppress creation.
 | `GET /v1/retro-filings/{receiptId}` | active harness credential | opaque locator plus row-scope authorization; wrong scope is non-enumerating 404 |
 | `POST /v1/retro-filings/{receiptId}/reconcile` | active operator credential with `reconcile` role | opaque locator plus row-scope authorization; every disposition is audit-recorded |
 
-POST returns 201 for `filed|existing`, 202 with `Retry-After` for nonterminal
-receipts, 409 for mismatch, 401 for missing/invalid/expired/revoked
+POST returns 201 for `filed`, 200 for terminal `rejected|dead-letter|tombstone`,
+202 with `Retry-After` for nonterminal receipts, 409 for mismatch, 401 for missing/invalid/expired/revoked
 authentication, and 403 for a known principal lacking repository permission.
 Adapters poll only within a configured call budget; timeout leaves the spool
 unacknowledged and returns the latest receipt. They honor the relay's
@@ -208,11 +207,9 @@ acceptance and stored under a unique index. It is addressing material, not
 request identity: retries still resolve exclusively by the
 transport-independent primary key and return the same locator.
 
-When different request identities converge on the same canonical or legacy
-evidence, the losing request is durably linked as an alias of the evidence
-owner. It retains its own request identity and receipt locator; status
-resolution copies the owner's terminal issue number into the alias row without
-another GitHub create.
+Different request identities remain distinct even when their semantic evidence
+matches. That is #1479's stated non-goal until the prerequisite measurement
+justifies a semantic uniqueness mechanism.
 
 ## Authentication, authorization, and secrets
 
@@ -253,15 +250,16 @@ access.
 This slice proves credential parsing/verification, repository ACL enforcement,
 operator-role enforcement on reconciliation, non-enumerating receipt lookup,
 server-side repository-scoped token use, encrypted payload persistence, and
-secret-safe durable/log/metric evidence. Trusted-proxy deployment enforcement,
-rotation administration, token-cache invalidation, rate limiting, production
-input bounds, alert delivery, and dashboard plumbing are resolved destination
-requirements but explicitly deferred to rollout hardening. They are not
-claimed as verified by this ticket.
+secret-safe durable/log/metric evidence. Production input bounds,
+per-principal filing and reconciliation limits, ten-second GitHub deadlines,
+bounded outbound concurrency, overall reconciliation page/time budgets, durable
+alert delivery, token caching, and same-scope mint coalescing are implemented.
+Trusted-proxy enforcement, rotation administration, and dashboard
+plumbing remain rollout work.
 
 The destination policy is 24-hour retry, one-hour dispatch grace, 30-day filed
-payload retention, and indefinite tombstones. This slice persists the required
-timestamps but does not ship its maintenance worker.
+payload retention, and indefinite tombstones. The client and server both
+enforce that policy and the server runs its maintenance worker.
 
 GitHub #834 is the credential-absence problem this boundary is intended to replace.
 It is not yet superseded operationally. Closure/supersession requires deployed

@@ -4,7 +4,8 @@
 
 Give every supported harness one durable filing operation so retrying the same
 persisted retro request cannot lose the finding or create another GitHub issue.
-Request idempotency is deliberately separate from best-effort semantic dedupe.
+This slice implements request idempotency only. Semantic dedupe is deliberately
+deferred until #1474 and #1481 land and the collision rate is remeasured.
 
 ## Intake Brief
 
@@ -51,8 +52,8 @@ Unaffected:
 
 - **Request identity:** the caller-generated `requestId`, persisted before the
   first delivery and reused verbatim across harnesses.
-- **Semantic evidence:** versioned canonical and legacy markers used only to
-  migrate existing issues, never as the idempotency token.
+- **Semantic evidence:** versioned canonical and legacy keys carried in the
+  approved encrypted payload, but not consulted for dedupe in this slice.
 - **Ambiguous:** GitHub may have created the issue, but the relay did not
   durably persist the issue number.
 - **Tombstone:** the payload-free, non-reusable durable record that preserves a
@@ -100,8 +101,11 @@ skip: internal reliability plumbing; the observable outcome is table-stakes.
   or automatic second create occurs.
 - The destination policy is fixed at a 24-hour automatic retry deadline,
   one-hour in-flight grace, 30-day resolved-payload retention, and indefinite
-  tombstones; its maintenance worker is a later slice.
-- Existing marker identity is adopted only from raw REST Markdown bodies.
+  tombstones; both client and server enforce the deadline and the server runs
+  the maintenance worker.
+- Ambiguous request markers are reconciled only from raw REST Markdown bodies.
+- Existing canonical/legacy marker adoption and cross-request aliasing remain
+  deferred behind #1474, #1481, and collision remeasurement.
 - Relay credentials authorize a tenant, installation, and repository; the
   server-held GitHub token is never stored with request payloads.
 

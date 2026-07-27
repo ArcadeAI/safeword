@@ -1,5 +1,6 @@
 export interface FileRetroDraftRequest {
   requestId: string;
+  retryDeadlineAt: string;
   installationId: number;
   repository: string;
   canonicalKey: string;
@@ -27,6 +28,7 @@ export type ReceiptState =
   | 'ambiguous'
   | 'retryable'
   | 'dead-letter'
+  | 'rejected'
   | 'tombstone';
 
 export interface FilingReceipt {

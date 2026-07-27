@@ -45,6 +45,7 @@ function accept(store: RelayStore, requestId: string) {
     },
     payloadHash: `hash-${requestId}`,
     requestMarker: `<!-- request:${requestId} -->`,
+    retryDeadlineAt: '2099-01-01T00:00:00.000Z',
     scope: scope(requestId),
   });
 }
@@ -67,19 +68,9 @@ function createVersionOne(databaseFile: string): void {
       state TEXT NOT NULL,
       issue_number INTEGER,
       request_marker TEXT NOT NULL,
-      alias_owner_request_id TEXT,
       accepted_at TEXT NOT NULL,
       filed_at TEXT,
       PRIMARY KEY (tenant_id, installation_id, repository, request_id)
-    ) STRICT;
-    CREATE TABLE semantic_evidence (
-      kind TEXT NOT NULL,
-      value TEXT NOT NULL,
-      tenant_id TEXT NOT NULL,
-      installation_id INTEGER NOT NULL,
-      repository TEXT NOT NULL,
-      request_id TEXT NOT NULL,
-      PRIMARY KEY (tenant_id, installation_id, repository, kind, value)
     ) STRICT;
     CREATE TABLE reconciliation_audit (
       audit_id INTEGER PRIMARY KEY,
@@ -93,7 +84,39 @@ function createVersionOne(databaseFile: string): void {
   database.close();
 }
 
-describe('schema version two migration', () => {
+function createVersionTwo(databaseFile: string): void {
+  createVersionOne(databaseFile);
+  const database = new Database(databaseFile);
+  database.exec(`
+    ALTER TABLE retro_requests ADD COLUMN dead_lettered_at TEXT;
+    ALTER TABLE retro_requests ADD COLUMN tombstoned_at TEXT;
+    ALTER TABLE retro_requests ADD COLUMN payload_compacted_at TEXT;
+    ALTER TABLE retro_requests ADD COLUMN next_attempt_at TEXT;
+    ALTER TABLE retro_requests ADD COLUMN attempt_count INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE retro_requests ADD COLUMN dispatch_started_at TEXT;
+    CREATE TABLE alert_outbox (
+      event_id TEXT PRIMARY KEY,
+      receipt_id TEXT NOT NULL,
+      state TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      delivered_at TEXT
+    ) STRICT;
+    INSERT INTO retro_requests (
+      tenant_id, installation_id, repository, request_id, receipt_id,
+      payload_hash, payload_nonce, payload_ciphertext, payload_tag, state,
+      issue_number, request_marker, accepted_at, filed_at, next_attempt_at
+    ) VALUES (
+      'tenant-1', 42, 'arcadeai/safeword', 'migrated-v2', 'receipt-v2',
+      'hash-v2', x'01', x'02', x'03', 'accepted',
+      NULL, '<!-- request:migrated-v2 -->', '2026-01-01T00:00:00.000Z', NULL,
+      '2026-01-01T00:00:00.000Z'
+    );
+    UPDATE schema_version SET version = 2;
+  `);
+  database.close();
+}
+
+describe('schema version three migration', () => {
   it('rolls back every migration mutation when an injected step fails', () => {
     const file = databasePath();
     createVersionOne(file);
@@ -118,7 +141,7 @@ describe('schema version two migration', () => {
     database.close();
 
     const migrated = RelayStore.open(file);
-    expect(migrated.schemaVersion()).toBe(2);
+    expect(migrated.schemaVersion()).toBe(3);
     migrated.close();
   });
 
@@ -151,6 +174,17 @@ describe('schema version two migration', () => {
       expect(() => RelayStore.open(file)).toThrow(/schema/u);
     },
   );
+
+  it('upgrades the deployed version-two layout with a durable retry deadline', () => {
+    const file = databasePath();
+    createVersionTwo(file);
+
+    const store = RelayStore.open(file);
+
+    expect(store.schemaVersion()).toBe(3);
+    expect(store.load(scope('migrated-v2'))?.retryDeadlineAt).toBe('2026-01-02T00:00:00.000Z');
+    store.close();
+  });
 });
 
 describe('durable retry and terminal lifecycle', () => {
@@ -193,6 +227,32 @@ describe('durable retry and terminal lifecycle', () => {
     store.close();
   });
 
+  it('uses the caller deadline across delayed acceptance and caps attempted extensions', () => {
+    const file = databasePath();
+    const acceptedAt = new Date('2026-01-01T23:59:00.000Z');
+    const store = RelayStore.open(file, { now: () => acceptedAt });
+    const sharedDeadline = '2026-01-02T00:00:00.000Z';
+    store.accept({
+      envelope: {
+        ciphertext: Buffer.from('shared-deadline'),
+        nonce: Buffer.alloc(12, 1),
+        tag: Buffer.alloc(16, 2),
+      },
+      payloadHash: 'shared-deadline',
+      requestMarker: '<!-- request:shared-deadline -->',
+      retryDeadlineAt: sharedDeadline,
+      scope: scope('shared-deadline'),
+    });
+    accept(store, 'capped-extension');
+
+    expect(store.load(scope('shared-deadline'))?.retryDeadlineAt).toBe(sharedDeadline);
+    expect(store.load(scope('capped-extension'))?.retryDeadlineAt).toBe('2026-01-02T23:59:00.000Z');
+    expect(store.claim(scope('shared-deadline'), new Date(sharedDeadline))).toBe(false);
+    store.maintain(new Date(sharedDeadline));
+    expect(store.receipt(scope('shared-deadline'))?.state).toBe('dead-letter');
+    store.close();
+  });
+
   it('allows exactly one filed or ambiguous winner at the 25-hour CAS boundary', () => {
     for (const winner of ['filed', 'ambiguous'] as const) {
       const file = databasePath();
@@ -221,16 +281,12 @@ describe('durable retry and terminal lifecycle', () => {
     }
   });
 
-  it('compacts payload access at 30 days while retaining identity and semantic evidence', () => {
+  it('compacts payload access at 30 days while retaining non-reusable identity', () => {
     const file = databasePath();
     const acceptedAt = new Date('2026-01-01T00:00:00.000Z');
     let store = RelayStore.open(file, { now: () => acceptedAt });
     accept(store, 'retained');
     store.claim(scope('retained'), acceptedAt);
-    store.reserveEvidence(scope('retained'), [
-      { kind: 'canonical', value: 'canonical:retained' },
-      { kind: 'legacy', value: 'retro:retained' },
-    ]);
     store.beginDispatch(scope('retained'), acceptedAt);
     store.markFiled(scope('retained'), 1479, acceptedAt);
     store.maintain(new Date('2026-01-31T00:00:00.000Z'));
@@ -241,10 +297,8 @@ describe('durable retry and terminal lifecycle', () => {
     const record = store.load(scope('retained'));
     expect(record?.state).toBe('tombstone');
     expect(record?.envelope.ciphertext).toHaveLength(0);
-    expect(store.evidenceOwner('canonical', 'canonical:retained')?.scope.requestId).toBe(
-      'retained',
-    );
-    expect(store.evidenceOwner('legacy', 'retro:retained')?.scope.requestId).toBe('retained');
+    expect(record?.scope.requestId).toBe('retained');
+    expect(record?.issueNumber).toBe(1479);
     store.close();
   });
 

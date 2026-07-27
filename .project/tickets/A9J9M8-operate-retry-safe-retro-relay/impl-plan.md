@@ -47,7 +47,7 @@ Proof plan and build order:
    every migration step, and reject partial/newer layouts before listen. Drive
    exact 24h/25h/30d boundaries with an injected clock and durable exponential
    retry scheduling. Race every deadline CAS, including no dispatch at 24h and
-   known-issue adoption versus ambiguity at 25h. Reopen between sweeps and prove
+   request-marker reconciliation versus ambiguity at 25h. Reopen between sweeps and prove
    dead letters, ambiguity, application-inaccessible envelope compaction,
    indefinite identity/evidence, mismatch rejection, and one durable outbox row
    per terminal event.
@@ -77,7 +77,7 @@ the common core.
 | Local commit | Atomic ack journal is authoritative; payload deletion is recoverable compaction | “atomic” ack plus delete; delete then ack | Two mutations cannot be atomic without a journal; delete-first loses retry evidence |
 | Session latency | 750ms network abort inside one-second operation budget; no receipt means no ack | wait for filing; fire-and-forget; immediate GitHub fallback | Stop hooks must return; fire-and-forget cannot prove acceptance; fallback after response loss can duplicate |
 | Runtime credentials | Strict base64 JSON array in production; explicit non-ready spike mode for the legacy credential | one shared production credential; one env variable set per harness field | Shared credentials prevent independent rotation/audit; spike compatibility cannot weaken production |
-| Lifecycle storage | Additive version-2 schedule/timestamps, version-last transaction, retained semantic evidence | destructive table rewrite; delete evidence; PostgreSQL now | Rewrite risks the live database; evidence deletion changes uniqueness; PostgreSQL exceeds the proven topology |
+| Lifecycle storage | Additive version-2 schedule/timestamps and version-last transaction | destructive table rewrite; PostgreSQL now | Rewrite risks the live database; PostgreSQL exceeds the proven topology |
 | Payload retention | Application/API inaccessibility after 30d, with checkpoint requested | forensic secure deletion; indefinite API access | Secure deletion requires external per-record key management and backup controls outside this slice; indefinite access violates the body |
 | Maintenance | Idempotent DB sweeps, transactional outbox, stable alert event IDs | trusted timers per request; exactly-once logger writes | Timers vanish on restart; external logging cannot be exactly once across crash windows |
 | Operations | Authenticated JSON summary and structured alerts | public metrics with request labels; dashboard UI | Public metrics expand exposure; a UI is not needed to make state machine-readable |

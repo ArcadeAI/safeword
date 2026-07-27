@@ -70,15 +70,15 @@ Feature source: `features/retry-safe-retro-filing.feature`
 - [x] GREEN 247600f5b
 - [x] REFACTOR 6eea11b96
 
-## Rule: Only complete raw REST issue bodies are marker authority
+## Rule: Only complete raw REST issue bodies are request-marker authority
 
-### Scenario: Only the raw REST body can authorize semantic marker adoption
+### Scenario: Sanitized MCP bodies never decide ambiguous-create recovery
 
 - [x] RED c9df9183e
 - [x] GREEN 247600f5b
 - [x] REFACTOR 6eea11b96
 
-### Scenario: Incomplete or non-unique raw enumeration never authorizes creation
+### Scenario: Incomplete raw enumeration never resolves an ambiguous create
 
 - [x] RED c9df9183e
 - [x] GREEN 247600f5b

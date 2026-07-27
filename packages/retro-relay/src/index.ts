@@ -1,5 +1,4 @@
 export { type CredentialInput, CredentialRegistry } from './auth.js';
-export { createHarnessAdapters, RelayClientError } from './client.js';
 export { GitHubRestClient, type GitHubRestClientOptions } from './github.js';
 export { GitHubAppTokenProvider, type GitHubAppTokenProviderOptions } from './github-app-token.js';
 export { startRelayServer } from './http-server.js';

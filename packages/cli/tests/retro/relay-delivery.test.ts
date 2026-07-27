@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import type { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -12,7 +13,9 @@ import {
   claimRelayRequest,
   createRelayRequest,
   deliverRelayRequests,
+  listRelayDeadLetters,
   listRelayRequests,
+  persistRelayDraft,
   persistRelayRequest,
   recoverRelaySpool,
 } from '../../src/retro/relay-delivery.js';
@@ -58,6 +61,7 @@ function request(overrides: Record<string, unknown> = {}) {
       title: 'Retry-safe filing',
       body: 'Sanitized body',
       labels: ['retro'],
+      sourceKey: 'source-default',
       ...overrides,
     },
     { randomUUID },
@@ -65,6 +69,35 @@ function request(overrides: Record<string, unknown> = {}) {
 }
 
 describe('immutable relay delivery spool', () => {
+  it('persists unrelated findings independently while retaining per-source identity', async () => {
+    const project = temporaryProject();
+    const firstDraft = {
+      body: 'first body',
+      canonicalKey: 'canonical:first',
+      installationId: 42,
+      labels: ['retro'],
+      legacySignature: 'retro:first',
+      repository: 'arcadeai/safeword',
+      sourceKey: 'session:0',
+      title: 'First',
+    };
+    const first = await persistRelayDraft(project, firstDraft);
+    const second = await persistRelayDraft(project, {
+      ...firstDraft,
+      body: 'second body',
+      canonicalKey: 'canonical:second',
+      legacySignature: 'retro:second',
+      sourceKey: 'session:1',
+      title: 'Second',
+    });
+    const repeated = await persistRelayDraft(project, firstDraft);
+
+    expect(first).toBeDefined();
+    expect(second).toBeDefined();
+    expect(repeated?.requestId).toBe(first?.requestId);
+    expect(await listRelayRequests(project)).toHaveLength(2);
+  });
+
   it('persists UUIDv4 request identity and exact serialized bytes once', async () => {
     const project = temporaryProject();
     const original = request();
@@ -179,7 +212,6 @@ describe('immutable relay delivery spool', () => {
     const project = temporaryProject();
     const original = request();
     await persistRelayRequest(project, original);
-    const nativeFallback = vi.fn();
     const started = performance.now();
 
     const outcome = await deliverRelayRequests(project, {
@@ -191,16 +223,88 @@ describe('immutable relay delivery spool', () => {
             reject(new DOMException('aborted', 'AbortError'));
           });
         }),
-      nativeFallback,
       now: () => Date.now(),
       relayUrl: 'https://relay.invalid',
     });
 
     expect(performance.now() - started).toBeLessThan(1000);
-    expect(outcome).toEqual({ accepted: 0, retryable: 1 });
-    expect(nativeFallback).not.toHaveBeenCalled();
+    expect(outcome).toEqual({ accepted: 0, deadLettered: 0, retryable: 1 });
     const retryable = await listRelayRequests(project);
     expect(retryable[0]?.bytes.toString()).toBe(JSON.stringify(original));
+  });
+
+  it('moves a draft to a visible dead letter at the shared 24-hour deadline', async () => {
+    const project = temporaryProject();
+    const createdAt = Date.parse('2026-07-01T00:00:00.000Z');
+    const original = createRelayRequest(
+      {
+        body: 'body',
+        canonicalKey: 'canonical:key',
+        installationId: 42,
+        labels: ['retro'],
+        legacySignature: 'retro:signature',
+        repository: 'arcadeai/safeword',
+        sourceKey: 'source-dead-letter',
+        title: 'title',
+      },
+      {
+        now: () => createdAt,
+        randomUUID: () => '00000000-0000-4000-8000-000000000147',
+      },
+    );
+    await persistRelayRequest(project, original);
+    const send = vi.fn<typeof fetch>();
+
+    const outcome = await deliverRelayRequests(project, {
+      credential: 'swc_client_secret',
+      deadlineMs: 25,
+      fetch: send,
+      now: () => createdAt + 24 * 60 * 60 * 1000,
+      relayUrl: 'https://relay.invalid',
+    });
+
+    expect(outcome).toEqual({ accepted: 0, deadLettered: 1, retryable: 0 });
+    expect(send).not.toHaveBeenCalled();
+    expect(await listRelayRequests(project)).toEqual([]);
+    await expect(
+      readFile(
+        path.join(
+          project,
+          '.safeword',
+          'retro-drafts',
+          'relay',
+          `${original.requestId}.dead-letter.json`,
+        ),
+        'utf8',
+      ),
+    ).resolves.toContain('"requestId":"00000000-0000-4000-8000-000000000147"');
+
+    await expect(persistRelayRequest(project, original)).resolves.toMatchObject({
+      path: expect.stringContaining('.dead-letter.json'),
+    });
+    expect(await listRelayDeadLetters(project)).toHaveLength(1);
+    await expect(
+      deliverRelayRequests(project, {
+        credential: 'swc_client_secret',
+        deadlineMs: 25,
+        fetch: send,
+        now: () => createdAt + 24 * 60 * 60 * 1000,
+        relayUrl: 'https://relay.invalid',
+      }),
+    ).resolves.toEqual({ accepted: 0, deadLettered: 1, retryable: 0 });
+
+    const unrelated = await persistRelayDraft(project, {
+      body: 'new body',
+      canonicalKey: 'canonical:new',
+      installationId: 42,
+      labels: ['retro'],
+      legacySignature: 'retro:new',
+      repository: 'arcadeai/safeword',
+      sourceKey: 'source-new',
+      title: 'New finding',
+    });
+    expect(unrelated?.requestId).not.toBe(original.requestId);
+    expect(await listRelayRequests(project)).toHaveLength(1);
   });
 });
 

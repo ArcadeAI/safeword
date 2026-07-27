@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import {
   access,
   link,
@@ -14,13 +14,18 @@ import path from 'node:path';
 export interface RelayDraftRequest {
   body: string;
   canonicalKey: string;
+  createdAt: string;
   installationId: number;
   labels: string[];
   legacySignature: string;
   repository: string;
   requestId: string;
+  retryDeadlineAt: string;
+  sourceKey: string;
   title: string;
 }
+
+type RelayDraftInput = Omit<RelayDraftRequest, 'createdAt' | 'requestId' | 'retryDeadlineAt'>;
 
 export interface RelayClaim {
   bytes: Buffer;
@@ -35,11 +40,44 @@ export interface RelayReceipt {
   state: string;
 }
 
+function relayRequestBytes(request: RelayDraftRequest): Buffer {
+  return Buffer.from(
+    JSON.stringify({
+      body: request.body,
+      canonicalKey: request.canonicalKey,
+      installationId: request.installationId,
+      labels: request.labels,
+      legacySignature: request.legacySignature,
+      repository: request.repository,
+      requestId: request.requestId,
+      retryDeadlineAt: request.retryDeadlineAt,
+      title: request.title,
+    }),
+    'utf8',
+  );
+}
+
 export function createRelayRequest(
-  input: Omit<RelayDraftRequest, 'requestId'>,
-  dependencies?: { randomUUID: () => string },
+  input: RelayDraftInput,
+  dependencies?: { now?: () => number; randomUUID: () => string },
 ): RelayDraftRequest {
-  return { requestId: (dependencies?.randomUUID ?? randomUUID)(), ...input };
+  const createdAt = (dependencies?.now ?? Date.now)();
+  return {
+    requestId: (dependencies?.randomUUID ?? randomUUID)(),
+    createdAt: new Date(createdAt).toISOString(),
+    retryDeadlineAt: new Date(createdAt + 24 * 60 * 60 * 1000).toISOString(),
+    ...input,
+  };
+}
+
+export function relaySourceKey(
+  sessionIdentity: string,
+  windowStart: number,
+  encounterIndex: number,
+): string {
+  return createHash('sha256')
+    .update(`relay-source-v1\0${sessionIdentity}\0${windowStart}\0${encounterIndex}`)
+    .digest('hex');
 }
 
 function relayDirectory(projectDirectory: string): string {
@@ -52,6 +90,10 @@ function primaryPath(projectDirectory: string, requestId: string): string {
 
 function ackPath(projectDirectory: string, requestId: string): string {
   return path.join(relayDirectory(projectDirectory), `${requestId}.ack.json`);
+}
+
+function deadLetterPath(projectDirectory: string, requestId: string): string {
+  return path.join(relayDirectory(projectDirectory), `${requestId}.dead-letter.json`);
 }
 
 function errorCode(error: unknown): string | undefined {
@@ -110,6 +152,10 @@ function parsePrimary(filename: string): string | undefined {
   return /^([0-9a-f-]+)\.json$/u.exec(filename)?.[1];
 }
 
+function parseDeadLetter(filename: string): string | undefined {
+  return /^([0-9a-f-]+)\.dead-letter\.json$/u.exec(filename)?.[1];
+}
+
 export async function persistRelayRequest(
   projectDirectory: string,
   request: RelayDraftRequest,
@@ -117,6 +163,14 @@ export async function persistRelayRequest(
   const directory = relayDirectory(projectDirectory);
   await mkdir(directory, { recursive: true });
   const bytes = Buffer.from(JSON.stringify(request), 'utf8');
+  const deadLetter = deadLetterPath(projectDirectory, request.requestId);
+  if (await exists(deadLetter)) {
+    const existing = await readFile(deadLetter);
+    if (!existing.equals(bytes)) {
+      throw new Error('relay request identity was reused with a different payload');
+    }
+    return { bytes, path: deadLetter };
+  }
   const file = primaryPath(projectDirectory, request.requestId);
   if (!(await writeAtomic(file, bytes))) {
     const existing = await readFile(file);
@@ -129,25 +183,32 @@ export async function persistRelayRequest(
 
 export async function persistRelayDraft(
   projectDirectory: string,
-  draft: Omit<RelayDraftRequest, 'requestId'>,
-): Promise<RelayDraftRequest> {
-  const candidates = await listRelayRequests(projectDirectory);
-  for (const candidate of candidates) {
+  draft: RelayDraftInput,
+): Promise<RelayDraftRequest | undefined> {
+  const [active, deadLetters] = await Promise.all([
+    listRelayRequests(projectDirectory),
+    listRelayDeadLetters(projectDirectory),
+  ]);
+  const durableRequests = [...active, ...deadLetters];
+  for (const candidate of durableRequests) {
     try {
-      const parsed = JSON.parse(candidate.bytes.toString('utf8')) as RelayDraftRequest;
-      const persistedDraft: Omit<RelayDraftRequest, 'requestId'> = {
-        body: parsed.body,
-        canonicalKey: parsed.canonicalKey,
-        installationId: parsed.installationId,
-        labels: parsed.labels,
-        legacySignature: parsed.legacySignature,
-        repository: parsed.repository,
-        title: parsed.title,
-      };
-      if (JSON.stringify(persistedDraft) === JSON.stringify(draft)) return parsed;
+      const request = JSON.parse(candidate.bytes.toString('utf8')) as RelayDraftRequest;
+      if (request.sourceKey === draft.sourceKey) return request;
     } catch {
-      // An unreadable immutable file is left visible for operator recovery and
-      // cannot authorize replacement or acknowledgement.
+      // Corrupt immutable records remain visible and cannot authorize replacement.
+    }
+  }
+  const directory = relayDirectory(projectDirectory);
+  const filenames = await sortedFilenames(directory);
+  for (const filename of filenames) {
+    if (!filename.endsWith('.ack.json')) continue;
+    try {
+      const acknowledged = JSON.parse(
+        await readFile(path.join(directory, filename), 'utf8'),
+      ) as RelayReceipt & { sourceKey?: string };
+      if (acknowledged.sourceKey === draft.sourceKey) return undefined;
+    } catch {
+      // Corrupt acknowledgements remain visible and cannot authorize replacement.
     }
   }
   const request = createRelayRequest(draft);
@@ -213,7 +274,19 @@ export async function acknowledgeRelayClaim(
   if (receipt.requestId !== claim.requestId || !(await exists(claim.path))) return false;
   const projectDirectory = path.resolve(path.dirname(claim.path), '..', '..', '..');
   const durableAck = ackPath(projectDirectory, claim.requestId);
-  const written = await writeAtomic(durableAck, Buffer.from(JSON.stringify(receipt), 'utf8'));
+  let sourceKey: string | undefined;
+  try {
+    sourceKey = (JSON.parse(claim.bytes.toString('utf8')) as Partial<RelayDraftRequest>).sourceKey;
+  } catch {
+    // A valid relay receipt can still durably acknowledge legacy request bytes.
+  }
+  const written = await writeAtomic(
+    durableAck,
+    Buffer.from(
+      JSON.stringify({ ...receipt, ...(sourceKey !== undefined && { sourceKey }) }),
+      'utf8',
+    ),
+  );
   if (!written) {
     const current = JSON.parse(await readFile(durableAck, 'utf8')) as RelayReceipt;
     if (current.requestId !== receipt.requestId || current.receiptId !== receipt.receiptId) {
@@ -258,6 +331,21 @@ export async function listRelayRequests(
   return requests;
 }
 
+export async function listRelayDeadLetters(
+  projectDirectory: string,
+): Promise<{ bytes: Buffer; requestId: string }[]> {
+  const directory = relayDirectory(projectDirectory);
+  await mkdir(directory, { recursive: true });
+  const requests: { bytes: Buffer; requestId: string }[] = [];
+  const filenames = await sortedFilenames(directory);
+  for (const filename of filenames) {
+    const requestId = parseDeadLetter(filename);
+    if (requestId === undefined) continue;
+    requests.push({ bytes: await readFile(path.join(directory, filename)), requestId });
+  }
+  return requests;
+}
+
 async function rearmClaim(projectDirectory: string, claim: RelayClaim): Promise<void> {
   if (await exists(ackPath(projectDirectory, claim.requestId))) return;
   try {
@@ -267,20 +355,31 @@ async function rearmClaim(projectDirectory: string, claim: RelayClaim): Promise<
   }
 }
 
+async function deadLetterClaim(projectDirectory: string, claim: RelayClaim): Promise<void> {
+  const deadLetter = deadLetterPath(projectDirectory, claim.requestId);
+  try {
+    await rename(claim.path, deadLetter);
+  } catch (error) {
+    if (!['ENOENT', 'EEXIST'].includes(errorCode(error) ?? '')) throw error;
+  }
+}
+
+// eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- Claim, expiry, HTTP, and rearm are one filesystem state machine.
 export async function deliverRelayRequests(
   projectDirectory: string,
   options: {
     credential: string;
     deadlineMs: number;
     fetch: typeof fetch;
-    nativeFallback: () => unknown;
     now: () => number;
     relayUrl: string;
   },
-): Promise<{ accepted: number; retryable: number }> {
+): Promise<{ accepted: number; deadLettered: number; retryable: number }> {
   const initial = await listRelayRequests(projectDirectory);
   const processed = new Set<string>();
   let accepted = 0;
+  const initialDeadLetters = await listRelayDeadLetters(projectDirectory);
+  let deadLettered = initialDeadLetters.length;
   let retryable = 0;
   for (const request of initial) {
     if (processed.has(request.requestId)) continue;
@@ -292,6 +391,19 @@ export async function deliverRelayRequests(
     });
     if (claim === undefined) break;
     processed.add(claim.requestId);
+    let parsedRequest: RelayDraftRequest;
+    try {
+      parsedRequest = JSON.parse(claim.bytes.toString('utf8')) as RelayDraftRequest;
+    } catch {
+      retryable += 1;
+      await rearmClaim(projectDirectory, claim);
+      continue;
+    }
+    if (options.now() >= Date.parse(parsedRequest.retryDeadlineAt)) {
+      await deadLetterClaim(projectDirectory, claim);
+      deadLettered += 1;
+      continue;
+    }
     const controller = new AbortController();
     const timer = setTimeout(() => {
       controller.abort();
@@ -299,7 +411,7 @@ export async function deliverRelayRequests(
     timer.unref();
     try {
       const response = await options.fetch(`${options.relayUrl}/v1/retro-filings`, {
-        body: claim.bytes,
+        body: relayRequestBytes(parsedRequest),
         headers: {
           authorization: `Bearer ${options.credential}`,
           'content-type': 'application/json',
@@ -324,5 +436,5 @@ export async function deliverRelayRequests(
       clearTimeout(timer);
     }
   }
-  return { accepted, retryable };
+  return { accepted, deadLettered, retryable };
 }

@@ -25,8 +25,10 @@ export function payloadHash(request: FileRetroDraftRequest): string {
   return createHash('sha256')
     .update(
       encodeFields([
-        'payload-v1',
+        'payload-v2',
         normalizeRepo(request.repository),
+        request.requestId,
+        request.retryDeadlineAt,
         request.canonicalKey,
         request.legacySignature,
         request.title,
@@ -50,12 +52,4 @@ export function requestMarker(scope: RequestScope): string {
     )
     .digest('hex');
   return `<!-- safeword-retro-request-v1: ${digest} -->`;
-}
-
-export function canonicalMarker(value: string): string {
-  return `<!-- safeword-retro-canonical: ${value} -->`;
-}
-
-export function legacyMarker(value: string): string {
-  return `<!-- safeword-retro-signature: ${value} -->`;
 }
