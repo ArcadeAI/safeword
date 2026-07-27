@@ -28,7 +28,7 @@ the correct restart oracle.
 | Project | `safeword-relay-spike-0726` (`5b713344-9f5b-4e9e-bc6a-8e959ecd20a9`) |
 | Environment | `production` (`37a73eaf-9023-4379-9af0-52f76c6fbe4b`) |
 | Service | `retro-relay` (`bd3f0223-d88d-4594-8f99-9ffdb29f3f62`) |
-| Deployment | `13c67f9c-4041-45c8-9b51-c1c4c7d65980`, status `SUCCESS` |
+| Deployment | `fd050b12-8fc9-47f4-8c61-7cb848e37843`, status `SUCCESS` |
 | Replicas | one configured, one running, zero crashed |
 | Volume | `retro-relay-volume` (`511eaf85-301d-4b8a-9c25-07a6e397b502`) mounted at `/data` |
 | Health | schema version 1; HTTP 200 |
@@ -37,7 +37,9 @@ the correct restart oracle.
 
 The built-image smoke also passed locally on ARM: the real image `CMD` loaded a
 source-built `better-sqlite3` binary, opened a mounted database, returned
-health, handled SIGTERM with exit code 0, and left the database durable.
+health, handled SIGTERM with exit code 0, and left the database durable. The
+runtime is Node 24.18.0, and Railway confirms a 30-second drain window around
+the application's bounded 25-second shutdown.
 
 ## Non-filing evidence
 
@@ -49,6 +51,10 @@ integration suite separately asserts one token request and zero issue-create
 requests for this failure.
 
 No production GitHub credential, issue, or existing Railway project was used.
+The committed spike safety command validates one replica, one `/data` volume,
+the report sections and redaction, atomic state writes, the disposable project
+prefix, and exact-ID teardown preview. Its subprocess wiring test reads a real
+state file and never executes deletion.
 
 ## Resource and cost snapshot
 
