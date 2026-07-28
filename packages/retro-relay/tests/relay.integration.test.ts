@@ -282,9 +282,6 @@ async function fixture(
     appId: '1234',
     baseUrl: githubFixture.baseUrl,
     privateKey: githubAppPrivateKeyPem,
-    ...(options.githubRequestTimeoutMs !== undefined && {
-      requestTimeoutMs: options.githubRequestTimeoutMs,
-    }),
   });
   const serverOptions = {
     credentials: registry,
@@ -604,6 +601,7 @@ describe('retry-safe retro relay', () => {
     const adapter = createHarnessAdapters(setup.relay.url, setup.credential).claude;
 
     await expect(adapter.file(draft())).rejects.toMatchObject({ status: 503 });
+    expect(setup.createBodies).toHaveLength(1);
     expect(
       setup.store.receipt({
         tenantId: 'tenant-1',
