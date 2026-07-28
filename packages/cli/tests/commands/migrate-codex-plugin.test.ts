@@ -260,13 +260,13 @@ describe('migrate codex-plugin command', () => {
 
   it('removes legacy hooks after review without reinstalling the profile plugin', async () => {
     const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
-    const { directory, configPath } = fixture;
+    const { configPath } = fixture;
 
     const result = await runMigration(fixture, { cleanupLegacyHooks: true });
 
     expect(result.exitCode, result.stderr).toBe(0);
     expect(readFileSync(configPath, 'utf8')).not.toContain('safeword hook codex pre-tool-use');
-    const calls = readFileSync(nodePath.join(directory, 'codex.log'), 'utf8');
+    const calls = readFileSync(nodePath.join(fixture.directory, 'codex.log'), 'utf8');
     expect(calls).toContain('plugin list --json');
     expect(calls).not.toContain('plugin marketplace add');
     expect(calls).not.toContain('plugin add safeword@safeword --json');
@@ -781,6 +781,42 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
       ok: true,
       state: 'plugin',
       next_actions: [],
+    });
+  });
+
+  it('returns one schema result for JSON migration, finalization, and recovery', async () => {
+    const installing = createMigrationFixture(LEGACY_HOOK_CONFIG, false, false);
+    const install = await runCodexCommand(installing, ['codex', 'migrate', '--json']);
+    expect(install.stderr).toBe('');
+    expect(JSON.parse(install.stdout)).toMatchObject({
+      schema_version: '1',
+      changed: true,
+      state: 'plugin_installed_restart_required',
+    });
+
+    const finalizing = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    recordCurrentProof(finalizing);
+    const finalize = await runCodexCommand(finalizing, [
+      'codex',
+      'migrate',
+      '--finalize',
+      '--yes',
+      '--json',
+    ]);
+    expect(finalize.exitCode, finalize.stderr).toBe(0);
+    expect(finalize.stderr).toBe('');
+    expect(JSON.parse(finalize.stdout)).toMatchObject({
+      schema_version: '1',
+      changed: true,
+      state: 'plugin',
+    });
+
+    const recover = await runCodexCommand(finalizing, ['codex', 'recover', '--json']);
+    expect(recover.stderr).toBe('');
+    expect(JSON.parse(recover.stdout)).toMatchObject({
+      schema_version: '1',
+      changed: true,
+      state: 'legacy',
     });
   });
 

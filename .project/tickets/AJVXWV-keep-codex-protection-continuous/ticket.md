@@ -9,6 +9,7 @@ phase_anchors:
   - 'scenario-gate: packages/cli/features/keep-codex-protection-continuous.feature'
   - 'plan-implementation: packages/cli/features/keep-codex-protection-continuous.feature'
   - 'implement: .project/tickets/AJVXWV-keep-codex-protection-continuous/impl-plan.md'
+  - 'verify: .project/tickets/AJVXWV-keep-codex-protection-continuous/test-definitions.md'
 external_issue: https://github.com/ArcadeAI/safeword/issues/1572
 scope:
   - Make `safeword codex migrate` a resumable Expand → Prove → Contract state machine.

@@ -35,13 +35,24 @@ describe('Codex migration finalization', () => {
   it('accepts an explicit yes at the interactive finalization prompt', async () => {
     const output = new PassThrough();
 
-    await expect(promptCodexFinalization(Readable.from(['yes\n']), output)).resolves.toBe(true);
+    await expect(
+      promptCodexFinalization(
+        'Finalization plan:\n- remove .agents/skills/bdd/SKILL.md\n',
+        Readable.from(['yes\n']),
+        output,
+      ),
+    ).resolves.toBe(true);
+    expect(output.read()?.toString()).toContain(
+      'Finalization plan:\n- remove .agents/skills/bdd/SKILL.md',
+    );
   });
 
   it('defaults to declining an empty interactive finalization response', async () => {
     const output = new PassThrough();
 
-    await expect(promptCodexFinalization(Readable.from(['\n']), output)).resolves.toBe(false);
+    await expect(
+      promptCodexFinalization('Finalization plan:\n', Readable.from(['\n']), output),
+    ).resolves.toBe(false);
   });
 
   it('does not treat a marker without a finalized transaction manifest as complete', () => {
@@ -56,6 +67,24 @@ describe('Codex migration finalization', () => {
         migration_state: 'finalized',
         finalized_at: '2026-07-28T00:00:00.000Z',
       }),
+    );
+
+    expect(codexFinalizationIsComplete(directory)).toBe(false);
+  });
+
+  it('does not treat a finalized manifest without validated entries as complete', () => {
+    const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-finalization-'));
+    directories.push(directory);
+    const safewordDirectory = nodePath.join(directory, '.safeword');
+    const backupDirectory = nodePath.join(safewordDirectory, 'codex-migration-backup');
+    mkdirSync(backupDirectory, { recursive: true });
+    writeFileSync(
+      nodePath.join(safewordDirectory, 'codex-plugin.json'),
+      JSON.stringify({ schema_version: 1, mode: 'plugin' }),
+    );
+    writeFileSync(
+      nodePath.join(backupDirectory, 'manifest.json'),
+      JSON.stringify({ schema_version: 1, status: 'finalized' }),
     );
 
     expect(codexFinalizationIsComplete(directory)).toBe(false);
