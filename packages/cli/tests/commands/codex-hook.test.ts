@@ -132,6 +132,22 @@ describe('packagedNamespaceRootLabel', () => {
     expect(proof.manifest_sha256).toMatch(/^[\da-f]{64}$/u);
   });
 
+  it('does not create plugin proof from legacy SessionStart', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-'));
+    directories.push(projectDirectory);
+    const codexHome = nodePath.join(projectDirectory, 'profile');
+
+    const result = runCodexHook(
+      projectDirectory,
+      'session-start',
+      { hook_event_name: 'SessionStart', cwd: projectDirectory },
+      { CODEX_HOME: codexHome, SAFEWORD_NO_AUTO_UPGRADE: '1' },
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(existsSync(nodePath.join(codexHome, 'safeword/hook-proof-v1.json'))).toBe(false);
+  });
+
   it('normalizes Windows custom roots for Git-owned path matching', () => {
     expect(normalizeNamespaceRootLabel(String.raw`knowledge\docs`)).toBe('knowledge/docs');
   });
