@@ -7,7 +7,7 @@ import type { PayloadKeyring } from './payload.js';
 import { ProcessLock } from './process-lock.js';
 import { type RelayFaults, RelayService } from './service.js';
 import type { RelayStore } from './store.js';
-import type { FileRetroDraftRequest } from './types.js';
+import { type FileRetroDraftRequest, isTerminalReceiptState } from './types.js';
 
 async function readJson(request: IncomingMessage, maximumBytes: number): Promise<unknown> {
   const contentLength = Number(request.headers['content-length'] ?? '0');
@@ -239,7 +239,7 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
           response.destroy();
           return;
         }
-        const terminal = ['dead-letter', 'filed', 'rejected', 'tombstone'].includes(receipt.state);
+        const terminal = isTerminalReceiptState(receipt.state);
         if (!terminal) response.setHeader('retry-after', '1');
         let statusCode = 202;
         if (receipt.state === 'filed') statusCode = 201;
@@ -326,7 +326,7 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
       const status = /^\/v1\/retro-filings\/([^/]+)$/u.exec(url.pathname);
       if (request.method === 'GET' && status?.[1] !== undefined) {
         const receipt = service.status(principal, decodePathSegment(status[1]));
-        if (!['dead-letter', 'filed', 'rejected', 'tombstone'].includes(receipt.state)) {
+        if (!isTerminalReceiptState(receipt.state)) {
           response.setHeader('retry-after', '1');
         }
         sendJson(response, 200, receipt);

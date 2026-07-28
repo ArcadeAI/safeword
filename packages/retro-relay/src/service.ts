@@ -11,6 +11,7 @@ import type {
   RelayPrincipal,
   RequestScope,
 } from './types.js';
+import { isResolvedReceiptState } from './types.js';
 
 export interface RelayFaults {
   afterGitHubCreate?: () => void;
@@ -44,10 +45,6 @@ function receiptFromRecord(record: DurableRequest): FilingReceipt {
     state: record.state,
     ...(record.issueNumber !== undefined && { issueNumber: record.issueNumber }),
   };
-}
-
-function isFiledResult(record: DurableRequest): boolean {
-  return ['filed', 'rejected', 'tombstone'].includes(record.state);
 }
 
 function validText(value: unknown, maximum: number, allowEmpty = false): value is string {
@@ -135,7 +132,7 @@ export class RelayService {
     if (record === undefined) {
       throw new RelayError(404, 'filing receipt not found');
     }
-    if (isFiledResult(record)) return receiptFromRecord(record);
+    if (isResolvedReceiptState(record.state)) return receiptFromRecord(record);
     if (record.state !== 'ambiguous') {
       throw new RelayError(409, 'only ambiguous filings can be reconciled');
     }
@@ -316,7 +313,7 @@ export class RelayService {
     if (accepted.record.payloadHash !== hash) {
       throw new RelayError(409, 'request identity was reused with a different payload');
     }
-    if (isFiledResult(accepted.record)) return receiptFromRecord(accepted.record);
+    if (isResolvedReceiptState(accepted.record.state)) return receiptFromRecord(accepted.record);
     if (accepted.record.state === 'ambiguous') {
       throw new RelayError(503, 'filing outcome is ambiguous', {
         receiptId: accepted.record.receiptId,

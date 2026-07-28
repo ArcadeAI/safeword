@@ -2,15 +2,15 @@
 
 import { setTimeout as delay } from 'node:timers/promises';
 
-import type { FileRetroDraftRequest, FilingReceipt } from '../../src/types.js';
+import {
+  type FileRetroDraftRequest,
+  type FilingReceipt,
+  isTerminalReceiptState,
+} from '../../src/types.js';
 
 function retryAfterMilliseconds(response: Response): number {
   const seconds = Number(response.headers.get('retry-after') ?? '1');
   return Number.isFinite(seconds) && seconds >= 0 ? seconds * 1000 : 1000;
-}
-
-function isFiledResult(receipt: FilingReceipt): boolean {
-  return ['dead-letter', 'filed', 'rejected', 'tombstone'].includes(receipt.state);
 }
 
 class RelayClientError extends Error {
@@ -46,7 +46,7 @@ class FilingAdapter {
 
   async file(request: FileRetroDraftRequest): Promise<FilingReceipt> {
     const result = await this.#request('/v1/retro-filings', request, 'POST');
-    return isFiledResult(result.receipt)
+    return isTerminalReceiptState(result.receipt.state)
       ? result.receipt
       : this.#poll(result.receipt, result.retryAfterMs);
   }
@@ -65,7 +65,7 @@ class FilingAdapter {
       const receipt = result.receipt;
       latestReceipt = receipt;
       retryAfterMs = result.retryAfterMs;
-      if (isFiledResult(receipt)) return receipt;
+      if (isTerminalReceiptState(receipt.state)) return receipt;
       if (receipt.state === 'ambiguous') {
         throw new RelayClientError(503, 'filing outcome is ambiguous', {
           receiptId: receipt.receiptId,

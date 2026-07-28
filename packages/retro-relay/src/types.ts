@@ -31,6 +31,16 @@ export type ReceiptState =
   | 'rejected'
   | 'tombstone';
 
+const resolvedReceiptStates = new Set<ReceiptState>(['filed', 'rejected', 'tombstone']);
+
+export function isResolvedReceiptState(state: ReceiptState): boolean {
+  return resolvedReceiptStates.has(state);
+}
+
+export function isTerminalReceiptState(state: ReceiptState): boolean {
+  return state === 'dead-letter' || isResolvedReceiptState(state);
+}
+
 export interface FilingReceipt {
   receiptId: string;
   requestId: string;
