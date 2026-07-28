@@ -1,0 +1,77 @@
+---
+id: K53GQ9
+slug: predictable-safeword-cli
+type: feature
+phase: implement
+status: in_progress
+phase_anchors:
+  - 'define-behavior: .project/tickets/K53GQ9-predictable-safeword-cli/spec.md'
+  - 'scenario-gate: packages/cli/features/predictable-safeword-cli.feature'
+  - 'plan-implementation: packages/cli/features/predictable-safeword-cli.feature'
+  - 'implement: .project/tickets/K53GQ9-predictable-safeword-cli/impl-plan.md'
+external_issue: https://github.com/ArcadeAI/safeword/issues/1574
+scope:
+  - Introduce typed Plan and Result contracts shared by public CLI commands.
+  - Render every public command through common human and versioned JSON renderers.
+  - Make JSON, no-input, cwd, quiet, and offline behavior consistent global options.
+  - Make status, plan, and doctor provably read-only, including first-run and error paths.
+  - Publish a simplified command hierarchy with status, plan, remove, project, tracker, codex, ticket, and retro families.
+  - Keep replaced public commands as deprecated aliases for at least two release lines.
+  - Publish a machine-readable capabilities document and stable exit semantics.
+  - Keep internal hook and compatibility entrypoints callable while hiding them from normal help.
+  - Update architecture documentation to make the execution model the project-wide rule.
+out_of_scope:
+  - Replacing the CLI with a daemon or MCP-only interface.
+  - Removing existing public commands without their compatibility window.
+  - Rewriting unrelated template content or Safeword workflow policy.
+  - Making read-only commands install, upgrade, repair, or access the network implicitly.
+done_when:
+  - Public command handlers return typed plans or results instead of owning presentation or process termination.
+  - Human output leads with the outcome, states whether anything changed, and gives at most one next action.
+  - Every public command accepts deterministic JSON and no-input operation with JSON-only stdout.
+  - The JSON envelope is schema version 1 and includes state, changed, findings, effects, and next actions.
+  - Exit status is 0 for success, 1 for command failure, and 2 when user action is required.
+  - Status, plan, and doctor produce no filesystem, package, or network effects.
+  - Capabilities JSON exposes commands, aliases, mutation class, prompts, network use, and supported output schema.
+  - Normal help presents the simplified hierarchy and omits internal hook/helper commands.
+  - Legacy public names emit a deprecation finding and remain behaviorally compatible.
+  - Hook entrypoints remain quiet, offline, non-upgrading, and within their latency budget.
+  - Long-running interactive commands emit meaningful progress within 100 milliseconds.
+  - Running setup twice converges to unchanged state.
+  - Golden fixtures protect human output, JSON envelopes, and error shapes.
+  - ARCHITECTURE.md documents the Observe → Plan → Confirm → Apply → Verify → Report model.
+created: 2026-07-28T12:05:48.299Z
+last_modified: 2026-07-28T12:05:48.299Z
+---
+
+# Give developers and AI agents one predictable Safeword CLI
+
+**Goal:** Give humans and agents one typed, predictable Safeword execution and rendering model.
+
+**See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
+
+## Work Log
+
+- 2026-07-28T12:05:48.299Z Started: Created ticket K53GQ9
+- 2026-07-28T12:17:00Z Intake: Adopted GitHub issue #1574 as the
+  approved product contract and bounded it to the public execution,
+  presentation, discovery, and compatibility layers. A daemon/MCP rewrite,
+  unrelated template changes, and compatibility-breaking removals remain out
+  of scope.
+- 2026-07-28T12:36:00Z Define behavior: Derived the full command, renderer,
+  effect, interaction, compatibility, and outcome dimensions. Saved 83 scenario
+  instances covering all 14 Rules and every public compatibility alias.
+- 2026-07-28T12:48:00Z Scenario review requested changes: completed the
+  error/recovery wire contract, expanded read-only coverage to the full
+  command/state cross-product, specified global option and human-renderer
+  semantics, bound confirmation to plan identity, completed the compatibility
+  inventory, and replaced output-capturing wrappers with real handler
+  migration.
+- 2026-07-28T12:58:00Z Scenario gate passed: After two correction rounds,
+  independent adversarial review returned 0 must-fix and 0 strengthenings;
+  Gherkin and Markdown lint are clean.
+- 2026-07-28T13:00:00Z Plan implementation: Chose seven ordered TDD slices,
+  beginning with the typed contracts/renderers and a status vertical slice.
+  Each public catalog entry must carry a deterministic executable fixture;
+  architecture tests forbid presentation and process termination below the
+  renderer boundary.
