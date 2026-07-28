@@ -30,7 +30,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED f586883b6
 - [x] GREEN ff5d4270f
-- [ ] REFACTOR
+- [x] REFACTOR skip: ordered state table is already the minimal precedence model
 
 ### Scenario: Successful installation requires a Codex restart
 
