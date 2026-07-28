@@ -14,6 +14,7 @@ import {
   recoverCodexFinalization,
   resolveCodexFinalizationConfirmation,
 } from '../codex-plugin/finalization.js';
+import { legacyCodexEventIsViable } from '../codex-plugin/legacy-authority.js';
 import {
   codexMigrationExitCode,
   type CodexPluginObservation,
@@ -439,6 +440,23 @@ function observeLegacyEvents(cwd: string): string[] {
   return [...events].toSorted((left, right) => left.localeCompare(right));
 }
 
+function observeViableLegacyEvents(
+  cwd: string,
+  legacyEvents: string[],
+  environment: NodeJS.ProcessEnv,
+): string[] {
+  const eventIdsByName = new Map(
+    Object.entries(SAFEWORD_SCHEMA.codexMigration.hookEventNames).map(([event, name]) => [
+      name,
+      event,
+    ]),
+  );
+  return legacyEvents.filter(eventName => {
+    const event = eventIdsByName.get(eventName);
+    return event !== undefined && legacyCodexEventIsViable(cwd, event, environment);
+  });
+}
+
 export function statusCodexMigration(
   cwd = process.cwd(),
   options: { json?: boolean; environment?: NodeJS.ProcessEnv } = {},
@@ -453,7 +471,7 @@ export function statusCodexMigration(
     proof: observeCodexHookProof(environment),
     legacyAssets: observeLegacyAssets(cwd),
     legacyEvents,
-    viableLegacyEvents: legacyEvents,
+    viableLegacyEvents: observeViableLegacyEvents(cwd, legacyEvents, environment),
     finalized: existsSync(nodePath.join(cwd, '.safeword/codex-plugin.json')),
     recoveryRequired,
     restartPending: codexRestartIsPending(environment),
