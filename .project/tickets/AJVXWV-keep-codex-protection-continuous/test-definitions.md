@@ -105,7 +105,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Confirmed finalization creates a recoverable plugin-only project
 
 - [x] RED 23a30fd26
-- [ ] GREEN
+- [x] GREEN c7433666c
 - [ ] REFACTOR
 
 ### Scenario: Failed finalization rolls back to the complete pre-migration state
