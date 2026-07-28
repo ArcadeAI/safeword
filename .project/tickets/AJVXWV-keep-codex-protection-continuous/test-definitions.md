@@ -210,7 +210,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: status already selected one renderer before the stdout-purity characterization
 - [x] GREEN a74c34bb6
-- [ ] REFACTOR
+- [x] REFACTOR skip: JSON serialization remains a single direct stdout write
 
 ### Scenario: Plugin-only JSON status exits successfully
 
