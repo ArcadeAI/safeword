@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -35,6 +35,7 @@ describe('retro relay runtime qualification', () => {
       const packageRoot = fileURLToPath(new URL('..', import.meta.url));
       const repoRoot = path.resolve(packageRoot, '..', '..');
       const dataDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-relay-container-'));
+      chmodSync(dataDirectory, 0o777);
       temporaryDirectories.push(dataDirectory);
       const image = `safeword-retro-relay-qualification:${process.pid}`;
 
