@@ -61,6 +61,9 @@ describe('Test Suite 2: Setup - Core Files', () => {
       expect(fileExists(temporaryDirectory, '.safeword/guides')).toBe(true);
       expect(fileExists(temporaryDirectory, '.safeword/templates')).toBe(true);
       expect(fileExists(temporaryDirectory, '.safeword/hooks')).toBe(true);
+      expect(fileExists(temporaryDirectory, '.agents/skills/safeword-plugin-setup/SKILL.md')).toBe(
+        false,
+      );
     });
 
     it('should write CLI version to .safeword/version', async () => {
