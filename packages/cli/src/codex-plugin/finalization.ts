@@ -326,6 +326,7 @@ export function applyCodexFinalization(
   cwd: string,
   mutations: CodexFinalizationMutation[],
   options: {
+    afterPrepared?: () => void;
     beforeMutation?: (index: number) => void;
     beforeRollback?: () => void;
   } = {},
@@ -346,6 +347,7 @@ export function applyCodexFinalization(
     entries,
   };
   writeManifest(backupDirectory, manifest);
+  options.afterPrepared?.();
 
   let appliedCount = 0;
   try {
