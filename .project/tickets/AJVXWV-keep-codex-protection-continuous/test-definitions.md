@@ -166,7 +166,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 943a4af05
 - [x] GREEN 81b5d6b23
-- [ ] REFACTOR
+- [x] REFACTOR skip: containment and symlink checks share assertSafeComponents
 
 ### Scenario: Deprecated cleanup alias follows the finalization contract
 
