@@ -51,6 +51,7 @@ export interface CliResult {
   readonly errors: readonly ResultError[];
   readonly recovery: readonly RecoveryAction[];
   readonly nextActions: readonly NextAction[];
+  readonly data?: unknown;
 }
 
 interface ResultInput {
@@ -61,6 +62,7 @@ interface ResultInput {
   readonly errors?: readonly ResultError[];
   readonly recovery?: readonly RecoveryAction[];
   readonly nextActions?: readonly NextAction[];
+  readonly data?: unknown;
 }
 
 const EMPTY_EFFECTS: Effects = {
@@ -82,6 +84,7 @@ export function createResult(input: ResultInput): CliResult {
     errors: input.errors ?? [],
     recovery: input.recovery ?? [],
     nextActions: input.nextActions ?? [],
+    ...(input.data !== undefined && { data: input.data }),
   };
 }
 
@@ -119,6 +122,7 @@ function toWireResult(result: CliResult): Record<string, unknown> {
       mutates,
       requires_human: requiresHuman,
     })),
+    ...(result.data !== undefined && { data: result.data }),
   };
 }
 
