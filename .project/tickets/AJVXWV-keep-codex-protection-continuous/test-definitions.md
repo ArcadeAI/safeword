@@ -171,7 +171,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Deprecated cleanup alias follows the finalization contract
 
 - [x] RED skip: the alias is parsed into the same finalization branch
-- [ ] GREEN
+- [x] GREEN 4cf30d883
 - [ ] REFACTOR
 
 ### Scenario: Explicit non-interactive finalization succeeds
