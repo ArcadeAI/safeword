@@ -2,7 +2,7 @@
 id: AJVXWV
 slug: keep-codex-protection-continuous
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 phase_anchors:
   - 'define-behavior: .project/tickets/AJVXWV-keep-codex-protection-continuous/spec.md'
@@ -33,7 +33,7 @@ done_when:
   - Finalized repositories retain a concise bootstrap skill for future Codex users.
   - `safeword codex status` provides useful human output and stable JSON output and exit semantics.
 created: 2026-07-28T06:40:27.528Z
-last_modified: 2026-07-28T06:40:27.528Z
+last_modified: 2026-07-28T10:32:05Z
 ---
 
 # Keep Codex protection continuous while teams migrate to the profile plugin
@@ -79,3 +79,9 @@ last_modified: 2026-07-28T06:40:27.528Z
 - 2026-07-28T07:35:00Z Plan gate passed: Independent review approved the
   revised schema-owned migration design after restart, legacy-protection,
   machine-contract, viability, idempotence, and recovery gaps were resolved.
+- 2026-07-28T10:32:05Z Implemented: Shipped schema-owned legacy preservation,
+  profile proof and restart markers, event-level compatibility, typed status,
+  transactional finalization/recovery, teammate bootstrap, and migration
+  documentation. Bound the complete 90-scenario continuity feature to real CLI
+  and filesystem behavior. The acceptance lane exposed and closed a repeated
+  migration regression; all 183 repository BDD scenarios now pass.

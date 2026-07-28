@@ -1,6 +1,6 @@
 # Impl Plan: Keep Codex protection continuous while teams migrate
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
