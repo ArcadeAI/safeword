@@ -1,4 +1,4 @@
-@surface.safeword-cli
+@surface.safeword-cli @feature.predictable-safeword-cli
 Feature: One predictable Safeword CLI
 
   Rule: predictable-safeword-cli.TBU1.R1 — The default command reports project health without changing the project
