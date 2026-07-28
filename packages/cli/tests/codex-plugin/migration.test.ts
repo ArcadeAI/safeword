@@ -229,4 +229,18 @@ describe('Codex migration result', () => {
       next_actions: [{ command: 'safeword codex migrate' }],
     });
   });
+
+  it('points an unconfigured teammate to the finalized repository bootstrap', () => {
+    const result = deriveCodexMigrationResult(facts({ finalized: true }));
+
+    expect(renderCodexMigrationHuman(result)).toBe(
+      [
+        'Codex migration: plugin_setup_required',
+        'Protection: unprotected',
+        'Setup: .agents/skills/safeword-plugin-setup/SKILL.md',
+        'Next: safeword codex migrate',
+        '',
+      ].join('\n'),
+    );
+  });
 });
