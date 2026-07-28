@@ -255,7 +255,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Lookalike and user-authored assets survive finalization
 
 - [x] RED 28a2effe9
-- [ ] GREEN
+- [x] GREEN 06cf98243
 - [ ] REFACTOR
 
 ## Rule: codex-continuity.SWM1.R2 — A finalized repository retains a small plugin-setup bootstrap without duplicated workflow policy
