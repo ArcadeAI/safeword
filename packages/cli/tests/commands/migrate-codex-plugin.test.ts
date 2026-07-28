@@ -794,6 +794,37 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     expect(calls.match(/plugin marketplace add/g)).toHaveLength(1);
   });
 
+  it('does not reinstall an enabled plugin whose hook proof is still unproven', async () => {
+    const fixture = createMigrationFixture('');
+
+    const result = await runCodexCommand(fixture, ['codex', 'migrate']);
+
+    expect(result.exitCode, result.stderr).toBe(2);
+    expect(result.stdout).toContain('plugin_enabled_hook_unproven');
+    expect(
+      existsSync(nodePath.join(fixture.directory, 'profile/safeword/restart-pending-v1.json')),
+    ).toBe(false);
+    expect(readFileSync(nodePath.join(fixture.directory, 'codex.log'), 'utf8')).not.toContain(
+      'plugin marketplace add',
+    );
+  });
+
+  it('does not regress compatibility mode to restart-required on repeated migration', async () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    recordCurrentProof(fixture);
+
+    const result = await runCodexCommand(fixture, ['codex', 'migrate']);
+
+    expect(result.exitCode, result.stderr).toBe(2);
+    expect(result.stdout).toContain('Codex migration: compatibility');
+    expect(
+      existsSync(nodePath.join(fixture.directory, 'profile/safeword/restart-pending-v1.json')),
+    ).toBe(false);
+    expect(readFileSync(nodePath.join(fixture.directory, 'codex.log'), 'utf8')).not.toContain(
+      'plugin marketplace add',
+    );
+  });
+
   it('blocks migration while recovery evidence is unresolved', async () => {
     const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
     const backupDirectory = nodePath.join(fixture.directory, '.safeword/codex-migration-backup');
