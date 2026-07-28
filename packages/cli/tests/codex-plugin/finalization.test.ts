@@ -1,8 +1,22 @@
-import { describe, expect, it, vi } from 'vitest';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import nodePath from 'node:path';
 
-import { resolveCodexFinalizationConfirmation } from '../../src/codex-plugin/finalization.js';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import {
+  applyCodexFinalization,
+  resolveCodexFinalizationConfirmation,
+} from '../../src/codex-plugin/finalization.js';
 
 describe('Codex migration finalization', () => {
+  const directories: string[] = [];
+
+  afterEach(() => {
+    for (const directory of directories) rmSync(directory, { recursive: true, force: true });
+    directories.length = 0;
+  });
+
   it('leaves finalization unconfirmed when the interactive prompt is declined', async () => {
     const confirm = vi.fn().mockResolvedValue(false);
 
@@ -13,5 +27,31 @@ describe('Codex migration finalization', () => {
 
     expect(confirmed).toBe(false);
     expect(confirm).toHaveBeenCalledOnce();
+  });
+
+  it('rolls back the complete pre-migration state when finalization fails', () => {
+    const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-finalization-'));
+    directories.push(directory);
+    writeFileSync(nodePath.join(directory, 'first.txt'), 'first before\n');
+    writeFileSync(nodePath.join(directory, 'second.txt'), 'second before\n');
+
+    expect(() =>
+      applyCodexFinalization(
+        directory,
+        [
+          { path: 'first.txt', content: 'first after\n' },
+          { path: 'second.txt', content: 'second after\n' },
+        ],
+        {
+          beforeMutation: index => {
+            if (index === 1) throw new Error('injected finalization failure');
+          },
+        },
+      ),
+    ).toThrow('injected finalization failure');
+
+    expect(readFileSync(nodePath.join(directory, 'first.txt'), 'utf8')).toBe('first before\n');
+    expect(readFileSync(nodePath.join(directory, 'second.txt'), 'utf8')).toBe('second before\n');
+    expect(existsSync(nodePath.join(directory, '.safeword/codex-migration-backup'))).toBe(false);
   });
 });
