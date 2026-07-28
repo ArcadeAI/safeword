@@ -1,13 +1,17 @@
 import { findCommandDefinition } from './catalog.js';
 import { type CliResult, createResult } from './result.js';
 
-export function describeNonInteractiveIntent(name: string, offline: boolean): CliResult {
+export function describeNonInteractiveIntent(
+  name: string,
+  offline: boolean,
+  details: Readonly<Record<string, unknown>> = {},
+): CliResult {
   const definition = findCommandDefinition(name);
 
   if (definition.effectClass === 'observe' || definition.effectClass === 'plan') {
     return createResult({
       state: 'healthy',
-      data: { command: name, mode: 'non_interactive' },
+      data: { command: name, mode: 'non_interactive', ...details },
     });
   }
 
@@ -31,6 +35,6 @@ export function describeNonInteractiveIntent(name: string, offline: boolean): Cl
         requiresHuman: !onlineRequired,
       },
     ],
-    data: { command: name, mode: 'non_interactive' },
+    data: { command: name, mode: 'non_interactive', ...details },
   });
 }

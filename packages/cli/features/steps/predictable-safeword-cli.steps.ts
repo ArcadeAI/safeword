@@ -94,14 +94,14 @@ function runCli(
 }
 
 function childEnvironment(): NodeJS.ProcessEnv {
-  const environment = { ...process.env, SAFEWORD_NO_UPDATE_CHECK: '1' };
+  const environment: NodeJS.ProcessEnv = { ...process.env, SAFEWORD_NO_UPDATE_CHECK: '1' };
   delete environment.NODE_OPTIONS;
   return environment;
 }
 
 function setupProject(world: PredictableCliWorld): void {
   const directory = temporaryProject(world);
-  runCli(world, ['setup', '--json', '--no-input', '--offline', '--cwd', directory], directory);
+  runCli(world, ['setup', '--json', '--no-input', '--cwd', directory], directory);
   assert.equal(world.result.exitCode, 0);
 }
 
@@ -385,7 +385,7 @@ Given('setup has converged a project', function (this: PredictableCliWorld) {
 });
 
 When('the user runs setup again', function (this: PredictableCliWorld) {
-  runCli(this, ['setup', '--json', '--no-input', '--offline', '--cwd', temporaryProject(this)]);
+  runCli(this, ['setup', '--json', '--no-input', '--cwd', temporaryProject(this)]);
 });
 
 Then('the result is successful and changed is false', function (this: PredictableCliWorld) {
@@ -527,12 +527,13 @@ When(
   'global options precede the command and double dash precedes a flag-like argument',
   function (this: PredictableCliWorld) {
     runCli(this, ['--json', '--no-input', 'project', 'lint-gherkin', '--', '--flag-like.feature']);
-    this.rendered = '--flag-like.feature';
   },
 );
 
 Then('the flag-like argument reaches the handler unchanged', function (this: PredictableCliWorld) {
-  assert.equal(this.rendered, '--flag-like.feature');
+  assert.deepEqual((wireResult(this).data as { arguments: string[] }).arguments, [
+    '--flag-like.feature',
+  ]);
   assert.equal(this.result.stderr, '');
 });
 

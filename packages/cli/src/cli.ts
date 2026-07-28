@@ -39,9 +39,10 @@ function reportIntent(
   name: string,
   command: Command,
   alias?: { legacy: string; replacement: string },
+  details?: Readonly<Record<string, unknown>>,
 ): void {
   const options = readGlobalOptions(command);
-  const intent = describeNonInteractiveIntent(name, options.offline);
+  const intent = describeNonInteractiveIntent(name, options.offline, details);
   reportResult(
     alias === undefined ? intent : withDeprecation(intent, alias.legacy, alias.replacement),
     options,
@@ -58,7 +59,7 @@ addGlobalOptions(program);
 program.action(async (_options, command: Command) => {
   const globalOptions = readGlobalOptions(command);
   const { observeStatus } = await import('./commands/status.js');
-  reportResult(await observeStatus(globalOptions.cwd), globalOptions);
+  reportResult(await observeStatus(globalOptions.cwd), globalOptions, 'status');
 });
 
 const status = addGlobalOptions(
@@ -67,7 +68,7 @@ const status = addGlobalOptions(
 status.action(async (_options, command: Command) => {
   const globalOptions = readGlobalOptions(command);
   const { observeStatus } = await import('./commands/status.js');
-  reportResult(await observeStatus(globalOptions.cwd), globalOptions);
+  reportResult(await observeStatus(globalOptions.cwd), globalOptions, 'status');
 });
 
 const doctor = addGlobalOptions(
@@ -76,14 +77,14 @@ const doctor = addGlobalOptions(
 doctor.action(async (_options, command: Command) => {
   const globalOptions = readGlobalOptions(command);
   const { observeStatus } = await import('./commands/status.js');
-  reportResult(await observeStatus(globalOptions.cwd), globalOptions);
+  reportResult(await observeStatus(globalOptions.cwd), globalOptions, 'doctor');
 });
 
 const capabilities = addGlobalOptions(
   program.command('capabilities').description('Describe the public machine interface'),
 );
 capabilities.action((_options, command: Command) => {
-  reportResult(createCapabilitiesResult(), readGlobalOptions(command));
+  reportResult(createCapabilitiesResult(), readGlobalOptions(command), 'capabilities');
 });
 
 const project = program.command('project').description('Manage project-local Safeword state');
@@ -183,7 +184,7 @@ addGlobalOptions(
 ).action(async (files: string[], _options, command: Command) => {
   const globalOptions = readGlobalOptions(command);
   if (isMachineInvocation(globalOptions)) {
-    reportIntent('project lint-gherkin', command);
+    reportIntent('project lint-gherkin', command, undefined, { arguments: files });
     return;
   }
   const { lintGherkin } = await import('./commands/lint-gherkin.js');
@@ -243,7 +244,7 @@ const planCommand = addGlobalOptions(
 planCommand.action(async (_options, command: Command) => {
   const globalOptions = readGlobalOptions(command);
   const { observePlan } = await import('./commands/plan.js');
-  reportResult(await observePlan(globalOptions.cwd), globalOptions);
+  reportResult(await observePlan(globalOptions.cwd), globalOptions, 'plan');
 });
 
 const remove = addGlobalOptions(
@@ -256,7 +257,7 @@ remove.action(
   async (options: { yes?: boolean; plan?: string; full?: boolean }, command: Command) => {
     const globalOptions = readGlobalOptions(command);
     const { removeProject } = await import('./commands/remove.js');
-    reportResult(await removeProject(globalOptions.cwd, options), globalOptions);
+    reportResult(await removeProject(globalOptions.cwd, options), globalOptions, 'remove');
   },
 );
 
@@ -271,6 +272,10 @@ addGlobalOptions(
     ),
 ).action(async (options, command: Command) => {
   const globalOptions = readGlobalOptions(command);
+  if (globalOptions.offline && process.env.SAFEWORD_SKIP_INSTALL === undefined) {
+    reportIntent('setup', command);
+    return;
+  }
   if (
     globalOptions.json ||
     globalOptions.noInput ||
@@ -281,6 +286,7 @@ addGlobalOptions(
     reportResult(
       await convergeSetup(globalOptions.cwd, { noModify: options.modify === false }),
       globalOptions,
+      'setup',
     );
     return;
   }
@@ -303,6 +309,7 @@ addGlobalOptions(
     reportResult(
       withDeprecation(await observeStatus(globalOptions.cwd), 'check', 'status'),
       globalOptions,
+      'check',
     );
     return;
   }
@@ -337,6 +344,10 @@ addGlobalOptions(
 ).action(async (options, command: Command) => {
   const globalOptions = readGlobalOptions(command);
   if (isMachineInvocation(globalOptions)) {
+    if (globalOptions.offline && process.env.SAFEWORD_SKIP_INSTALL === undefined) {
+      reportIntent('setup', command, { legacy: 'upgrade', replacement: 'setup' });
+      return;
+    }
     const { convergeSetup } = await import('./commands/converge-setup.js');
     reportResult(
       withDeprecation(
@@ -500,6 +511,7 @@ addGlobalOptions(
     reportResult(
       withDeprecation(await observePlan(globalOptions.cwd), 'diff', 'plan'),
       globalOptions,
+      'diff',
     );
     return;
   }
@@ -524,6 +536,7 @@ addGlobalOptions(
         'remove',
       ),
       globalOptions,
+      'reset',
     );
     return;
   }

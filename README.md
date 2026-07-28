@@ -337,29 +337,31 @@ it never stages, commits, or opens a PR.
 ## CLI Commands
 
 ```bash
-# Set up safeword in current project
+# Read-only health and reconciliation
+bunx safeword@latest
+bunx safeword@latest status
+bunx safeword@latest doctor
+bunx safeword@latest plan
+
+# Converge Safeword in the current project
 bunx safeword@latest setup
-bunx safeword@latest setup -y # Non-interactive mode
 
-# Check project health and versions
-bunx safeword@latest check
-bunx safeword@latest check --offline # Skip remote version check
+# Project and tracker workflows
+bunx safeword@latest project sync-config
+bunx safeword@latest project architecture
+bunx safeword@latest tracker sync
 
-# Upgrade to latest version
-bunx safeword@latest upgrade
+# Preview removal, then run the exact confirmation command Safeword prints
+bunx safeword@latest remove
 
-# Preview changes before upgrading
-bunx safeword@latest diff
-bunx safeword@latest diff -v # Show full diff output
-
-# Regenerate architecture config for /audit
-bunx safeword@latest sync-config
-
-# Remove safeword from project
-bunx safeword reset
-bunx safeword reset -y     # Skip confirmation
-bunx safeword reset --full # Also remove linting config + packages
+# Discover the stable agent interface
+bunx safeword@latest capabilities --json --no-input
 ```
+
+Global `--json`, `--no-input`, `--cwd`, `--quiet`, `--offline`, and
+`--verbose` options work before or after public commands. The former `check`,
+`upgrade`, `diff`, `reset`, `sync-config`, and related top-level names remain
+hidden deprecated aliases through the 0.71 release line.
 
 ### Publishing (maintainers)
 
