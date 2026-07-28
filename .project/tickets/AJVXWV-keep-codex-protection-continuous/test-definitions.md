@@ -117,7 +117,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Failed rollback retains recovery evidence
 
 - [x] RED 682e244cc
-- [ ] GREEN
+- [x] GREEN 7314d9302
 - [ ] REFACTOR
 
 ### Scenario: Repeated finalization of a plugin-only project is a no-op
