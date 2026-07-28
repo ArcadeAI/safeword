@@ -164,7 +164,7 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
    * signature, which is why this read as flaky for so long.
    *
    * The listing endpoint returns raw bodies verbatim, so the marker check becomes
-   * a local string compare — exact and index-independent. The pagination universe
+   * a local string compare — exact and search-index-independent. The pagination universe
    * is `state=all`: closing or reopening an issue changes its state but not its
    * membership or creation-order position, so it cannot shift a later open marker
    * across a page boundary. Closed issues are filtered locally and remain
@@ -173,6 +173,12 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
    * still dedups. Deletion or transfer can still remove an item from this
    * repository-wide universe; those administrative mutations remain outside the
    * close/reopen race addressed here.
+   *
+   * Reviewer: index-independent is not lag-free. GitHub documents no
+   * read-after-write guarantee on the listing endpoint, and API reads can be
+   * served from a replica, so an issue another run filed moments ago may not
+   * appear here. `createdThisRun` below closes the same-transport case; the
+   * cross-run one is #1479.
    *
    * Cached because triage runs up to two lookups per encounter; a 12-finding
    * session would otherwise re-list 24 times.
