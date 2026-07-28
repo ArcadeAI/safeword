@@ -247,7 +247,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Non-interactive migration without complete confirmation cannot finalize
 
 - [x] RED skip: missing confirmation already failed closed before repository mutation
-- [ ] GREEN
+- [x] GREEN 913b14ee5
 - [ ] REFACTOR
 
 ## Rule: codex-continuity.SWM1.R1 — Finalization removes only known Safe Word-owned legacy assets
