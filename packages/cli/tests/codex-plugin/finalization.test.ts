@@ -54,4 +54,37 @@ describe('Codex migration finalization', () => {
     expect(readFileSync(nodePath.join(directory, 'second.txt'), 'utf8')).toBe('second before\n');
     expect(existsSync(nodePath.join(directory, '.safeword/codex-migration-backup'))).toBe(false);
   });
+
+  it('retains recovery evidence when automatic rollback fails', () => {
+    const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-finalization-'));
+    directories.push(directory);
+    writeFileSync(nodePath.join(directory, 'first.txt'), 'first before\n');
+    writeFileSync(nodePath.join(directory, 'second.txt'), 'second before\n');
+
+    expect(() =>
+      applyCodexFinalization(
+        directory,
+        [
+          { path: 'first.txt', content: 'first after\n' },
+          { path: 'second.txt', content: 'second after\n' },
+        ],
+        {
+          beforeMutation: index => {
+            if (index === 1) throw new Error('injected finalization failure');
+          },
+          beforeRollback: () => {
+            throw new Error('injected rollback failure');
+          },
+        },
+      ),
+    ).toThrow('recovery is required');
+
+    expect(readFileSync(nodePath.join(directory, 'first.txt'), 'utf8')).toBe('first after\n');
+    const manifestPath = nodePath.join(directory, '.safeword/codex-migration-backup/manifest.json');
+    expect(existsSync(manifestPath)).toBe(true);
+    expect(JSON.parse(readFileSync(manifestPath, 'utf8'))).toMatchObject({
+      schema_version: 1,
+      status: 'prepared',
+    });
+  });
 });
