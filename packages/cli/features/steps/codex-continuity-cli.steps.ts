@@ -205,7 +205,11 @@ function runPlannedFinalization(
 
 function runPlannedRecovery(world: ContinuityCliWorld): CliResult {
   const preview = run(world, ['codex', 'recover', '--json']);
-  const envelope = JSON.parse(preview.stdout) as { data?: { plan?: { id?: string } } };
+  const envelope = JSON.parse(preview.stdout) as {
+    data?: { plan?: { id?: string } };
+    errors?: { code?: string }[];
+  };
+  if (envelope.errors?.length) return preview;
   const planId = envelope.data?.plan?.id;
   assert.ok(planId, `recovery preview did not return a plan: ${preview.stdout}`);
   return run(world, ['codex', 'recover', '--yes', '--plan', planId]);
@@ -938,6 +942,8 @@ Then(
   'recovery reports the conflicting path and overwrites no repository file',
   function (this: ContinuityCliWorld) {
     assert.notEqual(this.result.exitCode, 0);
+    const envelope = JSON.parse(this.result.stdout) as { errors?: { code?: string }[] };
+    assert.equal(envelope.errors?.[0]?.code, 'RECOVERY_CONFLICT');
     assert.match(
       `${this.result.stdout}\n${this.result.stderr}`,
       new RegExp(this.recoveryConflictPath ?? '', 'u'),

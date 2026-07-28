@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import type * as CodexMigration from '../commands/migrate-codex-plugin.js';
@@ -8,7 +8,7 @@ import type { CommandHandler, CommandInvocation } from './handler.js';
 import { type CliPlan, createPlan, toWirePlan } from './plan.js';
 import { type CliResult, createResult } from './result.js';
 
-function onlineRequired(name: string): CliResult {
+function onlineRequired(name: string, nextCommand = name): CliResult {
   return createResult({
     state: 'action_required',
     findings: [
@@ -20,13 +20,39 @@ function onlineRequired(name: string): CliResult {
     ],
     nextActions: [
       {
-        command: `safeword ${name}`,
+        command: `safeword ${nextCommand}`,
         mutates: true,
         requiresHuman: false,
       },
     ],
     data: { command: name, offline: true },
   });
+}
+
+function shellArgument(value: string): string {
+  const escapedSingleQuote = `'"'"'`;
+  return `'${value.split("'").join(escapedSingleQuote)}'`;
+}
+
+function ticketNewReplayCommand(invocation: CommandInvocation): string {
+  const slug = String(invocation.operands[0]);
+  const type = stringOption(invocation.options, 'type') ?? 'task';
+  const optionalArguments = [
+    ['--title', stringOption(invocation.options, 'title')],
+    ['--goal', stringOption(invocation.options, 'goal')],
+    ['--why', stringOption(invocation.options, 'why')],
+    ['--parent', stringOption(invocation.options, 'parent')],
+    ['--issue', stringOption(invocation.options, 'issue')],
+  ] as const;
+  const renderedOptions = optionalArguments.flatMap(([flag, value]) =>
+    value === undefined ? [] : [`${flag} ${shellArgument(value)}`],
+  );
+  return [
+    `ticket new ${shellArgument(slug)}`,
+    `--type ${shellArgument(type)}`,
+    ...renderedOptions,
+    `--cwd ${shellArgument(invocation.cwd)}`,
+  ].join(' ');
 }
 
 function notConfigured(command: string): CliResult {
@@ -681,11 +707,25 @@ function staleCodexPlan(plan: CliPlan): CliResult {
   });
 }
 
-function runCodexRecovery(
+async function runCodexRecovery(
   invocation: CommandInvocation,
   migration: typeof CodexMigration,
-): CliResult {
-  const changed = migration.recoverCodexMigration(invocation.cwd, { report: false });
+): Promise<CliResult> {
+  const finalization = await import('../codex-plugin/finalization.js');
+  const recovery = finalization.observeCodexRecoveryPlan(invocation.cwd);
+  const before = recovery.effects.map(effect => ({
+    path: nodePath.join(invocation.cwd, effect.path),
+    content: observeFile(nodePath.join(invocation.cwd, effect.path)),
+  }));
+  let changed: boolean;
+  try {
+    changed = migration.recoverCodexMigration(invocation.cwd, { report: false });
+  } catch (recoveryError) {
+    const fileEffects = before.flatMap(snapshot =>
+      observedFileEffect(invocation.cwd, snapshot.path, snapshot.content),
+    );
+    return codexFailure(recoveryError, 'codex recover', false, fileEffects);
+  }
   const observed = migration.observeCodexMigration(invocation.cwd);
   return {
     ...observed,
@@ -693,9 +733,14 @@ function runCodexRecovery(
     changed,
     effects: {
       ...observed.effects,
-      configuration: changed
-        ? [{ kind: 'restore', target: 'Safeword legacy Codex project state' }]
+      files: changed
+        ? recovery.effects.map(effect => ({
+            kind: effect.action,
+            target: effect.path,
+            operation: effect.action,
+          }))
         : [],
+      configuration: [],
     },
   };
 }
@@ -790,7 +835,12 @@ function codexFailureCode(
     : 'FINALIZATION_FAILED';
 }
 
-function codexFailure(error: unknown, name: CodexMutationName, isFinalization: boolean): CliResult {
+function codexFailure(
+  error: unknown,
+  name: CodexMutationName,
+  isFinalization: boolean,
+  fileEffects: CliResult['effects']['files'] = [],
+): CliResult {
   const message = error instanceof Error ? error.message : String(error);
   if (/finalization plan changed/iu.test(message)) {
     return createResult({
@@ -811,8 +861,9 @@ function codexFailure(error: unknown, name: CodexMutationName, isFinalization: b
     );
   return createResult({
     state: 'failed',
-    changed: partialInstall,
+    changed: partialInstall || fileEffects.length > 0,
     effects: {
+      files: fileEffects,
       configuration: partialInstall
         ? [
             {
@@ -823,6 +874,16 @@ function codexFailure(error: unknown, name: CodexMutationName, isFinalization: b
           ]
         : [],
     },
+    recovery:
+      fileEffects.length > 0
+        ? [
+            {
+              command: 'safeword codex recover',
+              description: 'Retry recovery using the retained migration backup.',
+              requiresHuman: true,
+            },
+          ]
+        : [],
     errors: [
       {
         code: codexFailureCode(message, name, isFinalization),
@@ -841,7 +902,7 @@ async function executeCodexMutation(
   invocation: CommandInvocation,
   migration: typeof CodexMigration,
 ): Promise<CliResult> {
-  if (name === 'codex recover') return runCodexRecovery(invocation, migration);
+  if (name === 'codex recover') return await runCodexRecovery(invocation, migration);
   if (isFinalization) return await runCodexFinalization(invocation, migration);
   return runCodexInstall(invocation, migration);
 }
@@ -886,7 +947,7 @@ async function codexRecoveryPreflight(
 ): Promise<CliResult | undefined> {
   const finalization = await import('../codex-plugin/finalization.js');
   const recovery = finalization.observeCodexRecoveryPlan(invocation.cwd);
-  if (recovery.effects.length === 0) return runCodexRecovery(invocation, migration);
+  if (recovery.effects.length === 0) return await runCodexRecovery(invocation, migration);
   const plan = createPlan({
     command: 'codex recover',
     preconditionDigest: recovery.preconditionDigest,
@@ -971,7 +1032,7 @@ async function ticketNewHandler(invocation: CommandInvocation): Promise<CliResul
     const { readTicketBridgeConfig } = await import('../tracker-sync/config.js');
     const config = readTicketBridgeConfig(invocation.cwd);
     if (config.provider === 'github' || config.provider === 'linear') {
-      return onlineRequired('ticket new');
+      return onlineRequired('ticket new', ticketNewReplayCommand(invocation));
     }
   }
   const { createTicketResult } = await import('../commands/ticket-new.js');
@@ -1033,17 +1094,20 @@ function retroNetworkEffects(execution: RetroCommandExecution): CliResult['effec
   return [{ kind: 'retro-triage', target: 'GitHub', operation: 'read-write' }];
 }
 
-function retroRunResult(execution: RetroCommandExecution): CliResult {
+function retroRunResult(
+  execution: RetroCommandExecution,
+  fileEffects: CliResult['effects']['files'],
+): CliResult {
   if (!execution.outcome.ok) {
     return retroFailure(execution.outcome.errorMessage ?? 'Retro execution failed.');
   }
   if (!execution.extractionSucceeded) return retroFailure('Retro extraction failed.');
   const result = execution.outcome.result;
-  const mutations = retroMutationCount(execution);
+  const changed = retroMutationCount(execution) > 0 || fileEffects.length > 0;
   return createResult({
-    state: mutations > 0 ? 'changed' : 'healthy',
-    changed: mutations > 0,
-    effects: { network: retroNetworkEffects(execution) },
+    state: changed ? 'changed' : 'healthy',
+    changed,
+    effects: { files: fileEffects, network: retroNetworkEffects(execution) },
     findings: retroDropFindings(execution),
     data: {
       command: 'retro run',
@@ -1053,15 +1117,41 @@ function retroRunResult(execution: RetroCommandExecution): CliResult {
   });
 }
 
+function observeFile(path: string): string | undefined {
+  try {
+    return readFileSync(path).toString('base64');
+  } catch {
+    return undefined;
+  }
+}
+
+function observedFileEffect(
+  cwd: string,
+  path: string,
+  before: string | undefined,
+): CliResult['effects']['files'] {
+  const after = observeFile(path);
+  if (before === after) return [];
+  const target = nodePath.relative(cwd, path).split(nodePath.sep).join('/');
+  if (before === undefined) return [{ kind: 'create', target }];
+  if (after === undefined) return [{ kind: 'delete', target }];
+  return [{ kind: 'update', target }];
+}
+
 async function retroRunHandler(invocation: CommandInvocation): Promise<CliResult> {
   if (invocation.offline) return onlineRequired('retro run');
   const transcript = stringOption(invocation.options, 'transcript');
   if (transcript === undefined) return retroFailure('retro run requires --transcript <path>.');
 
+  const options = retroOptions(invocation, transcript);
+  const { draftSpoolPath } = await import('../../templates/hooks/lib/retro-draft-spool.js');
+  const sessionId = options.sessionId ?? process.env.CLAUDE_SESSION_ID ?? 'unknown';
+  const spoolPath = draftSpoolPath(invocation.cwd, sessionId);
+  const spoolBefore = observeFile(spoolPath);
   const { executeRetroCommand } = await import('../commands/retro.js');
   invocation.progress?.start('Extracting and filing retro findings…');
-  const execution = await executeRetroCommand(retroOptions(invocation, transcript), invocation.cwd);
-  return retroRunResult(execution);
+  const execution = await executeRetroCommand(options, invocation.cwd);
+  return retroRunResult(execution, observedFileEffect(invocation.cwd, spoolPath, spoolBefore));
 }
 
 async function retroReconcileHandler(invocation: CommandInvocation): Promise<CliResult> {

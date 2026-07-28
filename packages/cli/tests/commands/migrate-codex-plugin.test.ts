@@ -1122,6 +1122,13 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
       changed: true,
       state: 'changed',
       data: { migration_state: 'compatibility' },
+      effects: {
+        files: expect.arrayContaining([
+          { target: '.codex/config.toml', kind: 'restore', operation: 'restore' },
+          { target: '.safeword/codex-plugin.json', kind: 'restore', operation: 'restore' },
+        ]),
+        configuration: [],
+      },
     });
   });
 

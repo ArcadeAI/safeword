@@ -155,6 +155,11 @@ export function renderCodexMigrationHuman(result: CodexMigrationResultV1): strin
   const lines = [`Codex migration: ${result.state}`, `Protection: ${result.protected}`];
   if (result.state === 'plugin_setup_required') {
     lines.push('Setup: .agents/skills/safeword-plugin-setup/SKILL.md');
+  } else if (
+    result.state === 'plugin_installed_restart_required' ||
+    result.state === 'plugin_enabled_hook_unproven'
+  ) {
+    lines.push('Start a new Codex session, then review the Safe Word plugin hooks with /hooks.');
   }
   const next = result.next_actions[0];
   if (next !== undefined) lines.push(`Next: ${next.command}`);
