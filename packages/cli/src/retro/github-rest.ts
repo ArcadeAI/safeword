@@ -43,10 +43,23 @@ const MAX_ISSUE_PAGES = 10;
 // observable revisit threshold its first independent deliverable.
 const MAX_DEDUP_PAGES = 200;
 
-/** Ask the `gh` CLI for the environment's GitHub token, or undefined if unavailable. */
-function ghAuthToken(): string | undefined {
+/**
+ * Ask `gh` for the environment's GitHub token, or undefined if unavailable.
+ * `GITHUB_TOKEN` is stripped because the resolver only calls this fallback
+ * after rejecting that value; preserve `GH_TOKEN`, which is an independent
+ * documented gh credential source with higher precedence.
+ */
+function ghAuthToken(
+  environment: Record<string, string | undefined> = process.env,
+): string | undefined {
   try {
-    const result = spawnSync('gh', ['auth', 'token'], { encoding: 'utf8', timeout: 10_000 });
+    const childEnvironment = { ...environment };
+    delete childEnvironment.GITHUB_TOKEN;
+    const result = spawnSync('gh', ['auth', 'token'], {
+      encoding: 'utf8',
+      timeout: 10_000,
+      env: childEnvironment,
+    });
     const token = (result.stdout ?? '').trim();
     return result.status === 0 && token.length > 0 ? token : undefined;
   } catch {
@@ -55,13 +68,12 @@ function ghAuthToken(): string | undefined {
 }
 
 /**
- * Whether a value is syntactically usable as an RFC 6750 Bearer credential.
- * GitHub tokens are opaque: their API, not this resolver, decides whether the
- * credential is valid or authorized. Keep the documented cloud placeholder
- * out of the API so `gh` can supply a usable credential instead (#634).
+ * Whether a value has RFC 6750 Bearer credential syntax. GitHub tokens are
+ * opaque: their API, not this resolver, decides whether the credential is
+ * valid or authorized.
  */
-function isUsableBearerCredential(value: string): boolean {
-  return value !== 'proxy-injected' && /^[\w.~+/-]+=*$/.test(value);
+function isBearerCredentialSyntax(value: string): boolean {
+  return /^[\w.~+/-]+=*$/.test(value);
 }
 
 /**
@@ -70,20 +82,25 @@ function isUsableBearerCredential(value: string): boolean {
  * environment's existing GitHub access via `gh auth token`. Returns undefined when
  * neither is available, so the caller can no-op gracefully instead of failing.
  *
- * The env var is honored when it is syntactically usable as a Bearer credential.
- * Some environments (e.g. Claude cloud containers) populate `GITHUB_TOKEN` with
- * the non-credential `proxy-injected` placeholder, which would 401 and muddy
- * diagnosis; treat it as absent and fall through to `gh`. Other opaque values
- * reach GitHub, where an invalid or unauthorized credential gets its terminal
- * 401 response instead of being guessed at locally.
+ * The env var is honored when it has Bearer syntax, except for the exact
+ * documented `proxy-injected` cloud placeholder. Treat that value as absent and
+ * fall through to `gh`; every other opaque syntax-valid value reaches GitHub,
+ * where an invalid or unauthorized credential gets its terminal 401 response
+ * instead of being guessed at locally.
  */
 export function resolveGitHubToken(
   env: Record<string, string | undefined> = process.env,
-  getGhToken: () => string | undefined = ghAuthToken,
+  getGhToken: (environment: Record<string, string | undefined>) => string | undefined = ghAuthToken,
 ): string | undefined {
   const fromEnvironment = env.GITHUB_TOKEN;
-  if (fromEnvironment && isUsableBearerCredential(fromEnvironment)) return fromEnvironment;
-  return getGhToken();
+  if (
+    fromEnvironment &&
+    fromEnvironment !== 'proxy-injected' &&
+    isBearerCredentialSyntax(fromEnvironment)
+  ) {
+    return fromEnvironment;
+  }
+  return getGhToken(env);
 }
 
 /** The one place auth + API headers are wired to fetch; both transports compose this. */

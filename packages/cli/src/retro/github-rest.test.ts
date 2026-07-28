@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+const spawnSyncMock = vi.hoisted(() => vi.fn());
+
+vi.mock('node:child_process', () => ({ spawnSync: spawnSyncMock }));
+
 import { createRestTransport, resolveGitHubToken } from './github-rest.js';
 
 interface MockResponse {
@@ -60,6 +64,8 @@ function mockFetchCapturing(responder: (url: string) => MockResponse): CapturedC
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+  vi.clearAllMocks();
 });
 
 describe('createRestTransport', () => {
@@ -367,8 +373,21 @@ describe('createRestTransport', () => {
 
   // A wrong credential fails the same way every time. Retrying it once per
   // finding burns a whole sweep each and can trip rate limits (#1465 review).
-  it('#1520: sends an opaque Bearer credential to GitHub, where a terminal 401 is latched', async () => {
+  it('#1465: latches a terminal auth failure instead of re-sweeping per encounter', async () => {
     const calls = mockFetch(() => ({ ok: false, status: 401, json: () => ({}) }));
+    const transport = createRestTransport('tok');
+    if (!transport) throw new Error('expected a transport');
+
+    await expect(transport.searchBySignature('retro:abc123def456')).rejects.toThrow('401');
+    expect(calls).toHaveLength(1);
+
+    // The next encounter fails from the latch — no second request.
+    await expect(transport.searchByCanonical('canonical:abc123def456')).rejects.toThrow('401');
+    expect(calls).toHaveLength(1);
+  });
+
+  it('#1520: sends an opaque Bearer credential to GitHub, where its 401 is terminal', async () => {
+    const calls = mockFetchCapturing(() => ({ ok: false, status: 401, json: () => ({}) }));
     const token = resolveGitHubToken({ GITHUB_TOKEN: 'future-token~1' }, () => {
       throw new Error('gh fallback must not be consulted');
     });
@@ -378,6 +397,9 @@ describe('createRestTransport', () => {
 
     await expect(transport.searchBySignature('retro:abc123def456')).rejects.toThrow('401');
     expect(calls).toHaveLength(1);
+    expect((calls[0]?.init.headers as Record<string, string>).Authorization).toBe(
+      'Bearer future-token~1',
+    );
 
     // The next encounter fails from the latch — no second request.
     await expect(transport.searchByCanonical('canonical:abc123def456')).rejects.toThrow('401');
@@ -572,6 +594,8 @@ describe('resolveGitHubToken (7D8PJP — no hard GITHUB_TOKEN requirement)', () 
     ['single-character Bearer credential', 'a'],
     ['Bearer credential with every permitted punctuation character and padding', 'a-._~+/==='],
     ['arbitrary opaque Bearer credential', opaqueBearerToken],
+    ['RFC-valid value that is not the exact documented placeholder', 'not-set'],
+    ['case variant of the exact documented placeholder', 'PROXY-INJECTED'],
   ])('accepts a %s from GITHUB_TOKEN without consulting gh', (_label, shaped) => {
     let ghConsulted = false;
     const token = resolveGitHubToken({ GITHUB_TOKEN: shaped }, () => {
@@ -582,23 +606,23 @@ describe('resolveGitHubToken (7D8PJP — no hard GITHUB_TOKEN requirement)', () 
     expect(ghConsulted).toBe(false);
   });
 
-  it.each([
-    ['arbitrary opaque credential', opaqueBearerToken],
-    ['stateless GitHub credential', representativeStatelessToken],
-  ])('passes a selected %s GITHUB_TOKEN to the REST transport', async (_label, shaped) => {
-    const calls = mockFetchCapturing(() => ({ json: () => ({ id: 99, body: 'hi' }) }));
-    const token = resolveGitHubToken({ GITHUB_TOKEN: shaped }, () => {
-      throw new Error('gh fallback must not be consulted');
-    });
-    const transport = createRestTransport(token);
-    if (!transport) throw new Error('expected a transport');
+  it.each([['stateless GitHub credential', representativeStatelessToken]])(
+    'passes a selected %s GITHUB_TOKEN to the REST transport',
+    async (_label, shaped) => {
+      const calls = mockFetchCapturing(() => ({ json: () => ({ id: 99, body: 'hi' }) }));
+      const token = resolveGitHubToken({ GITHUB_TOKEN: shaped }, () => {
+        throw new Error('gh fallback must not be consulted');
+      });
+      const transport = createRestTransport(token);
+      if (!transport) throw new Error('expected a transport');
 
-    await transport.createComment(42, 'hi');
+      await transport.createComment(42, 'hi');
 
-    expect((calls[0]?.init.headers as Record<string, string>).Authorization).toBe(
-      `Bearer ${shaped}`,
-    );
-  });
+      expect((calls[0]?.init.headers as Record<string, string>).Authorization).toBe(
+        `Bearer ${shaped}`,
+      );
+    },
+  );
 
   it.each([
     ['a proxy placeholder', 'proxy-injected'],
@@ -606,11 +630,31 @@ describe('resolveGitHubToken (7D8PJP — no hard GITHUB_TOKEN requirement)', () 
     ['a value containing a space', 'opaque token'],
     ['a value containing a tab', 'opaque\ttoken'],
     ['a value containing a newline', 'opaque\ntoken'],
+    ['a value ending in a newline', 'opaque-token\n'],
+    ['a value ending in a carriage return', 'opaque-token\r'],
     ['a value containing a NUL control character', 'opaque\0token'],
     ['a value with equals outside the optional suffix', 'opaque=token'],
   ])('rejects %s and falls back to gh', (_label, bogus) => {
     const token = resolveGitHubToken({ GITHUB_TOKEN: bogus }, () => ghToken);
     expect(token).toBe(ghToken);
+  });
+
+  it('#1602: removes a rejected GITHUB_TOKEN before asking gh for its credential', () => {
+    vi.stubEnv('GITHUB_TOKEN', 'proxy-injected');
+    vi.stubEnv('GH_TOKEN', 'explicit-gh-token');
+    spawnSyncMock.mockReturnValue({ status: 0, stdout: 'gh-keyring-token\n' });
+
+    expect(resolveGitHubToken()).toBe('gh-keyring-token');
+    expect(spawnSyncMock).toHaveBeenCalledWith(
+      'gh',
+      ['auth', 'token'],
+      expect.objectContaining({ encoding: 'utf8', timeout: 10_000 }),
+    );
+    const spawnCall = spawnSyncMock.mock.calls[0] as [string, string[], { env: NodeJS.ProcessEnv }];
+    if (!spawnCall) throw new Error('expected gh auth token to be called');
+    const options = spawnCall[2];
+    expect(options.env).toMatchObject({ GH_TOKEN: 'explicit-gh-token' });
+    expect(options.env).not.toHaveProperty('GITHUB_TOKEN');
   });
 
   // invisible-retro-claude.SM1.AC1 (token arm) — GITHUB_TOKEN present → the REST
