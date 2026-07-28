@@ -112,4 +112,26 @@ describe('Codex migration finalization', () => {
     expect(readFileSync(nodePath.join(directory, 'owned.txt'), 'utf8')).toBe('before\n');
     expect(existsSync(nodePath.join(directory, 'created.txt'))).toBe(false);
   });
+
+  it('leaves deterministic recovery evidence when execution stops after preparation', () => {
+    const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-finalization-'));
+    directories.push(directory);
+    writeFileSync(nodePath.join(directory, 'owned.txt'), 'before\n');
+
+    expect(() =>
+      applyCodexFinalization(directory, [{ path: 'owned.txt', content: 'after\n' }], {
+        afterPrepared: () => {
+          throw new Error('simulated process stop');
+        },
+      }),
+    ).toThrow('simulated process stop');
+
+    expect(readFileSync(nodePath.join(directory, 'owned.txt'), 'utf8')).toBe('before\n');
+    const manifestPath = nodePath.join(directory, '.safeword/codex-migration-backup/manifest.json');
+    expect(JSON.parse(readFileSync(manifestPath, 'utf8'))).toMatchObject({
+      schema_version: 1,
+      status: 'prepared',
+      entries: [{ path: 'owned.txt' }],
+    });
+  });
 });
