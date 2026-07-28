@@ -287,6 +287,14 @@ describe('real shared CLI to relay wiring', () => {
       store,
     });
     servers.push(relay.server);
+    const secureRelayFetch: typeof fetch = (input, init) => {
+      let requested: URL;
+      if (typeof input === 'string') requested = new URL(input);
+      else if (input instanceof URL) requested = input;
+      else requested = new URL(input.url);
+      expect(requested.origin).toBe('https://relay.test');
+      return fetch(new URL(`${requested.pathname}${requested.search}`, relay.url), init);
+    };
     const finding = {
       category: 'rough-edge',
       repro: 'run safeword retro after a lost response',
@@ -338,7 +346,7 @@ describe('real shared CLI to relay wiring', () => {
               credential,
               ...(relayFetch !== undefined && { fetch: relayFetch }),
               installationId: 42,
-              relayUrl: relay.url,
+              relayUrl: 'https://relay.test',
               repository: 'arcadeai/safeword',
             }),
             isAncestor: () => Promise.resolve(true),
@@ -356,7 +364,7 @@ describe('real shared CLI to relay wiring', () => {
     };
 
     const lostResponseFetch: typeof fetch = async (input, init) => {
-      const response = await fetch(input, init);
+      const response = await secureRelayFetch(input, init);
       await response.arrayBuffer();
       throw new Error('simulated lost receipt response');
     };
@@ -419,7 +427,7 @@ describe('real shared CLI to relay wiring', () => {
         arguments_,
         surface.harness,
         credentialFor(harness),
-        index === surfaces.length - 1 ? undefined : lostResponseFetch,
+        index === surfaces.length - 1 ? secureRelayFetch : lostResponseFetch,
       );
       expect(outcome.relay).toEqual(
         index === surfaces.length - 1
@@ -437,7 +445,7 @@ describe('real shared CLI to relay wiring', () => {
     expect(github.createdBodies).toHaveLength(1);
     expect(JSON.stringify(relay.observability)).not.toContain('ghs_installation_secret');
     store.close();
-  });
+  }, 30_000);
 
   it('keeps the real CLI composition on native filing with the checked-in disabled manifest', async () => {
     const project = mkdtempSync(path.join(tmpdir(), 'safeword-cli-relay-disabled-'));

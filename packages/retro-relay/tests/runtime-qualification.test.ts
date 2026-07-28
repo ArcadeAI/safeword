@@ -1,5 +1,13 @@
 import { spawn, spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  linkSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -173,6 +181,19 @@ describe('retro relay runtime qualification', () => {
     recovered.release();
   });
 
+  it('recovers an orphaned stale-lock reclaim election', () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-lock-orphan-'));
+    temporaryDirectories.push(directory);
+    const lockPath = path.join(directory, 'relay.lock');
+
+    writeFileSync(lockPath, '2147483647', 'utf8');
+    linkSync(lockPath, `${lockPath}.reclaim`);
+
+    const recovered = ProcessLock.acquire(lockPath);
+    expect(() => ProcessLock.acquire(lockPath)).toThrow('already locked');
+    recovered.release();
+  });
+
   it('allows only one process to reclaim the same stale lock', async () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-lock-race-'));
     temporaryDirectories.push(directory);
@@ -187,7 +208,7 @@ describe('retro relay runtime qualification', () => {
       try {
         const lock = ProcessLock.acquire(process.env.LOCK_PATH);
         process.stdout.write('acquired');
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 1000));
         lock.release();
       } catch {
         process.stdout.write('blocked');

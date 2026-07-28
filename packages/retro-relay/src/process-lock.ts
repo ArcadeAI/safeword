@@ -91,13 +91,55 @@ export class ProcessLock {
       linkSync(lockPath, reclaimPath);
       return undefined;
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw locked(error);
+      return ProcessLock.#recoverElectionFailure(lockPath, reclaimPath, error);
+    }
+  }
+
+  static #recoverElectionFailure(
+    lockPath: string,
+    reclaimPath: string,
+    error: unknown,
+  ): ProcessLock | undefined {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === 'EEXIST') {
+      if (!ProcessLock.#discardOrphanedElection(lockPath, reclaimPath)) throw locked(error);
       try {
-        return ProcessLock.#create(lockPath);
-      } catch (createError) {
-        if ((createError as NodeJS.ErrnoException).code !== 'EEXIST') throw createError;
-        throw locked(createError);
+        // eslint-disable-next-line security/detect-non-literal-fs-filename -- Both paths are derived from the explicit deployment lock path.
+        linkSync(lockPath, reclaimPath);
+        return undefined;
+      } catch (retryError) {
+        if ((retryError as NodeJS.ErrnoException).code !== 'ENOENT') throw locked(retryError);
       }
+    } else if (code !== 'ENOENT') {
+      throw locked(error);
+    }
+    try {
+      return ProcessLock.#create(lockPath);
+    } catch (createError) {
+      if ((createError as NodeJS.ErrnoException).code !== 'EEXIST') throw createError;
+      throw locked(createError);
+    }
+  }
+
+  static #discardOrphanedElection(lockPath: string, reclaimPath: string): boolean {
+    try {
+      // eslint-disable-next-line security/detect-non-literal-fs-filename -- The reclaim link is derived from the explicit lock path.
+      const owner = Number(readFileSync(reclaimPath, 'utf8'));
+      if (!Number.isSafeInteger(owner) || owner <= 0 || (owner !== process.pid && isAlive(owner))) {
+        return false;
+      }
+      // eslint-disable-next-line security/detect-non-literal-fs-filename -- Both stats prove the orphan still references the stale lock inode.
+      const currentLock = statSync(lockPath);
+      // eslint-disable-next-line security/detect-non-literal-fs-filename -- Both stats prove the orphan still references the stale lock inode.
+      const orphanedElection = statSync(reclaimPath);
+      if (currentLock.dev !== orphanedElection.dev || currentLock.ino !== orphanedElection.ino) {
+        return false;
+      }
+      unlinkIfPresent(reclaimPath);
+      return true;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return true;
+      throw error;
     }
   }
 
