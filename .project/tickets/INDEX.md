@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (454)
+## Tickets (455)
 
 ### 001
 
@@ -665,7 +665,7 @@
 - **Keep Cursor wrappers aligned from shared metadata (F1HTQ4)** (in_progress, epic: agent-surface-refactor)
   Prevent Cursor command and rule wrappers from drifting away from the skills they point to.
   → `.project/tickets/F1HTQ4-cursor-wrapper-generation`
-- **Keep default tests responsive for maintainers (SFQ1EQ)** (in_progress, epic: agent-surface-refactor)
+- **Keep default tests responsive for maintainers (SFQ1EQ)** (done, epic: agent-surface-refactor)
   Keep the default Vitest suite fast and observable while retaining explicit coverage for real setup installs.
   → `.project/tickets/SFQ1EQ-keep-default-tests-responsive`
 - **Make Codex hook adapter behavior easier to test (W0E292)** (done, epic: agent-surface-refactor)
@@ -1235,6 +1235,9 @@
   Prevent generated ticket indexes from being markdown-emphasis-corrupted during dogfood sessions.
   external issue: https://github.com/ArcadeAI/safeword/issues/397
   → `.project/tickets/F20E26-prevent-ticket-index-emphasis-corruption`
+- **Keep unconfigured repositories clean for Codex users (F7BH4J)** (in_progress, epic: —)
+  Prevent profile-scoped Codex plugin hooks from creating project state until Safeword setup explicitly enrolls the repository.
+  → `.project/tickets/F7BH4J-keep-unconfigured-repositories-clean`
 - **ticket new --parent links epic and child (F9W3JP)** (done, epic: —)
   One command wires a new child ticket to its epic across navigation and the index, with no dual-write drift
   → `.project/tickets/F9W3JP-epic-child-linker`

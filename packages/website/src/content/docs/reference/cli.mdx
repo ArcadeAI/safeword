@@ -139,6 +139,11 @@ bunx safeword@latest codex migrate --remove-legacy-hooks
 
 Both commands require Bun. Normal `setup` and `upgrade` do not install a profile-scoped Codex plugin, create a `.codex` directory, or recreate project-local Codex hooks. Plugin hooks use version-pinned `bunx --bun safeword@<version>` commands; they never use npx or bypass Codex hook trust.
 
+Installing the plugin does not enroll repositories. Project-scoped Codex gates
+and state activate only after `safeword setup` creates
+`.safeword/SAFEWORD.md`; before then they fail open without creating
+`.project/`.
+
 ### Legacy: safeword migrate codex-plugin
 
 `safeword migrate codex-plugin` remains supported for existing scripts. New users should use `safeword codex install` instead.

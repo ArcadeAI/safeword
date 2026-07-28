@@ -265,7 +265,10 @@ Key directories created in your project:
 Codex hooks live in the Safe Word plugin and run from the package with
 `bunx --bun safeword@<plugin-version> hook codex <event>`. Install and verify
 the profile-scoped plugin with `safeword codex install`; setup and upgrade
-do not create project-local Codex hooks or workflow assets. Codex visibly skips
+do not create project-local Codex hooks or workflow assets. The plugin does not
+implicitly enroll repositories: until `safeword setup` creates
+`.safeword/SAFEWORD.md`, project gates fail open and hooks do not create
+`.project/` or other project state. Codex visibly skips
 unreviewed or changed plugin hooks and directs the builder to `/hooks`; after
 trusting the plugin, run `safeword codex migrate --remove-legacy-hooks`
 to retire only Safe Word-owned legacy hooks. Codex edit-gate coverage is

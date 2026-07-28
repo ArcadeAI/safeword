@@ -1,6 +1,6 @@
 # Safeword Architecture
 
-**Version:** 1.18
+**Version:** 1.19
 **Last Updated:** 2026-07-27
 **Status:** Production
 
@@ -656,6 +656,21 @@ safeword accepts this trade — **consistency and enforcement over independent b
 | Alternatives   | Manually maintain plugin skills: rejected because the existing thin catalogue drifted. Generate at customer runtime: rejected because it adds a customer-time failure mode and cannot prove the installed cache. Delete hooks on plugin enablement: rejected because enabled does not mean trusted.                        |
 | Reassess when  | Codex adds a public trust-status or approval API, changes plugin/cache or hook schemas, introduces project-scoped plugins, or the canonical workflow adopts metadata/reference syntax outside the generator allowlist.                                                                                                     |
 | Implementation | Ticket MZH9QH: `packages/cli/src/codex-plugin/`, generated `packages/cli/codex-plugin/skills/`, staged migration command, tarball/cache proof, and documented interactive hook acceptance.                                                                                                                                 |
+
+### Explicit Project Enrollment for Profile-Scoped Codex Hooks
+
+**Status:** Accepted
+**Date:** 2026-07-27
+**Supersedes:** implicit hook-time namespace creation
+
+| Field          | Value                                                                                                                                                                                                                                                                                                               |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Context        | The Codex plugin is profile-scoped, so its lifecycle hooks can run in repositories that never installed Safeword. The quality-state observer previously treated any committed repository as enrolled and created a partial `.project/` namespace after ordinary tool use.                                           |
+| Decision       | `.safeword/SAFEWORD.md`, created by explicit `safeword setup`, is the project-enrollment marker. Before that marker exists, Codex project gates fail open and project-scoped PreToolUse, PostToolUse, and Stop handlers do not run or write state; SessionStart may still supply package-owned plugin instructions. |
+| Consequences   | Installing the profile plugin never implicitly enrolls a repository. Setup creates the complete resolved namespace, including its transient-state ignore contract, before Codex hooks may write there. Default, legacy, and configured custom namespace roots retain identical behavior after enrollment.           |
+| Alternatives   | Lazy full bootstrap was rejected because a global plugin should not mutate unrelated repositories. User-cache state before enrollment was rejected because project gates lack the project artifacts they govern and repository fingerprinting would add lifecycle complexity without useful enforcement.            |
+| Reassess when  | Codex introduces project-scoped plugin activation, or Safeword adds a standalone profile workflow whose pre-enrollment state has value independent of project setup.                                                                                                                                                |
+| Implementation | Ticket F7BH4J: `hasSafewordProjectMarker` in CLI and standalone hook path helpers; packaged Codex dispatcher guards; Codex proof-cache guard; integration coverage for unconfigured, default, legacy, and custom-root repositories.                                                                                 |
 
 ## References
 

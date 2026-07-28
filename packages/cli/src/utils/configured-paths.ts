@@ -18,7 +18,7 @@
 
 import nodePath from 'node:path';
 
-import { isDirectory, readFileSafe } from './fs.js';
+import { exists, isDirectory, readFileSafe } from './fs.js';
 import { toRepoDirectory } from './repo-path.js';
 
 /** Logical project-knowledge keys safeword knows how to override via `paths.*`. */
@@ -55,12 +55,18 @@ interface SafewordConfigShape {
 }
 
 const CONFIG_SUBPATH = ['.safeword', 'config.json'];
+const SAFEWORD_PROJECT_MARKER_SUBPATH = ['.safeword', 'SAFEWORD.md'];
 
 /** Default namespace root for fresh contexts (epic AQJ95G). */
 const NAMESPACE_ROOT_DEFAULT = '.project';
 
 /** Legacy namespace root, honored where it already exists (pre-AQJ95G installs). */
 export const NAMESPACE_ROOT_LEGACY = '.safeword-project';
+
+/** True after explicit Safeword setup has enrolled this repository. */
+export function hasSafewordProjectMarker(cwd: string): boolean {
+  return exists(nodePath.join(cwd, ...SAFEWORD_PROJECT_MARKER_SUBPATH));
+}
 
 function readSafewordConfig(cwd: string): SafewordConfigShape | undefined {
   const configPath = nodePath.join(cwd, ...CONFIG_SUBPATH);

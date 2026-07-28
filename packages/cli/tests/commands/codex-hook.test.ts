@@ -4,6 +4,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   symlinkSync,
@@ -38,6 +39,7 @@ describe('packagedNamespaceRootLabel', () => {
   }
 
   function createLocalBiomeFixture(projectDirectory: string, relativeFile = 'source.ts') {
+    markSafewordProject(projectDirectory);
     const sourceFile = nodePath.join(projectDirectory, relativeFile);
     const executable = nodePath.join(projectDirectory, 'node_modules', '.bin', 'biome');
     const log = nodePath.join(projectDirectory, 'biome.log');
@@ -48,6 +50,30 @@ describe('packagedNamespaceRootLabel', () => {
     writeFileSync(executable, `#!/bin/sh\necho "$*" >> ${JSON.stringify(log)}\n`);
     chmodSync(executable, 0o755);
     return { sourceFile, log };
+  }
+
+  function initializeCommittedProject(projectDirectory: string) {
+    const run = (command: string, args: string[]) =>
+      spawnSync(command, args, { cwd: projectDirectory, encoding: 'utf8' });
+    expect(run('git', ['init', '-q']).status).toBe(0);
+    expect(run('git', ['config', 'user.email', 'test@example.com']).status).toBe(0);
+    expect(run('git', ['config', 'user.name', 'Test User']).status).toBe(0);
+    writeFileSync(nodePath.join(projectDirectory, 'README.md'), '# fixture\n');
+    expect(run('git', ['add', 'README.md']).status).toBe(0);
+    expect(run('git', ['commit', '-qm', 'initial']).status).toBe(0);
+  }
+
+  function markSafewordProject(projectDirectory: string, config?: object) {
+    const safewordDirectory = nodePath.join(projectDirectory, '.safeword');
+    mkdirSync(safewordDirectory, { recursive: true });
+    writeFileSync(nodePath.join(safewordDirectory, 'SAFEWORD.md'), '# enrolled\n');
+    if (config !== undefined) {
+      writeFileSync(nodePath.join(safewordDirectory, 'config.json'), JSON.stringify(config));
+    }
+  }
+
+  function rootEntries(projectDirectory: string): string[] {
+    return readdirSync(projectDirectory).toSorted((left, right) => left.localeCompare(right));
   }
 
   function expectBiomeChecked(log: string, operand: string) {
@@ -158,6 +184,111 @@ describe('packagedNamespaceRootLabel', () => {
     expect(result.stdout).not.toContain('PROJECT-LOCAL INSTRUCTIONS MUST NOT APPEAR');
   });
 
+  it('keeps an unconfigured repository unchanged through SessionStart', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-unconfigured-'));
+    directories.push(projectDirectory);
+    initializeCommittedProject(projectDirectory);
+    const before = rootEntries(projectDirectory);
+
+    const result = runCodexHook(
+      projectDirectory,
+      'session-start',
+      { hook_event_name: 'SessionStart', cwd: projectDirectory },
+      { SAFEWORD_NO_AUTO_UPGRADE: '1' },
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain('SAFEWORD Agent Instructions');
+    expect(rootEntries(projectDirectory)).toEqual(before);
+  });
+
+  it('does not create project state after tool use in an unconfigured repository', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-unconfigured-'));
+    directories.push(projectDirectory);
+    initializeCommittedProject(projectDirectory);
+    const before = rootEntries(projectDirectory);
+
+    const result = runCodexHook(projectDirectory, 'post-tool-use', {
+      hook_event_name: 'PostToolUse',
+      session_id: 'unconfigured-session',
+      tool_name: 'Bash',
+      tool_input: { command: 'pwd' },
+    });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(rootEntries(projectDirectory)).toEqual(before);
+  });
+
+  it('fails open without project state before an unconfigured tool use', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-unconfigured-'));
+    directories.push(projectDirectory);
+    initializeCommittedProject(projectDirectory);
+    const before = rootEntries(projectDirectory);
+
+    const result = runCodexHook(
+      projectDirectory,
+      'pre-tool-use',
+      {
+        session_id: 'unconfigured-session',
+        tool_name: 'Bash',
+        tool_input: { command: 'pkill node' },
+      },
+      { SAFEWORD_CODEX_DENY_MODE: 'exit-code' },
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(rootEntries(projectDirectory)).toEqual(before);
+  });
+
+  it.each([
+    {
+      label: 'default',
+      namespace: '.project',
+      configure: (projectDirectory: string) => {
+        markSafewordProject(projectDirectory);
+        mkdirSync(nodePath.join(projectDirectory, '.project'));
+      },
+    },
+    {
+      label: 'legacy',
+      namespace: '.safeword-project',
+      configure: (projectDirectory: string) => {
+        markSafewordProject(projectDirectory);
+        mkdirSync(nodePath.join(projectDirectory, '.safeword-project'));
+      },
+    },
+    {
+      label: 'custom',
+      namespace: 'knowledge',
+      configure: (projectDirectory: string) => {
+        markSafewordProject(projectDirectory, { paths: { projectRoot: 'knowledge' } });
+        mkdirSync(nodePath.join(projectDirectory, 'knowledge'));
+      },
+    },
+  ])('writes quality state for an enrolled $label namespace', ({ configure, label, namespace }) => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-enrolled-'));
+    directories.push(projectDirectory);
+    initializeCommittedProject(projectDirectory);
+    configure(projectDirectory);
+
+    const result = runCodexHook(projectDirectory, 'post-tool-use', {
+      hook_event_name: 'PostToolUse',
+      session_id: `${label}-session`,
+      tool_name: 'Bash',
+      tool_input: { command: 'pwd' },
+    });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(
+      existsSync(
+        nodePath.join(projectDirectory, namespace, `quality-state-codex-${label}-session.json`),
+      ),
+    ).toBe(true);
+    if (namespace !== '.project') {
+      expect(existsSync(nodePath.join(projectDirectory, '.project'))).toBe(false);
+    }
+  });
+
   it('routes a Codex file edit through the packaged local Biome hook', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-host-toolchain-'));
     directories.push(projectDirectory);
@@ -184,6 +315,7 @@ describe('packagedNamespaceRootLabel', () => {
     const executable = nodePath.join(projectDirectory, 'node_modules', '.bin', 'biome');
     const hostLog = nodePath.join(projectDirectory, 'biome.log');
     const genericLog = nodePath.join(projectDirectory, 'generic.log');
+    markSafewordProject(projectDirectory);
     mkdirSync(nodePath.dirname(executable), { recursive: true });
     writeFileSync(nodePath.join(projectDirectory, 'biome.json'), '{}\n');
     writeFileSync(outsideSource, 'export const source = 1;\n');
@@ -242,6 +374,7 @@ describe('packagedNamespaceRootLabel', () => {
     const second = nodePath.join(nested, 'second.ts');
     const executable = nodePath.join(nested, 'node_modules', '.bin', 'biome');
     const log = nodePath.join(projectDirectory, 'biome.log');
+    markSafewordProject(projectDirectory);
     mkdirSync(nodePath.dirname(executable), { recursive: true });
     writeFileSync(nodePath.join(projectDirectory, 'biome.json'), '{}\n');
     writeFileSync(nodePath.join(nested, 'biome.json'), '{}\n');
@@ -278,6 +411,7 @@ describe('packagedNamespaceRootLabel', () => {
     directories.push(projectDirectory);
     const sessionId = 'prompt-parity-session';
     const spoolDirectory = nodePath.join(projectDirectory, '.safeword', 'retro-drafts');
+    markSafewordProject(projectDirectory);
     mkdirSync(spoolDirectory, { recursive: true });
     writeFileSync(
       nodePath.join(spoolDirectory, `${sessionId}.jsonl`),
@@ -320,6 +454,7 @@ describe('packagedNamespaceRootLabel', () => {
   it('propagates an exit-code denial from the packaged PreToolUse adapter', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-'));
     directories.push(projectDirectory);
+    markSafewordProject(projectDirectory);
 
     const result = runCodexHook(
       projectDirectory,
@@ -339,6 +474,7 @@ describe('packagedNamespaceRootLabel', () => {
   it('fails PreToolUse visibly when Bun is unavailable', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-'));
     directories.push(projectDirectory);
+    markSafewordProject(projectDirectory);
 
     const result = runCodexHook(
       projectDirectory,
