@@ -15,6 +15,8 @@ describe('local complete-test contract (#1455)', () => {
       scripts?: Record<string, string>;
     };
 
+    expect(manifest.scripts?.test).toMatch(/\S/);
+    expect(manifest.scripts?.['test:bdd']).toMatch(/\S/);
     expect(manifest.scripts?.['test:all']).toBe('bun run test && bun run test:bdd');
   });
 
