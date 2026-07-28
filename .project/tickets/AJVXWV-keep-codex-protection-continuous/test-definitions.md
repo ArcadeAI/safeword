@@ -78,7 +78,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Plugin covers an event missing from a partial legacy installation
 
-- [ ] RED
+- [x] RED skip: missing-event fallback is inseparable from event-scoped authority
 - [ ] GREEN
 - [ ] REFACTOR
 
