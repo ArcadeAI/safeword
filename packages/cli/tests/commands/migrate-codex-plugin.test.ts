@@ -576,6 +576,22 @@ command = 'echo "keep this user hook"'
     expect(readFileSync(manifestPath, 'utf8')).toBe(before.manifest);
   });
 
+  it('converges repeated migration while a Codex restart is pending', async () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    const first = await runCodexCommand(fixture, ['codex', 'migrate']);
+    expect(first.exitCode, first.stderr).toBe(2);
+    const markerPath = nodePath.join(fixture.directory, 'profile/safeword/restart-pending-v1.json');
+    const marker = readFileSync(markerPath, 'utf8');
+
+    const second = await runCodexCommand(fixture, ['codex', 'migrate']);
+
+    expect(second.exitCode, second.stderr).toBe(2);
+    expect(second.stdout).toContain('plugin_installed_restart_required');
+    expect(readFileSync(markerPath, 'utf8')).toBe(marker);
+    const calls = readFileSync(nodePath.join(fixture.directory, 'codex.log'), 'utf8');
+    expect(calls.match(/plugin marketplace add/g)).toHaveLength(1);
+  });
+
   it('cleans legacy hooks through the explicit Codex migration command without reinstalling', async () => {
     const fixture = createMigrationFixture(`${LEGACY_HOOK_CONFIG}${CUSTOM_PRE_TOOL_HOOK}`);
     const { configPath } = fixture;
