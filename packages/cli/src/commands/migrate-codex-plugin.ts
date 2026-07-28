@@ -1,25 +1,16 @@
 /* eslint-disable unicorn/no-null -- schema-1 migration JSON uses explicit null */
 
 import { spawnSync } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
-import {
-  closeSync,
-  existsSync,
-  fsyncSync,
-  linkSync,
-  lstatSync,
-  openSync,
-  readFileSync,
-  renameSync,
-  rmSync,
-  type Stats,
-  writeFileSync,
-} from 'node:fs';
+import { existsSync, lstatSync, readFileSync, type Stats } from 'node:fs';
 import nodePath from 'node:path';
 
 import { parse } from 'smol-toml';
 
-import { resolveCodexFinalizationConfirmation } from '../codex-plugin/finalization.js';
+import {
+  applyCodexFinalization,
+  type CodexFinalizationMutation,
+  resolveCodexFinalizationConfirmation,
+} from '../codex-plugin/finalization.js';
 import {
   codexMigrationExitCode,
   type CodexPluginObservation,
@@ -37,7 +28,6 @@ import { info, success } from '../utils/output.js';
 const MARKETPLACE_SOURCE = 'ArcadeAI/safeword';
 const PLUGIN_ID = 'safeword@safeword';
 const CODEX_CONFIG_PATH = '.codex/config.toml';
-const LEGACY_CONFIG_BACKUP_SUFFIX = '.safeword.bak';
 const KNOWN_HOOK_EVENTS = new Set([
   'SessionStart',
   'SubagentStart',
@@ -339,20 +329,6 @@ function removeLegacyCodexHookBlocks(content: string): string {
   return lines.join('');
 }
 
-function durableTemporaryPath(directory: string, filename: string): string {
-  return nodePath.join(directory, `.${filename}.safeword-${process.pid}-${randomUUID()}.tmp`);
-}
-
-function writeDurableFile(path: string, content: string, mode: number): void {
-  const descriptor = openSync(path, 'wx', mode);
-  try {
-    writeFileSync(descriptor, content);
-    fsyncSync(descriptor);
-  } finally {
-    closeSync(descriptor);
-  }
-}
-
 type CodexConfigMetadata = { kind: 'missing' } | { kind: 'regular'; metadata: Stats };
 
 function regularCodexConfigMetadata(configPath: string): CodexConfigMetadata {
@@ -372,39 +348,6 @@ function regularCodexConfigMetadata(configPath: string): CodexConfigMetadata {
   return { kind: 'regular', metadata };
 }
 
-function backupAndReplace(configPath: string, original: string, cleaned: string): void {
-  const directory = nodePath.dirname(configPath);
-  const filename = nodePath.basename(configPath);
-  const configMetadata = regularCodexConfigMetadata(configPath);
-  if (configMetadata.kind === 'missing') {
-    throw new Error(
-      'Codex configuration changed during plugin verification; no legacy hooks were removed.',
-    );
-  }
-  const mode = configMetadata.metadata.mode & 0o777;
-  const backupPath = `${configPath}${LEGACY_CONFIG_BACKUP_SUFFIX}`;
-  if (existsSync(backupPath)) {
-    throw new Error(`Legacy Codex backup already exists at ${backupPath}; no hooks were removed.`);
-  }
-
-  const backupTemporaryPath = durableTemporaryPath(directory, filename);
-  try {
-    writeDurableFile(backupTemporaryPath, original, mode);
-    linkSync(backupTemporaryPath, backupPath);
-  } finally {
-    rmSync(backupTemporaryPath, { force: true });
-  }
-
-  const outputTemporaryPath = durableTemporaryPath(directory, filename);
-  try {
-    writeDurableFile(outputTemporaryPath, cleaned, mode);
-    renameSync(outputTemporaryPath, configPath);
-  } catch (error) {
-    rmSync(outputTemporaryPath, { force: true });
-    throw error;
-  }
-}
-
 interface PreparedLegacyHookRemoval {
   configPath: string;
   original: string;
@@ -419,20 +362,6 @@ function prepareLegacyHookRemoval(cwd: string): PreparedLegacyHookRemoval | unde
   if (cleaned === original) return undefined;
 
   return { configPath, original, cleaned };
-}
-
-function removePreparedLegacyHooks(removal: PreparedLegacyHookRemoval): void {
-  if (regularCodexConfigMetadata(removal.configPath).kind === 'missing') {
-    throw new Error(
-      'Codex configuration changed during plugin verification; no legacy hooks were removed.',
-    );
-  }
-  if (readFileSync(removal.configPath, 'utf8') !== removal.original) {
-    throw new Error(
-      'Codex configuration changed during plugin verification; no legacy hooks were removed.',
-    );
-  }
-  backupAndReplace(removal.configPath, removal.original, removal.cleaned);
 }
 
 function addCodexPluginToProfile(marketplaceSource: string | undefined): void {
@@ -587,14 +516,38 @@ export async function removeLegacyCodexHooks(
 
   success('Safe Word Codex plugin is enabled for this profile.');
 
-  const removedLegacyHooks = preparedLegacyHookRemoval !== undefined;
-  if (removedLegacyHooks) {
-    removePreparedLegacyHooks(preparedLegacyHookRemoval);
-    info('Backed up the legacy Codex configuration to .codex/config.toml.safeword.bak.');
+  const mutations: CodexFinalizationMutation[] = [];
+  if (preparedLegacyHookRemoval !== undefined) {
+    if (
+      regularCodexConfigMetadata(preparedLegacyHookRemoval.configPath).kind === 'missing' ||
+      readFileSync(preparedLegacyHookRemoval.configPath, 'utf8') !==
+        preparedLegacyHookRemoval.original
+    ) {
+      throw new Error(
+        'Codex configuration changed during plugin verification; no legacy hooks were removed.',
+      );
+    }
+    mutations.push({ path: CODEX_CONFIG_PATH, content: preparedLegacyHookRemoval.cleaned });
   }
+  for (const path of observeLegacyAssets(cwd)) mutations.push({ path, content: null });
+  mutations.push(
+    {
+      path: '.safeword/codex-plugin.json',
+      content: `${JSON.stringify({ schema_version: 1, mode: 'plugin' })}\n`,
+    },
+    {
+      path: '.agents/skills/safeword-plugin-setup/SKILL.md',
+      content:
+        '---\nname: safeword-plugin-setup\ndescription: Restore the Safe Word Codex profile plugin for this project.\n---\n\nRun `safeword codex migrate` to install or re-enable the profile plugin.\n',
+    },
+  );
+  applyCodexFinalization(cwd, mutations);
+
+  const removedLegacyHooks = preparedLegacyHookRemoval !== undefined;
+  info('Backed up the complete legacy Codex state for conflict-safe recovery.');
   info(
     removedLegacyHooks
-      ? 'Removed Safe Word legacy Codex hook configuration from this project. Legacy runtime files were preserved.'
+      ? 'Removed Safe Word legacy Codex project protection after the verified plugin handoff.'
       : 'No Safe Word legacy Codex hooks were found in this project.',
   );
   return true;
