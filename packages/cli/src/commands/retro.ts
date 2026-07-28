@@ -50,7 +50,7 @@ import {
   validateBuildAttestedRelayReadiness,
   validateRelayReadiness,
 } from '../retro/relay-readiness.js';
-import { type IssueTracker, triage, type TriageResult } from '../retro/triage.js';
+import { type Encounter, type IssueTracker, triage, type TriageResult } from '../retro/triage.js';
 import { VERSION } from '../version.js';
 
 /** Reads a transcript and returns raw, un-sanitized findings (the LLM boundary). */
@@ -136,6 +136,7 @@ export interface RetroOutcome {
     deadLetterBacklog: number;
     deadLettered: number;
     retryable: number;
+    spoolFailed?: number;
   };
 }
 
@@ -147,6 +148,63 @@ function emptyTriageResult(): TriageResult {
     deferred: [],
     failed: [],
     filedSignatures: [],
+  };
+}
+
+async function runRelayRetro(
+  encounters: Encounter[],
+  drops: { schema: number; surface: number },
+  source: { session: string; windowStart: number },
+  projectDirectory: string,
+  relay: NonNullable<RetroDependencies['relay']>,
+): Promise<RetroOutcome> {
+  let spoolFailed = 0;
+  for (const encounter of encounters) {
+    const relayDraft = {
+      body: encounter.draft.body,
+      canonicalKey: encounter.draft.canonicalSignature,
+      installationId: relay.installationId,
+      labels: encounter.draft.labels,
+      legacySignature: encounter.draft.signature,
+      repository: relay.repository,
+      title: encounter.draft.title,
+    };
+    try {
+      await persistRelayDraft(projectDirectory, {
+        ...relayDraft,
+        sourceKey: relaySourceKey(source.session, source.windowStart, relayDraft),
+      });
+    } catch {
+      spoolFailed += 1;
+    }
+  }
+  const deadlineMs = relay.deadlineMs ?? 500;
+  const delivery = await deliverRelayRequests(projectDirectory, {
+    credential: relay.credential,
+    deadlineMs,
+    fetch: relay.fetch ?? fetch,
+    now: () => Date.now(),
+    overallDeadlineMs: deadlineMs + 250,
+    relayUrl: relay.relayUrl,
+  });
+  const relayOutcome = { ...delivery, spoolFailed };
+  if (spoolFailed > 0) {
+    const noun = spoolFailed === 1 ? 'finding' : 'findings';
+    return {
+      agentFilingNeeded: true,
+      drops,
+      errorMessage: `retro relay could not durably persist ${spoolFailed} ${noun}; retry the command`,
+      ok: false,
+      relay: relayOutcome,
+      result: emptyTriageResult(),
+    };
+  }
+  return {
+    agentFilingNeeded: delivery.retryable > 0 || delivery.deadLettered > 0,
+    drops,
+    ok: true,
+    relay: relayOutcome,
+    result: emptyTriageResult(),
   };
 }
 
@@ -190,37 +248,13 @@ export async function runRetro(
   if (relay?.readiness.enabled === true && projectDirectory !== undefined) {
     const sourceSession =
       sessionId.trim().length === 0 || sessionId === 'unknown' ? options.transcript : sessionId;
-    for (const encounter of encounters) {
-      const relayDraft = {
-        body: encounter.draft.body,
-        canonicalKey: encounter.draft.canonicalSignature,
-        installationId: relay.installationId,
-        labels: encounter.draft.labels,
-        legacySignature: encounter.draft.signature,
-        repository: relay.repository,
-        title: encounter.draft.title,
-      };
-      await persistRelayDraft(projectDirectory, {
-        ...relayDraft,
-        sourceKey: relaySourceKey(sourceSession, options.windowStart ?? 0, relayDraft),
-      });
-    }
-    const deadlineMs = relay.deadlineMs ?? 500;
-    const delivery = await deliverRelayRequests(projectDirectory, {
-      credential: relay.credential,
-      deadlineMs,
-      fetch: relay.fetch ?? fetch,
-      now: () => Date.now(),
-      overallDeadlineMs: Math.min(deadlineMs + 250, 900),
-      relayUrl: relay.relayUrl,
-    });
-    return {
-      agentFilingNeeded: delivery.retryable > 0 || delivery.deadLettered > 0,
+    return runRelayRetro(
+      encounters,
       drops,
-      ok: true,
-      relay: delivery,
-      result: emptyTriageResult(),
-    };
+      { session: sourceSession, windowStart: options.windowStart ?? 0 },
+      projectDirectory,
+      relay,
+    );
   }
   if (projectDirectory !== undefined) {
     const drafts = encounters.map(encounter => encounter.draft);
@@ -293,10 +327,14 @@ const HEADLESS_ENVIRONMENT_KEYS = [
   'ANTHROPIC_BASE_URL',
   'ANTHROPIC_BEDROCK_BASE_URL',
   'ANTHROPIC_BEDROCK_MANTLE_BASE_URL',
+  'ANTHROPIC_VERTEX_PROJECT_ID',
   'APPDATA',
+  'AWS_ACCESS_KEY_ID',
   'AWS_BEARER_TOKEN_BEDROCK',
   'AWS_PROFILE',
   'AWS_REGION',
+  'AWS_SECRET_ACCESS_KEY',
+  'AWS_SESSION_TOKEN',
   'CLAUDE_CODE_OAUTH_TOKEN',
   'CLAUDE_CODE_USE_BEDROCK',
   'CLAUDE_CODE_USE_FOUNDRY',
@@ -305,6 +343,7 @@ const HEADLESS_ENVIRONMENT_KEYS = [
   'CLAUDE_CONFIG_DIR',
   'CLOUD_ML_REGION',
   'CODEX_HOME',
+  'GOOGLE_APPLICATION_CREDENTIALS',
   'HOME',
   'HTTP_PROXY',
   'HTTPS_PROXY',
@@ -320,6 +359,7 @@ const HEADLESS_ENVIRONMENT_KEYS = [
   'TERM',
   'TMPDIR',
   'USER',
+  'USERPROFILE',
   'XDG_CACHE_HOME',
   'XDG_CONFIG_HOME',
   'XDG_DATA_HOME',
@@ -630,7 +670,7 @@ function reportRelayOutcome(outcome: RetroOutcome, output: RetroCommandOutput): 
   const { info, success } = output;
   const relay = outcome.relay;
   info(
-    `retro relay: ${relay.accepted} accepted, ${relay.retryable} queued for retry, ${relay.deadLetterBacklog} dead letter(s)`,
+    `retro relay: ${relay.accepted} accepted, ${relay.retryable} queued for retry, ${relay.deadLetterBacklog} dead letter(s), ${relay.spoolFailed ?? 0} spool error(s)`,
   );
   const dropLine = renderDropReport(outcome.drops);
   if (dropLine) info(dropLine);
@@ -640,6 +680,11 @@ function reportRelayOutcome(outcome: RetroOutcome, output: RetroCommandOutput): 
   if (relay.deadLetterBacklog > 0) {
     info(
       'retro relay: inspect with `safeword retro-relay-retry`; rearm with `safeword retro-relay-retry <request-id>`.',
+    );
+  }
+  if ((relay.spoolFailed ?? 0) > 0) {
+    info(
+      'retro relay: some source identities could not be persisted; inspect the local relay spool.',
     );
   }
   success('retro complete');
@@ -665,7 +710,12 @@ export async function retryRelayDeadLetterCommand(
   dependencies: {
     output: RetroCommandOutput;
     projectDirectory: string;
-    relay?: { credential: string; fetch: typeof fetch; relayUrl: string };
+    relay?: {
+      credential: string;
+      fetch: typeof fetch;
+      operatorCredential?: string;
+      relayUrl: string;
+    };
   },
 ): Promise<boolean> {
   if (requestId === undefined) {

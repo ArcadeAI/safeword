@@ -248,6 +248,29 @@ describe('schema version four migration', () => {
     store.close();
   });
 
+  it('repairs a current-schema NULL retry schedule on every open', () => {
+    const file = databasePath();
+    const now = new Date('2026-01-01T00:00:00.000Z');
+    const store = RelayStore.open(file, { now: () => now });
+    accept(store, 'current-null');
+    store.close();
+    const damaged = new Database(file);
+    damaged
+      .prepare("UPDATE retro_requests SET next_attempt_at = NULL WHERE request_id = 'current-null'")
+      .run();
+    damaged.close();
+
+    const repaired = RelayStore.open(file);
+
+    expect(repaired.load(scope('current-null'))?.nextAttemptAt).toBe(
+      repaired.load(scope('current-null'))?.acceptedAt,
+    );
+    expect(repaired.claimDueRetries(now).map(record => record.scope.requestId)).toContain(
+      'current-null',
+    );
+    repaired.close();
+  });
+
   it('upgrades deployed version-three envelopes with explicit legacy key metadata', () => {
     const file = databasePath();
     createVersionThree(file);

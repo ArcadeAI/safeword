@@ -83,8 +83,8 @@ to dead letter.
 The maintenance loop persists exponential retry scheduling against the
 client-supplied absolute deadline (capped at 24 hours after acceptance), stops
 new dispatches at that deadline, resolves an already-started dispatch for one
-additional hour, then creates an alerted ambiguous tombstone if the outcome is still
-unknown. Filed and rejected payload envelopes become application-inaccessible
+additional hour, then creates an alerted ambiguous record if the outcome is
+still unknown. Filed and rejected payload envelopes become application-inaccessible
 after 30 days; request identity remains non-reusable indefinitely. This is an
 application-retention promise, not forensic erasure of SQLite pages, WAL files,
 or provider backups.
@@ -102,10 +102,20 @@ acknowledged downstream sink must deduplicate by event ID. The default stdout
 callback is observable operational output, not proof that an external sink
 persisted the event.
 
+The manual CLI recovery command uses
+`SAFEWORD_RETRO_RELAY_OPERATOR_CREDENTIAL` only when an expired local dead
+letter already has an ambiguous or dead-letter receipt on the server. Normal
+filing continues to use the harness-scoped
+`SAFEWORD_RETRO_RELAY_CREDENTIAL`; the operator credential is never used by an
+automatic retry or headless extractor.
+
 Installation-token requests for the same repository scope are coalesced.
-Ambiguous-create reconciliation uses raw REST bodies only and stops at the
-configured overall deadline or 20,000-item page budget; an incomplete scan
-never authorizes a duplicate decision.
+Ambiguous-create reconciliation uses raw REST bodies only and stops at both the
+configured overall deadline and page budget; an incomplete scan never
+authorizes a duplicate decision. Defaults are 30 seconds and 200 pages (up to
+20,000 items only when latency permits). Operators may raise the fail-closed
+ceilings with positive integer `RELAY_RECONCILIATION_TIMEOUT_MS` and
+`RELAY_RECONCILIATION_MAX_PAGES` values.
 
 ```sh
 bun run --cwd packages/retro-relay test

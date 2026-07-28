@@ -22,6 +22,10 @@ export interface RuntimeConfig {
   mode: 'production' | 'spike';
   payloadKeyring: PayloadKeyring;
   port: number;
+  reconciliation: {
+    maxPages: number;
+    timeoutMs: number;
+  };
   replicaId: string;
 }
 
@@ -336,6 +340,16 @@ export function parseRuntimeConfig(environment: NodeJS.ProcessEnv): RuntimeConfi
     mode: mode as RuntimeConfig['mode'],
     payloadKeyring,
     port,
+    reconciliation: {
+      maxPages: positiveInteger(
+        optional(environment, 'RELAY_RECONCILIATION_MAX_PAGES', '200'),
+        'RELAY_RECONCILIATION_MAX_PAGES',
+      ),
+      timeoutMs: positiveInteger(
+        optional(environment, 'RELAY_RECONCILIATION_TIMEOUT_MS', '30000'),
+        'RELAY_RECONCILIATION_TIMEOUT_MS',
+      ),
+    },
     replicaId: optional(environment, 'RAILWAY_REPLICA_ID', 'local'),
   };
 }

@@ -6,7 +6,7 @@ import path from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { parseRuntimeConfig, RelayStore, startRelayRuntime } from '../src/index.js';
+import { parseRuntimeConfig, ProcessLock, RelayStore, startRelayRuntime } from '../src/index.js';
 
 const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
 const privateKeyBase64 = Buffer.from(privateKey.export({ format: 'pem', type: 'pkcs8' })).toString(
@@ -185,6 +185,19 @@ describe('production runtime configuration', () => {
     await reopened.close();
   });
 
+  it('rejects a second runtime before it opens or migrates the production database', async () => {
+    const dataDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-runtime-lock-order-'));
+    runtimeDirectories.push(dataDirectory);
+    const config = parseRuntimeConfig(validEnvironment(dataDirectory));
+    const lock = ProcessLock.acquire(config.lockPath);
+    try {
+      await expect(startRelayRuntime(config, () => {})).rejects.toThrow('already locked');
+      expect(existsSync(config.databasePath)).toBe(false);
+    } finally {
+      lock.release();
+    }
+  });
+
   it('loads independently rotatable production principals with the exact role matrix', () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'safeword-runtime-principals-'));
     runtimeDirectories.push(directory);
@@ -221,6 +234,31 @@ describe('production runtime configuration', () => {
     environment.GITHUB_API_BASE_URL = 'https://github.example.com';
 
     expect(parseRuntimeConfig(environment).github.baseUrl).toBe('https://github.example.com');
+  });
+
+  it('loads explicit fail-closed reconciliation ceilings', () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'safeword-runtime-reconciliation-'));
+    runtimeDirectories.push(directory);
+    const environment = productionEnvironment(directory);
+    environment.RELAY_RECONCILIATION_MAX_PAGES = '300';
+    environment.RELAY_RECONCILIATION_TIMEOUT_MS = '45000';
+
+    expect(parseRuntimeConfig(environment).reconciliation).toEqual({
+      maxPages: 300,
+      timeoutMs: 45_000,
+    });
+  });
+
+  it.each([
+    ['RELAY_RECONCILIATION_MAX_PAGES', '0'],
+    ['RELAY_RECONCILIATION_TIMEOUT_MS', '-1'],
+  ])('rejects invalid %s', (variable, value) => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'safeword-runtime-reconciliation-invalid-'));
+    runtimeDirectories.push(directory);
+    const environment = productionEnvironment(directory);
+    Reflect.set(environment, variable, value);
+
+    expect(() => parseRuntimeConfig(environment)).toThrow(`invalid ${variable}`);
   });
 
   it('rejects production principals split across tenant identity buckets', () => {

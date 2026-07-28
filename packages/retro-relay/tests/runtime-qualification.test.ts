@@ -100,6 +100,7 @@ describe('retro relay runtime qualification', () => {
     );
 
     expect(dockerfile.match(/^FROM .+@sha256:[\da-f]{64}/gmu)).toHaveLength(2);
+    expect(dockerfile).toContain('gosu=1.14-1+b10');
     expect(dockerfile).toContain('ENTRYPOINT ["relay-entrypoint"]');
     expect(entrypoint).toContain('chown -R node:node');
     expect(entrypoint).toContain('exec gosu node "$@"');

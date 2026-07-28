@@ -425,6 +425,9 @@ function prepareDatabase(
     }
     case CURRENT_SCHEMA_VERSION: {
       validateCurrentVersion(database);
+      database.exec(
+        'UPDATE retro_requests SET next_attempt_at = accepted_at WHERE next_attempt_at IS NULL;',
+      );
       break;
     }
     default: {
@@ -765,7 +768,13 @@ export class RelayStore {
     receiptId: string,
     actorSubject: string,
     disposition:
-      'adopted' | 'incomplete' | 'manual-create-attempted' | 'manual-created' | 'multiple' | 'zero',
+      | 'adopted'
+      | 'conflict'
+      | 'incomplete'
+      | 'manual-create-attempted'
+      | 'manual-created'
+      | 'multiple'
+      | 'zero',
     matchCount: number,
   ): void {
     this.#database

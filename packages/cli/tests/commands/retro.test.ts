@@ -19,6 +19,7 @@ import {
   listRelayDeadLetters,
   listRelayRequests,
   persistRelayRequest,
+  type RelayDraftRequest,
 } from '../../src/retro/relay-delivery.js';
 import type {
   CreateIssueInput,
@@ -97,6 +98,117 @@ const dependencies = (over: Partial<Parameters<typeof runRetro>[1]> = {}) => ({
 });
 
 describe('runRetro', () => {
+  it('always gives an enabled relay at least one complete request budget', async () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-budget-'));
+    const send = vi.fn<typeof fetch>((_input, init) => {
+      const request = JSON.parse(Buffer.from(init?.body as Uint8Array).toString('utf8')) as {
+        requestId: string;
+      };
+      return Promise.resolve(
+        Response.json({
+          receiptId: 'receipt-budget',
+          requestId: request.requestId,
+          state: 'filed',
+        }),
+      );
+    });
+    try {
+      const outcome = await runRetro(
+        { transcript: '/tmp/session.jsonl' },
+        dependencies({
+          projectDirectory,
+          relay: {
+            credential: 'swc_test',
+            deadlineMs: 2000,
+            fetch: send,
+            installationId: 42,
+            readiness: { enabled: true },
+            relayUrl: 'https://relay.invalid',
+            repository: 'arcadeai/safeword',
+          },
+        }),
+      );
+
+      expect(send).toHaveBeenCalledOnce();
+      expect(outcome.relay?.accepted).toBe(1);
+    } finally {
+      rmSync(projectDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it('continues filing healthy findings when another persisted source is corrupt', async () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-corrupt-source-'));
+    const first = rawFinding({ title: 'Poisoned finding' });
+    const second = rawFinding({
+      repro: 'healthy repro',
+      title: 'Healthy finding',
+      what_happened: 'A healthy finding happened.',
+    });
+    const sentTitles: string[] = [];
+    const relay = {
+      credential: 'swc_test',
+      fetch: vi.fn<typeof fetch>((_input, init) => {
+        const request = JSON.parse(Buffer.from(init?.body as Uint8Array).toString('utf8')) as {
+          requestId: string;
+          title: string;
+        };
+        sentTitles.push(request.title);
+        return Promise.resolve(
+          Response.json({
+            receiptId: `receipt-${request.requestId}`,
+            requestId: request.requestId,
+            state: 'filed',
+          }),
+        );
+      }),
+      installationId: 42,
+      readiness: { enabled: true },
+      relayUrl: 'https://relay.invalid',
+      repository: 'arcadeai/safeword',
+    };
+    try {
+      await runRetro(
+        { transcript: '/tmp/session.jsonl' },
+        dependencies({
+          extract: () => Promise.resolve([first]),
+          projectDirectory,
+          relay: { ...relay, fetch: () => Promise.reject(new Error('offline')) },
+        }),
+      );
+      const [poisoned] = await listRelayRequests(projectDirectory);
+      if (poisoned === undefined) throw new Error('missing poisoned request');
+      writeFileSync(
+        nodePath.join(
+          projectDirectory,
+          '.safeword',
+          'retro-drafts',
+          'relay',
+          `${poisoned.requestId}.json`,
+        ),
+        '{"requestId":',
+      );
+
+      const outcome = await runRetro(
+        { transcript: '/tmp/session.jsonl' },
+        dependencies({
+          extract: () => Promise.resolve([first, second]),
+          projectDirectory,
+          relay,
+        }),
+      );
+
+      expect(outcome.ok).toBe(false);
+      expect(outcome.errorMessage).toBe(
+        'retro relay could not durably persist 1 finding; retry the command',
+      );
+      expect(outcome.relay?.spoolFailed).toBe(1);
+      expect(sentTitles).toContain('Healthy finding');
+      expect(outcome.relay?.deadLetterBacklog).toBe(1);
+    } finally {
+      rmSync(projectDirectory, { recursive: true, force: true });
+    }
+  });
+
   it('keys same-window relay drafts by finding evidence rather than extractor position', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-reorder-'));
     const sent: { requestId: string; title: string }[] = [];
@@ -1187,7 +1299,7 @@ describe('relay dead-letter recovery command', () => {
     }
   });
 
-  it('retains an expired local dead letter until server recovery reaches a resolved receipt', async () => {
+  it('bridges an existing server dead letter to operator recovery', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-unresolved-'));
     const original = createRelayRequest(
       {
@@ -1207,6 +1319,32 @@ describe('relay dead-letter recovery command', () => {
     writeFileSync(deadLetter, readFileSync(persisted.path));
     rmSync(persisted.path);
 
+    const requestedUrls: string[] = [];
+    const send = vi.fn<typeof fetch>((input, _init) => {
+      let requestedUrl: string;
+      if (typeof input === 'string') requestedUrl = input;
+      else if (input instanceof URL) requestedUrl = input.href;
+      else requestedUrl = input.url;
+      requestedUrls.push(requestedUrl);
+      if (requestedUrls.length === 1) {
+        return Promise.resolve(
+          Response.json({
+            receiptId: 'receipt-existing',
+            requestId: original.requestId,
+            state: 'dead-letter',
+          }),
+        );
+      }
+      return Promise.resolve(
+        Response.json({
+          issueNumber: 1482,
+          receiptId: 'receipt-existing',
+          requestId: original.requestId,
+          state: 'filed',
+        }),
+      );
+    });
+
     try {
       await expect(
         retryRelayDeadLetterCommand(original.requestId, {
@@ -1214,21 +1352,76 @@ describe('relay dead-letter recovery command', () => {
           projectDirectory,
           relay: {
             credential: 'swc_client_secret',
-            fetch: vi.fn<typeof fetch>(() =>
-              Promise.resolve(
-                Response.json({
-                  receiptId: 'receipt-existing',
-                  requestId: original.requestId,
-                  state: 'dead-letter',
-                }),
-              ),
-            ),
+            fetch: send,
+            operatorCredential: 'swc_operator_secret',
             relayUrl: 'https://relay.invalid',
           },
         }),
-      ).resolves.toBe(false);
-      const deadLetters = await listRelayDeadLetters(projectDirectory);
-      expect(deadLetters[0]?.requestId).toBe(original.requestId);
+      ).resolves.toBe(true);
+      expect(requestedUrls).toEqual([
+        'https://relay.invalid/v1/retro-filings',
+        'https://relay.invalid/v1/retro-filings/receipt-existing/recover',
+      ]);
+      expect(await listRelayDeadLetters(projectDirectory)).toEqual([]);
+    } finally {
+      rmSync(projectDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it('renews an expired local-only dead letter under the original request identity', async () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-renew-'));
+    const original = createRelayRequest(
+      {
+        body: 'body',
+        canonicalKey: 'canonical',
+        installationId: 42,
+        labels: ['retro'],
+        legacySignature: 'legacy',
+        repository: 'arcadeai/safeword',
+        sourceKey: 'source',
+        title: 'title',
+      },
+      { now: () => 0, randomUUID: () => '00000000-0000-4000-8000-000000001483' },
+    );
+    const persisted = await persistRelayRequest(projectDirectory, original);
+    const deadLetter = persisted.path.replace(/\.json$/u, '.dead-letter.json');
+    writeFileSync(deadLetter, readFileSync(persisted.path));
+    rmSync(persisted.path);
+    const sent: RelayDraftRequest[] = [];
+    const send = vi.fn<typeof fetch>((_input, init) => {
+      const request = JSON.parse(
+        Buffer.from(init?.body as Uint8Array).toString('utf8'),
+      ) as RelayDraftRequest;
+      sent.push(request);
+      if (sent.length === 1) {
+        return Promise.resolve(Response.json({ error: 'deadline elapsed' }, { status: 400 }));
+      }
+      return Promise.resolve(
+        Response.json({
+          issueNumber: 1483,
+          receiptId: 'receipt-renewed',
+          requestId: request.requestId,
+          state: 'filed',
+        }),
+      );
+    });
+
+    try {
+      await expect(
+        retryRelayDeadLetterCommand(original.requestId, {
+          output: { error: vi.fn(), info: vi.fn(), success: vi.fn() },
+          projectDirectory,
+          relay: {
+            credential: 'swc_client_secret',
+            fetch: send,
+            relayUrl: 'https://relay.invalid',
+          },
+        }),
+      ).resolves.toBe(true);
+      expect(sent).toHaveLength(2);
+      expect(sent[1]?.requestId).toBe(original.requestId);
+      expect(Date.parse(sent[1]?.retryDeadlineAt ?? '')).toBeGreaterThan(Date.now());
+      expect(await listRelayDeadLetters(projectDirectory)).toEqual([]);
     } finally {
       rmSync(projectDirectory, { recursive: true, force: true });
     }

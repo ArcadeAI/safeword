@@ -6,7 +6,7 @@ interface GitHubIssue {
 
 export interface MarkerScan {
   complete: boolean;
-  issueNumbers: number[];
+  matches: { body: string; issueNumber: number }[];
 }
 
 export interface GitHubRestClientOptions {
@@ -269,19 +269,19 @@ export class GitHubRestClient {
         scanDeadline,
       );
     } catch {
-      return { complete: false, issueNumbers: [] };
+      return { complete: false, matches: [] };
     }
-    const matches: number[] = [];
+    const matches: { body: string; issueNumber: number }[] = [];
     for (let page = 1; page <= this.#reconciliationMaxPages; page += 1) {
       const remainingMs = scanDeadline - Date.now();
-      if (remainingMs <= 0) return { complete: false, issueNumbers: [] };
+      if (remainingMs <= 0) return { complete: false, matches: [] };
       const url = new URL(`${this.#baseUrl}/repos/${input.repository}/issues`);
       url.searchParams.set('state', 'all');
       url.searchParams.set('sort', 'created');
       url.searchParams.set('direction', 'asc');
       url.searchParams.set('per_page', '100');
       url.searchParams.set('page', String(page));
-      let result: { issues: GitHubIssue[]; link: string | null; ok: boolean };
+      let result: { issues: GitHubIssue[]; link: string | null; ok: boolean; status: number };
       try {
         result = await this.#request(
           url,
@@ -296,24 +296,30 @@ export class GitHubRestClient {
             issues: response.ok ? ((await response.json()) as GitHubIssue[]) : [],
             link: response.headers.get('link'),
             ok: response.ok,
+            status: response.status,
           }),
           scanDeadline,
         );
       } catch {
-        return { complete: false, issueNumbers: [] };
+        return { complete: false, matches: [] };
       }
-      if (!result.ok) return { complete: false, issueNumbers: [] };
+      if (!result.ok) {
+        if (result.status === 401) {
+          this.#invalidateInstallationToken?.(input.installationId, input.repository);
+        }
+        return { complete: false, matches: [] };
+      }
       const { issues } = result;
       for (const issue of issues) {
         if (issue.pull_request === undefined && hasExactMarker(issue.body, input.marker)) {
-          matches.push(issue.number);
+          matches.push({ body: issue.body ?? '', issueNumber: issue.number });
         }
       }
       const linkedNextPage = hasNextPage(result.link);
       if (linkedNextPage === false || (linkedNextPage === undefined && issues.length < 100)) {
-        return { complete: true, issueNumbers: matches };
+        return { complete: true, matches };
       }
     }
-    return { complete: false, issueNumbers: [] };
+    return { complete: false, matches: [] };
   }
 }

@@ -41,13 +41,9 @@ export class ProcessLock {
     if (this.#released) return;
     this.#released = true;
     try {
-      this.#database.exec('ROLLBACK;');
+      this.#database.close();
     } finally {
-      try {
-        this.#database.close();
-      } finally {
-        activePaths.delete(this.#lockPath);
-      }
+      activePaths.delete(this.#lockPath);
     }
   }
 }

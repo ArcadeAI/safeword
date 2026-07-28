@@ -17,6 +17,28 @@ installCliCrashCapture();
 
 const program = new Command();
 
+function relayRecoveryFromEnvironment():
+  | {
+      credential: string;
+      fetch: typeof fetch;
+      operatorCredential?: string;
+      relayUrl: string;
+    }
+  | undefined {
+  const credential = process.env.SAFEWORD_RETRO_RELAY_CREDENTIAL?.trim();
+  if (credential === undefined || credential.length === 0) return undefined;
+  const relayUrl = process.env.SAFEWORD_RETRO_RELAY_URL?.trim();
+  if (relayUrl === undefined || relayUrl.length === 0) return undefined;
+  const operatorCredential = process.env.SAFEWORD_RETRO_RELAY_OPERATOR_CREDENTIAL?.trim();
+  return {
+    credential,
+    fetch,
+    ...(operatorCredential !== undefined &&
+      operatorCredential.length > 0 && { operatorCredential }),
+    relayUrl,
+  };
+}
+
 program
   .name('safeword')
   .description('CLI for setting up and managing safeword development environments')
@@ -300,17 +322,11 @@ program
   .action(async (requestId: string | undefined) => {
     const { retryRelayDeadLetterCommand } = await import('./commands/retro.js');
     const { info, error: outputError, success } = await import('./utils/output.js');
-    const relayUrl = process.env.SAFEWORD_RETRO_RELAY_URL?.trim();
-    const credential = process.env.SAFEWORD_RETRO_RELAY_CREDENTIAL?.trim();
+    const relay = relayRecoveryFromEnvironment();
     const ok = await retryRelayDeadLetterCommand(requestId, {
       output: { error: outputError, info, success },
       projectDirectory: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
-      ...(relayUrl !== undefined &&
-        relayUrl.length > 0 &&
-        credential !== undefined &&
-        credential.length > 0 && {
-          relay: { credential, fetch, relayUrl },
-        }),
+      ...(relay && { relay }),
     });
     if (!ok) process.exitCode = 1;
   });

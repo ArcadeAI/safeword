@@ -431,8 +431,20 @@ describe('real shared CLI to relay wiring', () => {
       );
       expect(outcome.relay).toEqual(
         index === surfaces.length - 1
-          ? { accepted: 1, deadLetterBacklog: 0, deadLettered: 0, retryable: 0 }
-          : { accepted: 0, deadLetterBacklog: 0, deadLettered: 0, retryable: 1 },
+          ? {
+              accepted: 1,
+              deadLetterBacklog: 0,
+              deadLettered: 0,
+              retryable: 0,
+              spoolFailed: 0,
+            }
+          : {
+              accepted: 0,
+              deadLetterBacklog: 0,
+              deadLettered: 0,
+              retryable: 1,
+              spoolFailed: 0,
+            },
       );
     }
 

@@ -232,6 +232,36 @@ describe('immutable relay delivery spool', () => {
     },
   );
 
+  it('isolates corrupt bytes when their source reservation proves they belong to another draft', async () => {
+    const project = temporaryProject();
+    const poisoned = await persistRelayDraft(project, {
+      body: 'poisoned body',
+      canonicalKey: 'canonical:poisoned',
+      installationId: 42,
+      labels: ['retro'],
+      legacySignature: 'retro:poisoned',
+      repository: 'arcadeai/safeword',
+      sourceKey: 'source-poisoned',
+      title: 'Poisoned',
+    });
+    if (poisoned === undefined) throw new Error('missing poisoned request');
+    const directory = path.join(project, '.safeword', 'retro-drafts', 'relay');
+    writeFileSync(path.join(directory, `${poisoned.requestId}.json`), '{"requestId":');
+
+    await expect(
+      persistRelayDraft(project, {
+        body: 'healthy body',
+        canonicalKey: 'canonical:healthy',
+        installationId: 42,
+        labels: ['retro'],
+        legacySignature: 'retro:healthy',
+        repository: 'arcadeai/safeword',
+        sourceKey: 'source-healthy',
+        title: 'Healthy',
+      }),
+    ).resolves.toMatchObject({ sourceKey: 'source-healthy' });
+  });
+
   it('never lets a semantic source collision silently replace immutable payload', async () => {
     const project = temporaryProject();
     const original = {
@@ -331,8 +361,7 @@ describe('immutable relay delivery spool', () => {
       'relay',
       `${original.requestId}.ack.json`,
     );
-    const ack = JSON.parse(readFileSync(ackPath, 'utf8')) as unknown;
-    expect(ack).toMatchObject({ requestId: original.requestId, receiptId: 'receipt-1' });
+    expect(readdirSync(path.dirname(ackPath))).not.toContain(path.basename(ackPath));
     const sourceFile = readdirSync(path.dirname(ackPath)).find(filename =>
       filename.startsWith('source-'),
     );
@@ -557,6 +586,23 @@ describe('immutable relay delivery spool', () => {
     expect(await rearmRelayDeadLetter(project, terminal.requestId)).toBe(false);
   });
 
+  it('keeps authentication failures queued for credential rotation', async () => {
+    const project = temporaryProject();
+    await persistRelayRequest(project, request());
+
+    await expect(
+      deliverRelayRequests(project, {
+        credential: 'expired-client-credential',
+        deadlineMs: 25,
+        fetch: () => Promise.resolve(Response.json({ error: 'unauthorized' }, { status: 401 })),
+        now: Date.now,
+        relayUrl: 'https://relay.invalid',
+      }),
+    ).resolves.toMatchObject({ deadLettered: 0, retryable: 1 });
+    expect(await listRelayRequests(project)).toHaveLength(1);
+    expect(await listRelayDeadLetters(project)).toHaveLength(0);
+  });
+
   it('rejects non-UUID dead-letter identities before resolving a filesystem path', async () => {
     const project = temporaryProject();
 
@@ -674,7 +720,7 @@ describe('immutable relay delivery spool', () => {
     });
 
     expect(send).not.toHaveBeenCalled();
-    expect(outcome.retryable).toBe(0);
+    expect(outcome.retryable).toBe(1);
     expect(await listRelayRequests(project)).toHaveLength(1);
   });
 });
@@ -843,7 +889,13 @@ describe('headless extraction credential boundary', () => {
     vi.stubEnv('NODE_EXTRA_CA_CERTS', '/certs/company.pem');
     vi.stubEnv('ANTHROPIC_BASE_URL', 'https://llm-gateway.example');
     vi.stubEnv('CLAUDE_CODE_USE_BEDROCK', '1');
+    vi.stubEnv('AWS_ACCESS_KEY_ID', 'bedrock-access');
+    vi.stubEnv('AWS_SECRET_ACCESS_KEY', 'bedrock-secret');
+    vi.stubEnv('AWS_SESSION_TOKEN', 'bedrock-session');
     vi.stubEnv('AWS_REGION', 'us-west-2');
+    vi.stubEnv('ANTHROPIC_VERTEX_PROJECT_ID', 'vertex-project');
+    vi.stubEnv('GOOGLE_APPLICATION_CREDENTIALS', '/credentials/vertex.json');
+    vi.stubEnv('USERPROFILE', String.raw`C:\Users\safe`);
     try {
       const extract = await buildAutoExtractor(project, {
         model: 'sonnet',
@@ -873,10 +925,16 @@ describe('headless extraction credential boundary', () => {
     expect(observed[0]).toHaveProperty('PATH');
     expect(observed[0]).toMatchObject({
       ANTHROPIC_BASE_URL: 'https://llm-gateway.example',
+      ANTHROPIC_VERTEX_PROJECT_ID: 'vertex-project',
+      AWS_ACCESS_KEY_ID: 'bedrock-access',
       AWS_REGION: 'us-west-2',
+      AWS_SECRET_ACCESS_KEY: 'bedrock-secret',
+      AWS_SESSION_TOKEN: 'bedrock-session',
       CLAUDE_CODE_USE_BEDROCK: '1',
+      GOOGLE_APPLICATION_CREDENTIALS: '/credentials/vertex.json',
       HTTPS_PROXY: 'https://proxy.example',
       NODE_EXTRA_CA_CERTS: '/certs/company.pem',
+      USERPROFILE: String.raw`C:\Users\safe`,
     });
   });
 });

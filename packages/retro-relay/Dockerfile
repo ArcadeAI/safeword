@@ -15,7 +15,7 @@ FROM node:24.18.0-bookworm-slim@sha256:6f7b03f7c2c8e2e784dcf9295400527b9b1270fd3
 ENV NODE_ENV=production
 WORKDIR /app
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends gosu \
+  && apt-get install -y --no-install-recommends gosu=1.14-1+b10 \
   && rm -rf /var/lib/apt/lists/*
 COPY packages/retro-relay/package.json package.json
 COPY --from=build /workspace/packages/retro-relay/dist dist

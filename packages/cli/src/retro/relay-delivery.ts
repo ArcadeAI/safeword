@@ -416,34 +416,25 @@ async function compactSourceReservation(
   );
 }
 
-async function findAcknowledgedSource(
-  directory: string,
-  draft: RelayDraftInput,
-): Promise<{
-  corrupt: boolean;
-  receipt?: RelayReceipt & { sourceKey?: string; sourcePayloadHash?: string };
-}> {
+async function reservedRequestIds(directory: string): Promise<Set<string>> {
   const filenames = await sortedFilenames(directory);
-  let corrupt = false;
+  const requestIds = new Set<string>();
   for (const filename of filenames) {
-    if (!filename.endsWith('.ack.json')) continue;
-    let acknowledged: RelayReceipt & { sourceKey?: string; sourcePayloadHash?: string };
+    if (!filename.startsWith('source-') || !filename.endsWith('.json')) continue;
     try {
-      acknowledged = JSON.parse(
+      const reservation = JSON.parse(
         await readFile(path.join(directory, filename), 'utf8'),
-      ) as RelayReceipt & { sourceKey?: string; sourcePayloadHash?: string };
+      ) as unknown;
+      if (!sourceReservationShape(reservation)) continue;
+      requestIds.add(
+        reservation.state === 'active' ? reservation.request.requestId : reservation.requestId,
+      );
     } catch {
-      // Corrupt acknowledgements remain visible and cannot authorize replacement.
-      corrupt = true;
-      continue;
+      // The filename hashes source identity, so a corrupt reservation for one
+      // source cannot authorize or block a different source.
     }
-    if (acknowledged.sourceKey !== draft.sourceKey) continue;
-    if (acknowledged.sourcePayloadHash !== relaySourcePayloadDigest(draft)) {
-      throw new Error('relay source identity was reused with a different payload');
-    }
-    return { corrupt, receipt: acknowledged };
   }
-  return { corrupt };
+  return requestIds;
 }
 
 export async function persistRelayDraft(
@@ -461,11 +452,13 @@ export async function persistRelayDraft(
     listRelayDeadLetters(projectDirectory),
   ]);
   const durableRequests = [...active, ...deadLetters];
-  let corrupt = false;
+  const reservedIds = await reservedRequestIds(directory);
   for (const candidate of durableRequests) {
     const request = parseDurableRequest(candidate);
     if (request === undefined) {
-      corrupt = true;
+      if (!reservedIds.has(candidate.requestId)) {
+        throw new Error('relay spool contains an unreserved corrupt durable identity record');
+      }
       continue;
     }
     if (request.sourceKey !== draft.sourceKey) continue;
@@ -480,19 +473,6 @@ export async function persistRelayDraft(
       state: 'active',
       version: 1,
     });
-  }
-  const acknowledged = await findAcknowledgedSource(directory, draft);
-  if (acknowledged.receipt !== undefined) {
-    return reserveSource(projectDirectory, draft, {
-      requestId: acknowledged.receipt.requestId,
-      sourceKey: draft.sourceKey,
-      sourcePayloadHash: relaySourcePayloadDigest(draft),
-      state: 'acknowledged',
-      version: 1,
-    });
-  }
-  if (corrupt || acknowledged.corrupt) {
-    throw new Error('relay spool contains a corrupt durable identity record');
   }
   const request = createRelayRequest(draft);
   return reserveSource(projectDirectory, draft, {
@@ -630,6 +610,7 @@ export async function acknowledgeRelayClaim(
   if (request !== undefined) await compactSourceReservation(projectDirectory, request);
   await options.faultAfterAck?.();
   await removeIfPresent(claim.path);
+  await removeIfPresent(durableAck);
   return true;
 }
 
@@ -650,6 +631,7 @@ export async function recoverRelaySpool(projectDirectory: string, _now: number):
       const { request } = acknowledgementSourceMetadata(await readFile(file));
       if (request !== undefined) await compactSourceReservation(projectDirectory, request);
       await removeIfPresent(file);
+      await removeIfPresent(ackPath(projectDirectory, requestId));
     }),
   );
 }
@@ -731,21 +713,20 @@ async function readDeadLetter(file: string): Promise<Buffer | undefined> {
   }
 }
 
-export async function recoverRelayDeadLetter(
-  projectDirectory: string,
-  requestId: string,
-  options: { credential: string; fetch: typeof fetch; relayUrl: string; timeoutMs?: number },
-): Promise<boolean> {
-  if (!UUID_V4_PATTERN.test(requestId)) throw new Error('invalid relay request identity');
-  const relayOrigin = normalizeRelayOrigin(options.relayUrl);
-  if (relayOrigin === undefined || options.credential.trim().length === 0) {
-    throw new Error('invalid relay recovery configuration');
-  }
-  const deadLetter = deadLetterPath(projectDirectory, requestId);
-  const bytes = await readDeadLetter(deadLetter);
-  if (bytes === undefined) return false;
-  const request = JSON.parse(bytes.toString('utf8')) as RelayDraftRequest;
-  const response = await options.fetch(`${relayOrigin}/v1/retro-filings`, {
+interface RelayRecoveryOptions {
+  credential: string;
+  fetch: typeof fetch;
+  operatorCredential?: string;
+  relayUrl: string;
+  timeoutMs?: number;
+}
+
+function submitRelayRecovery(
+  relayOrigin: string,
+  request: RelayDraftRequest,
+  options: RelayRecoveryOptions,
+): Promise<Response> {
+  return options.fetch(`${relayOrigin}/v1/retro-filings`, {
     body: relayRequestBytes(request),
     headers: {
       authorization: `Bearer ${options.credential}`,
@@ -754,17 +735,99 @@ export async function recoverRelayDeadLetter(
     method: 'POST',
     signal: AbortSignal.timeout(options.timeoutMs ?? 750),
   });
-  if (!response.ok) return false;
-  const receipt = (await response.json()) as RelayReceipt;
+}
+
+function relayRecoveryOrigin(options: RelayRecoveryOptions): string {
+  if (options.credential.trim().length === 0) {
+    throw new Error('invalid relay recovery configuration');
+  }
+  const relayOrigin = normalizeRelayOrigin(options.relayUrl);
+  if (relayOrigin === undefined) throw new Error('invalid relay recovery configuration');
+  return relayOrigin;
+}
+
+function assertValidRelayReceipt(receipt: RelayReceipt, requestId: string): void {
   if (receipt.requestId !== requestId || typeof receipt.receiptId !== 'string') {
     throw new Error('relay returned an invalid durable receipt');
   }
+}
+
+async function recoverRelayReceipt(
+  relayOrigin: string,
+  request: RelayDraftRequest,
+  receipt: RelayReceipt,
+  deadLetter: string,
+  options: RelayRecoveryOptions,
+): Promise<boolean> {
+  if (options.operatorCredential === undefined) return false;
+  const response = await options.fetch(
+    `${relayOrigin}/v1/retro-filings/${encodeURIComponent(receipt.receiptId)}/recover`,
+    {
+      headers: { authorization: `Bearer ${options.operatorCredential}` },
+      method: 'POST',
+      signal: AbortSignal.timeout(options.timeoutMs ?? 750),
+    },
+  );
+  if (!response.ok) return false;
+  const recovered = (await response.json()) as RelayReceipt;
+  if (
+    recovered.requestId !== request.requestId ||
+    recovered.receiptId !== receipt.receiptId ||
+    !['filed', 'tombstone'].includes(recovered.state)
+  ) {
+    return false;
+  }
+  return acknowledgeRelayClaim(
+    {
+      bytes: Buffer.from(JSON.stringify(request), 'utf8'),
+      path: deadLetter,
+      requestId: request.requestId,
+    },
+    recovered,
+  );
+}
+
+export async function recoverRelayDeadLetter(
+  projectDirectory: string,
+  requestId: string,
+  options: RelayRecoveryOptions,
+): Promise<boolean> {
+  if (!UUID_V4_PATTERN.test(requestId)) throw new Error('invalid relay request identity');
+  const relayOrigin = relayRecoveryOrigin(options);
+  const deadLetter = deadLetterPath(projectDirectory, requestId);
+  const bytes = await readDeadLetter(deadLetter);
+  if (bytes === undefined) return false;
+  const original = JSON.parse(bytes.toString('utf8')) as RelayDraftRequest;
+  let request = original;
+  let response = await submitRelayRecovery(relayOrigin, request, options);
+  if (response.status === 400 && Date.parse(original.retryDeadlineAt) <= Date.now()) {
+    request = {
+      ...original,
+      retryDeadlineAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    };
+    const renewedBytes = Buffer.from(JSON.stringify(request), 'utf8');
+    await replaceAtomic(deadLetter, renewedBytes);
+    response = await submitRelayRecovery(relayOrigin, request, options);
+  }
+  if (!response.ok) return false;
+  const receipt = (await response.json()) as RelayReceipt;
+  assertValidRelayReceipt(receipt, requestId);
+  if (['ambiguous', 'dead-letter'].includes(receipt.state)) {
+    return recoverRelayReceipt(relayOrigin, request, receipt, deadLetter, options);
+  }
   if (!['filed', 'rejected', 'tombstone'].includes(receipt.state)) return false;
-  return acknowledgeRelayClaim({ bytes, path: deadLetter, requestId }, receipt);
+  return acknowledgeRelayClaim(
+    {
+      bytes: Buffer.from(JSON.stringify(request), 'utf8'),
+      path: deadLetter,
+      requestId,
+    },
+    receipt,
+  );
 }
 
 function retryableRelayStatus(status: number): boolean {
-  return status === 408 || status === 425 || status === 429 || status >= 500;
+  return status === 401 || status === 408 || status === 425 || status === 429 || status >= 500;
 }
 
 // eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- Claim, expiry, HTTP, and rearm are one filesystem state machine.
@@ -799,7 +862,6 @@ export async function deliverRelayRequests(
   const initialDeadLetters = await listRelayDeadLetters(projectDirectory);
   let deadLetterBacklog = initialDeadLetters.length;
   let deadLettered = 0;
-  let retryable = 0;
   for (const request of initial) {
     if (monotonicNow() >= overallDeadline) break;
     if (processed.has(request.requestId)) continue;
@@ -861,13 +923,12 @@ export async function deliverRelayRequests(
         throw new Error('relay returned an invalid durable receipt');
       }
       if (await acknowledgeRelayClaim(claim, body)) accepted += 1;
-      else retryable += 1;
     } catch {
-      retryable += 1;
       await rearmClaim(projectDirectory, claim);
     } finally {
       clearTimeout(timer);
     }
   }
-  return { accepted, deadLetterBacklog, deadLettered, retryable };
+  const retryableRequests = await listRelayRequests(projectDirectory);
+  return { accepted, deadLetterBacklog, deadLettered, retryable: retryableRequests.length };
 }

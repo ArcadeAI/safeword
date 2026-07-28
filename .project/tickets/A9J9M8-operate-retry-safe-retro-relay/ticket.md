@@ -101,3 +101,12 @@ last_modified: 2026-07-27T02:23:02.173Z
 - 2026-07-27 PR review follow-up made the 750ms limit aggregate across the
   whole drain, removed repeated directory scans, and separated historical
   dead-letter backlog from this-run fallback outcomes.
+- 2026-07-28 Resolved PR re-review R1–R14 with fail-closed persistence,
+  bounded reconciliation, operator dead-letter recovery, lock-before-open,
+  current-schema repair, 401 credential renewal, headless-provider parity,
+  and visible retry/backlog accounting. Semantic dedupe across different
+  request IDs remains outside this request-identity slice.
+- 2026-07-28 Fresh quality review found and then approved two final deltas:
+  persistence failures now make the command fail nonzero after healthy durable
+  work drains, and raw REST request-marker matches require exact canonical and
+  legacy evidence before either operator endpoint can adopt them.

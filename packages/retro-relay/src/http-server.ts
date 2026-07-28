@@ -79,6 +79,7 @@ type RelayServerOptions = {
   }) => void;
 } & (
   | { lockPath: string; allowUnlockedForTests?: never }
+  | { processLock: ProcessLock; lockPath?: never; allowUnlockedForTests?: never }
   | { lockPath?: never; allowUnlockedForTests: true }
 ) &
   (
@@ -94,6 +95,12 @@ function resolvePayloadKeyring(input: RelayServerOptions): PayloadKeyring {
   };
 }
 
+function resolveProcessLock(input: RelayServerOptions): ProcessLock | undefined {
+  if ('processLock' in input) return input.processLock;
+  if (input.lockPath === undefined) return undefined;
+  return ProcessLock.acquire(input.lockPath);
+}
+
 // eslint-disable-next-line complexity -- Lifecycle setup and the public server contract stay visible together.
 export async function startRelayServer(input: RelayServerOptions): Promise<{
   server: ReturnType<typeof createServer>;
@@ -104,8 +111,7 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
   };
   maintain: (now?: Date) => Promise<void>;
 }> {
-  const processLock =
-    input.lockPath === undefined ? undefined : ProcessLock.acquire(input.lockPath);
+  const processLock = resolveProcessLock(input);
   try {
     input.store.recoverInFlight();
   } catch (error) {

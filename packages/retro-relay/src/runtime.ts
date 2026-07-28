@@ -5,6 +5,7 @@ import { CredentialRegistry } from './auth.js';
 import { GitHubRestClient } from './github.js';
 import { GitHubAppTokenProvider } from './github-app-token.js';
 import { startRelayServer } from './http-server.js';
+import { ProcessLock } from './process-lock.js';
 import type { RuntimeConfig } from './runtime-config.js';
 import { RelayStore } from './store.js';
 
@@ -23,12 +24,20 @@ export async function startRelayRuntime(
 ): Promise<RelayRuntime> {
   // eslint-disable-next-line security/detect-non-literal-fs-filename -- The fail-closed parser requires an absolute non-root deployment data directory.
   await mkdir(config.dataDirectory, { recursive: true });
-  const store = RelayStore.open(config.databasePath);
+  const processLock = ProcessLock.acquire(config.lockPath);
+  let store: RelayStore;
+  try {
+    store = RelayStore.open(config.databasePath);
+  } catch (error) {
+    processLock.release();
+    throw error;
+  }
   const missingPayloadKeys = store
     .payloadKeyIds()
     .filter(keyId => !config.payloadKeyring.keys.has(keyId));
   if (missingPayloadKeys.length > 0) {
     store.close();
+    processLock.release();
     throw new Error(`missing relay payload keys: ${missingPayloadKeys.join(', ')}`);
   }
   const credentials = new CredentialRegistry(config.credentialPepper);
@@ -60,9 +69,11 @@ export async function startRelayRuntime(
           log({ stage: 'github_installation_token', installationId, repository: repo });
           return tokenProvider.token(installationId, repo);
         },
+        reconciliationMaxPages: config.reconciliation.maxPages,
+        reconciliationTimeoutMs: config.reconciliation.timeoutMs,
       }),
       host: config.host,
-      lockPath: config.lockPath,
+      processLock,
       payloadKeyring: config.payloadKeyring,
       port: config.port,
       replicaId: config.replicaId,
@@ -93,6 +104,7 @@ export async function startRelayRuntime(
     };
   } catch (error) {
     store.close();
+    processLock.release();
     throw error;
   }
 }

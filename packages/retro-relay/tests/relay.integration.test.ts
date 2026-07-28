@@ -75,6 +75,15 @@ function draft(overrides: Partial<FileRetroDraftRequest> = {}): FileRetroDraftRe
   return request;
 }
 
+function expectedAuthorityBody(request: FileRetroDraftRequest, requestMarker: string): string {
+  return [
+    request.body,
+    `<!-- safeword-retro-signature: ${request.legacySignature} -->`,
+    `<!-- safeword-retro-canonical: ${request.canonicalKey} -->`,
+    requestMarker,
+  ].join('\n');
+}
+
 async function startGitHubFixture(
   options: {
     afterCreate?: () => void;
@@ -89,6 +98,7 @@ async function startGitHubFixture(
     githubRequestTimeoutMs?: number;
     installationToken?: string;
     rawBodies?: string[];
+    scanStatus?: number;
     scanDelayMs?: number;
     sanitizedMcpBodies?: string[];
     tokenDelayMs?: number;
@@ -143,6 +153,11 @@ async function startGitHubFixture(
       rawAcceptHeaders.push(request.headers.accept ?? '');
       rawIssueUrls.push(request.url);
       if (options.scanDelayMs !== undefined) await delay(options.scanDelayMs);
+      if (options.scanStatus !== undefined) {
+        response.statusCode = options.scanStatus;
+        response.end();
+        return;
+      }
 
       const page = Number(new URL(request.url, 'https://github.invalid').searchParams.get('page'));
       if (page > 1 && options.failSecondPage === true) {
@@ -243,6 +258,7 @@ async function fixture(
     githubRequestTimeoutMs?: number;
     installationToken?: string;
     rawBodies?: string[];
+    scanStatus?: number;
     scanDelayMs?: number;
     sanitizedMcpBodies?: string[];
     tokenDelayMs?: number;
@@ -597,7 +613,7 @@ describe('retry-safe retro relay', () => {
   });
 
   it('aborts a stalled GitHub create and quarantines its uncertain outcome', async () => {
-    const setup = await fixture({ createDelayMs: 100, githubRequestTimeoutMs: 10 });
+    const setup = await fixture({ createDelayMs: 1000, githubRequestTimeoutMs: 250 });
     const adapter = createHarnessAdapters(setup.relay.url, setup.credential).claude;
 
     await expect(adapter.file(draft())).rejects.toMatchObject({ status: 503 });
@@ -742,6 +758,27 @@ describe('retry-safe retro relay', () => {
     expect(setup.tokenRequests).toHaveLength(2);
   });
 
+  it('invalidates a cached installation token when a raw marker scan returns 401', async () => {
+    const github = await startGitHubFixture({ scanStatus: 401 });
+    const invalidations: [number, string][] = [];
+    const client = new GitHubRestClient({
+      baseUrl: github.baseUrl,
+      installationToken: () => Promise.resolve('ghs_revoked'),
+      invalidateInstallationToken: (installationId, repo) => {
+        invalidations.push([installationId, repo]);
+      },
+    });
+
+    await expect(
+      client.scanExactMarker({
+        installationId: 42,
+        marker: '<!-- request -->',
+        repository: 'arcadeai/safeword',
+      }),
+    ).resolves.toEqual({ complete: false, matches: [] });
+    expect(invalidations).toEqual([[42, 'arcadeai/safeword']]);
+  });
+
   it('rate-limits operator reconciliation independently of filing credentials', async () => {
     const setup = await fixture();
     const statuses: number[] = [];
@@ -865,7 +902,7 @@ describe('retry-safe retro relay', () => {
 
     setup.store.close();
     setup.relay.server.close();
-    const github = await startGitHubFixture({ rawBodies: [marker ?? ''] });
+    const github = await startGitHubFixture({ rawBodies: [setup.createBodies[0] ?? ''] });
     const reopened = RelayStore.open(path.join(setup.directory, 'relay.sqlite'));
     const relay = await startRelayServer({
       allowUnlockedForTests: true,
@@ -1020,6 +1057,69 @@ describe('retry-safe retro relay', () => {
     },
   );
 
+  it('keeps a sole request-marker match quarantined when its raw evidence conflicts', async () => {
+    const setup = await fixture({
+      faults: postCreateCrashFaults(),
+    });
+    await expect(
+      createHarnessAdapters(setup.relay.url, setup.credential).claude.file(draft()),
+    ).rejects.toMatchObject({ status: 503 });
+    const marker = setup.createBodies[0]?.split('\n').at(-1) ?? '';
+
+    setup.store.close();
+    setup.relay.server.close();
+    const github = await startGitHubFixture({
+      rawBodies: [
+        [
+          '<!-- safeword-retro-signature: retro:wrong -->',
+          '<!-- safeword-retro-canonical: canonical:wrong -->',
+          marker,
+        ].join('\n'),
+      ],
+    });
+    const reopened = RelayStore.open(path.join(setup.directory, 'relay.sqlite'));
+    const relay = await startRelayServer({
+      allowUnlockedForTests: true,
+      credentials: setup.registry,
+      github: new GitHubRestClient({
+        baseUrl: github.baseUrl,
+        installationToken: () => Promise.resolve('ghs_installation_secret'),
+      }),
+      payloadKey: Buffer.alloc(32, 7),
+      store: reopened,
+    });
+    servers.push(relay.server);
+    const durable = reopened.load({
+      tenantId: 'tenant-1',
+      installationId: 42,
+      repository: 'arcadeai/safeword',
+      requestId: draft().requestId,
+    });
+    if (durable === undefined) throw new Error('missing ambiguous request');
+    const operator = createHarnessAdapters(relay.url, setup.credentials).operator;
+
+    await expect(operator.reconcileReceipt(durable.receiptId)).rejects.toMatchObject({
+      status: 503,
+    });
+    await expect(operator.recoverReceipt(durable.receiptId)).rejects.toMatchObject({
+      status: 503,
+    });
+    expect(reopened.reconciliationAudit(durable.receiptId)).toEqual([
+      {
+        actorSubject: 'operator-subject',
+        disposition: 'conflict',
+        matchCount: 1,
+      },
+      {
+        actorSubject: 'operator-subject',
+        disposition: 'conflict',
+        matchCount: 1,
+      },
+    ]);
+    expect(reopened.receipt(durable.scope)).toMatchObject({ state: 'ambiguous' });
+    reopened.close();
+  });
+
   it('lets only an operator recover a complete zero-match with the reserved request marker', async () => {
     const setup = await fixture({ createStatus: 500 });
     await expect(
@@ -1058,7 +1158,7 @@ describe('retry-safe retro relay', () => {
       state: 'filed',
     });
     expect(github.createBodies).toHaveLength(1);
-    expect(github.createBodies[0]).toBe(`${draft().body}\n\n${durable.requestMarker}`);
+    expect(github.createBodies[0]).toBe(expectedAuthorityBody(draft(), durable.requestMarker));
     expect(reopened.reconciliationAudit(durable.receiptId)).toEqual([
       {
         actorSubject: 'operator-subject',
@@ -1122,7 +1222,7 @@ describe('retry-safe retro relay', () => {
       requestId: original.requestId,
       state: 'filed',
     });
-    expect(github.createBodies).toEqual([`${original.body}\n\n${durable.requestMarker}`]);
+    expect(github.createBodies).toEqual([expectedAuthorityBody(original, durable.requestMarker)]);
     expect(reopened.reconciliationAudit(durable.receiptId)).toEqual([
       {
         actorSubject: 'operator-subject',
@@ -1135,6 +1235,50 @@ describe('retry-safe retro relay', () => {
         matchCount: 0,
       },
     ]);
+    reopened.close();
+  });
+
+  it('reports dead-letter state when operator recovery cannot create', async () => {
+    let current = new Date('2026-07-27T00:00:00.000Z');
+    const original = draft({ retryDeadlineAt: '2026-07-27T00:01:00.000Z' });
+    const setup = await fixture({ failToken: true, now: () => current });
+    await expect(
+      createHarnessAdapters(setup.relay.url, setup.credentials).claude.file(original),
+    ).rejects.toMatchObject({ status: 503 });
+    current = new Date('2026-07-27T00:02:00.000Z');
+    setup.store.maintain(current);
+    const durable = setup.store.load({
+      tenantId: 'tenant-1',
+      installationId: 42,
+      repository: 'arcadeai/safeword',
+      requestId: original.requestId,
+    });
+    if (durable === undefined) throw new Error('missing dead-letter request');
+    setup.store.close();
+    setup.relay.server.close();
+
+    const github = await startGitHubFixture({ createStatus: 500, rawBodies: [] });
+    const reopened = RelayStore.open(path.join(setup.directory, 'relay.sqlite'), {
+      now: () => current,
+    });
+    const relay = await startRelayServer({
+      allowUnlockedForTests: true,
+      credentials: setup.registry,
+      github: new GitHubRestClient({
+        baseUrl: github.baseUrl,
+        installationToken: () => Promise.resolve('ghs_installation_secret'),
+      }),
+      payloadKey: Buffer.alloc(32, 7),
+      store: reopened,
+      now: () => current,
+    });
+    servers.push(relay.server);
+
+    await expect(
+      createHarnessAdapters(relay.url, setup.credentials).operator.recoverReceipt(
+        durable.receiptId,
+      ),
+    ).rejects.toMatchObject({ details: { state: 'dead-letter' }, status: 503 });
     reopened.close();
   });
 
@@ -1192,11 +1336,11 @@ describe('retry-safe retro relay', () => {
       requestId: draft().requestId,
     });
     if (durable === undefined) throw new Error('missing ambiguous request');
-    const marker = setup.createBodies[0]?.split('\n').at(-1) ?? '';
+    const createdBody = setup.createBodies[0] ?? '';
     setup.store.close();
     setup.relay.server.close();
 
-    const github = await startGitHubFixture({ rawBodies: [marker] });
+    const github = await startGitHubFixture({ rawBodies: [createdBody] });
     const reopened = RelayStore.open(path.join(setup.directory, 'relay.sqlite'));
     const relay = await startRelayServer({
       allowUnlockedForTests: true,
@@ -1424,7 +1568,7 @@ describe('retry-safe retro relay', () => {
         marker: '<!-- no-match -->',
         repository: 'arcadeai/safeword',
       }),
-    ).resolves.toEqual({ complete: false, issueNumbers: [] });
+    ).resolves.toEqual({ complete: false, matches: [] });
   });
 
   it('completes a raw marker scan beyond the repository current page count', async () => {
@@ -1443,7 +1587,10 @@ describe('retry-safe retro relay', () => {
         marker,
         repository: 'arcadeai/safeword',
       }),
-    ).resolves.toEqual({ complete: true, issueNumbers: [2200] });
+    ).resolves.toEqual({
+      complete: true,
+      matches: [{ body: marker, issueNumber: 2200 }],
+    });
   });
 
   it('keeps an ascending raw scan complete when a new issue arrives between pages', async () => {
@@ -1463,7 +1610,10 @@ describe('retry-safe retro relay', () => {
         marker,
         repository: 'arcadeai/safeword',
       }),
-    ).resolves.toEqual({ complete: true, issueNumbers: [801] });
+    ).resolves.toEqual({
+      complete: true,
+      matches: [{ body: marker, issueNumber: 801 }],
+    });
     expect(github.rawIssueUrls).toHaveLength(2);
     for (const requested of github.rawIssueUrls) {
       const parameters = new URL(requested, github.baseUrl).searchParams;
@@ -1520,7 +1670,7 @@ describe('retry-safe retro relay', () => {
         marker: '<!-- no-match -->',
         repository: 'arcadeai/safeword',
       }),
-    ).resolves.toEqual({ complete: false, issueNumbers: [] });
+    ).resolves.toEqual({ complete: false, matches: [] });
     expect(performance.now() - started).toBeLessThan(80);
     await expect(occupyingCreate).resolves.toBeGreaterThan(0);
   });

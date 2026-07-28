@@ -47,6 +47,44 @@ function receiptFromRecord(record: DurableRequest): FilingReceipt {
   };
 }
 
+function exactEvidenceMarkers(request: FileRetroDraftRequest): [string, string] {
+  return [
+    `<!-- safeword-retro-signature: ${request.legacySignature} -->`,
+    `<!-- safeword-retro-canonical: ${request.canonicalKey} -->`,
+  ];
+}
+
+function bodyWithAuthorityMarkers(
+  request: FileRetroDraftRequest,
+  requestMarkerValue: string,
+): string {
+  let body = request.body;
+  for (const marker of [...exactEvidenceMarkers(request), requestMarkerValue]) {
+    if (!body.split(/\r?\n/u).includes(marker)) body += `\n${marker}`;
+  }
+  return body;
+}
+
+function rawEvidenceAgrees(body: string, request: FileRetroDraftRequest): boolean {
+  const lines = new Set(body.split(/\r?\n/u));
+  return exactEvidenceMarkers(request).every(marker => lines.has(marker));
+}
+
+function requireMatchingRawEvidence(
+  body: string,
+  request: FileRetroDraftRequest,
+  onConflict: () => void,
+  receiptId: string,
+): void {
+  if (rawEvidenceAgrees(body, request)) return;
+  onConflict();
+  throw new RelayError(503, 'raw reconciliation evidence conflicts', {
+    receiptId,
+    state: 'ambiguous',
+    disposition: 'conflict',
+  });
+}
+
 function validText(value: unknown, maximum: number, allowEmpty = false): value is string {
   return (
     typeof value === 'string' && value.length <= maximum && (allowEmpty || value.trim().length > 0)
@@ -140,6 +178,12 @@ export class RelayService {
       throw new RelayError(409, 'filing reconciliation is already in progress');
     }
     try {
+      const durableRequest = decryptPayload(
+        record.envelope,
+        record.scope,
+        record.payloadHash,
+        this.#payloadKeyring,
+      );
       const scan = await this.#github.scanExactMarker({
         installationId: record.scope.installationId,
         repository: record.scope.repository,
@@ -153,13 +197,13 @@ export class RelayService {
           disposition: 'incomplete',
         });
       }
-      if (scan.issueNumbers.length !== 1) {
-        const disposition = scan.issueNumbers.length === 0 ? 'zero' : 'multiple';
+      if (scan.matches.length !== 1) {
+        const disposition = scan.matches.length === 0 ? 'zero' : 'multiple';
         this.#store.recordReconciliation(
           receiptId,
           principal.subject,
           disposition,
-          scan.issueNumbers.length,
+          scan.matches.length,
         );
         throw new RelayError(503, 'raw reconciliation is incomplete or non-unique', {
           receiptId,
@@ -167,8 +211,17 @@ export class RelayService {
           disposition,
         });
       }
+      const [match] = scan.matches;
+      requireMatchingRawEvidence(
+        match.body,
+        durableRequest,
+        () => {
+          this.#store.recordReconciliation(receiptId, principal.subject, 'conflict', 1);
+        },
+        receiptId,
+      );
       this.#store.recordReconciliation(receiptId, principal.subject, 'adopted', 1);
-      return this.#store.markReconciledFiled(record.scope, scan.issueNumbers[0]);
+      return this.#store.markReconciledFiled(record.scope, match.issueNumber);
     } catch (error) {
       this.#store.cancelManualRecovery(record.scope);
       throw error;
@@ -191,10 +244,17 @@ export class RelayService {
     if (!['ambiguous', 'dead-letter'].includes(record.state)) {
       throw new RelayError(409, 'only ambiguous or dead-letter filings can be manually recovered');
     }
+    const recoveryState = record.state;
     if (!this.#store.beginManualRecovery(record.scope, this.#now())) {
       throw new RelayError(409, 'filing recovery is already in progress');
     }
     try {
+      const durableRequest = decryptPayload(
+        record.envelope,
+        record.scope,
+        record.payloadHash,
+        this.#payloadKeyring,
+      );
       const scan = await this.#github.scanExactMarker({
         installationId: record.scope.installationId,
         repository: record.scope.repository,
@@ -208,19 +268,28 @@ export class RelayService {
           disposition: 'incomplete',
         });
       }
-      if (scan.issueNumbers.length === 1) {
+      if (scan.matches.length === 1) {
+        const [match] = scan.matches;
+        requireMatchingRawEvidence(
+          match.body,
+          durableRequest,
+          () => {
+            this.#store.recordReconciliation(receiptId, principal.subject, 'conflict', 1);
+          },
+          receiptId,
+        );
         this.#store.recordReconciliation(receiptId, principal.subject, 'adopted', 1);
         return {
           disposition: 'adopted',
-          receipt: this.#store.markReconciledFiled(record.scope, scan.issueNumbers[0]),
+          receipt: this.#store.markReconciledFiled(record.scope, match.issueNumber),
         };
       }
-      if (scan.issueNumbers.length > 1) {
+      if (scan.matches.length > 1) {
         this.#store.recordReconciliation(
           receiptId,
           principal.subject,
           'multiple',
-          scan.issueNumbers.length,
+          scan.matches.length,
         );
         throw new RelayError(503, 'raw reconciliation is incomplete or non-unique', {
           receiptId,
@@ -229,12 +298,6 @@ export class RelayService {
         });
       }
 
-      const durableRequest = decryptPayload(
-        record.envelope,
-        record.scope,
-        record.payloadHash,
-        this.#payloadKeyring,
-      );
       const installationToken = await this.#github.installationToken(
         record.scope.installationId,
         record.scope.repository,
@@ -244,7 +307,7 @@ export class RelayService {
         installationId: record.scope.installationId,
         repository: record.scope.repository,
         title: durableRequest.title,
-        body: `${durableRequest.body}\n\n${record.requestMarker}`,
+        body: bodyWithAuthorityMarkers(durableRequest, record.requestMarker),
         labels: durableRequest.labels,
         installationToken,
       });
@@ -258,7 +321,7 @@ export class RelayService {
       if (error instanceof RelayError) throw error;
       throw new RelayError(503, 'manual filing recovery failed', {
         receiptId,
-        state: 'ambiguous',
+        state: recoveryState,
       });
     }
   }
@@ -359,7 +422,7 @@ export class RelayService {
         installationId: scope.installationId,
         repository: scope.repository,
         title: durableRequest.title,
-        body: `${durableRequest.body}\n\n${record.requestMarker}`,
+        body: bodyWithAuthorityMarkers(durableRequest, record.requestMarker),
         labels: durableRequest.labels,
         installationToken,
       });
