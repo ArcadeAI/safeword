@@ -118,7 +118,7 @@ addGlobalOptions(
 
 addGlobalOptions(
   program.command('check', { hidden: true }).description('Check project health and versions'),
-).action(async (options, command: Command) => {
+).action(async (_options, command: Command) => {
   const globalOptions = readGlobalOptions(command);
   if (globalOptions.json || globalOptions.noInput || globalOptions.quiet || globalOptions.verbose) {
     const { observeStatus } = await import('./commands/status.js');
@@ -129,7 +129,7 @@ addGlobalOptions(
     return;
   }
   const { check } = await import('./commands/check.js');
-  await check({ offline: globalOptions.offline || options.offline === true });
+  await check({ offline: globalOptions.offline });
 });
 
 program
@@ -285,7 +285,7 @@ addGlobalOptions(
   program
     .command('diff', { hidden: true })
     .description('Preview changes that would be made by upgrade'),
-).action(async (options, command: Command) => {
+).action(async (_options, command: Command) => {
   const globalOptions = readGlobalOptions(command);
   if (globalOptions.json || globalOptions.noInput || globalOptions.quiet) {
     const { observePlan } = await import('./commands/plan.js');
@@ -296,7 +296,7 @@ addGlobalOptions(
     return;
   }
   const { diff } = await import('./commands/diff.js');
-  await diff({ verbose: options.verbose === true });
+  await diff({ verbose: globalOptions.verbose });
 });
 
 addGlobalOptions(
