@@ -644,6 +644,16 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     expect(status.exitCode, status.stderr).toBe(0);
     expect(status.stdout).toBe('Codex migration: plugin\nProtection: protected\n');
     expect(status.stdout).not.toContain('Next:');
+
+    const jsonStatus = await runCodexCommand(fixture, ['codex', 'status', '--json']);
+    expect(jsonStatus.exitCode, jsonStatus.stderr).toBe(0);
+    expect(jsonStatus.stderr).toBe('');
+    expect(JSON.parse(jsonStatus.stdout)).toMatchObject({
+      schema_version: '1',
+      ok: true,
+      state: 'plugin',
+      next_actions: [],
+    });
   });
 
   it('treats repeated finalization of a plugin-only project as a no-op', async () => {
