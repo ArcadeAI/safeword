@@ -229,9 +229,25 @@ describe('Codex migration finalization', () => {
       expect(
         existsSync(nodePath.join(directory, '.safeword/codex-migration-backup/payloads/0.bin')),
       ).toBe(false);
-      expect(readdirSync(nodePath.join(directory, '.safeword'))).toEqual([]);
+      expect(existsSync(nodePath.join(directory, '.safeword'))).toBe(false);
     },
   );
+
+  it('preserves a pre-existing empty Safeword directory after preparation fails', () => {
+    const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-finalization-'));
+    directories.push(directory);
+    mkdirSync(nodePath.join(directory, '.safeword'));
+
+    expect(() =>
+      applyCodexFinalization(directory, [{ path: 'owned.txt', content: 'after\n' }], {
+        beforePreparationStep: step => {
+          if (step === 'manifest-write') throw new Error('injected manifest write failure');
+        },
+      }),
+    ).toThrow('injected manifest write failure');
+
+    expect(readdirSync(nodePath.join(directory, '.safeword'))).toEqual([]);
+  });
 
   it('retains recovery evidence when automatic rollback fails', () => {
     const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-finalization-'));

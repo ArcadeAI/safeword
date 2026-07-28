@@ -10,8 +10,10 @@ import {
   mkdirSync,
   mkdtempSync,
   openSync,
+  readdirSync,
   readFileSync,
   renameSync,
+  rmdirSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -540,6 +542,7 @@ function prepareCodexFinalization(
   manifest: BackupManifestV1;
 } {
   const backupParent = nodePath.dirname(backupDirectory);
+  const backupParentExisted = pathEntryExists(backupParent);
   mkdirSync(backupParent, { recursive: true, mode: 0o700 });
   const stagingDirectory = mkdtempSync(
     nodePath.join(backupParent, '.codex-migration-backup-preparing-'),
@@ -597,6 +600,13 @@ function prepareCodexFinalization(
     return { effectiveMutations, entries, manifest };
   } finally {
     rmSync(stagingDirectory, { recursive: true, force: true });
+    if (
+      !backupParentExisted &&
+      pathEntryExists(backupParent) &&
+      readdirSync(backupParent).length === 0
+    ) {
+      rmdirSync(backupParent);
+    }
   }
 }
 
