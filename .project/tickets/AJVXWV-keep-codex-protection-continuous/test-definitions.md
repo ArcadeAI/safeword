@@ -136,7 +136,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED aed49bcf2
 - [x] GREEN 613cd044d
-- [ ] REFACTOR
+- [x] REFACTOR skip: one recovery predicate gates both status and mutation
 
 ### Scenario: Recovery restores the backed-up legacy state
 
