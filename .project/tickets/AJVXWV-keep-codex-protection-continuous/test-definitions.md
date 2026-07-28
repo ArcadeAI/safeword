@@ -248,7 +248,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: missing confirmation already failed closed before repository mutation
 - [x] GREEN 913b14ee5
-- [ ] REFACTOR
+- [x] REFACTOR skip: one confirmation resolver gates every finalization alias
 
 ## Rule: codex-continuity.SWM1.R1 — Finalization removes only known Safe Word-owned legacy assets
 
