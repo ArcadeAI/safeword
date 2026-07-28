@@ -94,7 +94,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 24c1d4fec
 - [x] GREEN f6b6fdf3e
-- [ ] REFACTOR
+- [x] REFACTOR skip: proof validation remains the single profile-proof observer
 
 ### Scenario: Declined interactive finalization leaves the repository unchanged
 
