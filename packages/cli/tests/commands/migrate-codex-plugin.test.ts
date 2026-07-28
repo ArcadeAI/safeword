@@ -619,6 +619,19 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-plugin.json'))).toBe(true);
   });
 
+  it('reports a finalized plugin-only project without another action', async () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    recordCurrentProof(fixture);
+    const finalized = await runCodexCommand(fixture, ['codex', 'migrate', '--finalize', '--yes']);
+    expect(finalized.exitCode, finalized.stderr).toBe(0);
+
+    const status = await runCodexCommand(fixture, ['codex', 'status']);
+
+    expect(status.exitCode, status.stderr).toBe(0);
+    expect(status.stdout).toBe('Codex migration: plugin\nProtection: protected\n');
+    expect(status.stdout).not.toContain('Next:');
+  });
+
   it('treats repeated finalization of a plugin-only project as a no-op', async () => {
     const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
     recordCurrentProof(fixture);
