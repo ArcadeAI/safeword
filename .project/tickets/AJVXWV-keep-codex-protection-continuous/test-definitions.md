@@ -116,7 +116,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Failed rollback retains recovery evidence
 
-- [ ] RED
+- [x] RED 682e244cc
 - [ ] GREEN
 - [ ] REFACTOR
 
