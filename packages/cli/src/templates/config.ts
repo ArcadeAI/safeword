@@ -319,12 +319,8 @@ ${prettier.configEntry}
 // OBSERVATIONAL hooks are deliberately left fail-open (the default): a crashing
 // lint/state/nudge hook must never block legitimate work.
 export const CURSOR_HOOKS = {
-  // Observational: injects standing context and checks for auto-upgrades.
-  // Fail-open — neither hook may block the session from starting.
-  sessionStart: [
-    { command: 'bun ./.safeword/hooks/session-safeword-context.ts --agent=cursor' },
-    { command: 'bun ./.safeword/hooks/session-cursor-auto-upgrade.ts' },
-  ],
+  // Observational context only. Installation and upgrades are explicit CLI actions.
+  sessionStart: [{ command: 'bun ./.safeword/hooks/session-safeword-context.ts --agent=cursor' }],
   // NOTE (F2TKR3): there is deliberately NO beforeSubmitPrompt gate. That hook
   // fires at prompt-send time, where Cursor exposes only the prompt text — no tool
   // name or file path — so it cannot tell "create test-definitions.md" from "write
@@ -392,20 +388,6 @@ function hook(command: string) {
 }
 
 /**
- * Create a background hook that does not block session start but can still
- * surface a message: with `asyncRewake`, Claude Code runs the hook detached and
- * — only when the hook exits with code 2 — delivers its stderr to Claude as a
- * system reminder (https://code.claude.com/docs/en/hooks). Used by the
- * auto-upgrade hook so a pending upgrade never stalls session start, yet
- * "upgraded" / "major available" / "blocked" messages still reach the user.
- * Degrades safely: a Claude Code build that doesn't know the flag treats the
- * entry as an ordinary (synchronous) hook — i.e. today's blocking behavior.
- */
-function asyncRewakeHook(command: string) {
-  return { hooks: [{ type: 'command', command, asyncRewake: true }] };
-}
-
-/**
  * Create a fully backgrounded hook with `async: true` (documented Claude Code
  * mode, https://code.claude.com/docs/en/hooks): the hook returns IMMEDIATELY and
  * its whole process tree runs in the background (up to 600s), so it never blocks.
@@ -443,7 +425,6 @@ export const SETTINGS_HOOKS = {
   SessionStart: [
     hook(`bash ${HOOKS_DIR}/session-bun-check.sh`),
     hook(`bun ${HOOKS_DIR}/session-dependency-readiness.ts`),
-    asyncRewakeHook(`bun ${HOOKS_DIR}/session-auto-upgrade.ts`),
     hook(`bun ${HOOKS_DIR}/session-safeword-context.ts --agent=claude`),
     hook(`bun ${HOOKS_DIR}/session-version.ts`),
     hook(`bun ${HOOKS_DIR}/session-lint-check.ts`),

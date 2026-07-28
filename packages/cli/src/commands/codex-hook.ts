@@ -369,8 +369,8 @@ function runPackagedHook(
         ...process.env,
         CLAUDE_PROJECT_DIR: projectDirectory,
         SAFEWORD_AGENT_RUNTIME: 'codex',
-        // The copied dispatcher keeps its auto-upgrade behavior, but the plugin
-        // must inject package-owned instructions rather than project-local text.
+        // The copied dispatcher is observation-only and injects package-owned
+        // instructions rather than project-local text.
         SAFEWORD_PACKAGED_CONTEXT_PATH:
           relativePath === 'session-codex-start.ts'
             ? (findPackagedTemplate('SAFEWORD.md') ?? '')

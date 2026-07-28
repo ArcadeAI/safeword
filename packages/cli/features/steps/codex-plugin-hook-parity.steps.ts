@@ -678,12 +678,12 @@ Then(
   },
 );
 
-Then('it invokes the shared auto-upgrade core', function (this: SafewordWorld) {
+Then('SessionStart performs no implicit upgrade', function (this: SafewordWorld) {
   assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
   const parsed = JSON.parse(this.result.stdout) as {
-    hookSpecificOutput?: { additionalContext?: string };
+    systemMessage?: string;
   };
-  assert.match(parsed.hookSpecificOutput?.additionalContext ?? '', /SAFEWORD Agent Instructions/u);
+  assert.doesNotMatch(parsed.systemMessage ?? '', /upgrade|available/u);
 });
 
 Then(
@@ -700,16 +700,22 @@ Then(
   },
 );
 
-Then('the notice is included in SessionStart additionalContext', function (this: SafewordWorld) {
-  assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
-  const parsed = JSON.parse(this.result.stdout) as {
-    systemMessage?: string;
-    hookSpecificOutput?: { hookEventName?: string; additionalContext?: string };
-  };
-  assert.match(parsed.systemMessage ?? '', /v2\.0\.0 available \(major\)/u);
-  assert.equal(parsed.hookSpecificOutput?.hookEventName, 'SessionStart');
-  assert.match(parsed.hookSpecificOutput?.additionalContext ?? '', /SAFEWORD Agent Instructions/u);
-});
+Then(
+  'the upgrade notice is absent from SessionStart additionalContext',
+  function (this: SafewordWorld) {
+    assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
+    const parsed = JSON.parse(this.result.stdout) as {
+      systemMessage?: string;
+      hookSpecificOutput?: { hookEventName?: string; additionalContext?: string };
+    };
+    assert.doesNotMatch(parsed.systemMessage ?? '', /v2\.0\.0 available \(major\)/u);
+    assert.equal(parsed.hookSpecificOutput?.hookEventName, 'SessionStart');
+    assert.match(
+      parsed.hookSpecificOutput?.additionalContext ?? '',
+      /SAFEWORD Agent Instructions/u,
+    );
+  },
+);
 
 Then('the command exits successfully', function (this: SafewordWorld) {
   assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);

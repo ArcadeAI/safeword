@@ -687,6 +687,24 @@ safeword accepts this trade — **consistency and enforcement over independent b
 | Reassess when  | A second JSON schema is needed, Commander cannot preserve global-option placement or `--` semantics, or a host exposes a native typed command/effect protocol that can replace Safeword’s adapter.                                                                                                                                                                                                                                                                                                                                                                                      |
 | Implementation | Issue #1574 / ticket K53GQ9: `packages/cli/src/cli-protocol/`, canonical and compatibility wiring in `packages/cli/src/cli.ts`, executable catalog-fixture tests, and `packages/cli/features/predictable-safeword-cli.feature`.                                                                                                                                                                                                                                                                                                                                                         |
 
+During the compatibility transition, retained aliases and the small set of
+pre-existing commands with specialized interactive protocols use a narrow
+legacy adapter only for ordinary invocations. This preserves existing shell
+payloads and automation such as `test-plan --format sh` and the Codex migration
+state schema.
+Machine invocations (`--json`, `--no-input`, `--quiet`, `--offline`, or an
+explicit `--cwd`) always use the typed handler and renderer, including a
+machine-readable deprecation finding. The only exception is an established
+command-specific machine protocol invoked without the new safety flags; it
+remains stable until it receives an explicit schema migration.
+
+Lifecycle hooks are observation-only with respect to dependency installation
+and Safeword upgrades. Session-start adapters may report missing dependencies
+or supply standing context, but they do not run package managers, fetch update
+metadata, or invoke `safeword upgrade`; convergence remains an explicit
+`safeword setup` operation. Retired auto-upgrade scripts remain callable
+no-ops while installed configurations migrate away from their registrations.
+
 ## References
 
 ### Per-file host JavaScript toolchain ownership

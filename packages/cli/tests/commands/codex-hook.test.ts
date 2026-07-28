@@ -152,7 +152,7 @@ describe('packagedNamespaceRootLabel', () => {
     expect(normalizeNamespaceRootLabel(String.raw`knowledge\docs`)).toBe('knowledge/docs');
   });
 
-  it('stages an auto-upgrade change under a custom namespace through SessionStart', () => {
+  it('does not auto-upgrade a custom namespace through SessionStart', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-'));
     directories.push(projectDirectory);
     const run = (command: string, args: string[]) =>
@@ -182,6 +182,7 @@ describe('packagedNamespaceRootLabel', () => {
     writeFileSync(nodePath.join(safewordDirectory, 'SAFEWORD.md'), '# context\n');
     expect(run('git', ['add', '.safeword']).status).toBe(0);
     expect(run('git', ['commit', '-qm', 'configure safeword']).status).toBe(0);
+    const beforeHead = run('git', ['rev-parse', 'HEAD']).stdout.trim();
 
     const binDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-bin-'));
     directories.push(binDirectory);
@@ -204,9 +205,8 @@ describe('packagedNamespaceRootLabel', () => {
     );
 
     expect(result.status, result.stderr).toBe(0);
-    expect(run('git', ['show', '--format=', '--name-only', 'HEAD']).stdout).toContain(
-      'knowledge/UPGRADE.md',
-    );
+    expect(existsSync(nodePath.join(projectDirectory, 'knowledge/UPGRADE.md'))).toBe(false);
+    expect(run('git', ['rev-parse', 'HEAD']).stdout.trim()).toBe(beforeHead);
   });
 
   it('injects package-owned SessionStart instructions instead of project-local text', () => {

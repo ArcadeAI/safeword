@@ -86,6 +86,7 @@ function alias(
     ...command(name, `Deprecated alias for ${aliasFor}`, effectClass, {
       promptPolicy: canonical.promptPolicy,
       networkPolicy: canonical.networkPolicy,
+      commandOptions: canonical.registration.options,
     }),
     handler: publicHandler(aliasFor),
     aliasFor,
@@ -114,7 +115,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   command('remove', 'Remove Safeword configuration', 'destructive', {
     promptPolicy: 'confirm',
     commandOptions: [
-      { flags: '--yes', description: 'Confirm the supplied plan identity' },
+      { flags: '-y, --yes', description: 'Confirm the supplied plan identity' },
       { flags: '--plan <id>', description: 'Identity of the exact plan being confirmed' },
       { flags: '--full', description: 'Also remove linting configuration and packages' },
     ],
@@ -260,7 +261,17 @@ const ALIASES: readonly CommandDefinition[] = [
     ...alias('upgrade', 'setup', 'mutate'),
     registration: {
       syntax: 'upgrade',
-      options: canonicalOptions('setup'),
+      options: [
+        ...canonicalOptions('setup'),
+        {
+          flags: '--migrate-namespace',
+          description: 'Migrate the legacy project namespace without prompting',
+        },
+        {
+          flags: '--no-migrate-namespace',
+          description: 'Keep the legacy project namespace',
+        },
+      ],
     },
   },
   alias('diff', 'plan', 'plan'),
@@ -318,7 +329,18 @@ const ALIASES: readonly CommandDefinition[] = [
       environment: MACHINE_ENVIRONMENT,
     },
   },
-  alias('self-report', 'retro signals', 'observe'),
+  {
+    ...alias('self-report', 'retro signals', 'observe'),
+    registration: {
+      syntax: 'self-report',
+      options: [
+        {
+          flags: '--format <format>',
+          description: 'Output format: human, json, or issue',
+        },
+      ],
+    },
+  },
   {
     ...alias('retro', 'retro run', 'mutate'),
     registration: {

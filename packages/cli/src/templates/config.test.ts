@@ -160,19 +160,12 @@ describe('SETTINGS_HOOKS', () => {
     expect(regex.test('Grep')).toBe(false);
   });
 
-  it('should run the auto-upgrade hook as a non-blocking asyncRewake hook', () => {
-    // Pins ticket XQ9CXA: the upgrade runs in the background (never blocks
-    // session start) yet can still surface "upgraded" / "major available" /
-    // "blocked" messages via exit-2 rewake. Reverting it to a blocking sync
-    // hook (dropping asyncRewake) fails this test.
+  it('keeps session start free of implicit upgrade commands', () => {
     const command = SETTINGS_HOOKS.SessionStart.flatMap((entry: HookEntry) => entry.hooks).find(
       (hook: HookCommand) =>
         hook.type === 'command' && hook.command.includes('session-auto-upgrade'),
-    ) as { asyncRewake?: boolean } | undefined;
-    if (!command) {
-      throw new Error('session-auto-upgrade hook not found');
-    }
-    expect(command.asyncRewake).toBe(true);
+    );
+    expect(command).toBeUndefined();
   });
 
   it('retro-recall.TB1.AC1: registers the retro Stop hook async (non-blocking, not asyncRewake)', () => {

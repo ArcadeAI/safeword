@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, lstatSync, readdirSync, readFileSync, readlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { type CliResult, createResult, type Effect, type Effects } from '../cli-protocol/result.js';
@@ -173,6 +173,58 @@ interface CompletedSetupEffects {
   readonly network: Effect[];
 }
 
+function snapshotFiles(cwd: string, targets: readonly string[]): Map<string, string> {
+  const snapshot = new Map<string, string>();
+  const visit = (absolutePath: string): void => {
+    if (!existsSync(absolutePath)) return;
+    const stat = lstatSync(absolutePath);
+    const relativePath = nodePath.relative(cwd, absolutePath);
+    if (stat.isSymbolicLink()) {
+      snapshot.set(relativePath, `link:${readlinkSync(absolutePath)}`);
+      return;
+    }
+    if (stat.isDirectory()) {
+      for (const entry of readdirSync(absolutePath)) visit(nodePath.join(absolutePath, entry));
+      return;
+    }
+    if (stat.isFile()) snapshot.set(relativePath, readFileSync(absolutePath).toString('base64'));
+  };
+  for (const target of targets) {
+    visit(nodePath.isAbsolute(target) ? target : nodePath.join(cwd, target));
+  }
+  return snapshot;
+}
+
+function observedFileEffects(
+  before: ReadonlyMap<string, string>,
+  after: ReadonlyMap<string, string>,
+) {
+  const effects: Effect[] = [];
+  for (const [target, content] of after) {
+    const previous = before.get(target);
+    if (previous === undefined) effects.push({ kind: 'create', target });
+    else if (previous !== content) effects.push({ kind: 'update', target });
+  }
+  for (const target of before.keys()) {
+    if (!after.has(target)) effects.push({ kind: 'delete', target });
+  }
+  return effects;
+}
+
+function observeFileStage<T>(
+  cwd: string,
+  targets: readonly string[],
+  completedEffects: CompletedSetupEffects,
+  action: () => T,
+): T {
+  const before = snapshotFiles(cwd, targets);
+  try {
+    return action();
+  } finally {
+    completedEffects.files.push(...observedFileEffects(before, snapshotFiles(cwd, targets)));
+  }
+}
+
 function uniqueEffects(effects: readonly Effect[]): Effect[] {
   const seen = new Set<string>();
   return effects.filter(effect => {
@@ -181,6 +233,27 @@ function uniqueEffects(effects: readonly Effect[]): Effect[] {
     seen.add(identity);
     return true;
   });
+}
+
+function setupNetworkEffects(
+  packages: readonly Effect[],
+  installation: DependencyInstallResult,
+  reconciliation: ReconcileResult,
+): Effect[] {
+  const effects = packages.map(effect => ({
+    kind: 'package-registry',
+    target: effect.target,
+    operation: effect.kind,
+  }));
+  if (!installation.attempted || installation.installed) return effects;
+  effects.push(
+    ...reconciliation.packagesToInstall.map(target => ({
+      kind: 'package-registry',
+      target,
+      operation: 'install',
+    })),
+  );
+  return effects;
 }
 
 function setupResult(input: SetupResultInput): CliResult {
@@ -222,11 +295,7 @@ function setupResult(input: SetupResultInput): CliResult {
       ? []
       : [{ kind: 'update', target: compatibilityPackage }]),
   ];
-  const network = packages.map(effect => ({
-    kind: 'package-registry',
-    target: effect.target,
-    operation: effect.kind,
-  }));
+  const network = setupNetworkEffects(packages, installation, reconciliation);
   const changed = files.length > 0 || packages.length > 0;
   const findings = [
     ...packageFindings(installation),
@@ -256,36 +325,24 @@ function applyCompatibilityMigrations(
   const missingPacks = getMissingPacks(cwd);
   const effects: Effect[] = [];
   for (const packId of missingPacks) {
-    const installed = installPack(packId, cwd).files.map(target => ({
-      kind: 'create',
-      target,
-    }));
+    const installed = observeFileStage(cwd, ['.safeword'], completedEffects, () =>
+      installPack(packId, cwd).files.map(target => ({ kind: 'create', target })),
+    );
     effects.push(...installed);
-    completedEffects.files.push(...installed);
   }
   if (missingPacks.length > 0) {
     const configEffect = { kind: 'update', target: '.safeword/config.json' };
     effects.push(configEffect);
-    completedEffects.files.push(configEffect);
   }
-  if (stripDeadConfigVersion(nodePath.join(cwd, '.safeword'))) {
+  if (
+    observeFileStage(cwd, ['.safeword/config.json'], completedEffects, () =>
+      stripDeadConfigVersion(nodePath.join(cwd, '.safeword')),
+    )
+  ) {
     const configEffect = { kind: 'update', target: '.safeword/config.json' };
     effects.push(configEffect);
-    completedEffects.files.push(configEffect);
   }
   return effects;
-}
-
-function recordEslintEffects(
-  cwd: string,
-  eslintPolicy: VendoredIgnoresPolicyResult,
-  completedEffects: CompletedSetupEffects,
-): void {
-  if (eslintPolicy.kind !== 'patched') return;
-  completedEffects.files.push(
-    { kind: 'update', target: nodePath.relative(cwd, eslintPolicy.configPath) },
-    { kind: 'create', target: nodePath.relative(cwd, eslintPolicy.backupPath) },
-  );
 }
 
 function recordInstalledPackages(
@@ -293,9 +350,9 @@ function recordInstalledPackages(
   installation: DependencyInstallResult,
   completedEffects: CompletedSetupEffects,
 ): void {
-  if (!installation.installed) return;
+  if (!installation.attempted) return;
   for (const target of packagesToInstall) {
-    completedEffects.packages.push({ kind: 'install', target });
+    if (installation.installed) completedEffects.packages.push({ kind: 'install', target });
     completedEffects.network.push({
       kind: 'package-registry',
       target,
@@ -313,7 +370,6 @@ function applyPackageCompatibility(
   const compatibilityPackage = `safeword@${VERSION}`;
   const fileEffect = { kind: 'update', target: 'package.json' };
   compatibilityEffects.push(fileEffect);
-  completedEffects.files.push(fileEffect);
   completedEffects.packages.push({ kind: 'update', target: compatibilityPackage });
   completedEffects.network.push({
     kind: 'package-registry',
@@ -341,23 +397,41 @@ async function applySetup(
 
   try {
     const compatibilityEffects = applyCompatibilityMigrations(cwd, completedEffects);
-    const architectureEffects = adapters.configureArchitecture(cwd);
-    completedEffects.files.push(...architectureEffects);
-    const eslintPolicy = applyVendoredIgnoresPolicy({
+    const architectureEffects = observeFileStage(
       cwd,
-      existingEslintConfig: context.projectType.existingEslintConfig,
-      hasJavaScript: context.languages?.javascript ?? false,
-      noModify,
-    });
-    recordEslintEffects(cwd, eslintPolicy, completedEffects);
-    const installation = installDependencies(cwd, result.packagesToInstall, 'missing packages', {
-      report: false,
-    });
-    recordInstalledPackages(result.packagesToInstall, installation, completedEffects);
-    const compatibilityPackage = applyPackageCompatibility(
-      cwd,
-      compatibilityEffects,
+      ['.safeword/depcruise-config.cjs', '.dependency-cruiser.cjs'],
       completedEffects,
+      () => adapters.configureArchitecture(cwd),
+    );
+    const eslintConfig = context.projectType.existingEslintConfig;
+    const eslintPolicy = observeFileStage(
+      cwd,
+      eslintConfig === undefined ? [] : [eslintConfig, `${eslintConfig}.safeword-bak`],
+      completedEffects,
+      () =>
+        applyVendoredIgnoresPolicy({
+          cwd,
+          existingEslintConfig: eslintConfig,
+          hasJavaScript: context.languages?.javascript ?? false,
+          noModify,
+        }),
+    );
+    const packageFiles = [
+      'package.json',
+      'bun.lock',
+      'bun.lockb',
+      'package-lock.json',
+      'pnpm-lock.yaml',
+      'yarn.lock',
+    ];
+    const installation = observeFileStage(cwd, packageFiles, completedEffects, () =>
+      installDependencies(cwd, result.packagesToInstall, 'missing packages', {
+        report: false,
+      }),
+    );
+    recordInstalledPackages(result.packagesToInstall, installation, completedEffects);
+    const compatibilityPackage = observeFileStage(cwd, ['package.json'], completedEffects, () =>
+      applyPackageCompatibility(cwd, compatibilityEffects, completedEffects),
     );
     return setupResult({
       cwd,

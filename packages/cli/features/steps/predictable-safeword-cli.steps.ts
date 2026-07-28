@@ -186,6 +186,7 @@ function runRealHook(world: PredictableCliWorld, surface: 'Claude Code' | 'Codex
       CLAUDE_PROJECT_DIR: cwd,
       PATH: `${witnessDirectory}:${process.env.PATH ?? ''}`,
       SAFEWORD_REAL_BUN: BUN_PATH,
+      SAFEWORD_FETCH_WITNESS: join(witnessDirectory, 'fetch-witness.ts'),
       SAFEWORD_WITNESS_LOG: witnessLog,
     },
   };
@@ -196,25 +197,16 @@ function runRealHook(world: PredictableCliWorld, surface: 'Claude Code' | 'Codex
     });
   }
   if (surface === 'Cursor') {
-    const hook = join(SAFEWORD_ROOT, 'packages/cli/templates/hooks/cursor/stop.ts');
-    return spawnSync(BUN_PATH, [hook], {
+    const hook = join(SAFEWORD_ROOT, 'packages/cli/templates/hooks/session-cursor-auto-upgrade.ts');
+    return spawnSync(BUN_PATH, ['--preload', join(witnessDirectory, 'fetch-witness.ts'), hook], {
       ...common,
-      input: JSON.stringify({
-        workspace_roots: [cwd],
-        conversation_id: 'bdd-session',
-        status: 'completed',
-      }),
+      input: JSON.stringify({ workspace_roots: [cwd], conversation_id: 'bdd-session' }),
     });
   }
-  const hook = join(SAFEWORD_ROOT, '.safeword/hooks/pre-tool-quality.ts');
-  return spawnSync(BUN_PATH, [hook], {
+  const hook = join(SAFEWORD_ROOT, 'packages/cli/templates/hooks/session-auto-upgrade.ts');
+  return spawnSync(BUN_PATH, ['--preload', join(witnessDirectory, 'fetch-witness.ts'), hook], {
     ...common,
-    input: JSON.stringify({
-      hook_event_name: 'PreToolUse',
-      session_id: 'bdd-session',
-      tool_name: 'Read',
-      tool_input: { file_path: 'README.md' },
-    }),
+    input: JSON.stringify({ hook_event_name: 'SessionStart', session_id: 'bdd-session' }),
   });
 }
 
@@ -245,10 +237,19 @@ case "$1" in
     ;;
 esac
 if [ "$(basename "$0")" = "bun" ]; then
-  exec "$SAFEWORD_REAL_BUN" "$@"
+  exec "$SAFEWORD_REAL_BUN" --preload "$SAFEWORD_FETCH_WITNESS" "$@"
 fi
 exit 0
 `;
+  writeFileSync(
+    join(directory, 'fetch-witness.ts'),
+    String.raw`import { appendFileSync } from 'node:fs';
+globalThis.fetch = (() => {
+  appendFileSync(process.env.SAFEWORD_WITNESS_LOG ?? '', 'fetch\n');
+  throw new Error('network access attempted from lifecycle hook');
+}) as typeof fetch;
+`,
+  );
   for (const executable of ['bunx', 'npx', 'curl', 'wget', 'corepack']) {
     const path = join(directory, executable);
     writeFileSync(path, fail);
@@ -474,6 +475,10 @@ When('Safeword applies the plan', async function (this: PredictableCliWorld) {
     noModify: true,
     adapters: {
       configureArchitecture: () => {
+        writeFileSync(
+          join(temporaryProject(this), '.dependency-cruiser.cjs'),
+          'module.exports = {};\n',
+        );
         throw new Error('injected failure');
       },
     },
@@ -487,6 +492,11 @@ Then(
     assert.ok(
       result.effects.files.some(
         effect => effect.kind === 'create' && effect.target === 'package.json',
+      ),
+    );
+    assert.ok(
+      result.effects.files.some(
+        effect => effect.kind === 'create' && effect.target === '.dependency-cruiser.cjs',
       ),
     );
     assert.equal(result.errors[0]?.code, 'SETUP_FAILED');

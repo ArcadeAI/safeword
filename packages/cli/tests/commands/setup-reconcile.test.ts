@@ -269,7 +269,7 @@ describe('Setup Command - Reconcile Integration', () => {
       expect(existsSync(nodePath.join(temporaryDirectory, '.codex/config.toml'))).toBe(false);
     });
 
-    it('should error on already configured project', () => {
+    it('should converge an already configured project', () => {
       writeFileSync(
         nodePath.join(temporaryDirectory, 'package.json'),
         JSON.stringify({ name: 'test', version: '1.0.0' }, undefined, 2),
@@ -285,8 +285,7 @@ describe('Setup Command - Reconcile Integration', () => {
         cwd: temporaryDirectory,
         timeout: 30_000,
       });
-      expect(result.exitCode).not.toBe(0);
-      expect(result.stderr.toLowerCase()).toContain('already configured');
+      expect(result.exitCode).toBe(0);
     });
   });
 });

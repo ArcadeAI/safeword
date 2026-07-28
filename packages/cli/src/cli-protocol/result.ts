@@ -191,6 +191,34 @@ function plannedEffectLines(data: unknown): string[] {
   return lines.length === 0 ? [] : ['Planned effects:', ...lines];
 }
 
+const EFFECT_LABELS: Readonly<Record<string, string>> = {
+  create: 'Created',
+  update: 'Updated',
+  delete: 'Deleted',
+  install: 'Installed',
+  uninstall: 'Uninstalled',
+  remove: 'Removed',
+  write: 'Written',
+};
+
+function completedEffectLines(result: CliResult): string[] {
+  const visibleCategories = [
+    result.effects.files,
+    result.effects.packages,
+    result.effects.configuration,
+    result.effects.destructive,
+  ];
+  const lines = visibleCategories.flatMap(effects =>
+    effects.map(effect => `${EFFECT_LABELS[effect.kind] ?? 'Changed'}: ${effect.target}`),
+  );
+  lines.push(
+    ...result.effects.network.map(
+      effect => `Network: ${effect.operation ?? effect.kind} ${effect.target}`,
+    ),
+  );
+  return lines;
+}
+
 export function renderHumanResult(
   result: CliResult,
   options: { quiet?: boolean; verbose?: boolean } = {},
@@ -201,6 +229,7 @@ export function renderHumanResult(
     VERDICTS[result.state],
     `Changed: ${result.changed ? 'yes' : 'no'}`,
     ...uniqueMessages(result),
+    ...completedEffectLines(result),
     ...plannedEffectLines(result.data),
   ];
 
