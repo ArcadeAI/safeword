@@ -23,6 +23,7 @@ import {
   AUTO_UPGRADE_LOCK_MESSAGE,
   releaseAutoUpgradeLock,
 } from '../../templates/hooks/lib/auto-upgrade-lock.js';
+import { REPLY_FORMAT_REMINDER } from '../../templates/hooks/lib/quality.js';
 import {
   createTemporaryDirectory,
   createTypeScriptPackageJson,
@@ -527,7 +528,7 @@ describe('E2E: UserPromptSubmit Hooks', () => {
         expect(result.exitCode).toBe(0);
         expect(result.stdout).toContain('- Reply format: lead with the answer.');
         expect(result.stdout).not.toContain('**CONFIDENT**/**BLOCKED**');
-        expect(result.stdout).not.toContain('**Next:**');
+        expect(result.stdout).not.toContain(REPLY_FORMAT_REMINDER);
       } finally {
         clearIssuesDirectory(shared.projectDirectory);
         rmSync(`${shared.projectDirectory}/.project/quality-state-test-session.json`, {

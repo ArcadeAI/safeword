@@ -6,9 +6,9 @@ active-TDD review remediation.
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 5,551 passed (373 files; 5 skipped). The real-installed hook
-integration and shared quality-contract tests are included; their focused run
-passed 163/163 tests.
+**Test Suite:** ✓ 5,553 passed (373 files; 5 skipped). The real-installed hook
+integration and shared quality-contract tests are included; their latest
+focused run passed 104/104 tests.
 
 **Gherkin:** ✅ 505 passed, 3 skipped (15,645 passed steps; 4 skipped).
 
@@ -42,8 +42,10 @@ hook in a real temporary Safeword project.
 
 **Refactor:** ✅ The dedicated refactor pass moved both reply-format variants
 into `hooks/lib/quality.ts`, preventing vocabulary drift between the prompt and
-Stop hooks. The real-installed-hook suite passed 163/163, lint/typecheck and
-template parity are clean, and the one-item ledger is complete.
+Stop hooks. The active-TDD negative contract now rejects the shared full
+reminder directly rather than depending on the styling of an unrelated phase
+hint. The hook plus quality suites passed 104/104, lint/typecheck and template
+parity are clean, and the ledger is complete.
 
 **Audit:** ✅ Passed with non-blocking repository observations. Config sync,
 dependency-cruiser (0 violations across 666 modules and 2,179 dependencies),

@@ -6,7 +6,7 @@ phase: verify
 status: in_progress
 external_issue: https://github.com/ArcadeAI/safeword/issues/1524
 created: 2026-07-27T16:11:23.968Z
-last_modified: 2026-07-27T20:05:46Z
+last_modified: 2026-07-28T00:33:10Z
 ---
 
 # Surface reply format before Claude responds
@@ -104,6 +104,10 @@ open.
 - [x] Scout disposition: retain the production hook's local line construction
   and phase state flow. A further extraction would add parameters without
   removing duplicated behavior or improving a tested boundary.
+- [x] Decouple the active-TDD negative contract from the styling of an
+  unrelated phase `Next:` hint. It now rejects the shared full
+  `REPLY_FORMAT_REMINDER` directly, so a future bolding change cannot create a
+  false regression while the decision-brief reminder remains suppressed.
 
 ## Work Log
 
@@ -158,3 +162,13 @@ open.
   installed-hook suites 104/104, schema/parity 61/61, `bun run lint`
   (eslint + Gherkin + typecheck) clean, `bun run parity:fix` re-synced both
   dogfood mirrors.
+- 2026-07-27T23:50:20Z Final review-nit cleanup: replaced the active-TDD
+  contract's indirect `**Next:**` absence check with an assertion against the
+  shared full `REPLY_FORMAT_REMINDER`, removing coupling to the styling of the
+  separate phase next-step hint.
+- 2026-07-28T00:33:10Z Final verification: hook plus quality suites passed
+  104/104; lint, Gherkin lint, typecheck, template parity (195 pairs and 8
+  contracts), and diff hygiene were clean. The first full-suite attempt hit a
+  transient connection refusal while installing React fixture dependencies;
+  its isolated 11-test suite passed on retry, then a clean full rerun passed
+  5,553 tests across all 373 files with 5 skipped.
