@@ -1,3 +1,5 @@
+/* eslint-disable unicorn/no-null -- migration JSON uses null for unavailable profile facts */
+
 import {
   chmodSync,
   existsSync,
@@ -516,6 +518,30 @@ command = 'echo "keep this user hook"'
     expect(JSON.parse(result.stdout)).toMatchObject({
       schema_version: '1',
       state: 'plugin_enabled_hook_unproven',
+    });
+  });
+
+  it('returns a stable schema-1 error when profile status cannot be observed', async () => {
+    const fixture = createMigrationFixture('');
+
+    const result = await runCodexCommand(fixture, ['codex', 'status', '--json'], {
+      SAFEWORD_FAIL_PLUGIN_VERIFY: '1',
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toBe('');
+    expect(result.stdout).toBe(`${JSON.stringify(JSON.parse(result.stdout))}\n`);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      schema_version: '1',
+      ok: false,
+      plugin: { installed: false, enabled: null, version: null, observation: 'unknown' },
+      errors: [
+        {
+          code: 'PLUGIN_OBSERVATION_FAILED',
+          message: 'profile observation failed',
+          retryable: true,
+        },
+      ],
     });
   });
 
