@@ -6,6 +6,8 @@
 <!-- prettier-ignore-start -->
 
 ## Tickets (458)
+## Tickets (457)
+## Tickets (455)
 
 ### 001
 
@@ -1495,6 +1497,10 @@
 - **Merge engine: warn when a JSON-merge target exists but won't parse (TIA4M8)** (done, epic: —)
   When `safeword setup`/`upgrade` reconciles a `jsonMerge` target that
   → `.project/tickets/TIA4M8-merge-warn-unparseable`
+- **Run acceptance coverage locally for contributors (TQQGZS)** (done, epic: —)
+  Give contributors one local command that runs both the unit and acceptance suites.
+  external issue: https://github.com/ArcadeAI/safeword/issues/1455
+  → `.project/tickets/TQQGZS-local-acceptance-verification`
 - **plan-implementation phase before TDD (TXRHMD)** (done, epic: —)
   Insert a gated `plan-implementation` phase between scenario-gate and implement so no TDD RED starts before a valid, reviewed impl-plan.md exists (GitHub #480).
   external issue: https://github.com/ArcadeAI/safeword/issues/480

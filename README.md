@@ -521,7 +521,8 @@ Without these binaries, the scripts print a message and skip.
 
 ```bash
 # Important: Use `bun run test` (Vitest), NOT `bun test` (Bun's runner)
-bun run test                      # All tests
+bun run test:all                  # Unit and acceptance tests
+bun run test                      # Vitest suite
 bunx vitest run tests/foo.test.ts # Single file
 bun run test:integration          # Integration tests
 bun run test:watch                # Watch mode
