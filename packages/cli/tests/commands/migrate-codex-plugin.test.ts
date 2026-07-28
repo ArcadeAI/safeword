@@ -552,6 +552,30 @@ command = 'echo "keep this user hook"'
     expect(manifest).toMatchObject({ schema_version: 1, status: 'finalized' });
   });
 
+  it('treats repeated finalization of a plugin-only project as a no-op', async () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    recordCurrentProof(fixture);
+    const first = await runCodexCommand(fixture, ['codex', 'migrate', '--finalize', '--yes']);
+    expect(first.exitCode, first.stderr).toBe(0);
+    const markerPath = nodePath.join(fixture.directory, '.safeword/codex-plugin.json');
+    const manifestPath = nodePath.join(
+      fixture.directory,
+      '.safeword/codex-migration-backup/manifest.json',
+    );
+    const before = {
+      config: readFileSync(fixture.configPath, 'utf8'),
+      marker: readFileSync(markerPath, 'utf8'),
+      manifest: readFileSync(manifestPath, 'utf8'),
+    };
+
+    const second = await runCodexCommand(fixture, ['codex', 'migrate', '--finalize', '--yes']);
+
+    expect(second.exitCode, second.stderr).toBe(0);
+    expect(readFileSync(fixture.configPath, 'utf8')).toBe(before.config);
+    expect(readFileSync(markerPath, 'utf8')).toBe(before.marker);
+    expect(readFileSync(manifestPath, 'utf8')).toBe(before.manifest);
+  });
+
   it('cleans legacy hooks through the explicit Codex migration command without reinstalling', async () => {
     const fixture = createMigrationFixture(`${LEGACY_HOOK_CONFIG}${CUSTOM_PRE_TOOL_HOOK}`);
     const { configPath } = fixture;
