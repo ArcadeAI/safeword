@@ -232,7 +232,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: JSON finalization plan uses stable effect actions
 
-- [ ] RED
+- [x] RED 5f355693b
 - [ ] GREEN
 - [ ] REFACTOR
 
