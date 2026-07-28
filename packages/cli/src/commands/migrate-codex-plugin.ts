@@ -464,10 +464,20 @@ export function statusCodexMigration(
   const environment = options.environment ?? process.env;
   const legacyEvents = observeLegacyEvents(cwd);
   const recoveryRequired = codexRecoveryIsRequired(cwd);
+  let plugin: CodexPluginObservation;
+  let pluginObservationError: Error | undefined;
+  if (recoveryRequired) {
+    plugin = { installed: false, enabled: null, version: null, observation: 'unknown' };
+  } else {
+    try {
+      plugin = observeCodexPlugin();
+    } catch (error) {
+      plugin = { installed: false, enabled: null, version: null, observation: 'unknown' };
+      pluginObservationError = error instanceof Error ? error : new Error(String(error));
+    }
+  }
   const result = deriveCodexMigrationResult({
-    plugin: recoveryRequired
-      ? { installed: false, enabled: null, version: null, observation: 'unknown' }
-      : observeCodexPlugin(),
+    plugin,
     proof: observeCodexHookProof(environment),
     legacyAssets: observeLegacyAssets(cwd),
     legacyEvents,
@@ -476,6 +486,13 @@ export function statusCodexMigration(
     recoveryRequired,
     restartPending: codexRestartIsPending(environment),
   });
+  if (pluginObservationError !== undefined) {
+    result.errors.push({
+      code: 'PLUGIN_OBSERVATION_FAILED',
+      message: pluginObservationError.message,
+      retryable: true,
+    });
+  }
 
   process.stdout.write(
     options.json === true ? `${JSON.stringify(result)}\n` : renderCodexMigrationHuman(result),
