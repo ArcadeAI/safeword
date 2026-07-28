@@ -200,69 +200,122 @@ describe('configured public-command wiring', () => {
     expect(readFileSync(github.log, 'utf8')).toContain('issue create');
   });
 
-  it('drives retro run through extraction, egress, triage, and recoverable spooling', async () => {
+  it('preserves the configured ticket invocation when offline mode refuses its network path', async () => {
     const directory = createTemporaryDirectory();
+    configuredGitHubProject(directory);
     const github = installFakeGitHubCli(directory);
-    const transcript = nodePath.join(directory, 'transcript.jsonl');
-    const findings = nodePath.join(directory, 'findings.json');
-    writeFileSync(transcript, '{"type":"user","message":"the gate omitted its source"}\n');
-    writeFileSync(
-      findings,
-      JSON.stringify([
-        {
-          category: 'rough-edge',
-          title: 'Coverage gate message omits file and number',
-          safeword_surface: 'hooks/stop-quality.ts',
-          what_happened: 'The coverage gate blocked with no file and no number.',
-          why_friction: 'I could not tell the user how to unblock.',
-          repro: 'safeword check after an edit that drops coverage',
-        },
-      ]),
-    );
 
     const result = await runCli(
       [
-        'retro',
-        'run',
-        '--transcript',
-        transcript,
-        '--findings',
-        findings,
-        '--session-id',
-        'configured-wiring',
+        'ticket',
+        'new',
+        'offline-safe',
+        '--type',
+        'task',
+        '--title',
+        "Alex's offline ticket",
         '--json',
         '--no-input',
+        '--offline',
         '--cwd',
         directory,
       ],
-      {
-        cwd: directory,
-        env: {
-          ...githubEnvironment(github),
-          GITHUB_TOKEN: 'not-a-real-token',
-        },
-      },
+      { cwd: directory, env: githubEnvironment(github) },
     );
 
-    expect(result.exitCode, result.stdout).toBe(0);
-    expect(result.stderr).toBe('');
+    expect(result).toMatchObject({ exitCode: 2, stderr: '' });
     expect(JSON.parse(result.stdout)).toMatchObject({
-      state: 'healthy',
+      state: 'action_required',
       changed: false,
-      data: {
-        command: 'retro run',
-        agent_filing_needed: true,
-        result: {
-          created: [],
-          failed: ['Coverage gate message omits file and number'],
+      effects: { files: [], network: [] },
+      next_actions: [
+        {
+          command: `safeword ticket new 'offline-safe' --type 'task' --title 'Alex'"'"'s offline ticket' --cwd '${directory}'`,
+          mutates: true,
+          requires_human: false,
         },
-      },
+      ],
     });
-    expect(
-      existsSync(nodePath.join(directory, '.safeword/retro-drafts/configured-wiring.jsonl')),
-    ).toBe(true);
-    expect(readFileSync(github.log, 'utf8')).toContain('auth token');
+    expect(existsSync(nodePath.join(directory, '.project'))).toBe(false);
+    expect(existsSync(github.log)).toBe(false);
   });
+
+  it.each([
+    ['canonical command', ['retro', 'run']],
+    ['retained alias', ['retro']],
+  ] as const)(
+    'drives retro run through extraction, egress, triage, and recoverable spooling via the %s',
+    async (_label, command) => {
+      const directory = createTemporaryDirectory();
+      const github = installFakeGitHubCli(directory);
+      const transcript = nodePath.join(directory, 'transcript.jsonl');
+      const findings = nodePath.join(directory, 'findings.json');
+      writeFileSync(transcript, '{"type":"user","message":"the gate omitted its source"}\n');
+      writeFileSync(
+        findings,
+        JSON.stringify([
+          {
+            category: 'rough-edge',
+            title: 'Coverage gate message omits file and number',
+            safeword_surface: 'hooks/stop-quality.ts',
+            what_happened: 'The coverage gate blocked with no file and no number.',
+            why_friction: 'I could not tell the user how to unblock.',
+            repro: 'safeword check after an edit that drops coverage',
+          },
+        ]),
+      );
+
+      const result = await runCli(
+        [
+          ...command,
+          '--transcript',
+          transcript,
+          '--findings',
+          findings,
+          '--session-id',
+          'configured-wiring',
+          '--json',
+          '--no-input',
+          '--cwd',
+          directory,
+        ],
+        {
+          cwd: directory,
+          env: {
+            ...githubEnvironment(github),
+            GITHUB_TOKEN: 'not-a-real-token',
+          },
+        },
+      );
+
+      expect(result.exitCode, result.stdout).toBe(0);
+      expect(result.stderr).toBe('');
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        state: 'changed',
+        changed: true,
+        effects: {
+          files: [
+            {
+              kind: 'create',
+              target: `.safeword/retro-drafts/configured-wiring.jsonl`,
+            },
+          ],
+        },
+        data: {
+          command: 'retro run',
+          agent_filing_needed: true,
+          result: {
+            created: [],
+            failed: ['Coverage gate message omits file and number'],
+          },
+        },
+      });
+      expect(
+        existsSync(nodePath.join(directory, '.safeword/retro-drafts/configured-wiring.jsonl')),
+      ).toBe(true);
+      expect(readFileSync(github.log, 'utf8')).toContain('auth token');
+    },
+  );
 
   it('drives retro reconcile into the real credential/network composition root', async () => {
     const directory = createTemporaryDirectory();
