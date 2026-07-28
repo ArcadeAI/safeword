@@ -134,4 +134,22 @@ describe('Codex migration finalization', () => {
       entries: [{ path: 'owned.txt' }],
     });
   });
+
+  it('rejects an unsafe backup target before changing any file', () => {
+    const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-finalization-'));
+    directories.push(directory);
+    const outsideName = `${nodePath.basename(directory)}-outside.txt`;
+    const outsidePath = nodePath.join(nodePath.dirname(directory), outsideName);
+    writeFileSync(outsidePath, 'outside before\n');
+    directories.push(outsidePath);
+
+    expect(() =>
+      applyCodexFinalization(directory, [
+        { path: `../${outsideName}`, content: 'outside after\n' },
+      ]),
+    ).toThrow('Unsafe Codex migration path');
+
+    expect(readFileSync(outsidePath, 'utf8')).toBe('outside before\n');
+    expect(existsSync(nodePath.join(directory, '.safeword/codex-migration-backup'))).toBe(false);
+  });
 });
