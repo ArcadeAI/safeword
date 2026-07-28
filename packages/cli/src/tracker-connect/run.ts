@@ -22,6 +22,7 @@ export function runConnect(
   provider: string,
   target: ConnectTarget,
   log: (message: string) => void,
+  options: { cwd?: string; prompt?: ReturnType<typeof createPrompt> } = {},
 ): Promise<ConnectResult> {
   // Only the supported providers have a credential env var; an unsupported one
   // yields no token and `connectTracker` rejects it before the token is used.
@@ -29,11 +30,11 @@ export function runConnect(
   const token = envVariable ? process.env[envVariable] : undefined;
 
   return connectTracker({
-    cwd: process.cwd(),
+    cwd: options.cwd ?? process.cwd(),
     provider,
     target,
     token,
-    prompt: createPrompt(),
+    prompt: options.prompt ?? createPrompt(),
     secretStore: createSecretStore(),
     verify: createVerifyClient(),
     log,

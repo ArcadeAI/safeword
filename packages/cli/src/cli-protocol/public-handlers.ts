@@ -1,6 +1,7 @@
 import { existsSync, readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import type * as CodexMigration from '../commands/migrate-codex-plugin.js';
 import type { CommandHandler, CommandInvocation } from './handler.js';
 import { type CliResult, createResult } from './result.js';
 
@@ -267,25 +268,222 @@ async function lintGherkinHandler(invocation: CommandInvocation): Promise<CliRes
   );
 }
 
+function stringOption(
+  options: Readonly<Record<string, unknown>>,
+  name: string,
+): string | undefined {
+  const value = options[name];
+  return typeof value === 'string' ? value : undefined;
+}
+
+function trackerConnectEffects(
+  provider: string,
+  connected: boolean,
+): Partial<CliResult['effects']> {
+  if (provider !== 'github' && provider !== 'linear') return {};
+  return {
+    files: [
+      { kind: 'update', target: '.safeword/config.json' },
+      ...(connected ? [{ kind: 'create', target: '.safeword/tracker-map.json' }] : []),
+    ],
+  };
+}
+
+function trackerConnectResult(
+  provider: string,
+  result: { readonly exitCode: number; readonly connected: boolean },
+  messages: readonly string[],
+): CliResult {
+  const succeeded = result.exitCode === 0;
+  return createResult({
+    state: succeeded ? 'changed' : 'failed',
+    changed: succeeded,
+    effects: trackerConnectEffects(provider, result.connected),
+    errors: succeeded
+      ? []
+      : [
+          {
+            code: 'TRACKER_CONNECT_FAILED',
+            message: messages.at(-1) ?? 'Tracker connection failed.',
+            retryable: true,
+          },
+        ],
+    data: { command: 'tracker connect', provider, connected: result.connected, messages },
+  });
+}
+
+async function runTrackerConnect(invocation: CommandInvocation): Promise<CliResult> {
+  const provider = invocation.operands[0];
+  if (typeof provider !== 'string') {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'TRACKER_PROVIDER_REQUIRED',
+          message: 'tracker connect requires a provider.',
+          retryable: false,
+        },
+      ],
+    });
+  }
+  const { runConnect } = await import('../tracker-connect/run.js');
+  const messages: string[] = [];
+  const result = await runConnect(
+    provider,
+    {
+      repo: stringOption(invocation.options, 'repo'),
+      team: stringOption(invocation.options, 'team'),
+      workspace: stringOption(invocation.options, 'workspace'),
+    },
+    message => {
+      messages.push(message);
+    },
+    {
+      cwd: invocation.cwd,
+      prompt: { confirm: () => Promise.resolve(false) },
+    },
+  );
+  return trackerConnectResult(provider, result, messages);
+}
+
+interface TrackerSyncResultInput {
+  readonly provider: string | undefined;
+  readonly exitCode: number;
+  readonly before: string | undefined;
+  readonly after: string | undefined;
+  readonly messages: readonly string[];
+}
+
+function trackerSyncResult(input: TrackerSyncResultInput): CliResult {
+  const changed = input.before !== input.after;
+  const succeeded = input.exitCode === 0;
+  let state: CliResult['state'] = 'failed';
+  if (succeeded) state = changed ? 'changed' : 'healthy';
+  return createResult({
+    state,
+    changed,
+    effects: {
+      files: changed
+        ? [
+            {
+              kind: input.before === undefined ? 'create' : 'update',
+              target: '.safeword/tracker-map.json',
+            },
+          ]
+        : [],
+      network:
+        input.provider === undefined
+          ? []
+          : [{ kind: 'tracker-sync', target: input.provider, operation: 'read-write' }],
+    },
+    errors: succeeded
+      ? []
+      : [
+          {
+            code: 'TRACKER_SYNC_FAILED',
+            message: input.messages.at(-1) ?? 'Tracker synchronization failed.',
+            retryable: true,
+          },
+        ],
+    data: {
+      command: 'tracker sync',
+      provider: input.provider ?? 'none',
+      messages: input.messages,
+    },
+  });
+}
+
+async function runOfflineTrackerSync(invocation: CommandInvocation): Promise<CliResult> {
+  const { applyTrackerSyncResults, planTrackerSync } = await import('../commands/sync-tracker.js');
+  const { readTicketBridgeConfig } = await import('../tracker-sync/config.js');
+  const config = readTicketBridgeConfig(invocation.cwd);
+  const applyResultsFile = stringOption(invocation.options, 'applyResults');
+  const result =
+    applyResultsFile === undefined
+      ? planTrackerSync(invocation.cwd, config)
+      : applyTrackerSyncResults(invocation.cwd, config, applyResultsFile);
+  if (!result.ok) {
+    return createResult({
+      state: 'failed',
+      errors: [{ code: 'TRACKER_SYNC_FAILED', message: result.reason, retryable: false }],
+      data: { command: 'tracker sync', mode: result.mode, messages: result.messages },
+    });
+  }
+  if (result.mode === 'plan') {
+    return createResult({
+      state: 'healthy',
+      findings: result.messages.map(message => ({
+        code: 'TRACKER_SYNC_ADVISORY',
+        message,
+        severity: 'warning',
+      })),
+      data: {
+        command: 'tracker sync',
+        mode: 'plan',
+        provider: result.provider ?? 'none',
+        plan: result.plan,
+      },
+    });
+  }
+  return createResult({
+    state: result.changed ? 'changed' : 'healthy',
+    changed: result.changed,
+    effects: {
+      files: result.changed ? [{ kind: 'update', target: '.safeword/tracker-map.json' }] : [],
+    },
+    data: { command: 'tracker sync', mode: 'apply', provider: result.provider },
+  });
+}
+
+async function runTrackerSync(invocation: CommandInvocation): Promise<CliResult> {
+  const { existsSync: pathExists, readFileSync: readFile } = await import('node:fs');
+  const { buildWriterRegistry, resolveRepoVisibility } = await import('../tracker-sync/clients.js');
+  const { readTicketBridgeConfig } = await import('../tracker-sync/config.js');
+  const { readCorpus } = await import('../tracker-sync/corpus.js');
+  const { supportedProvider, syncTracker } = await import('../tracker-sync/index.js');
+  const { trackerMapPath } = await import('../tracker-sync/tracker-map.js');
+
+  const config = readTicketBridgeConfig(invocation.cwd);
+  const provider = supportedProvider(config.provider);
+  const sidecarPath = trackerMapPath(invocation.cwd);
+  const before = pathExists(sidecarPath) ? readFile(sidecarPath, 'utf8') : undefined;
+  const messages: string[] = [];
+  const writers =
+    provider === undefined
+      ? ({} as ReturnType<typeof buildWriterRegistry>)
+      : buildWriterRegistry(provider, config.target);
+  const repoVisibility =
+    provider === 'github' && config.body === 'full'
+      ? resolveRepoVisibility(config.target?.repo)
+      : undefined;
+  const result = await syncTracker({
+    config,
+    tickets: provider === undefined ? [] : readCorpus(invocation.cwd, config.target?.repo),
+    sidecarPath,
+    writers,
+    env: process.env,
+    resetTrackerMap: invocation.options.resetTrackerMap === true,
+    nonInteractive: invocation.noInput,
+    repoVisibility,
+    log: message => {
+      messages.push(message);
+    },
+  });
+  const after = pathExists(sidecarPath) ? readFile(sidecarPath, 'utf8') : undefined;
+  return trackerSyncResult({ provider, exitCode: result.exitCode, before, after, messages });
+}
+
 function trackerHandler(
   name: 'tracker connect' | 'tracker sync',
   invocation: CommandInvocation,
 ): Promise<CliResult> {
+  const offlineMode =
+    name === 'tracker sync' &&
+    (invocation.options.plan === true || typeof invocation.options.applyResults === 'string');
+  if (offlineMode) return runOfflineTrackerSync(invocation);
   if (invocation.offline) return Promise.resolve(onlineRequired(name));
-  return Promise.resolve(
-    createResult({
-      state: 'action_required',
-      findings: [
-        {
-          code: 'TRACKER_CONFIRMATION_REQUIRED',
-          message: `Review tracker credentials and run \`${name}\` interactively.`,
-          severity: 'warning',
-        },
-      ],
-      nextActions: [{ command: `safeword ${name}`, mutates: true, requiresHuman: true }],
-      data: { command: name },
-    }),
-  );
+  invocation.progress?.start(`Running ${name}…`);
+  return name === 'tracker connect' ? runTrackerConnect(invocation) : runTrackerSync(invocation);
 }
 
 async function codexStatusHandler(invocation: CommandInvocation): Promise<CliResult> {
@@ -293,22 +491,140 @@ async function codexStatusHandler(invocation: CommandInvocation): Promise<CliRes
   return observeCodexMigration(invocation.cwd);
 }
 
-function codexMutationHandler(name: string, invocation: CommandInvocation): Promise<CliResult> {
-  if (invocation.offline) return Promise.resolve(onlineRequired(name));
-  return Promise.resolve(
-    createResult({
-      state: 'action_required',
-      findings: [
-        {
-          code: 'CODEX_CONFIRMATION_REQUIRED',
-          message: `Review the Codex migration state before running \`${name}\`.`,
-          severity: 'warning',
-        },
-      ],
-      nextActions: [{ command: `safeword ${name}`, mutates: true, requiresHuman: true }],
-      data: { command: name },
-    }),
-  );
+function codexConfirmation(name: string): CliResult {
+  return createResult({
+    state: 'action_required',
+    findings: [
+      {
+        code: 'CODEX_CONFIRMATION_REQUIRED',
+        message: `Review and confirm the exact \`${name}\` operation.`,
+        severity: 'warning',
+      },
+    ],
+    nextActions: [{ command: `safeword ${name} --yes`, mutates: true, requiresHuman: true }],
+    data: { command: name },
+  });
+}
+
+function runCodexRecovery(
+  invocation: CommandInvocation,
+  migration: typeof CodexMigration,
+): CliResult {
+  migration.recoverCodexMigration(invocation.cwd, { report: false });
+  const observed = migration.observeCodexMigration(invocation.cwd);
+  return {
+    ...observed,
+    state: 'changed',
+    changed: true,
+    effects: {
+      ...observed.effects,
+      configuration: [{ kind: 'restore', target: 'Safeword legacy Codex project state' }],
+    },
+  };
+}
+
+async function runCodexFinalization(
+  invocation: CommandInvocation,
+  migration: typeof CodexMigration,
+): Promise<CliResult> {
+  const planned = migration.observeCodexFinalizationEffects(invocation.cwd);
+  const changed = await migration.removeLegacyCodexHooks(invocation.cwd, {
+    yes: true,
+    report: false,
+  });
+  const observed = migration.observeCodexMigration(invocation.cwd);
+  return {
+    ...observed,
+    state: changed ? 'changed' : observed.state,
+    changed,
+    effects: {
+      ...observed.effects,
+      files: changed
+        ? planned.map(effect => ({
+            kind: effect.action,
+            target: effect.path,
+            operation: effect.action,
+          }))
+        : [],
+    },
+  };
+}
+
+function runCodexInstall(
+  invocation: CommandInvocation,
+  migration: typeof CodexMigration,
+): CliResult {
+  migration.installCodexPlugin({
+    cwd: invocation.cwd,
+    json: true,
+    reportMigrationState: false,
+  });
+  const observed = migration.observeCodexMigration(invocation.cwd);
+  return {
+    ...observed,
+    state: 'changed',
+    changed: true,
+    effects: {
+      ...observed.effects,
+      configuration: [{ kind: 'enable', target: 'Safeword Codex profile plugin' }],
+    },
+  };
+}
+
+function codexFailure(error: unknown): CliResult {
+  return createResult({
+    state: 'failed',
+    errors: [
+      {
+        code: 'CODEX_COMMAND_FAILED',
+        message: error instanceof Error ? error.message : String(error),
+        retryable: true,
+      },
+    ],
+  });
+}
+
+type CodexMutationName = 'codex install' | 'codex migrate' | 'codex recover';
+
+function codexNeedsConfirmation(
+  name: CodexMutationName,
+  isFinalization: boolean,
+  invocation: CommandInvocation,
+): boolean {
+  const confirmationSensitive = isFinalization || name === 'codex recover';
+  return confirmationSensitive && invocation.options.yes !== true;
+}
+
+async function executeCodexMutation(
+  name: CodexMutationName,
+  isFinalization: boolean,
+  invocation: CommandInvocation,
+  migration: typeof CodexMigration,
+): Promise<CliResult> {
+  if (name === 'codex recover') return runCodexRecovery(invocation, migration);
+  if (isFinalization) return await runCodexFinalization(invocation, migration);
+  return runCodexInstall(invocation, migration);
+}
+
+async function codexMutationHandler(
+  name: CodexMutationName,
+  invocation: CommandInvocation,
+): Promise<CliResult> {
+  if (invocation.offline && name !== 'codex recover') return onlineRequired(name);
+  const migration = await import('../commands/migrate-codex-plugin.js');
+  const isFinalization =
+    name === 'codex migrate' &&
+    (invocation.options.finalize === true || invocation.options.removeLegacyHooks === true);
+  if (codexNeedsConfirmation(name, isFinalization, invocation)) {
+    return codexConfirmation(name);
+  }
+
+  invocation.progress?.start(`Running ${name}…`);
+  try {
+    return await executeCodexMutation(name, isFinalization, invocation, migration);
+  } catch (codexError) {
+    return codexFailure(codexError);
+  }
 }
 
 function ticketListHandler(invocation: CommandInvocation): Promise<CliResult> {

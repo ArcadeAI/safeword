@@ -754,6 +754,13 @@ function finalizationEffects(
   });
 }
 
+export function observeCodexFinalizationEffects(
+  cwd: string,
+): CodexMigrationResultV1['effects']['files'] {
+  const prepared = prepareLegacyHookRemoval(cwd);
+  return finalizationEffects(cwd, buildCodexFinalizationMutations(cwd, prepared));
+}
+
 function renderCodexFinalizationPlan(
   cwd: string,
   mutations: CodexFinalizationMutation[],
@@ -862,6 +869,10 @@ function reportAppliedFinalization(
   );
 }
 
+function reportCodexWhen(enabled: boolean, report: () => void): void {
+  if (enabled) report();
+}
+
 export async function removeLegacyCodexHooks(
   cwd = process.cwd(),
   options: {
@@ -869,10 +880,13 @@ export async function removeLegacyCodexHooks(
     confirm?: (plan: string) => Promise<boolean>;
     environment?: NodeJS.ProcessEnv;
     json?: boolean;
+    report?: boolean;
   } = {},
 ): Promise<boolean> {
   if (codexRecoveryIsRequired(cwd)) {
-    reportCodexMigration(cwd, options);
+    reportCodexWhen(options.report !== false, () => {
+      reportCodexMigration(cwd, options);
+    });
     return false;
   }
   if (observeCodexHookProof(options.environment).status !== 'current') {
@@ -881,7 +895,9 @@ export async function removeLegacyCodexHooks(
     );
   }
   if (codexFinalizationIsComplete(cwd)) {
-    reportCompletedFinalization(cwd, options);
+    reportCodexWhen(options.report !== false, () => {
+      reportCompletedFinalization(cwd, options);
+    });
     return true;
   }
   // Validate cleanup before verifying the profile. A malformed project config
@@ -897,7 +913,9 @@ export async function removeLegacyCodexHooks(
     confirm: confirm === undefined ? undefined : () => confirm(plan),
   });
   if (!confirmed) {
-    info('Codex migration finalization was declined; the project was left unchanged.');
+    reportCodexWhen(options.report !== false, () => {
+      info('Codex migration finalization was declined; the project was left unchanged.');
+    });
     return false;
   }
 
@@ -905,7 +923,9 @@ export async function removeLegacyCodexHooks(
   run('codex', ['--version']);
   verifyCodexPluginIsEnabled();
 
-  if (options.json !== true) success('Safe Word Codex plugin is enabled for this profile.');
+  reportCodexWhen(options.report !== false && options.json !== true, () => {
+    success('Safe Word Codex plugin is enabled for this profile.');
+  });
 
   assertCodexFinalizationPlanUnchanged(
     cwd,
@@ -916,10 +936,12 @@ export async function removeLegacyCodexHooks(
   );
   applyCodexFinalization(cwd, plannedMutations);
 
-  reportAppliedFinalization(cwd, {
-    options,
-    effects: plannedEffects,
-    removedLegacyHooks: preparedLegacyHookRemoval !== undefined,
+  reportCodexWhen(options.report !== false, () => {
+    reportAppliedFinalization(cwd, {
+      options,
+      effects: plannedEffects,
+      removedLegacyHooks: preparedLegacyHookRemoval !== undefined,
+    });
   });
   return true;
 }
@@ -949,8 +971,12 @@ export async function migrateCodexPlugin(
 
 export function recoverCodexMigration(
   cwd = process.cwd(),
-  options: { json?: boolean; environment?: NodeJS.ProcessEnv } = {},
+  options: { json?: boolean; environment?: NodeJS.ProcessEnv; report?: boolean } = {},
 ): void {
+  if (options.report === false) {
+    recoverCodexFinalization(cwd);
+    return;
+  }
   const changed = recoverCodexFinalization(cwd);
   if (options.json === true) {
     reportCodexMigration(cwd, { ...options, changed });

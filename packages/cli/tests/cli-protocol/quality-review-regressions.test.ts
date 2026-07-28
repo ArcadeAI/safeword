@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -85,5 +85,90 @@ describe('quality-review regressions for the public CLI boundary', () => {
       ),
     ).toBe(true);
     expect(existsSync(nodePath.join(invocationDirectory, '.project'))).toBe(false);
+  });
+
+  it('returns an offline tracker plan through the typed renderer', async () => {
+    const directory = createTemporaryDirectory();
+    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, '.safeword/config.json'),
+      JSON.stringify({ ticketBridge: { provider: 'github', target: { repo: 'acme/demo' } } }),
+    );
+
+    const result = await runCli(
+      ['tracker', 'sync', '--plan', '--json', '--no-input', '--offline', '--cwd', directory],
+      { cwd: directory },
+    );
+
+    expect(result).toMatchObject({ exitCode: 0, stderr: '' });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'healthy',
+      effects: { network: [] },
+      data: {
+        command: 'tracker sync',
+        mode: 'plan',
+        provider: 'github',
+        plan: { version: 1, intents: [] },
+      },
+    });
+  });
+
+  it('applies tracker executor results offline through the typed renderer', async () => {
+    const directory = createTemporaryDirectory();
+    const ticketDirectory = nodePath.join(directory, '.project/tickets/AB12CD-login');
+    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+    mkdirSync(ticketDirectory, { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, '.safeword/config.json'),
+      JSON.stringify({ ticketBridge: { provider: 'github', target: { repo: 'acme/demo' } } }),
+    );
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'ticket.md'),
+      ['---', 'id: AB12CD', 'slug: login', 'type: task', 'status: in_progress', '---'].join('\n'),
+    );
+    const resultsFile = nodePath.join(directory, 'results.json');
+    writeFileSync(
+      resultsFile,
+      JSON.stringify({
+        version: 1,
+        results: [
+          {
+            ticketId: 'AB12CD',
+            number: '549',
+            url: 'https://github.com/acme/demo/issues/549',
+          },
+        ],
+      }),
+    );
+
+    const result = await runCli(
+      [
+        'tracker',
+        'sync',
+        '--apply-results',
+        resultsFile,
+        '--json',
+        '--no-input',
+        '--offline',
+        '--cwd',
+        directory,
+      ],
+      { cwd: directory },
+    );
+
+    expect(result).toMatchObject({ exitCode: 0, stderr: '' });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'changed',
+      effects: {
+        files: [{ kind: 'update', target: '.safeword/tracker-map.json' }],
+        network: [],
+      },
+      data: { command: 'tracker sync', mode: 'apply', provider: 'github' },
+    });
+    const trackerMapPath = nodePath.join(directory, '.safeword/tracker-map.json');
+    const trackerMap = JSON.parse(readFileSync(trackerMapPath, 'utf8'));
+    expect(trackerMap).toMatchObject({
+      issues: { AB12CD: { ref: { provider: 'github', id: '549' } } },
+    });
   });
 });
