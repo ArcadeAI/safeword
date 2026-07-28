@@ -63,6 +63,7 @@ describe('CLI command catalog', () => {
     for (const definition of aliasDefinitions) {
       expect(canonicalNames).toContain(definition.aliasFor);
       const canonical = commandCatalog.find(entry => entry.name === definition.aliasFor);
+      expect(definition.effectClass).toBe(canonical?.effectClass);
       expect(definition.promptPolicy).toBe(canonical?.promptPolicy);
       expect(definition.networkPolicy).toBe(canonical?.networkPolicy);
     }

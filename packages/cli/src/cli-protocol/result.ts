@@ -94,7 +94,16 @@ export function createResult(input: ResultInput): CliResult {
   };
 }
 
-export function withDeprecation(result: CliResult, legacy: string, replacement: string): CliResult {
+export function withDeprecation(
+  result: CliResult,
+  legacy: string,
+  replacement: string,
+  compatibility: {
+    readonly introducedIn: string;
+    readonly retainedThrough: string;
+    readonly removalEligibleAfter: string;
+  },
+): CliResult {
   return {
     ...result,
     findings: [
@@ -105,9 +114,9 @@ export function withDeprecation(result: CliResult, legacy: string, replacement: 
         severity: 'warning',
         metadata: {
           replacement,
-          introduced_in: '0.70',
-          retained_through: '0.71',
-          removal_eligible_after: '0.71',
+          introduced_in: compatibility.introducedIn,
+          retained_through: compatibility.retainedThrough,
+          removal_eligible_after: compatibility.removalEligibleAfter,
         },
       },
     ],

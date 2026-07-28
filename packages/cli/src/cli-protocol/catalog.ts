@@ -76,19 +76,15 @@ function command(
   };
 }
 
-function alias(
-  name: string,
-  aliasFor: string,
-  effectClass: Exclude<EffectClass, 'hook'>,
-): CommandDefinition {
+function alias(name: string, aliasFor: string): CommandDefinition {
   const canonical = canonicalDefinition(aliasFor);
   return {
-    ...command(name, `Deprecated alias for ${aliasFor}`, effectClass, {
+    ...command(name, `Deprecated alias for ${aliasFor}`, canonical.effectClass, {
       promptPolicy: canonical.promptPolicy,
       networkPolicy: canonical.networkPolicy,
       commandOptions: canonical.registration.options,
+      handler: canonical.handler,
     }),
-    handler: publicHandler(aliasFor),
     aliasFor,
     compatibility: RETAINED_ALIAS,
   };
@@ -268,28 +264,28 @@ function canonicalOptions(name: string): CommandDefinition['registration']['opti
 }
 
 const ALIASES: readonly CommandDefinition[] = [
-  alias('check', 'status', 'observe'),
+  alias('check', 'status'),
   {
-    ...alias('upgrade', 'setup', 'mutate'),
+    ...alias('upgrade', 'setup'),
     registration: {
       syntax: 'upgrade',
       options: canonicalOptions('setup'),
     },
   },
-  alias('diff', 'plan', 'plan'),
+  alias('diff', 'plan'),
   {
-    ...alias('reset', 'remove', 'destructive'),
+    ...alias('reset', 'remove'),
     registration: {
       syntax: 'reset',
       options: canonicalOptions('remove'),
     },
   },
-  alias('sync-config', 'project sync-config', 'mutate'),
-  alias('architecture', 'project architecture', 'mutate'),
-  alias('sync-learnings', 'project sync-learnings', 'mutate'),
-  alias('sync-tickets', 'project sync-tickets', 'mutate'),
+  alias('sync-config', 'project sync-config'),
+  alias('architecture', 'project architecture'),
+  alias('sync-learnings', 'project sync-learnings'),
+  alias('sync-tickets', 'project sync-tickets'),
   {
-    ...alias('codify', 'project codify', 'mutate'),
+    ...alias('codify', 'project codify'),
     registration: {
       syntax: 'codify <ticket>',
       options: canonicalOptions('project codify'),
@@ -300,28 +296,28 @@ const ALIASES: readonly CommandDefinition[] = [
     },
   },
   {
-    ...alias('test-plan', 'project test-plan', 'observe'),
+    ...alias('test-plan', 'project test-plan'),
     registration: {
       syntax: 'test-plan [dir]',
       options: canonicalOptions('project test-plan'),
     },
   },
   {
-    ...alias('lint-gherkin', 'project lint-gherkin', 'observe'),
+    ...alias('lint-gherkin', 'project lint-gherkin'),
     registration: {
       syntax: 'lint-gherkin [files...]',
       options: [],
     },
   },
   {
-    ...alias('sync-tracker', 'tracker sync', 'mutate'),
+    ...alias('sync-tracker', 'tracker sync'),
     registration: {
       syntax: 'sync-tracker',
       options: canonicalOptions('tracker sync'),
     },
   },
   {
-    ...alias('connect', 'tracker connect', 'mutate'),
+    ...alias('connect', 'tracker connect'),
     registration: {
       syntax: 'connect <provider>',
       options: canonicalOptions('tracker connect'),
@@ -332,7 +328,7 @@ const ALIASES: readonly CommandDefinition[] = [
     },
   },
   {
-    ...alias('self-report', 'retro signals', 'observe'),
+    ...alias('self-report', 'retro signals'),
     registration: {
       syntax: 'self-report',
       options: [
@@ -344,7 +340,7 @@ const ALIASES: readonly CommandDefinition[] = [
     },
   },
   {
-    ...alias('retro', 'retro run', 'mutate'),
+    ...alias('retro', 'retro run'),
     registration: {
       syntax: 'retro',
       options: canonicalOptions('retro run'),
@@ -354,9 +350,9 @@ const ALIASES: readonly CommandDefinition[] = [
       environment: MACHINE_ENVIRONMENT,
     },
   },
-  alias('retro-reconcile', 'retro reconcile', 'mutate'),
+  alias('retro-reconcile', 'retro reconcile'),
   {
-    ...alias('migrate codex-plugin', 'codex migrate', 'mutate'),
+    ...alias('migrate codex-plugin', 'codex migrate'),
     registration: {
       syntax: 'codex-plugin',
       options: canonicalOptions('codex migrate'),

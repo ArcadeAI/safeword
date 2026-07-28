@@ -118,7 +118,15 @@ async function executeDefinition(command: Command, definition: CommandDefinition
     progress?.stop();
   }
   if (definition.aliasFor !== undefined) {
-    result = withDeprecation(result, definition.name, definition.aliasFor);
+    if (definition.compatibility === undefined) {
+      throw new Error(`Missing compatibility policy for retained alias ${definition.name}`);
+    }
+    result = withDeprecation(
+      result,
+      definition.name,
+      definition.aliasFor,
+      definition.compatibility,
+    );
   }
   reportResult(result, globalOptions, definition.name);
 }
