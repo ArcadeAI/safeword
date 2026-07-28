@@ -93,7 +93,7 @@ describe('CLI plan protocol', () => {
         updated: ['customer-config.json'],
         removed: ['.safeword/version'],
         packagesToInstall: [],
-        packagesToRemove: [],
+        packagesToRemove: ['eslint'],
         warnings: [],
       },
       'uninstall',
@@ -104,5 +104,6 @@ describe('CLI plan protocol', () => {
       { kind: 'update', target: 'customer-config.json' },
     ]);
     expect(effects.destructive).toEqual([{ kind: 'remove', target: '.safeword/version' }]);
+    expect(effects.packages).toEqual([]);
   });
 });

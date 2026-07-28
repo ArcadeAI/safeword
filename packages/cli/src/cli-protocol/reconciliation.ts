@@ -52,7 +52,10 @@ export function effectsForReconciliation(result: ReconcileResult, mode: PlanMode
   const created = result.created.map(target => ({ kind: 'create', target }));
   const updated = result.updated.map(target => ({ kind: 'update', target }));
   const removed = result.removed.map(target => ({ kind: 'remove', target }));
-  const packageNames = mode === 'upgrade' ? result.packagesToInstall : result.packagesToRemove;
+  let packageNames: string[] = [];
+  if (!result.applied) {
+    packageNames = mode === 'upgrade' ? result.packagesToInstall : result.packagesToRemove;
+  }
   const packageEffects = packageNames.map(target => ({
     kind: mode === 'upgrade' ? 'install' : 'remove',
     target,

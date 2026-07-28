@@ -1,6 +1,5 @@
 import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import Ajv from 'ajv';
 import { describe, expect, it } from 'vitest';
