@@ -44,4 +44,23 @@ describe('safeword test-plan --json', () => {
     expect(go?.command).not.toBe('');
     expect(typeof go?.available).toBe('boolean');
   });
+
+  it('keeps --format json as the legacy raw-plan output mode', async () => {
+    const root = makeGoRepo();
+
+    const result = await runCli(['project', 'test-plan', '--kind', 'test', '--format', 'json'], {
+      cwd: root,
+    });
+
+    expect(result.exitCode).toBe(0);
+    const plan = JSON.parse(result.stdout) as {
+      language: string;
+      command: string;
+      available: unknown;
+    }[];
+    expect(Array.isArray(plan)).toBe(true);
+    const go = plan.find(entry => entry.language === 'go');
+    expect(go?.command).not.toBe('');
+    expect(typeof go?.available).toBe('boolean');
+  });
 });

@@ -13,6 +13,15 @@ import { type PlanKind, resolveTestPlan } from '../test-plan/resolve.js';
 
 type Format = 'human' | 'json' | 'sh';
 
+function rawTestPlanPresentation(
+  format: Format,
+  plan: ReturnType<typeof resolveTestPlan>,
+): CliResult['presentation'] {
+  if (format === 'json') return { kind: 'raw', body: JSON.stringify(plan) };
+  if (format === 'sh') return { kind: 'raw', body: renderShellPlan(plan) };
+  return undefined;
+}
+
 export function observeTestPlan(
   cwd: string,
   dir: string | undefined,
@@ -55,13 +64,7 @@ export function observeTestPlan(
   return Promise.resolve(
     createResult({
       state: 'healthy',
-      presentation:
-        formatValue === 'sh'
-          ? {
-              kind: 'raw',
-              body: renderShellPlan(plan),
-            }
-          : undefined,
+      presentation: rawTestPlanPresentation(formatValue as Format, plan),
       data: { command: 'project test-plan', kind, plan },
     }),
   );

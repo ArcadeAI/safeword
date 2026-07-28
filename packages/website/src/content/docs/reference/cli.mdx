@@ -22,7 +22,7 @@ hidden compatibility aliases through the 0.71 release line.
 | `project …`    | Mixed       | Maintain project config, tests, and indexes  |
 | `tracker …`    | Mutating    | Connect and synchronize an external tracker  |
 | `codex …`      | Mixed       | Install and migrate the profile Codex plugin |
-| `ticket …`     | Mixed       | List and create local tickets                |
+| `ticket …`     | Mixed       | List and create project tickets              |
 | `retro …`      | Mixed       | Extract, inspect, and reconcile findings     |
 | `capabilities` | Read-only   | Describe the stable machine interface        |
 
@@ -40,6 +40,13 @@ command:
 
 Use `safeword capabilities --json --no-input` to discover command effects,
 prompt and network policy, aliases, schema versions, and executable fixtures.
+The published result contract is available as
+`safeword/schemas/cli-result-v1.json`.
+
+When a tracker is connected, `ticket new` creates or adopts the tracker issue
+before writing its local project record. `--offline` refuses that declared
+network path before a tracker client is constructed; projects without a
+tracker continue to create local records offline.
 
 ## Core lifecycle
 
@@ -119,6 +126,8 @@ safeword retro reconcile
 ```
 
 Run any command with `--help` for its complete option set.
+For `project test-plan`, the retained `--format json` option emits the legacy
+raw plan array. Use the global `--json` option for the stable result envelope.
 
 ---
 

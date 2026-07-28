@@ -1,3 +1,8 @@
+import { readFileSync } from 'node:fs';
+import nodePath from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import Ajv from 'ajv';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -9,6 +14,40 @@ import {
 } from '../../src/cli-protocol/result.js';
 
 describe('CLI result protocol', () => {
+  it('validates representative golden envelopes against the published v1 JSON Schema', () => {
+    const schemaPath = nodePath.resolve(
+      import.meta.dirname,
+      '../../schemas/cli-result-v1.schema.json',
+    );
+    const validate = new Ajv({ allErrors: true }).compile(
+      JSON.parse(readFileSync(schemaPath, 'utf8')),
+    );
+    const envelopes = [
+      createResult({ state: 'healthy' }),
+      createResult({
+        state: 'action_required',
+        findings: [{ code: 'DRIFT', message: 'Managed files differ.', severity: 'warning' }],
+        nextActions: [{ command: 'safeword plan', mutates: false, requiresHuman: false }],
+        data: { plan: { id: 'plan-1' } },
+      }),
+      createResult({
+        state: 'failed',
+        errors: [{ code: 'BROKEN', message: 'The operation failed.', retryable: true }],
+        recovery: [
+          {
+            command: 'safeword doctor',
+            description: 'Inspect the project before retrying.',
+            requiresHuman: true,
+          },
+        ],
+      }),
+    ].map(result => JSON.parse(renderJsonResult(result)));
+
+    for (const envelope of envelopes) {
+      expect(validate(envelope), JSON.stringify(validate.errors)).toBe(true);
+    }
+  });
+
   it.each([
     ['healthy', 0],
     ['changed', 0],
