@@ -51,6 +51,16 @@ describe('plan and remove wiring', () => {
       data: { plan: { id: string; effects: { destructive: unknown[] } } };
     };
     expect(envelope.data.plan.effects.destructive.length).toBeGreaterThan(0);
+    expect(JSON.parse(preview.stdout)).toMatchObject({
+      changed: false,
+      effects: {
+        files: [],
+        packages: [],
+        configuration: [],
+        network: [],
+        destructive: [],
+      },
+    });
 
     const applied = await runCli(
       [
