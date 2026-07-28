@@ -156,7 +156,7 @@ Given('a configured healthy project', function (this: PredictableCliWorld) {
 
 Given('a configured project with managed drift', function (this: PredictableCliWorld) {
   setupProject(this);
-  writeFileSync(join(temporaryProject(this), '.safeword', 'SAFEWORD.md'), 'managed drift\n');
+  rmSync(join(temporaryProject(this), '.claude', 'settings.json'));
 });
 
 When('the user runs Safeword with no command', function (this: PredictableCliWorld) {
@@ -410,7 +410,7 @@ Given('a destructive command has a valid plan', function (this: PredictableCliWo
   setupProject(this);
 });
 
-When('it runs in {word}', function (this: PredictableCliWorld) {
+When('it runs in {word}', function (this: PredictableCliWorld, _mode: string) {
   runCli(this, ['remove', '--json', '--no-input', '--offline', '--cwd', temporaryProject(this)]);
 });
 

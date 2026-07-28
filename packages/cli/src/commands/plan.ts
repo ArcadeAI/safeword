@@ -8,7 +8,6 @@ export async function observePlan(cwd: string): Promise<CliResult> {
     const hasEffects = Object.values(plan.effects).some(effects => effects.length > 0);
     return createResult({
       state: hasEffects ? 'action_required' : 'healthy',
-      effects: plan.effects,
       findings: hasEffects
         ? [
             {
