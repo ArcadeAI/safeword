@@ -591,6 +591,10 @@ export function previewCodexFinalization(
   cwd = process.cwd(),
   options: { environment?: NodeJS.ProcessEnv } = {},
 ): void {
+  if (codexRecoveryIsRequired(cwd)) {
+    reportCodexMigration(cwd, { ...options, json: true });
+    return;
+  }
   const environment = options.environment ?? process.env;
   const result = observeCodexMigrationResult(cwd, environment);
   if (result.proof.status === 'current') {

@@ -7,6 +7,7 @@ import {
   mkdtempSync,
   readFileSync,
   readlinkSync,
+  renameSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -126,6 +127,38 @@ describe('Codex migration finalization', () => {
     });
 
     expect(codexRecoveryIsRequired(directory)).toBe(true);
+  });
+
+  it('rejects a finalized transaction whose reserved backup root is a symbolic link', () => {
+    const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-finalization-'));
+    directories.push(directory);
+    applyCodexFinalization(directory, [
+      { path: '.agents/skills/bdd/SKILL.md', content: '# migrated\n' },
+      { path: '.safeword/codex-plugin.json', content: '{}\n' },
+    ]);
+    const backup = nodePath.join(directory, '.safeword/codex-migration-backup');
+    const externalBackup = nodePath.join(directory, 'external-backup');
+    renameSync(backup, externalBackup);
+    symlinkSync(externalBackup, backup, 'dir');
+
+    expect(codexFinalizationIsComplete(directory)).toBe(false);
+    expect(codexRecoveryIsRequired(directory)).toBe(true);
+    expect(() => recoverCodexFinalization(directory)).toThrow('symbolic link');
+  });
+
+  it('surfaces a dangling reserved backup symlink as recovery required', () => {
+    const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-finalization-'));
+    directories.push(directory);
+    mkdirSync(nodePath.join(directory, '.safeword'));
+    symlinkSync(
+      nodePath.join(directory, 'missing-backup'),
+      nodePath.join(directory, '.safeword/codex-migration-backup'),
+      'dir',
+    );
+
+    expect(codexFinalizationIsComplete(directory)).toBe(false);
+    expect(codexRecoveryIsRequired(directory)).toBe(true);
+    expect(() => recoverCodexFinalization(directory)).toThrow('manifest is missing');
   });
 
   it('rejects a dangling symlink before creating recovery evidence or mutating it', () => {

@@ -6,6 +6,7 @@ import {
   lstatSync,
   mkdirSync,
   readFileSync,
+  renameSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -14,6 +15,7 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { applyCodexFinalization } from '../../src/codex-plugin/finalization.js';
 import {
   recordCodexHookProof,
   writeCodexRestartMarker,
@@ -1081,6 +1083,48 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     expect(result.stdout.match(/^Next:/gm)).toHaveLength(1);
     expect(readFileSync(fixture.configPath, 'utf8')).toBe(before);
     expect(existsSync(nodePath.join(fixture.directory, 'codex.log'))).toBe(false);
+
+    const preview = await runCodexCommand(fixture, ['codex', 'migrate', '--finalize', '--json']);
+    expect(preview.exitCode).toBe(2);
+    expect(preview.stderr).toBe('');
+    expect(JSON.parse(preview.stdout)).toMatchObject({
+      state: 'recovery_required',
+      errors: [],
+      next_actions: [{ command: 'safeword codex recover' }],
+    });
+    expect(existsSync(nodePath.join(fixture.directory, 'codex.log'))).toBe(false);
+  });
+
+  it('reports linked or dangling reserved backup roots as recovery required', async () => {
+    const linkedFixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    applyCodexFinalization(linkedFixture.directory, [
+      { path: '.agents/skills/bdd/SKILL.md', content: '# migrated\n' },
+      { path: '.safeword/codex-plugin.json', content: '{}\n' },
+    ]);
+    const backup = nodePath.join(linkedFixture.directory, '.safeword/codex-migration-backup');
+    const externalBackup = nodePath.join(linkedFixture.directory, 'external-backup');
+    renameSync(backup, externalBackup);
+    symlinkSync(externalBackup, backup, 'dir');
+
+    const linkedStatus = await runCodexCommand(linkedFixture, ['codex', 'status', '--json']);
+    expect(linkedStatus.exitCode).toBe(2);
+    expect(JSON.parse(linkedStatus.stdout)).toMatchObject({ state: 'recovery_required' });
+
+    const danglingFixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    const danglingBackup = nodePath.join(
+      danglingFixture.directory,
+      '.safeword/codex-migration-backup',
+    );
+    mkdirSync(nodePath.dirname(danglingBackup), { recursive: true });
+    symlinkSync(nodePath.join(danglingFixture.directory, 'missing-backup'), danglingBackup, 'dir');
+
+    const danglingRecovery = await runCodexCommand(danglingFixture, ['codex', 'recover', '--json']);
+    expect(danglingRecovery.exitCode).toBe(1);
+    expect(JSON.parse(danglingRecovery.stdout)).toMatchObject({
+      state: 'recovery_required',
+      changed: false,
+      errors: [{ code: 'RECOVERY_FAILED' }],
+    });
   });
 
   it('restores the complete backed-up legacy state through recovery', async () => {

@@ -95,10 +95,10 @@ export async function promptCodexFinalization(
 export function codexFinalizationIsComplete(cwd: string): boolean {
   try {
     const marker = JSON.parse(
-      readFileSync(containedPath(cwd, PROJECT_MARKER_PATH), 'utf8'),
+      readFileSync(assertSafeComponents(cwd, PROJECT_MARKER_PATH), 'utf8'),
     ) as Record<string, unknown>;
     const manifest = JSON.parse(
-      readFileSync(containedPath(cwd, `${BACKUP_PATH}/manifest.json`), 'utf8'),
+      readFileSync(assertSafeComponents(cwd, `${BACKUP_PATH}/manifest.json`), 'utf8'),
     ) as Record<string, unknown>;
     if (!isBackupManifest(manifest)) return false;
     validateManifestIntent(manifest);
@@ -116,8 +116,18 @@ export function codexFinalizationIsComplete(cwd: string): boolean {
   }
 }
 
+function pathEntryExists(path: string): boolean {
+  try {
+    lstatSync(path);
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+    throw error;
+  }
+}
+
 export function codexRecoveryIsRequired(cwd: string): boolean {
-  return existsSync(containedPath(cwd, BACKUP_PATH)) && !codexFinalizationIsComplete(cwd);
+  return pathEntryExists(containedPath(cwd, BACKUP_PATH)) && !codexFinalizationIsComplete(cwd);
 }
 
 function sha256(content: Buffer): string {
@@ -432,7 +442,7 @@ function validateRecoveryEntry(
 
 export function recoverCodexFinalization(cwd: string): boolean {
   const manifestPath = containedPath(cwd, `${BACKUP_PATH}/manifest.json`);
-  if (!existsSync(containedPath(cwd, BACKUP_PATH))) return false;
+  if (!pathEntryExists(containedPath(cwd, BACKUP_PATH))) return false;
   if (!existsSync(manifestPath)) {
     throw new Error('Codex migration backup manifest is missing; recovery cannot continue.');
   }
