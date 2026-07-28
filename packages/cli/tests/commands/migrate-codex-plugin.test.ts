@@ -505,6 +505,20 @@ command = 'echo "keep this user hook"'
     expect(result.stdout.match(/^Next:/gm)).toHaveLength(1);
   });
 
+  it('writes only the versioned result to stdout for actionable JSON status', async () => {
+    const fixture = createMigrationFixture('');
+
+    const result = await runCodexCommand(fixture, ['codex', 'status', '--json']);
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toBe('');
+    expect(result.stdout).toBe(`${JSON.stringify(JSON.parse(result.stdout))}\n`);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      schema_version: '1',
+      state: 'plugin_enabled_hook_unproven',
+    });
+  });
+
   it('reports only runnable legacy events as protection for an unproven plugin', async () => {
     const scriptConfig = `[[hooks.PreToolUse]]
 matcher = "^(apply_patch)$"
