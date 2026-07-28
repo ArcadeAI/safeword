@@ -655,13 +655,28 @@ command = 'echo "keep this user hook"'
   it('cleans legacy hooks through the explicit Codex migration command without reinstalling', async () => {
     const fixture = createMigrationFixture(`${LEGACY_HOOK_CONFIG}${CUSTOM_PRE_TOOL_HOOK}`);
     const { configPath } = fixture;
+    recordCurrentProof(fixture);
 
-    const result = await runCodexCommand(fixture, ['codex', 'migrate', '--remove-legacy-hooks']);
+    const result = await runCodexCommand(fixture, [
+      'codex',
+      'migrate',
+      '--remove-legacy-hooks',
+      '--yes',
+    ]);
 
     expect(result.exitCode, result.stderr).toBe(0);
     const migrated = readFileSync(configPath, 'utf8');
     expect(migrated).not.toContain('safeword hook codex pre-tool-use');
     expect(migrated).toContain(CUSTOM_PRE_TOOL_HOOK.trim());
+    const markerPath = nodePath.join(fixture.directory, '.safeword/codex-plugin.json');
+    const manifestPath = nodePath.join(
+      fixture.directory,
+      '.safeword/codex-migration-backup/manifest.json',
+    );
+    const marker = JSON.parse(readFileSync(markerPath, 'utf8'));
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    expect(marker).toEqual({ schema_version: 1, mode: 'plugin' });
+    expect(manifest).toMatchObject({ schema_version: 1, status: 'finalized' });
     const calls = readFileSync(nodePath.join(fixture.directory, 'codex.log'), 'utf8');
     expect(calls).toContain('plugin list --json');
     expect(calls).not.toContain('plugin marketplace add');
