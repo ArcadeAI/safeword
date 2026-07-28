@@ -6,6 +6,10 @@ export interface CommandInvocation {
   readonly offline: boolean;
   readonly options: Readonly<Record<string, unknown>>;
   readonly operands: readonly unknown[];
+  readonly progress?: {
+    readonly start: (message: string) => void;
+    readonly stop: () => void;
+  };
 }
 
 export type CommandHandler = (invocation: CommandInvocation) => Promise<CliResult>;

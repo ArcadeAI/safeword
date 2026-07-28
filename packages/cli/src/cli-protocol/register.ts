@@ -1,7 +1,10 @@
+import process from 'node:process';
+
 import type { Command } from 'commander';
 
 import { commandCatalog, type CommandDefinition, findCommandDefinition } from './catalog.js';
 import { addGlobalOptions, readGlobalOptions, reportResult } from './execute.js';
+import { createProgressReporter } from './policy.js';
 import { withDeprecation } from './result.js';
 
 const FAMILY_DESCRIPTIONS: Readonly<Record<string, string>> = {
@@ -80,13 +83,29 @@ function addDefinitionAction(command: Command, definition: CommandDefinition): v
       throw new Error(`Commander did not supply the command boundary for ${definition.name}`);
     }
     const globalOptions = readGlobalOptions(command);
-    let result = await definition.handler({
-      cwd: globalOptions.cwd,
-      noInput: globalOptions.noInput,
-      offline: globalOptions.offline,
-      options: command.opts(),
-      operands: command.processedArgs,
-    });
+    const progress =
+      globalOptions.json || globalOptions.quiet
+        ? undefined
+        : createProgressReporter({
+            schedule: (callback, delay) => setTimeout(callback, delay),
+            cancel: handle => {
+              clearTimeout(handle as ReturnType<typeof setTimeout>);
+            },
+            emit: message => process.stderr.write(`${message}\n`),
+          });
+    let result;
+    try {
+      result = await definition.handler({
+        cwd: globalOptions.cwd,
+        noInput: globalOptions.noInput,
+        offline: globalOptions.offline,
+        options: command.opts(),
+        operands: command.processedArgs,
+        progress,
+      });
+    } finally {
+      progress?.stop();
+    }
     if (definition.aliasFor !== undefined) {
       result = withDeprecation(result, definition.name, definition.aliasFor);
     }

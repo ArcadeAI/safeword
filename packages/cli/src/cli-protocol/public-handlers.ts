@@ -81,7 +81,9 @@ async function setupHandler(invocation: CommandInvocation): Promise<CliResult> {
     return onlineRequired('setup');
   }
   const { convergeSetup } = await import('../commands/converge-setup.js');
-  return convergeSetup(invocation.cwd, { noModify: invocation.options.modify === false });
+  return convergeSetup(invocation.cwd, {
+    progress: invocation.progress,
+  });
 }
 
 async function planHandler(invocation: CommandInvocation): Promise<CliResult> {
