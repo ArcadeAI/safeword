@@ -163,11 +163,15 @@ function uniqueMessages(result: CliResult): string[] {
   return [...new Set(messages)];
 }
 
+function suppressHumanOutput(result: CliResult, options: { quiet?: boolean }): boolean {
+  return options.quiet === true && result.state === 'healthy';
+}
+
 export function renderHumanResult(
   result: CliResult,
   options: { quiet?: boolean; verbose?: boolean } = {},
 ): string {
-  if (options.quiet === true && result.state === 'healthy') return '';
+  if (suppressHumanOutput(result, options)) return '';
 
   const lines = [
     VERDICTS[result.state],
