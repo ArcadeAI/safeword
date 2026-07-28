@@ -73,7 +73,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Legacy handler remains authoritative for a covered event
 
 - [x] RED 47057886b
-- [ ] GREEN
+- [x] GREEN b9ffe5e72
 - [ ] REFACTOR
 
 ### Scenario: Plugin covers an event missing from a partial legacy installation
