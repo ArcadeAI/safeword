@@ -42,7 +42,18 @@ const CLI_PATH = nodePath.join(CLI_ROOT, 'dist/cli.js');
 const LIVE_MARKETPLACE_NAME = 'safeword-live-smoke';
 const BUNX_SHIM_LOG = 'bunx-safeword-invocations.log';
 const WORKFLOW_DIRECTORIES = ['.agents', '.codex', '.safeword'] as const;
-const REQUIRED_CODEX_VERSION = '0.144.5';
+const MINIMUM_CODEX_VERSION = [0, 144, 5] as const;
+
+function supportedCodexVersion(output: string): boolean {
+  const match = /^codex-cli (\d+)\.(\d+)\.(\d+)$/u.exec(output.trim());
+  if (match === null) return false;
+  const version = match.slice(1).map(Number);
+  for (const [index, minimum] of MINIMUM_CODEX_VERSION.entries()) {
+    const component = version[index] ?? 0;
+    if (component !== minimum) return component > minimum;
+  }
+  return true;
+}
 
 function resolveCodex(): string | undefined {
   const candidates = [
@@ -52,7 +63,7 @@ function resolveCodex(): string | undefined {
   ].filter((candidate): candidate is string => candidate !== undefined && candidate !== '');
   for (const candidate of candidates) {
     const probe = spawnSync(candidate, ['--version'], { encoding: 'utf8' });
-    if (probe.status === 0 && probe.stdout.trim() === `codex-cli ${REQUIRED_CODEX_VERSION}`) {
+    if (probe.status === 0 && supportedCodexVersion(probe.stdout)) {
       return candidate;
     }
   }
@@ -352,7 +363,7 @@ describe.skipIf(!CAN_RUN)('live smoke: Codex packaged plugin parity', () => {
     rmSync(codexHome, { recursive: true, force: true });
   });
 
-  it(`loads the complete plugin from Codex ${REQUIRED_CODEX_VERSION} cache after every source is removed`, () => {
+  it(`loads the complete plugin from Codex ${MINIMUM_CODEX_VERSION.join('.')}+ cache after every source is removed`, () => {
     if (!CODEX) throw new Error('unreachable: CAN_RUN guards codex presence');
 
     expect(readdirSync(packDestination)).toEqual([]);

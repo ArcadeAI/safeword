@@ -79,7 +79,7 @@ Open your project and ask your agent to build something real:
     2. Review the Safe Word plugin in `/hooks`
     3. Your agent follows scoped plugin skills such as `safeword:bdd`
     4. Before supported edits, Codex runs the plugin's version-pinned Bunx PreToolUse hook
-    5. Run `safeword codex status`; after current hook proof exists, finalize with `safeword codex migrate --finalize --yes`
+    5. Run `safeword codex status`; after current hook proof exists, preview with `safeword codex migrate --finalize` and run its exact `--yes --plan <plan-id>` action
     6. If a safeword gate blocks the edit, your agent gets the denial before changing files
     7. When the agent stops, Codex runs the plugin's Bunx Stop hook to complete verified session-bound done-phase tickets or surface remediation and advisories such as ARCHITECTURE.md drift
 

@@ -192,6 +192,25 @@ function run(
   return world.result;
 }
 
+function runPlannedFinalization(
+  world: ContinuityCliWorld,
+  flag: '--finalize' | '--remove-legacy-hooks' = '--finalize',
+): CliResult {
+  const preview = run(world, ['codex', 'migrate', flag, '--json']);
+  const envelope = JSON.parse(preview.stdout) as { data?: { plan?: { id?: string } } };
+  const planId = envelope.data?.plan?.id;
+  assert.ok(planId, `finalization preview did not return a plan: ${preview.stdout}`);
+  return run(world, ['codex', 'migrate', flag, '--yes', '--plan', planId]);
+}
+
+function runPlannedRecovery(world: ContinuityCliWorld): CliResult {
+  const preview = run(world, ['codex', 'recover', '--json']);
+  const envelope = JSON.parse(preview.stdout) as { data?: { plan?: { id?: string } } };
+  const planId = envelope.data?.plan?.id;
+  assert.ok(planId, `recovery preview did not return a plan: ${preview.stdout}`);
+  return run(world, ['codex', 'recover', '--yes', '--plan', planId]);
+}
+
 function observeMigrationState(world: ContinuityCliWorld): string {
   const previous = world.result;
   const observed = run(world, ['codex', 'status', '--json']);
@@ -664,7 +683,7 @@ When('the builder declines the displayed finalization plan', function (this: Con
 });
 
 When('the builder confirms the displayed finalization plan', function (this: ContinuityCliWorld) {
-  run(this, ['codex', 'migrate', '--finalize', '--yes']);
+  runPlannedFinalization(this);
 });
 
 Then(
@@ -783,7 +802,7 @@ Given(
   'a finalized plugin-only project with current profile hook proof',
   function (this: ContinuityCliWorld) {
     initializeFinalizationFixture(this);
-    const first = run(this, ['codex', 'migrate', '--finalize', '--yes']);
+    const first = runPlannedFinalization(this);
     assert.equal(first.exitCode, 0, `${first.stdout}\n${first.stderr}`);
     rememberBaseline(this);
   },
@@ -813,7 +832,7 @@ Given(
       }
       case 'plugin_setup_required': {
         initializeFinalizationFixture(this);
-        const finalized = run(this, ['codex', 'migrate', '--finalize', '--yes']);
+        const finalized = runPlannedFinalization(this);
         assert.equal(finalized.exitCode, 0);
         writeFileSync(nodePath.join(requireProfile(this), 'plugin-state'), 'absent');
         break;
@@ -878,7 +897,7 @@ Then(
 );
 
 When('the builder runs Codex recovery', function (this: ContinuityCliWorld) {
-  run(this, ['codex', 'recover', '--yes']);
+  runPlannedRecovery(this);
 });
 
 Then(
@@ -906,7 +925,7 @@ Given(
   'a repository backup whose finalized output was edited afterward',
   function (this: ContinuityCliWorld) {
     initializeFinalizationFixture(this);
-    const finalized = run(this, ['codex', 'migrate', '--finalize', '--yes']);
+    const finalized = runPlannedFinalization(this);
     assert.equal(finalized.exitCode, 0);
     const path = nodePath.join(requireProject(this), '.codex/config.toml');
     writeFileSync(path, `${readFileSync(path, 'utf8')}\n# intervening edit\n`);
@@ -1014,7 +1033,7 @@ Then(
 When(
   'the builder uses the deprecated remove-legacy-hooks alias with confirmation',
   function (this: ContinuityCliWorld) {
-    run(this, ['codex', 'migrate', '--remove-legacy-hooks', '--yes']);
+    runPlannedFinalization(this, '--remove-legacy-hooks');
   },
 );
 
@@ -1028,7 +1047,7 @@ Given(
 When(
   'an agent runs Codex migration with finalize and yes flags',
   function (this: ContinuityCliWorld) {
-    run(this, ['codex', 'migrate', '--finalize', '--yes']);
+    runPlannedFinalization(this);
   },
 );
 
@@ -1126,7 +1145,7 @@ Given(
 );
 
 When('the builder finalizes migration', function (this: ContinuityCliWorld) {
-  run(this, ['codex', 'migrate', '--finalize', '--yes']);
+  runPlannedFinalization(this);
 });
 
 Then('only the finite Safe Word legacy allowlist is removed', function (this: ContinuityCliWorld) {
@@ -1149,7 +1168,7 @@ Given(
   'a finalized repository opened by a teammate without the profile plugin',
   function (this: ContinuityCliWorld) {
     initializeFinalizationFixture(this);
-    const finalized = run(this, ['codex', 'migrate', '--finalize', '--yes']);
+    const finalized = runPlannedFinalization(this);
     assert.equal(finalized.exitCode, 0);
     writeFileSync(nodePath.join(requireProfile(this), 'plugin-state'), 'absent');
   },

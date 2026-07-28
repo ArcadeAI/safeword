@@ -97,7 +97,7 @@ describe('Codex migration result', () => {
       }),
       state: 'plugin_installed_restart_required',
       protection: 'protected',
-      next: 'restart Codex and review /hooks',
+      next: 'safeword codex status',
     },
     {
       name: 'compatibility',

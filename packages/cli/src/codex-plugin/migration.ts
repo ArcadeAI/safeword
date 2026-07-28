@@ -140,7 +140,7 @@ function nextAction(state: CodexMigrationState): string | undefined {
     }
     case 'plugin_installed_restart_required':
     case 'plugin_enabled_hook_unproven': {
-      return 'restart Codex and review /hooks';
+      return 'safeword codex status';
     }
     case 'plugin_setup_required':
     case 'plugin_disabled':

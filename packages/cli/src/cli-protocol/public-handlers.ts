@@ -5,6 +5,7 @@ import nodePath from 'node:path';
 import type * as CodexMigration from '../commands/migrate-codex-plugin.js';
 import type { RetroCliOptions, RetroCommandExecution } from '../commands/retro.js';
 import type { CommandHandler, CommandInvocation } from './handler.js';
+import { type CliPlan, createPlan, toWirePlan } from './plan.js';
 import { type CliResult, createResult } from './result.js';
 
 function onlineRequired(name: string): CliResult {
@@ -598,35 +599,85 @@ async function codexStatusHandler(invocation: CommandInvocation): Promise<CliRes
   return observeCodexMigration(invocation.cwd);
 }
 
-function codexConfirmation(
-  name: string,
-  plannedFiles: readonly { readonly path: string; readonly action: string }[] = [],
-): CliResult {
+function codexConfirmation(plan: CliPlan, exactConfigBlocks: readonly string[]): CliResult {
+  const command = `${plan.command} --yes --plan ${plan.id}`;
   return createResult({
     state: 'action_required',
     findings: [
       {
         code: 'CODEX_CONFIRMATION_REQUIRED',
-        message: `Review and confirm the exact \`${name}\` operation.`,
+        message: `Review and confirm the exact \`${plan.command}\` operation.`,
         severity: 'warning',
       },
     ],
-    nextActions: [{ command: `safeword ${name} --yes`, mutates: true, requiresHuman: true }],
+    nextActions: [{ command: `safeword ${command}`, mutates: true, requiresHuman: true }],
     data: {
-      command: name,
+      command: plan.command,
       plan: {
-        effects: {
-          files: plannedFiles.map(effect => ({
-            kind: effect.action,
-            target: effect.path,
-          })),
-          packages: [],
-          configuration: [],
-          network: [],
-          destructive: [],
-        },
+        ...toWirePlan(plan),
+        exact_config_blocks: exactConfigBlocks,
       },
     },
+  });
+}
+
+function codexFinalizationPlan(
+  cwd: string,
+  migration: typeof CodexMigration,
+): { readonly plan: CliPlan; readonly exactConfigBlocks: readonly string[] } {
+  // Validate and snapshot repository inputs before consulting the profile. An
+  // unsafe or malformed project must fail without invoking external tooling.
+  migration.observeCodexFinalizationPlan(cwd);
+  const observation = migration.observeCodexMigrationResult(cwd);
+  if (observation.proof.status !== 'current') {
+    throw new Error(
+      'Finalization requires current plugin hook proof. Start a new Codex session, review /hooks, then retry.',
+    );
+  }
+  // Profile verification is an external boundary. Re-snapshot afterward so
+  // consent can never be bound to repository state that changed during it.
+  const observed = migration.observeCodexFinalizationPlan(cwd);
+  return {
+    plan: createPlan({
+      command: 'codex migrate --finalize',
+      preconditionDigest: observed.preconditionDigest,
+      effects: {
+        files: observed.effects.map(effect => ({
+          kind: effect.action,
+          target: effect.path,
+          operation: effect.action,
+        })),
+      },
+      requiresConfirmation: true,
+      verification: [
+        {
+          description: 'Verify current plugin-hook proof and repository inputs before mutation.',
+          command: 'safeword codex status',
+        },
+      ],
+    }),
+    exactConfigBlocks: observed.exactConfigBlocks,
+  };
+}
+
+function staleCodexPlan(plan: CliPlan): CliResult {
+  return createResult({
+    state: 'action_required',
+    findings: [
+      {
+        code: 'PLAN_STALE',
+        message: 'The Codex finalization plan changed. Review the current plan before applying it.',
+        severity: 'warning',
+      },
+    ],
+    nextActions: [
+      {
+        command: `safeword ${plan.command}`,
+        mutates: false,
+        requiresHuman: true,
+      },
+    ],
+    data: { command: plan.command, plan: toWirePlan(plan) },
   });
 }
 
@@ -634,15 +685,17 @@ function runCodexRecovery(
   invocation: CommandInvocation,
   migration: typeof CodexMigration,
 ): CliResult {
-  migration.recoverCodexMigration(invocation.cwd, { report: false });
+  const changed = migration.recoverCodexMigration(invocation.cwd, { report: false });
   const observed = migration.observeCodexMigration(invocation.cwd);
   return {
     ...observed,
-    state: 'changed',
-    changed: true,
+    state: changed ? 'changed' : 'healthy',
+    changed,
     effects: {
       ...observed.effects,
-      configuration: [{ kind: 'restore', target: 'Safeword legacy Codex project state' }],
+      configuration: changed
+        ? [{ kind: 'restore', target: 'Safeword legacy Codex project state' }]
+        : [],
     },
   };
 }
@@ -714,6 +767,22 @@ function codexFailureCode(
   name: CodexMutationName,
   isFinalization: boolean,
 ): string {
+  const specific = (
+    [
+      [/Plugin installation succeeded, but enablement is unknown/iu, 'PLUGIN_ENABLEMENT_UNKNOWN'],
+      [/did not report the Safe Word plugin as enabled/iu, 'PLUGIN_ENABLEMENT_FAILED'],
+      [/marketplace unavailable/iu, 'PLUGIN_MARKETPLACE_FAILED'],
+      [/ambiguous|cannot safely identify/iu, 'AMBIGUOUS_LEGACY_CONFIG'],
+      [
+        /unsafe Codex migration path|symbolic link|not a regular file|EISDIR|illegal operation on a directory/iu,
+        'UNSAFE_MIGRATION_PATH',
+      ],
+      [/backup already exists/iu, 'BACKUP_EXISTS'],
+      [/rollback could not complete/iu, 'ROLLBACK_FAILED'],
+      [/recovery conflict/iu, 'RECOVERY_CONFLICT'],
+    ] as const
+  ).find(([pattern]) => pattern.test(message));
+  if (specific !== undefined) return specific[1];
   if (!isFinalization)
     return name === 'codex recover' ? 'RECOVERY_FAILED' : 'PLUGIN_INSTALL_FAILED';
   return /current plugin[- ]hook proof/i.test(message)
@@ -723,8 +792,37 @@ function codexFailureCode(
 
 function codexFailure(error: unknown, name: CodexMutationName, isFinalization: boolean): CliResult {
   const message = error instanceof Error ? error.message : String(error);
+  if (/finalization plan changed/iu.test(message)) {
+    return createResult({
+      state: 'action_required',
+      findings: [{ code: 'PLAN_STALE', message, severity: 'warning' }],
+      nextActions: [
+        {
+          command: 'safeword codex migrate --finalize',
+          mutates: false,
+          requiresHuman: true,
+        },
+      ],
+    });
+  }
+  const partialInstall =
+    /Plugin installation succeeded, but enablement is unknown|did not report the Safe Word plugin as enabled/iu.test(
+      message,
+    );
   return createResult({
     state: 'failed',
+    changed: partialInstall,
+    effects: {
+      configuration: partialInstall
+        ? [
+            {
+              kind: 'install',
+              target: 'Safeword Codex profile plugin',
+              operation: 'enablement-unverified',
+            },
+          ]
+        : [],
+    },
     errors: [
       {
         code: codexFailureCode(message, name, isFinalization),
@@ -736,15 +834,6 @@ function codexFailure(error: unknown, name: CodexMutationName, isFinalization: b
 }
 
 type CodexMutationName = 'codex install' | 'codex migrate' | 'codex recover';
-
-function codexNeedsConfirmation(
-  name: CodexMutationName,
-  isFinalization: boolean,
-  invocation: CommandInvocation,
-): boolean {
-  const confirmationSensitive = isFinalization || name === 'codex recover';
-  return confirmationSensitive && invocation.options.yes !== true;
-}
 
 async function executeCodexMutation(
   name: CodexMutationName,
@@ -763,28 +852,98 @@ async function codexRecoveryRequired(cwd: string, isFinalization: boolean): Prom
   return finalization.codexRecoveryIsRequired(cwd);
 }
 
+function isCodexFinalization(name: CodexMutationName, invocation: CommandInvocation): boolean {
+  return (
+    name === 'codex migrate' &&
+    (invocation.options.finalize === true || invocation.options.removeLegacyHooks === true)
+  );
+}
+
+async function codexFinalizationPreflight(
+  invocation: CommandInvocation,
+  migration: typeof CodexMigration,
+): Promise<CliResult | undefined> {
+  const finalization = await import('../codex-plugin/finalization.js');
+  if (finalization.codexFinalizationIsComplete(invocation.cwd)) {
+    return migration.observeCodexMigration(invocation.cwd);
+  }
+  const observedPlan = codexFinalizationPlan(invocation.cwd, migration);
+  const suppliedPlan =
+    typeof invocation.options.plan === 'string' ? invocation.options.plan : undefined;
+  const deprecatedAssumeYes =
+    invocation.options.removeLegacyHooks === true && invocation.options.yes === true;
+  if (invocation.options.yes !== true || (suppliedPlan === undefined && !deprecatedAssumeYes)) {
+    return codexConfirmation(observedPlan.plan, observedPlan.exactConfigBlocks);
+  }
+  return suppliedPlan === undefined || suppliedPlan === observedPlan.plan.id
+    ? undefined
+    : staleCodexPlan(observedPlan.plan);
+}
+
+async function codexRecoveryPreflight(
+  invocation: CommandInvocation,
+  migration: typeof CodexMigration,
+): Promise<CliResult | undefined> {
+  const finalization = await import('../codex-plugin/finalization.js');
+  const recovery = finalization.observeCodexRecoveryPlan(invocation.cwd);
+  if (recovery.effects.length === 0) return runCodexRecovery(invocation, migration);
+  const plan = createPlan({
+    command: 'codex recover',
+    preconditionDigest: recovery.preconditionDigest,
+    effects: {
+      files: recovery.effects.map(effect => ({
+        kind: effect.action,
+        target: effect.path,
+        operation: effect.action,
+      })),
+      destructive: recovery.effects.map(effect => ({
+        kind: 'overwrite',
+        target: effect.path,
+        operation: 'restore',
+      })),
+    },
+    requiresConfirmation: true,
+    verification: [
+      {
+        description: 'Verify every current path still matches the finalized backup intent.',
+        command: 'safeword codex status',
+      },
+    ],
+  });
+  const suppliedPlan =
+    typeof invocation.options.plan === 'string' ? invocation.options.plan : undefined;
+  if (invocation.options.yes !== true || suppliedPlan === undefined) {
+    return codexConfirmation(plan, []);
+  }
+  return suppliedPlan === plan.id ? undefined : staleCodexPlan(plan);
+}
+
+async function codexMutationPreflight(
+  name: CodexMutationName,
+  isFinalization: boolean,
+  invocation: CommandInvocation,
+  migration: typeof CodexMigration,
+): Promise<CliResult | undefined> {
+  if (await codexRecoveryRequired(invocation.cwd, isFinalization)) {
+    return migration.observeCodexMigration(invocation.cwd);
+  }
+  if (isFinalization) return codexFinalizationPreflight(invocation, migration);
+  if (name === 'codex recover') return codexRecoveryPreflight(invocation, migration);
+  return undefined;
+}
+
 async function codexMutationHandler(
   name: CodexMutationName,
   invocation: CommandInvocation,
 ): Promise<CliResult> {
   if (invocation.offline && name !== 'codex recover') return onlineRequired(name);
-  const migration = await import('../commands/migrate-codex-plugin.js');
-  const isFinalization =
-    name === 'codex migrate' &&
-    (invocation.options.finalize === true || invocation.options.removeLegacyHooks === true);
-  const recoveryRequired = await codexRecoveryRequired(invocation.cwd, isFinalization);
-  if (recoveryRequired) {
-    return migration.observeCodexMigration(invocation.cwd);
-  }
-  if (codexNeedsConfirmation(name, isFinalization, invocation)) {
-    return codexConfirmation(
-      name,
-      isFinalization ? migration.observeCodexFinalizationEffects(invocation.cwd) : [],
-    );
-  }
-
-  invocation.progress?.start(`Running ${name}…`);
+  const isFinalization = isCodexFinalization(name, invocation);
   try {
+    const migration = await import('../commands/migrate-codex-plugin.js');
+    const preflight = await codexMutationPreflight(name, isFinalization, invocation, migration);
+    if (preflight !== undefined) return preflight;
+
+    invocation.progress?.start(`Running ${name}…`);
     return await executeCodexMutation(name, isFinalization, invocation, migration);
   } catch (codexError) {
     return codexFailure(codexError, name, isFinalization);
@@ -805,6 +964,18 @@ function ticketListHandler(invocation: CommandInvocation): Promise<CliResult> {
       data: { command: 'ticket list', tickets },
     }),
   );
+}
+
+async function ticketNewHandler(invocation: CommandInvocation): Promise<CliResult> {
+  if (invocation.offline) {
+    const { readTicketBridgeConfig } = await import('../tracker-sync/config.js');
+    const config = readTicketBridgeConfig(invocation.cwd);
+    if (config.provider === 'github' || config.provider === 'linear') {
+      return onlineRequired('ticket new');
+    }
+  }
+  const { createTicketResult } = await import('../commands/ticket-new.js');
+  return createTicketResult(String(invocation.operands[0]), invocation.options, invocation.cwd);
 }
 
 async function retroSignalsHandler(invocation: CommandInvocation): Promise<CliResult> {
@@ -935,10 +1106,7 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'codex status': codexStatusHandler,
   'codex recover': invocation => codexMutationHandler('codex recover', invocation),
   'ticket list': ticketListHandler,
-  'ticket new': async invocation => {
-    const { createTicketResult } = await import('../commands/ticket-new.js');
-    return createTicketResult(String(invocation.operands[0]), invocation.options, invocation.cwd);
-  },
+  'ticket new': ticketNewHandler,
   'retro run': retroRunHandler,
   'retro signals': retroSignalsHandler,
   'retro reconcile': retroReconcileHandler,

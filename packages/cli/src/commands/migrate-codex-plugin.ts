@@ -1,6 +1,7 @@
 /* eslint-disable unicorn/no-null -- schema-1 migration JSON uses explicit null */
 
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { lstatSync, readFileSync, type Stats } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -510,10 +511,10 @@ function codexMigrationMessage(state: CodexMigrationResultV1['state']): string {
       return 'Start a new Codex session to load the plugin, then review its hooks with /hooks.';
     }
     case 'compatibility': {
-      return 'Codex is in compatibility mode until current plugin-hook proof exists.';
+      return 'Codex is protected by the current profile plugin; verified legacy protection remains until explicit finalization.';
     }
     case 'plugin_enabled_hook_unproven': {
-      return 'Codex migration state: plugin_enabled_hook_unproven. Review /hooks; when protection is confirmed, run safeword codex migrate --finalize.';
+      return 'Codex migration state: plugin_enabled_hook_unproven. Start a new Codex session and review /hooks; when protection is confirmed, run safeword codex migrate --finalize.';
     }
     case 'recovery_required': {
       return 'Codex migration state: recovery_required. Recovery is required before migration can continue.';
@@ -782,8 +783,7 @@ function finalizationEffects(
 export function observeCodexFinalizationEffects(
   cwd: string,
 ): CodexMigrationResultV1['effects']['files'] {
-  const prepared = prepareLegacyHookRemoval(cwd);
-  return finalizationEffects(cwd, buildCodexFinalizationMutations(cwd, prepared));
+  return observeCodexFinalizationPlan(cwd).effects;
 }
 
 function renderCodexFinalizationPlan(
@@ -814,6 +814,12 @@ type FinalizationInputSnapshot = {
   content?: string;
 }[];
 
+export interface ObservedCodexFinalizationPlan {
+  readonly effects: CodexMigrationResultV1['effects']['files'];
+  readonly exactConfigBlocks: readonly string[];
+  readonly preconditionDigest: string;
+}
+
 function snapshotCodexFinalizationInputs(
   cwd: string,
   mutations: CodexFinalizationMutation[],
@@ -840,6 +846,21 @@ function snapshotCodexFinalizationInputs(
       content: readFileSync(path).toString('base64'),
     };
   });
+}
+
+export function observeCodexFinalizationPlan(cwd: string): ObservedCodexFinalizationPlan {
+  const prepared = prepareLegacyHookRemoval(cwd);
+  const mutations = buildCodexFinalizationMutations(cwd, prepared);
+  const effects = finalizationEffects(cwd, mutations);
+  const inputs = snapshotCodexFinalizationInputs(cwd, mutations);
+  const preconditionDigest = createHash('sha256')
+    .update(JSON.stringify({ mutations, effects, inputs }))
+    .digest('hex');
+  return {
+    effects,
+    exactConfigBlocks: prepared?.removedBlocks ?? [],
+    preconditionDigest,
+  };
 }
 
 function assertCodexFinalizationPlanUnchanged(
@@ -923,7 +944,7 @@ export async function removeLegacyCodexHooks(
     reportCodexWhen(options.report !== false, () => {
       reportCompletedFinalization(cwd, options);
     });
-    return true;
+    return false;
   }
   // Validate cleanup before verifying the profile. A malformed project config
   // leaves both it and the Codex profile unchanged.
@@ -997,10 +1018,9 @@ export async function migrateCodexPlugin(
 export function recoverCodexMigration(
   cwd = process.cwd(),
   options: { json?: boolean; environment?: NodeJS.ProcessEnv; report?: boolean } = {},
-): void {
+): boolean {
   if (options.report === false) {
-    recoverCodexFinalization(cwd);
-    return;
+    return recoverCodexFinalization(cwd);
   }
   const changed = recoverCodexFinalization(cwd);
   if (options.json === true) {
@@ -1012,4 +1032,5 @@ export function recoverCodexMigration(
         : 'No Safe Word Codex migration recovery was needed.',
     );
   }
+  return changed;
 }

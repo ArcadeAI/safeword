@@ -318,14 +318,14 @@ Then(
   function (this: ContinuityStatusWorld) {
     const status = requireStatus(this);
     assert.equal(status.state, 'plugin_enabled_hook_unproven');
-    assert.equal(status.next_actions[0]?.command, 'restart Codex and review /hooks');
+    assert.equal(status.next_actions[0]?.command, 'safeword codex status');
   },
 );
 
 Then(
   'the output recommends restarting Codex and reviewing hooks',
   function (this: ContinuityStatusWorld) {
-    assert.match(this.codexStatusOutput ?? '', /restart Codex and review \/hooks/u);
+    assert.match(this.codexStatusOutput ?? '', /Start a new Codex session.+review.+\/hooks/isu);
   },
 );
 

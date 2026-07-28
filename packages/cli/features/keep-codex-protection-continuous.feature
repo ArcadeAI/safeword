@@ -236,9 +236,9 @@ Feature: Keep Codex protection continuous during profile-plugin migration
         | disabled plugin without legacy | plugin_disabled   | unprotected | safeword codex migrate           |
         | disabled plugin with complete legacy | plugin_disabled | protected | safeword codex migrate         |
         | disabled plugin with partial legacy | plugin_disabled | partial | safeword codex migrate             |
-        | restart pending without legacy | plugin_installed_restart_required | unprotected | restart Codex and review /hooks |
-        | restart pending with complete legacy | plugin_installed_restart_required | protected | restart Codex and review /hooks |
-        | restart pending with partial legacy | plugin_installed_restart_required | partial | restart Codex and review /hooks |
+        | restart pending without legacy | plugin_installed_restart_required | unprotected | safeword codex status |
+        | restart pending with complete legacy | plugin_installed_restart_required | protected | safeword codex status |
+        | restart pending with partial legacy | plugin_installed_restart_required | partial | safeword codex status |
         | current proof and legacy  | compatibility     | protected  | safeword codex migrate --finalize |
         | no configuration          | not_configured    | unprotected | safeword codex migrate           |
         | finalized without plugin  | plugin_setup_required | unprotected | safeword codex migrate        |
@@ -295,13 +295,13 @@ Feature: Keep Codex protection continuous during profile-plugin migration
         | disabled without legacy        | plugin_disabled                    | unprotected | 1            | safeword codex migrate             | 2         |
         | disabled with complete legacy  | plugin_disabled                    | protected   | 1            | safeword codex migrate             | 2         |
         | disabled with partial legacy   | plugin_disabled                    | partial     | 1            | safeword codex migrate             | 2         |
-        | restart pending without legacy | plugin_installed_restart_required  | unprotected | 1            | restart Codex and review /hooks    | 2         |
-        | restart pending with complete legacy | plugin_installed_restart_required | protected | 1            | restart Codex and review /hooks    | 2         |
-        | restart pending with partial legacy | plugin_installed_restart_required | partial | 1            | restart Codex and review /hooks      | 2         |
+        | restart pending without legacy | plugin_installed_restart_required  | unprotected | 1            | safeword codex status              | 2         |
+        | restart pending with complete legacy | plugin_installed_restart_required | protected | 1            | safeword codex status              | 2         |
+        | restart pending with partial legacy | plugin_installed_restart_required | partial | 1            | safeword codex status                | 2         |
         | complete legacy                | legacy                             | protected   | 1            | safeword codex migrate             | 2         |
         | partial legacy                 | legacy                             | partial     | 1            | safeword codex migrate             | 2         |
-        | unproven without legacy        | plugin_enabled_hook_unproven       | unprotected | 1            | restart Codex and review /hooks    | 2         |
-        | unproven with legacy           | plugin_enabled_hook_unproven       | protected   | 1            | restart Codex and review /hooks    | 2         |
+        | unproven without legacy        | plugin_enabled_hook_unproven       | unprotected | 1            | safeword codex status              | 2         |
+        | unproven with legacy           | plugin_enabled_hook_unproven       | protected   | 1            | safeword codex status              | 2         |
         | current proof with legacy      | compatibility                      | protected   | 1            | safeword codex migrate --finalize  | 2         |
         | current proof without legacy   | plugin                             | protected   | 0            | none                               | 0         |
         | no configuration               | not_configured                     | unprotected | 1            | safeword codex migrate             | 2         |

@@ -179,10 +179,13 @@ finalization:
 
 ```bash
 bunx safeword@latest codex migrate --finalize --json
-bunx safeword@latest codex migrate --finalize --yes
+bunx safeword@latest codex migrate --finalize --yes --plan <plan-id>
 ```
 
-Finalization requires current hook-execution proof. It backs up the complete
+The preview includes the exact paths, removed config blocks, immutable plan
+identity, and a copyable apply command. Safeword rejects the apply if any
+planned repository input changed after preview. Finalization requires current
+hook-execution proof. It backs up the complete
 pre-migration state, removes only the finite Safe Word-owned legacy inventory,
 preserves custom Codex content, records plugin mode, and installs a concise
 repository bootstrap for teammates without the profile plugin.
@@ -199,7 +202,8 @@ state:
 bunx safeword@latest codex recover
 ```
 
-Recovery refuses to overwrite files edited after finalization and names the
+Recovery first returns an exact plan and copyable `--yes --plan <plan-id>`
+command. It refuses to overwrite files edited after finalization and names the
 conflicting path. Resolve that edit before retrying.
 
 These commands require Bun. Normal `setup` and `upgrade` do not install a profile-scoped Codex plugin, create a `.codex` directory, recreate project-local Codex hooks, or retire recognized legacy protection. Plugin hooks use version-pinned `bunx --bun safeword@<version>` commands; they never use npx or bypass Codex hook trust.

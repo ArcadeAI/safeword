@@ -44,7 +44,7 @@ For an existing repository, use the resumable migration instead:
 bunx safeword@latest codex status
 bunx safeword@latest codex migrate
 # Restart Codex, review /hooks, then check status again.
-bunx safeword@latest codex migrate --finalize --yes
+bunx safeword@latest codex migrate --finalize
 ```
 
 Legacy protection remains active until the running profile plugin records
@@ -288,7 +288,8 @@ implicitly enroll repositories: until `safeword setup` creates
 unreviewed or changed plugin hooks and directs the builder to `/hooks`. Use
 `safeword codex status` to see which implementation currently protects the
 repository and one safe next action. After the running plugin records current
-proof, use `safeword codex migrate --finalize --yes` to back up and retire only
+proof, preview `safeword codex migrate --finalize`, then run its exact
+`--yes --plan <plan-id>` action to back up and retire only
 Safe Word-owned legacy assets. The deprecated `--remove-legacy-hooks` alias
 follows the same proof, confirmation, backup, and recovery contract. Codex
 edit-gate coverage is
@@ -481,7 +482,7 @@ For JS/TS projects: ESLint, Prettier, supporting plugins, and `jiti` for TypeScr
 No. Safeword detects a non-Prettier formatter (`biome.json`, `dprint.json`, `.oxfmtrc.*`, `deno.json`) and steps aside: it skips Prettier at install **and** its auto-format hook leaves all formatting to your tool — agent edits are never run through Prettier, for any file type (JS/TS, JSON, CSS, YAML). Files your formatter doesn't cover are left untouched rather than Prettier-formatted. ESLint still runs, because those formatters don't cover security scanning (`eslint-plugin-security`), cyclomatic complexity (`sonarjs`), or framework rules (React hooks, Next.js, Astro); safeword's ESLint config disables formatting rules, so it lints without fighting your formatter.
 
 **Do teammates need to install safeword separately?**
-No. Commit the Safe Word project configuration your team uses, such as `.safeword/`, `.claude/`, and `.cursor/`. Each Codex user runs `safeword codex migrate`, starts a new Codex session, and reviews the plugin in `/hooks`. Working legacy protection remains until someone with current profile hook proof explicitly runs `safeword codex migrate --finalize --yes`; the repository keeps a concise plugin-setup bootstrap for future teammates. The linting devDependencies install automatically with `npm install` / `bun install`.
+No. Commit the Safe Word project configuration your team uses, such as `.safeword/`, `.claude/`, and `.cursor/`. Each Codex user runs `safeword codex migrate`, starts a new Codex session, and reviews the plugin in `/hooks`. Working legacy protection remains until someone with current profile hook proof previews `safeword codex migrate --finalize` and runs its exact `--yes --plan <plan-id>` action; the repository keeps a concise plugin-setup bootstrap for future teammates. The linting devDependencies install automatically with `npm install` / `bun install`.
 
 **Will it interfere with my development workflow?**
 No. Safeword's hooks and stricter linting rules only fire during AI agent sessions. They don't run when you code normally. In husky repos, setup appends one warn-only boundary-check line to `pre-commit`/`pre-push` — it reports workflow-evidence gaps, never blocks a commit, and `safeword reset` removes it. Safeword never installs a hook manager. It also adds `lint`, `format`, and `test:bdd` scripts to `package.json` that you can optionally use in CI or precommit hooks.

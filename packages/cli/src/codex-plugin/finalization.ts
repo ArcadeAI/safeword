@@ -469,6 +469,31 @@ export function recoverCodexFinalization(cwd: string): boolean {
   return true;
 }
 
+export interface ObservedCodexRecoveryPlan {
+  readonly effects: readonly { readonly path: string; readonly action: 'restore' }[];
+  readonly preconditionDigest: string;
+}
+
+export function observeCodexRecoveryPlan(cwd: string): ObservedCodexRecoveryPlan {
+  if (!pathEntryExists(containedPath(cwd, BACKUP_PATH))) {
+    return {
+      effects: [],
+      preconditionDigest: sha256(Buffer.from('codex-recovery-absent-v1')),
+    };
+  }
+  const { backupDirectory, manifest } = readBackupManifest(cwd);
+  validateManifestIntent(manifest);
+  const allowBefore = manifest.status !== 'finalized';
+  for (const entry of manifest.entries) {
+    validateRecoveryEntry(cwd, backupDirectory, entry, allowBefore);
+  }
+  const current = manifest.entries.map(entry => observedImage(cwd, entry.path));
+  return {
+    effects: manifest.entries.map(entry => ({ path: entry.path, action: 'restore' })),
+    preconditionDigest: sha256(Buffer.from(JSON.stringify({ manifest, current }))),
+  };
+}
+
 function rollbackAppliedEntries(input: {
   cwd: string;
   backupDirectory: string;

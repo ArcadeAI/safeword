@@ -196,6 +196,33 @@ describe('migrate codex-plugin command', () => {
     recordCodexHookProof({ CODEX_HOME: nodePath.join(fixture.directory, 'profile') });
   }
 
+  async function finalizeCodex(
+    fixture: ReturnType<typeof createMigrationFixture>,
+    environment: NodeJS.ProcessEnv = {},
+    json = false,
+  ) {
+    const preview = await runCodexCommand(fixture, ['codex', 'migrate', '--finalize', '--json']);
+    const planId = (JSON.parse(preview.stdout) as { data: { plan: { id: string } } }).data.plan.id;
+    return runCodexCommand(
+      fixture,
+      ['codex', 'migrate', '--finalize', '--yes', '--plan', planId, ...(json ? ['--json'] : [])],
+      environment,
+    );
+  }
+
+  async function recoverCodex(fixture: ReturnType<typeof createMigrationFixture>, json = false) {
+    const preview = await runCodexCommand(fixture, ['codex', 'recover', '--json']);
+    const planId = (JSON.parse(preview.stdout) as { data: { plan: { id: string } } }).data.plan.id;
+    return runCodexCommand(fixture, [
+      'codex',
+      'recover',
+      '--yes',
+      '--plan',
+      planId,
+      ...(json ? ['--json'] : []),
+    ]);
+  }
+
   function readBackedUpFile(
     fixture: ReturnType<typeof createMigrationFixture>,
     relativePath: string,
@@ -470,7 +497,7 @@ command = 'echo "keep this user hook"'
     const result = await runCodexCommand(fixture, ['codex', 'install']);
 
     expect(result.exitCode, result.stderr).toBe(2);
-    expect(`${result.stdout}\n${result.stderr}`).toContain('restart Codex and review /hooks');
+    expect(`${result.stdout}\n${result.stderr}`).toContain('Start a new Codex session');
     expect(existsSync(nodePath.join(directory, '.codex'))).toBe(false);
     const calls = readFileSync(nodePath.join(directory, 'codex.log'), 'utf8');
     expect(calls).toContain(
@@ -487,7 +514,7 @@ command = 'echo "keep this user hook"'
     const result = await runCodexCommand(fixture, ['codex', 'migrate']);
 
     expect(result.exitCode, result.stderr).toBe(2);
-    expect(`${result.stdout}\n${result.stderr}`).toContain('restart Codex and review /hooks');
+    expect(`${result.stdout}\n${result.stderr}`).toContain('Start a new Codex session');
     expect(readFileSync(configPath, 'utf8')).toBe(LEGACY_HOOK_CONFIG);
     expect(readFileSync(nodePath.join(fixture.directory, 'codex.log'), 'utf8')).toContain(
       'plugin marketplace add',
@@ -516,15 +543,26 @@ command = 'echo "keep this user hook"'
     const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, true, false);
     const beforeConfig = readFileSync(fixture.configPath, 'utf8');
 
-    const result = await runCodexCommand(fixture, ['codex', 'migrate'], {
+    const result = await runCodexCommand(fixture, ['codex', 'migrate', '--json'], {
       SAFEWORD_FAIL_PLUGIN_VERIFY: '1',
     });
 
     expect(result.exitCode).toBe(1);
-    expect(`${result.stdout}\n${result.stderr}`).toContain(
-      'Plugin installation succeeded, but enablement is unknown',
-    );
-    expect(`${result.stdout}\n${result.stderr}`).toContain('profile observation failed');
+    expect(result.stderr).toBe('');
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'failed',
+      changed: true,
+      effects: {
+        configuration: [
+          {
+            kind: 'install',
+            target: 'Safeword Codex profile plugin',
+            operation: 'enablement-unverified',
+          },
+        ],
+      },
+      errors: [{ code: 'PLUGIN_ENABLEMENT_UNKNOWN' }],
+    });
     expect(readFileSync(fixture.configPath, 'utf8')).toBe(beforeConfig);
     expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-plugin.json'))).toBe(false);
   });
@@ -540,7 +578,7 @@ command = 'echo "keep this user hook"'
 
     expect(result.exitCode).toBe(2);
     expect(result.stdout).toContain('plugin_enabled_hook_unproven');
-    expect(result.stdout).toContain('restart Codex and review /hooks');
+    expect(result.stdout).toContain('Start a new Codex session');
     expect(result.stdout.match(/^Next:/gm)).toHaveLength(1);
   });
 
@@ -634,7 +672,7 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     });
 
     expect(result.exitCode).toBe(2);
-    expect(result.stdout).toContain('restart Codex and review /hooks');
+    expect(result.stdout).toContain('Start a new Codex session');
     const status = await runCodexCommand(fixture, ['codex', 'status', '--json']);
     expect(JSON.parse(status.stdout)).toMatchObject({
       data: { migration_state: 'plugin_installed_restart_required' },
@@ -750,16 +788,12 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     mkdirSync(nodePath.dirname(lateAsset), { recursive: true });
     writeFileSync(lateAsset, '# content shown in the confirmed plan\n');
 
-    const result = await runCodexCommand(
-      fixture,
-      ['codex', 'migrate', '--finalize', '--yes', '--json'],
-      { SAFEWORD_LEGACY_ASSET_PATH: lateAsset },
-    );
+    const result = await finalizeCodex(fixture, { SAFEWORD_LEGACY_ASSET_PATH: lateAsset }, true);
 
-    expect(result.exitCode).toBe(1);
+    expect(result.exitCode).toBe(2);
     expect(JSON.parse(result.stdout)).toMatchObject({
       changed: false,
-      errors: [{ code: 'FINALIZATION_FAILED' }],
+      findings: [{ code: 'PLAN_STALE' }],
     });
     expect(existsSync(lateAsset)).toBe(true);
     expect(readFileSync(lateAsset, 'utf8')).toBe('# appeared after confirmation\n');
@@ -785,7 +819,7 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     expect(JSON.parse(result.stdout)).toMatchObject({
       schema_version: 1,
       changed: false,
-      errors: [{ code: 'FINALIZATION_FAILED' }],
+      errors: [{ code: 'UNSAFE_MIGRATION_PATH' }],
     });
   });
 
@@ -814,7 +848,7 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     mkdirSync(nodePath.dirname(legacySkillPath), { recursive: true });
     writeFileSync(legacySkillPath, '# legacy skill\n');
 
-    const result = await runCodexCommand(fixture, ['codex', 'migrate', '--finalize', '--yes']);
+    const result = await finalizeCodex(fixture);
 
     expect(result.exitCode, result.stderr).toBe(0);
     const migrated = readFileSync(fixture.configPath, 'utf8');
@@ -846,7 +880,7 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
   it('leaves new teammates a setup-only Codex plugin bootstrap', async () => {
     const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
     recordCurrentProof(fixture);
-    const finalized = await runCodexCommand(fixture, ['codex', 'migrate', '--finalize', '--yes']);
+    const finalized = await finalizeCodex(fixture);
     expect(finalized.exitCode, finalized.stderr).toBe(0);
 
     const bootstrap = readFileSync(
@@ -864,7 +898,7 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
     recordCurrentProof(fixture);
 
-    const result = await runCodexCommand(fixture, ['codex', 'migrate', '--finalize', '--yes']);
+    const result = await finalizeCodex(fixture);
 
     expect(result.exitCode, result.stderr).toBe(0);
     expect(result.stdout).toContain('Backed up the complete legacy Codex state');
@@ -894,12 +928,21 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
         plan: {
           effects: {
             files: expect.arrayContaining([
-              { target: '.codex/config.toml', kind: 'update' },
-              { target: '.agents/skills/review-spec/SKILL.md', kind: 'remove' },
-              { target: '.safeword/codex-plugin.json', kind: 'create' },
+              { target: '.codex/config.toml', kind: 'update', operation: 'update' },
+              {
+                target: '.agents/skills/review-spec/SKILL.md',
+                kind: 'remove',
+                operation: 'remove',
+              },
+              {
+                target: '.safeword/codex-plugin.json',
+                kind: 'create',
+                operation: 'create',
+              },
               {
                 target: '.agents/skills/safeword-plugin-setup/SKILL.md',
                 kind: 'create',
+                operation: 'create',
               },
             ]),
           },
@@ -915,10 +958,120 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     expect(existsSync(legacySkillPath)).toBe(true);
   });
 
+  it('binds typed finalization replay to the exact previewed plan and config blocks', async () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    recordCurrentProof(fixture);
+    const before = readFileSync(fixture.configPath, 'utf8');
+
+    const preview = await runCodexCommand(fixture, ['codex', 'migrate', '--finalize', '--json']);
+    const previewEnvelope = JSON.parse(preview.stdout) as {
+      data: {
+        plan: {
+          id: string;
+          exact_config_blocks: string[];
+        };
+      };
+    };
+
+    expect(preview.exitCode).toBe(2);
+    expect(previewEnvelope.data.plan.id).toMatch(/^[\da-f]{64}$/u);
+    expect(previewEnvelope.data.plan.exact_config_blocks).toEqual([
+      expect.stringContaining("command = 'npx --yes safeword hook codex pre-tool-use'"),
+    ]);
+    expect(readFileSync(fixture.configPath, 'utf8')).toBe(before);
+
+    const applied = await runCodexCommand(fixture, [
+      'codex',
+      'migrate',
+      '--finalize',
+      '--yes',
+      '--plan',
+      previewEnvelope.data.plan.id,
+      '--json',
+    ]);
+
+    expect(applied.exitCode, applied.stderr).toBe(0);
+    expect(JSON.parse(applied.stdout)).toMatchObject({
+      state: 'changed',
+      changed: true,
+      data: { migration_state: 'plugin' },
+    });
+  });
+
+  it('refuses typed finalization when repository state drifted after preview', async () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    recordCurrentProof(fixture);
+    const preview = await runCodexCommand(fixture, ['codex', 'migrate', '--finalize', '--json']);
+    const planId = (JSON.parse(preview.stdout) as { data: { plan: { id: string } } }).data.plan.id;
+    writeFileSync(fixture.configPath, `${LEGACY_HOOK_CONFIG}\n# teammate edit\n`);
+
+    const applied = await runCodexCommand(fixture, [
+      'codex',
+      'migrate',
+      '--finalize',
+      '--yes',
+      '--plan',
+      planId,
+      '--json',
+    ]);
+
+    expect(applied.exitCode).toBe(2);
+    expect(JSON.parse(applied.stdout)).toMatchObject({
+      state: 'action_required',
+      changed: false,
+      findings: [{ code: 'PLAN_STALE' }],
+    });
+    expect(readFileSync(fixture.configPath, 'utf8')).toContain('# teammate edit');
+    expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-migration-backup'))).toBe(
+      false,
+    );
+  });
+
+  it('reports repeated typed finalization and absent recovery as no-ops', async () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    recordCurrentProof(fixture);
+    const preview = await runCodexCommand(fixture, ['codex', 'migrate', '--finalize', '--json']);
+    const planId = (JSON.parse(preview.stdout) as { data: { plan: { id: string } } }).data.plan.id;
+    const first = await runCodexCommand(fixture, [
+      'codex',
+      'migrate',
+      '--finalize',
+      '--yes',
+      '--plan',
+      planId,
+      '--json',
+    ]);
+    expect(first.exitCode, first.stderr).toBe(0);
+
+    const repeated = await runCodexCommand(fixture, [
+      'codex',
+      'migrate',
+      '--finalize',
+      '--yes',
+      '--json',
+    ]);
+    expect(repeated.exitCode, repeated.stderr).toBe(0);
+    expect(JSON.parse(repeated.stdout)).toMatchObject({
+      state: 'healthy',
+      changed: false,
+      effects: { files: [], configuration: [] },
+    });
+
+    const recovered = await recoverCodex(fixture);
+    expect(recovered.exitCode, recovered.stderr).toBe(0);
+    const absentRecovery = await runCodexCommand(fixture, ['codex', 'recover', '--yes', '--json']);
+    expect(absentRecovery.exitCode, absentRecovery.stderr).toBe(0);
+    expect(JSON.parse(absentRecovery.stdout)).toMatchObject({
+      state: 'healthy',
+      changed: false,
+      effects: { files: [], configuration: [] },
+    });
+  });
+
   it('reports a finalized plugin-only project without another action', async () => {
     const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
     recordCurrentProof(fixture);
-    const finalized = await runCodexCommand(fixture, ['codex', 'migrate', '--finalize', '--yes']);
+    const finalized = await finalizeCodex(fixture);
     expect(finalized.exitCode, finalized.stderr).toBe(0);
 
     const status = await runCodexCommand(fixture, ['codex', 'status']);
@@ -952,13 +1105,7 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
 
     const finalizing = createMigrationFixture(LEGACY_HOOK_CONFIG);
     recordCurrentProof(finalizing);
-    const finalize = await runCodexCommand(finalizing, [
-      'codex',
-      'migrate',
-      '--finalize',
-      '--yes',
-      '--json',
-    ]);
+    const finalize = await finalizeCodex(finalizing, {}, true);
     expect(finalize.exitCode, finalize.stderr).toBe(0);
     expect(finalize.stderr).toBe('');
     expect(JSON.parse(finalize.stdout)).toMatchObject({
@@ -968,7 +1115,7 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
       data: { migration_state: 'plugin' },
     });
 
-    const recover = await runCodexCommand(finalizing, ['codex', 'recover', '--yes', '--json']);
+    const recover = await recoverCodex(finalizing, true);
     expect(recover.stderr).toBe('');
     expect(JSON.parse(recover.stdout)).toMatchObject({
       schema_version: 1,
@@ -990,14 +1137,14 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     expect(JSON.parse(result.stdout)).toMatchObject({
       schema_version: 1,
       changed: false,
-      errors: [{ code: 'PLUGIN_INSTALL_FAILED', retryable: true }],
+      errors: [{ code: 'PLUGIN_MARKETPLACE_FAILED', retryable: true }],
     });
   });
 
   it('treats repeated finalization of a plugin-only project as a no-op', async () => {
     const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
     recordCurrentProof(fixture);
-    const first = await runCodexCommand(fixture, ['codex', 'migrate', '--finalize', '--yes']);
+    const first = await finalizeCodex(fixture);
     expect(first.exitCode, first.stderr).toBe(0);
     const markerPath = nodePath.join(fixture.directory, '.safeword/codex-plugin.json');
     const manifestPath = nodePath.join(
@@ -1080,7 +1227,7 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     const result = await runCodexCommand(fixture, ['codex', 'migrate']);
 
     expect(result.exitCode, result.stderr).toBe(2);
-    expect(result.stdout).toContain('Codex is in compatibility mode');
+    expect(result.stdout).toContain('protected by the current profile plugin');
     expect(
       existsSync(nodePath.join(fixture.directory, 'profile/safeword/restart-pending-v1.json')),
     ).toBe(false);
@@ -1156,7 +1303,7 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     expect(JSON.parse(danglingRecovery.stdout)).toMatchObject({
       state: 'failed',
       changed: false,
-      errors: [{ code: 'RECOVERY_FAILED' }],
+      errors: [{ code: 'UNSAFE_MIGRATION_PATH' }],
     });
   });
 
@@ -1167,10 +1314,10 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     mkdirSync(nodePath.dirname(legacySkillPath), { recursive: true });
     writeFileSync(legacySkillPath, '# legacy skill\n');
     const originalConfig = readFileSync(fixture.configPath, 'utf8');
-    const finalized = await runCodexCommand(fixture, ['codex', 'migrate', '--finalize', '--yes']);
+    const finalized = await finalizeCodex(fixture);
     expect(finalized.exitCode, finalized.stderr).toBe(0);
 
-    const recovered = await runCodexCommand(fixture, ['codex', 'recover', '--yes']);
+    const recovered = await recoverCodex(fixture);
 
     expect(recovered.exitCode, recovered.stderr).toBe(0);
     expect(readFileSync(fixture.configPath, 'utf8')).toBe(originalConfig);
@@ -1187,7 +1334,7 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
   it('refuses recovery rather than overwriting an intervening edit', async () => {
     const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
     recordCurrentProof(fixture);
-    const finalized = await runCodexCommand(fixture, ['codex', 'migrate', '--finalize', '--yes']);
+    const finalized = await finalizeCodex(fixture);
     expect(finalized.exitCode, finalized.stderr).toBe(0);
     writeFileSync(fixture.configPath, '# teammate edit after finalization\n');
 
