@@ -174,9 +174,28 @@ function applyMutation(
   chmodSync(path, after.mode);
 }
 
+function restoreBeforeImage(cwd: string, backupDirectory: string, entry: BackupEntry): void {
+  const path = assertSafeComponents(cwd, entry.path);
+  if (entry.before.kind === 'absent') {
+    rmSync(path, { force: true });
+    return;
+  }
+  if (entry.before.payload === undefined) {
+    throw new Error(`Codex migration backup payload is missing for ${entry.path}.`);
+  }
+  const payload = containedPath(backupDirectory, entry.before.payload);
+  const content = readFileSync(payload);
+  if (sha256(content) !== entry.before.sha256) {
+    throw new Error(`Codex migration backup payload is corrupt for ${entry.path}.`);
+  }
+  writeDurable(path, content, entry.before.mode);
+  chmodSync(path, entry.before.mode);
+}
+
 export function applyCodexFinalization(
   cwd: string,
   mutations: CodexFinalizationMutation[],
+  options: { beforeMutation?: (index: number) => void } = {},
 ): BackupManifestV1 {
   const backupDirectory = containedPath(cwd, BACKUP_PATH);
   if (existsSync(backupDirectory)) {
@@ -195,10 +214,34 @@ export function applyCodexFinalization(
   };
   writeManifest(backupDirectory, manifest);
 
-  for (const [index, mutation] of mutations.entries()) {
-    const entry = entries[index];
-    if (entry === undefined) throw new Error('Codex migration plan changed during execution.');
-    applyMutation(cwd, mutation, entry.after);
+  let appliedCount = 0;
+  try {
+    for (const [index, mutation] of mutations.entries()) {
+      options.beforeMutation?.(index);
+      const entry = entries[index];
+      if (entry === undefined) throw new Error('Codex migration plan changed during execution.');
+      applyMutation(cwd, mutation, entry.after);
+      appliedCount += 1;
+    }
+  } catch (error) {
+    try {
+      for (let index = appliedCount - 1; index >= 0; index -= 1) {
+        const entry = entries[index];
+        if (entry === undefined) {
+          throw new Error('Codex rollback plan is incomplete.', { cause: error });
+        }
+        restoreBeforeImage(cwd, backupDirectory, entry);
+      }
+      rmSync(backupDirectory, { recursive: true });
+    } catch (rollbackError) {
+      throw new Error(
+        `Codex finalization failed (${String(
+          error,
+        )}) and rollback could not complete; recovery is required: ${String(rollbackError)}`,
+        { cause: rollbackError },
+      );
+    }
+    throw error;
   }
 
   manifest.status = 'finalized';
