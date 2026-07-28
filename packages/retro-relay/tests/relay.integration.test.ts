@@ -7,6 +7,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { GitHubCreateError } from '../src/github.js';
 import type { RelayServerFaults } from '../src/http-server.js';
 import {
   CredentialRegistry,
@@ -510,20 +511,21 @@ describe('retry-safe retro relay', () => {
     });
     expect(invalidField.status).toBe(400);
 
-    const statuses: number[] = [];
-    for (let index = 0; index < 61; index += 1) {
-      const response = await fetch(`${setup.relay.url}/v1/retro-filings`, {
-        body: JSON.stringify(draft({ requestId: `rate-${index}` })),
-        headers: {
-          authorization: `Bearer ${setup.credentials.cursor}`,
-          'content-type': 'application/json',
-        },
-        method: 'POST',
-      });
-      statuses.push(response.status);
-    }
-    expect(statuses.slice(0, 60).every(status => status === 201)).toBe(true);
-    expect(statuses[60]).toBe(429);
+    const statuses = await Promise.all(
+      Array.from({ length: 61 }, async (_, index) => {
+        const response = await fetch(`${setup.relay.url}/v1/retro-filings`, {
+          body: JSON.stringify(draft({ requestId: `rate-${index}` })),
+          headers: {
+            authorization: `Bearer ${setup.credentials.cursor}`,
+            'content-type': 'application/json',
+          },
+          method: 'POST',
+        });
+        return response.status;
+      }),
+    );
+    expect(statuses.filter(status => status === 201)).toHaveLength(60);
+    expect(statuses.filter(status => status === 429)).toHaveLength(1);
   });
 
   it('reuses the filed receipt after response delivery is lost', async () => {
@@ -718,6 +720,16 @@ describe('retry-safe retro relay', () => {
         requestId: draft().requestId,
       })?.nextAttemptAt,
     ).toBe('2026-07-27T00:10:00.000Z');
+  });
+
+  it('ignores a rate-limit reset while GitHub reports remaining capacity', () => {
+    const error = new GitHubCreateError({
+      rateLimitRemaining: '1',
+      rateLimitReset: '1785111000',
+      status: 401,
+    });
+
+    expect(error.retryNotBefore(new Date('2026-07-27T00:00:00.000Z'))).toBeUndefined();
   });
 
   it('invalidates a cached installation token after GitHub returns 401', async () => {

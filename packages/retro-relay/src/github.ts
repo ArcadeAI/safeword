@@ -66,7 +66,8 @@ export class GitHubCreateError extends Error {
     super(`GitHub create failed with ${status}`);
     this.status = status;
     this.outcome = classifyCreateOutcome(input);
-    this.rateLimitReset = input.rateLimitReset ?? undefined;
+    this.rateLimitReset =
+      input.rateLimitRemaining === '0' ? (input.rateLimitReset ?? undefined) : undefined;
     this.retryAfter = input.retryAfter ?? undefined;
   }
 
