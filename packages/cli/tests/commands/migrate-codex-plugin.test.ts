@@ -673,7 +673,9 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
 
     expect(result.exitCode).toBe(2);
     expect(result.stdout).toContain('recovery_required');
-    expect(result.stdout).toContain('safeword codex recover');
+    expect(result.stdout).toContain('Protection: uncertain');
+    expect(result.stdout).toContain('Next: safeword codex recover');
+    expect(result.stdout.match(/^Next:/gm)).toHaveLength(1);
     expect(readFileSync(fixture.configPath, 'utf8')).toBe(before);
     expect(existsSync(nodePath.join(fixture.directory, 'codex.log'))).toBe(false);
   });
