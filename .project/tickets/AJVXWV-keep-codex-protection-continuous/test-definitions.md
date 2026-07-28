@@ -254,7 +254,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Lookalike and user-authored assets survive finalization
 
-- [ ] RED
+- [x] RED 28a2effe9
 - [ ] GREEN
 - [ ] REFACTOR
 
