@@ -204,7 +204,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: plugin settled-state rendering existed before its end-to-end characterization
 - [x] GREEN 9508ca2fc
-- [ ] REFACTOR
+- [x] REFACTOR skip: absence of next_actions already drives omission of the human Next line
 
 ### Scenario: JSON status separates machine output from diagnostics
 
