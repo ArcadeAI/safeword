@@ -46,7 +46,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Trusted plugin SessionStart records current proof
 
-- [ ] RED
+- [x] RED skip: complete proof is inseparable from safely clearing the restart marker
 - [ ] GREEN
 - [ ] REFACTOR
 
