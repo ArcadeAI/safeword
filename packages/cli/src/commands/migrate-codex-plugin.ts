@@ -17,6 +17,7 @@ import {
 import { legacyCodexEventIsViable } from '../codex-plugin/legacy-authority.js';
 import {
   codexMigrationExitCode,
+  type CodexMigrationResultV1,
   type CodexPluginObservation,
   deriveCodexMigrationResult,
   renderCodexMigrationHuman,
@@ -457,11 +458,10 @@ function observeViableLegacyEvents(
   });
 }
 
-export function statusCodexMigration(
+function observeCodexMigrationResult(
   cwd = process.cwd(),
-  options: { json?: boolean; environment?: NodeJS.ProcessEnv } = {},
-): void {
-  const environment = options.environment ?? process.env;
+  environment: NodeJS.ProcessEnv = process.env,
+): CodexMigrationResultV1 {
   const legacyEvents = observeLegacyEvents(cwd);
   const recoveryRequired = codexRecoveryIsRequired(cwd);
   let plugin: CodexPluginObservation;
@@ -493,10 +493,48 @@ export function statusCodexMigration(
       retryable: true,
     });
   }
+  return result;
+}
+
+export function statusCodexMigration(
+  cwd = process.cwd(),
+  options: { json?: boolean; environment?: NodeJS.ProcessEnv } = {},
+): void {
+  const result = observeCodexMigrationResult(cwd, options.environment);
 
   process.stdout.write(
     options.json === true ? `${JSON.stringify(result)}\n` : renderCodexMigrationHuman(result),
   );
+  process.exitCode = codexMigrationExitCode(result);
+}
+
+export function previewCodexFinalization(
+  cwd = process.cwd(),
+  options: { environment?: NodeJS.ProcessEnv } = {},
+): void {
+  const environment = options.environment ?? process.env;
+  const result = observeCodexMigrationResult(cwd, environment);
+  if (result.proof.status === 'current') {
+    const preparedLegacyHookRemoval = prepareLegacyHookRemoval(cwd);
+    result.effects.files = buildCodexFinalizationMutations(cwd, preparedLegacyHookRemoval).map(
+      mutation => {
+        let action: 'create' | 'update' | 'remove';
+        if (mutation.content === null) action = 'remove';
+        else if (pathExistsIncludingDanglingSymlink(nodePath.join(cwd, mutation.path))) {
+          action = 'update';
+        } else action = 'create';
+        return { path: mutation.path, action };
+      },
+    );
+  } else {
+    result.errors.push({
+      code: 'FINALIZATION_PROOF_REQUIRED',
+      message:
+        'Finalization requires current plugin hook proof. Start a new Codex session, review /hooks, then retry.',
+      retryable: true,
+    });
+  }
+  process.stdout.write(`${JSON.stringify(result)}\n`);
   process.exitCode = codexMigrationExitCode(result);
 }
 

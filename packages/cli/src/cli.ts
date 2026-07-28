@@ -119,15 +119,26 @@ codex
   .option('--yes', 'Confirm a non-interactive finalization plan')
   .option('--json', 'Write the versioned migration result as JSON')
   .option('--remove-legacy-hooks', 'Deprecated alias for --finalize')
-  .action(async (options: { finalize?: boolean; removeLegacyHooks?: boolean; yes?: boolean }) => {
-    const { installCodexPlugin, removeLegacyCodexHooks } =
-      await import('./commands/migrate-codex-plugin.js');
-    if (options.finalize === true || options.removeLegacyHooks === true) {
-      await removeLegacyCodexHooks(process.cwd(), { yes: options.yes === true });
-      return;
-    }
-    installCodexPlugin({ reportMigrationState: true });
-  });
+  .action(
+    async (options: {
+      finalize?: boolean;
+      json?: boolean;
+      removeLegacyHooks?: boolean;
+      yes?: boolean;
+    }) => {
+      const { installCodexPlugin, previewCodexFinalization, removeLegacyCodexHooks } =
+        await import('./commands/migrate-codex-plugin.js');
+      if (options.finalize === true || options.removeLegacyHooks === true) {
+        if (options.json === true && options.yes !== true) {
+          previewCodexFinalization(process.cwd());
+          return;
+        }
+        await removeLegacyCodexHooks(process.cwd(), { yes: options.yes === true });
+        return;
+      }
+      installCodexPlugin({ reportMigrationState: true });
+    },
+  );
 
 codex
   .command('recover')
