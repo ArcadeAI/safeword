@@ -87,4 +87,29 @@ describe('Codex migration finalization', () => {
       status: 'prepared',
     });
   });
+
+  it('propagates the handled transaction failure after restoring pre-migration state', () => {
+    const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-finalization-'));
+    directories.push(directory);
+    writeFileSync(nodePath.join(directory, 'owned.txt'), 'before\n');
+    const failure = new Error('handled write failure');
+
+    expect(() =>
+      applyCodexFinalization(
+        directory,
+        [
+          { path: 'owned.txt', content: 'after\n' },
+          { path: 'created.txt', content: 'created\n' },
+        ],
+        {
+          beforeMutation: index => {
+            if (index === 1) throw failure;
+          },
+        },
+      ),
+    ).toThrow(failure);
+
+    expect(readFileSync(nodePath.join(directory, 'owned.txt'), 'utf8')).toBe('before\n');
+    expect(existsSync(nodePath.join(directory, 'created.txt'))).toBe(false);
+  });
 });
