@@ -8,6 +8,14 @@ interface MockResponse {
   json: () => unknown;
 }
 
+const GITHUB_PAGE_SIZE = 100;
+// Deliberately independent from the production value: an accidental cap change
+// must fail the boundary contract instead of updating its own expectation.
+const EXPECTED_DEDUP_PAGE_BOUND = 200;
+const EXPECTED_DEDUP_PROBE_PAGE = EXPECTED_DEDUP_PAGE_BOUND + 1;
+const EXPECTED_DEDUP_ITEM_BOUND = EXPECTED_DEDUP_PAGE_BOUND * GITHUB_PAGE_SIZE;
+const PAGE_BOUNDARY_FIXTURE_SIZE = 2 * GITHUB_PAGE_SIZE + 1;
+
 function mockFetch(responder: (url: string) => MockResponse): string[] {
   const calls: string[] = [];
   vi.stubGlobal(
@@ -63,7 +71,7 @@ describe('createRestTransport', () => {
   // in an HTML comment, and an unindexed marker returns the same empty array as a
   // genuinely absent one, so triage cannot tell "no duplicate" from "could not
   // tell". These tests pin the listing endpoint as the source of truth.
-  it('C2: enumerates open issues via the listing endpoint, never the search index', async () => {
+  it('#1481: enumerates all issue states in creation order, never the search index', async () => {
     const calls = mockFetch(() => ({ json: () => [] }));
     const transport = createRestTransport('tok');
     if (!transport) throw new Error('expected a transport');
@@ -74,7 +82,7 @@ describe('createRestTransport', () => {
     expect(url).not.toContain('/search/');
     expect(url).toBe(
       'https://api.github.com/repos/ArcadeAI/safeword/issues' +
-        '?state=open&sort=created&direction=asc&per_page=100&page=1',
+        '?state=all&sort=created&direction=asc&per_page=100&page=1',
     );
   });
 
@@ -88,11 +96,13 @@ describe('createRestTransport', () => {
           number: 1,
           title: 'near miss',
           body: '<!-- safeword-retro-signature: retro:abc123def4567 -->',
+          state: 'open',
         },
         {
           number: 2,
           title: 'exact',
           body: '<!-- safeword-retro-signature: retro:abc123def456 -->',
+          state: 'open',
         },
       ],
     }));
@@ -107,11 +117,17 @@ describe('createRestTransport', () => {
   it('prevent-retro-duplicate-issues.SM1.R2.rejects a canonical hash token without its exact marker', async () => {
     mockFetch(() => ({
       json: () => [
-        { number: 1, title: 'near miss', body: 'contains canonical:abc123def456-suffix' },
+        {
+          number: 1,
+          title: 'near miss',
+          body: 'contains canonical:abc123def456-suffix',
+          state: 'open',
+        },
         {
           number: 2,
           title: 'exact',
           body: '<!-- safeword-retro-canonical: canonical:abc123def456 -->',
+          state: 'open',
         },
       ],
     }));
@@ -130,12 +146,14 @@ describe('createRestTransport', () => {
           number: 1,
           title: 'copied marker PR',
           body: '<!-- safeword-retro-canonical: canonical:abc123def456 -->',
+          state: 'open',
           pull_request: {},
         },
         {
           number: 2,
           title: 'canonical issue',
           body: '<!-- safeword-retro-canonical: canonical:abc123def456 -->',
+          state: 'open',
         },
       ],
     }));
@@ -147,6 +165,23 @@ describe('createRestTransport', () => {
     ]);
   });
 
+  it('#1481: rejects an exact marker carried only by a closed issue', async () => {
+    mockFetch(() => ({
+      json: () => [
+        {
+          number: 1,
+          title: 'closed recurrence',
+          body: '<!-- safeword-retro-signature: retro:abc123def456 -->',
+          state: 'closed',
+        },
+      ],
+    }));
+    const transport = createRestTransport('tok');
+    if (!transport) throw new Error('expected a transport');
+
+    await expect(transport.searchBySignature('retro:abc123def456')).resolves.toEqual([]);
+  });
+
   // The marker can be hand-copied into an ordinary issue when two are merged
   // (#1453 documents exactly that on #1425), so dedup must not filter by label.
   it('#1453: matches a marker on an issue that carries no retro label', async () => {
@@ -156,6 +191,7 @@ describe('createRestTransport', () => {
           number: 1425,
           title: 'hand-merged issue',
           body: 'merged\n<!-- safeword-retro-signature: retro:9230b08d2fb3 -->',
+          state: 'open',
           labels: [],
         },
       ],
@@ -174,6 +210,7 @@ describe('createRestTransport', () => {
       number: i,
       title: `t${i}`,
       body: 'nothing here',
+      state: 'open',
     }));
     const calls = mockFetch(url => ({
       json: () =>
@@ -184,6 +221,7 @@ describe('createRestTransport', () => {
                 number: 999,
                 title: 'on page two',
                 body: '<!-- safeword-retro-signature: retro:abc123def456 -->',
+                state: 'open',
               },
             ],
     }));
@@ -193,16 +231,12 @@ describe('createRestTransport', () => {
     await expect(transport.searchBySignature('retro:abc123def456')).resolves.toEqual([
       { number: 999, title: 'on page two' },
     ]);
-    // A HIT costs one sweep and no confirmation — a page-boundary skip can hide
-    // an issue, never fabricate one, so a positive match needs no second look.
+    // One all-state sweep populates the transport cache.
     expect(calls).toHaveLength(2);
 
     // A second lookup reuses the enumeration — triage runs two per encounter.
-    // This one MISSES, so it pays for the one-time stability confirmation: two
-    // FRESH sweeps (2 pages each), so the window under test is those two calls
-    // rather than everything since the run began.
     await transport.searchByCanonical('canonical:abc123def456');
-    expect(calls).toHaveLength(6);
+    expect(calls).toHaveLength(2);
   });
 
   // The bug this replaces was invisible because a zero result was
@@ -214,119 +248,121 @@ describe('createRestTransport', () => {
       number: i,
       title: `t${i}`,
       body: 'no marker',
+      state: 'open',
     }));
     const calls = mockFetch(() => ({ json: () => fullPage }));
     const transport = createRestTransport('tok');
     if (!transport) throw new Error('expected a transport');
 
     await expect(transport.searchBySignature('retro:abc123def456')).rejects.toThrow(/truncated/);
-    // 30 bound pages + the probe page, which was also full → a genuine tail.
-    expect(calls).toHaveLength(31);
+    // The configured bound pages + a full probe page → a genuine tail.
+    expect(calls).toHaveLength(EXPECTED_DEDUP_PROBE_PAGE);
   });
 
-  // The boundary the bound alone cannot distinguish: at exactly 30 full pages the
-  // enumeration is COMPLETE, and throwing there would halt every session's filing
-  // over a tail that does not exist.
+  // The boundary the bound alone cannot distinguish: at exactly the configured
+  // number of full pages the enumeration is COMPLETE, and throwing there would
+  // halt every session's filing over a tail that does not exist.
   it('#1453: completes rather than throwing at exactly the page bound', async () => {
-    const fullPage = Array.from({ length: 100 }, (_, i) => ({
+    const fullPage = Array.from({ length: GITHUB_PAGE_SIZE }, (_, i) => ({
       number: i,
       title: `t${i}`,
       body: 'no marker',
+      state: 'open',
     }));
     const calls = mockFetch(url => ({
-      json: () => (url.endsWith('page=31') ? [] : fullPage),
+      json: () => (url.endsWith(`page=${EXPECTED_DEDUP_PROBE_PAGE}`) ? [] : fullPage),
     }));
     const transport = createRestTransport('tok');
     if (!transport) throw new Error('expected a transport');
 
     await expect(transport.searchBySignature('retro:abc123def456')).resolves.toEqual([]);
-    // 31 for the cached sweep, then two fresh 31-page sweeps to confirm the miss.
-    // All three see the same set, so the miss stands.
-    expect(calls).toHaveLength(93);
+    expect(calls).toHaveLength(EXPECTED_DEDUP_PROBE_PAGE);
   });
 
   // The cap has to mean what it says. Appending the probe page instead of
-  // rejecting on it would silently accept 3,001–3,099 items under a "3,000" bound.
-  it('#1453: trips the cap at 3001 items rather than quietly accepting the probe', async () => {
+  // rejecting it would silently accept items beyond the configured bound.
+  it('#1453: trips the cap at the first item past the bound', async () => {
     const fullPage = Array.from({ length: 100 }, (_, i) => ({
       number: i,
       title: `t${i}`,
       body: 'no marker',
+      state: 'open',
     }));
     const calls = mockFetch(url => ({
       // Exactly one item past the bound — the smallest genuine tail there is.
       json: () =>
-        url.endsWith('page=31') ? [{ number: 3001, title: 'tail', body: 'x' }] : fullPage,
+        url.endsWith(`page=${EXPECTED_DEDUP_PROBE_PAGE}`)
+          ? [{ number: EXPECTED_DEDUP_ITEM_BOUND + 1, title: 'tail', body: 'x', state: 'open' }]
+          : fullPage,
     }));
     const transport = createRestTransport('tok');
     if (!transport) throw new Error('expected a transport');
 
     await expect(transport.searchBySignature('retro:abc123def456')).rejects.toThrow(/truncated/);
-    expect(calls).toHaveLength(31);
+    expect(calls).toHaveLength(EXPECTED_DEDUP_PROBE_PAGE);
   });
 
-  // Ascending order appends genuinely new issues to the LAST page, where they
-  // displace nothing already read. Treating that as instability would fail closed
-  // on every session that files while a human is opening issues.
-  it('#1453: tolerates a genuinely new issue appearing between sweeps', async () => {
-    const settled = Array.from({ length: 60 }, (_, i) => ({
+  // Ascending creation order appends genuinely new issues to the last page,
+  // where they displace nothing already read.
+  it('#1481: includes a new marker appended on a later page', async () => {
+    const firstPage = Array.from({ length: 100 }, (_, i) => ({
       number: i + 1,
       title: `t${i + 1}`,
       body: 'no marker',
+      state: 'open',
     }));
-    const withNewcomer = [...settled, { number: 5000, title: 'brand new', body: 'no marker' }];
-    let sweep = 0;
-    mockFetch(url => {
-      if (!url.endsWith('page=1')) return { json: () => [] };
-      sweep += 1;
-      const page = sweep === 1 ? settled : withNewcomer;
-      return { json: () => page };
-    });
+    mockFetch(url => ({
+      json: () =>
+        url.endsWith('page=1')
+          ? firstPage
+          : [
+              {
+                number: 5000,
+                title: 'brand new',
+                body: '<!-- safeword-retro-signature: retro:abc123def456 -->',
+                state: 'open',
+              },
+            ],
+    }));
     const transport = createRestTransport('tok');
     if (!transport) throw new Error('expected a transport');
 
-    await expect(transport.searchBySignature('retro:abc123def456')).resolves.toEqual([]);
+    await expect(transport.searchBySignature('retro:abc123def456')).resolves.toEqual([
+      { number: 5000, title: 'brand new' },
+    ]);
   });
 
-  // Instability is a one-off, unlike truncation: someone closed an issue. Latching
-  // it would defer the whole session's filing over one unlucky close — the very
-  // "nothing reaches the tracker" symptom #1453 reported. It must fail only its own
-  // encounter and let the next one re-confirm.
-  it('#1453: retries confirmation after instability instead of latching the run', async () => {
-    // Models the mechanic faithfully rather than just the set difference: three
-    // pages, and the close lands BETWEEN page 1 and page 2 of one sweep so the
-    // shift actually drops an item across the boundary.
-    //
-    // Settled: #1..#201. Sweep 3 reads page 1 (#1..#100), then #1 closes, so the
-    // list becomes #2..#201 and page 2 now returns #102..#201 — #101 is skipped,
-    // exactly the silent-duplicate mechanic. Page 1 stays FULL, so pagination
-    // continues past the boundary instead of stopping short of it.
-    const settled = Array.from({ length: 201 }, (_, i) => ({
+  it('#1481: finds a still-open marker when an earlier issue closes at a page boundary', async () => {
+    const marker = '<!-- safeword-retro-signature: retro:abc123def456 -->';
+    const settled = Array.from({ length: PAGE_BOUNDARY_FIXTURE_SIZE }, (_, i) => ({
       number: i + 1,
       title: `t${i + 1}`,
-      body: 'no marker',
+      body: i === 100 ? marker : 'no marker',
+      state: 'open',
     }));
     const pageOf = (list: typeof settled, page: number) => list.slice((page - 1) * 100, page * 100);
 
-    let sweep = 0;
     mockFetch(url => {
-      // Anchored: a bare /page=(\d+)/ matches `per_page=100` first.
       const page = Number(/&page=(\d+)$/.exec(url)?.[1] ?? '1');
-      if (page === 1) sweep += 1;
-      // Sweeps: 1 = cached snapshot, 2+3 = the first confirmation pair. Only
-      // sweep 3 sees the close, and only from page 2 onward.
-      const shifted = sweep === 3 && page > 1;
-      return { json: () => pageOf(shifted ? settled.slice(1) : settled, page) };
+      if (url.includes('state=all')) {
+        const allStates = settled.map(issue =>
+          issue.number === 1 && page > 1 ? { ...issue, state: 'closed' } : issue,
+        );
+        return { json: () => pageOf(allStates, page) };
+      }
+
+      // The current open-only strategy sees #1 on page one, then loses it before
+      // page two. Every repeated sweep suffers the same shift, so set comparison
+      // cannot distinguish three equally incomplete reads from a stable result.
+      const openAfterClose = settled.slice(1);
+      return { json: () => pageOf(page === 1 ? settled : openAfterClose, page) };
     });
     const transport = createRestTransport('tok');
     if (!transport) throw new Error('expected a transport');
 
-    await expect(transport.searchBySignature('retro:abc123def456')).rejects.toThrow(
-      /closed mid-enumeration/,
-    );
-    // Not latched: the next encounter re-confirms against a settled tracker
-    // (sweeps 4 and 5) and gets a real answer.
-    await expect(transport.searchByCanonical('canonical:abc123def456')).resolves.toEqual([]);
+    await expect(transport.searchBySignature('retro:abc123def456')).resolves.toEqual([
+      { number: 101, title: 't101' },
+    ]);
   });
 
   // A wrong credential fails the same way every time. Retrying it once per
@@ -360,26 +396,27 @@ describe('createRestTransport', () => {
     expect(calls.length).toBeGreaterThan(1);
   });
 
-  // Truncation is deterministic: re-running it burns another 31 requests to reach
-  // the same answer. Only transient failures earn a retry.
+  // Truncation is deterministic: re-running it burns another full bounded sweep
+  // plus the probe to reach the same answer. Only transient failures earn a retry.
   it('#1453: does not re-run a terminal truncation for every later encounter', async () => {
     const fullPage = Array.from({ length: 100 }, (_, i) => ({
       number: i,
       title: `t${i}`,
       body: 'no marker',
+      state: 'open',
     }));
     const calls = mockFetch(() => ({ json: () => fullPage }));
     const transport = createRestTransport('tok');
     if (!transport) throw new Error('expected a transport');
 
     await expect(transport.searchBySignature('retro:abc123def456')).rejects.toThrow(/truncated/);
-    expect(calls).toHaveLength(31);
+    expect(calls).toHaveLength(EXPECTED_DEDUP_PROBE_PAGE);
 
     // The next encounter fails the same way, from the latch — no new requests.
     await expect(transport.searchByCanonical('canonical:abc123def456')).rejects.toThrow(
       /truncated/,
     );
-    expect(calls).toHaveLength(31);
+    expect(calls).toHaveLength(EXPECTED_DEDUP_PROBE_PAGE);
   });
 
   // The enumeration is a snapshot from before the first create, and
@@ -388,7 +425,7 @@ describe('createRestTransport', () => {
   // pre-create snapshot, misses, and files the duplicate this module prevents.
   it('#1453: a lookup matches an issue created earlier in the same run', async () => {
     mockFetch(url =>
-      url.includes('state=open')
+      url.includes('state=all')
         ? { json: () => [] }
         : { json: () => ({ number: 7, title: 'just filed' }) },
     );
@@ -419,6 +456,7 @@ describe('createRestTransport', () => {
                 number: 7,
                 title: 'found on retry',
                 body: '<!-- safeword-retro-signature: retro:abc123def456 -->',
+                state: 'open',
               },
             ],
           };
