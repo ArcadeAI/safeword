@@ -56,5 +56,8 @@ new clone pattern. `bun outdated` found one low-risk dev-only patch update
 dead-code/import checks remain unavailable in an unrelated experiment because
 their tools are not installed.
 
-**Evidence limits:** ✅ None for this task. The ticket intentionally remains
-`in_progress` pending user confirmation before it is marked done.
+**User acceptance:** ✅ Accepted after PR #1540 passed all required CI checks
+and squash-merged to `main` as `2168ed054f`. GitHub issue #1524 closed
+automatically.
+
+**Evidence limits:** ✅ None for this task.
