@@ -123,7 +123,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Repeated finalization of a plugin-only project is a no-op
 
 - [x] RED 9eb230dcc
-- [ ] GREEN
+- [x] GREEN 44ad4b3dc
 - [ ] REFACTOR
 
 ### Scenario: Repeated migration converges in every pre-finalization state
