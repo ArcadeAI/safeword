@@ -8,8 +8,8 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Upgrade preserves recognized legacy protection
 
-- [x] RED — `977fb5dc2` proves generic upgrade deletes a recognized legacy skill
-- [ ] GREEN
+- [x] RED 977fb5dc2
+- [x] GREEN 3b1defd39
 - [ ] REFACTOR
 
 ### Scenario: Plugin installation failure leaves repository protection unchanged
@@ -277,3 +277,7 @@ test-definitions.md is the R/G/R ledger.
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
+
+## Feature-level cross-scenario refactor
+
+- [ ] cross-scenario

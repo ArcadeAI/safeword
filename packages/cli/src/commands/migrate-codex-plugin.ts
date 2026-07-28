@@ -17,6 +17,7 @@ import nodePath from 'node:path';
 
 import { parse } from 'smol-toml';
 
+import { SAFEWORD_SCHEMA } from '../schema.js';
 import { info, success } from '../utils/output.js';
 
 const MARKETPLACE_SOURCE = 'ArcadeAI/safeword';
@@ -35,24 +36,9 @@ const KNOWN_HOOK_EVENTS = new Set([
   'SubagentStop',
   'Stop',
 ]);
-const LEGACY_SAFEWORD_HOOK_EVENTS = new Set([
-  'session-start',
-  'user-prompt-submit',
-  'pre-tool-use',
-  'post-tool-use',
-  'stop',
-]);
-const LEGACY_SAFEWORD_HOOK_SCRIPTS = new Set([
-  'session-codex-start.ts',
-  'session-safeword-context.ts',
-  'prompt-timestamp.ts',
-  'prompt-retro-nudge.ts',
-  'codex/pre-tool-quality.ts',
-  'codex/stop.ts',
-  'codex/post-tool-skill-nudge.ts',
-  'codex/post-tool-quality.ts',
-]);
-const LEGACY_SAFEWORD_HOOK_PREFIX = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/';
+const LEGACY_SAFEWORD_HOOK_EVENTS = new Set(SAFEWORD_SCHEMA.codexMigration.hookEvents);
+const LEGACY_SAFEWORD_HOOK_SCRIPTS = new Set(SAFEWORD_SCHEMA.codexMigration.hookScripts);
+const LEGACY_SAFEWORD_HOOK_PREFIX = SAFEWORD_SCHEMA.codexMigration.hookScriptPrefix;
 
 type CodexPluginList = {
   installed?: { enabled?: boolean; pluginId?: string }[];
@@ -147,7 +133,11 @@ function commandParts(command: string): string[] {
 }
 
 function isNpxSafeWordCommand(parts: string[]): boolean {
-  return parts[0] === 'npx' && parts[1] === '--yes' && parts[2] === 'safeword';
+  return (
+    parts[0] === SAFEWORD_SCHEMA.codexMigration.packageRunner &&
+    parts[1] === '--yes' &&
+    parts[2] === 'safeword'
+  );
 }
 
 function safeWordCommandOffset(parts: string[]): number | undefined {
