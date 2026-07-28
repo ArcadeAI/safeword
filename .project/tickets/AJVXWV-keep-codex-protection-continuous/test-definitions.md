@@ -160,7 +160,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 4a6074754
 - [x] GREEN 81634faee
-- [ ] REFACTOR
+- [x] REFACTOR skip: the durable prepared manifest is the single crash-resume boundary
 
 ### Scenario: Unsafe backup targets are rejected before mutation
 
