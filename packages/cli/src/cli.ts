@@ -82,18 +82,39 @@ remove.action(
   },
 );
 
-program
-  .command('setup')
-  .description('Set up safeword in the current project')
-  .option('-y, --yes', 'Skip confirmation prompts (for scripting)')
-  .option(
-    '--no-modify',
-    'Skip auto-editing the project ESLint config (prints the manual snippet instead). Also honored via SAFEWORD_NO_MODIFY env var.',
-  )
-  .action(async options => {
+addGlobalOptions(
+  program
+    .command('setup')
+    .description('Set up safeword in the current project')
+    .option('-y, --yes', 'Skip confirmation prompts (for scripting)')
+    .option(
+      '--no-modify',
+      'Skip auto-editing the project ESLint config (prints the manual snippet instead). Also honored via SAFEWORD_NO_MODIFY env var.',
+    ),
+).action(async (options, command: Command) => {
+  const globalOptions = readGlobalOptions(command);
+  if (
+    globalOptions.json ||
+    globalOptions.noInput ||
+    globalOptions.quiet ||
+    globalOptions.cwd !== process.cwd()
+  ) {
+    const { convergeSetup } = await import('./commands/converge-setup.js');
+    reportResult(
+      await convergeSetup(globalOptions.cwd, { noModify: options.modify === false }),
+      globalOptions,
+    );
+    return;
+  }
+  const { exists } = await import('./utils/fs.js');
+  if (exists(`${process.cwd()}/.safeword`)) {
+    const { upgrade } = await import('./commands/upgrade.js');
+    await upgrade({ noModify: options.modify === false });
+  } else {
     const { setup } = await import('./commands/setup.js');
     await setup({ noModify: options.modify === false });
-  });
+  }
+});
 
 addGlobalOptions(
   program.command('check', { hidden: true }).description('Check project health and versions'),

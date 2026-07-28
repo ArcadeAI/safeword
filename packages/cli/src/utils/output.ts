@@ -2,11 +2,27 @@
  * Console output utilities for consistent CLI messaging
  */
 
+const outputState = { mutedDepth: 0 };
+
+export async function withOutputMuted<T>(operation: () => Promise<T>): Promise<T> {
+  outputState.mutedDepth += 1;
+  try {
+    return await operation();
+  } finally {
+    outputState.mutedDepth -= 1;
+  }
+}
+
+function isMuted(): boolean {
+  return outputState.mutedDepth > 0;
+}
+
 /**
  * Print info message
  * @param message
  */
 export function info(message: string): void {
+  if (isMuted()) return;
   console.log(message);
 }
 
@@ -27,6 +43,7 @@ export function formatGlyphLine(glyph: string, message: string): string {
  * @param message
  */
 export function success(message: string): void {
+  if (isMuted()) return;
   console.log(formatGlyphLine('✓', message));
 }
 
@@ -35,6 +52,7 @@ export function success(message: string): void {
  * @param message
  */
 export function warn(message: string): void {
+  if (isMuted()) return;
   console.warn(formatGlyphLine('⚠', message));
 }
 
@@ -43,6 +61,7 @@ export function warn(message: string): void {
  * @param message
  */
 export function error(message: string): void {
+  if (isMuted()) return;
   console.error(formatGlyphLine('✗', message));
 }
 
@@ -51,6 +70,7 @@ export function error(message: string): void {
  * @param title
  */
 export function header(title: string): void {
+  if (isMuted()) return;
   console.log(`\n${title}`);
   console.log('─'.repeat(title.length));
 }
@@ -61,6 +81,7 @@ export function header(title: string): void {
  * @param indent
  */
 export function listItem(item: string, indent = 2): void {
+  if (isMuted()) return;
   console.log(`${' '.repeat(indent)}• ${item}`);
 }
 
@@ -82,5 +103,6 @@ export function printReconcileWarnings(warnings: string[]): void {
  * @param value
  */
 export function keyValue(key: string, value: string): void {
+  if (isMuted()) return;
   console.log(`  ${key}: ${value}`);
 }

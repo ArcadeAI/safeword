@@ -48,6 +48,10 @@ function preconditionDigest(cwd: string, actions: readonly Action[]): string {
   return hash.digest('hex');
 }
 
+export function digestReconciliationTargets(cwd: string, actions: readonly Action[]): string {
+  return preconditionDigest(cwd, actions);
+}
+
 function actionEffect(action: Action): Effect[] {
   return actionTargets(action).map(target => ({
     kind: action.type,
