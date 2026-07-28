@@ -243,6 +243,45 @@ describe('quality-review regressions for the public CLI boundary', () => {
     });
   });
 
+  it('uses the same typed failure boundary for bare status', async () => {
+    const definition = findCommandDefinition('status');
+    const originalHandler = definition.handler;
+    Object.defineProperty(definition, 'handler', {
+      configurable: true,
+      value: () => Promise.reject(new Error('status adapter exploded')),
+    });
+    const stdout: string[] = [];
+    const stderr: string[] = [];
+    vi.spyOn(process.stdout, 'write').mockImplementation(chunk => {
+      stdout.push(String(chunk));
+      return true;
+    });
+    vi.spyOn(process.stderr, 'write').mockImplementation(chunk => {
+      stderr.push(String(chunk));
+      return true;
+    });
+
+    try {
+      const program = new Command().name('safeword');
+      addGlobalOptions(program);
+      registerPublicCommandCatalog(program);
+      await program.parseAsync(['node', 'safeword', '--json', '--no-input']);
+    } finally {
+      Object.defineProperty(definition, 'handler', {
+        configurable: true,
+        value: originalHandler,
+      });
+    }
+
+    expect(stderr).toEqual([]);
+    expect(process.exitCode).toBe(1);
+    expect(JSON.parse(stdout.join(''))).toMatchObject({
+      state: 'failed',
+      changed: false,
+      errors: [{ code: 'COMMAND_EXECUTION_FAILED' }],
+    });
+  });
+
   it('renders Commander argument failures through the JSON protocol', async () => {
     const result = await runCli(['capabilities', '--json', '--no-input', '--definitely-invalid']);
 

@@ -79,6 +79,50 @@ function definitionCommand(
   });
 }
 
+async function executeDefinition(command: Command, definition: CommandDefinition): Promise<void> {
+  const globalOptions = readGlobalOptions(command);
+  const progress =
+    globalOptions.json || globalOptions.quiet
+      ? undefined
+      : createProgressReporter({
+          schedule: (callback, delay) => setTimeout(callback, delay),
+          cancel: handle => {
+            clearTimeout(handle as ReturnType<typeof setTimeout>);
+          },
+          emit: message => process.stderr.write(`${message}\n`),
+        });
+  let result;
+  try {
+    try {
+      result = await definition.handler({
+        cwd: globalOptions.cwd,
+        noInput: globalOptions.noInput,
+        offline: globalOptions.offline,
+        options: readCommandOptions(command),
+        operands: command.processedArgs,
+        progress,
+      });
+    } catch (handlerError) {
+      result = createResult({
+        state: 'failed',
+        errors: [
+          {
+            code: 'COMMAND_EXECUTION_FAILED',
+            message: handlerError instanceof Error ? handlerError.message : String(handlerError),
+            retryable: false,
+          },
+        ],
+      });
+    }
+  } finally {
+    progress?.stop();
+  }
+  if (definition.aliasFor !== undefined) {
+    result = withDeprecation(result, definition.name, definition.aliasFor);
+  }
+  reportResult(result, globalOptions, definition.name);
+}
+
 function addDefinitionAction(command: Command, definition: CommandDefinition): void {
   addGlobalOptions(command);
   addDefinitionOptions(command, definition);
@@ -90,47 +134,7 @@ function addDefinitionAction(command: Command, definition: CommandDefinition): v
     if (actionCommand !== command) {
       throw new Error(`Commander did not supply the command boundary for ${definition.name}`);
     }
-    const globalOptions = readGlobalOptions(command);
-    const progress =
-      globalOptions.json || globalOptions.quiet
-        ? undefined
-        : createProgressReporter({
-            schedule: (callback, delay) => setTimeout(callback, delay),
-            cancel: handle => {
-              clearTimeout(handle as ReturnType<typeof setTimeout>);
-            },
-            emit: message => process.stderr.write(`${message}\n`),
-          });
-    let result;
-    try {
-      try {
-        result = await definition.handler({
-          cwd: globalOptions.cwd,
-          noInput: globalOptions.noInput,
-          offline: globalOptions.offline,
-          options: readCommandOptions(command),
-          operands: command.processedArgs,
-          progress,
-        });
-      } catch (handlerError) {
-        result = createResult({
-          state: 'failed',
-          errors: [
-            {
-              code: 'COMMAND_EXECUTION_FAILED',
-              message: handlerError instanceof Error ? handlerError.message : String(handlerError),
-              retryable: false,
-            },
-          ],
-        });
-      }
-    } finally {
-      progress?.stop();
-    }
-    if (definition.aliasFor !== undefined) {
-      result = withDeprecation(result, definition.name, definition.aliasFor);
-    }
-    reportResult(result, globalOptions, definition.name);
+    await executeDefinition(command, definition);
   });
 }
 
@@ -143,14 +147,6 @@ export function registerPublicCommandCatalog(program: Command): void {
 
   program.action(async () => {
     const definition = findCommandDefinition('status');
-    const globalOptions = readGlobalOptions(program);
-    const result = await definition.handler({
-      cwd: globalOptions.cwd,
-      noInput: globalOptions.noInput,
-      offline: globalOptions.offline,
-      options: program.opts(),
-      operands: [],
-    });
-    reportResult(result, globalOptions, definition.name);
+    await executeDefinition(program, definition);
   });
 }
