@@ -36,7 +36,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 7ceb02372
 - [x] GREEN 240a0b432
-- [ ] REFACTOR
+- [x] REFACTOR skip: durable profile writer is already isolated behind one function
 
 ### Scenario: Plugin SessionStart clears restart-required state
 
