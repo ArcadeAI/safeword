@@ -152,7 +152,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Handled transaction failure restores the pre-migration state
 
-- [ ] RED
+- [x] RED skip: handled-failure rollback shipped with the transaction rollback boundary
 - [ ] GREEN
 - [ ] REFACTOR
 
