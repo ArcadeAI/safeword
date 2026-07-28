@@ -238,7 +238,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Finalized project setup state overrides disabled-profile detail
 
-- [ ] RED
+- [x] RED 16bafbcfe
 - [ ] GREEN
 - [ ] REFACTOR
 
