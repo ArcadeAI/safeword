@@ -256,7 +256,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 28a2effe9
 - [x] GREEN 06cf98243
-- [ ] REFACTOR
+- [x] REFACTOR skip: the hook-script map now derives the cleanup inventory without a duplicate allowlist
 
 ## Rule: codex-continuity.SWM1.R2 — A finalized repository retains a small plugin-setup bootstrap without duplicated workflow policy
 
