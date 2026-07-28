@@ -5,6 +5,7 @@ import nodePath from 'node:path';
 import type * as CodexMigration from '../commands/migrate-codex-plugin.js';
 import type { RetroCliOptions, RetroCommandExecution } from '../commands/retro.js';
 import type { CommandHandler, CommandInvocation } from './handler.js';
+import { effectsFromMutationJournal, type JournalMutation } from './mutation-effects.js';
 import { type CliPlan, createPlan, toWirePlan } from './plan.js';
 import { type CliResult, createResult } from './result.js';
 
@@ -410,32 +411,6 @@ function numericOption(
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-interface JournalMutation {
-  readonly surface: 'file' | 'configuration' | 'network';
-  readonly kind: string;
-  readonly target: string;
-  readonly operation: string;
-}
-
-function journalEffects(mutations: readonly JournalMutation[]): Partial<CliResult['effects']> {
-  const toEffect = ({ kind, target, operation }: JournalMutation) => ({
-    kind,
-    target,
-    operation,
-  });
-  return {
-    files: mutations
-      .filter(mutation => mutation.surface === 'file')
-      .map(mutation => toEffect(mutation)),
-    configuration: mutations
-      .filter(mutation => mutation.surface === 'configuration')
-      .map(mutation => toEffect(mutation)),
-    network: mutations
-      .filter(mutation => mutation.surface === 'network')
-      .map(mutation => toEffect(mutation)),
-  };
-}
-
 function trackerConnectReplayCommand(provider: string, invocation: CommandInvocation): string {
   const options = [
     ['--repo', stringOption(invocation.options, 'repo')],
@@ -470,7 +445,7 @@ function trackerConnectResult(
   return createResult({
     state,
     changed,
-    effects: journalEffects(result.mutations),
+    effects: effectsFromMutationJournal(result.mutations),
     errors: succeeded
       ? []
       : [

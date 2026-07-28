@@ -17,12 +17,9 @@
 import nodePath from 'node:path';
 import process from 'node:process';
 
+import { effectsFromMutationJournal } from '../cli-protocol/mutation-effects.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
-import {
-  createTicketRouted,
-  RoutedTicketCreationError,
-  type TicketCreationMutation,
-} from '../ticket-create/index.js';
+import { createTicketRouted, RoutedTicketCreationError } from '../ticket-create/index.js';
 import { buildWriterRegistry } from '../tracker-sync/clients.js';
 import { readTicketBridgeConfig } from '../tracker-sync/config.js';
 import { linkChildToEpic, validateEpicParent } from '../utils/epic-linker.js';
@@ -32,22 +29,6 @@ import { TicketIdCollisionError, type TicketType } from '../utils/ticket-writer.
 
 const VALID_TYPES: ReadonlySet<TicketType> = new Set(['patch', 'task', 'feature', 'epic']);
 type ParsedTicketType = TicketType | undefined | 'invalid';
-
-function mutationEffects(mutations: readonly TicketCreationMutation[]) {
-  const toEffect = ({ kind, target, operation }: TicketCreationMutation) => ({
-    kind,
-    target,
-    operation,
-  });
-  return {
-    files: mutations
-      .filter(mutation => mutation.surface === 'file')
-      .map(mutation => toEffect(mutation)),
-    network: mutations
-      .filter(mutation => mutation.surface === 'network')
-      .map(mutation => toEffect(mutation)),
-  };
-}
 
 export interface TicketNewOptions {
   type?: string;
@@ -128,7 +109,7 @@ export async function createTicketResult(
               },
             ],
           }
-        : mutationEffects(result.mutations);
+        : effectsFromMutationJournal(result.mutations);
     return createResult({
       state: 'changed',
       effects,
@@ -147,7 +128,7 @@ export async function createTicketResult(
     return createResult({
       state: 'failed',
       changed,
-      effects: mutationEffects(partialMutations),
+      effects: effectsFromMutationJournal(partialMutations),
       errors: [
         {
           code:
