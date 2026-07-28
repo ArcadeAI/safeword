@@ -1,27 +1,161 @@
 export type ResultState = 'healthy' | 'changed' | 'action_required' | 'failed';
 
+export interface Finding {
+  readonly code: string;
+  readonly message: string;
+  readonly severity: 'info' | 'warning' | 'error';
+  readonly detail?: string;
+  readonly metadata?: Readonly<Record<string, unknown>>;
+}
+
+export interface ResultError {
+  readonly code: string;
+  readonly message: string;
+  readonly retryable: boolean;
+  readonly detail?: string;
+}
+
+export interface NextAction {
+  readonly command: string;
+  readonly mutates: boolean;
+  readonly requiresHuman: boolean;
+}
+
+export interface RecoveryAction {
+  readonly command: string;
+  readonly description: string;
+  readonly requiresHuman: boolean;
+}
+
+export interface Effect {
+  readonly kind: string;
+  readonly target: string;
+  readonly operation?: string;
+}
+
+export interface Effects {
+  readonly files: readonly Effect[];
+  readonly packages: readonly Effect[];
+  readonly configuration: readonly Effect[];
+  readonly network: readonly Effect[];
+  readonly destructive: readonly Effect[];
+}
+
+export interface CliResult {
+  readonly schemaVersion: 1;
+  readonly ok: boolean;
+  readonly state: ResultState;
+  readonly changed: boolean;
+  readonly findings: readonly Finding[];
+  readonly effects: Effects;
+  readonly errors: readonly ResultError[];
+  readonly recovery: readonly RecoveryAction[];
+  readonly nextActions: readonly NextAction[];
+}
+
 interface ResultInput {
-  state: ResultState;
-  findings?: readonly unknown[];
-  errors?: readonly unknown[];
-  nextActions?: readonly unknown[];
+  readonly state: ResultState;
+  readonly changed?: boolean;
+  readonly findings?: readonly Finding[];
+  readonly effects?: Partial<Effects>;
+  readonly errors?: readonly ResultError[];
+  readonly recovery?: readonly RecoveryAction[];
+  readonly nextActions?: readonly NextAction[];
 }
 
-export function createResult(_input: ResultInput): never {
-  throw new Error('Not implemented');
+const EMPTY_EFFECTS: Effects = {
+  files: [],
+  packages: [],
+  configuration: [],
+  network: [],
+  destructive: [],
+};
+
+export function createResult(input: ResultInput): CliResult {
+  return {
+    schemaVersion: 1,
+    ok: input.state !== 'failed',
+    state: input.state,
+    changed: input.changed ?? input.state === 'changed',
+    findings: input.findings ?? [],
+    effects: { ...EMPTY_EFFECTS, ...input.effects },
+    errors: input.errors ?? [],
+    recovery: input.recovery ?? [],
+    nextActions: input.nextActions ?? [],
+  };
 }
 
-export function exitStatusFor(_result: unknown): never {
-  throw new Error('Not implemented');
+export function exitStatusFor(result: CliResult): 0 | 1 | 2 {
+  if (result.state === 'failed') return 1;
+  if (result.state === 'action_required') return 2;
+  return 0;
 }
 
-export function renderJsonResult(_result: unknown): never {
-  throw new Error('Not implemented');
+function toWireResult(result: CliResult): Record<string, unknown> {
+  return {
+    schema_version: result.schemaVersion,
+    ok: result.ok,
+    state: result.state,
+    changed: result.changed,
+    findings: result.findings.map(({ code, message, severity, metadata }) => ({
+      code,
+      message,
+      severity,
+      ...(metadata !== undefined && { metadata }),
+    })),
+    effects: result.effects,
+    errors: result.errors.map(({ code, message, retryable }) => ({
+      code,
+      message,
+      retryable,
+    })),
+    recovery: result.recovery.map(({ command, description, requiresHuman }) => ({
+      command,
+      description,
+      requires_human: requiresHuman,
+    })),
+    next_actions: result.nextActions.map(({ command, mutates, requiresHuman }) => ({
+      command,
+      mutates,
+      requires_human: requiresHuman,
+    })),
+  };
+}
+
+export function renderJsonResult(result: CliResult): string {
+  return JSON.stringify(toWireResult(result));
+}
+
+const VERDICTS: Readonly<Record<ResultState, string>> = {
+  healthy: 'Healthy',
+  changed: 'Complete',
+  action_required: 'Needs attention',
+  failed: 'Failed',
+};
+
+function uniqueMessages(result: CliResult): string[] {
+  const messages = result.findings.map(finding => finding.message);
+  messages.push(...result.errors.map(error => error.message));
+  return [...new Set(messages)];
 }
 
 export function renderHumanResult(
-  _result: unknown,
-  _options?: { quiet?: boolean; verbose?: boolean },
-): never {
-  throw new Error('Not implemented');
+  result: CliResult,
+  options: { quiet?: boolean; verbose?: boolean } = {},
+): string {
+  const lines = [VERDICTS[result.state], `Changed: ${result.changed ? 'yes' : 'no'}`];
+  const suppressProse = options.quiet === true && result.state === 'healthy';
+  if (!suppressProse) lines.push(...uniqueMessages(result));
+
+  if (options.verbose === true) {
+    const details = [
+      ...result.findings.map(finding => finding.detail),
+      ...result.errors.map(error => error.detail),
+    ].filter((detail): detail is string => detail !== undefined);
+    lines.push(...details);
+  }
+
+  const primaryAction = result.nextActions[0];
+  if (primaryAction !== undefined) lines.push(`Next: ${primaryAction.command}`);
+  return lines.join('\n');
 }
