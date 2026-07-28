@@ -53,7 +53,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Interrupted proof write cannot become current
 
 - [x] RED a88288036
-- [ ] GREEN
+- [x] GREEN 84bcc5060
 - [ ] REFACTOR
 
 ### Scenario: Changed plugin identity invalidates proof
