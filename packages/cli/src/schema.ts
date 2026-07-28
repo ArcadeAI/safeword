@@ -83,7 +83,9 @@ export interface CodexMigrationDefinition {
   legacyFiles: string[];
   legacyDirs: string[];
   hookEvents: string[];
+  hookEventNames: Record<string, string>;
   hookScripts: string[];
+  hookScriptEvents: Record<string, string>;
   hookScriptPrefix: string;
   packageRunner: 'npx';
   projectMarker: string;
@@ -230,16 +232,26 @@ const CODEX_LEGACY_HOOK_EVENTS = [
   'stop',
 ];
 
-const CODEX_LEGACY_HOOK_SCRIPTS = [
-  'session-codex-start.ts',
-  'session-safeword-context.ts',
-  'prompt-timestamp.ts',
-  'prompt-retro-nudge.ts',
-  'codex/pre-tool-quality.ts',
-  'codex/stop.ts',
-  'codex/post-tool-skill-nudge.ts',
-  'codex/post-tool-quality.ts',
-];
+const CODEX_LEGACY_HOOK_EVENT_NAMES: Record<string, string> = {
+  'session-start': 'SessionStart',
+  'user-prompt-submit': 'UserPromptSubmit',
+  'pre-tool-use': 'PreToolUse',
+  'post-tool-use': 'PostToolUse',
+  stop: 'Stop',
+};
+
+const CODEX_LEGACY_HOOK_SCRIPT_EVENTS: Record<string, string> = {
+  'session-codex-start.ts': 'session-start',
+  'session-safeword-context.ts': 'session-start',
+  'prompt-timestamp.ts': 'user-prompt-submit',
+  'prompt-retro-nudge.ts': 'user-prompt-submit',
+  'codex/pre-tool-quality.ts': 'pre-tool-use',
+  'codex/stop.ts': 'stop',
+  'codex/post-tool-skill-nudge.ts': 'post-tool-use',
+  'codex/post-tool-quality.ts': 'post-tool-use',
+};
+
+const CODEX_LEGACY_HOOK_SCRIPTS = Object.keys(CODEX_LEGACY_HOOK_SCRIPT_EVENTS);
 
 const CURSOR_RULE_WRAPPER_OWNED_FILES: Record<string, FileDefinition> = Object.fromEntries(
   CURSOR_RULE_WRAPPERS.map(wrapper => [
@@ -477,7 +489,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     legacyFiles: [...CODEX_SKILL_DEPRECATED_FILES, ...CODEX_LEGACY_AGENT_FILES],
     legacyDirs: CODEX_SKILL_DEPRECATED_DIRS,
     hookEvents: CODEX_LEGACY_HOOK_EVENTS,
+    hookEventNames: CODEX_LEGACY_HOOK_EVENT_NAMES,
     hookScripts: CODEX_LEGACY_HOOK_SCRIPTS,
+    hookScriptEvents: CODEX_LEGACY_HOOK_SCRIPT_EVENTS,
     hookScriptPrefix: 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/',
     packageRunner: 'npx',
     projectMarker: '.safeword/SAFEWORD.md',

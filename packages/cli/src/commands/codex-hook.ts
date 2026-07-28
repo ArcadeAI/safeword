@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
 
+import { legacyCodexEventIsViable } from '../codex-plugin/legacy-authority.js';
 import { recordCodexHookProof } from '../codex-plugin/profile-proof.js';
 import { generateOwnedPathsModule } from '../owned-paths.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
@@ -656,8 +657,9 @@ export async function codexHook(
     process.stderr.write(`Safe Word ignored unknown Codex hook event: ${event}\n`);
     return;
   }
-  if (normalized === 'session-start' && options.pluginHook === true) {
-    recordCodexHookProof();
+  if (options.pluginHook === true) {
+    if (normalized === 'session-start') recordCodexHookProof();
+    if (legacyCodexEventIsViable(resolveProjectDirectory(), normalized)) return;
   }
   await CODEX_HOOK_RUNNERS[normalized]();
 }
