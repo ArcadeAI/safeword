@@ -270,7 +270,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED d9911344e
 - [x] GREEN e7c7da2d3
-- [ ] REFACTOR
+- [x] REFACTOR skip: setup guidance is state-specific while Next remains one exact command
 
 ### Scenario: Generic setup does not install the migration bootstrap
 
