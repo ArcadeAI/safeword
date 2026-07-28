@@ -84,7 +84,7 @@ const MIGRATION_STATE_RULES: readonly {
   { state: 'recovery_required', matches: facts => facts.recoveryRequired },
   {
     state: 'plugin_setup_required',
-    matches: facts => facts.finalized && !facts.plugin.installed,
+    matches: facts => facts.finalized && facts.plugin.enabled !== true,
   },
   {
     state: 'plugin_disabled',
