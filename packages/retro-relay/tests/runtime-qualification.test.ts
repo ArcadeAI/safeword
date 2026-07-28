@@ -1,13 +1,5 @@
 import { spawn, spawnSync } from 'node:child_process';
-import {
-  chmodSync,
-  existsSync,
-  linkSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -155,7 +147,7 @@ describe('retro relay runtime qualification', () => {
     reopened.close();
   });
 
-  it('excludes another process owner and recovers a stale lock', () => {
+  it('excludes another process owner and reuses the released lock database', () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-lock-'));
     temporaryDirectories.push(directory);
     const lockPath = path.join(directory, 'relay.lock');
@@ -165,40 +157,55 @@ describe('retro relay runtime qualification', () => {
     expect(() => ProcessLock.acquire(`${directory}/./relay.lock`)).toThrow('already locked');
     lock.release();
 
-    writeFileSync(lockPath, '2147483647', 'utf8');
     const recovered = ProcessLock.acquire(lockPath);
     recovered.release();
   });
 
-  it('recovers a lock left by a prior container that reused this process pid', () => {
-    const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-lock-reused-pid-'));
+  it('recovers immediately after a prior process exits without releasing', () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-lock-crashed-owner-'));
     temporaryDirectories.push(directory);
     const lockPath = path.join(directory, 'relay.lock');
+    const packageRoot = fileURLToPath(new URL('..', import.meta.url));
+    const crashedOwner = spawnSync(
+      process.execPath,
+      [
+        '--input-type=module',
+        '--eval',
+        "import { ProcessLock } from './dist/index.js'; ProcessLock.acquire(process.env.LOCK_PATH);",
+      ],
+      {
+        cwd: packageRoot,
+        env: { ...process.env, LOCK_PATH: lockPath },
+        encoding: 'utf8',
+      },
+    );
 
-    writeFileSync(lockPath, String(process.pid), 'utf8');
+    expect(crashedOwner.status, crashedOwner.stderr).toBe(0);
     const recovered = ProcessLock.acquire(lockPath);
     expect(() => ProcessLock.acquire(lockPath)).toThrow('already locked');
     recovered.release();
   });
 
-  it('recovers an orphaned stale-lock reclaim election', () => {
+  it('ignores an obsolete reclaim artifact beside the lock database', () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-lock-orphan-'));
     temporaryDirectories.push(directory);
     const lockPath = path.join(directory, 'relay.lock');
 
-    writeFileSync(lockPath, '2147483647', 'utf8');
-    linkSync(lockPath, `${lockPath}.reclaim`);
+    const initial = ProcessLock.acquire(lockPath);
+    initial.release();
+    writeFileSync(`${lockPath}.reclaim`, 'obsolete', 'utf8');
 
     const recovered = ProcessLock.acquire(lockPath);
     expect(() => ProcessLock.acquire(lockPath)).toThrow('already locked');
     recovered.release();
   });
 
-  it('allows only one process to reclaim the same stale lock', async () => {
+  it('allows only one process to acquire the released lock database', async () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-lock-race-'));
     temporaryDirectories.push(directory);
     const lockPath = path.join(directory, 'relay.lock');
-    writeFileSync(lockPath, '2147483647', 'utf8');
+    const initial = ProcessLock.acquire(lockPath);
+    initial.release();
     const packageRoot = fileURLToPath(new URL('..', import.meta.url));
     const startAt = Date.now() + 500;
     const contender = `

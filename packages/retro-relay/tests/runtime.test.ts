@@ -157,7 +157,7 @@ describe('production runtime configuration', () => {
     expect(existsSync(dataDirectory)).toBe(false);
   });
 
-  it('binds the configured port, reports its replica, and releases its lock on shutdown', async () => {
+  it('binds the configured port, reports its replica, and releases its OS lock on shutdown', async () => {
     const dataDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-runtime-'));
     runtimeDirectories.push(dataDirectory);
     const environment = validEnvironment(dataDirectory);
@@ -177,7 +177,7 @@ describe('production runtime configuration', () => {
     });
 
     await runtime.close();
-    expect(existsSync(config.lockPath)).toBe(false);
+    expect(existsSync(config.lockPath)).toBe(true);
     const reopened = await startRelayRuntime(config, () => {});
     const reopenedResponse = await fetch(`${reopened.url}/health`);
     const reopenedHealth = (await reopenedResponse.json()) as Record<string, unknown>;

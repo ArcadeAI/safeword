@@ -1,189 +1,53 @@
-import {
-  closeSync,
-  fstatSync,
-  linkSync,
-  openSync,
-  readFileSync,
-  statSync,
-  unlinkSync,
-  writeFileSync,
-} from 'node:fs';
 import path from 'node:path';
-import process from 'node:process';
+
+import Database from './sqlite.js';
 
 const activePaths = new Set<string>();
 
-function unlinkIfPresent(filePath: string): void {
-  try {
-    // eslint-disable-next-line security/detect-non-literal-fs-filename -- The caller supplies an explicit lock or reclaim path.
-    unlinkSync(filePath);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-  }
-}
-
-function isAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (error) {
-    return (error as NodeJS.ErrnoException).code !== 'ESRCH';
-  }
-}
-
-function locked(cause: unknown): Error {
+function locked(cause?: unknown): Error {
   return new Error('retro relay database is already locked', { cause });
 }
 
 export class ProcessLock {
   static acquire(lockPath: string): ProcessLock {
     const normalizedPath = path.resolve(lockPath);
-    if (activePaths.has(normalizedPath)) {
-      throw new Error('retro relay database is already locked');
-    }
+    if (activePaths.has(normalizedPath)) throw locked();
+
+    const database = new Database(normalizedPath, { timeout: 0 });
     try {
-      return ProcessLock.#create(normalizedPath);
+      database.exec('BEGIN EXCLUSIVE;');
+      database.exec(
+        'CREATE TABLE IF NOT EXISTS process_lock (singleton INTEGER PRIMARY KEY CHECK (singleton = 1));',
+      );
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
-      return ProcessLock.#reclaim(normalizedPath, error as Error);
-    }
-  }
-
-  static #reclaim(lockPath: string, originalError: Error): ProcessLock {
-    const reclaimPath = `${lockPath}.reclaim`;
-    const acquiredDuringElection = ProcessLock.#electReclaimer(lockPath, reclaimPath);
-    if (acquiredDuringElection !== undefined) return acquiredDuringElection;
-    try {
-      // eslint-disable-next-line security/detect-non-literal-fs-filename -- The reclaim link is owned by this contender.
-      const existing = Number(readFileSync(reclaimPath, 'utf8'));
-      if (
-        !Number.isSafeInteger(existing) ||
-        existing <= 0 ||
-        (existing !== process.pid && isAlive(existing))
-      ) {
-        throw locked(originalError);
-      }
-      // eslint-disable-next-line security/detect-non-literal-fs-filename -- Both stats verify the elected inode before removal.
-      const currentLock = statSync(lockPath);
-      // eslint-disable-next-line security/detect-non-literal-fs-filename -- Both stats verify the elected inode before removal.
-      const electedLock = statSync(reclaimPath);
-      if (currentLock.dev !== electedLock.dev || currentLock.ino !== electedLock.ino) {
-        throw locked(originalError);
-      }
-      // eslint-disable-next-line security/detect-non-literal-fs-filename -- Only the contender elected over this exact stale inode removes it.
-      unlinkSync(lockPath);
-      try {
-        return ProcessLock.#create(lockPath);
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
-        throw locked(error);
-      }
-    } finally {
-      unlinkIfPresent(reclaimPath);
-    }
-  }
-
-  static #electReclaimer(lockPath: string, reclaimPath: string): ProcessLock | undefined {
-    try {
-      // A fixed hard-link is an atomic election over the existing lock inode.
-      // Contenders that did not create this link must never unlink the lock path.
-      // eslint-disable-next-line security/detect-non-literal-fs-filename -- Both paths are derived from the explicit deployment lock path.
-      linkSync(lockPath, reclaimPath);
-      return undefined;
-    } catch (error) {
-      return ProcessLock.#recoverElectionFailure(lockPath, reclaimPath, error);
-    }
-  }
-
-  static #recoverElectionFailure(
-    lockPath: string,
-    reclaimPath: string,
-    error: unknown,
-  ): ProcessLock | undefined {
-    const code = (error as NodeJS.ErrnoException).code;
-    if (code === 'EEXIST') {
-      if (!ProcessLock.#discardOrphanedElection(lockPath, reclaimPath)) throw locked(error);
-      try {
-        // eslint-disable-next-line security/detect-non-literal-fs-filename -- Both paths are derived from the explicit deployment lock path.
-        linkSync(lockPath, reclaimPath);
-        return undefined;
-      } catch (retryError) {
-        if ((retryError as NodeJS.ErrnoException).code !== 'ENOENT') throw locked(retryError);
-      }
-    } else if (code !== 'ENOENT') {
+      database.close();
       throw locked(error);
     }
-    try {
-      return ProcessLock.#create(lockPath);
-    } catch (createError) {
-      if ((createError as NodeJS.ErrnoException).code !== 'EEXIST') throw createError;
-      throw locked(createError);
-    }
+
+    activePaths.add(normalizedPath);
+    return new ProcessLock(normalizedPath, database);
   }
 
-  static #discardOrphanedElection(lockPath: string, reclaimPath: string): boolean {
-    try {
-      // eslint-disable-next-line security/detect-non-literal-fs-filename -- The reclaim link is derived from the explicit lock path.
-      const owner = Number(readFileSync(reclaimPath, 'utf8'));
-      if (!Number.isSafeInteger(owner) || owner <= 0 || (owner !== process.pid && isAlive(owner))) {
-        return false;
-      }
-      // eslint-disable-next-line security/detect-non-literal-fs-filename -- Both stats prove the orphan still references the stale lock inode.
-      const currentLock = statSync(lockPath);
-      // eslint-disable-next-line security/detect-non-literal-fs-filename -- Both stats prove the orphan still references the stale lock inode.
-      const orphanedElection = statSync(reclaimPath);
-      if (currentLock.dev !== orphanedElection.dev || currentLock.ino !== orphanedElection.ino) {
-        return false;
-      }
-      unlinkIfPresent(reclaimPath);
-      return true;
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return true;
-      throw error;
-    }
-  }
-
-  static #create(lockPath: string): ProcessLock {
-    // eslint-disable-next-line security/detect-non-literal-fs-filename -- The caller supplies the explicit deployment lock path.
-    const descriptor = openSync(lockPath, 'wx', 0o600);
-    // eslint-disable-next-line security/detect-non-literal-fs-filename -- The descriptor is the exclusive lock just created.
-    writeFileSync(descriptor, String(process.pid), 'utf8');
-    const identity = fstatSync(descriptor);
-    activePaths.add(lockPath);
-    return new ProcessLock(lockPath, descriptor, identity.dev, identity.ino);
-  }
-
-  readonly #descriptor: number;
-  readonly #device: number;
-  readonly #inode: number;
+  readonly #database: Database;
   readonly #lockPath: string;
   #released = false;
 
-  private constructor(lockPath: string, descriptor: number, device: number, inode: number) {
+  private constructor(lockPath: string, database: Database) {
     this.#lockPath = lockPath;
-    this.#descriptor = descriptor;
-    this.#device = device;
-    this.#inode = inode;
+    this.#database = database;
   }
 
   release(): void {
     if (this.#released) return;
     this.#released = true;
     try {
-      try {
-        // eslint-disable-next-line security/detect-non-literal-fs-filename -- Ownership is checked against the open descriptor identity before removal.
-        const current = statSync(this.#lockPath);
-        if (current.dev === this.#device && current.ino === this.#inode) {
-          // eslint-disable-next-line security/detect-non-literal-fs-filename -- This instance owns the matching lock inode.
-          unlinkSync(this.#lockPath);
-        }
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-      } finally {
-        closeSync(this.#descriptor);
-      }
+      this.#database.exec('ROLLBACK;');
     } finally {
-      activePaths.delete(this.#lockPath);
+      try {
+        this.#database.close();
+      } finally {
+        activePaths.delete(this.#lockPath);
+      }
     }
   }
 }
