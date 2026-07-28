@@ -98,6 +98,11 @@ jobs:
         env:
           TEST_POETRY: '1'
 
+      - name: Non-git physical install proof
+        # Keeps the expensive install path out of the default suite while
+        # preserving automated coverage for setup outside a Git repository.
+        run: bun run --cwd packages/cli test:slow:install-proof
+
       - name: Acceptance lane (cucumber)
         # Guards the Gherkin acceptance lane against features merged with no step
         # definitions and no @wip tag — a persistently-red lane masks real

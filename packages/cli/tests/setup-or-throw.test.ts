@@ -19,6 +19,7 @@ import {
   createTypeScriptPackageJson,
   initGitRepo,
   removeTemporaryDirectory,
+  runCliWithoutInstall,
   setupOrThrow,
   TIMEOUT_SETUP,
   wasKilledByTimeout,
@@ -61,6 +62,46 @@ function scriptedRunner(results: FakeResult[]): {
 const SUCCESS: FakeResult = { exitCode: 0, timedOut: false, stdout: 'setup complete' };
 const TIMEOUT: FakeResult = { exitCode: 1, timedOut: true, stderr: 'killed after timeout' };
 const REAL_FAILURE: FakeResult = { exitCode: 2, timedOut: false, stderr: 'dist/cli.js not found' };
+
+describe('runCliWithoutInstall', () => {
+  it('disables installation while preserving unrelated caller environment', async () => {
+    const calls: {
+      args: string[];
+      options?: { cwd?: string; env?: Record<string, string>; timeout?: number };
+    }[] = [];
+    const runner = ((args, options) => {
+      calls.push({ args, options });
+      return Promise.resolve({ stdout: '', stderr: '', exitCode: 0, timedOut: false });
+    }) as Parameters<typeof runCliWithoutInstall>[2];
+
+    await runCliWithoutInstall(
+      ['setup', '--yes'],
+      {
+        cwd: '/fake/project',
+        env: {
+          SAFEWORD_SKIP_INSTALL: '',
+          SAFEWORD_SKIP_SKILLS: '1',
+        },
+        timeout: 42,
+      },
+      runner,
+    );
+
+    expect(calls).toEqual([
+      {
+        args: ['setup', '--yes'],
+        options: {
+          cwd: '/fake/project',
+          env: {
+            SAFEWORD_SKIP_INSTALL: '1',
+            SAFEWORD_SKIP_SKILLS: '1',
+          },
+          timeout: 42,
+        },
+      },
+    ]);
+  });
+});
 
 describe('setupOrThrow retry policy', () => {
   afterEach(() => {

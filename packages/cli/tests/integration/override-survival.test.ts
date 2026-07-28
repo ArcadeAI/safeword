@@ -5,16 +5,21 @@
  * customer-owned config file is (a) honored by the LLM hook lint run and
  * (b) not mutated by `safeword upgrade`.
  *
- * See `.safeword-project/tickets/137-customer-override-survival/test-definitions.md`
+ * Upgrade-time dependency installation is covered by `add-language.test.ts`.
+ * These fixtures reuse the repository toolchain so this suite stays focused on
+ * upgrade reconciliation and generated-hook behavior.
+ *
+ * See `.project/tickets/completed/137-customer-override-survival/test-definitions.md`
  * for the full Gherkin spec.
  */
 
-import { realpathSync } from 'node:fs';
+import { existsSync, realpathSync, symlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  assertLintHookSucceeded,
   createPythonProject,
   createTemporaryDirectory,
   createTypeScriptPackageJson,
@@ -22,12 +27,40 @@ import {
   isRuffInstalled,
   readTestFile,
   removeTemporaryDirectory,
-  runCli,
+  repoRoot,
+  runFixtureUpgradeWithoutInstall,
   runLintHook,
   setupOrThrow,
   TIMEOUT_BUN_INSTALL,
   writeTestFile,
 } from '../helpers';
+
+function linkRepoToolchain(projectDirectory: string): void {
+  const repoNodeModules = nodePath.join(repoRoot, 'node_modules');
+  if (!existsSync(repoNodeModules)) {
+    throw new Error(`Repository toolchain is missing: ${repoNodeModules}`);
+  }
+  for (const executable of ['eslint', 'prettier']) {
+    const executablePath = nodePath.join(repoNodeModules, '.bin', executable);
+    if (!existsSync(executablePath)) {
+      throw new Error(`Repository ${executable} executable is missing: ${executablePath}`);
+    }
+  }
+
+  const fixtureNodeModules = nodePath.join(projectDirectory, 'node_modules');
+  if (existsSync(fixtureNodeModules)) return;
+  symlinkSync(
+    repoNodeModules,
+    fixtureNodeModules,
+    process.platform === 'win32' ? 'junction' : 'dir',
+  );
+}
+
+async function setupTypeScriptFixture(projectDirectory: string): Promise<void> {
+  initGitRepo(projectDirectory);
+  await setupOrThrow(projectDirectory);
+  linkRepoToolchain(projectDirectory);
+}
 
 function applyOverride(existingConfig: string, overrideBlock: string): string {
   // Insert override just before the closing bracket so it wins over safeword's presets.
@@ -45,15 +78,17 @@ async function runUpgradeAndAssertFileUnchanged(
   relativePath: string,
 ): Promise<void> {
   const before = readTestFile(projectDirectory, relativePath);
-  await runCli(['upgrade'], { cwd: projectDirectory });
+  await runFixtureUpgradeWithoutInstall(projectDirectory);
   const after = readTestFile(projectDirectory, relativePath);
   expect(after).toBe(before);
 }
 
-function runHookAndGetOutput(projectDirectory: string, violationRelativePath: string): string {
+function runHookSuccessfullyAndGetOutput(
+  projectDirectory: string,
+  violationRelativePath: string,
+): string {
   const violationPath = nodePath.join(projectDirectory, violationRelativePath);
-  const hookResult = runLintHook(projectDirectory, violationPath);
-  return `${hookResult.stdout ?? ''}${hookResult.stderr ?? ''}`;
+  return assertLintHookSucceeded(runLintHook(projectDirectory, violationPath));
 }
 
 describe('Customer override survival (#137)', () => {
@@ -66,8 +101,7 @@ describe('Customer override survival (#137)', () => {
       // that make ESLint ignore absolute-path inputs with "outside of base path" warning.
       projectDirectory = realpathSync(createTemporaryDirectory());
       createTypeScriptPackageJson(projectDirectory);
-      initGitRepo(projectDirectory);
-      await setupOrThrow(projectDirectory);
+      await setupTypeScriptFixture(projectDirectory);
       originalConfig = readTestFile(projectDirectory, 'eslint.config.mjs');
     });
 
@@ -106,7 +140,10 @@ export function loadUserFile(userPath: string): string {
 
         await runUpgradeAndAssertFileUnchanged(projectDirectory, 'eslint.config.mjs');
 
-        const hookOutput = runHookAndGetOutput(projectDirectory, 'src/violation-1-1.ts');
+        const hookOutput = runHookSuccessfullyAndGetOutput(
+          projectDirectory,
+          'src/violation-1-1.ts',
+        );
         expect(hookOutput).not.toContain('security/detect-non-literal-fs-filename');
       },
       TIMEOUT_BUN_INSTALL,
@@ -151,7 +188,10 @@ export function loadUserFile(userPath: string): string {
 
         await runUpgradeAndAssertFileUnchanged(projectDirectory, 'eslint.config.mjs');
 
-        const hookOutput = runHookAndGetOutput(projectDirectory, 'src/violation-1-2.ts');
+        const hookOutput = runHookSuccessfullyAndGetOutput(
+          projectDirectory,
+          'src/violation-1-2.ts',
+        );
         expect(hookOutput).not.toContain('has a complexity of');
       },
       TIMEOUT_BUN_INSTALL,
@@ -183,7 +223,10 @@ export function loadUserFile(userPath: string): string {
 
         await runUpgradeAndAssertFileUnchanged(projectDirectory, 'eslint.config.mjs');
 
-        const hookOutput = runHookAndGetOutput(projectDirectory, 'src/violation-1-3.ts');
+        const hookOutput = runHookSuccessfullyAndGetOutput(
+          projectDirectory,
+          'src/violation-1-3.ts',
+        );
         expect(hookOutput).toContain('no-console');
       },
       TIMEOUT_BUN_INSTALL,
@@ -221,8 +264,7 @@ export default defineConfig([
 ]);
 `,
       );
-      initGitRepo(projectDirectory);
-      await setupOrThrow(projectDirectory);
+      await setupTypeScriptFixture(projectDirectory);
     });
 
     afterAll(() => {
@@ -242,7 +284,10 @@ export const used = 2;
 
         await runUpgradeAndAssertFileUnchanged(projectDirectory, 'eslint.config.mjs');
 
-        const hookOutput = runHookAndGetOutput(projectDirectory, 'src/violation-1-4.ts');
+        const hookOutput = runHookSuccessfullyAndGetOutput(
+          projectDirectory,
+          'src/violation-1-4.ts',
+        );
         expect(hookOutput).not.toContain('no-unused-vars');
       },
       TIMEOUT_BUN_INSTALL,
@@ -290,7 +335,10 @@ ignore = ["E501"]
 
         await runUpgradeAndAssertFileUnchanged(projectDirectory, 'ruff.toml');
 
-        const hookOutput = runHookAndGetOutput(projectDirectory, 'src/violation_2_1.py');
+        const hookOutput = runHookSuccessfullyAndGetOutput(
+          projectDirectory,
+          'src/violation_2_1.py',
+        );
         expect(hookOutput).not.toContain('E501');
       },
       TIMEOUT_BUN_INSTALL,
@@ -315,7 +363,10 @@ ignore = ["E501"]
 
         await runUpgradeAndAssertFileUnchanged(projectDirectory, 'ruff.toml');
 
-        const hookOutput = runHookAndGetOutput(projectDirectory, 'tests/violation_2_2.py');
+        const hookOutput = runHookSuccessfullyAndGetOutput(
+          projectDirectory,
+          'tests/violation_2_2.py',
+        );
         expect(hookOutput).not.toContain('S101');
       },
       TIMEOUT_BUN_INSTALL,
@@ -338,7 +389,10 @@ extend-select = ["D"]
 
         await runUpgradeAndAssertFileUnchanged(projectDirectory, 'ruff.toml');
 
-        const hookOutput = runHookAndGetOutput(projectDirectory, 'src/violation_2_3.py');
+        const hookOutput = runHookSuccessfullyAndGetOutput(
+          projectDirectory,
+          'src/violation_2_3.py',
+        );
         expect(hookOutput).toContain('D103');
       },
       TIMEOUT_BUN_INSTALL,
@@ -417,7 +471,7 @@ extend-select = ["D"]
 
           await runUpgradeAndAssertFileUnchanged(projectDirectory, 'ruff.toml');
 
-          const hookOutput = runHookAndGetOutput(projectDirectory, violationPath);
+          const hookOutput = runHookSuccessfullyAndGetOutput(projectDirectory, violationPath);
           if (expectAbsent !== undefined) expect(hookOutput).not.toContain(expectAbsent);
           if (expectPresent !== undefined) expect(hookOutput).toContain(expectPresent);
         },

@@ -13,7 +13,7 @@ import {
   initGitRepo,
   readTestFile,
   removeTemporaryDirectory,
-  runCli,
+  runCliWithoutInstall,
 } from '../helpers';
 
 describe('Test Suite 7: Git Repository Handling', () => {
@@ -32,7 +32,7 @@ describe('Test Suite 7: Git Repository Handling', () => {
       createTypeScriptPackageJson(temporaryDirectory);
       // No git init
 
-      const result = await runCli(['setup'], {
+      const result = await runCliWithoutInstall(['setup'], {
         cwd: temporaryDirectory,
       });
 
@@ -46,7 +46,7 @@ describe('Test Suite 7: Git Repository Handling', () => {
       createTypeScriptPackageJson(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
-      const result = await runCli(['setup'], {
+      const result = await runCliWithoutInstall(['setup'], {
         cwd: temporaryDirectory,
       });
 
@@ -60,7 +60,7 @@ describe('Test Suite 7: Git Repository Handling', () => {
       createTypeScriptPackageJson(temporaryDirectory);
       // No git init
 
-      const result = await runCli(['setup'], {
+      const result = await runCliWithoutInstall(['setup'], {
         cwd: temporaryDirectory,
       });
 
@@ -75,7 +75,7 @@ describe('Test Suite 7: Git Repository Handling', () => {
       createTypeScriptPackageJson(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
-      await runCli(['setup'], { cwd: temporaryDirectory });
+      await runCliWithoutInstall(['setup'], { cwd: temporaryDirectory });
 
       const packageJson = JSON.parse(readTestFile(temporaryDirectory, 'package.json'));
       expect(packageJson.scripts?.lint).toBeDefined();
@@ -93,7 +93,7 @@ describe('Test Suite 7: Git Repository Handling', () => {
       });
       initGitRepo(temporaryDirectory);
 
-      await runCli(['setup'], { cwd: temporaryDirectory });
+      await runCliWithoutInstall(['setup'], { cwd: temporaryDirectory });
 
       const packageJson = JSON.parse(readTestFile(temporaryDirectory, 'package.json'));
       // Original scripts should be preserved

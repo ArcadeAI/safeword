@@ -12,10 +12,10 @@ green.
 
 Deliberate coverage notes (from the independent scenario review, applied
 2026-07-08): per-kind shape partitions for spec.md / feature source / ledger /
-verify.md are unit-lane only (dimensions.md test-layers note); the post-rebase
-history partition is subsumed by the squash scenario (a strictly harsher
-rewrite); done-gate ledger isolation is carried by the existing regression
-suites.
+verify.md are unit-lane only (dimensions.md test-layers note); done-gate ledger
+isolation is carried by the existing regression suites. The 2026-07-25 quality
+review added explicit rebase coverage and adversarial ticket/path binding
+partitions after real CLI probes found two anchor-substitution gaps.
 
 ## Rule: A forward advance anchors the entered phase to the exited phase's artifact
 
@@ -68,6 +68,12 @@ suites.
 - [x] RED 73b9759
 - [x] GREEN ea8bcf6
 - [x] REFACTOR 5bd56ea
+
+### Scenario: A rebased commit does not disturb a recorded anchor
+
+- [x] RED 2cd0ef5
+- [x] GREEN 356c4ee
+- [x] REFACTOR a611f69
 
 ### Scenario: A shallow clone's anchor check passes with no unreachable-history hedging
 
@@ -160,6 +166,68 @@ suites.
 - [x] RED e90eb07
 - [x] GREEN 73b9759
 - [x] REFACTOR 5bd56ea
+
+## Rule: Ownership and configured lanes are resolved from canonical staged paths
+
+### Scenario: A ticket cannot reuse another ticket's same-kind artifact
+
+- [x] RED 2cd0ef5
+- [x] GREEN 356c4ee
+- [x] REFACTOR a0e95de
+
+### Scenario: A ticket cannot reuse another ticket's feature source
+
+- [x] RED b5ed264
+- [x] GREEN bdcb3cb
+- [x] REFACTOR da20049
+
+### Scenario: A Git index-stage prefix cannot alias a different artifact path
+
+- [x] RED 2cd0ef5
+- [x] GREEN 356c4ee
+- [x] REFACTOR a0e95de
+
+### Scenario: OS-native ticket paths are normalized to the anchor grammar
+
+- [x] RED b5ed264
+- [x] GREEN bdcb3cb
+- [x] REFACTOR da20049
+
+### Scenario: Canonical feature ownership is independent of unstaged worktree state
+
+- [x] RED ae77c9d
+- [x] GREEN 6a179bc
+- [x] REFACTOR da20049
+
+### Scenario: Feature anchors must live in an executable or configured feature lane
+
+- [x] RED 4f1475d
+- [x] GREEN eb7ef1e
+- [x] REFACTOR da20049
+
+### Scenario: Ticket discovery uses the staged project-root configuration
+
+- [x] RED dfec6ce
+- [x] GREEN 27ba49d
+- [x] REFACTOR da20049
+
+### Scenario: Configured project roots normalize dot and separator segments
+
+- [x] RED ccc5783
+- [x] GREEN 4dd7121
+- [x] REFACTOR da20049
+
+### Scenario: Repository-root ticket and feature lanes remain enforceable
+
+- [x] RED 1f9fce8
+- [x] GREEN fcb6d78
+- [x] REFACTOR da20049
+
+### Scenario: A configured project root outside the repository warns instead of failing open
+
+- [x] RED 1f9fce8
+- [x] GREEN fcb6d78
+- [x] REFACTOR da20049
 
 ## Rule: Legacy SHA anchors neither warn at rest nor block new work
 

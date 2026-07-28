@@ -28,9 +28,9 @@ If the preview looks correct, confirm the kill with `--yes`:
 ## What It Does
 
 1. **Auto-detects framework** - Finds port from vite.config.ts, next.config.js, etc. (checks root, `packages/*/`, `apps/*/` for monorepos)
-2. **Kills by port** - Dev server port AND test port (port + 1000)
-3. **Kills test processes** - Playwright, Chromium, Electron (scoped to this project)
-4. **Multi-project safe** - Only kills processes matching this project's directory
+2. **Checks project-owned port processes** - Inspects the dev port and in-range test port (port + 1000), reporting owners it skips when project ownership cannot be verified
+3. **Checks project-owned test processes** - Inspects Playwright, Chromium, and Electron matches whose working directory is inside this project
+4. **Revalidates before signaling** - Only kills processes whose current working directory still belongs to this project
 
 ## Manual Override
 

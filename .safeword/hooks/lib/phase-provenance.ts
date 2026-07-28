@@ -361,6 +361,7 @@ interface AnchorKind {
 }
 
 const basenameOf = (relpath: string): string => relpath.split('/').at(-1) ?? '';
+const dirnameOf = (relpath: string): string => relpath.split('/').slice(0, -1).join('/');
 
 /** A Gherkin source: any .feature path with at least one scenario. */
 const isFeatureSource = (relpath: string): boolean => relpath.endsWith('.feature');
@@ -421,8 +422,8 @@ const ANCHOR_KINDS = {
 
 /**
  * A plausible repo-relative path: non-empty, forward-slashed, not absolute
- * (POSIX or Windows), free of `..` traversal, and free of git pathspec
- * magic/glob characters — a value opening with `(` or `:` would activate
+ * (POSIX or Windows), free of empty, `.` or `..` segments, and free of git
+ * pathspec magic/glob characters — a value opening with `(` or `:` would activate
  * pathspec magic inside a `git show :<path>` read (`:(top)x` exits 0 with
  * commit text, a false "anchored"), and glob characters are never a single
  * artifact's path. Deliberately permissive beyond that — existence and kind
@@ -431,8 +432,12 @@ const ANCHOR_KINDS = {
 function isPlausibleRepoPath(value: string): boolean {
   if (value === '' || value.includes('\\')) return false;
   if (value.startsWith('/') || /^[a-zA-Z]:/.test(value)) return false;
+  // `git show :0:path` addresses stage zero of `path` in the index. Without
+  // this guard, recording `0:path` aliases a different artifact when the
+  // commit-tier reader prepends its own colon.
+  if (/^[0-3]:/.test(value)) return false;
   if (/^[(:!^]/.test(value) || /[*?[\]]/.test(value)) return false;
-  return !value.split('/').includes('..');
+  return !value.split('/').some(segment => segment === '' || segment === '.' || segment === '..');
 }
 
 export type PhaseAnchorVerdict =
@@ -440,15 +445,26 @@ export type PhaseAnchorVerdict =
   | { kind: 'anchored' }
   | { kind: 'unanchored'; phase: string; reason: string };
 
+/** Canonical artifact ownership for the ticket being checked. */
+export interface PhaseAnchorScope {
+  /** Repo-relative ticket folder, using Git's forward-slashed path grammar. */
+  ticketPath: string;
+  /** Concrete repo-relative feature-lane roots (default + configured). */
+  featureRoots: readonly string[];
+  /** Conventional roots whose direct members may own a features/ lane. */
+  workspaceRoots: readonly string[];
+}
+
 const NOT_APPLICABLE: PhaseAnchorVerdict = { kind: 'not-applicable' };
 
 /**
  * Detect whether a feature ticket's forward phase advance carries a valid
  * artifact-path anchor for the phase it enters (HGYGND). Pure — the tree is
  * read through an injected ArtifactReader, so the predicate touches neither
- * filesystem nor git: the boundary gate supplies a staged-index or HEAD-tree
- * reader, `safeword check` a filesystem reader; a caller with no tree at hand
- * passes none (format-only).
+ * filesystem nor git: every caller supplies canonical ownership scope; the
+ * boundary gate also supplies a staged-index or HEAD-tree reader, `safeword
+ * check` a filesystem reader, and a caller with no tree at hand omits only
+ * the reader (format-only).
  *
  * Returns `anchored` / `unanchored` only for the policed act — a feature→feature
  * FORWARD phase change. Everything else is `not-applicable`: a creation/birth, a
@@ -460,6 +476,7 @@ const NOT_APPLICABLE: PhaseAnchorVerdict = { kind: 'not-applicable' };
 export function detectUnanchoredPhaseTransition(
   priorContent: string | undefined,
   proposedContent: string,
+  scope: PhaseAnchorScope,
   readArtifact?: ArtifactReader,
 ): PhaseAnchorVerdict {
   // A creation is a birth, not a transition.
@@ -486,7 +503,7 @@ export function detectUnanchoredPhaseTransition(
   if (toIndex <= canonicalIndex(effectivePrior)) return NOT_APPLICABLE; // backward or lateral
 
   // Policed: a forward feature advance must carry a valid anchor for the phase entered.
-  return validateAnchor(proposed, proposedPhase, readArtifact);
+  return validateAnchor(proposed, proposedPhase, scope, readArtifact);
 }
 
 /**
@@ -499,6 +516,7 @@ export function detectUnanchoredPhaseTransition(
 function validateAnchor(
   meta: Record<string, string | string[]>,
   phase: string,
+  scope: PhaseAnchorScope,
   readArtifact?: ArtifactReader,
 ): PhaseAnchorVerdict {
   const kind = (ANCHOR_KINDS as Record<string, AnchorKind | undefined>)[phase];
@@ -531,6 +549,30 @@ function validateAnchor(
       `phase_anchors entry for "${phase}" is "${anchor}", not the expected artifact kind — "${phase}" expects ${kind.label}, e.g. ${expectedLine}.`,
     );
   }
+  // Feature source identity follows the executable-lane convention plus
+  // `<ticket slug>.feature`; callers supply roots from the same tree as the
+  // artifact reader. Every other kind must live in this ticket's own folder.
+  const ticketFolder = basenameOf(scope.ticketPath);
+  const slugSeparator = ticketFolder.indexOf('-');
+  const ticketSlug = slugSeparator === -1 ? ticketFolder : ticketFolder.slice(slugSeparator + 1);
+  const anchorSegments = anchor.split('/');
+  const isConfiguredOrDefaultFeature = scope.featureRoots.some(
+    root => root === '' || anchor.startsWith(`${root}/`),
+  );
+  const isWorkspaceFeature =
+    anchorSegments.length >= 4 &&
+    scope.workspaceRoots.includes(anchorSegments[0] ?? '') &&
+    anchorSegments[1] !== '' &&
+    anchorSegments[2] === 'features';
+  const isOwnedArtifact = isFeatureSource(anchor)
+    ? basenameOf(anchor) === `${ticketSlug}.feature` &&
+      (isConfiguredOrDefaultFeature || isWorkspaceFeature)
+    : dirnameOf(anchor) === scope.ticketPath;
+  if (!isOwnedArtifact) {
+    return unanchored(
+      `phase_anchors entry for "${phase}" is "${anchor}", an artifact outside this ticket — record this ticket's own artifact, e.g. ${expectedLine}.`,
+    );
+  }
   if (readArtifact === undefined) return { kind: 'anchored' };
 
   const content = readArtifact(anchor);
@@ -560,6 +602,7 @@ function validateAnchor(
  */
 export function detectUnanchoredPhaseState(
   content: string,
+  scope: PhaseAnchorScope,
   readArtifact?: ArtifactReader,
 ): PhaseAnchorVerdict {
   const meta = frontmatterOf(normalizeNewlines(content));
@@ -574,5 +617,5 @@ export function detectUnanchoredPhaseState(
   const anchor = parseAnchors(meta).get(phase);
   if (anchor !== undefined && isValidSha(anchor)) return NOT_APPLICABLE;
 
-  return validateAnchor(meta, phase, readArtifact);
+  return validateAnchor(meta, phase, scope, readArtifact);
 }

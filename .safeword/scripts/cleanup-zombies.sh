@@ -127,19 +127,51 @@ if [ -z "$PATTERN" ]; then
   PATTERN=$(detect_pattern)
 fi
 
-PROJECT_DIR="$(pwd -P)"
-# macOS exposes its temporary directory through both /var and /private/var.
-# A process may carry either spelling in its argv, so keep the equivalent alias
-# for the project-scoped match without broadening the directory boundary.
-PROJECT_DIR_ALIASES=("$PROJECT_DIR")
-if [[ "$PROJECT_DIR" == /private/var/* ]]; then
-  PROJECT_DIR_ALIASES+=("/var/${PROJECT_DIR#/private/var/}")
+normalize_port() {
+  local normalized=$1
+
+  while [[ "$normalized" == 0* ]] && [ "${#normalized}" -gt 1 ]; do
+    normalized=${normalized#0}
+  done
+
+  if [ "$normalized" = "0" ] \
+    || [ "${#normalized}" -gt 5 ] \
+    || [ "$normalized" -gt 65535 ]; then
+    echo "Error: port must be between 1 and 65535." >&2
+    return 1
+  fi
+
+  printf '%s\n' "$normalized"
+}
+
+TEST_PORT=""
+if [ -n "$PORT" ]; then
+  if ! PORT=$(normalize_port "$PORT"); then
+    exit 2
+  fi
+  if [ "$PORT" -le 64535 ]; then
+    TEST_PORT=$((PORT + 1000))
+  fi
 fi
+
+PROJECT_DIR="$(pwd -P)"
 PROJECT_NAME="$(basename "$PROJECT_DIR")"
+
+for required_tool in lsof pgrep ps; do
+  if ! command -v "$required_tool" > /dev/null 2>&1; then
+    echo "Error: $required_tool is required for safe project-scoped cleanup; no processes were inspected or signaled." >&2
+    echo "Install $required_tool and retry." >&2
+    exit 1
+  fi
+done
 
 echo "Cleanup zombies for: $PROJECT_NAME"
 echo "   Directory: $PROJECT_DIR"
-[ -n "$PORT" ] && echo "   Port: $PORT (+ test port $((PORT + 1000)))"
+if [ -n "$TEST_PORT" ]; then
+  echo "   Port: $PORT (+ test port $TEST_PORT)"
+elif [ -n "$PORT" ]; then
+  echo "   Port: $PORT"
+fi
 [ -n "$PATTERN" ] && echo "   Pattern: $PATTERN"
 $DRY_RUN && echo -e "   ${YELLOW}DRY RUN (default) - no processes will be killed; pass --yes to kill${NC}"
 echo ""
@@ -147,29 +179,148 @@ echo ""
 # Track what we find/kill
 FOUND_COUNT=0
 KILLED_COUNT=0
+FAILED_KILL_COUNT=0
+SKIPPED_PORT_COUNT=0
+DISCOVERY_ERROR_STATUS=0
+
+# A user-supplied pattern can appear in the argv of the cleanup process and any
+# shell or task runner that invoked it. Exclude the whole ancestor chain.
+CLEANUP_ANCESTOR_PIDS=("$$" "$PPID")
+collect_cleanup_ancestors() {
+  local current_pid=$PPID
+  local parent_pid
+
+  while [[ "$current_pid" =~ ^[0-9]+$ ]] && [ "$current_pid" -gt 1 ]; do
+    parent_pid=$(ps -p "$current_pid" -o ppid= 2> /dev/null)
+    parent_pid=${parent_pid//[[:space:]]/}
+    if ! [[ "$parent_pid" =~ ^[0-9]+$ ]] || [ "$parent_pid" -le 1 ] || [ "$parent_pid" = "$current_pid" ]; then
+      break
+    fi
+    CLEANUP_ANCESTOR_PIDS+=("$parent_pid")
+    current_pid=$parent_pid
+  done
+}
+
+process_is_cleanup_ancestor() {
+  local candidate=$1
+  local ancestor_pid
+  for ancestor_pid in "${CLEANUP_ANCESTOR_PIDS[@]}"; do
+    [ "$candidate" = "$ancestor_pid" ] && return 0
+  done
+  return 1
+}
+
+collect_cleanup_ancestors
+
+# Return success only when a path is the project root or one of its descendants.
+path_belongs_to_project() {
+  local candidate=$1
+  case "$candidate" in
+    "$PROJECT_DIR" | "$PROJECT_DIR"/*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# Verify each matching process belongs to this project before presenting it as a
+# cleanup candidate. Deny by default when its working directory does not
+# establish ownership.
+process_belongs_to_project() {
+  local pid=$1
+  local owned_pid
+
+  while IFS= read -r owned_pid; do
+    [ "$owned_pid" = "$pid" ] && return 0
+  done < <(project_owned_pids "$pid")
+  return 1
+}
+
+# Print the project-owned subset of a PID list, one PID per line. Batch the cwd
+# lookup so broad patterns such as "chrome" do not fork lsof once per match.
+project_owned_pids() {
+  [ "$#" -gt 0 ] || return
+
+  local current_pid=""
+  local field
+  local pid_list
+  local IFS=,
+  pid_list="$*"
+
+  while IFS= read -r -d '' field; do
+    # lsof terminates each process field set with a newline even in NUL mode.
+    field=${field#$'\n'}
+    case "$field" in
+      p*) current_pid=${field#p} ;;
+      n*)
+        if [ -n "$current_pid" ] && path_belongs_to_project "${field#n}"; then
+          printf '%s\n' "$current_pid"
+        fi
+        ;;
+    esac
+  done < <(lsof -a -p "$pid_list" -d cwd -Fpn0 2> /dev/null || true)
+}
+
+# Use xargs so kill is PATH-resolved instead of invoking Bash's kill builtin.
+# Besides being portable, this preserves the subprocess seam used by tests.
+signal_process() {
+  local pid=$1
+  printf '%s\n' "$pid" | xargs -n 1 kill -9 2> /dev/null
+}
+
+print_process_details() {
+  local pid
+  local cmd
+  for pid in "$@"; do
+    cmd=$(ps -p "$pid" -o command= 2> /dev/null | head -c 80)
+    [ -n "$cmd" ] || cmd="unknown"
+    echo "  PID $pid: $cmd"
+  done
+}
+
+signal_project_processes() {
+  local cleanup_source=$1
+  shift
+  local pid
+  for pid in "$@"; do
+    if process_belongs_to_project "$pid"; then
+      if signal_process "$pid"; then
+        KILLED_COUNT=$((KILLED_COUNT + 1))
+      else
+        FAILED_KILL_COUNT=$((FAILED_KILL_COUNT + 1))
+      fi
+    elif [ "$cleanup_source" = "port" ]; then
+      SKIPPED_PORT_COUNT=$((SKIPPED_PORT_COUNT + 1))
+    fi
+  done
+}
 
 # Function to find and optionally kill processes by port
 cleanup_port() {
   local port=$1
   local pids
+  local project_pids=()
   pids=$(lsof -ti:"$port" 2> /dev/null || true)
 
-  if [ -n "$pids" ]; then
-    local count
-    count=$(echo "$pids" | wc -l | tr -d ' ')
-    FOUND_COUNT=$((FOUND_COUNT + count))
-
-    echo "Port $port: $count process(es)"
-    for pid in $pids; do
-      local cmd
-      cmd=$(ps -p "$pid" -o command= 2> /dev/null | head -c 80 || echo "unknown")
-      echo "  PID $pid: $cmd"
-    done
-
-    if [ "$DRY_RUN" = false ]; then
-      echo "$pids" | xargs kill -9 2> /dev/null || true
-      KILLED_COUNT=$((KILLED_COUNT + count))
+  for pid in $pids; do
+    if process_belongs_to_project "$pid"; then
+      project_pids+=("$pid")
+    else
+      SKIPPED_PORT_COUNT=$((SKIPPED_PORT_COUNT + 1))
     fi
+  done
+
+  if [ "${#project_pids[@]}" -eq 0 ]; then
+    return
+  fi
+
+  local count
+  count=${#project_pids[@]}
+  FOUND_COUNT=$((FOUND_COUNT + count))
+
+  echo "Port $port: $count process(es)"
+  print_process_details "${project_pids[@]}"
+
+  if [ "$DRY_RUN" = false ]; then
+    signal_project_processes "port" "${project_pids[@]}"
   fi
 }
 
@@ -177,29 +328,62 @@ cleanup_port() {
 cleanup_pattern() {
   local pattern=$1
   local pids
-  local project_dir
-  # Match pattern AND project directory for safety
-  for project_dir in "${PROJECT_DIR_ALIASES[@]}"; do
-    pids=$(pgrep -f "$pattern.*$project_dir" 2> /dev/null || pgrep -f "$project_dir.*$pattern" 2> /dev/null || true)
-    [ -n "$pids" ] && break
+  local pgrep_status
+  local candidate_pids=()
+  local project_pids=()
+
+  # A previous pattern-discovery error makes later sweeps unsafe. Preserve any
+  # work already completed, then report it before exiting nonzero.
+  if [ "$DISCOVERY_ERROR_STATUS" -ne 0 ]; then
+    return 0
+  fi
+
+  if pids=$(pgrep -f -- "$pattern" 2> /dev/null); then
+    :
+  else
+    pgrep_status=$?
+    if [ "$pgrep_status" -eq 1 ]; then
+      pids=""
+    else
+      echo "Error: pgrep failed for pattern '$pattern' (exit $pgrep_status); no matching processes were inspected or signaled for this pattern." >&2
+      DISCOVERY_ERROR_STATUS=$pgrep_status
+      return 0
+    fi
+  fi
+
+  for pid in $pids; do
+    if process_is_cleanup_ancestor "$pid"; then
+      continue
+    fi
+    candidate_pids+=("$pid")
   done
 
-  if [ -n "$pids" ]; then
-    local count
-    count=$(echo "$pids" | wc -l | tr -d ' ')
-    FOUND_COUNT=$((FOUND_COUNT + count))
+  if [ "${#candidate_pids[@]}" -gt 0 ]; then
+    while IFS= read -r pid; do
+      [ -n "$pid" ] && project_pids+=("$pid")
+    done < <(project_owned_pids "${candidate_pids[@]}")
+  fi
 
-    echo "Pattern '$pattern' (project-scoped): $count process(es)"
-    for pid in $pids; do
-      local cmd
-      cmd=$(ps -p "$pid" -o command= 2> /dev/null | head -c 80 || echo "unknown")
-      echo "  PID $pid: $cmd"
-    done
+  if [ "${#project_pids[@]}" -eq 0 ]; then
+    return
+  fi
 
-    if [ "$DRY_RUN" = false ]; then
-      echo "$pids" | xargs kill -9 2> /dev/null || true
-      KILLED_COUNT=$((KILLED_COUNT + count))
-    fi
+  local count
+  count=${#project_pids[@]}
+  FOUND_COUNT=$((FOUND_COUNT + count))
+
+  echo "Pattern '$pattern' (project-scoped): $count process(es)"
+  print_process_details "${project_pids[@]}"
+
+  if [ "$DRY_RUN" = false ]; then
+    signal_project_processes "pattern" "${project_pids[@]}"
+  fi
+}
+
+report_skipped_processes() {
+  if [ "$SKIPPED_PORT_COUNT" -gt 0 ]; then
+    echo -e "${YELLOW}Skipped $SKIPPED_PORT_COUNT process(es) on detected ports; ownership was not verified for this project${NC}"
+    echo "   A detected port may still be in use by another project"
   fi
 }
 
@@ -207,9 +391,10 @@ cleanup_pattern() {
 if [ -n "$PORT" ]; then
   cleanup_port "$PORT"
 
-  # Also kill test port (dev port + 1000, common convention)
-  TEST_PORT=$((PORT + 1000))
-  cleanup_port "$TEST_PORT"
+  # Also kill test port (dev port + 1000) when it remains in range.
+  if [ -n "$TEST_PORT" ]; then
+    cleanup_port "$TEST_PORT"
+  fi
 fi
 
 # 2. Kill Playwright/test processes scoped to this project
@@ -218,9 +403,10 @@ cleanup_pattern "chromium"
 cleanup_pattern "electron"
 
 # 3. Kill framework-specific processes scoped to this project
-if [ -n "$PATTERN" ]; then
-  cleanup_pattern "$PATTERN"
-fi
+case "$PATTERN" in
+  "" | playwright | chromium | electron) ;;
+  *) cleanup_pattern "$PATTERN" ;;
+esac
 
 # 4. Wait for cleanup
 if [ "$DRY_RUN" = false ] && [ "$KILLED_COUNT" -gt 0 ]; then
@@ -230,12 +416,25 @@ fi
 # 5. Summary
 echo ""
 if [ "$FOUND_COUNT" -eq 0 ]; then
-  echo -e "${GREEN}No zombie processes found - already clean!${NC}"
+  if [ "$DISCOVERY_ERROR_STATUS" -ne 0 ]; then
+    echo -e "${YELLOW}Cleanup incomplete: process discovery failed before any project-owned zombies were found${NC}"
+    report_skipped_processes
+  elif [ "$SKIPPED_PORT_COUNT" -gt 0 ]; then
+    echo -e "${YELLOW}No project-owned zombie processes found${NC}"
+    report_skipped_processes
+  else
+    echo -e "${GREEN}No zombie processes found - already clean!${NC}"
+  fi
 elif [ "$DRY_RUN" = true ]; then
   echo -e "${YELLOW}Found $FOUND_COUNT process(es) that would be killed${NC}"
   echo "   Re-run with --yes to kill them"
+  report_skipped_processes
 else
   echo -e "${GREEN}Killed $KILLED_COUNT process(es)${NC}"
+  if [ "$FAILED_KILL_COUNT" -gt 0 ]; then
+    echo -e "${YELLOW}Failed to kill $FAILED_KILL_COUNT process(es)${NC}"
+  fi
+  report_skipped_processes
 
   # Verify port is free
   if [ -n "$PORT" ]; then
@@ -246,4 +445,8 @@ else
       echo "   Port $PORT is now free"
     fi
   fi
+fi
+
+if [ "$DISCOVERY_ERROR_STATUS" -ne 0 ]; then
+  exit "$DISCOVERY_ERROR_STATUS"
 fi

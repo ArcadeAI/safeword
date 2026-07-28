@@ -23,6 +23,7 @@ import {
   AUTO_UPGRADE_LOCK_MESSAGE,
   releaseAutoUpgradeLock,
 } from '../../templates/hooks/lib/auto-upgrade-lock.js';
+import { REPLY_FORMAT_REMINDER } from '../../templates/hooks/lib/quality.js';
 import {
   createTemporaryDirectory,
   createTypeScriptPackageJson,
@@ -167,6 +168,28 @@ function runStopHook(
     stdout: result.stdout ?? '',
     stderr: result.stderr ?? '',
     exitCode: result.status ?? 0,
+  };
+}
+
+/** Run the installed UserPromptSubmit question hook. */
+function runPromptQuestionsHook(
+  targetDirectory: string,
+  input: string,
+  claudeProjectDirectory = targetDirectory,
+): { stdout: string; stderr: string; exitCode: number } {
+  const result = spawnSync('bun', ['.safeword/hooks/prompt-questions.ts'], {
+    input,
+    cwd: targetDirectory,
+    env: { ...process.env, CLAUDE_PROJECT_DIR: claudeProjectDirectory },
+    encoding: 'utf8',
+  });
+  if (result.error) {
+    throw result.error;
+  }
+  return {
+    stdout: result.stdout ?? '',
+    stderr: result.stderr ?? '',
+    exitCode: result.status ?? 1,
   };
 }
 
@@ -438,32 +461,93 @@ describe('E2E: UserPromptSubmit Hooks', () => {
 
   describe('prompt-questions.ts', () => {
     it('outputs question guidance for prompts', () => {
-      const output = execSync(
-        'echo "Help me implement a new feature for user authentication" | bun .safeword/hooks/prompt-questions.ts',
-        {
-          cwd: shared.projectDirectory,
-          env: { ...process.env, CLAUDE_PROJECT_DIR: shared.projectDirectory },
-          encoding: 'utf8',
-        },
+      const result = runPromptQuestionsHook(
+        shared.projectDirectory,
+        'Help me implement a new feature for user authentication',
       );
 
-      expect(output).toContain('Contribute before asking');
-      expect(output.trim().split('\n').at(-1)).toBe('- Avoid bloat.');
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('Contribute before asking');
+      expect(result.stdout.trim().split('\n').at(-1)).toBe('- Avoid bloat.');
+    });
+
+    it('leads with the two anchor bullets in a stable order', () => {
+      const result = runPromptQuestionsHook(shared.projectDirectory, 'Ship the auth fix');
+
+      // Position, not just presence: the anchors are assembled separately from the
+      // situational lines precisely so no later push can displace them.
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout.trim().split('\n').slice(0, 2)).toEqual([
+        '- Contribute before asking. Embed open questions in your contribution.',
+        '- Reply format: lead with the answer. For substantive work updates, use one **CONFIDENT**/**BLOCKED** decision brief and end with **Next:**.',
+      ]);
+    });
+
+    it('proactively reminds Claude how to format substantive work updates', () => {
+      const result = runPromptQuestionsHook(
+        shared.projectDirectory,
+        'Summarize the completed work',
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('- Reply format: lead with the answer.');
+      expect(result.stdout).toContain('substantive work update');
+      expect(result.stdout).toContain('**CONFIDENT**/**BLOCKED**');
+      expect(result.stdout).toContain('**Next:**');
+    });
+
+    it('keeps active implement/TDD prompts free of the decision-brief demand', () => {
+      setupIssuesDirectory(shared.projectDirectory, [
+        {
+          id: 'TDD123',
+          type: 'feature',
+          phase: 'implement',
+          status: 'in_progress',
+          lastModified: VERIFIED_AT,
+        },
+      ]);
+      writeTestFile(
+        shared.projectDirectory,
+        '.project/tickets/TDD123/test-definitions.md',
+        ['## Scenario: implement work', '- [x] RED', '- [ ] GREEN', '- [ ] REFACTOR', ''].join(
+          '\n',
+        ),
+      );
+      writeTestFile(
+        shared.projectDirectory,
+        '.project/quality-state-test-session.json',
+        JSON.stringify({ activeTicket: 'TDD123' }),
+      );
+
+      try {
+        const result = runPromptQuestionsHook(
+          shared.projectDirectory,
+          JSON.stringify({ session_id: 'test-session', prompt: 'Continue implementation' }),
+        );
+
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain('- Reply format: lead with the answer.');
+        expect(result.stdout).not.toContain('**CONFIDENT**/**BLOCKED**');
+        expect(result.stdout).not.toContain(REPLY_FORMAT_REMINDER);
+      } finally {
+        clearIssuesDirectory(shared.projectDirectory);
+        rmSync(`${shared.projectDirectory}/.project/quality-state-test-session.json`, {
+          force: true,
+        });
+      }
     });
 
     it('exits silently for non-safeword project', () => {
       const nonSafewordDirectory = createTemporaryDirectory();
       try {
-        const output = execSync(
-          'echo "Help me implement a new feature for user authentication" | bun .safeword/hooks/prompt-questions.ts',
-          {
-            cwd: shared.projectDirectory,
-            env: { ...process.env, CLAUDE_PROJECT_DIR: nonSafewordDirectory },
-            encoding: 'utf8',
-          },
+        const result = runPromptQuestionsHook(
+          shared.projectDirectory,
+          'Help me implement a new feature for user authentication',
+          nonSafewordDirectory,
         );
 
-        expect(output.trim()).toBe('');
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout.trim()).toBe('');
       } finally {
         removeTemporaryDirectory(nonSafewordDirectory);
       }

@@ -19,6 +19,7 @@
 import nodePath from 'node:path';
 
 import { isDirectory, readFileSafe } from './fs.js';
+import { toRepoDirectory } from './repo-path.js';
 
 /** Logical project-knowledge keys safeword knows how to override via `paths.*`. */
 export type ConfiguredPathKey = 'personas' | 'glossary' | 'surfaces' | 'architecture';
@@ -64,8 +65,10 @@ export const NAMESPACE_ROOT_LEGACY = '.safeword-project';
 function readSafewordConfig(cwd: string): SafewordConfigShape | undefined {
   const configPath = nodePath.join(cwd, ...CONFIG_SUBPATH);
   const content = readFileSafe(configPath);
-  if (content === undefined) return undefined;
+  return content === undefined ? undefined : parseSafewordConfig(content);
+}
 
+function parseSafewordConfig(content: string): SafewordConfigShape | undefined {
   try {
     return JSON.parse(content) as SafewordConfigShape;
   } catch {
@@ -123,6 +126,16 @@ export function readConfiguredPath(
   const raw = parsed?.paths?.[key];
   if (!nonEmptyString(raw)) return undefined;
   return raw;
+}
+
+/** Read a configured path from caller-supplied config content (e.g. a Git tree). */
+export function readConfiguredPathFromContent(
+  content: string | undefined,
+  key: ConfiguredPathKey | ConfiguredDirectoryKey,
+): string | undefined {
+  if (content === undefined) return undefined;
+  const raw = parseSafewordConfig(content)?.paths?.[key];
+  return nonEmptyString(raw) ? raw : undefined;
 }
 
 /**
@@ -237,6 +250,28 @@ export function resolveNamespaceRoot(cwd: string): string {
 /** Absolute tickets directory under the resolved namespace root. */
 export function resolveTicketsDirectory(cwd: string): string {
   return nodePath.join(resolveNamespaceRoot(cwd), 'tickets');
+}
+
+/**
+ * Repo-relative ticket directories for a caller-supplied project-root config.
+ * With no explicit root, preserve namespace precedence: `.project` wins over
+ * legacy `.safeword-project`, and a fresh project defaults to `.project`.
+ */
+export function ticketDirectoriesForConfiguredRoot(
+  cwd: string,
+  configuredProjectRoot: string | undefined,
+  rootExists: (repoRelativeRoot: string) => boolean,
+): string[] {
+  if (configuredProjectRoot === undefined) {
+    let projectRoot = NAMESPACE_ROOT_DEFAULT;
+    if (!rootExists(projectRoot) && rootExists(NAMESPACE_ROOT_LEGACY)) {
+      projectRoot = NAMESPACE_ROOT_LEGACY;
+    }
+    return [nodePath.posix.join(projectRoot, 'tickets')];
+  }
+  const projectRoot = toRepoDirectory(cwd, configuredProjectRoot);
+  if (projectRoot === undefined) return [];
+  return [nodePath.posix.join(projectRoot, 'tickets')];
 }
 
 /** Absolute learnings directory under the resolved namespace root. */

@@ -7,7 +7,7 @@ status: in_progress
 epic: cc-changelog-alignment
 relates_to: 8R54HV
 created: 2026-05-31T21:05:09.536Z
-last_modified: 2026-05-31T21:05:09.536Z
+last_modified: 2026-07-27T19:17:12Z
 ---
 
 # Verify per-turn reminders land under lean system prompt default
@@ -42,7 +42,18 @@ Opus 4.8 sessions get less baseline scaffolding. Project instructions (`CLAUDE.m
 
 - Rewriting SAFEWORD.md methodology; this is a verification spike, not a redesign.
 
+## Related resolution
+
+K8D3M4 resolves this spike's narrow reply-format question with direct evidence
+from issue #1524: a compact `UserPromptSubmit` reminder arrives before Claude
+drafts the response, while active implement/TDD steps receive only a lead-first
+cue so the intentionally quiet Stop workflow stays quiet. This does not answer
+whether lean prompts broadly weaken phase or propose-and-converge steering;
+5ARWDG remains open for that observation.
+
 ## Work Log
 
 - 2026-05-31T21:05:09.536Z Started: Created ticket 5ARWDG
 - 2026-05-31 Noted single-line per-turn anchor in prompt-questions.ts:36 as the main at-risk steering surface.
+- 2026-07-27T19:17:12Z K8D3M4 recorded the narrow reply-format resolution above;
+  retained this ticket for the broader lean-prompt evidence gap.

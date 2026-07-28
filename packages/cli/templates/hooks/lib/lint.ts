@@ -4,7 +4,9 @@
 // Uses explicit --config flags pointing to .safeword/ configs for LLM enforcement.
 // This allows stricter rules for LLMs while humans use their normal project configs.
 //
-// Auto-upgrades safeword if a language pack is missing.
+// Missing language-pack configs never trigger upgrade, staging, or commit side
+// effects from linting. Version upgrades run at session start; pack repair is
+// manual, so fallback linting reports the missing config once per session.
 
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import nodePath from 'node:path';
@@ -67,9 +69,6 @@ const SAFEWORD_PRETTIER = `${projectDir}/.safeword/.prettierrc`;
 // so it never restyles the customer's files into a competing style (ticket
 // V7GGJZ). ESLint still runs (security/complexity) — see lintFile.
 const REPO_OWNS_ALTERNATIVE_FORMATTER = projectOwnsAlternativeFormatter(projectDir);
-
-// Track if we've already tried upgrading (avoid repeated attempts in same process)
-let upgradeAttempted = false;
 
 // Track which tools we've already warned about (once per session)
 const toolWarnings = new Set<string>();
@@ -193,55 +192,6 @@ function detectRustPackage(filePath: string): string | undefined {
   return undefined;
 }
 
-/**
- * Run safeword upgrade and auto-commit .safeword/ changes.
- * Only runs once per process to avoid repeated slow upgrades.
- */
-async function ensurePackInstalled(packName: string, configPath: string): Promise<boolean> {
-  // Already have config
-  if (hasConfig(configPath)) return true;
-
-  // Match the project-wide auto-upgrade policy. The fallback linter below can
-  // still run with the host defaults when a user or CI opts out of repair.
-  if (process.env.SAFEWORD_NO_AUTO_UPGRADE || process.env.CI) return false;
-
-  // Already tried upgrading this session
-  if (upgradeAttempted) return false;
-  upgradeAttempted = true;
-
-  console.error(`${packName} pack missing, running upgrade...`);
-
-  const result = await $`bunx safeword@latest upgrade`.nothrow().quiet();
-  if (result.exitCode !== 0) {
-    console.error('Upgrade failed. Run manually: bunx safeword upgrade');
-    return false;
-  }
-
-  // If upgrade succeeded but config still missing, the language may be in
-  // a location safeword can't auto-detect.
-  if (!hasConfig(configPath)) {
-    console.error(
-      `${packName} config not created after upgrade. ` +
-        `Linting with ${packName} defaults (no strict safeword rules).`,
-    );
-  }
-
-  // Auto-commit .safeword/ (excluding learnings/ and logs/)
-  // Use -- .safeword/ to only commit safeword files, not other staged changes
-  await $`git add .safeword/ ':!.safeword/learnings/' ':!.safeword/logs/'`.nothrow().quiet();
-  const commitResult =
-    await $`git commit -m "chore: safeword auto-upgrade (${packName} pack)" -- .safeword/`
-      .nothrow()
-      .quiet();
-  if (commitResult.exitCode !== 0) {
-    console.error('Could not auto-commit .safeword/ changes (not a git repo or no changes)');
-  } else {
-    console.error('Upgrade complete and committed');
-  }
-
-  return hasConfig(configPath);
-}
-
 /** Run a linter in check-only mode and capture remaining errors after auto-fix.
  *  When a linter crashes (non-zero exit, empty stdout, stderr present), pushes
  *  an infrastructure warning instead of returning lint errors. */
@@ -264,8 +214,25 @@ async function captureRemainingErrors(
 }
 
 /** Build --config args if safeword config exists. */
-function configArgs(configPath: string, hasConfig_: boolean): string[] {
-  return hasConfig_ ? ['--config', configPath] : [];
+function configArgs(configPath: string): string[] {
+  return hasConfig(configPath) ? ['--config', configPath] : [];
+}
+
+/** Warn once per session when fallback linting cannot enforce Safeword rules. */
+function warnMissingSafewordConfig(
+  packName: string,
+  tool: string,
+  configPath: string,
+  warnings: string[],
+): void {
+  if (hasConfig(configPath)) return;
+  const warningKey = `pack:${packName}`;
+  if (toolWarnings.has(warningKey)) return;
+  toolWarnings.add(warningKey);
+  warnings.push(
+    `${packName} Safeword config is missing — linting with ${tool} defaults, not Safeword rules. ` +
+      'Run `safeword setup` or `safeword upgrade` to install it.',
+  );
 }
 
 /** Run prettier with safeword config if available */
@@ -298,7 +265,6 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
   const warnings: string[] = [];
 
   // JS/TS and framework files - ESLint first (fix code), then Prettier (format)
-  // Auto-upgrades safeword if TypeScript pack is missing
   if (JS_EXTENSIONS.has(extension)) {
     const canonicalRoot = normalizeExistingDirectory(_projectDir);
     const safewordDirectory = nodePath.join(canonicalRoot, '.safeword');
@@ -326,19 +292,18 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
       };
     }
     if (host) return runHostToolchain(host);
-    const hasEslint = await ensurePackInstalled('TypeScript', SAFEWORD_ESLINT);
-    const cfg = configArgs(SAFEWORD_ESLINT, hasEslint);
-    await $`bunx eslint ${cfg} --fix ${normalizedFile}`.nothrow().quiet();
+    warnMissingSafewordConfig('TypeScript', 'ESLint', SAFEWORD_ESLINT, warnings);
+    const configArguments = configArgs(SAFEWORD_ESLINT);
+    await $`bunx eslint ${configArguments} --fix ${normalizedFile}`.nothrow().quiet();
     await runPrettier(normalizedFile);
     const errors = await captureRemainingErrors(
-      ['bunx', 'eslint', ...cfg, normalizedFile],
+      ['bunx', 'eslint', ...configArguments, normalizedFile],
       warnings,
     );
     return { warnings, ...(errors && { errors }) };
   }
 
   // Python files - Ruff check (fix code), then Ruff format
-  // Auto-upgrades safeword if Python pack is missing
   if (PYTHON_EXTENSIONS.has(extension)) {
     if (
       !(await checkToolAvailable(
@@ -350,19 +315,18 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
     ) {
       return { warnings };
     }
-    const hasRuff = await ensurePackInstalled('Python', SAFEWORD_RUFF);
-    const cfg = configArgs(SAFEWORD_RUFF, hasRuff);
-    await $`ruff check ${cfg} --fix ${normalizedFile}`.nothrow().quiet();
-    await $`ruff format ${cfg} ${normalizedFile}`.nothrow().quiet();
+    warnMissingSafewordConfig('Python', 'Ruff', SAFEWORD_RUFF, warnings);
+    const configArguments = configArgs(SAFEWORD_RUFF);
+    await $`ruff check ${configArguments} --fix ${normalizedFile}`.nothrow().quiet();
+    await $`ruff format ${configArguments} ${normalizedFile}`.nothrow().quiet();
     const errors = await captureRemainingErrors(
-      ['ruff', 'check', ...cfg, normalizedFile],
+      ['ruff', 'check', ...configArguments, normalizedFile],
       warnings,
     );
     return { warnings, ...(errors && { errors }) };
   }
 
   // Go files - golangci-lint run (fix code), then golangci-lint fmt (format)
-  // Auto-upgrades safeword if Go pack is missing
   if (GO_EXTENSIONS.has(extension)) {
     if (
       !(await checkToolAvailable(
@@ -391,21 +355,21 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
       }
       toolWarnings.add('golangci-lint-v2-ok');
     }
-    const hasGolangci = await ensurePackInstalled('Go', SAFEWORD_GOLANGCI);
-    const cfg = configArgs(SAFEWORD_GOLANGCI, hasGolangci);
-    await $`golangci-lint run ${cfg} --fix ${normalizedFile}`.nothrow().quiet();
-    await $`golangci-lint fmt ${cfg} ${normalizedFile}`.nothrow().quiet();
+    warnMissingSafewordConfig('Go', 'golangci-lint', SAFEWORD_GOLANGCI, warnings);
+    const configArguments = configArgs(SAFEWORD_GOLANGCI);
+    await $`golangci-lint run ${configArguments} --fix ${normalizedFile}`.nothrow().quiet();
+    await $`golangci-lint fmt ${configArguments} ${normalizedFile}`.nothrow().quiet();
     const errors = await captureRemainingErrors(
-      ['golangci-lint', 'run', ...cfg, normalizedFile],
+      ['golangci-lint', 'run', ...configArguments, normalizedFile],
       warnings,
     );
     return { warnings, ...(errors && { errors }) };
   }
 
   // Rust files - clippy for linting (package-level), rustfmt for formatting (file-level)
-  // Auto-upgrades safeword if Rust pack is missing
   if (RUST_EXTENSIONS.has(extension)) {
-    const hasRustConfig = await ensurePackInstalled('Rust', SAFEWORD_RUSTFMT);
+    const hasRustConfig = hasConfig(SAFEWORD_RUSTFMT);
+    warnMissingSafewordConfig('Rust', 'rustfmt', SAFEWORD_RUSTFMT, warnings);
 
     // Run clippy with package targeting for workspaces
     const packageName = detectRustPackage(normalizedFile);
@@ -454,16 +418,14 @@ export async function lintFile(file: string, _projectDir: string): Promise<LintR
       if (result.exitCode === 0) return { warnings };
       // Non-zero: the plugin is undeclared in the host config, or the edit
       // itself doesn't parse. Only fall through to sqlfluff when its config
-      // already exists — in a host-owned repo it's absent by design, and
-      // falling through would fire ensurePackInstalled's network upgrade on
-      // every failing edit. Surface prettier's stderr so the agent sees the
-      // parse error instead of silence.
+      // already exists — in a host-owned repo it's absent by design. Surface
+      // prettier's stderr so the agent sees the parse error instead of silence.
       if (!hasConfig(SAFEWORD_SQLFLUFF)) {
         const stderr = result.stderr.toString().trim();
         return { warnings, ...(stderr && { errors: stderr }) };
       }
     }
-    const hasSqlfluff = await ensurePackInstalled('sql', SAFEWORD_SQLFLUFF);
+    const hasSqlfluff = hasConfig(SAFEWORD_SQLFLUFF);
     if (hasSqlfluff) {
       if (
         !(await checkToolAvailable(
