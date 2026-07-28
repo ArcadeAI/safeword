@@ -4,6 +4,8 @@ import process from 'node:process';
 
 import { Command, Option } from 'commander';
 
+import { createCapabilitiesResult } from './cli-protocol/catalog.js';
+import { addGlobalOptions, readGlobalOptions, reportResult } from './cli-protocol/execute.js';
 import { installCliCrashCapture } from './self-report-capture.js';
 import { error } from './utils/output.js';
 import { VERSION } from './version.js';
@@ -20,6 +22,38 @@ program
   .name('safeword')
   .description('CLI for setting up and managing safeword development environments')
   .version(VERSION);
+
+addGlobalOptions(program);
+program.action(async (_options, command: Command) => {
+  const globalOptions = readGlobalOptions(command);
+  const { observeStatus } = await import('./commands/status.js');
+  reportResult(await observeStatus(globalOptions.cwd), globalOptions);
+});
+
+const status = addGlobalOptions(
+  program.command('status').description('Report project health and one next action'),
+);
+status.action(async (_options, command: Command) => {
+  const globalOptions = readGlobalOptions(command);
+  const { observeStatus } = await import('./commands/status.js');
+  reportResult(await observeStatus(globalOptions.cwd), globalOptions);
+});
+
+const doctor = addGlobalOptions(
+  program.command('doctor').description('Diagnose project configuration without changing it'),
+);
+doctor.action(async (_options, command: Command) => {
+  const globalOptions = readGlobalOptions(command);
+  const { observeStatus } = await import('./commands/status.js');
+  reportResult(await observeStatus(globalOptions.cwd), globalOptions);
+});
+
+const capabilities = addGlobalOptions(
+  program.command('capabilities').description('Describe the public machine interface'),
+);
+capabilities.action((_options, command: Command) => {
+  reportResult(createCapabilitiesResult(), readGlobalOptions(command));
+});
 
 program
   .command('setup')
@@ -444,11 +478,6 @@ program
       await testPlan(options, dir);
     },
   );
-
-// Show help if no arguments provided
-if (process.argv.length === 2) {
-  program.help();
-}
 
 // parseAsync lets async command failures consistently produce a non-zero exit
 // status under Bun and Node.
