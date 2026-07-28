@@ -52,3 +52,4 @@ external_issue: https://github.com/ArcadeAI/safeword/issues/1479
 - 2026-07-26 Phase: plan-implementation → implement after independent plan review passed with the durable payload, receipt addressing, restart recovery, marker grammar, and proof boundaries made explicit.
 - 2026-07-26 Phase: implement → verify after all 12 scenario ledgers completed, the full generated verification plan passed, and independent quality review approved commit 6eea11b96.
 - 2026-07-26 Phase: verify → done for the local relay-foundation slice. GitHub #1479 remains open for the maintenance worker, deployment, real-harness routing, production evidence, and fallback retirement; #834 is not yet superseded.
+- 2026-07-27 Reopened the local slice for PR review findings: added serialized operator zero-match recovery, versioned payload-key rotation with legacy-AAD migration, and explicit missing-key startup failure.

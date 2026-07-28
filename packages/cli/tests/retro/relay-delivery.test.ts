@@ -18,6 +18,7 @@ import {
   persistRelayDraft,
   persistRelayRequest,
   recoverRelaySpool,
+  type RelayDraftRequest,
 } from '../../src/retro/relay-delivery.js';
 import {
   CHECKED_IN_RELAY_READINESS,
@@ -228,7 +229,12 @@ describe('immutable relay delivery spool', () => {
     });
 
     expect(performance.now() - started).toBeLessThan(1000);
-    expect(outcome).toEqual({ accepted: 0, deadLettered: 0, retryable: 1 });
+    expect(outcome).toEqual({
+      accepted: 0,
+      deadLetterBacklog: 0,
+      deadLettered: 0,
+      retryable: 1,
+    });
     const retryable = await listRelayRequests(project);
     expect(retryable[0]?.bytes.toString()).toBe(JSON.stringify(original));
   });
@@ -263,7 +269,12 @@ describe('immutable relay delivery spool', () => {
       relayUrl: 'https://relay.invalid',
     });
 
-    expect(outcome).toEqual({ accepted: 0, deadLettered: 1, retryable: 0 });
+    expect(outcome).toEqual({
+      accepted: 0,
+      deadLetterBacklog: 1,
+      deadLettered: 1,
+      retryable: 0,
+    });
     expect(send).not.toHaveBeenCalled();
     expect(await listRelayRequests(project)).toEqual([]);
     await expect(
@@ -291,7 +302,12 @@ describe('immutable relay delivery spool', () => {
         now: () => createdAt + 24 * 60 * 60 * 1000,
         relayUrl: 'https://relay.invalid',
       }),
-    ).resolves.toEqual({ accepted: 0, deadLettered: 1, retryable: 0 });
+    ).resolves.toEqual({
+      accepted: 0,
+      deadLetterBacklog: 1,
+      deadLettered: 0,
+      retryable: 0,
+    });
 
     const unrelated = await persistRelayDraft(project, {
       body: 'new body',
@@ -304,6 +320,49 @@ describe('immutable relay delivery spool', () => {
       title: 'New finding',
     });
     expect(unrelated?.requestId).not.toBe(original.requestId);
+    expect(await listRelayRequests(project)).toHaveLength(1);
+  });
+
+  it('bounds the whole drain and leaves unattempted requests durably spooled', async () => {
+    const project = temporaryProject();
+    for (const [index, title] of ['first', 'second', 'third'].entries()) {
+      await persistRelayRequest(
+        project,
+        request({
+          requestId: `00000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+          title,
+        }),
+      );
+    }
+    let now = 0;
+    const send = vi.fn<typeof fetch>((_input, init) => {
+      now += 10;
+      if (!(init?.body instanceof Uint8Array)) throw new Error('missing relay request body');
+      const sent = JSON.parse(Buffer.from(init.body).toString('utf8')) as RelayDraftRequest;
+      return Promise.resolve(
+        Response.json(
+          {
+            receiptId: `receipt-${now}`,
+            requestId: sent.requestId,
+            state: 'filed',
+          },
+          { status: 201 },
+        ),
+      );
+    });
+
+    const outcome = await deliverRelayRequests(project, {
+      credential: 'swc_client_secret',
+      deadlineMs: 100,
+      overallDeadlineMs: 15,
+      fetch: send,
+      monotonicNow: () => now,
+      now: () => now,
+      relayUrl: 'https://relay.invalid',
+    });
+
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(outcome.accepted).toBe(2);
     expect(await listRelayRequests(project)).toHaveLength(1);
   });
 });

@@ -135,6 +135,15 @@ class FilingAdapter {
     );
     return result.receipt;
   }
+
+  async recoverReceipt(receiptId: string): Promise<FilingReceipt> {
+    const result = await this.#request(
+      `/v1/retro-filings/${encodeURIComponent(receiptId)}/recover`,
+      undefined,
+      'POST',
+    );
+    return result.receipt;
+  }
 }
 
 export function createHarnessAdapters(

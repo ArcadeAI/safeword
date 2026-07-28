@@ -195,11 +195,13 @@ export async function runRetro(
         title: encounter.draft.title,
       });
     }
+    const deadlineMs = relay.deadlineMs ?? 750;
     const delivery = await deliverRelayRequests(projectDirectory, {
       credential: relay.credential,
-      deadlineMs: relay.deadlineMs ?? 750,
+      deadlineMs,
       fetch: relay.fetch ?? fetch,
       now: () => Date.now(),
+      overallDeadlineMs: deadlineMs,
       relayUrl: relay.relayUrl,
     });
     return {

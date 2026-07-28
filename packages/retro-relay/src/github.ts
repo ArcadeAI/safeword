@@ -18,16 +18,50 @@ export interface GitHubRestClientOptions {
   requestTimeoutMs?: number;
 }
 
+type CreateOutcome = 'ambiguous' | 'rejected' | 'retryable';
+
+function isRateLimited(input: {
+  message?: string;
+  rateLimitRemaining?: string | null;
+  retryAfter?: string | null;
+}): boolean {
+  return (
+    (input.retryAfter ?? undefined) !== undefined ||
+    input.rateLimitRemaining === '0' ||
+    /abuse|rate limit|secondary rate/iu.test(input.message ?? '')
+  );
+}
+
+function classifyCreateOutcome(input: {
+  message?: string;
+  rateLimitRemaining?: string | null;
+  retryAfter?: string | null;
+  status: number;
+}): CreateOutcome {
+  if ([400, 404, 410].includes(input.status)) return 'rejected';
+  if (input.status === 403) {
+    return isRateLimited(input) ? 'retryable' : 'rejected';
+  }
+  if (input.status === 422) {
+    return /validation/iu.test(input.message ?? '') ? 'rejected' : 'retryable';
+  }
+  return [401, 429].includes(input.status) ? 'retryable' : 'ambiguous';
+}
+
 export class GitHubCreateError extends Error {
-  readonly outcome: 'ambiguous' | 'rejected' | 'retryable';
+  readonly outcome: CreateOutcome;
   readonly status: number;
 
-  constructor(status: number) {
+  constructor(input: {
+    message?: string;
+    rateLimitRemaining?: string | null;
+    retryAfter?: string | null;
+    status: number;
+  }) {
+    const { status } = input;
     super(`GitHub create failed with ${status}`);
     this.status = status;
-    if ([400, 404, 410].includes(status)) this.outcome = 'rejected';
-    else if ([401, 403, 422, 429].includes(status)) this.outcome = 'retryable';
-    else this.outcome = 'ambiguous';
+    this.outcome = classifyCreateOutcome(input);
   }
 }
 
@@ -53,6 +87,17 @@ function rejectAfter(milliseconds: number): Promise<never> {
     }, milliseconds);
     timer.unref();
   });
+}
+
+async function readCreateResponse(response: Response): Promise<{
+  message?: string;
+  number?: number;
+}> {
+  try {
+    return (await response.json()) as { message?: string; number?: number };
+  } catch {
+    return {};
+  }
 }
 
 export class GitHubRestClient {
@@ -158,12 +203,18 @@ export class GitHubRestClient {
         },
         body: JSON.stringify({ title: input.title, body: input.body, labels: input.labels }),
       },
-      async response => ({
-        issue: response.ok ? ((await response.json()) as Pick<GitHubIssue, 'number'>) : undefined,
-        status: response.status,
-      }),
+      async response => {
+        const body = await readCreateResponse(response);
+        return {
+          issue: response.ok && body.number !== undefined ? { number: body.number } : undefined,
+          message: body.message,
+          rateLimitRemaining: response.headers.get('x-ratelimit-remaining'),
+          retryAfter: response.headers.get('retry-after'),
+          status: response.status,
+        };
+      },
     );
-    if (result.issue === undefined) throw new GitHubCreateError(result.status);
+    if (result.issue === undefined) throw new GitHubCreateError(result);
     return result.issue.number;
   }
 

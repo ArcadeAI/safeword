@@ -18,7 +18,7 @@ Claude / Codex / Cursor
                     │
                     ├─ persist exact request bytes + UUIDv4
                     ├─ acquire fenced file claim
-                    └─ POST relay (750ms network deadline)
+                    └─ drain relay spool (750ms aggregate deadline)
                               │
                               ├─ existing filing service + raw REST GitHub
                               ├─ SQLite lifecycle maintenance
@@ -69,11 +69,17 @@ it. Thus crashes before ack retry the exact bytes; crashes after ack merely
 repeat cleanup. Tests inject crashes before and after every rename, ack, and
 cleanup boundary, including expiry while the old POST remains in flight.
 
-A monotonic 750ms AbortController deadline leaves cleanup time inside the
-one-second user-visible budget. A timeout, connection failure, malformed
-response, lost response, or lost claim writes no ack. After any relay attempt,
+A monotonic 750ms deadline bounds the entire drain, not each request. Every
+request receives at most the remaining aggregate budget; untouched drafts stay
+durable for the next run. Expired claims are recovered and the directory is
+enumerated once before request-specific atomic claims, avoiding an O(n²) scan.
+A timeout, connection failure, malformed response, lost response, or lost claim writes no ack. After any relay attempt,
 the request remains relay-owned: it is never sent through GitHub-native
 fallback because response loss may mean the relay already accepted it.
+
+Delivery reports newly dead-lettered drafts separately from the standing
+dead-letter backlog. Only a failure from this drain requests agent fallback; a
+historical dead letter does not make the signal permanently sticky.
 
 Routing is fail-closed. A repository-controlled, reviewable readiness manifest
 is compiled with `enabled: false` in this slice. Environment variables cannot
@@ -208,12 +214,12 @@ retention policies. Secure deletion would require per-record external key
 management and is explicitly not claimed by #1479.
 
 Migration runs under one `BEGIN IMMEDIATE` transaction. It validates exactly
-one version row, rebuilds the request table into the constrained version-three
-layout while preserving rows and foreign-key references, adds the outbox table,
-performs integrity checks, and updates the schema version last. Any fault rolls
-back the entire transaction. Startup validates both column names and the
-non-null retry-deadline constraint, rejecting partial layouts and versions
-newer than the binary before opening the listener.
+one version row, rebuilds the request table into the constrained version-four
+layout while preserving rows and foreign-key references, adds envelope format
+and key IDs, preserves version-three envelopes as legacy AAD, and updates the
+schema version last. Any fault rolls back the entire transaction. Startup
+validates column names, retry-deadline and key-metadata constraints, and every
+uncompacted row's decrypt key before opening the listener.
 
 One process-local maintenance timer invokes database-CAS operations:
 

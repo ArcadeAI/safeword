@@ -3,7 +3,7 @@
 import { RelayError } from './errors.js';
 import { GitHubCreateError, type GitHubRestClient } from './github.js';
 import { normalizeRepo, payloadHash, requestMarker } from './identity.js';
-import { decryptPayload, encryptPayload } from './payload.js';
+import { decryptPayload, encryptPayload, type PayloadKeyring } from './payload.js';
 import type { DurableRequest, RelayStore } from './store.js';
 import type {
   FileRetroDraftRequest,
@@ -103,19 +103,19 @@ export class RelayService {
   readonly #github: GitHubRestClient;
   readonly #faults: RelayFaults;
   readonly #now: () => Date;
-  readonly #payloadKey: Buffer;
+  readonly #payloadKeyring: PayloadKeyring;
   readonly #store: RelayStore;
 
   constructor(input: {
     store: RelayStore;
     github: GitHubRestClient;
-    payloadKey: Buffer;
+    payloadKeyring: PayloadKeyring;
     faults?: RelayFaults;
     now?: () => Date;
   }) {
     this.#store = input.store;
     this.#github = input.github;
-    this.#payloadKey = input.payloadKey;
+    this.#payloadKeyring = input.payloadKeyring;
     this.#now = input.now ?? (() => new Date());
     this.#faults = { ...input.faults };
   }
@@ -170,6 +170,93 @@ export class RelayService {
     return this.#store.markReconciledFiled(record.scope, scan.issueNumbers[0]);
   }
 
+  // eslint-disable-next-line complexity -- Recovery keeps the raw-scan safety decisions explicit.
+  async recover(
+    principal: RelayPrincipal,
+    receiptId: string,
+  ): Promise<{ disposition: 'adopted' | 'manual-created'; receipt: FilingReceipt }> {
+    if (!principal.roles.includes('operate')) {
+      throw new RelayError(403, 'operate role is required');
+    }
+    const record = this.#store.loadByReceiptForPrincipal(receiptId, principal);
+    if (record === undefined) throw new RelayError(404, 'filing receipt not found');
+    if (['filed', 'tombstone'].includes(record.state)) {
+      return { disposition: 'adopted', receipt: receiptFromRecord(record) };
+    }
+    if (record.state !== 'ambiguous') {
+      throw new RelayError(409, 'only ambiguous filings can be manually recovered');
+    }
+    if (!this.#store.beginManualRecovery(record.scope, this.#now())) {
+      throw new RelayError(409, 'filing recovery is already in progress');
+    }
+    try {
+      const scan = await this.#github.scanExactMarker({
+        installationId: record.scope.installationId,
+        repository: record.scope.repository,
+        marker: record.requestMarker,
+      });
+      if (!scan.complete) {
+        this.#store.recordReconciliation(receiptId, principal.subject, 'incomplete', 0);
+        throw new RelayError(503, 'raw reconciliation is incomplete or non-unique', {
+          receiptId,
+          state: 'ambiguous',
+          disposition: 'incomplete',
+        });
+      }
+      if (scan.issueNumbers.length === 1) {
+        this.#store.recordReconciliation(receiptId, principal.subject, 'adopted', 1);
+        return {
+          disposition: 'adopted',
+          receipt: this.#store.markReconciledFiled(record.scope, scan.issueNumbers[0]),
+        };
+      }
+      if (scan.issueNumbers.length > 1) {
+        this.#store.recordReconciliation(
+          receiptId,
+          principal.subject,
+          'multiple',
+          scan.issueNumbers.length,
+        );
+        throw new RelayError(503, 'raw reconciliation is incomplete or non-unique', {
+          receiptId,
+          state: 'ambiguous',
+          disposition: 'multiple',
+        });
+      }
+
+      const durableRequest = decryptPayload(
+        record.envelope,
+        record.scope,
+        record.payloadHash,
+        this.#payloadKeyring,
+      );
+      const installationToken = await this.#github.installationToken(
+        record.scope.installationId,
+        record.scope.repository,
+      );
+      this.#store.recordReconciliation(receiptId, principal.subject, 'manual-create-attempted', 0);
+      const issueNumber = await this.#github.createIssue({
+        repository: record.scope.repository,
+        title: durableRequest.title,
+        body: `${durableRequest.body}\n\n${record.requestMarker}`,
+        labels: durableRequest.labels,
+        installationToken,
+      });
+      this.#store.recordReconciliation(receiptId, principal.subject, 'manual-created', 0);
+      return {
+        disposition: 'manual-created',
+        receipt: this.#store.markReconciledFiled(record.scope, issueNumber),
+      };
+    } catch (error) {
+      this.#store.cancelManualRecovery(record.scope);
+      if (error instanceof RelayError) throw error;
+      throw new RelayError(503, 'manual filing recovery failed', {
+        receiptId,
+        state: 'ambiguous',
+      });
+    }
+  }
+
   status(principal: RelayPrincipal, receiptId: string): FilingReceipt {
     if (!principal.roles.includes('file')) {
       throw new RelayError(403, 'file role is required');
@@ -205,7 +292,7 @@ export class RelayService {
     const accepted = this.#store.accept({
       scope,
       payloadHash: hash,
-      envelope: encryptPayload(request, scope, hash, this.#payloadKey),
+      envelope: encryptPayload(request, scope, hash, this.#payloadKeyring),
       requestMarker: marker,
       retryDeadlineAt: request.retryDeadlineAt,
     });
@@ -237,7 +324,7 @@ export class RelayService {
     let durableRequest: FileRetroDraftRequest;
     let installationToken: string;
     try {
-      durableRequest = decryptPayload(record.envelope, scope, hash, this.#payloadKey);
+      durableRequest = decryptPayload(record.envelope, scope, hash, this.#payloadKeyring);
       installationToken = await this.#github.installationToken(
         scope.installationId,
         scope.repository,

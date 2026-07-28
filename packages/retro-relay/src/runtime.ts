@@ -24,6 +24,13 @@ export async function startRelayRuntime(
   // eslint-disable-next-line security/detect-non-literal-fs-filename -- The fail-closed parser requires an absolute non-root deployment data directory.
   await mkdir(config.dataDirectory, { recursive: true });
   const store = RelayStore.open(config.databasePath);
+  const missingPayloadKeys = store
+    .payloadKeyIds()
+    .filter(keyId => !config.payloadKeyring.keys.has(keyId));
+  if (missingPayloadKeys.length > 0) {
+    store.close();
+    throw new Error(`missing relay payload keys: ${missingPayloadKeys.join(', ')}`);
+  }
   const credentials = new CredentialRegistry(config.credentialPepper);
   const issued = config.credentials.map(credential => ({
     authorization: credentials.issue(credential),
@@ -53,7 +60,7 @@ export async function startRelayRuntime(
       }),
       host: config.host,
       lockPath: config.lockPath,
-      payloadKey: config.payloadKey,
+      payloadKeyring: config.payloadKeyring,
       port: config.port,
       replicaId: config.replicaId,
       mode: config.mode,

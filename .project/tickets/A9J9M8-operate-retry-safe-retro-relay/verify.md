@@ -2,23 +2,23 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 5,498 CLI tests and 114 relay tests pass (5 CLI tests skipped)
+**Test Suite:** ✓ 5,619/5,619 tests pass (11 CLI tests skipped; 18 contention-timed-out tests passed in the 88/88 serial rerun)
 **Gherkin:** ✅ Acceptance lane passes (612 passed, 3 skipped)
 **Build:** ✅ Success
 **Lint:** ✅ Clean
-**Scenarios:** All 33 scenarios marked complete
+**Scenarios:** All 106 scenarios marked complete
 **PR Scope:** ✅ Diff matches ticket scope
 **Dep Drift:** ✅ Clean
 **Parent Epic:** N/A
 **Reconcile:** ✅ No pattern deviation
 **Experience:** ✅ No new friction — Walked Technical Builder through automatic stop-retro filing; worst step = the bounded relay timeout before native fallback; new steps vs before = 0
-**Evidence limits:** ✅ None
+**Evidence limits:** ⚠️ The parallel local CLI run hit its documented machine-contention timeout path; all eight affected files passed 88/88 when rerun serially, and changed-path tests passed independently.
 
 Audit passed with warnings — 0 feature-blocking errors. Config sync and the dependency-cruiser error gate are clean; dependency validation retains its existing warning-only Codex hook orphan. The remaining Knip exported-type note, experiment-tool availability notes, and 515-clone (8.68%) repository baseline are pre-existing; `markdownlint-cli2` has one low-risk dev-only patch available.
 
 ## Evidence
 
-- Full generated verification plan passed on the final worktree: relay and CLI tests, Gherkin, builds, and both package typechecks.
+- The generated verification plan passed relay tests, Gherkin, builds, and both package typechecks. The parallel CLI lane hit documented machine-contention timeouts; all eight affected files passed 88/88 serially, while the remaining 5,475 tests had already passed in the full lane.
 - `bun run lint`, `bun run format:check`, and `bun run deps:validate` passed; dependency-cruiser reported its existing warning-only Codex plugin hook orphan.
 - Independent quality re-review passed after the six-surface test installed through `SAFEWORD_SCHEMA`, validated the Codex plugin catalogue, followed Cursor's installed reference, and derived CLI arguments from installed instructions.
 - Raw GitHub REST bodies remain the only marker authority. Sanitized MCP reads are not used for duplicate decisions.

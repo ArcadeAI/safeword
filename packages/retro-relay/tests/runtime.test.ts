@@ -6,7 +6,7 @@ import path from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { parseRuntimeConfig, startRelayRuntime } from '../src/index.js';
+import { parseRuntimeConfig, RelayStore, startRelayRuntime } from '../src/index.js';
 
 const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
 const privateKeyBase64 = Buffer.from(privateKey.export({ format: 'pem', type: 'pkcs8' })).toString(
@@ -171,7 +171,7 @@ describe('production runtime configuration', () => {
     const firstHealth = (await response.json()) as Record<string, unknown>;
     expect(firstHealth).toMatchObject({
       status: 'ok',
-      schemaVersion: 3,
+      schemaVersion: 4,
       replicaId: 'replica-test',
       bootId: expect.any(String),
     });
@@ -197,6 +197,59 @@ describe('production runtime configuration', () => {
       ['cursor', ['file']],
       ['operator', ['reconcile', 'operate']],
     ]);
+  });
+
+  it('loads a versioned payload keyring and selects one active encryption key', () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'safeword-runtime-keyring-'));
+    runtimeDirectories.push(directory);
+    const environment = validEnvironment(directory);
+    Reflect.deleteProperty(environment, 'RELAY_PAYLOAD_KEY');
+    environment.RELAY_PAYLOAD_KEYRING_BASE64 = Buffer.from(
+      JSON.stringify({
+        activeKeyId: '2026-07',
+        keys: {
+          '2026-06': Buffer.alloc(32, 1).toString('base64'),
+          '2026-07': Buffer.alloc(32, 2).toString('base64'),
+        },
+      }),
+    ).toString('base64');
+
+    const keyring = parseRuntimeConfig(environment).payloadKeyring;
+
+    expect(keyring.activeKeyId).toBe('2026-07');
+    expect(keyring.keys.get('2026-06')).toEqual(Buffer.alloc(32, 1));
+    expect(keyring.keys.get('2026-07')).toEqual(Buffer.alloc(32, 2));
+  });
+
+  it('fails startup with the exact durable payload key that is missing', async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'safeword-runtime-missing-key-'));
+    runtimeDirectories.push(directory);
+    const environment = validEnvironment(directory);
+    const config = parseRuntimeConfig(environment);
+    const store = RelayStore.open(config.databasePath);
+    store.accept({
+      envelope: {
+        ciphertext: Buffer.from('ciphertext'),
+        formatVersion: 2,
+        keyId: 'retired-2026-06',
+        nonce: Buffer.alloc(12, 1),
+        tag: Buffer.alloc(16, 2),
+      },
+      payloadHash: 'hash',
+      requestMarker: '<!-- marker -->',
+      retryDeadlineAt: '2099-01-01T00:00:00.000Z',
+      scope: {
+        installationId: 1,
+        repository: 'arcadeai/safeword',
+        requestId: '00000000-0000-4000-8000-000000000147',
+        tenantId: 'safeword-spike',
+      },
+    });
+    store.close();
+
+    await expect(startRelayRuntime(config, () => {})).rejects.toThrow(
+      'missing relay payload keys: retired-2026-06',
+    );
   });
 
   it('rejects legacy credentials outside explicit spike mode', () => {

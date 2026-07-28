@@ -17,8 +17,8 @@ Clients do not install or run SQLite. The relay uses Node's built-in SQLite
 runtime, so neither users nor server operators install SQLite separately;
 Railway stores its database on the mounted volume. The
 CLI persists each sanitized request once as immutable bytes, uses that same
-UUID and body from every harness, and gives the relay 750 ms to durably accept
-it. A missing response leaves the request retryable; it never authorizes a
+UUID and body from every harness, and gives the entire spool drain a 750 ms
+budget. A missing response leaves the request retryable; it never authorizes a
 second GitHub-native create.
 
 ## Production runtime
@@ -32,6 +32,11 @@ non-secret `RAILWAY_REPLICA_ID`.
 Run exactly one replica with a persistent volume mounted at `/data` and set
 `RELAY_DATA_DIR=/data`. SQLite WAL is intentionally a single-host deployment;
 moving to multiple replicas requires replacing the store with PostgreSQL.
+
+Node 22 documents `node:sqlite` as active development and Node 24 documents it
+as release candidate. The relay keeps the API behind `src/sqlite.ts`, qualifies
+the built artifact on the deployed runtime, and may emit Node's experimental
+SQLite warning on supported Node 22 releases.
 
 Set `RELAY_MODE=production` and provide `RELAY_CREDENTIALS_BASE64` as strict
 base64-encoded JSON containing exactly four independently rotatable principals:
@@ -47,6 +52,27 @@ per principal per minute. These in-process limits match the supported
 single-replica topology; a multi-replica deployment must move both storage and
 rate limiting to shared infrastructure.
 
+`RELAY_PAYLOAD_KEY` remains the single-key compatibility form. For rotation,
+set `RELAY_PAYLOAD_KEYRING_BASE64` to strict base64-encoded JSON:
+
+```json
+{
+  "activeKeyId": "2026-07",
+  "keys": {
+    "2026-06": "<32-byte key in strict base64>",
+    "2026-07": "<32-byte key in strict base64>"
+  }
+}
+```
+
+New envelopes use `activeKeyId`; retained keys decrypt older queued envelopes.
+Databases migrated from schema v3 identify their former encryption key as
+`legacy`, so the first configured keyring must retain that key under the
+`legacy` ID.
+Never remove a key while an uncompacted database row references it. Startup
+fails with the exact missing key IDs instead of letting queued requests churn
+to dead letter.
+
 The maintenance loop persists exponential retry scheduling against the
 client-supplied absolute deadline (capped at 24 hours after acceptance), stops
 new dispatches at that deadline, resolves an already-started dispatch for one
@@ -58,7 +84,11 @@ or provider backups.
 
 Operators can read payload-free lifecycle counts at
 `GET /v1/operations/retro-filings` and reconcile an ambiguous receipt at
-`POST /v1/retro-filings/:receiptId/reconcile`. Terminal alerts use stable event
+`POST /v1/retro-filings/:receiptId/reconcile`. If a fresh complete raw scan has
+zero matches, an operator may explicitly invoke
+`POST /v1/retro-filings/:receiptId/recover`; the relay serializes recovery,
+reuses the encrypted original payload and reserved marker, and audit-records
+the create. Harness credentials cannot invoke this route. Terminal alerts use stable event
 IDs and are delivered at least once, so the downstream alert sink must
 deduplicate by event ID.
 

@@ -2,6 +2,7 @@ import { createPrivateKey } from 'node:crypto';
 import path from 'node:path';
 
 import type { CredentialInput } from './auth.js';
+import type { PayloadKeyring } from './payload.js';
 import type { RelayPrincipal } from './types.js';
 
 export interface RuntimeConfig {
@@ -19,7 +20,7 @@ export interface RuntimeConfig {
   host: '0.0.0.0';
   lockPath: string;
   mode: 'production' | 'spike';
-  payloadKey: Buffer;
+  payloadKeyring: PayloadKeyring;
   port: number;
   replicaId: string;
 }
@@ -56,16 +57,78 @@ function parseNetwork(environment: NodeJS.ProcessEnv): Pick<RuntimeConfig, 'host
   return { host, port };
 }
 
+// eslint-disable-next-line complexity -- Strict JSON boundary validates every keyring field without coercion.
+function parseKeyringRecord(bytes: Buffer): {
+  activeKeyId: string;
+  keys: Record<string, unknown>;
+} {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(bytes.toString('utf8')) as unknown;
+  } catch {
+    throw new Error('invalid RELAY_PAYLOAD_KEYRING_BASE64');
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new Error('invalid RELAY_PAYLOAD_KEYRING_BASE64');
+  }
+  const record = parsed as Record<string, unknown>;
+  const fields = Object.keys(record).toSorted((left, right) => left.localeCompare(right));
+  if (
+    fields.join('\0') !== ['activeKeyId', 'keys'].join('\0') ||
+    typeof record.activeKeyId !== 'string' ||
+    !/^[\w.-]{1,64}$/u.test(record.activeKeyId) ||
+    typeof record.keys !== 'object' ||
+    record.keys === null ||
+    Array.isArray(record.keys)
+  ) {
+    throw new Error('invalid RELAY_PAYLOAD_KEYRING_BASE64');
+  }
+  return {
+    activeKeyId: record.activeKeyId,
+    keys: record.keys as Record<string, unknown>,
+  };
+}
+
+function parsePayloadKeys(values: Record<string, unknown>): Map<string, Buffer> {
+  const keys = new Map<string, Buffer>();
+  for (const [keyId, value] of Object.entries(values)) {
+    if (!/^[\w.-]{1,64}$/u.test(keyId) || typeof value !== 'string') {
+      throw new Error('invalid RELAY_PAYLOAD_KEYRING_BASE64');
+    }
+    const key = strictBase64(value, 'RELAY_PAYLOAD_KEYRING_BASE64');
+    if (key.length !== 32) throw new Error('invalid RELAY_PAYLOAD_KEYRING_BASE64');
+    keys.set(keyId, key);
+  }
+  return keys;
+}
+
+function parsePayloadKeyring(encodedKeyring: string): PayloadKeyring {
+  const record = parseKeyringRecord(strictBase64(encodedKeyring, 'RELAY_PAYLOAD_KEYRING_BASE64'));
+  const keys = parsePayloadKeys(record.keys);
+  if (!keys.has(record.activeKeyId)) throw new Error('invalid RELAY_PAYLOAD_KEYRING_BASE64');
+  return { activeKeyId: record.activeKeyId, keys };
+}
+
 function parseStorage(
   environment: NodeJS.ProcessEnv,
-): Pick<RuntimeConfig, 'dataDirectory' | 'payloadKey'> {
+): Pick<RuntimeConfig, 'dataDirectory' | 'payloadKeyring'> {
   const dataDirectory = required(environment, 'RELAY_DATA_DIR');
   if (!path.isAbsolute(dataDirectory) || dataDirectory === path.parse(dataDirectory).root) {
     throw new Error('invalid RELAY_DATA_DIR');
   }
+  const encodedKeyring = environment.RELAY_PAYLOAD_KEYRING_BASE64?.trim();
+  if (encodedKeyring !== undefined && encodedKeyring.length > 0) {
+    return { dataDirectory, payloadKeyring: parsePayloadKeyring(encodedKeyring) };
+  }
   const payloadKey = strictBase64(required(environment, 'RELAY_PAYLOAD_KEY'), 'RELAY_PAYLOAD_KEY');
   if (payloadKey.length !== 32) throw new Error('invalid RELAY_PAYLOAD_KEY');
-  return { dataDirectory, payloadKey };
+  return {
+    dataDirectory,
+    payloadKeyring: {
+      activeKeyId: 'legacy',
+      keys: new Map([['legacy', payloadKey]]),
+    },
+  };
 }
 
 function credentialPepper(environment: NodeJS.ProcessEnv): string {
@@ -216,7 +279,7 @@ export function parseRuntimeConfig(environment: NodeJS.ProcessEnv): RuntimeConfi
   const mode = required(environment, 'RELAY_MODE');
   if (!['production', 'spike'].includes(mode)) throw new Error('invalid RELAY_MODE');
   const { host, port } = parseNetwork(environment);
-  const { dataDirectory, payloadKey } = parseStorage(environment);
+  const { dataDirectory, payloadKeyring } = parseStorage(environment);
   const github = parseGitHub(environment);
   const credentials =
     mode === 'production'
@@ -240,7 +303,7 @@ export function parseRuntimeConfig(environment: NodeJS.ProcessEnv): RuntimeConfi
     host,
     lockPath: path.join(dataDirectory, 'relay.lock'),
     mode: mode as RuntimeConfig['mode'],
-    payloadKey,
+    payloadKeyring,
     port,
     replicaId: optional(environment, 'RAILWAY_REPLICA_ID', 'local'),
   };

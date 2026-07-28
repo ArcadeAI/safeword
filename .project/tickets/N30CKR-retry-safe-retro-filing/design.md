@@ -127,6 +127,7 @@ accepted → claimed → dispatching → filed
 | dispatching or ambiguous | durable GitHub issue number is known | filed | return stored filed receipt |
 | dispatching | response missing or process reopens | ambiguous | never dispatch again |
 | ambiguous | admin raw-marker verification finds exactly one issue | filed | return stored filed receipt |
+| ambiguous | operator recovery claims a complete zero-match and creates with the reserved marker | filed | one recovery CAS winner; losers receive conflict |
 
 ## Destination maintenance policy
 
@@ -171,7 +172,7 @@ The parser exact-matches this grammar in raw Markdown. Reconciliation uses only
 GitHub REST with `application/vnd.github.raw+json`, `state=all`, complete
 pagination, and pull-request filtering.
 
-- zero request-marker matches: remain ambiguous and alert;
+- zero request-marker matches on reconciliation: remain ambiguous and alert;
 - one: fetch that issue raw, re-verify marker and repository, then CAS to filed;
 - multiple: remain ambiguous and alert.
 
@@ -180,9 +181,11 @@ not implemented in this slice. They remain behind the explicit #1474/#1481 and
 remeasurement gate in the canonical issue. An operator with the scoped
 `reconcile` role invokes `POST /v1/retro-filings/{receiptId}/reconcile`.
 Zero, multiple, or incomplete request-marker scans remain quarantined. For a
-true zero-match dispatch-window case, the safe resolution is to manually create
-the reserved-marker issue and re-run reconciliation; no fresh requestId escapes
-the durable record.
+true zero-match dispatch-window case, the operator-only
+`POST /v1/retro-filings/{receiptId}/recover` route first claims the record,
+repeats the complete raw scan, and creates with the stored payload, original
+reserved marker, and requestId. It adopts one match and rejects incomplete or
+multiple scans. No fresh requestId escapes the durable record.
 
 Sanitized MCP reads are absent from the service interface. Test fixtures may
 provide an MCP representation only to prove it has no effect. Neither marker
@@ -195,6 +198,7 @@ presence nor absence there can authorize or suppress creation.
 | `POST /v1/retro-filings` | active harness credential | authorize installation/repository before DB or token access |
 | `GET /v1/retro-filings/{receiptId}` | active harness credential | opaque locator plus row-scope authorization; wrong scope is non-enumerating 404 |
 | `POST /v1/retro-filings/{receiptId}/reconcile` | active operator credential with `reconcile` role | opaque locator plus row-scope authorization; every disposition is audit-recorded |
+| `POST /v1/retro-filings/{receiptId}/recover` | active operator credential with `operate` role | serializes manual recovery; fresh raw scan must prove zero before the original marker may be created |
 
 POST returns 201 for `filed`, 200 for terminal `rejected|dead-letter|tombstone`,
 202 with `Retry-After` for nonterminal receipts, 409 for mismatch, 401 for missing/invalid/expired/revoked

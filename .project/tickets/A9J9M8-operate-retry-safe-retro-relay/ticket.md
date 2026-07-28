@@ -98,3 +98,6 @@ last_modified: 2026-07-27T02:23:02.173Z
   Audit completed with no feature-blocking errors.
 - 2026-07-27 Phase: implement → verify. Awaiting user confirmation before any
   done transition or GitHub issue closure.
+- 2026-07-27 PR review follow-up made the 750ms limit aggregate across the
+  whole drain, removed repeated directory scans, and separated historical
+  dead-letter backlog from this-run fallback outcomes.

@@ -79,6 +79,7 @@ async function startGitHubFixture(
     afterCreate?: () => void;
     afterToken?: () => void;
     createDelayMs?: number;
+    createMessage?: string;
     createStatus?: number;
     failSecondPage?: boolean;
     failToken?: boolean;
@@ -166,7 +167,8 @@ async function startGitHubFixture(
       options.afterCreate?.();
       if (options.createStatus !== undefined) {
         response.statusCode = options.createStatus;
-        response.end();
+        response.setHeader('content-type', 'application/json');
+        response.end(JSON.stringify({ message: options.createMessage ?? 'create failed' }));
         activeCreates -= 1;
         return;
       }
@@ -213,6 +215,7 @@ async function fixture(
     afterCreate?: () => void;
     afterToken?: () => void;
     createDelayMs?: number;
+    createMessage?: string;
     createStatus?: number;
     failSecondPage?: boolean;
     failToken?: boolean;
@@ -309,7 +312,7 @@ describe('retry-safe retro relay', () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
       status: 'ok',
-      schemaVersion: 3,
+      schemaVersion: 4,
       replicaId: 'local',
       bootId: 'local',
     });
@@ -593,7 +596,7 @@ describe('retry-safe retro relay', () => {
     },
   );
 
-  it.each([401, 403, 422, 429])(
+  it.each([401, 422, 429])(
     'keeps GitHub %i retryable because no issue was created',
     async status => {
       const setup = await fixture({ createStatus: status });
@@ -610,6 +613,40 @@ describe('retry-safe retro relay', () => {
       ).toBe('retryable');
     },
   );
+
+  it.each([
+    [403, 'Resource not accessible by integration'],
+    [422, 'Validation Failed'],
+  ] as const)(
+    'rejects non-rate-limit GitHub %i failures without retrying',
+    async (status, message) => {
+      const setup = await fixture({ createMessage: message, createStatus: status });
+      const adapter = createHarnessAdapters(setup.relay.url, setup.credential).claude;
+
+      await expect(adapter.file(draft())).resolves.toMatchObject({ state: 'rejected' });
+      await expect(adapter.file(draft())).resolves.toMatchObject({ state: 'rejected' });
+      expect(setup.createBodies).toHaveLength(1);
+    },
+  );
+
+  it.each([
+    [403, 'You have exceeded a secondary rate limit'],
+    [422, 'The endpoint has been spammed'],
+  ] as const)('retries rate-limit GitHub %i failures', async (status, message) => {
+    const setup = await fixture({ createMessage: message, createStatus: status });
+
+    await expect(
+      createHarnessAdapters(setup.relay.url, setup.credential).claude.file(draft()),
+    ).rejects.toMatchObject({ status: 503 });
+    expect(
+      setup.store.load({
+        tenantId: 'tenant-1',
+        installationId: 42,
+        repository: 'arcadeai/safeword',
+        requestId: draft().requestId,
+      })?.state,
+    ).toBe('retryable');
+  });
 
   it('rate-limits operator reconciliation independently of filing credentials', async () => {
     const setup = await fixture();
@@ -668,7 +705,13 @@ describe('retry-safe retro relay', () => {
         baseUrl: setup.baseUrl,
         installationToken: () => Promise.resolve('ghs_installation_secret'),
       }),
-      payloadKey: Buffer.alloc(32, 7),
+      payloadKeyring: {
+        activeKeyId: 'rotated',
+        keys: new Map([
+          ['legacy', Buffer.alloc(32, 7)],
+          ['rotated', Buffer.alloc(32, 8)],
+        ]),
+      },
       store: secondStore,
     });
     servers.push(secondRelay.server);
@@ -727,7 +770,13 @@ describe('retry-safe retro relay', () => {
         baseUrl: github.baseUrl,
         installationToken: () => Promise.resolve('ghs_installation_secret'),
       }),
-      payloadKey: Buffer.alloc(32, 7),
+      payloadKeyring: {
+        activeKeyId: 'rotated',
+        keys: new Map([
+          ['legacy', Buffer.alloc(32, 7)],
+          ['rotated', Buffer.alloc(32, 8)],
+        ]),
+      },
       store: reopened,
     });
     servers.push(relay.server);
@@ -784,7 +833,13 @@ describe('retry-safe retro relay', () => {
         baseUrl: github.baseUrl,
         installationToken: () => Promise.resolve('ghs_installation_secret'),
       }),
-      payloadKey: Buffer.alloc(32, 7),
+      payloadKeyring: {
+        activeKeyId: 'rotated',
+        keys: new Map([
+          ['legacy', Buffer.alloc(32, 7)],
+          ['rotated', Buffer.alloc(32, 8)],
+        ]),
+      },
       store: reopened,
     });
     servers.push(relay.server);
@@ -860,6 +915,102 @@ describe('retry-safe retro relay', () => {
       reopened.close();
     },
   );
+
+  it('lets only an operator recover a complete zero-match with the reserved request marker', async () => {
+    const setup = await fixture({ createStatus: 500 });
+    await expect(
+      createHarnessAdapters(setup.relay.url, setup.credentials).claude.file(draft()),
+    ).rejects.toMatchObject({ status: 503 });
+    const durable = setup.store.load({
+      tenantId: 'tenant-1',
+      installationId: 42,
+      repository: 'arcadeai/safeword',
+      requestId: draft().requestId,
+    });
+    if (durable === undefined) throw new Error('missing ambiguous request');
+    setup.store.close();
+    setup.relay.server.close();
+
+    const github = await startGitHubFixture({ rawBodies: [] });
+    const reopened = RelayStore.open(path.join(setup.directory, 'relay.sqlite'));
+    const relay = await startRelayServer({
+      allowUnlockedForTests: true,
+      credentials: setup.registry,
+      github: new GitHubRestClient({
+        baseUrl: github.baseUrl,
+        installationToken: () => Promise.resolve('ghs_installation_secret'),
+      }),
+      payloadKey: Buffer.alloc(32, 7),
+      store: reopened,
+    });
+    servers.push(relay.server);
+    const adapters = createHarnessAdapters(relay.url, setup.credentials);
+
+    await expect(adapters.claude.recoverReceipt(durable.receiptId)).rejects.toMatchObject({
+      status: 403,
+    });
+    await expect(adapters.operator.recoverReceipt(durable.receiptId)).resolves.toMatchObject({
+      issueNumber: 901,
+      state: 'filed',
+    });
+    expect(github.createBodies).toHaveLength(1);
+    expect(github.createBodies[0]).toBe(`${draft().body}\n\n${durable.requestMarker}`);
+    expect(reopened.reconciliationAudit(durable.receiptId)).toEqual([
+      {
+        actorSubject: 'operator-subject',
+        disposition: 'manual-create-attempted',
+        matchCount: 0,
+      },
+      {
+        actorSubject: 'operator-subject',
+        disposition: 'manual-created',
+        matchCount: 0,
+      },
+    ]);
+    reopened.close();
+  });
+
+  it('serializes simultaneous operator recovery attempts to one GitHub create', async () => {
+    const setup = await fixture({ createStatus: 500 });
+    await expect(
+      createHarnessAdapters(setup.relay.url, setup.credentials).claude.file(draft()),
+    ).rejects.toMatchObject({ status: 503 });
+    const durable = setup.store.load({
+      tenantId: 'tenant-1',
+      installationId: 42,
+      repository: 'arcadeai/safeword',
+      requestId: draft().requestId,
+    });
+    if (durable === undefined) throw new Error('missing ambiguous request');
+    setup.store.close();
+    setup.relay.server.close();
+
+    const github = await startGitHubFixture({ createDelayMs: 25, rawBodies: [] });
+    const reopened = RelayStore.open(path.join(setup.directory, 'relay.sqlite'));
+    const relay = await startRelayServer({
+      allowUnlockedForTests: true,
+      credentials: setup.registry,
+      github: new GitHubRestClient({
+        baseUrl: github.baseUrl,
+        installationToken: () => Promise.resolve('ghs_installation_secret'),
+      }),
+      payloadKey: Buffer.alloc(32, 7),
+      store: reopened,
+    });
+    servers.push(relay.server);
+    const operator = createHarnessAdapters(relay.url, setup.credentials).operator;
+
+    const outcomes = await Promise.allSettled([
+      operator.recoverReceipt(durable.receiptId),
+      operator.recoverReceipt(durable.receiptId),
+    ]);
+
+    expect(outcomes.filter(outcome => outcome.status === 'fulfilled')).toHaveLength(1);
+    expect(outcomes.filter(outcome => outcome.status === 'rejected')).toHaveLength(1);
+    expect(github.createBodies).toHaveLength(1);
+    expect(reopened.receipt(durable.scope)).toMatchObject({ issueNumber: 901, state: 'filed' });
+    reopened.close();
+  });
 
   it('authorizes the exact repository and rejects invalid credentials before GitHub', async () => {
     const setup = await fixture();
@@ -939,7 +1090,7 @@ describe('retry-safe retro relay', () => {
     expect(operations).toMatchObject({
       bootId: 'local',
       counts: { filed: 1 },
-      schemaVersion: 3,
+      schemaVersion: 4,
     });
     const observable = JSON.stringify(operations);
     expect(observable).not.toContain(draft().body);

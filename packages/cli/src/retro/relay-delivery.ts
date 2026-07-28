@@ -216,32 +216,15 @@ export async function persistRelayDraft(
   return request;
 }
 
-// eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- Filesystem CAS branches are the claim state machine.
 export async function claimRelayRequest(
   projectDirectory: string,
   options: { claimId: string; excludeRequestIds?: Set<string>; leaseMs: number; now: number },
 ): Promise<RelayClaim | undefined> {
-  await recoverRelaySpool(projectDirectory, options.now);
   const directory = relayDirectory(projectDirectory);
   await mkdir(directory, { recursive: true });
   let filenames = await sortedFilenames(directory);
 
-  for (const filename of filenames) {
-    const parsed = parseClaim(filename);
-    if (
-      parsed === undefined ||
-      parsed.expiresAt > options.now ||
-      options.excludeRequestIds?.has(parsed.requestId) === true
-    ) {
-      continue;
-    }
-    try {
-      await rename(path.join(directory, filename), primaryPath(projectDirectory, parsed.requestId));
-    } catch (error) {
-      if (!['ENOENT', 'EEXIST'].includes(errorCode(error) ?? '')) throw error;
-    }
-  }
-
+  await recoverExpiredClaims(projectDirectory, filenames, options.now, options.excludeRequestIds);
   filenames = await sortedFilenames(directory);
   for (const filename of filenames) {
     const requestId = parsePrimary(filename);
@@ -252,18 +235,58 @@ export async function claimRelayRequest(
     ) {
       continue;
     }
-    const claimed = path.join(
-      directory,
-      `${requestId}.claim.${options.claimId}.${options.now + options.leaseMs}.json`,
-    );
-    try {
-      await rename(path.join(directory, filename), claimed);
-      return { bytes: await readFile(claimed), path: claimed, requestId };
-    } catch (error) {
-      if (errorCode(error) !== 'ENOENT') throw error;
-    }
+    const claim = await claimSpecificRelayRequest(projectDirectory, requestId, {
+      claimId: options.claimId,
+      leaseMs: options.leaseMs,
+      now: options.now,
+    });
+    if (claim !== undefined) return claim;
   }
   return undefined;
+}
+
+async function recoverExpiredClaims(
+  projectDirectory: string,
+  filenames: string[],
+  now: number,
+  excludeRequestIds?: Set<string>,
+): Promise<void> {
+  const directory = relayDirectory(projectDirectory);
+  for (const filename of filenames) {
+    const parsed = parseClaim(filename);
+    if (
+      parsed === undefined ||
+      parsed.expiresAt > now ||
+      excludeRequestIds?.has(parsed.requestId) === true
+    ) {
+      continue;
+    }
+    try {
+      await rename(path.join(directory, filename), primaryPath(projectDirectory, parsed.requestId));
+    } catch (error) {
+      if (!['ENOENT', 'EEXIST'].includes(errorCode(error) ?? '')) throw error;
+    }
+  }
+}
+
+async function claimSpecificRelayRequest(
+  projectDirectory: string,
+  requestId: string,
+  options: { claimId: string; leaseMs: number; now: number },
+): Promise<RelayClaim | undefined> {
+  if (await exists(ackPath(projectDirectory, requestId))) return undefined;
+  const directory = relayDirectory(projectDirectory);
+  const claimed = path.join(
+    directory,
+    `${requestId}.claim.${options.claimId}.${options.now + options.leaseMs}.json`,
+  );
+  try {
+    await rename(primaryPath(projectDirectory, requestId), claimed);
+    return { bytes: await readFile(claimed), path: claimed, requestId };
+  } catch (error) {
+    if (errorCode(error) !== 'ENOENT') throw error;
+    return undefined;
+  }
 }
 
 export async function acknowledgeRelayClaim(
@@ -371,25 +394,41 @@ export async function deliverRelayRequests(
     credential: string;
     deadlineMs: number;
     fetch: typeof fetch;
+    monotonicNow?: () => number;
     now: () => number;
+    overallDeadlineMs?: number;
     relayUrl: string;
   },
-): Promise<{ accepted: number; deadLettered: number; retryable: number }> {
+): Promise<{
+  accepted: number;
+  deadLetterBacklog: number;
+  deadLettered: number;
+  retryable: number;
+}> {
+  const monotonicNow = options.monotonicNow ?? (() => performance.now());
+  const overallDeadline = monotonicNow() + (options.overallDeadlineMs ?? options.deadlineMs);
   const initial = await listRelayRequests(projectDirectory);
+  const wallClockNow = options.now();
+  await recoverExpiredClaims(
+    projectDirectory,
+    await sortedFilenames(relayDirectory(projectDirectory)),
+    wallClockNow,
+  );
   const processed = new Set<string>();
   let accepted = 0;
   const initialDeadLetters = await listRelayDeadLetters(projectDirectory);
-  let deadLettered = initialDeadLetters.length;
+  let deadLetterBacklog = initialDeadLetters.length;
+  let deadLettered = 0;
   let retryable = 0;
   for (const request of initial) {
+    if (monotonicNow() >= overallDeadline) break;
     if (processed.has(request.requestId)) continue;
-    const claim = await claimRelayRequest(projectDirectory, {
+    const claim = await claimSpecificRelayRequest(projectDirectory, request.requestId, {
       claimId: randomUUID(),
-      excludeRequestIds: processed,
       leaseMs: Math.max(options.deadlineMs * 2, 1000),
       now: options.now(),
     });
-    if (claim === undefined) break;
+    if (claim === undefined) continue;
     processed.add(claim.requestId);
     let parsedRequest: RelayDraftRequest;
     try {
@@ -402,12 +441,21 @@ export async function deliverRelayRequests(
     if (options.now() >= Date.parse(parsedRequest.retryDeadlineAt)) {
       await deadLetterClaim(projectDirectory, claim);
       deadLettered += 1;
+      deadLetterBacklog += 1;
       continue;
     }
+    const remainingOverallMs = overallDeadline - monotonicNow();
+    if (remainingOverallMs <= 0) {
+      await rearmClaim(projectDirectory, claim);
+      break;
+    }
     const controller = new AbortController();
-    const timer = setTimeout(() => {
-      controller.abort();
-    }, options.deadlineMs);
+    const timer = setTimeout(
+      () => {
+        controller.abort();
+      },
+      Math.min(options.deadlineMs, remainingOverallMs),
+    );
     timer.unref();
     try {
       const response = await options.fetch(`${options.relayUrl}/v1/retro-filings`, {
@@ -436,5 +484,5 @@ export async function deliverRelayRequests(
       clearTimeout(timer);
     }
   }
-  return { accepted, deadLettered, retryable };
+  return { accepted, deadLetterBacklog, deadLettered, retryable };
 }

@@ -18,7 +18,9 @@ interface RequestRow {
   next_attempt_at: string | null;
   payload_ciphertext: Buffer;
   payload_compacted_at: string | null;
+  payload_format_version: 1 | 2;
   payload_hash: string;
+  payload_key_id: string;
   payload_nonce: Buffer;
   payload_tag: Buffer;
   receipt_id: string;
@@ -63,7 +65,7 @@ export interface MaintenanceAlert {
 type MigrationFault = (step: 'after-columns' | 'after-outbox' | 'before-version') => void;
 type ScopeRow = Pick<RequestRow, 'tenant_id' | 'installation_id' | 'repository' | 'request_id'>;
 
-const CURRENT_SCHEMA_VERSION = 3;
+const CURRENT_SCHEMA_VERSION = 4;
 const V1_COLUMNS = [
   'tenant_id',
   'installation_id',
@@ -90,6 +92,7 @@ const V2_EXTRA_COLUMNS = [
   'dispatch_started_at',
 ] as const;
 const V3_EXTRA_COLUMNS = ['retry_deadline_at'] as const;
+const V4_EXTRA_COLUMNS = ['payload_format_version', 'payload_key_id'] as const;
 
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
@@ -106,6 +109,8 @@ function rowToRequest(row: RequestRow): DurableRequest {
     attemptCount: row.attempt_count,
     envelope: {
       ciphertext: row.payload_ciphertext,
+      formatVersion: row.payload_format_version,
+      keyId: row.payload_key_id,
       nonce: row.payload_nonce,
       tag: row.payload_tag,
     },
@@ -159,7 +164,9 @@ function exactColumns(actual: string[], expected: readonly string[]): boolean {
   return actual.length === expected.length && expected.every(column => actual.includes(column));
 }
 
-function retroRequestsTable(table: 'retro_requests' | 'retro_requests_v3'): string {
+type RetroRequestsTable = 'retro_requests' | 'retro_requests_v3' | 'retro_requests_v4';
+
+function retroRequestsTable(table: RetroRequestsTable): string {
   return `
     CREATE TABLE ${table} (
       tenant_id TEXT NOT NULL,
@@ -168,6 +175,8 @@ function retroRequestsTable(table: 'retro_requests' | 'retro_requests_v3'): stri
       request_id TEXT NOT NULL,
       receipt_id TEXT NOT NULL UNIQUE,
       payload_hash TEXT NOT NULL,
+      payload_format_version INTEGER NOT NULL CHECK (payload_format_version IN (1, 2)),
+      payload_key_id TEXT NOT NULL,
       payload_nonce BLOB NOT NULL,
       payload_ciphertext BLOB NOT NULL,
       payload_tag BLOB NOT NULL,
@@ -191,8 +200,8 @@ function retroRequestsTable(table: 'retro_requests' | 'retro_requests_v3'): stri
 }
 
 function reconciliationAuditTable(
-  table: 'reconciliation_audit' | 'reconciliation_audit_v3',
-  requestsTable: 'retro_requests' | 'retro_requests_v3',
+  table: 'reconciliation_audit' | 'reconciliation_audit_v3' | 'reconciliation_audit_v4',
+  requestsTable: 'retro_requests' | 'retro_requests_v3' | 'retro_requests_v4',
 ): string {
   return `
     CREATE TABLE ${table} (
@@ -208,8 +217,8 @@ function reconciliationAuditTable(
 }
 
 function alertOutboxTable(
-  table: 'alert_outbox' | 'alert_outbox_v3',
-  requestsTable: 'retro_requests' | 'retro_requests_v3',
+  table: 'alert_outbox' | 'alert_outbox_v3' | 'alert_outbox_v4',
+  requestsTable: 'retro_requests' | 'retro_requests_v3' | 'retro_requests_v4',
 ): string {
   return `
     CREATE TABLE ${table} (
@@ -223,7 +232,7 @@ function alertOutboxTable(
   `;
 }
 
-function createVersionThree(database: Database): void {
+function createCurrentVersion(database: Database): void {
   database.exec(`
     CREATE TABLE schema_version (version INTEGER NOT NULL) STRICT;
     INSERT INTO schema_version VALUES (${CURRENT_SCHEMA_VERSION});
@@ -245,8 +254,8 @@ function readSchemaVersion(database: Database): number {
   return version;
 }
 
-function validateVersionThree(database: Database): void {
-  const expected = [...V1_COLUMNS, ...V2_EXTRA_COLUMNS, ...V3_EXTRA_COLUMNS];
+function validateCurrentVersion(database: Database): void {
+  const expected = [...V1_COLUMNS, ...V2_EXTRA_COLUMNS, ...V3_EXTRA_COLUMNS, ...V4_EXTRA_COLUMNS];
   const requestColumns = tableInfo(database, 'retro_requests');
   if (
     !exactColumns(
@@ -254,11 +263,16 @@ function validateVersionThree(database: Database): void {
       expected,
     )
   ) {
-    throw new Error('schema version three layout is partial or incompatible');
+    throw new Error('schema version four layout is partial or incompatible');
   }
   const deadline = requestColumns.find(column => column.name === 'retry_deadline_at');
   if (deadline?.notnull !== 1) {
-    throw new Error('schema version three retry deadline constraint is missing');
+    throw new Error('schema version four retry deadline constraint is missing');
+  }
+  for (const name of V4_EXTRA_COLUMNS) {
+    if (requestColumns.find(column => column.name === name)?.notnull !== 1) {
+      throw new Error(`schema version four ${name} constraint is missing`);
+    }
   }
   for (const table of ['reconciliation_audit', 'alert_outbox']) {
     if (!tableExists(database, table)) throw new Error(`schema table ${table} is missing`);
@@ -275,13 +289,14 @@ function migrateVersionOne(database: Database, fault?: MigrationFault): void {
       ${retroRequestsTable('retro_requests_v3')}
       INSERT INTO retro_requests_v3 (
         tenant_id, installation_id, repository, request_id, receipt_id,
-        payload_hash, payload_nonce, payload_ciphertext, payload_tag, state,
+        payload_hash, payload_format_version, payload_key_id,
+        payload_nonce, payload_ciphertext, payload_tag, state,
         issue_number, request_marker, accepted_at, retry_deadline_at, filed_at,
         next_attempt_at, attempt_count
       )
       SELECT
         tenant_id, installation_id, repository, request_id, receipt_id,
-        payload_hash, payload_nonce, payload_ciphertext, payload_tag, state,
+        payload_hash, 1, 'legacy', payload_nonce, payload_ciphertext, payload_tag, state,
         issue_number, request_marker, accepted_at,
         strftime('%Y-%m-%dT%H:%M:%fZ', accepted_at, '+24 hours'), filed_at,
         accepted_at, 0
@@ -314,14 +329,15 @@ function migrateVersionTwo(database: Database): void {
       ${retroRequestsTable('retro_requests_v3')}
       INSERT INTO retro_requests_v3 (
         tenant_id, installation_id, repository, request_id, receipt_id,
-        payload_hash, payload_nonce, payload_ciphertext, payload_tag, state,
+        payload_hash, payload_format_version, payload_key_id,
+        payload_nonce, payload_ciphertext, payload_tag, state,
         issue_number, request_marker, accepted_at, retry_deadline_at, filed_at,
         dead_lettered_at, tombstoned_at, payload_compacted_at, next_attempt_at,
         attempt_count, dispatch_started_at
       )
       SELECT
         tenant_id, installation_id, repository, request_id, receipt_id,
-        payload_hash, payload_nonce, payload_ciphertext, payload_tag, state,
+        payload_hash, 1, 'legacy', payload_nonce, payload_ciphertext, payload_tag, state,
         issue_number, request_marker, accepted_at,
         strftime('%Y-%m-%dT%H:%M:%fZ', accepted_at, '+24 hours'), filed_at,
         dead_lettered_at, tombstoned_at, payload_compacted_at, next_attempt_at,
@@ -344,12 +360,51 @@ function migrateVersionTwo(database: Database): void {
   });
 }
 
+function migrateVersionThree(database: Database): void {
+  const expected = [...V1_COLUMNS, ...V2_EXTRA_COLUMNS, ...V3_EXTRA_COLUMNS];
+  if (!exactColumns(columns(database, 'retro_requests'), expected)) {
+    throw new Error('schema version three layout is partial or incompatible');
+  }
+  database.immediateTransaction(() => {
+    database.exec(`
+      PRAGMA defer_foreign_keys = ON;
+      ${retroRequestsTable('retro_requests_v4')}
+      INSERT INTO retro_requests_v4 (
+        tenant_id, installation_id, repository, request_id, receipt_id,
+        payload_hash, payload_format_version, payload_key_id,
+        payload_nonce, payload_ciphertext, payload_tag, state,
+        issue_number, request_marker, accepted_at, retry_deadline_at, filed_at,
+        dead_lettered_at, tombstoned_at, payload_compacted_at, next_attempt_at,
+        attempt_count, dispatch_started_at
+      )
+      SELECT
+        tenant_id, installation_id, repository, request_id, receipt_id,
+        payload_hash, 1, 'legacy', payload_nonce, payload_ciphertext, payload_tag, state,
+        issue_number, request_marker, accepted_at, retry_deadline_at, filed_at,
+        dead_lettered_at, tombstoned_at, payload_compacted_at, next_attempt_at,
+        attempt_count, dispatch_started_at
+      FROM retro_requests;
+      ${reconciliationAuditTable('reconciliation_audit_v4', 'retro_requests_v4')}
+      INSERT INTO reconciliation_audit_v4 SELECT * FROM reconciliation_audit;
+      ${alertOutboxTable('alert_outbox_v4', 'retro_requests_v4')}
+      INSERT INTO alert_outbox_v4 SELECT * FROM alert_outbox;
+      DROP TABLE alert_outbox;
+      DROP TABLE reconciliation_audit;
+      DROP TABLE retro_requests;
+      ALTER TABLE retro_requests_v4 RENAME TO retro_requests;
+      ALTER TABLE reconciliation_audit_v4 RENAME TO reconciliation_audit;
+      ALTER TABLE alert_outbox_v4 RENAME TO alert_outbox;
+      UPDATE schema_version SET version = ${CURRENT_SCHEMA_VERSION};
+    `);
+  });
+}
+
 function prepareDatabase(
   database: Database,
   fault?: (step: 'after-columns' | 'after-outbox' | 'before-version') => void,
 ): void {
   if (!tableExists(database, 'schema_version')) {
-    createVersionThree(database);
+    createCurrentVersion(database);
     return;
   }
   const version = readSchemaVersion(database);
@@ -362,8 +417,12 @@ function prepareDatabase(
       migrateVersionTwo(database);
       break;
     }
+    case 3: {
+      migrateVersionThree(database);
+      break;
+    }
     case CURRENT_SCHEMA_VERSION: {
-      validateVersionThree(database);
+      validateCurrentVersion(database);
       break;
     }
     default: {
@@ -390,7 +449,7 @@ export class RelayStore {
       database.pragma('synchronous = FULL');
       database.pragma('foreign_keys = ON');
       prepareDatabase(database, options.migrationFault);
-      validateVersionThree(database);
+      validateCurrentVersion(database);
       return new RelayStore(database, options.now ?? (() => new Date()));
     } catch (error) {
       database.close();
@@ -419,9 +478,10 @@ export class RelayStore {
       .prepare(
         `INSERT INTO retro_requests (
           tenant_id, installation_id, repository, request_id, receipt_id,
-          payload_hash, payload_nonce, payload_ciphertext, payload_tag,
+          payload_hash, payload_format_version, payload_key_id,
+          payload_nonce, payload_ciphertext, payload_tag,
           state, issue_number, request_marker, accepted_at, retry_deadline_at, next_attempt_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'accepted', NULL, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'accepted', NULL, ?, ?, ?, ?)
         ON CONFLICT (tenant_id, installation_id, repository, request_id) DO NOTHING`,
       )
       .run(
@@ -431,6 +491,8 @@ export class RelayStore {
         input.scope.requestId,
         receiptId,
         input.payloadHash,
+        input.envelope.formatVersion,
+        input.envelope.keyId,
         input.envelope.nonce,
         input.envelope.ciphertext,
         input.envelope.tag,
@@ -509,6 +571,36 @@ export class RelayStore {
           now.toISOString(),
         ).changes === 1
     );
+  }
+
+  beginManualRecovery(scope: RequestScope, now = this.#now()): boolean {
+    return (
+      this.#database
+        .prepare(
+          `UPDATE retro_requests SET state = 'dispatching', dispatch_started_at = ?
+           WHERE tenant_id = ? AND installation_id = ? AND repository = ?
+             AND request_id = ? AND state = 'ambiguous'
+             AND dead_lettered_at IS NULL AND tombstoned_at IS NULL`,
+        )
+        .run(
+          now.toISOString(),
+          scope.tenantId,
+          scope.installationId,
+          scope.repository,
+          scope.requestId,
+        ).changes === 1
+    );
+  }
+
+  cancelManualRecovery(scope: RequestScope): void {
+    this.#database
+      .prepare(
+        `UPDATE retro_requests SET state = 'ambiguous'
+         WHERE tenant_id = ? AND installation_id = ? AND repository = ?
+           AND request_id = ? AND state = 'dispatching'
+           AND dead_lettered_at IS NULL AND tombstoned_at IS NULL`,
+      )
+      .run(scope.tenantId, scope.installationId, scope.repository, scope.requestId);
   }
 
   close(): void {
@@ -594,7 +686,7 @@ export class RelayStore {
       .prepare(
         `UPDATE retro_requests SET state = 'filed', issue_number = ?, filed_at = ?
          WHERE tenant_id = ? AND installation_id = ? AND repository = ? AND request_id = ?
-           AND state = 'ambiguous' AND tombstoned_at IS NULL`,
+           AND state IN ('ambiguous', 'dispatching') AND tombstoned_at IS NULL`,
       )
       .run(
         issueNumber,
@@ -660,7 +752,8 @@ export class RelayStore {
   recordReconciliation(
     receiptId: string,
     actorSubject: string,
-    disposition: 'adopted' | 'incomplete' | 'multiple' | 'zero',
+    disposition:
+      'adopted' | 'incomplete' | 'manual-create-attempted' | 'manual-created' | 'multiple' | 'zero',
     matchCount: number,
   ): void {
     this.#database
@@ -692,6 +785,17 @@ export class RelayStore {
 
   schemaVersion(): number {
     return readSchemaVersion(this.#database);
+  }
+
+  payloadKeyIds(): string[] {
+    return this.#database
+      .prepare<[], { payload_key_id: string }>(
+        `SELECT DISTINCT payload_key_id FROM retro_requests
+         WHERE payload_compacted_at IS NULL
+         ORDER BY payload_key_id`,
+      )
+      .all()
+      .map(row => row.payload_key_id);
   }
 
   recoverInFlight(): void {
@@ -834,7 +938,7 @@ export class RelayStore {
     return {
       counts,
       oldestQueuedAgeSeconds: Math.max(0, Math.floor((now.getTime() - oldest) / 1000)),
-      schemaVersion: 3,
+      schemaVersion: CURRENT_SCHEMA_VERSION,
     };
   }
 }

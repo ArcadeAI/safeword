@@ -3,6 +3,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import type { CredentialRegistry } from './auth.js';
 import { RelayError } from './errors.js';
 import type { GitHubRestClient } from './github.js';
+import type { PayloadKeyring } from './payload.js';
 import { ProcessLock } from './process-lock.js';
 import { type RelayFaults, RelayService } from './service.js';
 import type { RelayStore } from './store.js';
@@ -49,7 +50,6 @@ type RelayServerOptions = {
   credentials: CredentialRegistry;
   store: RelayStore;
   github: GitHubRestClient;
-  payloadKey: Buffer;
   replicaId?: string;
   bootId?: string;
   host?: string;
@@ -72,7 +72,19 @@ type RelayServerOptions = {
 } & (
   | { lockPath: string; allowUnlockedForTests?: never }
   | { lockPath?: never; allowUnlockedForTests: true }
-);
+) &
+  (
+    | { payloadKeyring: PayloadKeyring; payloadKey?: never }
+    | { payloadKey: Buffer; payloadKeyring?: never }
+  );
+
+function resolvePayloadKeyring(input: RelayServerOptions): PayloadKeyring {
+  if (input.payloadKeyring !== undefined) return input.payloadKeyring;
+  return {
+    activeKeyId: 'legacy',
+    keys: new Map([['legacy', input.payloadKey]]),
+  };
+}
 
 // eslint-disable-next-line complexity -- Lifecycle setup and the public server contract stay visible together.
 export async function startRelayServer(input: RelayServerOptions): Promise<{
@@ -97,7 +109,14 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
     logs: [] as Record<string, unknown>[],
     metrics: [] as Record<string, unknown>[],
   };
-  const service = new RelayService({ ...input, faults: serviceFaults });
+  const payloadKeyring = resolvePayloadKeyring(input);
+  const service = new RelayService({
+    store: input.store,
+    github: input.github,
+    payloadKeyring,
+    faults: serviceFaults,
+    ...(input.now !== undefined && { now: input.now }),
+  });
   const maxBodyBytes = input.resourceLimits?.maxBodyBytes ?? 256 * 1024;
   const maxRequestsPerWindow = input.resourceLimits?.maxRequestsPerWindow ?? 60;
   const rateWindowMs = input.resourceLimits?.windowMs ?? 60_000;
@@ -239,6 +258,47 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
             disposition: 'adopted',
           });
           sendJson(response, 200, receipt);
+        } catch (error) {
+          const disposition =
+            error instanceof RelayError && typeof error.details?.disposition === 'string'
+              ? error.details.disposition
+              : undefined;
+          if (disposition !== undefined) {
+            observability.logs.push({
+              event: 'retro_reconciliation',
+              receiptId: decodedReceipt,
+              subject: principal.subject,
+              disposition,
+              alert: true,
+            });
+            observability.metrics.push({
+              metric: 'retro_reconciliation_outcome',
+              disposition,
+            });
+          }
+          throw error;
+        }
+        return;
+      }
+      const recovery = /^\/v1\/retro-filings\/([^/]+)\/recover$/u.exec(url.pathname);
+      if (request.method === 'POST' && recovery?.[1] !== undefined) {
+        if (!consumeRequestCapacity(principal.credentialId)) {
+          throw new RelayError(429, 'relay recovery rate limit exceeded');
+        }
+        const decodedReceipt = decodeURIComponent(recovery[1]);
+        try {
+          const recovered = await service.recover(principal, decodedReceipt);
+          observability.logs.push({
+            event: 'retro_reconciliation',
+            receiptId: decodedReceipt,
+            subject: principal.subject,
+            disposition: recovered.disposition,
+          });
+          observability.metrics.push({
+            metric: 'retro_reconciliation_outcome',
+            disposition: recovered.disposition,
+          });
+          sendJson(response, 200, recovered.receipt);
         } catch (error) {
           const disposition =
             error instanceof RelayError && typeof error.details?.disposition === 'string'

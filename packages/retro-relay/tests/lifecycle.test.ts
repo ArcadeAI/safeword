@@ -40,6 +40,8 @@ function accept(store: RelayStore, requestId: string) {
   return store.accept({
     envelope: {
       ciphertext: Buffer.from(`ciphertext-${requestId}`),
+      formatVersion: 2,
+      keyId: 'test',
       nonce: Buffer.alloc(12, 1),
       tag: Buffer.alloc(16, 2),
     },
@@ -138,7 +140,31 @@ function createVersionTwo(databaseFile: string): void {
   database.close();
 }
 
-describe('schema version three migration', () => {
+function createVersionThree(databaseFile: string): void {
+  createVersionTwo(databaseFile);
+  const database = new Database(databaseFile);
+  database.exec(`
+    ALTER TABLE retro_requests ADD COLUMN retry_deadline_at
+      TEXT NOT NULL DEFAULT '2026-01-02T00:00:00.000Z';
+    UPDATE schema_version SET version = 3;
+  `);
+  database.close();
+}
+
+describe('schema version four migration', () => {
+  it('preserves the original transaction error when SQLite has already rolled back', () => {
+    const database = new Database(':memory:');
+    const original = new Error('original transaction failure');
+
+    expect(() =>
+      database.immediateTransaction(() => {
+        database.exec('ROLLBACK;');
+        throw original;
+      }),
+    ).toThrow(original);
+    database.close();
+  });
+
   it('rolls back every migration mutation when an injected step fails', () => {
     const file = databasePath();
     createVersionOne(file);
@@ -163,7 +189,7 @@ describe('schema version three migration', () => {
     database.close();
 
     const migrated = RelayStore.open(file);
-    expect(migrated.schemaVersion()).toBe(3);
+    expect(migrated.schemaVersion()).toBe(4);
     migrated.close();
   });
 
@@ -203,8 +229,25 @@ describe('schema version three migration', () => {
 
     const store = RelayStore.open(file);
 
-    expect(store.schemaVersion()).toBe(3);
-    expect(store.load(scope('migrated-v2'))?.retryDeadlineAt).toBe('2026-01-02T00:00:00.000Z');
+    expect(store.schemaVersion()).toBe(4);
+    expect(store.load(scope('migrated-v2'))).toMatchObject({
+      envelope: { formatVersion: 1, keyId: 'legacy' },
+      retryDeadlineAt: '2026-01-02T00:00:00.000Z',
+    });
+    store.close();
+  });
+
+  it('upgrades deployed version-three envelopes with explicit legacy key metadata', () => {
+    const file = databasePath();
+    createVersionThree(file);
+
+    const store = RelayStore.open(file);
+
+    expect(store.schemaVersion()).toBe(4);
+    expect(store.load(scope('migrated-v2'))?.envelope).toMatchObject({
+      formatVersion: 1,
+      keyId: 'legacy',
+    });
     store.close();
   });
 
@@ -291,6 +334,8 @@ describe('durable retry and terminal lifecycle', () => {
     store.accept({
       envelope: {
         ciphertext: Buffer.from('shared-deadline'),
+        formatVersion: 2,
+        keyId: 'test',
         nonce: Buffer.alloc(12, 1),
         tag: Buffer.alloc(16, 2),
       },

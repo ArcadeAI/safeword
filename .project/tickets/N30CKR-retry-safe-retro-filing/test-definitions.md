@@ -44,6 +44,18 @@ Feature source: `features/retry-safe-retro-filing.feature`
 - [x] GREEN 247600f5b
 - [x] REFACTOR 6eea11b96
 
+### Scenario: An operator manually recovers a complete zero-match with the original marker
+
+- [x] RED — review pass reproduced the missing route as 404
+- [x] GREEN — public route creates once from the encrypted durable request
+- [x] REFACTOR — recovery CAS, role gate, and audit disposition share the existing state machine
+
+### Scenario: A queued encrypted request survives payload-key rotation
+
+- [x] RED — old envelopes became undecryptable after replacing the single key
+- [x] GREEN — envelope key IDs select retained decrypt-only keys
+- [x] REFACTOR — v1 AAD rows migrate explicitly and startup names missing keys
+
 ## Rule: Authorization is repository-scoped and independent of dedupe identity
 
 ### Scenario: Repository authorization determines whether filing proceeds

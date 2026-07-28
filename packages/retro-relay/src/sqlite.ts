@@ -89,7 +89,17 @@ export default class Database {
       this.#database.exec('COMMIT;');
       return result;
     } catch (error) {
-      this.#database.exec('ROLLBACK;');
+      if (this.#database.isTransaction) {
+        try {
+          this.#database.exec('ROLLBACK;');
+        } catch (rollbackError) {
+          throw new AggregateError(
+            [error, rollbackError],
+            'transaction operation and rollback both failed',
+            { cause: rollbackError },
+          );
+        }
+      }
       throw error;
     }
   }
