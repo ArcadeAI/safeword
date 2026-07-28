@@ -113,7 +113,7 @@ function countLoc(): number {
     });
     const insMatch = diffStat.match(/(\d+) insertions?\(\+\)/);
     const delMatch = diffStat.match(/(\d+) deletions?\(-\)/);
-    return (insMatch ? parseInt(insMatch[1]) : 0) + (delMatch ? parseInt(delMatch[1]) : 0);
+    return parseInt(insMatch?.[1] ?? '0') + parseInt(delMatch?.[1] ?? '0');
   } catch {
     return 0;
   }

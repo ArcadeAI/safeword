@@ -37,9 +37,11 @@ interface TranscriptEntry {
 function extractLastNextImperative(text: string): string | null {
   const lines = text.split('\n');
   for (let index = lines.length - 1; index >= 0; index--) {
-    const match = /^\*\*Next:\*\*\s+(.+)$/.exec(lines[index].trim());
+    const line = lines[index];
+    if (!line) continue;
+    const match = /^\*\*Next:\*\*\s+(.+)$/.exec(line.trim());
     if (match) {
-      const imperative = match[1].trim();
+      const imperative = match[1]?.trim() ?? '';
       return imperative.length > 0 ? imperative : null;
     }
   }
@@ -76,8 +78,10 @@ function readLastAssistantText(transcriptPath: string): string {
   if (raw.length === 0) return '';
   const lines = raw.split('\n');
   for (let index = lines.length - 1; index >= 0; index--) {
+    const line = lines[index];
+    if (!line) continue;
     try {
-      const entry = JSON.parse(lines[index]) as TranscriptEntry;
+      const entry = JSON.parse(line) as TranscriptEntry;
       if (entry.type === 'assistant' && entry.message?.content) {
         return entry.message.content
           .filter(c => c.type === 'text' && typeof c.text === 'string')

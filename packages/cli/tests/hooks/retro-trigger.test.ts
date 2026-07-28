@@ -19,6 +19,7 @@ import {
   hasNudged,
   isSubstantial,
   markNudged,
+  resolveClaudeSessionId,
   resolveSessionId,
   SUBSTANCE_THRESHOLD,
 } from '../../templates/hooks/lib/retro-trigger.js';
@@ -115,6 +116,17 @@ describe('resolveSessionId (precedence: input > cloud > local)', () => {
 
   it('returns undefined when no session id can be resolved', () => {
     expect(resolveSessionId({}, {})).toBeUndefined();
+  });
+});
+
+describe('resolveClaudeSessionId', () => {
+  it('uses the same input, cloud, then local precedence with a narrow environment', () => {
+    expect(
+      resolveClaudeSessionId(
+        {},
+        { CLAUDE_CODE_REMOTE_SESSION_ID: 'sess-cloud', CLAUDE_SESSION_ID: 'sess-local' },
+      ),
+    ).toBe('sess-cloud');
   });
 });
 
