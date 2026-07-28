@@ -363,12 +363,16 @@ describe('retry-safe retro relay', () => {
   it.each([
     ['title', { title: 'changed' }],
     ['body', { body: 'changed' }],
+    ['label order', { labels: ['security', 'retro'] as string[] }],
+    ['duplicate labels', { labels: ['retro', 'retro'] as string[] }],
   ] as const)('rejects a changed %s under the same identity', async (_field, change) => {
     const setup = await fixture();
     const adapter = createHarnessAdapters(setup.relay.url, setup.credential).claude;
-    await adapter.file(draft());
+    await adapter.file(draft({ labels: ['retro', 'security'] }));
 
-    await expect(adapter.file(draft(change))).rejects.toMatchObject({
+    await expect(
+      adapter.file(draft({ labels: ['retro', 'security'], ...change })),
+    ).rejects.toMatchObject({
       status: 409,
     });
     expect(setup.createBodies).toHaveLength(1);

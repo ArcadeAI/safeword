@@ -1,4 +1,4 @@
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -169,5 +169,53 @@ describe('retro relay runtime qualification', () => {
     const recovered = ProcessLock.acquire(lockPath);
     expect(() => ProcessLock.acquire(lockPath)).toThrow('already locked');
     recovered.release();
+  });
+
+  it('allows only one process to reclaim the same stale lock', async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-lock-race-'));
+    temporaryDirectories.push(directory);
+    const lockPath = path.join(directory, 'relay.lock');
+    writeFileSync(lockPath, '2147483647', 'utf8');
+    const packageRoot = fileURLToPath(new URL('..', import.meta.url));
+    const startAt = Date.now() + 500;
+    const contender = `
+      import { ProcessLock } from './dist/index.js';
+      const delay = Number(process.env.START_AT) - Date.now();
+      if (delay > 0) await new Promise(resolve => setTimeout(resolve, delay));
+      try {
+        const lock = ProcessLock.acquire(process.env.LOCK_PATH);
+        process.stdout.write('acquired');
+        await new Promise(resolve => setTimeout(resolve, 100));
+        lock.release();
+      } catch {
+        process.stdout.write('blocked');
+      }
+    `;
+    const results = await Promise.all(
+      Array.from({ length: 24 }, () => {
+        const child = spawn(process.execPath, ['--input-type=module', '--eval', contender], {
+          cwd: packageRoot,
+          env: { ...process.env, LOCK_PATH: lockPath, START_AT: String(startAt) },
+          stdio: ['ignore', 'pipe', 'pipe'],
+        });
+        return new Promise<string>((resolve, reject) => {
+          let stdout = '';
+          let stderr = '';
+          child.stdout.setEncoding('utf8').on('data', (chunk: string) => {
+            stdout += chunk;
+          });
+          child.stderr.setEncoding('utf8').on('data', (chunk: string) => {
+            stderr += chunk;
+          });
+          child.once('error', reject);
+          child.once('close', code => {
+            if (code === 0) resolve(stdout);
+            else reject(new Error(stderr || `lock contender exited ${String(code)}`));
+          });
+        });
+      }),
+    );
+
+    expect(results.filter(result => result === 'acquired')).toHaveLength(1);
   });
 });

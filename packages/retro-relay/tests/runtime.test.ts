@@ -199,6 +199,30 @@ describe('production runtime configuration', () => {
     ]);
   });
 
+  it.each([
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols, unicorn/prefer-https -- This negative case proves production rejects cleartext credential transport.
+    'http://api.github.com',
+    'https://token@api.github.com',
+    'https://api.github.com/api/v3',
+    'https://api.github.com?token=secret',
+  ])('rejects unsafe production GitHub API base URL %s', baseUrl => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'safeword-runtime-github-url-'));
+    runtimeDirectories.push(directory);
+    const environment = productionEnvironment(directory);
+    environment.GITHUB_API_BASE_URL = baseUrl;
+
+    expect(() => parseRuntimeConfig(environment)).toThrow('invalid production GITHUB_API_BASE_URL');
+  });
+
+  it('accepts a credential-free HTTPS GitHub API origin in production', () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'safeword-runtime-github-origin-'));
+    runtimeDirectories.push(directory);
+    const environment = productionEnvironment(directory);
+    environment.GITHUB_API_BASE_URL = 'https://github.example.com';
+
+    expect(parseRuntimeConfig(environment).github.baseUrl).toBe('https://github.example.com');
+  });
+
   it('rejects production principals split across tenant identity buckets', () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'safeword-runtime-tenants-'));
     runtimeDirectories.push(directory);

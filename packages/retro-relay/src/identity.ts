@@ -33,7 +33,7 @@ export function payloadHash(request: FileRetroDraftRequest): string {
         request.legacySignature,
         request.title,
         request.body,
-        ...[...new Set(request.labels)].toSorted((left, right) => left.localeCompare(right)),
+        ...request.labels,
       ]),
     )
     .digest('hex');

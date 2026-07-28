@@ -251,7 +251,30 @@ function parseSpikeCredential(
   return credential;
 }
 
-function parseGitHub(environment: NodeJS.ProcessEnv): RuntimeConfig['github'] {
+function productionGitHubBaseUrl(value: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new Error('invalid production GITHUB_API_BASE_URL');
+  }
+  if (
+    parsed.protocol !== 'https:' ||
+    parsed.username !== '' ||
+    parsed.password !== '' ||
+    parsed.pathname !== '/' ||
+    parsed.search !== '' ||
+    parsed.hash !== ''
+  ) {
+    throw new Error('invalid production GITHUB_API_BASE_URL');
+  }
+  return parsed.origin;
+}
+
+function parseGitHub(
+  environment: NodeJS.ProcessEnv,
+  mode: RuntimeConfig['mode'],
+): RuntimeConfig['github'] {
   const appId = required(environment, 'GITHUB_APP_ID');
   positiveInteger(appId, 'GITHUB_APP_ID');
   const privateKeyBytes = strictBase64(
@@ -273,9 +296,10 @@ function parseGitHub(environment: NodeJS.ProcessEnv): RuntimeConfig['github'] {
   if (!/^[\da-z_.-]+\/[\da-z_.-]+$/u.test(repo)) {
     throw new Error('invalid GITHUB_REPOSITORY');
   }
+  const configuredBaseUrl = optional(environment, 'GITHUB_API_BASE_URL', 'https://api.github.com');
   return {
     appId,
-    baseUrl: optional(environment, 'GITHUB_API_BASE_URL', 'https://api.github.com'),
+    baseUrl: mode === 'production' ? productionGitHubBaseUrl(configuredBaseUrl) : configuredBaseUrl,
     installationId,
     privateKey,
     repository: repo,
@@ -287,7 +311,7 @@ export function parseRuntimeConfig(environment: NodeJS.ProcessEnv): RuntimeConfi
   if (!['production', 'spike'].includes(mode)) throw new Error('invalid RELAY_MODE');
   const { host, port } = parseNetwork(environment);
   const { dataDirectory, payloadKeyring } = parseStorage(environment);
-  const github = parseGitHub(environment);
+  const github = parseGitHub(environment, mode as RuntimeConfig['mode']);
   const credentials =
     mode === 'production'
       ? parseProductionCredentials(environment)
