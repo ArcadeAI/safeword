@@ -106,7 +106,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 23a30fd26
 - [x] GREEN c7433666c
-- [ ] REFACTOR
+- [x] REFACTOR skip: planning, backup, and application are already isolated in finalization.ts
 
 ### Scenario: Failed finalization rolls back to the complete pre-migration state
 
