@@ -18,6 +18,7 @@ import {
   recordCodexHookProof,
   writeCodexRestartMarker,
 } from '../../src/codex-plugin/profile-proof.js';
+import { removeLegacyCodexHooks } from '../../src/commands/migrate-codex-plugin.js';
 import { createTemporaryDirectory, removeTemporaryDirectory, runCli } from '../helpers';
 
 const LEGACY_HOOK_CONFIG = `# Safeword Codex project configuration.
@@ -86,6 +87,9 @@ set -eu
 printf '%s\\n' "$*" >> "$SAFEWORD_CODEX_LOG"
 if [ "$(printenv SAFEWORD_MUTATE_CONFIG 2>/dev/null || true)" = "1" ] && [ "$*" = "plugin list --json" ]; then
   printf '# concurrent config update\\n' >> "$SAFEWORD_CONFIG_PATH"
+fi
+if [ -n "$(printenv SAFEWORD_LEGACY_ASSET_PATH 2>/dev/null || true)" ] && [ "$*" = "plugin list --json" ]; then
+  printf '# appeared after confirmation\\n' > "$SAFEWORD_LEGACY_ASSET_PATH"
 fi
 case "$*" in
   '--version') echo 'codex 0.141.0' ;;
@@ -654,6 +658,69 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     expect(jsonResult.stderr).toBe('');
     expect(JSON.parse(jsonResult.stdout)).toMatchObject({
       errors: [{ code: 'FINALIZATION_PROOF_REQUIRED' }],
+    });
+  });
+
+  it('passes exact config blocks and paths from the real planner to confirmation', async () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    recordCurrentProof(fixture);
+    let displayedPlan = '';
+
+    await removeLegacyCodexHooks(fixture.directory, {
+      environment: { CODEX_HOME: nodePath.join(fixture.directory, 'profile') },
+      confirm: plan => {
+        displayedPlan = plan;
+        return Promise.resolve(false);
+      },
+    });
+
+    expect(displayedPlan).toContain('- update .codex/config.toml');
+    expect(displayedPlan).toContain(LEGACY_HOOK_CONFIG.trim());
+    expect(displayedPlan).toContain('- create .safeword/codex-plugin.json');
+    expect(displayedPlan).toContain('- create .agents/skills/safeword-plugin-setup/SKILL.md');
+  });
+
+  it('rejects repository drift after confirmation instead of expanding the plan', async () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    recordCurrentProof(fixture);
+    const lateAsset = nodePath.join(fixture.directory, '.agents/skills/bdd/SKILL.md');
+    mkdirSync(nodePath.dirname(lateAsset), { recursive: true });
+
+    const result = await runCodexCommand(
+      fixture,
+      ['codex', 'migrate', '--finalize', '--yes', '--json'],
+      { SAFEWORD_LEGACY_ASSET_PATH: lateAsset },
+    );
+
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      changed: false,
+      errors: [{ code: 'FINALIZATION_FAILED' }],
+    });
+    expect(existsSync(lateAsset)).toBe(true);
+    expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-plugin.json'))).toBe(false);
+  });
+
+  it('keeps JSON failure reporting valid when project observation also fails', async () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    recordCurrentProof(fixture);
+    rmSync(fixture.configPath);
+    mkdirSync(fixture.configPath);
+
+    const result = await runCodexCommand(fixture, [
+      'codex',
+      'migrate',
+      '--finalize',
+      '--yes',
+      '--json',
+    ]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toBe('');
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      schema_version: '1',
+      changed: false,
+      errors: [{ code: 'FINALIZATION_FAILED' }],
     });
   });
 

@@ -1,4 +1,15 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+/* eslint-disable unicorn/no-null -- null models an explicit file-removal mutation */
+
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readlinkSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import { PassThrough, Readable } from 'node:stream';
@@ -100,6 +111,19 @@ describe('Codex migration finalization', () => {
     });
 
     expect(codexRecoveryIsRequired(directory)).toBe(true);
+  });
+
+  it('rejects a dangling symlink before creating recovery evidence or mutating it', () => {
+    const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-finalization-'));
+    directories.push(directory);
+    const linkPath = nodePath.join(directory, 'owned');
+    symlinkSync('missing-target', linkPath);
+
+    expect(() => applyCodexFinalization(directory, [{ path: 'owned', content: null }])).toThrow(
+      'symbolic link',
+    );
+    expect(existsSync(nodePath.join(directory, '.safeword/codex-migration-backup'))).toBe(false);
+    expect(readlinkSync(linkPath)).toBe('missing-target');
   });
 
   it('rolls back the complete pre-migration state when finalization fails', () => {
