@@ -48,7 +48,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: complete proof is inseparable from safely clearing the restart marker
 - [x] GREEN d8e9dc757
-- [ ] REFACTOR
+- [x] REFACTOR skip: proof payload has one schema-owned writer
 
 ### Scenario: Interrupted proof write cannot become current
 
