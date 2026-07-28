@@ -9,6 +9,11 @@ phase_anchors:
   - 'scenario-gate: packages/cli/features/predictable-safeword-cli.feature'
   - 'plan-implementation: packages/cli/features/predictable-safeword-cli.feature'
   - 'implement: .project/tickets/K53GQ9-predictable-safeword-cli/impl-plan.md'
+phase_skips:
+  - 'intake: The CLI created the ticket at intake, but its scaffold was not committed before the approved GitHub issue contract was adopted; ticket.md and spec.md preserve the completed intake evidence.'
+  - 'define-behavior: The 14 Rules, dimensions, and 83 scenario instances were authored before the ticket artifact first entered git; spec.md, dimensions.md, and the feature source preserve that evidence.'
+  - 'scenario-gate: Three independent adversarial review rounds ended with 0 findings before the ticket artifact first entered git; the corrections and final result are recorded in the work log.'
+  - 'plan-implementation: The reviewed design and seven-slice TDD plan were completed before the ticket artifact first entered git; design.md and impl-plan.md preserve the evidence.'
 external_issue: https://github.com/ArcadeAI/safeword/issues/1574
 scope:
   - Introduce typed Plan and Result contracts shared by public CLI commands.

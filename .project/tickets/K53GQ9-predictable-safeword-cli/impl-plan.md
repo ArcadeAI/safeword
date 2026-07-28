@@ -2,7 +2,9 @@
 
 **Status:** planned
 
-## Riskiest assumption
+## Approach
+
+### Riskiest assumption
 
 Existing commands can be migrated behind a typed result boundary without a
 flag-day rewrite. The cheapest proof is a vertical slice through `status`:
@@ -10,7 +12,7 @@ typed observation, both renderers, exit 0/2, bare invocation, and deprecated
 `check` alias. If that slice cannot preserve current health behavior, the
 catalog design is wrong before mutating commands are touched.
 
-## Ordered TDD slices
+### Ordered TDD slices
 
 1. **Contracts and renderers** — add Plan/Result types, constructors, exit
    mapping, human/JSON renderers, schema fixtures, and architecture tests.
@@ -34,7 +36,7 @@ catalog design is wrong before mutating commands are touched.
 Each slice begins with a focused failing test, implements the minimum behavior,
 then refactors with the focused and affected suites green.
 
-## Verification map
+### Verification map
 
 - Contract/renderers: unit tests and TypeScript exhaustiveness.
 - Catalog/capabilities/help: unit plus CLI subprocess golden tests.
@@ -51,12 +53,29 @@ then refactors with the focused and affected suites green.
   with fail-fast network and lifecycle witnesses.
 - Full acceptance: Cucumber feature plus real CLI steps.
 
-## Architecture alignment
+## Decisions
+
+| Decision | Choice | Rejected alternative | Reason |
+| --- | --- | --- | --- |
+| Execution boundary | Typed Plan/Result pipeline | Capture existing console output | Captured prose cannot provide semantic parity or effect integrity |
+| Discovery | Declarative command catalog | Derive metadata from Commander | Commander registration cannot express effect, prompt, network, compatibility, or fixture policy |
+| Machine interface | One JSON-v1 Result envelope | Per-command JSON shapes | Agents need one stable protocol and error model |
+| Compatibility | Aliases retained for two release lines | Immediate command removal | Existing scripts and installed integrations must continue working |
+| Destructive consent | Plan identity plus precondition digest | Boolean `--yes` alone | Consent must bind to the exact current effects |
+
+## Arch alignment
 
 The catalog becomes the command-schema counterpart to the managed-file schema:
 one declaration governs public discovery and policy. Domain modules remain
 independent of Commander and presentation. Reconciliation remains the only
 file mutation engine.
+
+## Known deviations
+
+- Existing public handlers do not yet obey the renderer boundary. Each is
+  migrated in slice 5; catalog metadata alone is not accepted as completion.
+- Hook hot paths may retain a direct executable adapter to protect latency, but
+  remain hidden catalog entries governed by hook effect policy.
 
 ## Assessment triggers
 
