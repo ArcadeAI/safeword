@@ -77,7 +77,10 @@ function definitionCommand(
 function addDefinitionAction(command: Command, definition: CommandDefinition): void {
   addGlobalOptions(command);
   addDefinitionOptions(command, definition);
-  command.description(definition.description).action(async (...actionArguments: unknown[]) => {
+  if (definition.aliasFor === undefined || !familyNames().has(definition.name)) {
+    command.description(definition.description);
+  }
+  command.action(async (...actionArguments: unknown[]) => {
     const actionCommand = actionArguments.at(-1);
     if (actionCommand !== command) {
       throw new Error(`Commander did not supply the command boundary for ${definition.name}`);

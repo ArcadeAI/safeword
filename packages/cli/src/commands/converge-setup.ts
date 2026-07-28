@@ -9,6 +9,10 @@ import { SAFEWORD_SCHEMA } from '../schema.js';
 import { createProjectContext } from '../utils/context.js';
 import { exists, writeJson } from '../utils/fs.js';
 import { type DependencyInstallResult, installDependencies } from '../utils/install.js';
+import {
+  applyVendoredIgnoresPolicy,
+  type VendoredIgnoresPolicyResult,
+} from '../utils/vendored-ignores-nudge.js';
 import { compareVersions } from '../utils/version.js';
 import { VERSION } from '../version.js';
 import { effectsForReconciliation } from './reconciliation-plan.js';
@@ -80,6 +84,7 @@ function partialSetupFailure(setupError: ReconcileExecutionError): CliResult {
 export async function convergeSetup(
   cwd: string,
   options: {
+    noModify?: boolean;
     progress?: {
       readonly start: (message: string) => void;
       readonly stop: () => void;
@@ -95,7 +100,7 @@ export async function convergeSetup(
     options.progress?.start(
       configured ? 'Reconciling the Safeword upgrade…' : 'Setting up Safeword…',
     );
-    return await applySetup(cwd, configured, packageJsonCreated);
+    return await applySetup(cwd, configured, packageJsonCreated, options.noModify === true);
   } catch (setupError) {
     return setupFailure(setupError);
   }
@@ -130,23 +135,58 @@ function packageFindings(installation: DependencyInstallResult) {
   ];
 }
 
-function setupResult(
-  reconciliation: ReconcileResult,
-  packageJsonCreated: boolean,
-  architectureEffects: Effect[],
-  installation: DependencyInstallResult,
-): CliResult {
+interface SetupResultInput {
+  readonly cwd: string;
+  readonly reconciliation: ReconcileResult;
+  readonly packageJsonCreated: boolean;
+  readonly architectureEffects: Effect[];
+  readonly installation: DependencyInstallResult;
+  readonly eslintPolicy: VendoredIgnoresPolicyResult;
+}
+
+function setupResult(input: SetupResultInput): CliResult {
+  const {
+    cwd,
+    reconciliation,
+    packageJsonCreated,
+    architectureEffects,
+    installation,
+    eslintPolicy,
+  } = input;
   const reconciled = effectsForReconciliation(reconciliation, 'upgrade');
   const files = [
     ...(packageJsonCreated ? [{ kind: 'create', target: 'package.json' }] : []),
     ...reconciled.files,
     ...architectureEffects,
+    ...(eslintPolicy.kind === 'patched'
+      ? [
+          {
+            kind: 'update',
+            target: nodePath.relative(cwd, eslintPolicy.configPath),
+          },
+          {
+            kind: 'create',
+            target: nodePath.relative(cwd, eslintPolicy.backupPath),
+          },
+        ]
+      : []),
   ];
   const packages = installation.installed
     ? reconciliation.packagesToInstall.map(target => ({ kind: 'install', target }))
     : [];
   const changed = files.length > 0 || packages.length > 0;
-  const findings = packageFindings(installation);
+  const findings = [
+    ...packageFindings(installation),
+    ...(eslintPolicy.kind === 'manual'
+      ? [
+          {
+            code: 'ESLINT_MANUAL_CONFIGURATION_REQUIRED',
+            message: 'Add safeword.configs.vendoredIgnores to the existing ESLint configuration.',
+            severity: 'warning' as const,
+          },
+        ]
+      : []),
+  ];
   let state: CliResult['state'] = changed ? 'changed' : 'healthy';
   if (findings.length > 0) state = 'action_required';
   const nextCommand =
@@ -165,15 +205,29 @@ async function applySetup(
   cwd: string,
   configured: boolean,
   packageJsonCreated: boolean,
+  noModify: boolean,
 ): Promise<CliResult> {
   const context = createProjectContext(cwd);
   const result = await reconcile(SAFEWORD_SCHEMA, configured ? 'upgrade' : 'install', context);
   for (const packId of detectLanguagePacks(cwd)) installPack(packId, cwd);
   const architectureEffects = configureArchitecture(cwd);
+  const eslintPolicy = applyVendoredIgnoresPolicy({
+    cwd,
+    existingEslintConfig: context.projectType.existingEslintConfig,
+    hasJavaScript: context.languages?.javascript ?? false,
+    noModify,
+  });
   const installation = installDependencies(cwd, result.packagesToInstall, 'missing packages', {
     report: false,
   });
-  return setupResult(result, packageJsonCreated, architectureEffects, installation);
+  return setupResult({
+    cwd,
+    reconciliation: result,
+    packageJsonCreated,
+    architectureEffects,
+    installation,
+    eslintPolicy,
+  });
 }
 
 function setupFailure(setupError: unknown): CliResult {

@@ -84,6 +84,7 @@ async function setupHandler(invocation: CommandInvocation): Promise<CliResult> {
   }
   const { convergeSetup } = await import('../commands/converge-setup.js');
   return convergeSetup(invocation.cwd, {
+    noModify: invocation.options.modify === false,
     progress: invocation.progress,
   });
 }

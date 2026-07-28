@@ -15,6 +15,12 @@ describe('quality-review regressions for the public CLI boundary', () => {
     }
   });
 
+  it('keeps command-family help canonical when the family is also a retained alias', async () => {
+    const result = await runCli(['--help']);
+    expect(result.stdout).toContain('retro');
+    expect(result.stdout).not.toContain('Deprecated alias for retro run');
+  });
+
   it.each(['codex install', 'codex status', 'codex recover', 'ticket new'])(
     'catalogs the public %s leaf',
     name => {
