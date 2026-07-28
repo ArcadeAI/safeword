@@ -65,7 +65,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Legacy SessionStart cannot create plugin proof
 
 - [x] RED skip: provenance gating shipped inseparably with the plugin proof writer
-- [ ] GREEN
+- [x] GREEN 707f1235d
 - [ ] REFACTOR
 
 ## Rule: codex-continuity.TBU1.R3 — Coexistence executes exactly one authoritative implementation
