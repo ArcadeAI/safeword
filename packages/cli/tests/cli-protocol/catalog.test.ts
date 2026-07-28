@@ -25,6 +25,42 @@ describe('CLI command catalog', () => {
     }
   });
 
+  it('uses unique executable leaves for canonical commands and compatibility aliases', () => {
+    const names = commandCatalog.map(definition => definition.name);
+    expect(new Set(names).size).toBe(names.length);
+
+    const canonicalNames = commandCatalog
+      .filter(definition => definition.public && definition.aliasFor === undefined)
+      .map(definition => definition.name);
+    expect(canonicalNames).toEqual([
+      'status',
+      'setup',
+      'plan',
+      'doctor',
+      'remove',
+      'project sync-config',
+      'project architecture',
+      'project sync-learnings',
+      'project sync-tickets',
+      'project codify',
+      'project test-plan',
+      'project lint-gherkin',
+      'tracker sync',
+      'tracker connect',
+      'codex migrate',
+      'ticket list',
+      'retro run',
+      'retro signals',
+      'retro reconcile',
+      'capabilities',
+    ]);
+
+    const aliasDefinitions = commandCatalog.filter(entry => entry.aliasFor !== undefined);
+    for (const definition of aliasDefinitions) {
+      expect(canonicalNames).toContain(definition.aliasFor);
+    }
+  });
+
   it('contains the complete compatibility and hidden-helper inventory', () => {
     const aliases = commandCatalog.filter(command => command.aliasFor !== undefined);
     expect(aliases.map(alias => alias.name)).toEqual([
