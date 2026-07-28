@@ -61,6 +61,29 @@ export async function resolveCodexFinalizationConfirmation(_options: {
   return _options.confirm();
 }
 
+export async function promptCodexFinalization(
+  input: NodeJS.ReadableStream = process.stdin,
+  output: NodeJS.WritableStream = process.stdout,
+): Promise<boolean> {
+  const { createInterface } = await import('node:readline/promises');
+  const readline = createInterface({ input, output });
+  try {
+    const answer = await Promise.race([
+      readline.question('Finalize shared repository cleanup? [y/N] '),
+      new Promise<undefined>(resolve => {
+        readline.once('close', () => {
+          resolve(undefined);
+        });
+      }),
+    ]);
+    return answer !== undefined && /^y(?:es)?$/iu.test(answer.trim());
+  } catch {
+    return false;
+  } finally {
+    readline.close();
+  }
+}
+
 export function codexFinalizationIsComplete(cwd: string): boolean {
   try {
     const marker = JSON.parse(

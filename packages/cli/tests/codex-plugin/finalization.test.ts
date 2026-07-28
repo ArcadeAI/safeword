@@ -1,11 +1,14 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
+import { PassThrough, Readable } from 'node:stream';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   applyCodexFinalization,
+  codexFinalizationIsComplete,
+  promptCodexFinalization,
   resolveCodexFinalizationConfirmation,
 } from '../../src/codex-plugin/finalization.js';
 
@@ -27,6 +30,35 @@ describe('Codex migration finalization', () => {
 
     expect(confirmed).toBe(false);
     expect(confirm).toHaveBeenCalledOnce();
+  });
+
+  it('accepts an explicit yes at the interactive finalization prompt', async () => {
+    const output = new PassThrough();
+
+    await expect(promptCodexFinalization(Readable.from(['yes\n']), output)).resolves.toBe(true);
+  });
+
+  it('defaults to declining an empty interactive finalization response', async () => {
+    const output = new PassThrough();
+
+    await expect(promptCodexFinalization(Readable.from(['\n']), output)).resolves.toBe(false);
+  });
+
+  it('does not treat a marker without a finalized transaction manifest as complete', () => {
+    const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-finalization-'));
+    directories.push(directory);
+    const safewordDirectory = nodePath.join(directory, '.safeword');
+    mkdirSync(safewordDirectory);
+    writeFileSync(
+      nodePath.join(safewordDirectory, 'codex-plugin.json'),
+      JSON.stringify({
+        schema_version: 1,
+        migration_state: 'finalized',
+        finalized_at: '2026-07-28T00:00:00.000Z',
+      }),
+    );
+
+    expect(codexFinalizationIsComplete(directory)).toBe(false);
   });
 
   it('rolls back the complete pre-migration state when finalization fails', () => {

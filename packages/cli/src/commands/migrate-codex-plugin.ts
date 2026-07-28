@@ -1,7 +1,7 @@
 /* eslint-disable unicorn/no-null -- schema-1 migration JSON uses explicit null */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, lstatSync, readFileSync, type Stats } from 'node:fs';
+import { lstatSync, readFileSync, type Stats } from 'node:fs';
 import nodePath from 'node:path';
 
 import { parse } from 'smol-toml';
@@ -482,7 +482,7 @@ function observeCodexMigrationResult(
     legacyAssets: observeLegacyAssets(cwd),
     legacyEvents,
     viableLegacyEvents: observeViableLegacyEvents(cwd, legacyEvents, environment),
-    finalized: existsSync(nodePath.join(cwd, '.safeword/codex-plugin.json')),
+    finalized: codexFinalizationIsComplete(cwd),
     recoveryRequired,
     restartPending: codexRestartIsPending(environment),
   });

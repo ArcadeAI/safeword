@@ -133,7 +133,13 @@ codex
           previewCodexFinalization(process.cwd());
           return;
         }
-        await removeLegacyCodexHooks(process.cwd(), { yes: options.yes === true });
+        const { promptCodexFinalization } = await import('./codex-plugin/finalization.js');
+        const confirm =
+          process.stdin.isTTY && process.stdout.isTTY ? promptCodexFinalization : undefined;
+        await removeLegacyCodexHooks(process.cwd(), {
+          yes: options.yes === true,
+          confirm,
+        });
         return;
       }
       installCodexPlugin({ reportMigrationState: true });
