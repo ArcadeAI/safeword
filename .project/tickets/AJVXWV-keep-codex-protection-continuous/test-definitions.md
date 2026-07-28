@@ -66,7 +66,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: provenance gating shipped inseparably with the plugin proof writer
 - [x] GREEN 707f1235d
-- [ ] REFACTOR
+- [x] REFACTOR skip: plugin provenance remains a single hidden CLI boundary
 
 ## Rule: codex-continuity.TBU1.R3 — Coexistence executes exactly one authoritative implementation
 
