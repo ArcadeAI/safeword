@@ -10,6 +10,7 @@
 **Dep Drift:** ✅ Clean — no new dependencies (Node stdlib only: `node:fs`, `node:crypto`, `node:path`, `node:child_process`)
 **Parent Epic:** N/A (QD5DTT is the parent; Slices 2–4 are tracked as follow-ons in the ticket)
 **Reconcile:** ✅ No pattern deviation — conformed to CLI layering (utils/commands/hooks); the module-enumeration choice (direct `src/` scan vs `DetectedArchitecture`) is recorded in impl-plan Decisions with rationale, not a sibling-pattern split
+**PR Scope:** ✅ Diff matches issue #1551: mixed JS/TS root extraction, path reconciliation, ownership guidance, executable regressions, generated docs, and the owning QD5DTT artifacts only.
 
 ## Audit
 
@@ -45,3 +46,33 @@ An independent fresh-context `/quality-review` over the **complete** branch diff
 - Reviewer confirmed solid: registration parity across the three Claude surfaces, byte-identical template/dogfood hook, non-blocking hook, no ReDoS/injection.
 
 Ready to mark done.
+
+## Issue #1551 extension verification — 2026-07-27
+
+- **Full Vitest:** ✅ 375 files; 5,567 passed, 5 skipped.
+- **Full Cucumber:** ✅ 514 scenarios (511 passed, 3 skipped);
+  15,832 steps (15,828 passed, 4 skipped).
+- **Static gates:** ✅ ESLint, Gherkin lint, `tsc --noEmit`, Prettier, and
+  dependency-cruiser (0 errors; one pre-existing orphan warning).
+- **Focused regressions:** ✅ mixed `src/`/`lib/` unions, directory-wins
+  deduplication, source-root test/spec filtering, excluded-only-root
+  no-fallthrough, exact legacy fingerprint recipe, and path-only self-heal
+  without stale prose.
+- **Generated docs:** ✅ repeated `safeword architecture` is byte-stable; the
+  unchanged Website leaf has no diff or false stale markers.
+
+## PR #1558 review follow-up — 2026-07-27
+
+- **CRLF fixed point:** ✅ matching CRLF documents remain byte-identical and
+  unchanged; structural CRLF heals preserve reconciliation stamps and mark only
+  affected prose stale. Both path and section-stamp parsers use an LF-normalized
+  read view while writes retain the original document bytes.
+- **Focused unit tests:** ✅ 87 passed across architecture document, skeleton,
+  and fingerprint suites.
+- **Full Vitest:** ⚠️ 374/375 files passed (5,564 passed, 9 skipped); the only
+  failure was a 60-second `beforeAll` timeout in the Rust golden-path suite.
+  The complete Rust golden-path file then passed alone: 48/48.
+- **Static gates:** ✅ ESLint, unsafe-regex checks, Gherkin lint, both TypeScript
+  checks, Prettier, and `git diff --check`. Dependency-cruiser reports 0 errors
+  and its existing `codex-plugin/hooks.ts` orphan warning.
+- **Generated docs:** ✅ all three architecture documents remain unchanged.

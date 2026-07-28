@@ -100,12 +100,19 @@ interface HealTarget {
   fingerprint: string;
   /** Whether the target has content to render — drives the noop/created decision. */
   hasContent: boolean;
+  /** Optional exact structural check for facts deliberately outside the legacy fingerprint. */
+  matchesExisting?: (existing: string) => boolean;
   render: (priorStamps: Map<string, string>, priorProse: Map<string, string>) => string;
 }
 
 function healTarget(target: HealTarget): SelfHealResult {
   const existing = readExisting(target.path);
-  const action = decideAction(existing, target.fingerprint, target.hasContent);
+  const action = decideAction(
+    existing,
+    target.fingerprint,
+    target.hasContent,
+    target.matchesExisting,
+  );
 
   if (isWouldChangeAction(action)) {
     mkdirSync(nodePath.dirname(target.path), { recursive: true });
@@ -119,7 +126,12 @@ function healTarget(target: HealTarget): SelfHealResult {
 
 /** Dry-run of {@link healTarget}: the action it would take, writing nothing. */
 function planTarget(target: HealTarget): SelfHealAction {
-  return decideAction(readExisting(target.path), target.fingerprint, target.hasContent);
+  return decideAction(
+    readExisting(target.path),
+    target.fingerprint,
+    target.hasContent,
+    target.matchesExisting,
+  );
 }
 
 /** A `src/`-skeleton doc: the skeleton of `directory`, rendered to `path`. */
@@ -130,6 +142,7 @@ function skeletonTarget(directory: string, path: string): HealTarget {
     path,
     fingerprint,
     hasContent: nodes.length > 0,
+    matchesExisting: existing => hasMatchingNodePaths(existing, nodes),
     render: (priorStamps, priorProse) =>
       renderDocument(nodes, fingerprint, priorStamps, priorProse),
   };
@@ -217,6 +230,7 @@ function decideAction(
   existing: string | undefined,
   fingerprint: string,
   hasModules: boolean,
+  matchesExisting?: (existing: string) => boolean,
 ): SelfHealAction {
   // Don't birth an empty doc: a contentless "## Modules" implies "no modules",
   // which is false for a monorepo the single-repo extractor can't read yet.
@@ -230,7 +244,26 @@ function decideAction(
   const recorded = readDocumentFingerprint(existing);
   if (recorded === undefined) return 'regenerated';
   if (recorded !== fingerprint) return 'healed';
+  if (matchesExisting !== undefined && !matchesExisting(existing)) return 'healed';
   return 'unchanged';
+}
+
+/**
+ * Compare rendered node references with the live skeleton. Canonical paths stay
+ * outside the released name-only fingerprint recipe so upgrades do not falsely
+ * stale every existing section, but path-only drift still self-heals.
+ */
+function hasMatchingNodePaths(content: string, nodes: SkeletonNode[]): boolean {
+  const paths = new Map<string, string>();
+  const pattern = /^### (.+)\n+<!-- reconciled: \S+ -->\n+`([^`]*)`\s*$/gm;
+
+  for (const match of normalizeLineEndings(content).matchAll(pattern)) {
+    const name = match[1];
+    const path = match[2];
+    if (name !== undefined && path !== undefined) paths.set(name.trim(), path);
+  }
+
+  return paths.size === nodes.length && nodes.every(node => paths.get(node.name) === node.path);
 }
 
 /**
@@ -242,13 +275,21 @@ function parseSectionStamps(content: string): Map<string, string> {
   const stamps = new Map<string, string>();
   const pattern = /^### (.+)\n+<!-- reconciled: (\S+) -->/gm;
 
-  for (const match of content.matchAll(pattern)) {
+  for (const match of normalizeLineEndings(content).matchAll(pattern)) {
     const name = match[1];
     const stamp = match[2];
     if (name !== undefined && stamp !== undefined) stamps.set(name.trim(), stamp);
   }
 
   return stamps;
+}
+
+/**
+ * Normalize only the parser's view of line endings. The original document bytes
+ * remain untouched when no structural heal is needed.
+ */
+function normalizeLineEndings(content: string): string {
+  return content.replaceAll('\r\n', '\n');
 }
 
 /**

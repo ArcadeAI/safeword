@@ -103,14 +103,52 @@ describe('extractSkeleton — broadened JS/TS recognition (issue #843)', () => {
     expect(pathByName.auth).toBe('src/auth.ts');
   });
 
-  it('keeps src directories authoritative — files are ignored when subdirs exist (no churn)', () => {
-    mkdirSync(nodePath.join(context.directory, 'src', 'auth'), { recursive: true });
-    writeFileSync(nodePath.join(context.directory, 'src', 'index.ts'), 'export {};\n');
+  it.each(['src', 'lib'])('unions %s directories and loose files in a mixed source root', root => {
+    mkdirSync(nodePath.join(context.directory, root, 'auth'), { recursive: true });
+    writeFileSync(nodePath.join(context.directory, root, 'pipeline.ts'), 'export {};\n');
 
     const skeleton = extractSkeleton(context.directory);
 
-    // Directory is the module unit; the sibling index.ts file is not listed.
-    expect(skeleton.nodes.map(node => node.name)).toEqual(['auth']);
+    expect(skeleton.nodes).toEqual([
+      { name: 'auth', path: `${root}/auth`, purpose: expect.any(String) as string },
+      { name: 'pipeline', path: `${root}/pipeline.ts`, purpose: expect.any(String) as string },
+    ]);
+  });
+
+  it.each(['src', 'lib'])(
+    'excludes colocated %s test files while keeping source modules and entry points',
+    root => {
+      mkdirSync(nodePath.join(context.directory, root), { recursive: true });
+      writeFileSync(nodePath.join(context.directory, root, 'index.ts'), 'export * from "./api";\n');
+      writeFileSync(nodePath.join(context.directory, root, 'api.ts'), 'export {};\n');
+      writeFileSync(nodePath.join(context.directory, root, 'api.test.ts'), 'export {};\n');
+      writeFileSync(nodePath.join(context.directory, root, 'api.spec.tsx'), 'export {};\n');
+
+      expect(extractSkeleton(context.directory).nodes).toEqual([
+        { name: 'api', path: `${root}/api.ts`, purpose: expect.any(String) as string },
+        { name: 'index', path: `${root}/index.ts`, purpose: expect.any(String) as string },
+      ]);
+    },
+  );
+
+  it('does not fall through when src contains only excluded source-root files', () => {
+    mkdirSync(nodePath.join(context.directory, 'src'), { recursive: true });
+    writeFileSync(nodePath.join(context.directory, 'src', 'api.test.ts'), 'export {};\n');
+    writeFileSync(nodePath.join(context.directory, 'src', 'api.spec.tsx'), 'export {};\n');
+    writeFileSync(nodePath.join(context.directory, 'root-script.ts'), 'export {};\n');
+
+    expect(extractSkeleton(context.directory).nodes).toEqual([]);
+  });
+
+  it.each(['src', 'lib'])('lets a %s directory win a same-named source-file collision', root => {
+    mkdirSync(nodePath.join(context.directory, root, 'auth'), { recursive: true });
+    writeFileSync(nodePath.join(context.directory, root, 'auth.ts'), 'export {};\n');
+
+    const skeleton = extractSkeleton(context.directory);
+
+    expect(skeleton.nodes).toEqual([
+      { name: 'auth', path: `${root}/auth`, purpose: expect.any(String) as string },
+    ]);
   });
 
   it('recognizes a lib/ root (component libraries) — dirs then files', () => {

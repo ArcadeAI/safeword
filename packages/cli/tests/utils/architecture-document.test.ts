@@ -59,6 +59,22 @@ describe('selfHeal — structural facts self-heal at session start', () => {
     expect(content).toContain('billing');
   });
 
+  it('heals a changed module path without changing the legacy fingerprint or staling prose', () => {
+    rmSync(nodePath.join(context.directory, 'src', 'auth'), { recursive: true, force: true });
+    writeFileSync(nodePath.join(context.directory, 'src', 'auth.ts'), 'export {};\n');
+    selfHeal(context.directory);
+    const fingerprint = shapeFingerprint(context.directory);
+
+    mkdirSync(nodePath.join(context.directory, 'src', 'auth'), { recursive: true });
+
+    expect(shapeFingerprint(context.directory)).toBe(fingerprint);
+    expect(selfHeal(context.directory).action).toBe('healed');
+    const content = readFileSync(documentPath(context.directory), 'utf8');
+    expect(content).toContain('`src/auth`');
+    expect(content).not.toContain('`src/auth.ts`');
+    expect(content).not.toContain('⚠ stale');
+  });
+
   it('leaves the document untouched when the fingerprint is unchanged', () => {
     selfHeal(context.directory);
     const before = readFileSync(documentPath(context.directory), 'utf8');
@@ -67,6 +83,16 @@ describe('selfHeal — structural facts self-heal at session start', () => {
 
     expect(result.action).toBe('unchanged');
     expect(readFileSync(documentPath(context.directory), 'utf8')).toBe(before);
+  });
+
+  it('leaves a current CRLF document untouched when its paths match', () => {
+    selfHeal(context.directory);
+    const path = documentPath(context.directory);
+    const crlf = readFileSync(path, 'utf8').replaceAll('\n', '\r\n');
+    writeFileSync(path, crlf);
+
+    expect(selfHeal(context.directory).action).toBe('unchanged');
+    expect(readFileSync(path, 'utf8')).toBe(crlf);
   });
 
   it('regenerates a safeword-owned document whose fingerprint is missing or corrupt', () => {
@@ -324,7 +350,9 @@ describe('selfHeal — per-section prose persistence (JT852Q layer A)', () => {
 
     selfHeal(context.directory);
 
-    expect(read()).toContain('Handles login and tokens.');
+    const auth = sectionText(read(), 'auth');
+    expect(auth).toContain('Handles login and tokens.');
+    expect(auth).toMatch(/stale/i);
   });
 
   it('reaches a byte-identical fixed point after a writing heal', () => {

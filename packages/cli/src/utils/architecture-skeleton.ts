@@ -97,16 +97,14 @@ export function extractSkeleton(projectDirectory: string): Skeleton {
     return { nodes: rustModuleNodes(projectDirectory) };
   }
 
-  // The `src/` layout (TS/JS) is authoritative: its child DIRECTORIES are the
-  // modules, unchanged — a package that already has them never churns. Broadened
-  // (issue #843) so a flat `src/` — holding only files, no subdirectories — is
-  // introspected via those files, the same files-and-flat recognition the
-  // Python/Rust extractors above already have.
-  const sourceNodes = enumerateJsSourceRoot(
+  // The `src/` layout (TS/JS) is authoritative. Its immediate child directories
+  // AND loose source files are modules: mixed trees are conventional, and
+  // returning one kind or the other silently truncated them (issue #1551).
+  const sourceRoot = enumerateJsSourceRoot(
     nodePath.join(projectDirectory, 'src'),
     name => `src/${name}`,
   );
-  if (sourceNodes.length > 0) return { nodes: sourceNodes };
+  if (sourceRoot.observed) return { nodes: sourceRoot.nodes };
 
   // No `src/` modules: a Go module (a `go.mod` is present) is described by its
   // conventional top-level layout directories instead (ticket ZD70P1). A flat Go
@@ -122,11 +120,11 @@ export function extractSkeleton(projectDirectory: string): Skeleton {
   // design systems keep their sources under `lib/` — issue #843) is described the
   // same files-or-directories way. Last-resort JS fallbacks, so they never preempt
   // a recognized Go/Rust/Python layout above.
-  const libraryNodes = enumerateJsSourceRoot(
+  const libraryRoot = enumerateJsSourceRoot(
     nodePath.join(projectDirectory, 'lib'),
     name => `lib/${name}`,
   );
-  if (libraryNodes.length > 0) return { nodes: libraryNodes };
+  if (libraryRoot.observed) return { nodes: libraryRoot.nodes };
 
   // No source root at all: a flat or test-only package (e.g. top-level `*.test.ts`
   // with no `src/`) is described by its top-level source files (issue #843) — but
@@ -164,32 +162,40 @@ function declaresWorkspaces(projectDirectory: string): boolean {
 /**
  * A JS/TS source root (`src/` or `lib/`) as skeleton nodes, sorted by name
  * (readdirSync order is not guaranteed; the doc and fingerprint must be
- * deterministic). Its child DIRECTORIES when it has any — the directory is the
- * module unit, so a package with `src/` subdirectories is byte-for-byte
- * unchanged. Only when the root has NO subdirectories (a flat package — issue
- * #843) does it fall back to the root's source FILES, mirroring how the Rust and
- * Python extractors list `*.rs`/`*.py`. `pathFor` maps an entry name to its
- * forward-slashed code reference — platform-stable, the way the fingerprint
- * normalizes paths. `[]` when the root is absent.
+ * deterministic). Immediate child directories and source files are unioned.
+ * A same-named directory and file represent one concept; the directory wins
+ * because it is the broader architectural boundary (issue #1551). `pathFor`
+ * maps an entry name to its forward-slashed code reference. `observed` distinguishes
+ * an absent/irrelevant root from one containing only excluded colocated tests, so
+ * filtering cannot make extraction fall through to an unrelated layout.
  */
 function enumerateJsSourceRoot(
   directory: string,
   pathFor: (entryName: string) => string,
-): SkeletonNode[] {
+): { nodes: SkeletonNode[]; observed: boolean } {
   let entries: Dirent[];
   try {
     entries = readdirSync(directory, { withFileTypes: true });
   } catch {
-    return [];
+    return { nodes: [], observed: false };
   }
 
-  const directories = entries.filter(entry => entry.isDirectory());
-  if (directories.length > 0) {
-    return directories
-      .map(entry => ({ name: entry.name, path: pathFor(entry.name), purpose: PURPOSE_PLACEHOLDER }))
-      .toSorted(byNodeName);
+  const observed = entries.some(
+    entry => entry.isDirectory() || (entry.isFile() && isJsSourceModuleFile(entry.name)),
+  );
+  const byName = new Map(
+    entries
+      .filter(entry => entry.isDirectory())
+      .map(entry => [
+        entry.name,
+        { name: entry.name, path: pathFor(entry.name), purpose: PURPOSE_PLACEHOLDER },
+      ]),
+  );
+  const excludeColocatedTests = true;
+  for (const node of jsFileNodes(entries, pathFor, excludeColocatedTests)) {
+    if (!byName.has(node.name)) byName.set(node.name, node);
   }
-  return jsFileNodes(entries, pathFor);
+  return { nodes: byName.values().toArray().toSorted(byNodeName), observed };
 }
 
 /**
@@ -220,9 +226,18 @@ function topLevelJsModuleNodes(projectDirectory: string): SkeletonNode[] {
  * dedupe, two `### util` sections would render and the surviving path would be
  * readdir-order (platform) dependent.
  */
-function jsFileNodes(entries: Dirent[], pathFor: (entryName: string) => string): SkeletonNode[] {
+function jsFileNodes(
+  entries: Dirent[],
+  pathFor: (entryName: string) => string,
+  excludeTests = false,
+): SkeletonNode[] {
   const files = entries
-    .filter(entry => entry.isFile() && isJsSourceModuleFile(entry.name))
+    .filter(
+      entry =>
+        entry.isFile() &&
+        isJsSourceModuleFile(entry.name) &&
+        (!excludeTests || !isJsTestFile(entry.name)),
+    )
     .toSorted(
       (a, b) =>
         extensionPriority(a.name) - extensionPriority(b.name) || a.name.localeCompare(b.name),
@@ -236,6 +251,16 @@ function jsFileNodes(entries: Dirent[], pathFor: (entryName: string) => string):
     }
   }
   return byName.values().toArray().toSorted(byNodeName);
+}
+
+/**
+ * Vitest/Jest-style colocated tests are verification, not production architecture nodes.
+ * JS entry-point names remain eligible: unlike Rust's fixed crate roots, `index`/`main`/`cli`
+ * are ordinary modules that may contain logic, and this extractor never reads source text
+ * to guess whether one is only a barrel.
+ */
+function isJsTestFile(name: string): boolean {
+  return /\.(?:test|spec)\.[mc]?[jt]sx?$/.test(name);
 }
 
 /** The rank of a filename's extension in {@link JS_SOURCE_EXTENSIONS} (lower wins dedupe). */
