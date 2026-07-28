@@ -202,7 +202,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Plugin-only human status has no next action
 
-- [ ] RED
+- [x] RED skip: plugin settled-state rendering existed before its end-to-end characterization
 - [ ] GREEN
 - [ ] REFACTOR
 
