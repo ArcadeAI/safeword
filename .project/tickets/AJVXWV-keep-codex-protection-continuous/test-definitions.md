@@ -84,7 +84,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Plugin covers a configured legacy event with a broken runtime
 
-- [ ] RED
+- [x] RED skip: runtime viability shipped inseparably with event authority
 - [ ] GREEN
 - [ ] REFACTOR
 
