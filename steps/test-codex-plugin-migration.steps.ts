@@ -162,11 +162,15 @@ function runPackagedCodexHook(
   commandName: string,
   input: Record<string, unknown> | string,
 ): CommandResult {
-  return runCommand(process.execPath, [SAFEWORD_CLI_PATH, 'hook', 'codex', commandName], {
-    cwd: repoRoot,
-    env: { CLAUDE_PROJECT_DIR: repoRoot },
-    input: typeof input === 'string' ? input : JSON.stringify(input),
-  });
+  return runCommand(
+    process.execPath,
+    [SAFEWORD_CLI_PATH, 'hook', 'codex', commandName, '--plugin-hook'],
+    {
+      cwd: repoRoot,
+      env: { CLAUDE_PROJECT_DIR: repoRoot },
+      input: typeof input === 'string' ? input : JSON.stringify(input),
+    },
+  );
 }
 
 function collectTree(root: string, relativeDirectory = ''): string[] {
@@ -1177,6 +1181,8 @@ Given(
       nodePath.join(repoRoot, 'package.json'),
       `${JSON.stringify({ name: 'codex-hook-fixture', version: '1.0.0' }, undefined, 2)}\n`,
     );
+    mkdirSync(nodePath.join(repoRoot, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(repoRoot, '.safeword/SAFEWORD.md'), '# Safe Word fixture\n');
     const initResult = runCommand('git', ['init', '--quiet'], { cwd: repoRoot });
     assert.equal(initResult.exitCode, 0, initResult.stderr);
     this.codexPluginRepoRoot = repoRoot;
@@ -1772,11 +1778,11 @@ Then(
 );
 
 Then(
-  /^Safe Word no longer requires repo-local `\.agents\/skills` to expose Codex skills$/,
+  /^Safe Word keeps repo-local `\.agents\/skills` available during the compatibility window$/,
   function (this: CodexPluginMigrationWorld) {
     const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
-    assert.equal(existsSync(nodePath.join(repoRoot, '.agents/skills/bdd/SKILL.md')), false);
-    assert.equal(existsSync(nodePath.join(repoRoot, '.agents/skills/verify/SKILL.md')), false);
+    assert.equal(existsSync(nodePath.join(repoRoot, '.agents/skills/bdd/SKILL.md')), true);
+    assert.equal(existsSync(nodePath.join(repoRoot, '.agents/skills/verify/SKILL.md')), true);
   },
 );
 
@@ -1801,11 +1807,13 @@ Then('the user-authored skill remains byte-identical', function (this: CodexPlug
 });
 
 Then(
-  'Safe Word-owned Codex skill files no longer appear as active repo-local skills',
+  'Safe Word-owned Codex skill files remain beside the user-authored skill until finalization',
   function (this: CodexPluginMigrationWorld) {
     const repoRoot = requirePath(this.codexPluginRepoRoot, 'repo root');
     assert.deepEqual(readdirSync(nodePath.join(repoRoot, '.agents/skills')).sort(), [
+      'bdd',
       'company-workflow',
+      'verify',
     ]);
   },
 );

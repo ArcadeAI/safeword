@@ -295,7 +295,7 @@ describe('migrate codex-plugin command', () => {
   it('removes only the Safe Word handler during explicit handoff cleanup', async () => {
     const original = `${LEGACY_HOOK_CONFIG}${CUSTOM_PRE_TOOL_HOOK}${USER_CODEX_CONFIG}`;
     const fixture = createMigrationFixture(original);
-    const { directory, configPath } = fixture;
+    const { configPath } = fixture;
 
     const result = await runMigration(fixture, { cleanupLegacyHooks: true });
 
@@ -642,6 +642,19 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-migration-backup'))).toBe(
       false,
     );
+
+    const jsonResult = await runCodexCommand(fixture, [
+      'codex',
+      'migrate',
+      '--finalize',
+      '--yes',
+      '--json',
+    ]);
+    expect(jsonResult.exitCode).toBe(1);
+    expect(jsonResult.stderr).toBe('');
+    expect(JSON.parse(jsonResult.stdout)).toMatchObject({
+      errors: [{ code: 'FINALIZATION_PROOF_REQUIRED' }],
+    });
   });
 
   it.each([
@@ -816,7 +829,23 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     expect(JSON.parse(recover.stdout)).toMatchObject({
       schema_version: '1',
       changed: true,
-      state: 'legacy',
+      state: 'compatibility',
+    });
+  });
+
+  it('returns a schema error instead of prose when JSON migration fails', async () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, false, false);
+
+    const result = await runCodexCommand(fixture, ['codex', 'migrate', '--json'], {
+      SAFEWORD_FAIL_PLUGIN_INSTALL: '1',
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toBe('');
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      schema_version: '1',
+      changed: false,
+      errors: [{ code: 'PLUGIN_INSTALL_FAILED', retryable: true }],
     });
   });
 

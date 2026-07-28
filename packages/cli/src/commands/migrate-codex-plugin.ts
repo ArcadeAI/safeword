@@ -508,6 +508,59 @@ export function statusCodexMigration(
   process.exitCode = codexMigrationExitCode(result);
 }
 
+function reportCodexMigration(
+  cwd: string,
+  options: {
+    json?: boolean;
+    environment?: NodeJS.ProcessEnv;
+    changed?: boolean;
+    effects?: CodexMigrationResultV1['effects']['files'];
+  },
+): void {
+  const result = observeCodexMigrationResult(cwd, options.environment);
+  result.changed = options.changed === true;
+  if (options.effects !== undefined) result.effects.files = options.effects;
+  process.stdout.write(
+    options.json === true ? `${JSON.stringify(result)}\n` : renderCodexMigrationHuman(result),
+  );
+  process.exitCode = codexMigrationExitCode(result);
+}
+
+export function reportCodexMigrationFailure(
+  cwd: string,
+  failure: unknown,
+  options: {
+    code: string;
+    environment?: NodeJS.ProcessEnv;
+  },
+): void {
+  const message = failure instanceof Error ? failure.message : String(failure);
+  const result = observeCodexMigrationResult(cwd, options.environment);
+  result.ok = false;
+  result.changed = false;
+  result.errors.push({
+    code: classifyCodexMigrationFailure(message, options.code),
+    message,
+    retryable: true,
+  });
+  process.stdout.write(`${JSON.stringify(result)}\n`);
+  process.exitCode = 1;
+}
+
+function classifyCodexMigrationFailure(message: string, fallback: string): string {
+  const rules: [RegExp, string][] = [
+    [/requires current plugin hook proof/iu, 'FINALIZATION_PROOF_REQUIRED'],
+    [/requires confirmation/iu, 'FINALIZATION_CONFIRMATION_REQUIRED'],
+    [/ambiguous|cannot safely identify/iu, 'AMBIGUOUS_LEGACY_CONFIG'],
+    [/unsafe Codex migration path/iu, 'UNSAFE_MIGRATION_PATH'],
+    [/backup already exists/iu, 'BACKUP_EXISTS'],
+    [/rollback could not complete/iu, 'ROLLBACK_FAILED'],
+    [/recovery conflict/iu, 'RECOVERY_CONFLICT'],
+    [/(?:bun|codex) is required/iu, 'CODEX_UNAVAILABLE'],
+  ];
+  return rules.find(([pattern]) => pattern.test(message))?.[1] ?? fallback;
+}
+
 export function previewCodexFinalization(
   cwd = process.cwd(),
   options: { environment?: NodeJS.ProcessEnv } = {},
@@ -545,24 +598,14 @@ export function installCodexPlugin(
     marketplaceSource?: string;
     reportMigrationState?: boolean;
     recordRestartPending?: boolean;
+    json?: boolean;
     cwd?: string;
     environment?: NodeJS.ProcessEnv;
   } = {},
 ): void {
   const cwd = options.cwd ?? process.cwd();
-  if (codexRecoveryIsRequired(cwd)) {
-    statusCodexMigration(cwd, { environment: options.environment });
-    return;
-  }
-  if (options.reportMigrationState === true && codexRestartIsPending(options.environment)) {
-    statusCodexMigration(cwd, { environment: options.environment });
-    return;
-  }
-  if (
-    options.reportMigrationState === true &&
-    observeCodexMigrationResult(cwd, options.environment).plugin.enabled === true
-  ) {
-    statusCodexMigration(cwd, { environment: options.environment });
+  if (shouldReportExistingMigrationState(cwd, options)) {
+    reportCodexMigration(cwd, { json: options.json, environment: options.environment });
     return;
   }
   run('bun', ['--version']);
@@ -571,13 +614,34 @@ export function installCodexPlugin(
   verifyCodexPluginIsEnabled({ installationCompleted: true });
   if (options.recordRestartPending !== false) writeCodexRestartMarker(options.environment);
 
-  success('Safe Word Codex plugin is enabled for this profile.');
-  info(
-    'Start a new Codex session to load the plugin skills and hooks. Then review the Safe Word plugin hooks in Codex with /hooks. If this project uses Safe Word legacy hooks, run `safeword codex migrate --remove-legacy-hooks` to remove only those hooks.',
-  );
-  if (options.reportMigrationState === true) {
-    statusCodexMigration(cwd, { environment: options.environment });
+  if (options.json !== true) {
+    success('Safe Word Codex plugin is enabled for this profile.');
+    info(
+      'Start a new Codex session to load the plugin skills and hooks. Then review the Safe Word plugin hooks in Codex with /hooks. If this project uses Safe Word legacy hooks, run `safeword codex migrate --remove-legacy-hooks` to remove only those hooks.',
+    );
   }
+  if (options.reportMigrationState === true) {
+    reportCodexMigration(cwd, {
+      json: options.json,
+      environment: options.environment,
+      changed: true,
+    });
+  }
+}
+
+function shouldReportExistingMigrationState(
+  cwd: string,
+  options: {
+    reportMigrationState?: boolean;
+    environment?: NodeJS.ProcessEnv;
+  },
+): boolean {
+  if (codexRecoveryIsRequired(cwd)) return true;
+  if (options.reportMigrationState !== true) return false;
+  return (
+    codexRestartIsPending(options.environment) ||
+    observeCodexMigrationResult(cwd, options.environment).plugin.enabled === true
+  );
 }
 
 function buildCodexFinalizationMutations(
@@ -612,12 +676,71 @@ function buildCodexFinalizationMutations(
   return mutations;
 }
 
+function finalizationEffects(
+  cwd: string,
+  mutations: CodexFinalizationMutation[],
+): CodexMigrationResultV1['effects']['files'] {
+  return mutations.map(mutation => {
+    let action: 'create' | 'update' | 'remove';
+    if (mutation.content === null) action = 'remove';
+    else if (pathExistsIncludingDanglingSymlink(nodePath.join(cwd, mutation.path)))
+      action = 'update';
+    else action = 'create';
+    return { path: mutation.path, action };
+  });
+}
+
+function renderCodexFinalizationPlan(cwd: string, mutations: CodexFinalizationMutation[]): string {
+  const lines = ['Finalization plan:'];
+  for (const effect of finalizationEffects(cwd, mutations)) {
+    const detail =
+      effect.path === CODEX_CONFIG_PATH && effect.action === 'update'
+        ? ' (remove Safe Word-owned hook blocks only)'
+        : '';
+    lines.push(`- ${effect.action} ${effect.path}${detail}`);
+  }
+  return `${lines.join('\n')}\n`;
+}
+
+function reportCompletedFinalization(
+  cwd: string,
+  options: { json?: boolean; environment?: NodeJS.ProcessEnv },
+): void {
+  if (options.json === true) reportCodexMigration(cwd, options);
+  else success('Safe Word Codex migration is already finalized.');
+}
+
+function reportAppliedFinalization(
+  cwd: string,
+  input: {
+    options: { json?: boolean; environment?: NodeJS.ProcessEnv };
+    effects: CodexMigrationResultV1['effects']['files'];
+    removedLegacyHooks: boolean;
+  },
+): void {
+  if (input.options.json === true) {
+    reportCodexMigration(cwd, {
+      ...input.options,
+      changed: true,
+      effects: input.effects,
+    });
+    return;
+  }
+  info('Backed up the complete legacy Codex state for conflict-safe recovery.');
+  info(
+    input.removedLegacyHooks
+      ? 'Removed Safe Word legacy Codex project protection after the verified plugin handoff.'
+      : 'No Safe Word legacy Codex hooks were found in this project.',
+  );
+}
+
 export async function removeLegacyCodexHooks(
   cwd = process.cwd(),
   options: {
     yes?: boolean;
-    confirm?: () => Promise<boolean>;
+    confirm?: (plan: string) => Promise<boolean>;
     environment?: NodeJS.ProcessEnv;
+    json?: boolean;
   } = {},
 ): Promise<boolean> {
   if (observeCodexHookProof(options.environment).status !== 'current') {
@@ -626,15 +749,18 @@ export async function removeLegacyCodexHooks(
     );
   }
   if (codexFinalizationIsComplete(cwd)) {
-    success('Safe Word Codex migration is already finalized.');
+    reportCompletedFinalization(cwd, options);
     return true;
   }
   // Validate cleanup before verifying the profile. A malformed project config
   // leaves both it and the Codex profile unchanged.
   const preparedLegacyHookRemoval = prepareLegacyHookRemoval(cwd);
+  const plannedMutations = buildCodexFinalizationMutations(cwd, preparedLegacyHookRemoval);
+  const plan = renderCodexFinalizationPlan(cwd, plannedMutations);
+  const confirm = options.confirm;
   const confirmed = await resolveCodexFinalizationConfirmation({
     assumeYes: options.yes === true,
-    confirm: options.confirm,
+    confirm: confirm === undefined ? undefined : () => confirm(plan),
   });
   if (!confirmed) {
     info('Codex migration finalization was declined; the project was left unchanged.');
@@ -645,17 +771,17 @@ export async function removeLegacyCodexHooks(
   run('codex', ['--version']);
   verifyCodexPluginIsEnabled();
 
-  success('Safe Word Codex plugin is enabled for this profile.');
+  if (options.json !== true) success('Safe Word Codex plugin is enabled for this profile.');
 
-  applyCodexFinalization(cwd, buildCodexFinalizationMutations(cwd, preparedLegacyHookRemoval));
+  const mutations = buildCodexFinalizationMutations(cwd, preparedLegacyHookRemoval);
+  const effects = finalizationEffects(cwd, mutations);
+  applyCodexFinalization(cwd, mutations);
 
-  const removedLegacyHooks = preparedLegacyHookRemoval !== undefined;
-  info('Backed up the complete legacy Codex state for conflict-safe recovery.');
-  info(
-    removedLegacyHooks
-      ? 'Removed Safe Word legacy Codex project protection after the verified plugin handoff.'
-      : 'No Safe Word legacy Codex hooks were found in this project.',
-  );
+  reportAppliedFinalization(cwd, {
+    options,
+    effects,
+    removedLegacyHooks: preparedLegacyHookRemoval !== undefined,
+  });
   return true;
 }
 
@@ -669,7 +795,7 @@ export async function migrateCodexPlugin(
     marketplaceSource?: string;
     removeLegacyHooks?: boolean;
     yes?: boolean;
-    confirm?: () => Promise<boolean>;
+    confirm?: (plan: string) => Promise<boolean>;
   } = {},
 ): Promise<void> {
   if (options.removeLegacyHooks) {
@@ -682,11 +808,18 @@ export async function migrateCodexPlugin(
   });
 }
 
-export function recoverCodexMigration(cwd = process.cwd()): void {
+export function recoverCodexMigration(
+  cwd = process.cwd(),
+  options: { json?: boolean; environment?: NodeJS.ProcessEnv } = {},
+): void {
   const changed = recoverCodexFinalization(cwd);
-  success(
-    changed
-      ? 'Restored the backed-up Safe Word legacy Codex project state.'
-      : 'No Safe Word Codex migration recovery was needed.',
-  );
+  if (options.json === true) {
+    reportCodexMigration(cwd, { ...options, changed });
+  } else {
+    success(
+      changed
+        ? 'Restored the backed-up Safe Word legacy Codex project state.'
+        : 'No Safe Word Codex migration recovery was needed.',
+    );
+  }
 }

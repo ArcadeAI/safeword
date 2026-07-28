@@ -93,6 +93,69 @@ migrate
     });
   });
 
+interface CodexMigrateOptions {
+  finalize?: boolean;
+  json?: boolean;
+  removeLegacyHooks?: boolean;
+  yes?: boolean;
+}
+
+async function runCodexFinalizationCommand(options: CodexMigrateOptions): Promise<void> {
+  const { previewCodexFinalization, removeLegacyCodexHooks, reportCodexMigrationFailure } =
+    await import('./commands/migrate-codex-plugin.js');
+  try {
+    if (options.json === true && options.yes !== true) {
+      previewCodexFinalization(process.cwd());
+      return;
+    }
+    const { promptCodexFinalization } = await import('./codex-plugin/finalization.js');
+    const confirm =
+      process.stdin.isTTY && process.stdout.isTTY
+        ? (plan: string) => promptCodexFinalization(plan)
+        : undefined;
+    await removeLegacyCodexHooks(process.cwd(), {
+      yes: options.yes === true,
+      confirm,
+      json: options.json === true,
+    });
+  } catch (migrationError) {
+    if (options.json !== true) throw migrationError;
+    reportCodexMigrationFailure(process.cwd(), migrationError, {
+      code: 'FINALIZATION_FAILED',
+    });
+  }
+}
+
+async function runCodexMigrateCommand(options: CodexMigrateOptions): Promise<void> {
+  if (options.finalize === true || options.removeLegacyHooks === true) {
+    await runCodexFinalizationCommand(options);
+    return;
+  }
+  const { installCodexPlugin, reportCodexMigrationFailure } =
+    await import('./commands/migrate-codex-plugin.js');
+  try {
+    installCodexPlugin({ reportMigrationState: true, json: options.json === true });
+  } catch (migrationError) {
+    if (options.json !== true) throw migrationError;
+    reportCodexMigrationFailure(process.cwd(), migrationError, {
+      code: 'PLUGIN_INSTALL_FAILED',
+    });
+  }
+}
+
+async function runCodexRecoverCommand(options: { json?: boolean }): Promise<void> {
+  const { recoverCodexMigration, reportCodexMigrationFailure } =
+    await import('./commands/migrate-codex-plugin.js');
+  try {
+    recoverCodexMigration(process.cwd(), { json: options.json === true });
+  } catch (recoveryError) {
+    if (options.json !== true) throw recoveryError;
+    reportCodexMigrationFailure(process.cwd(), recoveryError, {
+      code: 'RECOVERY_FAILED',
+    });
+  }
+}
+
 const codex = program.command('codex').description('Manage the Safe Word Codex plugin');
 
 codex
@@ -119,41 +182,13 @@ codex
   .option('--yes', 'Confirm a non-interactive finalization plan')
   .option('--json', 'Write the versioned migration result as JSON')
   .option('--remove-legacy-hooks', 'Deprecated alias for --finalize')
-  .action(
-    async (options: {
-      finalize?: boolean;
-      json?: boolean;
-      removeLegacyHooks?: boolean;
-      yes?: boolean;
-    }) => {
-      const { installCodexPlugin, previewCodexFinalization, removeLegacyCodexHooks } =
-        await import('./commands/migrate-codex-plugin.js');
-      if (options.finalize === true || options.removeLegacyHooks === true) {
-        if (options.json === true && options.yes !== true) {
-          previewCodexFinalization(process.cwd());
-          return;
-        }
-        const { promptCodexFinalization } = await import('./codex-plugin/finalization.js');
-        const confirm =
-          process.stdin.isTTY && process.stdout.isTTY ? promptCodexFinalization : undefined;
-        await removeLegacyCodexHooks(process.cwd(), {
-          yes: options.yes === true,
-          confirm,
-        });
-        return;
-      }
-      installCodexPlugin({ reportMigrationState: true });
-    },
-  );
+  .action(runCodexMigrateCommand);
 
 codex
   .command('recover')
   .description('Restore a backed-up Safe Word legacy Codex project state')
   .option('--json', 'Write the versioned migration result as JSON')
-  .action(async () => {
-    const { recoverCodexMigration } = await import('./commands/migrate-codex-plugin.js');
-    recoverCodexMigration(process.cwd());
-  });
+  .action(runCodexRecoverCommand);
 
 program
   .command('diff')

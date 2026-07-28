@@ -70,7 +70,9 @@ export function deriveCodexMigrationResult(facts: CodexMigrationFacts): CodexMig
         : [
             {
               command: nextCommand,
-              mutates: state !== 'plugin_installed_restart_required',
+              mutates:
+                state !== 'plugin_installed_restart_required' &&
+                state !== 'plugin_enabled_hook_unproven',
               requires_human: true,
             },
           ],

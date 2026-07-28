@@ -2,8 +2,8 @@ Feature: Test Codex plugin migration
 
   Safe Word's Codex migration is proven before it ships: Codex discovers the
   plugin, exposes scoped Safe Word skills, runs packaged hook entrypoints, and
-  upgrades old project-local installs without leaving customer repos dependent
-  on reusable Safe Word implementation files.
+  upgrades old project-local installs while preserving their working fallback
+  until the profile plugin has proven its hooks.
 
   @test-codex-plugin-migration.TB1.R1 @surface.openai-codex
   Rule: test-codex-plugin-migration.TB1.R1 — A fresh repo can install and enable the Safe Word Codex plugin without `.agents/skills` or repo-local `.safeword/hooks`
@@ -97,21 +97,21 @@ Feature: Test Codex plugin migration
       And each command invokes a packaged Safe Word command entrypoint
 
   @test-codex-plugin-migration.TB1.R4 @surface.openai-codex
-  Rule: test-codex-plugin-migration.TB1.R4 — Upgrading an old project-local Codex install leaves user-owned project data intact, removes obsolete skills, and preserves legacy hook runtime assets for an explicit handoff
+  Rule: test-codex-plugin-migration.TB1.R4 — Upgrading an old project-local Codex install leaves user-owned project data and working fallback assets intact until an explicit proven handoff
 
     Scenario: Old project-local Codex install migrates to plugin-backed Codex support
       Given a repo installed with today's project-local Codex assets
       And the repo contains user-owned tickets and learnings under the namespace root
       When the plugin migration upgrade runs
       Then the user-owned tickets and learnings remain byte-identical
-      And Safe Word no longer requires repo-local `.agents/skills` to expose Codex skills
+      And Safe Word keeps repo-local `.agents/skills` available during the compatibility window
       And legacy Safe Word Codex hook runtime files remain until explicit handoff cleanup
 
     Scenario: User-authored Codex skills survive the migration
       Given an old project-local Codex install with a user-authored `.agents/skills/company-workflow/SKILL.md`
       When the plugin migration upgrade runs
       Then the user-authored skill remains byte-identical
-      And Safe Word-owned Codex skill files no longer appear as active repo-local skills
+      And Safe Word-owned Codex skill files remain beside the user-authored skill until finalization
 
     @rejection
     Scenario: Customized Codex config is not clobbered while stale Safe Word hooks await explicit migration

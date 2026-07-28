@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   applyCodexFinalization,
   codexFinalizationIsComplete,
+  codexRecoveryIsRequired,
   promptCodexFinalization,
   resolveCodexFinalizationConfirmation,
 } from '../../src/codex-plugin/finalization.js';
@@ -88,6 +89,17 @@ describe('Codex migration finalization', () => {
     );
 
     expect(codexFinalizationIsComplete(directory)).toBe(false);
+    expect(codexRecoveryIsRequired(directory)).toBe(true);
+  });
+
+  it('surfaces an orphaned backup directory as recovery required', () => {
+    const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-finalization-'));
+    directories.push(directory);
+    mkdirSync(nodePath.join(directory, '.safeword/codex-migration-backup'), {
+      recursive: true,
+    });
+
+    expect(codexRecoveryIsRequired(directory)).toBe(true);
   });
 
   it('rolls back the complete pre-migration state when finalization fails', () => {

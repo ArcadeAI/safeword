@@ -62,9 +62,11 @@ export async function resolveCodexFinalizationConfirmation(_options: {
 }
 
 export async function promptCodexFinalization(
+  plan: string,
   input: NodeJS.ReadableStream = process.stdin,
   output: NodeJS.WritableStream = process.stdout,
 ): Promise<boolean> {
+  output.write(plan.endsWith('\n') ? plan : `${plan}\n`);
   const { createInterface } = await import('node:readline/promises');
   const readline = createInterface({ input, output });
   try {
@@ -95,8 +97,9 @@ export function codexFinalizationIsComplete(cwd: string): boolean {
     return (
       marker.schema_version === 1 &&
       marker.mode === 'plugin' &&
-      manifest.schema_version === 1 &&
-      manifest.status === 'finalized'
+      isBackupManifest(manifest) &&
+      manifest.status === 'finalized' &&
+      backupPayloadsAreValid(cwd, manifest)
     );
   } catch {
     return false;
@@ -104,10 +107,7 @@ export function codexFinalizationIsComplete(cwd: string): boolean {
 }
 
 export function codexRecoveryIsRequired(cwd: string): boolean {
-  return (
-    existsSync(containedPath(cwd, `${BACKUP_PATH}/manifest.json`)) &&
-    !codexFinalizationIsComplete(cwd)
-  );
+  return existsSync(containedPath(cwd, BACKUP_PATH)) && !codexFinalizationIsComplete(cwd);
 }
 
 function sha256(content: Buffer): string {
@@ -267,15 +267,77 @@ function readBackupManifest(cwd: string): {
 } {
   const backupDirectory = containedPath(cwd, BACKUP_PATH);
   const manifestPath = assertSafeComponents(cwd, `${BACKUP_PATH}/manifest.json`);
-  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as BackupManifestV1;
-  if (
-    manifest.schema_version !== 1 ||
-    !['prepared', 'finalized', 'recovering'].includes(manifest.status) ||
-    !Array.isArray(manifest.entries)
-  ) {
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as unknown;
+  if (!isBackupManifest(manifest)) {
     throw new Error('Codex migration backup manifest is malformed.');
   }
   return { backupDirectory, manifest };
+}
+
+function isSafeRelativePath(path: string): boolean {
+  return path !== '' && !nodePath.isAbsolute(path) && !path.split(/[\\/]/u).includes('..');
+}
+
+function isFileMode(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 && value <= 0o777;
+}
+
+function isSha256(value: unknown): value is string {
+  return typeof value === 'string' && /^[a-f0-9]{64}$/u.test(value);
+}
+
+function isFileImage(value: unknown, requiresPayload: boolean): value is FileImage {
+  if (typeof value !== 'object' || value === null) return false;
+  const image = value as Record<string, unknown>;
+  const baseFieldsAreValid = [
+    image.kind === 'file',
+    isFileMode(image.mode),
+    isSha256(image.sha256),
+  ].every(Boolean);
+  if (!baseFieldsAreValid) return false;
+  if (!requiresPayload) return image.payload === undefined;
+  return typeof image.payload === 'string' && isSafeRelativePath(image.payload);
+}
+
+function isAbsentImage(value: unknown): value is AbsentImage {
+  return (
+    typeof value === 'object' && value !== null && (value as { kind?: unknown }).kind === 'absent'
+  );
+}
+
+function isBackupEntry(value: unknown): value is BackupEntry {
+  if (typeof value !== 'object' || value === null) return false;
+  const entry = value as Record<string, unknown>;
+  return (
+    typeof entry.path === 'string' &&
+    isSafeRelativePath(entry.path) &&
+    (isFileImage(entry.before, true) || isAbsentImage(entry.before)) &&
+    (isFileImage(entry.after, false) || isAbsentImage(entry.after))
+  );
+}
+
+function isBackupManifest(value: unknown): value is BackupManifestV1 {
+  if (typeof value !== 'object' || value === null) return false;
+  const manifest = value as Record<string, unknown>;
+  return (
+    manifest.schema_version === 1 &&
+    ['prepared', 'finalized', 'recovering'].includes(String(manifest.status)) &&
+    Array.isArray(manifest.entries) &&
+    manifest.entries.length > 0 &&
+    manifest.entries.every(isBackupEntry) &&
+    new Set(manifest.entries.map(entry => entry.path)).size === manifest.entries.length
+  );
+}
+
+function backupPayloadsAreValid(cwd: string, manifest: BackupManifestV1): boolean {
+  const backupDirectory = containedPath(cwd, BACKUP_PATH);
+  return manifest.entries.every(entry => {
+    if (entry.before.kind === 'absent') return true;
+    const payload = entry.before.payload;
+    if (payload === undefined) return false;
+    const content = readFileSync(assertSafeComponents(backupDirectory, payload));
+    return sha256(content) === entry.before.sha256;
+  });
 }
 
 function validateRecoveryEntry(
@@ -301,7 +363,10 @@ function validateRecoveryEntry(
 
 export function recoverCodexFinalization(cwd: string): boolean {
   const manifestPath = containedPath(cwd, `${BACKUP_PATH}/manifest.json`);
-  if (!existsSync(manifestPath)) return false;
+  if (!existsSync(containedPath(cwd, BACKUP_PATH))) return false;
+  if (!existsSync(manifestPath)) {
+    throw new Error('Codex migration backup manifest is missing; recovery cannot continue.');
+  }
   const { backupDirectory, manifest } = readBackupManifest(cwd);
   const allowBefore = manifest.status !== 'finalized';
   for (const entry of manifest.entries) {
