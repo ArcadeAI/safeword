@@ -269,7 +269,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Finalized project tells an unconfigured teammate to install the plugin
 
 - [x] RED d9911344e
-- [ ] GREEN
+- [x] GREEN e7c7da2d3
 - [ ] REFACTOR
 
 ### Scenario: Generic setup does not install the migration bootstrap
