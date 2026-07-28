@@ -99,7 +99,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Declined interactive finalization leaves the repository unchanged
 
 - [x] RED 4c27ed9d1
-- [ ] GREEN
+- [x] GREEN 46a4a9c09
 - [ ] REFACTOR
 
 ### Scenario: Confirmed finalization creates a recoverable plugin-only project
