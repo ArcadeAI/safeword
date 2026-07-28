@@ -141,7 +141,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Recovery restores the backed-up legacy state
 
 - [x] RED e0d126f5d
-- [ ] GREEN
+- [x] GREEN e57bee71b
 - [ ] REFACTOR
 
 ### Scenario: Recovery refuses to overwrite an intervening edit
