@@ -192,7 +192,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED efd4a252f
 - [x] GREEN 03f146a37
-- [ ] REFACTOR
+- [x] REFACTOR skip: status reuses the event-level compatibility authority predicate
 
 ### Scenario: Recovery state takes precedence over legacy protection
 
