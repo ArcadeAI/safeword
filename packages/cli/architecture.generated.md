@@ -59,7 +59,9 @@ No description yet — awaiting prose.
 
 `src/health.ts`
 
-No description yet — awaiting prose.
+<!-- seeded-purpose: 6a514346e034c47f263a14d1f352d56fe0f1435fb100f8804a19b9b70aebc139 -->
+
+Config-health verification core (ticket 3293WH).
 
 ### index
 
@@ -85,7 +87,9 @@ No description yet — awaiting prose.
 
 `src/owned-paths.ts`
 
-No description yet — awaiting prose.
+<!-- seeded-purpose: a7727a2c03309440ca648329be38a5fb0566d597b367b41423d2b09c163d44b0 -->
+
+Derive the set of top-level path prefixes that safeword may write to, sourced from SAFEWORD_SCHEMA at build time.
 
 ### packs
 
@@ -121,7 +125,9 @@ No description yet — awaiting prose.
 
 `src/reconcile.ts`
 
-No description yet — awaiting prose.
+<!-- seeded-purpose: cbbfe7505557376adb3be92a02a7fc95298d294bcd85fcb2e56fb65c3593bafc -->
+
+Reconciliation Engine Computes and executes plans based on SAFEWORD_SCHEMA and project state.
 
 ### retro
 
@@ -139,7 +145,9 @@ No description yet — awaiting prose.
 
 `src/schema.ts`
 
-No description yet — awaiting prose.
+<!-- seeded-purpose: 2d621400d316657f1c92132de266be514dbe3bfce722b44db33eddedc8c3cb91 -->
+
+SAFEWORD Schema - Single Source of Truth All files, directories, configurations, and packages managed by safeword are defined here.
 
 ### self-report-capture
 
@@ -147,7 +155,9 @@ No description yet — awaiting prose.
 
 `src/self-report-capture.ts`
 
-No description yet — awaiting prose.
+<!-- seeded-purpose: 1d6ab8a143a63251557b3fecb492adadece7106155c9cfbf6118f1eb235efe63 -->
+
+CLI-side self-observation producer (ticket 5XXQQZ, issues #345 / #720).
 
 ### skills
 
