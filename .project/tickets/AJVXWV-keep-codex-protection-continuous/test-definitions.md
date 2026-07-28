@@ -129,7 +129,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Repeated migration converges in every pre-finalization state
 
 - [x] RED 44ded1b5a
-- [ ] GREEN
+- [x] GREEN 7d9c031ce
 - [ ] REFACTOR
 
 ### Scenario: Migration remains blocked while recovery is required
