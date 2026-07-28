@@ -6,6 +6,7 @@ import { Command, Option } from 'commander';
 
 import { createCapabilitiesResult } from './cli-protocol/catalog.js';
 import { addGlobalOptions, readGlobalOptions, reportResult } from './cli-protocol/execute.js';
+import { withDeprecation } from './cli-protocol/result.js';
 import { installCliCrashCapture } from './self-report-capture.js';
 import { error } from './utils/output.js';
 import { VERSION } from './version.js';
@@ -55,6 +56,9 @@ capabilities.action((_options, command: Command) => {
   reportResult(createCapabilitiesResult(), readGlobalOptions(command));
 });
 
+program.command('project').description('Manage project-local Safeword state');
+program.command('tracker').description('Manage tracker connections and synchronization');
+
 const planCommand = addGlobalOptions(
   program.command('plan').description('Preview reconciliation without changing the project'),
 );
@@ -91,17 +95,24 @@ program
     await setup({ noModify: options.modify === false });
   });
 
-program
-  .command('check')
-  .description('Check project health and versions')
-  .option('--offline', 'Skip remote version check')
-  .action(async options => {
-    const { check } = await import('./commands/check.js');
-    await check(options);
-  });
+addGlobalOptions(
+  program.command('check', { hidden: true }).description('Check project health and versions'),
+).action(async (options, command: Command) => {
+  const globalOptions = readGlobalOptions(command);
+  if (globalOptions.json || globalOptions.noInput || globalOptions.quiet || globalOptions.verbose) {
+    const { observeStatus } = await import('./commands/status.js');
+    reportResult(
+      withDeprecation(await observeStatus(globalOptions.cwd), 'check', 'status'),
+      globalOptions,
+    );
+    return;
+  }
+  const { check } = await import('./commands/check.js');
+  await check({ offline: globalOptions.offline || options.offline === true });
+});
 
 program
-  .command('boundary')
+  .command('boundary', { hidden: true })
   .description(
     'Reconcile workflow evidence at a git boundary — warn-and-record, never blocks (exit 0 always)',
   )
@@ -112,7 +123,7 @@ program
   });
 
 program
-  .command('upgrade')
+  .command('upgrade', { hidden: true })
   .description('Upgrade safeword configuration to latest version')
   .option(
     '--no-modify',
@@ -132,7 +143,9 @@ program
     });
   });
 
-const migrate = program.command('migrate').description('Migrate an agent integration');
+const migrate = program
+  .command('migrate', { hidden: true })
+  .description('Migrate an agent integration');
 
 migrate
   .command('codex-plugin')
@@ -247,27 +260,50 @@ codex
   .option('--json', 'Write the versioned migration result as JSON')
   .action(runCodexRecoverCommand);
 
-program
-  .command('diff')
-  .description('Preview changes that would be made by upgrade')
-  .option('-v, --verbose', 'Show full diff output')
-  .action(async options => {
-    const { diff } = await import('./commands/diff.js');
-    await diff(options);
-  });
+addGlobalOptions(
+  program
+    .command('diff', { hidden: true })
+    .description('Preview changes that would be made by upgrade'),
+).action(async (options, command: Command) => {
+  const globalOptions = readGlobalOptions(command);
+  if (globalOptions.json || globalOptions.noInput || globalOptions.quiet) {
+    const { observePlan } = await import('./commands/plan.js');
+    reportResult(
+      withDeprecation(await observePlan(globalOptions.cwd), 'diff', 'plan'),
+      globalOptions,
+    );
+    return;
+  }
+  const { diff } = await import('./commands/diff.js');
+  await diff({ verbose: options.verbose === true });
+});
+
+addGlobalOptions(
+  program
+    .command('reset', { hidden: true })
+    .description('Remove safeword configuration from project')
+    .option('-y, --yes', 'Skip confirmation prompt')
+    .option('--full', 'Also remove linting config and uninstall packages'),
+).action(async (options, command: Command) => {
+  const globalOptions = readGlobalOptions(command);
+  if (globalOptions.json || globalOptions.noInput || globalOptions.quiet) {
+    const { removeProject } = await import('./commands/remove.js');
+    reportResult(
+      withDeprecation(
+        await removeProject(globalOptions.cwd, { full: options.full === true }),
+        'reset',
+        'remove',
+      ),
+      globalOptions,
+    );
+    return;
+  }
+  const { reset } = await import('./commands/reset.js');
+  await reset(options);
+});
 
 program
-  .command('reset')
-  .description('Remove safeword configuration from project')
-  .option('-y, --yes', 'Skip confirmation prompt')
-  .option('--full', 'Also remove linting config and uninstall packages')
-  .action(async options => {
-    const { reset } = await import('./commands/reset.js');
-    await reset(options);
-  });
-
-program
-  .command('sync-config')
+  .command('sync-config', { hidden: true })
   .description('Regenerate depcruise config from current project structure')
   .option('--check', 'Report drift without writing (exits non-zero on drift)')
   .action(async (options: { check?: boolean }) => {
@@ -276,7 +312,7 @@ program
   });
 
 program
-  .command('sync-tracker')
+  .command('sync-tracker', { hidden: true })
   .description('Project the ticket corpus one-way into the configured tracker (Linear/GitHub)')
   .option('--reset-tracker-map', 'Rebuild the tracker-map sidecar from scratch')
   .option('--plan', 'Emit the sync plan as JSON to stdout (offline; for a pluggable executor)')
@@ -294,7 +330,7 @@ program
   });
 
 program
-  .command('connect <provider>')
+  .command('connect <provider>', { hidden: true })
   .description('Connect a tracker (linear/github): write config, verify auth, seed the sidecar')
   .option('--repo <owner/name>', 'GitHub target repository')
   .option('--team <team>', 'Linear target team')
@@ -307,7 +343,7 @@ program
   );
 
 program
-  .command('architecture')
+  .command('architecture', { hidden: true })
   .description(
     'Refresh the generated architecture state document (.project/architecture.generated.md)',
   )
@@ -356,7 +392,7 @@ ticket
   );
 
 program
-  .command('sync-learnings')
+  .command('sync-learnings', { hidden: true })
   .description('Regenerate the namespace learnings/INDEX.md')
   .option('-q, --quiet', 'Suppress success output (still prints skipped-file warnings to stderr)')
   .action(async (options: { quiet?: boolean }) => {
@@ -365,7 +401,7 @@ program
   });
 
 program
-  .command('sync-tickets')
+  .command('sync-tickets', { hidden: true })
   .description('Regenerate the namespace tickets/INDEX.md and INDEX-completed.md')
   .option('-q, --quiet', 'Suppress success output (still prints skipped-folder warnings to stderr)')
   .action(async (options: { quiet?: boolean }) => {
@@ -374,7 +410,7 @@ program
   });
 
 program
-  .command('codify <ticket>')
+  .command('codify <ticket>', { hidden: true })
   .description("Emit a test skeleton from a ticket's feature source or legacy test-definitions.md")
   .option('--format <format>', 'Output format: vitest (default) or gherkin', 'vitest')
   .option(
@@ -395,7 +431,7 @@ program
     featureDirectories(process.cwd());
   });
 
-const hook = program.command('hook').description('Run packaged Safe Word hooks');
+const hook = program.command('hook', { hidden: true }).description('Run packaged Safe Word hooks');
 
 hook
   .command('codex <event>')
@@ -415,7 +451,7 @@ program
   });
 
 program
-  .command('self-report')
+  .command('self-report', { hidden: true })
   .description("View safeword's own captured runtime signals (zero-egress local spool)")
   .option('--json', 'Emit machine-readable JSON instead of a human summary')
   .option(
@@ -464,7 +500,7 @@ program
   );
 
 program
-  .command('retro-reconcile')
+  .command('retro-reconcile', { hidden: true })
   .description(
     'Flag open retro issues whose surface changed after their newest recorded code state (G19QG7)',
   )
@@ -474,7 +510,7 @@ program
   });
 
 program
-  .command('lint-gherkin')
+  .command('lint-gherkin', { hidden: true })
   .description('Lint Gherkin feature files using Safeword-owned checks')
   .argument(
     '[files...]',
@@ -486,7 +522,7 @@ program
   });
 
 program
-  .command('test-plan')
+  .command('test-plan', { hidden: true })
   .description('Emit the test/build commands for every language detected in the repo')
   .argument('[dir]', 'project directory to scan (defaults to the current directory)')
   .option('--kind <kind>', 'test, build, verify, typecheck, deps, or bdd', 'test')

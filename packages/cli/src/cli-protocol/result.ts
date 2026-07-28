@@ -88,6 +88,26 @@ export function createResult(input: ResultInput): CliResult {
   };
 }
 
+export function withDeprecation(result: CliResult, legacy: string, replacement: string): CliResult {
+  return {
+    ...result,
+    findings: [
+      ...result.findings,
+      {
+        code: 'CLI_ALIAS_DEPRECATED',
+        message: `\`${legacy}\` is deprecated; use \`${replacement}\`.`,
+        severity: 'warning',
+        metadata: {
+          replacement,
+          introduced_in: '0.70',
+          retained_through: '0.71',
+          removal_eligible_after: '0.71',
+        },
+      },
+    ],
+  };
+}
+
 export function exitStatusFor(result: CliResult): 0 | 1 | 2 {
   if (result.state === 'failed') return 1;
   if (result.state === 'action_required') return 2;
