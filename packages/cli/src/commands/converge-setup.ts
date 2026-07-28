@@ -166,7 +166,18 @@ interface SetupResultInput {
   readonly installation: DependencyInstallResult;
   readonly eslintPolicy: VendoredIgnoresPolicyResult;
   readonly compatibilityEffects: Effect[];
+  readonly compatibilityPackage?: string;
   readonly gitInitialized: boolean;
+}
+
+function uniqueEffects(effects: readonly Effect[]): Effect[] {
+  const seen = new Set<string>();
+  return effects.filter(effect => {
+    const identity = `${effect.kind}\0${effect.target}\0${effect.operation ?? ''}`;
+    if (seen.has(identity)) return false;
+    seen.add(identity);
+    return true;
+  });
 }
 
 function setupResult(input: SetupResultInput): CliResult {
@@ -178,10 +189,11 @@ function setupResult(input: SetupResultInput): CliResult {
     installation,
     eslintPolicy,
     compatibilityEffects,
+    compatibilityPackage,
     gitInitialized,
   } = input;
   const reconciled = effectsForReconciliation(reconciliation, 'upgrade');
-  const files = [
+  const files = uniqueEffects([
     ...(packageJsonCreated ? [{ kind: 'create', target: 'package.json' }] : []),
     ...reconciled.files,
     ...architectureEffects,
@@ -198,10 +210,20 @@ function setupResult(input: SetupResultInput): CliResult {
           },
         ]
       : []),
+  ]);
+  const packages = [
+    ...(installation.installed
+      ? reconciliation.packagesToInstall.map(target => ({ kind: 'install', target }))
+      : []),
+    ...(compatibilityPackage === undefined
+      ? []
+      : [{ kind: 'update', target: compatibilityPackage }]),
   ];
-  const packages = installation.installed
-    ? reconciliation.packagesToInstall.map(target => ({ kind: 'install', target }))
-    : [];
+  const network = packages.map(effect => ({
+    kind: 'package-registry',
+    target: effect.target,
+    operation: effect.kind,
+  }));
   const changed = files.length > 0 || packages.length > 0;
   const findings = [
     ...packageFindings(installation),
@@ -217,7 +239,7 @@ function setupResult(input: SetupResultInput): CliResult {
   return createResult({
     state,
     changed,
-    effects: { files, packages },
+    effects: { files, packages, network },
     findings,
     nextActions: [{ command: nextCommand, mutates: true, requiresHuman: true }],
     data: { configured: true, dependency_install: installation },
@@ -252,7 +274,10 @@ async function applySetup(
   const installation = installDependencies(cwd, result.packagesToInstall, 'missing packages', {
     report: false,
   });
-  if (syncPackageJsonSafewordVersion(cwd, { report: false })) {
+  const compatibilityPackage = syncPackageJsonSafewordVersion(cwd, { report: false })
+    ? `safeword@${VERSION}`
+    : undefined;
+  if (compatibilityPackage !== undefined) {
     compatibilityEffects.push({ kind: 'update', target: 'package.json' });
   }
   return setupResult({
@@ -263,6 +288,7 @@ async function applySetup(
     installation,
     eslintPolicy,
     compatibilityEffects,
+    compatibilityPackage,
     gitInitialized: context.isGitRepo,
   });
 }
