@@ -60,7 +60,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: proof validation shipped with proof-aware status before corruption table coverage
 - [x] GREEN 569769919
-- [ ] REFACTOR
+- [x] REFACTOR skip: proof validation is already centralized in observeCodexHookProof
 
 ### Scenario: Legacy SessionStart cannot create plugin proof
 
