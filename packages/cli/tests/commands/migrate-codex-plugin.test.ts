@@ -592,6 +592,25 @@ command = 'echo "keep this user hook"'
     expect(calls.match(/plugin marketplace add/g)).toHaveLength(1);
   });
 
+  it('blocks migration while recovery evidence is unresolved', async () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    const backupDirectory = nodePath.join(fixture.directory, '.safeword/codex-migration-backup');
+    mkdirSync(backupDirectory, { recursive: true });
+    writeFileSync(
+      nodePath.join(backupDirectory, 'manifest.json'),
+      JSON.stringify({ schema_version: 1, status: 'prepared', entries: [] }),
+    );
+    const before = readFileSync(fixture.configPath, 'utf8');
+
+    const result = await runCodexCommand(fixture, ['codex', 'migrate']);
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stdout).toContain('recovery_required');
+    expect(result.stdout).toContain('safeword codex recover');
+    expect(readFileSync(fixture.configPath, 'utf8')).toBe(before);
+    expect(existsSync(nodePath.join(fixture.directory, 'codex.log'))).toBe(false);
+  });
+
   it('cleans legacy hooks through the explicit Codex migration command without reinstalling', async () => {
     const fixture = createMigrationFixture(`${LEGACY_HOOK_CONFIG}${CUSTOM_PRE_TOOL_HOOK}`);
     const { configPath } = fixture;
