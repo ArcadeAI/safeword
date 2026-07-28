@@ -154,7 +154,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: handled-failure rollback shipped with the transaction rollback boundary
 - [x] GREEN 6b8010a4c
-- [ ] REFACTOR
+- [x] REFACTOR skip: handled failures preserve and rethrow the original error object
 
 ### Scenario: Process crash leaves deterministic recovery evidence
 
