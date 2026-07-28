@@ -99,4 +99,28 @@ describe('CLI result protocol', () => {
     expect(renderHumanResult(failed, { verbose: true })).toContain('line 19, token 4');
     expect(renderHumanResult(failed)).not.toContain('line 19, token 4');
   });
+
+  it('renders the exact proposed plan without treating it as completed effects', () => {
+    const output = renderHumanResult(
+      createResult({
+        state: 'action_required',
+        data: {
+          plan: {
+            effects: {
+              files: [{ kind: 'write', target: '.safeword/version' }],
+              packages: [{ kind: 'install', target: 'eslint' }],
+              configuration: [],
+              network: [{ kind: 'registry', target: 'eslint' }],
+              destructive: [],
+            },
+          },
+        },
+      }),
+    );
+
+    expect(output).toContain('Planned effects:');
+    expect(output).toContain('files: write .safeword/version');
+    expect(output).toContain('packages: install eslint');
+    expect(output).toContain('network: registry eslint');
+  });
 });

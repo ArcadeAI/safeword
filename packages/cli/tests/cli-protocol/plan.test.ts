@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { createPlan, isPlanCurrent } from '../../src/cli-protocol/plan.js';
+import { effectsForReconciliation } from '../../src/commands/reconciliation-plan.js';
 
 describe('CLI plan protocol', () => {
   it('binds plan identity to command, effects, and preconditions', () => {
@@ -32,5 +33,25 @@ describe('CLI plan protocol', () => {
       network: [],
       destructive: [],
     });
+  });
+
+  it('declares registry access whenever setup may install packages', () => {
+    const effects = effectsForReconciliation(
+      {
+        actions: [],
+        applied: false,
+        created: [],
+        updated: [],
+        removed: [],
+        packagesToInstall: ['eslint'],
+        packagesToRemove: [],
+        warnings: [],
+      },
+      'upgrade',
+    );
+
+    expect(effects.network).toEqual([
+      { kind: 'package-registry', target: 'eslint', operation: 'install' },
+    ]);
   });
 });
