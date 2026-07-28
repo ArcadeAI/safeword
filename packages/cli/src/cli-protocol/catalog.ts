@@ -83,13 +83,39 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   command('remove', 'Remove Safeword configuration', 'destructive', {
     promptPolicy: 'confirm',
   }),
-  command('project', 'Manage project-local Safeword state', 'mutate'),
-  command('tracker', 'Manage tracker connections and synchronization', 'mutate', {
+  command('project sync-config', 'Regenerate dependency-cruiser configuration', 'mutate'),
+  command('project architecture', 'Refresh generated architecture state', 'mutate'),
+  command('project sync-learnings', 'Refresh the project learning index', 'mutate'),
+  command('project sync-tickets', 'Refresh project ticket indexes', 'mutate'),
+  command('project codify', 'Generate a test skeleton from ticket behavior', 'mutate', {
+    fixture: {
+      argv: ['project', 'codify', 'fixture'],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  }),
+  command('project test-plan', 'Describe repository test commands', 'observe'),
+  command('project lint-gherkin', 'Validate executable feature files', 'observe'),
+  command('tracker sync', 'Synchronize tickets with the configured tracker', 'mutate', {
     networkPolicy: 'declared',
   }),
-  command('codex', 'Manage the Safeword Codex plugin', 'mutate'),
-  command('ticket', 'Manage local Safeword tickets', 'mutate'),
-  command('retro', 'Review and reconcile session findings', 'mutate', {
+  command('tracker connect', 'Connect a project to a tracker', 'mutate', {
+    networkPolicy: 'declared',
+    fixture: {
+      argv: ['tracker', 'connect', 'github'],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  }),
+  command('codex migrate', 'Migrate legacy project hooks to the Codex plugin', 'mutate'),
+  command('ticket list', 'List project tickets', 'observe'),
+  command('retro run', 'Extract and file session findings', 'mutate', {
+    networkPolicy: 'declared',
+    fixture: {
+      argv: ['retro', 'run', '--transcript', 'fixture'],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  }),
+  command('retro signals', 'Inspect locally captured runtime signals', 'observe'),
+  command('retro reconcile', 'Reconcile open retro findings', 'mutate', {
     networkPolicy: 'declared',
   }),
   command('capabilities', 'Describe the public machine interface', 'observe'),
@@ -104,13 +130,31 @@ const ALIASES: readonly CommandDefinition[] = [
   alias('architecture', 'project architecture', 'mutate'),
   alias('sync-learnings', 'project sync-learnings', 'mutate'),
   alias('sync-tickets', 'project sync-tickets', 'mutate'),
-  alias('codify', 'project codify', 'mutate'),
+  {
+    ...alias('codify', 'project codify', 'mutate'),
+    fixture: {
+      argv: ['codify', 'fixture'],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  },
   alias('test-plan', 'project test-plan', 'observe'),
   alias('lint-gherkin', 'project lint-gherkin', 'observe'),
   alias('sync-tracker', 'tracker sync', 'mutate'),
-  alias('connect', 'tracker connect', 'mutate'),
+  {
+    ...alias('connect', 'tracker connect', 'mutate'),
+    fixture: {
+      argv: ['connect', 'github'],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  },
   alias('self-report', 'retro signals', 'observe'),
-  alias('retro', 'retro run', 'mutate'),
+  {
+    ...alias('retro', 'retro run', 'mutate'),
+    fixture: {
+      argv: ['retro', '--transcript', 'fixture'],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  },
   alias('retro-reconcile', 'retro reconcile', 'mutate'),
   alias('migrate codex-plugin', 'codex migrate', 'mutate'),
 ];
@@ -129,6 +173,12 @@ export const commandCatalog: readonly CommandDefinition[] = [
 ];
 
 export const publicCommands = commandCatalog.filter(definition => definition.public);
+
+export function findCommandDefinition(name: string): CommandDefinition {
+  const definition = commandCatalog.find(candidate => candidate.name === name);
+  if (definition === undefined) throw new Error(`Unknown CLI command definition: ${name}`);
+  return definition;
+}
 
 function aliasesFor(name: string): string[] {
   return ALIASES.filter(definition => definition.aliasFor === name).map(

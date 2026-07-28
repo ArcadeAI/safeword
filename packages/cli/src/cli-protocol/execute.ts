@@ -3,6 +3,8 @@ import process from 'node:process';
 
 import type { Command } from 'commander';
 
+import { findCommandDefinition } from './catalog.js';
+import { assertEffectPolicy } from './policy.js';
 import { type CliResult, exitStatusFor, renderHumanResult, renderJsonResult } from './result.js';
 
 export interface GlobalCliOptions {
@@ -43,7 +45,14 @@ export function readGlobalOptions(command: Command): GlobalCliOptions {
   };
 }
 
-export function reportResult(result: CliResult, options: GlobalCliOptions): void {
+export function reportResult(
+  result: CliResult,
+  options: GlobalCliOptions,
+  commandName?: string,
+): void {
+  if (commandName !== undefined) {
+    assertEffectPolicy(findCommandDefinition(commandName), result, options);
+  }
   const output = options.json
     ? renderJsonResult(result)
     : renderHumanResult(result, { quiet: options.quiet, verbose: options.verbose });

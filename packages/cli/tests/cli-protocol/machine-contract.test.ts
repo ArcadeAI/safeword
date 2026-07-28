@@ -24,5 +24,5 @@ describe('public command machine contract', () => {
       expect(() => JSON.parse(first.stdout), definition.name).not.toThrow();
       expect(first.stdout, definition.name).toBe(second.stdout);
     }
-  }, 30_000);
+  }, 60_000);
 });
