@@ -172,7 +172,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: the alias is parsed into the same finalization branch
 - [x] GREEN 4cf30d883
-- [ ] REFACTOR
+- [x] REFACTOR skip: the alias shares the canonical finalization implementation
 
 ### Scenario: Explicit non-interactive finalization succeeds
 
