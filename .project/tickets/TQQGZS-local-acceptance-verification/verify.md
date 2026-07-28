@@ -1,23 +1,25 @@
 ## Verify Checklist
 
-**Focused test:** ✅ `bun run test tests/local-test-contract.test.ts` — 1 file, 2 tests passed.
+**Test Suite:** ✓ 2/2 focused contract tests pass. The full unit suite was also run through Safeword's test plan and `test:all`, but the runner did not retain its final summary.
 
-**Acceptance lane:** ✅ `bun run test:bdd` passed.
+**Gherkin:** ✅ Acceptance lane passes. It ran directly and through Safeword's BDD test plan.
 
-**Aggregate command:** ✅ `bun run test:all` was executed and completed after exercising the unit suite and acceptance lane.
+**Build:** ✅ Success during each focused contract run.
 
-**Lint and typecheck:** ✅ `bun run lint` passed (`eslint`, Gherkin lint, and package typecheck).
+**Lint:** ✅ Clean (`eslint`, Gherkin lint, and package typecheck).
 
-**Configuration:** ✅ `safeword sync-config --check` reported configuration in sync.
+**Scenarios:** All 0 scenarios marked complete — this task uses a document-contract test rather than a scenario ledger.
 
-**Diff hygiene:** ✅ `git diff --check` passed.
+**PR Scope:** ✅ Diff matches ticket scope. It contains the root test command, contributor guidance, its contract test, and supporting planning/review evidence only.
 
-**Audit:** ✅ Diff-scoped audit found no changed-source or manifest concern. Dependency freshness, clone discovery, and Knip are intentionally repository-audit checks and were skipped for this diff.
+**Dep Drift:** ✅ Clean — no dependency changes.
 
-**Test quality:** ✅ The new contract test asserts the exact ordered script composition and the two contributor-facing command descriptions; it has no shared state, timers, or mock coupling.
+**Parent Epic:** N/A.
 
-**Scope:** ✅ The implementation is limited to the root script, README guidance, regression test, and task planning artifacts. CI and lint behavior are unchanged.
+**Reconcile:** ✅ No pattern deviation.
 
-**Evidence limit:** The aggregate runner's final terminal transcript was not retained after completion, so its exit summary cannot be quoted. Focused test, BDD lane, lint/typecheck, config sync, and audit have captured passing output.
+**Experience:** ⏭️ N/A — internal contributor tooling.
 
-**Status:** Ready for review and user confirmation. The ticket is deliberately still `in_progress`; ticket policy forbids marking it done without that confirmation.
+**Evidence limits:** ⚠️ The long-running full-suite process completed, but this runner did not retain its final summary. Focused tests, build, lint/typecheck, config sync, and the diff-scoped audit have captured passing output.
+
+Audit passed — diff-scoped audit found no architecture or configuration issue; whole-repository clone, unused-code, and dependency-freshness discovery were intentionally skipped.

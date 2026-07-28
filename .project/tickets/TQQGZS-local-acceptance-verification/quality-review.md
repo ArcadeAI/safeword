@@ -29,3 +29,30 @@
 - (verified: `.github/workflows/ci.yml`) — the current CI runs the existing unit and Cucumber lanes separately and in that order.
 
 **Next:** Apply the two listed test refactors, then re-review and run the complete validation set.
+
+## Pass 2
+
+**Currency:** ✓ No dependencies or runtime versions changed. The implementation uses the repository's existing Bun script runner.
+
+**Sources:** ✓ Bun documents `bun run <script>` as execution of named `package.json` shell commands.
+
+**Correct:** ✓ The contract now proves that both named collaborators exist and that unit tests precede acceptance tests.
+
+**Elegant:** ✓ The README assertions retain their content contract without depending on alignment spaces.
+
+**No-bloat:** ✓ The change remains one root script and one small real-file contract test.
+
+**Wiring:** ✓ `packages/cli/tests/local-test-contract.test.ts` reads the real root manifest and README. It does not recursively spawn `test:all`; direct aggregate execution is recorded separately in `verify.md`.
+
+**Verdict:** APPROVE
+
+**Critical issues:** None.
+
+**Suggested improvements:** None — both Pass 1 items are complete.
+
+**Provenance:**
+
+- (verified: https://bun.sh/docs/runtime) — fetched this session; `bun run <script>` executes named `package.json` shell commands.
+- (verified: `.github/workflows/ci.yml`) — the current CI runs the existing unit and Cucumber lanes separately and in that order.
+
+**Next:** Commit these final verification records and open the pull request.
