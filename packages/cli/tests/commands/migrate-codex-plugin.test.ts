@@ -480,6 +480,26 @@ command = 'echo "keep this user hook"'
     expect(result.stdout.match(/^Next:/gm)).toHaveLength(1);
   });
 
+  it('records restart-required state after successful profile installation', async () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    const codexHome = nodePath.join(fixture.directory, 'profile');
+
+    const result = await runCodexCommand(fixture, ['codex', 'migrate'], {
+      CODEX_HOME: codexHome,
+    });
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stdout).toContain('plugin_installed_restart_required');
+    expect(result.stdout).toContain('restart Codex and review /hooks');
+    expect(readFileSync(fixture.configPath, 'utf8')).toBe(LEGACY_HOOK_CONFIG);
+    const marker = JSON.parse(
+      readFileSync(nodePath.join(codexHome, 'safeword/restart-pending-v1.json'), 'utf8'),
+    ) as Record<string, unknown>;
+    expect(marker.schema_version).toBe(1);
+    expect(marker.plugin_version).toMatch(/^\d+\.\d+\.\d+/u);
+    expect(marker.manifest_sha256).toMatch(/^[\da-f]{64}$/u);
+  });
+
   it('cleans legacy hooks through the explicit Codex migration command without reinstalling', async () => {
     const fixture = createMigrationFixture(`${LEGACY_HOOK_CONFIG}${CUSTOM_PRE_TOOL_HOOK}`);
     const { configPath } = fixture;
