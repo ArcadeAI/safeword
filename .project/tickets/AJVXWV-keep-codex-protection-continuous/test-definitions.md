@@ -276,7 +276,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: the bootstrap was never registered as a generic managed template
 - [x] GREEN 880b5245b
-- [ ] REFACTOR
+- [x] REFACTOR skip: finalization remains the bootstrap's only creation path
 
 ## Feature-level cross-scenario refactor
 
