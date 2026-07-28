@@ -14,8 +14,9 @@ const temporaryDirectories: string[] = [];
 
 function spawnDocker(arguments_: string[], timeout: number) {
   const options = { encoding: 'utf8' as const, timeout };
-  if (existsSync('/usr/bin/docker')) return spawnSync('/usr/bin/docker', arguments_, options);
-  return spawnSync('/usr/local/bin/docker', arguments_, options);
+  const systemDocker = path.join(path.sep, 'usr', 'bin', 'docker');
+  const localDocker = path.join(path.sep, 'usr', 'local', 'bin', 'docker');
+  return spawnSync(existsSync(systemDocker) ? systemDocker : localDocker, arguments_, options);
 }
 
 const dockerAvailable = spawnDocker(['info'], 10_000).status === 0;
