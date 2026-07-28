@@ -66,9 +66,18 @@ function writeExecutable(path: string, content: string): void {
   chmodSync(path, 0o755);
 }
 
-function installFakeRuntime(directory: string, pluginEnabled: boolean): string {
+function installFakeRuntime(
+  directory: string,
+  pluginEnabled: boolean,
+  pluginInitiallyInstalled: boolean,
+): string {
   const bin = nodePath.join(directory, 'bin');
+  const pluginState = nodePath.join(directory, 'profile/plugin-state');
   mkdirSync(bin, { recursive: true });
+  mkdirSync(nodePath.dirname(pluginState), { recursive: true });
+  let initialPluginState = 'absent';
+  if (pluginInitiallyInstalled) initialPluginState = pluginEnabled ? 'enabled' : 'disabled';
+  writeFileSync(pluginState, initialPluginState);
   writeExecutable(nodePath.join(bin, 'bun'), '#!/bin/sh\nexit 0\n');
   writeExecutable(
     nodePath.join(bin, 'codex'),
@@ -87,13 +96,23 @@ case "$*" in
     fi
     echo '{"marketplaceName":"safeword"}'
     ;;
-  'plugin add safeword@safeword --json') echo '{"pluginId":"safeword@safeword"}' ;;
+  'plugin add safeword@safeword --json')
+    printf 'enabled' > '${pluginState}'
+    echo '{"pluginId":"safeword@safeword"}'
+    ;;
   'plugin list --json')
     if [ "$(printenv SAFEWORD_FAIL_PLUGIN_VERIFY 2>/dev/null || true)" = "1" ]; then
       echo 'profile observation failed' >&2
       exit 8
     fi
-    echo '{"installed":[{"pluginId":"safeword@safeword","enabled":${pluginEnabled}}]}'
+    mode="$(cat '${pluginState}')"
+    if [ "$mode" = "absent" ]; then
+      echo '{"installed":[]}'
+    elif [ "$mode" = "disabled" ]; then
+      echo '{"installed":[{"pluginId":"safeword@safeword","enabled":false}]}'
+    else
+      echo '{"installed":[{"pluginId":"safeword@safeword","enabled":true}]}'
+    fi
     ;;
   *) exit 2 ;;
 esac
@@ -105,7 +124,11 @@ esac
 describe('migrate codex-plugin command', () => {
   const directories: string[] = [];
 
-  function createMigrationFixture(config: string, pluginEnabled = true) {
+  function createMigrationFixture(
+    config: string,
+    pluginEnabled = true,
+    pluginInitiallyInstalled = true,
+  ) {
     const directory = createTemporaryDirectory();
     directories.push(directory);
     mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
@@ -114,7 +137,11 @@ describe('migrate codex-plugin command', () => {
     const configPath = nodePath.join(directory, '.codex/config.toml');
     writeFileSync(configPath, config);
 
-    return { directory, configPath, bin: installFakeRuntime(directory, pluginEnabled) };
+    return {
+      directory,
+      configPath,
+      bin: installFakeRuntime(directory, pluginEnabled, pluginInitiallyInstalled),
+    };
   }
 
   function runMigration(
@@ -415,21 +442,21 @@ command = 'echo "keep this user hook"'
     expect(readFileSync(nodePath.join(backupPath, 'keep.txt'), 'utf8')).toBe('existing backup\n');
   });
 
-  it('retains legacy hooks when Codex reports the plugin disabled', async () => {
+  it('re-enables a disabled profile plugin while retaining legacy hooks', async () => {
     const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, false);
     const { configPath } = fixture;
     const before = readFileSync(configPath, 'utf8');
 
     const result = await runMigration(fixture);
 
-    expect(result.exitCode).not.toBe(0);
+    expect(result.exitCode).toBe(0);
     expect(`${result.stdout}\n${result.stderr}`).toContain('enabled');
     expect(readFileSync(configPath, 'utf8')).toBe(before);
     expect(existsSync(configPath)).toBe(true);
   });
 
   it('installs and verifies the profile plugin without creating project Codex configuration', async () => {
-    const fixture = createMigrationFixture('');
+    const fixture = createMigrationFixture('', true, false);
     const { directory } = fixture;
     rmSync(nodePath.join(directory, '.codex'), { recursive: true });
 
@@ -447,7 +474,7 @@ command = 'echo "keep this user hook"'
   });
 
   it('expands to the profile plugin without removing legacy hooks', async () => {
-    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, true, false);
     const { configPath } = fixture;
 
     const result = await runCodexCommand(fixture, ['codex', 'migrate']);
@@ -461,7 +488,7 @@ command = 'echo "keep this user hook"'
   });
 
   it('leaves recognized legacy protection unchanged when plugin installation fails', async () => {
-    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, true, false);
     const legacySkillPath = nodePath.join(fixture.directory, '.agents/skills/review-spec/SKILL.md');
     mkdirSync(nodePath.dirname(legacySkillPath), { recursive: true });
     writeFileSync(legacySkillPath, '# legacy protection\n');
@@ -479,7 +506,7 @@ command = 'echo "keep this user hook"'
   });
 
   it('reports unknown enablement without changing the repository after partial installation', async () => {
-    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, true, false);
     const beforeConfig = readFileSync(fixture.configPath, 'utf8');
 
     const result = await runCodexCommand(fixture, ['codex', 'migrate'], {
@@ -583,7 +610,7 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
   });
 
   it('records restart-required state after successful profile installation', async () => {
-    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, true, false);
     const codexHome = nodePath.join(fixture.directory, 'profile');
 
     const result = await runCodexCommand(fixture, ['codex', 'migrate'], {
@@ -677,7 +704,7 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
       'utf8',
     );
     expect(bootstrap).toContain('safeword codex migrate');
-    expect(bootstrap).toContain('Start a new Codex session');
+    expect(bootstrap).toContain('Restart Codex');
     expect(bootstrap).toContain('/hooks');
     expect(bootstrap).toContain('safeword codex status');
     expect(bootstrap).not.toMatch(/\b(?:BDD|TDD|quality review|ticket workflow)\b/u);

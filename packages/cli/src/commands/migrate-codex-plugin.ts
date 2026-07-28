@@ -606,7 +606,7 @@ function buildCodexFinalizationMutations(
     {
       path: '.agents/skills/safeword-plugin-setup/SKILL.md',
       content:
-        '---\nname: safeword-plugin-setup\ndescription: Restore the Safe Word Codex profile plugin for this project.\n---\n\nRun `safeword codex migrate` to install or re-enable the profile plugin. Start a new Codex session so the plugin loads, then review its hooks with `/hooks`. Run `safeword codex status` to verify this project is protected.\n',
+        '---\nname: safeword-plugin-setup\ndescription: Restore the Safe Word Codex profile plugin for this project.\n---\n\nRun `safeword codex migrate` to install or re-enable the profile plugin. Restart Codex so the plugin loads, then review its hooks with `/hooks`. Run `safeword codex status` to verify this project is protected.\n',
     },
   );
   return mutations;
