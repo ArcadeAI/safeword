@@ -25,7 +25,7 @@ export function observeGherkinLint(cwd: string, files: readonly string[]): CliRe
   if (issues.length === 0) {
     return createResult({
       state: 'healthy',
-      data: { command: 'project lint-gherkin', files: featureFiles.length },
+      data: { command: 'project lint-gherkin', files: featureFiles.length, arguments: files },
     });
   }
 
@@ -36,7 +36,7 @@ export function observeGherkinLint(cwd: string, files: readonly string[]): CliRe
       message: issue.message,
       retryable: false,
     })),
-    data: { command: 'project lint-gherkin', files: featureFiles.length },
+    data: { command: 'project lint-gherkin', files: featureFiles.length, arguments: files },
   });
 }
 

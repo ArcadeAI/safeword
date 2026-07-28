@@ -21,11 +21,11 @@ import { After, Given, Then, When } from '@cucumber/cucumber';
 import { applyEffects } from '../../src/cli-protocol/apply.ts';
 import {
   commandCatalog,
+  type CommandDefinition,
   createCapabilitiesResult,
   findCommandDefinition,
   publicCommands,
 } from '../../src/cli-protocol/catalog.ts';
-import { describeNonInteractiveIntent } from '../../src/cli-protocol/intent.ts';
 import { createProgressReporter } from '../../src/cli-protocol/policy.ts';
 import {
   type CliResult,
@@ -34,7 +34,6 @@ import {
   exitStatusFor,
   renderHumanResult,
   renderJsonResult,
-  withDeprecation,
 } from '../../src/cli-protocol/result.ts';
 import type { SafewordWorld } from './world.js';
 
@@ -62,8 +61,15 @@ interface PredictableCliWorld extends SafewordWorld {
   latencySamples?: number[];
   scheduledProgress?: () => void;
   progressMessages?: string[];
+  commandRuns?: CommandRun[][];
   parentCwd?: string;
   secondDirectory?: string;
+}
+
+interface CommandRun {
+  readonly stdout: string;
+  readonly stderr: string;
+  readonly exitCode: number;
 }
 
 function temporaryProject(world: PredictableCliWorld): string {
@@ -97,6 +103,26 @@ function childEnvironment(): NodeJS.ProcessEnv {
   const environment: NodeJS.ProcessEnv = { ...process.env, SAFEWORD_NO_UPDATE_CHECK: '1' };
   delete environment.NODE_OPTIONS;
   return environment;
+}
+
+function runPublicFixture(world: PredictableCliWorld, definition: CommandDefinition): CommandRun {
+  const cwd = join(temporaryProject(world), 'public-fixture');
+  rmSync(cwd, { recursive: true, force: true });
+  mkdirSync(cwd, { recursive: true });
+  const completed = spawnSync(
+    process.execPath,
+    [CLI_PATH, ...definition.fixture.argv, '--json', '--no-input', '--offline', '--cwd', cwd],
+    {
+      cwd,
+      encoding: 'utf8',
+      env: { ...childEnvironment(), ...definition.fixture.environment },
+    },
+  );
+  return {
+    stdout: completed.stdout,
+    stderr: completed.stderr,
+    exitCode: completed.status ?? 1,
+  };
 }
 
 function setupProject(world: PredictableCliWorld): void {
@@ -287,8 +313,10 @@ Then(
   function (this: PredictableCliWorld) {
     const result = wireResult(this);
     assert.equal(result.changed, false);
-    assert.ok((result.data as { plan: { id: string } }).plan.id);
-    assert.ok(((result.effects as { destructive: unknown[] }).destructive ?? []).length > 0);
+    const plan = (result.data as { plan: { id: string; effects: Effects } }).plan;
+    assert.ok(plan.id);
+    assert.ok(plan.effects.destructive.length > 0);
+    assert.deepEqual(result.effects, EMPTY_EFFECTS);
   },
 );
 
@@ -296,8 +324,9 @@ Given('a configured project and its remove plan', function (this: PredictableCli
   setupProject(this);
   runCli(this, ['remove', '--json', '--no-input', '--offline', '--cwd', temporaryProject(this)]);
   const result = wireResult(this);
-  this.planId = (result.data as { plan: { id: string } }).plan.id;
-  this.plannedEffects = result.effects as Effects;
+  const plan = (result.data as { plan: { id: string; effects: Effects } }).plan;
+  this.planId = plan.id;
+  this.plannedEffects = plan.effects;
 });
 
 When('the user explicitly confirms that plan', function (this: PredictableCliWorld) {
@@ -444,24 +473,18 @@ Given(
 When(
   'each real handler is invoked through the executable adapter',
   function (this: PredictableCliWorld) {
-    this.protocolResults = publicCommands.map(definition =>
-      definition.aliasFor === undefined
-        ? describeNonInteractiveIntent(definition.name, true)
-        : withDeprecation(
-            describeNonInteractiveIntent(definition.aliasFor, true),
-            definition.name,
-            definition.aliasFor,
-          ),
-    );
+    this.commandRuns = [publicCommands.map(definition => runPublicFixture(this, definition))];
   },
 );
 
 Then(
   'only the shared renderer writes output and no handler terminates the process',
   function (this: PredictableCliWorld) {
-    for (const result of assertPresent(this.protocolResults)) {
-      assert.doesNotThrow(() => JSON.parse(renderJsonResult(result)));
-      assert.ok([0, 1, 2].includes(exitStatusFor(result)));
+    const runs = assertPresent(this.commandRuns)[0] ?? [];
+    for (const run of runs) {
+      assert.equal(run.stderr, '');
+      assert.doesNotThrow(() => JSON.parse(run.stdout));
+      assert.ok([0, 1, 2].includes(run.exitCode));
     }
   },
 );
@@ -476,23 +499,24 @@ Given(
 When(
   'each command is invoked with {string}',
   function (this: PredictableCliWorld, _contract: string) {
-    this.protocolResults = publicCommands.map(definition =>
-      definition.aliasFor === undefined
-        ? describeNonInteractiveIntent(definition.name, true)
-        : withDeprecation(
-            describeNonInteractiveIntent(definition.aliasFor, true),
-            definition.name,
-            definition.aliasFor,
-          ),
-    );
+    this.commandRuns = [
+      publicCommands.map(definition => runPublicFixture(this, definition)),
+      publicCommands.map(definition => runPublicFixture(this, definition)),
+    ];
   },
 );
 
 Then(
   'each invocation returns deterministic JSON without prompting',
   function (this: PredictableCliWorld) {
-    for (const result of assertPresent(this.protocolResults)) {
-      assert.equal(renderJsonResult(result), renderJsonResult(result));
+    const [firstRuns = [], secondRuns = []] = assertPresent(this.commandRuns);
+    assert.equal(firstRuns.length, publicCommands.length);
+    for (const [index, first] of firstRuns.entries()) {
+      const second = assertPresent(secondRuns[index]);
+      assert.equal(first.stderr, '');
+      assert.equal(second.stderr, '');
+      assert.deepEqual(JSON.parse(first.stdout), JSON.parse(second.stdout));
+      assert.equal(first.exitCode, second.exitCode);
     }
   },
 );
@@ -703,12 +727,9 @@ When(
   function (this: PredictableCliWorld, _releaseLine: number) {
     const legacy = assertPresent(this.legacy);
     const definition = findCommandDefinition(legacy);
-    const canonical = assertPresent(definition.aliasFor);
-    this.protocolResult = withDeprecation(
-      describeNonInteractiveIntent(canonical, true),
-      legacy,
-      canonical,
-    );
+    const run = runPublicFixture(this, definition);
+    assert.equal(run.stderr, '');
+    this.protocolResult = JSON.parse(run.stdout) as CliResult;
     assert.ok(aliasFixture(legacy).length > 0);
   },
 );

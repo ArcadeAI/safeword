@@ -125,6 +125,43 @@ export function installDependencies(
   }
 }
 
+export function uninstallDependencies(
+  cwd: string,
+  packages: string[],
+  options: { report?: boolean } = {},
+): DependencyInstallResult {
+  if (packages.length === 0 || process.env.SAFEWORD_SKIP_INSTALL) {
+    return { attempted: false, installed: false };
+  }
+  const pm = detectPackageManager(cwd);
+  const { uninstall } = PM_COMMANDS[pm];
+  const extraFlags = pnpmWorkspaceFlags(pm, cwd);
+  const displayCommand =
+    `${pm} ${uninstall} ${extraFlags.join(' ')} ${packages.join(' ')}`.replaceAll(/\s+/g, ' ');
+  try {
+    execFileSync(pm, [uninstall, ...extraFlags, ...packages], {
+      cwd,
+      stdio: 'pipe',
+      timeout: 120_000,
+    });
+    reportWhen(options.report !== false, () => {
+      success('Uninstalled Safeword packages');
+    });
+    return { attempted: true, installed: true, command: displayCommand };
+  } catch (uninstallError) {
+    reportWhen(options.report !== false, () => {
+      warn('Failed to uninstall Safeword packages. Run manually:');
+      listItem(displayCommand);
+    });
+    return {
+      attempted: true,
+      installed: false,
+      command: displayCommand,
+      error: uninstallError instanceof Error ? uninstallError.message : String(uninstallError),
+    };
+  }
+}
+
 /**
  * MCP servers installed by safeword
  */
