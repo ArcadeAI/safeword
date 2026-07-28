@@ -614,6 +614,24 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     );
   });
 
+  it.each([
+    ['neither flag', []],
+    ['finalize only', ['--finalize']],
+    ['yes only', ['--yes']],
+  ])('does not finalize non-interactively with %s', async (_name, flags) => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    recordCurrentProof(fixture);
+    const before = readFileSync(fixture.configPath, 'utf8');
+
+    await runCodexCommand(fixture, ['codex', 'migrate', ...flags]);
+
+    expect(readFileSync(fixture.configPath, 'utf8')).toBe(before);
+    expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-plugin.json'))).toBe(false);
+    expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-migration-backup'))).toBe(
+      false,
+    );
+  });
+
   it('creates a recoverable plugin-only project after confirmed finalization', async () => {
     const fixture = createMigrationFixture(`${LEGACY_HOOK_CONFIG}${CUSTOM_PRE_TOOL_HOOK}`);
     recordCurrentProof(fixture);
