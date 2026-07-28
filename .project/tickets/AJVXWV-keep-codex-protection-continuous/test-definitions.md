@@ -177,7 +177,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Explicit non-interactive finalization succeeds
 
 - [x] RED skip: the confirmation resolver and transaction boundary already fail independently
-- [ ] GREEN
+- [x] GREEN 42162b634
 - [ ] REFACTOR
 
 ## Rule: codex-continuity.NTB1.R1 — Every migration state names protection and one next action
