@@ -501,6 +501,21 @@ command = 'echo "keep this user hook"'
     expect(marker.manifest_sha256).toMatch(/^[\da-f]{64}$/u);
   });
 
+  it('refuses finalization without current plugin-hook proof', async () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    const before = readFileSync(fixture.configPath, 'utf8');
+
+    const result = await runCodexCommand(fixture, ['codex', 'migrate', '--finalize', '--yes']);
+
+    expect(result.exitCode).toBe(1);
+    expect(`${result.stdout}\n${result.stderr}`).toContain('current plugin hook proof');
+    expect(readFileSync(fixture.configPath, 'utf8')).toBe(before);
+    expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-plugin.json'))).toBe(false);
+    expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-migration-backup'))).toBe(
+      false,
+    );
+  });
+
   it('cleans legacy hooks through the explicit Codex migration command without reinstalling', async () => {
     const fixture = createMigrationFixture(`${LEGACY_HOOK_CONFIG}${CUSTOM_PRE_TOOL_HOOK}`);
     const { configPath } = fixture;
