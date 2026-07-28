@@ -42,6 +42,8 @@ interface CodexPluginHookParityWorld extends SafewordWorld {
 
 function createProject(prefix: string): string {
   const projectRoot = mkdtempSync(nodePath.join(tmpdir(), prefix));
+  mkdirSync(nodePath.join(projectRoot, '.safeword'), { recursive: true });
+  writeFileSync(nodePath.join(projectRoot, '.safeword/SAFEWORD.md'), '# enrolled\n');
   writeFileSync(
     nodePath.join(projectRoot, 'package.json'),
     `${JSON.stringify({ name: 'codex-plugin-hook-parity-fixture', version: '1.0.0' }, undefined, 2)}\n`,
