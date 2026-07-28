@@ -322,6 +322,36 @@ command = "npx --yes safeword hook codex pre-tool-use"
     expect(result.status, result.stderr).toBe(0);
   });
 
+  it('runs the plugin for an event missing from a partial legacy installation', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-enrolled-'));
+    directories.push(projectDirectory);
+    markSafewordProject(projectDirectory);
+    mkdirSync(nodePath.join(projectDirectory, '.codex'), { recursive: true });
+    writeFileSync(
+      nodePath.join(projectDirectory, '.codex/config.toml'),
+      `[[hooks.PostToolUse]]
+[[hooks.PostToolUse.hooks]]
+type = "command"
+command = "npx --yes safeword hook codex post-tool-use"
+`,
+    );
+
+    const result = runCodexHook(
+      projectDirectory,
+      'pre-tool-use',
+      {
+        session_id: 'compatibility-session',
+        tool_name: 'Bash',
+        tool_input: { command: 'pkill node' },
+      },
+      { SAFEWORD_CODEX_DENY_MODE: 'exit-code' },
+      true,
+    );
+
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain('Broad process kill blocked');
+  });
+
   it.each([
     {
       label: 'default',
