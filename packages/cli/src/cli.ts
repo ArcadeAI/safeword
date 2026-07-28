@@ -101,14 +101,19 @@ codex
 
 codex
   .command('migrate')
-  .description('Remove Safe Word-owned legacy Codex project hooks after plugin review')
-  .requiredOption(
-    '--remove-legacy-hooks',
-    'Confirm removal of Safe Word-owned legacy project hooks after reviewing the plugin in Codex /hooks',
-  )
-  .action(async () => {
-    const { removeLegacyCodexHooks } = await import('./commands/migrate-codex-plugin.js');
-    removeLegacyCodexHooks(process.cwd());
+  .description('Safely migrate Codex from project hooks to the profile plugin')
+  .option('--finalize', 'Finalize migration after current plugin-hook proof exists')
+  .option('--yes', 'Confirm a non-interactive finalization plan')
+  .option('--json', 'Write the versioned migration result as JSON')
+  .option('--remove-legacy-hooks', 'Deprecated alias for --finalize')
+  .action(async (options: { finalize?: boolean; removeLegacyHooks?: boolean }) => {
+    const { installCodexPlugin, removeLegacyCodexHooks } =
+      await import('./commands/migrate-codex-plugin.js');
+    if (options.finalize === true || options.removeLegacyHooks === true) {
+      removeLegacyCodexHooks(process.cwd());
+      return;
+    }
+    installCodexPlugin();
   });
 
 program

@@ -410,16 +410,18 @@ command = 'echo "keep this user hook"'
     expect(calls).toContain('plugin list --json');
   });
 
-  it('requires explicit confirmation before Codex migration can remove legacy hooks', async () => {
+  it('expands to the profile plugin without removing legacy hooks', async () => {
     const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
     const { configPath } = fixture;
 
     const result = await runCodexCommand(fixture, ['codex', 'migrate']);
 
-    expect(result.exitCode).not.toBe(0);
-    expect(`${result.stdout}\n${result.stderr}`).toContain('--remove-legacy-hooks');
+    expect(result.exitCode, result.stderr).toBe(0);
+    expect(`${result.stdout}\n${result.stderr}`).toContain('Start a new Codex session');
     expect(readFileSync(configPath, 'utf8')).toBe(LEGACY_HOOK_CONFIG);
-    expect(existsSync(nodePath.join(fixture.directory, 'codex.log'))).toBe(false);
+    expect(readFileSync(nodePath.join(fixture.directory, 'codex.log'), 'utf8')).toContain(
+      'plugin marketplace add',
+    );
   });
 
   it('leaves recognized legacy protection unchanged when plugin installation fails', async () => {

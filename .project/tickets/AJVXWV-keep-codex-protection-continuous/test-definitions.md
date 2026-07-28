@@ -14,7 +14,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Plugin installation failure leaves repository protection unchanged
 
-- [ ] RED
+- [x] RED 8d6b92c4d
 - [ ] GREEN
 - [ ] REFACTOR
 
