@@ -552,6 +552,20 @@ command = 'echo "keep this user hook"'
     expect(manifest).toMatchObject({ schema_version: 1, status: 'finalized' });
   });
 
+  it('accepts complete finalization confirmation in a non-interactive process', async () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    recordCurrentProof(fixture);
+
+    const result = await runCodexCommand(fixture, ['codex', 'migrate', '--finalize', '--yes']);
+
+    expect(result.exitCode, result.stderr).toBe(0);
+    expect(result.stdout).toContain('Backed up the complete legacy Codex state');
+    expect(readFileSync(fixture.configPath, 'utf8')).not.toContain(
+      'safeword hook codex pre-tool-use',
+    );
+    expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-plugin.json'))).toBe(true);
+  });
+
   it('treats repeated finalization of a plugin-only project as a no-op', async () => {
     const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
     recordCurrentProof(fixture);
