@@ -620,6 +620,40 @@ describe('immutable relay delivery spool', () => {
     expect(await listRelayRequests(project)).toHaveLength(1);
   });
 
+  it('normalizes the configured relay origin before submitting', async () => {
+    const project = temporaryProject();
+    await persistRelayRequest(project, request());
+    const observedUrls: string[] = [];
+    const send = vi.fn<typeof fetch>((input, _init) => {
+      let observedUrl: string;
+      if (typeof input === 'string') observedUrl = input;
+      else if (input instanceof URL) observedUrl = input.href;
+      else observedUrl = input.url;
+      observedUrls.push(observedUrl);
+      return Promise.resolve(
+        Response.json(
+          {
+            receiptId: 'receipt-normalized-url',
+            requestId: request().requestId,
+            state: 'filed',
+          },
+          { status: 201 },
+        ),
+      );
+    });
+
+    await deliverRelayRequests(project, {
+      credential: 'swc_client_secret',
+      deadlineMs: 25,
+      fetch: send,
+      now: Date.now,
+      relayUrl: 'https://relay.invalid/',
+    });
+
+    expect(send).toHaveBeenCalledOnce();
+    expect(observedUrls).toEqual(['https://relay.invalid/v1/retro-filings']);
+  });
+
   it('does not start an HTTP attempt without its full per-request budget', async () => {
     const project = temporaryProject();
     await persistRelayRequest(project, request());

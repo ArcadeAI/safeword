@@ -35,6 +35,7 @@ import { reconcile, type ReconcileTracker } from '../retro/reconcile.js';
 import {
   deliverRelayRequests,
   listRelayDeadLetters,
+  normalizeRelayOrigin,
   persistRelayDraft,
   rearmRelayDeadLetter,
   recoverRelayDeadLetter,
@@ -478,15 +479,14 @@ function defaultRelayConfig(
   const credential = environment.SAFEWORD_RETRO_RELAY_CREDENTIAL?.trim();
   const repo = environment.SAFEWORD_RETRO_RELAY_REPOSITORY?.trim().toLowerCase();
   const installation = environment.SAFEWORD_RETRO_RELAY_INSTALLATION_ID?.trim();
+  const relayOrigin = relayUrl === undefined ? undefined : normalizeRelayOrigin(relayUrl);
   if (
-    relayUrl === undefined ||
-    relayUrl.length === 0 ||
+    relayOrigin === undefined ||
     credential === undefined ||
     credential.length === 0 ||
     repo === undefined ||
     repo.length === 0 ||
     installation === undefined ||
-    !relayUrl.startsWith('https://') ||
     !/^[\w.-]+\/[\w.-]+$/u.test(repo) ||
     !/^[1-9]\d*$/u.test(installation)
   ) {
@@ -494,7 +494,7 @@ function defaultRelayConfig(
   }
   const installationId = Number(installation);
   if (!Number.isSafeInteger(installationId)) return undefined;
-  return { credential, installationId, relayUrl, repository: repo };
+  return { credential, installationId, relayUrl: relayOrigin, repository: repo };
 }
 
 function usesInjectedReadinessEvidence(composition: RetroReadinessComposition): boolean {

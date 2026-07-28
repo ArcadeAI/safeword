@@ -30,6 +30,25 @@ type RelaySourcePayload = Omit<RelayDraftInput, 'sourceKey'>;
 
 const UUID_V4_PATTERN = /^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/u;
 
+export function normalizeRelayOrigin(value: string): string | undefined {
+  try {
+    const url = new URL(value);
+    if (
+      url.protocol !== 'https:' ||
+      url.username !== '' ||
+      url.password !== '' ||
+      url.pathname !== '/' ||
+      url.search !== '' ||
+      url.hash !== ''
+    ) {
+      return undefined;
+    }
+    return url.origin;
+  } catch {
+    return undefined;
+  }
+}
+
 export interface RelayClaim {
   bytes: Buffer;
   path: string;
@@ -718,15 +737,15 @@ export async function recoverRelayDeadLetter(
   options: { credential: string; fetch: typeof fetch; relayUrl: string; timeoutMs?: number },
 ): Promise<boolean> {
   if (!UUID_V4_PATTERN.test(requestId)) throw new Error('invalid relay request identity');
-  const relayUrl = new URL(options.relayUrl);
-  if (relayUrl.protocol !== 'https:' || options.credential.trim().length === 0) {
+  const relayOrigin = normalizeRelayOrigin(options.relayUrl);
+  if (relayOrigin === undefined || options.credential.trim().length === 0) {
     throw new Error('invalid relay recovery configuration');
   }
   const deadLetter = deadLetterPath(projectDirectory, requestId);
   const bytes = await readDeadLetter(deadLetter);
   if (bytes === undefined) return false;
   const request = JSON.parse(bytes.toString('utf8')) as RelayDraftRequest;
-  const response = await options.fetch(new URL('/v1/retro-filings', relayUrl), {
+  const response = await options.fetch(`${relayOrigin}/v1/retro-filings`, {
     body: relayRequestBytes(request),
     headers: {
       authorization: `Bearer ${options.credential}`,
@@ -817,7 +836,9 @@ export async function deliverRelayRequests(
     }, options.deadlineMs);
     timer.unref();
     try {
-      const response = await options.fetch(`${options.relayUrl}/v1/retro-filings`, {
+      const relayOrigin = normalizeRelayOrigin(options.relayUrl);
+      if (relayOrigin === undefined) throw new Error('invalid relay URL');
+      const response = await options.fetch(`${relayOrigin}/v1/retro-filings`, {
         body: relayRequestBytes(parsedRequest),
         headers: {
           authorization: `Bearer ${options.credential}`,
