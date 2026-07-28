@@ -505,6 +505,40 @@ command = 'echo "keep this user hook"'
     expect(result.stdout.match(/^Next:/gm)).toHaveLength(1);
   });
 
+  it('reports only runnable legacy events as protection for an unproven plugin', async () => {
+    const scriptConfig = `[[hooks.PreToolUse]]
+matcher = "^(apply_patch)$"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-quality.ts"'
+`;
+    const fixture = createMigrationFixture(scriptConfig);
+    const runtimePath = nodePath.join(
+      fixture.directory,
+      '.safeword/hooks/codex/pre-tool-quality.ts',
+    );
+    mkdirSync(nodePath.dirname(runtimePath), { recursive: true });
+    writeFileSync(runtimePath, '// runnable legacy hook\n');
+
+    const protectedResult = await runCodexCommand(fixture, ['codex', 'status', '--json']);
+    rmSync(runtimePath);
+    const unprotectedResult = await runCodexCommand(fixture, ['codex', 'status', '--json']);
+
+    expect(protectedResult.exitCode).toBe(2);
+    expect(JSON.parse(protectedResult.stdout)).toMatchObject({
+      state: 'plugin_enabled_hook_unproven',
+      protected: 'protected',
+      legacy: { viable_events: ['PreToolUse'] },
+    });
+    expect(unprotectedResult.exitCode).toBe(2);
+    expect(JSON.parse(unprotectedResult.stdout)).toMatchObject({
+      state: 'plugin_enabled_hook_unproven',
+      protected: 'unprotected',
+      legacy: { viable_events: [] },
+    });
+  });
+
   it('records restart-required state after successful profile installation', async () => {
     const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
     const codexHome = nodePath.join(fixture.directory, 'profile');
