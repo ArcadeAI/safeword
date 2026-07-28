@@ -635,6 +635,23 @@ command = 'echo "keep this user hook"'
     );
   });
 
+  it('refuses recovery rather than overwriting an intervening edit', async () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    recordCurrentProof(fixture);
+    const finalized = await runCodexCommand(fixture, ['codex', 'migrate', '--finalize', '--yes']);
+    expect(finalized.exitCode, finalized.stderr).toBe(0);
+    writeFileSync(fixture.configPath, '# teammate edit after finalization\n');
+
+    const recovered = await runCodexCommand(fixture, ['codex', 'recover']);
+
+    expect(recovered.exitCode).toBe(1);
+    expect(`${recovered.stdout}\n${recovered.stderr}`).toContain('recovery conflict');
+    expect(readFileSync(fixture.configPath, 'utf8')).toBe('# teammate edit after finalization\n');
+    expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-migration-backup'))).toBe(
+      true,
+    );
+  });
+
   it('cleans legacy hooks through the explicit Codex migration command without reinstalling', async () => {
     const fixture = createMigrationFixture(`${LEGACY_HOOK_CONFIG}${CUSTOM_PRE_TOOL_HOOK}`);
     const { configPath } = fixture;
