@@ -134,7 +134,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Migration remains blocked while recovery is required
 
-- [ ] RED
+- [x] RED aed49bcf2
 - [ ] GREEN
 - [ ] REFACTOR
 
