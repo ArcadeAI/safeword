@@ -80,7 +80,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: missing-event fallback is inseparable from event-scoped authority
 - [x] GREEN 5180b5ac2
-- [ ] REFACTOR
+- [x] REFACTOR skip: fallback is the absence of event authority, with no second path
 
 ### Scenario: Plugin covers a configured legacy event with a broken runtime
 
