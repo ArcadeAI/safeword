@@ -226,7 +226,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: JSON status uses state-specific complete schema
 
-- [ ] RED
+- [x] RED skip: the versioned result type existed before exhaustive shape characterization
 - [ ] GREEN
 - [ ] REFACTOR
 
