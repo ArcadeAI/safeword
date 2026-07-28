@@ -663,6 +663,23 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     expect(manifest).toMatchObject({ schema_version: 1, status: 'finalized' });
   });
 
+  it('leaves new teammates a setup-only Codex plugin bootstrap', async () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    recordCurrentProof(fixture);
+    const finalized = await runCodexCommand(fixture, ['codex', 'migrate', '--finalize', '--yes']);
+    expect(finalized.exitCode, finalized.stderr).toBe(0);
+
+    const bootstrap = readFileSync(
+      nodePath.join(fixture.directory, '.agents/skills/safeword-plugin-setup/SKILL.md'),
+      'utf8',
+    );
+    expect(bootstrap).toContain('safeword codex migrate');
+    expect(bootstrap).toContain('Start a new Codex session');
+    expect(bootstrap).toContain('/hooks');
+    expect(bootstrap).toContain('safeword codex status');
+    expect(bootstrap).not.toMatch(/\b(?:BDD|TDD|quality review|ticket workflow)\b/u);
+  });
+
   it('accepts complete finalization confirmation in a non-interactive process', async () => {
     const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
     recordCurrentProof(fixture);
