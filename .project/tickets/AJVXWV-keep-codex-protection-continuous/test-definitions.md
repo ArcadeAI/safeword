@@ -148,7 +148,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: conflict checking shipped inseparably with the recovery reader
 - [x] GREEN d1f5c72e2
-- [ ] REFACTOR
+- [x] REFACTOR skip: all entries are preflighted before recovery changes status or files
 
 ### Scenario: Handled transaction failure restores the pre-migration state
 
