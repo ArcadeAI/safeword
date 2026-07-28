@@ -164,7 +164,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Unsafe backup targets are rejected before mutation
 
-- [ ] RED
+- [x] RED skip: containment validation shipped with the transaction planner
 - [ ] GREEN
 - [ ] REFACTOR
 
