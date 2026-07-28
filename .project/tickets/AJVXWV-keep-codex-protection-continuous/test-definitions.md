@@ -124,7 +124,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 9eb230dcc
 - [x] GREEN 44ad4b3dc
-- [ ] REFACTOR
+- [x] REFACTOR skip: settled-state recognition is centralized in codexFinalizationIsComplete
 
 ### Scenario: Repeated migration converges in every pre-finalization state
 
