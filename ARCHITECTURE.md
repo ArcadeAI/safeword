@@ -73,7 +73,10 @@ SQLite WAL is the smallest supported durable store for one active process on
 one host. Multi-host deployment or a network filesystem requires migration
 through the store boundary to PostgreSQL.
 The relay uses Node's built-in `node:sqlite` API, avoiding host compiler and
-native-addon prerequisites for contributors and deploys.
+native-addon prerequisites for contributors and deploys. A separate SQLite
+lock database holds an exclusive transaction for the process lifetime, so the
+operating system releases single-process ownership automatically after a crash
+without PID files or stale-reclaimer cleanup.
 
 The Railway deployment profile therefore fixes one replica and one persistent
 `/data` volume. Readiness must query SQLite's schema version. A random
@@ -90,8 +93,9 @@ deadline, which the server persists and may shorten but never extend, followed
 by one-hour dispatch grace, 30-day filed-payload retention, and indefinite tombstones; the
 timed maintenance worker persists its retry schedule and terminal alert outbox
 in the same database.
-Canonical/legacy semantic adoption and cross-request aliasing remain unbuilt
-until #1474 and #1481 land and collision rates are remeasured.
+With #1474 and #1481 complete, canonical/legacy semantic adoption and
+cross-request aliasing remain unbuilt until the post-fix collision rates are
+remeasured and bound into the readiness evidence.
 
 Before transport, the CLI writes one immutable file containing the exact
 serialized request bytes and a UUIDv4 request ID. Claude, Codex, Cursor, and
@@ -115,10 +119,11 @@ identity, ten-second inbound/GitHub timeouts, bounded GitHub concurrency and
 reconciliation scans, coalesced installation-token minting, and a per-principal
 filing/reconciliation rate limit. The single-principal
 Railway spike configuration is explicitly health-only. Relay routing is
-compiled fail-closed until #1474 and #1481,
-post-fix measurements, immutable artifact hashes, and Git ancestry bind the
-evidence to the running build. #834 remains active; #1495 gates readiness only
-if client credential helpers are reused.
+compiled fail-closed until post-fix measurements, immutable artifact hashes,
+and Git ancestry bind the evidence to the running build. #1474 and #1481 are
+complete prerequisites; their resulting measurements still gate activation.
+Issue #834 remains active; #1495 gates readiness only if client credential
+helpers are reused.
 
 ---
 
