@@ -147,7 +147,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Recovery refuses to overwrite an intervening edit
 
 - [x] RED skip: conflict checking shipped inseparably with the recovery reader
-- [ ] GREEN
+- [x] GREEN d1f5c72e2
 - [ ] REFACTOR
 
 ### Scenario: Handled transaction failure restores the pre-migration state
