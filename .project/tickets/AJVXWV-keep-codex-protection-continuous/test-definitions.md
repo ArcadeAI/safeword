@@ -216,7 +216,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: the shared result exit-code function already treated plugin state as successful
 - [x] GREEN 7a0e854dc
-- [ ] REFACTOR
+- [x] REFACTOR skip: human and JSON status share the same state and exit-code result
 
 ### Scenario: Status execution error has stable machine semantics
 
