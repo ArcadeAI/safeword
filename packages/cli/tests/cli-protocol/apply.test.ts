@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
 
-// eslint-disable-next-line import-x/no-unresolved -- RED: production module follows in GREEN
 import { applyEffects } from '../../src/cli-protocol/apply.js';
 import type { Effects } from '../../src/cli-protocol/result.js';
 
