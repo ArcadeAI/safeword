@@ -74,7 +74,13 @@ if [ "$(printenv SAFEWORD_MUTATE_CONFIG 2>/dev/null || true)" = "1" ] && [ "$*" 
 fi
 case "$*" in
   '--version') echo 'codex 0.141.0' ;;
-  'plugin marketplace add '* ) echo '{"marketplaceName":"safeword"}' ;;
+  'plugin marketplace add '* )
+    if [ "$(printenv SAFEWORD_FAIL_PLUGIN_INSTALL 2>/dev/null || true)" = "1" ]; then
+      echo 'marketplace unavailable' >&2
+      exit 9
+    fi
+    echo '{"marketplaceName":"safeword"}'
+    ;;
   'plugin add safeword@safeword --json') echo '{"pluginId":"safeword@safeword"}' ;;
   'plugin list --json') echo '{"installed":[{"pluginId":"safeword@safeword","enabled":${pluginEnabled}}]}' ;;
   *) exit 2 ;;
@@ -122,12 +128,14 @@ describe('migrate codex-plugin command', () => {
   function runCodexCommand(
     fixture: ReturnType<typeof createMigrationFixture>,
     arguments_: string[],
+    environment: NodeJS.ProcessEnv = {},
   ) {
     return runCli(arguments_, {
       cwd: fixture.directory,
       env: {
         PATH: `${fixture.bin}:${process.env.PATH ?? ''}`,
         SAFEWORD_CODEX_LOG: nodePath.join(fixture.directory, 'codex.log'),
+        ...environment,
       },
     });
   }
@@ -412,6 +420,24 @@ command = 'echo "keep this user hook"'
     expect(`${result.stdout}\n${result.stderr}`).toContain('--remove-legacy-hooks');
     expect(readFileSync(configPath, 'utf8')).toBe(LEGACY_HOOK_CONFIG);
     expect(existsSync(nodePath.join(fixture.directory, 'codex.log'))).toBe(false);
+  });
+
+  it('leaves recognized legacy protection unchanged when plugin installation fails', async () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    const legacySkillPath = nodePath.join(fixture.directory, '.agents/skills/review-spec/SKILL.md');
+    mkdirSync(nodePath.dirname(legacySkillPath), { recursive: true });
+    writeFileSync(legacySkillPath, '# legacy protection\n');
+
+    const beforeConfig = readFileSync(fixture.configPath, 'utf8');
+    const result = await runCodexCommand(fixture, ['codex', 'migrate'], {
+      SAFEWORD_FAIL_PLUGIN_INSTALL: '1',
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(`${result.stdout}\n${result.stderr}`).toContain('marketplace unavailable');
+    expect(readFileSync(fixture.configPath, 'utf8')).toBe(beforeConfig);
+    expect(readFileSync(legacySkillPath, 'utf8')).toBe('# legacy protection\n');
+    expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-plugin.json'))).toBe(false);
   });
 
   it('cleans legacy hooks through the explicit Codex migration command without reinstalling', async () => {
