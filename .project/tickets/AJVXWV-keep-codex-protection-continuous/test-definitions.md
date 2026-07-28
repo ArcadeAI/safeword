@@ -198,7 +198,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: recovery precedence shipped with the transaction recovery gate
 - [x] GREEN b2ca0fcd7
-- [ ] REFACTOR
+- [x] REFACTOR skip: recovery remains the first ordered migration-state rule
 
 ### Scenario: Plugin-only human status has no next action
 
