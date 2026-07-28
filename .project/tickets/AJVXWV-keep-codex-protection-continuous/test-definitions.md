@@ -29,7 +29,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Enabled plugin without proof remains unproven
 
 - [x] RED f586883b6
-- [ ] GREEN
+- [x] GREEN ff5d4270f
 - [ ] REFACTOR
 
 ### Scenario: Successful installation requires a Codex restart
