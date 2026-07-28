@@ -28,7 +28,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Enabled plugin without proof remains unproven
 
-- [ ] RED
+- [x] RED f586883b6
 - [ ] GREEN
 - [ ] REFACTOR
 

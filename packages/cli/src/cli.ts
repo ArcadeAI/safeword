@@ -100,6 +100,15 @@ codex
   });
 
 codex
+  .command('status')
+  .description('Report profile-plugin proof and project migration state')
+  .option('--json', 'Write the versioned migration result as JSON')
+  .action(async (options: { json?: boolean }) => {
+    const { statusCodexMigration } = await import('./commands/migrate-codex-plugin.js');
+    statusCodexMigration(process.cwd(), { json: options.json === true });
+  });
+
+codex
   .command('migrate')
   .description('Safely migrate Codex from project hooks to the profile plugin')
   .option('--finalize', 'Finalize migration after current plugin-hook proof exists')

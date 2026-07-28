@@ -1,3 +1,5 @@
+/* eslint-disable unicorn/no-null -- schema-1 migration JSON uses explicit null */
+
 import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import {
@@ -17,6 +19,13 @@ import nodePath from 'node:path';
 
 import { parse } from 'smol-toml';
 
+import {
+  codexMigrationExitCode,
+  type CodexPluginObservation,
+  deriveCodexMigrationResult,
+  renderCodexMigrationHuman,
+} from '../codex-plugin/migration.js';
+import { codexRestartMarkerPath, observeCodexHookProof } from '../codex-plugin/profile-proof.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
 import { info, success } from '../utils/output.js';
 
@@ -41,7 +50,7 @@ const LEGACY_SAFEWORD_HOOK_SCRIPTS = new Set(SAFEWORD_SCHEMA.codexMigration.hook
 const LEGACY_SAFEWORD_HOOK_PREFIX = SAFEWORD_SCHEMA.codexMigration.hookScriptPrefix;
 
 type CodexPluginList = {
-  installed?: { enabled?: boolean; pluginId?: string }[];
+  installed?: { enabled?: boolean; pluginId?: string; version?: string }[];
 };
 
 function run(command: string, arguments_: string[]): string {
@@ -61,6 +70,17 @@ function pluginIsEnabled(output: string): boolean {
     parsed.installed?.some(plugin => plugin.pluginId === PLUGIN_ID && plugin.enabled === true) ??
     false
   );
+}
+
+function observeCodexPlugin(): CodexPluginObservation {
+  const parsed = JSON.parse(run('codex', ['plugin', 'list', '--json'])) as CodexPluginList;
+  const plugin = parsed.installed?.find(candidate => candidate.pluginId === PLUGIN_ID);
+  return {
+    installed: plugin !== undefined,
+    enabled: plugin?.enabled ?? (plugin === undefined ? false : null),
+    version: plugin?.version ?? null,
+    observation: 'observed',
+  };
 }
 
 interface TextRange {
@@ -441,6 +461,68 @@ function verifyCodexPluginIsEnabled(options: { installationCompleted?: boolean }
       'Codex did not report the Safe Word plugin as enabled. Enable safeword@safeword, then re-run this command; project hooks were left unchanged.',
     );
   }
+}
+
+function pathExistsIncludingDanglingSymlink(path: string): boolean {
+  try {
+    lstatSync(path);
+    return true;
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === 'ENOENT' || code === 'ENOTDIR') return false;
+    throw error;
+  }
+}
+
+function observeLegacyAssets(cwd: string): string[] {
+  return SAFEWORD_SCHEMA.codexMigration.legacyFiles.filter(path =>
+    pathExistsIncludingDanglingSymlink(nodePath.join(cwd, path)),
+  );
+}
+
+function observeLegacyEvents(cwd: string): string[] {
+  const configPath = nodePath.join(cwd, CODEX_CONFIG_PATH);
+  if (!pathExistsIncludingDanglingSymlink(configPath)) return [];
+  const lines = splitLines(readFileSync(configPath, 'utf8'));
+  const events = new Set<string>();
+  let cursor = 0;
+  while (cursor < lines.length) {
+    const event = eventHeader(lines[cursor] ?? '');
+    if (event === undefined) {
+      cursor += 1;
+      continue;
+    }
+    const end = sectionEnd(lines, cursor);
+    const commands = nestedHookStarts(lines, cursor, end, event).flatMap((start, index, starts) =>
+      blockCommandValues(lines, { start, end: starts[index + 1] ?? end }),
+    );
+    if (commands.some(command => isSafeWordCommand(command))) events.add(event);
+    cursor = end;
+  }
+  return [...events].toSorted((left, right) => left.localeCompare(right));
+}
+
+export function statusCodexMigration(
+  cwd = process.cwd(),
+  options: { json?: boolean; environment?: NodeJS.ProcessEnv } = {},
+): void {
+  const environment = options.environment ?? process.env;
+  const legacyEvents = observeLegacyEvents(cwd);
+  const result = deriveCodexMigrationResult({
+    plugin: observeCodexPlugin(),
+    proof: observeCodexHookProof(environment),
+    legacyAssets: observeLegacyAssets(cwd),
+    legacyEvents,
+    viableLegacyEvents: legacyEvents,
+    finalized: existsSync(nodePath.join(cwd, '.safeword/codex-plugin.json')),
+    recoveryRequired: existsSync(nodePath.join(cwd, '.safeword/codex-migration-backup')),
+    restartPending: existsSync(codexRestartMarkerPath(environment)),
+  });
+
+  process.stdout.write(
+    options.json === true ? `${JSON.stringify(result)}\n` : renderCodexMigrationHuman(result),
+  );
+  process.exitCode = codexMigrationExitCode(result);
 }
 
 export function installCodexPlugin(
