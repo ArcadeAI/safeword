@@ -54,7 +54,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED a88288036
 - [x] GREEN 84bcc5060
-- [ ] REFACTOR
+- [x] REFACTOR skip: marker and proof durability already share the cleaned-up primitive
 
 ### Scenario: Changed plugin identity invalidates proof
 
