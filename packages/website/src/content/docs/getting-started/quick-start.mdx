@@ -75,11 +75,11 @@ Open your project and ask your agent to build something real:
   <TabItem label="Codex">
     Watch what happens:
 
-    1. Run `safeword codex install`, then start a new Codex session
-    2. Review and trust the Safe Word plugin in Codex
+    1. Run `safeword codex migrate`, then start a new Codex session
+    2. Review the Safe Word plugin in `/hooks`
     3. Your agent follows scoped plugin skills such as `safeword:bdd`
     4. Before supported edits, Codex runs the plugin's version-pinned Bunx PreToolUse hook
-    5. After trust, run `safeword codex migrate --remove-legacy-hooks` to remove only Safe Word-owned legacy hooks
+    5. Run `safeword codex status`; after current hook proof exists, finalize with `safeword codex migrate --finalize --yes`
     6. If a safeword gate blocks the edit, your agent gets the denial before changing files
     7. When the agent stops, Codex runs the plugin's Bunx Stop hook to complete verified session-bound done-phase tickets or surface remediation and advisories such as ARCHITECTURE.md drift
 
@@ -101,7 +101,7 @@ Safeword added a few folders to your project:
 | `.cursor/commands/`     | Slash commands for Cursor                                |
 | `.safeword/`            | Config files, guides, and templates                      |
 
-These project files commit to your repo. The Safe Word Codex plugin is profile-scoped: each Codex user runs `safeword codex install` and reviews it in `/hooks`; no Safe Word Codex workflow files are added to the repository. Each repository is enrolled separately by `safeword setup`, which creates the complete `.project/` namespace before plugin hooks can write project state.
+These project files commit to your repo. The Safe Word Codex plugin is profile-scoped: each Codex user runs `safeword codex migrate`, restarts Codex, and reviews it in `/hooks`. Existing Safe Word Codex hooks remain authoritative until the running plugin records current proof and someone explicitly finalizes the repository migration. Finalization backs up the old state, removes only known Safe Word assets, and leaves a small setup bootstrap for future teammates. Each repository is enrolled separately by `safeword setup`, which creates the complete `.project/` namespace before plugin hooks can write project state.
 
 For JS/TS projects, safeword also adds ESLint and Prettier as **devDependencies** in your `package.json`. These are development-only code quality tools — they don't ship with your application.
 

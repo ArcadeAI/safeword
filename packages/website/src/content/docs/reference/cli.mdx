@@ -129,15 +129,62 @@ Install the Safe Word plugin into the active Codex profile and verify Codex repo
 bunx safeword@latest codex install
 ```
 
-### safeword codex migrate --remove-legacy-hooks
+### safeword codex status
 
-After Codex shows the plugin as trusted in `/hooks`, explicitly retire only Safe Word-owned legacy hook stanzas from the current project:
+Report the repository's migration state, current protection, and one safe next action:
 
 ```bash
-bunx safeword@latest codex migrate --remove-legacy-hooks
+bunx safeword@latest codex status
+bunx safeword@latest codex status --json
 ```
 
-Both commands require Bun. Normal `setup` and `upgrade` do not install a profile-scoped Codex plugin, create a `.codex` directory, or recreate project-local Codex hooks. Plugin hooks use version-pinned `bunx --bun safeword@<version>` commands; they never use npx or bypass Codex hook trust.
+Human output exits `0` only in settled plugin mode, `2` when an action is
+required, and `1` for an execution error. JSON output writes one complete
+schema-1 object to stdout with the same exit semantics; diagnostics are
+represented in its structured `errors` array.
+
+### safeword codex migrate
+
+Resume the safe migration for the current profile and repository:
+
+```bash
+bunx safeword@latest codex migrate
+```
+
+The first run installs the profile plugin without changing repository files.
+Restart Codex, review `/hooks`, and run `safeword codex status`. Working legacy
+handlers remain authoritative for the events they can still run; the packaged
+plugin covers missing or broken legacy events.
+
+Once status reports `compatibility`, preview or explicitly confirm
+finalization:
+
+```bash
+bunx safeword@latest codex migrate --finalize --json
+bunx safeword@latest codex migrate --finalize --yes
+```
+
+Finalization requires current hook-execution proof. It backs up the complete
+pre-migration state, removes only the finite Safe Word-owned legacy inventory,
+preserves custom Codex content, records plugin mode, and installs a concise
+repository bootstrap for teammates without the profile plugin.
+
+`--remove-legacy-hooks` is a deprecated alias for finalization and obeys the
+same proof, confirmation, backup, and recovery rules.
+
+### safeword codex recover
+
+If status reports `recovery_required`, restore the backed-up pre-finalization
+state:
+
+```bash
+bunx safeword@latest codex recover
+```
+
+Recovery refuses to overwrite files edited after finalization and names the
+conflicting path. Resolve that edit before retrying.
+
+These commands require Bun. Normal `setup` and `upgrade` do not install a profile-scoped Codex plugin, create a `.codex` directory, recreate project-local Codex hooks, or retire recognized legacy protection. Plugin hooks use version-pinned `bunx --bun safeword@<version>` commands; they never use npx or bypass Codex hook trust.
 
 Installing the plugin does not enroll repositories. Project-scoped Codex gates
 and state activate only after `safeword setup` creates
@@ -146,7 +193,9 @@ and state activate only after `safeword setup` creates
 
 ### Legacy: safeword migrate codex-plugin
 
-`safeword migrate codex-plugin` remains supported for existing scripts. New users should use `safeword codex install` instead.
+`safeword migrate codex-plugin` remains supported for existing scripts and
+routes through the same migration state machine. New automation should use
+`safeword codex migrate`.
 
 Run `safeword diff` to see which files you've modified.
 
