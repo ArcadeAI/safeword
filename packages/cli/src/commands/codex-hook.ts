@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
 
+import { recordCodexHookProof } from '../codex-plugin/profile-proof.js';
 import { generateOwnedPathsModule } from '../owned-paths.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
 import { hasSafewordProjectMarker, resolveNamespaceRoot } from '../utils/configured-paths.js';
@@ -646,11 +647,17 @@ const CODEX_HOOK_RUNNERS: Record<SupportedCodexHookEvent, () => Promise<void>> =
   'user-prompt-submit': runUserPromptSubmit,
 };
 
-export async function codexHook(event: string): Promise<void> {
+export async function codexHook(
+  event: string,
+  options: { pluginHook?: boolean } = {},
+): Promise<void> {
   const normalized = normalizeEvent(event);
   if (normalized === undefined) {
     process.stderr.write(`Safe Word ignored unknown Codex hook event: ${event}\n`);
     return;
+  }
+  if (normalized === 'session-start' && options.pluginHook === true) {
+    recordCodexHookProof();
   }
   await CODEX_HOOK_RUNNERS[normalized]();
 }

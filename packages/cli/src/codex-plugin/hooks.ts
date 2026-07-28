@@ -26,7 +26,7 @@ export function assertPinnedBunxHookCommand(command: string, version: string): v
   if (!command.startsWith(`bunx --bun safeword@${version} `)) {
     throw new Error(`Safe Word plugin hooks must pin safeword@${version}`);
   }
-  if (!/^bunx --bun safeword@\S+ hook codex [a-z-]+$/u.test(command)) {
+  if (!/^bunx --bun safeword@\S+ hook codex [a-z-]+ --plugin-hook$/u.test(command)) {
     throw new Error('Safe Word plugin hooks must use the Safe Word Codex hook command form');
   }
 }

@@ -2,7 +2,7 @@
 
 import process from 'node:process';
 
-import { Command } from 'commander';
+import { Command, Option } from 'commander';
 
 import { installCliCrashCapture } from './self-report-capture.js';
 import { error } from './utils/output.js';
@@ -278,9 +278,10 @@ const hook = program.command('hook').description('Run packaged Safe Word hooks')
 hook
   .command('codex <event>')
   .description('Run a packaged Safe Word Codex hook entrypoint')
-  .action(async (event: string) => {
+  .addOption(new Option('--plugin-hook').hideHelp())
+  .action(async (event: string, options: { pluginHook?: boolean }) => {
     const { codexHook } = await import('./commands/codex-hook.js');
-    await codexHook(event);
+    await codexHook(event, { pluginHook: options.pluginHook === true });
   });
 
 program

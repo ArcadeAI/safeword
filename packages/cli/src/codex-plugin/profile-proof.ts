@@ -52,7 +52,15 @@ export function codexRestartMarkerPath(environment: NodeJS.ProcessEnv = process.
 }
 
 export function packagedHookManifestPath(): string {
-  return nodePath.resolve(import.meta.dirname, '../codex-plugin/hooks.json');
+  const candidates = [
+    nodePath.resolve(import.meta.dirname, '../codex-plugin/hooks.json'),
+    nodePath.resolve(import.meta.dirname, '../../codex-plugin/hooks.json'),
+  ];
+  const manifest = candidates.find(candidate => existsSync(candidate));
+  if (manifest === undefined) {
+    throw new Error('Could not locate the packaged Codex hook manifest.');
+  }
+  return manifest;
 }
 
 export function currentCodexPluginIdentity(): {
@@ -70,19 +78,38 @@ export function writeCodexRestartMarker(
   environment: NodeJS.ProcessEnv = process.env,
 ): CodexRestartMarkerV1 {
   const path = codexRestartMarkerPath(environment);
-  const directory = nodePath.dirname(path);
-  mkdirSync(directory, { recursive: true });
   const marker: CodexRestartMarkerV1 = {
     schema_version: 1,
     ...currentCodexPluginIdentity(),
   };
-  const temporaryPath = nodePath.join(
-    directory,
-    `.restart-pending-${process.pid}-${randomUUID()}.tmp`,
-  );
+  writeAtomicJson(path, marker);
+  return marker;
+}
+
+export function recordCodexHookProof(
+  environment: NodeJS.ProcessEnv = process.env,
+  now = new Date(),
+): CodexHookProofV1 {
+  const identity = currentCodexPluginIdentity();
+  const proof: CodexHookProofV1 = {
+    schema_version: 1,
+    ...identity,
+    recorded_at: now.toISOString(),
+  };
+  writeAtomicJson(codexProofPath(environment), proof);
+
+  const markerPath = codexRestartMarkerPath(environment);
+  if (restartMarkerMatches(markerPath, identity)) rmSync(markerPath);
+  return proof;
+}
+
+function writeAtomicJson(path: string, value: unknown): void {
+  const directory = nodePath.dirname(path);
+  mkdirSync(directory, { recursive: true });
+  const temporaryPath = nodePath.join(directory, `.safeword-${process.pid}-${randomUUID()}.tmp`);
   const descriptor = openSync(temporaryPath, 'wx', 0o600);
   try {
-    writeFileSync(descriptor, `${JSON.stringify(marker)}\n`);
+    writeFileSync(descriptor, `${JSON.stringify(value)}\n`);
     fsyncSync(descriptor);
   } finally {
     closeSync(descriptor);
@@ -92,7 +119,23 @@ export function writeCodexRestartMarker(
   } finally {
     rmSync(temporaryPath, { force: true });
   }
-  return marker;
+}
+
+function restartMarkerMatches(
+  path: string,
+  identity: { plugin_version: string; manifest_sha256: string },
+): boolean {
+  if (!existsSync(path)) return false;
+  try {
+    const marker = JSON.parse(readFileSync(path, 'utf8')) as Partial<CodexRestartMarkerV1>;
+    return (
+      marker.schema_version === 1 &&
+      marker.plugin_version === identity.plugin_version &&
+      marker.manifest_sha256 === identity.manifest_sha256
+    );
+  } catch {
+    return false;
+  }
 }
 
 export function observeCodexHookProof(

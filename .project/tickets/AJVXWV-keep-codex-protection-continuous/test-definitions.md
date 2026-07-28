@@ -40,7 +40,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Plugin SessionStart clears restart-required state
 
-- [ ] RED
+- [x] RED 8757aee8e
 - [ ] GREEN
 - [ ] REFACTOR
 
