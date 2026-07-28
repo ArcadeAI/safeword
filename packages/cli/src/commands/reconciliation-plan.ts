@@ -61,6 +61,19 @@ function actionEffect(action: Action): Effect[] {
 }
 
 export function effectsForReconciliation(result: ReconcileResult, mode: PlanMode): Effects {
+  if (result.applied) {
+    const created = result.created.map(target => ({ kind: 'create', target }));
+    const updated = result.updated.map(target => ({ kind: 'update', target }));
+    const removed = result.removed.map(target => ({ kind: 'remove', target }));
+    return {
+      files: mode === 'upgrade' ? [...created, ...updated] : [],
+      packages: [],
+      configuration: [],
+      network: [],
+      destructive: mode === 'upgrade' ? [] : removed,
+    };
+  }
+
   const fileEffects = result.actions.flatMap(action => actionEffect(action));
   const packageNames = mode === 'upgrade' ? result.packagesToInstall : result.packagesToRemove;
   const packageEffects = packageNames.map(target => ({
@@ -71,7 +84,14 @@ export function effectsForReconciliation(result: ReconcileResult, mode: PlanMode
     files: mode === 'upgrade' ? fileEffects : [],
     packages: packageEffects,
     configuration: [],
-    network: [],
+    network:
+      mode === 'upgrade'
+        ? packageNames.map(target => ({
+            kind: 'package-registry',
+            target,
+            operation: 'install',
+          }))
+        : [],
     destructive: mode === 'upgrade' ? [] : fileEffects,
   };
 }

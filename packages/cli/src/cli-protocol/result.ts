@@ -167,6 +167,26 @@ function suppressHumanOutput(result: CliResult, options: { quiet?: boolean }): b
   return options.quiet === true && result.state === 'healthy';
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function effectLines(category: string, effects: unknown): string[] {
+  if (!Array.isArray(effects)) return [];
+  return effects.flatMap(effect =>
+    isRecord(effect) && typeof effect.kind === 'string' && typeof effect.target === 'string'
+      ? [`${category}: ${effect.kind} ${effect.target}`]
+      : [],
+  );
+}
+
+function plannedEffectLines(data: unknown): string[] {
+  if (!isRecord(data) || !isRecord(data.plan) || !isRecord(data.plan.effects)) return [];
+  const categories = ['files', 'packages', 'configuration', 'network', 'destructive'];
+  const lines = categories.flatMap(category => effectLines(category, data.plan.effects[category]));
+  return lines.length === 0 ? [] : ['Planned effects:', ...lines];
+}
+
 export function renderHumanResult(
   result: CliResult,
   options: { quiet?: boolean; verbose?: boolean } = {},
@@ -177,6 +197,7 @@ export function renderHumanResult(
     VERDICTS[result.state],
     `Changed: ${result.changed ? 'yes' : 'no'}`,
     ...uniqueMessages(result),
+    ...plannedEffectLines(result.data),
   ];
 
   if (options.verbose === true) {
