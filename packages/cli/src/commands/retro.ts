@@ -34,6 +34,7 @@ import { prepareEncounters } from '../retro/pipeline.js';
 import { reconcile, type ReconcileTracker } from '../retro/reconcile.js';
 import {
   deliverRelayRequests,
+  discardRelayRequest,
   listRelayDeadLetters,
   normalizeRelayOrigin,
   persistRelayDraft,
@@ -635,6 +636,7 @@ export function reportRetroCommandOutcome(
   },
 ): void {
   const { error, info, success } = options.output;
+  reportRelayOutcome(outcome, options.output, outcome.ok);
   if (!outcome.ok) {
     error(outcome.errorMessage ?? 'safeword retro failed');
     process.exitCode = 1;
@@ -646,7 +648,7 @@ export function reportRetroCommandOutcome(
     return;
   }
 
-  if (reportRelayOutcome(outcome, options.output)) return;
+  if (outcome.relay !== undefined) return;
 
   const r = outcome.result;
   if (!r) return;
@@ -665,8 +667,12 @@ export function reportRetroCommandOutcome(
   success('retro complete');
 }
 
-function reportRelayOutcome(outcome: RetroOutcome, output: RetroCommandOutput): boolean {
-  if (outcome.relay === undefined) return false;
+function reportRelayOutcome(
+  outcome: RetroOutcome,
+  output: RetroCommandOutput,
+  complete: boolean,
+): void {
+  if (outcome.relay === undefined) return;
   const { info, success } = output;
   const relay = outcome.relay;
   info(
@@ -687,8 +693,7 @@ function reportRelayOutcome(outcome: RetroOutcome, output: RetroCommandOutput): 
       'retro relay: some source identities could not be persisted; inspect the local relay spool.',
     );
   }
-  success('retro complete');
-  return true;
+  if (complete) success('retro complete');
 }
 
 async function listRelayDeadLetterCommand(
@@ -702,6 +707,40 @@ async function listRelayDeadLetterCommand(
   }
   output.info(`retro relay: ${deadLetters.length} dead letter(s):`);
   for (const deadLetter of deadLetters) output.info(deadLetter.requestId);
+  return true;
+}
+
+export async function discardRelaySpoolCommand(
+  requestId: string,
+  confirmed: boolean,
+  dependencies: {
+    output: RetroCommandOutput;
+    projectDirectory: string;
+  },
+): Promise<boolean> {
+  if (!confirmed) {
+    dependencies.output.error('retro relay: refusing to discard durable state without --confirm.');
+    return false;
+  }
+  let discarded: boolean;
+  try {
+    discarded = await discardRelayRequest(dependencies.projectDirectory, requestId);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'unknown filesystem error';
+    dependencies.output.error(
+      message === 'invalid relay request identity'
+        ? 'retro relay: request identity must be a lowercase UUIDv4.'
+        : `retro relay: failed to discard ${requestId}: ${message}`,
+    );
+    return false;
+  }
+  if (!discarded) {
+    dependencies.output.error(`retro relay: durable request ${requestId} was not found.`);
+    return false;
+  }
+  dependencies.output.success(
+    `retro relay: discarded poisoned durable request ${requestId}; this cannot be undone.`,
+  );
   return true;
 }
 

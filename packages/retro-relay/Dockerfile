@@ -14,7 +14,10 @@ FROM node:24.18.0-bookworm-slim@sha256:6f7b03f7c2c8e2e784dcf9295400527b9b1270fd3
 
 ENV NODE_ENV=production
 WORKDIR /app
-RUN apt-get update \
+ARG DEBIAN_SNAPSHOT=20260728T000000Z
+RUN rm -f /etc/apt/sources.list.d/debian.sources \
+  && echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT}/ bookworm main" > /etc/apt/sources.list \
+  && apt-get update \
   && apt-get install -y --no-install-recommends gosu=1.14-1+b10 \
   && rm -rf /var/lib/apt/lists/*
 COPY packages/retro-relay/package.json package.json

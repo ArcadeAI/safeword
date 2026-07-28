@@ -598,16 +598,30 @@ describe('retry-safe retro relay', () => {
 
   it('quarantines a GitHub 5xx because the create outcome is ambiguous', async () => {
     const setup = await fixture({ createStatus: 500 });
-    const adapter = createHarnessAdapters(setup.relay.url, setup.credential).claude;
+    const request = draft();
 
-    await expect(adapter.file(draft())).rejects.toMatchObject({ status: 503 });
+    const response = await fetch(`${setup.relay.url}/v1/retro-filings`, {
+      body: JSON.stringify(request),
+      headers: {
+        authorization: `Bearer ${setup.credentials.claude}`,
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    });
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      receiptId: expect.any(String),
+      requestId: request.requestId,
+      state: 'ambiguous',
+    });
     expect(setup.createBodies).toHaveLength(1);
     expect(
       setup.store.load({
         tenantId: 'tenant-1',
         installationId: 42,
         repository: 'arcadeai/safeword',
-        requestId: draft().requestId,
+        requestId: request.requestId,
       })?.state,
     ).toBe('ambiguous');
   });
@@ -1636,6 +1650,10 @@ describe('retry-safe retro relay', () => {
     });
 
     expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: 'invalid relay filing request',
+      reason: 'retry-deadline-elapsed',
+    });
     expect(
       Object.values(setup.store.operations().counts).reduce((sum, count) => sum + count, 0),
     ).toBe(0);

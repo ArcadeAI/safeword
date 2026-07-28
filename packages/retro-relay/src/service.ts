@@ -362,7 +362,9 @@ export class RelayService {
       this.#store.load(scope) === undefined &&
       Date.parse(request.retryDeadlineAt) <= now.getTime()
     ) {
-      throw new RelayError(400, 'invalid relay filing request');
+      throw new RelayError(400, 'invalid relay filing request', {
+        reason: 'retry-deadline-elapsed',
+      });
     }
     const marker = requestMarker(scope);
     const accepted = this.#store.accept({
@@ -380,6 +382,7 @@ export class RelayService {
     if (accepted.record.state === 'ambiguous') {
       throw new RelayError(503, 'filing outcome is ambiguous', {
         receiptId: accepted.record.receiptId,
+        requestId: accepted.record.scope.requestId,
         state: 'ambiguous',
       });
     }
@@ -444,6 +447,7 @@ export class RelayService {
       const currentRecord = this.#store.load(scope);
       throw new RelayError(503, 'filing outcome is ambiguous', {
         ...(currentRecord !== undefined && { receiptId: currentRecord.receiptId }),
+        requestId: scope.requestId,
         state: 'ambiguous',
       });
     }

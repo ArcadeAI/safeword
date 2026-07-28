@@ -34,16 +34,29 @@ immutable per-request files:
 ```text
 .safeword/retro-drafts/relay/
   <requestId>.json
+  <requestId>.materializing.json
   <requestId>.claim.<claimId>.<expiresEpochMs>.json
+  <requestId>.dead-letter.json
+  <requestId>.recovery-claim.<claimId>.<expiresEpochMs>.json
   <requestId>.ack.json
+  <requestId>.discarding.<token>.json
+  <requestId>.discarded.json
+  source-<sourceHash>.json
+  source-<sourceHash>.acknowledged.json
 ```
 
-`<requestId>.json` contains the exact UTF-8 JSON request bytes sent over HTTP.
+The primary, materializing, claim, dead-letter, and recovery-claim states all
+contain the exact UTF-8 JSON request bytes sent over HTTP.
 The request ID is UUIDv4 generated with the platform CSPRNG before the atomic
-temporary-file-to-final-file rename. Retries read and transmit that file
+temporary-file-to-final-file link. Retries read and transmit those bytes
 verbatim. An existing request ID with different bytes is rejected locally.
 Because each request owns one immutable file, persisting request B cannot race
 with draining request A through a shared-file rewrite.
+
+The source reservation is written first. If the process stops before request
+state exists, the next persistence materializes its exact reserved bytes as a
+claimable `<requestId>.materializing.json`. This closes the reservation-to-file
+crash window without minting a second identity.
 
 Claiming is an atomic rename from the primary filename to a filename containing
 a random claim ID and expiry. Only the process holding that exact filename may
@@ -61,13 +74,33 @@ but the relay can create at most one issue. Cleanup/release stays conditional on
 each owner's exact filename, so an old owner cannot delete its successor's
 payload. The takeover race is fault-tested.
 
-`<requestId>.ack.json` is the authoritative local commit record. After a
+`<requestId>.ack.json` is the authoritative local commit journal. After a
 shape-valid durable receipt, the current owner atomically writes the ack and
-then removes its claimed payload as idempotent compaction. Recovery always
+an immutable `source-<sourceHash>.acknowledged.json` identity tombstone before
+removing its claimed payload as idempotent compaction. The separate filename
+means a stale discard snapshot cannot unlink an acknowledgement that replaced
+the active reservation in place. Recovery always
 deletes any primary or claim payload that has a valid ack and never resubmits
 it. Thus crashes before ack retry the exact bytes; crashes after ack merely
-repeat cleanup. Tests inject crashes before and after every rename, ack, and
+repeat cleanup. Once cleanup and source-reservation compaction finish, the ack
+journal is removed; the indefinite acknowledged source reservation prevents a
+new identity. Tests inject crashes before and after every rename, ack, and
 cleanup boundary, including expiry while the old POST remains in flight.
+
+Explicit operator discard is a different two-phase terminal transition. After
+atomically owning available request state, it creates one non-expiring
+`<requestId>.discarding.<token>.json` intent. Producers and new claims check for
+any exact-token intent both before and after publishing state, so the final
+foreign-owner check cannot be escaped. Terminal commit hard-links that token to
+`<requestId>.discarded.json`; cancellation unlinks only that exact token.
+Concurrent discards therefore cancel independently around a foreign claim or
+converge idempotently on the terminal tombstone, with no shared alias to suffer
+ABA. With no foreign claim, recovery commits the token and completes cleanup.
+The terminal tombstone wins over late primary, materializing, dead-letter, and
+claim siblings, while the separate durable source acknowledgement wins an
+impossible terminal conflict. The local protocol covers process crashes;
+whole-directory backup/restore remains the protection against storage loss or
+sudden power loss.
 
 A monotonic 750ms deadline bounds the entire drain, not each request. Every
 request receives at most the remaining aggregate budget; untouched drafts stay

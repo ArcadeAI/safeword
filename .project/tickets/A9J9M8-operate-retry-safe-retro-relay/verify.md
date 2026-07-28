@@ -2,8 +2,8 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 5,797/5,797 tests pass (relay 161/161; CLI 5,636/5,636; 6 intentional skips)
-**Gherkin:** ✅ Acceptance lane passes (direct lane 93/93 scenarios and 1,109/1,109 steps)
+**Test Suite:** ✓ 5,828/5,828 tests pass (relay 163/163; CLI 5,665/5,665; 6 intentional skips)
+**Gherkin:** ✅ Acceptance lane passes (623 scenarios: 620 passed, 3 skipped; 19,861 steps: 19,857 passed, 4 skipped)
 **Build:** ✅ Success
 **Lint:** ✅ Clean
 **Scenarios:** All 106 scenarios marked complete
@@ -12,19 +12,39 @@
 **Parent Epic:** N/A
 **Reconcile:** ✅ No pattern deviation
 **Experience:** ✅ No new friction — Walked Technical Builder through automatic stop-retro filing; worst step = the bounded relay timeout before native fallback; new steps vs before = 0
-**Evidence limits:** ⚠️ A concurrent test run in another worktree caused timeout-only failures in one exact aggregate attempt; uncontended final package runs passed 5,797/5,797 and the direct acceptance lane passed. Experiment-only Python import-linter/deadcode checks are unavailable locally.
+**Evidence limits:** ⚠️ The aggregate verification attempt overloaded the acceptance lane's shared proof hook, producing four setup-only 60-second timeouts. The affected feature then passed 44/44 scenarios and 1,444/1,444 steps in isolation, and the full uncontended acceptance rerun passed 623/623 scenarios (including 3 intentional skips). Experiment-only Python import-linter/deadcode checks are unavailable locally.
 
-Audit passed with warnings — 0 feature-blocking errors. Config sync, Knip, Go dead-code, and the dependency-cruiser error gate are clean across 708 modules and 2,344 dependencies. The stable repository-minus-generated-trees scope reports 531 clones (8.50%); the count moved by five while the duplicate percentage fell from 8.51%. `bun outdated` is clean and `bun audit --production` reports no vulnerabilities.
+Audit passed with warnings — 0 feature-blocking errors. Config sync, Knip, Go dead-code, and the dependency-cruiser error gate are clean across 708 modules and 2,348 dependencies. The stable repository-minus-generated-trees scope reports 543 clones (8.49%), dominated by intentional installed/template parity. `bun outdated` is clean and the prior production dependency audit reports no vulnerabilities.
 
 ## Evidence
 
-- The generated verification plan passed the complete relay and CLI test suites, all 623 acceptance scenarios, both builds, and both package typechecks without a fallback or serial-retry exception.
+- The generated verification plan passed the complete relay and CLI test suites, both builds, and both package typechecks. Its acceptance phase hit four setup-only resource-contention timeouts; the exact affected feature and then the entire acceptance lane passed cleanly without product assertion failures on uncontended reruns.
 - `bun run lint`, the full formatter, config sync, Knip, and dependency-cruiser passed.
 - Independent quality review approved the final tree with no critical issues or suggested improvements after the six-surface HTTPS collaborator path, SQLite transaction process lock, retry scheduling, and shutdown reacquisition proof were reviewed.
 - Raw GitHub REST bodies remain the only marker authority. Sanitized MCP reads are not used for duplicate decisions.
 - GitHub issue 834 remains open and is not superseded.
 - GitHub issue 1495 is not a readiness gate because this slice does not reuse its client credential helpers.
 - GitHub issues 1474 and 1481 are now closed on main. Checked-in relay readiness remains disabled because the required fresh post-fix measurement artifacts and evidence review have not landed.
+
+## 2026-07-28 third-round comment resolution
+
+- Relay: 163 passed, 1 intentional ordinary-lane skip.
+- CLI aggregate: 5,665 passed, 5 intentional skips.
+- Acceptance: 623 scenarios (620 passed, 3 skipped) and 19,861 steps
+  (19,857 passed, 4 skipped). The changed feature independently passed 44/44
+  scenarios and 1,444/1,444 steps.
+- Both package builds and typechecks passed. Full lint, format, dependency
+  boundaries, config sync, diff hygiene, Go dead-code, and outdated-dependency
+  checks passed.
+- Fresh independent quality review approved the exact-token discard state
+  machine with no critical issues or suggested improvements.
+- Exact discard-intent tokens eliminate the shared-alias ABA window; producers
+  check intent both before and after publication; recovery cancels only its own
+  token around foreign claims; and an immutable source acknowledgement preserves
+  source identity across stale discard snapshots.
+- Raw REST response bodies remain marker authority. Sanitized MCP reads never
+  participate in duplicate decisions. Issue 834 remains open and unsuperseded;
+  issue 1495 remains irrelevant because no client credential helper is reused.
 
 ## 2026-07-28 R1–R14 final re-review
 

@@ -332,6 +332,20 @@ program
   });
 
 program
+  .command('retro-relay-discard <request-id>')
+  .description('Permanently discard one poisoned relay identity and its source reservation')
+  .option('--confirm', 'Confirm irreversible deletion of this exact request identity')
+  .action(async (requestId: string, options: { confirm?: boolean }) => {
+    const { discardRelaySpoolCommand } = await import('./commands/retro.js');
+    const { info, error: outputError, success } = await import('./utils/output.js');
+    const ok = await discardRelaySpoolCommand(requestId, options.confirm === true, {
+      output: { error: outputError, info, success },
+      projectDirectory: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
+    });
+    if (!ok) process.exitCode = 1;
+  });
+
+program
   .command('retro-reconcile')
   .description(
     'Flag open retro issues whose surface changed after their newest recorded code state (G19QG7)',

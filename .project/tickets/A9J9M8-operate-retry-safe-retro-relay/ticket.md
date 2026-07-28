@@ -110,3 +110,28 @@ last_modified: 2026-07-27T02:23:02.173Z
   persistence failures now make the command fail nonzero after healthy durable
   work drains, and raw REST request-marker matches require exact canonical and
   legacy evidence before either operator endpoint can adopt them.
+- 2026-07-28 Third-round PR review confirmed six actionable gaps. TDD coverage
+  now requires typed deadline renewal, ambiguous 503 operator recovery, visible
+  failure summaries, explicit poisoned-spool discard, reproducible gosu
+  retrieval, and lock ownership through SQLite close. Raw-marker conflicts,
+  indefinite source tombstones, whole-directory restore, and payload-key
+  retention remain explicit fail-closed contracts rather than weakened fixes.
+- 2026-07-28 Fresh post-fix review reproduced discard races with both an active
+  primary delivery and direct dead-letter recovery. Delivery, recovery/rearm,
+  and discard now share atomic per-request filesystem ownership; paused-response
+  tests prove discard refuses in-flight work and preserves the acknowledgement
+  tombstone. Exceptional server-close errors also release the store and process
+  lock through a tested cleanup boundary.
+- 2026-07-28 Final state-machine review found a discard could finish while a
+  paused first persistence later wrote unreserved materializing state.
+  The first guard fix was rejected because its lease was not fenced across
+  suspension, and the first tombstone fix was rejected because a new delivery
+  could escape between the final conflict snapshot and terminal commit. Discard
+  now uses a non-expiring intent to block producers/claims across that check,
+  represented only by an exact unique-token filename. Cancellation removes
+  only that token and terminal commit hard-links it to the tombstone, so
+  concurrent discards converge without a shared alias or ABA. A separate
+  immutable source-acknowledgement tombstone prevents a stale discard snapshot
+  from erasing a takeover receipt. Deterministic paused-filesystem tests cover
+  the snapshot-to-commit window, crashed intent plus expired foreign claim, and
+  old-owner ack after takeover/discard.

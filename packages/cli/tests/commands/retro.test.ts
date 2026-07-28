@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   buildAutoExtractor,
   buildProvenanceResolver,
+  discardRelaySpoolCommand,
   reportRetroCommandOutcome,
   retroCommand,
   retryRelayDeadLetterCommand,
@@ -18,6 +19,7 @@ import {
   createRelayRequest,
   listRelayDeadLetters,
   listRelayRequests,
+  persistRelayDraft,
   persistRelayRequest,
   type RelayDraftRequest,
 } from '../../src/retro/relay-delivery.js';
@@ -40,6 +42,26 @@ vi.mock('../../src/retro/github-rest.js', () => ({
   createReconcileTransport: () => {},
   resolveGitHubToken: () => {},
 }));
+
+function activeRelayPath(projectDirectory: string, requestId: string): string {
+  const directory = nodePath.join(projectDirectory, '.safeword', 'retro-drafts', 'relay');
+  const filename = readdirSync(directory).find(
+    candidate =>
+      candidate === `${requestId}.json` || candidate === `${requestId}.materializing.json`,
+  );
+  if (filename === undefined) throw new Error('missing active relay file');
+  return nodePath.join(directory, filename);
+}
+
+function deadLetterRelayPath(projectDirectory: string, requestId: string): string {
+  return nodePath.join(
+    projectDirectory,
+    '.safeword',
+    'retro-drafts',
+    'relay',
+    `${requestId}.dead-letter.json`,
+  );
+}
 
 // Compact in-memory transport — only the network boundary is faked.
 class FakeGitHub implements IssueTracker {
@@ -177,16 +199,7 @@ describe('runRetro', () => {
       );
       const [poisoned] = await listRelayRequests(projectDirectory);
       if (poisoned === undefined) throw new Error('missing poisoned request');
-      writeFileSync(
-        nodePath.join(
-          projectDirectory,
-          '.safeword',
-          'retro-drafts',
-          'relay',
-          `${poisoned.requestId}.json`,
-        ),
-        '{"requestId":',
-      );
+      writeFileSync(activeRelayPath(projectDirectory, poisoned.requestId), '{"requestId":');
 
       const outcome = await runRetro(
         { transcript: '/tmp/session.jsonl' },
@@ -1179,6 +1192,38 @@ describe('retro summary drop reporting (PNZM3B SM2.R1)', () => {
     expect(lines.join('\n')).not.toContain('agent filing path');
   });
 
+  it('renders the durable relay summary and spool recovery hint before a terminal failure', () => {
+    const { lines, output } = collect();
+    const previousExitCode = process.exitCode;
+    process.exitCode = undefined;
+    try {
+      reportRetroCommandOutcome(
+        {
+          errorMessage: 'retro relay persistence failed',
+          ok: false,
+          relay: {
+            accepted: 1,
+            deadLetterBacklog: 2,
+            deadLettered: 0,
+            retryable: 3,
+            spoolFailed: 1,
+          },
+        },
+        reportOptions(output),
+      );
+
+      expect(lines.join('\n')).toContain(
+        'retro relay: 1 accepted, 3 queued for retry, 2 dead letter(s), 1 spool error(s)',
+      );
+      expect(lines.join('\n')).toContain('inspect the local relay spool');
+      expect(lines.at(-1)).toBe('retro relay persistence failed');
+      expect(lines).not.toContain('retro complete');
+      expect(process.exitCode).toBe(1);
+    } finally {
+      process.exitCode = previousExitCode;
+    }
+  });
+
   it('retro-process-surface.SM1.R1.process_finding_files_end_to_end', async () => {
     const transport = new FakeGitHub();
     await runRetro(
@@ -1394,7 +1439,12 @@ describe('relay dead-letter recovery command', () => {
       ) as RelayDraftRequest;
       sent.push(request);
       if (sent.length === 1) {
-        return Promise.resolve(Response.json({ error: 'deadline elapsed' }, { status: 400 }));
+        return Promise.resolve(
+          Response.json(
+            { error: 'invalid relay filing request', reason: 'retry-deadline-elapsed' },
+            { status: 400 },
+          ),
+        );
       }
       return Promise.resolve(
         Response.json({
@@ -1422,6 +1472,303 @@ describe('relay dead-letter recovery command', () => {
       expect(sent[1]?.requestId).toBe(original.requestId);
       expect(Date.parse(sent[1]?.retryDeadlineAt ?? '')).toBeGreaterThan(Date.now());
       expect(await listRelayDeadLetters(projectDirectory)).toEqual([]);
+    } finally {
+      rmSync(projectDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it('does not rewrite an expired dead letter for an unrelated validation failure', async () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-invalid-'));
+    const original = createRelayRequest(
+      {
+        body: 'body',
+        canonicalKey: 'canonical',
+        installationId: 42,
+        labels: ['retro'],
+        legacySignature: 'legacy',
+        repository: 'arcadeai/safeword',
+        sourceKey: 'source',
+        title: 'title',
+      },
+      { now: () => 0, randomUUID: () => '00000000-0000-4000-8000-000000001484' },
+    );
+    const persisted = await persistRelayRequest(projectDirectory, original);
+    const deadLetter = persisted.path.replace(/\.json$/u, '.dead-letter.json');
+    const originalBytes = readFileSync(persisted.path);
+    writeFileSync(deadLetter, originalBytes);
+    rmSync(persisted.path);
+    const send = vi.fn<typeof fetch>(() =>
+      Promise.resolve(
+        Response.json(
+          { error: 'invalid relay filing request', reason: 'invalid-request' },
+          { status: 400 },
+        ),
+      ),
+    );
+
+    try {
+      await expect(
+        retryRelayDeadLetterCommand(original.requestId, {
+          output: { error: vi.fn(), info: vi.fn(), success: vi.fn() },
+          projectDirectory,
+          relay: {
+            credential: 'swc_client_secret',
+            fetch: send,
+            relayUrl: 'https://relay.invalid',
+          },
+        }),
+      ).resolves.toBe(false);
+      expect(send).toHaveBeenCalledOnce();
+      expect(readFileSync(deadLetter)).toEqual(originalBytes);
+    } finally {
+      rmSync(projectDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it('restores the original source reservation after a renewed submission is rejected', async () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-renew-reject-'));
+    const currentTime = Date.now();
+    const draft = {
+      body: 'body',
+      canonicalKey: 'canonical',
+      installationId: 42,
+      labels: ['retro'],
+      legacySignature: 'legacy',
+      repository: 'arcadeai/safeword',
+      sourceKey: 'source',
+      title: 'title',
+    };
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    const original = await persistRelayDraft(projectDirectory, draft);
+    vi.setSystemTime(currentTime);
+    if (original === undefined) throw new Error('missing relay request');
+    const [active] = await listRelayRequests(projectDirectory);
+    if (active === undefined) throw new Error('missing active relay request');
+    const activePath = activeRelayPath(projectDirectory, original.requestId);
+    const deadLetter = deadLetterRelayPath(projectDirectory, original.requestId);
+    writeFileSync(deadLetter, active.bytes);
+    rmSync(activePath);
+    let attempt = 0;
+    const send = vi.fn<typeof fetch>(() => {
+      attempt += 1;
+      return Promise.resolve(
+        Response.json(
+          attempt === 1
+            ? { error: 'invalid relay filing request', reason: 'retry-deadline-elapsed' }
+            : { error: 'invalid relay filing request', reason: 'invalid-request' },
+          { status: 400 },
+        ),
+      );
+    });
+
+    try {
+      await expect(
+        retryRelayDeadLetterCommand(original.requestId, {
+          output: { error: vi.fn(), info: vi.fn(), success: vi.fn() },
+          projectDirectory,
+          relay: {
+            credential: 'swc_client_secret',
+            fetch: send,
+            relayUrl: 'https://relay.invalid',
+          },
+        }),
+      ).resolves.toBe(false);
+      expect(send).toHaveBeenCalledTimes(2);
+      expect(readFileSync(deadLetter)).toEqual(active.bytes);
+      await expect(persistRelayDraft(projectDirectory, draft)).resolves.toMatchObject({
+        requestId: original.requestId,
+        retryDeadlineAt: original.retryDeadlineAt,
+      });
+    } finally {
+      vi.useRealTimers();
+      rmSync(projectDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it('reconciles the source reservation after a renewed submission loses its response', async () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-renew-crash-'));
+    const currentTime = Date.now();
+    const draft = {
+      body: 'body',
+      canonicalKey: 'canonical',
+      installationId: 42,
+      labels: ['retro'],
+      legacySignature: 'legacy',
+      repository: 'arcadeai/safeword',
+      sourceKey: 'source',
+      title: 'title',
+    };
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    const original = await persistRelayDraft(projectDirectory, draft);
+    vi.setSystemTime(currentTime);
+    if (original === undefined) throw new Error('missing relay request');
+    const activeRequests = await listRelayRequests(projectDirectory);
+    const active = activeRequests[0];
+    if (active === undefined) throw new Error('missing active relay request');
+    const activePath = activeRelayPath(projectDirectory, original.requestId);
+    const deadLetter = deadLetterRelayPath(projectDirectory, original.requestId);
+    writeFileSync(deadLetter, active.bytes);
+    rmSync(activePath);
+    let attempt = 0;
+    const send = vi.fn<typeof fetch>(() => {
+      attempt += 1;
+      if (attempt === 1) {
+        return Promise.resolve(
+          Response.json(
+            { error: 'invalid relay filing request', reason: 'retry-deadline-elapsed' },
+            { status: 400 },
+          ),
+        );
+      }
+      return Promise.reject(new DOMException('response lost', 'AbortError'));
+    });
+
+    try {
+      await expect(
+        retryRelayDeadLetterCommand(original.requestId, {
+          output: { error: vi.fn(), info: vi.fn(), success: vi.fn() },
+          projectDirectory,
+          relay: {
+            credential: 'swc_client_secret',
+            fetch: send,
+            relayUrl: 'https://relay.invalid',
+          },
+        }),
+      ).rejects.toThrow('response lost');
+      const renewed = JSON.parse(readFileSync(deadLetter, 'utf8')) as RelayDraftRequest;
+      expect(Date.parse(renewed.retryDeadlineAt)).toBeGreaterThan(currentTime);
+      await expect(persistRelayDraft(projectDirectory, draft)).resolves.toMatchObject({
+        requestId: original.requestId,
+        retryDeadlineAt: renewed.retryDeadlineAt,
+      });
+    } finally {
+      vi.useRealTimers();
+      rmSync(projectDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it('bridges an ambiguous submit response to the operator recovery endpoint', async () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-ambiguous-'));
+    const original = createRelayRequest(
+      {
+        body: 'body',
+        canonicalKey: 'canonical',
+        installationId: 42,
+        labels: ['retro'],
+        legacySignature: 'legacy',
+        repository: 'arcadeai/safeword',
+        sourceKey: 'source',
+        title: 'title',
+      },
+      { now: () => 0, randomUUID: () => '00000000-0000-4000-8000-000000001485' },
+    );
+    const persisted = await persistRelayRequest(projectDirectory, original);
+    const deadLetter = persisted.path.replace(/\.json$/u, '.dead-letter.json');
+    writeFileSync(deadLetter, readFileSync(persisted.path));
+    rmSync(persisted.path);
+    const requestedUrls: string[] = [];
+    const send = vi.fn<typeof fetch>(input => {
+      let url: string;
+      if (typeof input === 'string') url = input;
+      else if (input instanceof URL) url = input.href;
+      else url = input.url;
+      requestedUrls.push(url);
+      if (requestedUrls.length === 1) {
+        return Promise.resolve(
+          Response.json(
+            {
+              error: 'filing outcome is ambiguous',
+              receiptId: 'receipt-ambiguous',
+              requestId: original.requestId,
+              state: 'ambiguous',
+            },
+            { status: 503 },
+          ),
+        );
+      }
+      return Promise.resolve(
+        Response.json({
+          issueNumber: 1485,
+          receiptId: 'receipt-ambiguous',
+          requestId: original.requestId,
+          state: 'filed',
+        }),
+      );
+    });
+
+    try {
+      await expect(
+        retryRelayDeadLetterCommand(original.requestId, {
+          output: { error: vi.fn(), info: vi.fn(), success: vi.fn() },
+          projectDirectory,
+          relay: {
+            credential: 'swc_client_secret',
+            fetch: send,
+            operatorCredential: 'swc_operator_secret',
+            relayUrl: 'https://relay.invalid',
+          },
+        }),
+      ).resolves.toBe(true);
+      expect(requestedUrls).toEqual([
+        'https://relay.invalid/v1/retro-filings',
+        'https://relay.invalid/v1/retro-filings/receipt-ambiguous/recover',
+      ]);
+      expect(await listRelayDeadLetters(projectDirectory)).toEqual([]);
+    } finally {
+      rmSync(projectDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it('discards one explicitly confirmed poisoned durable identity through the built CLI', async () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-discard-'));
+    const requestId = '00000000-0000-4000-8000-000000001486';
+    const spoolDirectory = nodePath.join(projectDirectory, '.safeword', 'retro-drafts', 'relay');
+    mkdirSync(spoolDirectory, { recursive: true });
+    const poisoned = nodePath.join(spoolDirectory, `${requestId}.dead-letter.json`);
+    writeFileSync(poisoned, '{');
+
+    try {
+      await expect(
+        discardRelaySpoolCommand(requestId, false, {
+          output: { error: vi.fn(), info: vi.fn(), success: vi.fn() },
+          projectDirectory,
+        }),
+      ).resolves.toBe(false);
+      expect(readFileSync(poisoned, 'utf8')).toBe('{');
+      await expect(
+        discardRelaySpoolCommand(requestId, true, {
+          output: { error: vi.fn(), info: vi.fn(), success: vi.fn() },
+          projectDirectory,
+        }),
+      ).resolves.toBe(true);
+      const cliRequestId = '00000000-0000-4000-8000-000000001487';
+      const cliPoisoned = nodePath.join(spoolDirectory, `${cliRequestId}.dead-letter.json`);
+      writeFileSync(cliPoisoned, '{');
+
+      const result = spawnSync(
+        process.execPath,
+        [
+          nodePath.resolve(process.cwd(), 'dist', 'cli.js'),
+          'retro-relay-discard',
+          cliRequestId,
+          '--confirm',
+        ],
+        {
+          encoding: 'utf8',
+          env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
+        },
+      );
+      expect(result.status, result.stderr).toBe(0);
+      expect(result.stdout).toContain(`discarded poisoned durable request ${cliRequestId}`);
+      expect(() => readFileSync(cliPoisoned)).toThrow();
+      await expect(
+        discardRelaySpoolCommand('not-a-request-id', true, {
+          output: { error: vi.fn(), info: vi.fn(), success: vi.fn() },
+          projectDirectory,
+        }),
+      ).resolves.toBe(false);
     } finally {
       rmSync(projectDirectory, { recursive: true, force: true });
     }

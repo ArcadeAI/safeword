@@ -38,6 +38,9 @@ root only long enough to create and migrate ownership of the mounted data
 directory, then execs the Node process as the image's unprivileged `node` user.
 Do not replace the entrypoint with a bare `USER node`: it cannot write a fresh
 Railway volume.
+The runtime image resolves its exact `gosu` package from a dated Debian
+snapshot, so the pinned package cannot disappear when the mutable Bookworm
+archive rotates.
 
 Node 22 documents `node:sqlite` as active development and Node 24 documents it
 as release candidate. The relay keeps the API behind `src/sqlite.ts`, qualifies
@@ -108,6 +111,40 @@ letter already has an ambiguous or dead-letter receipt on the server. Normal
 filing continues to use the harness-scoped
 `SAFEWORD_RETRO_RELAY_CREDENTIAL`; the operator credential is never used by an
 automatic retry or headless extractor.
+
+An externally edited issue whose raw body no longer contains the exact request,
+canonical, and legacy markers remains ambiguous. The relay never treats a
+sanitized read or a lone request marker as duplicate authority. An operator
+must inspect the raw REST body and either restore the two authority markers
+before reconciling or resolve the conflicting issue manually; automatic
+recovery will not create a second issue around that conflict.
+
+Acknowledged local source reservations are compact identity tombstones and are
+retained indefinitely so the same source cannot receive a fresh request ID.
+The CLI first makes a new reservation's exact request bytes durable as a
+claimable `*.materializing.json` state. Delivery may claim that state directly,
+so concurrent first persistence and a crash between reservation and delivery
+converge on one request identity without recreating a primary file.
+Normal draft persistence does not scan those tombstones; it consults active
+reservations only when isolating a corrupt durable record. Back up and restore
+the entire `.safeword/retro-drafts/relay` directory as one unit. Selective or
+partial restoration of individual spool files is outside the durability
+contract.
+
+If one durable identity is corrupt, inspect it first and then explicitly remove
+only that identity with
+`safeword retro-relay-discard <request-id> --confirm`. The command also removes
+the matching active source reservation, never deletes acknowledged tombstones
+or unrelated records, refuses identities owned by delivery/recovery, and writes
+a non-expiring discard intent before its final foreign-owner check. Producers
+and claims fail closed on that intent; recovery completes it only when no
+foreign claim remains. Each intent is its own unique-token filename:
+cancellation removes only that exact token, while terminal commit hard-links it
+to the indefinite request tombstone. Concurrent discards therefore converge
+without a shared alias, expiring lease, or ABA. A separate indefinite
+source-acknowledgement file makes acknowledgement win even if discard
+snapshotted the former active reservation filename. Discard is intentionally
+irreversible.
 
 Installation-token requests for the same repository scope are coalesced.
 Ambiguous-create reconciliation uses raw REST bodies only and stops at both the

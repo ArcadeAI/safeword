@@ -13,11 +13,13 @@ import {
   claimRelayRequest,
   createRelayRequest,
   deliverRelayRequests,
+  discardRelayRequest,
   listRelayDeadLetters,
   listRelayRequests,
   persistRelayDraft,
   persistRelayRequest,
   rearmRelayDeadLetter,
+  recoverRelayDeadLetter,
   recoverRelaySpool,
   type RelayDraftRequest,
   relaySourceKey,
@@ -55,6 +57,20 @@ function temporaryProject(): string {
   return directory;
 }
 
+function activeRequestPath(project: string, requestId: string): string {
+  const directory = path.join(project, '.safeword', 'retro-drafts', 'relay');
+  const filename = readdirSync(directory).find(
+    candidate =>
+      candidate === `${requestId}.json` || candidate === `${requestId}.materializing.json`,
+  );
+  if (filename === undefined) throw new Error('missing active request file');
+  return path.join(directory, filename);
+}
+
+function deadLetterRequestPath(project: string, requestId: string): string {
+  return path.join(project, '.safeword', 'retro-drafts', 'relay', `${requestId}.dead-letter.json`);
+}
+
 function request(overrides: Record<string, unknown> = {}) {
   return createRelayRequest(
     {
@@ -72,7 +88,878 @@ function request(overrides: Record<string, unknown> = {}) {
   );
 }
 
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+  let complete: ((value: T) => void) | undefined;
+  // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- The package targets ES2022.
+  const promise = new Promise<T>(resolve => {
+    complete = resolve;
+  });
+  return {
+    promise,
+    resolve: value => {
+      if (complete === undefined) throw new Error('deferred promise was not initialized');
+      complete(value);
+    },
+  };
+}
+
 describe('immutable relay delivery spool', () => {
+  it('discards only the selected durable identity and its source reservation', async () => {
+    const project = temporaryProject();
+    const selected = await persistRelayDraft(
+      project,
+      request({ sourceKey: 'source-selected', title: 'selected' }),
+    );
+    const retained = await persistRelayDraft(
+      project,
+      request({ sourceKey: 'source-retained', title: 'retained' }),
+    );
+    if (selected === undefined || retained === undefined) throw new Error('missing relay request');
+    const selectedPath = activeRequestPath(project, selected.requestId);
+    renameSync(selectedPath, deadLetterRequestPath(project, selected.requestId));
+
+    await expect(discardRelayRequest(project, selected.requestId)).resolves.toBe(true);
+    await expect(discardRelayRequest(project, selected.requestId)).resolves.toBe(false);
+    await expect(discardRelayRequest(project, 'not-a-request-id')).rejects.toThrow(
+      'invalid relay request identity',
+    );
+    const active = await listRelayRequests(project);
+    expect(active.map(item => item.requestId)).toEqual([retained.requestId]);
+    expect(await listRelayDeadLetters(project)).toEqual([]);
+    await expect(
+      persistRelayDraft(project, request({ sourceKey: 'source-selected', title: 'selected' })),
+    ).resolves.not.toBeUndefined();
+    await expect(
+      persistRelayDraft(project, request({ sourceKey: 'source-retained', title: 'retained' })),
+    ).resolves.toMatchObject({ requestId: retained.requestId });
+  });
+
+  it('refuses to discard a request owned by an active delivery claim', async () => {
+    const project = temporaryProject();
+    const draft = request({ sourceKey: 'source-in-flight', title: 'in flight' });
+    const persisted = await persistRelayDraft(project, draft);
+    if (persisted === undefined) throw new Error('missing relay request');
+    const claim = await claimRelayRequest(project, {
+      claimId: 'delivery-owner',
+      leaseMs: 60_000,
+      now: Date.now(),
+    });
+    if (claim === undefined) throw new Error('missing relay claim');
+
+    await expect(discardRelayRequest(project, persisted.requestId)).rejects.toThrow(
+      'relay request is actively claimed',
+    );
+    await expect(
+      acknowledgeRelayClaim(claim, {
+        issueNumber: 1479,
+        receiptId: 'receipt-in-flight',
+        requestId: persisted.requestId,
+        state: 'accepted',
+      }),
+    ).resolves.toBe(true);
+    await expect(persistRelayDraft(project, draft)).resolves.toBeUndefined();
+  });
+
+  it('fails discard closed when an active claim rearms after ownership attempts', async () => {
+    const project = temporaryProject();
+    const draft = request({ sourceKey: 'source-rearming-discard', title: 'rearming discard' });
+    const persisted = await persistRelayDraft(project, draft);
+    if (persisted === undefined) throw new Error('missing relay request');
+    const claim = await claimRelayRequest(project, {
+      claimId: 'rearming-owner',
+      leaseMs: 60_000,
+      now: Date.now(),
+    });
+    if (claim === undefined) throw new Error('missing relay claim');
+    let continueDiscard: ((value: boolean) => void) | undefined;
+    let markAttempted: ((value: boolean) => void) | undefined;
+    // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- The package targets ES2022.
+    const attempted = new Promise<boolean>(resolve => {
+      markAttempted = resolve;
+    });
+    // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- The package targets ES2022.
+    const resumeDiscard = new Promise<boolean>(resolve => {
+      continueDiscard = resolve;
+    });
+    const discard = discardRelayRequest(project, persisted.requestId, {
+      faultAfterClaims: async () => {
+        markAttempted?.(true);
+        await resumeDiscard;
+      },
+    });
+    await attempted;
+    renameSync(claim.path, path.join(path.dirname(claim.path), `${persisted.requestId}.json`));
+    if (continueDiscard === undefined) throw new Error('discard did not attempt ownership');
+    continueDiscard(true);
+
+    await expect(discard).rejects.toThrow('relay request is actively claimed');
+    await expect(persistRelayDraft(project, draft)).resolves.toMatchObject({
+      requestId: persisted.requestId,
+    });
+  });
+
+  it('preserves an acknowledged tombstone when delivery finishes during discard', async () => {
+    const project = temporaryProject();
+    const draft = request({ sourceKey: 'source-ack-discard', title: 'ack during discard' });
+    const persisted = await persistRelayDraft(project, draft);
+    if (persisted === undefined) throw new Error('missing relay request');
+    const claim = await claimRelayRequest(project, {
+      claimId: 'ack-discard-owner',
+      leaseMs: 60_000,
+      now: Date.now(),
+    });
+    if (claim === undefined) throw new Error('missing relay claim');
+    let continueDiscard: ((value: boolean) => void) | undefined;
+    let markAttempted: ((value: boolean) => void) | undefined;
+    // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- The package targets ES2022.
+    const attempted = new Promise<boolean>(resolve => {
+      markAttempted = resolve;
+    });
+    // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- The package targets ES2022.
+    const resumeDiscard = new Promise<boolean>(resolve => {
+      continueDiscard = resolve;
+    });
+    const discard = discardRelayRequest(project, persisted.requestId, {
+      faultAfterClaims: async () => {
+        markAttempted?.(true);
+        await resumeDiscard;
+      },
+    });
+    await attempted;
+    await acknowledgeRelayClaim(claim, {
+      issueNumber: 1479,
+      receiptId: 'receipt-ack-discard',
+      requestId: persisted.requestId,
+      state: 'filed',
+    });
+    if (continueDiscard === undefined) throw new Error('discard did not attempt ownership');
+    continueDiscard(true);
+
+    await expect(discard).resolves.toBe(false);
+    await expect(persistRelayDraft(project, draft)).resolves.toBeUndefined();
+  });
+
+  it('keeps acknowledgement authoritative over a conflicting discard tombstone', async () => {
+    const project = temporaryProject();
+    const draft = request({ sourceKey: 'source-ack-terminal', title: 'ack terminal' });
+    const persisted = await persistRelayDraft(project, draft);
+    if (persisted === undefined) throw new Error('missing relay request');
+    const claim = await claimRelayRequest(project, {
+      claimId: 'ack-terminal-owner',
+      leaseMs: 60_000,
+      now: Date.now(),
+    });
+    if (claim === undefined) throw new Error('missing relay claim');
+    let continueAcknowledgement: ((value: boolean) => void) | undefined;
+    let markAcknowledged: ((value: boolean) => void) | undefined;
+    // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- The package targets ES2022.
+    const acknowledged = new Promise<boolean>(resolve => {
+      markAcknowledged = resolve;
+    });
+    // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- The package targets ES2022.
+    const resumeAcknowledgement = new Promise<boolean>(resolve => {
+      continueAcknowledgement = resolve;
+    });
+    const acknowledgement = acknowledgeRelayClaim(
+      claim,
+      {
+        issueNumber: 1479,
+        receiptId: 'receipt-ack-terminal',
+        requestId: persisted.requestId,
+        state: 'filed',
+      },
+      {
+        faultAfterAck: async () => {
+          markAcknowledged?.(true);
+          await resumeAcknowledgement;
+        },
+      },
+    );
+
+    await acknowledged;
+    const directory = path.dirname(claim.path);
+    writeFileSync(
+      path.join(directory, `${persisted.requestId}.discarded.json`),
+      JSON.stringify({ requestId: persisted.requestId, version: 1 }),
+    );
+    if (continueAcknowledgement === undefined) throw new Error('acknowledgement did not pause');
+    continueAcknowledgement(true);
+
+    await expect(acknowledgement).resolves.toBe(true);
+    await expect(persistRelayDraft(project, draft)).resolves.toBeUndefined();
+    expect(
+      readdirSync(directory).filter(filename => filename.startsWith(persisted.requestId)),
+    ).toEqual([]);
+  });
+
+  it('retains acknowledged source identity after expiry takeover and discard', async () => {
+    const project = temporaryProject();
+    const draft = request({ sourceKey: 'source-ack-takeover', title: 'ack takeover' });
+    const persisted = await persistRelayDraft(project, draft);
+    if (persisted === undefined) throw new Error('missing relay request');
+    const oldClaim = await claimRelayRequest(project, {
+      claimId: 'old-ack-owner',
+      leaseMs: 1,
+      now: 0,
+    });
+    if (oldClaim === undefined) throw new Error('missing relay claim');
+    let continueAcknowledgement: ((value: boolean) => void) | undefined;
+    let markOwnershipChecked: ((value: boolean) => void) | undefined;
+    let continueDiscard: ((value: boolean) => void) | undefined;
+    let markTombstoned: ((value: boolean) => void) | undefined;
+    // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- The package targets ES2022.
+    const ownershipChecked = new Promise<boolean>(resolve => {
+      markOwnershipChecked = resolve;
+    });
+    // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- The package targets ES2022.
+    const resumeAcknowledgement = new Promise<boolean>(resolve => {
+      continueAcknowledgement = resolve;
+    });
+    // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- The package targets ES2022.
+    const tombstoned = new Promise<boolean>(resolve => {
+      markTombstoned = resolve;
+    });
+    // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- The package targets ES2022.
+    const resumeDiscard = new Promise<boolean>(resolve => {
+      continueDiscard = resolve;
+    });
+    const acknowledgement = acknowledgeRelayClaim(
+      oldClaim,
+      {
+        issueNumber: 1479,
+        receiptId: 'receipt-ack-takeover',
+        requestId: persisted.requestId,
+        state: 'filed',
+      },
+      {
+        faultAfterOwnershipCheck: async () => {
+          markOwnershipChecked?.(true);
+          await resumeAcknowledgement;
+        },
+      },
+    );
+    await ownershipChecked;
+    await recoverRelaySpool(project, 2);
+    const discard = discardRelayRequest(project, persisted.requestId, {
+      faultAfterTombstone: async () => {
+        markTombstoned?.(true);
+        await resumeDiscard;
+      },
+    });
+    await tombstoned;
+    if (continueAcknowledgement === undefined) throw new Error('acknowledgement did not pause');
+    continueAcknowledgement(true);
+    await expect(acknowledgement).resolves.toBe(true);
+    if (continueDiscard === undefined) throw new Error('discard did not commit');
+    continueDiscard(true);
+
+    await expect(discard).resolves.toBe(true);
+    await expect(persistRelayDraft(project, draft)).resolves.toBeUndefined();
+  });
+
+  it('cancels a crashed discard intent so a foreign expired claim can recover', async () => {
+    const project = temporaryProject();
+    const draft = request({ sourceKey: 'source-intent-recovery', title: 'intent recovery' });
+    const persisted = await persistRelayDraft(project, draft);
+    if (persisted === undefined) throw new Error('missing relay request');
+    const now = Date.now();
+    const foreignClaim = await claimRelayRequest(project, {
+      claimId: 'foreign-expiring-owner',
+      leaseMs: 60_000,
+      now,
+    });
+    if (foreignClaim === undefined) throw new Error('missing relay claim');
+
+    await expect(
+      discardRelayRequest(project, persisted.requestId, {
+        faultAfterClaims: () => Promise.reject(new Error('simulated discard crash')),
+      }),
+    ).rejects.toThrow('simulated discard crash');
+    await recoverRelaySpool(project, now + 120_000);
+    expect(
+      readdirSync(path.dirname(foreignClaim.path)).filter(filename =>
+        filename.startsWith(persisted.requestId),
+      ),
+    ).toEqual([`${persisted.requestId}.json`]);
+
+    const recovered = await claimRelayRequest(project, {
+      claimId: 'recovered-owner',
+      leaseMs: 60_000,
+      now: now + 120_000,
+    });
+    expect(recovered).toMatchObject({ requestId: persisted.requestId });
+  });
+
+  it('does not let stale cancellation remove a replacement discard intent', async () => {
+    const project = temporaryProject();
+    const draft = request({ sourceKey: 'source-intent-aba', title: 'intent ABA' });
+    const persisted = await persistRelayDraft(project, draft);
+    if (persisted === undefined) throw new Error('missing relay request');
+    const foreignClaim = await claimRelayRequest(project, {
+      claimId: 'foreign-aba-owner',
+      leaseMs: 60_000,
+      now: Date.now(),
+    });
+    if (foreignClaim === undefined) throw new Error('missing relay claim');
+    const firstPause = deferred<boolean>();
+    const firstResume = deferred<boolean>();
+    const secondPause = deferred<boolean>();
+    const secondResume = deferred<boolean>();
+    const first = discardRelayRequest(project, persisted.requestId, {
+      faultAfterClaims: async () => {
+        firstPause.resolve(true);
+        await firstResume.promise;
+      },
+    });
+    await firstPause.promise;
+    const second = discardRelayRequest(project, persisted.requestId, {
+      faultAfterClaims: async () => {
+        secondPause.resolve(true);
+        await secondResume.promise;
+      },
+    });
+    await secondPause.promise;
+    firstResume.resolve(true);
+    await expect(first).rejects.toThrow('relay request is actively claimed');
+    expect(
+      readdirSync(path.dirname(foreignClaim.path)).filter(filename =>
+        filename.includes('.discarding.'),
+      ),
+    ).toHaveLength(1);
+    await expect(persistRelayDraft(project, draft)).resolves.toMatchObject({
+      requestId: persisted.requestId,
+    });
+    expect(readdirSync(path.dirname(foreignClaim.path))).toContain(
+      path.basename(foreignClaim.path),
+    );
+    secondResume.resolve(true);
+    await expect(second).rejects.toThrow('relay request is actively claimed');
+  });
+
+  it('does not recreate a primary after delivery claims the snapshotted request', async () => {
+    const project = temporaryProject();
+    const draft = request({ sourceKey: 'source-claim-race', title: 'claim race' });
+    const persisted = await persistRelayDraft(project, draft);
+    if (persisted === undefined) throw new Error('missing relay request');
+    let continuePersist: ((value: boolean) => void) | undefined;
+    let markSnapshotted: ((value: boolean) => void) | undefined;
+    // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- The package targets ES2022.
+    const snapshotted = new Promise<boolean>(resolve => {
+      markSnapshotted = resolve;
+    });
+    // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- The package targets ES2022.
+    const resumePersist = new Promise<boolean>(resolve => {
+      continuePersist = resolve;
+    });
+    const persistence = persistRelayDraft(project, draft, {
+      faultAfterStateSnapshot: async () => {
+        markSnapshotted?.(true);
+        await resumePersist;
+      },
+    });
+    await snapshotted;
+    const claim = await claimRelayRequest(project, {
+      claimId: 'delivery-race-owner',
+      leaseMs: 60_000,
+      now: Date.now(),
+    });
+    if (claim === undefined) throw new Error('missing relay claim');
+    if (continuePersist === undefined) throw new Error('persistence did not snapshot state');
+    continuePersist(true);
+
+    await expect(persistence).resolves.toMatchObject({ requestId: persisted.requestId });
+    const requestFiles = readdirSync(path.dirname(claim.path)).filter(filename =>
+      filename.startsWith(persisted.requestId),
+    );
+    expect(requestFiles).toEqual([path.basename(claim.path)]);
+    await expect(
+      acknowledgeRelayClaim(claim, {
+        issueNumber: 1479,
+        receiptId: 'receipt-claim-race',
+        requestId: persisted.requestId,
+        state: 'filed',
+      }),
+    ).resolves.toBe(true);
+    await expect(listRelayRequests(project)).resolves.toEqual([]);
+  });
+
+  it('repairs an existing source reservation through a claimable materializing state', async () => {
+    const project = temporaryProject();
+    const draft = request({ sourceKey: 'source-missing-state', title: 'missing state' });
+    const persisted = await persistRelayDraft(project, draft);
+    if (persisted === undefined) throw new Error('missing relay request');
+    const primary = activeRequestPath(project, persisted.requestId);
+    rmSync(primary);
+
+    await expect(persistRelayDraft(project, draft)).resolves.toMatchObject({
+      requestId: persisted.requestId,
+    });
+    const claim = await claimRelayRequest(project, {
+      claimId: 'materializing-owner',
+      leaseMs: 60_000,
+      now: Date.now(),
+    });
+    expect(claim).toMatchObject({ requestId: persisted.requestId });
+  });
+
+  it('does not resurrect materializing state after concurrent discard removes its reservation', async () => {
+    const project = temporaryProject();
+    const draft = request({
+      sourceKey: 'source-discard-materialize',
+      title: 'discard materialize',
+    });
+    const persisted = await persistRelayDraft(project, draft);
+    if (persisted === undefined) throw new Error('missing relay request');
+    rmSync(activeRequestPath(project, persisted.requestId));
+    let continuePersistence: ((value: boolean) => void) | undefined;
+    let markSnapshotted: ((value: boolean) => void) | undefined;
+    // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- The package targets ES2022.
+    const snapshotted = new Promise<boolean>(resolve => {
+      markSnapshotted = resolve;
+    });
+    // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- The package targets ES2022.
+    const resumePersistence = new Promise<boolean>(resolve => {
+      continuePersistence = resolve;
+    });
+    const persistence = persistRelayDraft(project, draft, {
+      faultAfterStateSnapshot: async () => {
+        markSnapshotted?.(true);
+        await resumePersistence;
+      },
+    });
+
+    await snapshotted;
+    await expect(discardRelayRequest(project, persisted.requestId)).resolves.toBe(true);
+    if (continuePersistence === undefined) throw new Error('persistence did not snapshot state');
+    continuePersistence(true);
+
+    await expect(persistence).resolves.toBeUndefined();
+    await expect(listRelayRequests(project)).resolves.toEqual([]);
+  });
+
+  it('blocks late materialization after discard completes its conflict check', async () => {
+    const project = temporaryProject();
+    const draft = request({
+      sourceKey: 'source-discard-conflict-window',
+      title: 'discard conflict window',
+    });
+    const persisted = await persistRelayDraft(project, draft);
+    if (persisted === undefined) throw new Error('missing relay request');
+    rmSync(activeRequestPath(project, persisted.requestId));
+    let continuePersistence: ((value: boolean) => void) | undefined;
+    let markPersistencePaused: ((value: boolean) => void) | undefined;
+    let continueDiscard: ((value: boolean) => void) | undefined;
+    let markConflictChecked: ((value: boolean) => void) | undefined;
+    // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- The package targets ES2022.
+    const persistencePaused = new Promise<boolean>(resolve => {
+      markPersistencePaused = resolve;
+    });
+    // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- The package targets ES2022.
+    const resumePersistence = new Promise<boolean>(resolve => {
+      continuePersistence = resolve;
+    });
+    // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- The package targets ES2022.
+    const conflictChecked = new Promise<boolean>(resolve => {
+      markConflictChecked = resolve;
+    });
+    // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- The package targets ES2022.
+    const resumeDiscard = new Promise<boolean>(resolve => {
+      continueDiscard = resolve;
+    });
+    const persistence = persistRelayDraft(project, draft, {
+      faultAfterStateSnapshot: async () => {
+        markPersistencePaused?.(true);
+        await resumePersistence;
+      },
+    });
+    await persistencePaused;
+    const discard = discardRelayRequest(project, persisted.requestId, {
+      faultAfterConflictCheck: async () => {
+        markConflictChecked?.(true);
+        await resumeDiscard;
+      },
+    });
+    await conflictChecked;
+    if (continuePersistence === undefined) throw new Error('persistence did not pause');
+    continuePersistence(true);
+
+    await expect(persistence).resolves.toBeUndefined();
+    await expect(
+      claimRelayRequest(project, {
+        claimId: 'late-delivery',
+        leaseMs: 60_000,
+        now: Date.now(),
+      }),
+    ).resolves.toBeUndefined();
+    if (continueDiscard === undefined) throw new Error('discard did not check conflicts');
+    continueDiscard(true);
+
+    await expect(discard).resolves.toBe(true);
+    await expect(listRelayRequests(project)).resolves.toEqual([]);
+  });
+
+  it('keeps discard terminal when its owned claim expires before cleanup', async () => {
+    const project = temporaryProject();
+    const draft = request({
+      sourceKey: 'source-expired-discard',
+      title: 'expired discard',
+    });
+    const persisted = await persistRelayDraft(project, draft);
+    if (persisted === undefined) throw new Error('missing relay request');
+    let continueDiscard: ((value: boolean) => void) | undefined;
+    let markTombstoned: ((value: boolean) => void) | undefined;
+    // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- The package targets ES2022.
+    const tombstoned = new Promise<boolean>(resolve => {
+      markTombstoned = resolve;
+    });
+    // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- The package targets ES2022.
+    const resumeDiscard = new Promise<boolean>(resolve => {
+      continueDiscard = resolve;
+    });
+    const discard = discardRelayRequest(project, persisted.requestId, {
+      faultAfterTombstone: async () => {
+        markTombstoned?.(true);
+        await resumeDiscard;
+      },
+    });
+
+    await tombstoned;
+    await recoverRelaySpool(project, Date.now() + 120_000);
+    if (continueDiscard === undefined) throw new Error('discard did not persist its tombstone');
+    continueDiscard(true);
+
+    await expect(discard).resolves.toBe(true);
+    await expect(listRelayRequests(project)).resolves.toEqual([]);
+    await expect(listRelayDeadLetters(project)).resolves.toEqual([]);
+    await expect(discardRelayRequest(project, persisted.requestId)).resolves.toBe(false);
+    expect(
+      readdirSync(path.join(project, '.safeword', 'retro-drafts', 'relay')).filter(filename =>
+        filename.startsWith(persisted.requestId),
+      ),
+    ).toEqual([`${persisted.requestId}.discarded.json`]);
+    const replacement = await persistRelayDraft(project, draft);
+    expect(replacement?.requestId).not.toBe(persisted.requestId);
+  });
+
+  it('does not let direct persistence revive a discarded request identity', async () => {
+    const project = temporaryProject();
+    const persisted = await persistRelayDraft(
+      project,
+      request({ sourceKey: 'source-direct-discard', title: 'direct discard' }),
+    );
+    if (persisted === undefined) throw new Error('missing relay request');
+    await discardRelayRequest(project, persisted.requestId);
+
+    await expect(persistRelayRequest(project, persisted)).rejects.toThrow(
+      'relay request identity was discarded',
+    );
+    await expect(listRelayRequests(project)).resolves.toEqual([]);
+  });
+
+  it('does not report direct persistence success when discard commits during its write', async () => {
+    const project = temporaryProject();
+    const persisted = await persistRelayDraft(
+      project,
+      request({ sourceKey: 'source-direct-race', title: 'direct race' }),
+    );
+    if (persisted === undefined) throw new Error('missing relay request');
+    let continuePersistence: ((value: boolean) => void) | undefined;
+    let markChecked: ((value: boolean) => void) | undefined;
+    // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- The package targets ES2022.
+    const checked = new Promise<boolean>(resolve => {
+      markChecked = resolve;
+    });
+    // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- The package targets ES2022.
+    const resumePersistence = new Promise<boolean>(resolve => {
+      continuePersistence = resolve;
+    });
+    const persistence = persistRelayRequest(project, persisted, {
+      faultAfterDiscardCheck: async () => {
+        markChecked?.(true);
+        await resumePersistence;
+      },
+    });
+
+    await checked;
+    await discardRelayRequest(project, persisted.requestId);
+    if (continuePersistence === undefined) throw new Error('direct persistence did not pause');
+    continuePersistence(true);
+
+    await expect(persistence).rejects.toThrow('relay request identity was discarded');
+    await expect(listRelayRequests(project)).resolves.toEqual([]);
+  });
+
+  it('refuses to discard a dead letter while recovery owns it', async () => {
+    const project = temporaryProject();
+    const draft = request({ sourceKey: 'source-recovering', title: 'recovering' });
+    const persisted = await persistRelayDraft(project, draft);
+    if (persisted === undefined) throw new Error('missing relay request');
+    const primary = activeRequestPath(project, persisted.requestId);
+    renameSync(primary, deadLetterRequestPath(project, persisted.requestId));
+    let releaseResponse: ((value: Response) => void) | undefined;
+    let markStarted: ((value: boolean) => void) | undefined;
+    // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- The package targets ES2022.
+    const response = new Promise<Response>(resolve => {
+      releaseResponse = resolve;
+    });
+    // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- The package targets ES2022.
+    const started = new Promise<boolean>(resolve => {
+      markStarted = resolve;
+    });
+    const fetch = vi.fn<typeof globalThis.fetch>(async () => {
+      markStarted?.(true);
+      return await response;
+    });
+
+    const recovery = recoverRelayDeadLetter(project, persisted.requestId, {
+      credential: 'swc_client_secret',
+      fetch,
+      relayUrl: 'https://relay.example.test',
+    });
+    await started;
+    await expect(discardRelayRequest(project, persisted.requestId)).rejects.toThrow(
+      'relay request is actively claimed',
+    );
+    await expect(persistRelayDraft(project, draft)).resolves.toMatchObject({
+      requestId: persisted.requestId,
+    });
+    if (releaseResponse === undefined) throw new Error('recovery request did not start');
+    releaseResponse(
+      Response.json({
+        issueNumber: 1479,
+        receiptId: 'receipt-recovered',
+        requestId: persisted.requestId,
+        state: 'filed',
+      }),
+    );
+
+    await expect(recovery).resolves.toBe(true);
+    await expect(persistRelayDraft(project, draft)).resolves.toBeUndefined();
+    await expect(listRelayRequests(project)).resolves.toEqual([]);
+  });
+
+  it('does not advance the reservation before a renewed recovery is accepted', async () => {
+    const project = temporaryProject();
+    const draft = request({
+      createdAt: new Date(0).toISOString(),
+      retryDeadlineAt: new Date(1).toISOString(),
+      sourceKey: 'source-renewal-rollback',
+      title: 'renewal rollback',
+    });
+    const persisted = await persistRelayDraft(project, draft);
+    if (persisted === undefined) throw new Error('missing relay request');
+    const primary = activeRequestPath(project, persisted.requestId);
+    renameSync(primary, deadLetterRequestPath(project, persisted.requestId));
+    let releaseRenewedResponse: ((value: Response) => void) | undefined;
+    let markRenewedStarted: ((value: boolean) => void) | undefined;
+    // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- The package targets ES2022.
+    const renewedStarted = new Promise<boolean>(resolve => {
+      markRenewedStarted = resolve;
+    });
+    // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- The package targets ES2022.
+    const renewedResponse = new Promise<Response>(resolve => {
+      releaseRenewedResponse = resolve;
+    });
+    let attempt = 0;
+    const fetch = vi.fn<typeof globalThis.fetch>(async () => {
+      attempt += 1;
+      if (attempt === 1) {
+        return Response.json(
+          { error: 'invalid relay filing request', reason: 'retry-deadline-elapsed' },
+          { status: 400 },
+        );
+      }
+      markRenewedStarted?.(true);
+      return await renewedResponse;
+    });
+
+    const recovery = recoverRelayDeadLetter(project, persisted.requestId, {
+      credential: 'swc_client_secret',
+      fetch,
+      relayUrl: 'https://relay.example.test',
+    });
+    await renewedStarted;
+    const observed = await persistRelayDraft(project, draft);
+    expect(observed?.requestId).toBe(persisted.requestId);
+    expect(Date.parse(observed?.retryDeadlineAt ?? '')).toBeGreaterThan(
+      Date.parse(persisted.retryDeadlineAt),
+    );
+    if (releaseRenewedResponse === undefined) throw new Error('renewed request did not start');
+    releaseRenewedResponse(Response.json({ error: 'definitive rejection' }, { status: 400 }));
+
+    await expect(recovery).resolves.toBe(false);
+    await expect(persistRelayDraft(project, draft)).resolves.toMatchObject({
+      requestId: persisted.requestId,
+      retryDeadlineAt: persisted.retryDeadlineAt,
+    });
+  });
+
+  it('owns a dead letter atomically before discard removes its reservation', async () => {
+    const project = temporaryProject();
+    const draft = request({ sourceKey: 'source-discarding', title: 'discarding' });
+    const persisted = await persistRelayDraft(project, draft);
+    if (persisted === undefined) throw new Error('missing relay request');
+    const primary = activeRequestPath(project, persisted.requestId);
+    renameSync(primary, deadLetterRequestPath(project, persisted.requestId));
+    let releaseDiscard: ((value: boolean) => void) | undefined;
+    let markClaimed: ((value: boolean) => void) | undefined;
+    // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- The package targets ES2022.
+    const claimed = new Promise<boolean>(resolve => {
+      markClaimed = resolve;
+    });
+    // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- The package targets ES2022.
+    const continueDiscard = new Promise<boolean>(resolve => {
+      releaseDiscard = resolve;
+    });
+    const discard = discardRelayRequest(project, persisted.requestId, {
+      faultAfterClaims: async () => {
+        markClaimed?.(true);
+        await continueDiscard;
+      },
+    });
+
+    await claimed;
+    await expect(
+      recoverRelayDeadLetter(project, persisted.requestId, {
+        credential: 'swc_client_secret',
+        fetch: vi.fn<typeof globalThis.fetch>(),
+        relayUrl: 'https://relay.example.test',
+      }),
+    ).resolves.toBe(false);
+    if (releaseDiscard === undefined) throw new Error('discard did not acquire the dead letter');
+    releaseDiscard(true);
+    await expect(discard).resolves.toBe(true);
+    await expect(listRelayDeadLetters(project)).resolves.toEqual([]);
+    const {
+      createdAt: _createdAt,
+      requestId: _requestId,
+      retryDeadlineAt: _deadline,
+      ...replay
+    } = draft;
+    await expect(persistRelayDraft(project, replay)).resolves.not.toMatchObject({
+      requestId: persisted.requestId,
+    });
+  });
+
+  it('restores renewed bytes from an expired recovery claim and reconciles its reservation', async () => {
+    const project = temporaryProject();
+    const draft = request({ sourceKey: 'source-crashed-recovery', title: 'crashed recovery' });
+    const original = await persistRelayDraft(project, draft);
+    if (original === undefined) throw new Error('missing relay request');
+    const primary = activeRequestPath(project, original.requestId);
+    const recoveryClaim = path.join(
+      path.dirname(primary),
+      `${original.requestId}.recovery-claim.crashed-owner.1.json`,
+    );
+    const renewed = {
+      ...original,
+      retryDeadlineAt: new Date(Date.parse(original.retryDeadlineAt) + 86_400_000).toISOString(),
+    };
+    writeFileSync(recoveryClaim, JSON.stringify(renewed));
+    rmSync(primary);
+
+    await recoverRelaySpool(project, 2);
+
+    const replay = await persistRelayDraft(project, draft);
+    expect(replay).toMatchObject({
+      requestId: original.requestId,
+      retryDeadlineAt: renewed.retryDeadlineAt,
+    });
+    const deadLetters = await listRelayDeadLetters(project);
+    expect(deadLetters).toHaveLength(1);
+    expect(JSON.parse(deadLetters[0]?.bytes.toString('utf8') ?? '{}')).toMatchObject(renewed);
+  });
+
+  it('removes an expired recovery-claim duplicate before acknowledgement can resurrect it', async () => {
+    const project = temporaryProject();
+    const draft = request({ sourceKey: 'source-rearm-crash', title: 'rearm crash' });
+    const persisted = await persistRelayDraft(project, draft);
+    if (persisted === undefined) throw new Error('missing relay request');
+    const directory = path.join(project, '.safeword', 'retro-drafts', 'relay');
+    const primary = activeRequestPath(project, persisted.requestId);
+    const recoveryClaim = path.join(
+      directory,
+      `${persisted.requestId}.recovery-claim.rearm-crash.1.json`,
+    );
+    writeFileSync(recoveryClaim, readFileSync(primary));
+
+    await recoverRelaySpool(project, 2);
+    expect(readdirSync(directory)).not.toContain(path.basename(recoveryClaim));
+    const claim = await claimRelayRequest(project, {
+      claimId: 'post-crash-owner',
+      leaseMs: 60_000,
+      now: 2,
+    });
+    if (claim === undefined) throw new Error('missing post-crash claim');
+    await expect(
+      acknowledgeRelayClaim(claim, {
+        issueNumber: 1479,
+        receiptId: 'receipt-rearm-crash',
+        requestId: persisted.requestId,
+        state: 'filed',
+      }),
+    ).resolves.toBe(true);
+    await recoverRelaySpool(project, 120_000);
+    await expect(listRelayDeadLetters(project)).resolves.toEqual([]);
+    await expect(listRelayRequests(project)).resolves.toEqual([]);
+  });
+
+  it.each(['dead-letter', 'recovery-claim'] as const)(
+    'lets a durable acknowledgement clean up a stranded %s',
+    async state => {
+      const project = temporaryProject();
+      const draft = request({ sourceKey: `source-ack-${state}`, title: `ack ${state}` });
+      const persisted = await persistRelayDraft(project, draft);
+      if (persisted === undefined) throw new Error('missing relay request');
+      const active = activeRequestPath(project, persisted.requestId);
+      const activeStem = active.replace(/(?:\.materializing)?\.json$/u, '');
+      const stranded =
+        state === 'dead-letter'
+          ? `${activeStem}.dead-letter.json`
+          : `${activeStem}.recovery-claim.crashed-recovery.1.json`;
+      renameSync(active, stranded);
+      const claim = {
+        bytes: Buffer.from(JSON.stringify(persisted), 'utf8'),
+        path: stranded,
+        requestId: persisted.requestId,
+      };
+
+      await expect(
+        acknowledgeRelayClaim(
+          claim,
+          {
+            issueNumber: 1479,
+            receiptId: `receipt-${state}`,
+            requestId: persisted.requestId,
+            state: 'filed',
+          },
+          { faultAfterAck: () => Promise.reject(new Error('cleanup crash')) },
+        ),
+      ).rejects.toThrow('cleanup crash');
+      await recoverRelaySpool(project, 2);
+
+      await expect(listRelayDeadLetters(project)).resolves.toEqual([]);
+      await expect(listRelayRequests(project)).resolves.toEqual([]);
+      await expect(persistRelayDraft(project, draft)).resolves.toBeUndefined();
+    },
+  );
+
+  it('restores expired recovery claims before listing operator dead letters', async () => {
+    const project = temporaryProject();
+    const draft = request({ sourceKey: 'source-expired-list', title: 'expired list' });
+    const persisted = await persistRelayDraft(project, draft);
+    if (persisted === undefined) throw new Error('missing relay request');
+    const active = activeRequestPath(project, persisted.requestId);
+    renameSync(
+      active,
+      active.replace(/(?:\.materializing)?\.json$/u, '.recovery-claim.expired-list.1.json'),
+    );
+
+    await expect(listRelayDeadLetters(project)).resolves.toEqual([
+      expect.objectContaining({ requestId: persisted.requestId }),
+    ]);
+  });
+
   it('derives the same source identity regardless of payload property insertion order', () => {
     const first = {
       body: 'body',
@@ -194,7 +1081,7 @@ describe('immutable relay delivery spool', () => {
       const original = await persistRelayDraft(project, draft);
       if (original === undefined) throw new Error('missing original request');
       const directory = path.join(project, '.safeword', 'retro-drafts', 'relay');
-      const active = path.join(directory, `${original.requestId}.json`);
+      const active = activeRequestPath(project, original.requestId);
 
       if (state === 'dead-letter') {
         const deadLetter = path.join(directory, `${original.requestId}.dead-letter.json`);
@@ -245,8 +1132,7 @@ describe('immutable relay delivery spool', () => {
       title: 'Poisoned',
     });
     if (poisoned === undefined) throw new Error('missing poisoned request');
-    const directory = path.join(project, '.safeword', 'retro-drafts', 'relay');
-    writeFileSync(path.join(directory, `${poisoned.requestId}.json`), '{"requestId":');
+    writeFileSync(activeRequestPath(project, poisoned.requestId), '{"requestId":');
 
     await expect(
       persistRelayDraft(project, {
@@ -630,6 +1516,7 @@ describe('immutable relay delivery spool', () => {
         project,
         request({
           requestId: `00000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+          sourceKey: `source-bounded-${index}`,
           title,
         }),
       );

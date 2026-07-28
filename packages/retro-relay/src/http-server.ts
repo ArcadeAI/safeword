@@ -95,10 +95,13 @@ function resolvePayloadKeyring(input: RelayServerOptions): PayloadKeyring {
   };
 }
 
-function resolveProcessLock(input: RelayServerOptions): ProcessLock | undefined {
-  if ('processLock' in input) return input.processLock;
-  if (input.lockPath === undefined) return undefined;
-  return ProcessLock.acquire(input.lockPath);
+function resolveProcessLock(input: RelayServerOptions): {
+  lock: ProcessLock | undefined;
+  owned: boolean;
+} {
+  if ('processLock' in input) return { lock: input.processLock, owned: false };
+  if (input.lockPath === undefined) return { lock: undefined, owned: false };
+  return { lock: ProcessLock.acquire(input.lockPath), owned: true };
 }
 
 // eslint-disable-next-line complexity -- Lifecycle setup and the public server contract stay visible together.
@@ -111,11 +114,11 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
   };
   maintain: (now?: Date) => Promise<void>;
 }> {
-  const processLock = resolveProcessLock(input);
+  const { lock: processLock, owned: ownsProcessLock } = resolveProcessLock(input);
   try {
     input.store.recoverInFlight();
   } catch (error) {
-    processLock?.release();
+    if (ownsProcessLock) processLock?.release();
     throw error;
   }
   const { afterReceiptCommit, ...serviceFaults } = input.faults ?? {};
@@ -188,7 +191,7 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
   maintenanceTimer?.unref();
   server.once('close', () => {
     if (maintenanceTimer !== undefined) clearInterval(maintenanceTimer);
-    processLock?.release();
+    if (ownsProcessLock) processLock?.release();
   });
 
   // eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- A single composition-root router keeps the public contract visible.
@@ -357,13 +360,13 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
       server.listen(input.port ?? 0, input.host ?? '127.0.0.1', resolve);
     });
   } catch (error) {
-    processLock?.release();
+    if (ownsProcessLock) processLock?.release();
     throw error;
   }
   const address = server.address();
   if (address === null || typeof address === 'string') {
     server.close();
-    processLock?.release();
+    if (ownsProcessLock) processLock?.release();
     throw new Error('relay did not bind a TCP address');
   }
   return {

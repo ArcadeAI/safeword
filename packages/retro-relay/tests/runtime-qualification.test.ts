@@ -100,6 +100,8 @@ describe('retro relay runtime qualification', () => {
     );
 
     expect(dockerfile.match(/^FROM .+@sha256:[\da-f]{64}/gmu)).toHaveLength(2);
+    expect(dockerfile).toContain('snapshot.debian.org/archive/debian/');
+    expect(dockerfile).toContain('check-valid-until=no');
     expect(dockerfile).toContain('gosu=1.14-1+b10');
     expect(dockerfile).toContain('ENTRYPOINT ["relay-entrypoint"]');
     expect(entrypoint).toContain('chown -R node:node');
@@ -158,6 +160,50 @@ describe('retro relay runtime qualification', () => {
     expect(() => ProcessLock.acquire(`${directory}/./relay.lock`)).toThrow('already locked');
     lock.release();
 
+    const recovered = ProcessLock.acquire(lockPath);
+    recovered.release();
+  });
+
+  it('keeps an externally owned process lock until its store owner releases it', async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-lock-ownership-'));
+    temporaryDirectories.push(directory);
+    const lockPath = path.join(directory, 'relay.lock');
+    const lock = ProcessLock.acquire(lockPath);
+    const store = RelayStore.open(path.join(directory, 'relay.sqlite'));
+    const { startRelayServer } = await import('../src/http-server.js');
+    const { CredentialRegistry } = await import('../src/auth.js');
+    const { GitHubRestClient } = await import('../src/github.js');
+    const credentials = new CredentialRegistry('pepper');
+    credentials.issue({
+      credentialId: 'test',
+      harness: 'codex',
+      installationId: 1,
+      repository: 'arcadeai/safeword',
+      roles: ['file'],
+      secret: 'a'.repeat(64),
+      subject: 'test',
+      tenantId: 'test',
+    });
+    const relay = await startRelayServer({
+      credentials,
+      github: new GitHubRestClient({
+        baseUrl: 'https://api.github.com',
+        installationToken: () => Promise.resolve('token'),
+      }),
+      payloadKey: Buffer.alloc(32, 7),
+      processLock: lock,
+      store,
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      relay.server.close(error => {
+        if (error === undefined) resolve();
+        else reject(error);
+      });
+    });
+    expect(() => ProcessLock.acquire(lockPath)).toThrow('already locked');
+    store.close();
+    lock.release();
     const recovered = ProcessLock.acquire(lockPath);
     recovered.release();
   });

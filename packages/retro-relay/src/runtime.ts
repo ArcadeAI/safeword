@@ -16,6 +16,35 @@ export interface RelayRuntime {
   close: () => Promise<void>;
 }
 
+export async function closeRelayRuntimeResources(
+  server: {
+    close: (callback: (error?: Error) => void) => void;
+    closeAllConnections: () => void;
+  },
+  store: Pick<RelayStore, 'close'>,
+  processLock: Pick<ProcessLock, 'release'>,
+): Promise<void> {
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const forceClose = setTimeout(() => {
+        server.closeAllConnections();
+      }, 25_000);
+      forceClose.unref();
+      server.close(error => {
+        clearTimeout(forceClose);
+        if (error === undefined) resolve();
+        else reject(error);
+      });
+    });
+  } finally {
+    try {
+      store.close();
+    } finally {
+      processLock.release();
+    }
+  }
+}
+
 export async function startRelayRuntime(
   config: RuntimeConfig,
   log: (event: Record<string, unknown>) => void = event => {
@@ -88,18 +117,7 @@ export async function startRelayRuntime(
       close: async () => {
         if (closed) return;
         closed = true;
-        await new Promise<void>((resolve, reject) => {
-          const forceClose = setTimeout(() => {
-            relay.server.closeAllConnections();
-          }, 25_000);
-          forceClose.unref();
-          relay.server.close(error => {
-            clearTimeout(forceClose);
-            if (error === undefined) resolve();
-            else reject(error);
-          });
-        });
-        store.close();
+        await closeRelayRuntimeResources(relay.server, store, processLock);
       },
     };
   } catch (error) {

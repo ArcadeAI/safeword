@@ -4,9 +4,10 @@ import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { parseRuntimeConfig, ProcessLock, RelayStore, startRelayRuntime } from '../src/index.js';
+import { closeRelayRuntimeResources } from '../src/runtime.js';
 
 const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
 const privateKeyBase64 = Buffer.from(privateKey.export({ format: 'pem', type: 'pkcs8' })).toString(
@@ -99,6 +100,25 @@ async function availablePort(): Promise<number> {
 }
 
 describe('production runtime configuration', () => {
+  it('closes the store and releases the process lock when server close reports an error', async () => {
+    const close = vi.fn((callback: (error?: Error) => void) => {
+      callback(new Error('server close failed'));
+    });
+    const closeAllConnections = vi.fn();
+    const closeStore = vi.fn();
+    const release = vi.fn();
+
+    await expect(
+      closeRelayRuntimeResources(
+        { close, closeAllConnections },
+        { close: closeStore },
+        { release },
+      ),
+    ).rejects.toThrow('server close failed');
+    expect(closeStore).toHaveBeenCalledOnce();
+    expect(release).toHaveBeenCalledOnce();
+  });
+
   it.each([
     'HOST',
     'PORT',
