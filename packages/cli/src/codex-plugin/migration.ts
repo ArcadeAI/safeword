@@ -1,9 +1,11 @@
+import { SAFEWORD_SCHEMA } from '../schema.js';
 import type { CodexHookProofObservation } from './profile-proof.js';
 
 type CodexMigrationState =
   | 'recovery_required'
   | 'plugin_setup_required'
   | 'plugin_disabled'
+  | 'plugin_update_required'
   | 'legacy'
   | 'plugin_installed_restart_required'
   | 'plugin_enabled_hook_unproven'
@@ -41,6 +43,19 @@ export interface CodexMigrationFacts {
   finalized: boolean;
   recoveryRequired: boolean;
   restartPending: boolean;
+}
+
+export function codexPluginVersionMatchesPackage(plugin: CodexPluginObservation): boolean {
+  return plugin.version === null || plugin.version === SAFEWORD_SCHEMA.version;
+}
+
+function pluginProtectionIsCurrent(facts: CodexMigrationFacts): boolean {
+  return (
+    facts.plugin.enabled === true &&
+    codexPluginVersionMatchesPackage(facts.plugin) &&
+    facts.proof.status === 'current' &&
+    (facts.plugin.version === null || facts.proof.plugin_version === facts.plugin.version)
+  );
 }
 
 export function deriveCodexMigrationResult(facts: CodexMigrationFacts): CodexMigrationResultV1 {
@@ -93,21 +108,25 @@ const MIGRATION_STATE_RULES: readonly {
     matches: facts => facts.plugin.installed && facts.plugin.enabled === false,
   },
   {
+    state: 'plugin_update_required',
+    matches: facts =>
+      facts.plugin.enabled === true && !codexPluginVersionMatchesPackage(facts.plugin),
+  },
+  {
     state: 'plugin_installed_restart_required',
     matches: facts => facts.restartPending && facts.plugin.enabled === true,
   },
   {
     state: 'plugin_enabled_hook_unproven',
-    matches: facts => facts.plugin.enabled === true && facts.proof.status !== 'current',
+    matches: facts => facts.plugin.enabled === true && !pluginProtectionIsCurrent(facts),
   },
   {
     state: 'compatibility',
-    matches: (facts, hasLegacy) =>
-      facts.plugin.enabled === true && facts.proof.status === 'current' && hasLegacy,
+    matches: (facts, hasLegacy) => pluginProtectionIsCurrent(facts) && hasLegacy,
   },
   {
     state: 'plugin',
-    matches: facts => facts.plugin.enabled === true && facts.proof.status === 'current',
+    matches: facts => pluginProtectionIsCurrent(facts),
   },
   { state: 'legacy', matches: (_facts, hasLegacy) => hasLegacy },
 ];
@@ -122,33 +141,26 @@ function legacyProtection(
   facts: CodexMigrationFacts,
   hasLegacy: boolean,
 ): CodexMigrationResultV1['protected'] {
-  if (facts.plugin.enabled === true && facts.proof.status === 'current') return 'protected';
+  if (pluginProtectionIsCurrent(facts)) return 'protected';
   if (!hasLegacy || facts.viableLegacyEvents.length === 0) return 'unprotected';
   return facts.viableLegacyEvents.length === facts.legacyEvents.length ? 'protected' : 'partial';
 }
 
+const NEXT_ACTIONS = {
+  recovery_required: 'safeword codex recover',
+  compatibility: 'safeword codex migrate --finalize',
+  plugin: undefined,
+  plugin_installed_restart_required: 'safeword codex status',
+  plugin_enabled_hook_unproven: 'safeword codex status',
+  plugin_setup_required: 'safeword codex migrate',
+  plugin_disabled: 'safeword codex migrate',
+  plugin_update_required: 'safeword codex migrate',
+  legacy: 'safeword codex migrate',
+  not_configured: 'safeword codex migrate',
+} as const satisfies Readonly<Record<CodexMigrationState, string | undefined>>;
+
 function nextAction(state: CodexMigrationState): string | undefined {
-  switch (state) {
-    case 'recovery_required': {
-      return 'safeword codex recover';
-    }
-    case 'compatibility': {
-      return 'safeword codex migrate --finalize';
-    }
-    case 'plugin': {
-      return undefined;
-    }
-    case 'plugin_installed_restart_required':
-    case 'plugin_enabled_hook_unproven': {
-      return 'safeword codex status';
-    }
-    case 'plugin_setup_required':
-    case 'plugin_disabled':
-    case 'legacy':
-    case 'not_configured': {
-      return 'safeword codex migrate';
-    }
-  }
+  return NEXT_ACTIONS[state];
 }
 
 export function renderCodexMigrationHuman(result: CodexMigrationResultV1): string {

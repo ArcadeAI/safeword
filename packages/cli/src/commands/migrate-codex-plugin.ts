@@ -22,6 +22,7 @@ import {
   codexMigrationExitCode,
   type CodexMigrationResultV1,
   type CodexPluginObservation,
+  codexPluginVersionMatchesPackage,
   deriveCodexMigrationResult,
   renderCodexMigrationHuman,
 } from '../codex-plugin/migration.js';
@@ -67,16 +68,8 @@ function run(command: string, arguments_: string[]): string {
   return result.stdout;
 }
 
-function pluginIsEnabled(output: string): boolean {
+function pluginObservationFromList(output: string): CodexPluginObservation {
   const parsed = JSON.parse(output) as CodexPluginList;
-  return (
-    parsed.installed?.some(plugin => plugin.pluginId === PLUGIN_ID && plugin.enabled === true) ??
-    false
-  );
-}
-
-function observeCodexPlugin(): CodexPluginObservation {
-  const parsed = JSON.parse(run('codex', ['plugin', 'list', '--json'])) as CodexPluginList;
   const plugin = parsed.installed?.find(candidate => candidate.pluginId === PLUGIN_ID);
   return {
     installed: plugin !== undefined,
@@ -84,6 +77,10 @@ function observeCodexPlugin(): CodexPluginObservation {
     version: plugin?.version ?? null,
     observation: 'observed',
   };
+}
+
+function observeCodexPlugin(): CodexPluginObservation {
+  return pluginObservationFromList(run('codex', ['plugin', 'list', '--json']));
 }
 
 interface TextRange {
@@ -404,9 +401,15 @@ function verifyCodexPluginIsEnabled(options: { installationCompleted?: boolean }
         : 'Could not verify the Safe Word Codex plugin';
     throw new Error(`${prefix}: ${String(error)}`, { cause: error });
   }
-  if (!pluginIsEnabled(pluginList)) {
+  const plugin = pluginObservationFromList(pluginList);
+  if (plugin.enabled !== true) {
     throw new Error(
       'Codex did not report the Safe Word plugin as enabled. Enable safeword@safeword, then re-run this command; project hooks were left unchanged.',
+    );
+  }
+  if (plugin.version !== null && plugin.version !== SAFEWORD_SCHEMA.version) {
+    throw new Error(
+      `Codex reported Safe Word plugin ${plugin.version}, but ${SAFEWORD_SCHEMA.version} is required. Re-run safeword codex install to update it; project hooks were left unchanged.`,
     );
   }
 }
@@ -505,28 +508,20 @@ export function observeCodexMigrationResult(
   return result;
 }
 
+const CODEX_MIGRATION_MESSAGES: Partial<Readonly<Record<CodexMigrationResultV1['state'], string>>> =
+  {
+    plugin_installed_restart_required:
+      'Start a new Codex session to load the plugin, then review its hooks with /hooks.',
+    compatibility:
+      'Codex is protected by the current profile plugin; verified legacy protection remains until explicit finalization.',
+    plugin_enabled_hook_unproven:
+      'Codex migration state: plugin_enabled_hook_unproven. Start a new Codex session and review /hooks; when protection is confirmed, run safeword codex migrate --finalize.',
+    recovery_required:
+      'Codex migration state: recovery_required. Recovery is required before migration can continue.',
+  };
+
 function codexMigrationMessage(state: CodexMigrationResultV1['state']): string {
-  switch (state) {
-    case 'plugin_installed_restart_required': {
-      return 'Start a new Codex session to load the plugin, then review its hooks with /hooks.';
-    }
-    case 'compatibility': {
-      return 'Codex is protected by the current profile plugin; verified legacy protection remains until explicit finalization.';
-    }
-    case 'plugin_enabled_hook_unproven': {
-      return 'Codex migration state: plugin_enabled_hook_unproven. Start a new Codex session and review /hooks; when protection is confirmed, run safeword codex migrate --finalize.';
-    }
-    case 'recovery_required': {
-      return 'Codex migration state: recovery_required. Recovery is required before migration can continue.';
-    }
-    case 'legacy':
-    case 'not_configured':
-    case 'plugin':
-    case 'plugin_disabled':
-    case 'plugin_setup_required': {
-      return `Codex migration state: ${state}.`;
-    }
-  }
+  return CODEX_MIGRATION_MESSAGES[state] ?? `Codex migration state: ${state}.`;
 }
 
 export function observeCodexMigration(
@@ -660,7 +655,8 @@ export function previewCodexFinalization(
   }
   const environment = options.environment ?? process.env;
   const result = observeCodexMigrationResult(cwd, environment);
-  if (result.proof.status === 'current') {
+  const identityError = codexFinalizationIdentityError(result);
+  if (identityError === undefined) {
     const preparedLegacyHookRemoval = prepareLegacyHookRemoval(cwd);
     result.effects.files = buildCodexFinalizationMutations(cwd, preparedLegacyHookRemoval).map(
       mutation => {
@@ -673,15 +669,31 @@ export function previewCodexFinalization(
       },
     );
   } else {
-    result.errors.push({
-      code: 'FINALIZATION_PROOF_REQUIRED',
-      message:
-        'Finalization requires current plugin hook proof. Start a new Codex session, review /hooks, then retry.',
-      retryable: true,
-    });
+    result.errors.push(identityError);
   }
   process.stdout.write(`${JSON.stringify(result)}\n`);
   process.exitCode = codexMigrationExitCode(result);
+}
+
+function codexFinalizationIdentityError(
+  result: CodexMigrationResultV1,
+): CodexMigrationResultV1['errors'][number] | undefined {
+  const pluginUpdateRequired =
+    result.plugin.version !== null && result.plugin.version !== SAFEWORD_SCHEMA.version;
+  if (pluginUpdateRequired) {
+    return {
+      code: 'PLUGIN_UPDATE_REQUIRED',
+      message: `Finalization requires Safe Word plugin ${SAFEWORD_SCHEMA.version}; ${result.plugin.version} is installed. Re-run safeword codex install, then review /hooks.`,
+      retryable: true,
+    };
+  }
+  if (result.proof.status === 'current') return undefined;
+  return {
+    code: 'FINALIZATION_PROOF_REQUIRED',
+    message:
+      'Finalization requires current plugin hook proof. Start a new Codex session, review /hooks, then retry.',
+    retryable: true,
+  };
 }
 
 export function installCodexPlugin(
@@ -731,7 +743,8 @@ function shouldReportExistingMigrationState(
 ): boolean {
   if (codexRecoveryIsRequired(cwd)) return true;
   if (options.reportMigrationState !== true) return false;
-  return observeCodexMigrationResult(cwd, options.environment).plugin.enabled === true;
+  const plugin = observeCodexMigrationResult(cwd, options.environment).plugin;
+  return plugin.enabled === true && codexPluginVersionMatchesPackage(plugin);
 }
 
 function buildCodexFinalizationMutations(

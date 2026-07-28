@@ -17,6 +17,9 @@ set -eu
 printf '%s\n' "$*" >> "$SAFEWORD_GH_LOG"
 case "$*" in
   "api user --jq .login")
+    if [ "$SAFEWORD_GH_AUTH_FAIL" = "1" ]; then
+      exit 1
+    fi
     printf 'alex\n'
     ;;
   "issue create "*)
@@ -64,6 +67,7 @@ function githubEnvironment(
     PATH: `${fixture.bin}:${process.env.PATH ?? ''}`,
     GITHUB_TOKEN: `ghp_${'a'.repeat(24)}`,
     SAFEWORD_GH_LOG: fixture.log,
+    SAFEWORD_GH_AUTH_FAIL: '0',
     SAFEWORD_NO_UPDATE_CHECK: '1',
   };
 }
@@ -104,6 +108,50 @@ describe('configured public-command wiring', () => {
     const trackerMapPath = nodePath.join(directory, '.safeword/tracker-map.json');
     const trackerMap = JSON.parse(readFileSync(trackerMapPath, 'utf8'));
     expect(trackerMap).toEqual({ version: 1, issues: {} });
+    expect(readFileSync(github.log, 'utf8')).toContain('api user --jq .login');
+  });
+
+  it('reports config and network effects when tracker verification fails', async () => {
+    const directory = createTemporaryDirectory();
+    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+    const github = installFakeGitHubCli(directory);
+
+    const result = await runCli(
+      [
+        'tracker',
+        'connect',
+        'github',
+        '--repo',
+        'acme/demo',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: { ...githubEnvironment(github), SAFEWORD_GH_AUTH_FAIL: '1' },
+      },
+    );
+
+    expect(result).toMatchObject({ exitCode: 1, stderr: '' });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'failed',
+      changed: true,
+      effects: {
+        files: [{ kind: 'create', target: '.safeword/config.json', operation: 'write' }],
+        network: [{ kind: 'verify-auth', target: 'github', operation: 'read' }],
+      },
+      recovery: [
+        {
+          command: `safeword tracker connect 'github' --repo 'acme/demo' --cwd '${directory}'`,
+          requires_human: false,
+        },
+      ],
+    });
+    expect(readFileSync(nodePath.join(directory, '.safeword/config.json'), 'utf8')).toContain(
+      '"provider": "github"',
+    );
     expect(readFileSync(github.log, 'utf8')).toContain('api user --jq .login');
   });
 
@@ -198,6 +246,57 @@ describe('configured public-command wiring', () => {
       },
     });
     expect(readFileSync(github.log, 'utf8')).toContain('issue create');
+  });
+
+  it('reports a remote issue and pending sidecar when local ticket creation fails', async () => {
+    const directory = createTemporaryDirectory();
+    configuredGitHubProject(directory);
+    const ticketsDirectory = nodePath.join(directory, '.project/tickets');
+    mkdirSync(ticketsDirectory, { recursive: true });
+    chmodSync(ticketsDirectory, 0o000);
+    const github = installFakeGitHubCli(directory);
+
+    try {
+      const result = await runCli(
+        [
+          'ticket',
+          'new',
+          'partial-ticket',
+          '--type',
+          'task',
+          '--json',
+          '--no-input',
+          '--cwd',
+          directory,
+        ],
+        { cwd: directory, env: githubEnvironment(github) },
+      );
+
+      expect(result).toMatchObject({ exitCode: 1, stderr: '' });
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        state: 'failed',
+        changed: true,
+        effects: {
+          files: [{ kind: 'create', target: '.safeword/tracker-map.json', operation: 'write' }],
+          network: [{ kind: 'issue-create', target: 'github', operation: 'write' }],
+        },
+        recovery: [
+          {
+            command: 'safeword tracker sync',
+            requires_human: false,
+          },
+        ],
+      });
+      expect(readFileSync(github.log, 'utf8')).toContain('issue create');
+      const sidecar = readFileSync(nodePath.join(directory, '.safeword/tracker-map.json'), 'utf8');
+      expect(JSON.parse(sidecar)).toMatchObject({
+        issues: {
+          '321': { status: 'pending', ref: { provider: 'github', id: '321' } },
+        },
+      });
+    } finally {
+      chmodSync(ticketsDirectory, 0o700);
+    }
   });
 
   it('preserves the configured ticket invocation when offline mode refuses its network path', async () => {

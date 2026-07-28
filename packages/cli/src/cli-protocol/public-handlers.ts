@@ -410,29 +410,67 @@ function numericOption(
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-function trackerConnectEffects(
-  provider: string,
-  connected: boolean,
-): Partial<CliResult['effects']> {
-  if (provider !== 'github' && provider !== 'linear') return {};
+interface JournalMutation {
+  readonly surface: 'file' | 'configuration' | 'network';
+  readonly kind: string;
+  readonly target: string;
+  readonly operation: string;
+}
+
+function journalEffects(mutations: readonly JournalMutation[]): Partial<CliResult['effects']> {
+  const toEffect = ({ kind, target, operation }: JournalMutation) => ({
+    kind,
+    target,
+    operation,
+  });
   return {
-    files: [
-      { kind: 'update', target: '.safeword/config.json' },
-      ...(connected ? [{ kind: 'create', target: '.safeword/tracker-map.json' }] : []),
-    ],
+    files: mutations
+      .filter(mutation => mutation.surface === 'file')
+      .map(mutation => toEffect(mutation)),
+    configuration: mutations
+      .filter(mutation => mutation.surface === 'configuration')
+      .map(mutation => toEffect(mutation)),
+    network: mutations
+      .filter(mutation => mutation.surface === 'network')
+      .map(mutation => toEffect(mutation)),
   };
+}
+
+function trackerConnectReplayCommand(provider: string, invocation: CommandInvocation): string {
+  const options = [
+    ['--repo', stringOption(invocation.options, 'repo')],
+    ['--team', stringOption(invocation.options, 'team')],
+    ['--workspace', stringOption(invocation.options, 'workspace')],
+  ] as const;
+  return [
+    'safeword tracker connect',
+    shellArgument(provider),
+    ...options.flatMap(([flag, value]) =>
+      value === undefined ? [] : [flag, shellArgument(value)],
+    ),
+    '--cwd',
+    shellArgument(invocation.cwd),
+  ].join(' ');
 }
 
 function trackerConnectResult(
   provider: string,
-  result: { readonly exitCode: number; readonly connected: boolean },
+  result: {
+    readonly exitCode: number;
+    readonly connected: boolean;
+    readonly mutations: readonly JournalMutation[];
+  },
   messages: readonly string[],
+  invocation: CommandInvocation,
 ): CliResult {
   const succeeded = result.exitCode === 0;
+  const changed = result.mutations.some(mutation => mutation.surface !== 'network');
+  let state: CliResult['state'] = 'failed';
+  if (succeeded) state = changed ? 'changed' : 'healthy';
   return createResult({
-    state: succeeded ? 'changed' : 'failed',
-    changed: succeeded,
-    effects: trackerConnectEffects(provider, result.connected),
+    state,
+    changed,
+    effects: journalEffects(result.mutations),
     errors: succeeded
       ? []
       : [
@@ -442,6 +480,17 @@ function trackerConnectResult(
             retryable: true,
           },
         ],
+    recovery:
+      !succeeded && changed
+        ? [
+            {
+              command: trackerConnectReplayCommand(provider, invocation),
+              description:
+                'Retry verification and finish tracker setup using the persisted configuration.',
+              requiresHuman: false,
+            },
+          ]
+        : [],
     data: { command: 'tracker connect', provider, connected: result.connected, messages },
   });
 }
@@ -477,7 +526,7 @@ async function runTrackerConnect(invocation: CommandInvocation): Promise<CliResu
       prompt: { confirm: () => Promise.resolve(false) },
     },
   );
-  return trackerConnectResult(provider, result, messages);
+  return trackerConnectResult(provider, result, messages, invocation);
 }
 
 interface TrackerSyncResultInput {
@@ -789,7 +838,9 @@ function runCodexInstall(
   migration: typeof CodexMigration,
 ): CliResult {
   const before = migration.observeCodexMigrationResult(invocation.cwd);
-  if (before.plugin.enabled === true) return migration.observeCodexMigration(invocation.cwd);
+  if (before.plugin.enabled === true && before.state !== 'plugin_update_required') {
+    return migration.observeCodexMigration(invocation.cwd);
+  }
   migration.installCodexPlugin({
     cwd: invocation.cwd,
     json: true,
@@ -802,7 +853,12 @@ function runCodexInstall(
     changed: true,
     effects: {
       ...observed.effects,
-      configuration: [{ kind: 'enable', target: 'Safeword Codex profile plugin' }],
+      configuration: [
+        {
+          kind: before.plugin.installed ? 'update' : 'enable',
+          target: 'Safeword Codex profile plugin',
+        },
+      ],
     },
   };
 }
@@ -920,6 +976,32 @@ function isCodexFinalization(name: CodexMutationName, invocation: CommandInvocat
   );
 }
 
+function codexPluginUpdateFailure(observed: CliResult): CliResult | undefined {
+  const migrationState = (observed.data as { migration_state?: string } | undefined)
+    ?.migration_state;
+  if (migrationState !== 'plugin_update_required') return undefined;
+  return {
+    ...observed,
+    state: 'failed',
+    errors: [
+      ...observed.errors,
+      {
+        code: 'PLUGIN_UPDATE_REQUIRED',
+        message:
+          'Finalization requires the packaged Safe Word plugin version. Run safeword codex install, start a new session, and review /hooks.',
+        retryable: true,
+      },
+    ],
+    nextActions: [
+      {
+        command: 'safeword codex install',
+        mutates: true,
+        requiresHuman: false,
+      },
+    ],
+  };
+}
+
 async function codexFinalizationPreflight(
   invocation: CommandInvocation,
   migration: typeof CodexMigration,
@@ -929,6 +1011,9 @@ async function codexFinalizationPreflight(
     return migration.observeCodexMigration(invocation.cwd);
   }
   const observedPlan = codexFinalizationPlan(invocation.cwd, migration);
+  const observed = migration.observeCodexMigration(invocation.cwd);
+  const pluginUpdateFailure = codexPluginUpdateFailure(observed);
+  if (pluginUpdateFailure !== undefined) return pluginUpdateFailure;
   const suppliedPlan =
     typeof invocation.options.plan === 'string' ? invocation.options.plan : undefined;
   const deprecatedAssumeYes =

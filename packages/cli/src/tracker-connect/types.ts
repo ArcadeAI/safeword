@@ -37,4 +37,12 @@ export interface VerifyClient {
 export interface ConnectResult {
   exitCode: number;
   connected: boolean;
+  mutations: readonly ConnectMutation[];
+}
+
+export interface ConnectMutation {
+  surface: 'file' | 'configuration' | 'network';
+  kind: string;
+  target: string;
+  operation: string;
 }

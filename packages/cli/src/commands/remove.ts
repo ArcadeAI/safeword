@@ -175,6 +175,22 @@ async function applyRemoval(
   });
 }
 
+function partialRemovalEffects(
+  removeError: unknown,
+): (Partial<CliResult['effects']> & Pick<CliResult['effects'], 'destructive'>) | undefined {
+  if (!(removeError instanceof ReconcileExecutionError)) return undefined;
+  return {
+    files: [],
+    packages: [],
+    configuration: [],
+    network: [],
+    destructive: removeError.partial.removed.map(target => ({
+      kind: 'remove',
+      target,
+    })),
+  };
+}
+
 export async function removeProject(cwd: string, options: RemoveOptions): Promise<CliResult> {
   if (!existsSync(nodePath.join(cwd, '.safeword'))) {
     return createResult({
@@ -198,22 +214,10 @@ export async function removeProject(cwd: string, options: RemoveOptions): Promis
     if (options.plan !== plan.id) return stalePlan(plan);
     return await applyRemoval(cwd, mode, options.full === true);
   } catch (removeError) {
-    const partial =
-      removeError instanceof ReconcileExecutionError
-        ? {
-            files: [],
-            packages: [],
-            configuration: [],
-            network: [],
-            destructive: removeError.partial.removed.map(target => ({
-              kind: 'remove',
-              target,
-            })),
-          }
-        : undefined;
+    const partial = partialRemovalEffects(removeError);
     return createResult({
       state: 'failed',
-      changed: partial?.destructive.length !== 0,
+      changed: (partial?.destructive.length ?? 0) !== 0,
       effects: partial,
       errors: [
         {

@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Implemented
 
 ## Context
 
@@ -113,6 +113,7 @@ type CodexMigrationState =
   | 'recovery_required'
   | 'plugin_setup_required'
   | 'plugin_disabled'
+  | 'plugin_update_required'
   | 'legacy'
   | 'plugin_installed_restart_required'
   | 'plugin_enabled_hook_unproven'
@@ -131,6 +132,7 @@ status, legacy events/assets, and zero or one next action.
 | `recovery_required` | Report recovery only | Refuse; recovery first | Refuse | Conflict-check and restore; rerun is no-op after success |
 | `plugin_setup_required` | Report bootstrap install path | Install → `plugin_installed_restart_required` | Refuse | No-op |
 | `plugin_disabled` | Report enablement action | Enable/install → `plugin_installed_restart_required` | Refuse | No-op |
+| `plugin_update_required` | Report version mismatch | Update → `plugin_installed_restart_required` | Refuse | No-op |
 | `legacy` | Report protected/partial legacy | Install/enable → `plugin_installed_restart_required` | Refuse without current proof | No-op |
 | `plugin_installed_restart_required` | Report restart/review until marked SessionStart writes proof | Idempotently report restart/review | Refuse | No-op |
 | `plugin_enabled_hook_unproven` | Report protection from viable legacy events | Idempotently report restart/review | Refuse | No-op |
@@ -144,46 +146,55 @@ an unchanged result.
 
 ## JSON Contract
 
-`CodexMigrationResultV1` requires:
+The domain derives `CodexMigrationResultV1`, but issue #1574 established one
+shared public wire contract for every command. The CLI adapter therefore maps
+the Codex result into `CliResult` and publishes
+`packages/cli/schemas/cli-result-v1.schema.json`:
 
 ```ts
-interface CodexMigrationResultV1 {
-  schema_version: '1';
+interface CliResult {
+  schemaVersion: 1;
   ok: boolean;
-  state: CodexMigrationState;
-  protected: 'protected' | 'partial' | 'unprotected' | 'uncertain';
+  state: 'healthy' | 'changed' | 'action_required' | 'failed';
   changed: boolean;
-  plugin: {
-    installed: boolean;
-    enabled: boolean | null;
-    version: string | null;
-    observation: 'observed' | 'unknown';
+  findings: Finding[];
+  effects: {
+    files: Effect[];
+    packages: Effect[];
+    configuration: Effect[];
+    network: Effect[];
+    destructive: Effect[];
   };
-  proof: {
-    status: 'current' | 'missing' | 'stale' | 'malformed';
-    plugin_version: string | null;
-    manifest_sha256: string | null;
-    recorded_at: string | null;
-  };
-  legacy: { events: string[]; viable_events: string[]; assets: string[] };
-  effects: { files: Array<{ path: string; action: string }> };
   errors: Array<{ code: string; message: string; retryable: boolean }>;
-  next_actions: Array<{
-    command: string;
-    mutates: boolean;
-    requires_human: boolean;
-  }>;
+  recovery: RecoveryAction[];
+  nextActions: NextAction[];
+  data: {
+    command: 'codex status';
+    migration_state: CodexMigrationState;
+    protected: 'protected' | 'partial' | 'unprotected' | 'uncertain';
+    plugin: {
+      installed: boolean;
+      enabled: boolean | null;
+      version: string | null;
+      observation: 'observed' | 'unknown';
+    };
+    proof: {
+      status: 'current' | 'missing' | 'stale' | 'malformed';
+      plugin_version: string | null;
+      manifest_sha256: string | null;
+      recorded_at: string | null;
+    };
+    legacy: { events: string[]; viable_events: string[]; assets: string[] };
+  }
 }
 ```
 
-There is at most one next action. Exit `0` means ready/no action, `2` means a
-valid state needs action, and `1` means execution error.
+Wire rendering converts camelCase to the schema's snake_case keys. There is at
+most one next action. Exit `0` means ready/no action, `2` means a valid state
+needs action, and `1` means execution error.
 
-`effects.files[].action` is one of `create | update | remove | restore`.
-`errors[].code` comes from the registry in `spec.md`; the initial registry
-covers Codex availability/observation/install, proof write, finalization proof
-and confirmation, ambiguous config, unsafe path, backup conflict,
-finalization/rollback failure, and recovery conflict/failure. Next-action
+Every effect is `{kind, target, operation?}` in one of the five shared
+categories. `errors[].code` comes from the registry in `spec.md`; next-action
 commands are exact public command strings.
 
 ## Failure Handling

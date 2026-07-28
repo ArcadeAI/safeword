@@ -8,6 +8,7 @@ import {
   deriveCodexMigrationResult,
   renderCodexMigrationHuman,
 } from '../../src/codex-plugin/migration.js';
+import { SAFEWORD_SCHEMA } from '../../src/schema.js';
 
 const missingProof: CodexMigrationFacts['proof'] = {
   status: 'missing',
@@ -18,7 +19,7 @@ const missingProof: CodexMigrationFacts['proof'] = {
 
 const currentProof: CodexMigrationFacts['proof'] = {
   status: 'current',
-  plugin_version: '1.0.0',
+  plugin_version: SAFEWORD_SCHEMA.version,
   manifest_sha256: 'digest',
   recorded_at: '2026-07-28T00:00:00.000Z',
 };
@@ -26,7 +27,7 @@ const currentProof: CodexMigrationFacts['proof'] = {
 const enabledPlugin: CodexMigrationFacts['plugin'] = {
   installed: true,
   enabled: true,
-  version: '1.0.0',
+  version: SAFEWORD_SCHEMA.version,
   observation: 'observed',
 };
 
@@ -50,6 +51,39 @@ function facts(overrides: Partial<CodexMigrationFacts> = {}): CodexMigrationFact
 }
 
 describe('Codex migration result', () => {
+  it('requires an update when the enabled plugin version differs from the package', () => {
+    const result = deriveCodexMigrationResult(
+      facts({
+        plugin: { ...enabledPlugin, version: '0.68.0' },
+        proof: currentProof,
+        legacyEvents: ['PreToolUse'],
+        viableLegacyEvents: ['PreToolUse'],
+      }),
+    );
+
+    expect(result).toMatchObject({
+      state: 'plugin_update_required',
+      protected: 'protected',
+      next_actions: [{ command: 'safeword codex migrate' }],
+    });
+  });
+
+  it('does not accept proof whose version differs from the installed plugin', () => {
+    const result = deriveCodexMigrationResult(
+      facts({
+        plugin: enabledPlugin,
+        proof: { ...currentProof, plugin_version: '0.68.0' },
+        legacyEvents: ['PreToolUse'],
+        viableLegacyEvents: ['PreToolUse'],
+      }),
+    );
+
+    expect(result).toMatchObject({
+      state: 'plugin_enabled_hook_unproven',
+      protected: 'protected',
+    });
+  });
+
   it.each([
     {
       name: 'complete legacy',
@@ -74,7 +108,7 @@ describe('Codex migration result', () => {
         plugin: {
           installed: true,
           enabled: false,
-          version: '1.0.0',
+          version: SAFEWORD_SCHEMA.version,
           observation: 'observed',
         },
       }),
@@ -88,7 +122,7 @@ describe('Codex migration result', () => {
         plugin: {
           installed: true,
           enabled: true,
-          version: '1.0.0',
+          version: SAFEWORD_SCHEMA.version,
           observation: 'observed',
         },
         legacyEvents: ['PreToolUse'],
@@ -105,12 +139,12 @@ describe('Codex migration result', () => {
         plugin: {
           installed: true,
           enabled: true,
-          version: '1.0.0',
+          version: SAFEWORD_SCHEMA.version,
           observation: 'observed',
         },
         proof: {
           status: 'current',
-          plugin_version: '1.0.0',
+          plugin_version: SAFEWORD_SCHEMA.version,
           manifest_sha256: 'digest',
           recorded_at: '2026-07-28T00:00:00.000Z',
         },

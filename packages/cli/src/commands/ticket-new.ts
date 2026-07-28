@@ -18,7 +18,11 @@ import nodePath from 'node:path';
 import process from 'node:process';
 
 import { type CliResult, createResult } from '../cli-protocol/result.js';
-import { createTicketRouted } from '../ticket-create/index.js';
+import {
+  createTicketRouted,
+  RoutedTicketCreationError,
+  type TicketCreationMutation,
+} from '../ticket-create/index.js';
 import { buildWriterRegistry } from '../tracker-sync/clients.js';
 import { readTicketBridgeConfig } from '../tracker-sync/config.js';
 import { linkChildToEpic, validateEpicParent } from '../utils/epic-linker.js';
@@ -30,6 +34,22 @@ import { TicketIdCollisionError, type TicketType } from '../utils/ticket-writer.
 
 const VALID_TYPES: ReadonlySet<TicketType> = new Set(['patch', 'task', 'feature', 'epic']);
 type ParsedTicketType = TicketType | undefined | 'invalid';
+
+function mutationEffects(mutations: readonly TicketCreationMutation[]) {
+  const toEffect = ({ kind, target, operation }: TicketCreationMutation) => ({
+    kind,
+    target,
+    operation,
+  });
+  return {
+    files: mutations
+      .filter(mutation => mutation.surface === 'file')
+      .map(mutation => toEffect(mutation)),
+    network: mutations
+      .filter(mutation => mutation.surface === 'network')
+      .map(mutation => toEffect(mutation)),
+  };
+}
 
 export interface TicketNewOptions {
   type?: string;
@@ -151,22 +171,26 @@ export async function createTicketResult(
         });
       }
     }
+    const effects =
+      result.mutations.length === 0
+        ? {
+            files: [
+              {
+                kind: 'create',
+                target: nodePath.relative(cwd, result.ticketPath),
+                operation: 'write',
+              },
+              {
+                kind: 'create',
+                target: nodePath.relative(cwd, result.folderPath),
+                operation: 'mkdir',
+              },
+            ],
+          }
+        : mutationEffects(result.mutations);
     return createResult({
       state: 'changed',
-      effects: {
-        files: [
-          {
-            kind: 'create',
-            target: nodePath.relative(cwd, result.ticketPath),
-            operation: 'write',
-          },
-          {
-            kind: 'create',
-            target: nodePath.relative(cwd, result.folderPath),
-            operation: 'mkdir',
-          },
-        ],
-      },
+      effects,
       findings,
       data: {
         command: 'ticket new',
@@ -176,8 +200,13 @@ export async function createTicketResult(
       },
     });
   } catch (creationError) {
+    const partialMutations =
+      creationError instanceof RoutedTicketCreationError ? creationError.mutations : [];
+    const changed = partialMutations.length > 0;
     return createResult({
       state: 'failed',
+      changed,
+      effects: mutationEffects(partialMutations),
       errors: [
         {
           code:
@@ -188,6 +217,16 @@ export async function createTicketResult(
           retryable: !(creationError instanceof TicketIdCollisionError),
         },
       ],
+      recovery: changed
+        ? [
+            {
+              command: 'safeword tracker sync',
+              description:
+                'Reconcile the pending tracker reference before retrying ticket creation.',
+              requiresHuman: false,
+            },
+          ]
+        : [],
     });
   }
 }

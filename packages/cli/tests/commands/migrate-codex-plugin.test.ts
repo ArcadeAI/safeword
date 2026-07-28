@@ -21,6 +21,7 @@ import {
   writeCodexRestartMarker,
 } from '../../src/codex-plugin/profile-proof.js';
 import { removeLegacyCodexHooks } from '../../src/commands/migrate-codex-plugin.js';
+import { SAFEWORD_SCHEMA } from '../../src/schema.js';
 import { createTemporaryDirectory, removeTemporaryDirectory, runCli } from '../helpers';
 
 const LEGACY_HOOK_CONFIG = `# Safeword Codex project configuration.
@@ -73,14 +74,17 @@ function installFakeRuntime(
   directory: string,
   pluginEnabled: boolean,
   pluginInitiallyInstalled: boolean,
+  pluginVersion?: string,
 ): string {
   const bin = nodePath.join(directory, 'bin');
   const pluginState = nodePath.join(directory, 'profile/plugin-state');
+  const pluginVersionState = nodePath.join(directory, 'profile/plugin-version');
   mkdirSync(bin, { recursive: true });
   mkdirSync(nodePath.dirname(pluginState), { recursive: true });
   let initialPluginState = 'absent';
   if (pluginInitiallyInstalled) initialPluginState = pluginEnabled ? 'enabled' : 'disabled';
   writeFileSync(pluginState, initialPluginState);
+  writeFileSync(pluginVersionState, pluginVersion ?? '');
   writeExecutable(nodePath.join(bin, 'bun'), '#!/bin/sh\nexit 0\n');
   writeExecutable(
     nodePath.join(bin, 'codex'),
@@ -104,6 +108,7 @@ case "$*" in
     ;;
   'plugin add safeword@safeword --json')
     printf 'enabled' > '${pluginState}'
+    printf '${SAFEWORD_SCHEMA.version}' > '${pluginVersionState}'
     echo '{"pluginId":"safeword@safeword"}'
     ;;
   'plugin list --json')
@@ -117,7 +122,12 @@ case "$*" in
     elif [ "$mode" = "disabled" ]; then
       echo '{"installed":[{"pluginId":"safeword@safeword","enabled":false}]}'
     else
-      echo '{"installed":[{"pluginId":"safeword@safeword","enabled":true}]}'
+      version="$(cat '${pluginVersionState}')"
+      if [ -n "$version" ]; then
+        echo "{\"installed\":[{\"pluginId\":\"safeword@safeword\",\"enabled\":true,\"version\":\"$version\"}]}"
+      else
+        echo '{"installed":[{"pluginId":"safeword@safeword","enabled":true}]}'
+      fi
     fi
     ;;
   *) exit 2 ;;
@@ -134,6 +144,7 @@ describe('migrate codex-plugin command', () => {
     config: string,
     pluginEnabled = true,
     pluginInitiallyInstalled = true,
+    pluginVersion?: string,
   ) {
     const directory = createTemporaryDirectory();
     directories.push(directory);
@@ -146,7 +157,7 @@ describe('migrate codex-plugin command', () => {
     return {
       directory,
       configPath,
-      bin: installFakeRuntime(directory, pluginEnabled, pluginInitiallyInstalled),
+      bin: installFakeRuntime(directory, pluginEnabled, pluginInitiallyInstalled, pluginVersion),
     };
   }
 
@@ -487,6 +498,45 @@ command = 'echo "keep this user hook"'
     });
     expect(readFileSync(configPath, 'utf8')).toBe(before);
     expect(existsSync(configPath)).toBe(true);
+  });
+
+  it('updates an enabled older profile plugin while retaining legacy hooks', async () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, true, true, '0.68.0');
+    const before = readFileSync(fixture.configPath, 'utf8');
+
+    const result = await runCodexCommand(fixture, ['codex', 'install', '--json']);
+
+    expect(result.exitCode, result.stdout).toBe(2);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'action_required',
+      changed: true,
+      data: {
+        migration_state: 'plugin_installed_restart_required',
+        plugin: { version: SAFEWORD_SCHEMA.version },
+      },
+      effects: {
+        configuration: [{ kind: 'update', target: 'Safeword Codex profile plugin' }],
+      },
+    });
+    expect(readFileSync(fixture.configPath, 'utf8')).toBe(before);
+    const calls = readFileSync(nodePath.join(fixture.directory, 'codex.log'), 'utf8');
+    expect(calls).toContain('plugin marketplace add');
+    expect(calls).toContain('plugin add safeword@safeword --json');
+  });
+
+  it('refuses finalization when proof and the installed plugin version differ', async () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, true, true, '0.68.0');
+    recordCurrentProof(fixture);
+
+    const result = await runCodexCommand(fixture, ['codex', 'migrate', '--finalize', '--json']);
+
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'failed',
+      errors: [{ code: 'PLUGIN_UPDATE_REQUIRED' }],
+      data: { migration_state: 'plugin_update_required' },
+    });
+    expect(readFileSync(fixture.configPath, 'utf8')).toBe(LEGACY_HOOK_CONFIG);
   });
 
   it('installs and verifies the profile plugin without creating project Codex configuration', async () => {

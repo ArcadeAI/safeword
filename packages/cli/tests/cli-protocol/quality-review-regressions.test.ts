@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { Command } from 'commander';
@@ -237,6 +237,34 @@ describe('quality-review regressions for the public CLI boundary', () => {
       changed: false,
       errors: [{ code: 'CLI_ARGUMENT_INVALID', retryable: false }],
     });
+  });
+
+  it('does not claim a mutation when removal fails during preflight', async () => {
+    const directory = createTemporaryDirectory();
+    const safewordDirectory = nodePath.join(directory, '.safeword');
+    mkdirSync(safewordDirectory);
+    chmodSync(safewordDirectory, 0o000);
+
+    try {
+      const result = await runCli(['remove', '--json', '--no-input', '--cwd', directory], {
+        cwd: directory,
+      });
+
+      expect(result).toMatchObject({ exitCode: 1, stderr: '' });
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        state: 'failed',
+        changed: false,
+        effects: {
+          files: [],
+          packages: [],
+          configuration: [],
+          network: [],
+          destructive: [],
+        },
+      });
+    } finally {
+      chmodSync(safewordDirectory, 0o700);
+    }
   });
 
   it('gives canonical retro leaves options parsed by the retained family alias', async () => {

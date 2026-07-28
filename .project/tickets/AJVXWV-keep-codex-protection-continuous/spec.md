@@ -130,14 +130,18 @@ Safe Word derives status in this order:
 2. `plugin_setup_required` when the repository is finalized but the active
    profile has no enabled plugin.
 3. `plugin_disabled` when Codex reports the plugin installed but disabled.
-4. `legacy` when one or more recognized legacy hook events exist and the
+4. `plugin_update_required` when an enabled plugin reports a version different
+   from the packaged plugin. An unknown version remains compatible for older
+   Codex clients that do not expose it.
+5. `legacy` when one or more recognized legacy hook events exist and the
    current profile plugin is absent.
-5. `plugin_enabled_hook_unproven` when the plugin is enabled but current proof
+6. `plugin_enabled_hook_unproven` when the plugin is enabled but current proof
    is absent, stale, malformed, or content-mismatched.
-6. `compatibility` when current proof exists and any recognized legacy hook or
-   runtime asset remains.
-7. `plugin` when current proof exists and no recognized legacy asset remains.
-8. `not_configured` when neither plugin proof, finalized marker, nor recognized
+7. `compatibility` when the installed plugin version and current proof identity
+   match the package and any recognized legacy hook or runtime asset remains.
+8. `plugin` when that same identity is current and no recognized legacy asset
+   remains.
+9. `not_configured` when neither plugin proof, finalized marker, nor recognized
    legacy protection exists.
 
 `plugin_installed_restart_required` is persisted in a profile-local,
@@ -233,70 +237,97 @@ unchanged.
 
 ### Status contract
 
-`safeword codex status --json` writes one JSON object to stdout:
+Issue #1574 supersedes the ticket-specific wire shape proposed earlier in this
+document. `safeword codex status --json` uses the shared public CLI result
+schema (`packages/cli/schemas/cli-result-v1.schema.json`), while the Codex
+migration domain remains available under `data`:
 
 ```json
 {
-  "schema_version": "1",
+  "schema_version": 1,
   "ok": true,
-  "state": "compatibility",
-  "protected": "protected",
+  "state": "action_required",
   "changed": false,
-  "plugin": {
-    "installed": true,
-    "enabled": true,
-    "version": "0.70.0",
-    "observation": "observed"
+  "findings": [
+    {
+      "code": "CODEX_COMPATIBILITY",
+      "message": "Codex is protected by the current profile plugin; verified legacy protection remains until explicit finalization.",
+      "severity": "warning"
+    }
+  ],
+  "effects": {
+    "files": [],
+    "packages": [],
+    "configuration": [],
+    "network": [],
+    "destructive": []
   },
-  "proof": {
-    "status": "current",
-    "plugin_version": "0.70.0",
-    "manifest_sha256": "…",
-    "recorded_at": "…"
-  },
-  "legacy": {
-    "events": ["SessionStart"],
-    "viable_events": ["SessionStart"],
-    "assets": [".codex/config.toml"]
-  },
-  "effects": { "files": [] },
   "errors": [],
+  "recovery": [],
   "next_actions": [
     {
       "command": "safeword codex migrate --finalize",
       "mutates": true,
       "requires_human": true
     }
-  ]
+  ],
+  "data": {
+    "command": "codex status",
+    "migration_state": "compatibility",
+    "protected": "protected",
+    "plugin": {
+      "installed": true,
+      "enabled": true,
+      "version": "0.69.0",
+      "observation": "observed"
+    },
+    "proof": {
+      "status": "current",
+      "plugin_version": "0.69.0",
+      "manifest_sha256": "…",
+      "recorded_at": "…"
+    },
+    "legacy": {
+      "events": ["SessionStart"],
+      "viable_events": ["SessionStart"],
+      "assets": [".codex/config.toml"]
+    }
+  }
 }
 ```
 
-JSON mode emits no prose on stdout. Status exits `0` for `plugin`, `2` for any
-state needing action (including protected compatibility), and `1` only for an
-execution error. Human output leads with protection state and ends with at most
-one `Next:` command.
+JSON mode emits no prose on stdout. Public `state` is one of `healthy`,
+`changed`, `action_required`, or `failed`. The domain `migration_state` drives
+that mapping: `plugin` maps to `healthy`, execution errors map to `failed`, and
+all other migration states map to `action_required`. Status exits `0`, `1`, or
+`2` respectively. Human output leads with protection state and ends with at
+most one `Next:` command.
 
-The schema-1 fields are required. Enums are:
+The shared schema-1 fields and effect categories are required. Codex data enums
+are:
 
-- `state`: `recovery_required | plugin_setup_required | plugin_disabled |
-  legacy | plugin_installed_restart_required |
+- `data.migration_state`: `recovery_required | plugin_setup_required |
+  plugin_disabled | plugin_update_required | legacy |
+  plugin_installed_restart_required |
   plugin_enabled_hook_unproven | compatibility | plugin | not_configured`
-- `protected`: `protected | partial | unprotected | uncertain`
-- `plugin.observation`: `observed | unknown`
-- `proof.status`: `current | missing | stale | malformed`
-- `effects.files[].action`: `create | update | remove | restore`
+- `data.protected`: `protected | partial | unprotected | uncertain`
+- `data.plugin.observation`: `observed | unknown`
+- `data.proof.status`: `current | missing | stale | malformed`
+- `effects.*[].kind`: a stable operation name; `target` is the affected
+  resource and optional `operation` adds detail
 
-Nullable fields are limited to `plugin.enabled`, `plugin.version`,
-`proof.plugin_version`, `proof.manifest_sha256`, and `proof.recorded_at`; each
-uses JSON `null` when unknown. `effects.files`, `errors`, and `next_actions` are
-always arrays. Errors contain `{code, message, retryable}`. At most one next
-action is returned.
+Nullable Codex fields are limited to `data.plugin.enabled`,
+`data.plugin.version`, `data.proof.plugin_version`,
+`data.proof.manifest_sha256`, and `data.proof.recorded_at`; each uses JSON
+`null` when unknown. All effect categories, `findings`, `errors`, `recovery`,
+and `next_actions` are always arrays. At most one next action is returned.
 
 Stable schema-1 error codes are:
 
 - `CODEX_UNAVAILABLE`
 - `PLUGIN_OBSERVATION_FAILED`
 - `PLUGIN_INSTALL_FAILED`
+- `PLUGIN_UPDATE_REQUIRED`
 - `PROOF_WRITE_FAILED`
 - `FINALIZATION_PROOF_REQUIRED`
 - `FINALIZATION_CONFIRMATION_REQUIRED`
