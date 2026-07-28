@@ -48,12 +48,6 @@ program.configureOutput({
 addGlobalOptions(program);
 registerPublicCommandCatalog(program);
 
-function family(name: string): Command {
-  const command = program.commands.find(candidate => candidate.name() === name);
-  if (command === undefined) throw new Error(`Missing registered command family: ${name}`);
-  return command;
-}
-
 const boundaryDefinition = findCommandDefinition('boundary');
 program
   .command('boundary', { hidden: true })
@@ -91,22 +85,6 @@ program
   .action(async () => {
     const { featureDirectories } = await import('./commands/feature-directories.js');
     featureDirectories(process.cwd());
-  });
-
-family('codex')
-  .command('diff', { hidden: true })
-  .description('Show project-hook differences before Codex finalization')
-  .action(async () => {
-    const { previewCodexFinalization } = await import('./commands/migrate-codex-plugin.js');
-    previewCodexFinalization(process.cwd());
-  });
-
-family('codex')
-  .command('reset', { hidden: true })
-  .description('Recover backed-up project hooks after Codex migration')
-  .action(async () => {
-    const { recoverCodexMigration } = await import('./commands/migrate-codex-plugin.js');
-    recoverCodexMigration(process.cwd());
   });
 
 try {

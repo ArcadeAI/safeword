@@ -735,6 +735,43 @@ function codexFinalizationPlan(
   };
 }
 
+async function codexRecoveryPlan(cwd: string): Promise<{
+  readonly plan: CliPlan;
+  readonly recovery: {
+    readonly effects: readonly { readonly path: string; readonly action: 'restore' }[];
+    readonly preconditionDigest: string;
+  };
+}> {
+  const finalization = await import('../codex-plugin/finalization.js');
+  const recovery = finalization.observeCodexRecoveryPlan(cwd);
+  return {
+    recovery,
+    plan: createPlan({
+      command: 'codex recover',
+      preconditionDigest: recovery.preconditionDigest,
+      effects: {
+        files: recovery.effects.map(effect => ({
+          kind: effect.action,
+          target: effect.path,
+          operation: effect.action,
+        })),
+        destructive: recovery.effects.map(effect => ({
+          kind: 'overwrite',
+          target: effect.path,
+          operation: 'restore',
+        })),
+      },
+      requiresConfirmation: true,
+      verification: [
+        {
+          description: 'Verify every current path still matches the finalized backup intent.',
+          command: 'safeword codex status',
+        },
+      ],
+    }),
+  };
+}
+
 function staleCodexPlan(plan: CliPlan): CliResult {
   return createResult({
     state: 'action_required',
@@ -760,8 +797,10 @@ async function runCodexRecovery(
   invocation: CommandInvocation,
   migration: typeof CodexMigration,
 ): Promise<CliResult> {
-  const finalization = await import('../codex-plugin/finalization.js');
-  const recovery = finalization.observeCodexRecoveryPlan(invocation.cwd);
+  const { plan, recovery } = await codexRecoveryPlan(invocation.cwd);
+  const suppliedPlan =
+    typeof invocation.options.plan === 'string' ? invocation.options.plan : undefined;
+  if (suppliedPlan !== undefined && suppliedPlan !== plan.id) return staleCodexPlan(plan);
   const before = recovery.effects.map(effect => ({
     path: nodePath.join(invocation.cwd, effect.path),
     content: observeFile(nodePath.join(invocation.cwd, effect.path)),
@@ -798,7 +837,13 @@ async function runCodexFinalization(
   invocation: CommandInvocation,
   migration: typeof CodexMigration,
 ): Promise<CliResult> {
-  const planned = migration.observeCodexFinalizationEffects(invocation.cwd);
+  const current = codexFinalizationPlan(invocation.cwd, migration);
+  const suppliedPlan =
+    typeof invocation.options.plan === 'string' ? invocation.options.plan : undefined;
+  if (suppliedPlan !== undefined && suppliedPlan !== current.plan.id) {
+    return staleCodexPlan(current.plan);
+  }
+  const planned = current.plan.effects.files;
   const changed = await migration.removeLegacyCodexHooks(invocation.cwd, {
     yes: true,
     report: false,
@@ -822,13 +867,7 @@ async function runCodexFinalization(
     ],
     effects: {
       ...observed.effects,
-      files: changed
-        ? planned.map(effect => ({
-            kind: effect.action,
-            target: effect.path,
-            operation: effect.action,
-          }))
-        : [],
+      files: changed ? planned : [],
     },
   };
 }
@@ -1030,32 +1069,8 @@ async function codexRecoveryPreflight(
   invocation: CommandInvocation,
   migration: typeof CodexMigration,
 ): Promise<CliResult | undefined> {
-  const finalization = await import('../codex-plugin/finalization.js');
-  const recovery = finalization.observeCodexRecoveryPlan(invocation.cwd);
+  const { plan, recovery } = await codexRecoveryPlan(invocation.cwd);
   if (recovery.effects.length === 0) return await runCodexRecovery(invocation, migration);
-  const plan = createPlan({
-    command: 'codex recover',
-    preconditionDigest: recovery.preconditionDigest,
-    effects: {
-      files: recovery.effects.map(effect => ({
-        kind: effect.action,
-        target: effect.path,
-        operation: effect.action,
-      })),
-      destructive: recovery.effects.map(effect => ({
-        kind: 'overwrite',
-        target: effect.path,
-        operation: 'restore',
-      })),
-    },
-    requiresConfirmation: true,
-    verification: [
-      {
-        description: 'Verify every current path still matches the finalized backup intent.',
-        command: 'safeword codex status',
-      },
-    ],
-  });
   const suppliedPlan =
     typeof invocation.options.plan === 'string' ? invocation.options.plan : undefined;
   if (invocation.options.yes !== true || suppliedPlan === undefined) {

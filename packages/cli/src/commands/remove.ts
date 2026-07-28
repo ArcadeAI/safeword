@@ -54,6 +54,14 @@ function observedPackageFileEffects(
   return effects;
 }
 
+function combinedFileEffects(
+  ...groups: readonly (readonly { kind: string; target: string }[])[]
+): { kind: string; target: string }[] {
+  const effects = new Map<string, { kind: string; target: string }>();
+  for (const effect of groups.flat()) effects.set(`${effect.kind}\0${effect.target}`, effect);
+  return effects.values().toArray();
+}
+
 function confirmationRequired(plan: CliPlan, full: boolean): CliResult {
   const fullFlag = full ? ' --full' : '';
   return createResult({
@@ -98,12 +106,13 @@ function packageUninstallFailure(
   packageFileEffects: readonly { kind: string; target: string }[],
 ): CliResult {
   const completed = effectsForReconciliation(applied, mode);
+  const files = combinedFileEffects(completed.files, packageFileEffects);
   return createResult({
     state: 'failed',
-    changed: completed.destructive.length > 0 || packageFileEffects.length > 0,
+    changed: completed.destructive.length > 0 || files.length > 0,
     effects: {
       ...completed,
-      files: packageFileEffects,
+      files,
       network: packageRemoval.attempted
         ? [
             {
@@ -152,16 +161,15 @@ async function applyRemoval(
   const packageEffects = packageRemoval.installed
     ? applied.packagesToRemove.map(target => ({ kind: 'remove', target }))
     : [];
+  const files = combinedFileEffects(completed.files, packageFileEffects);
   return createResult({
     state:
-      completed.destructive.length === 0 &&
-      packageEffects.length === 0 &&
-      packageFileEffects.length === 0
+      completed.destructive.length === 0 && packageEffects.length === 0 && files.length === 0
         ? 'healthy'
         : 'changed',
     effects: {
       ...completed,
-      files: packageFileEffects,
+      files,
       packages: packageEffects,
       network: packageRemoval.installed
         ? packageEffects.map(effect => ({
@@ -180,7 +188,10 @@ function partialRemovalEffects(
 ): (Partial<CliResult['effects']> & Pick<CliResult['effects'], 'destructive'>) | undefined {
   if (!(removeError instanceof ReconcileExecutionError)) return undefined;
   return {
-    files: [],
+    files: [
+      ...removeError.partial.created.map(target => ({ kind: 'create', target })),
+      ...removeError.partial.updated.map(target => ({ kind: 'update', target })),
+    ],
     packages: [],
     configuration: [],
     network: [],
@@ -189,6 +200,10 @@ function partialRemovalEffects(
       target,
     })),
   };
+}
+
+function hasPartialRemovalEffects(partial: ReturnType<typeof partialRemovalEffects>): boolean {
+  return (partial?.destructive.length ?? 0) !== 0 || (partial?.files?.length ?? 0) !== 0;
 }
 
 export async function removeProject(cwd: string, options: RemoveOptions): Promise<CliResult> {
@@ -217,7 +232,7 @@ export async function removeProject(cwd: string, options: RemoveOptions): Promis
     const partial = partialRemovalEffects(removeError);
     return createResult({
       state: 'failed',
-      changed: (partial?.destructive.length ?? 0) !== 0,
+      changed: hasPartialRemovalEffects(partial),
       effects: partial,
       errors: [
         {

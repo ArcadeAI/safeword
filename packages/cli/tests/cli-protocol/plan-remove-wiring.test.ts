@@ -155,6 +155,10 @@ describe('plan and remove wiring', () => {
     const directory = createTemporaryDirectory();
     configureMinimalProject(directory);
     writeFileSync(
+      nodePath.join(directory, 'AGENTS.md'),
+      '**⚠️ ALWAYS READ FIRST:** `.safeword/SAFEWORD.md`\n\n---# Project agents\n',
+    );
+    writeFileSync(
       nodePath.join(directory, 'package.json'),
       JSON.stringify({ name: 'fixture', devDependencies: { safeword: '0.69.0' } }),
     );
@@ -191,6 +195,7 @@ describe('plan and remove wiring', () => {
       changed: true,
       effects: {
         files: expect.arrayContaining([
+          { kind: 'update', target: 'AGENTS.md' },
           { kind: 'update', target: 'package.json' },
           { kind: 'create', target: 'package-lock.json' },
         ]),

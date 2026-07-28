@@ -39,6 +39,22 @@ describe('quality-review regressions for the public CLI boundary', () => {
     },
   );
 
+  it.each(['diff', 'reset'])('does not expose the legacy codex %s bypass', async leaf => {
+    const directory = createTemporaryDirectory();
+    const result = await runCli(
+      ['codex', leaf, '--json', '--no-input', '--offline', '--cwd', directory],
+      { cwd: directory },
+    );
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toBe('');
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'failed',
+      changed: false,
+      errors: [{ code: 'CLI_ARGUMENT_INVALID' }],
+    });
+  });
+
   it('executes machine Gherkin lint instead of returning synthetic health', async () => {
     const directory = createTemporaryDirectory();
     const result = await runCli(

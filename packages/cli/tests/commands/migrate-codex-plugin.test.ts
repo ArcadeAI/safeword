@@ -15,6 +15,7 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { publicHandler } from '../../src/cli-protocol/public-handlers.js';
 import { applyCodexFinalization } from '../../src/codex-plugin/finalization.js';
 import {
   recordCodexHookProof,
@@ -250,6 +251,7 @@ describe('migrate codex-plugin command', () => {
   }
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     for (const directory of directories) removeTemporaryDirectory(directory);
     directories.length = 0;
   });
@@ -1075,6 +1077,92 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-migration-backup'))).toBe(
       false,
     );
+  });
+
+  it('rechecks typed finalization after preflight before using the accepted plan', async () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    recordCurrentProof(fixture);
+    vi.stubEnv('PATH', `${fixture.bin}:${process.env.PATH ?? ''}`);
+    vi.stubEnv('SAFEWORD_CODEX_LOG', nodePath.join(fixture.directory, 'codex.log'));
+    vi.stubEnv('CODEX_HOME', nodePath.join(fixture.directory, 'profile'));
+    const handler = publicHandler('codex migrate');
+    const preview = await handler({
+      cwd: fixture.directory,
+      noInput: true,
+      offline: false,
+      options: { finalize: true },
+      operands: [],
+    });
+    const planId = (preview.data as { plan: { id: string } }).plan.id;
+
+    const applied = await handler({
+      cwd: fixture.directory,
+      noInput: true,
+      offline: false,
+      options: { finalize: true, yes: true, plan: planId },
+      operands: [],
+      progress: {
+        start: () => {
+          writeFileSync(fixture.configPath, `${LEGACY_HOOK_CONFIG}\n# changed after preflight\n`);
+        },
+        stop: () => {},
+      },
+    });
+
+    expect(applied).toMatchObject({
+      state: 'action_required',
+      changed: false,
+      findings: [{ code: 'PLAN_STALE' }],
+    });
+    expect(readFileSync(fixture.configPath, 'utf8')).toContain('# changed after preflight');
+    expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-migration-backup'))).toBe(
+      false,
+    );
+  });
+
+  it('rechecks typed recovery after preflight before using the accepted plan', async () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    recordCurrentProof(fixture);
+    const finalized = await finalizeCodex(fixture, {}, true);
+    expect(finalized.exitCode).toBe(0);
+    const handler = publicHandler('codex recover');
+    const preview = await handler({
+      cwd: fixture.directory,
+      noInput: true,
+      offline: false,
+      options: {},
+      operands: [],
+    });
+    const planId = (preview.data as { plan: { id: string } }).plan.id;
+    const manifestPath = nodePath.join(
+      fixture.directory,
+      '.safeword/codex-migration-backup/manifest.json',
+    );
+
+    const recovered = await handler({
+      cwd: fixture.directory,
+      noInput: true,
+      offline: false,
+      options: { yes: true, plan: planId },
+      operands: [],
+      progress: {
+        start: () => {
+          const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<
+            string,
+            unknown
+          >;
+          writeFileSync(manifestPath, JSON.stringify({ ...manifest, reviewed_by: 'teammate' }));
+        },
+        stop: () => {},
+      },
+    });
+
+    expect(recovered).toMatchObject({
+      state: 'action_required',
+      changed: false,
+      findings: [{ code: 'PLAN_STALE' }],
+    });
+    expect(existsSync(manifestPath)).toBe(true);
   });
 
   it('reports repeated typed finalization and absent recovery as no-ops', async () => {
