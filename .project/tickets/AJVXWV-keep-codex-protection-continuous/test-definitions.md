@@ -42,7 +42,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 8757aee8e
 - [x] GREEN d8e9dc757
-- [ ] REFACTOR
+- [x] REFACTOR skip: proof and marker writes already share one atomic JSON primitive
 
 ### Scenario: Trusted plugin SessionStart records current proof
 
