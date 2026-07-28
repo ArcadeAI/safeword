@@ -148,6 +148,9 @@ function nextAction(state: CodexMigrationState): string | undefined {
 
 export function renderCodexMigrationHuman(result: CodexMigrationResultV1): string {
   const lines = [`Codex migration: ${result.state}`, `Protection: ${result.protected}`];
+  if (result.state === 'plugin_setup_required') {
+    lines.push('Setup: .agents/skills/safeword-plugin-setup/SKILL.md');
+  }
   const next = result.next_actions[0];
   if (next !== undefined) lines.push(`Next: ${next.command}`);
   return `${lines.join('\n')}\n`;

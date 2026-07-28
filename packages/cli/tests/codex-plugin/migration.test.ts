@@ -137,11 +137,14 @@ describe('Codex migration result', () => {
     },
   ])('renders one safe next action for $name', ({ input, state, protection, next }) => {
     const result = deriveCodexMigrationResult(input);
+    const lines = [`Codex migration: ${state}`, `Protection: ${protection}`];
+    if (state === 'plugin_setup_required') {
+      lines.push('Setup: .agents/skills/safeword-plugin-setup/SKILL.md');
+    }
+    lines.push(`Next: ${next}`, '');
 
     expect(result).toMatchObject({ state, protected: protection });
-    expect(renderCodexMigrationHuman(result)).toBe(
-      `Codex migration: ${state}\nProtection: ${protection}\nNext: ${next}\n`,
-    );
+    expect(renderCodexMigrationHuman(result)).toBe(lines.join('\n'));
   });
 
   it.each([
