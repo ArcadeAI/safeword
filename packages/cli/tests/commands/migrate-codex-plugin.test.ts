@@ -14,7 +14,10 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { recordCodexHookProof } from '../../src/codex-plugin/profile-proof.js';
+import {
+  recordCodexHookProof,
+  writeCodexRestartMarker,
+} from '../../src/codex-plugin/profile-proof.js';
 import { createTemporaryDirectory, removeTemporaryDirectory, runCli } from '../helpers';
 
 const LEGACY_HOOK_CONFIG = `# Safeword Codex project configuration.
@@ -780,6 +783,9 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
 
   it('converges repeated migration while a Codex restart is pending', async () => {
     const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    writeCodexRestartMarker({
+      CODEX_HOME: nodePath.join(fixture.directory, 'profile'),
+    });
     const first = await runCodexCommand(fixture, ['codex', 'migrate']);
     expect(first.exitCode, first.stderr).toBe(2);
     const markerPath = nodePath.join(fixture.directory, 'profile/safeword/restart-pending-v1.json');
@@ -791,7 +797,7 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     expect(second.stdout).toContain('plugin_installed_restart_required');
     expect(readFileSync(markerPath, 'utf8')).toBe(marker);
     const calls = readFileSync(nodePath.join(fixture.directory, 'codex.log'), 'utf8');
-    expect(calls.match(/plugin marketplace add/g)).toHaveLength(1);
+    expect(calls).not.toContain('plugin marketplace add');
   });
 
   it('does not reinstall an enabled plugin whose hook proof is still unproven', async () => {

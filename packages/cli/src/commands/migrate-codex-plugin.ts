@@ -558,6 +558,13 @@ export function installCodexPlugin(
     statusCodexMigration(cwd, { environment: options.environment });
     return;
   }
+  if (
+    options.reportMigrationState === true &&
+    observeCodexMigrationResult(cwd, options.environment).plugin.enabled === true
+  ) {
+    statusCodexMigration(cwd, { environment: options.environment });
+    return;
+  }
   run('bun', ['--version']);
   run('codex', ['--version']);
   addCodexPluginToProfile(options.marketplaceSource);
