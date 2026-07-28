@@ -352,6 +352,43 @@ command = "npx --yes safeword hook codex post-tool-use"
     expect(result.stderr).toContain('Broad process kill blocked');
   });
 
+  it('runs the plugin when a configured legacy event has no package runner', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-enrolled-'));
+    const binDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-bin-'));
+    directories.push(projectDirectory, binDirectory);
+    markSafewordProject(projectDirectory);
+    mkdirSync(nodePath.join(projectDirectory, '.codex'), { recursive: true });
+    writeFileSync(
+      nodePath.join(projectDirectory, '.codex/config.toml'),
+      `[[hooks.PreToolUse]]
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = "npx --yes safeword hook codex pre-tool-use"
+`,
+    );
+    const brokenPackageRunner = nodePath.join(binDirectory, 'npx');
+    writeFileSync(brokenPackageRunner, '#!/bin/sh\nexit 127\n');
+    chmodSync(brokenPackageRunner, 0o755);
+
+    const result = runCodexHook(
+      projectDirectory,
+      'pre-tool-use',
+      {
+        session_id: 'compatibility-session',
+        tool_name: 'Bash',
+        tool_input: { command: 'pkill node' },
+      },
+      {
+        PATH: `${binDirectory}:${process.env.PATH ?? ''}`,
+        SAFEWORD_CODEX_DENY_MODE: 'exit-code',
+      },
+      true,
+    );
+
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain('Broad process kill blocked');
+  });
+
   it.each([
     {
       label: 'default',
