@@ -64,7 +64,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Legacy SessionStart cannot create plugin proof
 
-- [ ] RED
+- [x] RED skip: provenance gating shipped inseparably with the plugin proof writer
 - [ ] GREEN
 - [ ] REFACTOR
 
