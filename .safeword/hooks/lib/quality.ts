@@ -1,5 +1,6 @@
-// Shared quality review message for Claude Code and Cursor hooks.
-// Used by: stop-quality.ts, cursor/stop.ts
+// Shared reply-shape vocabulary for Claude Code and Cursor hooks: the Stop
+// quality-review message plus the compact pre-response pointers.
+// Used by: stop-quality.ts, cursor/stop.ts, prompt-questions.ts (UserPromptSubmit).
 //
 // Contract: every Stop terminates in CONFIDENT or BLOCKED (binary terminal).
 // CONFIDENT carries a decision brief — Decided / Rejected (optional) / Open /
@@ -11,7 +12,8 @@
 // Bold-led sub-fields separated by blank lines render as a scannable stacked
 // column. Indent inside a paragraph is a no-op.
 //
-// Style discipline: this prompt is reinjected every Stop. Keep it terse and
+// Style discipline: this prompt is reinjected every Stop, and the compact
+// pointers below are reinjected every user prompt. Keep it terse and
 // load-bearing. Project philosophy (research-depth, critical-review,
 // investigate-on-uncertainty) lives in SAFEWORD.md which loads every
 // conversation — don't duplicate it here.
@@ -24,7 +26,20 @@ import type { CANONICAL_PHASES } from './phase-provenance.js';
 /** Derived from CANONICAL_PHASES so a new phase is a compile error here, not drift. */
 export type BddPhase = (typeof CANONICAL_PHASES)[number];
 
-const UNIVERSAL_HEADER = `Apply SAFEWORD.md "Talking to the user" rules to your reply: scan-not-read, lead with the answer, named structure only when it carries weight, end with **Next:**.
+/**
+ * The single wording of the lead-first rule. A bare mid-sentence fragment so the
+ * Stop header can keep it inline where it belongs, rather than appending it as a
+ * trailing labelled sentence.
+ */
+export const REPLY_FORMAT_LEAD_RULE = 'lead with the answer';
+
+/** Lead-only pre-response pointer: the sole cue during intentionally quiet TDD steps. */
+export const REPLY_FORMAT_LEAD = `Reply format: ${REPLY_FORMAT_LEAD_RULE}.`;
+
+/** Full pre-response pointer, used outside intentionally quiet TDD steps. */
+export const REPLY_FORMAT_REMINDER = `${REPLY_FORMAT_LEAD} For substantive work updates, use one **CONFIDENT**/**BLOCKED** decision brief and end with **Next:**.`;
+
+const UNIVERSAL_HEADER = `Apply SAFEWORD.md "Talking to the user" rules to your reply: scan-not-read, ${REPLY_FORMAT_LEAD_RULE}, named structure only when it carries weight, end with **Next:**.
 
 End with one verdict as its own scannable decision brief — the reader is choosing whether to continue, redirect, or intervene with this block as their only context. Plain English; no jargon the reader hasn't seen this turn — make the CONFIDENT/BLOCKED line clear from the words after the dash, not the label alone (a non-coder may not know the labels). Reproduce the shape below exactly: bolded labels, blank line between each paragraph.
 

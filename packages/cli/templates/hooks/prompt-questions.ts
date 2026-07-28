@@ -12,6 +12,8 @@ import {
 } from './lib/active-ticket.ts';
 import { READINESS_POINTER, shouldSurfaceReadiness } from './lib/readiness-pointer.ts';
 import { evaluateReplan } from './lib/replan.ts';
+import type { BddPhase } from './lib/quality.ts';
+import { REPLY_FORMAT_LEAD, REPLY_FORMAT_REMINDER } from './lib/quality.ts';
 import {
   ESCALATION_THRESHOLD,
   type FailureEntry,
@@ -41,8 +43,13 @@ try {
   input = {};
 }
 
-// One behavioral anchor (SAFEWORD.md has the full methodology; this survives as a compressed reminder)
-const lines = ['Contribute before asking. Embed open questions in your contribution.'];
+// Compact behavioral anchors; SAFEWORD.md carries the full methodology. These
+// always lead the block, so they live in their own array — `lines` below is the
+// situational tail, and the two are concatenated at output. Keeping them apart
+// means no push into `lines` can displace an anchor.
+const anchors = ['- Contribute before asking. Embed open questions in your contribution.'];
+let replyFormatReminder = REPLY_FORMAT_REMINDER;
+const lines: string[] = [];
 
 // Effective Clarify phase: the active in-progress ticket's phase, else undefined
 // (no ticket, pre-classify, or a ticket that isn't in_progress — all treated as
@@ -70,6 +77,13 @@ if (existsSync(stateFile)) {
             ? deriveTddStep(projectDirectory, ticketInfo.folder)
             : null;
 
+        // Stop reviews deliberately stay quiet inside an active TDD step. Keep
+        // only the lead-first cue here so the prompt hook does not reintroduce
+        // the decision-brief demand that Stop suppresses.
+        if (phase === 'implement' && tddStep !== null) {
+          replyFormatReminder = REPLY_FORMAT_LEAD;
+        }
+
         // Phase-specific one-liner
         // satisfies proves every canonical phase has a reminder (a missing key was
         // silent before); Record<string,string> keeps the tolerant off-enum lookup.
@@ -87,7 +101,7 @@ if (existsSync(stateFile)) {
             : 'Phase: implement.',
           verify: 'Phase: verify. Cross-scenario refactor if needed, then run /verify and /audit.',
           done: 'Phase: done. Close ticket (verify.md exists).',
-        } satisfies Record<import('./lib/quality.js').BddPhase, string> & Record<string, string>;
+        } satisfies Record<BddPhase, string> & Record<string, string>;
 
         // Name the active ticket slug-first (ZRXM6Q) so the per-turn reminder
         // reads in names, not the opaque ID — recognition over recall. The slug
@@ -161,6 +175,10 @@ if (existsSync(stateFile)) {
   }
 }
 
+// Resolved only after the state block above, which decides whether an active
+// TDD step reduces this to the lead-only cue.
+anchors.push(`- ${replyFormatReminder}`);
+
 // Readiness pointer (TPP6Y2): compressed five-dimension self-test, surfaced
 // during Clarify (no active ticket or intake phase) and suppressed once a build
 // phase is under way. Fires whether or not a state file exists, so the
@@ -194,7 +212,7 @@ try {
 }
 
 lines.push('- Avoid bloat.');
-console.log(lines.join('\n'));
+console.log([...anchors, ...lines].join('\n'));
 
 function tddNextStep(step: string): string {
   const next: Record<string, string> = {
