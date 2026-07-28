@@ -167,9 +167,13 @@ export function renderHumanResult(
   result: CliResult,
   options: { quiet?: boolean; verbose?: boolean } = {},
 ): string {
-  const lines = [VERDICTS[result.state], `Changed: ${result.changed ? 'yes' : 'no'}`];
-  const suppressProse = options.quiet === true && result.state === 'healthy';
-  if (!suppressProse) lines.push(...uniqueMessages(result));
+  if (options.quiet === true && result.state === 'healthy') return '';
+
+  const lines = [
+    VERDICTS[result.state],
+    `Changed: ${result.changed ? 'yes' : 'no'}`,
+    ...uniqueMessages(result),
+  ];
 
   if (options.verbose === true) {
     const details = [

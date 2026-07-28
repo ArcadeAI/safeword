@@ -56,6 +56,6 @@ export function reportResult(
   const output = options.json
     ? renderJsonResult(result)
     : renderHumanResult(result, { quiet: options.quiet, verbose: options.verbose });
-  process.stdout.write(`${output}\n`);
+  if (output !== '') process.stdout.write(`${output}\n`);
   process.exitCode = exitStatusFor(result);
 }
