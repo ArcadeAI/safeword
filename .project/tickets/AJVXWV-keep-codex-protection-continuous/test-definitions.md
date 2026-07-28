@@ -264,7 +264,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 54efb34f6
 - [x] GREEN b0fe27b9a
-- [ ] REFACTOR
+- [x] REFACTOR skip: bootstrap remains one setup-only generated mutation
 
 ### Scenario: Finalized project tells an unconfigured teammate to install the plugin
 
