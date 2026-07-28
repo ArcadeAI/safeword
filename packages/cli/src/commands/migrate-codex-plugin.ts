@@ -25,7 +25,11 @@ import {
   deriveCodexMigrationResult,
   renderCodexMigrationHuman,
 } from '../codex-plugin/migration.js';
-import { codexRestartMarkerPath, observeCodexHookProof } from '../codex-plugin/profile-proof.js';
+import {
+  codexRestartMarkerPath,
+  observeCodexHookProof,
+  writeCodexRestartMarker,
+} from '../codex-plugin/profile-proof.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
 import { info, success } from '../utils/output.js';
 
@@ -528,17 +532,27 @@ export function statusCodexMigration(
 export function installCodexPlugin(
   // The CLI always uses MARKETPLACE_SOURCE. The source override lets the live
   // test validate a pushed release branch before its marketplace reaches main.
-  options: { marketplaceSource?: string } = {},
+  options: {
+    marketplaceSource?: string;
+    reportMigrationState?: boolean;
+    recordRestartPending?: boolean;
+    cwd?: string;
+    environment?: NodeJS.ProcessEnv;
+  } = {},
 ): void {
   run('bun', ['--version']);
   run('codex', ['--version']);
   addCodexPluginToProfile(options.marketplaceSource);
   verifyCodexPluginIsEnabled({ installationCompleted: true });
+  if (options.recordRestartPending !== false) writeCodexRestartMarker(options.environment);
 
   success('Safe Word Codex plugin is enabled for this profile.');
   info(
     'Start a new Codex session to load the plugin skills and hooks. Then review the Safe Word plugin hooks in Codex with /hooks. If this project uses Safe Word legacy hooks, run `safeword codex migrate --remove-legacy-hooks` to remove only those hooks.',
   );
+  if (options.reportMigrationState === true) {
+    statusCodexMigration(options.cwd, { environment: options.environment });
+  }
 }
 
 export function removeLegacyCodexHooks(cwd = process.cwd()): void {
@@ -576,5 +590,8 @@ export function migrateCodexPlugin(
     removeLegacyCodexHooks(cwd);
     return;
   }
-  installCodexPlugin({ marketplaceSource: options.marketplaceSource });
+  installCodexPlugin({
+    marketplaceSource: options.marketplaceSource,
+    recordRestartPending: false,
+  });
 }

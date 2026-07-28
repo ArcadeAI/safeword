@@ -141,6 +141,7 @@ describe('migrate codex-plugin command', () => {
       env: {
         PATH: `${fixture.bin}:${process.env.PATH ?? ''}`,
         SAFEWORD_CODEX_LOG: nodePath.join(fixture.directory, 'codex.log'),
+        CODEX_HOME: nodePath.join(fixture.directory, 'profile'),
         ...environment,
       },
     });
@@ -405,7 +406,7 @@ command = 'echo "keep this user hook"'
 
     const result = await runCodexCommand(fixture, ['codex', 'install']);
 
-    expect(result.exitCode, result.stderr).toBe(0);
+    expect(result.exitCode, result.stderr).toBe(2);
     expect(`${result.stdout}\n${result.stderr}`).toContain('Start a new Codex session');
     expect(existsSync(nodePath.join(directory, '.codex'))).toBe(false);
     const calls = readFileSync(nodePath.join(directory, 'codex.log'), 'utf8');
@@ -422,7 +423,7 @@ command = 'echo "keep this user hook"'
 
     const result = await runCodexCommand(fixture, ['codex', 'migrate']);
 
-    expect(result.exitCode, result.stderr).toBe(0);
+    expect(result.exitCode, result.stderr).toBe(2);
     expect(`${result.stdout}\n${result.stderr}`).toContain('Start a new Codex session');
     expect(readFileSync(configPath, 'utf8')).toBe(LEGACY_HOOK_CONFIG);
     expect(readFileSync(nodePath.join(fixture.directory, 'codex.log'), 'utf8')).toContain(

@@ -96,7 +96,7 @@ codex
   .description('Install and verify the Safe Word plugin in the active Codex profile')
   .action(async () => {
     const { installCodexPlugin } = await import('./commands/migrate-codex-plugin.js');
-    installCodexPlugin();
+    installCodexPlugin({ reportMigrationState: true });
   });
 
 codex
@@ -122,7 +122,7 @@ codex
       removeLegacyCodexHooks(process.cwd());
       return;
     }
-    installCodexPlugin();
+    installCodexPlugin({ reportMigrationState: true });
   });
 
 program

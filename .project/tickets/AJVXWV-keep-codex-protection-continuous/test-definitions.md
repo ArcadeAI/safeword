@@ -34,7 +34,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Successful installation requires a Codex restart
 
-- [ ] RED
+- [x] RED 7ceb02372
 - [ ] GREEN
 - [ ] REFACTOR
 

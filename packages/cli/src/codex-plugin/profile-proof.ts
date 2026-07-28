@@ -1,7 +1,17 @@
 /* eslint-disable unicorn/no-null -- schema-1 JSON uses explicit null for unavailable values */
 
-import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { createHash, randomUUID } from 'node:crypto';
+import {
+  closeSync,
+  existsSync,
+  fsyncSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -12,6 +22,12 @@ export interface CodexHookProofV1 {
   plugin_version: string;
   manifest_sha256: string;
   recorded_at: string;
+}
+
+export interface CodexRestartMarkerV1 {
+  schema_version: 1;
+  plugin_version: string;
+  manifest_sha256: string;
 }
 
 export type CodexHookProofStatus = 'current' | 'missing' | 'stale' | 'malformed';
@@ -48,6 +64,35 @@ export function currentCodexPluginIdentity(): {
     plugin_version: SAFEWORD_SCHEMA.version,
     manifest_sha256: createHash('sha256').update(manifest).digest('hex'),
   };
+}
+
+export function writeCodexRestartMarker(
+  environment: NodeJS.ProcessEnv = process.env,
+): CodexRestartMarkerV1 {
+  const path = codexRestartMarkerPath(environment);
+  const directory = nodePath.dirname(path);
+  mkdirSync(directory, { recursive: true });
+  const marker: CodexRestartMarkerV1 = {
+    schema_version: 1,
+    ...currentCodexPluginIdentity(),
+  };
+  const temporaryPath = nodePath.join(
+    directory,
+    `.restart-pending-${process.pid}-${randomUUID()}.tmp`,
+  );
+  const descriptor = openSync(temporaryPath, 'wx', 0o600);
+  try {
+    writeFileSync(descriptor, `${JSON.stringify(marker)}\n`);
+    fsyncSync(descriptor);
+  } finally {
+    closeSync(descriptor);
+  }
+  try {
+    renameSync(temporaryPath, path);
+  } finally {
+    rmSync(temporaryPath, { force: true });
+  }
+  return marker;
 }
 
 export function observeCodexHookProof(
