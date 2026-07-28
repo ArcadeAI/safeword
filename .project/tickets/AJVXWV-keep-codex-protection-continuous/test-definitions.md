@@ -234,7 +234,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 5f355693b
 - [x] GREEN b862e9765
-- [ ] REFACTOR
+- [x] REFACTOR skip: preview and execution share the canonical mutation planner
 
 ### Scenario: Finalized project setup state overrides disabled-profile detail
 
