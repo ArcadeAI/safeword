@@ -611,6 +611,30 @@ command = 'echo "keep this user hook"'
     expect(existsSync(nodePath.join(fixture.directory, 'codex.log'))).toBe(false);
   });
 
+  it('restores the complete backed-up legacy state through recovery', async () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    recordCurrentProof(fixture);
+    const legacySkillPath = nodePath.join(fixture.directory, '.agents/skills/review-spec/SKILL.md');
+    mkdirSync(nodePath.dirname(legacySkillPath), { recursive: true });
+    writeFileSync(legacySkillPath, '# legacy skill\n');
+    const originalConfig = readFileSync(fixture.configPath, 'utf8');
+    const finalized = await runCodexCommand(fixture, ['codex', 'migrate', '--finalize', '--yes']);
+    expect(finalized.exitCode, finalized.stderr).toBe(0);
+
+    const recovered = await runCodexCommand(fixture, ['codex', 'recover']);
+
+    expect(recovered.exitCode, recovered.stderr).toBe(0);
+    expect(readFileSync(fixture.configPath, 'utf8')).toBe(originalConfig);
+    expect(readFileSync(legacySkillPath, 'utf8')).toBe('# legacy skill\n');
+    expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-plugin.json'))).toBe(false);
+    expect(
+      existsSync(nodePath.join(fixture.directory, '.agents/skills/safeword-plugin-setup/SKILL.md')),
+    ).toBe(false);
+    expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-migration-backup'))).toBe(
+      false,
+    );
+  });
+
   it('cleans legacy hooks through the explicit Codex migration command without reinstalling', async () => {
     const fixture = createMigrationFixture(`${LEGACY_HOOK_CONFIG}${CUSTOM_PRE_TOOL_HOOK}`);
     const { configPath } = fixture;
