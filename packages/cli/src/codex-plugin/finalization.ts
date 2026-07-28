@@ -136,8 +136,13 @@ function assertSafeComponents(cwd: string, relativePath: string): string {
   let cursor = nodePath.resolve(cwd);
   for (const segment of segments) {
     cursor = nodePath.join(cursor, segment);
-    if (!existsSync(cursor)) continue;
-    const metadata = lstatSync(cursor);
+    let metadata;
+    try {
+      metadata = lstatSync(cursor);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue;
+      throw error;
+    }
     if (metadata.isSymbolicLink()) {
       throw new Error(`Unsafe Codex migration path is a symbolic link: ${relativePath}`);
     }

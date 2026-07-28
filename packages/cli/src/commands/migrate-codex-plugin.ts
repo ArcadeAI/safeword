@@ -317,7 +317,10 @@ function removalRanges(lines: string[]): TextRange[] {
   return removals;
 }
 
-function removeLegacyCodexHookBlocks(content: string): string {
+function prepareLegacyCodexHookBlocks(content: string): {
+  cleaned: string;
+  removedBlocks: string[];
+} {
   try {
     parse(content);
   } catch (error) {
@@ -327,11 +330,13 @@ function removeLegacyCodexHookBlocks(content: string): string {
   }
 
   const lines = splitLines(content);
-  const orderedRanges = removalRanges(lines).toSorted((left, right) => right.start - left.start);
-  for (const range of orderedRanges) {
+  const ranges = removalRanges(lines);
+  const removedBlocks = ranges.map(range => lines.slice(range.start, range.end).join(''));
+  const reverseOrderedRanges = ranges.toSorted((left, right) => right.start - left.start);
+  for (const range of reverseOrderedRanges) {
     lines.splice(range.start, range.end - range.start);
   }
-  return lines.join('');
+  return { cleaned: lines.join(''), removedBlocks };
 }
 
 type CodexConfigMetadata = { kind: 'missing' } | { kind: 'regular'; metadata: Stats };
@@ -357,16 +362,17 @@ interface PreparedLegacyHookRemoval {
   configPath: string;
   original: string;
   cleaned: string;
+  removedBlocks: string[];
 }
 
 function prepareLegacyHookRemoval(cwd: string): PreparedLegacyHookRemoval | undefined {
   const configPath = nodePath.join(cwd, CODEX_CONFIG_PATH);
   if (regularCodexConfigMetadata(configPath).kind === 'missing') return;
   const original = readFileSync(configPath, 'utf8');
-  const cleaned = removeLegacyCodexHookBlocks(original);
+  const { cleaned, removedBlocks } = prepareLegacyCodexHookBlocks(original);
   if (cleaned === original) return undefined;
 
-  return { configPath, original, cleaned };
+  return { configPath, original, cleaned, removedBlocks };
 }
 
 function addCodexPluginToProfile(marketplaceSource: string | undefined): void {
@@ -535,7 +541,26 @@ export function reportCodexMigrationFailure(
   },
 ): void {
   const message = failure instanceof Error ? failure.message : String(failure);
-  const result = observeCodexMigrationResult(cwd, options.environment);
+  let result: CodexMigrationResultV1;
+  try {
+    result = observeCodexMigrationResult(cwd, options.environment);
+  } catch {
+    result = deriveCodexMigrationResult({
+      plugin: { installed: false, enabled: null, version: null, observation: 'unknown' },
+      proof: {
+        status: 'malformed',
+        plugin_version: null,
+        manifest_sha256: null,
+        recorded_at: null,
+      },
+      legacyAssets: [],
+      legacyEvents: [],
+      viableLegacyEvents: [],
+      finalized: false,
+      recoveryRequired: false,
+      restartPending: false,
+    });
+  }
   result.ok = false;
   result.changed = false;
   result.errors.push({
@@ -690,16 +715,43 @@ function finalizationEffects(
   });
 }
 
-function renderCodexFinalizationPlan(cwd: string, mutations: CodexFinalizationMutation[]): string {
+function renderCodexFinalizationPlan(
+  cwd: string,
+  mutations: CodexFinalizationMutation[],
+  preparedLegacyHookRemoval: PreparedLegacyHookRemoval | undefined,
+): string {
   const lines = ['Finalization plan:'];
   for (const effect of finalizationEffects(cwd, mutations)) {
-    const detail =
-      effect.path === CODEX_CONFIG_PATH && effect.action === 'update'
-        ? ' (remove Safe Word-owned hook blocks only)'
-        : '';
-    lines.push(`- ${effect.action} ${effect.path}${detail}`);
+    lines.push(`- ${effect.action} ${effect.path}`);
+    if (effect.path !== CODEX_CONFIG_PATH || preparedLegacyHookRemoval === undefined) continue;
+    for (const block of preparedLegacyHookRemoval.removedBlocks) {
+      lines.push(
+        '  exact config block:',
+        '  --- begin block ---',
+        block.trimEnd(),
+        '  --- end block ---',
+      );
+    }
   }
   return `${lines.join('\n')}\n`;
+}
+
+function assertCodexFinalizationPlanUnchanged(
+  cwd: string,
+  preparedLegacyHookRemoval: PreparedLegacyHookRemoval | undefined,
+  mutations: CodexFinalizationMutation[],
+  effects: CodexMigrationResultV1['effects']['files'],
+): void {
+  const currentMutations = buildCodexFinalizationMutations(cwd, preparedLegacyHookRemoval);
+  const currentEffects = finalizationEffects(cwd, currentMutations);
+  if (
+    JSON.stringify(currentMutations) !== JSON.stringify(mutations) ||
+    JSON.stringify(currentEffects) !== JSON.stringify(effects)
+  ) {
+    throw new Error(
+      'Codex finalization plan changed after confirmation; no repository files were modified.',
+    );
+  }
 }
 
 function reportCompletedFinalization(
@@ -756,7 +808,8 @@ export async function removeLegacyCodexHooks(
   // leaves both it and the Codex profile unchanged.
   const preparedLegacyHookRemoval = prepareLegacyHookRemoval(cwd);
   const plannedMutations = buildCodexFinalizationMutations(cwd, preparedLegacyHookRemoval);
-  const plan = renderCodexFinalizationPlan(cwd, plannedMutations);
+  const plannedEffects = finalizationEffects(cwd, plannedMutations);
+  const plan = renderCodexFinalizationPlan(cwd, plannedMutations, preparedLegacyHookRemoval);
   const confirm = options.confirm;
   const confirmed = await resolveCodexFinalizationConfirmation({
     assumeYes: options.yes === true,
@@ -773,13 +826,17 @@ export async function removeLegacyCodexHooks(
 
   if (options.json !== true) success('Safe Word Codex plugin is enabled for this profile.');
 
-  const mutations = buildCodexFinalizationMutations(cwd, preparedLegacyHookRemoval);
-  const effects = finalizationEffects(cwd, mutations);
-  applyCodexFinalization(cwd, mutations);
+  assertCodexFinalizationPlanUnchanged(
+    cwd,
+    preparedLegacyHookRemoval,
+    plannedMutations,
+    plannedEffects,
+  );
+  applyCodexFinalization(cwd, plannedMutations);
 
   reportAppliedFinalization(cwd, {
     options,
-    effects,
+    effects: plannedEffects,
     removedLegacyHooks: preparedLegacyHookRemoval !== undefined,
   });
   return true;

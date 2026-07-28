@@ -675,7 +675,9 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     });
 
     expect(displayedPlan).toContain('- update .codex/config.toml');
-    expect(displayedPlan).toContain(LEGACY_HOOK_CONFIG.trim());
+    expect(displayedPlan).toContain(
+      LEGACY_HOOK_CONFIG.slice(LEGACY_HOOK_CONFIG.indexOf('[[hooks.PreToolUse]]')).trim(),
+    );
     expect(displayedPlan).toContain('- create .safeword/codex-plugin.json');
     expect(displayedPlan).toContain('- create .agents/skills/safeword-plugin-setup/SKILL.md');
   });
