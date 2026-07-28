@@ -192,10 +192,41 @@ function restoreBeforeImage(cwd: string, backupDirectory: string, entry: BackupE
   chmodSync(path, entry.before.mode);
 }
 
+function rollbackAppliedEntries(input: {
+  cwd: string;
+  backupDirectory: string;
+  entries: BackupEntry[];
+  appliedCount: number;
+  originalError: unknown;
+  beforeRollback?: () => void;
+}): void {
+  try {
+    input.beforeRollback?.();
+    for (let index = input.appliedCount - 1; index >= 0; index -= 1) {
+      const entry = input.entries[index];
+      if (entry === undefined) {
+        throw new Error('Codex rollback plan is incomplete.', { cause: input.originalError });
+      }
+      restoreBeforeImage(input.cwd, input.backupDirectory, entry);
+    }
+    rmSync(input.backupDirectory, { recursive: true });
+  } catch (rollbackError) {
+    throw new Error(
+      `Codex finalization failed (${String(
+        input.originalError,
+      )}) and rollback could not complete; recovery is required: ${String(rollbackError)}`,
+      { cause: rollbackError },
+    );
+  }
+}
+
 export function applyCodexFinalization(
   cwd: string,
   mutations: CodexFinalizationMutation[],
-  options: { beforeMutation?: (index: number) => void } = {},
+  options: {
+    beforeMutation?: (index: number) => void;
+    beforeRollback?: () => void;
+  } = {},
 ): BackupManifestV1 {
   const backupDirectory = containedPath(cwd, BACKUP_PATH);
   if (existsSync(backupDirectory)) {
@@ -224,23 +255,14 @@ export function applyCodexFinalization(
       appliedCount += 1;
     }
   } catch (error) {
-    try {
-      for (let index = appliedCount - 1; index >= 0; index -= 1) {
-        const entry = entries[index];
-        if (entry === undefined) {
-          throw new Error('Codex rollback plan is incomplete.', { cause: error });
-        }
-        restoreBeforeImage(cwd, backupDirectory, entry);
-      }
-      rmSync(backupDirectory, { recursive: true });
-    } catch (rollbackError) {
-      throw new Error(
-        `Codex finalization failed (${String(
-          error,
-        )}) and rollback could not complete; recovery is required: ${String(rollbackError)}`,
-        { cause: rollbackError },
-      );
-    }
+    rollbackAppliedEntries({
+      cwd,
+      backupDirectory,
+      entries,
+      appliedCount,
+      originalError: error,
+      beforeRollback: options.beforeRollback,
+    });
     throw error;
   }
 
