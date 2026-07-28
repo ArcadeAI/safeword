@@ -16,7 +16,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 8d6b92c4d
 - [x] GREEN c9f4baba0
-- [ ] REFACTOR
+- [x] REFACTOR skip: command branch is already the minimal safe expansion
 
 ### Scenario: Partial profile installation failure leaves repository protection unchanged
 
