@@ -12,6 +12,7 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { recordCodexHookProof } from '../../src/codex-plugin/profile-proof.js';
 import { createTemporaryDirectory, removeTemporaryDirectory, runCli } from '../helpers';
 
 const LEGACY_HOOK_CONFIG = `# Safeword Codex project configuration.
@@ -145,6 +146,10 @@ describe('migrate codex-plugin command', () => {
         ...environment,
       },
     });
+  }
+
+  function recordCurrentProof(fixture: ReturnType<typeof createMigrationFixture>): void {
+    recordCodexHookProof({ CODEX_HOME: nodePath.join(fixture.directory, 'profile') });
   }
 
   afterEach(() => {
@@ -514,6 +519,37 @@ command = 'echo "keep this user hook"'
     expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-migration-backup'))).toBe(
       false,
     );
+  });
+
+  it('creates a recoverable plugin-only project after confirmed finalization', async () => {
+    const fixture = createMigrationFixture(`${LEGACY_HOOK_CONFIG}${CUSTOM_PRE_TOOL_HOOK}`);
+    recordCurrentProof(fixture);
+    const legacySkillPath = nodePath.join(fixture.directory, '.agents/skills/review-spec/SKILL.md');
+    mkdirSync(nodePath.dirname(legacySkillPath), { recursive: true });
+    writeFileSync(legacySkillPath, '# legacy skill\n');
+
+    const result = await runCodexCommand(fixture, ['codex', 'migrate', '--finalize', '--yes']);
+
+    expect(result.exitCode, result.stderr).toBe(0);
+    const migrated = readFileSync(fixture.configPath, 'utf8');
+    expect(migrated).not.toContain('safeword hook codex pre-tool-use');
+    expect(migrated).toContain(CUSTOM_PRE_TOOL_HOOK.trim());
+    expect(existsSync(legacySkillPath)).toBe(false);
+    const markerPath = nodePath.join(fixture.directory, '.safeword/codex-plugin.json');
+    const marker = JSON.parse(readFileSync(markerPath, 'utf8'));
+    expect(marker).toEqual({ schema_version: 1, mode: 'plugin' });
+    expect(
+      readFileSync(
+        nodePath.join(fixture.directory, '.agents/skills/safeword-plugin-setup/SKILL.md'),
+        'utf8',
+      ),
+    ).toContain('safeword codex migrate');
+    const manifestPath = nodePath.join(
+      fixture.directory,
+      '.safeword/codex-migration-backup/manifest.json',
+    );
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    expect(manifest).toMatchObject({ schema_version: 1, status: 'finalized' });
   });
 
   it('cleans legacy hooks through the explicit Codex migration command without reinstalling', async () => {
