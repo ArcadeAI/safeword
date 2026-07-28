@@ -52,7 +52,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Interrupted proof write cannot become current
 
-- [ ] RED
+- [x] RED a88288036
 - [ ] GREEN
 - [ ] REFACTOR
 

@@ -89,6 +89,7 @@ export function writeCodexRestartMarker(
 export function recordCodexHookProof(
   environment: NodeJS.ProcessEnv = process.env,
   now = new Date(),
+  writeOptions: { beforeRename?: () => void } = {},
 ): CodexHookProofV1 {
   const identity = currentCodexPluginIdentity();
   const proof: CodexHookProofV1 = {
@@ -96,25 +97,30 @@ export function recordCodexHookProof(
     ...identity,
     recorded_at: now.toISOString(),
   };
-  writeAtomicJson(codexProofPath(environment), proof);
+  writeAtomicJson(codexProofPath(environment), proof, writeOptions);
 
   const markerPath = codexRestartMarkerPath(environment);
   if (restartMarkerMatches(markerPath, identity)) rmSync(markerPath);
   return proof;
 }
 
-function writeAtomicJson(path: string, value: unknown): void {
+function writeAtomicJson(
+  path: string,
+  value: unknown,
+  options: { beforeRename?: () => void } = {},
+): void {
   const directory = nodePath.dirname(path);
   mkdirSync(directory, { recursive: true });
   const temporaryPath = nodePath.join(directory, `.safeword-${process.pid}-${randomUUID()}.tmp`);
-  const descriptor = openSync(temporaryPath, 'wx', 0o600);
   try {
-    writeFileSync(descriptor, `${JSON.stringify(value)}\n`);
-    fsyncSync(descriptor);
-  } finally {
-    closeSync(descriptor);
-  }
-  try {
+    const descriptor = openSync(temporaryPath, 'wx', 0o600);
+    try {
+      writeFileSync(descriptor, `${JSON.stringify(value)}\n`);
+      fsyncSync(descriptor);
+    } finally {
+      closeSync(descriptor);
+    }
+    options.beforeRename?.();
     renameSync(temporaryPath, path);
   } finally {
     rmSync(temporaryPath, { force: true });
