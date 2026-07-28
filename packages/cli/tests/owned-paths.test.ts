@@ -343,6 +343,15 @@ function stubSchema(buckets: {
       buckets.legacyTextPatches,
     ) as unknown as SafewordSchema['legacyTextPatches'],
     contracts: {},
+    codexMigration: {
+      legacyFiles: [],
+      legacyDirs: [],
+      hookEvents: [],
+      hookScripts: [],
+      hookScriptPrefix: '',
+      packageRunner: 'npx',
+      projectMarker: '.safeword/SAFEWORD.md',
+    },
     packages: { base: [], conditional: {} },
   };
 }

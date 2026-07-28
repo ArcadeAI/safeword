@@ -38,6 +38,15 @@ function minimalSchema(patch: TextPatchDefinition): SafewordSchema {
     textPatches: { [TARGET]: patch },
     legacyTextPatches: {},
     contracts: {},
+    codexMigration: {
+      legacyFiles: [],
+      legacyDirs: [],
+      hookEvents: [],
+      hookScripts: [],
+      hookScriptPrefix: '',
+      packageRunner: 'npx',
+      projectMarker: '.safeword/SAFEWORD.md',
+    },
     packages: { base: [], conditional: {} },
   };
 }

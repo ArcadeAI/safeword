@@ -375,7 +375,7 @@ statusMessage = "Checking safeword PreToolUse gates"
       expect(existsSync(userHookPath)).toBe(true);
     });
 
-    it('removes the retired Codex retro filer without touching user agents', async () => {
+    it('preserves the legacy Codex retro filer and user agents before finalization', async () => {
       const { reconcile } = await import('../../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../../src/schema.js');
       const { createProjectContext } = await import('../../src/utils/context.js');
@@ -390,7 +390,7 @@ statusMessage = "Checking safeword PreToolUse gates"
 
       await reconcile(SAFEWORD_SCHEMA, 'upgrade', createProjectContext(temporaryDirectory));
 
-      expect(existsSync(retiredAgentPath)).toBe(false);
+      expect(existsSync(retiredAgentPath)).toBe(true);
       expect(existsSync(userAgentPath)).toBe(true);
     });
 
@@ -414,7 +414,7 @@ statusMessage = "Checking safeword PreToolUse gates"
       expect(existsSync(userFilePath)).toBe(true);
     });
 
-    it('removes a dangling symlink at the retired Codex agent path', async () => {
+    it('preserves a dangling symlink at the legacy Codex agent path', async () => {
       const { reconcile } = await import('../../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../../src/schema.js');
       const { createProjectContext } = await import('../../src/utils/context.js');
@@ -430,7 +430,7 @@ statusMessage = "Checking safeword PreToolUse gates"
 
       await reconcile(SAFEWORD_SCHEMA, 'upgrade', createProjectContext(temporaryDirectory));
 
-      expect(() => lstatSync(retiredAgentPath)).toThrow();
+      expect(lstatSync(retiredAgentPath).isSymbolicLink()).toBe(true);
     });
 
     it('leaves a retired Codex agent path alone when its parent is a user file', async () => {

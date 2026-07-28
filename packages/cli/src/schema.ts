@@ -79,6 +79,16 @@ export interface ContractDefinition {
   requires: string[]; // Strings that must appear verbatim in the file content
 }
 
+export interface CodexMigrationDefinition {
+  legacyFiles: string[];
+  legacyDirs: string[];
+  hookEvents: string[];
+  hookScripts: string[];
+  hookScriptPrefix: string;
+  packageRunner: 'npx';
+  projectMarker: string;
+}
+
 export interface SafewordSchema {
   version: string;
   ownedDirs: string[]; // Fully owned - create on setup, delete on reset
@@ -96,6 +106,7 @@ export interface SafewordSchema {
   textPatches: Record<string, TextPatchDefinition | TextPatchDefinition[]>;
   legacyTextPatches: Record<string, TextPatchDefinition>; // Remove old managed text patches without installing them
   contracts: Record<string, ContractDefinition>; // Files that must contain specific strings (predicate parity)
+  codexMigration: CodexMigrationDefinition; // Historical Codex identities retained until explicit finalization
   packages: {
     base: string[];
     conditional: Record<string, string[]>;
@@ -207,6 +218,27 @@ const CODEX_SKILL_DEPRECATED_FILES = CODEX_LEGACY_SKILL_FILES.map(file => `.agen
 
 const CODEX_SKILL_DEPRECATED_DIRS = [
   ...new Set(CODEX_LEGACY_SKILL_FILES.map(file => `.agents/skills/${file.split('/', 1)[0]}`)),
+];
+
+const CODEX_LEGACY_AGENT_FILES = ['.codex/agents/safeword-retro-filer.toml'];
+
+const CODEX_LEGACY_HOOK_EVENTS = [
+  'session-start',
+  'user-prompt-submit',
+  'pre-tool-use',
+  'post-tool-use',
+  'stop',
+];
+
+const CODEX_LEGACY_HOOK_SCRIPTS = [
+  'session-codex-start.ts',
+  'session-safeword-context.ts',
+  'prompt-timestamp.ts',
+  'prompt-retro-nudge.ts',
+  'codex/pre-tool-quality.ts',
+  'codex/stop.ts',
+  'codex/post-tool-skill-nudge.ts',
+  'codex/post-tool-quality.ts',
 ];
 
 const CURSOR_RULE_WRAPPER_OWNED_FILES: Record<string, FileDefinition> = Object.fromEntries(
@@ -441,6 +473,15 @@ function boundaryShimPatch(at: 'commit' | 'push'): TextPatchDefinition {
 /** The canonical schema is plugin-only for Codex. */
 export const SAFEWORD_SCHEMA: SafewordSchema = {
   version: VERSION,
+  codexMigration: {
+    legacyFiles: [...CODEX_SKILL_DEPRECATED_FILES, ...CODEX_LEGACY_AGENT_FILES],
+    legacyDirs: CODEX_SKILL_DEPRECATED_DIRS,
+    hookEvents: CODEX_LEGACY_HOOK_EVENTS,
+    hookScripts: CODEX_LEGACY_HOOK_SCRIPTS,
+    hookScriptPrefix: 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/',
+    packageRunner: 'npx',
+    projectMarker: '.safeword/SAFEWORD.md',
+  },
 
   // Directories fully owned by safeword (created on setup, deleted on reset)
   ownedDirs: [
@@ -559,13 +600,8 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/.gherkin-lintrc',
     // Merged into session-auto-upgrade.ts — check + apply now run in one pass (XQ9CXA)
     '.safeword/hooks/session-update-check.ts',
-    // Codex implementation moved into the packaged Codex plugin and `safeword hook codex`.
-    // Keep cleanup file-scoped for `.agents/skills/*` because `.agents/skills` is a shared
-    // agent directory; a user-authored sibling skill must survive migration.
-    ...CODEX_SKILL_DEPRECATED_FILES,
-    // This agent is superseded by the Codex plugin. It was formerly owned by
-    // Safe Word, so it is safe to retire without touching custom agent files.
-    '.codex/agents/safeword-retro-filer.toml',
+    // Legacy Codex assets are intentionally absent. Generic maintenance must
+    // preserve them until explicit, proof-gated migration finalization.
   ],
 
   // Packages to uninstall on upgrade (now bundled in safeword/eslint or replaced)
@@ -607,8 +643,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/skills/safeword-quality-reviewing',
     '.claude/skills/safeword-refactoring',
     '.claude/skills/safeword-bdd-orchestrating',
-    // Empty after deprecated Codex skill files are removed; non-empty user-modified dirs survive.
-    ...CODEX_SKILL_DEPRECATED_DIRS,
+    // Legacy Codex skill directories remain until explicit migration finalization.
   ],
 
   // Files owned by safeword (overwritten on upgrade if content changed)

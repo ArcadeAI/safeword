@@ -8,7 +8,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Upgrade preserves recognized legacy protection
 
-- [ ] RED
+- [x] RED — `977fb5dc2` proves generic upgrade deletes a recognized legacy skill
 - [ ] GREEN
 - [ ] REFACTOR
 
