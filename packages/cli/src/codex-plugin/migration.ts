@@ -92,7 +92,10 @@ const MIGRATION_STATE_RULES: readonly {
     state: 'plugin_disabled',
     matches: facts => facts.plugin.installed && facts.plugin.enabled === false,
   },
-  { state: 'plugin_installed_restart_required', matches: facts => facts.restartPending },
+  {
+    state: 'plugin_installed_restart_required',
+    matches: facts => facts.restartPending && facts.plugin.enabled === true,
+  },
   {
     state: 'plugin_enabled_hook_unproven',
     matches: facts => facts.plugin.enabled === true && facts.proof.status !== 'current',

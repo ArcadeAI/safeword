@@ -250,6 +250,8 @@ describe('Codex migration finalization', () => {
       JSON.stringify({
         schema_version: 1,
         status: 'finalized',
+        transaction_id: '00000000-0000-4000-8000-000000000000',
+        plan_sha256: '0'.repeat(64),
         entries: [
           {
             path: 'innocent.txt',

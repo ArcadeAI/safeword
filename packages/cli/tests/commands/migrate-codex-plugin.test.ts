@@ -89,7 +89,7 @@ if [ "$(printenv SAFEWORD_MUTATE_CONFIG 2>/dev/null || true)" = "1" ] && [ "$*" 
   printf '# concurrent config update\\n' >> "$SAFEWORD_CONFIG_PATH"
 fi
 if [ -n "$(printenv SAFEWORD_LEGACY_ASSET_PATH 2>/dev/null || true)" ] && [ "$*" = "plugin list --json" ]; then
-  printf '# appeared after confirmation\\n' > "$SAFEWORD_LEGACY_ASSET_PATH"
+  printf '# appeared after confirmation\n' > "$SAFEWORD_LEGACY_ASSET_PATH"
 fi
 case "$*" in
   '--version') echo 'codex 0.141.0' ;;
@@ -762,7 +762,12 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     expect(existsSync(legacySkillPath)).toBe(false);
     const markerPath = nodePath.join(fixture.directory, '.safeword/codex-plugin.json');
     const marker = JSON.parse(readFileSync(markerPath, 'utf8'));
-    expect(marker).toEqual({ schema_version: 1, mode: 'plugin' });
+    expect(marker).toMatchObject({
+      schema_version: 1,
+      mode: 'plugin',
+      transaction_id: expect.any(String),
+      plan_sha256: expect.stringMatching(/^[\da-f]{64}$/u),
+    });
     expect(
       readFileSync(
         nodePath.join(fixture.directory, '.agents/skills/safeword-plugin-setup/SKILL.md'),
@@ -1097,8 +1102,18 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     );
     const marker = JSON.parse(readFileSync(markerPath, 'utf8'));
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
-    expect(marker).toEqual({ schema_version: 1, mode: 'plugin' });
-    expect(manifest).toMatchObject({ schema_version: 1, status: 'finalized' });
+    expect(marker).toMatchObject({
+      schema_version: 1,
+      mode: 'plugin',
+      transaction_id: expect.any(String),
+      plan_sha256: expect.stringMatching(/^[\da-f]{64}$/u),
+    });
+    expect(manifest).toMatchObject({
+      schema_version: 1,
+      status: 'finalized',
+      transaction_id: marker.transaction_id,
+      plan_sha256: marker.plan_sha256,
+    });
     const calls = readFileSync(nodePath.join(fixture.directory, 'codex.log'), 'utf8');
     expect(calls).toContain('plugin list --json');
     expect(calls).not.toContain('plugin marketplace add');

@@ -16,6 +16,8 @@ import {
 } from 'node:fs';
 import nodePath from 'node:path';
 
+import { SAFEWORD_SCHEMA } from '../schema.js';
+
 export interface CodexFinalizationMutation {
   path: string;
   content: string | null;
@@ -42,11 +44,15 @@ interface BackupEntry {
 interface BackupManifestV1 {
   schema_version: 1;
   status: 'prepared' | 'finalized' | 'recovering';
+  transaction_id: string;
+  plan_sha256: string;
   entries: BackupEntry[];
 }
 
 const BACKUP_PATH = '.safeword/codex-migration-backup';
 const PROJECT_MARKER_PATH = '.safeword/codex-plugin.json';
+const BOOTSTRAP_PATH = '.agents/skills/safeword-plugin-setup/SKILL.md';
+const CODEX_CONFIG_PATH = '.codex/config.toml';
 
 export async function resolveCodexFinalizationConfirmation(_options: {
   assumeYes: boolean;
@@ -99,6 +105,9 @@ export function codexFinalizationIsComplete(cwd: string): boolean {
       marker.mode === 'plugin' &&
       isBackupManifest(manifest) &&
       manifest.status === 'finalized' &&
+      marker.transaction_id === manifest.transaction_id &&
+      marker.plan_sha256 === manifest.plan_sha256 &&
+      manifestPlanDigest(manifest.entries) === manifest.plan_sha256 &&
       backupPayloadsAreValid(cwd, manifest)
     );
   } catch {
@@ -151,6 +160,13 @@ function assertSafeComponents(cwd: string, relativePath: string): string {
     }
   }
   return target;
+}
+
+export function validateCodexFinalizationPaths(
+  cwd: string,
+  mutations: CodexFinalizationMutation[],
+): void {
+  for (const mutation of mutations) assertSafeComponents(cwd, mutation.path);
 }
 
 function beforeImage(
@@ -321,17 +337,64 @@ function isBackupEntry(value: unknown): value is BackupEntry {
   );
 }
 
+function hasValidTransactionBinding(manifest: Record<string, unknown>): boolean {
+  return (
+    typeof manifest.transaction_id === 'string' &&
+    /^[\da-f-]{36}$/iu.test(manifest.transaction_id) &&
+    isSha256(manifest.plan_sha256)
+  );
+}
+
+function hasValidBackupEntries(manifest: Record<string, unknown>): boolean {
+  if (!Array.isArray(manifest.entries) || manifest.entries.length === 0) return false;
+  if (!manifest.entries.every(isBackupEntry)) return false;
+  return new Set(manifest.entries.map(entry => entry.path)).size === manifest.entries.length;
+}
+
 function isBackupManifest(value: unknown): value is BackupManifestV1 {
   if (typeof value !== 'object' || value === null) return false;
   const manifest = value as Record<string, unknown>;
   return (
     manifest.schema_version === 1 &&
     ['prepared', 'finalized', 'recovering'].includes(String(manifest.status)) &&
-    Array.isArray(manifest.entries) &&
-    manifest.entries.length > 0 &&
-    manifest.entries.every(isBackupEntry) &&
-    new Set(manifest.entries.map(entry => entry.path)).size === manifest.entries.length
+    hasValidTransactionBinding(manifest) &&
+    hasValidBackupEntries(manifest)
   );
+}
+
+function manifestPlanDigest(entries: BackupEntry[]): string {
+  const intent = entries.map(entry => ({
+    path: entry.path,
+    before: entry.before,
+    after:
+      entry.path === PROJECT_MARKER_PATH && entry.after.kind === 'file'
+        ? { kind: 'file', mode: entry.after.mode }
+        : entry.after,
+  }));
+  return sha256(Buffer.from(JSON.stringify(intent)));
+}
+
+function entryPathIsAllowed(path: string): boolean {
+  return (
+    path === CODEX_CONFIG_PATH ||
+    path === PROJECT_MARKER_PATH ||
+    path === BOOTSTRAP_PATH ||
+    SAFEWORD_SCHEMA.codexMigration.legacyFiles.includes(path)
+  );
+}
+
+function validateManifestIntent(manifest: BackupManifestV1): void {
+  for (const [index, entry] of manifest.entries.entries()) {
+    if (!entryPathIsAllowed(entry.path)) {
+      throw new Error(`Recovery path ${entry.path} is not part of the Codex migration inventory.`);
+    }
+    if (entry.before.kind === 'file' && entry.before.payload !== `payloads/${index}.bin`) {
+      throw new Error(`Codex migration backup payload identity is invalid for ${entry.path}.`);
+    }
+  }
+  if (manifestPlanDigest(manifest.entries) !== manifest.plan_sha256) {
+    throw new Error('Codex migration backup plan integrity check failed.');
+  }
 }
 
 function backupPayloadsAreValid(cwd: string, manifest: BackupManifestV1): boolean {
@@ -373,6 +436,7 @@ export function recoverCodexFinalization(cwd: string): boolean {
     throw new Error('Codex migration backup manifest is missing; recovery cannot continue.');
   }
   const { backupDirectory, manifest } = readBackupManifest(cwd);
+  validateManifestIntent(manifest);
   const allowBefore = manifest.status !== 'finalized';
   for (const entry of manifest.entries) {
     validateRecoveryEntry(cwd, backupDirectory, entry, allowBefore);
@@ -397,6 +461,13 @@ function rollbackAppliedEntries(input: {
 }): void {
   try {
     input.beforeRollback?.();
+    for (const entry of input.entries.slice(0, input.appliedCount)) {
+      if (!imagesMatch(observedImage(input.cwd, entry.path), entry.after)) {
+        throw new Error(
+          `Codex rollback conflict at ${entry.path}; recovery evidence was retained.`,
+        );
+      }
+    }
     for (let index = input.appliedCount - 1; index >= 0; index -= 1) {
       const entry = input.entries[index];
       if (entry === undefined) {
@@ -428,16 +499,43 @@ export function applyCodexFinalization(
   if (existsSync(backupDirectory)) {
     throw new Error(`Codex migration backup already exists at ${BACKUP_PATH}.`);
   }
-  for (const mutation of mutations) assertSafeComponents(cwd, mutation.path);
+  validateCodexFinalizationPaths(cwd, mutations);
   mkdirSync(nodePath.join(backupDirectory, 'payloads'), { recursive: true, mode: 0o700 });
 
-  const entries = mutations.map((mutation, index) => {
+  const transactionId = randomUUID();
+  let effectiveMutations = mutations.map(mutation => ({ ...mutation }));
+  let entries = effectiveMutations.map((mutation, index) => {
     const before = beforeImage(cwd, backupDirectory, mutation, index);
     return { path: mutation.path, before, after: afterImage(mutation, before) };
+  });
+  const planSha256 = manifestPlanDigest(entries);
+  effectiveMutations = effectiveMutations.map(mutation =>
+    mutation.path === PROJECT_MARKER_PATH && mutation.content !== null
+      ? {
+          ...mutation,
+          content: `${JSON.stringify({
+            schema_version: 1,
+            mode: 'plugin',
+            transaction_id: transactionId,
+            plan_sha256: planSha256,
+          })}\n`,
+        }
+      : mutation,
+  );
+  entries = effectiveMutations.map((mutation, index) => {
+    const previous = entries[index];
+    if (previous === undefined) throw new Error('Codex migration plan changed during preparation.');
+    return {
+      path: mutation.path,
+      before: previous.before,
+      after: afterImage(mutation, previous.before),
+    };
   });
   const manifest: BackupManifestV1 = {
     schema_version: 1,
     status: 'prepared',
+    transaction_id: transactionId,
+    plan_sha256: planSha256,
     entries,
   };
   writeManifest(backupDirectory, manifest);
@@ -445,10 +543,15 @@ export function applyCodexFinalization(
 
   let appliedCount = 0;
   try {
-    for (const [index, mutation] of mutations.entries()) {
+    for (const [index, mutation] of effectiveMutations.entries()) {
       options.beforeMutation?.(index);
       const entry = entries[index];
       if (entry === undefined) throw new Error('Codex migration plan changed during execution.');
+      if (!imagesMatch(observedImage(cwd, entry.path), entry.before)) {
+        throw new Error(
+          `Codex migration path ${entry.path} changed after the Codex migration backup was prepared.`,
+        );
+      }
       applyMutation(cwd, mutation, entry.after);
       appliedCount += 1;
     }

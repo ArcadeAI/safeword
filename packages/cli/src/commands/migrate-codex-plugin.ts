@@ -13,6 +13,7 @@ import {
   codexRecoveryIsRequired,
   recoverCodexFinalization,
   resolveCodexFinalizationConfirmation,
+  validateCodexFinalizationPaths,
 } from '../codex-plugin/finalization.js';
 import { legacyCodexEventIsViable } from '../codex-plugin/legacy-authority.js';
 import {
@@ -663,10 +664,7 @@ function shouldReportExistingMigrationState(
 ): boolean {
   if (codexRecoveryIsRequired(cwd)) return true;
   if (options.reportMigrationState !== true) return false;
-  return (
-    codexRestartIsPending(options.environment) ||
-    observeCodexMigrationResult(cwd, options.environment).plugin.enabled === true
-  );
+  return observeCodexMigrationResult(cwd, options.environment).plugin.enabled === true;
 }
 
 function buildCodexFinalizationMutations(
@@ -736,17 +734,54 @@ function renderCodexFinalizationPlan(
   return `${lines.join('\n')}\n`;
 }
 
+type FinalizationInputSnapshot = {
+  path: string;
+  state: 'absent' | 'file';
+  mode?: number;
+  content?: string;
+}[];
+
+function snapshotCodexFinalizationInputs(
+  cwd: string,
+  mutations: CodexFinalizationMutation[],
+): FinalizationInputSnapshot {
+  validateCodexFinalizationPaths(cwd, mutations);
+  return mutations.map(mutation => {
+    const path = nodePath.join(cwd, mutation.path);
+    let metadata: Stats;
+    try {
+      metadata = lstatSync(path);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        return { path: mutation.path, state: 'absent' };
+      }
+      throw error;
+    }
+    if (!metadata.isFile()) {
+      throw new Error(`Unsafe Codex migration path is not a regular file: ${mutation.path}`);
+    }
+    return {
+      path: mutation.path,
+      state: 'file',
+      mode: metadata.mode & 0o777,
+      content: readFileSync(path).toString('base64'),
+    };
+  });
+}
+
 function assertCodexFinalizationPlanUnchanged(
   cwd: string,
   preparedLegacyHookRemoval: PreparedLegacyHookRemoval | undefined,
   mutations: CodexFinalizationMutation[],
   effects: CodexMigrationResultV1['effects']['files'],
+  inputs: FinalizationInputSnapshot,
 ): void {
   const currentMutations = buildCodexFinalizationMutations(cwd, preparedLegacyHookRemoval);
   const currentEffects = finalizationEffects(cwd, currentMutations);
   if (
     JSON.stringify(currentMutations) !== JSON.stringify(mutations) ||
-    JSON.stringify(currentEffects) !== JSON.stringify(effects)
+    JSON.stringify(currentEffects) !== JSON.stringify(effects) ||
+    JSON.stringify(snapshotCodexFinalizationInputs(cwd, mutations)) !== JSON.stringify(inputs)
   ) {
     throw new Error(
       'Codex finalization plan changed after confirmation; no repository files were modified.',
@@ -809,6 +844,7 @@ export async function removeLegacyCodexHooks(
   const preparedLegacyHookRemoval = prepareLegacyHookRemoval(cwd);
   const plannedMutations = buildCodexFinalizationMutations(cwd, preparedLegacyHookRemoval);
   const plannedEffects = finalizationEffects(cwd, plannedMutations);
+  const plannedInputs = snapshotCodexFinalizationInputs(cwd, plannedMutations);
   const plan = renderCodexFinalizationPlan(cwd, plannedMutations, preparedLegacyHookRemoval);
   const confirm = options.confirm;
   const confirmed = await resolveCodexFinalizationConfirmation({
@@ -831,6 +867,7 @@ export async function removeLegacyCodexHooks(
     preparedLegacyHookRemoval,
     plannedMutations,
     plannedEffects,
+    plannedInputs,
   );
   applyCodexFinalization(cwd, plannedMutations);
 
