@@ -412,17 +412,15 @@ describe.skipIf(!CAN_RUN_MIGRATION)('live smoke: Codex public migration', () => 
     rmSync(codexHome, { recursive: true, force: true });
   });
 
-  it('installs and verifies the marketplace plugin without deleting unreviewed legacy hooks', () => {
+  it('installs and verifies the marketplace plugin without deleting unreviewed legacy hooks', async () => {
     if (!CODEX) throw new Error('unreachable: CAN_RUN_MIGRATION guards codex presence');
 
-    withEnvironment(
+    await withEnvironment(
       {
         CODEX_HOME: codexHome,
         PATH: `${nodePath.resolve(CLI_ROOT, '../../node_modules/.bin')}:${process.env.PATH ?? ''}`,
       },
-      () => {
-        migrateCodexPlugin(projectRoot, { marketplaceSource: migrationMarketplaceSource() });
-      },
+      () => migrateCodexPlugin(projectRoot, { marketplaceSource: migrationMarketplaceSource() }),
     );
 
     expect(readFileSync(nodePath.join(projectRoot, '.codex', 'config.toml'), 'utf8')).toBe(
