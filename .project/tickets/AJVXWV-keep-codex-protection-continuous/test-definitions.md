@@ -59,7 +59,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Changed plugin identity invalidates proof
 
 - [x] RED skip: proof validation shipped with proof-aware status before corruption table coverage
-- [ ] GREEN
+- [x] GREEN 569769919
 - [ ] REFACTOR
 
 ### Scenario: Legacy SessionStart cannot create plugin proof
