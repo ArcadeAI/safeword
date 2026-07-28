@@ -72,7 +72,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Legacy handler remains authoritative for a covered event
 
-- [ ] RED
+- [x] RED 47057886b
 - [ ] GREEN
 - [ ] REFACTOR
 
