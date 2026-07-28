@@ -181,9 +181,13 @@ function effectLines(category: string, effects: unknown): string[] {
 }
 
 function plannedEffectLines(data: unknown): string[] {
-  if (!isRecord(data) || !isRecord(data.plan) || !isRecord(data.plan.effects)) return [];
+  if (!isRecord(data)) return [];
+  const plan = data.plan;
+  if (!isRecord(plan)) return [];
+  const effects = plan.effects;
+  if (!isRecord(effects)) return [];
   const categories = ['files', 'packages', 'configuration', 'network', 'destructive'];
-  const lines = categories.flatMap(category => effectLines(category, data.plan.effects[category]));
+  const lines = categories.flatMap(category => effectLines(category, effects[category]));
   return lines.length === 0 ? [] : ['Planned effects:', ...lines];
 }
 

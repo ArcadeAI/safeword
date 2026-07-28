@@ -825,25 +825,50 @@ function computeUninstallPlan(
 // Plan execution
 // ============================================================================
 
-interface ExecutionResult {
+export interface ExecutionResult {
   created: string[];
   updated: string[];
   removed: string[];
   warnings: string[];
 }
 
-function executePlan(plan: ReconcilePlan, ctx: ProjectContext): ExecutionResult {
+export class ReconcileExecutionError extends Error {
+  readonly partial: ExecutionResult;
+  readonly completedActions: readonly Action[];
+
+  constructor(cause: unknown, partial: ExecutionResult, completedActions: readonly Action[]) {
+    super(cause instanceof Error ? cause.message : String(cause));
+    this.name = 'ReconcileExecutionError';
+    this.partial = partial;
+    this.completedActions = completedActions;
+  }
+}
+
+export function executeReconciliationActions(
+  actions: readonly Action[],
+  ctx: ProjectContext,
+): ExecutionResult {
   const created: string[] = [];
   const updated: string[] = [];
   const removed: string[] = [];
   const warnings: string[] = [];
   const result = { created, updated, removed, warnings };
+  const completedActions: Action[] = [];
 
-  for (const action of plan.actions) {
-    executeAction(action, ctx, result);
+  for (const action of actions) {
+    try {
+      executeAction(action, ctx, result);
+      completedActions.push(action);
+    } catch (executionError) {
+      throw new ReconcileExecutionError(executionError, result, completedActions);
+    }
   }
 
   return result;
+}
+
+function executePlan(plan: ReconcilePlan, ctx: ProjectContext): ExecutionResult {
+  return executeReconciliationActions(plan.actions, ctx);
 }
 
 function executeChmod(cwd: string, paths: string[]): void {

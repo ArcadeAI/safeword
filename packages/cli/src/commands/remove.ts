@@ -1,5 +1,6 @@
 import { toWirePlan } from '../cli-protocol/plan.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
+import { ReconcileExecutionError } from '../reconcile.js';
 import {
   applyReconciliation,
   createReconciliationPlan,
@@ -62,8 +63,23 @@ export async function removeProject(cwd: string, options: RemoveOptions): Promis
       },
     });
   } catch (removeError) {
+    const partial =
+      removeError instanceof ReconcileExecutionError
+        ? {
+            files: [],
+            packages: [],
+            configuration: [],
+            network: [],
+            destructive: removeError.partial.removed.map(target => ({
+              kind: 'remove',
+              target,
+            })),
+          }
+        : undefined;
     return createResult({
       state: 'failed',
+      changed: partial?.destructive.length !== 0,
+      effects: partial,
       errors: [
         {
           code: 'REMOVE_FAILED',
