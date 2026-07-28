@@ -830,6 +830,10 @@ export async function removeLegacyCodexHooks(
     json?: boolean;
   } = {},
 ): Promise<boolean> {
+  if (codexRecoveryIsRequired(cwd)) {
+    reportCodexMigration(cwd, options);
+    return false;
+  }
   if (observeCodexHookProof(options.environment).status !== 'current') {
     throw new Error(
       'Finalization requires current plugin hook proof. Start a new Codex session, review /hooks, then retry.',

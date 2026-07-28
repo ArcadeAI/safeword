@@ -16,7 +16,7 @@ import {
 } from 'node:fs';
 import nodePath from 'node:path';
 
-import { SAFEWORD_SCHEMA } from '../schema.js';
+import { CODEX_MIGRATION_SCHEMA } from './inventory.ts';
 
 export interface CodexFinalizationMutation {
   path: string;
@@ -100,10 +100,11 @@ export function codexFinalizationIsComplete(cwd: string): boolean {
     const manifest = JSON.parse(
       readFileSync(containedPath(cwd, `${BACKUP_PATH}/manifest.json`), 'utf8'),
     ) as Record<string, unknown>;
+    if (!isBackupManifest(manifest)) return false;
+    validateManifestIntent(manifest);
     return (
       marker.schema_version === 1 &&
       marker.mode === 'plugin' &&
-      isBackupManifest(manifest) &&
       manifest.status === 'finalized' &&
       marker.transaction_id === manifest.transaction_id &&
       marker.plan_sha256 === manifest.plan_sha256 &&
@@ -379,7 +380,7 @@ function entryPathIsAllowed(path: string): boolean {
     path === CODEX_CONFIG_PATH ||
     path === PROJECT_MARKER_PATH ||
     path === BOOTSTRAP_PATH ||
-    SAFEWORD_SCHEMA.codexMigration.legacyFiles.includes(path)
+    CODEX_MIGRATION_SCHEMA.legacyFiles.includes(path)
   );
 }
 

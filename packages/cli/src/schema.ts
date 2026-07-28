@@ -9,6 +9,7 @@
 
 import nodePath from 'node:path';
 
+import { CODEX_MIGRATION_SCHEMA } from './codex-plugin/inventory.js';
 import { golangManagedFiles, golangOwnedFiles } from './packs/golang/files.js';
 import { pythonManagedFiles, pythonOwnedFiles } from './packs/python/files.js';
 import { rustManagedFiles, rustOwnedFiles } from './packs/rust/files.js';
@@ -187,74 +188,6 @@ const MCP_JSON_MERGE: JsonMergeDefinition = {
  * editing is a future improvement for the whole merge engine, not this ticket.
  */
 const MARKDOWNLINT_CLI2_IGNORES_MERGE = dirGlobExcludeMerge('ignores', dir => `**/${dir}/**`);
-
-const CODEX_LEGACY_SKILL_FILES = [
-  'audit/SKILL.md',
-  'bdd/SKILL.md',
-  'bdd/DISCOVERY.md',
-  'bdd/PLAN_IMPLEMENTATION.md',
-  'bdd/SCENARIOS.md',
-  'bdd/TDD.md',
-  'bdd/DONE.md',
-  'bdd/SPLITTING.md',
-  'bdd/VERIFY.md',
-  'brainstorm/SKILL.md',
-  'cleanup-zombies/SKILL.md',
-  'debug/SKILL.md',
-  'elicit/SKILL.md',
-  'explain/SKILL.md',
-  'figure-it-out/SKILL.md',
-  'lint/SKILL.md',
-  'quality-review/SKILL.md',
-  'refactor/SKILL.md',
-  'retro/SKILL.md',
-  'review-spec/SKILL.md',
-  'self-review/SKILL.md',
-  'tdd-review/SKILL.md',
-  'testing/SKILL.md',
-  'ticket-system/SKILL.md',
-  'verify/SKILL.md',
-] as const;
-
-const CODEX_SKILL_DEPRECATED_FILES = CODEX_LEGACY_SKILL_FILES.map(file => `.agents/skills/${file}`);
-
-const CODEX_SKILL_DEPRECATED_DIRS = [
-  ...new Set(CODEX_LEGACY_SKILL_FILES.map(file => `.agents/skills/${file.split('/', 1)[0]}`)),
-];
-
-const CODEX_LEGACY_AGENT_FILES = ['.codex/agents/safeword-retro-filer.toml'];
-
-const CODEX_LEGACY_HOOK_EVENTS = [
-  'session-start',
-  'user-prompt-submit',
-  'pre-tool-use',
-  'post-tool-use',
-  'stop',
-];
-
-const CODEX_LEGACY_HOOK_EVENT_NAMES: Record<string, string> = {
-  'session-start': 'SessionStart',
-  'user-prompt-submit': 'UserPromptSubmit',
-  'pre-tool-use': 'PreToolUse',
-  'post-tool-use': 'PostToolUse',
-  stop: 'Stop',
-};
-
-const CODEX_LEGACY_HOOK_SCRIPT_EVENTS: Record<string, string> = {
-  'session-codex-start.ts': 'session-start',
-  'session-safeword-context.ts': 'session-start',
-  'prompt-timestamp.ts': 'user-prompt-submit',
-  'prompt-retro-nudge.ts': 'user-prompt-submit',
-  'codex/pre-tool-quality.ts': 'pre-tool-use',
-  'codex/stop.ts': 'stop',
-  'codex/post-tool-skill-nudge.ts': 'post-tool-use',
-  'codex/post-tool-quality.ts': 'post-tool-use',
-};
-
-const CODEX_LEGACY_HOOK_SCRIPTS = Object.keys(CODEX_LEGACY_HOOK_SCRIPT_EVENTS);
-const CODEX_LEGACY_RUNTIME_FILES = CODEX_LEGACY_HOOK_SCRIPTS.map(
-  script => `.safeword/hooks/${script}`,
-);
 
 const CURSOR_RULE_WRAPPER_OWNED_FILES: Record<string, FileDefinition> = Object.fromEntries(
   CURSOR_RULE_WRAPPERS.map(wrapper => [
@@ -488,21 +421,7 @@ function boundaryShimPatch(at: 'commit' | 'push'): TextPatchDefinition {
 /** The canonical schema is plugin-only for Codex. */
 export const SAFEWORD_SCHEMA: SafewordSchema = {
   version: VERSION,
-  codexMigration: {
-    legacyFiles: [
-      ...CODEX_SKILL_DEPRECATED_FILES,
-      ...CODEX_LEGACY_AGENT_FILES,
-      ...CODEX_LEGACY_RUNTIME_FILES,
-    ],
-    legacyDirs: CODEX_SKILL_DEPRECATED_DIRS,
-    hookEvents: CODEX_LEGACY_HOOK_EVENTS,
-    hookEventNames: CODEX_LEGACY_HOOK_EVENT_NAMES,
-    hookScripts: CODEX_LEGACY_HOOK_SCRIPTS,
-    hookScriptEvents: CODEX_LEGACY_HOOK_SCRIPT_EVENTS,
-    hookScriptPrefix: 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/',
-    packageRunner: 'npx',
-    projectMarker: '.safeword/SAFEWORD.md',
-  },
+  codexMigration: CODEX_MIGRATION_SCHEMA,
 
   // Directories fully owned by safeword (created on setup, deleted on reset)
   ownedDirs: [

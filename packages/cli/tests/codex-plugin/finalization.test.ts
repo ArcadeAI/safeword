@@ -105,6 +105,19 @@ describe('Codex migration finalization', () => {
     expect(codexRecoveryIsRequired(directory)).toBe(true);
   });
 
+  it('does not treat a self-consistent manifest outside the migration inventory as complete', () => {
+    const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-finalization-'));
+    directories.push(directory);
+
+    applyCodexFinalization(directory, [
+      { path: 'innocent.txt', content: 'unrelated content\n' },
+      { path: '.safeword/codex-plugin.json', content: '{}\n' },
+    ]);
+
+    expect(codexFinalizationIsComplete(directory)).toBe(false);
+    expect(codexRecoveryIsRequired(directory)).toBe(true);
+  });
+
   it('surfaces an orphaned backup directory as recovery required', () => {
     const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-finalization-'));
     directories.push(directory);

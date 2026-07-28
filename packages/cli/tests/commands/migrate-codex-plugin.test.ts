@@ -12,7 +12,7 @@ import {
 } from 'node:fs';
 import nodePath from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   recordCodexHookProof,
@@ -659,6 +659,51 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     expect(JSON.parse(jsonResult.stdout)).toMatchObject({
       errors: [{ code: 'FINALIZATION_PROOF_REQUIRED' }],
     });
+  });
+
+  it('refuses finalization before prompting or checking the profile when recovery is required', async () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    recordCurrentProof(fixture);
+    const backupDirectory = nodePath.join(fixture.directory, '.safeword/codex-migration-backup');
+    mkdirSync(backupDirectory, { recursive: true });
+    writeFileSync(nodePath.join(backupDirectory, 'keep.txt'), 'unresolved recovery evidence\n');
+    const before = readFileSync(fixture.configPath, 'utf8');
+    const confirm = vi.fn(() => Promise.resolve(true));
+    const priorExitCode = process.exitCode;
+    const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+
+    try {
+      await expect(
+        removeLegacyCodexHooks(fixture.directory, {
+          environment: { CODEX_HOME: nodePath.join(fixture.directory, 'profile') },
+          confirm,
+        }),
+      ).resolves.toBe(false);
+    } finally {
+      process.exitCode = priorExitCode;
+      stdout.mockRestore();
+    }
+
+    expect(confirm).not.toHaveBeenCalled();
+    expect(readFileSync(fixture.configPath, 'utf8')).toBe(before);
+    expect(existsSync(nodePath.join(fixture.directory, 'codex.log'))).toBe(false);
+
+    const result = await runCodexCommand(fixture, [
+      'codex',
+      'migrate',
+      '--finalize',
+      '--yes',
+      '--json',
+    ]);
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toBe('');
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'recovery_required',
+      changed: false,
+      next_actions: [{ command: 'safeword codex recover' }],
+    });
+    expect(readFileSync(fixture.configPath, 'utf8')).toBe(before);
+    expect(existsSync(nodePath.join(fixture.directory, 'codex.log'))).toBe(false);
   });
 
   it('passes exact config blocks and paths from the real planner to confirmation', async () => {
