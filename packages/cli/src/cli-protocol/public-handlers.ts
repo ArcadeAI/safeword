@@ -2,6 +2,7 @@ import { existsSync, readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import type * as CodexMigration from '../commands/migrate-codex-plugin.js';
+import type { RetroCliOptions, RetroCommandExecution } from '../commands/retro.js';
 import type { CommandHandler, CommandInvocation } from './handler.js';
 import { type CliResult, createResult } from './result.js';
 
@@ -274,6 +275,17 @@ function stringOption(
 ): string | undefined {
   const value = options[name];
   return typeof value === 'string' ? value : undefined;
+}
+
+function numericOption(
+  options: Readonly<Record<string, unknown>>,
+  name: string,
+): number | undefined {
+  const value = options[name];
+  if (typeof value === 'number') return value;
+  if (typeof value !== 'string' || value.trim().length === 0) return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
 }
 
 function trackerConnectEffects(
@@ -657,51 +669,98 @@ async function retroSignalsHandler(invocation: CommandInvocation): Promise<CliRe
   });
 }
 
-function networkRetroHandler(name: string, invocation: CommandInvocation): Promise<CliResult> {
-  if (invocation.offline) return Promise.resolve(onlineRequired(name));
-  const transcript = invocation.options.transcript;
-  if (name === 'retro run' && (typeof transcript !== 'string' || transcript.length === 0)) {
-    return Promise.resolve(
-      createResult({
-        state: 'failed',
-        errors: [
-          {
-            code: 'RETRO_TRANSCRIPT_REQUIRED',
-            message: 'retro run requires --transcript <path>.',
-            retryable: false,
-          },
-        ],
-      }),
-    );
+function retroFailure(message: string): CliResult {
+  return createResult({
+    state: 'failed',
+    errors: [{ code: 'RETRO_COMMAND_FAILED', message, retryable: true }],
+  });
+}
+
+function retroOptions(invocation: CommandInvocation, transcript: string): RetroCliOptions {
+  const findings = stringOption(invocation.options, 'findings');
+  return {
+    transcript: nodePath.resolve(invocation.cwd, transcript),
+    findings: findings === undefined ? undefined : nodePath.resolve(invocation.cwd, findings),
+    autoExtract: invocation.options.autoExtract === true,
+    windowStart: numericOption(invocation.options, 'windowStart'),
+    sessionId: stringOption(invocation.options, 'sessionId'),
+  };
+}
+
+function retroDropFindings(execution: RetroCommandExecution): CliResult['findings'] {
+  const drops = execution.outcome.drops;
+  if (drops === undefined || drops.schema + drops.surface === 0) return [];
+  return [
+    {
+      code: 'RETRO_FINDINGS_DROPPED',
+      message: 'Some findings were rejected by the egress safety boundary.',
+      severity: 'warning',
+    },
+  ];
+}
+
+function retroMutationCount(execution: RetroCommandExecution): number {
+  const result = execution.outcome.result;
+  if (result === undefined) return 0;
+  return result.created.length + result.bumped.length + result.commented.length;
+}
+
+function retroNetworkEffects(execution: RetroCommandExecution): CliResult['effects']['network'] {
+  if (execution.outcome.result === undefined) return [];
+  return [{ kind: 'retro-triage', target: 'GitHub', operation: 'read-write' }];
+}
+
+function retroRunResult(execution: RetroCommandExecution): CliResult {
+  if (!execution.outcome.ok) {
+    return retroFailure(execution.outcome.errorMessage ?? 'Retro execution failed.');
   }
-  if (typeof transcript === 'string' && !existsSync(nodePath.resolve(invocation.cwd, transcript))) {
-    return Promise.resolve(
-      createResult({
-        state: 'failed',
-        errors: [
-          {
-            code: 'RETRO_TRANSCRIPT_NOT_FOUND',
-            message: `Cannot read transcript at ${transcript}.`,
-            retryable: false,
-          },
-        ],
-      }),
-    );
-  }
-  return Promise.resolve(
-    createResult({
-      state: 'action_required',
-      findings: [
-        {
-          code: 'RETRO_CONFIRMATION_REQUIRED',
-          message: `\`${name}\` may file tracker findings.`,
-          severity: 'warning',
-        },
-      ],
-      nextActions: [{ command: `safeword ${name}`, mutates: true, requiresHuman: true }],
-      data: { command: name },
-    }),
-  );
+  if (!execution.extractionSucceeded) return retroFailure('Retro extraction failed.');
+  const result = execution.outcome.result;
+  const mutations = retroMutationCount(execution);
+  return createResult({
+    state: mutations > 0 ? 'changed' : 'healthy',
+    changed: mutations > 0,
+    effects: { network: retroNetworkEffects(execution) },
+    findings: retroDropFindings(execution),
+    data: {
+      command: 'retro run',
+      result,
+      agent_filing_needed: execution.outcome.agentFilingNeeded ?? false,
+    },
+  });
+}
+
+async function retroRunHandler(invocation: CommandInvocation): Promise<CliResult> {
+  if (invocation.offline) return onlineRequired('retro run');
+  const transcript = stringOption(invocation.options, 'transcript');
+  if (transcript === undefined) return retroFailure('retro run requires --transcript <path>.');
+
+  const { executeRetroCommand } = await import('../commands/retro.js');
+  invocation.progress?.start('Extracting and filing retro findings…');
+  const execution = await executeRetroCommand(retroOptions(invocation, transcript), invocation.cwd);
+  return retroRunResult(execution);
+}
+
+async function retroReconcileHandler(invocation: CommandInvocation): Promise<CliResult> {
+  if (invocation.offline) return onlineRequired('retro reconcile');
+  const { executeRetroReconcile } = await import('../commands/retro.js');
+  invocation.progress?.start('Reconciling retro findings…');
+  const execution = await executeRetroReconcile();
+  if (!execution.ok) return retroFailure(execution.reason);
+  const changed = execution.result.flagged.length > 0;
+  return createResult({
+    state: changed ? 'changed' : 'healthy',
+    changed,
+    effects: {
+      network: [{ kind: 'retro-reconcile', target: 'GitHub', operation: 'read-write' }],
+    },
+    findings: execution.result.failed.map(issue => ({
+      code: 'RETRO_RECONCILE_PARTIAL_FAILURE',
+      message: `Retro issue ${issue} could not be reconciled.`,
+      severity: 'warning',
+    })),
+    data: { command: 'retro reconcile', result: execution.result },
+  });
 }
 
 const HANDLERS: Readonly<Record<string, CommandHandler>> = {
@@ -728,9 +787,9 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
     const { createTicketResult } = await import('../commands/ticket-new.js');
     return createTicketResult(String(invocation.operands[0]), invocation.options, invocation.cwd);
   },
-  'retro run': invocation => networkRetroHandler('retro run', invocation),
+  'retro run': retroRunHandler,
   'retro signals': retroSignalsHandler,
-  'retro reconcile': invocation => networkRetroHandler('retro reconcile', invocation),
+  'retro reconcile': retroReconcileHandler,
   check: statusHandler,
   upgrade: setupHandler,
   diff: planHandler,
@@ -745,8 +804,8 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'sync-tracker': invocation => trackerHandler('tracker sync', invocation),
   connect: invocation => trackerHandler('tracker connect', invocation),
   'self-report': retroSignalsHandler,
-  retro: invocation => networkRetroHandler('retro run', invocation),
-  'retro-reconcile': invocation => networkRetroHandler('retro reconcile', invocation),
+  retro: retroRunHandler,
+  'retro-reconcile': retroReconcileHandler,
   'migrate codex-plugin': invocation => codexMutationHandler('codex migrate', invocation),
   boundary: () =>
     Promise.resolve(
