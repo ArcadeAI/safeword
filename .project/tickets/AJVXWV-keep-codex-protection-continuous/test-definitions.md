@@ -130,7 +130,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 44ded1b5a
 - [x] GREEN 7d9c031ce
-- [ ] REFACTOR
+- [x] REFACTOR skip: restart-marker validation is shared by status and migration
 
 ### Scenario: Migration remains blocked while recovery is required
 
