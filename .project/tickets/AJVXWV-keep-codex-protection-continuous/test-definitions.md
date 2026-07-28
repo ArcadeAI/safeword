@@ -186,7 +186,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: the typed state table already existed before its complete human-render characterization
 - [x] GREEN fa87779b0
-- [ ] REFACTOR
+- [x] REFACTOR skip: state derivation and human rendering remain separate pure functions
 
 ### Scenario: Unproven plugin status reflects legacy protection
 
