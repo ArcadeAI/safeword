@@ -268,7 +268,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Finalized project tells an unconfigured teammate to install the plugin
 
-- [ ] RED
+- [x] RED d9911344e
 - [ ] GREEN
 - [ ] REFACTOR
 
