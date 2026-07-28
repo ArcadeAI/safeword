@@ -5,6 +5,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   readlinkSync,
   renameSync,
@@ -199,6 +200,38 @@ describe('Codex migration finalization', () => {
     expect(readFileSync(nodePath.join(directory, 'second.txt'), 'utf8')).toBe('second before\n');
     expect(existsSync(nodePath.join(directory, '.safeword/codex-migration-backup'))).toBe(false);
   });
+
+  it.each([
+    ['source-read', 'injected source read failure'],
+    ['payload-write', 'injected payload write failure'],
+    ['manifest-write', 'injected manifest write failure'],
+  ] as const)(
+    'does not publish incomplete recovery evidence when %s fails during preparation',
+    (failedStep, message) => {
+      const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-finalization-'));
+      directories.push(directory);
+      const target = nodePath.join(directory, 'owned.txt');
+      writeFileSync(target, 'before\n');
+
+      expect(() =>
+        applyCodexFinalization(directory, [{ path: 'owned.txt', content: 'after\n' }], {
+          beforePreparationStep: step => {
+            if (step === failedStep) throw new Error(message);
+          },
+        }),
+      ).toThrow(message);
+
+      expect(readFileSync(target, 'utf8')).toBe('before\n');
+      expect(existsSync(nodePath.join(directory, '.safeword/codex-migration-backup'))).toBe(false);
+      expect(
+        existsSync(nodePath.join(directory, '.safeword/codex-migration-backup/manifest.json')),
+      ).toBe(false);
+      expect(
+        existsSync(nodePath.join(directory, '.safeword/codex-migration-backup/payloads/0.bin')),
+      ).toBe(false);
+      expect(readdirSync(nodePath.join(directory, '.safeword'))).toEqual([]);
+    },
+  );
 
   it('retains recovery evidence when automatic rollback fails', () => {
     const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-finalization-'));

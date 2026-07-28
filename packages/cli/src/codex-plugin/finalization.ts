@@ -8,6 +8,7 @@ import {
   fsyncSync,
   lstatSync,
   mkdirSync,
+  mkdtempSync,
   openSync,
   readFileSync,
   renameSync,
@@ -48,6 +49,9 @@ interface BackupManifestV1 {
   plan_sha256: string;
   entries: BackupEntry[];
 }
+
+type PreparationStep = 'source-read' | 'payload-write' | 'manifest-write';
+type BeforePreparationStep = (step: PreparationStep, index?: number) => void;
 
 const BACKUP_PATH = '.safeword/codex-migration-backup';
 const PROJECT_MARKER_PATH = '.safeword/codex-plugin.json';
@@ -185,12 +189,15 @@ function beforeImage(
   backupDirectory: string,
   mutation: CodexFinalizationMutation,
   index: number,
+  beforePreparationStep?: BeforePreparationStep,
 ): FileImage | AbsentImage {
   const path = assertSafeComponents(cwd, mutation.path);
   if (!existsSync(path)) return { kind: 'absent' };
+  beforePreparationStep?.('source-read', index);
   const content = readFileSync(path);
   const payload = `payloads/${index}.bin`;
-  writeFileSync(nodePath.join(backupDirectory, payload), content, { mode: 0o600 });
+  beforePreparationStep?.('payload-write', index);
+  writeDurable(nodePath.join(backupDirectory, payload), content, 0o600);
   return {
     kind: 'file',
     mode: lstatSync(path).mode & 0o777,
@@ -497,11 +504,83 @@ function rollbackAppliedEntries(input: {
   }
 }
 
+function prepareCodexFinalization(
+  cwd: string,
+  backupDirectory: string,
+  mutations: CodexFinalizationMutation[],
+  beforePreparationStep?: BeforePreparationStep,
+): {
+  effectiveMutations: CodexFinalizationMutation[];
+  entries: BackupEntry[];
+  manifest: BackupManifestV1;
+} {
+  const backupParent = nodePath.dirname(backupDirectory);
+  mkdirSync(backupParent, { recursive: true, mode: 0o700 });
+  const stagingDirectory = mkdtempSync(
+    nodePath.join(backupParent, '.codex-migration-backup-preparing-'),
+  );
+  try {
+    mkdirSync(nodePath.join(stagingDirectory, 'payloads'), {
+      recursive: true,
+      mode: 0o700,
+    });
+
+    const transactionId = randomUUID();
+    let effectiveMutations = mutations.map(mutation => ({ ...mutation }));
+    let entries = effectiveMutations.map((mutation, index) => {
+      const before = beforeImage(cwd, stagingDirectory, mutation, index, beforePreparationStep);
+      return { path: mutation.path, before, after: afterImage(mutation, before) };
+    });
+    const planSha256 = manifestPlanDigest(entries);
+    effectiveMutations = effectiveMutations.map(mutation =>
+      mutation.path === PROJECT_MARKER_PATH && mutation.content !== null
+        ? {
+            ...mutation,
+            content: `${JSON.stringify({
+              schema_version: 1,
+              mode: 'plugin',
+              transaction_id: transactionId,
+              plan_sha256: planSha256,
+            })}\n`,
+          }
+        : mutation,
+    );
+    entries = effectiveMutations.map((mutation, index) => {
+      const previous = entries[index];
+      if (previous === undefined) {
+        throw new Error('Codex migration plan changed during preparation.');
+      }
+      return {
+        path: mutation.path,
+        before: previous.before,
+        after: afterImage(mutation, previous.before),
+      };
+    });
+    const manifest: BackupManifestV1 = {
+      schema_version: 1,
+      status: 'prepared',
+      transaction_id: transactionId,
+      plan_sha256: planSha256,
+      entries,
+    };
+    beforePreparationStep?.('manifest-write');
+    writeManifest(stagingDirectory, manifest);
+    if (pathEntryExists(backupDirectory)) {
+      throw new Error(`Codex migration backup already exists at ${BACKUP_PATH}.`);
+    }
+    renameSync(stagingDirectory, backupDirectory);
+    return { effectiveMutations, entries, manifest };
+  } finally {
+    rmSync(stagingDirectory, { recursive: true, force: true });
+  }
+}
+
 export function applyCodexFinalization(
   cwd: string,
   mutations: CodexFinalizationMutation[],
   options: {
     afterPrepared?: () => void;
+    beforePreparationStep?: BeforePreparationStep;
     beforeMutation?: (index: number) => void;
     beforeRollback?: () => void;
   } = {},
@@ -511,45 +590,12 @@ export function applyCodexFinalization(
     throw new Error(`Codex migration backup already exists at ${BACKUP_PATH}.`);
   }
   validateCodexFinalizationPaths(cwd, mutations);
-  mkdirSync(nodePath.join(backupDirectory, 'payloads'), { recursive: true, mode: 0o700 });
-
-  const transactionId = randomUUID();
-  let effectiveMutations = mutations.map(mutation => ({ ...mutation }));
-  let entries = effectiveMutations.map((mutation, index) => {
-    const before = beforeImage(cwd, backupDirectory, mutation, index);
-    return { path: mutation.path, before, after: afterImage(mutation, before) };
-  });
-  const planSha256 = manifestPlanDigest(entries);
-  effectiveMutations = effectiveMutations.map(mutation =>
-    mutation.path === PROJECT_MARKER_PATH && mutation.content !== null
-      ? {
-          ...mutation,
-          content: `${JSON.stringify({
-            schema_version: 1,
-            mode: 'plugin',
-            transaction_id: transactionId,
-            plan_sha256: planSha256,
-          })}\n`,
-        }
-      : mutation,
+  const { effectiveMutations, entries, manifest } = prepareCodexFinalization(
+    cwd,
+    backupDirectory,
+    mutations,
+    options.beforePreparationStep,
   );
-  entries = effectiveMutations.map((mutation, index) => {
-    const previous = entries[index];
-    if (previous === undefined) throw new Error('Codex migration plan changed during preparation.');
-    return {
-      path: mutation.path,
-      before: previous.before,
-      after: afterImage(mutation, previous.before),
-    };
-  });
-  const manifest: BackupManifestV1 = {
-    schema_version: 1,
-    status: 'prepared',
-    transaction_id: transactionId,
-    plan_sha256: planSha256,
-    entries,
-  };
-  writeManifest(backupDirectory, manifest);
   options.afterPrepared?.();
 
   let appliedCount = 0;
