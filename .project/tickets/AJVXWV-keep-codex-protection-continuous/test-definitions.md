@@ -86,7 +86,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: runtime viability shipped inseparably with event authority
 - [x] GREEN ad77b29b5
-- [ ] REFACTOR
+- [x] REFACTOR skip: runtime failure feeds the same fail-open authority predicate
 
 ## Rule: codex-continuity.TBU1.R4 — Shared cleanup is explicit, selective, recoverable, and idempotent
 
