@@ -47,7 +47,7 @@ done_when:
   - Golden fixtures protect human output, JSON envelopes, and error shapes.
   - ARCHITECTURE.md documents the Observe → Plan → Confirm → Apply → Verify → Report model.
 created: 2026-07-28T12:05:48.299Z
-last_modified: 2026-07-28T18:57:52Z
+last_modified: 2026-07-28T21:25:57Z
 ---
 
 # Give developers and AI agents one predictable Safeword CLI
@@ -94,3 +94,10 @@ last_modified: 2026-07-28T18:57:52Z
   unit/integration tests across 389 files, 678 acceptance scenarios with three
   intentional skips, lint, typecheck, diff check, and dependency audit with no
   vulnerabilities. Ticket remains in verify pending user confirmation.
+- 2026-07-28T21:25:57Z Re-verified and audited: The complete suite passed
+  5,700 executed tests and 678 executed acceptance scenarios. Audit findings
+  drove the shared reconciliation/setup logic below the command layer, aligned
+  the CLI reference with the canonical hierarchy, removed stale internal API
+  surface and Knip configuration, and applied safe dev-tool patches. No
+  unresolved audit errors remain; the ticket stays in verify pending user
+  confirmation.

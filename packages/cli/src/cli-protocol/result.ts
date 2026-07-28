@@ -1,4 +1,4 @@
-export type ResultState = 'healthy' | 'changed' | 'action_required' | 'failed';
+type ResultState = 'healthy' | 'changed' | 'action_required' | 'failed';
 
 export interface Finding {
   readonly code: string;
@@ -8,7 +8,7 @@ export interface Finding {
   readonly metadata?: Readonly<Record<string, unknown>>;
 }
 
-export interface ResultError {
+interface ResultError {
   readonly code: string;
   readonly message: string;
   readonly retryable: boolean;
@@ -21,7 +21,7 @@ export interface NextAction {
   readonly requiresHuman: boolean;
 }
 
-export interface RecoveryAction {
+interface RecoveryAction {
   readonly command: string;
   readonly description: string;
   readonly requiresHuman: boolean;

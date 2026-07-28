@@ -39,9 +39,9 @@ import {
   warn,
 } from '../utils/output.js';
 import { type Languages } from '../utils/project-detector.js';
+import { setupWorkspaceFormatScripts } from '../utils/setup-workspaces.js';
 import { maybeAutoPatchOrNudge } from '../utils/vendored-ignores-nudge.js';
 import { VERSION } from '../version.js';
-import { setupWorkspaceFormatScripts } from './setup-workspaces.js';
 import { buildArchitecture, hasArchitectureDetected, syncConfigCore } from './sync-config.js';
 
 interface PackageJson {

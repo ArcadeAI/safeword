@@ -26,7 +26,7 @@ import { ensureLanguageSkills } from '../skills/languages.js';
 import { CODEX_PLUGIN_INSTALL_NEXT_STEP } from '../utils/codex.js';
 import { createProjectContext } from '../utils/context.js';
 import { getEslintPeerMismatchWarning } from '../utils/eslint-peer-check.js';
-import { exists, findInTree, readFileSafe, readJson, writeFile } from '../utils/fs.js';
+import { exists, findInTree, readFileSafe } from '../utils/fs.js';
 import { untrackIgnoredFiles } from '../utils/git.js';
 import { hookIntegrationNudge } from '../utils/hook-nudge.js';
 import {
@@ -49,97 +49,19 @@ import {
   success,
   warn,
 } from '../utils/output.js';
+import {
+  stripDeadConfigVersion,
+  syncPackageJsonSafewordVersion,
+} from '../utils/safeword-version-sync.js';
 import { scanStaleNamespaceConfigs } from '../utils/stale-config-scan.js';
 import { maybeAutoPatchOrNudge } from '../utils/vendored-ignores-nudge.js';
 import { compareVersions } from '../utils/version.js';
 import { VERSION } from '../version.js';
 import { buildArchitecture, syncConfigCore } from './sync-config.js';
 
-interface PackageJson {
-  dependencies?: Record<string, string>;
-  devDependencies?: Record<string, string>;
-  optionalDependencies?: Record<string, string>;
-}
-
-const DEPENDENCY_FIELDS = ['devDependencies', 'dependencies', 'optionalDependencies'] as const;
-const SAFEWORD_REGISTRY_SPEC = `^${VERSION}`;
-const SAFEWORD_INSTALL_SPEC = VERSION;
-const NON_REGISTRY_SPEC_PREFIXES = [
-  'file:',
-  'link:',
-  'portal:',
-  'workspace:',
-  'git+',
-  'github:',
-  'gitlab:',
-  'bitbucket:',
-  'http:',
-  'https:',
-  '.', // relative path (e.g. ./packages/foo)
-  '/', // absolute path
-] as const;
-
 function getProjectVersion(safewordDirectory: string): string {
   const versionPath = nodePath.join(safewordDirectory, 'version');
   return readFileSafe(versionPath)?.trim() ?? '0.0.0';
-}
-
-// Ticket 154: strip the inert `version` field from .safeword/config.json.
-// Plaintext `.safeword/version` is the source of truth — the JSON field was
-// only ever written, never read, and confused reasoning-LLMs into flagging
-// stale projects. Safe to delete this block once no projects-in-the-wild
-// carry the field (likely several minor versions out).
-export function stripDeadConfigVersion(safewordDirectory: string): boolean {
-  const configPath = nodePath.join(safewordDirectory, 'config.json');
-  const content = readFileSafe(configPath);
-  if (!content) return false;
-  const parsed = JSON.parse(content) as Record<string, unknown>;
-  if (!('version' in parsed)) return false;
-  delete parsed.version;
-  writeFile(configPath, JSON.stringify(parsed, undefined, 2));
-  return true;
-}
-
-function isNonRegistryPackageSpec(spec: string): boolean {
-  return NON_REGISTRY_SPEC_PREFIXES.some(prefix => spec.startsWith(prefix));
-}
-
-function isCurrentSafewordRegistrySpec(spec: string): boolean {
-  return [VERSION, SAFEWORD_REGISTRY_SPEC, `~${VERSION}`].includes(spec);
-}
-
-export function syncPackageJsonSafewordVersion(
-  cwd: string,
-  options: { report?: boolean } = {},
-): boolean {
-  const packageJson = readPackageJson(cwd);
-  if (!packageJson) return false;
-
-  for (const field of DEPENDENCY_FIELDS) {
-    const dependencies = packageJson[field];
-    const currentSpec = dependencies?.safeword;
-    if (!dependencies || currentSpec === undefined || isNonRegistryPackageSpec(currentSpec))
-      continue;
-
-    if (isCurrentSafewordRegistrySpec(currentSpec)) continue;
-    installDependencies(cwd, [`safeword@${SAFEWORD_INSTALL_SPEC}`], 'safeword package', options);
-    return packageJsonReferencesCurrentSafewordVersion(cwd);
-  }
-
-  return false;
-}
-
-function readPackageJson(cwd: string): PackageJson | undefined {
-  const packageJsonPath = nodePath.join(cwd, 'package.json');
-  return readJson(packageJsonPath) as PackageJson | undefined;
-}
-
-function packageJsonReferencesCurrentSafewordVersion(cwd: string): boolean {
-  const packageJson = readPackageJson(cwd);
-  return DEPENDENCY_FIELDS.some(field => {
-    const spec = packageJson?.[field]?.safeword;
-    return spec !== undefined && isCurrentSafewordRegistrySpec(spec);
-  });
 }
 
 function syncAndRecordPackageJsonSafewordVersion(cwd: string, result: ReconcileResult): void {

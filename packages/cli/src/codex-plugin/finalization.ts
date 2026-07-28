@@ -16,7 +16,7 @@ import {
 } from 'node:fs';
 import nodePath from 'node:path';
 
-import { CODEX_MIGRATION_SCHEMA } from './inventory.ts';
+import { CODEX_MIGRATION_SCHEMA } from './inventory.js';
 
 export interface CodexFinalizationMutation {
   path: string;

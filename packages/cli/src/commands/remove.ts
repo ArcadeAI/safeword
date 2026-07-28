@@ -3,16 +3,16 @@ import nodePath from 'node:path';
 
 import type { CliPlan } from '../cli-protocol/plan.js';
 import { toWirePlan } from '../cli-protocol/plan.js';
+import {
+  applyReconciliation,
+  createReconciliationPlan,
+  effectsForReconciliation,
+} from '../cli-protocol/reconciliation.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import type { ReconcileResult } from '../reconcile.js';
 import { ReconcileExecutionError } from '../reconcile.js';
 import type { DependencyInstallResult } from '../utils/install.js';
 import { uninstallDependencies } from '../utils/install.js';
-import {
-  applyReconciliation,
-  createReconciliationPlan,
-  effectsForReconciliation,
-} from './reconciliation-plan.js';
 
 export interface RemoveOptions {
   readonly full?: boolean;

@@ -1,7 +1,7 @@
 ## Verify Checklist
 
-**Test Suite:** ✓ 5643/5643 executed tests pass (5 skipped)
-**Gherkin:** ✅ Acceptance lane passes (595 passed, 3 skipped; 18,972 executed steps pass)
+**Test Suite:** ✓ 5700/5700 executed tests pass (5 skipped)
+**Gherkin:** ✅ Acceptance lane passes (678 passed, 3 skipped; 22,233 executed steps pass)
 **Build:** ✅ Success
 **Lint:** ✅ Clean
 **Scenarios:** All 130 scenarios marked complete
@@ -9,18 +9,19 @@
 **Dep Drift:** ✅ Clean
 **Parent Epic:** N/A
 **Reconcile:** ✅ No pattern deviation
-**Experience:** ✅ No new friction — Walked team builder through upgrade → migrate → restart/trust → compatibility → exact-plan finalization → recovery; worst step = restarting Codex and reviewing hooks before shared cleanup; new steps vs before = 1 explicit shared-cleanup confirmation. The rave moment lands because legacy guardrails remain authoritative until current execution proof exists and the exact recoverable cleanup is previewed.
-**Evidence limits:** ✅ None
+**Experience:** ✅ No new friction — Walked a team builder through upgrade → migrate → restart/trust → compatibility → exact-plan finalization → recovery. The hardest step is the necessary Codex restart and hook review. Compared with the unsafe legacy flow, the only added team step is one explicit, recoverable cleanup confirmation; protection remains continuous throughout.
+**Evidence limits:** ✅ None for the ticket behavior
 
-Audit passed with warnings — 0 errors. Config sync, dependency-cruiser (678 modules / 2,233 dependencies), Knip after in-run cleanup, learning metadata, configured docs (`README.md` and `packages/website/src/content/docs`), generated architecture reconciliation, namespace domain-doc reconciliation, and changed-test quality are clean. jscpd recorded 517 clones / 8.70% at the configured repository scope; the changed Codex runtime surface has 0 clones across 8 files. Coverage limitations are confined to experiment projects: Python import-cycle/dead-code tools are unavailable, while the Go experiment reported 0 dead-code issues. Available low-risk patch drift is intentionally outside this ticket: `@types/node` 26.1.1→26.1.2, `markdownlint-cli2` 0.23.1→0.23.2, and production `smol-toml` 1.7.0→1.7.1.
+Audit passed with warnings — 0 unresolved errors. The audit found and fixed a TypeScript ESM import portability defect, six cross-command dependency violations, stale CLI reference documentation, one stale Knip suppression, and unnecessary internal exports. It also applied the available low-risk dev-tool patches (`@types/node` 26.1.2 and `markdownlint-cli2` 0.23.2). Config drift, dependency boundaries, learning metadata, namespace domain docs, configured documentation, architecture reconciliation, Markdown, security audit, and the 20-file changed-test quality sample are clean. jscpd recorded 520 clones / 8.47% at the repository scope (repo minus generated/ignored paths), +3 clones and -0.23 percentage points from the prior same-scope audit; the increase reflects the combined two-ticket branch and remains a recorded baseline, not a release blocker. Known audit baselines remain: dynamically dispatched legacy command modules in Knip and the intentionally bundled Codex hook entrypoint reported as an orphan. Python experiment import-cycle/dead-code checks remain unavailable; the Go experiment reported no dead-code or outdated-module issues.
 
 ## Evidence
 
-- Safeword resolver-driven verification: 377 Vitest files; 5,643 passing tests; 5 skipped.
-- Root acceptance lane: 598 scenarios total; 595 passed and 3 intentionally skipped; 18,972 passing steps and 4 skipped.
-- Package acceptance lane: 183 scenarios and 2,311 steps passed.
-- Independent quality review: approved after seven adversarial passes; final pass confirmed the audit-only export cleanup did not alter runtime behavior or the public package API.
-- Recovery and transaction regressions: 83 focused tests passed, including immutable confirmation plans, mutation/rollback races, forged manifests, symlinked backup roots, JSON recovery precedence, and stale restart markers.
-- Current-HEAD export cleanup: TypeScript build and typecheck passed; 61 affected tests passed; Knip is clean.
-- Dependency drift: all architectural runtime dependencies are documented in `ARCHITECTURE.md`; no dependency changes were introduced.
-- PR scope: all changed runtime, test, acceptance, template, and documentation files support issue #1572's Expand → Prove → Contract migration.
+- Safeword resolver-driven verification: 389 Vitest files; 5,700 passing tests; 5 skipped.
+- Root acceptance lane: 681 scenarios total; 678 passed and 3 intentionally skipped; 22,233 passing steps and 4 skipped.
+- Build, TypeScript, ESLint, Gherkin lint, Markdown lint, and dependency-cruiser all passed with no errors.
+- `bun audit`: no vulnerabilities.
+- `bun outdated`: no remaining outdated packages after the two low-risk patch updates.
+- Acceptance traceability: all 130 test-definition checkboxes are complete.
+- Documentation coverage: configured sources `README.md` and `packages/website/src/content/docs` checked; `ARCHITECTURE.md` reconciles both generated monorepo packages and documents the runtime dependencies.
+- Test quality: 20 changed test files reviewed; assertions are behavior-specific, failure paths and boundaries are present, state is isolated, and no arbitrary sleeps were found.
+- PR scope: all changed runtime, test, acceptance, template, and documentation files support issues #1572 and #1574; the audit-only refactors preserve behavior while restoring the documented module boundary.

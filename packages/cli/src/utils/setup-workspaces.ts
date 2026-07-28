@@ -2,8 +2,8 @@ import { readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import type { ProjectContext } from '../schema.js';
-import { exists, readJson, writeJson } from '../utils/fs.js';
-import { getWorkspacePatterns } from '../utils/workspaces.js';
+import { exists, readJson, writeJson } from './fs.js';
+import { getWorkspacePatterns } from './workspaces.js';
 
 interface PackageJson {
   scripts?: Record<string, string>;

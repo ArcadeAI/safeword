@@ -1,6 +1,7 @@
 import { existsSync, lstatSync, readdirSync, readFileSync, readlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { effectsForReconciliation } from '../cli-protocol/reconciliation.js';
 import {
   type CliResult,
   createResult,
@@ -26,6 +27,14 @@ import { exists, writeJson } from '../utils/fs.js';
 import { hookIntegrationNudge } from '../utils/hook-nudge.js';
 import { type DependencyInstallResult, installDependencies } from '../utils/install.js';
 import { executeNamespaceMigration, planNamespaceMigration } from '../utils/namespace-migration.js';
+import {
+  stripDeadConfigVersion,
+  syncPackageJsonSafewordVersion,
+} from '../utils/safeword-version-sync.js';
+import {
+  setupWorkspaceFormatScripts,
+  workspacePackageJsonTargets,
+} from '../utils/setup-workspaces.js';
 import { scanStaleNamespaceConfigs } from '../utils/stale-config-scan.js';
 import {
   applyVendoredIgnoresPolicy,
@@ -33,15 +42,12 @@ import {
 } from '../utils/vendored-ignores-nudge.js';
 import { compareVersions } from '../utils/version.js';
 import { VERSION } from '../version.js';
-import { effectsForReconciliation } from './reconciliation-plan.js';
-import { setupWorkspaceFormatScripts, workspacePackageJsonTargets } from './setup-workspaces.js';
 import {
   buildArchitecture,
   hasArchitectureDetected,
   inspectConfig,
   syncConfigCore,
 } from './sync-config.js';
-import { stripDeadConfigVersion, syncPackageJsonSafewordVersion } from './upgrade.js';
 
 function ensurePackageJson(cwd: string): boolean {
   const packageJsonPath = nodePath.join(cwd, 'package.json');

@@ -2,9 +2,9 @@ import type { CommandHandler } from './handler.js';
 import { publicHandler } from './public-handlers.js';
 import { type CliResult, createResult } from './result.js';
 
-export type EffectClass = 'observe' | 'plan' | 'mutate' | 'destructive' | 'hook';
-export type PromptPolicy = 'never' | 'confirm';
-export type NetworkPolicy = 'never' | 'declared';
+type EffectClass = 'observe' | 'plan' | 'mutate' | 'destructive' | 'hook';
+type PromptPolicy = 'never' | 'confirm';
+type NetworkPolicy = 'never' | 'declared';
 
 interface Compatibility {
   readonly introducedIn: string;

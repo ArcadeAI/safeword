@@ -1,6 +1,6 @@
 ---
 generator: safeword-architecture
-fingerprint: f52377673755a2c75e868a34ded612abfdca8d662b03d926b425c4629f97601e
+fingerprint: 651c294d5cc65ed4ea3742a35871986db4e6a41e47e1118e6290866f6cd6b52d
 ---
 
 # Architecture
@@ -16,6 +16,14 @@ fingerprint: f52377673755a2c75e868a34ded612abfdca8d662b03d926b425c4629f97601e
 No description yet — awaiting prose.
 
 > ⚠ stale: structure changed since this section was reconciled.
+
+### cli-protocol
+
+<!-- reconciled: 651c294d5cc65ed4ea3742a35871986db4e6a41e47e1118e6290866f6cd6b52d -->
+
+`src/cli-protocol`
+
+No description yet — awaiting prose.
 
 ### codex-plugin
 

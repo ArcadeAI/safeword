@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { createPlan, isPlanCurrent } from '../../src/cli-protocol/plan.js';
-import { effectsForReconciliation } from '../../src/commands/reconciliation-plan.js';
+import { effectsForReconciliation } from '../../src/cli-protocol/reconciliation.js';
 
 describe('CLI plan protocol', () => {
   it('binds plan identity to command, effects, and preconditions', () => {

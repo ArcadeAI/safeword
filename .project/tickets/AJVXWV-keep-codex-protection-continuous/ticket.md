@@ -34,7 +34,7 @@ done_when:
   - Finalized repositories retain a concise bootstrap skill for future Codex users.
   - `safeword codex status` provides useful human output and stable JSON output and exit semantics.
 created: 2026-07-28T06:40:27.528Z
-last_modified: 2026-07-28T12:04:29Z
+last_modified: 2026-07-28T21:25:57Z
 ---
 
 # Keep Codex protection continuous while teams migrate to the profile plugin
@@ -91,3 +91,9 @@ last_modified: 2026-07-28T12:04:29Z
   restart, and symlinked-backup defects. Safeword's resolver-driven verification
   passed 5,643 executed tests and 595 executed acceptance scenarios; audit
   passed with no errors. Ticket remains in verify pending user confirmation.
+- 2026-07-28T21:25:57Z Re-verified and audited: The combined branch passed
+  5,700 executed tests and 678 executed acceptance scenarios. The audit removed
+  command-boundary violations, corrected ESM portability and CLI documentation,
+  cleaned stale dead-code configuration, applied safe dev-tool patches, and
+  finished with no unresolved errors. Ticket remains in verify pending user
+  confirmation.

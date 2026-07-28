@@ -1,6 +1,6 @@
 import { toWirePlan } from '../cli-protocol/plan.js';
+import { createReconciliationPlan } from '../cli-protocol/reconciliation.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
-import { createReconciliationPlan } from './reconciliation-plan.js';
 
 export async function observePlan(cwd: string): Promise<CliResult> {
   try {

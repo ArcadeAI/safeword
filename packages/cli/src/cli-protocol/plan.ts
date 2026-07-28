@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 
 import type { Effect, Effects, Finding } from './result.js';
 
-export interface Verification {
+interface Verification {
   readonly description: string;
   readonly command?: string;
 }

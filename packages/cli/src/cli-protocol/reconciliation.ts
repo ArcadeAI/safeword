@@ -2,11 +2,11 @@ import { createHash } from 'node:crypto';
 import { lstatSync, readdirSync, readFileSync, readlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { type CliPlan, createPlan } from '../cli-protocol/plan.js';
-import type { Effect, Effects } from '../cli-protocol/result.js';
 import { type Action, reconcile, type ReconcileResult } from '../reconcile.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
 import { createProjectContext } from '../utils/context.js';
+import { type CliPlan, createPlan } from './plan.js';
+import type { Effect, Effects } from './result.js';
 
 type PlanMode = 'upgrade' | 'uninstall' | 'uninstall-full';
 
@@ -46,10 +46,6 @@ function preconditionDigest(cwd: string, actions: readonly Action[]): string {
     hashPath(hash, nodePath.join(cwd, target));
   }
   return hash.digest('hex');
-}
-
-export function digestReconciliationTargets(cwd: string, actions: readonly Action[]): string {
-  return preconditionDigest(cwd, actions);
 }
 
 function actionEffect(action: Action): Effect[] {
