@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { diffFileSnapshots } from '../cli-protocol/file-effects.js';
 import type { CliPlan } from '../cli-protocol/plan.js';
 import { toWirePlan } from '../cli-protocol/plan.js';
 import {
@@ -36,22 +37,6 @@ function snapshotPackageFiles(cwd: string): ReadonlyMap<string, string> {
     if (existsSync(path)) snapshot.set(target, readFileSync(path).toString('base64'));
   }
   return snapshot;
-}
-
-function observedPackageFileEffects(
-  before: ReadonlyMap<string, string>,
-  after: ReadonlyMap<string, string>,
-): { kind: string; target: string }[] {
-  const effects: { kind: string; target: string }[] = [];
-  for (const [target, content] of after) {
-    const previous = before.get(target);
-    if (previous === undefined) effects.push({ kind: 'create', target });
-    else if (previous !== content) effects.push({ kind: 'update', target });
-  }
-  for (const target of before.keys()) {
-    if (!after.has(target)) effects.push({ kind: 'delete', target });
-  }
-  return effects;
 }
 
 function combinedFileEffects(
@@ -150,10 +135,7 @@ async function applyRemoval(
   const packageRemoval = full
     ? uninstallDependencies(cwd, applied.packagesToRemove, { report: false })
     : { attempted: false, installed: false };
-  const packageFileEffects = observedPackageFileEffects(
-    packageFilesBefore,
-    snapshotPackageFiles(cwd),
-  );
+  const packageFileEffects = diffFileSnapshots(packageFilesBefore, snapshotPackageFiles(cwd));
   if (packageRemoval.attempted && !packageRemoval.installed) {
     return packageUninstallFailure(applied, packageRemoval, mode, packageFileEffects);
   }

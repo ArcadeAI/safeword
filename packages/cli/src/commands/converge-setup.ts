@@ -1,6 +1,7 @@
 import { existsSync, lstatSync, readdirSync, readFileSync, readlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { diffFileSnapshots } from '../cli-protocol/file-effects.js';
 import { effectsForReconciliation } from '../cli-protocol/reconciliation.js';
 import {
   type CliResult,
@@ -168,7 +169,7 @@ export async function convergeSetup(
       ...namespaceMigration,
       effects: uniqueEffects([
         ...namespaceMigration.effects,
-        ...observedFileEffects(namespaceBefore, snapshotFiles(cwd, namespaceTargets)),
+        ...diffFileSnapshots(namespaceBefore, snapshotFiles(cwd, namespaceTargets)),
       ]),
     };
     packageJsonCreated = configured ? false : ensurePackageJson(cwd);
@@ -412,22 +413,6 @@ function snapshotFiles(cwd: string, targets: readonly string[]): Map<string, str
   return snapshot;
 }
 
-function observedFileEffects(
-  before: ReadonlyMap<string, string>,
-  after: ReadonlyMap<string, string>,
-) {
-  const effects: Effect[] = [];
-  for (const [target, content] of after) {
-    const previous = before.get(target);
-    if (previous === undefined) effects.push({ kind: 'create', target });
-    else if (previous !== content) effects.push({ kind: 'update', target });
-  }
-  for (const target of before.keys()) {
-    if (!after.has(target)) effects.push({ kind: 'delete', target });
-  }
-  return effects;
-}
-
 function observeFileStage<T>(
   cwd: string,
   targets: readonly string[],
@@ -438,7 +423,7 @@ function observeFileStage<T>(
   try {
     return action();
   } finally {
-    completedEffects.files.push(...observedFileEffects(before, snapshotFiles(cwd, targets)));
+    completedEffects.files.push(...diffFileSnapshots(before, snapshotFiles(cwd, targets)));
   }
 }
 
