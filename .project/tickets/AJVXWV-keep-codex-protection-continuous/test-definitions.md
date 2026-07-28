@@ -228,7 +228,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: the versioned result type existed before exhaustive shape characterization
 - [x] GREEN dafac16e8
-- [ ] REFACTOR
+- [x] REFACTOR skip: every state is emitted through the same schema-1 result constructor
 
 ### Scenario: JSON finalization plan uses stable effect actions
 
