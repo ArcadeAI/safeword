@@ -11,6 +11,7 @@ export interface MarkerScan {
 
 export interface GitHubRestClientOptions {
   baseUrl: string;
+  invalidateInstallationToken?: (installationId: number, repo: string) => void;
   installationToken: (installationId: number, repo: string) => Promise<string>;
   maxConcurrentRequests?: number;
   reconciliationMaxPages?: number;
@@ -50,11 +51,14 @@ function classifyCreateOutcome(input: {
 
 export class GitHubCreateError extends Error {
   readonly outcome: CreateOutcome;
+  readonly rateLimitReset: string | undefined;
+  readonly retryAfter: string | undefined;
   readonly status: number;
 
   constructor(input: {
     message?: string;
     rateLimitRemaining?: string | null;
+    rateLimitReset?: string | null;
     retryAfter?: string | null;
     status: number;
   }) {
@@ -62,6 +66,24 @@ export class GitHubCreateError extends Error {
     super(`GitHub create failed with ${status}`);
     this.status = status;
     this.outcome = classifyCreateOutcome(input);
+    this.rateLimitReset = input.rateLimitReset ?? undefined;
+    this.retryAfter = input.retryAfter ?? undefined;
+  }
+
+  retryNotBefore(now: Date): Date | undefined {
+    const candidates: number[] = [];
+    if (this.retryAfter !== undefined) {
+      const seconds = Number(this.retryAfter);
+      const retryAfterTime = Number.isFinite(seconds)
+        ? now.getTime() + Math.max(0, seconds) * 1000
+        : Date.parse(this.retryAfter);
+      if (Number.isFinite(retryAfterTime)) candidates.push(retryAfterTime);
+    }
+    if (this.rateLimitReset !== undefined) {
+      const resetSeconds = Number(this.rateLimitReset);
+      if (Number.isFinite(resetSeconds)) candidates.push(resetSeconds * 1000);
+    }
+    return candidates.length === 0 ? undefined : new Date(Math.max(...candidates));
   }
 }
 
@@ -107,12 +129,15 @@ export class GitHubRestClient {
   readonly #reconciliationTimeoutMs: number;
   readonly #requestTimeoutMs: number;
   readonly #installationToken: GitHubRestClientOptions['installationToken'];
+  readonly #invalidateInstallationToken:
+    GitHubRestClientOptions['invalidateInstallationToken'] | undefined;
   #activeRequests = 0;
   readonly #capacityWaiters: (() => void)[] = [];
 
   constructor(options: GitHubRestClientOptions) {
     this.#baseUrl = options.baseUrl.replace(/\/$/u, '');
     this.#installationToken = options.installationToken;
+    this.#invalidateInstallationToken = options.invalidateInstallationToken;
     this.#maxConcurrentRequests = options.maxConcurrentRequests ?? 4;
     this.#reconciliationMaxPages = options.reconciliationMaxPages ?? 200;
     this.#reconciliationTimeoutMs = options.reconciliationTimeoutMs ?? 30_000;
@@ -186,6 +211,7 @@ export class GitHubRestClient {
   }
 
   async createIssue(input: {
+    installationId: number;
     repository: string;
     title: string;
     body: string;
@@ -209,12 +235,18 @@ export class GitHubRestClient {
           issue: response.ok && body.number !== undefined ? { number: body.number } : undefined,
           message: body.message,
           rateLimitRemaining: response.headers.get('x-ratelimit-remaining'),
+          rateLimitReset: response.headers.get('x-ratelimit-reset'),
           retryAfter: response.headers.get('retry-after'),
           status: response.status,
         };
       },
     );
-    if (result.issue === undefined) throw new GitHubCreateError(result);
+    if (result.issue === undefined) {
+      if (result.status === 401) {
+        this.#invalidateInstallationToken?.(input.installationId, input.repository);
+      }
+      throw new GitHubCreateError(result);
+    }
     return result.issue.number;
   }
 

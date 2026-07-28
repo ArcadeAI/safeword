@@ -80,6 +80,7 @@ async function startGitHubFixture(
     afterToken?: () => void;
     appendRawBodyAfterFirstPage?: string;
     createDelayMs?: number;
+    createHeaders?: Record<string, string>;
     createMessage?: string;
     createStatus?: number;
     failSecondPage?: boolean;
@@ -179,6 +180,10 @@ async function startGitHubFixture(
       options.afterCreate?.();
       if (options.createStatus !== undefined) {
         response.statusCode = options.createStatus;
+        const responseHeaders = options.createHeaders ?? {};
+        for (const [name, value] of Object.entries(responseHeaders)) {
+          response.setHeader(name, value);
+        }
         response.setHeader('content-type', 'application/json');
         response.end(JSON.stringify({ message: options.createMessage ?? 'create failed' }));
         activeCreates -= 1;
@@ -228,6 +233,7 @@ async function fixture(
     afterCreate?: () => void;
     afterToken?: () => void;
     createDelayMs?: number;
+    createHeaders?: Record<string, string>;
     createMessage?: string;
     createStatus?: number;
     failSecondPage?: boolean;
@@ -283,6 +289,9 @@ async function fixture(
     credentials: registry,
     github: new GitHubRestClient({
       baseUrl: githubFixture.baseUrl,
+      invalidateInstallationToken: (installationId, repo) => {
+        tokenProvider.invalidate(installationId, repo);
+      },
       installationToken: (installationId, repo) => tokenProvider.token(installationId, repo),
       ...(options.githubRequestTimeoutMs !== undefined && {
         requestTimeoutMs: options.githubRequestTimeoutMs,
@@ -612,6 +621,7 @@ describe('retry-safe retro relay', () => {
     });
     const create = (title: string) =>
       client.createIssue({
+        installationId: 42,
         repository: 'arcadeai/safeword',
         title,
         body: title,
@@ -686,6 +696,40 @@ describe('retry-safe retro relay', () => {
         requestId: draft().requestId,
       })?.state,
     ).toBe('retryable');
+  });
+
+  it('honors GitHub Retry-After when scheduling a retry', async () => {
+    const now = new Date('2026-07-27T00:00:00.000Z');
+    const setup = await fixture({
+      createHeaders: { 'retry-after': '600' },
+      createMessage: 'secondary rate limit',
+      createStatus: 403,
+      now: () => now,
+    });
+
+    await expect(
+      createHarnessAdapters(setup.relay.url, setup.credential).claude.file(draft()),
+    ).rejects.toMatchObject({ status: 503 });
+    expect(
+      setup.store.load({
+        tenantId: 'tenant-1',
+        installationId: 42,
+        repository: 'arcadeai/safeword',
+        requestId: draft().requestId,
+      })?.nextAttemptAt,
+    ).toBe('2026-07-27T00:10:00.000Z');
+  });
+
+  it('invalidates a cached installation token after GitHub returns 401', async () => {
+    let now = new Date('2026-07-27T00:00:00.000Z');
+    const setup = await fixture({ createStatus: 401, now: () => now });
+    const adapter = createHarnessAdapters(setup.relay.url, setup.credential);
+
+    await expect(adapter.claude.file(draft())).rejects.toMatchObject({ status: 503 });
+    now = new Date('2026-07-27T00:01:00.000Z');
+    await expect(adapter.codex.file(draft())).rejects.toMatchObject({ status: 503 });
+
+    expect(setup.tokenRequests).toHaveLength(2);
   });
 
   it('rate-limits operator reconciliation independently of filing credentials', async () => {
@@ -1451,6 +1495,7 @@ describe('retry-safe retro relay', () => {
     });
     const occupyingCreate = client.createIssue({
       body: 'occupy capacity',
+      installationId: 42,
       installationToken: 'ghs_installation_secret',
       labels: [],
       repository: 'arcadeai/safeword',

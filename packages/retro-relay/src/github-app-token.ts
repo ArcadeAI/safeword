@@ -52,6 +52,10 @@ export class GitHubAppTokenProvider {
     }
   }
 
+  invalidate(installationId: number, repo: string): void {
+    this.#cache.delete(`${installationId}:${repo}`);
+  }
+
   async #mint(
     cacheKey: string,
     installationId: number,

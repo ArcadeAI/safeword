@@ -53,6 +53,9 @@ export async function startRelayRuntime(
       bootId: randomUUID(),
       github: new GitHubRestClient({
         baseUrl: config.github.baseUrl,
+        invalidateInstallationToken: (installationId, repo) => {
+          tokenProvider.invalidate(installationId, repo);
+        },
         installationToken: async (installationId, repo) => {
           log({ stage: 'github_installation_token', installationId, repository: repo });
           return tokenProvider.token(installationId, repo);

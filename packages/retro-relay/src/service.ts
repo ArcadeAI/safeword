@@ -244,6 +244,7 @@ export class RelayService {
       );
       this.#store.recordReconciliation(receiptId, principal.subject, 'manual-create-attempted', 0);
       const issueNumber = await this.#github.createIssue({
+        installationId: record.scope.installationId,
         repository: record.scope.repository,
         title: durableRequest.title,
         body: `${durableRequest.body}\n\n${record.requestMarker}`,
@@ -358,6 +359,7 @@ export class RelayService {
     }
     try {
       const issueNumber = await this.#github.createIssue({
+        installationId: scope.installationId,
         repository: scope.repository,
         title: durableRequest.title,
         body: `${durableRequest.body}\n\n${record.requestMarker}`,
@@ -373,7 +375,8 @@ export class RelayService {
           return this.#store.markRejected(scope, this.#now());
         }
         if (error.outcome === 'retryable') {
-          this.#store.markRetryable(scope, this.#now());
+          const retryAt = this.#now();
+          this.#store.markRetryable(scope, retryAt, error.retryNotBefore(retryAt));
           throw new RelayError(503, 'GitHub rejected create; retry scheduled');
         }
       }

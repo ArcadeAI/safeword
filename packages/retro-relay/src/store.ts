@@ -731,12 +731,15 @@ export class RelayStore {
     return receipt(record);
   }
 
-  markRetryable(scope: RequestScope, now = this.#now()): void {
+  markRetryable(scope: RequestScope, now = this.#now(), notBefore?: Date): void {
     const record = this.load(scope);
     if (record === undefined) return;
     const deadline = new Date(record.retryDeadlineAt);
     const backoff = Math.min(2 ** Math.max(record.attemptCount - 1, 0) * 60_000, HOUR_MS);
-    const nextAttempt = new Date(Math.min(now.getTime() + backoff, deadline.getTime()));
+    const regularRetryAt = now.getTime() + backoff;
+    const upstreamRetryAt = notBefore?.getTime() ?? -Infinity;
+    const boundedRetryAt = Math.min(Math.max(regularRetryAt, upstreamRetryAt), deadline.getTime());
+    const nextAttempt = new Date(boundedRetryAt);
     this.#database
       .prepare(
         `UPDATE retro_requests SET state = 'retryable', next_attempt_at = ?

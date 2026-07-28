@@ -334,6 +334,19 @@ describe('durable retry and terminal lifecycle', () => {
     store.close();
   });
 
+  it('never schedules a retry before an upstream rate-limit deadline', () => {
+    const file = databasePath();
+    const now = new Date('2026-01-01T00:00:00.000Z');
+    const store = RelayStore.open(file, { now: () => now });
+    accept(store, 'rate-limited');
+    expect(store.claim(scope('rate-limited'), now)).toBe(true);
+
+    store.markRetryable(scope('rate-limited'), now, new Date('2026-01-01T00:10:00.000Z'));
+
+    expect(store.load(scope('rate-limited'))?.nextAttemptAt).toBe('2026-01-01T00:10:00.000Z');
+    store.close();
+  });
+
   it('prevents a new dispatch at 24 hours and dead-letters exactly once', () => {
     const file = databasePath();
     const acceptedAt = new Date('2026-01-01T00:00:00.000Z');
