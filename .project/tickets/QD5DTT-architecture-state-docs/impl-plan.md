@@ -43,3 +43,34 @@ Records exist at the configured `paths.architecture` (`ARCHITECTURE.md`). This i
 - **Monorepo support (Slice 3)** — revisits the single-doc / single-fingerprint assumption (per-node fingerprints, derived root index).
 - **Non-TypeScript language packs** — revisits the extractor's TS + dependency-cruiser specificity (per-pack fingerprint inputs).
 - **Self-heal too slow on large repos** — revisits the incremental-hashing boundary (re-hash all vs. only-moved nodes).
+
+## Issue #1551 extension: as-built design
+
+1. **Union source-root entries.** The JS/TS extractor unions immediate
+   directories and eligible files for both `src/` and `lib/`, with
+   directory-wins deduplication and stable ordering. Colocated test/spec files
+   are excluded only in those production roots; root test files remain eligible
+   for test-only packages.
+2. **Preserve root authority after filtering.** Enumeration returns both nodes
+   and whether a recognized source entry was observed. A root containing only
+   excluded tests therefore yields an honest empty skeleton instead of falling
+   through to another language/layout.
+3. **Keep the released fingerprint recipe.** Module names remain defensively
+   sorted and hashed under `moduleNames`; changing the serialized recipe would
+   invalidate every installed document and falsely stale unchanged prose.
+4. **Reconcile canonical paths explicitly.** Single-repo and leaf targets
+   compare rendered `{name,path}` facts with the live skeleton. A path-only
+   change triggers a heal while the unchanged fingerprint keeps surviving prose
+   current.
+5. **Document ownership accurately.** The installed guide distinguishes
+   machine-owned headings/references/status from preserved human purpose prose;
+   a template test covers copy and a CI-run setup scenario covers installation.
+
+Rejected alternatives:
+
+- Blanket exclusion of `index`, `main`, or `cli`: names alone do not distinguish
+  pure barrels from modules with orchestration logic, and the extractor's
+  content-agnostic invariant rules out source-text heuristics.
+- `{name,path}` fingerprint schema migration: unnecessary once path drift is an
+  explicit reconciliation signal, and it would create a one-time false stale
+  sweep for every existing project.

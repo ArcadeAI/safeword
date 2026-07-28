@@ -10,6 +10,7 @@
 **Dep Drift:** ✅ Clean — no new dependencies (Node stdlib only: `node:fs`, `node:crypto`, `node:path`, `node:child_process`)
 **Parent Epic:** N/A (QD5DTT is the parent; Slices 2–4 are tracked as follow-ons in the ticket)
 **Reconcile:** ✅ No pattern deviation — conformed to CLI layering (utils/commands/hooks); the module-enumeration choice (direct `src/` scan vs `DetectedArchitecture`) is recorded in impl-plan Decisions with rationale, not a sibling-pattern split
+**PR Scope:** ✅ Diff matches issue #1551: mixed JS/TS root extraction, path reconciliation, ownership guidance, executable regressions, generated docs, and the owning QD5DTT artifacts only.
 
 ## Audit
 
@@ -45,3 +46,17 @@ An independent fresh-context `/quality-review` over the **complete** branch diff
 - Reviewer confirmed solid: registration parity across the three Claude surfaces, byte-identical template/dogfood hook, non-blocking hook, no ReDoS/injection.
 
 Ready to mark done.
+
+## Issue #1551 extension verification — 2026-07-27
+
+- **Full Vitest:** ✅ 375 files; 5,567 passed, 5 skipped.
+- **Full Cucumber:** ✅ 514 scenarios (511 passed, 3 skipped);
+  15,832 steps (15,828 passed, 4 skipped).
+- **Static gates:** ✅ ESLint, Gherkin lint, `tsc --noEmit`, Prettier, and
+  dependency-cruiser (0 errors; one pre-existing orphan warning).
+- **Focused regressions:** ✅ mixed `src/`/`lib/` unions, directory-wins
+  deduplication, source-root test/spec filtering, excluded-only-root
+  no-fallthrough, exact legacy fingerprint recipe, and path-only self-heal
+  without stale prose.
+- **Generated docs:** ✅ repeated `safeword architecture` is byte-stable; the
+  unchanged Website leaf has no diff or false stale markers.

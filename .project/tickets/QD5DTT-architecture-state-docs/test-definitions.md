@@ -110,4 +110,56 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ## Feature-level cross-scenario refactor
 
-- [x] cross-scenario 8459376 (impl-exit refactor 82e1dc1 wired reconcile; final-review pass 8459376 CRLF guard + determinism)
+- [x] cross-scenario 8459376
+
+Evidence: impl-exit refactor `82e1dc1` wired reconcile; final-review commit
+`8459376` added the CRLF guard and deterministic ordering.
+
+## Issue #1551 extension: mixed JS/TS source roots
+
+### Scenario: A mixed source root lists directories and loose modules
+
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
+
+### Scenario: A mixed lib root lists directories and loose modules
+
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
+
+### Scenario: A directory and same-named source file produce one directory-backed module
+
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
+
+### Scenario: Colocated tests are excluded without falling through to root scripts
+
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
+
+### Scenario: A file-backed module heals to its same-named directory path
+
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
+
+### Scenario: Repeated mixed-tree generation is deterministic
+
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
+
+### Scenario: The guide distinguishes machine-owned structure from preserved module prose
+
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
+
+### Extension-level cross-scenario refactor
+
+- [x] Shared one source-root enumerator across `src/` and `lib/`; path drift is
+      reconciled separately so the released fingerprint recipe remains stable.

@@ -1,6 +1,6 @@
 ---
 generator: safeword-architecture
-fingerprint: 41b56941957c005af2f9c8f78439faada884c97306a75cc3e7c06947aa54ed1d
+fingerprint: b5e10ab759c1bd1b8ecbc876dbbc0b76784831cacf5438183665db386a5ed922
 ---
 
 # Architecture
@@ -19,7 +19,7 @@ No description yet — awaiting prose.
 
 ### cli
 
-<!-- reconciled: 41b56941957c005af2f9c8f78439faada884c97306a75cc3e7c06947aa54ed1d -->
+<!-- reconciled: b5e10ab759c1bd1b8ecbc876dbbc0b76784831cacf5438183665db386a5ed922 -->
 
 `src/cli.ts`
 
@@ -47,7 +47,7 @@ No description yet — awaiting prose.
 
 ### cursor-wrappers
 
-<!-- reconciled: 41b56941957c005af2f9c8f78439faada884c97306a75cc3e7c06947aa54ed1d -->
+<!-- reconciled: b5e10ab759c1bd1b8ecbc876dbbc0b76784831cacf5438183665db386a5ed922 -->
 
 `src/cursor-wrappers.ts`
 
@@ -55,7 +55,7 @@ No description yet — awaiting prose.
 
 ### health
 
-<!-- reconciled: 41b56941957c005af2f9c8f78439faada884c97306a75cc3e7c06947aa54ed1d -->
+<!-- reconciled: b5e10ab759c1bd1b8ecbc876dbbc0b76784831cacf5438183665db386a5ed922 -->
 
 `src/health.ts`
 
@@ -63,7 +63,7 @@ No description yet — awaiting prose.
 
 ### index
 
-<!-- reconciled: 41b56941957c005af2f9c8f78439faada884c97306a75cc3e7c06947aa54ed1d -->
+<!-- reconciled: b5e10ab759c1bd1b8ecbc876dbbc0b76784831cacf5438183665db386a5ed922 -->
 
 `src/index.ts`
 
@@ -81,7 +81,7 @@ No description yet — awaiting prose.
 
 ### owned-paths
 
-<!-- reconciled: 41b56941957c005af2f9c8f78439faada884c97306a75cc3e7c06947aa54ed1d -->
+<!-- reconciled: b5e10ab759c1bd1b8ecbc876dbbc0b76784831cacf5438183665db386a5ed922 -->
 
 `src/owned-paths.ts`
 
@@ -99,7 +99,7 @@ No description yet — awaiting prose.
 
 ### parity
 
-<!-- reconciled: 41b56941957c005af2f9c8f78439faada884c97306a75cc3e7c06947aa54ed1d -->
+<!-- reconciled: b5e10ab759c1bd1b8ecbc876dbbc0b76784831cacf5438183665db386a5ed922 -->
 
 `src/parity.ts`
 
@@ -117,7 +117,7 @@ No description yet — awaiting prose.
 
 ### reconcile
 
-<!-- reconciled: 41b56941957c005af2f9c8f78439faada884c97306a75cc3e7c06947aa54ed1d -->
+<!-- reconciled: b5e10ab759c1bd1b8ecbc876dbbc0b76784831cacf5438183665db386a5ed922 -->
 
 `src/reconcile.ts`
 
@@ -135,7 +135,7 @@ No description yet — awaiting prose.
 
 ### schema
 
-<!-- reconciled: 41b56941957c005af2f9c8f78439faada884c97306a75cc3e7c06947aa54ed1d -->
+<!-- reconciled: b5e10ab759c1bd1b8ecbc876dbbc0b76784831cacf5438183665db386a5ed922 -->
 
 `src/schema.ts`
 
@@ -143,7 +143,7 @@ No description yet — awaiting prose.
 
 ### self-report-capture
 
-<!-- reconciled: 41b56941957c005af2f9c8f78439faada884c97306a75cc3e7c06947aa54ed1d -->
+<!-- reconciled: b5e10ab759c1bd1b8ecbc876dbbc0b76784831cacf5438183665db386a5ed922 -->
 
 `src/self-report-capture.ts`
 
@@ -241,7 +241,7 @@ No description yet — awaiting prose.
 
 ### version
 
-<!-- reconciled: 41b56941957c005af2f9c8f78439faada884c97306a75cc3e7c06947aa54ed1d -->
+<!-- reconciled: b5e10ab759c1bd1b8ecbc876dbbc0b76784831cacf5438183665db386a5ed922 -->
 
 `src/version.ts`
 

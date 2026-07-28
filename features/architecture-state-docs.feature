@@ -53,6 +53,12 @@ Feature: Always-fresh point-in-time architecture doc (Slice 1, single-repo)
       And their references point to src/auth and src/pipeline.ts
 
     @architecture-state-docs.NTB1.AC1
+    Scenario: Colocated tests are excluded without falling through to root scripts
+      Given a project whose src/ contains only colocated tests and whose root contains a script
+      When the architecture doc is generated
+      Then no architecture doc is written
+
+    @architecture-state-docs.NTB1.AC1
     Scenario: A directory and same-named source file produce one directory-backed module
       Given a project whose src/ contains a directory "auth" and a file "auth.ts"
       When the architecture doc is generated

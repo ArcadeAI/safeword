@@ -59,6 +59,22 @@ describe('selfHeal — structural facts self-heal at session start', () => {
     expect(content).toContain('billing');
   });
 
+  it('heals a changed module path without changing the legacy fingerprint or staling prose', () => {
+    rmSync(nodePath.join(context.directory, 'src', 'auth'), { recursive: true, force: true });
+    writeFileSync(nodePath.join(context.directory, 'src', 'auth.ts'), 'export {};\n');
+    selfHeal(context.directory);
+    const fingerprint = shapeFingerprint(context.directory);
+
+    mkdirSync(nodePath.join(context.directory, 'src', 'auth'), { recursive: true });
+
+    expect(shapeFingerprint(context.directory)).toBe(fingerprint);
+    expect(selfHeal(context.directory).action).toBe('healed');
+    const content = readFileSync(documentPath(context.directory), 'utf8');
+    expect(content).toContain('`src/auth`');
+    expect(content).not.toContain('`src/auth.ts`');
+    expect(content).not.toContain('⚠ stale');
+  });
+
   it('leaves the document untouched when the fingerprint is unchanged', () => {
     selfHeal(context.directory);
     const before = readFileSync(documentPath(context.directory), 'utf8');

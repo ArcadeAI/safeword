@@ -100,6 +100,12 @@ afterEach(() => {
 });
 
 describe('shapeFingerprint — captures shape, not noise', () => {
+  it('keeps the released name-only fingerprint recipe stable', () => {
+    expect(shapeFingerprint(context.directory)).toBe(
+      '937a490e9b13dfe240f9abbc4ba05bd7f97e055d5ba3ae1efcfd5a47fdb477d4',
+    );
+  });
+
   it.each(changes)('$change → $result', ({ apply, result }) => {
     const before = shapeFingerprint(context.directory);
 
@@ -113,13 +119,13 @@ describe('shapeFingerprint — captures shape, not noise', () => {
     }
   });
 
-  it('moves when a file-backed module becomes a same-named directory-backed module', () => {
+  it('does not move for a path-only change to the same named module', () => {
     writeFileSync(nodePath.join(context.directory, 'src', 'pipeline.ts'), 'export {};\n');
     const before = shapeFingerprint(context.directory);
 
     mkdirSync(nodePath.join(context.directory, 'src', 'pipeline'), { recursive: true });
 
-    expect(shapeFingerprint(context.directory)).not.toBe(before);
+    expect(shapeFingerprint(context.directory)).toBe(before);
   });
 });
 

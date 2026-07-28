@@ -100,11 +100,11 @@ export function extractSkeleton(projectDirectory: string): Skeleton {
   // The `src/` layout (TS/JS) is authoritative. Its immediate child directories
   // AND loose source files are modules: mixed trees are conventional, and
   // returning one kind or the other silently truncated them (issue #1551).
-  const sourceNodes = enumerateJsSourceRoot(
+  const sourceRoot = enumerateJsSourceRoot(
     nodePath.join(projectDirectory, 'src'),
     name => `src/${name}`,
   );
-  if (sourceNodes.length > 0) return { nodes: sourceNodes };
+  if (sourceRoot.observed) return { nodes: sourceRoot.nodes };
 
   // No `src/` modules: a Go module (a `go.mod` is present) is described by its
   // conventional top-level layout directories instead (ticket ZD70P1). A flat Go
@@ -120,11 +120,11 @@ export function extractSkeleton(projectDirectory: string): Skeleton {
   // design systems keep their sources under `lib/` — issue #843) is described the
   // same files-or-directories way. Last-resort JS fallbacks, so they never preempt
   // a recognized Go/Rust/Python layout above.
-  const libraryNodes = enumerateJsSourceRoot(
+  const libraryRoot = enumerateJsSourceRoot(
     nodePath.join(projectDirectory, 'lib'),
     name => `lib/${name}`,
   );
-  if (libraryNodes.length > 0) return { nodes: libraryNodes };
+  if (libraryRoot.observed) return { nodes: libraryRoot.nodes };
 
   // No source root at all: a flat or test-only package (e.g. top-level `*.test.ts`
   // with no `src/`) is described by its top-level source files (issue #843) — but
@@ -165,19 +165,24 @@ function declaresWorkspaces(projectDirectory: string): boolean {
  * deterministic). Immediate child directories and source files are unioned.
  * A same-named directory and file represent one concept; the directory wins
  * because it is the broader architectural boundary (issue #1551). `pathFor`
- * maps an entry name to its forward-slashed code reference. `[]` when absent.
+ * maps an entry name to its forward-slashed code reference. `observed` distinguishes
+ * an absent/irrelevant root from one containing only excluded colocated tests, so
+ * filtering cannot make extraction fall through to an unrelated layout.
  */
 function enumerateJsSourceRoot(
   directory: string,
   pathFor: (entryName: string) => string,
-): SkeletonNode[] {
+): { nodes: SkeletonNode[]; observed: boolean } {
   let entries: Dirent[];
   try {
     entries = readdirSync(directory, { withFileTypes: true });
   } catch {
-    return [];
+    return { nodes: [], observed: false };
   }
 
+  const observed = entries.some(
+    entry => entry.isDirectory() || (entry.isFile() && isJsSourceModuleFile(entry.name)),
+  );
   const byName = new Map(
     entries
       .filter(entry => entry.isDirectory())
@@ -186,10 +191,10 @@ function enumerateJsSourceRoot(
         { name: entry.name, path: pathFor(entry.name), purpose: PURPOSE_PLACEHOLDER },
       ]),
   );
-  for (const node of jsFileNodes(entries, pathFor)) {
+  for (const node of jsFileNodes(entries, pathFor, true)) {
     if (!byName.has(node.name)) byName.set(node.name, node);
   }
-  return byName.values().toArray().toSorted(byNodeName);
+  return { nodes: byName.values().toArray().toSorted(byNodeName), observed };
 }
 
 /**
@@ -220,9 +225,18 @@ function topLevelJsModuleNodes(projectDirectory: string): SkeletonNode[] {
  * dedupe, two `### util` sections would render and the surviving path would be
  * readdir-order (platform) dependent.
  */
-function jsFileNodes(entries: Dirent[], pathFor: (entryName: string) => string): SkeletonNode[] {
+function jsFileNodes(
+  entries: Dirent[],
+  pathFor: (entryName: string) => string,
+  excludeTests = false,
+): SkeletonNode[] {
   const files = entries
-    .filter(entry => entry.isFile() && isJsSourceModuleFile(entry.name))
+    .filter(
+      entry =>
+        entry.isFile() &&
+        isJsSourceModuleFile(entry.name) &&
+        (!excludeTests || !isJsTestFile(entry.name)),
+    )
     .toSorted(
       (a, b) =>
         extensionPriority(a.name) - extensionPriority(b.name) || a.name.localeCompare(b.name),
@@ -236,6 +250,11 @@ function jsFileNodes(entries: Dirent[], pathFor: (entryName: string) => string):
     }
   }
   return byName.values().toArray().toSorted(byNodeName);
+}
+
+/** Vitest/Jest-style colocated tests are verification, not production architecture nodes. */
+function isJsTestFile(name: string): boolean {
+  return /\.(?:test|spec)\.[mc]?[jt]sx?$/.test(name);
 }
 
 /** The rank of a filename's extension in {@link JS_SOURCE_EXTENSIONS} (lower wins dedupe). */

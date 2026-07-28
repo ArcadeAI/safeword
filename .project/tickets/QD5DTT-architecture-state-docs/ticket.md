@@ -104,6 +104,7 @@ Addresses the "epic wearing a feature label" packaging note. `/bdd` runs on **Sl
 
 ## Work Log
 
+- 2026-07-27T22:13:00Z Extension: Reopened the QD5DTT artifacts for issue #1551 mixed JS/TS roots. Consolidated the new requirements/test ledger/design into the owning ticket; retained the released fingerprint recipe, added explicit canonical-path reconciliation, filtered colocated tests without root fallthrough, and preserved entry points plus the CI-run setup proof.
 - 2026-06-21T03:20:41Z Started: Created ticket QD5DTT.
 - 2026-06-21T03:21:00Z Context: Design converged across three `/figure-it-out` sessions (refresh method, drift enforcement, monorepo structure + leaf placement). Captured decisions + evidence above.
 - 2026-06-21T17:58:00Z Done: final whole-ticket /quality-review over the full diff (second wave) → must-fix CRLF ownership-guard blind spot fixed + 4 improvements; full suite 3207/3207; BDD 90 scenarios; lint/typecheck/audit clean. Marked done. Opening PR.

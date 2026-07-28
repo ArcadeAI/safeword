@@ -73,3 +73,26 @@ A structural change committed outside any agent session is detected at the next 
 ## Open Questions
 
 - defer: exact shape-fingerprint contents per input (src dirs / deps / dependency-cruiser config / schema — in or out of the hash). Resolved as the first define-behavior scenario (ticket → First scenarios to write).
+
+## Issue #1551 extension: mixed JS/TS source roots
+
+The shallow module skeleton applies equally to `src/` and `lib/`: eligible
+immediate child directories and loose JS/TS source files are unioned, sorted,
+and deduplicated by module name. A same-named directory and file represent one
+concept, with the directory as the canonical path.
+
+Additional acceptance criteria:
+
+- Mixed roots list both directories and differently named loose source modules.
+- Same-named file/directory pairs render one directory-backed module.
+- Colocated `*.test.*` and `*.spec.*` files under a production source root are
+  excluded, but top-level test files remain eligible for test-only packages.
+- A recognized source root that becomes empty after test filtering does not
+  fall through to `lib/`, Go layout, or unrelated root scripts.
+- `index`, `main`, and `cli` are not excluded by basename: TypeScript entry
+  points can contain real module logic, and extraction remains content-agnostic.
+- A file-backed module becoming directory-backed heals its code reference
+  without changing the released name-only fingerprint recipe or falsely
+  marking unchanged purpose prose stale.
+- Generated-document guidance distinguishes fully derived root indexes from
+  human-owned module purpose prose that is preserved while the module exists.

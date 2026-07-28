@@ -115,6 +115,16 @@ Given(
 );
 
 Given(
+  /^a project whose src\/ contains only colocated tests and whose root contains a script$/,
+  function (this: ArchitectureWorld) {
+    mkdirSync(nodePath.join(dir(this), 'src'), { recursive: true });
+    writeFileSync(nodePath.join(dir(this), 'src', 'api.test.ts'), 'export {};\n');
+    writeFileSync(nodePath.join(dir(this), 'src', 'api.spec.tsx'), 'export {};\n');
+    writeFileSync(nodePath.join(dir(this), 'root-script.ts'), 'export {};\n');
+  },
+);
+
+Given(
   /^a generated doc whose auth module is backed by src\/auth\.ts$/,
   function (this: ArchitectureWorld) {
     mkdirSync(nodePath.join(dir(this), 'src'), { recursive: true });
