@@ -165,7 +165,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Unsafe backup targets are rejected before mutation
 
 - [x] RED 943a4af05
-- [ ] GREEN
+- [x] GREEN 81b5d6b23
 - [ ] REFACTOR
 
 ### Scenario: Deprecated cleanup alias follows the finalization contract
