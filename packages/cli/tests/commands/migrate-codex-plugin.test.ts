@@ -82,7 +82,13 @@ case "$*" in
     echo '{"marketplaceName":"safeword"}'
     ;;
   'plugin add safeword@safeword --json') echo '{"pluginId":"safeword@safeword"}' ;;
-  'plugin list --json') echo '{"installed":[{"pluginId":"safeword@safeword","enabled":${pluginEnabled}}]}' ;;
+  'plugin list --json')
+    if [ "$(printenv SAFEWORD_FAIL_PLUGIN_VERIFY 2>/dev/null || true)" = "1" ]; then
+      echo 'profile observation failed' >&2
+      exit 8
+    fi
+    echo '{"installed":[{"pluginId":"safeword@safeword","enabled":${pluginEnabled}}]}'
+    ;;
   *) exit 2 ;;
 esac
 `,
@@ -439,6 +445,23 @@ command = 'echo "keep this user hook"'
     expect(`${result.stdout}\n${result.stderr}`).toContain('marketplace unavailable');
     expect(readFileSync(fixture.configPath, 'utf8')).toBe(beforeConfig);
     expect(readFileSync(legacySkillPath, 'utf8')).toBe('# legacy protection\n');
+    expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-plugin.json'))).toBe(false);
+  });
+
+  it('reports unknown enablement without changing the repository after partial installation', async () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    const beforeConfig = readFileSync(fixture.configPath, 'utf8');
+
+    const result = await runCodexCommand(fixture, ['codex', 'migrate'], {
+      SAFEWORD_FAIL_PLUGIN_VERIFY: '1',
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(`${result.stdout}\n${result.stderr}`).toContain(
+      'Plugin installation succeeded, but enablement is unknown',
+    );
+    expect(`${result.stdout}\n${result.stderr}`).toContain('profile observation failed');
+    expect(readFileSync(fixture.configPath, 'utf8')).toBe(beforeConfig);
     expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-plugin.json'))).toBe(false);
   });
 
