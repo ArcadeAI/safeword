@@ -1499,7 +1499,9 @@ describe('Reconcile - Reconciliation Engine', () => {
 
       // No actions means healthy
       expect(result.actions.filter(a => a.type === 'write')).toHaveLength(0);
+      expect(result.created).toHaveLength(0);
       expect(result.updated).toHaveLength(0);
+      expect(result.removed).toHaveLength(0);
     });
   });
 

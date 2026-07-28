@@ -100,6 +100,25 @@ describe('plan and remove wiring', () => {
     expect(appliedEnvelope.effects.network).toEqual([]);
   });
 
+  it('advertises a full-removal action that can be executed verbatim', async () => {
+    const directory = createTemporaryDirectory();
+    configureMinimalProject(directory);
+
+    const preview = await runCli(['remove', '--full', '--json', '--no-input'], {
+      cwd: directory,
+    });
+    const envelope = JSON.parse(preview.stdout) as {
+      next_actions: { command: string }[];
+    };
+    const advertised = envelope.next_actions[0]?.command;
+    expect(advertised).toMatch(/^safeword remove --full --yes --plan [a-f\d]{64}$/);
+
+    const applied = await runCli(advertised?.split(' ').slice(1) ?? [], { cwd: directory });
+
+    expect(applied.exitCode).toBe(0);
+    expect(applied.stdout).toContain('Changed: yes');
+  });
+
   it('refuses a stale removal plan without mutation', async () => {
     const directory = createTemporaryDirectory();
     configureMinimalProject(directory);

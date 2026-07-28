@@ -23,7 +23,7 @@ export function addGlobalOptions(command: Command): Command {
     .option('--cwd <path>', 'Run against this project directory')
     .option('--quiet', 'Suppress healthy and progress prose')
     .option('--offline', 'Reject declared network effects')
-    .option('--verbose', 'Include implementation detail');
+    .option('-v, --verbose', 'Include implementation detail');
 }
 
 export function readGlobalOptions(command: Command): GlobalCliOptions {

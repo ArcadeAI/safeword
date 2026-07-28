@@ -5,7 +5,7 @@ import type { Command } from 'commander';
 import { commandCatalog, type CommandDefinition, findCommandDefinition } from './catalog.js';
 import { addGlobalOptions, readGlobalOptions, reportResult } from './execute.js';
 import { createProgressReporter } from './policy.js';
-import { withDeprecation } from './result.js';
+import { createResult, withDeprecation } from './result.js';
 
 const FAMILY_DESCRIPTIONS: Readonly<Record<string, string>> = {
   project: 'Manage project-local Safeword state',
@@ -98,14 +98,27 @@ function addDefinitionAction(command: Command, definition: CommandDefinition): v
           });
     let result;
     try {
-      result = await definition.handler({
-        cwd: globalOptions.cwd,
-        noInput: globalOptions.noInput,
-        offline: globalOptions.offline,
-        options: command.opts(),
-        operands: command.processedArgs,
-        progress,
-      });
+      try {
+        result = await definition.handler({
+          cwd: globalOptions.cwd,
+          noInput: globalOptions.noInput,
+          offline: globalOptions.offline,
+          options: command.opts(),
+          operands: command.processedArgs,
+          progress,
+        });
+      } catch (handlerError) {
+        result = createResult({
+          state: 'failed',
+          errors: [
+            {
+              code: 'COMMAND_EXECUTION_FAILED',
+              message: handlerError instanceof Error ? handlerError.message : String(handlerError),
+              retryable: false,
+            },
+          ],
+        });
+      }
     } finally {
       progress?.stop();
     }

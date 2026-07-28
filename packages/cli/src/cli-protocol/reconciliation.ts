@@ -6,7 +6,7 @@ import { type Action, reconcile, type ReconcileResult } from '../reconcile.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
 import { createProjectContext } from '../utils/context.js';
 import { type CliPlan, createPlan } from './plan.js';
-import type { Effect, Effects } from './result.js';
+import type { Effects } from './result.js';
 
 type PlanMode = 'upgrade' | 'uninstall' | 'uninstall-full';
 
@@ -48,36 +48,17 @@ function preconditionDigest(cwd: string, actions: readonly Action[]): string {
   return hash.digest('hex');
 }
 
-function actionEffect(action: Action): Effect[] {
-  return actionTargets(action).map(target => ({
-    kind: action.type,
-    target,
-    operation: action.type,
-  }));
-}
-
 export function effectsForReconciliation(result: ReconcileResult, mode: PlanMode): Effects {
-  if (result.applied) {
-    const created = result.created.map(target => ({ kind: 'create', target }));
-    const updated = result.updated.map(target => ({ kind: 'update', target }));
-    const removed = result.removed.map(target => ({ kind: 'remove', target }));
-    return {
-      files: mode === 'upgrade' ? [...created, ...updated] : [],
-      packages: [],
-      configuration: [],
-      network: [],
-      destructive: mode === 'upgrade' ? [] : removed,
-    };
-  }
-
-  const fileEffects = result.actions.flatMap(action => actionEffect(action));
+  const created = result.created.map(target => ({ kind: 'create', target }));
+  const updated = result.updated.map(target => ({ kind: 'update', target }));
+  const removed = result.removed.map(target => ({ kind: 'remove', target }));
   const packageNames = mode === 'upgrade' ? result.packagesToInstall : result.packagesToRemove;
   const packageEffects = packageNames.map(target => ({
     kind: mode === 'upgrade' ? 'install' : 'remove',
     target,
   }));
   return {
-    files: mode === 'upgrade' ? fileEffects : [],
+    files: [...created, ...updated],
     packages: packageEffects,
     configuration: [],
     network:
@@ -88,7 +69,7 @@ export function effectsForReconciliation(result: ReconcileResult, mode: PlanMode
             operation: 'install',
           }))
         : [],
-    destructive: mode === 'upgrade' ? [] : fileEffects,
+    destructive: removed,
   };
 }
 

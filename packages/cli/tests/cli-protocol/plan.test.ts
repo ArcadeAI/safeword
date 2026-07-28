@@ -54,4 +54,55 @@ describe('CLI plan protocol', () => {
       { kind: 'package-registry', target: 'eslint', operation: 'install' },
     ]);
   });
+
+  it('uses predicted changes instead of executor actions that may be no-ops', () => {
+    const effects = effectsForReconciliation(
+      {
+        actions: [
+          { type: 'chmod', paths: ['.safeword/hooks'] },
+          {
+            type: 'text-patch',
+            path: 'AGENTS.md',
+            definition: {
+              marker: '<!-- already-present -->',
+              content: '<!-- already-present -->\n',
+              operation: 'append',
+            },
+          },
+        ],
+        applied: false,
+        created: [],
+        updated: [],
+        removed: [],
+        packagesToInstall: [],
+        packagesToRemove: [],
+        warnings: [],
+      },
+      'upgrade',
+    );
+
+    expect(effects.files).toEqual([]);
+  });
+
+  it('reports every observed file change from an applied uninstall', () => {
+    const effects = effectsForReconciliation(
+      {
+        actions: [],
+        applied: true,
+        created: ['created-during-cleanup.json'],
+        updated: ['customer-config.json'],
+        removed: ['.safeword/version'],
+        packagesToInstall: [],
+        packagesToRemove: [],
+        warnings: [],
+      },
+      'uninstall',
+    );
+
+    expect(effects.files).toEqual([
+      { kind: 'create', target: 'created-during-cleanup.json' },
+      { kind: 'update', target: 'customer-config.json' },
+    ]);
+    expect(effects.destructive).toEqual([{ kind: 'remove', target: '.safeword/version' }]);
+  });
 });

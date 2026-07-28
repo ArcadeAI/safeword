@@ -35,4 +35,44 @@ describe('production reconciliation effect accounting', () => {
       }),
     );
   });
+
+  it('accounts for configuration updates and removals performed by executor actions', () => {
+    const directory = createTemporaryDirectory();
+    writeFileSync(nodePath.join(directory, 'settings.json'), '{"owned":true,"customer":true}\n');
+    writeFileSync(nodePath.join(directory, 'managed.txt'), 'managed\ncustomer\n');
+    mkdirSync(nodePath.join(directory, '.git'));
+    const context = createProjectContext(directory);
+
+    const result = executeReconciliationActions(
+      [
+        {
+          type: 'json-unmerge',
+          path: 'settings.json',
+          definition: {
+            keys: ['owned'],
+            merge: existing => existing,
+            unmerge: existing => {
+              const next = { ...existing };
+              delete next.owned;
+              return next;
+            },
+          },
+        },
+        {
+          type: 'text-unpatch',
+          path: 'managed.txt',
+          definition: {
+            marker: 'managed',
+            content: 'managed\n',
+            operation: 'prepend',
+          },
+        },
+      ],
+      context,
+    );
+
+    expect(result.updated).toEqual(['settings.json', 'managed.txt']);
+    expect(result.created).toEqual([]);
+    expect(result.removed).toEqual([]);
+  });
 });

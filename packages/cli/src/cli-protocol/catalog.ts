@@ -195,6 +195,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     commandOptions: [
       { flags: '--finalize', description: 'Finalize after current plugin-hook proof exists' },
       { flags: '--yes', description: 'Confirm the observed migration plan' },
+      { flags: '--plan <id>', description: 'Identity of the exact migration plan' },
       { flags: '--remove-legacy-hooks', description: 'Deprecated alias for --finalize' },
     ],
   }),
@@ -204,7 +205,10 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   command('codex status', 'Report Codex plugin and migration state', 'observe'),
   command('codex recover', 'Restore backed-up legacy Codex project state', 'destructive', {
     promptPolicy: 'confirm',
-    commandOptions: [{ flags: '--yes', description: 'Confirm recovery of the observed backup' }],
+    commandOptions: [
+      { flags: '--yes', description: 'Confirm recovery of the observed backup' },
+      { flags: '--plan <id>', description: 'Identity of the exact recovery plan' },
+    ],
   }),
   command('ticket list', 'List project tickets', 'observe'),
   command('ticket new', 'Create a project ticket', 'mutate', {

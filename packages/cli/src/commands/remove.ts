@@ -54,7 +54,8 @@ function observedPackageFileEffects(
   return effects;
 }
 
-function confirmationRequired(plan: CliPlan): CliResult {
+function confirmationRequired(plan: CliPlan, full: boolean): CliResult {
+  const fullFlag = full ? ' --full' : '';
   return createResult({
     state: 'action_required',
     findings: [
@@ -66,7 +67,7 @@ function confirmationRequired(plan: CliPlan): CliResult {
     ],
     nextActions: [
       {
-        command: `safeword remove --yes --plan ${plan.id}`,
+        command: `safeword remove${fullFlag} --yes --plan ${plan.id}`,
         mutates: true,
         requiresHuman: true,
       },
@@ -192,7 +193,7 @@ export async function removeProject(cwd: string, options: RemoveOptions): Promis
   try {
     const { plan } = await createReconciliationPlan(cwd, mode);
     if (options.yes !== true || options.plan === undefined) {
-      return confirmationRequired(plan);
+      return confirmationRequired(plan, options.full === true);
     }
     if (options.plan !== plan.id) return stalePlan(plan);
     return await applyRemoval(cwd, mode, options.full === true);

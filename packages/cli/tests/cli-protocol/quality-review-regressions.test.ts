@@ -1,12 +1,20 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { Command } from 'commander';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { findCommandDefinition, publicCommands } from '../../src/cli-protocol/catalog.js';
+import { addGlobalOptions } from '../../src/cli-protocol/execute.js';
+import { registerPublicCommandCatalog } from '../../src/cli-protocol/register.js';
 import { createTemporaryDirectory, runCli } from '../helpers.js';
 
 describe('quality-review regressions for the public CLI boundary', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    process.exitCode = undefined;
+  });
+
   it('gives every public catalog entry a real handler', () => {
     for (const definition of publicCommands) {
       expect(definition, definition.name).toEqual(
@@ -175,6 +183,46 @@ describe('quality-review regressions for the public CLI boundary', () => {
     const trackerMap = JSON.parse(readFileSync(trackerMapPath, 'utf8'));
     expect(trackerMap).toMatchObject({
       issues: { AB12CD: { ref: { provider: 'github', id: '549' } } },
+    });
+  });
+
+  it('renders a stable JSON result when a post-parse handler throws', async () => {
+    const definition = findCommandDefinition('capabilities');
+    const originalHandler = definition.handler;
+    Object.defineProperty(definition, 'handler', {
+      configurable: true,
+      value: () => Promise.reject(new Error('adapter exploded')),
+    });
+    const stdout: string[] = [];
+    const stderr: string[] = [];
+    vi.spyOn(process.stdout, 'write').mockImplementation(chunk => {
+      stdout.push(String(chunk));
+      return true;
+    });
+    vi.spyOn(process.stderr, 'write').mockImplementation(chunk => {
+      stderr.push(String(chunk));
+      return true;
+    });
+
+    try {
+      const program = new Command().name('safeword');
+      addGlobalOptions(program);
+      registerPublicCommandCatalog(program);
+      await program.parseAsync(['node', 'safeword', 'capabilities', '--json', '--no-input']);
+    } finally {
+      Object.defineProperty(definition, 'handler', {
+        configurable: true,
+        value: originalHandler,
+      });
+    }
+
+    expect(stderr).toEqual([]);
+    expect(process.exitCode).toBe(1);
+    expect(JSON.parse(stdout.join(''))).toMatchObject({
+      schema_version: 1,
+      state: 'failed',
+      changed: false,
+      errors: [{ code: 'COMMAND_EXECUTION_FAILED', retryable: false }],
     });
   });
 });

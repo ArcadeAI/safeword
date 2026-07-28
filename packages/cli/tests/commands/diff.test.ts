@@ -96,7 +96,7 @@ describe('Test Suite 10: Diff', () => {
         data: { plan: { effects: { files: { kind: string }[] } } };
       };
       expect(output.data.plan.effects.files.map(effect => effect.kind)).toEqual(
-        expect.arrayContaining([expect.stringMatching(/write|json-merge|text-patch/)]),
+        expect.arrayContaining([expect.stringMatching(/create|update/)]),
       );
     });
   });
@@ -175,7 +175,7 @@ describe('Test Suite 10: Diff', () => {
 
       expect(result.exitCode).toBe(2);
       expect(result.stdout).toContain('Planned effects:');
-      expect(result.stdout).toMatch(/files: (write|json-merge|text-patch) /);
+      expect(result.stdout).toMatch(/files: (create|update) /);
       expect(result.stdout).not.toMatch(/^@@.*@@/m);
     });
   });

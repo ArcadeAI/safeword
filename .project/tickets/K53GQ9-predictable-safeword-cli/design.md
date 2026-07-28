@@ -181,6 +181,14 @@ Aliases are catalog entries pointing to canonical handlers. Their Result gains
 `retainedThrough`, and `removalEligibleAfter` metadata.
 Capabilities lists aliases so agents can migrate without scraping help.
 
+Compatibility preserves legacy option spellings, but never weakens the
+destructive-plan boundary. In particular, `diff -v` remains accepted, while
+`reset -y` without `--plan <id>` returns the exact current removal Plan and a
+copyable canonical action instead of applying an unbound plan. Existing
+automation can still discover and confirm the operation deterministically,
+without allowing project drift between preview and apply to inherit stale
+consent.
+
 Release one introduces contracts, canonical names, aliases, and fixtures.
 Release two keeps aliases and raises documentation prominence. Removal is
 eligible only after two shipped release lines and a separate breaking-change
