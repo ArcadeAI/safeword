@@ -19,7 +19,7 @@ import {
   renderCodexMigrationHuman,
 } from '../codex-plugin/migration.js';
 import {
-  codexRestartMarkerPath,
+  codexRestartIsPending,
   observeCodexHookProof,
   writeCodexRestartMarker,
 } from '../codex-plugin/profile-proof.js';
@@ -451,7 +451,7 @@ export function statusCodexMigration(
     viableLegacyEvents: legacyEvents,
     finalized: existsSync(nodePath.join(cwd, '.safeword/codex-plugin.json')),
     recoveryRequired: existsSync(nodePath.join(cwd, '.safeword/codex-migration-backup')),
-    restartPending: existsSync(codexRestartMarkerPath(environment)),
+    restartPending: codexRestartIsPending(environment),
   });
 
   process.stdout.write(
@@ -471,6 +471,10 @@ export function installCodexPlugin(
     environment?: NodeJS.ProcessEnv;
   } = {},
 ): void {
+  if (options.reportMigrationState === true && codexRestartIsPending(options.environment)) {
+    statusCodexMigration(options.cwd, { environment: options.environment });
+    return;
+  }
   run('bun', ['--version']);
   run('codex', ['--version']);
   addCodexPluginToProfile(options.marketplaceSource);

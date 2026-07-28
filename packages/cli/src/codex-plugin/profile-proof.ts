@@ -51,6 +51,10 @@ export function codexRestartMarkerPath(environment: NodeJS.ProcessEnv = process.
   return nodePath.join(codexProfileDirectory(environment), 'safeword/restart-pending-v1.json');
 }
 
+export function codexRestartIsPending(environment: NodeJS.ProcessEnv = process.env): boolean {
+  return restartMarkerMatches(codexRestartMarkerPath(environment), currentCodexPluginIdentity());
+}
+
 export function packagedHookManifestPath(): string {
   const candidates = [
     nodePath.resolve(import.meta.dirname, '../codex-plugin/hooks.json'),
