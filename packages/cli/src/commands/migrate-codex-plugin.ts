@@ -19,6 +19,7 @@ import nodePath from 'node:path';
 
 import { parse } from 'smol-toml';
 
+import { resolveCodexFinalizationConfirmation } from '../codex-plugin/finalization.js';
 import {
   codexMigrationExitCode,
   type CodexPluginObservation,
@@ -555,8 +556,15 @@ export function installCodexPlugin(
   }
 }
 
-export function removeLegacyCodexHooks(cwd = process.cwd()): void {
-  if (observeCodexHookProof().status !== 'current') {
+export async function removeLegacyCodexHooks(
+  cwd = process.cwd(),
+  options: {
+    yes?: boolean;
+    confirm?: () => Promise<boolean>;
+    environment?: NodeJS.ProcessEnv;
+  } = {},
+): Promise<boolean> {
+  if (observeCodexHookProof(options.environment).status !== 'current') {
     throw new Error(
       'Finalization requires current plugin hook proof. Start a new Codex session, review /hooks, then retry.',
     );
@@ -564,6 +572,14 @@ export function removeLegacyCodexHooks(cwd = process.cwd()): void {
   // Validate cleanup before verifying the profile. A malformed project config
   // leaves both it and the Codex profile unchanged.
   const preparedLegacyHookRemoval = prepareLegacyHookRemoval(cwd);
+  const confirmed = await resolveCodexFinalizationConfirmation({
+    assumeYes: options.yes === true,
+    confirm: options.confirm,
+  });
+  if (!confirmed) {
+    info('Codex migration finalization was declined; the project was left unchanged.');
+    return false;
+  }
 
   run('bun', ['--version']);
   run('codex', ['--version']);
@@ -581,18 +597,24 @@ export function removeLegacyCodexHooks(cwd = process.cwd()): void {
       ? 'Removed Safe Word legacy Codex hook configuration from this project. Legacy runtime files were preserved.'
       : 'No Safe Word legacy Codex hooks were found in this project.',
   );
+  return true;
 }
 
 /**
  * Compatibility facade for the pre-`codex install` command shape. New users
  * should use `safeword codex install`; existing scripts retain their behavior.
  */
-export function migrateCodexPlugin(
+export async function migrateCodexPlugin(
   cwd = process.cwd(),
-  options: { marketplaceSource?: string; removeLegacyHooks?: boolean } = {},
-): void {
+  options: {
+    marketplaceSource?: string;
+    removeLegacyHooks?: boolean;
+    yes?: boolean;
+    confirm?: () => Promise<boolean>;
+  } = {},
+): Promise<void> {
   if (options.removeLegacyHooks) {
-    removeLegacyCodexHooks(cwd);
+    await removeLegacyCodexHooks(cwd, { yes: options.yes, confirm: options.confirm });
     return;
   }
   installCodexPlugin({

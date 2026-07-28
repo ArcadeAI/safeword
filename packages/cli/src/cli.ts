@@ -84,9 +84,13 @@ migrate
     '--remove-legacy-hooks',
     'Remove Safe Word-owned legacy project hooks after reviewing the plugin hooks in Codex /hooks',
   )
-  .action(async (options: { removeLegacyHooks?: boolean }) => {
+  .option('--yes', 'Confirm a non-interactive finalization plan')
+  .action(async (options: { removeLegacyHooks?: boolean; yes?: boolean }) => {
     const { migrateCodexPlugin } = await import('./commands/migrate-codex-plugin.js');
-    migrateCodexPlugin(process.cwd(), { removeLegacyHooks: options.removeLegacyHooks === true });
+    await migrateCodexPlugin(process.cwd(), {
+      removeLegacyHooks: options.removeLegacyHooks === true,
+      yes: options.yes === true,
+    });
   });
 
 const codex = program.command('codex').description('Manage the Safe Word Codex plugin');
@@ -115,11 +119,11 @@ codex
   .option('--yes', 'Confirm a non-interactive finalization plan')
   .option('--json', 'Write the versioned migration result as JSON')
   .option('--remove-legacy-hooks', 'Deprecated alias for --finalize')
-  .action(async (options: { finalize?: boolean; removeLegacyHooks?: boolean }) => {
+  .action(async (options: { finalize?: boolean; removeLegacyHooks?: boolean; yes?: boolean }) => {
     const { installCodexPlugin, removeLegacyCodexHooks } =
       await import('./commands/migrate-codex-plugin.js');
     if (options.finalize === true || options.removeLegacyHooks === true) {
-      removeLegacyCodexHooks(process.cwd());
+      await removeLegacyCodexHooks(process.cwd(), { yes: options.yes === true });
       return;
     }
     installCodexPlugin({ reportMigrationState: true });
