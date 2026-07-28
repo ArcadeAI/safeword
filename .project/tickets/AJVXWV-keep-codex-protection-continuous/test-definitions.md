@@ -184,7 +184,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Human status gives one safe next action for settled migration states
 
-- [ ] RED
+- [x] RED skip: the typed state table already existed before its complete human-render characterization
 - [ ] GREEN
 - [ ] REFACTOR
 
