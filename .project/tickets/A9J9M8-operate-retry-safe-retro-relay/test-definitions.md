@@ -26,15 +26,15 @@ Feature source: `features/operate-retry-safe-retro-relay.feature`
 
 ### Scenario: A multi-draft drain shares one aggregate latency budget
 
-- [x] RED — three drafts exceeded the Stop-hook budget under per-request deadlines
-- [x] GREEN — only work fitting the monotonic aggregate budget is attempted
-- [x] REFACTOR — one recovery/list pass feeds request-specific atomic claims
+- [x] RED skip: live review supplied the failing aggregate-budget evidence
+- [x] GREEN 39c5aeaa6
+- [x] REFACTOR 39c5aeaa6
 
 ### Scenario: Historical dead letters do not permanently request agent fallback
 
-- [x] RED — the standing backlog was counted as newly dead-lettered every run
-- [x] GREEN — this-run transitions and backlog are separate counters
-- [x] REFACTOR — fallback depends only on this run's retryable/dead-letter outcomes
+- [x] RED skip: live review supplied the failing sticky-backlog evidence
+- [x] GREEN 39c5aeaa6
+- [x] REFACTOR 39c5aeaa6
 
 ### Scenario: An active spool claim excludes another session
 

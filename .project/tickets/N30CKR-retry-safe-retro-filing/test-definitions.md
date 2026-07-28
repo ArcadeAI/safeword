@@ -46,15 +46,15 @@ Feature source: `features/retry-safe-retro-filing.feature`
 
 ### Scenario: An operator manually recovers a complete zero-match with the original marker
 
-- [x] RED — review pass reproduced the missing route as 404
-- [x] GREEN — public route creates once from the encrypted durable request
-- [x] REFACTOR — recovery CAS, role gate, and audit disposition share the existing state machine
+- [x] RED skip: live review supplied the failing missing-recovery evidence
+- [x] GREEN 39c5aeaa6
+- [x] REFACTOR 39c5aeaa6
 
 ### Scenario: A queued encrypted request survives payload-key rotation
 
-- [x] RED — old envelopes became undecryptable after replacing the single key
-- [x] GREEN — envelope key IDs select retained decrypt-only keys
-- [x] REFACTOR — v1 AAD rows migrate explicitly and startup names missing keys
+- [x] RED skip: live review supplied the failing key-rotation evidence
+- [x] GREEN 39c5aeaa6
+- [x] REFACTOR 39c5aeaa6
 
 ## Rule: Authorization is repository-scoped and independent of dedupe identity
 
