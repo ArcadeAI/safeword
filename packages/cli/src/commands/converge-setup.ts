@@ -3,7 +3,7 @@ import nodePath from 'node:path';
 
 import { type CliResult, createResult, type Effect } from '../cli-protocol/result.js';
 import { installPack } from '../packs/install.js';
-import { detectLanguages as detectLanguagePacks } from '../packs/registry.js';
+import { getMissingPacks } from '../packs/registry.js';
 import { reconcile, ReconcileExecutionError, type ReconcileResult } from '../reconcile.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
 import { createProjectContext } from '../utils/context.js';
@@ -22,6 +22,7 @@ import {
   inspectConfig,
   syncConfigCore,
 } from './sync-config.js';
+import { stripDeadConfigVersion, syncPackageJsonSafewordVersion } from './upgrade.js';
 
 function ensurePackageJson(cwd: string): boolean {
   const packageJsonPath = nodePath.join(cwd, 'package.json');
@@ -135,6 +136,28 @@ function packageFindings(installation: DependencyInstallResult) {
   ];
 }
 
+function gitFindings(gitInitialized: boolean) {
+  if (gitInitialized) return [];
+  return [
+    {
+      code: 'GIT_NOT_INITIALIZED',
+      message: 'Git initialization was skipped because this directory is not a Git repository.',
+      severity: 'info' as const,
+    },
+  ];
+}
+
+function eslintFindings(eslintPolicy: VendoredIgnoresPolicyResult) {
+  if (eslintPolicy.kind !== 'manual') return [];
+  return [
+    {
+      code: 'ESLINT_MANUAL_CONFIGURATION_REQUIRED',
+      message: 'Add safeword.configs.vendoredIgnores to the existing ESLint configuration.',
+      severity: 'warning' as const,
+    },
+  ];
+}
+
 interface SetupResultInput {
   readonly cwd: string;
   readonly reconciliation: ReconcileResult;
@@ -142,6 +165,8 @@ interface SetupResultInput {
   readonly architectureEffects: Effect[];
   readonly installation: DependencyInstallResult;
   readonly eslintPolicy: VendoredIgnoresPolicyResult;
+  readonly compatibilityEffects: Effect[];
+  readonly gitInitialized: boolean;
 }
 
 function setupResult(input: SetupResultInput): CliResult {
@@ -152,12 +177,15 @@ function setupResult(input: SetupResultInput): CliResult {
     architectureEffects,
     installation,
     eslintPolicy,
+    compatibilityEffects,
+    gitInitialized,
   } = input;
   const reconciled = effectsForReconciliation(reconciliation, 'upgrade');
   const files = [
     ...(packageJsonCreated ? [{ kind: 'create', target: 'package.json' }] : []),
     ...reconciled.files,
     ...architectureEffects,
+    ...compatibilityEffects,
     ...(eslintPolicy.kind === 'patched'
       ? [
           {
@@ -177,27 +205,22 @@ function setupResult(input: SetupResultInput): CliResult {
   const changed = files.length > 0 || packages.length > 0;
   const findings = [
     ...packageFindings(installation),
-    ...(eslintPolicy.kind === 'manual'
-      ? [
-          {
-            code: 'ESLINT_MANUAL_CONFIGURATION_REQUIRED',
-            message: 'Add safeword.configs.vendoredIgnores to the existing ESLint configuration.',
-            severity: 'warning' as const,
-          },
-        ]
-      : []),
+    ...gitFindings(gitInitialized),
+    ...eslintFindings(eslintPolicy),
   ];
+  const actionRequired = findings.some(finding => finding.severity !== 'info');
   let state: CliResult['state'] = changed ? 'changed' : 'healthy';
-  if (findings.length > 0) state = 'action_required';
-  const nextCommand =
-    findings.length > 0 ? (installation.command ?? 'safeword setup') : 'safeword codex install';
+  if (actionRequired) state = 'action_required';
+  const nextCommand = actionRequired
+    ? (installation.command ?? 'safeword setup')
+    : 'safeword codex install';
   return createResult({
     state,
     changed,
     effects: { files, packages },
     findings,
     nextActions: [{ command: nextCommand, mutates: true, requiresHuman: true }],
-    data: { configured: true },
+    data: { configured: true, dependency_install: installation },
   });
 }
 
@@ -209,7 +232,16 @@ async function applySetup(
 ): Promise<CliResult> {
   const context = createProjectContext(cwd);
   const result = await reconcile(SAFEWORD_SCHEMA, configured ? 'upgrade' : 'install', context);
-  for (const packId of detectLanguagePacks(cwd)) installPack(packId, cwd);
+  const missingPacks = getMissingPacks(cwd);
+  const compatibilityEffects = missingPacks.flatMap(packId =>
+    installPack(packId, cwd).files.map(target => ({ kind: 'create', target })),
+  );
+  if (missingPacks.length > 0) {
+    compatibilityEffects.push({ kind: 'update', target: '.safeword/config.json' });
+  }
+  if (stripDeadConfigVersion(nodePath.join(cwd, '.safeword'))) {
+    compatibilityEffects.push({ kind: 'update', target: '.safeword/config.json' });
+  }
   const architectureEffects = configureArchitecture(cwd);
   const eslintPolicy = applyVendoredIgnoresPolicy({
     cwd,
@@ -220,6 +252,9 @@ async function applySetup(
   const installation = installDependencies(cwd, result.packagesToInstall, 'missing packages', {
     report: false,
   });
+  if (syncPackageJsonSafewordVersion(cwd, { report: false })) {
+    compatibilityEffects.push({ kind: 'update', target: 'package.json' });
+  }
   return setupResult({
     cwd,
     reconciliation: result,
@@ -227,6 +262,8 @@ async function applySetup(
     architectureEffects,
     installation,
     eslintPolicy,
+    compatibilityEffects,
+    gitInitialized: context.isGitRepo,
   });
 }
 

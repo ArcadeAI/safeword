@@ -89,14 +89,15 @@ function getProjectVersion(safewordDirectory: string): string {
 // only ever written, never read, and confused reasoning-LLMs into flagging
 // stale projects. Safe to delete this block once no projects-in-the-wild
 // carry the field (likely several minor versions out).
-function stripDeadConfigVersion(safewordDirectory: string): void {
+export function stripDeadConfigVersion(safewordDirectory: string): boolean {
   const configPath = nodePath.join(safewordDirectory, 'config.json');
   const content = readFileSafe(configPath);
-  if (!content) return;
+  if (!content) return false;
   const parsed = JSON.parse(content) as Record<string, unknown>;
-  if (!('version' in parsed)) return;
+  if (!('version' in parsed)) return false;
   delete parsed.version;
   writeFile(configPath, JSON.stringify(parsed, undefined, 2));
+  return true;
 }
 
 function isNonRegistryPackageSpec(spec: string): boolean {
@@ -107,7 +108,10 @@ function isCurrentSafewordRegistrySpec(spec: string): boolean {
   return [VERSION, SAFEWORD_REGISTRY_SPEC, `~${VERSION}`].includes(spec);
 }
 
-function syncPackageJsonSafewordVersion(cwd: string): boolean {
+export function syncPackageJsonSafewordVersion(
+  cwd: string,
+  options: { report?: boolean } = {},
+): boolean {
   const packageJson = readPackageJson(cwd);
   if (!packageJson) return false;
 
@@ -118,7 +122,7 @@ function syncPackageJsonSafewordVersion(cwd: string): boolean {
       continue;
 
     if (isCurrentSafewordRegistrySpec(currentSpec)) continue;
-    installDependencies(cwd, [`safeword@${SAFEWORD_INSTALL_SPEC}`], 'safeword package');
+    installDependencies(cwd, [`safeword@${SAFEWORD_INSTALL_SPEC}`], 'safeword package', options);
     return packageJsonReferencesCurrentSafewordVersion(cwd);
   }
 
