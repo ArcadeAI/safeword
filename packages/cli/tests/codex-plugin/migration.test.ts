@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  codexMigrationExitCode,
   type CodexMigrationFacts,
   deriveCodexMigrationResult,
   renderCodexMigrationHuman,
@@ -13,6 +14,20 @@ const missingProof: CodexMigrationFacts['proof'] = {
   plugin_version: null,
   manifest_sha256: null,
   recorded_at: null,
+};
+
+const currentProof: CodexMigrationFacts['proof'] = {
+  status: 'current',
+  plugin_version: '1.0.0',
+  manifest_sha256: 'digest',
+  recorded_at: '2026-07-28T00:00:00.000Z',
+};
+
+const enabledPlugin: CodexMigrationFacts['plugin'] = {
+  installed: true,
+  enabled: true,
+  version: '1.0.0',
+  observation: 'observed',
 };
 
 function facts(overrides: Partial<CodexMigrationFacts> = {}): CodexMigrationFacts {
@@ -127,5 +142,76 @@ describe('Codex migration result', () => {
     expect(renderCodexMigrationHuman(result)).toBe(
       `Codex migration: ${state}\nProtection: ${protection}\nNext: ${next}\n`,
     );
+  });
+
+  it.each([
+    ['recovery_required', facts({ recoveryRequired: true }), 2],
+    ['plugin_setup_required', facts({ finalized: true }), 2],
+    [
+      'plugin_disabled',
+      facts({
+        plugin: { ...enabledPlugin, enabled: false },
+      }),
+      2,
+    ],
+    [
+      'plugin_installed_restart_required',
+      facts({ plugin: enabledPlugin, restartPending: true }),
+      2,
+    ],
+    ['plugin_enabled_hook_unproven', facts({ plugin: enabledPlugin }), 2],
+    [
+      'compatibility',
+      facts({
+        plugin: enabledPlugin,
+        proof: currentProof,
+        legacyEvents: ['PreToolUse'],
+        viableLegacyEvents: ['PreToolUse'],
+      }),
+      2,
+    ],
+    ['plugin', facts({ plugin: enabledPlugin, proof: currentProof }), 0],
+    ['legacy', facts({ legacyEvents: ['PreToolUse'], viableLegacyEvents: ['PreToolUse'] }), 2],
+    ['not_configured', facts(), 2],
+  ] as const)('returns a complete schema-1 object for %s', (state, input, exitCode) => {
+    const result = deriveCodexMigrationResult(input);
+
+    expect(result.state).toBe(state);
+    expect(codexMigrationExitCode(result)).toBe(exitCode);
+    expect(Object.keys(result).toSorted((left, right) => left.localeCompare(right))).toEqual(
+      [
+        'changed',
+        'effects',
+        'errors',
+        'legacy',
+        'next_actions',
+        'ok',
+        'plugin',
+        'proof',
+        'protected',
+        'schema_version',
+        'state',
+      ].toSorted((left, right) => left.localeCompare(right)),
+    );
+    expect(result).toMatchObject({
+      schema_version: '1',
+      changed: false,
+      plugin: {
+        installed: expect.any(Boolean),
+        version: expect.toSatisfy((value: unknown) => typeof value === 'string' || value === null),
+        observation: expect.stringMatching(/^(observed|unknown)$/u),
+      },
+      proof: {
+        status: expect.stringMatching(/^(current|missing|stale|malformed)$/u),
+      },
+      legacy: {
+        events: expect.any(Array),
+        viable_events: expect.any(Array),
+        assets: expect.any(Array),
+      },
+      effects: { files: expect.any(Array) },
+      errors: expect.any(Array),
+      next_actions: expect.any(Array),
+    });
   });
 });
