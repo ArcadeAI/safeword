@@ -3,7 +3,12 @@ import process from 'node:process';
 import type { Command } from 'commander';
 
 import { commandCatalog, type CommandDefinition, findCommandDefinition } from './catalog.js';
-import { addGlobalOptions, readGlobalOptions, reportResult } from './execute.js';
+import {
+  addGlobalOptions,
+  readCommandOptions,
+  readGlobalOptions,
+  reportResult,
+} from './execute.js';
 import { createProgressReporter } from './policy.js';
 import { createResult, withDeprecation } from './result.js';
 
@@ -103,7 +108,7 @@ function addDefinitionAction(command: Command, definition: CommandDefinition): v
           cwd: globalOptions.cwd,
           noInput: globalOptions.noInput,
           offline: globalOptions.offline,
-          options: command.opts(),
+          options: readCommandOptions(command),
           operands: command.processedArgs,
           progress,
         });

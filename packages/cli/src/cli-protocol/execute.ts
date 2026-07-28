@@ -16,6 +16,8 @@ export interface GlobalCliOptions {
   readonly verbose: boolean;
 }
 
+const GLOBAL_OPTION_KEYS = new Set(['json', 'noInput', 'cwd', 'quiet', 'offline', 'verbose']);
+
 export function addGlobalOptions(command: Command): Command {
   return command
     .option('--json', 'Write one versioned result envelope as JSON')
@@ -43,6 +45,19 @@ export function readGlobalOptions(command: Command): GlobalCliOptions {
     offline: options.offline === true,
     verbose: options.verbose === true,
   };
+}
+
+/**
+ * Resolve command-specific options across a command family boundary. A family
+ * can itself be a retained alias (`retro`) while also owning canonical leaves
+ * (`retro run`); Commander may parse a duplicated option onto either node.
+ */
+export function readCommandOptions(command: Command): Readonly<Record<string, unknown>> {
+  return Object.fromEntries(
+    Object.entries(command.optsWithGlobals<Record<string, unknown>>()).filter(
+      ([name]) => !GLOBAL_OPTION_KEYS.has(name),
+    ),
+  );
 }
 
 export function reportResult(

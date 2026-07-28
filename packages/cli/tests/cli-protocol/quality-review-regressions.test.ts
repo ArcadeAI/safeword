@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { findCommandDefinition, publicCommands } from '../../src/cli-protocol/catalog.js';
 import { addGlobalOptions } from '../../src/cli-protocol/execute.js';
 import { registerPublicCommandCatalog } from '../../src/cli-protocol/register.js';
+import { createResult } from '../../src/cli-protocol/result.js';
 import { createTemporaryDirectory, runCli } from '../helpers.js';
 
 describe('quality-review regressions for the public CLI boundary', () => {
@@ -223,6 +224,52 @@ describe('quality-review regressions for the public CLI boundary', () => {
       state: 'failed',
       changed: false,
       errors: [{ code: 'COMMAND_EXECUTION_FAILED', retryable: false }],
+    });
+  });
+
+  it('gives canonical retro leaves options parsed by the retained family alias', async () => {
+    const definition = findCommandDefinition('retro run');
+    const originalHandler = definition.handler;
+    Object.defineProperty(definition, 'handler', {
+      configurable: true,
+      value: (invocation: { options: Readonly<Record<string, unknown>> }) =>
+        Promise.resolve(createResult({ state: 'healthy', data: invocation.options })),
+    });
+    const stdout: string[] = [];
+    vi.spyOn(process.stdout, 'write').mockImplementation(chunk => {
+      stdout.push(String(chunk));
+      return true;
+    });
+
+    try {
+      const program = new Command().name('safeword');
+      addGlobalOptions(program);
+      registerPublicCommandCatalog(program);
+      await program.parseAsync([
+        'node',
+        'safeword',
+        'retro',
+        'run',
+        '--transcript',
+        'session.jsonl',
+        '--findings',
+        'findings.json',
+        '--json',
+        '--no-input',
+      ]);
+    } finally {
+      Object.defineProperty(definition, 'handler', {
+        configurable: true,
+        value: originalHandler,
+      });
+    }
+
+    expect(JSON.parse(stdout.join(''))).toMatchObject({
+      state: 'healthy',
+      data: {
+        transcript: 'session.jsonl',
+        findings: 'findings.json',
+      },
     });
   });
 });
