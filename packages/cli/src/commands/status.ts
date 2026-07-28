@@ -5,6 +5,8 @@ import {
   type NextAction,
 } from '../cli-protocol/result.js';
 import { checkHealth } from '../health.js';
+import { detectPackageManager } from '../utils/install.js';
+import { compareVersions } from '../utils/version.js';
 
 function healthFindings(
   values: readonly string[],
@@ -12,6 +14,76 @@ function healthFindings(
   severity: Finding['severity'],
 ): Finding[] {
   return values.map(message => ({ code, message, severity }));
+}
+
+function isSafePackageVersion(version: string): boolean {
+  const segments = version.split('.');
+  const allowed = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+-';
+  const safeSegment = (segment: string): boolean => {
+    if (segment.length === 0) return false;
+    for (const character of segment) {
+      if (!allowed.includes(character)) return false;
+    }
+    return true;
+  };
+  return segments.length >= 2 && segments.every(segment => safeSegment(segment));
+}
+
+function statusNextActions(
+  blockingFindings: readonly Finding[],
+  versionAction: NextAction | undefined,
+): readonly NextAction[] {
+  if (versionAction !== undefined) return [versionAction];
+  return blockingFindings.length === 0
+    ? []
+    : [{ command: 'safeword plan', mutates: false, requiresHuman: false }];
+}
+
+function projectVersionFinding(
+  cwd: string,
+  projectVersion: string | undefined,
+  cliVersion: string,
+): { finding?: Finding; nextAction?: NextAction } {
+  if (projectVersion === undefined) return {};
+  if (!isSafePackageVersion(projectVersion)) {
+    return {
+      finding: {
+        code: 'PROJECT_VERSION_UNSAFE',
+        message:
+          'Project version is not safe to use in a package install command; inspect .safeword/version.',
+        severity: 'warning',
+      },
+    };
+  }
+  const comparison = compareVersions(projectVersion, cliVersion);
+  if (comparison < 0) {
+    return {
+      finding: {
+        code: 'PROJECT_UPDATE_AVAILABLE',
+        message: `Project config v${projectVersion} can be upgraded to v${cliVersion}.`,
+        severity: 'info',
+      },
+      nextAction: { command: 'safeword setup', mutates: true, requiresHuman: false },
+    };
+  }
+  if (comparison <= 0) return {};
+  const packageManager = detectPackageManager(cwd);
+  const runUpgrade =
+    packageManager === 'bun' || packageManager === 'yarn'
+      ? `${packageManager} run safeword upgrade`
+      : `${packageManager} exec safeword upgrade`;
+  return {
+    finding: {
+      code: 'CLI_OLDER_THAN_PROJECT',
+      message: `Project config (v${projectVersion}) is newer than CLI (v${cliVersion}).`,
+      severity: 'warning',
+    },
+    nextAction: {
+      command: `${packageManager} add -D safeword@${projectVersion} && ${runUpgrade}`,
+      mutates: true,
+      requiresHuman: false,
+    },
+  };
 }
 
 export async function observeStatus(cwd: string): Promise<CliResult> {
@@ -33,18 +105,35 @@ export async function observeStatus(cwd: string): Promise<CliResult> {
     }
 
     const blockingFindings = [
-      ...healthFindings(health.missingPacks, 'MISSING_LANGUAGE_PACK', 'error'),
-      ...healthFindings(health.missingPackages, 'MISSING_PACKAGE', 'error'),
+      ...healthFindings(
+        health.missingPacks.map(pack => `${pack} language pack is not installed.`),
+        'MISSING_LANGUAGE_PACK',
+        'error',
+      ),
+      ...healthFindings(
+        health.missingPackages.map(packageName => `${packageName} package is not installed.`),
+        'MISSING_PACKAGE',
+        'error',
+      ),
       ...healthFindings(health.issues, 'PROJECT_DRIFT', 'warning'),
     ];
+    const versionGuidance = projectVersionFinding(cwd, health.projectVersion, health.cliVersion);
+    if (versionGuidance.finding?.severity === 'warning') {
+      blockingFindings.push(versionGuidance.finding);
+    }
     const findings = [
+      {
+        code: 'SAFEWORD_VERSION',
+        message: `Safeword CLI v${health.cliVersion}; project config v${health.projectVersion ?? 'unknown'}.`,
+        severity: 'info' as const,
+      },
       ...blockingFindings,
+      ...(versionGuidance.finding === undefined || versionGuidance.finding.severity === 'warning'
+        ? []
+        : [versionGuidance.finding]),
       ...healthFindings(health.advisories, 'PROJECT_ADVISORY', 'info'),
     ];
-    const nextActions: readonly NextAction[] =
-      blockingFindings.length === 0
-        ? []
-        : [{ command: 'safeword plan', mutates: false, requiresHuman: false }];
+    const nextActions = statusNextActions(blockingFindings, versionGuidance.nextAction);
 
     return createResult({
       state: blockingFindings.length === 0 ? 'healthy' : 'action_required',

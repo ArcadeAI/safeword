@@ -216,4 +216,30 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
     expect(result.exitCode).toBe(0);
     expect(existsSync(resolveGeneratedArchitecturePath(context.directory))).toBe(false);
   });
+
+  it('reports healed files but not successful staging when git add fails', async () => {
+    execFileSync('rm', ['-rf', '.git'], { cwd: context.directory });
+
+    const result = await runCli(['architecture', '--stage', '--json'], {
+      cwd: context.directory,
+    });
+
+    expect(result.exitCode).toBe(2);
+    const envelope = JSON.parse(result.stdout) as {
+      state: string;
+      effects: {
+        files: { kind: string; target: string }[];
+        configuration: { kind: string; target: string }[];
+      };
+      data: { staged: boolean; stage_failures: string[] };
+    };
+    expect(envelope.state).toBe('action_required');
+    expect(envelope.effects.files).toContainEqual({
+      kind: 'create',
+      target: DOC_RELATIVE,
+    });
+    expect(envelope.effects.configuration).toEqual([]);
+    expect(envelope.data.staged).toBe(false);
+    expect(envelope.data.stage_failures).toEqual([DOC_RELATIVE]);
+  });
 });

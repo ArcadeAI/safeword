@@ -16,11 +16,11 @@ export function assertEffectPolicy(
     throw new Error(`Command ${definition.name} reported network effects while running offline`);
   }
 
-  if (definition.effectClass === 'observe') {
+  if (definition.effectClass === 'observe' || definition.effectClass === 'plan') {
     const effectClass = firstNonEmptyEffect(result.effects);
     if (effectClass !== undefined) {
       throw new Error(
-        `The observe command ${definition.name} reported ${effectClass.slice(0, -1)} effects`,
+        `The ${definition.effectClass} command ${definition.name} reported ${effectClass.slice(0, -1)} effects`,
       );
     }
   }

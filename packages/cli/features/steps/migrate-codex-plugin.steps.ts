@@ -507,7 +507,7 @@ Then(
   function (this: MigrationWorld) {
     const output = migrationOutput(this);
     assert.ok(output.includes('/hooks'));
-    assert.ok(output.includes('--remove-legacy-hooks'));
+    assert.ok(output.includes('codex migrate --finalize'));
   },
 );
 
@@ -526,11 +526,11 @@ Then('the custom Codex configuration remains unchanged', function (this: Migrati
 Then(
   'Safe Word reports the installed plugin and the required hook-review handoff',
   function (this: MigrationWorld) {
-    assert.equal(this.migrationResult?.exitCode, 0, migrationOutput(this));
+    assert.equal(this.migrationResult?.exitCode, 2, migrationOutput(this));
     const output = migrationOutput(this);
     assert.ok(output.includes('enabled'));
     assert.ok(output.includes('/hooks'));
-    assert.ok(output.includes('--remove-legacy-hooks'));
+    assert.ok(output.includes('codex migrate --finalize'));
   },
 );
 

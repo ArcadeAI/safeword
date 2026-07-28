@@ -108,6 +108,14 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     commandOptions: [
       { flags: '-y, --yes', description: 'Skip confirmation prompts' },
       { flags: '--no-modify', description: 'Do not edit the project ESLint configuration' },
+      {
+        flags: '--migrate-namespace',
+        description: 'Move the legacy project namespace to .project',
+      },
+      {
+        flags: '--no-migrate-namespace',
+        description: 'Keep the legacy project namespace',
+      },
     ],
   }),
   command('plan', 'Preview reconciliation effects', 'plan'),
@@ -261,17 +269,7 @@ const ALIASES: readonly CommandDefinition[] = [
     ...alias('upgrade', 'setup', 'mutate'),
     registration: {
       syntax: 'upgrade',
-      options: [
-        ...canonicalOptions('setup'),
-        {
-          flags: '--migrate-namespace',
-          description: 'Migrate the legacy project namespace without prompting',
-        },
-        {
-          flags: '--no-migrate-namespace',
-          description: 'Keep the legacy project namespace',
-        },
-      ],
+      options: canonicalOptions('setup'),
     },
   },
   alias('diff', 'plan', 'plan'),

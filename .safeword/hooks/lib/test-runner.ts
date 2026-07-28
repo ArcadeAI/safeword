@@ -25,13 +25,20 @@ type TestCommand = {
   cwd: string;
 };
 
-/** One entry of `safeword test-plan --json` output. */
+/** One entry of the schema-1 `safeword test-plan --json` result envelope. */
 interface PlanEntry {
   language: string;
   cwd: string;
   command: string;
   runner: string;
   available: boolean;
+}
+
+interface TestPlanEnvelope {
+  schema_version: 1;
+  data?: {
+    plan?: PlanEntry[];
+  };
 }
 
 export interface TestResult {
@@ -121,7 +128,8 @@ function resolvePlanCommands(cwd: string): TestCommand[] {
   );
   if (result.status !== 0 || !result.stdout) return [];
   try {
-    const entries = JSON.parse(result.stdout) as PlanEntry[];
+    const envelope = JSON.parse(result.stdout) as TestPlanEnvelope;
+    const entries = envelope.data?.plan ?? [];
     return entries
       .filter(entry => entry.available)
       .map(entry => ({ script: entry.runner, command: entry.command, cwd: entry.cwd }));

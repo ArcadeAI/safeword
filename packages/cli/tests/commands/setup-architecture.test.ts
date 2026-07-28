@@ -37,7 +37,7 @@ describe('Setup - Architecture Integration', () => {
       // Create architecture directory
       writeTestFile(temporaryDirectory, 'src/utils/helper.ts', 'export const x = 1;');
 
-      const result = await runCli(['setup'], {
+      const result = await runCli(['setup', '--verbose'], {
         cwd: temporaryDirectory,
       });
 
@@ -62,7 +62,7 @@ describe('Setup - Architecture Integration', () => {
       writeTestFile(temporaryDirectory, 'packages/core/index.ts', 'export const x = 1;');
       writeTestFile(temporaryDirectory, 'packages/ui/index.ts', 'export const y = 1;');
 
-      const result = await runCli(['setup'], {
+      const result = await runCli(['setup', '--verbose'], {
         cwd: temporaryDirectory,
       });
 
@@ -126,7 +126,7 @@ describe('Setup - Architecture Integration', () => {
       // Create architecture directory
       writeTestFile(temporaryDirectory, 'src/utils/helper.ts', 'export const x = 1;');
 
-      const result = await runCli(['setup'], {
+      const result = await runCli(['setup', '--verbose'], {
         cwd: temporaryDirectory,
       });
 
@@ -143,7 +143,7 @@ describe('Setup - Architecture Integration', () => {
       initGitRepo(temporaryDirectory);
       writeTestFile(temporaryDirectory, 'src/utils/helper.ts', 'export const x = 1;');
 
-      const result = await runCli(['setup'], { cwd: temporaryDirectory });
+      const result = await runCli(['setup', '--verbose'], { cwd: temporaryDirectory });
 
       expect(result.exitCode).toBe(0);
       expect(fileExists(temporaryDirectory, '.dependency-cruiser.cjs')).toBe(true);

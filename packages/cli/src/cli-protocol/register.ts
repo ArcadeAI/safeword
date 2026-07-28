@@ -4,7 +4,6 @@ import type { Command } from 'commander';
 
 import { commandCatalog, type CommandDefinition, findCommandDefinition } from './catalog.js';
 import { addGlobalOptions, readGlobalOptions, reportResult } from './execute.js';
-import { runLegacyAliasAdapter, shouldUseLegacyAliasAdapter } from './legacy-aliases.js';
 import { createProgressReporter } from './policy.js';
 import { withDeprecation } from './result.js';
 
@@ -87,10 +86,6 @@ function addDefinitionAction(command: Command, definition: CommandDefinition): v
       throw new Error(`Commander did not supply the command boundary for ${definition.name}`);
     }
     const globalOptions = readGlobalOptions(command);
-    if (shouldUseLegacyAliasAdapter(definition, globalOptions)) {
-      await runLegacyAliasAdapter(definition.name, command);
-      return;
-    }
     const progress =
       globalOptions.json || globalOptions.quiet
         ? undefined

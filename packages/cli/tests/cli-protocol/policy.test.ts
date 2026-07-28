@@ -33,6 +33,17 @@ describe('CLI execution policy', () => {
     }).toThrow(/offline/);
   });
 
+  it('rejects completed effects from a plan command', () => {
+    const result = createResult({
+      state: 'action_required',
+      effects: { files: [{ kind: 'write', target: 'unexpected' }] },
+    });
+
+    expect(() => {
+      assertEffectPolicy(definition('plan'), result, { offline: false });
+    }).toThrow(/plan command plan reported file effects/);
+  });
+
   it('allows a declared mutating result online', () => {
     const result = createResult({
       state: 'changed',

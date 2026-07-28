@@ -83,9 +83,21 @@ export function codifyResult(
     }
     const skeleton = renderSkeleton(format, source, scenarios, ticket, options.red);
     if (options.out === undefined) {
+      const conventions = readBddConventionsPath(cwd);
       return Promise.resolve(
         createResult({
           state: 'healthy',
+          presentation: { kind: 'raw', body: skeleton },
+          findings:
+            conventions === undefined
+              ? []
+              : [
+                  {
+                    code: 'HOST_BDD_CONVENTIONS',
+                    message: `Host conventions: ${conventions} — follow it for stub shape, verification, and tags.`,
+                    severity: 'info',
+                  },
+                ],
           data: {
             command: 'project codify',
             format,

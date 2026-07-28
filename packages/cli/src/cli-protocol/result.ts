@@ -51,6 +51,10 @@ export interface CliResult {
   readonly errors: readonly ResultError[];
   readonly recovery: readonly RecoveryAction[];
   readonly nextActions: readonly NextAction[];
+  readonly presentation?: {
+    readonly kind: 'raw';
+    readonly body: string;
+  };
   readonly data?: unknown;
 }
 
@@ -62,6 +66,7 @@ interface ResultInput {
   readonly errors?: readonly ResultError[];
   readonly recovery?: readonly RecoveryAction[];
   readonly nextActions?: readonly NextAction[];
+  readonly presentation?: NonNullable<CliResult['presentation']>;
   readonly data?: unknown;
 }
 
@@ -84,6 +89,7 @@ export function createResult(input: ResultInput): CliResult {
     errors: input.errors ?? [],
     recovery: input.recovery ?? [],
     nextActions: input.nextActions ?? [],
+    ...(input.presentation !== undefined && { presentation: input.presentation }),
     ...(input.data !== undefined && { data: input.data }),
   };
 }
@@ -223,13 +229,31 @@ export function renderHumanResult(
   result: CliResult,
   options: { quiet?: boolean; verbose?: boolean } = {},
 ): string {
-  if (suppressHumanOutput(result, options)) return '';
+  const rendered = renderHumanStreams(result, options);
+  return rendered.stdout || rendered.stderr;
+}
+
+export interface HumanResultStreams {
+  readonly stdout: string;
+  readonly stderr: string;
+}
+
+export function renderHumanStreams(
+  result: CliResult,
+  options: { quiet?: boolean; verbose?: boolean } = {},
+): HumanResultStreams {
+  if (result.presentation?.kind === 'raw') {
+    return {
+      stdout: result.presentation.body.replace(/\n$/, ''),
+      stderr: options.quiet === true ? '' : uniqueMessages(result).join('\n'),
+    };
+  }
+  if (suppressHumanOutput(result, options)) return { stdout: '', stderr: '' };
 
   const lines = [
     VERDICTS[result.state],
     `Changed: ${result.changed ? 'yes' : 'no'}`,
     ...uniqueMessages(result),
-    ...completedEffectLines(result),
     ...plannedEffectLines(result.data),
   ];
 
@@ -238,10 +262,11 @@ export function renderHumanResult(
       ...result.findings.map(finding => finding.detail),
       ...result.errors.map(error => error.detail),
     ].filter((detail): detail is string => detail !== undefined);
-    lines.push(...details);
+    lines.push(...completedEffectLines(result), ...details);
   }
 
   const primaryAction = result.nextActions[0];
   if (primaryAction !== undefined) lines.push(`Next: ${primaryAction.command}`);
-  return lines.join('\n');
+  const body = lines.join('\n');
+  return result.state === 'failed' ? { stdout: '', stderr: body } : { stdout: body, stderr: '' };
 }

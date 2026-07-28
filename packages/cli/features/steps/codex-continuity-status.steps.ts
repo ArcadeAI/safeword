@@ -72,6 +72,34 @@ function completeLegacy(overrides: Partial<CodexMigrationFacts> = {}): CodexMigr
   });
 }
 
+function parseProtocolStatus(stdout: string): CodexMigrationResultV1 {
+  const envelope = JSON.parse(stdout) as {
+    changed: boolean;
+    errors: CodexMigrationResultV1['errors'];
+    next_actions: CodexMigrationResultV1['next_actions'];
+    data: {
+      migration_state: CodexMigrationResultV1['state'];
+      protected: CodexMigrationResultV1['protected'];
+      plugin: CodexMigrationResultV1['plugin'];
+      proof: CodexMigrationResultV1['proof'];
+      legacy: CodexMigrationResultV1['legacy'];
+    };
+  };
+  return {
+    schema_version: '1',
+    ok: envelope.errors.length === 0,
+    state: envelope.data.migration_state,
+    protected: envelope.data.protected,
+    changed: envelope.changed,
+    plugin: envelope.data.plugin,
+    proof: envelope.data.proof,
+    legacy: envelope.data.legacy,
+    effects: { files: [] },
+    errors: envelope.errors,
+    next_actions: envelope.next_actions,
+  };
+}
+
 function partialLegacy(overrides: Partial<CodexMigrationFacts> = {}): CodexMigrationFacts {
   return facts({
     legacyAssets: ['.safeword/hooks/codex/pre-tool-quality.ts'],
@@ -230,7 +258,7 @@ When('the builder checks Codex status', function (this: ContinuityStatusWorld) {
     } else {
       assert.ok(this.runCodexStatus, 'Codex facts or a status runner must be initialized');
       const result = this.runCodexStatus();
-      this.codexStatus = JSON.parse(result.stdout) as CodexMigrationResultV1;
+      this.codexStatus = parseProtocolStatus(result.stdout);
       this.codexStatusExitCode = result.exitCode;
     }
   }
@@ -244,7 +272,7 @@ When('the teammate checks Codex status', function (this: ContinuityStatusWorld) 
   } else {
     assert.ok(this.runCodexStatus, 'Codex facts or a status runner must be initialized');
     const result = this.runCodexStatus();
-    this.codexStatus = JSON.parse(result.stdout) as CodexMigrationResultV1;
+    this.codexStatus = parseProtocolStatus(result.stdout);
     this.codexStatusExitCode = result.exitCode;
   }
   this.codexStatusOutput = renderCodexMigrationHuman(this.codexStatus);

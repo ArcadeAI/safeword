@@ -264,7 +264,7 @@ describe('Setup Command - Reconcile Integration', () => {
       const result = await runCli(['setup'], { cwd: temporaryDirectory });
 
       expect(result.exitCode, result.stderr).toBe(0);
-      expect(result.stdout).toContain('Setup');
+      expect(result.stdout).toContain('Complete');
       expect(existsSync(nodePath.join(temporaryDirectory, '.safeword'))).toBe(true);
       expect(existsSync(nodePath.join(temporaryDirectory, '.codex/config.toml'))).toBe(false);
     });

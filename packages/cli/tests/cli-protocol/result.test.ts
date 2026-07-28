@@ -4,6 +4,7 @@ import {
   createResult,
   exitStatusFor,
   renderHumanResult,
+  renderHumanStreams,
   renderJsonResult,
 } from '../../src/cli-protocol/result.js';
 
@@ -100,6 +101,23 @@ describe('CLI result protocol', () => {
     expect(renderHumanResult(failed)).not.toContain('line 19, token 4');
   });
 
+  it('keeps completed effect detail behind verbose output', () => {
+    const changed = createResult({
+      state: 'changed',
+      effects: {
+        files: [
+          { kind: 'create', target: '.safeword/config.json' },
+          { kind: 'update', target: 'package.json' },
+        ],
+      },
+    });
+
+    expect(renderHumanResult(changed)).toBe(['Complete', 'Changed: yes'].join('\n'));
+    expect(renderHumanResult(changed, { verbose: true })).toContain(
+      'Created: .safeword/config.json',
+    );
+  });
+
   it('renders the exact proposed plan without treating it as completed effects', () => {
     const output = renderHumanResult(
       createResult({
@@ -122,5 +140,28 @@ describe('CLI result protocol', () => {
     expect(output).toContain('files: write .safeword/version');
     expect(output).toContain('packages: install eslint');
     expect(output).toContain('network: registry eslint');
+  });
+
+  it('renders raw artifacts and their findings through one shared stream contract', () => {
+    const result = createResult({
+      state: 'healthy',
+      presentation: { kind: 'raw', body: String.raw`printf %s "$TARGET"\n` },
+      findings: [
+        {
+          code: 'CLI_ALIAS_DEPRECATED',
+          message: '`test-plan` is deprecated; use `project test-plan`.',
+          severity: 'warning',
+        },
+      ],
+    });
+
+    expect(renderHumanStreams(result)).toEqual({
+      stdout: String.raw`printf %s "$TARGET"\n`,
+      stderr: '`test-plan` is deprecated; use `project test-plan`.',
+    });
+    expect(renderHumanStreams(result, { quiet: true })).toEqual({
+      stdout: String.raw`printf %s "$TARGET"\n`,
+      stderr: '',
+    });
   });
 });

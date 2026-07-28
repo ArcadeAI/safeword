@@ -5,7 +5,6 @@
  */
 
 import { execSync } from 'node:child_process';
-import { readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { checkHealth, reportHealthSummary } from '../health.js';
@@ -27,7 +26,7 @@ import { CODEX_PLUGIN_INSTALL_NEXT_STEP } from '../utils/codex.js';
 import { createProjectContext } from '../utils/context.js';
 import { getEslintPeerMismatchWarning } from '../utils/eslint-peer-check.js';
 import { hasDefaultExecutableFeatureFiles } from '../utils/feature-source.js';
-import { exists, readJson, writeJson } from '../utils/fs.js';
+import { exists, writeJson } from '../utils/fs.js';
 import { hookIntegrationNudge } from '../utils/hook-nudge.js';
 import { installDependencies } from '../utils/install.js';
 import {
@@ -41,8 +40,8 @@ import {
 } from '../utils/output.js';
 import { type Languages } from '../utils/project-detector.js';
 import { maybeAutoPatchOrNudge } from '../utils/vendored-ignores-nudge.js';
-import { getWorkspacePatterns } from '../utils/workspaces.js';
 import { VERSION } from '../version.js';
+import { setupWorkspaceFormatScripts } from './setup-workspaces.js';
 import { buildArchitecture, hasArchitectureDetected, syncConfigCore } from './sync-config.js';
 
 interface PackageJson {
@@ -54,95 +53,6 @@ interface PackageJson {
   devDependencies?: Record<string, string>;
   'lint-staged'?: Record<string, string[]>;
   workspaces?: string[] | { packages?: string[] };
-}
-
-/**
- * Process a glob workspace pattern (e.g., "packages/*").
- * Scans directory and adds format scripts to each package.
- */
-function processGlobWorkspacePattern(cwd: string, workspacePath: string): string[] {
-  const updated: string[] = [];
-  const fullPath = nodePath.join(cwd, workspacePath);
-
-  if (!exists(fullPath)) return [];
-
-  try {
-    const entries = readdirSync(fullPath, { withFileTypes: true });
-    for (const entry of entries) {
-      if (!entry.isDirectory() || entry.name.startsWith('.')) continue;
-
-      const packagePath = nodePath.join(fullPath, entry.name);
-      if (addFormatScriptIfMissing(packagePath)) {
-        updated.push(nodePath.join(workspacePath, entry.name, 'package.json'));
-      }
-    }
-  } catch {
-    // Directory not readable, skip
-  }
-
-  return updated;
-}
-
-/**
- * Process an explicit workspace path (e.g., "tools/scripts").
- */
-function processExplicitWorkspacePath(cwd: string, workspacePath: string): string[] {
-  const fullPath = nodePath.join(cwd, workspacePath);
-  if (addFormatScriptIfMissing(fullPath)) {
-    return [nodePath.join(workspacePath, 'package.json')];
-  }
-  return [];
-}
-
-/**
- * Add format scripts to workspace packages that don't have them.
- * Only runs if root project uses Prettier (not an existing formatter like Biome).
- */
-function setupWorkspaceFormatScripts(cwd: string, ctx: ProjectContext): string[] {
-  // Skip if root uses an existing formatter (Biome, dprint, etc.)
-  if (ctx.projectType.existingFormatter) return [];
-
-  const workspacePatterns = getWorkspacePatterns(cwd);
-  if (workspacePatterns.length === 0) return [];
-
-  const updated: string[] = [];
-
-  for (const pattern of workspacePatterns) {
-    const isGlobPattern = pattern.endsWith('/*');
-    const workspacePath = isGlobPattern ? pattern.slice(0, -2) : pattern;
-
-    const processWorkspacePattern = isGlobPattern
-      ? processGlobWorkspacePattern
-      : processExplicitWorkspacePath;
-    const patternUpdates = processWorkspacePattern(cwd, workspacePath);
-
-    updated.push(...patternUpdates);
-  }
-
-  return updated;
-}
-
-/**
- * Add format script to a package if it doesn't have one.
- * Returns true if the script was added.
- */
-function addFormatScriptIfMissing(packageDirectory: string): boolean {
-  const packageJsonPath = nodePath.join(packageDirectory, 'package.json');
-  if (!exists(packageJsonPath)) return false;
-
-  const packageJson = readJson(packageJsonPath) as PackageJson | undefined;
-  if (!packageJson) return false;
-
-  // Skip if format script already exists
-  if (packageJson.scripts?.format) return false;
-
-  // Add format script
-  const scripts = packageJson.scripts ?? {};
-  scripts.format = 'prettier --write .';
-  packageJson.scripts = scripts;
-  writeJson(packageJsonPath, packageJson);
-
-  return true;
 }
 
 /**

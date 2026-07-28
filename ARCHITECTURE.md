@@ -687,16 +687,18 @@ safeword accepts this trade — **consistency and enforcement over independent b
 | Reassess when  | A second JSON schema is needed, Commander cannot preserve global-option placement or `--` semantics, or a host exposes a native typed command/effect protocol that can replace Safeword’s adapter.                                                                                                                                                                                                                                                                                                                                                                                      |
 | Implementation | Issue #1574 / ticket K53GQ9: `packages/cli/src/cli-protocol/`, canonical and compatibility wiring in `packages/cli/src/cli.ts`, executable catalog-fixture tests, and `packages/cli/features/predictable-safeword-cli.feature`.                                                                                                                                                                                                                                                                                                                                                         |
 
-During the compatibility transition, retained aliases and the small set of
-pre-existing commands with specialized interactive protocols use a narrow
-legacy adapter only for ordinary invocations. This preserves existing shell
-payloads and automation such as `test-plan --format sh` and the Codex migration
-state schema.
-Machine invocations (`--json`, `--no-input`, `--quiet`, `--offline`, or an
-explicit `--cwd`) always use the typed handler and renderer, including a
-machine-readable deprecation finding. The only exception is an established
-command-specific machine protocol invoked without the new safety flags; it
-remains stable until it receives an explicit schema migration.
+Every public invocation, including compatibility aliases and interactive
+commands, executes through its catalog handler and returns the shared typed
+result to the renderer. Aliases add a machine-readable deprecation finding to
+that same result. Command-specific output schemas and direct console/process
+exit paths are not compatibility boundaries; callers migrate through the
+versioned result envelope and published aliases instead.
+
+Commands that intentionally emit a shell or code artifact still return a typed
+Result. They place the artifact in the Result's raw-presentation field, and the
+shared renderer emits it for human mode while JSON mode keeps the common
+schema-1 envelope. Raw presentation is an output form, not a second command
+protocol.
 
 Lifecycle hooks are observation-only with respect to dependency installation
 and Safeword upgrades. Session-start adapters may report missing dependencies

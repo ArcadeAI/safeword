@@ -90,8 +90,8 @@ describe('Test Suite 8: Health Check', () => {
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(0);
-      expect(result.stderr).toContain(`Project config (v999.0.0) is newer than CLI (v${VERSION})`);
+      expect(result.exitCode).toBe(2);
+      expect(result.stdout).toContain(`Project config (v999.0.0) is newer than CLI (v${VERSION})`);
       expect(result.stdout).toContain('pnpm add -D safeword@999.0.0 && pnpm exec safeword upgrade');
     });
 
@@ -102,7 +102,7 @@ describe('Test Suite 8: Health Check', () => {
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(0);
+      expect(result.exitCode).toBe(2);
       expect(result.stdout).toContain('bun add -D safeword@999.0.0 && bun run safeword upgrade');
     });
 
@@ -113,7 +113,7 @@ describe('Test Suite 8: Health Check', () => {
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(0);
+      expect(result.exitCode).toBe(2);
       expect(result.stdout).toContain('yarn add -D safeword@999.0.0 && yarn run safeword upgrade');
     });
 
@@ -124,8 +124,8 @@ describe('Test Suite 8: Health Check', () => {
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(0);
-      expect(result.stderr).toContain(
+      expect(result.exitCode).toBe(2);
+      expect(result.stdout).toContain(
         'Project version is not safe to use in a package install command',
       );
       expect(result.stdout).not.toContain('safeword@999.0.0; echo owned');
@@ -139,7 +139,7 @@ describe('Test Suite 8: Health Check', () => {
 
       const result = await runCli(['check'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(0);
+      expect(result.exitCode).toBe(2);
       expect(result.stdout.toLowerCase()).toContain('not configured');
       expect(result.stdout.toLowerCase()).toContain('setup');
     });
@@ -184,7 +184,7 @@ describe('Test Suite 8: Health Check', () => {
 
       const result = await runCli(['check'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(1); // Issues should cause non-zero exit
+      expect(result.exitCode).toBe(2); // Repairable issues require action.
       expect(result.stdout.toLowerCase()).toMatch(/missing|issue|repair|upgrade/i);
     });
   });
@@ -208,7 +208,7 @@ describe('Test Suite 8: Health Check', () => {
 
       expect(result.exitCode).not.toBe(0);
       expect(result.stdout).toMatch(/python.*pack.*not installed/i);
-      expect(result.stdout).toMatch(/safeword upgrade/i);
+      expect(result.stdout).toMatch(/Next: safeword plan/i);
     });
   });
 
@@ -257,15 +257,15 @@ describe('Test Suite 8: Health Check', () => {
         ),
       );
 
-      expect(result.exitCode).toBe(1);
-      expect(result.stderr).toMatch(/personas\.md:\d+:.*duplicate persona code/);
+      expect(result.exitCode).toBe(2);
+      expect(result.stdout).toMatch(/personas\.md:\d+:.*duplicate persona code/);
     });
 
     it('reports single-character-name error with line ref', async () => {
       const result = await runCheckWithPersonas(['## A', '**Role:** Too short.', ''].join('\n'));
 
-      expect(result.exitCode).toBe(1);
-      expect(result.stderr).toMatch(/personas\.md:\d+:.*at least 2 characters/);
+      expect(result.exitCode).toBe(2);
+      expect(result.stdout).toMatch(/personas\.md:\d+:.*at least 2 characters/);
     });
 
     it('reports digit-first-name with explicit-override prompt', async () => {
@@ -273,9 +273,9 @@ describe('Test Suite 8: Health Check', () => {
         ['## 3 Amigos', '**Role:** Pathological name.', ''].join('\n'),
       );
 
-      expect(result.exitCode).toBe(1);
-      expect(result.stderr).toMatch(/non-canonical code/);
-      expect(result.stderr).toMatch(/author an explicit 2–4 letter code/);
+      expect(result.exitCode).toBe(2);
+      expect(result.stdout).toMatch(/non-canonical code/);
+      expect(result.stdout).toMatch(/author an explicit 2–4 letter code/);
     });
 
     it('passes when personas.md is well-formed', async () => {
@@ -349,8 +349,8 @@ describe('Test Suite 8: Health Check', () => {
         cwd: temporaryDirectory,
       });
 
-      expect(result.exitCode).toBe(1);
-      expect(result.stderr).toMatch(/personas-path:.*docs\/personas\.md.*file not found/);
+      expect(result.exitCode).toBe(2);
+      expect(result.stdout).toMatch(/personas-path:.*docs\/personas\.md.*file not found/);
     });
 
     it('R2.4: passes when configured persona file is present and well-formed', async () => {
@@ -382,8 +382,8 @@ describe('Test Suite 8: Health Check', () => {
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(1);
-      expect(result.stderr).toMatch(/personas\.md:\d+:.*at least 2 characters/);
+      expect(result.exitCode).toBe(2);
+      expect(result.stdout).toMatch(/personas\.md:\d+:.*at least 2 characters/);
     });
 
     it('R2.6: emits zero-exit advisory when override is active AND legacy default file still exists', async () => {
@@ -465,8 +465,8 @@ describe('Test Suite 8: Health Check', () => {
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(1);
-      expect(result.stderr).toMatch(/glossary\.md:\d+:.*duplicate term/);
+      expect(result.exitCode).toBe(2);
+      expect(result.stdout).toMatch(/glossary\.md:\d+:.*duplicate term/);
     });
 
     it('R6.2: reports loud failure when configured glossary path is missing', async () => {
@@ -475,8 +475,8 @@ describe('Test Suite 8: Health Check', () => {
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(1);
-      expect(result.stderr).toMatch(/glossary-path:.*docs\/glossary\.md.*file not found/);
+      expect(result.exitCode).toBe(2);
+      expect(result.stdout).toMatch(/glossary-path:.*docs\/glossary\.md.*file not found/);
     });
 
     it('R6.3: emits zero-exit advisory when override is active AND legacy default still exists', async () => {
@@ -522,8 +522,8 @@ describe('Test Suite 8: Health Check', () => {
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(1);
-      expect(result.stderr).toMatch(/docs-source:.*docs\/product.*file or directory not found/);
+      expect(result.exitCode).toBe(2);
+      expect(result.stdout).toMatch(/docs-source:.*docs\/product.*file or directory not found/);
     });
 
     it('passes when configured local docs sources exist and external sources are declarative', async () => {
@@ -871,7 +871,7 @@ describe('Test Suite 8: Health Check', () => {
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(1);
+      expect(result.exitCode).toBe(2);
       const combined = `${result.stdout}\n${result.stderr}`;
       expect(combined).toMatch(/features\/demo\.feature/);
       expect(combined).toMatch(/invalid gherkin/i);
@@ -911,7 +911,7 @@ describe('Test Suite 8: Health Check', () => {
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(1);
+      expect(result.exitCode).toBe(2);
       const combined = `${result.stdout}\n${result.stderr}`;
       expect(combined).toMatch(/features\/demo\.feature/);
       expect(combined).toMatch(/has no AC tag.*missing lineage/i);
@@ -1035,7 +1035,7 @@ describe('Test Suite 8: Health Check', () => {
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(1);
+      expect(result.exitCode).toBe(2);
       const combined = `${result.stdout}\n${result.stderr}`;
       expect(combined).toMatch(
         /JTBD demo\.TB1 declares both Acceptance Criteria and numbered Rules; keep one criteria kind per job — convert one set or split the job/,

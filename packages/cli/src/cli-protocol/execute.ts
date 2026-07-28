@@ -5,7 +5,7 @@ import type { Command } from 'commander';
 
 import { findCommandDefinition } from './catalog.js';
 import { assertEffectPolicy } from './policy.js';
-import { type CliResult, exitStatusFor, renderHumanResult, renderJsonResult } from './result.js';
+import { type CliResult, exitStatusFor, renderHumanStreams, renderJsonResult } from './result.js';
 
 export interface GlobalCliOptions {
   readonly json: boolean;
@@ -53,12 +53,15 @@ export function reportResult(
   if (commandName !== undefined) {
     assertEffectPolicy(findCommandDefinition(commandName), result, options);
   }
-  const output = options.json
-    ? renderJsonResult(result)
-    : renderHumanResult(result, { quiet: options.quiet, verbose: options.verbose });
-  if (output !== '') {
-    const stream = !options.json && result.state === 'failed' ? process.stderr : process.stdout;
-    stream.write(`${output}\n`);
+  if (options.json) {
+    process.stdout.write(`${renderJsonResult(result)}\n`);
+  } else {
+    const rendered = renderHumanStreams(result, {
+      quiet: options.quiet,
+      verbose: options.verbose,
+    });
+    if (rendered.stdout !== '') process.stdout.write(`${rendered.stdout}\n`);
+    if (rendered.stderr !== '') process.stderr.write(`${rendered.stderr}\n`);
   }
   process.exitCode = exitStatusFor(result);
 }

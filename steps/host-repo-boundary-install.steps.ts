@@ -70,6 +70,16 @@ function runCliIn(world: InstallWorld, args: string[]): void {
   world.exitCode = result.status ?? -1;
 }
 
+function runConfirmedReset(world: InstallWorld): void {
+  runCliIn(world, ['reset', '--json', '--no-input']);
+  const preview = JSON.parse((world.output ?? '').trim()) as {
+    data?: { plan?: { id?: string } };
+  };
+  const planId = preview.data?.plan?.id;
+  assert.equal(typeof planId, 'string', 'reset preview did not return a plan identity');
+  runCliIn(world, ['reset', '--yes', '--plan', planId as string]);
+}
+
 function hookPath(world: InstallWorld, hook: string): string {
   return nodePath.join(world.dir ?? '', '.husky', hook);
 }
@@ -90,7 +100,7 @@ function seedHuskyHost(world: InstallWorld): string {
 }
 
 function setupNow(world: InstallWorld): void {
-  runCliIn(world, ['setup']);
+  runCliIn(world, ['setup', '--verbose']);
   assert.equal(world.exitCode, 0, `setup failed:\n${world.output}`);
 }
 
@@ -280,7 +290,7 @@ Given('a git repository whose root is above the setup directory', function (this
 function emittedHookHost(world: InstallWorld, hook: string): void {
   const dir = newHost(world);
   mkdirSync(nodePath.join(dir, '.husky'), { recursive: true });
-  runCliIn(world, ['setup']);
+  runCliIn(world, ['setup', '--verbose']);
   assert.equal(world.exitCode, 0, `setup failed:\n${world.output}`);
   assert.ok(existsSync(hookPath(world, hook)), `setup did not emit .husky/${hook}`);
   world.hook = hook;
@@ -297,11 +307,11 @@ function stubBinary(world: InstallWorld, script: string): void {
 // ---------------------------------------------------------------- Whens
 
 When('safeword setup runs in the host', function (this: InstallWorld) {
-  runCliIn(this, ['setup']);
+  runCliIn(this, ['setup', '--verbose']);
 });
 
 When('safeword setup runs again in the host', function (this: InstallWorld) {
-  runCliIn(this, ['setup']);
+  runCliIn(this, ['setup', '--verbose']);
 });
 
 When('safeword upgrade runs in the host', function (this: InstallWorld) {
@@ -309,7 +319,7 @@ When('safeword upgrade runs in the host', function (this: InstallWorld) {
 });
 
 When('safeword reset runs in the host', function (this: InstallWorld) {
-  runCliIn(this, ['reset', '--yes']);
+  runConfirmedReset(this);
 });
 
 function runEmittedHook(world: InstallWorld): void {

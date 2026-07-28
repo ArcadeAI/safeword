@@ -9,7 +9,6 @@ import { pathToFileURL } from 'node:url';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { VERSION } from '../../src/version.js';
 import {
   createConfiguredProject,
   createTemporaryDirectory,
@@ -72,10 +71,9 @@ describe('Test Suite 10: Diff', () => {
 
       const result = await runCli(['diff'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(0);
+      expect(result.exitCode).toBe(2);
 
-      // Should show counts
-      expect(result.stdout).toMatch(/\d+/);
+      expect(result.stdout).toContain('Planned effects:');
 
       // Should NOT show full diff markers by default
       expect(result.stdout).not.toMatch(/^[+-]{3}/m);
@@ -90,13 +88,16 @@ describe('Test Suite 10: Diff', () => {
       // Create a difference
       writeTestFile(temporaryDirectory, '.safeword/version', '0.0.1');
 
-      const result = await runCli(['diff'], { cwd: temporaryDirectory });
+      const result = await runCli(['diff', '--json'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(0);
+      expect(result.exitCode).toBe(2);
 
-      // Should have some categorization
-      const output = result.stdout.toLowerCase();
-      expect(output).toMatch(/add|modif|chang|updat|unchanged/i);
+      const output = JSON.parse(result.stdout) as {
+        data: { plan: { effects: { files: { kind: string }[] } } };
+      };
+      expect(output.data.plan.effects.files.map(effect => effect.kind)).toEqual(
+        expect.arrayContaining([expect.stringMatching(/write|json-merge|text-patch/)]),
+      );
     });
   });
 
@@ -107,17 +108,17 @@ describe('Test Suite 10: Diff', () => {
       // Set older project version
       writeTestFile(temporaryDirectory, '.safeword/version', '1.0.0');
 
-      const result = await runCli(['diff'], { cwd: temporaryDirectory });
+      const result = await runCli(['diff', '--json'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(0);
-
-      // Should show version info
-      expect(result.stdout).toContain('1.0.0');
-      // Should show transition (→ or similar)
-      expect(result.stdout).toMatch(/→|->|to|from/);
+      expect(result.exitCode).toBe(2);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        schema_version: 1,
+        state: 'action_required',
+        data: { plan: { schema_version: 1, command: 'setup' } },
+      });
     });
 
-    it('uses the registry latest version as the upgrade target', async () => {
+    it('does not consult the registry while planning', async () => {
       await createConfiguredProject(temporaryDirectory);
       writeTestFile(temporaryDirectory, '.safeword/version', '0.0.1');
 
@@ -126,12 +127,12 @@ describe('Test Suite 10: Diff', () => {
         env: registryLatestEnvironment('999.0.0'),
       });
 
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('Changes from v0.0.1 → v999.0.0');
-      expect(result.stdout).not.toContain(`→ v${VERSION}`);
+      expect(result.exitCode).toBe(2);
+      expect(result.stdout).not.toContain('999.0.0');
+      expect(result.stdout).toContain('Next: safeword setup');
     });
 
-    it('falls back to the cached latest version when the registry is unavailable', async () => {
+    it('does not let cached registry metadata change the local plan', async () => {
       await createConfiguredProject(temporaryDirectory);
       writeTestFile(temporaryDirectory, '.safeword/version', '0.0.1');
       writeUpdateCache('999.0.0');
@@ -141,11 +142,12 @@ describe('Test Suite 10: Diff', () => {
         env: registryFailureEnvironment(),
       });
 
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('Changes from v0.0.1 → v999.0.0');
+      expect(result.exitCode).toBe(2);
+      expect(result.stdout).not.toContain('999.0.0');
+      expect(result.stdout).toContain('Next: safeword setup');
     });
 
-    it('warns when the project config is newer than the running CLI', async () => {
+    it('still produces a local plan when project config is newer than the CLI', async () => {
       await createConfiguredProject(temporaryDirectory);
       writeTestFile(temporaryDirectory, '.safeword/version', '999.0.0');
 
@@ -154,9 +156,9 @@ describe('Test Suite 10: Diff', () => {
         env: registryLatestEnvironment('999.1.0'),
       });
 
-      expect(result.exitCode).toBe(0);
-      expect(result.stderr).toContain(`CLI v${VERSION} is older than project v999.0.0`);
-      expect(result.stderr).toContain('bunx safeword@999.1.0 diff');
+      expect(result.exitCode).toBe(2);
+      expect(result.stdout).toContain('Next: safeword setup');
+      expect(result.stdout).not.toContain('bunx');
     });
   });
 
@@ -171,27 +173,23 @@ describe('Test Suite 10: Diff', () => {
         cwd: temporaryDirectory,
       });
 
-      expect(result.exitCode).toBe(0);
-
-      // Should show unified diff format
-      // --- file
-      // +++ file
-      // @@ line numbers @@
-      expect(result.stdout).toMatch(/^---/m);
-      expect(result.stdout).toMatch(/^\+\+\+/m);
-      expect(result.stdout).toMatch(/^@@.*@@/m);
+      expect(result.exitCode).toBe(2);
+      expect(result.stdout).toContain('Planned effects:');
+      expect(result.stdout).toMatch(/files: (write|json-merge|text-patch) /);
+      expect(result.stdout).not.toMatch(/^@@.*@@/m);
     });
   });
 
-  describe('Test 10.5: Unconfigured project error', () => {
-    it('should error on unconfigured project', async () => {
+  describe('Test 10.5: Unconfigured project plan', () => {
+    it('should show the setup plan for an unconfigured project', async () => {
       createTypeScriptPackageJson(temporaryDirectory);
       // No setup
 
       const result = await runCli(['diff'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(1);
-      expect(result.stderr.toLowerCase()).toContain('not configured');
+      expect(result.exitCode).toBe(2);
+      expect(result.stdout).toContain('Planned effects:');
+      expect(result.stdout).toContain('Next: safeword setup');
     });
   });
 });

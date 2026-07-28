@@ -609,13 +609,9 @@ statusMessage = "Checking safeword PreToolUse gates"
         timeout: 30_000,
       });
 
-      if (result.exitCode === 0) {
-        expect(result.stdout).toContain('Upgrade');
-      } else {
-        const sawUpgradeOutput =
-          result.stdout.includes('Upgrade') || result.stdout.includes('Upgrading');
-        expect(sawUpgradeOutput).toBe(true);
-      }
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('Complete');
+      expect(result.stdout).toContain('`upgrade` is deprecated; use `setup`.');
     });
 
     it('should refuse downgrade when project is newer', () => {
@@ -630,7 +626,7 @@ statusMessage = "Checking safeword PreToolUse gates"
       expect(result.stderr.toLowerCase()).toMatch(/older|downgrade|cli/i);
     });
 
-    it('should error on unconfigured project', () => {
+    it('should converge an unconfigured project', () => {
       // Just package.json, no .safeword
       writeFileSync(
         nodePath.join(temporaryDirectory, 'package.json'),
@@ -642,8 +638,9 @@ statusMessage = "Checking safeword PreToolUse gates"
         cwd: temporaryDirectory,
         timeout: 30_000,
       });
-      expect(result.exitCode).not.toBe(0);
-      expect(result.stderr.toLowerCase()).toContain('not configured');
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('Complete');
+      expect(existsSync(nodePath.join(temporaryDirectory, '.safeword'))).toBe(true);
     });
   });
 });

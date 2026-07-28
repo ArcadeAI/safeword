@@ -107,7 +107,11 @@ function runCli(
 }
 
 function childEnvironment(): NodeJS.ProcessEnv {
-  const environment: NodeJS.ProcessEnv = { ...process.env, SAFEWORD_NO_UPDATE_CHECK: '1' };
+  const environment: NodeJS.ProcessEnv = {
+    ...process.env,
+    SAFEWORD_NO_UPDATE_CHECK: '1',
+    SAFEWORD_SKIP_INSTALL: '1',
+  };
   delete environment.NODE_OPTIONS;
   return environment;
 }
@@ -136,6 +140,24 @@ function setupProject(world: PredictableCliWorld): void {
   const directory = temporaryProject(world);
   runCli(world, ['setup', '--json', '--no-input', '--cwd', directory], directory);
   assert.equal(world.result.exitCode, 0);
+  const setupResult = world.result;
+  runCli(world, ['plan', '--json', '--no-input', '--offline', '--cwd', directory], directory);
+  const packagePath = join(directory, 'package.json');
+  const manifest = JSON.parse(readFileSync(packagePath, 'utf8')) as {
+    devDependencies?: Record<string, string>;
+  };
+  const preview = wireResult(world);
+  const packages = (preview.data as { plan: { effects: Effects } }).plan.effects.packages;
+  const devDependencies = { ...manifest.devDependencies };
+  for (const { target } of packages) {
+    const separator = target.lastIndexOf('@');
+    const hasVersion = separator > 0;
+    devDependencies[hasVersion ? target.slice(0, separator) : target] = hasVersion
+      ? target.slice(separator + 1)
+      : '*';
+  }
+  writeFileSync(packagePath, `${JSON.stringify({ ...manifest, devDependencies }, undefined, 2)}\n`);
+  world.result = setupResult;
 }
 
 function treeDigest(directory: string): string {
@@ -432,7 +454,24 @@ When('the user explicitly confirms that plan', function (this: PredictableCliWor
 });
 
 Then('only the previewed effects are applied', function (this: PredictableCliWorld) {
-  assert.deepEqual(wireResult(this).effects, this.plannedEffects);
+  const completed = wireResult(this).effects as Effects;
+  const planned = assertPresent(this.plannedEffects);
+  const categories: readonly (keyof Effects)[] = [
+    'files',
+    'packages',
+    'configuration',
+    'network',
+    'destructive',
+  ];
+  const plannedTargets = new Set(
+    categories.flatMap(category => planned[category].map(effect => `${category}:${effect.target}`)),
+  );
+  const completedEffects = categories.flatMap(category =>
+    completed[category].map(effect => `${category}:${effect.target}`),
+  );
+
+  assert.ok(completedEffects.length > 0);
+  for (const effect of completedEffects) assert.ok(plannedTargets.has(effect), effect);
 });
 
 Given(

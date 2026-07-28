@@ -368,10 +368,9 @@ describe('Suite 6: Auto-Install Python Tools', () => {
         env: { SAFEWORD_SKIP_INSTALL: '1' },
       });
 
-      // Assert - CLI detected uv and attempted install (output messages are our code's behavior)
-      expect(result.stdout).toContain('Installing Python tools');
-      expect(result.stdout).toContain('Python tools installed');
-      expect(result.stdout).not.toContain('Install Python tools:'); // No manual instruction
+      // Explicit no-install mode reports the exact recovery command without network access.
+      expect(result.stdout).toContain('Install Python tools: uv add --dev');
+      expect(result.stdout).not.toContain('Python tools installed');
     },
     TIMEOUT_SETUP,
   );

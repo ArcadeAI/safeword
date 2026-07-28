@@ -46,7 +46,7 @@ describe('Test Suite 2: Setup - Core Files', () => {
       createTypeScriptProjectReadyForSetup(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
-      const result = await runCli(['setup'], {
+      const result = await runCli(['setup', '--verbose'], {
         cwd: temporaryDirectory,
       });
 
@@ -122,7 +122,7 @@ describe('Test Suite 2: Setup - Core Files', () => {
       createTypeScriptProjectReadyForSetup(temporaryDirectory);
       initGitRepo(temporaryDirectory);
 
-      const result = await runCli(['setup'], {
+      const result = await runCli(['setup', '--verbose'], {
         cwd: temporaryDirectory,
       });
 

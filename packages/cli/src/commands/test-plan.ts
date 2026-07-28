@@ -35,11 +35,33 @@ export function observeTestPlan(
     );
   }
   const kind = (kindValue ?? 'test') as PlanKind;
+  const formatValue = typeof options.format === 'string' ? options.format : 'human';
+  if (!['human', 'json', 'sh'].includes(formatValue)) {
+    return Promise.resolve(
+      createResult({
+        state: 'failed',
+        errors: [
+          {
+            code: 'TEST_PLAN_FORMAT_INVALID',
+            message: `Unknown test-plan format "${formatValue}".`,
+            retryable: false,
+          },
+        ],
+      }),
+    );
+  }
   const root = dir === undefined ? cwd : nodePath.resolve(cwd, dir);
   const plan = resolveTestPlan(root, { kind });
   return Promise.resolve(
     createResult({
       state: 'healthy',
+      presentation:
+        formatValue === 'sh'
+          ? {
+              kind: 'raw',
+              body: renderShellPlan(plan),
+            }
+          : undefined,
       data: { command: 'project test-plan', kind, plan },
     }),
   );

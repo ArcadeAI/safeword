@@ -1,14 +1,32 @@
 import { existsSync, lstatSync, readdirSync, readFileSync, readlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { type CliResult, createResult, type Effect, type Effects } from '../cli-protocol/result.js';
+import {
+  type CliResult,
+  createResult,
+  type Effect,
+  type Effects,
+  type Finding,
+} from '../cli-protocol/result.js';
+import { checkHealth, type HealthStatus } from '../health.js';
 import { installPack } from '../packs/install.js';
+import { hasImportLinterScaffoldTarget } from '../packs/python/files.js';
+import {
+  detectPythonPackageManager,
+  getPythonInstallCommand,
+  getPythonTools,
+  hasRuffDependency,
+  installPythonDependencies,
+} from '../packs/python/setup.js';
 import { getMissingPacks } from '../packs/registry.js';
 import { reconcile, ReconcileExecutionError, type ReconcileResult } from '../reconcile.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
 import { createProjectContext } from '../utils/context.js';
 import { exists, writeJson } from '../utils/fs.js';
+import { hookIntegrationNudge } from '../utils/hook-nudge.js';
 import { type DependencyInstallResult, installDependencies } from '../utils/install.js';
+import { executeNamespaceMigration, planNamespaceMigration } from '../utils/namespace-migration.js';
+import { scanStaleNamespaceConfigs } from '../utils/stale-config-scan.js';
 import {
   applyVendoredIgnoresPolicy,
   type VendoredIgnoresPolicyResult,
@@ -16,6 +34,7 @@ import {
 import { compareVersions } from '../utils/version.js';
 import { VERSION } from '../version.js';
 import { effectsForReconciliation } from './reconciliation-plan.js';
+import { setupWorkspaceFormatScripts, workspacePackageJsonTargets } from './setup-workspaces.js';
 import {
   buildArchitecture,
   hasArchitectureDetected,
@@ -58,17 +77,54 @@ function configureArchitecture(cwd: string): Effect[] {
 
 interface SetupAdapters {
   readonly configureArchitecture: typeof configureArchitecture;
+  readonly configureWorkspaces: typeof setupWorkspaceFormatScripts;
+  readonly configurePython: typeof configurePython;
+  readonly executeNamespaceMigration: typeof executeNamespaceMigration;
 }
 
-const DEFAULT_SETUP_ADAPTERS: SetupAdapters = { configureArchitecture };
+const DEFAULT_SETUP_ADAPTERS: SetupAdapters = {
+  configureArchitecture,
+  configureWorkspaces: setupWorkspaceFormatScripts,
+  configurePython,
+  executeNamespaceMigration,
+};
+
+interface PythonSetupResult {
+  readonly tools: readonly string[];
+  readonly command?: string;
+  readonly attempted: boolean;
+  readonly installed: boolean;
+}
+
+function configurePython(
+  cwd: string,
+  context: ReturnType<typeof createProjectContext>,
+): PythonSetupResult {
+  if (!context.languages?.python || hasRuffDependency(cwd)) {
+    return { tools: [], attempted: false, installed: false };
+  }
+  const tools = getPythonTools(hasImportLinterScaffoldTarget(cwd));
+  const command = getPythonInstallCommand(cwd, tools);
+  const shouldInstall =
+    !process.env.SAFEWORD_SKIP_INSTALL && detectPythonPackageManager(cwd) !== 'pip';
+  if (!shouldInstall) {
+    return { tools, command, attempted: false, installed: false };
+  }
+  return {
+    tools,
+    command,
+    attempted: true,
+    installed: installPythonDependencies(cwd, [...tools]),
+  };
+}
 
 class SetupApplyError extends Error {
-  constructor(
-    cause: unknown,
-    readonly completedEffects: Partial<Effects>,
-  ) {
+  readonly completedEffects: Partial<Effects>;
+
+  constructor(cause: unknown, completedEffects: Partial<Effects>) {
     super(cause instanceof Error ? cause.message : String(cause), { cause });
     this.name = 'SetupApplyError';
+    this.completedEffects = completedEffects;
   }
 }
 
@@ -76,6 +132,7 @@ export async function convergeSetup(
   cwd: string,
   options: {
     noModify?: boolean;
+    migrateNamespace?: boolean;
     progress?: {
       readonly start: (message: string) => void;
       readonly stop: () => void;
@@ -86,21 +143,121 @@ export async function convergeSetup(
   const configured = existsSync(nodePath.join(cwd, '.safeword'));
   const downgrade = configured ? downgradeRefusal(cwd) : undefined;
   if (downgrade !== undefined) return downgrade;
-  const packageJsonCreated = configured ? false : ensurePackageJson(cwd);
+  let namespaceMigration: NamespaceConvergence = { effects: [], findings: [] };
+  let packageJsonCreated = false;
 
   try {
+    const adapters = {
+      ...DEFAULT_SETUP_ADAPTERS,
+      ...options.adapters,
+    };
+    const namespaceTargets = ['.safeword-project', '.project', '.safeword/config.json'];
+    const namespaceBefore = snapshotFiles(cwd, namespaceTargets);
+    namespaceMigration = convergeNamespace(
+      cwd,
+      options.migrateNamespace,
+      adapters.executeNamespaceMigration,
+    );
+    namespaceMigration = {
+      ...namespaceMigration,
+      effects: uniqueEffects([
+        ...namespaceMigration.effects,
+        ...observedFileEffects(namespaceBefore, snapshotFiles(cwd, namespaceTargets)),
+      ]),
+    };
+    packageJsonCreated = configured ? false : ensurePackageJson(cwd);
     options.progress?.start(
       configured ? 'Reconciling the Safeword upgrade…' : 'Setting up Safeword…',
     );
-    return await applySetup(cwd, configured, packageJsonCreated, options.noModify === true, {
-      ...DEFAULT_SETUP_ADAPTERS,
-      ...options.adapters,
+    return await applySetup(cwd, {
+      configured,
+      packageJsonCreated,
+      noModify: options.noModify === true,
+      namespaceMigration,
+      adapters,
     });
   } catch (setupError) {
-    return setupFailure(
-      setupError,
-      packageJsonCreated ? { files: [{ kind: 'create', target: 'package.json' }] } : {},
-    );
+    return setupFailure(setupError, {
+      files: [
+        ...(packageJsonCreated ? [{ kind: 'create', target: 'package.json' }] : []),
+        ...namespaceMigration.effects,
+      ],
+    });
+  }
+}
+
+interface NamespaceConvergence {
+  readonly effects: Effect[];
+  readonly findings: Finding[];
+}
+
+function convergeNamespace(
+  cwd: string,
+  migrate: boolean | undefined,
+  migrateNamespace: typeof executeNamespaceMigration,
+): NamespaceConvergence {
+  const plan = planNamespaceMigration(cwd);
+  if (plan !== 'offer') {
+    const messages: Partial<Record<typeof plan, string>> = {
+      'both-dirs':
+        'Namespace migration skipped: .project/ already exists alongside .safeword-project/.',
+      blocked: 'Namespace migration skipped: .project exists but is not a directory.',
+    };
+    const message = migrate === true ? messages[plan] : undefined;
+    return {
+      effects: [],
+      findings:
+        message === undefined
+          ? []
+          : [{ code: 'NAMESPACE_MIGRATION_BLOCKED', message, severity: 'warning' }],
+    };
+  }
+  if (migrate !== true) {
+    return {
+      effects: [],
+      findings:
+        migrate === false
+          ? []
+          : [
+              {
+                code: 'NAMESPACE_MIGRATION_AVAILABLE',
+                message:
+                  'This project still uses .safeword-project; run `safeword setup --migrate-namespace` to move it to .project.',
+                severity: 'info',
+              },
+            ],
+    };
+  }
+  try {
+    migrateNamespace(cwd);
+    const staleConfigs = scanStaleNamespaceConfigs(cwd);
+    return {
+      effects: [{ kind: 'move', target: '.safeword-project → .project' }],
+      findings: [
+        {
+          code: 'NAMESPACE_MIGRATED',
+          message: 'Project namespace moved to .project.',
+          severity: 'info',
+        },
+        ...staleConfigs.map(target => ({
+          code: 'STALE_NAMESPACE_REFERENCE',
+          message: `${target} still references the old namespace (.safeword-project/ → .project/).`,
+          severity: 'warning' as const,
+        })),
+      ],
+    };
+  } catch (migrationError) {
+    return {
+      effects: [],
+      findings: [
+        {
+          code: 'NAMESPACE_MIGRATION_FAILED',
+          message:
+            migrationError instanceof Error ? migrationError.message : String(migrationError),
+          severity: 'warning',
+        },
+      ],
+    };
   }
 }
 
@@ -155,16 +312,70 @@ function eslintFindings(eslintPolicy: VendoredIgnoresPolicyResult) {
   ];
 }
 
+function setupGuidanceFindings(
+  context: ReturnType<typeof createProjectContext>,
+  reconciliation: ReconcileResult,
+  architectureEffects: readonly Effect[],
+) {
+  const findings: Finding[] = [];
+  if (architectureEffects.length > 0) {
+    findings.push({
+      code: 'ARCHITECTURE_DETECTED',
+      message: 'Architecture detected; project-structure checks are configured.',
+      severity: 'info',
+      detail: architectureEffects.some(effect => effect.target === '.dependency-cruiser.cjs')
+        ? '.dependency-cruiser.cjs extends rules from .safeword/depcruise-config.cjs; edit the wrapper to add project rules.'
+        : undefined,
+    });
+  }
+  const hookNudge = hookIntegrationNudge(context);
+  if (hookNudge !== undefined) {
+    findings.push({
+      code: 'BOUNDARY_GATE_INTEGRATION_AVAILABLE',
+      message: 'Boundary-gate hook integration is available; use --verbose for the exact snippet.',
+      severity: 'info' as const,
+      detail: hookNudge,
+    });
+  }
+  if (context.languages?.golang && reconciliation.created.includes('.golangci.yml')) {
+    findings.push({
+      code: 'GO_TOOLS_AVAILABLE',
+      message: 'Go tooling: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest',
+      severity: 'info' as const,
+    });
+  }
+  if (context.projectType.existingFormatter) {
+    findings.push({
+      code: 'EXISTING_FORMATTER_PRESERVED',
+      message: 'Existing formatter detected; Safeword left it unchanged.',
+      severity: 'info' as const,
+    });
+  }
+  if (!context.projectType.scaffoldBddLane && context.projectType.existingCucumberHarness) {
+    findings.push({
+      code: 'EXISTING_CUCUMBER_HARNESS_PRESERVED',
+      message: `Existing Cucumber harness preserved (${context.projectType.existingCucumberHarness}).`,
+      severity: 'info' as const,
+    });
+  }
+  return findings;
+}
+
 interface SetupResultInput {
   readonly cwd: string;
   readonly reconciliation: ReconcileResult;
   readonly packageJsonCreated: boolean;
   readonly architectureEffects: Effect[];
+  readonly workspaceEffects: Effect[];
   readonly installation: DependencyInstallResult;
   readonly eslintPolicy: VendoredIgnoresPolicyResult;
   readonly compatibilityEffects: Effect[];
   readonly compatibilityPackage?: string;
   readonly gitInitialized: boolean;
+  readonly guidanceFindings: ReturnType<typeof setupGuidanceFindings>;
+  readonly pythonSetup: PythonSetupResult;
+  readonly namespaceMigration: NamespaceConvergence;
+  readonly completedEffects: CompletedSetupEffects;
 }
 
 interface CompletedSetupEffects {
@@ -256,24 +467,33 @@ function setupNetworkEffects(
   return effects;
 }
 
+// eslint-disable-next-line complexity -- result assembly explicitly maps each independently observable setup effect and recovery finding
 function setupResult(input: SetupResultInput): CliResult {
   const {
     cwd,
     reconciliation,
     packageJsonCreated,
     architectureEffects,
+    workspaceEffects,
     installation,
     eslintPolicy,
     compatibilityEffects,
     compatibilityPackage,
     gitInitialized,
+    guidanceFindings,
+    pythonSetup,
+    namespaceMigration,
+    completedEffects,
   } = input;
   const reconciled = effectsForReconciliation(reconciliation, 'upgrade');
   const files = uniqueEffects([
     ...(packageJsonCreated ? [{ kind: 'create', target: 'package.json' }] : []),
     ...reconciled.files,
     ...architectureEffects,
+    ...workspaceEffects,
+    ...namespaceMigration.effects,
     ...compatibilityEffects,
+    ...completedEffects.files,
     ...(eslintPolicy.kind === 'patched'
       ? [
           {
@@ -287,20 +507,47 @@ function setupResult(input: SetupResultInput): CliResult {
         ]
       : []),
   ]);
-  const packages = [
+  const packages = uniqueEffects([
     ...(installation.installed
       ? reconciliation.packagesToInstall.map(target => ({ kind: 'install', target }))
       : []),
     ...(compatibilityPackage === undefined
       ? []
       : [{ kind: 'update', target: compatibilityPackage }]),
-  ];
-  const network = setupNetworkEffects(packages, installation, reconciliation);
+    ...(pythonSetup.installed
+      ? pythonSetup.tools.map(target => ({ kind: 'install', target }))
+      : []),
+    ...completedEffects.packages,
+  ]);
+  const network = uniqueEffects([
+    ...setupNetworkEffects(packages, installation, reconciliation),
+    ...(!pythonSetup.attempted || pythonSetup.installed
+      ? []
+      : pythonSetup.tools.map(target => ({
+          kind: 'package-registry',
+          target,
+          operation: 'install',
+        }))),
+    ...completedEffects.network,
+  ]);
   const changed = files.length > 0 || packages.length > 0;
   const findings = [
     ...packageFindings(installation),
     ...gitFindings(gitInitialized),
     ...eslintFindings(eslintPolicy),
+    ...guidanceFindings,
+    ...namespaceMigration.findings,
+    ...(pythonSetup.tools.length === 0
+      ? []
+      : [
+          {
+            code: pythonSetup.installed ? 'PYTHON_TOOLS_INSTALLED' : 'PYTHON_TOOLS_REQUIRED',
+            message: pythonSetup.installed
+              ? `Python tools installed (${pythonSetup.tools.join(', ')}).`
+              : `Install Python tools: ${pythonSetup.command ?? pythonSetup.tools.join(' ')}`,
+            severity: 'info' as const,
+          },
+        ]),
   ];
   const actionRequired = findings.some(finding => finding.severity !== 'info');
   let state: CliResult['state'] = changed ? 'changed' : 'healthy';
@@ -379,13 +626,16 @@ function applyPackageCompatibility(
   return compatibilityPackage;
 }
 
-async function applySetup(
-  cwd: string,
-  configured: boolean,
-  packageJsonCreated: boolean,
-  noModify: boolean,
-  adapters: SetupAdapters,
-): Promise<CliResult> {
+interface ApplySetupInput {
+  readonly configured: boolean;
+  readonly packageJsonCreated: boolean;
+  readonly noModify: boolean;
+  readonly namespaceMigration: NamespaceConvergence;
+  readonly adapters: SetupAdapters;
+}
+
+async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResult> {
+  const { adapters, configured, namespaceMigration, noModify, packageJsonCreated } = input;
   const context = createProjectContext(cwd);
   const operation = configured ? 'upgrade' : 'install';
   const result = await reconcile(SAFEWORD_SCHEMA, operation, context);
@@ -403,6 +653,12 @@ async function applySetup(
       completedEffects,
       () => adapters.configureArchitecture(cwd),
     );
+    const workspaceEffects = observeFileStage(
+      cwd,
+      workspacePackageJsonTargets(cwd, context),
+      completedEffects,
+      () => adapters.configureWorkspaces(cwd, context),
+    ).map(target => ({ kind: 'update', target }));
     const eslintConfig = context.projectType.existingEslintConfig;
     const eslintPolicy = observeFileStage(
       cwd,
@@ -430,23 +686,127 @@ async function applySetup(
       }),
     );
     recordInstalledPackages(result.packagesToInstall, installation, completedEffects);
+    const pythonSetup = observeFileStage(
+      cwd,
+      ['pyproject.toml', 'uv.lock', 'poetry.lock', 'Pipfile', 'Pipfile.lock'],
+      completedEffects,
+      () => adapters.configurePython(cwd, context),
+    );
+    if (pythonSetup.attempted) {
+      for (const target of pythonSetup.tools) {
+        if (pythonSetup.installed) completedEffects.packages.push({ kind: 'install', target });
+        completedEffects.network.push({
+          kind: 'package-registry',
+          target,
+          operation: 'install',
+        });
+      }
+    }
     const compatibilityPackage = observeFileStage(cwd, ['package.json'], completedEffects, () =>
       applyPackageCompatibility(cwd, compatibilityEffects, completedEffects),
     );
-    return setupResult({
+    const applied = setupResult({
       cwd,
       reconciliation: result,
       packageJsonCreated,
       architectureEffects,
+      workspaceEffects,
       installation,
       eslintPolicy,
       compatibilityEffects,
       compatibilityPackage,
       gitInitialized: context.isGitRepo,
+      guidanceFindings: setupGuidanceFindings(context, result, architectureEffects),
+      pythonSetup,
+      namespaceMigration,
+      completedEffects,
     });
+    const health = await checkHealth(cwd, {
+      skipPackageChecks: Boolean(process.env.SAFEWORD_SKIP_INSTALL),
+    });
+    return verifiedSetupResult(applied, health, configured);
   } catch (setupError) {
     throw new SetupApplyError(setupError, completedEffects);
   }
+}
+
+function verifiedSetupResult(
+  applied: CliResult,
+  health: HealthStatus,
+  wasConfigured: boolean,
+): CliResult {
+  const healthProblems = [
+    ...health.issues,
+    ...health.missingPackages.map(packageName => `Missing package: ${packageName}`),
+    ...health.missingPacks.map(pack => `Missing language pack: ${pack}`),
+  ];
+  if (!health.configured || healthProblems.length > 0) {
+    if (wasConfigured && health.configured) {
+      return {
+        ...applied,
+        findings: [
+          ...applied.findings,
+          ...healthProblems.map(message => ({
+            code: 'SETUP_POSTCONDITION_ADVISORY',
+            message,
+            severity: 'warning' as const,
+          })),
+          ...health.advisories.map(message => ({
+            code: 'SETUP_HEALTH_ADVISORY',
+            message,
+            severity: 'info' as const,
+          })),
+        ],
+      };
+    }
+    return {
+      ...applied,
+      ok: false,
+      state: 'failed',
+      findings: [
+        ...applied.findings,
+        ...health.advisories.map(message => ({
+          code: 'SETUP_HEALTH_ADVISORY',
+          message,
+          severity: 'info' as const,
+        })),
+      ],
+      errors: [
+        ...applied.errors,
+        ...(health.configured ? healthProblems : ['Safeword is not configured after setup.']).map(
+          message => ({
+            code: 'SETUP_POSTCONDITION_FAILED',
+            message,
+            retryable: true,
+          }),
+        ),
+      ],
+      recovery: [
+        ...applied.recovery,
+        {
+          command: 'safeword doctor --verbose',
+          description: 'Inspect the failed setup postcondition before retrying.',
+          requiresHuman: true,
+        },
+      ],
+    };
+  }
+  return {
+    ...applied,
+    findings: [
+      ...applied.findings,
+      ...health.advisories.map(message => ({
+        code: 'SETUP_HEALTH_ADVISORY',
+        message,
+        severity: 'info' as const,
+      })),
+      {
+        code: 'SETUP_POSTCONDITION_VERIFIED',
+        message: 'Configuration is healthy',
+        severity: 'info',
+      },
+    ],
+  };
 }
 
 function setupFailure(setupError: unknown, initialEffects: Partial<Effects>): CliResult {

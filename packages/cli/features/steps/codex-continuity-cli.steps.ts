@@ -192,6 +192,18 @@ function run(
   return world.result;
 }
 
+function observeMigrationState(world: ContinuityCliWorld): string {
+  const previous = world.result;
+  const observed = run(world, ['codex', 'status', '--json']);
+  world.result = previous;
+  assert.equal(observed.exitCode, 2);
+  const envelope = JSON.parse(observed.stdout) as {
+    data?: { migration_state?: string };
+  };
+  assert.ok(envelope.data?.migration_state);
+  return envelope.data.migration_state;
+}
+
 function snapshot(directory: string): Record<string, string> {
   const result: Record<string, string> = {};
   const visit = (current: string): void => {
@@ -399,7 +411,7 @@ Then(
   'migration reports plugin_installed_restart_required and changes no repository file',
   function (this: ContinuityCliWorld) {
     assert.equal(this.result.exitCode, 2);
-    assert.match(this.result.stdout, /plugin_installed_restart_required/u);
+    assert.equal(observeMigrationState(this), 'plugin_installed_restart_required');
     assertRepoUnchanged(this);
   },
 );
@@ -841,7 +853,7 @@ When('the builder migrates Codex twice', function (this: ContinuityCliWorld) {
 Then(
   /^the second run reports ([a-z_]+) without changing repository or profile state$/u,
   function (this: ContinuityCliWorld, expectedState: string) {
-    assert.match(this.result.stdout, new RegExp(expectedState, 'u'));
+    assert.equal(observeMigrationState(this), expectedState);
     assert.deepEqual(snapshot(requireProject(this)), this.secondRunBaseline?.project);
     assert.deepEqual(snapshot(requireProfile(this)), this.secondRunBaseline?.profile);
   },
@@ -866,7 +878,7 @@ Then(
 );
 
 When('the builder runs Codex recovery', function (this: ContinuityCliWorld) {
-  run(this, ['codex', 'recover']);
+  run(this, ['codex', 'recover', '--yes']);
 });
 
 Then(
@@ -1029,7 +1041,7 @@ Then(
       false,
     );
     const status = run(this, ['codex', 'status']);
-    assert.match(status.stdout, /Codex migration: plugin$/mu);
+    assert.match(status.stdout, /Codex migration state: plugin\./u);
   },
 );
 
@@ -1041,23 +1053,23 @@ Then(
   'file effects include config update, legacy removal, plugin-marker creation, and bootstrap creation',
   function (this: ContinuityCliWorld) {
     const output = JSON.parse(this.result.stdout) as {
-      effects: { files: { path: string; action: string }[] };
+      data: { plan: { effects: { files: { target: string; kind: string }[] } } };
     };
-    const files = output.effects.files;
-    assert.ok(files.some(file => file.path === '.codex/config.toml' && file.action === 'update'));
+    const files = output.data.plan.effects.files;
+    assert.ok(files.some(file => file.target === '.codex/config.toml' && file.kind === 'update'));
     assert.ok(
       files.some(
         file =>
-          file.path === '.safeword/hooks/codex/pre-tool-quality.ts' && file.action === 'remove',
+          file.target === '.safeword/hooks/codex/pre-tool-quality.ts' && file.kind === 'remove',
       ),
     );
     assert.ok(
-      files.some(file => file.path === '.safeword/codex-plugin.json' && file.action === 'create'),
+      files.some(file => file.target === '.safeword/codex-plugin.json' && file.kind === 'create'),
     );
     assert.ok(
       files.some(
         file =>
-          file.path === '.agents/skills/safeword-plugin-setup/SKILL.md' && file.action === 'create',
+          file.target === '.agents/skills/safeword-plugin-setup/SKILL.md' && file.kind === 'create',
       ),
     );
   },
@@ -1067,11 +1079,11 @@ Then(
   'every listed action is create, update, remove, or restore',
   function (this: ContinuityCliWorld) {
     const output = JSON.parse(this.result.stdout) as {
-      effects: { files: { action: string }[] };
+      data: { plan: { effects: { files: { kind: string }[] } } };
     };
     assert.ok(
-      output.effects.files.every(file =>
-        ['create', 'update', 'remove', 'restore'].includes(file.action),
+      output.data.plan.effects.files.every(file =>
+        ['create', 'update', 'remove', 'restore'].includes(file.kind),
       ),
     );
   },

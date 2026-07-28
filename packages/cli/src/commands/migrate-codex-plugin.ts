@@ -504,6 +504,30 @@ export function observeCodexMigrationResult(
   return result;
 }
 
+function codexMigrationMessage(state: CodexMigrationResultV1['state']): string {
+  switch (state) {
+    case 'plugin_installed_restart_required': {
+      return 'Start a new Codex session to load the plugin, then review its hooks with /hooks.';
+    }
+    case 'compatibility': {
+      return 'Codex is in compatibility mode until current plugin-hook proof exists.';
+    }
+    case 'plugin_enabled_hook_unproven': {
+      return 'Codex migration state: plugin_enabled_hook_unproven. Review /hooks; when protection is confirmed, run safeword codex migrate --finalize.';
+    }
+    case 'recovery_required': {
+      return 'Codex migration state: recovery_required. Recovery is required before migration can continue.';
+    }
+    case 'legacy':
+    case 'not_configured':
+    case 'plugin':
+    case 'plugin_disabled':
+    case 'plugin_setup_required': {
+      return `Codex migration state: ${state}.`;
+    }
+  }
+}
+
 export function observeCodexMigration(
   cwd = process.cwd(),
   environment: NodeJS.ProcessEnv = process.env,
@@ -520,7 +544,7 @@ export function observeCodexMigration(
         : [
             {
               code: `CODEX_${result.state.toUpperCase()}`,
-              message: `Codex migration state: ${result.state}.`,
+              message: codexMigrationMessage(result.state),
               severity: result.ok ? 'info' : 'warning',
             },
           ],
@@ -532,6 +556,7 @@ export function observeCodexMigration(
     })),
     data: {
       command: 'codex status',
+      migration_state: result.state,
       protected: result.protected,
       plugin: result.plugin,
       proof: result.proof,

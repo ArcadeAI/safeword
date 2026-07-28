@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -76,10 +76,28 @@ describe('plan and remove wiring', () => {
       { cwd: directory },
     );
     expect(applied.exitCode).toBe(0);
-    expect(JSON.parse(applied.stdout)).toMatchObject({
+    const appliedEnvelope = JSON.parse(applied.stdout) as {
+      state: string;
+      changed: boolean;
+      effects: {
+        destructive: { kind: string; target: string; operation?: string }[];
+        packages: unknown[];
+        network: unknown[];
+      };
+    };
+    expect(appliedEnvelope).toMatchObject({
       state: 'changed',
       changed: true,
     });
+    expect(appliedEnvelope.effects.destructive.length).toBeGreaterThan(0);
+    expect(appliedEnvelope.effects.destructive.every(effect => effect.kind === 'remove')).toBe(
+      true,
+    );
+    expect(
+      appliedEnvelope.effects.destructive.every(effect => effect.operation === undefined),
+    ).toBe(true);
+    expect(appliedEnvelope.effects.packages).toEqual([]);
+    expect(appliedEnvelope.effects.network).toEqual([]);
   });
 
   it('refuses a stale removal plan without mutation', async () => {
@@ -111,6 +129,54 @@ describe('plan and remove wiring', () => {
     expect(JSON.parse(stale.stdout)).toMatchObject({
       state: 'action_required',
       findings: [{ code: 'PLAN_STALE' }],
+    });
+  });
+
+  it('reports package files changed by a partially failed full removal', async () => {
+    const directory = createTemporaryDirectory();
+    configureMinimalProject(directory);
+    writeFileSync(
+      nodePath.join(directory, 'package.json'),
+      JSON.stringify({ name: 'fixture', devDependencies: { safeword: '0.69.0' } }),
+    );
+    const bin = nodePath.join(directory, 'bin');
+    mkdirSync(bin);
+    const npm = nodePath.join(bin, 'npm');
+    writeFileSync(
+      npm,
+      [
+        '#!/bin/sh',
+        String.raw`printf '%s\n' '{"name":"fixture","partial":true}' > package.json`,
+        String.raw`printf '%s\n' 'partial lock' > package-lock.json`,
+        'exit 9',
+        '',
+      ].join('\n'),
+    );
+    chmodSync(npm, 0o755);
+
+    const preview = await runCli(['remove', '--full', '--json', '--no-input', '--cwd', directory], {
+      cwd: directory,
+    });
+    const planId = (JSON.parse(preview.stdout) as { data: { plan: { id: string } } }).data.plan.id;
+    const applied = await runCli(
+      ['remove', '--full', '--json', '--no-input', '--yes', '--plan', planId, '--cwd', directory],
+      {
+        cwd: directory,
+        env: { PATH: `${bin}:${process.env.PATH ?? ''}` },
+      },
+    );
+
+    expect(applied.exitCode).toBe(1);
+    expect(JSON.parse(applied.stdout)).toMatchObject({
+      state: 'failed',
+      changed: true,
+      effects: {
+        files: expect.arrayContaining([
+          { kind: 'update', target: 'package.json' },
+          { kind: 'create', target: 'package-lock.json' },
+        ]),
+      },
+      errors: [{ code: 'PACKAGE_UNINSTALL_FAILED' }],
     });
   });
 });

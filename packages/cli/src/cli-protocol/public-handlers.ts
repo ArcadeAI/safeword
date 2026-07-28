@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -85,6 +86,10 @@ async function setupHandler(invocation: CommandInvocation): Promise<CliResult> {
   const { convergeSetup } = await import('../commands/converge-setup.js');
   return convergeSetup(invocation.cwd, {
     noModify: invocation.options.modify === false,
+    migrateNamespace:
+      typeof invocation.options.migrateNamespace === 'boolean'
+        ? invocation.options.migrateNamespace
+        : undefined,
     progress: invocation.progress,
   });
 }
@@ -139,27 +144,49 @@ async function syncConfigHandler(invocation: CommandInvocation): Promise<CliResu
   });
 }
 
+// eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- architecture reconciliation coordinates observation, enforcement, healing, and optional staging in one truthful result
 async function architectureHandler(invocation: CommandInvocation): Promise<CliResult> {
-  if (!existsSync(nodePath.join(invocation.cwd, '.safeword'))) {
-    return notConfigured('project architecture');
-  }
   const { isWouldChangeAction, planSelfHealProject, selfHealProject } =
     await import('../utils/architecture-document.js');
+  const { discoverUnreadableWorkspaces } = await import('../utils/architecture-monorepo.js');
+  const { architectureNarrativeDriftAdvisoryForProject } =
+    await import('../utils/architecture-narrative-drift.js');
+  const { isArchitectureDocumentEnforcementEnabled } = await import('../utils/configured-paths.js');
+  const observeAdvisories = () => {
+    const narrativeAdvisory = architectureNarrativeDriftAdvisoryForProject(invocation.cwd);
+    return [
+      ...discoverUnreadableWorkspaces(invocation.cwd).map(
+        workspace =>
+          `Workspace config present but unreadable: ${workspace.config} (${workspace.manager}).`,
+      ),
+      ...(narrativeAdvisory === undefined ? [] : [narrativeAdvisory]),
+    ].map(message => ({
+      code: 'ARCHITECTURE_ADVISORY',
+      message,
+      severity: 'info' as const,
+    }));
+  };
+  const advisories = observeAdvisories();
+  const enforcementEnabled = isArchitectureDocumentEnforcementEnabled(invocation.cwd);
+  if (!enforcementEnabled && (invocation.options.check || invocation.options.stage)) {
+    return createResult({
+      state: 'healthy',
+      findings: [
+        {
+          code: 'ARCHITECTURE_ENFORCEMENT_DISABLED',
+          message: 'Architecture document enforcement is disabled for this project.',
+          severity: 'info',
+        },
+        ...advisories,
+      ],
+      data: { command: 'project architecture', enforcement: false },
+    });
+  }
   const planned = planSelfHealProject(invocation.cwd);
   const stale = planned.filter(action => isWouldChangeAction(action));
   if (invocation.options.check === true) {
     return createResult({
       state: stale.length === 0 ? 'healthy' : 'action_required',
-      findings:
-        stale.length === 0
-          ? []
-          : [
-              {
-                code: 'ARCHITECTURE_DRIFT',
-                message: `Architecture documents are stale (${stale.join(', ')}).`,
-                severity: 'warning',
-              },
-            ],
       nextActions:
         stale.length === 0
           ? []
@@ -170,30 +197,97 @@ async function architectureHandler(invocation: CommandInvocation): Promise<CliRe
                 requiresHuman: false,
               },
             ],
-      data: { command: 'project architecture', planned: stale },
+      findings:
+        stale.length === 0
+          ? advisories
+          : [
+              {
+                code: 'ARCHITECTURE_DRIFT',
+                message: `Architecture documents are stale (${stale.join(', ')}).`,
+                severity: 'warning',
+              },
+              ...advisories,
+            ],
+      data: { command: 'project architecture', planned: stale, enforcement: true },
     });
   }
   const results = selfHealProject(invocation.cwd);
   const changed = results.filter(result => isWouldChangeAction(result.action));
+  const completedAdvisories = observeAdvisories();
+  const staged: { kind: string; target: string }[] = [];
+  const stageFailures: string[] = [];
+  if (invocation.options.stage === true) {
+    for (const result of changed) {
+      const target = nodePath.relative(invocation.cwd, result.path);
+      try {
+        execFileSync('git', ['add', '--', target], {
+          cwd: invocation.cwd,
+          stdio: 'ignore',
+        });
+        staged.push({ kind: 'stage', target });
+      } catch {
+        stageFailures.push(target);
+      }
+    }
+  }
+  let resultState: CliResult['state'] = changed.length === 0 ? 'healthy' : 'changed';
+  if (stageFailures.length > 0) resultState = 'action_required';
   return createResult({
-    state: changed.length === 0 ? 'healthy' : 'changed',
+    state: resultState,
+    changed: changed.length > 0,
     effects: {
       files: changed.map(result => ({
-        kind: result.action,
+        kind: result.action === 'created' ? 'create' : 'update',
         target: nodePath.relative(invocation.cwd, result.path),
       })),
+      configuration: staged,
     },
-    findings:
-      invocation.options.stage === true && changed.length > 0
+    findings: [
+      ...(changed.length === 0
         ? [
             {
-              code: 'ARCHITECTURE_STAGE_REQUIRED',
-              message: 'Architecture files changed; stage them with git add.',
-              severity: 'warning',
+              code: 'ARCHITECTURE_UNCHANGED',
+              message: 'Architecture documents are unchanged.',
+              severity: 'info' as const,
+            },
+          ]
+        : [
+            {
+              code: 'ARCHITECTURE_REFRESHED',
+              message: `Architecture documents created, healed, or regenerated (${changed
+                .map(result => nodePath.relative(invocation.cwd, result.path))
+                .join(', ')}).`,
+              severity: 'info' as const,
+            },
+          ]),
+      ...completedAdvisories,
+      ...(stageFailures.length > 0
+        ? [
+            {
+              code: 'ARCHITECTURE_STAGE_FAILED',
+              message: `Architecture documents were refreshed but could not be staged (${stageFailures.join(', ')}).`,
+              severity: 'warning' as const,
+            },
+          ]
+        : []),
+    ],
+    nextActions:
+      stageFailures.length > 0
+        ? [
+            {
+              command: 'safeword project architecture --stage',
+              mutates: true,
+              requiresHuman: false,
             },
           ]
         : [],
-    data: { command: 'project architecture' },
+    data: {
+      command: 'project architecture',
+      staged: invocation.options.stage === true && stageFailures.length === 0,
+      staged_files: staged.map(effect => effect.target),
+      stage_failures: stageFailures,
+      enforcement: true,
+    },
   });
 }
 
@@ -504,7 +598,10 @@ async function codexStatusHandler(invocation: CommandInvocation): Promise<CliRes
   return observeCodexMigration(invocation.cwd);
 }
 
-function codexConfirmation(name: string): CliResult {
+function codexConfirmation(
+  name: string,
+  plannedFiles: readonly { readonly path: string; readonly action: string }[] = [],
+): CliResult {
   return createResult({
     state: 'action_required',
     findings: [
@@ -515,7 +612,21 @@ function codexConfirmation(name: string): CliResult {
       },
     ],
     nextActions: [{ command: `safeword ${name} --yes`, mutates: true, requiresHuman: true }],
-    data: { command: name },
+    data: {
+      command: name,
+      plan: {
+        effects: {
+          files: plannedFiles.map(effect => ({
+            kind: effect.action,
+            target: effect.path,
+          })),
+          packages: [],
+          configuration: [],
+          network: [],
+          destructive: [],
+        },
+      },
+    },
   });
 }
 
@@ -550,6 +661,18 @@ async function runCodexFinalization(
     ...observed,
     state: changed ? 'changed' : observed.state,
     changed,
+    findings: [
+      ...observed.findings,
+      ...(changed
+        ? [
+            {
+              code: 'CODEX_LEGACY_STATE_BACKED_UP',
+              message: 'Backed up the complete legacy Codex state for conflict-safe recovery.',
+              severity: 'info' as const,
+            },
+          ]
+        : []),
+    ],
     effects: {
       ...observed.effects,
       files: changed
@@ -567,6 +690,8 @@ function runCodexInstall(
   invocation: CommandInvocation,
   migration: typeof CodexMigration,
 ): CliResult {
+  const before = migration.observeCodexMigrationResult(invocation.cwd);
+  if (before.plugin.enabled === true) return migration.observeCodexMigration(invocation.cwd);
   migration.installCodexPlugin({
     cwd: invocation.cwd,
     json: true,
@@ -575,7 +700,7 @@ function runCodexInstall(
   const observed = migration.observeCodexMigration(invocation.cwd);
   return {
     ...observed,
-    state: 'changed',
+    state: observed.state === 'healthy' ? 'changed' : observed.state,
     changed: true,
     effects: {
       ...observed.effects,
@@ -584,13 +709,26 @@ function runCodexInstall(
   };
 }
 
-function codexFailure(error: unknown): CliResult {
+function codexFailureCode(
+  message: string,
+  name: CodexMutationName,
+  isFinalization: boolean,
+): string {
+  if (!isFinalization)
+    return name === 'codex recover' ? 'RECOVERY_FAILED' : 'PLUGIN_INSTALL_FAILED';
+  return /current plugin[- ]hook proof/i.test(message)
+    ? 'FINALIZATION_PROOF_REQUIRED'
+    : 'FINALIZATION_FAILED';
+}
+
+function codexFailure(error: unknown, name: CodexMutationName, isFinalization: boolean): CliResult {
+  const message = error instanceof Error ? error.message : String(error);
   return createResult({
     state: 'failed',
     errors: [
       {
-        code: 'CODEX_COMMAND_FAILED',
-        message: error instanceof Error ? error.message : String(error),
+        code: codexFailureCode(message, name, isFinalization),
+        message,
         retryable: true,
       },
     ],
@@ -619,6 +757,12 @@ async function executeCodexMutation(
   return runCodexInstall(invocation, migration);
 }
 
+async function codexRecoveryRequired(cwd: string, isFinalization: boolean): Promise<boolean> {
+  if (!isFinalization) return false;
+  const finalization = await import('../codex-plugin/finalization.js');
+  return finalization.codexRecoveryIsRequired(cwd);
+}
+
 async function codexMutationHandler(
   name: CodexMutationName,
   invocation: CommandInvocation,
@@ -628,15 +772,22 @@ async function codexMutationHandler(
   const isFinalization =
     name === 'codex migrate' &&
     (invocation.options.finalize === true || invocation.options.removeLegacyHooks === true);
+  const recoveryRequired = await codexRecoveryRequired(invocation.cwd, isFinalization);
+  if (recoveryRequired) {
+    return migration.observeCodexMigration(invocation.cwd);
+  }
   if (codexNeedsConfirmation(name, isFinalization, invocation)) {
-    return codexConfirmation(name);
+    return codexConfirmation(
+      name,
+      isFinalization ? migration.observeCodexFinalizationEffects(invocation.cwd) : [],
+    );
   }
 
   invocation.progress?.start(`Running ${name}…`);
   try {
     return await executeCodexMutation(name, isFinalization, invocation, migration);
   } catch (codexError) {
-    return codexFailure(codexError);
+    return codexFailure(codexError, name, isFinalization);
   }
 }
 

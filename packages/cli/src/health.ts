@@ -23,7 +23,7 @@ import type { ProjectType } from './packs/types.js';
 import { typescriptPackages } from './packs/typescript/files.js';
 import { reconcile } from './reconcile.js';
 import { BDD_LANE_FILE_PATHS, BDD_LANE_SCRIPT, SAFEWORD_SCHEMA } from './schema.js';
-import { readTickets } from './ticket-sync/index.js';
+import { inspectTicketIndexConflicts, readTickets } from './ticket-sync/index.js';
 import { listArchitectureRecords } from './utils/architecture-records.js';
 import {
   defaultConfiguredPath,
@@ -54,6 +54,7 @@ import {
   isRuleId,
   type SurfaceCoverageReport,
 } from './utils/scenario-coverage.js';
+import { buildIndexConflictListMessage } from './utils/ticket-index-warnings.js';
 import { formatTicketReference } from './utils/ticket-reference.js';
 import { findDanglingDependencies, findTicketsInCycles } from './utils/ticket-relations.js';
 import { VERSION } from './version.js';
@@ -736,6 +737,7 @@ export async function checkHealth(
   // Check for missing language packs (unless install was deliberately skipped)
   const missingPacks = options.skipPackageChecks ? [] : getMissingPacks(cwd);
   const coverageDiagnostics = findCoverageDiagnostics(cwd);
+  const ticketIndexConflicts = inspectTicketIndexConflicts(cwd);
   issues.push(...coverageDiagnostics.issues);
 
   return {
@@ -746,6 +748,9 @@ export async function checkHealth(
     latestVersion: undefined,
     issues,
     advisories: [
+      ...(ticketIndexConflicts.length === 0
+        ? []
+        : [buildIndexConflictListMessage(ticketIndexConflicts)]),
       ...findNamespaceAdvisories(cwd),
       ...findPersonaAdvisories(cwd),
       ...findGlossaryAdvisories(cwd),

@@ -1573,7 +1573,10 @@ When('the default verification suite runs', function (this: CodexPluginMigration
     ],
     {
       cwd: nodePath.resolve(import.meta.dirname, '..'),
-      env: { SAFEWORD_RUN_CODEX_LIVE_SMOKE: '' },
+      env: {
+        NODE_OPTIONS: '--import tsx',
+        SAFEWORD_RUN_CODEX_LIVE_SMOKE: '',
+      },
       timeout: 120_000,
     },
   );
