@@ -100,7 +100,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 4c27ed9d1
 - [x] GREEN 46a4a9c09
-- [ ] REFACTOR
+- [x] REFACTOR skip: confirmation is isolated as a pure pre-mutation gate
 
 ### Scenario: Confirmed finalization creates a recoverable plugin-only project
 
