@@ -7,6 +7,7 @@ import { Command, CommanderError, Option } from 'commander';
 import { findCommandDefinition } from './cli-protocol/catalog.js';
 import { addGlobalOptions } from './cli-protocol/execute.js';
 import { registerPublicCommandCatalog } from './cli-protocol/register.js';
+import { createResult, renderJsonResult } from './cli-protocol/result.js';
 import { installCliCrashCapture } from './self-report-capture.js';
 import { error } from './utils/output.js';
 import { VERSION } from './version.js';
@@ -17,6 +18,32 @@ const program = new Command()
   .name('safeword')
   .description('CLI for setting up and managing Safeword development environments')
   .version(VERSION);
+program.exitOverride();
+
+function machineOutputRequested(arguments_: readonly string[]): boolean {
+  const optionBoundary = arguments_.indexOf('--');
+  const cliArguments = optionBoundary === -1 ? arguments_ : arguments_.slice(0, optionBoundary);
+  return cliArguments.includes('--json');
+}
+
+function isCommanderError(value: unknown): value is CommanderError {
+  if (value instanceof CommanderError) return true;
+  if (typeof value !== 'object' || value === null) return false;
+  const candidate = value as { code?: unknown; exitCode?: unknown; message?: unknown };
+  return (
+    typeof candidate.code === 'string' &&
+    candidate.code.startsWith('commander.') &&
+    typeof candidate.exitCode === 'number' &&
+    typeof candidate.message === 'string'
+  );
+}
+
+const machineOutput = machineOutputRequested(process.argv.slice(2));
+program.configureOutput({
+  writeErr: output => {
+    if (!machineOutput) process.stderr.write(output);
+  },
+});
 
 addGlobalOptions(program);
 registerPublicCommandCatalog(program);
@@ -82,14 +109,26 @@ family('codex')
     recoverCodexMigration(process.cwd());
   });
 
-program.exitOverride();
 try {
   await program.parseAsync();
 } catch (parseError: unknown) {
-  if (parseError instanceof CommanderError && parseError.exitCode === 0) {
+  if (isCommanderError(parseError) && parseError.exitCode === 0) {
     process.exitCode = 0;
+  } else if (machineOutput && isCommanderError(parseError)) {
+    const result = createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'CLI_ARGUMENT_INVALID',
+          message: parseError.message,
+          retryable: false,
+        },
+      ],
+    });
+    process.stdout.write(`${renderJsonResult(result)}\n`);
+    process.exitCode = 1;
   } else {
     error(parseError instanceof Error ? parseError.message : String(parseError));
-    process.exitCode = parseError instanceof CommanderError ? parseError.exitCode : 1;
+    process.exitCode = isCommanderError(parseError) ? parseError.exitCode : 1;
   }
 }

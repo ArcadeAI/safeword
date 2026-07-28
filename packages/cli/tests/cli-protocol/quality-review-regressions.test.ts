@@ -227,6 +227,18 @@ describe('quality-review regressions for the public CLI boundary', () => {
     });
   });
 
+  it('renders Commander argument failures through the JSON protocol', async () => {
+    const result = await runCli(['capabilities', '--json', '--no-input', '--definitely-invalid']);
+
+    expect(result).toMatchObject({ exitCode: 1, stderr: '' });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      schema_version: 1,
+      state: 'failed',
+      changed: false,
+      errors: [{ code: 'CLI_ARGUMENT_INVALID', retryable: false }],
+    });
+  });
+
   it('gives canonical retro leaves options parsed by the retained family alias', async () => {
     const definition = findCommandDefinition('retro run');
     const originalHandler = definition.handler;
