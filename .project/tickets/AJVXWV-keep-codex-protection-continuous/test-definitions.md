@@ -222,7 +222,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 0a8e46df7
 - [x] GREEN db7068def
-- [ ] REFACTOR
+- [x] REFACTOR skip: observation failures now enrich the same complete result object
 
 ### Scenario: JSON status uses state-specific complete schema
 
