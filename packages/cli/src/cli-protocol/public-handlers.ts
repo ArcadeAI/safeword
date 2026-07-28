@@ -7,6 +7,7 @@ import type { RetroCliOptions, RetroCommandExecution } from '../commands/retro.j
 import type { CommandHandler, CommandInvocation } from './handler.js';
 import { effectsFromMutationJournal, type JournalMutation } from './mutation-effects.js';
 import { type CliPlan, createPlan, toWirePlan } from './plan.js';
+import { buildReplayCommand } from './replay-command.js';
 import { type CliResult, createResult } from './result.js';
 
 function onlineRequired(name: string, nextCommand = name): CliResult {
@@ -30,30 +31,22 @@ function onlineRequired(name: string, nextCommand = name): CliResult {
   });
 }
 
-function shellArgument(value: string): string {
-  const escapedSingleQuote = `'"'"'`;
-  return `'${value.split("'").join(escapedSingleQuote)}'`;
-}
-
 function ticketNewReplayCommand(invocation: CommandInvocation): string {
   const slug = String(invocation.operands[0]);
   const type = stringOption(invocation.options, 'type') ?? 'task';
-  const optionalArguments = [
-    ['--title', stringOption(invocation.options, 'title')],
-    ['--goal', stringOption(invocation.options, 'goal')],
-    ['--why', stringOption(invocation.options, 'why')],
-    ['--parent', stringOption(invocation.options, 'parent')],
-    ['--issue', stringOption(invocation.options, 'issue')],
-  ] as const;
-  const renderedOptions = optionalArguments.flatMap(([flag, value]) =>
-    value === undefined ? [] : [`${flag} ${shellArgument(value)}`],
-  );
-  return [
-    `ticket new ${shellArgument(slug)}`,
-    `--type ${shellArgument(type)}`,
-    ...renderedOptions,
-    `--cwd ${shellArgument(invocation.cwd)}`,
-  ].join(' ');
+  return buildReplayCommand({
+    command: 'ticket new',
+    operands: [slug],
+    options: [
+      ['--type', type],
+      ['--title', stringOption(invocation.options, 'title')],
+      ['--goal', stringOption(invocation.options, 'goal')],
+      ['--why', stringOption(invocation.options, 'why')],
+      ['--parent', stringOption(invocation.options, 'parent')],
+      ['--issue', stringOption(invocation.options, 'issue')],
+    ],
+    cwd: invocation.cwd,
+  });
 }
 
 function notConfigured(command: string): CliResult {
@@ -412,20 +405,16 @@ function numericOption(
 }
 
 function trackerConnectReplayCommand(provider: string, invocation: CommandInvocation): string {
-  const options = [
-    ['--repo', stringOption(invocation.options, 'repo')],
-    ['--team', stringOption(invocation.options, 'team')],
-    ['--workspace', stringOption(invocation.options, 'workspace')],
-  ] as const;
-  return [
-    'safeword tracker connect',
-    shellArgument(provider),
-    ...options.flatMap(([flag, value]) =>
-      value === undefined ? [] : [flag, shellArgument(value)],
-    ),
-    '--cwd',
-    shellArgument(invocation.cwd),
-  ].join(' ');
+  return buildReplayCommand({
+    command: 'safeword tracker connect',
+    operands: [provider],
+    options: [
+      ['--repo', stringOption(invocation.options, 'repo')],
+      ['--team', stringOption(invocation.options, 'team')],
+      ['--workspace', stringOption(invocation.options, 'workspace')],
+    ],
+    cwd: invocation.cwd,
+  });
 }
 
 function trackerConnectResult(
