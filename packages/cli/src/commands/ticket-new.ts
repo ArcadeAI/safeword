@@ -14,6 +14,7 @@
  * off-board. `--parent` epic-linking composes on top of whichever route runs.
  */
 
+import nodePath from 'node:path';
 import process from 'node:process';
 
 import { type CliResult, createResult } from '../cli-protocol/result.js';
@@ -154,16 +155,24 @@ export async function createTicketResult(
       state: 'changed',
       effects: {
         files: [
-          { kind: 'create', target: result.ticketPath, operation: 'write' },
-          { kind: 'create', target: result.folderPath, operation: 'mkdir' },
+          {
+            kind: 'create',
+            target: nodePath.relative(cwd, result.ticketPath),
+            operation: 'write',
+          },
+          {
+            kind: 'create',
+            target: nodePath.relative(cwd, result.folderPath),
+            operation: 'mkdir',
+          },
         ],
       },
       findings,
       data: {
         command: 'ticket new',
         ticket_id: result.id,
-        folder: result.folderPath,
-        file: result.ticketPath,
+        folder: nodePath.relative(cwd, result.folderPath),
+        file: nodePath.relative(cwd, result.ticketPath),
       },
     });
   } catch (creationError) {

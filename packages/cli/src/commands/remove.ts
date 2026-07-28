@@ -1,6 +1,10 @@
 import { toWirePlan } from '../cli-protocol/plan.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
-import { applyReconciliation, createReconciliationPlan } from './reconciliation-plan.js';
+import {
+  applyReconciliation,
+  createReconciliationPlan,
+  effectsForReconciliation,
+} from './reconciliation-plan.js';
 
 export interface RemoveOptions {
   readonly full?: boolean;
@@ -16,7 +20,6 @@ export async function removeProject(cwd: string, options: RemoveOptions): Promis
     if (options.yes !== true || options.plan === undefined) {
       return createResult({
         state: 'action_required',
-        effects: plan.effects,
         findings: [
           {
             code: 'CONFIRMATION_REQUIRED',
@@ -53,7 +56,7 @@ export async function removeProject(cwd: string, options: RemoveOptions): Promis
     return createResult({
       state: applied.actions.length === 0 ? 'healthy' : 'changed',
       changed: applied.actions.length > 0,
-      effects: plan.effects,
+      effects: effectsForReconciliation(applied, mode),
       data: {
         removed: applied.removed,
       },

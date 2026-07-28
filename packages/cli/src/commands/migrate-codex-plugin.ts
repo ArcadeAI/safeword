@@ -6,6 +6,7 @@ import nodePath from 'node:path';
 
 import { parse } from 'smol-toml';
 
+import { type CliResult, createResult } from '../cli-protocol/result.js';
 import {
   applyCodexFinalization,
   codexFinalizationIsComplete,
@@ -465,7 +466,7 @@ function observeViableLegacyEvents(
   });
 }
 
-function observeCodexMigrationResult(
+export function observeCodexMigrationResult(
   cwd = process.cwd(),
   environment: NodeJS.ProcessEnv = process.env,
 ): CodexMigrationResultV1 {
@@ -501,6 +502,42 @@ function observeCodexMigrationResult(
     });
   }
   return result;
+}
+
+export function observeCodexMigration(
+  cwd = process.cwd(),
+  environment: NodeJS.ProcessEnv = process.env,
+): CliResult {
+  const result = observeCodexMigrationResult(cwd, environment);
+  let state: CliResult['state'] = 'action_required';
+  if (result.errors.length > 0) state = 'failed';
+  else if (result.ok) state = 'healthy';
+  return createResult({
+    state,
+    findings:
+      result.errors.length > 0
+        ? []
+        : [
+            {
+              code: `CODEX_${result.state.toUpperCase()}`,
+              message: `Codex migration state: ${result.state}.`,
+              severity: result.ok ? 'info' : 'warning',
+            },
+          ],
+    errors: result.errors,
+    nextActions: result.next_actions.map(action => ({
+      command: action.command,
+      mutates: action.mutates,
+      requiresHuman: action.requires_human,
+    })),
+    data: {
+      command: 'codex status',
+      protected: result.protected,
+      plugin: result.plugin,
+      proof: result.proof,
+      legacy: result.legacy,
+    },
+  });
 }
 
 export function statusCodexMigration(

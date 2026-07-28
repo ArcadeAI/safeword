@@ -60,7 +60,7 @@ function actionEffect(action: Action): Effect[] {
   }));
 }
 
-function effectsFor(result: ReconcileResult, mode: PlanMode): Effects {
+export function effectsForReconciliation(result: ReconcileResult, mode: PlanMode): Effects {
   const fileEffects = result.actions.flatMap(action => actionEffect(action));
   const packageNames = mode === 'upgrade' ? result.packagesToInstall : result.packagesToRemove;
   const packageEffects = packageNames.map(target => ({
@@ -87,7 +87,7 @@ export async function createReconciliationPlan(
 ): Promise<ReconciliationPlan> {
   const context = createProjectContext(cwd);
   const dryRun = await reconcile(SAFEWORD_SCHEMA, mode, context, { dryRun: true });
-  const effects = effectsFor(dryRun, mode);
+  const effects = effectsForReconciliation(dryRun, mode);
   return {
     dryRun,
     plan: createPlan({

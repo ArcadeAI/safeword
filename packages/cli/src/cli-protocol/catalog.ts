@@ -25,6 +25,14 @@ export interface CommandDefinition {
     readonly environment: Readonly<Record<string, string>>;
   };
   readonly handler: CommandHandler;
+  readonly registration: {
+    readonly syntax: string;
+    readonly options: readonly {
+      readonly flags: string;
+      readonly description: string;
+      readonly defaultValue?: string;
+    }[];
+  };
   readonly aliasFor?: string;
   readonly compatibility?: Compatibility;
 }
@@ -40,7 +48,13 @@ function command(
   name: string,
   description: string,
   effectClass: EffectClass,
-  options: Partial<Pick<CommandDefinition, 'promptPolicy' | 'networkPolicy' | 'fixture'>> = {},
+  options: Partial<
+    Pick<CommandDefinition, 'promptPolicy' | 'networkPolicy' | 'fixture'> & {
+      syntax: string;
+      commandOptions: CommandDefinition['registration']['options'];
+      handler: CommandHandler;
+    }
+  > = {},
 ): CommandDefinition {
   return {
     name,
@@ -50,7 +64,11 @@ function command(
     promptPolicy: options.promptPolicy ?? 'never',
     networkPolicy: options.networkPolicy ?? 'never',
     schemaVersions: [1],
-    handler: publicHandler(name),
+    handler: options.handler ?? publicHandler(name),
+    registration: {
+      syntax: options.syntax ?? name.split(' ').at(-1) ?? name,
+      options: options.commandOptions ?? [],
+    },
     fixture: options.fixture ?? {
       argv: name.split(' '),
       environment: MACHINE_ENVIRONMENT,
@@ -65,6 +83,7 @@ function alias(
 ): CommandDefinition {
   return {
     ...command(name, `Deprecated alias for ${aliasFor}`, effectClass),
+    handler: publicHandler(aliasFor),
     aliasFor,
     compatibility: RETAINED_ALIAS,
   };
@@ -81,44 +100,114 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   command('status', 'Report project health and the next action', 'observe'),
   command('setup', 'Converge Safeword configuration', 'mutate', {
     networkPolicy: 'declared',
+    commandOptions: [
+      { flags: '-y, --yes', description: 'Skip confirmation prompts' },
+      { flags: '--no-modify', description: 'Do not edit the project ESLint configuration' },
+    ],
   }),
   command('plan', 'Preview reconciliation effects', 'plan'),
   command('doctor', 'Diagnose project configuration', 'observe'),
   command('remove', 'Remove Safeword configuration', 'destructive', {
     promptPolicy: 'confirm',
+    commandOptions: [
+      { flags: '--yes', description: 'Confirm the supplied plan identity' },
+      { flags: '--plan <id>', description: 'Identity of the exact plan being confirmed' },
+      { flags: '--full', description: 'Also remove linting configuration and packages' },
+    ],
   }),
-  command('project sync-config', 'Regenerate dependency-cruiser configuration', 'mutate'),
-  command('project architecture', 'Refresh generated architecture state', 'mutate'),
+  command('project sync-config', 'Regenerate dependency-cruiser configuration', 'mutate', {
+    commandOptions: [{ flags: '--check', description: 'Report drift without writing' }],
+  }),
+  command('project architecture', 'Refresh generated architecture state', 'mutate', {
+    commandOptions: [
+      { flags: '--check', description: 'Report drift without writing' },
+      { flags: '--stage', description: 'Stage regenerated architecture documents' },
+    ],
+  }),
   command('project sync-learnings', 'Refresh the project learning index', 'mutate'),
   command('project sync-tickets', 'Refresh project ticket indexes', 'mutate'),
   command('project codify', 'Generate a test skeleton from ticket behavior', 'mutate', {
+    syntax: 'codify <ticket>',
+    commandOptions: [
+      {
+        flags: '--format <format>',
+        description: 'Output format: vitest or gherkin',
+        defaultValue: 'vitest',
+      },
+      { flags: '--red', description: 'Emit failing test bodies' },
+      { flags: '--out <path>', description: 'Write to a new file' },
+    ],
     fixture: {
       argv: ['project', 'codify', 'fixture'],
       environment: MACHINE_ENVIRONMENT,
     },
   }),
-  command('project test-plan', 'Describe repository test commands', 'observe'),
-  command('project lint-gherkin', 'Validate executable feature files', 'observe'),
+  command('project test-plan', 'Describe repository test commands', 'observe', {
+    syntax: 'test-plan [dir]',
+    commandOptions: [
+      {
+        flags: '--kind <kind>',
+        description: 'test, build, verify, typecheck, deps, or bdd',
+        defaultValue: 'test',
+      },
+      { flags: '--format <format>', description: 'human, json, or sh', defaultValue: 'human' },
+    ],
+  }),
+  command('project lint-gherkin', 'Validate executable feature files', 'observe', {
+    syntax: 'lint-gherkin [files...]',
+  }),
   command('tracker sync', 'Synchronize tickets with the configured tracker', 'mutate', {
     networkPolicy: 'declared',
+    commandOptions: [
+      { flags: '--reset-tracker-map', description: 'Rebuild the tracker map' },
+      { flags: '--plan', description: 'Compute an offline tracker plan' },
+      { flags: '--apply-results <file>', description: 'Apply executor results offline' },
+    ],
   }),
   command('tracker connect', 'Connect a project to a tracker', 'mutate', {
     networkPolicy: 'declared',
+    syntax: 'connect <provider>',
+    commandOptions: [
+      { flags: '--repo <owner/name>', description: 'GitHub target repository' },
+      { flags: '--team <team>', description: 'Linear target team' },
+      { flags: '--workspace <workspace>', description: 'Linear target workspace' },
+    ],
     fixture: {
       argv: ['tracker', 'connect', 'github'],
       environment: MACHINE_ENVIRONMENT,
     },
   }),
-  command('codex migrate', 'Migrate legacy project hooks to the Codex plugin', 'mutate'),
+  command('codex migrate', 'Migrate legacy project hooks to the Codex plugin', 'mutate', {
+    networkPolicy: 'declared',
+    commandOptions: [
+      { flags: '--finalize', description: 'Finalize after current plugin-hook proof exists' },
+      { flags: '--yes', description: 'Confirm the observed migration plan' },
+      { flags: '--remove-legacy-hooks', description: 'Deprecated alias for --finalize' },
+    ],
+  }),
   command('codex install', 'Install the Codex profile plugin', 'mutate', {
     networkPolicy: 'declared',
   }),
   command('codex status', 'Report Codex plugin and migration state', 'observe'),
   command('codex recover', 'Restore backed-up legacy Codex project state', 'destructive', {
     promptPolicy: 'confirm',
+    commandOptions: [{ flags: '--yes', description: 'Confirm recovery of the observed backup' }],
   }),
   command('ticket list', 'List project tickets', 'observe'),
   command('ticket new', 'Create a project ticket', 'mutate', {
+    syntax: 'new <slug>',
+    commandOptions: [
+      {
+        flags: '--type <type>',
+        description: 'patch, task, feature, or epic',
+        defaultValue: 'task',
+      },
+      { flags: '--title <title>', description: 'Ticket title' },
+      { flags: '--goal <goal>', description: 'One-line goal' },
+      { flags: '--why <why>', description: 'One-line rationale' },
+      { flags: '--parent <epicId>', description: 'Link the ticket to an epic' },
+      { flags: '--issue <key>', description: 'Adopt an existing tracker issue key' },
+    ],
     fixture: {
       argv: ['ticket', 'new', 'machine-fixture', '--type', 'task'],
       environment: {
@@ -129,6 +218,13 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   }),
   command('retro run', 'Extract and file session findings', 'mutate', {
     networkPolicy: 'declared',
+    commandOptions: [
+      { flags: '--transcript <path>', description: 'Session transcript path' },
+      { flags: '--findings <path>', description: 'Agent-produced findings JSON' },
+      { flags: '--auto-extract', description: 'Extract findings with a headless agent' },
+      { flags: '--window-start <chars>', description: 'Transcript delta offset' },
+      { flags: '--session-id <id>', description: 'Stable session identifier' },
+    ],
     fixture: {
       argv: ['retro', 'run', '--transcript', 'fixture'],
       environment: MACHINE_ENVIRONMENT,
@@ -138,30 +234,76 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   command('retro reconcile', 'Reconcile open retro findings', 'mutate', {
     networkPolicy: 'declared',
   }),
-  command('capabilities', 'Describe the public machine interface', 'observe'),
+  command('capabilities', 'Describe the public machine interface', 'observe', {
+    handler: () => Promise.resolve(createCapabilitiesResult()),
+  }),
 ];
+
+function canonicalOptions(name: string): CommandDefinition['registration']['options'] {
+  const definition = CANONICAL_COMMANDS.find(candidate => candidate.name === name);
+  if (definition === undefined) throw new Error(`Missing canonical command: ${name}`);
+  return definition.registration.options;
+}
 
 const ALIASES: readonly CommandDefinition[] = [
   alias('check', 'status', 'observe'),
-  alias('upgrade', 'setup', 'mutate'),
+  {
+    ...alias('upgrade', 'setup', 'mutate'),
+    registration: {
+      syntax: 'upgrade',
+      options: canonicalOptions('setup'),
+    },
+  },
   alias('diff', 'plan', 'plan'),
-  alias('reset', 'remove', 'destructive'),
+  {
+    ...alias('reset', 'remove', 'destructive'),
+    registration: {
+      syntax: 'reset',
+      options: canonicalOptions('remove'),
+    },
+  },
   alias('sync-config', 'project sync-config', 'mutate'),
   alias('architecture', 'project architecture', 'mutate'),
   alias('sync-learnings', 'project sync-learnings', 'mutate'),
   alias('sync-tickets', 'project sync-tickets', 'mutate'),
   {
     ...alias('codify', 'project codify', 'mutate'),
+    registration: {
+      syntax: 'codify <ticket>',
+      options: canonicalOptions('project codify'),
+    },
     fixture: {
       argv: ['codify', 'fixture'],
       environment: MACHINE_ENVIRONMENT,
     },
   },
-  alias('test-plan', 'project test-plan', 'observe'),
-  alias('lint-gherkin', 'project lint-gherkin', 'observe'),
-  alias('sync-tracker', 'tracker sync', 'mutate'),
+  {
+    ...alias('test-plan', 'project test-plan', 'observe'),
+    registration: {
+      syntax: 'test-plan [dir]',
+      options: canonicalOptions('project test-plan'),
+    },
+  },
+  {
+    ...alias('lint-gherkin', 'project lint-gherkin', 'observe'),
+    registration: {
+      syntax: 'lint-gherkin [files...]',
+      options: [],
+    },
+  },
+  {
+    ...alias('sync-tracker', 'tracker sync', 'mutate'),
+    registration: {
+      syntax: 'sync-tracker',
+      options: canonicalOptions('tracker sync'),
+    },
+  },
   {
     ...alias('connect', 'tracker connect', 'mutate'),
+    registration: {
+      syntax: 'connect <provider>',
+      options: canonicalOptions('tracker connect'),
+    },
     fixture: {
       argv: ['connect', 'github'],
       environment: MACHINE_ENVIRONMENT,
@@ -170,13 +312,23 @@ const ALIASES: readonly CommandDefinition[] = [
   alias('self-report', 'retro signals', 'observe'),
   {
     ...alias('retro', 'retro run', 'mutate'),
+    registration: {
+      syntax: 'retro',
+      options: canonicalOptions('retro run'),
+    },
     fixture: {
       argv: ['retro', '--transcript', 'fixture'],
       environment: MACHINE_ENVIRONMENT,
     },
   },
   alias('retro-reconcile', 'retro reconcile', 'mutate'),
-  alias('migrate codex-plugin', 'codex migrate', 'mutate'),
+  {
+    ...alias('migrate codex-plugin', 'codex migrate', 'mutate'),
+    registration: {
+      syntax: 'codex-plugin',
+      options: canonicalOptions('codex migrate'),
+    },
+  },
 ];
 
 const HIDDEN_COMMANDS: readonly CommandDefinition[] = [

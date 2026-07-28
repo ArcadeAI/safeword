@@ -73,7 +73,7 @@ export function hasArchitectureDetected(arch: DependencyCruiseArchitecture): boo
  * Returns { matches: true } when bytes are byte-equal.
  * Returns { matches: false, reason } when on-disk is missing or differs.
  */
-function checkConfig(
+export function inspectConfig(
   cwd: string,
   arch: DependencyCruiseArchitecture,
 ): { matches: true } | { matches: false; reason: 'missing' | 'drifted' } {
@@ -106,7 +106,7 @@ export async function syncConfig(options: { check?: boolean } = {}): Promise<voi
   const arch = buildArchitecture(cwd);
 
   if (options.check) {
-    const result = checkConfig(cwd, arch);
+    const result = inspectConfig(cwd, arch);
     if (result.matches) {
       success('Config in sync');
       return;

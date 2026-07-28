@@ -10,6 +10,7 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
+import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { readBddConventionsPath, resolveTicketsDirectory } from '../utils/configured-paths.js';
 import { findFeatureSourcePath } from '../utils/feature-source.js';
 import { FeatureParseError, parseFeatureScenarios } from '../utils/gherkin-feature.js';
@@ -32,7 +33,11 @@ export interface CodifyOptions {
 }
 
 export function codify(ticket: string, options: CodifyOptions): Promise<void> {
-  codifySync(ticket, options);
+  try {
+    codifySync(ticket, options);
+  } catch (codifyError) {
+    fail(codifyError instanceof Error ? codifyError.message : String(codifyError));
+  }
   return Promise.resolve();
 }
 
@@ -58,6 +63,71 @@ function codifySync(ticket: string, options: CodifyOptions): void {
     writeSkeleton(nodePath.resolve(cwd, options.out), options.out, skeleton, scenarios.length);
   }
   printConventionsPointer(cwd);
+}
+
+export function codifyResult(
+  cwd: string,
+  ticket: string,
+  options: CodifyOptions,
+): Promise<CliResult> {
+  try {
+    const format = resolveFormat(options.format);
+    const ticketDirectory = resolveTicketDirectory(cwd, ticket);
+    if (ticketDirectory === undefined) {
+      throw new Error(`No ticket folder for "${ticket}" under the tickets directory.`);
+    }
+    const source = readCodifySource(cwd, ticketDirectory);
+    const scenarios = parseCodifyScenarios(source);
+    if (scenarios.length === 0) {
+      throw new Error(`No scenarios found in ${source.displayPath}.`);
+    }
+    const skeleton = renderSkeleton(format, source, scenarios, ticket, options.red);
+    if (options.out === undefined) {
+      return Promise.resolve(
+        createResult({
+          state: 'healthy',
+          data: {
+            command: 'project codify',
+            format,
+            scenarios: scenarios.length,
+            output: skeleton,
+          },
+        }),
+      );
+    }
+    const outputPath = nodePath.resolve(cwd, options.out);
+    writeFileSync(outputPath, skeleton, { flag: 'wx' });
+    return Promise.resolve(
+      createResult({
+        state: 'changed',
+        effects: {
+          files: [{ kind: 'create', target: nodePath.relative(cwd, outputPath) }],
+        },
+        data: {
+          command: 'project codify',
+          format,
+          scenarios: scenarios.length,
+        },
+      }),
+    );
+  } catch (codifyError) {
+    const errorCode =
+      codifyError instanceof Error && (codifyError as NodeJS.ErrnoException).code === 'EEXIST'
+        ? 'CODIFY_OUTPUT_EXISTS'
+        : 'CODIFY_FAILED';
+    return Promise.resolve(
+      createResult({
+        state: 'failed',
+        errors: [
+          {
+            code: errorCode,
+            message: codifyError instanceof Error ? codifyError.message : String(codifyError),
+            retryable: false,
+          },
+        ],
+      }),
+    );
+  }
 }
 
 /**
