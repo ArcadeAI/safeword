@@ -11,6 +11,7 @@ import {
   deriveCodexMigrationResult,
   renderCodexMigrationHuman,
 } from '../../src/codex-plugin/migration.ts';
+import { SAFEWORD_SCHEMA } from '../../src/schema.ts';
 import type { SafewordWorld } from './world.js';
 
 interface ContinuityStatusWorld extends SafewordWorld {
@@ -30,7 +31,7 @@ const missingProof: CodexMigrationFacts['proof'] = {
 
 const currentProof: CodexMigrationFacts['proof'] = {
   status: 'current',
-  plugin_version: '1.0.0',
+  plugin_version: SAFEWORD_SCHEMA.version,
   manifest_sha256: 'a'.repeat(64),
   recorded_at: '2026-07-28T00:00:00.000Z',
 };
@@ -45,7 +46,7 @@ const absentPlugin: CodexMigrationFacts['plugin'] = {
 const enabledPlugin: CodexMigrationFacts['plugin'] = {
   installed: true,
   enabled: true,
-  version: '1.0.0',
+  version: SAFEWORD_SCHEMA.version,
   observation: 'observed',
 };
 
@@ -246,6 +247,16 @@ Given(
   },
 );
 
+Given(
+  'the active Codex profile reports an enabled older Safe Word plugin',
+  function (this: ContinuityStatusWorld) {
+    this.codexFacts = facts({
+      plugin: { ...enabledPlugin, version: '0.68.0' },
+      proof: currentProof,
+    });
+  },
+);
+
 Given('no current profile hook proof exists', function (this: ContinuityStatusWorld) {
   assert.ok(this.codexFacts, 'plugin fixture was not initialized');
   this.codexFacts.proof = missingProof;
@@ -319,6 +330,15 @@ Then(
     const status = requireStatus(this);
     assert.equal(status.state, 'plugin_enabled_hook_unproven');
     assert.equal(status.next_actions[0]?.command, 'safeword codex status');
+  },
+);
+
+Then(
+  'status reports plugin_update_required and recommends updating the plugin',
+  function (this: ContinuityStatusWorld) {
+    const status = requireStatus(this);
+    assert.equal(status.state, 'plugin_update_required');
+    assert.equal(status.next_actions[0]?.command, 'safeword codex migrate');
   },
 );
 

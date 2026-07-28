@@ -14,11 +14,11 @@ import type { Provider } from '../tracker-sync/types.js';
 import { connectTracker } from './index.js';
 import { createPrompt } from './prompt.js';
 import { createSecretStore } from './secret-store.js';
-import type { ConnectResult, ConnectTarget } from './types.js';
+import { ConnectExecutionError, type ConnectResult, type ConnectTarget } from './types.js';
 import { createVerifyClient } from './verify.js';
 
 /** Resolve ports + env credential and run `connectTracker`; `log` is injected by the caller. */
-export function runConnect(
+export async function runConnect(
   provider: string,
   target: ConnectTarget,
   log: (message: string) => void,
@@ -29,14 +29,24 @@ export function runConnect(
   const envVariable = CREDENTIAL_ENV_VAR[provider as Provider] as string | undefined;
   const token = envVariable ? process.env[envVariable] : undefined;
 
-  return connectTracker({
-    cwd: options.cwd ?? process.cwd(),
-    provider,
-    target,
-    token,
-    prompt: options.prompt ?? createPrompt(),
-    secretStore: createSecretStore(),
-    verify: createVerifyClient(),
-    log,
-  });
+  try {
+    return await connectTracker({
+      cwd: options.cwd ?? process.cwd(),
+      provider,
+      target,
+      token,
+      prompt: options.prompt ?? createPrompt(),
+      secretStore: createSecretStore(),
+      verify: createVerifyClient(),
+      log,
+    });
+  } catch (connectError) {
+    if (!(connectError instanceof ConnectExecutionError)) throw connectError;
+    log(`Not connected — ${connectError.message}.`);
+    return {
+      exitCode: 1,
+      connected: false,
+      mutations: connectError.mutations,
+    };
+  }
 }

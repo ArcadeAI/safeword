@@ -31,6 +31,12 @@ Feature: Keep Codex protection continuous during profile-plugin migration
       When the builder checks Codex status
       Then status reports plugin_enabled_hook_unproven and recommends restarting and reviewing hooks
 
+    @rejection
+    Scenario: Enabled older plugin requires an update
+      Given the active Codex profile reports an enabled older Safe Word plugin
+      When the builder checks Codex status
+      Then status reports plugin_update_required and recommends updating the plugin
+
     Scenario: Successful installation requires a Codex restart
       Given the active Codex profile does not contain the Safe Word plugin
       When the builder migrates Codex and installation succeeds

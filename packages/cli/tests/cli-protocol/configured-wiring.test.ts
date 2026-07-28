@@ -155,6 +155,85 @@ describe('configured public-command wiring', () => {
     expect(readFileSync(github.log, 'utf8')).toContain('api user --jq .login');
   });
 
+  it('reports completed connect effects when tracker-map seeding fails', async () => {
+    const directory = createTemporaryDirectory();
+    mkdirSync(nodePath.join(directory, '.safeword/tracker-map.json'), { recursive: true });
+    const github = installFakeGitHubCli(directory);
+
+    const result = await runCli(
+      [
+        'tracker',
+        'connect',
+        'github',
+        '--repo',
+        'acme/demo',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      { cwd: directory, env: githubEnvironment(github) },
+    );
+
+    expect(result).toMatchObject({ exitCode: 1, stderr: '' });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'failed',
+      changed: true,
+      effects: {
+        files: [{ kind: 'create', target: '.safeword/config.json', operation: 'write' }],
+        network: [{ kind: 'verify-auth', target: 'github', operation: 'read' }],
+      },
+      recovery: [
+        {
+          command: `safeword tracker connect 'github' --repo 'acme/demo' --cwd '${directory}'`,
+          requires_human: false,
+        },
+      ],
+    });
+    expect(readFileSync(nodePath.join(directory, '.safeword/config.json'), 'utf8')).toContain(
+      '"provider": "github"',
+    );
+    expect(readFileSync(github.log, 'utf8')).toContain('api user --jq .login');
+  });
+
+  it('preserves a populated tracker-map when reconnecting', async () => {
+    const directory = createTemporaryDirectory();
+    configuredGitHubProject(directory);
+    const trackerMapPath = nodePath.join(directory, '.safeword/tracker-map.json');
+    const trackerMap = `${JSON.stringify({
+      version: 1,
+      issues: {
+        AB12CD: {
+          ref: { provider: 'github', id: '321', url: 'https://github.com/acme/demo/issues/321' },
+          status: 'recorded',
+        },
+      },
+    })}\n`;
+    writeFileSync(trackerMapPath, trackerMap);
+    const github = installFakeGitHubCli(directory);
+
+    const result = await runCli(
+      [
+        'tracker',
+        'connect',
+        'github',
+        '--repo',
+        'acme/demo',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      { cwd: directory, env: githubEnvironment(github) },
+    );
+
+    expect(result).toMatchObject({ exitCode: 0, stderr: '' });
+    expect(JSON.parse(result.stdout).effects.files).not.toContainEqual(
+      expect.objectContaining({ target: '.safeword/tracker-map.json' }),
+    );
+    expect(readFileSync(trackerMapPath, 'utf8')).toBe(trackerMap);
+  });
+
   it('drives online tracker sync through the real corpus, writer, and sidecar collaborators', async () => {
     const directory = createTemporaryDirectory();
     configuredGitHubProject(directory);

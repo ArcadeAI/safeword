@@ -9,7 +9,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { TrackerMap } from '../tracker-sync/tracker-map.js';
+import { loadTrackerMap, TrackerMap } from '../tracker-sync/tracker-map.js';
 import type { Provider } from '../tracker-sync/types.js';
 import { handoffSteps } from './handoff.js';
 import type {
@@ -20,6 +20,7 @@ import type {
   SecretStore,
   VerifyClient,
 } from './types.js';
+import { ConnectExecutionError } from './types.js';
 
 const SUPPORTED = new Set<Provider>(['linear', 'github']);
 
@@ -92,16 +93,12 @@ async function offerPollutionOptIns(
   });
 }
 
-export async function connectTracker(dependencies: ConnectDependencies): Promise<ConnectResult> {
+async function connectSupportedTracker(
+  dependencies: ConnectDependencies,
+  provider: Provider,
+  mutations: ConnectMutation[],
+): Promise<ConnectResult> {
   const { cwd, log } = dependencies;
-  const mutations: ConnectMutation[] = [];
-
-  // AC7 — an unsupported provider is rejected before any wiring.
-  if (!SUPPORTED.has(dependencies.provider as Provider)) {
-    log(`Provider "${dependencies.provider}" is not supported (use linear or github).`);
-    return { exitCode: 1, connected: false, mutations };
-  }
-  const provider = dependencies.provider as Provider;
 
   // AC2 — write non-secret config, then print the per-provider human handoff.
   const configMutation = writeProviderConfig(cwd, provider, dependencies.target);
@@ -135,18 +132,44 @@ export async function connectTracker(dependencies: ConnectDependencies): Promise
 
   // AC5 — a verified connect seeds the empty sidecar (JS5K5G's first-run contract).
   const sidecarPath = nodePath.join(cwd, '.safeword', 'tracker-map.json');
-  const sidecarExisted = existsSync(sidecarPath);
-  new TrackerMap().save(sidecarPath);
-  mutations.push({
-    surface: 'file',
-    kind: sidecarExisted ? 'update' : 'create',
-    target: '.safeword/tracker-map.json',
-    operation: 'write',
-  });
+  const sidecar = loadTrackerMap(sidecarPath);
+  if (!sidecar.ok && sidecar.reason === 'corrupt') {
+    throw new Error(
+      `${sidecarPath} is not a valid tracker map; preserve or repair it before reconnecting.`,
+    );
+  }
+  if (!sidecar.ok) {
+    new TrackerMap().save(sidecarPath);
+    mutations.push({
+      surface: 'file',
+      kind: 'create',
+      target: '.safeword/tracker-map.json',
+      operation: 'write',
+    });
+  }
   log(`Connected to ${provider} — verified and ready to sync.`);
 
   // AC6 — offer the pollution opt-ins last (post-verify, non-fatal).
   await offerPollutionOptIns(dependencies, mutations);
 
   return { exitCode: 0, connected: true, mutations };
+}
+
+export async function connectTracker(dependencies: ConnectDependencies): Promise<ConnectResult> {
+  const mutations: ConnectMutation[] = [];
+  if (!SUPPORTED.has(dependencies.provider as Provider)) {
+    dependencies.log(
+      `Provider "${dependencies.provider}" is not supported (use linear or github).`,
+    );
+    return { exitCode: 1, connected: false, mutations };
+  }
+  try {
+    return await connectSupportedTracker(
+      dependencies,
+      dependencies.provider as Provider,
+      mutations,
+    );
+  } catch (connectError) {
+    throw new ConnectExecutionError(connectError, mutations);
+  }
 }
