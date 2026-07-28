@@ -110,7 +110,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Failed finalization rolls back to the complete pre-migration state
 
-- [ ] RED
+- [x] RED f69171c2c
 - [ ] GREEN
 - [ ] REFACTOR
 
