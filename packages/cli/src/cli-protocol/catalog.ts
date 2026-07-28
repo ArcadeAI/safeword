@@ -81,8 +81,12 @@ function alias(
   aliasFor: string,
   effectClass: Exclude<EffectClass, 'hook'>,
 ): CommandDefinition {
+  const canonical = canonicalDefinition(aliasFor);
   return {
-    ...command(name, `Deprecated alias for ${aliasFor}`, effectClass),
+    ...command(name, `Deprecated alias for ${aliasFor}`, effectClass, {
+      promptPolicy: canonical.promptPolicy,
+      networkPolicy: canonical.networkPolicy,
+    }),
     handler: publicHandler(aliasFor),
     aliasFor,
     compatibility: RETAINED_ALIAS,
@@ -239,9 +243,14 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   }),
 ];
 
-function canonicalOptions(name: string): CommandDefinition['registration']['options'] {
+function canonicalDefinition(name: string): CommandDefinition {
   const definition = CANONICAL_COMMANDS.find(candidate => candidate.name === name);
   if (definition === undefined) throw new Error(`Missing canonical command: ${name}`);
+  return definition;
+}
+
+function canonicalOptions(name: string): CommandDefinition['registration']['options'] {
+  const definition = canonicalDefinition(name);
   return definition.registration.options;
 }
 

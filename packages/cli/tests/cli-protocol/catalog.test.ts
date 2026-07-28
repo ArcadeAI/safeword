@@ -62,6 +62,9 @@ describe('CLI command catalog', () => {
     const aliasDefinitions = commandCatalog.filter(entry => entry.aliasFor !== undefined);
     for (const definition of aliasDefinitions) {
       expect(canonicalNames).toContain(definition.aliasFor);
+      const canonical = commandCatalog.find(entry => entry.name === definition.aliasFor);
+      expect(definition.promptPolicy).toBe(canonical?.promptPolicy);
+      expect(definition.networkPolicy).toBe(canonical?.networkPolicy);
     }
   });
 

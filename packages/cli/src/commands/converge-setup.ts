@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { type CliResult, createResult, type Effect } from '../cli-protocol/result.js';
+import { type CliResult, createResult, type Effect, type Effects } from '../cli-protocol/result.js';
 import { installPack } from '../packs/install.js';
 import { getMissingPacks } from '../packs/registry.js';
 import { reconcile, ReconcileExecutionError, type ReconcileResult } from '../reconcile.js';
@@ -56,30 +56,20 @@ function configureArchitecture(cwd: string): Effect[] {
   ];
 }
 
-function partialSetupFailure(setupError: ReconcileExecutionError): CliResult {
-  const files = [
-    ...setupError.partial.created.map(target => ({ kind: 'create', target })),
-    ...setupError.partial.updated.map(target => ({ kind: 'update', target })),
-  ];
-  return createResult({
-    state: 'failed',
-    changed: files.length > 0,
-    effects: { files },
-    errors: [
-      {
-        code: 'SETUP_FAILED',
-        message: setupError.message,
-        retryable: true,
-      },
-    ],
-    recovery: [
-      {
-        command: 'safeword status --verbose',
-        description: 'Inspect the partial project state before retrying setup.',
-        requiresHuman: true,
-      },
-    ],
-  });
+interface SetupAdapters {
+  readonly configureArchitecture: typeof configureArchitecture;
+}
+
+const DEFAULT_SETUP_ADAPTERS: SetupAdapters = { configureArchitecture };
+
+class SetupApplyError extends Error {
+  constructor(
+    cause: unknown,
+    readonly completedEffects: Partial<Effects>,
+  ) {
+    super(cause instanceof Error ? cause.message : String(cause), { cause });
+    this.name = 'SetupApplyError';
+  }
 }
 
 export async function convergeSetup(
@@ -90,6 +80,7 @@ export async function convergeSetup(
       readonly start: (message: string) => void;
       readonly stop: () => void;
     };
+    adapters?: Partial<SetupAdapters>;
   },
 ): Promise<CliResult> {
   const configured = existsSync(nodePath.join(cwd, '.safeword'));
@@ -101,9 +92,15 @@ export async function convergeSetup(
     options.progress?.start(
       configured ? 'Reconciling the Safeword upgrade…' : 'Setting up Safeword…',
     );
-    return await applySetup(cwd, configured, packageJsonCreated, options.noModify === true);
+    return await applySetup(cwd, configured, packageJsonCreated, options.noModify === true, {
+      ...DEFAULT_SETUP_ADAPTERS,
+      ...options.adapters,
+    });
   } catch (setupError) {
-    return setupFailure(setupError);
+    return setupFailure(
+      setupError,
+      packageJsonCreated ? { files: [{ kind: 'create', target: 'package.json' }] } : {},
+    );
   }
 }
 
@@ -168,6 +165,12 @@ interface SetupResultInput {
   readonly compatibilityEffects: Effect[];
   readonly compatibilityPackage?: string;
   readonly gitInitialized: boolean;
+}
+
+interface CompletedSetupEffects {
+  readonly files: Effect[];
+  readonly packages: Effect[];
+  readonly network: Effect[];
 }
 
 function uniqueEffects(effects: readonly Effect[]): Effect[] {
@@ -246,57 +249,149 @@ function setupResult(input: SetupResultInput): CliResult {
   });
 }
 
+function applyCompatibilityMigrations(
+  cwd: string,
+  completedEffects: CompletedSetupEffects,
+): Effect[] {
+  const missingPacks = getMissingPacks(cwd);
+  const effects: Effect[] = [];
+  for (const packId of missingPacks) {
+    const installed = installPack(packId, cwd).files.map(target => ({
+      kind: 'create',
+      target,
+    }));
+    effects.push(...installed);
+    completedEffects.files.push(...installed);
+  }
+  if (missingPacks.length > 0) {
+    const configEffect = { kind: 'update', target: '.safeword/config.json' };
+    effects.push(configEffect);
+    completedEffects.files.push(configEffect);
+  }
+  if (stripDeadConfigVersion(nodePath.join(cwd, '.safeword'))) {
+    const configEffect = { kind: 'update', target: '.safeword/config.json' };
+    effects.push(configEffect);
+    completedEffects.files.push(configEffect);
+  }
+  return effects;
+}
+
+function recordEslintEffects(
+  cwd: string,
+  eslintPolicy: VendoredIgnoresPolicyResult,
+  completedEffects: CompletedSetupEffects,
+): void {
+  if (eslintPolicy.kind !== 'patched') return;
+  completedEffects.files.push(
+    { kind: 'update', target: nodePath.relative(cwd, eslintPolicy.configPath) },
+    { kind: 'create', target: nodePath.relative(cwd, eslintPolicy.backupPath) },
+  );
+}
+
+function recordInstalledPackages(
+  packagesToInstall: readonly string[],
+  installation: DependencyInstallResult,
+  completedEffects: CompletedSetupEffects,
+): void {
+  if (!installation.installed) return;
+  for (const target of packagesToInstall) {
+    completedEffects.packages.push({ kind: 'install', target });
+    completedEffects.network.push({
+      kind: 'package-registry',
+      target,
+      operation: 'install',
+    });
+  }
+}
+
+function applyPackageCompatibility(
+  cwd: string,
+  compatibilityEffects: Effect[],
+  completedEffects: CompletedSetupEffects,
+): string | undefined {
+  if (!syncPackageJsonSafewordVersion(cwd, { report: false })) return undefined;
+  const compatibilityPackage = `safeword@${VERSION}`;
+  const fileEffect = { kind: 'update', target: 'package.json' };
+  compatibilityEffects.push(fileEffect);
+  completedEffects.files.push(fileEffect);
+  completedEffects.packages.push({ kind: 'update', target: compatibilityPackage });
+  completedEffects.network.push({
+    kind: 'package-registry',
+    target: compatibilityPackage,
+    operation: 'update',
+  });
+  return compatibilityPackage;
+}
+
 async function applySetup(
   cwd: string,
   configured: boolean,
   packageJsonCreated: boolean,
   noModify: boolean,
+  adapters: SetupAdapters,
 ): Promise<CliResult> {
   const context = createProjectContext(cwd);
-  const result = await reconcile(SAFEWORD_SCHEMA, configured ? 'upgrade' : 'install', context);
-  const missingPacks = getMissingPacks(cwd);
-  const compatibilityEffects = missingPacks.flatMap(packId =>
-    installPack(packId, cwd).files.map(target => ({ kind: 'create', target })),
-  );
-  if (missingPacks.length > 0) {
-    compatibilityEffects.push({ kind: 'update', target: '.safeword/config.json' });
+  const operation = configured ? 'upgrade' : 'install';
+  const result = await reconcile(SAFEWORD_SCHEMA, operation, context);
+  const completedEffects: CompletedSetupEffects = {
+    files: [...effectsForReconciliation(result, 'upgrade').files],
+    packages: [],
+    network: [],
+  };
+
+  try {
+    const compatibilityEffects = applyCompatibilityMigrations(cwd, completedEffects);
+    const architectureEffects = adapters.configureArchitecture(cwd);
+    completedEffects.files.push(...architectureEffects);
+    const eslintPolicy = applyVendoredIgnoresPolicy({
+      cwd,
+      existingEslintConfig: context.projectType.existingEslintConfig,
+      hasJavaScript: context.languages?.javascript ?? false,
+      noModify,
+    });
+    recordEslintEffects(cwd, eslintPolicy, completedEffects);
+    const installation = installDependencies(cwd, result.packagesToInstall, 'missing packages', {
+      report: false,
+    });
+    recordInstalledPackages(result.packagesToInstall, installation, completedEffects);
+    const compatibilityPackage = applyPackageCompatibility(
+      cwd,
+      compatibilityEffects,
+      completedEffects,
+    );
+    return setupResult({
+      cwd,
+      reconciliation: result,
+      packageJsonCreated,
+      architectureEffects,
+      installation,
+      eslintPolicy,
+      compatibilityEffects,
+      compatibilityPackage,
+      gitInitialized: context.isGitRepo,
+    });
+  } catch (setupError) {
+    throw new SetupApplyError(setupError, completedEffects);
   }
-  if (stripDeadConfigVersion(nodePath.join(cwd, '.safeword'))) {
-    compatibilityEffects.push({ kind: 'update', target: '.safeword/config.json' });
-  }
-  const architectureEffects = configureArchitecture(cwd);
-  const eslintPolicy = applyVendoredIgnoresPolicy({
-    cwd,
-    existingEslintConfig: context.projectType.existingEslintConfig,
-    hasJavaScript: context.languages?.javascript ?? false,
-    noModify,
-  });
-  const installation = installDependencies(cwd, result.packagesToInstall, 'missing packages', {
-    report: false,
-  });
-  const compatibilityPackage = syncPackageJsonSafewordVersion(cwd, { report: false })
-    ? `safeword@${VERSION}`
-    : undefined;
-  if (compatibilityPackage !== undefined) {
-    compatibilityEffects.push({ kind: 'update', target: 'package.json' });
-  }
-  return setupResult({
-    cwd,
-    reconciliation: result,
-    packageJsonCreated,
-    architectureEffects,
-    installation,
-    eslintPolicy,
-    compatibilityEffects,
-    compatibilityPackage,
-    gitInitialized: context.isGitRepo,
-  });
 }
 
-function setupFailure(setupError: unknown): CliResult {
-  if (setupError instanceof ReconcileExecutionError) return partialSetupFailure(setupError);
+function setupFailure(setupError: unknown, initialEffects: Partial<Effects>): CliResult {
+  const reconciliationEffects =
+    setupError instanceof ReconcileExecutionError
+      ? {
+          files: [
+            ...setupError.partial.created.map(target => ({ kind: 'create', target })),
+            ...setupError.partial.updated.map(target => ({ kind: 'update', target })),
+          ],
+        }
+      : {};
+  const applyEffects = setupError instanceof SetupApplyError ? setupError.completedEffects : {};
+  const effects = mergeEffects(initialEffects, reconciliationEffects, applyEffects);
+  const changed = Object.values(effects).some(category => category.length > 0);
   return createResult({
     state: 'failed',
+    changed,
+    effects,
     errors: [
       {
         code: 'SETUP_FAILED',
@@ -312,4 +407,14 @@ function setupFailure(setupError: unknown): CliResult {
       },
     ],
   });
+}
+
+function mergeEffects(...groups: readonly Partial<Effects>[]): Partial<Effects> {
+  const categories = ['files', 'packages', 'configuration', 'network', 'destructive'] as const;
+  return Object.fromEntries(
+    categories.map(category => [
+      category,
+      uniqueEffects(groups.flatMap(group => group[category] ?? [])),
+    ]),
+  );
 }

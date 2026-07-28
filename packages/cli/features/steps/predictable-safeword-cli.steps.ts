@@ -1,8 +1,9 @@
-/* eslint-disable @typescript-eslint/require-await, prefer-arrow-callback, security/detect-non-literal-regexp, sonarjs/no-alphabetical-sort, sonarjs/no-nested-conditional, unicorn/import-style, unicorn/no-computed-property-existence-check, unicorn/prefer-else-if, unicorn/require-array-sort-compare -- executable acceptance steps prioritize scenario correspondence and Cucumber's `this` world binding */
+/* eslint-disable prefer-arrow-callback, security/detect-non-literal-regexp, sonarjs/no-alphabetical-sort, sonarjs/no-nested-conditional, unicorn/import-style, unicorn/no-computed-property-existence-check, unicorn/prefer-else-if, unicorn/require-array-sort-compare -- executable acceptance steps prioritize scenario correspondence and Cucumber's `this` world binding */
 
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
+  chmodSync,
   existsSync,
   lstatSync,
   mkdirSync,
@@ -18,7 +19,6 @@ import { fileURLToPath } from 'node:url';
 
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
-import { applyEffects } from '../../src/cli-protocol/apply.ts';
 import {
   commandCatalog,
   type CommandDefinition,
@@ -35,10 +35,12 @@ import {
   renderHumanResult,
   renderJsonResult,
 } from '../../src/cli-protocol/result.ts';
+import { convergeSetup } from '../../src/commands/converge-setup.ts';
 import type { SafewordWorld } from './world.js';
 
 const CLI_PATH = fileURLToPath(new URL('../../dist/cli.js', import.meta.url));
 const SAFEWORD_ROOT = fileURLToPath(new URL('../../../..', import.meta.url));
+const BUN_PATH = spawnSync('sh', ['-c', 'command -v bun'], { encoding: 'utf8' }).stdout.trim();
 const HOOK_P95_BUDGET_MS = 5000;
 const EMPTY_EFFECTS = {
   files: [],
@@ -67,6 +69,8 @@ interface PredictableCliWorld extends SafewordWorld {
   commandRuns?: CommandRun[][];
   parentCwd?: string;
   secondDirectory?: string;
+  witnessDirectory?: string;
+  witnessLog?: string;
 }
 
 interface CommandRun {
@@ -172,10 +176,18 @@ function aliasFixture(name: string): readonly string[] {
 
 function runRealHook(world: PredictableCliWorld, surface: 'Claude Code' | 'Codex' | 'Cursor') {
   const cwd = temporaryProject(world);
+  const witnessDirectory = assertPresent(world.witnessDirectory);
+  const witnessLog = assertPresent(world.witnessLog);
   const common = {
     cwd,
     encoding: 'utf8' as const,
-    env: { ...childEnvironment(), CLAUDE_PROJECT_DIR: cwd },
+    env: {
+      ...childEnvironment(),
+      CLAUDE_PROJECT_DIR: cwd,
+      PATH: `${witnessDirectory}:${process.env.PATH ?? ''}`,
+      SAFEWORD_REAL_BUN: BUN_PATH,
+      SAFEWORD_WITNESS_LOG: witnessLog,
+    },
   };
   if (surface === 'Codex') {
     return spawnSync(process.execPath, [CLI_PATH, 'codex-hook', 'session-start'], {
@@ -185,7 +197,7 @@ function runRealHook(world: PredictableCliWorld, surface: 'Claude Code' | 'Codex
   }
   if (surface === 'Cursor') {
     const hook = join(SAFEWORD_ROOT, 'packages/cli/templates/hooks/cursor/stop.ts');
-    return spawnSync('bun', [hook], {
+    return spawnSync(BUN_PATH, [hook], {
       ...common,
       input: JSON.stringify({
         workspace_roots: [cwd],
@@ -195,7 +207,7 @@ function runRealHook(world: PredictableCliWorld, surface: 'Claude Code' | 'Codex
     });
   }
   const hook = join(SAFEWORD_ROOT, '.safeword/hooks/pre-tool-quality.ts');
-  return spawnSync('bun', [hook], {
+  return spawnSync(BUN_PATH, [hook], {
     ...common,
     input: JSON.stringify({
       hook_event_name: 'PreToolUse',
@@ -213,7 +225,43 @@ After(function (this: PredictableCliWorld) {
   if (this.secondDirectory !== undefined) {
     rmSync(this.secondDirectory, { recursive: true, force: true });
   }
+  if (this.witnessDirectory !== undefined) {
+    rmSync(this.witnessDirectory, { recursive: true, force: true });
+  }
 });
+
+function installEffectWitnesses(world: PredictableCliWorld): void {
+  const directory = mkdtempSync(join(tmpdir(), 'safeword-hook-witness-'));
+  const log = join(directory, 'effects.log');
+  const fail = String.raw`#!/bin/sh
+printf '%s\n' "$0 $*" >> "$SAFEWORD_WITNESS_LOG"
+exit 97
+`;
+  const packageManager = String.raw`#!/bin/sh
+case "$1" in
+  add|install|update|upgrade|remove|uninstall|x|dlx)
+    printf '%s\n' "$0 $*" >> "$SAFEWORD_WITNESS_LOG"
+    exit 97
+    ;;
+esac
+if [ "$(basename "$0")" = "bun" ]; then
+  exec "$SAFEWORD_REAL_BUN" "$@"
+fi
+exit 0
+`;
+  for (const executable of ['bunx', 'npx', 'curl', 'wget', 'corepack']) {
+    const path = join(directory, executable);
+    writeFileSync(path, fail);
+    chmodSync(path, 0o755);
+  }
+  for (const executable of ['bun', 'npm', 'pnpm', 'yarn']) {
+    const path = join(directory, executable);
+    writeFileSync(path, packageManager);
+    chmodSync(path, 0o755);
+  }
+  world.witnessDirectory = directory;
+  world.witnessLog = log;
+}
 
 Given('a configured healthy project', function (this: PredictableCliWorld) {
   setupProject(this);
@@ -418,23 +466,17 @@ Then('no effect is applied and a fresh plan is required', function (this: Predic
 });
 
 Given('a confirmed plan whose second effect fails', function (this: PredictableCliWorld) {
-  this.plannedEffects = {
-    files: [
-      { kind: 'write', target: 'first' },
-      { kind: 'write', target: 'second' },
-    ],
-    packages: [],
-    configuration: [],
-    network: [],
-    destructive: [],
-  };
+  temporaryProject(this);
 });
 
 When('Safeword applies the plan', async function (this: PredictableCliWorld) {
-  let count = 0;
-  this.protocolResult = await applyEffects(assertPresent(this.plannedEffects), async () => {
-    count += 1;
-    if (count === 2) throw new Error('injected failure');
+  this.protocolResult = await convergeSetup(temporaryProject(this), {
+    noModify: true,
+    adapters: {
+      configureArchitecture: () => {
+        throw new Error('injected failure');
+      },
+    },
   });
 });
 
@@ -442,8 +484,12 @@ Then(
   'the result reports the first completed effect the stable error and recovery action',
   function (this: PredictableCliWorld) {
     const result = assertPresent(this.protocolResult);
-    assert.equal(result.effects.files.length, 1);
-    assert.equal(result.errors[0]?.code, 'EFFECT_APPLY_FAILED');
+    assert.ok(
+      result.effects.files.some(
+        effect => effect.kind === 'create' && effect.target === 'package.json',
+      ),
+    );
+    assert.equal(result.errors[0]?.code, 'SETUP_FAILED');
     assert.equal(result.recovery.length, 1);
   },
 );
@@ -786,6 +832,7 @@ Then(
 Given(
   /^an installed (Claude Code|Codex|Cursor) hook$/,
   function (this: PredictableCliWorld, surface: string) {
+    installEffectWitnesses(this);
     this.hookSurface = surface as PredictableCliWorld['hookSurface'];
     this.hookEntrypoint =
       surface === 'Codex' ? 'hook codex' : surface === 'Cursor' ? 'cursor hook' : 'claude hook';
@@ -817,6 +864,8 @@ Then('no install upgrade package or network effect occurs', function (this: Pred
   assert.equal(this.result.exitCode, 0);
   assert.equal(this.result.stderr, '');
   assert.equal(treeDigest(temporaryProject(this)), this.beforeTree);
+  const witnessLog = assertPresent(this.witnessLog);
+  assert.equal(existsSync(witnessLog) ? readFileSync(witnessLog, 'utf8') : '', '');
 });
 
 Then('the entrypoint is absent from help and capabilities', function (this: PredictableCliWorld) {
@@ -825,6 +874,7 @@ Then('the entrypoint is absent from help and capabilities', function (this: Pred
 });
 
 Given('an installed agent hook after warm-up', function (this: PredictableCliWorld) {
+  installEffectWitnesses(this);
   const completed = runRealHook(this, 'Codex');
   assert.equal(completed.status, 0);
 });
