@@ -481,6 +481,13 @@ timeout = 30
 statusMessage = "Checking safeword PreToolUse gates"
 `;
       writeFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), legacyConfig);
+      const legacySkillPath = nodePath.join(
+        temporaryDirectory,
+        '.agents/skills/review-spec/SKILL.md',
+      );
+      mkdirSync(nodePath.dirname(legacySkillPath), { recursive: true });
+      const legacySkill = '# Safeword review-spec legacy protection\n';
+      writeFileSync(legacySkillPath, legacySkill);
 
       const ctx = createProjectContext(temporaryDirectory);
       await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
@@ -490,10 +497,12 @@ statusMessage = "Checking safeword PreToolUse gates"
         'utf8',
       );
       expect(upgraded).toBe(legacyConfig);
+      expect(readFileSync(legacySkillPath, 'utf8')).toBe(legacySkill);
 
       await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
       const again = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
       expect(again).toBe(legacyConfig);
+      expect(readFileSync(legacySkillPath, 'utf8')).toBe(legacySkill);
     });
 
     it('tells users how to install the Codex plugin after upgrade', async () => {
