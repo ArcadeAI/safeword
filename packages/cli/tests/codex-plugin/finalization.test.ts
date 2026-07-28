@@ -1,5 +1,6 @@
 /* eslint-disable unicorn/no-null -- null models an explicit file-removal mutation */
 
+import { createHash } from 'node:crypto';
 import {
   existsSync,
   mkdirSync,
@@ -21,6 +22,7 @@ import {
   codexFinalizationIsComplete,
   codexRecoveryIsRequired,
   promptCodexFinalization,
+  recoverCodexFinalization,
   resolveCodexFinalizationConfirmation,
 } from '../../src/codex-plugin/finalization.js';
 
@@ -183,6 +185,88 @@ describe('Codex migration finalization', () => {
       schema_version: 1,
       status: 'prepared',
     });
+  });
+
+  it('does not overwrite a file changed after the backup was prepared', () => {
+    const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-finalization-'));
+    directories.push(directory);
+    const target = nodePath.join(directory, 'owned.txt');
+    writeFileSync(target, 'before\n');
+
+    expect(() =>
+      applyCodexFinalization(directory, [{ path: 'owned.txt', content: 'after\n' }], {
+        afterPrepared: () => {
+          writeFileSync(target, 'teammate edit\n');
+        },
+      }),
+    ).toThrow('changed after the Codex migration backup was prepared');
+    expect(readFileSync(target, 'utf8')).toBe('teammate edit\n');
+  });
+
+  it('retains recovery evidence instead of clobbering an edit made before rollback', () => {
+    const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-finalization-'));
+    directories.push(directory);
+    const first = nodePath.join(directory, 'first.txt');
+    writeFileSync(first, 'first before\n');
+    writeFileSync(nodePath.join(directory, 'second.txt'), 'second before\n');
+
+    expect(() =>
+      applyCodexFinalization(
+        directory,
+        [
+          { path: 'first.txt', content: 'first after\n' },
+          { path: 'second.txt', content: 'second after\n' },
+        ],
+        {
+          beforeMutation: index => {
+            if (index === 1) throw new Error('injected finalization failure');
+          },
+          beforeRollback: () => {
+            writeFileSync(first, 'teammate edit\n');
+          },
+        },
+      ),
+    ).toThrow('recovery is required');
+    expect(readFileSync(first, 'utf8')).toBe('teammate edit\n');
+    expect(
+      existsSync(nodePath.join(directory, '.safeword/codex-migration-backup/manifest.json')),
+    ).toBe(true);
+  });
+
+  it('rejects recovery entries outside the schema-owned Codex migration inventory', () => {
+    const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-finalization-'));
+    directories.push(directory);
+    const backupDirectory = nodePath.join(directory, '.safeword/codex-migration-backup');
+    const payloadDirectory = nodePath.join(backupDirectory, 'payloads');
+    mkdirSync(payloadDirectory, { recursive: true });
+    const innocent = nodePath.join(directory, 'innocent.txt');
+    const current = Buffer.from('innocent current\n');
+    const forgedBefore = Buffer.from('forged overwrite\n');
+    writeFileSync(innocent, current);
+    writeFileSync(nodePath.join(payloadDirectory, '0.bin'), forgedBefore);
+    const hash = (content: Buffer) => createHash('sha256').update(content).digest('hex');
+    writeFileSync(
+      nodePath.join(backupDirectory, 'manifest.json'),
+      JSON.stringify({
+        schema_version: 1,
+        status: 'finalized',
+        entries: [
+          {
+            path: 'innocent.txt',
+            before: {
+              kind: 'file',
+              mode: 0o644,
+              sha256: hash(forgedBefore),
+              payload: 'payloads/0.bin',
+            },
+            after: { kind: 'file', mode: 0o644, sha256: hash(current) },
+          },
+        ],
+      }),
+    );
+
+    expect(() => recoverCodexFinalization(directory)).toThrow('not part of the Codex migration');
+    expect(readFileSync(innocent, 'utf8')).toBe('innocent current\n');
   });
 
   it('propagates the handled transaction failure after restoring pre-migration state', () => {

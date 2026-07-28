@@ -687,6 +687,7 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     recordCurrentProof(fixture);
     const lateAsset = nodePath.join(fixture.directory, '.agents/skills/bdd/SKILL.md');
     mkdirSync(nodePath.dirname(lateAsset), { recursive: true });
+    writeFileSync(lateAsset, '# content shown in the confirmed plan\n');
 
     const result = await runCodexCommand(
       fixture,
@@ -700,6 +701,7 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
       errors: [{ code: 'FINALIZATION_FAILED' }],
     });
     expect(existsSync(lateAsset)).toBe(true);
+    expect(readFileSync(lateAsset, 'utf8')).toBe('# appeared after confirmation\n');
     expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-plugin.json'))).toBe(false);
   });
 
@@ -973,6 +975,24 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     ).toBe(false);
     expect(readFileSync(nodePath.join(fixture.directory, 'codex.log'), 'utf8')).not.toContain(
       'plugin marketplace add',
+    );
+  });
+
+  it('reinstalls an absent plugin even when a stale restart marker remains', async () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, false, false);
+    const environment = {
+      CODEX_HOME: nodePath.join(fixture.directory, 'profile'),
+    };
+    writeCodexRestartMarker(environment);
+
+    const result = await runCodexCommand(fixture, ['codex', 'migrate', '--json']);
+
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      changed: true,
+      plugin: { installed: true, enabled: true },
+    });
+    expect(readFileSync(nodePath.join(fixture.directory, 'codex.log'), 'utf8')).toContain(
+      'plugin add safeword@safeword --json',
     );
   });
 

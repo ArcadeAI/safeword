@@ -233,6 +233,15 @@ describe('Codex migration result', () => {
     });
   });
 
+  it('does not treat a restart marker as actionable when the plugin is absent', () => {
+    const result = deriveCodexMigrationResult(facts({ restartPending: true }));
+
+    expect(result).toMatchObject({
+      state: 'not_configured',
+      next_actions: [{ command: 'safeword codex migrate' }],
+    });
+  });
+
   it('points an unconfigured teammate to the finalized repository bootstrap', () => {
     const result = deriveCodexMigrationResult(facts({ finalized: true }));
 
