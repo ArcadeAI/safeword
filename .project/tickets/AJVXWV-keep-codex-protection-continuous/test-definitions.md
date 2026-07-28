@@ -35,7 +35,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Successful installation requires a Codex restart
 
 - [x] RED 7ceb02372
-- [ ] GREEN
+- [x] GREEN 240a0b432
 - [ ] REFACTOR
 
 ### Scenario: Plugin SessionStart clears restart-required state
