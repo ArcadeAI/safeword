@@ -21,7 +21,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Partial profile installation failure leaves repository protection unchanged
 
 - [x] RED 1a8fbee40
-- [ ] GREEN
+- [x] GREEN c21c27987
 - [ ] REFACTOR
 
 ## Rule: codex-continuity.TBU1.R2 — Plugin readiness requires current hook-execution proof, not installation or enablement alone
