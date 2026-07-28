@@ -55,20 +55,13 @@ function ghAuthToken(): string | undefined {
 }
 
 /**
- * A value shaped like a real GitHub token: a modern prefixed token
- * (`ghp_`/`gho_`/`ghu_`/`ghs_`/`ghr_`, or fine-grained `github_pat_`) or a
- * legacy 40-char hex PAT. Deliberately narrow so proxy-injected placeholders
- * such as `proxy-injected` are rejected before they reach the API (#634).
- * Stateless `ghs_` tokens use GitHub's published `{36,}` matcher:
- * https://github.blog/changelog/2026-05-15-github-app-installation-tokens-per-request-override-header/
+ * Whether a value is syntactically usable as an RFC 6750 Bearer credential.
+ * GitHub tokens are opaque: their API, not this resolver, decides whether the
+ * credential is valid or authorized. Keep the documented cloud placeholder
+ * out of the API so `gh` can supply a usable credential instead (#634).
  */
-function looksLikeGitHubToken(value: string): boolean {
-  return (
-    /^ghs_[\w.-]{36,}$/.test(value) ||
-    /^gh[opusr]_[A-Za-z0-9]{20,}$/.test(value) ||
-    /^github_pat_\w{20,}$/.test(value) ||
-    /^[0-9a-f]{40}$/.test(value)
-  );
+function isUsableBearerCredential(value: string): boolean {
+  return value !== 'proxy-injected' && /^[\w.~+/-]+=*$/.test(value);
 }
 
 /**
@@ -77,17 +70,19 @@ function looksLikeGitHubToken(value: string): boolean {
  * environment's existing GitHub access via `gh auth token`. Returns undefined when
  * neither is available, so the caller can no-op gracefully instead of failing.
  *
- * The env var is only honored when it is *shaped* like a GitHub token (#634):
- * some environments (e.g. Claude cloud containers) populate `GITHUB_TOKEN` with
- * a non-credential placeholder that would 401, muddying diagnosis — treat that
- * as absent and fall through to `gh` instead of passing it to the API.
+ * The env var is honored when it is syntactically usable as a Bearer credential.
+ * Some environments (e.g. Claude cloud containers) populate `GITHUB_TOKEN` with
+ * the non-credential `proxy-injected` placeholder, which would 401 and muddy
+ * diagnosis; treat it as absent and fall through to `gh`. Other opaque values
+ * reach GitHub, where an invalid or unauthorized credential gets its terminal
+ * 401 response instead of being guessed at locally.
  */
 export function resolveGitHubToken(
   env: Record<string, string | undefined> = process.env,
   getGhToken: () => string | undefined = ghAuthToken,
 ): string | undefined {
   const fromEnvironment = env.GITHUB_TOKEN;
-  if (fromEnvironment && looksLikeGitHubToken(fromEnvironment)) return fromEnvironment;
+  if (fromEnvironment && isUsableBearerCredential(fromEnvironment)) return fromEnvironment;
   return getGhToken();
 }
 

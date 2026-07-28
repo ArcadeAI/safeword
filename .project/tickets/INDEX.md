@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (457)
+## Tickets (458)
 
 ### 001
 
@@ -915,6 +915,9 @@
 - **Resolve `bun audit` advisories surfaced 2026-05-18 (152)** (done, epic: —)
   Clear the 4 advisories that `bun audit` flags in safeword's tree (1 high, 3 moderate) by bumping the deps that pull in vulnerable transitives. None of these are caused by safeword's own direct deps — they're all transitives — but they show up in `bun audit` output, which customers run too.
   → `.project/tickets/152-resolve-bun-audit-advisories`
+- **Task: Keep future GitHub credentials usable without format updates (1520)** (done, epic: —)
+  external issue: https://github.com/ArcadeAI/safeword/issues/1520
+  → `.project/tickets/1520-decouple-github-token-format`
 - **Boundary Resilience: Replan-on-Resume (153)** (done, epic: —)
   Eliminate the plan-staleness failure mode when resuming a ticket after sibling work landed — a ticket written before its siblings shipped reflects assumptions the new commits have invalidated, and today nothing re-checks the plan at resume. (The companion failure — forgetting cross-ticket contracts mid-session — is deferred with the epic-anchor hook.)
   → `.project/tickets/153-boundary-resilience`

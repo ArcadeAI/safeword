@@ -367,9 +367,13 @@ describe('createRestTransport', () => {
 
   // A wrong credential fails the same way every time. Retrying it once per
   // finding burns a whole sweep each and can trip rate limits (#1465 review).
-  it('#1465: latches a terminal auth failure instead of re-sweeping per encounter', async () => {
+  it('#1520: sends an opaque Bearer credential to GitHub, where a terminal 401 is latched', async () => {
     const calls = mockFetch(() => ({ ok: false, status: 401, json: () => ({}) }));
-    const transport = createRestTransport('tok');
+    const token = resolveGitHubToken({ GITHUB_TOKEN: 'future-token~1' }, () => {
+      throw new Error('gh fallback must not be consulted');
+    });
+    expect(token).toBe('future-token~1');
+    const transport = createRestTransport(token);
     if (!transport) throw new Error('expected a transport');
 
     await expect(transport.searchBySignature('retro:abc123def456')).rejects.toThrow('401');
@@ -550,10 +554,13 @@ describe('resolveGitHubToken (7D8PJP — no hard GITHUB_TOKEN requirement)', () 
   // `ghs_APPID_JWT` rollout shape.
   const minimumStatelessToken = `ghs_${'a'.repeat(10)}_${'b'.repeat(10)}.${'c'.repeat(6)}.${'d'.repeat(7)}`;
   const representativeStatelessToken = `ghs_1234567_${'a'.repeat(160)}.${'b'.repeat(160)}.${'c'.repeat(186)}`;
+  // RFC 6750 Bearer credentials are opaque to this resolver. This deliberately
+  // has no GitHub prefix or minimum length, so a future token format does not
+  // require a resolver release before it can reach GitHub for validation.
+  const opaqueBearerToken = 'future-token~1';
 
-  // #634 — every accepted GitHub token shape must survive resolution, or a
-  // regex that quietly stopped matching one form (e.g. fine-grained PATs) would
-  // break a working auth path with no test to catch it.
+  // Existing GitHub token fixtures remain regression controls; the resolver
+  // must also accept an arbitrary value that satisfies the Bearer grammar.
   it.each([
     ['classic PAT (ghp_)', `ghp_${'a'.repeat(32)}`],
     ['OAuth (gho_)', `gho_${'b'.repeat(32)}`],
@@ -562,6 +569,9 @@ describe('resolveGitHubToken (7D8PJP — no hard GITHUB_TOKEN requirement)', () 
     ['representative stateless app server-to-server (ghs_APPID_JWT)', representativeStatelessToken],
     ['fine-grained PAT (github_pat_)', `github_pat_${'d'.repeat(40)}`],
     ['legacy 40-char hex', '0123456789'.repeat(4)],
+    ['single-character Bearer credential', 'a'],
+    ['Bearer credential with every permitted punctuation character and padding', 'a-._~+/==='],
+    ['arbitrary opaque Bearer credential', opaqueBearerToken],
   ])('accepts a %s from GITHUB_TOKEN without consulting gh', (_label, shaped) => {
     let ghConsulted = false;
     const token = resolveGitHubToken({ GITHUB_TOKEN: shaped }, () => {
@@ -573,8 +583,8 @@ describe('resolveGitHubToken (7D8PJP — no hard GITHUB_TOKEN requirement)', () 
   });
 
   it.each([
-    ['classic opaque', `ghs_${'a'.repeat(40)}`],
-    ['stateless', representativeStatelessToken],
+    ['arbitrary opaque credential', opaqueBearerToken],
+    ['stateless GitHub credential', representativeStatelessToken],
   ])('passes a selected %s GITHUB_TOKEN to the REST transport', async (_label, shaped) => {
     const calls = mockFetchCapturing(() => ({ json: () => ({ id: 99, body: 'hi' }) }));
     const token = resolveGitHubToken({ GITHUB_TOKEN: shaped }, () => {
@@ -592,14 +602,12 @@ describe('resolveGitHubToken (7D8PJP — no hard GITHUB_TOKEN requirement)', () 
 
   it.each([
     ['a proxy placeholder', 'proxy-injected'],
-    ['an unknown prefix', `gha_${'a'.repeat(32)}`],
-    ['a 35-character stateless token', minimumStatelessToken.slice(0, -1)],
-    ['a stateless token embedded in prose', `prefix-ghs_${'a'.repeat(40)}.${'b'.repeat(40)}`],
-    [
-      'a stateless token followed by trailing prose',
-      `ghs_${'a'.repeat(40)}.${'b'.repeat(40)} extra`,
-    ],
     ['an empty string', ''],
+    ['a value containing a space', 'opaque token'],
+    ['a value containing a tab', 'opaque\ttoken'],
+    ['a value containing a newline', 'opaque\ntoken'],
+    ['a value containing a NUL control character', 'opaque\0token'],
+    ['a value with equals outside the optional suffix', 'opaque=token'],
   ])('rejects %s and falls back to gh', (_label, bogus) => {
     const token = resolveGitHubToken({ GITHUB_TOKEN: bogus }, () => ghToken);
     expect(token).toBe(ghToken);
