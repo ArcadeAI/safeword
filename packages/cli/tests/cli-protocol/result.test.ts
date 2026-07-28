@@ -70,6 +70,10 @@ describe('CLI result protocol', () => {
     );
   });
 
+  it('suppresses all healthy prose in quiet mode', () => {
+    expect(renderHumanResult(createResult({ state: 'healthy' }), { quiet: true })).toBe('');
+  });
+
   it('keeps internal detail behind verbose and preserves errors in quiet mode', () => {
     const failed = createResult({
       state: 'failed',

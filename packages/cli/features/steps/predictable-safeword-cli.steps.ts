@@ -593,7 +593,7 @@ Then(
   'healthy and progress prose is suppressed while next actions and errors remain visible',
   function (this: PredictableCliWorld) {
     const [healthy, actionRequired, failed] = assertPresent(this.renderedMany);
-    assert.equal(healthy, 'Healthy\nChanged: no');
+    assert.equal(healthy, '');
     assert.match(actionRequired ?? '', /Next:/);
     assert.match(failed ?? '', /Example failed\./);
   },
