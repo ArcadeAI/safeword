@@ -274,7 +274,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Generic setup does not install the migration bootstrap
 
-- [ ] RED
+- [x] RED skip: the bootstrap was never registered as a generic managed template
 - [ ] GREEN
 - [ ] REFACTOR
 
