@@ -659,6 +659,43 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-plugin.json'))).toBe(true);
   });
 
+  it('previews stable finalization file effects as JSON without mutation', async () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    recordCurrentProof(fixture);
+    const legacySkillPath = nodePath.join(fixture.directory, '.agents/skills/review-spec/SKILL.md');
+    mkdirSync(nodePath.dirname(legacySkillPath), { recursive: true });
+    writeFileSync(legacySkillPath, '# legacy skill\n');
+    const before = readFileSync(fixture.configPath, 'utf8');
+
+    const result = await runCodexCommand(fixture, ['codex', 'migrate', '--finalize', '--json']);
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toBe('');
+    const preview = JSON.parse(result.stdout);
+    expect(preview).toMatchObject({
+      schema_version: '1',
+      changed: false,
+      effects: {
+        files: expect.arrayContaining([
+          { path: '.codex/config.toml', action: 'update' },
+          { path: '.agents/skills/review-spec/SKILL.md', action: 'remove' },
+          { path: '.safeword/codex-plugin.json', action: 'create' },
+          {
+            path: '.agents/skills/safeword-plugin-setup/SKILL.md',
+            action: 'create',
+          },
+        ]),
+      },
+    });
+    expect(
+      preview.effects.files.every((file: { action: string }) =>
+        ['create', 'update', 'remove', 'restore'].includes(file.action),
+      ),
+    ).toBe(true);
+    expect(readFileSync(fixture.configPath, 'utf8')).toBe(before);
+    expect(existsSync(legacySkillPath)).toBe(true);
+  });
+
   it('reports a finalized plugin-only project without another action', async () => {
     const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
     recordCurrentProof(fixture);
