@@ -74,7 +74,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 47057886b
 - [x] GREEN b9ffe5e72
-- [ ] REFACTOR
+- [x] REFACTOR skip: authority now has one schema-driven event predicate
 
 ### Scenario: Plugin covers an event missing from a partial legacy installation
 
