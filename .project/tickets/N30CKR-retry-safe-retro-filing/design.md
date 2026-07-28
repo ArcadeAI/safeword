@@ -74,8 +74,9 @@ cannot generate or replace `requestId` while retrying. Fresh runtimes must be
 handed those exact persisted bytes rather than infer identity from payload
 content. The immutable client record also persists `createdAt` and
 `retryDeadlineAt = createdAt + 24h`; at the deadline it moves to a visible
-local dead letter without network access. A 202 response never acknowledges a
-spool.
+local dead letter without network access. Any successful 2xx response carrying
+the server's durable receipt, including a nonterminal 202, acknowledges the
+local spool; transport failures and non-2xx responses never do.
 
 A hashed session, delta-window boundary, and encounter slot is local
 correlation metadata only. It retains the UUID for an exact extraction

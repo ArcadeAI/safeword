@@ -97,8 +97,10 @@ ambiguous receipt or a deadline dead letter at
 `POST /v1/retro-filings/:receiptId/recover`; the relay serializes recovery,
 reuses the encrypted original payload and reserved marker, and audit-records
 the create. Harness credentials cannot invoke this route. Terminal alerts use stable event
-IDs and are delivered at least once, so the downstream alert sink must
-deduplicate by event ID.
+IDs and are emitted at least once to the configured alert callback, so an
+acknowledged downstream sink must deduplicate by event ID. The default stdout
+callback is observable operational output, not proof that an external sink
+persisted the event.
 
 Installation-token requests for the same repository scope are coalesced.
 Ambiguous-create reconciliation uses raw REST bodies only and stops at the
