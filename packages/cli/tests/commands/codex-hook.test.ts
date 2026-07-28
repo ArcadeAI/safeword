@@ -15,6 +15,7 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { writeCodexRestartMarker } from '../../src/codex-plugin/profile-proof.js';
 import {
   normalizeNamespaceRootLabel,
   packagedNamespaceRootLabel,
@@ -29,13 +30,18 @@ describe('packagedNamespaceRootLabel', () => {
     event: string,
     input: object | string,
     env?: NodeJS.ProcessEnv,
+    pluginHook = false,
   ) {
-    return spawnSync(process.execPath, [CLI_PATH, 'hook', 'codex', event], {
-      cwd: projectDirectory,
-      input: typeof input === 'string' ? input : JSON.stringify(input),
-      encoding: 'utf8',
-      ...(env !== undefined && { env: { ...process.env, ...env } }),
-    });
+    return spawnSync(
+      process.execPath,
+      [CLI_PATH, 'hook', 'codex', event, ...(pluginHook ? ['--plugin-hook'] : [])],
+      {
+        cwd: projectDirectory,
+        input: typeof input === 'string' ? input : JSON.stringify(input),
+        encoding: 'utf8',
+        ...(env !== undefined && { env: { ...process.env, ...env } }),
+      },
+    );
   }
 
   function createLocalBiomeFixture(projectDirectory: string, relativeFile = 'source.ts') {
@@ -100,6 +106,30 @@ describe('packagedNamespaceRootLabel', () => {
     );
 
     expect(packagedNamespaceRootLabel(projectDirectory)).toBe('knowledge');
+  });
+
+  it('replaces the matching restart marker with current proof on plugin SessionStart', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-'));
+    directories.push(projectDirectory);
+    const codexHome = nodePath.join(projectDirectory, 'profile');
+    const environment = { CODEX_HOME: codexHome };
+    writeCodexRestartMarker(environment);
+
+    const result = runCodexHook(
+      projectDirectory,
+      'session-start',
+      { hook_event_name: 'SessionStart', cwd: projectDirectory },
+      environment,
+      true,
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(existsSync(nodePath.join(codexHome, 'safeword/restart-pending-v1.json'))).toBe(false);
+    const proof = JSON.parse(
+      readFileSync(nodePath.join(codexHome, 'safeword/hook-proof-v1.json'), 'utf8'),
+    ) as Record<string, unknown>;
+    expect(proof.schema_version).toBe(1);
+    expect(proof.manifest_sha256).toMatch(/^[\da-f]{64}$/u);
   });
 
   it('normalizes Windows custom roots for Git-owned path matching', () => {
