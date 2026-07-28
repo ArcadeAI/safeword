@@ -112,7 +112,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED f69171c2c
 - [x] GREEN b323f79d3
-- [ ] REFACTOR
+- [x] REFACTOR skip: rollback reuses the same validated backup images as recovery
 
 ### Scenario: Failed rollback retains recovery evidence
 
