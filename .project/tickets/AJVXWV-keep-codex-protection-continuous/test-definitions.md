@@ -140,7 +140,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Recovery restores the backed-up legacy state
 
-- [ ] RED
+- [x] RED e0d126f5d
 - [ ] GREEN
 - [ ] REFACTOR
 
