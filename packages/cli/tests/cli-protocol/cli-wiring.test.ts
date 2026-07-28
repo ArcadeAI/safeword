@@ -1,0 +1,66 @@
+import { readdirSync } from 'node:fs';
+
+import { describe, expect, it } from 'vitest';
+
+import { createTemporaryDirectory, runCli } from '../helpers.js';
+
+describe('predictable CLI wiring', () => {
+  it('publishes capabilities as JSON-only stdout', async () => {
+    const result = await runCli(['capabilities', '--json', '--no-input']);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe('');
+    const envelope = JSON.parse(result.stdout) as {
+      schema_version: number;
+      data: { commands: { name: string }[] };
+    };
+    expect(envelope.schema_version).toBe(1);
+    expect(envelope.data.commands.some(command => command.name === 'boundary')).toBe(false);
+  });
+
+  it('accepts global machine options before or after a command', async () => {
+    const before = await runCli(['--json', '--no-input', 'capabilities']);
+    const after = await runCli(['capabilities', '--json', '--no-input']);
+
+    expect(before).toMatchObject({ exitCode: 0, stderr: '' });
+    expect(before.stdout).toBe(after.stdout);
+  });
+
+  it('uses bare Safeword as read-only status with one next action', async () => {
+    const directory = createTemporaryDirectory();
+    const before = readdirSync(directory);
+    const result = await runCli(['--json', '--no-input', '--offline', '--cwd', directory], {
+      cwd: directory,
+    });
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toBe('');
+    expect(readdirSync(directory)).toEqual(before);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      schema_version: 1,
+      state: 'action_required',
+      changed: false,
+      effects: {
+        files: [],
+        packages: [],
+        configuration: [],
+        network: [],
+        destructive: [],
+      },
+      next_actions: [{ command: 'safeword setup', mutates: true, requires_human: false }],
+    });
+  });
+
+  it('keeps status read-only with options after the command', async () => {
+    const directory = createTemporaryDirectory();
+    const before = readdirSync(directory);
+    const result = await runCli(
+      ['status', '--json', '--no-input', '--offline', '--cwd', directory],
+      { cwd: directory },
+    );
+
+    expect(result.exitCode).toBe(2);
+    expect(readdirSync(directory)).toEqual(before);
+    expect(JSON.parse(result.stdout)).toMatchObject({ state: 'action_required' });
+  });
+});
