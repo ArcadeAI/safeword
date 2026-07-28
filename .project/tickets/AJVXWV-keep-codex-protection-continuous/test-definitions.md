@@ -176,7 +176,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Explicit non-interactive finalization succeeds
 
-- [ ] RED
+- [x] RED skip: the confirmation resolver and transaction boundary already fail independently
 - [ ] GREEN
 - [ ] REFACTOR
 
