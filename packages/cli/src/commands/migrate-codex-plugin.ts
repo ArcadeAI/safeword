@@ -556,6 +556,11 @@ export function installCodexPlugin(
 }
 
 export function removeLegacyCodexHooks(cwd = process.cwd()): void {
+  if (observeCodexHookProof().status !== 'current') {
+    throw new Error(
+      'Finalization requires current plugin hook proof. Start a new Codex session, review /hooks, then retry.',
+    );
+  }
   // Validate cleanup before verifying the profile. A malformed project config
   // leaves both it and the Codex profile unchanged.
   const preparedLegacyHookRemoval = prepareLegacyHookRemoval(cwd);
