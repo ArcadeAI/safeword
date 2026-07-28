@@ -190,7 +190,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Unproven plugin status reflects legacy protection
 
-- [ ] RED
+- [x] RED efd4a252f
 - [ ] GREEN
 - [ ] REFACTOR
 
