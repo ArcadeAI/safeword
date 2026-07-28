@@ -1,4 +1,4 @@
-@wip @surface.openai-codex @surface.safeword-cli
+@surface.openai-codex @surface.safeword-cli
 Feature: Keep Codex protection continuous during profile-plugin migration
 
   @codex-continuity.TBU1.R1 @rejection
