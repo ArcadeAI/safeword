@@ -170,7 +170,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Deprecated cleanup alias follows the finalization contract
 
-- [ ] RED
+- [x] RED skip: the alias is parsed into the same finalization branch
 - [ ] GREEN
 - [ ] REFACTOR
 
