@@ -85,7 +85,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Plugin covers a configured legacy event with a broken runtime
 
 - [x] RED skip: runtime viability shipped inseparably with event authority
-- [ ] GREEN
+- [x] GREEN ad77b29b5
 - [ ] REFACTOR
 
 ## Rule: codex-continuity.TBU1.R4 — Shared cleanup is explicit, selective, recoverable, and idempotent
