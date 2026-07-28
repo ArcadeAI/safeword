@@ -331,10 +331,11 @@ export function applyCodexFinalization(
     beforeRollback?: () => void;
   } = {},
 ): BackupManifestV1 {
-  const backupDirectory = containedPath(cwd, BACKUP_PATH);
+  const backupDirectory = assertSafeComponents(cwd, BACKUP_PATH);
   if (existsSync(backupDirectory)) {
     throw new Error(`Codex migration backup already exists at ${BACKUP_PATH}.`);
   }
+  for (const mutation of mutations) assertSafeComponents(cwd, mutation.path);
   mkdirSync(nodePath.join(backupDirectory, 'payloads'), { recursive: true, mode: 0o700 });
 
   const entries = mutations.map((mutation, index) => {
