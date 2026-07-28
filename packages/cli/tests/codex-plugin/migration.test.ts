@@ -140,6 +140,11 @@ describe('Codex migration result', () => {
     const lines = [`Codex migration: ${state}`, `Protection: ${protection}`];
     if (state === 'plugin_setup_required') {
       lines.push('Setup: .agents/skills/safeword-plugin-setup/SKILL.md');
+    } else if (
+      state === 'plugin_installed_restart_required' ||
+      state === 'plugin_enabled_hook_unproven'
+    ) {
+      lines.push('Start a new Codex session, then review the Safe Word plugin hooks with /hooks.');
     }
     lines.push(`Next: ${next}`, '');
 
