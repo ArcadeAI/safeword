@@ -240,7 +240,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 16bafbcfe
 - [x] GREEN d3cf40ebc
-- [ ] REFACTOR
+- [x] REFACTOR skip: finalized setup remains one ordered state predicate
 
 ## Rule: codex-continuity.NTB1.R2 — Non-interactive use never performs shared cleanup without an explicit finalization flag
 
