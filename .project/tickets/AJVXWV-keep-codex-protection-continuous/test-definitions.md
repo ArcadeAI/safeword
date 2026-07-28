@@ -208,7 +208,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: JSON status separates machine output from diagnostics
 
-- [ ] RED
+- [x] RED skip: status already selected one renderer before the stdout-purity characterization
 - [ ] GREEN
 - [ ] REFACTOR
 
