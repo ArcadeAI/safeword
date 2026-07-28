@@ -215,7 +215,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Plugin-only JSON status exits successfully
 
 - [x] RED skip: the shared result exit-code function already treated plugin state as successful
-- [ ] GREEN
+- [x] GREEN 7a0e854dc
 - [ ] REFACTOR
 
 ### Scenario: Status execution error has stable machine semantics
