@@ -34,7 +34,7 @@ done_when:
   - Finalized repositories retain a concise bootstrap skill for future Codex users.
   - `safeword codex status` provides useful human output and stable JSON output and exit semantics.
 created: 2026-07-28T06:40:27.528Z
-last_modified: 2026-07-28T10:32:05Z
+last_modified: 2026-07-28T12:04:29Z
 ---
 
 # Keep Codex protection continuous while teams migrate to the profile plugin
@@ -86,3 +86,8 @@ last_modified: 2026-07-28T10:32:05Z
   documentation. Bound the complete 90-scenario continuity feature to real CLI
   and filesystem behavior. The acceptance lane exposed and closed a repeated
   migration regression; all 183 repository BDD scenarios now pass.
+- 2026-07-28T12:04:29Z Verified: Seven independent adversarial quality passes
+  closed JSON, confirmation-plan, transaction-race, recovery-integrity, stale
+  restart, and symlinked-backup defects. Safeword's resolver-driven verification
+  passed 5,643 executed tests and 595 executed acceptance scenarios; audit
+  passed with no errors. Ticket remains in verify pending user confirmation.
