@@ -425,14 +425,16 @@ function addCodexPluginToProfile(marketplaceSource: string | undefined): void {
   run('codex', ['plugin', 'add', PLUGIN_ID, '--json']);
 }
 
-function verifyCodexPluginIsEnabled(): void {
+function verifyCodexPluginIsEnabled(options: { installationCompleted?: boolean } = {}): void {
   let pluginList: string;
   try {
     pluginList = run('codex', ['plugin', 'list', '--json']);
   } catch (error) {
-    throw new Error(`Could not verify the Safe Word Codex plugin: ${String(error)}`, {
-      cause: error,
-    });
+    const prefix =
+      options.installationCompleted === true
+        ? 'Plugin installation succeeded, but enablement is unknown'
+        : 'Could not verify the Safe Word Codex plugin';
+    throw new Error(`${prefix}: ${String(error)}`, { cause: error });
   }
   if (!pluginIsEnabled(pluginList)) {
     throw new Error(
@@ -449,7 +451,7 @@ export function installCodexPlugin(
   run('bun', ['--version']);
   run('codex', ['--version']);
   addCodexPluginToProfile(options.marketplaceSource);
-  verifyCodexPluginIsEnabled();
+  verifyCodexPluginIsEnabled({ installationCompleted: true });
 
   success('Safe Word Codex plugin is enabled for this profile.');
   info(

@@ -20,7 +20,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Partial profile installation failure leaves repository protection unchanged
 
-- [ ] RED
+- [x] RED 1a8fbee40
 - [ ] GREEN
 - [ ] REFACTOR
 
