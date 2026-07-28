@@ -28,7 +28,7 @@ describe('plan and remove wiring', () => {
       schema_version: 1,
       state: 'action_required',
       changed: false,
-      effects: { packages: [], network: [], destructive: [] },
+      effects: { network: [], destructive: [] },
       data: {
         plan: {
           schema_version: 1,

@@ -57,3 +57,16 @@ export function createPlan(input: PlanInput): CliPlan {
 export function isPlanCurrent(plan: CliPlan, preconditionDigest: string): boolean {
   return plan.preconditionDigest === preconditionDigest;
 }
+
+export function toWirePlan(plan: CliPlan): Record<string, unknown> {
+  return {
+    schema_version: plan.schemaVersion,
+    id: plan.id,
+    command: plan.command,
+    precondition_digest: plan.preconditionDigest,
+    effects: plan.effects,
+    findings: plan.findings,
+    requires_confirmation: plan.requiresConfirmation,
+    verification: plan.verification,
+  };
+}

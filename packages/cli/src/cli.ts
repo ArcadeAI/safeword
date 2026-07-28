@@ -55,6 +55,29 @@ capabilities.action((_options, command: Command) => {
   reportResult(createCapabilitiesResult(), readGlobalOptions(command));
 });
 
+const planCommand = addGlobalOptions(
+  program.command('plan').description('Preview reconciliation without changing the project'),
+);
+planCommand.action(async (_options, command: Command) => {
+  const globalOptions = readGlobalOptions(command);
+  const { observePlan } = await import('./commands/plan.js');
+  reportResult(await observePlan(globalOptions.cwd), globalOptions);
+});
+
+const remove = addGlobalOptions(
+  program.command('remove').description('Remove only an explicitly confirmed plan'),
+)
+  .option('--yes', 'Confirm the supplied plan identity')
+  .option('--plan <id>', 'Identity of the exact plan being confirmed')
+  .option('--full', 'Also remove linting configuration and packages');
+remove.action(
+  async (options: { yes?: boolean; plan?: string; full?: boolean }, command: Command) => {
+    const globalOptions = readGlobalOptions(command);
+    const { removeProject } = await import('./commands/remove.js');
+    reportResult(await removeProject(globalOptions.cwd, options), globalOptions);
+  },
+);
+
 program
   .command('setup')
   .description('Set up safeword in the current project')
