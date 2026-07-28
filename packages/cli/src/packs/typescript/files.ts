@@ -14,6 +14,7 @@ import {
   resolvedIgnoreDirectories,
   resolvedNamespaceDirectory,
 } from '../../owned-paths.js';
+import { SAFEWORD_PRIMARY_LINT_SCRIPT } from '../../presets/typescript/detect.js';
 import { getEslintConfig, getSafewordEslintConfig } from '../../templates/config.js';
 import { assignOrPrune } from '../../utils/json-merge.js';
 import type {
@@ -340,7 +341,7 @@ function mergeLintScripts(
     addScriptIfMissing(scripts, 'lint:eslint', 'eslint .');
   } else {
     // No existing linter: ESLint is the primary linter
-    addScriptIfMissing(scripts, 'lint', 'eslint . && bun run lint:gherkin');
+    addScriptIfMissing(scripts, 'lint', SAFEWORD_PRIMARY_LINT_SCRIPT);
   }
 }
 

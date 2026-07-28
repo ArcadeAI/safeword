@@ -45,6 +45,10 @@ describe('convergent setup', () => {
       state: 'healthy',
       changed: false,
     });
+    const manifest = JSON.parse(readFileSync(nodePath.join(directory, 'package.json'), 'utf8')) as {
+      scripts?: Record<string, string>;
+    };
+    expect(manifest.scripts?.['lint:eslint']).toBeUndefined();
   });
 
   it('journals a completed workspace write when a later workspace update fails', async () => {
