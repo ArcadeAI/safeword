@@ -22,7 +22,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 1a8fbee40
 - [x] GREEN c21c27987
-- [ ] REFACTOR
+- [x] REFACTOR skip: shared verification boundary already distinguishes installation context
 
 ## Rule: codex-continuity.TBU1.R2 — Plugin readiness requires current hook-execution proof, not installation or enablement alone
 
