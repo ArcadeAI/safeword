@@ -10,6 +10,7 @@ import {
   applyCodexFinalization,
   codexFinalizationIsComplete,
   type CodexFinalizationMutation,
+  codexRecoveryIsRequired,
   resolveCodexFinalizationConfirmation,
 } from '../codex-plugin/finalization.js';
 import {
@@ -443,14 +444,17 @@ export function statusCodexMigration(
 ): void {
   const environment = options.environment ?? process.env;
   const legacyEvents = observeLegacyEvents(cwd);
+  const recoveryRequired = codexRecoveryIsRequired(cwd);
   const result = deriveCodexMigrationResult({
-    plugin: observeCodexPlugin(),
+    plugin: recoveryRequired
+      ? { installed: false, enabled: null, version: null, observation: 'unknown' }
+      : observeCodexPlugin(),
     proof: observeCodexHookProof(environment),
     legacyAssets: observeLegacyAssets(cwd),
     legacyEvents,
     viableLegacyEvents: legacyEvents,
     finalized: existsSync(nodePath.join(cwd, '.safeword/codex-plugin.json')),
-    recoveryRequired: existsSync(nodePath.join(cwd, '.safeword/codex-migration-backup')),
+    recoveryRequired,
     restartPending: codexRestartIsPending(environment),
   });
 
@@ -471,8 +475,13 @@ export function installCodexPlugin(
     environment?: NodeJS.ProcessEnv;
   } = {},
 ): void {
+  const cwd = options.cwd ?? process.cwd();
+  if (codexRecoveryIsRequired(cwd)) {
+    statusCodexMigration(cwd, { environment: options.environment });
+    return;
+  }
   if (options.reportMigrationState === true && codexRestartIsPending(options.environment)) {
-    statusCodexMigration(options.cwd, { environment: options.environment });
+    statusCodexMigration(cwd, { environment: options.environment });
     return;
   }
   run('bun', ['--version']);
@@ -486,7 +495,7 @@ export function installCodexPlugin(
     'Start a new Codex session to load the plugin skills and hooks. Then review the Safe Word plugin hooks in Codex with /hooks. If this project uses Safe Word legacy hooks, run `safeword codex migrate --remove-legacy-hooks` to remove only those hooks.',
   );
   if (options.reportMigrationState === true) {
-    statusCodexMigration(options.cwd, { environment: options.environment });
+    statusCodexMigration(cwd, { environment: options.environment });
   }
 }
 

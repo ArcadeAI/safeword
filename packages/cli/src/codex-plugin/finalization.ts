@@ -80,6 +80,13 @@ export function codexFinalizationIsComplete(cwd: string): boolean {
   }
 }
 
+export function codexRecoveryIsRequired(cwd: string): boolean {
+  return (
+    existsSync(containedPath(cwd, `${BACKUP_PATH}/manifest.json`)) &&
+    !codexFinalizationIsComplete(cwd)
+  );
+}
+
 function sha256(content: Buffer): string {
   return createHash('sha256').update(content).digest('hex');
 }
