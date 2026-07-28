@@ -158,7 +158,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Process crash leaves deterministic recovery evidence
 
-- [ ] RED
+- [x] RED 4a6074754
 - [ ] GREEN
 - [ ] REFACTOR
 
