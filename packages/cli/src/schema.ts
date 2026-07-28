@@ -252,6 +252,9 @@ const CODEX_LEGACY_HOOK_SCRIPT_EVENTS: Record<string, string> = {
 };
 
 const CODEX_LEGACY_HOOK_SCRIPTS = Object.keys(CODEX_LEGACY_HOOK_SCRIPT_EVENTS);
+const CODEX_LEGACY_RUNTIME_FILES = CODEX_LEGACY_HOOK_SCRIPTS.map(
+  script => `.safeword/hooks/${script}`,
+);
 
 const CURSOR_RULE_WRAPPER_OWNED_FILES: Record<string, FileDefinition> = Object.fromEntries(
   CURSOR_RULE_WRAPPERS.map(wrapper => [
@@ -486,7 +489,11 @@ function boundaryShimPatch(at: 'commit' | 'push'): TextPatchDefinition {
 export const SAFEWORD_SCHEMA: SafewordSchema = {
   version: VERSION,
   codexMigration: {
-    legacyFiles: [...CODEX_SKILL_DEPRECATED_FILES, ...CODEX_LEGACY_AGENT_FILES],
+    legacyFiles: [
+      ...CODEX_SKILL_DEPRECATED_FILES,
+      ...CODEX_LEGACY_AGENT_FILES,
+      ...CODEX_LEGACY_RUNTIME_FILES,
+    ],
     legacyDirs: CODEX_SKILL_DEPRECATED_DIRS,
     hookEvents: CODEX_LEGACY_HOOK_EVENTS,
     hookEventNames: CODEX_LEGACY_HOOK_EVENT_NAMES,
