@@ -28,13 +28,13 @@ Feature source: `features/operate-retry-safe-retro-relay.feature`
 
 - [x] RED skip: live review supplied the failing aggregate-budget evidence
 - [x] GREEN 39c5aeaa6
-- [x] REFACTOR 39c5aeaa6
+- [x] REFACTOR skip: claim extraction landed with the review fix
 
 ### Scenario: Historical dead letters do not permanently request agent fallback
 
 - [x] RED skip: live review supplied the failing sticky-backlog evidence
 - [x] GREEN 39c5aeaa6
-- [x] REFACTOR 39c5aeaa6
+- [x] REFACTOR skip: counter separation landed with the review fix
 
 ### Scenario: An active spool claim excludes another session
 

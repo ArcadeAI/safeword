@@ -48,13 +48,13 @@ Feature source: `features/retry-safe-retro-filing.feature`
 
 - [x] RED skip: live review supplied the failing missing-recovery evidence
 - [x] GREEN 39c5aeaa6
-- [x] REFACTOR 39c5aeaa6
+- [x] REFACTOR skip: state-machine integration landed with the review fix
 
 ### Scenario: A queued encrypted request survives payload-key rotation
 
 - [x] RED skip: live review supplied the failing key-rotation evidence
 - [x] GREEN 39c5aeaa6
-- [x] REFACTOR 39c5aeaa6
+- [x] REFACTOR skip: keyring extraction landed with the review fix
 
 ## Rule: Authorization is repository-scoped and independent of dedupe identity
 
