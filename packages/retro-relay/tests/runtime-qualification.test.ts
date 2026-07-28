@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 import { afterEach, describe, expect, it } from 'vitest';
@@ -38,6 +39,11 @@ describe('retro relay runtime qualification', () => {
       chmodSync(dataDirectory, 0o777);
       temporaryDirectories.push(dataDirectory);
       const image = `safeword-retro-relay-qualification:${process.pid}`;
+      const hostUid = process.getuid?.();
+      const hostGid = process.getgid?.();
+      if (hostUid === undefined || hostGid === undefined) {
+        throw new Error('container qualification requires a POSIX host identity');
+      }
 
       try {
         const build = spawnDocker(
@@ -63,6 +69,21 @@ describe('retro relay runtime qualification', () => {
         expect(run.error, String(run.error)).toBeUndefined();
         expect(run.status, run.stderr || run.stdout).toBe(0);
       } finally {
+        spawnDocker(
+          [
+            'run',
+            '--rm',
+            '--entrypoint',
+            '/bin/chown',
+            '--volume',
+            `${dataDirectory}:/data`,
+            image,
+            '--recursive',
+            `${hostUid}:${hostGid}`,
+            '/data',
+          ],
+          60_000,
+        );
         spawnDocker(['image', 'rm', '--force', image], 60_000);
       }
     },
