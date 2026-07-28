@@ -319,6 +319,19 @@ function eslintFindings(eslintPolicy: VendoredIgnoresPolicyResult) {
   ];
 }
 
+function pythonFindings(pythonSetup: PythonSetupResult): Finding[] {
+  if (pythonSetup.tools.length === 0) return [];
+  return [
+    {
+      code: pythonSetup.installed ? 'PYTHON_TOOLS_INSTALLED' : 'PYTHON_TOOLS_REQUIRED',
+      message: pythonSetup.installed
+        ? `Python tools installed (${pythonSetup.tools.join(', ')}).`
+        : `Install Python tools: ${pythonSetup.command ?? pythonSetup.tools.join(' ')}`,
+      severity: 'info',
+    },
+  ];
+}
+
 function setupGuidanceFindings(
   context: ReturnType<typeof createProjectContext>,
   reconciliation: ReconcileResult,
@@ -369,15 +382,9 @@ function setupGuidanceFindings(
 }
 
 interface SetupResultInput {
-  readonly cwd: string;
-  readonly reconciliation: ReconcileResult;
   readonly packageJsonCreated: boolean;
-  readonly architectureEffects: Effect[];
-  readonly workspaceEffects: Effect[];
   readonly installation: DependencyInstallResult;
   readonly eslintPolicy: VendoredIgnoresPolicyResult;
-  readonly compatibilityEffects: Effect[];
-  readonly compatibilityPackage?: string;
   readonly gitInitialized: boolean;
   readonly guidanceFindings: ReturnType<typeof setupGuidanceFindings>;
   readonly pythonSetup: PythonSetupResult;
@@ -437,90 +444,24 @@ function uniqueEffects(effects: readonly Effect[]): Effect[] {
   });
 }
 
-function setupNetworkEffects(
-  packages: readonly Effect[],
-  installation: DependencyInstallResult,
-  reconciliation: ReconcileResult,
-): Effect[] {
-  const effects = packages.map(effect => ({
-    kind: 'package-registry',
-    target: effect.target,
-    operation: effect.kind,
-  }));
-  if (!installation.attempted || installation.installed) return effects;
-  effects.push(
-    ...reconciliation.packagesToInstall.map(target => ({
-      kind: 'package-registry',
-      target,
-      operation: 'install',
-    })),
-  );
-  return effects;
-}
-
-// eslint-disable-next-line complexity -- result assembly explicitly maps each independently observable setup effect and recovery finding
 function setupResult(input: SetupResultInput): CliResult {
   const {
-    cwd,
-    reconciliation,
     packageJsonCreated,
-    architectureEffects,
-    workspaceEffects,
     installation,
     eslintPolicy,
-    compatibilityEffects,
-    compatibilityPackage,
     gitInitialized,
     guidanceFindings,
     pythonSetup,
     namespaceMigration,
     completedEffects,
   } = input;
-  const reconciled = effectsForReconciliation(reconciliation, 'upgrade');
   const files = uniqueEffects([
     ...(packageJsonCreated ? [{ kind: 'create', target: 'package.json' }] : []),
-    ...reconciled.files,
-    ...architectureEffects,
-    ...workspaceEffects,
     ...namespaceMigration.effects,
-    ...compatibilityEffects,
     ...completedEffects.files,
-    ...(eslintPolicy.kind === 'patched'
-      ? [
-          {
-            kind: 'update',
-            target: nodePath.relative(cwd, eslintPolicy.configPath),
-          },
-          {
-            kind: 'create',
-            target: nodePath.relative(cwd, eslintPolicy.backupPath),
-          },
-        ]
-      : []),
   ]);
-  const packages = uniqueEffects([
-    ...(installation.installed
-      ? reconciliation.packagesToInstall.map(target => ({ kind: 'install', target }))
-      : []),
-    ...(compatibilityPackage === undefined
-      ? []
-      : [{ kind: 'update', target: compatibilityPackage }]),
-    ...(pythonSetup.installed
-      ? pythonSetup.tools.map(target => ({ kind: 'install', target }))
-      : []),
-    ...completedEffects.packages,
-  ]);
-  const network = uniqueEffects([
-    ...setupNetworkEffects(packages, installation, reconciliation),
-    ...(!pythonSetup.attempted || pythonSetup.installed
-      ? []
-      : pythonSetup.tools.map(target => ({
-          kind: 'package-registry',
-          target,
-          operation: 'install',
-        }))),
-    ...completedEffects.network,
-  ]);
+  const packages = uniqueEffects(completedEffects.packages);
+  const network = uniqueEffects(completedEffects.network);
   const changed = files.length > 0 || packages.length > 0;
   const findings = [
     ...packageFindings(installation),
@@ -528,17 +469,7 @@ function setupResult(input: SetupResultInput): CliResult {
     ...eslintFindings(eslintPolicy),
     ...guidanceFindings,
     ...namespaceMigration.findings,
-    ...(pythonSetup.tools.length === 0
-      ? []
-      : [
-          {
-            code: pythonSetup.installed ? 'PYTHON_TOOLS_INSTALLED' : 'PYTHON_TOOLS_REQUIRED',
-            message: pythonSetup.installed
-              ? `Python tools installed (${pythonSetup.tools.join(', ')}).`
-              : `Install Python tools: ${pythonSetup.command ?? pythonSetup.tools.join(' ')}`,
-            severity: 'info' as const,
-          },
-        ]),
+    ...pythonFindings(pythonSetup),
   ];
   const actionRequired = findings.some(finding => finding.severity !== 'info');
   let state: CliResult['state'] = changed ? 'changed' : 'healthy';
@@ -556,31 +487,14 @@ function setupResult(input: SetupResultInput): CliResult {
   });
 }
 
-function applyCompatibilityMigrations(
-  cwd: string,
-  completedEffects: CompletedSetupEffects,
-): Effect[] {
+function applyCompatibilityMigrations(cwd: string, completedEffects: CompletedSetupEffects): void {
   const missingPacks = getMissingPacks(cwd);
-  const effects: Effect[] = [];
   for (const packId of missingPacks) {
-    const installed = observeFileStage(cwd, ['.safeword'], completedEffects, () =>
-      installPack(packId, cwd).files.map(target => ({ kind: 'create', target })),
-    );
-    effects.push(...installed);
+    observeFileStage(cwd, ['.safeword'], completedEffects, () => installPack(packId, cwd));
   }
-  if (missingPacks.length > 0) {
-    const configEffect = { kind: 'update', target: '.safeword/config.json' };
-    effects.push(configEffect);
-  }
-  if (
-    observeFileStage(cwd, ['.safeword/config.json'], completedEffects, () =>
-      stripDeadConfigVersion(nodePath.join(cwd, '.safeword')),
-    )
-  ) {
-    const configEffect = { kind: 'update', target: '.safeword/config.json' };
-    effects.push(configEffect);
-  }
-  return effects;
+  observeFileStage(cwd, ['.safeword/config.json'], completedEffects, () =>
+    stripDeadConfigVersion(nodePath.join(cwd, '.safeword')),
+  );
 }
 
 function recordInstalledPackages(
@@ -599,22 +513,15 @@ function recordInstalledPackages(
   }
 }
 
-function applyPackageCompatibility(
-  cwd: string,
-  compatibilityEffects: Effect[],
-  completedEffects: CompletedSetupEffects,
-): string | undefined {
-  if (!syncPackageJsonSafewordVersion(cwd, { report: false })) return undefined;
+function applyPackageCompatibility(cwd: string, completedEffects: CompletedSetupEffects): void {
+  if (!syncPackageJsonSafewordVersion(cwd, { report: false })) return;
   const compatibilityPackage = `safeword@${VERSION}`;
-  const fileEffect = { kind: 'update', target: 'package.json' };
-  compatibilityEffects.push(fileEffect);
   completedEffects.packages.push({ kind: 'update', target: compatibilityPackage });
   completedEffects.network.push({
     kind: 'package-registry',
     target: compatibilityPackage,
     operation: 'update',
   });
-  return compatibilityPackage;
 }
 
 interface ApplySetupInput {
@@ -637,19 +544,16 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
   };
 
   try {
-    const compatibilityEffects = applyCompatibilityMigrations(cwd, completedEffects);
+    applyCompatibilityMigrations(cwd, completedEffects);
     const architectureEffects = observeFileStage(
       cwd,
       ['.safeword/depcruise-config.cjs', '.dependency-cruiser.cjs'],
       completedEffects,
       () => adapters.configureArchitecture(cwd),
     );
-    const workspaceEffects = observeFileStage(
-      cwd,
-      workspacePackageJsonTargets(cwd, context),
-      completedEffects,
-      () => adapters.configureWorkspaces(cwd, context),
-    ).map(target => ({ kind: 'update', target }));
+    observeFileStage(cwd, workspacePackageJsonTargets(cwd, context), completedEffects, () =>
+      adapters.configureWorkspaces(cwd, context),
+    );
     const eslintConfig = context.projectType.existingEslintConfig;
     const eslintPolicy = observeFileStage(
       cwd,
@@ -693,19 +597,13 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
         });
       }
     }
-    const compatibilityPackage = observeFileStage(cwd, ['package.json'], completedEffects, () =>
-      applyPackageCompatibility(cwd, compatibilityEffects, completedEffects),
-    );
+    observeFileStage(cwd, ['package.json'], completedEffects, () => {
+      applyPackageCompatibility(cwd, completedEffects);
+    });
     const applied = setupResult({
-      cwd,
-      reconciliation: result,
       packageJsonCreated,
-      architectureEffects,
-      workspaceEffects,
       installation,
       eslintPolicy,
-      compatibilityEffects,
-      compatibilityPackage,
       gitInitialized: context.isGitRepo,
       guidanceFindings: setupGuidanceFindings(context, result, architectureEffects),
       pythonSetup,
