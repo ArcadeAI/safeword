@@ -11,6 +11,7 @@ import {
   CredentialRegistry,
   GitHubRestClient,
   parseRuntimeConfig,
+  ProcessLock,
   type RelayRuntime,
   RelayStore,
   type RuntimeConfig,
@@ -203,7 +204,10 @@ When('the process receives a shutdown request', async function (this: SafewordWo
 });
 
 Then('the listener, durable store, and process lock are released', function (this: SafewordWorld) {
-  assert.equal(existsSync(path.join(scenario(this).directory ?? '', 'relay.lock')), false);
+  const lockPath = path.join(scenario(this).directory ?? '', 'relay.lock');
+  assert.equal(existsSync(lockPath), true);
+  const reacquired = ProcessLock.acquire(lockPath);
+  reacquired.release();
 });
 
 Given(
