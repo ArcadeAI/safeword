@@ -196,7 +196,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Recovery state takes precedence over legacy protection
 
-- [ ] RED
+- [x] RED skip: recovery precedence shipped with the transaction recovery gate
 - [ ] GREEN
 - [ ] REFACTOR
 
