@@ -42,6 +42,14 @@ function bearer(request: IncomingMessage): string | undefined {
   return request.headers.authorization;
 }
 
+function decodePathSegment(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    throw new RelayError(400, 'relay receipt path is malformed');
+  }
+}
+
 export interface RelayServerFaults extends RelayFaults {
   afterReceiptCommit?: () => void;
 }
@@ -199,6 +207,9 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
       }
       const principal = input.credentials.authenticate(bearer(request));
       if (principal === undefined) throw new RelayError(401, 'authentication is required');
+      if (!consumeRequestCapacity(principal.credentialId)) {
+        throw new RelayError(429, 'relay request rate limit exceeded');
+      }
       if (request.method === 'GET' && url.pathname === '/v1/operations/retro-filings') {
         sendJson(response, 200, {
           ...service.operations(principal),
@@ -207,9 +218,6 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
         return;
       }
       if (request.method === 'POST' && url.pathname === '/v1/retro-filings') {
-        if (!consumeRequestCapacity(principal.credentialId)) {
-          throw new RelayError(429, 'relay filing rate limit exceeded');
-        }
         const receipt = await service.submit(
           principal,
           (await readJson(request, maxBodyBytes)) as FileRetroDraftRequest,
@@ -241,10 +249,7 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
       }
       const reconciliation = /^\/v1\/retro-filings\/([^/]+)\/reconcile$/u.exec(url.pathname);
       if (request.method === 'POST' && reconciliation?.[1] !== undefined) {
-        if (!consumeRequestCapacity(principal.credentialId)) {
-          throw new RelayError(429, 'relay reconciliation rate limit exceeded');
-        }
-        const decodedReceipt = decodeURIComponent(reconciliation[1]);
+        const decodedReceipt = decodePathSegment(reconciliation[1]);
         try {
           const receipt = await service.reconcile(principal, decodedReceipt);
           observability.logs.push({
@@ -282,10 +287,7 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
       }
       const recovery = /^\/v1\/retro-filings\/([^/]+)\/recover$/u.exec(url.pathname);
       if (request.method === 'POST' && recovery?.[1] !== undefined) {
-        if (!consumeRequestCapacity(principal.credentialId)) {
-          throw new RelayError(429, 'relay recovery rate limit exceeded');
-        }
-        const decodedReceipt = decodeURIComponent(recovery[1]);
+        const decodedReceipt = decodePathSegment(recovery[1]);
         try {
           const recovered = await service.recover(principal, decodedReceipt);
           observability.logs.push({
@@ -323,7 +325,7 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
       }
       const status = /^\/v1\/retro-filings\/([^/]+)$/u.exec(url.pathname);
       if (request.method === 'GET' && status?.[1] !== undefined) {
-        const receipt = service.status(principal, decodeURIComponent(status[1]));
+        const receipt = service.status(principal, decodePathSegment(status[1]));
         if (!['dead-letter', 'filed', 'rejected', 'tombstone'].includes(receipt.state)) {
           response.setHeader('retry-after', '1');
         }

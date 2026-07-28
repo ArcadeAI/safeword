@@ -10,6 +10,7 @@ import { assertCodexPluginCatalogue } from '../../cli/src/codex-plugin/catalogue
 import { executeRetroCommand, type RetroOutcome } from '../../cli/src/commands/retro.js';
 import { reconcile } from '../../cli/src/reconcile.js';
 import { parseRetroCommandArguments } from '../../cli/src/retro/command-registration.js';
+import { prepareEncounters } from '../../cli/src/retro/pipeline.js';
 import {
   createRelayRequest,
   persistRelayRequest,
@@ -294,16 +295,21 @@ describe('real shared CLI to relay wiring', () => {
       what_happened: 'The response was lost after durable acceptance.',
       why_friction: 'The next harness could open a duplicate.',
     };
+    const report = await prepareEncounters([finding]);
+    const encounter = report.encounters[0];
+    const relayDraft = {
+      body: encounter.draft.body,
+      canonicalKey: encounter.draft.canonicalSignature,
+      installationId: 42,
+      labels: encounter.draft.labels,
+      legacySignature: encounter.draft.signature,
+      repository: 'arcadeai/safeword',
+      title: encounter.draft.title,
+    };
     const sharedRequest = createRelayRequest(
       {
-        body: finding.what_happened,
-        canonicalKey: 'explicitly-persisted-cross-runtime-request',
-        installationId: 42,
-        labels: ['retro'],
-        legacySignature: 'explicitly-persisted-cross-runtime-request',
-        repository: 'arcadeai/safeword',
-        sourceKey: relaySourceKey('session-1479', 0, 0),
-        title: finding.title,
+        ...relayDraft,
+        sourceKey: relaySourceKey('session-1479', 0, relayDraft),
       },
       {
         now: Date.now,

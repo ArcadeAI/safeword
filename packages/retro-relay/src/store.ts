@@ -340,7 +340,8 @@ function migrateVersionTwo(database: Database): void {
         payload_hash, 1, 'legacy', payload_nonce, payload_ciphertext, payload_tag, state,
         issue_number, request_marker, accepted_at,
         strftime('%Y-%m-%dT%H:%M:%fZ', accepted_at, '+24 hours'), filed_at,
-        dead_lettered_at, tombstoned_at, payload_compacted_at, next_attempt_at,
+        dead_lettered_at, tombstoned_at, payload_compacted_at,
+        COALESCE(next_attempt_at, accepted_at),
         attempt_count, dispatch_started_at
       FROM retro_requests;
       ${reconciliationAuditTable('reconciliation_audit_v3', 'retro_requests_v3')}
@@ -381,7 +382,8 @@ function migrateVersionThree(database: Database): void {
         tenant_id, installation_id, repository, request_id, receipt_id,
         payload_hash, 1, 'legacy', payload_nonce, payload_ciphertext, payload_tag, state,
         issue_number, request_marker, accepted_at, retry_deadline_at, filed_at,
-        dead_lettered_at, tombstoned_at, payload_compacted_at, next_attempt_at,
+        dead_lettered_at, tombstoned_at, payload_compacted_at,
+        COALESCE(next_attempt_at, accepted_at),
         attempt_count, dispatch_started_at
       FROM retro_requests;
       ${reconciliationAuditTable('reconciliation_audit_v4', 'retro_requests_v4')}
@@ -515,6 +517,7 @@ export class RelayStore {
            WHERE tenant_id = ? AND installation_id = ? AND repository = ?
              AND request_id = ? AND state IN ('accepted', 'retryable')
              AND dead_lettered_at IS NULL
+             AND next_attempt_at <= ?
              AND julianday(?) < julianday(retry_deadline_at)`,
         )
         .run(
@@ -522,6 +525,7 @@ export class RelayStore {
           scope.installationId,
           scope.repository,
           scope.requestId,
+          now.toISOString(),
           now.toISOString(),
         ).changes === 1
     );
@@ -579,8 +583,11 @@ export class RelayStore {
         .prepare(
           `UPDATE retro_requests SET state = 'dispatching', dispatch_started_at = ?
            WHERE tenant_id = ? AND installation_id = ? AND repository = ?
-             AND request_id = ? AND state = 'ambiguous'
-             AND dead_lettered_at IS NULL AND tombstoned_at IS NULL`,
+             AND request_id = ? AND tombstoned_at IS NULL
+             AND (
+               (state = 'ambiguous' AND dead_lettered_at IS NULL)
+               OR (state != 'dispatching' AND dead_lettered_at IS NOT NULL)
+             )`,
         )
         .run(
           now.toISOString(),
@@ -595,10 +602,11 @@ export class RelayStore {
   cancelManualRecovery(scope: RequestScope): void {
     this.#database
       .prepare(
-        `UPDATE retro_requests SET state = 'ambiguous'
+        `UPDATE retro_requests
+         SET state = CASE WHEN dead_lettered_at IS NULL THEN 'ambiguous' ELSE 'retryable' END
          WHERE tenant_id = ? AND installation_id = ? AND repository = ?
            AND request_id = ? AND state = 'dispatching'
-           AND dead_lettered_at IS NULL AND tombstoned_at IS NULL`,
+           AND tombstoned_at IS NULL`,
       )
       .run(scope.tenantId, scope.installationId, scope.repository, scope.requestId);
   }
@@ -684,7 +692,8 @@ export class RelayStore {
   markReconciledFiled(scope: RequestScope, issueNumber: number, now = this.#now()): FilingReceipt {
     const result = this.#database
       .prepare(
-        `UPDATE retro_requests SET state = 'filed', issue_number = ?, filed_at = ?
+        `UPDATE retro_requests
+         SET state = 'filed', issue_number = ?, filed_at = ?, dead_lettered_at = NULL
          WHERE tenant_id = ? AND installation_id = ? AND repository = ? AND request_id = ?
            AND state IN ('ambiguous', 'dispatching') AND tombstoned_at IS NULL`,
       )
@@ -817,6 +826,12 @@ export class RelayStore {
       for (const row of ambiguous) {
         this.#insertAlert(row.receipt_id, 'ambiguous', new Date(now));
       }
+      this.#database
+        .prepare(
+          `UPDATE retro_requests SET state = 'retryable', next_attempt_at = ?
+           WHERE state = 'dispatching' AND dead_lettered_at IS NOT NULL`,
+        )
+        .run(now);
     });
   }
 
@@ -873,7 +888,7 @@ export class RelayStore {
            SET tombstoned_at = ?, payload_compacted_at = ?,
                payload_nonce = zeroblob(0), payload_ciphertext = zeroblob(0),
                payload_tag = zeroblob(0)
-           WHERE state = 'filed' AND tombstoned_at IS NULL
+           WHERE state IN ('filed', 'rejected') AND tombstoned_at IS NULL
              AND julianday(?) >= julianday(filed_at, '+30 days')`,
         )
         .run(now.toISOString(), now.toISOString(), now.toISOString());
@@ -929,12 +944,32 @@ export class RelayStore {
       retryable: 0,
       tombstone: 0,
     } satisfies Record<ReceiptState, number>;
-    const rows = this.#database.prepare<[], RequestRow>('SELECT * FROM retro_requests').all();
-    for (const row of rows) counts[projectedState(row)] += 1;
-    const queuedDates = rows
-      .filter(row => ['accepted', 'claimed', 'retryable'].includes(projectedState(row)))
-      .map(row => new Date(row.accepted_at).getTime());
-    const oldest = queuedDates.length === 0 ? now.getTime() : Math.min(...queuedDates);
+    const rows = this.#database
+      .prepare<[], { count: number; projected_state: ReceiptState }>(
+        `SELECT
+           CASE
+             WHEN tombstoned_at IS NOT NULL THEN 'tombstone'
+             WHEN dead_lettered_at IS NOT NULL THEN 'dead-letter'
+             ELSE state
+           END AS projected_state,
+           COUNT(*) AS count
+         FROM retro_requests
+         GROUP BY projected_state`,
+      )
+      .all();
+    for (const row of rows) counts[row.projected_state] = row.count;
+    const oldestQueuedAt = this.#database
+      .prepare<[], { oldest: string | null }>(
+        `SELECT MIN(accepted_at) AS oldest
+         FROM retro_requests
+         WHERE state IN ('accepted', 'claimed', 'retryable')
+           AND dead_lettered_at IS NULL AND tombstoned_at IS NULL`,
+      )
+      .get()?.oldest;
+    const oldest =
+      oldestQueuedAt === null || oldestQueuedAt === undefined
+        ? now.getTime()
+        : new Date(oldestQueuedAt).getTime();
     return {
       counts,
       oldestQueuedAgeSeconds: Math.max(0, Math.floor((now.getTime() - oldest) / 1000)),

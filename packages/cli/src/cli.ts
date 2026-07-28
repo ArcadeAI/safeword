@@ -295,6 +295,27 @@ program
 registerRetroCommand(program);
 
 program
+  .command('retro-relay-retry [request-id]')
+  .description('List or rearm relay dead letters without changing their durable request identity')
+  .action(async (requestId: string | undefined) => {
+    const { retryRelayDeadLetterCommand } = await import('./commands/retro.js');
+    const { info, error: outputError, success } = await import('./utils/output.js');
+    const relayUrl = process.env.SAFEWORD_RETRO_RELAY_URL?.trim();
+    const credential = process.env.SAFEWORD_RETRO_RELAY_CREDENTIAL?.trim();
+    const ok = await retryRelayDeadLetterCommand(requestId, {
+      output: { error: outputError, info, success },
+      projectDirectory: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
+      ...(relayUrl !== undefined &&
+        relayUrl.length > 0 &&
+        credential !== undefined &&
+        credential.length > 0 && {
+          relay: { credential, fetch, relayUrl },
+        }),
+    });
+    if (!ok) process.exitCode = 1;
+  });
+
+program
   .command('retro-reconcile')
   .description(
     'Flag open retro issues whose surface changed after their newest recorded code state (G19QG7)',

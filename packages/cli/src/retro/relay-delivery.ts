@@ -26,6 +26,9 @@ export interface RelayDraftRequest {
 }
 
 type RelayDraftInput = Omit<RelayDraftRequest, 'createdAt' | 'requestId' | 'retryDeadlineAt'>;
+type RelaySourcePayload = Omit<RelayDraftInput, 'sourceKey'>;
+
+const UUID_V4_PATTERN = /^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/u;
 
 export interface RelayClaim {
   bytes: Buffer;
@@ -39,6 +42,23 @@ export interface RelayReceipt {
   requestId: string;
   state: string;
 }
+
+type RelaySourceReservation =
+  | {
+      request: RelayDraftRequest;
+      requestHash: string;
+      sourceKey: string;
+      sourcePayloadHash: string;
+      state: 'active';
+      version: 1;
+    }
+  | {
+      requestId: string;
+      sourceKey: string;
+      sourcePayloadHash: string;
+      state: 'acknowledged';
+      version: 1;
+    };
 
 function relayRequestBytes(request: RelayDraftRequest): Buffer {
   return Buffer.from(
@@ -57,6 +77,23 @@ function relayRequestBytes(request: RelayDraftRequest): Buffer {
   );
 }
 
+function relaySourcePayloadDigest(request: RelaySourcePayload): string {
+  const payload: RelaySourcePayload = {
+    body: request.body,
+    canonicalKey: request.canonicalKey,
+    installationId: request.installationId,
+    labels: request.labels,
+    legacySignature: request.legacySignature,
+    repository: request.repository,
+    title: request.title,
+  };
+  return createHash('sha256').update(JSON.stringify(payload)).digest('hex');
+}
+
+function relayRequestDigest(request: RelayDraftRequest): string {
+  return createHash('sha256').update(JSON.stringify(request)).digest('hex');
+}
+
 export function createRelayRequest(
   input: RelayDraftInput,
   dependencies?: { now?: () => number; randomUUID: () => string },
@@ -73,10 +110,12 @@ export function createRelayRequest(
 export function relaySourceKey(
   sessionIdentity: string,
   windowStart: number,
-  encounterIndex: number,
+  payload: RelaySourcePayload,
 ): string {
   return createHash('sha256')
-    .update(`relay-source-v1\0${sessionIdentity}\0${windowStart}\0${encounterIndex}`)
+    .update(
+      `relay-source-v3\0${sessionIdentity}\0${windowStart}\0${relaySourcePayloadDigest(payload)}`,
+    )
     .digest('hex');
 }
 
@@ -85,15 +124,23 @@ function relayDirectory(projectDirectory: string): string {
 }
 
 function primaryPath(projectDirectory: string, requestId: string): string {
+  if (!UUID_V4_PATTERN.test(requestId)) throw new Error('invalid relay request identity');
   return path.join(relayDirectory(projectDirectory), `${requestId}.json`);
 }
 
 function ackPath(projectDirectory: string, requestId: string): string {
+  if (!UUID_V4_PATTERN.test(requestId)) throw new Error('invalid relay request identity');
   return path.join(relayDirectory(projectDirectory), `${requestId}.ack.json`);
 }
 
 function deadLetterPath(projectDirectory: string, requestId: string): string {
+  if (!UUID_V4_PATTERN.test(requestId)) throw new Error('invalid relay request identity');
   return path.join(relayDirectory(projectDirectory), `${requestId}.dead-letter.json`);
+}
+
+function sourceReservationPath(projectDirectory: string, sourceKey: string): string {
+  const key = createHash('sha256').update(sourceKey).digest('hex');
+  return path.join(relayDirectory(projectDirectory), `source-${key}.json`);
 }
 
 function errorCode(error: unknown): string | undefined {
@@ -136,10 +183,23 @@ async function writeAtomic(file: string, bytes: Buffer): Promise<boolean> {
   }
 }
 
+async function replaceAtomic(file: string, bytes: Buffer): Promise<void> {
+  const temporary = `${file}.tmp.${randomUUID()}`;
+  await writeFile(temporary, bytes, { flag: 'wx', mode: 0o600 });
+  try {
+    await rename(temporary, file);
+  } finally {
+    await removeIfPresent(temporary);
+  }
+}
+
 function parseClaim(
   filename: string,
 ): { claimId: string; expiresAt: number; requestId: string } | undefined {
-  const match = /^([0-9a-f-]+)\.claim\.([\w-]+)\.(\d+)\.json$/u.exec(filename);
+  const match =
+    /^([\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12})\.claim\.([\w-]+)\.(\d+)\.json$/u.exec(
+      filename,
+    );
   if (match === null) return undefined;
   const [, requestId, claimId, expiresAt] = match;
   if (requestId === undefined || claimId === undefined || expiresAt === undefined) {
@@ -149,11 +209,15 @@ function parseClaim(
 }
 
 function parsePrimary(filename: string): string | undefined {
-  return /^([0-9a-f-]+)\.json$/u.exec(filename)?.[1];
+  return /^([\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12})\.json$/u.exec(
+    filename,
+  )?.[1];
 }
 
 function parseDeadLetter(filename: string): string | undefined {
-  return /^([0-9a-f-]+)\.dead-letter\.json$/u.exec(filename)?.[1];
+  return /^([\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12})\.dead-letter\.json$/u.exec(
+    filename,
+  )?.[1];
 }
 
 export async function persistRelayRequest(
@@ -181,39 +245,245 @@ export async function persistRelayRequest(
   return { bytes, path: file };
 }
 
+function sameRelayDraft(request: RelayDraftRequest, draft: RelayDraftInput): boolean {
+  return (
+    request.body === draft.body &&
+    request.canonicalKey === draft.canonicalKey &&
+    request.installationId === draft.installationId &&
+    request.labels.length === draft.labels.length &&
+    request.labels.every((label, index) => label === draft.labels[index]) &&
+    request.legacySignature === draft.legacySignature &&
+    request.repository === draft.repository &&
+    request.sourceKey === draft.sourceKey &&
+    request.title === draft.title
+  );
+}
+
+function parseDurableRequest(candidate: { bytes: Buffer }): RelayDraftRequest | undefined {
+  try {
+    return JSON.parse(candidate.bytes.toString('utf8')) as RelayDraftRequest;
+  } catch {
+    // Corrupt immutable records remain visible and cannot authorize replacement.
+    return undefined;
+  }
+}
+
+function validateSourceReservation(
+  reservation: RelaySourceReservation,
+  draft: RelayDraftInput,
+): void {
+  if (
+    reservation.version !== 1 ||
+    reservation.sourceKey !== draft.sourceKey ||
+    reservation.sourcePayloadHash !== relaySourcePayloadDigest(draft) ||
+    (reservation.state === 'active' &&
+      reservation.requestHash !== relayRequestDigest(reservation.request)) ||
+    (reservation.state === 'active' && !sameRelayDraft(reservation.request, draft))
+  ) {
+    throw new Error('relay source identity was reused with a different payload');
+  }
+}
+
+function activeSourceRequestShape(value: unknown): value is RelayDraftRequest {
+  if (typeof value !== 'object' || value === null) return false;
+  const request = value as Record<string, unknown>;
+  const stringFields = [
+    'body',
+    'canonicalKey',
+    'createdAt',
+    'legacySignature',
+    'repository',
+    'requestId',
+    'retryDeadlineAt',
+    'sourceKey',
+    'title',
+  ];
+  return (
+    stringFields.every(field => typeof request[field] === 'string') &&
+    Number.isSafeInteger(request.installationId) &&
+    Array.isArray(request.labels) &&
+    request.labels.every(label => typeof label === 'string') &&
+    UUID_V4_PATTERN.test(request.requestId as string)
+  );
+}
+
+function activeSourceReservationShape(candidate: Record<string, unknown>): boolean {
+  return (
+    candidate.state === 'active' &&
+    typeof candidate.requestHash === 'string' &&
+    /^[\da-f]{64}$/u.test(candidate.requestHash) &&
+    activeSourceRequestShape(candidate.request)
+  );
+}
+
+function sourceReservationShape(value: unknown): value is RelaySourceReservation {
+  if (typeof value !== 'object' || value === null) return false;
+  const candidate = value as Record<string, unknown>;
+  const commonShape =
+    candidate.version === 1 &&
+    typeof candidate.sourceKey === 'string' &&
+    typeof candidate.sourcePayloadHash === 'string';
+  if (!commonShape) return false;
+  if (candidate.state === 'acknowledged') {
+    return typeof candidate.requestId === 'string' && UUID_V4_PATTERN.test(candidate.requestId);
+  }
+  return activeSourceReservationShape(candidate);
+}
+
+async function loadSourceReservation(
+  projectDirectory: string,
+  draft: RelayDraftInput,
+): Promise<RelaySourceReservation | undefined> {
+  let bytes: Buffer;
+  try {
+    bytes = await readFile(sourceReservationPath(projectDirectory, draft.sourceKey));
+  } catch (error) {
+    if (errorCode(error) === 'ENOENT') return undefined;
+    throw error;
+  }
+  let reservation: unknown;
+  try {
+    reservation = JSON.parse(bytes.toString('utf8')) as unknown;
+  } catch {
+    throw new Error('relay source reservation is corrupt');
+  }
+  if (!sourceReservationShape(reservation)) throw new Error('relay source reservation is corrupt');
+  validateSourceReservation(reservation, draft);
+  return reservation;
+}
+
+async function resolveSourceReservation(
+  projectDirectory: string,
+  draft: RelayDraftInput,
+  reservation: RelaySourceReservation,
+): Promise<RelayDraftRequest | undefined> {
+  validateSourceReservation(reservation, draft);
+  if (reservation.state === 'acknowledged') return undefined;
+  if (await exists(ackPath(projectDirectory, reservation.request.requestId))) {
+    await compactSourceReservation(projectDirectory, reservation.request);
+    return undefined;
+  }
+  await persistRelayRequest(projectDirectory, reservation.request);
+  return reservation.request;
+}
+
+async function reserveSource(
+  projectDirectory: string,
+  draft: RelayDraftInput,
+  reservation: RelaySourceReservation,
+): Promise<RelayDraftRequest | undefined> {
+  const file = sourceReservationPath(projectDirectory, draft.sourceKey);
+  const written = await writeAtomic(file, Buffer.from(JSON.stringify(reservation), 'utf8'));
+  if (written) return resolveSourceReservation(projectDirectory, draft, reservation);
+  const winner = await loadSourceReservation(projectDirectory, draft);
+  if (winner === undefined) throw new Error('relay source reservation disappeared');
+  return resolveSourceReservation(projectDirectory, draft, winner);
+}
+
+async function compactSourceReservation(
+  projectDirectory: string,
+  request: RelayDraftRequest,
+): Promise<void> {
+  const reservation: RelaySourceReservation = {
+    requestId: request.requestId,
+    sourceKey: request.sourceKey,
+    sourcePayloadHash: relaySourcePayloadDigest(request),
+    state: 'acknowledged',
+    version: 1,
+  };
+  await replaceAtomic(
+    sourceReservationPath(projectDirectory, request.sourceKey),
+    Buffer.from(JSON.stringify(reservation), 'utf8'),
+  );
+}
+
+async function findAcknowledgedSource(
+  directory: string,
+  draft: RelayDraftInput,
+): Promise<{
+  corrupt: boolean;
+  receipt?: RelayReceipt & { sourceKey?: string; sourcePayloadHash?: string };
+}> {
+  const filenames = await sortedFilenames(directory);
+  let corrupt = false;
+  for (const filename of filenames) {
+    if (!filename.endsWith('.ack.json')) continue;
+    let acknowledged: RelayReceipt & { sourceKey?: string; sourcePayloadHash?: string };
+    try {
+      acknowledged = JSON.parse(
+        await readFile(path.join(directory, filename), 'utf8'),
+      ) as RelayReceipt & { sourceKey?: string; sourcePayloadHash?: string };
+    } catch {
+      // Corrupt acknowledgements remain visible and cannot authorize replacement.
+      corrupt = true;
+      continue;
+    }
+    if (acknowledged.sourceKey !== draft.sourceKey) continue;
+    if (acknowledged.sourcePayloadHash !== relaySourcePayloadDigest(draft)) {
+      throw new Error('relay source identity was reused with a different payload');
+    }
+    return { corrupt, receipt: acknowledged };
+  }
+  return { corrupt };
+}
+
 export async function persistRelayDraft(
   projectDirectory: string,
   draft: RelayDraftInput,
 ): Promise<RelayDraftRequest | undefined> {
+  const directory = relayDirectory(projectDirectory);
+  await mkdir(directory, { recursive: true });
+  const reserved = await loadSourceReservation(projectDirectory, draft);
+  if (reserved !== undefined) {
+    return resolveSourceReservation(projectDirectory, draft, reserved);
+  }
   const [active, deadLetters] = await Promise.all([
     listRelayRequests(projectDirectory),
     listRelayDeadLetters(projectDirectory),
   ]);
   const durableRequests = [...active, ...deadLetters];
+  let corrupt = false;
   for (const candidate of durableRequests) {
-    try {
-      const request = JSON.parse(candidate.bytes.toString('utf8')) as RelayDraftRequest;
-      if (request.sourceKey === draft.sourceKey) return request;
-    } catch {
-      // Corrupt immutable records remain visible and cannot authorize replacement.
+    const request = parseDurableRequest(candidate);
+    if (request === undefined) {
+      corrupt = true;
+      continue;
     }
+    if (request.sourceKey !== draft.sourceKey) continue;
+    if (!sameRelayDraft(request, draft)) {
+      throw new Error('relay source identity was reused with a different payload');
+    }
+    return reserveSource(projectDirectory, draft, {
+      request,
+      requestHash: relayRequestDigest(request),
+      sourceKey: draft.sourceKey,
+      sourcePayloadHash: relaySourcePayloadDigest(draft),
+      state: 'active',
+      version: 1,
+    });
   }
-  const directory = relayDirectory(projectDirectory);
-  const filenames = await sortedFilenames(directory);
-  for (const filename of filenames) {
-    if (!filename.endsWith('.ack.json')) continue;
-    try {
-      const acknowledged = JSON.parse(
-        await readFile(path.join(directory, filename), 'utf8'),
-      ) as RelayReceipt & { sourceKey?: string };
-      if (acknowledged.sourceKey === draft.sourceKey) return undefined;
-    } catch {
-      // Corrupt acknowledgements remain visible and cannot authorize replacement.
-    }
+  const acknowledged = await findAcknowledgedSource(directory, draft);
+  if (acknowledged.receipt !== undefined) {
+    return reserveSource(projectDirectory, draft, {
+      requestId: acknowledged.receipt.requestId,
+      sourceKey: draft.sourceKey,
+      sourcePayloadHash: relaySourcePayloadDigest(draft),
+      state: 'acknowledged',
+      version: 1,
+    });
+  }
+  if (corrupt || acknowledged.corrupt) {
+    throw new Error('relay spool contains a corrupt durable identity record');
   }
   const request = createRelayRequest(draft);
-  await persistRelayRequest(projectDirectory, request);
-  return request;
+  return reserveSource(projectDirectory, draft, {
+    request,
+    requestHash: relayRequestDigest(request),
+    sourceKey: draft.sourceKey,
+    sourcePayloadHash: relaySourcePayloadDigest(draft),
+    state: 'active',
+    version: 1,
+  });
 }
 
 export async function claimRelayRequest(
@@ -289,6 +559,34 @@ async function claimSpecificRelayRequest(
   }
 }
 
+function acknowledgementSourceMetadata(bytes: Buffer): {
+  request?: RelayDraftRequest;
+  sourceKey?: string;
+  sourcePayloadHash?: string;
+} {
+  try {
+    const request = JSON.parse(bytes.toString('utf8')) as RelayDraftRequest;
+    return {
+      request,
+      sourceKey: request.sourceKey,
+      sourcePayloadHash: relaySourcePayloadDigest(request),
+    };
+  } catch {
+    // A valid relay receipt can still durably acknowledge legacy request bytes.
+    return {};
+  }
+}
+
+async function assertCompatibleAcknowledgement(
+  durableAck: string,
+  receipt: RelayReceipt,
+): Promise<void> {
+  const current = JSON.parse(await readFile(durableAck, 'utf8')) as RelayReceipt;
+  if (current.requestId !== receipt.requestId || current.receiptId !== receipt.receiptId) {
+    throw new Error('relay acknowledgement conflicts with the durable receipt');
+  }
+}
+
 export async function acknowledgeRelayClaim(
   claim: RelayClaim,
   receipt: RelayReceipt,
@@ -297,25 +595,20 @@ export async function acknowledgeRelayClaim(
   if (receipt.requestId !== claim.requestId || !(await exists(claim.path))) return false;
   const projectDirectory = path.resolve(path.dirname(claim.path), '..', '..', '..');
   const durableAck = ackPath(projectDirectory, claim.requestId);
-  let sourceKey: string | undefined;
-  try {
-    sourceKey = (JSON.parse(claim.bytes.toString('utf8')) as Partial<RelayDraftRequest>).sourceKey;
-  } catch {
-    // A valid relay receipt can still durably acknowledge legacy request bytes.
-  }
+  const { request, sourceKey, sourcePayloadHash } = acknowledgementSourceMetadata(claim.bytes);
   const written = await writeAtomic(
     durableAck,
     Buffer.from(
-      JSON.stringify({ ...receipt, ...(sourceKey !== undefined && { sourceKey }) }),
+      JSON.stringify({
+        ...receipt,
+        ...(sourceKey !== undefined && { sourceKey }),
+        ...(sourcePayloadHash !== undefined && { sourcePayloadHash }),
+      }),
       'utf8',
     ),
   );
-  if (!written) {
-    const current = JSON.parse(await readFile(durableAck, 'utf8')) as RelayReceipt;
-    if (current.requestId !== receipt.requestId || current.receiptId !== receipt.receiptId) {
-      throw new Error('relay acknowledgement conflicts with the durable receipt');
-    }
-  }
+  if (!written) await assertCompatibleAcknowledgement(durableAck, receipt);
+  if (request !== undefined) await compactSourceReservation(projectDirectory, request);
   await options.faultAfterAck?.();
   await removeIfPresent(claim.path);
   return true;
@@ -334,7 +627,10 @@ export async function recoverRelaySpool(projectDirectory: string, _now: number):
     filenames.map(async filename => {
       const requestId = parsePrimary(filename) ?? parseClaim(filename)?.requestId;
       if (requestId === undefined || !acknowledged.has(requestId)) return;
-      await removeIfPresent(path.join(directory, filename));
+      const file = path.join(directory, filename);
+      const { request } = acknowledgementSourceMetadata(await readFile(file));
+      if (request !== undefined) await compactSourceReservation(projectDirectory, request);
+      await removeIfPresent(file);
     }),
   );
 }
@@ -387,6 +683,71 @@ async function deadLetterClaim(projectDirectory: string, claim: RelayClaim): Pro
   }
 }
 
+export async function rearmRelayDeadLetter(
+  projectDirectory: string,
+  requestId: string,
+): Promise<boolean> {
+  if (!UUID_V4_PATTERN.test(requestId)) throw new Error('invalid relay request identity');
+  const deadLetter = deadLetterPath(projectDirectory, requestId);
+  const primary = primaryPath(projectDirectory, requestId);
+  try {
+    await link(deadLetter, primary);
+    await unlink(deadLetter);
+    return true;
+  } catch (error) {
+    if (errorCode(error) === 'ENOENT') return false;
+    if (errorCode(error) === 'EEXIST') {
+      throw new Error('relay request is already active', { cause: error });
+    }
+    throw error;
+  }
+}
+
+async function readDeadLetter(file: string): Promise<Buffer | undefined> {
+  try {
+    return await readFile(file);
+  } catch (error) {
+    if (errorCode(error) === 'ENOENT') return undefined;
+    throw error;
+  }
+}
+
+export async function recoverRelayDeadLetter(
+  projectDirectory: string,
+  requestId: string,
+  options: { credential: string; fetch: typeof fetch; relayUrl: string; timeoutMs?: number },
+): Promise<boolean> {
+  if (!UUID_V4_PATTERN.test(requestId)) throw new Error('invalid relay request identity');
+  const relayUrl = new URL(options.relayUrl);
+  if (relayUrl.protocol !== 'https:' || options.credential.trim().length === 0) {
+    throw new Error('invalid relay recovery configuration');
+  }
+  const deadLetter = deadLetterPath(projectDirectory, requestId);
+  const bytes = await readDeadLetter(deadLetter);
+  if (bytes === undefined) return false;
+  const request = JSON.parse(bytes.toString('utf8')) as RelayDraftRequest;
+  const response = await options.fetch(new URL('/v1/retro-filings', relayUrl), {
+    body: relayRequestBytes(request),
+    headers: {
+      authorization: `Bearer ${options.credential}`,
+      'content-type': 'application/json',
+    },
+    method: 'POST',
+    signal: AbortSignal.timeout(options.timeoutMs ?? 750),
+  });
+  if (!response.ok) return false;
+  const receipt = (await response.json()) as RelayReceipt;
+  if (receipt.requestId !== requestId || typeof receipt.receiptId !== 'string') {
+    throw new Error('relay returned an invalid durable receipt');
+  }
+  if (!['filed', 'rejected', 'tombstone'].includes(receipt.state)) return false;
+  return acknowledgeRelayClaim({ bytes, path: deadLetter, requestId }, receipt);
+}
+
+function retryableRelayStatus(status: number): boolean {
+  return status === 408 || status === 425 || status === 429 || status >= 500;
+}
+
 // eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- Claim, expiry, HTTP, and rearm are one filesystem state machine.
 export async function deliverRelayRequests(
   projectDirectory: string,
@@ -406,7 +767,7 @@ export async function deliverRelayRequests(
   retryable: number;
 }> {
   const monotonicNow = options.monotonicNow ?? (() => performance.now());
-  const overallDeadline = monotonicNow() + (options.overallDeadlineMs ?? options.deadlineMs);
+  const overallDeadline = monotonicNow() + (options.overallDeadlineMs ?? options.deadlineMs * 2);
   const initial = await listRelayRequests(projectDirectory);
   const wallClockNow = options.now();
   await recoverExpiredClaims(
@@ -434,8 +795,9 @@ export async function deliverRelayRequests(
     try {
       parsedRequest = JSON.parse(claim.bytes.toString('utf8')) as RelayDraftRequest;
     } catch {
-      retryable += 1;
-      await rearmClaim(projectDirectory, claim);
+      await deadLetterClaim(projectDirectory, claim);
+      deadLettered += 1;
+      deadLetterBacklog += 1;
       continue;
     }
     if (options.now() >= Date.parse(parsedRequest.retryDeadlineAt)) {
@@ -445,17 +807,14 @@ export async function deliverRelayRequests(
       continue;
     }
     const remainingOverallMs = overallDeadline - monotonicNow();
-    if (remainingOverallMs <= 0) {
+    if (remainingOverallMs < options.deadlineMs) {
       await rearmClaim(projectDirectory, claim);
       break;
     }
     const controller = new AbortController();
-    const timer = setTimeout(
-      () => {
-        controller.abort();
-      },
-      Math.min(options.deadlineMs, remainingOverallMs),
-    );
+    const timer = setTimeout(() => {
+      controller.abort();
+    }, options.deadlineMs);
     timer.unref();
     try {
       const response = await options.fetch(`${options.relayUrl}/v1/retro-filings`, {
@@ -467,12 +826,17 @@ export async function deliverRelayRequests(
         method: 'POST',
         signal: controller.signal,
       });
+      if (!response.ok) {
+        if (!retryableRelayStatus(response.status)) {
+          await deadLetterClaim(projectDirectory, claim);
+          deadLettered += 1;
+          deadLetterBacklog += 1;
+          continue;
+        }
+        throw new Error('relay returned a retryable response');
+      }
       const body = (await response.json()) as RelayReceipt;
-      if (
-        !response.ok ||
-        body.requestId !== claim.requestId ||
-        typeof body.receiptId !== 'string'
-      ) {
+      if (body.requestId !== claim.requestId || typeof body.receiptId !== 'string') {
         throw new Error('relay returned an invalid durable receipt');
       }
       if (await acknowledgeRelayClaim(claim, body)) accepted += 1;

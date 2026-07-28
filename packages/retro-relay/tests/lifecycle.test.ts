@@ -226,14 +226,25 @@ describe('schema version four migration', () => {
   it('upgrades the deployed version-two layout with a durable retry deadline', () => {
     const file = databasePath();
     createVersionTwo(file);
+    const legacy = new Database(file);
+    legacy
+      .prepare("UPDATE retro_requests SET next_attempt_at = NULL WHERE request_id = 'migrated-v2'")
+      .run();
+    legacy.close();
 
     const store = RelayStore.open(file);
 
     expect(store.schemaVersion()).toBe(4);
     expect(store.load(scope('migrated-v2'))).toMatchObject({
       envelope: { formatVersion: 1, keyId: 'legacy' },
+      nextAttemptAt: '2026-01-01T00:00:00.000Z',
       retryDeadlineAt: '2026-01-02T00:00:00.000Z',
     });
+    expect(
+      store
+        .claimDueRetries(new Date('2026-01-01T00:00:00.000Z'))
+        .map(record => record.scope.requestId),
+    ).toContain('migrated-v2');
     store.close();
   });
 
@@ -306,6 +317,20 @@ describe('durable retry and terminal lifecycle', () => {
     store.markRetryable(scope('due'), now);
     expect(store.load(scope('due'))?.attemptCount).toBe(2);
     expect(store.load(scope('due'))?.nextAttemptAt).toBe('2026-01-01T00:03:00.000Z');
+    store.close();
+  });
+
+  it('does not let an inbound retry bypass its durable next-attempt schedule', () => {
+    const file = databasePath();
+    const now = new Date('2026-01-01T00:00:00.000Z');
+    const store = RelayStore.open(file, { now: () => now });
+    accept(store, 'scheduled');
+    expect(store.claim(scope('scheduled'), now)).toBe(true);
+    store.markRetryable(scope('scheduled'), now);
+
+    expect(store.load(scope('scheduled'))?.nextAttemptAt).toBe('2026-01-01T00:01:00.000Z');
+    expect(store.claim(scope('scheduled'), new Date('2026-01-01T00:00:30.000Z'))).toBe(false);
+    expect(store.claim(scope('scheduled'), new Date('2026-01-01T00:01:00.000Z'))).toBe(true);
     store.close();
   });
 
@@ -400,6 +425,25 @@ describe('durable retry and terminal lifecycle', () => {
     expect(record?.envelope.ciphertext).toHaveLength(0);
     expect(record?.scope.requestId).toBe('retained');
     expect(record?.issueNumber).toBe(1479);
+    store.close();
+  });
+
+  it('compacts rejected payloads after 30 days so retired keys do not brick startup', () => {
+    const file = databasePath();
+    const acceptedAt = new Date('2026-01-01T00:00:00.000Z');
+    const store = RelayStore.open(file, { now: () => acceptedAt });
+    accept(store, 'rejected-retained');
+    store.claim(scope('rejected-retained'), acceptedAt);
+    store.beginDispatch(scope('rejected-retained'), acceptedAt);
+    store.markRejected(scope('rejected-retained'), acceptedAt);
+
+    store.maintain(new Date('2026-01-31T00:00:00.000Z'));
+
+    expect(store.load(scope('rejected-retained'))).toMatchObject({
+      envelope: { ciphertext: Buffer.alloc(0) },
+      state: 'tombstone',
+    });
+    expect(store.payloadKeyIds()).toEqual([]);
     store.close();
   });
 

@@ -10,7 +10,7 @@
     "build": "tsup",
     "spike": "bun scripts/railway-spike.ts",
     "start": "node dist/main.js",
-    "test": "vitest run",
+    "test": "bun run build && vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {},

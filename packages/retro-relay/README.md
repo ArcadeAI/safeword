@@ -18,8 +18,9 @@ runtime, so neither users nor server operators install SQLite separately;
 Railway stores its database on the mounted volume. The
 CLI persists each sanitized request once as immutable bytes, uses that same
 UUID and body from every harness, and gives the entire spool drain a 750 ms
-budget. A missing response leaves the request retryable; it never authorizes a
-second GitHub-native create.
+budget while reserving a complete 500 ms budget before starting each attempt.
+A missing response leaves the request retryable; it never authorizes a second
+GitHub-native create.
 
 ## Production runtime
 
@@ -32,6 +33,11 @@ non-secret `RAILWAY_REPLICA_ID`.
 Run exactly one replica with a persistent volume mounted at `/data` and set
 `RELAY_DATA_DIR=/data`. SQLite WAL is intentionally a single-host deployment;
 moving to multiple replicas requires replacing the store with PostgreSQL.
+Railway mounts volumes as root. The container entrypoint therefore starts as
+root only long enough to create and migrate ownership of the mounted data
+directory, then execs the Node process as the image's unprivileged `node` user.
+Do not replace the entrypoint with a bare `USER node`: it cannot write a fresh
+Railway volume.
 
 Node 22 documents `node:sqlite` as active development and Node 24 documents it
 as release candidate. The relay keeps the API behind `src/sqlite.ts`, qualifies
@@ -47,8 +53,9 @@ tokens remain server-side. `RELAY_MODE=spike` accepts the legacy single
 credential variables but makes every route except `GET /health` unavailable.
 The production listener caps filing bodies at 256 KiB, validates bounded fields
 and UUIDv4 request identities, uses ten-second inbound and GitHub deadlines,
-bounds concurrent GitHub work, and permits 60 filing or reconciliation requests
-per principal per minute. These in-process limits match the supported
+bounds concurrent GitHub work, and permits 60 authenticated API requests per
+principal per minute, including filing, reconciliation, recovery, status, and
+operations reads. These in-process limits match the supported
 single-replica topology; a multi-replica deployment must move both storage and
 rate limiting to shared infrastructure.
 
@@ -77,15 +84,16 @@ The maintenance loop persists exponential retry scheduling against the
 client-supplied absolute deadline (capped at 24 hours after acceptance), stops
 new dispatches at that deadline, resolves an already-started dispatch for one
 additional hour, then creates an alerted ambiguous tombstone if the outcome is still
-unknown. Filed payload envelopes become application-inaccessible after 30 days;
-request identity remains non-reusable indefinitely. This is an
+unknown. Filed and rejected payload envelopes become application-inaccessible
+after 30 days; request identity remains non-reusable indefinitely. This is an
 application-retention promise, not forensic erasure of SQLite pages, WAL files,
 or provider backups.
 
 Operators can read payload-free lifecycle counts at
 `GET /v1/operations/retro-filings` and reconcile an ambiguous receipt at
 `POST /v1/retro-filings/:receiptId/reconcile`. If a fresh complete raw scan has
-zero matches, an operator may explicitly invoke
+zero matches, an operator may explicitly invoke recovery for either an
+ambiguous receipt or a deadline dead letter at
 `POST /v1/retro-filings/:receiptId/recover`; the relay serializes recovery,
 reuses the encrypted original payload and reserved marker, and audit-records
 the create. Harness credentials cannot invoke this route. Terminal alerts use stable event
@@ -94,8 +102,8 @@ deduplicate by event ID.
 
 Installation-token requests for the same repository scope are coalesced.
 Ambiguous-create reconciliation uses raw REST bodies only and stops at the
-configured overall deadline or page budget; an incomplete scan never authorizes
-a duplicate decision.
+configured overall deadline or 20,000-item page budget; an incomplete scan
+never authorizes a duplicate decision.
 
 ```sh
 bun run --cwd packages/retro-relay test

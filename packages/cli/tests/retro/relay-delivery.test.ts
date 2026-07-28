@@ -1,5 +1,5 @@
-import { randomUUID } from 'node:crypto';
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { createHash, randomUUID } from 'node:crypto';
+import { mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import type { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
@@ -17,12 +17,15 @@ import {
   listRelayRequests,
   persistRelayDraft,
   persistRelayRequest,
+  rearmRelayDeadLetter,
   recoverRelaySpool,
   type RelayDraftRequest,
+  relaySourceKey,
 } from '../../src/retro/relay-delivery.js';
 import {
   CHECKED_IN_RELAY_READINESS,
   type RelayReadinessManifest,
+  validateBuildAttestedRelayReadiness,
   validateRelayReadiness,
 } from '../../src/retro/relay-readiness.js';
 
@@ -70,6 +73,29 @@ function request(overrides: Record<string, unknown> = {}) {
 }
 
 describe('immutable relay delivery spool', () => {
+  it('derives the same source identity regardless of payload property insertion order', () => {
+    const first = {
+      body: 'body',
+      canonicalKey: 'canonical',
+      installationId: 42,
+      labels: ['retro'],
+      legacySignature: 'legacy',
+      repository: 'arcadeai/safeword',
+      title: 'title',
+    };
+    const reordered = {
+      title: first.title,
+      repository: first.repository,
+      legacySignature: first.legacySignature,
+      labels: first.labels,
+      installationId: first.installationId,
+      canonicalKey: first.canonicalKey,
+      body: first.body,
+    };
+
+    expect(relaySourceKey('session', 1000, first)).toBe(relaySourceKey('session', 1000, reordered));
+  });
+
   it('persists unrelated findings independently while retaining per-source identity', async () => {
     const project = temporaryProject();
     const firstDraft = {
@@ -97,6 +123,133 @@ describe('immutable relay delivery spool', () => {
     expect(second).toBeDefined();
     expect(repeated?.requestId).toBe(first?.requestId);
     expect(await listRelayRequests(project)).toHaveLength(2);
+  });
+
+  it('atomically reserves one request identity across simultaneous source persistence', async () => {
+    const project = temporaryProject();
+    const draft = {
+      body: 'one body',
+      canonicalKey: 'canonical:one',
+      installationId: 42,
+      labels: ['retro'],
+      legacySignature: 'retro:one',
+      repository: 'arcadeai/safeword',
+      sourceKey: 'one-source',
+      title: 'One',
+    };
+
+    const persisted = await Promise.all(
+      Array.from({ length: 20 }, () => persistRelayDraft(project, draft)),
+    );
+
+    expect(new Set(persisted.map(item => item?.requestId)).size).toBe(1);
+    expect(await listRelayRequests(project)).toHaveLength(1);
+  });
+
+  it('rejects a source reservation whose nested request identity was altered', async () => {
+    const project = temporaryProject();
+    const draft = {
+      body: 'reserved body',
+      canonicalKey: 'canonical:reserved',
+      installationId: 42,
+      labels: ['retro'],
+      legacySignature: 'retro:reserved',
+      repository: 'arcadeai/safeword',
+      sourceKey: 'reserved-source',
+      title: 'Reserved',
+    };
+    const original = await persistRelayDraft(project, draft);
+    if (original === undefined) throw new Error('missing original request');
+    const directory = path.join(project, '.safeword', 'retro-drafts', 'relay');
+    const sourceFile = readdirSync(directory).find(filename => filename.startsWith('source-'));
+    if (sourceFile === undefined) throw new Error('missing source reservation');
+    const sourcePath = path.join(directory, sourceFile);
+    const reservation = JSON.parse(readFileSync(sourcePath, 'utf8')) as {
+      request: { sourceKey: string };
+    };
+    reservation.request.sourceKey = 'altered-source';
+    writeFileSync(sourcePath, JSON.stringify(reservation));
+
+    await expect(persistRelayDraft(project, draft)).rejects.toThrow(
+      'source identity was reused with a different payload',
+    );
+    const requests = await listRelayRequests(project);
+    expect(requests.map(item => item.requestId)).toEqual([original.requestId]);
+  });
+
+  it.each(['active', 'dead-letter', 'acknowledgement'] as const)(
+    'never re-identifies a source after corrupt %s bytes',
+    async state => {
+      const project = temporaryProject();
+      const draft = {
+        body: 'durable body',
+        canonicalKey: 'canonical:durable',
+        installationId: 42,
+        labels: ['retro'],
+        legacySignature: 'retro:durable',
+        repository: 'arcadeai/safeword',
+        sourceKey: `durable-${state}`,
+        title: 'Durable',
+      };
+      const original = await persistRelayDraft(project, draft);
+      if (original === undefined) throw new Error('missing original request');
+      const directory = path.join(project, '.safeword', 'retro-drafts', 'relay');
+      const active = path.join(directory, `${original.requestId}.json`);
+
+      if (state === 'dead-letter') {
+        const deadLetter = path.join(directory, `${original.requestId}.dead-letter.json`);
+        renameSync(active, deadLetter);
+        writeFileSync(deadLetter, '{"requestId":');
+      } else if (state === 'acknowledgement') {
+        const claim = await claimRelayRequest(project, {
+          claimId: 'owner',
+          leaseMs: 1000,
+          now: 0,
+        });
+        if (claim === undefined) throw new Error('missing claim');
+        await acknowledgeRelayClaim(claim, {
+          receiptId: 'receipt-corrupt',
+          requestId: original.requestId,
+          state: 'filed',
+        });
+        const sourceFile = readdirSync(directory).find(filename => filename.startsWith('source-'));
+        if (sourceFile === undefined) throw new Error('missing source reservation');
+        const compacted = readFileSync(path.join(directory, sourceFile), 'utf8');
+        expect(compacted).not.toContain(draft.body);
+        expect(compacted).not.toContain(draft.title);
+        writeFileSync(path.join(directory, `${original.requestId}.ack.json`), '{"requestId":');
+      } else {
+        writeFileSync(active, '{"requestId":');
+      }
+
+      const repeated = persistRelayDraft(project, draft);
+      if (state === 'acknowledgement') await expect(repeated).resolves.toBeUndefined();
+      else await expect(repeated).rejects.toThrow('different payload');
+      const requestFiles = readdirSync(directory).filter(filename =>
+        /^[\da-f]{8}-/u.test(filename),
+      );
+      expect(requestFiles.every(filename => filename.startsWith(original.requestId))).toBe(true);
+    },
+  );
+
+  it('never lets a semantic source collision silently replace immutable payload', async () => {
+    const project = temporaryProject();
+    const original = {
+      body: 'first body',
+      canonicalKey: 'canonical:collision',
+      installationId: 42,
+      labels: ['retro'],
+      legacySignature: 'retro:collision',
+      repository: 'arcadeai/safeword',
+      sourceKey: 'same-source',
+      title: 'First',
+    };
+    await persistRelayDraft(project, original);
+
+    await expect(
+      persistRelayDraft(project, { ...original, body: 'different body', title: 'Second' }),
+    ).rejects.toThrow('source identity was reused with a different payload');
+    expect(await listRelayRequests(project)).toHaveLength(1);
   });
 
   it('persists UUIDv4 request identity and exact serialized bytes once', async () => {
@@ -180,6 +333,30 @@ describe('immutable relay delivery spool', () => {
     );
     const ack = JSON.parse(readFileSync(ackPath, 'utf8')) as unknown;
     expect(ack).toMatchObject({ requestId: original.requestId, receiptId: 'receipt-1' });
+    const sourceFile = readdirSync(path.dirname(ackPath)).find(filename =>
+      filename.startsWith('source-'),
+    );
+    if (sourceFile === undefined) throw new Error('missing source reservation');
+    const compactedSource = readFileSync(path.join(path.dirname(ackPath), sourceFile), 'utf8');
+    expect(compactedSource).not.toContain(original.body);
+    expect(compactedSource).not.toContain(original.title);
+    expect(JSON.parse(compactedSource)).toMatchObject({
+      requestId: original.requestId,
+      state: 'acknowledged',
+    });
+
+    await expect(
+      persistRelayDraft(project, {
+        body: 'changed after acknowledgement',
+        canonicalKey: original.canonicalKey,
+        installationId: original.installationId,
+        labels: original.labels,
+        legacySignature: original.legacySignature,
+        repository: original.repository,
+        sourceKey: original.sourceKey,
+        title: original.title,
+      }),
+    ).rejects.toThrow('source identity was reused with a different payload');
   });
 
   it('cannot lose a concurrent request while another request is acknowledged', async () => {
@@ -323,6 +500,83 @@ describe('immutable relay delivery spool', () => {
     expect(await listRelayRequests(project)).toHaveLength(1);
   });
 
+  it('quarantines corrupt bytes once instead of retrying them forever', async () => {
+    const project = temporaryProject();
+    const persisted = await persistRelayRequest(project, request());
+    writeFileSync(persisted.path, '{"requestId":');
+    const send = vi.fn<typeof fetch>();
+
+    await expect(
+      deliverRelayRequests(project, {
+        credential: 'swc_client_secret',
+        deadlineMs: 25,
+        fetch: send,
+        now: Date.now,
+        relayUrl: 'https://relay.invalid',
+      }),
+    ).resolves.toMatchObject({ deadLetterBacklog: 1, deadLettered: 1, retryable: 0 });
+    await expect(
+      deliverRelayRequests(project, {
+        credential: 'swc_client_secret',
+        deadlineMs: 25,
+        fetch: send,
+        now: Date.now,
+        relayUrl: 'https://relay.invalid',
+      }),
+    ).resolves.toMatchObject({ deadLetterBacklog: 1, deadLettered: 0, retryable: 0 });
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('dead-letters terminal relay failures but rearms retryable failures', async () => {
+    const project = temporaryProject();
+    const terminal = request({ sourceKey: 'terminal' });
+    await persistRelayRequest(project, terminal);
+
+    await expect(
+      deliverRelayRequests(project, {
+        credential: 'swc_client_secret',
+        deadlineMs: 25,
+        fetch: () => Promise.resolve(Response.json({ error: 'forbidden' }, { status: 403 })),
+        now: Date.now,
+        relayUrl: 'https://relay.invalid',
+      }),
+    ).resolves.toMatchObject({ deadLetterBacklog: 1, deadLettered: 1, retryable: 0 });
+    expect(await listRelayRequests(project)).toHaveLength(0);
+
+    expect(await rearmRelayDeadLetter(project, terminal.requestId)).toBe(true);
+    await expect(
+      deliverRelayRequests(project, {
+        credential: 'swc_client_secret',
+        deadlineMs: 25,
+        fetch: () => Promise.resolve(Response.json({ error: 'busy' }, { status: 429 })),
+        now: Date.now,
+        relayUrl: 'https://relay.invalid',
+      }),
+    ).resolves.toMatchObject({ deadLetterBacklog: 0, deadLettered: 0, retryable: 1 });
+    expect(await listRelayRequests(project)).toHaveLength(1);
+    expect(await rearmRelayDeadLetter(project, terminal.requestId)).toBe(false);
+  });
+
+  it('rejects non-UUID dead-letter identities before resolving a filesystem path', async () => {
+    const project = temporaryProject();
+
+    await expect(rearmRelayDeadLetter(project, '../../outside')).rejects.toThrow(
+      'invalid relay request identity',
+    );
+  });
+
+  it('never overwrites an active request while rearming the same dead letter', async () => {
+    const project = temporaryProject();
+    const active = request();
+    const persisted = await persistRelayRequest(project, active);
+    const deadLetter = persisted.path.replace(/\.json$/u, '.dead-letter.json');
+    writeFileSync(deadLetter, JSON.stringify({ ...active, body: 'dead-letter bytes' }));
+
+    await expect(rearmRelayDeadLetter(project, active.requestId)).rejects.toThrow('already active');
+    expect(readFileSync(persisted.path, 'utf8')).toBe(JSON.stringify(active));
+    expect(readFileSync(deadLetter, 'utf8')).toContain('dead-letter bytes');
+  });
+
   it('bounds the whole drain and leaves unattempted requests durably spooled', async () => {
     const project = temporaryProject();
     for (const [index, title] of ['first', 'second', 'third'].entries()) {
@@ -353,8 +607,8 @@ describe('immutable relay delivery spool', () => {
 
     const outcome = await deliverRelayRequests(project, {
       credential: 'swc_client_secret',
-      deadlineMs: 100,
-      overallDeadlineMs: 15,
+      deadlineMs: 10,
+      overallDeadlineMs: 25,
       fetch: send,
       monotonicNow: () => now,
       now: () => now,
@@ -363,6 +617,30 @@ describe('immutable relay delivery spool', () => {
 
     expect(send).toHaveBeenCalledTimes(2);
     expect(outcome.accepted).toBe(2);
+    expect(await listRelayRequests(project)).toHaveLength(1);
+  });
+
+  it('does not start an HTTP attempt without its full per-request budget', async () => {
+    const project = temporaryProject();
+    await persistRelayRequest(project, request());
+    let monotonic = 0;
+    const send = vi.fn<typeof fetch>();
+
+    const outcome = await deliverRelayRequests(project, {
+      credential: 'swc_client_secret',
+      deadlineMs: 100,
+      overallDeadlineMs: 100,
+      fetch: send,
+      monotonicNow: () => {
+        monotonic += 1;
+        return monotonic;
+      },
+      now: () => 0,
+      relayUrl: 'https://relay.invalid',
+    });
+
+    expect(send).not.toHaveBeenCalled();
+    expect(outcome.retryable).toBe(0);
     expect(await listRelayRequests(project)).toHaveLength(1);
   });
 });
@@ -433,6 +711,34 @@ describe('relay readiness provenance', () => {
     expect(result).toEqual({ enabled: true });
   });
 
+  it('uses build-embedded evidence without consulting the customer repository', async () => {
+    const manifest = validManifest();
+    const buildCommit = 'b'.repeat(40);
+    const result = await validateBuildAttestedRelayReadiness(
+      manifest,
+      {
+        ancestorPairs: [
+          `${manifest.evidenceCommit}:${buildCommit}`,
+          ...manifest.prerequisites.map(
+            prerequisite => `${prerequisite.mergedCommit}:${manifest.evidenceCommit}`,
+          ),
+        ],
+        artifactHashes: Object.fromEntries(
+          Object.values(manifest.measurements).map(artifact => [
+            `${manifest.evidenceCommit}:${artifact.path}`,
+            artifact.sha256,
+          ]),
+        ),
+        buildCommit,
+        enabled: true,
+        manifestSha256: createHash('sha256').update(JSON.stringify(manifest)).digest('hex'),
+      },
+      new Date('2026-07-26T12:00:00.000Z'),
+    );
+
+    expect(result).toEqual({ enabled: true });
+  });
+
   it.each([
     ['unlanded prerequisite', (value: RelayReadinessManifest) => value],
     [
@@ -456,6 +762,21 @@ describe('relay readiness provenance', () => {
         return value;
       },
     ],
+    [
+      'malformed artifact',
+      (value: RelayReadinessManifest) => {
+        value.measurements.sameSignatureCollisions.sha256 = 'not-a-sha256';
+        return value;
+      },
+    ],
+    ['hash mismatch', (value: RelayReadinessManifest) => value],
+    [
+      'future measurement',
+      (value: RelayReadinessManifest) => {
+        value.measurements.sameSignatureCollisions.measuredAt = '2026-07-27T00:00:00.000Z';
+        return value;
+      },
+    ],
   ])('fails closed for %s evidence', async (kind, mutate) => {
     const manifest = mutate(validManifest());
     const result = await validateRelayReadiness(manifest, {
@@ -466,10 +787,11 @@ describe('relay readiness provenance', () => {
             (kind !== 'other build' || ancestor !== 'e'.repeat(40)),
         ),
       now: new Date('2026-07-26T12:00:00.000Z'),
-      readArtifactAtCommit: (_commit, artifactPath) =>
-        Promise.resolve({
-          sha256: artifactPath.endsWith('collisions.json') ? '1'.repeat(64) : '2'.repeat(64),
-        }),
+      readArtifactAtCommit: (_commit, artifactPath) => {
+        let sha256 = artifactPath.endsWith('collisions.json') ? '1'.repeat(64) : '2'.repeat(64);
+        if (kind === 'hash mismatch') sha256 = '3'.repeat(64);
+        return Promise.resolve({ sha256 });
+      },
     });
     expect(result.enabled).toBe(false);
   });
@@ -483,6 +805,11 @@ describe('headless extraction credential boundary', () => {
     vi.stubEnv('GITHUB_TOKEN', 'github-token');
     vi.stubEnv('RELAY_CREDENTIAL_SECRET', 'server-secret');
     vi.stubEnv('SAFEWORD_RETRO_RELAY_CREDENTIAL', 'client-secret');
+    vi.stubEnv('HTTPS_PROXY', 'https://proxy.example');
+    vi.stubEnv('NODE_EXTRA_CA_CERTS', '/certs/company.pem');
+    vi.stubEnv('ANTHROPIC_BASE_URL', 'https://llm-gateway.example');
+    vi.stubEnv('CLAUDE_CODE_USE_BEDROCK', '1');
+    vi.stubEnv('AWS_REGION', 'us-west-2');
     try {
       const extract = await buildAutoExtractor(project, {
         model: 'sonnet',
@@ -510,5 +837,12 @@ describe('headless extraction credential boundary', () => {
     expect(observed[0]).not.toHaveProperty('GITHUB_APP_PRIVATE_KEY_BASE64');
     expect(observed[0]).not.toHaveProperty('GITHUB_TOKEN');
     expect(observed[0]).toHaveProperty('PATH');
+    expect(observed[0]).toMatchObject({
+      ANTHROPIC_BASE_URL: 'https://llm-gateway.example',
+      AWS_REGION: 'us-west-2',
+      CLAUDE_CODE_USE_BEDROCK: '1',
+      HTTPS_PROXY: 'https://proxy.example',
+      NODE_EXTRA_CA_CERTS: '/certs/company.pem',
+    });
   });
 });

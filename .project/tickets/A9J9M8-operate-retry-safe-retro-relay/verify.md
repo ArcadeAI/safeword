@@ -24,4 +24,14 @@ Audit passed with warnings — 0 feature-blocking errors. Config sync and the de
 - Raw GitHub REST bodies remain the only marker authority. Sanitized MCP reads are not used for duplicate decisions.
 - GitHub issue 834 remains open and is not superseded.
 - GitHub issue 1495 is not a readiness gate because this slice does not reuse its client credential helpers.
-- Checked-in relay readiness remains disabled while GitHub issues 1474 and 1481 are open.
+- GitHub issues 1474 and 1481 are now closed on main. Checked-in relay readiness remains disabled because the required fresh post-fix measurement artifacts and evidence review have not landed.
+
+## 2026-07-28 PR comment resolution rerun
+
+- Relay: 138 passed, 1 ordinary-lane skip; the CI-gated production Docker image test passed 6/6 with process UID 1000, `/data` UID 1000, and unsafe `/` configuration rejected.
+- CLI aggregate: 5,622 passed and 5 skipped; eight subprocess timeouts in three legacy integration files passed 19/19 when immediately rerun in isolation.
+- Acceptance: 623 scenarios (620 passed, 3 skipped) and 19,861 steps (19,857 passed, 4 skipped).
+- Release gate: 22/22. Non-git physical install proof: 1/1.
+- Build, full lint, typecheck, format, dependency validation, diff hygiene, and production audit passed; audit found no vulnerabilities.
+- Fresh independent quality review and final delta review both approved with no critical issues after atomic source reservation, corruption fencing, restart-safe deadline recovery, shared-tenant enforcement, and normalized process locks.
+- Ticket remains `verify/in_progress`: the ticket-system contract requires explicit user confirmation before marking a ticket done.

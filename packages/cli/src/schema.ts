@@ -281,6 +281,7 @@ const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
  */
 export const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
   '.safeword/.update-cache.json',
+  '.safeword/retro-drafts/',
   '.safeword/self-reports/',
   '.safeword/boundary-audit.jsonl',
   ...['.project', '.safeword-project'].flatMap(root =>

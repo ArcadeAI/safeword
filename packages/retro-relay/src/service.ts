@@ -139,35 +139,43 @@ export class RelayService {
     if (record.state !== 'ambiguous') {
       throw new RelayError(409, 'only ambiguous filings can be reconciled');
     }
-    const scan = await this.#github.scanExactMarker({
-      installationId: record.scope.installationId,
-      repository: record.scope.repository,
-      marker: record.requestMarker,
-    });
-    if (!scan.complete) {
-      this.#store.recordReconciliation(receiptId, principal.subject, 'incomplete', 0);
-      throw new RelayError(503, 'raw reconciliation is incomplete or non-unique', {
-        receiptId,
-        state: 'ambiguous',
-        disposition: 'incomplete',
-      });
+    if (!this.#store.beginManualRecovery(record.scope, this.#now())) {
+      throw new RelayError(409, 'filing reconciliation is already in progress');
     }
-    if (scan.issueNumbers.length !== 1) {
-      const disposition = scan.issueNumbers.length === 0 ? 'zero' : 'multiple';
-      this.#store.recordReconciliation(
-        receiptId,
-        principal.subject,
-        disposition,
-        scan.issueNumbers.length,
-      );
-      throw new RelayError(503, 'raw reconciliation is incomplete or non-unique', {
-        receiptId,
-        state: 'ambiguous',
-        disposition,
+    try {
+      const scan = await this.#github.scanExactMarker({
+        installationId: record.scope.installationId,
+        repository: record.scope.repository,
+        marker: record.requestMarker,
       });
+      if (!scan.complete) {
+        this.#store.recordReconciliation(receiptId, principal.subject, 'incomplete', 0);
+        throw new RelayError(503, 'raw reconciliation is incomplete or non-unique', {
+          receiptId,
+          state: 'ambiguous',
+          disposition: 'incomplete',
+        });
+      }
+      if (scan.issueNumbers.length !== 1) {
+        const disposition = scan.issueNumbers.length === 0 ? 'zero' : 'multiple';
+        this.#store.recordReconciliation(
+          receiptId,
+          principal.subject,
+          disposition,
+          scan.issueNumbers.length,
+        );
+        throw new RelayError(503, 'raw reconciliation is incomplete or non-unique', {
+          receiptId,
+          state: 'ambiguous',
+          disposition,
+        });
+      }
+      this.#store.recordReconciliation(receiptId, principal.subject, 'adopted', 1);
+      return this.#store.markReconciledFiled(record.scope, scan.issueNumbers[0]);
+    } catch (error) {
+      this.#store.cancelManualRecovery(record.scope);
+      throw error;
     }
-    this.#store.recordReconciliation(receiptId, principal.subject, 'adopted', 1);
-    return this.#store.markReconciledFiled(record.scope, scan.issueNumbers[0]);
   }
 
   // eslint-disable-next-line complexity -- Recovery keeps the raw-scan safety decisions explicit.
@@ -183,8 +191,8 @@ export class RelayService {
     if (['filed', 'tombstone'].includes(record.state)) {
       return { disposition: 'adopted', receipt: receiptFromRecord(record) };
     }
-    if (record.state !== 'ambiguous') {
-      throw new RelayError(409, 'only ambiguous filings can be manually recovered');
+    if (!['ambiguous', 'dead-letter'].includes(record.state)) {
+      throw new RelayError(409, 'only ambiguous or dead-letter filings can be manually recovered');
     }
     if (!this.#store.beginManualRecovery(record.scope, this.#now())) {
       throw new RelayError(409, 'filing recovery is already in progress');
@@ -285,9 +293,16 @@ export class RelayService {
   }
 
   async submit(principal: RelayPrincipal, request: FileRetroDraftRequest): Promise<FilingReceipt> {
+    const now = this.#now();
     validateRequest(request);
     const scope = authorize(principal, request, 'file');
     const hash = payloadHash(request);
+    if (
+      this.#store.load(scope) === undefined &&
+      Date.parse(request.retryDeadlineAt) <= now.getTime()
+    ) {
+      throw new RelayError(400, 'invalid relay filing request');
+    }
     const marker = requestMarker(scope);
     const accepted = this.#store.accept({
       scope,
@@ -307,7 +322,7 @@ export class RelayService {
         state: 'ambiguous',
       });
     }
-    if (!this.#store.claim(scope)) {
+    if (!this.#store.claim(scope, this.#now())) {
       const current = this.#store.receipt(scope);
       if (current === undefined) throw new RelayError(404, 'filing receipt not found');
       return current;

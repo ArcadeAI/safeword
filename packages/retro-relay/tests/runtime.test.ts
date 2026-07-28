@@ -199,6 +199,25 @@ describe('production runtime configuration', () => {
     ]);
   });
 
+  it('rejects production principals split across tenant identity buckets', () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'safeword-runtime-tenants-'));
+    runtimeDirectories.push(directory);
+    const environment = productionEnvironment(directory);
+    const credentials = JSON.parse(
+      Buffer.from(environment.RELAY_CREDENTIALS_BASE64 ?? '', 'base64').toString('utf8'),
+    ) as { harness: string; tenantId: string }[];
+    const operator = credentials.find(item => item.harness === 'operator');
+    if (operator === undefined) throw new Error('missing operator credential');
+    operator.tenantId = 'different-tenant';
+    environment.RELAY_CREDENTIALS_BASE64 = Buffer.from(JSON.stringify(credentials)).toString(
+      'base64',
+    );
+
+    expect(() => parseRuntimeConfig(environment)).toThrow(
+      'production relay principals must share one tenant',
+    );
+  });
+
   it('loads a versioned payload keyring and selects one active encryption key', () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'safeword-runtime-keyring-'));
     runtimeDirectories.push(directory);

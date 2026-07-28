@@ -78,6 +78,7 @@ async function startGitHubFixture(
   options: {
     afterCreate?: () => void;
     afterToken?: () => void;
+    appendRawBodyAfterFirstPage?: string;
     createDelayMs?: number;
     createMessage?: string;
     createStatus?: number;
@@ -95,6 +96,7 @@ async function startGitHubFixture(
   createBodies: string[];
   authorizationHeaders: string[];
   rawAcceptHeaders: string[];
+  rawIssueUrls: string[];
   sanitizedMcpBodies: string[];
   tokenRequests: { authorization: string; body: Record<string, unknown> }[];
   maximumConcurrentCreates: () => number;
@@ -102,6 +104,7 @@ async function startGitHubFixture(
   const createdBodies: string[] = [];
   const authorizationHeaders: string[] = [];
   const rawAcceptHeaders: string[] = [];
+  const rawIssueUrls: string[] = [];
   let activeCreates = 0;
   let maximumConcurrentCreates = 0;
   const tokenRequests: { authorization: string; body: Record<string, unknown> }[] = [];
@@ -136,6 +139,7 @@ async function startGitHubFixture(
     }
     if (request.method === 'GET' && request.url?.includes('/issues')) {
       rawAcceptHeaders.push(request.headers.accept ?? '');
+      rawIssueUrls.push(request.url);
       if (options.scanDelayMs !== undefined) await delay(options.scanDelayMs);
 
       const page = Number(new URL(request.url, 'https://github.invalid').searchParams.get('page'));
@@ -144,15 +148,23 @@ async function startGitHubFixture(
         response.end();
         return;
       }
+      if (page === 1 && options.appendRawBodyAfterFirstPage !== undefined) {
+        rawBodies.push(options.appendRawBodyAfterFirstPage);
+      }
+      const pageBodies = rawBodies.slice((page - 1) * 100, page * 100);
+      if (page * 100 < rawBodies.length) {
+        response.setHeader(
+          'link',
+          `<https://api.github.invalid/issues?page=${page + 1}>; rel="next"`,
+        );
+      }
       response.setHeader('content-type', 'application/json');
       response.end(
         JSON.stringify(
-          page > 1
-            ? []
-            : rawBodies.map((body, index) => ({
-                number: 700 + index,
-                body,
-              })),
+          pageBodies.map((body, index) => ({
+            number: 700 + (page - 1) * 100 + index,
+            body,
+          })),
         ),
       );
       return;
@@ -196,6 +208,7 @@ async function startGitHubFixture(
     createBodies: createdBodies,
     authorizationHeaders,
     rawAcceptHeaders,
+    rawIssueUrls,
     sanitizedMcpBodies: options.sanitizedMcpBodies ?? [],
     tokenRequests,
     maximumConcurrentCreates: () => maximumConcurrentCreates,
@@ -379,6 +392,9 @@ describe('retry-safe retro relay', () => {
       state: 'tombstone',
     });
     expect(setup.createBodies).toHaveLength(1);
+    await expect(
+      adapters.cursor.file(draft({ body: 'changed after tombstone' })),
+    ).rejects.toMatchObject({ status: 409 });
   });
 
   it('does not start a dispatch when token acquisition crosses the 24-hour deadline', async () => {
@@ -408,6 +424,26 @@ describe('retry-safe retro relay', () => {
         pollBudgetMs: 0,
       }).codex.file(draft({ requestId: 'crossed-retry-deadline' })),
     ).resolves.toMatchObject({ state: 'dead-letter' });
+    await expect(
+      createHarnessAdapters(setup.relay.url, setup.credentials).cursor.file(
+        draft({ body: 'changed after dead letter', requestId: 'crossed-retry-deadline' }),
+      ),
+    ).rejects.toMatchObject({ status: 409 });
+  });
+
+  it('replays an existing exact receipt after its submitted deadline has elapsed', async () => {
+    let current = new Date('2026-07-27T00:00:00.000Z');
+    const setup = await fixture({ now: () => current });
+    const original = draft({ retryDeadlineAt: '2026-07-27T00:01:00.000Z' });
+    const filed = await createHarnessAdapters(setup.relay.url, setup.credentials).claude.file(
+      original,
+    );
+    current = new Date('2026-07-27T00:02:00.000Z');
+
+    await expect(
+      createHarnessAdapters(setup.relay.url, setup.credentials).codex.file(original),
+    ).resolves.toEqual(filed);
+    expect(setup.createBodies).toHaveLength(1);
   });
 
   it('cannot commit a filed result when GitHub work crosses the one-hour grace', async () => {
@@ -661,6 +697,16 @@ describe('retry-safe retro relay', () => {
 
     expect(statuses.slice(0, 60).every(status => status === 404)).toBe(true);
     expect(statuses[60]).toBe(429);
+  });
+
+  it('maps malformed receipt escapes to 400 instead of an internal error', async () => {
+    const setup = await fixture();
+    const response = await fetch(`${setup.relay.url}/v1/retro-filings/%/reconcile`, {
+      headers: { authorization: `Bearer ${setup.credentials.operator}` },
+      method: 'POST',
+    });
+
+    expect(response.status).toBe(400);
   });
 
   it('rejects non-UUID request identities before durable or GitHub access', async () => {
@@ -970,6 +1016,70 @@ describe('retry-safe retro relay', () => {
     reopened.close();
   });
 
+  it('lets an operator recover a deadline dead letter under the original request identity', async () => {
+    let current = new Date('2026-07-27T00:00:00.000Z');
+    const original = draft({ retryDeadlineAt: '2026-07-27T00:01:00.000Z' });
+    const setup = await fixture({ failToken: true, now: () => current });
+    await expect(
+      createHarnessAdapters(setup.relay.url, setup.credentials).claude.file(original),
+    ).rejects.toMatchObject({ status: 503 });
+    current = new Date('2026-07-27T00:02:00.000Z');
+    setup.store.maintain(current);
+    const durable = setup.store.load({
+      tenantId: 'tenant-1',
+      installationId: 42,
+      repository: 'arcadeai/safeword',
+      requestId: original.requestId,
+    });
+    if (durable === undefined) throw new Error('missing dead-letter request');
+    expect(setup.store.receipt(durable.scope)).toMatchObject({ state: 'dead-letter' });
+    expect(setup.store.beginManualRecovery(durable.scope, current)).toBe(true);
+    setup.store.close();
+    setup.relay.server.close();
+
+    const github = await startGitHubFixture({ rawBodies: [] });
+    const reopened = RelayStore.open(path.join(setup.directory, 'relay.sqlite'), {
+      now: () => current,
+    });
+    const relay = await startRelayServer({
+      allowUnlockedForTests: true,
+      credentials: setup.registry,
+      github: new GitHubRestClient({
+        baseUrl: github.baseUrl,
+        installationToken: () => Promise.resolve('ghs_installation_secret'),
+      }),
+      payloadKey: Buffer.alloc(32, 7),
+      store: reopened,
+      now: () => current,
+    });
+    servers.push(relay.server);
+    expect(reopened.receipt(durable.scope)).toMatchObject({ state: 'dead-letter' });
+
+    await expect(
+      createHarnessAdapters(relay.url, setup.credentials).operator.recoverReceipt(
+        durable.receiptId,
+      ),
+    ).resolves.toMatchObject({
+      issueNumber: 901,
+      requestId: original.requestId,
+      state: 'filed',
+    });
+    expect(github.createBodies).toEqual([`${original.body}\n\n${durable.requestMarker}`]);
+    expect(reopened.reconciliationAudit(durable.receiptId)).toEqual([
+      {
+        actorSubject: 'operator-subject',
+        disposition: 'manual-create-attempted',
+        matchCount: 0,
+      },
+      {
+        actorSubject: 'operator-subject',
+        disposition: 'manual-created',
+        matchCount: 0,
+      },
+    ]);
+    reopened.close();
+  });
+
   it('serializes simultaneous operator recovery attempts to one GitHub create', async () => {
     const setup = await fixture({ createStatus: 500 });
     await expect(
@@ -1009,6 +1119,54 @@ describe('retry-safe retro relay', () => {
     expect(outcomes.filter(outcome => outcome.status === 'rejected')).toHaveLength(1);
     expect(github.createBodies).toHaveLength(1);
     expect(reopened.receipt(durable.scope)).toMatchObject({ issueNumber: 901, state: 'filed' });
+    reopened.close();
+  });
+
+  it('serializes simultaneous reconciliation to one adoption and one audit row', async () => {
+    const setup = await fixture({ faults: postCreateCrashFaults() });
+    await expect(
+      createHarnessAdapters(setup.relay.url, setup.credential).claude.file(draft()),
+    ).rejects.toMatchObject({ status: 503 });
+    const durable = setup.store.load({
+      tenantId: 'tenant-1',
+      installationId: 42,
+      repository: 'arcadeai/safeword',
+      requestId: draft().requestId,
+    });
+    if (durable === undefined) throw new Error('missing ambiguous request');
+    const marker = setup.createBodies[0]?.split('\n').at(-1) ?? '';
+    setup.store.close();
+    setup.relay.server.close();
+
+    const github = await startGitHubFixture({ rawBodies: [marker] });
+    const reopened = RelayStore.open(path.join(setup.directory, 'relay.sqlite'));
+    const relay = await startRelayServer({
+      allowUnlockedForTests: true,
+      credentials: setup.registry,
+      github: new GitHubRestClient({
+        baseUrl: github.baseUrl,
+        installationToken: () => Promise.resolve('ghs_installation_secret'),
+      }),
+      payloadKey: Buffer.alloc(32, 7),
+      store: reopened,
+    });
+    servers.push(relay.server);
+    const operator = createHarnessAdapters(relay.url, setup.credentials).operator;
+
+    const outcomes = await Promise.allSettled([
+      operator.reconcileReceipt(durable.receiptId),
+      operator.reconcileReceipt(durable.receiptId),
+    ]);
+
+    expect(outcomes.filter(outcome => outcome.status === 'fulfilled')).toHaveLength(1);
+    expect(outcomes.filter(outcome => outcome.status === 'rejected')).toHaveLength(1);
+    expect(reopened.reconciliationAudit(durable.receiptId)).toEqual([
+      {
+        actorSubject: 'operator-subject',
+        disposition: 'adopted',
+        matchCount: 1,
+      },
+    ]);
     reopened.close();
   });
 
@@ -1096,6 +1254,16 @@ describe('retry-safe retro relay', () => {
     expect(observable).not.toContain(draft().body);
     expect(observable).not.toContain(setup.credentials.operator);
     expect(observable).not.toContain('ghs_installation_secret');
+
+    const statuses: number[] = [];
+    for (let index = 0; index < 60; index += 1) {
+      const operationsResponse = await fetch(`${setup.relay.url}/v1/operations/retro-filings`, {
+        headers: { authorization: `Bearer ${setup.credentials.operator}` },
+      });
+      statuses.push(operationsResponse.status);
+    }
+    expect(statuses.slice(0, 59).every(status => status === 200)).toBe(true);
+    expect(statuses[59]).toBe(429);
   });
 
   it('uses a server-held installation token without persisting or observing secrets', async () => {
@@ -1199,6 +1367,70 @@ describe('retry-safe retro relay', () => {
         repository: 'arcadeai/safeword',
       }),
     ).resolves.toEqual({ complete: false, issueNumbers: [] });
+  });
+
+  it('completes a raw marker scan beyond the repository current page count', async () => {
+    const marker = '<!-- safeword-retro-request:late-page -->';
+    const github = await startGitHubFixture({
+      rawBodies: [...Array.from({ length: 1500 }, (_, index) => `issue ${index}`), marker],
+    });
+    const client = new GitHubRestClient({
+      baseUrl: github.baseUrl,
+      installationToken: () => Promise.resolve('ghs_installation_secret'),
+    });
+
+    await expect(
+      client.scanExactMarker({
+        installationId: 42,
+        marker,
+        repository: 'arcadeai/safeword',
+      }),
+    ).resolves.toEqual({ complete: true, issueNumbers: [2200] });
+  });
+
+  it('keeps an ascending raw scan complete when a new issue arrives between pages', async () => {
+    const marker = '<!-- safeword-retro-request:created-during-scan -->';
+    const github = await startGitHubFixture({
+      appendRawBodyAfterFirstPage: marker,
+      rawBodies: Array.from({ length: 101 }, (_, index) => `existing issue ${index}`),
+    });
+    const client = new GitHubRestClient({
+      baseUrl: github.baseUrl,
+      installationToken: () => Promise.resolve('ghs_installation_secret'),
+    });
+
+    await expect(
+      client.scanExactMarker({
+        installationId: 42,
+        marker,
+        repository: 'arcadeai/safeword',
+      }),
+    ).resolves.toEqual({ complete: true, issueNumbers: [801] });
+    expect(github.rawIssueUrls).toHaveLength(2);
+    for (const requested of github.rawIssueUrls) {
+      const parameters = new URL(requested, github.baseUrl).searchParams;
+      expect(parameters.get('state')).toBe('all');
+      expect(parameters.get('sort')).toBe('created');
+      expect(parameters.get('direction')).toBe('asc');
+    }
+  });
+
+  it('rejects a retry deadline that already elapsed before durable acceptance', async () => {
+    const setup = await fixture();
+
+    const response = await fetch(`${setup.relay.url}/v1/retro-filings`, {
+      body: JSON.stringify(draft({ retryDeadlineAt: '2020-01-01T00:00:00.000Z' })),
+      headers: {
+        authorization: `Bearer ${setup.credential}`,
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    });
+
+    expect(response.status).toBe(400);
+    expect(
+      Object.values(setup.store.operations().counts).reduce((sum, count) => sum + count, 0),
+    ).toBe(0);
   });
 
   it('bounds reconciliation across delayed token minting and a saturated request queue', async () => {

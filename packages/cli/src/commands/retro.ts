@@ -15,7 +15,6 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
@@ -35,13 +34,19 @@ import { prepareEncounters } from '../retro/pipeline.js';
 import { reconcile, type ReconcileTracker } from '../retro/reconcile.js';
 import {
   deliverRelayRequests,
+  listRelayDeadLetters,
   persistRelayDraft,
+  rearmRelayDeadLetter,
+  recoverRelayDeadLetter,
+  type RelayDraftRequest,
   relaySourceKey,
 } from '../retro/relay-delivery.js';
 import {
   CHECKED_IN_RELAY_READINESS,
   type RelayReadinessManifest,
   SAFEWORD_BUILD_COMMIT,
+  SAFEWORD_RELAY_BUILD_ATTESTATION,
+  validateBuildAttestedRelayReadiness,
   validateRelayReadiness,
 } from '../retro/relay-readiness.js';
 import { type IssueTracker, triage, type TriageResult } from '../retro/triage.js';
@@ -123,13 +128,14 @@ export interface RetroOutcome {
   result?: TriageResult;
   /** Per-wall egress drop counts (PNZM3B) — silence must mean clean. */
   drops?: { schema: number; surface: number };
-  /**
-   * True when drafts remain spooled after filing (REST failed / was capped) — the
-   * signal that the agent filing path (PATH B) is needed. Undefined when the spool
-   * is opted out (no `projectDirectory`).
-   */
+  /** True when durable work remains after this bounded filing attempt. */
   agentFilingNeeded?: boolean;
-  relay?: { accepted: number; retryable: number };
+  relay?: {
+    accepted: number;
+    deadLetterBacklog: number;
+    deadLettered: number;
+    retryable: number;
+  };
 }
 
 function emptyTriageResult(): TriageResult {
@@ -183,25 +189,28 @@ export async function runRetro(
   if (relay?.readiness.enabled === true && projectDirectory !== undefined) {
     const sourceSession =
       sessionId.trim().length === 0 || sessionId === 'unknown' ? options.transcript : sessionId;
-    for (const [index, encounter] of encounters.entries()) {
-      await persistRelayDraft(projectDirectory, {
+    for (const encounter of encounters) {
+      const relayDraft = {
         body: encounter.draft.body,
         canonicalKey: encounter.draft.canonicalSignature,
         installationId: relay.installationId,
         labels: encounter.draft.labels,
         legacySignature: encounter.draft.signature,
         repository: relay.repository,
-        sourceKey: relaySourceKey(sourceSession, options.windowStart ?? 0, index),
         title: encounter.draft.title,
+      };
+      await persistRelayDraft(projectDirectory, {
+        ...relayDraft,
+        sourceKey: relaySourceKey(sourceSession, options.windowStart ?? 0, relayDraft),
       });
     }
-    const deadlineMs = relay.deadlineMs ?? 750;
+    const deadlineMs = relay.deadlineMs ?? 500;
     const delivery = await deliverRelayRequests(projectDirectory, {
       credential: relay.credential,
       deadlineMs,
       fetch: relay.fetch ?? fetch,
       now: () => Date.now(),
-      overallDeadlineMs: deadlineMs,
+      overallDeadlineMs: Math.min(deadlineMs + 250, 900),
       relayUrl: relay.relayUrl,
     });
     return {
@@ -277,14 +286,36 @@ export interface AutoExtractDependencies {
 type AutoExtractSpawn = NonNullable<AutoExtractDependencies['spawn']>;
 
 const HEADLESS_ENVIRONMENT_KEYS = [
+  'ALL_PROXY',
   'ANTHROPIC_API_KEY',
+  'ANTHROPIC_AUTH_TOKEN',
+  'ANTHROPIC_BASE_URL',
+  'ANTHROPIC_BEDROCK_BASE_URL',
+  'ANTHROPIC_BEDROCK_MANTLE_BASE_URL',
+  'APPDATA',
+  'AWS_BEARER_TOKEN_BEDROCK',
+  'AWS_PROFILE',
+  'AWS_REGION',
+  'CLAUDE_CODE_OAUTH_TOKEN',
+  'CLAUDE_CODE_USE_BEDROCK',
+  'CLAUDE_CODE_USE_FOUNDRY',
+  'CLAUDE_CODE_USE_MANTLE',
+  'CLAUDE_CODE_USE_VERTEX',
+  'CLAUDE_CONFIG_DIR',
+  'CLOUD_ML_REGION',
   'CODEX_HOME',
   'HOME',
+  'HTTP_PROXY',
+  'HTTPS_PROXY',
   'LANG',
   'LC_ALL',
+  'NODE_EXTRA_CA_CERTS',
+  'NO_PROXY',
   'OPENAI_API_KEY',
   'PATH',
+  'PATHEXT',
   'SHELL',
+  'SystemRoot',
   'TERM',
   'TMPDIR',
   'USER',
@@ -466,54 +497,37 @@ function defaultRelayConfig(
   return { credential, installationId, relayUrl, repository: repo };
 }
 
-function gitIsAncestor(
-  projectDirectory: string,
-  ancestor: string,
-  descendant: string,
-): Promise<boolean> {
-  const result = spawnSync('git', ['merge-base', '--is-ancestor', ancestor, descendant], {
-    cwd: projectDirectory,
-    stdio: 'ignore',
-    timeout: 10_000,
-  });
-  return Promise.resolve(result.status === 0);
+function usesInjectedReadinessEvidence(composition: RetroReadinessComposition): boolean {
+  return (
+    composition.buildCommit !== undefined ||
+    composition.isAncestor !== undefined ||
+    composition.readArtifactAtCommit !== undefined
+  );
 }
 
-function artifactAtCommit(
-  projectDirectory: string,
-  commit: string,
-  artifactPath: string,
-): Promise<{ sha256: string } | undefined> {
-  const result = spawnSync('git', ['show', `${commit}:${artifactPath}`], {
-    cwd: projectDirectory,
-    maxBuffer: 16 * 1024 * 1024,
-    timeout: 10_000,
-  });
-  if (result.status !== 0 || !Buffer.isBuffer(result.stdout)) return Promise.resolve(undefined);
-  return Promise.resolve({
-    sha256: createHash('sha256').update(result.stdout).digest('hex'),
+function resolveRelayReadiness(
+  composition: RetroReadinessComposition,
+  manifest: RelayReadinessManifest | typeof CHECKED_IN_RELAY_READINESS,
+): Promise<{ enabled: boolean }> {
+  const now = composition.now ?? new Date();
+  if (!usesInjectedReadinessEvidence(composition)) {
+    return validateBuildAttestedRelayReadiness(manifest, SAFEWORD_RELAY_BUILD_ATTESTATION, now);
+  }
+  return validateRelayReadiness(manifest, {
+    buildCommit: composition.buildCommit ?? SAFEWORD_BUILD_COMMIT,
+    isAncestor: composition.isAncestor ?? (() => Promise.resolve(false)),
+    now,
+    readArtifactAtCommit: composition.readArtifactAtCommit ?? (() => Promise.resolve(undefined)),
   });
 }
 
 async function resolveRetroRelayRoute(input: {
   composition?: RetroReadinessComposition;
   environment: NodeJS.ProcessEnv;
-  projectDirectory: string;
 }): Promise<RelayRoute | undefined> {
   const composition = input.composition ?? {};
-  const readiness = await validateRelayReadiness(
-    composition.manifest ?? CHECKED_IN_RELAY_READINESS,
-    {
-      buildCommit: composition.buildCommit ?? SAFEWORD_BUILD_COMMIT,
-      isAncestor:
-        composition.isAncestor ??
-        ((ancestor, descendant) => gitIsAncestor(input.projectDirectory, ancestor, descendant)),
-      now: composition.now ?? new Date(),
-      readArtifactAtCommit:
-        composition.readArtifactAtCommit ??
-        ((commit, artifactPath) => artifactAtCommit(input.projectDirectory, commit, artifactPath)),
-    },
-  );
+  const manifest = composition.manifest ?? CHECKED_IN_RELAY_READINESS;
+  const readiness = await resolveRelayReadiness(composition, manifest);
   if (!readiness.enabled) return undefined;
   const config =
     composition.configuration === undefined
@@ -541,7 +555,6 @@ export async function executeRetroCommand(
   const relay = await resolveRetroRelayRoute({
     composition: dependencies.relay,
     environment: dependencies.environment,
-    projectDirectory: dependencies.projectDirectory,
   });
   const outcome = await runRetro(options, {
     extract: dependencies.extract,
@@ -593,6 +606,8 @@ export function reportRetroCommandOutcome(
     return;
   }
 
+  if (reportRelayOutcome(outcome, options.output)) return;
+
   const r = outcome.result;
   if (!r) return;
   info(
@@ -608,6 +623,97 @@ export function reportRetroCommandOutcome(
     );
   }
   success('retro complete');
+}
+
+function reportRelayOutcome(outcome: RetroOutcome, output: RetroCommandOutput): boolean {
+  if (outcome.relay === undefined) return false;
+  const { info, success } = output;
+  const relay = outcome.relay;
+  info(
+    `retro relay: ${relay.accepted} accepted, ${relay.retryable} queued for retry, ${relay.deadLetterBacklog} dead letter(s)`,
+  );
+  const dropLine = renderDropReport(outcome.drops);
+  if (dropLine) info(dropLine);
+  if (relay.retryable > 0) {
+    info('retro relay: delivery remains durably queued under its original request identity.');
+  }
+  if (relay.deadLetterBacklog > 0) {
+    info(
+      'retro relay: inspect with `safeword retro-relay-retry`; rearm with `safeword retro-relay-retry <request-id>`.',
+    );
+  }
+  success('retro complete');
+  return true;
+}
+
+async function listRelayDeadLetterCommand(
+  projectDirectory: string,
+  output: RetroCommandOutput,
+): Promise<boolean> {
+  const deadLetters = await listRelayDeadLetters(projectDirectory);
+  if (deadLetters.length === 0) {
+    output.info('retro relay: no dead letters.');
+    return true;
+  }
+  output.info(`retro relay: ${deadLetters.length} dead letter(s):`);
+  for (const deadLetter of deadLetters) output.info(deadLetter.requestId);
+  return true;
+}
+
+export async function retryRelayDeadLetterCommand(
+  requestId: string | undefined,
+  dependencies: {
+    output: RetroCommandOutput;
+    projectDirectory: string;
+    relay?: { credential: string; fetch: typeof fetch; relayUrl: string };
+  },
+): Promise<boolean> {
+  if (requestId === undefined) {
+    return listRelayDeadLetterCommand(dependencies.projectDirectory, dependencies.output);
+  }
+  const { error, success } = dependencies.output;
+  const deadLetters = await listRelayDeadLetters(dependencies.projectDirectory);
+  const deadLetter = deadLetters.find(candidate => candidate.requestId === requestId);
+  if (deadLetter === undefined) {
+    error(`retro relay: dead letter ${requestId} was not found.`);
+    return false;
+  }
+  let request: RelayDraftRequest;
+  try {
+    request = JSON.parse(deadLetter.bytes.toString('utf8')) as RelayDraftRequest;
+  } catch {
+    error(`retro relay: dead letter ${requestId} is corrupt and cannot be replayed.`);
+    return false;
+  }
+  if (Date.parse(request.retryDeadlineAt) <= Date.now()) {
+    if (dependencies.relay === undefined) {
+      error(
+        'retro relay: expired dead letters require SAFEWORD_RETRO_RELAY_URL and SAFEWORD_RETRO_RELAY_CREDENTIAL to recover the existing server receipt.',
+      );
+      return false;
+    }
+    const recovered = await recoverRelayDeadLetter(
+      dependencies.projectDirectory,
+      requestId,
+      dependencies.relay,
+    );
+    if (!recovered) {
+      error(`retro relay: the server could not recover expired request ${requestId}.`);
+      return false;
+    }
+    success(`retro relay: recovered ${requestId} with its original durable request identity.`);
+    return true;
+  }
+  let rearmed: boolean;
+  try {
+    rearmed = await rearmRelayDeadLetter(dependencies.projectDirectory, requestId);
+  } catch {
+    error('retro relay: request identity must be a lowercase UUIDv4.');
+    return false;
+  }
+  if (!rearmed) return false;
+  success(`retro relay: rearmed ${requestId} with its original durable request identity.`);
+  return true;
 }
 
 /**

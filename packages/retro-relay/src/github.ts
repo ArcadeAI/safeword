@@ -114,7 +114,7 @@ export class GitHubRestClient {
     this.#baseUrl = options.baseUrl.replace(/\/$/u, '');
     this.#installationToken = options.installationToken;
     this.#maxConcurrentRequests = options.maxConcurrentRequests ?? 4;
-    this.#reconciliationMaxPages = options.reconciliationMaxPages ?? 10;
+    this.#reconciliationMaxPages = options.reconciliationMaxPages ?? 200;
     this.#reconciliationTimeoutMs = options.reconciliationTimeoutMs ?? 30_000;
     this.#requestTimeoutMs = options.requestTimeoutMs ?? 10_000;
   }
@@ -244,6 +244,8 @@ export class GitHubRestClient {
       if (remainingMs <= 0) return { complete: false, issueNumbers: [] };
       const url = new URL(`${this.#baseUrl}/repos/${input.repository}/issues`);
       url.searchParams.set('state', 'all');
+      url.searchParams.set('sort', 'created');
+      url.searchParams.set('direction', 'asc');
       url.searchParams.set('per_page', '100');
       url.searchParams.set('page', String(page));
       let result: { issues: GitHubIssue[]; link: string | null; ok: boolean };

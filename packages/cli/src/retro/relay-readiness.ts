@@ -32,12 +32,35 @@ export interface RelayReadinessManifest {
   version: 1;
 }
 
-export const CHECKED_IN_RELAY_READINESS = { enabled: false, version: 1 } as const;
+type DisabledRelayReadiness = { enabled: false; version: 1 };
+
+export const CHECKED_IN_RELAY_READINESS = checkedInRelayReadiness as
+  DisabledRelayReadiness | RelayReadinessManifest;
 
 declare const __SAFEWORD_BUILD_COMMIT__: string | undefined;
+declare const __SAFEWORD_RELAY_BUILD_ATTESTATION__: RelayBuildAttestation | undefined;
 
 export const SAFEWORD_BUILD_COMMIT =
   typeof __SAFEWORD_BUILD_COMMIT__ === 'string' ? __SAFEWORD_BUILD_COMMIT__ : 'development-source';
+
+export interface RelayBuildAttestation {
+  ancestorPairs: string[];
+  artifactHashes: Record<string, string>;
+  buildCommit: string;
+  enabled: boolean;
+  manifestSha256: string;
+}
+
+export const SAFEWORD_RELAY_BUILD_ATTESTATION: RelayBuildAttestation =
+  typeof __SAFEWORD_RELAY_BUILD_ATTESTATION__ === 'object'
+    ? __SAFEWORD_RELAY_BUILD_ATTESTATION__
+    : {
+        ancestorPairs: [],
+        artifactHashes: {},
+        buildCommit: 'development-source',
+        enabled: false,
+        manifestSha256: '',
+      };
 
 const COMMIT_PATTERN = /^[\da-f]{40}$/u;
 const HASH_PATTERN = /^[\da-f]{64}$/u;
@@ -105,12 +128,19 @@ export async function validateRelayReadiness(
       return { enabled: false };
     }
     const latestClose = Math.max(...closedDates.map(date => date?.getTime() ?? NaN));
+    if (
+      latestClose > dependencies.now.getTime() ||
+      reviewedAt.getTime() > dependencies.now.getTime()
+    ) {
+      return { enabled: false };
+    }
     for (const artifact of Object.values(manifest.measurements)) {
       const measuredAt = validDate(artifact.measuredAt);
       if (
         !validArtifact(artifact) ||
         measuredAt === undefined ||
         measuredAt.getTime() < latestClose ||
+        measuredAt.getTime() > dependencies.now.getTime() ||
         dependencies.now.getTime() - measuredAt.getTime() > MAX_EVIDENCE_AGE_MS ||
         dependencies.now.getTime() - reviewedAt.getTime() > MAX_EVIDENCE_AGE_MS
       ) {
@@ -127,3 +157,37 @@ export async function validateRelayReadiness(
     return { enabled: false };
   }
 }
+
+function manifestSha256(
+  manifest: RelayReadinessManifest | typeof CHECKED_IN_RELAY_READINESS,
+): string {
+  return createHash('sha256').update(JSON.stringify(manifest)).digest('hex');
+}
+
+export function validateBuildAttestedRelayReadiness(
+  manifest: RelayReadinessManifest | typeof CHECKED_IN_RELAY_READINESS,
+  attestation: RelayBuildAttestation,
+  now: Date,
+): Promise<{ enabled: boolean }> {
+  if (
+    !manifest.enabled ||
+    !attestation.enabled ||
+    attestation.manifestSha256 !== manifestSha256(manifest)
+  ) {
+    return Promise.resolve({ enabled: false });
+  }
+  const ancestors = new Set(attestation.ancestorPairs);
+  return validateRelayReadiness(manifest, {
+    buildCommit: attestation.buildCommit,
+    isAncestor: (ancestor, descendant) =>
+      Promise.resolve(ancestors.has(`${ancestor}:${descendant}`)),
+    now,
+    readArtifactAtCommit: (commit, path) => {
+      const sha256 = attestation.artifactHashes[`${commit}:${path}`];
+      return Promise.resolve(sha256 === undefined ? undefined : { sha256 });
+    },
+  });
+}
+import { createHash } from 'node:crypto';
+
+import checkedInRelayReadiness from './relay-readiness-manifest.json' with { type: 'json' };

@@ -182,6 +182,12 @@ function expectedRoles(harness: RelayPrincipal['harness']): RelayPrincipal['role
   return harness === 'operator' ? ['reconcile', 'operate'] : ['file'];
 }
 
+function requireSharedTenant(credentials: CredentialInput[]): void {
+  if (new Set(credentials.map(credential => credential.tenantId)).size !== 1) {
+    throw new Error('production relay principals must share one tenant');
+  }
+}
+
 function parseProductionCredentials(environment: NodeJS.ProcessEnv): CredentialInput[] {
   const bytes = strictBase64(
     required(environment, 'RELAY_CREDENTIALS_BASE64'),
@@ -218,6 +224,7 @@ function parseProductionCredentials(environment: NodeJS.ProcessEnv): CredentialI
   if (credentials.length !== harnesses.length) {
     throw new Error('invalid production relay principals');
   }
+  requireSharedTenant(credentials);
   return credentials;
 }
 
