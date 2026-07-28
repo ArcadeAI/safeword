@@ -1,3 +1,7 @@
+import { createHash } from 'node:crypto';
+
+import checkedInRelayReadiness from './relay-readiness-manifest.json' with { type: 'json' };
+
 export interface RelayMeasurementArtifact {
   measuredAt: string;
   path: string;
@@ -188,6 +192,3 @@ export function validateBuildAttestedRelayReadiness(
     },
   });
 }
-import { createHash } from 'node:crypto';
-
-import checkedInRelayReadiness from './relay-readiness-manifest.json' with { type: 'json' };
