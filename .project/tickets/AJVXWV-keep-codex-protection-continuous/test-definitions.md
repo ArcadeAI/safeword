@@ -92,7 +92,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Finalization refuses stale proof without mutation
 
-- [ ] RED
+- [x] RED 24c1d4fec
 - [ ] GREEN
 - [ ] REFACTOR
 
