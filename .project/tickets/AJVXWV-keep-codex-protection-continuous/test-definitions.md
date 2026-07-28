@@ -178,7 +178,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: the confirmation resolver and transaction boundary already fail independently
 - [x] GREEN 42162b634
-- [ ] REFACTOR
+- [x] REFACTOR skip: the canonical finalization path already owns confirmation and transaction ordering
 
 ## Rule: codex-continuity.NTB1.R1 — Every migration state names protection and one next action
 
