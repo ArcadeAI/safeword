@@ -214,4 +214,19 @@ describe('Codex migration result', () => {
       next_actions: expect.any(Array),
     });
   });
+
+  it('prioritizes finalized project setup over a disabled profile plugin', () => {
+    const result = deriveCodexMigrationResult(
+      facts({
+        finalized: true,
+        plugin: { ...enabledPlugin, enabled: false },
+      }),
+    );
+
+    expect(result).toMatchObject({
+      state: 'plugin_setup_required',
+      protected: 'unprotected',
+      next_actions: [{ command: 'safeword codex migrate' }],
+    });
+  });
 });
