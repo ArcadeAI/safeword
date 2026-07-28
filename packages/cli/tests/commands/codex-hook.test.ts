@@ -286,6 +286,42 @@ describe('packagedNamespaceRootLabel', () => {
     expect(rootEntries(projectDirectory)).toEqual(before);
   });
 
+  it('defers a plugin event to an exact runnable legacy handler', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-enrolled-'));
+    const binDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-bin-'));
+    directories.push(projectDirectory, binDirectory);
+    markSafewordProject(projectDirectory);
+    mkdirSync(nodePath.join(projectDirectory, '.codex'), { recursive: true });
+    writeFileSync(
+      nodePath.join(projectDirectory, '.codex/config.toml'),
+      `[[hooks.PreToolUse]]
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = "npx --yes safeword hook codex pre-tool-use"
+`,
+    );
+    const packageRunner = nodePath.join(binDirectory, 'npx');
+    writeFileSync(packageRunner, '#!/bin/sh\nexit 0\n');
+    chmodSync(packageRunner, 0o755);
+
+    const result = runCodexHook(
+      projectDirectory,
+      'pre-tool-use',
+      {
+        session_id: 'compatibility-session',
+        tool_name: 'Bash',
+        tool_input: { command: 'pkill node' },
+      },
+      {
+        PATH: `${binDirectory}:${process.env.PATH ?? ''}`,
+        SAFEWORD_CODEX_DENY_MODE: 'exit-code',
+      },
+      true,
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+  });
+
   it.each([
     {
       label: 'default',
