@@ -118,7 +118,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 682e244cc
 - [x] GREEN 7314d9302
-- [ ] REFACTOR
+- [x] REFACTOR 7314d9302
 
 ### Scenario: Repeated finalization of a plugin-only project is a no-op
 
