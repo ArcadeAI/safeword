@@ -57,6 +57,8 @@ export interface SkeletonNode {
   path: string;
   /** One-line purpose (the purpose floor); a placeholder until prose is written. */
   purpose: string;
+  /** True when `purpose` was derived from a leading source documentation comment. */
+  seededPurpose?: boolean;
 }
 
 export interface Skeleton {
@@ -192,7 +194,7 @@ function enumerateJsSourceRoot(
       ]),
   );
   const excludeColocatedTests = true;
-  for (const node of jsFileNodes(entries, pathFor, excludeColocatedTests)) {
+  for (const node of jsFileNodes(entries, pathFor, excludeColocatedTests, directory)) {
     if (!byName.has(node.name)) byName.set(node.name, node);
   }
   return { nodes: byName.values().toArray().toSorted(byNodeName), observed };
@@ -213,7 +215,7 @@ function topLevelJsModuleNodes(projectDirectory: string): SkeletonNode[] {
   } catch {
     return [];
   }
-  return jsFileNodes(entries, name => name);
+  return jsFileNodes(entries, name => name, false, projectDirectory);
 }
 
 /**
@@ -230,6 +232,7 @@ function jsFileNodes(
   entries: Dirent[],
   pathFor: (entryName: string) => string,
   excludeTests = false,
+  sourceDirectory: string,
 ): SkeletonNode[] {
   const files = entries
     .filter(
@@ -247,7 +250,10 @@ function jsFileNodes(
   for (const entry of files) {
     const name = jsModuleName(entry.name);
     if (!byName.has(name)) {
-      byName.set(name, { name, path: pathFor(entry.name), purpose: PURPOSE_PLACEHOLDER });
+      byName.set(
+        name,
+        sourceFileNode(name, pathFor(entry.name), nodePath.join(sourceDirectory, entry.name)),
+      );
     }
   }
   return byName.values().toArray().toSorted(byNodeName);
@@ -283,6 +289,34 @@ function isJsSourceModuleFile(name: string): boolean {
 /** A source file's module name: the filename minus its final extension (`db.test.ts` → `db.test`). */
 function jsModuleName(filename: string): string {
   return filename.slice(0, filename.lastIndexOf('.'));
+}
+
+/** A source-file node, using its leading documentation comment as an initial purpose when present. */
+function sourceFileNode(name: string, path: string, absolutePath: string): SkeletonNode {
+  const purpose = purposeFromLeadingDocumentComment(absolutePath);
+  return purpose === undefined
+    ? { name, path, purpose: PURPOSE_PLACEHOLDER }
+    : { name, path, purpose, seededPurpose: true };
+}
+
+/**
+ * The first sentence from a file's leading JSDoc comment. This deliberately
+ * reads only a comment at the start of the file (apart from whitespace/BOM),
+ * never arbitrary source comments, so the generated purpose is deterministic
+ * and visibly intentional rather than a guess about implementation details.
+ */
+function purposeFromLeadingDocumentComment(path: string): string | undefined {
+  const content = readFileSafe(path);
+  const body = /^\s*\/\*\*([\s\S]*?)\*\//.exec(content ?? '')?.[1];
+  if (body === undefined) return undefined;
+  const text = body
+    .split(/\r?\n/)
+    .map(line => line.replace(/^\s*\*\s?/, '').trim())
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+  if (text.length === 0) return undefined;
+  return /^(.+?[.!?])(?:\s|$)/.exec(text)?.[1] ?? text;
 }
 
 /** The recognized Go layout directories that actually exist, as sorted nodes. */
@@ -323,7 +357,14 @@ function rustModuleNodes(projectDirectory: string): SkeletonNode[] {
     }
     const name = entry.name.slice(0, -'.rs'.length);
     if (!byName.has(name)) {
-      byName.set(name, { name, path: `src/${entry.name}`, purpose: PURPOSE_PLACEHOLDER });
+      byName.set(
+        name,
+        sourceFileNode(
+          name,
+          `src/${entry.name}`,
+          nodePath.join(projectDirectory, 'src', entry.name),
+        ),
+      );
     }
   }
   return byName.values().toArray().toSorted(byNodeName);
@@ -389,7 +430,10 @@ function pythonModulesFrom(
     }
     const name = entry.name.slice(0, -'.py'.length);
     if (!byName.has(name)) {
-      byName.set(name, { name, path: pathFor(entry.name), purpose: PURPOSE_PLACEHOLDER });
+      byName.set(
+        name,
+        sourceFileNode(name, pathFor(entry.name), nodePath.join(directory, entry.name)),
+      );
     }
   }
   return byName.values().toArray().toSorted(byNodeName);

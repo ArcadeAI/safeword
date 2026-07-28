@@ -88,6 +88,21 @@ describe('extractSkeleton — skeleton reflects the real project', () => {
 
     expect(skeleton.nodes.map(node => node.name)).toContain('auth');
   });
+
+  it('seeds a file module from the first sentence of its leading doc comment', () => {
+    mkdirSync(nodePath.join(context.directory, 'src'), { recursive: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'src', 'consolidate.ts'),
+      '/** Orchestrates the consolidate command. This detail must not be included. */\nexport {};\n',
+    );
+
+    expect(extractSkeleton(context.directory).nodes).toContainEqual({
+      name: 'consolidate',
+      path: 'src/consolidate.ts',
+      purpose: 'Orchestrates the consolidate command.',
+      seededPurpose: true,
+    });
+  });
 });
 
 describe('extractSkeleton — broadened JS/TS recognition (issue #843)', () => {
