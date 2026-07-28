@@ -4,7 +4,7 @@ import process from 'node:process';
 
 import { Command, Option } from 'commander';
 
-import { createCapabilitiesResult } from './cli-protocol/catalog.js';
+import { createCapabilitiesResult, findCommandDefinition } from './cli-protocol/catalog.js';
 import {
   addGlobalOptions,
   type GlobalCliOptions,
@@ -183,12 +183,18 @@ addGlobalOptions(
     .argument('[files...]'),
 ).action(async (files: string[], _options, command: Command) => {
   const globalOptions = readGlobalOptions(command);
-  if (isMachineInvocation(globalOptions)) {
-    reportIntent('project lint-gherkin', command, undefined, { arguments: files });
-    return;
-  }
-  const { lintGherkin } = await import('./commands/lint-gherkin.js');
-  await lintGherkin(files);
+  const definition = findCommandDefinition('project lint-gherkin');
+  reportResult(
+    await definition.handler({
+      cwd: globalOptions.cwd,
+      noInput: globalOptions.noInput,
+      offline: globalOptions.offline,
+      options: command.opts(),
+      operands: [files],
+    }),
+    globalOptions,
+    definition.name,
+  );
 });
 
 const tracker = program
@@ -651,34 +657,47 @@ addGlobalOptions(ticket.command('list').description('List project tickets')).act
   },
 );
 
-ticket
-  .command('new <slug>')
-  .description('Create a new ticket with a Crockford Base32 ID')
-  .option('--type <type>', 'Ticket type: patch, task, feature, or epic', 'task')
-  .option('--title <title>', 'Ticket title (defaults to slug)')
-  .option('--goal <goal>', 'One-line goal; fills the Goal field instead of a placeholder')
-  .option('--why <why>', 'One-line rationale (task/patch/epic; features use spec.md)')
-  .option(
-    '--parent <epicId>',
-    'Link this ticket to an epic (sets parent: and appends to its children)',
-  )
-  .option('--issue <key>', 'Adopt an existing tracker issue key as the ticket identity')
-  .action(
-    async (
-      slug: string,
-      options: {
-        type?: string;
-        title?: string;
-        goal?: string;
-        why?: string;
-        parent?: string;
-        issue?: string;
-      },
-    ) => {
-      const { ticketNew } = await import('./commands/ticket-new.js');
-      await ticketNew(slug, options);
+addGlobalOptions(
+  ticket
+    .command('new <slug>')
+    .description('Create a new ticket with a Crockford Base32 ID')
+    .option('--type <type>', 'Ticket type: patch, task, feature, or epic', 'task')
+    .option('--title <title>', 'Ticket title (defaults to slug)')
+    .option('--goal <goal>', 'One-line goal; fills the Goal field instead of a placeholder')
+    .option('--why <why>', 'One-line rationale (task/patch/epic; features use spec.md)')
+    .option(
+      '--parent <epicId>',
+      'Link this ticket to an epic (sets parent: and appends to its children)',
+    )
+    .option('--issue <key>', 'Adopt an existing tracker issue key as the ticket identity'),
+).action(
+  async (
+    slug: string,
+    options: {
+      type?: string;
+      title?: string;
+      goal?: string;
+      why?: string;
+      parent?: string;
+      issue?: string;
     },
-  );
+    command: Command,
+  ) => {
+    const globalOptions = readGlobalOptions(command);
+    const definition = findCommandDefinition('ticket new');
+    reportResult(
+      await definition.handler({
+        cwd: globalOptions.cwd,
+        noInput: globalOptions.noInput,
+        offline: globalOptions.offline,
+        options,
+        operands: [slug],
+      }),
+      globalOptions,
+      definition.name,
+    );
+  },
+);
 
 addGlobalOptions(
   program

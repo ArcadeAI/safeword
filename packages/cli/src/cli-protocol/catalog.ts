@@ -1,3 +1,5 @@
+import type { CommandHandler } from './handler.js';
+import { publicHandler } from './public-handlers.js';
 import { type CliResult, createResult } from './result.js';
 
 export type EffectClass = 'observe' | 'plan' | 'mutate' | 'destructive' | 'hook';
@@ -22,6 +24,7 @@ export interface CommandDefinition {
     readonly argv: readonly string[];
     readonly environment: Readonly<Record<string, string>>;
   };
+  readonly handler: CommandHandler;
   readonly aliasFor?: string;
   readonly compatibility?: Compatibility;
 }
@@ -47,6 +50,7 @@ function command(
     promptPolicy: options.promptPolicy ?? 'never',
     networkPolicy: options.networkPolicy ?? 'never',
     schemaVersions: [1],
+    handler: publicHandler(name),
     fixture: options.fixture ?? {
       argv: name.split(' '),
       environment: MACHINE_ENVIRONMENT,
@@ -106,7 +110,23 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     },
   }),
   command('codex migrate', 'Migrate legacy project hooks to the Codex plugin', 'mutate'),
+  command('codex install', 'Install the Codex profile plugin', 'mutate', {
+    networkPolicy: 'declared',
+  }),
+  command('codex status', 'Report Codex plugin and migration state', 'observe'),
+  command('codex recover', 'Restore backed-up legacy Codex project state', 'destructive', {
+    promptPolicy: 'confirm',
+  }),
   command('ticket list', 'List project tickets', 'observe'),
+  command('ticket new', 'Create a project ticket', 'mutate', {
+    fixture: {
+      argv: ['ticket', 'new', 'machine-fixture', '--type', 'task'],
+      environment: {
+        ...MACHINE_ENVIRONMENT,
+        SAFEWORD_TICKET_ID_OVERRIDE: 'N80D28',
+      },
+    },
+  }),
   command('retro run', 'Extract and file session findings', 'mutate', {
     networkPolicy: 'declared',
     fixture: {
