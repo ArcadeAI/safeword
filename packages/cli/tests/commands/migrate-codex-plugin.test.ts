@@ -465,6 +465,21 @@ command = 'echo "keep this user hook"'
     expect(existsSync(nodePath.join(fixture.directory, '.safeword/codex-plugin.json'))).toBe(false);
   });
 
+  it('reports an enabled plugin without current hook proof as unproven', async () => {
+    const fixture = createMigrationFixture('');
+    const codexHome = nodePath.join(fixture.directory, 'profile');
+    mkdirSync(codexHome, { recursive: true });
+
+    const result = await runCodexCommand(fixture, ['codex', 'status'], {
+      CODEX_HOME: codexHome,
+    });
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stdout).toContain('plugin_enabled_hook_unproven');
+    expect(result.stdout).toContain('restart Codex and review /hooks');
+    expect(result.stdout.match(/^Next:/gm)).toHaveLength(1);
+  });
+
   it('cleans legacy hooks through the explicit Codex migration command without reinstalling', async () => {
     const fixture = createMigrationFixture(`${LEGACY_HOOK_CONFIG}${CUSTOM_PRE_TOOL_HOOK}`);
     const { configPath } = fixture;
