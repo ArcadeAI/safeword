@@ -52,11 +52,9 @@ export function effectsForReconciliation(result: ReconcileResult, mode: PlanMode
   const created = result.created.map(target => ({ kind: 'create', target }));
   const updated = result.updated.map(target => ({ kind: 'update', target }));
   const removed = result.removed.map(target => ({ kind: 'remove', target }));
-  let packageNames: string[] = [];
-  if (!result.applied) {
-    packageNames = mode === 'upgrade' ? result.packagesToInstall : result.packagesToRemove;
-  }
-  const packageEffects = packageNames.map(target => ({
+  const packageNames = mode === 'upgrade' ? result.packagesToInstall : result.packagesToRemove;
+  const plannedPackageNames = result.applied ? [] : packageNames;
+  const packageEffects = plannedPackageNames.map(target => ({
     kind: mode === 'upgrade' ? 'install' : 'remove',
     target,
   }));
@@ -66,7 +64,7 @@ export function effectsForReconciliation(result: ReconcileResult, mode: PlanMode
     configuration: [],
     network:
       mode === 'upgrade'
-        ? packageNames.map(target => ({
+        ? plannedPackageNames.map(target => ({
             kind: 'package-registry',
             target,
             operation: 'install',
