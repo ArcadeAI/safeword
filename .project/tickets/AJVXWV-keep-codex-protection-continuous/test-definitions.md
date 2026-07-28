@@ -220,7 +220,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Status execution error has stable machine semantics
 
-- [ ] RED
+- [x] RED 0a8e46df7
 - [ ] GREEN
 - [ ] REFACTOR
 
