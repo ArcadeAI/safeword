@@ -246,7 +246,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Non-interactive migration without complete confirmation cannot finalize
 
-- [ ] RED
+- [x] RED skip: missing confirmation already failed closed before repository mutation
 - [ ] GREEN
 - [ ] REFACTOR
 
