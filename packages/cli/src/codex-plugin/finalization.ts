@@ -41,7 +41,7 @@ interface BackupEntry {
 
 interface BackupManifestV1 {
   schema_version: 1;
-  status: 'prepared' | 'finalized';
+  status: 'prepared' | 'finalized' | 'recovering';
   entries: BackupEntry[];
 }
 
@@ -217,6 +217,81 @@ function restoreBeforeImage(cwd: string, backupDirectory: string, entry: BackupE
   }
   writeDurable(path, content, entry.before.mode);
   chmodSync(path, entry.before.mode);
+}
+
+function observedImage(cwd: string, relativePath: string): FileImage | AbsentImage {
+  const path = assertSafeComponents(cwd, relativePath);
+  if (!existsSync(path)) return { kind: 'absent' };
+  const content = readFileSync(path);
+  return {
+    kind: 'file',
+    mode: lstatSync(path).mode & 0o777,
+    sha256: sha256(content),
+  };
+}
+
+function imagesMatch(left: FileImage | AbsentImage, right: FileImage | AbsentImage): boolean {
+  if (left.kind !== right.kind) return false;
+  return (
+    left.kind === 'absent' ||
+    (right.kind === 'file' && left.mode === right.mode && left.sha256 === right.sha256)
+  );
+}
+
+function readBackupManifest(cwd: string): {
+  backupDirectory: string;
+  manifest: BackupManifestV1;
+} {
+  const backupDirectory = containedPath(cwd, BACKUP_PATH);
+  const manifestPath = assertSafeComponents(cwd, `${BACKUP_PATH}/manifest.json`);
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as BackupManifestV1;
+  if (
+    manifest.schema_version !== 1 ||
+    !['prepared', 'finalized', 'recovering'].includes(manifest.status) ||
+    !Array.isArray(manifest.entries)
+  ) {
+    throw new Error('Codex migration backup manifest is malformed.');
+  }
+  return { backupDirectory, manifest };
+}
+
+function validateRecoveryEntry(
+  cwd: string,
+  backupDirectory: string,
+  entry: BackupEntry,
+  allowBefore: boolean,
+): void {
+  const current = observedImage(cwd, entry.path);
+  if (!imagesMatch(current, entry.after) && !(allowBefore && imagesMatch(current, entry.before))) {
+    throw new Error(`Codex recovery conflict at ${entry.path}; no files were restored.`);
+  }
+  if (entry.before.kind === 'file') {
+    if (entry.before.payload === undefined) {
+      throw new Error(`Codex migration backup payload is missing for ${entry.path}.`);
+    }
+    const content = readFileSync(containedPath(backupDirectory, entry.before.payload));
+    if (sha256(content) !== entry.before.sha256) {
+      throw new Error(`Codex migration backup payload is corrupt for ${entry.path}.`);
+    }
+  }
+}
+
+export function recoverCodexFinalization(cwd: string): boolean {
+  const manifestPath = containedPath(cwd, `${BACKUP_PATH}/manifest.json`);
+  if (!existsSync(manifestPath)) return false;
+  const { backupDirectory, manifest } = readBackupManifest(cwd);
+  const allowBefore = manifest.status !== 'finalized';
+  for (const entry of manifest.entries) {
+    validateRecoveryEntry(cwd, backupDirectory, entry, allowBefore);
+  }
+
+  manifest.status = 'recovering';
+  writeManifest(backupDirectory, manifest);
+  for (const entry of manifest.entries.toReversed()) {
+    restoreBeforeImage(cwd, backupDirectory, entry);
+  }
+  rmSync(backupDirectory, { recursive: true });
+  return true;
 }
 
 function rollbackAppliedEntries(input: {

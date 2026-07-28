@@ -11,6 +11,7 @@ import {
   codexFinalizationIsComplete,
   type CodexFinalizationMutation,
   codexRecoveryIsRequired,
+  recoverCodexFinalization,
   resolveCodexFinalizationConfirmation,
 } from '../codex-plugin/finalization.js';
 import {
@@ -599,4 +600,13 @@ export async function migrateCodexPlugin(
     marketplaceSource: options.marketplaceSource,
     recordRestartPending: false,
   });
+}
+
+export function recoverCodexMigration(cwd = process.cwd()): void {
+  const changed = recoverCodexFinalization(cwd);
+  success(
+    changed
+      ? 'Restored the backed-up Safe Word legacy Codex project state.'
+      : 'No Safe Word Codex migration recovery was needed.',
+  );
 }

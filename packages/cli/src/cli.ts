@@ -129,6 +129,15 @@ codex
     installCodexPlugin({ reportMigrationState: true });
   });
 
+codex
+  .command('recover')
+  .description('Restore a backed-up Safe Word legacy Codex project state')
+  .option('--json', 'Write the versioned migration result as JSON')
+  .action(async () => {
+    const { recoverCodexMigration } = await import('./commands/migrate-codex-plugin.js');
+    recoverCodexMigration(process.cwd());
+  });
+
 program
   .command('diff')
   .description('Preview changes that would be made by upgrade')
