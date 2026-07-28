@@ -46,6 +46,7 @@ interface BackupManifestV1 {
 }
 
 const BACKUP_PATH = '.safeword/codex-migration-backup';
+const PROJECT_MARKER_PATH = '.safeword/codex-plugin.json';
 
 export async function resolveCodexFinalizationConfirmation(_options: {
   assumeYes: boolean;
@@ -58,6 +59,25 @@ export async function resolveCodexFinalizationConfirmation(_options: {
     );
   }
   return _options.confirm();
+}
+
+export function codexFinalizationIsComplete(cwd: string): boolean {
+  try {
+    const marker = JSON.parse(
+      readFileSync(containedPath(cwd, PROJECT_MARKER_PATH), 'utf8'),
+    ) as Record<string, unknown>;
+    const manifest = JSON.parse(
+      readFileSync(containedPath(cwd, `${BACKUP_PATH}/manifest.json`), 'utf8'),
+    ) as Record<string, unknown>;
+    return (
+      marker.schema_version === 1 &&
+      marker.mode === 'plugin' &&
+      manifest.schema_version === 1 &&
+      manifest.status === 'finalized'
+    );
+  } catch {
+    return false;
+  }
 }
 
 function sha256(content: Buffer): string {

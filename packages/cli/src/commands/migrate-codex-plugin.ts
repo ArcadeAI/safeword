@@ -8,6 +8,7 @@ import { parse } from 'smol-toml';
 
 import {
   applyCodexFinalization,
+  codexFinalizationIsComplete,
   type CodexFinalizationMutation,
   resolveCodexFinalizationConfirmation,
 } from '../codex-plugin/finalization.js';
@@ -485,37 +486,10 @@ export function installCodexPlugin(
   }
 }
 
-export async function removeLegacyCodexHooks(
-  cwd = process.cwd(),
-  options: {
-    yes?: boolean;
-    confirm?: () => Promise<boolean>;
-    environment?: NodeJS.ProcessEnv;
-  } = {},
-): Promise<boolean> {
-  if (observeCodexHookProof(options.environment).status !== 'current') {
-    throw new Error(
-      'Finalization requires current plugin hook proof. Start a new Codex session, review /hooks, then retry.',
-    );
-  }
-  // Validate cleanup before verifying the profile. A malformed project config
-  // leaves both it and the Codex profile unchanged.
-  const preparedLegacyHookRemoval = prepareLegacyHookRemoval(cwd);
-  const confirmed = await resolveCodexFinalizationConfirmation({
-    assumeYes: options.yes === true,
-    confirm: options.confirm,
-  });
-  if (!confirmed) {
-    info('Codex migration finalization was declined; the project was left unchanged.');
-    return false;
-  }
-
-  run('bun', ['--version']);
-  run('codex', ['--version']);
-  verifyCodexPluginIsEnabled();
-
-  success('Safe Word Codex plugin is enabled for this profile.');
-
+function buildCodexFinalizationMutations(
+  cwd: string,
+  preparedLegacyHookRemoval: PreparedLegacyHookRemoval | undefined,
+): CodexFinalizationMutation[] {
   const mutations: CodexFinalizationMutation[] = [];
   if (preparedLegacyHookRemoval !== undefined) {
     if (
@@ -541,7 +515,45 @@ export async function removeLegacyCodexHooks(
         '---\nname: safeword-plugin-setup\ndescription: Restore the Safe Word Codex profile plugin for this project.\n---\n\nRun `safeword codex migrate` to install or re-enable the profile plugin.\n',
     },
   );
-  applyCodexFinalization(cwd, mutations);
+  return mutations;
+}
+
+export async function removeLegacyCodexHooks(
+  cwd = process.cwd(),
+  options: {
+    yes?: boolean;
+    confirm?: () => Promise<boolean>;
+    environment?: NodeJS.ProcessEnv;
+  } = {},
+): Promise<boolean> {
+  if (observeCodexHookProof(options.environment).status !== 'current') {
+    throw new Error(
+      'Finalization requires current plugin hook proof. Start a new Codex session, review /hooks, then retry.',
+    );
+  }
+  if (codexFinalizationIsComplete(cwd)) {
+    success('Safe Word Codex migration is already finalized.');
+    return true;
+  }
+  // Validate cleanup before verifying the profile. A malformed project config
+  // leaves both it and the Codex profile unchanged.
+  const preparedLegacyHookRemoval = prepareLegacyHookRemoval(cwd);
+  const confirmed = await resolveCodexFinalizationConfirmation({
+    assumeYes: options.yes === true,
+    confirm: options.confirm,
+  });
+  if (!confirmed) {
+    info('Codex migration finalization was declined; the project was left unchanged.');
+    return false;
+  }
+
+  run('bun', ['--version']);
+  run('codex', ['--version']);
+  verifyCodexPluginIsEnabled();
+
+  success('Safe Word Codex plugin is enabled for this profile.');
+
+  applyCodexFinalization(cwd, buildCodexFinalizationMutations(cwd, preparedLegacyHookRemoval));
 
   const removedLegacyHooks = preparedLegacyHookRemoval !== undefined;
   info('Backed up the complete legacy Codex state for conflict-safe recovery.');
