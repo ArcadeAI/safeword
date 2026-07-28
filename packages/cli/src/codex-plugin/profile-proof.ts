@@ -30,7 +30,7 @@ export interface CodexRestartMarkerV1 {
   manifest_sha256: string;
 }
 
-export type CodexHookProofStatus = 'current' | 'missing' | 'stale' | 'malformed';
+type CodexHookProofStatus = 'current' | 'missing' | 'stale' | 'malformed';
 
 export interface CodexHookProofObservation {
   status: CodexHookProofStatus;
@@ -39,7 +39,7 @@ export interface CodexHookProofObservation {
   recorded_at: string | null;
 }
 
-export function codexProfileDirectory(environment: NodeJS.ProcessEnv = process.env): string {
+function codexProfileDirectory(environment: NodeJS.ProcessEnv = process.env): string {
   return environment.CODEX_HOME ?? nodePath.join(homedir(), '.codex');
 }
 
@@ -47,7 +47,7 @@ export function codexProofPath(environment: NodeJS.ProcessEnv = process.env): st
   return nodePath.join(codexProfileDirectory(environment), 'safeword/hook-proof-v1.json');
 }
 
-export function codexRestartMarkerPath(environment: NodeJS.ProcessEnv = process.env): string {
+function codexRestartMarkerPath(environment: NodeJS.ProcessEnv = process.env): string {
   return nodePath.join(codexProfileDirectory(environment), 'safeword/restart-pending-v1.json');
 }
 
@@ -55,7 +55,7 @@ export function codexRestartIsPending(environment: NodeJS.ProcessEnv = process.e
   return restartMarkerMatches(codexRestartMarkerPath(environment), currentCodexPluginIdentity());
 }
 
-export function packagedHookManifestPath(): string {
+function packagedHookManifestPath(): string {
   const candidates = [
     nodePath.resolve(import.meta.dirname, '../codex-plugin/hooks.json'),
     nodePath.resolve(import.meta.dirname, '../../codex-plugin/hooks.json'),

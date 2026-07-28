@@ -1,6 +1,6 @@
 import type { CodexHookProofObservation } from './profile-proof.js';
 
-export type CodexMigrationState =
+type CodexMigrationState =
   | 'recovery_required'
   | 'plugin_setup_required'
   | 'plugin_disabled'

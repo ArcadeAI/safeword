@@ -80,7 +80,7 @@ export interface ContractDefinition {
   requires: string[]; // Strings that must appear verbatim in the file content
 }
 
-export interface CodexMigrationDefinition {
+interface CodexMigrationDefinition {
   legacyFiles: string[];
   legacyDirs: string[];
   hookEvents: string[];
