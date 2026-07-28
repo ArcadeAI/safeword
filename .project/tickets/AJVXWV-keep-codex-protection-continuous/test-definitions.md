@@ -263,7 +263,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: New teammate receives only the plugin setup path
 
 - [x] RED 54efb34f6
-- [ ] GREEN
+- [x] GREEN b0fe27b9a
 - [ ] REFACTOR
 
 ### Scenario: Finalized project tells an unconfigured teammate to install the plugin
