@@ -2,11 +2,13 @@
 id: K8D3M4
 slug: reply-format-proactive-reminder
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/1524
+external_prs:
+  - https://github.com/ArcadeAI/safeword/pull/1540
 created: 2026-07-27T16:11:23.968Z
-last_modified: 2026-07-28T00:33:10Z
+last_modified: 2026-07-28T01:02:07Z
 ---
 
 # Surface reply format before Claude responds
@@ -172,3 +174,7 @@ open.
   transient connection refusal while installing React fixture dependencies;
   its isolated 11-test suite passed on retry, then a clean full rerun passed
   5,553 tests across all 373 files with 5 skipped.
+- 2026-07-28T01:02:07Z Done: user accepted the merged result. PR #1540 was
+  green on lint, Node 22, Node 24, and dogfood parity and squash-merged to
+  `main` as `2168ed054f`; GitHub issue #1524 closed automatically. Status and
+  phase moved to `done`.
