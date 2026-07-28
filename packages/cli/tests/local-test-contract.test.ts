@@ -20,10 +20,10 @@ describe('local complete-test contract (#1455)', () => {
     expect(manifest.scripts?.['test:all']).toBe('bun run test && bun run test:bdd');
   });
 
-  it('documents the complete command without calling the unit suite every test', () => {
+  it('documents distinct complete and unit test commands', () => {
     const readme = readRepoFile('README.md');
 
-    expect(readme).toContain('bun run test:all                  # Unit and acceptance tests');
-    expect(readme).toContain('bun run test                      # Vitest suite');
+    expect(readme).toMatch(/^bun run test:all[ \t]+# Unit and acceptance tests$/m);
+    expect(readme).toMatch(/^bun run test[ \t]+# Vitest suite$/m);
   });
 });
