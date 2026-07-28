@@ -142,7 +142,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED e0d126f5d
 - [x] GREEN e57bee71b
-- [ ] REFACTOR
+- [x] REFACTOR skip: explicit recovery and automatic rollback share restoreBeforeImage
 
 ### Scenario: Recovery refuses to overwrite an intervening edit
 
