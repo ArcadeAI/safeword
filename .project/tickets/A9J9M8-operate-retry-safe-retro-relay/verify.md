@@ -2,8 +2,8 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 5,619/5,619 tests pass (11 CLI tests skipped; 18 contention-timed-out tests passed in the 88/88 serial rerun)
-**Gherkin:** ✅ Acceptance lane passes (612 passed, 3 skipped)
+**Test Suite:** ✅ Relay 153 passed/1 skipped; CLI 5,631 passed/5 skipped
+**Gherkin:** ✅ Acceptance lane passes (620 passed, 3 skipped; 19,857 steps passed, 4 skipped)
 **Build:** ✅ Success
 **Lint:** ✅ Clean
 **Scenarios:** All 106 scenarios marked complete
@@ -12,15 +12,15 @@
 **Parent Epic:** N/A
 **Reconcile:** ✅ No pattern deviation
 **Experience:** ✅ No new friction — Walked Technical Builder through automatic stop-retro filing; worst step = the bounded relay timeout before native fallback; new steps vs before = 0
-**Evidence limits:** ⚠️ The parallel local CLI run hit its documented machine-contention timeout path; all eight affected files passed 88/88 when rerun serially, and changed-path tests passed independently.
+**Evidence limits:** ⚠️ Experiment-only Python import-linter/deadcode checks are unavailable locally; product TypeScript and Go lanes are fully covered.
 
-Audit passed with warnings — 0 feature-blocking errors. Config sync and the dependency-cruiser error gate are clean; dependency validation retains its existing warning-only Codex hook orphan. The remaining Knip exported-type note, experiment-tool availability notes, and 515-clone (8.68%) repository baseline are pre-existing; `markdownlint-cli2` has one low-risk dev-only patch available.
+Audit passed with warnings — 0 feature-blocking errors. Config sync, Knip, Go dead-code, and the dependency-cruiser error gate are clean across 708 modules and 2,343 dependencies. The stable repository-minus-generated-trees scope reports 526 clones (8.51%); the count increase is markdown baseline movement while the duplicate percentage remains below the prior 8.68%. Low-risk `@types/node` and `markdownlint-cli2` patches were applied; `bun outdated` reports no remaining in-range updates.
 
 ## Evidence
 
-- The generated verification plan passed relay tests, Gherkin, builds, and both package typechecks. The parallel CLI lane hit documented machine-contention timeouts; all eight affected files passed 88/88 serially, while the remaining 5,475 tests had already passed in the full lane.
-- `bun run lint`, `bun run format:check`, and `bun run deps:validate` passed; dependency-cruiser reported its existing warning-only Codex plugin hook orphan.
-- Independent quality re-review passed after the six-surface test installed through `SAFEWORD_SCHEMA`, validated the Codex plugin catalogue, followed Cursor's installed reference, and derived CLI arguments from installed instructions.
+- The generated verification plan passed the complete relay and CLI test suites, all 623 acceptance scenarios, both builds, and both package typechecks without a fallback or serial-retry exception.
+- `bun run lint`, the full formatter, config sync, Knip, and dependency-cruiser passed.
+- Independent quality review approved the final tree with no critical issues or suggested improvements after the six-surface HTTPS collaborator path, SQLite transaction process lock, retry scheduling, and shutdown reacquisition proof were reviewed.
 - Raw GitHub REST bodies remain the only marker authority. Sanitized MCP reads are not used for duplicate decisions.
 - GitHub issue 834 remains open and is not superseded.
 - GitHub issue 1495 is not a readiness gate because this slice does not reuse its client credential helpers.
