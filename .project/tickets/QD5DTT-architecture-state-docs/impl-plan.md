@@ -65,6 +65,9 @@ Records exist at the configured `paths.architecture` (`ARCHITECTURE.md`). This i
 5. **Document ownership accurately.** The installed guide distinguishes
    machine-owned headings/references/status from preserved human purpose prose;
    a template test covers copy and a CI-run setup scenario covers installation.
+6. **Parse generated sections across native line endings.** Section-path and
+   reconciliation-stamp matchers consume repeated LF or CRLF separators, so
+   Windows working trees neither heal perpetually nor lose stale-state history.
 
 Rejected alternatives:
 

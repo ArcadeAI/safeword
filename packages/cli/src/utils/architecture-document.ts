@@ -255,9 +255,9 @@ function decideAction(
  */
 function hasMatchingNodePaths(content: string, nodes: SkeletonNode[]): boolean {
   const paths = new Map<string, string>();
-  const pattern = /^### (.+)\r?\n+<!-- reconciled: \S+ -->\r?\n+\r?\n?`([^`]*)`\s*$/gm;
+  const pattern = /^### (.+)\n+<!-- reconciled: \S+ -->\n+`([^`]*)`\s*$/gm;
 
-  for (const match of content.matchAll(pattern)) {
+  for (const match of normalizeLineEndings(content).matchAll(pattern)) {
     const name = match[1];
     const path = match[2];
     if (name !== undefined && path !== undefined) paths.set(name.trim(), path);
@@ -275,13 +275,21 @@ function parseSectionStamps(content: string): Map<string, string> {
   const stamps = new Map<string, string>();
   const pattern = /^### (.+)\n+<!-- reconciled: (\S+) -->/gm;
 
-  for (const match of content.matchAll(pattern)) {
+  for (const match of normalizeLineEndings(content).matchAll(pattern)) {
     const name = match[1];
     const stamp = match[2];
     if (name !== undefined && stamp !== undefined) stamps.set(name.trim(), stamp);
   }
 
   return stamps;
+}
+
+/**
+ * Normalize only the parser's view of line endings. The original document bytes
+ * remain untouched when no structural heal is needed.
+ */
+function normalizeLineEndings(content: string): string {
+  return content.replaceAll('\r\n', '\n');
 }
 
 /**

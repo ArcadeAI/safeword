@@ -147,6 +147,18 @@ Evidence: impl-exit refactor `82e1dc1` wired reconcile; final-review commit
 - [x] GREEN
 - [x] REFACTOR
 
+### Scenario: A current CRLF document remains unchanged
+
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
+
+### Scenario: A CRLF structural heal preserves stale section stamps
+
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
+
 ### Scenario: Repeated mixed-tree generation is deterministic
 
 - [x] RED

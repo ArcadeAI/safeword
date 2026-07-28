@@ -104,6 +104,7 @@ Addresses the "epic wearing a feature label" packaging note. `/bdd` runs on **Sl
 
 ## Work Log
 
+- 2026-07-27T23:38:00Z Review follow-up: resolved all four latest PR #1558 comments. Fixed CRLF fixed-point behavior in both architecture-document parsers using a normalized read view; added regressions for byte stability and stamp preservation; improved the fingerprint failure diagnostic; documented the JS/Rust entry-point policy; and replaced the positional exclusion flag with a named local. Focused/static checks pass; the full suite's sole timeout passes 48/48 in isolation.
 - 2026-07-27T22:13:00Z Extension: Reopened the QD5DTT artifacts for issue #1551 mixed JS/TS roots. Consolidated the new requirements/test ledger/design into the owning ticket; retained the released fingerprint recipe, added explicit canonical-path reconciliation, filtered colocated tests without root fallthrough, and preserved entry points plus the CI-run setup proof.
 - 2026-06-21T03:20:41Z Started: Created ticket QD5DTT.
 - 2026-06-21T03:21:00Z Context: Design converged across three `/figure-it-out` sessions (refresh method, drift enforcement, monorepo structure + leaf placement). Captured decisions + evidence above.

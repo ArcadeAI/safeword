@@ -191,7 +191,8 @@ function enumerateJsSourceRoot(
         { name: entry.name, path: pathFor(entry.name), purpose: PURPOSE_PLACEHOLDER },
       ]),
   );
-  for (const node of jsFileNodes(entries, pathFor, true)) {
+  const excludeColocatedTests = true;
+  for (const node of jsFileNodes(entries, pathFor, excludeColocatedTests)) {
     if (!byName.has(node.name)) byName.set(node.name, node);
   }
   return { nodes: byName.values().toArray().toSorted(byNodeName), observed };
@@ -252,7 +253,12 @@ function jsFileNodes(
   return byName.values().toArray().toSorted(byNodeName);
 }
 
-/** Vitest/Jest-style colocated tests are verification, not production architecture nodes. */
+/**
+ * Vitest/Jest-style colocated tests are verification, not production architecture nodes.
+ * JS entry-point names remain eligible: unlike Rust's fixed crate roots, `index`/`main`/`cli`
+ * are ordinary modules that may contain logic, and this extractor never reads source text
+ * to guess whether one is only a barrel.
+ */
 function isJsTestFile(name: string): boolean {
   return /\.(?:test|spec)\.[mc]?[jt]sx?$/.test(name);
 }

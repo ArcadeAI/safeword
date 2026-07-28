@@ -94,5 +94,8 @@ Additional acceptance criteria:
 - A file-backed module becoming directory-backed heals its code reference
   without changing the released name-only fingerprint recipe or falsely
   marking unchanged purpose prose stale.
+- CRLF-encoded generated documents reach the same fixed point as LF documents:
+  unchanged structure remains untouched, and structural heals preserve prior
+  reconciliation stamps.
 - Generated-document guidance distinguishes fully derived root indexes from
   human-owned module purpose prose that is preserved while the module exists.

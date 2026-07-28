@@ -60,3 +60,19 @@ Ready to mark done.
   without stale prose.
 - **Generated docs:** ✅ repeated `safeword architecture` is byte-stable; the
   unchanged Website leaf has no diff or false stale markers.
+
+## PR #1558 review follow-up — 2026-07-27
+
+- **CRLF fixed point:** ✅ matching CRLF documents remain byte-identical and
+  unchanged; structural CRLF heals preserve reconciliation stamps and mark only
+  affected prose stale. Both path and section-stamp parsers use an LF-normalized
+  read view while writes retain the original document bytes.
+- **Focused unit tests:** ✅ 87 passed across architecture document, skeleton,
+  and fingerprint suites.
+- **Full Vitest:** ⚠️ 374/375 files passed (5,564 passed, 9 skipped); the only
+  failure was a 60-second `beforeAll` timeout in the Rust golden-path suite.
+  The complete Rust golden-path file then passed alone: 48/48.
+- **Static gates:** ✅ ESLint, unsafe-regex checks, Gherkin lint, both TypeScript
+  checks, Prettier, and `git diff --check`. Dependency-cruiser reports 0 errors
+  and its existing `codex-plugin/hooks.ts` orphan warning.
+- **Generated docs:** ✅ all three architecture documents remain unchanged.

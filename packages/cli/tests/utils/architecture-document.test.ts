@@ -85,6 +85,16 @@ describe('selfHeal — structural facts self-heal at session start', () => {
     expect(readFileSync(documentPath(context.directory), 'utf8')).toBe(before);
   });
 
+  it('leaves a current CRLF document untouched when its paths match', () => {
+    selfHeal(context.directory);
+    const path = documentPath(context.directory);
+    const crlf = readFileSync(path, 'utf8').replaceAll('\n', '\r\n');
+    writeFileSync(path, crlf);
+
+    expect(selfHeal(context.directory).action).toBe('unchanged');
+    expect(readFileSync(path, 'utf8')).toBe(crlf);
+  });
+
   it('regenerates a safeword-owned document whose fingerprint is missing or corrupt', () => {
     selfHeal(context.directory);
     // Keep safeword's ownership marker; only the fingerprint is mangled away.
@@ -340,7 +350,9 @@ describe('selfHeal — per-section prose persistence (JT852Q layer A)', () => {
 
     selfHeal(context.directory);
 
-    expect(read()).toContain('Handles login and tokens.');
+    const auth = sectionText(read(), 'auth');
+    expect(auth).toContain('Handles login and tokens.');
+    expect(auth).toMatch(/stale/i);
   });
 
   it('reaches a byte-identical fixed point after a writing heal', () => {

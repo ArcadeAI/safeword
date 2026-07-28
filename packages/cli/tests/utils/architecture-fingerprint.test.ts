@@ -101,9 +101,10 @@ afterEach(() => {
 
 describe('shapeFingerprint — captures shape, not noise', () => {
   it('keeps the released name-only fingerprint recipe stable', () => {
-    expect(shapeFingerprint(context.directory)).toBe(
-      '937a490e9b13dfe240f9abbc4ba05bd7f97e055d5ba3ae1efcfd5a47fdb477d4',
-    );
+    expect(
+      shapeFingerprint(context.directory),
+      'The released shape-fingerprint recipe changed. Updating this digest invalidates every existing architecture document; change it only with an explicit migration plan.',
+    ).toBe('937a490e9b13dfe240f9abbc4ba05bd7f97e055d5ba3ae1efcfd5a47fdb477d4');
   });
 
   it.each(changes)('$change → $result', ({ apply, result }) => {
