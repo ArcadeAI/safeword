@@ -36,6 +36,19 @@ function dir(world: HierarchyWorld): string {
   return world.dir;
 }
 
+function git(world: HierarchyWorld, ...args: string[]): void {
+  execFileSync('git', args, { cwd: dir(world), stdio: 'ignore' });
+}
+
+function commitAll(world: HierarchyWorld, message: string): void {
+  git(world, 'add', '-A');
+  git(world, 'commit', '-m', message);
+}
+
+function stageAll(world: HierarchyWorld): void {
+  git(world, 'add', '-A');
+}
+
 function makeMonorepo(world: HierarchyWorld): void {
   writeFileSync(
     nodePath.join(dir(world), 'package.json'),
@@ -55,7 +68,9 @@ function makePackage(
     JSON.stringify({ name, dependencies: options.dependencies ?? {} }),
   );
   for (const moduleName of options.modules ?? []) {
-    mkdirSync(nodePath.join(packageDir, 'src', moduleName), { recursive: true });
+    const moduleDirectory = nodePath.join(packageDir, 'src', moduleName);
+    mkdirSync(moduleDirectory, { recursive: true });
+    writeFileSync(nodePath.join(moduleDirectory, 'index.ts'), 'export {};\n');
   }
 }
 
@@ -117,6 +132,7 @@ function freshMonorepo(world: HierarchyWorld): void {
   makePackage(world, 'web', { modules: ['ui'] });
   runGenerate(world);
   snapshot(world);
+  commitAll(world, 'record current architecture');
 }
 
 After(function (this: HierarchyWorld) {
@@ -184,7 +200,9 @@ Given(/^a monorepo with architectureDocEnforcement disabled$/, function (this: H
 Given(
   /^one package has a structural change not yet reflected in its leaf doc$/,
   function (this: HierarchyWorld) {
-    mkdirSync(nodePath.join(dir(this), 'packages', 'core', 'src', 'billing'), { recursive: true });
+    const moduleDirectory = nodePath.join(dir(this), 'packages', 'core', 'src', 'billing');
+    mkdirSync(moduleDirectory, { recursive: true });
+    writeFileSync(nodePath.join(moduleDirectory, 'index.ts'), 'export {};\n');
   },
 );
 
@@ -192,7 +210,10 @@ Given(
   /^both the package set and one package's structure have changed$/,
   function (this: HierarchyWorld) {
     makePackage(this, 'billing', { modules: ['invoices'] });
-    mkdirSync(nodePath.join(dir(this), 'packages', 'core', 'src', 'extra'), { recursive: true });
+    const moduleDirectory = nodePath.join(dir(this), 'packages', 'core', 'src', 'extra');
+    mkdirSync(moduleDirectory, { recursive: true });
+    writeFileSync(nodePath.join(moduleDirectory, 'index.ts'), 'export {};\n');
+    stageAll(this);
   },
 );
 

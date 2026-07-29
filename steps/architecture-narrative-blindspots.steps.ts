@@ -34,7 +34,9 @@ function makeJsMonorepo(world: ArchitectureWorld, packageNames: string[]): void 
   for (const name of packageNames) {
     const folder = name.includes('/') ? (name.split('/').at(-1) ?? name) : name;
     writeJson(nodePath.join(dir(world), 'packages', folder, 'package.json'), { name });
-    mkdirSync(nodePath.join(dir(world), 'packages', folder, 'src', 'ui'), { recursive: true });
+    const moduleDirectory = nodePath.join(dir(world), 'packages', folder, 'src', 'ui');
+    mkdirSync(moduleDirectory, { recursive: true });
+    writeFileSync(nodePath.join(moduleDirectory, 'index.ts'), 'export {};\n');
   }
 }
 
@@ -179,6 +181,7 @@ When(
 When(
   'safeword stages the architecture docs and captures its output',
   function (this: ArchitectureWorld) {
+    execFileSync('git', ['add', '-A'], { cwd: dir(this), stdio: 'ignore' });
     runArchitecture(this, ['--stage']);
   },
 );
