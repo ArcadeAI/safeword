@@ -105,12 +105,13 @@ interface HealTarget {
   render: (priorStamps: Map<string, string>, priorProse: Map<string, string>) => string;
 }
 
-function healTarget(
-  target: HealTarget,
-  priorProseContent?: string,
-  renderUnchanged = false,
-  preservePriorStructure = false,
-): SelfHealResult {
+interface HealOptions {
+  priorProseContent?: string;
+  renderUnchanged?: boolean;
+  preservePriorStructure?: boolean;
+}
+
+function healTarget(target: HealTarget, options: HealOptions = {}): SelfHealResult {
   const existing = readExisting(target.path);
   const action = decideAction(
     existing,
@@ -119,12 +120,12 @@ function healTarget(
     target.matchesExisting,
   );
 
-  if (isWouldChangeAction(action) || (renderUnchanged && action === 'unchanged')) {
+  if (isWouldChangeAction(action) || (options.renderUnchanged === true && action === 'unchanged')) {
     mkdirSync(nodePath.dirname(target.path), { recursive: true });
     const { priorStamps, priorProse } = priorSectionHistory(
       existing,
-      priorProseContent,
-      preservePriorStructure,
+      options.priorProseContent,
+      options.preservePriorStructure ?? false,
     );
     writeFileSync(target.path, target.render(priorStamps, priorProse));
   }
@@ -259,12 +260,11 @@ export function selfHealProjectPreservingProse(
   return projectTargets(projectDirectory).map(target => {
     const relativePath = nodePath.relative(projectDirectory, target.path);
     const priorProseContent = readExisting(nodePath.join(proseProjectDirectory, relativePath));
-    return healTarget(
-      target,
+    return healTarget(target, {
       priorProseContent,
-      options.renderUnchanged ?? false,
-      options.preservePriorStructure ?? false,
-    );
+      renderUnchanged: options.renderUnchanged,
+      preservePriorStructure: options.preservePriorStructure,
+    });
   });
 }
 
