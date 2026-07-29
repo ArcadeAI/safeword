@@ -43,10 +43,23 @@ const MAX_ISSUE_PAGES = 10;
 // observable revisit threshold its first independent deliverable.
 const MAX_DEDUP_PAGES = 200;
 
-/** Ask the `gh` CLI for the environment's GitHub token, or undefined if unavailable. */
-function ghAuthToken(): string | undefined {
+/**
+ * Ask `gh` for the environment's GitHub token, or undefined if unavailable.
+ * `GITHUB_TOKEN` is stripped because the resolver only calls this fallback
+ * after rejecting that value; preserve `GH_TOKEN`, which is an independent
+ * documented gh credential source with higher precedence.
+ */
+function ghAuthToken(
+  environment: Record<string, string | undefined> = process.env,
+): string | undefined {
   try {
-    const result = spawnSync('gh', ['auth', 'token'], { encoding: 'utf8', timeout: 10_000 });
+    const childEnvironment = { ...environment };
+    delete childEnvironment.GITHUB_TOKEN;
+    const result = spawnSync('gh', ['auth', 'token'], {
+      encoding: 'utf8',
+      timeout: 10_000,
+      env: childEnvironment,
+    });
     const token = (result.stdout ?? '').trim();
     return result.status === 0 && token.length > 0 ? token : undefined;
   } catch {
@@ -55,20 +68,12 @@ function ghAuthToken(): string | undefined {
 }
 
 /**
- * A value shaped like a real GitHub token: a modern prefixed token
- * (`ghp_`/`gho_`/`ghu_`/`ghs_`/`ghr_`, or fine-grained `github_pat_`) or a
- * legacy 40-char hex PAT. Deliberately narrow so proxy-injected placeholders
- * such as `proxy-injected` are rejected before they reach the API (#634).
- * Stateless `ghs_` tokens use GitHub's published `{36,}` matcher:
- * https://github.blog/changelog/2026-05-15-github-app-installation-tokens-per-request-override-header/
+ * Whether a value has RFC 6750 Bearer credential syntax. GitHub tokens are
+ * opaque: their API, not this resolver, decides whether the credential is
+ * valid or authorized.
  */
-function looksLikeGitHubToken(value: string): boolean {
-  return (
-    /^ghs_[\w.-]{36,}$/.test(value) ||
-    /^gh[opusr]_[A-Za-z0-9]{20,}$/.test(value) ||
-    /^github_pat_\w{20,}$/.test(value) ||
-    /^[0-9a-f]{40}$/.test(value)
-  );
+function isBearerCredentialSyntax(value: string): boolean {
+  return /^[\w.~+/-]+=*$/.test(value);
 }
 
 /**
@@ -77,18 +82,25 @@ function looksLikeGitHubToken(value: string): boolean {
  * environment's existing GitHub access via `gh auth token`. Returns undefined when
  * neither is available, so the caller can no-op gracefully instead of failing.
  *
- * The env var is only honored when it is *shaped* like a GitHub token (#634):
- * some environments (e.g. Claude cloud containers) populate `GITHUB_TOKEN` with
- * a non-credential placeholder that would 401, muddying diagnosis — treat that
- * as absent and fall through to `gh` instead of passing it to the API.
+ * The env var is honored when it has Bearer syntax, except for the exact
+ * documented `proxy-injected` cloud placeholder. Treat that value as absent and
+ * fall through to `gh`; every other opaque syntax-valid value reaches GitHub,
+ * where an invalid or unauthorized credential gets its terminal 401 response
+ * instead of being guessed at locally.
  */
 export function resolveGitHubToken(
   env: Record<string, string | undefined> = process.env,
-  getGhToken: () => string | undefined = ghAuthToken,
+  getGhToken: (environment: Record<string, string | undefined>) => string | undefined = ghAuthToken,
 ): string | undefined {
   const fromEnvironment = env.GITHUB_TOKEN;
-  if (fromEnvironment && looksLikeGitHubToken(fromEnvironment)) return fromEnvironment;
-  return getGhToken();
+  if (
+    fromEnvironment &&
+    fromEnvironment !== 'proxy-injected' &&
+    isBearerCredentialSyntax(fromEnvironment)
+  ) {
+    return fromEnvironment;
+  }
+  return getGhToken(env);
 }
 
 /** The one place auth + API headers are wired to fetch; both transports compose this. */
