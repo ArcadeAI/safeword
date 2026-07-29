@@ -157,6 +157,26 @@ function emptyTriageResult(): TriageResult {
   };
 }
 
+function relayDraftForEncounter(
+  encounter: Encounter,
+  source: { session: string; windowStart: number },
+  relay: Pick<NonNullable<RetroDependencies['relay']>, 'installationId' | 'repository'>,
+) {
+  const relayDraft = {
+    body: encounter.draft.body,
+    canonicalKey: encounter.draft.canonicalSignature,
+    installationId: relay.installationId,
+    labels: encounter.draft.labels,
+    legacySignature: encounter.draft.signature,
+    repository: relay.repository,
+    title: encounter.draft.title,
+  };
+  return {
+    ...relayDraft,
+    sourceKey: relaySourceKey(source.session, source.windowStart, relayDraft),
+  };
+}
+
 async function runRelayRetro(
   encounters: Encounter[],
   drops: { schema: number; surface: number },
@@ -165,21 +185,7 @@ async function runRelayRetro(
   relay: NonNullable<RetroDependencies['relay']>,
 ): Promise<RetroOutcome> {
   const spoolDirectory = relay.spoolDirectory ?? projectDirectory;
-  const relayDrafts = encounters.map(encounter => {
-    const relayDraft = {
-      body: encounter.draft.body,
-      canonicalKey: encounter.draft.canonicalSignature,
-      installationId: relay.installationId,
-      labels: encounter.draft.labels,
-      legacySignature: encounter.draft.signature,
-      repository: relay.repository,
-      title: encounter.draft.title,
-    };
-    return {
-      ...relayDraft,
-      sourceKey: relaySourceKey(source.session, source.windowStart, relayDraft),
-    };
-  });
+  const relayDrafts = encounters.map(encounter => relayDraftForEncounter(encounter, source, relay));
   const persistence = await persistRelayDraftBatch(spoolDirectory, relayDrafts);
   const spoolFailed = persistence.filter(outcome => outcome.status === 'rejected').length;
   const deadlineMs = relay.deadlineMs ?? DEFAULT_RELAY_DEADLINE_MS;
