@@ -543,7 +543,11 @@ function physicalOutboxPath(outboxDirectory: string): string | undefined {
   }
 }
 
-// eslint-disable-next-line complexity -- Fail-closed lexical and physical path checks remain explicit.
+function isOutsideProject(projectDirectory: string, outboxDirectory: string): boolean {
+  const relative = nodePath.relative(projectDirectory, outboxDirectory);
+  return relative === '..' || relative.startsWith(`..${nodePath.sep}`);
+}
+
 export function resolveRelayOutboxDirectory(
   projectDirectory: string,
   configuredDirectory: string | undefined,
@@ -558,11 +562,7 @@ export function resolveRelayOutboxDirectory(
   if (physicalProject === undefined) return undefined;
   const physicalOutbox = physicalOutboxPath(resolved);
   if (physicalOutbox === undefined) return undefined;
-  const relative = nodePath.relative(physicalProject, physicalOutbox);
-  if (relative === '' || (relative !== '..' && !relative.startsWith(`..${nodePath.sep}`))) {
-    return undefined;
-  }
-  return physicalOutbox;
+  return isOutsideProject(physicalProject, physicalOutbox) ? physicalOutbox : undefined;
 }
 
 // eslint-disable-next-line complexity -- Fail-closed runtime parsing keeps every credential field explicit.
