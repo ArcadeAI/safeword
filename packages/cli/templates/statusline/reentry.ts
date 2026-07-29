@@ -54,8 +54,6 @@ async function main(): Promise<void> {
     .filter((e): e is Entry => e !== null)
     .filter(e => e.sessionId === session_id);
 
-  if (entries.length === 0) return;
-
   const latest = entries.at(-1);
   if (!latest) return;
 

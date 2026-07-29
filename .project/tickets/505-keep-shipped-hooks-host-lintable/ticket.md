@@ -6,7 +6,7 @@ phase: done
 status: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/505
 created: 2026-07-28T00:00:00Z
-last_modified: 2026-07-29T02:40:00Z
+last_modified: 2026-07-29T17:32:25Z
 scope:
   - Keep every shipped TypeScript template compatible with the supported ESLint baseline used by host projects.
   - Add release validation for the schema-declared distributed TypeScript surface: baseline lint, typed-preset parse/config loading, and strict installed-shape TypeScript checking.
@@ -15,9 +15,9 @@ out_of_scope:
   - Adding a host-project lint ignore for .safeword/hooks.
   - Normalizing the existing template corpus to every stylistic and security rule in the full typed host preset.
 done_when:
-  - Shipped TypeScript hooks have no errors from the supported ESLint baseline.
-  - Every physical shipped hook loads without a fatal parser/config diagnostic under the actual typed host preset.
-  - Every physical shipped hook typechecks in a generated installed-shape fixture without customer dependencies.
+  - Schema-declared shipped TypeScript templates have no errors from the supported ESLint baseline.
+  - Every schema-declared shipped TypeScript template loads without a fatal parser/config diagnostic under the actual typed host preset.
+  - Every schema-declared shipped TypeScript template typechecks in a generated installed-shape fixture against Safeword's package-pinned type dependencies.
 ---
 
 # Keep shipped hooks host-lintable
@@ -66,9 +66,9 @@ in customer repositories) but opt into dogfood parity so template edits cannot d
 ## Done When:
 
 - [x] The literal BOM and dead-store initializations no longer create host-lint failures.
-- [x] A release test checks every shipped TypeScript hook with the supported baseline.
-- [x] A release test loads every shipped hook through the typed host preset and fails on fatal parser/config diagnostics.
-- [x] A release test strictly typechecks the installed-shape hook tree with package-owned `@types/bun` support.
+- [x] A release test checks every schema-declared TypeScript template with the supported baseline.
+- [x] A release test loads every schema-declared TypeScript template through the typed host preset and fails on fatal parser/config diagnostics.
+- [x] A release test strictly typechecks the installed-shape TypeScript template tree with package-owned `@types/bun` support.
 
 ## Test Definitions:
 
@@ -98,6 +98,7 @@ in customer repositories) but opt into dogfood parity so template edits cannot d
 - 2026-07-29T02:20:00Z Regression follow-up: the generated owned-paths module was typechecked but omitted from both fixture lint passes. Added it to the common fixture file list; the focused release gate and direct lint pass now cover the same installed tree.
 - 2026-07-29T02:30:00Z Refactor: split release-fixture materialization from tsconfig generation without changing the installed file set, fixture lifetime, or compiler options. Focused release checks and direct lint passed.
 - 2026-07-29T02:40:00Z Final refactor verification: release validation (3 tests), parity tests (27 tests), parity (200 pairs / 8 contracts), direct lint, diff check, and audit passed. Audit found no new architecture or dead-code issue; its repository-wide clone and dependency-freshness findings are pre-existing follow-up inventory, not part of this scoped change.
+- 2026-07-29T17:30:00Z PR review follow-up: made `parseLogLine` fail closed for missing captures, added its regression coverage, made the release surface non-vacuous (minimum 106 templates), let Cucumber resolve its package-declared types, simplified the equivalent statusline guard, and corrected the acceptance criteria.
 
 ## Refactor Ledger
 
@@ -116,5 +117,12 @@ with its own test and commit.
   abstraction would recreate a rejected shipped API.
 - [x] Struck — Do not merge baseline and fatal-diagnostic formatting: their
   distinct predicates make the test policy legible.
-- [x] Struck — Keep `as unknown as` for the regex tuple: direct conversion is
-  rejected by the strict fixture compiler.
+- [x] PR-review follow-up: replace the regex tuple assertion with a fail-closed
+  runtime guard, so an optional future capture cannot escape as `undefined`.
+- [x] PR-review follow-up: require at least 106 schema-declared TypeScript
+  templates, preventing a vacuous ESLint run if discovery regresses while
+  allowing deliberate release-surface additions.
+- [x] PR-review follow-up: map Cucumber at its package root so TypeScript uses
+  the package's declared types instead of this test pinning its internal layout.
+- [x] PR-review follow-up: use the same final-element guard in the statusline
+  and correct the ticket acceptance criteria to cover all distributed templates.

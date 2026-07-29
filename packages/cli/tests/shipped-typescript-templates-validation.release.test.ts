@@ -60,6 +60,10 @@ const shippedTypeScriptTemplates: InstalledTemplate[] = [
   return templatePath?.endsWith('.ts') ? [{ destinationPath, templatePath }] : [];
 });
 
+// This minimum blocks a vacuous ESLint run if schema discovery regresses while
+// allowing deliberate additions to the distributed TypeScript surface.
+const MIN_SHIPPED_TYPESCRIPT_TEMPLATE_COUNT = 106;
+
 function materializeInstalledTemplates(directory: string): MaterializedTemplates {
   const templatePaths = shippedTypeScriptTemplates.map(({ destinationPath, templatePath }) => {
     const target = nodePath.join(directory, destinationPath);
@@ -95,9 +99,7 @@ function writeFixtureTypeScriptConfig(directory: string, ownedPathsTarget: strin
           strict: true,
           target: 'ESNext',
           paths: {
-            '@cucumber/cucumber': [
-              nodePath.join(cliRoot, 'node_modules', '@cucumber', 'cucumber', 'lib', 'index.d.ts'),
-            ],
+            '@cucumber/cucumber': [nodePath.join(cliRoot, 'node_modules', '@cucumber', 'cucumber')],
           },
           typeRoots: [nodePath.join(cliRoot, 'node_modules', '@types')],
           types: ['node', 'bun'],
@@ -131,6 +133,12 @@ function createInstalledTemplatesFixture(): {
 }
 
 describe('shipped TypeScript templates', () => {
+  it('has a non-vacuous schema-declared TypeScript release surface', () => {
+    expect(shippedTypeScriptTemplates.length).toBeGreaterThanOrEqual(
+      MIN_SHIPPED_TYPESCRIPT_TEMPLATE_COUNT,
+    );
+  });
+
   it('pass Safeword’s supported host ESLint baseline', async () => {
     const fixture = createInstalledTemplatesFixture();
     const eslint = new ESLint({
