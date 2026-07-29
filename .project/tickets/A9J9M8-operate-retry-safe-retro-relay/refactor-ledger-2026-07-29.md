@@ -90,3 +90,24 @@ feature lands. Deferral means no behavior change is hidden inside this pass.
 - Raw REST bodies remain the only duplicate-marker authority.
 - One accepted refactor is applied, focused-tested, regression-checked, and
   committed before the next begins.
+
+## Execution outcome
+
+- Completed R1–R8 and R10–R12 as isolated, focused-tested commits.
+- Attempted R9, observed the built bundle rewrite `node:sqlite` to bare
+  `sqlite`, immediately reverted it, and retained the qualified compatibility
+  seam.
+- SafeWord audit proof: `[skill-invocation-log] audit ✓`.
+- Audit: no dependency violations across 708 modules / 2,348 dependencies;
+  Knip clean; config and namespace domain docs in sync; no learning metadata,
+  agent-config, test-quality, architecture, or documentation errors.
+- Duplication: 548 clones (8.55%) at the stable
+  `[repo minus .safeword,.project]` scope, down 3 from the prior 551 baseline.
+- Dependency freshness: `@openai/codex` 0.145.0 → 0.146.0 is a dev-only 0.x
+  minor and remains a medium-risk follow-up rather than feature scope.
+- Audit coverage limitations: the experimental Python fixture has no
+  import-linter/deadcode/pip available; its Go fixture passed configured checks.
+- Full verification: lint, Gherkin lint, both package typechecks, formatting,
+  and `git diff --check` passed; relay Vitest 163 passed / 1 skipped; CLI Vitest
+  5,673 passed / 5 skipped; BDD 620 scenarios and 19,857 steps passed, with 3
+  scenarios / 4 steps intentionally skipped.
