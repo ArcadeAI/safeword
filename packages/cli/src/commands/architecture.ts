@@ -246,6 +246,8 @@ function withGitIndexSnapshot<T>(
   }
 }
 
+const GITLINK_MODE_PREFIX = '160000 ';
+
 /** Refuse a staged tree whose pinned submodule contents cannot be materialized safely. */
 function assertNoGitlinks(gitContext: GitContext): void {
   const pathArguments =
@@ -260,7 +262,7 @@ function assertNoGitlinks(gitContext: GitContext): void {
     },
   )
     .split('\0')
-    .filter(entry => entry.startsWith('160000 '));
+    .filter(entry => entry.startsWith(GITLINK_MODE_PREFIX));
   if (entries.length === 0) return;
 
   const paths = entries.map(entry => entry.slice(entry.indexOf('\t') + 1));
