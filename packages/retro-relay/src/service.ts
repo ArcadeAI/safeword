@@ -4,7 +4,7 @@ import { RelayError } from './errors.js';
 import { GitHubCreateError, type GitHubRestClient } from './github.js';
 import { normalizeRepo, payloadHash, requestMarker } from './identity.js';
 import { decryptPayload, encryptPayload, type PayloadKeyring } from './payload.js';
-import type { DurableRequest, RelayStore } from './store.js';
+import { type DurableRequest, filingReceipt, type RelayStore } from './store.js';
 import type {
   FileRetroDraftRequest,
   FilingReceipt,
@@ -35,15 +35,6 @@ function authorize(
     installationId: request.installationId,
     repository: repo,
     requestId: request.requestId,
-  };
-}
-
-function receiptFromRecord(record: DurableRequest): FilingReceipt {
-  return {
-    receiptId: record.receiptId,
-    requestId: record.scope.requestId,
-    state: record.state,
-    ...(record.issueNumber !== undefined && { issueNumber: record.issueNumber }),
   };
 }
 
@@ -170,7 +161,7 @@ export class RelayService {
     if (record === undefined) {
       throw new RelayError(404, 'filing receipt not found');
     }
-    if (isResolvedReceiptState(record.state)) return receiptFromRecord(record);
+    if (isResolvedReceiptState(record.state)) return filingReceipt(record);
     if (record.state !== 'ambiguous') {
       throw new RelayError(409, 'only ambiguous filings can be reconciled');
     }
@@ -239,7 +230,7 @@ export class RelayService {
     const record = this.#store.loadByReceiptForPrincipal(receiptId, principal);
     if (record === undefined) throw new RelayError(404, 'filing receipt not found');
     if (['filed', 'tombstone'].includes(record.state)) {
-      return { disposition: 'adopted', receipt: receiptFromRecord(record) };
+      return { disposition: 'adopted', receipt: filingReceipt(record) };
     }
     if (!['ambiguous', 'dead-letter'].includes(record.state)) {
       throw new RelayError(409, 'only ambiguous or dead-letter filings can be manually recovered');
@@ -334,7 +325,7 @@ export class RelayService {
     if (record === undefined) {
       throw new RelayError(404, 'filing receipt not found');
     }
-    return receiptFromRecord(record);
+    return filingReceipt(record);
   }
 
   async maintain(now = new Date()): Promise<{
@@ -378,7 +369,7 @@ export class RelayService {
     if (accepted.record.payloadHash !== hash) {
       throw new RelayError(409, 'request identity was reused with a different payload');
     }
-    if (isResolvedReceiptState(accepted.record.state)) return receiptFromRecord(accepted.record);
+    if (isResolvedReceiptState(accepted.record.state)) return filingReceipt(accepted.record);
     if (accepted.record.state === 'ambiguous') {
       throw new RelayError(503, 'filing outcome is ambiguous', {
         receiptId: accepted.record.receiptId,

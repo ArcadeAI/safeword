@@ -131,7 +131,7 @@ function rowToRequest(row: RequestRow): DurableRequest {
   };
 }
 
-function receipt(record: DurableRequest): FilingReceipt {
+export function filingReceipt(record: DurableRequest): FilingReceipt {
   return {
     receiptId: record.receiptId,
     requestId: record.scope.requestId,
@@ -689,7 +689,7 @@ export class RelayStore {
     if (result.changes !== 1) throw new Error('filing transition lost');
     const record = this.load(scope);
     if (record === undefined) throw new Error('filed request disappeared');
-    return receipt(record);
+    return filingReceipt(record);
   }
 
   markReconciledFiled(scope: RequestScope, issueNumber: number, now = this.#now()): FilingReceipt {
@@ -711,7 +711,7 @@ export class RelayStore {
     if (result.changes !== 1) throw new Error('reconciliation transition lost');
     const record = this.load(scope);
     if (record === undefined) throw new Error('filed request disappeared');
-    return receipt(record);
+    return filingReceipt(record);
   }
 
   markRejected(scope: RequestScope, now = this.#now()): FilingReceipt {
@@ -731,7 +731,7 @@ export class RelayStore {
     if (result.changes !== 1) throw new Error('rejection transition lost');
     const record = this.load(scope);
     if (record === undefined) throw new Error('rejected request disappeared');
-    return receipt(record);
+    return filingReceipt(record);
   }
 
   markRetryable(scope: RequestScope, now = this.#now(), notBefore?: Date): void {
@@ -761,7 +761,7 @@ export class RelayStore {
 
   receipt(scope: RequestScope): FilingReceipt | undefined {
     const record = this.load(scope);
-    return record === undefined ? undefined : receipt(record);
+    return record === undefined ? undefined : filingReceipt(record);
   }
 
   recordReconciliation(
