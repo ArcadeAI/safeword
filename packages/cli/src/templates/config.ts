@@ -319,8 +319,11 @@ ${prettier.configEntry}
 // OBSERVATIONAL hooks are deliberately left fail-open (the default): a crashing
 // lint/state/nudge hook must never block legitimate work.
 export const CURSOR_HOOKS = {
-  // Observational context only. Installation and upgrades are explicit CLI actions.
-  sessionStart: [{ command: 'bun ./.safeword/hooks/session-safeword-context.ts --agent=cursor' }],
+  // Observational: injects standing context and checks for auto-upgrades.
+  sessionStart: [
+    { command: 'bun ./.safeword/hooks/session-safeword-context.ts --agent=cursor' },
+    { command: 'bun ./.safeword/hooks/session-cursor-auto-upgrade.ts' },
+  ],
   // NOTE (F2TKR3): there is deliberately NO beforeSubmitPrompt gate. That hook
   // fires at prompt-send time, where Cursor exposes only the prompt text — no tool
   // name or file path — so it cannot tell "create test-definitions.md" from "write
@@ -387,6 +390,10 @@ function hook(command: string) {
   return { hooks: [{ type: 'command', command }] };
 }
 
+function asyncRewakeHook(command: string) {
+  return { hooks: [{ type: 'command', command, asyncRewake: true }] };
+}
+
 /**
  * Create a fully backgrounded hook with `async: true` (documented Claude Code
  * mode, https://code.claude.com/docs/en/hooks): the hook returns IMMEDIATELY and
@@ -425,6 +432,7 @@ export const SETTINGS_HOOKS = {
   SessionStart: [
     hook(`bash ${HOOKS_DIR}/session-bun-check.sh`),
     hook(`bun ${HOOKS_DIR}/session-dependency-readiness.ts`),
+    asyncRewakeHook(`bun ${HOOKS_DIR}/session-auto-upgrade.ts`),
     hook(`bun ${HOOKS_DIR}/session-safeword-context.ts --agent=claude`),
     hook(`bun ${HOOKS_DIR}/session-version.ts`),
     hook(`bun ${HOOKS_DIR}/session-lint-check.ts`),

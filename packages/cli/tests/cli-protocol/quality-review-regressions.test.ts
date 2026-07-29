@@ -144,6 +144,45 @@ describe('quality-review regressions for the public CLI boundary', () => {
     });
   });
 
+  it('lists tickets from the configured project namespace root', async () => {
+    const directory = createTemporaryDirectory();
+    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+    mkdirSync(nodePath.join(directory, 'work/items/tickets/AB12CD-configured'), {
+      recursive: true,
+    });
+    writeFileSync(
+      nodePath.join(directory, '.safeword/config.json'),
+      JSON.stringify({ paths: { projectRoot: 'work/items' } }),
+    );
+
+    const result = await runCli(
+      ['ticket', 'list', '--json', '--no-input', '--offline', '--cwd', directory],
+      { cwd: directory },
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      data: { command: 'ticket list', tickets: ['AB12CD-configured'] },
+    });
+  });
+
+  it('rejects full removal in offline mode before mutation', async () => {
+    const directory = createTemporaryDirectory();
+    mkdirSync(nodePath.join(directory, '.safeword'));
+
+    const result = await runCli(
+      ['remove', '--full', '--json', '--no-input', '--offline', '--cwd', directory],
+      { cwd: directory },
+    );
+
+    expect(result.exitCode).toBe(2);
+    expect(existsSync(nodePath.join(directory, '.safeword'))).toBe(true);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'action_required',
+      effects: { network: [] },
+    });
+  });
+
   it('applies tracker executor results offline through the typed renderer', async () => {
     const directory = createTemporaryDirectory();
     const ticketDirectory = nodePath.join(directory, '.project/tickets/AB12CD-login');

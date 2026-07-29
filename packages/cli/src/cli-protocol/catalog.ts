@@ -118,6 +118,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   command('doctor', 'Diagnose project configuration', 'observe'),
   command('remove', 'Remove Safeword configuration', 'destructive', {
     promptPolicy: 'confirm',
+    networkPolicy: 'declared',
     commandOptions: [
       { flags: '-y, --yes', description: 'Confirm the supplied plan identity' },
       { flags: '--plan <id>', description: 'Identity of the exact plan being confirmed' },
@@ -174,6 +175,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     ],
   }),
   command('tracker connect', 'Connect a project to a tracker', 'mutate', {
+    promptPolicy: 'confirm',
     networkPolicy: 'declared',
     syntax: 'connect <provider>',
     commandOptions: [
@@ -186,7 +188,8 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       environment: MACHINE_ENVIRONMENT,
     },
   }),
-  command('codex migrate', 'Migrate legacy project hooks to the Codex plugin', 'mutate', {
+  command('codex migrate', 'Migrate legacy project hooks to the Codex plugin', 'destructive', {
+    promptPolicy: 'confirm',
     networkPolicy: 'declared',
     commandOptions: [
       { flags: '--finalize', description: 'Finalize after current plugin-hook proof exists' },
@@ -208,6 +211,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   }),
   command('ticket list', 'List project tickets', 'observe'),
   command('ticket new', 'Create a project ticket', 'mutate', {
+    networkPolicy: 'declared',
     syntax: 'new <slug>',
     commandOptions: [
       {
@@ -243,7 +247,15 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       environment: MACHINE_ENVIRONMENT,
     },
   }),
-  command('retro signals', 'Inspect locally captured runtime signals', 'observe'),
+  command('retro signals', 'Inspect locally captured runtime signals', 'observe', {
+    commandOptions: [
+      {
+        flags: '--format <format>',
+        description: 'Output format: human, json, or issue',
+        defaultValue: 'human',
+      },
+    ],
+  }),
   command('retro reconcile', 'Reconcile open retro findings', 'mutate', {
     networkPolicy: 'declared',
   }),
@@ -265,21 +277,9 @@ function canonicalOptions(name: string): CommandDefinition['registration']['opti
 
 const ALIASES: readonly CommandDefinition[] = [
   alias('check', 'status'),
-  {
-    ...alias('upgrade', 'setup'),
-    registration: {
-      syntax: 'upgrade',
-      options: canonicalOptions('setup'),
-    },
-  },
+  alias('upgrade', 'setup'),
   alias('diff', 'plan'),
-  {
-    ...alias('reset', 'remove'),
-    registration: {
-      syntax: 'reset',
-      options: canonicalOptions('remove'),
-    },
-  },
+  alias('reset', 'remove'),
   alias('sync-config', 'project sync-config'),
   alias('architecture', 'project architecture'),
   alias('sync-learnings', 'project sync-learnings'),
@@ -309,13 +309,7 @@ const ALIASES: readonly CommandDefinition[] = [
       options: [],
     },
   },
-  {
-    ...alias('sync-tracker', 'tracker sync'),
-    registration: {
-      syntax: 'sync-tracker',
-      options: canonicalOptions('tracker sync'),
-    },
-  },
+  alias('sync-tracker', 'tracker sync'),
   {
     ...alias('connect', 'tracker connect'),
     registration: {
@@ -327,37 +321,16 @@ const ALIASES: readonly CommandDefinition[] = [
       environment: MACHINE_ENVIRONMENT,
     },
   },
-  {
-    ...alias('self-report', 'retro signals'),
-    registration: {
-      syntax: 'self-report',
-      options: [
-        {
-          flags: '--format <format>',
-          description: 'Output format: human, json, or issue',
-        },
-      ],
-    },
-  },
+  alias('self-report', 'retro signals'),
   {
     ...alias('retro', 'retro run'),
-    registration: {
-      syntax: 'retro',
-      options: canonicalOptions('retro run'),
-    },
     fixture: {
       argv: ['retro', '--transcript', 'fixture'],
       environment: MACHINE_ENVIRONMENT,
     },
   },
   alias('retro-reconcile', 'retro reconcile'),
-  {
-    ...alias('migrate codex-plugin', 'codex migrate'),
-    registration: {
-      syntax: 'codex-plugin',
-      options: canonicalOptions('codex migrate'),
-    },
-  },
+  alias('migrate codex-plugin', 'codex migrate'),
 ];
 
 const HIDDEN_COMMANDS: readonly CommandDefinition[] = [

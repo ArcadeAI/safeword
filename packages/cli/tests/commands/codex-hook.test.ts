@@ -126,7 +126,7 @@ describe('packagedNamespaceRootLabel', () => {
     expect(result.status, result.stderr).toBe(0);
     expect(existsSync(nodePath.join(codexHome, 'safeword/restart-pending-v1.json'))).toBe(false);
     const proof = JSON.parse(
-      readFileSync(nodePath.join(codexHome, 'safeword/hook-proof-v1.json'), 'utf8'),
+      readFileSync(nodePath.join(codexHome, 'safeword/hook-proof-v1/session-start.json'), 'utf8'),
     ) as Record<string, unknown>;
     expect(proof.schema_version).toBe(1);
     expect(proof.manifest_sha256).toMatch(/^[\da-f]{64}$/u);
@@ -145,7 +145,9 @@ describe('packagedNamespaceRootLabel', () => {
     );
 
     expect(result.status, result.stderr).toBe(0);
-    expect(existsSync(nodePath.join(codexHome, 'safeword/hook-proof-v1.json'))).toBe(false);
+    expect(existsSync(nodePath.join(codexHome, 'safeword/hook-proof-v1/session-start.json'))).toBe(
+      false,
+    );
   });
 
   it('normalizes Windows custom roots for Git-owned path matching', () => {
@@ -352,7 +354,7 @@ command = "npx --yes safeword hook codex post-tool-use"
     expect(result.stderr).toContain('Broad process kill blocked');
   });
 
-  it('runs the plugin when a configured legacy event has no package runner', () => {
+  it('treats an executable package runner as viable without spawning it', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-enrolled-'));
     const binDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-bin-'));
     directories.push(projectDirectory, binDirectory);
@@ -385,8 +387,8 @@ command = "npx --yes safeword hook codex pre-tool-use"
       true,
     );
 
-    expect(result.status).toBe(2);
-    expect(result.stderr).toContain('Broad process kill blocked');
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe('');
   });
 
   it.each([

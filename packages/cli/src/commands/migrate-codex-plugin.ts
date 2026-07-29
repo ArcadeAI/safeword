@@ -31,7 +31,9 @@ import {
   deriveCodexMigrationResult,
   renderCodexMigrationHuman,
 } from '../codex-plugin/migration.js';
+import { CodexMigrationError } from '../codex-plugin/migration-error.js';
 import {
+  type CodexHookProofObservation,
   codexRestartIsPending,
   observeCodexHookProof,
   writeCodexRestartMarker,
@@ -96,11 +98,18 @@ function verifyCodexPluginIsEnabled(options: { installationCompleted?: boolean }
       options.installationCompleted === true
         ? 'Plugin installation succeeded, but enablement is unknown'
         : 'Could not verify the Safe Word Codex plugin';
-    throw new Error(`${prefix}: ${String(error)}`, { cause: error });
+    throw new CodexMigrationError(
+      options.installationCompleted === true
+        ? 'PLUGIN_ENABLEMENT_UNKNOWN'
+        : 'PLUGIN_ENABLEMENT_FAILED',
+      `${prefix}: ${String(error)}`,
+      { cause: error },
+    );
   }
   const plugin = pluginObservationFromList(pluginList);
   if (plugin.enabled !== true) {
-    throw new Error(
+    throw new CodexMigrationError(
+      'PLUGIN_ENABLEMENT_FAILED',
       'Codex did not report the Safe Word plugin as enabled. Enable safeword@safeword, then re-run this command; project hooks were left unchanged.',
     );
   }
@@ -195,7 +204,13 @@ const CODEX_MIGRATION_MESSAGES: Partial<Readonly<Record<CodexMigrationResultV1['
       'Codex migration state: recovery_required. Recovery is required before migration can continue.',
   };
 
-function codexMigrationMessage(state: CodexMigrationResultV1['state']): string {
+function codexMigrationMessage(
+  state: CodexMigrationResultV1['state'],
+  proof?: CodexHookProofObservation,
+): string {
+  if (state === 'plugin_enabled_hook_unproven' && proof !== undefined) {
+    return `Codex migration state: plugin_enabled_hook_unproven. Start a new Codex session, review /hooks, and exercise these missing hooks: ${proof.missing_events.join(', ')}. Then run safeword codex migrate --finalize.`;
+  }
   return CODEX_MIGRATION_MESSAGES[state] ?? `Codex migration state: ${state}.`;
 }
 
@@ -215,7 +230,7 @@ export function observeCodexMigration(
         : [
             {
               code: `CODEX_${result.state.toUpperCase()}`,
-              message: codexMigrationMessage(result.state),
+              message: codexMigrationMessage(result.state, result.proof),
               severity: result.ok ? 'info' : 'warning',
             },
           ],
@@ -448,7 +463,8 @@ function assertCodexFinalizationPlanUnchanged(
     JSON.stringify(currentEffects) !== JSON.stringify(effects) ||
     JSON.stringify(snapshotCodexFinalizationInputs(cwd, mutations)) !== JSON.stringify(inputs)
   ) {
-    throw new Error(
+    throw new CodexMigrationError(
+      'PLAN_STALE',
       'Codex finalization plan changed after confirmation; no repository files were modified.',
     );
   }
@@ -507,7 +523,8 @@ export async function removeLegacyCodexHooks(
     return false;
   }
   if (observeCodexHookProof(options.environment).status !== 'current') {
-    throw new Error(
+    throw new CodexMigrationError(
+      'FINALIZATION_PROOF_REQUIRED',
       'Finalization requires current plugin hook proof. Start a new Codex session, review /hooks, then retry.',
     );
   }

@@ -10,6 +10,7 @@ import { writeDurableFile } from './durable-write.js';
 
 export interface CodexHookProofV1 {
   schema_version: 1;
+  event: CodexPluginHookEvent;
   plugin_version: string;
   manifest_sha256: string;
   recorded_at: string;
@@ -21,21 +22,39 @@ export interface CodexRestartMarkerV1 {
   manifest_sha256: string;
 }
 
-type CodexHookProofStatus = 'current' | 'missing' | 'stale' | 'malformed';
+export const CODEX_PLUGIN_HOOK_EVENTS = [
+  'session-start',
+  'pre-tool-use',
+  'post-tool-use',
+  'user-prompt-submit',
+  'stop',
+] as const;
+export type CodexPluginHookEvent = (typeof CODEX_PLUGIN_HOOK_EVENTS)[number];
+
+type CodexHookProofStatus = 'current' | 'partial' | 'missing' | 'stale' | 'malformed';
 
 export interface CodexHookProofObservation {
   status: CodexHookProofStatus;
   plugin_version: string | null;
   manifest_sha256: string | null;
   recorded_at: string | null;
+  events: readonly CodexPluginHookEvent[];
+  missing_events: readonly CodexPluginHookEvent[];
 }
 
 function codexProfileDirectory(environment: NodeJS.ProcessEnv = process.env): string {
   return environment.CODEX_HOME ?? nodePath.join(homedir(), '.codex');
 }
 
-export function codexProofPath(environment: NodeJS.ProcessEnv = process.env): string {
-  return nodePath.join(codexProfileDirectory(environment), 'safeword/hook-proof-v1.json');
+export function codexProofPath(
+  environment: NodeJS.ProcessEnv = process.env,
+  event: CodexPluginHookEvent = 'session-start',
+): string {
+  return nodePath.join(
+    codexProfileDirectory(environment),
+    'safeword/hook-proof-v1',
+    `${event}.json`,
+  );
 }
 
 function codexRestartMarkerPath(environment: NodeJS.ProcessEnv = process.env): string {
@@ -85,17 +104,26 @@ export function recordCodexHookProof(
   environment: NodeJS.ProcessEnv = process.env,
   now = new Date(),
   writeOptions: { beforeRename?: () => void } = {},
+  event?: CodexPluginHookEvent,
 ): CodexHookProofV1 {
   const identity = currentCodexPluginIdentity();
-  const proof: CodexHookProofV1 = {
-    schema_version: 1,
-    ...identity,
-    recorded_at: now.toISOString(),
-  };
-  writeAtomicJson(codexProofPath(environment), proof, writeOptions);
+  const events = event === undefined ? CODEX_PLUGIN_HOOK_EVENTS : [event];
+  let proof: CodexHookProofV1 | undefined;
+  for (const proofEvent of events) {
+    proof = {
+      schema_version: 1,
+      event: proofEvent,
+      ...identity,
+      recorded_at: now.toISOString(),
+    };
+    writeAtomicJson(codexProofPath(environment, proofEvent), proof, writeOptions);
+  }
 
   const markerPath = codexRestartMarkerPath(environment);
-  if (restartMarkerMatches(markerPath, identity)) rmSync(markerPath);
+  if (events.includes('session-start') && restartMarkerMatches(markerPath, identity)) {
+    rmSync(markerPath);
+  }
+  if (proof === undefined) throw new Error('Codex plugin hook inventory is empty.');
   return proof;
 }
 
@@ -127,62 +155,96 @@ function restartMarkerMatches(
   }
 }
 
+// eslint-disable-next-line complexity -- aggregates independently written event proofs and preserves malformed/stale distinctions
 export function observeCodexHookProof(
   environment: NodeJS.ProcessEnv = process.env,
 ): CodexHookProofObservation {
-  const path = codexProofPath(environment);
-  if (!existsSync(path)) {
+  const candidates = CODEX_PLUGIN_HOOK_EVENTS.map(event => ({
+    event,
+    path: codexProofPath(environment, event),
+  }));
+  const existing = candidates.filter(candidate => existsSync(candidate.path));
+  if (existing.length === 0) {
     return {
       status: 'missing',
       plugin_version: null,
       manifest_sha256: null,
       recorded_at: null,
+      events: [],
+      missing_events: CODEX_PLUGIN_HOOK_EVENTS,
     };
   }
 
-  let candidate: unknown;
-  try {
-    candidate = JSON.parse(readFileSync(path, 'utf8'));
-  } catch {
-    return {
-      status: 'malformed',
-      plugin_version: null,
-      manifest_sha256: null,
-      recorded_at: null,
-    };
-  }
-
-  if (!isCodexHookProof(candidate)) {
-    return {
-      status: 'malformed',
-      plugin_version: null,
-      manifest_sha256: null,
-      recorded_at: null,
-    };
+  const parsed: CodexHookProofV1[] = [];
+  for (const item of existing) {
+    try {
+      const candidate = JSON.parse(readFileSync(item.path, 'utf8')) as unknown;
+      if (!isCodexHookProof(candidate) || candidate.event !== item.event) {
+        return malformedObservation();
+      }
+      parsed.push(candidate);
+    } catch {
+      return malformedObservation();
+    }
   }
 
   const identity = currentCodexPluginIdentity();
+  const current = parsed.filter(
+    proof =>
+      proof.plugin_version === identity.plugin_version &&
+      proof.manifest_sha256 === identity.manifest_sha256,
+  );
+  const events = current.map(proof => proof.event);
+  const missingEvents = CODEX_PLUGIN_HOOK_EVENTS.filter(event => !events.includes(event));
+  const latest = current
+    .toSorted((left, right) => right.recorded_at.localeCompare(left.recorded_at))
+    .at(0);
+  let status: CodexHookProofStatus = 'stale';
+  if (current.length === CODEX_PLUGIN_HOOK_EVENTS.length) status = 'current';
+  else if (current.length > 0) status = 'partial';
   return {
-    status:
-      candidate.plugin_version === identity.plugin_version &&
-      candidate.manifest_sha256 === identity.manifest_sha256
-        ? 'current'
-        : 'stale',
-    plugin_version: candidate.plugin_version,
-    manifest_sha256: candidate.manifest_sha256,
-    recorded_at: candidate.recorded_at,
+    status,
+    plugin_version: latest?.plugin_version ?? parsed[0]?.plugin_version ?? null,
+    manifest_sha256: latest?.manifest_sha256 ?? parsed[0]?.manifest_sha256 ?? null,
+    recorded_at: latest?.recorded_at ?? null,
+    events,
+    missing_events: missingEvents,
   };
 }
+
+function malformedObservation(): CodexHookProofObservation {
+  return {
+    status: 'malformed',
+    plugin_version: null,
+    manifest_sha256: null,
+    recorded_at: null,
+    events: [],
+    missing_events: CODEX_PLUGIN_HOOK_EVENTS,
+  };
+}
+
+/*
+  Each manifest entry is trusted independently by Codex, so finalization proof
+  is intentionally one file per event. Separate files also avoid concurrent
+  hook processes racing on a shared read-modify-write document.
+*/
 
 function isCodexHookProof(value: unknown): value is CodexHookProofV1 {
   if (typeof value !== 'object' || value === null) return false;
   const proof = value as Partial<CodexHookProofV1>;
   return (
     proof.schema_version === 1 &&
+    isCodexPluginHookEvent(proof.event) &&
     typeof proof.plugin_version === 'string' &&
     typeof proof.manifest_sha256 === 'string' &&
     /^[\da-f]{64}$/u.test(proof.manifest_sha256) &&
     typeof proof.recorded_at === 'string' &&
     !Number.isNaN(Date.parse(proof.recorded_at))
+  );
+}
+
+function isCodexPluginHookEvent(value: unknown): value is CodexPluginHookEvent {
+  return (
+    typeof value === 'string' && CODEX_PLUGIN_HOOK_EVENTS.includes(value as CodexPluginHookEvent)
   );
 }

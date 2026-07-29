@@ -658,7 +658,12 @@ export async function codexHook(
     return;
   }
   if (options.pluginHook === true) {
-    if (normalized === 'session-start') recordCodexHookProof();
+    try {
+      recordCodexHookProof(process.env, new Date(), {}, normalized);
+    } catch {
+      // Proof is advisory state. A read-only or malformed CODEX_HOME must never
+      // prevent the packaged hook itself from protecting the project.
+    }
     if (legacyCodexEventIsViable(resolveProjectDirectory(), normalized)) return;
   }
   await CODEX_HOOK_RUNNERS[normalized]();

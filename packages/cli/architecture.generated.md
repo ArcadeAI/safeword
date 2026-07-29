@@ -1,7 +1,6 @@
 ---
 generator: safeword-architecture
-fingerprint: 651c294d5cc65ed4ea3742a35871986db4e6a41e47e1118e6290866f6cd6b52d
-fingerprint: b5e10ab759c1bd1b8ecbc876dbbc0b76784831cacf5438183665db386a5ed922
+fingerprint: 9ee1f130331a7c5da52d42c9630e28e0e9c6840f989a6eb7f664f9f703b165ec
 ---
 
 # Architecture
@@ -18,11 +17,6 @@ No description yet — awaiting prose.
 
 > ⚠ stale: structure changed since this section was reconciled.
 
-### cli-protocol
-
-<!-- reconciled: 651c294d5cc65ed4ea3742a35871986db4e6a41e47e1118e6290866f6cd6b52d -->
-
-`src/cli-protocol`
 ### cli
 
 <!-- reconciled: b5e10ab759c1bd1b8ecbc876dbbc0b76784831cacf5438183665db386a5ed922 -->
@@ -30,6 +24,18 @@ No description yet — awaiting prose.
 `src/cli.ts`
 
 No description yet — awaiting prose.
+
+> ⚠ stale: structure changed since this section was reconciled.
+
+### cli-protocol
+
+<!-- reconciled: 651c294d5cc65ed4ea3742a35871986db4e6a41e47e1118e6290866f6cd6b52d -->
+
+`src/cli-protocol`
+
+No description yet — awaiting prose.
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### codex-plugin
 
@@ -59,6 +65,8 @@ No description yet — awaiting prose.
 
 No description yet — awaiting prose.
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### health
 
 <!-- reconciled: b5e10ab759c1bd1b8ecbc876dbbc0b76784831cacf5438183665db386a5ed922 -->
@@ -69,6 +77,8 @@ No description yet — awaiting prose.
 
 Config-health verification core (ticket 3293WH).
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### index
 
 <!-- reconciled: b5e10ab759c1bd1b8ecbc876dbbc0b76784831cacf5438183665db386a5ed922 -->
@@ -76,6 +86,8 @@ Config-health verification core (ticket 3293WH).
 `src/index.ts`
 
 No description yet — awaiting prose.
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### learning-sync
 
@@ -99,6 +111,8 @@ Learning sync — generates `<namespace-root>/learnings/INDEX.md` from the `*.md
 
 Derive the set of top-level path prefixes that safeword may write to, sourced from SAFEWORD_SCHEMA at build time.
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### packs
 
 <!-- reconciled: baf84fad13ff152cf8bceed63ef6a6e65c6edbb3dcf8ac0cbf76fc4caa39fe38 -->
@@ -116,6 +130,8 @@ No description yet — awaiting prose.
 `src/parity.ts`
 
 No description yet — awaiting prose.
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### presets
 
@@ -137,6 +153,8 @@ No description yet — awaiting prose.
 
 Reconciliation Engine
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### retro
 
 <!-- reconciled: 3dd53c1fa45850e6d2d4894c1c7556870663b58d05710e8dc248b4424eaf8b62 -->
@@ -157,6 +175,8 @@ No description yet — awaiting prose.
 
 SAFEWORD Schema - Single Source of Truth
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### self-report-capture
 
 <!-- reconciled: b5e10ab759c1bd1b8ecbc876dbbc0b76784831cacf5438183665db386a5ed922 -->
@@ -166,6 +186,8 @@ SAFEWORD Schema - Single Source of Truth
 <!-- seeded-purpose: 1d6ab8a143a63251557b3fecb492adadece7106155c9cfbf6118f1eb235efe63 -->
 
 CLI-side self-observation producer (ticket 5XXQQZ, issues #345 / #720).
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### skills
 
@@ -272,3 +294,5 @@ No description yet — awaiting prose.
 `src/version.ts`
 
 No description yet — awaiting prose.
+
+> ⚠ stale: structure changed since this section was reconciled.

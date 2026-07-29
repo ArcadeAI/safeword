@@ -5,9 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (458)
-## Tickets (457)
-## Tickets (455)
+## Tickets (462)
 
 ### 001
 
@@ -1120,6 +1118,10 @@
   Match recurring retro findings to their canonical GitHub issue despite model-derived metadata drift.
   external issue: https://github.com/ArcadeAI/safeword/issues/1032
   → `.project/tickets/A8NNZV-prevent-retro-duplicate-issues`
+- **Keep Codex protection continuous while teams migrate to the profile plugin (AJVXWV)** (in_progress, epic: —)
+  Keep repository protection continuously available while each teammate migrates from legacy Codex assets to the profile plugin.
+  external issue: https://github.com/ArcadeAI/safeword/issues/1572
+  → `.project/tickets/AJVXWV-keep-codex-protection-continuous`
 - **Re-sync safeword's own depcruise-config.cjs (AK8REW)** (done, epic: —)
   Make `safeword sync-config --check` on this repo exit 0. The committed file was historically prettier-reformatted (long comment string wrapped to two lines); the generator emits it single-line. With v0.37.0's `/audit` change, every audit run on this repo emits W007 until the committed file is re-synced.
   → `.project/tickets/AK8REW`
@@ -1361,6 +1363,10 @@
   When a signal breaches its threshold, project it as an issue in the customer's tracker — by building an `IssuePayload` from the `BreachEvent` and calling `safeword sync-tracker`'s writer. Breach-routing is one _caller_ of the projection, not its own subsystem.
   blocked by: safeword sync-tracker — one-way projection to Linear + GitHub Issues (JS5K5G), New /build-signals skill — four implementation options, mandatory feature tag, in-code instrumentation discipline (1W107W)
   → `.project/tickets/K51FYZ-breach-issue-projection`
+- **Give developers and AI agents one predictable Safeword CLI (K53GQ9)** (in_progress, epic: —)
+  Give humans and agents one typed, predictable Safeword execution and rendering model.
+  external issue: https://github.com/ArcadeAI/safeword/issues/1574
+  → `.project/tickets/K53GQ9-predictable-safeword-cli`
 - **Epic: Make safeword legible to the Non-Technical Builder (K6CAJN)** (done, epic: —)
   Close the gaps where safeword speaks to the Non-Technical Builder (NTB) in raw jargon — across the CLI terminal, first-run runtime checks, gate blocks, and the framing rules that govern translation — so a user who can't read the diff always gets a plain-language explanation and a concrete next action.
   → `.project/tickets/K6CAJN-ntb-experience-epic`

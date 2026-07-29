@@ -27,6 +27,8 @@ const missingProof: CodexMigrationFacts['proof'] = {
   plugin_version: null,
   manifest_sha256: null,
   recorded_at: null,
+  events: [],
+  missing_events: ['session-start', 'pre-tool-use', 'post-tool-use', 'user-prompt-submit', 'stop'],
 };
 
 const currentProof: CodexMigrationFacts['proof'] = {
@@ -34,6 +36,8 @@ const currentProof: CodexMigrationFacts['proof'] = {
   plugin_version: SAFEWORD_SCHEMA.version,
   manifest_sha256: 'a'.repeat(64),
   recorded_at: '2026-07-28T00:00:00.000Z',
+  events: ['session-start', 'pre-tool-use', 'post-tool-use', 'user-prompt-submit', 'stop'],
+  missing_events: [],
 };
 
 const absentPlugin: CodexMigrationFacts['plugin'] = {

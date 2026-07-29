@@ -135,17 +135,19 @@ function toWireResult(result: CliResult): Record<string, unknown> {
     ok: result.ok,
     state: result.state,
     changed: result.changed,
-    findings: result.findings.map(({ code, message, severity, metadata }) => ({
+    findings: result.findings.map(({ code, message, severity, detail, metadata }) => ({
       code,
       message,
       severity,
+      ...(detail !== undefined && { detail }),
       ...(metadata !== undefined && { metadata }),
     })),
     effects: result.effects,
-    errors: result.errors.map(({ code, message, retryable }) => ({
+    errors: result.errors.map(({ code, message, retryable, detail }) => ({
       code,
       message,
       retryable,
+      ...(detail !== undefined && { detail }),
     })),
     recovery: result.recovery.map(({ command, description, requiresHuman }) => ({
       command,

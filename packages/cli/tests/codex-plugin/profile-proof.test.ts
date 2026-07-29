@@ -5,6 +5,7 @@ import nodePath from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
+  CODEX_PLUGIN_HOOK_EVENTS,
   codexProofPath,
   currentCodexPluginIdentity,
   observeCodexHookProof,
@@ -19,7 +20,7 @@ describe('Codex profile hook proof', () => {
     directories.length = 0;
   });
 
-  it('never accepts or leaves a partial proof when the durable write is interrupted', () => {
+  it('never accepts an interrupted event proof as current', () => {
     const codexHome = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-profile-'));
     directories.push(codexHome);
     const environment = { CODEX_HOME: codexHome };
@@ -34,7 +35,7 @@ describe('Codex profile hook proof', () => {
 
     expect(existsSync(codexProofPath(environment))).toBe(false);
     expect(observeCodexHookProof(environment).status).toBe('missing');
-    expect(readdirSync(nodePath.join(codexHome, 'safeword'))).toEqual([]);
+    expect(readdirSync(nodePath.join(codexHome, 'safeword'))).toEqual(['hook-proof-v1']);
   });
 
   it.each([
@@ -52,6 +53,7 @@ describe('Codex profile hook proof', () => {
       proofPath,
       JSON.stringify({
         schema_version: 1,
+        event: 'session-start',
         ...currentCodexPluginIdentity(),
         recorded_at: '2026-07-28T00:00:00.000Z',
         ...override,
@@ -70,5 +72,24 @@ describe('Codex profile hook proof', () => {
     writeFileSync(proofPath, '{"schema_version":');
 
     expect(observeCodexHookProof(environment).status).toBe('malformed');
+  });
+
+  it('requires current identity-bound proof from every packaged hook event', () => {
+    const codexHome = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-profile-'));
+    directories.push(codexHome);
+    const environment = { CODEX_HOME: codexHome };
+
+    recordCodexHookProof(environment, new Date(), {}, 'session-start');
+    const partial = observeCodexHookProof(environment);
+    expect(partial.status).toBe('partial');
+    expect(partial.events).toEqual(['session-start']);
+    expect(partial.missing_events).toEqual(
+      CODEX_PLUGIN_HOOK_EVENTS.filter(event => event !== 'session-start'),
+    );
+
+    for (const event of partial.missing_events) {
+      recordCodexHookProof(environment, new Date(), {}, event);
+    }
+    expect(observeCodexHookProof(environment).status).toBe('current');
   });
 });

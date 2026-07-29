@@ -590,7 +590,7 @@ describe('dependency readiness hook support', () => {
     });
   });
 
-  it('session hook reports a missing worktree without running the installer', () => {
+  it('session hook bootstraps a missing worktree and degrades cleanly on failure', () => {
     writeBunProject();
     markSafewordProject();
 
@@ -602,11 +602,11 @@ describe('dependency readiness hook support', () => {
     expect(output.hookSpecificOutput.additionalContext).toContain('bun ci');
 
     const state = JSON.parse(readTestFile(projectDirectory, '.project/dependency-readiness.json'));
-    expect(state.status).toBe('missing');
+    expect(state.status).toBe('failed');
     expect(state.installCommand).toBe('bun ci');
   });
 
-  it('session hook remains observation-only when historical auto-install is enabled', () => {
+  it('session hook bootstraps missing dependencies when auto-install is enabled', () => {
     writeMinimalBunProject();
     markSafewordProject();
     writeGeneratedBunLock();
@@ -620,17 +620,17 @@ describe('dependency readiness hook support', () => {
 
     expect(result.status).toBe(0);
     const output = JSON.parse(result.stdout);
-    expect(output.hookSpecificOutput.additionalContext).toContain("tools aren't installed");
-    expect(existsSync(path.join(projectDirectory, 'node_modules'))).toBe(false);
+    expect(output.hookSpecificOutput.additionalContext).toContain('dependencies bootstrapped');
+    expect(existsSync(path.join(projectDirectory, 'node_modules'))).toBe(true);
 
     const state = JSON.parse(readTestFile(projectDirectory, '.project/dependency-readiness.json'));
     expect(state).toMatchObject({
-      status: 'missing',
+      status: 'ready',
       installCommand: 'bun ci',
     });
   });
 
-  it('session hook does not attempt an install that could fail', () => {
+  it('session hook reports an attempted install that fails', () => {
     writeBunProject();
     markSafewordProject();
     writeJson('.safeword/config.json', {
@@ -643,11 +643,11 @@ describe('dependency readiness hook support', () => {
 
     expect(result.status).toBe(0);
     const output = JSON.parse(result.stdout);
-    expect(output.hookSpecificOutput.additionalContext).toContain("tools aren't installed");
+    expect(output.hookSpecificOutput.additionalContext).toContain('dependency bootstrap failed');
 
     const state = JSON.parse(readTestFile(projectDirectory, '.project/dependency-readiness.json'));
     expect(state).toMatchObject({
-      status: 'missing',
+      status: 'failed',
       installCommand: 'bun ci',
     });
   });
@@ -775,7 +775,7 @@ describe('dependency readiness hook support', () => {
       ).toEqual({ action: 'none' });
     });
 
-    it('the SessionStart hook does not mutate git configuration on a fresh worktree', () => {
+    it('the SessionStart hook activates the committed guard on a fresh worktree', () => {
       // Fresh clone: committed .husky/pre-commit present, but git never ran husky's
       // prepare, so core.hooksPath is unset and the guard chain is silently inactive.
       expect(spawnSync('git', ['init'], { cwd: projectDirectory }).status).toBe(0);
@@ -797,7 +797,7 @@ describe('dependency readiness hook support', () => {
           cwd: projectDirectory,
           encoding: 'utf8',
         }).stdout.trim(),
-      ).toBe('');
+      ).toBe('.husky');
     });
   });
 

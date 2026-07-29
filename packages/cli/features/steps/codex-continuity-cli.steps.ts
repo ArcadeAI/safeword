@@ -252,21 +252,28 @@ function assertRepoUnchanged(world: ContinuityCliWorld): void {
 }
 
 function proofPath(world: ContinuityCliWorld): string {
-  return nodePath.join(requireProfile(world), 'safeword/hook-proof-v1.json');
+  return nodePath.join(requireProfile(world), 'safeword/hook-proof-v1/session-start.json');
 }
 
 function restartMarkerPath(world: ContinuityCliWorld): string {
   return nodePath.join(requireProfile(world), 'safeword/restart-pending-v1.json');
 }
 
-function recordCurrentProof(world: ContinuityCliWorld): void {
-  const result = run(
-    world,
-    ['hook', 'codex', 'session-start', '--plugin-hook'],
-    {},
-    '{"hook_event_name":"SessionStart"}\n',
-  );
+function recordEventProof(world: ContinuityCliWorld, event: string): void {
+  const result = run(world, ['hook', 'codex', event, '--plugin-hook'], {}, '{}\n');
   assert.equal(result.exitCode, 0, `${result.stdout}\n${result.stderr}`);
+}
+
+function recordCurrentProof(world: ContinuityCliWorld): void {
+  for (const event of [
+    'session-start',
+    'pre-tool-use',
+    'post-tool-use',
+    'user-prompt-submit',
+    'stop',
+  ]) {
+    recordEventProof(world, event);
+  }
 }
 
 function pluginMarkerContent(): string {
@@ -470,12 +477,12 @@ Given(
 When(
   'Codex invokes the marked profile-plugin SessionStart dispatcher',
   function (this: ContinuityCliWorld) {
-    recordCurrentProof(this);
+    recordEventProof(this, 'session-start');
   },
 );
 
 When('Codex invokes it with the plugin-hook marker', function (this: ContinuityCliWorld) {
-  recordCurrentProof(this);
+  recordEventProof(this, 'session-start');
 });
 
 Then(

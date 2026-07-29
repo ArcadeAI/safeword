@@ -4,8 +4,9 @@ import process from 'node:process';
 
 import { Command, CommanderError, Option } from 'commander';
 
-import { findCommandDefinition } from './cli-protocol/catalog.js';
+import { commandCatalog, findCommandDefinition } from './cli-protocol/catalog.js';
 import { addGlobalOptions } from './cli-protocol/execute.js';
+import { machineOutputRequested } from './cli-protocol/machine-output.js';
 import { registerPublicCommandCatalog } from './cli-protocol/register.js';
 import { createResult, renderJsonResult } from './cli-protocol/result.js';
 import { installCliCrashCapture } from './self-report-capture.js';
@@ -20,12 +21,6 @@ const program = new Command()
   .version(VERSION);
 program.exitOverride();
 
-function machineOutputRequested(arguments_: readonly string[]): boolean {
-  const optionBoundary = arguments_.indexOf('--');
-  const cliArguments = optionBoundary === -1 ? arguments_ : arguments_.slice(0, optionBoundary);
-  return cliArguments.includes('--json');
-}
-
 function isCommanderError(value: unknown): value is CommanderError {
   if (value instanceof CommanderError) return true;
   if (typeof value !== 'object' || value === null) return false;
@@ -38,7 +33,7 @@ function isCommanderError(value: unknown): value is CommanderError {
   );
 }
 
-const machineOutput = machineOutputRequested(process.argv.slice(2));
+const machineOutput = machineOutputRequested(process.argv.slice(2), commandCatalog);
 program.configureOutput({
   writeErr: output => {
     if (!machineOutput) process.stderr.write(output);

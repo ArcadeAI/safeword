@@ -7,14 +7,25 @@ function firstNonEmptyEffect(effects: Effects): keyof Effects | undefined {
   );
 }
 
+function assertNetworkPolicy(
+  definition: CommandDefinition,
+  result: CliResult,
+  offline: boolean,
+): void {
+  if (offline && result.effects.network.length > 0) {
+    throw new Error(`Command ${definition.name} reported network effects while running offline`);
+  }
+  if (definition.networkPolicy === 'never' && result.effects.network.length > 0) {
+    throw new Error(`Command ${definition.name} reported undeclared network effects`);
+  }
+}
+
 export function assertEffectPolicy(
   definition: CommandDefinition,
   result: CliResult,
   options: { offline: boolean },
 ): void {
-  if (options.offline && result.effects.network.length > 0) {
-    throw new Error(`Command ${definition.name} reported network effects while running offline`);
-  }
+  assertNetworkPolicy(definition, result, options.offline);
 
   if (definition.effectClass === 'observe' || definition.effectClass === 'plan') {
     const effectClass = firstNonEmptyEffect(result.effects);

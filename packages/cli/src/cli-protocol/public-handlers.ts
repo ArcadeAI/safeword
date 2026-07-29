@@ -1,7 +1,8 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, readlinkSync, type Stats } from 'node:fs';
 import nodePath from 'node:path';
 
+import { CodexMigrationError } from '../codex-plugin/migration-error.js';
 import type * as CodexMigration from '../commands/migrate-codex-plugin.js';
 import type { RetroCliOptions, RetroCommandExecution } from '../commands/retro.js';
 import type { CommandHandler, CommandInvocation } from './handler.js';
@@ -83,6 +84,9 @@ async function planHandler(invocation: CommandInvocation): Promise<CliResult> {
 }
 
 async function removeHandler(invocation: CommandInvocation): Promise<CliResult> {
+  if (invocation.offline && invocation.options.full === true) {
+    return onlineRequired('remove');
+  }
   const { removeProject } = await import('../commands/remove.js');
   return removeProject(invocation.cwd, {
     full: invocation.options.full === true,
@@ -132,23 +136,18 @@ async function architectureHandler(invocation: CommandInvocation): Promise<CliRe
   const { isWouldChangeAction, planSelfHealProject, selfHealProject } =
     await import('../utils/architecture-document.js');
   const { discoverUnreadableWorkspaces } = await import('../utils/architecture-monorepo.js');
-  const { architectureNarrativeDriftAdvisoryForProject } =
-    await import('../utils/architecture-narrative-drift.js');
   const { isArchitectureDocumentEnforcementEnabled } = await import('../utils/configured-paths.js');
-  const observeAdvisories = () => {
-    const narrativeAdvisory = architectureNarrativeDriftAdvisoryForProject(invocation.cwd);
-    return [
-      ...discoverUnreadableWorkspaces(invocation.cwd).map(
+  const observeAdvisories = () =>
+    discoverUnreadableWorkspaces(invocation.cwd)
+      .map(
         workspace =>
           `Workspace config present but unreadable: ${workspace.config} (${workspace.manager}).`,
-      ),
-      ...(narrativeAdvisory === undefined ? [] : [narrativeAdvisory]),
-    ].map(message => ({
-      code: 'ARCHITECTURE_ADVISORY',
-      message,
-      severity: 'info' as const,
-    }));
-  };
+      )
+      .map(message => ({
+        code: 'ARCHITECTURE_ADVISORY',
+        message,
+        severity: 'info' as const,
+      }));
   const advisories = observeAdvisories();
   const enforcementEnabled = isArchitectureDocumentEnforcementEnabled(invocation.cwd);
   if (!enforcementEnabled && (invocation.options.check || invocation.options.stage)) {
@@ -219,11 +218,13 @@ async function architectureHandler(invocation: CommandInvocation): Promise<CliRe
     state: resultState,
     changed: changed.length > 0,
     effects: {
-      files: changed.map(result => ({
-        kind: result.action === 'created' ? 'create' : 'update',
-        target: nodePath.relative(invocation.cwd, result.path),
-      })),
-      configuration: staged,
+      files: [
+        ...changed.map(result => ({
+          kind: result.action === 'created' ? 'create' : 'update',
+          target: nodePath.relative(invocation.cwd, result.path),
+        })),
+        ...staged.map(effect => ({ ...effect, operation: 'stage' })),
+      ],
     },
     findings: [
       ...(changed.length === 0
@@ -383,7 +384,8 @@ function codexFinalizationPlan(
   migration.observeCodexFinalizationPlan(cwd);
   const observation = migration.observeCodexMigrationResult(cwd);
   if (observation.proof.status !== 'current') {
-    throw new Error(
+    throw new CodexMigrationError(
+      'FINALIZATION_PROOF_REQUIRED',
       'Finalization requires current plugin hook proof. Start a new Codex session, review /hooks, then retry.',
     );
   }
@@ -521,7 +523,10 @@ async function runCodexFinalization(
   if (suppliedPlan !== undefined && suppliedPlan !== current.plan.id) {
     return staleCodexPlan(current.plan);
   }
-  const planned = current.plan.effects.files;
+  const paths = current.plan.effects.files.map(effect =>
+    nodePath.join(invocation.cwd, effect.target),
+  );
+  const before = paths.map(path => ({ path, snapshot: observeFile(path) }));
   const changed = await migration.removeLegacyCodexHooks(invocation.cwd, {
     yes: true,
     report: false,
@@ -545,7 +550,11 @@ async function runCodexFinalization(
     ],
     effects: {
       ...observed.effects,
-      files: changed ? planned : [],
+      files: changed
+        ? before.flatMap(snapshot =>
+            observedFileEffect(invocation.cwd, snapshot.path, snapshot.snapshot),
+          )
+        : [],
     },
   };
 }
@@ -581,10 +590,12 @@ function runCodexInstall(
 }
 
 function codexFailureCode(
+  error: unknown,
   message: string,
   name: CodexMutationName,
   isFinalization: boolean,
 ): string {
+  if (error instanceof CodexMigrationError) return error.code;
   const specific = (
     [
       [/Plugin installation succeeded, but enablement is unknown/iu, 'PLUGIN_ENABLEMENT_UNKNOWN'],
@@ -659,7 +670,7 @@ function codexFailure(
         : [],
     errors: [
       {
-        code: codexFailureCode(message, name, isFinalization),
+        code: codexFailureCode(error, message, name, isFinalization),
         message,
         retryable: true,
       },
@@ -790,15 +801,59 @@ async function codexMutationHandler(
 }
 
 async function retroSignalsHandler(invocation: CommandInvocation): Promise<CliResult> {
-  const { readReports, summarizeReports } =
+  const { formatIssueDrafts, readReports, summarizeReports } =
     await import('../../templates/hooks/lib/self-report.js');
   const records = readReports(invocation.cwd);
+  const groups = summarizeReports(records);
+  const format = stringOption(invocation.options, 'format') ?? 'human';
+  if (!['human', 'json', 'issue'].includes(format)) {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'SELF_REPORT_FORMAT_INVALID',
+          message: `Unknown self-report format: ${format}.`,
+          retryable: false,
+        },
+      ],
+    });
+  }
+  let presentation: CliResult['presentation'];
+  switch (format) {
+    case 'human': {
+      const body =
+        records.length === 0
+          ? 'No safeword self-reports captured. (Nothing to report — good.)'
+          : [
+              `Safeword self-reports (${records.length} signal(s), ${groups.length} signature(s))`,
+              ...groups.map(group => `- ${group.count}×  ${group.signature}`),
+            ].join('\n');
+      presentation = { kind: 'raw', body };
+      break;
+    }
+    case 'issue': {
+      presentation = {
+        kind: 'raw',
+        body: JSON.stringify(formatIssueDrafts(records), undefined, 2),
+      };
+      break;
+    }
+    case 'json': {
+      presentation = {
+        kind: 'raw',
+        body: JSON.stringify({ total: records.length, groups }, undefined, 2),
+      };
+      break;
+    }
+  }
   return createResult({
     state: 'healthy',
+    presentation,
     data: {
       command: 'retro signals',
       total: records.length,
-      groups: summarizeReports(records),
+      groups,
+      ...(format === 'issue' && { issues: formatIssueDrafts(records) }),
     },
   });
 }
@@ -867,9 +922,31 @@ function retroRunResult(
   });
 }
 
-function observeFile(path: string): string | undefined {
+interface FileSnapshot {
+  readonly kind: 'file' | 'symlink' | 'directory' | 'other';
+  readonly mode: number;
+  readonly bytes?: string;
+}
+
+function snapshotKind(stats: Stats): FileSnapshot['kind'] {
+  if (stats.isFile()) return 'file';
+  if (stats.isSymbolicLink()) return 'symlink';
+  if (stats.isDirectory()) return 'directory';
+  return 'other';
+}
+
+function snapshotBytes(path: string, stats: Stats): string | undefined {
+  if (stats.isFile()) return readFileSync(path).toString('base64');
+  if (stats.isSymbolicLink()) return Buffer.from(readlinkSync(path)).toString('base64');
+  return undefined;
+}
+
+function observeFile(path: string): FileSnapshot | undefined {
   try {
-    return readFileSync(path).toString('base64');
+    const stats = lstatSync(path);
+    const kind = snapshotKind(stats);
+    const bytes = snapshotBytes(path, stats);
+    return { kind, mode: stats.mode & 0o777, ...(bytes !== undefined && { bytes }) };
   } catch {
     return undefined;
   }
@@ -878,10 +955,10 @@ function observeFile(path: string): string | undefined {
 function observedFileEffect(
   cwd: string,
   path: string,
-  before: string | undefined,
+  before: FileSnapshot | undefined,
 ): CliResult['effects']['files'] {
   const after = observeFile(path);
-  if (before === after) return [];
+  if (JSON.stringify(before) === JSON.stringify(after)) return [];
   const target = nodePath.relative(cwd, path).split(nodePath.sep).join('/');
   if (before === undefined) return [{ kind: 'create', target }];
   if (after === undefined) return [{ kind: 'delete', target }];
@@ -908,7 +985,12 @@ async function retroReconcileHandler(invocation: CommandInvocation): Promise<Cli
   if (invocation.offline) return onlineRequired('retro reconcile');
   const { executeRetroReconcile } = await import('../commands/retro.js');
   invocation.progress?.start('Reconciling retro findings…');
-  const execution = await executeRetroReconcile();
+  let execution;
+  try {
+    execution = await executeRetroReconcile();
+  } catch (error: unknown) {
+    return retroFailure(error instanceof Error ? error.message : String(error));
+  }
   if (!execution.ok) return retroFailure(execution.reason);
   const changed = execution.result.flagged.length > 0;
   return createResult({

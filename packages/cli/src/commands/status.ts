@@ -6,7 +6,7 @@ import {
 } from '../cli-protocol/result.js';
 import { checkHealth } from '../health.js';
 import { detectPackageManager } from '../utils/install.js';
-import { compareVersions } from '../utils/version.js';
+import { compareVersions, isSafePackageVersion } from '../utils/version.js';
 
 function healthFindings(
   values: readonly string[],
@@ -14,19 +14,6 @@ function healthFindings(
   severity: Finding['severity'],
 ): Finding[] {
   return values.map(message => ({ code, message, severity }));
-}
-
-function isSafePackageVersion(version: string): boolean {
-  const segments = version.split('.');
-  const allowed = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+-';
-  const safeSegment = (segment: string): boolean => {
-    if (segment.length === 0) return false;
-    for (const character of segment) {
-      if (!allowed.includes(character)) return false;
-    }
-    return true;
-  };
-  return segments.length >= 2 && segments.every(segment => safeSegment(segment));
 }
 
 function statusNextActions(
@@ -70,8 +57,8 @@ function projectVersionFinding(
   const packageManager = detectPackageManager(cwd);
   const runUpgrade =
     packageManager === 'bun' || packageManager === 'yarn'
-      ? `${packageManager} run safeword upgrade`
-      : `${packageManager} exec safeword upgrade`;
+      ? `${packageManager} run safeword setup`
+      : `${packageManager} exec safeword setup`;
   return {
     finding: {
       code: 'CLI_OLDER_THAN_PROJECT',

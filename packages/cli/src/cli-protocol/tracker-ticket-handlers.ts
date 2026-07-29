@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import nodePath from 'node:path';
 import process from 'node:process';
 
+import { resolveTicketsDirectory } from '../utils/configured-paths.js';
 import type { CommandInvocation } from './handler.js';
 import { effectsFromMutationJournal, type JournalMutation } from './mutation-effects.js';
 import { onlineRequired } from './online-required.js';
@@ -79,6 +79,7 @@ async function runTrackerConnect(invocation: CommandInvocation): Promise<CliResu
     });
   }
   const { runConnect } = await import('../tracker-connect/run.js');
+  const { createPrompt } = await import('../tracker-connect/prompt.js');
   const messages: string[] = [];
   const result = await runConnect(
     provider,
@@ -92,7 +93,10 @@ async function runTrackerConnect(invocation: CommandInvocation): Promise<CliResu
     },
     {
       cwd: invocation.cwd,
-      prompt: { confirm: () => Promise.resolve(false) },
+      prompt:
+        !invocation.noInput && process.stdin.isTTY
+          ? createPrompt()
+          : { confirm: () => Promise.resolve(false) },
     },
   );
   return trackerConnectResult(provider, result, messages, invocation);
@@ -238,7 +242,7 @@ export function trackerHandler(
 }
 
 export function ticketListHandler(invocation: CommandInvocation): Promise<CliResult> {
-  const ticketsRoot = nodePath.join(invocation.cwd, '.project', 'tickets');
+  const ticketsRoot = resolveTicketsDirectory(invocation.cwd);
   const tickets = existsSync(ticketsRoot)
     ? readdirSync(ticketsRoot, { withFileTypes: true })
         .filter(entry => entry.isDirectory() && entry.name !== 'completed')

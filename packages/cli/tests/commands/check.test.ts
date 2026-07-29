@@ -92,7 +92,7 @@ describe('Test Suite 8: Health Check', () => {
 
       expect(result.exitCode).toBe(2);
       expect(result.stdout).toContain(`Project config (v999.0.0) is newer than CLI (v${VERSION})`);
-      expect(result.stdout).toContain('pnpm add -D safeword@999.0.0 && pnpm exec safeword upgrade');
+      expect(result.stdout).toContain('pnpm add -D safeword@999.0.0 && pnpm exec safeword setup');
     });
 
     it('uses bun run for the Bun package-manager repair command', async () => {
@@ -103,7 +103,7 @@ describe('Test Suite 8: Health Check', () => {
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
       expect(result.exitCode).toBe(2);
-      expect(result.stdout).toContain('bun add -D safeword@999.0.0 && bun run safeword upgrade');
+      expect(result.stdout).toContain('bun add -D safeword@999.0.0 && bun run safeword setup');
     });
 
     it('uses yarn run for the Yarn package-manager repair command', async () => {
@@ -114,7 +114,7 @@ describe('Test Suite 8: Health Check', () => {
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
       expect(result.exitCode).toBe(2);
-      expect(result.stdout).toContain('yarn add -D safeword@999.0.0 && yarn run safeword upgrade');
+      expect(result.stdout).toContain('yarn add -D safeword@999.0.0 && yarn run safeword setup');
     });
 
     it('does not print a shell command when project version is not a package version', async () => {

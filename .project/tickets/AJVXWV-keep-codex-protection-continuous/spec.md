@@ -148,7 +148,8 @@ Safe Word derives status in this order:
 version-and-manifest-bound install marker after `codex migrate` installs or
 updates the plugin. Read-only status keeps reporting it until the marked
 profile-plugin SessionStart command executes. SessionStart atomically writes
-current proof and removes the restart marker. If the plugin was enabled outside
+its event proof and removes the restart marker. Finalization readiness remains
+partial until every packaged hook event has recorded matching proof. If the plugin was enabled outside
 this migration path, or current proof later becomes stale without a matching
 install marker, status reports `plugin_enabled_hook_unproven`. All non-ready
 states exit `2`.
@@ -159,21 +160,24 @@ recognized events and assets, labels protection as partial, and recommends
 
 ### Profile-local hook proof
 
-The profile-plugin `SessionStart` command carries an internal `--plugin-hook`
-marker that legacy project hooks never used. Only that command writes
-`${CODEX_HOME:-~/.codex}/safeword/hook-proof-v1.json`.
+Every profile-plugin hook command carries an internal `--plugin-hook` marker
+that legacy project hooks never used. Each command writes a separate record at
+`${CODEX_HOME:-~/.codex}/safeword/hook-proof-v1/<event>.json`.
 
 The atomic JSON record contains:
 
 - `schema_version: 1`
+- the normalized hook event;
 - the running Safe Word package version;
 - a SHA-256 digest of the exact packaged `codex-plugin/hooks.json` bytes;
 - the UTC execution timestamp.
 
 Proof has no time-based expiry. It is current only while the schema, package
-version, and hook-manifest digest match the running CLI. A changed plugin
-version or manifest invalidates it immediately. The profile proof never claims
-readiness for another teammate.
+version, hook-manifest digest, and expected event match the running CLI.
+Finalization requires current records for SessionStart, PreToolUse, PostToolUse,
+UserPromptSubmit, and Stop. A changed plugin version or manifest invalidates
+the affected records immediately. Profile proof never claims readiness for
+another teammate.
 
 This is operational provenance, not a cryptographic attestation: it proves the
 exact reviewed plugin command path executed in the normal Codex lifecycle.
@@ -183,7 +187,7 @@ proof as tamper-resistant or inspect Codex's private trust store.
 
 ### Compatibility authority
 
-Authority is event-level. A profile-plugin dispatcher writes SessionStart proof
+Authority is event-level. Every profile-plugin dispatcher writes its own proof
 first, then no-ops only when the repository's Codex config contains an exact
 recognized Safe Word handler for that event and its required project runtime is
 runnable. Script handlers require the exact allowlisted file to be a regular
@@ -278,12 +282,12 @@ migration domain remains available under `data`:
     "plugin": {
       "installed": true,
       "enabled": true,
-      "version": "0.69.0",
+      "version": "0.70.0",
       "observation": "observed"
     },
     "proof": {
       "status": "current",
-      "plugin_version": "0.69.0",
+      "plugin_version": "0.70.0",
       "manifest_sha256": "…",
       "recorded_at": "…"
     },
@@ -312,7 +316,9 @@ are:
   plugin_enabled_hook_unproven | compatibility | plugin | not_configured`
 - `data.protected`: `protected | partial | unprotected | uncertain`
 - `data.plugin.observation`: `observed | unknown`
-- `data.proof.status`: `current | missing | stale | malformed`
+- `data.proof.status`: `current | partial | missing | stale | malformed`
+- `data.proof.events` and `data.proof.missing_events`: observed and outstanding
+  packaged hook events for the current plugin identity
 - `effects.*[].kind`: a stable operation name; `target` is the affected
   resource and optional `operation` adds detail
 

@@ -700,12 +700,13 @@ shared renderer emits it for human mode while JSON mode keeps the common
 schema-1 envelope. Raw presentation is an output form, not a second command
 protocol.
 
-Lifecycle hooks are observation-only with respect to dependency installation
-and Safeword upgrades. Session-start adapters may report missing dependencies
-or supply standing context, but they do not run package managers, fetch update
-metadata, or invoke `safeword upgrade`; convergence remains an explicit
-`safeword setup` operation. Retired auto-upgrade scripts remain callable
-no-ops while installed configurations migrate away from their registrations.
+The typed Codex protocol adapters are observation-only unless their catalog
+entry explicitly declares mutation. Existing Claude and Cursor SessionStart
+automation remains a separate, fail-open lifecycle feature: it may wire the
+committed Git guard, bootstrap missing dependencies, and apply compatible
+Safeword upgrades. Those actions are surfaced through their established hook
+contracts and never turn a failed background convenience into a blocked
+session. `safeword setup` remains the explicit convergence path.
 
 ## References
 

@@ -41,8 +41,9 @@ exact packaged `codex-plugin/hooks.json` bytes, avoiding a second canonical form
 that could drift from the artifact Codex reviews.
 
 Every generated plugin hook carries `--plugin-hook`; the legacy project command
-forms do not. SessionStart records proof before applying event-level
-compatibility suppression, then removes the matching restart marker. The marker
+forms do not. Each event records identity-bound proof in its own file before
+applying event-level compatibility suppression, avoiding cross-process
+read-modify-write races. SessionStart also removes the matching restart marker. The marker
 establishes the normal lifecycle path, not tamper-resistant identity; profile
 owners can manually invoke or forge it.
 
@@ -91,6 +92,7 @@ Human and JSON output render the same derived result.
 ```ts
 interface CodexHookProofV1 {
   schema_version: 1;
+  event: 'session-start' | 'pre-tool-use' | 'post-tool-use' | 'user-prompt-submit' | 'stop';
   plugin_version: string;
   manifest_sha256: string;
   recorded_at: string;

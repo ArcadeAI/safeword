@@ -48,7 +48,7 @@ Feature: Keep Codex protection continuous during profile-plugin migration
       When Codex invokes the marked profile-plugin SessionStart dispatcher
       Then current proof replaces the restart marker and status no longer reports plugin_installed_restart_required
 
-    Scenario: Trusted plugin SessionStart records current proof
+    Scenario: Trusted plugin SessionStart records event-specific proof
       Given the Safe Word profile-plugin SessionStart dispatcher is trusted
       When Codex invokes it with the plugin-hook marker
       Then the profile contains schema 1 proof with the running version, exact manifest digest, and a parseable UTC timestamp

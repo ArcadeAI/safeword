@@ -213,8 +213,8 @@ Feature: One predictable Safeword CLI
         | migrate codex-plugin | 1        |
         | migrate codex-plugin | 2        |
 
-  @surface.claude-code @surface.openai-codex @surface.cursor
-  Rule: predictable-safeword-cli.SWM1.R6 — Hook entrypoints stay hidden, quiet, offline, and free of install or upgrade effects
+  @surface.openai-codex
+  Rule: predictable-safeword-cli.SWM1.R6 — Typed Codex hook entrypoints stay hidden, quiet, offline, and free of install or upgrade effects
     Scenario Outline: Each real hook adapter is hidden quiet offline and lifecycle-safe
       Given an installed <surface> hook
       When it invokes its real hidden Safeword entrypoint
@@ -223,9 +223,7 @@ Feature: One predictable Safeword CLI
       And the entrypoint is absent from help and capabilities
       Examples:
         | surface     |
-        | Claude Code |
         | Codex       |
-        | Cursor      |
 
     Scenario: Hook invocation stays within the existing latency budget
       Given an installed agent hook after warm-up

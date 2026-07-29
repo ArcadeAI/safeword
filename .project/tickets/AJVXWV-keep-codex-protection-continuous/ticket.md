@@ -27,7 +27,7 @@ out_of_scope:
 done_when:
   - Generic upgrade leaves working legacy Codex protection intact and recommends one migration command.
   - Migration is idempotent in every state and installation failure leaves the repository unchanged.
-  - Enabled-but-untrusted hooks cannot satisfy proof, while a trusted SessionStart writes current profile-local proof.
+  - Enabled-but-untrusted hooks cannot satisfy proof; each trusted hook event writes identity-bound profile-local proof, and finalization requires the complete event set.
   - Compatibility mode executes exactly one Safe Word hook implementation.
   - Finalization requires current proof plus explicit interactive confirmation or an explicit non-interactive flag.
   - Finalization backs up and atomically updates Codex config, removes only known Safe Word assets, and offers recovery.

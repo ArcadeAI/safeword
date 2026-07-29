@@ -135,12 +135,7 @@ function migrate(world: MigrationWorld, shouldRemoveLegacyHooks = false, without
     CODEX_HOME: nodePath.join(directory, 'profile'),
   };
   if (shouldRemoveLegacyHooks) {
-    runCli(
-      ['hook', 'codex', 'session-start', '--plugin-hook'],
-      directory,
-      environment,
-      '{"hook_event_name":"SessionStart"}\n',
-    );
+    recordCurrentProof(world);
     arguments_.push('--remove-legacy-hooks', '--yes');
   }
   world.migrationResult = runCli(arguments_, directory, {
@@ -156,15 +151,23 @@ function runCodexCommand(world: MigrationWorld, arguments_: string[]): void {
 }
 
 function recordCurrentProof(world: MigrationWorld): void {
-  runCli(
-    ['hook', 'codex', 'session-start', '--plugin-hook'],
-    worldDirectory(world),
-    {
-      PATH: `${world.migrationBin}:${process.env.PATH ?? ''}`,
-      CODEX_HOME: nodePath.join(worldDirectory(world), 'profile'),
-    },
-    '{"hook_event_name":"SessionStart"}\n',
-  );
+  for (const event of [
+    'session-start',
+    'pre-tool-use',
+    'post-tool-use',
+    'user-prompt-submit',
+    'stop',
+  ]) {
+    runCli(
+      ['hook', 'codex', event, '--plugin-hook'],
+      worldDirectory(world),
+      {
+        PATH: `${world.migrationBin}:${process.env.PATH ?? ''}`,
+        CODEX_HOME: nodePath.join(worldDirectory(world), 'profile'),
+      },
+      '{}\n',
+    );
+  }
 }
 
 function codexConfig(world: MigrationWorld): string {
@@ -507,7 +510,7 @@ Then(
   function (this: MigrationWorld) {
     const output = migrationOutput(this);
     assert.ok(output.includes('/hooks'));
-    assert.ok(output.includes('codex migrate --finalize'));
+    assert.ok(output.includes('new Codex session') || output.includes('missing hooks'));
   },
 );
 
@@ -530,7 +533,7 @@ Then(
     const output = migrationOutput(this);
     assert.ok(output.includes('enabled'));
     assert.ok(output.includes('/hooks'));
-    assert.ok(output.includes('codex migrate --finalize'));
+    assert.ok(output.includes('new Codex session') || output.includes('missing hooks'));
   },
 );
 

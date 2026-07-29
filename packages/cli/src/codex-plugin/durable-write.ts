@@ -33,8 +33,26 @@ export function writeDurableFile(
       closeSync(descriptor);
     }
     options.beforeRename?.();
-    renameSync(temporaryPath, path);
+    durableRename(temporaryPath, path);
   } finally {
     rmSync(temporaryPath, { force: true });
+  }
+}
+
+/** Publish a rename and persist the containing directory entry when supported. */
+export function durableRename(source: string, destination: string): void {
+  renameSync(source, destination);
+  let descriptor: number | undefined;
+  try {
+    descriptor = openSync(nodePath.dirname(destination), 'r');
+    fsyncSync(descriptor);
+  } catch (error: unknown) {
+    const code =
+      typeof error === 'object' && error !== null && 'code' in error
+        ? String((error as { code?: unknown }).code)
+        : '';
+    if (!['EINVAL', 'ENOTSUP', 'EISDIR', 'EPERM', 'EBADF'].includes(code)) throw error;
+  } finally {
+    if (descriptor !== undefined) closeSync(descriptor);
   }
 }

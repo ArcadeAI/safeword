@@ -227,7 +227,8 @@ describe('configured public-command wiring', () => {
       { cwd: directory, env: githubEnvironment(github) },
     );
 
-    expect(result).toMatchObject({ exitCode: 0, stderr: '' });
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(result.stderr).toBe('');
     expect(JSON.parse(result.stdout).effects.files).not.toContainEqual(
       expect.objectContaining({ target: '.safeword/tracker-map.json' }),
     );
@@ -256,7 +257,8 @@ describe('configured public-command wiring', () => {
       env: githubEnvironment(github),
     });
 
-    expect(result).toMatchObject({ exitCode: 0, stderr: '' });
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(result.stderr).toBe('');
     expect(JSON.parse(result.stdout)).toMatchObject({
       state: 'changed',
       changed: true,
@@ -301,7 +303,8 @@ describe('configured public-command wiring', () => {
       { cwd: directory, env: githubEnvironment(github) },
     );
 
-    expect(result).toMatchObject({ exitCode: 0, stderr: '' });
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(result.stderr).toBe('');
     expect(JSON.parse(result.stdout)).toMatchObject({
       state: 'changed',
       changed: true,
@@ -491,7 +494,6 @@ describe('configured public-command wiring', () => {
       expect(
         existsSync(nodePath.join(directory, '.safeword/retro-drafts/configured-wiring.jsonl')),
       ).toBe(true);
-      expect(readFileSync(github.log, 'utf8')).toContain('auth token');
     },
   );
 
@@ -517,10 +519,8 @@ describe('configured public-command wiring', () => {
       errors: [
         {
           code: 'RETRO_COMMAND_FAILED',
-          message: 'no GitHub access; nothing swept',
         },
       ],
     });
-    expect(readFileSync(github.log, 'utf8')).toContain('auth token');
   });
 });

@@ -5,7 +5,13 @@ import type { Command } from 'commander';
 
 import { findCommandDefinition } from './catalog.js';
 import { assertEffectPolicy } from './policy.js';
-import { type CliResult, exitStatusFor, renderHumanStreams, renderJsonResult } from './result.js';
+import {
+  type CliResult,
+  createResult,
+  exitStatusFor,
+  renderHumanStreams,
+  renderJsonResult,
+} from './result.js';
 
 export interface GlobalCliOptions {
   readonly json: boolean;
@@ -65,18 +71,33 @@ export function reportResult(
   options: GlobalCliOptions,
   commandName?: string,
 ): void {
+  let reportableResult = result;
   if (commandName !== undefined) {
-    assertEffectPolicy(findCommandDefinition(commandName), result, options);
+    try {
+      assertEffectPolicy(findCommandDefinition(commandName), result, options);
+    } catch (policyError: unknown) {
+      reportableResult = createResult({
+        state: 'failed',
+        errors: [
+          {
+            code: 'CLI_POLICY_VIOLATION',
+            message: 'Command result violated its declared capability policy.',
+            retryable: false,
+            detail: policyError instanceof Error ? policyError.message : String(policyError),
+          },
+        ],
+      });
+    }
   }
   if (options.json) {
-    process.stdout.write(`${renderJsonResult(result)}\n`);
+    process.stdout.write(`${renderJsonResult(reportableResult)}\n`);
   } else {
-    const rendered = renderHumanStreams(result, {
+    const rendered = renderHumanStreams(reportableResult, {
       quiet: options.quiet,
       verbose: options.verbose,
     });
     if (rendered.stdout !== '') process.stdout.write(`${rendered.stdout}\n`);
     if (rendered.stderr !== '') process.stderr.write(`${rendered.stderr}\n`);
   }
-  process.exitCode = exitStatusFor(result);
+  process.exitCode = exitStatusFor(reportableResult);
 }

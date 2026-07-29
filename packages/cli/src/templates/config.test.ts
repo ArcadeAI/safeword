@@ -160,12 +160,15 @@ describe('SETTINGS_HOOKS', () => {
     expect(regex.test('Grep')).toBe(false);
   });
 
-  it('keeps session start free of implicit upgrade commands', () => {
+  it('keeps the fail-open background upgrade command on session start', () => {
     const command = SETTINGS_HOOKS.SessionStart.flatMap((entry: HookEntry) => entry.hooks).find(
       (hook: HookCommand) =>
         hook.type === 'command' && hook.command.includes('session-auto-upgrade'),
     );
-    expect(command).toBeUndefined();
+    expect(command).toMatchObject({
+      type: 'command',
+      asyncRewake: true,
+    });
   });
 
   it('retro-recall.TB1.AC1: registers the retro Stop hook async (non-blocking, not asyncRewake)', () => {

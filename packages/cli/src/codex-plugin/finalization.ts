@@ -9,14 +9,14 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
-  renameSync,
   rmdirSync,
   rmSync,
 } from 'node:fs';
 import nodePath from 'node:path';
 
-import { writeDurableFile } from './durable-write.js';
+import { durableRename, writeDurableFile } from './durable-write.js';
 import { CODEX_MIGRATION_SCHEMA } from './inventory.js';
+import { CodexMigrationError } from './migration-error.js';
 
 export interface CodexFinalizationMutation {
   path: string;
@@ -118,12 +118,18 @@ function containedPath(cwd: string, relativePath: string): string {
     nodePath.isAbsolute(relativePath) ||
     relativePath.split(/[\\/]/u).includes('..')
   ) {
-    throw new Error(`Unsafe Codex migration path: ${relativePath}`);
+    throw new CodexMigrationError(
+      'UNSAFE_MIGRATION_PATH',
+      `Unsafe Codex migration path: ${relativePath}`,
+    );
   }
   const root = nodePath.resolve(cwd);
   const resolved = nodePath.resolve(root, relativePath);
   if (resolved !== root && !resolved.startsWith(`${root}${nodePath.sep}`)) {
-    throw new Error(`Unsafe Codex migration path: ${relativePath}`);
+    throw new CodexMigrationError(
+      'UNSAFE_MIGRATION_PATH',
+      `Unsafe Codex migration path: ${relativePath}`,
+    );
   }
   return resolved;
 }
@@ -142,10 +148,16 @@ function assertSafeComponents(cwd: string, relativePath: string): string {
       throw error;
     }
     if (metadata.isSymbolicLink()) {
-      throw new Error(`Unsafe Codex migration path is a symbolic link: ${relativePath}`);
+      throw new CodexMigrationError(
+        'UNSAFE_MIGRATION_PATH',
+        `Unsafe Codex migration path is a symbolic link: ${relativePath}`,
+      );
     }
     if (cursor === target ? !metadata.isFile() : !metadata.isDirectory()) {
-      throw new Error(`Unsafe Codex migration path is not a regular file: ${relativePath}`);
+      throw new CodexMigrationError(
+        'UNSAFE_MIGRATION_PATH',
+        `Unsafe Codex migration path is not a regular file: ${relativePath}`,
+      );
     }
   }
   return target;
@@ -229,7 +241,7 @@ function restoreBeforeImage(cwd: string, backupDirectory: string, entry: BackupE
   if (entry.before.payload === undefined) {
     throw new Error(`Codex migration backup payload is missing for ${entry.path}.`);
   }
-  const payload = containedPath(backupDirectory, entry.before.payload);
+  const payload = assertSafeComponents(backupDirectory, entry.before.payload);
   const content = readFileSync(payload);
   if (sha256(content) !== entry.before.sha256) {
     throw new Error(`Codex migration backup payload is corrupt for ${entry.path}.`);
@@ -391,13 +403,16 @@ function validateRecoveryEntry(
 ): FileImage | AbsentImage {
   const current = observedImage(cwd, entry.path);
   if (!imagesMatch(current, entry.after) && !(allowBefore && imagesMatch(current, entry.before))) {
-    throw new Error(`Codex recovery conflict at ${entry.path}; no files were restored.`);
+    throw new CodexMigrationError(
+      'RECOVERY_CONFLICT',
+      `Codex recovery conflict at ${entry.path}; no files were restored.`,
+    );
   }
   if (entry.before.kind === 'file') {
     if (entry.before.payload === undefined) {
       throw new Error(`Codex migration backup payload is missing for ${entry.path}.`);
     }
-    const content = readFileSync(containedPath(backupDirectory, entry.before.payload));
+    const content = readFileSync(assertSafeComponents(backupDirectory, entry.before.payload));
     if (sha256(content) !== entry.before.sha256) {
       throw new Error(`Codex migration backup payload is corrupt for ${entry.path}.`);
     }
@@ -553,9 +568,12 @@ function prepareCodexFinalization(
     beforePreparationStep?.('manifest-write');
     writeManifest(stagingDirectory, manifest);
     if (pathEntryExists(backupDirectory)) {
-      throw new Error(`Codex migration backup already exists at ${BACKUP_PATH}.`);
+      throw new CodexMigrationError(
+        'BACKUP_EXISTS',
+        `Codex migration backup already exists at ${BACKUP_PATH}.`,
+      );
     }
-    renameSync(stagingDirectory, backupDirectory);
+    durableRename(stagingDirectory, backupDirectory);
     return { effectiveMutations, entries, manifest };
   } finally {
     rmSync(stagingDirectory, { recursive: true, force: true });
@@ -581,7 +599,10 @@ export function applyCodexFinalization(
 ): BackupManifestV1 {
   const backupDirectory = assertSafeComponents(cwd, BACKUP_PATH);
   if (existsSync(backupDirectory)) {
-    throw new Error(`Codex migration backup already exists at ${BACKUP_PATH}.`);
+    throw new CodexMigrationError(
+      'BACKUP_EXISTS',
+      `Codex migration backup already exists at ${BACKUP_PATH}.`,
+    );
   }
   validateCodexFinalizationPaths(cwd, mutations);
   const { effectiveMutations, entries, manifest } = prepareCodexFinalization(

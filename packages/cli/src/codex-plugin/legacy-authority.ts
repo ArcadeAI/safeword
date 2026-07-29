@@ -1,5 +1,4 @@
-import { spawnSync } from 'node:child_process';
-import { lstatSync, readFileSync } from 'node:fs';
+import { accessSync, constants, lstatSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { parse } from 'smol-toml';
@@ -38,12 +37,21 @@ function eventCommands(config: LegacyConfig, eventName: string): string[] {
 }
 
 function packageRunnerIsAvailable(cwd: string, environment: NodeJS.ProcessEnv): boolean {
-  const result = spawnSync(SAFEWORD_SCHEMA.codexMigration.packageRunner, ['--version'], {
-    cwd,
-    env: environment,
-    stdio: 'ignore',
-  });
-  return result.status === 0;
+  const runner = SAFEWORD_SCHEMA.codexMigration.packageRunner;
+  const pathEntries = (environment.PATH ?? '').split(nodePath.delimiter).filter(Boolean);
+  const extensions =
+    process.platform === 'win32' ? (environment.PATHEXT ?? '.COM;.EXE;.BAT;.CMD').split(';') : [''];
+  return pathEntries.some(entry =>
+    extensions.some(extension => {
+      const candidate = nodePath.resolve(cwd, entry, `${runner}${extension.toLowerCase()}`);
+      try {
+        accessSync(candidate, process.platform === 'win32' ? constants.F_OK : constants.X_OK);
+        return regularFile(candidate);
+      } catch {
+        return false;
+      }
+    }),
+  );
 }
 
 function commandIsViable(

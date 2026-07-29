@@ -162,6 +162,10 @@ Unaffected:
   `setup` is the preferred convergent mutation; `plan` previews reconciliation.
 - Resolved: `status`, `plan`, and `doctor` are the read-only allowlist. Any
   future read-only command must declare that effect class in the catalog.
+- Resolved: `doctor` remains a canonical diagnostic spelling required by the
+  approved interface. In v1 it deliberately shares `status` observation
+  semantics while remaining independently discoverable for future diagnostics;
+  unlike `check`, it is not a deprecated alias.
 - Resolved: a command may have multiple machine `next_actions`, but the human
   renderer selects exactly one primary action.
 - Resolved: global flags are accepted before or after the command so shell
