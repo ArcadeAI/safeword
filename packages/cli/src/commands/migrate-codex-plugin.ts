@@ -19,6 +19,7 @@ import {
 } from '../codex-plugin/finalization.js';
 import { CODEX_MIGRATION_SCHEMA } from '../codex-plugin/inventory.js';
 import { legacyCodexEventIsViable } from '../codex-plugin/legacy-authority.js';
+import { legacyCommandIdentity } from '../codex-plugin/legacy-command.js';
 import {
   codexMigrationExitCode,
   type CodexMigrationResultV1,
@@ -50,10 +51,6 @@ const KNOWN_HOOK_EVENTS = new Set([
   'SubagentStop',
   'Stop',
 ]);
-const LEGACY_SAFEWORD_HOOK_EVENTS = new Set(SAFEWORD_SCHEMA.codexMigration.hookEvents);
-const LEGACY_SAFEWORD_HOOK_SCRIPTS = new Set(SAFEWORD_SCHEMA.codexMigration.hookScripts);
-const LEGACY_SAFEWORD_HOOK_PREFIX = SAFEWORD_SCHEMA.codexMigration.hookScriptPrefix;
-
 type CodexPluginList = {
   installed?: { enabled?: boolean; pluginId?: string; version?: string }[];
 };
@@ -146,72 +143,8 @@ function bareCommandValue(line: string): string | undefined {
   return value === undefined ? undefined : quotedValue(value);
 }
 
-function commandParts(command: string): string[] {
-  return command
-    .trim()
-    .split(' ')
-    .filter(part => part !== '');
-}
-
-function isNpxSafeWordCommand(parts: string[]): boolean {
-  return (
-    parts[0] === SAFEWORD_SCHEMA.codexMigration.packageRunner &&
-    parts[1] === '--yes' &&
-    parts[2] === 'safeword'
-  );
-}
-
-function safeWordCommandOffset(parts: string[]): number | undefined {
-  // Only project-local npx hooks were historically installed by Safe Word.
-  // Bunx commands belong to the profile plugin, and bare `safeword` commands
-  // may be user-authored, so neither can be retired automatically.
-  if (isNpxSafeWordCommand(parts)) return 2;
-  return undefined;
-}
-
-function isSafeWordHookCommand(parts: string[], offset: number): boolean {
-  const hook = parts.slice(offset + 1);
-  return (
-    hook.length === 3 &&
-    hook[0] === 'hook' &&
-    hook[1] === 'codex' &&
-    LEGACY_SAFEWORD_HOOK_EVENTS.has(hook[2] ?? '')
-  );
-}
-
-function isLegacySafeWordHookAlias(parts: string[], offset: number): boolean {
-  const hook = parts.slice(offset + 1);
-  return (
-    hook.length === 2 && hook[0] === 'codex-hook' && LEGACY_SAFEWORD_HOOK_EVENTS.has(hook[1] ?? '')
-  );
-}
-
-function isPackagedSafeWordCommand(command: string): boolean {
-  const parts = commandParts(command);
-  const offset = safeWordCommandOffset(parts);
-  return (
-    offset !== undefined &&
-    (isSafeWordHookCommand(parts, offset) || isLegacySafeWordHookAlias(parts, offset))
-  );
-}
-
-function isLegacySafeWordHookScript(command: string): boolean {
-  if (!command.startsWith(LEGACY_SAFEWORD_HOOK_PREFIX)) return false;
-  const scriptAndArguments = command.slice(LEGACY_SAFEWORD_HOOK_PREFIX.length);
-  const scriptEnd = scriptAndArguments.indexOf('"');
-  if (scriptEnd === -1) return false;
-
-  const script = scriptAndArguments.slice(0, scriptEnd);
-  const arguments_ = scriptAndArguments.slice(scriptEnd + 1);
-  return (
-    LEGACY_SAFEWORD_HOOK_SCRIPTS.has(script) &&
-    (arguments_ === '' ||
-      (script === 'session-safeword-context.ts' && arguments_ === ' --agent=codex'))
-  );
-}
-
 function isSafeWordCommand(command: string): boolean {
-  return isPackagedSafeWordCommand(command) || isLegacySafeWordHookScript(command);
+  return legacyCommandIdentity(command) !== undefined;
 }
 
 function blockCommandValues(lines: string[], range: TextRange): string[] {

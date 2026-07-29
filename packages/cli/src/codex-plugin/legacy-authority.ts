@@ -6,6 +6,7 @@ import { parse } from 'smol-toml';
 
 import { SAFEWORD_SCHEMA } from '../schema.js';
 import { CODEX_MIGRATION_SCHEMA } from './inventory.js';
+import { legacyCommandIdentity } from './legacy-command.js';
 
 type LegacyHook = { command?: unknown; type?: unknown };
 type LegacyHookGroup = { hooks?: unknown };
@@ -36,29 +37,6 @@ function eventCommands(config: LegacyConfig, eventName: string): string[] {
   });
 }
 
-function packageCommandMatches(command: string, event: string): boolean {
-  const prefix = `${SAFEWORD_SCHEMA.codexMigration.packageRunner} --yes safeword`;
-  return command === `${prefix} hook codex ${event}` || command === `${prefix} codex-hook ${event}`;
-}
-
-function scriptFromCommand(command: string): string | undefined {
-  const prefix = SAFEWORD_SCHEMA.codexMigration.hookScriptPrefix;
-  if (!command.startsWith(prefix)) return undefined;
-  const remainder = command.slice(prefix.length);
-  const quote = remainder.indexOf('"');
-  if (quote === -1) return undefined;
-  const script = remainder.slice(0, quote);
-  if (SAFEWORD_SCHEMA.codexMigration.hookScriptEvents[script] === undefined) return undefined;
-  const arguments_ = remainder.slice(quote + 1);
-  if (
-    arguments_ !== '' &&
-    !(script === 'session-safeword-context.ts' && arguments_ === ' --agent=codex')
-  ) {
-    return undefined;
-  }
-  return script;
-}
-
 function packageRunnerIsAvailable(cwd: string, environment: NodeJS.ProcessEnv): boolean {
   const result = spawnSync(SAFEWORD_SCHEMA.codexMigration.packageRunner, ['--version'], {
     cwd,
@@ -74,18 +52,17 @@ function commandIsViable(
   cwd: string,
   environment: NodeJS.ProcessEnv,
 ): boolean {
-  if (packageCommandMatches(command, event)) {
+  const identity = legacyCommandIdentity(command);
+  if (identity?.event !== event) return false;
+  if (identity.kind === 'package') {
     return (
       regularFile(nodePath.join(cwd, SAFEWORD_SCHEMA.codexMigration.projectMarker)) &&
       packageRunnerIsAvailable(cwd, environment)
     );
   }
-
-  const script = scriptFromCommand(command);
   return (
-    script !== undefined &&
-    SAFEWORD_SCHEMA.codexMigration.hookScriptEvents[script] === event &&
-    regularFile(nodePath.join(cwd, CODEX_MIGRATION_SCHEMA.paths.hookRuntimeRoot, script))
+    identity.kind === 'script' &&
+    regularFile(nodePath.join(cwd, CODEX_MIGRATION_SCHEMA.paths.hookRuntimeRoot, identity.script))
   );
 }
 
