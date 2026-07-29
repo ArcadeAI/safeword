@@ -312,7 +312,7 @@ export function extractMonorepoModel(projectDirectory: string): MonorepoModel {
   // Includes both declared workspace members and orphan non-JS packages (issue #844).
   const packages: PackageNode[] = leafDirectoriesFrom(projectDirectory, patterns)
     .map(dir => {
-      const description = packageDescription(dir);
+      const description = packageJsonDescription(dir);
       return {
         name: packageName(dir),
         dir,
@@ -390,7 +390,7 @@ function packageName(packageDirectory: string): string {
 }
 
 /** A usable package.json description, normalized for an architecture purpose line. */
-function packageDescription(packageDirectory: string): string | undefined {
+function packageJsonDescription(packageDirectory: string): string | undefined {
   const description = readManifest(packageDirectory)?.description;
   return typeof description === 'string' && description.trim().length > 0
     ? description.replaceAll(/\s+/g, ' ').trim()
