@@ -44,6 +44,9 @@ import {
   type RelayDraftRequest,
   relaySourceKey,
 } from '../retro/relay-delivery.js';
+
+const DEFAULT_RELAY_DEADLINE_MS = 500;
+const RELAY_OVERALL_HEADROOM_MS = 250;
 import {
   CHECKED_IN_RELAY_READINESS,
   type RelayReadinessManifest,
@@ -180,13 +183,13 @@ async function runRelayRetro(
       spoolFailed += 1;
     }
   }
-  const deadlineMs = relay.deadlineMs ?? 500;
+  const deadlineMs = relay.deadlineMs ?? DEFAULT_RELAY_DEADLINE_MS;
   const delivery = await deliverRelayRequests(projectDirectory, {
     credential: relay.credential,
     deadlineMs,
     fetch: relay.fetch ?? fetch,
     now: () => Date.now(),
-    overallDeadlineMs: deadlineMs + 250,
+    overallDeadlineMs: deadlineMs + RELAY_OVERALL_HEADROOM_MS,
     relayUrl: relay.relayUrl,
   });
   const relayOutcome = { ...delivery, spoolFailed };
