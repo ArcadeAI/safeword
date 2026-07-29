@@ -29,6 +29,22 @@ export const RELAY_OVERALL_HEADROOM_MS = 250;
 
 type RelayDraftInput = Omit<RelayDraftRequest, 'createdAt' | 'requestId' | 'retryDeadlineAt'>;
 type RelaySourcePayload = Omit<RelayDraftInput, 'sourceKey'>;
+type DurableRelayFile = { bytes: Buffer; requestId: string };
+
+interface RecoveredRelayQueueSnapshot {
+  active: DurableRelayFile[];
+  deadLetters: DurableRelayFile[];
+  directory: string;
+}
+
+interface RelayDraftPersistenceSnapshot {
+  directory: string;
+  durableRequestsBySource: Map<string, RelayDraftRequest>;
+}
+
+interface RelayDraftPersistenceOptions {
+  faultAfterStateSnapshot?: () => Promise<void>;
+}
 
 const UUID_V4_PATTERN = /^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/u;
 const SOURCE_RESERVATION_FILENAME_PATTERN = /^source-[\da-f]{64}\.json$/u;
@@ -886,7 +902,7 @@ async function reservedRequestIds(directory: string): Promise<Set<string>> {
 export async function persistRelayDraft(
   projectDirectory: string,
   draft: RelayDraftInput,
-  options: { faultAfterStateSnapshot?: () => Promise<void> } = {},
+  options: RelayDraftPersistenceOptions = {},
 ): Promise<RelayDraftRequest | undefined> {
   const [outcome] = await persistRelayDraftBatch(projectDirectory, [draft], options);
   if (outcome === undefined) throw new Error('relay persistence batch returned no outcome');
@@ -894,10 +910,9 @@ export async function persistRelayDraft(
   return outcome.value;
 }
 
-async function prepareRelayDraftPersistence(projectDirectory: string): Promise<{
-  directory: string;
-  durableRequestsBySource: Map<string, RelayDraftRequest>;
-}> {
+async function prepareRelayDraftPersistence(
+  projectDirectory: string,
+): Promise<RelayDraftPersistenceSnapshot> {
   const { active, deadLetters, directory } = await recoveredRelayQueueSnapshot(
     projectDirectory,
     Date.now(),
@@ -923,11 +938,7 @@ async function prepareRelayDraftPersistence(projectDirectory: string): Promise<{
 async function recoveredRelayQueueSnapshot(
   projectDirectory: string,
   now: number,
-): Promise<{
-  active: { bytes: Buffer; requestId: string }[];
-  deadLetters: { bytes: Buffer; requestId: string }[];
-  directory: string;
-}> {
+): Promise<RecoveredRelayQueueSnapshot> {
   await recoverRelaySpool(projectDirectory, now);
   const directory = relayDirectory(projectDirectory);
   const filenames = await sortedFilenames(directory);
@@ -941,7 +952,7 @@ async function recoveredRelayQueueSnapshot(
 async function acquireRelayDraftReservation(
   projectDirectory: string,
   draft: RelayDraftInput,
-  snapshot: Awaited<ReturnType<typeof prepareRelayDraftPersistence>>,
+  snapshot: RelayDraftPersistenceSnapshot,
 ): Promise<RelaySourceReservation> {
   const reserved = await loadSourceReservation(projectDirectory, draft);
   if (reserved !== undefined) return reserved;
@@ -973,9 +984,9 @@ async function acquireRelayDraftReservation(
 export async function persistRelayDraftBatch(
   projectDirectory: string,
   drafts: RelayDraftInput[],
-  options: { faultAfterStateSnapshot?: () => Promise<void> } = {},
+  options: RelayDraftPersistenceOptions = {},
 ): Promise<PromiseSettledResult<RelayDraftRequest | undefined>[]> {
-  let snapshot: Awaited<ReturnType<typeof prepareRelayDraftPersistence>>;
+  let snapshot: RelayDraftPersistenceSnapshot;
   try {
     snapshot = await prepareRelayDraftPersistence(projectDirectory);
   } catch (error) {
