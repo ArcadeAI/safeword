@@ -1376,15 +1376,17 @@ async function removeRelayFiles(directory: string, filenames: string[]): Promise
   for (const filename of filenames) await removeIfPresent(path.join(directory, filename));
 }
 
+interface RelayDiscardFaults {
+  faultAfterClaims?: () => Promise<void>;
+  faultAfterConflictCheck?: () => Promise<void>;
+  faultAfterSourceDiscardWrite?: () => Promise<void>;
+  faultAfterTombstone?: () => Promise<void>;
+}
+
 async function discardOwnedRelayRequest(
   projectDirectory: string,
   requestId: string,
-  options: {
-    faultAfterClaims?: () => Promise<void>;
-    faultAfterConflictCheck?: () => Promise<void>;
-    faultAfterSourceDiscardWrite?: () => Promise<void>;
-    faultAfterTombstone?: () => Promise<void>;
-  } = {},
+  options: RelayDiscardFaults = {},
 ): Promise<boolean> {
   const directory = relayDirectory(projectDirectory);
   const discardClaimId = `discard-${randomUUID()}`;
@@ -1439,12 +1441,7 @@ async function discardOwnedRelayRequest(
 export async function discardRelayRequest(
   projectDirectory: string,
   requestId: string,
-  options: {
-    faultAfterClaims?: () => Promise<void>;
-    faultAfterConflictCheck?: () => Promise<void>;
-    faultAfterSourceDiscardWrite?: () => Promise<void>;
-    faultAfterTombstone?: () => Promise<void>;
-  } = {},
+  options: RelayDiscardFaults = {},
 ): Promise<boolean> {
   if (!UUID_V4_PATTERN.test(requestId)) throw new Error('invalid relay request identity');
   await mkdir(relayDirectory(projectDirectory), { recursive: true });
