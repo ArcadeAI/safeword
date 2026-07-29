@@ -1,4 +1,5 @@
 import { SAFEWORD_SCHEMA } from '../schema.js';
+import { CODEX_MIGRATION_SCHEMA } from './inventory.js';
 import type { CodexHookProofObservation } from './profile-proof.js';
 
 type CodexMigrationState =
@@ -166,7 +167,7 @@ function nextAction(state: CodexMigrationState): string | undefined {
 export function renderCodexMigrationHuman(result: CodexMigrationResultV1): string {
   const lines = [`Codex migration: ${result.state}`, `Protection: ${result.protected}`];
   if (result.state === 'plugin_setup_required') {
-    lines.push('Setup: .agents/skills/safeword-plugin-setup/SKILL.md');
+    lines.push(`Setup: ${CODEX_MIGRATION_SCHEMA.paths.bootstrapSkill}`);
   } else if (
     result.state === 'plugin_installed_restart_required' ||
     result.state === 'plugin_enabled_hook_unproven'

@@ -17,6 +17,7 @@ import {
   resolveCodexFinalizationConfirmation,
   validateCodexFinalizationPaths,
 } from '../codex-plugin/finalization.js';
+import { CODEX_MIGRATION_SCHEMA } from '../codex-plugin/inventory.js';
 import { legacyCodexEventIsViable } from '../codex-plugin/legacy-authority.js';
 import {
   codexMigrationExitCode,
@@ -36,7 +37,7 @@ import { info, success } from '../utils/output.js';
 
 const MARKETPLACE_SOURCE = 'ArcadeAI/safeword';
 const PLUGIN_ID = 'safeword@safeword';
-const CODEX_CONFIG_PATH = '.codex/config.toml';
+const CODEX_CONFIG_PATH = CODEX_MIGRATION_SCHEMA.paths.config;
 const KNOWN_HOOK_EVENTS = new Set([
   'SessionStart',
   'SubagentStart',
@@ -650,11 +651,11 @@ function buildCodexFinalizationMutations(
   for (const path of observeLegacyAssets(cwd)) mutations.push({ path, content: null });
   mutations.push(
     {
-      path: '.safeword/codex-plugin.json',
+      path: CODEX_MIGRATION_SCHEMA.paths.pluginMarker,
       content: `${JSON.stringify({ schema_version: 1, mode: 'plugin' })}\n`,
     },
     {
-      path: '.agents/skills/safeword-plugin-setup/SKILL.md',
+      path: CODEX_MIGRATION_SCHEMA.paths.bootstrapSkill,
       content:
         '---\nname: safeword-plugin-setup\ndescription: Restore the Safe Word Codex profile plugin for this project.\n---\n\nRun `safeword codex migrate` to install or re-enable the profile plugin. Restart Codex so the plugin loads, then review its hooks with `/hooks`. Run `safeword codex status` to verify this project is protected.\n',
     },

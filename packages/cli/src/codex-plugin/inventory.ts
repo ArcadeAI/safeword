@@ -72,4 +72,11 @@ export const CODEX_MIGRATION_SCHEMA = {
   hookScriptPrefix: 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/',
   packageRunner: 'npx' as const,
   projectMarker: '.safeword/SAFEWORD.md',
+  paths: {
+    config: '.codex/config.toml',
+    backupRoot: '.safeword/codex-migration-backup',
+    pluginMarker: '.safeword/codex-plugin.json',
+    bootstrapSkill: '.agents/skills/safeword-plugin-setup/SKILL.md',
+    hookRuntimeRoot: '.safeword/hooks',
+  },
 };

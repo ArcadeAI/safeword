@@ -5,6 +5,7 @@ import nodePath from 'node:path';
 import { parse } from 'smol-toml';
 
 import { SAFEWORD_SCHEMA } from '../schema.js';
+import { CODEX_MIGRATION_SCHEMA } from './inventory.js';
 
 type LegacyHook = { command?: unknown; type?: unknown };
 type LegacyHookGroup = { hooks?: unknown };
@@ -84,7 +85,7 @@ function commandIsViable(
   return (
     script !== undefined &&
     SAFEWORD_SCHEMA.codexMigration.hookScriptEvents[script] === event &&
-    regularFile(nodePath.join(cwd, '.safeword/hooks', script))
+    regularFile(nodePath.join(cwd, CODEX_MIGRATION_SCHEMA.paths.hookRuntimeRoot, script))
   );
 }
 
@@ -96,7 +97,7 @@ export function legacyCodexEventIsViable(
   const eventName = SAFEWORD_SCHEMA.codexMigration.hookEventNames[event];
   if (eventName === undefined) return false;
 
-  const configPath = nodePath.join(cwd, '.codex/config.toml');
+  const configPath = nodePath.join(cwd, CODEX_MIGRATION_SCHEMA.paths.config);
   if (!regularFile(configPath)) return false;
 
   let config: LegacyConfig;

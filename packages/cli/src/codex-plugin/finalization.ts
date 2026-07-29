@@ -55,10 +55,10 @@ interface BackupManifestV1 {
 type PreparationStep = 'source-read' | 'payload-write' | 'manifest-write';
 type BeforePreparationStep = (step: PreparationStep, index?: number) => void;
 
-const BACKUP_PATH = '.safeword/codex-migration-backup';
-const PROJECT_MARKER_PATH = '.safeword/codex-plugin.json';
-const BOOTSTRAP_PATH = '.agents/skills/safeword-plugin-setup/SKILL.md';
-const CODEX_CONFIG_PATH = '.codex/config.toml';
+const BACKUP_PATH = CODEX_MIGRATION_SCHEMA.paths.backupRoot;
+const PROJECT_MARKER_PATH = CODEX_MIGRATION_SCHEMA.paths.pluginMarker;
+const BOOTSTRAP_PATH = CODEX_MIGRATION_SCHEMA.paths.bootstrapSkill;
+const CODEX_CONFIG_PATH = CODEX_MIGRATION_SCHEMA.paths.config;
 
 export async function resolveCodexFinalizationConfirmation(_options: {
   assumeYes: boolean;
