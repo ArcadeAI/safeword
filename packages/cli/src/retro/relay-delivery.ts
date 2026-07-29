@@ -30,7 +30,9 @@ type RelaySourcePayload = Omit<RelayDraftInput, 'sourceKey'>;
 
 const UUID_V4_PATTERN = /^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/u;
 const SOURCE_RESERVATION_FILENAME_PATTERN = /^source-[\da-f]{64}\.json$/u;
+const DISCARD_CLAIM_LEASE_MS = 60_000;
 const DISCARD_INTENT_LEASE_MS = 60_000;
+const RECOVERY_CLAIM_LEASE_MS = 60_000;
 const RELAY_RETRY_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export function normalizeRelayOrigin(value: string): string | undefined {
@@ -1386,7 +1388,7 @@ async function discardOwnedRelayRequest(
   const discardClaimId = `discard-${randomUUID()}`;
   const discardClaim = await claimSpecificRelayRequest(projectDirectory, requestId, {
     claimId: discardClaimId,
-    leaseMs: 60_000,
+    leaseMs: DISCARD_CLAIM_LEASE_MS,
     now: Date.now(),
   });
   const discardRecoveryClaim = await claimRelayDeadLetter(
@@ -1605,7 +1607,7 @@ async function claimRelayDeadLetter(
   if (await discardBlocksRequest(projectDirectory, requestId)) return undefined;
   const claimed = path.join(
     relayDirectory(projectDirectory),
-    `${requestId}.recovery-claim.${claimId}.${now + 60_000}.json`,
+    `${requestId}.recovery-claim.${claimId}.${now + RECOVERY_CLAIM_LEASE_MS}.json`,
   );
   try {
     await rename(deadLetterPath(projectDirectory, requestId), claimed);
