@@ -1,7 +1,6 @@
 ---
 generator: safeword-architecture
-fingerprint: 9ee1f130331a7c5da52d42c9630e28e0e9c6840f989a6eb7f664f9f703b165ec
-fingerprint: aafc114899d86f51f3991fe5ed83890959874c8fcc2bea3f0a19085371d21c90
+fingerprint: f36633236f8ea3d272e8222b4ad3cf2523f6b0e14f86fef408c06c069a70c6f5
 ---
 
 # Architecture
