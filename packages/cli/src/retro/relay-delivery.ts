@@ -841,14 +841,29 @@ async function prepareRelayDraftPersistence(projectDirectory: string): Promise<{
   directory: string;
   durableRequests: { bytes: Buffer; requestId: string }[];
 }> {
-  await recoverRelaySpool(projectDirectory, Date.now());
+  const { active, deadLetters, directory } = await recoveredRelayQueueSnapshot(
+    projectDirectory,
+    Date.now(),
+  );
+  return { directory, durableRequests: [...active, ...deadLetters] };
+}
+
+async function recoveredRelayQueueSnapshot(
+  projectDirectory: string,
+  now: number,
+): Promise<{
+  active: { bytes: Buffer; requestId: string }[];
+  deadLetters: { bytes: Buffer; requestId: string }[];
+  directory: string;
+}> {
+  await recoverRelaySpool(projectDirectory, now);
   const directory = relayDirectory(projectDirectory);
   const filenames = await sortedFilenames(directory);
   const [active, deadLetters] = await Promise.all([
     relayRequestsFromFilenames(directory, filenames),
     relayDeadLettersFromFilenames(directory, filenames),
   ]);
-  return { directory, durableRequests: [...active, ...deadLetters] };
+  return { active, deadLetters, directory };
 }
 
 async function persistRelayDraftFromSnapshot(
@@ -1996,13 +2011,11 @@ export async function deliverRelayRequests(
   const overallDeadline =
     monotonicNow() + (options.overallDeadlineMs ?? options.deadlineMs + RELAY_OVERALL_HEADROOM_MS);
   const wallClockNow = options.now();
-  await recoverRelaySpool(projectDirectory, wallClockNow);
-  const directory = relayDirectory(projectDirectory);
-  const filenames = await sortedFilenames(directory);
-  const [initial, initialDeadLetters] = await Promise.all([
-    relayRequestsFromFilenames(directory, filenames),
-    relayDeadLettersFromFilenames(directory, filenames),
-  ]);
+  const {
+    active: initial,
+    deadLetters: initialDeadLetters,
+    directory,
+  } = await recoveredRelayQueueSnapshot(projectDirectory, wallClockNow);
   const processed = new Set<string>();
   let accepted = 0;
   let deadLetterBacklog = initialDeadLetters.length;
