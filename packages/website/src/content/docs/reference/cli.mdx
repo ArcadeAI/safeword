@@ -67,7 +67,7 @@ bunx safeword@latest remove
 `setup` handles first-time installation and upgrades through the same
 idempotent convergence path. `remove` requires both `--yes` and the current
 `--plan <id>` so consent cannot apply to a project that changed after preview.
-Project verification runs automatically after `setup`; use
+Project verification runs automatically after `setup` and `upgrade`; use
 `doctor` directly for CI health gates and debugging.
 
 ### What gets installed
