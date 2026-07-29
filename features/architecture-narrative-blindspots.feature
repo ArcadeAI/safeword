@@ -4,7 +4,7 @@
 # helper plus a differential parity test against the CLI resolver — and cucumber
 # steps would duplicate that harness without adding confidence.
 @architecture-narrative-blindspots
-Feature: Architecture narrative reconciliation reaches configured narratives and pre-existing drift
+Feature: Architecture narrative reconciliation reaches configured narratives
 
   The AXRC4D reconcile loop assumed the human architecture narrative lives at
   root ARCHITECTURE.md. GitHub #848 showed a host whose narrative lives
