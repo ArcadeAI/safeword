@@ -16,6 +16,7 @@ import {
   discardRelayRequest,
   listRelayDeadLetters,
   listRelayRequests,
+  listRelaySpoolEntries,
   persistRelayDraft,
   persistRelayRequest,
   rearmRelayDeadLetter,
@@ -104,6 +105,24 @@ function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
 }
 
 describe('immutable relay delivery spool', () => {
+  it('reports the owning transient state when durable siblings coexist', async () => {
+    const project = temporaryProject();
+    const persisted = await persistRelayDraft(
+      project,
+      request({ sourceKey: 'source-list-precedence', title: 'list precedence' }),
+    );
+    if (persisted === undefined) throw new Error('missing relay request');
+    const directory = path.join(project, '.safeword', 'retro-drafts', 'relay');
+    writeFileSync(
+      path.join(directory, `${persisted.requestId}.claim.concurrent.${Date.now() + 60_000}.json`),
+      readFileSync(activeRequestPath(project, persisted.requestId)),
+    );
+
+    await expect(listRelaySpoolEntries(project)).resolves.toEqual([
+      { requestId: persisted.requestId, state: 'delivery-claim' },
+    ]);
+  });
+
   it('discards only the selected durable identity and its source reservation', async () => {
     const project = temporaryProject();
     const selected = await persistRelayDraft(
@@ -128,10 +147,53 @@ describe('immutable relay delivery spool', () => {
     expect(await listRelayDeadLetters(project)).toEqual([]);
     await expect(
       persistRelayDraft(project, request({ sourceKey: 'source-selected', title: 'selected' })),
-    ).resolves.not.toBeUndefined();
+    ).resolves.toBeUndefined();
     await expect(
       persistRelayDraft(project, request({ sourceKey: 'source-retained', title: 'retained' })),
     ).resolves.toMatchObject({ requestId: retained.requestId });
+  });
+
+  it('keeps one source tombstone when acknowledgement races source discard compaction', async () => {
+    const project = temporaryProject();
+    const draft = request({ sourceKey: 'source-ack-discard-race', title: 'ack discard race' });
+    const persisted = await persistRelayDraft(project, draft);
+    if (persisted === undefined) throw new Error('missing relay request');
+    const directory = path.join(project, '.safeword', 'retro-drafts', 'relay');
+    const sourceHash = createHash('sha256').update(draft.sourceKey).digest('hex');
+    const sourcePayloadHash = createHash('sha256')
+      .update(
+        JSON.stringify({
+          body: draft.body,
+          canonicalKey: draft.canonicalKey,
+          installationId: draft.installationId,
+          labels: draft.labels,
+          legacySignature: draft.legacySignature,
+          repository: draft.repository,
+          title: draft.title,
+        }),
+      )
+      .digest('hex');
+
+    await discardRelayRequest(project, persisted.requestId, {
+      faultAfterSourceDiscardWrite: () => {
+        writeFileSync(
+          path.join(directory, `source-${sourceHash}.acknowledged.json`),
+          JSON.stringify({
+            requestId: persisted.requestId,
+            sourceKey: draft.sourceKey,
+            sourcePayloadHash,
+            state: 'acknowledged',
+            version: 1,
+          }),
+        );
+        return Promise.resolve();
+      },
+    });
+
+    expect(
+      readdirSync(directory).filter(filename => filename.startsWith(`source-${sourceHash}`)),
+    ).toEqual([`source-${sourceHash}.acknowledged.json`]);
+    await expect(persistRelayDraft(project, draft)).resolves.toBeUndefined();
   });
 
   it('refuses to discard a request owned by an active delivery claim', async () => {
@@ -357,6 +419,35 @@ describe('immutable relay delivery spool', () => {
     await expect(persistRelayDraft(project, draft)).resolves.toBeUndefined();
   });
 
+  it('compacts an acknowledged source to one immutable tombstone file', async () => {
+    const project = temporaryProject();
+    const draft = request({ sourceKey: 'source-single-tombstone', title: 'single tombstone' });
+    const persisted = await persistRelayDraft(project, draft);
+    if (persisted === undefined) throw new Error('missing relay request');
+    const claim = await claimRelayRequest(project, {
+      claimId: 'single-tombstone-owner',
+      leaseMs: 60_000,
+      now: Date.now(),
+    });
+    if (claim === undefined) throw new Error('missing relay claim');
+
+    await expect(
+      acknowledgeRelayClaim(claim, {
+        issueNumber: 1479,
+        receiptId: 'receipt-single-tombstone',
+        requestId: persisted.requestId,
+        state: 'filed',
+      }),
+    ).resolves.toBe(true);
+
+    const sourceFiles = readdirSync(path.dirname(claim.path)).filter(filename =>
+      filename.startsWith('source-'),
+    );
+    expect(sourceFiles).toHaveLength(1);
+    expect(sourceFiles[0]).toMatch(/^source-[\da-f]{64}\.acknowledged\.json$/u);
+    await expect(persistRelayDraft(project, draft)).resolves.toBeUndefined();
+  });
+
   it('cancels a crashed discard intent so a foreign expired claim can recover', async () => {
     const project = temporaryProject();
     const draft = request({ sourceKey: 'source-intent-recovery', title: 'intent recovery' });
@@ -388,6 +479,56 @@ describe('immutable relay delivery spool', () => {
       now: now + 120_000,
     });
     expect(recovered).toMatchObject({ requestId: persisted.requestId });
+  });
+
+  it('does not recover a live discard intent before its ownership lease expires', async () => {
+    const project = temporaryProject();
+    const draft = request({ sourceKey: 'source-live-intent', title: 'live intent' });
+    const persisted = await persistRelayDraft(project, draft);
+    if (persisted === undefined) throw new Error('missing relay request');
+    const paused = deferred<boolean>();
+    const resume = deferred<boolean>();
+    const discard = discardRelayRequest(project, persisted.requestId, {
+      faultAfterClaims: async () => {
+        paused.resolve(true);
+        await resume.promise;
+      },
+    });
+    await paused.promise;
+
+    await recoverRelaySpool(project, Date.now());
+    const requestFiles = readdirSync(
+      path.join(project, '.safeword', 'retro-drafts', 'relay'),
+    ).filter(filename => filename.startsWith(persisted.requestId));
+    expect(requestFiles).toContainEqual(expect.stringContaining('.discarding.'));
+    expect(requestFiles).not.toContain(`${persisted.requestId}.discarded.json`);
+
+    resume.resolve(true);
+    await expect(discard).resolves.toBe(true);
+    await expect(listRelayRequests(project)).resolves.toEqual([]);
+  });
+
+  it('converges when recovery commits a discard after its ownership lease expires', async () => {
+    const project = temporaryProject();
+    const draft = request({ sourceKey: 'source-expired-intent', title: 'expired intent' });
+    const persisted = await persistRelayDraft(project, draft);
+    if (persisted === undefined) throw new Error('missing relay request');
+    const paused = deferred<boolean>();
+    const resume = deferred<boolean>();
+    const discard = discardRelayRequest(project, persisted.requestId, {
+      faultAfterClaims: async () => {
+        paused.resolve(true);
+        await resume.promise;
+      },
+    });
+    await paused.promise;
+
+    await recoverRelaySpool(project, Date.now() + 120_000);
+    resume.resolve(true);
+
+    await expect(discard).resolves.toBe(true);
+    await expect(listRelayRequests(project)).resolves.toEqual([]);
+    await expect(discardRelayRequest(project, persisted.requestId)).resolves.toBe(false);
   });
 
   it('does not let stale cancellation remove a replacement discard intent', async () => {
@@ -638,7 +779,7 @@ describe('immutable relay delivery spool', () => {
       ),
     ).toEqual([`${persisted.requestId}.discarded.json`]);
     const replacement = await persistRelayDraft(project, draft);
-    expect(replacement?.requestId).not.toBe(persisted.requestId);
+    expect(replacement).toBeUndefined();
   });
 
   it('does not let direct persistence revive a discarded request identity', async () => {
@@ -959,6 +1100,38 @@ describe('immutable relay delivery spool', () => {
       expect.objectContaining({ requestId: persisted.requestId }),
     ]);
   });
+
+  it.each(['delivery', 'recovery'] as const)(
+    'tolerates concurrent cleanup of duplicate expired %s claims',
+    async claimKind => {
+      const project = temporaryProject();
+      const directory = path.join(project, '.safeword', 'retro-drafts', 'relay');
+      const persisted = await persistRelayDraft(
+        project,
+        request({
+          sourceKey: `source-expired-race-${claimKind}`,
+          title: `expired race ${claimKind}`,
+        }),
+      );
+      if (persisted === undefined) throw new Error('missing relay request');
+      const active = activeRequestPath(project, persisted.requestId);
+      const claim =
+        claimKind === 'delivery'
+          ? `${persisted.requestId}.claim.duplicate.1.json`
+          : `${persisted.requestId}.recovery-claim.duplicate.1.json`;
+      writeFileSync(path.join(directory, claim), readFileSync(active));
+
+      await expect(
+        recoverRelaySpool(project, 2, {
+          faultBeforeDuplicateRead: claimPath => {
+            rmSync(claimPath);
+            return Promise.resolve();
+          },
+        }),
+      ).resolves.toBeUndefined();
+      await expect(listRelayRequests(project)).resolves.toHaveLength(1);
+    },
+  );
 
   it('derives the same source identity regardless of payload property insertion order', () => {
     const first = {

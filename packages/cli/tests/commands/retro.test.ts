@@ -1649,6 +1649,78 @@ describe('relay dead-letter recovery command', () => {
     }
   });
 
+  it('keeps renewed identity coherent after the printed retry command rearms it', async () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-renew-rearm-'));
+    const currentTime = Date.now();
+    const draft = {
+      body: 'body',
+      canonicalKey: 'canonical',
+      installationId: 42,
+      labels: ['retro'],
+      legacySignature: 'legacy',
+      repository: 'arcadeai/safeword',
+      sourceKey: 'source',
+      title: 'title',
+    };
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    const original = await persistRelayDraft(projectDirectory, draft);
+    vi.setSystemTime(currentTime);
+    if (original === undefined) throw new Error('missing relay request');
+    const [active] = await listRelayRequests(projectDirectory);
+    if (active === undefined) throw new Error('missing active relay request');
+    const activePath = activeRelayPath(projectDirectory, original.requestId);
+    const deadLetter = deadLetterRelayPath(projectDirectory, original.requestId);
+    writeFileSync(deadLetter, active.bytes);
+    rmSync(activePath);
+    let attempt = 0;
+    const send = vi.fn<typeof fetch>(() => {
+      attempt += 1;
+      return Promise.resolve(
+        attempt === 1
+          ? Response.json(
+              { error: 'invalid relay filing request', reason: 'retry-deadline-elapsed' },
+              { status: 400 },
+            )
+          : Response.json({ error: 'relay unavailable' }, { status: 503 }),
+      );
+    });
+
+    try {
+      await expect(
+        retryRelayDeadLetterCommand(original.requestId, {
+          output: { error: vi.fn(), info: vi.fn(), success: vi.fn() },
+          projectDirectory,
+          relay: {
+            credential: 'swc_client_secret',
+            fetch: send,
+            relayUrl: 'https://relay.invalid',
+          },
+        }),
+      ).resolves.toBe(false);
+      const renewed = JSON.parse(readFileSync(deadLetter, 'utf8')) as RelayDraftRequest;
+      expect(Date.parse(renewed.retryDeadlineAt)).toBeGreaterThan(currentTime);
+
+      await expect(
+        retryRelayDeadLetterCommand(original.requestId, {
+          output: { error: vi.fn(), info: vi.fn(), success: vi.fn() },
+          projectDirectory,
+        }),
+      ).resolves.toBe(true);
+      await expect(persistRelayDraft(projectDirectory, draft)).resolves.toMatchObject({
+        requestId: original.requestId,
+        retryDeadlineAt: renewed.retryDeadlineAt,
+      });
+      await expect(persistRelayDraft(projectDirectory, draft)).resolves.toMatchObject({
+        requestId: original.requestId,
+        retryDeadlineAt: renewed.retryDeadlineAt,
+      });
+    } finally {
+      vi.useRealTimers();
+      rmSync(projectDirectory, { recursive: true, force: true });
+    }
+  });
+
   it('bridges an ambiguous submit response to the operator recovery endpoint', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-ambiguous-'));
     const original = createRelayRequest(
@@ -1795,6 +1867,17 @@ describe('relay dead-letter recovery command', () => {
     rmSync(persisted.path);
 
     try {
+      const listedDeadLetter = spawnSync(
+        process.execPath,
+        [nodePath.resolve(process.cwd(), 'dist', 'cli.js'), 'retro-relay-retry'],
+        {
+          encoding: 'utf8',
+          env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
+        },
+      );
+      expect(listedDeadLetter.status, listedDeadLetter.stderr).toBe(0);
+      expect(listedDeadLetter.stdout).toContain(`${original.requestId} dead-letter`);
+
       const result = spawnSync(
         process.execPath,
         [
@@ -1812,6 +1895,16 @@ describe('relay dead-letter recovery command', () => {
       expect(result.stdout).toContain(original.requestId);
       const requests = await listRelayRequests(projectDirectory);
       expect(requests[0]?.requestId).toBe(original.requestId);
+      const listedActive = spawnSync(
+        process.execPath,
+        [nodePath.resolve(process.cwd(), 'dist', 'cli.js'), 'retro-relay-retry'],
+        {
+          encoding: 'utf8',
+          env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
+        },
+      );
+      expect(listedActive.status, listedActive.stderr).toBe(0);
+      expect(listedActive.stdout).toContain(`${original.requestId} active`);
     } finally {
       rmSync(projectDirectory, { recursive: true, force: true });
     }

@@ -77,9 +77,9 @@ payload. The takeover race is fault-tested.
 `<requestId>.ack.json` is the authoritative local commit journal. After a
 shape-valid durable receipt, the current owner atomically writes the ack and
 an immutable `source-<sourceHash>.acknowledged.json` identity tombstone before
-removing its claimed payload as idempotent compaction. The separate filename
-means a stale discard snapshot cannot unlink an acknowledgement that replaced
-the active reservation in place. Recovery always
+removing its claimed payload and the now-redundant active reservation filename
+as idempotent compaction. The separate tombstone filename means a stale discard
+snapshot cannot unlink the acknowledgement. Recovery always
 deletes any primary or claim payload that has a valid ack and never resubmits
 it. Thus crashes before ack retry the exact bytes; crashes after ack merely
 repeat cleanup. Once cleanup and source-reservation compaction finish, the ack
@@ -88,19 +88,37 @@ new identity. Tests inject crashes before and after every rename, ack, and
 cleanup boundary, including expiry while the old POST remains in flight.
 
 Explicit operator discard is a different two-phase terminal transition. After
-atomically owning available request state, it creates one non-expiring
+atomically owning available request state, it creates one leased
 `<requestId>.discarding.<token>.json` intent. Producers and new claims check for
 any exact-token intent both before and after publishing state, so the final
-foreign-owner check cannot be escaped. Terminal commit hard-links that token to
-`<requestId>.discarded.json`; cancellation unlinks only that exact token.
-Concurrent discards therefore cancel independently around a foreign claim or
-converge idempotently on the terminal tombstone, with no shared alias to suffer
-ABA. With no foreign claim, recovery commits the token and completes cleanup.
-The terminal tombstone wins over late primary, materializing, dead-letter, and
-claim siblings, while the separate durable source acknowledgement wins an
-impossible terminal conflict. The local protocol covers process crashes;
-whole-directory backup/restore remains the protection against storage loss or
-sudden power loss.
+foreign-owner check cannot be escaped. Recovery cancels an intent immediately
+around a foreign claim, leaves an unexpired live owner's intent alone, and
+commits an expired uncontested intent. Terminal commit hard-links that token to
+`<requestId>.discarded.json`; cancellation unlinks only that exact token, and a
+late original owner treats only an exact matching tombstone as successful
+convergence. Concurrent discards therefore cancel independently or converge
+idempotently, with no shared alias to suffer ABA. The terminal tombstone wins
+over late primary, materializing, dead-letter, and claim siblings, while the
+active source reservation is atomically compacted to an indefinite
+`source-<sourceHash>.discarded.json` tombstone before its removal. The source
+tombstone makes discard terminal for both the request ID and source identity:
+the same finding cannot acquire a replacement request ID. The separate durable
+source acknowledgement takes read precedence and wins an impossible terminal
+conflict.
+The local protocol covers process crashes; whole-directory backup/restore
+remains the protection against storage loss or sudden power loss.
+
+Compatible deadline renewal is accepted only when request ID, source identity,
+creation time, and approved payload digest are unchanged and the deadline moves
+forward. That reconciliation applies to primary, materializing, delivery claim,
+dead-letter, and recovery claim states. A timeout or 5xx therefore preserves the
+exact renewed bytes the relay may have accepted, while a definitive 4xx restores
+the prior bytes.
+
+The no-argument `safeword retro-relay-retry` command lists payload-free request
+IDs and their active, materializing, delivery-claim, dead-letter, or
+recovery-claim state so the operator can discover the exact input required by
+retry or discard.
 
 A monotonic 750ms deadline bounds the entire drain, not each request. Every
 request receives at most the remaining aggregate budget; untouched drafts stay

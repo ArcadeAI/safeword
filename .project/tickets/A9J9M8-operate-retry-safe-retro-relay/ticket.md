@@ -135,3 +135,18 @@ last_modified: 2026-07-27T02:23:02.173Z
   from erasing a takeover receipt. Deterministic paused-filesystem tests cover
   the snapshot-to-commit window, crashed intent plus expired foreign claim, and
   old-owner ack after takeover/discard.
+- 2026-07-28 Fourth-round review D1–D5 reproduced a two-command renewed-dead-
+  letter poison path, redundant acknowledged source files and recovery scans,
+  undiscoverable active discard IDs, ENOENT claim cleanup races, and live
+  discard intents mistaken for crashes. TDD coverage now drives compatible
+  renewal reconciliation across every durable state, one immutable source
+  tombstone, one recovered persistence snapshot, payload-free state-aware
+  operator listing, benign disappeared-file recovery, and leased discard
+  intents with exact terminal convergence. N4 remains declined because raw REST
+  evidence is canonical; R8 remains declined because unresolved payloads and
+  their referenced keys must remain recoverable indefinitely.
+- 2026-07-28 Fresh post-fix quality review found explicit discard still freed a
+  source to mint a replacement request ID. The discard transition now compacts
+  its active reservation to an indefinite source-level tombstone, recovery
+  completes the same transition after crashes, and acknowledgement retains
+  precedence. TDD proves exact source replay after discard remains terminal.

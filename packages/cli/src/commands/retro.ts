@@ -36,6 +36,7 @@ import {
   deliverRelayRequests,
   discardRelayRequest,
   listRelayDeadLetters,
+  listRelaySpoolEntries,
   normalizeRelayOrigin,
   persistRelayDraft,
   rearmRelayDeadLetter,
@@ -700,13 +701,13 @@ async function listRelayDeadLetterCommand(
   projectDirectory: string,
   output: RetroCommandOutput,
 ): Promise<boolean> {
-  const deadLetters = await listRelayDeadLetters(projectDirectory);
-  if (deadLetters.length === 0) {
-    output.info('retro relay: no dead letters.');
+  const entries = await listRelaySpoolEntries(projectDirectory);
+  if (entries.length === 0) {
+    output.info('retro relay: no durable requests.');
     return true;
   }
-  output.info(`retro relay: ${deadLetters.length} dead letter(s):`);
-  for (const deadLetter of deadLetters) output.info(deadLetter.requestId);
+  output.info(`retro relay: ${entries.length} durable request(s):`);
+  for (const entry of entries) output.info(`${entry.requestId} ${entry.state}`);
   return true;
 }
 

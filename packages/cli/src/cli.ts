@@ -318,7 +318,7 @@ registerRetroCommand(program);
 
 program
   .command('retro-relay-retry [request-id]')
-  .description('List or rearm relay dead letters without changing their durable request identity')
+  .description('List durable relay requests or rearm one dead letter without changing its identity')
   .action(async (requestId: string | undefined) => {
     const { retryRelayDeadLetterCommand } = await import('./commands/retro.js');
     const { info, error: outputError, success } = await import('./utils/output.js');

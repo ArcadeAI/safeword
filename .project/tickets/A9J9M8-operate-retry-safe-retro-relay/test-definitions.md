@@ -231,3 +231,47 @@ Feature source: `features/operate-retry-safe-retro-relay.feature`
 ## Feature-level cross-scenario refactor
 
 - [x] cross-scenario b1c339bb0
+
+## 2026-07-28 fourth-round PR review regressions
+
+### Scenario: Renewed dead-letter bytes remain coherent after operator rearm
+
+- [x] RED: public two-command reproduction failed on strict primary comparison
+- [x] GREEN: compatible renewal reconciliation covers every durable client state
+- [x] REFACTOR: one strict compatibility predicate remains authoritative
+
+### Scenario: Acknowledgement retains one immutable source tombstone
+
+- [x] RED: structural footprint test observed two permanent source files
+- [x] GREEN: durable acknowledgement removes the redundant active filename
+- [x] REFACTOR: exact active-reservation filenames exclude acknowledgement files
+
+### Scenario: Operator listing discovers every discardable request identity
+
+- [x] RED: built CLI listed only dead letters without state
+- [x] GREEN: payload-free state-aware listing covers active and dead-letter state
+- [x] REFACTOR: one recovered directory snapshot supplies the listing and
+  explicit ownership precedence labels transient siblings truthfully
+
+### Scenario: Concurrent expired-claim cleanup is benign
+
+- [x] RED: review supplied the check/read/unlink race; real-filesystem
+  concurrency coverage exercises both claim kinds
+- [x] GREEN: disappeared claim or sibling reads are treated as a won recovery race
+- [x] REFACTOR: one guarded pair-read helper owns ENOENT handling
+
+### Scenario: Live discard intent cannot be recovered as a crash
+
+- [x] RED: paused live owner was immediately converted to a discarded tombstone
+- [x] GREEN: intent lease delays recovery and exact terminal validation converges
+  after expiry
+- [x] REFACTOR: foreign-claim cancellation remains immediate and token-specific
+
+### Scenario: Explicit discard cannot mint a replacement source identity
+
+- [x] RED: persisting the same draft after discard acquired a fresh request ID
+- [x] GREEN: discard compacts the active reservation into a durable source
+  tombstone and later persistence returns no request
+- [x] REFACTOR: source acknowledgement and discard use parallel terminal records,
+  with acknowledgement taking precedence and removing a concurrent redundant
+  discard tombstone

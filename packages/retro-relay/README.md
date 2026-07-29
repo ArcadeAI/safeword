@@ -133,18 +133,32 @@ contract.
 
 If one durable identity is corrupt, inspect it first and then explicitly remove
 only that identity with
-`safeword retro-relay-discard <request-id> --confirm`. The command also removes
-the matching active source reservation, never deletes acknowledged tombstones
-or unrelated records, refuses identities owned by delivery/recovery, and writes
-a non-expiring discard intent before its final foreign-owner check. Producers
-and claims fail closed on that intent; recovery completes it only when no
-foreign claim remains. Each intent is its own unique-token filename:
-cancellation removes only that exact token, while terminal commit hard-links it
-to the indefinite request tombstone. Concurrent discards therefore converge
-without a shared alias, expiring lease, or ABA. A separate indefinite
-source-acknowledgement file makes acknowledgement win even if discard
-snapshotted the former active reservation filename. Discard is intentionally
-irreversible.
+`safeword retro-relay-discard <request-id> --confirm`. The command compacts the
+matching active source reservation into an indefinite discarded-source
+tombstone, never deletes acknowledged tombstones or unrelated records, refuses
+identities owned by delivery/recovery, and writes a leased discard intent before
+its final foreign-owner check. The source tombstone prevents the same source
+from acquiring a new request ID after explicit discard. Producers and
+claims fail closed on that intent; recovery cancels it around a foreign claim,
+leaves an unexpired live owner alone, and completes an expired uncontested
+intent. Each intent is its own unique-token filename: cancellation removes only
+that exact token, while terminal commit hard-links it to the indefinite request
+tombstone. A late owner accepts only an exact matching tombstone as successful
+convergence. Concurrent discards therefore converge without a shared alias or
+ABA. A separate indefinite source-acknowledgement file makes acknowledgement
+win even if discard snapshotted the former active reservation filename.
+Acknowledgement removes that redundant active filename, retaining one source
+tombstone rather than two permanent copies. Acknowledgement takes precedence
+over a concurrent discarded-source tombstone. Discard is intentionally
+irreversible and does not authorize a replacement identity.
+
+`safeword retro-relay-retry` with no request ID lists payload-free IDs and
+their active, materializing, delivery-claim, dead-letter, or recovery-claim
+state. A retry-deadline renewal is compatible only when the request ID, source,
+creation time, and approved payload digest remain unchanged. Compatible renewed
+bytes reconcile from every durable client state; definitive 4xx rejection
+restores the prior bytes, while timeout/5xx uncertainty preserves the exact
+bytes the relay may already have accepted.
 
 Installation-token requests for the same repository scope are coalesced.
 Ambiguous-create reconciliation uses raw REST bodies only and stops at both the

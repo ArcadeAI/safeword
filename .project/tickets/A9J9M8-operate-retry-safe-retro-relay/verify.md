@@ -2,29 +2,57 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 5,828/5,828 tests pass (relay 163/163; CLI 5,665/5,665; 6 intentional skips)
-**Gherkin:** ✅ Acceptance lane passes (623 scenarios: 620 passed, 3 skipped; 19,861 steps: 19,857 passed, 4 skipped)
+**Test Suite:** ✓ 5,836/5,836 tests pass (relay 163/163; CLI 5,673/5,673; 6 intentional skips)
+**Gherkin:** ✅ Acceptance lane passes (isolated CLI lane: 93/93 scenarios and 1,109/1,109 steps)
 **Build:** ✅ Success
 **Lint:** ✅ Clean
-**Scenarios:** All 106 scenarios marked complete
+**Scenarios:** All 124 scenarios marked complete
 **PR Scope:** ✅ Diff matches ticket scope
 **Dep Drift:** ✅ Clean
 **Parent Epic:** N/A
 **Reconcile:** ✅ No pattern deviation
 **Experience:** ✅ No new friction — Walked Technical Builder through automatic stop-retro filing; worst step = the bounded relay timeout before native fallback; new steps vs before = 0
-**Evidence limits:** ⚠️ The aggregate verification attempt overloaded the acceptance lane's shared proof hook, producing four setup-only 60-second timeouts. The affected feature then passed 44/44 scenarios and 1,444/1,444 steps in isolation, and the full uncontended acceptance rerun passed 623/623 scenarios (including 3 intentional skips). Experiment-only Python import-linter/deadcode checks are unavailable locally.
+**Evidence limits:** ⚠️ The aggregate verification attempt overloaded the acceptance lane's shared setup, producing two setup-only 60-second timeouts after 618 scenarios passed and 3 were skipped. The direct CLI acceptance lane then passed 93/93 scenarios and 1,109/1,109 steps. Experiment-only Python import-linter/deadcode checks are unavailable locally.
 
-Audit passed with warnings — 0 feature-blocking errors. Config sync, Knip, Go dead-code, and the dependency-cruiser error gate are clean across 708 modules and 2,348 dependencies. The stable repository-minus-generated-trees scope reports 543 clones (8.49%), dominated by intentional installed/template parity. `bun outdated` is clean and the prior production dependency audit reports no vulnerabilities.
+Audit passed with warnings — 0 feature-blocking errors. Config sync, Knip, Go dead-code, domain-doc reconciliation, and the dependency-cruiser error gate are clean across 708 modules and 2,348 dependencies. Configured documentation sources (`README.md` and `packages/website/src/content/docs`) and the architecture narrative show no feature drift. The stable repository-minus-generated-trees scope reports 551 clones (8.60%), +8 from the prior same-scope branch audit and attributable to this review's state-machine tests and resolution record. `@openai/codex` has a low-risk dev-only minor update (0.145.0 → 0.146.0) deferred as unrelated scope; the production dependency audit reports no vulnerabilities.
 
 ## Evidence
 
-- The generated verification plan passed the complete relay and CLI test suites, both builds, and both package typechecks. Its acceptance phase hit four setup-only resource-contention timeouts; the exact affected feature and then the entire acceptance lane passed cleanly without product assertion failures on uncontended reruns.
+- The generated verification plan passed the complete relay and CLI test suites.
+  Its acceptance phase hit two setup-only resource-contention timeouts after
+  618 passing scenarios; the direct CLI lane passed cleanly. Both generated
+  builds and package typechecks then passed.
 - `bun run lint`, the full formatter, config sync, Knip, and dependency-cruiser passed.
 - Independent quality review approved the final tree with no critical issues or suggested improvements after the six-surface HTTPS collaborator path, SQLite transaction process lock, retry scheduling, and shutdown reacquisition proof were reviewed.
 - Raw GitHub REST bodies remain the only marker authority. Sanitized MCP reads are not used for duplicate decisions.
 - GitHub issue 834 remains open and is not superseded.
 - GitHub issue 1495 is not a readiness gate because this slice does not reuse its client credential helpers.
 - GitHub issues 1474 and 1481 are now closed on main. Checked-in relay readiness remains disabled because the required fresh post-fix measurement artifacts and evidence review have not landed.
+
+## 2026-07-29 fourth-round comment resolution
+
+- Full post-fix suites: relay 163 passed with 1 intentional skip; CLI 5,673
+  passed with 5 intentional skips.
+- The aggregate acceptance run completed 618 scenarios before two shared
+  setup-only 60-second timeouts; the prescribed direct CLI lane then passed
+  93/93 scenarios and 1,109/1,109 steps.
+- Both package builds and typechecks, full lint, Gherkin lint, formatting,
+  config sync, dependency boundaries, domain-doc reconciliation, and diff
+  hygiene passed.
+- Compatible renewed bytes now reconcile across every durable client state;
+  acknowledgement retains one immutable source record; operators can list every
+  discardable ID and truthful state; disappeared duplicate claims are benign;
+  and leased discard recovery converges truthfully.
+- Explicit discard now compacts its active source reservation into an indefinite
+  discarded-source tombstone, so exact replay cannot mint a new request ID.
+  Acknowledgement wins concurrent terminal races and post-write cleanup retains
+  only its one source tombstone.
+- Raw GitHub REST bodies remain the sole marker authority. N4 normalization
+  remains declined; R8 key deletion remains declined while unresolved payloads
+  require indefinite recovery. Issue 834 is not superseded, and issue 1495 is
+  not a readiness gate because no client credential helper is reused.
+- Fresh independent quality review and final delta review both approved with no
+  critical issues or suggested improvements.
 
 ## 2026-07-28 third-round comment resolution
 
