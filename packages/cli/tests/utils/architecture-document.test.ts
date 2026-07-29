@@ -568,6 +568,21 @@ describe('selfHealProject — metadata-seeded purposes (GitHub #1608)', () => {
     expect(readFileSync(leafPath, 'utf8')).toContain('Dispatches queued background work.');
     expect(readFileSync(rootPath, 'utf8')).toContain('Runs background jobs.');
   });
+
+  it('heals a generator-owned purpose when its leading module documentation changes', () => {
+    const packageDirectory = makeMonorepoPackage('worker', 'Runs background jobs.');
+    const queuePath = nodePath.join(packageDirectory, 'src', 'queue.ts');
+    writeFileSync(queuePath, '/** Dispatches queued background work. */\nexport {};\n');
+    selfHealProject(context.directory);
+
+    writeFileSync(queuePath, '/** Schedules queued background work. */\nexport {};\n');
+
+    const results = selfHealProject(context.directory);
+    const leaf = readFileSync(nodePath.join(packageDirectory, 'architecture.generated.md'), 'utf8');
+    expect(results.map(result => result.action)).toEqual(['unchanged', 'healed']);
+    expect(leaf).toContain('Schedules queued background work.');
+    expect(leaf).not.toContain('Dispatches queued background work.');
+  });
 });
 
 describe('isWouldChangeAction — the enforcement threshold (FPV0E4 Slice 2)', () => {

@@ -77,7 +77,9 @@ No description yet — awaiting prose.
 
 `src/learning-sync`
 
-No description yet — awaiting prose.
+<!-- seeded-purpose: af50094a05fc5a1891acaa5b0b357a51d5de6bf708999899e0147cc2486f8404 -->
+
+Learning sync — generates `<namespace-root>/learnings/INDEX.md` from the `*.md` files in that folder so agents can navigate learnings via a Karpathy-style LLM Wiki index (plain markdown + grep) witho…
 
 > ⚠ stale: structure changed since this section was reconciled.
 
@@ -125,9 +127,9 @@ No description yet — awaiting prose.
 
 `src/reconcile.ts`
 
-<!-- seeded-purpose: cbbfe7505557376adb3be92a02a7fc95298d294bcd85fcb2e56fb65c3593bafc -->
+<!-- seeded-purpose: 76b396197de407a1fbd82d9825006ca749d81e0faf97ee7d8006ae6583373657 -->
 
-Reconciliation Engine Computes and executes plans based on SAFEWORD_SCHEMA and project state.
+Reconciliation Engine
 
 ### retro
 
@@ -145,9 +147,9 @@ No description yet — awaiting prose.
 
 `src/schema.ts`
 
-<!-- seeded-purpose: 2d621400d316657f1c92132de266be514dbe3bfce722b44db33eddedc8c3cb91 -->
+<!-- seeded-purpose: cf6127ae78364456709c16fc16d5bcba85386d254f98d01b24b63dd8a39b9a00 -->
 
-SAFEWORD Schema - Single Source of Truth All files, directories, configurations, and packages managed by safeword are defined here.
+SAFEWORD Schema - Single Source of Truth
 
 ### self-report-capture
 
@@ -195,7 +197,9 @@ No description yet — awaiting prose.
 
 `src/ticket-create`
 
-No description yet — awaiting prose.
+<!-- seeded-purpose: cd55e2fe5512344c84b7dd05daf04eeee694ac625fc57c8bb223112f0b3ededb -->
+
+Route `ticket new` between the local-id path and issue-first creation (KKNFZA TB1). provider:none → the local minter (today's behavior, no tracker client built).
 
 > ⚠ stale: structure changed since this section was reconciled.
 
@@ -205,7 +209,9 @@ No description yet — awaiting prose.
 
 `src/ticket-sync`
 
-No description yet — awaiting prose.
+<!-- seeded-purpose: 5fdae57e79b128bcbf454f6c3fe43a4055247db3add218f54aa2008dc911d08c -->
+
+Ticket sync — generates capability-discovery indexes over the ticket corpus: `<namespace-root>/tickets/INDEX.md` (active tickets, grouped by epic) and `INDEX-completed.md` (the `completed/` archive).
 
 > ⚠ stale: structure changed since this section was reconciled.
 
@@ -215,7 +221,9 @@ No description yet — awaiting prose.
 
 `src/tracker-connect`
 
-No description yet — awaiting prose.
+<!-- seeded-purpose: 21d448b7a5545f4c8179c2071ea2bee6d64843126d4ab910e3fd10950e7d449f -->
+
+The connect orchestration (2TK5AD) — the single flow `setup` and `connect` both run.
 
 > ⚠ stale: structure changed since this section was reconciled.
 
@@ -225,7 +233,9 @@ No description yet — awaiting prose.
 
 `src/tracker-sync`
 
-No description yet — awaiting prose.
+<!-- seeded-purpose: 11bf14632c9d632ee25e364801faad3e599320096950805ee110e066eb822838 -->
+
+The sync-tracker orchestrator — the single call site that projects the ticket corpus one-way into the configured tracker (JS5K5G).
 
 > ⚠ stale: structure changed since this section was reconciled.
 

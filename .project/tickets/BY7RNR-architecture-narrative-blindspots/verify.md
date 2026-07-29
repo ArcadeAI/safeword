@@ -2,6 +2,10 @@
 
 Date: 2026-07-05 · Branch: claude/github-848-qwjypx · HEAD at verification: 85f9c99 (+ this artifact)
 
+> **Supersession (2026-07-28):** GitHub #1609 retired TB2's package-mention
+> advisory after this verification ran. The TB2 counts and assertions below are
+> historical evidence, not a claim about the current product.
+
 > **Post-rebase re-verification (2026-07-05, HEAD 93c559a):** branch rebased onto
 > origin/main (v0.66.0, Node-24 floor). Full evidence re-run green under Node
 > 24.18.0 — 4745/4745 vitest (5 pre-existing skips), 273/273 cucumber scenarios,

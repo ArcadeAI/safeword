@@ -103,6 +103,59 @@ describe('extractSkeleton — skeleton reflects the real project', () => {
       seededPurpose: true,
     });
   });
+
+  it('uses the summary paragraph of a leading JSDoc comment without joining it to details', () => {
+    mkdirSync(nodePath.join(context.directory, 'src'), { recursive: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'src', 'reconcile.ts'),
+      '/**\n * Reconciliation Engine\n *\n * Computes and executes plans.\n */\nexport {};\n',
+    );
+
+    expect(extractSkeleton(context.directory).nodes).toContainEqual({
+      name: 'reconcile',
+      path: 'src/reconcile.ts',
+      purpose: 'Reconciliation Engine',
+      seededPurpose: true,
+    });
+  });
+
+  it('skips a leading license paragraph, preserves abbreviations, and caps a generated purpose', () => {
+    mkdirSync(nodePath.join(context.directory, 'src'), { recursive: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'src', 'retry.ts'),
+      '/**\n * Copyright (c) 2026 Example Inc.\n * SPDX-License-Identifier: MIT\n *\n * Handles retries, e.g. on network failure, with backoff. More detail.\n */\nexport {};\n',
+    );
+    writeFileSync(
+      nodePath.join(context.directory, 'src', 'long.ts'),
+      `/** ${'A'.repeat(300)}. */\nexport {};\n`,
+    );
+
+    const nodes = extractSkeleton(context.directory).nodes;
+    expect(nodes).toContainEqual({
+      name: 'retry',
+      path: 'src/retry.ts',
+      purpose: 'Handles retries, e.g. on network failure, with backoff.',
+      seededPurpose: true,
+    });
+    const long = nodes.find(node => node.name === 'long');
+    expect(long?.purpose).toHaveLength(200);
+    expect(long?.purpose.endsWith('…')).toBe(true);
+  });
+
+  it('seeds a directory module from a documented index file after a shebang or eslint directive', () => {
+    mkdirSync(nodePath.join(context.directory, 'src', 'cli'), { recursive: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'src', 'cli', 'index.ts'),
+      '#!/usr/bin/env node\n// eslint-disable-next-line no-console\n/** Runs the command-line interface. */\nconsole.log("ready");\n',
+    );
+
+    expect(extractSkeleton(context.directory).nodes).toContainEqual({
+      name: 'cli',
+      path: 'src/cli',
+      purpose: 'Runs the command-line interface.',
+      seededPurpose: true,
+    });
+  });
 });
 
 describe('extractSkeleton — broadened JS/TS recognition (issue #843)', () => {
@@ -405,6 +458,22 @@ describe('extractSkeleton — Rust layout (ticket YKFA5X)', () => {
       purpose: 'No description yet — awaiting prose.',
     });
   });
+
+  it('seeds a Rust directory module from its documented mod.rs entry point', () => {
+    writeCargo(context.directory);
+    mkdirSync(nodePath.join(context.directory, 'src', 'engine'), { recursive: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'src', 'engine', 'mod.rs'),
+      '//! Runs the Rust engine. Extra detail.\n',
+    );
+
+    expect(extractSkeleton(context.directory).nodes).toContainEqual({
+      name: 'engine',
+      path: 'src/engine',
+      purpose: 'Runs the Rust engine.',
+      seededPurpose: true,
+    });
+  });
 });
 
 describe('extractSkeleton — Python layout (ticket HWSEPV)', () => {
@@ -464,6 +533,22 @@ describe('extractSkeleton — Python layout (ticket HWSEPV)', () => {
       name: 'jobs',
       path: 'src/jobs.py',
       purpose: 'Runs scheduled jobs.',
+      seededPurpose: true,
+    });
+  });
+
+  it('seeds a Python package from its __init__.py module docstring', () => {
+    writePyproject(context.directory);
+    mkdirSync(nodePath.join(context.directory, 'src', 'workers'), { recursive: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'src', 'workers', '__init__.py'),
+      '"""Runs background workers. Extra detail."""\n',
+    );
+
+    expect(extractSkeleton(context.directory).nodes).toContainEqual({
+      name: 'workers',
+      path: 'src/workers',
+      purpose: 'Runs background workers.',
       seededPurpose: true,
     });
   });

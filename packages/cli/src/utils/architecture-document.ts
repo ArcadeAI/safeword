@@ -258,9 +258,12 @@ function decideAction(
 }
 
 /**
- * Compare rendered node references with the live skeleton. Canonical paths stay
- * outside the released name-only fingerprint recipe so upgrades do not falsely
- * stale every existing section, but path-only drift still self-heals.
+ * Compare rendered node references and generator-owned purposes with the live
+ * skeleton. Canonical paths stay outside the released name-only fingerprint
+ * recipe so upgrades do not falsely stale every existing section, but path-only
+ * drift and changed metadata seeds still self-heal. A changed leading source
+ * documentation summary therefore makes `architecture --check` report stale
+ * until the generated document is refreshed; human-authored prose is preserved.
  */
 function hasMatchingNodePaths(content: string, nodes: SkeletonNode[]): boolean {
   const paths = new Map<string, string>();

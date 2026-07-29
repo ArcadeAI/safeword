@@ -50,6 +50,9 @@ const PYTHON_EXCLUDED_FILES = new Set([
  */
 const JS_SOURCE_EXTENSIONS = ['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs'];
 
+/** Bound an auto-derived purpose so a malformed header cannot dominate the document. */
+const MAXIMUM_SEEDED_PURPOSE_LENGTH = 200;
+
 export interface SkeletonNode {
   /** Module name — the top-level `src/` subdirectory. */
   name: string;
@@ -190,7 +193,13 @@ function enumerateJsSourceRoot(
       .filter(entry => entry.isDirectory())
       .map(entry => [
         entry.name,
-        { name: entry.name, path: pathFor(entry.name), purpose: PURPOSE_PLACEHOLDER },
+        directoryNode(
+          entry.name,
+          pathFor(entry.name),
+          JS_SOURCE_EXTENSIONS.map(extension =>
+            nodePath.join(directory, entry.name, `index${extension}`),
+          ),
+        ),
       ]),
   );
   const excludeColocatedTests = true;
@@ -293,14 +302,25 @@ function jsModuleName(filename: string): string {
 
 /** A source-file node, using its leading module documentation as an initial purpose when present. */
 function sourceFileNode(name: string, path: string, absolutePath: string): SkeletonNode {
-  const purpose = purposeFromLeadingDocumentation(absolutePath);
+  return nodeFromPurpose(name, path, purposeFromLeadingDocumentation(absolutePath));
+}
+
+/** A directory module may declare its boundary purpose in a conventional entry file. */
+function directoryNode(name: string, path: string, entryPoints: string[]): SkeletonNode {
+  const purpose = entryPoints
+    .map(entryPoint => purposeFromLeadingDocumentation(entryPoint))
+    .find(candidate => candidate !== undefined);
+  return nodeFromPurpose(name, path, purpose);
+}
+
+function nodeFromPurpose(name: string, path: string, purpose: string | undefined): SkeletonNode {
   return purpose === undefined
     ? { name, path, purpose: PURPOSE_PLACEHOLDER }
     : { name, path, purpose, seededPurpose: true };
 }
 
 /**
- * The first sentence from a file's language-native module documentation. This
+ * A bounded summary from a file's language-native module documentation. This
  * deliberately reads only documentation at the start of the file, never
  * arbitrary source comments, so the generated purpose is deterministic and
  * visibly intentional rather than a guess about implementation details.
@@ -320,14 +340,12 @@ function purposeFromLeadingDocumentation(path: string): string | undefined {
   }
   if (body === undefined) return undefined;
 
-  const text = documentationText(body);
-  if (text.length === 0) return undefined;
-  return /^(.+?[.!?])(?:\s|$)/.exec(text)?.[1] ?? text;
+  return documentationSummary(body);
 }
 
 /** Leading JSDoc is the module-level documentation convention used by JS/TS files here. */
 function jsModuleDocumentation(content: string): string | undefined {
-  return /^\s*\/\*\*([\s\S]*?)\*\//.exec(content)?.[1];
+  return /^\/\*\*([\s\S]*?)\*\//.exec(afterLeadingJsTrivia(withoutByteOrderMark(content)))?.[1];
 }
 
 /**
@@ -381,14 +399,51 @@ function afterLeadingPythonTrivia(content: string): string {
   return remaining.trimStart();
 }
 
-/** Normalize documentation decoration and whitespace into prose. */
-function documentationText(body: string): string {
-  return body
-    .split(/\r?\n/)
-    .map(line => line.replace(/^\s*\*\s?/, '').trim())
-    .filter(Boolean)
-    .join(' ')
-    .trim();
+/** Skip the JS directives that may legally precede a file-level JSDoc block. */
+function afterLeadingJsTrivia(content: string): string {
+  let remaining = content;
+  if (remaining.startsWith('#!')) {
+    const lineEnd = remaining.indexOf('\n');
+    remaining = lineEnd === -1 ? '' : remaining.slice(lineEnd + 1);
+  }
+  while (true) {
+    const trimmed = remaining.trimStart();
+    if (!/^\/\/\s*eslint(?:-|\s)/.test(trimmed)) return trimmed;
+    const lineEnd = trimmed.indexOf('\n');
+    remaining = lineEnd === -1 ? '' : trimmed.slice(lineEnd + 1);
+  }
+}
+
+/** Derive one meaningful, bounded summary without treating banners as module purpose. */
+function documentationSummary(body: string): string | undefined {
+  const paragraphs: string[] = [];
+  let lines: string[] = [];
+  const flush = (): void => {
+    const paragraph = lines.join(' ').trim();
+    if (paragraph.length > 0) paragraphs.push(paragraph);
+    lines = [];
+  };
+  for (const rawLine of body.split(/\r?\n/)) {
+    const line = rawLine.replace(/^\s*\*\s?/, '').trim();
+    if (line.length === 0) flush();
+    else lines.push(line);
+  }
+  flush();
+  const text = paragraphs.find(paragraph => !isDocumentationBanner(paragraph));
+  if (text === undefined) return undefined;
+  const firstSentence = [
+    ...new Intl.Segmenter('en', { granularity: 'sentence' }).segment(text),
+  ][0]?.segment.trim();
+  return truncatePurpose(firstSentence ?? text);
+}
+
+function isDocumentationBanner(paragraph: string): boolean {
+  return /\b(?:copyright|spdx-|@license|licensed under)\b/i.test(paragraph);
+}
+
+function truncatePurpose(purpose: string): string {
+  if (purpose.length <= MAXIMUM_SEEDED_PURPOSE_LENGTH) return purpose;
+  return `${purpose.slice(0, MAXIMUM_SEEDED_PURPOSE_LENGTH - 1).trimEnd()}…`;
 }
 
 /** The recognized Go layout directories that actually exist, as sorted nodes. */
@@ -416,11 +471,12 @@ function rustModuleNodes(projectDirectory: string): SkeletonNode[] {
   const byName = new Map<string, SkeletonNode>();
   for (const entry of entries) {
     if (entry.isDirectory()) {
-      byName.set(entry.name, {
-        name: entry.name,
-        path: `src/${entry.name}`,
-        purpose: PURPOSE_PLACEHOLDER,
-      });
+      byName.set(
+        entry.name,
+        directoryNode(entry.name, `src/${entry.name}`, [
+          nodePath.join(projectDirectory, 'src', entry.name, 'mod.rs'),
+        ]),
+      );
     }
   }
   for (const entry of entries) {
@@ -485,11 +541,12 @@ function pythonModulesFrom(
   const byName = new Map<string, SkeletonNode>();
   for (const entry of entries) {
     if (entry.isDirectory() && keepPackageDirectory(nodePath.join(directory, entry.name))) {
-      byName.set(entry.name, {
-        name: entry.name,
-        path: pathFor(entry.name),
-        purpose: PURPOSE_PLACEHOLDER,
-      });
+      byName.set(
+        entry.name,
+        directoryNode(entry.name, pathFor(entry.name), [
+          nodePath.join(directory, entry.name, '__init__.py'),
+        ]),
+      );
     }
   }
   for (const entry of entries) {
