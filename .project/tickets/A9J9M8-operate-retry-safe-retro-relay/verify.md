@@ -2,32 +2,72 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 5,836/5,836 tests pass (relay 163/163; CLI 5,673/5,673; 6 intentional skips)
-**Gherkin:** ✅ Acceptance lane passes (isolated CLI lane: 93/93 scenarios and 1,109/1,109 steps)
-**Build:** ✅ Success
-**Lint:** ✅ Clean
-**Scenarios:** All 124 scenarios marked complete
+**Test Suite:** ✓ 5,845/5,845 tests pass (relay 165/165; CLI 5,680/5,680; 6 intentional skips)
+**Gherkin:** ✅ Full acceptance lane passes (626/629 scenarios; 3 intentional skips; 20,053/20,057 steps passed with 4 skipped)
+**Build:** ✅ Success, including the pinned production container on Node 24.18.1
+**Lint:** ✅ Clean (ESLint, Gherkin lint, and TypeScript)
+**Scenarios:** All 139 RED/GREEN/REFACTOR checks marked complete
 **PR Scope:** ✅ Diff matches ticket scope
 **Dep Drift:** ✅ Clean
 **Parent Epic:** N/A
 **Reconcile:** ✅ No pattern deviation
-**Experience:** ✅ No new friction — Walked Technical Builder through automatic stop-retro filing; worst step = the bounded relay timeout before native fallback; new steps vs before = 0
-**Evidence limits:** ⚠️ The aggregate verification attempt overloaded the acceptance lane's shared setup, producing two setup-only 60-second timeouts after 618 scenarios passed and 3 were skipped. The direct CLI acceptance lane then passed 93/93 scenarios and 1,109/1,109 steps. Experiment-only Python import-linter/deadcode checks are unavailable locally.
+**Experience:** ✅ Walked a cloud-harness operator through configuring one external durable outbox, losing the disposable workspace, and retrying/listing/discarding from another harness; worst step = provisioning a platform-durable absolute path; new steps vs before = 1
+**Evidence limits:** ⚠️ Experiment-only Python import-linter/dead-code checks are unavailable locally. The optional Docker Vitest lane cannot detect Homebrew/OrbStack Docker, so its exact build, mounted-volume UID, non-root process, Node version, and `node:sqlite` checks were executed directly.
 
-Audit passed with warnings — 0 feature-blocking errors. Config sync, Knip, Go dead-code, domain-doc reconciliation, and the dependency-cruiser error gate are clean across 708 modules and 2,348 dependencies. Configured documentation sources (`README.md` and `packages/website/src/content/docs`) and the architecture narrative show no feature drift. The stable repository-minus-generated-trees scope reports 551 clones (8.60%), +8 from the prior same-scope branch audit and attributable to this review's state-machine tests and resolution record. `@openai/codex` has a low-risk dev-only minor update (0.145.0 → 0.146.0) deferred as unrelated scope; the production dependency audit reports no vulnerabilities.
+Audit passed with warnings — 0 feature-blocking errors. Config sync, Knip,
+domain-doc reconciliation, and dependency-cruiser are clean across 710 modules
+and 2,356 dependencies. Configured documentation sources (`README.md` and
+`packages/website/src/content/docs`) and the architecture narrative show no
+feature drift. The stable repository-minus-generated-trees scope reports 553
+clones (8.58%). `@openai/codex` has a low-risk dev-only minor update
+(0.145.0 → 0.146.0) deferred as unrelated scope; the production dependency
+audit reports no vulnerabilities.
 
 ## Evidence
 
-- The generated verification plan passed the complete relay and CLI test suites.
-  Its acceptance phase hit two setup-only resource-contention timeouts after
-  618 passing scenarios; the direct CLI lane passed cleanly. Both generated
-  builds and package typechecks then passed.
+- The generated verification plan passed the complete relay and CLI test suites:
+  165 relay tests and 5,680 CLI tests, with six intentional skips.
+- The clean, isolated full acceptance lane passed 626 scenarios and 20,053
+  executed steps, with three scenarios/four steps intentionally skipped.
 - `bun run lint`, the full formatter, config sync, Knip, and dependency-cruiser passed.
-- Independent quality review approved the final tree with no critical issues or suggested improvements after the six-surface HTTPS collaborator path, SQLite transaction process lock, retry scheduling, and shutdown reacquisition proof were reviewed.
+- The production image built from pinned Debian and official checksum-verified
+  Node 24.18.1 artifacts. Its entrypoint repaired a mounted `/data` directory,
+  dropped to UID 1000, and executed `node:sqlite`.
+- The six-surface environment-driven HTTPS collaborator path and built
+  `dist/main.js` process both passed through real configuration, authentication,
+  SQLite, and local GitHub HTTP boundaries.
 - Raw GitHub REST bodies remain the only marker authority. Sanitized MCP reads are not used for duplicate decisions.
 - GitHub issue 834 remains open and is not superseded.
 - GitHub issue 1495 is not a readiness gate because this slice does not reuse its client credential helpers.
 - GitHub issues 1474 and 1481 are now closed on main. Checked-in relay readiness remains disabled because the required fresh post-fix measurement artifacts and evidence review have not landed.
+
+## 2026-07-29 final independent-review remediation
+
+- Semantic readiness now parses versioned, nonempty measurement artifacts and
+  rejects empty samples or evidence for the wrong metric.
+- Every harness uses one configured outbox that must physically resolve outside
+  the disposable project. Built retry/list/discard coverage destroys the project
+  before continuing from that external store.
+- File publication, replacement, acknowledgement, and newly created directory
+  hierarchy entries are explicitly synchronized. Fault injection proves failed
+  directory sync does not report durable success, and successful hierarchy sync
+  caching is invalidated when a path is recreated.
+- GitHub create classification uses documented status and header signals only;
+  response prose is not an authority. Raw REST bodies remain the sole duplicate
+  marker authority, and sanitized MCP reads never participate.
+- The runtime floor and CI matrix use the July 2026 security releases:
+  22.23.2, 24.18.1, and 26.5.1+. The production image verifies official Node
+  archive checksums and recreates the non-root `node` identity expected by its
+  entrypoint.
+- Full lint/typecheck, relay and CLI suites, full acceptance, production
+  container qualification, production dependency audit, and repository audit
+  passed on the final implementation.
+- A final fresh independent review caught and drove two last fail-safe changes:
+  the default drain again has a 500 ms request deadline plus only 250 ms of
+  aggregate headroom, and every GitHub 422 remains retryable because the
+  documented status conflates validation with temporary spam throttling.
+  Multi-draft blackhole and prose-independent 422 tests pass; the fresh
+  re-review approved with no critical issues or suggested improvements.
 
 ## 2026-07-29 fourth-round comment resolution
 

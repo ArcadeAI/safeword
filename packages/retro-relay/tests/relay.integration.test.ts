@@ -674,11 +674,11 @@ describe('retry-safe retro relay', () => {
       status: 422,
     });
 
-    expect(validation.outcome).toBe('rejected');
+    expect(validation.outcome).toBe('retryable');
     expect(changedProse.outcome).toBe(validation.outcome);
   });
 
-  it.each([400, 404, 410, 422])(
+  it.each([400, 404, 410])(
     'records GitHub %i as a certain terminal rejection',
     async statusCode => {
       const setup = await fixture({ createStatus: statusCode });
@@ -709,13 +709,20 @@ describe('retry-safe retro relay', () => {
   );
 
   it.each(['Validation Failed', 'The endpoint has been spammed'])(
-    'rejects GitHub 422 without interpreting message %s',
+    'keeps GitHub 422 retryable without interpreting message %s',
     async message => {
       const setup = await fixture({ createMessage: message, createStatus: 422 });
       const adapter = createHarnessAdapters(setup.relay.url, setup.credential).claude;
 
-      await expect(adapter.file(draft())).resolves.toMatchObject({ state: 'rejected' });
-      await expect(adapter.file(draft())).resolves.toMatchObject({ state: 'rejected' });
+      await expect(adapter.file(draft())).rejects.toMatchObject({ status: 503 });
+      expect(
+        setup.store.load({
+          tenantId: 'tenant-1',
+          installationId: 42,
+          repository: 'arcadeai/safeword',
+          requestId: draft().requestId,
+        })?.state,
+      ).toBe('retryable');
       expect(setup.createBodies).toHaveLength(1);
     },
   );

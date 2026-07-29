@@ -28,6 +28,11 @@ const scenarioProofs: Record<string, ScenarioProof> = {
     pattern: 'returns before one second',
     testFile: 'tests/retro/relay-delivery.test.ts',
   },
+  'A multi-draft drain shares one aggregate latency budget': {
+    packageDirectory: 'packages/cli',
+    pattern: 'bounds a multi-draft blackhole below one second',
+    testFile: 'tests/retro/relay-delivery.test.ts',
+  },
   'An active spool claim excludes another session': {
     packageDirectory: 'packages/cli',
     pattern: 'claims exclusively',
@@ -178,6 +183,31 @@ const scenarioProofs: Record<string, ScenarioProof> = {
     packageDirectory: 'packages/retro-relay',
     pattern: 'atomically records an alert',
     testFile: 'tests/lifecycle.test.ts',
+  },
+  'Empty or semantically irrelevant readiness evidence fails closed': {
+    packageDirectory: 'packages/cli',
+    pattern: 'fails closed when a hash-attested',
+    testFile: 'tests/retro/relay-delivery.test.ts',
+  },
+  'One external durable outbox survives disposable harness workspaces': {
+    packageDirectory: 'packages/retro-relay',
+    pattern: 'routes all six installed surfaces',
+    testFile: 'tests/cli-wiring.integration.test.ts',
+  },
+  'Persistence success is not reported before file and directory sync': {
+    packageDirectory: 'packages/cli',
+    pattern: 'does not report persistence success when .* synchronization fails',
+    testFile: 'tests/retro/relay-delivery.test.ts',
+  },
+  'GitHub create classification ignores undocumented response prose': {
+    packageDirectory: 'packages/retro-relay',
+    pattern: 'classifies documented create failures independently of response prose',
+    testFile: 'tests/relay.integration.test.ts',
+  },
+  'The built production process files through every real collaborator': {
+    packageDirectory: 'packages/retro-relay',
+    pattern: 'runs the built production process through SQLite, HTTP auth, and GitHub',
+    testFile: 'tests/runtime-qualification.test.ts',
   },
 };
 

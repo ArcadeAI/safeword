@@ -46,6 +46,14 @@ Feature: Operate the retry-safe retro relay
       And the GitHub-native fallback is not invoked after the relay attempt
 
     @operate-retry-safe-retro-relay.TBU1.R2 @rejection
+    Scenario: A multi-draft drain shares one aggregate latency budget
+      Given several sanitized drafts are durably pending
+      And the relay network boundary does not respond
+      When the shared filing operation reaches its one-second budget
+      Then it returns without acknowledging any unaccepted draft
+      And every unaccepted request remains visibly retryable on disk
+
+    @operate-retry-safe-retro-relay.TBU1.R2 @rejection
     Scenario: An active spool claim excludes another session
       Given one session has atomically claimed a persisted retro spool
       When another session attempts to claim it before the lease expires

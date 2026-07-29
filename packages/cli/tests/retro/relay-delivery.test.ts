@@ -1701,10 +1701,10 @@ describe('immutable relay delivery spool', () => {
     expect(await listRelayRequests(project)).toHaveLength(1);
   });
 
-  it('reserves enough default drain time for durable filesystem overhead', async () => {
+  it('does not extend the default drain beyond the session budget after durable overhead', async () => {
     const project = temporaryProject();
     await persistRelayRequest(project, request());
-    const monotonicTimes = [0, 9000, 9000, 9000];
+    const monotonicTimes = [0, 751, 751, 751];
     const send = vi.fn<typeof fetch>((_input, init) => {
       const sent = JSON.parse(
         Buffer.from(init?.body as Uint8Array).toString('utf8'),
@@ -1730,8 +1730,44 @@ describe('immutable relay delivery spool', () => {
       relayUrl: 'https://relay.invalid',
     });
 
+    expect(send).not.toHaveBeenCalled();
+    expect(outcome.accepted).toBe(0);
+    expect(outcome.retryable).toBe(1);
+  });
+
+  it('bounds a multi-draft blackhole below one second with the default aggregate budget', async () => {
+    const project = temporaryProject();
+    for (const [index, title] of ['first', 'second', 'third'].entries()) {
+      await persistRelayRequest(
+        project,
+        request({
+          requestId: `00000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+          sourceKey: `source-blackhole-${index}`,
+          title,
+        }),
+      );
+    }
+    const send = vi.fn<typeof fetch>(
+      (_input, init) =>
+        new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => {
+            reject(new Error('simulated relay blackhole'));
+          });
+        }),
+    );
+    const startedAt = performance.now();
+
+    const outcome = await deliverRelayRequests(project, {
+      credential: 'swc_client_secret',
+      deadlineMs: 500,
+      fetch: send,
+      now: Date.now,
+      relayUrl: 'https://relay.invalid',
+    });
+
+    expect(performance.now() - startedAt).toBeLessThan(1000);
     expect(send).toHaveBeenCalledOnce();
-    expect(outcome.accepted).toBe(1);
+    expect(outcome.retryable).toBe(3);
   });
 });
 

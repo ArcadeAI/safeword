@@ -41,12 +41,12 @@ import {
   persistRelayDraft,
   rearmRelayDeadLetter,
   recoverRelayDeadLetter,
+  RELAY_OVERALL_HEADROOM_MS,
   type RelayDraftRequest,
   relaySourceKey,
 } from '../retro/relay-delivery.js';
 
 const DEFAULT_RELAY_DEADLINE_MS = 500;
-const RELAY_OVERALL_HEADROOM_MS = 10_000;
 import {
   CHECKED_IN_RELAY_READINESS,
   type RelayReadinessManifest,

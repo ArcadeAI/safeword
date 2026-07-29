@@ -26,6 +26,8 @@ export interface RelayDraftRequest {
   title: string;
 }
 
+export const RELAY_OVERALL_HEADROOM_MS = 250;
+
 type RelayDraftInput = Omit<RelayDraftRequest, 'createdAt' | 'requestId' | 'retryDeadlineAt'>;
 type RelaySourcePayload = Omit<RelayDraftInput, 'sourceKey'>;
 
@@ -1933,7 +1935,7 @@ export async function deliverRelayRequests(
 }> {
   const monotonicNow = options.monotonicNow ?? (() => performance.now());
   const overallDeadline =
-    monotonicNow() + (options.overallDeadlineMs ?? Math.max(options.deadlineMs * 2, 10_000));
+    monotonicNow() + (options.overallDeadlineMs ?? options.deadlineMs + RELAY_OVERALL_HEADROOM_MS);
   const initial = await listRelayRequests(projectDirectory);
   const wallClockNow = options.now();
   await recoverExpiredClaims(

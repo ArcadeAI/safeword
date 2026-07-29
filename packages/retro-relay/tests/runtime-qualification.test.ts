@@ -166,6 +166,7 @@ describe('retro relay runtime qualification', () => {
     expect(dockerfile).toContain('snapshot.debian.org/archive/debian/');
     expect(dockerfile).toContain('check-valid-until=no');
     expect(dockerfile).toContain('gosu=1.14-1+b10');
+    expect(dockerfile).toContain('useradd --uid 1000 --gid node');
     expect(dockerfile).toContain('ENTRYPOINT ["relay-entrypoint"]');
     expect(entrypoint).toContain('chown -R node:node');
     expect(entrypoint).toContain('exec gosu node "$@"');

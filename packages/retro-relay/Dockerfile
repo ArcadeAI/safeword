@@ -31,6 +31,8 @@ RUN rm -f /etc/apt/sources.list.d/debian.sources \
   && echo "${node_sha}  /tmp/${node_archive}" | sha256sum --check --strict - \
   && tar --extract --xz --file "/tmp/${node_archive}" --directory /usr/local --strip-components=1 \
   && rm -f "/tmp/${node_archive}" \
+  && groupadd --gid 1000 node \
+  && useradd --uid 1000 --gid node --home-dir /home/node --create-home --shell /bin/sh node \
   && apt-get purge -y --auto-remove curl xz-utils \
   && rm -rf /var/lib/apt/lists/*
 COPY packages/retro-relay/package.json package.json

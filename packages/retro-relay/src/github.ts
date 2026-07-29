@@ -22,8 +22,8 @@ export interface GitHubRestClientOptions {
 type CreateOutcome = 'ambiguous' | 'rejected' | 'retryable';
 
 function classifyCreateOutcome(input: { status: number }): CreateOutcome {
-  if ([400, 404, 410, 422].includes(input.status)) return 'rejected';
-  return [401, 403, 429].includes(input.status) ? 'retryable' : 'ambiguous';
+  if ([400, 404, 410].includes(input.status)) return 'rejected';
+  return [401, 403, 422, 429].includes(input.status) ? 'retryable' : 'ambiguous';
 }
 
 export class GitHubCreateError extends Error {
