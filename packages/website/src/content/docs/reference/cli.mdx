@@ -111,6 +111,28 @@ bunx safeword@latest sync-config
 
 **When to use:** Before running `/audit`, or after changing your project's architecture boundaries. Detects workspaces and layers, then generates `.dependency-cruiser.cjs`.
 
+## safeword architecture
+
+Generate or verify Safeword's deterministic architecture state document.
+
+```bash
+bunx safeword@latest architecture
+```
+
+| Option     | Description                                                                 |
+| ---------- | --------------------------------------------------------------------------- |
+| `--check`  | Verify that committed architecture documents are current without writing    |
+| `--stage`  | Generate from the Git index and add changed documents to the current commit |
+| `--staged` | Generate from the Git index without adding documents to the index           |
+
+`--stage` and `--staged` exclude unstaged and untracked source shape, so the
+generated fingerprint remains reproducible when the commit is checked out
+elsewhere.
+
+**When to use:** Use the default command for normal worktree generation,
+`--check` in CI, `--stage` in commit-time automation, or `--staged` to inspect
+the staged-tree result before deciding what to add.
+
 ---
 
 ## File Ownership
