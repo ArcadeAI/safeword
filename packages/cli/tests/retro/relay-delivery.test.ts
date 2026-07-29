@@ -1253,6 +1253,9 @@ describe('immutable relay delivery spool', () => {
       }),
     ).rejects.toThrow('simulated directory fsync failure');
     expect(readdirSync(path.join(project, '.safeword', 'retro-drafts', 'relay'))).toHaveLength(0);
+    await expect(persistRelayRequest(project, original)).resolves.toMatchObject({
+      bytes: Buffer.from(JSON.stringify(original), 'utf8'),
+    });
   });
 
   it('claims exclusively, rearms expiry, and prevents stale-owner cleanup', async () => {

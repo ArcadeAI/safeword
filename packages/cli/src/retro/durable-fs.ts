@@ -1,10 +1,12 @@
-import { link, mkdir, open, rename, unlink } from 'node:fs/promises';
+import { link, mkdir, open, rename, stat, unlink } from 'node:fs/promises';
 import path from 'node:path';
 
 export interface DurableMutationFaults {
   beforeDirectorySync?: () => Promise<void>;
   beforeFileSync?: () => Promise<void>;
 }
+
+const durableDirectoryIdentities = new Map<string, string>();
 
 function errorCode(error: unknown): string | undefined {
   return (error as NodeJS.ErrnoException).code;
@@ -35,11 +37,15 @@ export async function mkdirDurable(
     throw new Error('durable directory must be a descendant of its root');
   }
   await mkdir(resolvedDirectory, { recursive: true });
+  const directoryStat = await stat(resolvedDirectory);
+  const identity = `${String(directoryStat.dev)}:${String(directoryStat.ino)}`;
+  if (durableDirectoryIdentities.get(resolvedDirectory) === identity) return;
   let parent = resolvedRoot;
   for (const segment of relative.split(path.sep)) {
     await syncDirectoryDurable(parent, faults);
     parent = path.join(parent, segment);
   }
+  durableDirectoryIdentities.set(resolvedDirectory, identity);
 }
 
 export async function writeNewDurable(
