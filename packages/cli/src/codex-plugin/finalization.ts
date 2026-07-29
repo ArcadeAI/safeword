@@ -388,7 +388,7 @@ function validateRecoveryEntry(
   backupDirectory: string,
   entry: BackupEntry,
   allowBefore: boolean,
-): void {
+): FileImage | AbsentImage {
   const current = observedImage(cwd, entry.path);
   if (!imagesMatch(current, entry.after) && !(allowBefore && imagesMatch(current, entry.before))) {
     throw new Error(`Codex recovery conflict at ${entry.path}; no files were restored.`);
@@ -402,6 +402,21 @@ function validateRecoveryEntry(
       throw new Error(`Codex migration backup payload is corrupt for ${entry.path}.`);
     }
   }
+  return current;
+}
+
+function loadValidatedRecovery(cwd: string): {
+  backupDirectory: string;
+  manifest: BackupManifestV1;
+  current: (FileImage | AbsentImage)[];
+} {
+  const { backupDirectory, manifest } = readBackupManifest(cwd);
+  validateManifestIntent(manifest);
+  const allowBefore = manifest.status !== 'finalized';
+  const current = manifest.entries.map(entry =>
+    validateRecoveryEntry(cwd, backupDirectory, entry, allowBefore),
+  );
+  return { backupDirectory, manifest, current };
 }
 
 export function recoverCodexFinalization(cwd: string): boolean {
@@ -410,12 +425,7 @@ export function recoverCodexFinalization(cwd: string): boolean {
   if (!existsSync(manifestPath)) {
     throw new Error('Codex migration backup manifest is missing; recovery cannot continue.');
   }
-  const { backupDirectory, manifest } = readBackupManifest(cwd);
-  validateManifestIntent(manifest);
-  const allowBefore = manifest.status !== 'finalized';
-  for (const entry of manifest.entries) {
-    validateRecoveryEntry(cwd, backupDirectory, entry, allowBefore);
-  }
+  const { backupDirectory, manifest } = loadValidatedRecovery(cwd);
 
   manifest.status = 'recovering';
   writeManifest(backupDirectory, manifest);
@@ -438,13 +448,7 @@ export function observeCodexRecoveryPlan(cwd: string): ObservedCodexRecoveryPlan
       preconditionDigest: sha256(Buffer.from('codex-recovery-absent-v1')),
     };
   }
-  const { backupDirectory, manifest } = readBackupManifest(cwd);
-  validateManifestIntent(manifest);
-  const allowBefore = manifest.status !== 'finalized';
-  for (const entry of manifest.entries) {
-    validateRecoveryEntry(cwd, backupDirectory, entry, allowBefore);
-  }
-  const current = manifest.entries.map(entry => observedImage(cwd, entry.path));
+  const { manifest, current } = loadValidatedRecovery(cwd);
   return {
     effects: manifest.entries.map(entry => ({ path: entry.path, action: 'restore' })),
     preconditionDigest: sha256(Buffer.from(JSON.stringify({ manifest, current }))),
