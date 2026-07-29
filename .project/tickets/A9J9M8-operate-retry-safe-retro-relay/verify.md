@@ -67,7 +67,7 @@ audit reports no vulnerabilities.
   aggregate headroom, and every GitHub 422 remains retryable because the
   documented status conflates validation with temporary spam throttling.
   Multi-draft blackhole and prose-independent 422 tests pass; the fresh
-  re-review approved `8b0355544` with no critical issues or suggested
+  re-review approved `ec32ac2fc` with no critical issues or suggested
   improvements.
 
 ## 2026-07-29 fourth-round comment resolution
