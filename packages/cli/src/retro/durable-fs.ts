@@ -12,7 +12,7 @@ function errorCode(error: unknown): string | undefined {
   return (error as NodeJS.ErrnoException).code;
 }
 
-export async function syncDirectoryDurable(
+async function syncDirectoryDurable(
   directory: string,
   faults: DurableMutationFaults = {},
 ): Promise<void> {
