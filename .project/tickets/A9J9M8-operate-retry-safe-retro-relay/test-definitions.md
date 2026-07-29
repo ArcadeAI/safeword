@@ -322,34 +322,34 @@ Feature source: `features/operate-retry-safe-retro-relay.feature`
 
 - [x] RED 1c2449cbb
 - [x] GREEN 4428378aa
-- [ ] REFACTOR
+- [x] REFACTOR 42240b3e6
 
 ### Scenario: Configured but invalid relay state fails visibly instead of selecting native filing
 
 - [x] RED 1c2449cbb
 - [x] GREEN 4428378aa
-- [ ] REFACTOR
+- [x] REFACTOR b35b0a9ce
 
 ### Scenario: Recovery removes only stale atomic-write temporaries
 
 - [x] RED 1c2449cbb
 - [x] GREEN 4428378aa
-- [ ] REFACTOR
+- [x] REFACTOR skip: the age-aware cleanup helper is already minimal
 
 ### Scenario: Cross-directory durable rename synchronizes both directory entries
 
 - [x] RED 1c2449cbb
 - [x] GREEN 4428378aa
-- [ ] REFACTOR
+- [x] REFACTOR skip: the two-parent synchronization branch is already minimal
 
 ### Scenario: Filesystem root cannot become the client outbox
 
 - [x] RED 1c2449cbb
 - [x] GREEN 4428378aa
-- [ ] REFACTOR
+- [x] REFACTOR skip: root rejection is one guard in the shared path validator
 
 ### Scenario: A failed dead-letter rearm tells the operator how to recover
 
 - [x] RED 1c2449cbb
 - [x] GREEN 4428378aa
-- [ ] REFACTOR
+- [x] REFACTOR skip: the ownership-loss diagnostic is already one explicit branch
