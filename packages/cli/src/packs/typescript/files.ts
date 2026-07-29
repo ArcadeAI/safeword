@@ -14,7 +14,6 @@ import {
   resolvedIgnoreDirectories,
   resolvedNamespaceDirectory,
 } from '../../owned-paths.js';
-import { SAFEWORD_PRIMARY_LINT_SCRIPT } from '../../presets/typescript/detect.js';
 import { getEslintConfig, getSafewordEslintConfig } from '../../templates/config.js';
 import { assignOrPrune } from '../../utils/json-merge.js';
 import type {
@@ -23,6 +22,10 @@ import type {
   ManagedFileDefinition,
   ProjectContext,
 } from '../types.js';
+
+// Deliberately duplicated with presets/typescript/detect.ts: published presets must
+// remain self-contained, while language packs may not import preset implementation.
+const SAFEWORD_PRIMARY_LINT_SCRIPT = 'eslint . && bun run lint:gherkin';
 
 // ============================================================================
 // Shared Definitions

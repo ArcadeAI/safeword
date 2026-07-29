@@ -16,7 +16,6 @@ import {
   generateDependencyCruiseMainConfig,
 } from '../utils/depcruise-config.js';
 import { exists } from '../utils/fs.js';
-import { error, info, success } from '../utils/output.js';
 
 interface SyncConfigResult {
   generatedConfig: boolean;
@@ -84,49 +83,4 @@ export function inspectConfig(
   const generated = generateDependencyCruiseConfigFile(arch);
   const onDisk = readFileSync(generatedConfigPath, 'utf8');
   return generated === onDisk ? { matches: true } : { matches: false, reason: 'drifted' };
-}
-
-/**
- * CLI command: Sync depcruise config with current project structure
- */
-
-export async function syncConfig(options: { check?: boolean } = {}): Promise<void> {
-  // Public CLI command contract is Promise<void>; body is sync today but the
-  // signature reserves room for async I/O. Token await keeps the contract honest.
-  await Promise.resolve();
-  const cwd = process.cwd();
-  const safewordDirectory = nodePath.join(cwd, '.safeword');
-
-  // Check if .safeword exists
-  if (!exists(safewordDirectory)) {
-    error('Not configured. Run `safeword setup` first.');
-    process.exit(1);
-  }
-
-  const arch = buildArchitecture(cwd);
-
-  if (options.check) {
-    const result = inspectConfig(cwd, arch);
-    if (result.matches) {
-      success('Config in sync');
-      return;
-    }
-    const message =
-      result.reason === 'missing'
-        ? 'Missing .safeword/depcruise-config.cjs — run `safeword sync-config` to generate it.'
-        : 'Stale .safeword/depcruise-config.cjs — run `safeword sync-config` to refresh.';
-    error(message);
-    process.exit(1);
-  }
-
-  const result = syncConfigCore(cwd, arch);
-
-  if (result.generatedConfig) {
-    info('Generated .safeword/depcruise-config.cjs');
-  }
-  if (result.createdMainConfig) {
-    info('Created .dependency-cruiser.cjs');
-  }
-
-  success('Config synced');
 }

@@ -1,6 +1,6 @@
 export type ReplayOption = readonly [flag: string, value: string | undefined];
 
-export function shellArgument(value: string): string {
+function shellArgument(value: string): string {
   const escapedSingleQuote = `'"'"'`;
   return `'${value.split("'").join(escapedSingleQuote)}'`;
 }

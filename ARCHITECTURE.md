@@ -67,7 +67,7 @@ ESLint configs are bundled in the main package and accessed via `import safeword
 packages/cli/
 ├── codex-plugin/    # Codex plugin bundle (manifest, hooks.json, scoped safeword:<skill> skills)
 ├── src/
-│   ├── commands/         # CLI commands (setup, upgrade, check, diff, reset, sync-config, sync-learnings, …)
+│   ├── commands/         # Typed command implementations (setup convergence, status, remove, project workflows, …)
 │   ├── learning-sync/    # Generates <namespace-root>/learnings/INDEX.md from learning files
 │   ├── packs/            # Language packs + registry
 │   │   ├── {lang}/       # index.ts, files.ts, setup.ts per language

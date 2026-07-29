@@ -5,18 +5,10 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
-import process from 'node:process';
 
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { collectExecutableFeatureFiles } from '../utils/feature-source.js';
 import { findGherkinLintIssues, type GherkinLintIssue } from '../utils/gherkin-feature.js';
-
-export function lintGherkin(files: string[]): Promise<void> {
-  const result = observeGherkinLint(process.cwd(), files);
-  for (const error of result.errors) console.error(error.message);
-  if (!result.ok) process.exit(1);
-  return Promise.resolve();
-}
 
 export function observeGherkinLint(cwd: string, files: readonly string[]): CliResult {
   const featureFiles =

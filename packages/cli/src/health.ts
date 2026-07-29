@@ -1,11 +1,9 @@
 /**
  * Config-health verification core (ticket 3293WH).
  *
- * Extracted from the `check` command so mutating commands (`setup`,
- * `upgrade`) can prove their own postcondition at exit. Deliberately
- * network-free: the npm update-check stays in commands/check.ts — a
- * postcondition check must not depend on the registry being reachable,
- * and an "update available" nag right after upgrading would be wrong.
+ * Shared by typed status and setup convergence so mutating commands can prove
+ * their own postcondition at exit. Deliberately network-free: a postcondition
+ * check must not depend on the registry being reachable.
  *
  * Uses reconcile() with dryRun to detect missing files and configuration
  * issues.

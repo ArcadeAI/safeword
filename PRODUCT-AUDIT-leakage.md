@@ -4,7 +4,7 @@
 **Branch:** `claude/safeword-product-audit-115lwo`
 **Scope (agreed):** Shippable surface only — what lands in a _customer_ project:
 `packages/cli/templates/`, `packages/cli/src/packs/`, `packages/cli/src/presets/`,
-the CLI install logic (`src/commands/setup.ts`, `src/schema.ts`), and customer-facing
+the CLI install logic (`src/commands/converge-setup.ts`, `src/schema.ts`), and customer-facing
 README sections. **Out of scope:** this repo's own dogfood config (`.safeword/`,
 `.claude/`, root `CLAUDE.md`/`AGENTS.md`/`ARCHITECTURE.md`), the website, and
 hooks being written in TypeScript and run via `bun` (accepted infrastructure — the
@@ -59,19 +59,19 @@ shipped hook comments that describe safeword's release process.
 detection runs, so `languages.javascript` is always `true` and
 `setupJavaScriptProject()` runs unconditionally. The code says so directly:
 
-- `src/commands/setup.ts:146-159` — _"Every safeword project gets one … needs a JS home even in pure Go/Rust/Python repos (ticket 102b)."_
-- `src/commands/setup.ts:460-462` — _"every project is a JS project now."_
+- `src/commands/converge-setup.ts` — `ensurePackageJson()` still creates the
+  shared JavaScript tooling host before reconciliation.
 
 Consequences a pure Python/Go/Rust repo inherits:
 
 | What gets installed                                                                                                         | Where                                                                             | Why it's a leak                                                                                         |
 | --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `package.json` (`private: true`)                                                                                            | `setup.ts:146`                                                                    | Foreign manifest in a non-JS repo                                                                       |
+| `package.json` (`private: true`)                                                                                            | `converge-setup.ts:ensurePackageJson`                                             | Foreign manifest in a non-JS repo                                                                       |
 | TS BDD lane: `cucumber.mjs`, `steps/world.ts`, `steps/shared.steps.ts`, `features/safeword-lane.feature`                    | `schema.ts` managed/owned files (`cucumber/*` templates), no language gate        | **TypeScript** step defs (`tsx/esm`, `@cucumber/cucumber`) a Python/Go/Rust team cannot run or maintain |
 | npm packages: `eslint@^9`, `prettier`, `knip`, `dependency-cruiser`, `@cucumber/cucumber`, `tsx`, `@types/node`, `safeword` | `src/packs/typescript/files.ts` base packages → `schema.ts` `packages`            | `node_modules/` + 8 dev deps in a repo with no JS                                                       |
 | `eslint.config.mjs`, `.prettierrc`, `knip.json`                                                                             | `src/packs/typescript/files.ts` generators guarded by `ctx.languages?.javascript` | Guard is **always true** post-`ensurePackageJson`, so guards never skip                                 |
 | `.jscpd.json`                                                                                                               | `schema.ts` owned file, **no** generator/guard                                    | JS/TS-oriented copy-paste detector config, no value for other langs                                     |
-| `.dependency-cruiser.cjs` / `.safeword/depcruise-config.cjs`                                                                | `setup.ts` arch build (`buildArchitecture`)                                       | CommonJS config for a JS module-boundary tool                                                           |
+| `.dependency-cruiser.cjs` / `.safeword/depcruise-config.cjs`                                                                | setup convergence architecture sync                                               | CommonJS config for a JS module-boundary tool                                                           |
 
 **Recommendation (for decision, not done here):** introduce a
 `hasNonJavaScript = python || golang || rust || sql` notion and gate the JS

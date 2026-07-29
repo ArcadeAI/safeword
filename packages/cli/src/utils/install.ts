@@ -52,14 +52,6 @@ export function detectPackageManager(cwd: string): PackageManager {
   return 'npm';
 }
 
-export function getUninstallCommand(packages: string[], cwd: string): string {
-  const pm = detectPackageManager(cwd);
-  const { uninstall } = PM_COMMANDS[pm];
-  const extraFlags = pnpmWorkspaceFlags(pm, cwd);
-  const flagString = extraFlags.length > 0 ? ` ${extraFlags.join(' ')}` : '';
-  return `${pm} ${uninstall}${flagString} ${packages.join(' ')}`;
-}
-
 export interface DependencyInstallResult {
   readonly attempted: boolean;
   readonly installed: boolean;

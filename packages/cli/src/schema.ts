@@ -259,7 +259,7 @@ const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
  * by the per-root `.gitignore` (`NAMESPACE_GITIGNORE_CONTENT`) instead, since a
  * static repo-root block cannot name an arbitrary root (issue #272).
  */
-export const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
+const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
   '.safeword/.update-cache.json',
   '.safeword/self-reports/',
   '.safeword/boundary-audit.jsonl',
