@@ -284,13 +284,13 @@ function readExisting(path: string): string | undefined {
 function decideAction(
   existing: string | undefined,
   fingerprint: string,
-  hasModules: boolean,
+  hasContent: boolean,
   matchesExisting?: (existing: string) => boolean,
 ): SelfHealAction {
   // Don't birth an empty doc: a contentless "## Modules" implies "no modules",
   // which is false for a monorepo the single-repo extractor can't read yet.
   // An existing doc still heals toward empty (orphan markers show real removals).
-  if (existing === undefined) return hasModules ? 'created' : 'noop';
+  if (existing === undefined) return hasContent ? 'created' : 'noop';
 
   // Never touch a document safeword does not own — a hand-written architecture
   // doc has no generator marker and must be left exactly as-is.
