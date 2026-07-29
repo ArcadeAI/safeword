@@ -20,6 +20,6 @@
 
 **Experience:** ⏭️ N/A — internal contributor tooling.
 
-**Evidence limits:** ✅ None — the full CI matrix passed: Dogfood parity, lint, and test jobs on Node 22.22.3 and Node 24 ([run 30429519111](https://github.com/ArcadeAI/safeword/actions/runs/30429519111)).
+**Evidence limits:** ✅ None — the full CI matrix passed: Dogfood parity, lint, and test jobs on Node 22.22.3 and Node 24 ([PR #1616 checks](https://github.com/ArcadeAI/safeword/pull/1616/checks), which always resolve to the merged head).
 
 Audit passed — diff-scoped audit found no architecture or configuration issue; this review follow-up changes only contributor documentation, its contract test, and ticket evidence.

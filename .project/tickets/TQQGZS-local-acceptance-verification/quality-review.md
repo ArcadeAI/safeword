@@ -80,7 +80,7 @@
 **Provenance:**
 
 - (verified: https://bun.sh/docs/runtime) — fetched 2026-07-29; `bun run <script>` executes named package scripts.
-- (verified: `.github/workflows/ci.yml` and CI run 30429519111) — current CI covers build, unit, acceptance, install-proof, release-gate, lint, and dogfood parity lanes.
+- (verified: `.github/workflows/ci.yml` and [this PR's CI checks](https://github.com/ArcadeAI/safeword/pull/1616/checks)) — current CI covers build, unit, acceptance, install-proof, release-gate, lint, and dogfood parity lanes.
 - (verified: `README.md`, `package.json`, and `packages/cli/package.json`) — each documented command resolves only from its labelled directory.
 
 **Next:** Commit the evidence refresh, rerun the focused contract test and lint, then resolve the Round-2 review threads.
