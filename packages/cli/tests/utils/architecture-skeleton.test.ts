@@ -374,6 +374,37 @@ describe('extractSkeleton — Rust layout (ticket YKFA5X)', () => {
 
     expect(skeleton.nodes).toEqual([]);
   });
+
+  it('seeds a Rust file module from its leading inner documentation comment', () => {
+    writeCargo(context.directory);
+    mkdirSync(nodePath.join(context.directory, 'src'), { recursive: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'src', 'config.rs'),
+      '//! Coordinates application configuration. Extra detail.\npub fn load() {}\n',
+    );
+
+    expect(extractSkeleton(context.directory).nodes).toContainEqual({
+      name: 'config',
+      path: 'src/config.rs',
+      purpose: 'Coordinates application configuration.',
+      seededPurpose: true,
+    });
+  });
+
+  it('does not treat a Rust outer item documentation comment as module documentation', () => {
+    writeCargo(context.directory);
+    mkdirSync(nodePath.join(context.directory, 'src'), { recursive: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'src', 'config.rs'),
+      '/** Documents the following function, not the module. */\npub fn load() {}\n',
+    );
+
+    expect(extractSkeleton(context.directory).nodes).toContainEqual({
+      name: 'config',
+      path: 'src/config.rs',
+      purpose: 'No description yet — awaiting prose.',
+    });
+  });
 });
 
 describe('extractSkeleton — Python layout (ticket HWSEPV)', () => {
@@ -419,6 +450,22 @@ describe('extractSkeleton — Python layout (ticket HWSEPV)', () => {
     writeFileSync(nodePath.join(context.directory, 'thing.py'), '');
 
     expect(extractSkeleton(context.directory).nodes).toEqual([]);
+  });
+
+  it('seeds a Python file module from its module docstring', () => {
+    writePyproject(context.directory);
+    mkdirSync(nodePath.join(context.directory, 'src'), { recursive: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'src', 'jobs.py'),
+      '"""Runs scheduled jobs. Extra detail."""\n\ndef run():\n    pass\n',
+    );
+
+    expect(extractSkeleton(context.directory).nodes).toContainEqual({
+      name: 'jobs',
+      path: 'src/jobs.py',
+      purpose: 'Runs scheduled jobs.',
+      seededPurpose: true,
+    });
   });
 });
 

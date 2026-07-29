@@ -291,32 +291,104 @@ function jsModuleName(filename: string): string {
   return filename.slice(0, filename.lastIndexOf('.'));
 }
 
-/** A source-file node, using its leading documentation comment as an initial purpose when present. */
+/** A source-file node, using its leading module documentation as an initial purpose when present. */
 function sourceFileNode(name: string, path: string, absolutePath: string): SkeletonNode {
-  const purpose = purposeFromLeadingDocumentComment(absolutePath);
+  const purpose = purposeFromLeadingDocumentation(absolutePath);
   return purpose === undefined
     ? { name, path, purpose: PURPOSE_PLACEHOLDER }
     : { name, path, purpose, seededPurpose: true };
 }
 
 /**
- * The first sentence from a file's leading JSDoc comment. This deliberately
- * reads only a comment at the start of the file (apart from whitespace/BOM),
- * never arbitrary source comments, so the generated purpose is deterministic
- * and visibly intentional rather than a guess about implementation details.
+ * The first sentence from a file's language-native module documentation. This
+ * deliberately reads only documentation at the start of the file, never
+ * arbitrary source comments, so the generated purpose is deterministic and
+ * visibly intentional rather than a guess about implementation details.
  */
-function purposeFromLeadingDocumentComment(path: string): string | undefined {
+function purposeFromLeadingDocumentation(path: string): string | undefined {
   const content = readFileSafe(path);
-  const body = /^\s*\/\*\*([\s\S]*?)\*\//.exec(content ?? '')?.[1];
+  if (content === undefined) return undefined;
+
+  const extension = nodePath.extname(path);
+  let body: string | undefined;
+  if (extension === '.rs') {
+    body = rustModuleDocumentation(content);
+  } else if (extension === '.py') {
+    body = pythonModuleDocumentation(content);
+  } else {
+    body = jsModuleDocumentation(content);
+  }
   if (body === undefined) return undefined;
-  const text = body
+
+  const text = documentationText(body);
+  if (text.length === 0) return undefined;
+  return /^(.+?[.!?])(?:\s|$)/.exec(text)?.[1] ?? text;
+}
+
+/** Leading JSDoc is the module-level documentation convention used by JS/TS files here. */
+function jsModuleDocumentation(content: string): string | undefined {
+  return /^\s*\/\*\*([\s\S]*?)\*\//.exec(content)?.[1];
+}
+
+/**
+ * Rust module documentation uses inner doc comments. Outer line and block doc
+ * comments document the following item and must not be attributed to the file module.
+ */
+function rustModuleDocumentation(content: string): string | undefined {
+  const start = withoutByteOrderMark(content).trimStart();
+  if (start.startsWith('/*!')) {
+    const end = start.indexOf('*/', 3);
+    return end === -1 ? undefined : start.slice(3, end);
+  }
+  if (!start.startsWith('//!')) return undefined;
+
+  const documentationLines: string[] = [];
+  for (const line of start.split(/\r?\n/)) {
+    const trimmed = line.trimStart();
+    if (!trimmed.startsWith('//!')) break;
+    documentationLines.push(trimmed.slice(3).trimStart());
+  }
+  return documentationLines.join('\n');
+}
+
+/** A Python module's docstring is its first statement, after comments and blank lines. */
+function pythonModuleDocumentation(content: string): string | undefined {
+  const start = afterLeadingPythonTrivia(withoutByteOrderMark(content));
+  const opening = /^[ru]{0,2}("""|''')/i.exec(start);
+  const delimiter = opening?.[1];
+  if (opening === null || delimiter === undefined) return undefined;
+
+  const bodyStart = opening[0].length;
+  const bodyEnd = start.indexOf(delimiter, bodyStart);
+  return bodyEnd === -1 ? undefined : start.slice(bodyStart, bodyEnd);
+}
+
+/** Remove the optional Unicode byte-order mark accepted at the start of source files. */
+function withoutByteOrderMark(content: string): string {
+  return content.startsWith('\u{FEFF}') ? content.slice(1) : content;
+}
+
+/** Skip the comments and blank lines Python permits before a module docstring. */
+function afterLeadingPythonTrivia(content: string): string {
+  let remaining = content;
+  while (remaining.length > 0) {
+    const lineEnd = remaining.indexOf('\n');
+    const line = lineEnd === -1 ? remaining : remaining.slice(0, lineEnd);
+    const trimmed = line.trim();
+    if (trimmed.length > 0 && !trimmed.startsWith('#')) break;
+    remaining = lineEnd === -1 ? '' : remaining.slice(lineEnd + 1);
+  }
+  return remaining.trimStart();
+}
+
+/** Normalize documentation decoration and whitespace into prose. */
+function documentationText(body: string): string {
+  return body
     .split(/\r?\n/)
     .map(line => line.replace(/^\s*\*\s?/, '').trim())
     .filter(Boolean)
     .join(' ')
     .trim();
-  if (text.length === 0) return undefined;
-  return /^(.+?[.!?])(?:\s|$)/.exec(text)?.[1] ?? text;
 }
 
 /** The recognized Go layout directories that actually exist, as sorted nodes. */
