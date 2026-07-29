@@ -31,7 +31,6 @@ import { createTemporaryDirectory, removeTemporaryDirectory, TIMEOUT_QUICK } fro
 // This matches the pattern used in quality-gates.test.ts.
 const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 const STOP_QUALITY = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/stop-quality.ts');
-const PROMPT_QUESTIONS = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/prompt-questions.ts');
 const FIXTURE_PATH = nodePath.join(import.meta.dirname, '../fixtures/stop-hook-transcript.jsonl');
 const REAL_ENVELOPE = {
   isSidechain: false,
@@ -131,16 +130,6 @@ function runStopHook(directory: string, transcriptPath: string, sessionId?: stri
       transcript_path: transcriptPath,
       last_assistant_message: 'Here is what I changed.',
     }),
-    cwd: directory,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: directory },
-    encoding: 'utf8',
-    timeout: TIMEOUT_QUICK,
-  });
-}
-
-function runPromptQuestionsHook(directory: string, sessionId: string) {
-  return spawnSync('bun', [PROMPT_QUESTIONS], {
-    input: JSON.stringify({ session_id: sessionId, prompt: 'Continue with the next change.' }),
     cwd: directory,
     env: { ...process.env, CLAUDE_PROJECT_DIR: directory },
     encoding: 'utf8',
