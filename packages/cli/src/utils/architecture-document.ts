@@ -69,7 +69,7 @@ function frontmatterBody(content: string): string | undefined {
  * Exact-line match so a different generator (e.g. `safeword-architecture-v2`)
  * is not mistaken for this one.
  */
-function isSafewordOwned(content: string): boolean {
+export function isSafewordOwned(content: string): boolean {
   return (
     frontmatterBody(content)?.split(/\r?\n/).includes(`${GENERATOR_KEY}: ${GENERATOR_VALUE}`) ??
     false

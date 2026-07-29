@@ -493,6 +493,21 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
     expect(repeatedDocument).toBe(restored);
   });
 
+  it('does not overwrite a foreign worktree document in --staged mode', async () => {
+    selfHeal(context.directory);
+    commitAll(context.directory, 'record current architecture');
+    const generatedPath = resolveGeneratedArchitecturePath(context.directory);
+    const foreign = '# Human Architecture\n\nDO NOT DELETE THIS TEXT\n';
+    writeFileSync(generatedPath, foreign);
+
+    const result = await runCli(['architecture', '--staged'], { cwd: context.directory });
+
+    expect(result.exitCode).toBe(1);
+    expect(`${result.stdout}\n${result.stderr}`).toContain('not owned by Safeword');
+    expect(readFileSync(generatedPath, 'utf8')).toBe(foreign);
+    expect(stagedFiles(context.directory)).not.toContain(DOC_RELATIVE);
+  });
+
   it('includes skip-worktree entries when exporting the staged tree', async () => {
     mkdirSync(nodePath.join(context.directory, 'src', 'billing'), { recursive: true });
     writeFileSync(
@@ -812,21 +827,26 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
     },
   );
 
-  it.each(['--stage', '--staged'])(
+  it.each([
+    ['--stage', 0],
+    ['--staged', 1],
+  ])(
     'does not overwrite an external inode through a worktree hard link in %s mode',
-    async mode => {
+    async (mode, expectedExitCode) => {
       const externalRoot = createTemporaryDirectory();
       try {
         const externalDocument = nodePath.join(externalRoot, 'architecture.generated.md');
         const sentinel = 'external sentinel\n';
         writeFileSync(externalDocument, sentinel);
         mkdirSync(nodePath.join(context.directory, '.project'));
-        linkSync(externalDocument, resolveGeneratedArchitecturePath(context.directory));
+        const generatedPath = resolveGeneratedArchitecturePath(context.directory);
+        linkSync(externalDocument, generatedPath);
 
         const result = await runCli(['architecture', mode], { cwd: context.directory });
 
-        expect(result.exitCode).toBe(0);
+        expect(result.exitCode).toBe(expectedExitCode);
         expect(readFileSync(externalDocument, 'utf8')).toBe(sentinel);
+        expect(readFileSync(generatedPath, 'utf8')).toBe(sentinel);
       } finally {
         removeTemporaryDirectory(externalRoot);
       }

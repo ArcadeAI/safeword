@@ -38,6 +38,7 @@ import nodePath from 'node:path';
 import process from 'node:process';
 
 import {
+  isSafewordOwned,
   isWouldChangeAction,
   planSelfHealProject,
   selfHealProject,
@@ -464,6 +465,7 @@ interface IndexMaterializationPolicy {
   preservePriorStructure: boolean;
   writeUnchanged: boolean;
   captureDivergentContent: boolean;
+  protectForeignDestination: boolean;
 }
 
 interface MaterializedIndexResult extends SelfHealResult {
@@ -567,6 +569,15 @@ function preflightIndexMaterializations(
     if (!plan.shouldWrite) continue;
     assertPhysicalContainment(cwd, plan.destination);
     plan.priorWorktreeState = readWorktreeDocumentState(plan.destination);
+    if (
+      policy.protectForeignDestination &&
+      plan.priorWorktreeState.existed &&
+      !isSafewordOwned(plan.priorWorktreeState.content)
+    ) {
+      throw new Error(
+        `Architecture document is not owned by Safeword and was left unchanged: ${plan.destination}`,
+      );
+    }
     plan.restoreWorktreeContent =
       policy.captureDivergentContent && isWouldChangeAction(plan.result.action)
         ? readDivergentWorktreeContent(cwd, plan.destination)
@@ -582,6 +593,7 @@ function indexMaterializationPolicy(mode: IndexMaterializationMode): IndexMateri
         preservePriorStructure: false,
         writeUnchanged: false,
         captureDivergentContent: true,
+        protectForeignDestination: false,
       };
     }
     case 'restore-staged-tree': {
@@ -590,6 +602,7 @@ function indexMaterializationPolicy(mode: IndexMaterializationMode): IndexMateri
         preservePriorStructure: true,
         writeUnchanged: true,
         captureDivergentContent: false,
+        protectForeignDestination: true,
       };
     }
   }
