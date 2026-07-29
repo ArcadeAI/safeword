@@ -231,7 +231,7 @@ function topLevelJsModuleNodes(projectDirectory: string): SkeletonNode[] {
 function jsFileNodes(
   entries: Dirent[],
   pathFor: (entryName: string) => string,
-  excludeTests = false,
+  excludeTests: boolean,
   sourceDirectory: string,
 ): SkeletonNode[] {
   const files = entries
