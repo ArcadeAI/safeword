@@ -22,7 +22,7 @@ an explicit disposition so no scout finding is silently dropped.
 - [x] R10 Name service request-boundary limits without changing validation order.
 - [x] R11 Replace repeated manual deferred-promise setup with the existing test
       helper.
-- [ ] R12 Extract the repeated dead-letter fixture transition in CLI command
+- [x] R12 Extract the repeated dead-letter fixture transition in CLI command
       tests while preserving byte-for-byte assertions.
 
 ## Explicitly deferred

@@ -63,6 +63,17 @@ function deadLetterRelayPath(projectDirectory: string, requestId: string): strin
   );
 }
 
+function movePersistedRequestToDeadLetter(persisted: { path: string }): {
+  deadLetter: string;
+  originalBytes: Buffer;
+} {
+  const deadLetter = persisted.path.replace(/\.json$/u, '.dead-letter.json');
+  const originalBytes = readFileSync(persisted.path);
+  writeFileSync(deadLetter, originalBytes);
+  rmSync(persisted.path);
+  return { deadLetter, originalBytes };
+}
+
 // Compact in-memory transport — only the network boundary is faked.
 class FakeGitHub implements IssueTracker {
   private nextIssue = 1;
@@ -1267,9 +1278,7 @@ describe('relay dead-letter recovery command', () => {
       { now: Date.now, randomUUID: () => '00000000-0000-4000-8000-000000001479' },
     );
     const persisted = await persistRelayRequest(projectDirectory, original);
-    const deadLetter = persisted.path.replace(/\.json$/u, '.dead-letter.json');
-    writeFileSync(deadLetter, readFileSync(persisted.path));
-    rmSync(persisted.path);
+    movePersistedRequestToDeadLetter(persisted);
     const messages: string[] = [];
 
     try {
@@ -1313,9 +1322,7 @@ describe('relay dead-letter recovery command', () => {
       { now: () => 0, randomUUID: () => '00000000-0000-4000-8000-000000001481' },
     );
     const persisted = await persistRelayRequest(projectDirectory, original);
-    const deadLetter = persisted.path.replace(/\.json$/u, '.dead-letter.json');
-    writeFileSync(deadLetter, readFileSync(persisted.path));
-    rmSync(persisted.path);
+    movePersistedRequestToDeadLetter(persisted);
     const send = vi.fn<typeof fetch>((_input, init) => {
       expect(Buffer.from(init?.body as Uint8Array).toString('utf8')).toContain(original.requestId);
       expect(init?.signal).toBeInstanceOf(AbortSignal);
@@ -1365,9 +1372,7 @@ describe('relay dead-letter recovery command', () => {
       { now: () => 0, randomUUID: () => '00000000-0000-4000-8000-000000001482' },
     );
     const persisted = await persistRelayRequest(projectDirectory, original);
-    const deadLetter = persisted.path.replace(/\.json$/u, '.dead-letter.json');
-    writeFileSync(deadLetter, readFileSync(persisted.path));
-    rmSync(persisted.path);
+    movePersistedRequestToDeadLetter(persisted);
 
     const requestedUrls: string[] = [];
     const send = vi.fn<typeof fetch>((input, _init) => {
@@ -1434,9 +1439,7 @@ describe('relay dead-letter recovery command', () => {
       { now: () => 0, randomUUID: () => '00000000-0000-4000-8000-000000001483' },
     );
     const persisted = await persistRelayRequest(projectDirectory, original);
-    const deadLetter = persisted.path.replace(/\.json$/u, '.dead-letter.json');
-    writeFileSync(deadLetter, readFileSync(persisted.path));
-    rmSync(persisted.path);
+    movePersistedRequestToDeadLetter(persisted);
     const sent: RelayDraftRequest[] = [];
     const send = vi.fn<typeof fetch>((_input, init) => {
       const request = JSON.parse(
@@ -1498,10 +1501,7 @@ describe('relay dead-letter recovery command', () => {
       { now: () => 0, randomUUID: () => '00000000-0000-4000-8000-000000001484' },
     );
     const persisted = await persistRelayRequest(projectDirectory, original);
-    const deadLetter = persisted.path.replace(/\.json$/u, '.dead-letter.json');
-    const originalBytes = readFileSync(persisted.path);
-    writeFileSync(deadLetter, originalBytes);
-    rmSync(persisted.path);
+    const { deadLetter, originalBytes } = movePersistedRequestToDeadLetter(persisted);
     const send = vi.fn<typeof fetch>(() =>
       Promise.resolve(
         Response.json(
@@ -1742,9 +1742,7 @@ describe('relay dead-letter recovery command', () => {
       { now: () => 0, randomUUID: () => '00000000-0000-4000-8000-000000001485' },
     );
     const persisted = await persistRelayRequest(projectDirectory, original);
-    const deadLetter = persisted.path.replace(/\.json$/u, '.dead-letter.json');
-    writeFileSync(deadLetter, readFileSync(persisted.path));
-    rmSync(persisted.path);
+    movePersistedRequestToDeadLetter(persisted);
     const requestedUrls: string[] = [];
     const send = vi.fn<typeof fetch>(input => {
       let url: string;
@@ -1867,9 +1865,7 @@ describe('relay dead-letter recovery command', () => {
       { now: Date.now, randomUUID: () => '00000000-0000-4000-8000-000000001480' },
     );
     const persisted = await persistRelayRequest(projectDirectory, original);
-    const deadLetter = persisted.path.replace(/\.json$/u, '.dead-letter.json');
-    writeFileSync(deadLetter, readFileSync(persisted.path));
-    rmSync(persisted.path);
+    movePersistedRequestToDeadLetter(persisted);
 
     try {
       const listedDeadLetter = spawnSync(
