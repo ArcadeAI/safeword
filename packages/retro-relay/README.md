@@ -138,10 +138,13 @@ reservations only when isolating a corrupt durable record. Back up and restore
 the entire `$SAFEWORD_RETRO_RELAY_OUTBOX/.safeword/retro-drafts/relay`
 directory as one unit. Selective or partial restoration of individual spool
 files is outside the durability contract. New files are flushed and every
-new spool-directory entry, link, rename, and unlink is followed by a
-containing-directory sync before success is reported. The configured outbox is
-resolved to its physical path; symlink aliases into the disposable project are
-rejected.
+durable-state entry, link, rename, and unlink is followed by a
+containing-directory sync before success is reported. Removing an atomic-write
+temporary after its durable target is linked is best-effort cleanup, not a
+state transition; a crash may leave that temporary behind, and recovery removes
+only relay-owned UUID temporaries older than one minute. The configured outbox
+is resolved to its physical path; symlink aliases into the disposable project
+are rejected.
 
 If one durable identity is corrupt, inspect it first and then explicitly remove
 only that identity with

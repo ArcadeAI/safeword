@@ -312,17 +312,23 @@ exactly-once delivery to an external logger.
 
 ## Client-spool recovery and configuration
 
-One retro run recovers the client spool once, snapshots the active and
-dead-letter identities once, and uses that snapshot for the whole persistence
-batch. Delivery reuses one recovered snapshot for its drain. This keeps the
-one-second Stop-hook budget bounded by the batch and backlog sizes instead of
-rescanning the full backlog for every finding.
+Each phase of one retro run recovers the client spool once. Persistence indexes
+the recovered active and dead-letter identities by source, durably reserves the
+whole finding batch, and takes one coordinated post-reservation state snapshot.
+Delivery independently recovers once so it can observe concurrent changes,
+then reuses that snapshot for its drain. Snapshot file reads are parallel while
+their sorted result order is retained. This keeps the one-second Stop-hook
+budget bounded by the batch and backlog sizes instead of rescanning the full
+backlog for every finding.
 
 Atomic-write recovery removes only temporary files with the relay's UUID
 suffix that are at least one minute old; newer files may belong to a live
-writer and remain untouched. A durable rename synchronizes the destination
-directory entry and, when source and destination differ, the source directory
-entry as well. The filesystem root is never a valid client outbox.
+writer and remain untouched. Once an atomic write has flushed its file and
+linked and synchronized the durable target, removing its temporary is
+best-effort cleanup; recovery owns crash leftovers. A durable rename
+synchronizes the destination directory entry and, when source and destination
+differ, the source directory entry as well. The filesystem root is never a
+valid client outbox.
 
 When relay readiness is enabled, any explicitly configured but incomplete or
 invalid relay environment fails visibly instead of silently selecting native

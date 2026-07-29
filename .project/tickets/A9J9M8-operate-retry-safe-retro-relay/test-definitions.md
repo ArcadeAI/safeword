@@ -353,3 +353,23 @@ Feature source: `features/operate-retry-safe-retro-relay.feature`
 - [x] RED 1c2449cbb
 - [x] GREEN 4428378aa
 - [x] REFACTOR skip: the ownership-loss diagnostic is already one explicit branch
+
+## 2026-07-29 fifth-round independent re-review regressions
+
+### Scenario: A production batch takes one coordinated post-reservation state snapshot
+
+- [x] RED ec5b198c4
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Invalid enabled relay configuration stops the real command before collaborators run
+
+- [x] RED ec5b198c4
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A real filesystem ownership race emits failed-rearm recovery guidance
+
+- [x] RED ec5b198c4
+- [ ] GREEN
+- [ ] REFACTOR

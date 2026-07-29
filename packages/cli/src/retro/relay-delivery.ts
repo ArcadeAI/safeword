@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { access, readdir, readFile, stat } from 'node:fs/promises';
+import { access, readdir, readFile, stat, unlink } from 'node:fs/promises';
 import path from 'node:path';
 
 import {
@@ -7,7 +7,6 @@ import {
   linkDurable,
   mkdirDurable,
   renameDurable,
-  syncDirectoryDurable,
   unlinkDurable,
   writeNewDurable,
 } from './durable-fs.js';
@@ -39,6 +38,7 @@ const ATOMIC_TEMPORARY_STALE_MS = 60_000;
 const DISCARD_CLAIM_LEASE_MS = 60_000;
 const DISCARD_INTENT_LEASE_MS = 60_000;
 const RECOVERY_CLAIM_LEASE_MS = 60_000;
+const RELAY_SNAPSHOT_READ_CONCURRENCY = 64;
 const RELAY_RETRY_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export function normalizeRelayOrigin(value: string): string | undefined {
@@ -262,11 +262,18 @@ async function writeAtomic(
       return true;
     } catch (error) {
       if (errorCode(error) !== 'EEXIST') throw error;
-      await syncDirectoryDurable(path.dirname(file), faults);
       return false;
     }
   } finally {
-    await removeIfPresent(temporary);
+    await removeAtomicTemporary(temporary);
+  }
+}
+
+async function removeAtomicTemporary(temporary: string): Promise<void> {
+  try {
+    await unlink(temporary);
+  } catch (error) {
+    if (errorCode(error) !== 'ENOENT') throw error;
   }
 }
 
@@ -694,12 +701,23 @@ async function materializeReservedRequest(
   directory: string,
   draft: RelayDraftInput,
   reservation: Extract<RelaySourceReservation, { state: 'active' }>,
+  filenames?: string[],
 ): Promise<RelayDraftRequest | undefined> {
   const requestId = reservation.request.requestId;
-  if (await discardBlocksRequest(projectDirectory, requestId)) return undefined;
+  if (
+    filenames === undefined
+      ? await discardBlocksRequest(projectDirectory, requestId)
+      : await discardBlocksRequestAtSnapshot(projectDirectory, filenames, requestId)
+  ) {
+    return undefined;
+  }
   const currentReservation = await loadSourceReservation(projectDirectory, draft);
   if (currentReservation?.state !== 'active') return undefined;
-  const currentState = reservedRequestState(directory, await sortedFilenames(directory), requestId);
+  const currentState = reservedRequestState(
+    directory,
+    filenames ?? (await sortedFilenames(directory)),
+    requestId,
+  );
   if (currentState.kind !== 'missing') {
     return resolveExistingReservedState(projectDirectory, currentReservation, currentState);
   }
@@ -719,16 +737,24 @@ async function resolveSourceReservation(
   projectDirectory: string,
   draft: RelayDraftInput,
   reservation: RelaySourceReservation,
-  options: { faultAfterStateSnapshot?: () => Promise<void> } = {},
+  options: { faultAfterStateSnapshot?: () => Promise<void>; filenames?: string[] } = {},
 ): Promise<RelayDraftRequest | undefined> {
   validateSourceReservation(reservation, draft);
   if (reservation.state !== 'active') return undefined;
-  if (await discardBlocksRequest(projectDirectory, reservation.request.requestId)) {
+  if (
+    options.filenames === undefined
+      ? await discardBlocksRequest(projectDirectory, reservation.request.requestId)
+      : await discardBlocksRequestAtSnapshot(
+          projectDirectory,
+          options.filenames,
+          reservation.request.requestId,
+        )
+  ) {
     return undefined;
   }
   if (await compactIfAcknowledged(projectDirectory, reservation.request)) return undefined;
   const directory = relayDirectory(projectDirectory);
-  const filenames = await sortedFilenames(directory);
+  const filenames = options.filenames ?? (await sortedFilenames(directory));
   await options.faultAfterStateSnapshot?.();
   const requestId = reservation.request.requestId;
   const state = reservedRequestState(directory, filenames, requestId);
@@ -736,21 +762,35 @@ async function resolveSourceReservation(
     return resolveExistingReservedState(projectDirectory, reservation, state);
   }
   if (await compactIfAcknowledged(projectDirectory, reservation.request)) return undefined;
-  return materializeReservedRequest(projectDirectory, directory, draft, reservation);
+  return materializeReservedRequest(projectDirectory, directory, draft, reservation, filenames);
 }
 
-async function reserveSource(
+function discardIntentInSnapshot(filenames: string[], requestId: string): boolean {
+  return filenames.some(filename => parseDiscardIntent(filename)?.requestId === requestId);
+}
+
+async function discardBlocksRequestAtSnapshot(
+  projectDirectory: string,
+  filenames: string[],
+  requestId: string,
+): Promise<boolean> {
+  return (
+    (await exists(discardedPath(projectDirectory, requestId))) ||
+    discardIntentInSnapshot(filenames, requestId)
+  );
+}
+
+async function acquireSourceReservation(
   projectDirectory: string,
   draft: RelayDraftInput,
   reservation: RelaySourceReservation,
-  options: { faultAfterStateSnapshot?: () => Promise<void> } = {},
-): Promise<RelayDraftRequest | undefined> {
+): Promise<RelaySourceReservation> {
   const file = sourceReservationPath(projectDirectory, draft.sourceKey);
   const written = await writeAtomic(file, Buffer.from(JSON.stringify(reservation), 'utf8'));
-  if (written) return resolveSourceReservation(projectDirectory, draft, reservation, options);
+  if (written) return reservation;
   const winner = await loadSourceReservation(projectDirectory, draft);
   if (winner === undefined) throw new Error('relay source reservation disappeared');
-  return resolveSourceReservation(projectDirectory, draft, winner, options);
+  return winner;
 }
 
 async function compactSourceReservation(
@@ -839,13 +879,28 @@ export async function persistRelayDraft(
 
 async function prepareRelayDraftPersistence(projectDirectory: string): Promise<{
   directory: string;
-  durableRequests: { bytes: Buffer; requestId: string }[];
+  durableRequestsBySource: Map<string, RelayDraftRequest>;
 }> {
   const { active, deadLetters, directory } = await recoveredRelayQueueSnapshot(
     projectDirectory,
     Date.now(),
   );
-  return { directory, durableRequests: [...active, ...deadLetters] };
+  const durableRequests = [...active, ...deadLetters];
+  const corrupt = durableRequests.filter(candidate => parseDurableRequest(candidate) === undefined);
+  if (corrupt.length > 0) {
+    const reservedIds = await reservedRequestIds(directory);
+    if (corrupt.some(candidate => !reservedIds.has(candidate.requestId))) {
+      throw new Error('relay spool contains an unreserved corrupt durable identity record');
+    }
+  }
+  const durableRequestsBySource = new Map<string, RelayDraftRequest>();
+  for (const candidate of durableRequests) {
+    const request = parseDurableRequest(candidate);
+    if (request !== undefined && !durableRequestsBySource.has(request.sourceKey)) {
+      durableRequestsBySource.set(request.sourceKey, request);
+    }
+  }
+  return { directory, durableRequestsBySource };
 }
 
 async function recoveredRelayQueueSnapshot(
@@ -866,58 +921,36 @@ async function recoveredRelayQueueSnapshot(
   return { active, deadLetters, directory };
 }
 
-async function persistRelayDraftFromSnapshot(
+async function acquireRelayDraftReservation(
   projectDirectory: string,
   draft: RelayDraftInput,
   snapshot: Awaited<ReturnType<typeof prepareRelayDraftPersistence>>,
-  options: { faultAfterStateSnapshot?: () => Promise<void> },
-): Promise<RelayDraftRequest | undefined> {
+): Promise<RelaySourceReservation> {
   const reserved = await loadSourceReservation(projectDirectory, draft);
-  if (reserved !== undefined) {
-    return resolveSourceReservation(projectDirectory, draft, reserved, options);
-  }
-  let reservedIds: Set<string> | undefined;
-  for (const candidate of snapshot.durableRequests) {
-    const request = parseDurableRequest(candidate);
-    if (request === undefined) {
-      reservedIds ??= await reservedRequestIds(snapshot.directory);
-      if (!reservedIds.has(candidate.requestId)) {
-        throw new Error('relay spool contains an unreserved corrupt durable identity record');
-      }
-      continue;
-    }
-    if (request.sourceKey !== draft.sourceKey) continue;
+  if (reserved !== undefined) return reserved;
+  const request = snapshot.durableRequestsBySource.get(draft.sourceKey);
+  if (request !== undefined) {
     if (!sameRelayDraft(request, draft)) {
       throw new Error('relay source identity was reused with a different payload');
     }
-    return reserveSource(
-      projectDirectory,
-      draft,
-      {
-        request,
-        requestHash: relayRequestDigest(request),
-        sourceKey: draft.sourceKey,
-        sourcePayloadHash: relaySourcePayloadDigest(draft),
-        state: 'active',
-        version: 1,
-      },
-      options,
-    );
-  }
-  const request = createRelayRequest(draft);
-  return reserveSource(
-    projectDirectory,
-    draft,
-    {
+    return acquireSourceReservation(projectDirectory, draft, {
       request,
       requestHash: relayRequestDigest(request),
       sourceKey: draft.sourceKey,
       sourcePayloadHash: relaySourcePayloadDigest(draft),
       state: 'active',
       version: 1,
-    },
-    options,
-  );
+    });
+  }
+  const created = createRelayRequest(draft);
+  return acquireSourceReservation(projectDirectory, draft, {
+    request: created,
+    requestHash: relayRequestDigest(created),
+    sourceKey: draft.sourceKey,
+    sourcePayloadHash: relaySourcePayloadDigest(draft),
+    state: 'active',
+    version: 1,
+  });
 }
 
 export async function persistRelayDraftBatch(
@@ -931,8 +964,30 @@ export async function persistRelayDraftBatch(
   } catch (error) {
     return drafts.map(() => ({ reason: error, status: 'rejected' }));
   }
-  return Promise.allSettled(
-    drafts.map(draft => persistRelayDraftFromSnapshot(projectDirectory, draft, snapshot, options)),
+  const reservations = await Promise.allSettled(
+    drafts.map(draft => acquireRelayDraftReservation(projectDirectory, draft, snapshot)),
+  );
+  const filenames = await sortedFilenames(snapshot.directory);
+  await options.faultAfterStateSnapshot?.();
+  return Promise.all(
+    reservations.map(async (reservation, index) => {
+      if (reservation.status !== 'fulfilled') return reservation;
+      const sourceReservation = reservation.value;
+      const draft = drafts[index];
+      if (draft === undefined) {
+        return { reason: new Error('relay persistence batch lost a draft'), status: 'rejected' };
+      }
+      try {
+        return {
+          status: 'fulfilled',
+          value: await resolveSourceReservation(projectDirectory, draft, sourceReservation, {
+            filenames,
+          }),
+        };
+      } catch (error) {
+        return { reason: error, status: 'rejected' };
+      }
+    }),
   );
 }
 
@@ -1563,18 +1618,12 @@ async function relayRequestsFromFilenames(
   directory: string,
   filenames: string[],
 ): Promise<{ bytes: Buffer; requestId: string }[]> {
-  const requests: { bytes: Buffer; requestId: string }[] = [];
-  for (const filename of filenames) {
-    const requestId =
-      parsePrimary(filename) ?? parseMaterializing(filename) ?? parseClaim(filename)?.requestId;
-    if (requestId === undefined) continue;
-    try {
-      requests.push({ bytes: await readFile(path.join(directory, filename)), requestId });
-    } catch (error) {
-      if (errorCode(error) !== 'ENOENT') throw error;
-    }
-  }
-  return requests;
+  return readRelayFiles(
+    directory,
+    filenames,
+    filename =>
+      parsePrimary(filename) ?? parseMaterializing(filename) ?? parseClaim(filename)?.requestId,
+  );
 }
 
 export async function listRelayDeadLetters(
@@ -1651,15 +1700,35 @@ async function relayDeadLettersFromFilenames(
   directory: string,
   filenames: string[],
 ): Promise<{ bytes: Buffer; requestId: string }[]> {
+  return readRelayFiles(directory, filenames, parseDeadLetter);
+}
+
+async function readRelayFiles(
+  directory: string,
+  filenames: string[],
+  requestIdFor: (filename: string) => string | undefined,
+): Promise<{ bytes: Buffer; requestId: string }[]> {
+  const candidates = filenames.flatMap(filename => {
+    const requestId = requestIdFor(filename);
+    return requestId === undefined ? [] : [{ filename, requestId }];
+  });
   const requests: { bytes: Buffer; requestId: string }[] = [];
-  for (const filename of filenames) {
-    const requestId = parseDeadLetter(filename);
-    if (requestId === undefined) continue;
-    try {
-      requests.push({ bytes: await readFile(path.join(directory, filename)), requestId });
-    } catch (error) {
-      if (errorCode(error) !== 'ENOENT') throw error;
-    }
+  for (let index = 0; index < candidates.length; index += RELAY_SNAPSHOT_READ_CONCURRENCY) {
+    const chunk = candidates.slice(index, index + RELAY_SNAPSHOT_READ_CONCURRENCY);
+    const results = await Promise.all(
+      chunk.map(async ({ filename, requestId }) => {
+        try {
+          return {
+            found: true as const,
+            request: { bytes: await readFile(path.join(directory, filename)), requestId },
+          };
+        } catch (error) {
+          if (errorCode(error) === 'ENOENT') return { found: false as const };
+          throw error;
+        }
+      }),
+    );
+    requests.push(...results.flatMap(result => (result.found ? [result.request] : [])));
   }
   return requests;
 }
