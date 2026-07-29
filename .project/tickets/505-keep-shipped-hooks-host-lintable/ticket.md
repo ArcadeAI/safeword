@@ -2,11 +2,11 @@
 id: 505
 slug: keep-shipped-hooks-host-lintable
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/505
 created: 2026-07-28T00:00:00Z
-last_modified: 2026-07-29T02:30:00Z
+last_modified: 2026-07-29T02:40:00Z
 scope:
   - Keep every shipped TypeScript template compatible with the supported ESLint baseline used by host projects.
   - Add release validation for the schema-declared distributed TypeScript surface: baseline lint, typed-preset parse/config loading, and strict installed-shape TypeScript checking.
@@ -97,6 +97,7 @@ in customer repositories) but opt into dogfood parity so template edits cannot d
 - 2026-07-29T01:00:00Z Review follow-up GREEN: strict typechecking now covers 106 schema-declared TypeScript templates in real destination paths, including statusline and BDD steps. The new Codex parity opt-in surfaced and healed one additional stale runtime mirror. Focused release tests, parity tests, direct lint, formatting, parity (200 pairs / 8 contracts), and an independent fresh review passed.
 - 2026-07-29T02:20:00Z Regression follow-up: the generated owned-paths module was typechecked but omitted from both fixture lint passes. Added it to the common fixture file list; the focused release gate and direct lint pass now cover the same installed tree.
 - 2026-07-29T02:30:00Z Refactor: split release-fixture materialization from tsconfig generation without changing the installed file set, fixture lifetime, or compiler options. Focused release checks and direct lint passed.
+- 2026-07-29T02:40:00Z Final refactor verification: release validation (3 tests), parity tests (27 tests), parity (200 pairs / 8 contracts), direct lint, diff check, and audit passed. Audit found no new architecture or dead-code issue; its repository-wide clone and dependency-freshness findings are pre-existing follow-up inventory, not part of this scoped change.
 
 ## Refactor Ledger
 
