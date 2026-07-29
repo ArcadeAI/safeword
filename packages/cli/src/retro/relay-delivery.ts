@@ -1998,9 +1998,7 @@ export async function deliverRelayRequests(
   const wallClockNow = options.now();
   await recoverRelaySpool(projectDirectory, wallClockNow);
   const directory = relayDirectory(projectDirectory);
-  let filenames = await sortedFilenames(directory);
-  await recoverExpiredClaims(projectDirectory, filenames, wallClockNow);
-  filenames = await sortedFilenames(directory);
+  const filenames = await sortedFilenames(directory);
   const [initial, initialDeadLetters] = await Promise.all([
     relayRequestsFromFilenames(directory, filenames),
     relayDeadLettersFromFilenames(directory, filenames),
