@@ -68,11 +68,13 @@ function getGhChildEnvironment(): NodeJS.ProcessEnv {
   return spawnCall[2].env;
 }
 
-afterEach(() => {
+function resetTestState(): void {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
   vi.resetAllMocks();
-});
+}
+
+afterEach(resetTestState);
 
 describe('createRestTransport', () => {
   it('returns undefined without a token', () => {
@@ -673,10 +675,13 @@ describe('resolveGitHubToken (7D8PJP — no hard GITHUB_TOKEN requirement)', () 
     expect(getGhChildEnvironment()).not.toHaveProperty('github_token');
   });
 
-  it('starts without a gh response configured by an earlier test', () => {
-    vi.stubEnv('GITHUB_TOKEN', 'proxy-injected');
+  it('clears a configured gh response during test cleanup', () => {
+    spawnSyncMock.mockReturnValue({ status: 0, stdout: 'gh-keyring-token\n' });
 
-    expect(resolveGitHubToken()).toBeUndefined();
+    resetTestState();
+
+    expect(resolveGitHubToken({ GITHUB_TOKEN: 'proxy-injected' })).toBeUndefined();
+    expect(spawnSyncMock).toHaveBeenCalledTimes(1);
   });
 
   it.each([

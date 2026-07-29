@@ -4,7 +4,7 @@
 **Gherkin:** ✅ Acceptance lane passes (`bun run test:bdd`: 93 scenarios, 1,109 steps)
 **Build:** ✅ Success (`tsup`)
 **Lint:** ✅ Clean (`bun run lint`; TypeScript typecheck and Prettier check pass)
-**Scenarios:** All 6 scenarios marked complete
+**Test Definitions:** All 6 test definitions complete
 **PR Scope:** ✅ Diff matches ticket scope
 **Dep Drift:** ✅ Clean — no dependency or architecture change in this ticket
 **Parent Epic:** N/A

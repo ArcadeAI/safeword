@@ -48,7 +48,9 @@ const MAX_DEDUP_PAGES = 200;
  * Ask `gh` for the environment's GitHub token, or undefined if unavailable.
  * `GITHUB_TOKEN` is stripped because the resolver only calls this fallback
  * after rejecting that value; preserve `GH_TOKEN`, which is an independent
- * documented gh credential source with higher precedence.
+ * documented gh credential source with higher precedence. The exact
+ * `proxy-injected` sentinel is rejected only from `GITHUB_TOKEN`: #1637 keeps
+ * syntax-valid explicit `GH_TOKEN` values opaque and lets GitHub authorize them.
  */
 function ghAuthToken(): string | undefined {
   try {
@@ -56,7 +58,9 @@ function ghAuthToken(): string | undefined {
     // JavaScript object has case-sensitive keys. Exclude every casing so a
     // rejected token cannot re-enter `gh` under a different key spelling.
     const childEnvironment = Object.fromEntries(
-      Object.entries(process.env).filter(([key]) => key.toUpperCase() !== GITHUB_TOKEN_ENV_KEY),
+      Object.entries(process.env).filter(
+        ([key]) => key.toUpperCase() !== GITHUB_TOKEN_ENV_KEY.toUpperCase(),
+      ),
     );
     const result = spawnSync('gh', ['auth', 'token'], {
       encoding: 'utf8',
@@ -306,16 +310,16 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
    * path had the same hole for a different reason: the index cannot return an
    * issue created seconds earlier.)
    */
-  const createdThisRun: OpenIssue[] = [];
+  const createdThisRun: { number: number; title: string; body: string }[] = [];
 
-  function findMarkerMatches(issues: readonly OpenIssue[], marker: string): IssueReference[] {
+  function matchesIn(issues: readonly OpenIssue[], marker: string): IssueReference[] {
     return [...issues, ...createdThisRun]
       .filter(issue => issue.body.includes(marker))
       .map(issue => ({ number: issue.number, title: issue.title }));
   }
 
   async function findByExactMarker(marker: string): Promise<IssueReference[]> {
-    return findMarkerMatches(await currentSnapshot(), marker);
+    return matchesIn(await currentSnapshot(), marker);
   }
 
   return {

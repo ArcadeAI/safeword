@@ -7,7 +7,7 @@
 | TD-1 | Reject unsafe `gh` output | Rejected `GITHUB_TOKEN`; mocked `gh` returns a value with a space | `resolveGitHubToken()` is undefined and `createRestTransport()` is undefined |
 | TD-2 | Preserve real child environment | Supply a lookup-only environment; set a process-only marker; mocked `gh` returns a valid credential | Resolution succeeds and `gh` receives the process marker but no `GITHUB_TOKEN` |
 | TD-3 | Preserve explicit `GH_TOKEN` | Rejected `GITHUB_TOKEN`; set `GH_TOKEN`; mocked `gh` returns a valid credential | `gh` child environment includes `GH_TOKEN` and excludes `GITHUB_TOKEN` |
-| TD-4 | Isolate mocks between tests | Reset mocks in `afterEach` | Every subprocess-dependent test explicitly sets its own response |
+| TD-4 | Reset mock implementations during test cleanup | Configure a `gh` response, then run the shared cleanup | The next fallback call receives no retained subprocess response |
 | TD-5 | Accept one terminal line ending only | Mocked `gh` returns a valid credential followed by one LF or CRLF | Resolution succeeds; leading/trailing whitespace and repeated line endings remain rejected |
 | TD-6 | Remove token keys case-insensitively | Lookup-only rejected token; process context has a differently cased `github_token` | The `gh` child environment excludes differently cased `GITHUB_TOKEN` keys |
 
