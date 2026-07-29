@@ -561,18 +561,6 @@ export function observeCodexMigration(
   });
 }
 
-export function statusCodexMigration(
-  cwd = process.cwd(),
-  options: { json?: boolean; environment?: NodeJS.ProcessEnv } = {},
-): void {
-  const result = observeCodexMigrationResult(cwd, options.environment);
-
-  process.stdout.write(
-    options.json === true ? `${JSON.stringify(result)}\n` : renderCodexMigrationHuman(result),
-  );
-  process.exitCode = codexMigrationExitCode(result);
-}
-
 function reportCodexMigration(
   cwd: string,
   options: {
@@ -589,111 +577,6 @@ function reportCodexMigration(
     options.json === true ? `${JSON.stringify(result)}\n` : renderCodexMigrationHuman(result),
   );
   process.exitCode = codexMigrationExitCode(result);
-}
-
-export function reportCodexMigrationFailure(
-  cwd: string,
-  failure: unknown,
-  options: {
-    code: string;
-    environment?: NodeJS.ProcessEnv;
-  },
-): void {
-  const message = failure instanceof Error ? failure.message : String(failure);
-  let result: CodexMigrationResultV1;
-  try {
-    result = observeCodexMigrationResult(cwd, options.environment);
-  } catch {
-    result = deriveCodexMigrationResult({
-      plugin: { installed: false, enabled: null, version: null, observation: 'unknown' },
-      proof: {
-        status: 'malformed',
-        plugin_version: null,
-        manifest_sha256: null,
-        recorded_at: null,
-      },
-      legacyAssets: [],
-      legacyEvents: [],
-      viableLegacyEvents: [],
-      finalized: false,
-      recoveryRequired: false,
-      restartPending: false,
-    });
-  }
-  result.ok = false;
-  result.changed = false;
-  result.errors.push({
-    code: classifyCodexMigrationFailure(message, options.code),
-    message,
-    retryable: true,
-  });
-  process.stdout.write(`${JSON.stringify(result)}\n`);
-  process.exitCode = 1;
-}
-
-function classifyCodexMigrationFailure(message: string, fallback: string): string {
-  const rules: [RegExp, string][] = [
-    [/requires current plugin hook proof/iu, 'FINALIZATION_PROOF_REQUIRED'],
-    [/requires confirmation/iu, 'FINALIZATION_CONFIRMATION_REQUIRED'],
-    [/ambiguous|cannot safely identify/iu, 'AMBIGUOUS_LEGACY_CONFIG'],
-    [/unsafe Codex migration path/iu, 'UNSAFE_MIGRATION_PATH'],
-    [/backup already exists/iu, 'BACKUP_EXISTS'],
-    [/rollback could not complete/iu, 'ROLLBACK_FAILED'],
-    [/recovery conflict/iu, 'RECOVERY_CONFLICT'],
-    [/(?:bun|codex) is required/iu, 'CODEX_UNAVAILABLE'],
-  ];
-  return rules.find(([pattern]) => pattern.test(message))?.[1] ?? fallback;
-}
-
-export function previewCodexFinalization(
-  cwd = process.cwd(),
-  options: { environment?: NodeJS.ProcessEnv } = {},
-): void {
-  if (codexRecoveryIsRequired(cwd)) {
-    reportCodexMigration(cwd, { ...options, json: true });
-    return;
-  }
-  const environment = options.environment ?? process.env;
-  const result = observeCodexMigrationResult(cwd, environment);
-  const identityError = codexFinalizationIdentityError(result);
-  if (identityError === undefined) {
-    const preparedLegacyHookRemoval = prepareLegacyHookRemoval(cwd);
-    result.effects.files = buildCodexFinalizationMutations(cwd, preparedLegacyHookRemoval).map(
-      mutation => {
-        let action: 'create' | 'update' | 'remove';
-        if (mutation.content === null) action = 'remove';
-        else if (pathExistsIncludingDanglingSymlink(nodePath.join(cwd, mutation.path))) {
-          action = 'update';
-        } else action = 'create';
-        return { path: mutation.path, action };
-      },
-    );
-  } else {
-    result.errors.push(identityError);
-  }
-  process.stdout.write(`${JSON.stringify(result)}\n`);
-  process.exitCode = codexMigrationExitCode(result);
-}
-
-function codexFinalizationIdentityError(
-  result: CodexMigrationResultV1,
-): CodexMigrationResultV1['errors'][number] | undefined {
-  const pluginUpdateRequired =
-    result.plugin.version !== null && result.plugin.version !== SAFEWORD_SCHEMA.version;
-  if (pluginUpdateRequired) {
-    return {
-      code: 'PLUGIN_UPDATE_REQUIRED',
-      message: `Finalization requires Safe Word plugin ${SAFEWORD_SCHEMA.version}; ${result.plugin.version} is installed. Re-run safeword codex install, then review /hooks.`,
-      retryable: true,
-    };
-  }
-  if (result.proof.status === 'current') return undefined;
-  return {
-    code: 'FINALIZATION_PROOF_REQUIRED',
-    message:
-      'Finalization requires current plugin hook proof. Start a new Codex session, review /hooks, then retry.',
-    retryable: true,
-  };
 }
 
 export function installCodexPlugin(

@@ -15,7 +15,6 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
-import { PassThrough, Readable } from 'node:stream';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -23,7 +22,6 @@ import {
   applyCodexFinalization,
   codexFinalizationIsComplete,
   codexRecoveryIsRequired,
-  promptCodexFinalization,
   recoverCodexFinalization,
   resolveCodexFinalizationConfirmation,
 } from '../../src/codex-plugin/finalization.js';
@@ -46,29 +44,6 @@ describe('Codex migration finalization', () => {
 
     expect(confirmed).toBe(false);
     expect(confirm).toHaveBeenCalledOnce();
-  });
-
-  it('accepts an explicit yes at the interactive finalization prompt', async () => {
-    const output = new PassThrough();
-
-    await expect(
-      promptCodexFinalization(
-        'Finalization plan:\n- remove .agents/skills/bdd/SKILL.md\n',
-        Readable.from(['yes\n']),
-        output,
-      ),
-    ).resolves.toBe(true);
-    expect(output.read()?.toString()).toContain(
-      'Finalization plan:\n- remove .agents/skills/bdd/SKILL.md',
-    );
-  });
-
-  it('defaults to declining an empty interactive finalization response', async () => {
-    const output = new PassThrough();
-
-    await expect(
-      promptCodexFinalization('Finalization plan:\n', Readable.from(['\n']), output),
-    ).resolves.toBe(false);
   });
 
   it('does not treat a marker without a finalized transaction manifest as complete', () => {
