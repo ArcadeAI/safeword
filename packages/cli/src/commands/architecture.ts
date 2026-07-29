@@ -148,21 +148,7 @@ function architectureStage(cwd: string): Promise<void> {
         success('Architecture docs need no change.');
       } else {
         for (const result of changed) {
-          try {
-            const stageFailure = stageDocument(cwd, result);
-            if (stageFailure === undefined) {
-              success(`Architecture doc ${result.action} and staged: ${result.path}`);
-            } else {
-              warn(
-                `Architecture doc ${result.action} but could not be staged: ${result.path}. Cause: ${stageFailure}`,
-              );
-            }
-          } finally {
-            if (result.restoreWorktreeContent !== undefined) {
-              replaceArchitectureDocumentContent(result.restoreWorktreeContent, result.path, cwd);
-              warn(`Preserved unstaged worktree architecture edits: ${result.path}`);
-            }
-          }
+          stageMaterializedDocument(cwd, result);
         }
       }
       // The snapshot contains the freshly healed document and the exact source
@@ -177,6 +163,24 @@ function architectureStage(cwd: string): Promise<void> {
   }
 
   return Promise.resolve();
+}
+
+function stageMaterializedDocument(cwd: string, result: MaterializedIndexResult): void {
+  try {
+    const stageFailure = stageDocument(cwd, result);
+    if (stageFailure === undefined) {
+      success(`Architecture doc ${result.action} and staged: ${result.path}`);
+    } else {
+      warn(
+        `Architecture doc ${result.action} but could not be staged: ${result.path}. Cause: ${stageFailure}`,
+      );
+    }
+  } finally {
+    if (result.restoreWorktreeContent !== undefined) {
+      replaceArchitectureDocumentContent(result.restoreWorktreeContent, result.path, cwd);
+      warn(`Preserved unstaged worktree architecture edits: ${result.path}`);
+    }
+  }
 }
 
 /**
