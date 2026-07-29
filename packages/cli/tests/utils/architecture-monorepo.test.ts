@@ -29,10 +29,14 @@ function writeManifest(dir: string, manifest: Record<string, unknown>): void {
 function makePackage(
   root: string,
   name: string,
-  options: { modules?: string[]; dependencies?: Record<string, string> } = {},
+  options: { modules?: string[]; dependencies?: Record<string, string>; description?: string } = {},
 ): void {
   const dir = nodePath.join(root, 'packages', name);
-  writeManifest(dir, { name, dependencies: options.dependencies ?? {} });
+  writeManifest(dir, {
+    name,
+    dependencies: options.dependencies ?? {},
+    ...(options.description !== undefined && { description: options.description }),
+  });
   const modules = options.modules ?? [];
   for (const moduleName of modules) {
     mkdirSync(nodePath.join(dir, 'src', moduleName), { recursive: true });
@@ -166,6 +170,32 @@ describe('extractMonorepoModel', () => {
 
     expect(model.packages.map(p => p.name)).toEqual(['core', 'web']);
     expect(model.packages.every(p => p.purpose.length > 0)).toBe(true);
+  });
+
+  it('seeds a package purpose from its manifest description', () => {
+    makePackage(context.directory, 'web', { description: 'The customer-facing web application.' });
+
+    const model = extractMonorepoModel(context.directory);
+
+    expect(model.packages).toContainEqual(
+      expect.objectContaining({
+        name: 'web',
+        purpose: 'The customer-facing web application.',
+        seededPurpose: true,
+      }),
+    );
+  });
+
+  it('normalizes a multiline manifest description into one generated purpose line', () => {
+    makePackage(context.directory, 'web', {
+      description: 'The customer-facing web application.\nIt serves the product UI.',
+    });
+
+    const model = extractMonorepoModel(context.directory);
+
+    expect(model.packages.find(node => node.name === 'web')?.purpose).toBe(
+      'The customer-facing web application. It serves the product UI.',
+    );
   });
 
   it('records an inter-package edge when one package depends on another by name', () => {

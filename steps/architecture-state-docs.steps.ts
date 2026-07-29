@@ -23,6 +23,7 @@ interface ArchitectureWorld extends SafewordWorld {
   stdout?: string;
   fingerprintBefore?: string;
   fingerprintAfter?: string;
+  documentBefore?: string;
 }
 
 function dir(world: ArchitectureWorld): string {
@@ -56,6 +57,10 @@ function readDocument(world: ArchitectureWorld): string {
 
 function fingerprintOf(content: string): string {
   return /fingerprint: (\S+)/.exec(content)?.[1] ?? '';
+}
+
+function architectureGuide(world: ArchitectureWorld): string {
+  return readFileSync(nodePath.join(dir(world), '.safeword/guides/architecture-guide.md'), 'utf8');
 }
 
 After(function (this: ArchitectureWorld) {
@@ -101,9 +106,54 @@ Given(
   },
 );
 
+Given(
+  /^a project whose src\/ contains a directory "([^"]+)" and a file "([^"]+)"$/,
+  function (this: ArchitectureWorld, directoryName: string, fileName: string) {
+    makeModule(this, directoryName);
+    writeFileSync(nodePath.join(dir(this), 'src', fileName), 'export {};\n');
+  },
+);
+
+Given(
+  /^a project whose src\/ contains only colocated tests and whose root contains a script$/,
+  function (this: ArchitectureWorld) {
+    mkdirSync(nodePath.join(dir(this), 'src'), { recursive: true });
+    writeFileSync(nodePath.join(dir(this), 'src', 'api.test.ts'), 'export {};\n');
+    writeFileSync(nodePath.join(dir(this), 'src', 'api.spec.tsx'), 'export {};\n');
+    writeFileSync(nodePath.join(dir(this), 'root-script.ts'), 'export {};\n');
+  },
+);
+
+Given(
+  /^a generated doc whose auth module is backed by src\/auth\.ts$/,
+  function (this: ArchitectureWorld) {
+    mkdirSync(nodePath.join(dir(this), 'src'), { recursive: true });
+    writeFileSync(nodePath.join(dir(this), 'src', 'auth.ts'), 'export {};\n');
+    runArchitecture(this);
+    assert.match(readDocument(this), /`src\/auth\.ts`/);
+  },
+);
+
 When('the architecture doc is generated', function (this: ArchitectureWorld) {
   runArchitecture(this);
 });
+
+When(
+  /^a same-named src\/auth directory is added and the doc is regenerated$/,
+  function (this: ArchitectureWorld) {
+    makeModule(this, 'auth');
+    runArchitecture(this);
+  },
+);
+
+When(
+  'the architecture doc is generated twice without a source change',
+  function (this: ArchitectureWorld) {
+    runArchitecture(this);
+    this.documentBefore = readDocument(this);
+    runArchitecture(this);
+  },
+);
 
 Then('the doc lists exactly auth and billing, with no others', function (this: ArchitectureWorld) {
   const content = readDocument(this);
@@ -143,6 +193,68 @@ Then('no architecture doc is written', function (this: ArchitectureWorld) {
 Then('the module is still listed in the skeleton', function (this: ArchitectureWorld) {
   assert.match(readDocument(this), /### auth/);
 });
+
+Then('the doc lists exactly auth and pipeline', function (this: ArchitectureWorld) {
+  const headings = [...readDocument(this).matchAll(/^### (.+)$/gm)].map(match => match[1]);
+  assert.deepEqual(headings, ['auth', 'pipeline']);
+});
+
+Then(
+  /^their references point to src\/auth and src\/pipeline\.ts$/,
+  function (this: ArchitectureWorld) {
+    const content = readDocument(this);
+    assert.match(content, /`src\/auth`/);
+    assert.match(content, /`src\/pipeline\.ts`/);
+  },
+);
+
+Then('the doc lists exactly one auth module', function (this: ArchitectureWorld) {
+  const headings = [...readDocument(this).matchAll(/^### (.+)$/gm)].map(match => match[1]);
+  assert.deepEqual(headings, ['auth']);
+});
+
+Then(/^the auth reference points to src\/auth$/, function (this: ArchitectureWorld) {
+  assert.match(readDocument(this), /`src\/auth`/);
+  assert.doesNotMatch(readDocument(this), /`src\/auth\.ts`/);
+});
+
+Then(
+  'the generated architecture doc is byte-identical across both runs',
+  function (this: ArchitectureWorld) {
+    assert.equal(readDocument(this), this.documentBefore);
+  },
+);
+
+Given('a project with the installed architecture guide', function (this: ArchitectureWorld) {
+  const result = spawnSync('bun', [CLI_PATH, 'setup', '--yes'], {
+    cwd: dir(this),
+    encoding: 'utf8',
+    env: { ...process.env, SAFEWORD_SKIP_INSTALL: '1', SAFEWORD_SKIP_SKILLS: '1' },
+    timeout: 120_000,
+  });
+  assert.equal(
+    result.status,
+    0,
+    `safeword setup exited ${result.status}: ${result.stdout ?? ''}${result.stderr ?? ''}`,
+  );
+  assert.ok(architectureGuide(this).length > 0);
+});
+
+Then(
+  'the guide identifies the root index as fully machine-owned',
+  function (this: ArchitectureWorld) {
+    assert.match(architectureGuide(this), /root index is fully machine-owned/i);
+  },
+);
+
+Then(
+  'the guide identifies module purpose prose as human-owned and preserved',
+  function (this: ArchitectureWorld) {
+    assert.match(architectureGuide(this), /human-owned module purpose prose/i);
+    assert.match(architectureGuide(this), /preserved across structural heals/i);
+    assert.match(architectureGuide(this), /only while that module remains present/i);
+  },
+);
 
 // --- Rule: stale prose is visibly flagged ---
 

@@ -5,9 +5,30 @@ import {
   getDisqualificationMessage,
   getQualityMessage,
   QUALITY_REVIEW_MESSAGE,
+  REPLY_FORMAT_LEAD,
+  REPLY_FORMAT_LEAD_RULE,
+  REPLY_FORMAT_REMINDER,
 } from '../templates/hooks/lib/quality.js';
 
 describe('getQualityMessage — universal binary terminal (143 + F14BG2 + QSNKBB)', () => {
+  it('exports the compact reply-format pointers used by pre-response hooks', () => {
+    expect(REPLY_FORMAT_LEAD_RULE).toBe('lead with the answer');
+    expect(REPLY_FORMAT_LEAD).toBe('Reply format: lead with the answer.');
+    expect(REPLY_FORMAT_REMINDER).toContain(REPLY_FORMAT_LEAD);
+    expect(REPLY_FORMAT_REMINDER).toContain('**CONFIDENT**/**BLOCKED**');
+    expect(REPLY_FORMAT_REMINDER).toContain('**Next:**');
+  });
+
+  it('keeps the lead rule inline in the Stop pointer sentence, not appended to it', () => {
+    // 68SRC8's pointer is one sentence listing the rules in priority order. The
+    // shared fragment must compose into it, not arrive as a trailing labelled
+    // afterthought — otherwise the most important rule reads as the least.
+    expect(getQualityMessage('intake')).toContain(
+      `Apply SAFEWORD.md "Talking to the user" rules to your reply: scan-not-read, ${REPLY_FORMAT_LEAD_RULE}, named structure only when it carries weight, end with **Next:**.`,
+    );
+    expect(getQualityMessage('intake')).not.toContain(REPLY_FORMAT_LEAD);
+  });
+
   describe('Rule: Every Stop emits the binary terminal across phases', () => {
     it('intake includes the universal header with bolded verdict tokens', () => {
       const message = getQualityMessage('intake');

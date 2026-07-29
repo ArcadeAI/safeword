@@ -2,6 +2,10 @@
 
 **Status:** implemented
 
+> **Supersession (2026-07-28):** GitHub #1609 retired the plan's drift-advisory
+> slices. They remain as an implementation record; TB1's configured-narrative
+> resolution remains the current contract.
+
 ## Approach
 
 **Riskiest assumption:** the deterministic "mentioned" rule (word-boundary,

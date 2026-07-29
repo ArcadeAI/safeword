@@ -307,8 +307,7 @@ export function resolveGeneratedArchitecturePath(cwd: string): string {
 
 /**
  * The resolved architecture narrative location (ticket BY7RNR, GitHub #848):
- * where the human-authored architecture document lives for nudges, prompts,
- * and the drift advisory.
+ * where the human-authored architecture document lives for nudges and prompts.
  */
 export interface ArchitectureNarrative {
   /** Absolute path of the narrative target. Existence is NOT guaranteed. */

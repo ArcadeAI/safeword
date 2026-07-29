@@ -50,6 +50,9 @@ const PYTHON_EXCLUDED_FILES = new Set([
  */
 const JS_SOURCE_EXTENSIONS = ['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs'];
 
+/** Bound an auto-derived purpose so a malformed header cannot dominate the document. */
+const MAXIMUM_SEEDED_PURPOSE_LENGTH = 200;
+
 export interface SkeletonNode {
   /** Module name — the top-level `src/` subdirectory. */
   name: string;
@@ -57,6 +60,8 @@ export interface SkeletonNode {
   path: string;
   /** One-line purpose (the purpose floor); a placeholder until prose is written. */
   purpose: string;
+  /** True when `purpose` was derived from a leading source documentation comment. */
+  seededPurpose?: boolean;
 }
 
 export interface Skeleton {
@@ -97,16 +102,14 @@ export function extractSkeleton(projectDirectory: string): Skeleton {
     return { nodes: rustModuleNodes(projectDirectory) };
   }
 
-  // The `src/` layout (TS/JS) is authoritative: its child DIRECTORIES are the
-  // modules, unchanged — a package that already has them never churns. Broadened
-  // (issue #843) so a flat `src/` — holding only files, no subdirectories — is
-  // introspected via those files, the same files-and-flat recognition the
-  // Python/Rust extractors above already have.
-  const sourceNodes = enumerateJsSourceRoot(
+  // The `src/` layout (TS/JS) is authoritative. Its immediate child directories
+  // AND loose source files are modules: mixed trees are conventional, and
+  // returning one kind or the other silently truncated them (issue #1551).
+  const sourceRoot = enumerateJsSourceRoot(
     nodePath.join(projectDirectory, 'src'),
     name => `src/${name}`,
   );
-  if (sourceNodes.length > 0) return { nodes: sourceNodes };
+  if (sourceRoot.observed) return { nodes: sourceRoot.nodes };
 
   // No `src/` modules: a Go module (a `go.mod` is present) is described by its
   // conventional top-level layout directories instead (ticket ZD70P1). A flat Go
@@ -122,11 +125,11 @@ export function extractSkeleton(projectDirectory: string): Skeleton {
   // design systems keep their sources under `lib/` — issue #843) is described the
   // same files-or-directories way. Last-resort JS fallbacks, so they never preempt
   // a recognized Go/Rust/Python layout above.
-  const libraryNodes = enumerateJsSourceRoot(
+  const libraryRoot = enumerateJsSourceRoot(
     nodePath.join(projectDirectory, 'lib'),
     name => `lib/${name}`,
   );
-  if (libraryNodes.length > 0) return { nodes: libraryNodes };
+  if (libraryRoot.observed) return { nodes: libraryRoot.nodes };
 
   // No source root at all: a flat or test-only package (e.g. top-level `*.test.ts`
   // with no `src/`) is described by its top-level source files (issue #843) — but
@@ -164,32 +167,46 @@ function declaresWorkspaces(projectDirectory: string): boolean {
 /**
  * A JS/TS source root (`src/` or `lib/`) as skeleton nodes, sorted by name
  * (readdirSync order is not guaranteed; the doc and fingerprint must be
- * deterministic). Its child DIRECTORIES when it has any — the directory is the
- * module unit, so a package with `src/` subdirectories is byte-for-byte
- * unchanged. Only when the root has NO subdirectories (a flat package — issue
- * #843) does it fall back to the root's source FILES, mirroring how the Rust and
- * Python extractors list `*.rs`/`*.py`. `pathFor` maps an entry name to its
- * forward-slashed code reference — platform-stable, the way the fingerprint
- * normalizes paths. `[]` when the root is absent.
+ * deterministic). Immediate child directories and source files are unioned.
+ * A same-named directory and file represent one concept; the directory wins
+ * because it is the broader architectural boundary (issue #1551). `pathFor`
+ * maps an entry name to its forward-slashed code reference. `observed` distinguishes
+ * an absent/irrelevant root from one containing only excluded colocated tests, so
+ * filtering cannot make extraction fall through to an unrelated layout.
  */
 function enumerateJsSourceRoot(
   directory: string,
   pathFor: (entryName: string) => string,
-): SkeletonNode[] {
+): { nodes: SkeletonNode[]; observed: boolean } {
   let entries: Dirent[];
   try {
     entries = readdirSync(directory, { withFileTypes: true });
   } catch {
-    return [];
+    return { nodes: [], observed: false };
   }
 
-  const directories = entries.filter(entry => entry.isDirectory());
-  if (directories.length > 0) {
-    return directories
-      .map(entry => ({ name: entry.name, path: pathFor(entry.name), purpose: PURPOSE_PLACEHOLDER }))
-      .toSorted(byNodeName);
+  const observed = entries.some(
+    entry => entry.isDirectory() || (entry.isFile() && isJsSourceModuleFile(entry.name)),
+  );
+  const byName = new Map(
+    entries
+      .filter(entry => entry.isDirectory())
+      .map(entry => [
+        entry.name,
+        directoryNode(
+          entry.name,
+          pathFor(entry.name),
+          JS_SOURCE_EXTENSIONS.map(extension =>
+            nodePath.join(directory, entry.name, `index${extension}`),
+          ),
+        ),
+      ]),
+  );
+  const excludeColocatedTests = true;
+  for (const node of jsFileNodes(entries, pathFor, excludeColocatedTests, directory)) {
+    if (!byName.has(node.name)) byName.set(node.name, node);
   }
-  return jsFileNodes(entries, pathFor);
+  return { nodes: byName.values().toArray().toSorted(byNodeName), observed };
 }
 
 /**
@@ -207,7 +224,7 @@ function topLevelJsModuleNodes(projectDirectory: string): SkeletonNode[] {
   } catch {
     return [];
   }
-  return jsFileNodes(entries, name => name);
+  return jsFileNodes(entries, name => name, false, projectDirectory);
 }
 
 /**
@@ -220,9 +237,19 @@ function topLevelJsModuleNodes(projectDirectory: string): SkeletonNode[] {
  * dedupe, two `### util` sections would render and the surviving path would be
  * readdir-order (platform) dependent.
  */
-function jsFileNodes(entries: Dirent[], pathFor: (entryName: string) => string): SkeletonNode[] {
+function jsFileNodes(
+  entries: Dirent[],
+  pathFor: (entryName: string) => string,
+  excludeTests: boolean,
+  sourceDirectory: string,
+): SkeletonNode[] {
   const files = entries
-    .filter(entry => entry.isFile() && isJsSourceModuleFile(entry.name))
+    .filter(
+      entry =>
+        entry.isFile() &&
+        isJsSourceModuleFile(entry.name) &&
+        (!excludeTests || !isJsTestFile(entry.name)),
+    )
     .toSorted(
       (a, b) =>
         extensionPriority(a.name) - extensionPriority(b.name) || a.name.localeCompare(b.name),
@@ -232,10 +259,23 @@ function jsFileNodes(entries: Dirent[], pathFor: (entryName: string) => string):
   for (const entry of files) {
     const name = jsModuleName(entry.name);
     if (!byName.has(name)) {
-      byName.set(name, { name, path: pathFor(entry.name), purpose: PURPOSE_PLACEHOLDER });
+      byName.set(
+        name,
+        sourceFileNode(name, pathFor(entry.name), nodePath.join(sourceDirectory, entry.name)),
+      );
     }
   }
   return byName.values().toArray().toSorted(byNodeName);
+}
+
+/**
+ * Vitest/Jest-style colocated tests are verification, not production architecture nodes.
+ * JS entry-point names remain eligible: unlike Rust's fixed crate roots, `index`/`main`/`cli`
+ * are ordinary modules that may contain logic, and this extractor never reads source text
+ * to guess whether one is only a barrel.
+ */
+function isJsTestFile(name: string): boolean {
+  return /\.(?:test|spec)\.[mc]?[jt]sx?$/.test(name);
 }
 
 /** The rank of a filename's extension in {@link JS_SOURCE_EXTENSIONS} (lower wins dedupe). */
@@ -258,6 +298,234 @@ function isJsSourceModuleFile(name: string): boolean {
 /** A source file's module name: the filename minus its final extension (`db.test.ts` → `db.test`). */
 function jsModuleName(filename: string): string {
   return filename.slice(0, filename.lastIndexOf('.'));
+}
+
+/** A source-file node, using its leading module documentation as an initial purpose when present. */
+function sourceFileNode(name: string, path: string, absolutePath: string): SkeletonNode {
+  return nodeFromPurpose(name, path, purposeFromLeadingDocumentation(absolutePath));
+}
+
+/** A directory module may declare its boundary purpose in a conventional entry file. */
+function directoryNode(name: string, path: string, entryPoints: string[]): SkeletonNode {
+  for (const entryPoint of entryPoints) {
+    const purpose = purposeFromLeadingDocumentation(entryPoint);
+    if (purpose !== undefined) return nodeFromPurpose(name, path, purpose);
+  }
+  return nodeFromPurpose(name, path, undefined);
+}
+
+function nodeFromPurpose(name: string, path: string, purpose: string | undefined): SkeletonNode {
+  return purpose === undefined
+    ? { name, path, purpose: PURPOSE_PLACEHOLDER }
+    : { name, path, purpose, seededPurpose: true };
+}
+
+/**
+ * A bounded summary from a file's language-native module documentation. This
+ * deliberately reads only documentation at the start of the file, never
+ * arbitrary source comments, so the generated purpose is deterministic and
+ * visibly intentional rather than a guess about implementation details.
+ */
+function purposeFromLeadingDocumentation(path: string): string | undefined {
+  const content = readFileSafe(path);
+  if (content === undefined) return undefined;
+
+  const extension = nodePath.extname(path);
+  let body: string | undefined;
+  if (extension === '.rs') {
+    body = rustModuleDocumentation(content);
+  } else if (extension === '.py') {
+    body = pythonModuleDocumentation(content);
+  } else {
+    body = jsModuleDocumentation(content);
+  }
+  if (body === undefined) return undefined;
+
+  return documentationSummary(body);
+}
+
+/** Leading JSDoc is the module-level documentation convention used by JS/TS files here. */
+function jsModuleDocumentation(content: string): string | undefined {
+  return /^\/\*\*([\s\S]*?)\*\//.exec(afterLeadingJsTrivia(withoutByteOrderMark(content)))?.[1];
+}
+
+/**
+ * Rust module documentation uses inner doc comments. Outer line and block doc
+ * comments document the following item and must not be attributed to the file module.
+ */
+function rustModuleDocumentation(content: string): string | undefined {
+  const start = withoutByteOrderMark(content).trimStart();
+  if (start.startsWith('/*!')) {
+    const end = start.indexOf('*/', 3);
+    return end === -1 ? undefined : start.slice(3, end);
+  }
+  if (!start.startsWith('//!')) return undefined;
+
+  const documentationLines: string[] = [];
+  for (const line of start.split(/\r?\n/)) {
+    const trimmed = line.trimStart();
+    if (!trimmed.startsWith('//!')) break;
+    documentationLines.push(trimmed.slice(3).trimStart());
+  }
+  return documentationLines.join('\n');
+}
+
+/** A Python module's docstring is its first statement, after comments and blank lines. */
+function pythonModuleDocumentation(content: string): string | undefined {
+  const start = afterLeadingPythonTrivia(withoutByteOrderMark(content));
+  const opening = /^[ru]{0,2}("""|''')/i.exec(start);
+  const delimiter = opening?.[1];
+  if (opening === null || delimiter === undefined) return undefined;
+
+  const bodyStart = opening[0].length;
+  const bodyEnd = start.indexOf(delimiter, bodyStart);
+  return bodyEnd === -1 ? undefined : start.slice(bodyStart, bodyEnd);
+}
+
+/** Remove the optional Unicode byte-order mark accepted at the start of source files. */
+function withoutByteOrderMark(content: string): string {
+  return content.startsWith('\u{FEFF}') ? content.slice(1) : content;
+}
+
+/** Skip the comments and blank lines Python permits before a module docstring. */
+function afterLeadingPythonTrivia(content: string): string {
+  let remaining = content;
+  while (remaining.length > 0) {
+    const lineEnd = remaining.indexOf('\n');
+    const line = lineEnd === -1 ? remaining : remaining.slice(0, lineEnd);
+    const trimmed = line.trim();
+    if (trimmed.length > 0 && !trimmed.startsWith('#')) break;
+    remaining = lineEnd === -1 ? '' : remaining.slice(lineEnd + 1);
+  }
+  return remaining.trimStart();
+}
+
+/** Skip recognized JS preambles that may legally precede a file-level JSDoc block. */
+function afterLeadingJsTrivia(content: string): string {
+  let remaining = afterLeadingShebang(content);
+  while (true) {
+    const trimmed = remaining.trimStart();
+    const afterPreamble = afterKnownJsPreamble(trimmed);
+    if (afterPreamble === undefined) return trimmed;
+    remaining = afterPreamble;
+  }
+}
+
+function afterLeadingShebang(content: string): string {
+  if (!content.startsWith('#!')) return content;
+  const lineEnd = content.indexOf('\n');
+  return lineEnd === -1 ? '' : content.slice(lineEnd + 1);
+}
+
+function afterKnownJsPreamble(content: string): string | undefined {
+  return (
+    afterEslintLineDirective(content) ??
+    afterEslintBlockDirective(content) ??
+    afterJsUseDirective(content)
+  );
+}
+
+function afterEslintLineDirective(content: string): string | undefined {
+  if (!content.startsWith('//') || !isEslintDirective(content.slice(2).trimStart())) {
+    return undefined;
+  }
+  const lineEnd = content.indexOf('\n');
+  return lineEnd === -1 ? '' : content.slice(lineEnd + 1);
+}
+
+function afterEslintBlockDirective(content: string): string | undefined {
+  if (!content.startsWith('/*') || !isEslintDirective(content.slice(2).trimStart())) {
+    return undefined;
+  }
+  const blockEnd = content.indexOf('*/');
+  return blockEnd === -1 ? undefined : content.slice(blockEnd + 2);
+}
+
+function isEslintDirective(content: string): boolean {
+  return content.startsWith('eslint-') || content.startsWith('eslint ');
+}
+
+function afterJsUseDirective(content: string): string | undefined {
+  const quote = content[0];
+  if (quote !== "'" && quote !== '"') return undefined;
+  const quoteEnd = content.indexOf(quote, 1);
+  if (quoteEnd === -1 || !isJsUseDirective(content.slice(1, quoteEnd))) return undefined;
+  const afterQuote = content.slice(quoteEnd + 1);
+  return afterQuote.startsWith(';') ? afterQuote.slice(1) : afterQuote;
+}
+
+function isJsUseDirective(content: string): boolean {
+  return (
+    content.startsWith('use ') &&
+    content
+      .slice('use '.length)
+      .split(' ')
+      .every(word => isLowercaseAsciiWord(word))
+  );
+}
+
+function isLowercaseAsciiWord(word: string): boolean {
+  if (word.length === 0) return false;
+  for (const character of word) {
+    if (character < 'a' || character > 'z') return false;
+  }
+  return true;
+}
+
+/**
+ * Derive one meaningful, bounded summary without treating banners or Markdown
+ * blocks as module purpose. Unicode sentence segmentation intentionally does not
+ * split before lowercase text, which preserves common abbreviations such as e.g.
+ */
+function documentationSummary(body: string): string | undefined {
+  const text = documentationParagraphs(body).find(paragraph => isPurposeParagraph(paragraph));
+  if (text === undefined) return undefined;
+  return truncatePurpose(firstDocumentationSentence(text));
+}
+
+/** Normalize documentation text into non-empty paragraphs, removing JSDoc's `*` gutter. */
+function documentationParagraphs(body: string): string[] {
+  const paragraphs: string[] = [];
+  let lines: string[] = [];
+  const flush = (): void => {
+    const paragraph = lines.join(' ').trim();
+    if (paragraph.length > 0) paragraphs.push(paragraph);
+    lines = [];
+  };
+  for (const rawLine of body.split(/\r?\n/)) {
+    const line = rawLine.replace(/^\s*\*\s?/, '').trim();
+    if (line.length === 0) flush();
+    else lines.push(line);
+  }
+  flush();
+  return paragraphs;
+}
+
+function isPurposeParagraph(paragraph: string): boolean {
+  return !isDocumentationBanner(paragraph) && !/^(?:#{1,6}\s|>\s|[-*+]\s)/.test(paragraph);
+}
+
+function isDocumentationBanner(paragraph: string): boolean {
+  return /^(?:copyright\b|spdx-|@license\b|licensed under\b)/i.test(paragraph);
+}
+
+function firstDocumentationSentence(text: string): string {
+  if (typeof Intl.Segmenter === 'function') {
+    return (
+      [...new Intl.Segmenter('en', { granularity: 'sentence' }).segment(text)][0]?.segment.trim() ??
+      text
+    );
+  }
+  return /^.*?[.!?](?:\s|$)/.exec(text)?.[0].trim() ?? text;
+}
+
+function truncatePurpose(purpose: string): string {
+  if (purpose.length <= MAXIMUM_SEEDED_PURPOSE_LENGTH) return purpose;
+  const clipped = purpose.slice(0, MAXIMUM_SEEDED_PURPOSE_LENGTH - 1);
+  const lastSpace = clipped.lastIndexOf(' ');
+  const boundary =
+    lastSpace > MAXIMUM_SEEDED_PURPOSE_LENGTH / 2 ? clipped.slice(0, lastSpace) : clipped;
+  return `${boundary.trimEnd()}…`;
 }
 
 /** The recognized Go layout directories that actually exist, as sorted nodes. */
@@ -285,11 +553,12 @@ function rustModuleNodes(projectDirectory: string): SkeletonNode[] {
   const byName = new Map<string, SkeletonNode>();
   for (const entry of entries) {
     if (entry.isDirectory()) {
-      byName.set(entry.name, {
-        name: entry.name,
-        path: `src/${entry.name}`,
-        purpose: PURPOSE_PLACEHOLDER,
-      });
+      byName.set(
+        entry.name,
+        directoryNode(entry.name, `src/${entry.name}`, [
+          nodePath.join(projectDirectory, 'src', entry.name, 'mod.rs'),
+        ]),
+      );
     }
   }
   for (const entry of entries) {
@@ -298,7 +567,14 @@ function rustModuleNodes(projectDirectory: string): SkeletonNode[] {
     }
     const name = entry.name.slice(0, -'.rs'.length);
     if (!byName.has(name)) {
-      byName.set(name, { name, path: `src/${entry.name}`, purpose: PURPOSE_PLACEHOLDER });
+      byName.set(
+        name,
+        sourceFileNode(
+          name,
+          `src/${entry.name}`,
+          nodePath.join(projectDirectory, 'src', entry.name),
+        ),
+      );
     }
   }
   return byName.values().toArray().toSorted(byNodeName);
@@ -347,11 +623,12 @@ function pythonModulesFrom(
   const byName = new Map<string, SkeletonNode>();
   for (const entry of entries) {
     if (entry.isDirectory() && keepPackageDirectory(nodePath.join(directory, entry.name))) {
-      byName.set(entry.name, {
-        name: entry.name,
-        path: pathFor(entry.name),
-        purpose: PURPOSE_PLACEHOLDER,
-      });
+      byName.set(
+        entry.name,
+        directoryNode(entry.name, pathFor(entry.name), [
+          nodePath.join(directory, entry.name, '__init__.py'),
+        ]),
+      );
     }
   }
   for (const entry of entries) {
@@ -364,7 +641,10 @@ function pythonModulesFrom(
     }
     const name = entry.name.slice(0, -'.py'.length);
     if (!byName.has(name)) {
-      byName.set(name, { name, path: pathFor(entry.name), purpose: PURPOSE_PLACEHOLDER });
+      byName.set(
+        name,
+        sourceFileNode(name, pathFor(entry.name), nodePath.join(directory, entry.name)),
+      );
     }
   }
   return byName.values().toArray().toSorted(byNodeName);

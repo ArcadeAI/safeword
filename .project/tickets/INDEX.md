@@ -5,6 +5,8 @@
 
 <!-- prettier-ignore-start -->
 
+## Tickets (458)
+## Tickets (457)
 ## Tickets (455)
 
 ### 001
@@ -897,6 +899,9 @@
 - **Enable MD040 + MD036 in markdownlint-cli2 config (145)** (open, epic: —)
   Catch two LLM-specific markdown antipatterns at pre-commit time before they degrade the repo's LLM comprehension surface.
   → `.project/tickets/145-markdown-llm-rules`
+- **Task: Keep zombie cleanup inside the current project (1451)** (done, epic: —)
+  external issue: https://github.com/ArcadeAI/safeword/issues/1451
+  → `.project/tickets/1451-cleanup-zombies-project-safety`
 - **Auto-upgrade commit refinements: attribution + pre-commit bypass + change-list source (146)** (open, epic: —)
   Three small refinements to `session-auto-upgrade.ts`'s auto-commit step, surfaced during PR #81's quality review.
   → `.project/tickets/146-auto-commit-refinements`
@@ -912,6 +917,9 @@
 - **Resolve `bun audit` advisories surfaced 2026-05-18 (152)** (done, epic: —)
   Clear the 4 advisories that `bun audit` flags in safeword's tree (1 high, 3 moderate) by bumping the deps that pull in vulnerable transitives. None of these are caused by safeword's own direct deps — they're all transitives — but they show up in `bun audit` output, which customers run too.
   → `.project/tickets/152-resolve-bun-audit-advisories`
+- **Task: Keep future GitHub credentials usable without format updates (1520)** (done, epic: —)
+  external issue: https://github.com/ArcadeAI/safeword/issues/1520
+  → `.project/tickets/1520-decouple-github-token-format`
 - **Boundary Resilience: Replan-on-Resume (153)** (done, epic: —)
   Eliminate the plan-staleness failure mode when resuming a ticket after sibling work landed — a ticket written before its siblings shipped reflects assumptions the new commits have invalidated, and today nothing re-checks the plan at resume. (The companion failure — forgetting cross-ticket contracts mid-session — is deferred with the epic-anchor hook.)
   → `.project/tickets/153-boundary-resilience`
@@ -1155,8 +1163,8 @@
 - **Update audit duplication command for current jscpd (BQ5RCB)** (in_progress, epic: —)
   Update the audit duplication command so it works with the currently resolved `jscpd` CLI.
   → `.project/tickets/BQ5RCB-update-audit-duplication-command-for-current-jscpd`
-- **Architecture narrative reconciliation: honor paths.architecture + surface pre-existing drift (BY7RNR)** (done, epic: —)
-  Done-gate nudge and architecture prompts resolve the narrative via paths.architecture (root ARCHITECTURE.md fallback); safeword architecture emits a non-blocking advisory listing generated packages absent from the narrative
+- **Architecture narrative reconciliation: honor paths.architecture (BY7RNR)** (done, epic: —)
+  Done-gate nudge and architecture prompts resolve the narrative via paths.architecture (root ARCHITECTURE.md fallback).
   → `.project/tickets/BY7RNR-architecture-narrative-blindspots`
 - **Distinguish local dependency-cruiser config sync from published-latest drift (BYXB03)** (in_progress, epic: —)
   Ensure depcruise config drift checks use the intended Safeword source, and do not report branch-local config as stale when only the published CLI differs.
@@ -1276,6 +1284,10 @@
 - **Quiet expected negative-path test output (GJGSS3)** (in_progress, epic: —)
   Keep passing full test runs quiet when negative-path fixtures intentionally print errors.
   → `.project/tickets/GJGSS3-quiet-expected-negative-path-test-output`
+- **Keep retro dedup stable during issue closure (GS2FGC)** (done, epic: —)
+  Prevent issue state changes during pagination from authorizing a duplicate retro issue.
+  external issue: https://github.com/ArcadeAI/safeword/issues/1481
+  → `.project/tickets/GS2FGC-keep-retro-dedup-stable-during-issue-closure`
 - **Lazy-load stack-specific ESLint plugins via createRequire (H150ZW)** (done, epic: —)
   Stop loading 7 stack-specific ESLint plugins (~7 × ~20ms each = ~140ms saved) into Node memory on every ESLint invocation for customers whose stack doesn't include them. The customer's generated `eslint.config.mjs` already gates plugin _usage_ with `detect.hasStorybook(deps)` etc.; this ticket gates plugin _loading_ to match.
   → `.project/tickets/H150ZW`
@@ -1352,6 +1364,10 @@
 - **Epic: Make safeword legible to the Non-Technical Builder (K6CAJN)** (done, epic: —)
   Close the gaps where safeword speaks to the Non-Technical Builder (NTB) in raw jargon — across the CLI terminal, first-run runtime checks, gate blocks, and the framing rules that govern translation — so a user who can't read the diff always gets a plain-language explanation and a concrete next action.
   → `.project/tickets/K6CAJN-ntb-experience-epic`
+- **Surface reply format before Claude responds (K8D3M4)** (done, epic: —)
+  Keep substantive Claude work updates in Safeword’s concise decision-brief shape before they reach the user.
+  external issue: https://github.com/ArcadeAI/safeword/issues/1524
+  → `.project/tickets/K8D3M4-reply-format-proactive-reminder`
 - **Keep verification preflight runnable in restricted agent shells (KCFH00)** (done, epic: —)
   Let the verification skill classify temporary Git-repository limits without being rejected by safe command policies.
   external issue: https://github.com/ArcadeAI/safeword/issues/469
@@ -1484,6 +1500,10 @@
 - **Merge engine: warn when a JSON-merge target exists but won't parse (TIA4M8)** (done, epic: —)
   When `safeword setup`/`upgrade` reconciles a `jsonMerge` target that
   → `.project/tickets/TIA4M8-merge-warn-unparseable`
+- **Run acceptance coverage locally for contributors (TQQGZS)** (done, epic: —)
+  Give contributors one local command that runs both the unit and acceptance suites.
+  external issue: https://github.com/ArcadeAI/safeword/issues/1455
+  → `.project/tickets/TQQGZS-local-acceptance-verification`
 - **plan-implementation phase before TDD (TXRHMD)** (done, epic: —)
   Insert a gated `plan-implementation` phase between scenario-gate and implement so no TDD RED starts before a valid, reviewed impl-plan.md exists (GitHub #480).
   external issue: https://github.com/ArcadeAI/safeword/issues/480

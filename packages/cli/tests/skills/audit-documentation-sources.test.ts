@@ -264,18 +264,21 @@ describe('audit documentation source guidance', () => {
     expect(content).not.toContain('[W004] Gap');
   });
 
-  it.each(AUDIT_SURFACES)('%s reports structural documentation gaps as errors', relativePath => {
-    const content = readAuditSurface(relativePath);
+  it.each(AUDIT_SURFACES)(
+    '%s leaves generated inventory out of narrative requirements',
+    relativePath => {
+      const content = readAuditSurface(relativePath);
 
-    expect(content).toContain('Missing (error)');
-    expect(content).toContain('Drifted layer→dir (error)');
-    expect(content).toContain('[E006] Structural gap');
-    expect(content).toContain('[E007] Drifted layer→dir');
-    expect(content).not.toContain('Missing (warn)');
-    expect(content).not.toContain('Drifted layer→dir (warn)');
-    expect(content).not.toContain('[W008] Structural gap');
-    expect(content).not.toContain('[W009] Drifted layer→dir');
-  });
+      expect(content).toContain('generated document owns the structural inventory');
+      expect(content).toContain('Drifted layer→dir (error)');
+      expect(content).toContain('[E007] Drifted layer→dir');
+      expect(content).not.toContain('Missing (error)');
+      expect(content).not.toContain('[E006] Structural gap');
+      expect(content).not.toContain('Drifted layer→dir (warn)');
+      expect(content).not.toContain('[W008] Structural gap');
+      expect(content).not.toContain('[W009] Drifted layer→dir');
+    },
+  );
 });
 
 describe('audit test quality severity', () => {

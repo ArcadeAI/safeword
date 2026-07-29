@@ -319,7 +319,7 @@ it never stages, commits, or opens a PR.
 
 - `/audit` - Run architecture and dead code analysis
 - `/bdd` - Force BDD flow for current task
-- `/cleanup-zombies` - Kill zombie processes on ports
+- `/cleanup-zombies` - Preview or kill current-project zombie processes
 - `/debug` - Four-phase debugging framework
 - `/explain` - Plain-English version of any safeword block, verdict, or your current state
 - `/lint` - Run linters and formatters
@@ -546,8 +546,13 @@ Without these binaries, the scripts print a message and skip.
 **Running Tests:**
 
 ```bash
+# From the repo root
+bun run test:all # Unit suite, then acceptance tests
+bun run test:bdd # Acceptance lane only (root only; packages/cli is narrower)
+
+# From packages/cli
 # Important: Use `bun run test` (Vitest), NOT `bun test` (Bun's runner)
-bun run test                      # All tests
+bun run test                      # Vitest suite
 bunx vitest run tests/foo.test.ts # Single file
 bun run test:integration          # Integration tests
 bun run test:watch                # Watch mode
