@@ -944,10 +944,8 @@ async function recoveredRelayQueueSnapshot(
   await recoverRelaySpool(projectDirectory, now);
   const directory = relayDirectory(projectDirectory);
   const filenames = await sortedFilenames(directory);
-  const [active, deadLetters] = await Promise.all([
-    relayRequestsFromFilenames(directory, filenames),
-    relayDeadLettersFromFilenames(directory, filenames),
-  ]);
+  const active = await relayRequestsFromFilenames(directory, filenames);
+  const deadLetters = await relayDeadLettersFromFilenames(directory, filenames);
   return { active, deadLetters, directory };
 }
 
