@@ -22,7 +22,7 @@ import nodePath from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { ESLINT_PACKAGE } from '../../src/packs/typescript/files.js';
-import { removeTemporaryDirectory, runCli } from '../helpers';
+import { removeTemporaryDirectory, runCli, runCliWithoutInstall } from '../helpers';
 
 describe('Upgrade Command - Reconcile Integration', () => {
   let temporaryDirectory: string;
@@ -601,10 +601,7 @@ statusMessage = "Checking safeword PreToolUse gates"
     it('should run upgrade successfully via CLI', async () => {
       createConfiguredProject('0.5.0');
 
-      const result = await runCli(['upgrade'], {
-        cwd: temporaryDirectory,
-        timeout: 30_000,
-      });
+      const result = await runCliWithoutInstall(['upgrade'], { cwd: temporaryDirectory });
 
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('Complete');
@@ -614,10 +611,7 @@ statusMessage = "Checking safeword PreToolUse gates"
     it('should refuse downgrade when project is newer', async () => {
       createConfiguredProject('99.99.99');
 
-      const result = await runCli(['upgrade'], {
-        cwd: temporaryDirectory,
-        timeout: 30_000,
-      });
+      const result = await runCliWithoutInstall(['upgrade'], { cwd: temporaryDirectory });
       expect(result.exitCode).not.toBe(0);
       expect(result.stderr.toLowerCase()).toMatch(/older|downgrade|cli/i);
     });
@@ -629,10 +623,7 @@ statusMessage = "Checking safeword PreToolUse gates"
         JSON.stringify({ name: 'test', version: '1.0.0' }, undefined, 2),
       );
 
-      const result = await runCli(['upgrade'], {
-        cwd: temporaryDirectory,
-        timeout: 30_000,
-      });
+      const result = await runCliWithoutInstall(['upgrade'], { cwd: temporaryDirectory });
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('Complete');
       expect(existsSync(nodePath.join(temporaryDirectory, '.safeword'))).toBe(true);
