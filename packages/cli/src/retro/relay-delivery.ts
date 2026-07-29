@@ -48,7 +48,7 @@ interface RelayDraftPersistenceOptions {
 
 interface RelayStateSnapshot {
   directory: string;
-  filenames: string[];
+  discardIntentFilesByRequestId: Map<string, string[]>;
   statesByRequestId: Map<string, ReservedRequestState>;
 }
 
@@ -765,7 +765,7 @@ async function materializeReservedRequest(
   snapshot: RelayStateSnapshot,
 ): Promise<RelayDraftRequest | undefined> {
   const requestId = reservation.request.requestId;
-  if (await discardBlocksRequestAtSnapshot(projectDirectory, snapshot.filenames, requestId)) {
+  if (await discardBlocksRequestAtSnapshot(projectDirectory, snapshot, requestId)) {
     return undefined;
   }
   const currentReservation = await loadSourceReservation(projectDirectory, draft);
@@ -797,7 +797,7 @@ async function captureRelayStateSnapshot(
   const filenames = await sortedFilenames(directory);
   return {
     directory,
-    filenames,
+    discardIntentFilesByRequestId: discardIntentFilesByRequestId(filenames),
     statesByRequestId: reservedRequestStates(directory, filenames),
   };
 }
@@ -809,7 +809,7 @@ async function discardBlocksReservation(
 ): Promise<boolean> {
   return snapshot === undefined
     ? discardBlocksRequest(projectDirectory, requestId)
-    : discardBlocksRequestAtSnapshot(projectDirectory, snapshot.filenames, requestId);
+    : discardBlocksRequestAtSnapshot(projectDirectory, snapshot, requestId);
 }
 
 async function resolveSourceReservation(
@@ -844,28 +844,37 @@ async function resolveSourceReservation(
   return materializeReservedRequest(projectDirectory, draft, reservation, snapshot);
 }
 
+function discardIntentFilesByRequestId(filenames: string[]): Map<string, string[]> {
+  const filesByRequestId = new Map<string, string[]>();
+  for (const filename of filenames) {
+    const intent = parseDiscardIntent(filename);
+    if (intent === undefined) continue;
+    const current = filesByRequestId.get(intent.requestId) ?? [];
+    current.push(filename);
+    filesByRequestId.set(intent.requestId, current);
+  }
+  return filesByRequestId;
+}
+
 async function discardIntentInSnapshot(
-  projectDirectory: string,
-  filenames: string[],
+  snapshot: RelayStateSnapshot,
   requestId: string,
 ): Promise<boolean> {
-  const matchingIntents = filenames.filter(
-    filename => parseDiscardIntent(filename)?.requestId === requestId,
-  );
+  const matchingIntents = snapshot.discardIntentFilesByRequestId.get(requestId) ?? [];
   const live = await Promise.all(
-    matchingIntents.map(filename => exists(path.join(relayDirectory(projectDirectory), filename))),
+    matchingIntents.map(filename => exists(path.join(snapshot.directory, filename))),
   );
   return live.includes(true);
 }
 
 async function discardBlocksRequestAtSnapshot(
   projectDirectory: string,
-  filenames: string[],
+  snapshot: RelayStateSnapshot,
   requestId: string,
 ): Promise<boolean> {
   return (
     (await exists(discardedPath(projectDirectory, requestId))) ||
-    (await discardIntentInSnapshot(projectDirectory, filenames, requestId))
+    (await discardIntentInSnapshot(snapshot, requestId))
   );
 }
 
@@ -1063,7 +1072,7 @@ export async function persistRelayDraftBatch(
   }
   const stateSnapshot: RelayStateSnapshot = {
     directory: snapshot.directory,
-    filenames,
+    discardIntentFilesByRequestId: discardIntentFilesByRequestId(filenames),
     statesByRequestId: reservedRequestStates(snapshot.directory, filenames),
   };
   return Promise.all(
