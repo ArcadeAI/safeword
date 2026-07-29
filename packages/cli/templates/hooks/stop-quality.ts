@@ -3,7 +3,8 @@
 // Triggers quality review when edit tools (Write/Edit/MultiEdit/NotebookEdit) are used
 // Phase-aware: reads ticket phase for context-appropriate review questions
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import nodePath from 'node:path';
 
 import {
   deriveTddStep,
@@ -131,9 +132,11 @@ function recordStopReviewState(
 ): void {
   if (!sessionId) return;
   const stateFile = getStateFilePath(projectDir, sessionId);
-  if (!existsSync(stateFile)) return;
   try {
-    const state = JSON.parse(readFileSync(stateFile, 'utf8'));
+    const state = existsSync(stateFile) ? JSON.parse(readFileSync(stateFile, 'utf8')) : {};
+    if (!existsSync(stateFile)) {
+      mkdirSync(nodePath.dirname(stateFile), { recursive: true });
+    }
     Object.assign(state, patch);
     writeFileSync(stateFile, JSON.stringify(state, null, 2));
   } catch {
@@ -370,15 +373,6 @@ checkArchitectureReviewGate(ticketInfo);
 // recover that turn boundary, retain the prior bounded scan. The done phase is
 // the exception: fall through to its gate.
 const editsInCurrentTurn = detectEditToolsUsedInCurrentUserTurn(lines);
-
-// A generic review that already reached Claude has no value on another Stop
-// callback before UserPromptSubmit. That lifecycle boundary clears the marker,
-// so it covers hosts that replay the same edited transcript without setting
-// stop_hook_active (issue #1492). Keep the done phase out of this shortcut:
-// its verification gate must always run.
-if (currentPhase !== 'done' && sessionState?.stopQualityReviewAwaitingUserPrompt) {
-  process.exit(0);
-}
 
 const editsToReview = editsInCurrentTurn ?? detectEditToolsUsed(lines);
 if (!editsToReview && currentPhase !== 'done') {
@@ -748,14 +742,13 @@ const tddStep =
     ? deriveTddStep(projectDir, ticketInfo.folder)
     : null;
 
-// No ticket/phase context (no active ticket, or a done-status ticket): fire the
-// generic review on every edit-stop, as before — there's no boundary to dedup.
-// With a phase: review per phase, deduped against PostToolUse so each boundary
-// is reviewed once. Implement-step reviews stay quiet.
+// No ticket/phase context (no active ticket, or a done-status ticket): dedupe a
+// generic review against the next UserPromptSubmit. With a phase, reviews remain
+// deduped per phase against PostToolUse; implement-step reviews stay quiet.
 const isImplementStep = currentPhase === 'implement' && tddStep !== null;
 let fireReview: boolean;
 if (currentPhase === undefined) {
-  fireReview = true;
+  fireReview = !sessionState?.stopQualityReviewAwaitingUserPrompt;
 } else if (isImplementStep) {
   fireReview = false;
 } else {
@@ -768,7 +761,7 @@ if (!fireReview) {
 
 recordStopReviewState(input.session_id, {
   ...(currentPhase ? { lastReviewedPhase: currentPhase } : {}),
-  stopQualityReviewAwaitingUserPrompt: true,
+  ...(currentPhase === undefined ? { stopQualityReviewAwaitingUserPrompt: true } : {}),
 });
 
 // Disqualification: when novelResearchReminder is unconsumed or a phase-relevant

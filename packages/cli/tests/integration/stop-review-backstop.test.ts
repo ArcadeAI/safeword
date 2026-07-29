@@ -113,6 +113,23 @@ describe('Stop review backstop (SXSCJQ)', () => {
     expect(parsed.reason).toContain('define-behavior');
   });
 
+  it('does not let the generic-review marker suppress a new phase boundary', () => {
+    cwd = buildProject({
+      phase: 'define-behavior',
+      state: {
+        lastReviewedPhase: 'intake',
+        stopQualityReviewAwaitingUserPrompt: true,
+      },
+    });
+
+    const run = runStop(cwd);
+
+    expect(run.status).toBe(0);
+    const parsed = JSON.parse(run.stdout) as { decision?: string; reason?: string };
+    expect(parsed.decision).toBe('block');
+    expect(parsed.reason).toContain('define-behavior');
+  });
+
   it('skips implement-step review backstop during quiet implementation (JENFZX)', () => {
     // deriveTddStep → "red"; ordinary implement progress should not surface a
     // user-facing Stop review just because the TDD step changed.
