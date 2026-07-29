@@ -1514,6 +1514,24 @@ describe('relay dead-letter recovery command', () => {
     }
   });
 
+  it('does not misreport a fault-injection failure as an invalid request identity', async () => {
+    const error = vi.fn<(message: string) => void>();
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-rearm-injected-fault-'));
+
+    try {
+      await expect(
+        retryRelayDeadLetterCommand('00000000-0000-4000-8000-000000001491', {
+          faultBeforeRearm: () => Promise.reject(new Error('injected rearm fault')),
+          output: { error, info: vi.fn(), success: vi.fn() },
+          projectDirectory,
+        }),
+      ).rejects.toThrow('injected rearm fault');
+      expect(error).not.toHaveBeenCalled();
+    } finally {
+      rmSync(projectDirectory, { force: true, recursive: true });
+    }
+  });
+
   it('recovers an expired dead letter by replaying exact bytes to the existing server identity', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-recover-'));
     const original = createRelayRequest(

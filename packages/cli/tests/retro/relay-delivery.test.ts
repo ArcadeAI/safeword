@@ -1549,6 +1549,21 @@ describe('immutable relay delivery spool', () => {
     expect(readFileSync(live, 'utf8')).toBe('live');
   });
 
+  it('keeps a durable target successful when best-effort temporary cleanup fails', async () => {
+    const project = temporaryProject();
+    const relayRequest = request({ sourceKey: 'best-effort-temp-cleanup' });
+
+    const persisted = await persistRelayRequest(project, relayRequest, {
+      faultBeforeTemporaryUnlink: () => Promise.reject(new Error('temporary unlink failed')),
+    });
+
+    expect(readFileSync(persisted.path)).toEqual(persisted.bytes);
+    const directory = path.dirname(persisted.path);
+    expect(readdirSync(directory).filter(filename => filename.includes('.tmp.'))).toHaveLength(1);
+    await recoverRelaySpool(project, Date.now() + 60_001);
+    expect(readdirSync(directory).filter(filename => filename.includes('.tmp.'))).toEqual([]);
+  });
+
   it('persists a batch without rescanning every queued payload for each finding', async () => {
     const project = temporaryProject();
     for (let index = 0; index < 500; index += 1) {
@@ -1583,6 +1598,58 @@ describe('immutable relay delivery spool', () => {
     expect(stateSnapshot).toHaveBeenCalledOnce();
     expect(outcomes).toHaveLength(50);
     expect(outcomes.every(outcome => outcome.status === 'fulfilled')).toBe(true);
+  });
+
+  it('materializes when a snapshotted discard intent is canceled before resolution', async () => {
+    const project = temporaryProject();
+    const draft = request({ sourceKey: 'source-canceled-intent', title: 'Canceled intent' });
+    const persisted = await persistRelayDraft(project, draft);
+    if (persisted === undefined) throw new Error('missing persisted request');
+    const active = activeRequestPath(project, persisted.requestId);
+    rmSync(active);
+    const token = '00000000-0000-4000-8000-000000000099';
+    const intent = path.join(
+      path.dirname(active),
+      `${persisted.requestId}.discarding.${token}.json`,
+    );
+    writeFileSync(
+      intent,
+      JSON.stringify({
+        claimId: 'canceled-intent-owner',
+        expiresAt: Date.now() + 60_000,
+        requestId: persisted.requestId,
+        startedAt: new Date().toISOString(),
+        token,
+        version: 1,
+      }),
+    );
+
+    await expect(
+      persistRelayDraft(project, draft, {
+        faultAfterStateSnapshot: () => {
+          rmSync(intent);
+          return Promise.resolve();
+        },
+      }),
+    ).resolves.toMatchObject({ requestId: persisted.requestId });
+    await expect(listRelayRequests(project)).resolves.toHaveLength(1);
+  });
+
+  it('settles every draft when the coordinated state snapshot fails', async () => {
+    const project = temporaryProject();
+    const drafts = [
+      request({ sourceKey: 'snapshot-failure-a', title: 'Snapshot failure A' }),
+      request({ sourceKey: 'snapshot-failure-b', title: 'Snapshot failure B' }),
+    ];
+
+    await expect(
+      persistRelayDraftBatch(project, drafts, {
+        faultAfterStateSnapshot: () => Promise.reject(new Error('snapshot failed')),
+      }),
+    ).resolves.toEqual([
+      { reason: expect.objectContaining({ message: 'snapshot failed' }), status: 'rejected' },
+      { reason: expect.objectContaining({ message: 'snapshot failed' }), status: 'rejected' },
+    ]);
   });
 
   it('dead-letters terminal relay failures but rearms retryable failures', async () => {
