@@ -1,11 +1,12 @@
 // Safeword: scope the commit-time `architecture --stage` auto-fix to commits that
-// actually move the architecture shape (#425). The shape fingerprint excludes
-// versions and tracks module names, dependency *names*, boundary config, and
-// schema files — so a routine commit (a version bump, a docs edit) must NOT get a
-// regenerated architecture.generated.md injected into it. This gate mirrors those
-// inputs and is biased toward NOT regenerating: a false skip only leaves the doc
-// transiently stale (CI `architecture --check` catches it), whereas a false
-// trigger reintroduces the leak.
+// actually move the generated architecture state (#425). That state excludes
+// versions and tracks module names, normalized package descriptions, dependency
+// *names*, boundary config, and schema files — so a routine commit (a version
+// bump, a docs edit) must NOT get a regenerated architecture.generated.md
+// injected into it. This gate mirrors those inputs and is biased toward NOT
+// regenerating: a false skip only leaves the doc transiently stale (CI
+// `architecture --check` catches it), whereas a false trigger reintroduces the
+// leak.
 
 import { execFileSync } from 'node:child_process';
 
@@ -105,9 +106,18 @@ function workspacePatterns(manifest: Record<string, unknown>): string[] {
     .toSorted();
 }
 
+/** A usable package description, normalized exactly like the architecture purpose line. */
+function packageDescription(manifest: Record<string, unknown>): string | undefined {
+  const description = manifest.description;
+  return typeof description === 'string' && description.trim().length > 0
+    ? description.replaceAll(/\s+/g, ' ').trim()
+    : undefined;
+}
+
 /** The architecture-relevant inputs a package.json contributes (NOT name/version). */
 function manifestArchInputs(manifest: Record<string, unknown>): string {
   return JSON.stringify({
+    description: packageDescription(manifest),
     deps: dependencyNames(manifest),
     workspaces: workspacePatterns(manifest),
   });
@@ -122,8 +132,9 @@ function packageJsonArchInputsChanged(cwd: string, file: string, indexFile?: str
 
 /**
  * Whether the staged change affects the architecture shape. A `package.json` is
- * relevant only when its dependency names or workspace globs changed — a pure
- * version bump leaves the fingerprint untouched and so must not trigger a regen.
+ * relevant only when its normalized description, dependency names, or workspace
+ * globs changed — a pure version bump leaves the generated document untouched
+ * and so must not trigger a regen.
  */
 export function stagedChangeAffectsArchitecture(cwd: string, indexFile?: string): boolean {
   for (const file of stagedFiles(cwd, indexFile)) {

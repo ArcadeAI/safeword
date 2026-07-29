@@ -259,6 +259,51 @@ describe('pre-tool architecture staging hook', () => {
     }
   });
 
+  it('stages a workspace package purpose change that stays fresh in a clean checkout', async () => {
+    rmSync(nodePath.join(directory, 'src'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, 'package.json'),
+      JSON.stringify({ name: 'fixture', private: true, workspaces: ['apps/*'] }),
+    );
+    mkdirSync(nodePath.join(directory, 'apps', 'worker', 'src'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, 'apps', 'worker', 'package.json'),
+      JSON.stringify({ name: 'worker', description: 'Runs background jobs.' }),
+    );
+    writeFileSync(
+      nodePath.join(directory, 'apps', 'worker', 'src', 'index.ts'),
+      'export const worker = true;\n',
+    );
+    selfHeal(directory);
+    git('add', '-A');
+    git('commit', '-m', 'convert fixture to a workspace');
+
+    writeFileSync(
+      nodePath.join(directory, 'apps', 'worker', 'package.json'),
+      JSON.stringify({ name: 'worker', description: 'Runs scheduled background jobs.' }),
+    );
+    git('add', '--', 'apps/worker/package.json');
+
+    const hook = runHook('git commit -m "update worker purpose"');
+    expect(hook.status).toBe(0);
+    expect(git('diff', '--cached', '--name-only')).toContain('.project/architecture.generated.md');
+
+    git('commit', '-m', 'update worker purpose');
+    const cleanCheckout = createTemporaryDirectory();
+    try {
+      git('clone', '--quiet', '--no-local', directory, cleanCheckout);
+
+      const check = await runCli(['architecture', '--check'], { cwd: cleanCheckout });
+
+      expect(check.exitCode).toBe(0);
+      expect(
+        readFileSync(nodePath.join(cleanCheckout, '.project', 'architecture.generated.md'), 'utf8'),
+      ).toContain('Runs scheduled background jobs.');
+    } finally {
+      removeTemporaryDirectory(cleanCheckout);
+    }
+  });
+
   it.each([
     ['git -C', (target: string) => `git -C "${target}" commit -am "remove billing"`],
     [
