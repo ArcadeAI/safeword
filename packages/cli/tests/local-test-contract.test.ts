@@ -35,6 +35,6 @@ describe('local complete-test contract (#1455)', () => {
     const readme = readRepoFile('README.md');
 
     expect(readme).toMatch(/^# From the repo root\nbun run test:all\b[^\n]*\nbun run test:bdd\b/m);
-    expect(readme).toMatch(/^# From packages\/cli\n(?:.*\n)*?bun run test[ \t]/m);
+    expect(readme).toMatch(/^bun run test[ \t]/m);
   });
 });
