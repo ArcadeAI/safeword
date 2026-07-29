@@ -917,17 +917,19 @@ async function prepareRelayDraftPersistence(
     projectDirectory,
     Date.now(),
   );
-  const durableRequests = [...active, ...deadLetters];
-  const corrupt = durableRequests.filter(candidate => parseDurableRequest(candidate) === undefined);
+  const durableRequests = [...active, ...deadLetters].map(candidate => ({
+    candidate,
+    request: parseDurableRequest(candidate),
+  }));
+  const corrupt = durableRequests.filter(({ request }) => request === undefined);
   if (corrupt.length > 0) {
     const reservedIds = await reservedRequestIds(directory);
-    if (corrupt.some(candidate => !reservedIds.has(candidate.requestId))) {
+    if (corrupt.some(({ candidate }) => !reservedIds.has(candidate.requestId))) {
       throw new Error('relay spool contains an unreserved corrupt durable identity record');
     }
   }
   const durableRequestsBySource = new Map<string, RelayDraftRequest>();
-  for (const candidate of durableRequests) {
-    const request = parseDurableRequest(candidate);
+  for (const { request } of durableRequests) {
     if (request !== undefined && !durableRequestsBySource.has(request.sourceKey)) {
       durableRequestsBySource.set(request.sourceKey, request);
     }
