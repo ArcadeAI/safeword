@@ -31,6 +31,7 @@ type RelaySourcePayload = Omit<RelayDraftInput, 'sourceKey'>;
 const UUID_V4_PATTERN = /^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/u;
 const SOURCE_RESERVATION_FILENAME_PATTERN = /^source-[\da-f]{64}\.json$/u;
 const DISCARD_INTENT_LEASE_MS = 60_000;
+const RELAY_RETRY_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export function normalizeRelayOrigin(value: string): string | undefined {
   try {
@@ -123,7 +124,7 @@ export function createRelayRequest(
   return {
     requestId: (dependencies?.randomUUID ?? randomUUID)(),
     createdAt: new Date(createdAt).toISOString(),
-    retryDeadlineAt: new Date(createdAt + 24 * 60 * 60 * 1000).toISOString(),
+    retryDeadlineAt: new Date(createdAt + RELAY_RETRY_WINDOW_MS).toISOString(),
     ...input,
   };
 }
@@ -1799,7 +1800,7 @@ async function renewRelayRecovery(
 }> {
   const renewed = {
     ...original,
-    retryDeadlineAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    retryDeadlineAt: new Date(Date.now() + RELAY_RETRY_WINDOW_MS).toISOString(),
   };
   await replaceAtomic(deadLetter, Buffer.from(JSON.stringify(renewed), 'utf8'));
   const attempt = await submitRelayRecoveryAttempt(relayOrigin, renewed, options);

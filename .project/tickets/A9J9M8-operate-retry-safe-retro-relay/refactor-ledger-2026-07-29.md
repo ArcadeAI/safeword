@@ -8,7 +8,7 @@ an explicit disposition so no scout finding is silently dropped.
 ## Accepted checklist
 
 - [x] R1 Rename `listRelayDeadLetterCommand` to `listRelaySpoolCommand`.
-- [ ] R2 Name the shared 24-hour client retry window.
+- [x] R2 Name the shared 24-hour client retry window.
 - [ ] R3 Name the semantically distinct discard-claim and recovery-claim leases.
 - [ ] R4 Rename the per-run `deadLettered` result to `deadLetteredThisRun`.
 - [ ] R5 Unify durable-record-to-public-receipt projection in the relay store.
