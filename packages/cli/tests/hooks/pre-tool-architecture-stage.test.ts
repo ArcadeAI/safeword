@@ -85,6 +85,31 @@ describe('pre-tool architecture staging hook', () => {
     }
   });
 
+  it.each([
+    ['git -C . commit -am "remove billing"', ['-C', '.', 'commit', '-am', 'remove billing']],
+    [
+      'git -c core.abbrev=7 commit -am "remove billing"',
+      ['-c', 'core.abbrev=7', 'commit', '-am', 'remove billing'],
+    ],
+  ])('keeps a global-option %s commit fresh in a clean checkout', async (command, gitArguments) => {
+    rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
+
+    const hook = runHook(command);
+    expect(hook.status).toBe(0);
+
+    git(...gitArguments);
+    const cleanCheckout = createTemporaryDirectory();
+    try {
+      git('clone', '--quiet', '--no-local', directory, cleanCheckout);
+
+      const check = await runCli(['architecture', '--check'], { cwd: cleanCheckout });
+
+      expect(check.exitCode).toBe(0);
+    } finally {
+      removeTemporaryDirectory(cleanCheckout);
+    }
+  });
+
   it('does not stage tracked worktree changes when git commit -a aborts', () => {
     rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
     const preCommitHook = nodePath.join(directory, '.git', 'hooks', 'pre-commit');

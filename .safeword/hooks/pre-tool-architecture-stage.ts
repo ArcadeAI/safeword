@@ -16,11 +16,6 @@ import process from 'node:process';
 
 import { stagedChangeAffectsArchitecture } from './lib/architecture-staged-scope.ts';
 
-/**
- * Matches a simple executable `git commit` command, but rejects quoted command
- * text, shell prefixes, `git commit-tree`, `git commit-graph`, etc.
- */
-const GIT_COMMIT_COMMAND = /^\s*git\s+commit\b(?!-)/;
 const ARCHITECTURE_SOURCE_INDEX_ENV = 'SAFEWORD_ARCHITECTURE_SOURCE_INDEX';
 
 interface ProjectedIndex {
@@ -28,11 +23,70 @@ interface ProjectedIndex {
   path: string;
 }
 
+const GIT_GLOBAL_OPTIONS_REQUIRING_VALUE = new Set([
+  '-C',
+  '-c',
+  '--attr-source',
+  '--config-env',
+  '--git-dir',
+  '--namespace',
+  '--super-prefix',
+  '--work-tree',
+]);
+const GIT_GLOBAL_FLAGS = new Set([
+  '-P',
+  '-p',
+  '--bare',
+  '--glob-pathspecs',
+  '--icase-pathspecs',
+  '--literal-pathspecs',
+  '--no-advice',
+  '--no-lazy-fetch',
+  '--no-optional-locks',
+  '--no-pager',
+  '--no-replace-objects',
+  '--noglob-pathspecs',
+  '--paginate',
+]);
+const GIT_GLOBAL_NON_COMMAND_OPTIONS = new Set([
+  '--exec-path',
+  '--help',
+  '--html-path',
+  '--info-path',
+  '--man-path',
+  '--version',
+]);
+
+/** Return commit arguments after consuming documented Git global options. */
+function gitCommitArguments(command: string): string[] | undefined {
+  const tokens = shellTokens(command);
+  if (tokens[0] !== 'git') return undefined;
+
+  for (let index = 1; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (token === 'commit') return tokens.slice(index + 1);
+    if (token === undefined || GIT_GLOBAL_NON_COMMAND_OPTIONS.has(token)) return undefined;
+    if (GIT_GLOBAL_FLAGS.has(token)) continue;
+    if ((token.startsWith('-C') || token.startsWith('-c')) && token !== '-C' && token !== '-c') {
+      continue;
+    }
+
+    const optionName = token.split('=', 1)[0] ?? token;
+    if (GIT_GLOBAL_OPTIONS_REQUIRING_VALUE.has(optionName)) {
+      if (token.includes('=')) continue;
+      if (tokens[index + 1] === undefined) return undefined;
+      index += 1;
+      continue;
+    }
+    return undefined;
+  }
+  return undefined;
+}
+
 /** Whether the commit command asks Git to stage every tracked modification. */
 function stagesTrackedWorktreeChanges(command: string): boolean {
-  const match = GIT_COMMIT_COMMAND.exec(command);
-  if (match === null) return false;
-  const tokens = shellTokens(command.slice(match.index + match[0].length));
+  const tokens = gitCommitArguments(command);
+  if (tokens === undefined) return false;
   let skipNextValue = false;
   let stagesAll = false;
   let nonCommitting = false;
@@ -245,7 +299,7 @@ try {
 // Only the agent's `git commit` is in scope; everything else passes through.
 if ((input.tool_name ?? '') !== 'Bash') process.exit(0);
 const gitCommand = input.tool_input?.command ?? '';
-if (!GIT_COMMIT_COMMAND.test(gitCommand)) process.exit(0);
+if (gitCommitArguments(gitCommand) === undefined) process.exit(0);
 
 const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 
