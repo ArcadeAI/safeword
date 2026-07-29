@@ -556,10 +556,51 @@ describe('E2E: UserPromptSubmit Hooks', () => {
         );
 
         expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain('Contribute before asking');
         expect(JSON.parse(readTestFile(shared.projectDirectory, statePath))).toMatchObject({
           stopQualityReviewAwaitingUserPrompt: false,
         });
       } finally {
+        rmSync(`${shared.projectDirectory}/${statePath}`, { force: true });
+      }
+    });
+
+    it('persists the idle Stop-review marker clear when reminder derivation throws (1492)', () => {
+      const sessionId = 'marker-clear-after-reminder-error';
+      const statePath = `.project/quality-state-${sessionId}.json`;
+      setupIssuesDirectory(shared.projectDirectory, [
+        {
+          id: 'MALFORMED',
+          type: 'task',
+          phase: 'implement',
+          status: 'in_progress',
+          lastModified: VERIFIED_AT,
+        },
+      ]);
+      writeTestFile(
+        shared.projectDirectory,
+        statePath,
+        JSON.stringify({
+          activeTicket: 'MALFORMED',
+          stopQualityReviewAwaitingUserPrompt: true,
+          // A valid JSON state with an invalid cached failure shape makes the
+          // reminder path throw after the marker has been cleared in memory.
+          recentFailures: { length: 1 },
+        }),
+      );
+
+      try {
+        const result = runPromptQuestionsHook(
+          shared.projectDirectory,
+          JSON.stringify({ session_id: sessionId, prompt: 'Continue with the next change.' }),
+        );
+
+        expect(result.exitCode).toBe(0);
+        expect(JSON.parse(readTestFile(shared.projectDirectory, statePath))).toMatchObject({
+          stopQualityReviewAwaitingUserPrompt: false,
+        });
+      } finally {
+        clearIssuesDirectory(shared.projectDirectory);
         rmSync(`${shared.projectDirectory}/${statePath}`, { force: true });
       }
     });

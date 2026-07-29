@@ -60,9 +60,10 @@ let effectivePhase: string | undefined;
 const stateFile = getStateFilePath(projectDirectory, input.session_id);
 
 if (existsSync(stateFile)) {
+  let state: ReturnType<typeof JSON.parse> | undefined;
+  let stateDirty = false;
   try {
-    const state = JSON.parse(readFileSync(stateFile, 'utf8'));
-    let stateDirty = false;
+    state = JSON.parse(readFileSync(stateFile, 'utf8'));
 
     // A real UserPromptSubmit boundary consumes the quiet period after a
     // generic Stop review. Clear it before deriving this prompt's reminders so
@@ -182,12 +183,19 @@ if (existsSync(stateFile)) {
       state.learningsNudgesPending = [];
       stateDirty = true;
     }
-
-    if (stateDirty) {
-      writeFileSync(stateFile, JSON.stringify(state, null, 2));
-    }
   } catch {
     // State file corrupted or unreadable — skip reminder, keep core principles
+  } finally {
+    // A reminder failure after the boundary is observed must not keep the
+    // session in its quiet period. Keep the prompt hook best-effort if the
+    // final state write itself fails.
+    if (stateDirty && state !== undefined) {
+      try {
+        writeFileSync(stateFile, JSON.stringify(state, null, 2));
+      } catch {
+        // State write failed — preserve core prompt guidance
+      }
+    }
   }
 }
 

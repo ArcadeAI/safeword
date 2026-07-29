@@ -133,10 +133,8 @@ function recordStopReviewState(
   if (!sessionId) return;
   const stateFile = getStateFilePath(projectDir, sessionId);
   try {
+    mkdirSync(nodePath.dirname(stateFile), { recursive: true });
     const state = existsSync(stateFile) ? JSON.parse(readFileSync(stateFile, 'utf8')) : {};
-    if (!existsSync(stateFile)) {
-      mkdirSync(nodePath.dirname(stateFile), { recursive: true });
-    }
     Object.assign(state, patch);
     writeFileSync(stateFile, JSON.stringify(state, null, 2));
   } catch {
@@ -759,10 +757,12 @@ if (!fireReview) {
   process.exit(0);
 }
 
-recordStopReviewState(input.session_id, {
-  ...(currentPhase ? { lastReviewedPhase: currentPhase } : {}),
-  ...(currentPhase === undefined ? { stopQualityReviewAwaitingUserPrompt: true } : {}),
-});
+recordStopReviewState(
+  input.session_id,
+  currentPhase === undefined
+    ? { stopQualityReviewAwaitingUserPrompt: true }
+    : { lastReviewedPhase: currentPhase },
+);
 
 // Disqualification: when novelResearchReminder is unconsumed or a phase-relevant
 // recent failure exists, append an explicit "CONFIDENT requires X first" line so
