@@ -40,6 +40,10 @@ import {
   validateBuildAttestedRelayReadiness,
   validateRelayReadiness,
 } from '../../src/retro/relay-readiness.js';
+import {
+  relayReadinessMeasurementContent as measurementContent,
+  validRelayReadinessManifest as validManifest,
+} from '../helpers/relay-readiness.js';
 
 const directories: string[] = [];
 const servers: ReturnType<typeof createServer>[] = [];
@@ -1898,61 +1902,6 @@ describe('immutable relay delivery spool', () => {
     expect(outcome.retryable).toBe(3);
   });
 });
-
-function validManifest(): RelayReadinessManifest {
-  const evidenceCommit = 'a'.repeat(40);
-  return {
-    enabled: true,
-    evidenceCommit,
-    measurements: {
-      sameSignatureCollisions: {
-        measuredAt: '2026-07-25T00:00:00.000Z',
-        path: 'measurements/collisions.json',
-        sampleSize: 100,
-        sha256: '1'.repeat(64),
-      },
-      spooledNeverFiled: {
-        measuredAt: '2026-07-25T00:00:00.000Z',
-        path: 'measurements/spooled.json',
-        sampleSize: 100,
-        sha256: '2'.repeat(64),
-      },
-    },
-    prerequisites: [
-      {
-        closedAt: '2026-07-24T00:00:00.000Z',
-        issue: 1474,
-        mergedCommit: 'c'.repeat(40),
-        state: 'closed',
-        url: 'https://github.com/ArcadeAI/safeword/issues/1474',
-      },
-      {
-        closedAt: '2026-07-24T00:00:00.000Z',
-        issue: 1481,
-        mergedCommit: 'd'.repeat(40),
-        state: 'closed',
-        url: 'https://github.com/ArcadeAI/safeword/issues/1481',
-      },
-    ],
-    reviewedAt: '2026-07-26T00:00:00.000Z',
-    version: 1,
-  };
-}
-
-function measurementContent(manifest: RelayReadinessManifest, artifactPath: string): string {
-  const metric = artifactPath.endsWith('collisions.json')
-    ? 'sameSignatureCollisions'
-    : 'spooledNeverFiled';
-  const artifact = manifest.measurements[metric];
-  return JSON.stringify({
-    measuredAt: artifact.measuredAt,
-    metric,
-    repository: 'ArcadeAI/safeword',
-    result: { count: 0 },
-    sampleSize: artifact.sampleSize,
-    version: 1,
-  });
-}
 
 describe('relay readiness provenance', () => {
   it('keeps the checked-in public route disabled', () => {
