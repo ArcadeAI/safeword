@@ -7,6 +7,10 @@
 
 ## Tickets (458)
 
+## Tickets (457)
+
+## Tickets (455)
+
 ### 001
 
 - **Iteration 8: Audit/Lint Ignore Rules (009)** (cancelled, epic: —)
@@ -1161,8 +1165,8 @@
 - **Update audit duplication command for current jscpd (BQ5RCB)** (in_progress, epic: —)
   Update the audit duplication command so it works with the currently resolved `jscpd` CLI.
   → `.project/tickets/BQ5RCB-update-audit-duplication-command-for-current-jscpd`
-- **Architecture narrative reconciliation: honor paths.architecture + surface pre-existing drift (BY7RNR)** (done, epic: —)
-  Done-gate nudge and architecture prompts resolve the narrative via paths.architecture (root ARCHITECTURE.md fallback); safeword architecture emits a non-blocking advisory listing generated packages absent from the narrative
+- **Architecture narrative reconciliation: honor paths.architecture (BY7RNR)** (done, epic: —)
+  Done-gate nudge and architecture prompts resolve the narrative via paths.architecture (root ARCHITECTURE.md fallback).
   → `.project/tickets/BY7RNR-architecture-narrative-blindspots`
 - **Distinguish local dependency-cruiser config sync from published-latest drift (BYXB03)** (in_progress, epic: —)
   Ensure depcruise config drift checks use the intended Safeword source, and do not report branch-local config as stale when only the published CLI differs.
@@ -1495,6 +1499,10 @@
 - **Merge engine: warn when a JSON-merge target exists but won't parse (TIA4M8)** (done, epic: —)
   When `safeword setup`/`upgrade` reconciles a `jsonMerge` target that
   → `.project/tickets/TIA4M8-merge-warn-unparseable`
+- **Run acceptance coverage locally for contributors (TQQGZS)** (done, epic: —)
+  Give contributors one local command that runs both the unit and acceptance suites.
+  external issue: https://github.com/ArcadeAI/safeword/issues/1455
+  → `.project/tickets/TQQGZS-local-acceptance-verification`
 - **plan-implementation phase before TDD (TXRHMD)** (done, epic: —)
   Insert a gated `plan-implementation` phase between scenario-gate and implement so no TDD RED starts before a valid, reviewed impl-plan.md exists (GitHub #480).
   external issue: https://github.com/ArcadeAI/safeword/issues/480

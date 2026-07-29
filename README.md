@@ -520,8 +520,13 @@ Without these binaries, the scripts print a message and skip.
 **Running Tests:**
 
 ```bash
+# From the repo root
+bun run test:all # Unit suite, then acceptance tests
+bun run test:bdd # Acceptance lane only (root only; packages/cli is narrower)
+
+# From packages/cli
 # Important: Use `bun run test` (Vitest), NOT `bun test` (Bun's runner)
-bun run test                      # All tests
+bun run test                      # Vitest suite
 bunx vitest run tests/foo.test.ts # Single file
 bun run test:integration          # Integration tests
 bun run test:watch                # Watch mode

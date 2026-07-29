@@ -49,7 +49,6 @@ import {
   discoverLeafDirectories,
   discoverUnreadableWorkspaces,
 } from '../utils/architecture-monorepo.js';
-import { architectureNarrativeDriftAdvisoryForProject } from '../utils/architecture-narrative-drift.js';
 import {
   GENERATED_ARCHITECTURE_FILENAME,
   isArchitectureDocumentEnforcementEnabled,
@@ -87,21 +86,6 @@ function generateFromWorktree(cwd: string): void {
     success(`Architecture state document ${result.action}: ${result.path}`);
   }
   warnUnreadableWorkspaces(cwd);
-  warnNarrativeDrift(cwd);
-}
-
-/**
- * Print the non-blocking narrative-drift advisory (ticket BY7RNR, GitHub #848):
- * generated `## Packages` entries the human narrative never mentions — the
- * pre-existing-drift case the AXRC4D fingerprint nudge cannot see. Surfaced in
- * every mode (like {@link warnUnreadableWorkspaces}, and independent of
- * `architectureDocEnforcement` for the same reason: honesty about the map is
- * not enforcement) and never changes an exit code — the narrative is
- * human-owned, so only a person can reconcile it.
- */
-function warnNarrativeDrift(cwd: string): void {
-  const advisory = architectureNarrativeDriftAdvisoryForProject(cwd);
-  if (advisory !== undefined) warn(advisory);
 }
 
 /**
@@ -138,10 +122,6 @@ function architectureStage(cwd: string): Promise<void> {
       warnUnreadableWorkspaces(snapshotDirectory);
       if (!isArchitectureDocumentEnforcementEnabled(cwd)) {
         success('Architecture doc enforcement is opted out (architectureDocEnforcement: false).');
-        // Coverage honesty is not enforcement (see warnNarrativeDrift): surface
-        // drift even when opted out, matching --check and default mode. Read the
-        // index snapshot so unstaged source shape cannot affect the commit.
-        warnNarrativeDrift(snapshotDirectory);
         return;
       }
 
@@ -155,9 +135,6 @@ function architectureStage(cwd: string): Promise<void> {
           stageMaterializedDocument(cwd, result);
         }
       }
-      // The snapshot contains the freshly healed document and the exact source
-      // tree for this commit, so the advisory has the same provenance.
-      warnNarrativeDrift(snapshotDirectory);
     });
     warnExcludedWorktreeInputs(cwd);
   } catch (error_) {
@@ -165,7 +142,6 @@ function architectureStage(cwd: string): Promise<void> {
       `Could not complete staged-tree architecture generation; nothing was auto-staged. CI will verify freshness. Cause: ${errorMessage(error_)}`,
     );
   }
-
   return Promise.resolve();
 }
 
@@ -210,7 +186,6 @@ function architectureStaged(cwd: string): Promise<void> {
       for (const result of results) {
         success(`Architecture state document ${result.action}: ${result.path}`);
       }
-      warnNarrativeDrift(snapshotDirectory);
     });
     warnExcludedWorktreeInputs(cwd);
   } catch (error_) {
@@ -765,7 +740,6 @@ function errorMessage(error_: unknown): string {
  */
 function architectureCheck(cwd: string): Promise<void> {
   warnUnreadableWorkspaces(cwd);
-  warnNarrativeDrift(cwd);
   if (!isArchitectureDocumentEnforcementEnabled(cwd)) {
     success('Architecture doc enforcement is opted out (architectureDocEnforcement: false).');
     return Promise.resolve();

@@ -1,17 +1,20 @@
-# Spec: Architecture narrative reconciliation: honor paths.architecture + surface pre-existing drift
+# Spec: Architecture narrative reconciliation: honor paths.architecture
+
+> **Supersession (2026-07-28):** GitHub #1609 retired TB2's package-mention
+> advisory. `architecture.generated.md` is the structural inventory; this
+> hand-curated narrative records decisions. Retained TB2 text below is delivery
+> history, not current behavior.
 
 ## Intent
 
 Make the AXRC4D narrative-reconciliation loop actually reach hosts: the done-gate
 nudge and architecture prompts resolve the human narrative via `paths.architecture`
-(root `ARCHITECTURE.md` fallback) instead of a hardcoded root filename, and
-`safeword architecture` runs surface pre-existing drift — generated packages the
-narrative never mentions — instead of only go-forward fingerprint movement.
+(root `ARCHITECTURE.md` fallback) instead of a hardcoded root filename.
 
 ## Intake Brief
 
 - **Requested by:** ArcadeAI/monorepo maintainer (GitHub #848), after a real drift incident: the generated root map listed six apps — two whole product clusters — absent from the human architecture narrative, and no safeword surface flagged it; a human found it by hand-diffing the two files.
-- **Cost of inaction:** In any host whose narrative doesn't live at root `ARCHITECTURE.md`, the AXRC4D reconcile nudge silently never fires — and drift that predates the safeword install (the common case in mature hosts) is never surfaced at all. Agents navigate with a map missing whole subsystems, the exact failure the architecture subsystem exists to prevent.
+- **Cost of inaction:** In any host whose narrative doesn't live at root `ARCHITECTURE.md`, the AXRC4D reconcile nudge silently never fires. Agents then miss the decision record that explains why the system is shaped as it is.
 - **Reversibility:** Two-way door. Advisory-only output plus a config-resolution tweak; no data model, no public API, no migration. Reverting is deleting an advisory and a fallback chain.
 
 ## References
@@ -41,7 +44,6 @@ Unaffected:
 ## Vocabulary
 
 - **Narrative** — the human-authored architecture document (root `ARCHITECTURE.md` or the `paths.architecture` target, which may be a single file or a directory of decision records); contrast with the machine-owned `architecture.generated.md`. An explicit configuration wins outright: when `paths.architecture` is set but its target is missing, the project has no narrative — safeword never falls back to a root file the host deliberately moved away from.
-- **Mentioned** — a generated package counts as mentioned when its full name or its scoped tail (`@scope/pkg` → `pkg`) appears case-insensitively at a word boundary anywhere in the narrative's text. Deliberately generous: the advisory prefers under-reporting to nagging; `/audit` remains the authoritative reconciliation pass.
 
 ## Jobs To Be Done
 
@@ -109,21 +111,9 @@ The drift advisory never alters any `safeword architecture` mode's exit code:
 still succeed. The narrative is human-owned; only a person can fix it (AXRC4D
 ruling stands).
 
-## Rave Moment
-
-### architecture-narrative-blindspots — the map catches the missing clusters itself
-
-- **Moment:** A session opens and safeword says, unprompted: "Architecture narrative is missing 6 generated packages: chat, experience-api, identity-ui, condex, condex-admin, goembed — run `/audit` to reconcile."
-- **Beats:** The incident itself — docs rot silently until a human happens to hand-diff the generated map against the narrative (that's how #848 was found).
-- **They'd say:** "safeword caught that our architecture doc was missing two whole product clusters before any agent got lost."
-
-(Grounded in the #848 incident report rather than priors — the human fix commit `ddd55f8` in the host repo is exactly what this advisory would have prompted automatically.)
-
 ## Outcomes
 
 - A host with `paths.architecture` configured gets the done-gate reconcile nudge on shape-moving tickets; hosts with root `ARCHITECTURE.md` and no config behave exactly as before.
-- Every `safeword architecture` run (including the session-start heal) names generated packages missing from the narrative, and goes quiet once the narrative is reconciled.
-- No new blocking behavior anywhere; exit codes unchanged in every mode.
 
 ## Open Questions
 

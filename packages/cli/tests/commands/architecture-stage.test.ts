@@ -224,11 +224,9 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
     );
   });
 
-  it('still surfaces the narrative-drift advisory when enforcement is opted out', async () => {
-    // Coverage honesty is independent of enforcement: an opted-out host running
-    // --stage must still be told the narrative omits a generated package, matching
-    // --check and default mode (#864 follow-up). Needs a monorepo — drift is a
-    // root `## Packages` concern; single-repo `## Modules` names are never scanned.
+  it('does not require the narrative to duplicate the generated package inventory', async () => {
+    // Decision records remain silent about packages with no architectural decision.
+    // The generated root index owns package coverage, regardless of enforcement.
     execFileSync('rm', ['-rf', 'src'], { cwd: context.directory });
     writeFileSync(
       nodePath.join(context.directory, 'package.json'),
@@ -245,13 +243,12 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
         'export {};\n',
       );
     }
-    // Narrative mentions only "web" → "billing" is drift.
+    // The decision narrative mentions only web; billing has no decision to record.
     writeFileSync(
       nodePath.join(context.directory, 'ARCHITECTURE.md'),
       '# Architecture\n\nThe web package serves the UI.\n',
     );
-    // Pre-generate the root `## Packages` index: the opt-out branch skips the heal,
-    // so the drift check reads whatever generated doc already exists on disk.
+    // Pre-generate the root index; the opt-out branch skips the heal.
     selfHealProject(context.directory);
     writeEnforcementConfig(context.directory, false);
     git(context.directory, 'add', '-A');
@@ -260,8 +257,8 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
 
     expect(result.exitCode).toBe(0);
     const output = `${result.stdout}\n${result.stderr}`;
-    expect(output).toContain('does not mention');
-    expect(output).toContain('billing');
+    expect(output).not.toContain('does not mention');
+    expect(output).not.toContain('billing');
   });
 
   it('exits zero even with no modules and no doc (noop never blocks)', async () => {
