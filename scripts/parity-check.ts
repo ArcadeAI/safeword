@@ -53,7 +53,10 @@ if (arguments_.includes('--fix')) {
   process.exit(report.exitCode);
 }
 
-const pairCount = Object.values(SAFEWORD_SCHEMA.ownedFiles).filter(d => d.template).length;
+const pairCount = [
+  ...Object.values(SAFEWORD_SCHEMA.ownedFiles),
+  ...Object.values(SAFEWORD_SCHEMA.managedFiles).filter(definition => definition.dogfoodParity),
+].filter(definition => definition.template).length;
 const contractCount = Object.keys(SAFEWORD_SCHEMA.contracts).length;
 
 const result = runParity({

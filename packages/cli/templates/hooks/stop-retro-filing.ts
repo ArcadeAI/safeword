@@ -22,7 +22,7 @@
 import { existsSync } from 'node:fs';
 
 import { decideRetroFilingGate } from './lib/retro-filing-gate.ts';
-import { resolveClaudeSessionId } from './lib/retro-trigger.ts';
+import { resolveSessionId } from './lib/retro-trigger.ts';
 
 interface HookInput {
   session_id?: string;
@@ -43,7 +43,10 @@ if (existsSync(`${projectDirectory}/.safeword`)) {
   // payload without session_id must still key the SAME spool the extraction
   // wrote (cloud/local env fallbacks), else drafts spool under the env id and
   // this gate silently never fires.
-  const sessionId = resolveClaudeSessionId(input);
+  const sessionId = resolveSessionId(input, {
+    CLAUDE_CODE_REMOTE_SESSION_ID: process.env.CLAUDE_CODE_REMOTE_SESSION_ID,
+    CLAUDE_SESSION_ID: process.env.CLAUDE_SESSION_ID,
+  });
   // The gate reads selfReport config itself (GH644A): capture gates the
   // tripwire evaluation, file gates only the dispatch emission — so watch-only
   // installs still police bare drains.

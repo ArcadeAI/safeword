@@ -13,7 +13,7 @@
 import { existsSync } from 'node:fs';
 
 import { decideRetroFilingNudge } from './lib/retro-nudge.ts';
-import { resolveClaudeSessionId } from './lib/retro-trigger.ts';
+import { resolveSessionId } from './lib/retro-trigger.ts';
 
 interface HookInput {
   session_id?: string;
@@ -31,7 +31,10 @@ if (existsSync(`${projectDirectory}/.safeword`)) {
   }
 
   // Resolver parity with the spool writer — see stop-retro-filing.ts.
-  const sessionId = resolveClaudeSessionId(input);
+  const sessionId = resolveSessionId(input, {
+    CLAUDE_CODE_REMOTE_SESSION_ID: process.env.CLAUDE_CODE_REMOTE_SESSION_ID,
+    CLAUDE_SESSION_ID: process.env.CLAUDE_SESSION_ID,
+  });
   if (sessionId) {
     try {
       const additionalContext = decideRetroFilingNudge(projectDirectory, sessionId);

@@ -56,7 +56,8 @@ async function main(): Promise<void> {
 
   if (entries.length === 0) return;
 
-  const latest = entries[entries.length - 1];
+  const latest = entries.at(-1);
+  if (!latest) return;
 
   const conflictFiles = detectConflictFiles(cwd, transcript_path);
   const prefix = conflictFiles.length > 0 ? `⚠️ conflict: ${conflictFiles.join(', ')} — ` : '';

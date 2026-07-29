@@ -38,8 +38,15 @@ const RECENT_TURNS = 10;
 export function parseLogLine(line: string): Entry | null {
   const match = LINE_REGEX.exec(line.trim());
   if (!match) return null;
-  const [timestamp, sessionId, ticket, nextImperative] = match.slice(1);
-  if (!timestamp || !sessionId || !ticket || !nextImperative) return null;
+  // LINE_REGEX has four required, non-empty capture groups. The tuple records
+  // that contract for noUncheckedIndexedAccess without a dead runtime branch.
+  const [, timestamp, sessionId, ticket, nextImperative] = match as unknown as [
+    string,
+    string,
+    string,
+    string,
+    string,
+  ];
   return {
     timestamp,
     sessionId,

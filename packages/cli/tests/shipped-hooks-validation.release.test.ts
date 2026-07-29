@@ -1,17 +1,18 @@
 /**
- * Release gate: shipped TypeScript hooks remain valid in the installed shape.
+ * Release gate: shipped TypeScript templates remain valid in their installed shape.
  *
- * Hook templates are copied into customer repositories, where both host lint
- * and TypeScript tooling can inspect them. Validate the entire physical hook
- * tree here without requiring a customer project's dependencies or generated
- * files.
+ * Schema-declared templates are copied into customer repositories, where host
+ * lint and TypeScript tooling can inspect them. Validate each physical
+ * TypeScript template here with Safeword's package-pinned type dependencies;
+ * customers may use different dependency versions outside this release contract.
  */
 
 import { spawnSync } from 'node:child_process';
-import { cpSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
+import eslintJs from '@eslint/js';
 import { ESLint } from 'eslint';
 import tseslint from 'typescript-eslint';
 import { describe, expect, it } from 'vitest';
@@ -21,7 +22,7 @@ import { recommendedTypeScript } from '../src/presets/typescript/eslint-configs/
 import { SAFEWORD_SCHEMA } from '../src/schema.js';
 
 const cliRoot = nodePath.resolve(import.meta.dirname, '..');
-const hooksDirectory = nodePath.join(cliRoot, 'templates', 'hooks');
+const templatesDirectory = nodePath.join(cliRoot, 'templates');
 const tscPath = nodePath.join(cliRoot, 'node_modules', '.bin', 'tsc');
 
 // The public baseline that host projects use for distributed hook files. Keep
@@ -41,20 +42,41 @@ const supportedHostBaseline = [
   },
 ];
 
-function createInstalledHooksFixture(): { cleanup: () => void; directory: string } {
+interface InstalledTemplate {
+  destinationPath: string;
+  templatePath: string;
+}
+
+const shippedTypeScriptTemplates: InstalledTemplate[] = [
+  ...Object.entries(SAFEWORD_SCHEMA.ownedFiles),
+  ...Object.entries(SAFEWORD_SCHEMA.managedFiles),
+].flatMap(([destinationPath, definition]) => {
+  const templatePath = definition.template;
+  return templatePath?.endsWith('.ts') ? [{ destinationPath, templatePath }] : [];
+});
+
+function createInstalledTemplatesFixture(): {
+  cleanup: () => void;
+  directory: string;
+  templatePaths: string[];
+} {
   const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-shipped-hooks-'));
-  const fixtureHooksDirectory = nodePath.join(directory, 'hooks');
-  cpSync(hooksDirectory, fixtureHooksDirectory, { recursive: true });
-  writeFileSync(
-    nodePath.join(fixtureHooksDirectory, 'lib', 'owned-paths.ts'),
-    generateOwnedPathsModule(SAFEWORD_SCHEMA),
-  );
+  const templatePaths = shippedTypeScriptTemplates.map(({ destinationPath, templatePath }) => {
+    const target = nodePath.join(directory, destinationPath);
+    mkdirSync(nodePath.dirname(target), { recursive: true });
+    cpSync(nodePath.join(templatesDirectory, templatePath), target);
+    return target;
+  });
+  const ownedPathsTarget = nodePath.join(directory, '.safeword', 'hooks', 'lib', 'owned-paths.ts');
+  mkdirSync(nodePath.dirname(ownedPathsTarget), { recursive: true });
+  writeFileSync(ownedPathsTarget, generateOwnedPathsModule(SAFEWORD_SCHEMA));
   writeFileSync(
     nodePath.join(directory, 'tsconfig.json'),
     `${JSON.stringify(
       {
         compilerOptions: {
           allowImportingTsExtensions: true,
+          baseUrl: directory,
           module: 'Preserve',
           moduleDetection: 'force',
           moduleResolution: 'bundler',
@@ -67,10 +89,18 @@ function createInstalledHooksFixture(): { cleanup: () => void; directory: string
           skipLibCheck: true,
           strict: true,
           target: 'ESNext',
+          paths: {
+            '@cucumber/cucumber': [
+              nodePath.join(cliRoot, 'node_modules', '@cucumber', 'cucumber', 'lib', 'index.d.ts'),
+            ],
+          },
           typeRoots: [nodePath.join(cliRoot, 'node_modules', '@types')],
           types: ['node', 'bun'],
         },
-        include: ['hooks/**/*.ts'],
+        include: [
+          ...shippedTypeScriptTemplates.map(({ destinationPath }) => destinationPath),
+          ownedPathsTarget,
+        ],
       },
       undefined,
       2,
@@ -81,33 +111,39 @@ function createInstalledHooksFixture(): { cleanup: () => void; directory: string
       rmSync(directory, { force: true, maxRetries: 3, recursive: true });
     },
     directory,
+    templatePaths,
   };
 }
 
-describe('shipped TypeScript hooks', () => {
+describe('shipped TypeScript templates', () => {
   it('pass Safeword’s supported host ESLint baseline', async () => {
+    const fixture = createInstalledTemplatesFixture();
     const eslint = new ESLint({
-      cwd: cliRoot,
+      cwd: fixture.directory,
       ignore: false,
       overrideConfig: supportedHostBaseline,
       overrideConfigFile: true,
     });
 
-    const results = await eslint.lintFiles([hooksDirectory]);
-    const errors = results.flatMap(result =>
-      result.messages
-        .filter(message => message.severity === 2)
-        .map(
-          message =>
-            `${nodePath.relative(cliRoot, result.filePath)}:${message.line}:${message.ruleId}`,
-        ),
-    );
+    try {
+      const results = await eslint.lintFiles(fixture.templatePaths);
+      const errors = results.flatMap(result =>
+        result.messages
+          .filter(message => message.severity === 2)
+          .map(
+            message =>
+              `${nodePath.relative(fixture.directory, result.filePath)}:${message.line}:${message.ruleId}`,
+          ),
+      );
 
-    expect(errors).toEqual([]);
+      expect(errors).toEqual([]);
+    } finally {
+      fixture.cleanup();
+    }
   });
 
-  it('loads every installed hook through Safeword’s actual typed host preset', async () => {
-    const fixture = createInstalledHooksFixture();
+  it('parses and resolves type information without fatal errors under Safeword’s typed host preset', async () => {
+    const fixture = createInstalledTemplatesFixture();
     try {
       const eslint = new ESLint({
         cwd: fixture.directory,
@@ -116,7 +152,7 @@ describe('shipped TypeScript hooks', () => {
         overrideConfigFile: true,
       });
 
-      const results = await eslint.lintFiles(['hooks']);
+      const results = await eslint.lintFiles(fixture.templatePaths);
       const fatalErrors = results.flatMap(result =>
         result.messages
           .filter(message => message.fatal)
@@ -132,14 +168,15 @@ describe('shipped TypeScript hooks', () => {
     }
   }, 30_000);
 
-  it('typechecks every template in its installed shape', () => {
-    const fixture = createInstalledHooksFixture();
+  it('typechecks every schema-declared template in its installed shape', () => {
+    const fixture = createInstalledTemplatesFixture();
     try {
       const result = spawnSync(tscPath, ['--project', 'tsconfig.json'], {
         cwd: fixture.directory,
         encoding: 'utf8',
       });
 
+      expect(result.error, `failed to spawn ${tscPath}`).toBeUndefined();
       expect(
         result.status,
         `tsc exited ${result.status}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`,
@@ -149,4 +186,3 @@ describe('shipped TypeScript hooks', () => {
     }
   });
 });
-import eslintJs from '@eslint/js';

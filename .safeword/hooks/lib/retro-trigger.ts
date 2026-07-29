@@ -243,21 +243,6 @@ export function resolveSessionId(
   return firstNonEmpty(input.session_id, env.CLAUDE_CODE_REMOTE_SESSION_ID, env.CLAUDE_SESSION_ID);
 }
 
-/**
- * Resolve a Claude hook's session id using the process environment. Keeping
- * this boundary here prevents each Claude-facing hook from rebuilding the same
- * narrow environment object (and keeps cloud/local precedence in one place).
- */
-export function resolveClaudeSessionId(
-  input: { session_id?: string },
-  env: Record<string, string | undefined> = process.env,
-): string | undefined {
-  return resolveSessionId(input, {
-    CLAUDE_CODE_REMOTE_SESSION_ID: env.CLAUDE_CODE_REMOTE_SESSION_ID,
-    CLAUDE_SESSION_ID: env.CLAUDE_SESSION_ID,
-  });
-}
-
 /** The first argument that is a non-empty string, else undefined. */
 function firstNonEmpty(...values: (string | undefined)[]): string | undefined {
   for (const value of values) {
