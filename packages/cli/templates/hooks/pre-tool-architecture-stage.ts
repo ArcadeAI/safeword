@@ -61,8 +61,8 @@ function stagesTrackedWorktreeChanges(command: string): boolean {
         nonCommitting = true;
         continue;
       }
-      if (SHORT_OPTIONS_WITH_ATTACHED_VALUES.has(option)) break;
-      if (SHORT_OPTIONS_WITH_VALUES.has(option)) {
+      if (SHORT_OPTIONS_WITH_OPTIONAL_ATTACHED_VALUE.has(option)) break;
+      if (SHORT_OPTIONS_REQUIRING_VALUE.has(option)) {
         skipNextValue = index === cluster.length - 1;
         break;
       }
@@ -71,8 +71,8 @@ function stagesTrackedWorktreeChanges(command: string): boolean {
   return stagesAll && !nonCommitting;
 }
 
-const SHORT_OPTIONS_WITH_VALUES = new Set(['C', 'F', 'c', 'm', 't']);
-const SHORT_OPTIONS_WITH_ATTACHED_VALUES = new Set(['S', 'u']);
+const SHORT_OPTIONS_REQUIRING_VALUE = new Set(['C', 'F', 'c', 'm', 't']);
+const SHORT_OPTIONS_WITH_OPTIONAL_ATTACHED_VALUE = new Set(['S', 'u']);
 const NON_COMMITTING_LONG_OPTIONS = new Set([
   '--dry-run',
   '--help',
