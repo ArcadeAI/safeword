@@ -20,6 +20,7 @@ interface OpenIssue {
 const UPSTREAM_REPO = 'ArcadeAI/safeword';
 const ISSUES_BASE = `/repos/${UPSTREAM_REPO}/issues`;
 const API = 'https://api.github.com';
+const GITHUB_TOKEN_ENV_KEY = 'GITHUB_TOKEN';
 // GitHub's max page size. The paginated loops interpolate this into the URL
 // AND compare against it to detect the last (short) page — one constant keeps
 // the two from drifting (a mismatch silently truncates or over-fetches).
@@ -51,14 +52,21 @@ const MAX_DEDUP_PAGES = 200;
  */
 function ghAuthToken(): string | undefined {
   try {
-    const childEnvironment = { ...process.env };
-    delete childEnvironment.GITHUB_TOKEN;
+    // Node's Windows environment keys are case-insensitive, while this copied
+    // JavaScript object has case-sensitive keys. Exclude every casing so a
+    // rejected token cannot re-enter `gh` under a different key spelling.
+    const childEnvironment = Object.fromEntries(
+      Object.entries(process.env).filter(([key]) => key.toUpperCase() !== GITHUB_TOKEN_ENV_KEY),
+    );
     const result = spawnSync('gh', ['auth', 'token'], {
       encoding: 'utf8',
       timeout: 10_000,
       env: childEnvironment,
     });
-    const token = (result.stdout ?? '').trim();
+    // Accept at most one terminal LF or CRLF. Broad trimming could turn malformed
+    // credential output into a token-shaped value by silently discarding
+    // whitespace or control characters.
+    const token = (result.stdout ?? '').replace(/\r?\n$/, '');
     return result.status === 0 && isBearerCredentialSyntax(token) ? token : undefined;
   } catch {
     return undefined;
@@ -90,7 +98,7 @@ export function resolveGitHubToken(
   env: Record<string, string | undefined> = process.env,
   getGhToken: () => string | undefined = ghAuthToken,
 ): string | undefined {
-  const fromEnvironment = env.GITHUB_TOKEN;
+  const fromEnvironment = env[GITHUB_TOKEN_ENV_KEY];
   if (
     fromEnvironment &&
     fromEnvironment !== 'proxy-injected' &&
@@ -298,16 +306,16 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
    * path had the same hole for a different reason: the index cannot return an
    * issue created seconds earlier.)
    */
-  const createdThisRun: { number: number; title: string; body: string }[] = [];
+  const createdThisRun: OpenIssue[] = [];
 
-  function matchesIn(issues: readonly OpenIssue[], marker: string): IssueReference[] {
+  function findMarkerMatches(issues: readonly OpenIssue[], marker: string): IssueReference[] {
     return [...issues, ...createdThisRun]
       .filter(issue => issue.body.includes(marker))
       .map(issue => ({ number: issue.number, title: issue.title }));
   }
 
   async function findByExactMarker(marker: string): Promise<IssueReference[]> {
-    return matchesIn(await currentSnapshot(), marker);
+    return findMarkerMatches(await currentSnapshot(), marker);
   }
 
   return {

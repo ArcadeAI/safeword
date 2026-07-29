@@ -62,6 +62,12 @@ function mockFetchCapturing(responder: (url: string) => MockResponse): CapturedC
   return calls;
 }
 
+function getGhChildEnvironment(): NodeJS.ProcessEnv {
+  const spawnCall = spawnSyncMock.mock.calls[0] as [string, string[], { env: NodeJS.ProcessEnv }];
+  if (!spawnCall) throw new Error('expected gh auth token to be called');
+  return spawnCall[2].env;
+}
+
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
@@ -647,11 +653,24 @@ describe('resolveGitHubToken (7D8PJP — no hard GITHUB_TOKEN requirement)', () 
       ['auth', 'token'],
       expect.objectContaining({ encoding: 'utf8', timeout: 10_000 }),
     );
-    const spawnCall = spawnSyncMock.mock.calls[0] as [string, string[], { env: NodeJS.ProcessEnv }];
-    if (!spawnCall) throw new Error('expected gh auth token to be called');
-    const options = spawnCall[2];
-    expect(options.env).toMatchObject({ GH_TOKEN: 'explicit-gh-token' });
-    expect(options.env).not.toHaveProperty('GITHUB_TOKEN');
+    const childEnvironment = getGhChildEnvironment();
+    expect(childEnvironment).toMatchObject({ GH_TOKEN: 'explicit-gh-token' });
+    expect(childEnvironment).not.toHaveProperty('GITHUB_TOKEN');
+  });
+
+  it('accepts a single optional CRLF terminator', () => {
+    vi.stubEnv('GITHUB_TOKEN', 'proxy-injected');
+    spawnSyncMock.mockReturnValue({ status: 0, stdout: 'gh-keyring-token\r\n' });
+
+    expect(resolveGitHubToken()).toBe('gh-keyring-token');
+  });
+
+  it('removes differently cased rejected token keys before asking gh', () => {
+    vi.stubEnv('github_token', 'proxy-injected');
+    spawnSyncMock.mockReturnValue({ status: 0, stdout: 'gh-keyring-token\n' });
+
+    expect(resolveGitHubToken({ GITHUB_TOKEN: 'proxy-injected' })).toBe('gh-keyring-token');
+    expect(getGhChildEnvironment()).not.toHaveProperty('github_token');
   });
 
   it('starts without a gh response configured by an earlier test', () => {
@@ -660,9 +679,14 @@ describe('resolveGitHubToken (7D8PJP — no hard GITHUB_TOKEN requirement)', () 
     expect(resolveGitHubToken()).toBeUndefined();
   });
 
-  it('does not build a REST transport from malformed gh output', () => {
+  it.each([
+    ['an embedded space', 'unsafe token\n'],
+    ['leading whitespace', ' gh-keyring-token\n'],
+    ['a trailing tab before the line ending', 'gh-keyring-token\t\n'],
+    ['two line endings', 'gh-keyring-token\n\n'],
+  ])('does not build a REST transport from gh output with %s', (_label, output) => {
     vi.stubEnv('GITHUB_TOKEN', 'proxy-injected');
-    spawnSyncMock.mockReturnValue({ status: 0, stdout: 'unsafe token\n' });
+    spawnSyncMock.mockReturnValue({ status: 0, stdout: output });
 
     const token = resolveGitHubToken();
 
@@ -676,10 +700,9 @@ describe('resolveGitHubToken (7D8PJP — no hard GITHUB_TOKEN requirement)', () 
 
     expect(resolveGitHubToken({ GITHUB_TOKEN: 'proxy-injected' })).toBe('gh-keyring-token');
 
-    const spawnCall = spawnSyncMock.mock.calls[0] as [string, string[], { env: NodeJS.ProcessEnv }];
-    if (!spawnCall) throw new Error('expected gh auth token to be called');
-    expect(spawnCall[2].env).toMatchObject({ SW_TEST_GH_CONTEXT: 'available' });
-    expect(spawnCall[2].env).not.toHaveProperty('GITHUB_TOKEN');
+    const childEnvironment = getGhChildEnvironment();
+    expect(childEnvironment).toMatchObject({ SW_TEST_GH_CONTEXT: 'available' });
+    expect(childEnvironment).not.toHaveProperty('GITHUB_TOKEN');
   });
 
   // invisible-retro-claude.SM1.AC1 (token arm) — GITHUB_TOKEN present → the REST

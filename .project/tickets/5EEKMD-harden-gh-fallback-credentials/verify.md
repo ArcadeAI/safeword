@@ -1,18 +1,18 @@
 ## Verify Checklist
 
-**Test Suite:** ✓ 53/53 focused resolver/transport tests pass; canonical `bun run test` completed
-**Gherkin:** ✅ Acceptance lane passes (`bun run test:bdd`)
+**Test Suite:** ⚠️ Local environment limitation: 58/58 focused resolver/transport tests pass; the canonical suite under shared load timed out in two unrelated integration tests, both of which pass in isolation
+**Gherkin:** ✅ Acceptance lane passes (`bun run test:bdd`: 93 scenarios, 1,109 steps)
 **Build:** ✅ Success (`tsup`)
-**Lint:** ✅ Clean (`bun run lint`; Prettier applied only to the edited test file)
-**Scenarios:** All 4 scenarios marked complete
+**Lint:** ✅ Clean (`bun run lint`; TypeScript typecheck and Prettier check pass)
+**Scenarios:** All 6 scenarios marked complete
 **PR Scope:** ✅ Diff matches ticket scope
 **Dep Drift:** ✅ Clean — no dependency or architecture change in this ticket
 **Parent Epic:** N/A
 **Reconcile:** ✅ No pattern deviation
 **Experience:** ⏭️ N/A — internal credential-resolution plumbing
-**Evidence limits:** ⚠️ Audit cannot statically inspect Python imports in the unrelated `experiments/gepa-review-spec/gepa` area because it has no import-linter contracts
+**Evidence limits:** ⚠️ The full suite ran under shared-load pressure and hit two unrelated 30-second integration-test timeouts; both passed on isolated rerun. Audit also cannot statically inspect Python imports in the unrelated `experiments/gepa-review-spec/gepa` area because it has no import-linter contracts.
 
-Audit passed with warnings: dependency-cruiser found no violations across 670 modules and 2,188 dependencies; Knip is clean; jscpd reported the existing repository baseline of 509 clones (mostly generated/template mirrors); `bun outdated` reported three unrelated dev-only patch updates.
+Audit passed with warnings: dependency-cruiser found no violations across 667 modules and 2,178 dependencies; Knip is clean; jscpd reported 514 repository-wide clones (8.92%, primarily template/IDE mirrors and none in the changed files); `bun outdated` reported three unrelated dev-only patch updates.
 
 ## Scope Walk
 
