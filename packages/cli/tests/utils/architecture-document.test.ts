@@ -172,6 +172,24 @@ describe('selfHeal — structural facts self-heal at session start', () => {
     expect(content).toMatch(/stale/i);
   });
 
+  it('preserves a human-authored warning blockquote while healing', () => {
+    selfHeal(context.directory);
+    const generatedPath = documentPath(context.directory);
+    const humanWarning = '> ⚠ Rotate these credentials monthly.';
+    writeFileSync(
+      generatedPath,
+      readFileSync(generatedPath, 'utf8').replaceAll(
+        'No description yet — awaiting prose.',
+        '> ⚠ Rotate these credentials monthly.',
+      ),
+    );
+    mkdirSync(nodePath.join(context.directory, 'src', 'billing'), { recursive: true });
+
+    selfHeal(context.directory);
+
+    expect(readFileSync(generatedPath, 'utf8')).toContain(humanWarning);
+  });
+
   it('flags a removed module as orphaned rather than silently dropping it', () => {
     mkdirSync(nodePath.join(context.directory, 'src', 'billing'), { recursive: true });
     selfHeal(context.directory);

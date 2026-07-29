@@ -396,7 +396,7 @@ function parseSectionProse(content: string): Map<string, string> {
 function accumulateProseLine(line: string, inProse: boolean, buffer: string[]): boolean {
   if (line.startsWith(RECONCILED_PREFIX)) return inProse;
   if (line.startsWith('> ⚠ orphaned:')) return true;
-  if (line.startsWith('> ⚠')) return inProse;
+  if (line.startsWith('> ⚠ stale:')) return inProse;
   if (!inProse) return /^`[^`]*`\s*$/.test(line);
   buffer.push(line);
   return true;
