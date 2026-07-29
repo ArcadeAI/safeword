@@ -15,6 +15,7 @@ import {
   planSelfHeal,
   readDocumentFingerprint,
   selfHeal,
+  selfHealProject,
 } from '../../src/utils/architecture-document.js';
 import { shapeFingerprint } from '../../src/utils/architecture-fingerprint.js';
 import { resolveGeneratedArchitecturePath } from '../../src/utils/configured-paths.js';
@@ -45,6 +46,19 @@ describe('selfHeal — structural facts self-heal at session start', () => {
 
     expect(result.action).toBe('created');
     expect(existsSync(documentPath(context.directory))).toBe(true);
+  });
+
+  it('never renders Markdown block syntax from a source header as a module heading', () => {
+    writeFileSync(
+      nodePath.join(context.directory, 'src', 'safe.ts'),
+      '/**\n * ### Not a heading\n *\n * Provides the safe module purpose.\n */\nexport {};\n',
+    );
+
+    selfHeal(context.directory);
+
+    const content = readFileSync(documentPath(context.directory), 'utf8');
+    expect(content).toContain('Provides the safe module purpose.');
+    expect(content).not.toContain('### Not a heading');
   });
 
   it('heals the document to the current shape when the fingerprint has moved', () => {
@@ -363,6 +377,224 @@ describe('selfHeal — per-section prose persistence (JT852Q layer A)', () => {
 
     expect(selfHeal(context.directory).action).toBe('unchanged');
     expect(read()).toBe(after);
+  });
+});
+
+describe('selfHealProject — metadata-seeded purposes (GitHub #1608)', () => {
+  function makeMonorepoPackage(name: string, description: string): string {
+    const directory = nodePath.join(context.directory, 'packages', name);
+    mkdirSync(nodePath.join(directory, 'src'), { recursive: true });
+    writeFileSync(nodePath.join(directory, 'package.json'), JSON.stringify({ name, description }));
+    return directory;
+  }
+
+  beforeEach(() => {
+    rmSync(nodePath.join(context.directory, 'src'), { recursive: true, force: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'package.json'),
+      JSON.stringify({ name: 'root', workspaces: ['packages/*'] }),
+    );
+  });
+
+  it('seeds both a leaf module and its monorepo-root package section', () => {
+    const packageDirectory = makeMonorepoPackage('worker', 'Runs background jobs.');
+    writeFileSync(
+      nodePath.join(packageDirectory, 'src', 'queue.ts'),
+      '/** Dispatches queued background work. More detail. */\nexport {};\n',
+    );
+
+    selfHealProject(context.directory);
+
+    const leaf = readFileSync(nodePath.join(packageDirectory, 'architecture.generated.md'), 'utf8');
+    const root = readFileSync(documentPath(context.directory), 'utf8');
+    expect(leaf).toContain('Dispatches queued background work.');
+    expect(root).toContain('Runs background jobs.');
+    expect(leaf).toContain('<!-- seeded-purpose:');
+    expect(root).toContain('<!-- seeded-purpose:');
+  });
+
+  it('keeps a package description when its source modules cannot be introspected', () => {
+    makeMonorepoPackage('worker', 'Runs background jobs.');
+
+    selfHealProject(context.directory);
+
+    const root = readFileSync(documentPath(context.directory), 'utf8');
+    expect(root).toContain('Runs background jobs.');
+    expect(root).toContain('not introspected');
+    expect(root).toContain('<!-- seeded-purpose:');
+  });
+
+  it('renders only the honesty marker for a fresh un-introspected package without metadata', () => {
+    const packageDirectory = makeMonorepoPackage('worker', '');
+    writeFileSync(
+      nodePath.join(packageDirectory, 'package.json'),
+      JSON.stringify({ name: 'worker' }),
+    );
+
+    selfHealProject(context.directory);
+
+    const worker = sectionText(readFileSync(documentPath(context.directory), 'utf8'), 'worker');
+    expect(worker).toContain('not introspected — no source modules to map');
+    expect(worker).not.toContain(PLACEHOLDER);
+    expect(worker).not.toContain('<!-- seeded-purpose:');
+  });
+
+  it('refreshes an un-introspected package description on a later root heal', () => {
+    const workerDirectory = makeMonorepoPackage('worker', 'Runs background jobs.');
+    selfHealProject(context.directory);
+    writeFileSync(
+      nodePath.join(workerDirectory, 'package.json'),
+      JSON.stringify({ name: 'worker', description: 'Runs scheduled background jobs.' }),
+    );
+    const webDirectory = makeMonorepoPackage('web', 'The user interface.');
+    writeFileSync(nodePath.join(webDirectory, 'src', 'app.ts'), 'export {};\n');
+
+    selfHealProject(context.directory);
+
+    const root = readFileSync(documentPath(context.directory), 'utf8');
+    expect(root).toContain('Runs scheduled background jobs.');
+    expect(root).not.toContain('Runs background jobs.');
+  });
+
+  it('preserves human prose over a previous metadata seed on a later heal', () => {
+    const packageDirectory = makeMonorepoPackage('worker', 'Runs background jobs.');
+    writeFileSync(nodePath.join(packageDirectory, 'src', 'queue.ts'), 'export {};\n');
+    selfHealProject(context.directory);
+    const rootDocument = documentPath(context.directory);
+    writeFileSync(
+      rootDocument,
+      readFileSync(rootDocument, 'utf8').replace(
+        'Runs background jobs.',
+        'Operated by the platform team.',
+      ),
+    );
+    makeMonorepoPackage('web', 'The user interface.');
+    writeFileSync(
+      nodePath.join(context.directory, 'packages', 'web', 'src', 'app.ts'),
+      'export {};\n',
+    );
+
+    selfHealProject(context.directory);
+
+    const root = readFileSync(rootDocument, 'utf8');
+    expect(root).toContain('Operated by the platform team.');
+    expect(root).not.toContain('Runs background jobs.');
+  });
+
+  it('preserves human root prose over the original placeholder on a later heal', () => {
+    const packageDirectory = makeMonorepoPackage('worker', '');
+    writeFileSync(
+      nodePath.join(packageDirectory, 'package.json'),
+      JSON.stringify({ name: 'worker' }),
+    );
+    writeFileSync(nodePath.join(packageDirectory, 'src', 'queue.ts'), 'export {};\n');
+    selfHealProject(context.directory);
+    const rootDocument = documentPath(context.directory);
+    writeFileSync(
+      rootDocument,
+      readFileSync(rootDocument, 'utf8').replace(PLACEHOLDER, 'Owned by the platform team.'),
+    );
+    const webDirectory = makeMonorepoPackage('web', 'The user interface.');
+    writeFileSync(nodePath.join(webDirectory, 'src', 'app.ts'), 'export {};\n');
+
+    selfHealProject(context.directory);
+
+    const root = readFileSync(rootDocument, 'utf8');
+    expect(root).toContain('Owned by the platform team.');
+    expect(root).not.toContain(PLACEHOLDER);
+  });
+
+  it('preserves a human leaf-purpose edit over a previous source-comment seed', () => {
+    const packageDirectory = makeMonorepoPackage('worker', 'Runs background jobs.');
+    writeFileSync(
+      nodePath.join(packageDirectory, 'src', 'queue.ts'),
+      '/** Dispatches queued background work. */\nexport {};\n',
+    );
+    selfHealProject(context.directory);
+    const leafPath = nodePath.join(packageDirectory, 'architecture.generated.md');
+    writeFileSync(
+      leafPath,
+      readFileSync(leafPath, 'utf8').replace(
+        'Dispatches queued background work.',
+        'Owned by the reliability team.',
+      ),
+    );
+    writeFileSync(nodePath.join(packageDirectory, 'src', 'schedule.ts'), 'export {};\n');
+
+    selfHealProject(context.directory);
+
+    const leaf = readFileSync(leafPath, 'utf8');
+    expect(leaf).toContain('Owned by the reliability team.');
+    expect(leaf).not.toContain('Dispatches queued background work.');
+  });
+
+  it('replaces removed metadata seeds with the current fallback instead of preserving stale prose', () => {
+    const packageDirectory = makeMonorepoPackage('worker', 'Runs background jobs.');
+    writeFileSync(
+      nodePath.join(packageDirectory, 'src', 'queue.ts'),
+      '/** Dispatches queued background work. */\nexport {};\n',
+    );
+    selfHealProject(context.directory);
+    writeFileSync(
+      nodePath.join(packageDirectory, 'package.json'),
+      JSON.stringify({ name: 'worker' }),
+    );
+    writeFileSync(nodePath.join(packageDirectory, 'src', 'queue.ts'), 'export {};\n');
+    writeFileSync(nodePath.join(packageDirectory, 'src', 'schedule.ts'), 'export {};\n');
+    const webDirectory = makeMonorepoPackage('web', 'The user interface.');
+    writeFileSync(nodePath.join(webDirectory, 'src', 'app.ts'), 'export {};\n');
+
+    selfHealProject(context.directory);
+
+    const leaf = readFileSync(nodePath.join(packageDirectory, 'architecture.generated.md'), 'utf8');
+    const root = readFileSync(documentPath(context.directory), 'utf8');
+    expect(leaf).toContain(PLACEHOLDER);
+    expect(leaf).not.toContain('Dispatches queued background work.');
+    expect(root).toContain(PLACEHOLDER);
+    expect(root).not.toContain('Runs background jobs.');
+  });
+
+  it('upgrades current leaf and root documents from placeholders to available metadata seeds', () => {
+    const packageDirectory = makeMonorepoPackage('worker', 'Runs background jobs.');
+    writeFileSync(
+      nodePath.join(packageDirectory, 'src', 'queue.ts'),
+      '/** Dispatches queued background work. */\nexport {};\n',
+    );
+    selfHealProject(context.directory);
+    const leafPath = nodePath.join(packageDirectory, 'architecture.generated.md');
+    const rootPath = documentPath(context.directory);
+    for (const [path, purpose] of [
+      [leafPath, 'Dispatches queued background work.'],
+      [rootPath, 'Runs background jobs.'],
+    ] as const) {
+      writeFileSync(
+        path,
+        readFileSync(path, 'utf8')
+          .replaceAll(/<!-- seeded-purpose: [a-f0-9]{64} -->\n/g, '')
+          .replaceAll(purpose, () => PLACEHOLDER),
+      );
+    }
+
+    const results = selfHealProject(context.directory);
+
+    expect(results.map(result => result.action)).toEqual(['healed', 'healed']);
+    expect(readFileSync(leafPath, 'utf8')).toContain('Dispatches queued background work.');
+    expect(readFileSync(rootPath, 'utf8')).toContain('Runs background jobs.');
+  });
+
+  it('heals a generator-owned purpose when its leading module documentation changes', () => {
+    const packageDirectory = makeMonorepoPackage('worker', 'Runs background jobs.');
+    const queuePath = nodePath.join(packageDirectory, 'src', 'queue.ts');
+    writeFileSync(queuePath, '/** Dispatches queued background work. */\nexport {};\n');
+    selfHealProject(context.directory);
+
+    writeFileSync(queuePath, '/** Schedules queued background work. */\nexport {};\n');
+
+    const results = selfHealProject(context.directory);
+    const leaf = readFileSync(nodePath.join(packageDirectory, 'architecture.generated.md'), 'utf8');
+    expect(results.map(result => result.action)).toEqual(['unchanged', 'healed']);
+    expect(leaf).toContain('Schedules queued background work.');
+    expect(leaf).not.toContain('Dispatches queued background work.');
   });
 });
 

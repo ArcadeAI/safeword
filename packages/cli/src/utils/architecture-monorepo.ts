@@ -32,6 +32,8 @@ export interface PackageNode {
   dir: string;
   /** One-line purpose (the purpose floor); a placeholder until prose is written. */
   purpose: string;
+  /** True when `purpose` came from the package.json description. */
+  seededPurpose?: boolean;
   /**
    * Whether the package yields a non-empty skeleton (source modules to enumerate,
    * so it gets a leaf doc) — across every layout the extractor recognizes: `src/`,
@@ -309,12 +311,16 @@ export function extractMonorepoModel(projectDirectory: string): MonorepoModel {
   const { patterns, unreadable: unreadableWorkspaces } = discoverWorkspaces(projectDirectory);
   // Includes both declared workspace members and orphan non-JS packages (issue #844).
   const packages: PackageNode[] = leafDirectoriesFrom(projectDirectory, patterns)
-    .map(dir => ({
-      name: packageName(dir),
-      dir,
-      purpose: PURPOSE_PLACEHOLDER,
-      introspected: extractSkeleton(dir).nodes.length > 0,
-    }))
+    .map(dir => {
+      const description = packageJsonDescription(dir);
+      return {
+        name: packageName(dir),
+        dir,
+        purpose: description ?? PURPOSE_PLACEHOLDER,
+        ...(description !== undefined && { seededPurpose: true }),
+        introspected: extractSkeleton(dir).nodes.length > 0,
+      };
+    })
     .toSorted((a, b) => byString(a.name, b.name));
 
   const names = new Set(packages.map(node => node.name));
@@ -381,6 +387,14 @@ function packageName(packageDirectory: string): string {
     readPyprojectCrateName(packageDirectory) ??
     nodePath.basename(packageDirectory)
   );
+}
+
+/** A usable package.json description, normalized for an architecture purpose line. */
+function packageJsonDescription(packageDirectory: string): string | undefined {
+  const description = readManifest(packageDirectory)?.description;
+  return typeof description === 'string' && description.trim().length > 0
+    ? description.replaceAll(/\s+/g, ' ').trim()
+    : undefined;
 }
 
 /** The `module` path declared in a directory's `go.mod`, if any. */

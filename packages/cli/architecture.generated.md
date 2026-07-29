@@ -59,7 +59,9 @@ No description yet — awaiting prose.
 
 `src/health.ts`
 
-No description yet — awaiting prose.
+<!-- seeded-purpose: 6a514346e034c47f263a14d1f352d56fe0f1435fb100f8804a19b9b70aebc139 -->
+
+Config-health verification core (ticket 3293WH).
 
 ### index
 
@@ -75,7 +77,9 @@ No description yet — awaiting prose.
 
 `src/learning-sync`
 
-No description yet — awaiting prose.
+<!-- seeded-purpose: b56dcde39a15d17f52892285e891cbc4a384a735d1cac4e9a4440ed6b7c3e6e6 -->
+
+Learning sync — generates `<namespace-root>/learnings/INDEX.md` from the `*.md` files in that folder so agents can navigate learnings via a Karpathy-style LLM Wiki index (plain markdown + grep)…
 
 > ⚠ stale: structure changed since this section was reconciled.
 
@@ -85,7 +89,9 @@ No description yet — awaiting prose.
 
 `src/owned-paths.ts`
 
-No description yet — awaiting prose.
+<!-- seeded-purpose: a7727a2c03309440ca648329be38a5fb0566d597b367b41423d2b09c163d44b0 -->
+
+Derive the set of top-level path prefixes that safeword may write to, sourced from SAFEWORD_SCHEMA at build time.
 
 ### packs
 
@@ -121,7 +127,9 @@ No description yet — awaiting prose.
 
 `src/reconcile.ts`
 
-No description yet — awaiting prose.
+<!-- seeded-purpose: 76b396197de407a1fbd82d9825006ca749d81e0faf97ee7d8006ae6583373657 -->
+
+Reconciliation Engine
 
 ### retro
 
@@ -139,7 +147,9 @@ No description yet — awaiting prose.
 
 `src/schema.ts`
 
-No description yet — awaiting prose.
+<!-- seeded-purpose: cf6127ae78364456709c16fc16d5bcba85386d254f98d01b24b63dd8a39b9a00 -->
+
+SAFEWORD Schema - Single Source of Truth
 
 ### self-report-capture
 
@@ -147,7 +157,9 @@ No description yet — awaiting prose.
 
 `src/self-report-capture.ts`
 
-No description yet — awaiting prose.
+<!-- seeded-purpose: 1d6ab8a143a63251557b3fecb492adadece7106155c9cfbf6118f1eb235efe63 -->
+
+CLI-side self-observation producer (ticket 5XXQQZ, issues #345 / #720).
 
 ### skills
 
@@ -185,7 +197,9 @@ No description yet — awaiting prose.
 
 `src/ticket-create`
 
-No description yet — awaiting prose.
+<!-- seeded-purpose: cd55e2fe5512344c84b7dd05daf04eeee694ac625fc57c8bb223112f0b3ededb -->
+
+Route `ticket new` between the local-id path and issue-first creation (KKNFZA TB1). provider:none → the local minter (today's behavior, no tracker client built).
 
 > ⚠ stale: structure changed since this section was reconciled.
 
@@ -195,7 +209,9 @@ No description yet — awaiting prose.
 
 `src/ticket-sync`
 
-No description yet — awaiting prose.
+<!-- seeded-purpose: 5fdae57e79b128bcbf454f6c3fe43a4055247db3add218f54aa2008dc911d08c -->
+
+Ticket sync — generates capability-discovery indexes over the ticket corpus: `<namespace-root>/tickets/INDEX.md` (active tickets, grouped by epic) and `INDEX-completed.md` (the `completed/` archive).
 
 > ⚠ stale: structure changed since this section was reconciled.
 
@@ -205,7 +221,9 @@ No description yet — awaiting prose.
 
 `src/tracker-connect`
 
-No description yet — awaiting prose.
+<!-- seeded-purpose: 21d448b7a5545f4c8179c2071ea2bee6d64843126d4ab910e3fd10950e7d449f -->
+
+The connect orchestration (2TK5AD) — the single flow `setup` and `connect` both run.
 
 > ⚠ stale: structure changed since this section was reconciled.
 
@@ -215,7 +233,9 @@ No description yet — awaiting prose.
 
 `src/tracker-sync`
 
-No description yet — awaiting prose.
+<!-- seeded-purpose: 11bf14632c9d632ee25e364801faad3e599320096950805ee110e066eb822838 -->
+
+The sync-tracker orchestrator — the single call site that projects the ticket corpus one-way into the configured tracker (JS5K5G).
 
 > ⚠ stale: structure changed since this section was reconciled.
 

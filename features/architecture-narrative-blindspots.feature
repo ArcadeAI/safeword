@@ -1,21 +1,16 @@
-# Behavior source for BY7RNR (GitHub #848). The TB1 rules (done-gate nudge
-# resolution) are @wip like bash-ledger-write-gate: their executable backing is
+# Behavior source for BY7RNR (GitHub #848). Every remaining rule is @wip like
+# bash-ledger-write-gate: its executable backing is
 # Vitest hook coverage — git-backed integration tests over the standalone hook
 # helper plus a differential parity test against the CLI resolver — and cucumber
-# steps would duplicate that harness without adding confidence. The TB2 rules
-# (CLI drift advisory) run in this lane against the real `safeword architecture`
-# command, like architecture-unreadable-workspace.
+# steps would duplicate that harness without adding confidence.
 @architecture-narrative-blindspots
-Feature: Architecture narrative reconciliation reaches configured narratives and pre-existing drift
+Feature: Architecture narrative reconciliation reaches configured narratives
 
   The AXRC4D reconcile loop assumed the human architecture narrative lives at
-  root ARCHITECTURE.md and that drift only appears when a ticket moves the
-  shape. GitHub #848 showed a host where both assumptions fail at once: the
-  narrative lives elsewhere (paths.architecture points at it), and the map
-  disagreed with the narrative from day one — six generated packages, two whole
-  product clusters, absent from the doc every agent session loads as ground
-  truth. Nothing fired. The narrative stays human-owned: everything here is
-  advisory, nothing blocks, no exit code changes.
+  root ARCHITECTURE.md. GitHub #848 showed a host whose narrative lives
+  elsewhere (paths.architecture points at it). The narrative stays human-owned:
+  architecture shape changes may prompt a reconciliation, but package coverage
+  belongs exclusively to the generated map.
 
   Rule: The done-gate nudge resolves the narrative via paths.architecture
 
@@ -113,105 +108,3 @@ Feature: Architecture narrative reconciliation reaches configured narratives and
     Scenario: The audit skill's structural-drift check resolves the narrative via paths.architecture
       Given the installed audit skill
       Then its structural-drift check directs the agent to the paths.architecture narrative with root ARCHITECTURE.md as the fallback
-
-  Rule: Generated packages absent from the narrative are surfaced on every architecture run
-
-    @architecture-narrative-blindspots.TB2.AC1
-    Scenario: Packages the narrative never mentions are named in the run output
-      Given a monorepo with JS packages "web" and "billing"
-      And a root ARCHITECTURE.md narrative that mentions only "web"
-      When safeword refreshes the architecture doc and captures its output
-      Then the command succeeds
-      And the output advises that the narrative does not mention "billing"
-      And the advisory points at /audit as the reconciliation path
-
-    @architecture-narrative-blindspots.TB2.AC1
-    Scenario: A configured narrative location is scanned instead of the root file
-      Given a monorepo with JS packages "web" and "billing"
-      And a narrative at "docs/architecture.md" configured via paths.architecture that mentions only "web"
-      When safeword refreshes the architecture doc and captures its output
-      Then the command succeeds
-      And the output advises that the narrative does not mention "billing"
-
-    @architecture-narrative-blindspots.TB2.AC1
-    Scenario: A long list of missing packages is capped with a tail count
-      Given a monorepo with 8 JS packages none of which the root ARCHITECTURE.md narrative mentions
-      When safeword refreshes the architecture doc and captures its output
-      Then the command succeeds
-      And the drift advisory names exactly 6 packages and reports 2 more
-
-    @architecture-narrative-blindspots.TB2.AC1
-    Scenario: A decision-record directory narrative is scanned across all records
-      Given a monorepo with JS packages "web" and "billing"
-      And a paths.architecture decision-record directory whose records together mention only "web"
-      When safeword refreshes the architecture doc and captures its output
-      Then the command succeeds
-      And the output advises that the narrative does not mention "billing"
-
-  Rule: A reconciled or absent narrative draws no drift advisory
-
-    @architecture-narrative-blindspots.TB2.AC2
-    Scenario: A narrative mentioning every package stays silent
-      Given a monorepo with JS packages "web" and "billing"
-      And a root ARCHITECTURE.md narrative that mentions "web" and "billing"
-      When safeword refreshes the architecture doc and captures its output
-      Then the command succeeds
-      And the output carries no narrative drift advisory
-
-    @architecture-narrative-blindspots.TB2.AC2
-    Scenario: A package mentioned in any one decision record counts as mentioned
-      Given a monorepo with JS packages "web" and "billing"
-      And a paths.architecture decision-record directory where one record mentions "web" and another mentions "billing"
-      When safeword refreshes the architecture doc and captures its output
-      Then the command succeeds
-      And the output carries no narrative drift advisory
-
-    @architecture-narrative-blindspots.TB2.AC2
-    Scenario: A scoped package mentioned by its short name counts as mentioned
-      Given a monorepo with the scoped JS package "@acme/design-system"
-      And a root ARCHITECTURE.md narrative that mentions only "design-system"
-      When safeword refreshes the architecture doc and captures its output
-      Then the command succeeds
-      And the output carries no narrative drift advisory
-
-    @architecture-narrative-blindspots.TB2.AC2
-    Scenario: A project with no narrative anywhere stays silent
-      Given a monorepo with JS packages "web" and "billing" and no narrative document
-      When safeword refreshes the architecture doc and captures its output
-      Then the command succeeds
-      And the output carries no narrative drift advisory
-
-    @architecture-narrative-blindspots.TB2.AC2
-    Scenario: A single-repo modules map is never scanned for narrative drift
-      Given a single-repo project with source modules and a root ARCHITECTURE.md narrative that mentions none of them
-      When safeword refreshes the architecture doc and captures its output
-      Then the command succeeds
-      And the output carries no narrative drift advisory
-
-  Rule: The drift advisory never changes an exit code
-
-    @architecture-narrative-blindspots.TB2.AC3
-    Scenario: A staleness check passes with current docs despite narrative drift
-      Given a monorepo with JS packages "web" and "billing"
-      And a root ARCHITECTURE.md narrative that mentions only "web"
-      And the generated architecture docs are current
-      When safeword checks architecture staleness and captures its output
-      Then the command succeeds
-      And the output advises that the narrative does not mention "billing"
-
-    @architecture-narrative-blindspots.TB2.AC3
-    Scenario: A staleness failure is still a staleness failure alongside narrative drift
-      Given a monorepo with JS packages "web" and "billing"
-      And a root ARCHITECTURE.md narrative that mentions only "web"
-      And the generated architecture docs are stale
-      When safeword checks architecture staleness and captures its output
-      Then the command fails
-      And the output advises that the narrative does not mention "billing"
-
-    @architecture-narrative-blindspots.TB2.AC3
-    Scenario: A commit-time stage run succeeds despite narrative drift
-      Given a monorepo with JS packages "web" and "billing" under git
-      And a root ARCHITECTURE.md narrative that mentions only "web"
-      When safeword stages the architecture docs and captures its output
-      Then the command succeeds
-      And the output advises that the narrative does not mention "billing"
