@@ -406,16 +406,19 @@ function parseSectionProse(content: string): Map<string, PriorPurpose> {
  * prose. Returns the next `inProse` state.
  */
 function accumulateProseLine(line: string, inProse: boolean, buffer: string[]): boolean {
-  if (
-    line.startsWith(RECONCILED_PREFIX) ||
-    line.startsWith('> ⚠') ||
-    line.startsWith(SEEDED_PURPOSE_PREFIX)
-  ) {
-    return inProse;
-  }
+  if (isPurposeMetadataLine(line)) return inProse;
   if (!inProse) return /^`[^`]*`\s*$/.test(line);
   buffer.push(line);
   return true;
+}
+
+/** Whether a section line belongs to the generator rather than its preserved prose. */
+function isPurposeMetadataLine(line: string): boolean {
+  return (
+    line.startsWith(RECONCILED_PREFIX) ||
+    line.startsWith(SEEDED_PURPOSE_PREFIX) ||
+    line.startsWith('> ⚠')
+  );
 }
 
 /**
@@ -446,13 +449,7 @@ function parseRootPackageProse(content: string): Map<string, PriorPurpose> {
       name = line.slice(4).trim();
     } else if (name !== undefined) {
       seededDigest = parseSeededPurposeDigest(line) ?? seededDigest;
-      if (
-        !line.startsWith(RECONCILED_PREFIX) &&
-        !line.startsWith(SEEDED_PURPOSE_PREFIX) &&
-        !line.startsWith('> ⚠')
-      ) {
-        buffer.push(line);
-      }
+      if (!isPurposeMetadataLine(line)) buffer.push(line);
     }
   }
   flush();
