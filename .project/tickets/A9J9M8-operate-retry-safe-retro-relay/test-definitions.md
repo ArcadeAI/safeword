@@ -269,3 +269,35 @@ Feature source: `features/operate-retry-safe-retro-relay.feature`
 - [x] RED skip: demonstrated locally before implementation; no separate commit
 - [x] GREEN 01bb33bbf
 - [x] REFACTOR skip: completed before the GREEN commit; no distinct commit
+
+## 2026-07-29 independent quality-review regressions
+
+### Scenario: Empty or semantically irrelevant readiness evidence fails closed
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: One external durable outbox survives disposable harness workspaces
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Persistence success is not reported before file and directory sync
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: GitHub create classification ignores undocumented response prose
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: The built production process files through every real collaborator
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR

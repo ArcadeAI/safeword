@@ -1,15 +1,16 @@
 import { createHash, randomUUID } from 'node:crypto';
-import {
-  access,
-  link,
-  mkdir,
-  readdir,
-  readFile,
-  rename,
-  unlink,
-  writeFile,
-} from 'node:fs/promises';
+import { access, readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
+
+import {
+  type DurableMutationFaults,
+  linkDurable,
+  mkdirDurable,
+  renameDurable,
+  syncDirectoryDurable,
+  unlinkDurable,
+  writeNewDurable,
+} from './durable-fs.js';
 
 export interface RelayDraftRequest {
   body: string;
@@ -147,6 +148,15 @@ function relayDirectory(projectDirectory: string): string {
   return path.join(projectDirectory, '.safeword', 'retro-drafts', 'relay');
 }
 
+async function ensureRelayDirectory(
+  projectDirectory: string,
+  faults: DurableMutationFaults = {},
+): Promise<string> {
+  const directory = relayDirectory(projectDirectory);
+  await mkdirDurable(projectDirectory, directory, faults);
+  return directory;
+}
+
 function requestPath(projectDirectory: string, requestId: string, suffix: string): string {
   if (!UUID_V4_PATTERN.test(requestId)) throw new Error('invalid relay request identity');
   return path.join(relayDirectory(projectDirectory), `${requestId}${suffix}.json`);
@@ -214,11 +224,7 @@ async function exists(file: string): Promise<boolean> {
 }
 
 async function removeIfPresent(file: string): Promise<void> {
-  try {
-    await unlink(file);
-  } catch (error) {
-    if (errorCode(error) !== 'ENOENT') throw error;
-  }
+  await unlinkDurable(file);
 }
 
 async function readPairIfPresent(
@@ -238,25 +244,36 @@ async function sortedFilenames(directory: string): Promise<string[]> {
   return filenames.toSorted((left, right) => left.localeCompare(right));
 }
 
-async function writeAtomic(file: string, bytes: Buffer): Promise<boolean> {
+async function writeAtomic(
+  file: string,
+  bytes: Buffer,
+  faults: DurableMutationFaults = {},
+): Promise<boolean> {
   const temporary = `${file}.tmp.${randomUUID()}`;
-  await writeFile(temporary, bytes, { flag: 'wx', mode: 0o600 });
   try {
-    await link(temporary, file);
-    return true;
-  } catch (error) {
-    if (errorCode(error) !== 'EEXIST') throw error;
-    return false;
+    await writeNewDurable(temporary, bytes, faults);
+    try {
+      await linkDurable(temporary, file, faults);
+      return true;
+    } catch (error) {
+      if (errorCode(error) !== 'EEXIST') throw error;
+      await syncDirectoryDurable(path.dirname(file), faults);
+      return false;
+    }
   } finally {
     await removeIfPresent(temporary);
   }
 }
 
-async function replaceAtomic(file: string, bytes: Buffer): Promise<void> {
+async function replaceAtomic(
+  file: string,
+  bytes: Buffer,
+  faults: DurableMutationFaults = {},
+): Promise<void> {
   const temporary = `${file}.tmp.${randomUUID()}`;
-  await writeFile(temporary, bytes, { flag: 'wx', mode: 0o600 });
   try {
-    await rename(temporary, file);
+    await writeNewDurable(temporary, bytes, faults);
+    await renameDurable(temporary, file, faults);
   } finally {
     await removeIfPresent(temporary);
   }
@@ -354,10 +371,15 @@ function parseRecoveryClaim(
 export async function persistRelayRequest(
   projectDirectory: string,
   request: RelayDraftRequest,
-  options: { faultAfterDiscardCheck?: () => Promise<void> } = {},
+  options: {
+    faultAfterDiscardCheck?: () => Promise<void>;
+    faultBeforeDirectorySync?: () => Promise<void>;
+    faultBeforeFileSync?: () => Promise<void>;
+  } = {},
 ): Promise<{ bytes: Buffer; path: string }> {
-  const directory = relayDirectory(projectDirectory);
-  await mkdir(directory, { recursive: true });
+  await ensureRelayDirectory(projectDirectory, {
+    beforeDirectorySync: options.faultBeforeDirectorySync,
+  });
   if (await discardBlocksRequest(projectDirectory, request.requestId)) {
     throw new Error('relay request identity was discarded');
   }
@@ -376,7 +398,12 @@ export async function persistRelayRequest(
     return { bytes, path: deadLetter };
   }
   const file = primaryPath(projectDirectory, request.requestId);
-  if (!(await writeAtomic(file, bytes))) {
+  if (
+    !(await writeAtomic(file, bytes, {
+      beforeDirectorySync: options.faultBeforeDirectorySync,
+      beforeFileSync: options.faultBeforeFileSync,
+    }))
+  ) {
     const existing = await readFile(file);
     if (!existing.equals(bytes)) {
       throw new Error('relay request identity was reused with a different payload');
@@ -799,8 +826,7 @@ export async function persistRelayDraft(
   draft: RelayDraftInput,
   options: { faultAfterStateSnapshot?: () => Promise<void> } = {},
 ): Promise<RelayDraftRequest | undefined> {
-  const directory = relayDirectory(projectDirectory);
-  await mkdir(directory, { recursive: true });
+  const directory = await ensureRelayDirectory(projectDirectory);
   await recoverRelaySpool(projectDirectory, Date.now());
   const reserved = await loadSourceReservation(projectDirectory, draft);
   if (reserved !== undefined) {
@@ -860,8 +886,7 @@ export async function claimRelayRequest(
   projectDirectory: string,
   options: { claimId: string; excludeRequestIds?: Set<string>; leaseMs: number; now: number },
 ): Promise<RelayClaim | undefined> {
-  const directory = relayDirectory(projectDirectory);
-  await mkdir(directory, { recursive: true });
+  const directory = await ensureRelayDirectory(projectDirectory);
   let filenames = await sortedFilenames(directory);
 
   await recoverExpiredClaims(projectDirectory, filenames, options.now, options.excludeRequestIds);
@@ -938,8 +963,8 @@ async function recoverExpiredClaim(
     return;
   }
   try {
-    await link(claimPath, primaryPath(projectDirectory, requestId));
-    await unlink(claimPath);
+    await linkDurable(claimPath, primaryPath(projectDirectory, requestId));
+    await unlinkDurable(claimPath);
   } catch (error) {
     if (!['ENOENT', 'EEXIST'].includes(errorCode(error) ?? '')) throw error;
   }
@@ -978,7 +1003,7 @@ async function claimSpecificRelayRequest(
     materializingPath(projectDirectory, requestId),
   ]) {
     try {
-      await rename(candidate, claimed);
+      await renameDurable(candidate, claimed);
       if (await discardBlocksRequest(projectDirectory, requestId)) {
         await removeIfPresent(claimed);
         return undefined;
@@ -1062,8 +1087,7 @@ export async function recoverRelaySpool(
   _now: number,
   recoveryOptions: RelaySpoolRecoveryOptions = {},
 ): Promise<void> {
-  const directory = relayDirectory(projectDirectory);
-  await mkdir(directory, { recursive: true });
+  const directory = await ensureRelayDirectory(projectDirectory);
   let filenames = await readdir(directory);
   await recoverDiscardIntents(projectDirectory, filenames, _now);
   filenames = await readdir(directory);
@@ -1342,7 +1366,7 @@ async function commitDiscardIntent(
   intent: DiscardIntent,
 ): Promise<boolean> {
   try {
-    await link(intent.tokenPath, discardedPath(projectDirectory, intent.requestId));
+    await linkDurable(intent.tokenPath, discardedPath(projectDirectory, intent.requestId));
   } catch (error) {
     if (errorCode(error) === 'ENOENT') {
       return discardTombstoneMatches(projectDirectory, intent.requestId);
@@ -1444,7 +1468,7 @@ export async function discardRelayRequest(
   options: RelayDiscardFaults = {},
 ): Promise<boolean> {
   if (!UUID_V4_PATTERN.test(requestId)) throw new Error('invalid relay request identity');
-  await mkdir(relayDirectory(projectDirectory), { recursive: true });
+  await ensureRelayDirectory(projectDirectory);
   await recoverRelaySpool(projectDirectory, Date.now());
   if (await exists(discardedPath(projectDirectory, requestId))) return false;
   return discardOwnedRelayRequest(projectDirectory, requestId, options);
@@ -1481,8 +1505,7 @@ export async function listRelayDeadLetters(
   projectDirectory: string,
 ): Promise<{ bytes: Buffer; requestId: string }[]> {
   await recoverRelaySpool(projectDirectory, Date.now());
-  const directory = relayDirectory(projectDirectory);
-  await mkdir(directory, { recursive: true });
+  const directory = await ensureRelayDirectory(projectDirectory);
   const filenames = await sortedFilenames(directory);
   return relayDeadLettersFromFilenames(directory, filenames);
 }
@@ -1575,8 +1598,8 @@ async function rearmClaim(projectDirectory: string, claim: RelayClaim): Promise<
     return;
   }
   try {
-    await link(claim.path, primaryPath(projectDirectory, claim.requestId));
-    await unlink(claim.path);
+    await linkDurable(claim.path, primaryPath(projectDirectory, claim.requestId));
+    await unlinkDurable(claim.path);
   } catch (error) {
     if (!['ENOENT', 'EEXIST'].includes(errorCode(error) ?? '')) throw error;
   }
@@ -1590,8 +1613,8 @@ async function deadLetterClaim(projectDirectory: string, claim: RelayClaim): Pro
   }
   const deadLetter = deadLetterPath(projectDirectory, claim.requestId);
   try {
-    await link(claim.path, deadLetter);
-    await unlink(claim.path);
+    await linkDurable(claim.path, deadLetter);
+    await unlinkDurable(claim.path);
   } catch (error) {
     if (!['ENOENT', 'EEXIST'].includes(errorCode(error) ?? '')) throw error;
   }
@@ -1609,7 +1632,7 @@ async function claimRelayDeadLetter(
     `${requestId}.recovery-claim.${claimId}.${now + RECOVERY_CLAIM_LEASE_MS}.json`,
   );
   try {
-    await rename(deadLetterPath(projectDirectory, requestId), claimed);
+    await renameDurable(deadLetterPath(projectDirectory, requestId), claimed);
     if (await discardBlocksRequest(projectDirectory, requestId)) {
       await removeIfPresent(claimed);
       return undefined;
@@ -1628,8 +1651,8 @@ async function releaseRecoveryClaim(projectDirectory: string, claim: RelayClaim)
     return;
   }
   try {
-    await link(claim.path, deadLetterPath(projectDirectory, claim.requestId));
-    await unlink(claim.path);
+    await linkDurable(claim.path, deadLetterPath(projectDirectory, claim.requestId));
+    await unlinkDurable(claim.path);
   } catch (error) {
     if (!['ENOENT', 'EEXIST'].includes(errorCode(error) ?? '')) throw error;
   }
@@ -1685,8 +1708,8 @@ export async function rearmRelayDeadLetter(
     throw new Error('relay request is already active');
   }
   try {
-    await link(claim.path, primary);
-    await unlink(claim.path);
+    await linkDurable(claim.path, primary);
+    await unlinkDurable(claim.path);
     return true;
   } catch (error) {
     if (errorCode(error) === 'EEXIST') {
@@ -1909,7 +1932,8 @@ export async function deliverRelayRequests(
   retryable: number;
 }> {
   const monotonicNow = options.monotonicNow ?? (() => performance.now());
-  const overallDeadline = monotonicNow() + (options.overallDeadlineMs ?? options.deadlineMs * 2);
+  const overallDeadline =
+    monotonicNow() + (options.overallDeadlineMs ?? Math.max(options.deadlineMs * 2, 10_000));
   const initial = await listRelayRequests(projectDirectory);
   const wallClockNow = options.now();
   await recoverExpiredClaims(

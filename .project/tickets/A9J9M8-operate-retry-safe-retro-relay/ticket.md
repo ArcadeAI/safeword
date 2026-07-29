@@ -150,3 +150,12 @@ last_modified: 2026-07-27T02:23:02.173Z
   its active reservation to an indefinite source-level tombstone, recovery
   completes the same transition after crashes, and acknowledgement retains
   precedence. TDD proves exact source replay after discard remains terminal.
+- 2026-07-29 A fresh-context full quality review requested changes for semantic
+  readiness validation, cross-disposable-workspace outbox wiring, power-loss
+  filesystem durability, and the missing built-production-process proof.
+  Figure It Out compared direct GitHub fallback, another remote queue, and an
+  explicit external outbox. The plan keeps one filing owner: routing requires
+  an operator-configured outbox outside the project, evidence is parsed rather
+  than merely hashed, file and directory mutations are synced, GitHub outcome
+  classification uses documented signals only, and `dist/main.js` receives a
+  real-collaborator process test.

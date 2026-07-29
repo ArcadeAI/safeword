@@ -1,5 +1,14 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -10,6 +19,7 @@ import {
   buildProvenanceResolver,
   discardRelaySpoolCommand,
   reportRetroCommandOutcome,
+  resolveRelayOutboxDirectory,
   retroCommand,
   retryRelayDeadLetterCommand,
   runRetro,
@@ -131,6 +141,27 @@ const dependencies = (over: Partial<Parameters<typeof runRetro>[1]> = {}) => ({
 });
 
 describe('runRetro', () => {
+  it('accepts only an absolute relay outbox outside the disposable project', () => {
+    const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-outbox-project-'));
+    const external = mkdtempSync(nodePath.join(tmpdir(), 'safeword-durable-outbox-'));
+    const physicalInside = nodePath.join(project, 'physical-outbox');
+    mkdirSync(physicalInside);
+    const symlinkAlias = nodePath.join(external, 'project-outbox-alias');
+    symlinkSync(physicalInside, symlinkAlias);
+
+    try {
+      expect(resolveRelayOutboxDirectory(project, external)).toBe(realpathSync(external));
+      expect(
+        resolveRelayOutboxDirectory(project, nodePath.join(project, 'physical-outbox')),
+      ).toBeUndefined();
+      expect(resolveRelayOutboxDirectory(project, symlinkAlias)).toBeUndefined();
+      expect(resolveRelayOutboxDirectory(project, 'relative/outbox')).toBeUndefined();
+    } finally {
+      rmSync(project, { recursive: true, force: true });
+      rmSync(external, { recursive: true, force: true });
+    }
+  });
+
   it('always gives an enabled relay at least one complete request budget', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-budget-'));
     const send = vi.fn<typeof fetch>((_input, init) => {
@@ -1798,6 +1829,8 @@ describe('relay dead-letter recovery command', () => {
 
   it('discards one explicitly confirmed poisoned durable identity through the built CLI', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-discard-'));
+    const cliProject = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-cli-discard-project-'));
+    const durableOutbox = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-cli-discard-outbox-'));
     const requestId = '00000000-0000-4000-8000-000000001486';
     const spoolDirectory = nodePath.join(projectDirectory, '.safeword', 'retro-drafts', 'relay');
     mkdirSync(spoolDirectory, { recursive: true });
@@ -1819,8 +1852,11 @@ describe('relay dead-letter recovery command', () => {
         }),
       ).resolves.toBe(true);
       const cliRequestId = '00000000-0000-4000-8000-000000001487';
-      const cliPoisoned = nodePath.join(spoolDirectory, `${cliRequestId}.dead-letter.json`);
+      const cliSpoolDirectory = nodePath.join(durableOutbox, '.safeword', 'retro-drafts', 'relay');
+      mkdirSync(cliSpoolDirectory, { recursive: true });
+      const cliPoisoned = nodePath.join(cliSpoolDirectory, `${cliRequestId}.dead-letter.json`);
       writeFileSync(cliPoisoned, '{');
+      rmSync(cliProject, { recursive: true, force: true });
 
       const result = spawnSync(
         process.execPath,
@@ -1832,7 +1868,11 @@ describe('relay dead-letter recovery command', () => {
         ],
         {
           encoding: 'utf8',
-          env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
+          env: {
+            ...process.env,
+            CLAUDE_PROJECT_DIR: cliProject,
+            SAFEWORD_RETRO_RELAY_OUTBOX: durableOutbox,
+          },
         },
       );
       expect(result.status, result.stderr).toBe(0);
@@ -1846,11 +1886,14 @@ describe('relay dead-letter recovery command', () => {
       ).resolves.toBe(false);
     } finally {
       rmSync(projectDirectory, { recursive: true, force: true });
+      rmSync(cliProject, { recursive: true, force: true });
+      rmSync(durableOutbox, { recursive: true, force: true });
     }
   });
 
   it('lists and rearms through the built Commander entry point', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-cli-retry-'));
+    const durableOutbox = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-cli-outbox-'));
     const original = createRelayRequest(
       {
         body: 'body',
@@ -1864,8 +1907,14 @@ describe('relay dead-letter recovery command', () => {
       },
       { now: Date.now, randomUUID: () => '00000000-0000-4000-8000-000000001480' },
     );
-    const persisted = await persistRelayRequest(projectDirectory, original);
+    const persisted = await persistRelayRequest(durableOutbox, original);
     movePersistedRequestToDeadLetter(persisted);
+    rmSync(projectDirectory, { recursive: true, force: true });
+    const commandEnvironment = {
+      ...process.env,
+      CLAUDE_PROJECT_DIR: projectDirectory,
+      SAFEWORD_RETRO_RELAY_OUTBOX: durableOutbox,
+    };
 
     try {
       const listedDeadLetter = spawnSync(
@@ -1873,7 +1922,7 @@ describe('relay dead-letter recovery command', () => {
         [nodePath.resolve(process.cwd(), 'dist', 'cli.js'), 'retro-relay-retry'],
         {
           encoding: 'utf8',
-          env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
+          env: commandEnvironment,
         },
       );
       expect(listedDeadLetter.status, listedDeadLetter.stderr).toBe(0);
@@ -1888,26 +1937,27 @@ describe('relay dead-letter recovery command', () => {
         ],
         {
           encoding: 'utf8',
-          env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
+          env: commandEnvironment,
         },
       );
 
       expect(result.status, result.stderr).toBe(0);
       expect(result.stdout).toContain(original.requestId);
-      const requests = await listRelayRequests(projectDirectory);
+      const requests = await listRelayRequests(durableOutbox);
       expect(requests[0]?.requestId).toBe(original.requestId);
       const listedActive = spawnSync(
         process.execPath,
         [nodePath.resolve(process.cwd(), 'dist', 'cli.js'), 'retro-relay-retry'],
         {
           encoding: 'utf8',
-          env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
+          env: commandEnvironment,
         },
       );
       expect(listedActive.status, listedActive.stderr).toBe(0);
       expect(listedActive.stdout).toContain(`${original.requestId} active`);
     } finally {
       rmSync(projectDirectory, { recursive: true, force: true });
+      rmSync(durableOutbox, { recursive: true, force: true });
     }
   });
 });

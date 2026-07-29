@@ -1,5 +1,8 @@
 import { spawn, spawnSync } from 'node:child_process';
+import { generateKeyPairSync, randomBytes } from 'node:crypto';
 import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createServer } from 'node:http';
+import { createServer as createSecureServer } from 'node:https';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -7,8 +10,11 @@ import { fileURLToPath } from 'node:url';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import type { CredentialInput } from '../src/auth.js';
+import { CredentialRegistry } from '../src/auth.js';
 import { ProcessLock } from '../src/process-lock.js';
 import { RelayStore } from '../src/store.js';
+import type { FileRetroDraftRequest } from '../src/types.js';
 
 const temporaryDirectories: string[] = [];
 
@@ -22,6 +28,61 @@ function spawnDocker(arguments_: string[], timeout: number) {
 const dockerAvailable = spawnDocker(['info'], 10_000).status === 0;
 const containerQualificationEnabled =
   process.env.CI === 'true' && process.versions.node.startsWith('24.') && dockerAvailable;
+
+async function availablePort(): Promise<number> {
+  const server = createServer();
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+  const address = server.address();
+  if (address === null || typeof address === 'string') throw new Error('missing test port');
+  await new Promise<void>((resolve, reject) => {
+    server.close(error => {
+      if (error === undefined) resolve();
+      else reject(error);
+    });
+  });
+  return address.port;
+}
+
+function productionCredentials(): CredentialInput[] {
+  const credential = (
+    credentialId: string,
+    harness: CredentialInput['harness'],
+    secret: string,
+    roles: CredentialInput['roles'],
+  ): CredentialInput => ({
+    credentialId,
+    harness,
+    installationId: 42,
+    repository: 'arcadeai/safeword',
+    roles,
+    secret,
+    subject: `${harness}-subject`,
+    tenantId: 'safeword-production',
+  });
+  return [
+    credential('claude-prod', 'claude', 'a'.repeat(64), ['file']),
+    credential('codex-prod', 'codex', 'b'.repeat(64), ['file']),
+    credential('cursor-prod', 'cursor', 'c'.repeat(64), ['file']),
+    credential('operator-prod', 'operator', 'd'.repeat(64), ['reconcile', 'operate']),
+  ];
+}
+
+function productionDraft(): FileRetroDraftRequest {
+  return {
+    body: 'The production process must wire the real collaborator chain.',
+    canonicalKey: 'canonical:production-main',
+    installationId: 42,
+    labels: ['retro'],
+    legacySignature: 'retro:production-main',
+    repository: 'arcadeai/safeword',
+    requestId: '00000000-0000-4000-8000-000000001479',
+    retryDeadlineAt: '2099-01-01T00:00:00.000Z',
+    title: 'Production entrypoint wiring',
+  };
+}
 
 afterEach(() => {
   for (const directory of temporaryDirectories) {
@@ -100,6 +161,8 @@ describe('retro relay runtime qualification', () => {
     );
 
     expect(dockerfile.match(/^FROM .+@sha256:[\da-f]{64}/gmu)).toHaveLength(2);
+    expect(dockerfile).toContain('ARG NODE_VERSION=24.18.1');
+    expect(dockerfile).toContain('sha256sum --check --strict');
     expect(dockerfile).toContain('snapshot.debian.org/archive/debian/');
     expect(dockerfile).toContain('check-valid-until=no');
     expect(dockerfile).toContain('gosu=1.14-1+b10');
@@ -133,6 +196,170 @@ describe('retro relay runtime qualification', () => {
     expect(result.error, String(result.error)).toBeUndefined();
     expect(result.status, result.stderr || '<no stderr>').toBe(0);
   });
+
+  it('runs the built production process through SQLite, HTTP auth, and GitHub', async () => {
+    const packageRoot = fileURLToPath(new URL('..', import.meta.url));
+    const directory = mkdtempSync(path.join(tmpdir(), 'safeword-relay-main-process-'));
+    temporaryDirectories.push(directory);
+    const certificate = path.join(directory, 'fixture.crt');
+    const certificateKey = path.join(directory, 'fixture.key');
+    const openssl =
+      process.platform === 'darwin'
+        ? path.join(path.sep, 'opt', 'homebrew', 'bin', 'openssl')
+        : path.join(path.sep, 'usr', 'bin', 'openssl');
+    const certificateResult = spawnSync(
+      openssl,
+      [
+        'req',
+        '-x509',
+        '-newkey',
+        'rsa:2048',
+        '-nodes',
+        '-keyout',
+        certificateKey,
+        '-out',
+        certificate,
+        '-subj',
+        '/CN=127.0.0.1',
+        '-addext',
+        'subjectAltName=IP:127.0.0.1',
+        '-days',
+        '1',
+      ],
+      { encoding: 'utf8' },
+    );
+    expect(certificateResult.status, certificateResult.stderr).toBe(0);
+
+    const createdBodies: string[] = [];
+    const github = createSecureServer(
+      {
+        cert: readFileSync(certificate),
+        key: readFileSync(certificateKey),
+      },
+      (request, response) => {
+        void (async () => {
+          if (request.method === 'POST' && request.url?.endsWith('/access_tokens')) {
+            response.setHeader('content-type', 'application/json');
+            response.end(
+              JSON.stringify({
+                expires_at: '2099-01-01T00:00:00.000Z',
+                permissions: { issues: 'write' },
+                token: 'ghs_fixture_token',
+              }),
+            );
+            return;
+          }
+          if (request.method === 'POST' && request.url?.endsWith('/issues')) {
+            let body = '';
+            for await (const chunk of request) body += String(chunk);
+            createdBodies.push((JSON.parse(body) as { body: string }).body);
+            response.statusCode = 201;
+            response.setHeader('content-type', 'application/json');
+            response.end(JSON.stringify({ number: 1479 }));
+            return;
+          }
+          response.statusCode = 404;
+          response.end();
+        })();
+      },
+    );
+    await new Promise<void>((resolve, reject) => {
+      github.once('error', reject);
+      github.listen(0, '127.0.0.1', resolve);
+    });
+    const githubAddress = github.address();
+    if (githubAddress === null || typeof githubAddress === 'string') {
+      throw new Error('missing GitHub fixture address');
+    }
+
+    const credentials = productionCredentials();
+    const pepper = randomBytes(32).toString('hex');
+    const registry = new CredentialRegistry(pepper);
+    const primaryCredential = credentials.at(0);
+    if (primaryCredential === undefined) throw new Error('missing production credential fixture');
+    const authorization = registry.issue(primaryCredential);
+    const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+    const privateKeyBase64 = Buffer.from(
+      privateKey.export({ format: 'pem', type: 'pkcs8' }),
+    ).toString('base64');
+    const relayPort = await availablePort();
+    const child = spawn(process.execPath, ['dist/main.js'], {
+      cwd: packageRoot,
+      env: {
+        ...process.env,
+        GITHUB_API_BASE_URL: `https://127.0.0.1:${githubAddress.port}`,
+        GITHUB_APP_ID: '1',
+        GITHUB_APP_PRIVATE_KEY_BASE64: privateKeyBase64,
+        GITHUB_INSTALLATION_ID: '42',
+        GITHUB_REPOSITORY: 'arcadeai/safeword',
+        HOST: '0.0.0.0',
+        NODE_TLS_REJECT_UNAUTHORIZED: '0',
+        PORT: String(relayPort),
+        RAILWAY_REPLICA_ID: 'production-entrypoint-test',
+        RELAY_CREDENTIAL_PEPPER: pepper,
+        RELAY_CREDENTIALS_BASE64: Buffer.from(JSON.stringify(credentials)).toString('base64'),
+        RELAY_DATA_DIR: directory,
+        RELAY_MODE: 'production',
+        RELAY_PAYLOAD_KEY: randomBytes(32).toString('base64'),
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.setEncoding('utf8').on('data', (chunk: string) => {
+      stdout += chunk;
+    });
+    child.stderr.setEncoding('utf8').on('data', (chunk: string) => {
+      stderr += chunk;
+    });
+
+    try {
+      await expect
+        .poll(
+          () => {
+            if (child.exitCode !== null) {
+              throw new Error(`production entrypoint exited ${String(child.exitCode)}: ${stderr}`);
+            }
+            return stdout;
+          },
+          {
+            interval: 10,
+            message: `production entrypoint did not become ready: ${stderr}`,
+            timeout: 10_000,
+          },
+        )
+        .toContain('"relay_ready"');
+      expect(stdout).toContain(`"url":"http://127.0.0.1:${relayPort}"`);
+
+      const response = await fetch(`http://127.0.0.1:${relayPort}/v1/retro-filings`, {
+        body: JSON.stringify(productionDraft()),
+        headers: {
+          authorization: `Bearer ${authorization}`,
+          'content-type': 'application/json',
+        },
+        method: 'POST',
+      });
+      expect(response.status, await response.text()).toBe(201);
+      expect(createdBodies).toHaveLength(1);
+      expect(existsSync(path.join(directory, 'relay.sqlite'))).toBe(true);
+    } finally {
+      child.kill('SIGTERM');
+      await new Promise<void>(resolve => {
+        if (child.exitCode === null) {
+          child.once('exit', () => {
+            resolve();
+          });
+        } else {
+          resolve();
+        }
+      });
+      await new Promise<void>(resolve => {
+        github.close(() => {
+          resolve();
+        });
+      });
+    }
+  }, 30_000);
 
   it('loads the built-in driver, enables WAL, migrates, and reopens on the active runtime', () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-relay-'));
@@ -171,7 +398,6 @@ describe('retro relay runtime qualification', () => {
     const lock = ProcessLock.acquire(lockPath);
     const store = RelayStore.open(path.join(directory, 'relay.sqlite'));
     const { startRelayServer } = await import('../src/http-server.js');
-    const { CredentialRegistry } = await import('../src/auth.js');
     const { GitHubRestClient } = await import('../src/github.js');
     const credentials = new CredentialRegistry('pepper');
     credentials.issue({

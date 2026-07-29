@@ -1231,6 +1231,30 @@ describe('immutable relay delivery spool', () => {
     expect(readFileSync(persisted.path)).toEqual(persisted.bytes);
   });
 
+  it('does not report persistence success when file synchronization fails', async () => {
+    const project = temporaryProject();
+    const original = request();
+
+    await expect(
+      persistRelayRequest(project, original, {
+        faultBeforeFileSync: () => Promise.reject(new Error('simulated fsync failure')),
+      }),
+    ).rejects.toThrow('simulated fsync failure');
+  });
+
+  it('does not report persistence success when directory synchronization fails', async () => {
+    const project = temporaryProject();
+    const original = request();
+
+    await expect(
+      persistRelayRequest(project, original, {
+        faultBeforeDirectorySync: () =>
+          Promise.reject(new Error('simulated directory fsync failure')),
+      }),
+    ).rejects.toThrow('simulated directory fsync failure');
+    expect(readdirSync(path.join(project, '.safeword', 'retro-drafts', 'relay'))).toHaveLength(0);
+  });
+
   it('claims exclusively, rearms expiry, and prevents stale-owner cleanup', async () => {
     const project = temporaryProject();
     const original = request();
@@ -1673,6 +1697,39 @@ describe('immutable relay delivery spool', () => {
     expect(outcome.retryable).toBe(1);
     expect(await listRelayRequests(project)).toHaveLength(1);
   });
+
+  it('reserves enough default drain time for durable filesystem overhead', async () => {
+    const project = temporaryProject();
+    await persistRelayRequest(project, request());
+    const monotonicTimes = [0, 9000, 9000, 9000];
+    const send = vi.fn<typeof fetch>((_input, init) => {
+      const sent = JSON.parse(
+        Buffer.from(init?.body as Uint8Array).toString('utf8'),
+      ) as RelayDraftRequest;
+      return Promise.resolve(
+        Response.json(
+          {
+            receiptId: 'receipt-after-durable-overhead',
+            requestId: sent.requestId,
+            state: 'filed',
+          },
+          { status: 201 },
+        ),
+      );
+    });
+
+    const outcome = await deliverRelayRequests(project, {
+      credential: 'swc_client_secret',
+      deadlineMs: 25,
+      fetch: send,
+      monotonicNow: () => monotonicTimes.shift() ?? 9000,
+      now: () => 0,
+      relayUrl: 'https://relay.invalid',
+    });
+
+    expect(send).toHaveBeenCalledOnce();
+    expect(outcome.accepted).toBe(1);
+  });
 });
 
 function validManifest(): RelayReadinessManifest {
@@ -1715,6 +1772,21 @@ function validManifest(): RelayReadinessManifest {
   };
 }
 
+function measurementContent(manifest: RelayReadinessManifest, artifactPath: string): string {
+  const metric = artifactPath.endsWith('collisions.json')
+    ? 'sameSignatureCollisions'
+    : 'spooledNeverFiled';
+  const artifact = manifest.measurements[metric];
+  return JSON.stringify({
+    measuredAt: artifact.measuredAt,
+    metric,
+    repository: 'ArcadeAI/safeword',
+    result: { count: 0 },
+    sampleSize: artifact.sampleSize,
+    version: 1,
+  });
+}
+
 describe('relay readiness provenance', () => {
   it('keeps the checked-in public route disabled', () => {
     expect(CHECKED_IN_RELAY_READINESS).toEqual({ enabled: false, version: 1 });
@@ -1734,11 +1806,55 @@ describe('relay readiness provenance', () => {
       readArtifactAtCommit: (_commit, artifactPath) =>
         Promise.resolve(
           artifactPath.endsWith('collisions.json')
-            ? { sha256: '1'.repeat(64) }
-            : { sha256: '2'.repeat(64) },
+            ? { content: measurementContent(manifest, artifactPath), sha256: '1'.repeat(64) }
+            : { content: measurementContent(manifest, artifactPath), sha256: '2'.repeat(64) },
         ),
     });
     expect(result).toEqual({ enabled: true });
+  });
+
+  it('fails closed when a hash-attested measurement has an empty sample', async () => {
+    const manifest = validManifest();
+    manifest.measurements.spooledNeverFiled.sampleSize = 0;
+
+    const result = await validateRelayReadiness(manifest, {
+      buildCommit: 'b'.repeat(40),
+      isAncestor: () => Promise.resolve(true),
+      now: new Date('2026-07-26T12:00:00.000Z'),
+      readArtifactAtCommit: (_commit, artifactPath) =>
+        Promise.resolve({
+          content: measurementContent(manifest, artifactPath),
+          sha256: artifactPath.endsWith('collisions.json') ? '1'.repeat(64) : '2'.repeat(64),
+        }),
+    });
+
+    expect(result).toEqual({ enabled: false });
+  });
+
+  it('fails closed when hash-attested content describes the wrong measurement', async () => {
+    const manifest = validManifest();
+
+    const result = await validateRelayReadiness(manifest, {
+      buildCommit: 'b'.repeat(40),
+      isAncestor: () => Promise.resolve(true),
+      now: new Date('2026-07-26T12:00:00.000Z'),
+      readArtifactAtCommit: (_commit, artifactPath) =>
+        Promise.resolve({
+          content: JSON.stringify({
+            measuredAt: '2026-07-25T00:00:00.000Z',
+            metric: artifactPath.endsWith('collisions.json')
+              ? 'spooledNeverFiled'
+              : 'sameSignatureCollisions',
+            repository: 'ArcadeAI/safeword',
+            result: { count: 0 },
+            sampleSize: 100,
+            version: 1,
+          }),
+          sha256: artifactPath.endsWith('collisions.json') ? '1'.repeat(64) : '2'.repeat(64),
+        }),
+    });
+
+    expect(result).toEqual({ enabled: false });
   });
 
   it('uses build-embedded evidence without consulting the customer repository', async () => {
@@ -1753,6 +1869,12 @@ describe('relay readiness provenance', () => {
             prerequisite => `${prerequisite.mergedCommit}:${manifest.evidenceCommit}`,
           ),
         ],
+        artifactContents: Object.fromEntries(
+          Object.values(manifest.measurements).map(artifact => [
+            `${manifest.evidenceCommit}:${artifact.path}`,
+            measurementContent(manifest, artifact.path),
+          ]),
+        ),
         artifactHashes: Object.fromEntries(
           Object.values(manifest.measurements).map(artifact => [
             `${manifest.evidenceCommit}:${artifact.path}`,
@@ -1820,7 +1942,7 @@ describe('relay readiness provenance', () => {
       readArtifactAtCommit: (_commit, artifactPath) => {
         let sha256 = artifactPath.endsWith('collisions.json') ? '1'.repeat(64) : '2'.repeat(64);
         if (kind === 'hash mismatch') sha256 = '3'.repeat(64);
-        return Promise.resolve({ sha256 });
+        return Promise.resolve({ content: measurementContent(manifest, artifactPath), sha256 });
       },
     });
     expect(result.enabled).toBe(false);

@@ -275,3 +275,37 @@ Feature: Operate the retry-safe retro relay
       Given a claimed request becomes ambiguous before maintenance
       When the ambiguous transition commits
       Then its payload-free alert event commits in the same transaction
+
+  Rule: Routing evidence and handoff storage are durable rather than nominal
+
+    @operate-retry-safe-retro-relay.TBU1.R4 @rejection
+    Scenario: Empty or semantically irrelevant readiness evidence fails closed
+      Given the readiness manifest names fresh hash-attested measurement files
+      But a measurement is empty or describes a different metric
+      When the running build validates relay readiness
+      Then the existing native filing path remains selected
+
+    @operate-retry-safe-retro-relay.TBU1.R1
+    Scenario: One external durable outbox survives disposable harness workspaces
+      Given one harness persists a request in the configured durable outbox
+      When its project workspace is destroyed and another harness retries
+      Then the second harness submits the same requestId and exact payload
+      And no request is manually copied or reseeded
+
+    @operate-retry-safe-retro-relay.TBU1.R3
+    Scenario: Persistence success is not reported before file and directory sync
+      Given a relay draft has been written to a temporary file
+      When file or directory synchronization fails
+      Then persistence fails without reporting durable success
+
+    @operate-retry-safe-retro-relay.SWM1.R2
+    Scenario: GitHub create classification ignores undocumented response prose
+      Given GitHub rejects issue creation with a documented response status
+      When its response message changes
+      Then the relay chooses the same certain retry or ambiguous outcome
+
+    @operate-retry-safe-retro-relay.SWM1.R1
+    Scenario: The built production process files through every real collaborator
+      Given the compiled production entrypoint has environment configuration and a local GitHub fixture
+      When an authenticated harness submits a filing request
+      Then the process stores it in SQLite and the fixture receives one issue

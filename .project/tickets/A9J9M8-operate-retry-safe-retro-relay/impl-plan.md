@@ -73,8 +73,12 @@ the common core.
 | Decision | Choice | Alternatives considered | Rejected because |
 | --- | --- | --- | --- |
 | Client request identity | UUIDv4 at first persistence; exact stored bytes thereafter | signature/canonical hash; regenerate per attempt | Semantic evidence drifts and is public meaning; regeneration breaks cross-harness mismatch rules |
+| Client outbox topology | Explicit absolute outbox outside the project workspace; routing stays disabled without it | repo-local default; direct GitHub fallback; second remote queue | Repo-local state is reclaimed with cloud workspaces; fallback creates a second filing owner; another service and credential surface are disproportionate |
 | Cross-session ownership | Immutable payload renamed to a claim-ID/expiry filename | shared JSONL rewrite; advisory in-memory lock; client SQLite | Shared rewrites lose concurrent appends; memory does not cross processes; client SQLite is unnecessary deployment weight |
-| Local commit | Atomic ack journal is authoritative; payload deletion is recoverable compaction | “atomic” ack plus delete; delete then ack | Two mutations cannot be atomic without a journal; delete-first loses retry evidence |
+| Local commit | Flush file contents and sync every containing-directory mutation before success; atomic ack journal is authoritative | buffered write plus rename; “atomic” ack plus delete; delete then ack | Rename visibility is not power-loss durability; two mutations cannot be atomic without a journal; delete-first loses retry evidence |
+| Readiness evidence | Parse versioned metric-specific JSON with a nonempty sample and bind its exact bytes/hash to the build | hash/timestamp only; manifest-only counters | A hash can attest an empty or irrelevant artifact; manifest-only counters duplicate rather than validate the evidence |
+| GitHub create failures | Use documented status codes and retry headers only; every 422 is a certain rejection | response-message regexes | GitHub does not document stable error-message text, so message matching cannot decide duplicate-sensitive state |
+| Production entrypoint proof | Spawn built `dist/main.js` through environment parsing, lock, SQLite, HTTP/auth, and a local GitHub fixture | import `dist/index.js`; in-process runtime only | Neither alternative proves the executable shipped in the container wires the real collaborators |
 | Session latency | 750ms network abort inside one-second operation budget; no receipt means no ack | wait for filing; fire-and-forget; immediate GitHub fallback | Stop hooks must return; fire-and-forget cannot prove acceptance; fallback after response loss can duplicate |
 | Runtime credentials | Strict base64 JSON array in production; explicit non-ready spike mode for the legacy credential | one shared production credential; one env variable set per harness field | Shared credentials prevent independent rotation/audit; spike compatibility cannot weaken production |
 | Lifecycle storage | Additive version-2 schedule/timestamps and version-last transaction | destructive table rewrite; PostgreSQL now | Rewrite risks the live database; PostgreSQL exceeds the proven topology |
@@ -111,10 +115,11 @@ Evidence:
 - SQLite pages, WAL history, Railway snapshots, and operator backups are outside
   the 30-day application-access retention promise. This slice does not claim
   forensic secure deletion.
-- A local spool cannot survive reclamation of an ephemeral cloud VM when the
-  relay is unreachable. The one-second fallback is visible and safe for the
-  remaining process lifetime, while cross-runtime durability still depends on
-  relay acceptance.
+- No cloud provider exposes a portable persistent filesystem contract to this
+  CLI. Relay routing therefore requires an explicitly configured outbox outside
+  the project workspace. The six-surface proof reuses that one outbox after
+  each disposable workspace is destroyed. A cloud environment without a
+  platform-persistent mapping remains on the existing native path.
 
 ## Doc impact
 

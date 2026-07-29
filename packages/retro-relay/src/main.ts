@@ -2,7 +2,7 @@ import { startRelayRuntime } from './runtime.js';
 import { parseRuntimeConfig } from './runtime-config.js';
 
 const runtime = await startRelayRuntime(parseRuntimeConfig(process.env));
-process.stdout.write(`${JSON.stringify({ event: 'relay_ready' })}\n`);
+process.stdout.write(`${JSON.stringify({ event: 'relay_ready', url: runtime.url })}\n`);
 
 const state = { stopping: false };
 async function stop(signal: string): Promise<void> {

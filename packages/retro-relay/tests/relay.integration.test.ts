@@ -664,7 +664,21 @@ describe('retry-safe retro relay', () => {
     expect(github.maximumConcurrentCreates()).toBe(1);
   });
 
-  it.each([400, 404, 410])(
+  it('classifies documented create failures independently of response prose', () => {
+    const validation = new GitHubCreateError({
+      message: 'Validation Failed',
+      status: 422,
+    });
+    const changedProse = new GitHubCreateError({
+      message: 'The endpoint has been spammed',
+      status: 422,
+    });
+
+    expect(validation.outcome).toBe('rejected');
+    expect(changedProse.outcome).toBe(validation.outcome);
+  });
+
+  it.each([400, 404, 410, 422])(
     'records GitHub %i as a certain terminal rejection',
     async statusCode => {
       const setup = await fixture({ createStatus: statusCode });
@@ -676,7 +690,7 @@ describe('retry-safe retro relay', () => {
     },
   );
 
-  it.each([401, 422, 429])(
+  it.each([401, 403, 429])(
     'keeps GitHub %i retryable because no issue was created',
     async status => {
       const setup = await fixture({ createStatus: status });
@@ -694,13 +708,10 @@ describe('retry-safe retro relay', () => {
     },
   );
 
-  it.each([
-    [403, 'Resource not accessible by integration'],
-    [422, 'Validation Failed'],
-  ] as const)(
-    'rejects non-rate-limit GitHub %i failures without retrying',
-    async (status, message) => {
-      const setup = await fixture({ createMessage: message, createStatus: status });
+  it.each(['Validation Failed', 'The endpoint has been spammed'])(
+    'rejects GitHub 422 without interpreting message %s',
+    async message => {
+      const setup = await fixture({ createMessage: message, createStatus: 422 });
       const adapter = createHarnessAdapters(setup.relay.url, setup.credential).claude;
 
       await expect(adapter.file(draft())).resolves.toMatchObject({ state: 'rejected' });
@@ -709,24 +720,24 @@ describe('retry-safe retro relay', () => {
     },
   );
 
-  it.each([
-    [403, 'You have exceeded a secondary rate limit'],
-    [422, 'The endpoint has been spammed'],
-  ] as const)('retries rate-limit GitHub %i failures', async (status, message) => {
-    const setup = await fixture({ createMessage: message, createStatus: status });
+  it.each(['Resource not accessible by integration', 'You have exceeded a secondary rate limit'])(
+    'keeps GitHub 403 retryable without interpreting message %s',
+    async message => {
+      const setup = await fixture({ createMessage: message, createStatus: 403 });
 
-    await expect(
-      createHarnessAdapters(setup.relay.url, setup.credential).claude.file(draft()),
-    ).rejects.toMatchObject({ status: 503 });
-    expect(
-      setup.store.load({
-        tenantId: 'tenant-1',
-        installationId: 42,
-        repository: 'arcadeai/safeword',
-        requestId: draft().requestId,
-      })?.state,
-    ).toBe('retryable');
-  });
+      await expect(
+        createHarnessAdapters(setup.relay.url, setup.credential).claude.file(draft()),
+      ).rejects.toMatchObject({ status: 503 });
+      expect(
+        setup.store.load({
+          tenantId: 'tenant-1',
+          installationId: 42,
+          repository: 'arcadeai/safeword',
+          requestId: draft().requestId,
+        })?.state,
+      ).toBe('retryable');
+    },
+  );
 
   it('honors GitHub Retry-After when scheduling a retry', async () => {
     const now = new Date('2026-07-27T00:00:00.000Z');

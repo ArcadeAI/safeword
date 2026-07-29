@@ -72,6 +72,24 @@ const readinessManifest: RelayReadinessManifest = {
   version: 1,
 };
 
+function readinessArtifactContent(artifactPath: string): string {
+  const metric = artifactPath.endsWith('same-signature.json')
+    ? 'sameSignatureCollisions'
+    : 'spooledNeverFiled';
+  const artifact =
+    metric === 'sameSignatureCollisions'
+      ? readinessManifest.measurements.sameSignatureCollisions
+      : readinessManifest.measurements.spooledNeverFiled;
+  return JSON.stringify({
+    measuredAt: artifact.measuredAt,
+    metric,
+    repository: 'ArcadeAI/safeword',
+    result: { count: 0 },
+    sampleSize: artifact.sampleSize,
+    version: 1,
+  });
+}
+
 afterEach(async () => {
   const openServers = [...servers];
   servers.length = 0;
@@ -251,7 +269,8 @@ async function githubFixture(): Promise<{
 describe('real shared CLI to relay wiring', () => {
   it('routes all six installed surfaces through one persisted request and collaborator chain', async () => {
     const relayDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-cli-relay-server-'));
-    directories.push(relayDirectory);
+    const durableOutbox = mkdtempSync(path.join(tmpdir(), 'safeword-cli-relay-outbox-'));
+    directories.push(relayDirectory, durableOutbox);
     const github = await githubFixture();
     const registry = new CredentialRegistry('pepper');
     const issueCredential = (harness: RelayHarness, character: string) =>
@@ -287,13 +306,14 @@ describe('real shared CLI to relay wiring', () => {
       store,
     });
     servers.push(relay.server);
+    const nativeFetch = globalThis.fetch;
     const secureRelayFetch: typeof fetch = (input, init) => {
       let requested: URL;
       if (typeof input === 'string') requested = new URL(input);
       else if (input instanceof URL) requested = input;
       else requested = new URL(input.url);
       expect(requested.origin).toBe('https://relay.test');
-      return fetch(new URL(`${requested.pathname}${requested.search}`, relay.url), init);
+      return nativeFetch(new URL(`${requested.pathname}${requested.search}`, relay.url), init);
     };
     const finding = {
       category: 'rough-edge',
@@ -324,6 +344,7 @@ describe('real shared CLI to relay wiring', () => {
         randomUUID: () => '00000000-0000-4000-8000-000000001479',
       },
     );
+    await persistRelayRequest(durableOutbox, sharedRequest);
     const run = async (
       project: string,
       arguments_: string[],
@@ -334,7 +355,13 @@ describe('real shared CLI to relay wiring', () => {
       let outcome: RetroOutcome | undefined;
       await parseRetroCommandArguments(arguments_, async options => {
         outcome = await executeRetroCommand(options, {
-          environment: {},
+          environment: {
+            SAFEWORD_RETRO_RELAY_CREDENTIAL: credential,
+            SAFEWORD_RETRO_RELAY_INSTALLATION_ID: '42',
+            SAFEWORD_RETRO_RELAY_OUTBOX: durableOutbox,
+            SAFEWORD_RETRO_RELAY_REPOSITORY: 'arcadeai/safeword',
+            SAFEWORD_RETRO_RELAY_URL: 'https://relay.test',
+          },
           extract: () => Promise.resolve([finding]),
           extractionSucceeded: () => true,
           harness: harnessName,
@@ -342,17 +369,15 @@ describe('real shared CLI to relay wiring', () => {
           projectDirectory: project,
           relay: {
             buildCommit,
-            configuration: () => ({
-              credential,
-              ...(relayFetch !== undefined && { fetch: relayFetch }),
-              installationId: 42,
-              relayUrl: 'https://relay.test',
-              repository: 'arcadeai/safeword',
-            }),
+            ...(relayFetch && { fetch: relayFetch }),
             isAncestor: () => Promise.resolve(true),
             manifest: readinessManifest,
             now: new Date('2026-07-26T00:00:00.000Z'),
-            readArtifactAtCommit: () => Promise.resolve({ sha256: artifactHash }),
+            readArtifactAtCommit: (_commit, artifactPath) =>
+              Promise.resolve({
+                content: readinessArtifactContent(artifactPath),
+                sha256: artifactHash,
+              }),
           },
           sessionId: 'session-1479',
           restTransportAvailable: false,
@@ -398,7 +423,6 @@ describe('real shared CLI to relay wiring', () => {
       const transcript = substantialTranscript(project);
       const findings = path.join(project, 'findings.json');
       writeFileSync(findings, JSON.stringify([finding]));
-      await persistRelayRequest(project, sharedRequest);
       let arguments_: string[];
       if (surface.kind === 'claude') {
         arguments_ = captureClaudeHookArguments(
@@ -429,7 +453,7 @@ describe('real shared CLI to relay wiring', () => {
         credentialFor(harness),
         index === surfaces.length - 1 ? secureRelayFetch : lostResponseFetch,
       );
-      expect(outcome.relay).toEqual(
+      expect(outcome.relay, JSON.stringify(relay.observability)).toEqual(
         index === surfaces.length - 1
           ? {
               accepted: 1,
@@ -446,6 +470,8 @@ describe('real shared CLI to relay wiring', () => {
               spoolFailed: 0,
             },
       );
+      rmSync(project, { force: true, recursive: true });
+      directories.splice(directories.indexOf(project), 1);
     }
 
     const requestIds = relay.observability.logs.map(log => log.requestId);

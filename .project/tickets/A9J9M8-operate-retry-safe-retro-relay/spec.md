@@ -98,7 +98,9 @@ skip: table-stakes reliability work; no honest rave moment clears the bar.
 - All six named local/cloud harness surfaces use the same CLI-owned relay
   operation and persisted request bytes.
 - A successful relay handoff is bounded and durable; failure preserves a
-  recoverable local spool.
+  recoverable outbox outside the disposable project workspace. Relay routing
+  remains disabled unless an operator explicitly configures that outbox; cloud
+  operators are responsible for mapping it to platform-persistent storage.
 - Operators can see lifecycle counts and alerts without reading issue payloads.
 - Uniqueness rollout remains explicitly blocked on #1474, #1481, and the
   post-fix collision measurement rather than being implied by deployment.
@@ -107,7 +109,9 @@ skip: table-stakes reliability work; no honest rave moment clears the bar.
   evidence, but new behavior here cannot promote them.
 - Live relay routing remains disabled until #1474 and #1481 are closed and the
   required same-signature and spooled-never-filed measurements are recorded.
-  Without that proof, every harness continues to use its existing filing path.
+  Measurement artifacts must be versioned, semantically parsed, nonempty, and
+  bound to the reviewed commit; matching a hash alone is insufficient. Without
+  that proof, every harness continues to use its existing filing path.
 
 ## Open Questions
 
@@ -117,6 +121,10 @@ skip: table-stakes reliability work; no honest rave moment clears the bar.
 - defer: Global counts of spooled-but-never-filed drafts do not exist because
   current clients emit no central telemetry. This slice adds observable
   acceptance/lifecycle state but cannot reconstruct historical losses.
+- resolved: Relay routing additionally requires an explicit absolute durable
+  outbox path outside the disposable project workspace. This does not invent a
+  cross-provider persistence guarantee: a cloud surface with no persistent
+  mount stays on the existing native path.
 - resolved: The 30-day payload lifetime is an application-access guarantee.
   It does not promise forensic erasure from SQLite pages, Railway snapshots, or
   operator backups.

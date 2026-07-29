@@ -21,32 +21,9 @@ export interface GitHubRestClientOptions {
 
 type CreateOutcome = 'ambiguous' | 'rejected' | 'retryable';
 
-function isRateLimited(input: {
-  message?: string;
-  rateLimitRemaining?: string | null;
-  retryAfter?: string | null;
-}): boolean {
-  return (
-    (input.retryAfter ?? undefined) !== undefined ||
-    input.rateLimitRemaining === '0' ||
-    /abuse|rate limit|secondary rate/iu.test(input.message ?? '')
-  );
-}
-
-function classifyCreateOutcome(input: {
-  message?: string;
-  rateLimitRemaining?: string | null;
-  retryAfter?: string | null;
-  status: number;
-}): CreateOutcome {
-  if ([400, 404, 410].includes(input.status)) return 'rejected';
-  if (input.status === 403) {
-    return isRateLimited(input) ? 'retryable' : 'rejected';
-  }
-  if (input.status === 422) {
-    return /validation/iu.test(input.message ?? '') ? 'rejected' : 'retryable';
-  }
-  return [401, 429].includes(input.status) ? 'retryable' : 'ambiguous';
+function classifyCreateOutcome(input: { status: number }): CreateOutcome {
+  if ([400, 404, 410, 422].includes(input.status)) return 'rejected';
+  return [401, 403, 429].includes(input.status) ? 'retryable' : 'ambiguous';
 }
 
 export class GitHubCreateError extends Error {

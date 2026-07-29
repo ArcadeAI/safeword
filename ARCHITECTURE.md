@@ -98,11 +98,16 @@ cross-request aliasing remain unbuilt until the post-fix collision rates are
 remeasured and bound into the readiness evidence.
 
 Before transport, the CLI writes one immutable file containing the exact
-serialized request bytes and a UUIDv4 request ID. Claude, Codex, Cursor, and
-their cloud surfaces claim and resend explicitly persisted bytes carrying that
-same identity; fresh cloud runtimes receive those bytes from a durable handoff
-and never rediscover identity from content. Harness identity is
-never part of request identity. Atomic rename fences concurrent claims. An
+serialized request bytes and a UUIDv4 request ID. Relay routing requires an
+explicit absolute `SAFEWORD_RETRO_RELAY_OUTBOX` outside the project workspace;
+there is no inferred cross-provider cloud persistence. Claude, Codex, Cursor,
+and their cloud surfaces can claim and resend those bytes only when they share
+that operator-provided durable handoff. Without it, routing stays on the native
+path. The outbox is resolved physically so an external-looking symlink cannot
+alias back into the disposable project. Harness identity is never part of
+request identity. File contents, newly created spool-directory entries, and
+containing-directory mutations are synced before durable success is reported,
+and atomic rename fences concurrent claims. An
 atomic acknowledgement journal is authoritative before recoverable payload
 cleanup, so a crash cannot convert an unknown relay response into permission
 for native GitHub fallback. The immutable record carries its creation time and
@@ -119,8 +124,9 @@ identity, ten-second inbound/GitHub timeouts, bounded GitHub concurrency and
 reconciliation scans, coalesced installation-token minting, and a per-principal
 filing/reconciliation rate limit. The single-principal
 Railway spike configuration is explicitly health-only. Relay routing is
-compiled fail-closed until post-fix measurements, immutable artifact hashes,
-and Git ancestry bind the evidence to the running build. #1474 and #1481 are
+compiled fail-closed until parsed versioned metric evidence has a nonempty
+sample, immutable artifact hashes, and Git ancestry bind the evidence to the
+running build. #1474 and #1481 are
 complete prerequisites; their resulting measurements still gate activation.
 Issue #834 remains active; #1495 gates readiness only if client credential
 helpers are reused.

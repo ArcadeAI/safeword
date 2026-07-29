@@ -15,7 +15,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
@@ -46,7 +46,7 @@ import {
 } from '../retro/relay-delivery.js';
 
 const DEFAULT_RELAY_DEADLINE_MS = 500;
-const RELAY_OVERALL_HEADROOM_MS = 250;
+const RELAY_OVERALL_HEADROOM_MS = 10_000;
 import {
   CHECKED_IN_RELAY_READINESS,
   type RelayReadinessManifest,
@@ -92,6 +92,7 @@ export interface RetroDependencies {
     readiness: { enabled: boolean };
     relayUrl: string;
     repository: string;
+    spoolDirectory?: string;
   };
 }
 
@@ -163,6 +164,7 @@ async function runRelayRetro(
   projectDirectory: string,
   relay: NonNullable<RetroDependencies['relay']>,
 ): Promise<RetroOutcome> {
+  const spoolDirectory = relay.spoolDirectory ?? projectDirectory;
   let spoolFailed = 0;
   for (const encounter of encounters) {
     const relayDraft = {
@@ -175,7 +177,7 @@ async function runRelayRetro(
       title: encounter.draft.title,
     };
     try {
-      await persistRelayDraft(projectDirectory, {
+      await persistRelayDraft(spoolDirectory, {
         ...relayDraft,
         sourceKey: relaySourceKey(source.session, source.windowStart, relayDraft),
       });
@@ -184,7 +186,7 @@ async function runRelayRetro(
     }
   }
   const deadlineMs = relay.deadlineMs ?? DEFAULT_RELAY_DEADLINE_MS;
-  const delivery = await deliverRelayRequests(projectDirectory, {
+  const delivery = await deliverRelayRequests(spoolDirectory, {
     credential: relay.credential,
     deadlineMs,
     fetch: relay.fetch ?? fetch,
@@ -507,24 +509,74 @@ type RelayRoute = NonNullable<RetroDependencies['relay']>;
 export interface RetroReadinessComposition {
   buildCommit?: string;
   configuration?: () => Omit<RelayRoute, 'readiness'> | undefined;
+  fetch?: typeof fetch;
   isAncestor?: (ancestor: string, descendant: string) => Promise<boolean>;
   manifest?: RelayReadinessManifest | typeof CHECKED_IN_RELAY_READINESS;
   now?: Date;
   readArtifactAtCommit?: (
     commit: string,
     artifactPath: string,
-  ) => Promise<{ sha256: string } | undefined>;
+  ) => Promise<{ content: string; sha256: string } | undefined>;
+}
+
+function physicalProjectPath(projectDirectory: string): string | undefined {
+  try {
+    return realpathSync(projectDirectory);
+  } catch {
+    try {
+      return nodePath.join(
+        realpathSync(nodePath.dirname(projectDirectory)),
+        nodePath.basename(projectDirectory),
+      );
+    } catch {
+      return undefined;
+    }
+  }
+}
+
+function physicalOutboxPath(outboxDirectory: string): string | undefined {
+  try {
+    const physicalOutbox = realpathSync(outboxDirectory);
+    return statSync(physicalOutbox).isDirectory() ? physicalOutbox : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+// eslint-disable-next-line complexity -- Fail-closed lexical and physical path checks remain explicit.
+export function resolveRelayOutboxDirectory(
+  projectDirectory: string,
+  configuredDirectory: string | undefined,
+): string | undefined {
+  const configured = configuredDirectory?.trim();
+  if (configured === undefined || configured.length === 0 || !nodePath.isAbsolute(configured)) {
+    return undefined;
+  }
+  const resolved = nodePath.resolve(configured);
+  if (configured !== resolved) return undefined;
+  const physicalProject = physicalProjectPath(projectDirectory);
+  if (physicalProject === undefined) return undefined;
+  const physicalOutbox = physicalOutboxPath(resolved);
+  if (physicalOutbox === undefined) return undefined;
+  const relative = nodePath.relative(physicalProject, physicalOutbox);
+  if (relative === '' || (relative !== '..' && !relative.startsWith(`..${nodePath.sep}`))) {
+    return undefined;
+  }
+  return physicalOutbox;
 }
 
 // eslint-disable-next-line complexity -- Fail-closed runtime parsing keeps every credential field explicit.
 function defaultRelayConfig(
   environment: NodeJS.ProcessEnv,
+  projectDirectory: string,
 ): Omit<RelayRoute, 'readiness'> | undefined {
   const relayUrl = environment.SAFEWORD_RETRO_RELAY_URL?.trim();
   const credential = environment.SAFEWORD_RETRO_RELAY_CREDENTIAL?.trim();
   const repo = environment.SAFEWORD_RETRO_RELAY_REPOSITORY?.trim().toLowerCase();
   const installation = environment.SAFEWORD_RETRO_RELAY_INSTALLATION_ID?.trim();
+  const configuredSpoolDirectory = environment.SAFEWORD_RETRO_RELAY_OUTBOX?.trim();
   const relayOrigin = relayUrl === undefined ? undefined : normalizeRelayOrigin(relayUrl);
+  const spoolDirectory = resolveRelayOutboxDirectory(projectDirectory, configuredSpoolDirectory);
   if (
     relayOrigin === undefined ||
     credential === undefined ||
@@ -532,6 +584,7 @@ function defaultRelayConfig(
     repo === undefined ||
     repo.length === 0 ||
     installation === undefined ||
+    spoolDirectory === undefined ||
     !/^[\w.-]+\/[\w.-]+$/u.test(repo) ||
     !/^[1-9]\d*$/u.test(installation)
   ) {
@@ -539,7 +592,7 @@ function defaultRelayConfig(
   }
   const installationId = Number(installation);
   if (!Number.isSafeInteger(installationId)) return undefined;
-  return { credential, installationId, relayUrl: relayOrigin, repository: repo };
+  return { credential, installationId, relayUrl: relayOrigin, repository: repo, spoolDirectory };
 }
 
 function usesInjectedReadinessEvidence(composition: RetroReadinessComposition): boolean {
@@ -569,6 +622,7 @@ function resolveRelayReadiness(
 async function resolveRetroRelayRoute(input: {
   composition?: RetroReadinessComposition;
   environment: NodeJS.ProcessEnv;
+  projectDirectory: string;
 }): Promise<RelayRoute | undefined> {
   const composition = input.composition ?? {};
   const manifest = composition.manifest ?? CHECKED_IN_RELAY_READINESS;
@@ -576,9 +630,15 @@ async function resolveRetroRelayRoute(input: {
   if (!readiness.enabled) return undefined;
   const config =
     composition.configuration === undefined
-      ? defaultRelayConfig(input.environment)
+      ? defaultRelayConfig(input.environment, input.projectDirectory)
       : composition.configuration();
-  return config === undefined ? undefined : { ...config, readiness };
+  return config === undefined
+    ? undefined
+    : {
+        ...config,
+        ...(composition.fetch && { fetch: composition.fetch }),
+        readiness,
+      };
 }
 
 export async function executeRetroCommand(
@@ -600,6 +660,7 @@ export async function executeRetroCommand(
   const relay = await resolveRetroRelayRoute({
     composition: dependencies.relay,
     environment: dependencies.environment,
+    projectDirectory: dependencies.projectDirectory,
   });
   const outcome = await runRetro(options, {
     extract: dependencies.extract,

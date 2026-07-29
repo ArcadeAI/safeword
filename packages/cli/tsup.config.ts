@@ -26,6 +26,7 @@ try {
 
 function buildRelayAttestation(): {
   ancestorPairs: string[];
+  artifactContents: Record<string, string>;
   artifactHashes: Record<string, string>;
   buildCommit: string;
   enabled: boolean;
@@ -33,6 +34,7 @@ function buildRelayAttestation(): {
 } {
   const disabled = {
     ancestorPairs: [],
+    artifactContents: {},
     artifactHashes: {},
     buildCommit,
     enabled: false,
@@ -60,16 +62,18 @@ function buildRelayAttestation(): {
     const [ancestor, descendant] = pair.split(':', 2);
     execFileSync('git', ['merge-base', '--is-ancestor', ancestor ?? '', descendant ?? '']);
   }
-  const artifactHashes = Object.fromEntries(
-    Object.values(manifest.measurements).map(artifact => {
-      const bytes = execFileSync('git', ['show', `${manifest.evidenceCommit}:${artifact.path}`]);
-      return [
-        `${manifest.evidenceCommit}:${artifact.path}`,
-        createHash('sha256').update(bytes).digest('hex'),
-      ];
-    }),
+  const artifactEntries = Object.values(manifest.measurements).map(artifact => {
+    const bytes = execFileSync('git', ['show', `${manifest.evidenceCommit}:${artifact.path}`]);
+    const key = `${manifest.evidenceCommit}:${artifact.path}`;
+    return [key, bytes.toString('utf8'), createHash('sha256').update(bytes).digest('hex')] as const;
+  });
+  const artifactContents = Object.fromEntries(
+    artifactEntries.map(([key, content]) => [key, content]),
   );
-  return { ...disabled, ancestorPairs, artifactHashes, enabled: true };
+  const artifactHashes = Object.fromEntries(
+    artifactEntries.map(([key, _content, sha256]) => [key, sha256]),
+  );
+  return { ...disabled, ancestorPairs, artifactContents, artifactHashes, enabled: true };
 }
 
 const relayBuildAttestation = buildRelayAttestation();

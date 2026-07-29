@@ -49,6 +49,7 @@ export const SAFEWORD_BUILD_COMMIT =
 
 export interface RelayBuildAttestation {
   ancestorPairs: string[];
+  artifactContents: Record<string, string>;
   artifactHashes: Record<string, string>;
   buildCommit: string;
   enabled: boolean;
@@ -60,6 +61,7 @@ export const SAFEWORD_RELAY_BUILD_ATTESTATION: RelayBuildAttestation =
     ? __SAFEWORD_RELAY_BUILD_ATTESTATION__
     : {
         ancestorPairs: [],
+        artifactContents: {},
         artifactHashes: {},
         buildCommit: 'development-source',
         enabled: false,
@@ -82,7 +84,52 @@ function validArtifact(artifact: RelayMeasurementArtifact): boolean {
     !artifact.path.split('/').includes('..') &&
     HASH_PATTERN.test(artifact.sha256) &&
     Number.isSafeInteger(artifact.sampleSize) &&
-    artifact.sampleSize >= 0
+    artifact.sampleSize > 0
+  );
+}
+
+function parseObject(content: string): Record<string, unknown> | undefined {
+  try {
+    const parsed = JSON.parse(content) as unknown;
+    return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function hasMeasurementShape(record: Record<string, unknown>): boolean {
+  return (
+    Object.keys(record)
+      .toSorted((left, right) => left.localeCompare(right))
+      .join('\0') ===
+    ['measuredAt', 'metric', 'repository', 'result', 'sampleSize', 'version'].join('\0')
+  );
+}
+
+function hasValidResult(result: unknown, sampleSize: number): boolean {
+  if (typeof result !== 'object' || result === null || Array.isArray(result)) return false;
+  if (Object.keys(result).join('\0') !== 'count') return false;
+  const count = (result as { count?: unknown }).count;
+  return Number.isSafeInteger(count) && (count as number) >= 0 && (count as number) <= sampleSize;
+}
+
+function validMeasurementEvidence(
+  content: string,
+  metric: keyof RelayReadinessManifest['measurements'],
+  artifact: RelayMeasurementArtifact,
+): boolean {
+  const record = parseObject(content);
+  if (record === undefined) return false;
+  return (
+    hasMeasurementShape(record) &&
+    record.version === 1 &&
+    record.repository === 'ArcadeAI/safeword' &&
+    record.metric === metric &&
+    record.measuredAt === artifact.measuredAt &&
+    record.sampleSize === artifact.sampleSize &&
+    hasValidResult(record.result, artifact.sampleSize)
   );
 }
 
@@ -93,7 +140,10 @@ export async function validateRelayReadiness(
     buildCommit: string;
     isAncestor: (ancestor: string, descendant: string) => Promise<boolean>;
     now: Date;
-    readArtifactAtCommit: (commit: string, path: string) => Promise<{ sha256: string } | undefined>;
+    readArtifactAtCommit: (
+      commit: string,
+      path: string,
+    ) => Promise<{ content: string; sha256: string } | undefined>;
   },
 ): Promise<{ enabled: boolean }> {
   if (!manifest.enabled) return { enabled: false };
@@ -138,7 +188,10 @@ export async function validateRelayReadiness(
     ) {
       return { enabled: false };
     }
-    for (const artifact of Object.values(manifest.measurements)) {
+    for (const [metric, artifact] of Object.entries(manifest.measurements) as [
+      keyof RelayReadinessManifest['measurements'],
+      RelayMeasurementArtifact,
+    ][]) {
       const measuredAt = validDate(artifact.measuredAt);
       if (
         !validArtifact(artifact) ||
@@ -154,7 +207,12 @@ export async function validateRelayReadiness(
         manifest.evidenceCommit,
         artifact.path,
       );
-      if (durableArtifact?.sha256 !== artifact.sha256) return { enabled: false };
+      if (
+        durableArtifact?.sha256 !== artifact.sha256 ||
+        !validMeasurementEvidence(durableArtifact.content, metric, artifact)
+      ) {
+        return { enabled: false };
+      }
     }
     return { enabled: true };
   } catch {
@@ -187,8 +245,12 @@ export function validateBuildAttestedRelayReadiness(
       Promise.resolve(ancestors.has(`${ancestor}:${descendant}`)),
     now,
     readArtifactAtCommit: (commit, path) => {
-      const sha256 = attestation.artifactHashes[`${commit}:${path}`];
-      return Promise.resolve(sha256 === undefined ? undefined : { sha256 });
+      const key = `${commit}:${path}`;
+      const content = attestation.artifactContents[key];
+      const sha256 = attestation.artifactHashes[key];
+      return Promise.resolve(
+        content === undefined || sha256 === undefined ? undefined : { content, sha256 },
+      );
     },
   });
 }

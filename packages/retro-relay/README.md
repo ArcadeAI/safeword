@@ -112,6 +112,14 @@ filing continues to use the harness-scoped
 `SAFEWORD_RETRO_RELAY_CREDENTIAL`; the operator credential is never used by an
 automatic retry or headless extractor.
 
+Relay routing also requires `SAFEWORD_RETRO_RELAY_OUTBOX` to name an absolute
+directory outside the disposable project workspace. Local installations can
+point every harness at the same user-data directory. A cloud operator must map
+that path to storage the cloud platform actually preserves; without such a
+mapping the CLI keeps the existing native filing path. The setting is explicit
+because another directory on an ephemeral VM is not durable merely because it
+sits outside the repository.
+
 An externally edited issue whose raw body no longer contains the exact request,
 canonical, and legacy markers remains ambiguous. The relay never treats a
 sanitized read or a lone request marker as duplicate authority. An operator
@@ -127,9 +135,13 @@ so concurrent first persistence and a crash between reservation and delivery
 converge on one request identity without recreating a primary file.
 Normal draft persistence does not scan those tombstones; it consults active
 reservations only when isolating a corrupt durable record. Back up and restore
-the entire `.safeword/retro-drafts/relay` directory as one unit. Selective or
-partial restoration of individual spool files is outside the durability
-contract.
+the entire `$SAFEWORD_RETRO_RELAY_OUTBOX/.safeword/retro-drafts/relay`
+directory as one unit. Selective or partial restoration of individual spool
+files is outside the durability contract. New files are flushed and every
+new spool-directory entry, link, rename, and unlink is followed by a
+containing-directory sync before success is reported. The configured outbox is
+resolved to its physical path; symlink aliases into the disposable project are
+rejected.
 
 If one durable identity is corrupt, inspect it first and then explicitly remove
 only that identity with
@@ -174,12 +186,13 @@ bun run --cwd packages/retro-relay typecheck
 bun run --cwd packages/retro-relay build
 ```
 
-The implementation remains fail-closed in the published CLI. Production relay
-routing cannot be enabled until issues #1474 and #1481 are closed, their commits
-are ancestors of fresh collision-measurement evidence, the evidence artifacts
-match their recorded hashes, and that evidence is an ancestor of the running
-build. Semantic marker adoption and cross-request aliasing are deliberately
-deferred until that gate is satisfied. Issue #834 is not superseded. GitHub
-issue #1495 becomes a readiness dependency
-only if a later change reuses its client credential helpers; this slice does
-not.
+The implementation remains fail-closed in the published CLI. Issues 1474 and
+1481 are now closed on `main`, but production relay routing remains disabled
+until their implementation commits are ancestors of fresh measurement
+evidence, each versioned metric-specific artifact has a nonempty sample and
+matches its recorded hash, and that evidence is an ancestor of the running
+build. Semantic marker
+adoption and cross-request aliasing are deliberately deferred until that gate
+is satisfied. Issue #834 is not superseded. Issue #1495 is also closed, but it
+would become a readiness dependency only if a later change reused its client
+credential helpers; this slice does not.
