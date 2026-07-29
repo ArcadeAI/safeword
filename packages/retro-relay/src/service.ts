@@ -17,6 +17,15 @@ export interface RelayFaults {
   afterGitHubCreate?: () => void;
 }
 
+const REQUEST_ID_MAX_LENGTH = 36;
+const RETRY_DEADLINE_MAX_LENGTH = 30;
+const REPOSITORY_MAX_LENGTH = 200;
+const DEDUPE_KEY_MAX_LENGTH = 256;
+const TITLE_MAX_LENGTH = 256;
+const BODY_MAX_LENGTH = 128 * 1024;
+const LABEL_COUNT_MAX = 20;
+const LABEL_MAX_LENGTH = 50;
+
 function authorize(
   principal: RelayPrincipal,
   request: FileRetroDraftRequest,
@@ -102,24 +111,24 @@ function validateRequest(request: unknown): asserts request is FileRetroDraftReq
   ];
   if (
     keys.join('\0') !== expectedKeys.join('\0') ||
-    !validText(candidate.requestId, 36) ||
+    !validText(candidate.requestId, REQUEST_ID_MAX_LENGTH) ||
     !/^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/u.test(
       candidate.requestId,
     ) ||
-    !validText(candidate.retryDeadlineAt, 30) ||
+    !validText(candidate.retryDeadlineAt, RETRY_DEADLINE_MAX_LENGTH) ||
     !Number.isFinite(Date.parse(candidate.retryDeadlineAt)) ||
     new Date(candidate.retryDeadlineAt).toISOString() !== candidate.retryDeadlineAt ||
     !Number.isSafeInteger(candidate.installationId) ||
     (candidate.installationId ?? 0) <= 0 ||
-    !validText(candidate.repository, 200) ||
+    !validText(candidate.repository, REPOSITORY_MAX_LENGTH) ||
     !/^[\w.-]+\/[\w.-]+$/u.test(candidate.repository) ||
-    !validText(candidate.canonicalKey, 256) ||
-    !validText(candidate.legacySignature, 256) ||
-    !validText(candidate.title, 256) ||
-    !validText(candidate.body, 128 * 1024, true) ||
+    !validText(candidate.canonicalKey, DEDUPE_KEY_MAX_LENGTH) ||
+    !validText(candidate.legacySignature, DEDUPE_KEY_MAX_LENGTH) ||
+    !validText(candidate.title, TITLE_MAX_LENGTH) ||
+    !validText(candidate.body, BODY_MAX_LENGTH, true) ||
     !Array.isArray(candidate.labels) ||
-    candidate.labels.length > 20 ||
-    candidate.labels.some(label => !validText(label, 50))
+    candidate.labels.length > LABEL_COUNT_MAX ||
+    candidate.labels.some(label => !validText(label, LABEL_MAX_LENGTH))
   ) {
     throw new RelayError(400, 'invalid relay filing request');
   }
