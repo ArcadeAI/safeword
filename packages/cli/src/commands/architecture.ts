@@ -59,6 +59,8 @@ import { readJson, writeJson } from '../utils/fs.js';
 import { error, success, warn } from '../utils/output.js';
 import { toRepoDirectory } from '../utils/repo-path.js';
 
+const ARCHITECTURE_SOURCE_INDEX_ENV = 'SAFEWORD_ARCHITECTURE_SOURCE_INDEX';
+
 export function architecture(
   cwd: string = process.cwd(),
   options: { check?: boolean; stage?: boolean; staged?: boolean } = {},
@@ -226,8 +228,11 @@ function withGitIndexSnapshot<T>(
   useSnapshot: (directory: string) => T,
 ): T {
   const snapshotDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-architecture-index-'));
+  const sourceIndexFile = process.env[ARCHITECTURE_SOURCE_INDEX_ENV];
+  const sourceIndexEnvironment =
+    sourceIndexFile === undefined ? undefined : { ...process.env, GIT_INDEX_FILE: sourceIndexFile };
   try {
-    assertNoGitlinks(gitContext);
+    assertNoGitlinks(gitContext, sourceIndexEnvironment);
     execFileSync(
       'git',
       [
@@ -237,7 +242,11 @@ function withGitIndexSnapshot<T>(
         '--ignore-skip-worktree-bits',
         `--prefix=${snapshotDirectory}${nodePath.sep}`,
       ],
-      { cwd: gitContext.rootDirectory, stdio: 'ignore' },
+      {
+        cwd: gitContext.rootDirectory,
+        ...(sourceIndexEnvironment && { env: sourceIndexEnvironment }),
+        stdio: 'ignore',
+      },
     );
     const snapshotProjectDirectory = nodePath.join(
       snapshotDirectory,
@@ -253,7 +262,10 @@ function withGitIndexSnapshot<T>(
 const GITLINK_MODE_PREFIX = '160000 ';
 
 /** Refuse a staged tree whose pinned submodule contents cannot be materialized safely. */
-function assertNoGitlinks(gitContext: GitContext): void {
+function assertNoGitlinks(
+  gitContext: GitContext,
+  sourceIndexEnvironment?: NodeJS.ProcessEnv,
+): void {
   const pathArguments =
     gitContext.projectRelativeDirectory === '' ? [] : [gitContext.projectRelativeDirectory];
   const entries = execFileSync(
@@ -262,6 +274,7 @@ function assertNoGitlinks(gitContext: GitContext): void {
     {
       cwd: gitContext.rootDirectory,
       encoding: 'utf8',
+      ...(sourceIndexEnvironment && { env: sourceIndexEnvironment }),
       stdio: ['ignore', 'pipe', 'ignore'],
     },
   )

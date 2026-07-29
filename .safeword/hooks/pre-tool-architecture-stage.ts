@@ -9,7 +9,8 @@
 // hard backstop for a bypassed hook or a hand-written commit.
 
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
 
@@ -20,6 +21,12 @@ import { stagedChangeAffectsArchitecture } from './lib/architecture-staged-scope
  * text, shell prefixes, `git commit-tree`, `git commit-graph`, etc.
  */
 const GIT_COMMIT_COMMAND = /^\s*git\s+commit\b(?!-)/;
+const ARCHITECTURE_SOURCE_INDEX_ENV = 'SAFEWORD_ARCHITECTURE_SOURCE_INDEX';
+
+interface ProjectedIndex {
+  directory: string;
+  path: string;
+}
 
 /** Whether the commit command asks Git to stage every tracked modification. */
 function stagesTrackedWorktreeChanges(command: string): boolean {
@@ -147,6 +154,82 @@ function shellTokens(commandTail: string): string[] {
   return tokens;
 }
 
+/**
+ * Build the tree `git commit -a` will attempt in an isolated index. This lets
+ * architecture generation see tracked worktree changes without moving them
+ * into the user's real index if the eventual commit aborts.
+ */
+function projectTrackedWorktreeChanges(cwd: string): ProjectedIndex | undefined {
+  const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-commit-index-'));
+  const projectedIndex = nodePath.join(directory, 'index');
+  const projectedEnvironment = { ...process.env, GIT_INDEX_FILE: projectedIndex };
+  try {
+    const realIndex = execFileSync(
+      'git',
+      ['rev-parse', '--path-format=absolute', '--git-path', 'index'],
+      {
+        cwd,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      },
+    ).trim();
+    if (existsSync(realIndex)) {
+      copyFileSync(realIndex, projectedIndex);
+    } else {
+      execFileSync('git', ['read-tree', '--empty'], {
+        cwd,
+        env: projectedEnvironment,
+        stdio: 'ignore',
+      });
+    }
+    execFileSync('git', ['add', '-u', '--', ':/'], {
+      cwd,
+      env: projectedEnvironment,
+      stdio: 'ignore',
+    });
+    return { directory, path: projectedIndex };
+  } catch {
+    rmSync(directory, { recursive: true, force: true });
+    return undefined;
+  }
+}
+
+function runArchitectureHook(projectDir: string, gitCommand: string): void {
+  const projectedIndex = stagesTrackedWorktreeChanges(gitCommand)
+    ? projectTrackedWorktreeChanges(projectDir)
+    : undefined;
+  try {
+    const sourceIndex = projectedIndex?.path;
+    // Scope the auto-fix to commits that actually move the architecture shape (#425).
+    // A routine commit (version bump, docs/config edit) stages nothing that feeds the
+    // fingerprint, so regenerating and staging the generated doc into it would leak
+    // unrelated churn. CI `architecture --check` remains the backstop for any drift
+    // this skips.
+    if (!stagedChangeAffectsArchitecture(projectDir, sourceIndex)) return;
+
+    // Prefer local source in dev/dogfood, fall back to the published CLI. The CLI
+    // owns the regenerate-and-stage logic (and the opt-out check); this hook is glue.
+    const localCli = nodePath.join(projectDir, 'packages/cli/src/cli.ts');
+    const [command, args] = existsSync(localCli)
+      ? ['bun', [localCli, 'architecture', '--stage']]
+      : ['bunx', ['safeword@latest', 'architecture', '--stage']];
+
+    spawnSync(command as string, args as string[], {
+      cwd: projectDir,
+      env:
+        sourceIndex === undefined
+          ? process.env
+          : { ...process.env, [ARCHITECTURE_SOURCE_INDEX_ENV]: sourceIndex },
+      stdio: 'ignore',
+      timeout: 30_000,
+    });
+  } finally {
+    if (projectedIndex !== undefined) {
+      rmSync(projectedIndex.directory, { recursive: true, force: true });
+    }
+  }
+}
+
 interface HookInput {
   tool_name?: string;
   tool_input?: { command?: string };
@@ -169,40 +252,9 @@ const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 // Not a safeword project — nothing to do.
 if (!existsSync(nodePath.join(projectDir, '.safeword'))) process.exit(0);
 
-// PreToolUse runs before `git commit -a` performs its automatic staging. Mirror
-// that documented tracked-file update now so the scope gate and architecture
-// snapshot see the same tree the commit will record. This does not add
-// untracked files, matching Git's `-a` semantics.
-if (stagesTrackedWorktreeChanges(gitCommand)) {
-  try {
-    execFileSync('git', ['add', '-u', '--', ':/'], { cwd: projectDir, stdio: 'ignore' });
-  } catch {
-    // Best effort: the hook never blocks. CI remains the freshness backstop.
-  }
-}
-
-// Scope the auto-fix to commits that actually move the architecture shape (#425).
-// A routine commit (version bump, docs/config edit) stages nothing that feeds the
-// fingerprint, so regenerating and staging the generated doc into it would leak
-// unrelated churn. CI `architecture --check` remains the backstop for any drift
-// this skips.
-if (!stagedChangeAffectsArchitecture(projectDir)) process.exit(0);
-
-// Prefer local source in dev/dogfood, fall back to the published CLI. The CLI
-// owns the regenerate-and-stage logic (and the opt-out check); this hook is glue.
-//
 // The CLI stages the doc into the index, which lands in a plain `git commit` /
 // `git commit -m`. A `git commit <pathspec>` can still override the index; CI
 // catches that explicitly path-limited escape hatch.
-const localCli = nodePath.join(projectDir, 'packages/cli/src/cli.ts');
-const [command, args] = existsSync(localCli)
-  ? ['bun', [localCli, 'architecture', '--stage']]
-  : ['bunx', ['safeword@latest', 'architecture', '--stage']];
-
-spawnSync(command as string, args as string[], {
-  cwd: projectDir,
-  stdio: 'ignore',
-  timeout: 30_000,
-});
+runArchitectureHook(projectDir, gitCommand);
 
 process.exit(0); // Always allow the commit to proceed.

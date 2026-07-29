@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -83,6 +83,26 @@ describe('pre-tool architecture staging hook', () => {
     } finally {
       removeTemporaryDirectory(cleanCheckout);
     }
+  });
+
+  it('does not stage tracked worktree changes when git commit -a aborts', () => {
+    rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
+    const preCommitHook = nodePath.join(directory, '.git', 'hooks', 'pre-commit');
+    writeFileSync(preCommitHook, '#!/bin/sh\nexit 1\n');
+    chmodSync(preCommitHook, 0o755);
+
+    const hook = runHook('git commit -am "remove billing"');
+    expect(hook.status).toBe(0);
+    expect(git('diff', '--cached', '--name-only')).not.toContain('src/billing/index.ts');
+
+    const commit = spawnSync('git', ['commit', '-am', 'remove billing'], {
+      cwd: directory,
+      encoding: 'utf8',
+    });
+
+    expect(commit.status).not.toBe(0);
+    expect(git('diff', '--cached', '--name-only')).not.toContain('src/billing/index.ts');
+    expect(git('diff', '--name-only')).toContain('src/billing/index.ts');
   });
 
   it.each([

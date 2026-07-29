@@ -29,11 +29,12 @@ const STRUCTURAL_BASENAMES = new Set([
   'Cargo.toml',
 ]);
 
-function runGit(cwd: string, args: string[]): string {
+function runGit(cwd: string, args: string[], indexFile?: string): string {
   try {
     return execFileSync('git', args, {
       cwd,
       encoding: 'utf8',
+      env: indexFile === undefined ? process.env : { ...process.env, GIT_INDEX_FILE: indexFile },
       stdio: ['ignore', 'pipe', 'ignore'],
     });
   } catch {
@@ -42,8 +43,8 @@ function runGit(cwd: string, args: string[]): string {
   }
 }
 
-export function stagedFiles(cwd: string): string[] {
-  return runGit(cwd, ['diff', '--cached', '--name-only'])
+export function stagedFiles(cwd: string, indexFile?: string): string[] {
+  return runGit(cwd, ['diff', '--cached', '--name-only'], indexFile)
     .split('\n')
     .map(line => line.trim())
     .filter(line => line.length > 0);
@@ -60,9 +61,14 @@ function isStructuralPath(file: string): boolean {
   return file.endsWith('.sql') || file.endsWith('.prisma');
 }
 
-function readManifest(cwd: string, ref: string, file: string): Record<string, unknown> {
+function readManifest(
+  cwd: string,
+  ref: string,
+  file: string,
+  indexFile?: string,
+): Record<string, unknown> {
   // ref '' → the staged (index) blob via `git show :file`.
-  const raw = runGit(cwd, ['show', ref === '' ? `:${file}` : `${ref}:${file}`]);
+  const raw = runGit(cwd, ['show', ref === '' ? `:${file}` : `${ref}:${file}`], indexFile);
   if (raw === '') return {};
   try {
     const parsed = JSON.parse(raw) as unknown;
@@ -107,10 +113,10 @@ function manifestArchInputs(manifest: Record<string, unknown>): string {
   });
 }
 
-function packageJsonArchInputsChanged(cwd: string, file: string): boolean {
+function packageJsonArchInputsChanged(cwd: string, file: string, indexFile?: string): boolean {
   return (
-    manifestArchInputs(readManifest(cwd, 'HEAD', file)) !==
-    manifestArchInputs(readManifest(cwd, '', file))
+    manifestArchInputs(readManifest(cwd, 'HEAD', file, indexFile)) !==
+    manifestArchInputs(readManifest(cwd, '', file, indexFile))
   );
 }
 
@@ -119,10 +125,10 @@ function packageJsonArchInputsChanged(cwd: string, file: string): boolean {
  * relevant only when its dependency names or workspace globs changed — a pure
  * version bump leaves the fingerprint untouched and so must not trigger a regen.
  */
-export function stagedChangeAffectsArchitecture(cwd: string): boolean {
-  for (const file of stagedFiles(cwd)) {
+export function stagedChangeAffectsArchitecture(cwd: string, indexFile?: string): boolean {
+  for (const file of stagedFiles(cwd, indexFile)) {
     if (isStructuralPath(file)) return true;
-    if (basename(file) === 'package.json' && packageJsonArchInputsChanged(cwd, file)) {
+    if (basename(file) === 'package.json' && packageJsonArchInputsChanged(cwd, file, indexFile)) {
       return true;
     }
   }
