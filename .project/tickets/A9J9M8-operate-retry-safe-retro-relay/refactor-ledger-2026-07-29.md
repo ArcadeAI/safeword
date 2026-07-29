@@ -17,6 +17,8 @@ an explicit disposition so no scout finding is silently dropped.
 - [x] R8 Name CLI relay deadline and aggregate-headroom policy values.
 - [ ] R9 Replace the `node:sqlite` `createRequire` compatibility workaround with
       the supported static import, retaining built-runtime qualification.
+      Deferred after attempted refactor: tsup rewrites the built specifier to
+      bare `sqlite`; runtime qualification failed and the edit was reverted.
 - [ ] R10 Name service request-boundary limits without changing validation order.
 - [ ] R11 Replace repeated manual deferred-promise setup with the existing test
       helper.
