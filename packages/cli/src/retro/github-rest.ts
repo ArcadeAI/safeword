@@ -49,11 +49,9 @@ const MAX_DEDUP_PAGES = 200;
  * after rejecting that value; preserve `GH_TOKEN`, which is an independent
  * documented gh credential source with higher precedence.
  */
-function ghAuthToken(
-  environment: Record<string, string | undefined> = process.env,
-): string | undefined {
+function ghAuthToken(): string | undefined {
   try {
-    const childEnvironment = { ...environment };
+    const childEnvironment = { ...process.env };
     delete childEnvironment.GITHUB_TOKEN;
     const result = spawnSync('gh', ['auth', 'token'], {
       encoding: 'utf8',
@@ -61,7 +59,7 @@ function ghAuthToken(
       env: childEnvironment,
     });
     const token = (result.stdout ?? '').trim();
-    return result.status === 0 && token.length > 0 ? token : undefined;
+    return result.status === 0 && isBearerCredentialSyntax(token) ? token : undefined;
   } catch {
     return undefined;
   }
@@ -90,7 +88,7 @@ function isBearerCredentialSyntax(value: string): boolean {
  */
 export function resolveGitHubToken(
   env: Record<string, string | undefined> = process.env,
-  getGhToken: (environment: Record<string, string | undefined>) => string | undefined = ghAuthToken,
+  getGhToken: () => string | undefined = ghAuthToken,
 ): string | undefined {
   const fromEnvironment = env.GITHUB_TOKEN;
   if (
@@ -100,7 +98,7 @@ export function resolveGitHubToken(
   ) {
     return fromEnvironment;
   }
-  return getGhToken(env);
+  return getGhToken();
 }
 
 /** The one place auth + API headers are wired to fetch; both transports compose this. */

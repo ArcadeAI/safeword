@@ -65,7 +65,7 @@ function mockFetchCapturing(responder: (url: string) => MockResponse): CapturedC
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
-  vi.clearAllMocks();
+  vi.resetAllMocks();
 });
 
 describe('createRestTransport', () => {
@@ -606,23 +606,20 @@ describe('resolveGitHubToken (7D8PJP — no hard GITHUB_TOKEN requirement)', () 
     expect(ghConsulted).toBe(false);
   });
 
-  it.each([['stateless GitHub credential', representativeStatelessToken]])(
-    'passes a selected %s GITHUB_TOKEN to the REST transport',
-    async (_label, shaped) => {
-      const calls = mockFetchCapturing(() => ({ json: () => ({ id: 99, body: 'hi' }) }));
-      const token = resolveGitHubToken({ GITHUB_TOKEN: shaped }, () => {
-        throw new Error('gh fallback must not be consulted');
-      });
-      const transport = createRestTransport(token);
-      if (!transport) throw new Error('expected a transport');
+  it('passes a selected stateless GITHUB_TOKEN to the REST transport', async () => {
+    const calls = mockFetchCapturing(() => ({ json: () => ({ id: 99, body: 'hi' }) }));
+    const token = resolveGitHubToken({ GITHUB_TOKEN: representativeStatelessToken }, () => {
+      throw new Error('gh fallback must not be consulted');
+    });
+    const transport = createRestTransport(token);
+    if (!transport) throw new Error('expected a transport');
 
-      await transport.createComment(42, 'hi');
+    await transport.createComment(42, 'hi');
 
-      expect((calls[0]?.init.headers as Record<string, string>).Authorization).toBe(
-        `Bearer ${shaped}`,
-      );
-    },
-  );
+    expect((calls[0]?.init.headers as Record<string, string>).Authorization).toBe(
+      `Bearer ${representativeStatelessToken}`,
+    );
+  });
 
   it.each([
     ['a proxy placeholder', 'proxy-injected'],
@@ -655,6 +652,34 @@ describe('resolveGitHubToken (7D8PJP — no hard GITHUB_TOKEN requirement)', () 
     const options = spawnCall[2];
     expect(options.env).toMatchObject({ GH_TOKEN: 'explicit-gh-token' });
     expect(options.env).not.toHaveProperty('GITHUB_TOKEN');
+  });
+
+  it('starts without a gh response configured by an earlier test', () => {
+    vi.stubEnv('GITHUB_TOKEN', 'proxy-injected');
+
+    expect(resolveGitHubToken()).toBeUndefined();
+  });
+
+  it('does not build a REST transport from malformed gh output', () => {
+    vi.stubEnv('GITHUB_TOKEN', 'proxy-injected');
+    spawnSyncMock.mockReturnValue({ status: 0, stdout: 'unsafe token\n' });
+
+    const token = resolveGitHubToken();
+
+    expect(token).toBeUndefined();
+    expect(createRestTransport(token)).toBeUndefined();
+  });
+
+  it('uses process context when a lookup-only environment falls back to gh', () => {
+    vi.stubEnv('SW_TEST_GH_CONTEXT', 'available');
+    spawnSyncMock.mockReturnValue({ status: 0, stdout: 'gh-keyring-token\n' });
+
+    expect(resolveGitHubToken({ GITHUB_TOKEN: 'proxy-injected' })).toBe('gh-keyring-token');
+
+    const spawnCall = spawnSyncMock.mock.calls[0] as [string, string[], { env: NodeJS.ProcessEnv }];
+    if (!spawnCall) throw new Error('expected gh auth token to be called');
+    expect(spawnCall[2].env).toMatchObject({ SW_TEST_GH_CONTEXT: 'available' });
+    expect(spawnCall[2].env).not.toHaveProperty('GITHUB_TOKEN');
   });
 
   // invisible-retro-claude.SM1.AC1 (token arm) — GITHUB_TOKEN present → the REST
