@@ -982,7 +982,10 @@ export async function persistRelayDraftBatch(
     return drafts.map(() => ({ reason: error, status: 'rejected' }));
   }
   const reservations = await Promise.allSettled(
-    drafts.map(draft => acquireRelayDraftReservation(projectDirectory, draft, snapshot)),
+    drafts.map(async draft => ({
+      draft,
+      reservation: await acquireRelayDraftReservation(projectDirectory, draft, snapshot),
+    })),
   );
   let filenames: string[];
   try {
@@ -992,17 +995,13 @@ export async function persistRelayDraftBatch(
     return drafts.map(() => ({ reason: error, status: 'rejected' }));
   }
   return Promise.all(
-    reservations.map(async (reservation, index) => {
-      if (reservation.status !== 'fulfilled') return reservation;
-      const sourceReservation = reservation.value;
-      const draft = drafts[index];
-      if (draft === undefined) {
-        return { reason: new Error('relay persistence batch lost a draft'), status: 'rejected' };
-      }
+    reservations.map(async outcome => {
+      if (outcome.status !== 'fulfilled') return outcome;
+      const { draft, reservation } = outcome.value;
       try {
         return {
           status: 'fulfilled',
-          value: await resolveSourceReservation(projectDirectory, draft, sourceReservation, {
+          value: await resolveSourceReservation(projectDirectory, draft, reservation, {
             filenames,
           }),
         };
