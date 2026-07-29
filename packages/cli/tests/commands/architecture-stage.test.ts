@@ -7,7 +7,17 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  linkSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -17,6 +27,7 @@ import {
   selfHeal,
   selfHealProject,
 } from '../../src/utils/architecture-document.js';
+import { shapeFingerprint } from '../../src/utils/architecture-fingerprint.js';
 import {
   resolveGeneratedArchitecturePath,
   resolveNamespaceRoot,
@@ -48,14 +59,28 @@ function writeEnforcementConfig(directory: string, enabled: boolean): void {
   );
 }
 
+function git(directory: string, ...args: string[]): string {
+  return execFileSync('git', args, { cwd: directory, encoding: 'utf8' });
+}
+
+function commitAll(directory: string, message: string): void {
+  git(directory, 'add', '-A');
+  git(directory, 'commit', '-m', message);
+}
+
 beforeEach(() => {
   context.directory = createTemporaryDirectory();
   initGitRepo(context.directory);
   mkdirSync(nodePath.join(context.directory, 'src', 'auth'), { recursive: true });
   writeFileSync(
+    nodePath.join(context.directory, 'src', 'auth', 'index.ts'),
+    'export const auth = true;\n',
+  );
+  writeFileSync(
     nodePath.join(context.directory, 'package.json'),
     JSON.stringify({ name: 'fixture' }),
   );
+  commitAll(context.directory, 'initial fixture');
 });
 
 afterEach(() => {
@@ -77,7 +102,13 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
 
   it('regenerates and stages a stale doc', async () => {
     selfHeal(context.directory);
+    commitAll(context.directory, 'record initial architecture');
     mkdirSync(nodePath.join(context.directory, 'src', 'billing'), { recursive: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'src', 'billing', 'index.ts'),
+      'export const billing = true;\n',
+    );
+    git(context.directory, 'add', '--', 'src/billing/index.ts');
 
     const result = await runCli(['architecture', '--stage'], { cwd: context.directory });
 
@@ -94,7 +125,13 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
     // End-to-end: stage like the hook, then commit like the agent, and inspect
     // HEAD — proves "staged in THAT commit" at the commit level, not just the index.
     selfHeal(context.directory);
+    commitAll(context.directory, 'record initial architecture');
     mkdirSync(nodePath.join(context.directory, 'src', 'billing'), { recursive: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'src', 'billing', 'index.ts'),
+      'export const billing = true;\n',
+    );
+    git(context.directory, 'add', '--', 'src/billing/index.ts');
 
     const stage = await runCli(['architecture', '--stage'], { cwd: context.directory });
     expect(stage.exitCode).toBe(0);
@@ -112,10 +149,16 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
       encoding: 'utf8',
     });
     expect(headDocument).toContain('billing');
+
+    const cleanCheckout = nodePath.join(context.directory, 'clean-checkout');
+    git(context.directory, 'clone', '--quiet', '--no-local', context.directory, cleanCheckout);
+    const check = await runCli(['architecture', '--check'], { cwd: cleanCheckout });
+    expect(check.exitCode).toBe(0);
   });
 
   it('does not stage a doc that already matches the current shape', async () => {
     selfHeal(context.directory);
+    commitAll(context.directory, 'record current architecture');
 
     const result = await runCli(['architecture', '--stage'], { cwd: context.directory });
 
@@ -127,6 +170,7 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
     mkdirSync(resolveNamespaceRoot(context.directory), { recursive: true });
     const foreign = '# Our Architecture\n\nHand-written, no marker.\n';
     writeFileSync(resolveGeneratedArchitecturePath(context.directory), foreign);
+    commitAll(context.directory, 'record hand-written architecture');
 
     const result = await runCli(['architecture', '--stage'], { cwd: context.directory });
 
@@ -139,9 +183,14 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
 
   it('preserves an unrelated staged change while staging the regenerated doc', async () => {
     selfHeal(context.directory);
+    commitAll(context.directory, 'record initial architecture');
     mkdirSync(nodePath.join(context.directory, 'src', 'billing'), { recursive: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'src', 'billing', 'index.ts'),
+      'export const billing = true;\n',
+    );
     writeFileSync(nodePath.join(context.directory, 'NOTES.md'), 'unrelated work\n');
-    execFileSync('git', ['add', '--', 'NOTES.md'], { cwd: context.directory });
+    git(context.directory, 'add', '--', 'src/billing/index.ts', 'NOTES.md');
 
     const result = await runCli(['architecture', '--stage'], { cwd: context.directory });
 
@@ -158,7 +207,12 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
       encoding: 'utf8',
     });
     mkdirSync(nodePath.join(context.directory, 'src', 'billing'), { recursive: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'src', 'billing', 'index.ts'),
+      'export const billing = true;\n',
+    );
     writeEnforcementConfig(context.directory, false);
+    git(context.directory, 'add', '--', 'src/billing/index.ts', '.safeword/config.json');
 
     const result = await runCli(['architecture', '--stage'], { cwd: context.directory });
 
@@ -199,6 +253,7 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
     // so the drift check reads whatever generated doc already exists on disk.
     selfHealProject(context.directory);
     writeEnforcementConfig(context.directory, false);
+    git(context.directory, 'add', '-A');
 
     const result = await runCli(['architecture', '--stage'], { cwd: context.directory });
 
@@ -209,11 +264,239 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
   });
 
   it('exits zero even with no modules and no doc (noop never blocks)', async () => {
-    execFileSync('rm', ['-rf', 'src'], { cwd: context.directory });
+    git(context.directory, 'rm', '-r', 'src');
 
     const result = await runCli(['architecture', '--stage'], { cwd: context.directory });
 
     expect(result.exitCode).toBe(0);
     expect(existsSync(resolveGeneratedArchitecturePath(context.directory))).toBe(false);
   });
+
+  it('excludes untracked descendant shape that leaves the rendered modules unchanged', async () => {
+    const stagedTreeFingerprint = shapeFingerprint(context.directory);
+    mkdirSync(nodePath.join(context.directory, 'src', 'auth', 'editor'), { recursive: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'src', 'auth', 'editor', 'schema.sql'),
+      'CREATE TABLE drafts (id integer);\n',
+    );
+    expect(shapeFingerprint(context.directory)).not.toBe(stagedTreeFingerprint);
+
+    const result = await runCli(['architecture', '--stage'], { cwd: context.directory });
+
+    expect(result.exitCode).toBe(0);
+    const stagedDocument = git(context.directory, 'show', `:${DOC_RELATIVE}`);
+    expect(readDocumentFingerprint(stagedDocument)).toBe(stagedTreeFingerprint);
+    expect(stagedDocument.match(/^### /gm)).toHaveLength(1);
+    expect(stagedDocument).toContain('### auth');
+  });
+
+  it('generates explicitly from the staged tree without automatically staging the doc', async () => {
+    const stagedTreeFingerprint = shapeFingerprint(context.directory);
+    mkdirSync(nodePath.join(context.directory, 'src', 'auth', 'editor'), { recursive: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'src', 'auth', 'editor', 'schema.sql'),
+      'CREATE TABLE drafts (id integer);\n',
+    );
+
+    const result = await runCli(['architecture', '--staged'], { cwd: context.directory });
+
+    expect(result.exitCode).toBe(0);
+    expect(stagedFiles(context.directory)).not.toContain(DOC_RELATIVE);
+    const generated = execFileSync('cat', [DOC_RELATIVE], {
+      cwd: context.directory,
+      encoding: 'utf8',
+    });
+    expect(readDocumentFingerprint(generated)).toBe(stagedTreeFingerprint);
+  });
+
+  it('restores a worktree doc that diverged from its current staged-tree version', async () => {
+    selfHeal(context.directory);
+    commitAll(context.directory, 'record current architecture');
+    const stagedTreeFingerprint = shapeFingerprint(context.directory);
+    mkdirSync(nodePath.join(context.directory, 'src', 'auth', 'editor'), { recursive: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'src', 'auth', 'editor', 'schema.sql'),
+      'CREATE TABLE drafts (id integer);\n',
+    );
+    await runCli(['architecture'], { cwd: context.directory });
+    const generatedPath = resolveGeneratedArchitecturePath(context.directory);
+    expect(
+      readDocumentFingerprint(execFileSync('cat', [generatedPath], { encoding: 'utf8' })),
+    ).not.toBe(stagedTreeFingerprint);
+
+    const result = await runCli(['architecture', '--staged'], { cwd: context.directory });
+
+    expect(result.exitCode).toBe(0);
+    expect(stagedFiles(context.directory)).not.toContain(DOC_RELATIVE);
+    const restored = execFileSync('cat', [generatedPath], { encoding: 'utf8' });
+    expect(readDocumentFingerprint(restored)).toBe(stagedTreeFingerprint);
+  });
+
+  it('includes skip-worktree entries when exporting the staged tree', async () => {
+    mkdirSync(nodePath.join(context.directory, 'src', 'billing'), { recursive: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'src', 'billing', 'index.ts'),
+      'export const billing = true;\n',
+    );
+    selfHeal(context.directory);
+    commitAll(context.directory, 'record sparse architecture');
+    const stagedTreeFingerprint = shapeFingerprint(context.directory);
+    git(context.directory, 'update-index', '--skip-worktree', 'src/billing/index.ts');
+    rmSync(nodePath.join(context.directory, 'src', 'billing'), { recursive: true });
+    expect(shapeFingerprint(context.directory)).not.toBe(stagedTreeFingerprint);
+
+    const result = await runCli(['architecture', '--stage'], { cwd: context.directory });
+
+    expect(result.exitCode).toBe(0);
+    const stagedDocument = git(context.directory, 'show', `:${DOC_RELATIVE}`);
+    expect(readDocumentFingerprint(stagedDocument)).toBe(stagedTreeFingerprint);
+  });
+
+  it('does not write outside the repo for an absolute staged projectRoot', async () => {
+    const externalRoot = createTemporaryDirectory();
+    try {
+      mkdirSync(nodePath.join(context.directory, '.safeword'), { recursive: true });
+      writeFileSync(
+        nodePath.join(context.directory, '.safeword', 'config.json'),
+        JSON.stringify({ paths: { projectRoot: externalRoot } }),
+      );
+      git(context.directory, 'add', '--', '.safeword/config.json');
+
+      const result = await runCli(['architecture', '--stage'], { cwd: context.directory });
+
+      expect(result.exitCode).toBe(0);
+      expect(existsSync(nodePath.join(externalRoot, 'architecture.generated.md'))).toBe(false);
+      expect(`${result.stdout}\n${result.stderr}`).toContain('nothing was auto-staged');
+    } finally {
+      removeTemporaryDirectory(externalRoot);
+    }
+  });
+
+  it.each([
+    ['--stage', 0],
+    ['--staged', 1],
+  ])(
+    'does not follow a tracked projectRoot symlink outside the repo in %s mode',
+    async (mode, expectedExitCode) => {
+      const externalRoot = createTemporaryDirectory();
+      try {
+        const linkedRoot = nodePath.join(context.directory, 'linked-root');
+        const configuredLinkedRoot = nodePath.join(realpathSync(context.directory), 'linked-root');
+        symlinkSync(externalRoot, linkedRoot, 'dir');
+        mkdirSync(nodePath.join(context.directory, '.safeword'), { recursive: true });
+        writeFileSync(
+          nodePath.join(context.directory, '.safeword', 'config.json'),
+          JSON.stringify({ paths: { projectRoot: configuredLinkedRoot } }),
+        );
+        git(context.directory, 'add', '--', '.safeword/config.json', 'linked-root');
+
+        const result = await runCli(['architecture', mode], { cwd: context.directory });
+
+        expect(result.exitCode).toBe(expectedExitCode);
+        expect(readdirSync(externalRoot)).toEqual([]);
+      } finally {
+        removeTemporaryDirectory(externalRoot);
+      }
+    },
+  );
+
+  it.each([
+    ['--stage', 0],
+    ['--staged', 1],
+  ])(
+    'does not follow an unstaged worktree destination symlink in %s mode',
+    async (mode, expectedExitCode) => {
+      const externalRoot = createTemporaryDirectory();
+      try {
+        symlinkSync(externalRoot, nodePath.join(context.directory, '.project'), 'dir');
+
+        const result = await runCli(['architecture', mode], { cwd: context.directory });
+
+        expect(result.exitCode).toBe(expectedExitCode);
+        expect(readdirSync(externalRoot)).toEqual([]);
+      } finally {
+        removeTemporaryDirectory(externalRoot);
+      }
+    },
+  );
+
+  it.each([
+    ['--stage', 0],
+    ['--staged', 1],
+  ])(
+    'does not overwrite an unstaged generated-document symlink in %s mode',
+    async (mode, expectedExitCode) => {
+      const externalRoot = createTemporaryDirectory();
+      try {
+        mkdirSync(nodePath.join(context.directory, '.project'));
+        symlinkSync(
+          nodePath.join(externalRoot, 'architecture.generated.md'),
+          resolveGeneratedArchitecturePath(context.directory),
+        );
+
+        const result = await runCli(['architecture', mode], { cwd: context.directory });
+
+        expect(result.exitCode).toBe(expectedExitCode);
+        expect(readdirSync(externalRoot)).toEqual([]);
+      } finally {
+        removeTemporaryDirectory(externalRoot);
+      }
+    },
+  );
+
+  it.each([
+    ['--stage', 0],
+    ['--staged', 1],
+  ])(
+    'does not heal through a tracked workspace symlink in %s mode',
+    async (mode, expectedExitCode) => {
+      const externalRoot = createTemporaryDirectory();
+      try {
+        mkdirSync(nodePath.join(externalRoot, 'src', 'core'), { recursive: true });
+        writeFileSync(
+          nodePath.join(externalRoot, 'package.json'),
+          JSON.stringify({ name: 'external-workspace' }),
+        );
+        writeFileSync(
+          nodePath.join(externalRoot, 'src', 'core', 'index.ts'),
+          'export const core = true;\n',
+        );
+        writeFileSync(
+          nodePath.join(context.directory, 'package.json'),
+          JSON.stringify({ name: 'fixture', workspaces: ['packages/*'] }),
+        );
+        mkdirSync(nodePath.join(context.directory, 'packages'), { recursive: true });
+        symlinkSync(externalRoot, nodePath.join(context.directory, 'packages', 'escape'), 'dir');
+        git(context.directory, 'add', '--', 'package.json', 'packages/escape');
+
+        const result = await runCli(['architecture', mode], { cwd: context.directory });
+
+        expect(result.exitCode).toBe(expectedExitCode);
+        expect(existsSync(nodePath.join(externalRoot, 'architecture.generated.md'))).toBe(false);
+      } finally {
+        removeTemporaryDirectory(externalRoot);
+      }
+    },
+  );
+
+  it.each(['--stage', '--staged'])(
+    'does not overwrite an external inode through a worktree hard link in %s mode',
+    async mode => {
+      const externalRoot = createTemporaryDirectory();
+      try {
+        const externalDocument = nodePath.join(externalRoot, 'architecture.generated.md');
+        const sentinel = 'external sentinel\n';
+        writeFileSync(externalDocument, sentinel);
+        mkdirSync(nodePath.join(context.directory, '.project'));
+        linkSync(externalDocument, resolveGeneratedArchitecturePath(context.directory));
+
+        const result = await runCli(['architecture', mode], { cwd: context.directory });
+
+        expect(result.exitCode).toBe(0);
+        expect(readFileSync(externalDocument, 'utf8')).toBe(sentinel);
+      } finally {
+        removeTemporaryDirectory(externalRoot);
+      }
+    },
+  );
 });

@@ -183,9 +183,14 @@ program
     '--stage',
     'Regenerate a stale doc and git-add it into the in-flight commit (never blocks)',
   )
-  .action(async (options: { check?: boolean; stage?: boolean }) => {
+  .option('--staged', 'Generate from the staged git index without automatically adding the doc')
+  .action(async (options: { check?: boolean; stage?: boolean; staged?: boolean }) => {
     const { architecture } = await import('./commands/architecture.js');
-    await architecture(process.cwd(), { check: options.check, stage: options.stage });
+    await architecture(process.cwd(), {
+      check: options.check,
+      stage: options.stage,
+      staged: options.staged,
+    });
   });
 
 const ticket = program.command('ticket').description('Ticket management');
