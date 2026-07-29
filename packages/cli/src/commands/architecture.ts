@@ -127,8 +127,8 @@ function architectureStage(cwd: string): Promise<void> {
         return;
       }
 
-      const changed = materializeIndexResults(cwd, snapshotDirectory, false).filter(result =>
-        isWouldChangeAction(result.action),
+      const changed = materializeIndexResults(cwd, snapshotDirectory, 'mutations-only').filter(
+        result => isWouldChangeAction(result.action),
       );
       if (changed.length === 0) {
         success('Architecture docs need no change.');
@@ -160,7 +160,7 @@ function architectureStaged(cwd: string): Promise<void> {
   try {
     withGitIndexSnapshot(cwd, snapshotDirectory => {
       warnUnreadableWorkspaces(snapshotDirectory);
-      const results = materializeIndexResults(cwd, snapshotDirectory, true);
+      const results = materializeIndexResults(cwd, snapshotDirectory, 'restore-staged-tree');
       for (const result of results) {
         success(`Architecture state document ${result.action}: ${result.path}`);
       }
@@ -305,6 +305,8 @@ function replaceArchitectureDocument(
   }
 }
 
+type IndexMaterializationMode = 'mutations-only' | 'restore-staged-tree';
+
 /**
  * Heal inside the index snapshot, then copy only generated mutations to their
  * matching worktree paths. Returned paths always name the real worktree files.
@@ -312,7 +314,7 @@ function replaceArchitectureDocument(
 function materializeIndexResults(
   cwd: string,
   snapshotDirectory: string,
-  copyUnchanged: boolean,
+  mode: IndexMaterializationMode,
 ): SelfHealResult[] {
   assertSnapshotHealTargetsContained(snapshotDirectory);
   return selfHealProject(snapshotDirectory).map(result => {
@@ -327,7 +329,10 @@ function materializeIndexResults(
     }
 
     const destination = nodePath.join(cwd, relativePath);
-    if (isWouldChangeAction(result.action) || (copyUnchanged && result.action === 'unchanged')) {
+    if (
+      isWouldChangeAction(result.action) ||
+      (mode === 'restore-staged-tree' && result.action === 'unchanged')
+    ) {
       assertPhysicalContainment(cwd, destination);
       replaceArchitectureDocument(result.path, destination, cwd);
     }
