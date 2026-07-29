@@ -59,6 +59,7 @@ describe('architecture --check — CI staleness backstop (FPV0E4 Slice 2)', () =
     const result = await runCli(['architecture', '--check'], { cwd: context.directory });
 
     expect(result.exitCode).not.toBe(0);
+    expect(`${result.stdout}\n${result.stderr}`).toContain('safeword architecture --staged');
   });
 
   it('exits non-zero when the owned doc is missing its fingerprint (corrupt)', async () => {

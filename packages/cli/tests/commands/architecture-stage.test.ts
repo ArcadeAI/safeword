@@ -182,6 +182,32 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
     );
   });
 
+  it.each([
+    ['normal staging', {}],
+    ['hook keep-materialized staging', { SAFEWORD_ARCHITECTURE_KEEP_MATERIALIZED: '1' }],
+  ])('preserves an untracked foreign doc during %s', async (_label, env) => {
+    mkdirSync(resolveNamespaceRoot(context.directory), { recursive: true });
+    const foreign = '# Our Architecture\n\nHand-written and untracked.\n';
+    const documentPath = resolveGeneratedArchitecturePath(context.directory);
+    writeFileSync(documentPath, foreign);
+    mkdirSync(nodePath.join(context.directory, 'src', 'billing'), { recursive: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'src', 'billing', 'index.ts'),
+      'export const billing = true;\n',
+    );
+    git(context.directory, 'add', '--', 'src/billing/index.ts');
+
+    const result = await runCli(['architecture', '--stage'], {
+      cwd: context.directory,
+      env,
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(`${result.stdout}\n${result.stderr}`).toContain('not owned by Safeword');
+    expect(readFileSync(documentPath, 'utf8')).toBe(foreign);
+    expect(stagedFiles(context.directory)).not.toContain(DOC_RELATIVE);
+  });
+
   it('preserves an unrelated staged change while staging the regenerated doc', async () => {
     selfHeal(context.directory);
     commitAll(context.directory, 'record initial architecture');
@@ -352,6 +378,73 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
     );
   });
 
+  it('keeps a durable recovery copy when restoring worktree-only edits fails', async () => {
+    selfHeal(context.directory);
+    commitAll(context.directory, 'record current architecture');
+    const documentPath = resolveGeneratedArchitecturePath(context.directory);
+    mkdirSync(nodePath.join(context.directory, 'src', 'drafts'), { recursive: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'src', 'drafts', 'index.ts'),
+      'export const drafts = true;\n',
+    );
+    await runCli(['architecture'], { cwd: context.directory });
+    writeFileSync(
+      documentPath,
+      readFileSync(documentPath, 'utf8').replaceAll(
+        'No description yet — awaiting prose.',
+        'RECOVERABLE WORKTREE PROSE.',
+      ),
+    );
+    mkdirSync(nodePath.join(context.directory, 'src', 'billing'), { recursive: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'src', 'billing', 'index.ts'),
+      'export const billing = true;\n',
+    );
+    git(context.directory, 'add', '--', 'src/billing/index.ts');
+
+    const filterPath = nodePath.join(context.directory, '.git', 'lock-architecture-filter.sh');
+    writeFileSync(
+      filterPath,
+      '#!/bin/sh\nchmod a-w "$SAFEWORD_TEST_ARCHITECTURE_DIRECTORY"\ncat\n',
+    );
+    chmodSync(filterPath, 0o755);
+    git(context.directory, 'config', 'filter.architecture-lock.clean', filterPath);
+    writeFileSync(
+      nodePath.join(context.directory, '.gitattributes'),
+      `${DOC_RELATIVE} filter=architecture-lock\n`,
+    );
+    git(context.directory, 'add', '--', '.gitattributes');
+
+    let result;
+    try {
+      result = await runCli(['architecture', '--stage'], {
+        cwd: context.directory,
+        env: {
+          SAFEWORD_TEST_ARCHITECTURE_DIRECTORY: nodePath.dirname(documentPath),
+        },
+      });
+    } finally {
+      chmodSync(nodePath.dirname(documentPath), 0o755);
+    }
+    const output = `${result.stdout}\n${result.stderr}`;
+    expect(result.exitCode).toBe(0);
+    expect(output).toContain('was staged but unstaged worktree edits could not be restored');
+    expect(output).not.toContain('nothing was auto-staged');
+    const recoveryPath = /Recovery copy: (.+?)\. Cause:/.exec(output)?.[1];
+    expect(recoveryPath).toBeDefined();
+    if (recoveryPath === undefined) return;
+    try {
+      const recoveryContent = readFileSync(recoveryPath, 'utf8');
+      expect(recoveryContent).toContain('### drafts');
+      expect(recoveryContent).toContain('RECOVERABLE WORKTREE PROSE.');
+      const stagedDocument = git(context.directory, 'show', `:${DOC_RELATIVE}`);
+      expect(stagedDocument).toContain('### billing');
+      expect(stagedDocument).not.toContain('### drafts');
+    } finally {
+      rmSync(nodePath.dirname(recoveryPath), { recursive: true, force: true });
+    }
+  });
+
   it('honors an unstaged worktree enforcement opt-out immediately', async () => {
     selfHeal(context.directory);
     commitAll(context.directory, 'record current architecture');
@@ -371,6 +464,50 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
     expect(result.stdout).toContain('enforcement is opted out');
     expect(readFileSync(documentPath, 'utf8')).toBe(before);
     expect(stagedFiles(context.directory)).not.toContain(DOC_RELATIVE);
+  });
+
+  it('honors the worktree opt-out before inspecting unsupported gitlinks', async () => {
+    selfHeal(context.directory);
+    commitAll(context.directory, 'record current architecture');
+    writeEnforcementConfig(context.directory, false);
+    const head = git(context.directory, 'rev-parse', 'HEAD').trim();
+    git(
+      context.directory,
+      'update-index',
+      '--add',
+      '--cacheinfo',
+      `160000,${head},vendor/submodule`,
+    );
+
+    const result = await runCli(['architecture', '--stage'], { cwd: context.directory });
+    const output = `${result.stdout}\n${result.stderr}`;
+
+    expect(result.exitCode).toBe(0);
+    expect(output).toContain('enforcement is opted out');
+    expect(output).not.toContain('submodule gitlinks');
+    expect(output).not.toContain('nothing was auto-staged');
+    expect(stagedFiles(context.directory)).not.toContain(DOC_RELATIVE);
+  });
+
+  it('reports an unstaged path configuration as a possible excluded architecture input', async () => {
+    selfHeal(context.directory);
+    commitAll(context.directory, 'record current architecture');
+    mkdirSync(nodePath.join(context.directory, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(context.directory, '.safeword', 'config.json'),
+      JSON.stringify({ paths: { projectRoot: 'docs' } }),
+    );
+    mkdirSync(nodePath.join(context.directory, 'src', 'billing'), { recursive: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'src', 'billing', 'index.ts'),
+      'export const billing = true;\n',
+    );
+    git(context.directory, 'add', '--', 'src/billing/index.ts');
+
+    const result = await runCli(['architecture', '--stage'], { cwd: context.directory });
+
+    expect(result.exitCode).toBe(0);
+    expect(`${result.stdout}\n${result.stderr}`).toContain('.safeword/config.json');
   });
 
   it('generates explicitly from the staged tree without automatically staging the doc', async () => {

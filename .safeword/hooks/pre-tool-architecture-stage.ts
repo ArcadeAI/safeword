@@ -183,6 +183,27 @@ function gitCommitPlan(command: string, baseDirectory: string): GitCommitPlan | 
   return undefined;
 }
 
+/** Detect a real committing Git segment when the full shell list is unsafe to model. */
+function containsCommittingGitCommand(command: string, baseDirectory: string): boolean {
+  let directory = baseDirectory;
+  for (const segment of parseShellCommandList(command)) {
+    const words = parseShellWords(segment.command);
+    const commandIndex = commandWordIndex(words);
+    const commandWords = words.slice(commandIndex);
+    if (commandWords[0] === 'cd') {
+      const changedDirectory = resolveCdDirectory(commandWords.slice(1), directory);
+      if (changedDirectory !== undefined) directory = changedDirectory;
+      continue;
+    }
+    const environment = gitSelectorEnvironment(words.slice(0, commandIndex), directory);
+    const invocation = gitSubcommand(commandWords, directory, environment);
+    if (invocation?.name === 'commit' && !commitOptionEffects(invocation.arguments).nonCommitting) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function gitSelectorEnvironment(prefixWords: string[], directory: string): Record<string, string> {
   const environment: Record<string, string> = {};
   for (const word of prefixWords) {
@@ -422,7 +443,22 @@ if ((input.tool_name ?? '') !== 'Bash') process.exit(0);
 const gitCommand = input.tool_input?.command ?? '';
 const baseDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 const commitPlan = gitCommitPlan(gitCommand, baseDirectory);
-if (commitPlan === undefined) process.exit(0);
+if (commitPlan === undefined) {
+  if (containsCommittingGitCommand(gitCommand, baseDirectory)) {
+    const message =
+      'Safeword skipped architecture auto-staging because commands before `git commit` cannot be modeled safely. Run preceding commands first, then commit separately, or run safeword architecture --stage.';
+    process.stdout.write(
+      `${JSON.stringify({
+        systemMessage: message,
+        hookSpecificOutput: {
+          hookEventName: 'PreToolUse',
+          additionalContext: message,
+        },
+      })}\n`,
+    );
+  }
+  process.exit(0);
+}
 
 const projectDir = gitWorktreeRoot(commitPlan);
 

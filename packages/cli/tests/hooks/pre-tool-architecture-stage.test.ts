@@ -397,6 +397,54 @@ describe('pre-tool architecture staging hook', () => {
   });
 
   it.each([
+    ['a status preflight', 'git status --short && git commit -m "remove billing"'],
+    ['a lint preflight', 'bun run lint && git commit -m "remove billing"'],
+  ])('visibly declines architecture auto-staging for %s', (_label, command) => {
+    rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
+    git('add', '--', 'src/billing/index.ts');
+
+    const hook = runHook(command);
+
+    expect(hook.status).toBe(0);
+    expect(hook.stderr).toBe('');
+    const output = JSON.parse(String(hook.stdout)) as {
+      hookSpecificOutput?: { additionalContext?: string; hookEventName?: string };
+      systemMessage?: string;
+    };
+    expect(output.systemMessage).toContain('skipped architecture auto-staging');
+    expect(output.systemMessage).toContain('run safeword architecture --stage');
+    expect(output.hookSpecificOutput).toEqual({
+      additionalContext: output.systemMessage,
+      hookEventName: 'PreToolUse',
+    });
+    expect(git('diff', '--cached', '--name-only')).not.toContain(
+      '.project/architecture.generated.md',
+    );
+  });
+
+  it('preserves an untracked foreign architecture doc during a modeled commit', () => {
+    const documentPath = nodePath.join(directory, '.project', 'architecture.generated.md');
+    git('rm', '--', '.project/architecture.generated.md');
+    git('commit', '-m', 'remove generated architecture');
+    const foreign = '# Team Architecture\n\nHand-written and untracked.\n';
+    mkdirSync(nodePath.dirname(documentPath), { recursive: true });
+    writeFileSync(documentPath, foreign);
+    mkdirSync(nodePath.join(directory, 'src', 'drafts'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, 'src', 'drafts', 'index.ts'),
+      'export const drafts = true;\n',
+    );
+
+    const hook = runHook('git add src/drafts/index.ts && git commit -m "add drafts"');
+
+    expect(hook.status).toBe(0);
+    expect(readFileSync(documentPath, 'utf8')).toBe(foreign);
+    expect(git('diff', '--cached', '--name-only')).not.toContain(
+      '.project/architecture.generated.md',
+    );
+  });
+
+  it.each([
     'git commit -ma',
     'git commit -m "document -a behavior"',
     'git commit --message="-a"',

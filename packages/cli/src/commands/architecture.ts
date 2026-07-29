@@ -111,6 +111,12 @@ function warnUnreadableWorkspaces(cwd: string): void {
  */
 function architectureStage(cwd: string): Promise<void> {
   try {
+    if (!isArchitectureDocumentEnforcementEnabled(cwd)) {
+      warnUnreadableWorkspaces(cwd);
+      success('Architecture doc enforcement is opted out (architectureDocEnforcement: false).');
+      return Promise.resolve();
+    }
+
     const gitContext = resolveGitContext(cwd);
     if (gitContext === undefined) {
       warn('No Git worktree found; generated from the worktree instead without auto-staging.');
@@ -120,11 +126,6 @@ function architectureStage(cwd: string): Promise<void> {
 
     withGitIndexSnapshot(cwd, gitContext, snapshotDirectory => {
       warnUnreadableWorkspaces(snapshotDirectory);
-      if (!isArchitectureDocumentEnforcementEnabled(cwd)) {
-        success('Architecture doc enforcement is opted out (architectureDocEnforcement: false).');
-        return;
-      }
-
       const changed = materializeIndexResults(cwd, snapshotDirectory, 'mutations-only').filter(
         result => isWouldChangeAction(result.action),
       );
@@ -145,10 +146,61 @@ function architectureStage(cwd: string): Promise<void> {
   return Promise.resolve();
 }
 
-function stageMaterializedDocument(cwd: string, result: MaterializedIndexResult): void {
+interface WorktreeRecoveryCopy {
+  directory: string;
+  path: string;
+}
+
+function persistWorktreeRecoveryCopy(destination: string, content: string): WorktreeRecoveryCopy {
+  const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-architecture-recovery-'));
+  const path = nodePath.join(directory, `${nodePath.basename(destination)}.recovery`);
   try {
+    writeFileSync(path, content, { mode: 0o600 });
+    return { directory, path };
+  } catch (error_) {
+    rmSync(directory, { recursive: true, force: true });
+    throw error_;
+  }
+}
+
+function restoreWorktreeAfterStaging(
+  cwd: string,
+  result: MaterializedIndexResult,
+  recoveryCopy: WorktreeRecoveryCopy | undefined,
+  staged: boolean,
+): void {
+  if (
+    result.restoreWorktreeContent === undefined ||
+    process.env[ARCHITECTURE_KEEP_MATERIALIZED_ENV] === '1'
+  ) {
+    return;
+  }
+  try {
+    replaceArchitectureDocumentContent(result.restoreWorktreeContent, result.path, cwd);
+    if (recoveryCopy !== undefined) {
+      rmSync(recoveryCopy.directory, { recursive: true, force: true });
+    }
+    warn(`Preserved unstaged worktree architecture edits: ${result.path}`);
+  } catch (error_) {
+    warn(
+      `Architecture doc ${staged ? 'was staged' : 'was not staged'} but unstaged worktree edits could not be restored: ${result.path}. Recovery copy: ${recoveryCopy?.path ?? 'unavailable'}. Cause: ${errorMessage(error_)}`,
+    );
+  }
+}
+
+function stageMaterializedDocument(cwd: string, result: MaterializedIndexResult): void {
+  const shouldRestore =
+    result.restoreWorktreeContent !== undefined &&
+    process.env[ARCHITECTURE_KEEP_MATERIALIZED_ENV] !== '1';
+  let recoveryCopy: WorktreeRecoveryCopy | undefined;
+  let staged = false;
+  try {
+    if (shouldRestore && result.restoreWorktreeContent !== undefined) {
+      recoveryCopy = persistWorktreeRecoveryCopy(result.path, result.restoreWorktreeContent);
+    }
     const stageFailure = stageDocument(cwd, result);
     if (stageFailure === undefined) {
+      staged = true;
       success(`Architecture doc ${result.action} and staged: ${result.path}`);
     } else {
       warn(
@@ -156,13 +208,7 @@ function stageMaterializedDocument(cwd: string, result: MaterializedIndexResult)
       );
     }
   } finally {
-    if (
-      result.restoreWorktreeContent !== undefined &&
-      process.env[ARCHITECTURE_KEEP_MATERIALIZED_ENV] !== '1'
-    ) {
-      replaceArchitectureDocumentContent(result.restoreWorktreeContent, result.path, cwd);
-      warn(`Preserved unstaged worktree architecture edits: ${result.path}`);
-    }
+    restoreWorktreeAfterStaging(cwd, result, recoveryCopy, staged);
   }
 }
 
@@ -264,7 +310,7 @@ function assertNoGitlinks(
 
   const paths = entries.map(entry => entry.slice(entry.indexOf('\t') + 1));
   throw new Error(
-    `Staged-tree architecture generation does not support submodule gitlinks: ${paths.join(', ')}`,
+    `Staged-tree architecture generation does not support submodule gitlinks: ${paths.join(', ')}. Run \`safeword architecture\` from the materialized worktree, or remove the gitlink from the staged tree before retrying.`,
   );
 }
 
@@ -392,8 +438,8 @@ function replaceArchitectureDocumentWith(
   writeTemporaryFile: (path: string) => void,
 ): void {
   const destinationDirectory = nodePath.dirname(destination);
-  mkdirSync(destinationDirectory, { recursive: true });
   assertPhysicalContainment(allowedRoot, destination);
+  mkdirSync(destinationDirectory, { recursive: true });
 
   // Prefer the OS temp root when it is on the destination filesystem: this
   // keeps crash litter outside the repository while preserving atomic rename.
@@ -444,7 +490,6 @@ interface IndexMaterializationPolicy {
   preservePriorStructure: boolean;
   writeUnchanged: boolean;
   captureDivergentContent: boolean;
-  protectForeignDestination: boolean;
 }
 
 interface MaterializedIndexResult extends SelfHealResult {
@@ -548,11 +593,7 @@ function preflightIndexMaterializations(
     if (!plan.shouldWrite) continue;
     assertPhysicalContainment(cwd, plan.destination);
     plan.priorWorktreeState = readWorktreeDocumentState(plan.destination);
-    if (
-      policy.protectForeignDestination &&
-      plan.priorWorktreeState.existed &&
-      !isSafewordOwned(plan.priorWorktreeState.content)
-    ) {
+    if (plan.priorWorktreeState.existed && !isSafewordOwned(plan.priorWorktreeState.content)) {
       throw new Error(
         `Architecture document is not owned by Safeword and was left unchanged: ${plan.destination}`,
       );
@@ -573,7 +614,6 @@ function indexMaterializationPolicy(mode: IndexMaterializationMode): IndexMateri
         preservePriorStructure: keepMaterialized,
         writeUnchanged: false,
         captureDivergentContent: !keepMaterialized,
-        protectForeignDestination: false,
       };
     }
     case 'restore-staged-tree': {
@@ -582,7 +622,6 @@ function indexMaterializationPolicy(mode: IndexMaterializationMode): IndexMateri
         preservePriorStructure: true,
         writeUnchanged: true,
         captureDivergentContent: false,
-        protectForeignDestination: true,
       };
     }
   }
@@ -687,6 +726,7 @@ function isPotentialArchitectureInput(path: string): boolean {
   const segments = normalized.split('/');
   const basename = segments.at(-1) ?? '';
   return (
+    normalized === '.safeword/config.json' ||
     segments.includes('src') ||
     segments.includes('lib') ||
     ARCHITECTURE_INPUT_BASENAMES.has(basename) ||
@@ -748,7 +788,7 @@ function architectureCheck(cwd: string): Promise<void> {
   const stale = planSelfHealProject(cwd).filter(action => isWouldChangeAction(action));
   if (stale.length > 0) {
     error(
-      `Architecture docs are stale (${stale.join(', ')}). Run \`safeword architecture\` to regenerate, then commit the result.`,
+      `Architecture docs are stale (${stale.join(', ')}). Run \`safeword architecture\` for the current worktree, or \`safeword architecture --staged\` to reproduce the staged tree, then commit the result.`,
     );
     process.exit(1);
   }
