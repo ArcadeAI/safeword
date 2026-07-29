@@ -16,4 +16,11 @@ describe('machine output detection', () => {
       machineOutputRequested(['project', 'lint-gherkin', '--', '--json'], commandCatalog),
     ).toBe(false);
   });
+
+  it('scopes value-taking options to the selected command', () => {
+    expect(machineOutputRequested(['tracker', 'sync', '--plan', '--json'], commandCatalog)).toBe(
+      true,
+    );
+    expect(machineOutputRequested(['remove', '--plan', '--json'], commandCatalog)).toBe(false);
+  });
 });

@@ -5,7 +5,7 @@ import { Command } from 'commander';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { findCommandDefinition, publicCommands } from '../../src/cli-protocol/catalog.js';
-import { addGlobalOptions } from '../../src/cli-protocol/execute.js';
+import { addGlobalOptions, reportResult } from '../../src/cli-protocol/execute.js';
 import { registerPublicCommandCatalog } from '../../src/cli-protocol/register.js';
 import { createResult } from '../../src/cli-protocol/result.js';
 import { createTemporaryDirectory, runCli } from '../helpers.js';
@@ -330,6 +330,75 @@ describe('quality-review regressions for the public CLI boundary', () => {
       state: 'failed',
       changed: false,
       errors: [{ code: 'CLI_ARGUMENT_INVALID', retryable: false }],
+    });
+  });
+
+  it.each([
+    ['tracker', 'sync', '--plan', '--json', '--definitely-invalid'],
+    ['tracker', 'sync', '--json', '--plan', '--definitely-invalid'],
+  ])('keeps machine argument failures stable across boolean option order: %j', async (...argv) => {
+    const result = await runCli(argv);
+
+    expect(result).toMatchObject({ exitCode: 1, stderr: '' });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      schema_version: 1,
+      state: 'failed',
+      errors: [{ code: 'CLI_ARGUMENT_INVALID' }],
+    });
+  });
+
+  it('renders a Commander argument failure once on the human path', async () => {
+    const result = await runCli(['status', '--definitely-invalid']);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toBe("error: unknown option '--definitely-invalid'\n");
+  });
+
+  it('preserves completed effects when capability enforcement fails', () => {
+    const stdout: string[] = [];
+    vi.spyOn(process.stdout, 'write').mockImplementation(chunk => {
+      stdout.push(String(chunk));
+      return true;
+    });
+    const result = createResult({
+      state: 'changed',
+      effects: { files: [{ kind: 'write', target: 'unexpected' }] },
+      findings: [{ code: 'ORIGINAL_FINDING', message: 'original', severity: 'warning' }],
+      errors: [{ code: 'ORIGINAL_ERROR', message: 'original error', retryable: true }],
+      recovery: [
+        {
+          command: 'safeword recover',
+          description: 'Recover the original state',
+          requiresHuman: true,
+        },
+      ],
+      data: { retained: true },
+    });
+
+    reportResult(
+      result,
+      {
+        json: true,
+        noInput: true,
+        cwd: process.cwd(),
+        quiet: false,
+        offline: false,
+        verbose: false,
+      },
+      'status',
+    );
+
+    expect(process.exitCode).toBe(1);
+    expect(JSON.parse(stdout.join(''))).toMatchObject({
+      ok: false,
+      state: 'failed',
+      changed: true,
+      findings: [{ code: 'ORIGINAL_FINDING' }],
+      effects: { files: [{ kind: 'write', target: 'unexpected' }] },
+      errors: [{ code: 'ORIGINAL_ERROR' }, { code: 'CLI_POLICY_VIOLATION' }],
+      recovery: [{ command: 'safeword recover' }],
+      data: { retained: true },
     });
   });
 

@@ -15,7 +15,11 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { writeCodexRestartMarker } from '../../src/codex-plugin/profile-proof.js';
+import {
+  CODEX_PLUGIN_HOOK_EVENTS,
+  observeCodexHookProof,
+  writeCodexRestartMarker,
+} from '../../src/codex-plugin/profile-proof.js';
 import {
   normalizeNamespaceRootLabel,
   packagedNamespaceRootLabel,
@@ -130,6 +134,44 @@ describe('packagedNamespaceRootLabel', () => {
     ) as Record<string, unknown>;
     expect(proof.schema_version).toBe(1);
     expect(proof.manifest_sha256).toMatch(/^[\da-f]{64}$/u);
+  });
+
+  it('records only the event executed by each packaged plugin hook', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-'));
+    directories.push(projectDirectory);
+    const codexHome = nodePath.join(projectDirectory, 'profile');
+    const environment = { CODEX_HOME: codexHome };
+
+    for (const [index, event] of CODEX_PLUGIN_HOOK_EVENTS.entries()) {
+      const result = runCodexHook(
+        projectDirectory,
+        event,
+        {
+          hook_event_name: event,
+          session_id: 'proof-wiring-session',
+          tool_name: 'Bash',
+          tool_input: { command: 'pwd' },
+        },
+        environment,
+        true,
+      );
+
+      expect(result.status, result.stderr).toBe(0);
+      expect(
+        readdirSync(nodePath.join(codexHome, 'safeword/hook-proof-v1')).toSorted((left, right) =>
+          left.localeCompare(right),
+        ),
+      ).toEqual(
+        CODEX_PLUGIN_HOOK_EVENTS.slice(0, index + 1)
+          .map(proofEvent => `${proofEvent}.json`)
+          .toSorted((left, right) => left.localeCompare(right)),
+      );
+    }
+
+    expect(observeCodexHookProof(environment)).toMatchObject({
+      status: 'current',
+      missing_events: [],
+    });
   });
 
   it('does not create plugin proof from legacy SessionStart', () => {

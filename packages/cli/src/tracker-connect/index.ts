@@ -64,6 +64,26 @@ function writeProviderConfig(
       };
 }
 
+function appendMarker(
+  path: string,
+  target: string,
+  marker: string,
+  mutations: ConnectMutation[],
+): void {
+  const existed = existsSync(path);
+  const before = existed ? readFileSync(path, 'utf8') : '';
+  if (before.split(/\r?\n/u).includes(marker)) return;
+
+  const prefix = before === '' || before.endsWith('\n') ? '' : '\n';
+  writeFileSync(path, `${prefix}${marker}\n`, { flag: 'a' });
+  mutations.push({
+    surface: 'file',
+    kind: existed ? 'update' : 'create',
+    target,
+    operation: 'merge',
+  });
+}
+
 /** Offer the pollution opt-ins; write `.cursorindexingignore` + a `.gitattributes` marker on accept. */
 async function offerPollutionOptIns(
   dependencies: ConnectDependencies,
@@ -76,39 +96,18 @@ async function offerPollutionOptIns(
   if (!accepted) return;
   const namespaceRoot = resolveNamespaceRoot(dependencies.cwd);
   const namespacePattern = `${nodePath.relative(dependencies.cwd, namespaceRoot).replaceAll('\\', '/')}/`;
-  const cursorIgnorePath = nodePath.join(dependencies.cwd, '.cursorindexingignore');
-  const cursorIgnoreBefore = existsSync(cursorIgnorePath)
-    ? readFileSync(cursorIgnorePath, 'utf8')
-    : '';
-  const cursorIgnoreLines = cursorIgnoreBefore.split('\n').filter(Boolean);
-  if (!cursorIgnoreLines.includes(namespacePattern)) {
-    writeFileSync(
-      cursorIgnorePath,
-      `${cursorIgnoreLines.join('\n')}${cursorIgnoreLines.length > 0 ? '\n' : ''}${namespacePattern}\n`,
-    );
-    mutations.push({
-      surface: 'file',
-      kind: cursorIgnoreBefore === '' ? 'create' : 'update',
-      target: '.cursorindexingignore',
-      operation: 'merge',
-    });
-  }
-  const attributesPath = nodePath.join(dependencies.cwd, '.gitattributes');
-  const attributesBefore = existsSync(attributesPath) ? readFileSync(attributesPath, 'utf8') : '';
-  const marker = `${namespacePattern}**/INDEX*.md linguist-generated=true`;
-  const attributeLines = attributesBefore.split('\n').filter(Boolean);
-  if (!attributeLines.includes(marker)) {
-    writeFileSync(
-      attributesPath,
-      `${attributeLines.join('\n')}${attributeLines.length > 0 ? '\n' : ''}${marker}\n`,
-    );
-    mutations.push({
-      surface: 'file',
-      kind: attributesBefore === '' ? 'create' : 'update',
-      target: '.gitattributes',
-      operation: 'merge',
-    });
-  }
+  appendMarker(
+    nodePath.join(dependencies.cwd, '.cursorindexingignore'),
+    '.cursorindexingignore',
+    namespacePattern,
+    mutations,
+  );
+  appendMarker(
+    nodePath.join(dependencies.cwd, '.gitattributes'),
+    '.gitattributes',
+    `${namespacePattern}**/INDEX*.md linguist-generated=true`,
+    mutations,
+  );
 }
 
 async function connectSupportedTracker(

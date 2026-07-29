@@ -18,6 +18,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { publicHandler } from '../../src/cli-protocol/public-handlers.js';
 import { applyCodexFinalization } from '../../src/codex-plugin/finalization.js';
 import {
+  CODEX_PLUGIN_HOOK_EVENTS,
   recordCodexHookProof,
   writeCodexRestartMarker,
 } from '../../src/codex-plugin/profile-proof.js';
@@ -205,7 +206,10 @@ describe('migrate codex-plugin command', () => {
   }
 
   function recordCurrentProof(fixture: ReturnType<typeof createMigrationFixture>): void {
-    recordCodexHookProof({ CODEX_HOME: nodePath.join(fixture.directory, 'profile') });
+    const environment = { CODEX_HOME: nodePath.join(fixture.directory, 'profile') };
+    for (const event of CODEX_PLUGIN_HOOK_EVENTS) {
+      recordCodexHookProof(event, environment);
+    }
   }
 
   async function finalizeCodex(

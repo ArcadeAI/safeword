@@ -101,29 +101,24 @@ export function writeCodexRestartMarker(
 }
 
 export function recordCodexHookProof(
+  event: CodexPluginHookEvent,
   environment: NodeJS.ProcessEnv = process.env,
   now = new Date(),
   writeOptions: { beforeRename?: () => void } = {},
-  event?: CodexPluginHookEvent,
 ): CodexHookProofV1 {
   const identity = currentCodexPluginIdentity();
-  const events = event === undefined ? CODEX_PLUGIN_HOOK_EVENTS : [event];
-  let proof: CodexHookProofV1 | undefined;
-  for (const proofEvent of events) {
-    proof = {
-      schema_version: 1,
-      event: proofEvent,
-      ...identity,
-      recorded_at: now.toISOString(),
-    };
-    writeAtomicJson(codexProofPath(environment, proofEvent), proof, writeOptions);
-  }
+  const proof: CodexHookProofV1 = {
+    schema_version: 1,
+    event,
+    ...identity,
+    recorded_at: now.toISOString(),
+  };
+  writeAtomicJson(codexProofPath(environment, event), proof, writeOptions);
 
   const markerPath = codexRestartMarkerPath(environment);
-  if (events.includes('session-start') && restartMarkerMatches(markerPath, identity)) {
+  if (event === 'session-start' && restartMarkerMatches(markerPath, identity)) {
     rmSync(markerPath);
   }
-  if (proof === undefined) throw new Error('Codex plugin hook inventory is empty.');
   return proof;
 }
 

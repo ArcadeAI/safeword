@@ -5,13 +5,7 @@ import type { Command } from 'commander';
 
 import { findCommandDefinition } from './catalog.js';
 import { assertEffectPolicy } from './policy.js';
-import {
-  type CliResult,
-  createResult,
-  exitStatusFor,
-  renderHumanStreams,
-  renderJsonResult,
-} from './result.js';
+import { type CliResult, exitStatusFor, renderHumanStreams, renderJsonResult } from './result.js';
 
 export interface GlobalCliOptions {
   readonly json: boolean;
@@ -76,9 +70,12 @@ export function reportResult(
     try {
       assertEffectPolicy(findCommandDefinition(commandName), result, options);
     } catch (policyError: unknown) {
-      reportableResult = createResult({
+      reportableResult = {
+        ...result,
+        ok: false,
         state: 'failed',
         errors: [
+          ...result.errors,
           {
             code: 'CLI_POLICY_VIOLATION',
             message: 'Command result violated its declared capability policy.',
@@ -86,7 +83,7 @@ export function reportResult(
             detail: policyError instanceof Error ? policyError.message : String(policyError),
           },
         ],
-      });
+      };
     }
   }
   if (options.json) {

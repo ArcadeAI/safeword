@@ -659,7 +659,7 @@ export async function codexHook(
   }
   if (options.pluginHook === true) {
     try {
-      recordCodexHookProof(process.env, new Date(), {}, normalized);
+      recordCodexHookProof(normalized, process.env);
     } catch {
       // Proof is advisory state. A read-only or malformed CODEX_HOME must never
       // prevent the packaged hook itself from protecting the project.

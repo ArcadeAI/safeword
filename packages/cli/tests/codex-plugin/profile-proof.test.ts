@@ -26,7 +26,7 @@ describe('Codex profile hook proof', () => {
     const environment = { CODEX_HOME: codexHome };
 
     expect(() =>
-      recordCodexHookProof(environment, new Date('2026-07-28T00:00:00.000Z'), {
+      recordCodexHookProof('session-start', environment, new Date('2026-07-28T00:00:00.000Z'), {
         beforeRename: () => {
           throw new Error('simulated interruption');
         },
@@ -79,7 +79,7 @@ describe('Codex profile hook proof', () => {
     directories.push(codexHome);
     const environment = { CODEX_HOME: codexHome };
 
-    recordCodexHookProof(environment, new Date(), {}, 'session-start');
+    recordCodexHookProof('session-start', environment);
     const partial = observeCodexHookProof(environment);
     expect(partial.status).toBe('partial');
     expect(partial.events).toEqual(['session-start']);
@@ -88,7 +88,7 @@ describe('Codex profile hook proof', () => {
     );
 
     for (const event of partial.missing_events) {
-      recordCodexHookProof(environment, new Date(), {}, event);
+      recordCodexHookProof(event, environment);
     }
     expect(observeCodexHookProof(environment).status).toBe('current');
   });

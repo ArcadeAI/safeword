@@ -100,8 +100,10 @@ try {
     });
     process.stdout.write(`${renderJsonResult(result)}\n`);
     process.exitCode = 1;
+  } else if (isCommanderError(parseError)) {
+    process.exitCode = parseError.exitCode;
   } else {
     error(parseError instanceof Error ? parseError.message : String(parseError));
-    process.exitCode = isCommanderError(parseError) ? parseError.exitCode : 1;
+    process.exitCode = 1;
   }
 }
