@@ -522,7 +522,7 @@ Without these binaries, the scripts print a message and skip.
 ```bash
 # From the repo root
 bun run test:all # Unit suite, then acceptance tests
-bun run test:bdd # Acceptance lane only
+bun run test:bdd # Acceptance lane only (root only; packages/cli is narrower)
 
 # From packages/cli
 # Important: Use `bun run test` (Vitest), NOT `bun test` (Bun's runner)
