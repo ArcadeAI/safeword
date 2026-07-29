@@ -61,6 +61,7 @@ import { error, success, warn } from '../utils/output.js';
 import { toRepoDirectory } from '../utils/repo-path.js';
 
 const ARCHITECTURE_SOURCE_INDEX_ENV = 'SAFEWORD_ARCHITECTURE_SOURCE_INDEX';
+const ARCHITECTURE_KEEP_MATERIALIZED_ENV = 'SAFEWORD_ARCHITECTURE_KEEP_MATERIALIZED';
 
 export function architecture(
   cwd: string = process.cwd(),
@@ -179,7 +180,10 @@ function stageMaterializedDocument(cwd: string, result: MaterializedIndexResult)
       );
     }
   } finally {
-    if (result.restoreWorktreeContent !== undefined) {
+    if (
+      result.restoreWorktreeContent !== undefined &&
+      process.env[ARCHITECTURE_KEEP_MATERIALIZED_ENV] !== '1'
+    ) {
       replaceArchitectureDocumentContent(result.restoreWorktreeContent, result.path, cwd);
       warn(`Preserved unstaged worktree architecture edits: ${result.path}`);
     }
@@ -588,11 +592,12 @@ function preflightIndexMaterializations(
 function indexMaterializationPolicy(mode: IndexMaterializationMode): IndexMaterializationPolicy {
   switch (mode) {
     case 'mutations-only': {
+      const keepMaterialized = process.env[ARCHITECTURE_KEEP_MATERIALIZED_ENV] === '1';
       return {
         renderUnchanged: false,
-        preservePriorStructure: false,
+        preservePriorStructure: keepMaterialized,
         writeUnchanged: false,
-        captureDivergentContent: true,
+        captureDivergentContent: !keepMaterialized,
         protectForeignDestination: false,
       };
     }

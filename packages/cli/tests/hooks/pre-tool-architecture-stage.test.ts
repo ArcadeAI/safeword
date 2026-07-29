@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -85,6 +85,74 @@ describe('pre-tool architecture staging hook', () => {
     }
   });
 
+  it('keeps healed architecture bytes when git commit -a restages tracked files', async () => {
+    const documentPath = nodePath.join(directory, '.project', 'architecture.generated.md');
+    writeFileSync(
+      documentPath,
+      readFileSync(documentPath, 'utf8').replace(
+        'No description yet — awaiting prose.',
+        'IMPORTANT HUMAN PROSE.',
+      ),
+    );
+    rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
+
+    const hook = runHook('git commit -am "remove billing"');
+    expect(hook.status).toBe(0);
+
+    git('commit', '-am', 'remove billing');
+    const cleanCheckout = createTemporaryDirectory();
+    try {
+      git('clone', '--quiet', '--no-local', directory, cleanCheckout);
+
+      const check = await runCli(['architecture', '--check'], { cwd: cleanCheckout });
+
+      expect(check.exitCode).toBe(0);
+      expect(
+        readFileSync(nodePath.join(cleanCheckout, '.project', 'architecture.generated.md'), 'utf8'),
+      ).toContain('IMPORTANT HUMAN PROSE.');
+    } finally {
+      removeTemporaryDirectory(cleanCheckout);
+    }
+  });
+
+  it('preserves worktree-only architecture prose across git commit -a healing', async () => {
+    const documentPath = nodePath.join(directory, '.project', 'architecture.generated.md');
+    mkdirSync(nodePath.join(directory, 'src', 'drafts'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, 'src', 'drafts', 'index.ts'),
+      'export const drafts = true;\n',
+    );
+    const generate = await runCli(['architecture'], { cwd: directory });
+    expect(generate.exitCode).toBe(0);
+    writeFileSync(
+      documentPath,
+      readFileSync(documentPath, 'utf8').replaceAll(
+        'No description yet — awaiting prose.',
+        'IMPORTANT WORKTREE PROSE.',
+      ),
+    );
+    rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
+
+    const hook = runHook('git commit -am "remove billing"');
+    expect(hook.status).toBe(0);
+
+    git('commit', '-am', 'remove billing');
+    const worktreeDocument = readFileSync(documentPath, 'utf8');
+    expect(worktreeDocument).toContain('### drafts');
+    expect(worktreeDocument).toContain('IMPORTANT WORKTREE PROSE.');
+
+    const cleanCheckout = createTemporaryDirectory();
+    try {
+      git('clone', '--quiet', '--no-local', directory, cleanCheckout);
+
+      const check = await runCli(['architecture', '--check'], { cwd: cleanCheckout });
+
+      expect(check.exitCode).toBe(0);
+    } finally {
+      removeTemporaryDirectory(cleanCheckout);
+    }
+  });
+
   it.each([
     ['git -C . commit -am "remove billing"', ['-C', '.', 'commit', '-am', 'remove billing']],
     [
@@ -128,6 +196,159 @@ describe('pre-tool architecture staging hook', () => {
     expect(commit.status).not.toBe(0);
     expect(git('diff', '--cached', '--name-only')).not.toContain('src/billing/index.ts');
     expect(git('diff', '--name-only')).toContain('src/billing/index.ts');
+  });
+
+  it('keeps a chained git add && git commit snapshot fresh in a clean checkout', async () => {
+    rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
+    const command = 'git add src/billing/index.ts && git commit -m "remove billing"';
+
+    const hook = runHook(command);
+    expect(hook.status).toBe(0);
+
+    const commit = spawnSync('bash', ['-c', command], {
+      cwd: directory,
+      encoding: 'utf8',
+    });
+    expect(commit.status).toBe(0);
+
+    const cleanCheckout = createTemporaryDirectory();
+    try {
+      git('clone', '--quiet', '--no-local', directory, cleanCheckout);
+
+      const check = await runCli(['architecture', '--check'], { cwd: cleanCheckout });
+
+      expect(check.exitCode).toBe(0);
+    } finally {
+      removeTemporaryDirectory(cleanCheckout);
+    }
+  });
+
+  it('keeps a chained git add -A && git commit snapshot fresh in a clean checkout', async () => {
+    const documentPath = nodePath.join(directory, '.project', 'architecture.generated.md');
+    writeFileSync(
+      documentPath,
+      readFileSync(documentPath, 'utf8').replace(
+        'No description yet — awaiting prose.',
+        'IMPORTANT HUMAN PROSE.',
+      ),
+    );
+    rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
+    const command = 'git add -A && git commit -m "remove billing"';
+
+    const hook = runHook(command);
+    expect(hook.status).toBe(0);
+
+    const commit = spawnSync('bash', ['-c', command], {
+      cwd: directory,
+      encoding: 'utf8',
+    });
+    expect(commit.status).toBe(0);
+
+    const cleanCheckout = createTemporaryDirectory();
+    try {
+      git('clone', '--quiet', '--no-local', directory, cleanCheckout);
+
+      const check = await runCli(['architecture', '--check'], { cwd: cleanCheckout });
+
+      expect(check.exitCode).toBe(0);
+      expect(
+        readFileSync(nodePath.join(cleanCheckout, '.project', 'architecture.generated.md'), 'utf8'),
+      ).toContain('IMPORTANT HUMAN PROSE.');
+    } finally {
+      removeTemporaryDirectory(cleanCheckout);
+    }
+  });
+
+  it.each([
+    ['git -C', (target: string) => `git -C "${target}" commit -am "remove billing"`],
+    [
+      'git --git-dir/--work-tree',
+      (target: string) =>
+        `git --git-dir="${target}/.git" --work-tree="${target}" commit -am "remove billing"`,
+    ],
+    [
+      'GIT_DIR/GIT_WORK_TREE',
+      (target: string) =>
+        `GIT_DIR="${target}/.git" GIT_WORK_TREE="${target}" git commit -am "remove billing"`,
+    ],
+    ['cd && git commit', (target: string) => `cd "${target}" && git commit -am "remove billing"`],
+  ])(
+    'honors the repository selected by %s without touching the ambient repository',
+    async (_label, commandForTarget) => {
+      const targetDirectory = createTemporaryDirectory();
+      try {
+        initGitRepo(targetDirectory);
+        mkdirSync(nodePath.join(targetDirectory, '.safeword'), { recursive: true });
+        mkdirSync(nodePath.join(targetDirectory, 'src', 'auth'), { recursive: true });
+        mkdirSync(nodePath.join(targetDirectory, 'src', 'billing'), { recursive: true });
+        writeFileSync(
+          nodePath.join(targetDirectory, 'package.json'),
+          JSON.stringify({ name: 'target-fixture' }),
+        );
+        writeFileSync(
+          nodePath.join(targetDirectory, 'src', 'auth', 'index.ts'),
+          'export const auth = true;\n',
+        );
+        writeFileSync(
+          nodePath.join(targetDirectory, 'src', 'billing', 'index.ts'),
+          'export const billing = true;\n',
+        );
+        selfHeal(targetDirectory);
+        execFileSync('git', ['add', '-A'], { cwd: targetDirectory });
+        execFileSync('git', ['commit', '-m', 'initial target fixture'], { cwd: targetDirectory });
+        symlinkSync(
+          nodePath.join(REPOSITORY_ROOT, 'packages'),
+          nodePath.join(targetDirectory, 'packages'),
+          'dir',
+        );
+
+        rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
+        rmSync(nodePath.join(targetDirectory, 'src', 'billing'), { recursive: true });
+        const command = commandForTarget(targetDirectory);
+
+        const hook = runHook(command);
+        expect(hook.status).toBe(0);
+        expect(git('diff', '--cached', '--name-only')).not.toContain(
+          '.project/architecture.generated.md',
+        );
+
+        const commit = spawnSync('bash', ['-c', command], {
+          cwd: directory,
+          encoding: 'utf8',
+        });
+        expect(commit.status).toBe(0);
+        const cleanCheckout = createTemporaryDirectory();
+        try {
+          execFileSync('git', ['clone', '--quiet', '--no-local', targetDirectory, cleanCheckout]);
+
+          const check = await runCli(['architecture', '--check'], { cwd: cleanCheckout });
+
+          expect(check.exitCode).toBe(0);
+        } finally {
+          removeTemporaryDirectory(cleanCheckout);
+        }
+      } finally {
+        removeTemporaryDirectory(targetDirectory);
+      }
+    },
+  );
+
+  it.each([
+    ['a short-circuited commit', 'false && git commit -am "remove billing"'],
+    [
+      'a piped pathspec add',
+      String.raw`printf "src/billing/index.ts\n" | git add --pathspec-from-file=- && git commit -m "remove billing"`,
+    ],
+  ])('does not mutate the index for %s that the hook cannot model exactly', (_label, command) => {
+    rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
+
+    const hook = runHook(command);
+
+    expect(hook.status).toBe(0);
+    expect(git('diff', '--cached', '--name-only')).not.toContain(
+      '.project/architecture.generated.md',
+    );
+    expect(git('diff', '--cached', '--name-only')).not.toContain('src/billing/index.ts');
   });
 
   it.each([

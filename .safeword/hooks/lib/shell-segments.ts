@@ -14,8 +14,16 @@
 
 import nodePath from 'node:path';
 
-export function splitShellSegments(command: string): string[] {
-  const segments: string[] = [];
+export type ShellControlOperator = '&&' | '||' | ';' | '|' | '|&';
+
+export interface ShellCommandSegment {
+  command: string;
+  operatorAfter?: ShellControlOperator;
+}
+
+/** Split a command list without discarding the control operator after each segment. */
+export function parseShellCommandList(command: string): ShellCommandSegment[] {
+  const segments: ShellCommandSegment[] = [];
   let current = '';
   let quote: '"' | "'" | undefined;
   let escaped = false;
@@ -55,12 +63,12 @@ export function splitShellSegments(command: string): string[] {
 
     const next = command[index + 1];
     if (char === ';' || char === '\n') {
-      pushSegment(segments, current);
+      pushCommandSegment(segments, current, ';');
       current = '';
       continue;
     }
     if ((char === '&' && next === '&') || (char === '|' && next === '|')) {
-      pushSegment(segments, current);
+      pushCommandSegment(segments, current, char === '&' ? '&&' : '||');
       current = '';
       index += 1;
       continue;
@@ -69,7 +77,7 @@ export function splitShellSegments(command: string): string[] {
     // pipe) — consume its trailing `&` so it doesn't become the next segment's
     // phantom command word. `>|` / `>|&` are clobber redirections, not pipes.
     if (char === '|' && command[index - 1] !== '>') {
-      pushSegment(segments, current);
+      pushCommandSegment(segments, current, next === '&' ? '|&' : '|');
       current = '';
       if (next === '&') index += 1;
       continue;
@@ -78,13 +86,25 @@ export function splitShellSegments(command: string): string[] {
     current += char;
   }
 
-  pushSegment(segments, current);
+  pushCommandSegment(segments, current);
   return segments;
 }
 
-function pushSegment(segments: string[], segment: string): void {
+export function splitShellSegments(command: string): string[] {
+  return parseShellCommandList(command).map(segment => segment.command);
+}
+
+function pushCommandSegment(
+  segments: ShellCommandSegment[],
+  segment: string,
+  operatorAfter?: ShellControlOperator,
+): void {
   const trimmed = segment.trim();
-  if (trimmed.length > 0) segments.push(trimmed);
+  if (trimmed.length > 0) {
+    segments.push(
+      operatorAfter === undefined ? { command: trimmed } : { command: trimmed, operatorAfter },
+    );
+  }
 }
 
 export function parseShellWords(segment: string): string[] {

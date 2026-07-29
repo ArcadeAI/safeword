@@ -15,12 +15,30 @@ import nodePath from 'node:path';
 import process from 'node:process';
 
 import { stagedChangeAffectsArchitecture } from './lib/architecture-staged-scope.ts';
+import { commandWordIndex, parseShellCommandList, parseShellWords } from './lib/shell-segments.ts';
 
 const ARCHITECTURE_SOURCE_INDEX_ENV = 'SAFEWORD_ARCHITECTURE_SOURCE_INDEX';
+const ARCHITECTURE_KEEP_MATERIALIZED_ENV = 'SAFEWORD_ARCHITECTURE_KEEP_MATERIALIZED';
 
 interface ProjectedIndex {
   directory: string;
   path: string;
+}
+
+interface GitCommitPlan {
+  arguments: string[];
+  directory: string;
+  environment: Record<string, string>;
+  globalArguments: string[];
+  precedingAdds: GitInvocation[];
+}
+
+interface GitInvocation {
+  arguments: string[];
+  directory: string;
+  environment: Record<string, string>;
+  globalArguments: string[];
+  name: string;
 }
 
 const GIT_GLOBAL_OPTIONS_REQUIRING_VALUE = new Set([
@@ -57,25 +75,58 @@ const GIT_GLOBAL_NON_COMMAND_OPTIONS = new Set([
   '--version',
 ]);
 
-/** Return commit arguments after consuming documented Git global options. */
-function gitCommitArguments(command: string): string[] | undefined {
-  const tokens = shellTokens(command);
+/** Return a Git subcommand and effective context after consuming documented global options. */
+function gitSubcommand(
+  tokens: string[],
+  baseDirectory: string,
+  environment: Record<string, string>,
+): GitInvocation | undefined {
   if (tokens[0] !== 'git') return undefined;
+  let directory = baseDirectory;
+  const globalArguments: string[] = [];
+  const gitEnvironment = { ...environment };
 
   for (let index = 1; index < tokens.length; index += 1) {
     const token = tokens[index];
-    if (token === 'commit') return tokens.slice(index + 1);
     if (token === undefined || GIT_GLOBAL_NON_COMMAND_OPTIONS.has(token)) return undefined;
-    if (GIT_GLOBAL_FLAGS.has(token)) continue;
-    if ((token.startsWith('-C') || token.startsWith('-c')) && token !== '-C' && token !== '-c') {
+    if (!token.startsWith('-')) {
+      return {
+        arguments: tokens.slice(index + 1),
+        directory,
+        environment: gitEnvironment,
+        globalArguments,
+        name: token,
+      };
+    }
+    if (token === '--bare') return undefined;
+    if (GIT_GLOBAL_FLAGS.has(token)) {
+      globalArguments.push(token);
+      continue;
+    }
+    if (token.startsWith('-C') && token !== '-C') {
+      directory = nodePath.resolve(directory, token.slice(2));
+      continue;
+    }
+    if (token.startsWith('-c') && token !== '-c') {
+      globalArguments.push(token);
       continue;
     }
 
     const optionName = token.split('=', 1)[0] ?? token;
     if (GIT_GLOBAL_OPTIONS_REQUIRING_VALUE.has(optionName)) {
-      if (token.includes('=')) continue;
-      if (tokens[index + 1] === undefined) return undefined;
-      index += 1;
+      const value = token.includes('=') ? token.slice(token.indexOf('=') + 1) : tokens[index + 1];
+      if (value === undefined) return undefined;
+      if (optionName === '-C') {
+        directory = nodePath.resolve(directory, value);
+      } else if (optionName === '--git-dir') {
+        gitEnvironment.GIT_DIR = nodePath.resolve(directory, value);
+      } else if (optionName === '--work-tree') {
+        gitEnvironment.GIT_WORK_TREE = nodePath.resolve(directory, value);
+      } else {
+        globalArguments.push(token);
+        if (!token.includes('=')) globalArguments.push(value);
+      }
+      if (!token.includes('=')) index += 1;
       continue;
     }
     return undefined;
@@ -83,10 +134,72 @@ function gitCommitArguments(command: string): string[] | undefined {
   return undefined;
 }
 
+/**
+ * Find the first commit segment and the `git add` segments that Bash will run
+ * before it. The hook executes before the whole command list, so those adds
+ * must be projected into an isolated index to see the commit's eventual tree.
+ */
+function gitCommitPlan(command: string, baseDirectory: string): GitCommitPlan | undefined {
+  const precedingAdds: GitInvocation[] = [];
+  let directory = baseDirectory;
+  for (const segment of parseShellCommandList(command)) {
+    const words = parseShellWords(segment.command);
+    const commandIndex = commandWordIndex(words);
+    const commandWords = words.slice(commandIndex);
+    const environment = gitSelectorEnvironment(words.slice(0, commandIndex), directory);
+    if (commandWords[0] === 'cd') {
+      const changedDirectory = resolveCdDirectory(commandWords.slice(1), directory);
+      if (changedDirectory === undefined || segment.operatorAfter === '||') return undefined;
+      directory = changedDirectory;
+      continue;
+    }
+
+    const invocation = gitSubcommand(commandWords, directory, environment);
+    if (invocation?.name === 'commit') {
+      return {
+        arguments: invocation.arguments,
+        directory: invocation.directory,
+        environment: invocation.environment,
+        globalArguments: invocation.globalArguments,
+        precedingAdds,
+      };
+    }
+    if (invocation?.name === 'add') {
+      if (
+        segment.operatorAfter === '|' ||
+        segment.operatorAfter === '|&' ||
+        segment.operatorAfter === '||'
+      ) {
+        return undefined;
+      }
+      precedingAdds.push(invocation);
+      continue;
+    }
+    // An earlier arbitrary command may short-circuit or change shell state.
+    // Decline to mutate any repository when the eventual commit is not modeled exactly.
+    return undefined;
+  }
+  return undefined;
+}
+
+function gitSelectorEnvironment(prefixWords: string[], directory: string): Record<string, string> {
+  const environment: Record<string, string> = {};
+  for (const word of prefixWords) {
+    const match = /^(GIT_DIR|GIT_WORK_TREE)=(.*)$/.exec(word);
+    if (match?.[1] === undefined || match[2] === undefined) continue;
+    environment[match[1]] = nodePath.resolve(directory, match[2]);
+  }
+  return environment;
+}
+
+function resolveCdDirectory(arguments_: string[], directory: string): string | undefined {
+  const normalizedArguments = arguments_[0] === '--' ? arguments_.slice(1) : arguments_;
+  if (normalizedArguments.length !== 1 || normalizedArguments[0] === undefined) return undefined;
+  return nodePath.resolve(directory, normalizedArguments[0]);
+}
+
 /** Whether the commit command asks Git to stage every tracked modification. */
-function stagesTrackedWorktreeChanges(command: string): boolean {
-  const tokens = gitCommitArguments(command);
-  if (tokens === undefined) return false;
+function stagesTrackedWorktreeChanges(tokens: string[]): boolean {
   let skipNextValue = false;
   let stagesAll = false;
   let nonCommitting = false;
@@ -172,58 +285,24 @@ function isLongOptionWithValue(token: string): boolean {
   return [...LONG_OPTIONS_WITH_VALUES].some(option => option.startsWith(optionName));
 }
 
-/** Minimal shell tokenizer: honors quoting/escaping and stops at a command separator. */
-function shellTokens(commandTail: string): string[] {
-  const tokens: string[] = [];
-  let token = '';
-  let quote: "'" | '"' | undefined;
-  let escaped = false;
-
-  const flush = (): void => {
-    if (token.length > 0) tokens.push(token);
-    token = '';
-  };
-
-  for (const character of commandTail) {
-    if (escaped) {
-      token += character;
-      escaped = false;
-    } else if (character === '\\' && quote !== "'") {
-      escaped = true;
-    } else if (quote !== undefined) {
-      if (character === quote) quote = undefined;
-      else token += character;
-    } else if (character === "'" || character === '"') {
-      quote = character;
-    } else if (character === ';' || character === '|' || character === '&' || character === '\n') {
-      flush();
-      break;
-    } else if (/\s/.test(character)) {
-      flush();
-    } else {
-      token += character;
-    }
-  }
-  flush();
-  return tokens;
-}
-
 /**
- * Build the tree `git commit -a` will attempt in an isolated index. This lets
- * architecture generation see tracked worktree changes without moving them
- * into the user's real index if the eventual commit aborts.
+ * Build the tree the command list will attempt in an isolated index. This
+ * models preceding `git add` segments and `git commit -a` without moving
+ * source changes into the user's real index if the eventual commit aborts.
  */
-function projectTrackedWorktreeChanges(cwd: string): ProjectedIndex | undefined {
+function projectCommitIndex(cwd: string, plan: GitCommitPlan): ProjectedIndex | undefined {
   const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-commit-index-'));
   const projectedIndex = nodePath.join(directory, 'index');
-  const projectedEnvironment = { ...process.env, GIT_INDEX_FILE: projectedIndex };
+  const commitEnvironment = { ...process.env, ...plan.environment };
+  const projectedEnvironment = { ...commitEnvironment, GIT_INDEX_FILE: projectedIndex };
   try {
     const realIndex = execFileSync(
       'git',
-      ['rev-parse', '--path-format=absolute', '--git-path', 'index'],
+      [...plan.globalArguments, 'rev-parse', '--path-format=absolute', '--git-path', 'index'],
       {
         cwd,
         encoding: 'utf8',
+        env: commitEnvironment,
         stdio: ['ignore', 'pipe', 'ignore'],
       },
     ).trim();
@@ -236,11 +315,21 @@ function projectTrackedWorktreeChanges(cwd: string): ProjectedIndex | undefined 
         stdio: 'ignore',
       });
     }
-    execFileSync('git', ['add', '-u', '--', ':/'], {
-      cwd,
-      env: projectedEnvironment,
-      stdio: 'ignore',
-    });
+    for (const add of plan.precedingAdds) {
+      if (gitWorktreeRoot(add) !== cwd) continue;
+      execFileSync('git', [...add.globalArguments, 'add', ...add.arguments], {
+        cwd: add.directory,
+        env: { ...projectedEnvironment, ...add.environment },
+        stdio: 'ignore',
+      });
+    }
+    if (stagesTrackedWorktreeChanges(plan.arguments)) {
+      execFileSync('git', ['add', '-u', '--', ':/'], {
+        cwd,
+        env: projectedEnvironment,
+        stdio: 'ignore',
+      });
+    }
     return { directory, path: projectedIndex };
   } catch {
     rmSync(directory, { recursive: true, force: true });
@@ -248,10 +337,10 @@ function projectTrackedWorktreeChanges(cwd: string): ProjectedIndex | undefined 
   }
 }
 
-function runArchitectureHook(projectDir: string, gitCommand: string): void {
-  const projectedIndex = stagesTrackedWorktreeChanges(gitCommand)
-    ? projectTrackedWorktreeChanges(projectDir)
-    : undefined;
+function runArchitectureHook(projectDir: string, plan: GitCommitPlan): void {
+  const needsProjectedIndex =
+    plan.precedingAdds.length > 0 || stagesTrackedWorktreeChanges(plan.arguments);
+  const projectedIndex = needsProjectedIndex ? projectCommitIndex(projectDir, plan) : undefined;
   try {
     const sourceIndex = projectedIndex?.path;
     // Scope the auto-fix to commits that actually move the architecture shape (#425).
@@ -270,10 +359,14 @@ function runArchitectureHook(projectDir: string, gitCommand: string): void {
 
     spawnSync(command as string, args as string[], {
       cwd: projectDir,
-      env:
-        sourceIndex === undefined
-          ? process.env
-          : { ...process.env, [ARCHITECTURE_SOURCE_INDEX_ENV]: sourceIndex },
+      env: {
+        ...process.env,
+        ...plan.environment,
+        ...(sourceIndex === undefined ? {} : { [ARCHITECTURE_SOURCE_INDEX_ENV]: sourceIndex }),
+        ...(plan.precedingAdds.length === 0 && !stagesTrackedWorktreeChanges(plan.arguments)
+          ? {}
+          : { [ARCHITECTURE_KEEP_MATERIALIZED_ENV]: '1' }),
+      },
       stdio: 'ignore',
       timeout: 30_000,
     });
@@ -281,6 +374,21 @@ function runArchitectureHook(projectDir: string, gitCommand: string): void {
     if (projectedIndex !== undefined) {
       rmSync(projectedIndex.directory, { recursive: true, force: true });
     }
+  }
+}
+
+function gitWorktreeRoot(
+  context: Pick<GitInvocation, 'directory' | 'environment' | 'globalArguments'>,
+): string | undefined {
+  try {
+    return execFileSync('git', [...context.globalArguments, 'rev-parse', '--show-toplevel'], {
+      cwd: context.directory,
+      encoding: 'utf8',
+      env: { ...process.env, ...context.environment },
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+  } catch {
+    return undefined;
   }
 }
 
@@ -299,16 +407,19 @@ try {
 // Only the agent's `git commit` is in scope; everything else passes through.
 if ((input.tool_name ?? '') !== 'Bash') process.exit(0);
 const gitCommand = input.tool_input?.command ?? '';
-if (gitCommitArguments(gitCommand) === undefined) process.exit(0);
+const baseDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+const commitPlan = gitCommitPlan(gitCommand, baseDirectory);
+if (commitPlan === undefined) process.exit(0);
 
-const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+const projectDir = gitWorktreeRoot(commitPlan);
 
 // Not a safeword project — nothing to do.
-if (!existsSync(nodePath.join(projectDir, '.safeword'))) process.exit(0);
+if (projectDir === undefined || !existsSync(nodePath.join(projectDir, '.safeword')))
+  process.exit(0);
 
 // The CLI stages the doc into the index, which lands in a plain `git commit` /
 // `git commit -m`. A `git commit <pathspec>` can still override the index; CI
 // catches that explicitly path-limited escape hatch.
-runArchitectureHook(projectDir, gitCommand);
+runArchitectureHook(projectDir, commitPlan);
 
 process.exit(0); // Always allow the commit to proceed.
