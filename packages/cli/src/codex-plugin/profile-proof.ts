@@ -1,21 +1,12 @@
 /* eslint-disable unicorn/no-null -- schema-1 JSON uses explicit null for unavailable values */
 
-import { createHash, randomUUID } from 'node:crypto';
-import {
-  closeSync,
-  existsSync,
-  fsyncSync,
-  mkdirSync,
-  openSync,
-  readFileSync,
-  renameSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
 import { SAFEWORD_SCHEMA } from '../schema.js';
+import { writeDurableFile } from './durable-write.js';
 
 export interface CodexHookProofV1 {
   schema_version: 1;
@@ -113,22 +104,10 @@ function writeAtomicJson(
   value: unknown,
   options: { beforeRename?: () => void } = {},
 ): void {
-  const directory = nodePath.dirname(path);
-  mkdirSync(directory, { recursive: true });
-  const temporaryPath = nodePath.join(directory, `.safeword-${process.pid}-${randomUUID()}.tmp`);
-  try {
-    const descriptor = openSync(temporaryPath, 'wx', 0o600);
-    try {
-      writeFileSync(descriptor, `${JSON.stringify(value)}\n`);
-      fsyncSync(descriptor);
-    } finally {
-      closeSync(descriptor);
-    }
-    options.beforeRename?.();
-    renameSync(temporaryPath, path);
-  } finally {
-    rmSync(temporaryPath, { force: true });
-  }
+  writeDurableFile(path, `${JSON.stringify(value)}\n`, {
+    mode: 0o600,
+    beforeRename: options.beforeRename,
+  });
 }
 
 function restartMarkerMatches(

@@ -3,22 +3,19 @@
 import { createHash, randomUUID } from 'node:crypto';
 import {
   chmodSync,
-  closeSync,
   existsSync,
-  fsyncSync,
   lstatSync,
   mkdirSync,
   mkdtempSync,
-  openSync,
   readdirSync,
   readFileSync,
   renameSync,
   rmdirSync,
   rmSync,
-  writeFileSync,
 } from 'node:fs';
 import nodePath from 'node:path';
 
+import { writeDurableFile } from './durable-write.js';
 import { CODEX_MIGRATION_SCHEMA } from './inventory.js';
 
 export interface CodexFinalizationMutation {
@@ -197,24 +194,7 @@ function afterImage(
 }
 
 function writeDurable(path: string, content: Buffer | string, mode: number): void {
-  const directory = nodePath.dirname(path);
-  mkdirSync(directory, { recursive: true });
-  const temporaryPath = nodePath.join(
-    directory,
-    `.${nodePath.basename(path)}-${process.pid}-${randomUUID()}.tmp`,
-  );
-  try {
-    const descriptor = openSync(temporaryPath, 'wx', mode);
-    try {
-      writeFileSync(descriptor, content);
-      fsyncSync(descriptor);
-    } finally {
-      closeSync(descriptor);
-    }
-    renameSync(temporaryPath, path);
-  } finally {
-    rmSync(temporaryPath, { force: true });
-  }
+  writeDurableFile(path, content, { mode });
 }
 
 function writeManifest(backupDirectory: string, manifest: BackupManifestV1): void {
