@@ -27,9 +27,11 @@ import {
   lstatSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   realpathSync,
   renameSync,
   rmSync,
+  writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
@@ -39,6 +41,7 @@ import {
   isWouldChangeAction,
   planSelfHealProject,
   selfHealProject,
+  selfHealProjectPreservingProse,
   type SelfHealResult,
 } from '../utils/architecture-document.js';
 import {
@@ -70,13 +73,17 @@ export function architecture(
     return architectureStaged(cwd);
   }
 
+  generateFromWorktree(cwd);
+  return Promise.resolve();
+}
+
+function generateFromWorktree(cwd: string): void {
   const results = selfHealProject(cwd);
   for (const result of results) {
     success(`Architecture state document ${result.action}: ${result.path}`);
   }
   warnUnreadableWorkspaces(cwd);
   warnNarrativeDrift(cwd);
-  return Promise.resolve();
 }
 
 /**
@@ -116,13 +123,20 @@ function warnUnreadableWorkspaces(cwd: string): void {
  */
 function architectureStage(cwd: string): Promise<void> {
   try {
-    withGitIndexSnapshot(cwd, snapshotDirectory => {
+    const gitContext = resolveGitContext(cwd);
+    if (gitContext === undefined) {
+      warn('No Git worktree found; generated from the worktree instead without auto-staging.');
+      generateFromWorktree(cwd);
+      return Promise.resolve();
+    }
+
+    withGitIndexSnapshot(cwd, gitContext, snapshotDirectory => {
       warnUnreadableWorkspaces(snapshotDirectory);
-      if (!isArchitectureDocumentEnforcementEnabled(snapshotDirectory)) {
+      if (!isArchitectureDocumentEnforcementEnabled(cwd)) {
         success('Architecture doc enforcement is opted out (architectureDocEnforcement: false).');
         // Coverage honesty is not enforcement (see warnNarrativeDrift): surface
         // drift even when opted out, matching --check and default mode. Read the
-        // index snapshot so an unstaged config or narrative cannot affect the commit.
+        // index snapshot so unstaged source shape cannot affect the commit.
         warnNarrativeDrift(snapshotDirectory);
         return;
       }
@@ -134,17 +148,31 @@ function architectureStage(cwd: string): Promise<void> {
         success('Architecture docs need no change.');
       } else {
         for (const result of changed) {
-          stageDocument(cwd, result);
-          success(`Architecture doc ${result.action} and staged: ${result.path}`);
+          try {
+            const stageFailure = stageDocument(cwd, result);
+            if (stageFailure === undefined) {
+              success(`Architecture doc ${result.action} and staged: ${result.path}`);
+            } else {
+              warn(
+                `Architecture doc ${result.action} but could not be staged: ${result.path}. Cause: ${stageFailure}`,
+              );
+            }
+          } finally {
+            if (result.restoreWorktreeContent !== undefined) {
+              replaceArchitectureDocumentContent(result.restoreWorktreeContent, result.path, cwd);
+              warn(`Preserved unstaged worktree architecture edits: ${result.path}`);
+            }
+          }
         }
       }
       // The snapshot contains the freshly healed document and the exact source
       // tree for this commit, so the advisory has the same provenance.
       warnNarrativeDrift(snapshotDirectory);
     });
-  } catch {
+    warnExcludedWorktreeInputs(cwd);
+  } catch (error_) {
     warn(
-      'Could not complete staged-tree architecture generation; nothing was auto-staged. CI will verify freshness.',
+      `Could not complete staged-tree architecture generation; nothing was auto-staged. CI will verify freshness. Cause: ${errorMessage(error_)}`,
     );
   }
 
@@ -158,7 +186,14 @@ function architectureStage(cwd: string): Promise<void> {
  */
 function architectureStaged(cwd: string): Promise<void> {
   try {
-    withGitIndexSnapshot(cwd, snapshotDirectory => {
+    const gitContext = resolveGitContext(cwd);
+    if (gitContext === undefined) {
+      warn('No Git worktree found; generated from the worktree instead.');
+      generateFromWorktree(cwd);
+      return Promise.resolve();
+    }
+
+    withGitIndexSnapshot(cwd, gitContext, snapshotDirectory => {
       warnUnreadableWorkspaces(snapshotDirectory);
       const results = materializeIndexResults(cwd, snapshotDirectory, 'restore-staged-tree');
       for (const result of results) {
@@ -166,9 +201,10 @@ function architectureStaged(cwd: string): Promise<void> {
       }
       warnNarrativeDrift(snapshotDirectory);
     });
-  } catch {
+    warnExcludedWorktreeInputs(cwd);
+  } catch (error_) {
     error(
-      'Could not complete staged-tree architecture generation; inspect the worktree before retrying.',
+      `Could not complete staged-tree architecture generation; inspect the worktree before retrying. Cause: ${errorMessage(error_)}`,
     );
     process.exitCode = 1;
   }
@@ -180,9 +216,14 @@ function architectureStaged(cwd: string): Promise<void> {
  * the caller finishes. `git checkout-index` reads only the index: unstaged and
  * untracked worktree files never enter the architecture extractor.
  */
-function withGitIndexSnapshot<T>(cwd: string, useSnapshot: (directory: string) => T): T {
+function withGitIndexSnapshot<T>(
+  cwd: string,
+  gitContext: GitContext,
+  useSnapshot: (directory: string) => T,
+): T {
   const snapshotDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-architecture-index-'));
   try {
+    assertNoGitlinks(gitContext);
     execFileSync(
       'git',
       [
@@ -192,13 +233,75 @@ function withGitIndexSnapshot<T>(cwd: string, useSnapshot: (directory: string) =
         '--ignore-skip-worktree-bits',
         `--prefix=${snapshotDirectory}${nodePath.sep}`,
       ],
-      { cwd, stdio: 'ignore' },
+      { cwd: gitContext.rootDirectory, stdio: 'ignore' },
     );
-    prepareSnapshotProjectRoot(cwd, snapshotDirectory);
-    return useSnapshot(snapshotDirectory);
+    const snapshotProjectDirectory = nodePath.join(
+      snapshotDirectory,
+      gitContext.projectRelativeDirectory,
+    );
+    prepareSnapshotProjectRoot(cwd, snapshotProjectDirectory);
+    return useSnapshot(snapshotProjectDirectory);
   } finally {
     rmSync(snapshotDirectory, { recursive: true, force: true });
   }
+}
+
+/** Refuse a staged tree whose pinned submodule contents cannot be materialized safely. */
+function assertNoGitlinks(gitContext: GitContext): void {
+  const pathArguments =
+    gitContext.projectRelativeDirectory === '' ? [] : [gitContext.projectRelativeDirectory];
+  const entries = execFileSync(
+    'git',
+    ['ls-files', '--stage', '-z', '--full-name', '--', ...pathArguments],
+    {
+      cwd: gitContext.rootDirectory,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    },
+  )
+    .split('\0')
+    .filter(entry => entry.startsWith('160000 '));
+  if (entries.length === 0) return;
+
+  const paths = entries.map(entry => entry.slice(entry.indexOf('\t') + 1));
+  throw new Error(
+    `Staged-tree architecture generation does not support submodule gitlinks: ${paths.join(', ')}`,
+  );
+}
+
+interface GitContext {
+  rootDirectory: string;
+  projectRelativeDirectory: string;
+}
+
+/** Resolve the invocation directory against Git's repository root. */
+function resolveGitContext(cwd: string): GitContext | undefined {
+  let rootDirectory: string;
+  try {
+    rootDirectory = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+      cwd,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+  } catch (error_) {
+    if ((error_ as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new Error('Git executable is unavailable.', { cause: error_ });
+    }
+    return undefined;
+  }
+  if (rootDirectory.length === 0) return undefined;
+
+  const canonicalRoot = realpathSync(rootDirectory);
+  const canonicalProject = realpathSync(cwd);
+  const projectRelativeDirectory = nodePath.relative(canonicalRoot, canonicalProject);
+  if (
+    nodePath.isAbsolute(projectRelativeDirectory) ||
+    projectRelativeDirectory === '..' ||
+    projectRelativeDirectory.startsWith(`..${nodePath.sep}`)
+  ) {
+    throw new Error('The architecture project directory is outside the Git worktree.');
+  }
+  return { rootDirectory: canonicalRoot, projectRelativeDirectory };
 }
 
 /**
@@ -284,28 +387,62 @@ function assertSnapshotHealTargetsContained(snapshotDirectory: string): void {
  * mutate another directory entry. The temporary file shares the destination
  * directory, allowing rename to atomically replace symlinks and hard links.
  */
-function replaceArchitectureDocument(
-  source: string,
+function replaceArchitectureDocumentWith(
   destination: string,
   allowedRoot: string,
+  writeTemporaryFile: (path: string) => void,
 ): void {
   const destinationDirectory = nodePath.dirname(destination);
   mkdirSync(destinationDirectory, { recursive: true });
   assertPhysicalContainment(allowedRoot, destination);
 
-  const temporaryDirectory = mkdtempSync(
-    nodePath.join(destinationDirectory, '.safeword-architecture-'),
+  // Prefer the OS temp root when it is on the destination filesystem: this
+  // keeps crash litter outside the repository while preserving atomic rename.
+  // Cross-device rename is not atomic, so fall back to an adjacent directory
+  // only when the filesystems differ.
+  let temporaryDirectory = mkdtempSync(
+    nodePath.join(tmpdir(), 'safeword-architecture-replacement-'),
   );
+  if (lstatSync(temporaryDirectory).dev !== lstatSync(destinationDirectory).dev) {
+    rmSync(temporaryDirectory, { recursive: true, force: true });
+    temporaryDirectory = mkdtempSync(
+      nodePath.join(destinationDirectory, '.safeword-architecture-'),
+    );
+  }
   try {
     const temporaryPath = nodePath.join(temporaryDirectory, nodePath.basename(destination));
-    copyFileSync(source, temporaryPath);
+    writeTemporaryFile(temporaryPath);
     renameSync(temporaryPath, destination);
   } finally {
     rmSync(temporaryDirectory, { recursive: true, force: true });
   }
 }
 
+function replaceArchitectureDocument(
+  source: string,
+  destination: string,
+  allowedRoot: string,
+): void {
+  replaceArchitectureDocumentWith(destination, allowedRoot, temporaryPath => {
+    copyFileSync(source, temporaryPath);
+  });
+}
+
+function replaceArchitectureDocumentContent(
+  content: string,
+  destination: string,
+  allowedRoot: string,
+): void {
+  replaceArchitectureDocumentWith(destination, allowedRoot, temporaryPath => {
+    writeFileSync(temporaryPath, content);
+  });
+}
+
 type IndexMaterializationMode = 'mutations-only' | 'restore-staged-tree';
+
+interface MaterializedIndexResult extends SelfHealResult {
+  restoreWorktreeContent?: string;
+}
 
 /**
  * Heal inside the index snapshot, then copy only generated mutations to their
@@ -315,9 +452,12 @@ function materializeIndexResults(
   cwd: string,
   snapshotDirectory: string,
   mode: IndexMaterializationMode,
-): SelfHealResult[] {
+): MaterializedIndexResult[] {
   assertSnapshotHealTargetsContained(snapshotDirectory);
-  return selfHealProject(snapshotDirectory).map(result => {
+  const plans = selfHealProjectPreservingProse(snapshotDirectory, cwd, {
+    renderUnchanged: mode === 'restore-staged-tree',
+    preservePriorStructure: mode === 'restore-staged-tree',
+  }).map(result => {
     const relativePath = nodePath.relative(snapshotDirectory, result.path);
     if (
       relativePath === '' ||
@@ -329,25 +469,145 @@ function materializeIndexResults(
     }
 
     const destination = nodePath.join(cwd, relativePath);
-    if (
+    const shouldWrite =
       isWouldChangeAction(result.action) ||
-      (mode === 'restore-staged-tree' && result.action === 'unchanged')
-    ) {
-      assertPhysicalContainment(cwd, destination);
+      (mode === 'restore-staged-tree' && result.action === 'unchanged');
+    return { result, destination, shouldWrite };
+  });
+
+  // Validate every worktree destination before replacing the first one. A
+  // later unsafe leaf must not leave an earlier root document half-applied.
+  for (const plan of plans) {
+    if (plan.shouldWrite) assertPhysicalContainment(cwd, plan.destination);
+  }
+
+  return plans.map(({ result, destination, shouldWrite }) => {
+    const restoreWorktreeContent =
+      mode === 'mutations-only' && isWouldChangeAction(result.action)
+        ? divergentWorktreeDocument(cwd, destination)
+        : undefined;
+    if (shouldWrite) {
       replaceArchitectureDocument(result.path, destination, cwd);
     }
-    return { action: result.action, path: destination };
+    return { action: result.action, path: destination, restoreWorktreeContent };
   });
 }
 
+/**
+ * Return worktree document bytes only when they differ from the index copy.
+ * `--stage` temporarily replaces that path to stage deterministic content, then
+ * restores these bytes so unrelated worktree-only modules and prose survive.
+ */
+function divergentWorktreeDocument(cwd: string, destination: string): string | undefined {
+  assertPhysicalContainment(cwd, destination);
+  let worktreeContent: string;
+  try {
+    worktreeContent = readFileSync(destination, 'utf8');
+  } catch {
+    return undefined;
+  }
+
+  const relativePath = nodePath.relative(cwd, destination);
+  let indexContent: string | undefined;
+  try {
+    const projectRelativePath = relativePath.replaceAll('\\', '/');
+    indexContent = execFileSync('git', ['show', `:./${projectRelativePath}`], {
+      cwd,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+  } catch {
+    // An untracked worktree document has no index copy and must be preserved.
+  }
+  return worktreeContent === indexContent ? undefined : worktreeContent;
+}
+
 /** `git add` the regenerated doc; best-effort — a git failure never blocks the commit. */
-function stageDocument(cwd: string, result: SelfHealResult): void {
+function stageDocument(cwd: string, result: SelfHealResult): string | undefined {
   try {
     const relativePath = nodePath.relative(cwd, result.path);
     execFileSync('git', ['add', '--', relativePath], { cwd, stdio: 'ignore' });
-  } catch {
-    // Outside a git repo, or git unavailable: nothing to stage, never block.
+    return undefined;
+  } catch (error_) {
+    return errorMessage(error_);
   }
+}
+
+const ARCHITECTURE_INPUT_BASENAMES = new Set([
+  '.dependency-cruiser.cjs',
+  '.dependency-cruiser.js',
+  '.dependency-cruiser.json',
+  '.dependency-cruiser.mjs',
+  'Cargo.toml',
+  'go.mod',
+  'go.work',
+  'package.json',
+  'pnpm-workspace.yaml',
+  'pyproject.toml',
+]);
+
+const SOURCE_EXTENSIONS = new Set([
+  '.cjs',
+  '.cts',
+  '.js',
+  '.jsx',
+  '.mjs',
+  '.mts',
+  '.py',
+  '.rs',
+  '.ts',
+  '.tsx',
+]);
+
+function isPotentialArchitectureInput(path: string): boolean {
+  const normalized = path.replaceAll('\\', '/');
+  const segments = normalized.split('/');
+  const basename = segments.at(-1) ?? '';
+  return (
+    segments.includes('src') ||
+    segments.includes('lib') ||
+    ARCHITECTURE_INPUT_BASENAMES.has(basename) ||
+    normalized.endsWith('.prisma') ||
+    normalized.endsWith('.sql') ||
+    SOURCE_EXTENSIONS.has(nodePath.posix.extname(basename))
+  );
+}
+
+function nulSeparatedGitPaths(cwd: string, args: string[]): string[] {
+  try {
+    return execFileSync('git', args, {
+      cwd,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    })
+      .split('\0')
+      .filter(path => path.length > 0);
+  } catch {
+    return [];
+  }
+}
+
+/** Explain why staged-tree generation can intentionally disagree with `--check`. */
+function warnExcludedWorktreeInputs(cwd: string): void {
+  const excluded = new Set([
+    ...nulSeparatedGitPaths(cwd, ['diff', '--name-only', '-z', '--']),
+    ...nulSeparatedGitPaths(cwd, ['ls-files', '--others', '--exclude-standard', '-z', '--']),
+  ]);
+  const relevant = [...excluded]
+    .filter(path => isPotentialArchitectureInput(path))
+    .toSorted((a, b) => a.localeCompare(b));
+  if (relevant.length === 0) return;
+
+  const shown = relevant.slice(0, 20);
+  const remainder = relevant.length - shown.length;
+  const remainderSummary = remainder > 0 ? ` (+${remainder} more)` : '';
+  warn(
+    `Excluded unstaged/untracked architecture inputs from staged-tree generation: ${shown.join(', ')}${remainderSummary}`,
+  );
+}
+
+function errorMessage(error_: unknown): string {
+  return error_ instanceof Error ? error_.message.replaceAll(/\s+/g, ' ').trim() : String(error_);
 }
 
 /**

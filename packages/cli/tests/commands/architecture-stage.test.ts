@@ -284,10 +284,95 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
     const result = await runCli(['architecture', '--stage'], { cwd: context.directory });
 
     expect(result.exitCode).toBe(0);
+    expect(`${result.stdout}\n${result.stderr}`).toContain('src/auth/editor/schema.sql');
     const stagedDocument = git(context.directory, 'show', `:${DOC_RELATIVE}`);
     expect(readDocumentFingerprint(stagedDocument)).toBe(stagedTreeFingerprint);
     expect(stagedDocument.match(/^### /gm)).toHaveLength(1);
     expect(stagedDocument).toContain('### auth');
+  });
+
+  it('preserves unstaged human prose while healing from the staged source shape', async () => {
+    selfHeal(context.directory);
+    commitAll(context.directory, 'record current architecture');
+    const documentPath = resolveGeneratedArchitecturePath(context.directory);
+    writeFileSync(
+      documentPath,
+      readFileSync(documentPath, 'utf8').replace(
+        'No description yet — awaiting prose.',
+        'IMPORTANT HUMAN PROSE.',
+      ),
+    );
+    mkdirSync(nodePath.join(context.directory, 'src', 'billing'), { recursive: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'src', 'billing', 'index.ts'),
+      'export const billing = true;\n',
+    );
+    git(context.directory, 'add', '--', 'src/billing/index.ts');
+
+    const result = await runCli(['architecture', '--stage'], { cwd: context.directory });
+
+    expect(result.exitCode).toBe(0);
+    expect(readFileSync(documentPath, 'utf8')).toContain('IMPORTANT HUMAN PROSE.');
+    expect(git(context.directory, 'show', `:${DOC_RELATIVE}`)).toContain('IMPORTANT HUMAN PROSE.');
+  });
+
+  it('stages deterministic shape without destroying a worktree-only module or its prose', async () => {
+    selfHeal(context.directory);
+    commitAll(context.directory, 'record current architecture');
+    const documentPath = resolveGeneratedArchitecturePath(context.directory);
+    mkdirSync(nodePath.join(context.directory, 'src', 'drafts'), { recursive: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'src', 'drafts', 'index.ts'),
+      'export const drafts = true;\n',
+    );
+    await runCli(['architecture'], { cwd: context.directory });
+    writeFileSync(
+      documentPath,
+      readFileSync(documentPath, 'utf8').replaceAll(
+        'No description yet — awaiting prose.',
+        'IMPORTANT WORKTREE PROSE.',
+      ),
+    );
+    mkdirSync(nodePath.join(context.directory, 'src', 'billing'), { recursive: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'src', 'billing', 'index.ts'),
+      'export const billing = true;\n',
+    );
+    git(context.directory, 'add', '--', 'src/billing/index.ts');
+
+    const result = await runCli(['architecture', '--stage'], { cwd: context.directory });
+
+    expect(result.exitCode).toBe(0);
+    const stagedDocument = git(context.directory, 'show', `:${DOC_RELATIVE}`);
+    expect(stagedDocument).toContain('### billing');
+    expect(stagedDocument).not.toContain('### drafts');
+    const worktreeDocument = readFileSync(documentPath, 'utf8');
+    expect(worktreeDocument).toContain('### drafts');
+    expect(worktreeDocument).toContain('IMPORTANT WORKTREE PROSE.');
+    expect(`${result.stdout}\n${result.stderr}`).toContain(
+      'Preserved unstaged worktree architecture edits',
+    );
+  });
+
+  it('honors an unstaged worktree enforcement opt-out immediately', async () => {
+    selfHeal(context.directory);
+    commitAll(context.directory, 'record current architecture');
+    const documentPath = resolveGeneratedArchitecturePath(context.directory);
+    const before = readFileSync(documentPath, 'utf8');
+    writeEnforcementConfig(context.directory, false);
+    mkdirSync(nodePath.join(context.directory, 'src', 'billing'), { recursive: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'src', 'billing', 'index.ts'),
+      'export const billing = true;\n',
+    );
+    git(context.directory, 'add', '--', 'src/billing/index.ts');
+
+    const result = await runCli(['architecture', '--stage'], { cwd: context.directory });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain('enforcement is opted out');
+    expect(readFileSync(documentPath, 'utf8')).toBe(before);
+    expect(stagedFiles(context.directory)).not.toContain(DOC_RELATIVE);
   });
 
   it('generates explicitly from the staged tree without automatically staging the doc', async () => {
@@ -309,6 +394,34 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
     expect(readDocumentFingerprint(generated)).toBe(stagedTreeFingerprint);
   });
 
+  it('generates the package document when invoked from a repository subdirectory', async () => {
+    rmSync(nodePath.join(context.directory, 'src'), { recursive: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'package.json'),
+      JSON.stringify({ name: 'root', workspaces: ['packages/*'] }),
+    );
+    const packageDirectory = nodePath.join(context.directory, 'packages', 'web');
+    mkdirSync(nodePath.join(packageDirectory, 'src', 'api'), { recursive: true });
+    writeFileSync(nodePath.join(packageDirectory, 'package.json'), JSON.stringify({ name: 'web' }));
+    writeFileSync(
+      nodePath.join(packageDirectory, 'src', 'api', 'index.ts'),
+      'export const api = true;\n',
+    );
+    commitAll(context.directory, 'record monorepo fixture');
+
+    const result = await runCli(['architecture', '--staged'], { cwd: packageDirectory });
+
+    expect(result.exitCode).toBe(0);
+    const packageDocument = nodePath.join(packageDirectory, DOC_RELATIVE);
+    expect(readFileSync(packageDocument, 'utf8')).toContain('### api');
+    expect(existsSync(nodePath.join(packageDirectory, 'packages', 'web', DOC_RELATIVE))).toBe(
+      false,
+    );
+    expect(stagedFiles(context.directory)).not.toContain(
+      nodePath.posix.join('packages/web', DOC_RELATIVE),
+    );
+  });
+
   it('restores a worktree doc that diverged from its current staged-tree version', async () => {
     selfHeal(context.directory);
     commitAll(context.directory, 'record current architecture');
@@ -320,6 +433,13 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
     );
     await runCli(['architecture'], { cwd: context.directory });
     const generatedPath = resolveGeneratedArchitecturePath(context.directory);
+    writeFileSync(
+      generatedPath,
+      readFileSync(generatedPath, 'utf8').replace(
+        'No description yet — awaiting prose.',
+        'IMPORTANT HUMAN PROSE.',
+      ),
+    );
     expect(
       readDocumentFingerprint(execFileSync('cat', [generatedPath], { encoding: 'utf8' })),
     ).not.toBe(stagedTreeFingerprint);
@@ -330,6 +450,46 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
     expect(stagedFiles(context.directory)).not.toContain(DOC_RELATIVE);
     const restored = execFileSync('cat', [generatedPath], { encoding: 'utf8' });
     expect(readDocumentFingerprint(restored)).toBe(stagedTreeFingerprint);
+    expect(restored).toContain('IMPORTANT HUMAN PROSE.');
+  });
+
+  it('keeps worktree-only module prose as an orphan in explicit staged mode', async () => {
+    selfHeal(context.directory);
+    commitAll(context.directory, 'record current architecture');
+    const stagedTreeFingerprint = shapeFingerprint(context.directory);
+    const generatedPath = resolveGeneratedArchitecturePath(context.directory);
+    mkdirSync(nodePath.join(context.directory, 'src', 'drafts'), { recursive: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'src', 'drafts', 'index.ts'),
+      'export const drafts = true;\n',
+    );
+    await runCli(['architecture'], { cwd: context.directory });
+    writeFileSync(
+      generatedPath,
+      readFileSync(generatedPath, 'utf8').replaceAll(
+        'No description yet — awaiting prose.',
+        'IMPORTANT WORKTREE PROSE.',
+      ),
+    );
+
+    const result = await runCli(['architecture', '--staged'], { cwd: context.directory });
+
+    expect(result.exitCode).toBe(0);
+    const restored = readFileSync(generatedPath, 'utf8');
+    expect(readDocumentFingerprint(restored)).toBe(stagedTreeFingerprint);
+    expect(restored).toContain('### drafts');
+    expect(restored).toContain('orphaned');
+    expect(restored).toContain('IMPORTANT WORKTREE PROSE.');
+    expect(stagedFiles(context.directory)).not.toContain(DOC_RELATIVE);
+
+    const repeated = await runCli(['architecture', '--staged'], { cwd: context.directory });
+
+    expect(repeated.exitCode).toBe(0);
+    const repeatedDocument = readFileSync(generatedPath, 'utf8');
+    expect(repeatedDocument).toContain('### drafts');
+    expect(repeatedDocument).toContain('orphaned');
+    expect(repeatedDocument).toContain('IMPORTANT WORKTREE PROSE.');
+    expect(repeatedDocument).toBe(restored);
   });
 
   it('includes skip-worktree entries when exporting the staged tree', async () => {
@@ -352,6 +512,58 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
     expect(readDocumentFingerprint(stagedDocument)).toBe(stagedTreeFingerprint);
   });
 
+  it.each([
+    ['--stage', 0],
+    ['--staged', 1],
+  ])(
+    'refuses submodule gitlinks without orphaning the worktree in %s mode',
+    async (mode, expectedExitCode) => {
+      const submodule = createTemporaryDirectory();
+      try {
+        initGitRepo(submodule);
+        mkdirSync(nodePath.join(submodule, 'src', 'core'), { recursive: true });
+        writeFileSync(nodePath.join(submodule, 'package.json'), JSON.stringify({ name: 'shared' }));
+        writeFileSync(
+          nodePath.join(submodule, 'src', 'core', 'index.ts'),
+          'export const core = true;\n',
+        );
+        git(submodule, 'add', '-A');
+        git(submodule, 'commit', '-m', 'submodule fixture');
+
+        rmSync(nodePath.join(context.directory, 'src'), { recursive: true });
+        writeFileSync(
+          nodePath.join(context.directory, 'package.json'),
+          JSON.stringify({ name: 'root', workspaces: ['packages/*'] }),
+        );
+        commitAll(context.directory, 'record workspace root');
+        git(
+          context.directory,
+          '-c',
+          'protocol.file.allow=always',
+          'submodule',
+          'add',
+          submodule,
+          'packages/shared',
+        );
+        await runCli(['architecture'], { cwd: context.directory });
+        git(context.directory, 'add', '-A');
+        git(context.directory, 'commit', '-m', 'record submodule architecture');
+        const documentPath = resolveGeneratedArchitecturePath(context.directory);
+        const before = readFileSync(documentPath, 'utf8');
+        expect(before).toContain('shared');
+
+        const result = await runCli(['architecture', mode], { cwd: context.directory });
+
+        expect(result.exitCode).toBe(expectedExitCode);
+        expect(`${result.stdout}\n${result.stderr}`).toContain('submodule gitlinks');
+        expect(readFileSync(documentPath, 'utf8')).toBe(before);
+        expect(stagedFiles(context.directory)).not.toContain(DOC_RELATIVE);
+      } finally {
+        removeTemporaryDirectory(submodule);
+      }
+    },
+  );
+
   it('does not write outside the repo for an absolute staged projectRoot', async () => {
     const externalRoot = createTemporaryDirectory();
     try {
@@ -367,6 +579,9 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
       expect(result.exitCode).toBe(0);
       expect(existsSync(nodePath.join(externalRoot, 'architecture.generated.md'))).toBe(false);
       expect(`${result.stdout}\n${result.stderr}`).toContain('nothing was auto-staged');
+      expect(`${result.stdout}\n${result.stderr}`).toContain(
+        'staged projectRoot resolves outside the repository',
+      );
     } finally {
       removeTemporaryDirectory(externalRoot);
     }
@@ -399,6 +614,67 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
       }
     },
   );
+
+  it('preflights every destination before replacing a divergent root document', async () => {
+    const externalRoot = createTemporaryDirectory();
+    try {
+      rmSync(nodePath.join(context.directory, 'src'), { recursive: true });
+      writeFileSync(
+        nodePath.join(context.directory, 'package.json'),
+        JSON.stringify({ name: 'root', workspaces: ['packages/*'] }),
+      );
+      for (const packageName of ['a', 'b']) {
+        const packageDirectory = nodePath.join(context.directory, 'packages', packageName);
+        mkdirSync(nodePath.join(packageDirectory, 'src'), { recursive: true });
+        writeFileSync(
+          nodePath.join(packageDirectory, 'package.json'),
+          JSON.stringify({ name: packageName }),
+        );
+        writeFileSync(
+          nodePath.join(packageDirectory, 'src', 'index.ts'),
+          `export const ${packageName} = true;\n`,
+        );
+      }
+      selfHealProject(context.directory);
+      commitAll(context.directory, 'record monorepo architecture');
+
+      const rootDocument = resolveGeneratedArchitecturePath(context.directory);
+      const rootWithSentinel = `${readFileSync(rootDocument, 'utf8')}\nROOT WORKTREE SENTINEL\n`;
+      writeFileSync(rootDocument, rootWithSentinel);
+
+      const packageB = nodePath.join(context.directory, 'packages', 'b');
+      writeFileSync(nodePath.join(packageB, 'src', 'new.ts'), 'export const next = true;\n');
+      const packageC = nodePath.join(context.directory, 'packages', 'c');
+      mkdirSync(nodePath.join(packageC, 'src'), { recursive: true });
+      writeFileSync(nodePath.join(packageC, 'package.json'), JSON.stringify({ name: 'c' }));
+      writeFileSync(nodePath.join(packageC, 'src', 'index.ts'), 'export const c = true;\n');
+      git(
+        context.directory,
+        'add',
+        '--',
+        'packages/b/src/new.ts',
+        'packages/c/package.json',
+        'packages/c/src/index.ts',
+      );
+
+      const externalDocument = nodePath.join(externalRoot, 'architecture.generated.md');
+      writeFileSync(externalDocument, 'EXTERNAL SENTINEL\n');
+      const packageBDocument = nodePath.join(packageB, 'architecture.generated.md');
+      rmSync(packageBDocument);
+      symlinkSync(externalDocument, packageBDocument);
+
+      const result = await runCli(['architecture', '--stage'], { cwd: context.directory });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toContain('physically escapes');
+      expect(readFileSync(rootDocument, 'utf8')).toBe(rootWithSentinel);
+      expect(readFileSync(externalDocument, 'utf8')).toBe('EXTERNAL SENTINEL\n');
+      expect(stagedFiles(context.directory)).not.toContain(DOC_RELATIVE);
+      expect(stagedFiles(context.directory)).not.toContain('packages/b/architecture.generated.md');
+    } finally {
+      removeTemporaryDirectory(externalRoot);
+    }
+  });
 
   it.each([
     ['--stage', 0],
@@ -499,4 +775,43 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
       }
     },
   );
+
+  it.each([
+    ['--stage', 0],
+    ['--staged', 1],
+  ])('reports a missing Git executable in %s mode', async (mode, expectedExitCode) => {
+    const result = await runCli(['architecture', mode], {
+      cwd: context.directory,
+      env: { PATH: '' },
+    });
+
+    expect(result.exitCode).toBe(expectedExitCode);
+    expect(`${result.stdout}\n${result.stderr}`).toContain('Git executable is unavailable');
+  });
+});
+
+describe('architecture staged-tree modes outside Git', () => {
+  it.each(['--stage', '--staged'])('falls back to worktree generation for %s', async mode => {
+    const directory = createTemporaryDirectory();
+    try {
+      mkdirSync(nodePath.join(directory, 'src', 'auth'), { recursive: true });
+      writeFileSync(
+        nodePath.join(directory, 'src', 'auth', 'index.ts'),
+        'export const auth = true;\n',
+      );
+      writeFileSync(nodePath.join(directory, 'package.json'), JSON.stringify({ name: 'fixture' }));
+
+      const result = await runCli(['architecture', mode], { cwd: directory });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toContain(
+        'No Git worktree found; generated from the worktree instead',
+      );
+      expect(readFileSync(resolveGeneratedArchitecturePath(directory), 'utf8')).toContain(
+        '### auth',
+      );
+    } finally {
+      removeTemporaryDirectory(directory);
+    }
+  });
 });

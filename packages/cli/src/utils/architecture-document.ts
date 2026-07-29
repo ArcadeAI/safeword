@@ -105,7 +105,12 @@ interface HealTarget {
   render: (priorStamps: Map<string, string>, priorProse: Map<string, string>) => string;
 }
 
-function healTarget(target: HealTarget): SelfHealResult {
+function healTarget(
+  target: HealTarget,
+  priorProseContent?: string,
+  renderUnchanged = false,
+  preservePriorStructure = false,
+): SelfHealResult {
   const existing = readExisting(target.path);
   const action = decideAction(
     existing,
@@ -114,14 +119,32 @@ function healTarget(target: HealTarget): SelfHealResult {
     target.matchesExisting,
   );
 
-  if (isWouldChangeAction(action)) {
+  if (isWouldChangeAction(action) || (renderUnchanged && action === 'unchanged')) {
     mkdirSync(nodePath.dirname(target.path), { recursive: true });
-    const priorStamps = existing === undefined ? new Map() : parseSectionStamps(existing);
-    const priorProse = existing === undefined ? new Map() : parseSectionProse(existing);
+    const { priorStamps, priorProse } = priorSectionHistory(
+      existing,
+      priorProseContent,
+      preservePriorStructure,
+    );
     writeFileSync(target.path, target.render(priorStamps, priorProse));
   }
 
   return { action, path: target.path };
+}
+
+function priorSectionHistory(
+  existing: string | undefined,
+  priorContent: string | undefined,
+  preservePriorStructure: boolean,
+): { priorStamps: Map<string, string>; priorProse: Map<string, string> } {
+  const ownedPrior =
+    priorContent !== undefined && isSafewordOwned(priorContent) ? priorContent : undefined;
+  const stampSource = preservePriorStructure ? (ownedPrior ?? existing) : existing;
+  const proseSource = ownedPrior ?? existing;
+  return {
+    priorStamps: stampSource === undefined ? new Map() : parseSectionStamps(stampSource),
+    priorProse: proseSource === undefined ? new Map() : parseSectionProse(proseSource),
+  };
 }
 
 /** Dry-run of {@link healTarget}: the action it would take, writing nothing. */
@@ -211,6 +234,38 @@ export function planSelfHeal(projectDirectory: string): SelfHealAction {
  */
 export function selfHealProject(projectDirectory: string): SelfHealResult[] {
   return projectTargets(projectDirectory).map(target => healTarget(target));
+}
+
+/**
+ * Heal from `projectDirectory`'s structural shape while preserving human prose
+ * from the corresponding document under `proseProjectDirectory`.
+ *
+ * Commit-oriented staged-tree generation needs these as deliberately separate
+ * inputs: Git's index owns reproducible structure and fingerprints, while the
+ * worktree document owns prose a person may not have staged yet. Only prose is
+ * borrowed; section membership, paths, stamps, and fingerprints still come from
+ * the staged-tree target.
+ *
+ * `renderUnchanged` lets explicit `--staged` generation restore the staged
+ * fingerprint over worktree-only structural drift. `preservePriorStructure`
+ * retains worktree-only sections as orphans so their prose is not destroyed;
+ * commit-time `--stage` leaves it off to avoid leaking unrelated WIP.
+ */
+export function selfHealProjectPreservingProse(
+  projectDirectory: string,
+  proseProjectDirectory: string,
+  options: { renderUnchanged?: boolean; preservePriorStructure?: boolean } = {},
+): SelfHealResult[] {
+  return projectTargets(projectDirectory).map(target => {
+    const relativePath = nodePath.relative(projectDirectory, target.path);
+    const priorProseContent = readExisting(nodePath.join(proseProjectDirectory, relativePath));
+    return healTarget(
+      target,
+      priorProseContent,
+      options.renderUnchanged ?? false,
+      options.preservePriorStructure ?? false,
+    );
+  });
 }
 
 /** Dry-run of {@link selfHealProject}: the action per node, writing nothing. */
@@ -339,7 +394,9 @@ function parseSectionProse(content: string): Map<string, string> {
  * prose. Returns the next `inProse` state.
  */
 function accumulateProseLine(line: string, inProse: boolean, buffer: string[]): boolean {
-  if (line.startsWith(RECONCILED_PREFIX) || line.startsWith('> ⚠')) return inProse;
+  if (line.startsWith(RECONCILED_PREFIX)) return inProse;
+  if (line.startsWith('> ⚠ orphaned:')) return true;
+  if (line.startsWith('> ⚠')) return inProse;
   if (!inProse) return /^`[^`]*`\s*$/.test(line);
   buffer.push(line);
   return true;
@@ -381,7 +438,7 @@ function renderDocument(
       // placeholder the skeleton carries (the purpose floor).
       const prose = priorProse.get(verdict.node) ?? node?.purpose ?? '';
       return node === undefined
-        ? renderOrphanSection(verdict.node)
+        ? renderOrphanSection(verdict.node, stamp, prose)
         : renderSection(node, stamp, verdict.status, prose);
     })
     .join('\n');
@@ -403,8 +460,9 @@ function renderSection(
   return `### ${node.name}\n\n${RECONCILED_PREFIX} ${stamp} -->\n\n\`${node.path}\`\n\n${prose}\n${marker}`;
 }
 
-function renderOrphanSection(name: string): string {
-  return `### ${name}\n\n> ⚠ orphaned: this section describes a module that no longer exists.\n`;
+function renderOrphanSection(name: string, stamp: string, prose: string): string {
+  const preservedProse = prose.length > 0 ? `\n${prose}\n` : '';
+  return `### ${name}\n\n${RECONCILED_PREFIX} ${stamp} -->\n\n> ⚠ orphaned: this section describes a module that no longer exists.\n${preservedProse}`;
 }
 
 /**
