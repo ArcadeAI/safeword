@@ -301,3 +301,17 @@ Feature source: `features/operate-retry-safe-retro-relay.feature`
 - [x] RED skip: reproduced locally before implementation; no separate commit
 - [x] GREEN 71826fb15
 - [x] REFACTOR 288052c9c
+
+## 2026-07-29 final independent re-review regressions
+
+### Scenario: A multi-draft blackhole cannot exceed the session latency budget
+
+- [x] RED skip: reproduced a 1.55-second drain locally before implementation
+- [x] GREEN 8b0355544
+- [x] REFACTOR skip: the shared 250-millisecond headroom policy is already centralized
+
+### Scenario: GitHub 422 preserves the draft without response-prose inference
+
+- [x] RED skip: reproduced terminal acknowledgement for both documented 422 meanings
+- [x] GREEN 8b0355544
+- [x] REFACTOR skip: the status-only classification table is already minimal

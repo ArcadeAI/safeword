@@ -6,7 +6,7 @@
 **Gherkin:** ✅ Full acceptance lane passes (626/629 scenarios; 3 intentional skips; 20,053/20,057 steps passed with 4 skipped)
 **Build:** ✅ Success, including the pinned production container on Node 24.18.1
 **Lint:** ✅ Clean (ESLint, Gherkin lint, and TypeScript)
-**Scenarios:** All 139 RED/GREEN/REFACTOR checks marked complete
+**Scenarios:** All 145 RED/GREEN/REFACTOR checks marked complete
 **PR Scope:** ✅ Diff matches ticket scope
 **Dep Drift:** ✅ Clean
 **Parent Epic:** N/A
@@ -67,7 +67,8 @@ audit reports no vulnerabilities.
   aggregate headroom, and every GitHub 422 remains retryable because the
   documented status conflates validation with temporary spam throttling.
   Multi-draft blackhole and prose-independent 422 tests pass; the fresh
-  re-review approved with no critical issues or suggested improvements.
+  re-review approved `8b0355544` with no critical issues or suggested
+  improvements.
 
 ## 2026-07-29 fourth-round comment resolution
 
