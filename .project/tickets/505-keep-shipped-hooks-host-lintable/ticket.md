@@ -6,7 +6,7 @@ phase: implement
 status: in_progress
 external_issue: https://github.com/ArcadeAI/safeword/issues/505
 created: 2026-07-28T00:00:00Z
-last_modified: 2026-07-29T02:20:00Z
+last_modified: 2026-07-29T02:30:00Z
 scope:
   - Keep every shipped TypeScript template compatible with the supported ESLint baseline used by host projects.
   - Add release validation for the schema-declared distributed TypeScript surface: baseline lint, typed-preset parse/config loading, and strict installed-shape TypeScript checking.
@@ -96,6 +96,7 @@ in customer repositories) but opt into dogfood parity so template edits cannot d
 - 2026-07-29T00:50:00Z Reopened for PR review: nine actionable findings identified. The release fixture omitted schema-declared statusline and BDD TypeScript templates, and Codex runtime assets were managed-but-not-paired. The follow-up keeps each ownership contract intact while extending validation and parity.
 - 2026-07-29T01:00:00Z Review follow-up GREEN: strict typechecking now covers 106 schema-declared TypeScript templates in real destination paths, including statusline and BDD steps. The new Codex parity opt-in surfaced and healed one additional stale runtime mirror. Focused release tests, parity tests, direct lint, formatting, parity (200 pairs / 8 contracts), and an independent fresh review passed.
 - 2026-07-29T02:20:00Z Regression follow-up: the generated owned-paths module was typechecked but omitted from both fixture lint passes. Added it to the common fixture file list; the focused release gate and direct lint pass now cover the same installed tree.
+- 2026-07-29T02:30:00Z Refactor: split release-fixture materialization from tsconfig generation without changing the installed file set, fixture lifetime, or compiler options. Focused release checks and direct lint passed.
 
 ## Refactor Ledger
 
@@ -107,12 +108,12 @@ with its own test and commit.
   cannot drift from check/sync coverage.
 - [x] P2 — Rename the broadened release test and its temporary-fixture prefix
   from “hooks” to “templates”.
-- [ ] P3 — Split the release fixture builder into named materialization and
+- [x] P3 — Split the release fixture builder into named materialization and
   tsconfig-writing helpers without changing fixture lifetime or contents.
-- [ ] Struck — Do not extract the two Claude environment projections: the
+- [x] Struck — Do not extract the two Claude environment projections: the
   exported helper was deliberately removed during review, so reintroducing an
   abstraction would recreate a rejected shipped API.
-- [ ] Struck — Do not merge baseline and fatal-diagnostic formatting: their
+- [x] Struck — Do not merge baseline and fatal-diagnostic formatting: their
   distinct predicates make the test policy legible.
 - [x] Struck — Keep `as unknown as` for the regex tuple: direct conversion is
   rejected by the strict fixture compiler.

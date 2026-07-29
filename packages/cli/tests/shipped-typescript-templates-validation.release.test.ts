@@ -47,6 +47,11 @@ interface InstalledTemplate {
   templatePath: string;
 }
 
+interface MaterializedTemplates {
+  ownedPathsTarget: string;
+  templatePaths: string[];
+}
+
 const shippedTypeScriptTemplates: InstalledTemplate[] = [
   ...Object.entries(SAFEWORD_SCHEMA.ownedFiles),
   ...Object.entries(SAFEWORD_SCHEMA.managedFiles),
@@ -55,12 +60,7 @@ const shippedTypeScriptTemplates: InstalledTemplate[] = [
   return templatePath?.endsWith('.ts') ? [{ destinationPath, templatePath }] : [];
 });
 
-function createInstalledTemplatesFixture(): {
-  cleanup: () => void;
-  directory: string;
-  templatePaths: string[];
-} {
-  const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-shipped-templates-'));
+function materializeInstalledTemplates(directory: string): MaterializedTemplates {
   const templatePaths = shippedTypeScriptTemplates.map(({ destinationPath, templatePath }) => {
     const target = nodePath.join(directory, destinationPath);
     mkdirSync(nodePath.dirname(target), { recursive: true });
@@ -71,6 +71,10 @@ function createInstalledTemplatesFixture(): {
   mkdirSync(nodePath.dirname(ownedPathsTarget), { recursive: true });
   writeFileSync(ownedPathsTarget, generateOwnedPathsModule(SAFEWORD_SCHEMA));
   templatePaths.push(ownedPathsTarget);
+  return { ownedPathsTarget, templatePaths };
+}
+
+function writeFixtureTypeScriptConfig(directory: string, ownedPathsTarget: string): void {
   writeFileSync(
     nodePath.join(directory, 'tsconfig.json'),
     `${JSON.stringify(
@@ -107,6 +111,16 @@ function createInstalledTemplatesFixture(): {
       2,
     )}\n`,
   );
+}
+
+function createInstalledTemplatesFixture(): {
+  cleanup: () => void;
+  directory: string;
+  templatePaths: string[];
+} {
+  const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-shipped-templates-'));
+  const { ownedPathsTarget, templatePaths } = materializeInstalledTemplates(directory);
+  writeFixtureTypeScriptConfig(directory, ownedPathsTarget);
   return {
     cleanup: () => {
       rmSync(directory, { force: true, maxRetries: 3, recursive: true });
