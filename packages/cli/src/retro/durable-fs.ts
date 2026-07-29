@@ -4,6 +4,7 @@ import path from 'node:path';
 export interface DurableMutationFaults {
   beforeDirectorySync?: () => Promise<void>;
   beforeFileSync?: () => Promise<void>;
+  beforeTemporaryUnlink?: () => Promise<void>;
 }
 
 const durableDirectoryIdentities = new Map<string, string>();

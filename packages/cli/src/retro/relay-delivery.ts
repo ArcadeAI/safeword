@@ -265,15 +265,20 @@ async function writeAtomic(
       return false;
     }
   } finally {
-    await removeAtomicTemporary(temporary);
+    await removeAtomicTemporary(temporary, faults);
   }
 }
 
-async function removeAtomicTemporary(temporary: string): Promise<void> {
+async function removeAtomicTemporary(
+  temporary: string,
+  faults: DurableMutationFaults,
+): Promise<void> {
   try {
+    await faults.beforeTemporaryUnlink?.();
     await unlink(temporary);
-  } catch (error) {
-    if (errorCode(error) !== 'ENOENT') throw error;
+  } catch {
+    // The linked target is already durable. Recovery owns any leftover
+    // relay-named temporary, so cleanup cannot overturn accepted state.
   }
 }
 
@@ -387,6 +392,7 @@ export async function persistRelayRequest(
     faultAfterDiscardCheck?: () => Promise<void>;
     faultBeforeDirectorySync?: () => Promise<void>;
     faultBeforeFileSync?: () => Promise<void>;
+    faultBeforeTemporaryUnlink?: () => Promise<void>;
   } = {},
 ): Promise<{ bytes: Buffer; path: string }> {
   await ensureRelayDirectory(projectDirectory, {
@@ -414,6 +420,7 @@ export async function persistRelayRequest(
     !(await writeAtomic(file, bytes, {
       beforeDirectorySync: options.faultBeforeDirectorySync,
       beforeFileSync: options.faultBeforeFileSync,
+      beforeTemporaryUnlink: options.faultBeforeTemporaryUnlink,
     }))
   ) {
     const existing = await readFile(file);
@@ -765,8 +772,18 @@ async function resolveSourceReservation(
   return materializeReservedRequest(projectDirectory, directory, draft, reservation, filenames);
 }
 
-function discardIntentInSnapshot(filenames: string[], requestId: string): boolean {
-  return filenames.some(filename => parseDiscardIntent(filename)?.requestId === requestId);
+async function discardIntentInSnapshot(
+  projectDirectory: string,
+  filenames: string[],
+  requestId: string,
+): Promise<boolean> {
+  const matchingIntents = filenames.filter(
+    filename => parseDiscardIntent(filename)?.requestId === requestId,
+  );
+  const live = await Promise.all(
+    matchingIntents.map(filename => exists(path.join(relayDirectory(projectDirectory), filename))),
+  );
+  return live.includes(true);
 }
 
 async function discardBlocksRequestAtSnapshot(
@@ -776,7 +793,7 @@ async function discardBlocksRequestAtSnapshot(
 ): Promise<boolean> {
   return (
     (await exists(discardedPath(projectDirectory, requestId))) ||
-    discardIntentInSnapshot(filenames, requestId)
+    (await discardIntentInSnapshot(projectDirectory, filenames, requestId))
   );
 }
 
@@ -967,8 +984,13 @@ export async function persistRelayDraftBatch(
   const reservations = await Promise.allSettled(
     drafts.map(draft => acquireRelayDraftReservation(projectDirectory, draft, snapshot)),
   );
-  const filenames = await sortedFilenames(snapshot.directory);
-  await options.faultAfterStateSnapshot?.();
+  let filenames: string[];
+  try {
+    filenames = await sortedFilenames(snapshot.directory);
+    await options.faultAfterStateSnapshot?.();
+  } catch (error) {
+    return drafts.map(() => ({ reason: error, status: 'rejected' }));
+  }
   return Promise.all(
     reservations.map(async (reservation, index) => {
       if (reservation.status !== 'fulfilled') return reservation;

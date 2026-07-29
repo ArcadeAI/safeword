@@ -930,8 +930,8 @@ export async function retryRelayDeadLetterCommand(
     return true;
   }
   let rearmed: boolean;
+  await dependencies.faultBeforeRearm?.();
   try {
-    await dependencies.faultBeforeRearm?.();
     rearmed = await rearmRelayDeadLetter(dependencies.projectDirectory, requestId);
   } catch {
     error('retro relay: request identity must be a lowercase UUIDv4.');
