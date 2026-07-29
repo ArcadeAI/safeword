@@ -490,15 +490,25 @@ function renderDocument(
       // node is stamped current (a placeholder awaiting prose, not stale).
       const stamp = priorStamps.get(verdict.node) ?? fingerprint;
       const prior = priorProse.get(verdict.node);
-      // Metadata seeds remain refreshable, while anything a person wrote wins
-      // permanently over source-derived text on future structural heals.
-      const useSeed = node.seededPurpose === true && (prior === undefined || prior.generated);
-      const prose = useSeed || prior?.generated ? node.purpose : (prior?.text ?? node.purpose);
-      return renderSection(node, stamp, verdict.status, prose, useSeed);
+      const { purpose, seeded } = resolveModulePurpose(node, prior);
+      return renderSection(node, stamp, verdict.status, purpose, seeded);
     })
     .join('\n');
 
   return `${architectureFrontmatter(fingerprint)}## Modules\n\n${sections}`;
+}
+
+/** Resolve a module purpose, preferring human prose over refreshable generator-owned text. */
+function resolveModulePurpose(
+  node: SkeletonNode,
+  prior: PriorPurpose | undefined,
+): { purpose: string; seeded: boolean } {
+  const generatedPrior = prior?.generated === true;
+  const seeded = node.seededPurpose === true && (prior === undefined || generatedPrior);
+  return {
+    purpose: seeded || generatedPrior ? node.purpose : (prior?.text ?? node.purpose),
+    seeded,
+  };
 }
 
 function renderSection(

@@ -411,6 +411,21 @@ describe('selfHealProject — metadata-seeded purposes (GitHub #1608)', () => {
     expect(root).toContain('<!-- seeded-purpose:');
   });
 
+  it('renders only the honesty marker for a fresh un-introspected package without metadata', () => {
+    const packageDirectory = makeMonorepoPackage('worker', '');
+    writeFileSync(
+      nodePath.join(packageDirectory, 'package.json'),
+      JSON.stringify({ name: 'worker' }),
+    );
+
+    selfHealProject(context.directory);
+
+    const worker = sectionText(readFileSync(documentPath(context.directory), 'utf8'), 'worker');
+    expect(worker).toContain('not introspected — no source modules to map');
+    expect(worker).not.toContain(PLACEHOLDER);
+    expect(worker).not.toContain('<!-- seeded-purpose:');
+  });
+
   it('refreshes an un-introspected package description on a later root heal', () => {
     const workerDirectory = makeMonorepoPackage('worker', 'Runs background jobs.');
     selfHealProject(context.directory);
