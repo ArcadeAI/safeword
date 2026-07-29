@@ -568,7 +568,46 @@ function relayConfigAbsent(...values: (string | undefined)[]): boolean {
   return values.every(value => value === undefined || value.length === 0);
 }
 
-// eslint-disable-next-line complexity -- Fail-closed parsing keeps every required credential and outbox field explicit.
+interface RelayScalarInput {
+  credential?: string;
+  installation?: string;
+  relayUrl?: string;
+  repo?: string;
+}
+
+function relayScalarFieldsPresent(input: RelayScalarInput): input is Required<RelayScalarInput> {
+  return (
+    input.credential !== undefined &&
+    input.installation !== undefined &&
+    input.relayUrl !== undefined &&
+    input.repo !== undefined
+  );
+}
+
+function resolveRelayScalars(
+  input: RelayScalarInput,
+): Omit<RelayConfig, 'spoolDirectory'> | undefined {
+  if (!relayScalarFieldsPresent(input)) return undefined;
+  const relayOrigin = normalizeRelayOrigin(input.relayUrl);
+  if (
+    relayOrigin === undefined ||
+    input.credential.length === 0 ||
+    input.repo.length === 0 ||
+    !/^[\w.-]+\/[\w.-]+$/u.test(input.repo) ||
+    !/^[1-9]\d*$/u.test(input.installation)
+  ) {
+    return undefined;
+  }
+  const installationId = Number(input.installation);
+  if (!Number.isSafeInteger(installationId)) return undefined;
+  return {
+    credential: input.credential,
+    installationId,
+    relayUrl: relayOrigin,
+    repository: input.repo,
+  };
+}
+
 export function resolveRelayConfig(
   environment: NodeJS.ProcessEnv,
   projectDirectory: string,
@@ -581,7 +620,6 @@ export function resolveRelayConfig(
   if (relayConfigAbsent(relayUrl, credential, repo, installation, configuredSpoolDirectory)) {
     return undefined;
   }
-  const relayOrigin = relayUrl === undefined ? undefined : normalizeRelayOrigin(relayUrl);
   const spoolDirectory = resolveRelayOutboxDirectory(projectDirectory, configuredSpoolDirectory);
   if (spoolDirectory === undefined) {
     return {
@@ -589,28 +627,13 @@ export function resolveRelayConfig(
         'retro relay configuration is invalid; SAFEWORD_RETRO_RELAY_OUTBOX must be an existing absolute directory outside the project',
     };
   }
-  if (
-    relayOrigin === undefined ||
-    credential === undefined ||
-    credential.length === 0 ||
-    repo === undefined ||
-    repo.length === 0 ||
-    installation === undefined ||
-    !/^[\w.-]+\/[\w.-]+$/u.test(repo) ||
-    !/^[1-9]\d*$/u.test(installation)
-  ) {
-    return { error: 'retro relay configuration is incomplete or invalid' };
-  }
-  const installationId = Number(installation);
-  if (!Number.isSafeInteger(installationId)) {
+  const scalars = resolveRelayScalars({ credential, installation, relayUrl, repo });
+  if (scalars === undefined) {
     return { error: 'retro relay configuration is incomplete or invalid' };
   }
   return {
     config: {
-      credential,
-      installationId,
-      relayUrl: relayOrigin,
-      repository: repo,
+      ...scalars,
       spoolDirectory,
     },
   };
