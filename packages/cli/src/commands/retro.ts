@@ -564,6 +564,10 @@ export function resolveRelayOutboxDirectory(
 
 type RelayConfig = Omit<RelayRoute, 'readiness'>;
 
+function relayConfigAbsent(...values: (string | undefined)[]): boolean {
+  return values.every(value => value === undefined || value.length === 0);
+}
+
 // eslint-disable-next-line complexity -- Fail-closed parsing keeps every required credential and outbox field explicit.
 export function resolveRelayConfig(
   environment: NodeJS.ProcessEnv,
@@ -574,11 +578,7 @@ export function resolveRelayConfig(
   const repo = environment.SAFEWORD_RETRO_RELAY_REPOSITORY?.trim().toLowerCase();
   const installation = environment.SAFEWORD_RETRO_RELAY_INSTALLATION_ID?.trim();
   const configuredSpoolDirectory = environment.SAFEWORD_RETRO_RELAY_OUTBOX?.trim();
-  if (
-    [relayUrl, credential, repo, installation, configuredSpoolDirectory].every(
-      value => value === undefined || value.length === 0,
-    )
-  ) {
+  if (relayConfigAbsent(relayUrl, credential, repo, installation, configuredSpoolDirectory)) {
     return undefined;
   }
   const relayOrigin = relayUrl === undefined ? undefined : normalizeRelayOrigin(relayUrl);
