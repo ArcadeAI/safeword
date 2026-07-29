@@ -8,6 +8,7 @@
 
 import { execFileSync } from 'node:child_process';
 import {
+  chmodSync,
   existsSync,
   linkSync,
   mkdirSync,
@@ -673,6 +674,62 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
       expect(stagedFiles(context.directory)).not.toContain('packages/b/architecture.generated.md');
     } finally {
       removeTemporaryDirectory(externalRoot);
+    }
+  });
+
+  it('restores earlier documents when a later destination replacement fails', async () => {
+    rmSync(nodePath.join(context.directory, 'src'), { recursive: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'package.json'),
+      JSON.stringify({ name: 'root', workspaces: ['packages/*'] }),
+    );
+    for (const packageName of ['a', 'b']) {
+      const packageDirectory = nodePath.join(context.directory, 'packages', packageName);
+      mkdirSync(nodePath.join(packageDirectory, 'src'), { recursive: true });
+      writeFileSync(
+        nodePath.join(packageDirectory, 'package.json'),
+        JSON.stringify({ name: packageName }),
+      );
+      writeFileSync(
+        nodePath.join(packageDirectory, 'src', 'index.ts'),
+        `export const ${packageName} = true;\n`,
+      );
+    }
+    selfHealProject(context.directory);
+    commitAll(context.directory, 'record monorepo architecture');
+
+    const rootDocument = resolveGeneratedArchitecturePath(context.directory);
+    const rootWithSentinel = `${readFileSync(rootDocument, 'utf8')}\nROOT WORKTREE SENTINEL\n`;
+    writeFileSync(rootDocument, rootWithSentinel);
+
+    const packageB = nodePath.join(context.directory, 'packages', 'b');
+    const packageBModule = nodePath.join(packageB, 'src', 'billing');
+    mkdirSync(packageBModule);
+    writeFileSync(nodePath.join(packageBModule, 'index.ts'), 'export const billing = true;\n');
+    const packageC = nodePath.join(context.directory, 'packages', 'c');
+    mkdirSync(nodePath.join(packageC, 'src'), { recursive: true });
+    writeFileSync(nodePath.join(packageC, 'package.json'), JSON.stringify({ name: 'c' }));
+    writeFileSync(nodePath.join(packageC, 'src', 'index.ts'), 'export const c = true;\n');
+    git(
+      context.directory,
+      'add',
+      '--',
+      'packages/b/src/billing/index.ts',
+      'packages/c/package.json',
+      'packages/c/src/index.ts',
+    );
+
+    chmodSync(packageB, 0o555);
+    try {
+      const result = await runCli(['architecture', '--stage'], { cwd: context.directory });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toContain('nothing was auto-staged');
+      expect(readFileSync(rootDocument, 'utf8')).toBe(rootWithSentinel);
+      expect(stagedFiles(context.directory)).not.toContain(DOC_RELATIVE);
+      expect(stagedFiles(context.directory)).not.toContain('packages/b/architecture.generated.md');
+    } finally {
+      chmodSync(packageB, 0o755);
     }
   });
 

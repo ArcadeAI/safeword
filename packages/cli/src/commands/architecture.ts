@@ -444,6 +444,21 @@ interface MaterializedIndexResult extends SelfHealResult {
   restoreWorktreeContent?: string;
 }
 
+type WorktreeDocumentState =
+  | { existed: false }
+  | {
+      existed: true;
+      content: string;
+    };
+
+interface IndexMaterializationPlan {
+  result: SelfHealResult;
+  destination: string;
+  shouldWrite: boolean;
+  priorWorktreeState?: WorktreeDocumentState;
+  restoreWorktreeContent?: string;
+}
+
 /**
  * Heal inside the index snapshot, then copy only generated mutations to their
  * matching worktree paths. Returned paths always name the real worktree files.
@@ -454,7 +469,7 @@ function materializeIndexResults(
   mode: IndexMaterializationMode,
 ): MaterializedIndexResult[] {
   assertSnapshotHealTargetsContained(snapshotDirectory);
-  const plans = selfHealProjectPreservingProse(snapshotDirectory, cwd, {
+  const plans: IndexMaterializationPlan[] = selfHealProjectPreservingProse(snapshotDirectory, cwd, {
     renderUnchanged: mode === 'restore-staged-tree',
     preservePriorStructure: mode === 'restore-staged-tree',
   }).map(result => {
@@ -478,19 +493,67 @@ function materializeIndexResults(
   // Validate every worktree destination before replacing the first one. A
   // later unsafe leaf must not leave an earlier root document half-applied.
   for (const plan of plans) {
-    if (plan.shouldWrite) assertPhysicalContainment(cwd, plan.destination);
+    if (!plan.shouldWrite) continue;
+    assertPhysicalContainment(cwd, plan.destination);
+    plan.priorWorktreeState = readWorktreeDocumentState(plan.destination);
+    plan.restoreWorktreeContent =
+      mode === 'mutations-only' && isWouldChangeAction(plan.result.action)
+        ? divergentWorktreeDocument(cwd, plan.destination)
+        : undefined;
   }
 
-  return plans.map(({ result, destination, shouldWrite }) => {
-    const restoreWorktreeContent =
-      mode === 'mutations-only' && isWouldChangeAction(result.action)
-        ? divergentWorktreeDocument(cwd, destination)
-        : undefined;
-    if (shouldWrite) {
-      replaceArchitectureDocument(result.path, destination, cwd);
+  const attemptedPlans: IndexMaterializationPlan[] = [];
+  try {
+    for (const plan of plans) {
+      if (!plan.shouldWrite) continue;
+      attemptedPlans.push(plan);
+      replaceArchitectureDocument(plan.result.path, plan.destination, cwd);
     }
-    return { action: result.action, path: destination, restoreWorktreeContent };
-  });
+  } catch (materializationError) {
+    const rollbackErrors = restoreMaterializationPlans(cwd, attemptedPlans);
+    if (rollbackErrors.length > 0) {
+      throw new AggregateError(
+        [materializationError, ...rollbackErrors],
+        'Architecture materialization failed and one or more worktree documents could not be restored.',
+        { cause: materializationError },
+      );
+    }
+    throw materializationError;
+  }
+
+  return plans.map(({ result, destination, restoreWorktreeContent }) => ({
+    action: result.action,
+    path: destination,
+    restoreWorktreeContent,
+  }));
+}
+
+function readWorktreeDocumentState(destination: string): WorktreeDocumentState {
+  try {
+    return { existed: true, content: readFileSync(destination, 'utf8') };
+  } catch (error_) {
+    if ((error_ as NodeJS.ErrnoException).code === 'ENOENT') return { existed: false };
+    throw error_;
+  }
+}
+
+function restoreMaterializationPlans(cwd: string, plans: IndexMaterializationPlan[]): unknown[] {
+  const errors: unknown[] = [];
+  for (const plan of plans.toReversed()) {
+    try {
+      const priorState = plan.priorWorktreeState;
+      if (priorState === undefined) continue;
+      if (priorState.existed) {
+        replaceArchitectureDocumentContent(priorState.content, plan.destination, cwd);
+      } else {
+        assertPhysicalContainment(cwd, plan.destination);
+        rmSync(plan.destination, { force: true });
+      }
+    } catch (error_) {
+      errors.push(error_);
+    }
+  }
+  return errors;
 }
 
 /**
