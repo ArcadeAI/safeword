@@ -6,7 +6,7 @@ phase: implement
 status: in_progress
 external_issue: https://github.com/ArcadeAI/safeword/issues/505
 created: 2026-07-28T00:00:00Z
-last_modified: 2026-07-29T02:00:00Z
+last_modified: 2026-07-29T02:20:00Z
 scope:
   - Keep every shipped TypeScript template compatible with the supported ESLint baseline used by host projects.
   - Add release validation for the schema-declared distributed TypeScript surface: baseline lint, typed-preset parse/config loading, and strict installed-shape TypeScript checking.
@@ -79,6 +79,10 @@ in customer repositories) but opt into dogfood parity so template edits cannot d
 - [x] REFACTOR — The test has one owner, discovers the shipped hook tree instead of maintaining a file list, and centralizes Claude session resolution for the two retro filing hooks.
   - [x] RED — The schema-driven fixture caught the statusline unchecked-index error and includes the BDD step templates.
   - [x] GREEN — The fixture typechecks every schema-declared TypeScript template in its real destination path and the Codex runtime mirrors have parity coverage.
+  - [x] RED — The generated `owned-paths.ts` module was absent from both ESLint
+    passes despite being part of the installed hook tree.
+  - [x] GREEN — Every lint/typecheck pass receives the generated module as part
+    of the same installed fixture file list.
 
 ## Work Log
 
@@ -91,13 +95,14 @@ in customer repositories) but opt into dogfood parity so template edits cannot d
 - 2026-07-28T14:59:03Z Final verification: release validation (25 tests), direct release-test lint, root lint, build, Gherkin acceptance, parity (195 pairs / 8 contracts), `bun audit`, and two independent quality reviews passed. Reverted the unrelated root patch upgrades found during audit; the required CLI-local Bun types remain. The complete Vitest suite runner hung after workers exited under isolated locks, recorded as a local evidence limitation in `verify.md`.
 - 2026-07-29T00:50:00Z Reopened for PR review: nine actionable findings identified. The release fixture omitted schema-declared statusline and BDD TypeScript templates, and Codex runtime assets were managed-but-not-paired. The follow-up keeps each ownership contract intact while extending validation and parity.
 - 2026-07-29T01:00:00Z Review follow-up GREEN: strict typechecking now covers 106 schema-declared TypeScript templates in real destination paths, including statusline and BDD steps. The new Codex parity opt-in surfaced and healed one additional stale runtime mirror. Focused release tests, parity tests, direct lint, formatting, parity (200 pairs / 8 contracts), and an independent fresh review passed.
+- 2026-07-29T02:20:00Z Regression follow-up: the generated owned-paths module was typechecked but omitted from both fixture lint passes. Added it to the common fixture file list; the focused release gate and direct lint pass now cover the same installed tree.
 
 ## Refactor Ledger
 
 Scout findings, ordered leaf-first. Each entry is one behavior-preserving change
 with its own test and commit.
 
-- [ ] P1 — Eliminate the duplicate parity-pair membership traversal in
+- [x] P1 — Eliminate the duplicate parity-pair membership traversal in
   `scripts/parity-check.ts`; the CLI count must derive from `runParity` so it
   cannot drift from check/sync coverage.
 - [x] P2 — Rename the broadened release test and its temporary-fixture prefix
@@ -109,5 +114,5 @@ with its own test and commit.
   abstraction would recreate a rejected shipped API.
 - [ ] Struck — Do not merge baseline and fatal-diagnostic formatting: their
   distinct predicates make the test policy legible.
-- [ ] Struck — Keep `as unknown as` for the regex tuple: direct conversion is
+- [x] Struck — Keep `as unknown as` for the regex tuple: direct conversion is
   rejected by the strict fixture compiler.

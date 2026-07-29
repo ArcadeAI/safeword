@@ -70,6 +70,7 @@ function createInstalledTemplatesFixture(): {
   const ownedPathsTarget = nodePath.join(directory, '.safeword', 'hooks', 'lib', 'owned-paths.ts');
   mkdirSync(nodePath.dirname(ownedPathsTarget), { recursive: true });
   writeFileSync(ownedPathsTarget, generateOwnedPathsModule(SAFEWORD_SCHEMA));
+  templatePaths.push(ownedPathsTarget);
   writeFileSync(
     nodePath.join(directory, 'tsconfig.json'),
     `${JSON.stringify(
