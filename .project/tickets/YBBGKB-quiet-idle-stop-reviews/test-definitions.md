@@ -11,7 +11,7 @@ Then it exits successfully with no decision output
 
 - [x] RED skip: focused regression developed and run in the same uncommitted TDD slice
 - [x] GREEN fe6ddfc4
-- [x] REFACTOR fe6ddfc4
+- [x] REFACTOR skip: review retained the explicit session-state write for independently running hooks
 
 ## Rule: A real user prompt re-arms generic review
 
@@ -23,7 +23,7 @@ Then it clears the marker without changing unrelated session state
 
 - [x] RED skip: focused regression developed and run in the same uncommitted TDD slice
 - [x] GREEN fe6ddfc4
-- [x] REFACTOR fe6ddfc4
+- [x] REFACTOR skip: review retained the existing tolerant state-file handling
 
 ## Rule: Missing transcript boundaries remain fail-closed before review is surfaced
 
