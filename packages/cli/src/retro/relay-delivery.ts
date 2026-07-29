@@ -147,29 +147,29 @@ function relayDirectory(projectDirectory: string): string {
   return path.join(projectDirectory, '.safeword', 'retro-drafts', 'relay');
 }
 
-function primaryPath(projectDirectory: string, requestId: string): string {
+function requestPath(projectDirectory: string, requestId: string, suffix: string): string {
   if (!UUID_V4_PATTERN.test(requestId)) throw new Error('invalid relay request identity');
-  return path.join(relayDirectory(projectDirectory), `${requestId}.json`);
+  return path.join(relayDirectory(projectDirectory), `${requestId}${suffix}.json`);
+}
+
+function primaryPath(projectDirectory: string, requestId: string): string {
+  return requestPath(projectDirectory, requestId, '');
 }
 
 function ackPath(projectDirectory: string, requestId: string): string {
-  if (!UUID_V4_PATTERN.test(requestId)) throw new Error('invalid relay request identity');
-  return path.join(relayDirectory(projectDirectory), `${requestId}.ack.json`);
+  return requestPath(projectDirectory, requestId, '.ack');
 }
 
 function deadLetterPath(projectDirectory: string, requestId: string): string {
-  if (!UUID_V4_PATTERN.test(requestId)) throw new Error('invalid relay request identity');
-  return path.join(relayDirectory(projectDirectory), `${requestId}.dead-letter.json`);
+  return requestPath(projectDirectory, requestId, '.dead-letter');
 }
 
 function materializingPath(projectDirectory: string, requestId: string): string {
-  if (!UUID_V4_PATTERN.test(requestId)) throw new Error('invalid relay request identity');
-  return path.join(relayDirectory(projectDirectory), `${requestId}.materializing.json`);
+  return requestPath(projectDirectory, requestId, '.materializing');
 }
 
 function discardedPath(projectDirectory: string, requestId: string): string {
-  if (!UUID_V4_PATTERN.test(requestId)) throw new Error('invalid relay request identity');
-  return path.join(relayDirectory(projectDirectory), `${requestId}.discarded.json`);
+  return requestPath(projectDirectory, requestId, '.discarded');
 }
 
 function discardIntentTokenPath(
@@ -183,19 +183,21 @@ function discardIntentTokenPath(
   return path.join(relayDirectory(projectDirectory), `${requestId}.discarding.${token}.json`);
 }
 
-function sourceReservationPath(projectDirectory: string, sourceKey: string): string {
+function sourcePath(projectDirectory: string, sourceKey: string, suffix: string): string {
   const key = createHash('sha256').update(sourceKey).digest('hex');
-  return path.join(relayDirectory(projectDirectory), `source-${key}.json`);
+  return path.join(relayDirectory(projectDirectory), `source-${key}${suffix}.json`);
+}
+
+function sourceReservationPath(projectDirectory: string, sourceKey: string): string {
+  return sourcePath(projectDirectory, sourceKey, '');
 }
 
 function sourceAcknowledgementPath(projectDirectory: string, sourceKey: string): string {
-  const key = createHash('sha256').update(sourceKey).digest('hex');
-  return path.join(relayDirectory(projectDirectory), `source-${key}.acknowledged.json`);
+  return sourcePath(projectDirectory, sourceKey, '.acknowledged');
 }
 
 function sourceDiscardedPath(projectDirectory: string, sourceKey: string): string {
-  const key = createHash('sha256').update(sourceKey).digest('hex');
-  return path.join(relayDirectory(projectDirectory), `source-${key}.discarded.json`);
+  return sourcePath(projectDirectory, sourceKey, '.discarded');
 }
 
 function errorCode(error: unknown): string | undefined {

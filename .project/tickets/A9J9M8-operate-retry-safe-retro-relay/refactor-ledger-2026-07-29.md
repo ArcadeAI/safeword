@@ -12,7 +12,7 @@ an explicit disposition so no scout finding is silently dropped.
 - [x] R3 Name the semantically distinct discard-claim and recovery-claim leases.
 - [x] R4 Rename the per-run `deadLettered` result to `deadLetteredThisRun`.
 - [x] R5 Unify durable-record-to-public-receipt projection in the relay store.
-- [ ] R6 Centralize request and source spool path construction.
+- [x] R6 Centralize request and source spool path construction.
 - [ ] R7 Name and reuse the discard fault-option type.
 - [ ] R8 Name CLI relay deadline and aggregate-headroom policy values.
 - [ ] R9 Replace the `node:sqlite` `createRequire` compatibility workaround with
