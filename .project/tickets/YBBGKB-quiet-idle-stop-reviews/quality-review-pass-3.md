@@ -18,7 +18,7 @@ Review plan: verify the Claude lifecycle claims against the current primary docu
 
 **Critical issues:** None in the corrected code paths.
 
-**Suggested improvements:** None deferred. The previously red Node 24 job has been explicitly rerun; wait for that external result and the fresh PR CI before marking the ticket verified.
+**Suggested improvements:** None deferred. The attempted rerun of the old red Node 24 job was canceled when the corrective head superseded it; wait for that fresh PR CI before marking the ticket verified.
 
 **Provenance:**
 

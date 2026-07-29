@@ -9,4 +9,4 @@ Scout scope: the marker field, its two hook transitions, and their installed-hoo
 
 Deferred deliberately: extracting a general read-modify-write helper would make independently running hooks share an abstraction around a known concurrency hazard. The explicit cross-hook writes are safer and clearer at this scope; the prompt hook batches only its own already-loaded state object.
 
-Evidence: package-local Vitest passed the idle-review (3), typecheck (4), phase-backstop (3), frozen transcript (14), and prompt-marker (1) focused coverage after the PR-feedback fixes. The canonical Node 24 CI job was re-run and the new branch head will trigger a second CI run.
+Evidence: package-local Vitest passed the idle-review (3), typecheck (4), phase-backstop (3), frozen transcript (14), and prompt-marker (1) focused coverage after the PR-feedback fixes. The attempted old-head Node 24 rerun was canceled when the corrective branch head pushed; that fresh CI run is the authoritative aggregate evidence.

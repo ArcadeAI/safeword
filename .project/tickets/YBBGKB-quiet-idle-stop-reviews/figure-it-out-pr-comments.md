@@ -36,9 +36,9 @@ All five findings were investigated on 2026-07-29 before changing code. Primary-
 - [x] Phase 2: Options were to assume a flake, rerun the failed job, or change unrelated Codex/Rust code.
 - [x] Phase 3a: Research domains — failed-job evidence, CI reproducibility, and GitHub Actions rerun semantics.
 - [x] Phase 3b: Inspected the failed job: 373 suites passed while Rust and Codex subprocess tests timed out; Node 22 passed. GitHub documents rerunning failed jobs on the same ref.
-- [x] Phase 4: Chose an explicit failed-job rerun plus a fresh CI run from the corrective commit.
+- [x] Phase 4: Chose a fresh CI run from the corrective commit; the attempted old-head rerun was canceled when the branch advanced.
 
-> Recommend **rerunning the failed Node 24 job and requiring the fresh branch CI to pass** because timeout shape alone is not proof of a flake. Changing unrelated adapters would be speculative. Cite: [GitHub Actions rerun reference](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/re-run-workflows-and-jobs).
+> Recommend **requiring the fresh branch CI to pass** because timeout shape alone is not proof of a flake. An old-head rerun was attempted but canceled when the corrective commit superseded it; changing unrelated adapters would be speculative. Cite: [GitHub Actions rerun reference](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/re-run-workflows-and-jobs).
 
 **Premortem:** The failure reproduces under Node 24; inspect the timed-out Codex/Rust process paths separately rather than attributing it to #1492.
 
