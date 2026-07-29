@@ -53,10 +53,6 @@ if (arguments_.includes('--fix')) {
   process.exit(report.exitCode);
 }
 
-const pairCount = [
-  ...Object.values(SAFEWORD_SCHEMA.ownedFiles),
-  ...Object.values(SAFEWORD_SCHEMA.managedFiles).filter(definition => definition.dogfoodParity),
-].filter(definition => definition.template).length;
 const contractCount = Object.keys(SAFEWORD_SCHEMA.contracts).length;
 
 const result = runParity({
@@ -68,6 +64,7 @@ const result = runParity({
 
 if (result.failures.length === 0) {
   if (mode === 'all') {
+    const pairCount = result.passedCount - contractCount;
     console.log(
       `All ${pairCount} pairs and ${contractCount} contracts in sync; no unregistered templates; cursor rules are thin @reference pointers.`,
     );
