@@ -6,7 +6,7 @@ phase: done
 status: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/505
 created: 2026-07-28T00:00:00Z
-last_modified: 2026-07-29T17:32:25Z
+last_modified: 2026-07-29T19:36:21Z
 scope:
   - Keep every shipped TypeScript template compatible with the supported ESLint baseline used by host projects.
   - Add release validation for the schema-declared distributed TypeScript surface: baseline lint, typed-preset parse/config loading, and strict installed-shape TypeScript checking.
@@ -62,6 +62,20 @@ in customer repositories) but opt into dogfood parity so template edits cannot d
 - [x] PR-review follow-up: remove the narrow exported Claude-session convenience
   helper; the existing pure resolver already owns precedence and two explicit
   environment projections keep the shipped public surface smaller.
+- [x] Round-3 Phase 1: decide whether three advisory review notes merit code
+  changes, while repairing the CI-blocking generated architecture state.
+- [x] Round-3 Phase 2: compare clarifying the test/comment, exposing structured
+  parity counts, or retaining the proven aggregate with an invariant comment.
+- [x] Round-3 Phase 3a: inspect test-contract accuracy, TypeScript indexed
+  access safety, parity-result coupling, release-surface coverage, and CI's
+  generated-document contract.
+- [x] Round-3 Phase 3b: verify current TypeScript and Vitest documentation,
+  trace every `passedCount` increment/call site, inspect the live CI failure,
+  and regenerate the authoritative architecture document.
+- [x] Round-3 Phase 4: keep the fail-closed guard, clarify what its unit test
+  does cover, document the release count as a floor, and retain the aggregate
+  parity result with an explicit two-category invariant; a structured result
+  would add surface for a display-only concern without a present third category.
 
 ## Done When:
 
@@ -99,6 +113,14 @@ in customer repositories) but opt into dogfood parity so template edits cannot d
 - 2026-07-29T02:30:00Z Refactor: split release-fixture materialization from tsconfig generation without changing the installed file set, fixture lifetime, or compiler options. Focused release checks and direct lint passed.
 - 2026-07-29T02:40:00Z Final refactor verification: release validation (3 tests), parity tests (27 tests), parity (200 pairs / 8 contracts), direct lint, diff check, and audit passed. Audit found no new architecture or dead-code issue; its repository-wide clone and dependency-freshness findings are pre-existing follow-up inventory, not part of this scoped change.
 - 2026-07-29T17:30:00Z PR review follow-up: made `parseLogLine` fail closed for missing captures, added its regression coverage, made the release surface non-vacuous (minimum 106 templates), let Cucumber resolve its package-declared types, simplified the equivalent statusline guard, and corrected the acceptance criteria.
+- 2026-07-29T19:15:00Z Round-3 review follow-up: clarified the parser test's
+  real boundary, documented both the parity-count invariant and the release
+  count's floor-not-census role, and regenerated the CI-required package
+  architecture state. An independent fresh review found no further blocker.
+- 2026-07-29T19:20:00Z Verification follow-up: gave the two real installed-tree
+  ESLint passes explicit 15s/60s budgets after concurrent workspace load pushed
+  them beyond Vitest's default 5s/previous 30s thresholds; the release gate's
+  scope and assertions are unchanged.
 
 ## Refactor Ledger
 

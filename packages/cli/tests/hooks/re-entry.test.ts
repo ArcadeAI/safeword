@@ -14,7 +14,9 @@ describe('parseLogLine', () => {
     });
   });
 
-  it('rejects a line with a missing imperative', () => {
+  it('rejects a line outside the canonical log format', () => {
+    // The current regex rejects this before capture validation. The guard in
+    // parseLogLine deliberately protects a future regex that weakens a capture.
     expect(parseLogLine('2026-07-29T12:34:56Z sess_123 ticket=505/implement Next:')).toBeNull();
   });
 });

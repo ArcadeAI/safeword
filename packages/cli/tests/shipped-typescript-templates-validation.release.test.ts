@@ -60,8 +60,9 @@ const shippedTypeScriptTemplates: InstalledTemplate[] = [
   return templatePath?.endsWith('.ts') ? [{ destinationPath, templatePath }] : [];
 });
 
-// This minimum blocks a vacuous ESLint run if schema discovery regresses while
-// allowing deliberate additions to the distributed TypeScript surface.
+// This floor blocks a vacuous ESLint run if schema discovery regresses while
+// allowing deliberate additions. It is not a census: schema/parity validation
+// remains responsible for catching a removal offset by a new template.
 const MIN_SHIPPED_TYPESCRIPT_TEMPLATE_COUNT = 106;
 
 function materializeInstalledTemplates(directory: string): MaterializedTemplates {
@@ -163,7 +164,7 @@ describe('shipped TypeScript templates', () => {
     } finally {
       fixture.cleanup();
     }
-  });
+  }, 15_000);
 
   it('parses and resolves type information without fatal errors under Safeword’s typed host preset', async () => {
     const fixture = createInstalledTemplatesFixture();
@@ -189,7 +190,7 @@ describe('shipped TypeScript templates', () => {
     } finally {
       fixture.cleanup();
     }
-  }, 30_000);
+  }, 60_000);
 
   it('typechecks every schema-declared template in its installed shape', () => {
     const fixture = createInstalledTemplatesFixture();

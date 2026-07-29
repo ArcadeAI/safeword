@@ -1,6 +1,6 @@
 ---
 generator: safeword-architecture
-fingerprint: b5e10ab759c1bd1b8ecbc876dbbc0b76784831cacf5438183665db386a5ed922
+fingerprint: aafc114899d86f51f3991fe5ed83890959874c8fcc2bea3f0a19085371d21c90
 ---
 
 # Architecture
@@ -24,6 +24,8 @@ No description yet — awaiting prose.
 `src/cli.ts`
 
 No description yet — awaiting prose.
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### codex-plugin
 
@@ -53,6 +55,8 @@ No description yet — awaiting prose.
 
 No description yet — awaiting prose.
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### health
 
 <!-- reconciled: b5e10ab759c1bd1b8ecbc876dbbc0b76784831cacf5438183665db386a5ed922 -->
@@ -61,6 +65,8 @@ No description yet — awaiting prose.
 
 No description yet — awaiting prose.
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### index
 
 <!-- reconciled: b5e10ab759c1bd1b8ecbc876dbbc0b76784831cacf5438183665db386a5ed922 -->
@@ -68,6 +74,8 @@ No description yet — awaiting prose.
 `src/index.ts`
 
 No description yet — awaiting prose.
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### learning-sync
 
@@ -87,6 +95,8 @@ No description yet — awaiting prose.
 
 No description yet — awaiting prose.
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### packs
 
 <!-- reconciled: baf84fad13ff152cf8bceed63ef6a6e65c6edbb3dcf8ac0cbf76fc4caa39fe38 -->
@@ -104,6 +114,8 @@ No description yet — awaiting prose.
 `src/parity.ts`
 
 No description yet — awaiting prose.
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### presets
 
@@ -123,6 +135,8 @@ No description yet — awaiting prose.
 
 No description yet — awaiting prose.
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### retro
 
 <!-- reconciled: 3dd53c1fa45850e6d2d4894c1c7556870663b58d05710e8dc248b4424eaf8b62 -->
@@ -141,6 +155,8 @@ No description yet — awaiting prose.
 
 No description yet — awaiting prose.
 
+> ⚠ stale: structure changed since this section was reconciled.
+
 ### self-report-capture
 
 <!-- reconciled: b5e10ab759c1bd1b8ecbc876dbbc0b76784831cacf5438183665db386a5ed922 -->
@@ -148,6 +164,8 @@ No description yet — awaiting prose.
 `src/self-report-capture.ts`
 
 No description yet — awaiting prose.
+
+> ⚠ stale: structure changed since this section was reconciled.
 
 ### skills
 
@@ -246,3 +264,5 @@ No description yet — awaiting prose.
 `src/version.ts`
 
 No description yet — awaiting prose.
+
+> ⚠ stale: structure changed since this section was reconciled.
