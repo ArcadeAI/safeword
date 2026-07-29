@@ -1559,7 +1559,7 @@ describe('immutable relay delivery spool', () => {
       });
       await persistRelayRequest(project, queued);
     }
-    const drafts = Array.from({ length: 10 }, (_value, index) => ({
+    const drafts = Array.from({ length: 50 }, (_value, index) => ({
       body: `New body ${index}`,
       canonicalKey: `canonical:new-${index}`,
       installationId: 42,
@@ -1574,7 +1574,7 @@ describe('immutable relay delivery spool', () => {
     const outcomes = await persistRelayDraftBatch(project, drafts);
 
     expect(performance.now() - started).toBeLessThan(1000);
-    expect(outcomes).toHaveLength(10);
+    expect(outcomes).toHaveLength(50);
     expect(outcomes.every(outcome => outcome.status === 'fulfilled')).toBe(true);
   });
 

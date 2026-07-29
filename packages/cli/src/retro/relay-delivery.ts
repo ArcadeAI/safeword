@@ -916,18 +916,9 @@ export async function persistRelayDraftBatch(
   } catch (error) {
     return drafts.map(() => ({ reason: error, status: 'rejected' }));
   }
-  const outcomes: PromiseSettledResult<RelayDraftRequest | undefined>[] = [];
-  for (const draft of drafts) {
-    try {
-      outcomes.push({
-        status: 'fulfilled',
-        value: await persistRelayDraftFromSnapshot(projectDirectory, draft, snapshot, options),
-      });
-    } catch (error) {
-      outcomes.push({ reason: error, status: 'rejected' });
-    }
-  }
-  return outcomes;
+  return Promise.allSettled(
+    drafts.map(draft => persistRelayDraftFromSnapshot(projectDirectory, draft, snapshot, options)),
+  );
 }
 
 export async function claimRelayRequest(

@@ -321,35 +321,35 @@ Feature source: `features/operate-retry-safe-retro-relay.feature`
 ### Scenario: A production-sized persistence batch does not rescan the full backlog per finding
 
 - [x] RED 1c2449cbb
-- [ ] GREEN
+- [x] GREEN 4428378aa
 - [ ] REFACTOR
 
 ### Scenario: Configured but invalid relay state fails visibly instead of selecting native filing
 
 - [x] RED 1c2449cbb
-- [ ] GREEN
+- [x] GREEN 4428378aa
 - [ ] REFACTOR
 
 ### Scenario: Recovery removes only stale atomic-write temporaries
 
 - [x] RED 1c2449cbb
-- [ ] GREEN
+- [x] GREEN 4428378aa
 - [ ] REFACTOR
 
 ### Scenario: Cross-directory durable rename synchronizes both directory entries
 
 - [x] RED 1c2449cbb
-- [ ] GREEN
+- [x] GREEN 4428378aa
 - [ ] REFACTOR
 
 ### Scenario: Filesystem root cannot become the client outbox
 
 - [x] RED 1c2449cbb
-- [ ] GREEN
+- [x] GREEN 4428378aa
 - [ ] REFACTOR
 
 ### Scenario: A failed dead-letter rearm tells the operator how to recover
 
 - [x] RED 1c2449cbb
-- [ ] GREEN
+- [x] GREEN 4428378aa
 - [ ] REFACTOR

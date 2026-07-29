@@ -206,10 +206,10 @@ Secrets remain Railway variables rather than arguments or files.
 
 The role matrix is exact:
 
-| Principal | Roles |
-| --- | --- |
-| Claude, Codex, Cursor | `file` |
-| Operator | `reconcile`, `operate` |
+| Principal             | Roles                  |
+| --------------------- | ---------------------- |
+| Claude, Codex, Cursor | `file`                 |
+| Operator              | `reconcile`, `operate` |
 
 Production rejects missing harnesses, duplicate credential IDs, extra roles,
 and single-credential variables. The disposable Railway proof may use the
@@ -309,6 +309,28 @@ deterministically by receipt and terminal state. Delivery to the structured
 logger is at-least-once and carries that stable event ID, so an operator or log
 sink can deduplicate a crash-after-write retry. The relay never claims
 exactly-once delivery to an external logger.
+
+## Client-spool recovery and configuration
+
+One retro run recovers the client spool once, snapshots the active and
+dead-letter identities once, and uses that snapshot for the whole persistence
+batch. Delivery reuses one recovered snapshot for its drain. This keeps the
+one-second Stop-hook budget bounded by the batch and backlog sizes instead of
+rescanning the full backlog for every finding.
+
+Atomic-write recovery removes only temporary files with the relay's UUID
+suffix that are at least one minute old; newer files may belong to a live
+writer and remain untouched. A durable rename synchronizes the destination
+directory entry and, when source and destination differ, the source directory
+entry as well. The filesystem root is never a valid client outbox.
+
+When relay readiness is enabled, any explicitly configured but incomplete or
+invalid relay environment fails visibly instead of silently selecting native
+filing. Error messages identify the invalid setting but never echo
+credentials. There is no legacy outbox migration: public relay readiness has
+never shipped enabled, so no released project-local format exists to migrate.
+A failed dead-letter rearm reports that ownership was not acquired and directs
+the operator to list current state before retrying.
 
 ## Existing guarantees retained
 
