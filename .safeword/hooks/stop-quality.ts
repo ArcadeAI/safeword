@@ -122,13 +122,12 @@ function getCurrentTicketInfo(sessionId?: string): TicketInfo {
 }
 
 /**
- * Record which phase boundary the Stop backstop just reviewed, so a later Stop
- * or PostToolUse review won't re-review it. Mirrors the marker PostToolUse sets
- * for phase changes (ticket SXSCJQ).
+ * Record state for a generic Stop review: phase boundaries are deduped against
+ * PostToolUse, and the idle-review marker stays set until UserPromptSubmit.
  */
-function recordReviewMarker(
+function recordStopReviewState(
   sessionId: string | undefined,
-  patch: { lastReviewedPhase?: string },
+  patch: { lastReviewedPhase?: string; stopQualityReviewAwaitingUserPrompt?: boolean },
 ): void {
   if (!sessionId) return;
   const stateFile = getStateFilePath(projectDir, sessionId);
@@ -356,6 +355,7 @@ const combinedText = input.last_assistant_message ?? '';
 // AP3FGJ). The edit-tools gate below then guards only the review/backstop path.
 const ticketInfo = getCurrentTicketInfo(input.session_id);
 const currentPhase = ticketInfo.phase;
+const sessionState = readSessionState(projectDir, input.session_id);
 
 // Artifact gates are phase/state-driven, not edit-activity-driven, so they run BEFORE the
 // edit-tools early-exit below — a missing impl-plan or an unreviewed design must block a stop
@@ -370,6 +370,16 @@ checkArchitectureReviewGate(ticketInfo);
 // recover that turn boundary, retain the prior bounded scan. The done phase is
 // the exception: fall through to its gate.
 const editsInCurrentTurn = detectEditToolsUsedInCurrentUserTurn(lines);
+
+// A generic review that already reached Claude has no value on another Stop
+// callback before UserPromptSubmit. That lifecycle boundary clears the marker,
+// so it covers hosts that replay the same edited transcript without setting
+// stop_hook_active (issue #1492). Keep the done phase out of this shortcut:
+// its verification gate must always run.
+if (currentPhase !== 'done' && sessionState?.stopQualityReviewAwaitingUserPrompt) {
+  process.exit(0);
+}
+
 const editsToReview = editsInCurrentTurn ?? detectEditToolsUsed(lines);
 if (!editsToReview && currentPhase !== 'done') {
   process.exit(0);
@@ -732,8 +742,6 @@ if (typecheckAdvice.advice !== null) {
 // Boundary backstop: phase reviews are no longer LOC-throttled. Implement-step
 // TDD reviews are quiet by default; the real work still happens internally and
 // hard/anomaly gates above still surface when action is needed.
-const sessionState = readSessionState(projectDir, input.session_id);
-
 // Derive TDD step from test-definitions.md (not cache)
 const tddStep =
   currentPhase === 'implement' && ticketInfo.folder
@@ -758,9 +766,10 @@ if (!fireReview) {
   process.exit(0);
 }
 
-if (currentPhase) {
-  recordReviewMarker(input.session_id, { lastReviewedPhase: currentPhase });
-}
+recordStopReviewState(input.session_id, {
+  ...(currentPhase ? { lastReviewedPhase: currentPhase } : {}),
+  stopQualityReviewAwaitingUserPrompt: true,
+});
 
 // Disqualification: when novelResearchReminder is unconsumed or a phase-relevant
 // recent failure exists, append an explicit "CONFIDENT requires X first" line so

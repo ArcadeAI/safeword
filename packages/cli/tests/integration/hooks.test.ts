@@ -537,6 +537,33 @@ describe('E2E: UserPromptSubmit Hooks', () => {
       }
     });
 
+    it('clears the idle Stop-review marker for the submitted session (1492)', () => {
+      const sessionId = 'awaiting-user-prompt';
+      const statePath = `.project/quality-state-${sessionId}.json`;
+      writeTestFile(
+        shared.projectDirectory,
+        statePath,
+        JSON.stringify({
+          recentFailures: [],
+          stopQualityReviewAwaitingUserPrompt: true,
+        }),
+      );
+
+      try {
+        const result = runPromptQuestionsHook(
+          shared.projectDirectory,
+          JSON.stringify({ session_id: sessionId, prompt: 'Continue with the next change.' }),
+        );
+
+        expect(result.exitCode).toBe(0);
+        expect(JSON.parse(readTestFile(shared.projectDirectory, statePath))).toMatchObject({
+          stopQualityReviewAwaitingUserPrompt: false,
+        });
+      } finally {
+        rmSync(`${shared.projectDirectory}/${statePath}`, { force: true });
+      }
+    });
+
     it('exits silently for non-safeword project', () => {
       const nonSafewordDirectory = createTemporaryDirectory();
       try {

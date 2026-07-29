@@ -63,6 +63,14 @@ if (existsSync(stateFile)) {
   try {
     const state = JSON.parse(readFileSync(stateFile, 'utf8'));
 
+    // A real UserPromptSubmit boundary consumes the quiet period after a
+    // generic Stop review. Clear it before deriving this prompt's reminders so
+    // the following edited-work turn is eligible for normal review again.
+    if (state.stopQualityReviewAwaitingUserPrompt === true) {
+      state.stopQualityReviewAwaitingUserPrompt = false;
+      writeFileSync(stateFile, JSON.stringify(state, null, 2));
+    }
+
     if (state.activeTicket) {
       // Derive phase from ticket file (not cache) — freshness check
       const ticketInfo = getTicketInfo(projectDirectory, state.activeTicket);

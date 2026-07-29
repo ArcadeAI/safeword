@@ -31,6 +31,7 @@ import { createTemporaryDirectory, removeTemporaryDirectory, TIMEOUT_QUICK } fro
 // This matches the pattern used in quality-gates.test.ts.
 const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 const STOP_QUALITY = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/stop-quality.ts');
+const PROMPT_QUESTIONS = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/prompt-questions.ts');
 const FIXTURE_PATH = nodePath.join(import.meta.dirname, '../fixtures/stop-hook-transcript.jsonl');
 const REAL_ENVELOPE = {
   isSidechain: false,
@@ -130,6 +131,16 @@ function runStopHook(directory: string, transcriptPath: string, sessionId?: stri
       transcript_path: transcriptPath,
       last_assistant_message: 'Here is what I changed.',
     }),
+    cwd: directory,
+    env: { ...process.env, CLAUDE_PROJECT_DIR: directory },
+    encoding: 'utf8',
+    timeout: TIMEOUT_QUICK,
+  });
+}
+
+function runPromptQuestionsHook(directory: string, sessionId: string) {
+  return spawnSync('bun', [PROMPT_QUESTIONS], {
+    input: JSON.stringify({ session_id: sessionId, prompt: 'Continue with the next change.' }),
     cwd: directory,
     env: { ...process.env, CLAUDE_PROJECT_DIR: directory },
     encoding: 'utf8',
@@ -263,6 +274,82 @@ describe('Stop Hook: Frozen Transcript Format Compatibility', () => {
 });
 
 describe('Stop Hook: Ticket Resolution Context', () => {
+  it('keeps the first boundary-less edit review, then stays quiet until a user prompt (1492)', () => {
+    const sessionId = 'idle-stop-session';
+    const transcriptPath = createTranscript(state.projectDirectory);
+    writeSessionState(state.projectDirectory, sessionId, {
+      locSinceCommit: 0,
+      lastCommitHash: '',
+      recentFailures: [],
+      incrementedPatterns: [],
+    });
+
+    const first = runStopHook(state.projectDirectory, transcriptPath, sessionId);
+
+    expect(first.status).toBe(0);
+    expect(JSON.parse(first.stdout) as { decision?: string }).toMatchObject({ decision: 'block' });
+    const statePath = nodePath.join(
+      state.projectDirectory,
+      '.safeword-project',
+      `quality-state-${sessionId}.json`,
+    );
+    expect(JSON.parse(readFileSync(statePath, 'utf8'))).toMatchObject({
+      stopQualityReviewAwaitingUserPrompt: true,
+    });
+
+    const idleRepeat = runStopHook(state.projectDirectory, transcriptPath, sessionId);
+
+    expect(idleRepeat.status).toBe(0);
+    expect(idleRepeat.stdout.trim()).toBe('');
+  });
+
+  it('re-arms generic review after UserPromptSubmit (1492)', () => {
+    const sessionId = 'rearm-stop-session';
+    const transcriptPath = createTranscript(state.projectDirectory);
+    writeSessionState(state.projectDirectory, sessionId, {
+      locSinceCommit: 0,
+      lastCommitHash: '',
+      recentFailures: [],
+      incrementedPatterns: [],
+    });
+
+    const first = runStopHook(state.projectDirectory, transcriptPath, sessionId);
+    expect(JSON.parse(first.stdout) as { decision?: string }).toMatchObject({ decision: 'block' });
+
+    const prompt = runPromptQuestionsHook(state.projectDirectory, sessionId);
+    expect(prompt.status).toBe(0);
+
+    const nextTurn = runStopHook(state.projectDirectory, transcriptPath, sessionId);
+    expect(nextTurn.status).toBe(0);
+    expect(JSON.parse(nextTurn.stdout) as { decision?: string }).toMatchObject({
+      decision: 'block',
+    });
+  });
+
+  it('does not let an idle-review marker bypass the done-phase verify gate (1492)', () => {
+    const sessionId = 'done-gate-session';
+    createTicket(state.projectDirectory, '099', 'done-task', {
+      phase: 'done',
+      status: 'in_progress',
+      type: 'task',
+    });
+    writeSessionState(state.projectDirectory, sessionId, {
+      activeTicket: '099',
+      stopQualityReviewAwaitingUserPrompt: true,
+    });
+
+    const result = runStopHook(
+      state.projectDirectory,
+      createTranscript(state.projectDirectory),
+      sessionId,
+    );
+
+    expect(result.status).toBe(0);
+    const parsed = JSON.parse(result.stdout.trim()) as { decision?: string; reason?: string };
+    expect(parsed.decision).toBe('block');
+    expect(parsed.reason).toMatch(/verify/i);
+  });
+
   it('keeps an injected meta message inside the current edited-work turn', () => {
     const transcriptPath = nodePath.join(state.projectDirectory, 'transcript.jsonl');
     writeFileSync(
