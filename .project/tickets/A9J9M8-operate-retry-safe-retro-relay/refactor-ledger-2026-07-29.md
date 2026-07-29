@@ -20,7 +20,7 @@ an explicit disposition so no scout finding is silently dropped.
       Deferred after attempted refactor: tsup rewrites the built specifier to
       bare `sqlite`; runtime qualification failed and the edit was reverted.
 - [x] R10 Name service request-boundary limits without changing validation order.
-- [ ] R11 Replace repeated manual deferred-promise setup with the existing test
+- [x] R11 Replace repeated manual deferred-promise setup with the existing test
       helper.
 - [ ] R12 Extract the repeated dead-letter fixture transition in CLI command
       tests while preserving byte-for-byte assertions.
