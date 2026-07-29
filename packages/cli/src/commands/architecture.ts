@@ -498,7 +498,7 @@ function materializeIndexResults(
     plan.priorWorktreeState = readWorktreeDocumentState(plan.destination);
     plan.restoreWorktreeContent =
       mode === 'mutations-only' && isWouldChangeAction(plan.result.action)
-        ? divergentWorktreeDocument(cwd, plan.destination)
+        ? readDivergentWorktreeContent(cwd, plan.destination)
         : undefined;
   }
 
@@ -561,7 +561,7 @@ function restoreMaterializationPlans(cwd: string, plans: IndexMaterializationPla
  * `--stage` temporarily replaces that path to stage deterministic content, then
  * restores these bytes so unrelated worktree-only modules and prose survive.
  */
-function divergentWorktreeDocument(cwd: string, destination: string): string | undefined {
+function readDivergentWorktreeContent(cwd: string, destination: string): string | undefined {
   assertPhysicalContainment(cwd, destination);
   let worktreeContent: string;
   try {
