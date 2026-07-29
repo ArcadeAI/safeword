@@ -38,14 +38,50 @@ Then it emits the existing generic quality-review decision
 - [x] GREEN fe6ddfc4
 - [x] REFACTOR skip: reviewed after the focused suite; no shared fixture extraction improved clarity
 
+## Rule: Generic suppression leaves independent Stop gates intact
+
+### Scenario: A pending generic review does not hide an implement-phase typecheck advisory
+
+Given a session whose earlier generic review is awaiting a user prompt
+And its active ticket is in the implement phase with an uncommitted TypeScript error
+When `stop-quality` runs
+Then it emits the existing TypeScript advisory
+
+- [x] RED skip: regression authored and executed before the implementation commit
+- [x] GREEN 205d59a19
+- [x] REFACTOR skip: no smaller representation than the existing typecheck fixture was needed
+
+### Scenario: A pending generic review does not hide a new phase boundary
+
+Given a session whose earlier generic review is awaiting a user prompt
+And its active ticket has entered an unreviewed phase
+When `stop-quality` runs
+Then it emits the phase review for that new boundary
+
+- [x] RED skip: regression authored and executed before the implementation commit
+- [x] GREEN 205d59a19
+- [x] REFACTOR skip: the established phase-backstop fixture already isolates this gate
+
+### Scenario: Generic suppression works before any quality-state file exists
+
+Given a session with no quality-state file and an edited transcript
+When `stop-quality` runs twice without `UserPromptSubmit`
+Then the first invocation persists the marker and the second exits silently
+
+- [x] RED skip: regression authored and executed before the implementation commit
+- [x] GREEN 205d59a19
+- [x] REFACTOR skip: dedicated idle-review fixture keeps state-path setup in one helper
+
 ## Feature-level cross-scenario refactor
 
-- [x] cross-scenario skip: marker write and marker clear intentionally stay in their respective hook entrypoints; no shared abstraction is safer for independently running hooks
+- [x] cross-scenario skip: marker write and marker clear intentionally stay in their respective hook entrypoints; prompt-local dirty-state batching avoids duplicate writes without hiding cross-hook read-modify-write behavior
 
 ## Verification matrix
 
 | Scenario | Focused evidence | Completion evidence |
 | --- | --- | --- |
-| Idle suppression | `stop-hook-transcript-format.test.ts` | targeted suite and full test suite |
+| Idle suppression | `stop-hook-idle-review.test.ts` | targeted suite and full test suite |
+| Fresh-state idle suppression | `stop-hook-idle-review.test.ts` | targeted suite and full test suite |
 | Prompt reset | `hooks.test.ts` | targeted suite and full test suite |
 | Fail-closed control | `stop-hook-transcript-format.test.ts` | targeted suite and full test suite |
+| Typecheck and phase gates | `stop-typecheck-gate.test.ts`, `stop-review-backstop.test.ts` | targeted suite and full test suite |

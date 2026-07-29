@@ -21,11 +21,14 @@ last_modified: 2026-07-29T17:57:00.000Z
 - Remember that the generic Stop quality review has already been surfaced for a session.
 - Clear that reminder at the next `UserPromptSubmit` boundary.
 - Keep the existing fail-closed review when a transcript has no recoverable human-prompt boundary and no prior review was surfaced.
+- Apply the reminder only to the no-ticket generic-review branch, leaving typecheck advice and phase-boundary reviews independent.
+- Initialize the session state when that generic review is first surfaced.
 
 ## Out of scope
 
 - Changing Claude's `stop_hook_active` behavior or the hard artifact/done gates.
 - Suppressing review after a new user prompt or on another session.
+- Extending this Claude-only marker to Cursor or Codex: Cursor limits its Stop loop structurally and Codex uses a separate growth-offset guard.
 
 ## Figure-it-out decision
 
@@ -39,7 +42,7 @@ Considered options:
 
 Decision: implement option 3. It is narrowly scoped to an already-surfaced generic review, preserves hard gates and malformed-transcript protection, and resets at Claude's documented `UserPromptSubmit` lifecycle boundary.
 
-Pre-mortem: a lost or malformed prompt-hook input could leave the marker set too long. The marker is session-scoped and only written after an actual generic review, so the failure is bounded to duplicate review suppression rather than bypassing a first review; tests also prove a new valid prompt clears it.
+Pre-mortem: a state-file write failure could still allow a duplicate generic review. The write is best-effort by design, but it now creates the missing session state in the normal case and is located after independent quality gates, so it cannot bypass typecheck, phase, or done verification; tests prove the first generic review persists from an empty session.
 
 ## Work Log
 
@@ -53,3 +56,4 @@ Pre-mortem: a lost or malformed prompt-hook input could leave the marker set too
 - 2026-07-29T17:42:00.000Z Quality review approved: current Claude hook lifecycle validates the UserPromptSubmit/Stop boundary; installed-hook wiring tests cover both transitions.
 - 2026-07-29T17:48:00.000Z Full quality-review/refactor pass: added a two-entry, dependency-ordered ledger for complete re-arm coverage and a clarity-only state-writer rename.
 - 2026-07-29T17:57:00.000Z Resolved every quality-review suggestion: added installed-hook re-arm coverage and renamed the combined Stop-review state writer. Package-local regression suite passes 17/17; canonical suite remains queued behind the shared lock.
+- 2026-07-29T22:30:00.000Z Reviewed all PR #1652 feedback with /quality-review and /figure-it-out. Moved generic suppression beside the generic branch, initialized fresh state, batched prompt writes, and moved marker-lifecycle coverage to its own installed-hook test file. New focused regressions pass locally; Node 24 CI was re-run.
