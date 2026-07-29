@@ -841,8 +841,8 @@ async function prepareRelayDraftPersistence(projectDirectory: string): Promise<{
   directory: string;
   durableRequests: { bytes: Buffer; requestId: string }[];
 }> {
-  const directory = await ensureRelayDirectory(projectDirectory);
   await recoverRelaySpool(projectDirectory, Date.now());
+  const directory = relayDirectory(projectDirectory);
   const filenames = await sortedFilenames(directory);
   const [active, deadLetters] = await Promise.all([
     relayRequestsFromFilenames(directory, filenames),
