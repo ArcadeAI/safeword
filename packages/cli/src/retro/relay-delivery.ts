@@ -1906,7 +1906,7 @@ export async function deliverRelayRequests(
 ): Promise<{
   accepted: number;
   deadLetterBacklog: number;
-  deadLettered: number;
+  deadLetteredThisRun: number;
   retryable: number;
 }> {
   const monotonicNow = options.monotonicNow ?? (() => performance.now());
@@ -1922,7 +1922,7 @@ export async function deliverRelayRequests(
   let accepted = 0;
   const initialDeadLetters = await listRelayDeadLetters(projectDirectory);
   let deadLetterBacklog = initialDeadLetters.length;
-  let deadLettered = 0;
+  let deadLetteredThisRun = 0;
   for (const request of initial) {
     if (monotonicNow() >= overallDeadline) break;
     if (processed.has(request.requestId)) continue;
@@ -1938,13 +1938,13 @@ export async function deliverRelayRequests(
       parsedRequest = JSON.parse(claim.bytes.toString('utf8')) as RelayDraftRequest;
     } catch {
       await deadLetterClaim(projectDirectory, claim);
-      deadLettered += 1;
+      deadLetteredThisRun += 1;
       deadLetterBacklog += 1;
       continue;
     }
     if (options.now() >= Date.parse(parsedRequest.retryDeadlineAt)) {
       await deadLetterClaim(projectDirectory, claim);
-      deadLettered += 1;
+      deadLetteredThisRun += 1;
       deadLetterBacklog += 1;
       continue;
     }
@@ -1973,7 +1973,7 @@ export async function deliverRelayRequests(
       if (!response.ok) {
         if (!retryableRelayStatus(response.status)) {
           await deadLetterClaim(projectDirectory, claim);
-          deadLettered += 1;
+          deadLetteredThisRun += 1;
           deadLetterBacklog += 1;
           continue;
         }
@@ -1991,5 +1991,10 @@ export async function deliverRelayRequests(
     }
   }
   const retryableRequests = await listRelayRequests(projectDirectory);
-  return { accepted, deadLetterBacklog, deadLettered, retryable: retryableRequests.length };
+  return {
+    accepted,
+    deadLetterBacklog,
+    deadLetteredThisRun,
+    retryable: retryableRequests.length,
+  };
 }

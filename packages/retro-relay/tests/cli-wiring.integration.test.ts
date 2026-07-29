@@ -434,14 +434,14 @@ describe('real shared CLI to relay wiring', () => {
           ? {
               accepted: 1,
               deadLetterBacklog: 0,
-              deadLettered: 0,
+              deadLetteredThisRun: 0,
               retryable: 0,
               spoolFailed: 0,
             }
           : {
               accepted: 0,
               deadLetterBacklog: 0,
-              deadLettered: 0,
+              deadLetteredThisRun: 0,
               retryable: 1,
               spoolFailed: 0,
             },

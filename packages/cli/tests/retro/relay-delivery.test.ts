@@ -1497,7 +1497,7 @@ describe('immutable relay delivery spool', () => {
     expect(outcome).toEqual({
       accepted: 0,
       deadLetterBacklog: 0,
-      deadLettered: 0,
+      deadLetteredThisRun: 0,
       retryable: 1,
     });
     const retryable = await listRelayRequests(project);
@@ -1537,7 +1537,7 @@ describe('immutable relay delivery spool', () => {
     expect(outcome).toEqual({
       accepted: 0,
       deadLetterBacklog: 1,
-      deadLettered: 1,
+      deadLetteredThisRun: 1,
       retryable: 0,
     });
     expect(send).not.toHaveBeenCalled();
@@ -1570,7 +1570,7 @@ describe('immutable relay delivery spool', () => {
     ).resolves.toEqual({
       accepted: 0,
       deadLetterBacklog: 1,
-      deadLettered: 0,
+      deadLetteredThisRun: 0,
       retryable: 0,
     });
 
@@ -1602,7 +1602,11 @@ describe('immutable relay delivery spool', () => {
         now: Date.now,
         relayUrl: 'https://relay.invalid',
       }),
-    ).resolves.toMatchObject({ deadLetterBacklog: 1, deadLettered: 1, retryable: 0 });
+    ).resolves.toMatchObject({
+      deadLetterBacklog: 1,
+      deadLetteredThisRun: 1,
+      retryable: 0,
+    });
     await expect(
       deliverRelayRequests(project, {
         credential: 'swc_client_secret',
@@ -1611,7 +1615,11 @@ describe('immutable relay delivery spool', () => {
         now: Date.now,
         relayUrl: 'https://relay.invalid',
       }),
-    ).resolves.toMatchObject({ deadLetterBacklog: 1, deadLettered: 0, retryable: 0 });
+    ).resolves.toMatchObject({
+      deadLetterBacklog: 1,
+      deadLetteredThisRun: 0,
+      retryable: 0,
+    });
     expect(send).not.toHaveBeenCalled();
   });
 
@@ -1628,7 +1636,11 @@ describe('immutable relay delivery spool', () => {
         now: Date.now,
         relayUrl: 'https://relay.invalid',
       }),
-    ).resolves.toMatchObject({ deadLetterBacklog: 1, deadLettered: 1, retryable: 0 });
+    ).resolves.toMatchObject({
+      deadLetterBacklog: 1,
+      deadLetteredThisRun: 1,
+      retryable: 0,
+    });
     expect(await listRelayRequests(project)).toHaveLength(0);
 
     expect(await rearmRelayDeadLetter(project, terminal.requestId)).toBe(true);
@@ -1640,7 +1652,11 @@ describe('immutable relay delivery spool', () => {
         now: Date.now,
         relayUrl: 'https://relay.invalid',
       }),
-    ).resolves.toMatchObject({ deadLetterBacklog: 0, deadLettered: 0, retryable: 1 });
+    ).resolves.toMatchObject({
+      deadLetterBacklog: 0,
+      deadLetteredThisRun: 0,
+      retryable: 1,
+    });
     expect(await listRelayRequests(project)).toHaveLength(1);
     expect(await rearmRelayDeadLetter(project, terminal.requestId)).toBe(false);
   });
@@ -1657,7 +1673,7 @@ describe('immutable relay delivery spool', () => {
         now: Date.now,
         relayUrl: 'https://relay.invalid',
       }),
-    ).resolves.toMatchObject({ deadLettered: 0, retryable: 1 });
+    ).resolves.toMatchObject({ deadLetteredThisRun: 0, retryable: 1 });
     expect(await listRelayRequests(project)).toHaveLength(1);
     expect(await listRelayDeadLetters(project)).toHaveLength(0);
   });

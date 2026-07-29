@@ -136,7 +136,7 @@ export interface RetroOutcome {
   relay?: {
     accepted: number;
     deadLetterBacklog: number;
-    deadLettered: number;
+    deadLetteredThisRun: number;
     retryable: number;
     spoolFailed?: number;
   };
@@ -202,7 +202,7 @@ async function runRelayRetro(
     };
   }
   return {
-    agentFilingNeeded: delivery.retryable > 0 || delivery.deadLettered > 0,
+    agentFilingNeeded: delivery.retryable > 0 || delivery.deadLetteredThisRun > 0,
     drops,
     ok: true,
     relay: relayOutcome,

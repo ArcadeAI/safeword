@@ -1175,7 +1175,12 @@ describe('retro summary drop reporting (PNZM3B SM2.R1)', () => {
         agentFilingNeeded: true,
         drops: { schema: 0, surface: 0 },
         ok: true,
-        relay: { accepted: 0, deadLetterBacklog: 1, deadLettered: 1, retryable: 0 },
+        relay: {
+          accepted: 0,
+          deadLetterBacklog: 1,
+          deadLetteredThisRun: 1,
+          retryable: 0,
+        },
         result: {
           bumped: [],
           commented: [],
@@ -1204,7 +1209,7 @@ describe('retro summary drop reporting (PNZM3B SM2.R1)', () => {
           relay: {
             accepted: 1,
             deadLetterBacklog: 2,
-            deadLettered: 0,
+            deadLetteredThisRun: 0,
             retryable: 3,
             spoolFailed: 1,
           },
