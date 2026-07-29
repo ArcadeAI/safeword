@@ -6,6 +6,8 @@ Scout scope: the marker field, its two hook transitions, and their installed-hoo
 2. [x] **Naming — after coverage:** rename `recordReviewMarker` to describe that it writes both phase-review and idle-review state. (Tier 1; behavior-preserving.)
 3. [x] **State writes — hook-local:** batch prompt-hook mutations into one final write so clearing the marker does not add another torn-write window. (PR #1652 review.)
 4. [x] **Test home — focused:** move marker-lifecycle coverage out of the frozen transcript-format suite into `stop-hook-idle-review.test.ts`; share its state-path helper between setup and assertions. (PR #1652 review.)
+5. [x] **Prompt recovery — hook-local:** retain one final best-effort state write, but run it after reminder derivation so a malformed optional reminder cannot preserve the idle marker. (PR #1652 pass-2 review.)
+6. [x] **Closure anchors — durable:** replace pre-rebase GREEN SHAs with their reachable rebased commits and point the matrix at the moved fail-closed test. (PR #1652 pass-2 review.)
 
 Deferred deliberately: extracting a general read-modify-write helper would make independently running hooks share an abstraction around a known concurrency hazard. The explicit cross-hook writes are safer and clearer at this scope; the prompt hook batches only its own already-loaded state object.
 

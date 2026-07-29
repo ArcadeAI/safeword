@@ -28,7 +28,8 @@ Honors the project’s hook architecture: the template source remains the instal
 
 ## Known deviations
 
-skip: the canonical package suite is queued behind shared Vitest runner contention; focused installed-hook coverage, lint/typecheck, parity, and diff checks are recorded instead.
+- A generic Stop review can initialize its session quality-state directory and file before `PostToolUse` has run. This matches `post-tool-quality.ts`'s namespace and `session-cleanup-quality.ts` remains the sole teardown owner.
+- Prompt-hook state writes remain best-effort. A single final write batches prompt-local mutations and is attempted even if later reminder derivation fails, so a real user prompt cannot leave the idle-review marker set solely because optional guidance was malformed.
 
 ## Assessment triggers
 

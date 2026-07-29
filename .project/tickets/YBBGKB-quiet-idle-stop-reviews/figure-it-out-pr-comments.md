@@ -71,3 +71,75 @@ All five findings were investigated on 2026-07-29 before changing code. Primary-
 **Premortem:** The helper can drift from the production namespace; keep a single `stateFilePath` helper used for both setup and assertion.
 
 **Next:** Run the dedicated suite with the Stop typecheck and phase-backstop suites.
+
+## Pass 2 — rebased-head review feedback
+
+### A. Keep ticket evidence reachable after a rebase
+
+- [x] Phase 1: Decide whether to retain pre-rebase GREEN SHAs, rely on patch-ID recovery, or cite their reachable rebased equivalents.
+- [x] Phase 2: The options were stale SHAs with fallback, reachable replacement SHAs, or removing the TDD evidence.
+- [x] Phase 3a: Research domains — Git object reachability, fresh-clone behavior, and ledger validation.
+- [x] Phase 3b: Traced `createLedgerShaResolver`; it cannot recover an object absent from a shallow/fresh checkout. Confirmed `f22ead54b` and `fb5904c4b` are ancestors of the rebased head. Git documents patch IDs as duplicate-detection aids, not durable commit references.
+- [x] Phase 4: Chose reachable replacement SHAs.
+
+> Recommend **reachable rebased SHAs** because a ticket ledger must validate on every checkout. Patch-ID recovery is useful for a locally retained orphan but loses when the original object was never fetched. Cite: [Git patch-id documentation](https://git-scm.com/docs/git-patch-id).
+
+**Premortem:** Another rebase rewrites these commits; amend the ledger in the same rebase before moving the ticket to done.
+
+**Next:** Cite `f22ead54b` and `fb5904c4b` in the TDD ledger.
+
+### B. Persist the clear after an optional reminder fails
+
+- [x] Phase 1: Decide whether a state mutation made before optional reminder work must survive a later exception.
+- [x] Phase 2: The options were writing inside the main `try`, adding a separate eager marker write, or retaining one final best-effort write in `finally`.
+- [x] Phase 3a: Research domains — prompt-boundary semantics, error recovery, and synchronous file I/O.
+- [x] Phase 3b: Reproduced a valid JSON state with malformed cached failures that throws after the marker clear; the pre-change write was skipped. Node documents synchronous file writes and recursive directory creation; the hook must preserve its tolerant failure behavior.
+- [x] Phase 4: Chose a guarded best-effort write in `finally`.
+
+> Recommend **one guarded final write in `finally`** because the user-prompt boundary has happened even if optional guidance fails. An eager second write restores correctness but reintroduces the duplicate write window; keeping the write in `try` fails toward unnoticed silence. Cite: [Node file-system documentation](https://nodejs.org/api/fs.html).
+
+**Premortem:** The write itself fails; swallow that failure so the prompt hook still emits core guidance, accepting at most one duplicate generic review.
+
+**Next:** Keep the real installed-hook regression in `hooks.test.ts`.
+
+### C. Keep the verification matrix navigable
+
+- [x] Phase 1: Decide whether the fail-closed matrix row should retain its old test-file pointer.
+- [x] Phase 2: Options were keeping the old pointer, pointing at the dedicated idle-review suite, or duplicating the control test.
+- [x] Phase 3a: Research domains — regression discoverability, test ownership, and documentation drift.
+- [x] Phase 3b: Traced the control to the first Stop in `stop-hook-idle-review.test.ts`.
+- [x] Phase 4: Chose the dedicated suite pointer.
+
+> Recommend **the current dedicated test path** because the matrix is an index to the real regression, not a history of where it used to live. Duplicating the test adds maintenance cost.
+
+**Premortem:** A future move drifts again; update the matrix in the same commit as any test relocation.
+
+**Next:** Point the fail-closed row at `stop-hook-idle-review.test.ts`.
+
+### D. Simplify state initialization and document its writer role
+
+- [x] Phase 1: Decide whether to retain a second existence check around recursive directory creation.
+- [x] Phase 2: Options were preserving both checks, creating before reading, or extracting a new state helper.
+- [x] Phase 3a: Research domains — Node directory semantics, state ownership, and cleanup lifecycle.
+- [x] Phase 3b: Node documents recursive `mkdirSync` as safe when the directory exists; existing cleanup already owns the namespace teardown.
+- [x] Phase 4: Chose create-before-read without a new abstraction.
+
+> Recommend **unconditional recursive directory creation followed by one file check** because it is shorter and preserves the existing best-effort state convention. A helper is unnecessary for a two-line sequence. Cite: [Node file-system documentation](https://nodejs.org/api/fs.html).
+
+**Premortem:** The new writer surprises cleanup code; record the writer in Known deviations and retain the existing cleanup owner.
+
+**Next:** Keep creation in `recordStopReviewState` and document it in `impl-plan.md`.
+
+### E. Make the two state patches mutually exclusive
+
+- [x] Phase 1: Decide how to express the generic-marker versus phase-marker state update.
+- [x] Phase 2: Options were mixed truthiness checks, two strict checks, or a single conditional patch.
+- [x] Phase 3a: Research domains — state invariants, type evolution, and readability.
+- [x] Phase 3b: Confirmed the branches are mutually exclusive after `fireReview` and the done path exits earlier.
+- [x] Phase 4: Chose a single conditional patch.
+
+> Recommend **one conditional patch** because it makes “one marker or the other” obvious and remains correct if phase typing later expands. The current mixed checks work today but obscure the invariant.
+
+**Premortem:** A third review kind needs its own state; add a named state model then rather than extending this conditional indefinitely.
+
+**Next:** Pass the conditional patch directly to `recordStopReviewState`.
