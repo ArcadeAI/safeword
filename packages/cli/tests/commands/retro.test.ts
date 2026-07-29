@@ -18,6 +18,7 @@ import {
   buildAutoExtractor,
   buildProvenanceResolver,
   discardRelaySpoolCommand,
+  executeRetroCommand,
   reportRetroCommandOutcome,
   resolveRelayConfig,
   resolveRelayOutboxDirectory,
@@ -32,8 +33,10 @@ import {
   listRelayRequests,
   persistRelayDraft,
   persistRelayRequest,
+  rearmRelayDeadLetter,
   type RelayDraftRequest,
 } from '../../src/retro/relay-delivery.js';
+import type { RelayReadinessManifest } from '../../src/retro/relay-readiness.js';
 import type {
   CreateIssueInput,
   IssueComment,
@@ -141,6 +144,66 @@ const dependencies = (over: Partial<Parameters<typeof runRetro>[1]> = {}) => ({
   ...over,
 });
 
+function validRelayReadinessManifest(): RelayReadinessManifest {
+  return {
+    enabled: true,
+    evidenceCommit: 'a'.repeat(40),
+    measurements: {
+      sameSignatureCollisions: {
+        measuredAt: '2026-07-25T00:00:00.000Z',
+        path: 'measurements/collisions.json',
+        sampleSize: 100,
+        sha256: '1'.repeat(64),
+      },
+      spooledNeverFiled: {
+        measuredAt: '2026-07-25T00:00:00.000Z',
+        path: 'measurements/spooled.json',
+        sampleSize: 100,
+        sha256: '2'.repeat(64),
+      },
+    },
+    prerequisites: [
+      {
+        closedAt: '2026-07-24T00:00:00.000Z',
+        issue: 1474,
+        mergedCommit: 'c'.repeat(40),
+        state: 'closed',
+        url: 'https://github.com/ArcadeAI/safeword/issues/1474',
+      },
+      {
+        closedAt: '2026-07-24T00:00:00.000Z',
+        issue: 1481,
+        mergedCommit: 'd'.repeat(40),
+        state: 'closed',
+        url: 'https://github.com/ArcadeAI/safeword/issues/1481',
+      },
+    ],
+    reviewedAt: '2026-07-26T00:00:00.000Z',
+    version: 1,
+  };
+}
+
+function relayReadinessArtifact(
+  manifest: RelayReadinessManifest,
+  artifactPath: string,
+): { content: string; sha256: string } {
+  const metric = artifactPath.endsWith('collisions.json')
+    ? 'sameSignatureCollisions'
+    : 'spooledNeverFiled';
+  const artifact = manifest.measurements[metric];
+  return {
+    content: JSON.stringify({
+      measuredAt: artifact.measuredAt,
+      metric,
+      repository: 'ArcadeAI/safeword',
+      result: { count: 0 },
+      sampleSize: artifact.sampleSize,
+      version: 1,
+    }),
+    sha256: artifact.sha256,
+  };
+}
+
 describe('runRetro', () => {
   it('accepts only an absolute relay outbox outside the disposable project', () => {
     const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-outbox-project-'));
@@ -183,6 +246,58 @@ describe('runRetro', () => {
           'retro relay configuration is invalid; SAFEWORD_RETRO_RELAY_OUTBOX must be an existing absolute directory outside the project',
       });
     } finally {
+      rmSync(project, { force: true, recursive: true });
+    }
+  });
+
+  it('stops before extraction or native filing when enabled relay configuration is invalid', async () => {
+    const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-invalid-relay-command-'));
+    const manifest = validRelayReadinessManifest();
+    const extract = vi.fn<() => Promise<unknown[]>>(() => Promise.resolve([rawFinding()]));
+    const transport = new FakeGitHub();
+    const output = { error: vi.fn(), info: vi.fn(), success: vi.fn() };
+    const previousExitCode = process.exitCode;
+
+    try {
+      const outcome = await executeRetroCommand(
+        { transcript: '/tmp/session.jsonl' },
+        {
+          environment: {
+            SAFEWORD_RETRO_RELAY_CREDENTIAL: 'swc_test',
+            SAFEWORD_RETRO_RELAY_INSTALLATION_ID: '42',
+            SAFEWORD_RETRO_RELAY_OUTBOX: 'relative/outbox',
+            SAFEWORD_RETRO_RELAY_REPOSITORY: 'arcadeai/safeword',
+            SAFEWORD_RETRO_RELAY_URL: 'https://relay.invalid',
+          },
+          extract,
+          extractionSucceeded: () => true,
+          harness: 'codex',
+          output,
+          projectDirectory: project,
+          relay: {
+            buildCommit: 'b'.repeat(40),
+            isAncestor: () => Promise.resolve(true),
+            manifest,
+            now: new Date('2026-07-26T12:00:00.000Z'),
+            readArtifactAtCommit: (_commit, artifactPath) =>
+              Promise.resolve(relayReadinessArtifact(manifest, artifactPath)),
+          },
+          restTransportAvailable: true,
+          sessionId: 'session-invalid-config',
+          transport,
+        },
+      );
+
+      expect(outcome).toEqual({
+        errorMessage:
+          'retro relay configuration is invalid; SAFEWORD_RETRO_RELAY_OUTBOX must be an existing absolute directory outside the project',
+        ok: false,
+      });
+      expect(output.error).toHaveBeenCalledWith(outcome.errorMessage);
+      expect(extract).not.toHaveBeenCalled();
+      expect(transport.issues).toEqual([]);
+    } finally {
+      process.exitCode = previousExitCode;
       rmSync(project, { force: true, recursive: true });
     }
   });
@@ -1384,9 +1499,11 @@ describe('relay dead-letter recovery command', () => {
     try {
       await expect(
         retryRelayDeadLetterCommand(original.requestId, {
+          faultBeforeRearm: async () => {
+            await rearmRelayDeadLetter(projectDirectory, original.requestId);
+          },
           output: { error, info: vi.fn(), success: vi.fn() },
           projectDirectory,
-          rearm: () => Promise.resolve(false),
         }),
       ).resolves.toBe(false);
       expect(error).toHaveBeenCalledWith(

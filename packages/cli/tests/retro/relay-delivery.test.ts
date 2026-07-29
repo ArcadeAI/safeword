@@ -1569,11 +1569,18 @@ describe('immutable relay delivery spool', () => {
       sourceKey: `new-${index}`,
       title: `New ${index}`,
     }));
+    const stateSnapshot = vi.fn();
     const started = performance.now();
 
-    const outcomes = await persistRelayDraftBatch(project, drafts);
+    const outcomes = await persistRelayDraftBatch(project, drafts, {
+      faultAfterStateSnapshot: () => {
+        stateSnapshot();
+        return Promise.resolve();
+      },
+    });
 
     expect(performance.now() - started).toBeLessThan(1000);
+    expect(stateSnapshot).toHaveBeenCalledOnce();
     expect(outcomes).toHaveLength(50);
     expect(outcomes.every(outcome => outcome.status === 'fulfilled')).toBe(true);
   });
