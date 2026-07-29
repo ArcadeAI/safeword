@@ -22,9 +22,7 @@ import nodePath from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { ESLINT_PACKAGE } from '../../src/packs/typescript/files.js';
-import { removeTemporaryDirectory, runCli, runCommandSync } from '../helpers';
-
-const __dirname = import.meta.dirname;
+import { removeTemporaryDirectory, runCli } from '../helpers';
 
 describe('Upgrade Command - Reconcile Integration', () => {
   let temporaryDirectory: string;
@@ -600,11 +598,10 @@ statusMessage = "Checking safeword PreToolUse gates"
   });
 
   describe('upgrade command integration', () => {
-    it('should run upgrade successfully via CLI', () => {
+    it('should run upgrade successfully via CLI', async () => {
       createConfiguredProject('0.5.0');
 
-      const cliPath = nodePath.resolve(__dirname, '../../src/cli.ts');
-      const result = runCommandSync(`bunx tsx ${cliPath} upgrade`, {
+      const result = await runCli(['upgrade'], {
         cwd: temporaryDirectory,
         timeout: 30_000,
       });
@@ -614,11 +611,10 @@ statusMessage = "Checking safeword PreToolUse gates"
       expect(result.stdout).toContain('`upgrade` is deprecated; use `setup`.');
     });
 
-    it('should refuse downgrade when project is newer', () => {
+    it('should refuse downgrade when project is newer', async () => {
       createConfiguredProject('99.99.99');
 
-      const cliPath = nodePath.resolve(__dirname, '../../src/cli.ts');
-      const result = runCommandSync(`bunx tsx ${cliPath} upgrade`, {
+      const result = await runCli(['upgrade'], {
         cwd: temporaryDirectory,
         timeout: 30_000,
       });
@@ -626,15 +622,14 @@ statusMessage = "Checking safeword PreToolUse gates"
       expect(result.stderr.toLowerCase()).toMatch(/older|downgrade|cli/i);
     });
 
-    it('should converge an unconfigured project', () => {
+    it('should converge an unconfigured project', async () => {
       // Just package.json, no .safeword
       writeFileSync(
         nodePath.join(temporaryDirectory, 'package.json'),
         JSON.stringify({ name: 'test', version: '1.0.0' }, undefined, 2),
       );
 
-      const cliPath = nodePath.resolve(__dirname, '../../src/cli.ts');
-      const result = runCommandSync(`bunx tsx ${cliPath} upgrade`, {
+      const result = await runCli(['upgrade'], {
         cwd: temporaryDirectory,
         timeout: 30_000,
       });
