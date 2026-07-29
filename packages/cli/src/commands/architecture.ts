@@ -442,6 +442,13 @@ function replaceArchitectureDocumentContent(
 
 type IndexMaterializationMode = 'mutations-only' | 'restore-staged-tree';
 
+interface IndexMaterializationPolicy {
+  renderUnchanged: boolean;
+  preservePriorStructure: boolean;
+  writeUnchanged: boolean;
+  captureDivergentContent: boolean;
+}
+
 interface MaterializedIndexResult extends SelfHealResult {
   restoreWorktreeContent?: string;
 }
@@ -471,9 +478,10 @@ function materializeIndexResults(
   mode: IndexMaterializationMode,
 ): MaterializedIndexResult[] {
   assertSnapshotHealTargetsContained(snapshotDirectory);
+  const policy = indexMaterializationPolicy(mode);
   const plans: IndexMaterializationPlan[] = selfHealProjectPreservingProse(snapshotDirectory, cwd, {
-    renderUnchanged: mode === 'restore-staged-tree',
-    preservePriorStructure: mode === 'restore-staged-tree',
+    renderUnchanged: policy.renderUnchanged,
+    preservePriorStructure: policy.preservePriorStructure,
   }).map(result => {
     const relativePath = nodePath.relative(snapshotDirectory, result.path);
     if (
@@ -488,7 +496,7 @@ function materializeIndexResults(
     const destination = nodePath.join(cwd, relativePath);
     const shouldWrite =
       isWouldChangeAction(result.action) ||
-      (mode === 'restore-staged-tree' && result.action === 'unchanged');
+      (policy.writeUnchanged && result.action === 'unchanged');
     return { result, destination, shouldWrite };
   });
 
@@ -499,7 +507,7 @@ function materializeIndexResults(
     assertPhysicalContainment(cwd, plan.destination);
     plan.priorWorktreeState = readWorktreeDocumentState(plan.destination);
     plan.restoreWorktreeContent =
-      mode === 'mutations-only' && isWouldChangeAction(plan.result.action)
+      policy.captureDivergentContent && isWouldChangeAction(plan.result.action)
         ? readDivergentWorktreeContent(cwd, plan.destination)
         : undefined;
   }
@@ -528,6 +536,27 @@ function materializeIndexResults(
     path: destination,
     restoreWorktreeContent,
   }));
+}
+
+function indexMaterializationPolicy(mode: IndexMaterializationMode): IndexMaterializationPolicy {
+  switch (mode) {
+    case 'mutations-only': {
+      return {
+        renderUnchanged: false,
+        preservePriorStructure: false,
+        writeUnchanged: false,
+        captureDivergentContent: true,
+      };
+    }
+    case 'restore-staged-tree': {
+      return {
+        renderUnchanged: true,
+        preservePriorStructure: true,
+        writeUnchanged: true,
+        captureDivergentContent: false,
+      };
+    }
+  }
 }
 
 function readWorktreeDocumentState(destination: string): WorktreeDocumentState {
