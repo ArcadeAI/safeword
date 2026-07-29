@@ -46,6 +46,12 @@ interface RelayDraftPersistenceOptions {
   faultAfterStateSnapshot?: () => Promise<void>;
 }
 
+interface RelayStateSnapshot {
+  directory: string;
+  filenames: string[];
+  statesByRequestId: Map<string, ReservedRequestState>;
+}
+
 const UUID_V4_PATTERN = /^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/u;
 const SOURCE_RESERVATION_FILENAME_PATTERN = /^source-[\da-f]{64}\.json$/u;
 const ATOMIC_TEMPORARY_FILENAME_PATTERN =
@@ -629,25 +635,58 @@ type ReservedRequestState =
   | { kind: 'dead-letter' | 'materializing' | 'missing' | 'primary' }
   | { kind: 'delivery' | 'recovery'; path: string };
 
-function reservedRequestState(
+function reservedRequestStateForFilename(
+  directory: string,
+  filename: string,
+): { requestId: string; state: ReservedRequestState } | undefined {
+  const recovery = parseRecoveryClaim(filename);
+  if (recovery !== undefined) {
+    return {
+      requestId: recovery.requestId,
+      state: { kind: 'recovery', path: path.join(directory, filename) },
+    };
+  }
+  const delivery = parseClaim(filename);
+  if (delivery !== undefined) {
+    return {
+      requestId: delivery.requestId,
+      state: { kind: 'delivery', path: path.join(directory, filename) },
+    };
+  }
+  const materializing = parseMaterializing(filename);
+  if (materializing !== undefined) {
+    return { requestId: materializing, state: { kind: 'materializing' } };
+  }
+  const deadLetter = parseDeadLetter(filename);
+  if (deadLetter !== undefined) {
+    return { requestId: deadLetter, state: { kind: 'dead-letter' } };
+  }
+  const primary = parsePrimary(filename);
+  return primary === undefined ? undefined : { requestId: primary, state: { kind: 'primary' } };
+}
+
+function reservedRequestStates(
   directory: string,
   filenames: string[],
-  requestId: string,
-): ReservedRequestState {
-  const recoveryClaim = filenames.find(
-    filename => parseRecoveryClaim(filename)?.requestId === requestId,
-  );
-  if (recoveryClaim !== undefined) {
-    return { kind: 'recovery', path: path.join(directory, recoveryClaim) };
+): Map<string, ReservedRequestState> {
+  const states = new Map<string, ReservedRequestState>();
+  const precedence: Record<ReservedRequestState['kind'], number> = {
+    'dead-letter': 2,
+    delivery: 4,
+    materializing: 3,
+    missing: 0,
+    primary: 1,
+    recovery: 5,
+  };
+  for (const filename of filenames) {
+    const candidate = reservedRequestStateForFilename(directory, filename);
+    if (candidate === undefined) continue;
+    const current = states.get(candidate.requestId);
+    if (current === undefined || precedence[candidate.state.kind] > precedence[current.kind]) {
+      states.set(candidate.requestId, candidate.state);
+    }
   }
-  const deliveryClaim = filenames.find(filename => parseClaim(filename)?.requestId === requestId);
-  if (deliveryClaim !== undefined) {
-    return { kind: 'delivery', path: path.join(directory, deliveryClaim) };
-  }
-  if (filenames.includes(`${requestId}.materializing.json`)) return { kind: 'materializing' };
-  if (filenames.includes(`${requestId}.dead-letter.json`)) return { kind: 'dead-letter' };
-  if (filenames.includes(`${requestId}.json`)) return { kind: 'primary' };
-  return { kind: 'missing' };
+  return states;
 }
 
 async function validateReservedPrimary(
@@ -721,26 +760,19 @@ async function resolveExistingReservedState(
 
 async function materializeReservedRequest(
   projectDirectory: string,
-  directory: string,
   draft: RelayDraftInput,
   reservation: Extract<RelaySourceReservation, { state: 'active' }>,
-  filenames?: string[],
+  snapshot: RelayStateSnapshot,
 ): Promise<RelayDraftRequest | undefined> {
   const requestId = reservation.request.requestId;
-  if (
-    filenames === undefined
-      ? await discardBlocksRequest(projectDirectory, requestId)
-      : await discardBlocksRequestAtSnapshot(projectDirectory, filenames, requestId)
-  ) {
+  if (await discardBlocksRequestAtSnapshot(projectDirectory, snapshot.filenames, requestId)) {
     return undefined;
   }
   const currentReservation = await loadSourceReservation(projectDirectory, draft);
   if (currentReservation?.state !== 'active') return undefined;
-  const currentState = reservedRequestState(
-    directory,
-    filenames ?? (await sortedFilenames(directory)),
-    requestId,
-  );
+  const currentState = snapshot.statesByRequestId.get(requestId) ?? {
+    kind: 'missing',
+  };
   if (currentState.kind !== 'missing') {
     return resolveExistingReservedState(projectDirectory, currentReservation, currentState);
   }
@@ -756,36 +788,60 @@ async function materializeReservedRequest(
   return undefined;
 }
 
+async function captureRelayStateSnapshot(
+  projectDirectory: string,
+  existing?: RelayStateSnapshot,
+): Promise<RelayStateSnapshot> {
+  if (existing !== undefined) return existing;
+  const directory = relayDirectory(projectDirectory);
+  const filenames = await sortedFilenames(directory);
+  return {
+    directory,
+    filenames,
+    statesByRequestId: reservedRequestStates(directory, filenames),
+  };
+}
+
+async function discardBlocksReservation(
+  projectDirectory: string,
+  requestId: string,
+  snapshot?: RelayStateSnapshot,
+): Promise<boolean> {
+  return snapshot === undefined
+    ? discardBlocksRequest(projectDirectory, requestId)
+    : discardBlocksRequestAtSnapshot(projectDirectory, snapshot.filenames, requestId);
+}
+
 async function resolveSourceReservation(
   projectDirectory: string,
   draft: RelayDraftInput,
   reservation: RelaySourceReservation,
-  options: { faultAfterStateSnapshot?: () => Promise<void>; filenames?: string[] } = {},
+  options: {
+    faultAfterStateSnapshot?: () => Promise<void>;
+    stateSnapshot?: RelayStateSnapshot;
+  } = {},
 ): Promise<RelayDraftRequest | undefined> {
   validateSourceReservation(reservation, draft);
   if (reservation.state !== 'active') return undefined;
   if (
-    options.filenames === undefined
-      ? await discardBlocksRequest(projectDirectory, reservation.request.requestId)
-      : await discardBlocksRequestAtSnapshot(
-          projectDirectory,
-          options.filenames,
-          reservation.request.requestId,
-        )
+    await discardBlocksReservation(
+      projectDirectory,
+      reservation.request.requestId,
+      options.stateSnapshot,
+    )
   ) {
     return undefined;
   }
   if (await compactIfAcknowledged(projectDirectory, reservation.request)) return undefined;
-  const directory = relayDirectory(projectDirectory);
-  const filenames = options.filenames ?? (await sortedFilenames(directory));
+  const snapshot = await captureRelayStateSnapshot(projectDirectory, options.stateSnapshot);
   await options.faultAfterStateSnapshot?.();
   const requestId = reservation.request.requestId;
-  const state = reservedRequestState(directory, filenames, requestId);
+  const state = snapshot.statesByRequestId.get(requestId) ?? { kind: 'missing' };
   if (state.kind !== 'missing') {
     return resolveExistingReservedState(projectDirectory, reservation, state);
   }
   if (await compactIfAcknowledged(projectDirectory, reservation.request)) return undefined;
-  return materializeReservedRequest(projectDirectory, directory, draft, reservation, filenames);
+  return materializeReservedRequest(projectDirectory, draft, reservation, snapshot);
 }
 
 async function discardIntentInSnapshot(
@@ -1005,6 +1061,11 @@ export async function persistRelayDraftBatch(
   } catch (error) {
     return drafts.map(() => ({ reason: error, status: 'rejected' }));
   }
+  const stateSnapshot: RelayStateSnapshot = {
+    directory: snapshot.directory,
+    filenames,
+    statesByRequestId: reservedRequestStates(snapshot.directory, filenames),
+  };
   return Promise.all(
     reservations.map(async outcome => {
       if (outcome.status !== 'fulfilled') return outcome;
@@ -1013,7 +1074,7 @@ export async function persistRelayDraftBatch(
         return {
           status: 'fulfilled',
           value: await resolveSourceReservation(projectDirectory, draft, reservation, {
-            filenames,
+            stateSnapshot,
           }),
         };
       } catch (error) {
