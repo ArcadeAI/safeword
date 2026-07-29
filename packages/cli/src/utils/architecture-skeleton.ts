@@ -307,10 +307,11 @@ function sourceFileNode(name: string, path: string, absolutePath: string): Skele
 
 /** A directory module may declare its boundary purpose in a conventional entry file. */
 function directoryNode(name: string, path: string, entryPoints: string[]): SkeletonNode {
-  const purpose = entryPoints
-    .map(entryPoint => purposeFromLeadingDocumentation(entryPoint))
-    .find(candidate => candidate !== undefined);
-  return nodeFromPurpose(name, path, purpose);
+  for (const entryPoint of entryPoints) {
+    const purpose = purposeFromLeadingDocumentation(entryPoint);
+    if (purpose !== undefined) return nodeFromPurpose(name, path, purpose);
+  }
+  return nodeFromPurpose(name, path, undefined);
 }
 
 function nodeFromPurpose(name: string, path: string, purpose: string | undefined): SkeletonNode {
@@ -399,32 +400,90 @@ function afterLeadingPythonTrivia(content: string): string {
   return remaining.trimStart();
 }
 
-/** Skip the JS directives that may legally precede a file-level JSDoc block. */
+/** Skip recognized JS preambles that may legally precede a file-level JSDoc block. */
 function afterLeadingJsTrivia(content: string): string {
-  let remaining = content;
-  if (remaining.startsWith('#!')) {
-    const lineEnd = remaining.indexOf('\n');
-    remaining = lineEnd === -1 ? '' : remaining.slice(lineEnd + 1);
-  }
+  let remaining = afterLeadingShebang(content);
   while (true) {
     const trimmed = remaining.trimStart();
-    if (!/^\/\/\s*eslint(?:-|\s)/.test(trimmed)) return trimmed;
-    const lineEnd = trimmed.indexOf('\n');
-    remaining = lineEnd === -1 ? '' : trimmed.slice(lineEnd + 1);
+    const afterPreamble = afterKnownJsPreamble(trimmed);
+    if (afterPreamble === undefined) return trimmed;
+    remaining = afterPreamble;
   }
 }
 
-/** Derive one meaningful, bounded summary without treating banners as module purpose. */
-function documentationSummary(body: string): string | undefined {
-  const text = documentationParagraphs(body).find(paragraph => !isDocumentationBanner(paragraph));
-  if (text === undefined) return undefined;
-  const firstSentence = [
-    ...new Intl.Segmenter('en', { granularity: 'sentence' }).segment(text),
-  ][0]?.segment.trim();
-  return truncatePurpose(firstSentence ?? text);
+function afterLeadingShebang(content: string): string {
+  if (!content.startsWith('#!')) return content;
+  const lineEnd = content.indexOf('\n');
+  return lineEnd === -1 ? '' : content.slice(lineEnd + 1);
 }
 
-/** Normalize documentation text into its non-empty paragraphs. */
+function afterKnownJsPreamble(content: string): string | undefined {
+  return (
+    afterEslintLineDirective(content) ??
+    afterEslintBlockDirective(content) ??
+    afterJsUseDirective(content)
+  );
+}
+
+function afterEslintLineDirective(content: string): string | undefined {
+  if (!content.startsWith('//') || !isEslintDirective(content.slice(2).trimStart())) {
+    return undefined;
+  }
+  const lineEnd = content.indexOf('\n');
+  return lineEnd === -1 ? '' : content.slice(lineEnd + 1);
+}
+
+function afterEslintBlockDirective(content: string): string | undefined {
+  if (!content.startsWith('/*') || !isEslintDirective(content.slice(2).trimStart())) {
+    return undefined;
+  }
+  const blockEnd = content.indexOf('*/');
+  return blockEnd === -1 ? undefined : content.slice(blockEnd + 2);
+}
+
+function isEslintDirective(content: string): boolean {
+  return content.startsWith('eslint-') || content.startsWith('eslint ');
+}
+
+function afterJsUseDirective(content: string): string | undefined {
+  const quote = content[0];
+  if (quote !== "'" && quote !== '"') return undefined;
+  const quoteEnd = content.indexOf(quote, 1);
+  if (quoteEnd === -1 || !isJsUseDirective(content.slice(1, quoteEnd))) return undefined;
+  const afterQuote = content.slice(quoteEnd + 1);
+  return afterQuote.startsWith(';') ? afterQuote.slice(1) : afterQuote;
+}
+
+function isJsUseDirective(content: string): boolean {
+  return (
+    content.startsWith('use ') &&
+    content
+      .slice('use '.length)
+      .split(' ')
+      .every(word => isLowercaseAsciiWord(word))
+  );
+}
+
+function isLowercaseAsciiWord(word: string): boolean {
+  if (word.length === 0) return false;
+  for (const character of word) {
+    if (character < 'a' || character > 'z') return false;
+  }
+  return true;
+}
+
+/**
+ * Derive one meaningful, bounded summary without treating banners or Markdown
+ * blocks as module purpose. Unicode sentence segmentation intentionally does not
+ * split before lowercase text, which preserves common abbreviations such as e.g.
+ */
+function documentationSummary(body: string): string | undefined {
+  const text = documentationParagraphs(body).find(paragraph => isPurposeParagraph(paragraph));
+  if (text === undefined) return undefined;
+  return truncatePurpose(firstDocumentationSentence(text));
+}
+
+/** Normalize documentation text into non-empty paragraphs, removing JSDoc's `*` gutter. */
 function documentationParagraphs(body: string): string[] {
   const paragraphs: string[] = [];
   let lines: string[] = [];
@@ -442,13 +501,31 @@ function documentationParagraphs(body: string): string[] {
   return paragraphs;
 }
 
+function isPurposeParagraph(paragraph: string): boolean {
+  return !isDocumentationBanner(paragraph) && !/^(?:#{1,6}\s|>\s|[-*+]\s)/.test(paragraph);
+}
+
 function isDocumentationBanner(paragraph: string): boolean {
-  return /\b(?:copyright|spdx-|@license|licensed under)\b/i.test(paragraph);
+  return /^(?:copyright\b|spdx-|@license\b|licensed under\b)/i.test(paragraph);
+}
+
+function firstDocumentationSentence(text: string): string {
+  if (typeof Intl.Segmenter === 'function') {
+    return (
+      [...new Intl.Segmenter('en', { granularity: 'sentence' }).segment(text)][0]?.segment.trim() ??
+      text
+    );
+  }
+  return /^.*?[.!?](?:\s|$)/.exec(text)?.[0].trim() ?? text;
 }
 
 function truncatePurpose(purpose: string): string {
   if (purpose.length <= MAXIMUM_SEEDED_PURPOSE_LENGTH) return purpose;
-  return `${purpose.slice(0, MAXIMUM_SEEDED_PURPOSE_LENGTH - 1).trimEnd()}…`;
+  const clipped = purpose.slice(0, MAXIMUM_SEEDED_PURPOSE_LENGTH - 1);
+  const lastSpace = clipped.lastIndexOf(' ');
+  const boundary =
+    lastSpace > MAXIMUM_SEEDED_PURPOSE_LENGTH / 2 ? clipped.slice(0, lastSpace) : clipped;
+  return `${boundary.trimEnd()}…`;
 }
 
 /** The recognized Go layout directories that actually exist, as sorted nodes. */

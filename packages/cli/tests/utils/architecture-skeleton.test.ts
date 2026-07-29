@@ -119,7 +119,7 @@ describe('extractSkeleton — skeleton reflects the real project', () => {
     });
   });
 
-  it('skips a leading license paragraph, preserves abbreviations, and caps a generated purpose', () => {
+  it('skips each leading license-banner form, preserves abbreviations, and caps purposes at a word boundary', () => {
     mkdirSync(nodePath.join(context.directory, 'src'), { recursive: true });
     writeFileSync(
       nodePath.join(context.directory, 'src', 'retry.ts'),
@@ -129,6 +129,23 @@ describe('extractSkeleton — skeleton reflects the real project', () => {
       nodePath.join(context.directory, 'src', 'long.ts'),
       `/** ${'A'.repeat(300)}. */\nexport {};\n`,
     );
+    writeFileSync(
+      nodePath.join(context.directory, 'src', 'word-boundary.ts'),
+      `/** ${'word '.repeat(50)}*/\nexport {};\n`,
+    );
+    writeFileSync(
+      nodePath.join(context.directory, 'src', 'copyright-validator.ts'),
+      '/** Validates copyright headers across source files. */\nexport {};\n',
+    );
+    for (const [name, banner] of [
+      ['license-tag', '@license MIT'],
+      ['licensed-under', 'Licensed under the MIT License'],
+    ]) {
+      writeFileSync(
+        nodePath.join(context.directory, 'src', `${name}.ts`),
+        `/**\n * ${banner}\n *\n * Describes the module after its license banner.\n */\nexport {};\n`,
+      );
+    }
 
     const nodes = extractSkeleton(context.directory).nodes;
     expect(nodes).toContainEqual({
@@ -140,13 +157,42 @@ describe('extractSkeleton — skeleton reflects the real project', () => {
     const long = nodes.find(node => node.name === 'long');
     expect(long?.purpose).toHaveLength(200);
     expect(long?.purpose.endsWith('…')).toBe(true);
+    expect(nodes).toEqual(
+      expect.arrayContaining([
+        {
+          name: 'license-tag',
+          path: 'src/license-tag.ts',
+          purpose: 'Describes the module after its license banner.',
+          seededPurpose: true,
+        },
+        {
+          name: 'licensed-under',
+          path: 'src/licensed-under.ts',
+          purpose: 'Describes the module after its license banner.',
+          seededPurpose: true,
+        },
+        {
+          name: 'copyright-validator',
+          path: 'src/copyright-validator.ts',
+          purpose: 'Validates copyright headers across source files.',
+          seededPurpose: true,
+        },
+      ]),
+    );
+    expect(nodes.find(node => node.name === 'word-boundary')?.purpose).toMatch(/word…$/);
   });
 
-  it('seeds a directory module from a documented index file after a shebang or eslint directive', () => {
+  it.each([
+    ['a shebang', '#!/usr/bin/env node'],
+    ['an eslint line directive', '// eslint-disable-next-line no-console'],
+    ['an eslint block directive', '/* eslint-disable no-console */'],
+    ['a client directive', "'use client';"],
+    ['a strict-mode directive', '"use strict";'],
+  ])('seeds a documented directory index after %s', (_description, preamble) => {
     mkdirSync(nodePath.join(context.directory, 'src', 'cli'), { recursive: true });
     writeFileSync(
       nodePath.join(context.directory, 'src', 'cli', 'index.ts'),
-      '#!/usr/bin/env node\n// eslint-disable-next-line no-console\n/** Runs the command-line interface. */\nconsole.log("ready");\n',
+      `${preamble}\n/** Runs the command-line interface. */\nconsole.log("ready");\n`,
     );
 
     expect(extractSkeleton(context.directory).nodes).toContainEqual({
@@ -155,6 +201,46 @@ describe('extractSkeleton — skeleton reflects the real project', () => {
       purpose: 'Runs the command-line interface.',
       seededPurpose: true,
     });
+  });
+
+  it.each(['### Not a heading', '> Not a quote', '- Not a list item', '* Not a list item'])(
+    'skips markdown block syntax instead of making it a generated purpose (%s)',
+    markdownBlock => {
+      mkdirSync(nodePath.join(context.directory, 'src'), { recursive: true });
+      writeFileSync(
+        nodePath.join(context.directory, 'src', 'safe.ts'),
+        `/**\n * ${markdownBlock}\n *\n * Provides the safe module purpose.\n */\nexport {};\n`,
+      );
+
+      expect(extractSkeleton(context.directory).nodes).toContainEqual({
+        name: 'safe',
+        path: 'src/safe.ts',
+        purpose: 'Provides the safe module purpose.',
+        seededPurpose: true,
+      });
+    },
+  );
+
+  it('degrades to a basic sentence splitter when the runtime has no Intl.Segmenter', () => {
+    mkdirSync(nodePath.join(context.directory, 'src'), { recursive: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'src', 'fallback.ts'),
+      '/** Keeps architecture generation available. Details are secondary. */\nexport {};\n',
+    );
+    const descriptor = Object.getOwnPropertyDescriptor(Intl, 'Segmenter');
+    Object.defineProperty(Intl, 'Segmenter', { configurable: true, value: undefined });
+
+    try {
+      expect(extractSkeleton(context.directory).nodes).toContainEqual({
+        name: 'fallback',
+        path: 'src/fallback.ts',
+        purpose: 'Keeps architecture generation available.',
+        seededPurpose: true,
+      });
+    } finally {
+      if (descriptor === undefined) Reflect.deleteProperty(Intl, 'Segmenter');
+      else Object.defineProperty(Intl, 'Segmenter', descriptor);
+    }
   });
 });
 

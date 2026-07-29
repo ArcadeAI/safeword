@@ -77,9 +77,9 @@ No description yet — awaiting prose.
 
 `src/learning-sync`
 
-<!-- seeded-purpose: af50094a05fc5a1891acaa5b0b357a51d5de6bf708999899e0147cc2486f8404 -->
+<!-- seeded-purpose: b56dcde39a15d17f52892285e891cbc4a384a735d1cac4e9a4440ed6b7c3e6e6 -->
 
-Learning sync — generates `<namespace-root>/learnings/INDEX.md` from the `*.md` files in that folder so agents can navigate learnings via a Karpathy-style LLM Wiki index (plain markdown + grep) witho…
+Learning sync — generates `<namespace-root>/learnings/INDEX.md` from the `*.md` files in that folder so agents can navigate learnings via a Karpathy-style LLM Wiki index (plain markdown + grep)…
 
 > ⚠ stale: structure changed since this section was reconciled.
 

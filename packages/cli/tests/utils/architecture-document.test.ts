@@ -48,6 +48,19 @@ describe('selfHeal — structural facts self-heal at session start', () => {
     expect(existsSync(documentPath(context.directory))).toBe(true);
   });
 
+  it('never renders Markdown block syntax from a source header as a module heading', () => {
+    writeFileSync(
+      nodePath.join(context.directory, 'src', 'safe.ts'),
+      '/**\n * ### Not a heading\n *\n * Provides the safe module purpose.\n */\nexport {};\n',
+    );
+
+    selfHeal(context.directory);
+
+    const content = readFileSync(documentPath(context.directory), 'utf8');
+    expect(content).toContain('Provides the safe module purpose.');
+    expect(content).not.toContain('### Not a heading');
+  });
+
   it('heals the document to the current shape when the fingerprint has moved', () => {
     selfHeal(context.directory);
     mkdirSync(nodePath.join(context.directory, 'src', 'billing'), { recursive: true });

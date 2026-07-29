@@ -1,5 +1,5 @@
-# Behavior source for BY7RNR (GitHub #848). The TB1 rules (done-gate nudge
-# resolution) are @wip like bash-ledger-write-gate: their executable backing is
+# Behavior source for BY7RNR (GitHub #848). Every remaining rule is @wip like
+# bash-ledger-write-gate: its executable backing is
 # Vitest hook coverage — git-backed integration tests over the standalone hook
 # helper plus a differential parity test against the CLI resolver — and cucumber
 # steps would duplicate that harness without adding confidence.
