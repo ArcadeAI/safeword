@@ -315,3 +315,41 @@ Feature source: `features/operate-retry-safe-retro-relay.feature`
 - [x] RED skip: reproduced terminal acknowledgement for both documented 422 meanings
 - [x] GREEN ec32ac2fc
 - [x] REFACTOR skip: the status-only classification table is already minimal
+
+## 2026-07-29 fifth-round PR review regressions
+
+### Scenario: A production-sized persistence batch does not rescan the full backlog per finding
+
+- [ ] RED pending
+- [ ] GREEN pending
+- [ ] REFACTOR pending
+
+### Scenario: Configured but invalid relay state fails visibly instead of selecting native filing
+
+- [ ] RED pending
+- [ ] GREEN pending
+- [ ] REFACTOR pending
+
+### Scenario: Recovery removes only stale atomic-write temporaries
+
+- [ ] RED pending
+- [ ] GREEN pending
+- [ ] REFACTOR pending
+
+### Scenario: Cross-directory durable rename synchronizes both directory entries
+
+- [ ] RED pending
+- [ ] GREEN pending
+- [ ] REFACTOR pending
+
+### Scenario: Filesystem root cannot become the client outbox
+
+- [ ] RED pending
+- [ ] GREEN pending
+- [ ] REFACTOR pending
+
+### Scenario: A failed dead-letter rearm tells the operator how to recover
+
+- [ ] RED pending
+- [ ] GREEN pending
+- [ ] REFACTOR pending

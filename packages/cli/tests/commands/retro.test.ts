@@ -19,6 +19,7 @@ import {
   buildProvenanceResolver,
   discardRelaySpoolCommand,
   reportRetroCommandOutcome,
+  resolveRelayConfiguration as resolveRelayConfig,
   resolveRelayOutboxDirectory,
   retroCommand,
   retryRelayDeadLetterCommand,
@@ -156,9 +157,33 @@ describe('runRetro', () => {
       ).toBeUndefined();
       expect(resolveRelayOutboxDirectory(project, symlinkAlias)).toBeUndefined();
       expect(resolveRelayOutboxDirectory(project, 'relative/outbox')).toBeUndefined();
+      expect(resolveRelayOutboxDirectory(project, nodePath.parse(project).root)).toBeUndefined();
     } finally {
       rmSync(project, { recursive: true, force: true });
       rmSync(external, { recursive: true, force: true });
+    }
+  });
+
+  it('reports configured relay state that cannot select a safe outbox', () => {
+    const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-invalid-outbox-project-'));
+    try {
+      expect(
+        resolveRelayConfig(
+          {
+            SAFEWORD_RETRO_RELAY_CREDENTIAL: 'swc_test',
+            SAFEWORD_RETRO_RELAY_INSTALLATION_ID: '42',
+            SAFEWORD_RETRO_RELAY_OUTBOX: 'relative/outbox',
+            SAFEWORD_RETRO_RELAY_REPOSITORY: 'arcadeai/safeword',
+            SAFEWORD_RETRO_RELAY_URL: 'https://relay.invalid',
+          },
+          project,
+        ),
+      ).toEqual({
+        error:
+          'retro relay configuration is invalid; SAFEWORD_RETRO_RELAY_OUTBOX must be an existing absolute directory outside the project',
+      });
+    } finally {
+      rmSync(project, { force: true, recursive: true });
     }
   });
 
@@ -1334,6 +1359,41 @@ describe('relay dead-letter recovery command', () => {
       expect(messages.join('\n')).toContain(original.requestId);
     } finally {
       rmSync(projectDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it('explains a dead-letter rearm that loses ownership before the transition', async () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-rearm-race-'));
+    const original = createRelayRequest(
+      {
+        body: 'body',
+        canonicalKey: 'canonical',
+        installationId: 42,
+        labels: ['retro'],
+        legacySignature: 'legacy',
+        repository: 'arcadeai/safeword',
+        sourceKey: 'source-race',
+        title: 'title',
+      },
+      { now: Date.now, randomUUID: () => '00000000-0000-4000-8000-000000001490' },
+    );
+    const persisted = await persistRelayRequest(projectDirectory, original);
+    movePersistedRequestToDeadLetter(persisted);
+    const error = vi.fn<(message: string) => void>();
+
+    try {
+      await expect(
+        retryRelayDeadLetterCommand(original.requestId, {
+          output: { error, info: vi.fn(), success: vi.fn() },
+          projectDirectory,
+          rearm: () => Promise.resolve(false),
+        }),
+      ).resolves.toBe(false);
+      expect(error).toHaveBeenCalledWith(
+        `retro relay: dead letter ${original.requestId} could not be claimed; list current state and retry.`,
+      );
+    } finally {
+      rmSync(projectDirectory, { force: true, recursive: true });
     }
   });
 

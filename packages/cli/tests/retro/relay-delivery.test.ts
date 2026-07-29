@@ -1,5 +1,13 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import type { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
@@ -18,6 +26,7 @@ import {
   listRelayRequests,
   listRelaySpoolEntries,
   persistRelayDraft,
+  persistRelayDraftBatch,
   persistRelayRequest,
   rearmRelayDeadLetter,
   recoverRelayDeadLetter,
@@ -1522,6 +1531,51 @@ describe('immutable relay delivery spool', () => {
       retryable: 0,
     });
     expect(send).not.toHaveBeenCalled();
+  });
+
+  it('removes stale atomic-write temporaries without touching a live writer', async () => {
+    const project = temporaryProject();
+    const persisted = await persistRelayRequest(project, request());
+    const stale = `${persisted.path}.tmp.00000000-0000-4000-8000-000000000001`;
+    const live = `${persisted.path}.tmp.00000000-0000-4000-8000-000000000002`;
+    writeFileSync(stale, 'stale');
+    writeFileSync(live, 'live');
+    utimesSync(stale, new Date(0), new Date(0));
+    const now = 120_000;
+
+    await recoverRelaySpool(project, now);
+
+    expect(readdirSync(path.dirname(persisted.path))).not.toContain(path.basename(stale));
+    expect(readFileSync(live, 'utf8')).toBe('live');
+  });
+
+  it('persists a batch without rescanning every queued payload for each finding', async () => {
+    const project = temporaryProject();
+    for (let index = 0; index < 500; index += 1) {
+      const queued = request({
+        requestId: `00000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+        sourceKey: `queued-${index}`,
+        title: `Queued ${index}`,
+      });
+      await persistRelayRequest(project, queued);
+    }
+    const drafts = Array.from({ length: 10 }, (_value, index) => ({
+      body: `New body ${index}`,
+      canonicalKey: `canonical:new-${index}`,
+      installationId: 42,
+      labels: ['retro'],
+      legacySignature: `retro:new-${index}`,
+      repository: 'arcadeai/safeword',
+      sourceKey: `new-${index}`,
+      title: `New ${index}`,
+    }));
+    const started = performance.now();
+
+    const outcomes = await persistRelayDraftBatch(project, drafts);
+
+    expect(performance.now() - started).toBeLessThan(1000);
+    expect(outcomes).toHaveLength(10);
+    expect(outcomes.every(outcome => outcome.status === 'fulfilled')).toBe(true);
   });
 
   it('dead-letters terminal relay failures but rearms retryable failures', async () => {
