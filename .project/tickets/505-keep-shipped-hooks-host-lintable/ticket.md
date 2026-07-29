@@ -100,7 +100,7 @@ with its own test and commit.
 - [ ] P1 — Eliminate the duplicate parity-pair membership traversal in
   `scripts/parity-check.ts`; the CLI count must derive from `runParity` so it
   cannot drift from check/sync coverage.
-- [ ] P2 — Rename the broadened release test and its temporary-fixture prefix
+- [x] P2 — Rename the broadened release test and its temporary-fixture prefix
   from “hooks” to “templates”.
 - [ ] P3 — Split the release fixture builder into named materialization and
   tsconfig-writing helpers without changing fixture lifetime or contents.

@@ -60,7 +60,7 @@ function createInstalledTemplatesFixture(): {
   directory: string;
   templatePaths: string[];
 } {
-  const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-shipped-hooks-'));
+  const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-shipped-templates-'));
   const templatePaths = shippedTypeScriptTemplates.map(({ destinationPath, templatePath }) => {
     const target = nodePath.join(directory, destinationPath);
     mkdirSync(nodePath.dirname(target), { recursive: true });
