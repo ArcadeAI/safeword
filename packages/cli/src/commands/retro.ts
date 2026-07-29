@@ -38,7 +38,7 @@ import {
   listRelayDeadLetters,
   listRelaySpoolEntries,
   normalizeRelayOrigin,
-  persistRelayDraft,
+  persistRelayDraftBatch,
   rearmRelayDeadLetter,
   recoverRelayDeadLetter,
   RELAY_OVERALL_HEADROOM_MS,
@@ -165,8 +165,7 @@ async function runRelayRetro(
   relay: NonNullable<RetroDependencies['relay']>,
 ): Promise<RetroOutcome> {
   const spoolDirectory = relay.spoolDirectory ?? projectDirectory;
-  let spoolFailed = 0;
-  for (const encounter of encounters) {
+  const relayDrafts = encounters.map(encounter => {
     const relayDraft = {
       body: encounter.draft.body,
       canonicalKey: encounter.draft.canonicalSignature,
@@ -176,15 +175,13 @@ async function runRelayRetro(
       repository: relay.repository,
       title: encounter.draft.title,
     };
-    try {
-      await persistRelayDraft(spoolDirectory, {
-        ...relayDraft,
-        sourceKey: relaySourceKey(source.session, source.windowStart, relayDraft),
-      });
-    } catch {
-      spoolFailed += 1;
-    }
-  }
+    return {
+      ...relayDraft,
+      sourceKey: relaySourceKey(source.session, source.windowStart, relayDraft),
+    };
+  });
+  const persistence = await persistRelayDraftBatch(spoolDirectory, relayDrafts);
+  const spoolFailed = persistence.filter(outcome => outcome.status === 'rejected').length;
   const deadlineMs = relay.deadlineMs ?? DEFAULT_RELAY_DEADLINE_MS;
   const delivery = await deliverRelayRequests(spoolDirectory, {
     credential: relay.credential,
@@ -557,7 +554,7 @@ export function resolveRelayOutboxDirectory(
     return undefined;
   }
   const resolved = nodePath.resolve(configured);
-  if (configured !== resolved) return undefined;
+  if (configured !== resolved || resolved === nodePath.parse(resolved).root) return undefined;
   const physicalProject = physicalProjectPath(projectDirectory);
   if (physicalProject === undefined) return undefined;
   const physicalOutbox = physicalOutboxPath(resolved);
@@ -565,18 +562,33 @@ export function resolveRelayOutboxDirectory(
   return isOutsideProject(physicalProject, physicalOutbox) ? physicalOutbox : undefined;
 }
 
-// eslint-disable-next-line complexity -- Fail-closed runtime parsing keeps every credential field explicit.
-function defaultRelayConfig(
+type RelayConfig = Omit<RelayRoute, 'readiness'>;
+
+// eslint-disable-next-line complexity -- Fail-closed parsing keeps every required credential and outbox field explicit.
+export function resolveRelayConfig(
   environment: NodeJS.ProcessEnv,
   projectDirectory: string,
-): Omit<RelayRoute, 'readiness'> | undefined {
+): { config: RelayConfig } | { error: string } | undefined {
   const relayUrl = environment.SAFEWORD_RETRO_RELAY_URL?.trim();
   const credential = environment.SAFEWORD_RETRO_RELAY_CREDENTIAL?.trim();
   const repo = environment.SAFEWORD_RETRO_RELAY_REPOSITORY?.trim().toLowerCase();
   const installation = environment.SAFEWORD_RETRO_RELAY_INSTALLATION_ID?.trim();
   const configuredSpoolDirectory = environment.SAFEWORD_RETRO_RELAY_OUTBOX?.trim();
+  if (
+    [relayUrl, credential, repo, installation, configuredSpoolDirectory].every(
+      value => value === undefined || value.length === 0,
+    )
+  ) {
+    return undefined;
+  }
   const relayOrigin = relayUrl === undefined ? undefined : normalizeRelayOrigin(relayUrl);
   const spoolDirectory = resolveRelayOutboxDirectory(projectDirectory, configuredSpoolDirectory);
+  if (spoolDirectory === undefined) {
+    return {
+      error:
+        'retro relay configuration is invalid; SAFEWORD_RETRO_RELAY_OUTBOX must be an existing absolute directory outside the project',
+    };
+  }
   if (
     relayOrigin === undefined ||
     credential === undefined ||
@@ -584,15 +596,24 @@ function defaultRelayConfig(
     repo === undefined ||
     repo.length === 0 ||
     installation === undefined ||
-    spoolDirectory === undefined ||
     !/^[\w.-]+\/[\w.-]+$/u.test(repo) ||
     !/^[1-9]\d*$/u.test(installation)
   ) {
-    return undefined;
+    return { error: 'retro relay configuration is incomplete or invalid' };
   }
   const installationId = Number(installation);
-  if (!Number.isSafeInteger(installationId)) return undefined;
-  return { credential, installationId, relayUrl: relayOrigin, repository: repo, spoolDirectory };
+  if (!Number.isSafeInteger(installationId)) {
+    return { error: 'retro relay configuration is incomplete or invalid' };
+  }
+  return {
+    config: {
+      credential,
+      installationId,
+      relayUrl: relayOrigin,
+      repository: repo,
+      spoolDirectory,
+    },
+  };
 }
 
 function usesInjectedReadinessEvidence(composition: RetroReadinessComposition): boolean {
@@ -619,26 +640,36 @@ function resolveRelayReadiness(
   });
 }
 
+// eslint-disable-next-line complexity -- Readiness, injected tests, and production config remain fail-closed branches.
 async function resolveRetroRelayRoute(input: {
   composition?: RetroReadinessComposition;
   environment: NodeJS.ProcessEnv;
   projectDirectory: string;
-}): Promise<RelayRoute | undefined> {
+}): Promise<{ error?: string; route?: RelayRoute }> {
   const composition = input.composition ?? {};
   const manifest = composition.manifest ?? CHECKED_IN_RELAY_READINESS;
   const readiness = await resolveRelayReadiness(composition, manifest);
-  if (!readiness.enabled) return undefined;
-  const config =
-    composition.configuration === undefined
-      ? defaultRelayConfig(input.environment, input.projectDirectory)
-      : composition.configuration();
-  return config === undefined
-    ? undefined
-    : {
+  if (!readiness.enabled) return {};
+  if (composition.configuration !== undefined) {
+    const config = composition.configuration();
+    if (config === undefined) return {};
+    return {
+      route: {
         ...config,
         ...(composition.fetch && { fetch: composition.fetch }),
         readiness,
-      };
+      },
+    };
+  }
+  const resolved = resolveRelayConfig(input.environment, input.projectDirectory);
+  if (resolved === undefined || 'error' in resolved) return resolved ?? {};
+  return {
+    route: {
+      ...resolved.config,
+      ...(composition.fetch && { fetch: composition.fetch }),
+      readiness,
+    },
+  };
 }
 
 export async function executeRetroCommand(
@@ -657,11 +688,21 @@ export async function executeRetroCommand(
     transport: IssueTracker;
   },
 ): Promise<RetroOutcome> {
-  const relay = await resolveRetroRelayRoute({
+  const relayResolution = await resolveRetroRelayRoute({
     composition: dependencies.relay,
     environment: dependencies.environment,
     projectDirectory: dependencies.projectDirectory,
   });
+  if (relayResolution.error !== undefined) {
+    const outcome = { errorMessage: relayResolution.error, ok: false };
+    reportRetroCommandOutcome(outcome, {
+      extractionSucceeded: dependencies.extractionSucceeded(),
+      output: dependencies.output,
+      restTransportAvailable: dependencies.restTransportAvailable,
+    });
+    return outcome;
+  }
+  const relay = relayResolution.route;
   const outcome = await runRetro(options, {
     extract: dependencies.extract,
     harness: dependencies.harness,
@@ -820,6 +861,7 @@ export async function retryRelayDeadLetterCommand(
       operatorCredential?: string;
       relayUrl: string;
     };
+    rearm?: typeof rearmRelayDeadLetter;
   },
 ): Promise<boolean> {
   if (requestId === undefined) {
@@ -860,12 +902,20 @@ export async function retryRelayDeadLetterCommand(
   }
   let rearmed: boolean;
   try {
-    rearmed = await rearmRelayDeadLetter(dependencies.projectDirectory, requestId);
+    rearmed = await (dependencies.rearm ?? rearmRelayDeadLetter)(
+      dependencies.projectDirectory,
+      requestId,
+    );
   } catch {
     error('retro relay: request identity must be a lowercase UUIDv4.');
     return false;
   }
-  if (!rearmed) return false;
+  if (!rearmed) {
+    error(
+      `retro relay: dead letter ${requestId} could not be claimed; list current state and retry.`,
+    );
+    return false;
+  }
   success(`retro relay: rearmed ${requestId} with its original durable request identity.`);
   return true;
 }

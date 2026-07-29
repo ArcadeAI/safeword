@@ -19,7 +19,7 @@ import {
   buildProvenanceResolver,
   discardRelaySpoolCommand,
   reportRetroCommandOutcome,
-  resolveRelayConfiguration as resolveRelayConfig,
+  resolveRelayConfig,
   resolveRelayOutboxDirectory,
   retroCommand,
   retryRelayDeadLetterCommand,

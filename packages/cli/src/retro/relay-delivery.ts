@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { access, readdir, readFile } from 'node:fs/promises';
+import { access, readdir, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 
 import {
@@ -33,6 +33,9 @@ type RelaySourcePayload = Omit<RelayDraftInput, 'sourceKey'>;
 
 const UUID_V4_PATTERN = /^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/u;
 const SOURCE_RESERVATION_FILENAME_PATTERN = /^source-[\da-f]{64}\.json$/u;
+const ATOMIC_TEMPORARY_FILENAME_PATTERN =
+  /\.json\.tmp\.[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/u;
+const ATOMIC_TEMPORARY_STALE_MS = 60_000;
 const DISCARD_CLAIM_LEASE_MS = 60_000;
 const DISCARD_INTENT_LEASE_MS = 60_000;
 const RECOVERY_CLAIM_LEASE_MS = 60_000;
@@ -828,23 +831,41 @@ export async function persistRelayDraft(
   draft: RelayDraftInput,
   options: { faultAfterStateSnapshot?: () => Promise<void> } = {},
 ): Promise<RelayDraftRequest | undefined> {
+  const [outcome] = await persistRelayDraftBatch(projectDirectory, [draft], options);
+  if (outcome === undefined) throw new Error('relay persistence batch returned no outcome');
+  if (outcome.status === 'rejected') throw outcome.reason;
+  return outcome.value;
+}
+
+async function prepareRelayDraftPersistence(projectDirectory: string): Promise<{
+  directory: string;
+  durableRequests: { bytes: Buffer; requestId: string }[];
+}> {
   const directory = await ensureRelayDirectory(projectDirectory);
   await recoverRelaySpool(projectDirectory, Date.now());
-  const reserved = await loadSourceReservation(projectDirectory, draft);
-  if (reserved !== undefined) {
-    return resolveSourceReservation(projectDirectory, draft, reserved, options);
-  }
   const filenames = await sortedFilenames(directory);
   const [active, deadLetters] = await Promise.all([
     relayRequestsFromFilenames(directory, filenames),
     relayDeadLettersFromFilenames(directory, filenames),
   ]);
-  const durableRequests = [...active, ...deadLetters];
+  return { directory, durableRequests: [...active, ...deadLetters] };
+}
+
+async function persistRelayDraftFromSnapshot(
+  projectDirectory: string,
+  draft: RelayDraftInput,
+  snapshot: Awaited<ReturnType<typeof prepareRelayDraftPersistence>>,
+  options: { faultAfterStateSnapshot?: () => Promise<void> },
+): Promise<RelayDraftRequest | undefined> {
+  const reserved = await loadSourceReservation(projectDirectory, draft);
+  if (reserved !== undefined) {
+    return resolveSourceReservation(projectDirectory, draft, reserved, options);
+  }
   let reservedIds: Set<string> | undefined;
-  for (const candidate of durableRequests) {
+  for (const candidate of snapshot.durableRequests) {
     const request = parseDurableRequest(candidate);
     if (request === undefined) {
-      reservedIds ??= await reservedRequestIds(directory);
+      reservedIds ??= await reservedRequestIds(snapshot.directory);
       if (!reservedIds.has(candidate.requestId)) {
         throw new Error('relay spool contains an unreserved corrupt durable identity record');
       }
@@ -882,6 +903,31 @@ export async function persistRelayDraft(
     },
     options,
   );
+}
+
+export async function persistRelayDraftBatch(
+  projectDirectory: string,
+  drafts: RelayDraftInput[],
+  options: { faultAfterStateSnapshot?: () => Promise<void> } = {},
+): Promise<PromiseSettledResult<RelayDraftRequest | undefined>[]> {
+  let snapshot: Awaited<ReturnType<typeof prepareRelayDraftPersistence>>;
+  try {
+    snapshot = await prepareRelayDraftPersistence(projectDirectory);
+  } catch (error) {
+    return drafts.map(() => ({ reason: error, status: 'rejected' }));
+  }
+  const outcomes: PromiseSettledResult<RelayDraftRequest | undefined>[] = [];
+  for (const draft of drafts) {
+    try {
+      outcomes.push({
+        status: 'fulfilled',
+        value: await persistRelayDraftFromSnapshot(projectDirectory, draft, snapshot, options),
+      });
+    } catch (error) {
+      outcomes.push({ reason: error, status: 'rejected' });
+    }
+  }
+  return outcomes;
 }
 
 export async function claimRelayRequest(
@@ -1091,6 +1137,8 @@ export async function recoverRelaySpool(
 ): Promise<void> {
   const directory = await ensureRelayDirectory(projectDirectory);
   let filenames = await readdir(directory);
+  await cleanupStaleAtomicTemporaries(directory, filenames, _now);
+  filenames = await readdir(directory);
   await recoverDiscardIntents(projectDirectory, filenames, _now);
   filenames = await readdir(directory);
   await recoverExpiredClaims(projectDirectory, filenames, _now, undefined, recoveryOptions);
@@ -1108,6 +1156,26 @@ export async function recoverRelaySpool(
     filenames.map(filename =>
       cleanupAcknowledgedFile(projectDirectory, directory, filename, acknowledged),
     ),
+  );
+}
+
+async function cleanupStaleAtomicTemporaries(
+  directory: string,
+  filenames: string[],
+  now: number,
+): Promise<void> {
+  await Promise.all(
+    filenames.map(async filename => {
+      if (!ATOMIC_TEMPORARY_FILENAME_PATTERN.test(filename)) return;
+      const file = path.join(directory, filename);
+      try {
+        const metadata = await stat(file);
+        if (metadata.mtimeMs + ATOMIC_TEMPORARY_STALE_MS > now) return;
+        await removeIfPresent(file);
+      } catch (error) {
+        if (errorCode(error) !== 'ENOENT') throw error;
+      }
+    }),
   );
 }
 
@@ -1936,16 +2004,18 @@ export async function deliverRelayRequests(
   const monotonicNow = options.monotonicNow ?? (() => performance.now());
   const overallDeadline =
     monotonicNow() + (options.overallDeadlineMs ?? options.deadlineMs + RELAY_OVERALL_HEADROOM_MS);
-  const initial = await listRelayRequests(projectDirectory);
   const wallClockNow = options.now();
-  await recoverExpiredClaims(
-    projectDirectory,
-    await sortedFilenames(relayDirectory(projectDirectory)),
-    wallClockNow,
-  );
+  await recoverRelaySpool(projectDirectory, wallClockNow);
+  const directory = relayDirectory(projectDirectory);
+  let filenames = await sortedFilenames(directory);
+  await recoverExpiredClaims(projectDirectory, filenames, wallClockNow);
+  filenames = await sortedFilenames(directory);
+  const [initial, initialDeadLetters] = await Promise.all([
+    relayRequestsFromFilenames(directory, filenames),
+    relayDeadLettersFromFilenames(directory, filenames),
+  ]);
   const processed = new Set<string>();
   let accepted = 0;
-  const initialDeadLetters = await listRelayDeadLetters(projectDirectory);
   let deadLetterBacklog = initialDeadLetters.length;
   let deadLetteredThisRun = 0;
   for (const request of initial) {
@@ -2015,7 +2085,10 @@ export async function deliverRelayRequests(
       clearTimeout(timer);
     }
   }
-  const retryableRequests = await listRelayRequests(projectDirectory);
+  const retryableRequests = await relayRequestsFromFilenames(
+    directory,
+    await sortedFilenames(directory),
+  );
   return {
     accepted,
     deadLetterBacklog,

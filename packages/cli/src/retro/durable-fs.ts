@@ -78,7 +78,12 @@ export async function renameDurable(
   faults: DurableMutationFaults = {},
 ): Promise<void> {
   await rename(source, destination);
-  await syncDirectoryDurable(path.dirname(destination), faults);
+  const sourceDirectory = path.dirname(source);
+  const destinationDirectory = path.dirname(destination);
+  await syncDirectoryDurable(destinationDirectory, faults);
+  if (sourceDirectory !== destinationDirectory) {
+    await syncDirectoryDurable(sourceDirectory, faults);
+  }
 }
 
 export async function unlinkDurable(
