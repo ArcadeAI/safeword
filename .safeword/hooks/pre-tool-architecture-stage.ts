@@ -156,6 +156,7 @@ function gitCommitPlan(command: string, baseDirectory: string): GitCommitPlan | 
 
     const invocation = gitSubcommand(commandWords, directory, environment);
     if (invocation?.name === 'commit') {
+      if (commitOptionEffects(invocation.arguments).nonCommitting) return undefined;
       return {
         arguments: invocation.arguments,
         directory: invocation.directory,
@@ -198,8 +199,13 @@ function resolveCdDirectory(arguments_: string[], directory: string): string | u
   return nodePath.resolve(directory, normalizedArguments[0]);
 }
 
-/** Whether the commit command asks Git to stage every tracked modification. */
-function stagesTrackedWorktreeChanges(tokens: string[]): boolean {
+interface CommitOptionEffects {
+  nonCommitting: boolean;
+  stagesAll: boolean;
+}
+
+/** Classify the commit options that change whether or what Git will commit. */
+function commitOptionEffects(tokens: string[]): CommitOptionEffects {
   let skipNextValue = false;
   let stagesAll = false;
   let nonCommitting = false;
@@ -242,7 +248,13 @@ function stagesTrackedWorktreeChanges(tokens: string[]): boolean {
       }
     }
   }
-  return stagesAll && !nonCommitting;
+  return { nonCommitting, stagesAll };
+}
+
+/** Whether the commit asks Git to stage every tracked modification. */
+function stagesTrackedWorktreeChanges(tokens: string[]): boolean {
+  const effects = commitOptionEffects(tokens);
+  return effects.stagesAll && !effects.nonCommitting;
 }
 
 const SHORT_OPTIONS_REQUIRING_VALUE = new Set(['C', 'F', 'c', 'm', 't']);
@@ -341,6 +353,7 @@ function runArchitectureHook(projectDir: string, plan: GitCommitPlan): void {
   const needsProjectedIndex =
     plan.precedingAdds.length > 0 || stagesTrackedWorktreeChanges(plan.arguments);
   const projectedIndex = needsProjectedIndex ? projectCommitIndex(projectDir, plan) : undefined;
+  if (needsProjectedIndex && projectedIndex === undefined) return;
   try {
     const sourceIndex = projectedIndex?.path;
     // Scope the auto-fix to commits that actually move the architecture shape (#425).

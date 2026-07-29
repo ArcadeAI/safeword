@@ -383,4 +383,35 @@ describe('pre-tool architecture staging hook', () => {
       '.project/architecture.generated.md',
     );
   });
+
+  it.each(['git commit --dry-run', 'git commit -a --help'])(
+    'does not mutate an already-staged tree for non-committing mode: %s',
+    command => {
+      rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
+      git('add', '--', 'src/billing/index.ts');
+
+      const hook = runHook(command);
+
+      expect(hook.status).toBe(0);
+      expect(git('diff', '--cached', '--name-only')).toContain('src/billing/index.ts');
+      expect(git('diff', '--cached', '--name-only')).not.toContain(
+        '.project/architecture.generated.md',
+      );
+    },
+  );
+
+  it('does not fall back to the real index when a projected git add fails', () => {
+    rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
+    git('add', '--', 'src/billing/index.ts');
+
+    const hook = runHook(
+      'git add --pathspec-from-file=missing-pathspec && git commit -m "remove billing"',
+    );
+
+    expect(hook.status).toBe(0);
+    expect(git('diff', '--cached', '--name-only')).toContain('src/billing/index.ts');
+    expect(git('diff', '--cached', '--name-only')).not.toContain(
+      '.project/architecture.generated.md',
+    );
+  });
 });
