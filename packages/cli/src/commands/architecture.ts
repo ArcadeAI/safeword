@@ -479,38 +479,8 @@ function materializeIndexResults(
 ): MaterializedIndexResult[] {
   assertSnapshotHealTargetsContained(snapshotDirectory);
   const policy = indexMaterializationPolicy(mode);
-  const plans: IndexMaterializationPlan[] = selfHealProjectPreservingProse(snapshotDirectory, cwd, {
-    renderUnchanged: policy.renderUnchanged,
-    preservePriorStructure: policy.preservePriorStructure,
-  }).map(result => {
-    const relativePath = nodePath.relative(snapshotDirectory, result.path);
-    if (
-      relativePath === '' ||
-      nodePath.isAbsolute(relativePath) ||
-      relativePath === '..' ||
-      relativePath.startsWith(`..${nodePath.sep}`)
-    ) {
-      throw new Error('Generated architecture path escaped the git index snapshot.');
-    }
-
-    const destination = nodePath.join(cwd, relativePath);
-    const shouldWrite =
-      isWouldChangeAction(result.action) ||
-      (policy.writeUnchanged && result.action === 'unchanged');
-    return { result, destination, shouldWrite };
-  });
-
-  // Validate every worktree destination before replacing the first one. A
-  // later unsafe leaf must not leave an earlier root document half-applied.
-  for (const plan of plans) {
-    if (!plan.shouldWrite) continue;
-    assertPhysicalContainment(cwd, plan.destination);
-    plan.priorWorktreeState = readWorktreeDocumentState(plan.destination);
-    plan.restoreWorktreeContent =
-      policy.captureDivergentContent && isWouldChangeAction(plan.result.action)
-        ? readDivergentWorktreeContent(cwd, plan.destination)
-        : undefined;
-  }
+  const plans = planIndexMaterializations(cwd, snapshotDirectory, policy);
+  preflightIndexMaterializations(cwd, plans, policy);
 
   const attemptedPlans: IndexMaterializationPlan[] = [];
   try {
@@ -536,6 +506,55 @@ function materializeIndexResults(
     path: destination,
     restoreWorktreeContent,
   }));
+}
+
+function planIndexMaterializations(
+  cwd: string,
+  snapshotDirectory: string,
+  policy: IndexMaterializationPolicy,
+): IndexMaterializationPlan[] {
+  return selfHealProjectPreservingProse(snapshotDirectory, cwd, {
+    renderUnchanged: policy.renderUnchanged,
+    preservePriorStructure: policy.preservePriorStructure,
+  }).map(result => {
+    const relativePath = nodePath.relative(snapshotDirectory, result.path);
+    if (
+      relativePath === '' ||
+      nodePath.isAbsolute(relativePath) ||
+      relativePath === '..' ||
+      relativePath.startsWith(`..${nodePath.sep}`)
+    ) {
+      throw new Error('Generated architecture path escaped the git index snapshot.');
+    }
+
+    return {
+      result,
+      destination: nodePath.join(cwd, relativePath),
+      shouldWrite:
+        isWouldChangeAction(result.action) ||
+        (policy.writeUnchanged && result.action === 'unchanged'),
+    };
+  });
+}
+
+/**
+ * Validate and snapshot every destination before replacing the first one. A
+ * later unsafe or unreadable leaf must not leave an earlier root half-applied.
+ */
+function preflightIndexMaterializations(
+  cwd: string,
+  plans: IndexMaterializationPlan[],
+  policy: IndexMaterializationPolicy,
+): void {
+  for (const plan of plans) {
+    if (!plan.shouldWrite) continue;
+    assertPhysicalContainment(cwd, plan.destination);
+    plan.priorWorktreeState = readWorktreeDocumentState(plan.destination);
+    plan.restoreWorktreeContent =
+      policy.captureDivergentContent && isWouldChangeAction(plan.result.action)
+        ? readDivergentWorktreeContent(cwd, plan.destination)
+        : undefined;
+  }
 }
 
 function indexMaterializationPolicy(mode: IndexMaterializationMode): IndexMaterializationPolicy {
