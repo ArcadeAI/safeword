@@ -697,7 +697,7 @@ function reportRelayOutcome(
   if (complete) success('retro complete');
 }
 
-async function listRelayDeadLetterCommand(
+async function listRelaySpoolCommand(
   projectDirectory: string,
   output: RetroCommandOutput,
 ): Promise<boolean> {
@@ -759,7 +759,7 @@ export async function retryRelayDeadLetterCommand(
   },
 ): Promise<boolean> {
   if (requestId === undefined) {
-    return listRelayDeadLetterCommand(dependencies.projectDirectory, dependencies.output);
+    return listRelaySpoolCommand(dependencies.projectDirectory, dependencies.output);
   }
   const { error, success } = dependencies.output;
   const deadLetters = await listRelayDeadLetters(dependencies.projectDirectory);

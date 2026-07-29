@@ -7,7 +7,7 @@ an explicit disposition so no scout finding is silently dropped.
 
 ## Accepted checklist
 
-- [ ] R1 Rename `listRelayDeadLetterCommand` to `listRelaySpoolCommand`.
+- [x] R1 Rename `listRelayDeadLetterCommand` to `listRelaySpoolCommand`.
 - [ ] R2 Name the shared 24-hour client retry window.
 - [ ] R3 Name the semantically distinct discard-claim and recovery-claim leases.
 - [ ] R4 Rename the per-run `deadLettered` result to `deadLetteredThisRun`.
