@@ -416,6 +416,16 @@ function afterLeadingJsTrivia(content: string): string {
 
 /** Derive one meaningful, bounded summary without treating banners as module purpose. */
 function documentationSummary(body: string): string | undefined {
+  const text = documentationParagraphs(body).find(paragraph => !isDocumentationBanner(paragraph));
+  if (text === undefined) return undefined;
+  const firstSentence = [
+    ...new Intl.Segmenter('en', { granularity: 'sentence' }).segment(text),
+  ][0]?.segment.trim();
+  return truncatePurpose(firstSentence ?? text);
+}
+
+/** Normalize documentation text into its non-empty paragraphs. */
+function documentationParagraphs(body: string): string[] {
   const paragraphs: string[] = [];
   let lines: string[] = [];
   const flush = (): void => {
@@ -429,12 +439,7 @@ function documentationSummary(body: string): string | undefined {
     else lines.push(line);
   }
   flush();
-  const text = paragraphs.find(paragraph => !isDocumentationBanner(paragraph));
-  if (text === undefined) return undefined;
-  const firstSentence = [
-    ...new Intl.Segmenter('en', { granularity: 'sentence' }).segment(text),
-  ][0]?.segment.trim();
-  return truncatePurpose(firstSentence ?? text);
+  return paragraphs;
 }
 
 function isDocumentationBanner(paragraph: string): boolean {
