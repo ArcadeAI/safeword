@@ -208,6 +208,25 @@ describe('runRetro', () => {
     }
   });
 
+  it('reports incomplete relay scalars before diagnosing an absent outbox', () => {
+    const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-partial-scalars-project-'));
+    try {
+      expect(
+        resolveRelayConfig(
+          {
+            SAFEWORD_RETRO_RELAY_REPOSITORY: 'arcadeai/safeword',
+          },
+          project,
+        ),
+      ).toEqual({
+        error:
+          'retro relay configuration is incomplete or invalid; URL, credential, repository, installation ID, and external outbox are required',
+      });
+    } finally {
+      rmSync(project, { force: true, recursive: true });
+    }
+  });
+
   it('stops before extraction or native filing when enabled relay configuration is invalid', async () => {
     const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-invalid-relay-command-'));
     const manifest = validRelayReadinessManifest();
@@ -352,7 +371,7 @@ describe('runRetro', () => {
 
       expect(outcome.ok).toBe(false);
       expect(outcome.errorMessage).toBe(
-        'retro relay could not durably persist 1 finding; retry the command',
+        `retro relay could not durably persist 1 finding; request ${poisoned.requestId} is corrupt. Inspect it with \`safeword retro-relay-retry\`; only if intentionally abandoning it, run \`safeword retro-relay-discard ${poisoned.requestId} --confirm\`.`,
       );
       expect(outcome.relay?.spoolFailed).toBe(1);
       expect(sentTitles).toContain('Healthy finding');
@@ -1348,17 +1367,53 @@ describe('retro summary drop reporting (PNZM3B SM2.R1)', () => {
           deadLetterBacklog: 0,
           deadLetteredThisRun: 0,
           retryable: 0,
-          serverDeadLetteredThisRun: 1,
+          serverTerminalReceipts: [
+            {
+              receiptId: 'receipt-dead-letter',
+              requestId: '00000000-0000-4000-8000-000000001522',
+              state: 'dead-letter',
+            },
+          ],
         },
       },
       reportOptions(output),
     );
 
     expect(lines.join('\n')).toContain(
-      '1 request(s) are durably server-side dead-lettered; relay operator recovery is required',
+      'request 00000000-0000-4000-8000-000000001522 (receipt receipt-dead-letter) is durably server-side dead-lettered; relay operator recovery is required',
     );
+    expect(lines.join('\n')).toContain('1 durably owned');
+    expect(lines.join('\n')).toContain('0 local dead letter(s)');
     expect(lines.join('\n')).not.toContain('retro-relay-retry <request-id>');
     expect(lines.join('\n')).not.toContain('agent filing path');
+  });
+
+  it('reports unrecoverable server rejection with its request and receipt identifiers', () => {
+    const { lines, output } = collect();
+    reportRetroCommandOutcome(
+      {
+        agentFilingNeeded: false,
+        ok: true,
+        relay: {
+          accepted: 1,
+          deadLetterBacklog: 0,
+          deadLetteredThisRun: 0,
+          retryable: 0,
+          serverTerminalReceipts: [
+            {
+              receiptId: 'receipt-rejected',
+              requestId: '00000000-0000-4000-8000-000000001523',
+              state: 'rejected',
+            },
+          ],
+        },
+      },
+      reportOptions(output),
+    );
+
+    expect(lines.join('\n')).toContain(
+      'request 00000000-0000-4000-8000-000000001523 (receipt receipt-rejected) was permanently rejected by the relay; inspect relay operations and logs',
+    );
   });
 
   it('renders the durable relay summary and spool recovery hint before a terminal failure', () => {
@@ -1748,6 +1803,59 @@ describe('relay dead-letter recovery command', () => {
       ).resolves.toBe(false);
       expect(send).toHaveBeenCalledOnce();
       expect(readFileSync(deadLetter)).toEqual(originalBytes);
+    } finally {
+      rmSync(projectDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it('keeps renewed bytes when a retryable 4xx does not reject the payload', async () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-renew-auth-'));
+    const original = createRelayRequest(
+      {
+        body: 'body',
+        canonicalKey: 'canonical',
+        installationId: 42,
+        labels: ['retro'],
+        legacySignature: 'legacy',
+        repository: 'arcadeai/safeword',
+        sourceKey: 'source-renew-auth',
+        title: 'title',
+      },
+      { now: () => 0, randomUUID: () => '00000000-0000-4000-8000-000000001524' },
+    );
+    const persisted = await persistRelayRequest(projectDirectory, original);
+    const { deadLetter, originalBytes } = movePersistedRequestToDeadLetter(persisted);
+    let attempt = 0;
+    const send = vi.fn<typeof fetch>(() => {
+      attempt += 1;
+      return Promise.resolve(
+        attempt === 1
+          ? Response.json(
+              { error: 'invalid relay filing request', reason: 'retry-deadline-elapsed' },
+              { status: 400 },
+            )
+          : Response.json({ error: 'authentication is required' }, { status: 401 }),
+      );
+    });
+
+    try {
+      await expect(
+        retryRelayDeadLetterCommand(original.requestId, {
+          output: { error: vi.fn(), info: vi.fn(), success: vi.fn() },
+          projectDirectory,
+          relay: {
+            credential: 'expired-client-credential',
+            fetch: send,
+            relayUrl: 'https://relay.invalid',
+          },
+        }),
+      ).resolves.toBe(false);
+      expect(send).toHaveBeenCalledTimes(2);
+      const renewedBytes = readFileSync(deadLetter);
+      expect(renewedBytes).not.toEqual(originalBytes);
+      const renewed = JSON.parse(renewedBytes.toString('utf8')) as RelayDraftRequest;
+      expect(renewed.requestId).toBe(original.requestId);
+      expect(Date.parse(renewed.retryDeadlineAt)).toBeGreaterThan(Date.now());
     } finally {
       rmSync(projectDirectory, { recursive: true, force: true });
     }

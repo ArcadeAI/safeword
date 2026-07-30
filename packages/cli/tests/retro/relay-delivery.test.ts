@@ -1487,6 +1487,135 @@ describe('immutable relay delivery spool', () => {
     expect(await listRelayRequests(project)).toHaveLength(0);
   });
 
+  it.each([
+    ['dead-letter', undefined],
+    ['rejected', undefined],
+    ['tombstone', 1479],
+  ] as const)(
+    'returns operator-addressable details when durable ownership ends in %s',
+    async (state, issueNumber) => {
+      const project = temporaryProject();
+      const original = request();
+      await persistRelayRequest(project, original);
+
+      const outcome = await deliverRelayRequests(project, {
+        credential: 'swc_client_secret',
+        deadlineMs: 25,
+        fetch: () =>
+          Promise.resolve(
+            Response.json(
+              {
+                ...(issueNumber !== undefined && { issueNumber }),
+                receiptId: `receipt-${state}`,
+                requestId: original.requestId,
+                state,
+              },
+              { status: 200 },
+            ),
+          ),
+        now: Date.now,
+        relayUrl: 'https://relay.invalid',
+      });
+
+      expect(outcome).toMatchObject({
+        accepted: 1,
+        serverTerminalReceipts: [
+          {
+            ...(issueNumber !== undefined && { issueNumber }),
+            receiptId: `receipt-${state}`,
+            requestId: original.requestId,
+            state,
+          },
+        ],
+      });
+    },
+  );
+
+  it('sends the stable relay API version on submissions', async () => {
+    const project = temporaryProject();
+    const original = request();
+    await persistRelayRequest(project, original);
+    let observedHeaders: Headers | undefined;
+
+    await deliverRelayRequests(project, {
+      credential: 'swc_client_secret',
+      deadlineMs: 25,
+      fetch: (_input, init) => {
+        observedHeaders = new Headers(init?.headers);
+        return Promise.resolve(
+          Response.json(
+            {
+              receiptId: 'receipt-versioned',
+              requestId: original.requestId,
+              state: 'accepted',
+            },
+            { status: 202 },
+          ),
+        );
+      },
+      now: Date.now,
+      relayUrl: 'https://relay.invalid',
+    });
+
+    expect(observedHeaders?.get('x-safeword-relay-api-version')).toBe('1');
+  });
+
+  it('attempts the earliest retry deadline before lexical UUID order', async () => {
+    const project = temporaryProject();
+    const requests = [
+      request({
+        createdAt: '2026-07-30T00:00:00.000Z',
+        requestId: '00000000-0000-4000-8000-000000000001',
+        retryDeadlineAt: '2099-01-03T00:00:00.000Z',
+        sourceKey: 'deadline-latest',
+      }),
+      request({
+        createdAt: '2026-07-30T00:00:00.000Z',
+        requestId: '00000000-0000-4000-8000-000000000002',
+        retryDeadlineAt: '2099-01-02T00:00:00.000Z',
+        sourceKey: 'deadline-middle',
+      }),
+      request({
+        createdAt: '2026-07-30T00:00:00.000Z',
+        requestId: '00000000-0000-4000-8000-000000000003',
+        retryDeadlineAt: '2099-01-01T00:00:00.000Z',
+        sourceKey: 'deadline-earliest',
+      }),
+    ];
+    for (const candidate of requests) await persistRelayRequest(project, candidate);
+    const attempted: string[] = [];
+
+    await deliverRelayRequests(project, {
+      credential: 'swc_client_secret',
+      deadlineMs: 25,
+      fetch: (_input, init) => {
+        const submitted = JSON.parse(
+          Buffer.from(init?.body as Uint8Array).toString('utf8'),
+        ) as RelayDraftRequest;
+        attempted.push(submitted.requestId);
+        return Promise.resolve(
+          Response.json(
+            {
+              receiptId: `receipt-${submitted.requestId}`,
+              requestId: submitted.requestId,
+              state: 'accepted',
+            },
+            { status: 202 },
+          ),
+        );
+      },
+      now: Date.now,
+      overallDeadlineMs: 1000,
+      relayUrl: 'https://relay.invalid',
+    });
+
+    expect(attempted).toEqual([
+      '00000000-0000-4000-8000-000000000003',
+      '00000000-0000-4000-8000-000000000002',
+      '00000000-0000-4000-8000-000000000001',
+    ]);
+  });
+
   it('returns before one second and never invokes native fallback after a lost response', async () => {
     const project = temporaryProject();
     const original = request();

@@ -364,6 +364,52 @@ describe('retry-safe retro relay', () => {
     await expect(response.json()).resolves.toEqual({ status: 'unavailable' });
   });
 
+  it('freezes the v1 receipt vocabulary and rejects unsupported API versions before filing', async () => {
+    const setup = await fixture();
+
+    const response = await fetch(`${setup.relay.url}/v1/retro-filings`, {
+      body: JSON.stringify(draft({ requestId: 'unsupported-relay-version' })),
+      headers: {
+        authorization: `Bearer ${setup.credentials.claude}`,
+        'content-type': 'application/json',
+        'x-safeword-relay-api-version': '2',
+      },
+      method: 'POST',
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: 'unsupported relay API version',
+      supportedVersion: '1',
+    });
+    expect(setup.createBodies).toHaveLength(0);
+    expect(setup.store.operations().counts).toMatchObject({
+      accepted: 0,
+      ambiguous: 0,
+      'dead-letter': 0,
+      filed: 0,
+      rejected: 0,
+      retryable: 0,
+    });
+  });
+
+  it('treats a headerless submit as legacy v1 and identifies the response version', async () => {
+    const setup = await fixture();
+
+    const response = await fetch(`${setup.relay.url}/v1/retro-filings`, {
+      body: JSON.stringify(draft({ requestId: 'legacy-v1-submit' })),
+      headers: {
+        authorization: `Bearer ${setup.credentials.claude}`,
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    });
+
+    expect(response.status).toBe(201);
+    expect(response.headers.get('x-safeword-relay-api-version')).toBe('1');
+    await expect(response.json()).resolves.toMatchObject({ state: 'filed' });
+  });
+
   it('uses one request identity across Claude, Codex, and Cursor', async () => {
     const setup = await fixture();
     const adapters = createHarnessAdapters(setup.relay.url, setup.credentials);
