@@ -43,9 +43,9 @@ import {
   recoverRelayDeadLetter,
   RELAY_OVERALL_HEADROOM_MS,
   type RelayDraftRequest,
+  type RelayReportedTerminalReceipt,
   relaySourceKey,
   RelaySpoolCorruptionError,
-  type RelayTerminalReceipt,
 } from '../retro/relay-delivery.js';
 import {
   CHECKED_IN_RELAY_READINESS,
@@ -144,7 +144,7 @@ export interface RetroOutcome {
     deadLetterBacklog: number;
     deadLetteredThisRun: number;
     retryable: number;
-    serverTerminalReceipts?: RelayTerminalReceipt[];
+    serverReportedTerminalReceipts?: RelayReportedTerminalReceipt[];
     spoolFailed?: number;
   };
 }
@@ -869,7 +869,7 @@ function reportServerTerminalReceipts(
   relay: NonNullable<RetroOutcome['relay']>,
   info: RetroCommandOutput['info'],
 ): void {
-  const terminalReceipts = relay.serverTerminalReceipts ?? [];
+  const terminalReceipts = relay.serverReportedTerminalReceipts ?? [];
   for (const receipt of terminalReceipts) {
     const identity = `request ${receipt.requestId} (receipt ${receipt.receiptId})`;
     if (receipt.state === 'dead-letter') {

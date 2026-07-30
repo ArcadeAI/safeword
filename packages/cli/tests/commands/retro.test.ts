@@ -1367,7 +1367,7 @@ describe('retro summary drop reporting (PNZM3B SM2.R1)', () => {
           deadLetterBacklog: 0,
           deadLetteredThisRun: 0,
           retryable: 0,
-          serverTerminalReceipts: [
+          serverReportedTerminalReceipts: [
             {
               receiptId: 'receipt-dead-letter',
               requestId: '00000000-0000-4000-8000-000000001522',
@@ -1399,7 +1399,7 @@ describe('retro summary drop reporting (PNZM3B SM2.R1)', () => {
           deadLetterBacklog: 0,
           deadLetteredThisRun: 0,
           retryable: 0,
-          serverTerminalReceipts: [
+          serverReportedTerminalReceipts: [
             {
               receiptId: 'receipt-rejected',
               requestId: '00000000-0000-4000-8000-000000001523',

@@ -1512,7 +1512,7 @@ describe('immutable relay delivery spool', () => {
       accepted: 1,
       retryable: 0,
       ...(['dead-letter', 'rejected', 'tombstone'].includes(state) && {
-        serverTerminalReceipts: [
+        serverReportedTerminalReceipts: [
           {
             receiptId: `receipt-${state}`,
             requestId: original.requestId,
@@ -1556,7 +1556,7 @@ describe('immutable relay delivery spool', () => {
 
       expect(outcome).toMatchObject({
         accepted: 1,
-        serverTerminalReceipts: [
+        serverReportedTerminalReceipts: [
           {
             ...(issueNumber !== undefined && { issueNumber }),
             receiptId: `receipt-${state}`,

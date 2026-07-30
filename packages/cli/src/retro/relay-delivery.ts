@@ -97,7 +97,7 @@ export interface RelayReceipt {
   state: string;
 }
 
-export type RelayTerminalReceipt = RelayReceipt & {
+export type RelayReportedTerminalReceipt = RelayReceipt & {
   state: 'dead-letter' | 'rejected' | 'tombstone';
 };
 
@@ -121,7 +121,7 @@ const ACKNOWLEDGEABLE_RELAY_RECEIPT_STATES = new Set([
   'rejected',
   'tombstone',
 ]);
-const REPORTED_TERMINAL_RELAY_RECEIPT_STATES = new Set<RelayTerminalReceipt['state']>([
+const REPORTED_TERMINAL_RELAY_RECEIPT_STATES = new Set<RelayReportedTerminalReceipt['state']>([
   'dead-letter',
   'rejected',
   'tombstone',
@@ -2248,8 +2248,12 @@ function compareRelayDeliveryPriority(left: DurableRelayFile, right: DurableRela
   );
 }
 
-function isTerminalRelayReceipt(receipt: RelayReceipt): receipt is RelayTerminalReceipt {
-  return REPORTED_TERMINAL_RELAY_RECEIPT_STATES.has(receipt.state as RelayTerminalReceipt['state']);
+function isReportedTerminalRelayReceipt(
+  receipt: RelayReceipt,
+): receipt is RelayReportedTerminalReceipt {
+  return REPORTED_TERMINAL_RELAY_RECEIPT_STATES.has(
+    receipt.state as RelayReportedTerminalReceipt['state'],
+  );
 }
 
 // eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- Claim, expiry, HTTP, and rearm are one filesystem state machine.
@@ -2269,7 +2273,7 @@ export async function deliverRelayRequests(
   deadLetterBacklog: number;
   deadLetteredThisRun: number;
   retryable: number;
-  serverTerminalReceipts?: RelayTerminalReceipt[];
+  serverReportedTerminalReceipts?: RelayReportedTerminalReceipt[];
 }> {
   const monotonicNow = options.monotonicNow ?? (() => performance.now());
   const overallDeadline =
@@ -2284,7 +2288,7 @@ export async function deliverRelayRequests(
   let accepted = 0;
   let deadLetterBacklog = initialDeadLetters.length;
   let deadLetteredThisRun = 0;
-  const serverTerminalReceipts: RelayTerminalReceipt[] = [];
+  const serverReportedTerminalReceipts: RelayReportedTerminalReceipt[] = [];
   for (const request of initial.toSorted(compareRelayDeliveryPriority)) {
     if (monotonicNow() >= overallDeadline) break;
     if (processed.has(request.requestId)) continue;
@@ -2340,7 +2344,7 @@ export async function deliverRelayRequests(
       assertAcknowledgeableRelayReceipt(body, claim.requestId);
       if (await acknowledgeRelayClaim(claim, body)) {
         accepted += 1;
-        if (isTerminalRelayReceipt(body)) serverTerminalReceipts.push(body);
+        if (isReportedTerminalRelayReceipt(body)) serverReportedTerminalReceipts.push(body);
       }
     } catch {
       await rearmClaim(projectDirectory, claim);
@@ -2357,6 +2361,6 @@ export async function deliverRelayRequests(
     deadLetterBacklog,
     deadLetteredThisRun,
     retryable: retryableRequests.length,
-    ...(serverTerminalReceipts.length > 0 && { serverTerminalReceipts }),
+    ...(serverReportedTerminalReceipts.length > 0 && { serverReportedTerminalReceipts }),
   };
 }
