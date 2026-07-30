@@ -405,3 +405,34 @@ Feature source: `features/operate-retry-safe-retro-relay.feature`
 - [x] RED 752c51a76
 - [x] GREEN 31f4ad0d8
 - [x] REFACTOR skip: `linkDurable` needs one EEXIST synchronization branch
+
+## 2026-07-29 sixth-round quality-review regressions
+
+### Scenario: Invalid configured outboxes never redirect recovery commands into the project
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Successful relay receipts acknowledge only known non-ambiguous durable states
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Equivalent absolute outbox spellings resolve to one physical directory
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An unreserved corrupt identity fails the persistence batch closed
+
+- [ ] CHARACTERIZATION
+- [ ] REFACTOR
+
+### Scenario: Relay readiness requires measured bounded drain throughput
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR

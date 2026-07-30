@@ -2110,4 +2110,39 @@ describe('relay dead-letter recovery command', () => {
       rmSync(durableOutbox, { recursive: true, force: true });
     }
   });
+
+  it.each([
+    ['retro-relay-retry'],
+    ['retro-relay-discard', '00000000-0000-4000-8000-000000001488', '--confirm'],
+  ])(
+    'fails %s visibly when a configured outbox is invalid instead of using the project',
+    (...commandArguments) => {
+      const projectDirectory = mkdtempSync(
+        nodePath.join(tmpdir(), 'retro-relay-invalid-recovery-outbox-'),
+      );
+
+      try {
+        const result = spawnSync(
+          process.execPath,
+          [nodePath.resolve(process.cwd(), 'dist', 'cli.js'), ...commandArguments],
+          {
+            encoding: 'utf8',
+            env: {
+              ...process.env,
+              CLAUDE_PROJECT_DIR: projectDirectory,
+              SAFEWORD_RETRO_RELAY_OUTBOX: 'relative/outbox',
+            },
+          },
+        );
+
+        expect(result.status).toBe(1);
+        expect(result.stderr).toContain(
+          'SAFEWORD_RETRO_RELAY_OUTBOX must be an existing absolute directory outside the project',
+        );
+        expect(() => readdirSync(nodePath.join(projectDirectory, '.safeword'))).toThrow();
+      } finally {
+        rmSync(projectDirectory, { recursive: true, force: true });
+      }
+    },
+  );
 });

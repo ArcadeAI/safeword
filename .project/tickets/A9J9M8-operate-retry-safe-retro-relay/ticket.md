@@ -159,3 +159,9 @@ last_modified: 2026-07-27T02:23:02.173Z
   than merely hashed, file and directory mutations are synced, GitHub outcome
   classification uses documented signals only, and `dist/main.js` receives a
   real-collaborator process test.
+- 2026-07-29 Sixth-round review follow-up used Figure It Out to choose a shared
+  absent/valid/invalid recovery-outbox result, runtime receipt-state validation,
+  physical path normalization, explicit fail-closed corruption coverage, and a
+  separate hash-attested drain-throughput readiness artifact. These remain in
+  the existing verify phase and return to RED/GREEN/REFACTOR before the final
+  verification gates rerun.
