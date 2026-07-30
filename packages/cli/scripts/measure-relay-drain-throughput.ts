@@ -60,7 +60,7 @@ async function main(): Promise<void> {
         );
       },
       now: Date.now,
-      overallDeadlineMs: 900,
+      overallDeadlineMs: 650,
       relayUrl: 'https://relay.invalid',
     });
     const durationMs = performance.now() - started;
