@@ -126,8 +126,10 @@ filing/reconciliation rate limit. The single-principal
 Railway spike configuration is explicitly health-only. Relay routing is
 compiled fail-closed until parsed versioned metric evidence has a nonempty
 sample, immutable artifact hashes, and Git ancestry bind the evidence to the
-running build. #1474 and #1481 are
-complete prerequisites; their resulting measurements still gate activation.
+running build. Its drain-throughput evidence is a regression floor: at least
+300 queued requests, at least 80 ms relay latency, at least two acceptances in
+one bounded drain, and total drain duration below one second. #1474 and #1481
+are complete prerequisites; their resulting measurements still gate activation.
 Issue #834 remains active; #1495 gates readiness only if client credential
 helpers are reused.
 

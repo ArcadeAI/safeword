@@ -196,8 +196,11 @@ The implementation remains fail-closed in the published CLI. Issues 1474 and
 until their implementation commits are ancestors of fresh measurement
 evidence, each versioned metric-specific artifact has a nonempty sample and
 matches its recorded hash, and that evidence is an ancestor of the running
-build. Semantic marker
-adoption and cross-request aliasing are deliberately deferred until that gate
-is satisfied. Issue #834 is not superseded. Issue #1495 is also closed, but it
-would become a readiness dependency only if a later change reused its client
-credential helpers; this slice does not.
+build. The required drain-throughput artifact is a regression floor, not a
+catch-up guarantee: it must exercise at least 300 queued requests with at least
+80 ms relay latency, accept at least two requests in one bounded drain, and
+finish that drain in less than one second. Semantic marker adoption and
+cross-request aliasing are deliberately deferred until that gate is satisfied.
+Issue #834 is not superseded. Issue #1495 is also closed, but it would become a
+readiness dependency only if a later change reused its client credential
+helpers; this slice does not.
