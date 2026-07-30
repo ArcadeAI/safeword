@@ -121,6 +121,11 @@ const ACKNOWLEDGEABLE_RELAY_RECEIPT_STATES = new Set([
   'rejected',
   'tombstone',
 ]);
+const REPORTED_TERMINAL_RELAY_RECEIPT_STATES = new Set<RelayTerminalReceipt['state']>([
+  'dead-letter',
+  'rejected',
+  'tombstone',
+]);
 
 type RelaySourceReservation =
   | {
@@ -2240,7 +2245,7 @@ function compareRelayDeliveryPriority(left: DurableRelayFile, right: DurableRela
 }
 
 function isTerminalRelayReceipt(receipt: RelayReceipt): receipt is RelayTerminalReceipt {
-  return ['dead-letter', 'rejected', 'tombstone'].includes(receipt.state);
+  return REPORTED_TERMINAL_RELAY_RECEIPT_STATES.has(receipt.state as RelayTerminalReceipt['state']);
 }
 
 // eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- Claim, expiry, HTTP, and rearm are one filesystem state machine.
