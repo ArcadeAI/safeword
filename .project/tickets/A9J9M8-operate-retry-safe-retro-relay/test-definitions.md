@@ -410,29 +410,29 @@ Feature source: `features/operate-retry-safe-retro-relay.feature`
 
 ### Scenario: Invalid configured outboxes never redirect recovery commands into the project
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 9741606db
+- [x] GREEN 1b660c278
+- [x] REFACTOR 993b4917f
 
 ### Scenario: Successful relay receipts acknowledge only known non-ambiguous durable states
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 940fae6ab, 9a36cb442
+- [x] GREEN a83f52882
+- [x] REFACTOR a83f52882
 
 ### Scenario: Equivalent absolute outbox spellings resolve to one physical directory
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 6f92318ef
+- [x] GREEN e8a348623
+- [x] REFACTOR skip: normalization now precedes the existing physical-containment check
 
 ### Scenario: An unreserved corrupt identity fails the persistence batch closed
 
-- [ ] CHARACTERIZATION
-- [ ] REFACTOR
+- [x] CHARACTERIZATION b0c60867e
+- [x] REFACTOR skip: the coordinated snapshot already owns the batch-wide fail-closed boundary
 
 ### Scenario: Relay readiness requires measured bounded drain throughput
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 24dc50714
+- [x] GREEN c32143ff6
+- [x] REFACTOR 59b20ee9c, dc5f0dd01, 617eced4d

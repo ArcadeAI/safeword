@@ -165,3 +165,13 @@ last_modified: 2026-07-27T02:23:02.173Z
   separate hash-attested drain-throughput readiness artifact. These remain in
   the existing verify phase and return to RED/GREEN/REFACTOR before the final
   verification gates rerun.
+- 2026-07-29 The sixth-round items completed RED/GREEN/REFACTOR. Recovery
+  commands now reject invalid configured outboxes instead of falling into the
+  project; 2xx receipts transfer local ownership only for known non-ambiguous
+  states and report server-side dead letters separately; equivalent absolute
+  outbox spellings normalize before physical containment; unreserved
+  corruption has an explicit batch-wide fail-closed characterization; and
+  readiness now requires hash-attested bounded-drain evidence. An isolated
+  refactor scout then removed ambiguous readiness-test construction, duplicate
+  measurement-key authority, repeated exact-key validation, and duplicate CLI
+  outbox guards.
