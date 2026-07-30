@@ -235,3 +235,76 @@ it “durably owned” and label the client dead-letter count as local.
   and 422 validation-or-spam ambiguity, so status alone cannot authorize local
   deletion.
 
+## Post-GREEN Decision 8: Syntactically valid corrupt durable records
+
+- [x] Phase 1: Decide whether JSON syntax alone is enough to order a durable
+      relay record.
+- [x] Phase 2: Options:
+  1. Let malformed fields flow into ordering and delivery.
+  2. Validate only inside the ordering helper.
+  3. Make the shared durable-request parser require the full request shape and
+     finite timestamps.
+- [x] Phase 3a: Domains: durable corruption recovery, deadline ordering,
+      request-identity retention, and all parser callers.
+- [x] Phase 3b: Every caller treats `undefined` as corrupt or non-authoritative.
+      No caller can safely use a partial request. JSON such as `{}` currently
+      survives parsing, produces invalid sort keys, and is rearmed instead of
+      visibly dead-lettered.
+- [x] Phase 4: Ordering-only validation would leave other parser callers with a
+      weaker definition of a durable request. Shared shape validation makes
+      corruption handling consistent without changing valid bytes.
+
+> Recommend **shape- and timestamp-validating `parseDurableRequest`** because a
+> syntactically valid object is not a usable durable request.
+>
+> **Premortem:** stricter validation could quarantine a historically accepted
+> malformed record; such a record cannot safely preserve identity, deadline,
+> or payload semantics and must remain visible for operator recovery.
+>
+> **Next:** keep the failing mixed-backlog regression and make the shared parser
+> return `undefined` for partial or invalid-date records.
+
+## Post-GREEN Decision 9: Measurement timing margin
+
+- [x] Phase 1: Decide whether the producer's 900 ms drain budget leaves enough
+      margin for its required sub-second artifact on loaded CI.
+- [x] Phase 2: Options:
+  1. Keep a 900 ms budget and rely on roughly 100 ms of cleanup margin.
+  2. Raise the one-second validator ceiling.
+  3. Lower only the producer's injected drain budget while preserving the
+     production 750 ms contract and `acceptedCount >= 2`.
+- [x] Phase 3a: Domains: deterministic CI evidence, real filesystem cleanup,
+      injected 80 ms latency, and production deadline independence.
+- [x] Phase 3b: The producer is regression evidence, not a capacity claim. A
+      650 ms producer budget still permits several 80 ms acknowledgements and
+      leaves roughly 350 ms for the post-drain rescan and artifact write.
+- [x] Phase 4: Raising the validator weakens the stated readiness threshold.
+      Keeping 900 ms makes loaded-CI scheduling part of the measured result.
+
+> Recommend **a 650 ms producer-only drain budget** because it preserves the
+> metric contract while materially reducing timing flake.
+>
+> **Premortem:** very slow filesystems may still exceed one second; the command
+> will fail visibly rather than publish invalid readiness evidence.
+>
+> **Next:** lower the producer budget under the existing subprocess
+> characterization and keep the production deadline unchanged.
+
+## Refactor ledger
+
+- [x] Keep client API-version constants private (`b4c32ac35`).
+- [x] Reuse the server API-version header constant (`fcb8cddd9`).
+- [x] Name the reported terminal-state set (`db01919b9`).
+- [x] Deduplicate the persistence fallback message (`b53813d89`).
+- [x] Name the measurement timing policy (`35e16743d`).
+- [x] Extract measurement draft, collaborator, and artifact construction one
+      change at a time (`464e83a65`, `3aa0d8eec`, `4ee34fe8a`).
+- [x] Remove the introduced accepted-response test clone (`e8f975d72`).
+- [x] Characterize recovery protocol headers before sharing submission headers
+      (`32837a008`, `4f4f20056`).
+- [x] Rename the non-filed terminal reporting abstraction so it cannot be
+      confused with every server terminal state (`812aabff4`).
+- [x] Parse each delivery priority once (`a80b86a31`).
+- [x] Defer a cross-package protocol-contract module: creating a new dependency
+      boundary between the published CLI and private relay is architectural
+      work, not a small behavior-preserving refactor.

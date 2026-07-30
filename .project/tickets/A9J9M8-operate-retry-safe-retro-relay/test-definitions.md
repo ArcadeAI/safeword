@@ -445,40 +445,46 @@ Feature source: `features/operate-retry-safe-retro-relay.feature`
 
 - [x] RED 6f980a323
 - [x] GREEN 79a5906bd
-- [ ] REFACTOR
+- [x] REFACTOR a80b86a31
 
 ### Scenario: The bounded drain attempts the earliest retry deadline first
 
 - [x] RED 6f980a323
 - [x] GREEN 79a5906bd
-- [ ] REFACTOR
+- [x] REFACTOR a80b86a31
 
 ### Scenario: Partial scalar configuration reports scalar failure before outbox failure
 
 - [x] RED 6f980a323
 - [x] GREEN 79a5906bd
-- [ ] REFACTOR
+- [x] REFACTOR a80b86a31
 
 ### Scenario: Corrupt identity failure names the request and destructive recovery command
 
 - [x] RED 6f980a323
 - [x] GREEN 79a5906bd
-- [ ] REFACTOR
+- [x] REFACTOR a80b86a31
 
 ### Scenario: A real durable-spool command produces drain-throughput evidence
 
 - [x] RED 6f980a323
 - [x] GREEN 79a5906bd
-- [ ] REFACTOR
+- [x] REFACTOR a80b86a31
 
 ### Scenario: Relay API v1 freezes receipt ownership states for old clients
 
 - [x] RED 6f980a323
 - [x] GREEN 79a5906bd
-- [ ] REFACTOR
+- [x] REFACTOR a80b86a31
 
 ### Scenario: Renewal rollback requires a typed payload rejection
 
 - [x] RED 6f980a323
 - [x] GREEN 79a5906bd
-- [ ] REFACTOR
+- [x] REFACTOR a80b86a31
+
+### Scenario: Syntactically valid corrupt relay JSON is visibly isolated
+
+- [x] RED 5ed5e5fb8
+- [x] GREEN 73351a6ca
+- [x] REFACTOR a80b86a31
