@@ -568,6 +568,21 @@ export function resolveRelayOutboxDirectory(
   return isOutsideProject(physicalProject, physicalOutbox) ? physicalOutbox : undefined;
 }
 
+const INVALID_RELAY_OUTBOX_ERROR =
+  'retro relay configuration is invalid; SAFEWORD_RETRO_RELAY_OUTBOX must be an existing absolute directory outside the project';
+
+export function resolveRelayRecoveryOutboxDirectory(
+  projectDirectory: string,
+  configuredDirectory: string | undefined,
+): { directory: string } | { error: string } {
+  const configured = configuredDirectory?.trim();
+  if (configured === undefined || configured.length === 0) {
+    return { directory: projectDirectory };
+  }
+  const directory = resolveRelayOutboxDirectory(projectDirectory, configured);
+  return directory === undefined ? { error: INVALID_RELAY_OUTBOX_ERROR } : { directory };
+}
+
 type RelayConfig = Omit<RelayRoute, 'readiness'>;
 
 function relayConfigAbsent(...values: (string | undefined)[]): boolean {
@@ -628,10 +643,7 @@ export function resolveRelayConfig(
   }
   const spoolDirectory = resolveRelayOutboxDirectory(projectDirectory, configuredSpoolDirectory);
   if (spoolDirectory === undefined) {
-    return {
-      error:
-        'retro relay configuration is invalid; SAFEWORD_RETRO_RELAY_OUTBOX must be an existing absolute directory outside the project',
-    };
+    return { error: INVALID_RELAY_OUTBOX_ERROR };
   }
   const scalars = resolveRelayScalars({ credential, installation, relayUrl, repo });
   if (scalars === undefined) {
