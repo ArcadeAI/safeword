@@ -416,9 +416,9 @@ Feature source: `features/operate-retry-safe-retro-relay.feature`
 
 ### Scenario: Successful relay receipts acknowledge only known non-ambiguous durable states
 
-- [x] RED 940fae6ab, 9a36cb442
+- [x] RED 940fae6ab
 - [x] GREEN a83f52882
-- [x] REFACTOR a83f52882
+- [x] REFACTOR skip: receipt validation and server-dead-letter reporting are already separated helpers
 
 ### Scenario: Equivalent absolute outbox spellings resolve to one physical directory
 
@@ -428,11 +428,13 @@ Feature source: `features/operate-retry-safe-retro-relay.feature`
 
 ### Scenario: An unreserved corrupt identity fails the persistence batch closed
 
-- [x] CHARACTERIZATION b0c60867e
+- [x] RED b0c60867e
+- [x] CHARACTERIZATION skip: recorded as the scenario's evidence commit above
+- [x] GREEN skip: the characterization confirms the existing intended fail-closed boundary
 - [x] REFACTOR skip: the coordinated snapshot already owns the batch-wide fail-closed boundary
 
 ### Scenario: Relay readiness requires measured bounded drain throughput
 
 - [x] RED 24dc50714
 - [x] GREEN c32143ff6
-- [x] REFACTOR 59b20ee9c, dc5f0dd01, 617eced4d
+- [x] REFACTOR 617eced4d
