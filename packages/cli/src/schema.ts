@@ -238,7 +238,11 @@ const CODEX_RUNTIME_ASSET_FILENAMES = [
 const CODEX_RUNTIME_ASSETS: Record<string, ManagedFileDefinition> = Object.fromEntries(
   CODEX_RUNTIME_ASSET_FILENAMES.map(file => [
     `.safeword/hooks/codex/${file}`,
-    { template: `hooks/codex/${file}`, generator: skipCodexRuntimeAssetInstall },
+    {
+      dogfoodParity: true,
+      template: `hooks/codex/${file}`,
+      generator: skipCodexRuntimeAssetInstall,
+    },
   ]),
 );
 

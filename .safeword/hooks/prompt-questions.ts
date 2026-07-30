@@ -159,7 +159,10 @@ if (existsSync(stateFile)) {
     // One-shot reminder: verify novel research claims before building on them.
     // Atomic move pending → acknowledged so the setter's dedup still works
     // after the nudge has been shown (ticket 4N5Y28).
-    const pending = state.learningsNudgesPending ?? [];
+    const rawPending: unknown[] = Array.isArray(state.learningsNudgesPending)
+      ? state.learningsNudgesPending
+      : [];
+    const pending = rawPending.filter((value): value is string => typeof value === 'string');
     if (pending.length > 0) {
       const files = pending.map(f => f.split('/').pop() ?? f).join(', ');
       lines.push(

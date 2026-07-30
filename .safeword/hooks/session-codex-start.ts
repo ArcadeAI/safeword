@@ -16,7 +16,7 @@ import {
 
 const hookInput = await readHookInput();
 const projectDir = resolveProjectDir(hookInput);
-let outcome: AutoUpgradeOutcome = { kind: 'skipped', reason: 'not checked' };
+let outcome: AutoUpgradeOutcome;
 
 try {
   outcome = await runAutoUpgrade({ projectDir, filterSafewordFiles });

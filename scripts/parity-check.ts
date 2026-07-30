@@ -53,7 +53,6 @@ if (arguments_.includes('--fix')) {
   process.exit(report.exitCode);
 }
 
-const pairCount = Object.values(SAFEWORD_SCHEMA.ownedFiles).filter(d => d.template).length;
 const contractCount = Object.keys(SAFEWORD_SCHEMA.contracts).length;
 
 const result = runParity({
@@ -65,6 +64,9 @@ const result = runParity({
 
 if (result.failures.length === 0) {
   if (mode === 'all') {
+    // runParity counts only successful pairs and contracts; the other scans
+    // produce failures but never contribute successful items to this total.
+    const pairCount = result.passedCount - contractCount;
     console.log(
       `All ${pairCount} pairs and ${contractCount} contracts in sync; no unregistered templates; cursor rules are thin @reference pointers.`,
     );

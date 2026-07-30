@@ -411,8 +411,10 @@ function checkUsageLimit(transcriptLines: string[]): void {
 function detectEditToolsUsed(transcriptLines: string[]): boolean {
   let checked = 0;
   for (let i = transcriptLines.length - 1; i >= 0 && checked < MAX_MESSAGES_FOR_TOOLS; i--) {
+    const transcriptLine = transcriptLines[i];
+    if (transcriptLine === undefined) continue;
     try {
-      const message: TranscriptMessage = JSON.parse(transcriptLines[i]);
+      const message: TranscriptMessage = JSON.parse(transcriptLine);
       if (message.type === 'assistant' && message.message?.content !== undefined) {
         checked++;
         if (containsEditToolUse(normalizeContentItems(message.message.content))) return true;
@@ -433,8 +435,10 @@ function detectEditToolsUsed(transcriptLines: string[]): boolean {
 function detectEditToolsUsedInCurrentUserTurn(transcriptLines: string[]): boolean | undefined {
   let checked = 0;
   for (let i = transcriptLines.length - 1; i >= 0 && checked < MAX_MESSAGES_FOR_TOOLS; i--) {
+    const transcriptLine = transcriptLines[i];
+    if (transcriptLine === undefined) continue;
     try {
-      const message: TranscriptMessage = JSON.parse(transcriptLines[i]);
+      const message: TranscriptMessage = JSON.parse(transcriptLine);
       if (isGenuineUserPrompt(message)) {
         return false;
       }
@@ -765,7 +769,7 @@ const phaseFailurePatterns: Record<string, string> = {
   implement: 'loc-exceeded',
   done: 'done-gate-tests-failed',
 };
-const relevantPattern = phaseFailurePatterns[currentPhase];
+const relevantPattern = currentPhase ? (phaseFailurePatterns[currentPhase] ?? null) : null;
 const recentRelevant = relevantPattern
   ? (sessionState?.recentFailures ?? []).find((f: FailureEntry) => f.pattern === relevantPattern)
       ?.pattern

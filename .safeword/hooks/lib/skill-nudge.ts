@@ -125,7 +125,7 @@ export function entrySkillFor(
  * description (the caller then uses the fallback nudge line).
  */
 export function parseSkillDescription(skillMd: string): string | null {
-  const frontmatter = skillMd.match(/^﻿?---\r?\n([\s\S]*?)\r?\n---/);
+  const frontmatter = skillMd.match(/^\uFEFF?---\r?\n([\s\S]*?)\r?\n---/);
   if (!frontmatter) return null;
   const lines = (frontmatter[1] ?? '').split(/\r?\n/);
 

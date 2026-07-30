@@ -38,11 +38,14 @@ const RECENT_TURNS = 10;
 export function parseLogLine(line: string): Entry | null {
   const match = LINE_REGEX.exec(line.trim());
   if (!match) return null;
+  const [, timestamp, sessionId, ticket, nextImperative] = match;
+  // Keep this fail-closed even if a later regex edit makes a capture optional.
+  if (!timestamp || !sessionId || !ticket || !nextImperative) return null;
   return {
-    timestamp: match[1],
-    sessionId: match[2],
-    ticket: match[3],
-    nextImperative: match[4],
+    timestamp,
+    sessionId,
+    ticket,
+    nextImperative,
   };
 }
 
