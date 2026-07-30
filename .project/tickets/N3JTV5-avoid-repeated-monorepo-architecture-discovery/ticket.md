@@ -5,7 +5,7 @@ type: task
 phase: verify
 status: in_progress
 created: 2026-07-30T00:00:10.960Z
-last_modified: 2026-07-30T00:56:55.000Z
+last_modified: 2026-07-30T16:32:18.000Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/1667
 ---
 
@@ -63,3 +63,8 @@ changing generated architecture bytes, or changing released fingerprint recipes.
 - 2026-07-30T00:56:55.000Z Verified: 5,631 tests and 499 executable acceptance
   scenarios pass; build, lint, typecheck, dependency, and audit gates are green.
   Ticket remains in progress pending user confirmation.
+- 2026-07-30T16:32:18.000Z Resolved: latest PR review comments now enforce
+  precomputed skeletons at the type boundary and remove the complete test-only
+  monorepo compatibility chain from production. A fresh independent review
+  approved both fixes; 191 focused architecture tests and the full verification
+  and audit gates remain green.
