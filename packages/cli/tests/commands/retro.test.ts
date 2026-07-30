@@ -1319,6 +1319,30 @@ describe('retro summary drop reporting (PNZM3B SM2.R1)', () => {
     expect(lines.join('\n')).not.toContain('agent filing path');
   });
 
+  it('reports server-side dead letters as relay operator work without retaining local ownership', () => {
+    const { lines, output } = collect();
+    reportRetroCommandOutcome(
+      {
+        agentFilingNeeded: false,
+        ok: true,
+        relay: {
+          accepted: 1,
+          deadLetterBacklog: 0,
+          deadLetteredThisRun: 0,
+          retryable: 0,
+          serverDeadLetteredThisRun: 1,
+        },
+      },
+      reportOptions(output),
+    );
+
+    expect(lines.join('\n')).toContain(
+      '1 request(s) are durably server-side dead-lettered; relay operator recovery is required',
+    );
+    expect(lines.join('\n')).not.toContain('retro-relay-retry <request-id>');
+    expect(lines.join('\n')).not.toContain('agent filing path');
+  });
+
   it('renders the durable relay summary and spool recovery hint before a terminal failure', () => {
     const { lines, output } = collect();
     const previousExitCode = process.exitCode;

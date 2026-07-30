@@ -142,6 +142,7 @@ export interface RetroOutcome {
     deadLetterBacklog: number;
     deadLetteredThisRun: number;
     retryable: number;
+    serverDeadLetteredThisRun?: number;
     spoolFailed?: number;
   };
 }
@@ -835,12 +836,24 @@ function reportRelayOutcome(
       'retro relay: inspect with `safeword retro-relay-retry`; rearm with `safeword retro-relay-retry <request-id>`.',
     );
   }
+  reportServerDeadLetters(relay, info);
   if ((relay.spoolFailed ?? 0) > 0) {
     info(
       'retro relay: some source identities could not be persisted; inspect the local relay spool.',
     );
   }
   if (complete) success('retro complete');
+}
+
+function reportServerDeadLetters(
+  relay: NonNullable<RetroOutcome['relay']>,
+  info: RetroCommandOutput['info'],
+): void {
+  if ((relay.serverDeadLetteredThisRun ?? 0) > 0) {
+    info(
+      `retro relay: ${relay.serverDeadLetteredThisRun} request(s) are durably server-side dead-lettered; relay operator recovery is required.`,
+    );
+  }
 }
 
 async function listRelaySpoolCommand(

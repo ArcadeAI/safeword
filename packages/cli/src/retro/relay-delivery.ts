@@ -95,6 +95,17 @@ export interface RelayReceipt {
   state: string;
 }
 
+const ACKNOWLEDGEABLE_RELAY_RECEIPT_STATES = new Set([
+  'accepted',
+  'claimed',
+  'dispatching',
+  'filed',
+  'retryable',
+  'dead-letter',
+  'rejected',
+  'tombstone',
+]);
+
 type RelaySourceReservation =
   | {
       request: RelayDraftRequest;
@@ -2015,6 +2026,13 @@ function assertValidRelayReceipt(receipt: RelayReceipt, requestId: string): void
   }
 }
 
+function assertAcknowledgeableRelayReceipt(receipt: RelayReceipt, requestId: string): void {
+  assertValidRelayReceipt(receipt, requestId);
+  if (!ACKNOWLEDGEABLE_RELAY_RECEIPT_STATES.has(receipt.state)) {
+    throw new Error('relay returned an unrecognized durable ownership state');
+  }
+}
+
 async function relayResponseBody(response: Response): Promise<Record<string, unknown> | undefined> {
   try {
     const body = await response.json();
@@ -2177,6 +2195,7 @@ export async function deliverRelayRequests(
   deadLetterBacklog: number;
   deadLetteredThisRun: number;
   retryable: number;
+  serverDeadLetteredThisRun?: number;
 }> {
   const monotonicNow = options.monotonicNow ?? (() => performance.now());
   const overallDeadline =
@@ -2191,6 +2210,7 @@ export async function deliverRelayRequests(
   let accepted = 0;
   let deadLetterBacklog = initialDeadLetters.length;
   let deadLetteredThisRun = 0;
+  let serverDeadLetteredThisRun = 0;
   for (const request of initial) {
     if (monotonicNow() >= overallDeadline) break;
     if (processed.has(request.requestId)) continue;
@@ -2248,10 +2268,11 @@ export async function deliverRelayRequests(
         throw new Error('relay returned a retryable response');
       }
       const body = (await response.json()) as RelayReceipt;
-      if (body.requestId !== claim.requestId || typeof body.receiptId !== 'string') {
-        throw new Error('relay returned an invalid durable receipt');
+      assertAcknowledgeableRelayReceipt(body, claim.requestId);
+      if (await acknowledgeRelayClaim(claim, body)) {
+        accepted += 1;
+        if (body.state === 'dead-letter') serverDeadLetteredThisRun += 1;
       }
-      if (await acknowledgeRelayClaim(claim, body)) accepted += 1;
     } catch {
       await rearmClaim(projectDirectory, claim);
     } finally {
@@ -2267,5 +2288,6 @@ export async function deliverRelayRequests(
     deadLetterBacklog,
     deadLetteredThisRun,
     retryable: retryableRequests.length,
+    ...(serverDeadLetteredThisRun > 0 && { serverDeadLetteredThisRun }),
   };
 }
