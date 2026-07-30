@@ -19,6 +19,12 @@ spy only on Node's filesystem process boundary.
 - [x] GREEN
 - [x] REFACTOR
 
+### Scenario: A readable zero-leaf workspace manager is probed once
+
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
+
 ## Rule: One leaf skeleton extraction per architecture operation
 
 ### Scenario: A source header used for purpose seeding is read once

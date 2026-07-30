@@ -159,8 +159,12 @@ function skeletonTarget(
 }
 
 /** The single-repo doc: the project's `src/` skeleton at the namespace-root path. */
-function singleRepoTarget(projectDirectory: string): HealTarget {
-  return skeletonTarget(projectDirectory, resolveGeneratedArchitecturePath(projectDirectory));
+function singleRepoTarget(projectDirectory: string, workspaceRoot = false): HealTarget {
+  return skeletonTarget(
+    projectDirectory,
+    resolveGeneratedArchitecturePath(projectDirectory),
+    extractSkeleton(projectDirectory, { workspaceRoot }),
+  );
 }
 
 /** A colocated leaf: the package's own skeleton at `packages/<pkg>/architecture.generated.md`. */
@@ -190,13 +194,13 @@ function rootIndexTarget(projectDirectory: string, model: MonorepoModel): HealTa
 
 /** The targets a project heals: single-repo → one; monorepo → root index + per-leaf. */
 function projectTargets(projectDirectory: string): HealTarget[] {
-  const { model, leaves } = extractMonorepoArchitectureSnapshot(projectDirectory);
+  const { model, leaves, workspaceRoot } = extractMonorepoArchitectureSnapshot(projectDirectory);
   // A repo whose ONLY workspace signal is an unparseable manager (zero discovered leaves)
   // is still a monorepo we must not mistake for a single-repo: render the root index so the
   // "config unreadable" advisory has a home, rather than silently emitting a single-repo doc
   // that omits the whole declared-but-unreadable workspace (UWP4XK).
   if (model.packages.length === 0 && model.unreadableWorkspaces.length === 0) {
-    return [singleRepoTarget(projectDirectory)];
+    return [singleRepoTarget(projectDirectory, workspaceRoot)];
   }
   return [
     rootIndexTarget(projectDirectory, model),

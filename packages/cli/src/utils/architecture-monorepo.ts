@@ -113,6 +113,8 @@ export interface MonorepoLeafSnapshot {
 export interface MonorepoArchitectureSnapshot {
   model: MonorepoModel;
   leaves: MonorepoLeafSnapshot[];
+  /** Discovery observed workspace member patterns, even if they resolve to zero leaves. */
+  workspaceRoot: boolean;
 }
 
 /**
@@ -368,6 +370,7 @@ export function extractMonorepoArchitectureSnapshot(
   return {
     model: { packages, edges, unreadableWorkspaces },
     leaves,
+    workspaceRoot: patterns.length > 0 || unreadableWorkspaces.length > 0,
   };
 }
 

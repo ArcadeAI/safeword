@@ -51,7 +51,12 @@ function readCount(path: string): number {
   return vi.mocked(readFileSync).mock.calls.filter(([candidate]) => candidate === path).length;
 }
 
+function existsCount(path: string): number {
+  return vi.mocked(existsSync).mock.calls.filter(([candidate]) => candidate === path).length;
+}
+
 beforeEach(() => {
+  vi.mocked(existsSync).mockClear();
   vi.mocked(readFileSync).mockClear();
   context.directory = createTemporaryDirectory();
 });
@@ -218,5 +223,20 @@ describe('selfHealProject — unreadable workspace discovery', () => {
     expect(readFileSync(resolveGeneratedArchitecturePath(context.directory), 'utf8')).toContain(
       '## Coverage gaps',
     );
+  });
+});
+
+describe('selfHealProject — readable zero-leaf workspace discovery', () => {
+  it('probes a readable zero-leaf workspace manager once and preserves the noop target', () => {
+    const goWorkPath = nodePath.join(context.directory, 'go.work');
+    writeFileSync(goWorkPath, 'go 1.22\n\nuse ./missing\n');
+
+    const results = selfHealProject(context.directory);
+
+    expect(existsCount(goWorkPath)).toBe(1);
+    expect(results).toEqual([
+      { action: 'noop', path: resolveGeneratedArchitecturePath(context.directory) },
+    ]);
+    expect(existsSync(resolveGeneratedArchitecturePath(context.directory))).toBe(false);
   });
 });

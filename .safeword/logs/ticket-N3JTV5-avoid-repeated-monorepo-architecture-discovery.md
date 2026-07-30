@@ -39,3 +39,14 @@
 - [17:44] Regression check: 190 architecture tests and `tsc --noEmit` pass.
   Existing tests pin the released fingerprint digest, root/leaf bytes, polyglot
   discovery, nested workspaces, zero-leaf behavior, and unreadable managers.
+- [17:46] Cross-scenario refactor recorded at `ed9aa3dc3`; the shared operation
+  snapshot and `shapeFingerprintOf` seam replace repeated per-scenario helpers.
+- [17:47] Invoked the required fresh-context quality review for this two-loop task.
+- [17:49] Quality review requested changes: readable zero-leaf workspaces fell
+  back to single-repo extraction, whose workspace-root guard probed the manager
+  a second time. Existing read-count tests missed the `existsSync` boundary.
+- [17:50] RED confirmed: a readable zero-leaf `go.work` was probed twice.
+- [17:52] GREEN: the snapshot now carries `workspaceRoot`; skeleton extraction
+  accepts that observed fact and skips its defensive re-probe. The test also
+  pins the prior `noop` result and absence of a generated document.
+- [17:54] Regression check: 191 architecture tests and `tsc --noEmit` pass.

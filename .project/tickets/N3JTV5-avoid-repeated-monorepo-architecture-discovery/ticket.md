@@ -54,3 +54,7 @@ changing generated architecture bytes, or changing released fingerprint recipes.
   precomputed leaf skeleton through introspection, fingerprinting, matching, and
   rendering; the seeded-source boundary read dropped from three to one and 190
   focused tests plus TypeScript pass.
+- 2026-07-30T00:50:00.000Z Fixed: independent review found readable zero-leaf
+  workspaces re-probed their manager during the single-repo fallback; the known
+  workspace-root fact now flows into skeleton extraction and the noop behavior
+  remains pinned.
