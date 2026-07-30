@@ -2,11 +2,11 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 5,845/5,845 tests pass (relay 165/165; CLI 5,680/5,680; 6 intentional skips)
-**Gherkin:** ✅ Full acceptance lane passes (626/629 scenarios; 3 intentional skips; 20,053/20,057 steps passed with 4 skipped)
+**Test Suite:** ✓ 5,891/5,891 tests pass (relay 165/165; CLI 5,726/5,726; 6 intentional skips)
+**Gherkin:** ✅ 616 aggregate scenarios passed with 3 intentional skips; 4 setup-only shared-lock timeouts passed 4/4 and 130/130 steps in clean isolation
 **Build:** ✅ Success, including the pinned production container on Node 24.18.1
 **Lint:** ✅ Clean (ESLint, Gherkin lint, and TypeScript)
-**Scenarios:** All 145 RED/GREEN/REFACTOR checks marked complete
+**Scenarios:** All 187 RED/GREEN/REFACTOR checks marked complete
 **PR Scope:** ✅ Diff matches ticket scope
 **Dep Drift:** ✅ Clean
 **Parent Epic:** N/A
@@ -15,20 +15,21 @@
 **Evidence limits:** ⚠️ Experiment-only Python import-linter/dead-code checks are unavailable locally. The optional Docker Vitest lane cannot detect Homebrew/OrbStack Docker, so its exact build, mounted-volume UID, non-root process, Node version, and `node:sqlite` checks were executed directly.
 
 Audit passed with warnings — 0 feature-blocking errors. Config sync, Knip,
-domain-doc reconciliation, and dependency-cruiser are clean across 710 modules
-and 2,356 dependencies. Configured documentation sources (`README.md` and
+domain-doc reconciliation, and dependency-cruiser are clean across 713 modules
+and 2,364 dependencies. Configured documentation sources (`README.md` and
 `packages/website/src/content/docs`) and the architecture narrative show no
-feature drift. The stable repository-minus-generated-trees scope reports 553
-clones (8.58%). `@openai/codex` has a low-risk dev-only minor update
+feature drift. The stable repository-minus-generated-trees scope reports 554
+clones (8.46%). `@openai/codex` has a low-risk dev-only minor update
 (0.145.0 → 0.146.0) deferred as unrelated scope; the production dependency
 audit reports no vulnerabilities.
 
 ## Evidence
 
 - The generated verification plan passed the complete relay and CLI test suites:
-  165 relay tests and 5,680 CLI tests, with six intentional skips.
-- The clean, isolated full acceptance lane passed 626 scenarios and 20,053
-  executed steps, with three scenarios/four steps intentionally skipped.
+  165 relay tests and 5,726 CLI tests, with six intentional skips.
+- The aggregate acceptance lane passed 616 scenarios with three intentional
+  skips. Its four setup-only shared-lock timeouts then passed 4/4 scenarios and
+  130/130 steps in clean isolation.
 - `bun run lint`, the full formatter, config sync, Knip, and dependency-cruiser passed.
 - The production image built from pinned Debian and official checksum-verified
   Node 24.18.1 artifacts. Its entrypoint repaired a mounted `/data` directory,
@@ -40,6 +41,37 @@ audit reports no vulnerabilities.
 - GitHub issue 834 remains open and is not superseded.
 - GitHub issue 1495 is not a readiness gate because this slice does not reuse its client credential helpers.
 - GitHub issues 1474 and 1481 are now closed on main. Checked-in relay readiness remains disabled because the required fresh post-fix measurement artifacts and evidence review have not landed.
+
+## 2026-07-29 fifth-round comment resolution
+
+- The only new PR feedback was `issuecomment-5123953571`; a final pre-push
+  sweep found no later conversation, review, or inline comments.
+- Invalid explicit relay configuration now fails visibly through the real
+  command before extraction or native filing. One coordinated persistence
+  snapshot indexes reserved states and discard intents, aggregate payload reads
+  stay capped at 64, and the 50-finding/500-backlog regression stays within its
+  latency budget.
+- Recovery removes only stale relay-owned atomic temporaries. Cleanup after a
+  durable target link is best-effort, cross-directory renames synchronize both
+  directory entries, filesystem root is rejected as an outbox, and a concurrent
+  hard-link loser synchronizes the winning directory entry before accepting it.
+- Real filesystem fault injection covers stale-intent cancellation, snapshot
+  failure settlement, temporary cleanup failure, rearm ownership loss, injected
+  rearm faults, and concurrent durable-link publication.
+- `NEW-1`, `NEW-2`, and `NEW-3` remain declined under the canonical contract:
+  durable acceptance transfers ownership; ambiguous 403/422 outcomes retain
+  status-only deadline recovery; 409 payload conflict rolls back correctly.
+  Semantic identity drift remains explicitly out of scope.
+- Raw REST bodies remain marker authority, sanitized MCP reads never decide
+  duplicates, issue 834 is not superseded, and issue 1495 is a readiness gate
+  only if client credential helpers are reused.
+- After merging current `main`, lint, formatting, build, typecheck, config sync,
+  Knip, dependency boundaries, focused fault tests, 165 relay tests, and 5,726
+  CLI tests passed. Four aggregate Gherkin setup timeouts caused only by another
+  worktree's global test lock passed 4/4 (130/130 steps) immediately in clean
+  isolation.
+- Fresh independent quality review approved the final candidate with no
+  critical, important, or suggested improvements.
 
 ## 2026-07-29 final independent-review remediation
 
