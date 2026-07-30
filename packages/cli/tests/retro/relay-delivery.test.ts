@@ -2053,6 +2053,32 @@ describe('relay readiness provenance', () => {
     expect(result).toEqual({ enabled: true });
   });
 
+  it('requires hash-attested bounded drain-throughput evidence before enabling relay routing', async () => {
+    const manifest = validManifest();
+    delete (manifest.measurements as unknown as Record<string, unknown>).drainThroughput;
+
+    const result = await validateRelayReadiness(manifest, {
+      buildCommit: 'b'.repeat(40),
+      isAncestor: () => Promise.resolve(true),
+      now: new Date('2026-07-26T12:00:00.000Z'),
+      readArtifactAtCommit: (_commit, artifactPath) => {
+        const artifact = Object.values(manifest.measurements).find(
+          candidate => candidate.path === artifactPath,
+        );
+        return Promise.resolve(
+          artifact === undefined
+            ? undefined
+            : {
+                content: measurementContent(manifest, artifactPath),
+                sha256: artifact.sha256,
+              },
+        );
+      },
+    });
+
+    expect(result).toEqual({ enabled: false });
+  });
+
   it('fails closed when a hash-attested measurement has an empty sample', async () => {
     const manifest = validManifest();
     manifest.measurements.spooledNeverFiled.sampleSize = 0;
