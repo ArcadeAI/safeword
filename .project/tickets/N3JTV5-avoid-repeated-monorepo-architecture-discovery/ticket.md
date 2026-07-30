@@ -50,3 +50,7 @@ changing generated architecture bytes, or changing released fingerprint recipes.
 - 2026-07-30T00:28:00.000Z Complete: project target construction now extracts one
   model and reuses it for the root target and directory-sorted leaf enumeration;
   112 focused architecture tests pass.
+- 2026-07-30T00:42:00.000Z Complete: the operation snapshot now carries each
+  precomputed leaf skeleton through introspection, fingerprinting, matching, and
+  rendering; the seeded-source boundary read dropped from three to one and 190
+  focused tests plus TypeScript pass.

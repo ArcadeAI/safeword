@@ -14,9 +14,9 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { shapeFingerprint } from './architecture-fingerprint.js';
+import { shapeFingerprintOf } from './architecture-fingerprint.js';
 import {
-  extractMonorepoModel,
+  extractMonorepoArchitectureSnapshot,
   monorepoFingerprintOf,
   type MonorepoModel,
   type PackageNode,
@@ -26,6 +26,7 @@ import { reconcileSections, type SectionStatus } from './architecture-reconcile.
 import {
   extractSkeleton,
   PURPOSE_PLACEHOLDER,
+  type Skeleton,
   type SkeletonNode,
 } from './architecture-skeleton.js';
 import {
@@ -140,9 +141,13 @@ function planTarget(target: HealTarget): SelfHealAction {
 }
 
 /** A `src/`-skeleton doc: the skeleton of `directory`, rendered to `path`. */
-function skeletonTarget(directory: string, path: string): HealTarget {
-  const fingerprint = shapeFingerprint(directory);
-  const nodes = extractSkeleton(directory).nodes;
+function skeletonTarget(
+  directory: string,
+  path: string,
+  skeleton = extractSkeleton(directory),
+): HealTarget {
+  const fingerprint = shapeFingerprintOf(directory, skeleton);
+  const nodes = skeleton.nodes;
   return {
     path,
     fingerprint,
@@ -159,10 +164,11 @@ function singleRepoTarget(projectDirectory: string): HealTarget {
 }
 
 /** A colocated leaf: the package's own skeleton at `packages/<pkg>/architecture.generated.md`. */
-function leafTarget(packageDirectory: string): HealTarget {
+function leafTarget(packageDirectory: string, skeleton: Skeleton): HealTarget {
   return skeletonTarget(
     packageDirectory,
     nodePath.join(packageDirectory, GENERATED_ARCHITECTURE_FILENAME),
+    skeleton,
   );
 }
 
@@ -184,7 +190,7 @@ function rootIndexTarget(projectDirectory: string, model: MonorepoModel): HealTa
 
 /** The targets a project heals: single-repo → one; monorepo → root index + per-leaf. */
 function projectTargets(projectDirectory: string): HealTarget[] {
-  const model = extractMonorepoModel(projectDirectory);
+  const { model, leaves } = extractMonorepoArchitectureSnapshot(projectDirectory);
   // A repo whose ONLY workspace signal is an unparseable manager (zero discovered leaves)
   // is still a monorepo we must not mistake for a single-repo: render the root index so the
   // "config unreadable" advisory has a home, rather than silently emitting a single-repo doc
@@ -192,8 +198,10 @@ function projectTargets(projectDirectory: string): HealTarget[] {
   if (model.packages.length === 0 && model.unreadableWorkspaces.length === 0) {
     return [singleRepoTarget(projectDirectory)];
   }
-  const leaves = model.packages.map(node => node.dir).toSorted((a, b) => a.localeCompare(b));
-  return [rootIndexTarget(projectDirectory, model), ...leaves.map(leaf => leafTarget(leaf))];
+  return [
+    rootIndexTarget(projectDirectory, model),
+    ...leaves.map(leaf => leafTarget(leaf.dir, leaf.skeleton)),
+  ];
 }
 
 export function selfHeal(projectDirectory: string): SelfHealResult {

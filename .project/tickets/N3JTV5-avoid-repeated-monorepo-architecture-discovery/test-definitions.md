@@ -23,17 +23,17 @@ spy only on Node's filesystem process boundary.
 
 ### Scenario: A source header used for purpose seeding is read once
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ## Rule: Generated architecture behavior is unchanged
 
 ### Scenario: Existing architecture regression suites remain green
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ## Task-level cross-scenario refactor
 

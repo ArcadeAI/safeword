@@ -121,6 +121,19 @@ describe('selfHealProject — monorepo root index + colocated leaves', () => {
     expect(readCount(nodePath.join(context.directory, 'package.json'))).toBe(1);
   });
 
+  it('reads a purpose-seeding source header once while building its leaf target', () => {
+    const coreDirectory = makePackage(context.directory, 'core', { modules: ['auth'] });
+    const sourcePath = nodePath.join(coreDirectory, 'src', 'auth', 'index.ts');
+    writeFileSync(sourcePath, '/** Authenticates users. */\nexport {};\n');
+
+    selfHealProject(context.directory);
+
+    expect(readCount(sourcePath)).toBe(1);
+    expect(readFileSync(leafDocumentPath(context.directory, 'core'), 'utf8')).toContain(
+      'Authenticates users.',
+    );
+  });
+
   it('writes a colocated leaf doc fingerprinted over each package with a src tree', () => {
     const coreDirectory = makePackage(context.directory, 'core', { modules: ['auth'] });
 

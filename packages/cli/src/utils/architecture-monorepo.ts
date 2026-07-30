@@ -14,7 +14,7 @@ import { createHash } from 'node:crypto';
 import { globSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { extractSkeleton, PURPOSE_PLACEHOLDER } from './architecture-skeleton.js';
+import { extractSkeleton, PURPOSE_PLACEHOLDER, type Skeleton } from './architecture-skeleton.js';
 import { readBoundaryConfig } from './boundary-config.js';
 import { readCargoPackageName, readCargoWorkspaceMembers } from './cargo-manifest.js';
 import { findAllInTree, isDirectory, readFileSafe, readJson } from './fs.js';
@@ -98,6 +98,21 @@ export interface MonorepoModel {
   edges: PackageEdge[];
   /** Managers present at the root but unparseable; surfaced in the root index + `--check`. */
   unreadableWorkspaces: UnreadableWorkspace[];
+}
+
+/** One discovered package and the leaf structure observed during the same operation. */
+export interface MonorepoLeafSnapshot {
+  dir: string;
+  skeleton: Skeleton;
+}
+
+/**
+ * Operation-scoped monorepo facts. The released model shape stays unchanged while
+ * orchestration can reuse the same directory-sorted leaves and extracted skeletons.
+ */
+export interface MonorepoArchitectureSnapshot {
+  model: MonorepoModel;
+  leaves: MonorepoLeafSnapshot[];
 }
 
 /**
@@ -308,17 +323,33 @@ function hasRecognizedManifest(directory: string): boolean {
 
 /** The package/edge model the root index renders over. */
 export function extractMonorepoModel(projectDirectory: string): MonorepoModel {
+  return extractMonorepoArchitectureSnapshot(projectDirectory).model;
+}
+
+/**
+ * Build the root model and leaf inputs from one workspace discovery pass.
+ *
+ * `leaves` preserves directory ordering for target enumeration; `model.packages`
+ * preserves its released name ordering for root rendering and fingerprints.
+ */
+export function extractMonorepoArchitectureSnapshot(
+  projectDirectory: string,
+): MonorepoArchitectureSnapshot {
   const { patterns, unreadable: unreadableWorkspaces } = discoverWorkspaces(projectDirectory);
   // Includes both declared workspace members and orphan non-JS packages (issue #844).
-  const packages: PackageNode[] = leafDirectoriesFrom(projectDirectory, patterns)
-    .map(dir => {
+  const leaves = leafDirectoriesFrom(projectDirectory, patterns).map(dir => ({
+    dir,
+    skeleton: extractSkeleton(dir),
+  }));
+  const packages: PackageNode[] = leaves
+    .map(({ dir, skeleton }) => {
       const description = packageJsonDescription(dir);
       return {
         name: packageName(dir),
         dir,
         purpose: description ?? PURPOSE_PLACEHOLDER,
         ...(description !== undefined && { seededPurpose: true }),
-        introspected: extractSkeleton(dir).nodes.length > 0,
+        introspected: skeleton.nodes.length > 0,
       };
     })
     .toSorted((a, b) => byString(a.name, b.name));
@@ -334,7 +365,10 @@ export function extractMonorepoModel(projectDirectory: string): MonorepoModel {
   }
   edges.sort((a, b) => byString(a.from, b.from) || byString(a.to, b.to));
 
-  return { packages, edges, unreadableWorkspaces };
+  return {
+    model: { packages, edges, unreadableWorkspaces },
+    leaves,
+  };
 }
 
 /**
