@@ -438,3 +438,47 @@ Feature source: `features/operate-retry-safe-retro-relay.feature`
 - [x] RED 24dc50714
 - [x] GREEN c32143ff6
 - [x] REFACTOR 617eced4d
+
+## 2026-07-30 seventh-round quality-review regressions
+
+### Scenario: Terminal relay ownership remains visible and operator-addressable
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: The bounded drain attempts the earliest retry deadline first
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Partial scalar configuration reports scalar failure before outbox failure
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Corrupt identity failure names the request and destructive recovery command
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A real durable-spool command produces drain-throughput evidence
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Relay API v1 freezes receipt ownership states for old clients
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Renewal rollback requires a typed payload rejection
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
