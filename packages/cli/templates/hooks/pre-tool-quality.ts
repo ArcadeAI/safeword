@@ -357,7 +357,7 @@ if (
     // Multi-line content-bearing files don't match this regex and pass through.
     const dimensionsContent = readFileSync(dimensionsFile, 'utf8').trim();
     const skipMatch = /^skip:(.*)$/i.exec(dimensionsContent);
-    if (skipMatch && !isValidSkipReason(skipMatch[1])) {
+    if (skipMatch && !isValidSkipReason(skipMatch[1] ?? '')) {
       deny(
         'dimensions.md `skip:` declaration requires a non-empty reason after the colon.',
         'Either write a real dimension table, or use `skip: <reason>` where the reason explains why no dimensions need enumerating (e.g., `skip: single behavioral dimension, no partitioning to enumerate`).',

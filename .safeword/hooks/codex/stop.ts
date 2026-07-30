@@ -181,7 +181,8 @@ function runRetroExtraction(projectDirectory: string, input: CodexStopInput): vo
     timeout: 600_000,
   });
   const error = result.error as (Error & { code?: string }) | undefined;
-  const ok = result.status === 0 && !result.error && pendingOffsetState !== undefined;
+  const offsetState = pendingOffsetState;
+  const ok = result.status === 0 && !result.error && offsetState !== undefined;
   recordRetroDebugEvent({
     event: 'codex_stop_child_exit',
     command: nodePath.basename(command),
@@ -195,23 +196,19 @@ function runRetroExtraction(projectDirectory: string, input: CodexStopInput): vo
     pendingOffsetState: pendingOffsetState !== undefined,
     ok,
   });
-  if (!ok) return;
+  if (!ok || !offsetState) return;
 
   try {
-    writeOffsetState(
-      pendingOffsetState.sessionId,
-      pendingOffsetState.state,
-      pendingOffsetState.baseDirectory,
-    );
+    writeOffsetState(offsetState.sessionId, offsetState.state, offsetState.baseDirectory);
     recordRetroDebugEvent({
       event: 'codex_stop_offset_write',
-      sessionId: pendingOffsetState.sessionId,
+      sessionId: offsetState.sessionId,
       ok: true,
     });
   } catch {
     recordRetroDebugEvent({
       event: 'codex_stop_offset_write',
-      sessionId: pendingOffsetState.sessionId,
+      sessionId: offsetState.sessionId,
       ok: false,
     });
     // A state-write failure must not make Stop visible or blocking.
@@ -267,7 +264,7 @@ async function main(): Promise<string> {
   return SILENT;
 }
 
-let output = SILENT;
+let output: string;
 try {
   output = await main();
 } catch {

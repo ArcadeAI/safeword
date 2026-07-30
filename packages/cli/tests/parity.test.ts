@@ -156,6 +156,29 @@ describe('runParity', () => {
       expect(result.failures[0]?.message).toContain('sample.ts');
     });
 
+    it('includes managed runtime files that opt into dogfood parity', () => {
+      const { rootDirectory, templatesDirectory } = makeFixture();
+      mkdirSync(nodePath.join(rootDirectory, '.safeword'), { recursive: true });
+      writeFileSync(nodePath.join(templatesDirectory, 'runtime.ts'), 'CANONICAL\n');
+      writeFileSync(nodePath.join(rootDirectory, '.safeword/runtime.ts'), 'DRIFTED\n');
+
+      const result = runParity({
+        schema: {
+          ownedFiles: {},
+          managedFiles: {
+            '.safeword/runtime.ts': { dogfoodParity: true, template: 'runtime.ts' },
+          },
+          contracts: {},
+        },
+        mode: 'all',
+        rootDirectory,
+        templatesDirectory,
+      });
+
+      expect(result.failures).toHaveLength(1);
+      expect(result.failures[0]?.message).toContain('.safeword/runtime.ts');
+    });
+
     it('fails identifying the missing path when one side of a pair is missing', () => {
       const { rootDirectory, templatesDirectory } = makeFixture();
       writeFileSync(nodePath.join(templatesDirectory, 'sample.ts'), 'only template\n');
@@ -396,6 +419,31 @@ describe('syncParityPairs (--fix, issue #585)', () => {
     expect(result.synced).toEqual(['.safeword/sample.ts']);
     expect(result.unfixable).toHaveLength(0);
     expect(readFileSync(nodePath.join(rootDirectory, '.safeword/sample.ts'), 'utf8')).toBe(
+      'CANONICAL\n',
+    );
+  });
+
+  it('syncs managed runtime files that opt into dogfood parity', () => {
+    const { rootDirectory, templatesDirectory } = makeFixture();
+    mkdirSync(nodePath.join(rootDirectory, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(templatesDirectory, 'runtime.ts'), 'CANONICAL\n');
+    writeFileSync(nodePath.join(rootDirectory, '.safeword/runtime.ts'), 'DRIFTED\n');
+
+    const result = syncParityPairs({
+      schema: {
+        ownedFiles: {},
+        managedFiles: {
+          '.safeword/runtime.ts': { dogfoodParity: true, template: 'runtime.ts' },
+        },
+        contracts: {},
+      },
+      mode: 'all',
+      rootDirectory,
+      templatesDirectory,
+    });
+
+    expect(result.synced).toEqual(['.safeword/runtime.ts']);
+    expect(readFileSync(nodePath.join(rootDirectory, '.safeword/runtime.ts'), 'utf8')).toBe(
       'CANONICAL\n',
     );
   });

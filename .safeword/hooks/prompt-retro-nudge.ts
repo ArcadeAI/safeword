@@ -23,7 +23,7 @@ const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 
 // Not a safeword project — nothing to do.
 if (existsSync(`${projectDirectory}/.safeword`)) {
-  let input: HookInput = {};
+  let input: HookInput;
   try {
     input = await Bun.stdin.json();
   } catch {
@@ -31,7 +31,10 @@ if (existsSync(`${projectDirectory}/.safeword`)) {
   }
 
   // Resolver parity with the spool writer — see stop-retro-filing.ts.
-  const sessionId = resolveSessionId(input, process.env);
+  const sessionId = resolveSessionId(input, {
+    CLAUDE_CODE_REMOTE_SESSION_ID: process.env.CLAUDE_CODE_REMOTE_SESSION_ID,
+    CLAUDE_SESSION_ID: process.env.CLAUDE_SESSION_ID,
+  });
   if (sessionId) {
     try {
       const additionalContext = decideRetroFilingNudge(projectDirectory, sessionId);

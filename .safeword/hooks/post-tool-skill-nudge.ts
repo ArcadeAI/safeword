@@ -49,7 +49,12 @@ const language = languageForFile(filePath);
 if (!language) process.exit(0);
 
 const skillDirs = installedSkillDirs(projectDirectory);
-const installed = new Set(skillDirs.map(dir => dir.name.split('-')[0]));
+const installed = new Set(
+  skillDirs.flatMap(dir => {
+    const prefix = dir.name.split('-')[0];
+    return prefix ? [prefix] : [];
+  }),
+);
 if (!installed.has(language.prefix)) process.exit(0);
 
 // Resolve the single entry skill (the sole installed skill for a single-skill

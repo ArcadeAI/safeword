@@ -73,8 +73,11 @@ async function main(): Promise<void> {
   let briefBody = '';
   if (currentEntries.length > 0) {
     briefBody = renderBrief(currentEntries.slice(-3));
-  } else if (source === 'startup' && allEntries.length > 0) {
-    briefBody = renderBrief([allEntries[allEntries.length - 1]], { fromAnotherSession: true });
+  } else if (source === 'startup') {
+    const lastEntry = allEntries.at(-1);
+    if (lastEntry) {
+      briefBody = renderBrief([lastEntry], { fromAnotherSession: true });
+    }
   }
 
   const conflictFiles = detectConflictFiles(projectRoot, transcript_path);

@@ -54,9 +54,8 @@ async function main(): Promise<void> {
     .filter((e): e is Entry => e !== null)
     .filter(e => e.sessionId === session_id);
 
-  if (entries.length === 0) return;
-
-  const latest = entries[entries.length - 1];
+  const latest = entries.at(-1);
+  if (!latest) return;
 
   const conflictFiles = detectConflictFiles(cwd, transcript_path);
   const prefix = conflictFiles.length > 0 ? `⚠️ conflict: ${conflictFiles.join(', ')} — ` : '';
