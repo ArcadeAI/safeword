@@ -1271,6 +1271,34 @@ describe('immutable relay delivery spool', () => {
     });
   });
 
+  it('synchronizes a concurrent winner before accepting its existing durable target', async () => {
+    const project = temporaryProject();
+    await persistRelayRequest(project, request({ sourceKey: 'directory-seed' }));
+    const original = request();
+    const winnerAtSync = deferred<undefined>();
+    const winnerCanSync = deferred<undefined>();
+    const winner = persistRelayRequest(project, original, {
+      faultBeforeDirectorySync: async () => {
+        winnerAtSync.resolve(undefined);
+        await winnerCanSync.promise;
+      },
+    });
+    await winnerAtSync.promise;
+    const loserDirectorySync = vi.fn<() => Promise<void>>(() => Promise.resolve());
+
+    try {
+      await expect(
+        persistRelayRequest(project, original, {
+          faultBeforeDirectorySync: loserDirectorySync,
+        }),
+      ).resolves.toMatchObject({ bytes: Buffer.from(JSON.stringify(original), 'utf8') });
+      expect(loserDirectorySync).toHaveBeenCalledOnce();
+    } finally {
+      winnerCanSync.resolve(undefined);
+      await winner;
+    }
+  });
+
   it('claims exclusively, rearms expiry, and prevents stale-owner cleanup', async () => {
     const project = temporaryProject();
     const original = request();
