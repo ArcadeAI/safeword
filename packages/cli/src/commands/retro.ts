@@ -561,7 +561,7 @@ export function resolveRelayOutboxDirectory(
     return undefined;
   }
   const resolved = nodePath.resolve(configured);
-  if (configured !== resolved || resolved === nodePath.parse(resolved).root) return undefined;
+  if (resolved === nodePath.parse(resolved).root) return undefined;
   const physicalProject = physicalProjectPath(projectDirectory);
   if (physicalProject === undefined) return undefined;
   const physicalOutbox = physicalOutboxPath(resolved);
