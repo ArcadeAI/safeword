@@ -1754,6 +1754,32 @@ describe('immutable relay delivery spool', () => {
     ]);
   });
 
+  it('fails the whole batch closed when an unreserved active request is corrupt', async () => {
+    const project = temporaryProject();
+    const corrupt = await persistRelayRequest(
+      project,
+      request({ sourceKey: 'unreserved-corrupt', title: 'Unreserved corrupt request' }),
+    );
+    writeFileSync(corrupt.path, '{"requestId":');
+    const drafts = [
+      request({ sourceKey: 'after-corrupt-a', title: 'After corrupt A' }),
+      request({ sourceKey: 'after-corrupt-b', title: 'After corrupt B' }),
+    ];
+
+    const outcomes = await persistRelayDraftBatch(project, drafts);
+
+    expect(outcomes).toEqual([
+      {
+        reason: expect.objectContaining({ name: expect.stringMatching(/Error|SyntaxError/u) }),
+        status: 'rejected',
+      },
+      {
+        reason: expect.objectContaining({ name: expect.stringMatching(/Error|SyntaxError/u) }),
+        status: 'rejected',
+      },
+    ]);
+  });
+
   it('dead-letters terminal relay failures but rearms retryable failures', async () => {
     const project = temporaryProject();
     const terminal = request({ sourceKey: 'terminal' });
