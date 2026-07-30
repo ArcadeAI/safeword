@@ -1,0 +1,40 @@
+# Test Definitions: Reuse monorepo architecture discovery
+
+This task uses integration-level filesystem-boundary evidence because the
+observable contract spans workspace discovery, model construction, target
+enumeration, fingerprinting, and rendering. Tests use real collaborators and
+spy only on Node's filesystem process boundary.
+
+## Rule: One topology discovery per architecture operation
+
+### Scenario: A readable workspace manifest is read once
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An unreadable workspace manager is read once
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: One leaf skeleton extraction per architecture operation
+
+### Scenario: A source header used for purpose seeding is read once
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: Generated architecture behavior is unchanged
+
+### Scenario: Existing architecture regression suites remain green
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Task-level cross-scenario refactor
+
+- [ ] cross-scenario
