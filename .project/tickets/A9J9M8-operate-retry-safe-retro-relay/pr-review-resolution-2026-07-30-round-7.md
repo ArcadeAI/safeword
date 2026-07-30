@@ -308,3 +308,45 @@ it “durably owned” and label the client dead-letter count as local.
 - [x] Defer a cross-package protocol-contract module: creating a new dependency
       boundary between the published CLI and private relay is architectural
       work, not a small behavior-preserving refactor.
+
+## Final independent-review follow-ups
+
+### Production deadline metadata in drain evidence
+
+- [x] Phase 1: The checked-in readiness manifest remains disabled. The new
+      producer is a reproducible client-regression floor, not evidence that
+      production can clear an accumulated backlog.
+- [x] Phase 2: Options:
+  1. Change the exact version-1 evidence schema now.
+  2. Run the local producer with production defaults.
+  3. Require production-default deadline metadata in the separately reviewed
+     evidence change that enables readiness.
+- [x] Phase 3a: Changing the schema in this slice would invalidate the
+      validator-compatible producer and still would not turn a local synthetic
+      run into production capacity evidence.
+- [x] Phase 3b: Enabling readiness without production-default deadline evidence
+      could mistake the regression floor for a catch-up guarantee. The existing
+      fail-closed manifest prevents that failure.
+- [x] Phase 4: Keep the producer's stated regression purpose and require
+      `requestDeadlineMs` plus `overallDeadlineMs`, or an equivalent
+      production-default run, in the future readiness-enablement change.
+
+> Recommend **deferring the schema extension to the readiness-enablement
+> evidence change** because this PR does not enable readiness.
+
+### TypeScript 7
+
+- [x] Phase 1: TypeScript is a development dependency and this feature does not
+      depend on a TypeScript 7 API.
+- [x] Phase 2: Options:
+  1. Upgrade the compiler inside this relay slice.
+  2. Run a separate repository-wide compatibility migration.
+- [x] Phase 3a: TypeScript 7 changes compiler implementation and API
+      availability, so this is not a dependency refresh local to the relay.
+- [x] Phase 3b: Bundling it here expands the monorepo verification and rollback
+      surface without improving the #1479 runtime.
+- [x] Phase 4: Keep the current compiler in this PR and track the migration
+      separately.
+
+> Recommend **a separate TypeScript 7 migration** rather than coupling it to the
+> retry-safe relay.

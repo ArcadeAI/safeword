@@ -2,29 +2,40 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 5,919/5,919 tests pass (relay 165/165; CLI 5,754/5,754; 6 intentional skips)
+**Test Suite:** ✓ 5,931/5,931 executed tests pass (relay 167/167; CLI 5,764/5,764; 6 intentional skips)
 **Gherkin:** ✅ 620 aggregate scenarios passed with 3 intentional skips; 19,846/19,846 executed steps passed
-**Build:** ✅ Success, including the pinned production container on Node 24.18.1
+**Build:** ✅ Success for the relay and CLI packages
 **Lint:** ✅ Clean (ESLint, Gherkin lint, and TypeScript)
-**Scenarios:** All 187 RED/GREEN/REFACTOR checks marked complete
+**Scenarios:** All 227 checks marked complete
 **PR Scope:** ✅ Diff matches ticket scope
 **Dep Drift:** ✅ Clean
 **Parent Epic:** N/A
 **Reconcile:** ✅ No pattern deviation
 **Experience:** ✅ Walked a cloud-harness operator through configuring one external durable outbox, losing the disposable workspace, and retrying/listing/discarding from another harness; worst step = provisioning a platform-durable absolute path; new steps vs before = 1
-**Evidence limits:** ⚠️ Experiment-only Python import-linter/dead-code checks are unavailable locally. The optional Docker Vitest lane cannot detect Homebrew/OrbStack Docker, so its exact build, mounted-volume UID, non-root process, Node version, and `node:sqlite` checks were executed directly.
+**Evidence limits:** ✅ None for verification. Audit-only Python experiments remain unavailable locally because no import-linter contract or dead-code tooling is installed.
 
 Audit passed with warnings — 0 feature-blocking errors. Config sync, Knip,
-domain-doc reconciliation, and dependency-cruiser are clean across 713 modules
-and 2,364 dependencies. Configured documentation sources (`README.md` and
+domain-doc reconciliation, and dependency-cruiser are clean across 714 modules
+and 2,368 dependencies. Configured documentation sources (`README.md` and
 `packages/website/src/content/docs`) and the architecture narrative show no
-feature drift. The stable repository-minus-generated-trees scope reports 554
-clones (8.46%). `@openai/codex` has a low-risk dev-only minor update
+feature drift. TypeScript duplication stayed flat at 390 clones; the round-seven
+test clone was removed. `@openai/codex` has a low-risk dev-only minor update
 (0.145.0 → 0.146.0) deferred as unrelated scope; the production dependency
 audit reports no vulnerabilities.
 
 ## Evidence
 
+- The seventh-round tree passed the complete relay and CLI suites: 167 relay
+  tests and 5,764 CLI tests, with six intentional skips. The full acceptance
+  lane passed 620 scenarios and 19,846 executed steps, with three scenarios and
+  four steps intentionally skipped.
+- Both package builds and typechecks, root lint, formatting, dependency
+  validation, config sync, Knip, and diff hygiene passed. Dependency Cruiser
+  found no violations across 714 modules and 2,368 dependencies.
+- The round-seven review remedies preserve one transport-independent request
+  identity, keep raw REST bodies as the only marker authority, leave issue 834
+  unsuperseded, and keep issue 1495 conditional on reusing client credential
+  helpers.
 - The final sixth-round tree passed the complete relay and CLI suites: 165 relay
   tests and 5,754 CLI tests, with six intentional skips. The full acceptance
   lane passed 620 scenarios and 19,846 executed steps, with three scenarios and
