@@ -37,6 +37,21 @@ function measurementDrafts() {
   }));
 }
 
+const measurementRelay: typeof fetch = async (_input, init) => {
+  await delay(RELAY_LATENCY_MS);
+  const request = JSON.parse(
+    Buffer.from(init?.body as Uint8Array).toString('utf8'),
+  ) as RelayDraftRequest;
+  return Response.json(
+    {
+      receiptId: `measurement-${request.requestId}`,
+      requestId: request.requestId,
+      state: 'accepted',
+    },
+    { status: 202 },
+  );
+};
+
 async function main(): Promise<void> {
   const output = outputPath(process.argv.slice(2));
   const spool = await mkdtemp(path.join(tmpdir(), 'safeword-relay-drain-'));
@@ -50,20 +65,7 @@ async function main(): Promise<void> {
     const result = await deliverRelayRequests(spool, {
       credential: 'measurement-only',
       deadlineMs: REQUEST_DEADLINE_MS,
-      fetch: async (_input, init) => {
-        await delay(RELAY_LATENCY_MS);
-        const request = JSON.parse(
-          Buffer.from(init?.body as Uint8Array).toString('utf8'),
-        ) as RelayDraftRequest;
-        return Response.json(
-          {
-            receiptId: `measurement-${request.requestId}`,
-            requestId: request.requestId,
-            state: 'accepted',
-          },
-          { status: 202 },
-        );
-      },
+      fetch: measurementRelay,
       now: Date.now,
       overallDeadlineMs: DRAIN_BUDGET_MS,
       relayUrl: 'https://relay.invalid',
