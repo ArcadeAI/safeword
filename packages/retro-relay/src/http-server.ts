@@ -230,7 +230,7 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
         return;
       }
       if (request.method === 'POST' && url.pathname === '/v1/retro-filings') {
-        const requestedVersion = request.headers['x-safeword-relay-api-version'];
+        const requestedVersion = Reflect.get(request.headers, RELAY_API_VERSION_HEADER);
         if (requestedVersion !== undefined && requestedVersion !== RELAY_API_VERSION) {
           throw new RelayError(400, 'unsupported relay API version', {
             supportedVersion: RELAY_API_VERSION,
