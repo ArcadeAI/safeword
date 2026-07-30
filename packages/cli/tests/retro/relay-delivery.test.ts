@@ -775,7 +775,9 @@ describe('immutable relay delivery spool', () => {
     renameSync(primary, deadLetterRequestPath(project, persisted.requestId));
     const response = deferred<Response>();
     const started = deferred<boolean>();
-    const fetch = vi.fn<typeof globalThis.fetch>(async () => {
+    let recoveryHeaders: Headers | undefined;
+    const fetch = vi.fn<typeof globalThis.fetch>(async (_input, init) => {
+      recoveryHeaders = new Headers(init?.headers);
       started.resolve(true);
       return await response.promise;
     });
@@ -786,6 +788,7 @@ describe('immutable relay delivery spool', () => {
       relayUrl: 'https://relay.example.test',
     });
     await started.promise;
+    expect(recoveryHeaders?.get('x-safeword-relay-api-version')).toBe('1');
     await expect(discardRelayRequest(project, persisted.requestId)).rejects.toThrow(
       'relay request is actively claimed',
     );
