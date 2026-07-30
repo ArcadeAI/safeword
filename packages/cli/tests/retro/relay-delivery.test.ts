@@ -1446,6 +1446,46 @@ describe('immutable relay delivery spool', () => {
     },
   );
 
+  it.each([
+    'accepted',
+    'claimed',
+    'dispatching',
+    'filed',
+    'retryable',
+    'dead-letter',
+    'rejected',
+    'tombstone',
+  ])('acknowledges the relay ownership state %s', async state => {
+    const project = temporaryProject();
+    const original = request();
+    await persistRelayRequest(project, original);
+
+    const outcome = await deliverRelayRequests(project, {
+      credential: 'swc_client_secret',
+      deadlineMs: 25,
+      fetch: () =>
+        Promise.resolve(
+          Response.json(
+            {
+              receiptId: `receipt-${state}`,
+              requestId: original.requestId,
+              state,
+            },
+            { status: 201 },
+          ),
+        ),
+      now: Date.now,
+      relayUrl: 'https://relay.invalid',
+    });
+
+    expect(outcome).toMatchObject({
+      accepted: 1,
+      retryable: 0,
+      ...(state === 'dead-letter' && { serverDeadLetteredThisRun: 1 }),
+    });
+    expect(await listRelayRequests(project)).toHaveLength(0);
+  });
+
   it('returns before one second and never invokes native fallback after a lost response', async () => {
     const project = temporaryProject();
     const original = request();
