@@ -69,7 +69,14 @@ export async function linkDurable(
   destination: string,
   faults: DurableMutationFaults = {},
 ): Promise<void> {
-  await link(source, destination);
+  try {
+    await link(source, destination);
+  } catch (error) {
+    if (errorCode(error) === 'EEXIST') {
+      await syncDirectoryDurable(path.dirname(destination), faults);
+    }
+    throw error;
+  }
   await syncDirectoryDurable(path.dirname(destination), faults);
 }
 
