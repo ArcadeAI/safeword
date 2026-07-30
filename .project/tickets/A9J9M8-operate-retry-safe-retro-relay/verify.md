@@ -2,7 +2,7 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 5,911/5,911 tests pass (relay 165/165; CLI 5,746/5,746; 6 intentional skips)
+**Test Suite:** ✓ 5,919/5,919 tests pass (relay 165/165; CLI 5,754/5,754; 6 intentional skips)
 **Gherkin:** ✅ 620 aggregate scenarios passed with 3 intentional skips; 19,846/19,846 executed steps passed
 **Build:** ✅ Success, including the pinned production container on Node 24.18.1
 **Lint:** ✅ Clean (ESLint, Gherkin lint, and TypeScript)
@@ -26,9 +26,13 @@ audit reports no vulnerabilities.
 ## Evidence
 
 - The final sixth-round tree passed the complete relay and CLI suites: 165 relay
-  tests and 5,746 CLI tests, with six intentional skips. The full acceptance
+  tests and 5,754 CLI tests, with six intentional skips. The full acceptance
   lane passed 620 scenarios and 19,846 executed steps, with three scenarios and
   four steps intentionally skipped.
+- The branch then integrated current `main` at `c181ee751`, including its native
+  GitHub CLI credential hardening. The affected 207 tests and the complete
+  verification suite passed. A new independent quality review approved the
+  integrated head with no critical issues or suggested improvements.
 - Final lint, both package typechecks, both package builds, formatting, and diff
   hygiene passed. Dependency validation reported zero errors and the existing
   `packages/cli/src/codex-plugin/hooks.ts` orphan warning.

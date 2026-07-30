@@ -181,3 +181,9 @@ last_modified: 2026-07-27T02:23:02.173Z
   fresh independent quality review approved `6899cd756..4426c58c5` with no
   critical issues; readiness remains disabled until the required attested
   production evidence lands.
+- 2026-07-29 Integrated current `main` at `c181ee751`, including native GitHub
+  CLI credential hardening on the raw REST transport boundary. The affected 207
+  tests, 165 relay tests, 5,754 CLI tests, 620 executable Gherkin scenarios,
+  lint, typechecks, builds, formatting, dependency validation, and diff hygiene
+  passed. A fresh post-merge quality review approved with no critical issues or
+  suggested improvements.
