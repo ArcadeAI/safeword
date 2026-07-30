@@ -26,8 +26,8 @@ export interface RelayDraftRequest {
 }
 
 export const RELAY_OVERALL_HEADROOM_MS = 250;
-export const RELAY_API_VERSION = '1';
-export const RELAY_API_VERSION_HEADER = 'x-safeword-relay-api-version';
+const RELAY_API_VERSION = '1';
+const RELAY_API_VERSION_HEADER = 'x-safeword-relay-api-version';
 
 type RelayDraftInput = Omit<RelayDraftRequest, 'createdAt' | 'requestId' | 'retryDeadlineAt'>;
 type RelaySourcePayload = Omit<RelayDraftInput, 'sourceKey'>;
