@@ -14,7 +14,10 @@ import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
 
-import { stagedChangeAffectsArchitecture } from './lib/architecture-staged-scope.ts';
+import {
+  stagedChangeAffectsArchitecture,
+  worktreeChangeAffectsArchitecture,
+} from './lib/architecture-staged-scope.ts';
 import { commandWordIndex, parseShellCommandList, parseShellWords } from './lib/shell-segments.ts';
 
 const ARCHITECTURE_SOURCE_INDEX_ENV = 'SAFEWORD_ARCHITECTURE_SOURCE_INDEX';
@@ -39,6 +42,11 @@ interface GitInvocation {
   environment: Record<string, string>;
   globalArguments: string[];
   name: string;
+}
+
+interface UnsupportedCommitPlan {
+  broadAddStagesEntireWorktree: boolean;
+  commit: GitInvocation;
 }
 
 const GIT_GLOBAL_OPTIONS_REQUIRING_VALUE = new Set([
@@ -82,7 +90,6 @@ function gitSubcommand(
   environment: Record<string, string>,
 ): GitInvocation | undefined {
   if (tokens[0] !== 'git') return undefined;
-  let directory = baseDirectory;
   const globalArguments: string[] = [];
   const gitEnvironment = { ...environment };
 
@@ -92,7 +99,7 @@ function gitSubcommand(
     if (!token.startsWith('-')) {
       return {
         arguments: tokens.slice(index + 1),
-        directory,
+        directory: baseDirectory,
         environment: gitEnvironment,
         globalArguments,
         name: token,
@@ -104,7 +111,7 @@ function gitSubcommand(
       continue;
     }
     if (token.startsWith('-C') && token !== '-C') {
-      directory = nodePath.resolve(directory, token.slice(2));
+      globalArguments.push(token);
       continue;
     }
     if (token.startsWith('-c') && token !== '-c') {
@@ -116,16 +123,8 @@ function gitSubcommand(
     if (GIT_GLOBAL_OPTIONS_REQUIRING_VALUE.has(optionName)) {
       const value = token.includes('=') ? token.slice(token.indexOf('=') + 1) : tokens[index + 1];
       if (value === undefined) return undefined;
-      if (optionName === '-C') {
-        directory = nodePath.resolve(directory, value);
-      } else if (optionName === '--git-dir') {
-        gitEnvironment.GIT_DIR = nodePath.resolve(directory, value);
-      } else if (optionName === '--work-tree') {
-        gitEnvironment.GIT_WORK_TREE = nodePath.resolve(directory, value);
-      } else {
-        globalArguments.push(token);
-        if (!token.includes('=')) globalArguments.push(value);
-      }
+      globalArguments.push(token);
+      if (!token.includes('=')) globalArguments.push(value);
       if (!token.includes('=')) index += 1;
       continue;
     }
@@ -146,7 +145,8 @@ function gitCommitPlan(command: string, baseDirectory: string): GitCommitPlan | 
     const words = parseShellWords(segment.command);
     const commandIndex = commandWordIndex(words);
     const commandWords = words.slice(commandIndex);
-    const environment = gitSelectorEnvironment(words.slice(0, commandIndex), directory);
+    const environment = gitSelectorEnvironment(words.slice(0, commandIndex));
+    if (environment === undefined) return undefined;
     if (commandWords[0] === 'cd') {
       const changedDirectory = resolveCdDirectory(commandWords.slice(1), directory);
       if (changedDirectory === undefined || segment.operatorAfter === '||') return undefined;
@@ -157,6 +157,7 @@ function gitCommitPlan(command: string, baseDirectory: string): GitCommitPlan | 
     const invocation = gitSubcommand(commandWords, directory, environment);
     if (invocation?.name === 'commit') {
       if (commitOptionEffects(invocation.arguments).nonCommitting) return undefined;
+      if (precedingAdds.some(add => !sameGitRepositoryTarget(add, invocation))) return undefined;
       return {
         arguments: invocation.arguments,
         directory: invocation.directory,
@@ -189,15 +190,16 @@ function gitCommitPlan(command: string, baseDirectory: string): GitCommitPlan | 
  * shared lightweight tokenizer cannot distinguish stdin body lines from shell
  * commands, and a false advisory is more disruptive than remaining silent.
  */
-function unsupportedCommitInvocation(
+function unsupportedCommitPlan(
   command: string,
   baseDirectory: string,
-): GitInvocation | undefined {
+): UnsupportedCommitPlan | undefined {
   if (command.includes('<<')) return undefined;
 
   let directory = baseDirectory;
   let listStatus: boolean | undefined;
   let operatorBefore: '&&' | '||' | ';' | undefined;
+  let dominatingBroadAdd: GitInvocation | undefined;
   for (const segment of parseShellCommandList(command)) {
     if (segment.operatorAfter === '|' || segment.operatorAfter === '|&') return undefined;
 
@@ -211,28 +213,77 @@ function unsupportedCommitInvocation(
           ? listStatus !== true
           : true;
     if (commandWords[0] === 'cd') {
+      const preservesBroadAddDominance =
+        dominatingBroadAdd !== undefined &&
+        operatorBefore === '&&' &&
+        segment.operatorAfter === '&&';
       const changedDirectory = resolveCdDirectory(commandWords.slice(1), directory);
       if (executes && changedDirectory !== undefined) directory = changedDirectory;
       listStatus = combineShellStatus(listStatus, operatorBefore, undefined);
       operatorBefore = segment.operatorAfter;
+      if (!preservesBroadAddDominance) dominatingBroadAdd = undefined;
       continue;
     }
-    const environment = gitSelectorEnvironment(words.slice(0, commandIndex), directory);
+    const environment = gitSelectorEnvironment(words.slice(0, commandIndex));
+    if (environment === undefined) return undefined;
     const invocation = gitSubcommand(commandWords, directory, environment);
     if (
       executes &&
       invocation?.name === 'commit' &&
       !commitOptionEffects(invocation.arguments).nonCommitting
     ) {
-      return invocation;
+      return {
+        broadAddStagesEntireWorktree:
+          dominatingBroadAdd !== undefined &&
+          sameGitRepositoryTarget(dominatingBroadAdd, invocation),
+        commit: invocation,
+      };
     }
     const commandName = nodePath.basename(commandWords[0] ?? '');
+    const broadAddNow =
+      executes &&
+      invocation?.name === 'add' &&
+      stagesEntireWorktree(invocation.arguments) &&
+      segment.operatorAfter === '&&' &&
+      (operatorBefore !== '||' || listStatus === false)
+        ? invocation
+        : undefined;
+    const preservesBroadAddDominance =
+      dominatingBroadAdd !== undefined &&
+      operatorBefore === '&&' &&
+      segment.operatorAfter === '&&' &&
+      (commandName === 'true' || invocation?.name === 'status' || invocation?.name === 'diff');
+    dominatingBroadAdd =
+      broadAddNow ?? (preservesBroadAddDominance ? dominatingBroadAdd : undefined);
     const commandStatus =
       commandName === 'true' ? true : commandName === 'false' ? false : undefined;
     listStatus = combineShellStatus(listStatus, operatorBefore, commandStatus);
     operatorBefore = segment.operatorAfter;
   }
   return undefined;
+}
+
+function stagesEntireWorktree(arguments_: string[]): boolean {
+  let broad = false;
+  let optionsEnded = false;
+  for (const argument of arguments_) {
+    if (optionsEnded) return false;
+    if (argument === '--') {
+      optionsEnded = true;
+      continue;
+    }
+    if (argument === '--all' || argument === '--no-ignore-removal') {
+      broad = true;
+      continue;
+    }
+    if (argument === '--verbose') continue;
+    if (/^-[Av]+$/.test(argument)) {
+      if (argument.includes('A')) broad = true;
+      continue;
+    }
+    return false;
+  }
+  return broad;
 }
 
 function combineShellStatus(
@@ -249,12 +300,19 @@ function combineShellStatus(
   return left === false && right === false ? false : undefined;
 }
 
-function gitSelectorEnvironment(prefixWords: string[], directory: string): Record<string, string> {
+function gitSelectorEnvironment(prefixWords: string[]): Record<string, string> | undefined {
+  if (
+    prefixWords.some(
+      word => !/^[A-Za-z_][A-Za-z0-9_]*=/.test(word) && nodePath.basename(word) === 'env',
+    )
+  ) {
+    return undefined;
+  }
   const environment: Record<string, string> = {};
   for (const word of prefixWords) {
-    const match = /^(GIT_DIR|GIT_WORK_TREE)=(.*)$/.exec(word);
+    const match = /^(GIT_DIR|GIT_INDEX_FILE|GIT_WORK_TREE)=(.*)$/.exec(word);
     if (match?.[1] === undefined || match[2] === undefined) continue;
-    environment[match[1]] = nodePath.resolve(directory, match[2]);
+    environment[match[1]] = match[2];
   }
   return environment;
 }
@@ -368,42 +426,38 @@ function isLongOptionWithValue(token: string): boolean {
  * models preceding `git add` segments and `git commit -a` without moving
  * source changes into the user's real index if the eventual commit aborts.
  */
-function projectCommitIndex(cwd: string, plan: GitCommitPlan): ProjectedIndex | undefined {
+function projectCommitIndex(plan: GitCommitPlan): ProjectedIndex | undefined {
+  const commitTarget = gitRepositoryTarget(plan);
+  if (
+    commitTarget === undefined ||
+    plan.precedingAdds.some(add => !sameGitRepositoryTarget(add, plan))
+  ) {
+    return undefined;
+  }
   const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-commit-index-'));
   const projectedIndex = nodePath.join(directory, 'index');
   const commitEnvironment = { ...process.env, ...plan.environment };
   const projectedEnvironment = { ...commitEnvironment, GIT_INDEX_FILE: projectedIndex };
   try {
-    const realIndex = execFileSync(
-      'git',
-      [...plan.globalArguments, 'rev-parse', '--path-format=absolute', '--git-path', 'index'],
-      {
-        cwd,
-        encoding: 'utf8',
-        env: commitEnvironment,
-        stdio: ['ignore', 'pipe', 'ignore'],
-      },
-    ).trim();
-    if (existsSync(realIndex)) {
-      copyFileSync(realIndex, projectedIndex);
+    if (existsSync(commitTarget.indexPath)) {
+      copyFileSync(commitTarget.indexPath, projectedIndex);
     } else {
-      execFileSync('git', ['read-tree', '--empty'], {
-        cwd,
+      execFileSync('git', [...plan.globalArguments, 'read-tree', '--empty'], {
+        cwd: plan.directory,
         env: projectedEnvironment,
         stdio: 'ignore',
       });
     }
     for (const add of plan.precedingAdds) {
-      if (gitWorktreeRoot(add) !== cwd) continue;
       execFileSync('git', [...add.globalArguments, 'add', ...add.arguments], {
         cwd: add.directory,
-        env: { ...projectedEnvironment, ...add.environment },
+        env: { ...projectedEnvironment, ...add.environment, GIT_INDEX_FILE: projectedIndex },
         stdio: 'ignore',
       });
     }
     if (stagesTrackedWorktreeChanges(plan.arguments)) {
-      execFileSync('git', ['add', '-u', '--', ':/'], {
-        cwd,
+      execFileSync('git', [...plan.globalArguments, 'add', '-u', '--', ':/'], {
+        cwd: plan.directory,
         env: projectedEnvironment,
         stdio: 'ignore',
       });
@@ -416,9 +470,11 @@ function projectCommitIndex(cwd: string, plan: GitCommitPlan): ProjectedIndex | 
 }
 
 function runArchitectureHook(projectDir: string, plan: GitCommitPlan): void {
+  const commitTarget = gitRepositoryTarget(plan);
+  if (commitTarget === undefined) return;
   const needsProjectedIndex =
     plan.precedingAdds.length > 0 || stagesTrackedWorktreeChanges(plan.arguments);
-  const projectedIndex = needsProjectedIndex ? projectCommitIndex(projectDir, plan) : undefined;
+  const projectedIndex = needsProjectedIndex ? projectCommitIndex(plan) : undefined;
   if (needsProjectedIndex && projectedIndex === undefined) return;
   try {
     const sourceIndex = projectedIndex?.path;
@@ -427,7 +483,15 @@ function runArchitectureHook(projectDir: string, plan: GitCommitPlan): void {
     // fingerprint, so regenerating and staging the generated doc into it would leak
     // unrelated churn. CI `architecture --check` remains the backstop for any drift
     // this skips.
-    if (!stagedChangeAffectsArchitecture(projectDir, sourceIndex)) return;
+    if (
+      !stagedChangeAffectsArchitecture(projectDir, {
+        gitDirectory: commitTarget.gitDirectory,
+        indexPath: sourceIndex ?? commitTarget.indexPath,
+        worktreeRoot: commitTarget.worktreeRoot,
+      })
+    ) {
+      return;
+    }
 
     // Prefer local source in dev/dogfood, fall back to the published CLI. The CLI
     // owns the regenerate-and-stage logic (and the opt-out check); this hook is glue.
@@ -441,6 +505,9 @@ function runArchitectureHook(projectDir: string, plan: GitCommitPlan): void {
       env: {
         ...process.env,
         ...plan.environment,
+        GIT_DIR: commitTarget.gitDirectory,
+        GIT_INDEX_FILE: commitTarget.indexPath,
+        GIT_WORK_TREE: commitTarget.worktreeRoot,
         ...(sourceIndex === undefined ? {} : { [ARCHITECTURE_SOURCE_INDEX_ENV]: sourceIndex }),
         ...(plan.precedingAdds.length === 0 && !stagesTrackedWorktreeChanges(plan.arguments)
           ? {}
@@ -459,16 +526,57 @@ function runArchitectureHook(projectDir: string, plan: GitCommitPlan): void {
 function gitWorktreeRoot(
   context: Pick<GitInvocation, 'directory' | 'environment' | 'globalArguments'>,
 ): string | undefined {
+  return gitRepositoryTarget(context)?.worktreeRoot;
+}
+
+interface GitRepositoryTarget {
+  gitDirectory: string;
+  indexPath: string;
+  worktreeRoot: string;
+}
+
+type GitRepositoryContext = Pick<GitInvocation, 'directory' | 'environment' | 'globalArguments'>;
+
+function gitRepositoryTarget(context: GitRepositoryContext): GitRepositoryTarget | undefined {
   try {
-    return execFileSync('git', [...context.globalArguments, 'rev-parse', '--show-toplevel'], {
-      cwd: context.directory,
-      encoding: 'utf8',
-      env: { ...process.env, ...context.environment },
-      stdio: ['ignore', 'pipe', 'ignore'],
-    }).trim();
+    const [worktreeRoot, gitDirectory, indexPath] = execFileSync(
+      'git',
+      [
+        ...context.globalArguments,
+        'rev-parse',
+        '--path-format=absolute',
+        '--show-toplevel',
+        '--absolute-git-dir',
+        '--git-path',
+        'index',
+      ],
+      {
+        cwd: context.directory,
+        encoding: 'utf8',
+        env: { ...process.env, ...context.environment },
+        stdio: ['ignore', 'pipe', 'ignore'],
+      },
+    )
+      .trim()
+      .split('\n');
+    return worktreeRoot === undefined || gitDirectory === undefined || indexPath === undefined
+      ? undefined
+      : { gitDirectory, indexPath, worktreeRoot };
   } catch {
     return undefined;
   }
+}
+
+function sameGitRepositoryTarget(left: GitRepositoryContext, right: GitRepositoryContext): boolean {
+  const leftTarget = gitRepositoryTarget(left);
+  const rightTarget = gitRepositoryTarget(right);
+  return (
+    leftTarget !== undefined &&
+    rightTarget !== undefined &&
+    leftTarget.gitDirectory === rightTarget.gitDirectory &&
+    leftTarget.worktreeRoot === rightTarget.worktreeRoot &&
+    leftTarget.indexPath === rightTarget.indexPath
+  );
 }
 
 interface HookInput {
@@ -489,15 +597,21 @@ const gitCommand = input.tool_input?.command ?? '';
 const baseDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 const commitPlan = gitCommitPlan(gitCommand, baseDirectory);
 if (commitPlan === undefined) {
-  const unsupportedCommit = unsupportedCommitInvocation(gitCommand, baseDirectory);
-  const unsupportedProjectDir =
-    unsupportedCommit === undefined ? undefined : gitWorktreeRoot(unsupportedCommit);
+  const unsupportedCommit = unsupportedCommitPlan(gitCommand, baseDirectory);
+  const unsupportedTarget =
+    unsupportedCommit === undefined ? undefined : gitRepositoryTarget(unsupportedCommit.commit);
+  const unsupportedProjectDir = unsupportedTarget?.worktreeRoot;
   let shouldAdvise = false;
   try {
-    shouldAdvise =
+    if (
+      unsupportedCommit !== undefined &&
       unsupportedProjectDir !== undefined &&
-      existsSync(nodePath.join(unsupportedProjectDir, '.safeword')) &&
-      stagedChangeAffectsArchitecture(unsupportedProjectDir);
+      existsSync(nodePath.join(unsupportedProjectDir, '.safeword'))
+    ) {
+      shouldAdvise = unsupportedCommit.broadAddStagesEntireWorktree
+        ? worktreeChangeAffectsArchitecture(unsupportedProjectDir, unsupportedTarget)
+        : stagedChangeAffectsArchitecture(unsupportedProjectDir, unsupportedTarget);
+    }
   } catch {
     // Advisory detection must never turn an unmodelled command into a blocker.
   }

@@ -204,6 +204,10 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
 
     expect(result.exitCode).toBe(0);
     expect(`${result.stdout}\n${result.stderr}`).toContain('not owned by Safeword');
+    expect(`${result.stdout}\n${result.stderr}`).toContain(
+      'Architecture docs left unchanged (1 document is not Safeword-owned).',
+    );
+    expect(`${result.stdout}\n${result.stderr}`).not.toContain('Architecture docs need no change.');
     expect(readFileSync(documentPath, 'utf8')).toBe(foreign);
     expect(stagedFiles(context.directory)).not.toContain(DOC_RELATIVE);
   });
@@ -876,6 +880,50 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
     expect(readFileSync(coreDocument, 'utf8')).toBe(foreign);
     expect(stagedFiles(context.directory)).not.toContain('packages/core/architecture.generated.md');
     expect(stagedFiles(context.directory)).toContain('packages/web/architecture.generated.md');
+  });
+
+  it('reports multiple skipped foreign documents truthfully', async () => {
+    rmSync(nodePath.join(context.directory, 'src'), { recursive: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'package.json'),
+      JSON.stringify({ name: 'root', workspaces: ['packages/*'] }),
+    );
+    for (const packageName of ['core', 'web']) {
+      const packageDirectory = nodePath.join(context.directory, 'packages', packageName);
+      mkdirSync(nodePath.join(packageDirectory, 'src'), { recursive: true });
+      writeFileSync(
+        nodePath.join(packageDirectory, 'package.json'),
+        JSON.stringify({ name: packageName }),
+      );
+      writeFileSync(
+        nodePath.join(packageDirectory, 'src', 'index.ts'),
+        `export const ${packageName} = true;\n`,
+      );
+    }
+    selfHealProject(context.directory);
+    commitAll(context.directory, 'record monorepo architecture');
+
+    for (const packageName of ['core', 'web']) {
+      const packageDirectory = nodePath.join(context.directory, 'packages', packageName);
+      writeFileSync(
+        nodePath.join(packageDirectory, 'architecture.generated.md'),
+        `# ${packageName} Architecture\n\nMaintained by the ${packageName} team.\n`,
+      );
+      const modulePath = nodePath.join(packageDirectory, 'src', 'next.ts');
+      writeFileSync(modulePath, `export const ${packageName}Next = true;\n`);
+      git(context.directory, 'add', '--', nodePath.relative(context.directory, modulePath));
+    }
+
+    const result = await runCli(['architecture', '--stage'], { cwd: context.directory });
+    const output = `${result.stdout}\n${result.stderr}`;
+
+    expect(result.exitCode).toBe(0);
+    expect(output).toContain(
+      'Architecture docs left unchanged (2 documents are not Safeword-owned).',
+    );
+    expect(output).not.toContain('Architecture docs need no change.');
+    expect(stagedFiles(context.directory)).not.toContain('packages/core/architecture.generated.md');
+    expect(stagedFiles(context.directory)).not.toContain('packages/web/architecture.generated.md');
   });
 
   it('restores earlier documents when a later destination replacement fails', async () => {

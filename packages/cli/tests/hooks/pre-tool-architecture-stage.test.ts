@@ -1,5 +1,13 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  copyFileSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -40,6 +48,38 @@ describe('pre-tool architecture staging hook', () => {
         tool_input: { command },
       }),
     });
+  }
+
+  function createExplicitSelectorTarget(gitDirectoryName = 'repo.git'): {
+    container: string;
+    gitDirectory: string;
+    worktree: string;
+  } {
+    const container = createTemporaryDirectory();
+    const gitDirectory = nodePath.join(container, gitDirectoryName);
+    const worktree = nodePath.join(container, 'worktree');
+    execFileSync('git', ['init', '--quiet', `--separate-git-dir=${gitDirectory}`, worktree], {
+      cwd: container,
+    });
+    execFileSync('git', ['config', 'user.email', 'test@example.com'], { cwd: worktree });
+    execFileSync('git', ['config', 'user.name', 'Test User'], { cwd: worktree });
+    mkdirSync(nodePath.join(worktree, '.safeword'), { recursive: true });
+    mkdirSync(nodePath.join(worktree, 'src', 'auth'), { recursive: true });
+    mkdirSync(nodePath.join(worktree, 'src', 'billing'), { recursive: true });
+    writeFileSync(nodePath.join(worktree, 'package.json'), JSON.stringify({ name: 'target' }));
+    writeFileSync(
+      nodePath.join(worktree, 'src', 'auth', 'index.ts'),
+      'export const auth = true;\n',
+    );
+    writeFileSync(
+      nodePath.join(worktree, 'src', 'billing', 'index.ts'),
+      'export const billing = true;\n',
+    );
+    selfHeal(worktree);
+    execFileSync('git', ['add', '-A'], { cwd: worktree });
+    execFileSync('git', ['commit', '-m', 'initial target fixture'], { cwd: worktree });
+    rmSync(nodePath.join(worktree, '.git'));
+    return { container, gitDirectory, worktree };
   }
 
   beforeEach(() => {
@@ -438,6 +478,476 @@ describe('pre-tool architecture staging hook', () => {
       expect(hook.stderr).toBe('');
     },
   );
+
+  it('advises when an unsupported command will broadly add an unstaged architecture input', () => {
+    mkdirSync(nodePath.join(directory, 'src', 'checkout'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, 'src', 'checkout', 'index.ts'),
+      'export const checkout = true;\n',
+    );
+
+    const hook = runHook('bun run lint && git add -A && git commit -m "add checkout"');
+
+    expect(hook.status).toBe(0);
+    const output = JSON.parse(String(hook.stdout)) as {
+      hookSpecificOutput?: { additionalContext?: string; hookEventName?: string };
+      systemMessage?: string;
+    };
+    expect(output.systemMessage).toContain('skipped architecture auto-staging');
+    expect(output.hookSpecificOutput).toEqual({
+      additionalContext: output.systemMessage,
+      hookEventName: 'PreToolUse',
+    });
+    expect(git('diff', '--cached', '--name-only')).not.toContain('src/checkout/index.ts');
+  });
+
+  it.each([
+    [
+      'a Git status check',
+      'bun run lint && git add -A && git status --short && git commit -m "add checkout"',
+    ],
+    [
+      'a successful shell builtin',
+      'bun run lint && git add -A && true && git commit -m "add checkout"',
+    ],
+    [
+      'an empty pathspec terminator',
+      'bun run lint && git add -A -- && git commit -m "add checkout"',
+    ],
+    ['a benign verbose flag', 'bun run lint && git add -A -v && git commit -m "add checkout"'],
+    [
+      'the long broad-add spelling with verbose output',
+      'bun run lint && git add --no-ignore-removal --verbose && git commit -m "add checkout"',
+    ],
+    ['the --all spelling', 'bun run lint && git add --all && git commit -m "add checkout"'],
+    ['a clustered broad-add flag', 'bun run lint && git add -Av && git commit -m "add checkout"'],
+    [
+      'a same-repository directory change',
+      'bun run lint && git add -A && cd src && git commit -m "add checkout"',
+    ],
+  ])('retains broad-add advisory scope across %s', (_label, command) => {
+    mkdirSync(nodePath.join(directory, 'src', 'checkout'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, 'src', 'checkout', 'index.ts'),
+      'export const checkout = true;\n',
+    );
+
+    const hook = runHook(command);
+
+    expect(hook.status).toBe(0);
+    const output = JSON.parse(String(hook.stdout)) as { systemMessage?: string };
+    expect(output.systemMessage).toContain('skipped architecture auto-staging');
+    expect(git('diff', '--cached', '--name-only')).not.toContain('src/checkout/index.ts');
+  });
+
+  it('uses a dominating broad add instead of stale pre-command index content', () => {
+    writeFileSync(
+      nodePath.join(directory, 'package.json'),
+      JSON.stringify({ name: 'fixture', dependencies: { zod: '^4.0.0' } }),
+    );
+    git('add', '--', 'package.json');
+    writeFileSync(
+      nodePath.join(directory, 'package.json'),
+      JSON.stringify({ name: 'fixture', version: '2.0.0' }),
+    );
+
+    const hook = runHook('bun run lint && git add -A && git commit -m "release"');
+
+    expect(hook.status).toBe(0);
+    expect(hook.stdout).toBe('');
+    expect(hook.stderr).toBe('');
+    expect(git('show', ':package.json')).toContain('zod');
+  });
+
+  it('does not let a broad add from another repository override the commit index', () => {
+    const targetDirectory = createTemporaryDirectory();
+    try {
+      initGitRepo(targetDirectory);
+      mkdirSync(nodePath.join(targetDirectory, '.safeword'), { recursive: true });
+      writeFileSync(
+        nodePath.join(targetDirectory, 'package.json'),
+        JSON.stringify({ name: 'target-fixture' }),
+      );
+      execFileSync('git', ['add', '-A'], { cwd: targetDirectory });
+      execFileSync('git', ['commit', '-m', 'initial target fixture'], { cwd: targetDirectory });
+      writeFileSync(
+        nodePath.join(targetDirectory, 'package.json'),
+        JSON.stringify({ name: 'target-fixture', dependencies: { zod: '^4.0.0' } }),
+      );
+      execFileSync('git', ['add', '--', 'package.json'], { cwd: targetDirectory });
+      writeFileSync(
+        nodePath.join(targetDirectory, 'package.json'),
+        JSON.stringify({ name: 'target-fixture', version: '2.0.0' }),
+      );
+
+      const hook = runHook(
+        `bun run lint && git add -A && git -C "${targetDirectory}" commit -m "target change"`,
+      );
+
+      expect(hook.status).toBe(0);
+      const output = JSON.parse(String(hook.stdout)) as { systemMessage?: string };
+      expect(output.systemMessage).toContain('skipped architecture auto-staging');
+      expect(
+        execFileSync('git', ['show', ':package.json'], {
+          cwd: targetDirectory,
+          encoding: 'utf8',
+        }),
+      ).toContain('zod');
+    } finally {
+      removeTemporaryDirectory(targetDirectory);
+    }
+  });
+
+  it('does not mutate a commit target when a preceding add target cannot resolve', () => {
+    const targetDirectory = createTemporaryDirectory();
+    try {
+      initGitRepo(targetDirectory);
+      mkdirSync(nodePath.join(targetDirectory, '.safeword'), { recursive: true });
+      mkdirSync(nodePath.join(targetDirectory, 'src', 'auth'), { recursive: true });
+      writeFileSync(
+        nodePath.join(targetDirectory, 'package.json'),
+        JSON.stringify({ name: 'target-fixture' }),
+      );
+      writeFileSync(
+        nodePath.join(targetDirectory, 'src', 'auth', 'index.ts'),
+        'export const auth = true;\n',
+      );
+      selfHeal(targetDirectory);
+      execFileSync('git', ['add', '-A'], { cwd: targetDirectory });
+      execFileSync('git', ['commit', '-m', 'initial target fixture'], { cwd: targetDirectory });
+      symlinkSync(
+        nodePath.join(REPOSITORY_ROOT, 'packages'),
+        nodePath.join(targetDirectory, 'packages'),
+        'dir',
+      );
+      mkdirSync(nodePath.join(targetDirectory, 'src', 'checkout'), { recursive: true });
+      writeFileSync(
+        nodePath.join(targetDirectory, 'src', 'checkout', 'index.ts'),
+        'export const checkout = true;\n',
+      );
+      execFileSync('git', ['add', '--', 'src/checkout/index.ts'], { cwd: targetDirectory });
+      const originalIndex = readFileSync(nodePath.join(targetDirectory, '.git', 'index'));
+      const documentPath = nodePath.join(targetDirectory, '.project', 'architecture.generated.md');
+      const originalDocument = readFileSync(documentPath);
+      const missingDirectory = nodePath.join(targetDirectory, 'missing');
+
+      const hook = runHook(
+        `git -C "${missingDirectory}" add -A && git -C "${targetDirectory}" commit -m "unreachable"`,
+      );
+
+      expect(hook.status).toBe(0);
+      expect(readFileSync(nodePath.join(targetDirectory, '.git', 'index'))).toEqual(originalIndex);
+      expect(readFileSync(documentPath)).toEqual(originalDocument);
+    } finally {
+      removeTemporaryDirectory(targetDirectory);
+    }
+  });
+
+  it('does not let an alternate-index broad add override the commit index', () => {
+    writeFileSync(
+      nodePath.join(directory, 'package.json'),
+      JSON.stringify({ name: 'fixture', dependencies: { zod: '^4.0.0' } }),
+    );
+    git('add', '--', 'package.json');
+    writeFileSync(
+      nodePath.join(directory, 'package.json'),
+      JSON.stringify({ name: 'fixture', version: '2.0.0' }),
+    );
+    const alternateIndex = nodePath.join(directory, '.git', 'alternate-index');
+
+    const hook = runHook(
+      `bun run lint && GIT_INDEX_FILE="${alternateIndex}" git add -A && git commit -m "real index change"`,
+    );
+
+    expect(hook.status).toBe(0);
+    const output = JSON.parse(String(hook.stdout)) as { systemMessage?: string };
+    expect(output.systemMessage).toContain('skipped architecture auto-staging');
+    expect(git('show', ':package.json')).toContain('zod');
+  });
+
+  it('does not mutate an alternate index while modeling preceding adds', () => {
+    const alternateIndex = nodePath.join(directory, '.git', 'alternate-index');
+    copyFileSync(nodePath.join(directory, '.git', 'index'), alternateIndex);
+    const originalAlternateIndex = readFileSync(alternateIndex);
+    mkdirSync(nodePath.join(directory, 'src', 'checkout'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, 'src', 'checkout', 'index.ts'),
+      'export const checkout = true;\n',
+    );
+
+    const hook = runHook(
+      `GIT_INDEX_FILE="${alternateIndex}" git add -A && git commit -m "real index commit"`,
+    );
+
+    expect(hook.status).toBe(0);
+    expect(readFileSync(alternateIndex)).toEqual(originalAlternateIndex);
+    expect(git('diff', '--cached', '--name-only')).not.toContain('src/checkout/index.ts');
+  });
+
+  it('does not retain an alternate index selector removed by env -u', () => {
+    const alternateIndex = nodePath.join(directory, '.git', 'alternate-index');
+    copyFileSync(nodePath.join(directory, '.git', 'index'), alternateIndex);
+    mkdirSync(nodePath.join(directory, 'src', 'checkout'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, 'src', 'checkout', 'index.ts'),
+      'export const checkout = true;\n',
+    );
+    execFileSync('git', ['add', '--', 'src/checkout/index.ts'], {
+      cwd: directory,
+      env: { ...process.env, GIT_INDEX_FILE: alternateIndex },
+    });
+    writeFileSync(nodePath.join(directory, 'README.md'), 'routine docs change\n');
+    git('add', '--', 'README.md');
+    const originalRealIndex = readFileSync(nodePath.join(directory, '.git', 'index'));
+    const originalAlternateIndex = readFileSync(alternateIndex);
+
+    const hook = runHook(
+      `GIT_INDEX_FILE="${alternateIndex}" env -u GIT_INDEX_FILE git commit -m "docs"`,
+    );
+
+    expect(hook.status).toBe(0);
+    expect(readFileSync(nodePath.join(directory, '.git', 'index'))).toEqual(originalRealIndex);
+    expect(readFileSync(alternateIndex)).toEqual(originalAlternateIndex);
+  });
+
+  it('does not mutate either index when env clears inherited selectors', () => {
+    const alternateIndex = nodePath.join(directory, '.git', 'alternate-index');
+    copyFileSync(nodePath.join(directory, '.git', 'index'), alternateIndex);
+    mkdirSync(nodePath.join(directory, 'src', 'checkout'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, 'src', 'checkout', 'index.ts'),
+      'export const checkout = true;\n',
+    );
+    execFileSync('git', ['add', '--', 'src/checkout/index.ts'], {
+      cwd: directory,
+      env: { ...process.env, GIT_INDEX_FILE: alternateIndex },
+    });
+    writeFileSync(nodePath.join(directory, 'README.md'), 'routine docs change\n');
+    git('add', '--', 'README.md');
+    const originalRealIndex = readFileSync(nodePath.join(directory, '.git', 'index'));
+    const originalAlternateIndex = readFileSync(alternateIndex);
+
+    const hook = runHook(`GIT_INDEX_FILE="${alternateIndex}" env - git commit -m "docs"`);
+
+    expect(hook.status).toBe(0);
+    expect(readFileSync(nodePath.join(directory, '.git', 'index'))).toEqual(originalRealIndex);
+    expect(readFileSync(alternateIndex)).toEqual(originalAlternateIndex);
+  });
+
+  it.each([
+    ['short', (target: string) => `env -C "${target}" git commit -m "target"`],
+    ['long', (target: string) => `env --chdir="${target}" git commit -m "target"`],
+  ])('does not mutate another repository for the %s env chdir form', (_name, command) => {
+    const targetDirectory = createTemporaryDirectory();
+    try {
+      initGitRepo(targetDirectory);
+      writeFileSync(nodePath.join(targetDirectory, 'README.md'), 'target fixture\n');
+      execFileSync('git', ['add', '-A'], { cwd: targetDirectory });
+      execFileSync('git', ['commit', '-m', 'initial target fixture'], {
+        cwd: targetDirectory,
+      });
+
+      mkdirSync(nodePath.join(directory, 'src', 'checkout'), { recursive: true });
+      writeFileSync(
+        nodePath.join(directory, 'src', 'checkout', 'index.ts'),
+        'export const checkout = true;\n',
+      );
+      git('add', '--', 'src/checkout/index.ts');
+      const originalSourceIndex = readFileSync(nodePath.join(directory, '.git', 'index'));
+      const originalTargetIndex = readFileSync(nodePath.join(targetDirectory, '.git', 'index'));
+
+      const hook = runHook(command(targetDirectory));
+
+      expect(hook.status).toBe(0);
+      expect(readFileSync(nodePath.join(directory, '.git', 'index'))).toEqual(originalSourceIndex);
+      expect(readFileSync(nodePath.join(targetDirectory, '.git', 'index'))).toEqual(
+        originalTargetIndex,
+      );
+    } finally {
+      removeTemporaryDirectory(targetDirectory);
+    }
+  });
+
+  it('preserves Git selector ordering when resolving a later -C', () => {
+    const targetContainer = createTemporaryDirectory();
+    const targetDirectory = nodePath.join(targetContainer, 'b');
+    const targetGitDirectory = nodePath.join(targetContainer, 'a.git');
+    try {
+      execFileSync(
+        'git',
+        ['init', '--quiet', `--separate-git-dir=${targetGitDirectory}`, targetDirectory],
+        { cwd: targetContainer },
+      );
+      execFileSync('git', ['config', 'user.email', 'test@example.com'], {
+        cwd: targetDirectory,
+      });
+      execFileSync('git', ['config', 'user.name', 'Test User'], { cwd: targetDirectory });
+      mkdirSync(nodePath.join(targetDirectory, '.safeword'), { recursive: true });
+      writeFileSync(
+        nodePath.join(targetDirectory, 'package.json'),
+        JSON.stringify({ name: 'target-fixture' }),
+      );
+      execFileSync('git', ['add', '-A'], { cwd: targetDirectory });
+      execFileSync('git', ['commit', '-m', 'initial target fixture'], { cwd: targetDirectory });
+      writeFileSync(
+        nodePath.join(targetDirectory, 'package.json'),
+        JSON.stringify({ name: 'target-fixture', dependencies: { zod: '^4.0.0' } }),
+      );
+      execFileSync('git', ['add', '--', 'package.json'], { cwd: targetDirectory });
+      writeFileSync(
+        nodePath.join(targetDirectory, 'package.json'),
+        JSON.stringify({ name: 'target-fixture', version: '2.0.0' }),
+      );
+
+      const hook = runHook(
+        `bun run lint && git add -A && git --git-dir=a.git --work-tree=b -C "${targetContainer}" commit -m "target change"`,
+      );
+
+      expect(hook.status).toBe(0);
+      const output = JSON.parse(String(hook.stdout)) as { systemMessage?: string };
+      expect(output.systemMessage).toContain('skipped architecture auto-staging');
+      expect(
+        execFileSync('git', ['show', ':package.json'], {
+          cwd: targetDirectory,
+          encoding: 'utf8',
+        }),
+      ).toContain('zod');
+    } finally {
+      removeTemporaryDirectory(targetContainer);
+    }
+  });
+
+  it('stages architecture for an explicit-selector worktree without a .git marker', () => {
+    const target = createExplicitSelectorTarget();
+    try {
+      symlinkSync(
+        nodePath.join(REPOSITORY_ROOT, 'packages'),
+        nodePath.join(target.worktree, 'packages'),
+        'dir',
+      );
+      const originalDocument = readFileSync(
+        nodePath.join(target.worktree, '.project', 'architecture.generated.md'),
+        'utf8',
+      );
+      rmSync(nodePath.join(target.worktree, 'src', 'billing'), { recursive: true });
+      const command =
+        `cd "${target.worktree}" && ` +
+        'GIT_DIR="../repo.git" GIT_WORK_TREE="." git commit -am "remove billing"';
+
+      const hook = runHook(command);
+
+      expect(hook.status).toBe(0);
+      const gitEnvironment = {
+        ...process.env,
+        GIT_DIR: target.gitDirectory,
+        GIT_WORK_TREE: target.worktree,
+      };
+      expect(
+        execFileSync('git', ['diff', '--cached', '--name-only'], {
+          cwd: target.worktree,
+          encoding: 'utf8',
+          env: gitEnvironment,
+        }),
+      ).toContain('.project/architecture.generated.md');
+      const stagedDocument = execFileSync('git', ['show', ':.project/architecture.generated.md'], {
+        cwd: target.worktree,
+        encoding: 'utf8',
+        env: gitEnvironment,
+      });
+      expect(stagedDocument).not.toBe(originalDocument);
+      expect(stagedDocument).toContain('orphaned: this section describes a module');
+    } finally {
+      removeTemporaryDirectory(target.container);
+    }
+  });
+
+  it('supports a direct Git selector assignment whose value ends in env', () => {
+    const target = createExplicitSelectorTarget('env');
+    try {
+      symlinkSync(
+        nodePath.join(REPOSITORY_ROOT, 'packages'),
+        nodePath.join(target.worktree, 'packages'),
+        'dir',
+      );
+      rmSync(nodePath.join(target.worktree, 'src', 'billing'), { recursive: true });
+      const command =
+        `cd "${target.worktree}" && ` +
+        'GIT_DIR="../env" GIT_WORK_TREE="." git commit -am "remove billing"';
+
+      const hook = runHook(command);
+
+      expect(hook.status).toBe(0);
+      const stagedNames = execFileSync('git', ['diff', '--cached', '--name-only'], {
+        cwd: target.worktree,
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          GIT_DIR: target.gitDirectory,
+          GIT_WORK_TREE: target.worktree,
+        },
+      });
+      expect(stagedNames).toContain('.project/architecture.generated.md');
+    } finally {
+      removeTemporaryDirectory(target.container);
+    }
+  });
+
+  it('advises for a broad add in an explicit-selector worktree without a .git marker', () => {
+    const target = createExplicitSelectorTarget();
+    try {
+      mkdirSync(nodePath.join(target.worktree, 'src', 'checkout'), { recursive: true });
+      writeFileSync(
+        nodePath.join(target.worktree, 'src', 'checkout', 'index.ts'),
+        'export const checkout = true;\n',
+      );
+      const selectors = 'GIT_DIR="../repo.git" GIT_WORK_TREE="."';
+      const command =
+        `cd "${target.worktree}" && bun run lint && ` +
+        `${selectors} git add -A && ${selectors} git commit -m "add checkout"`;
+
+      const hook = runHook(command);
+
+      expect(hook.status).toBe(0);
+      const output = JSON.parse(String(hook.stdout)) as { systemMessage?: string };
+      expect(output.systemMessage).toContain('skipped architecture auto-staging');
+      expect(
+        execFileSync('git', ['diff', '--cached', '--name-only'], {
+          cwd: target.worktree,
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            GIT_DIR: target.gitDirectory,
+            GIT_WORK_TREE: target.worktree,
+          },
+        }),
+      ).not.toContain('src/checkout/index.ts');
+    } finally {
+      removeTemporaryDirectory(target.container);
+    }
+  });
+
+  it('does not advise when a broad add would stage only routine docs', () => {
+    writeFileSync(nodePath.join(directory, 'README.md'), 'routine docs change\n');
+
+    const hook = runHook('bun run lint && git add -A && git commit -m "docs: typo"');
+
+    expect(hook.status).toBe(0);
+    expect(hook.stdout).toBe('');
+    expect(hook.stderr).toBe('');
+  });
+
+  it('does not advise when a broad add would stage only a package version bump', () => {
+    writeFileSync(
+      nodePath.join(directory, 'package.json'),
+      JSON.stringify({ name: 'fixture', version: '2.0.0' }),
+    );
+
+    const hook = runHook('bun run lint && git add --all && git commit -m "release"');
+
+    expect(hook.status).toBe(0);
+    expect(hook.stdout).toBe('');
+    expect(hook.stderr).toBe('');
+  });
 
   it.each([
     [

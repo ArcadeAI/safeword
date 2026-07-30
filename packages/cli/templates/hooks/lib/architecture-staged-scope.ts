@@ -9,6 +9,8 @@
 // leak.
 
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import nodePath from 'node:path';
 
 /** package.json sections whose keys are dependency names (feed the fingerprint). */
 const DEPENDENCY_SECTIONS = [
@@ -30,12 +32,23 @@ const STRUCTURAL_BASENAMES = new Set([
   'Cargo.toml',
 ]);
 
-function runGit(cwd: string, args: string[], indexFile?: string): string {
+export interface ArchitectureScopeGitContext {
+  gitDirectory?: string;
+  indexPath?: string;
+  worktreeRoot?: string;
+}
+
+function runGit(cwd: string, args: string[], context?: ArchitectureScopeGitContext): string {
   try {
     return execFileSync('git', args, {
       cwd,
       encoding: 'utf8',
-      env: indexFile === undefined ? process.env : { ...process.env, GIT_INDEX_FILE: indexFile },
+      env: {
+        ...process.env,
+        ...(context?.gitDirectory === undefined ? {} : { GIT_DIR: context.gitDirectory }),
+        ...(context?.indexPath === undefined ? {} : { GIT_INDEX_FILE: context.indexPath }),
+        ...(context?.worktreeRoot === undefined ? {} : { GIT_WORK_TREE: context.worktreeRoot }),
+      },
       stdio: ['ignore', 'pipe', 'ignore'],
     });
   } catch {
@@ -44,8 +57,8 @@ function runGit(cwd: string, args: string[], indexFile?: string): string {
   }
 }
 
-export function stagedFiles(cwd: string, indexFile?: string): string[] {
-  return runGit(cwd, ['diff', '--cached', '--name-only'], indexFile)
+export function stagedFiles(cwd: string, context?: ArchitectureScopeGitContext): string[] {
+  return runGit(cwd, ['diff', '--cached', '--name-only'], context)
     .split('\n')
     .map(line => line.trim())
     .filter(line => line.length > 0);
@@ -66,10 +79,10 @@ function readManifest(
   cwd: string,
   ref: string,
   file: string,
-  indexFile?: string,
+  context?: ArchitectureScopeGitContext,
 ): Record<string, unknown> {
   // ref '' → the staged (index) blob via `git show :file`.
-  const raw = runGit(cwd, ['show', ref === '' ? `:${file}` : `${ref}:${file}`], indexFile);
+  const raw = runGit(cwd, ['show', ref === '' ? `:${file}` : `${ref}:${file}`], context);
   if (raw === '') return {};
   try {
     const parsed = JSON.parse(raw) as unknown;
@@ -123,10 +136,34 @@ function manifestArchInputs(manifest: Record<string, unknown>): string {
   });
 }
 
-function packageJsonArchInputsChanged(cwd: string, file: string, indexFile?: string): boolean {
+function packageJsonArchInputsChanged(
+  cwd: string,
+  file: string,
+  context?: ArchitectureScopeGitContext,
+): boolean {
   return (
-    manifestArchInputs(readManifest(cwd, 'HEAD', file, indexFile)) !==
-    manifestArchInputs(readManifest(cwd, '', file, indexFile))
+    manifestArchInputs(readManifest(cwd, 'HEAD', file, context)) !==
+    manifestArchInputs(readManifest(cwd, '', file, context))
+  );
+}
+
+function readWorktreeManifest(cwd: string, file: string): Record<string, unknown> {
+  try {
+    const parsed = JSON.parse(readFileSync(nodePath.join(cwd, file), 'utf8')) as unknown;
+    return parsed !== null && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function worktreePackageJsonArchInputsChanged(
+  cwd: string,
+  file: string,
+  context?: ArchitectureScopeGitContext,
+): boolean {
+  return (
+    manifestArchInputs(readManifest(cwd, 'HEAD', file, context)) !==
+    manifestArchInputs(readWorktreeManifest(cwd, file))
   );
 }
 
@@ -136,10 +173,42 @@ function packageJsonArchInputsChanged(cwd: string, file: string, indexFile?: str
  * globs changed — a pure version bump leaves the generated document untouched
  * and so must not trigger a regen.
  */
-export function stagedChangeAffectsArchitecture(cwd: string, indexFile?: string): boolean {
-  for (const file of stagedFiles(cwd, indexFile)) {
+export function stagedChangeAffectsArchitecture(
+  cwd: string,
+  context?: ArchitectureScopeGitContext,
+): boolean {
+  for (const file of stagedFiles(cwd, context)) {
     if (isStructuralPath(file)) return true;
-    if (basename(file) === 'package.json' && packageJsonArchInputsChanged(cwd, file, indexFile)) {
+    if (basename(file) === 'package.json' && packageJsonArchInputsChanged(cwd, file, context)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Whether a no-pathspec `git add -A` would stage an architecture-shape change.
+ * Reads HEAD and the worktree directly; never projects or mutates the index.
+ */
+export function worktreeChangeAffectsArchitecture(
+  cwd: string,
+  context?: ArchitectureScopeGitContext,
+): boolean {
+  const changed = new Set([
+    ...runGit(cwd, ['diff', 'HEAD', '--name-only', '-z', '--'], context)
+      .split('\0')
+      .filter(file => file.length > 0),
+    ...runGit(cwd, ['ls-files', '--others', '--exclude-standard', '-z', '--'], context)
+      .split('\0')
+      .filter(file => file.length > 0),
+  ]);
+
+  for (const file of changed) {
+    if (isStructuralPath(file)) return true;
+    if (
+      basename(file) === 'package.json' &&
+      worktreePackageJsonArchInputsChanged(cwd, file, context)
+    ) {
       return true;
     }
   }

@@ -126,11 +126,17 @@ function architectureStage(cwd: string): Promise<void> {
 
     withGitIndexSnapshot(cwd, gitContext, snapshotDirectory => {
       warnUnreadableWorkspaces(snapshotDirectory);
-      const changed = materializeIndexResults(cwd, snapshotDirectory, 'mutations-only').filter(
-        result => isWouldChangeAction(result.action),
-      );
+      const materialized = materializeIndexResults(cwd, snapshotDirectory, 'mutations-only');
+      const changed = materialized.results.filter(result => isWouldChangeAction(result.action));
       if (changed.length === 0) {
-        success('Architecture docs need no change.');
+        if (materialized.skippedForeignCount === 0) {
+          success('Architecture docs need no change.');
+        } else {
+          const ownership = `${materialized.skippedForeignCount} ${
+            materialized.skippedForeignCount === 1 ? 'document is' : 'documents are'
+          } not Safeword-owned`;
+          success(`Architecture docs left unchanged (${ownership}).`);
+        }
       } else {
         for (const result of changed) {
           stageMaterializedDocument(cwd, result);
@@ -228,8 +234,8 @@ function architectureStaged(cwd: string): Promise<void> {
 
     withGitIndexSnapshot(cwd, gitContext, snapshotDirectory => {
       warnUnreadableWorkspaces(snapshotDirectory);
-      const results = materializeIndexResults(cwd, snapshotDirectory, 'restore-staged-tree');
-      for (const result of results) {
+      const materialized = materializeIndexResults(cwd, snapshotDirectory, 'restore-staged-tree');
+      for (const result of materialized.results) {
         success(`Architecture state document ${result.action}: ${result.path}`);
       }
     });
@@ -497,6 +503,11 @@ interface MaterializedIndexResult extends SelfHealResult {
   restoreWorktreeContent?: string;
 }
 
+interface MaterializedIndexOutcome {
+  results: MaterializedIndexResult[];
+  skippedForeignCount: number;
+}
+
 type WorktreeDocumentState =
   | { existed: false }
   | {
@@ -521,7 +532,7 @@ function materializeIndexResults(
   cwd: string,
   snapshotDirectory: string,
   mode: IndexMaterializationMode,
-): MaterializedIndexResult[] {
+): MaterializedIndexOutcome {
   assertSnapshotHealTargetsContained(snapshotDirectory);
   const policy = indexMaterializationPolicy(mode);
   const plans = planIndexMaterializations(cwd, snapshotDirectory, policy);
@@ -546,13 +557,16 @@ function materializeIndexResults(
     throw materializationError;
   }
 
-  return plans
-    .filter(plan => !plan.skippedForeign)
-    .map(({ result, destination, restoreWorktreeContent }) => ({
-      action: result.action,
-      path: destination,
-      restoreWorktreeContent,
-    }));
+  return {
+    results: plans
+      .filter(plan => !plan.skippedForeign)
+      .map(({ result, destination, restoreWorktreeContent }) => ({
+        action: result.action,
+        path: destination,
+        restoreWorktreeContent,
+      })),
+    skippedForeignCount: plans.filter(plan => plan.skippedForeign).length,
+  };
 }
 
 function planIndexMaterializations(
