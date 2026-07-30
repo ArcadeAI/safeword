@@ -2132,25 +2132,15 @@ describe('relay readiness provenance', () => {
       buildCommit: 'b'.repeat(40),
       isAncestor: () => Promise.resolve(true),
       now: new Date('2026-07-26T12:00:00.000Z'),
-      readArtifactAtCommit: (_commit, artifactPath) =>
-        Promise.resolve({
-          content: JSON.stringify({
-            measuredAt: '2026-07-25T00:00:00.000Z',
-            metric:
-              artifactPath === manifest.measurements.sameSignatureCollisions.path
-                ? 'spooledNeverFiled'
-                : 'sameSignatureCollisions',
-            repository: 'ArcadeAI/safeword',
-            result: { count: 0 },
-            sampleSize: measurementArtifact(manifest, artifactPath).content.includes(
-              '"sampleSize":300',
-            )
-              ? 300
-              : 100,
-            version: 1,
-          }),
-          sha256: measurementArtifact(manifest, artifactPath).sha256,
-        }),
+      readArtifactAtCommit: (_commit, artifactPath) => {
+        const artifact = measurementArtifact(manifest, artifactPath);
+        const evidence = JSON.parse(artifact.content) as { metric: string };
+        evidence.metric =
+          evidence.metric === 'sameSignatureCollisions'
+            ? 'spooledNeverFiled'
+            : 'sameSignatureCollisions';
+        return Promise.resolve({ content: JSON.stringify(evidence), sha256: artifact.sha256 });
+      },
     });
 
     expect(result).toEqual({ enabled: false });
