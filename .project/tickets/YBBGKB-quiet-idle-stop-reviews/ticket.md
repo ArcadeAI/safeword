@@ -5,7 +5,7 @@ type: task
 phase: verify
 status: in_progress
 created: 2026-07-29T17:27:17.421Z
-last_modified: 2026-07-30T01:25:12.000Z
+last_modified: 2026-07-30T15:50:00.000Z
 ---
 
 # Keep stop reviews quiet until a new user prompt
@@ -61,3 +61,4 @@ Pre-mortem: a state-file write failure could still allow a duplicate generic rev
 - 2026-07-29T23:49:30.000Z Pass-2 PR review: repointed rebase-orphaned GREEN evidence to reachable commits, corrected the fail-closed test matrix pointer, and made the prompt-boundary clear persist even when optional reminder derivation throws. The new installed-hook regression was RED before `69ce94f19` and GREEN afterward; generic state initialization and prompt-write recovery are documented in the implementation plan.
 - 2026-07-30T00:55:54.000Z Pass-3 PR review: made the prompt-recovery test prove its malformed-state failure still occurs by asserting a downstream learning nudge remains absent, and replaced the misleading inferred-`any` parse declaration with the shared `QualityState` contract. Focused hook, idle-review, typecheck, phase-backstop, and ledger suites pass 102/102; the prior current-head CI run 30501024183 is green. Keep the ticket in `verify` pending user confirmation.
 - 2026-07-30T01:25:12.000Z Fresh quality-review and figure-it-out pass: no new reviewer feedback or unresolved threads. Verified the current head's CI run 30504407023 is green; corrected the PR Validation wording that still reported it in progress. Source review confirms the synchronous Node file APIs used by the best-effort prompt-state recovery remain current. Keep the ticket in `verify` pending user confirmation.
+- 2026-07-30T15:50:00.000Z Full audit, quality-review, and refactor pass: the code remains correct and intentionally keeps read-modify-write logic explicit per hook. Updated the architecture narrative with the one-generic-review-per-user-prompt boundary and corrected PR #1652 to show current-head CI 30505649629 as passed. Focused installed-hook coverage passes 72/72.
