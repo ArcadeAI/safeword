@@ -327,8 +327,10 @@ writer and remain untouched. Once an atomic write has flushed its file and
 linked and synchronized the durable target, removing its temporary is
 best-effort cleanup; recovery owns crash leftovers. A durable rename
 synchronizes the destination directory entry and, when source and destination
-differ, the source directory entry as well. The filesystem root is never a
-valid client outbox.
+differ, the source directory entry as well. A hard-link loser that observes an
+existing target synchronizes the destination directory before accepting the
+winner, so visibility cannot be mistaken for power-loss durability. The
+filesystem root is never a valid client outbox.
 
 When relay readiness is enabled, any explicitly configured but incomplete or
 invalid relay environment fails visibly instead of silently selecting native

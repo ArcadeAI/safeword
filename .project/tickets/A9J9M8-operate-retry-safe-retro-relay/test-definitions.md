@@ -359,17 +359,49 @@ Feature source: `features/operate-retry-safe-retro-relay.feature`
 ### Scenario: A production batch takes one coordinated post-reservation state snapshot
 
 - [x] RED ec5b198c4
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 53e720741
+- [x] REFACTOR 188e17c96
 
 ### Scenario: Invalid enabled relay configuration stops the real command before collaborators run
 
 - [x] RED ec5b198c4
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 53e720741
+- [x] REFACTOR skip: command wiring is one explicit fail-closed branch
 
 ### Scenario: A real filesystem ownership race emits failed-rearm recovery guidance
 
 - [x] RED ec5b198c4
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 53e720741
+- [x] REFACTOR skip: the fault seam and ownership-loss branch are already minimal
+
+## 2026-07-29 coordinated-snapshot correctness regressions
+
+### Scenario: A canceled snapshotted discard intent does not suppress materialization
+
+- [x] RED 865485c2c
+- [x] GREEN d107d85f0
+- [x] REFACTOR cca343524
+
+### Scenario: A coordinated snapshot failure settles every batch outcome
+
+- [x] RED 865485c2c
+- [x] GREEN d107d85f0
+- [x] REFACTOR 1563ecf72
+
+### Scenario: Best-effort temporary cleanup cannot overturn a durable write
+
+- [x] RED 865485c2c
+- [x] GREEN d107d85f0
+- [x] REFACTOR skip: cleanup is one best-effort helper with recovery ownership
+
+### Scenario: An injected rearm fault is not reported as an invalid request identity
+
+- [x] RED 865485c2c
+- [x] GREEN d107d85f0
+- [x] REFACTOR skip: the injected seam now sits directly outside UUID validation
+
+### Scenario: A concurrent loser durably observes the winning hard link
+
+- [x] RED 752c51a76
+- [x] GREEN 31f4ad0d8
+- [x] REFACTOR skip: `linkDurable` needs one EEXIST synchronization branch

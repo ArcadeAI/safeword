@@ -139,7 +139,9 @@ the entire `$SAFEWORD_RETRO_RELAY_OUTBOX/.safeword/retro-drafts/relay`
 directory as one unit. Selective or partial restoration of individual spool
 files is outside the durability contract. New files are flushed and every
 durable-state entry, link, rename, and unlink is followed by a
-containing-directory sync before success is reported. Removing an atomic-write
+containing-directory sync before success is reported. A writer that finds an
+existing target also synchronizes that directory before accepting the
+concurrent winner. Removing an atomic-write
 temporary after its durable target is linked is best-effort cleanup, not a
 state transition; a crash may leave that temporary behind, and recovery removes
 only relay-owned UUID temporaries older than one minute. The configured outbox
