@@ -500,7 +500,15 @@ function sameRelayDraft(request: RelayDraftRequest, draft: RelayDraftInput): boo
 
 function parseDurableRequest(candidate: { bytes: Buffer }): RelayDraftRequest | undefined {
   try {
-    return JSON.parse(candidate.bytes.toString('utf8')) as RelayDraftRequest;
+    const request = JSON.parse(candidate.bytes.toString('utf8')) as unknown;
+    if (!activeSourceRequestShape(request)) return undefined;
+    if (
+      !Number.isFinite(Date.parse(request.createdAt)) ||
+      !Number.isFinite(Date.parse(request.retryDeadlineAt))
+    ) {
+      return undefined;
+    }
+    return request;
   } catch {
     // Corrupt immutable records remain visible and cannot authorize replacement.
     return undefined;
@@ -2278,10 +2286,8 @@ export async function deliverRelayRequests(
     });
     if (claim === undefined) continue;
     processed.add(claim.requestId);
-    let parsedRequest: RelayDraftRequest;
-    try {
-      parsedRequest = JSON.parse(claim.bytes.toString('utf8')) as RelayDraftRequest;
-    } catch {
+    const parsedRequest = parseDurableRequest(claim);
+    if (parsedRequest === undefined) {
       await deadLetterClaim(projectDirectory, claim);
       deadLetteredThisRun += 1;
       deadLetterBacklog += 1;
