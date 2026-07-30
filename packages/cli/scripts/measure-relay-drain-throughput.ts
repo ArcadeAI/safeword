@@ -52,6 +52,22 @@ const measurementRelay: typeof fetch = async (_input, init) => {
   );
 };
 
+function measurementArtifact(acceptedCount: number, durationMs: number) {
+  return {
+    measuredAt: new Date().toISOString(),
+    metric: 'drainThroughput',
+    repository: 'ArcadeAI/safeword',
+    result: {
+      acceptedCount,
+      backlogSize: BACKLOG_SIZE,
+      durationMs,
+      relayLatencyMs: RELAY_LATENCY_MS,
+    },
+    sampleSize: BACKLOG_SIZE,
+    version: 1,
+  };
+}
+
 async function main(): Promise<void> {
   const output = outputPath(process.argv.slice(2));
   const spool = await mkdtemp(path.join(tmpdir(), 'safeword-relay-drain-'));
@@ -71,19 +87,7 @@ async function main(): Promise<void> {
       relayUrl: 'https://relay.invalid',
     });
     const durationMs = performance.now() - started;
-    const artifact = {
-      measuredAt: new Date().toISOString(),
-      metric: 'drainThroughput',
-      repository: 'ArcadeAI/safeword',
-      result: {
-        acceptedCount: result.accepted,
-        backlogSize: BACKLOG_SIZE,
-        durationMs,
-        relayLatencyMs: RELAY_LATENCY_MS,
-      },
-      sampleSize: BACKLOG_SIZE,
-      version: 1,
-    };
+    const artifact = measurementArtifact(result.accepted, durationMs);
     await writeFile(output, `${JSON.stringify(artifact, undefined, 2)}\n`, 'utf8');
   } finally {
     await rm(spool, { force: true, recursive: true });
