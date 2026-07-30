@@ -2,8 +2,8 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 5,891/5,891 tests pass (relay 165/165; CLI 5,726/5,726; 6 intentional skips)
-**Gherkin:** ✅ 616 aggregate scenarios passed with 3 intentional skips; 4 setup-only shared-lock timeouts passed 4/4 and 130/130 steps in clean isolation
+**Test Suite:** ✓ 5,911/5,911 tests pass (relay 165/165; CLI 5,746/5,746; 6 intentional skips)
+**Gherkin:** ✅ 620 aggregate scenarios passed with 3 intentional skips; 19,846/19,846 executed steps passed
 **Build:** ✅ Success, including the pinned production container on Node 24.18.1
 **Lint:** ✅ Clean (ESLint, Gherkin lint, and TypeScript)
 **Scenarios:** All 187 RED/GREEN/REFACTOR checks marked complete
@@ -25,6 +25,17 @@ audit reports no vulnerabilities.
 
 ## Evidence
 
+- The final sixth-round tree passed the complete relay and CLI suites: 165 relay
+  tests and 5,746 CLI tests, with six intentional skips. The full acceptance
+  lane passed 620 scenarios and 19,846 executed steps, with three scenarios and
+  four steps intentionally skipped.
+- Final lint, both package typechecks, both package builds, formatting, and diff
+  hygiene passed. Dependency validation reported zero errors and the existing
+  `packages/cli/src/codex-plugin/hooks.ts` orphan warning.
+- A fresh independent quality review approved `6899cd756..4426c58c5` with no
+  critical issues. Its only follow-ups are separate repository dependency
+  migrations and retaining the already-disabled readiness gate until attested
+  production measurements land.
 - The generated verification plan passed the complete relay and CLI test suites:
   165 relay tests and 5,726 CLI tests, with six intentional skips.
 - The aggregate acceptance lane passed 616 scenarios with three intentional
