@@ -8,7 +8,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   planSelfHealProject,
@@ -19,6 +19,8 @@ import {
 import { shapeFingerprint } from '../../src/utils/architecture-fingerprint.js';
 import { resolveGeneratedArchitecturePath } from '../../src/utils/configured-paths.js';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
+
+vi.mock('node:fs', { spy: true });
 
 const context: { directory: string } = { directory: '' };
 
@@ -45,7 +47,12 @@ function leafDocumentPath(root: string, name: string): string {
   return nodePath.join(root, 'packages', name, 'architecture.generated.md');
 }
 
+function readCount(path: string): number {
+  return vi.mocked(readFileSync).mock.calls.filter(([candidate]) => candidate === path).length;
+}
+
 beforeEach(() => {
+  vi.mocked(readFileSync).mockClear();
   context.directory = createTemporaryDirectory();
 });
 
@@ -104,6 +111,14 @@ describe('selfHealProject — monorepo root index + colocated leaves', () => {
     expect(root).toContain('### core');
     expect(root).toContain('### web');
     expect(root).toContain('`web` → `core`');
+  });
+
+  it('reads the workspace manifest once while building every project target', () => {
+    makePackage(context.directory, 'core', { modules: ['auth'] });
+
+    selfHealProject(context.directory);
+
+    expect(readCount(nodePath.join(context.directory, 'package.json'))).toBe(1);
   });
 
   it('writes a colocated leaf doc fingerprinted over each package with a src tree', () => {
@@ -176,5 +191,19 @@ describe('selfHealProject — monorepo root index + colocated leaves', () => {
     const actions = planSelfHealProject(context.directory);
 
     expect(actions).toContain('healed');
+  });
+});
+
+describe('selfHealProject — unreadable workspace discovery', () => {
+  it('reads an unreadable workspace manager once while building every project target', () => {
+    const goWorkPath = nodePath.join(context.directory, 'go.work');
+    writeFileSync(goWorkPath, 'go 1.22\n\nuse (\n\t@@@ not a path @@@\n)\n');
+
+    selfHealProject(context.directory);
+
+    expect(readCount(goWorkPath)).toBe(1);
+    expect(readFileSync(resolveGeneratedArchitecturePath(context.directory), 'utf8')).toContain(
+      '## Coverage gaps',
+    );
   });
 });

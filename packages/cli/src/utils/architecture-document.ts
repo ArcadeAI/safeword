@@ -16,8 +16,6 @@ import nodePath from 'node:path';
 
 import { shapeFingerprint } from './architecture-fingerprint.js';
 import {
-  discoverLeafDirectories,
-  discoverUnreadableWorkspaces,
   extractMonorepoModel,
   monorepoFingerprintOf,
   type MonorepoModel,
@@ -169,8 +167,7 @@ function leafTarget(packageDirectory: string): HealTarget {
 }
 
 /** The derived root index: the package graph at the namespace-root path. */
-function rootIndexTarget(projectDirectory: string): HealTarget {
-  const model = extractMonorepoModel(projectDirectory);
+function rootIndexTarget(projectDirectory: string, model: MonorepoModel): HealTarget {
   const fingerprint = monorepoFingerprintOf(projectDirectory, model);
   return {
     path: resolveGeneratedArchitecturePath(projectDirectory),
@@ -187,15 +184,16 @@ function rootIndexTarget(projectDirectory: string): HealTarget {
 
 /** The targets a project heals: single-repo → one; monorepo → root index + per-leaf. */
 function projectTargets(projectDirectory: string): HealTarget[] {
-  const leaves = discoverLeafDirectories(projectDirectory);
+  const model = extractMonorepoModel(projectDirectory);
   // A repo whose ONLY workspace signal is an unparseable manager (zero discovered leaves)
   // is still a monorepo we must not mistake for a single-repo: render the root index so the
   // "config unreadable" advisory has a home, rather than silently emitting a single-repo doc
   // that omits the whole declared-but-unreadable workspace (UWP4XK).
-  if (leaves.length === 0 && discoverUnreadableWorkspaces(projectDirectory).length === 0) {
+  if (model.packages.length === 0 && model.unreadableWorkspaces.length === 0) {
     return [singleRepoTarget(projectDirectory)];
   }
-  return [rootIndexTarget(projectDirectory), ...leaves.map(leaf => leafTarget(leaf))];
+  const leaves = model.packages.map(node => node.dir).toSorted((a, b) => a.localeCompare(b));
+  return [rootIndexTarget(projectDirectory, model), ...leaves.map(leaf => leafTarget(leaf))];
 }
 
 export function selfHeal(projectDirectory: string): SelfHealResult {

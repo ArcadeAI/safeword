@@ -9,15 +9,15 @@ spy only on Node's filesystem process boundary.
 
 ### Scenario: A readable workspace manifest is read once
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: An unreadable workspace manager is read once
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ## Rule: One leaf skeleton extraction per architecture operation
 

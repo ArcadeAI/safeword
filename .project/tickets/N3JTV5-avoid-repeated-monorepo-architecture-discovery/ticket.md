@@ -2,7 +2,7 @@
 id: N3JTV5
 slug: avoid-repeated-monorepo-architecture-discovery
 type: task
-phase: plan-implementation
+phase: implement
 status: in_progress
 created: 2026-07-30T00:00:10.960Z
 last_modified: 2026-07-30T00:00:10.960Z
@@ -47,3 +47,6 @@ changing generated architecture bytes, or changing released fingerprint recipes.
 - 2026-07-30T00:15:00.000Z Decided: use an operation-scoped wrapper containing the
   unchanged `MonorepoModel` plus precomputed leaf skeletons; reject path-keyed
   memoization because it adds invalidation state.
+- 2026-07-30T00:28:00.000Z Complete: project target construction now extracts one
+  model and reuses it for the root target and directory-sorted leaf enumeration;
+  112 focused architecture tests pass.

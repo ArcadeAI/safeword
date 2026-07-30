@@ -20,3 +20,13 @@
 - [17:25] Mikado ledger: (1) reuse one model for root rendering and leaf
   enumeration; (2) reuse each precomputed leaf skeleton for introspection,
   fingerprinting, matching, and rendering.
+- [17:28] RED confirmed: one project heal read the root `package.json` twice.
+- [17:30] GREEN: `projectTargets` now extracts one `MonorepoModel`, passes it to
+  the root target, and derives a directory-sorted leaf list from the same model.
+- [17:32] Regression check: 112 architecture project/model/document tests pass;
+  target ordering remains directory-sorted and the unreadable-manager guard now
+  reads the model's existing status.
+- [17:35] Added focused unreadable-manager evidence: a malformed `go.work` is
+  read once and still renders `## Coverage gaps`. The pre-refactor call graph
+  read this path three times (leaf discovery, unreadable fallback, root model);
+  the boundary test passes with one read after topology reuse.
