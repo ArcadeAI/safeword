@@ -2218,11 +2218,13 @@ function retryableRelayStatus(status: number): boolean {
   return status === 401 || status === 408 || status === 425 || status === 429 || status >= 500;
 }
 
-function relayDeliveryPriority(candidate: DurableRelayFile): {
+interface RelayDeliveryPriority {
   createdAt: number;
   requestId: string;
   retryDeadlineAt: number;
-} {
+}
+
+function relayDeliveryPriority(candidate: DurableRelayFile): RelayDeliveryPriority {
   const request = parseDurableRequest(candidate);
   if (request === undefined) {
     return {
@@ -2238,14 +2240,22 @@ function relayDeliveryPriority(candidate: DurableRelayFile): {
   };
 }
 
-function compareRelayDeliveryPriority(left: DurableRelayFile, right: DurableRelayFile): number {
-  const leftPriority = relayDeliveryPriority(left);
-  const rightPriority = relayDeliveryPriority(right);
+function compareRelayDeliveryPriority(
+  leftPriority: RelayDeliveryPriority,
+  rightPriority: RelayDeliveryPriority,
+): number {
   return (
     leftPriority.retryDeadlineAt - rightPriority.retryDeadlineAt ||
     leftPriority.createdAt - rightPriority.createdAt ||
     leftPriority.requestId.localeCompare(rightPriority.requestId)
   );
+}
+
+function orderedRelayCandidates(candidates: DurableRelayFile[]): DurableRelayFile[] {
+  return candidates
+    .map(candidate => ({ candidate, priority: relayDeliveryPriority(candidate) }))
+    .toSorted((left, right) => compareRelayDeliveryPriority(left.priority, right.priority))
+    .map(({ candidate }) => candidate);
 }
 
 function isReportedTerminalRelayReceipt(
@@ -2289,7 +2299,7 @@ export async function deliverRelayRequests(
   let deadLetterBacklog = initialDeadLetters.length;
   let deadLetteredThisRun = 0;
   const serverReportedTerminalReceipts: RelayReportedTerminalReceipt[] = [];
-  for (const request of initial.toSorted(compareRelayDeliveryPriority)) {
+  for (const request of orderedRelayCandidates(initial)) {
     if (monotonicNow() >= overallDeadline) break;
     if (processed.has(request.requestId)) continue;
     const claim = await claimSpecificRelayRequest(projectDirectory, request.requestId, {
