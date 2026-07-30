@@ -823,7 +823,12 @@ describe('immutable relay delivery spool', () => {
     expect(Date.parse(observed?.retryDeadlineAt ?? '')).toBeGreaterThan(
       Date.parse(persisted.retryDeadlineAt),
     );
-    renewedResponse.resolve(Response.json({ error: 'definitive rejection' }, { status: 400 }));
+    renewedResponse.resolve(
+      Response.json(
+        { error: 'invalid relay filing request', reason: 'invalid-request' },
+        { status: 400 },
+      ),
+    );
 
     await expect(recovery).resolves.toBe(false);
     await expect(persistRelayDraft(project, draft)).resolves.toMatchObject({
@@ -1172,7 +1177,7 @@ describe('immutable relay delivery spool', () => {
 
       const repeated = persistRelayDraft(project, draft);
       if (state === 'acknowledgement') await expect(repeated).resolves.toBeUndefined();
-      else await expect(repeated).rejects.toThrow('different payload');
+      else await expect(repeated).rejects.toThrow('corrupt durable identity');
       const requestFiles = readdirSync(directory).filter(filename =>
         /^[\da-f]{8}-/u.test(filename),
       );
@@ -1482,7 +1487,15 @@ describe('immutable relay delivery spool', () => {
     expect(outcome).toMatchObject({
       accepted: 1,
       retryable: 0,
-      ...(state === 'dead-letter' && { serverDeadLetteredThisRun: 1 }),
+      ...(['dead-letter', 'rejected', 'tombstone'].includes(state) && {
+        serverTerminalReceipts: [
+          {
+            receiptId: `receipt-${state}`,
+            requestId: original.requestId,
+            state,
+          },
+        ],
+      }),
     });
     expect(await listRelayRequests(project)).toHaveLength(0);
   });

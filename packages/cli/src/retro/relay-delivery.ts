@@ -26,6 +26,8 @@ export interface RelayDraftRequest {
 }
 
 export const RELAY_OVERALL_HEADROOM_MS = 250;
+export const RELAY_API_VERSION = '1';
+export const RELAY_API_VERSION_HEADER = 'x-safeword-relay-api-version';
 
 type RelayDraftInput = Omit<RelayDraftRequest, 'createdAt' | 'requestId' | 'retryDeadlineAt'>;
 type RelaySourcePayload = Omit<RelayDraftInput, 'sourceKey'>;
@@ -93,6 +95,20 @@ export interface RelayReceipt {
   receiptId: string;
   requestId: string;
   state: string;
+}
+
+export type RelayTerminalReceipt = RelayReceipt & {
+  state: 'dead-letter' | 'rejected' | 'tombstone';
+};
+
+export class RelaySpoolCorruptionError extends Error {
+  readonly requestIds: string[];
+
+  constructor(requestIds: string[]) {
+    super('relay spool contains a corrupt durable identity record');
+    this.name = 'RelaySpoolCorruptionError';
+    this.requestIds = requestIds;
+  }
 }
 
 const ACKNOWLEDGEABLE_RELAY_RECEIPT_STATES = new Set([
@@ -616,10 +632,10 @@ async function reconcileRenewedDeadLetter(
   try {
     renewed = JSON.parse(bytes.toString('utf8')) as unknown;
   } catch {
-    throw new Error('relay request identity was reused with a different payload');
+    throw new RelaySpoolCorruptionError([reservation.request.requestId]);
   }
   if (!activeSourceRequestShape(renewed)) {
-    throw new Error('relay request identity was reused with a different payload');
+    throw new RelaySpoolCorruptionError([reservation.request.requestId]);
   }
   const original = reservation.request;
   if (!isCompatibleRenewal(renewed, original)) {
@@ -1000,8 +1016,11 @@ async function prepareRelayDraftPersistence(
   const corrupt = durableRequests.filter(({ request }) => request === undefined);
   if (corrupt.length > 0) {
     const reservedIds = await reservedRequestIds(directory);
-    if (corrupt.some(({ candidate }) => !reservedIds.has(candidate.requestId))) {
-      throw new Error('relay spool contains an unreserved corrupt durable identity record');
+    const unreserved = corrupt
+      .map(({ candidate }) => candidate.requestId)
+      .filter(requestId => !reservedIds.has(requestId));
+    if (unreserved.length > 0) {
+      throw new RelaySpoolCorruptionError(unreserved);
     }
   }
   const durableRequestsBySource = new Map<string, RelayDraftRequest>();
@@ -1996,6 +2015,7 @@ function submitRelayRecovery(
     headers: {
       authorization: `Bearer ${options.credential}`,
       'content-type': 'application/json',
+      [RELAY_API_VERSION_HEADER]: RELAY_API_VERSION,
     },
     method: 'POST',
     signal: AbortSignal.timeout(options.timeoutMs ?? 750),
@@ -2093,7 +2113,10 @@ async function renewRelayRecovery(
   };
   await replaceAtomic(deadLetter, Buffer.from(JSON.stringify(renewed), 'utf8'));
   const attempt = await submitRelayRecoveryAttempt(relayOrigin, renewed, options);
-  if (attempt.response.status >= 400 && attempt.response.status < 500) {
+  const payloadRejected =
+    attempt.response.status === 409 ||
+    (attempt.response.status === 400 && attempt.body?.reason === 'invalid-request');
+  if (payloadRejected) {
     await replaceAtomic(deadLetter, originalBytes);
     return { ...attempt, request: original };
   }
@@ -2178,6 +2201,40 @@ function retryableRelayStatus(status: number): boolean {
   return status === 401 || status === 408 || status === 425 || status === 429 || status >= 500;
 }
 
+function relayDeliveryPriority(candidate: DurableRelayFile): {
+  createdAt: number;
+  requestId: string;
+  retryDeadlineAt: number;
+} {
+  const request = parseDurableRequest(candidate);
+  if (request === undefined) {
+    return {
+      createdAt: -Infinity,
+      requestId: candidate.requestId,
+      retryDeadlineAt: -Infinity,
+    };
+  }
+  return {
+    createdAt: Date.parse(request.createdAt),
+    requestId: request.requestId,
+    retryDeadlineAt: Date.parse(request.retryDeadlineAt),
+  };
+}
+
+function compareRelayDeliveryPriority(left: DurableRelayFile, right: DurableRelayFile): number {
+  const leftPriority = relayDeliveryPriority(left);
+  const rightPriority = relayDeliveryPriority(right);
+  return (
+    leftPriority.retryDeadlineAt - rightPriority.retryDeadlineAt ||
+    leftPriority.createdAt - rightPriority.createdAt ||
+    leftPriority.requestId.localeCompare(rightPriority.requestId)
+  );
+}
+
+function isTerminalRelayReceipt(receipt: RelayReceipt): receipt is RelayTerminalReceipt {
+  return ['dead-letter', 'rejected', 'tombstone'].includes(receipt.state);
+}
+
 // eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- Claim, expiry, HTTP, and rearm are one filesystem state machine.
 export async function deliverRelayRequests(
   projectDirectory: string,
@@ -2195,7 +2252,7 @@ export async function deliverRelayRequests(
   deadLetterBacklog: number;
   deadLetteredThisRun: number;
   retryable: number;
-  serverDeadLetteredThisRun?: number;
+  serverTerminalReceipts?: RelayTerminalReceipt[];
 }> {
   const monotonicNow = options.monotonicNow ?? (() => performance.now());
   const overallDeadline =
@@ -2210,8 +2267,8 @@ export async function deliverRelayRequests(
   let accepted = 0;
   let deadLetterBacklog = initialDeadLetters.length;
   let deadLetteredThisRun = 0;
-  let serverDeadLetteredThisRun = 0;
-  for (const request of initial) {
+  const serverTerminalReceipts: RelayTerminalReceipt[] = [];
+  for (const request of initial.toSorted(compareRelayDeliveryPriority)) {
     if (monotonicNow() >= overallDeadline) break;
     if (processed.has(request.requestId)) continue;
     const claim = await claimSpecificRelayRequest(projectDirectory, request.requestId, {
@@ -2254,6 +2311,7 @@ export async function deliverRelayRequests(
         headers: {
           authorization: `Bearer ${options.credential}`,
           'content-type': 'application/json',
+          [RELAY_API_VERSION_HEADER]: RELAY_API_VERSION,
         },
         method: 'POST',
         signal: controller.signal,
@@ -2271,7 +2329,7 @@ export async function deliverRelayRequests(
       assertAcknowledgeableRelayReceipt(body, claim.requestId);
       if (await acknowledgeRelayClaim(claim, body)) {
         accepted += 1;
-        if (body.state === 'dead-letter') serverDeadLetteredThisRun += 1;
+        if (isTerminalRelayReceipt(body)) serverTerminalReceipts.push(body);
       }
     } catch {
       await rearmClaim(projectDirectory, claim);
@@ -2288,6 +2346,6 @@ export async function deliverRelayRequests(
     deadLetterBacklog,
     deadLetteredThisRun,
     retryable: retryableRequests.length,
-    ...(serverDeadLetteredThisRun > 0 && { serverDeadLetteredThisRun }),
+    ...(serverTerminalReceipts.length > 0 && { serverTerminalReceipts }),
   };
 }

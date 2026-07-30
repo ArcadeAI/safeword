@@ -22,6 +22,15 @@ budget while reserving a complete 500 ms budget before starting each attempt.
 A missing response leaves the request retryable; it never authorizes a second
 GitHub-native create.
 
+Filing clients send `x-safeword-relay-api-version: 1`. A missing header is
+accepted as legacy v1; any other value is rejected before the request reaches
+the filing service. Version 1 freezes the durable receipt vocabulary to
+`accepted`, `claimed`, `dispatching`, `filed`, `ambiguous`, `retryable`,
+`dead-letter`, `rejected`, and `tombstone`. Filing clients deliberately do not
+acknowledge `ambiguous`; they retain local ownership for explicit
+reconciliation. Clients fail closed on unknown states instead of guessing
+whether durable ownership transferred.
+
 ## Production runtime
 
 The production process is `node dist/main.js`. It fails before opening storage
@@ -173,8 +182,9 @@ irreversible and does not authorize a replacement identity.
 their active, materializing, delivery-claim, dead-letter, or recovery-claim
 state. A retry-deadline renewal is compatible only when the request ID, source,
 creation time, and approved payload digest remain unchanged. Compatible renewed
-bytes reconcile from every durable client state; definitive 4xx rejection
-restores the prior bytes, while timeout/5xx uncertainty preserves the exact
+bytes reconcile from every durable client state; only a typed invalid-request
+response or identity/payload conflict restores the prior bytes, while
+authentication, rate-limit, timeout, and server uncertainty preserve the exact
 bytes the relay may already have accepted.
 
 Installation-token requests for the same repository scope are coalesced.
@@ -201,6 +211,13 @@ catch-up guarantee: it must exercise at least 300 queued requests with at least
 80 ms relay latency, accept at least two requests in one bounded drain, and
 finish that drain in less than one second. Semantic marker adoption and
 cross-request aliasing are deliberately deferred until that gate is satisfied.
+Produce the drain artifact with
+`bun run --cwd packages/cli measure:relay-drain --output <artifact.json>`.
+The producer persists 300 real spool requests and drains them through the real
+client state machine against an 80 ms fault-injected transport. This is
+reproducible client regression evidence, not a production capacity or catch-up
+claim; readiness still requires review, hashing, ancestry, and build
+attestation of the resulting artifact.
 Issue #834 is not superseded. Issue #1495 is also closed, but it would become a
 readiness dependency only if a later change reused its client credential
 helpers; this slice does not.

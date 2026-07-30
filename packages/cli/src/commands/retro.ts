@@ -44,9 +44,9 @@ import {
   RELAY_OVERALL_HEADROOM_MS,
   type RelayDraftRequest,
   relaySourceKey,
+  RelaySpoolCorruptionError,
+  type RelayTerminalReceipt,
 } from '../retro/relay-delivery.js';
-
-const DEFAULT_RELAY_DEADLINE_MS = 500;
 import {
   CHECKED_IN_RELAY_READINESS,
   type RelayReadinessManifest,
@@ -57,6 +57,8 @@ import {
 } from '../retro/relay-readiness.js';
 import { type Encounter, type IssueTracker, triage, type TriageResult } from '../retro/triage.js';
 import { VERSION } from '../version.js';
+
+const DEFAULT_RELAY_DEADLINE_MS = 500;
 
 /** Reads a transcript and returns raw, un-sanitized findings (the LLM boundary). */
 type FindingExtractor = (transcript: string) => Promise<unknown[]>;
@@ -142,7 +144,7 @@ export interface RetroOutcome {
     deadLetterBacklog: number;
     deadLetteredThisRun: number;
     retryable: number;
-    serverDeadLetteredThisRun?: number;
+    serverTerminalReceipts?: RelayTerminalReceipt[];
     spoolFailed?: number;
   };
 }
@@ -200,11 +202,10 @@ async function runRelayRetro(
   });
   const relayOutcome = { ...delivery, spoolFailed };
   if (spoolFailed > 0) {
-    const noun = spoolFailed === 1 ? 'finding' : 'findings';
     return {
       agentFilingNeeded: true,
       drops,
-      errorMessage: `retro relay could not durably persist ${spoolFailed} ${noun}; retry the command`,
+      errorMessage: relayPersistenceErrorMessage(persistence, spoolFailed),
       ok: false,
       relay: relayOutcome,
       result: emptyTriageResult(),
@@ -217,6 +218,27 @@ async function runRelayRetro(
     relay: relayOutcome,
     result: emptyTriageResult(),
   };
+}
+
+function relayPersistenceErrorMessage(
+  persistence: PromiseSettledResult<RelayDraftRequest | undefined>[],
+  spoolFailed: number,
+): string {
+  const noun = spoolFailed === 1 ? 'finding' : 'findings';
+  const corruption = persistence.find(
+    outcome => outcome.status === 'rejected' && outcome.reason instanceof RelaySpoolCorruptionError,
+  );
+  if (corruption?.status !== 'rejected') {
+    return `retro relay could not durably persist ${spoolFailed} ${noun}; retry the command`;
+  }
+  if (!(corruption.reason instanceof RelaySpoolCorruptionError)) {
+    return `retro relay could not durably persist ${spoolFailed} ${noun}; retry the command`;
+  }
+  const requestId = corruption.reason.requestIds[0];
+  if (requestId === undefined) {
+    return `retro relay could not durably persist ${spoolFailed} ${noun}; retry the command`;
+  }
+  return `retro relay could not durably persist ${spoolFailed} ${noun}; request ${requestId} is corrupt. Inspect it with \`safeword retro-relay-retry\`; only if intentionally abandoning it, run \`safeword retro-relay-discard ${requestId} --confirm\`.`;
 }
 
 /**
@@ -642,13 +664,16 @@ export function resolveRelayConfig(
   if (relayConfigAbsent(relayUrl, credential, repo, installation, configuredSpoolDirectory)) {
     return undefined;
   }
+  const scalars = resolveRelayScalars({ credential, installation, relayUrl, repo });
+  if (scalars === undefined) {
+    return {
+      error:
+        'retro relay configuration is incomplete or invalid; URL, credential, repository, installation ID, and external outbox are required',
+    };
+  }
   const spoolDirectory = resolveRelayOutboxDirectory(projectDirectory, configuredSpoolDirectory);
   if (spoolDirectory === undefined) {
     return { error: INVALID_RELAY_OUTBOX_ERROR };
-  }
-  const scalars = resolveRelayScalars({ credential, installation, relayUrl, repo });
-  if (scalars === undefined) {
-    return { error: 'retro relay configuration is incomplete or invalid' };
   }
   return {
     config: {
@@ -824,7 +849,7 @@ function reportRelayOutcome(
   const { info, success } = output;
   const relay = outcome.relay;
   info(
-    `retro relay: ${relay.accepted} accepted, ${relay.retryable} queued for retry, ${relay.deadLetterBacklog} dead letter(s), ${relay.spoolFailed ?? 0} spool error(s)`,
+    `retro relay: ${relay.accepted} durably owned, ${relay.retryable} queued for retry, ${relay.deadLetterBacklog} local dead letter(s), ${relay.spoolFailed ?? 0} spool error(s)`,
   );
   const dropLine = renderDropReport(outcome.drops);
   if (dropLine) info(dropLine);
@@ -836,7 +861,7 @@ function reportRelayOutcome(
       'retro relay: inspect with `safeword retro-relay-retry`; rearm with `safeword retro-relay-retry <request-id>`.',
     );
   }
-  reportServerDeadLetters(relay, info);
+  reportServerTerminalReceipts(relay, info);
   if ((relay.spoolFailed ?? 0) > 0) {
     info(
       'retro relay: some source identities could not be persisted; inspect the local relay spool.',
@@ -845,14 +870,28 @@ function reportRelayOutcome(
   if (complete) success('retro complete');
 }
 
-function reportServerDeadLetters(
+function reportServerTerminalReceipts(
   relay: NonNullable<RetroOutcome['relay']>,
   info: RetroCommandOutput['info'],
 ): void {
-  if ((relay.serverDeadLetteredThisRun ?? 0) > 0) {
-    info(
-      `retro relay: ${relay.serverDeadLetteredThisRun} request(s) are durably server-side dead-lettered; relay operator recovery is required.`,
-    );
+  const terminalReceipts = relay.serverTerminalReceipts ?? [];
+  for (const receipt of terminalReceipts) {
+    const identity = `request ${receipt.requestId} (receipt ${receipt.receiptId})`;
+    if (receipt.state === 'dead-letter') {
+      info(
+        `retro relay: ${identity} is durably server-side dead-lettered; relay operator recovery is required.`,
+      );
+    } else if (receipt.state === 'rejected') {
+      info(
+        `retro relay: ${identity} was permanently rejected by the relay; inspect relay operations and logs.`,
+      );
+    } else if (receipt.issueNumber === undefined) {
+      info(
+        `retro relay: ${identity} ended in a tombstone without an issue reference; inspect relay operations and logs.`,
+      );
+    } else {
+      info(`retro relay: ${identity} is resolved by tombstone as issue #${receipt.issueNumber}.`);
+    }
   }
 }
 

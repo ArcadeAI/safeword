@@ -1437,7 +1437,7 @@ describe('retro summary drop reporting (PNZM3B SM2.R1)', () => {
       );
 
       expect(lines.join('\n')).toContain(
-        'retro relay: 1 accepted, 3 queued for retry, 2 dead letter(s), 1 spool error(s)',
+        'retro relay: 1 durably owned, 3 queued for retry, 2 local dead letter(s), 1 spool error(s)',
       );
       expect(lines.join('\n')).toContain('inspect the local relay spool');
       expect(lines.at(-1)).toBe('retro relay persistence failed');

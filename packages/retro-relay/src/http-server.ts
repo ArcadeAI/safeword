@@ -9,6 +9,9 @@ import { type RelayFaults, RelayService } from './service.js';
 import type { RelayStore } from './store.js';
 import { type FileRetroDraftRequest, isTerminalReceiptState } from './types.js';
 
+const RELAY_API_VERSION = '1';
+const RELAY_API_VERSION_HEADER = 'x-safeword-relay-api-version';
+
 async function readJson(request: IncomingMessage, maximumBytes: number): Promise<unknown> {
   const contentLength = Number(request.headers['content-length'] ?? '0');
   if (Number.isFinite(contentLength) && contentLength > maximumBytes) {
@@ -227,6 +230,12 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
         return;
       }
       if (request.method === 'POST' && url.pathname === '/v1/retro-filings') {
+        const requestedVersion = request.headers['x-safeword-relay-api-version'];
+        if (requestedVersion !== undefined && requestedVersion !== RELAY_API_VERSION) {
+          throw new RelayError(400, 'unsupported relay API version', {
+            supportedVersion: RELAY_API_VERSION,
+          });
+        }
         const receipt = await service.submit(
           principal,
           (await readJson(request, maxBodyBytes)) as FileRetroDraftRequest,
@@ -253,6 +262,7 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
         let statusCode = 202;
         if (receipt.state === 'filed') statusCode = 201;
         else if (terminal) statusCode = 200;
+        response.setHeader(RELAY_API_VERSION_HEADER, RELAY_API_VERSION);
         sendJson(response, statusCode, receipt);
         return;
       }
