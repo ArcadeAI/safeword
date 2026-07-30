@@ -101,7 +101,7 @@ export interface MonorepoModel {
 }
 
 /** One discovered package and the leaf structure observed during the same operation. */
-export interface MonorepoLeafSnapshot {
+interface MonorepoLeafSnapshot {
   dir: string;
   skeleton: Skeleton;
 }
