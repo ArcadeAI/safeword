@@ -225,19 +225,14 @@ function relayPersistenceErrorMessage(
   spoolFailed: number,
 ): string {
   const noun = spoolFailed === 1 ? 'finding' : 'findings';
+  const fallback = `retro relay could not durably persist ${spoolFailed} ${noun}; retry the command`;
   const corruption = persistence.find(
     outcome => outcome.status === 'rejected' && outcome.reason instanceof RelaySpoolCorruptionError,
   );
-  if (corruption?.status !== 'rejected') {
-    return `retro relay could not durably persist ${spoolFailed} ${noun}; retry the command`;
-  }
-  if (!(corruption.reason instanceof RelaySpoolCorruptionError)) {
-    return `retro relay could not durably persist ${spoolFailed} ${noun}; retry the command`;
-  }
+  if (corruption?.status !== 'rejected') return fallback;
+  if (!(corruption.reason instanceof RelaySpoolCorruptionError)) return fallback;
   const requestId = corruption.reason.requestIds[0];
-  if (requestId === undefined) {
-    return `retro relay could not durably persist ${spoolFailed} ${noun}; retry the command`;
-  }
+  if (requestId === undefined) return fallback;
   return `retro relay could not durably persist ${spoolFailed} ${noun}; request ${requestId} is corrupt. Inspect it with \`safeword retro-relay-retry\`; only if intentionally abandoning it, run \`safeword retro-relay-discard ${requestId} --confirm\`.`;
 }
 
