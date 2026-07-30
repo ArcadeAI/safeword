@@ -13,6 +13,7 @@ export interface RelayReadinessManifest {
   enabled: true;
   evidenceCommit: string;
   measurements: {
+    drainThroughput: RelayMeasurementArtifact;
     sameSignatureCollisions: RelayMeasurementArtifact;
     spooledNeverFiled: RelayMeasurementArtifact;
   };
@@ -71,6 +72,15 @@ export const SAFEWORD_RELAY_BUILD_ATTESTATION: RelayBuildAttestation =
 const COMMIT_PATTERN = /^[\da-f]{40}$/u;
 const HASH_PATTERN = /^[\da-f]{64}$/u;
 const MAX_EVIDENCE_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+const MIN_DRAIN_ACCEPTED_COUNT = 2;
+const MIN_DRAIN_BACKLOG_SIZE = 300;
+const MIN_RELAY_LATENCY_MS = 80;
+const MAX_DRAIN_DURATION_MS = 1000;
+const REQUIRED_MEASUREMENTS = [
+  'drainThroughput',
+  'sameSignatureCollisions',
+  'spooledNeverFiled',
+] as const;
 
 function validDate(value: string): Date | undefined {
   const date = new Date(value);
@@ -108,11 +118,76 @@ function hasMeasurementShape(record: Record<string, unknown>): boolean {
   );
 }
 
-function hasValidResult(result: unknown, sampleSize: number): boolean {
+function hasValidCountResult(result: unknown, sampleSize: number): boolean {
   if (typeof result !== 'object' || result === null || Array.isArray(result)) return false;
   if (Object.keys(result).join('\0') !== 'count') return false;
   const count = (result as { count?: unknown }).count;
   return Number.isSafeInteger(count) && (count as number) >= 0 && (count as number) <= sampleSize;
+}
+
+interface DrainThroughputResult {
+  acceptedCount: unknown;
+  backlogSize: unknown;
+  durationMs: unknown;
+  relayLatencyMs: unknown;
+}
+
+function drainThroughputResult(result: unknown): DrainThroughputResult | undefined {
+  if (typeof result !== 'object' || result === null || Array.isArray(result)) return undefined;
+  if (
+    Object.keys(result)
+      .toSorted((left, right) => left.localeCompare(right))
+      .join('\0') !== ['acceptedCount', 'backlogSize', 'durationMs', 'relayLatencyMs'].join('\0')
+  ) {
+    return undefined;
+  }
+  return result as unknown as DrainThroughputResult;
+}
+
+function validAcceptedCount(value: unknown, sampleSize: number): boolean {
+  return (
+    Number.isSafeInteger(value) &&
+    (value as number) >= MIN_DRAIN_ACCEPTED_COUNT &&
+    (value as number) <= sampleSize
+  );
+}
+
+function validBacklogSize(value: unknown, sampleSize: number): boolean {
+  return Number.isSafeInteger(value) && value === sampleSize && value >= MIN_DRAIN_BACKLOG_SIZE;
+}
+
+function validDrainDuration(value: unknown): boolean {
+  return (
+    typeof value === 'number' &&
+    Number.isFinite(value) &&
+    value >= 0 &&
+    value < MAX_DRAIN_DURATION_MS
+  );
+}
+
+function validRelayLatency(value: unknown): boolean {
+  return typeof value === 'number' && Number.isFinite(value) && value >= MIN_RELAY_LATENCY_MS;
+}
+
+function hasValidDrainThroughputResult(result: unknown, sampleSize: number): boolean {
+  const measurement = drainThroughputResult(result);
+  return (
+    measurement !== undefined &&
+    validAcceptedCount(measurement.acceptedCount, sampleSize) &&
+    validBacklogSize(measurement.backlogSize, sampleSize) &&
+    validDrainDuration(measurement.durationMs) &&
+    validRelayLatency(measurement.relayLatencyMs)
+  );
+}
+
+function hasValidResult(
+  result: unknown,
+  sampleSize: number,
+  metric: keyof RelayReadinessManifest['measurements'],
+): boolean {
+  return metric === 'drainThroughput'
+    ? hasValidDrainThroughputResult(result, sampleSize)
+    : hasValidCountResult(result, sampleSize);
 }
 
 function validMeasurementEvidence(
@@ -129,7 +204,7 @@ function validMeasurementEvidence(
     record.metric === metric &&
     record.measuredAt === artifact.measuredAt &&
     record.sampleSize === artifact.sampleSize &&
-    hasValidResult(record.result, artifact.sampleSize)
+    hasValidResult(record.result, artifact.sampleSize, metric)
   );
 }
 
@@ -152,6 +227,13 @@ export async function validateRelayReadiness(
       manifest.version !== 1 ||
       !COMMIT_PATTERN.test(dependencies.buildCommit) ||
       !COMMIT_PATTERN.test(manifest.evidenceCommit)
+    ) {
+      return { enabled: false };
+    }
+    if (
+      Object.keys(manifest.measurements)
+        .toSorted((left, right) => left.localeCompare(right))
+        .join('\0') !== REQUIRED_MEASUREMENTS.join('\0')
     ) {
       return { enabled: false };
     }

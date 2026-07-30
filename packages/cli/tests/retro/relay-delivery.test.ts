@@ -41,6 +41,7 @@ import {
   validateRelayReadiness,
 } from '../../src/retro/relay-readiness.js';
 import {
+  relayReadinessArtifact as measurementArtifact,
   relayReadinessMeasurementContent as measurementContent,
   validRelayReadinessManifest as validManifest,
 } from '../helpers/relay-readiness.js';
@@ -2044,11 +2045,7 @@ describe('relay readiness provenance', () => {
         ),
       now: new Date('2026-07-26T12:00:00.000Z'),
       readArtifactAtCommit: (_commit, artifactPath) =>
-        Promise.resolve(
-          artifactPath.endsWith('collisions.json')
-            ? { content: measurementContent(manifest, artifactPath), sha256: '1'.repeat(64) }
-            : { content: measurementContent(manifest, artifactPath), sha256: '2'.repeat(64) },
-        ),
+        Promise.resolve(measurementArtifact(manifest, artifactPath)),
     });
     expect(result).toEqual({ enabled: true });
   });
@@ -2079,6 +2076,37 @@ describe('relay readiness provenance', () => {
     expect(result).toEqual({ enabled: false });
   });
 
+  it.each([
+    ['accepted count', 'acceptedCount', 1],
+    ['backlog size', 'backlogSize', 299],
+    ['duration', 'durationMs', 1000],
+    ['relay latency', 'relayLatencyMs', 79],
+  ])(
+    'fails closed when drain-throughput %s misses its readiness floor',
+    async (_name, key, value) => {
+      const manifest = validManifest();
+
+      const result = await validateRelayReadiness(manifest, {
+        buildCommit: 'b'.repeat(40),
+        isAncestor: () => Promise.resolve(true),
+        now: new Date('2026-07-26T12:00:00.000Z'),
+        readArtifactAtCommit: (_commit, artifactPath) => {
+          const artifact = measurementArtifact(manifest, artifactPath);
+          if (artifactPath !== manifest.measurements.drainThroughput.path) {
+            return Promise.resolve(artifact);
+          }
+          const evidence = JSON.parse(artifact.content) as {
+            result: Record<string, number>;
+          };
+          evidence.result[key] = value;
+          return Promise.resolve({ content: JSON.stringify(evidence), sha256: artifact.sha256 });
+        },
+      });
+
+      expect(result).toEqual({ enabled: false });
+    },
+  );
+
   it('fails closed when a hash-attested measurement has an empty sample', async () => {
     const manifest = validManifest();
     manifest.measurements.spooledNeverFiled.sampleSize = 0;
@@ -2090,7 +2118,7 @@ describe('relay readiness provenance', () => {
       readArtifactAtCommit: (_commit, artifactPath) =>
         Promise.resolve({
           content: measurementContent(manifest, artifactPath),
-          sha256: artifactPath.endsWith('collisions.json') ? '1'.repeat(64) : '2'.repeat(64),
+          sha256: measurementArtifact(manifest, artifactPath).sha256,
         }),
     });
 
@@ -2108,15 +2136,20 @@ describe('relay readiness provenance', () => {
         Promise.resolve({
           content: JSON.stringify({
             measuredAt: '2026-07-25T00:00:00.000Z',
-            metric: artifactPath.endsWith('collisions.json')
-              ? 'spooledNeverFiled'
-              : 'sameSignatureCollisions',
+            metric:
+              artifactPath === manifest.measurements.sameSignatureCollisions.path
+                ? 'spooledNeverFiled'
+                : 'sameSignatureCollisions',
             repository: 'ArcadeAI/safeword',
             result: { count: 0 },
-            sampleSize: 100,
+            sampleSize: measurementArtifact(manifest, artifactPath).content.includes(
+              '"sampleSize":300',
+            )
+              ? 300
+              : 100,
             version: 1,
           }),
-          sha256: artifactPath.endsWith('collisions.json') ? '1'.repeat(64) : '2'.repeat(64),
+          sha256: measurementArtifact(manifest, artifactPath).sha256,
         }),
     });
 
@@ -2206,7 +2239,7 @@ describe('relay readiness provenance', () => {
         ),
       now: new Date('2026-07-26T12:00:00.000Z'),
       readArtifactAtCommit: (_commit, artifactPath) => {
-        let sha256 = artifactPath.endsWith('collisions.json') ? '1'.repeat(64) : '2'.repeat(64);
+        let sha256 = measurementArtifact(manifest, artifactPath).sha256;
         if (kind === 'hash mismatch') sha256 = '3'.repeat(64);
         return Promise.resolve({ content: measurementContent(manifest, artifactPath), sha256 });
       },

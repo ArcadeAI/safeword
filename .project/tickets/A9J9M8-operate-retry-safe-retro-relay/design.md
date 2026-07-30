@@ -165,6 +165,7 @@ interface RelayReadinessManifest {
     },
   ];
   measurements: {
+    drainThroughput: MeasurementArtifact;
     sameSignatureCollisions: MeasurementArtifact;
     spooledNeverFiled: MeasurementArtifact;
   };
@@ -189,6 +190,13 @@ require fabricated evidence. Enabled malformed, stale, unlanded,
 wrong-repository, missing, or hash-mismatched manifests fail closed. Unit tests
 prove a valid injected manifest selects relay mode; the checked-in disabled
 manifest proves this branch cannot do so.
+
+`drainThroughput` is a regression floor, not a production catch-up guarantee.
+Its hash-attested result must use an artificial backlog of at least 300
+requests, inject at least 80 ms of relay latency, accept at least two requests
+in one bounded drain, and complete that drain in less than one second. These
+thresholds prove the bounded loop makes progress through durable backlog under
+realistic latency without claiming an unbounded service rate.
 
 `evidenceCommit` must be an ancestor of immutable `SAFEWORD_BUILD_COMMIT`,
 embedded by the CLI build from `git rev-parse HEAD`; neither value is read from

@@ -5,6 +5,12 @@ export function validRelayReadinessManifest(): RelayReadinessManifest {
     enabled: true,
     evidenceCommit: 'a'.repeat(40),
     measurements: {
+      drainThroughput: {
+        measuredAt: '2026-07-25T00:00:00.000Z',
+        path: 'measurements/drain-throughput.json',
+        sampleSize: 300,
+        sha256: '3'.repeat(64),
+      },
       sameSignatureCollisions: {
         measuredAt: '2026-07-25T00:00:00.000Z',
         path: 'measurements/collisions.json',
@@ -43,15 +49,21 @@ export function relayReadinessMeasurementContent(
   manifest: RelayReadinessManifest,
   artifactPath: string,
 ): string {
-  const metric = artifactPath.endsWith('collisions.json')
-    ? 'sameSignatureCollisions'
-    : 'spooledNeverFiled';
+  const metric = measurementMetric(manifest, artifactPath);
   const artifact = manifest.measurements[metric];
   return JSON.stringify({
     measuredAt: artifact.measuredAt,
     metric,
     repository: 'ArcadeAI/safeword',
-    result: { count: 0 },
+    result:
+      metric === 'drainThroughput'
+        ? {
+            acceptedCount: 2,
+            backlogSize: artifact.sampleSize,
+            durationMs: 999,
+            relayLatencyMs: 80,
+          }
+        : { count: 0 },
     sampleSize: artifact.sampleSize,
     version: 1,
   });
@@ -61,11 +73,20 @@ export function relayReadinessArtifact(
   manifest: RelayReadinessManifest,
   artifactPath: string,
 ): { content: string; sha256: string } {
-  const metric = artifactPath.endsWith('collisions.json')
-    ? 'sameSignatureCollisions'
-    : 'spooledNeverFiled';
+  const metric = measurementMetric(manifest, artifactPath);
   return {
     content: relayReadinessMeasurementContent(manifest, artifactPath),
     sha256: manifest.measurements[metric].sha256,
   };
+}
+
+function measurementMetric(
+  manifest: RelayReadinessManifest,
+  artifactPath: string,
+): keyof RelayReadinessManifest['measurements'] {
+  const entry = Object.entries(manifest.measurements).find(
+    ([, artifact]) => artifact.path === artifactPath,
+  );
+  if (entry === undefined) throw new Error(`unknown relay readiness artifact: ${artifactPath}`);
+  return entry[0] as keyof RelayReadinessManifest['measurements'];
 }

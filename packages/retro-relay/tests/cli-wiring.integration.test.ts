@@ -39,6 +39,12 @@ const readinessManifest: RelayReadinessManifest = {
   enabled: true,
   evidenceCommit,
   measurements: {
+    drainThroughput: {
+      measuredAt: '2026-07-20T00:00:00.000Z',
+      path: 'evidence/drain-throughput.json',
+      sampleSize: 300,
+      sha256: artifactHash,
+    },
     sameSignatureCollisions: {
       measuredAt: '2026-07-20T00:00:00.000Z',
       path: 'evidence/same-signature.json',
@@ -73,18 +79,27 @@ const readinessManifest: RelayReadinessManifest = {
 };
 
 function readinessArtifactContent(artifactPath: string): string {
-  const metric = artifactPath.endsWith('same-signature.json')
-    ? 'sameSignatureCollisions'
-    : 'spooledNeverFiled';
-  const artifact =
-    metric === 'sameSignatureCollisions'
-      ? readinessManifest.measurements.sameSignatureCollisions
-      : readinessManifest.measurements.spooledNeverFiled;
+  const entry = Object.entries(readinessManifest.measurements).find(
+    ([, artifact]) => artifact.path === artifactPath,
+  );
+  if (entry === undefined) throw new Error(`unknown readiness artifact: ${artifactPath}`);
+  const [metric, artifact] = entry as [
+    keyof RelayReadinessManifest['measurements'],
+    RelayReadinessManifest['measurements'][keyof RelayReadinessManifest['measurements']],
+  ];
   return JSON.stringify({
     measuredAt: artifact.measuredAt,
     metric,
     repository: 'ArcadeAI/safeword',
-    result: { count: 0 },
+    result:
+      metric === 'drainThroughput'
+        ? {
+            acceptedCount: 2,
+            backlogSize: artifact.sampleSize,
+            durationMs: 999,
+            relayLatencyMs: 80,
+          }
+        : { count: 0 },
     sampleSize: artifact.sampleSize,
     version: 1,
   });
