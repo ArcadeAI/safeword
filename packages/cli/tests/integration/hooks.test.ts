@@ -585,6 +585,10 @@ describe('E2E: UserPromptSubmit Hooks', () => {
           stopQualityReviewAwaitingUserPrompt: true,
           // A valid JSON state with an invalid cached failure shape makes the
           // reminder path throw after the marker has been cleared in memory.
+          // The pending nudge is downstream of that failure. Its absence below
+          // pins the error precondition, so a future defensive normalization of
+          // recentFailures cannot turn this recovery test into a vacuous pass.
+          learningsNudgesPending: ['research.md'],
           recentFailures: { length: 1 },
         }),
       );
@@ -596,6 +600,7 @@ describe('E2E: UserPromptSubmit Hooks', () => {
         );
 
         expect(result.exitCode).toBe(0);
+        expect(result.stdout).not.toContain('Novel claim detected');
         expect(JSON.parse(readTestFile(shared.projectDirectory, statePath))).toMatchObject({
           stopQualityReviewAwaitingUserPrompt: false,
         });

@@ -18,6 +18,7 @@ import {
   ESCALATION_THRESHOLD,
   type FailureEntry,
   getStateFilePath,
+  type QualityState,
   readCounters,
   writeCounters,
 } from './lib/quality-state.ts';
@@ -60,10 +61,13 @@ let effectivePhase: string | undefined;
 const stateFile = getStateFilePath(projectDirectory, input.session_id);
 
 if (existsSync(stateFile)) {
-  let state: ReturnType<typeof JSON.parse> | undefined;
+  // The state file is shared by quality hooks; its on-disk shape is the
+  // QualityState contract. Keep the runtime parse/error boundary below because
+  // a stale or malformed file must never block the core prompt guidance.
+  let state: QualityState | undefined;
   let stateDirty = false;
   try {
-    state = JSON.parse(readFileSync(stateFile, 'utf8'));
+    state = JSON.parse(readFileSync(stateFile, 'utf8')) as QualityState;
 
     // A real UserPromptSubmit boundary consumes the quiet period after a
     // generic Stop review. Clear it before deriving this prompt's reminders so

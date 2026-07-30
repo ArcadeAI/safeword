@@ -5,7 +5,7 @@ type: task
 phase: verify
 status: in_progress
 created: 2026-07-29T17:27:17.421Z
-last_modified: 2026-07-29T23:49:30.000Z
+last_modified: 2026-07-30T00:55:54.000Z
 ---
 
 # Keep stop reviews quiet until a new user prompt
@@ -59,3 +59,4 @@ Pre-mortem: a state-file write failure could still allow a duplicate generic rev
 - 2026-07-29T22:30:00.000Z Reviewed all PR #1652 feedback with /quality-review and /figure-it-out. Moved generic suppression beside the generic branch, initialized fresh state, batched prompt writes, and moved marker-lifecycle coverage to its own installed-hook test file. New focused regressions pass locally; the attempted old-head Node 24 rerun was canceled when the corrected head superseded it, so that fresh CI run is authoritative.
 - 2026-07-29T23:12:14.000Z Revalidated completion evidence with /figure-it-out. Corrected head `085b90b6a` is mergeable and has green parity, lint, Node 22, and Node 24 CI; both Node lanes ran the full CLI, acceptance, install-proof, and release-gate checks. Keep the ticket in `verify`: PR #1652 is still a draft, its Validation section needs its stale queue/test-file wording refreshed, and ticket-system policy requires user confirmation before `done` or closing #1492.
 - 2026-07-29T23:49:30.000Z Pass-2 PR review: repointed rebase-orphaned GREEN evidence to reachable commits, corrected the fail-closed test matrix pointer, and made the prompt-boundary clear persist even when optional reminder derivation throws. The new installed-hook regression was RED before `69ce94f19` and GREEN afterward; generic state initialization and prompt-write recovery are documented in the implementation plan.
+- 2026-07-30T00:55:54.000Z Pass-3 PR review: made the prompt-recovery test prove its malformed-state failure still occurs by asserting a downstream learning nudge remains absent, and replaced the misleading inferred-`any` parse declaration with the shared `QualityState` contract. Focused hook, idle-review, typecheck, phase-backstop, and ledger suites pass 102/102; the prior current-head CI run 30501024183 is green. Keep the ticket in `verify` pending user confirmation.

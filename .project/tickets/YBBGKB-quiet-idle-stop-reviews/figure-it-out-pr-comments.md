@@ -143,3 +143,33 @@ All five findings were investigated on 2026-07-29 before changing code. Primary-
 **Premortem:** A third review kind needs its own state; add a named state model then rather than extending this conditional indefinitely.
 
 **Next:** Pass the conditional patch directly to `recordStopReviewState`.
+
+## Pass 3 — current-head review feedback
+
+### A. Keep the prompt-recovery regression non-vacuous
+
+- [x] Phase 1: Decide whether the recovery test must prove reminder derivation actually aborts.
+- [x] Phase 2: Options were retaining the indirect state assertion, exposing a production-only fault seam, or pinning an existing downstream observable.
+- [x] Phase 3a: Research domains — integration-test durability, prompt-reminder control flow, and failure recovery.
+- [x] Phase 3b: Traced `getFailureInjection` as the throw site and `learningsNudgesPending` as the next observable work. The existing assertions pass both on an error and on a no-error path, while the downstream nudge is emitted only on the no-error path.
+- [x] Phase 4: Chose the downstream-observable assertion.
+
+> Recommend **seed a pending learning nudge and assert that its line is absent** because it proves the test's malformed cached failure still reaches the recovery path without adding a production fault-injection API. A synthetic seam adds scope; retaining only the marker assertion loses if parsing is later made tolerant.
+
+**Premortem:** The nudge wording could change; assert its stable `Novel claim detected` prefix, not the full message.
+
+**Next:** Keep the negative assertion beside the malformed-state fixture.
+
+### B. Express the parsed state contract honestly
+
+- [x] Phase 1: Decide whether the `JSON.parse` state variable should retain an obfuscated inferred `any` type.
+- [x] Phase 2: Options were `Record<string, unknown>` plus per-access casts, an explicit untyped escape hatch, or the existing `QualityState` persistence contract.
+- [x] Phase 3a: Research domains — persisted hook-state ownership, TypeScript narrowing, and malformed-file tolerance.
+- [x] Phase 3b: Confirmed `QualityState` is the shared on-disk contract used by the quality hooks and that the surrounding `try`/`catch` is still required for malformed runtime content.
+- [x] Phase 4: Chose `QualityState` with an explicit parse assertion and explanatory runtime-boundary comment.
+
+> Recommend **`QualityState` plus the existing tolerant runtime boundary** because it tells readers which contract normal hook writers maintain while preserving best-effort behavior for stale/corrupt state files. `Record<string, unknown>` would add casts at every normal access; plain `any` hides the contract.
+
+**Premortem:** A future state migration could make the assertion stale; update the shared `QualityState` contract and this reader together.
+
+**Next:** Keep malformed-state integration coverage so runtime tolerance remains tested independently of static typing.
