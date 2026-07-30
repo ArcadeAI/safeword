@@ -20,6 +20,7 @@ interface OpenIssue {
 const UPSTREAM_REPO = 'ArcadeAI/safeword';
 const ISSUES_BASE = `/repos/${UPSTREAM_REPO}/issues`;
 const API = 'https://api.github.com';
+const GITHUB_TOKEN_ENV_KEY = 'GITHUB_TOKEN';
 // GitHub's max page size. The paginated loops interpolate this into the URL
 // AND compare against it to detect the last (short) page — one constant keeps
 // the two from drifting (a mismatch silently truncates or over-fetches).
@@ -47,21 +48,30 @@ const MAX_DEDUP_PAGES = 200;
  * Ask `gh` for the environment's GitHub token, or undefined if unavailable.
  * `GITHUB_TOKEN` is stripped because the resolver only calls this fallback
  * after rejecting that value; preserve `GH_TOKEN`, which is an independent
- * documented gh credential source with higher precedence.
+ * documented gh credential source with higher precedence. The exact
+ * `proxy-injected` sentinel is rejected only from `GITHUB_TOKEN`: #1637 keeps
+ * syntax-valid explicit `GH_TOKEN` values opaque and lets GitHub authorize them.
  */
-function ghAuthToken(
-  environment: Record<string, string | undefined> = process.env,
-): string | undefined {
+function ghAuthToken(): string | undefined {
   try {
-    const childEnvironment = { ...environment };
-    delete childEnvironment.GITHUB_TOKEN;
+    // Node's Windows environment keys are case-insensitive, while this copied
+    // JavaScript object has case-sensitive keys. Exclude every casing so a
+    // rejected token cannot re-enter `gh` under a different key spelling.
+    const childEnvironment = Object.fromEntries(
+      Object.entries(process.env).filter(
+        ([key]) => key.toUpperCase() !== GITHUB_TOKEN_ENV_KEY.toUpperCase(),
+      ),
+    );
     const result = spawnSync('gh', ['auth', 'token'], {
       encoding: 'utf8',
       timeout: 10_000,
       env: childEnvironment,
     });
-    const token = (result.stdout ?? '').trim();
-    return result.status === 0 && token.length > 0 ? token : undefined;
+    // Accept at most one terminal LF or CRLF. Broad trimming could turn malformed
+    // credential output into a token-shaped value by silently discarding
+    // whitespace or control characters.
+    const token = (result.stdout ?? '').replace(/\r?\n$/, '');
+    return result.status === 0 && isBearerCredentialSyntax(token) ? token : undefined;
   } catch {
     return undefined;
   }
@@ -90,9 +100,9 @@ function isBearerCredentialSyntax(value: string): boolean {
  */
 export function resolveGitHubToken(
   env: Record<string, string | undefined> = process.env,
-  getGhToken: (environment: Record<string, string | undefined>) => string | undefined = ghAuthToken,
+  getGhToken: () => string | undefined = ghAuthToken,
 ): string | undefined {
-  const fromEnvironment = env.GITHUB_TOKEN;
+  const fromEnvironment = env[GITHUB_TOKEN_ENV_KEY];
   if (
     fromEnvironment &&
     fromEnvironment !== 'proxy-injected' &&
@@ -100,7 +110,7 @@ export function resolveGitHubToken(
   ) {
     return fromEnvironment;
   }
-  return getGhToken(env);
+  return getGhToken();
 }
 
 /** The one place auth + API headers are wired to fetch; both transports compose this. */
