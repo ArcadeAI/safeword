@@ -76,6 +76,7 @@ async function setupHandler(invocation: CommandInvocation): Promise<CliResult> {
   const { convergeSetup } = await import('../commands/converge-setup.js');
   return convergeSetup(invocation.cwd, {
     noModify: invocation.options.modify === false,
+    repairVersionMarker: invocation.options.repairVersionMarker === true,
     migrateNamespace:
       typeof invocation.options.migrateNamespace === 'boolean'
         ? invocation.options.migrateNamespace

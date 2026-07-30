@@ -18,6 +18,7 @@ import {
 import { CODEX_MIGRATION_SCHEMA } from '../codex-plugin/inventory.js';
 import { legacyCodexEventIsViable } from '../codex-plugin/legacy-authority.js';
 import {
+  CodexConfigObservationError,
   observeLegacyEvents,
   type PreparedLegacyHookRemoval,
   prepareLegacyHookRemoval,
@@ -158,7 +159,14 @@ export function observeCodexMigrationResult(
   cwd = process.cwd(),
   environment: NodeJS.ProcessEnv = process.env,
 ): CodexMigrationResultV1 {
-  const legacyEvents = observeLegacyEvents(cwd);
+  let legacyEvents: string[] = [];
+  let configObservationError: CodexConfigObservationError | undefined;
+  try {
+    legacyEvents = observeLegacyEvents(cwd);
+  } catch (error) {
+    if (!(error instanceof CodexConfigObservationError)) throw error;
+    configObservationError = error;
+  }
   const recoveryRequired = codexRecoveryIsRequired(cwd);
   let plugin: CodexPluginObservation;
   let pluginObservationError: Error | undefined;
@@ -187,6 +195,13 @@ export function observeCodexMigrationResult(
       code: 'PLUGIN_OBSERVATION_FAILED',
       message: pluginObservationError.message,
       retryable: true,
+    });
+  }
+  if (configObservationError !== undefined) {
+    result.errors.push({
+      code: 'CODEX_CONFIG_UNREADABLE',
+      message: configObservationError.message,
+      retryable: false,
     });
   }
   return result;

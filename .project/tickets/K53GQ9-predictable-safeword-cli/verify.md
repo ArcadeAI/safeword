@@ -1,6 +1,6 @@
 ## Verify Checklist
 
-**Test Suite:** ✓ 5817/5817 executed tests pass locally (5 skipped)
+**Test Suite:** ✓ 5863/5863 executed tests pass locally (5 skipped)
 **Gherkin:** ✅ Local acceptance lane passes (671 passed, 3 skipped; 21,984 executed steps pass)
 **Build:** ✅ Success
 **Lint:** ✅ Clean
@@ -16,7 +16,7 @@ Audit passed with warnings — 0 unresolved errors. The mandatory post-refactor 
 
 ## Evidence
 
-- Safeword resolver-driven local verification: 394 Vitest files; 5,817 passing tests; 5 skipped.
+- Safeword resolver-driven local verification: 396 Vitest files; 5,863 passing tests; 5 skipped.
 - Root local acceptance lane: 674 scenarios total; 671 passed and 3 intentionally skipped; 21,984 passing steps and 4 skipped.
 - CLI build, documentation-site build, TypeScript, ESLint, Gherkin lint, Markdown lint, dependency-cruiser, and Knip all passed with no errors.
 - `bun audit`: no vulnerabilities.

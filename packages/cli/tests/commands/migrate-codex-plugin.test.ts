@@ -419,6 +419,68 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/custom.ts
     expect(readBackedUpFile(fixture, '.codex/config.toml')).toBe(original);
   });
 
+  it('ends a hook section before an unrelated table whose name ends in hooks', async () => {
+    const original = `${LEGACY_HOOK_CONFIG}
+[[custom.hooks]]
+command = 'echo "keep this custom table"'
+`;
+    const fixture = createMigrationFixture(original);
+
+    const result = await runMigration(fixture, { cleanupLegacyHooks: true });
+
+    expect(result.exitCode, result.stderr).toBe(0);
+    const migrated = readFileSync(fixture.configPath, 'utf8');
+    expect(migrated).not.toContain('safeword hook codex pre-tool-use');
+    expect(migrated).toContain('[[custom.hooks]]');
+    expect(migrated).toContain('keep this custom table');
+  });
+
+  it.each([
+    {
+      label: 'whitespace',
+      parent: '[[ hooks.PreToolUse ]]',
+      nested: '[[ hooks.PreToolUse.hooks ]]',
+    },
+    {
+      label: 'quoted event keys',
+      parent: '[[hooks."PreToolUse"]]',
+      nested: '[[hooks."PreToolUse".hooks]]',
+    },
+  ])('removes legacy hooks written with $label', async ({ parent, nested }) => {
+    const original = `${parent}
+matcher = "^(apply_patch)$"
+
+${nested}
+type = "command"
+command = 'npx --yes safeword hook codex pre-tool-use'
+`;
+    const fixture = createMigrationFixture(original);
+
+    const result = await runMigration(fixture, { cleanupLegacyHooks: true });
+
+    expect(result.exitCode, result.stderr).toBe(0);
+    expect(readFileSync(fixture.configPath, 'utf8')).not.toContain(
+      'safeword hook codex pre-tool-use',
+    );
+  });
+
+  it('fails closed when semantic legacy hooks cannot be mapped to source ranges', async () => {
+    const original = `[[hooks.PreToolUse]]
+matcher = "^(apply_patch)$"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = """npx --yes safeword hook codex pre-tool-use"""
+`;
+    const fixture = createMigrationFixture(original);
+
+    const result = await runMigration(fixture, { cleanupLegacyHooks: true });
+
+    expect(result.exitCode).not.toBe(0);
+    expect(readFileSync(fixture.configPath, 'utf8')).toBe(original);
+    expect(`${result.stdout}\n${result.stderr}`).toContain('unsupported Safe Word hook formatting');
+  });
+
   it('refuses explicit cleanup when the Codex configuration is malformed', async () => {
     const original = `${LEGACY_HOOK_CONFIG}\n[broken\n`;
     const fixture = createMigrationFixture(original);
@@ -678,6 +740,75 @@ command = 'echo "keep this user hook"'
       ],
     });
   });
+
+  it.each([
+    { label: 'live', target: 'dotfiles-config.toml' },
+    { label: 'dangling', target: 'missing-config.toml' },
+  ])(
+    'returns a stable config observation error for a $label config symlink',
+    async ({ target }) => {
+      const fixture = createMigrationFixture('');
+      if (target === 'dotfiles-config.toml') {
+        writeFileSync(
+          nodePath.join(nodePath.dirname(fixture.configPath), target),
+          LEGACY_HOOK_CONFIG,
+        );
+      }
+      rmSync(fixture.configPath);
+      symlinkSync(target, fixture.configPath);
+
+      const result = await runCodexCommand(fixture, ['codex', 'status', '--json']);
+
+      expect(result).toMatchObject({ exitCode: 1, stderr: '' });
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        state: 'failed',
+        changed: false,
+        errors: [
+          {
+            code: 'CODEX_CONFIG_UNREADABLE',
+            message: 'Codex configuration is a symbolic link and cannot be observed safely.',
+            retryable: false,
+          },
+        ],
+      });
+      expect(result.stdout).not.toContain(fixture.directory);
+    },
+  );
+
+  it.each([
+    { label: 'live', target: 'external-codex' },
+    { label: 'dangling', target: 'missing-codex' },
+  ])(
+    'returns a stable config observation error for a $label config-directory symlink',
+    async ({ target }) => {
+      const fixture = createMigrationFixture('');
+      const codexDirectory = nodePath.dirname(fixture.configPath);
+      const targetDirectory = nodePath.join(fixture.directory, target);
+      rmSync(codexDirectory, { recursive: true });
+      if (target === 'external-codex') {
+        mkdirSync(targetDirectory);
+        writeFileSync(nodePath.join(targetDirectory, 'config.toml'), LEGACY_HOOK_CONFIG);
+      }
+      symlinkSync(target, codexDirectory);
+
+      const result = await runCodexCommand(fixture, ['codex', 'status', '--json']);
+
+      expect(result).toMatchObject({ exitCode: 1, stderr: '' });
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        state: 'failed',
+        changed: false,
+        errors: [
+          {
+            code: 'CODEX_CONFIG_UNREADABLE',
+            message:
+              'Codex configuration directory is a symbolic link and cannot be observed safely.',
+            retryable: false,
+          },
+        ],
+      });
+      expect(result.stdout).not.toContain(fixture.directory);
+    },
+  );
 
   it('reports only runnable legacy events as protection for an unproven plugin', async () => {
     const scriptConfig = `[[hooks.PreToolUse]]

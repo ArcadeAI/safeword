@@ -41,6 +41,10 @@ export function isPlanIdentity(value: string): boolean {
   return PLAN_IDENTITY_PATTERN.test(value);
 }
 
+/**
+ * Return the programmatic-boundary error for callers that bypass Commander.
+ * Normal CLI invocations reject malformed values earlier as CLI_ARGUMENT_INVALID.
+ */
 export function malformedPlanIdentity(command: string): CliResult {
   return createResult({
     state: 'failed',

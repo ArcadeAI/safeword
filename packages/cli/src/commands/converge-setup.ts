@@ -3,6 +3,7 @@ import nodePath from 'node:path';
 
 import { diffFileSnapshots } from '../cli-protocol/file-effects.js';
 import { effectsForReconciliation } from '../cli-protocol/reconciliation.js';
+import { buildReplayCommand } from '../cli-protocol/replay-command.js';
 import {
   type CliResult,
   createResult,
@@ -140,6 +141,7 @@ export async function convergeSetup(
   options: {
     noModify?: boolean;
     migrateNamespace?: boolean;
+    repairVersionMarker?: boolean;
     progress?: {
       readonly start: (message: string) => void;
       readonly stop: () => void;
@@ -148,7 +150,9 @@ export async function convergeSetup(
   },
 ): Promise<CliResult> {
   const configured = existsSync(nodePath.join(cwd, '.safeword'));
-  const downgrade = configured ? downgradeRefusal(cwd) : undefined;
+  const downgrade = configured
+    ? downgradeRefusal(cwd, options.repairVersionMarker === true)
+    : undefined;
   if (downgrade !== undefined) return downgrade;
   let namespaceMigration: NamespaceConvergence = { effects: [], findings: [] };
   let packageJsonCreated = false;
@@ -268,20 +272,65 @@ function convergeNamespace(
   }
 }
 
-function downgradeRefusal(cwd: string): CliResult | undefined {
-  const projectVersionPath = nodePath.join(cwd, '.safeword', 'version');
-  const projectVersion = exists(projectVersionPath)
-    ? readFileSync(projectVersionPath, 'utf8').trim()
-    : '0.0.0';
-  if (!isSafePackageVersion(projectVersion)) {
+function downgradeRefusal(cwd: string, repairVersionMarker: boolean): CliResult | undefined {
+  const safewordDirectoryPath = nodePath.join(cwd, '.safeword');
+  const safewordDirectoryMetadata = lstatSync(safewordDirectoryPath, {
+    throwIfNoEntry: false,
+  });
+  if (safewordDirectoryMetadata?.isDirectory() !== true) {
     return createResult({
       state: 'failed',
       errors: [
         {
           code: 'PROJECT_VERSION_UNSAFE',
           message:
-            'Project version is not valid SemVer; inspect .safeword/version before running setup.',
+            '.safeword must be an ordinary directory inside the project. Inspect and replace it manually before running setup.',
           retryable: false,
+        },
+      ],
+    });
+  }
+  const projectVersionPath = nodePath.join(safewordDirectoryPath, 'version');
+  const projectVersionMetadata = lstatSync(projectVersionPath, { throwIfNoEntry: false });
+  let projectVersion: string;
+  if (projectVersionMetadata === undefined) {
+    projectVersion = '0.0.0';
+  } else if (projectVersionMetadata.isFile() && projectVersionMetadata.nlink === 1) {
+    projectVersion = readFileSync(projectVersionPath, 'utf8').trim();
+  } else {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'PROJECT_VERSION_UNSAFE',
+          message:
+            'Project version marker must be an ordinary regular file with one directory entry. Inspect .safeword/version and replace it manually before running setup.',
+          retryable: false,
+        },
+      ],
+    });
+  }
+  if (!isSafePackageVersion(projectVersion)) {
+    if (repairVersionMarker) return undefined;
+    const recoveryCommand = buildReplayCommand({
+      command: 'safeword setup --repair-version-marker',
+      cwd,
+    });
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'PROJECT_VERSION_UNSAFE',
+          message: `Project version is not valid SemVer. Inspect .safeword/version, then run \`${recoveryCommand}\` to replace it.`,
+          retryable: false,
+        },
+      ],
+      recovery: [
+        {
+          command: recoveryCommand,
+          description:
+            'Replace the unreadable version marker with the current CLI version, then converge setup.',
+          requiresHuman: true,
         },
       ],
     });

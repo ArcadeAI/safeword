@@ -534,6 +534,8 @@ function computePlan(
 function computeInstallPlan(schema: SafewordSchema, ctx: ProjectContext): ReconcilePlan {
   const actions: Action[] = [];
   const wouldCreate: string[] = [];
+  const wouldUpdate: string[] = [];
+  const wouldRemove: string[] = [];
 
   // 1. Create all directories
   const allDirectories = [...schema.ownedDirs, ...schema.sharedDirs, ...schema.preservedDirs];
@@ -568,6 +570,8 @@ function computeInstallPlan(schema: SafewordSchema, ctx: ProjectContext): Reconc
   actions.push(...textPatchActions);
   const dynamicChanges = planDynamicFileChanges(actions, ctx);
   wouldCreate.push(...dynamicChanges.created);
+  wouldUpdate.push(...dynamicChanges.updated);
+  wouldRemove.push(...dynamicChanges.removed);
 
   // 7. Compute packages to install
   const packagesToInstall = computePackagesToInstall(
@@ -580,8 +584,8 @@ function computeInstallPlan(schema: SafewordSchema, ctx: ProjectContext): Reconc
   return {
     actions,
     wouldCreate: [...new Set(wouldCreate)],
-    wouldUpdate: [],
-    wouldRemove: [],
+    wouldUpdate: [...new Set(wouldUpdate)],
+    wouldRemove: [...new Set(wouldRemove)],
     packagesToInstall,
     packagesToRemove: [],
   };

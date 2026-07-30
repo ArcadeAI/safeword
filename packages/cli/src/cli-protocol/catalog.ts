@@ -113,6 +113,10 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
         flags: '--no-migrate-namespace',
         description: 'Keep the legacy project namespace',
       },
+      {
+        flags: '--repair-version-marker',
+        description: 'Replace an unreadable project version marker',
+      },
     ],
   }),
   command('plan', 'Preview reconciliation effects', 'plan'),
@@ -383,6 +387,14 @@ function capability(definition: CommandDefinition): Record<string, unknown> {
     network_policy: definition.networkPolicy,
     schema_versions: definition.schemaVersions,
     fixture: definition.fixture,
+    options: definition.registration.options.map(
+      ({ flags, description, defaultValue, valueKind }) => ({
+        flags,
+        description,
+        ...(defaultValue !== undefined && { default_value: defaultValue }),
+        ...(valueKind !== undefined && { value_kind: valueKind }),
+      }),
+    ),
     ...(definition.compatibility !== undefined && {
       compatibility: {
         introduced_in: definition.compatibility.introducedIn,

@@ -128,5 +128,37 @@ describe('CLI command catalog', () => {
       }),
     );
     expect(firstCommand?.fixture).toEqual(expect.objectContaining({ argv: expect.any(Array) }));
+
+    for (const definition of publicCommands) {
+      const published = data.commands.find(command => command.name === definition.name);
+      expect(published?.options).toEqual(
+        definition.registration.options.map(({ flags, description, defaultValue, valueKind }) => ({
+          flags,
+          description,
+          ...(defaultValue !== undefined && { default_value: defaultValue }),
+          ...(valueKind !== undefined && { value_kind: valueKind }),
+        })),
+      );
+    }
+
+    const remove = data.commands.find(command => command.name === 'remove');
+    expect(remove?.options).toEqual(
+      expect.arrayContaining([
+        {
+          flags: '--plan <id>',
+          description: 'Identity of the exact plan being confirmed',
+          value_kind: 'plan-identity',
+        },
+      ]),
+    );
+    const trackerSync = data.commands.find(command => command.name === 'tracker sync');
+    expect(trackerSync?.options).toEqual(
+      expect.arrayContaining([
+        {
+          flags: '--plan',
+          description: 'Compute an offline tracker plan',
+        },
+      ]),
+    );
   });
 });

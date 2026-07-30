@@ -1,12 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  createPlan,
-  isPlanCurrent,
-  isPlanIdentity,
-  malformedPlanIdentity,
-} from '../../src/cli-protocol/plan.js';
+import { createPlan, isPlanCurrent, isPlanIdentity } from '../../src/cli-protocol/plan.js';
+import { publicHandler } from '../../src/cli-protocol/public-handlers.js';
 import { effectsForReconciliation } from '../../src/cli-protocol/reconciliation.js';
+import { removeProject } from '../../src/commands/remove.js';
+import { createTemporaryDirectory } from '../helpers.js';
 
 describe('CLI plan protocol', () => {
   it('binds plan identity to command, effects, and preconditions', () => {
@@ -40,17 +38,36 @@ describe('CLI plan protocol', () => {
     });
   });
 
-  it('recognizes generated plan identities and rejects malformed values at domain boundaries', () => {
+  it('recognizes generated plan identities', () => {
     const plan = createPlan({ command: 'remove', preconditionDigest: 'tree' });
 
     expect(isPlanIdentity(plan.id)).toBe(true);
     expect(isPlanIdentity('A'.repeat(64))).toBe(false);
     expect(isPlanIdentity('--definitely-invalid')).toBe(false);
-    expect(malformedPlanIdentity('remove')).toMatchObject({
+  });
+
+  it('rejects malformed identities at direct typed-handler and destructive-core boundaries', async () => {
+    const directory = createTemporaryDirectory();
+    const invocation = {
+      cwd: directory,
+      noInput: true,
+      offline: false,
+      options: { plan: '--definitely-invalid' },
+      operands: [],
+    };
+
+    await expect(publicHandler('codex migrate')(invocation)).resolves.toMatchObject({
       state: 'failed',
       changed: false,
       errors: [{ code: 'PLAN_MALFORMED', retryable: false }],
     });
+    await expect(removeProject(directory, { plan: '--definitely-invalid' })).resolves.toMatchObject(
+      {
+        state: 'failed',
+        changed: false,
+        errors: [{ code: 'PLAN_MALFORMED', retryable: false }],
+      },
+    );
   });
 
   it('declares registry access whenever setup may install packages', () => {

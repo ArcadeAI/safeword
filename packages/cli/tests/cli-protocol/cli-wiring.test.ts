@@ -12,10 +12,32 @@ describe('predictable CLI wiring', () => {
     expect(result.stderr).toBe('');
     const envelope = JSON.parse(result.stdout) as {
       schema_version: number;
-      data: { commands: { name: string }[] };
+      data: {
+        commands: {
+          name: string;
+          options: { flags: string; description: string; value_kind?: string }[];
+        }[];
+      };
     };
     expect(envelope.schema_version).toBe(1);
     expect(envelope.data.commands.some(command => command.name === 'boundary')).toBe(false);
+    expect(envelope.data.commands.find(command => command.name === 'remove')?.options).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          flags: '--plan <id>',
+          value_kind: 'plan-identity',
+        }),
+      ]),
+    );
+    expect(
+      envelope.data.commands.find(command => command.name === 'tracker sync')?.options,
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          flags: '--plan',
+        }),
+      ]),
+    );
   });
 
   it('accepts global machine options before or after a command', async () => {
