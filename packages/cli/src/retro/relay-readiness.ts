@@ -9,14 +9,17 @@ interface RelayMeasurementArtifact {
   sha256: string;
 }
 
+const REQUIRED_MEASUREMENTS = [
+  'drainThroughput',
+  'sameSignatureCollisions',
+  'spooledNeverFiled',
+] as const;
+type RelayMeasurement = (typeof REQUIRED_MEASUREMENTS)[number];
+
 export interface RelayReadinessManifest {
   enabled: true;
   evidenceCommit: string;
-  measurements: {
-    drainThroughput: RelayMeasurementArtifact;
-    sameSignatureCollisions: RelayMeasurementArtifact;
-    spooledNeverFiled: RelayMeasurementArtifact;
-  };
+  measurements: Record<RelayMeasurement, RelayMeasurementArtifact>;
   prerequisites: [
     {
       closedAt: string;
@@ -76,11 +79,6 @@ const MIN_DRAIN_ACCEPTED_COUNT = 2;
 const MIN_DRAIN_BACKLOG_SIZE = 300;
 const MIN_RELAY_LATENCY_MS = 80;
 const MAX_DRAIN_DURATION_MS = 1000;
-const REQUIRED_MEASUREMENTS = [
-  'drainThroughput',
-  'sameSignatureCollisions',
-  'spooledNeverFiled',
-] as const;
 
 function validDate(value: string): Date | undefined {
   const date = new Date(value);
