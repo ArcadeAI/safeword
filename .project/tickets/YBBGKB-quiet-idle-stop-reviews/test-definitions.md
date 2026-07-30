@@ -34,7 +34,7 @@ Then it persists the marker clear while still returning the core prompt guidance
 
 - [x] RED skip: installed-hook regression failed before the deferred-write recovery change
 - [x] GREEN 69ce94f19
-- [x] REFACTOR review pass: seed a downstream pending-learning nudge and assert its absence, so the fixture proves the malformed cached state still aborts reminder derivation instead of passing vacuously.
+- [x] REFACTOR d00fbf733: seed a downstream pending-learning nudge and assert its absence, so the fixture proves the malformed cached state still aborts reminder derivation instead of passing vacuously.
 
 ## Rule: Missing transcript boundaries remain fail-closed before review is surfaced
 
