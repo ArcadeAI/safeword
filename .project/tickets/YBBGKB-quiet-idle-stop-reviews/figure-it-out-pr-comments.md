@@ -173,3 +173,19 @@ All five findings were investigated on 2026-07-29 before changing code. Primary-
 **Premortem:** A future state migration could make the assertion stale; update the shared `QualityState` contract and this reader together.
 
 **Next:** Keep malformed-state integration coverage so runtime tolerance remains tested independently of static typing.
+
+## Pass 4 — current delivery-status wording
+
+### A. Keep the PR validation status truthful after CI completes
+
+- [x] Phase 1: Decide whether the PR should retain a completed run as “in progress,” replace it with the observed result, or request another run.
+- [x] Phase 2: Options were leaving the conservative-but-stale wording, updating it to the completed result, or rerunning CI solely to refresh the sentence.
+- [x] Phase 3a: Research domains — CI evidence provenance, review handoff accuracy, and delivery-state drift.
+- [x] Phase 3b: Queried the GitHub workflow data for head `cee346589`; run `30504407023` is `completed` with conclusion `success`. The PR is still a draft and has no unresolved review threads.
+- [x] Phase 4: Chose the completed-result wording.
+
+> Recommend **replace “in progress” with the green completed result** because the workflow result is first-party evidence for this exact head. Leaving the old wording undermines the review handoff; rerunning CI provides no new signal. Cite: [CI run 30504407023](https://github.com/ArcadeAI/safeword/actions/runs/30504407023).
+
+**Premortem:** A later push can stale this status again; refresh the Validation section only after fetching the exact current-head run.
+
+**Next:** Update PR #1652’s Validation line to record the green completed run.
