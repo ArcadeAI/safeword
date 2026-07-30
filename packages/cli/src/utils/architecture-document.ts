@@ -141,11 +141,7 @@ function planTarget(target: HealTarget): SelfHealAction {
 }
 
 /** A `src/`-skeleton doc: the skeleton of `directory`, rendered to `path`. */
-function skeletonTarget(
-  directory: string,
-  path: string,
-  skeleton = extractSkeleton(directory),
-): HealTarget {
+function skeletonTarget(directory: string, path: string, skeleton: Skeleton): HealTarget {
   const fingerprint = shapeFingerprintOf(directory, skeleton);
   const nodes = skeleton.nodes;
   return {
