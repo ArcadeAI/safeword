@@ -9,8 +9,6 @@
 // leak.
 
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
-import nodePath from 'node:path';
 
 /** package.json sections whose keys are dependency names (feed the fingerprint). */
 const DEPENDENCY_SECTIONS = [
@@ -147,26 +145,6 @@ function packageJsonArchInputsChanged(
   );
 }
 
-function readWorktreeManifest(cwd: string, file: string): Record<string, unknown> {
-  try {
-    const parsed = JSON.parse(readFileSync(nodePath.join(cwd, file), 'utf8')) as unknown;
-    return parsed !== null && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : {};
-  } catch {
-    return {};
-  }
-}
-
-function worktreePackageJsonArchInputsChanged(
-  cwd: string,
-  file: string,
-  context?: ArchitectureScopeGitContext,
-): boolean {
-  return (
-    manifestArchInputs(readManifest(cwd, 'HEAD', file, context)) !==
-    manifestArchInputs(readWorktreeManifest(cwd, file))
-  );
-}
-
 /**
  * Whether the staged change affects the architecture shape. A `package.json` is
  * relevant only when its normalized description, dependency names, or workspace
@@ -180,35 +158,6 @@ export function stagedChangeAffectsArchitecture(
   for (const file of stagedFiles(cwd, context)) {
     if (isStructuralPath(file)) return true;
     if (basename(file) === 'package.json' && packageJsonArchInputsChanged(cwd, file, context)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/**
- * Whether a no-pathspec `git add -A` would stage an architecture-shape change.
- * Reads HEAD and the worktree directly; never projects or mutates the index.
- */
-export function worktreeChangeAffectsArchitecture(
-  cwd: string,
-  context?: ArchitectureScopeGitContext,
-): boolean {
-  const changed = new Set([
-    ...runGit(cwd, ['diff', 'HEAD', '--name-only', '-z', '--'], context)
-      .split('\0')
-      .filter(file => file.length > 0),
-    ...runGit(cwd, ['ls-files', '--others', '--exclude-standard', '-z', '--'], context)
-      .split('\0')
-      .filter(file => file.length > 0),
-  ]);
-
-  for (const file of changed) {
-    if (isStructuralPath(file)) return true;
-    if (
-      basename(file) === 'package.json' &&
-      worktreePackageJsonArchInputsChanged(cwd, file, context)
-    ) {
       return true;
     }
   }

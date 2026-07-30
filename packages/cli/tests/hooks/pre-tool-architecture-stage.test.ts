@@ -502,6 +502,191 @@ describe('pre-tool architecture staging hook', () => {
   });
 
   it.each([
+    ['from the project root', 'git add src/checkout'],
+    ['relative to a subdirectory', 'cd src && git add checkout'],
+  ])('advises when an unsupported command will add an architecture pathspec %s', (_label, add) => {
+    mkdirSync(nodePath.join(directory, 'src', 'checkout'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, 'src', 'checkout', 'index.ts'),
+      'export const checkout = true;\n',
+    );
+
+    const hook = runHook(`bun run lint && ${add} && git commit -m "add checkout"`);
+
+    expect(hook.status).toBe(0);
+    const output = JSON.parse(String(hook.stdout)) as { systemMessage?: string };
+    expect(output.systemMessage).toContain('skipped architecture auto-staging');
+    expect(git('diff', '--cached', '--name-only')).not.toContain('src/checkout/index.ts');
+  });
+
+  it('advises when an architecture pathspec will stage a tracked deletion', () => {
+    rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
+
+    const hook = runHook(
+      'bun run lint && cd src && git add billing && git commit -m "remove billing"',
+    );
+
+    expect(hook.status).toBe(0);
+    const output = JSON.parse(String(hook.stdout)) as { systemMessage?: string };
+    expect(output.systemMessage).toContain('skipped architecture auto-staging');
+    expect(git('diff', '--cached', '--name-only')).not.toContain('src/billing/index.ts');
+  });
+
+  it.each([
+    ['a broad add', 'git add -A'],
+    ['a matching pathspec', 'git add src/billing/index.ts'],
+    ['a broad add from a subdirectory', 'cd src && git add -A'],
+  ])('does not advise when %s restores a staged deletion to HEAD', (_label, stagingCommand) => {
+    rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
+    git('add', '--', 'src/billing/index.ts');
+    mkdirSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, 'src', 'billing', 'index.ts'),
+      'export const billing = true;\n',
+    );
+
+    const hook = runHook(`bun run lint && ${stagingCommand} && git commit -m "no change"`);
+
+    expect(hook.status).toBe(0);
+    expect(hook.stdout).toBe('');
+    expect(hook.stderr).toBe('');
+    expect(git('diff', '--cached', '--name-status')).toContain('D\tsrc/billing/index.ts');
+  });
+
+  it('advises when an unrelated add leaves a staged deletion intact', () => {
+    rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
+    git('add', '--', 'src/billing/index.ts');
+    writeFileSync(nodePath.join(directory, 'README.md'), 'routine docs change\n');
+
+    const hook = runHook('bun run lint && git add README.md && git commit -m "remove billing"');
+
+    expect(hook.status).toBe(0);
+    const output = JSON.parse(String(hook.stdout)) as { systemMessage?: string };
+    expect(output.systemMessage).toContain('skipped architecture auto-staging');
+  });
+
+  it('preserves assume-unchanged semantics while projecting a future add', () => {
+    mkdirSync(nodePath.join(directory, 'src', 'experimental'), { recursive: true });
+    const sourcePath = nodePath.join(directory, 'src', 'experimental', 'index.ts');
+    writeFileSync(sourcePath, 'export const experimental = false;\n');
+    git('add', '--', 'src/experimental/index.ts');
+    git('commit', '-m', 'add experimental module');
+    git('update-index', '--assume-unchanged', 'src/experimental/index.ts');
+    writeFileSync(sourcePath, 'export const experimental = true;\n');
+    writeFileSync(nodePath.join(directory, 'README.md'), 'routine docs change\n');
+    git('add', '--', 'README.md');
+
+    const hook = runHook(
+      'bun run lint && git add src/experimental/index.ts && git commit -m "docs"',
+    );
+
+    expect(hook.status).toBe(0);
+    expect(hook.stdout).toBe('');
+    expect(hook.stderr).toBe('');
+    expect(git('diff', '--cached', '--name-only')).toBe('README.md\n');
+  });
+
+  it('does not advise when an add pathspec excludes an unstaged architecture input', () => {
+    mkdirSync(nodePath.join(directory, 'src', 'checkout'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, 'src', 'checkout', 'index.ts'),
+      'export const checkout = true;\n',
+    );
+    writeFileSync(nodePath.join(directory, 'README.md'), 'routine docs change\n');
+
+    const hook = runHook(
+      'bun run lint && git add README.md && git commit -m "routine docs change"',
+    );
+
+    expect(hook.status).toBe(0);
+    expect(hook.stdout).toBe('');
+    expect(hook.stderr).toBe('');
+    expect(git('diff', '--cached', '--name-only')).not.toContain('src/checkout/index.ts');
+  });
+
+  it('still advises for a staged architecture input before an unrelated add', () => {
+    mkdirSync(nodePath.join(directory, 'src', 'checkout'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, 'src', 'checkout', 'index.ts'),
+      'export const checkout = true;\n',
+    );
+    writeFileSync(nodePath.join(directory, 'README.md'), 'routine docs change\n');
+    git('add', '--', 'src/checkout/index.ts');
+
+    const hook = runHook('bun run lint && git add README.md && git commit -m "add checkout"');
+
+    expect(hook.status).toBe(0);
+    const output = JSON.parse(String(hook.stdout)) as { systemMessage?: string };
+    expect(output.systemMessage).toContain('skipped architecture auto-staging');
+  });
+
+  it('advises when an earlier cumulative add includes an architecture input', () => {
+    mkdirSync(nodePath.join(directory, 'src', 'checkout'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, 'src', 'checkout', 'index.ts'),
+      'export const checkout = true;\n',
+    );
+    writeFileSync(nodePath.join(directory, 'README.md'), 'routine docs change\n');
+
+    const hook = runHook(
+      'bun run lint && git add src/checkout && git add README.md && git commit -m "add checkout"',
+    );
+
+    expect(hook.status).toBe(0);
+    const output = JSON.parse(String(hook.stdout)) as { systemMessage?: string };
+    expect(output.systemMessage).toContain('skipped architecture auto-staging');
+    expect(git('diff', '--cached', '--name-only')).not.toContain('src/checkout/index.ts');
+  });
+
+  it.each([
+    ['an unsupported later add', 'git add -f README.md'],
+    [
+      'a later add in another repository',
+      (otherDirectory: string) => `git -C "${otherDirectory}" add README.md`,
+    ],
+  ])('preserves an earlier architecture add across %s', (_label, laterAdd) => {
+    const otherDirectory = createTemporaryDirectory();
+    try {
+      initGitRepo(otherDirectory);
+      writeFileSync(nodePath.join(otherDirectory, 'README.md'), 'other repository\n');
+      mkdirSync(nodePath.join(directory, 'src', 'checkout'), { recursive: true });
+      writeFileSync(
+        nodePath.join(directory, 'src', 'checkout', 'index.ts'),
+        'export const checkout = true;\n',
+      );
+      writeFileSync(nodePath.join(directory, 'README.md'), 'routine docs change\n');
+      const laterCommand = typeof laterAdd === 'function' ? laterAdd(otherDirectory) : laterAdd;
+
+      const hook = runHook(
+        `bun run lint && git add src/checkout && ${laterCommand} && git commit -m "add checkout"`,
+      );
+
+      expect(hook.status).toBe(0);
+      const output = JSON.parse(String(hook.stdout)) as { systemMessage?: string };
+      expect(output.systemMessage).toContain('skipped architecture auto-staging');
+      expect(git('diff', '--cached', '--name-only')).not.toContain('src/checkout/index.ts');
+    } finally {
+      rmSync(otherDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it('treats pathless add -A from a subdirectory as repository-wide', () => {
+    mkdirSync(nodePath.join(directory, 'docs'), { recursive: true });
+    mkdirSync(nodePath.join(directory, 'src', 'checkout'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, 'src', 'checkout', 'index.ts'),
+      'export const checkout = true;\n',
+    );
+
+    const hook = runHook('bun run lint && cd docs && git add -A && git commit -m "add checkout"');
+
+    expect(hook.status).toBe(0);
+    const output = JSON.parse(String(hook.stdout)) as { systemMessage?: string };
+    expect(output.systemMessage).toContain('skipped architecture auto-staging');
+    expect(git('diff', '--cached', '--name-only')).not.toContain('src/checkout/index.ts');
+  });
+
+  it.each([
     [
       'a Git status check',
       'bun run lint && git add -A && git status --short && git commit -m "add checkout"',
@@ -540,7 +725,10 @@ describe('pre-tool architecture staging hook', () => {
     expect(git('diff', '--cached', '--name-only')).not.toContain('src/checkout/index.ts');
   });
 
-  it('uses a dominating broad add instead of stale pre-command index content', () => {
+  it.each([
+    ['a broad add', 'git add -A'],
+    ['a pathspec add', 'git add package.json'],
+  ])('uses %s instead of stale pre-command index content', (_label, add) => {
     writeFileSync(
       nodePath.join(directory, 'package.json'),
       JSON.stringify({ name: 'fixture', dependencies: { zod: '^4.0.0' } }),
@@ -551,7 +739,7 @@ describe('pre-tool architecture staging hook', () => {
       JSON.stringify({ name: 'fixture', version: '2.0.0' }),
     );
 
-    const hook = runHook('bun run lint && git add -A && git commit -m "release"');
+    const hook = runHook(`bun run lint && ${add} && git commit -m "release"`);
 
     expect(hook.status).toBe(0);
     expect(hook.stdout).toBe('');

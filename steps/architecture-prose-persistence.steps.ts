@@ -47,6 +47,8 @@ function heal(world: ProseWorld): void {
   const result = spawnSync('bun', [CLI_PATH, 'architecture'], {
     cwd: dir(world),
     encoding: 'utf8',
+    // This scenario performs repeated CLI heals and exceeded 30s once under
+    // Node 24 CI contention; keep per-process headroom without widening peers.
     timeout: 60_000,
   });
   world.stdout = `${result.stdout ?? ''}${result.stderr ?? ''}`;

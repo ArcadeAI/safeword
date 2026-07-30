@@ -14,10 +14,7 @@ import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
 
-import {
-  stagedChangeAffectsArchitecture,
-  worktreeChangeAffectsArchitecture,
-} from './lib/architecture-staged-scope.ts';
+import { stagedChangeAffectsArchitecture } from './lib/architecture-staged-scope.ts';
 import { commandWordIndex, parseShellCommandList, parseShellWords } from './lib/shell-segments.ts';
 
 const ARCHITECTURE_SOURCE_INDEX_ENV = 'SAFEWORD_ARCHITECTURE_SOURCE_INDEX';
@@ -45,8 +42,8 @@ interface GitInvocation {
 }
 
 interface UnsupportedCommitPlan {
-  broadAddStagesEntireWorktree: boolean;
   commit: GitInvocation;
+  precedingAdds: GitInvocation[];
 }
 
 const GIT_GLOBAL_OPTIONS_REQUIRING_VALUE = new Set([
@@ -199,7 +196,7 @@ function unsupportedCommitPlan(
   let directory = baseDirectory;
   let listStatus: boolean | undefined;
   let operatorBefore: '&&' | '||' | ';' | undefined;
-  let dominatingBroadAdd: GitInvocation | undefined;
+  let dominatingAdds: GitInvocation[] = [];
   for (const segment of parseShellCommandList(command)) {
     if (segment.operatorAfter === '|' || segment.operatorAfter === '|&') return undefined;
 
@@ -213,15 +210,13 @@ function unsupportedCommitPlan(
           ? listStatus !== true
           : true;
     if (commandWords[0] === 'cd') {
-      const preservesBroadAddDominance =
-        dominatingBroadAdd !== undefined &&
-        operatorBefore === '&&' &&
-        segment.operatorAfter === '&&';
+      const preservesAddDominance =
+        dominatingAdds.length > 0 && operatorBefore === '&&' && segment.operatorAfter === '&&';
       const changedDirectory = resolveCdDirectory(commandWords.slice(1), directory);
       if (executes && changedDirectory !== undefined) directory = changedDirectory;
       listStatus = combineShellStatus(listStatus, operatorBefore, undefined);
       operatorBefore = segment.operatorAfter;
-      if (!preservesBroadAddDominance) dominatingBroadAdd = undefined;
+      if (!preservesAddDominance) dominatingAdds = [];
       continue;
     }
     const environment = gitSelectorEnvironment(words.slice(0, commandIndex));
@@ -233,28 +228,36 @@ function unsupportedCommitPlan(
       !commitOptionEffects(invocation.arguments).nonCommitting
     ) {
       return {
-        broadAddStagesEntireWorktree:
-          dominatingBroadAdd !== undefined &&
-          sameGitRepositoryTarget(dominatingBroadAdd, invocation),
         commit: invocation,
+        precedingAdds: dominatingAdds.filter(add => sameGitRepositoryTarget(add, invocation)),
       };
     }
     const commandName = nodePath.basename(commandWords[0] ?? '');
-    const broadAddNow =
+    const addNow =
       executes &&
-      invocation?.name === 'add' &&
-      stagesEntireWorktree(invocation.arguments) &&
+      invocation !== undefined &&
+      invocation.name === 'add' &&
+      isProjectableAdvisoryAdd(invocation) &&
       segment.operatorAfter === '&&' &&
       (operatorBefore !== '||' || listStatus === false)
         ? invocation
         : undefined;
-    const preservesBroadAddDominance =
-      dominatingBroadAdd !== undefined &&
+    const preservesAddDominance =
+      dominatingAdds.length > 0 &&
       operatorBefore === '&&' &&
       segment.operatorAfter === '&&' &&
-      (commandName === 'true' || invocation?.name === 'status' || invocation?.name === 'diff');
-    dominatingBroadAdd =
-      broadAddNow ?? (preservesBroadAddDominance ? dominatingBroadAdd : undefined);
+      (commandName === 'true' ||
+        invocation?.name === 'add' ||
+        invocation?.name === 'status' ||
+        invocation?.name === 'diff');
+    if (addNow !== undefined) {
+      dominatingAdds =
+        dominatingAdds.length > 0 && operatorBefore === '&&'
+          ? [...dominatingAdds, addNow]
+          : [addNow];
+    } else if (!preservesAddDominance) {
+      dominatingAdds = [];
+    }
     const commandStatus =
       commandName === 'true' ? true : commandName === 'false' ? false : undefined;
     listStatus = combineShellStatus(listStatus, operatorBefore, commandStatus);
@@ -263,27 +266,35 @@ function unsupportedCommitPlan(
   return undefined;
 }
 
-function stagesEntireWorktree(arguments_: string[]): boolean {
-  let broad = false;
+function isProjectableAdvisoryAdd(invocation: GitInvocation): boolean {
+  if (invocation.globalArguments.length > 0) return false;
+  let stagesAll = false;
   let optionsEnded = false;
-  for (const argument of arguments_) {
-    if (optionsEnded) return false;
+  let hasPathspec = false;
+  for (const argument of invocation.arguments) {
+    if (optionsEnded) {
+      hasPathspec = true;
+      continue;
+    }
     if (argument === '--') {
       optionsEnded = true;
       continue;
     }
     if (argument === '--all' || argument === '--no-ignore-removal') {
-      broad = true;
+      stagesAll = true;
       continue;
     }
-    if (argument === '--verbose') continue;
+    if (argument === '--verbose' || argument === '--sparse') {
+      continue;
+    }
     if (/^-[Av]+$/.test(argument)) {
-      if (argument.includes('A')) broad = true;
+      if (argument.includes('A')) stagesAll = true;
       continue;
     }
-    return false;
+    if (argument.startsWith('-')) return false;
+    hasPathspec = true;
   }
-  return broad;
+  return hasPathspec || stagesAll;
 }
 
 function combineShellStatus(
@@ -608,9 +619,29 @@ if (commitPlan === undefined) {
       unsupportedProjectDir !== undefined &&
       existsSync(nodePath.join(unsupportedProjectDir, '.safeword'))
     ) {
-      shouldAdvise = unsupportedCommit.broadAddStagesEntireWorktree
-        ? worktreeChangeAffectsArchitecture(unsupportedProjectDir, unsupportedTarget)
-        : stagedChangeAffectsArchitecture(unsupportedProjectDir, unsupportedTarget);
+      const projectionPlan: GitCommitPlan = {
+        arguments: unsupportedCommit.commit.arguments,
+        directory: unsupportedCommit.commit.directory,
+        environment: unsupportedCommit.commit.environment,
+        globalArguments: unsupportedCommit.commit.globalArguments,
+        precedingAdds: unsupportedCommit.precedingAdds,
+      };
+      const needsProjection =
+        projectionPlan.precedingAdds.length > 0 ||
+        stagesTrackedWorktreeChanges(projectionPlan.arguments);
+      const projectedIndex = needsProjection ? projectCommitIndex(projectionPlan) : undefined;
+      if (!needsProjection || projectedIndex !== undefined) {
+        try {
+          shouldAdvise = stagedChangeAffectsArchitecture(unsupportedProjectDir, {
+            ...unsupportedTarget,
+            ...(projectedIndex === undefined ? {} : { indexPath: projectedIndex.path }),
+          });
+        } finally {
+          if (projectedIndex !== undefined) {
+            rmSync(projectedIndex.directory, { recursive: true, force: true });
+          }
+        }
+      }
     }
   } catch {
     // Advisory detection must never turn an unmodelled command into a blocker.
