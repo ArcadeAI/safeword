@@ -1629,6 +1629,52 @@ describe('immutable relay delivery spool', () => {
     ]);
   });
 
+  it('dead-letters shape-invalid JSON before deadline ordering and continues the drain', async () => {
+    const project = temporaryProject();
+    const corrupt = request({
+      requestId: '00000000-0000-4000-8000-000000000001',
+      sourceKey: 'shape-invalid',
+    });
+    const healthy = request({
+      requestId: '00000000-0000-4000-8000-000000000002',
+      sourceKey: 'shape-valid',
+    });
+    await persistRelayRequest(project, corrupt);
+    await persistRelayRequest(project, healthy);
+    writeFileSync(activeRequestPath(project, corrupt.requestId), '{}');
+
+    const outcome = await deliverRelayRequests(project, {
+      credential: 'swc_client_secret',
+      deadlineMs: 25,
+      fetch: (_input, init) => {
+        const submitted = JSON.parse(
+          Buffer.from(init?.body as Uint8Array).toString('utf8'),
+        ) as RelayDraftRequest;
+        return Promise.resolve(
+          Response.json(
+            {
+              receiptId: `receipt-${submitted.requestId}`,
+              requestId: submitted.requestId,
+              state: 'accepted',
+            },
+            { status: 202 },
+          ),
+        );
+      },
+      now: Date.now,
+      overallDeadlineMs: 1000,
+      relayUrl: 'https://relay.invalid',
+    });
+
+    expect(outcome).toMatchObject({
+      accepted: 1,
+      deadLetterBacklog: 1,
+      deadLetteredThisRun: 1,
+      retryable: 0,
+    });
+    await expect(listRelayDeadLetters(project)).resolves.toHaveLength(1);
+  });
+
   it('returns before one second and never invokes native fallback after a lost response', async () => {
     const project = temporaryProject();
     const original = request();
