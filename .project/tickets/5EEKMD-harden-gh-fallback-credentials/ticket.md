@@ -2,10 +2,10 @@
 id: 5EEKMD
 slug: harden-gh-fallback-credentials
 type: task
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-07-29T17:33:42.554Z
-last_modified: 2026-07-29T17:39:00.000Z
+last_modified: 2026-07-30T00:46:48Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/1637
 external_prs:
   - https://github.com/ArcadeAI/safeword/pull/1577
@@ -41,3 +41,4 @@ external_prs:
 - 2026-07-29T17:42:14.000Z Implemented: Added RED→GREEN coverage for unsafe gh output, lookup-environment isolation, and mock reset; simplified the single-case test table.
 - 2026-07-29T17:48:00.000Z Reviewed: Fresh independent quality review approved the implementation with no blocking findings.
 - 2026-07-29T18:15:00.000Z Verified: Focused tests, canonical test plan, BDD acceptance lane, lint, formatting, and audit completed; recorded evidence in verify.md.
+- 2026-07-30T00:46:48Z Completed: User authorized the done transition after the ready-PR closure gate confirmed the recorded verification evidence.
