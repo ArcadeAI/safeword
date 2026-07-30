@@ -167,6 +167,24 @@ describe('runRetro', () => {
     }
   });
 
+  it('normalizes equivalent absolute outbox spellings before resolving physical containment', () => {
+    const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-normalized-outbox-project-'));
+    const external = mkdtempSync(nodePath.join(tmpdir(), 'safeword-normalized-outbox-'));
+    const equivalentSpellings = [
+      `${external}${nodePath.sep}`,
+      `${nodePath.dirname(external)}${nodePath.sep}.${nodePath.sep}${nodePath.basename(external)}`,
+    ];
+
+    try {
+      for (const configured of equivalentSpellings) {
+        expect(resolveRelayOutboxDirectory(project, configured)).toBe(realpathSync(external));
+      }
+    } finally {
+      rmSync(project, { recursive: true, force: true });
+      rmSync(external, { recursive: true, force: true });
+    }
+  });
+
   it('reports configured relay state that cannot select a safe outbox', () => {
     const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-invalid-outbox-project-'));
     try {
