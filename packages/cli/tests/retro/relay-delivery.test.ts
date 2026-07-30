@@ -1416,6 +1416,36 @@ describe('immutable relay delivery spool', () => {
     expect(remaining[0]?.bytes.toString()).toBe(JSON.stringify(secondRequest));
   });
 
+  it.each(['ambiguous', 'future-state'])(
+    'keeps a request queued when a successful relay response reports %s ownership',
+    async state => {
+      const project = temporaryProject();
+      const original = request();
+      await persistRelayRequest(project, original);
+
+      const outcome = await deliverRelayRequests(project, {
+        credential: 'swc_client_secret',
+        deadlineMs: 25,
+        fetch: () =>
+          Promise.resolve(
+            Response.json(
+              {
+                receiptId: `receipt-${state}`,
+                requestId: original.requestId,
+                state,
+              },
+              { status: 201 },
+            ),
+          ),
+        now: Date.now,
+        relayUrl: 'https://relay.invalid',
+      });
+
+      expect(outcome).toMatchObject({ accepted: 0, retryable: 1 });
+      expect(await listRelayRequests(project)).toHaveLength(1);
+    },
+  );
+
   it('returns before one second and never invokes native fallback after a lost response', async () => {
     const project = temporaryProject();
     const original = request();
