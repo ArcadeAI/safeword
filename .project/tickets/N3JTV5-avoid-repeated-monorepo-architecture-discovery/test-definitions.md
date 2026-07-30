@@ -43,4 +43,4 @@ spy only on Node's filesystem process boundary.
 
 ## Task-level cross-scenario refactor
 
-- [ ] cross-scenario
+- [x] cross-scenario 358566921

@@ -2,10 +2,10 @@
 id: N3JTV5
 slug: avoid-repeated-monorepo-architecture-discovery
 type: task
-phase: implement
+phase: verify
 status: in_progress
 created: 2026-07-30T00:00:10.960Z
-last_modified: 2026-07-30T00:00:10.960Z
+last_modified: 2026-07-30T00:56:55.000Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/1667
 ---
 
@@ -25,18 +25,18 @@ changing generated architecture bytes, or changing released fingerprint recipes.
 
 **Done When:**
 
-- [ ] Root and leaf architecture output remains byte-identical for unchanged projects.
-- [ ] Readable workspace packages and unreadable workspace managers are discovered once per operation.
-- [ ] Each leaf skeleton is extracted once and reused for its target fingerprint and rendering.
-- [ ] Polyglot, nested, zero-leaf, and unreadable-workspace behavior remains covered.
-- [ ] Package ordering, dependency edges, fingerprints, and coverage-gap reporting remain unchanged.
+- [x] Root and leaf architecture output remains byte-identical for unchanged projects.
+- [x] Readable workspace packages and unreadable workspace managers are discovered once per operation.
+- [x] Each leaf skeleton is extracted once and reused for its target fingerprint and rendering.
+- [x] Polyglot, nested, zero-leaf, and unreadable-workspace behavior remains covered.
+- [x] Package ordering, dependency edges, fingerprints, and coverage-gap reporting remain unchanged.
 
 **Tests:**
 
-- [ ] Integration: a readable workspace manifest is read once by one project heal.
-- [ ] Integration: an unreadable workspace manager is read once by one project heal.
-- [ ] Integration: a source header used for a leaf purpose is read once by one project heal.
-- [ ] Regression: architecture project, monorepo, fingerprint, skeleton, and document suites remain green.
+- [x] Integration: a readable workspace manifest is read once by one project heal.
+- [x] Integration: an unreadable workspace manager is read once by one project heal.
+- [x] Integration: a source header used for a leaf purpose is read once by one project heal.
+- [x] Regression: architecture project, monorepo, fingerprint, skeleton, and document suites remain green.
 
 ## Work Log
 
@@ -58,3 +58,8 @@ changing generated architecture bytes, or changing released fingerprint recipes.
   workspaces re-probed their manager during the single-repo fallback; the known
   workspace-root fact now flows into skeleton extraction and the noop behavior
   remains pinned.
+- 2026-07-30T00:54:00.000Z Reviewed: fresh second-pass quality review approved
+  the complete diff with no critical issues or suggested improvements.
+- 2026-07-30T00:56:55.000Z Verified: 5,631 tests and 499 executable acceptance
+  scenarios pass; build, lint, typecheck, dependency, and audit gates are green.
+  Ticket remains in progress pending user confirmation.
