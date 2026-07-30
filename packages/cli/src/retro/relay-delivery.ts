@@ -2018,6 +2018,14 @@ interface RelayRecoveryOptions {
   timeoutMs?: number;
 }
 
+function relaySubmissionHeaders(credential: string): Record<string, string> {
+  return {
+    authorization: `Bearer ${credential}`,
+    'content-type': 'application/json',
+    [RELAY_API_VERSION_HEADER]: RELAY_API_VERSION,
+  };
+}
+
 function submitRelayRecovery(
   relayOrigin: string,
   request: RelayDraftRequest,
@@ -2025,11 +2033,7 @@ function submitRelayRecovery(
 ): Promise<Response> {
   return options.fetch(`${relayOrigin}/v1/retro-filings`, {
     body: relayRequestBytes(request),
-    headers: {
-      authorization: `Bearer ${options.credential}`,
-      'content-type': 'application/json',
-      [RELAY_API_VERSION_HEADER]: RELAY_API_VERSION,
-    },
+    headers: relaySubmissionHeaders(options.credential),
     method: 'POST',
     signal: AbortSignal.timeout(options.timeoutMs ?? 750),
   });
@@ -2319,11 +2323,7 @@ export async function deliverRelayRequests(
       if (relayOrigin === undefined) throw new Error('invalid relay URL');
       const response = await options.fetch(`${relayOrigin}/v1/retro-filings`, {
         body: relayRequestBytes(parsedRequest),
-        headers: {
-          authorization: `Bearer ${options.credential}`,
-          'content-type': 'application/json',
-          [RELAY_API_VERSION_HEADER]: RELAY_API_VERSION,
-        },
+        headers: relaySubmissionHeaders(options.credential),
         method: 'POST',
         signal: controller.signal,
       });
