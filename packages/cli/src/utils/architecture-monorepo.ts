@@ -149,20 +149,8 @@ export function discoverWorkspaces(projectDirectory: string): WorkspaceDiscovery
 }
 
 /**
- * Absolute directories of the leaf packages, sorted. The union of two sources:
- * the DECLARED workspace members (workspace globs expanded, recognized-manifest
- * dirs kept) and the ORPHAN non-JS packages a bounded tree walk finds outside any
- * declared workspace (issue #844). A dir claimed by both is listed once. Returns
- * `[]` for a non-workspace project with no orphan packages.
- */
-export function discoverLeafDirectories(projectDirectory: string): string[] {
-  return leafDirectoriesFrom(projectDirectory, discoverWorkspaces(projectDirectory).patterns);
-}
-
-/**
- * The declared-workspace ∪ orphan leaf union behind {@link discoverLeafDirectories},
- * taking already-read workspace patterns so a caller that has run discovery (the
- * model extractor) doesn't probe every manager a second time.
+ * The declared-workspace ∪ orphan leaf union, taking already-read workspace
+ * patterns so snapshot extraction doesn't probe every manager a second time.
  */
 function leafDirectoriesFrom(projectDirectory: string, patterns: string[]): string[] {
   const workspaceLeaves = resolveLeafDirectories(projectDirectory, patterns);
@@ -323,11 +311,6 @@ function hasRecognizedManifest(directory: string): boolean {
   );
 }
 
-/** The package/edge model the root index renders over. */
-export function extractMonorepoModel(projectDirectory: string): MonorepoModel {
-  return extractMonorepoArchitectureSnapshot(projectDirectory).model;
-}
-
 /**
  * Build the root model and leaf inputs from one workspace discovery pass.
  *
@@ -375,17 +358,8 @@ export function extractMonorepoArchitectureSnapshot(
 }
 
 /**
- * Root-index fingerprint: a hash over the package set, the inter-package edges,
- * and the shared boundary config. Distinct from per-leaf `shapeFingerprint`.
- */
-export function monorepoFingerprint(projectDirectory: string): string {
-  return monorepoFingerprintOf(projectDirectory, extractMonorepoModel(projectDirectory));
-}
-
-/**
- * {@link monorepoFingerprint} over an already-extracted model, so a caller that
- * needs both (the root-index heal renders the model AND stamps its fingerprint)
- * extracts once instead of re-running discovery and the orphan tree walk.
+ * Root-index fingerprint over an already-extracted model, so a caller that
+ * renders the model and stamps its fingerprint does not re-run discovery.
  */
 export function monorepoFingerprintOf(projectDirectory: string, model: MonorepoModel): string {
   const inputs = {
