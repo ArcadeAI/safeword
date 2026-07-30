@@ -24,21 +24,24 @@ function outputPath(arguments_: string[]): string {
   return path.resolve(value);
 }
 
+function measurementDrafts() {
+  return Array.from({ length: BACKLOG_SIZE }, (_, index) => ({
+    body: `Drain measurement body ${index}`,
+    canonicalKey: `drain-measurement-${index}`,
+    installationId: 42,
+    labels: ['retro'],
+    legacySignature: `drain-measurement-${index}`,
+    repository: 'arcadeai/safeword',
+    sourceKey: `drain-measurement-${index}`,
+    title: `Drain measurement ${index}`,
+  }));
+}
+
 async function main(): Promise<void> {
   const output = outputPath(process.argv.slice(2));
   const spool = await mkdtemp(path.join(tmpdir(), 'safeword-relay-drain-'));
   try {
-    const drafts = Array.from({ length: BACKLOG_SIZE }, (_, index) => ({
-      body: `Drain measurement body ${index}`,
-      canonicalKey: `drain-measurement-${index}`,
-      installationId: 42,
-      labels: ['retro'],
-      legacySignature: `drain-measurement-${index}`,
-      repository: 'arcadeai/safeword',
-      sourceKey: `drain-measurement-${index}`,
-      title: `Drain measurement ${index}`,
-    }));
-    const persistence = await persistRelayDraftBatch(spool, drafts);
+    const persistence = await persistRelayDraftBatch(spool, measurementDrafts());
     if (persistence.some(result => result.status === 'rejected')) {
       throw new Error('failed to prepare the durable drain measurement backlog');
     }
