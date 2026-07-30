@@ -11,7 +11,9 @@ import {
 } from '../src/retro/relay-delivery.js';
 
 const BACKLOG_SIZE = 300;
+const DRAIN_BUDGET_MS = 650;
 const RELAY_LATENCY_MS = 80;
+const REQUEST_DEADLINE_MS = 150;
 
 function outputPath(arguments_: string[]): string {
   const flag = arguments_.indexOf('--output');
@@ -44,7 +46,7 @@ async function main(): Promise<void> {
     const started = performance.now();
     const result = await deliverRelayRequests(spool, {
       credential: 'measurement-only',
-      deadlineMs: 150,
+      deadlineMs: REQUEST_DEADLINE_MS,
       fetch: async (_input, init) => {
         await delay(RELAY_LATENCY_MS);
         const request = JSON.parse(
@@ -60,7 +62,7 @@ async function main(): Promise<void> {
         );
       },
       now: Date.now,
-      overallDeadlineMs: 650,
+      overallDeadlineMs: DRAIN_BUDGET_MS,
       relayUrl: 'https://relay.invalid',
     });
     const durationMs = performance.now() - started;
