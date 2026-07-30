@@ -255,18 +255,27 @@ describe('convergent setup', () => {
     symlinkSync(externalVersion, nodePath.join(directory, '.safeword/version'));
     writeFileSync(nodePath.join(directory, 'package.json'), JSON.stringify({ name: 'symlink' }));
 
-    const result = await convergeSetup(directory, {
-      repairVersionMarker: true,
-      noModify: true,
-    });
+    const result = await runCliWithoutInstall(
+      [
+        'setup',
+        '--repair-version-marker',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+        '--no-modify',
+      ],
+      { cwd: directory },
+    );
 
-    expect(result).toMatchObject({
+    expect(result).toMatchObject({ exitCode: 1, stderr: '' });
+    expect(JSON.parse(result.stdout)).toMatchObject({
       state: 'failed',
       changed: false,
       errors: [
         expect.objectContaining({
-          code: 'PROJECT_VERSION_UNSAFE',
-          message: expect.stringContaining('ordinary regular file'),
+          code: 'PROJECT_VERSION_MARKER_UNSAFE',
+          message: expect.stringContaining('symbolic links are never followed or repaired'),
         }),
       ],
       recovery: [],
@@ -274,7 +283,7 @@ describe('convergent setup', () => {
     expect(readFileSync(externalVersion, 'utf8')).toBe('garbage');
   });
 
-  it('refuses to repair a multiply linked version marker without touching its peer', async () => {
+  it('offers explicit recovery for a multiply linked version marker', async () => {
     const directory = createTemporaryDirectory();
     const externalVersion = nodePath.join(directory, 'external-version');
     mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
@@ -282,22 +291,59 @@ describe('convergent setup', () => {
     linkSync(externalVersion, nodePath.join(directory, '.safeword/version'));
     writeFileSync(nodePath.join(directory, 'package.json'), JSON.stringify({ name: 'hardlink' }));
 
-    const result = await convergeSetup(directory, {
-      repairVersionMarker: true,
-      noModify: true,
-    });
+    const result = await convergeSetup(directory, { noModify: true });
 
     expect(result).toMatchObject({
       state: 'failed',
       changed: false,
       errors: [
         expect.objectContaining({
-          code: 'PROJECT_VERSION_UNSAFE',
-          message: expect.stringContaining('ordinary regular file'),
+          code: 'PROJECT_VERSION_MARKER_UNSAFE',
+          message: expect.stringContaining('multiple directory entries'),
         }),
       ],
-      recovery: [],
+      recovery: [
+        {
+          command: `safeword setup --repair-version-marker --cwd '${directory}'`,
+          description:
+            'Replace the linked project version marker without changing its other hardlink peers, then converge setup.',
+          requiresHuman: true,
+        },
+      ],
     });
+    expect(readFileSync(externalVersion, 'utf8')).toBe('garbage');
+  });
+
+  it('repairs a multiply linked marker without changing its peer', async () => {
+    const directory = createTemporaryDirectory();
+    const externalVersion = nodePath.join(directory, 'external-version');
+    const projectVersion = nodePath.join(directory, '.safeword/version');
+    mkdirSync(nodePath.dirname(projectVersion), { recursive: true });
+    writeFileSync(externalVersion, 'garbage');
+    linkSync(externalVersion, projectVersion);
+    writeFileSync(nodePath.join(directory, 'package.json'), JSON.stringify({ name: 'hardlink' }));
+
+    const result = await runCliWithoutInstall(
+      [
+        'setup',
+        '--repair-version-marker',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+        '--no-modify',
+      ],
+      { cwd: directory },
+    );
+
+    expect(result).toMatchObject({ exitCode: 0, stderr: '' });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'changed',
+      effects: {
+        files: expect.arrayContaining([{ kind: 'update', target: '.safeword/version' }]),
+      },
+    });
+    expect(readFileSync(projectVersion, 'utf8').trim()).toBe(VERSION);
     expect(readFileSync(externalVersion, 'utf8')).toBe('garbage');
   });
 

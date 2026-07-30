@@ -419,6 +419,27 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/custom.ts
     expect(readBackedUpFile(fixture, '.codex/config.toml')).toBe(original);
   });
 
+  it('preserves an inert parent scaffold with custom metadata after removing its owned child', async () => {
+    const original = `[[hooks.PreToolUse]]
+matcher = "^(apply_patch)$"
+owner = "user-defined"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = 'npx --yes safeword hook codex pre-tool-use'
+`;
+    const fixture = createMigrationFixture(original);
+
+    const result = await runMigration(fixture, { cleanupLegacyHooks: true });
+
+    expect(result.exitCode, result.stderr).toBe(0);
+    const migrated = readFileSync(fixture.configPath, 'utf8');
+    expect(migrated).toContain('[[hooks.PreToolUse]]');
+    expect(migrated).toContain('owner = "user-defined"');
+    expect(migrated).not.toContain('safeword hook codex pre-tool-use');
+    expect(migrated).not.toContain('[[hooks.PreToolUse.hooks]]');
+  });
+
   it('ends a hook section before an unrelated table whose name ends in hooks', async () => {
     const original = `${LEGACY_HOOK_CONFIG}
 [[custom.hooks]]
@@ -605,6 +626,24 @@ command = 'echo "keep this user hook"'
       data: { migration_state: 'plugin_update_required' },
     });
     expect(readFileSync(fixture.configPath, 'utf8')).toBe(LEGACY_HOOK_CONFIG);
+  });
+
+  it('uses manifest-bound proof when an older Codex omits installed plugin version metadata', async () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, true, true);
+    recordCurrentProof(fixture);
+
+    const result = await finalizeCodex(fixture, {}, true);
+
+    expect(result.exitCode).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'changed',
+      errors: [],
+      data: {
+        migration_state: 'plugin',
+        plugin: { version: null },
+      },
+    });
+    expect(readFileSync(fixture.configPath, 'utf8')).not.toContain('safeword hook codex');
   });
 
   it('installs and verifies the profile plugin without creating project Codex configuration', async () => {

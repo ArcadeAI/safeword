@@ -196,6 +196,8 @@ function eventRemovalRanges(
   const ownedBlocks = blocks.filter(block => block.safeWordOwned);
   if (ownedBlocks.length === 0) return [];
   const parentRange = { start, end: nestedStarts[0] ?? end };
+  // Unknown parent metadata is user-owned. Preserve that now-inert scaffold
+  // and remove only the recognized Safe Word child block.
   return ownedBlocks.length === blocks.length && isKnownParentScaffold(lines, parentRange)
     ? [{ start, end }]
     : ownedBlocks.map(block => block.range);

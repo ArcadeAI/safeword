@@ -9,12 +9,24 @@ import { type CliPlan, createPlan } from './plan.js';
 import type { Effects } from './result.js';
 
 type PlanMode = 'upgrade' | 'uninstall' | 'uninstall-full';
+type ReadFileForDigest = (path: string) => Buffer;
+
+const readFileForDigest: ReadFileForDigest = path => readFileSync(path);
 
 function actionTargets(action: Action): string[] {
   return action.type === 'chmod' ? action.paths : [action.path];
 }
 
-function hashPath(hash: ReturnType<typeof createHash>, absolutePath: string): void {
+function filesystemFailureToken(error: unknown): string {
+  const code = (error as NodeJS.ErrnoException).code;
+  return code === 'ENOENT' || code === 'ENOTDIR' ? 'missing' : `error:${code ?? 'unknown'}`;
+}
+
+function hashPath(
+  hash: ReturnType<typeof createHash>,
+  absolutePath: string,
+  readFile: ReadFileForDigest,
+): void {
   try {
     const stat = lstatSync(absolutePath);
     hash.update(
@@ -26,24 +38,30 @@ function hashPath(hash: ReturnType<typeof createHash>, absolutePath: string): vo
       );
       for (const name of entries) {
         hash.update(name);
-        hashPath(hash, nodePath.join(absolutePath, name));
+        hashPath(hash, nodePath.join(absolutePath, name), readFile);
       }
     } else if (stat.isFile()) {
-      hash.update(readFileSync(absolutePath));
+      // Exact bytes intentionally bind plan consent more strongly than
+      // size/mtime metadata, which can be preserved across content changes.
+      hash.update(readFile(absolutePath));
     }
-  } catch {
-    hash.update('missing');
+  } catch (error) {
+    hash.update(filesystemFailureToken(error));
   }
 }
 
-function preconditionDigest(cwd: string, actions: readonly Action[]): string {
+export function preconditionDigest(
+  cwd: string,
+  actions: readonly Action[],
+  readFile: ReadFileForDigest = readFileForDigest,
+): string {
   const hash = createHash('sha256');
   const targets = [...new Set(actions.flatMap(action => actionTargets(action)))].toSorted(
     (left, right) => left.localeCompare(right),
   );
   for (const target of targets) {
     hash.update(target);
-    hashPath(hash, nodePath.join(cwd, target));
+    hashPath(hash, nodePath.join(cwd, target), readFile);
   }
   return hash.digest('hex');
 }

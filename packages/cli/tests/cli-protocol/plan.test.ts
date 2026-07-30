@@ -1,8 +1,14 @@
+import { mkdirSync, writeFileSync } from 'node:fs';
+import nodePath from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import { createPlan, isPlanCurrent, isPlanIdentity } from '../../src/cli-protocol/plan.js';
 import { publicHandler } from '../../src/cli-protocol/public-handlers.js';
-import { effectsForReconciliation } from '../../src/cli-protocol/reconciliation.js';
+import {
+  effectsForReconciliation,
+  preconditionDigest,
+} from '../../src/cli-protocol/reconciliation.js';
 import { removeProject } from '../../src/commands/remove.js';
 import { createTemporaryDirectory } from '../helpers.js';
 
@@ -26,6 +32,26 @@ describe('CLI plan protocol', () => {
     expect(plan.id).toMatch(/^[a-f\d]{64}$/);
     expect(isPlanCurrent(plan, 'tree-a')).toBe(true);
     expect(isPlanCurrent(plan, 'tree-b')).toBe(false);
+  });
+
+  it('distinguishes an unreadable target from a missing target in plan preconditions', () => {
+    const directory = createTemporaryDirectory();
+    const target = '.safeword/version';
+    mkdirSync(nodePath.join(directory, '.safeword'));
+    writeFileSync(nodePath.join(directory, target), '0.69.0\n');
+    const actions = [{ type: 'rm', path: target }] as const;
+    const unreadable = preconditionDigest(directory, actions, () => {
+      const error = new Error('permission denied') as NodeJS.ErrnoException;
+      error.code = 'EACCES';
+      throw error;
+    });
+    const absent = preconditionDigest(directory, actions, () => {
+      const error = new Error('not found') as NodeJS.ErrnoException;
+      error.code = 'ENOENT';
+      throw error;
+    });
+
+    expect(unreadable).not.toBe(absent);
   });
 
   it('normalizes every effect category even when empty', () => {

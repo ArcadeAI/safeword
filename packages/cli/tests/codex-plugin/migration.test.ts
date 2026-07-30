@@ -88,6 +88,23 @@ describe('Codex migration result', () => {
     });
   });
 
+  it('falls back to manifest-bound proof when an older Codex omits plugin version metadata', () => {
+    const result = deriveCodexMigrationResult(
+      facts({
+        plugin: { ...enabledPlugin, version: null },
+        proof: currentProof,
+        legacyEvents: ['PreToolUse'],
+        viableLegacyEvents: ['PreToolUse'],
+      }),
+    );
+
+    expect(result).toMatchObject({
+      state: 'compatibility',
+      protected: 'protected',
+      next_actions: [{ command: 'safeword codex migrate --finalize' }],
+    });
+  });
+
   it.each([
     {
       name: 'complete legacy',
@@ -286,6 +303,22 @@ describe('Codex migration result', () => {
       next_actions: [{ command: 'safeword codex migrate' }],
     });
   });
+
+  it.each([
+    ['plugin_installed_restart_required', facts({ plugin: enabledPlugin, restartPending: true })],
+    ['plugin_enabled_hook_unproven', facts({ plugin: enabledPlugin })],
+  ] as const)(
+    'marks the status action as human-gated by its restart and review prerequisite for %s',
+    (_state, input) => {
+      expect(deriveCodexMigrationResult(input).next_actions).toEqual([
+        {
+          command: 'safeword codex status',
+          mutates: false,
+          requires_human: true,
+        },
+      ]);
+    },
+  );
 
   it('points an unconfigured teammate to the finalized repository bootstrap', () => {
     const result = deriveCodexMigrationResult(facts({ finalized: true }));

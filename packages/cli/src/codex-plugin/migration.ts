@@ -25,6 +25,7 @@ export interface CodexMigrationResultV1 {
   schema_version: '1';
   ok: boolean;
   state: CodexMigrationState;
+  /** Protection availability; interpret with `state` to identify its provider or absence. */
   protected: 'protected' | 'partial' | 'unprotected' | 'uncertain';
   changed: boolean;
   plugin: CodexPluginObservation;
@@ -47,6 +48,9 @@ export interface CodexMigrationFacts {
 }
 
 export function codexPluginVersionMatchesPackage(plugin: CodexPluginObservation): boolean {
+  // Older Codex clients may omit nullable catalog version metadata. In that
+  // case, current execution proof still binds protection to both the exact
+  // packaged plugin version and hook-manifest digest.
   return plugin.version === null || plugin.version === SAFEWORD_SCHEMA.version;
 }
 
@@ -89,6 +93,8 @@ export function deriveCodexMigrationResult(facts: CodexMigrationFacts): CodexMig
               mutates:
                 state !== 'plugin_installed_restart_required' &&
                 state !== 'plugin_enabled_hook_unproven',
+              // Even the read-only status actions have a human prerequisite:
+              // restart Codex and review /hooks before checking proof again.
               requires_human: true,
             },
           ],

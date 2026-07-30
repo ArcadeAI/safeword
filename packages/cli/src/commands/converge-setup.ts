@@ -11,6 +11,7 @@ import {
   type Effects,
   type Finding,
 } from '../cli-protocol/result.js';
+import { writeDurableFile } from '../codex-plugin/durable-write.js';
 import { checkHealth, type HealthStatus } from '../health.js';
 import { installPack } from '../packs/install.js';
 import { hasImportLinterScaffoldTarget } from '../packs/python/files.js';
@@ -150,10 +151,13 @@ export async function convergeSetup(
   },
 ): Promise<CliResult> {
   const configured = existsSync(nodePath.join(cwd, '.safeword'));
-  const downgrade = configured
-    ? downgradeRefusal(cwd, options.repairVersionMarker === true)
-    : undefined;
-  if (downgrade !== undefined) return downgrade;
+  const versionGate: ProjectVersionGate = configured
+    ? checkProjectVersion(cwd, options.repairVersionMarker === true)
+    : { repaired: false };
+  if (versionGate.refusal !== undefined) return versionGate.refusal;
+  const versionMarkerEffects: Effect[] = versionGate.repaired
+    ? [{ kind: 'update', target: '.safeword/version' }]
+    : [];
   let namespaceMigration: NamespaceConvergence = { effects: [], findings: [] };
   let packageJsonCreated = false;
 
@@ -185,11 +189,13 @@ export async function convergeSetup(
       packageJsonCreated,
       noModify: options.noModify === true,
       namespaceMigration,
+      preliminaryFileEffects: versionMarkerEffects,
       adapters,
     });
   } catch (setupError) {
     return setupFailure(setupError, {
       files: [
+        ...versionMarkerEffects,
         ...(packageJsonCreated ? [{ kind: 'create', target: 'package.json' }] : []),
         ...namespaceMigration.effects,
       ],
@@ -272,60 +278,101 @@ function convergeNamespace(
   }
 }
 
-function downgradeRefusal(cwd: string, repairVersionMarker: boolean): CliResult | undefined {
+interface ProjectVersionGate {
+  readonly repaired: boolean;
+  readonly refusal?: CliResult;
+}
+
+type ProjectVersionMarker =
+  | { readonly kind: 'version'; readonly value: string }
+  | { readonly kind: 'gate'; readonly value: ProjectVersionGate };
+
+function versionRefusal(
+  code: string,
+  message: string,
+  recovery: CliResult['recovery'] = [],
+): ProjectVersionGate {
+  return {
+    repaired: false,
+    refusal: createResult({
+      state: 'failed',
+      errors: [{ code, message, retryable: false }],
+      recovery,
+    }),
+  };
+}
+
+function readProjectVersionMarker(
+  cwd: string,
+  projectVersionPath: string,
+  repairVersionMarker: boolean,
+): ProjectVersionMarker {
+  const metadata = lstatSync(projectVersionPath, { throwIfNoEntry: false });
+  if (metadata === undefined) return { kind: 'version', value: '0.0.0' };
+  if (metadata.isFile() && metadata.nlink === 1) {
+    return { kind: 'version', value: readFileSync(projectVersionPath, 'utf8').trim() };
+  }
+  if (!metadata.isFile() || metadata.nlink <= 1) {
+    return {
+      kind: 'gate',
+      value: versionRefusal(
+        'PROJECT_VERSION_MARKER_UNSAFE',
+        'Project version marker is not an ordinary regular file. Inspect .safeword/version and replace it manually before running setup; symbolic links are never followed or repaired.',
+      ),
+    };
+  }
+  if (repairVersionMarker) {
+    // Publish a fresh inode over this directory entry. Writing through the
+    // existing path would mutate every hardlink peer.
+    writeDurableFile(projectVersionPath, `${VERSION}\n`, { mode: 0o644 });
+    return { kind: 'gate', value: { repaired: true } };
+  }
+  const recoveryCommand = buildReplayCommand({
+    command: 'safeword setup --repair-version-marker',
+    cwd,
+  });
+  return {
+    kind: 'gate',
+    value: versionRefusal(
+      'PROJECT_VERSION_MARKER_UNSAFE',
+      `Project version marker has multiple directory entries. Inspect .safeword/version, then run \`${recoveryCommand}\` to replace only the project entry.`,
+      [
+        {
+          command: recoveryCommand,
+          description:
+            'Replace the linked project version marker without changing its other hardlink peers, then converge setup.',
+          requiresHuman: true,
+        },
+      ],
+    ),
+  };
+}
+
+function checkProjectVersion(cwd: string, repairVersionMarker: boolean): ProjectVersionGate {
   const safewordDirectoryPath = nodePath.join(cwd, '.safeword');
   const safewordDirectoryMetadata = lstatSync(safewordDirectoryPath, {
     throwIfNoEntry: false,
   });
   if (safewordDirectoryMetadata?.isDirectory() !== true) {
-    return createResult({
-      state: 'failed',
-      errors: [
-        {
-          code: 'PROJECT_VERSION_UNSAFE',
-          message:
-            '.safeword must be an ordinary directory inside the project. Inspect and replace it manually before running setup.',
-          retryable: false,
-        },
-      ],
-    });
+    return versionRefusal(
+      'PROJECT_VERSION_UNSAFE',
+      '.safeword must be an ordinary directory inside the project. Inspect and replace it manually before running setup.',
+    );
   }
   const projectVersionPath = nodePath.join(safewordDirectoryPath, 'version');
-  const projectVersionMetadata = lstatSync(projectVersionPath, { throwIfNoEntry: false });
-  let projectVersion: string;
-  if (projectVersionMetadata === undefined) {
-    projectVersion = '0.0.0';
-  } else if (projectVersionMetadata.isFile() && projectVersionMetadata.nlink === 1) {
-    projectVersion = readFileSync(projectVersionPath, 'utf8').trim();
-  } else {
-    return createResult({
-      state: 'failed',
-      errors: [
-        {
-          code: 'PROJECT_VERSION_UNSAFE',
-          message:
-            'Project version marker must be an ordinary regular file with one directory entry. Inspect .safeword/version and replace it manually before running setup.',
-          retryable: false,
-        },
-      ],
-    });
-  }
+  const marker = readProjectVersionMarker(cwd, projectVersionPath, repairVersionMarker);
+  if (marker.kind === 'gate') return marker.value;
+  const projectVersion = marker.value;
   if (!isSafePackageVersion(projectVersion)) {
-    if (repairVersionMarker) return undefined;
+    if (repairVersionMarker) return { repaired: false };
     const recoveryCommand = buildReplayCommand({
       command: 'safeword setup --repair-version-marker',
       cwd,
     });
-    return createResult({
-      state: 'failed',
-      errors: [
-        {
-          code: 'PROJECT_VERSION_UNSAFE',
-          message: `Project version is not valid SemVer. Inspect .safeword/version, then run \`${recoveryCommand}\` to replace it.`,
-          retryable: false,
-        },
-      ],
-      recovery: [
+    return versionRefusal(
+      'PROJECT_VERSION_UNSAFE',
+      `Project version is not valid SemVer. Inspect .safeword/version, then run \`${recoveryCommand}\` to replace it.`,
+      [
         {
           command: recoveryCommand,
           description:
@@ -333,19 +380,13 @@ function downgradeRefusal(cwd: string, repairVersionMarker: boolean): CliResult 
           requiresHuman: true,
         },
       ],
-    });
+    );
   }
-  if (compareVersions(VERSION, projectVersion) >= 0) return undefined;
-  return createResult({
-    state: 'failed',
-    errors: [
-      {
-        code: 'CLI_DOWNGRADE_REFUSED',
-        message: `CLI v${VERSION} is older than project v${projectVersion}. Update the CLI first.`,
-        retryable: false,
-      },
-    ],
-  });
+  if (compareVersions(VERSION, projectVersion) >= 0) return { repaired: false };
+  return versionRefusal(
+    'CLI_DOWNGRADE_REFUSED',
+    `CLI v${VERSION} is older than project v${projectVersion}. Update the CLI first.`,
+  );
 }
 
 function packageFindings(installation: DependencyInstallResult) {
@@ -591,16 +632,24 @@ interface ApplySetupInput {
   readonly packageJsonCreated: boolean;
   readonly noModify: boolean;
   readonly namespaceMigration: NamespaceConvergence;
+  readonly preliminaryFileEffects: readonly Effect[];
   readonly adapters: SetupAdapters;
 }
 
 async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResult> {
-  const { adapters, configured, namespaceMigration, noModify, packageJsonCreated } = input;
+  const {
+    adapters,
+    configured,
+    namespaceMigration,
+    noModify,
+    packageJsonCreated,
+    preliminaryFileEffects,
+  } = input;
   const context = createProjectContext(cwd);
   const operation = configured ? 'upgrade' : 'install';
   const result = await reconcile(SAFEWORD_SCHEMA, operation, context);
   const completedEffects: CompletedSetupEffects = {
-    files: [...effectsForReconciliation(result, 'upgrade').files],
+    files: [...preliminaryFileEffects, ...effectsForReconciliation(result, 'upgrade').files],
     packages: [],
     network: [],
   };
