@@ -6,6 +6,7 @@
 <!-- prettier-ignore-start -->
 
 ## Tickets (462)
+## Tickets (461)
 
 ### 001
 
@@ -1018,6 +1019,10 @@
 - **Use generic file paths in shipped guidance examples (4YJV1N)** (in_progress, epic: —)
   Shipped guidance examples should cite generic `src/...` paths, not safeword's own `packages/cli/src/...` monorepo paths.
   → `.project/tickets/4YJV1N-generic-paths-in-shipped-guidance`
+- **Keep shipped hooks host-lintable (505)** (done, epic: —)
+  Let a Safeword upgrade complete without shipped hooks blocking the host project's lint.
+  external issue: https://github.com/ArcadeAI/safeword/issues/505
+  → `.project/tickets/505-keep-shipped-hooks-host-lintable`
 - **lint-config-unify (54XH90)** (open, epic: —)
   Eliminate the local-vs-CI eslint config drift so devs don't ship code that passes locally then fails CI (or vice versa).
   → `.project/tickets/54XH90-lint-config-unify`
@@ -1025,6 +1030,10 @@
   Stop `safeword setup` from scaffolding a second cucumber harness into repos that already have one, and let hosts point safeword's BDD readers (codify / lint-gherkin / check) and the scaffolded runner at their own feature/step directories.
   external issue: https://github.com/ArcadeAI/safeword/issues/645
   → `.project/tickets/56JCFZ-bdd-lane-collision-detection-and-paths`
+- **Protect retro filing from malformed GitHub CLI credentials (5EEKMD)** (done, epic: —)
+  Keep gh-based retro filing header-safe without prompting users for a token.
+  external issue: https://github.com/ArcadeAI/safeword/issues/1637
+  → `.project/tickets/5EEKMD-harden-gh-fallback-credentials`
 - **Re-validate a ticket's premise when it's picked up (5JN5E4)** (superseded, epic: —)
   When a ticket is picked up or resumed, re-validate its premise before doing the work — confirm the problem still reproduces, the scope is still current, dependencies still hold, and it hasn't been fixed or obsoleted by intervening changes (e.g. a merge) — and surface any drift to the user before proceeding.
   → `.project/tickets/5JN5E4-revalidate-ticket-on-pickup`
