@@ -826,6 +826,58 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
     }
   });
 
+  it('skips a foreign leaf while staging healthy monorepo siblings', async () => {
+    rmSync(nodePath.join(context.directory, 'src'), { recursive: true });
+    writeFileSync(
+      nodePath.join(context.directory, 'package.json'),
+      JSON.stringify({ name: 'root', workspaces: ['packages/*'] }),
+    );
+    for (const packageName of ['core', 'web']) {
+      const packageDirectory = nodePath.join(context.directory, 'packages', packageName);
+      mkdirSync(nodePath.join(packageDirectory, 'src'), { recursive: true });
+      writeFileSync(
+        nodePath.join(packageDirectory, 'package.json'),
+        JSON.stringify({ name: packageName }),
+      );
+      writeFileSync(
+        nodePath.join(packageDirectory, 'src', 'index.ts'),
+        `export const ${packageName} = true;\n`,
+      );
+    }
+    selfHealProject(context.directory);
+    commitAll(context.directory, 'record monorepo architecture');
+
+    const coreDocument = nodePath.join(
+      context.directory,
+      'packages',
+      'core',
+      'architecture.generated.md',
+    );
+    const foreign = '# Core Architecture\n\nMaintained by the core team.\n';
+    writeFileSync(coreDocument, foreign);
+
+    for (const packageName of ['core', 'web']) {
+      const modulePath = nodePath.join(
+        context.directory,
+        'packages',
+        packageName,
+        'src',
+        'next.ts',
+      );
+      writeFileSync(modulePath, `export const ${packageName}Next = true;\n`);
+      git(context.directory, 'add', '--', nodePath.relative(context.directory, modulePath));
+    }
+
+    const result = await runCli(['architecture', '--stage'], { cwd: context.directory });
+
+    expect(result.exitCode).toBe(0);
+    expect(`${result.stdout}\n${result.stderr}`).toContain('not owned by Safeword');
+    expect(`${result.stdout}\n${result.stderr}`).toContain(coreDocument);
+    expect(readFileSync(coreDocument, 'utf8')).toBe(foreign);
+    expect(stagedFiles(context.directory)).not.toContain('packages/core/architecture.generated.md');
+    expect(stagedFiles(context.directory)).toContain('packages/web/architecture.generated.md');
+  });
+
   it('restores earlier documents when a later destination replacement fails', async () => {
     rmSync(nodePath.join(context.directory, 'src'), { recursive: true });
     writeFileSync(

@@ -183,25 +183,70 @@ function gitCommitPlan(command: string, baseDirectory: string): GitCommitPlan | 
   return undefined;
 }
 
-/** Detect a real committing Git segment when the full shell list is unsafe to model. */
-function containsCommittingGitCommand(command: string, baseDirectory: string): boolean {
+/**
+ * Find a reachable commit for advisory-only handling when the full shell list
+ * is unsafe to model. Heredoc-containing lists are deliberately declined: the
+ * shared lightweight tokenizer cannot distinguish stdin body lines from shell
+ * commands, and a false advisory is more disruptive than remaining silent.
+ */
+function unsupportedCommitInvocation(
+  command: string,
+  baseDirectory: string,
+): GitInvocation | undefined {
+  if (command.includes('<<')) return undefined;
+
   let directory = baseDirectory;
+  let listStatus: boolean | undefined;
+  let operatorBefore: '&&' | '||' | ';' | undefined;
   for (const segment of parseShellCommandList(command)) {
+    if (segment.operatorAfter === '|' || segment.operatorAfter === '|&') return undefined;
+
     const words = parseShellWords(segment.command);
     const commandIndex = commandWordIndex(words);
     const commandWords = words.slice(commandIndex);
+    const executes =
+      operatorBefore === '&&'
+        ? listStatus !== false
+        : operatorBefore === '||'
+          ? listStatus !== true
+          : true;
     if (commandWords[0] === 'cd') {
       const changedDirectory = resolveCdDirectory(commandWords.slice(1), directory);
-      if (changedDirectory !== undefined) directory = changedDirectory;
+      if (executes && changedDirectory !== undefined) directory = changedDirectory;
+      listStatus = combineShellStatus(listStatus, operatorBefore, undefined);
+      operatorBefore = segment.operatorAfter;
       continue;
     }
     const environment = gitSelectorEnvironment(words.slice(0, commandIndex), directory);
     const invocation = gitSubcommand(commandWords, directory, environment);
-    if (invocation?.name === 'commit' && !commitOptionEffects(invocation.arguments).nonCommitting) {
-      return true;
+    if (
+      executes &&
+      invocation?.name === 'commit' &&
+      !commitOptionEffects(invocation.arguments).nonCommitting
+    ) {
+      return invocation;
     }
+    const commandName = nodePath.basename(commandWords[0] ?? '');
+    const commandStatus =
+      commandName === 'true' ? true : commandName === 'false' ? false : undefined;
+    listStatus = combineShellStatus(listStatus, operatorBefore, commandStatus);
+    operatorBefore = segment.operatorAfter;
   }
-  return false;
+  return undefined;
+}
+
+function combineShellStatus(
+  left: boolean | undefined,
+  operator: '&&' | '||' | ';' | undefined,
+  right: boolean | undefined,
+): boolean | undefined {
+  if (operator === undefined || operator === ';') return right;
+  if (operator === '&&') {
+    if (left === false || right === false) return false;
+    return left === true && right === true ? true : undefined;
+  }
+  if (left === true || right === true) return true;
+  return left === false && right === false ? false : undefined;
 }
 
 function gitSelectorEnvironment(prefixWords: string[], directory: string): Record<string, string> {
@@ -444,7 +489,19 @@ const gitCommand = input.tool_input?.command ?? '';
 const baseDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 const commitPlan = gitCommitPlan(gitCommand, baseDirectory);
 if (commitPlan === undefined) {
-  if (containsCommittingGitCommand(gitCommand, baseDirectory)) {
+  const unsupportedCommit = unsupportedCommitInvocation(gitCommand, baseDirectory);
+  const unsupportedProjectDir =
+    unsupportedCommit === undefined ? undefined : gitWorktreeRoot(unsupportedCommit);
+  let shouldAdvise = false;
+  try {
+    shouldAdvise =
+      unsupportedProjectDir !== undefined &&
+      existsSync(nodePath.join(unsupportedProjectDir, '.safeword')) &&
+      stagedChangeAffectsArchitecture(unsupportedProjectDir);
+  } catch {
+    // Advisory detection must never turn an unmodelled command into a blocker.
+  }
+  if (shouldAdvise) {
     const message =
       'Safeword skipped architecture auto-staging because commands before `git commit` cannot be modeled safely. Run preceding commands first, then commit separately, or run safeword architecture --stage.';
     process.stdout.write(

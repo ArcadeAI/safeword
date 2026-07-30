@@ -422,6 +422,80 @@ describe('pre-tool architecture staging hook', () => {
     );
   });
 
+  it.each([
+    ['a status preflight', 'git status --short && git commit -m "docs: typo"'],
+    ['a lint preflight', 'bun run lint && git commit -m "docs: typo"'],
+  ])(
+    'does not inject architecture guidance for a routine docs commit after %s',
+    (_label, command) => {
+      writeFileSync(nodePath.join(directory, 'README.md'), 'routine docs change\n');
+      git('add', '--', 'README.md');
+
+      const hook = runHook(command);
+
+      expect(hook.status).toBe(0);
+      expect(hook.stdout).toBe('');
+      expect(hook.stderr).toBe('');
+    },
+  );
+
+  it.each([
+    [
+      'a quoted delimiter',
+      `python3 - <<'PY'
+git add -A
+git commit -m "text inside stdin"
+PY`,
+    ],
+    [
+      'a backslash-quoted delimiter',
+      String.raw`python3 - <<\EOF
+git commit -m "text inside stdin"
+EOF`,
+    ],
+    [
+      'a numeric delimiter',
+      `python3 - <<123
+git commit -m "text inside stdin"
+123`,
+    ],
+  ])('does not treat a heredoc body with %s as an executable commit', (_label, command) => {
+    rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
+    git('add', '--', 'src/billing/index.ts');
+
+    const hook = runHook(command);
+
+    expect(hook.status).toBe(0);
+    expect(hook.stdout).toBe('');
+    expect(hook.stderr).toBe('');
+  });
+
+  it.each([
+    'false && git commit -m "remove billing"',
+    'false && true && git commit -m "remove billing"',
+  ])('does not inject guidance for a definitely short-circuited commit: %s', command => {
+    rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
+    git('add', '--', 'src/billing/index.ts');
+
+    const hook = runHook(command);
+
+    expect(hook.status).toBe(0);
+    expect(hook.stdout).toBe('');
+    expect(hook.stderr).toBe('');
+  });
+
+  it('does not inject Safeword guidance outside a Safeword project', () => {
+    rmSync(nodePath.join(directory, '.safeword'), { recursive: true });
+    rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
+    git('add', '--', 'src/billing/index.ts');
+
+    const hook = runHook('git status --short && git commit -m "remove billing"');
+
+    expect(hook.status).toBe(0);
+    expect(hook.stdout).toBe('');
+    expect(hook.stderr).toBe('');
+  });
+
   it('preserves an untracked foreign architecture doc during a modeled commit', () => {
     const documentPath = nodePath.join(directory, '.project', 'architecture.generated.md');
     git('rm', '--', '.project/architecture.generated.md');

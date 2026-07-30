@@ -490,6 +490,7 @@ interface IndexMaterializationPolicy {
   preservePriorStructure: boolean;
   writeUnchanged: boolean;
   captureDivergentContent: boolean;
+  skipForeignDestinations: boolean;
 }
 
 interface MaterializedIndexResult extends SelfHealResult {
@@ -507,6 +508,7 @@ interface IndexMaterializationPlan {
   result: SelfHealResult;
   destination: string;
   shouldWrite: boolean;
+  skippedForeign?: boolean;
   priorWorktreeState?: WorktreeDocumentState;
   restoreWorktreeContent?: string;
 }
@@ -544,11 +546,13 @@ function materializeIndexResults(
     throw materializationError;
   }
 
-  return plans.map(({ result, destination, restoreWorktreeContent }) => ({
-    action: result.action,
-    path: destination,
-    restoreWorktreeContent,
-  }));
+  return plans
+    .filter(plan => !plan.skippedForeign)
+    .map(({ result, destination, restoreWorktreeContent }) => ({
+      action: result.action,
+      path: destination,
+      restoreWorktreeContent,
+    }));
 }
 
 function planIndexMaterializations(
@@ -594,6 +598,14 @@ function preflightIndexMaterializations(
     assertPhysicalContainment(cwd, plan.destination);
     plan.priorWorktreeState = readWorktreeDocumentState(plan.destination);
     if (plan.priorWorktreeState.existed && !isSafewordOwned(plan.priorWorktreeState.content)) {
+      if (policy.skipForeignDestinations) {
+        plan.skippedForeign = true;
+        plan.shouldWrite = false;
+        warn(
+          `Architecture document is not owned by Safeword and was left unchanged: ${plan.destination}`,
+        );
+        continue;
+      }
       throw new Error(
         `Architecture document is not owned by Safeword and was left unchanged: ${plan.destination}`,
       );
@@ -614,6 +626,7 @@ function indexMaterializationPolicy(mode: IndexMaterializationMode): IndexMateri
         preservePriorStructure: keepMaterialized,
         writeUnchanged: false,
         captureDivergentContent: !keepMaterialized,
+        skipForeignDestinations: true,
       };
     }
     case 'restore-staged-tree': {
@@ -622,6 +635,7 @@ function indexMaterializationPolicy(mode: IndexMaterializationMode): IndexMateri
         preservePriorStructure: true,
         writeUnchanged: true,
         captureDivergentContent: false,
+        skipForeignDestinations: false,
       };
     }
   }
