@@ -154,4 +154,27 @@ describe('convergent setup', () => {
     expect(readFileSync(nodePath.join(directory, '.safeword/version'), 'utf8')).toBe('999.0.0');
     expect(existsSync(nodePath.join(directory, '.project'))).toBe(false);
   });
+
+  it.each(['v999.0.0', 'garbage'])(
+    'fails closed on unreadable project version %s before changing the project',
+    async projectVersion => {
+      const directory = createTemporaryDirectory();
+      mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+      mkdirSync(nodePath.join(directory, '.safeword-project'), { recursive: true });
+      writeFileSync(nodePath.join(directory, '.safeword/version'), projectVersion);
+      writeFileSync(nodePath.join(directory, 'package.json'), JSON.stringify({ name: 'future' }));
+
+      const result = await convergeSetup(directory, { migrateNamespace: true, noModify: true });
+
+      expect(result.state).toBe('failed');
+      expect(result.errors).toContainEqual(
+        expect.objectContaining({ code: 'PROJECT_VERSION_UNSAFE' }),
+      );
+      expect(result.effects.files).toEqual([]);
+      expect(readFileSync(nodePath.join(directory, '.safeword/version'), 'utf8')).toBe(
+        projectVersion,
+      );
+      expect(existsSync(nodePath.join(directory, '.project'))).toBe(false);
+    },
+  );
 });

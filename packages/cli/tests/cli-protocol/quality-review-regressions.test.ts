@@ -347,6 +347,23 @@ describe('quality-review regressions for the public CLI boundary', () => {
     });
   });
 
+  it.each([
+    ['codex', 'migrate', '--finalize', '--yes', '--plan', '--definitely-invalid'],
+    ['codex', 'recover', '--yes', '--plan', '--definitely-invalid'],
+    ['reset', '--yes', '--plan', '--definitely-invalid'],
+    ['migrate', 'codex-plugin', '--finalize', '--yes', '--plan', '--definitely-invalid'],
+  ])('rejects an option token swallowed as a malformed plan identity: %j', async (...argv) => {
+    const directory = createTemporaryDirectory();
+    const result = await runCli([...argv, '--json', '--no-input', '--cwd', directory]);
+
+    expect(result).toMatchObject({ exitCode: 1, stderr: '' });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'failed',
+      changed: false,
+      errors: [{ code: 'CLI_ARGUMENT_INVALID', retryable: false }],
+    });
+  });
+
   it('renders a Commander argument failure once on the human path', async () => {
     const result = await runCli(['status', '--definitely-invalid']);
 

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-import type { Effect, Effects, Finding } from './result.js';
+import { type CliResult, createResult, type Effect, type Effects, type Finding } from './result.js';
 
 interface Verification {
   readonly description: string;
@@ -34,6 +34,25 @@ const EMPTY_EFFECTS: Effects = {
   network: [],
   destructive: [],
 };
+
+const PLAN_IDENTITY_PATTERN = /^[a-f\d]{64}$/u;
+
+export function isPlanIdentity(value: string): boolean {
+  return PLAN_IDENTITY_PATTERN.test(value);
+}
+
+export function malformedPlanIdentity(command: string): CliResult {
+  return createResult({
+    state: 'failed',
+    errors: [
+      {
+        code: 'PLAN_MALFORMED',
+        message: `The ${command} plan identity must be the 64-character hexadecimal id returned by its latest preview.`,
+        retryable: false,
+      },
+    ],
+  });
+}
 
 function planIdentity(input: Omit<CliPlan, 'id'>): string {
   return createHash('sha256')

@@ -100,6 +100,33 @@ describe('plan and remove wiring', () => {
     expect(appliedEnvelope.effects.network).toEqual([]);
   });
 
+  it('rejects an option token swallowed as a malformed removal plan identity', async () => {
+    const directory = createTemporaryDirectory();
+
+    const result = await runCli(
+      ['remove', '--plan', '--definitely-invalid', '--json', '--no-input', '--cwd', directory],
+      { cwd: directory },
+    );
+
+    expect(result).toMatchObject({ exitCode: 1, stderr: '' });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'failed',
+      changed: false,
+      errors: [{ code: 'CLI_ARGUMENT_INVALID', retryable: false }],
+    });
+  });
+
+  it('renders a missing removal plan value through the machine envelope', async () => {
+    const result = await runCli(['remove', '--plan', '--json', '--no-input']);
+
+    expect(result).toMatchObject({ exitCode: 1, stderr: '' });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'failed',
+      changed: false,
+      errors: [{ code: 'CLI_ARGUMENT_INVALID', retryable: false }],
+    });
+  });
+
   it('advertises a full-removal action that can be executed verbatim', async () => {
     const directory = createTemporaryDirectory();
     configureMinimalProject(directory);

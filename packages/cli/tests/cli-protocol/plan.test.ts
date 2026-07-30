@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { createPlan, isPlanCurrent } from '../../src/cli-protocol/plan.js';
+import {
+  createPlan,
+  isPlanCurrent,
+  isPlanIdentity,
+  malformedPlanIdentity,
+} from '../../src/cli-protocol/plan.js';
 import { effectsForReconciliation } from '../../src/cli-protocol/reconciliation.js';
 
 describe('CLI plan protocol', () => {
@@ -32,6 +37,19 @@ describe('CLI plan protocol', () => {
       configuration: [],
       network: [],
       destructive: [],
+    });
+  });
+
+  it('recognizes generated plan identities and rejects malformed values at domain boundaries', () => {
+    const plan = createPlan({ command: 'remove', preconditionDigest: 'tree' });
+
+    expect(isPlanIdentity(plan.id)).toBe(true);
+    expect(isPlanIdentity('A'.repeat(64))).toBe(false);
+    expect(isPlanIdentity('--definitely-invalid')).toBe(false);
+    expect(malformedPlanIdentity('remove')).toMatchObject({
+      state: 'failed',
+      changed: false,
+      errors: [{ code: 'PLAN_MALFORMED', retryable: false }],
     });
   });
 

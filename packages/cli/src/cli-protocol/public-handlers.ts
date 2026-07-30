@@ -8,7 +8,13 @@ import type { RetroCliOptions, RetroCommandExecution } from '../commands/retro.j
 import type { CommandHandler, CommandInvocation } from './handler.js';
 import { onlineRequired } from './online-required.js';
 import { numericOption, stringOption } from './option-values.js';
-import { type CliPlan, createPlan, toWirePlan } from './plan.js';
+import {
+  type CliPlan,
+  createPlan,
+  isPlanIdentity,
+  malformedPlanIdentity,
+  toWirePlan,
+} from './plan.js';
 import { type CliResult, createResult } from './result.js';
 import { ticketListHandler, ticketNewHandler, trackerHandler } from './tracker-ticket-handlers.js';
 
@@ -84,6 +90,11 @@ async function planHandler(invocation: CommandInvocation): Promise<CliResult> {
 }
 
 async function removeHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const suppliedPlan =
+    typeof invocation.options.plan === 'string' ? invocation.options.plan : undefined;
+  if (suppliedPlan !== undefined && !isPlanIdentity(suppliedPlan)) {
+    return malformedPlanIdentity('remove');
+  }
   if (invocation.offline && invocation.options.full === true) {
     return onlineRequired('remove');
   }
@@ -91,7 +102,7 @@ async function removeHandler(invocation: CommandInvocation): Promise<CliResult> 
   return removeProject(invocation.cwd, {
     full: invocation.options.full === true,
     yes: invocation.options.yes === true,
-    plan: typeof invocation.options.plan === 'string' ? invocation.options.plan : undefined,
+    plan: suppliedPlan,
   });
 }
 
@@ -786,6 +797,11 @@ async function codexMutationHandler(
   name: CodexMutationName,
   invocation: CommandInvocation,
 ): Promise<CliResult> {
+  const suppliedPlan =
+    typeof invocation.options.plan === 'string' ? invocation.options.plan : undefined;
+  if (suppliedPlan !== undefined && !isPlanIdentity(suppliedPlan)) {
+    return malformedPlanIdentity(name);
+  }
   if (invocation.offline && name !== 'codex recover') return onlineRequired(name);
   const isFinalization = isCodexFinalization(name, invocation);
   try {

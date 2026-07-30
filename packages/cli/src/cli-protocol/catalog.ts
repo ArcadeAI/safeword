@@ -31,6 +31,7 @@ export interface CommandDefinition {
       readonly flags: string;
       readonly description: string;
       readonly defaultValue?: string;
+      readonly valueKind?: 'plan-identity';
     }[];
   };
   readonly aliasFor?: string;
@@ -121,7 +122,11 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     networkPolicy: 'declared',
     commandOptions: [
       { flags: '-y, --yes', description: 'Confirm the supplied plan identity' },
-      { flags: '--plan <id>', description: 'Identity of the exact plan being confirmed' },
+      {
+        flags: '--plan <id>',
+        description: 'Identity of the exact plan being confirmed',
+        valueKind: 'plan-identity',
+      },
       { flags: '--full', description: 'Also remove linting configuration and packages' },
     ],
   }),
@@ -194,7 +199,11 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     commandOptions: [
       { flags: '--finalize', description: 'Finalize after current plugin-hook proof exists' },
       { flags: '--yes', description: 'Confirm the observed migration plan' },
-      { flags: '--plan <id>', description: 'Identity of the exact migration plan' },
+      {
+        flags: '--plan <id>',
+        description: 'Identity of the exact migration plan',
+        valueKind: 'plan-identity',
+      },
       { flags: '--remove-legacy-hooks', description: 'Deprecated alias for --finalize' },
     ],
   }),
@@ -206,7 +215,11 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     promptPolicy: 'confirm',
     commandOptions: [
       { flags: '--yes', description: 'Confirm recovery of the observed backup' },
-      { flags: '--plan <id>', description: 'Identity of the exact recovery plan' },
+      {
+        flags: '--plan <id>',
+        description: 'Identity of the exact recovery plan',
+        valueKind: 'plan-identity',
+      },
     ],
   }),
   command('ticket list', 'List project tickets', 'observe'),

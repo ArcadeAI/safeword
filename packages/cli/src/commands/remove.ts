@@ -3,7 +3,7 @@ import nodePath from 'node:path';
 
 import { diffFileSnapshots } from '../cli-protocol/file-effects.js';
 import type { CliPlan } from '../cli-protocol/plan.js';
-import { toWirePlan } from '../cli-protocol/plan.js';
+import { isPlanIdentity, malformedPlanIdentity, toWirePlan } from '../cli-protocol/plan.js';
 import {
   applyReconciliation,
   createReconciliationPlan,
@@ -189,6 +189,9 @@ function hasPartialRemovalEffects(partial: ReturnType<typeof partialRemovalEffec
 }
 
 export async function removeProject(cwd: string, options: RemoveOptions): Promise<CliResult> {
+  if (options.plan !== undefined && !isPlanIdentity(options.plan)) {
+    return malformedPlanIdentity('remove');
+  }
   if (!existsSync(nodePath.join(cwd, '.safeword'))) {
     return createResult({
       state: 'healthy',

@@ -141,6 +141,10 @@ function compareLegacyVersions(left: string, right: string): Comparison {
 /**
  * Compare SemVer versions. Legacy non-SemVer inputs retain numeric-core comparison
  * so downgrade protection remains conservative for older project markers.
+ *
+ * Safety gates must validate both inputs with `isSafePackageVersion` before calling
+ * this function: the compatibility fallback cannot distinguish equal numeric cores
+ * from wholly unparseable input.
  * @param a
  * @param b
  * @returns -1 if a < b, 0 if a == b, 1 if a > b

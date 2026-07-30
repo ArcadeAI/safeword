@@ -1,6 +1,6 @@
 import process from 'node:process';
 
-import type { Command } from 'commander';
+import { type Command, InvalidArgumentError, Option } from 'commander';
 
 import { commandCatalog, type CommandDefinition, findCommandDefinition } from './catalog.js';
 import {
@@ -9,6 +9,7 @@ import {
   readGlobalOptions,
   reportResult,
 } from './execute.js';
+import { isPlanIdentity } from './plan.js';
 import { createProgressReporter } from './policy.js';
 import { createResult, withDeprecation } from './result.js';
 
@@ -48,11 +49,19 @@ function registerFamilies(program: Command): Map<string, Command> {
 
 function addDefinitionOptions(command: Command, definition: CommandDefinition): void {
   for (const option of definition.registration.options) {
-    if (option.defaultValue === undefined) {
-      command.option(option.flags, option.description);
-    } else {
-      command.option(option.flags, option.description, option.defaultValue);
+    const commanderOption = new Option(option.flags, option.description);
+    if (option.defaultValue !== undefined) commanderOption.default(option.defaultValue);
+    if (option.valueKind === 'plan-identity') {
+      commanderOption.argParser(value => {
+        if (!isPlanIdentity(value)) {
+          throw new InvalidArgumentError(
+            'plan identity must be the 64-character hexadecimal id returned by the latest preview',
+          );
+        }
+        return value;
+      });
     }
+    command.addOption(commanderOption);
   }
 }
 

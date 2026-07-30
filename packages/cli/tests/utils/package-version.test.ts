@@ -9,6 +9,8 @@ describe('safe package version', () => {
 
   it.each([
     'abc.def',
+    'garbage',
+    'v999.0.0',
     '1.2',
     '01.2.3',
     '1.2.3-beta.01',

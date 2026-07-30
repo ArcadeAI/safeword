@@ -4,7 +4,7 @@ import process from 'node:process';
 
 import { Command, CommanderError, Option } from 'commander';
 
-import { commandCatalog, findCommandDefinition } from './cli-protocol/catalog.js';
+import { findCommandDefinition } from './cli-protocol/catalog.js';
 import { addGlobalOptions } from './cli-protocol/execute.js';
 import { machineOutputRequested } from './cli-protocol/machine-output.js';
 import { registerPublicCommandCatalog } from './cli-protocol/register.js';
@@ -33,7 +33,7 @@ function isCommanderError(value: unknown): value is CommanderError {
   );
 }
 
-const machineOutput = machineOutputRequested(process.argv.slice(2), commandCatalog);
+const machineOutput = machineOutputRequested(process.argv.slice(2));
 program.configureOutput({
   writeErr: output => {
     if (!machineOutput) process.stderr.write(output);

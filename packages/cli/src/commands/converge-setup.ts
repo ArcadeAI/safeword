@@ -41,7 +41,7 @@ import {
   applyVendoredIgnoresPolicy,
   type VendoredIgnoresPolicyResult,
 } from '../utils/vendored-ignores-nudge.js';
-import { compareVersions } from '../utils/version.js';
+import { compareVersions, isSafePackageVersion } from '../utils/version.js';
 import { VERSION } from '../version.js';
 import {
   buildArchitecture,
@@ -273,6 +273,19 @@ function downgradeRefusal(cwd: string): CliResult | undefined {
   const projectVersion = exists(projectVersionPath)
     ? readFileSync(projectVersionPath, 'utf8').trim()
     : '0.0.0';
+  if (!isSafePackageVersion(projectVersion)) {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'PROJECT_VERSION_UNSAFE',
+          message:
+            'Project version is not valid SemVer; inspect .safeword/version before running setup.',
+          retryable: false,
+        },
+      ],
+    });
+  }
   if (compareVersions(VERSION, projectVersion) >= 0) return undefined;
   return createResult({
     state: 'failed',
