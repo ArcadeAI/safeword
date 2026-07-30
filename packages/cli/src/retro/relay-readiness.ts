@@ -107,18 +107,28 @@ function parseObject(content: string): Record<string, unknown> | undefined {
   }
 }
 
-function hasMeasurementShape(record: Record<string, unknown>): boolean {
+function hasExactKeys(record: object, expectedKeys: readonly string[]): boolean {
   return (
     Object.keys(record)
       .toSorted((left, right) => left.localeCompare(right))
-      .join('\0') ===
-    ['measuredAt', 'metric', 'repository', 'result', 'sampleSize', 'version'].join('\0')
+      .join('\0') === expectedKeys.join('\0')
   );
+}
+
+function hasMeasurementShape(record: Record<string, unknown>): boolean {
+  return hasExactKeys(record, [
+    'measuredAt',
+    'metric',
+    'repository',
+    'result',
+    'sampleSize',
+    'version',
+  ]);
 }
 
 function hasValidCountResult(result: unknown, sampleSize: number): boolean {
   if (typeof result !== 'object' || result === null || Array.isArray(result)) return false;
-  if (Object.keys(result).join('\0') !== 'count') return false;
+  if (!hasExactKeys(result, ['count'])) return false;
   const count = (result as { count?: unknown }).count;
   return Number.isSafeInteger(count) && (count as number) >= 0 && (count as number) <= sampleSize;
 }
@@ -132,11 +142,7 @@ interface DrainThroughputResult {
 
 function drainThroughputResult(result: unknown): DrainThroughputResult | undefined {
   if (typeof result !== 'object' || result === null || Array.isArray(result)) return undefined;
-  if (
-    Object.keys(result)
-      .toSorted((left, right) => left.localeCompare(right))
-      .join('\0') !== ['acceptedCount', 'backlogSize', 'durationMs', 'relayLatencyMs'].join('\0')
-  ) {
+  if (!hasExactKeys(result, ['acceptedCount', 'backlogSize', 'durationMs', 'relayLatencyMs'])) {
     return undefined;
   }
   return result as unknown as DrainThroughputResult;
@@ -228,11 +234,7 @@ export async function validateRelayReadiness(
     ) {
       return { enabled: false };
     }
-    if (
-      Object.keys(manifest.measurements)
-        .toSorted((left, right) => left.localeCompare(right))
-        .join('\0') !== REQUIRED_MEASUREMENTS.join('\0')
-    ) {
+    if (!hasExactKeys(manifest.measurements, REQUIRED_MEASUREMENTS)) {
       return { enabled: false };
     }
     const expectedIssues = [1474, 1481] as const;
