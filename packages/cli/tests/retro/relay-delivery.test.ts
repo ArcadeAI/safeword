@@ -103,6 +103,27 @@ function request(overrides: Record<string, unknown> = {}) {
   );
 }
 
+function acceptedRelayFetch(
+  observe: (request: RelayDraftRequest) => void = () => {},
+): typeof fetch {
+  return (_input, init) => {
+    const submitted = JSON.parse(
+      Buffer.from(init?.body as Uint8Array).toString('utf8'),
+    ) as RelayDraftRequest;
+    observe(submitted);
+    return Promise.resolve(
+      Response.json(
+        {
+          receiptId: `receipt-${submitted.requestId}`,
+          requestId: submitted.requestId,
+          state: 'accepted',
+        },
+        { status: 202 },
+      ),
+    );
+  };
+}
+
 function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
   let complete: ((value: T) => void) | undefined;
   // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- The package targets ES2022.
@@ -1601,22 +1622,9 @@ describe('immutable relay delivery spool', () => {
     await deliverRelayRequests(project, {
       credential: 'swc_client_secret',
       deadlineMs: 25,
-      fetch: (_input, init) => {
-        const submitted = JSON.parse(
-          Buffer.from(init?.body as Uint8Array).toString('utf8'),
-        ) as RelayDraftRequest;
+      fetch: acceptedRelayFetch(submitted => {
         attempted.push(submitted.requestId);
-        return Promise.resolve(
-          Response.json(
-            {
-              receiptId: `receipt-${submitted.requestId}`,
-              requestId: submitted.requestId,
-              state: 'accepted',
-            },
-            { status: 202 },
-          ),
-        );
-      },
+      }),
       now: Date.now,
       overallDeadlineMs: 1000,
       relayUrl: 'https://relay.invalid',
@@ -1646,21 +1654,7 @@ describe('immutable relay delivery spool', () => {
     const outcome = await deliverRelayRequests(project, {
       credential: 'swc_client_secret',
       deadlineMs: 25,
-      fetch: (_input, init) => {
-        const submitted = JSON.parse(
-          Buffer.from(init?.body as Uint8Array).toString('utf8'),
-        ) as RelayDraftRequest;
-        return Promise.resolve(
-          Response.json(
-            {
-              receiptId: `receipt-${submitted.requestId}`,
-              requestId: submitted.requestId,
-              state: 'accepted',
-            },
-            { status: 202 },
-          ),
-        );
-      },
+      fetch: acceptedRelayFetch(),
       now: Date.now,
       overallDeadlineMs: 1000,
       relayUrl: 'https://relay.invalid',
