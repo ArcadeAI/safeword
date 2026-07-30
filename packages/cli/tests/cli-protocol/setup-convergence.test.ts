@@ -1,6 +1,7 @@
 import {
   existsSync,
   linkSync,
+  lstatSync,
   mkdirSync,
   readFileSync,
   renameSync,
@@ -245,6 +246,31 @@ describe('convergent setup', () => {
       errors: [expect.objectContaining({ code: 'CLI_DOWNGRADE_REFUSED' })],
     });
     expect(readFileSync(nodePath.join(directory, '.safeword/version'), 'utf8')).toBe('999.0.0');
+  });
+
+  it('refuses a newer multiply linked marker before changing either directory entry', async () => {
+    const directory = createTemporaryDirectory();
+    const externalVersion = nodePath.join(directory, 'external-version');
+    const projectVersion = nodePath.join(directory, '.safeword/version');
+    mkdirSync(nodePath.dirname(projectVersion), { recursive: true });
+    writeFileSync(externalVersion, '999.0.0');
+    linkSync(externalVersion, projectVersion);
+    writeFileSync(nodePath.join(directory, 'package.json'), JSON.stringify({ name: 'future' }));
+
+    const result = await convergeSetup(directory, {
+      repairVersionMarker: true,
+      noModify: true,
+    });
+
+    expect(result).toMatchObject({
+      state: 'failed',
+      changed: false,
+      effects: { files: [] },
+      errors: [expect.objectContaining({ code: 'CLI_DOWNGRADE_REFUSED' })],
+    });
+    expect(readFileSync(projectVersion, 'utf8')).toBe('999.0.0');
+    expect(readFileSync(externalVersion, 'utf8')).toBe('999.0.0');
+    expect(lstatSync(projectVersion).nlink).toBe(2);
   });
 
   it('refuses to repair a symbolic version marker without touching its target', async () => {

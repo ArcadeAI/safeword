@@ -284,7 +284,7 @@ interface ProjectVersionGate {
 }
 
 type ProjectVersionMarker =
-  | { readonly kind: 'version'; readonly value: string }
+  | { readonly kind: 'version'; readonly value: string; readonly replaceEntry: boolean }
   | { readonly kind: 'gate'; readonly value: ProjectVersionGate };
 
 function versionRefusal(
@@ -308,9 +308,15 @@ function readProjectVersionMarker(
   repairVersionMarker: boolean,
 ): ProjectVersionMarker {
   const metadata = lstatSync(projectVersionPath, { throwIfNoEntry: false });
-  if (metadata === undefined) return { kind: 'version', value: '0.0.0' };
+  if (metadata === undefined) {
+    return { kind: 'version', value: '0.0.0', replaceEntry: false };
+  }
   if (metadata.isFile() && metadata.nlink === 1) {
-    return { kind: 'version', value: readFileSync(projectVersionPath, 'utf8').trim() };
+    return {
+      kind: 'version',
+      value: readFileSync(projectVersionPath, 'utf8').trim(),
+      replaceEntry: false,
+    };
   }
   if (!metadata.isFile() || metadata.nlink <= 1) {
     return {
@@ -322,10 +328,11 @@ function readProjectVersionMarker(
     };
   }
   if (repairVersionMarker) {
-    // Publish a fresh inode over this directory entry. Writing through the
-    // existing path would mutate every hardlink peer.
-    writeDurableFile(projectVersionPath, `${VERSION}\n`, { mode: 0o644 });
-    return { kind: 'gate', value: { repaired: true } };
+    return {
+      kind: 'version',
+      value: readFileSync(projectVersionPath, 'utf8').trim(),
+      replaceEntry: true,
+    };
   }
   const recoveryCommand = buildReplayCommand({
     command: 'safeword setup --repair-version-marker',
@@ -364,7 +371,13 @@ function checkProjectVersion(cwd: string, repairVersionMarker: boolean): Project
   if (marker.kind === 'gate') return marker.value;
   const projectVersion = marker.value;
   if (!isSafePackageVersion(projectVersion)) {
-    if (repairVersionMarker) return { repaired: false };
+    if (repairVersionMarker) {
+      if (marker.replaceEntry) {
+        writeDurableFile(projectVersionPath, `${VERSION}\n`, { mode: 0o644 });
+        return { repaired: true };
+      }
+      return { repaired: false };
+    }
     const recoveryCommand = buildReplayCommand({
       command: 'safeword setup --repair-version-marker',
       cwd,
@@ -382,11 +395,19 @@ function checkProjectVersion(cwd: string, repairVersionMarker: boolean): Project
       ],
     );
   }
-  if (compareVersions(VERSION, projectVersion) >= 0) return { repaired: false };
-  return versionRefusal(
-    'CLI_DOWNGRADE_REFUSED',
-    `CLI v${VERSION} is older than project v${projectVersion}. Update the CLI first.`,
-  );
+  if (compareVersions(VERSION, projectVersion) < 0) {
+    return versionRefusal(
+      'CLI_DOWNGRADE_REFUSED',
+      `CLI v${VERSION} is older than project v${projectVersion}. Update the CLI first.`,
+    );
+  }
+  if (marker.replaceEntry) {
+    // Validate before mutation, then publish a fresh inode over only this
+    // directory entry so a failed downgrade gate never changes the project.
+    writeDurableFile(projectVersionPath, `${projectVersion}\n`, { mode: 0o644 });
+    return { repaired: true };
+  }
+  return { repaired: false };
 }
 
 function packageFindings(installation: DependencyInstallResult) {
