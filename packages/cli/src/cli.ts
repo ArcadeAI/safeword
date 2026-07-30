@@ -316,6 +316,23 @@ program
 
 registerRetroCommand(program);
 
+function configuredRelayRecoveryDirectory(
+  projectDirectory: string,
+  resolveOutbox: (
+    projectDirectory: string,
+    configuredDirectory: string | undefined,
+  ) => { directory: string } | { error: string },
+  outputError: (message: string) => void,
+): string | undefined {
+  const outbox = resolveOutbox(projectDirectory, process.env.SAFEWORD_RETRO_RELAY_OUTBOX);
+  if ('error' in outbox) {
+    outputError(outbox.error);
+    process.exitCode = 1;
+    return undefined;
+  }
+  return outbox.directory;
+}
+
 program
   .command('retro-relay-retry [request-id]')
   .description('List durable relay requests or rearm one dead letter without changing its identity')
@@ -325,18 +342,15 @@ program
     const { info, error: outputError, success } = await import('./utils/output.js');
     const relay = relayRecoveryFromEnvironment();
     const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
-    const outbox = resolveRelayRecoveryOutboxDirectory(
+    const recoveryDirectory = configuredRelayRecoveryDirectory(
       projectDirectory,
-      process.env.SAFEWORD_RETRO_RELAY_OUTBOX,
+      resolveRelayRecoveryOutboxDirectory,
+      outputError,
     );
-    if ('error' in outbox) {
-      outputError(outbox.error);
-      process.exitCode = 1;
-      return;
-    }
+    if (recoveryDirectory === undefined) return;
     const ok = await retryRelayDeadLetterCommand(requestId, {
       output: { error: outputError, info, success },
-      projectDirectory: outbox.directory,
+      projectDirectory: recoveryDirectory,
       ...(relay && { relay }),
     });
     if (!ok) process.exitCode = 1;
@@ -351,18 +365,15 @@ program
       await import('./commands/retro.js');
     const { info, error: outputError, success } = await import('./utils/output.js');
     const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
-    const outbox = resolveRelayRecoveryOutboxDirectory(
+    const recoveryDirectory = configuredRelayRecoveryDirectory(
       projectDirectory,
-      process.env.SAFEWORD_RETRO_RELAY_OUTBOX,
+      resolveRelayRecoveryOutboxDirectory,
+      outputError,
     );
-    if ('error' in outbox) {
-      outputError(outbox.error);
-      process.exitCode = 1;
-      return;
-    }
+    if (recoveryDirectory === undefined) return;
     const ok = await discardRelaySpoolCommand(requestId, options.confirm === true, {
       output: { error: outputError, info, success },
-      projectDirectory: outbox.directory,
+      projectDirectory: recoveryDirectory,
     });
     if (!ok) process.exitCode = 1;
   });
