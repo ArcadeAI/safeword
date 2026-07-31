@@ -5,7 +5,7 @@ type: task
 phase: verify
 status: in_progress
 created: 2026-07-29T17:27:17.421Z
-last_modified: 2026-07-31T15:05:00.000Z
+last_modified: 2026-07-31T15:31:32.000Z
 ---
 
 # Keep stop reviews quiet until a new user prompt
@@ -75,3 +75,4 @@ Pre-mortem: a state-file write failure could still allow a duplicate generic rev
 - 2026-07-31T13:45:00.000Z Refactor pass: replaced duplicate Stop-hook fixture process plumbing with the canonical shared hook-spawn helper while retaining each hook's payload at its adapter. The idle-review and frozen-transcript real-hook suites pass 17/17; no runtime behavior change. (refs: PR #1652)
 - 2026-07-31T13:46:47.000Z Final refactor verification: diff-scoped audit records no errors or warnings; dependency-cruiser reports no violations. The focused real-hook suite passes 24/24, and lint, package typecheck, and template/dogfood parity pass. Keep the ticket in `verify` pending explicit delivery approval. (refs: PR #1652)
 - 2026-07-31T15:05:00.000Z Pass-10 PR review resolution: folded `refactor-pass-9-ledger.md` into `refactor-ledger.md` as entries 15-19 so the ticket has one refactor record, and recorded the withdrawn `runStopHook` options-object suggestion — the reviewer's four-call-site estimate was wrong; the shared helper has 18 call sites with two `undefined` placeholders, so the churn is not worth it. Ledger bookkeeping only; no code or behavior change. (refs: PR #1652)
+- 2026-07-31T15:31:32.000Z Latest PR-comment quality review approved the current head. Figure-it-out retained the existing `runStopHook` optional-positionals (18 calls, two placeholders) and kept four unrelated spawner conversions in follow-up #1708; no code change is warranted. Current real-hook coverage passes 24/24. (refs: PR #1652, #1708)

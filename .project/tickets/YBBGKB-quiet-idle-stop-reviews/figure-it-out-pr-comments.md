@@ -335,3 +335,33 @@ All five findings were investigated on 2026-07-29 before changing code. Primary-
 **Premortem:** A test might accidentally create both roots and mask precedence; each fixture creates only `.project`, so a resolution mistake still fails its real-hook assertion.
 
 **Next:** Replace the legacy fixture paths in the four touched suites and rerun their real-hook tests.
+
+## Pass 11 — latest PR #1652 helper comments
+
+### A. Keep or reshape `runStopHook` optional arguments
+
+- [x] Phase 1: Decide whether to keep the two optional trailing positional arguments, migrate every call to an options object, or add an overload/convenience wrapper.
+- [x] Phase 2: Options were (1) retain `sessionId?` plus the default assistant message, (2) replace the trailing values with an options object, or (3) add another wrapper/overload for custom assistant messages.
+- [x] Phase 3a: Research domains — TypeScript optional/default semantics, real call-site ergonomics, and test-helper API growth.
+- [x] Phase 3b: TypeScript confirms an explicit `undefined` is the normal way to skip an optional value before a defaulted parameter. The helper has 18 real calls (13 frozen-transcript, 5 idle-review), while only two intentionally skip `sessionId` to set a custom message.
+- [x] Phase 4: Chose the existing signature.
+
+> Recommend **keep the current positional signature** because an 18-site, behavior-neutral migration removes only two readable placeholders. An options object was close on future extensibility but loses on churn and the current common call shape. Cite: [TypeScript optional parameters](https://www.typescriptlang.org/docs/handbook/2/functions.html#optional-parameters).
+
+**Premortem:** A third independent optional value could make positional calls genuinely ambiguous; reconsider an options object before adding that parameter.
+
+**Next:** Reply that ledger entry 19 records the corrected call-site count and resolve both signature mentions without a code change.
+
+### B. Widen this PR or hand off the four remaining spawners
+
+- [x] Phase 1: Decide whether to convert the four remaining hand-rolled Bun spawners now, convert only the Stop sibling, or leave the bounded follow-up in #1708.
+- [x] Phase 2: Options were (1) widen this PR to all four, (2) add only `stop-done-dependencies-gate.test.ts`, or (3) retain #1708 for independent, piecemeal conversion.
+- [x] Phase 3a: Research domains — Node subprocess configuration, test-scope containment, custom environment preservation, and narrowed return contracts.
+- [x] Phase 3b: Node documents `input`, `cwd`, `env`, `encoding`, and `timeout` as `spawnSync` behavior. The four candidates are outside this PR and some deliberately add custom environment values; #1708 inventories them and requires checking that consumers only need `{ status, stdout, stderr }` before each conversion.
+- [x] Phase 4: Chose the existing follow-up issue.
+
+> Recommend **keep the remaining spawners in [#1708](https://github.com/ArcadeAI/safeword/issues/1708)** because the current PR's helper is proven, but the four untouched callers have independent return-shape and environment contracts. Folding them in now turns a focused review resolution into scope creep. Cite: [Node `spawnSync` options](https://nodejs.org/api/child_process.html#child_processspawnsynccommand-args-options).
+
+**Premortem:** The follow-up could languish and leave the copies drifting; #1708 names every site and its conversion caveat, so schedule it when any affected hook test next changes.
+
+**Next:** Reply that #1708 owns the untouched runners and resolve the thread without widening PR #1652.
