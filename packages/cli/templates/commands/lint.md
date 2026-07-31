@@ -36,12 +36,12 @@ Run these commands based on project type. All detected languages run for polyglo
 }
 
 # Go linting (if go.mod exists)
-[ -f go.mod ] && {
+if [ -f go.mod ]; then
   # golangci-lint - fix and report issues
   golangci-lint run --fix ./... 2>&1 || true
   # golangci-lint - format
   golangci-lint fmt ./... 2>&1 || true
-}
+fi
 ```
 
 ## Summary
