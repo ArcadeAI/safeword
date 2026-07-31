@@ -5,6 +5,7 @@
  * orchestrator. Network runs only here / in CI, never in the per-turn loop.
  */
 
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import process from 'node:process';
 
@@ -135,6 +136,26 @@ function egressVisibility(
   return provider === 'github' && body === 'full' ? resolveRepoVisibility(repo) : undefined;
 }
 
+/**
+ * Resolve the credential GitHub CLI already keeps in the OS credential store.
+ * The value is used only for the orchestrator's preflight; live GitHub writes
+ * continue through `gh`, which resolves the same credential itself.
+ */
+function keychainCredential(provider: Provider): string | undefined {
+  if (provider !== 'github') return undefined;
+  try {
+    const output = execFileSync('gh', ['auth', 'token'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 10_000,
+    });
+    const token = output.replace(/\r?\n$/, '');
+    return /^[\w.~+/-]+=*$/.test(token) ? token : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function syncTrackerCommand(options: SyncTrackerCommandOptions = {}): Promise<void> {
   // Offline flag paths — no credential, no live writer. Mutually exclusive.
   if (options.plan === true && options.applyResults !== undefined) {
@@ -172,6 +193,7 @@ async function runLiveSync(
         ? ({} as SyncTrackerDependencies['writers'])
         : buildWriterRegistry(provider, config.target),
     env: process.env,
+    keychain: keychainCredential,
     resetTrackerMap: options.resetTrackerMap,
     nonInteractive: process.env.CI !== undefined,
     arcadeUserId: process.env.ARCADE_USER_ID,

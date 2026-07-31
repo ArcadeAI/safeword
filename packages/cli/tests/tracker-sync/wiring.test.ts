@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
@@ -129,10 +129,13 @@ describe('sync-tracker command wiring (real syncTrackerCommand)', () => {
   it('fails loudly when a provider is configured but no credential resolves (AC2)', async () => {
     seedProject('github');
     const previous = process.env.GITHUB_TOKEN;
+    const previousPath = process.env.PATH;
     delete process.env.GITHUB_TOKEN;
+    process.env.PATH = nodePath.join(cwd, 'no-executables');
     try {
       await syncTrackerCommand();
     } finally {
+      process.env.PATH = previousPath;
       if (previous !== undefined) process.env.GITHUB_TOKEN = previous;
     }
     expect(`${logs.join('\n')}${errs.join('\n')}`).toMatch(/credential/i);
@@ -149,5 +152,42 @@ describe('sync-tracker command wiring (real syncTrackerCommand)', () => {
     }
     expect(logs.join('\n')).toMatch(/--reset-tracker-map/);
     expect(process.exitCode).not.toBe(0);
+  });
+
+  it('accepts the GitHub CLI keychain credential before checking the sidecar', async () => {
+    seedProject('github');
+    const binDirectory = nodePath.join(cwd, 'bin');
+    const callLog = nodePath.join(cwd, 'gh-call.txt');
+    mkdirSync(binDirectory);
+    const fakeGh = nodePath.join(binDirectory, 'gh');
+    writeFileSync(
+      fakeGh,
+      [
+        '#!/bin/sh',
+        String.raw`printf '%s\n' "$*" > ${JSON.stringify(callLog)}`,
+        'if [ "$1 $2" = \'auth token\' ]; then',
+        String.raw`  printf '%s\n' 'keychain-token'`,
+        '  exit 0',
+        'fi',
+        'exit 2',
+        '',
+      ].join('\n'),
+    );
+    chmodSync(fakeGh, 0o755);
+    const previousPath = process.env.PATH;
+    const previousToken = process.env.GITHUB_TOKEN;
+    process.env.PATH = `${binDirectory}${nodePath.delimiter}${previousPath ?? ''}`;
+    delete process.env.GITHUB_TOKEN;
+    try {
+      await syncTrackerCommand();
+    } finally {
+      process.env.PATH = previousPath;
+      if (previousToken === undefined) delete process.env.GITHUB_TOKEN;
+      else process.env.GITHUB_TOKEN = previousToken;
+    }
+
+    expect(readFileSync(callLog, 'utf8').trim()).toBe('auth token');
+    expect(logs.join('\n')).toMatch(/--reset-tracker-map/);
+    expect(logs.join('\n')).not.toMatch(/No github credential/);
   });
 });
