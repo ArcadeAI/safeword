@@ -291,3 +291,47 @@ All five findings were investigated on 2026-07-29 before changing code. Primary-
 **Premortem:** A future template change could desynchronize the copy; run the repository parity check after the edit.
 
 **Next:** Reflow the three JSDoc lines in `packages/cli/templates` and `.safeword`, then run parity and focused tests.
+
+## Pass 8 — latest PR #1652 refactor findings
+
+### A. Share duplicated Stop-hook test mechanics without weakening frozen-format coverage
+
+- [x] Phase 1: Decide whether to retain duplicated test helpers, share only their mechanics, or merge the two integration suites.
+- [x] Phase 2: Options were (1) leave the copies, (2) add one test-only helper for simple transcript/process/ticket/state mechanics, or (3) merge the suites into one large file.
+- [x] Phase 3a: Research domains — frozen-fixture ownership, integration-test isolation, process invocation, and duplicate-drift risk.
+- [x] Phase 3b: The two suites used equivalent simple edit transcripts and Stop invocations; the real-format fixture and all scenario assertions remain suite-specific. The shared helper continues to spawn the real installed hooks and uses the same bounded `spawnSync` process boundary.
+- [x] Phase 4: Chose the narrow test-only helper.
+
+> Recommend **share only the duplicated mechanics** because one simple edit-transcript definition keeps the frozen-format guard meaningful without merging unrelated scenarios. Leaving copies risks drift; merging suites harms ownership and readability. Cite: [Node child-process documentation](https://nodejs.org/api/child_process.html) and `stop-hook-transcript-format.test.ts`.
+
+**Premortem:** The helper could grow into an opaque test framework; keep its exports limited to file/process mechanics and retain all fixtures and assertions in the calling suites.
+
+**Next:** Add `tests/helpers/stop-hook.ts` and run the four real-hook suites.
+
+### B. Derive the Stop writer patch from the shared state contract
+
+- [x] Phase 1: Decide whether to retain the handwritten two-field patch type, use `Pick<QualityState, ...>`, or accept all `Partial<QualityState>` fields.
+- [x] Phase 2: Options were (1) keep the handwritten object, (2) select precisely the two schema fields with `Pick`, or (3) widen the parameter to every partial state field.
+- [x] Phase 3a: Research domains — TypeScript utility-type semantics, shared state-schema evolution, and call-site containment.
+- [x] Phase 3b: TypeScript documents `Pick` as selecting named properties from a type; both existing call sites supply exactly these optional fields, while `Partial<QualityState>` would permit unrelated writes.
+- [x] Phase 4: Chose the precise `Pick`.
+
+> Recommend **use `Pick<QualityState, 'lastReviewedPhase' | 'stopQualityReviewAwaitingUserPrompt'>`** because it binds the parameter to the schema without widening its authority. The handwritten type can drift; `Partial` loses the function's narrow contract. Cite: [TypeScript Utility Types](https://www.typescriptlang.org/docs/handbook/utility-types.html#picktype-keys).
+
+**Premortem:** A future marker field may need to be written here and be omitted from the pick; make that field addition an explicit contract change alongside its call site and test.
+
+**Next:** Replace the parameter type in both template and dogfood hooks, then typecheck.
+
+### C. Move the touched test fixtures to the preferred namespace root
+
+- [x] Phase 1: Decide whether the four touched suites should retain legacy `.safeword-project` fixtures, use canonical `.project`, or test both roots in every suite.
+- [x] Phase 2: Options were (1) retain legacy fixtures, (2) migrate these fixtures to `.project`, or (3) duplicate every scenario across both roots.
+- [x] Phase 3a: Research domains — namespace-root precedence, migration compatibility, fixture isolation, and regression ownership.
+- [x] Phase 3b: `resolveNamespaceRoot` chooses configured roots, then `.project`, then the legacy root. Dedicated namespace-resolution coverage owns fallback behavior; the touched Stop-hook scenarios should exercise the preferred customer path once, not duplicate every case.
+- [x] Phase 4: Chose canonical `.project` fixtures.
+
+> Recommend **migrate the four touched fixture suites to `.project`** because it tests the default resolution path consistently while preserving legacy-fallback coverage in the namespace resolver's own tests. Keeping legacy fixtures validates a fallback as the default; duplicating all scenarios is bloat. Cite: `packages/cli/templates/hooks/lib/namespace-root.ts` (`resolveNamespaceRoot`).
+
+**Premortem:** A test might accidentally create both roots and mask precedence; each fixture creates only `.project`, so a resolution mistake still fails its real-hook assertion.
+
+**Next:** Replace the legacy fixture paths in the four touched suites and rerun their real-hook tests.

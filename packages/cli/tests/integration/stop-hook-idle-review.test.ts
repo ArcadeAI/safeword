@@ -4,80 +4,20 @@
  * a real session state file.
  */
 
-import { spawnSync } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { createTemporaryDirectory, removeTemporaryDirectory, TIMEOUT_QUICK } from '../helpers';
-
-const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
-const STOP_QUALITY = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/stop-quality.ts');
-const PROMPT_QUESTIONS = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/prompt-questions.ts');
-
-function stateFilePath(directory: string, sessionId: string): string {
-  return nodePath.join(directory, '.project', `quality-state-${sessionId}.json`);
-}
-
-function createTranscript(directory: string): string {
-  const transcriptPath = nodePath.join(directory, 'transcript.jsonl');
-  writeFileSync(
-    transcriptPath,
-    JSON.stringify({
-      type: 'assistant',
-      message: {
-        role: 'assistant',
-        content: [{ type: 'tool_use', name: 'Edit', id: 'toolu_1' }],
-      },
-    }),
-  );
-  return transcriptPath;
-}
-
-function createTicket(directory: string): void {
-  const ticketFolder = nodePath.join(directory, '.project', 'tickets', '099-done-task');
-  mkdirSync(ticketFolder, { recursive: true });
-  writeFileSync(
-    nodePath.join(ticketFolder, 'ticket.md'),
-    ['---', 'id: 099', 'status: in_progress', 'type: task', 'phase: done', '---'].join('\n'),
-  );
-}
-
-function writeSessionState(
-  directory: string,
-  sessionId: string,
-  state: Record<string, unknown>,
-): void {
-  const statePath = stateFilePath(directory, sessionId);
-  mkdirSync(nodePath.dirname(statePath), { recursive: true });
-  // eslint-disable-next-line unicorn/no-null -- JSON.stringify replacer parameter
-  writeFileSync(statePath, JSON.stringify(state, null, 2));
-}
-
-function runStopHook(directory: string, transcriptPath: string, sessionId: string) {
-  return spawnSync('bun', [STOP_QUALITY], {
-    input: JSON.stringify({
-      session_id: sessionId,
-      transcript_path: transcriptPath,
-      last_assistant_message: 'Here is what I changed.',
-    }),
-    cwd: directory,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: directory },
-    encoding: 'utf8',
-    timeout: TIMEOUT_QUICK,
-  });
-}
-
-function runPromptQuestionsHook(directory: string, sessionId: string) {
-  return spawnSync('bun', [PROMPT_QUESTIONS], {
-    input: JSON.stringify({ session_id: sessionId, prompt: 'Continue with the next change.' }),
-    cwd: directory,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: directory },
-    encoding: 'utf8',
-    timeout: TIMEOUT_QUICK,
-  });
-}
+import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers';
+import {
+  createEditTranscript,
+  createStopHookTicket,
+  runPromptQuestionsHook,
+  runStopHook,
+  stateFilePath,
+  writeSessionState,
+} from '../helpers/stop-hook';
 
 describe('Stop Hook: Idle Review Suppression (1492)', () => {
   let projectDirectory = '';
@@ -93,7 +33,7 @@ describe('Stop Hook: Idle Review Suppression (1492)', () => {
 
   it('persists the first generic review without a seeded state file, then silences the idle repeat', () => {
     const sessionId = 'idle-stop-session';
-    const transcriptPath = createTranscript(projectDirectory);
+    const transcriptPath = createEditTranscript(projectDirectory);
 
     const first = runStopHook(projectDirectory, transcriptPath, sessionId);
 
@@ -113,7 +53,7 @@ describe('Stop Hook: Idle Review Suppression (1492)', () => {
 
   it('re-arms generic review after UserPromptSubmit', () => {
     const sessionId = 'rearm-stop-session';
-    const transcriptPath = createTranscript(projectDirectory);
+    const transcriptPath = createEditTranscript(projectDirectory);
 
     const first = runStopHook(projectDirectory, transcriptPath, sessionId);
     expect(JSON.parse(first.stdout) as { decision?: string }).toMatchObject({ decision: 'block' });
@@ -135,13 +75,18 @@ describe('Stop Hook: Idle Review Suppression (1492)', () => {
 
   it('does not let an idle-review marker bypass the done-phase verify gate', () => {
     const sessionId = 'done-gate-session';
-    createTicket(projectDirectory);
+    createStopHookTicket(projectDirectory, {
+      id: '099',
+      slug: 'done-task',
+      phase: 'done',
+      status: 'in_progress',
+    });
     writeSessionState(projectDirectory, sessionId, {
       activeTicket: '099',
       stopQualityReviewAwaitingUserPrompt: true,
     });
 
-    const result = runStopHook(projectDirectory, createTranscript(projectDirectory), sessionId);
+    const result = runStopHook(projectDirectory, createEditTranscript(projectDirectory), sessionId);
 
     expect(result.status).toBe(0);
     const parsed = JSON.parse(result.stdout.trim()) as { decision?: string; reason?: string };

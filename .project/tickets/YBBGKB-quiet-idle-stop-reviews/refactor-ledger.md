@@ -17,6 +17,12 @@ Scout scope: the marker field, its two hook transitions, and their installed-hoo
 
 11. [x] **Review provenance — explicit:** record the two review-driven sibling-hook comment corrections in ticket scope, refresh the active-ticket timestamp, and reflow the shared JSDoc. (PR #1652 pass-7 review; documentation and metadata only, no behavior change.)
 
+12. [x] **Fixture mechanics — shared:** move the duplicated simple Stop-hook transcript, process, ticket, and state-file mechanics into one test-only helper, while retaining frozen-format fixtures and scenario assertions in their owning suites. (PR #1652 pass-8 review; test structure only.)
+
+13. [x] **State patch — derived:** make `recordStopReviewState` accept a `Pick<QualityState, ...>` rather than restating its two field types. (PR #1652 pass-8 review; type contract only, no behavior change.)
+
+14. [x] **Fixture namespace — canonical:** make the four touched Stop-hook integration suites create `.project` fixtures, exercising the resolver's preferred root while separate namespace tests retain legacy-fallback coverage. (PR #1652 pass-8 review; test fixtures only.)
+
 Deferred deliberately: extracting a general read-modify-write helper would make independently running hooks share an abstraction around a known concurrency hazard. The explicit cross-hook writes are safer and clearer at this scope; the prompt hook batches only its own already-loaded state object.
 
 Evidence: package-local Vitest passed the idle-review (3), typecheck (4), phase-backstop (3), frozen transcript (14), and prompt-marker (1) focused coverage after the PR-feedback fixes. The attempted old-head Node 24 rerun was canceled when the corrective branch head pushed; that fresh CI run is the authoritative aggregate evidence.

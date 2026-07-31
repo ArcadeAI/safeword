@@ -49,12 +49,12 @@ function buildProject(phase: string, state: Record<string, unknown> = {}): strin
   // tsc gate is ticket-type-agnostic.
   writeTestFile(
     cwd,
-    '.safeword-project/tickets/099-test/ticket.md',
+    '.project/tickets/099-test/ticket.md',
     ['---', 'id: 099', 'status: in_progress', 'type: task', `phase: ${phase}`, '---'].join('\n'),
   );
   writeTestFile(
     cwd,
-    '.safeword-project/quality-state-test-session.json',
+    '.project/quality-state-test-session.json',
     JSON.stringify({ activeTicket: '099', locSinceCommit: 0, locAtLastReview: 0, ...state }),
   );
   writeTestFile(cwd, 'transcript.jsonl', transcriptLine());

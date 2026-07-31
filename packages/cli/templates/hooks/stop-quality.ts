@@ -129,7 +129,7 @@ function getCurrentTicketInfo(sessionId?: string): TicketInfo {
  */
 function recordStopReviewState(
   sessionId: string | undefined,
-  patch: { lastReviewedPhase?: string; stopQualityReviewAwaitingUserPrompt?: boolean },
+  patch: Pick<QualityState, 'lastReviewedPhase' | 'stopQualityReviewAwaitingUserPrompt'>,
 ): void {
   if (!sessionId) return;
   const stateFile = getStateFilePath(projectDir, sessionId);

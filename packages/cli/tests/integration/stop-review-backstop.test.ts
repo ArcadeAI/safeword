@@ -46,18 +46,18 @@ function buildProject({ phase, testDefinitions, state }: BuildOptions): string {
   writeTestFile(cwd, '.safeword/.gitkeep', ''); // "is this a safeword project?" guard
   writeTestFile(
     cwd,
-    '.safeword-project/tickets/099-test/ticket.md',
+    '.project/tickets/099-test/ticket.md',
     ['---', 'id: 099', 'status: in_progress', 'type: task', `phase: ${phase}`, '---'].join('\n'),
   );
   if (testDefinitions !== undefined) {
-    writeTestFile(cwd, '.safeword-project/tickets/099-test/test-definitions.md', testDefinitions);
+    writeTestFile(cwd, '.project/tickets/099-test/test-definitions.md', testDefinitions);
   }
   writeTestFile(cwd, 'transcript.jsonl', transcriptLine());
   execSync('git add . && git commit -qm base', { cwd, stdio: 'pipe' });
 
   writeTestFile(
     cwd,
-    '.safeword-project/quality-state-test-session.json',
+    '.project/quality-state-test-session.json',
     JSON.stringify({
       activeTicket: '099',
       locSinceCommit: 0,
