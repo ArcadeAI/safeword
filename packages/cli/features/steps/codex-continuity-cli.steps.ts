@@ -23,6 +23,7 @@ import {
   applyCodexFinalization,
   type CodexFinalizationMutation,
 } from '../../src/codex-plugin/finalization.ts';
+import { SAFEWORD_SCHEMA } from '../../src/schema.ts';
 import type { CliResult, SafewordWorld } from './world.js';
 
 const CLI_PATH = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
@@ -74,6 +75,7 @@ function initialize(
   options: {
     config?: string;
     pluginState?: 'absent' | 'enabled' | 'disabled';
+    pluginVersion?: string | null;
     legacyRuntime?: boolean;
     enrolled?: boolean;
   } = {},
@@ -105,11 +107,16 @@ function initialize(
     );
   }
   writeFileSync(nodePath.join(profile, 'plugin-state'), options.pluginState ?? 'enabled');
+  writeFileSync(
+    nodePath.join(profile, 'plugin-version'),
+    options.pluginVersion === null ? '' : (options.pluginVersion ?? SAFEWORD_SCHEMA.version),
+  );
   writeExecutable(
     nodePath.join(bin, 'codex'),
     `#!/bin/sh
 set -eu
 state="$CODEX_HOME/plugin-state"
+version_state="$CODEX_HOME/plugin-version"
 case "$*" in
   '--version') echo 'codex 0.141.0' ;;
   'plugin marketplace add '*)
@@ -121,6 +128,7 @@ case "$*" in
     ;;
   'plugin add safeword@safeword --json')
     printf 'enabled' > "$state"
+    printf '%s' "$SAFEWORD_FAKE_PLUGIN_VERSION" > "$version_state"
     echo '{"pluginId":"safeword@safeword"}'
     ;;
   'plugin list --json')
@@ -129,12 +137,21 @@ case "$*" in
       exit 8
     fi
     mode="$(cat "$state")"
+    version="$(cat "$version_state" 2>/dev/null || true)"
     if [ "$mode" = "absent" ]; then
       echo '{"installed":[]}'
     elif [ "$mode" = "disabled" ]; then
-      echo '{"installed":[{"pluginId":"safeword@safeword","enabled":false}]}'
+      if [ -n "$version" ]; then
+        printf '{"installed":[{"pluginId":"safeword@safeword","enabled":false,"version":"%s"}]}\n' "$version"
+      else
+        echo '{"installed":[{"pluginId":"safeword@safeword","enabled":false}]}'
+      fi
     else
-      echo '{"installed":[{"pluginId":"safeword@safeword","enabled":true}]}'
+      if [ -n "$version" ]; then
+        printf '{"installed":[{"pluginId":"safeword@safeword","enabled":true,"version":"%s"}]}\n' "$version"
+      else
+        echo '{"installed":[{"pluginId":"safeword@safeword","enabled":true}]}'
+      fi
     fi
     ;;
   *) exit 2 ;;
@@ -157,6 +174,7 @@ exit 0
     PATH: `${bin}:${process.env.PATH ?? ''}`,
     CODEX_HOME: profile,
     CLAUDE_PROJECT_DIR: project,
+    SAFEWORD_FAKE_PLUGIN_VERSION: SAFEWORD_SCHEMA.version,
     SAFEWORD_PACKAGED_HOOK_LOG: nodePath.join(root, 'packaged-hooks.log'),
   };
   world.runCodexStatus = () => run(world, ['codex', 'status', '--json']);
@@ -395,6 +413,24 @@ Given(
     rememberBaseline(this);
   },
 );
+
+Given(
+  'the active Codex profile reports the Safe Word plugin enabled',
+  function (this: ContinuityCliWorld) {
+    initialize(this, { pluginState: 'enabled' });
+  },
+);
+
+Given(
+  'the active Codex profile reports an enabled older Safe Word plugin',
+  function (this: ContinuityCliWorld) {
+    initialize(this, { pluginState: 'enabled', pluginVersion: '0.68.0' });
+  },
+);
+
+Given('no current profile hook proof exists', function (this: ContinuityCliWorld) {
+  assert.equal(existsSync(proofPath(this)), false);
+});
 
 When('the builder migrates Codex', function (this: ContinuityCliWorld) {
   run(this, ['codex', 'migrate']);

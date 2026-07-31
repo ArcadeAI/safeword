@@ -232,7 +232,7 @@ Feature: Keep Codex protection continuous during profile-plugin migration
 
     Scenario Outline: Human status gives one safe next action for settled migration states
       Given the repository and active profile derive the <fixture> fixture
-      When the builder checks Codex status
+      When Safe Word derives human Codex status from the fixture
       Then status reports <state>, names protection as <protection>, and ends with <next_action>
 
       Examples:
@@ -251,7 +251,7 @@ Feature: Keep Codex protection continuous during profile-plugin migration
 
     Scenario Outline: Unproven plugin status reflects legacy protection
       Given an enabled plugin without current proof and <legacy_fixture>
-      When the builder checks Codex status
+      When Safe Word derives human Codex status from the fixture
       Then status reports plugin_enabled_hook_unproven with protection <protection>
       And the output recommends restarting Codex and reviewing hooks
 
@@ -262,35 +262,35 @@ Feature: Keep Codex protection continuous during profile-plugin migration
 
     Scenario: Recovery state takes precedence over legacy protection
       Given an unresolved migration backup and recognized legacy protection
-      When the builder checks Codex status
+      When Safe Word derives human Codex status from the fixture
       Then status reports recovery_required, names protection as uncertain, and ends with safeword codex recover
 
     Scenario: Plugin-only human status has no next action
       Given current profile proof and a finalized project without legacy assets
-      When the builder checks Codex status
+      When Safe Word derives human Codex status from the fixture
       Then status reports plugin, names protection as protected, and contains no Next line
 
     @rejection
     Scenario: JSON status separates machine output from diagnostics
       Given a migration state that needs action
-      When an agent checks Codex status with JSON output
+      When Safe Word renders the prepared Codex status as JSON
       Then stdout contains only the versioned status object and the command exits 2
 
     Scenario: Plugin-only JSON status exits successfully
       Given current profile proof and a finalized project without legacy assets
-      When an agent checks Codex status with JSON output
+      When Safe Word renders the prepared Codex status as JSON
       Then stdout contains only the versioned plugin status object and the command exits 0
 
     @rejection
     Scenario: Status execution error has stable machine semantics
       Given Codex profile status cannot be observed
-      When an agent checks Codex status with JSON output
+      When Safe Word renders the prepared Codex status as JSON
       Then stdout contains only the complete schema 1 object with a nonempty structured errors array
       And the error code is PLUGIN_OBSERVATION_FAILED with message and retryable fields and the command exits 1
 
     Scenario Outline: JSON status uses state-specific complete schema
       Given the repository and active profile derive the <fixture> fixture
-      When an agent checks Codex status with JSON output
+      When Safe Word renders the prepared Codex status as JSON
       Then the complete schema 1 object reports state <state> and protection <protection>
       And it has <next_actions> next actions naming <next_command> and the command exits <exit_code>
 
@@ -320,7 +320,7 @@ Feature: Keep Codex protection continuous during profile-plugin migration
 
     Scenario Outline: Finalized project setup state overrides disabled-profile detail
       Given a finalized repository whose profile plugin is <plugin_state>
-      When the builder checks Codex status
+      When Safe Word derives human Codex status from the fixture
       Then status reports plugin_setup_required and protection unprotected
 
       Examples:

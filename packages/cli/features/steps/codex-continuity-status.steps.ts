@@ -244,61 +244,46 @@ Given(
   },
 );
 
-Given(
-  'the active Codex profile reports the Safe Word plugin enabled',
-  function (this: ContinuityStatusWorld) {
-    this.codexFacts = facts({ plugin: enabledPlugin });
-  },
-);
+function observeStatus(world: ContinuityStatusWorld): void {
+  assert.equal(
+    world.codexFacts,
+    undefined,
+    'Synthetic facts require an explicit status-derivation step',
+  );
+  assert.ok(world.runCodexStatus, 'A real Codex status runner must be initialized');
+  const result = world.runCodexStatus();
+  world.codexStatus = parseProtocolStatus(result.stdout);
+  world.codexStatusOutput = renderCodexMigrationHuman(world.codexStatus);
+  world.codexStatusExitCode = result.exitCode;
+}
 
-Given(
-  'the active Codex profile reports an enabled older Safe Word plugin',
-  function (this: ContinuityStatusWorld) {
-    this.codexFacts = facts({
-      plugin: { ...enabledPlugin, version: '0.68.0' },
-      proof: currentProof,
-    });
-  },
-);
-
-Given('no current profile hook proof exists', function (this: ContinuityStatusWorld) {
-  assert.ok(this.codexFacts, 'plugin fixture was not initialized');
-  this.codexFacts.proof = missingProof;
-});
+function derivePreparedStatus(world: ContinuityStatusWorld): CodexMigrationResultV1 {
+  if (!world.codexStatus) {
+    assert.ok(world.codexFacts, 'Codex facts were not initialized');
+    world.codexStatus = deriveCodexMigrationResult(world.codexFacts);
+  }
+  return world.codexStatus;
+}
 
 When('the builder checks Codex status', function (this: ContinuityStatusWorld) {
-  if (!this.codexStatus) {
-    if (this.codexFacts) {
-      this.codexStatus = deriveCodexMigrationResult(this.codexFacts);
-    } else {
-      assert.ok(this.runCodexStatus, 'Codex facts or a status runner must be initialized');
-      const result = this.runCodexStatus();
-      this.codexStatus = parseProtocolStatus(result.stdout);
-      this.codexStatusExitCode = result.exitCode;
-    }
-  }
-  this.codexStatusOutput = renderCodexMigrationHuman(this.codexStatus);
-  this.codexStatusExitCode = codexMigrationExitCode(this.codexStatus);
+  observeStatus(this);
 });
 
 When('the teammate checks Codex status', function (this: ContinuityStatusWorld) {
-  if (this.codexFacts) {
-    this.codexStatus = deriveCodexMigrationResult(this.codexFacts);
-  } else {
-    assert.ok(this.runCodexStatus, 'Codex facts or a status runner must be initialized');
-    const result = this.runCodexStatus();
-    this.codexStatus = parseProtocolStatus(result.stdout);
-    this.codexStatusExitCode = result.exitCode;
-  }
-  this.codexStatusOutput = renderCodexMigrationHuman(this.codexStatus);
-  this.codexStatusExitCode = codexMigrationExitCode(this.codexStatus);
+  observeStatus(this);
 });
 
-When('an agent checks Codex status with JSON output', function (this: ContinuityStatusWorld) {
-  if (!this.codexStatus) {
-    assert.ok(this.codexFacts, 'Codex facts were not initialized');
-    this.codexStatus = deriveCodexMigrationResult(this.codexFacts);
-  }
+When(
+  'Safe Word derives human Codex status from the fixture',
+  function (this: ContinuityStatusWorld) {
+    this.codexStatus = derivePreparedStatus(this);
+    this.codexStatusOutput = renderCodexMigrationHuman(this.codexStatus);
+    this.codexStatusExitCode = codexMigrationExitCode(this.codexStatus);
+  },
+);
+
+When('Safe Word renders the prepared Codex status as JSON', function (this: ContinuityStatusWorld) {
+  this.codexStatus = derivePreparedStatus(this);
   this.codexStatusOutput = `${JSON.stringify(this.codexStatus)}\n`;
   this.codexStatusExitCode = codexMigrationExitCode(this.codexStatus);
 });
