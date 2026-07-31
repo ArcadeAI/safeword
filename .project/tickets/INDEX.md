@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (466)
+## Tickets (467)
 
 ### 001
 
@@ -1605,6 +1605,9 @@
   Stop a spec's "must never" from shipping with no scenario that would fail if it were violated.
   external issue: https://github.com/ArcadeAI/safeword/issues/1425
   → `.project/tickets/Y9P3ZC-invariant-scenario-binding-lens`
+- **Keep stop reviews quiet until a new user prompt (YBBGKB)** (done, epic: —)
+  Prevent stale stop-quality continuations from forcing idle replies before the next real user prompt.
+  → `.project/tickets/YBBGKB-quiet-idle-stop-reviews`
 - **Move Codex users to the Safe Word plugin (YH2ZRN)** (done, epic: —)
   Let existing Safe Word Codex projects move to the profile-scoped plugin without duplicate hooks or lost enforcement.
   → `.project/tickets/YH2ZRN-migrate-codex-to-plugin`
