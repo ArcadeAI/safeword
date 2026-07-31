@@ -3,9 +3,8 @@ import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:f
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { setTimeout as delay } from 'node:timers/promises';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { assertCodexPluginCatalogue } from '../../cli/src/codex-plugin/catalogue.js';
 import { executeRetroCommand, type RetroOutcome } from '../../cli/src/commands/retro.js';
@@ -109,6 +108,7 @@ function readinessArtifactContent(artifactPath: string): string {
 }
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   const openServers = [...servers];
   servers.length = 0;
   for (const server of openServers) {
@@ -352,6 +352,8 @@ describe('real shared CLI to relay wiring', () => {
       repository: 'arcadeai/safeword',
       title: encounter.draft.title,
     };
+    let deliveryNow = Date.now();
+    vi.spyOn(Date, 'now').mockImplementation(() => deliveryNow);
     const sharedRequest = createRelayRequest(
       {
         ...relayDraft,
@@ -435,7 +437,7 @@ describe('real shared CLI to relay wiring', () => {
       },
     ];
     for (const [index, surface] of surfaces.entries()) {
-      if (index === surfaces.length - 1) await delay(3000);
+      if (index === surfaces.length - 1) deliveryNow += 61_000;
       const project = mkdtempSync(path.join(tmpdir(), `safeword-${surface.kind}-runtime-`));
       directories.push(project);
       const installed = await installSurfaceFixtures(project);
@@ -495,9 +497,9 @@ describe('real shared CLI to relay wiring', () => {
 
     const requestIds = relay.observability.logs.map(log => log.requestId);
     // The first lost response and the later cross-harness retry reach the
-    // relay. Intermediate surfaces observe the shared durable retry deferral
-    // instead of redundantly POSTing the same immutable request.
-    expect(requestIds.length).toBeGreaterThanOrEqual(2);
+    // relay exactly once each. Intermediate surfaces observe the shared
+    // durable retry deferral instead of redundantly POSTing the request.
+    expect(requestIds).toHaveLength(2);
     expect(new Set(requestIds).size).toBe(1);
     expect(requestIds[0]).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u,

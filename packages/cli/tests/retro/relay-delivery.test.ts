@@ -86,6 +86,16 @@ function deadLetterRequestPath(project: string, requestId: string): string {
   return path.join(project, '.safeword', 'retro-drafts', 'relay', `${requestId}.dead-letter.json`);
 }
 
+function retrySchedulePath(project: string, requestId: string): string {
+  return path.join(
+    project,
+    '.safeword',
+    'retro-drafts',
+    'relay',
+    `${requestId}.retry-schedule.json`,
+  );
+}
+
 function request(overrides: Record<string, unknown> = {}) {
   return createRelayRequest(
     {
@@ -2179,6 +2189,49 @@ describe('immutable relay delivery spool', () => {
     ).resolves.toMatchObject({ deadLetteredThisRun: 0, retryable: 1 });
     expect(await listRelayRequests(project)).toHaveLength(1);
     expect(await listRelayDeadLetters(project)).toHaveLength(0);
+  });
+
+  it('self-heals a malformed retry schedule before delivering the persisted request', async () => {
+    const project = temporaryProject();
+    const original = request({ sourceKey: 'malformed-schedule' });
+    const persisted = await persistRelayRequest(project, original);
+    writeFileSync(retrySchedulePath(project, original.requestId), '{not-json');
+
+    await expect(
+      deliverRelayRequests(project, {
+        credential: 'swc_client_secret',
+        deadlineMs: 25,
+        fetch: acceptedRelayFetch(),
+        now: Date.now,
+        relayUrl: 'https://relay.invalid',
+      }),
+    ).resolves.toMatchObject({ accepted: 1, retryable: 0 });
+
+    expect(readdirSync(path.dirname(persisted.path))).not.toContain(
+      `${original.requestId}.retry-schedule.json`,
+    );
+  });
+
+  it('removes a retry schedule when the request is discarded', async () => {
+    const project = temporaryProject();
+    const original = request({ sourceKey: 'discard-schedule' });
+    const persisted = await persistRelayRequest(project, original);
+
+    await deliverRelayRequests(project, {
+      credential: 'swc_client_secret',
+      deadlineMs: 25,
+      fetch: () => Promise.resolve(new Response(undefined, { status: 503 })),
+      now: Date.now,
+      relayUrl: 'https://relay.invalid',
+    });
+    expect(readdirSync(path.dirname(persisted.path))).toContain(
+      `${original.requestId}.retry-schedule.json`,
+    );
+
+    await expect(discardRelayRequest(project, original.requestId)).resolves.toBe(true);
+    expect(readdirSync(path.dirname(persisted.path))).not.toContain(
+      `${original.requestId}.retry-schedule.json`,
+    );
   });
 
   it('rejects non-UUID dead-letter identities before resolving a filesystem path', async () => {
