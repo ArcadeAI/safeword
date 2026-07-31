@@ -104,3 +104,21 @@ describe('GitHub graph projection client', () => {
     );
   });
 });
+
+describe('Linear live projection client', () => {
+  it('points users to the supported adoption and portable-sync paths', async () => {
+    const writer = buildWriterRegistry('linear', undefined).linear;
+
+    await expect(
+      writer.create({
+        title: 'Wire it up',
+        body: 'banner',
+        issueType: 'task',
+        labels: ['type:task'],
+        state: 'open',
+      }),
+    ).rejects.toThrow(
+      'Adopt an existing Linear issue with `safeword ticket new <slug> --issue <key>`, or sync existing local tickets through `safeword sync-tracker --plan` and `--apply-results`.',
+    );
+  });
+});

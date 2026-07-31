@@ -31,9 +31,11 @@ safeword connect linear --team ENG
 ```
 
 `connect` writes the `ticketBridge` block to `.safeword/config.json`. GitHub's live connection also
-verifies auth and seeds an empty sidecar. For Linear, the command records the provider/team identity;
-the portable executor owns the network call, and `--plan` can start without a sidecar. Credentials
-stay outside config and are never written to logs.
+verifies auth and seeds an empty sidecar. For Linear, the command records the provider/team identity
+before attempting live verification. Because live Linear verification is not wired yet, it then
+reports `Not connected` and exits 1; the printed Arcade OAuth handoff does not enable live sync in
+this release. The saved config is sufficient for the portable path, and `--plan` can start without a
+sidecar. Credentials stay outside config and are never written to logs.
 
 :::note[GitHub live sync; Linear portable sync]
 **GitHub** supports both the one-command live sync and the portable transport. **Linear** supports
@@ -44,7 +46,9 @@ GitHub-only; use the portable transport with a Linear-capable executor.
 
 With GitHub's live transport, `safeword ticket new <slug>` mints the tracker issue first and keys
 the local ticket to it. For either provider, `--issue <key>` adopts an existing issue instead of
-creating one. New Linear tickets become `create` intents when you generate a portable sync plan.
+creating one. For non-epic Linear tickets, live minting is not wired: `ticket new` without `--issue`
+fails, while `--issue ENG-45` adopts that existing issue and later plans an `update`. A local ticket
+with no recorded tracker ref — for example, one that predates the connect — plans a `create`.
 
 ## Sync status to the tracker
 
@@ -58,7 +62,7 @@ This GitHub path walks your active tickets and creates/updates their issues (and
 when a ticket is terminal). It is safe to run repeatedly. Run it whenever you want the tracker
 refreshed — or automate it in CI so nobody has to remember.
 
-### Automate in CI (GitHub Actions)
+#### Automate in CI (GitHub Actions)
 
 Safeword does not install a workflow for you — copy this into
 `.github/workflows/sync-tracker.yml`:
@@ -113,11 +117,27 @@ Running `sync-tracker` with neither flag is the usual `gh` path, unchanged.
 
 #### Linear example
 
-First record the Linear team identity and generate the provider-neutral plan. These steps do not
-need Safeword to construct a Linear client:
+First record the Linear team identity:
 
 ```bash
 safeword connect linear --team ENG
+```
+
+The command writes the Linear provider and team to `.safeword/config.json`, then reports the
+following result and exits 1 because live verification is not wired:
+
+```text
+Not connected — Linear verification needs the Arcade integration — not wired in v1.
+```
+
+That exit is expected for the portable path; the required config has already landed. The printed
+Arcade OAuth step does not enable live Linear sync in this release. Run `connect linear` once
+outside `set -e` automation, confirm the saved provider and team, then run only the planning step in
+automation.
+
+Now generate the provider-neutral plan; this does not construct a Linear client:
+
+```bash
 safeword sync-tracker --plan > linear-plan.json
 ```
 
@@ -152,9 +172,10 @@ invalid result leaves the map untouched.
 
 ## Egress
 
-The projected issue body defaults to **minimal** (title, status, labels, back-link to the
-canonical ticket) — never your spec or work-log. `body: full` is opt-in per project, and projecting
-`full` to a **public** GitHub repo emits a loud egress warning.
+The projected issue body defaults to **minimal** (title, status, labels, and a pointer to the
+canonical ticket) — never your spec or work-log. For GitHub, that pointer is a clickable repository
+URL; in a Linear plan it is the ticket's relative path inside the repository. `body: full` is opt-in
+per project, and projecting `full` to a **public** GitHub repo emits a loud egress warning.
 
 That automatic public-target warning is GitHub-only. Linear has
 [private teams](https://linear.app/docs/private-teams), but its access boundary is workspace/team
