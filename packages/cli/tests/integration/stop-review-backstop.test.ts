@@ -46,18 +46,18 @@ function buildProject({ phase, testDefinitions, state }: BuildOptions): string {
   writeTestFile(cwd, '.safeword/.gitkeep', ''); // "is this a safeword project?" guard
   writeTestFile(
     cwd,
-    '.safeword-project/tickets/099-test/ticket.md',
+    '.project/tickets/099-test/ticket.md',
     ['---', 'id: 099', 'status: in_progress', 'type: task', `phase: ${phase}`, '---'].join('\n'),
   );
   if (testDefinitions !== undefined) {
-    writeTestFile(cwd, '.safeword-project/tickets/099-test/test-definitions.md', testDefinitions);
+    writeTestFile(cwd, '.project/tickets/099-test/test-definitions.md', testDefinitions);
   }
   writeTestFile(cwd, 'transcript.jsonl', transcriptLine());
   execSync('git add . && git commit -qm base', { cwd, stdio: 'pipe' });
 
   writeTestFile(
     cwd,
-    '.safeword-project/quality-state-test-session.json',
+    '.project/quality-state-test-session.json',
     JSON.stringify({
       activeTicket: '099',
       locSinceCommit: 0,
@@ -104,6 +104,23 @@ describe('Stop review backstop (SXSCJQ)', () => {
 
   it('fires the phase review for an un-reviewed boundary — backstop (S3.2)', () => {
     cwd = buildProject({ phase: 'define-behavior' }); // no lastReviewedPhase marker
+
+    const run = runStop(cwd);
+
+    expect(run.status).toBe(0);
+    const parsed = JSON.parse(run.stdout) as { decision?: string; reason?: string };
+    expect(parsed.decision).toBe('block');
+    expect(parsed.reason).toContain('define-behavior');
+  });
+
+  it('does not let the generic-review marker suppress a new phase boundary', () => {
+    cwd = buildProject({
+      phase: 'define-behavior',
+      state: {
+        lastReviewedPhase: 'intake',
+        stopQualityReviewAwaitingUserPrompt: true,
+      },
+    });
 
     const run = runStop(cwd);
 
