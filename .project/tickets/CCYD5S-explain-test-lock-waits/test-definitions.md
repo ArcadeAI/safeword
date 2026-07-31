@@ -21,10 +21,12 @@ And it emits increasing elapsed-wait status more than once
 
 ### Scenario: CCYD5S.SM1.AC3.tolerates_incomplete_owner_metadata
 
-Given a live lock has readable but incomplete or non-object owner metadata
+Given a live lock has readable but incomplete owner metadata, or stale non-object
+owner metadata
 When another runner reports its wait
 Then it prints the fields that are available, or marks unavailable fields clearly
 And it continues waiting or reaches the configured wait cap without crashing
+And stale non-object metadata is reaped through the normal mtime fallback
 
 - [x] RED skip: focused runner suite failed because incomplete metadata emitted no details
 - [x] GREEN fa16069cb
@@ -38,6 +40,13 @@ Given a live package-test lock and a one-millisecond status interval setting
 When the runner waits for its configured wait cap
 Then it reports status no more often than the supported minimum interval
 And malformed and zero interval settings fall back to the default interval
+
+### Scenario: CCYD5S.SM1.AC6.negative_maximum_wait_uses_the_default
+
+Given another runner owns a live package-test lock
+When a waiting runner sets its maximum wait to a negative value
+Then it waits for the owner under the default maximum wait
+And it does not proceed without the lock or overlap the owner's build and test
 
 - [x] RED skip: unsafe-interval test failed before the minimum clamp
 - [x] GREEN 09ac816ab

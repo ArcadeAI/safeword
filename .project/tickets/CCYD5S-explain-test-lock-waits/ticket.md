@@ -5,7 +5,7 @@ type: patch
 phase: done
 status: done
 created: 2026-07-31T04:00:07.559Z
-last_modified: 2026-07-31T08:33:00Z
+last_modified: 2026-07-31T11:00:00Z
 ---
 
 # Make test-lock waits understandable for maintainers
@@ -16,6 +16,9 @@ last_modified: 2026-07-31T08:33:00Z
 
 ## Work Log
 
+- 2026-07-31T11:00:00Z Review follow-up: Restored the negative maximum-wait
+  fallback, routed non-object owner metadata through mtime stale-lock recovery,
+  and expanded the status proof across every emitted interval.
 - 2026-07-31T08:33:00Z Review follow-up: Restored zero status interval's
   backward-compatible default fallback, replaced inverse elapsed-format parsing
   with deterministic output assertions, and added non-object metadata coverage.

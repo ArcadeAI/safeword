@@ -29,6 +29,8 @@ Given the lock metadata is incomplete, malformed, or changes while my command re
 When the wait status is rendered
 Then the command reports the available details without crashing or weakening
 lock serialization.
+And malformed stale metadata remains eligible for the existing stale-lock
+recovery path.
 
 #### CCYD5S.SM1.AC4 - Diagnostic configuration stays safe
 
@@ -37,6 +39,13 @@ When a command waits for the package-test lock
 Then invalid and zero values use the default interval
 And a small positive value uses the safe minimum interval to keep wait output
 readable.
+
+#### CCYD5S.SM1.AC6 - Maximum-wait configuration remains safe
+
+Given a maintainer supplies a negative maximum-wait value
+When a command encounters a live package-test lock
+Then the runner falls back to the default maximum wait and preserves lock
+serialization.
 
 #### CCYD5S.SM1.AC5 - Lock coordination stays readable
 

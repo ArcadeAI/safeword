@@ -2,9 +2,10 @@
 
 **Test Suite:** ✅ `bun run test:done` passed 1,244/1,244 tests across 81 files.
 
-**Full Suite:** ✅ `bun run test` passed 5,645 tests with 5 skips across 377
-files. Vitest completed in 379.17 seconds after the global package-test lock
-became available.
+**Full Suite:** ✅ At the issue #1698 snapshot, `bun run test` passed 5,645
+tests with 5 skips across 377 files. Vitest completed in 379.17 seconds after
+the global package-test lock became available. The later CCYD5S snapshot records
+its then-current 5,647-test suite after additional lock-runner coverage.
 
 **Focused Proof:** ✅ The scenario-fidelity and adjacent BDD documentation
 tests passed 44/44.

@@ -54,7 +54,7 @@ function resolveSafeIntegerEnvironmentVariable(name, fallback, minimum, allowZer
   }
 
   const parsed = Number(raw);
-  const isValid = Number.isSafeInteger(parsed) && (allowZero || parsed > 0);
+  const isValid = Number.isSafeInteger(parsed) && (allowZero ? parsed >= 0 : parsed > 0);
   return isValid ? Math.max(parsed, minimum) : fallback;
 }
 
@@ -87,9 +87,10 @@ function isProcessAlive(pid) {
 function readOwner() {
   try {
     const parsed = JSON.parse(readFileSync(ownerPath, 'utf8'));
+    const readable = typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed);
     return {
-      owner: typeof parsed === 'object' && parsed !== null ? parsed : {},
-      readable: true,
+      owner: readable ? parsed : {},
+      readable,
     };
   } catch {
     return { owner: {}, readable: false };

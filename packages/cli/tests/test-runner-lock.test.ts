@@ -1,5 +1,12 @@
 import { spawn } from 'node:child_process';
-import { copyFileSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
 import { mkdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
@@ -106,10 +113,9 @@ function expectSerializedByRunner(events: string[]) {
     const parentEvents = events.filter(event => event.includes(`:${parentId}`));
     expect(parentEvents[0]).toBe(`build:start:${parentId}`);
     expect(parentEvents[1]).toBe(`build:end:${parentId}`);
-    expect([
-      `vitest:start:${parentId}:run,tests/first.test.ts`,
-      `vitest:start:${parentId}:run,tests/second.test.ts`,
-    ]).toContain(parentEvents[2]);
+    const vitestStartEvent = parentEvents[2] ?? '';
+    expect(vitestStartEvent.startsWith(`vitest:start:${parentId}:run,tests/`)).toBe(true);
+    expect(vitestStartEvent.endsWith('.test.ts')).toBe(true);
     expect(parentEvents[3]).toBe(`vitest:end:${parentId}`);
   }
 
@@ -182,9 +188,34 @@ describe('package test runner lock (379)', () => {
     expectSerializedByRunner(readEvents(logPath));
   });
 
-  it('reports the owning checkout and increasing elapsed wait periodically', async () => {
+  it('uses the default maximum wait when configured with a negative value', async () => {
     const temporaryDirectory = makeTemporaryDirectory();
-    const { binaryDirectory } = await createFakeTestBinaries(temporaryDirectory, 250);
+    const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
+    const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
+    const ownerPath = nodePath.join(lockDirectory, 'owner.json');
+    const env = {
+      ...process.env,
+      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      SAFEWORD_TEST_LOCK_DIR: lockDirectory,
+    };
+
+    const ownerRun = runNodeScript(runnerPath, ['tests/owner.test.ts'], env);
+    await waitForPath(ownerPath);
+    const waiterRun = runNodeScript(runnerPath, ['tests/waiter.test.ts'], {
+      ...env,
+      SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '-5',
+    });
+    const [ownerResult, waiterResult] = await Promise.all([ownerRun, waiterRun]);
+
+    expectSuccessfulSerializedRun(ownerResult);
+    expectSuccessfulSerializedRun(waiterResult);
+    expect(waiterResult.stderr).not.toContain('Proceeding without safeword package test lock');
+    expectSerializedByRunner(readEvents(logPath));
+  });
+
+  it('reports the complete bounded periodic status sequence for the owning checkout', async () => {
+    const temporaryDirectory = makeTemporaryDirectory();
+    const { binaryDirectory } = await createFakeTestBinaries(temporaryDirectory, 500);
     const firstRunner = await copyRunnerToCheckout(temporaryDirectory, 'checkout-a');
     const secondRunner = await copyRunnerToCheckout(temporaryDirectory, 'checkout-b');
     const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
@@ -193,6 +224,7 @@ describe('package test runner lock (379)', () => {
       ...process.env,
       PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
       SAFEWORD_TEST_LOCK_DIR: lockDirectory,
+      SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '250',
       SAFEWORD_TEST_LOCK_STATUS_INTERVAL_MS: '50',
     };
 
@@ -208,12 +240,16 @@ describe('package test runner lock (379)', () => {
     expect(ownerResult.status).toBe(0);
     expect(waiterResult.status).toBe(0);
     const waitStatuses = waitStatusLines(waiterResult.stderr);
-    expect(waitStatuses.length).toBeGreaterThan(1);
     expect(owner.checkoutRoot).toMatch(/checkout-a$/);
-    expect(waitStatuses.slice(0, 2)).toEqual([
+    expect(waitStatuses).toEqual([
       `Waiting for safeword package test lock (50ms elapsed; owner PID ${owner.pid}; checkout ${owner.checkoutRoot}).`,
       `Waiting for safeword package test lock (100ms elapsed; owner PID ${owner.pid}; checkout ${owner.checkoutRoot}).`,
+      `Waiting for safeword package test lock (150ms elapsed; owner PID ${owner.pid}; checkout ${owner.checkoutRoot}).`,
+      `Waiting for safeword package test lock (200ms elapsed; owner PID ${owner.pid}; checkout ${owner.checkoutRoot}).`,
     ]);
+    expect(waiterResult.stderr).toContain(
+      'Proceeding without safeword package test lock after waiting 250ms.',
+    );
   });
 
   it('reports available fields when owner metadata is incomplete', async () => {
@@ -238,23 +274,28 @@ describe('package test runner lock (379)', () => {
     );
   });
 
-  it('reports unavailable fields when owner metadata is not an object', async () => {
+  it('reaps a stale lock when owner metadata is not an object', async () => {
     const temporaryDirectory = makeTemporaryDirectory();
-    const { binaryDirectory } = await createFakeTestBinaries(temporaryDirectory);
+    const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
     const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
     await seedOwnerFile(lockDirectory, 'not owner metadata');
+    const staleTime = new Date(Date.now() - 31_000);
+    utimesSync(lockDirectory, staleTime, staleTime);
 
     const result = await runNodeScript(runnerPath, ['tests/non-object-owner.test.ts'], {
       ...process.env,
       PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
       SAFEWORD_TEST_LOCK_DIR: lockDirectory,
-      SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '120',
-      SAFEWORD_TEST_LOCK_STATUS_INTERVAL_MS: '100',
+      SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '0',
     });
 
-    expect(result.status).toBe(0);
-    expect(result.stderr).toContain('owner PID unavailable');
-    expect(result.stderr).toContain('checkout unavailable');
+    expect(result).toMatchObject({ status: 0, stderr: '' });
+    expect(readEvents(logPath)).toEqual([
+      expect.stringMatching(/^build:start:/),
+      expect.stringMatching(/^build:end:/),
+      expect.stringMatching(/^vitest:start:.*:run,tests\/non-object-owner\.test\.ts$/),
+      expect.stringMatching(/^vitest:end:/),
+    ]);
   });
 
   it('clamps unsafe status intervals and ignores malformed settings', async () => {
