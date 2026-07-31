@@ -31,6 +31,38 @@ export function resolveTicketReference(
   return aliases.get(raw);
 }
 
+export interface ResolvedGraphTicketIds {
+  parentTicketId?: string;
+  blockedByTicketIds: string[];
+}
+
+/**
+ * Resolve the canonical graph intent once for both live and portable
+ * projection. Out-of-corpus and self-referential edges are omitted; blocker
+ * aliases are deduplicated after resolution.
+ */
+export function resolveGraphTicketIds(
+  ticket: TicketInput,
+  aliases: Map<string, string>,
+): ResolvedGraphTicketIds {
+  const isExternalEdge = (id: string | undefined): id is string =>
+    id !== undefined && id !== ticket.id;
+  const parentCandidate =
+    resolveTicketReference(ticket.parent, aliases) ?? resolveTicketReference(ticket.epic, aliases);
+  const parentTicketId = isExternalEdge(parentCandidate) ? parentCandidate : undefined;
+  const blockedByTicketIds = [
+    ...new Set(
+      [...(ticket.dependsOn ?? []), ...(ticket.blockedOn ?? [])]
+        .map(reference => resolveTicketReference(reference, aliases))
+        .filter(id => isExternalEdge(id)),
+    ),
+  ];
+  return {
+    ...(parentTicketId !== undefined && { parentTicketId }),
+    blockedByTicketIds,
+  };
+}
+
 function isString(value: string | undefined): value is string {
   return value !== undefined;
 }

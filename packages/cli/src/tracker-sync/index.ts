@@ -10,11 +10,7 @@
 import { withBackoff } from './backoff.js';
 import { buildPayload } from './payload.js';
 import { resolveCredential } from './secrets.js';
-import {
-  aliasMap,
-  orderTicketsForProjection,
-  resolveTicketReference,
-} from './ticket-references.js';
+import { aliasMap, orderTicketsForProjection, resolveGraphTicketIds } from './ticket-references.js';
 import { loadTrackerMap, planTicketSync, TrackerMap } from './tracker-map.js';
 import type { BodyMode, Provider, TicketInput, TrackerReference } from './types.js';
 import { dispatchCreate, type GraphProjection, type TrackerWriter } from './writers.js';
@@ -72,16 +68,11 @@ function buildGraphProjection(args: {
   provider: Provider;
   aliases: Map<string, string>;
 }): GraphProjection {
-  const parentId =
-    resolveTicketReference(args.ticket.parent, args.aliases) ??
-    resolveTicketReference(args.ticket.epic, args.aliases);
-  const relationIds = [...(args.ticket.dependsOn ?? []), ...(args.ticket.blockedOn ?? [])].map(id =>
-    resolveTicketReference(id, args.aliases),
-  );
+  const { parentTicketId, blockedByTicketIds } = resolveGraphTicketIds(args.ticket, args.aliases);
   return {
-    parent: sameProviderReference(args.map, parentId, args.provider),
+    parent: sameProviderReference(args.map, parentTicketId, args.provider),
     blockedBy: new Map(
-      relationIds
+      blockedByTicketIds
         .map(id => sameProviderReference(args.map, id, args.provider))
         .filter((ref): ref is TrackerReference => ref !== undefined)
         .map(ref => [ref.id, ref]),

@@ -46,10 +46,10 @@ type WriteCall =
  */
 function recordingWriter(provider: Provider): TrackerWriter & {
   calls: WriteCall[];
-  graphs: { title: string; parent: string | undefined }[];
+  graphs: { title: string; parent: string | undefined; blockedBy: string[] }[];
 } {
   const calls: WriteCall[] = [];
-  const graphs: { title: string; parent: string | undefined }[] = [];
+  const graphs: { title: string; parent: string | undefined; blockedBy: string[] }[] = [];
   let minted = 0;
   return {
     provider,
@@ -66,7 +66,11 @@ function recordingWriter(provider: Provider): TrackerWriter & {
       return Promise.resolve();
     },
     projectGraph(_ref, payload, graph) {
-      graphs.push({ title: payload.title, parent: graph.parent?.id });
+      graphs.push({
+        title: payload.title,
+        parent: graph.parent?.id,
+        blockedBy: graph.blockedBy.map(reference => reference.id),
+      });
       return Promise.resolve();
     },
   };
@@ -232,8 +236,6 @@ describe('--plan parity with the gh path (#1443)', () => {
 
   // Graph parity: for every parent edge the live path projected, the plan names the
   // SAME parent — by ticket id, where the live path uses the recorded issue ref.
-  // Deliberate divergence NOT asserted here: the plan drops self-edges, which
-  // buildGraphProjection does not (see buildGraphEdges in plan.ts).
   it('names the same parent edges the live path projected', async () => {
     const live = await runLivePath(corpus(), startingMap(), bodyMode, sidecarPath);
     const plan = computePlan({ tickets: corpus(), map: startingMap(), bodyMode });
@@ -254,6 +256,26 @@ describe('--plan parity with the gh path (#1443)', () => {
         (createdParent?.kind === 'create' ? createdParent.ref.id : undefined);
       expect(expectedReferenceId).toBe(graphCall.parent);
     }
+  });
+
+  it('omits self-parent and self-blocker edges on both execution paths', async () => {
+    const selfReferential = ticket({
+      id: 'SELF1',
+      slug: 'self',
+      parent: 'self',
+      blockedOn: ['SELF1'],
+    });
+    const live = await runLivePath([selfReferential], new TrackerMap(), bodyMode, sidecarPath);
+    const plan = computePlan({
+      tickets: [selfReferential],
+      map: new TrackerMap(),
+      bodyMode,
+    });
+
+    expect(live.graphs).toEqual([
+      { title: selfReferential.title, parent: undefined, blockedBy: [] },
+    ]);
+    expect(plan.intents[0]?.graph).toBeUndefined();
   });
 
   it('emits intents in the exact sequence the live path wrote them', async () => {
