@@ -1,10 +1,10 @@
 # Verify: Reuse monorepo topology during architecture healing (N3JTV5)
 
-Evidence captured 2026-07-30 after resolving the latest PR review comments.
+Evidence captured 2026-07-31 after merge closeout.
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 5631/5631 tests pass (5 skipped)
+**Test Suite:** ✓ 5639/5639 tests pass (5 skipped)
 **Gherkin:** ✅ Acceptance lane passes (499/502 scenarios; 3 skipped; 15444/15444 executed steps)
 **Build:** ✅ Success (tsup + DTS)
 **Lint:** ✅ Clean (ESLint, Prettier, TypeScript, and diff hygiene)
@@ -15,6 +15,8 @@ Evidence captured 2026-07-30 after resolving the latest PR review comments.
 **Reconcile:** ✅ No pattern deviation
 **Experience:** ⏭️ N/A — internal architecture-heal orchestration refactor
 **Evidence limits:** ✅ None
+**Merged:** ✅ PR #1685 admin-squash-merged as `df31c884f`
+**Post-merge CI:** ✅ Run 30608828332 passed all four jobs
 
 Audit passed with warnings — 0 change-scoped errors. Config synchronization,
 dependency-cruiser (669 modules, 2,185 dependencies, 0 violations), Knip,
@@ -49,5 +51,5 @@ inside the tests. A fresh independent review approved both resolutions with no
 critical issues or suggested improvements. Focused architecture coverage
 remained green at 191/191 before the full verification run above.
 
-**Next:** Ask the user to confirm completion; only then transition the ticket
-from `in_progress` to `done`.
+**Next:** Complete — user confirmed closure, the merged-main CI passed, and the
+ticket transitioned to `done`.
