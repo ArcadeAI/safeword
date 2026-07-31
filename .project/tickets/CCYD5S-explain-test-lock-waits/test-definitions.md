@@ -57,7 +57,7 @@ When lock creation is extracted from the wait loop
 Then successful acquisition, serialization, stale-lock recovery, and wait-cap
 behavior remain unchanged
 
-- [x] REFACTOR skip: focused lock-runner suite passed 9/9 after the extract
+- [x] REFACTOR f4195b63e
 
 ## Patch-level refactor
 
