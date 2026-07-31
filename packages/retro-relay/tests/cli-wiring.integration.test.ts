@@ -3,6 +3,7 @@ import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:f
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -434,6 +435,7 @@ describe('real shared CLI to relay wiring', () => {
       },
     ];
     for (const [index, surface] of surfaces.entries()) {
+      if (index === surfaces.length - 1) await delay(3000);
       const project = mkdtempSync(path.join(tmpdir(), `safeword-${surface.kind}-runtime-`));
       directories.push(project);
       const installed = await installSurfaceFixtures(project);
