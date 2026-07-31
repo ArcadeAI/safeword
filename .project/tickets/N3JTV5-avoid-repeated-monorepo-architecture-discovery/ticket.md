@@ -2,11 +2,12 @@
 id: N3JTV5
 slug: avoid-repeated-monorepo-architecture-discovery
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-07-30T00:00:10.960Z
-last_modified: 2026-07-30T16:32:18.000Z
+last_modified: 2026-07-31T06:38:12.000Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/1667
+external_prs: [https://github.com/ArcadeAI/safeword/pull/1685]
 ---
 
 # Reuse monorepo topology during architecture healing
@@ -68,3 +69,7 @@ changing generated architecture bytes, or changing released fingerprint recipes.
   monorepo compatibility chain from production. A fresh independent review
   approved both fixes; 191 focused architecture tests and the full verification
   and audit gates remain green.
+- 2026-07-31T06:38:12.000Z Closed: user confirmed completion after PR #1685
+  admin-squash-merged as `df31c884f`; merged-main CI run 30608828332 passed
+  Dogfood parity, lint, Node 22, Node 24, acceptance, and release gates. The
+  session retro filed Safeword follow-ups #1701, #1702, and #1703.
