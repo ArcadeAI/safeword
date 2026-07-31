@@ -23,7 +23,7 @@ export function aliasMap(tickets: TicketInput[]): Map<string, string> {
 }
 
 /** Resolve a raw reference to a canonical corpus ticket id, or `undefined` if not in the corpus. */
-export function resolveTicketReference(
+function resolveTicketReference(
   raw: string | undefined,
   aliases: Map<string, string>,
 ): string | undefined {
