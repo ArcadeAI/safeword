@@ -56,6 +56,14 @@ describe('pre-tool architecture staging hook', () => {
     return hook;
   }
 
+  function writeCheckoutModule(projectDirectory: string): void {
+    mkdirSync(nodePath.join(projectDirectory, 'src', 'checkout'), { recursive: true });
+    writeFileSync(
+      nodePath.join(projectDirectory, 'src', 'checkout', 'index.ts'),
+      'export const checkout = true;\n',
+    );
+  }
+
   function createExplicitSelectorTarget(gitDirectoryName = 'repo.git'): {
     container: string;
     gitDirectory: string;
@@ -471,11 +479,7 @@ describe('pre-tool architecture staging hook', () => {
   );
 
   it('advises when an unsupported command will broadly add an unstaged architecture input', () => {
-    mkdirSync(nodePath.join(directory, 'src', 'checkout'), { recursive: true });
-    writeFileSync(
-      nodePath.join(directory, 'src', 'checkout', 'index.ts'),
-      'export const checkout = true;\n',
-    );
+    writeCheckoutModule(directory);
 
     const hook = runSuccessfulHook('bun run lint && git add -A && git commit -m "add checkout"');
     const output = JSON.parse(String(hook.stdout)) as {
@@ -494,11 +498,7 @@ describe('pre-tool architecture staging hook', () => {
     ['from the project root', 'git add src/checkout'],
     ['relative to a subdirectory', 'cd src && git add checkout'],
   ])('advises when an unsupported command will add an architecture pathspec %s', (_label, add) => {
-    mkdirSync(nodePath.join(directory, 'src', 'checkout'), { recursive: true });
-    writeFileSync(
-      nodePath.join(directory, 'src', 'checkout', 'index.ts'),
-      'export const checkout = true;\n',
-    );
+    writeCheckoutModule(directory);
 
     const hook = runSuccessfulHook(`bun run lint && ${add} && git commit -m "add checkout"`);
     const output = JSON.parse(String(hook.stdout)) as { systemMessage?: string };
@@ -514,11 +514,7 @@ describe('pre-tool architecture staging hook', () => {
       'git --git-dir=.git --work-tree=. commit -m "add checkout"',
     ],
   ])('advises for an architecture pathspec add %s', (_label, stagingCommand, commitCommand) => {
-    mkdirSync(nodePath.join(directory, 'src', 'checkout'), { recursive: true });
-    writeFileSync(
-      nodePath.join(directory, 'src', 'checkout', 'index.ts'),
-      'export const checkout = true;\n',
-    );
+    writeCheckoutModule(directory);
 
     const hook = runSuccessfulHook(`bun run lint && ${stagingCommand} && ${commitCommand}`);
     const output = JSON.parse(String(hook.stdout)) as { systemMessage?: string };
@@ -527,11 +523,7 @@ describe('pre-tool architecture staging hook', () => {
   });
 
   it('does not project an advisory add with an arbitrary Git config override', () => {
-    mkdirSync(nodePath.join(directory, 'src', 'checkout'), { recursive: true });
-    writeFileSync(
-      nodePath.join(directory, 'src', 'checkout', 'index.ts'),
-      'export const checkout = true;\n',
-    );
+    writeCheckoutModule(directory);
 
     const hook = runSuccessfulHook(
       'bun run lint && git -c core.quotePath=false add src/checkout && git commit -m "add checkout"',
@@ -605,11 +597,7 @@ describe('pre-tool architecture staging hook', () => {
   });
 
   it('does not advise when an add pathspec excludes an unstaged architecture input', () => {
-    mkdirSync(nodePath.join(directory, 'src', 'checkout'), { recursive: true });
-    writeFileSync(
-      nodePath.join(directory, 'src', 'checkout', 'index.ts'),
-      'export const checkout = true;\n',
-    );
+    writeCheckoutModule(directory);
     writeFileSync(nodePath.join(directory, 'README.md'), 'routine docs change\n');
 
     const hook = runSuccessfulHook(
@@ -621,11 +609,7 @@ describe('pre-tool architecture staging hook', () => {
   });
 
   it('still advises for a staged architecture input before an unrelated add', () => {
-    mkdirSync(nodePath.join(directory, 'src', 'checkout'), { recursive: true });
-    writeFileSync(
-      nodePath.join(directory, 'src', 'checkout', 'index.ts'),
-      'export const checkout = true;\n',
-    );
+    writeCheckoutModule(directory);
     writeFileSync(nodePath.join(directory, 'README.md'), 'routine docs change\n');
     git('add', '--', 'src/checkout/index.ts');
 
@@ -637,11 +621,7 @@ describe('pre-tool architecture staging hook', () => {
   });
 
   it('advises when an earlier cumulative add includes an architecture input', () => {
-    mkdirSync(nodePath.join(directory, 'src', 'checkout'), { recursive: true });
-    writeFileSync(
-      nodePath.join(directory, 'src', 'checkout', 'index.ts'),
-      'export const checkout = true;\n',
-    );
+    writeCheckoutModule(directory);
     writeFileSync(nodePath.join(directory, 'README.md'), 'routine docs change\n');
 
     const hook = runSuccessfulHook(
@@ -663,11 +643,7 @@ describe('pre-tool architecture staging hook', () => {
     try {
       initGitRepo(otherDirectory);
       writeFileSync(nodePath.join(otherDirectory, 'README.md'), 'other repository\n');
-      mkdirSync(nodePath.join(directory, 'src', 'checkout'), { recursive: true });
-      writeFileSync(
-        nodePath.join(directory, 'src', 'checkout', 'index.ts'),
-        'export const checkout = true;\n',
-      );
+      writeCheckoutModule(directory);
       writeFileSync(nodePath.join(directory, 'README.md'), 'routine docs change\n');
       const laterCommand = typeof laterAdd === 'function' ? laterAdd(otherDirectory) : laterAdd;
 
@@ -684,11 +660,7 @@ describe('pre-tool architecture staging hook', () => {
 
   it('treats pathless add -A from a subdirectory as repository-wide', () => {
     mkdirSync(nodePath.join(directory, 'docs'), { recursive: true });
-    mkdirSync(nodePath.join(directory, 'src', 'checkout'), { recursive: true });
-    writeFileSync(
-      nodePath.join(directory, 'src', 'checkout', 'index.ts'),
-      'export const checkout = true;\n',
-    );
+    writeCheckoutModule(directory);
 
     const hook = runSuccessfulHook(
       'bun run lint && cd docs && git add -A && git commit -m "add checkout"',
@@ -723,11 +695,7 @@ describe('pre-tool architecture staging hook', () => {
       'bun run lint && git add -A && cd src && git commit -m "add checkout"',
     ],
   ])('retains broad-add advisory scope across %s', (_label, command) => {
-    mkdirSync(nodePath.join(directory, 'src', 'checkout'), { recursive: true });
-    writeFileSync(
-      nodePath.join(directory, 'src', 'checkout', 'index.ts'),
-      'export const checkout = true;\n',
-    );
+    writeCheckoutModule(directory);
 
     const hook = runSuccessfulHook(command);
     const output = JSON.parse(String(hook.stdout)) as { systemMessage?: string };
@@ -814,11 +782,7 @@ describe('pre-tool architecture staging hook', () => {
         nodePath.join(targetDirectory, 'packages'),
         'dir',
       );
-      mkdirSync(nodePath.join(targetDirectory, 'src', 'checkout'), { recursive: true });
-      writeFileSync(
-        nodePath.join(targetDirectory, 'src', 'checkout', 'index.ts'),
-        'export const checkout = true;\n',
-      );
+      writeCheckoutModule(targetDirectory);
       execFileSync('git', ['add', '--', 'src/checkout/index.ts'], { cwd: targetDirectory });
       const originalIndex = readFileSync(nodePath.join(targetDirectory, '.git', 'index'));
       const documentPath = nodePath.join(targetDirectory, '.project', 'architecture.generated.md');
@@ -859,11 +823,7 @@ describe('pre-tool architecture staging hook', () => {
     const alternateIndex = nodePath.join(directory, '.git', 'alternate-index');
     copyFileSync(nodePath.join(directory, '.git', 'index'), alternateIndex);
     const originalAlternateIndex = readFileSync(alternateIndex);
-    mkdirSync(nodePath.join(directory, 'src', 'checkout'), { recursive: true });
-    writeFileSync(
-      nodePath.join(directory, 'src', 'checkout', 'index.ts'),
-      'export const checkout = true;\n',
-    );
+    writeCheckoutModule(directory);
 
     const hook = runSuccessfulHook(
       `GIT_INDEX_FILE="${alternateIndex}" git add -A && git commit -m "real index commit"`,
@@ -875,11 +835,7 @@ describe('pre-tool architecture staging hook', () => {
   it('does not retain an alternate index selector removed by env -u', () => {
     const alternateIndex = nodePath.join(directory, '.git', 'alternate-index');
     copyFileSync(nodePath.join(directory, '.git', 'index'), alternateIndex);
-    mkdirSync(nodePath.join(directory, 'src', 'checkout'), { recursive: true });
-    writeFileSync(
-      nodePath.join(directory, 'src', 'checkout', 'index.ts'),
-      'export const checkout = true;\n',
-    );
+    writeCheckoutModule(directory);
     execFileSync('git', ['add', '--', 'src/checkout/index.ts'], {
       cwd: directory,
       env: { ...process.env, GIT_INDEX_FILE: alternateIndex },
@@ -899,11 +855,7 @@ describe('pre-tool architecture staging hook', () => {
   it('does not mutate either index when env clears inherited selectors', () => {
     const alternateIndex = nodePath.join(directory, '.git', 'alternate-index');
     copyFileSync(nodePath.join(directory, '.git', 'index'), alternateIndex);
-    mkdirSync(nodePath.join(directory, 'src', 'checkout'), { recursive: true });
-    writeFileSync(
-      nodePath.join(directory, 'src', 'checkout', 'index.ts'),
-      'export const checkout = true;\n',
-    );
+    writeCheckoutModule(directory);
     execFileSync('git', ['add', '--', 'src/checkout/index.ts'], {
       cwd: directory,
       env: { ...process.env, GIT_INDEX_FILE: alternateIndex },
@@ -931,11 +883,7 @@ describe('pre-tool architecture staging hook', () => {
         cwd: targetDirectory,
       });
 
-      mkdirSync(nodePath.join(directory, 'src', 'checkout'), { recursive: true });
-      writeFileSync(
-        nodePath.join(directory, 'src', 'checkout', 'index.ts'),
-        'export const checkout = true;\n',
-      );
+      writeCheckoutModule(directory);
       git('add', '--', 'src/checkout/index.ts');
       const originalSourceIndex = readFileSync(nodePath.join(directory, '.git', 'index'));
       const originalTargetIndex = readFileSync(nodePath.join(targetDirectory, '.git', 'index'));
@@ -1071,11 +1019,7 @@ describe('pre-tool architecture staging hook', () => {
   it('advises for a broad add in an explicit-selector worktree without a .git marker', () => {
     const target = createExplicitSelectorTarget();
     try {
-      mkdirSync(nodePath.join(target.worktree, 'src', 'checkout'), { recursive: true });
-      writeFileSync(
-        nodePath.join(target.worktree, 'src', 'checkout', 'index.ts'),
-        'export const checkout = true;\n',
-      );
+      writeCheckoutModule(target.worktree);
       const selectors = 'GIT_DIR="../repo.git" GIT_WORK_TREE="."';
       const command =
         `cd "${target.worktree}" && bun run lint && ` +
