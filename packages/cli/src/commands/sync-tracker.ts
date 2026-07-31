@@ -21,7 +21,7 @@ import {
   type TicketBridgeConfig,
 } from '../tracker-sync/index.js';
 import { computePlan } from '../tracker-sync/plan.js';
-import { loadTrackerMap, TrackerMap, trackerMapPath } from '../tracker-sync/tracker-map.js';
+import { loadTrackerMapOrEmpty, trackerMapPath } from '../tracker-sync/tracker-map.js';
 import type { Provider } from '../tracker-sync/types.js';
 
 export interface SyncTrackerCommandOptions {
@@ -61,16 +61,15 @@ function runPlan(cwd: string, config: TicketBridgeConfig): void {
   }
 
   const sidecarPath = trackerMapPath(cwd);
-  const loaded = loadTrackerMap(sidecarPath);
-  // Mirrors `runApply` and the live path's `loadSidecarOrRefuse`. Only *corrupt*
-  // refuses: a missing sidecar is the legitimate first run.
-  if (!loaded.ok && loaded.reason === 'corrupt') {
+  const loaded = loadTrackerMapOrEmpty(sidecarPath);
+  // Mirrors `runApply`. Only *corrupt* refuses: a missing sidecar is the
+  // legitimate first run.
+  if (!loaded.ok) {
     fail(`${sidecarPath} is corrupt; refusing to plan against it (every ticket would re-create)`);
     return;
   }
-  const map = loaded.ok ? loaded.map : new TrackerMap();
   const tickets = readCorpus(cwd, config.target?.repo);
-  const plan = computePlan({ tickets, map, bodyMode });
+  const plan = computePlan({ tickets, map: loaded.map, bodyMode });
   process.stdout.write(`${JSON.stringify(plan, undefined, 2)}\n`);
 }
 
@@ -95,20 +94,19 @@ function runApply(cwd: string, config: TicketBridgeConfig, filePath: string): vo
   }
 
   const sidecarPath = trackerMapPath(cwd);
-  const loaded = loadTrackerMap(sidecarPath);
-  if (!loaded.ok && loaded.reason === 'corrupt') {
+  const loaded = loadTrackerMapOrEmpty(sidecarPath);
+  if (!loaded.ok) {
     fail(`${sidecarPath} is corrupt`);
     return;
   }
-  const map = loaded.ok ? loaded.map : new TrackerMap();
 
   const ticketIds = new Set(readCorpus(cwd, config.target?.repo).map(ticket => ticket.id));
-  const outcome = applyResults(map, parsed.value, { provider, ticketIds });
+  const outcome = applyResults(loaded.map, parsed.value, { provider, ticketIds });
   if (!outcome.ok) {
     fail(outcome.reason);
     return;
   }
-  map.save(sidecarPath);
+  loaded.map.save(sidecarPath);
 }
 
 /** An advisory on stderr — never stdout, which must stay a pure SyncPlan document. */

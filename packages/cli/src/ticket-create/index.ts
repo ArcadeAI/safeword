@@ -12,7 +12,7 @@ import { existsSync, mkdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import type { TicketBridgeConfig } from '../tracker-sync/index.js';
-import { loadTrackerMap, TrackerMap, trackerMapPath } from '../tracker-sync/tracker-map.js';
+import { loadTrackerMapOrEmpty, trackerMapPath } from '../tracker-sync/tracker-map.js';
 import type { IssuePayload, Provider, TrackerReference } from '../tracker-sync/types.js';
 import type { TrackerWriter } from '../tracker-sync/writers.js';
 import type { IdMinter } from '../utils/id-minter.js';
@@ -93,8 +93,8 @@ export async function createTicketRouted(
 /** Refuse on a corrupt sidecar (a missing one is fine — the first tracker-backed ticket). */
 function assertSidecarUsable(cwd: string): void {
   const sidecarPath = trackerMapPath(cwd);
-  const loaded = loadTrackerMap(sidecarPath);
-  if (!loaded.ok && loaded.reason === 'corrupt') {
+  const loaded = loadTrackerMapOrEmpty(sidecarPath);
+  if (!loaded.ok) {
     throw new Error(
       `${sidecarPath} is corrupt; refusing to overwrite it. Resolve or remove it before creating a tracker-backed ticket.`,
     );
@@ -127,9 +127,11 @@ function writeReference(
   const safewordDirectory = nodePath.join(cwd, '.safeword');
   if (!existsSync(safewordDirectory)) mkdirSync(safewordDirectory, { recursive: true });
   const sidecarPath = trackerMapPath(cwd);
-  const loaded = loadTrackerMap(sidecarPath);
-  const map = loaded.ok ? loaded.map : new TrackerMap();
-  if (status === 'pending') map.markPending(id, ref);
-  else map.record(id, ref);
-  map.save(sidecarPath);
+  const loaded = loadTrackerMapOrEmpty(sidecarPath);
+  if (!loaded.ok) {
+    throw new Error(`${sidecarPath} became corrupt while creating ticket ${id}.`);
+  }
+  if (status === 'pending') loaded.map.markPending(id, ref);
+  else loaded.map.record(id, ref);
+  loaded.map.save(sidecarPath);
 }
