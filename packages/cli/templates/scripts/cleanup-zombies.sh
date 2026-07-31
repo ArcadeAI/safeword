@@ -86,45 +86,41 @@ has_config() {
   return 1
 }
 
-# Auto-detect port from framework config files
-detect_port() {
+# Auto-detect the framework once so its port and process pattern cannot drift.
+# Output is `<port>|<pattern>`; frameworks without a dedicated process pattern
+# leave the second field empty.
+detect_framework() {
   if has_config "vite.config.*"; then
-    echo "5173"
+    echo "5173|vite"
   elif has_config "next.config.*"; then
-    echo "3000"
+    echo "3000|next"
   elif has_config "nuxt.config.*"; then
-    echo "3000"
+    echo "3000|nuxt"
   elif has_config "svelte.config.js"; then
-    echo "5173"
+    echo "5173|"
   elif has_config "astro.config.*"; then
-    echo "4321"
+    echo "4321|"
   elif has_config "angular.json"; then
-    echo "4200"
+    echo "4200|"
   else
-    echo ""
-  fi
-}
-
-# Auto-detect framework pattern
-detect_pattern() {
-  if has_config "vite.config.*"; then
-    echo "vite"
-  elif has_config "next.config.*"; then
-    echo "next"
-  elif has_config "nuxt.config.*"; then
-    echo "nuxt"
-  else
-    echo ""
+    echo "|"
   fi
 }
 
 # Use auto-detection if not provided
-if [ -z "$PORT" ]; then
-  PORT=$(detect_port)
+DETECTED_FRAMEWORK=""
+if [ -z "$PORT" ] || [ -z "$PATTERN" ]; then
+  DETECTED_FRAMEWORK=$(detect_framework)
 fi
 
+DETECTED_PORT=${DETECTED_FRAMEWORK%%|*}
+DETECTED_PATTERN=${DETECTED_FRAMEWORK#*|}
+
+if [ -z "$PORT" ]; then
+  PORT=$DETECTED_PORT
+fi
 if [ -z "$PATTERN" ]; then
-  PATTERN=$(detect_pattern)
+  PATTERN=$DETECTED_PATTERN
 fi
 
 normalize_port() {
