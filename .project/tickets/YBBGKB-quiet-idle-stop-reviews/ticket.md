@@ -5,7 +5,7 @@ type: task
 phase: verify
 status: in_progress
 created: 2026-07-29T17:27:17.421Z
-last_modified: 2026-07-31T13:44:00.000Z
+last_modified: 2026-07-31T13:45:00.000Z
 ---
 
 # Keep stop reviews quiet until a new user prompt
@@ -72,3 +72,4 @@ Pre-mortem: a state-file write failure could still allow a duplicate generic rev
 - 2026-07-31T06:37:01.000Z Pass-8 PR review resolution: consolidated duplicate Stop-hook test mechanics behind one test-only helper, migrated the four touched fixture suites from the legacy `.safeword-project` root to canonical `.project`, and derived the Stop writer patch from `QualityState`. The focused real-hook suite passes 24/24; no runtime behavior change. (refs: PR #1652)
 - 2026-07-31T13:39:58.000Z Rebased PR #1652 onto `origin/main` at `ee8473d56` without conflicts. `git range-diff df31c884f...04a8b2c31 origin/main...HEAD` confirmed the four test-definition patches are unchanged and remapped their evidence to reachable commits (`b83592cdc`, `2dcdc4ab7`, `0e8838568`, `d01ba2e11`). Runtime code is unchanged. (refs: PR #1652)
 - 2026-07-31T13:44:00.000Z Refactor scout accepted one test-only cleanup: route the Stop-hook fixture adapter through the existing canonical hook-spawn helper. The ledger defers template/dogfood consolidation and cross-hook state-write extraction because each would blur an intentional boundary. (refs: PR #1652)
+- 2026-07-31T13:45:00.000Z Refactor pass: replaced duplicate Stop-hook fixture process plumbing with the canonical shared hook-spawn helper while retaining each hook's payload at its adapter. The idle-review and frozen-transcript real-hook suites pass 17/17; no runtime behavior change. (refs: PR #1652)

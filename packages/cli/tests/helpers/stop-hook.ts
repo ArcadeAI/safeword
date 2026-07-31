@@ -1,8 +1,7 @@
-import { spawnSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { TIMEOUT_QUICK } from '../helpers';
+import { spawnHookScript } from '../helpers';
 
 const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 const STOP_QUALITY = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/stop-quality.ts');
@@ -74,25 +73,16 @@ export function runStopHook(
   sessionId?: string,
   lastAssistantMessage = 'Here is what I changed.',
 ) {
-  return spawnSync('bun', [STOP_QUALITY], {
-    input: JSON.stringify({
-      session_id: sessionId,
-      transcript_path: transcriptPath,
-      last_assistant_message: lastAssistantMessage,
-    }),
-    cwd: directory,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: directory },
-    encoding: 'utf8',
-    timeout: TIMEOUT_QUICK,
+  return spawnHookScript(STOP_QUALITY, directory, {
+    session_id: sessionId,
+    transcript_path: transcriptPath,
+    last_assistant_message: lastAssistantMessage,
   });
 }
 
 export function runPromptQuestionsHook(directory: string, sessionId: string) {
-  return spawnSync('bun', [PROMPT_QUESTIONS], {
-    input: JSON.stringify({ session_id: sessionId, prompt: 'Continue with the next change.' }),
-    cwd: directory,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: directory },
-    encoding: 'utf8',
-    timeout: TIMEOUT_QUICK,
+  return spawnHookScript(PROMPT_QUESTIONS, directory, {
+    session_id: sessionId,
+    prompt: 'Continue with the next change.',
   });
 }
