@@ -6,6 +6,7 @@
  * block, never touch a doc that needs no change or that safeword does not own.
  */
 
+import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import {
   chmodSync,
@@ -435,8 +436,7 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
     expect(output).toContain('was staged but unstaged worktree edits could not be restored');
     expect(output).not.toContain('nothing was auto-staged');
     const recoveryPath = /Recovery copy: (.+?)\. Cause:/.exec(output)?.[1];
-    expect(recoveryPath).toBeDefined();
-    if (recoveryPath === undefined) return;
+    assert.ok(recoveryPath !== undefined, 'expected the failure output to name a recovery copy');
     try {
       const recoveryContent = readFileSync(recoveryPath, 'utf8');
       expect(recoveryContent).toContain('### drafts');
