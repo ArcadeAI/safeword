@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (462)
+## Tickets (466)
 
 ### 001
 
@@ -494,7 +494,7 @@
 
 ### KKNFZA
 
-- **Surface orphaned tracker issues (created issue, no local ticket) (01EAKC)** (blocked, epic: offboard-local-ticketing)
+- **Surface orphaned tracker issues (created issue, no local ticket) (01EAKC)** (in_progress, epic: offboard-local-ticketing)
   Detect and surface tracker issues that safeword created but whose local ticket never
   blocked by: Issue-first ticket identity + tracker-key→local-folder join reader (DGH59K)
   → `.project/tickets/01EAKC-surface-orphan-tracker-issues`
@@ -1033,6 +1033,9 @@
   Keep gh-based retro filing header-safe without prompting users for a token.
   external issue: https://github.com/ArcadeAI/safeword/issues/1637
   → `.project/tickets/5EEKMD-harden-gh-fallback-credentials`
+- **Make lint hook behavior easier to change safely (5EX2NF)** (in_progress, epic: —)
+  Split lint-file orchestration into focused helpers without changing hook behavior
+  → `.project/tickets/5EX2NF-simplify-lint-hook-orchestration`
 - **Re-validate a ticket's premise when it's picked up (5JN5E4)** (superseded, epic: —)
   When a ticket is picked up or resumed, re-validate its premise before doing the work — confirm the problem still reproduces, the scope is still current, dependencies still hold, and it hasn't been fixed or obsoleted by intervening changes (e.g. a merge) — and surface any drift to the user before proceeding.
   → `.project/tickets/5JN5E4-revalidate-ticket-on-pickup`
@@ -1052,7 +1055,7 @@
 - **Patterns catalog — scannable index + per-pattern detail (Rust-API-Guidelines two-part structure) (62PDX1)** (in_progress, epic: —)
   Create a safeword patterns catalog that complements PRINCIPLES.md by holding the MANY named, reusable tactical moves that instantiate the FEW principles. Two-part structure modeled on [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/about.html): a scannable checklist/index at `.safeword/PATTERNS.md` + per-pattern detail files at `.safeword/patterns/<id>.md`. Each pattern has a stable ID, names the principle(s) it instantiates via frontmatter, and documents purpose / context / example / anti-pattern caught.
   → `.project/tickets/62PDX1`
-- **Keep developer tooling audit clean (6F971C)** (in_progress, epic: —)
+- **Keep developer tooling audit clean (6F971C)** (done, epic: —)
   Remove confirmed audit hygiene findings and refresh safe tooling dependencies.
   → `.project/tickets/6F971C-keep-developer-tooling-audit-clean`
 - **/audit pollutes working tree by writing depcruise configs (6R84DY)** (done, epic: —)
@@ -1086,6 +1089,9 @@
 - **Eliminate ambiguous smoke ticket ID warning (7VEYAY)** (in_progress, epic: —)
   Remove or intentionally isolate the duplicate `7K9M3P` fixture warning from smoke-fast output.
   → `.project/tickets/7VEYAY-eliminate-ambiguous-smoke-ticket-id-warning`
+- **Make GitHub transport regressions easier to isolate (84GNG0)** (in_progress, epic: —)
+  Separate transport pagination and authentication tests into focused suites
+  → `.project/tickets/84GNG0-split-github-rest-transport-tests`
 - **Keep default BDD lanes visible without manual configuration (8B4GVR)** (done, epic: —)
   Avoid a misleading Cucumber-harness advisory when Safeword already discovers a host suite under the default root features directory.
   external issue: https://github.com/ArcadeAI/safeword/issues/1105
@@ -1270,7 +1276,7 @@
 - **Convert bdd cursor rules to @reference + reconcile to 7-phase set (G1A6BS)** (done, epic: —)
   Make the bdd Cursor rules thin `@reference` pointers at the canonical bdd skill files, and bring the rule set up to the live 7-phase model (add verify, de-merge done).
   → `.project/tickets/G1A6BS-bdd-cursor-rules-reference`
-- **Enforce dogfood parity in CI (G2216W)** (in_progress, epic: —)
+- **Enforce dogfood parity in CI (G2216W)** (done, epic: —)
   Block pull requests when source templates and dogfood configuration drift.
   → `.project/tickets/G2216W-enforce-dogfood-parity-in-ci`
 - **Install missing @vitest/eslint-plugin peer-dep (G2BA7M)** (wontfix, epic: —)
@@ -1376,12 +1382,15 @@
   external issue: https://github.com/ArcadeAI/safeword/issues/469
   external PRs: https://github.com/ArcadeAI/safeword/pull/1384
   → `.project/tickets/KCFH00-verify-preflight-safe-cleanup`
-- **Off-board local ticketing: tracker canonical for identity + status mirror; status/phase stay tracked (KKNFZA)** (in_progress, epic: —)
+- **Off-board local ticketing: tracker canonical for identity + status mirror; status/phase stay tracked (KKNFZA)** (superseded, epic: —)
   Make the tracker canonical for ticket identity and a one-way status mirror, kill the real
   → `.project/tickets/KKNFZA-offboard-local-ticketing`
 - **Absorb the two remaining private shell tokenizers into shell-segments (KQ3MRV)** (done, epic: —)
   Migrate `cursor-run-identity.ts` and `branch-staleness.ts` — the two private shell tokenizers the EDDABK code review found outside the four Bash security gates — onto the shared `shell-segments.ts` tokenizer, so the "one tokenizer, one test surface" property holds repo-wide.
   → `.project/tickets/KQ3MRV-tokenizer-absorption`
+- **Keep workspace detection consistent across architecture commands (KRSFP6)** (in_progress, epic: —)
+  Use one canonical workspace-discovery policy across architecture generation paths
+  → `.project/tickets/KRSFP6-canonicalize-workspace-detection`
 - **sync-tracker v2 — project the dependency graph (relations, sub-issues, types) (M1FGRJ)** (done, epic: —)
   Extend `safeword sync-tracker` from a flat board to a **dependency-aware** projection: map safeword's `epic`/`parent` to tracker **sub-issues/parents**, `blocked_on`/`depends_on` to tracker **issue relations**, and `type` to native **issue-types** — so the external roadmap shows ordering and hierarchy, not just grouping.
   blocked by: safeword sync-tracker — one-way projection to Linear + GitHub Issues (JS5K5G)
@@ -1407,7 +1416,7 @@
 - **De-number bdd lifecycle refs in scaffolding templates (MT05DF)** (done, epic: —)
   Finish the named-phase rename in the three scaffolding templates DKETNZ flagged but deliberately deferred.
   → `.project/tickets/MT05DF-denumber-scaffold-templates`
-- **Keep default tests hermetic (MV2FZH)** (in_progress, epic: —)
+- **Keep default tests hermetic (MV2FZH)** (done, epic: —)
   Prevent the default Vitest suite from waiting on live package-manager installs.
   → `.project/tickets/MV2FZH-keep-default-tests-hermetic`
 - **Run verification automatically after implementation (MZAHAW)** (in_progress, epic: —)
@@ -1434,6 +1443,9 @@
 - **Two-tier review enforcement: per-asset inline stamp + phase-exit independent review (NMSD94)** (done, epic: —)
   Make "work is reviewed before it's built on" enforceable, at two tiers: a **cheap per-asset inline review stamp** (early catch, before the next asset is poured on a flawed one) and an **independent fresh-agent review at each phase exit** (catches what self-review misses). Close the demonstrated gap — review is under-triggered unless the user manually prompts it — without a fresh sub-agent firing on every artifact.
   → `.project/tickets/NMSD94-per-asset-review-gate`
+- **Ship a clean release for safeword users (P2JDY5)** (done, epic: —)
+  Audit and reconcile every change merged since v0.69.0, apply justified behavior-preserving refactors, verify release readiness, and close completed tracking items.
+  → `.project/tickets/P2JDY5-release-readiness-v0-70`
 - **Reconcile arcade `.project/` and architecture-tracking conventions with safeword (P8RJ4M)** (done, epic: —)
   Decide how safeword behaves for customers who also run arcade — specifically how shared inputs (personas, glossary) and architecture-tracking patterns reconcile when both tools want to author or read the same project knowledge.
   → `.project/tickets/P8RJ4M`
@@ -1559,7 +1571,7 @@
   Keep hook state and proof logs attached to the correct agent run across Claude, Codex, and Cursor.
   external issue: https://github.com/ArcadeAI/safeword/issues/401
   → `.project/tickets/WHFTDK-normalize-hook-run-identity`
-- **Anthropic claude-code plugins vs safeword capability comparison (WNMCH1)** (in_progress, epic: —)
+- **Anthropic claude-code plugins vs safeword capability comparison (WNMCH1)** (done, epic: —)
   Capture a thorough compare/contrast of Anthropic's 13 claude-code plugins against safeword's capability surface
   external issue: 1166
   → `.project/tickets/WNMCH1-anthropic-plugins-vs-safeword`

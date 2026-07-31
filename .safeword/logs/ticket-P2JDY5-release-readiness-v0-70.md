@@ -33,3 +33,5 @@
 - [08:35] Refreshed: Fetched the unchanged PR head and current main plus the latest approving review submission; all review threads remained resolved.
 - [08:39] Hardened: Extended keychain-only sync coverage through the real command and fake `gh` write boundary, pinned the copyable Actions workflow to verified SHAs, and cleared the diff-check whitespace defect.
 - [08:59] Complete: Three independent reviews approved with no critical issues or suggestions. Full Vitest, BDD, release, lint, typecheck, package, website, parity, architecture, dead-code, formatting, and production dependency gates passed.
+- [16:20] Reopened: A new independent full-diff review found the generated ticket index stale despite the canonical tickets being reconciled. Regenerated the index and clarified the documented `GH_TOKEN`/stored-credential behavior before rerunning the release gates.
+- [16:40] Complete: Final re-review approved with no findings. Full release verification passed; returned P2JDY5 to done and regenerated the canonical 466-ticket index.

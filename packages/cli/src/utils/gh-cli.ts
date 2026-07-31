@@ -12,13 +12,13 @@ export function isBearerCredentialSyntax(value: string): boolean {
 }
 
 /**
- * Ask `gh` for the environment's GitHub token, or undefined if unavailable.
+ * Ask `gh` for its currently resolved GitHub token, or undefined if unavailable.
  * `GITHUB_TOKEN` is stripped from the child environment (every key casing,
  * since Node's Windows environment keys are case-insensitive while this
  * copied object is case-sensitive) so a rejected or absent env token cannot
  * re-enter `gh` under a different spelling — this call answers "what does
- * `gh` have on its own" (keychain or its own env), independent of the
- * caller's `GITHUB_TOKEN`.
+ * `gh` have on its own" (`GH_TOKEN` or the OS credential store), independent
+ * of the caller's `GITHUB_TOKEN`.
  */
 export function resolveGhCliToken(env: NodeJS.ProcessEnv): string | undefined {
   try {

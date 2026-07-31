@@ -37,6 +37,10 @@ typecheck/build, formatting, and diff hygiene after the final review fixes.
   test also requires a clean command exit and no stderr output.
 - The copyable workflow pins checkout v7.0.1 and setup-node v7.0.0 to their
   verified immutable commit SHAs.
-- Three refreshed independent review passes ended with APPROVE, no critical
-  issues, and no remaining suggested improvements.
+- The generated ticket index now exactly represents all 466 canonical tickets,
+  including the four review tickets added here and six reconciled status changes.
+- Authentication documentation now distinguishes Safeword's preflight order
+  from GitHub CLI's live `GH_TOKEN` → `GITHUB_TOKEN` → stored-auth precedence.
+- Final post-fix independent review ended with APPROVE, no critical issues, and
+  no remaining suggested improvements.
 - The branch includes the latest remote reviewer commits and current `main`.

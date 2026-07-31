@@ -135,11 +135,13 @@ function egressVisibility(
 }
 
 /**
- * Resolve the credential GitHub CLI already keeps in the OS credential store.
- * The value is used only for the orchestrator's preflight; live GitHub writes
- * continue through `gh`, which resolves the same credential itself.
+ * Resolve the credential GitHub CLI would use after excluding the caller's
+ * `GITHUB_TOKEN`. This may come from `GH_TOKEN` or the OS credential store. The
+ * value is used only for the orchestrator's preflight; live GitHub writes let
+ * `gh` choose from the original environment and stored credentials using its
+ * normal precedence.
  */
-function keychainCredential(provider: Provider): string | undefined {
+function ghCliCredential(provider: Provider): string | undefined {
   if (provider !== 'github') return undefined;
   return resolveGhCliToken(process.env);
 }
@@ -181,7 +183,7 @@ async function runLiveSync(
         ? ({} as SyncTrackerDependencies['writers'])
         : buildWriterRegistry(provider, config.target),
     env: process.env,
-    keychain: keychainCredential,
+    keychain: ghCliCredential,
     resetTrackerMap: options.resetTrackerMap,
     nonInteractive: process.env.CI !== undefined,
     arcadeUserId: process.env.ARCADE_USER_ID,

@@ -6,7 +6,7 @@ phase: done
 status: done
 subtype: bug-investigated
 created: 2026-07-31T01:26:54.405Z
-last_modified: 2026-07-31T15:59:30.000Z
+last_modified: 2026-07-31T23:40:18.000Z
 ---
 
 # Ship a clean release for safeword users
@@ -87,6 +87,8 @@ closing tracking items whose acceptance criteria are not demonstrably complete.
 - 2026-07-31T15:35:00.000Z Reopened: Refreshed PR comments and an independent full-diff review found no blockers; accepted two non-blocking release-hardening improvements for keychain-only sync wiring proof and immutable Actions references in the copyable workflow.
 - 2026-07-31T15:39:00.000Z Implemented: Extended the real `sync-tracker` command wiring proof from keychain preflight through a fake `gh` issue write and recorded sidecar reference, pinned the copyable workflow to verified Actions SHAs, and removed the verification record's diff-check whitespace error. The focused wiring suite is green.
 - 2026-07-31T15:59:30.000Z Complete: Three independent review passes approved with no critical issues. Full verification passed 5,663 tests, 499 BDD scenarios, 26 release tests, lint, typecheck, package and website builds, immutable-action verification, parity, architecture, dead-code, formatting, and production dependency gates.
+- 2026-07-31T23:20:50.000Z Reopened: The latest independent PR review found the generated ticket index omitted four release-review tickets and retained six obsolete states. Regenerated the index from canonical ticket files and clarified that GitHub CLI authentication may resolve from `GH_TOKEN` or stored credentials after excluding the caller's `GITHUB_TOKEN`.
+- 2026-07-31T23:40:18.000Z Complete: Final independent re-review approved with no critical issues or suggestions. The canonical 466-ticket index is exact; full Vitest, BDD, release, lint, typecheck, package, website, parity, architecture, dead-code, formatting, and production dependency gates passed.
 
 ## Root Cause
 

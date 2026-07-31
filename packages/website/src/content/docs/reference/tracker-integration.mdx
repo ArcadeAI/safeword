@@ -79,9 +79,14 @@ jobs:
       - run: npx safeword sync-tracker
         env:
           # GitHub: the built-in token can create/update issues in this repo.
-          # safeword reads the credential from GITHUB_TOKEN (not GH_TOKEN).
+          # This workflow passes it explicitly as GITHUB_TOKEN.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
+
+For local runs, `sync-tracker` also honors the GitHub CLI's resolved authentication. GitHub CLI
+uses `GH_TOKEN` ahead of `GITHUB_TOKEN`, then falls back to its stored credential when neither is
+set. Safeword's preflight probes `GH_TOKEN` or stored authentication before falling back to
+`GITHUB_TOKEN`; live writes delegate the final choice to `gh` using its normal precedence.
 
 `sync-tracker` **fails loudly (non-zero exit)** when a provider is configured but no credential
 resolves — it never silently exits 0 and does nothing, so a misconfigured CI job turns red instead
