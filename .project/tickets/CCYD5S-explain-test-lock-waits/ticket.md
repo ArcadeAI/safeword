@@ -5,7 +5,7 @@ type: patch
 phase: done
 status: done
 created: 2026-07-31T04:00:07.559Z
-last_modified: 2026-07-31T05:14:21Z
+last_modified: 2026-07-31T06:21:12Z
 ---
 
 # Make test-lock waits understandable for maintainers
@@ -16,6 +16,10 @@ last_modified: 2026-07-31T05:14:21Z
 
 ## Work Log
 
+- 2026-07-31T06:21:12Z Review follow-up: Consolidated owner-file and integer
+  environment parsing, rate-limited status intervals to a 50 ms minimum, and
+  updated runner tests for human-readable elapsed waits. Focused runner tests
+  passed 9/9.
 - 2026-07-31T05:14:21Z Done: Package-test lock owners now record their
   checkout root; queued commands report owner PID, checkout, and elapsed wait
   after one second and every thirty seconds. Focused tests, full Vitest, lint,

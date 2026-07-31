@@ -37,3 +37,10 @@ Given the actor-facing action or result cannot be automated reliably
 When the agent records scenario evidence
 Then it routes the scenario through the existing `@manual` or `@live` path and
 does not complete it from narrower implementation evidence alone.
+
+#### 1698.SU1.AC5 - Every shipped agent surface carries the contract
+
+Given Safeword generates its Codex plugin from the canonical skill templates
+When the scenario-proof contract changes
+Then the generated Codex plugin carries the same contract and passes the
+release-catalogue verification.

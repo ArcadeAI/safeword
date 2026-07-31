@@ -120,9 +120,33 @@ function expectSerializedByRunner(events: string[]) {
 
 function expectSuccessfulSerializedRun(result: { stderr: string; status: number | null }) {
   expect(result.status).toBe(0);
-  expect(['', 'Waiting for another safeword package test run to finish...\n']).toContain(
-    result.stderr,
+  expect(
+    result.stderr === '' || result.stderr.startsWith('Waiting for safeword package test lock'),
+  ).toBe(true);
+}
+
+function parseElapsedWaitMilliseconds(line: string): number {
+  const start = line.indexOf('(');
+  const end = line.indexOf(' elapsed;', start);
+  expect(start).toBeGreaterThanOrEqual(0);
+  expect(end).toBeGreaterThan(start);
+  const elapsed = line.slice(start + 1, end);
+
+  if (elapsed.endsWith('ms')) {
+    return Number(elapsed.slice(0, -'ms'.length));
+  }
+
+  const minuteSeparator = elapsed.indexOf('m ');
+  const minutes = minuteSeparator === -1 ? 0 : Number(elapsed.slice(0, minuteSeparator));
+  const seconds = Number(
+    elapsed.slice(minuteSeparator === -1 ? 0 : minuteSeparator + 2, -'s'.length),
   );
+  return (minutes * 60 + seconds) * 1000;
+}
+
+async function seedOwnerFile(lockDirectory: string, owner: Record<string, unknown>) {
+  await mkdir(lockDirectory, { recursive: true });
+  writeFileSync(nodePath.join(lockDirectory, 'owner.json'), `${JSON.stringify(owner)}\n`);
 }
 
 describe('package test runner lock (379)', () => {
@@ -203,11 +227,7 @@ describe('package test runner lock (379)', () => {
     expect(waitStatuses[0]).toContain(`owner PID ${owner.pid}`);
     expect(owner.checkoutRoot).toMatch(/checkout-a$/);
     expect(waitStatuses[0]).toContain(`checkout ${owner.checkoutRoot}`);
-    const elapsedMilliseconds = waitStatuses.map(line => {
-      const match = /\((\d+)ms elapsed;/.exec(line);
-      expect(match).not.toBeNull();
-      return Number(match?.[1]);
-    });
+    const elapsedMilliseconds = waitStatuses.map(parseElapsedWaitMilliseconds);
     expect(elapsedMilliseconds).toEqual(
       elapsedMilliseconds.toSorted((left, right) => left - right),
     );
@@ -218,11 +238,7 @@ describe('package test runner lock (379)', () => {
     const temporaryDirectory = makeTemporaryDirectory();
     const { binaryDirectory } = await createFakeTestBinaries(temporaryDirectory);
     const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
-    await mkdir(lockDirectory, { recursive: true });
-    writeFileSync(
-      nodePath.join(lockDirectory, 'owner.json'),
-      `${JSON.stringify({ createdAt: new Date().toISOString(), pid: process.pid })}\n`,
-    );
+    await seedOwnerFile(lockDirectory, { createdAt: new Date().toISOString(), pid: process.pid });
 
     const result = await runNodeScript(runnerPath, ['tests/incomplete-owner.test.ts'], {
       ...process.env,
@@ -240,15 +256,52 @@ describe('package test runner lock (379)', () => {
     );
   });
 
+  it('clamps unsafe status intervals and ignores malformed settings', async () => {
+    const temporaryDirectory = makeTemporaryDirectory();
+    const { binaryDirectory } = await createFakeTestBinaries(temporaryDirectory);
+    const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
+    const owner = { createdAt: new Date().toISOString(), pid: process.pid };
+
+    await seedOwnerFile(lockDirectory, owner);
+    const unsafeInterval = await runNodeScript(runnerPath, ['tests/unsafe-interval.test.ts'], {
+      ...process.env,
+      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      SAFEWORD_TEST_LOCK_DIR: lockDirectory,
+      SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '120',
+      SAFEWORD_TEST_LOCK_STATUS_INTERVAL_MS: '1',
+    });
+
+    const unsafeStatuses = unsafeInterval.stderr
+      .split('\n')
+      .filter(line => line.startsWith('Waiting for safeword package test lock'));
+    expect(unsafeInterval.status).toBe(0);
+    expect(unsafeStatuses).toHaveLength(2);
+
+    await seedOwnerFile(lockDirectory, owner);
+    const malformedInterval = await runNodeScript(
+      runnerPath,
+      ['tests/malformed-interval.test.ts'],
+      {
+        ...process.env,
+        PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+        SAFEWORD_TEST_LOCK_DIR: lockDirectory,
+        SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '120',
+        SAFEWORD_TEST_LOCK_STATUS_INTERVAL_MS: 'not-a-number',
+      },
+    );
+
+    expect(malformedInterval.status).toBe(0);
+    expect(malformedInterval.stderr).not.toContain('Waiting for safeword package test lock');
+  });
+
   it('reaps dead-owner stale locks before acquiring', async () => {
     const temporaryDirectory = makeTemporaryDirectory();
     const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
     const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
-    await mkdir(lockDirectory, { recursive: true });
-    writeFileSync(
-      nodePath.join(lockDirectory, 'owner.json'),
-      `${JSON.stringify({ createdAt: new Date().toISOString(), pid: 2_147_483_647 })}\n`,
-    );
+    await seedOwnerFile(lockDirectory, {
+      createdAt: new Date().toISOString(),
+      pid: 2_147_483_647,
+    });
 
     const result = await runNodeScript(runnerPath, ['tests/stale.test.ts'], {
       ...process.env,
@@ -319,11 +372,7 @@ describe('package test runner lock (379)', () => {
     const temporaryDirectory = makeTemporaryDirectory();
     const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
     const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
-    await mkdir(lockDirectory, { recursive: true });
-    writeFileSync(
-      nodePath.join(lockDirectory, 'owner.json'),
-      `${JSON.stringify({ createdAt: new Date().toISOString(), pid: process.pid })}\n`,
-    );
+    await seedOwnerFile(lockDirectory, { createdAt: new Date().toISOString(), pid: process.pid });
 
     const result = await runNodeScript(runnerPath, ['tests/wait-cap.test.ts'], {
       ...process.env,

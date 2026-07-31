@@ -44,6 +44,20 @@ narrower automated test into full scenario evidence
 - [x] GREEN fa16069cb
 - [x] REFACTOR skip: no further structural improvement needed
 
+## Rule: Generated agent surfaces remain in sync
+
+### Scenario: 1698.SU1.AC5.generates_the_codex_plugin_from_canonical_templates
+
+Given the BDD and TDD-review canonical templates contain the proof-fidelity
+contract
+When the Codex plugin catalogue is regenerated and release tests run
+Then its generated BDD and TDD-review skills contain the same contract
+And the release catalogue accepts every generated asset exactly
+
+- [x] RED: `bun run --cwd packages/cli test:release` rejected the stale generated assets
+- [x] GREEN: regenerate the Codex plugin and pass the release suite
+- [x] REFACTOR: generated output remains owned by its generator rather than hand-edited
+
 ## Feature-level cross-scenario refactor
 
 - [x] cross-scenario skip: one canonical rule with two local review checkpoints; no shared abstraction needed

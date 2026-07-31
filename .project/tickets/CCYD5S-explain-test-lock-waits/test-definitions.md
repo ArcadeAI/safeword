@@ -30,6 +30,19 @@ And it continues waiting or reaches the configured wait cap without crashing
 - [x] GREEN fa16069cb
 - [x] REFACTOR skip: no additional structure was needed
 
+## Rule: Wait diagnostics remain safely rate-limited
+
+### Scenario: CCYD5S.SM1.AC4.clamps_an_unsafe_status_interval
+
+Given a live package-test lock and a one-millisecond status interval setting
+When the runner waits for its configured wait cap
+Then it reports status no more often than the supported minimum interval
+And malformed interval settings fall back to the default interval
+
+- [x] RED: the runner honored a one-millisecond interval and had no malformed-setting coverage
+- [x] GREEN: shared configuration parsing clamps unsafe values and tests pass
+- [x] REFACTOR: one parser owns integer environment-variable validation
+
 ## Patch-level refactor
 
 - [x] cross-scenario skip: both scenarios use the same metadata reader and wait reporter

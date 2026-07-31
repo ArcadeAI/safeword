@@ -5,7 +5,7 @@ subtype: bug-investigated
 phase: done
 status: done
 created: 2026-07-30T23:02:19Z
-last_modified: 2026-07-31T03:56:10Z
+last_modified: 2026-07-31T06:21:12Z
 external_issue: https://github.com/ArcadeAI/safeword/issues/1698
 ---
 
@@ -39,6 +39,9 @@ Ruled out:
 
 ## Work Log
 
+- 2026-07-31T06:21:12Z Review follow-up: Regenerated the Codex plugin from
+  canonical BDD/TDD and TDD-review templates after the release catalogue
+  detected stale derived assets. `test:release` passed 26/26 tests.
 - 2026-07-31T03:56:10Z Investigated: The apparent full-suite hang was global
   test-lock contention from another worktree. After the lock released,
   `bun run test` passed 5,645 tests with 5 skips across 377 files.

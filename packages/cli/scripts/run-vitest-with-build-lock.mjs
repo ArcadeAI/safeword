@@ -45,32 +45,29 @@ const lockDirectory = process.env.SAFEWORD_TEST_LOCK_DIR
   : nodePath.join(lockParent, `${lockName}.lock`);
 const ownerPath = nodePath.join(lockDirectory, 'owner.json');
 const checkoutRoot = nodePath.resolve(cliRoot, '..', '..');
+const minimumLockStatusIntervalMilliseconds = 50;
 
-function resolveMaximumLockWaitMilliseconds() {
-  const raw = process.env.SAFEWORD_TEST_LOCK_MAX_WAIT_MS;
+function resolveSafeIntegerEnvironmentVariable(name, fallback, minimum) {
+  const raw = process.env[name];
   if (raw === undefined) {
-    return defaultMaximumLockWaitMilliseconds;
+    return fallback;
   }
 
   const parsed = Number(raw);
-  return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : defaultMaximumLockWaitMilliseconds;
+  return Number.isSafeInteger(parsed) && parsed >= 0 ? Math.max(parsed, minimum) : fallback;
 }
 
-const maximumLockWaitMilliseconds = resolveMaximumLockWaitMilliseconds();
+const maximumLockWaitMilliseconds = resolveSafeIntegerEnvironmentVariable(
+  'SAFEWORD_TEST_LOCK_MAX_WAIT_MS',
+  defaultMaximumLockWaitMilliseconds,
+  0,
+);
 
-function resolveLockStatusIntervalMilliseconds() {
-  const raw = process.env.SAFEWORD_TEST_LOCK_STATUS_INTERVAL_MS;
-  if (raw === undefined) {
-    return defaultLockStatusIntervalMilliseconds;
-  }
-
-  const parsed = Number(raw);
-  return Number.isSafeInteger(parsed) && parsed > 0
-    ? parsed
-    : defaultLockStatusIntervalMilliseconds;
-}
-
-const lockStatusIntervalMilliseconds = resolveLockStatusIntervalMilliseconds();
+const lockStatusIntervalMilliseconds = resolveSafeIntegerEnvironmentVariable(
+  'SAFEWORD_TEST_LOCK_STATUS_INTERVAL_MS',
+  defaultLockStatusIntervalMilliseconds,
+  minimumLockStatusIntervalMilliseconds,
+);
 
 function sleep(milliseconds) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
@@ -85,11 +82,21 @@ function isProcessAlive(pid) {
   }
 }
 
-function removeStaleLock() {
-  let owner;
+function readOwner() {
   try {
-    owner = JSON.parse(readFileSync(ownerPath, 'utf8'));
+    const parsed = JSON.parse(readFileSync(ownerPath, 'utf8'));
+    return {
+      owner: typeof parsed === 'object' && parsed !== null ? parsed : {},
+      readable: true,
+    };
   } catch {
+    return { owner: {}, readable: false };
+  }
+}
+
+function removeStaleLock() {
+  const { owner, readable } = readOwner();
+  if (!readable) {
     const lockAgeMilliseconds = Date.now() - statSync(lockDirectory).mtimeMs;
     if (lockAgeMilliseconds > 30_000) {
       rmSync(lockDirectory, { force: true, recursive: true });
@@ -124,13 +131,9 @@ function formatElapsedWait(milliseconds) {
 }
 
 function reportLockWait(waitedMilliseconds) {
-  let owner = {};
-  try {
-    owner = JSON.parse(readFileSync(ownerPath, 'utf8'));
-  } catch {
-    // The owner may release or replace the lock between our EEXIST check and
-    // this diagnostic read. Waiting remains correct even without metadata.
-  }
+  // The owner may release or replace the lock between our EEXIST check and
+  // this diagnostic read. Waiting remains correct even without metadata.
+  const { owner } = readOwner();
 
   const ownerPid =
     typeof owner.pid === 'number' ? `owner PID ${owner.pid}` : 'owner PID unavailable';
@@ -182,16 +185,14 @@ function acquireLock() {
 
     if (waitedMilliseconds >= maximumLockWaitMilliseconds) {
       console.error(
-        `Proceeding without safeword package test lock after waiting ${maximumLockWaitMilliseconds}ms.`,
+        `Proceeding without safeword package test lock after waiting ${formatElapsedWait(maximumLockWaitMilliseconds)}.`,
       );
       return false;
     }
 
     if (waitedMilliseconds >= nextStatusAtMilliseconds) {
       reportLockWait(waitedMilliseconds);
-      do {
-        nextStatusAtMilliseconds += lockStatusIntervalMilliseconds;
-      } while (nextStatusAtMilliseconds <= waitedMilliseconds);
+      nextStatusAtMilliseconds += lockStatusIntervalMilliseconds;
     }
 
     const nextSleepMilliseconds = Math.min(

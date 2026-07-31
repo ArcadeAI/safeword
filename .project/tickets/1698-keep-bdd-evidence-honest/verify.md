@@ -16,8 +16,13 @@ tests passed 44/44.
 **Template Parity:** ✅ Canonical BDD/TDD and TDD-review templates exactly match
 their installed `.claude/skills/` dogfood copies.
 
+**Codex Plugin Release Gate:** ✅ `bun run --cwd packages/cli test:release`
+passed 26/26 tests across 8 files after `bun run --cwd packages/cli
+generate:codex-plugin` regenerated the BDD and TDD-review skill assets.
+
 **PR Scope:** ✅ Changes are limited to issue #1698's planning artifacts,
-scenario-proof guidance, installed dogfood copies, and the regression test.
+scenario-proof guidance, installed and generated agent-surface copies, and
+regression tests.
 
 **Lock Investigation:** ✅ The earlier apparent idle run was waiting for a
 legitimate test owner in another worktree, not hanging inside Vitest. The
