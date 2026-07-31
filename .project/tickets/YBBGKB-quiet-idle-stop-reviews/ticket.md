@@ -5,7 +5,7 @@ type: task
 phase: verify
 status: in_progress
 created: 2026-07-29T17:27:17.421Z
-last_modified: 2026-07-31T06:37:01.000Z
+last_modified: 2026-07-31T13:39:58.000Z
 ---
 
 # Keep stop reviews quiet until a new user prompt
@@ -69,3 +69,4 @@ Pre-mortem: a state-file write failure could still allow a duplicate generic rev
 - 2026-07-30T16:30:00.000Z Rebased PR #1652 onto `origin/main` at `af3eab8b2` without conflicts. Pass-6 review resolution removed a redundant parsed-state assertion, corrected three sibling undefined-phase comments, and replaced static PR validation counts with reproducible scopes plus the live Checks tab. The rebase orphaned prior TDD evidence, so `git range-diff` remapped it to reachable commits (`f76e91bc9`, `c3f3666ac`, `bb6540dfb`, `4f4a949f6`). Lint/typecheck, targeted real-hook and ledger suites, parity, and evidence reachability pass. (refs: PR #1652)
 - 2026-07-31T05:50:59.000Z Pass-7 PR review resolution: stated the narrow review-driven sibling-comment work in scope, refreshed this active-ticket timestamp from the current UTC clock, and reflowed the shared typecheck phase JSDoc in both template and dogfood copies. Documentation and workflow metadata only; no behavior change. (refs: PR #1652)
 - 2026-07-31T06:37:01.000Z Pass-8 PR review resolution: consolidated duplicate Stop-hook test mechanics behind one test-only helper, migrated the four touched fixture suites from the legacy `.safeword-project` root to canonical `.project`, and derived the Stop writer patch from `QualityState`. The focused real-hook suite passes 24/24; no runtime behavior change. (refs: PR #1652)
+- 2026-07-31T13:39:58.000Z Rebased PR #1652 onto `origin/main` at `ee8473d56` without conflicts. `git range-diff df31c884f...04a8b2c31 origin/main...HEAD` confirmed the four test-definition patches are unchanged and remapped their evidence to reachable commits (`b83592cdc`, `2dcdc4ab7`, `0e8838568`, `d01ba2e11`). Runtime code is unchanged. (refs: PR #1652)
