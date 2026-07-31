@@ -14,12 +14,12 @@
   },
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     },
     "./eslint": {
-      "import": "./dist/presets/typescript/index.js",
-      "types": "./dist/presets/typescript/index.d.ts"
+      "types": "./dist/presets/typescript/index.d.ts",
+      "import": "./dist/presets/typescript/index.js"
     }
   },
   "files": [
@@ -99,7 +99,7 @@
     "@cucumber/cucumber": "^13.1.1",
     "@types/bun": "^1.3.14",
     "@types/estree": "^1.0.9",
-    "@types/node": "^26.1.1",
+    "@types/node": "^26.1.2",
     "@vitest/coverage-v8": "^4.1.9",
     "eslint": "^10.6.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
