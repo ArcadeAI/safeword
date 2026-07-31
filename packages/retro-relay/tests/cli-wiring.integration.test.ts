@@ -97,11 +97,13 @@ function readinessArtifactContent(artifactPath: string): string {
             acceptedCount: 2,
             backlogSize: artifact.sampleSize,
             durationMs: 999,
+            overallDeadlineMs: 750,
             relayLatencyMs: 80,
+            requestDeadlineMs: 500,
           }
         : { count: 0 },
     sampleSize: artifact.sampleSize,
-    version: 1,
+    version: metric === 'drainThroughput' ? 2 : 1,
   });
 }
 
@@ -490,7 +492,10 @@ describe('real shared CLI to relay wiring', () => {
     }
 
     const requestIds = relay.observability.logs.map(log => log.requestId);
-    expect(requestIds).toHaveLength(6);
+    // The first lost response and the later cross-harness retry reach the
+    // relay. Intermediate surfaces observe the shared durable retry deferral
+    // instead of redundantly POSTing the same immutable request.
+    expect(requestIds).toHaveLength(2);
     expect(new Set(requestIds).size).toBe(1);
     expect(requestIds[0]).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u,
