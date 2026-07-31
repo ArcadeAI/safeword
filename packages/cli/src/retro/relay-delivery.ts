@@ -29,6 +29,7 @@ export const DEFAULT_RELAY_REQUEST_DEADLINE_MS = 500;
 export const RELAY_OVERALL_HEADROOM_MS = 250;
 export const RELAY_CLEANUP_RESERVE_MS = 100;
 const RELAY_RETRY_BACKOFF_MS = 60_000;
+const MAX_RELAY_RETRY_BACKOFF_MS = 60 * 60 * 1000;
 const RELAY_API_VERSION = '1';
 const RELAY_API_VERSION_HEADER = 'x-safeword-relay-api-version';
 
@@ -2343,7 +2344,10 @@ async function deferRelayClaim(
 ): Promise<void> {
   const previous = await retryScheduleFor(projectDirectory, claim.requestId);
   const attemptCount = (previous?.attemptCount ?? 0) + 1;
-  const delay = Math.min(RELAY_RETRY_BACKOFF_MS * 2 ** (attemptCount - 1), 60 * 60 * 1000);
+  const delay = Math.min(
+    RELAY_RETRY_BACKOFF_MS * 2 ** (attemptCount - 1),
+    MAX_RELAY_RETRY_BACKOFF_MS,
+  );
   await replaceAtomic(
     retrySchedulePath(projectDirectory, claim.requestId),
     Buffer.from(JSON.stringify({ attemptCount, nextAttemptAt: now + delay, version: 1 }), 'utf8'),

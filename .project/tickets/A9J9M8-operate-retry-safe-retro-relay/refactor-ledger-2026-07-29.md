@@ -24,6 +24,8 @@ an explicit disposition so no scout finding is silently dropped.
       helper.
 - [x] R12 Extract the repeated dead-letter fixture transition in CLI command
       tests while preserving byte-for-byte assertions.
+- [x] R21 Name the one-hour relay retry-backoff cap beside the named base
+      backoff policy.
 
 ## Explicitly deferred
 
@@ -111,3 +113,5 @@ feature lands. Deferral means no behavior change is hidden inside this pass.
   and `git diff --check` passed; relay Vitest 163 passed / 1 skipped; CLI Vitest
   5,673 passed / 5 skipped; BDD 620 scenarios and 19,857 steps passed, with 3
   scenarios / 4 steps intentionally skipped.
+- R21 preserves the existing one-hour cap while making the retry policy
+  explicit; focused spool and command suites passed after the extract.
