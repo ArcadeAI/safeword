@@ -87,10 +87,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-`sync-tracker` **fails loudly (non-zero exit)** when a provider is configured but no credential
-resolves — it never silently exits 0 and does nothing, so a misconfigured CI job turns red instead
-of quietly drifting. In a non-interactive run authenticated by an `ARCADE_USER_ID` (a user
-identity, not a service account), it also warns that a lapsed grant would otherwise fail silently.
+GitHub live sync **fails loudly (non-zero exit)** when no credential resolves — it never silently
+exits 0 and does nothing, so a misconfigured CI job turns red instead of quietly drifting. Plain
+Linear live sync also exits non-zero, but points directly to the supported portable path instead of
+asking for a credential that the unwired live adapter cannot use. In a non-interactive run
+authenticated by an `ARCADE_USER_ID` (a user identity, not a service account), Safeword also warns
+that a lapsed grant would otherwise fail silently.
 
 ### Portable transport (`--plan` / `--apply-results`)
 
@@ -123,12 +125,8 @@ First record the Linear team identity:
 safeword connect linear --team ENG
 ```
 
-The command writes the Linear provider and team to `.safeword/config.json`, then reports the
-following result and exits 1 because live verification is not wired:
-
-```text
-Not connected — Linear verification needs the Arcade integration — not wired in v1.
-```
+The command writes the Linear provider and team to `.safeword/config.json`, then reports
+`Not connected` and exits 1 because live Linear verification still needs the Arcade integration.
 
 That exit is expected for the portable path; the required config has already landed. The printed
 Arcade OAuth step does not enable live Linear sync in this release. Run `connect linear` once

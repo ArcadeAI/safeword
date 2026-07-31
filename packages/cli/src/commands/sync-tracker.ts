@@ -9,7 +9,11 @@ import { readFileSync } from 'node:fs';
 import process from 'node:process';
 
 import { applyResults } from '../tracker-sync/apply-results.js';
-import { buildWriterRegistry, resolveRepoVisibility } from '../tracker-sync/clients.js';
+import {
+  buildWriterRegistry,
+  LINEAR_LIVE_PROJECTION_GUIDANCE,
+  resolveRepoVisibility,
+} from '../tracker-sync/clients.js';
 import { readTicketBridgeConfig } from '../tracker-sync/config.js';
 import { emptyPlan, parseResults } from '../tracker-sync/contract.js';
 import { readCorpus } from '../tracker-sync/corpus.js';
@@ -153,7 +157,8 @@ export async function syncTrackerCommand(options: SyncTrackerCommandOptions = {}
     return;
   }
 
-  // No flag → the live one-way projection (unchanged gh/Linear path).
+  // No flag → the live one-way projection. GitHub uses its live writer; Linear
+  // reports the portable path until its live adapter is wired.
   await runLiveSync(cwd, config, options);
 }
 
@@ -163,6 +168,13 @@ async function runLiveSync(
   options: SyncTrackerCommandOptions,
 ): Promise<void> {
   const provider = supportedProvider(config.provider);
+  // Linear has no live adapter yet, so asking for a credential or sidecar first
+  // is a dead end. Point directly to the two supported transport paths.
+  if (provider === 'linear') {
+    console.log(LINEAR_LIVE_PROJECTION_GUIDANCE);
+    process.exitCode = 1;
+    return;
+  }
   const dependencies: SyncTrackerDependencies = {
     config,
     tickets: provider === undefined ? [] : readCorpus(cwd, config.target?.repo),

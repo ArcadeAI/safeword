@@ -167,11 +167,12 @@ function throwingClient(message: string): TrackerClient {
   return { createIssue: fail, updateIssue: fail, projectGraph: fail };
 }
 
+export const LINEAR_LIVE_PROJECTION_GUIDANCE =
+  'Linear live projection is not wired. Adopt an existing Linear issue with `safeword ticket new <slug> --issue <key>`, or sync existing local tickets through `safeword sync-tracker --plan` and `--apply-results`.';
+
 /** The Linear live client is pending the Arcade integration. */
 function linearNotWired(): TrackerClient {
-  return throwingClient(
-    'Linear live projection is not wired. Adopt an existing Linear issue with `safeword ticket new <slug> --issue <key>`, or sync existing local tickets through `safeword sync-tracker --plan` and `--apply-results`.',
-  );
+  return throwingClient(LINEAR_LIVE_PROJECTION_GUIDANCE);
 }
 
 /** A placeholder client for the non-selected provider — never invoked. */

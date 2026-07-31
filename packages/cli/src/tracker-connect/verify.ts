@@ -27,7 +27,7 @@ export function createVerifyClient(): VerifyClient {
       if (provider === 'linear') {
         return Promise.resolve({
           ok: false,
-          missing: 'Linear verification needs the Arcade integration — not wired in v1',
+          missing: 'Linear verification needs the Arcade integration — not wired yet',
         });
       }
       try {
