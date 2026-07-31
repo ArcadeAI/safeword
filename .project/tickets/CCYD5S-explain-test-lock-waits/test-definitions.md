@@ -39,9 +39,9 @@ When the runner waits for its configured wait cap
 Then it reports status no more often than the supported minimum interval
 And malformed interval settings fall back to the default interval
 
-- [x] RED: the runner honored a one-millisecond interval and had no malformed-setting coverage
-- [x] GREEN: shared configuration parsing clamps unsafe values and tests pass
-- [x] REFACTOR: one parser owns integer environment-variable validation
+- [x] RED 09ac816ab
+- [x] GREEN 09ac816ab
+- [x] REFACTOR 09ac816ab
 
 ## Patch-level refactor
 

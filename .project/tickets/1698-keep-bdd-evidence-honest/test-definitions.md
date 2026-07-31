@@ -54,9 +54,9 @@ When the Codex plugin catalogue is regenerated and release tests run
 Then its generated BDD and TDD-review skills contain the same contract
 And the release catalogue accepts every generated asset exactly
 
-- [x] RED: `bun run --cwd packages/cli test:release` rejected the stale generated assets
-- [x] GREEN: regenerate the Codex plugin and pass the release suite
-- [x] REFACTOR: generated output remains owned by its generator rather than hand-edited
+- [x] RED 09ac816ab
+- [x] GREEN 09ac816ab
+- [x] REFACTOR 09ac816ab
 
 ## Feature-level cross-scenario refactor
 
