@@ -14,11 +14,9 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { shapeFingerprint } from './architecture-fingerprint.js';
+import { shapeFingerprintOf } from './architecture-fingerprint.js';
 import {
-  discoverLeafDirectories,
-  discoverUnreadableWorkspaces,
-  extractMonorepoModel,
+  extractMonorepoArchitectureSnapshot,
   monorepoFingerprintOf,
   type MonorepoModel,
   type PackageNode,
@@ -28,6 +26,7 @@ import { reconcileSections, type SectionStatus } from './architecture-reconcile.
 import {
   extractSkeleton,
   PURPOSE_PLACEHOLDER,
+  type Skeleton,
   type SkeletonNode,
 } from './architecture-skeleton.js';
 import {
@@ -167,9 +166,9 @@ function planTarget(target: HealTarget): SelfHealAction {
 }
 
 /** A `src/`-skeleton doc: the skeleton of `directory`, rendered to `path`. */
-function skeletonTarget(directory: string, path: string): HealTarget {
-  const fingerprint = shapeFingerprint(directory);
-  const nodes = extractSkeleton(directory).nodes;
+function skeletonTarget(directory: string, path: string, skeleton: Skeleton): HealTarget {
+  const fingerprint = shapeFingerprintOf(directory, skeleton);
+  const nodes = skeleton.nodes;
   return {
     path,
     fingerprint,
@@ -181,21 +180,25 @@ function skeletonTarget(directory: string, path: string): HealTarget {
 }
 
 /** The single-repo doc: the project's `src/` skeleton at the namespace-root path. */
-function singleRepoTarget(projectDirectory: string): HealTarget {
-  return skeletonTarget(projectDirectory, resolveGeneratedArchitecturePath(projectDirectory));
+function singleRepoTarget(projectDirectory: string, workspaceRoot = false): HealTarget {
+  return skeletonTarget(
+    projectDirectory,
+    resolveGeneratedArchitecturePath(projectDirectory),
+    extractSkeleton(projectDirectory, { workspaceRoot }),
+  );
 }
 
 /** A colocated leaf: the package's own skeleton at `packages/<pkg>/architecture.generated.md`. */
-function leafTarget(packageDirectory: string): HealTarget {
+function leafTarget(packageDirectory: string, skeleton: Skeleton): HealTarget {
   return skeletonTarget(
     packageDirectory,
     nodePath.join(packageDirectory, GENERATED_ARCHITECTURE_FILENAME),
+    skeleton,
   );
 }
 
 /** The derived root index: the package graph at the namespace-root path. */
-function rootIndexTarget(projectDirectory: string): HealTarget {
-  const model = extractMonorepoModel(projectDirectory);
+function rootIndexTarget(projectDirectory: string, model: MonorepoModel): HealTarget {
   const fingerprint = monorepoFingerprintOf(projectDirectory, model);
   return {
     path: resolveGeneratedArchitecturePath(projectDirectory),
@@ -212,15 +215,18 @@ function rootIndexTarget(projectDirectory: string): HealTarget {
 
 /** The targets a project heals: single-repo → one; monorepo → root index + per-leaf. */
 function projectTargets(projectDirectory: string): HealTarget[] {
-  const leaves = discoverLeafDirectories(projectDirectory);
+  const { model, leaves, workspaceRoot } = extractMonorepoArchitectureSnapshot(projectDirectory);
   // A repo whose ONLY workspace signal is an unparseable manager (zero discovered leaves)
   // is still a monorepo we must not mistake for a single-repo: render the root index so the
   // "config unreadable" advisory has a home, rather than silently emitting a single-repo doc
   // that omits the whole declared-but-unreadable workspace (UWP4XK).
-  if (leaves.length === 0 && discoverUnreadableWorkspaces(projectDirectory).length === 0) {
-    return [singleRepoTarget(projectDirectory)];
+  if (model.packages.length === 0 && model.unreadableWorkspaces.length === 0) {
+    return [singleRepoTarget(projectDirectory, workspaceRoot)];
   }
-  return [rootIndexTarget(projectDirectory), ...leaves.map(leaf => leafTarget(leaf))];
+  return [
+    rootIndexTarget(projectDirectory, model),
+    ...leaves.map(leaf => leafTarget(leaf.dir, leaf.skeleton)),
+  ];
 }
 
 export function selfHeal(projectDirectory: string): SelfHealResult {

@@ -46,8 +46,8 @@ import {
   type SelfHealResult,
 } from '../utils/architecture-document.js';
 import {
-  discoverLeafDirectories,
   discoverUnreadableWorkspaces,
+  extractMonorepoArchitectureSnapshot,
 } from '../utils/architecture-monorepo.js';
 import {
   GENERATED_ARCHITECTURE_FILENAME,
@@ -422,11 +422,10 @@ function assertPhysicalContainment(rootDirectory: string, candidatePath: string)
 
 /** Validate every path selfHealProject may write before allowing its first write. */
 function assertSnapshotHealTargetsContained(snapshotDirectory: string): void {
+  const { leaves } = extractMonorepoArchitectureSnapshot(snapshotDirectory);
   const targets = [
     resolveGeneratedArchitecturePath(snapshotDirectory),
-    ...discoverLeafDirectories(snapshotDirectory).map(directory =>
-      nodePath.join(directory, GENERATED_ARCHITECTURE_FILENAME),
-    ),
+    ...leaves.map(leaf => nodePath.join(leaf.dir, GENERATED_ARCHITECTURE_FILENAME)),
   ];
   for (const target of targets) {
     assertPhysicalContainment(snapshotDirectory, target);

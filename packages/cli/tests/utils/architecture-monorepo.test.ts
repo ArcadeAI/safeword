@@ -11,15 +11,28 @@ import nodePath from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
-  discoverLeafDirectories,
   discoverUnreadableWorkspaces,
   discoverWorkspaces,
-  extractMonorepoModel,
-  monorepoFingerprint,
+  extractMonorepoArchitectureSnapshot,
+  monorepoFingerprintOf,
+  type MonorepoModel,
 } from '../../src/utils/architecture-monorepo.js';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
 
 const context: { directory: string } = { directory: '' };
+
+function discoverLeafDirectories(projectDirectory: string): string[] {
+  return extractMonorepoArchitectureSnapshot(projectDirectory).leaves.map(leaf => leaf.dir);
+}
+
+function extractMonorepoModel(projectDirectory: string): MonorepoModel {
+  return extractMonorepoArchitectureSnapshot(projectDirectory).model;
+}
+
+function monorepoFingerprint(projectDirectory: string): string {
+  const { model } = extractMonorepoArchitectureSnapshot(projectDirectory);
+  return monorepoFingerprintOf(projectDirectory, model);
+}
 
 function writeManifest(dir: string, manifest: Record<string, unknown>): void {
   mkdirSync(dir, { recursive: true });

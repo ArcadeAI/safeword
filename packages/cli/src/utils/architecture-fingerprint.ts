@@ -13,7 +13,7 @@ import { createHash } from 'node:crypto';
 import { type Dirent, readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { extractSkeleton } from './architecture-skeleton.js';
+import { extractSkeleton, type Skeleton } from './architecture-skeleton.js';
 import { readBoundaryConfig } from './boundary-config.js';
 import { readCargoDependencyNames } from './cargo-manifest.js';
 import { readJson } from './fs.js';
@@ -47,13 +47,9 @@ interface ShapeInputs {
   schemaFiles: string[];
 }
 
-function collectShapeInputs(projectDirectory: string): ShapeInputs {
-  const moduleNames = extractSkeleton(projectDirectory)
-    .nodes.map(node => node.name)
-    .toSorted(byString);
-
+function collectShapeInputs(projectDirectory: string, skeleton: Skeleton): ShapeInputs {
   return {
-    moduleNames,
+    moduleNames: skeleton.nodes.map(node => node.name).toSorted(byString),
     dependencyNames: readDependencyNames(projectDirectory),
     boundaryConfig: readBoundaryConfig(projectDirectory),
     schemaFiles: collectSchemaFiles(projectDirectory),
@@ -61,7 +57,15 @@ function collectShapeInputs(projectDirectory: string): ShapeInputs {
 }
 
 export function shapeFingerprint(projectDirectory: string): string {
-  const inputs = collectShapeInputs(projectDirectory);
+  return shapeFingerprintOf(projectDirectory, extractSkeleton(projectDirectory));
+}
+
+/**
+ * {@link shapeFingerprint} over an already-extracted skeleton, so an architecture
+ * operation can use one coherent leaf snapshot for fingerprinting and rendering.
+ */
+export function shapeFingerprintOf(projectDirectory: string, skeleton: Skeleton): string {
+  const inputs = collectShapeInputs(projectDirectory, skeleton);
   return createHash('sha256').update(JSON.stringify(inputs)).digest('hex');
 }
 

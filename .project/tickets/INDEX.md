@@ -10,7 +10,10 @@
 ## Tickets (457)
 
 ## Tickets (455)
+
 ## Tickets (461)
+
+## Tickets (462)
 
 ### 001
 
@@ -1425,6 +1428,11 @@
 - **Audit checks namespace domain docs for emptiness and drift (N0W5KG)** (done, epic: —)
   {One sentence: what are we trying to achieve?}
   → `.project/tickets/N0W5KG-audit-domain-docs-freshness`
+- **Reuse monorepo topology during architecture healing (N3JTV5)** (done, epic: —)
+  Build one monorepo model per architecture operation and reuse it for root and leaf work without changing output.
+  external issue: https://github.com/ArcadeAI/safeword/issues/1667
+  external PRs: https://github.com/ArcadeAI/safeword/pull/1685
+  → `.project/tickets/N3JTV5-avoid-repeated-monorepo-architecture-discovery`
 - **Boundary push tier: evaluate phase legality per commit in the range, not at endpoints (N76NQ0)** (done, epic: —)
   A multi-commit push whose intermediate commits legally traversed phases must not warn; a range whose commits actually skipped a phase still warns.
   → `.project/tickets/N76NQ0-push-tier-per-commit-legality`
