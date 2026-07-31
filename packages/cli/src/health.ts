@@ -38,6 +38,7 @@ import {
   findFeatureSourcePath,
   hasDefaultExecutableFeatureFiles,
 } from './utils/feature-source.js';
+import { readFrontmatterScalar } from './utils/frontmatter.js';
 import { exists, isDirectory, readFileSafe, readJson } from './utils/fs.js';
 import { FeatureParseError, findFeatureLineageIssues } from './utils/gherkin-feature.js';
 import { parseGlossary, validateGlossary } from './utils/glossary.js';
@@ -538,25 +539,9 @@ function formatSurfaceCoverageReport(
   ];
 }
 
-function coverageTicketScalar(
-  ticketContent: string | undefined,
-  field: string,
-): string | undefined {
-  const lines = ticketContent?.split(/\r?\n/) ?? [];
-  if (lines[0] !== '---') return undefined;
-  const prefix = `${field}:`;
-  for (const line of lines.slice(1)) {
-    if (line === '---') return undefined;
-    if (!line.startsWith(prefix)) continue;
-    const value = line.slice(prefix.length).trim();
-    return value === '' ? undefined : value;
-  }
-  return undefined;
-}
-
 function formatCoverageTicketLabel(ticketId: string, ticketContent?: string): string {
-  const id = coverageTicketScalar(ticketContent, 'id');
-  const slug = coverageTicketScalar(ticketContent, 'slug');
+  const id = readFrontmatterScalar(ticketContent, 'id');
+  const slug = readFrontmatterScalar(ticketContent, 'slug');
   if (id !== undefined && slug !== undefined) return formatTicketReference(id, slug);
 
   const dashIndex = ticketId.indexOf('-');
