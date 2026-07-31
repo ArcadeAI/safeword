@@ -61,11 +61,13 @@ export function relayReadinessMeasurementContent(
             acceptedCount: 2,
             backlogSize: artifact.sampleSize,
             durationMs: 999,
+            overallDeadlineMs: 750,
             relayLatencyMs: 80,
+            requestDeadlineMs: 500,
           }
         : { count: 0 },
     sampleSize: artifact.sampleSize,
-    version: 1,
+    version: metric === 'drainThroughput' ? 2 : 1,
   });
 }
 

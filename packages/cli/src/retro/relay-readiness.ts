@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 
+import { DEFAULT_RELAY_REQUEST_DEADLINE_MS, RELAY_OVERALL_HEADROOM_MS } from './relay-delivery.js';
 import checkedInRelayReadiness from './relay-readiness-manifest.json' with { type: 'json' };
 
 interface RelayMeasurementArtifact {
@@ -205,10 +206,11 @@ function hasValidDrainThroughputResult(
     validBacklogSize(measurement.backlogSize, sampleSize) &&
     validDrainDuration(measurement.durationMs) &&
     validRelayLatency(measurement.relayLatencyMs) &&
-    (version !== 2 ||
-      (validDrainBudget(measurement.requestDeadlineMs) &&
-        validDrainBudget(measurement.overallDeadlineMs) &&
-        measurement.overallDeadlineMs >= measurement.requestDeadlineMs))
+    version === 2 &&
+    validDrainBudget(measurement.requestDeadlineMs) &&
+    validDrainBudget(measurement.overallDeadlineMs) &&
+    measurement.requestDeadlineMs === DEFAULT_RELAY_REQUEST_DEADLINE_MS &&
+    measurement.overallDeadlineMs === DEFAULT_RELAY_REQUEST_DEADLINE_MS + RELAY_OVERALL_HEADROOM_MS
   );
 }
 
@@ -232,7 +234,7 @@ function validMeasurementEvidence(
   if (record === undefined) return false;
   return (
     hasMeasurementShape(record) &&
-    (record.version === 1 || (metric === 'drainThroughput' && record.version === 2)) &&
+    (metric === 'drainThroughput' ? record.version === 2 : record.version === 1) &&
     record.repository === 'ArcadeAI/safeword' &&
     record.metric === metric &&
     record.measuredAt === artifact.measuredAt &&

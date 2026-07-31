@@ -27,6 +27,8 @@ export interface RelayDraftRequest {
 
 export const DEFAULT_RELAY_REQUEST_DEADLINE_MS = 500;
 export const RELAY_OVERALL_HEADROOM_MS = 250;
+export const RELAY_CLEANUP_RESERVE_MS = 100;
+const RELAY_RETRY_BACKOFF_MS = 60_000;
 const RELAY_API_VERSION = '1';
 const RELAY_API_VERSION_HEADER = 'x-safeword-relay-api-version';
 
@@ -106,7 +108,7 @@ export class RelaySpoolCorruptionError extends Error {
   readonly requestIds: string[];
 
   constructor(requestIds: string[]) {
-    super('relay spool contains a corrupt durable identity record');
+    super(`corrupt durable identity: ${requestIds.join(', ')}`);
     this.name = 'RelaySpoolCorruptionError';
     this.requestIds = requestIds;
   }
@@ -240,6 +242,10 @@ function materializingPath(projectDirectory: string, requestId: string): string 
 
 function discardedPath(projectDirectory: string, requestId: string): string {
   return requestPath(projectDirectory, requestId, '.discarded');
+}
+
+function retrySchedulePath(projectDirectory: string, requestId: string): string {
+  return requestPath(projectDirectory, requestId, '.retry-schedule');
 }
 
 function discardIntentTokenPath(
@@ -1001,11 +1007,29 @@ async function prepareRelayDraftPersistence(
   projectDirectory: string,
 ): Promise<RelayDraftPersistenceSnapshot> {
   const initial = await recoveredRelayQueueSnapshot(projectDirectory, Date.now());
-  await quarantineMalformedActiveRequests(projectDirectory, initial.active);
+  const malformed = initial.active.filter(
+    candidate => parseDurableRequest(candidate) === undefined,
+  );
+  if (malformed.length === 0)
+    return persistenceSnapshot(initial.active, initial.deadLetters, initial.directory);
+  const reservedIds = await reservedRequestIds(initial.directory);
+  const unreserved = malformed
+    .map(candidate => candidate.requestId)
+    .filter(requestId => !reservedIds.has(requestId));
+  if (unreserved.length > 0) throw new RelaySpoolCorruptionError(unreserved);
+  await quarantineMalformedActiveRequests(projectDirectory, malformed);
   const { active, deadLetters, directory } = await recoveredRelayQueueSnapshot(
     projectDirectory,
     Date.now(),
   );
+  return persistenceSnapshot(active, deadLetters, directory);
+}
+
+function persistenceSnapshot(
+  active: DurableRelayFile[],
+  deadLetters: DurableRelayFile[],
+  directory: string,
+): RelayDraftPersistenceSnapshot {
   const activeRequests = active.map(candidate => ({
     request: parseDurableRequest(candidate),
   }));
@@ -1023,6 +1047,25 @@ async function prepareRelayDraftPersistence(
     }
   }
   return { directory, durableRequestsBySource };
+}
+
+async function reservedRequestIds(directory: string): Promise<Set<string>> {
+  const requestIds = new Set<string>();
+  const filenames = await sortedFilenames(directory);
+  for (const filename of filenames) {
+    if (!SOURCE_RESERVATION_FILENAME_PATTERN.test(filename)) continue;
+    try {
+      const reservation = JSON.parse(
+        await readFile(path.join(directory, filename), 'utf8'),
+      ) as unknown;
+      if (sourceReservationShape(reservation) && reservation.state === 'active') {
+        requestIds.add(reservation.request.requestId);
+      }
+    } catch {
+      // A corrupt source reservation cannot prove a request's identity.
+    }
+  }
+  return requestIds;
 }
 
 async function quarantineMalformedActiveRequests(
@@ -1902,6 +1945,7 @@ async function deadLetterClaim(projectDirectory: string, claim: RelayClaim): Pro
   try {
     await linkDurable(claim.path, deadLetter);
     await unlinkDurable(claim.path);
+    await removeRetrySchedule(projectDirectory, claim.requestId);
   } catch (error) {
     if (!['ENOENT', 'EEXIST'].includes(errorCode(error) ?? '')) throw error;
   }
@@ -1997,6 +2041,7 @@ export async function rearmRelayDeadLetter(
   try {
     await linkDurable(claim.path, primary);
     await unlinkDurable(claim.path);
+    await removeRetrySchedule(projectDirectory, requestId);
     return true;
   } catch (error) {
     if (errorCode(error) === 'EEXIST') {
@@ -2263,6 +2308,51 @@ function orderedRelayCandidates(candidates: DurableRelayFile[]): DurableRelayFil
     .map(({ candidate }) => candidate);
 }
 
+type RelayRetrySchedule = { attemptCount: number; nextAttemptAt: number; version: 1 };
+
+async function retryScheduleFor(
+  projectDirectory: string,
+  requestId: string,
+): Promise<RelayRetrySchedule | undefined> {
+  try {
+    const value = JSON.parse(
+      await readFile(retrySchedulePath(projectDirectory, requestId), 'utf8'),
+    ) as unknown;
+    if (
+      typeof value !== 'object' ||
+      value === null ||
+      (value as Record<string, unknown>).version !== 1 ||
+      !Number.isSafeInteger((value as Record<string, unknown>).attemptCount) ||
+      !Number.isFinite((value as Record<string, unknown>).nextAttemptAt)
+    ) {
+      throw new Error('invalid relay retry schedule');
+    }
+    return value as RelayRetrySchedule;
+  } catch (error) {
+    if (errorCode(error) === 'ENOENT') return undefined;
+    throw error;
+  }
+}
+
+async function deferRelayClaim(
+  projectDirectory: string,
+  claim: RelayClaim,
+  now: number,
+): Promise<void> {
+  const previous = await retryScheduleFor(projectDirectory, claim.requestId);
+  const attemptCount = (previous?.attemptCount ?? 0) + 1;
+  const delay = Math.min(RELAY_RETRY_BACKOFF_MS * 2 ** (attemptCount - 1), 60 * 60 * 1000);
+  await replaceAtomic(
+    retrySchedulePath(projectDirectory, claim.requestId),
+    Buffer.from(JSON.stringify({ attemptCount, nextAttemptAt: now + delay, version: 1 }), 'utf8'),
+  );
+  await rearmClaim(projectDirectory, claim);
+}
+
+async function removeRetrySchedule(projectDirectory: string, requestId: string): Promise<void> {
+  await removeIfPresent(retrySchedulePath(projectDirectory, requestId));
+}
+
 function isReportedTerminalRelayReceipt(
   receipt: RelayReceipt,
 ): receipt is RelayReportedTerminalReceipt {
@@ -2307,6 +2397,8 @@ export async function deliverRelayRequests(
   for (const request of orderedRelayCandidates(initial)) {
     if (monotonicNow() >= overallDeadline) break;
     if (processed.has(request.requestId)) continue;
+    const retrySchedule = await retryScheduleFor(projectDirectory, request.requestId);
+    if (retrySchedule !== undefined && retrySchedule.nextAttemptAt > options.now()) continue;
     const claim = await claimSpecificRelayRequest(projectDirectory, request.requestId, {
       claimId: randomUUID(),
       leaseMs: Math.max(options.deadlineMs * 2, 1000),
@@ -2328,15 +2420,14 @@ export async function deliverRelayRequests(
       continue;
     }
     const remainingOverallMs = overallDeadline - monotonicNow();
-    if (remainingOverallMs <= 0) {
+    if (remainingOverallMs < options.deadlineMs + RELAY_CLEANUP_RESERVE_MS) {
       await rearmClaim(projectDirectory, claim);
       break;
     }
-    const attemptDeadlineMs = Math.min(options.deadlineMs, remainingOverallMs);
     const controller = new AbortController();
     const timer = setTimeout(() => {
       controller.abort();
-    }, attemptDeadlineMs);
+    }, options.deadlineMs);
     timer.unref();
     try {
       const relayOrigin = normalizeRelayOrigin(options.relayUrl);
@@ -2361,11 +2452,12 @@ export async function deliverRelayRequests(
       if (body === undefined) throw new Error('relay returned an invalid durable receipt');
       assertAcknowledgeableRelayReceipt(body, claim.requestId);
       if (await acknowledgeRelayClaim(claim, body)) {
+        await removeRetrySchedule(projectDirectory, claim.requestId);
         accepted += 1;
         if (isReportedTerminalRelayReceipt(body)) serverReportedTerminalReceipts.push(body);
       }
     } catch {
-      await rearmClaim(projectDirectory, claim);
+      await deferRelayClaim(projectDirectory, claim, options.now());
     } finally {
       clearTimeout(timer);
     }

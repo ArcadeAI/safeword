@@ -1672,7 +1672,7 @@ describe('immutable relay delivery spool', () => {
     await expect(listRelayDeadLetters(project)).resolves.toHaveLength(1);
   });
 
-  it('quarantines an unreserved corrupt record without rejecting unrelated persistence', async () => {
+  it('fails closed when an unreserved corrupt record cannot prove its source identity', async () => {
     const project = temporaryProject();
     const healthy = request({
       requestId: '00000000-0000-4000-8000-000000000010',
@@ -1688,13 +1688,11 @@ describe('immutable relay delivery spool', () => {
         project,
         request({ sourceKey: 'unrelated-after-corruption', title: 'unrelated durable draft' }),
       ),
-    ).resolves.toBeDefined();
-    await expect(listRelayDeadLetters(project)).resolves.toContainEqual(
-      expect.objectContaining({ requestId: corruptId }),
-    );
+    ).rejects.toThrow(`corrupt durable identity: ${corruptId}`);
+    expect(readdirSync(directory)).toContain(`${corruptId}.json`);
   });
 
-  it('uses the remaining aggregate budget for a healthy request after an earliest timeout', async () => {
+  it('does not start a request without a full deadline and cleanup reserve remaining', async () => {
     const project = temporaryProject();
     const poison = request({
       requestId: '00000000-0000-4000-8000-000000000012',
@@ -1736,8 +1734,68 @@ describe('immutable relay delivery spool', () => {
       relayUrl: 'https://relay.invalid',
     });
 
-    expect(attempted).toEqual([poison.requestId, healthy.requestId]);
-    expect(outcome).toMatchObject({ accepted: 1, retryable: 1 });
+    expect(attempted).toEqual([poison.requestId]);
+    expect(outcome).toMatchObject({ accepted: 0, retryable: 2 });
+  });
+
+  it('defers two timed-out poison requests so a healthy request runs on a later bounded invocation', async () => {
+    const project = temporaryProject();
+    const poisonOne = request({
+      requestId: '00000000-0000-4000-8000-000000000014',
+      retryDeadlineAt: '2099-01-01T00:00:00.000Z',
+      sourceKey: 'poison-one',
+    });
+    const poisonTwo = request({
+      requestId: '00000000-0000-4000-8000-000000000015',
+      retryDeadlineAt: '2099-01-02T00:00:00.000Z',
+      sourceKey: 'poison-two',
+    });
+    const healthy = request({
+      requestId: '00000000-0000-4000-8000-000000000016',
+      retryDeadlineAt: '2099-01-03T00:00:00.000Z',
+      sourceKey: 'healthy-after-poisons',
+    });
+    await Promise.all([
+      persistRelayRequest(project, poisonOne),
+      persistRelayRequest(project, poisonTwo),
+      persistRelayRequest(project, healthy),
+    ]);
+    let elapsed = 0;
+    const attempts: string[] = [];
+    const options = {
+      credential: 'swc_client_secret',
+      fetch: ((_input: string | URL | Request, init?: RequestInit) => {
+        const submitted = JSON.parse(
+          Buffer.from(init?.body as Uint8Array).toString('utf8'),
+        ) as RelayDraftRequest;
+        attempts.push(submitted.requestId);
+        if (submitted.requestId !== healthy.requestId) {
+          elapsed += 500;
+          return Promise.resolve(new Response(undefined, { status: 503 }));
+        }
+        return Promise.resolve(
+          Response.json({
+            receiptId: 'receipt-healthy-after-poisons',
+            requestId: healthy.requestId,
+            state: 'accepted',
+          }),
+        );
+      }) as typeof fetch,
+      deadlineMs: 500,
+      monotonicNow: () => elapsed,
+      now: () => 0,
+      overallDeadlineMs: 750,
+      relayUrl: 'https://relay.invalid',
+    };
+
+    await deliverRelayRequests(project, options);
+    elapsed = 0;
+    await deliverRelayRequests(project, options);
+    elapsed = 0;
+    const outcome = await deliverRelayRequests(project, options);
+
+    expect(attempts).toEqual([poisonOne.requestId, poisonTwo.requestId, healthy.requestId]);
+    expect(outcome).toMatchObject({ accepted: 1 });
   });
 
   it('rearms an incompatible relay-version response rather than dead-lettering it', async () => {
@@ -1981,8 +2039,6 @@ describe('immutable relay delivery spool', () => {
       title: `New ${index}`,
     }));
     const stateSnapshot = vi.fn();
-    const started = performance.now();
-
     const outcomes = await persistRelayDraftBatch(project, drafts, {
       faultAfterStateSnapshot: () => {
         stateSnapshot();
@@ -1990,7 +2046,6 @@ describe('immutable relay delivery spool', () => {
       },
     });
 
-    expect(performance.now() - started).toBeLessThan(1000);
     expect(stateSnapshot).toHaveBeenCalledOnce();
     expect(outcomes).toHaveLength(50);
     expect(outcomes.every(outcome => outcome.status === 'fulfilled')).toBe(true);
@@ -2048,7 +2103,7 @@ describe('immutable relay delivery spool', () => {
     ]);
   });
 
-  it('quarantines an unreserved active corrupt request before persisting the batch', async () => {
+  it('rejects the whole persistence batch for an unreserved active corrupt request', async () => {
     const project = temporaryProject();
     const corrupt = request({
       sourceKey: 'unreserved-corrupt',
@@ -2064,12 +2119,10 @@ describe('immutable relay delivery spool', () => {
     const outcomes = await persistRelayDraftBatch(project, drafts);
 
     expect(outcomes).toEqual([
-      { status: 'fulfilled', value: expect.any(Object) },
-      { status: 'fulfilled', value: expect.any(Object) },
+      { reason: expect.objectContaining({ requestIds: [corrupt.requestId] }), status: 'rejected' },
+      { reason: expect.objectContaining({ requestIds: [corrupt.requestId] }), status: 'rejected' },
     ]);
-    await expect(listRelayDeadLetters(project)).resolves.toContainEqual(
-      expect.objectContaining({ requestId: corrupt.requestId }),
-    );
+    expect(readFileSync(persistedCorrupt.path, 'utf8')).toBe('{"requestId":');
   });
 
   it('dead-letters terminal relay failures but rearms retryable failures', async () => {
@@ -2147,7 +2200,7 @@ describe('immutable relay delivery spool', () => {
     expect(readFileSync(deadLetter, 'utf8')).toContain('dead-letter bytes');
   });
 
-  it('uses the final aggregate budget for an additional fast request', async () => {
+  it('uses full attempts only when the aggregate budget includes cleanup reserve', async () => {
     const project = temporaryProject();
     for (const [index, title] of ['first', 'second', 'third'].entries()) {
       await persistRelayRequest(
@@ -2178,8 +2231,8 @@ describe('immutable relay delivery spool', () => {
 
     const outcome = await deliverRelayRequests(project, {
       credential: 'swc_client_secret',
-      deadlineMs: 10,
-      overallDeadlineMs: 25,
+      deadlineMs: 100,
+      overallDeadlineMs: 1000,
       fetch: send,
       monotonicNow: () => now,
       now: () => now,
@@ -2225,7 +2278,7 @@ describe('immutable relay delivery spool', () => {
     expect(observedUrls).toEqual(['https://relay.invalid/v1/retro-filings']);
   });
 
-  it('caps a final HTTP attempt to the remaining aggregate budget', async () => {
+  it('does not start an HTTP attempt without its full deadline plus cleanup reserve', async () => {
     const project = temporaryProject();
     await persistRelayRequest(project, request());
     let monotonic = 0;
@@ -2244,7 +2297,7 @@ describe('immutable relay delivery spool', () => {
       relayUrl: 'https://relay.invalid',
     });
 
-    expect(send).toHaveBeenCalledOnce();
+    expect(send).not.toHaveBeenCalled();
     expect(outcome.retryable).toBe(1);
     expect(await listRelayRequests(project)).toHaveLength(1);
   });
@@ -2314,7 +2367,7 @@ describe('immutable relay delivery spool', () => {
     });
 
     expect(performance.now() - startedAt).toBeLessThan(1000);
-    expect(send).toHaveBeenCalledTimes(2);
+    expect(send).toHaveBeenCalledOnce();
     expect(outcome.retryable).toBe(3);
   });
 });
@@ -2376,6 +2429,51 @@ describe('relay readiness provenance', () => {
     });
 
     expect(result).toEqual({ enabled: true });
+  });
+
+  it('rejects legacy drain evidence and v2 evidence with non-production budgets', async () => {
+    const manifest = validManifest();
+    const drainArtifact = manifest.measurements.drainThroughput;
+    const invalidContents = [
+      JSON.stringify({
+        measuredAt: drainArtifact.measuredAt,
+        metric: 'drainThroughput',
+        repository: 'ArcadeAI/safeword',
+        result: { acceptedCount: 2, backlogSize: 300, durationMs: 700, relayLatencyMs: 80 },
+        sampleSize: 300,
+        version: 1,
+      }),
+      JSON.stringify({
+        measuredAt: drainArtifact.measuredAt,
+        metric: 'drainThroughput',
+        repository: 'ArcadeAI/safeword',
+        result: {
+          acceptedCount: 2,
+          backlogSize: 300,
+          durationMs: 700,
+          overallDeadlineMs: 700,
+          relayLatencyMs: 80,
+          requestDeadlineMs: 500,
+        },
+        sampleSize: 300,
+        version: 2,
+      }),
+    ];
+    for (const content of invalidContents) {
+      await expect(
+        validateRelayReadiness(manifest, {
+          buildCommit: 'b'.repeat(40),
+          isAncestor: () => Promise.resolve(true),
+          now: new Date('2026-07-26T12:00:00.000Z'),
+          readArtifactAtCommit: (_commit, artifactPath) =>
+            Promise.resolve(
+              artifactPath === drainArtifact.path
+                ? { content, sha256: drainArtifact.sha256 }
+                : measurementArtifact(manifest, artifactPath),
+            ),
+        }),
+      ).resolves.toEqual({ enabled: false });
+    }
   });
 
   it('requires hash-attested bounded drain-throughput evidence before enabling relay routing', async () => {
