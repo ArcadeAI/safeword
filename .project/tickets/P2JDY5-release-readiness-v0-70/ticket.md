@@ -6,7 +6,7 @@ phase: done
 status: done
 subtype: bug-investigated
 created: 2026-07-31T01:26:54.405Z
-last_modified: 2026-07-31T14:04:45.000Z
+last_modified: 2026-07-31T15:59:30.000Z
 ---
 
 # Ship a clean release for safeword users
@@ -64,12 +64,14 @@ closing tracking items whose acceptance criteria are not demonstrably complete.
 - [x] Tracker identities reject path separators, absolute paths, dot segments, control characters, and malicious writer responses before any callback or filesystem mutation.
 - [x] Hyphenated tracker IDs retain their metadata-defined ID and slug in feature-source, provenance, and health output.
 - [x] A connected-provider wiring test crosses the real command/config/writer/process/sidecar/filesystem path with only `gh` replaced at the process boundary.
+- [x] Keychain-only sync authentication crosses the real command/config/corpus/writer/process/sidecar path with only `gh` replaced at the process boundary.
 - [x] Graph projection omits self-parent and self-blocker edges consistently in plan and live-sync paths.
 - [x] `safeword test-plan` verify, BDD, build, typecheck, and dependency lanes pass.
 - [x] Package release tests and package-content validation pass.
 - [x] Template/schema/installed-config parity checks pass.
 - [x] Architecture, dead-code, duplication, test-quality, and documentation audits have no release-blocking findings.
 - [x] Tracker identities cannot produce Windows-reserved composed ticket-folder names; superficially reserved raw IDs remain accepted when the required slug suffix makes the final folder portable.
+- [x] The copyable GitHub Actions workflow pins each external action to a verified immutable commit SHA with its release tag documented inline.
 
 ## Work Log
 
@@ -82,6 +84,9 @@ closing tracking items whose acceptance criteria are not demonstrably complete.
 - 2026-07-31T05:03:11.000Z Complete: Final independent review approved with no critical or high-severity findings. Updated the documented GitHub Actions example to the verified current v7 releases; website typecheck and production build passed.
 - 2026-07-31T13:49:12.000Z Reopened: Fast-forwarded three reviewer commits, merged current main, fetched all PR review threads, and investigated the remaining Windows filename portability note against Microsoft and Git primary sources. RED coverage proved only reserved device names followed by an extension remain unsafe after the required slug suffix.
 - 2026-07-31T14:04:45.000Z Complete: Independent re-review approved with no critical issues. Full verification passed 5,663 tests, 499 BDD scenarios, release packaging, lint, typecheck, parity, architecture, dead-code, website, and production dependency gates.
+- 2026-07-31T15:35:00.000Z Reopened: Refreshed PR comments and an independent full-diff review found no blockers; accepted two non-blocking release-hardening improvements for keychain-only sync wiring proof and immutable Actions references in the copyable workflow.
+- 2026-07-31T15:39:00.000Z Implemented: Extended the real `sync-tracker` command wiring proof from keychain preflight through a fake `gh` issue write and recorded sidecar reference, pinned the copyable workflow to verified Actions SHAs, and removed the verification record's diff-check whitespace error. The focused wiring suite is green.
+- 2026-07-31T15:59:30.000Z Complete: Three independent review passes approved with no critical issues. Full verification passed 5,663 tests, 499 BDD scenarios, 26 release tests, lint, typecheck, package and website builds, immutable-action verification, parity, architecture, dead-code, formatting, and production dependency gates.
 
 ## Root Cause
 

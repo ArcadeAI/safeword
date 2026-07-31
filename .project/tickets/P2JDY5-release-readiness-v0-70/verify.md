@@ -19,6 +19,10 @@ orphan warning for `codex-plugin/hooks.ts`), Knip found no dead code, all 200
 template pairs and 8 contracts are in sync, publint passed, and the production
 dependency audit found no vulnerabilities.
 
+The refreshed verification reran the complete 376-file Vitest suite, the
+502-scenario acceptance lane, 26 release tests, CLI package build, website
+typecheck/build, formatting, and diff hygiene after the final review fixes.
+
 ## Review Closeout
 
 - Independent refreshed-diff review: APPROVE; no critical issues remain.
@@ -28,5 +32,11 @@ dependency audit found no vulnerabilities.
   period remains reserved.
 - `createIssueFirstTicket` now rejects that unsafe family before `onMinted` or
   filesystem mutation. Three negative and three positive boundary cases pass.
+- Keychain-only authentication now has a real-command wiring proof through
+  `gh issue create`, graph projection, and the recorded sidecar reference; the
+  test also requires a clean command exit and no stderr output.
+- The copyable workflow pins checkout v7.0.1 and setup-node v7.0.0 to their
+  verified immutable commit SHAs.
+- Three refreshed independent review passes ended with APPROVE, no critical
+  issues, and no remaining suggested improvements.
 - The branch includes the latest remote reviewer commits and current `main`.
-
