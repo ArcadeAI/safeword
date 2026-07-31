@@ -374,7 +374,7 @@ function phaseAnchorAdvisoryForTicket(
     readFileSafe(nodePath.join(cwd, relpath)),
   );
   if (verdict.kind !== 'unanchored') return undefined;
-  return `${formatCoverageTicketLabel(ticketId)}: ${verdict.reason} The anchor is the exited phase's artifact — boundary checks verify it against the tree.`;
+  return `${formatCoverageTicketLabel(ticketId, content)}: ${verdict.reason} The anchor is the exited phase's artifact — boundary checks verify it against the tree.`;
 }
 
 /** Build coverage advisories for one ticket, or none if it is not an
@@ -406,21 +406,23 @@ function coverageDiagnosticsForTicket(
         ? undefined
         : buildSurfaceCoverageReportFromFeature(specContent, featureSource.content);
     const lineageIssues =
-      featureSource === undefined ? [] : formatFeatureLineageIssues(cwd, ticketId, featureSource);
-    const ruleTier = ruleTierDiagnostics(ticketId, specContent, featureSource);
+      featureSource === undefined
+        ? []
+        : formatFeatureLineageIssues(cwd, ticketId, featureSource, ticketContent);
+    const ruleTier = ruleTierDiagnostics(ticketId, specContent, featureSource, ticketContent);
     return {
       issues: [...lineageIssues, ...ruleTier.issues],
       advisories: [
-        ...formatCoverageReport(ticketId, report),
+        ...formatCoverageReport(ticketId, report, ticketContent),
         ...ruleTier.advisories,
-        ...formatSurfaceCoverageReport(ticketId, surfaceReport),
+        ...formatSurfaceCoverageReport(ticketId, surfaceReport, ticketContent),
       ],
     };
   } catch (parseError: unknown) {
     if (parseError instanceof FeatureParseError && featureSource !== undefined) {
       return {
         issues: [
-          `${formatCoverageTicketLabel(ticketId)}: ${nodePath.relative(cwd, featureSource.path)}: invalid Gherkin feature: ${parseError.message}`,
+          `${formatCoverageTicketLabel(ticketId, ticketContent)}: ${nodePath.relative(cwd, featureSource.path)}: invalid Gherkin feature: ${parseError.message}`,
         ],
         advisories: [],
       };
@@ -435,8 +437,9 @@ function ruleTierDiagnostics(
   ticketId: string,
   specContent: string,
   featureSource: FeatureSource | undefined,
+  ticketContent: string,
 ): CoverageDiagnostics {
-  const label = formatCoverageTicketLabel(ticketId);
+  const label = formatCoverageTicketLabel(ticketId, ticketContent);
   return {
     issues: findMixedCriteriaJtbds(specContent).map(
       jtbd =>
@@ -456,8 +459,9 @@ function formatFeatureLineageIssues(
   cwd: string,
   ticketId: string,
   featureSource: FeatureSource,
+  ticketContent: string,
 ): string[] {
-  const label = formatCoverageTicketLabel(ticketId);
+  const label = formatCoverageTicketLabel(ticketId, ticketContent);
   const relativePath = nodePath.relative(cwd, featureSource.path);
   return findFeatureLineageIssues(featureSource.content).map(
     issue => `${label}: ${relativePath}: ${issue}`,
@@ -490,8 +494,12 @@ function isInProgress(ticketContent: string): boolean {
 }
 
 /** Render a coverage report into one advisory string per finding. */
-function formatCoverageReport(ticketId: string, report: CoverageReport): string[] {
-  const ticketLabel = formatCoverageTicketLabel(ticketId);
+function formatCoverageReport(
+  ticketId: string,
+  report: CoverageReport,
+  ticketContent: string,
+): string[] {
+  const ticketLabel = formatCoverageTicketLabel(ticketId, ticketContent);
   return [
     ...report.uncovered.map(id =>
       isRuleId(id)
@@ -514,9 +522,10 @@ function formatCoverageReport(ticketId: string, report: CoverageReport): string[
 function formatSurfaceCoverageReport(
   ticketId: string,
   report: SurfaceCoverageReport | undefined,
+  ticketContent: string,
 ): string[] {
   if (report === undefined) return [];
-  const ticketLabel = formatCoverageTicketLabel(ticketId);
+  const ticketLabel = formatCoverageTicketLabel(ticketId, ticketContent);
   return [
     ...report.missing.map(
       surface =>
@@ -529,7 +538,27 @@ function formatSurfaceCoverageReport(
   ];
 }
 
-function formatCoverageTicketLabel(ticketId: string): string {
+function coverageTicketScalar(
+  ticketContent: string | undefined,
+  field: string,
+): string | undefined {
+  const lines = ticketContent?.split(/\r?\n/) ?? [];
+  if (lines[0] !== '---') return undefined;
+  const prefix = `${field}:`;
+  for (const line of lines.slice(1)) {
+    if (line === '---') return undefined;
+    if (!line.startsWith(prefix)) continue;
+    const value = line.slice(prefix.length).trim();
+    return value === '' ? undefined : value;
+  }
+  return undefined;
+}
+
+function formatCoverageTicketLabel(ticketId: string, ticketContent?: string): string {
+  const id = coverageTicketScalar(ticketContent, 'id');
+  const slug = coverageTicketScalar(ticketContent, 'slug');
+  if (id !== undefined && slug !== undefined) return formatTicketReference(id, slug);
+
   const dashIndex = ticketId.indexOf('-');
   return dashIndex === -1
     ? ticketId

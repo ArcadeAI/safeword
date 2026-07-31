@@ -554,7 +554,9 @@ function validateAnchor(
   // artifact reader. Every other kind must live in this ticket's own folder.
   const ticketFolder = basenameOf(scope.ticketPath);
   const slugSeparator = ticketFolder.indexOf('-');
-  const ticketSlug = slugSeparator === -1 ? ticketFolder : ticketFolder.slice(slugSeparator + 1);
+  const ticketSlug =
+    scalar(meta, 'slug') ??
+    (slugSeparator === -1 ? ticketFolder : ticketFolder.slice(slugSeparator + 1));
   const anchorSegments = anchor.split('/');
   const isConfiguredOrDefaultFeature = scope.featureRoots.some(
     root => root === '' || anchor.startsWith(`${root}/`),

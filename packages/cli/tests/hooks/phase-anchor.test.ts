@@ -247,6 +247,28 @@ describe('detectUnanchoredPhaseTransition — the per-phase kind map', () => {
     expect(verdict.kind).toBe('anchored');
   });
 
+  it('uses frontmatter slug ownership when the tracker identity contains a hyphen', () => {
+    const scope = {
+      ...ANCHOR_SCOPE,
+      ticketPath: '.project/tickets/ENG-45-login-bug',
+    };
+    const content = ticket({
+      type: 'feature',
+      phase: 'scenario-gate',
+      anchors: ['scenario-gate: features/login-bug.feature'],
+    })
+      .replace('id: ZZTEST', 'id: ENG-45')
+      .replace('slug: fixture', 'slug: login-bug');
+
+    const verdict = detectPhaseState(
+      content,
+      scope,
+      readerFor({ 'features/login-bug.feature': SHAPE_VALID_FEATURE }),
+    );
+
+    expect(verdict.kind).toBe('anchored');
+  });
+
   it('an anchor of the wrong kind for the entered phase is unanchored, naming the mismatch', () => {
     const verdict = detectUnanchoredPhaseTransition(
       ticket({ type: 'feature', phase: 'verify' }),

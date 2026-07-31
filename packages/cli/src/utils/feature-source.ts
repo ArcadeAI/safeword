@@ -2,12 +2,32 @@ import { existsSync, readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import type { PhaseAnchorScope } from '../../templates/hooks/lib/phase-provenance.js';
-import { resolveConfiguredLaneDirectory } from './configured-paths.js';
+import { resolveConfiguredLaneDirectory, resolveTicketsDirectory } from './configured-paths.js';
+import { readFileSafe } from './fs.js';
 import { toRepoDirectory, toRepoPath } from './repo-path.js';
 import { WORKSPACE_ROOTS } from './workspaces.js';
 
-/** Ticket folder `ID-slug` -> `slug`; legacy `ID` -> `ID`. */
-function slugFromTicketFolder(ticketFolder: string): string {
+function frontmatterScalar(content: string | undefined, field: string): string | undefined {
+  const lines = content?.split(/\r?\n/) ?? [];
+  if (lines[0] !== '---') return undefined;
+  const prefix = `${field}:`;
+  for (const line of lines.slice(1)) {
+    if (line === '---') return undefined;
+    if (!line.startsWith(prefix)) continue;
+    const value = line.slice(prefix.length).trim();
+    return value === '' ? undefined : value;
+  }
+  return undefined;
+}
+
+/** Read the authoritative ticket slug, falling back for legacy folders. */
+function slugForTicket(cwd: string, ticketFolder: string): string {
+  const content = readFileSafe(
+    nodePath.join(resolveTicketsDirectory(cwd), ticketFolder, 'ticket.md'),
+  );
+  const slug = frontmatterScalar(content, 'slug');
+  if (slug !== undefined && slug !== '') return slug;
+
   const dashIndex = ticketFolder.indexOf('-');
   return dashIndex === -1 ? ticketFolder : ticketFolder.slice(dashIndex + 1);
 }
@@ -18,7 +38,7 @@ function slugFromTicketFolder(ticketFolder: string): string {
  * direct workspace package's `features/` directory in stable order.
  */
 export function findFeatureSourcePath(cwd: string, ticketFolder: string): string | undefined {
-  const fileName = `${slugFromTicketFolder(ticketFolder)}.feature`;
+  const fileName = `${slugForTicket(cwd, ticketFolder)}.feature`;
   return collectExecutableFeatureFiles(cwd, fileName)[0];
 }
 
