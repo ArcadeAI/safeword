@@ -59,7 +59,6 @@ const GIT_GLOBAL_OPTIONS_REQUIRING_VALUE = new Set([
 const GIT_GLOBAL_FLAGS = new Set([
   '-P',
   '-p',
-  '--bare',
   '--glob-pathspecs',
   '--icase-pathspecs',
   '--literal-pathspecs',
