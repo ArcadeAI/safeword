@@ -495,28 +495,28 @@ Feature source: `features/operate-retry-safe-retro-relay.feature`
 
 - [x] RED skip: live review supplied the corrupt-spool failure report
 - [x] GREEN 3ec774124
-- [x] REFACTOR 3ec774124
+- [x] REFACTOR 9ccfdb5fe
 
 ### Scenario: A timed-out earliest request leaves bounded time for a healthy request
 
 - [x] RED skip: live review supplied the head-of-line blocking failure report
 - [x] GREEN 3ec774124
-- [x] REFACTOR 3ec774124
+- [x] REFACTOR 9ccfdb5fe
 
 ### Scenario: Unresolved server-owned terminal receipts fail visibly without native filing
 
 - [x] RED skip: live review supplied the terminal-owner failure report
 - [x] GREEN 3ec774124
-- [x] REFACTOR 3ec774124
+- [x] REFACTOR 9ccfdb5fe
 
 ### Scenario: Drain throughput evidence attests production timing configuration
 
 - [x] RED skip: live review supplied the evidence-schema failure report
 - [x] GREEN 3ec774124
-- [x] REFACTOR 3ec774124
+- [x] REFACTOR 9ccfdb5fe
 
 ### Scenario: Relay protocol mismatch and malformed receipt retain local ownership
 
 - [x] RED skip: live review supplied the protocol-recovery failure report
 - [x] GREEN 3ec774124
-- [x] REFACTOR 3ec774124
+- [x] REFACTOR 9ccfdb5fe
