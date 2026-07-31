@@ -39,9 +39,9 @@ When the runner waits for its configured wait cap
 Then it reports status no more often than the supported minimum interval
 And malformed interval settings fall back to the default interval
 
-- [x] RED 09ac816ab
+- [x] RED skip: unsafe-interval test failed before the minimum clamp
 - [x] GREEN 09ac816ab
-- [x] REFACTOR 09ac816ab
+- [x] REFACTOR skip: shared helpers are the completed cleanup
 
 ## Patch-level refactor
 

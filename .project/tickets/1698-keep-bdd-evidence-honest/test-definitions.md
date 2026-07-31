@@ -54,9 +54,9 @@ When the Codex plugin catalogue is regenerated and release tests run
 Then its generated BDD and TDD-review skills contain the same contract
 And the release catalogue accepts every generated asset exactly
 
-- [x] RED 09ac816ab
+- [x] RED skip: release suite failed before regeneration
 - [x] GREEN 09ac816ab
-- [x] REFACTOR 09ac816ab
+- [x] REFACTOR skip: generated output remains exclusively generator-owned
 
 ## Feature-level cross-scenario refactor
 
