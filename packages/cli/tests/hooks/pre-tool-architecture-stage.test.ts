@@ -519,6 +519,45 @@ describe('pre-tool architecture staging hook', () => {
     expect(git('diff', '--cached', '--name-only')).not.toContain('src/checkout/index.ts');
   });
 
+  it.each([
+    ['with a separate -C value', 'git -C . add src/checkout', 'git -C . commit -m "add checkout"'],
+    [
+      'with explicit repository selectors',
+      'git --git-dir=.git --work-tree=. add src/checkout',
+      'git --git-dir=.git --work-tree=. commit -m "add checkout"',
+    ],
+  ])('advises for an architecture pathspec add %s', (_label, stagingCommand, commitCommand) => {
+    mkdirSync(nodePath.join(directory, 'src', 'checkout'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, 'src', 'checkout', 'index.ts'),
+      'export const checkout = true;\n',
+    );
+
+    const hook = runHook(`bun run lint && ${stagingCommand} && ${commitCommand}`);
+
+    expect(hook.status).toBe(0);
+    const output = JSON.parse(String(hook.stdout)) as { systemMessage?: string };
+    expect(output.systemMessage).toContain('skipped architecture auto-staging');
+    expect(git('diff', '--cached', '--name-only')).not.toContain('src/checkout/index.ts');
+  });
+
+  it('does not project an advisory add with an arbitrary Git config override', () => {
+    mkdirSync(nodePath.join(directory, 'src', 'checkout'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, 'src', 'checkout', 'index.ts'),
+      'export const checkout = true;\n',
+    );
+
+    const hook = runHook(
+      'bun run lint && git -c core.quotePath=false add src/checkout && git commit -m "add checkout"',
+    );
+
+    expect(hook.status).toBe(0);
+    expect(hook.stdout).toBe('');
+    expect(hook.stderr).toBe('');
+    expect(git('diff', '--cached', '--name-only')).not.toContain('src/checkout/index.ts');
+  });
+
   it('advises when an architecture pathspec will stage a tracked deletion', () => {
     rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
 

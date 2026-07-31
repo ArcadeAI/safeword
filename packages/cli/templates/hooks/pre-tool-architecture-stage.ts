@@ -267,7 +267,7 @@ function unsupportedCommitPlan(
 }
 
 function isProjectableAdvisoryAdd(invocation: GitInvocation): boolean {
-  if (invocation.globalArguments.length > 0) return false;
+  if (!hasOnlyRepositorySelectorArguments(invocation.globalArguments)) return false;
   let stagesAll = false;
   let optionsEnded = false;
   let hasPathspec = false;
@@ -295,6 +295,25 @@ function isProjectableAdvisoryAdd(invocation: GitInvocation): boolean {
     hasPathspec = true;
   }
   return hasPathspec || stagesAll;
+}
+
+function hasOnlyRepositorySelectorArguments(arguments_: string[]): boolean {
+  for (let index = 0; index < arguments_.length; index += 1) {
+    const argument = arguments_[index];
+    if (argument === '-C' || argument === '--git-dir' || argument === '--work-tree') {
+      if (arguments_[index + 1] === undefined) return false;
+      index += 1;
+      continue;
+    }
+    if (
+      argument?.startsWith('--git-dir=') === true ||
+      argument?.startsWith('--work-tree=') === true
+    ) {
+      continue;
+    }
+    return false;
+  }
+  return true;
 }
 
 function combineShellStatus(
