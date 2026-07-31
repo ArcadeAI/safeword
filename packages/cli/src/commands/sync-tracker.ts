@@ -5,7 +5,6 @@
  * orchestrator. Network runs only here / in CI, never in the per-turn loop.
  */
 
-import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import process from 'node:process';
 
@@ -23,6 +22,7 @@ import {
 import { computePlan } from '../tracker-sync/plan.js';
 import { loadTrackerMapOrEmpty, trackerMapPath } from '../tracker-sync/tracker-map.js';
 import type { Provider } from '../tracker-sync/types.js';
+import { resolveGhCliToken } from '../utils/gh-cli.js';
 
 export interface SyncTrackerCommandOptions {
   resetTrackerMap?: boolean;
@@ -141,17 +141,7 @@ function egressVisibility(
  */
 function keychainCredential(provider: Provider): string | undefined {
   if (provider !== 'github') return undefined;
-  try {
-    const output = execFileSync('gh', ['auth', 'token'], {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-      timeout: 10_000,
-    });
-    const token = output.replace(/\r?\n$/, '');
-    return /^[\w.~+/-]+=*$/.test(token) ? token : undefined;
-  } catch {
-    return undefined;
-  }
+  return resolveGhCliToken(process.env);
 }
 
 export async function syncTrackerCommand(options: SyncTrackerCommandOptions = {}): Promise<void> {

@@ -3,9 +3,9 @@
 // Intentionally thin and untested-by-unit (it IS the boundary the wiring tests
 // mock); all dedup/cap/ledger/sanitize logic lives in tested modules.
 
-import { spawnSync } from 'node:child_process';
 import process from 'node:process';
 
+import { isBearerCredentialSyntax, resolveGhCliToken } from '../utils/gh-cli.js';
 import { canonicalMarker, signatureMarker } from './draft.js';
 import type { ReconcileIssue, ReconcileTracker } from './reconcile.js';
 import type { CreateIssueInput, IssueComment, IssueReference, IssueTracker } from './triage.js';
@@ -45,45 +45,15 @@ const MAX_ISSUE_PAGES = 10;
 const MAX_DEDUP_PAGES = 200;
 
 /**
- * Ask `gh` for the environment's GitHub token, or undefined if unavailable.
- * `GITHUB_TOKEN` is stripped because the resolver only calls this fallback
- * after rejecting that value; preserve `GH_TOKEN`, which is an independent
- * documented gh credential source with higher precedence. The exact
- * `proxy-injected` sentinel is rejected only from `GITHUB_TOKEN`: #1637 keeps
- * syntax-valid explicit `GH_TOKEN` values opaque and lets GitHub authorize them.
+ * `gh`'s own resolved token (keychain or its `GH_TOKEN`), used as the fallback
+ * once `resolveGitHubToken` below has rejected `GITHUB_TOKEN`. `GH_TOKEN` is an
+ * independent documented gh credential source with higher precedence, and the
+ * exact `proxy-injected` sentinel is rejected only from `GITHUB_TOKEN`: #1637
+ * keeps syntax-valid explicit `GH_TOKEN` values opaque and lets GitHub
+ * authorize them.
  */
 function ghAuthToken(): string | undefined {
-  try {
-    // Node's Windows environment keys are case-insensitive, while this copied
-    // JavaScript object has case-sensitive keys. Exclude every casing so a
-    // rejected token cannot re-enter `gh` under a different key spelling.
-    const childEnvironment = Object.fromEntries(
-      Object.entries(process.env).filter(
-        ([key]) => key.toUpperCase() !== GITHUB_TOKEN_ENV_KEY.toUpperCase(),
-      ),
-    );
-    const result = spawnSync('gh', ['auth', 'token'], {
-      encoding: 'utf8',
-      timeout: 10_000,
-      env: childEnvironment,
-    });
-    // Accept at most one terminal LF or CRLF. Broad trimming could turn malformed
-    // credential output into a token-shaped value by silently discarding
-    // whitespace or control characters.
-    const token = (result.stdout ?? '').replace(/\r?\n$/, '');
-    return result.status === 0 && isBearerCredentialSyntax(token) ? token : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-/**
- * Whether a value has RFC 6750 Bearer credential syntax. GitHub tokens are
- * opaque: their API, not this resolver, decides whether the credential is
- * valid or authorized.
- */
-function isBearerCredentialSyntax(value: string): boolean {
-  return /^[\w.~+/-]+=*$/.test(value);
+  return resolveGhCliToken(process.env);
 }
 
 /**
