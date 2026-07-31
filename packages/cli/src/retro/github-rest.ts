@@ -164,56 +164,21 @@ function isTerminalStatus(error: unknown): boolean {
 }
 
 /**
- * Build a REST-backed transport, or undefined when no token is available. The
- * token is REQUIRED (no `process.env` default) so every caller routes through
- * `resolveGitHubToken` — a default here would silently bypass the `gh` fallback.
+ * Cached, exact-marker view over every open issue body (#1453, #1481).
+ *
+ * The listing endpoint returns raw bodies, so marker matching stays local and
+ * independent of search-index tokenization or lag. `state=all` keeps pagination
+ * stable across close/reopen transitions; closed issues and pull requests are
+ * filtered locally. New issues created through this transport are folded into
+ * the snapshot immediately so duplicate findings in one run cannot double-file.
  */
-export function createRestTransport(token: string | undefined): IssueTracker | undefined {
-  if (!token) return undefined;
-
-  const call = buildCall(token);
-
-  /**
-   * Every open issue body, fetched once per transport (#1453, #1481).
-   *
-   * Dedup used to ask `/search/issues` for the signature's hash token and filter
-   * the hits. That made the search INDEX the arbiter of "already filed", and the
-   * marker lives in an HTML comment — whether the index tokenizes comment text is
-   * undocumented and could not be verified. The fatal part is not the uncertainty
-   * but the shape of a wrong answer: an unindexed marker and a genuinely absent
-   * one both return an empty array, so triage cannot tell "no duplicate" from
-   * "could not tell" and confidently files a duplicate. Index lag had the same
-   * signature, which is why this read as flaky for so long.
-   *
-   * The listing endpoint returns raw bodies verbatim, so the marker check becomes
-   * a local string compare — exact and search-index-independent. The pagination universe
-   * is `state=all`: closing or reopening an issue changes its state but not its
-   * membership or creation-order position, so it cannot shift a later open marker
-   * across a page boundary. Closed issues are filtered locally and remain
-   * ineligible matches. No label filter: this keeps the old query's recall, so a
-   * marker hand-copied into an unlabeled issue (as happens when issues are merged)
-   * still dedups. Deletion or transfer can still remove an item from this
-   * repository-wide universe; those administrative mutations remain outside the
-   * close/reopen race addressed here.
-   *
-   * Reviewer: index-independent is not lag-free. GitHub documents no
-   * read-after-write guarantee on the listing endpoint, and API reads can be
-   * served from a replica, so an issue another run filed moments ago may not
-   * appear here. `createdThisRun` below closes the same-transport case; the
-   * cross-run one is #1479.
-   *
-   * Cached because triage runs up to two lookups per encounter; a 12-finding
-   * session would otherwise re-list 24 times.
-   */
+function createOpenIssueSnapshot(call: ReturnType<typeof buildCall>): {
+  findByExactMarker(marker: string): Promise<IssueReference[]>;
+  recordCreated(issue: OpenIssue): void;
+} {
   let openIssues: Promise<OpenIssue[]> | undefined;
-  /**
-   * A failure the enumeration cannot recover from by trying again — the bound was
-   * exceeded. Unlike a transient 5xx, this is deterministic, so re-running costs
-   * a full 201-request sweep to reach the same answer. Latched for the transport's
-   * life and rethrown to every later encounter (each still lands as its own
-   * isolated `failed` in triage).
-   */
   let terminalFailure: Error | undefined;
+  const createdThisRun: OpenIssue[] = [];
 
   function latchTerminal(message: string): Error {
     terminalFailure = new Error(message);
@@ -221,17 +186,12 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
   }
 
   /**
-   * One page from the all-state issue/PR universe. `rawLength` is the page size
-   * BEFORE closed issues and pull requests are filtered out — a full page with no
-   * eligible issue still means "there is more", so the last-page test has to read
-   * the raw count, not the kept count.
+   * `rawLength` is measured before filtering: a full page containing only
+   * closed issues or pull requests still means another page may exist.
    */
   async function fetchIssuePage(page: number): Promise<{ issues: OpenIssue[]; rawLength: number }> {
     const data = (await call(
       'GET',
-      // Ascending by creation appends new items to the last page. `state=all`
-      // keeps close/reopen transitions in the same ordered universe, while the
-      // local filter below preserves the existing open-only match policy.
       `${ISSUES_BASE}?state=all&sort=created&direction=asc&per_page=${PER_PAGE}&page=${page}`,
     )) as {
       number: number;
@@ -241,9 +201,6 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
       pull_request?: unknown;
     }[];
     const issues = data
-      // Falsy, not `=== undefined`: this module's asymmetry is that a missed
-      // match files a duplicate, so a `pull_request: null` must not drop a
-      // real issue out of the dedup view.
       .filter(issue => !issue.pull_request && issue.state === 'open')
       .map(issue => ({ number: issue.number, title: issue.title, body: issue.body ?? '' }));
     return { issues, rawLength: data.length };
@@ -256,16 +213,10 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
       issues.push(...pageIssues);
       if (rawLength < PER_PAGE) return issues;
     }
-    // The bound was reached with a full final page. Probe one page PAST it, but
-    // never accept the probe's contents: at exactly MAX_DEDUP_PAGES * PER_PAGE the
-    // probe is empty and the enumeration is genuinely complete, while anything at
-    // all on it means a real tail. Appending the probe instead would quietly raise
-    // the advertised cap to 20,099 — the cap has to mean what it says.
+    // Probe one page beyond the bound to distinguish an exact-boundary corpus
+    // from a real unread tail; never accept the probe's contents.
     const probe = await fetchIssuePage(MAX_DEDUP_PAGES + 1);
     if (probe.rawLength > 0) {
-      // A real unread tail, so "no match" would be a guess about it. Throw: triage
-      // isolates this as a failed encounter and leaves the draft spooled, which is
-      // recoverable. Silently returning [] would file the duplicate this replaces.
       throw latchTerminal(
         `retro dedup: repository items exceed ${MAX_DEDUP_PAGES * PER_PAGE}; enumeration truncated`,
       );
@@ -273,20 +224,14 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
     return issues;
   }
 
-  // Drop the cached promise on failure, or one transient 5xx would sink every
-  // later encounter in the session instead of just its own. The reset lands after
-  // the await, by which point the assignment below has already completed. A
-  // latched terminal failure short-circuits before this ever re-runs.
   async function loadOpenIssues(): Promise<OpenIssue[]> {
     try {
       return await listOpenIssues();
     } catch (error) {
-      // A wrong or missing credential fails identically every time, so retrying
-      // it once per finding just burns a full sweep each. Latch it; only
-      // genuinely transient statuses earn the retry.
-      if (isTerminalStatus(error)) {
-        terminalFailure = error as Error;
-      }
+      // Authentication/resource/request failures cannot recover during this
+      // transport's lifetime; transient failures clear the promise and retry
+      // on the next encounter.
+      if (isTerminalStatus(error)) terminalFailure = error as Error;
       openIssues = undefined;
       throw error;
     }
@@ -298,39 +243,38 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
     return await openIssues;
   }
 
-  /**
-   * Issues this transport filed during the current run.
-   *
-   * The enumeration above is a snapshot taken before the first create, and
-   * triage files inside the same transport instance. `prepareEncounters` does
-   * NOT dedupe by signature (pipeline.ts), so one batch can carry two findings
-   * that hash to the same signature — and without this, the second would consult
-   * the pre-create snapshot, miss, and file the finding a second time. That is
-   * the exact duplicate this module exists to prevent. (The old search-based
-   * path had the same hole for a different reason: the index cannot return an
-   * issue created seconds earlier.)
-   */
-  const createdThisRun: { number: number; title: string; body: string }[] = [];
+  return {
+    async findByExactMarker(marker: string): Promise<IssueReference[]> {
+      return [...(await currentSnapshot()), ...createdThisRun]
+        .filter(issue => issue.body.includes(marker))
+        .map(issue => ({ number: issue.number, title: issue.title }));
+    },
+    recordCreated(issue: OpenIssue): void {
+      createdThisRun.push(issue);
+    },
+  };
+}
 
-  function matchesIn(issues: readonly OpenIssue[], marker: string): IssueReference[] {
-    return [...issues, ...createdThisRun]
-      .filter(issue => issue.body.includes(marker))
-      .map(issue => ({ number: issue.number, title: issue.title }));
-  }
+/**
+ * Build a REST-backed transport, or undefined when no token is available. The
+ * token is REQUIRED (no `process.env` default) so every caller routes through
+ * `resolveGitHubToken` — a default here would silently bypass the `gh` fallback.
+ */
+export function createRestTransport(token: string | undefined): IssueTracker | undefined {
+  if (!token) return undefined;
 
-  async function findByExactMarker(marker: string): Promise<IssueReference[]> {
-    return matchesIn(await currentSnapshot(), marker);
-  }
+  const call = buildCall(token);
+  const snapshot = createOpenIssueSnapshot(call);
 
   return {
     async searchBySignature(signature: string): Promise<IssueReference[]> {
       // Match the FULL marker, not the bare hash: the body is ours and the marker
       // is exact, so a near-miss hash sharing a prefix must never count as filed.
-      return findByExactMarker(signatureMarker(signature));
+      return snapshot.findByExactMarker(signatureMarker(signature));
     },
 
     async searchByCanonical(canonicalSignature: string): Promise<IssueReference[]> {
-      return findByExactMarker(canonicalMarker(canonicalSignature));
+      return snapshot.findByExactMarker(canonicalMarker(canonicalSignature));
     },
 
     async createIssue(input: CreateIssueInput): Promise<IssueReference> {
@@ -341,7 +285,7 @@ export function createRestTransport(token: string | undefined): IssueTracker | u
       const reference = { number: data.number, title: data.title };
       // Fold the new issue into the dedup view before returning, so a later
       // encounter in this run matches it instead of filing it again.
-      createdThisRun.push({ ...reference, body: input.body });
+      snapshot.recordCreated({ ...reference, body: input.body });
       return reference;
     },
 
