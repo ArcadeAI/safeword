@@ -47,14 +47,15 @@ const ownerPath = nodePath.join(lockDirectory, 'owner.json');
 const checkoutRoot = nodePath.resolve(cliRoot, '..', '..');
 const minimumLockStatusIntervalMilliseconds = 50;
 
-function resolveSafeIntegerEnvironmentVariable(name, fallback, minimum) {
+function resolveSafeIntegerEnvironmentVariable(name, fallback, minimum, allowZero = true) {
   const raw = process.env[name];
   if (raw === undefined) {
     return fallback;
   }
 
   const parsed = Number(raw);
-  return Number.isSafeInteger(parsed) && parsed >= 0 ? Math.max(parsed, minimum) : fallback;
+  const isValid = Number.isSafeInteger(parsed) && (allowZero || parsed > 0);
+  return isValid ? Math.max(parsed, minimum) : fallback;
 }
 
 const maximumLockWaitMilliseconds = resolveSafeIntegerEnvironmentVariable(
@@ -67,6 +68,7 @@ const lockStatusIntervalMilliseconds = resolveSafeIntegerEnvironmentVariable(
   'SAFEWORD_TEST_LOCK_STATUS_INTERVAL_MS',
   defaultLockStatusIntervalMilliseconds,
   minimumLockStatusIntervalMilliseconds,
+  false,
 );
 
 function sleep(milliseconds) {

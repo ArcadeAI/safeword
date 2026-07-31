@@ -25,16 +25,18 @@ thereafter.
 
 #### CCYD5S.SM1.AC3 - Missing owner metadata degrades safely
 
-Given the lock metadata is incomplete or changes while my command reads it
+Given the lock metadata is incomplete, malformed, or changes while my command reads it
 When the wait status is rendered
 Then the command reports the available details without crashing or weakening
 lock serialization.
 
 #### CCYD5S.SM1.AC4 - Diagnostic configuration stays safe
 
-Given a maintainer supplies an invalid or excessively small diagnostic interval
+Given a maintainer supplies an invalid, zero, or excessively small diagnostic interval
 When a command waits for the package-test lock
-Then the runner uses a safe minimum interval and keeps wait output readable.
+Then invalid and zero values use the default interval
+And a small positive value uses the safe minimum interval to keep wait output
+readable.
 
 #### CCYD5S.SM1.AC5 - Lock coordination stays readable
 

@@ -125,26 +125,13 @@ function expectSuccessfulSerializedRun(result: { stderr: string; status: number 
   ).toBe(true);
 }
 
-function parseElapsedWaitMilliseconds(line: string): number {
-  const start = line.indexOf('(');
-  const end = line.indexOf(' elapsed;', start);
-  expect(start).toBeGreaterThanOrEqual(0);
-  expect(end).toBeGreaterThan(start);
-  const elapsed = line.slice(start + 1, end);
-
-  if (elapsed.endsWith('ms')) {
-    return Number(elapsed.slice(0, -'ms'.length));
-  }
-
-  const minuteSeparator = elapsed.indexOf('m ');
-  const minutes = minuteSeparator === -1 ? 0 : Number(elapsed.slice(0, minuteSeparator));
-  const seconds = Number(
-    elapsed.slice(minuteSeparator === -1 ? 0 : minuteSeparator + 2, -'s'.length),
-  );
-  return (minutes * 60 + seconds) * 1000;
+function waitStatusLines(stderr: string): string[] {
+  return stderr
+    .split('\n')
+    .filter(line => line.startsWith('Waiting for safeword package test lock'));
 }
 
-async function seedOwnerFile(lockDirectory: string, owner: Record<string, unknown>) {
+async function seedOwnerFile(lockDirectory: string, owner: unknown) {
   await mkdir(lockDirectory, { recursive: true });
   writeFileSync(nodePath.join(lockDirectory, 'owner.json'), `${JSON.stringify(owner)}\n`);
 }
@@ -220,18 +207,13 @@ describe('package test runner lock (379)', () => {
 
     expect(ownerResult.status).toBe(0);
     expect(waiterResult.status).toBe(0);
-    const waitStatuses = waiterResult.stderr
-      .split('\n')
-      .filter(line => line.startsWith('Waiting for safeword package test lock'));
+    const waitStatuses = waitStatusLines(waiterResult.stderr);
     expect(waitStatuses.length).toBeGreaterThan(1);
-    expect(waitStatuses[0]).toContain(`owner PID ${owner.pid}`);
     expect(owner.checkoutRoot).toMatch(/checkout-a$/);
-    expect(waitStatuses[0]).toContain(`checkout ${owner.checkoutRoot}`);
-    const elapsedMilliseconds = waitStatuses.map(parseElapsedWaitMilliseconds);
-    expect(elapsedMilliseconds).toEqual(
-      elapsedMilliseconds.toSorted((left, right) => left - right),
-    );
-    expect(new Set(elapsedMilliseconds).size).toBe(elapsedMilliseconds.length);
+    expect(waitStatuses.slice(0, 2)).toEqual([
+      `Waiting for safeword package test lock (50ms elapsed; owner PID ${owner.pid}; checkout ${owner.checkoutRoot}).`,
+      `Waiting for safeword package test lock (100ms elapsed; owner PID ${owner.pid}; checkout ${owner.checkoutRoot}).`,
+    ]);
   });
 
   it('reports available fields when owner metadata is incomplete', async () => {
@@ -256,6 +238,25 @@ describe('package test runner lock (379)', () => {
     );
   });
 
+  it('reports unavailable fields when owner metadata is not an object', async () => {
+    const temporaryDirectory = makeTemporaryDirectory();
+    const { binaryDirectory } = await createFakeTestBinaries(temporaryDirectory);
+    const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
+    await seedOwnerFile(lockDirectory, 'not owner metadata');
+
+    const result = await runNodeScript(runnerPath, ['tests/non-object-owner.test.ts'], {
+      ...process.env,
+      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      SAFEWORD_TEST_LOCK_DIR: lockDirectory,
+      SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '120',
+      SAFEWORD_TEST_LOCK_STATUS_INTERVAL_MS: '100',
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toContain('owner PID unavailable');
+    expect(result.stderr).toContain('checkout unavailable');
+  });
+
   it('clamps unsafe status intervals and ignores malformed settings', async () => {
     const temporaryDirectory = makeTemporaryDirectory();
     const { binaryDirectory } = await createFakeTestBinaries(temporaryDirectory);
@@ -271,9 +272,7 @@ describe('package test runner lock (379)', () => {
       SAFEWORD_TEST_LOCK_STATUS_INTERVAL_MS: '1',
     });
 
-    const unsafeStatuses = unsafeInterval.stderr
-      .split('\n')
-      .filter(line => line.startsWith('Waiting for safeword package test lock'));
+    const unsafeStatuses = waitStatusLines(unsafeInterval.stderr);
     expect(unsafeInterval.status).toBe(0);
     expect(unsafeStatuses).toHaveLength(2);
 
@@ -291,7 +290,19 @@ describe('package test runner lock (379)', () => {
     );
 
     expect(malformedInterval.status).toBe(0);
-    expect(malformedInterval.stderr).not.toContain('Waiting for safeword package test lock');
+    expect(waitStatusLines(malformedInterval.stderr)).toHaveLength(0);
+
+    await seedOwnerFile(lockDirectory, owner);
+    const zeroInterval = await runNodeScript(runnerPath, ['tests/zero-interval.test.ts'], {
+      ...process.env,
+      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      SAFEWORD_TEST_LOCK_DIR: lockDirectory,
+      SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '120',
+      SAFEWORD_TEST_LOCK_STATUS_INTERVAL_MS: '0',
+    });
+
+    expect(zeroInterval.status).toBe(0);
+    expect(waitStatusLines(zeroInterval.stderr)).toHaveLength(0);
   });
 
   it('reaps dead-owner stale locks before acquiring', async () => {
