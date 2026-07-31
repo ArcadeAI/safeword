@@ -150,20 +150,13 @@ type ArchitectureAdvisory = {
 
 type HealedDocument = { readonly action: string; readonly path: string };
 
-/**
- * Advisories are observed twice per mutating run — once before healing and once
- * after — because healing can resolve them. Each call rediscovers the workspace
- * topology; sharing one snapshot needs a parameterized discovery API in
- * `architecture-monorepo.ts` (see issue #1667's follow-up).
- */
 function architectureAdvisories(
-  cwd: string,
-  discoverUnreadableWorkspaces: (projectDirectory: string) => {
+  unreadableWorkspaces: readonly {
     config: string;
     manager: string;
   }[],
 ): ArchitectureAdvisory[] {
-  return discoverUnreadableWorkspaces(cwd).map(workspace => ({
+  return unreadableWorkspaces.map(workspace => ({
     code: 'ARCHITECTURE_ADVISORY',
     message: `Workspace config present but unreadable: ${workspace.config} (${workspace.manager}).`,
     severity: 'info' as const,
@@ -240,22 +233,28 @@ function stageHealedDocuments(
 async function architectureHandler(invocation: CommandInvocation): Promise<CliResult> {
   const { isWouldChangeAction, planSelfHealProject, selfHealProject } =
     await import('../utils/architecture-document.js');
-  const { discoverUnreadableWorkspaces } = await import('../utils/architecture-monorepo.js');
+  const { discoverUnreadableWorkspaces, extractMonorepoArchitectureSnapshot } =
+    await import('../utils/architecture-monorepo.js');
   const { isArchitectureDocumentEnforcementEnabled } = await import('../utils/configured-paths.js');
 
-  const advisories = architectureAdvisories(invocation.cwd, discoverUnreadableWorkspaces);
   const enforcementEnabled = isArchitectureDocumentEnforcementEnabled(invocation.cwd);
   if (!enforcementEnabled && (invocation.options.check || invocation.options.stage)) {
-    return architectureEnforcementDisabledResult(advisories);
+    return architectureEnforcementDisabledResult(
+      architectureAdvisories(discoverUnreadableWorkspaces(invocation.cwd)),
+    );
   }
 
-  const planned = planSelfHealProject(invocation.cwd);
-  const stale = planned.filter(action => isWouldChangeAction(action));
-  if (invocation.options.check === true) return architectureCheckResult(stale, advisories);
+  const snapshot = extractMonorepoArchitectureSnapshot(invocation.cwd);
+  const advisories = architectureAdvisories(snapshot.model.unreadableWorkspaces);
+  if (invocation.options.check === true) {
+    const stale = planSelfHealProject(invocation.cwd, snapshot).filter(action =>
+      isWouldChangeAction(action),
+    );
+    return architectureCheckResult(stale, advisories);
+  }
 
-  const results = selfHealProject(invocation.cwd);
+  const results = selfHealProject(invocation.cwd, snapshot);
   const changed = results.filter(result => isWouldChangeAction(result.action));
-  const completedAdvisories = architectureAdvisories(invocation.cwd, discoverUnreadableWorkspaces);
   const { staged, stageFailures } =
     invocation.options.stage === true
       ? stageHealedDocuments(invocation.cwd, changed)
@@ -264,7 +263,7 @@ async function architectureHandler(invocation: CommandInvocation): Promise<CliRe
   return architectureHealResult({
     cwd: invocation.cwd,
     changed,
-    completedAdvisories,
+    advisories,
     staged,
     stageFailures,
     stageRequested: invocation.options.stage === true,
@@ -297,7 +296,7 @@ function healedDocumentFindings(
 function architectureHealResult(input: {
   readonly cwd: string;
   readonly changed: readonly HealedDocument[];
-  readonly completedAdvisories: readonly ArchitectureAdvisory[];
+  readonly advisories: readonly ArchitectureAdvisory[];
   readonly staged: readonly { kind: string; target: string }[];
   readonly stageFailures: readonly string[];
   readonly stageRequested: boolean;
@@ -321,7 +320,7 @@ function architectureHealResult(input: {
     },
     findings: [
       ...healedDocumentFindings(input.cwd, input.changed),
-      ...input.completedAdvisories,
+      ...input.advisories,
       ...(staleStaging
         ? [
             {
