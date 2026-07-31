@@ -91,8 +91,7 @@ async function planHandler(invocation: CommandInvocation): Promise<CliResult> {
 }
 
 async function removeHandler(invocation: CommandInvocation): Promise<CliResult> {
-  const suppliedPlan =
-    typeof invocation.options.plan === 'string' ? invocation.options.plan : undefined;
+  const suppliedPlan = stringOption(invocation.options, 'plan');
   if (suppliedPlan !== undefined && !isPlanIdentity(suppliedPlan)) {
     return malformedPlanIdentity('remove');
   }
@@ -490,8 +489,7 @@ async function runCodexRecovery(
   migration: typeof CodexMigration,
 ): Promise<CliResult> {
   const { plan, recovery } = await codexRecoveryPlan(invocation.cwd);
-  const suppliedPlan =
-    typeof invocation.options.plan === 'string' ? invocation.options.plan : undefined;
+  const suppliedPlan = stringOption(invocation.options, 'plan');
   if (suppliedPlan !== undefined && suppliedPlan !== plan.id) return staleCodexPlan(plan);
   const before = recovery.effects.map(effect => ({
     path: nodePath.join(invocation.cwd, effect.path),
@@ -530,8 +528,7 @@ async function runCodexFinalization(
   migration: typeof CodexMigration,
 ): Promise<CliResult> {
   const current = codexFinalizationPlan(invocation.cwd, migration);
-  const suppliedPlan =
-    typeof invocation.options.plan === 'string' ? invocation.options.plan : undefined;
+  const suppliedPlan = stringOption(invocation.options, 'plan');
   if (suppliedPlan !== undefined && suppliedPlan !== current.plan.id) {
     return staleCodexPlan(current.plan);
   }
@@ -754,8 +751,7 @@ async function codexFinalizationPreflight(
   const observed = migration.observeCodexMigration(invocation.cwd);
   const pluginUpdateFailure = codexPluginUpdateFailure(observed);
   if (pluginUpdateFailure !== undefined) return pluginUpdateFailure;
-  const suppliedPlan =
-    typeof invocation.options.plan === 'string' ? invocation.options.plan : undefined;
+  const suppliedPlan = stringOption(invocation.options, 'plan');
   const deprecatedAssumeYes =
     invocation.options.removeLegacyHooks === true && invocation.options.yes === true;
   if (invocation.options.yes !== true || (suppliedPlan === undefined && !deprecatedAssumeYes)) {
@@ -772,8 +768,7 @@ async function codexRecoveryPreflight(
 ): Promise<CliResult | undefined> {
   const { plan, recovery } = await codexRecoveryPlan(invocation.cwd);
   if (recovery.effects.length === 0) return await runCodexRecovery(invocation, migration);
-  const suppliedPlan =
-    typeof invocation.options.plan === 'string' ? invocation.options.plan : undefined;
+  const suppliedPlan = stringOption(invocation.options, 'plan');
   if (invocation.options.yes !== true || suppliedPlan === undefined) {
     return codexConfirmation(plan, []);
   }
@@ -798,8 +793,7 @@ async function codexMutationHandler(
   name: CodexMutationName,
   invocation: CommandInvocation,
 ): Promise<CliResult> {
-  const suppliedPlan =
-    typeof invocation.options.plan === 'string' ? invocation.options.plan : undefined;
+  const suppliedPlan = stringOption(invocation.options, 'plan');
   if (suppliedPlan !== undefined && !isPlanIdentity(suppliedPlan)) {
     return malformedPlanIdentity(name);
   }
