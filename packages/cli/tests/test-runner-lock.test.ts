@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { copyFileSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { mkdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
@@ -47,7 +47,7 @@ async function runNodeScript(scriptPath: string, args: string[], env: NodeJS.Pro
   });
 }
 
-async function createFakeTestBinaries(temporaryDirectory: string) {
+async function createFakeTestBinaries(temporaryDirectory: string, delayMilliseconds = 120) {
   const binaryDirectory = nodePath.join(temporaryDirectory, 'bin');
   await mkdir(binaryDirectory, { recursive: true });
   const logPath = nodePath.join(temporaryDirectory, 'events.log');
@@ -59,7 +59,7 @@ import { appendFileSync } from 'node:fs';
 const log = ${JSON.stringify(logPath)};
 const parent = process.ppid;
 appendFileSync(log, \`build:start:\${parent}\\n\`);
-await new Promise(resolve => setTimeout(resolve, 120));
+await new Promise(resolve => setTimeout(resolve, ${delayMilliseconds}));
 appendFileSync(log, \`build:end:\${parent}\\n\`);
 `,
     { mode: 0o755 },
@@ -72,7 +72,7 @@ import { appendFileSync } from 'node:fs';
 const log = ${JSON.stringify(logPath)};
 const parent = process.ppid;
 appendFileSync(log, \`vitest:start:\${parent}:\${process.argv.slice(2).join(',')}\\n\`);
-await new Promise(resolve => setTimeout(resolve, 120));
+await new Promise(resolve => setTimeout(resolve, ${delayMilliseconds}));
 appendFileSync(log, \`vitest:end:\${parent}\\n\`);
 `,
     { mode: 0o755 },
@@ -92,6 +92,10 @@ async function copyRunnerToCheckout(temporaryDirectory: string, name: string) {
 
 function readEvents(logPath: string): string[] {
   return readFileSync(logPath, 'utf8').trim().split('\n');
+}
+
+async function waitForPath(path: string): Promise<void> {
+  await expect.poll(() => existsSync(path), { interval: 5, timeout: 2000 }).toBe(true);
 }
 
 function expectSerializedByRunner(events: string[]) {
@@ -165,6 +169,75 @@ describe('package test runner lock (379)', () => {
     expectSuccessfulSerializedRun(first);
     expectSuccessfulSerializedRun(second);
     expectSerializedByRunner(readEvents(logPath));
+  });
+
+  it('reports the owning checkout and increasing elapsed wait periodically', async () => {
+    const temporaryDirectory = makeTemporaryDirectory();
+    const { binaryDirectory } = await createFakeTestBinaries(temporaryDirectory, 250);
+    const firstRunner = await copyRunnerToCheckout(temporaryDirectory, 'checkout-a');
+    const secondRunner = await copyRunnerToCheckout(temporaryDirectory, 'checkout-b');
+    const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
+    const ownerPath = nodePath.join(lockDirectory, 'owner.json');
+    const env = {
+      ...process.env,
+      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      SAFEWORD_TEST_LOCK_DIR: lockDirectory,
+      SAFEWORD_TEST_LOCK_STATUS_INTERVAL_MS: '50',
+    };
+
+    const ownerRun = runNodeScript(firstRunner, ['tests/first.test.ts'], env);
+    await waitForPath(ownerPath);
+    const owner = JSON.parse(readFileSync(ownerPath, 'utf8')) as {
+      checkoutRoot: string;
+      pid: number;
+    };
+    const waiterRun = runNodeScript(secondRunner, ['tests/second.test.ts'], env);
+    const [ownerResult, waiterResult] = await Promise.all([ownerRun, waiterRun]);
+
+    expect(ownerResult.status).toBe(0);
+    expect(waiterResult.status).toBe(0);
+    const waitStatuses = waiterResult.stderr
+      .split('\n')
+      .filter(line => line.startsWith('Waiting for safeword package test lock'));
+    expect(waitStatuses.length).toBeGreaterThan(1);
+    expect(waitStatuses[0]).toContain(`owner PID ${owner.pid}`);
+    expect(owner.checkoutRoot).toMatch(/checkout-a$/);
+    expect(waitStatuses[0]).toContain(`checkout ${owner.checkoutRoot}`);
+    const elapsedMilliseconds = waitStatuses.map(line => {
+      const match = /\((\d+)ms elapsed;/.exec(line);
+      expect(match).not.toBeNull();
+      return Number(match?.[1]);
+    });
+    expect(elapsedMilliseconds).toEqual(
+      elapsedMilliseconds.toSorted((left, right) => left - right),
+    );
+    expect(new Set(elapsedMilliseconds).size).toBe(elapsedMilliseconds.length);
+  });
+
+  it('reports available fields when owner metadata is incomplete', async () => {
+    const temporaryDirectory = makeTemporaryDirectory();
+    const { binaryDirectory } = await createFakeTestBinaries(temporaryDirectory);
+    const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
+    await mkdir(lockDirectory, { recursive: true });
+    writeFileSync(
+      nodePath.join(lockDirectory, 'owner.json'),
+      `${JSON.stringify({ createdAt: new Date().toISOString(), pid: process.pid })}\n`,
+    );
+
+    const result = await runNodeScript(runnerPath, ['tests/incomplete-owner.test.ts'], {
+      ...process.env,
+      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      SAFEWORD_TEST_LOCK_DIR: lockDirectory,
+      SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '220',
+      SAFEWORD_TEST_LOCK_STATUS_INTERVAL_MS: '100',
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toContain(`owner PID ${process.pid}`);
+    expect(result.stderr).toContain('checkout unavailable');
+    expect(result.stderr).toContain(
+      'Proceeding without safeword package test lock after waiting 220ms.',
+    );
   });
 
   it('reaps dead-owner stale locks before acquiring', async () => {

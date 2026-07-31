@@ -1,0 +1,35 @@
+# Test Definitions: Explain test-lock waits
+
+The executable proof is the existing Vitest integration coverage around
+`run-vitest-with-build-lock.mjs`. Tests use isolated temporary locks and fake
+build/test binaries; they do not contend for the repository's real global lock.
+
+## Rule: A queued package-test command explains its wait
+
+### Scenario: CCYD5S.SM1.AC1-2.reports_owner_and_elapsed_wait_periodically
+
+Given one runner owns a package-test lock from a known checkout
+And a second runner is queued behind it
+When the wait lasts across multiple status intervals
+Then the queued runner reports the owner's process ID
+And it reports the owner's checkout root
+And it emits increasing elapsed-wait status more than once
+
+- [x] RED: focused runner suite failed because no periodic owner status existed
+- [x] GREEN: owner checkout and increasing elapsed statuses passed
+- [x] REFACTOR: shared status formatting and scheduling remained local to the runner
+
+### Scenario: CCYD5S.SM1.AC3.tolerates_incomplete_owner_metadata
+
+Given a live lock has readable but incomplete owner metadata
+When another runner reports its wait
+Then it prints the fields that are available
+And it continues waiting or reaches the configured wait cap without crashing
+
+- [x] RED: focused runner suite failed because incomplete metadata emitted no details
+- [x] GREEN: available owner fields and fallback labels passed
+- [x] REFACTOR: no additional structure was needed
+
+## Patch-level refactor
+
+- [x] cross-scenario: both scenarios use the same metadata reader and wait reporter

@@ -38,10 +38,13 @@ const childEnvironment = {
 const lockParent = nodePath.join(tmpdir(), 'safeword-test-locks');
 const lockName = 'safeword-package-test';
 const defaultMaximumLockWaitMilliseconds = 20 * 60 * 1000;
+const defaultLockStatusIntervalMilliseconds = 30_000;
+const initialLockStatusDelayMilliseconds = 1000;
 const lockDirectory = process.env.SAFEWORD_TEST_LOCK_DIR
   ? nodePath.resolve(process.env.SAFEWORD_TEST_LOCK_DIR)
   : nodePath.join(lockParent, `${lockName}.lock`);
 const ownerPath = nodePath.join(lockDirectory, 'owner.json');
+const checkoutRoot = nodePath.resolve(cliRoot, '..', '..');
 
 function resolveMaximumLockWaitMilliseconds() {
   const raw = process.env.SAFEWORD_TEST_LOCK_MAX_WAIT_MS;
@@ -54,6 +57,20 @@ function resolveMaximumLockWaitMilliseconds() {
 }
 
 const maximumLockWaitMilliseconds = resolveMaximumLockWaitMilliseconds();
+
+function resolveLockStatusIntervalMilliseconds() {
+  const raw = process.env.SAFEWORD_TEST_LOCK_STATUS_INTERVAL_MS;
+  if (raw === undefined) {
+    return defaultLockStatusIntervalMilliseconds;
+  }
+
+  const parsed = Number(raw);
+  return Number.isSafeInteger(parsed) && parsed > 0
+    ? parsed
+    : defaultLockStatusIntervalMilliseconds;
+}
+
+const lockStatusIntervalMilliseconds = resolveLockStatusIntervalMilliseconds();
 
 function sleep(milliseconds) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
@@ -95,11 +112,45 @@ function removeStaleLock() {
   return false;
 }
 
+function formatElapsedWait(milliseconds) {
+  if (milliseconds < 1000) {
+    return `${milliseconds}ms`;
+  }
+
+  const totalSeconds = Math.floor(milliseconds / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return minutes === 0 ? `${seconds}s` : `${minutes}m ${seconds}s`;
+}
+
+function reportLockWait(waitedMilliseconds) {
+  let owner = {};
+  try {
+    owner = JSON.parse(readFileSync(ownerPath, 'utf8'));
+  } catch {
+    // The owner may release or replace the lock between our EEXIST check and
+    // this diagnostic read. Waiting remains correct even without metadata.
+  }
+
+  const ownerPid =
+    typeof owner.pid === 'number' ? `owner PID ${owner.pid}` : 'owner PID unavailable';
+  const ownerCheckout =
+    typeof owner.checkoutRoot === 'string' && owner.checkoutRoot !== ''
+      ? `checkout ${owner.checkoutRoot}`
+      : 'checkout unavailable';
+  console.error(
+    `Waiting for safeword package test lock (${formatElapsedWait(waitedMilliseconds)} elapsed; ${ownerPid}; ${ownerCheckout}).`,
+  );
+}
+
 function acquireLock() {
   mkdirSync(nodePath.dirname(lockDirectory), { recursive: true });
 
   let waitedMilliseconds = 0;
-  let showedWaitNotice = false;
+  let nextStatusAtMilliseconds = Math.min(
+    initialLockStatusDelayMilliseconds,
+    lockStatusIntervalMilliseconds,
+  );
   for (;;) {
     let mkdirError;
     try {
@@ -109,6 +160,7 @@ function acquireLock() {
         `${JSON.stringify(
           {
             createdAt: new Date().toISOString(),
+            checkoutRoot,
             pid: process.pid,
           },
           undefined,
@@ -135,12 +187,18 @@ function acquireLock() {
       return false;
     }
 
-    if (!showedWaitNotice && waitedMilliseconds >= 1000) {
-      console.error('Waiting for another safeword package test run to finish...');
-      showedWaitNotice = true;
+    if (waitedMilliseconds >= nextStatusAtMilliseconds) {
+      reportLockWait(waitedMilliseconds);
+      do {
+        nextStatusAtMilliseconds += lockStatusIntervalMilliseconds;
+      } while (nextStatusAtMilliseconds <= waitedMilliseconds);
     }
 
-    const nextSleepMilliseconds = Math.min(250, maximumLockWaitMilliseconds - waitedMilliseconds);
+    const nextSleepMilliseconds = Math.min(
+      250,
+      maximumLockWaitMilliseconds - waitedMilliseconds,
+      nextStatusAtMilliseconds - waitedMilliseconds,
+    );
     sleep(nextSleepMilliseconds);
     waitedMilliseconds += nextSleepMilliseconds;
   }
