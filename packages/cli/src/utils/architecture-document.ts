@@ -565,10 +565,9 @@ function resolveModulePurpose(
   node: SkeletonNode,
   prior: PriorPurpose | undefined,
 ): { purpose: string; seeded: boolean } {
-  const generatedPrior = prior?.generated === true;
-  const seeded = node.seededPurpose === true && (prior === undefined || generatedPrior);
+  const { seeded, useGeneratedPurpose } = generatedPurposeChoice(node.seededPurpose, prior);
   return {
-    purpose: seeded || generatedPrior ? node.purpose : (prior?.text ?? node.purpose),
+    purpose: useGeneratedPurpose ? node.purpose : (prior?.text ?? node.purpose),
     seeded,
   };
 }
@@ -657,11 +656,23 @@ function resolvePackagePurpose(
   node: PackageNode,
   prior: PriorPurpose | undefined,
 ): { purpose: string | undefined; seeded: boolean } {
-  const generatedPrior = prior?.generated === true;
-  const seeded = node.seededPurpose === true && (prior === undefined || generatedPrior);
+  const { seeded, useGeneratedPurpose } = generatedPurposeChoice(node.seededPurpose, prior);
   return {
-    purpose: seeded || generatedPrior ? node.purpose : prior?.text,
+    purpose: useGeneratedPurpose ? node.purpose : prior?.text,
     seeded,
+  };
+}
+
+/** Choose whether generator-owned purpose text may replace the prior section prose. */
+function generatedPurposeChoice(
+  hasSeededPurpose: boolean | undefined,
+  prior: PriorPurpose | undefined,
+): { seeded: boolean; useGeneratedPurpose: boolean } {
+  const generatedPrior = prior?.generated === true;
+  const seeded = hasSeededPurpose === true && (prior === undefined || generatedPrior);
+  return {
+    seeded,
+    useGeneratedPurpose: seeded || generatedPrior,
   };
 }
 
