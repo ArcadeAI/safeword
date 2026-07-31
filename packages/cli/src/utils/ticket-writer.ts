@@ -76,15 +76,18 @@ export interface MintedIdentity {
 export type IdentitySource = () => Promise<MintedIdentity>;
 
 const SAFE_TRACKER_IDENTITY = /^[A-Z0-9][\w.-]*$/i;
+const WINDOWS_RESERVED_DEVICE_WITH_EXTENSION = /^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])\./i;
 
 /**
  * Tracker identities become part of a ticket folder name. Keep that boundary
  * deliberately narrower than platform path syntax: GitHub numbers, Linear
  * keys, and UUIDs all fit, while separators, drive prefixes, dot segments, and
- * control characters cannot reach path normalization.
+ * control characters cannot reach path normalization. A bare Windows device
+ * name is safe after the required `-${slug}` suffix; a device name followed by
+ * a period remains reserved even after that suffix and must be rejected.
  */
 function assertSafeTrackerIdentity(id: string): void {
-  if (!SAFE_TRACKER_IDENTITY.test(id)) {
+  if (!SAFE_TRACKER_IDENTITY.test(id) || WINDOWS_RESERVED_DEVICE_WITH_EXTENSION.test(id)) {
     throw new Error(
       `Tracker returned "${JSON.stringify(id)}", which is not a safe ticket identity.`,
     );
