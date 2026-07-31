@@ -189,3 +189,61 @@ All five findings were investigated on 2026-07-29 before changing code. Primary-
 **Premortem:** A later push can stale this status again; refresh the Validation section only after fetching the exact current-head run.
 
 **Next:** Update PR #1652’s Validation line to record the green completed run.
+
+## Pass 6 — rebase-head feedback
+
+### A. Remove the redundant parsed-state assertion
+
+- [x] Phase 1: Decide whether the Stop writer needs both a `Partial<QualityState>` variable annotation and an identical JSON assertion.
+- [x] Phase 2: Options were retaining both, keeping only the annotation, or treating JSON as `unknown` and validating every field.
+- [x] Phase 3a: Research domains — TypeScript inference and assertions, shared on-disk state evolution, and malformed-file recovery.
+- [x] Phase 3b: Verified `JSON.parse` is `any`, so the declared `Partial<QualityState>` accepts it without the duplicate assertion; the surrounding runtime `try`/`catch` remains the malformed-file boundary.
+- [x] Phase 4: Chose the annotation alone.
+
+> Recommend **remove the duplicate assertion** because the declared `Partial<QualityState>` already records the intended contract, while the runtime boundary still owns tolerance of stale files. Keeping both is noisier; full validation would add behavior and scope. Cite: [TypeScript Everyday Types](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html).
+
+**Premortem:** A future parser migration could make the annotation misleading; update the shared state contract and add validation only when the format becomes versioned.
+
+**Next:** Simplify `stop-quality.ts` in the template and dogfood copies.
+
+### B. Correct the phase predicate consistently
+
+- [x] Phase 1: Decide whether to fix the three sibling comments that describe `undefined` phase as only “no active ticket.”
+- [x] Phase 2: Options were leave them for follow-up, correct all three now, or rename the runtime predicate.
+- [x] Phase 3a: Research domains — local `resolveStopPhase` semantics, user-facing readiness behavior, and template/dogfood parity.
+- [x] Phase 3b: Traced the three no-phase outcomes: a missing `phase:`, a status escape hatch, and eligible done-status tickets. The comments are documentation-only and all use the same phase parameter.
+- [x] Phase 4: Chose the consistent wording correction.
+
+> Recommend **correct all three comments now** because they state one shared local invariant and need no runtime change. A follow-up would preserve known misleading guidance; renaming code would be bloat. Cite: `packages/cli/templates/hooks/lib/active-ticket.ts` (`resolveStopPhase`).
+
+**Premortem:** A new undefined-phase meaning is added later; update the predicate’s contract comment and its callers together.
+
+**Next:** Use “no resolvable ticket phase” in the typecheck, readiness, and prompt comments and keep their dogfood twins identical.
+
+### C. Make PR validation durable between pushes
+
+- [x] Phase 1: Decide how the PR body should describe validation without stale statuses or unanchored snapshot counts.
+- [x] Phase 2: Options were retain counts, anchor counts to a commit, or list reproducible checks and link GitHub’s live Checks tab.
+- [x] Phase 3a: Research domains — GitHub check lifecycle, reviewer handoff, and validation provenance.
+- [x] Phase 3b: GitHub documents the Checks tab as the place for per-commit check output and current state; every push can supersede a static PR-body observation.
+- [x] Phase 4: Chose reproducible check descriptions plus the live tab.
+
+> Recommend **replace snapshot numbers with named validation scopes and the live Checks tab** because it remains true after the next push. Commit-anchored counts are more accurate but still duplicate a volatile status surface. Cite: [GitHub status checks](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/collaborating-on-repositories-with-code-quality-features/about-status-checks).
+
+**Premortem:** A reviewer needs exact local counts; consult the linked CI run or ticket evidence rather than trusting PR prose.
+
+**Next:** Update PR #1652’s Validation bullets before pushing the rebased branch.
+
+### D. Keep TDD evidence reachable after the current rebase
+
+- [x] Phase 1: Decide whether rebased ticket evidence should retain original SHAs, rely on local orphan recovery, or cite their new reachable counterparts.
+- [x] Phase 2: Options were old SHAs with patch-ID fallback, deleting the evidence, or mapping the unchanged patches to rebased SHAs.
+- [x] Phase 3a: Research domains — Git commit reachability, fresh-clone ledger validation, and patch-series comparison.
+- [x] Phase 3b: `git range-diff 02cfbea89...origin/agent/quiet-idle-stop-reviews af3eab8b2...HEAD` matched every relevant patch: `f22ead54b` → `f76e91bc9`, `fb5904c4b` → `c3f3666ac`, `69ce94f19` → `bb6540dfb`, and `d00fbf733` → `4f4a949f6`. Each replacement is an ancestor of the rebased head.
+- [x] Phase 4: Chose reachable replacement SHAs.
+
+> Recommend **retarget the ledger to the rebased SHAs** because ledger evidence must work in a fresh checkout. Keeping orphan IDs depends on locally retained objects; deleting evidence loses the RED/GREEN trail. Cite: [Git range-diff documentation](https://git-scm.com/docs/git-range-diff).
+
+**Premortem:** Another rebase rewrites the series; run `range-diff` and replace every ledger SHA before attempting the done gate.
+
+**Next:** Update the YBBGKB GREEN/REFACTOR annotations, then run the ledger validator against the new head.

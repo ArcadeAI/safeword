@@ -13,6 +13,8 @@ Scout scope: the marker field, its two hook transitions, and their installed-hoo
 
 9. [x] **Narrative precision — docs + comment:** state the generic-review trigger as "no resolvable ticket phase" rather than "no active ticket", since `resolveStopPhase` also yields no phase for an in_progress ticket missing `phase:`, any status escape hatch, and a done-status patch/typeless/scenario-less ticket. Type the Stop writer's parsed state as `Partial<QualityState>` so both hooks that read-modify-write the file name the same contract. (PR #1652 pass-5 review; docs + annotation only, no behavior change.)
 
+10. [x] **Rebase evidence — reachable:** retarget all TDD GREEN/REFACTOR annotations to their `git range-diff`-matched commits on the rebased series, so fresh/shallow checkouts can validate the ticket. (PR #1652 rebase review; evidence only, no behavior change.)
+
 Deferred deliberately: extracting a general read-modify-write helper would make independently running hooks share an abstraction around a known concurrency hazard. The explicit cross-hook writes are safer and clearer at this scope; the prompt hook batches only its own already-loaded state object.
 
 Evidence: package-local Vitest passed the idle-review (3), typecheck (4), phase-backstop (3), frozen transcript (14), and prompt-marker (1) focused coverage after the PR-feedback fixes. The attempted old-head Node 24 rerun was canceled when the corrective branch head pushed; that fresh CI run is the authoritative aggregate evidence.

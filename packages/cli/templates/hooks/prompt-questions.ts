@@ -208,7 +208,7 @@ if (existsSync(stateFile)) {
 anchors.push(`- ${replyFormatReminder}`);
 
 // Readiness pointer (TPP6Y2): compressed five-dimension self-test, surfaced
-// during Clarify (no active ticket or intake phase) and suppressed once a build
+// during Clarify (no resolvable phase or intake) and suppressed once a build
 // phase is under way. Fires whether or not a state file exists, so the
 // motivating first-turn / pre-classify case is covered.
 if (shouldSurfaceReadiness(effectivePhase)) {

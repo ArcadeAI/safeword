@@ -139,7 +139,7 @@ function recordStopReviewState(
     // predate a field. The shared contract names the shape; the runtime
     // boundary below keeps a stale or malformed file from crashing the hook.
     const state: Partial<QualityState> = existsSync(stateFile)
-      ? (JSON.parse(readFileSync(stateFile, 'utf8')) as Partial<QualityState>)
+      ? JSON.parse(readFileSync(stateFile, 'utf8'))
       : {};
     Object.assign(state, patch);
     writeFileSync(stateFile, JSON.stringify(state, null, 2));
