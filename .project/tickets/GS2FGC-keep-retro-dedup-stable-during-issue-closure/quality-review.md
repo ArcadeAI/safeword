@@ -5,13 +5,13 @@ documentation, repository history, CI, and a live API census.
 
 ## Feedback review
 
-**Currency:** ✓ Current as of 2026-07-27  
+**Currency:** ✓ Current as of 2026-07-27
 **Sources:** ✓ Load-bearing claims verified against primary GitHub sources and
-live repository data  
+live repository data
 **Correct:** ⚠️ The cap and CI blockers were valid; several advisory claims
-needed narrower wording  
-**Elegant:** ✓ The required fixes were narrow  
-**No-bloat:** ⚠️ Link traversal and cross-run caching require separate design  
+needed narrower wording
+**Elegant:** ✓ The required fixes were narrow
+**No-bloat:** ⚠️ Link traversal and cross-run caching require separate design
 **Wiring:** ✓ The real `createRestTransport` tests mock only the network boundary
 
 **Verdict:** REQUEST CHANGES
@@ -52,11 +52,11 @@ before 20,000 items.
 
 ## Post-fix review
 
-**Currency:** ✓ GitHub API contract current as of 2026-07-27  
-**Sources:** ✓ Primary GitHub docs and live census verified  
-**Correct:** ✓ Cap, filtering, and exact boundary behavior are correct  
-**Elegant:** ✓ Stale cap wording corrected  
-**No-bloat:** ✓ Minimal constant, test, and fixture changes  
+**Currency:** ✓ GitHub API contract current as of 2026-07-27
+**Sources:** ✓ Primary GitHub docs and live census verified
+**Correct:** ✓ Cap, filtering, and exact boundary behavior are correct
+**Elegant:** ✓ Stale cap wording corrected
+**No-bloat:** ✓ Minimal constant, test, and fixture changes
 **Wiring:** ✓ Real transport with only `fetch` mocked
 
 **Verdict:** APPROVE
