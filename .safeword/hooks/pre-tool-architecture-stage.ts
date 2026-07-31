@@ -26,10 +26,7 @@ interface ProjectedIndex {
 }
 
 interface GitCommitPlan {
-  arguments: string[];
-  directory: string;
-  environment: Record<string, string>;
-  globalArguments: string[];
+  commit: GitInvocation;
   precedingAdds: GitInvocation[];
 }
 
@@ -39,11 +36,6 @@ interface GitInvocation {
   environment: Record<string, string>;
   globalArguments: string[];
   subcommand: string;
-}
-
-interface UnsupportedCommitPlan {
-  commit: GitInvocation;
-  precedingAdds: GitInvocation[];
 }
 
 const GIT_GLOBAL_OPTIONS_REQUIRING_VALUE = new Set([
@@ -154,13 +146,7 @@ function gitCommitPlan(command: string, baseDirectory: string): GitCommitPlan | 
     if (invocation?.subcommand === 'commit') {
       if (commitOptionEffects(invocation.arguments).nonCommitting) return undefined;
       if (precedingAdds.some(add => !sameGitRepositoryTarget(add, invocation))) return undefined;
-      return {
-        arguments: invocation.arguments,
-        directory: invocation.directory,
-        environment: invocation.environment,
-        globalArguments: invocation.globalArguments,
-        precedingAdds,
-      };
+      return { commit: invocation, precedingAdds };
     }
     if (invocation?.subcommand === 'add') {
       if (
@@ -186,10 +172,7 @@ function gitCommitPlan(command: string, baseDirectory: string): GitCommitPlan | 
  * shared lightweight tokenizer cannot distinguish stdin body lines from shell
  * commands, and a false advisory is more disruptive than remaining silent.
  */
-function unsupportedCommitPlan(
-  command: string,
-  baseDirectory: string,
-): UnsupportedCommitPlan | undefined {
+function unsupportedCommitPlan(command: string, baseDirectory: string): GitCommitPlan | undefined {
   if (command.includes('<<')) return undefined;
 
   let directory = baseDirectory;
@@ -456,23 +439,23 @@ function isLongOptionWithValue(token: string): boolean {
  * source changes into the user's real index if the eventual commit aborts.
  */
 function projectCommitIndex(plan: GitCommitPlan): ProjectedIndex | undefined {
-  const commitTarget = gitRepositoryTarget(plan);
+  const commitTarget = gitRepositoryTarget(plan.commit);
   if (
     commitTarget === undefined ||
-    plan.precedingAdds.some(add => !sameGitRepositoryTarget(add, plan))
+    plan.precedingAdds.some(add => !sameGitRepositoryTarget(add, plan.commit))
   ) {
     return undefined;
   }
   const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-commit-index-'));
   const projectedIndex = nodePath.join(directory, 'index');
-  const commitEnvironment = { ...process.env, ...plan.environment };
+  const commitEnvironment = { ...process.env, ...plan.commit.environment };
   const projectedEnvironment = { ...commitEnvironment, GIT_INDEX_FILE: projectedIndex };
   try {
     if (existsSync(commitTarget.indexPath)) {
       copyFileSync(commitTarget.indexPath, projectedIndex);
     } else {
-      execFileSync('git', [...plan.globalArguments, 'read-tree', '--empty'], {
-        cwd: plan.directory,
+      execFileSync('git', [...plan.commit.globalArguments, 'read-tree', '--empty'], {
+        cwd: plan.commit.directory,
         env: projectedEnvironment,
         stdio: 'ignore',
       });
@@ -484,9 +467,9 @@ function projectCommitIndex(plan: GitCommitPlan): ProjectedIndex | undefined {
         stdio: 'ignore',
       });
     }
-    if (stagesTrackedWorktreeChanges(plan.arguments)) {
-      execFileSync('git', [...plan.globalArguments, 'add', '-u', '--', ':/'], {
-        cwd: plan.directory,
+    if (stagesTrackedWorktreeChanges(plan.commit.arguments)) {
+      execFileSync('git', [...plan.commit.globalArguments, 'add', '-u', '--', ':/'], {
+        cwd: plan.commit.directory,
         env: projectedEnvironment,
         stdio: 'ignore',
       });
@@ -499,10 +482,10 @@ function projectCommitIndex(plan: GitCommitPlan): ProjectedIndex | undefined {
 }
 
 function runArchitectureHook(projectDir: string, plan: GitCommitPlan): void {
-  const commitTarget = gitRepositoryTarget(plan);
+  const commitTarget = gitRepositoryTarget(plan.commit);
   if (commitTarget === undefined) return;
   const needsProjectedIndex =
-    plan.precedingAdds.length > 0 || stagesTrackedWorktreeChanges(plan.arguments);
+    plan.precedingAdds.length > 0 || stagesTrackedWorktreeChanges(plan.commit.arguments);
   const projectedIndex = needsProjectedIndex ? projectCommitIndex(plan) : undefined;
   if (needsProjectedIndex && projectedIndex === undefined) return;
   try {
@@ -533,12 +516,12 @@ function runArchitectureHook(projectDir: string, plan: GitCommitPlan): void {
       cwd: projectDir,
       env: {
         ...process.env,
-        ...plan.environment,
+        ...plan.commit.environment,
         GIT_DIR: commitTarget.gitDirectory,
         GIT_INDEX_FILE: commitTarget.indexPath,
         GIT_WORK_TREE: commitTarget.worktreeRoot,
         ...(sourceIndex === undefined ? {} : { [ARCHITECTURE_SOURCE_INDEX_ENV]: sourceIndex }),
-        ...(plan.precedingAdds.length === 0 && !stagesTrackedWorktreeChanges(plan.arguments)
+        ...(plan.precedingAdds.length === 0 && !stagesTrackedWorktreeChanges(plan.commit.arguments)
           ? {}
           : { [ARCHITECTURE_KEEP_MATERIALIZED_ENV]: '1' }),
       },
@@ -637,17 +620,10 @@ if (commitPlan === undefined) {
       unsupportedProjectDir !== undefined &&
       existsSync(nodePath.join(unsupportedProjectDir, '.safeword'))
     ) {
-      const projectionPlan: GitCommitPlan = {
-        arguments: unsupportedCommit.commit.arguments,
-        directory: unsupportedCommit.commit.directory,
-        environment: unsupportedCommit.commit.environment,
-        globalArguments: unsupportedCommit.commit.globalArguments,
-        precedingAdds: unsupportedCommit.precedingAdds,
-      };
       const needsProjection =
-        projectionPlan.precedingAdds.length > 0 ||
-        stagesTrackedWorktreeChanges(projectionPlan.arguments);
-      const projectedIndex = needsProjection ? projectCommitIndex(projectionPlan) : undefined;
+        unsupportedCommit.precedingAdds.length > 0 ||
+        stagesTrackedWorktreeChanges(unsupportedCommit.commit.arguments);
+      const projectedIndex = needsProjection ? projectCommitIndex(unsupportedCommit) : undefined;
       if (!needsProjection || projectedIndex !== undefined) {
         try {
           shouldAdvise = stagedChangeAffectsArchitecture(unsupportedProjectDir, {
@@ -680,7 +656,7 @@ if (commitPlan === undefined) {
   process.exit(0);
 }
 
-const projectDir = gitWorktreeRoot(commitPlan);
+const projectDir = gitWorktreeRoot(commitPlan.commit);
 
 // Not a safeword project — nothing to do.
 if (projectDir === undefined || !existsSync(nodePath.join(projectDir, '.safeword')))
