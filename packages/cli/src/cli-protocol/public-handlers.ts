@@ -142,145 +142,210 @@ async function syncConfigHandler(invocation: CommandInvocation): Promise<CliResu
   });
 }
 
-// eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- architecture reconciliation coordinates observation, enforcement, healing, and optional staging in one truthful result
+type ArchitectureAdvisory = {
+  readonly code: string;
+  readonly message: string;
+  readonly severity: 'info';
+};
+
+type HealedDocument = { readonly action: string; readonly path: string };
+
+/**
+ * Advisories are observed twice per mutating run — once before healing and once
+ * after — because healing can resolve them. Each call rediscovers the workspace
+ * topology; sharing one snapshot needs a parameterized discovery API in
+ * `architecture-monorepo.ts` (see issue #1667's follow-up).
+ */
+function architectureAdvisories(
+  cwd: string,
+  discoverUnreadableWorkspaces: (projectDirectory: string) => {
+    config: string;
+    manager: string;
+  }[],
+): ArchitectureAdvisory[] {
+  return discoverUnreadableWorkspaces(cwd).map(workspace => ({
+    code: 'ARCHITECTURE_ADVISORY',
+    message: `Workspace config present but unreadable: ${workspace.config} (${workspace.manager}).`,
+    severity: 'info' as const,
+  }));
+}
+
+function architectureEnforcementDisabledResult(
+  advisories: readonly ArchitectureAdvisory[],
+): CliResult {
+  return createResult({
+    state: 'healthy',
+    findings: [
+      {
+        code: 'ARCHITECTURE_ENFORCEMENT_DISABLED',
+        message: 'Architecture document enforcement is disabled for this project.',
+        severity: 'info',
+      },
+      ...advisories,
+    ],
+    data: { command: 'project architecture', enforcement: false },
+  });
+}
+
+function architectureCheckResult(
+  stale: readonly string[],
+  advisories: readonly ArchitectureAdvisory[],
+): CliResult {
+  return createResult({
+    state: stale.length === 0 ? 'healthy' : 'action_required',
+    nextActions:
+      stale.length === 0
+        ? []
+        : [
+            {
+              command: 'safeword project architecture',
+              mutates: true,
+              requiresHuman: false,
+            },
+          ],
+    findings:
+      stale.length === 0
+        ? advisories
+        : [
+            {
+              code: 'ARCHITECTURE_DRIFT',
+              message: `Architecture documents are stale (${stale.join(', ')}).`,
+              severity: 'warning',
+            },
+            ...advisories,
+          ],
+    data: { command: 'project architecture', planned: stale, enforcement: true },
+  });
+}
+
+/** Stage each healed document, recording the ones git refused. */
+function stageHealedDocuments(
+  cwd: string,
+  changed: readonly HealedDocument[],
+): { staged: { kind: string; target: string }[]; stageFailures: string[] } {
+  const staged: { kind: string; target: string }[] = [];
+  const stageFailures: string[] = [];
+  for (const result of changed) {
+    const target = nodePath.relative(cwd, result.path);
+    try {
+      execFileSync('git', ['add', '--', target], { cwd, stdio: 'ignore' });
+      staged.push({ kind: 'stage', target });
+    } catch {
+      stageFailures.push(target);
+    }
+  }
+  return { staged, stageFailures };
+}
+
 async function architectureHandler(invocation: CommandInvocation): Promise<CliResult> {
   const { isWouldChangeAction, planSelfHealProject, selfHealProject } =
     await import('../utils/architecture-document.js');
   const { discoverUnreadableWorkspaces } = await import('../utils/architecture-monorepo.js');
   const { isArchitectureDocumentEnforcementEnabled } = await import('../utils/configured-paths.js');
-  const observeAdvisories = () =>
-    discoverUnreadableWorkspaces(invocation.cwd)
-      .map(
-        workspace =>
-          `Workspace config present but unreadable: ${workspace.config} (${workspace.manager}).`,
-      )
-      .map(message => ({
-        code: 'ARCHITECTURE_ADVISORY',
-        message,
-        severity: 'info' as const,
-      }));
-  const advisories = observeAdvisories();
+
+  const advisories = architectureAdvisories(invocation.cwd, discoverUnreadableWorkspaces);
   const enforcementEnabled = isArchitectureDocumentEnforcementEnabled(invocation.cwd);
   if (!enforcementEnabled && (invocation.options.check || invocation.options.stage)) {
-    return createResult({
-      state: 'healthy',
-      findings: [
-        {
-          code: 'ARCHITECTURE_ENFORCEMENT_DISABLED',
-          message: 'Architecture document enforcement is disabled for this project.',
-          severity: 'info',
-        },
-        ...advisories,
-      ],
-      data: { command: 'project architecture', enforcement: false },
-    });
+    return architectureEnforcementDisabledResult(advisories);
   }
+
   const planned = planSelfHealProject(invocation.cwd);
   const stale = planned.filter(action => isWouldChangeAction(action));
-  if (invocation.options.check === true) {
-    return createResult({
-      state: stale.length === 0 ? 'healthy' : 'action_required',
-      nextActions:
-        stale.length === 0
-          ? []
-          : [
-              {
-                command: 'safeword project architecture',
-                mutates: true,
-                requiresHuman: false,
-              },
-            ],
-      findings:
-        stale.length === 0
-          ? advisories
-          : [
-              {
-                code: 'ARCHITECTURE_DRIFT',
-                message: `Architecture documents are stale (${stale.join(', ')}).`,
-                severity: 'warning',
-              },
-              ...advisories,
-            ],
-      data: { command: 'project architecture', planned: stale, enforcement: true },
-    });
-  }
+  if (invocation.options.check === true) return architectureCheckResult(stale, advisories);
+
   const results = selfHealProject(invocation.cwd);
   const changed = results.filter(result => isWouldChangeAction(result.action));
-  const completedAdvisories = observeAdvisories();
-  const staged: { kind: string; target: string }[] = [];
-  const stageFailures: string[] = [];
-  if (invocation.options.stage === true) {
-    for (const result of changed) {
-      const target = nodePath.relative(invocation.cwd, result.path);
-      try {
-        execFileSync('git', ['add', '--', target], {
-          cwd: invocation.cwd,
-          stdio: 'ignore',
-        });
-        staged.push({ kind: 'stage', target });
-      } catch {
-        stageFailures.push(target);
-      }
-    }
+  const completedAdvisories = architectureAdvisories(invocation.cwd, discoverUnreadableWorkspaces);
+  const { staged, stageFailures } =
+    invocation.options.stage === true
+      ? stageHealedDocuments(invocation.cwd, changed)
+      : { staged: [], stageFailures: [] };
+
+  return architectureHealResult({
+    cwd: invocation.cwd,
+    changed,
+    completedAdvisories,
+    staged,
+    stageFailures,
+    stageRequested: invocation.options.stage === true,
+  });
+}
+
+function healedDocumentFindings(
+  cwd: string,
+  changed: readonly HealedDocument[],
+): CliResult['findings'] {
+  if (changed.length === 0) {
+    return [
+      {
+        code: 'ARCHITECTURE_UNCHANGED',
+        message: 'Architecture documents are unchanged.',
+        severity: 'info',
+      },
+    ];
   }
-  let resultState: CliResult['state'] = changed.length === 0 ? 'healthy' : 'changed';
-  if (stageFailures.length > 0) resultState = 'action_required';
+  const healed = changed.map(result => nodePath.relative(cwd, result.path)).join(', ');
+  return [
+    {
+      code: 'ARCHITECTURE_REFRESHED',
+      message: `Architecture documents created, healed, or regenerated (${healed}).`,
+      severity: 'info',
+    },
+  ];
+}
+
+function architectureHealResult(input: {
+  readonly cwd: string;
+  readonly changed: readonly HealedDocument[];
+  readonly completedAdvisories: readonly ArchitectureAdvisory[];
+  readonly staged: readonly { kind: string; target: string }[];
+  readonly stageFailures: readonly string[];
+  readonly stageRequested: boolean;
+}): CliResult {
+  const staleStaging = input.stageFailures.length > 0;
+  const changedDocuments = input.changed.length > 0;
+  let state: CliResult['state'] = changedDocuments ? 'changed' : 'healthy';
+  if (staleStaging) state = 'action_required';
+
   return createResult({
-    state: resultState,
-    changed: changed.length > 0,
+    state,
+    changed: changedDocuments,
     effects: {
       files: [
-        ...changed.map(result => ({
+        ...input.changed.map(result => ({
           kind: result.action === 'created' ? 'create' : 'update',
-          target: nodePath.relative(invocation.cwd, result.path),
+          target: nodePath.relative(input.cwd, result.path),
         })),
-        ...staged.map(effect => ({ ...effect, operation: 'stage' })),
+        ...input.staged.map(effect => ({ ...effect, operation: 'stage' })),
       ],
     },
     findings: [
-      ...(changed.length === 0
-        ? [
-            {
-              code: 'ARCHITECTURE_UNCHANGED',
-              message: 'Architecture documents are unchanged.',
-              severity: 'info' as const,
-            },
-          ]
-        : [
-            {
-              code: 'ARCHITECTURE_REFRESHED',
-              message: `Architecture documents created, healed, or regenerated (${changed
-                .map(result => nodePath.relative(invocation.cwd, result.path))
-                .join(', ')}).`,
-              severity: 'info' as const,
-            },
-          ]),
-      ...completedAdvisories,
-      ...(stageFailures.length > 0
+      ...healedDocumentFindings(input.cwd, input.changed),
+      ...input.completedAdvisories,
+      ...(staleStaging
         ? [
             {
               code: 'ARCHITECTURE_STAGE_FAILED',
-              message: `Architecture documents were refreshed but could not be staged (${stageFailures.join(', ')}).`,
+              message: `Architecture documents were refreshed but could not be staged (${input.stageFailures.join(', ')}).`,
               severity: 'warning' as const,
             },
           ]
         : []),
     ],
-    nextActions:
-      stageFailures.length > 0
-        ? [
-            {
-              command: 'safeword project architecture --stage',
-              mutates: true,
-              requiresHuman: false,
-            },
-          ]
-        : [],
+    nextActions: staleStaging
+      ? [
+          {
+            command: 'safeword project architecture --stage',
+            mutates: true,
+            requiresHuman: false,
+          },
+        ]
+      : [],
     data: {
       command: 'project architecture',
-      staged: invocation.options.stage === true && stageFailures.length === 0,
-      staged_files: staged.map(effect => effect.target),
-      stage_failures: stageFailures,
+      staged: input.stageRequested && !staleStaging,
+      staged_files: input.staged.map(effect => effect.target),
+      stage_failures: input.stageFailures,
       enforcement: true,
     },
   });
