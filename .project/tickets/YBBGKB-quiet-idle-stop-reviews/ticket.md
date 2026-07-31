@@ -5,7 +5,7 @@ type: task
 phase: verify
 status: in_progress
 created: 2026-07-29T17:27:17.421Z
-last_modified: 2026-07-30T16:09:29.000Z
+last_modified: 2026-07-31T03:30:00.000Z
 ---
 
 # Keep stop reviews quiet until a new user prompt
@@ -63,3 +63,4 @@ Pre-mortem: a state-file write failure could still allow a duplicate generic rev
 - 2026-07-30T01:25:12.000Z Fresh quality-review and figure-it-out pass: no new reviewer feedback or unresolved threads. Verified the current head's CI run 30504407023 is green; corrected the PR Validation wording that still reported it in progress. Source review confirms the synchronous Node file APIs used by the best-effort prompt-state recovery remain current. Keep the ticket in `verify` pending user confirmation.
 - 2026-07-30T15:50:00.000Z Full audit, quality-review, and refactor pass: the code remains correct and intentionally keeps read-modify-write logic explicit per hook. Updated the architecture narrative with the one-generic-review-per-user-prompt boundary and corrected PR #1652 to show current-head CI 30505649629 as passed. Focused installed-hook coverage passes 72/72.
 - 2026-07-30T16:09:29.000Z Revalidated #1492 during retro triage: it remains relevant because `origin/main` has no idle-review marker, while draft PR #1652 adds the marker to both template and dogfood hooks. The real installed-hook lifecycle regression passes 3/3; current Claude Code hook documentation still places `UserPromptSubmit` before processing and `Stop` after the response. Reconfirmed the per-user-prompt generic marker as the smallest solution that preserves independent typecheck, phase, and done gates. Keep this ticket in `verify` and PR #1652 as a draft pending explicit delivery approval. (refs: #1492, PR #1652, `packages/cli/tests/integration/stop-hook-idle-review.test.ts`)
+- 2026-07-31T03:30:00.000Z Pass-5 PR review resolution: corrected the ARCHITECTURE.md and stop-quality comment wording to say the generic review keys on "no resolvable ticket phase", not "no active ticket" — `resolveStopPhase` also empties the phase for an in_progress ticket missing `phase:`, any status escape hatch, and a done-status patch/typeless/scenario-less ticket. Typed the Stop writer's parsed state as `Partial<QualityState>` so both read-modify-write hooks name one contract. Docs and annotation only; no behavior change. (refs: PR #1652)

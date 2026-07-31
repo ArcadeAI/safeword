@@ -11,6 +11,8 @@ Scout scope: the marker field, its two hook transitions, and their installed-hoo
 7. [x] **Recovery-test precondition — explicit:** seed a downstream pending-learning nudge and assert it remains unseen when malformed cached failures abort reminder derivation. This keeps the recovery regression non-vacuous if failure parsing later becomes tolerant. (PR #1652 pass-3 review.)
 8. [x] **State type — honest:** use `QualityState` for the parsed hook state, while retaining the runtime error boundary for stale or malformed on-disk content. (PR #1652 pass-3 review.)
 
+9. [x] **Narrative precision — docs + comment:** state the generic-review trigger as "no resolvable ticket phase" rather than "no active ticket", since `resolveStopPhase` also yields no phase for an in_progress ticket missing `phase:`, any status escape hatch, and a done-status patch/typeless/scenario-less ticket. Type the Stop writer's parsed state as `Partial<QualityState>` so both hooks that read-modify-write the file name the same contract. (PR #1652 pass-5 review; docs + annotation only, no behavior change.)
+
 Deferred deliberately: extracting a general read-modify-write helper would make independently running hooks share an abstraction around a known concurrency hazard. The explicit cross-hook writes are safer and clearer at this scope; the prompt hook batches only its own already-loaded state object.
 
 Evidence: package-local Vitest passed the idle-review (3), typecheck (4), phase-backstop (3), frozen transcript (14), and prompt-marker (1) focused coverage after the PR-feedback fixes. The attempted old-head Node 24 rerun was canceled when the corrective branch head pushed; that fresh CI run is the authoritative aggregate evidence.

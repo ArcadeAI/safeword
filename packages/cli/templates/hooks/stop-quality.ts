@@ -33,6 +33,7 @@ import {
   EXPLAIN_HINT,
   type FailureEntry,
   getStateFilePath,
+  type QualityState,
   readSessionState,
   recordFailure,
 } from './lib/quality-state.ts';
@@ -134,7 +135,12 @@ function recordStopReviewState(
   const stateFile = getStateFilePath(projectDir, sessionId);
   try {
     mkdirSync(nodePath.dirname(stateFile), { recursive: true });
-    const state = existsSync(stateFile) ? JSON.parse(readFileSync(stateFile, 'utf8')) : {};
+    // Partial, not QualityState: the file may be absent (fresh session) or
+    // predate a field. The shared contract names the shape; the runtime
+    // boundary below keeps a stale or malformed file from crashing the hook.
+    const state: Partial<QualityState> = existsSync(stateFile)
+      ? (JSON.parse(readFileSync(stateFile, 'utf8')) as Partial<QualityState>)
+      : {};
     Object.assign(state, patch);
     writeFileSync(stateFile, JSON.stringify(state, null, 2));
   } catch {
@@ -740,9 +746,12 @@ const tddStep =
     ? deriveTddStep(projectDir, ticketInfo.folder)
     : null;
 
-// No ticket/phase context (no active ticket, or a done-status ticket): dedupe a
-// generic review against the next UserPromptSubmit. With a phase, reviews remain
-// deduped per phase against PostToolUse; implement-step reviews stay quiet.
+// No resolvable phase: dedupe a generic review against the next
+// UserPromptSubmit. This is broader than "no active ticket" — resolveStopPhase
+// also yields no phase for an in_progress ticket missing `phase:`, for any
+// status escape hatch, and for a done-status patch/typeless/scenario-less
+// ticket. With a phase, reviews remain deduped per phase against PostToolUse;
+// implement-step reviews stay quiet.
 const isImplementStep = currentPhase === 'implement' && tddStep !== null;
 let fireReview: boolean;
 if (currentPhase === undefined) {
