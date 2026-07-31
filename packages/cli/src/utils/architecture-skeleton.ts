@@ -69,6 +69,11 @@ export interface Skeleton {
   nodes: SkeletonNode[];
 }
 
+export interface ExtractSkeletonOptions {
+  /** The caller already observed a workspace declaration during this operation. */
+  workspaceRoot?: boolean;
+}
+
 /**
  * Stable node ordering: every skeleton is sorted by name so the rendered doc and the
  * fingerprint are deterministic (readdirSync order is not guaranteed). Mirrors the
@@ -76,7 +81,10 @@ export interface Skeleton {
  */
 const byNodeName = (a: SkeletonNode, b: SkeletonNode): number => a.name.localeCompare(b.name);
 
-export function extractSkeleton(projectDirectory: string): Skeleton {
+export function extractSkeleton(
+  projectDirectory: string,
+  options: ExtractSkeletonOptions = {},
+): Skeleton {
   // A Python project (a `pyproject.toml` is present) is described by its top-level
   // modules — src-layout uses `src/` packages + `src/*.py`, flat-layout uses root
   // `__init__.py` dirs + root `*.py` (ticket HWSEPV). Checked BEFORE Cargo because a
@@ -138,7 +146,7 @@ export function extractSkeleton(projectDirectory: string): Skeleton {
   // relies on that emptiness to noop rather than birth a single-repo doc; a stray
   // root script (`jest.setup.js`, `gulpfile.js`) must not become "the architecture"
   // of a repo that declares itself a monorepo (quality-review of #843).
-  if (declaresWorkspaces(projectDirectory)) return { nodes: [] };
+  if (options.workspaceRoot === true || declaresWorkspaces(projectDirectory)) return { nodes: [] };
   return { nodes: topLevelJsModuleNodes(projectDirectory) };
 }
 
