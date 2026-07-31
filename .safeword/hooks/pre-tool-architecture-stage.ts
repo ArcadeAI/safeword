@@ -38,7 +38,7 @@ interface GitInvocation {
   directory: string;
   environment: Record<string, string>;
   globalArguments: string[];
-  name: string;
+  subcommand: string;
 }
 
 interface UnsupportedCommitPlan {
@@ -79,8 +79,8 @@ const GIT_GLOBAL_NON_COMMAND_OPTIONS = new Set([
   '--version',
 ]);
 
-/** Return a Git subcommand and effective context after consuming documented global options. */
-function gitSubcommand(
+/** Parse a Git invocation and effective context after consuming documented global options. */
+function parseGitInvocation(
   tokens: string[],
   baseDirectory: string,
   environment: Record<string, string>,
@@ -98,7 +98,7 @@ function gitSubcommand(
         directory: baseDirectory,
         environment: gitEnvironment,
         globalArguments,
-        name: token,
+        subcommand: token,
       };
     }
     if (token === '--bare') return undefined;
@@ -150,8 +150,8 @@ function gitCommitPlan(command: string, baseDirectory: string): GitCommitPlan | 
       continue;
     }
 
-    const invocation = gitSubcommand(commandWords, directory, environment);
-    if (invocation?.name === 'commit') {
+    const invocation = parseGitInvocation(commandWords, directory, environment);
+    if (invocation?.subcommand === 'commit') {
       if (commitOptionEffects(invocation.arguments).nonCommitting) return undefined;
       if (precedingAdds.some(add => !sameGitRepositoryTarget(add, invocation))) return undefined;
       return {
@@ -162,7 +162,7 @@ function gitCommitPlan(command: string, baseDirectory: string): GitCommitPlan | 
         precedingAdds,
       };
     }
-    if (invocation?.name === 'add') {
+    if (invocation?.subcommand === 'add') {
       if (
         segment.operatorAfter === '|' ||
         segment.operatorAfter === '|&' ||
@@ -220,10 +220,10 @@ function unsupportedCommitPlan(
     }
     const environment = gitSelectorEnvironment(words.slice(0, commandIndex));
     if (environment === undefined) return undefined;
-    const invocation = gitSubcommand(commandWords, directory, environment);
+    const invocation = parseGitInvocation(commandWords, directory, environment);
     if (
       executes &&
-      invocation?.name === 'commit' &&
+      invocation?.subcommand === 'commit' &&
       !commitOptionEffects(invocation.arguments).nonCommitting
     ) {
       return {
@@ -235,7 +235,7 @@ function unsupportedCommitPlan(
     const addNow =
       executes &&
       invocation !== undefined &&
-      invocation.name === 'add' &&
+      invocation.subcommand === 'add' &&
       isProjectableAdvisoryAdd(invocation) &&
       segment.operatorAfter === '&&' &&
       (operatorBefore !== '||' || listStatus === false)
@@ -246,9 +246,9 @@ function unsupportedCommitPlan(
       operatorBefore === '&&' &&
       segment.operatorAfter === '&&' &&
       (commandName === 'true' ||
-        invocation?.name === 'add' ||
-        invocation?.name === 'status' ||
-        invocation?.name === 'diff');
+        invocation?.subcommand === 'add' ||
+        invocation?.subcommand === 'status' ||
+        invocation?.subcommand === 'diff');
     if (addNow !== undefined) {
       dominatingAdds =
         dominatingAdds.length > 0 && operatorBefore === '&&'
