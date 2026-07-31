@@ -148,6 +148,9 @@ function createOpenIssueSnapshot(call: ReturnType<typeof buildCall>): {
 } {
   let openIssues: Promise<OpenIssue[]> | undefined;
   let terminalFailure: Error | undefined;
+  // `prepareEncounters` (pipeline.ts) does not dedupe by signature, so one batch
+  // can carry two findings that hash the same; without this, the second would
+  // consult the pre-create snapshot, miss, and file the finding a second time.
   const createdThisRun: OpenIssue[] = [];
 
   function latchTerminal(message: string): Error {
