@@ -5,7 +5,7 @@ type: task
 phase: verify
 status: in_progress
 created: 2026-07-29T17:27:17.421Z
-last_modified: 2026-07-31T03:30:00.000Z
+last_modified: 2026-07-31T05:50:59.000Z
 ---
 
 # Keep stop reviews quiet until a new user prompt
@@ -23,6 +23,7 @@ last_modified: 2026-07-31T03:30:00.000Z
 - Keep the existing fail-closed review when a transcript has no recoverable human-prompt boundary and no prior review was surfaced.
 - Apply the reminder only to the no-ticket generic-review branch, leaving typecheck advice and phase-boundary reviews independent.
 - Initialize the session state when that generic review is first surfaced.
+- Correct review-driven sibling-hook comments that use the same undefined-phase vocabulary, without changing their behavior.
 
 ## Out of scope
 
@@ -65,3 +66,4 @@ Pre-mortem: a state-file write failure could still allow a duplicate generic rev
 - 2026-07-30T16:09:29.000Z Revalidated #1492 during retro triage: it remains relevant because `origin/main` has no idle-review marker, while draft PR #1652 adds the marker to both template and dogfood hooks. The real installed-hook lifecycle regression passes 3/3; current Claude Code hook documentation still places `UserPromptSubmit` before processing and `Stop` after the response. Reconfirmed the per-user-prompt generic marker as the smallest solution that preserves independent typecheck, phase, and done gates. Keep this ticket in `verify` and PR #1652 as a draft pending explicit delivery approval. (refs: #1492, PR #1652, `packages/cli/tests/integration/stop-hook-idle-review.test.ts`)
 - 2026-07-31T03:30:00.000Z Pass-5 PR review resolution: corrected the ARCHITECTURE.md and stop-quality comment wording to say the generic review keys on "no resolvable ticket phase", not "no active ticket" — `resolveStopPhase` also empties the phase for an in_progress ticket missing `phase:`, any status escape hatch, and a done-status patch/typeless/scenario-less ticket. Typed the Stop writer's parsed state as `Partial<QualityState>` so both read-modify-write hooks name one contract. Docs and annotation only; no behavior change. (refs: PR #1652)
 - 2026-07-30T16:30:00.000Z Rebased PR #1652 onto `origin/main` at `af3eab8b2` without conflicts. Pass-6 review resolution removed a redundant parsed-state assertion, corrected three sibling undefined-phase comments, and replaced static PR validation counts with reproducible scopes plus the live Checks tab. The rebase orphaned prior TDD evidence, so `git range-diff` remapped it to reachable commits (`f76e91bc9`, `c3f3666ac`, `bb6540dfb`, `4f4a949f6`). Lint/typecheck, targeted real-hook and ledger suites, parity, and evidence reachability pass. (refs: PR #1652)
+- 2026-07-31T05:50:59.000Z Pass-7 PR review resolution: stated the narrow review-driven sibling-comment work in scope, refreshed this active-ticket timestamp from the current UTC clock, and reflowed the shared typecheck phase JSDoc in both template and dogfood copies. Documentation and workflow metadata only; no behavior change. (refs: PR #1652)

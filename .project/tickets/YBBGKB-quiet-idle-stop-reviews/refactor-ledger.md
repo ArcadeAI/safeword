@@ -15,6 +15,8 @@ Scout scope: the marker field, its two hook transitions, and their installed-hoo
 
 10. [x] **Rebase evidence — reachable:** retarget all TDD GREEN/REFACTOR annotations to their `git range-diff`-matched commits on the rebased series, so fresh/shallow checkouts can validate the ticket. (PR #1652 rebase review; evidence only, no behavior change.)
 
+11. [x] **Review provenance — explicit:** record the two review-driven sibling-hook comment corrections in ticket scope, refresh the active-ticket timestamp, and reflow the shared JSDoc. (PR #1652 pass-7 review; documentation and metadata only, no behavior change.)
+
 Deferred deliberately: extracting a general read-modify-write helper would make independently running hooks share an abstraction around a known concurrency hazard. The explicit cross-hook writes are safer and clearer at this scope; the prompt hook batches only its own already-loaded state object.
 
 Evidence: package-local Vitest passed the idle-review (3), typecheck (4), phase-backstop (3), frozen transcript (14), and prompt-marker (1) focused coverage after the PR-feedback fixes. The attempted old-head Node 24 rerun was canceled when the corrective branch head pushed; that fresh CI run is the authoritative aggregate evidence.

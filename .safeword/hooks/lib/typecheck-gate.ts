@@ -56,8 +56,9 @@ export interface TypecheckGateInput {
   projectDirectory: string;
   /** Files changed this session, relative to `projectDirectory`. */
   changedFiles: string[];
-  /** Current ticket phase (`undefined` when no phase can be resolved). The
-   *  gate is suppressed at `done` — the done-phase evidence gate handles that path. */
+  /** Current ticket phase (`undefined` when no phase can be resolved).
+   *  The gate is suppressed at `done` — the done-phase evidence gate
+   *  handles that path. */
   phase: string | undefined;
 }
 

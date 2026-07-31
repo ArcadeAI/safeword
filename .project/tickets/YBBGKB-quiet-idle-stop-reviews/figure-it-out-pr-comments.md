@@ -247,3 +247,47 @@ All five findings were investigated on 2026-07-29 before changing code. Primary-
 **Premortem:** Another rebase rewrites the series; run `range-diff` and replace every ledger SHA before attempting the done gate.
 
 **Next:** Update the YBBGKB GREEN/REFACTOR annotations, then run the ledger validator against the new head.
+
+## Pass 7 — latest PR #1652 comments
+
+### A. Make the sibling-comment corrections part of the stated scope
+
+- [x] Phase 1: Decide whether the two review-driven sibling-hook comment corrections should be reverted, documented in scope, or left to explain later.
+- [x] Phase 2: Options were (1) add one narrow scope bullet, (2) revert the correct comments and create follow-up work, or (3) leave the ticket unchanged and explain the mismatch only in `verify.md`.
+- [x] Phase 3a: Research domains — done-gate scope provenance, undefined-phase vocabulary consistency, and change-scope minimization.
+- [x] Phase 3b: `checkVerifyArtifact` requires an honest `**PR Scope:**` record before done; both comments only state the existing phase contract and have matching dogfood copies.
+- [x] Phase 4: Chose one explicit documentation-only scope bullet.
+
+> Recommend **add the narrow scope bullet** because ticket scope must truthfully cover review-driven work before verification can attest that the PR stayed in scope. Reverting preserves known-correct documentation; deferring records an avoidable mismatch. Cite: `packages/cli/templates/hooks/lib/done-gate.ts` (`checkVerifyArtifact`).
+
+**Premortem:** The clarification could become a blanket allowance for unrelated hook edits; constrain it to sibling comments sharing the undefined-phase vocabulary and state that behavior does not change.
+
+**Next:** Update `ticket.md` Scope without changing hook logic.
+
+### B. Refresh the active-ticket timestamp with this review pass
+
+- [x] Phase 1: Decide whether to retain the pre-pass `last_modified`, refresh it now, or build automation for the field.
+- [x] Phase 2: Options were (1) leave it for the next substantive edit, (2) use the current UTC time for this ticket touch, or (3) add timestamp automation.
+- [x] Phase 3a: Research domains — active-ticket selection, replan staleness windows, and timestamp provenance.
+- [x] Phase 3b: `getActiveTicket` orders in-progress tickets by `last_modified`, while `evaluateReplan` reads it as the staleness baseline; the current clock supplies an auditable value.
+- [x] Phase 4: Chose a current-UTC timestamp, not new automation.
+
+> Recommend **refresh `last_modified` now** because it is a live workflow input, not a decorative audit field. Leaving it stale widens replan analysis and can select the wrong active ticket; automation is unnecessary scope growth. Cite: `packages/cli/templates/hooks/lib/active-ticket.ts` and `replan.ts`.
+
+**Premortem:** A future-dated value could hide newer work; obtain the value from the current UTC clock at edit time.
+
+**Next:** Set `ticket.md` `last_modified` to the current UTC timestamp.
+
+### C. Reflow the phase JSDoc in both managed copies
+
+- [x] Phase 1: Decide whether to leave, reflow manually, or apply a formatter to the typecheck phase JSDoc.
+- [x] Phase 2: Options were (1) leave the ragged comment, (2) manually reflow the three documentation lines in template and dogfood, or (3) add a formatter rule.
+- [x] Phase 3a: Research domains — TypeScript contract readability, managed-template parity, and formatter responsibility.
+- [x] Phase 3b: The comment documents an existing `string | undefined` phase contract; the repository's mirror is byte-identical, and code formatters do not make editorial wrapping decisions for prose.
+- [x] Phase 4: Chose the mirrored manual reflow.
+
+> Recommend **reflow the JSDoc in both copies** because it improves the local contract without changing behavior or adding tooling. Leaving it is harmless but needlessly less readable; a formatter rule is bloat. Cite: `packages/cli/templates/hooks/lib/typecheck-gate.ts` (`TypecheckGateInput`).
+
+**Premortem:** A future template change could desynchronize the copy; run the repository parity check after the edit.
+
+**Next:** Reflow the three JSDoc lines in `packages/cli/templates` and `.safeword`, then run parity and focused tests.
