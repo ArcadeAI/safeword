@@ -23,6 +23,16 @@ Scout scope: the marker field, its two hook transitions, and their installed-hoo
 
 14. [x] **Fixture namespace — canonical:** make the four touched Stop-hook integration suites create `.project` fixtures, exercising the resolver's preferred root while separate namespace tests retain legacy-fallback coverage. (PR #1652 pass-8 review; test fixtures only.)
 
+15. [x] **Fixture process plumbing — leaf first:** replace the `spawnSync`/env/timeout reimplementation in `packages/cli/tests/helpers/stop-hook.ts` with the established `spawnHookScript` from `packages/cli/tests/helpers.ts`; input payloads stay at the call sites. (PR #1652 pass-9 refactor; behavior-preserving.)
+
+16. [deferred] **Template/dogfood hook copies:** do not consolidate `.safeword/hooks/` and `packages/cli/templates/hooks/` — deliberately mirrored installation artifacts that the parity contract validates as separate copies.
+
+17. [deferred] **Cross-hook state writes:** do not extract a shared read-modify-write helper for `stop-quality` and `prompt-questions` — they run independently across lifecycle boundaries, and explicit failure handling keeps the concurrency and recovery behavior reviewable.
+
+18. [deferred] **Transcript writers:** retain the hand-crafted no-edit and frozen real-format transcripts in their owning suite — they encode distinct boundary and format semantics, not generic fixture mechanics.
+
+19. [deferred] **`runStopHook` signature:** keep the two optional trailing positionals. The PR #1652 pass-9/10 review proposed an options object on the estimate of four call sites; the shared helper actually has **18** (13 in `stop-hook-transcript-format.test.ts`, 5 in `stop-hook-idle-review.test.ts`) with only two `undefined` placeholders. An 18-site churn to remove two placeholders is not worth it — reviewer estimate corrected, recommendation withdrawn.
+
 Deferred deliberately: extracting a general read-modify-write helper would make independently running hooks share an abstraction around a known concurrency hazard. The explicit cross-hook writes are safer and clearer at this scope; the prompt hook batches only its own already-loaded state object.
 
 Evidence: package-local Vitest passed the idle-review (3), typecheck (4), phase-backstop (3), frozen transcript (14), and prompt-marker (1) focused coverage after the PR-feedback fixes. The attempted old-head Node 24 rerun was canceled when the corrective branch head pushed; that fresh CI run is the authoritative aggregate evidence.
