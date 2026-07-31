@@ -493,30 +493,30 @@ Feature source: `features/operate-retry-safe-retro-relay.feature`
 
 ### Scenario: A corrupt durable request cannot block unrelated new persistence
 
-- [x] RED current working tree
-- [x] GREEN current working tree
-- [x] REFACTOR current working tree: explicit active/dead-letter parsing and focused regression suite
+- [x] RED skip: live review supplied the corrupt-spool failure report
+- [x] GREEN 3ec774124
+- [x] REFACTOR 3ec774124
 
 ### Scenario: A timed-out earliest request leaves bounded time for a healthy request
 
-- [x] RED current working tree
-- [x] GREEN current working tree
-- [x] REFACTOR current working tree: remaining-budget deadline cap preserves aggregate bound
+- [x] RED skip: live review supplied the head-of-line blocking failure report
+- [x] GREEN 3ec774124
+- [x] REFACTOR 3ec774124
 
 ### Scenario: Unresolved server-owned terminal receipts fail visibly without native filing
 
-- [x] RED current working tree
-- [x] GREEN current working tree
-- [x] REFACTOR current working tree: terminal ownership is reported without creating a second filer
+- [x] RED skip: live review supplied the terminal-owner failure report
+- [x] GREEN 3ec774124
+- [x] REFACTOR 3ec774124
 
 ### Scenario: Drain throughput evidence attests production timing configuration
 
-- [x] RED current working tree
-- [x] GREEN current working tree
-- [x] REFACTOR current working tree: v2 evidence schema records the actual production timing
+- [x] RED skip: live review supplied the evidence-schema failure report
+- [x] GREEN 3ec774124
+- [x] REFACTOR 3ec774124
 
 ### Scenario: Relay protocol mismatch and malformed receipt retain local ownership
 
-- [x] RED current working tree
-- [x] GREEN current working tree
-- [x] REFACTOR current working tree: malformed server responses retain recoverable local state
+- [x] RED skip: live review supplied the protocol-recovery failure report
+- [x] GREEN 3ec774124
+- [x] REFACTOR 3ec774124
