@@ -591,6 +591,58 @@ function sameGitRepositoryTarget(left: GitRepositoryContext, right: GitRepositor
   );
 }
 
+/**
+ * Whether an unmodelled command list would have had a document auto-staged, had
+ * it been modellable. Projects the reachable adds into a throwaway index so the
+ * answer matches what the commit will really contain; never touches the real
+ * index and never throws — advisory detection must not turn an unmodelled
+ * command into a blocker.
+ */
+function unmodelledCommitNeedsAdvice(command: string, baseDirectory: string): boolean {
+  try {
+    const unsupportedCommit = unsupportedCommitPlan(command, baseDirectory);
+    if (unsupportedCommit === undefined) return false;
+
+    const target = gitRepositoryTarget(unsupportedCommit.commit);
+    if (target === undefined || !existsSync(nodePath.join(target.worktreeRoot, '.safeword'))) {
+      return false;
+    }
+
+    const needsProjection =
+      unsupportedCommit.precedingAdds.length > 0 ||
+      stagesTrackedWorktreeChanges(unsupportedCommit.commit.arguments);
+    const projectedIndex = needsProjection ? projectCommitIndex(unsupportedCommit) : undefined;
+    if (needsProjection && projectedIndex === undefined) return false;
+
+    try {
+      return stagedChangeAffectsArchitecture(target.worktreeRoot, {
+        ...target,
+        ...(projectedIndex === undefined ? {} : { indexPath: projectedIndex.path }),
+      });
+    } finally {
+      if (projectedIndex !== undefined) {
+        rmSync(projectedIndex.directory, { recursive: true, force: true });
+      }
+    }
+  } catch {
+    return false;
+  }
+}
+
+function writeUnmodelledCommitAdvisory(): void {
+  const message =
+    'Safeword skipped architecture auto-staging because commands before `git commit` cannot be modeled safely. Run preceding commands first, then commit separately, or run safeword architecture --stage.';
+  process.stdout.write(
+    `${JSON.stringify({
+      systemMessage: message,
+      hookSpecificOutput: {
+        hookEventName: 'PreToolUse',
+        additionalContext: message,
+      },
+    })}\n`,
+  );
+}
+
 interface HookInput {
   tool_name?: string;
   tool_input?: { command?: string };
@@ -609,50 +661,7 @@ const gitCommand = input.tool_input?.command ?? '';
 const baseDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 const commitPlan = gitCommitPlan(gitCommand, baseDirectory);
 if (commitPlan === undefined) {
-  const unsupportedCommit = unsupportedCommitPlan(gitCommand, baseDirectory);
-  const unsupportedTarget =
-    unsupportedCommit === undefined ? undefined : gitRepositoryTarget(unsupportedCommit.commit);
-  const unsupportedProjectDir = unsupportedTarget?.worktreeRoot;
-  let shouldAdvise = false;
-  try {
-    if (
-      unsupportedCommit !== undefined &&
-      unsupportedProjectDir !== undefined &&
-      existsSync(nodePath.join(unsupportedProjectDir, '.safeword'))
-    ) {
-      const needsProjection =
-        unsupportedCommit.precedingAdds.length > 0 ||
-        stagesTrackedWorktreeChanges(unsupportedCommit.commit.arguments);
-      const projectedIndex = needsProjection ? projectCommitIndex(unsupportedCommit) : undefined;
-      if (!needsProjection || projectedIndex !== undefined) {
-        try {
-          shouldAdvise = stagedChangeAffectsArchitecture(unsupportedProjectDir, {
-            ...unsupportedTarget,
-            ...(projectedIndex === undefined ? {} : { indexPath: projectedIndex.path }),
-          });
-        } finally {
-          if (projectedIndex !== undefined) {
-            rmSync(projectedIndex.directory, { recursive: true, force: true });
-          }
-        }
-      }
-    }
-  } catch {
-    // Advisory detection must never turn an unmodelled command into a blocker.
-  }
-  if (shouldAdvise) {
-    const message =
-      'Safeword skipped architecture auto-staging because commands before `git commit` cannot be modeled safely. Run preceding commands first, then commit separately, or run safeword architecture --stage.';
-    process.stdout.write(
-      `${JSON.stringify({
-        systemMessage: message,
-        hookSpecificOutput: {
-          hookEventName: 'PreToolUse',
-          additionalContext: message,
-        },
-      })}\n`,
-    );
-  }
+  if (unmodelledCommitNeedsAdvice(gitCommand, baseDirectory)) writeUnmodelledCommitAdvisory();
   process.exit(0);
 }
 
