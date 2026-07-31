@@ -5,7 +5,7 @@ type: patch
 phase: done
 status: done
 created: 2026-07-31T04:00:07.559Z
-last_modified: 2026-07-31T06:21:12Z
+last_modified: 2026-07-31T07:00:00Z
 ---
 
 # Make test-lock waits understandable for maintainers
@@ -16,6 +16,12 @@ last_modified: 2026-07-31T06:21:12Z
 
 ## Work Log
 
+- 2026-07-31T07:00:00Z Refactored: Extracted lock creation from the wait loop
+  without changing metadata, serialization, stale-lock recovery, or wait-cap
+  behavior. Focused runner suite passed 9/9.
+- 2026-07-31T07:00:00Z Refactor scout: Reopened the runner-maintainability
+  follow-up with one leaf-first ledger entry: extract lock creation from the
+  wait loop under the existing integration coverage.
 - 2026-07-31T06:21:12Z Review follow-up: Consolidated owner-file and integer
   environment parsing, rate-limited status intervals to a 50 ms minimum, and
   updated runner tests for human-readable elapsed waits. Focused runner tests

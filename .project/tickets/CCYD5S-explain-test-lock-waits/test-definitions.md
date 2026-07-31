@@ -43,6 +43,22 @@ And malformed interval settings fall back to the default interval
 - [x] GREEN 09ac816ab
 - [x] REFACTOR skip: shared helpers are the completed cleanup
 
+## Refactoring ledger
+
+- [x] CCYD5S.RF1 skip: Extracted lock creation from `acquireLock()` in
+  `packages/cli/scripts/run-vitest-with-build-lock.mjs`; existing integration
+  scenarios cover successful creation, contention, stale-lock recovery, and
+  wait-cap behavior.
+
+### Scenario: CCYD5S.SM1.AC5.preserves_lock_behavior_after_extracting_creation
+
+Given the existing lock-runner integration scenarios
+When lock creation is extracted from the wait loop
+Then successful acquisition, serialization, stale-lock recovery, and wait-cap
+behavior remain unchanged
+
+- [x] REFACTOR skip: focused lock-runner suite passed 9/9 after the extract
+
 ## Patch-level refactor
 
 - [x] cross-scenario skip: both scenarios use the same metadata reader and wait reporter

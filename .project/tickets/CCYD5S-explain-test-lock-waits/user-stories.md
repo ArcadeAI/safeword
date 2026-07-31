@@ -35,3 +35,10 @@ lock serialization.
 Given a maintainer supplies an invalid or excessively small diagnostic interval
 When a command waits for the package-test lock
 Then the runner uses a safe minimum interval and keeps wait output readable.
+
+#### CCYD5S.SM1.AC5 - Lock coordination stays readable
+
+Given package-test locking needs both lock creation and wait coordination
+When a maintainer reads or changes the runner
+Then lock creation is named separately from the wait loop without changing
+serialization, stale-lock recovery, or diagnostic behavior.

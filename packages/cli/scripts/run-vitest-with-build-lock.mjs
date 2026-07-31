@@ -146,6 +146,22 @@ function reportLockWait(waitedMilliseconds) {
   );
 }
 
+function createLock() {
+  mkdirSync(lockDirectory);
+  writeFileSync(
+    ownerPath,
+    `${JSON.stringify(
+      {
+        createdAt: new Date().toISOString(),
+        checkoutRoot,
+        pid: process.pid,
+      },
+      undefined,
+      2,
+    )}\n`,
+  );
+}
+
 function acquireLock() {
   mkdirSync(nodePath.dirname(lockDirectory), { recursive: true });
 
@@ -157,19 +173,7 @@ function acquireLock() {
   for (;;) {
     let mkdirError;
     try {
-      mkdirSync(lockDirectory);
-      writeFileSync(
-        ownerPath,
-        `${JSON.stringify(
-          {
-            createdAt: new Date().toISOString(),
-            checkoutRoot,
-            pid: process.pid,
-          },
-          undefined,
-          2,
-        )}\n`,
-      );
+      createLock();
       return true;
     } catch (error) {
       mkdirError = error;
