@@ -137,12 +137,28 @@ interface DrainThroughputResult {
   acceptedCount: unknown;
   backlogSize: unknown;
   durationMs: unknown;
+  overallDeadlineMs?: unknown;
+  requestDeadlineMs?: unknown;
   relayLatencyMs: unknown;
 }
 
-function drainThroughputResult(result: unknown): DrainThroughputResult | undefined {
+function drainThroughputResult(
+  result: unknown,
+  version: unknown,
+): DrainThroughputResult | undefined {
   if (typeof result !== 'object' || result === null || Array.isArray(result)) return undefined;
-  if (!hasExactKeys(result, ['acceptedCount', 'backlogSize', 'durationMs', 'relayLatencyMs'])) {
+  const expected =
+    version === 2
+      ? [
+          'acceptedCount',
+          'backlogSize',
+          'durationMs',
+          'overallDeadlineMs',
+          'relayLatencyMs',
+          'requestDeadlineMs',
+        ]
+      : ['acceptedCount', 'backlogSize', 'durationMs', 'relayLatencyMs'];
+  if (!hasExactKeys(result, expected)) {
     return undefined;
   }
   return result as unknown as DrainThroughputResult;
@@ -173,14 +189,26 @@ function validRelayLatency(value: unknown): boolean {
   return typeof value === 'number' && Number.isFinite(value) && value >= MIN_RELAY_LATENCY_MS;
 }
 
-function hasValidDrainThroughputResult(result: unknown, sampleSize: number): boolean {
-  const measurement = drainThroughputResult(result);
+function validDrainBudget(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0;
+}
+
+function hasValidDrainThroughputResult(
+  result: unknown,
+  sampleSize: number,
+  version: unknown,
+): boolean {
+  const measurement = drainThroughputResult(result, version);
   return (
     measurement !== undefined &&
     validAcceptedCount(measurement.acceptedCount, sampleSize) &&
     validBacklogSize(measurement.backlogSize, sampleSize) &&
     validDrainDuration(measurement.durationMs) &&
-    validRelayLatency(measurement.relayLatencyMs)
+    validRelayLatency(measurement.relayLatencyMs) &&
+    (version !== 2 ||
+      (validDrainBudget(measurement.requestDeadlineMs) &&
+        validDrainBudget(measurement.overallDeadlineMs) &&
+        measurement.overallDeadlineMs >= measurement.requestDeadlineMs))
   );
 }
 
@@ -188,9 +216,10 @@ function hasValidResult(
   result: unknown,
   sampleSize: number,
   metric: keyof RelayReadinessManifest['measurements'],
+  version: unknown,
 ): boolean {
   return metric === 'drainThroughput'
-    ? hasValidDrainThroughputResult(result, sampleSize)
+    ? hasValidDrainThroughputResult(result, sampleSize, version)
     : hasValidCountResult(result, sampleSize);
 }
 
@@ -203,12 +232,12 @@ function validMeasurementEvidence(
   if (record === undefined) return false;
   return (
     hasMeasurementShape(record) &&
-    record.version === 1 &&
+    (record.version === 1 || (metric === 'drainThroughput' && record.version === 2)) &&
     record.repository === 'ArcadeAI/safeword' &&
     record.metric === metric &&
     record.measuredAt === artifact.measuredAt &&
     record.sampleSize === artifact.sampleSize &&
-    hasValidResult(record.result, artifact.sampleSize, metric)
+    hasValidResult(record.result, artifact.sampleSize, metric, record.version)
   );
 }
 

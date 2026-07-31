@@ -33,6 +33,7 @@ import { type Provenance, PROVENANCE_SHA } from '../retro/ledger.js';
 import { prepareEncounters } from '../retro/pipeline.js';
 import { reconcile, type ReconcileTracker } from '../retro/reconcile.js';
 import {
+  DEFAULT_RELAY_REQUEST_DEADLINE_MS,
   deliverRelayRequests,
   discardRelayRequest,
   listRelayDeadLetters,
@@ -57,8 +58,6 @@ import {
 } from '../retro/relay-readiness.js';
 import { type Encounter, type IssueTracker, triage, type TriageResult } from '../retro/triage.js';
 import { VERSION } from '../version.js';
-
-const DEFAULT_RELAY_DEADLINE_MS = 500;
 
 /** Reads a transcript and returns raw, un-sanitized findings (the LLM boundary). */
 type FindingExtractor = (transcript: string) => Promise<unknown[]>;
@@ -191,7 +190,7 @@ async function runRelayRetro(
   const relayDrafts = encounters.map(encounter => relayDraftForEncounter(encounter, source, relay));
   const persistence = await persistRelayDraftBatch(spoolDirectory, relayDrafts);
   const spoolFailed = persistence.filter(outcome => outcome.status === 'rejected').length;
-  const deadlineMs = relay.deadlineMs ?? DEFAULT_RELAY_DEADLINE_MS;
+  const deadlineMs = relay.deadlineMs ?? DEFAULT_RELAY_REQUEST_DEADLINE_MS;
   const delivery = await deliverRelayRequests(spoolDirectory, {
     credential: relay.credential,
     deadlineMs,
@@ -206,6 +205,19 @@ async function runRelayRetro(
       agentFilingNeeded: true,
       drops,
       errorMessage: relayPersistenceErrorMessage(persistence, spoolFailed),
+      ok: false,
+      relay: relayOutcome,
+      result: emptyTriageResult(),
+    };
+  }
+  const unresolvedTerminal = (delivery.serverReportedTerminalReceipts ?? []).find(
+    receipt => receipt.state !== 'tombstone' || receipt.issueNumber === undefined,
+  );
+  if (unresolvedTerminal !== undefined) {
+    return {
+      agentFilingNeeded: false,
+      drops,
+      errorMessage: `retro relay has server-owned ${unresolvedTerminal.state} request ${unresolvedTerminal.requestId}; inspect relay operations and logs`,
       ok: false,
       relay: relayOutcome,
       result: emptyTriageResult(),

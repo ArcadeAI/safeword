@@ -187,3 +187,8 @@ last_modified: 2026-07-27T02:23:02.173Z
   lint, typechecks, builds, formatting, dependency validation, and diff hygiene
   passed. A fresh post-merge quality review approved with no critical issues or
   suggested improvements.
+- 2026-07-30 Eighth-round feedback resolved with isolated corrupt-active
+  requests, remaining-budget drain attempts, nonzero visible terminal-owner
+  reporting without native fallback, strict response parsing, and timing-bound
+  v2 drain evidence. Fresh quality re-review found no remaining critical or
+  important issue; generated verification plans passed.

@@ -25,6 +25,7 @@ export interface RelayDraftRequest {
   title: string;
 }
 
+export const DEFAULT_RELAY_REQUEST_DEADLINE_MS = 500;
 export const RELAY_OVERALL_HEADROOM_MS = 250;
 const RELAY_API_VERSION = '1';
 const RELAY_API_VERSION_HEADER = 'x-safeword-relay-api-version';
@@ -985,25 +986,6 @@ async function compactDiscardedSourceReservation(
   await removeIfPresent(sourceReservationPath(projectDirectory, reservation.sourceKey));
 }
 
-async function reservedRequestIds(directory: string): Promise<Set<string>> {
-  const filenames = await sortedFilenames(directory);
-  const requestIds = new Set<string>();
-  for (const filename of filenames) {
-    if (!SOURCE_RESERVATION_FILENAME_PATTERN.test(filename)) continue;
-    try {
-      const reservation = JSON.parse(
-        await readFile(path.join(directory, filename), 'utf8'),
-      ) as unknown;
-      if (!sourceReservationShape(reservation) || reservation.state !== 'active') continue;
-      requestIds.add(reservation.request.requestId);
-    } catch {
-      // The filename hashes source identity, so a corrupt reservation for one
-      // source cannot authorize or block a different source.
-    }
-  }
-  return requestIds;
-}
-
 export async function persistRelayDraft(
   projectDirectory: string,
   draft: RelayDraftInput,
@@ -1018,24 +1000,22 @@ export async function persistRelayDraft(
 async function prepareRelayDraftPersistence(
   projectDirectory: string,
 ): Promise<RelayDraftPersistenceSnapshot> {
+  const initial = await recoveredRelayQueueSnapshot(projectDirectory, Date.now());
+  await quarantineMalformedActiveRequests(projectDirectory, initial.active);
   const { active, deadLetters, directory } = await recoveredRelayQueueSnapshot(
     projectDirectory,
     Date.now(),
   );
-  const durableRequests = [...active, ...deadLetters].map(candidate => ({
-    candidate,
+  const activeRequests = active.map(candidate => ({
     request: parseDurableRequest(candidate),
   }));
-  const corrupt = durableRequests.filter(({ request }) => request === undefined);
-  if (corrupt.length > 0) {
-    const reservedIds = await reservedRequestIds(directory);
-    const unreserved = corrupt
-      .map(({ candidate }) => candidate.requestId)
-      .filter(requestId => !reservedIds.has(requestId));
-    if (unreserved.length > 0) {
-      throw new RelaySpoolCorruptionError(unreserved);
-    }
-  }
+  // A malformed dead letter is visible evidence, but it has no trustworthy
+  // source identity and must not block unrelated durable drafts.
+  const deadLetterRequests = deadLetters.flatMap(candidate => {
+    const request = parseDurableRequest(candidate);
+    return request === undefined ? [] : [{ request }];
+  });
+  const durableRequests = [...activeRequests, ...deadLetterRequests];
   const durableRequestsBySource = new Map<string, RelayDraftRequest>();
   for (const { request } of durableRequests) {
     if (request !== undefined && !durableRequestsBySource.has(request.sourceKey)) {
@@ -1043,6 +1023,23 @@ async function prepareRelayDraftPersistence(
     }
   }
   return { directory, durableRequestsBySource };
+}
+
+async function quarantineMalformedActiveRequests(
+  projectDirectory: string,
+  active: DurableRelayFile[],
+): Promise<void> {
+  for (const candidate of active) {
+    if (parseDurableRequest(candidate) !== undefined) continue;
+    const claim = await claimSpecificRelayRequest(projectDirectory, candidate.requestId, {
+      claimId: randomUUID(),
+      leaseMs: 1000,
+      now: Date.now(),
+    });
+    if (claim === undefined) continue;
+    if (parseDurableRequest(claim) === undefined) await deadLetterClaim(projectDirectory, claim);
+    else await rearmClaim(projectDirectory, claim);
+  }
 }
 
 async function recoveredRelayQueueSnapshot(
@@ -2088,7 +2085,8 @@ function relayReceiptFromBody(
   if (
     body?.requestId !== requestId ||
     typeof body.receiptId !== 'string' ||
-    typeof body.state !== 'string'
+    typeof body.state !== 'string' ||
+    (body.issueNumber !== undefined && typeof body.issueNumber !== 'number')
   ) {
     return undefined;
   }
@@ -2218,6 +2216,13 @@ function retryableRelayStatus(status: number): boolean {
   return status === 401 || status === 408 || status === 425 || status === 429 || status >= 500;
 }
 
+function isIncompatibleRelayVersion(
+  response: Response,
+  body: Record<string, unknown> | undefined,
+): boolean {
+  return response.status === 400 && typeof body?.supportedVersion === 'string';
+}
+
 interface RelayDeliveryPriority {
   createdAt: number;
   requestId: string;
@@ -2323,14 +2328,15 @@ export async function deliverRelayRequests(
       continue;
     }
     const remainingOverallMs = overallDeadline - monotonicNow();
-    if (remainingOverallMs < options.deadlineMs) {
+    if (remainingOverallMs <= 0) {
       await rearmClaim(projectDirectory, claim);
       break;
     }
+    const attemptDeadlineMs = Math.min(options.deadlineMs, remainingOverallMs);
     const controller = new AbortController();
     const timer = setTimeout(() => {
       controller.abort();
-    }, options.deadlineMs);
+    }, attemptDeadlineMs);
     timer.unref();
     try {
       const relayOrigin = normalizeRelayOrigin(options.relayUrl);
@@ -2342,7 +2348,8 @@ export async function deliverRelayRequests(
         signal: controller.signal,
       });
       if (!response.ok) {
-        if (!retryableRelayStatus(response.status)) {
+        const body = await relayResponseBody(response);
+        if (!retryableRelayStatus(response.status) && !isIncompatibleRelayVersion(response, body)) {
           await deadLetterClaim(projectDirectory, claim);
           deadLetteredThisRun += 1;
           deadLetterBacklog += 1;
@@ -2350,7 +2357,8 @@ export async function deliverRelayRequests(
         }
         throw new Error('relay returned a retryable response');
       }
-      const body = (await response.json()) as RelayReceipt;
+      const body = relayReceiptFromBody(await relayResponseBody(response), claim.requestId);
+      if (body === undefined) throw new Error('relay returned an invalid durable receipt');
       assertAcknowledgeableRelayReceipt(body, claim.requestId);
       if (await acknowledgeRelayClaim(claim, body)) {
         accepted += 1;

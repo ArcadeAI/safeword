@@ -381,6 +381,90 @@ describe('runRetro', () => {
     }
   });
 
+  it.each([
+    ['dead-letter', undefined],
+    ['rejected', undefined],
+    ['tombstone', undefined],
+  ] as const)(
+    'fails visibly for an unresolved server-owned %s receipt without native fallback',
+    async (state, issueNumber) => {
+      const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-terminal-'));
+      const transport = new FakeGitHub();
+      const send = vi.fn<typeof fetch>((_input, init) => {
+        const request = JSON.parse(Buffer.from(init?.body as Uint8Array).toString('utf8')) as {
+          requestId: string;
+        };
+        return Promise.resolve(
+          Response.json({
+            ...(issueNumber !== undefined && { issueNumber }),
+            receiptId: `receipt-${state}`,
+            requestId: request.requestId,
+            state,
+          }),
+        );
+      });
+      try {
+        const outcome = await runRetro(
+          { transcript: '/tmp/session.jsonl' },
+          dependencies({
+            projectDirectory,
+            relay: {
+              credential: 'swc_test',
+              fetch: send,
+              installationId: 42,
+              readiness: { enabled: true },
+              relayUrl: 'https://relay.invalid',
+              repository: 'arcadeai/safeword',
+            },
+            transport,
+          }),
+        );
+
+        expect(outcome).toMatchObject({ agentFilingNeeded: false, ok: false });
+        expect(outcome.errorMessage).toContain(`server-owned ${state}`);
+        expect(transport.calls.createIssue).toBe(0);
+      } finally {
+        rmSync(projectDirectory, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it('completes when a server tombstone names its resolved issue', async () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-tombstone-'));
+    try {
+      const outcome = await runRetro(
+        { transcript: '/tmp/session.jsonl' },
+        dependencies({
+          projectDirectory,
+          relay: {
+            credential: 'swc_test',
+            fetch: (_input, init) => {
+              const request = JSON.parse(
+                Buffer.from(init?.body as Uint8Array).toString('utf8'),
+              ) as { requestId: string };
+              return Promise.resolve(
+                Response.json({
+                  issueNumber: 1479,
+                  receiptId: 'receipt-tombstone',
+                  requestId: request.requestId,
+                  state: 'tombstone',
+                }),
+              );
+            },
+            installationId: 42,
+            readiness: { enabled: true },
+            relayUrl: 'https://relay.invalid',
+            repository: 'arcadeai/safeword',
+          },
+        }),
+      );
+
+      expect(outcome).toMatchObject({ agentFilingNeeded: false, ok: true });
+    } finally {
+      rmSync(projectDirectory, { recursive: true, force: true });
+    }
+  });
+
   it('keys same-window relay drafts by finding evidence rather than extractor position', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-reorder-'));
     const sent: { requestId: string; title: string }[] = [];

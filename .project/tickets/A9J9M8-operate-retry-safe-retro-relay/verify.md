@@ -23,6 +23,19 @@ test clone was removed. `@openai/codex` has a low-risk dev-only minor update
 (0.145.0 → 0.146.0) deferred as unrelated scope; the production dependency
 audit reports no vulnerabilities.
 
+## 2026-07-30 eighth-round resolution
+
+- The formal verification skill recorded current-run proof and its generated
+  verify, BDD, build, typecheck, and dependency plans all passed after the
+  eighth-round changes. Root ESLint, focused formatting, focused relay/command
+  regression tests (168 tests), and `git diff --check` also passed.
+- The quality re-review found no remaining critical or important issue. It
+  accepted malformed-active-record quarantine, aggregate remaining-budget
+  attempts, visible unresolved server ownership, strict receipt parsing, and
+  v2 timing evidence. Native fallback for a server-owned terminal state and
+  protocol negotiation remain intentionally excluded: each would violate the
+  single-owner or frozen-v1 contract.
+
 ## Evidence
 
 - The seventh-round tree passed the complete relay and CLI suites: 167 relay

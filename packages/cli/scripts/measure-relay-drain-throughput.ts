@@ -5,15 +5,17 @@ import process from 'node:process';
 import { setTimeout as delay } from 'node:timers/promises';
 
 import {
+  DEFAULT_RELAY_REQUEST_DEADLINE_MS,
   deliverRelayRequests,
   persistRelayDraftBatch,
+  RELAY_OVERALL_HEADROOM_MS,
   type RelayDraftRequest,
 } from '../src/retro/relay-delivery.js';
 
 const BACKLOG_SIZE = 300;
-const DRAIN_BUDGET_MS = 650;
 const RELAY_LATENCY_MS = 80;
-const REQUEST_DEADLINE_MS = 150;
+const REQUEST_DEADLINE_MS = DEFAULT_RELAY_REQUEST_DEADLINE_MS;
+const DRAIN_BUDGET_MS = REQUEST_DEADLINE_MS + RELAY_OVERALL_HEADROOM_MS;
 
 function outputPath(arguments_: string[]): string {
   const flag = arguments_.indexOf('--output');
@@ -61,10 +63,12 @@ function measurementArtifact(acceptedCount: number, durationMs: number) {
       acceptedCount,
       backlogSize: BACKLOG_SIZE,
       durationMs,
+      overallDeadlineMs: DRAIN_BUDGET_MS,
+      requestDeadlineMs: REQUEST_DEADLINE_MS,
       relayLatencyMs: RELAY_LATENCY_MS,
     },
     sampleSize: BACKLOG_SIZE,
-    version: 1,
+    version: 2,
   };
 }
 

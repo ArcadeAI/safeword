@@ -35,6 +35,8 @@ describe('relay drain-throughput measurement producer', () => {
         acceptedCount: number;
         backlogSize: number;
         durationMs: number;
+        overallDeadlineMs: number;
+        requestDeadlineMs: number;
         relayLatencyMs: number;
       };
       sampleSize: number;
@@ -45,10 +47,12 @@ describe('relay drain-throughput measurement producer', () => {
       repository: 'ArcadeAI/safeword',
       result: {
         backlogSize: 300,
+        overallDeadlineMs: 750,
+        requestDeadlineMs: 500,
         relayLatencyMs: 80,
       },
       sampleSize: 300,
-      version: 1,
+      version: 2,
     });
     expect(new Date(artifact.measuredAt).toISOString()).toBe(artifact.measuredAt);
     expect(artifact.result.acceptedCount).toBeGreaterThanOrEqual(2);
