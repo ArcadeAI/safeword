@@ -52,6 +52,9 @@ interface ProgressAdapters {
   readonly emit: (message: string) => void;
 }
 
+/** Operations finishing faster than this are not worth announcing. */
+const PROGRESS_ANNOUNCE_DELAY_MS = 100;
+
 export function createProgressReporter(adapters: ProgressAdapters): {
   start: (message: string) => void;
   stop: () => void;
@@ -63,7 +66,7 @@ export function createProgressReporter(adapters: ProgressAdapters): {
       scheduledHandle = adapters.schedule(() => {
         adapters.emit(message);
         scheduledHandle = undefined;
-      }, 100);
+      }, PROGRESS_ANNOUNCE_DELAY_MS);
     },
     stop(): void {
       if (scheduledHandle === undefined) return;

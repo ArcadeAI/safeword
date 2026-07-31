@@ -57,10 +57,12 @@ describe('CLI execution policy', () => {
 
   it('reports meaningful progress at 100ms using an injected scheduler', () => {
     let scheduled: (() => void) | undefined;
+    let scheduledDelay: number | undefined;
     const emit = vi.fn();
     const progress = createProgressReporter({
-      schedule: callback => {
+      schedule: (callback, delay) => {
         scheduled = callback;
+        scheduledDelay = delay;
         return 1;
       },
       cancel: vi.fn(),
@@ -68,6 +70,7 @@ describe('CLI execution policy', () => {
     });
 
     progress.start('Applying the confirmed plan…');
+    expect(scheduledDelay).toBe(100);
     expect(emit).not.toHaveBeenCalled();
     scheduled?.();
     expect(emit).toHaveBeenCalledWith('Applying the confirmed plan…');
