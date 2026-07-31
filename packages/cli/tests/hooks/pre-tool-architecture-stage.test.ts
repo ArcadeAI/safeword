@@ -50,6 +50,12 @@ describe('pre-tool architecture staging hook', () => {
     });
   }
 
+  function runSuccessfulHook(command: string): ReturnType<typeof spawnSync> {
+    const hook = runHook(command);
+    expect(hook.status).toBe(0);
+    return hook;
+  }
+
   function createExplicitSelectorTarget(gitDirectoryName = 'repo.git'): {
     container: string;
     gitDirectory: string;
@@ -109,8 +115,7 @@ describe('pre-tool architecture staging hook', () => {
   it('keeps a git commit -a snapshot fresh in a clean checkout', async () => {
     rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
 
-    const hook = runHook('git commit -am "remove billing"');
-    expect(hook.status).toBe(0);
+    const hook = runSuccessfulHook('git commit -am "remove billing"');
 
     git('commit', '-am', 'remove billing');
     const cleanCheckout = createTemporaryDirectory();
@@ -136,8 +141,7 @@ describe('pre-tool architecture staging hook', () => {
     );
     rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
 
-    const hook = runHook('git commit -am "remove billing"');
-    expect(hook.status).toBe(0);
+    const hook = runSuccessfulHook('git commit -am "remove billing"');
 
     git('commit', '-am', 'remove billing');
     const cleanCheckout = createTemporaryDirectory();
@@ -173,8 +177,7 @@ describe('pre-tool architecture staging hook', () => {
     );
     rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
 
-    const hook = runHook('git commit -am "remove billing"');
-    expect(hook.status).toBe(0);
+    const hook = runSuccessfulHook('git commit -am "remove billing"');
 
     git('commit', '-am', 'remove billing');
     const worktreeDocument = readFileSync(documentPath, 'utf8');
@@ -202,8 +205,7 @@ describe('pre-tool architecture staging hook', () => {
   ])('keeps a global-option %s commit fresh in a clean checkout', async (command, gitArguments) => {
     rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
 
-    const hook = runHook(command);
-    expect(hook.status).toBe(0);
+    const hook = runSuccessfulHook(command);
 
     git(...gitArguments);
     const cleanCheckout = createTemporaryDirectory();
@@ -224,8 +226,7 @@ describe('pre-tool architecture staging hook', () => {
     writeFileSync(preCommitHook, '#!/bin/sh\nexit 1\n');
     chmodSync(preCommitHook, 0o755);
 
-    const hook = runHook('git commit -am "remove billing"');
-    expect(hook.status).toBe(0);
+    const hook = runSuccessfulHook('git commit -am "remove billing"');
     expect(git('diff', '--cached', '--name-only')).not.toContain('src/billing/index.ts');
 
     const commit = spawnSync('git', ['commit', '-am', 'remove billing'], {
@@ -242,8 +243,7 @@ describe('pre-tool architecture staging hook', () => {
     rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
     const command = 'git add src/billing/index.ts && git commit -m "remove billing"';
 
-    const hook = runHook(command);
-    expect(hook.status).toBe(0);
+    const hook = runSuccessfulHook(command);
 
     const commit = spawnSync('bash', ['-c', command], {
       cwd: directory,
@@ -275,8 +275,7 @@ describe('pre-tool architecture staging hook', () => {
     rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
     const command = 'git add -A && git commit -m "remove billing"';
 
-    const hook = runHook(command);
-    expect(hook.status).toBe(0);
+    const hook = runSuccessfulHook(command);
 
     const commit = spawnSync('bash', ['-c', command], {
       cwd: directory,
@@ -324,8 +323,7 @@ describe('pre-tool architecture staging hook', () => {
     );
     git('add', '--', 'apps/worker/package.json');
 
-    const hook = runHook('git commit -m "update worker purpose"');
-    expect(hook.status).toBe(0);
+    const hook = runSuccessfulHook('git commit -m "update worker purpose"');
     expect(git('diff', '--cached', '--name-only')).toContain('.project/architecture.generated.md');
 
     git('commit', '-m', 'update worker purpose');
@@ -391,8 +389,7 @@ describe('pre-tool architecture staging hook', () => {
         rmSync(nodePath.join(targetDirectory, 'src', 'billing'), { recursive: true });
         const command = commandForTarget(targetDirectory);
 
-        const hook = runHook(command);
-        expect(hook.status).toBe(0);
+        const hook = runSuccessfulHook(command);
         expect(git('diff', '--cached', '--name-only')).not.toContain(
           '.project/architecture.generated.md',
         );
@@ -427,9 +424,7 @@ describe('pre-tool architecture staging hook', () => {
   ])('does not mutate the index for %s that the hook cannot model exactly', (_label, command) => {
     rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
 
-    const hook = runHook(command);
-
-    expect(hook.status).toBe(0);
+    const hook = runSuccessfulHook(command);
     expect(git('diff', '--cached', '--name-only')).not.toContain(
       '.project/architecture.generated.md',
     );
@@ -443,9 +438,7 @@ describe('pre-tool architecture staging hook', () => {
     rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
     git('add', '--', 'src/billing/index.ts');
 
-    const hook = runHook(command);
-
-    expect(hook.status).toBe(0);
+    const hook = runSuccessfulHook(command);
     expect(hook.stderr).toBe('');
     const output = JSON.parse(String(hook.stdout)) as {
       hookSpecificOutput?: { additionalContext?: string; hookEventName?: string };
@@ -471,9 +464,7 @@ describe('pre-tool architecture staging hook', () => {
       writeFileSync(nodePath.join(directory, 'README.md'), 'routine docs change\n');
       git('add', '--', 'README.md');
 
-      const hook = runHook(command);
-
-      expect(hook.status).toBe(0);
+      const hook = runSuccessfulHook(command);
       expect(hook.stdout).toBe('');
       expect(hook.stderr).toBe('');
     },
@@ -486,9 +477,7 @@ describe('pre-tool architecture staging hook', () => {
       'export const checkout = true;\n',
     );
 
-    const hook = runHook('bun run lint && git add -A && git commit -m "add checkout"');
-
-    expect(hook.status).toBe(0);
+    const hook = runSuccessfulHook('bun run lint && git add -A && git commit -m "add checkout"');
     const output = JSON.parse(String(hook.stdout)) as {
       hookSpecificOutput?: { additionalContext?: string; hookEventName?: string };
       systemMessage?: string;
@@ -511,9 +500,7 @@ describe('pre-tool architecture staging hook', () => {
       'export const checkout = true;\n',
     );
 
-    const hook = runHook(`bun run lint && ${add} && git commit -m "add checkout"`);
-
-    expect(hook.status).toBe(0);
+    const hook = runSuccessfulHook(`bun run lint && ${add} && git commit -m "add checkout"`);
     const output = JSON.parse(String(hook.stdout)) as { systemMessage?: string };
     expect(output.systemMessage).toContain('skipped architecture auto-staging');
     expect(git('diff', '--cached', '--name-only')).not.toContain('src/checkout/index.ts');
@@ -533,9 +520,7 @@ describe('pre-tool architecture staging hook', () => {
       'export const checkout = true;\n',
     );
 
-    const hook = runHook(`bun run lint && ${stagingCommand} && ${commitCommand}`);
-
-    expect(hook.status).toBe(0);
+    const hook = runSuccessfulHook(`bun run lint && ${stagingCommand} && ${commitCommand}`);
     const output = JSON.parse(String(hook.stdout)) as { systemMessage?: string };
     expect(output.systemMessage).toContain('skipped architecture auto-staging');
     expect(git('diff', '--cached', '--name-only')).not.toContain('src/checkout/index.ts');
@@ -548,11 +533,9 @@ describe('pre-tool architecture staging hook', () => {
       'export const checkout = true;\n',
     );
 
-    const hook = runHook(
+    const hook = runSuccessfulHook(
       'bun run lint && git -c core.quotePath=false add src/checkout && git commit -m "add checkout"',
     );
-
-    expect(hook.status).toBe(0);
     expect(hook.stdout).toBe('');
     expect(hook.stderr).toBe('');
     expect(git('diff', '--cached', '--name-only')).not.toContain('src/checkout/index.ts');
@@ -561,11 +544,9 @@ describe('pre-tool architecture staging hook', () => {
   it('advises when an architecture pathspec will stage a tracked deletion', () => {
     rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
 
-    const hook = runHook(
+    const hook = runSuccessfulHook(
       'bun run lint && cd src && git add billing && git commit -m "remove billing"',
     );
-
-    expect(hook.status).toBe(0);
     const output = JSON.parse(String(hook.stdout)) as { systemMessage?: string };
     expect(output.systemMessage).toContain('skipped architecture auto-staging');
     expect(git('diff', '--cached', '--name-only')).not.toContain('src/billing/index.ts');
@@ -584,9 +565,9 @@ describe('pre-tool architecture staging hook', () => {
       'export const billing = true;\n',
     );
 
-    const hook = runHook(`bun run lint && ${stagingCommand} && git commit -m "no change"`);
-
-    expect(hook.status).toBe(0);
+    const hook = runSuccessfulHook(
+      `bun run lint && ${stagingCommand} && git commit -m "no change"`,
+    );
     expect(hook.stdout).toBe('');
     expect(hook.stderr).toBe('');
     expect(git('diff', '--cached', '--name-status')).toContain('D\tsrc/billing/index.ts');
@@ -597,9 +578,9 @@ describe('pre-tool architecture staging hook', () => {
     git('add', '--', 'src/billing/index.ts');
     writeFileSync(nodePath.join(directory, 'README.md'), 'routine docs change\n');
 
-    const hook = runHook('bun run lint && git add README.md && git commit -m "remove billing"');
-
-    expect(hook.status).toBe(0);
+    const hook = runSuccessfulHook(
+      'bun run lint && git add README.md && git commit -m "remove billing"',
+    );
     const output = JSON.parse(String(hook.stdout)) as { systemMessage?: string };
     expect(output.systemMessage).toContain('skipped architecture auto-staging');
   });
@@ -615,11 +596,9 @@ describe('pre-tool architecture staging hook', () => {
     writeFileSync(nodePath.join(directory, 'README.md'), 'routine docs change\n');
     git('add', '--', 'README.md');
 
-    const hook = runHook(
+    const hook = runSuccessfulHook(
       'bun run lint && git add src/experimental/index.ts && git commit -m "docs"',
     );
-
-    expect(hook.status).toBe(0);
     expect(hook.stdout).toBe('');
     expect(hook.stderr).toBe('');
     expect(git('diff', '--cached', '--name-only')).toBe('README.md\n');
@@ -633,11 +612,9 @@ describe('pre-tool architecture staging hook', () => {
     );
     writeFileSync(nodePath.join(directory, 'README.md'), 'routine docs change\n');
 
-    const hook = runHook(
+    const hook = runSuccessfulHook(
       'bun run lint && git add README.md && git commit -m "routine docs change"',
     );
-
-    expect(hook.status).toBe(0);
     expect(hook.stdout).toBe('');
     expect(hook.stderr).toBe('');
     expect(git('diff', '--cached', '--name-only')).not.toContain('src/checkout/index.ts');
@@ -652,9 +629,9 @@ describe('pre-tool architecture staging hook', () => {
     writeFileSync(nodePath.join(directory, 'README.md'), 'routine docs change\n');
     git('add', '--', 'src/checkout/index.ts');
 
-    const hook = runHook('bun run lint && git add README.md && git commit -m "add checkout"');
-
-    expect(hook.status).toBe(0);
+    const hook = runSuccessfulHook(
+      'bun run lint && git add README.md && git commit -m "add checkout"',
+    );
     const output = JSON.parse(String(hook.stdout)) as { systemMessage?: string };
     expect(output.systemMessage).toContain('skipped architecture auto-staging');
   });
@@ -667,11 +644,9 @@ describe('pre-tool architecture staging hook', () => {
     );
     writeFileSync(nodePath.join(directory, 'README.md'), 'routine docs change\n');
 
-    const hook = runHook(
+    const hook = runSuccessfulHook(
       'bun run lint && git add src/checkout && git add README.md && git commit -m "add checkout"',
     );
-
-    expect(hook.status).toBe(0);
     const output = JSON.parse(String(hook.stdout)) as { systemMessage?: string };
     expect(output.systemMessage).toContain('skipped architecture auto-staging');
     expect(git('diff', '--cached', '--name-only')).not.toContain('src/checkout/index.ts');
@@ -696,11 +671,9 @@ describe('pre-tool architecture staging hook', () => {
       writeFileSync(nodePath.join(directory, 'README.md'), 'routine docs change\n');
       const laterCommand = typeof laterAdd === 'function' ? laterAdd(otherDirectory) : laterAdd;
 
-      const hook = runHook(
+      const hook = runSuccessfulHook(
         `bun run lint && git add src/checkout && ${laterCommand} && git commit -m "add checkout"`,
       );
-
-      expect(hook.status).toBe(0);
       const output = JSON.parse(String(hook.stdout)) as { systemMessage?: string };
       expect(output.systemMessage).toContain('skipped architecture auto-staging');
       expect(git('diff', '--cached', '--name-only')).not.toContain('src/checkout/index.ts');
@@ -717,9 +690,9 @@ describe('pre-tool architecture staging hook', () => {
       'export const checkout = true;\n',
     );
 
-    const hook = runHook('bun run lint && cd docs && git add -A && git commit -m "add checkout"');
-
-    expect(hook.status).toBe(0);
+    const hook = runSuccessfulHook(
+      'bun run lint && cd docs && git add -A && git commit -m "add checkout"',
+    );
     const output = JSON.parse(String(hook.stdout)) as { systemMessage?: string };
     expect(output.systemMessage).toContain('skipped architecture auto-staging');
     expect(git('diff', '--cached', '--name-only')).not.toContain('src/checkout/index.ts');
@@ -756,9 +729,7 @@ describe('pre-tool architecture staging hook', () => {
       'export const checkout = true;\n',
     );
 
-    const hook = runHook(command);
-
-    expect(hook.status).toBe(0);
+    const hook = runSuccessfulHook(command);
     const output = JSON.parse(String(hook.stdout)) as { systemMessage?: string };
     expect(output.systemMessage).toContain('skipped architecture auto-staging');
     expect(git('diff', '--cached', '--name-only')).not.toContain('src/checkout/index.ts');
@@ -778,9 +749,7 @@ describe('pre-tool architecture staging hook', () => {
       JSON.stringify({ name: 'fixture', version: '2.0.0' }),
     );
 
-    const hook = runHook(`bun run lint && ${add} && git commit -m "release"`);
-
-    expect(hook.status).toBe(0);
+    const hook = runSuccessfulHook(`bun run lint && ${add} && git commit -m "release"`);
     expect(hook.stdout).toBe('');
     expect(hook.stderr).toBe('');
     expect(git('show', ':package.json')).toContain('zod');
@@ -807,11 +776,9 @@ describe('pre-tool architecture staging hook', () => {
         JSON.stringify({ name: 'target-fixture', version: '2.0.0' }),
       );
 
-      const hook = runHook(
+      const hook = runSuccessfulHook(
         `bun run lint && git add -A && git -C "${targetDirectory}" commit -m "target change"`,
       );
-
-      expect(hook.status).toBe(0);
       const output = JSON.parse(String(hook.stdout)) as { systemMessage?: string };
       expect(output.systemMessage).toContain('skipped architecture auto-staging');
       expect(
@@ -858,11 +825,9 @@ describe('pre-tool architecture staging hook', () => {
       const originalDocument = readFileSync(documentPath);
       const missingDirectory = nodePath.join(targetDirectory, 'missing');
 
-      const hook = runHook(
+      const hook = runSuccessfulHook(
         `git -C "${missingDirectory}" add -A && git -C "${targetDirectory}" commit -m "unreachable"`,
       );
-
-      expect(hook.status).toBe(0);
       expect(readFileSync(nodePath.join(targetDirectory, '.git', 'index'))).toEqual(originalIndex);
       expect(readFileSync(documentPath)).toEqual(originalDocument);
     } finally {
@@ -882,11 +847,9 @@ describe('pre-tool architecture staging hook', () => {
     );
     const alternateIndex = nodePath.join(directory, '.git', 'alternate-index');
 
-    const hook = runHook(
+    const hook = runSuccessfulHook(
       `bun run lint && GIT_INDEX_FILE="${alternateIndex}" git add -A && git commit -m "real index change"`,
     );
-
-    expect(hook.status).toBe(0);
     const output = JSON.parse(String(hook.stdout)) as { systemMessage?: string };
     expect(output.systemMessage).toContain('skipped architecture auto-staging');
     expect(git('show', ':package.json')).toContain('zod');
@@ -902,11 +865,9 @@ describe('pre-tool architecture staging hook', () => {
       'export const checkout = true;\n',
     );
 
-    const hook = runHook(
+    const hook = runSuccessfulHook(
       `GIT_INDEX_FILE="${alternateIndex}" git add -A && git commit -m "real index commit"`,
     );
-
-    expect(hook.status).toBe(0);
     expect(readFileSync(alternateIndex)).toEqual(originalAlternateIndex);
     expect(git('diff', '--cached', '--name-only')).not.toContain('src/checkout/index.ts');
   });
@@ -928,11 +889,9 @@ describe('pre-tool architecture staging hook', () => {
     const originalRealIndex = readFileSync(nodePath.join(directory, '.git', 'index'));
     const originalAlternateIndex = readFileSync(alternateIndex);
 
-    const hook = runHook(
+    const hook = runSuccessfulHook(
       `GIT_INDEX_FILE="${alternateIndex}" env -u GIT_INDEX_FILE git commit -m "docs"`,
     );
-
-    expect(hook.status).toBe(0);
     expect(readFileSync(nodePath.join(directory, '.git', 'index'))).toEqual(originalRealIndex);
     expect(readFileSync(alternateIndex)).toEqual(originalAlternateIndex);
   });
@@ -954,9 +913,7 @@ describe('pre-tool architecture staging hook', () => {
     const originalRealIndex = readFileSync(nodePath.join(directory, '.git', 'index'));
     const originalAlternateIndex = readFileSync(alternateIndex);
 
-    const hook = runHook(`GIT_INDEX_FILE="${alternateIndex}" env - git commit -m "docs"`);
-
-    expect(hook.status).toBe(0);
+    const hook = runSuccessfulHook(`GIT_INDEX_FILE="${alternateIndex}" env - git commit -m "docs"`);
     expect(readFileSync(nodePath.join(directory, '.git', 'index'))).toEqual(originalRealIndex);
     expect(readFileSync(alternateIndex)).toEqual(originalAlternateIndex);
   });
@@ -983,9 +940,7 @@ describe('pre-tool architecture staging hook', () => {
       const originalSourceIndex = readFileSync(nodePath.join(directory, '.git', 'index'));
       const originalTargetIndex = readFileSync(nodePath.join(targetDirectory, '.git', 'index'));
 
-      const hook = runHook(command(targetDirectory));
-
-      expect(hook.status).toBe(0);
+      const hook = runSuccessfulHook(command(targetDirectory));
       expect(readFileSync(nodePath.join(directory, '.git', 'index'))).toEqual(originalSourceIndex);
       expect(readFileSync(nodePath.join(targetDirectory, '.git', 'index'))).toEqual(
         originalTargetIndex,
@@ -1026,11 +981,9 @@ describe('pre-tool architecture staging hook', () => {
         JSON.stringify({ name: 'target-fixture', version: '2.0.0' }),
       );
 
-      const hook = runHook(
+      const hook = runSuccessfulHook(
         `bun run lint && git add -A && git --git-dir=a.git --work-tree=b -C "${targetContainer}" commit -m "target change"`,
       );
-
-      expect(hook.status).toBe(0);
       const output = JSON.parse(String(hook.stdout)) as { systemMessage?: string };
       expect(output.systemMessage).toContain('skipped architecture auto-staging');
       expect(
@@ -1061,9 +1014,7 @@ describe('pre-tool architecture staging hook', () => {
         `cd "${target.worktree}" && ` +
         'GIT_DIR="../repo.git" GIT_WORK_TREE="." git commit -am "remove billing"';
 
-      const hook = runHook(command);
-
-      expect(hook.status).toBe(0);
+      const hook = runSuccessfulHook(command);
       const gitEnvironment = {
         ...process.env,
         GIT_DIR: target.gitDirectory,
@@ -1101,9 +1052,7 @@ describe('pre-tool architecture staging hook', () => {
         `cd "${target.worktree}" && ` +
         'GIT_DIR="../env" GIT_WORK_TREE="." git commit -am "remove billing"';
 
-      const hook = runHook(command);
-
-      expect(hook.status).toBe(0);
+      const hook = runSuccessfulHook(command);
       const stagedNames = execFileSync('git', ['diff', '--cached', '--name-only'], {
         cwd: target.worktree,
         encoding: 'utf8',
@@ -1132,9 +1081,7 @@ describe('pre-tool architecture staging hook', () => {
         `cd "${target.worktree}" && bun run lint && ` +
         `${selectors} git add -A && ${selectors} git commit -m "add checkout"`;
 
-      const hook = runHook(command);
-
-      expect(hook.status).toBe(0);
+      const hook = runSuccessfulHook(command);
       const output = JSON.parse(String(hook.stdout)) as { systemMessage?: string };
       expect(output.systemMessage).toContain('skipped architecture auto-staging');
       expect(
@@ -1156,9 +1103,7 @@ describe('pre-tool architecture staging hook', () => {
   it('does not advise when a broad add would stage only routine docs', () => {
     writeFileSync(nodePath.join(directory, 'README.md'), 'routine docs change\n');
 
-    const hook = runHook('bun run lint && git add -A && git commit -m "docs: typo"');
-
-    expect(hook.status).toBe(0);
+    const hook = runSuccessfulHook('bun run lint && git add -A && git commit -m "docs: typo"');
     expect(hook.stdout).toBe('');
     expect(hook.stderr).toBe('');
   });
@@ -1169,9 +1114,7 @@ describe('pre-tool architecture staging hook', () => {
       JSON.stringify({ name: 'fixture', version: '2.0.0' }),
     );
 
-    const hook = runHook('bun run lint && git add --all && git commit -m "release"');
-
-    expect(hook.status).toBe(0);
+    const hook = runSuccessfulHook('bun run lint && git add --all && git commit -m "release"');
     expect(hook.stdout).toBe('');
     expect(hook.stderr).toBe('');
   });
@@ -1200,9 +1143,7 @@ git commit -m "text inside stdin"
     rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
     git('add', '--', 'src/billing/index.ts');
 
-    const hook = runHook(command);
-
-    expect(hook.status).toBe(0);
+    const hook = runSuccessfulHook(command);
     expect(hook.stdout).toBe('');
     expect(hook.stderr).toBe('');
   });
@@ -1214,9 +1155,7 @@ git commit -m "text inside stdin"
     rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
     git('add', '--', 'src/billing/index.ts');
 
-    const hook = runHook(command);
-
-    expect(hook.status).toBe(0);
+    const hook = runSuccessfulHook(command);
     expect(hook.stdout).toBe('');
     expect(hook.stderr).toBe('');
   });
@@ -1226,9 +1165,7 @@ git commit -m "text inside stdin"
     rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
     git('add', '--', 'src/billing/index.ts');
 
-    const hook = runHook('git status --short && git commit -m "remove billing"');
-
-    expect(hook.status).toBe(0);
+    const hook = runSuccessfulHook('git status --short && git commit -m "remove billing"');
     expect(hook.stdout).toBe('');
     expect(hook.stderr).toBe('');
   });
@@ -1246,9 +1183,7 @@ git commit -m "text inside stdin"
       'export const drafts = true;\n',
     );
 
-    const hook = runHook('git add src/drafts/index.ts && git commit -m "add drafts"');
-
-    expect(hook.status).toBe(0);
+    const hook = runSuccessfulHook('git add src/drafts/index.ts && git commit -m "add drafts"');
     expect(readFileSync(documentPath, 'utf8')).toBe(foreign);
     expect(git('diff', '--cached', '--name-only')).not.toContain(
       '.project/architecture.generated.md',
@@ -1279,9 +1214,7 @@ git commit -m "text inside stdin"
   ])('does not broaden a non-all commit: %s', command => {
     rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
 
-    const hook = runHook(command);
-
-    expect(hook.status).toBe(0);
+    const hook = runSuccessfulHook(command);
     expect(git('diff', '--cached', '--name-only')).not.toContain('src/billing/index.ts');
     expect(git('diff', '--cached', '--name-only')).not.toContain(
       '.project/architecture.generated.md',
@@ -1294,9 +1227,7 @@ git commit -m "text inside stdin"
       rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
       git('add', '--', 'src/billing/index.ts');
 
-      const hook = runHook(command);
-
-      expect(hook.status).toBe(0);
+      const hook = runSuccessfulHook(command);
       expect(git('diff', '--cached', '--name-only')).toContain('src/billing/index.ts');
       expect(git('diff', '--cached', '--name-only')).not.toContain(
         '.project/architecture.generated.md',
@@ -1308,11 +1239,9 @@ git commit -m "text inside stdin"
     rmSync(nodePath.join(directory, 'src', 'billing'), { recursive: true });
     git('add', '--', 'src/billing/index.ts');
 
-    const hook = runHook(
+    const hook = runSuccessfulHook(
       'git add --pathspec-from-file=missing-pathspec && git commit -m "remove billing"',
     );
-
-    expect(hook.status).toBe(0);
     expect(git('diff', '--cached', '--name-only')).toContain('src/billing/index.ts');
     expect(git('diff', '--cached', '--name-only')).not.toContain(
       '.project/architecture.generated.md',
