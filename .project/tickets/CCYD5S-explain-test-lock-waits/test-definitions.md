@@ -15,9 +15,9 @@ Then the queued runner reports the owner's process ID
 And it reports the owner's checkout root
 And it emits increasing elapsed-wait status more than once
 
-- [x] RED: focused runner suite failed because no periodic owner status existed
-- [x] GREEN: owner checkout and increasing elapsed statuses passed
-- [x] REFACTOR: shared status formatting and scheduling remained local to the runner
+- [x] RED skip: focused runner suite failed because no periodic owner status existed
+- [x] GREEN fa16069cb # owner checkout and increasing elapsed statuses passed
+- [x] REFACTOR skip: shared status formatting and scheduling remained local to the runner
 
 ### Scenario: CCYD5S.SM1.AC3.tolerates_incomplete_owner_metadata
 
@@ -26,10 +26,10 @@ When another runner reports its wait
 Then it prints the fields that are available
 And it continues waiting or reaches the configured wait cap without crashing
 
-- [x] RED: focused runner suite failed because incomplete metadata emitted no details
-- [x] GREEN: available owner fields and fallback labels passed
-- [x] REFACTOR: no additional structure was needed
+- [x] RED skip: focused runner suite failed because incomplete metadata emitted no details
+- [x] GREEN fa16069cb # available owner fields and fallback labels passed
+- [x] REFACTOR skip: no additional structure was needed
 
 ## Patch-level refactor
 
-- [x] cross-scenario: both scenarios use the same metadata reader and wait reporter
+- [x] cross-scenario skip: both scenarios use the same metadata reader and wait reporter

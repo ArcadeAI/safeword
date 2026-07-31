@@ -14,7 +14,7 @@ Then it says direct store calls, injected lower-level events, and internal-state
 assertions are supporting evidence rather than proof of those clauses
 
 - [x] RED skip: no per-step commit requested; focused test failed on the absent contract
-- [x] GREEN skip: no per-step commit requested; focused contract test passed
+- [x] GREEN fa16069cb # scenario-proof guidance and regression coverage
 - [x] REFACTOR skip: no additional cleanup after the single-behavior split during GREEN
 
 ## Rule: Setup and supporting proof remain proportionate
@@ -28,7 +28,7 @@ Then it permits setup shortcuts in `Given` and supporting tests without
 weakening the required `When` and `Then` evidence
 
 - [x] RED skip: covered by the same missing-contract RED
-- [x] GREEN skip: no per-step commit requested; setup and support contract passed
+- [x] GREEN fa16069cb # scenario-proof guidance and regression coverage
 - [x] REFACTOR skip: no further structural improvement needed
 
 ## Rule: Evidence limits remain visible
@@ -41,7 +41,7 @@ Then it uses the existing `@manual` or `@live` path and never promotes a
 narrower automated test into full scenario evidence
 
 - [x] RED skip: covered by the same missing-contract RED
-- [x] GREEN skip: no per-step commit requested; evidence-limit contract passed
+- [x] GREEN fa16069cb # scenario-proof guidance and regression coverage
 - [x] REFACTOR skip: no further structural improvement needed
 
 ## Feature-level cross-scenario refactor

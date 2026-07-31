@@ -10,6 +10,9 @@ files in 422.63 seconds.
 **Static Checks:** ✅ ESLint, Gherkin validation, `tsc --noEmit`, Prettier, and
 `git diff --check` passed.
 
+**PR Scope:** ✅ Changes are limited to lock-owner metadata, periodic waiting
+diagnostics, their isolated integration coverage, and CCYD5S planning evidence.
+
 **Behavior Boundary:** ✅ Lock serialization, stale-owner removal, and the
 20-minute maximum wait are unchanged. The patch adds diagnostic metadata and
 status output only.
