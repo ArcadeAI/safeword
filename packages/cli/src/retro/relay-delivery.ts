@@ -1775,6 +1775,7 @@ async function discardOwnedRelayRequest(
     faultAfterSourceDiscardWrite: options.faultAfterSourceDiscardWrite,
   });
   await removeRelayFiles(directory, durableFiles);
+  await removeRetrySchedule(projectDirectory, requestId);
   return true;
 }
 
@@ -2330,7 +2331,8 @@ async function retryScheduleFor(
     return value as RelayRetrySchedule;
   } catch (error) {
     if (errorCode(error) === 'ENOENT') return undefined;
-    throw error;
+    await removeIfPresent(retrySchedulePath(projectDirectory, requestId));
+    return undefined;
   }
 }
 
@@ -2420,14 +2422,18 @@ export async function deliverRelayRequests(
       continue;
     }
     const remainingOverallMs = overallDeadline - monotonicNow();
-    if (remainingOverallMs < options.deadlineMs + RELAY_CLEANUP_RESERVE_MS) {
+    if (remainingOverallMs <= RELAY_CLEANUP_RESERVE_MS) {
       await rearmClaim(projectDirectory, claim);
       break;
     }
+    const attemptDeadlineMs = Math.min(
+      options.deadlineMs,
+      remainingOverallMs - RELAY_CLEANUP_RESERVE_MS,
+    );
     const controller = new AbortController();
     const timer = setTimeout(() => {
       controller.abort();
-    }, options.deadlineMs);
+    }, attemptDeadlineMs);
     timer.unref();
     try {
       const relayOrigin = normalizeRelayOrigin(options.relayUrl);

@@ -591,6 +591,7 @@ describe('runRetro', () => {
       expect(transmittedRequestIds).toEqual([firstRequestId, secondRequestId]);
 
       finding = rawFinding({ title: 'First occurrence' });
+      now += 2000;
       await runFire(0);
       const revisitedDeadLetters = await listRelayDeadLetters(projectDirectory);
       const stillPending = await listRelayRequests(projectDirectory);
@@ -602,6 +603,7 @@ describe('runRetro', () => {
 
       accept = true;
       finding = rawFinding({ title: 'Second occurrence' });
+      now += 2000;
       await runFire(100);
       expect(await listRelayRequests(projectDirectory)).toHaveLength(0);
       expect(transmittedRequestIds.at(-1)).toBe(secondRequestId);

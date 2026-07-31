@@ -1692,7 +1692,7 @@ describe('immutable relay delivery spool', () => {
     expect(readdirSync(directory)).toContain(`${corruptId}.json`);
   });
 
-  it('does not start a request without a full deadline and cleanup reserve remaining', async () => {
+  it('uses the remaining aggregate budget after reserving cleanup time', async () => {
     const project = temporaryProject();
     const poison = request({
       requestId: '00000000-0000-4000-8000-000000000012',
@@ -1734,8 +1734,8 @@ describe('immutable relay delivery spool', () => {
       relayUrl: 'https://relay.invalid',
     });
 
-    expect(attempted).toEqual([poison.requestId]);
-    expect(outcome).toMatchObject({ accepted: 0, retryable: 2 });
+    expect(attempted).toEqual([poison.requestId, healthy.requestId]);
+    expect(outcome).toMatchObject({ accepted: 1, retryable: 1 });
   });
 
   it('defers two timed-out poison requests so a healthy request runs on a later bounded invocation', async () => {
@@ -1790,12 +1790,13 @@ describe('immutable relay delivery spool', () => {
 
     await deliverRelayRequests(project, options);
     elapsed = 0;
-    await deliverRelayRequests(project, options);
+    const secondOutcome = await deliverRelayRequests(project, options);
     elapsed = 0;
     const outcome = await deliverRelayRequests(project, options);
 
     expect(attempts).toEqual([poisonOne.requestId, poisonTwo.requestId, healthy.requestId]);
-    expect(outcome).toMatchObject({ accepted: 1 });
+    expect(secondOutcome).toMatchObject({ accepted: 1 });
+    expect(outcome).toMatchObject({ accepted: 0 });
   });
 
   it('rearms an incompatible relay-version response rather than dead-lettering it', async () => {
@@ -2367,7 +2368,7 @@ describe('immutable relay delivery spool', () => {
     });
 
     expect(performance.now() - startedAt).toBeLessThan(1000);
-    expect(send).toHaveBeenCalledOnce();
+    expect(send).toHaveBeenCalledTimes(2);
     expect(outcome.retryable).toBe(3);
   });
 });
