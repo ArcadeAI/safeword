@@ -99,7 +99,7 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
       cwd: context.directory,
       encoding: 'utf8',
     });
-    expect(readDocumentFingerprint(content)).toBeDefined();
+    expect(readDocumentFingerprint(content)).toBe(shapeFingerprint(context.directory));
   });
 
   it('regenerates and stages a stale doc', async () => {
