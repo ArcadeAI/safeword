@@ -592,13 +592,13 @@ function sameGitRepositoryTarget(left: GitRepositoryContext, right: GitRepositor
 }
 
 /**
- * Whether an unmodelled command list would have had a document auto-staged, had
- * it been modellable. Projects the reachable adds into a throwaway index so the
+ * Whether an unmodeled command list would have had a document auto-staged, had
+ * it been modelable. Projects the reachable adds into a throwaway index so the
  * answer matches what the commit will really contain; never touches the real
- * index and never throws — advisory detection must not turn an unmodelled
+ * index and never throws — advisory detection must not turn an unmodeled
  * command into a blocker.
  */
-function unmodelledCommitNeedsAdvice(command: string, baseDirectory: string): boolean {
+function unmodeledCommitNeedsAdvice(command: string, baseDirectory: string): boolean {
   try {
     const unsupportedCommit = unsupportedCommitPlan(command, baseDirectory);
     if (unsupportedCommit === undefined) return false;
@@ -629,7 +629,7 @@ function unmodelledCommitNeedsAdvice(command: string, baseDirectory: string): bo
   }
 }
 
-function writeUnmodelledCommitAdvisory(): void {
+function writeUnmodeledCommitAdvisory(): void {
   const message =
     'Safeword skipped architecture auto-staging because commands before `git commit` cannot be modeled safely. Run preceding commands first, then commit separately, or run safeword architecture --stage.';
   process.stdout.write(
@@ -661,7 +661,7 @@ const gitCommand = input.tool_input?.command ?? '';
 const baseDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 const commitPlan = gitCommitPlan(gitCommand, baseDirectory);
 if (commitPlan === undefined) {
-  if (unmodelledCommitNeedsAdvice(gitCommand, baseDirectory)) writeUnmodelledCommitAdvisory();
+  if (unmodeledCommitNeedsAdvice(gitCommand, baseDirectory)) writeUnmodeledCommitAdvisory();
   process.exit(0);
 }
 
