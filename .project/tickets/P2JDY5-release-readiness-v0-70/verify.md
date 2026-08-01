@@ -2,7 +2,7 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 5937/5942 tests pass (5 skipped)
+**Test Suite:** ✓ 6068/6073 tests pass (5 skipped)
 **Gherkin:** ✅ Acceptance lane passes (671 scenarios passed, 3 skipped; 21984 steps passed, 4 skipped)
 **Build:** ✅ Success (CLI package build, publint, and website production build)
 **Lint:** ✅ Clean
@@ -19,7 +19,7 @@ orphan warning for `codex-plugin/hooks.ts`), Knip found no dead code, all 200
 template pairs and 8 contracts are in sync, publint passed, and the production
 dependency audit found no vulnerabilities.
 
-The refreshed verification reran the complete 401-file Vitest suite, the
+The refreshed verification reran the complete 402-file Vitest suite, the
 674-scenario acceptance lane, 27 release tests, CLI package build, website
 typecheck/build, formatting, and diff hygiene after the final review fixes.
 
@@ -54,3 +54,6 @@ typecheck/build, formatting, and diff hygiene after the final review fixes.
 - The latest main catch-up adds actionable Linear portable-sync guidance while
   retaining the GitHub keychain path, immutable workflow actions, and patched
   Node version. The new shared-lock runner also reports honest wait provenance.
+- Architecture-fingerprint enforcement from the newest main has no substantive
+  overlap with this PR. Its 218 focused tests and the complete suite are green;
+  one initial lock-test child exit did not reproduce in isolation or a full rerun.

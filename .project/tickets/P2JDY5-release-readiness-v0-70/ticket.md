@@ -6,7 +6,7 @@ phase: done
 status: done
 subtype: bug-investigated
 created: 2026-07-31T01:26:54.405Z
-last_modified: 2026-08-01T16:11:37.000Z
+last_modified: 2026-08-01T16:27:32.000Z
 ---
 
 # Ship a clean release for safeword users
@@ -95,6 +95,8 @@ closing tracking items whose acceptance criteria are not demonstrably complete.
 - 2026-08-01T15:47:09.000Z Complete: Routed GitHub CLI authentication through the new public tracker handler with a RED/GREEN Commander-boundary regression test, reconciled the exact 470-ticket index, and passed 5,916 tests, 671 acceptance scenarios, all 27 release tests, lint, typecheck, formatting, and parity.
 - 2026-08-01T15:58:00.000Z Reopened: Main advanced again with honest BDD evidence/lock-wait behavior and Linear portable-sync guidance. Reconciled the tracker guide so Linear's supported path composes with GitHub keychain authentication, immutable Actions references, and the patched Node workflow.
 - 2026-08-01T16:11:37.000Z Complete: The combined tracker, public-CLI, Linear, and lock-runner suite passed 50 tests; the full suite passed 5,937 tests, all 27 release tests, lint, typecheck, formatting, parity, and website validation. The exact index now contains 472 canonical tickets.
+- 2026-08-01T16:13:00.000Z Reopened: Main advanced during verification with architecture-fingerprint enforcement. Its only release-PR overlap was the generated ticket index; the architecture-focused suite passed 218 tests.
+- 2026-08-01T16:27:32.000Z Complete: A transient child-runner exit in the first full pass did not reproduce in isolation or in the complete rerun. Final evidence is 6,068 passing tests, 671 passing acceptance scenarios, 27 release tests, lint, typecheck, formatting, parity, and an exact 472-ticket index.
 
 ## Root Cause
 
