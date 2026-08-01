@@ -52,6 +52,13 @@ with no recorded tracker ref — for example, one that predates the connect — 
 
 ## Sync status to the tracker
 
+Plain live sync fails loudly (with a non-zero exit) when it cannot proceed. For GitHub, that means
+a missing credential turns CI red instead of silently allowing tracker state to drift. For Linear,
+plain live sync points directly to the supported portable path instead of asking for a credential
+that the unwired live adapter cannot use. In a non-interactive GitHub run authenticated by an
+`ARCADE_USER_ID` (a user identity, not a service account), Safeword also warns that a lapsed grant
+would otherwise fail silently.
+
 ### Live transport (GitHub)
 
 ```bash
@@ -86,13 +93,6 @@ jobs:
           # safeword reads the credential from GITHUB_TOKEN (not GH_TOKEN).
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
-
-GitHub live sync **fails loudly (non-zero exit)** when no credential resolves — it never silently
-exits 0 and does nothing, so a misconfigured CI job turns red instead of quietly drifting. Plain
-Linear live sync also exits non-zero, but points directly to the supported portable path instead of
-asking for a credential that the unwired live adapter cannot use. In a non-interactive run
-authenticated by an `ARCADE_USER_ID` (a user identity, not a service account), Safeword also warns
-that a lapsed grant would otherwise fail silently.
 
 ### Portable transport (`--plan` / `--apply-results`)
 

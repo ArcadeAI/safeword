@@ -116,7 +116,8 @@ function runApply(cwd: string, config: TicketBridgeConfig, filePath: string): vo
 
 /** An advisory on stderr — never stdout, which must stay a pure SyncPlan document. */
 function note(message: string): void {
-  process.stderr.write(`sync-tracker: ${message}.\n`);
+  const suffix = /[.!?]$/.test(message) ? '' : '.';
+  process.stderr.write(`sync-tracker: ${message}${suffix}\n`);
 }
 
 /**
@@ -171,7 +172,7 @@ async function runLiveSync(
   // Linear has no live adapter yet, so asking for a credential or sidecar first
   // is a dead end. Point directly to the two supported transport paths.
   if (provider === 'linear') {
-    console.log(LINEAR_LIVE_PROJECTION_GUIDANCE);
+    note(LINEAR_LIVE_PROJECTION_GUIDANCE);
     process.exitCode = 1;
     return;
   }

@@ -9,7 +9,7 @@ import { syncTrackerCommand } from '../../src/commands/sync-tracker.js';
 
 describe('sync-tracker Linear live-sync guidance', () => {
   let cwd: string;
-  let logs: string[];
+  let stderr: string[];
 
   beforeEach(() => {
     cwd = mkdtempSync(nodePath.join(tmpdir(), 'sync-linear-'));
@@ -18,18 +18,19 @@ describe('sync-tracker Linear live-sync guidance', () => {
       nodePath.join(cwd, '.safeword', 'config.json'),
       JSON.stringify({ ticketBridge: { provider: 'linear', target: { team: 'ENG' } } }),
     );
-    logs = [];
+    stderr = [];
     vi.spyOn(process, 'cwd').mockReturnValue(cwd);
-    vi.spyOn(console, 'log').mockImplementation(message => {
-      logs.push(String(message));
+    vi.spyOn(process.stderr, 'write').mockImplementation(chunk => {
+      stderr.push(String(chunk));
+      return true;
     });
-    delete process.env.LINEAR_API_KEY;
+    vi.stubEnv('LINEAR_API_KEY', '');
     process.exitCode = 0;
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
-    delete process.env.LINEAR_API_KEY;
+    vi.unstubAllEnvs();
     process.exitCode = 0;
     rmSync(cwd, { recursive: true, force: true });
   });
@@ -38,11 +39,11 @@ describe('sync-tracker Linear live-sync guidance', () => {
     ['without a credential', undefined],
     ['with a credential', 'dummy-linear-token'],
   ])('points directly to portable sync %s', async (_condition, credential) => {
-    if (credential !== undefined) process.env.LINEAR_API_KEY = credential;
+    if (credential !== undefined) vi.stubEnv('LINEAR_API_KEY', credential);
 
     await syncTrackerCommand();
 
-    const output = logs.join('\n');
+    const output = stderr.join('');
     expect(process.exitCode).toBe(1);
     expect(output).toContain('safeword sync-tracker --plan');
     expect(output).toContain('--apply-results');
