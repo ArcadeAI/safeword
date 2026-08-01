@@ -24,6 +24,32 @@ Degradation is the intended path — no gate blocks on harness absence.
 
 Start with the most constraining test — usually E2E or integration. Prefer the highest scope that covers the behavior with acceptable feedback speed.
 
+### Scenario proof fidelity
+
+The primary proof must preserve the scenario's contract boundary. Declarative
+wording does not require literal keystroke fidelity, but it does require the
+same actor-facing entry point and actor-visible result that the `When` and
+`Then` claim.
+
+- **Setup shortcuts belong in `Given`.** Fixtures, direct state setup, and
+  lower-level helpers may establish context without replaying every prior user
+  action.
+- **Exercise the `When` through the actor-facing entry point.** A direct
+  application-store call or injected lower-level browser event may prove
+  underlying logic, but it does not prove a named UI control, keyboard or
+  operating-system gesture, CLI command, or API request.
+- **Observe the `Then` as the actor-visible result.** Store, editor, or component
+  state is supporting evidence; it does not prove a visible UI result, emitted
+  CLI output, or external API response.
+- **Keep evidence limits explicit.** When the real boundary cannot be automated
+  reliably, use the existing `@manual` or `@live` path and perform and record
+  that check separately. A tag, skip reason, or narrower automated test does
+  not prove the broader scenario by itself.
+
+If a scenario accidentally names incidental UI mechanics rather than product
+behavior, loop back to define-behavior and rewrite it; do not silently reinterpret
+the scenario during implementation.
+
 ### Feature-source executable path
 
 When the scenario source is a `.feature` file and the Cucumber lane exists, RED starts by making that scenario executable through Cucumber step definitions:
