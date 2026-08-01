@@ -75,7 +75,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           # Match safeword's supported Node.js engine range.
-          node-version: 24.16.0
+          node-version: 24.18.0
       - run: npx safeword sync-tracker
         env:
           # GitHub: the built-in token can create/update issues in this repo.

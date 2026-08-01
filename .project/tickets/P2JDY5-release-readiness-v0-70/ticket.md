@@ -6,7 +6,7 @@ phase: done
 status: done
 subtype: bug-investigated
 created: 2026-07-31T01:26:54.405Z
-last_modified: 2026-07-31T23:40:18.000Z
+last_modified: 2026-08-01T07:33:33.000Z
 ---
 
 # Ship a clean release for safeword users
@@ -71,7 +71,7 @@ closing tracking items whose acceptance criteria are not demonstrably complete.
 - [x] Template/schema/installed-config parity checks pass.
 - [x] Architecture, dead-code, duplication, test-quality, and documentation audits have no release-blocking findings.
 - [x] Tracker identities cannot produce Windows-reserved composed ticket-folder names; superficially reserved raw IDs remain accepted when the required slug suffix makes the final folder portable.
-- [x] The copyable GitHub Actions workflow pins each external action to a verified immutable commit SHA with its release tag documented inline.
+- [x] The copyable GitHub Actions workflow pins each external action to a verified immutable commit SHA and runs a security-patched Node 24 LTS release.
 
 ## Work Log
 
@@ -89,6 +89,8 @@ closing tracking items whose acceptance criteria are not demonstrably complete.
 - 2026-07-31T15:59:30.000Z Complete: Three independent review passes approved with no critical issues. Full verification passed 5,663 tests, 499 BDD scenarios, 26 release tests, lint, typecheck, package and website builds, immutable-action verification, parity, architecture, dead-code, formatting, and production dependency gates.
 - 2026-07-31T23:20:50.000Z Reopened: The latest independent PR review found the generated ticket index omitted four release-review tickets and retained six obsolete states. Regenerated the index from canonical ticket files and clarified that GitHub CLI authentication may resolve from `GH_TOKEN` or stored credentials after excluding the caller's `GITHUB_TOKEN`.
 - 2026-07-31T23:40:18.000Z Complete: Final independent re-review approved with no critical issues or suggestions. After merging current `main`, the canonical 467-ticket index is exact; 5,670 tests, 499 BDD scenarios, and the release, lint, typecheck, package, website, parity, architecture, dead-code, formatting, and production dependency gates passed.
+- 2026-08-01T07:28:47.000Z Reopened: A current-source quality pass found the copyable workflow still pinned Node 24.16.0, predating the High- and Medium-severity fixes released in Node 24.17.0. Added a release-gate regression test and advanced the example to current LTS 24.18.0.
+- 2026-08-01T07:33:33.000Z Complete: The new release gate failed on Node 24.16.0 and passes on 24.18.0. All 27 release tests, lint, typecheck, website typecheck/build, packaging, parity, formatting, dependency audit, and independent re-review are green with no critical issues remaining.
 
 ## Root Cause
 

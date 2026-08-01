@@ -20,7 +20,7 @@ template pairs and 8 contracts are in sync, publint passed, and the production
 dependency audit found no vulnerabilities.
 
 The refreshed verification reran the complete 377-file Vitest suite, the
-502-scenario acceptance lane, 26 release tests, CLI package build, website
+502-scenario acceptance lane, 27 release tests, CLI package build, website
 typecheck/build, formatting, and diff hygiene after the final review fixes.
 
 ## Review Closeout
@@ -37,6 +37,9 @@ typecheck/build, formatting, and diff hygiene after the final review fixes.
   test also requires a clean command exit and no stderr output.
 - The copyable workflow pins checkout v7.0.1 and setup-node v7.0.0 to their
   verified immutable commit SHAs.
+- The copyable workflow now uses Node 24.18.0 LTS, above the Node 24.17.0
+  security floor that fixed two High and several Medium vulnerabilities; a
+  release test prevents regression below that floor.
 - The generated ticket index now exactly represents all 467 canonical tickets,
   including the four review tickets added here and six reconciled status changes.
 - Authentication documentation now distinguishes Safeword's preflight order
