@@ -2386,6 +2386,8 @@ export async function deliverRelayRequests(
   retryable: number;
   serverReportedTerminalReceipts?: RelayReportedTerminalReceipt[];
 }> {
+  const relayOrigin = normalizeRelayOrigin(options.relayUrl);
+  if (relayOrigin === undefined) throw new Error('invalid relay URL');
   const monotonicNow = options.monotonicNow ?? (() => performance.now());
   const overallDeadline =
     monotonicNow() + (options.overallDeadlineMs ?? options.deadlineMs + RELAY_OVERALL_HEADROOM_MS);
@@ -2440,8 +2442,6 @@ export async function deliverRelayRequests(
     }, attemptDeadlineMs);
     timer.unref();
     try {
-      const relayOrigin = normalizeRelayOrigin(options.relayUrl);
-      if (relayOrigin === undefined) throw new Error('invalid relay URL');
       const response = await options.fetch(`${relayOrigin}/v1/retro-filings`, {
         body: relayRequestBytes(parsedRequest),
         headers: relaySubmissionHeaders(options.credential),

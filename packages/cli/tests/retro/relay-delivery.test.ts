@@ -2191,6 +2191,29 @@ describe('immutable relay delivery spool', () => {
     expect(await listRelayDeadLetters(project)).toHaveLength(0);
   });
 
+  it('rejects an invalid relay URL without claiming or scheduling durable work', async () => {
+    const project = temporaryProject();
+    const original = request({ sourceKey: 'invalid-relay-url' });
+    const persisted = await persistRelayRequest(project, original);
+    const fetch = vi.fn<typeof globalThis.fetch>();
+
+    await expect(
+      deliverRelayRequests(project, {
+        credential: 'swc_client_secret',
+        deadlineMs: 25,
+        fetch,
+        now: Date.now,
+        relayUrl: 'not a URL',
+      }),
+    ).rejects.toThrow('invalid relay URL');
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(readFileSync(persisted.path, 'utf8')).toBe(JSON.stringify(original));
+    expect(readdirSync(path.dirname(persisted.path))).not.toContain(
+      `${original.requestId}.retry-schedule.json`,
+    );
+  });
+
   it('self-heals a malformed retry schedule before delivering the persisted request', async () => {
     const project = temporaryProject();
     const original = request({ sourceKey: 'malformed-schedule' });
