@@ -317,6 +317,34 @@ describe('runRetro', () => {
     }
   });
 
+  it('reports an invalid injected relay route after persisting the durable draft', async () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-invalid-injected-relay-'));
+    try {
+      const outcome = await runRetro(
+        { transcript: '/tmp/session.jsonl' },
+        dependencies({
+          projectDirectory,
+          relay: {
+            credential: 'swc_test',
+            installationId: 42,
+            readiness: { enabled: true },
+            relayUrl: 'not a URL',
+            repository: 'arcadeai/safeword',
+          },
+        }),
+      );
+
+      expect(outcome).toMatchObject({
+        agentFilingNeeded: true,
+        errorMessage: 'retro relay delivery failed: invalid relay URL',
+        ok: false,
+      });
+      expect(await listRelayRequests(projectDirectory)).toHaveLength(1);
+    } finally {
+      rmSync(projectDirectory, { recursive: true, force: true });
+    }
+  });
+
   it('continues filing healthy findings when another persisted source is corrupt', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-corrupt-source-'));
     const first = rawFinding({ title: 'Poisoned finding' });

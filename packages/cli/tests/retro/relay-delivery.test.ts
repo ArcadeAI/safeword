@@ -2049,6 +2049,9 @@ describe('immutable relay delivery spool', () => {
       sourceKey: `new-${index}`,
       title: `New ${index}`,
     }));
+    // A wall-clock ceiling is not a stable complexity proof in Node. One shared
+    // snapshot is: rescanning the 500 queued files for each of 50 drafts would
+    // have to invoke this seam once per draft.
     const stateSnapshot = vi.fn();
     const outcomes = await persistRelayDraftBatch(project, drafts, {
       faultAfterStateSnapshot: () => {

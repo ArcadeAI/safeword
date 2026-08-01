@@ -191,14 +191,25 @@ async function runRelayRetro(
   const persistence = await persistRelayDraftBatch(spoolDirectory, relayDrafts);
   const spoolFailed = persistence.filter(outcome => outcome.status === 'rejected').length;
   const deadlineMs = relay.deadlineMs ?? DEFAULT_RELAY_REQUEST_DEADLINE_MS;
-  const delivery = await deliverRelayRequests(spoolDirectory, {
-    credential: relay.credential,
-    deadlineMs,
-    fetch: relay.fetch ?? fetch,
-    now: () => Date.now(),
-    overallDeadlineMs: deadlineMs + RELAY_OVERALL_HEADROOM_MS,
-    relayUrl: relay.relayUrl,
-  });
+  let delivery: Awaited<ReturnType<typeof deliverRelayRequests>>;
+  try {
+    delivery = await deliverRelayRequests(spoolDirectory, {
+      credential: relay.credential,
+      deadlineMs,
+      fetch: relay.fetch ?? fetch,
+      now: () => Date.now(),
+      overallDeadlineMs: deadlineMs + RELAY_OVERALL_HEADROOM_MS,
+      relayUrl: relay.relayUrl,
+    });
+  } catch (error) {
+    return {
+      agentFilingNeeded: true,
+      drops,
+      errorMessage: `retro relay delivery failed: ${error instanceof Error ? error.message : 'unknown error'}`,
+      ok: false,
+      result: emptyTriageResult(),
+    };
+  }
   const relayOutcome = { ...delivery, spoolFailed };
   if (spoolFailed > 0) {
     return {
