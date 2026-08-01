@@ -42,8 +42,23 @@ function documentPath(world: EnforcementWorld): string {
   return nodePath.join(dir(world), DOC_RELATIVE);
 }
 
+function git(world: EnforcementWorld, ...args: string[]): void {
+  execFileSync('git', args, { cwd: dir(world), stdio: 'ignore' });
+}
+
+function commitAll(world: EnforcementWorld, message: string): void {
+  git(world, 'add', '-A');
+  git(world, 'commit', '-m', message);
+}
+
+function stageAll(world: EnforcementWorld): void {
+  git(world, 'add', '-A');
+}
+
 function makeModule(world: EnforcementWorld, name: string): void {
-  mkdirSync(nodePath.join(dir(world), 'src', name), { recursive: true });
+  const moduleDirectory = nodePath.join(dir(world), 'src', name);
+  mkdirSync(moduleDirectory, { recursive: true });
+  writeFileSync(nodePath.join(moduleDirectory, 'index.ts'), 'export {};\n');
 }
 
 function writeEnforcementConfig(world: EnforcementWorld, enabled: boolean): void {
@@ -52,6 +67,7 @@ function writeEnforcementConfig(world: EnforcementWorld, enabled: boolean): void
     nodePath.join(dir(world), '.safeword', 'config.json'),
     JSON.stringify({ architectureDocEnforcement: enabled }),
   );
+  git(world, 'add', '--', '.safeword/config.json');
 }
 
 /** Generate a fresh, safeword-owned doc on disk (the "committed current" state). */
@@ -100,13 +116,16 @@ function makeStale(world: EnforcementWorld): void {
   makeModule(world, 'auth');
   generateDocument(world);
   world.docBefore = readDocument(world);
+  commitAll(world, 'record current architecture');
   makeModule(world, 'billing');
+  stageAll(world);
 }
 
 /** Map a feature `<state>` phrase to the on-disk doc/project state it describes. */
 function setUpDocState(world: EnforcementWorld, state: string): void {
   if (state.includes('uncreated')) {
     makeModule(world, 'auth'); // modules but no doc
+    commitAll(world, 'record modules without architecture');
   } else if (state.includes('stale')) {
     makeStale(world);
   } else if (state.includes('corrupt')) {
@@ -116,14 +135,17 @@ function setUpDocState(world: EnforcementWorld, state: string): void {
       documentPath(world),
       '---\ngenerator: safeword-architecture\n---\n\n# fingerprint gone\n',
     );
+    commitAll(world, 'record corrupt architecture');
   } else if (state.includes('unchanged') || state.includes('fresh')) {
     makeModule(world, 'auth');
     generateDocument(world);
+    commitAll(world, 'record current architecture');
   } else if (state.includes('noop')) {
-    // no modules, no doc
+    commitAll(world, 'record project without modules');
   } else if (state.includes('foreign')) {
     mkdirSync(nodePath.dirname(documentPath(world)), { recursive: true });
     writeFileSync(documentPath(world), '# Our Architecture\n\nHand-written, no marker.\n');
+    commitAll(world, 'record hand-written architecture');
   } else {
     throw new Error(`Unknown doc state: ${state}`);
   }
@@ -167,10 +189,12 @@ Given('an architecture doc with no safeword generator marker', function (this: E
   const foreign = '# Our Architecture\n\nHand-written, no marker.\n';
   writeFileSync(documentPath(this), foreign);
   this.docBefore = foreign;
+  commitAll(this, 'record hand-written architecture');
 });
 
 Given("the project's structure has since changed", function (this: EnforcementWorld) {
   makeModule(this, 'billing');
+  stageAll(this);
 });
 
 Given('a repository with no safeword config file', function (this: EnforcementWorld) {

@@ -27,8 +27,8 @@ Feature: Enforced freshness of the generated architecture doc (Slice 2, single-r
 
     @architecture-staleness-enforcement.TB1.AC3
     Scenario: Auto-staging preserves an unrelated staged change
-      Given an unrelated file is already staged for commit
-      And the committed architecture doc is behind the current shape
+      Given the committed architecture doc is behind the current shape
+      And an unrelated file is already staged for commit
       When the agent commits the project
       Then the unrelated staged change is still part of the commit
       And the regenerated architecture doc is also part of the commit

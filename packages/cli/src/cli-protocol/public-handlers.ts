@@ -1,4 +1,3 @@
-import { execFileSync } from 'node:child_process';
 import { existsSync, lstatSync, readFileSync, readlinkSync, type Stats } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -171,7 +170,7 @@ function architectureEnforcementDisabledResult(
     findings: [
       {
         code: 'ARCHITECTURE_ENFORCEMENT_DISABLED',
-        message: 'Architecture document enforcement is disabled for this project.',
+        message: 'Architecture doc enforcement is opted out (architectureDocEnforcement: false).',
         severity: 'info',
       },
       ...advisories,
@@ -202,7 +201,7 @@ function architectureCheckResult(
         : [
             {
               code: 'ARCHITECTURE_DRIFT',
-              message: `Architecture documents are stale (${stale.join(', ')}).`,
+              message: `Architecture documents are stale (${stale.join(', ')}). Run \`safeword project architecture\` for the current worktree, or \`safeword project architecture --staged\` to reproduce the staged tree, then commit the result.`,
               severity: 'warning',
             },
             ...advisories,
@@ -211,23 +210,90 @@ function architectureCheckResult(
   });
 }
 
-/** Stage each healed document, recording the ones git refused. */
-function stageHealedDocuments(
-  cwd: string,
-  changed: readonly HealedDocument[],
-): { staged: { kind: string; target: string }[]; stageFailures: string[] } {
-  const staged: { kind: string; target: string }[] = [];
-  const stageFailures: string[] = [];
-  for (const result of changed) {
-    const target = nodePath.relative(cwd, result.path);
-    try {
-      execFileSync('git', ['add', '--', target], { cwd, stdio: 'ignore' });
-      staged.push({ kind: 'stage', target });
-    } catch {
-      stageFailures.push(target);
-    }
-  }
-  return { staged, stageFailures };
+type ArchitectureModeMessage = {
+  readonly code: string;
+  readonly message: string;
+  readonly severity: 'info' | 'warning';
+};
+
+function architectureModeResult(input: {
+  readonly cwd: string;
+  readonly mode: 'stage' | 'staged';
+  readonly results: readonly HealedDocument[];
+  readonly stagedPaths: readonly string[];
+  readonly stageFailures: readonly string[];
+  readonly failed: boolean;
+  readonly autoStageAvailable: boolean;
+  readonly messages: readonly ArchitectureModeMessage[];
+  readonly errors: readonly string[];
+}): CliResult {
+  const changed = input.results.filter(result =>
+    ['created', 'healed', 'regenerated'].includes(result.action),
+  );
+  let state: CliResult['state'] = 'healthy';
+  if (input.failed) state = 'failed';
+  else if (changed.length > 0) state = 'changed';
+
+  return createResult({
+    state,
+    changed: changed.length > 0,
+    effects: {
+      files: [
+        ...changed.map(result => ({
+          kind: result.action === 'created' ? 'create' : 'update',
+          target: nodePath.relative(input.cwd, result.path),
+        })),
+        ...input.stagedPaths.map(target => ({ kind: 'stage', target, operation: 'stage' })),
+      ],
+    },
+    findings: input.messages,
+    errors: input.errors.map(message => ({
+      code: 'ARCHITECTURE_STAGED_TREE_FAILED',
+      message,
+      retryable: true,
+    })),
+    data: {
+      command: 'project architecture',
+      mode: input.mode,
+      staged:
+        input.mode === 'stage' && input.autoStageAvailable && input.stageFailures.length === 0,
+      staged_files: input.stagedPaths,
+      stage_failures: input.stageFailures,
+      enforcement: true,
+    },
+  });
+}
+
+async function runArchitectureStagedTreeMode(
+  invocation: CommandInvocation,
+  mode: 'stage' | 'staged',
+): Promise<CliResult> {
+  const messages: ArchitectureModeMessage[] = [];
+  const errors: string[] = [];
+  const reporter = {
+    success(message: string): void {
+      messages.push({ code: 'ARCHITECTURE_MESSAGE', message, severity: 'info' });
+    },
+    warn(message: string): void {
+      messages.push({ code: 'ARCHITECTURE_WARNING', message, severity: 'warning' });
+    },
+    error(message: string): void {
+      errors.push(message);
+    },
+  };
+  const { architectureStage, architectureStaged } = await import('../commands/architecture.js');
+  const outcome =
+    mode === 'stage'
+      ? await architectureStage(invocation.cwd, reporter)
+      : await architectureStaged(invocation.cwd, reporter);
+
+  return architectureModeResult({
+    cwd: invocation.cwd,
+    mode,
+    ...outcome,
+    messages,
+    errors,
+  });
 }
 
 async function architectureHandler(invocation: CommandInvocation): Promise<CliResult> {
@@ -244,6 +310,13 @@ async function architectureHandler(invocation: CommandInvocation): Promise<CliRe
     );
   }
 
+  if (invocation.options.stage === true) {
+    return runArchitectureStagedTreeMode(invocation, 'stage');
+  }
+  if (invocation.options.staged === true) {
+    return runArchitectureStagedTreeMode(invocation, 'staged');
+  }
+
   const snapshot = extractMonorepoArchitectureSnapshot(invocation.cwd);
   const advisories = architectureAdvisories(snapshot.model.unreadableWorkspaces);
   if (invocation.options.check === true) {
@@ -255,18 +328,14 @@ async function architectureHandler(invocation: CommandInvocation): Promise<CliRe
 
   const results = selfHealProject(invocation.cwd, snapshot);
   const changed = results.filter(result => isWouldChangeAction(result.action));
-  const { staged, stageFailures } =
-    invocation.options.stage === true
-      ? stageHealedDocuments(invocation.cwd, changed)
-      : { staged: [], stageFailures: [] };
 
   return architectureHealResult({
     cwd: invocation.cwd,
     changed,
     advisories,
-    staged,
-    stageFailures,
-    stageRequested: invocation.options.stage === true,
+    staged: [],
+    stageFailures: [],
+    stageRequested: false,
   });
 }
 
