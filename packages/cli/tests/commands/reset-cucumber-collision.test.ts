@@ -14,7 +14,7 @@ import {
   readPackageJson,
   readTestFile,
   removeTemporaryDirectory,
-  runCli,
+  runConfirmedRemoval,
   setupOrThrow,
   TIMEOUT_BUN_INSTALL,
   writeSafewordPathsConfig,
@@ -35,7 +35,7 @@ describe('reset leaves a host harness untouched (TB1.AC3)', () => {
 
     // --full engages package removal (computePackagesToRemove) — without it
     // the deps-remain assertion is vacuous, plain reset never touches deps.
-    const reset = await runCli(['reset', '--full', '--yes'], { cwd: directory });
+    const reset = await runConfirmedRemoval(directory, { command: 'reset', full: true });
     expect(reset.exitCode, reset.stderr).toBe(0);
   }, TIMEOUT_BUN_INSTALL);
 
@@ -69,7 +69,7 @@ describe('full uninstall never deletes files at configured paths locations (TB1.
     writeSafewordPathsConfig(directory, { installedPacks: ['typescript'] });
     writeTestFile(directory, 'tests/behaviors/demo.feature', 'Feature: demo\n');
 
-    const reset = await runCli(['reset', '--full', '--yes'], { cwd: directory });
+    const reset = await runConfirmedRemoval(directory, { command: 'reset', full: true });
     expect(reset.exitCode, reset.stderr).toBe(0);
   }, TIMEOUT_BUN_INSTALL);
 

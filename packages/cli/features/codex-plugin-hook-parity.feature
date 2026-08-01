@@ -69,20 +69,20 @@ Feature: Codex plugin hook parity
       When the packaged Codex Stop command runs
       Then it exits successfully with the no-continuation JSON object
 
-  Rule: SessionStart preserves context and auto-upgrade behavior through one dispatcher
+  Rule: SessionStart preserves context while keeping upgrades explicit
 
     @codex-plugin-hook-parity.TB1.R4 @surface.openai-codex @surface.safeword-cli
-    Scenario: Packaged SessionStart runs auto-upgrade before emitting package-owned SAFEWORD context
+    Scenario: Packaged SessionStart emits package-owned SAFEWORD context without upgrading
       Given a Codex project with no applicable Safe Word upgrade
       When the packaged Codex SessionStart command runs
-      Then it invokes the shared auto-upgrade core
+      Then SessionStart performs no implicit upgrade
       And it emits SessionStart additionalContext containing package-owned SAFEWORD.md
 
     @codex-plugin-hook-parity.TB1.R4 @surface.openai-codex @surface.safeword-cli
-    Scenario: Packaged SessionStart includes upgrade notices without exit-code blocking
+    Scenario: Packaged SessionStart ignores cached upgrade notices
       Given the shared auto-upgrade core reports a visible notice
       When the packaged Codex SessionStart command runs
-      Then the notice is included in SessionStart additionalContext
+      Then the upgrade notice is absent from SessionStart additionalContext
       And the command exits successfully
 
   Rule: UserPromptSubmit preserves timestamp and queued prompt context

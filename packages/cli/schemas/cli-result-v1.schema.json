@@ -1,0 +1,126 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://safeword.dev/schemas/cli-result-v1.schema.json",
+  "title": "Safeword CLI Result v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "ok",
+    "state",
+    "changed",
+    "findings",
+    "effects",
+    "errors",
+    "recovery",
+    "next_actions"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "ok": { "type": "boolean" },
+    "state": {
+      "enum": ["healthy", "changed", "action_required", "failed"]
+    },
+    "changed": { "type": "boolean" },
+    "findings": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/finding" }
+    },
+    "effects": { "$ref": "#/definitions/effects" },
+    "errors": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/error" }
+    },
+    "recovery": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/recovery" }
+    },
+    "next_actions": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/nextAction" }
+    },
+    "data": {}
+  },
+  "definitions": {
+    "effect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "target"],
+      "properties": {
+        "kind": { "type": "string", "minLength": 1 },
+        "target": { "type": "string", "minLength": 1 },
+        "operation": { "type": "string", "minLength": 1 }
+      }
+    },
+    "effects": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["files", "packages", "configuration", "network", "destructive"],
+      "properties": {
+        "files": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/effect" }
+        },
+        "packages": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/effect" }
+        },
+        "configuration": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/effect" }
+        },
+        "network": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/effect" }
+        },
+        "destructive": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/effect" }
+        }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message", "severity"],
+      "properties": {
+        "code": { "type": "string", "minLength": 1 },
+        "message": { "type": "string", "minLength": 1 },
+        "severity": { "enum": ["info", "warning", "error"] },
+        "detail": { "type": "string" },
+        "metadata": { "type": "object" }
+      }
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message", "retryable"],
+      "properties": {
+        "code": { "type": "string", "minLength": 1 },
+        "message": { "type": "string", "minLength": 1 },
+        "retryable": { "type": "boolean" },
+        "detail": { "type": "string" }
+      }
+    },
+    "recovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command", "description", "requires_human"],
+      "properties": {
+        "command": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "requires_human": { "type": "boolean" }
+      }
+    },
+    "nextAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command", "mutates", "requires_human"],
+      "properties": {
+        "command": { "type": "string", "minLength": 1 },
+        "mutates": { "type": "boolean" },
+        "requires_human": { "type": "boolean" }
+      }
+    }
+  }
+}

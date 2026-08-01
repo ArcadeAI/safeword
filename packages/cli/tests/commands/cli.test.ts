@@ -33,12 +33,14 @@ describe('Test Suite 1: Version and Help', () => {
 
       const output = result.stdout;
 
-      // All commands should be listed
+      // Canonical commands are listed; retained aliases stay hidden.
       expect(output).toContain('setup');
-      expect(output).toContain('check');
-      expect(output).toContain('upgrade');
-      expect(output).toContain('diff');
-      expect(output).toContain('reset');
+      expect(output).toContain('status');
+      expect(output).toContain('plan');
+      expect(output).not.toContain('  check');
+      expect(output).not.toContain('  upgrade');
+      expect(output).not.toContain('  diff');
+      expect(output).not.toContain('  reset');
     });
 
     it('should display all global flags', async () => {
@@ -68,19 +70,13 @@ describe('Test Suite 1: Version and Help', () => {
     });
   });
 
-  describe('Test 1.3: Bare command shows help', () => {
-    it('should show help when run with no arguments', async () => {
+  describe('Test 1.3: Bare command reports status', () => {
+    it('should report an actionable status when run with no arguments', async () => {
       const bareResult = await runCli([]);
 
-      expect(bareResult.exitCode).toBe(0);
-
-      // Should have similar content to --help
-      // (Commander may format slightly differently, so check key content)
-      expect(bareResult.stdout).toContain('setup');
-      expect(bareResult.stdout).toContain('check');
-      expect(bareResult.stdout).toContain('upgrade');
-      expect(bareResult.stdout).toContain('diff');
-      expect(bareResult.stdout).toContain('reset');
+      expect(bareResult.exitCode).toBe(2);
+      expect(bareResult.stdout).toContain('Needs attention');
+      expect(bareResult.stdout).toContain('safeword setup');
     });
   });
 });

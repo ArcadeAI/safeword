@@ -52,17 +52,36 @@ export function detectPackageManager(cwd: string): PackageManager {
   return 'npm';
 }
 
-export function getUninstallCommand(packages: string[], cwd: string): string {
-  const pm = detectPackageManager(cwd);
-  const { uninstall } = PM_COMMANDS[pm];
-  const extraFlags = pnpmWorkspaceFlags(pm, cwd);
-  const flagString = extraFlags.length > 0 ? ` ${extraFlags.join(' ')}` : '';
-  return `${pm} ${uninstall}${flagString} ${packages.join(' ')}`;
+export interface DependencyInstallResult {
+  readonly attempted: boolean;
+  readonly installed: boolean;
+  readonly command?: string;
+  readonly error?: string;
 }
 
-export function installDependencies(cwd: string, packages: string[], label = 'packages'): void {
-  if (packages.length === 0) return;
-  if (process.env.SAFEWORD_SKIP_INSTALL) return;
+function reportInstallStart(label: string, command: string): void {
+  info(`\nInstalling ${label}...`);
+  info(`Running: ${command}`);
+}
+
+function reportInstallFailure(label: string, command: string): void {
+  warn(`Failed to install ${label}. Run manually:`);
+  listItem(command);
+}
+
+function reportWhen(enabled: boolean, report: () => void): void {
+  if (enabled) report();
+}
+
+export function installDependencies(
+  cwd: string,
+  packages: string[],
+  label = 'packages',
+  options: { report?: boolean } = {},
+): DependencyInstallResult {
+  if (packages.length === 0 || process.env.SAFEWORD_SKIP_INSTALL) {
+    return { attempted: false, installed: false };
+  }
 
   const pm = detectPackageManager(cwd);
   const { install } = PM_COMMANDS[pm];
@@ -71,8 +90,9 @@ export function installDependencies(cwd: string, packages: string[], label = 'pa
   const flagString = extraFlags.length > 0 ? ` ${extraFlags.join(' ')}` : '';
   const displayCommand = `${pm} ${install} ${DEV_FLAG}${flagString} ${packages.join(' ')}`;
 
-  info(`\nInstalling ${label}...`);
-  info(`Running: ${displayCommand}`);
+  reportWhen(options.report !== false, () => {
+    reportInstallStart(label, displayCommand);
+  });
 
   try {
     execFileSync(pm, [install, DEV_FLAG, ...extraFlags, ...packages], {
@@ -80,10 +100,57 @@ export function installDependencies(cwd: string, packages: string[], label = 'pa
       stdio: 'pipe',
       timeout: 120_000,
     });
-    success(`Installed ${label}`);
-  } catch {
-    warn(`Failed to install ${label}. Run manually:`);
-    listItem(displayCommand);
+    reportWhen(options.report !== false, () => {
+      success(`Installed ${label}`);
+    });
+    return { attempted: true, installed: true, command: displayCommand };
+  } catch (installError) {
+    reportWhen(options.report !== false, () => {
+      reportInstallFailure(label, displayCommand);
+    });
+    return {
+      attempted: true,
+      installed: false,
+      command: displayCommand,
+      error: installError instanceof Error ? installError.message : String(installError),
+    };
+  }
+}
+
+export function uninstallDependencies(
+  cwd: string,
+  packages: string[],
+  options: { report?: boolean } = {},
+): DependencyInstallResult {
+  if (packages.length === 0 || process.env.SAFEWORD_SKIP_INSTALL) {
+    return { attempted: false, installed: false };
+  }
+  const pm = detectPackageManager(cwd);
+  const { uninstall } = PM_COMMANDS[pm];
+  const extraFlags = pnpmWorkspaceFlags(pm, cwd);
+  const displayCommand =
+    `${pm} ${uninstall} ${extraFlags.join(' ')} ${packages.join(' ')}`.replaceAll(/\s+/g, ' ');
+  try {
+    execFileSync(pm, [uninstall, ...extraFlags, ...packages], {
+      cwd,
+      stdio: 'pipe',
+      timeout: 120_000,
+    });
+    reportWhen(options.report !== false, () => {
+      success('Uninstalled Safeword packages');
+    });
+    return { attempted: true, installed: true, command: displayCommand };
+  } catch (uninstallError) {
+    reportWhen(options.report !== false, () => {
+      warn('Failed to uninstall Safeword packages. Run manually:');
+      listItem(displayCommand);
+    });
+    return {
+      attempted: true,
+      installed: false,
+      command: displayCommand,
+      error: uninstallError instanceof Error ? uninstallError.message : String(uninstallError),
+    };
   }
 }
 

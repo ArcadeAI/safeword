@@ -17,7 +17,7 @@ import { detectSqlDialect } from './dialect.js';
  * templates/hooks/lib/lint-config.ts (kept in sync by hand — src can't import
  * templates).
  */
-export function hostOwnsSqlFormatting(ctx: ProjectContext): boolean {
+function hostOwnsSqlFormatting(ctx: ProjectContext): boolean {
   return (
     'prettier-plugin-sql' in ctx.developmentDeps || 'prettier-plugin-sql' in ctx.productionDeps
   );

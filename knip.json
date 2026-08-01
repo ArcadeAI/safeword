@@ -28,7 +28,6 @@
   ],
   "ignoreDependencies": [
     "safeword",
-    "tsx",
     "@next/eslint-plugin-next",
     "@tanstack/eslint-plugin-query",
     "eslint-plugin-better-tailwindcss",

@@ -1482,6 +1482,92 @@ describe('Reconcile - Reconciliation Engine', () => {
       expect(result.actions.some(a => a.type === 'json-merge')).toBe(true);
     });
 
+    it('keeps install predictions equal to observed merge and patch effects', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      const ctx = createContext();
+      const predicted = await reconcile(SAFEWORD_SCHEMA, 'install', ctx, { dryRun: true });
+      expect(predicted.actions.some(action => action.type === 'json-merge')).toBe(true);
+      expect(predicted.actions.some(action => action.type === 'text-patch')).toBe(true);
+
+      const observed = await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
+
+      expect({
+        created: predicted.created.toSorted((left, right) => left.localeCompare(right)),
+        updated: predicted.updated.toSorted((left, right) => left.localeCompare(right)),
+        removed: predicted.removed.toSorted((left, right) => left.localeCompare(right)),
+      }).toEqual({
+        created: observed.created.toSorted((left, right) => left.localeCompare(right)),
+        updated: observed.updated.toSorted((left, right) => left.localeCompare(right)),
+        removed: observed.removed.toSorted((left, right) => left.localeCompare(right)),
+      });
+    });
+
+    it('keeps uninstall predictions equal to observed unmerge and unpatch effects', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      const ctx = createContext();
+      await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
+      const predicted = await reconcile(SAFEWORD_SCHEMA, 'uninstall', ctx, {
+        dryRun: true,
+      });
+      expect(predicted.actions.some(action => action.type === 'json-unmerge')).toBe(true);
+      expect(predicted.actions.some(action => action.type === 'text-unpatch')).toBe(true);
+
+      const observed = await reconcile(SAFEWORD_SCHEMA, 'uninstall', ctx);
+
+      expect({
+        created: predicted.created.toSorted((left, right) => left.localeCompare(right)),
+        updated: predicted.updated.toSorted((left, right) => left.localeCompare(right)),
+        removed: predicted.removed.toSorted((left, right) => left.localeCompare(right)),
+      }).toEqual({
+        created: observed.created.toSorted((left, right) => left.localeCompare(right)),
+        updated: observed.updated.toSorted((left, right) => left.localeCompare(right)),
+        removed: observed.removed.toSorted((left, right) => left.localeCompare(right)),
+      });
+    });
+
+    it('keeps install predictions equal when a legacy unpatch removes its target', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      const legacyPath = 'legacy-context.md';
+      const managedBlock = 'Safeword legacy context\n';
+      const schema = {
+        ...SAFEWORD_SCHEMA,
+        ownedDirs: [],
+        sharedDirs: [],
+        preservedDirs: [],
+        ownedFiles: {},
+        managedFiles: {},
+        jsonMerges: {},
+        textPatches: {},
+        legacyTextPatches: {
+          [legacyPath]: {
+            operation: 'prepend' as const,
+            content: managedBlock,
+            marker: 'Safeword legacy context',
+            removeFileIfContentEquals: [''],
+          },
+        },
+      };
+      writeFileSync(nodePath.join(temporaryDirectory, legacyPath), managedBlock);
+      createPackageJson();
+      const ctx = createContext();
+
+      const predicted = await reconcile(schema, 'install', ctx, { dryRun: true });
+      expect(predicted.removed).toContain(legacyPath);
+
+      const observed = await reconcile(schema, 'install', ctx);
+
+      expect(observed.removed).toContain(legacyPath);
+      expect(predicted.removed).toEqual(observed.removed);
+      expect(existsSync(nodePath.join(temporaryDirectory, legacyPath))).toBe(false);
+    });
+
     it('should report healthy when dryRun upgrade finds no changes', async () => {
       const { reconcile } = await import('../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
@@ -1496,10 +1582,22 @@ describe('Reconcile - Reconciliation Engine', () => {
       const result = await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx, {
         dryRun: true,
       });
+      const observed = await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
 
       // No actions means healthy
       expect(result.actions.filter(a => a.type === 'write')).toHaveLength(0);
+      expect(result.created).toHaveLength(0);
       expect(result.updated).toHaveLength(0);
+      expect(result.removed).toHaveLength(0);
+      expect({
+        created: result.created,
+        updated: result.updated,
+        removed: result.removed,
+      }).toEqual({
+        created: observed.created,
+        updated: observed.updated,
+        removed: observed.removed,
+      });
     });
   });
 

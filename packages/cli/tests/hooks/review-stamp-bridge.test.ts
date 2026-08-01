@@ -9,7 +9,7 @@
  * slash-anchored suffix alone would miss the latter.
  */
 
-import { mkdirSync, mkdtempSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -21,6 +21,7 @@ import {
   readFreshCodexReviewStampIdentity,
   readFreshCursorReviewStampIdentity,
   rememberCodexReviewStampIdentity,
+  rememberCodexRunIdentity,
   rememberCursorReviewStampIdentity,
 } from '../../templates/hooks/lib/cursor-run-identity.js';
 
@@ -157,8 +158,24 @@ describe('review-stamp identity caches (#630)', () => {
   function project(): string {
     const dir = mkdtempSync(nodePath.join(tmpdir(), 'stamp-bridge-'));
     mkdirSync(nodePath.join(dir, '.project'), { recursive: true });
+    mkdirSync(nodePath.join(dir, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(dir, '.safeword', 'SAFEWORD.md'), '# enrolled\n');
     return dir;
   }
+
+  it('does not create a namespace for an unconfigured Codex project', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'stamp-bridge-unconfigured-'));
+
+    expect(
+      rememberCodexRunIdentity({
+        projectDirectory,
+        sessionId: 'codex-sess',
+        skillName: 'verify',
+      }),
+    ).toBe(false);
+    expect(rememberCodexReviewStampIdentity({ projectDirectory, id: 'codex-sess' })).toBe(false);
+    expect(existsSync(nodePath.join(projectDirectory, '.project'))).toBe(false);
+  });
 
   it('round-trips a Codex session id and consumes it on read', () => {
     const projectDirectory = project();

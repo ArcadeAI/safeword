@@ -31,10 +31,6 @@ if (!existsSync(`${projectDirectory}/.safeword`)) {
   process.exit(0);
 }
 
-// Fresh clones/worktrees have no git hooks wired until husky's `prepare` runs on
-// install, so the committed pre-commit guard chain silently does not run and a
-// first commit can bypass every check (#364). Wire it eagerly — before readiness
-// is even resolved — so enforcement is active even when deps are still missing.
 wireGitHooksIfNeeded(projectDirectory);
 
 let readiness = getDependencyReadiness(projectDirectory);
@@ -128,7 +124,5 @@ function wireGitHooksIfNeeded(cwd: string): void {
   });
   if (decision.action !== 'wire' || decision.hooksPath === undefined) return;
 
-  // Best-effort: a wiring failure (read-only config, no git) must not crash the
-  // SessionStart hook. The committed guard simply stays inactive, as before.
   spawnSync('git', ['config', 'core.hooksPath', decision.hooksPath], { cwd, stdio: 'ignore' });
 }

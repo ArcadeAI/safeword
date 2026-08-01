@@ -29,7 +29,7 @@ interface HookRun {
 }
 
 /** A TS project: git baseline (clean) + an uncommitted type error, ticket at `phase`. */
-function buildProject(phase: string): string {
+function buildProject(phase: string, state: Record<string, unknown> = {}): string {
   const cwd = createTemporaryDirectory();
   initGitRepo(cwd);
 
@@ -49,13 +49,13 @@ function buildProject(phase: string): string {
   // tsc gate is ticket-type-agnostic.
   writeTestFile(
     cwd,
-    '.safeword-project/tickets/099-test/ticket.md',
+    '.project/tickets/099-test/ticket.md',
     ['---', 'id: 099', 'status: in_progress', 'type: task', `phase: ${phase}`, '---'].join('\n'),
   );
   writeTestFile(
     cwd,
-    '.safeword-project/quality-state-test-session.json',
-    JSON.stringify({ activeTicket: '099', locSinceCommit: 0, locAtLastReview: 0 }),
+    '.project/quality-state-test-session.json',
+    JSON.stringify({ activeTicket: '099', locSinceCommit: 0, locAtLastReview: 0, ...state }),
   );
   writeTestFile(cwd, 'transcript.jsonl', transcriptLine());
 
@@ -116,6 +116,15 @@ describe('stop-quality implement-stop typecheck gate (SW1SE5 Rules 2-4)', () => 
     expect(parsed.reason).toContain(ADVICE_MARKER);
     expect(parsed.reason).toMatch(/error TS/);
     expect(parsed.reason).toMatch(/app\.ts/);
+  });
+
+  it('still surfaces typecheck advice when an earlier generic review is awaiting a prompt', () => {
+    cwd = buildProject('implement', { stopQualityReviewAwaitingUserPrompt: true });
+
+    const run = runStop(cwd);
+
+    expect(run.status).toBe(0);
+    expect(run.stdout).toContain(ADVICE_MARKER);
   });
 
   it('allows the stop on the next cycle (stop_hook_active) — advisory, not a wall (Rule 3)', () => {

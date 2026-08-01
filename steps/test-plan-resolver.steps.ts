@@ -70,7 +70,8 @@ function runPlan(world: TestPlanWorld, kind: 'test' | 'build'): void {
     encoding: 'utf8',
     env: { ...process.env, SAFEWORD_FAKE_TOOLS: world.fakeTools ?? 'all' },
   });
-  world.plan = JSON.parse(world.cliStdout) as PlanEntry[];
+  const envelope = JSON.parse(world.cliStdout) as { data?: { plan?: PlanEntry[] } };
+  world.plan = envelope.data?.plan ?? [];
 }
 
 function findEntry(world: TestPlanWorld, language: string): PlanEntry | undefined {
@@ -261,10 +262,11 @@ Then(
 Then(
   'the output is a JSON array containing an entry with language {string}',
   function (this: TestPlanWorld, language: string) {
-    const parsed = JSON.parse(this.cliStdout ?? '') as PlanEntry[];
-    assert.ok(Array.isArray(parsed), 'output is not a JSON array');
+    const parsed = JSON.parse(this.cliStdout ?? '') as { data?: { plan?: PlanEntry[] } };
+    const plan = parsed.data?.plan;
+    assert.ok(Array.isArray(plan), 'output envelope has no plan array');
     assert.ok(
-      parsed.some(planEntry => planEntry.language === language),
+      plan.some(planEntry => planEntry.language === language),
       `no ${language} entry in CLI output`,
     );
   },
@@ -273,7 +275,8 @@ Then(
 Then(
   'that entry has a non-empty "command" and a boolean "available"',
   function (this: TestPlanWorld) {
-    const planEntry = (JSON.parse(this.cliStdout ?? '') as PlanEntry[])[0];
+    const envelope = JSON.parse(this.cliStdout ?? '') as { data?: { plan?: PlanEntry[] } };
+    const planEntry = envelope.data?.plan?.[0];
     assert.ok(planEntry && planEntry.command.length > 0, 'command is empty');
     assert.equal(typeof planEntry.available, 'boolean');
   },

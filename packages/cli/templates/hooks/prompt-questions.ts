@@ -18,6 +18,7 @@ import {
   ESCALATION_THRESHOLD,
   type FailureEntry,
   getStateFilePath,
+  type QualityState,
   readCounters,
   writeCounters,
 } from './lib/quality-state.ts';
@@ -60,8 +61,21 @@ let effectivePhase: string | undefined;
 const stateFile = getStateFilePath(projectDirectory, input.session_id);
 
 if (existsSync(stateFile)) {
+  // The state file is shared by quality hooks; its on-disk shape is the
+  // QualityState contract. Keep the runtime parse/error boundary below because
+  // a stale or malformed file must never block the core prompt guidance.
+  let state: QualityState | undefined;
+  let stateDirty = false;
   try {
-    const state = JSON.parse(readFileSync(stateFile, 'utf8'));
+    state = JSON.parse(readFileSync(stateFile, 'utf8')) as QualityState;
+
+    // A real UserPromptSubmit boundary consumes the quiet period after a
+    // generic Stop review. Clear it before deriving this prompt's reminders so
+    // the following edited-work turn is eligible for normal review again.
+    if (state.stopQualityReviewAwaitingUserPrompt === true) {
+      state.stopQualityReviewAwaitingUserPrompt = false;
+      stateDirty = true;
+    }
 
     if (state.activeTicket) {
       // Derive phase from ticket file (not cache) — freshness check
@@ -145,7 +159,7 @@ if (existsSync(stateFile)) {
         if (replan) {
           lines.push(`- ${replan.line}`);
           state.replanPromptedHead = replan.headSha;
-          writeFileSync(stateFile, JSON.stringify(state, null, 2));
+          stateDirty = true;
         }
       } else {
         lines.push(
@@ -171,10 +185,21 @@ if (existsSync(stateFile)) {
       state.learningsNudgesAcknowledged ??= [];
       state.learningsNudgesAcknowledged.push(...pending);
       state.learningsNudgesPending = [];
-      writeFileSync(stateFile, JSON.stringify(state, null, 2));
+      stateDirty = true;
     }
   } catch {
     // State file corrupted or unreadable — skip reminder, keep core principles
+  } finally {
+    // A reminder failure after the boundary is observed must not keep the
+    // session in its quiet period. Keep the prompt hook best-effort if the
+    // final state write itself fails.
+    if (stateDirty && state !== undefined) {
+      try {
+        writeFileSync(stateFile, JSON.stringify(state, null, 2));
+      } catch {
+        // State write failed — preserve core prompt guidance
+      }
+    }
   }
 }
 
@@ -183,7 +208,7 @@ if (existsSync(stateFile)) {
 anchors.push(`- ${replyFormatReminder}`);
 
 // Readiness pointer (TPP6Y2): compressed five-dimension self-test, surfaced
-// during Clarify (no active ticket or intake phase) and suppressed once a build
+// during Clarify (no resolvable phase or intake) and suppressed once a build
 // phase is under way. Fires whether or not a state file exists, so the
 // motivating first-turn / pre-classify case is covered.
 if (shouldSurfaceReadiness(effectivePhase)) {

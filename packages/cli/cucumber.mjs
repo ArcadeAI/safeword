@@ -3,7 +3,7 @@
 // definitions on the fly; `paths` are the `.feature` files. Auto-discovered by
 // `cucumber-js`; invoked via the `test:bdd` script.
 export default {
-  import: ['tsx/esm', 'features/steps/**/*.ts'],
+  import: ['features/steps/**/*.ts'],
   paths: ['features/**/*.feature'],
-  tags: 'not @manual and not @live',
+  tags: 'not @wip and not @manual and not @live',
 };

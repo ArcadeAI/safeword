@@ -62,30 +62,52 @@ import { toRepoDirectory } from '../utils/repo-path.js';
 const ARCHITECTURE_SOURCE_INDEX_ENV = 'SAFEWORD_ARCHITECTURE_SOURCE_INDEX';
 const ARCHITECTURE_KEEP_MATERIALIZED_ENV = 'SAFEWORD_ARCHITECTURE_KEEP_MATERIALIZED';
 
-export function architecture(
+export interface ArchitectureReporter {
+  readonly success: (message: string) => void;
+  readonly warn: (message: string) => void;
+  readonly error: (message: string) => void;
+}
+
+export interface ArchitectureModeOutcome {
+  readonly results: readonly SelfHealResult[];
+  readonly stagedPaths: readonly string[];
+  readonly stageFailures: readonly string[];
+  readonly failed: boolean;
+  readonly autoStageAvailable: boolean;
+}
+
+const defaultReporter: ArchitectureReporter = { success, warn, error };
+
+export async function architecture(
   cwd: string = process.cwd(),
   options: { check?: boolean; stage?: boolean; staged?: boolean } = {},
 ): Promise<void> {
   if (options.check) {
-    return architectureCheck(cwd);
+    await architectureCheck(cwd);
+    return;
   }
   if (options.stage) {
-    return architectureStage(cwd);
+    await architectureStage(cwd);
+    return;
   }
   if (options.staged) {
-    return architectureStaged(cwd);
+    await architectureStaged(cwd);
+    return;
   }
 
   generateFromWorktree(cwd);
-  return Promise.resolve();
 }
 
-function generateFromWorktree(cwd: string): void {
+function generateFromWorktree(
+  cwd: string,
+  reporter: ArchitectureReporter = defaultReporter,
+): SelfHealResult[] {
   const results = selfHealProject(cwd);
   for (const result of results) {
-    success(`Architecture state document ${result.action}: ${result.path}`);
+    reporter.success(`Architecture state document ${result.action}: ${result.path}`);
   }
-  warnUnreadableWorkspaces(cwd);
+  warnUnreadableWorkspaces(cwd, reporter);
+  return results;
 }
 
 /**
@@ -96,9 +118,12 @@ function generateFromWorktree(cwd: string): void {
  * independent of `architectureDocEnforcement`, because coverage honesty is not enforcement
  * — the architecture map silently omitting a whole language is wrong regardless of opt-out.
  */
-function warnUnreadableWorkspaces(cwd: string): void {
+function warnUnreadableWorkspaces(
+  cwd: string,
+  reporter: ArchitectureReporter = defaultReporter,
+): void {
   for (const workspace of discoverUnreadableWorkspaces(cwd)) {
-    warn(
+    reporter.warn(
       `Workspace config present but unreadable: ${workspace.config} (${workspace.manager}). Its packages may be missing from the architecture doc — fix the config and re-run \`safeword architecture\`. (Advisory; nothing is blocked.)`,
     );
   }
@@ -109,47 +134,87 @@ function warnUnreadableWorkspaces(cwd: string): void {
  * and stages it into the in-flight commit; leaves current/`noop`/foreign nodes
  * untouched. Never blocks — git failures are swallowed so the commit proceeds.
  */
-function architectureStage(cwd: string): Promise<void> {
+export function architectureStage(
+  cwd: string,
+  reporter: ArchitectureReporter = defaultReporter,
+): Promise<ArchitectureModeOutcome> {
+  let results: readonly SelfHealResult[] = [];
+  const stagedPaths: string[] = [];
+  const stageFailures: string[] = [];
+  let autoStageAvailable = true;
   try {
     if (!isArchitectureDocumentEnforcementEnabled(cwd)) {
-      warnUnreadableWorkspaces(cwd);
-      success('Architecture doc enforcement is opted out (architectureDocEnforcement: false).');
-      return Promise.resolve();
+      warnUnreadableWorkspaces(cwd, reporter);
+      reporter.success(
+        'Architecture doc enforcement is opted out (architectureDocEnforcement: false).',
+      );
+      return Promise.resolve({
+        results,
+        stagedPaths,
+        stageFailures,
+        failed: false,
+        autoStageAvailable,
+      });
     }
 
     const gitContext = resolveGitContext(cwd);
     if (gitContext === undefined) {
-      warn('No Git worktree found; generated from the worktree instead without auto-staging.');
-      generateFromWorktree(cwd);
-      return Promise.resolve();
+      autoStageAvailable = false;
+      reporter.warn(
+        'No Git worktree found; generated from the worktree instead without auto-staging.',
+      );
+      results = generateFromWorktree(cwd, reporter);
+      return Promise.resolve({
+        results,
+        stagedPaths,
+        stageFailures,
+        failed: false,
+        autoStageAvailable,
+      });
     }
 
     withGitIndexSnapshot(cwd, gitContext, snapshotDirectory => {
-      warnUnreadableWorkspaces(snapshotDirectory);
-      const materialized = materializeIndexResults(cwd, snapshotDirectory, 'mutations-only');
+      warnUnreadableWorkspaces(snapshotDirectory, reporter);
+      const materialized = materializeIndexResults(
+        cwd,
+        snapshotDirectory,
+        'mutations-only',
+        reporter,
+      );
+      results = materialized.results;
       const changed = materialized.results.filter(result => isWouldChangeAction(result.action));
       if (changed.length === 0) {
         if (materialized.skippedForeignCount === 0) {
-          success('Architecture docs need no change.');
+          reporter.success('Architecture docs need no change.');
         } else {
           const ownership = `${materialized.skippedForeignCount} ${
             materialized.skippedForeignCount === 1 ? 'document is' : 'documents are'
           } not Safeword-owned`;
-          success(`Architecture docs left unchanged (${ownership}).`);
+          reporter.success(`Architecture docs left unchanged (${ownership}).`);
         }
       } else {
         for (const result of changed) {
-          stageMaterializedDocument(cwd, result);
+          const failure = stageMaterializedDocument(cwd, result, reporter);
+          const relativePath = nodePath.relative(cwd, result.path);
+          if (failure === undefined) stagedPaths.push(relativePath);
+          else stageFailures.push(relativePath);
         }
       }
     });
-    warnExcludedWorktreeInputs(cwd);
+    warnExcludedWorktreeInputs(cwd, reporter);
   } catch (error_) {
-    warn(
+    autoStageAvailable = false;
+    reporter.warn(
       `Could not complete staged-tree architecture generation; nothing was auto-staged. CI will verify freshness. Cause: ${errorMessage(error_)}`,
     );
   }
-  return Promise.resolve();
+  return Promise.resolve({
+    results,
+    stagedPaths,
+    stageFailures,
+    failed: false,
+    autoStageAvailable,
+  });
 }
 
 interface WorktreeRecoveryCopy {
@@ -174,6 +239,7 @@ function restoreWorktreeAfterStaging(
   result: MaterializedIndexResult,
   recoveryCopy: WorktreeRecoveryCopy | undefined,
   staged: boolean,
+  reporter: ArchitectureReporter,
 ): void {
   if (
     result.restoreWorktreeContent === undefined ||
@@ -186,15 +252,19 @@ function restoreWorktreeAfterStaging(
     if (recoveryCopy !== undefined) {
       rmSync(recoveryCopy.directory, { recursive: true, force: true });
     }
-    warn(`Preserved unstaged worktree architecture edits: ${result.path}`);
+    reporter.warn(`Preserved unstaged worktree architecture edits: ${result.path}`);
   } catch (error_) {
-    warn(
+    reporter.warn(
       `Architecture doc ${staged ? 'was staged' : 'was not staged'} but unstaged worktree edits could not be restored: ${result.path}. Recovery copy: ${recoveryCopy?.path ?? 'unavailable'}. Cause: ${errorMessage(error_)}`,
     );
   }
 }
 
-function stageMaterializedDocument(cwd: string, result: MaterializedIndexResult): void {
+function stageMaterializedDocument(
+  cwd: string,
+  result: MaterializedIndexResult,
+  reporter: ArchitectureReporter,
+): string | undefined {
   const shouldRestore =
     result.restoreWorktreeContent !== undefined &&
     process.env[ARCHITECTURE_KEEP_MATERIALIZED_ENV] !== '1';
@@ -207,14 +277,15 @@ function stageMaterializedDocument(cwd: string, result: MaterializedIndexResult)
     const stageFailure = stageDocument(cwd, result);
     if (stageFailure === undefined) {
       staged = true;
-      success(`Architecture doc ${result.action} and staged: ${result.path}`);
+      reporter.success(`Architecture doc ${result.action} and staged: ${result.path}`);
     } else {
-      warn(
+      reporter.warn(
         `Architecture doc ${result.action} but could not be staged: ${result.path}. Cause: ${stageFailure}`,
       );
     }
+    return stageFailure;
   } finally {
-    restoreWorktreeAfterStaging(cwd, result, recoveryCopy, staged);
+    restoreWorktreeAfterStaging(cwd, result, recoveryCopy, staged, reporter);
   }
 }
 
@@ -223,30 +294,58 @@ function stageMaterializedDocument(cwd: string, result: MaterializedIndexResult)
  * commit-time auto-staging but leaves the index untouched so developers can
  * inspect the result before choosing what to stage.
  */
-function architectureStaged(cwd: string): Promise<void> {
+export function architectureStaged(
+  cwd: string,
+  reporter: ArchitectureReporter = defaultReporter,
+): Promise<ArchitectureModeOutcome> {
+  let results: readonly SelfHealResult[] = [];
   try {
     const gitContext = resolveGitContext(cwd);
     if (gitContext === undefined) {
-      warn('No Git worktree found; generated from the worktree instead.');
-      generateFromWorktree(cwd);
-      return Promise.resolve();
+      reporter.warn('No Git worktree found; generated from the worktree instead.');
+      results = generateFromWorktree(cwd, reporter);
+      return Promise.resolve({
+        results,
+        stagedPaths: [],
+        stageFailures: [],
+        failed: false,
+        autoStageAvailable: false,
+      });
     }
 
     withGitIndexSnapshot(cwd, gitContext, snapshotDirectory => {
-      warnUnreadableWorkspaces(snapshotDirectory);
-      const materialized = materializeIndexResults(cwd, snapshotDirectory, 'restore-staged-tree');
+      warnUnreadableWorkspaces(snapshotDirectory, reporter);
+      const materialized = materializeIndexResults(
+        cwd,
+        snapshotDirectory,
+        'restore-staged-tree',
+        reporter,
+      );
+      results = materialized.results;
       for (const result of materialized.results) {
-        success(`Architecture state document ${result.action}: ${result.path}`);
+        reporter.success(`Architecture state document ${result.action}: ${result.path}`);
       }
     });
-    warnExcludedWorktreeInputs(cwd);
+    warnExcludedWorktreeInputs(cwd, reporter);
   } catch (error_) {
-    error(
+    reporter.error(
       `Could not complete staged-tree architecture generation; inspect the worktree before retrying. Cause: ${errorMessage(error_)}`,
     );
-    process.exitCode = 1;
+    return Promise.resolve({
+      results,
+      stagedPaths: [],
+      stageFailures: [],
+      failed: true,
+      autoStageAvailable: true,
+    });
   }
-  return Promise.resolve();
+  return Promise.resolve({
+    results,
+    stagedPaths: [],
+    stageFailures: [],
+    failed: false,
+    autoStageAvailable: true,
+  });
 }
 
 /**
@@ -531,11 +630,12 @@ function materializeIndexResults(
   cwd: string,
   snapshotDirectory: string,
   mode: IndexMaterializationMode,
+  reporter: ArchitectureReporter = defaultReporter,
 ): MaterializedIndexOutcome {
   assertSnapshotHealTargetsContained(snapshotDirectory);
   const policy = indexMaterializationPolicy(mode);
   const plans = planIndexMaterializations(cwd, snapshotDirectory, policy);
-  preflightIndexMaterializations(cwd, plans, policy);
+  preflightIndexMaterializations(cwd, plans, policy, reporter);
 
   const attemptedPlans: IndexMaterializationPlan[] = [];
   try {
@@ -605,6 +705,7 @@ function preflightIndexMaterializations(
   cwd: string,
   plans: IndexMaterializationPlan[],
   policy: IndexMaterializationPolicy,
+  reporter: ArchitectureReporter,
 ): void {
   for (const plan of plans) {
     if (!plan.shouldWrite) continue;
@@ -614,7 +715,7 @@ function preflightIndexMaterializations(
       if (policy.skipForeignDestinations) {
         plan.skippedForeign = true;
         plan.shouldWrite = false;
-        warn(
+        reporter.warn(
           `Architecture document is not owned by Safeword and was left unchanged: ${plan.destination}`,
         );
         continue;
@@ -778,7 +879,10 @@ function nulSeparatedGitPaths(cwd: string, args: string[]): string[] {
 }
 
 /** Explain why staged-tree generation can intentionally disagree with `--check`. */
-function warnExcludedWorktreeInputs(cwd: string): void {
+function warnExcludedWorktreeInputs(
+  cwd: string,
+  reporter: ArchitectureReporter = defaultReporter,
+): void {
   const excluded = new Set([
     ...nulSeparatedGitPaths(cwd, ['diff', '--name-only', '-z', '--']),
     ...nulSeparatedGitPaths(cwd, ['ls-files', '--others', '--exclude-standard', '-z', '--']),
@@ -791,7 +895,7 @@ function warnExcludedWorktreeInputs(cwd: string): void {
   const shown = relevant.slice(0, 20);
   const remainder = relevant.length - shown.length;
   const remainderSummary = remainder > 0 ? ` (+${remainder} more)` : '';
-  warn(
+  reporter.warn(
     `Excluded unstaged/untracked architecture inputs from staged-tree generation: ${shown.join(', ')}${remainderSummary}`,
   );
 }

@@ -1,6 +1,6 @@
 {
   "name": "safeword",
-  "version": "0.69.0",
+  "version": "0.70.0",
   "description": "CLI for setting up and managing safeword development environments",
   "repository": {
     "type": "git",
@@ -17,6 +17,7 @@
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
     },
+    "./schemas/cli-result-v1.json": "./schemas/cli-result-v1.schema.json",
     "./eslint": {
       "import": "./dist/presets/typescript/index.js",
       "types": "./dist/presets/typescript/index.d.ts"
@@ -25,6 +26,7 @@
   "files": [
     "codex-plugin",
     "dist",
+    "schemas",
     "templates"
   ],
   "engines": {
@@ -35,8 +37,8 @@
     "dev": "tsup --watch",
     "test": "node scripts/run-vitest-with-build-lock.mjs",
     "pretest:bdd": "tsup",
-    "test:bdd": "cucumber-js --tags 'not @wip and not @manual and not @live'",
-    "test:bdd:live": "cucumber-js --tags '@live and not @manual'",
+    "test:bdd": "NODE_OPTIONS='--import tsx' cucumber-js --tags 'not @wip and not @manual and not @live'",
+    "test:bdd:live": "NODE_OPTIONS='--import tsx' cucumber-js --tags '@live and not @manual'",
     "test:done": "node scripts/run-vitest-with-build-lock.mjs tests/hooks/ tests/schema.test.ts",
     "test:integration": "node scripts/run-vitest-with-build-lock.mjs tests/integration/",
     "test:smoke:fast": "node scripts/run-vitest-with-build-lock.mjs tests/hooks/ tests/schema.test.ts tests/integration/quality-gates.test.ts tests/integration/jtbd-gate.test.ts tests/smoke/hook-coverage.test.ts",
@@ -80,18 +82,18 @@
     "eslint-plugin-astro": "~3.0.1",
     "eslint-plugin-better-tailwindcss": "4.7.0",
     "eslint-plugin-import-x": "^4.17.1",
-    "eslint-plugin-jsdoc": "^63.2.2",
-    "eslint-plugin-playwright": "2.10.5",
+    "eslint-plugin-jsdoc": "^63.3.2",
+    "eslint-plugin-playwright": "2.11.0",
     "eslint-plugin-promise": "^7.3.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-regexp": "3.1.1",
     "eslint-plugin-security": "4.0.1",
     "eslint-plugin-simple-import-sort": "^14.0.0",
     "eslint-plugin-sonarjs": "4.2.0",
-    "eslint-plugin-storybook": "10.5.4",
+    "eslint-plugin-storybook": "10.5.5",
     "eslint-plugin-turbo": "2.10.7",
     "eslint-plugin-unicorn": "72.0.0",
-    "smol-toml": "1.7.0",
+    "smol-toml": "1.7.1",
     "typescript-eslint": "8.65.0",
     "yaml": "^2.9.0"
   },
@@ -101,9 +103,10 @@
     "@types/estree": "^1.0.9",
     "@types/node": "^26.1.1",
     "@vitest/coverage-v8": "^4.1.9",
+    "ajv": "^8.17.1",
     "eslint": "^10.6.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
-    "knip": "6.27.0",
+    "knip": "6.29.0",
     "prettier": "^3.9.5",
     "publint": "^0.3.22",
     "tsup": "^8.5.1",

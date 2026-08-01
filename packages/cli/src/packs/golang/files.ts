@@ -13,6 +13,7 @@ import nodePath from 'node:path';
 import YAML from 'yaml';
 
 import { exists } from '../../utils/fs.js';
+import { warn } from '../../utils/output.js';
 import type { FileDefinition, ManagedFileDefinition } from '../types.js';
 
 // ============================================================================
@@ -146,7 +147,7 @@ function generateSafewordGolangciConfig(existingConfig: string | undefined, cwd:
       projectConfig.version === '2' ? getSafewordGolangciMergedV2 : getSafewordGolangciMergedV1;
     return merge(projectConfig);
   } catch {
-    console.warn(`Safeword: Could not parse ${existingConfig}, using standalone config`);
+    warn(`Safeword: Could not parse ${existingConfig}, using standalone config`);
     return getSafewordGolangciStandalone();
   }
 }

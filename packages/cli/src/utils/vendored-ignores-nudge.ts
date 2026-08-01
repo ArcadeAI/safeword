@@ -37,7 +37,11 @@ export function shouldEmitVendoredIgnoresNudge(options: VendoredIgnoresNudgeOpti
   } catch {
     return true;
   }
-  return !text.includes('.safeword/') && !text.includes('vendoredIgnores');
+  return (
+    !text.includes('.safeword/') &&
+    !text.includes('vendoredIgnores') &&
+    !text.includes('safeword/eslint')
+  );
 }
 
 /**
@@ -60,6 +64,24 @@ export interface AutoPatchOrNudgeOptions extends VendoredIgnoresNudgeOptions {
   noModify?: boolean;
 }
 
+export type VendoredIgnoresPolicyResult =
+  | { readonly kind: 'unchanged' }
+  | { readonly kind: 'patched'; readonly configPath: string; readonly backupPath: string }
+  | { readonly kind: 'manual'; readonly attempted: boolean };
+
+export function applyVendoredIgnoresPolicy(
+  options: AutoPatchOrNudgeOptions,
+): VendoredIgnoresPolicyResult {
+  if (!shouldEmitVendoredIgnoresNudge(options)) return { kind: 'unchanged' };
+  if (isOptOut(options.noModify ?? false)) return { kind: 'manual', attempted: false };
+  if (!options.existingEslintConfig) return { kind: 'unchanged' };
+  const configPath = nodePath.join(options.cwd, options.existingEslintConfig);
+  const result = autoPatchEslintConfig({ configPath });
+  if (result.kind === 'patched') return result;
+  if (result.kind === 'idempotent-skip') return { kind: 'unchanged' };
+  return { kind: 'manual', attempted: true };
+}
+
 /**
  * Orchestrator for ticket 154: try to auto-patch the consumer's eslint
  * config; on opt-out or bail, fall through to the 153 print-only nudge.
@@ -77,20 +99,13 @@ export interface AutoPatchOrNudgeOptions extends VendoredIgnoresNudgeOptions {
  *         user knows safeword tried and gets the manual snippet)
  */
 export function maybeAutoPatchOrNudge(options: AutoPatchOrNudgeOptions): void {
-  if (!shouldEmitVendoredIgnoresNudge(options)) return;
-  if (isOptOut(options.noModify ?? false)) {
-    printVendoredIgnoresNudge();
-    return;
-  }
-  if (!options.existingEslintConfig) return;
-  const configPath = nodePath.join(options.cwd, options.existingEslintConfig);
-  const result = autoPatchEslintConfig({ configPath });
+  const result = applyVendoredIgnoresPolicy(options);
   if (result.kind === 'patched') {
     printAutoPatchConfirmation(result.configPath, result.backupPath);
     return;
   }
-  if (result.kind === 'idempotent-skip') return;
-  printAutoPatchBailLine();
+  if (result.kind !== 'manual') return;
+  if (result.attempted) printAutoPatchBailLine();
   printVendoredIgnoresNudge();
 }
 

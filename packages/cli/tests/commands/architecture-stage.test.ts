@@ -1125,4 +1125,39 @@ describe('architecture staged-tree modes outside Git', () => {
       removeTemporaryDirectory(directory);
     }
   });
+
+  it('reports the non-Git --stage fallback without claiming successful staging', async () => {
+    const directory = createTemporaryDirectory();
+    try {
+      mkdirSync(nodePath.join(directory, 'src', 'auth'), { recursive: true });
+      writeFileSync(
+        nodePath.join(directory, 'src', 'auth', 'index.ts'),
+        'export const auth = true;\n',
+      );
+      writeFileSync(nodePath.join(directory, 'package.json'), JSON.stringify({ name: 'fixture' }));
+
+      const result = await runCli(['architecture', '--stage', '--json'], { cwd: directory });
+
+      expect(result.exitCode).toBe(0);
+      const envelope = JSON.parse(result.stdout) as {
+        state: string;
+        effects: { files: { kind: string; target: string }[] };
+        findings: { message: string }[];
+        data: { staged: boolean; staged_files: string[]; stage_failures: string[] };
+      };
+      expect(envelope.state).toBe('changed');
+      expect(envelope.effects.files).toContainEqual({
+        kind: 'create',
+        target: DOC_RELATIVE,
+      });
+      expect(envelope.findings.map(finding => finding.message).join('\n')).toContain(
+        'No Git worktree found; generated from the worktree instead without auto-staging.',
+      );
+      expect(envelope.data.staged).toBe(false);
+      expect(envelope.data.staged_files).toEqual([]);
+      expect(envelope.data.stage_failures).toEqual([]);
+    } finally {
+      removeTemporaryDirectory(directory);
+    }
+  });
 });

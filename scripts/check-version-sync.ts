@@ -82,7 +82,9 @@ if (version !== marketplaceVersion || version !== codexPluginVersion) {
 }
 
 const expectedCommands = new Set(
-  CODEX_HOOK_EVENTS.map(event => `bunx --bun safeword@${version} hook codex ${event}`),
+  CODEX_HOOK_EVENTS.map(
+    event => `bunx --bun safeword@${version} hook codex ${event} --plugin-hook`,
+  ),
 );
 const hookCommands = getHookCommands(codexHooks);
 const actualCommands = new Set(hookCommands);
