@@ -21,16 +21,19 @@ And it emits increasing elapsed-wait status more than once
 
 ### Scenario: CCYD5S.SM1.AC3.tolerates_incomplete_owner_metadata
 
-Given a live lock has readable but incomplete owner metadata, or stale non-object
-owner metadata
+Given a live lock has readable but incomplete owner metadata, or stale metadata
+that is non-object or lacks both a usable process ID and timestamp
 When another runner reports its wait
 Then it prints the fields that are available, or marks unavailable fields clearly
 And it continues waiting or reaches the configured wait cap without crashing
-And stale non-object metadata is reaped through the normal mtime fallback
+And stale metadata without a usable process ID or timestamp, or with an expired
+timestamp, is reaped through the normal recovery paths
 
 - [x] RED skip: focused runner suite failed because incomplete metadata emitted no details
 - [x] GREEN fa16069cb
 - [x] REFACTOR skip: no additional structure was needed
+- [ ] RED: reproduce stale recovery for a syntactically valid owner object
+  with no usable process ID or timestamp, including an epoch timestamp.
 
 ## Rule: Wait diagnostics remain safely rate-limited
 
@@ -41,23 +44,9 @@ When the runner waits for its configured wait cap
 Then it reports status no more often than the supported minimum interval
 And malformed and zero interval settings fall back to the default interval
 
-### Scenario: CCYD5S.SM1.AC6.negative_maximum_wait_uses_the_default
-
-Given another runner owns a live package-test lock
-When a waiting runner sets its maximum wait to a negative value
-Then it waits for the owner under the default maximum wait
-And it does not proceed without the lock or overlap the owner's build and test
-
 - [x] RED skip: unsafe-interval test failed before the minimum clamp
 - [x] GREEN 09ac816ab
 - [x] REFACTOR skip: shared helpers are the completed cleanup
-
-## Refactoring ledger
-
-- [x] CCYD5S.RF1 skip: Extracted lock creation from `acquireLock()` in
-  `packages/cli/scripts/run-vitest-with-build-lock.mjs`; existing integration
-  scenarios cover successful creation, contention, stale-lock recovery, and
-  wait-cap behavior.
 
 ### Scenario: CCYD5S.SM1.AC5.preserves_lock_behavior_after_extracting_creation
 
@@ -67,6 +56,22 @@ Then successful acquisition, serialization, stale-lock recovery, and wait-cap
 behavior remain unchanged
 
 - [x] REFACTOR f4195b63e
+
+### Scenario: CCYD5S.SM1.AC6.negative_maximum_wait_uses_the_default
+
+Given another runner owns a live package-test lock
+When a waiting runner sets its maximum wait to a negative or blank value
+Then it waits for the owner under the default maximum wait
+And it does not proceed without the lock or overlap the owner's build and test
+
+- [ ] RED: reproduce blank maximum-wait fallback while a real owner holds the lock.
+
+## Refactoring ledger
+
+- [x] CCYD5S.RF1 skip: Extracted lock creation from `acquireLock()` in
+  `packages/cli/scripts/run-vitest-with-build-lock.mjs`; existing integration
+  scenarios cover successful creation, contention, stale-lock recovery, and
+  wait-cap behavior.
 
 ## Patch-level refactor
 

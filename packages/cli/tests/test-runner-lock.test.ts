@@ -113,9 +113,10 @@ function expectSerializedByRunner(events: string[]) {
     const parentEvents = events.filter(event => event.includes(`:${parentId}`));
     expect(parentEvents[0]).toBe(`build:start:${parentId}`);
     expect(parentEvents[1]).toBe(`build:end:${parentId}`);
-    const vitestStartEvent = parentEvents[2] ?? '';
-    expect(vitestStartEvent.startsWith(`vitest:start:${parentId}:run,tests/`)).toBe(true);
-    expect(vitestStartEvent.endsWith('.test.ts')).toBe(true);
+    expect([
+      `vitest:start:${parentId}:run,tests/first.test.ts`,
+      `vitest:start:${parentId}:run,tests/second.test.ts`,
+    ]).toContain(parentEvents[2]);
     expect(parentEvents[3]).toBe(`vitest:end:${parentId}`);
   }
 
@@ -188,29 +189,31 @@ describe('package test runner lock (379)', () => {
     expectSerializedByRunner(readEvents(logPath));
   });
 
-  it('uses the default maximum wait when configured with a negative value', async () => {
-    const temporaryDirectory = makeTemporaryDirectory();
-    const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
-    const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
-    const ownerPath = nodePath.join(lockDirectory, 'owner.json');
-    const env = {
-      ...process.env,
-      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
-      SAFEWORD_TEST_LOCK_DIR: lockDirectory,
-    };
+  it('uses the default maximum wait when configured with a negative or blank value', async () => {
+    for (const maximumWait of ['-5', '', ' '.repeat(3)]) {
+      const temporaryDirectory = makeTemporaryDirectory();
+      const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
+      const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
+      const ownerPath = nodePath.join(lockDirectory, 'owner.json');
+      const env = {
+        ...process.env,
+        PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+        SAFEWORD_TEST_LOCK_DIR: lockDirectory,
+      };
 
-    const ownerRun = runNodeScript(runnerPath, ['tests/owner.test.ts'], env);
-    await waitForPath(ownerPath);
-    const waiterRun = runNodeScript(runnerPath, ['tests/waiter.test.ts'], {
-      ...env,
-      SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '-5',
-    });
-    const [ownerResult, waiterResult] = await Promise.all([ownerRun, waiterRun]);
+      const ownerRun = runNodeScript(runnerPath, ['tests/first.test.ts'], env);
+      await waitForPath(ownerPath);
+      const waiterRun = runNodeScript(runnerPath, ['tests/second.test.ts'], {
+        ...env,
+        SAFEWORD_TEST_LOCK_MAX_WAIT_MS: maximumWait,
+      });
+      const [ownerResult, waiterResult] = await Promise.all([ownerRun, waiterRun]);
 
-    expectSuccessfulSerializedRun(ownerResult);
-    expectSuccessfulSerializedRun(waiterResult);
-    expect(waiterResult.stderr).not.toContain('Proceeding without safeword package test lock');
-    expectSerializedByRunner(readEvents(logPath));
+      expectSuccessfulSerializedRun(ownerResult);
+      expectSuccessfulSerializedRun(waiterResult);
+      expect(waiterResult.stderr).not.toContain('Proceeding without safeword package test lock');
+      expectSerializedByRunner(readEvents(logPath));
+    }
   });
 
   it('reports the complete bounded periodic status sequence for the owning checkout', async () => {
@@ -252,50 +255,57 @@ describe('package test runner lock (379)', () => {
     );
   });
 
-  it('reports available fields when owner metadata is incomplete', async () => {
-    const temporaryDirectory = makeTemporaryDirectory();
-    const { binaryDirectory } = await createFakeTestBinaries(temporaryDirectory);
-    const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
-    await seedOwnerFile(lockDirectory, { createdAt: new Date().toISOString(), pid: process.pid });
+  it('reports available fields when incomplete owner metadata has a usable staleness signal', async () => {
+    for (const [owner, expectedOwnerDetail] of [
+      [{ pid: process.pid }, `owner PID ${process.pid}`],
+      [{ createdAt: new Date().toISOString() }, 'owner PID unavailable'],
+    ]) {
+      const temporaryDirectory = makeTemporaryDirectory();
+      const { binaryDirectory } = await createFakeTestBinaries(temporaryDirectory);
+      const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
+      await seedOwnerFile(lockDirectory, owner);
 
-    const result = await runNodeScript(runnerPath, ['tests/incomplete-owner.test.ts'], {
-      ...process.env,
-      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
-      SAFEWORD_TEST_LOCK_DIR: lockDirectory,
-      SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '220',
-      SAFEWORD_TEST_LOCK_STATUS_INTERVAL_MS: '100',
-    });
+      const result = await runNodeScript(runnerPath, ['tests/incomplete-owner.test.ts'], {
+        ...process.env,
+        PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+        SAFEWORD_TEST_LOCK_DIR: lockDirectory,
+        SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '220',
+        SAFEWORD_TEST_LOCK_STATUS_INTERVAL_MS: '100',
+      });
 
-    expect(result.status).toBe(0);
-    expect(result.stderr).toContain(`owner PID ${process.pid}`);
-    expect(result.stderr).toContain('checkout unavailable');
-    expect(result.stderr).toContain(
-      'Proceeding without safeword package test lock after waiting 220ms.',
-    );
+      expect(result.status).toBe(0);
+      expect(result.stderr).toContain(expectedOwnerDetail);
+      expect(result.stderr).toContain('checkout unavailable');
+      expect(result.stderr).toContain(
+        'Proceeding without safeword package test lock after waiting 220ms.',
+      );
+    }
   });
 
-  it('reaps a stale lock when owner metadata is not an object', async () => {
-    const temporaryDirectory = makeTemporaryDirectory();
-    const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
-    const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
-    await seedOwnerFile(lockDirectory, 'not owner metadata');
-    const staleTime = new Date(Date.now() - 31_000);
-    utimesSync(lockDirectory, staleTime, staleTime);
+  it('reaps stale locks when owner metadata is unusable or expired', async () => {
+    for (const owner of ['not owner metadata', {}, { createdAt: new Date(0).toISOString() }]) {
+      const temporaryDirectory = makeTemporaryDirectory();
+      const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
+      const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
+      await seedOwnerFile(lockDirectory, owner);
+      const staleTime = new Date(Date.now() - 31_000);
+      utimesSync(lockDirectory, staleTime, staleTime);
 
-    const result = await runNodeScript(runnerPath, ['tests/non-object-owner.test.ts'], {
-      ...process.env,
-      PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
-      SAFEWORD_TEST_LOCK_DIR: lockDirectory,
-      SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '0',
-    });
+      const result = await runNodeScript(runnerPath, ['tests/non-object-owner.test.ts'], {
+        ...process.env,
+        PATH: `${binaryDirectory}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+        SAFEWORD_TEST_LOCK_DIR: lockDirectory,
+        SAFEWORD_TEST_LOCK_MAX_WAIT_MS: '0',
+      });
 
-    expect(result).toMatchObject({ status: 0, stderr: '' });
-    expect(readEvents(logPath)).toEqual([
-      expect.stringMatching(/^build:start:/),
-      expect.stringMatching(/^build:end:/),
-      expect.stringMatching(/^vitest:start:.*:run,tests\/non-object-owner\.test\.ts$/),
-      expect.stringMatching(/^vitest:end:/),
-    ]);
+      expect(result).toMatchObject({ status: 0, stderr: '' });
+      expect(readEvents(logPath)).toEqual([
+        expect.stringMatching(/^build:start:/),
+        expect.stringMatching(/^build:end:/),
+        expect.stringMatching(/^vitest:start:.*:run,tests\/non-object-owner\.test\.ts$/),
+        expect.stringMatching(/^vitest:end:/),
+      ]);
+    }
   });
 
   it('clamps unsafe status intervals and ignores malformed settings', async () => {
