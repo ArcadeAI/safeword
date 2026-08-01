@@ -21,10 +21,36 @@ function makeGoRepo(): string {
 }
 
 describe('safeword test-plan --json', () => {
-  it('prints the resolved plan as a JSON array with the entry contract', async () => {
+  it('publishes the resolved plan in the shared schema-1 envelope', async () => {
     const root = makeGoRepo();
 
     const result = await runCli(['test-plan', '--kind', 'test', '--json'], { cwd: root });
+
+    expect(result.exitCode).toBe(0);
+    const envelope = JSON.parse(result.stdout) as {
+      schema_version: number;
+      data: {
+        plan: {
+          language: string;
+          command: string;
+          available: unknown;
+        }[];
+      };
+    };
+    expect(envelope.schema_version).toBe(1);
+    const plan = envelope.data.plan;
+    const go = plan.find(entry => entry.language === 'go');
+    expect(go).toBeDefined();
+    expect(go?.command).not.toBe('');
+    expect(typeof go?.available).toBe('boolean');
+  });
+
+  it('keeps --format json as the legacy raw-plan output mode', async () => {
+    const root = makeGoRepo();
+
+    const result = await runCli(['project', 'test-plan', '--kind', 'test', '--format', 'json'], {
+      cwd: root,
+    });
 
     expect(result.exitCode).toBe(0);
     const plan = JSON.parse(result.stdout) as {
@@ -34,7 +60,6 @@ describe('safeword test-plan --json', () => {
     }[];
     expect(Array.isArray(plan)).toBe(true);
     const go = plan.find(entry => entry.language === 'go');
-    expect(go).toBeDefined();
     expect(go?.command).not.toBe('');
     expect(typeof go?.available).toBe('boolean');
   });

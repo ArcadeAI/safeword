@@ -1,9 +1,5 @@
 #!/usr/bin/env bun
 // Safeword: Cursor silent auto-upgrade wrapper (sessionStart).
-//
-// Cursor's sessionStart hook is fire-and-forget: it has no Claude-style
-// asyncRewake message channel, and exit 2 is a block/error path. Run the shared
-// auto-upgrade core silently and always return success so startup never breaks.
 
 import process from 'node:process';
 
@@ -21,12 +17,10 @@ export async function runCursorAutoUpgrade(): Promise<number> {
   try {
     await runAutoUpgrade({ projectDir, filterSafewordFiles });
   } catch {
-    // Cursor has no reliable sessionStart notification channel. The next
-    // session retries through the shared core's normal gates.
+    // Cursor has no reliable sessionStart notification channel.
   } finally {
     releaseAutoUpgradeLock({ lockPath });
   }
-
   return 0;
 }
 

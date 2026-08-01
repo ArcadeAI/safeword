@@ -19,11 +19,8 @@ import {
   getReconcileTestUtilities,
   removeTemporaryDirectory,
   runCli,
-  runCommandSync,
   setupReconcileTest,
 } from '../helpers';
-
-const __dirname = import.meta.dirname;
 
 describe('Setup Command - Reconcile Integration', () => {
   let temporaryDirectory: string;
@@ -264,12 +261,12 @@ describe('Setup Command - Reconcile Integration', () => {
       const result = await runCli(['setup'], { cwd: temporaryDirectory });
 
       expect(result.exitCode, result.stderr).toBe(0);
-      expect(result.stdout).toContain('Setup');
+      expect(result.stdout).toContain('Complete');
       expect(existsSync(nodePath.join(temporaryDirectory, '.safeword'))).toBe(true);
       expect(existsSync(nodePath.join(temporaryDirectory, '.codex/config.toml'))).toBe(false);
     });
 
-    it('should error on already configured project', () => {
+    it('should converge an already configured project', async () => {
       writeFileSync(
         nodePath.join(temporaryDirectory, 'package.json'),
         JSON.stringify({ name: 'test', version: '1.0.0' }, undefined, 2),
@@ -280,13 +277,9 @@ describe('Setup Command - Reconcile Integration', () => {
         recursive: true,
       });
 
-      const cliPath = nodePath.resolve(__dirname, '../../src/cli.ts');
-      const result = runCommandSync(`bunx tsx ${cliPath} setup`, {
-        cwd: temporaryDirectory,
-        timeout: 30_000,
-      });
-      expect(result.exitCode).not.toBe(0);
-      expect(result.stderr.toLowerCase()).toContain('already configured');
+      const result = await runCli(['setup'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode, result.stderr).toBe(0);
     });
   });
 });

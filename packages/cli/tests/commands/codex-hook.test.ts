@@ -4,6 +4,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   symlinkSync,
@@ -14,6 +15,11 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import {
+  CODEX_PLUGIN_HOOK_EVENTS,
+  observeCodexHookProof,
+  writeCodexRestartMarker,
+} from '../../src/codex-plugin/profile-proof.js';
 import {
   normalizeNamespaceRootLabel,
   packagedNamespaceRootLabel,
@@ -28,16 +34,22 @@ describe('packagedNamespaceRootLabel', () => {
     event: string,
     input: object | string,
     env?: NodeJS.ProcessEnv,
+    pluginHook = false,
   ) {
-    return spawnSync(process.execPath, [CLI_PATH, 'hook', 'codex', event], {
-      cwd: projectDirectory,
-      input: typeof input === 'string' ? input : JSON.stringify(input),
-      encoding: 'utf8',
-      ...(env !== undefined && { env: { ...process.env, ...env } }),
-    });
+    return spawnSync(
+      process.execPath,
+      [CLI_PATH, 'hook', 'codex', event, ...(pluginHook ? ['--plugin-hook'] : [])],
+      {
+        cwd: projectDirectory,
+        input: typeof input === 'string' ? input : JSON.stringify(input),
+        encoding: 'utf8',
+        ...(env !== undefined && { env: { ...process.env, ...env } }),
+      },
+    );
   }
 
   function createLocalBiomeFixture(projectDirectory: string, relativeFile = 'source.ts') {
+    markSafewordProject(projectDirectory);
     const sourceFile = nodePath.join(projectDirectory, relativeFile);
     const executable = nodePath.join(projectDirectory, 'node_modules', '.bin', 'biome');
     const log = nodePath.join(projectDirectory, 'biome.log');
@@ -48,6 +60,30 @@ describe('packagedNamespaceRootLabel', () => {
     writeFileSync(executable, `#!/bin/sh\necho "$*" >> ${JSON.stringify(log)}\n`);
     chmodSync(executable, 0o755);
     return { sourceFile, log };
+  }
+
+  function initializeCommittedProject(projectDirectory: string) {
+    const run = (command: string, args: string[]) =>
+      spawnSync(command, args, { cwd: projectDirectory, encoding: 'utf8' });
+    expect(run('git', ['init', '-q']).status).toBe(0);
+    expect(run('git', ['config', 'user.email', 'test@example.com']).status).toBe(0);
+    expect(run('git', ['config', 'user.name', 'Test User']).status).toBe(0);
+    writeFileSync(nodePath.join(projectDirectory, 'README.md'), '# fixture\n');
+    expect(run('git', ['add', 'README.md']).status).toBe(0);
+    expect(run('git', ['commit', '-qm', 'initial']).status).toBe(0);
+  }
+
+  function markSafewordProject(projectDirectory: string, config?: object) {
+    const safewordDirectory = nodePath.join(projectDirectory, '.safeword');
+    mkdirSync(safewordDirectory, { recursive: true });
+    writeFileSync(nodePath.join(safewordDirectory, 'SAFEWORD.md'), '# enrolled\n');
+    if (config !== undefined) {
+      writeFileSync(nodePath.join(safewordDirectory, 'config.json'), JSON.stringify(config));
+    }
+  }
+
+  function rootEntries(projectDirectory: string): string[] {
+    return readdirSync(projectDirectory).toSorted((left, right) => left.localeCompare(right));
   }
 
   function expectBiomeChecked(log: string, operand: string) {
@@ -76,11 +112,91 @@ describe('packagedNamespaceRootLabel', () => {
     expect(packagedNamespaceRootLabel(projectDirectory)).toBe('knowledge');
   });
 
+  it('replaces the matching restart marker with current proof on plugin SessionStart', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-'));
+    directories.push(projectDirectory);
+    const codexHome = nodePath.join(projectDirectory, 'profile');
+    const environment = { CODEX_HOME: codexHome };
+    writeCodexRestartMarker(environment);
+
+    const result = runCodexHook(
+      projectDirectory,
+      'session-start',
+      { hook_event_name: 'SessionStart', cwd: projectDirectory },
+      environment,
+      true,
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(existsSync(nodePath.join(codexHome, 'safeword/restart-pending-v1.json'))).toBe(false);
+    const proof = JSON.parse(
+      readFileSync(nodePath.join(codexHome, 'safeword/hook-proof-v1/session-start.json'), 'utf8'),
+    ) as Record<string, unknown>;
+    expect(proof.schema_version).toBe(1);
+    expect(proof.manifest_sha256).toMatch(/^[\da-f]{64}$/u);
+  });
+
+  it('records only the event executed by each packaged plugin hook', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-'));
+    directories.push(projectDirectory);
+    const codexHome = nodePath.join(projectDirectory, 'profile');
+    const environment = { CODEX_HOME: codexHome };
+
+    for (const [index, event] of CODEX_PLUGIN_HOOK_EVENTS.entries()) {
+      const result = runCodexHook(
+        projectDirectory,
+        event,
+        {
+          hook_event_name: event,
+          session_id: 'proof-wiring-session',
+          tool_name: 'Bash',
+          tool_input: { command: 'pwd' },
+        },
+        environment,
+        true,
+      );
+
+      expect(result.status, result.stderr).toBe(0);
+      expect(
+        readdirSync(nodePath.join(codexHome, 'safeword/hook-proof-v1')).toSorted((left, right) =>
+          left.localeCompare(right),
+        ),
+      ).toEqual(
+        CODEX_PLUGIN_HOOK_EVENTS.slice(0, index + 1)
+          .map(proofEvent => `${proofEvent}.json`)
+          .toSorted((left, right) => left.localeCompare(right)),
+      );
+    }
+
+    expect(observeCodexHookProof(environment)).toMatchObject({
+      status: 'current',
+      missing_events: [],
+    });
+  });
+
+  it('does not create plugin proof from legacy SessionStart', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-'));
+    directories.push(projectDirectory);
+    const codexHome = nodePath.join(projectDirectory, 'profile');
+
+    const result = runCodexHook(
+      projectDirectory,
+      'session-start',
+      { hook_event_name: 'SessionStart', cwd: projectDirectory },
+      { CODEX_HOME: codexHome, SAFEWORD_NO_AUTO_UPGRADE: '1' },
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(existsSync(nodePath.join(codexHome, 'safeword/hook-proof-v1/session-start.json'))).toBe(
+      false,
+    );
+  });
+
   it('normalizes Windows custom roots for Git-owned path matching', () => {
     expect(normalizeNamespaceRootLabel(String.raw`knowledge\docs`)).toBe('knowledge/docs');
   });
 
-  it('stages an auto-upgrade change under a custom namespace through SessionStart', () => {
+  it('does not auto-upgrade a custom namespace through SessionStart', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-'));
     directories.push(projectDirectory);
     const run = (command: string, args: string[]) =>
@@ -110,6 +226,7 @@ describe('packagedNamespaceRootLabel', () => {
     writeFileSync(nodePath.join(safewordDirectory, 'SAFEWORD.md'), '# context\n');
     expect(run('git', ['add', '.safeword']).status).toBe(0);
     expect(run('git', ['commit', '-qm', 'configure safeword']).status).toBe(0);
+    const beforeHead = run('git', ['rev-parse', 'HEAD']).stdout.trim();
 
     const binDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-bin-'));
     directories.push(binDirectory);
@@ -132,9 +249,8 @@ describe('packagedNamespaceRootLabel', () => {
     );
 
     expect(result.status, result.stderr).toBe(0);
-    expect(run('git', ['show', '--format=', '--name-only', 'HEAD']).stdout).toContain(
-      'knowledge/UPGRADE.md',
-    );
+    expect(existsSync(nodePath.join(projectDirectory, 'knowledge/UPGRADE.md'))).toBe(false);
+    expect(run('git', ['rev-parse', 'HEAD']).stdout.trim()).toBe(beforeHead);
   });
 
   it('injects package-owned SessionStart instructions instead of project-local text', () => {
@@ -156,6 +272,214 @@ describe('packagedNamespaceRootLabel', () => {
     expect(result.status, result.stderr).toBe(0);
     expect(result.stdout).toContain('SAFEWORD Agent Instructions');
     expect(result.stdout).not.toContain('PROJECT-LOCAL INSTRUCTIONS MUST NOT APPEAR');
+  });
+
+  it('keeps an unconfigured repository unchanged through SessionStart', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-unconfigured-'));
+    directories.push(projectDirectory);
+    initializeCommittedProject(projectDirectory);
+    const before = rootEntries(projectDirectory);
+
+    const result = runCodexHook(
+      projectDirectory,
+      'session-start',
+      { hook_event_name: 'SessionStart', cwd: projectDirectory },
+      { SAFEWORD_NO_AUTO_UPGRADE: '1' },
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain('SAFEWORD Agent Instructions');
+    expect(rootEntries(projectDirectory)).toEqual(before);
+  });
+
+  it('does not create project state after tool use in an unconfigured repository', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-unconfigured-'));
+    directories.push(projectDirectory);
+    initializeCommittedProject(projectDirectory);
+    const before = rootEntries(projectDirectory);
+
+    const result = runCodexHook(projectDirectory, 'post-tool-use', {
+      hook_event_name: 'PostToolUse',
+      session_id: 'unconfigured-session',
+      tool_name: 'Bash',
+      tool_input: { command: 'pwd' },
+    });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(rootEntries(projectDirectory)).toEqual(before);
+  });
+
+  it('fails open without project state before an unconfigured tool use', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-unconfigured-'));
+    directories.push(projectDirectory);
+    initializeCommittedProject(projectDirectory);
+    const before = rootEntries(projectDirectory);
+
+    const result = runCodexHook(
+      projectDirectory,
+      'pre-tool-use',
+      {
+        session_id: 'unconfigured-session',
+        tool_name: 'Bash',
+        tool_input: { command: 'pkill node' },
+      },
+      { SAFEWORD_CODEX_DENY_MODE: 'exit-code' },
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(rootEntries(projectDirectory)).toEqual(before);
+  });
+
+  it('defers a plugin event to an exact runnable legacy handler', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-enrolled-'));
+    const binDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-bin-'));
+    directories.push(projectDirectory, binDirectory);
+    markSafewordProject(projectDirectory);
+    mkdirSync(nodePath.join(projectDirectory, '.codex'), { recursive: true });
+    writeFileSync(
+      nodePath.join(projectDirectory, '.codex/config.toml'),
+      `[[hooks.PreToolUse]]
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = "npx --yes safeword hook codex pre-tool-use"
+`,
+    );
+    const packageRunner = nodePath.join(binDirectory, 'npx');
+    writeFileSync(packageRunner, '#!/bin/sh\nexit 0\n');
+    chmodSync(packageRunner, 0o755);
+
+    const result = runCodexHook(
+      projectDirectory,
+      'pre-tool-use',
+      {
+        session_id: 'compatibility-session',
+        tool_name: 'Bash',
+        tool_input: { command: 'pkill node' },
+      },
+      {
+        PATH: `${binDirectory}:${process.env.PATH ?? ''}`,
+        SAFEWORD_CODEX_DENY_MODE: 'exit-code',
+      },
+      true,
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+  });
+
+  it('runs the plugin for an event missing from a partial legacy installation', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-enrolled-'));
+    directories.push(projectDirectory);
+    markSafewordProject(projectDirectory);
+    mkdirSync(nodePath.join(projectDirectory, '.codex'), { recursive: true });
+    writeFileSync(
+      nodePath.join(projectDirectory, '.codex/config.toml'),
+      `[[hooks.PostToolUse]]
+[[hooks.PostToolUse.hooks]]
+type = "command"
+command = "npx --yes safeword hook codex post-tool-use"
+`,
+    );
+
+    const result = runCodexHook(
+      projectDirectory,
+      'pre-tool-use',
+      {
+        session_id: 'compatibility-session',
+        tool_name: 'Bash',
+        tool_input: { command: 'pkill node' },
+      },
+      { SAFEWORD_CODEX_DENY_MODE: 'exit-code' },
+      true,
+    );
+
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain('Broad process kill blocked');
+  });
+
+  it('treats an executable package runner as viable without spawning it', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-enrolled-'));
+    const binDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-bin-'));
+    directories.push(projectDirectory, binDirectory);
+    markSafewordProject(projectDirectory);
+    mkdirSync(nodePath.join(projectDirectory, '.codex'), { recursive: true });
+    writeFileSync(
+      nodePath.join(projectDirectory, '.codex/config.toml'),
+      `[[hooks.PreToolUse]]
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = "npx --yes safeword hook codex pre-tool-use"
+`,
+    );
+    const brokenPackageRunner = nodePath.join(binDirectory, 'npx');
+    writeFileSync(brokenPackageRunner, '#!/bin/sh\nexit 127\n');
+    chmodSync(brokenPackageRunner, 0o755);
+
+    const result = runCodexHook(
+      projectDirectory,
+      'pre-tool-use',
+      {
+        session_id: 'compatibility-session',
+        tool_name: 'Bash',
+        tool_input: { command: 'pkill node' },
+      },
+      {
+        PATH: `${binDirectory}:${process.env.PATH ?? ''}`,
+        SAFEWORD_CODEX_DENY_MODE: 'exit-code',
+      },
+      true,
+    );
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe('');
+  });
+
+  it.each([
+    {
+      label: 'default',
+      namespace: '.project',
+      configure: (projectDirectory: string) => {
+        markSafewordProject(projectDirectory);
+        mkdirSync(nodePath.join(projectDirectory, '.project'));
+      },
+    },
+    {
+      label: 'legacy',
+      namespace: '.safeword-project',
+      configure: (projectDirectory: string) => {
+        markSafewordProject(projectDirectory);
+        mkdirSync(nodePath.join(projectDirectory, '.safeword-project'));
+      },
+    },
+    {
+      label: 'custom',
+      namespace: 'knowledge',
+      configure: (projectDirectory: string) => {
+        markSafewordProject(projectDirectory, { paths: { projectRoot: 'knowledge' } });
+        mkdirSync(nodePath.join(projectDirectory, 'knowledge'));
+      },
+    },
+  ])('writes quality state for an enrolled $label namespace', ({ configure, label, namespace }) => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-enrolled-'));
+    directories.push(projectDirectory);
+    initializeCommittedProject(projectDirectory);
+    configure(projectDirectory);
+
+    const result = runCodexHook(projectDirectory, 'post-tool-use', {
+      hook_event_name: 'PostToolUse',
+      session_id: `${label}-session`,
+      tool_name: 'Bash',
+      tool_input: { command: 'pwd' },
+    });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(
+      existsSync(
+        nodePath.join(projectDirectory, namespace, `quality-state-codex-${label}-session.json`),
+      ),
+    ).toBe(true);
+    if (namespace !== '.project') {
+      expect(existsSync(nodePath.join(projectDirectory, '.project'))).toBe(false);
+    }
   });
 
   it('routes a Codex file edit through the packaged local Biome hook', () => {
@@ -184,6 +508,7 @@ describe('packagedNamespaceRootLabel', () => {
     const executable = nodePath.join(projectDirectory, 'node_modules', '.bin', 'biome');
     const hostLog = nodePath.join(projectDirectory, 'biome.log');
     const genericLog = nodePath.join(projectDirectory, 'generic.log');
+    markSafewordProject(projectDirectory);
     mkdirSync(nodePath.dirname(executable), { recursive: true });
     writeFileSync(nodePath.join(projectDirectory, 'biome.json'), '{}\n');
     writeFileSync(outsideSource, 'export const source = 1;\n');
@@ -242,6 +567,7 @@ describe('packagedNamespaceRootLabel', () => {
     const second = nodePath.join(nested, 'second.ts');
     const executable = nodePath.join(nested, 'node_modules', '.bin', 'biome');
     const log = nodePath.join(projectDirectory, 'biome.log');
+    markSafewordProject(projectDirectory);
     mkdirSync(nodePath.dirname(executable), { recursive: true });
     writeFileSync(nodePath.join(projectDirectory, 'biome.json'), '{}\n');
     writeFileSync(nodePath.join(nested, 'biome.json'), '{}\n');
@@ -278,6 +604,7 @@ describe('packagedNamespaceRootLabel', () => {
     directories.push(projectDirectory);
     const sessionId = 'prompt-parity-session';
     const spoolDirectory = nodePath.join(projectDirectory, '.safeword', 'retro-drafts');
+    markSafewordProject(projectDirectory);
     mkdirSync(spoolDirectory, { recursive: true });
     writeFileSync(
       nodePath.join(spoolDirectory, `${sessionId}.jsonl`),
@@ -320,6 +647,7 @@ describe('packagedNamespaceRootLabel', () => {
   it('propagates an exit-code denial from the packaged PreToolUse adapter', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-'));
     directories.push(projectDirectory);
+    markSafewordProject(projectDirectory);
 
     const result = runCodexHook(
       projectDirectory,
@@ -339,6 +667,7 @@ describe('packagedNamespaceRootLabel', () => {
   it('fails PreToolUse visibly when Bun is unavailable', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-'));
     directories.push(projectDirectory);
+    markSafewordProject(projectDirectory);
 
     const result = runCodexHook(
       projectDirectory,

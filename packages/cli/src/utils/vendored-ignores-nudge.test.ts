@@ -75,6 +75,20 @@ describe('shouldEmitVendoredIgnoresNudge', () => {
     ).toBe(false);
   });
 
+  it('stays silent for the Safeword-owned root ESLint config', () => {
+    setupConfig(
+      'eslint.config.mjs',
+      'import safeword from "safeword/eslint";\nexport default safeword.configs.recommended;\n',
+    );
+    expect(
+      shouldEmitVendoredIgnoresNudge({
+        cwd: state.temporaryDirectory,
+        existingEslintConfig: 'eslint.config.mjs',
+        hasJavaScript: true,
+      }),
+    ).toBe(false);
+  });
+
   it('stays silent when no existing eslint config (fresh project)', () => {
     expect(
       shouldEmitVendoredIgnoresNudge({

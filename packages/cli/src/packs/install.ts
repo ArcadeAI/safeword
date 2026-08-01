@@ -7,6 +7,7 @@
 import { isGitRepo } from '../utils/git.js';
 import { addInstalledPack, isPackInstalled } from './config.js';
 import { LANGUAGE_PACKS } from './registry.js';
+import type { SetupResult } from './types.js';
 
 /**
  * Install a language pack.
@@ -18,10 +19,10 @@ import { LANGUAGE_PACKS } from './registry.js';
  * @param cwd - Project root directory
  * @throws Error if pack ID is unknown
  */
-export function installPack(packId: string, cwd: string): void {
+export function installPack(packId: string, cwd: string): SetupResult {
   // Idempotent - skip if already installed
   if (isPackInstalled(cwd, packId)) {
-    return;
+    return { files: [] };
   }
 
   const pack = LANGUAGE_PACKS[packId];
@@ -29,6 +30,7 @@ export function installPack(packId: string, cwd: string): void {
     throw new Error(`Unknown pack: ${packId}`);
   }
 
-  pack.setup(cwd, { isGitRepo: isGitRepo(cwd) });
+  const result = pack.setup(cwd, { isGitRepo: isGitRepo(cwd) });
   addInstalledPack(cwd, packId);
+  return result;
 }

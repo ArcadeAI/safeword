@@ -2,379 +2,108 @@
 
 import process from 'node:process';
 
-import { Command } from 'commander';
+import { Command, CommanderError, Option } from 'commander';
 
+import { findCommandDefinition } from './cli-protocol/catalog.js';
+import { addGlobalOptions } from './cli-protocol/execute.js';
+import { machineOutputRequested } from './cli-protocol/machine-output.js';
+import { registerPublicCommandCatalog } from './cli-protocol/register.js';
+import { createResult, renderJsonResult } from './cli-protocol/result.js';
 import { installCliCrashCapture } from './self-report-capture.js';
 import { error } from './utils/output.js';
 import { VERSION } from './version.js';
 
-// Self-observation (issues #345 / #720): capture safeword's own genuine crashes
-// (uncaught exception / unhandled rejection) — NOT deliberate non-zero status
-// exits, which many commands use as normal control flow. Gated to configured
-// safeword projects and best-effort, so it never alters CLI behavior.
 installCliCrashCapture();
 
-const program = new Command();
-
-program
+const program = new Command()
   .name('safeword')
-  .description('CLI for setting up and managing safeword development environments')
+  .description('CLI for setting up and managing Safeword development environments')
   .version(VERSION);
+program.exitOverride();
 
-program
-  .command('setup')
-  .description('Set up safeword in the current project')
-  .option('-y, --yes', 'Skip confirmation prompts (for scripting)')
-  .option(
-    '--no-modify',
-    'Skip auto-editing the project ESLint config (prints the manual snippet instead). Also honored via SAFEWORD_NO_MODIFY env var.',
-  )
-  .action(async options => {
-    const { setup } = await import('./commands/setup.js');
-    await setup({ noModify: options.modify === false });
-  });
+function isCommanderError(value: unknown): value is CommanderError {
+  if (value instanceof CommanderError) return true;
+  if (typeof value !== 'object' || value === null) return false;
+  const candidate = value as { code?: unknown; exitCode?: unknown; message?: unknown };
+  return (
+    typeof candidate.code === 'string' &&
+    candidate.code.startsWith('commander.') &&
+    typeof candidate.exitCode === 'number' &&
+    typeof candidate.message === 'string'
+  );
+}
 
-program
-  .command('check')
-  .description('Check project health and versions')
-  .option('--offline', 'Skip remote version check')
-  .action(async options => {
-    const { check } = await import('./commands/check.js');
-    await check(options);
-  });
+const machineOutput = machineOutputRequested(process.argv.slice(2));
+program.configureOutput({
+  writeErr: output => {
+    if (!machineOutput) process.stderr.write(output);
+  },
+});
 
+addGlobalOptions(program);
+registerPublicCommandCatalog(program);
+
+const boundaryDefinition = findCommandDefinition('boundary');
 program
-  .command('boundary')
-  .description(
-    'Reconcile workflow evidence at a git boundary — warn-and-record, never blocks (exit 0 always)',
-  )
+  .command('boundary', { hidden: true })
+  .description(boundaryDefinition.description)
   .requiredOption('--at <boundary>', 'which boundary: commit | push')
   .action(async options => {
     const { boundary } = await import('./commands/boundary.js');
     await boundary(options);
   });
 
+const hookDefinition = findCommandDefinition('hook codex');
+const hook = program.command('hook', { hidden: true }).description('Run packaged Safeword hooks');
+hook
+  .command('codex <event>')
+  .description(hookDefinition.description)
+  .addOption(new Option('--plugin-hook').hideHelp())
+  .action(async (event: string, options: { pluginHook?: boolean }) => {
+    const { codexHook } = await import('./commands/codex-hook.js');
+    await codexHook(event, { pluginHook: options.pluginHook === true });
+  });
+
+const codexHookDefinition = findCommandDefinition('codex-hook');
 program
-  .command('upgrade')
-  .description('Upgrade safeword configuration to latest version')
-  .option(
-    '--no-modify',
-    'Skip auto-editing the project ESLint config (prints the manual snippet instead). Also honored via SAFEWORD_NO_MODIFY env var.',
-  )
-  .option(
-    '--migrate-namespace',
-    'Move the legacy .safeword-project/ namespace to .project/ (recommended) without prompting',
-  )
-  .option('--no-migrate-namespace', 'Keep the legacy namespace; skip the migration prompt')
-  .action(async options => {
-    const { upgrade } = await import('./commands/upgrade.js');
-    await upgrade({
-      noModify: options.modify === false,
-      // Commander leaves the tri-state undefined when neither flag is passed.
-      migrateNamespace: options.migrateNamespace as boolean | undefined,
-    });
+  .command('codex-hook <event>', { hidden: true })
+  .description(codexHookDefinition.description)
+  .action(async (event: string) => {
+    const { codexHook } = await import('./commands/codex-hook.js');
+    await codexHook(event);
   });
 
-const migrate = program.command('migrate').description('Migrate an agent integration');
-
-migrate
-  .command('codex-plugin')
-  .description('Install the Safe Word Codex plugin and complete its explicit hook handoff')
-  .option(
-    '--remove-legacy-hooks',
-    'Remove Safe Word-owned legacy project hooks after reviewing the plugin hooks in Codex /hooks',
-  )
-  .action(async (options: { removeLegacyHooks?: boolean }) => {
-    const { migrateCodexPlugin } = await import('./commands/migrate-codex-plugin.js');
-    migrateCodexPlugin(process.cwd(), { removeLegacyHooks: options.removeLegacyHooks === true });
-  });
-
-const codex = program.command('codex').description('Manage the Safe Word Codex plugin');
-
-codex
-  .command('install')
-  .description('Install and verify the Safe Word plugin in the active Codex profile')
-  .action(async () => {
-    const { installCodexPlugin } = await import('./commands/migrate-codex-plugin.js');
-    installCodexPlugin();
-  });
-
-codex
-  .command('migrate')
-  .description('Remove Safe Word-owned legacy Codex project hooks after plugin review')
-  .requiredOption(
-    '--remove-legacy-hooks',
-    'Confirm removal of Safe Word-owned legacy project hooks after reviewing the plugin in Codex /hooks',
-  )
-  .action(async () => {
-    const { removeLegacyCodexHooks } = await import('./commands/migrate-codex-plugin.js');
-    removeLegacyCodexHooks(process.cwd());
-  });
-
-program
-  .command('diff')
-  .description('Preview changes that would be made by upgrade')
-  .option('-v, --verbose', 'Show full diff output')
-  .action(async options => {
-    const { diff } = await import('./commands/diff.js');
-    await diff(options);
-  });
-
-program
-  .command('reset')
-  .description('Remove safeword configuration from project')
-  .option('-y, --yes', 'Skip confirmation prompt')
-  .option('--full', 'Also remove linting config and uninstall packages')
-  .action(async options => {
-    const { reset } = await import('./commands/reset.js');
-    await reset(options);
-  });
-
-program
-  .command('sync-config')
-  .description('Regenerate depcruise config from current project structure')
-  .option('--check', 'Report drift without writing (exits non-zero on drift)')
-  .action(async (options: { check?: boolean }) => {
-    const { syncConfig } = await import('./commands/sync-config.js');
-    await syncConfig({ check: options.check });
-  });
-
-program
-  .command('sync-tracker')
-  .description('Project the ticket corpus one-way into the configured tracker (Linear/GitHub)')
-  .option('--reset-tracker-map', 'Rebuild the tracker-map sidecar from scratch')
-  .option('--plan', 'Emit the sync plan as JSON to stdout (offline; for a pluggable executor)')
-  .option(
-    '--apply-results <file>',
-    "Fold an executor's results file into the tracker-map (offline)",
-  )
-  .action(async (options: { resetTrackerMap?: boolean; plan?: boolean; applyResults?: string }) => {
-    const { syncTrackerCommand } = await import('./commands/sync-tracker.js');
-    await syncTrackerCommand({
-      resetTrackerMap: options.resetTrackerMap,
-      plan: options.plan,
-      applyResults: options.applyResults,
-    });
-  });
-
-program
-  .command('connect <provider>')
-  .description('Connect a tracker (linear/github): write config, verify auth, seed the sidecar')
-  .option('--repo <owner/name>', 'GitHub target repository')
-  .option('--team <team>', 'Linear target team')
-  .option('--workspace <workspace>', 'Linear target workspace')
-  .action(
-    async (provider: string, options: { repo?: string; team?: string; workspace?: string }) => {
-      const { connectCommand } = await import('./commands/connect.js');
-      await connectCommand(provider, options);
-    },
-  );
-
-program
-  .command('architecture')
-  .description(
-    'Refresh the generated architecture state document (.project/architecture.generated.md)',
-  )
-  .option(
-    '--check',
-    'Report staleness without writing (exits non-zero when the doc is stale; CI backstop)',
-  )
-  .option(
-    '--stage',
-    'Regenerate a stale doc and git-add it into the in-flight commit (never blocks)',
-  )
-  .action(async (options: { check?: boolean; stage?: boolean }) => {
-    const { architecture } = await import('./commands/architecture.js');
-    await architecture(process.cwd(), { check: options.check, stage: options.stage });
-  });
-
-const ticket = program.command('ticket').description('Ticket management');
-
-ticket
-  .command('new <slug>')
-  .description('Create a new ticket with a Crockford Base32 ID')
-  .option('--type <type>', 'Ticket type: patch, task, feature, or epic', 'task')
-  .option('--title <title>', 'Ticket title (defaults to slug)')
-  .option('--goal <goal>', 'One-line goal; fills the Goal field instead of a placeholder')
-  .option('--why <why>', 'One-line rationale (task/patch/epic; features use spec.md)')
-  .option(
-    '--parent <epicId>',
-    'Link this ticket to an epic (sets parent: and appends to its children)',
-  )
-  .option('--issue <key>', 'Adopt an existing tracker issue key as the ticket identity')
-  .action(
-    async (
-      slug: string,
-      options: {
-        type?: string;
-        title?: string;
-        goal?: string;
-        why?: string;
-        parent?: string;
-        issue?: string;
-      },
-    ) => {
-      const { ticketNew } = await import('./commands/ticket-new.js');
-      await ticketNew(slug, options);
-    },
-  );
-
-program
-  .command('sync-learnings')
-  .description('Regenerate the namespace learnings/INDEX.md')
-  .option('-q, --quiet', 'Suppress success output (still prints skipped-file warnings to stderr)')
-  .action(async (options: { quiet?: boolean }) => {
-    const { syncLearningsCommand } = await import('./commands/sync-learnings.js');
-    syncLearningsCommand({ quiet: options.quiet });
-  });
-
-program
-  .command('sync-tickets')
-  .description('Regenerate the namespace tickets/INDEX.md and INDEX-completed.md')
-  .option('-q, --quiet', 'Suppress success output (still prints skipped-folder warnings to stderr)')
-  .action(async (options: { quiet?: boolean }) => {
-    const { syncTicketsCommand } = await import('./commands/sync-tickets.js');
-    syncTicketsCommand({ quiet: options.quiet });
-  });
-
-program
-  .command('codify <ticket>')
-  .description("Emit a test skeleton from a ticket's feature source or legacy test-definitions.md")
-  .option('--format <format>', 'Output format: vitest (default) or gherkin', 'vitest')
-  .option(
-    '--red',
-    'Emit throwing it(...) bodies (true-RED board) instead of pending stubs (vitest only)',
-  )
-  .option('--out <path>', 'Write to a file (refuses to overwrite) instead of stdout')
-  .action(async (ticketId: string, options: { format?: string; red?: boolean; out?: string }) => {
-    const { codify } = await import('./commands/codify.js');
-    await codify(ticketId, options);
-  });
-
+const featureDirectoriesDefinition = findCommandDefinition('feature-directories');
 program
   .command('feature-directories', { hidden: true })
-  .description('Print executable feature directories for internal shell consumers')
+  .description(featureDirectoriesDefinition.description)
   .action(async () => {
     const { featureDirectories } = await import('./commands/feature-directories.js');
     featureDirectories(process.cwd());
   });
 
-const hook = program.command('hook').description('Run packaged Safe Word hooks');
-
-hook
-  .command('codex <event>')
-  .description('Run a packaged Safe Word Codex hook entrypoint')
-  .action(async (event: string) => {
-    const { codexHook } = await import('./commands/codex-hook.js');
-    await codexHook(event);
-  });
-
-program
-  .command('codex-hook <event>', { hidden: true })
-  .description('Compatibility alias for `safeword hook codex <event>`')
-  .action(async (event: string) => {
-    const { codexHook } = await import('./commands/codex-hook.js');
-    await codexHook(event);
-  });
-
-program
-  .command('self-report')
-  .description("View safeword's own captured runtime signals (zero-egress local spool)")
-  .option('--json', 'Emit machine-readable JSON instead of a human summary')
-  .option(
-    '--format <format>',
-    'Output format: human (default), json, or issue (ready-to-file sanitized drafts)',
-  )
-  .action(async (options: { json?: boolean; format?: string }) => {
-    const { selfReport } = await import('./commands/self-report.js');
-    const format = options.format as 'human' | 'json' | 'issue' | undefined;
-    await selfReport({ json: options.json, format });
-  });
-
-program
-  .command('retro')
-  .description('Mine a session transcript for qualitative safeword friction and file it (RV9JT4)')
-  .requiredOption('--transcript <path>', 'Path to the session transcript (never guessed)')
-  .option('--findings <path>', 'Path to agent-produced raw findings JSON to sanitize and file')
-  .option(
-    '--auto-extract',
-    'Extract findings out-of-band via a headless `claude -p` session (no --findings needed)',
-  )
-  .option(
-    '--window-start <chars>',
-    'Delta re-arm: digest only the transcript from this char offset onward (ZFGWS1)',
-  )
-  .option('--session-id <id>', 'Stable session id to attribute findings to (ledger accounting)')
-  .action(
-    async (options: {
-      transcript?: string;
-      findings?: string;
-      autoExtract?: boolean;
-      windowStart?: string;
-      sessionId?: string;
-    }) => {
-      const { retroCommand } = await import('./commands/retro.js');
-      const windowStart =
-        options.windowStart === undefined ? undefined : Number(options.windowStart);
-      await retroCommand({
-        transcript: options.transcript,
-        findings: options.findings,
-        autoExtract: options.autoExtract,
-        windowStart: Number.isFinite(windowStart) ? windowStart : undefined,
-        sessionId: options.sessionId,
-      });
-    },
-  );
-
-program
-  .command('retro-reconcile')
-  .description(
-    'Flag open retro issues whose surface changed after their newest recorded code state (G19QG7)',
-  )
-  .action(async () => {
-    const { retroReconcileCommand } = await import('./commands/retro.js');
-    await retroReconcileCommand();
-  });
-
-program
-  .command('lint-gherkin')
-  .description('Lint Gherkin feature files using Safeword-owned checks')
-  .argument(
-    '[files...]',
-    'Feature files to lint; discovers root and workspace feature files when omitted',
-  )
-  .action(async (files: string[]) => {
-    const { lintGherkin } = await import('./commands/lint-gherkin.js');
-    await lintGherkin(files);
-  });
-
-program
-  .command('test-plan')
-  .description('Emit the test/build commands for every language detected in the repo')
-  .argument('[dir]', 'project directory to scan (defaults to the current directory)')
-  .option('--kind <kind>', 'test, build, verify, typecheck, deps, or bdd', 'test')
-  .option('--format <format>', 'human, json, or sh (eval-able)', 'human')
-  .option('--json', 'alias for --format json')
-  .action(
-    async (
-      dir: string | undefined,
-      options: { kind?: string; json?: boolean; format?: string },
-    ) => {
-      const { testPlan } = await import('./commands/test-plan.js');
-      await testPlan(options, dir);
-    },
-  );
-
-// Show help if no arguments provided
-if (process.argv.length === 2) {
-  program.help();
-}
-
-// parseAsync lets async command failures consistently produce a non-zero exit
-// status under Bun and Node.
 try {
   await program.parseAsync();
 } catch (parseError: unknown) {
-  error(parseError instanceof Error ? parseError.message : String(parseError));
-  process.exit(1);
+  if (isCommanderError(parseError) && parseError.exitCode === 0) {
+    process.exitCode = 0;
+  } else if (machineOutput && isCommanderError(parseError)) {
+    const result = createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'CLI_ARGUMENT_INVALID',
+          message: parseError.message,
+          retryable: false,
+        },
+      ],
+    });
+    process.stdout.write(`${renderJsonResult(result)}\n`);
+    process.exitCode = 1;
+  } else if (isCommanderError(parseError)) {
+    process.exitCode = parseError.exitCode;
+  } else {
+    error(parseError instanceof Error ? parseError.message : String(parseError));
+    process.exitCode = 1;
+  }
 }

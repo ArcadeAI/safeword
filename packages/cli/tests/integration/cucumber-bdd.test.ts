@@ -29,6 +29,7 @@ const CUCUMBER_CHILD_KILL_SIGNAL = 'SIGKILL';
 const CUCUMBER_SPAWN_OPTIONS = {
   cwd: CLI_DIRECTORY,
   encoding: 'utf8',
+  env: { ...process.env, NODE_OPTIONS: '--import tsx' },
   timeout: CUCUMBER_CHILD_TIMEOUT,
   killSignal: CUCUMBER_CHILD_KILL_SIGNAL,
 } as const;

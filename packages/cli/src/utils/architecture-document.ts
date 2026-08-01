@@ -17,6 +17,7 @@ import nodePath from 'node:path';
 import { shapeFingerprintOf } from './architecture-fingerprint.js';
 import {
   extractMonorepoArchitectureSnapshot,
+  type MonorepoArchitectureSnapshot,
   monorepoFingerprintOf,
   type MonorepoModel,
   type PackageNode,
@@ -189,8 +190,11 @@ function rootIndexTarget(projectDirectory: string, model: MonorepoModel): HealTa
 }
 
 /** The targets a project heals: single-repo → one; monorepo → root index + per-leaf. */
-function projectTargets(projectDirectory: string): HealTarget[] {
-  const { model, leaves, workspaceRoot } = extractMonorepoArchitectureSnapshot(projectDirectory);
+function projectTargets(
+  projectDirectory: string,
+  snapshot: MonorepoArchitectureSnapshot = extractMonorepoArchitectureSnapshot(projectDirectory),
+): HealTarget[] {
+  const { model, leaves, workspaceRoot } = snapshot;
   // A repo whose ONLY workspace signal is an unparseable manager (zero discovered leaves)
   // is still a monorepo we must not mistake for a single-repo: render the root index so the
   // "config unreadable" advisory has a home, rather than silently emitting a single-repo doc
@@ -222,15 +226,25 @@ export function planSelfHeal(projectDirectory: string): SelfHealAction {
  * heals one doc (byte-identical to {@link selfHeal}); a monorepo heals the
  * derived root index plus one colocated leaf per package with a `src/` tree
  * (empty-skeleton packages noop). Each node is fingerprinted independently, so
- * an unchanged node returns `unchanged` and is left untouched.
+ * an unchanged node returns `unchanged` and is left untouched. A caller that
+ * already owns an operation-scoped snapshot may pass it to avoid rediscovery.
  */
-export function selfHealProject(projectDirectory: string): SelfHealResult[] {
-  return projectTargets(projectDirectory).map(target => healTarget(target));
+export function selfHealProject(
+  projectDirectory: string,
+  snapshot?: MonorepoArchitectureSnapshot,
+): SelfHealResult[] {
+  return projectTargets(projectDirectory, snapshot).map(target => healTarget(target));
 }
 
-/** Dry-run of {@link selfHealProject}: the action per node, writing nothing. */
-export function planSelfHealProject(projectDirectory: string): SelfHealAction[] {
-  return projectTargets(projectDirectory).map(target => planTarget(target));
+/**
+ * Dry-run of {@link selfHealProject}: the action per node, writing nothing.
+ * Accepts the same operation-scoped snapshot reuse boundary as the mutating path.
+ */
+export function planSelfHealProject(
+  projectDirectory: string,
+  snapshot?: MonorepoArchitectureSnapshot,
+): SelfHealAction[] {
+  return projectTargets(projectDirectory, snapshot).map(target => planTarget(target));
 }
 
 function readExisting(path: string): string | undefined {

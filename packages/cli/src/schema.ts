@@ -9,6 +9,7 @@
 
 import nodePath from 'node:path';
 
+import { CODEX_MIGRATION_SCHEMA } from './codex-plugin/inventory.js';
 import { golangManagedFiles, golangOwnedFiles } from './packs/golang/files.js';
 import { pythonManagedFiles, pythonOwnedFiles } from './packs/python/files.js';
 import { rustManagedFiles, rustOwnedFiles } from './packs/rust/files.js';
@@ -79,6 +80,18 @@ export interface ContractDefinition {
   requires: string[]; // Strings that must appear verbatim in the file content
 }
 
+interface CodexMigrationDefinition {
+  legacyFiles: string[];
+  legacyDirs: string[];
+  hookEvents: string[];
+  hookEventNames: Record<string, string>;
+  hookScripts: string[];
+  hookScriptEvents: Record<string, string>;
+  hookScriptPrefix: string;
+  packageRunner: 'npx';
+  projectMarker: string;
+}
+
 export interface SafewordSchema {
   version: string;
   ownedDirs: string[]; // Fully owned - create on setup, delete on reset
@@ -96,6 +109,7 @@ export interface SafewordSchema {
   textPatches: Record<string, TextPatchDefinition | TextPatchDefinition[]>;
   legacyTextPatches: Record<string, TextPatchDefinition>; // Remove old managed text patches without installing them
   contracts: Record<string, ContractDefinition>; // Files that must contain specific strings (predicate parity)
+  codexMigration: CodexMigrationDefinition; // Historical Codex identities retained until explicit finalization
   packages: {
     base: string[];
     conditional: Record<string, string[]>;
@@ -175,40 +189,6 @@ const MCP_JSON_MERGE: JsonMergeDefinition = {
  */
 const MARKDOWNLINT_CLI2_IGNORES_MERGE = dirGlobExcludeMerge('ignores', dir => `**/${dir}/**`);
 
-const CODEX_LEGACY_SKILL_FILES = [
-  'audit/SKILL.md',
-  'bdd/SKILL.md',
-  'bdd/DISCOVERY.md',
-  'bdd/PLAN_IMPLEMENTATION.md',
-  'bdd/SCENARIOS.md',
-  'bdd/TDD.md',
-  'bdd/DONE.md',
-  'bdd/SPLITTING.md',
-  'bdd/VERIFY.md',
-  'brainstorm/SKILL.md',
-  'cleanup-zombies/SKILL.md',
-  'debug/SKILL.md',
-  'elicit/SKILL.md',
-  'explain/SKILL.md',
-  'figure-it-out/SKILL.md',
-  'lint/SKILL.md',
-  'quality-review/SKILL.md',
-  'refactor/SKILL.md',
-  'retro/SKILL.md',
-  'review-spec/SKILL.md',
-  'self-review/SKILL.md',
-  'tdd-review/SKILL.md',
-  'testing/SKILL.md',
-  'ticket-system/SKILL.md',
-  'verify/SKILL.md',
-] as const;
-
-const CODEX_SKILL_DEPRECATED_FILES = CODEX_LEGACY_SKILL_FILES.map(file => `.agents/skills/${file}`);
-
-const CODEX_SKILL_DEPRECATED_DIRS = [
-  ...new Set(CODEX_LEGACY_SKILL_FILES.map(file => `.agents/skills/${file.split('/', 1)[0]}`)),
-];
-
 const CURSOR_RULE_WRAPPER_OWNED_FILES: Record<string, FileDefinition> = Object.fromEntries(
   CURSOR_RULE_WRAPPERS.map(wrapper => [
     `.cursor/rules/${wrapper.name}.mdc`,
@@ -283,7 +263,7 @@ const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
  * by the per-root `.gitignore` (`NAMESPACE_GITIGNORE_CONTENT`) instead, since a
  * static repo-root block cannot name an arbitrary root (issue #272).
  */
-export const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
+const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
   '.safeword/.update-cache.json',
   '.safeword/self-reports/',
   '.safeword/boundary-audit.jsonl',
@@ -445,6 +425,7 @@ function boundaryShimPatch(at: 'commit' | 'push'): TextPatchDefinition {
 /** The canonical schema is plugin-only for Codex. */
 export const SAFEWORD_SCHEMA: SafewordSchema = {
   version: VERSION,
+  codexMigration: CODEX_MIGRATION_SCHEMA,
 
   // Directories fully owned by safeword (created on setup, deleted on reset)
   ownedDirs: [
@@ -563,13 +544,8 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/.gherkin-lintrc',
     // Merged into session-auto-upgrade.ts — check + apply now run in one pass (XQ9CXA)
     '.safeword/hooks/session-update-check.ts',
-    // Codex implementation moved into the packaged Codex plugin and `safeword hook codex`.
-    // Keep cleanup file-scoped for `.agents/skills/*` because `.agents/skills` is a shared
-    // agent directory; a user-authored sibling skill must survive migration.
-    ...CODEX_SKILL_DEPRECATED_FILES,
-    // This agent is superseded by the Codex plugin. It was formerly owned by
-    // Safe Word, so it is safe to retire without touching custom agent files.
-    '.codex/agents/safeword-retro-filer.toml',
+    // Legacy Codex assets are intentionally absent. Generic maintenance must
+    // preserve them until explicit, proof-gated migration finalization.
   ],
 
   // Packages to uninstall on upgrade (now bundled in safeword/eslint or replaced)
@@ -611,8 +587,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.claude/skills/safeword-quality-reviewing',
     '.claude/skills/safeword-refactoring',
     '.claude/skills/safeword-bdd-orchestrating',
-    // Empty after deprecated Codex skill files are removed; non-empty user-modified dirs survive.
-    ...CODEX_SKILL_DEPRECATED_DIRS,
+    // Legacy Codex skill directories remain until explicit migration finalization.
   ],
 
   // Files owned by safeword (overwritten on upgrade if content changed)

@@ -5,7 +5,7 @@
  * orchestrator. Network runs only here / in CI, never in the per-turn loop.
  */
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import process from 'node:process';
 
 import { applyResults } from '../tracker-sync/apply-results.js';
@@ -32,81 +32,129 @@ export interface SyncTrackerCommandOptions {
   applyResults?: string;
 }
 
-/** `--plan`: compute the sync plan offline and write it as JSON to stdout only. */
-function runPlan(cwd: string, config: TicketBridgeConfig): void {
-  // Provider parity with the live path (#1441): an unconfigured project is a
-  // friendly no-op there, so planning must not hand an executor an all-`create`
-  // plan for a tracker nobody configured. Emit an empty (but valid) plan so
-  // `--plan | executor` pipelines still receive a parseable document, and put the
-  // notice on stderr — stdout stays a pure SyncPlan.
+export type OfflineTrackerResult =
+  | {
+      readonly ok: true;
+      readonly mode: 'plan';
+      readonly provider: Provider | undefined;
+      readonly plan: ReturnType<typeof emptyPlan>;
+      readonly messages: readonly string[];
+    }
+  | {
+      readonly ok: true;
+      readonly mode: 'apply';
+      readonly provider: Provider;
+      readonly changed: boolean;
+      readonly messages: readonly string[];
+    }
+  | {
+      readonly ok: false;
+      readonly mode: 'plan' | 'apply';
+      readonly reason: string;
+      readonly messages: readonly string[];
+    };
+
+/** Compute an executor plan without network access or process-level output. */
+export function planTrackerSync(cwd: string, config: TicketBridgeConfig): OfflineTrackerResult {
   const provider = supportedProvider(config.provider);
   if (provider === undefined) {
-    note('no tracker configured; planning nothing (run `safeword connect` to add one)');
-    process.stdout.write(`${JSON.stringify(emptyPlan(), undefined, 2)}\n`);
-    return;
+    return {
+      ok: true,
+      mode: 'plan',
+      provider,
+      plan: emptyPlan(),
+      messages: [
+        'no tracker configured; planning nothing (run `safeword tracker connect` to add one)',
+      ],
+    };
   }
-  // One body-mode binding for both the advisory and the plan, so the advisory is
-  // provably about the same bodies the plan was built with.
+  const messages: string[] = [];
   const bodyMode = config.body ?? 'minimal';
-  // Egress parity with the live path (#1441): a `full` body projects ticket bodies,
-  // and the plan carries them in a file an executor may pipe or store. The live
-  // path's fail-safe warns unless the repo is *confirmed* private; confirming that
-  // shells out to `gh`, which planning must not do — so an unconfirmed repo warns,
-  // exactly as the live path does when visibility is unknown.
   if (bodyMode === 'full' && provider === 'github') {
-    note(
-      '⚠️  Egress warning: this plan carries full ticket bodies for a GitHub repo whose ' +
-        'visibility was not confirmed (planning stays offline and cannot check)',
+    messages.push(
+      'Egress warning: this plan carries full ticket bodies for a GitHub repo whose visibility was not confirmed',
     );
   }
-
   const sidecarPath = trackerMapPath(cwd);
   const loaded = loadTrackerMapOrEmpty(sidecarPath);
-  // Mirrors `runApply`. Only *corrupt* refuses: a missing sidecar is the
-  // legitimate first run.
   if (!loaded.ok) {
-    fail(`${sidecarPath} is corrupt; refusing to plan against it (every ticket would re-create)`);
-    return;
+    return {
+      ok: false,
+      mode: 'plan',
+      reason: `${sidecarPath} is corrupt; refusing to plan against it`,
+      messages,
+    };
   }
-  const tickets = readCorpus(cwd, config.target?.repo);
-  const plan = computePlan({ tickets, map: loaded.map, bodyMode });
-  process.stdout.write(`${JSON.stringify(plan, undefined, 2)}\n`);
+  return {
+    ok: true,
+    mode: 'plan',
+    provider,
+    plan: computePlan({
+      tickets: readCorpus(cwd, config.target?.repo),
+      map: loaded.map,
+      bodyMode,
+    }),
+    messages,
+  };
 }
 
-/** `--apply-results <file>`: fold an executor's results into the sidecar offline. */
-function runApply(cwd: string, config: TicketBridgeConfig, filePath: string): void {
+/** Fold executor results into the sidecar without network access or process-level output. */
+export function applyTrackerSyncResults(
+  cwd: string,
+  config: TicketBridgeConfig,
+  filePath: string,
+): OfflineTrackerResult {
   const provider = supportedProvider(config.provider);
   if (provider === undefined) {
-    fail('no tracker provider is configured');
-    return;
+    return { ok: false, mode: 'apply', reason: 'no tracker provider is configured', messages: [] };
   }
   let raw: string;
   try {
     raw = readFileSync(filePath, 'utf8');
   } catch {
-    fail(`cannot read results file ${filePath}`);
-    return;
+    return {
+      ok: false,
+      mode: 'apply',
+      reason: `cannot read results file ${filePath}`,
+      messages: [],
+    };
   }
   const parsed = parseResults(raw);
-  if (!parsed.ok) {
-    fail(parsed.reason);
-    return;
-  }
+  if (!parsed.ok) return { ok: false, mode: 'apply', reason: parsed.reason, messages: [] };
 
   const sidecarPath = trackerMapPath(cwd);
   const loaded = loadTrackerMapOrEmpty(sidecarPath);
   if (!loaded.ok) {
-    fail(`${sidecarPath} is corrupt`);
-    return;
+    return { ok: false, mode: 'apply', reason: `${sidecarPath} is corrupt`, messages: [] };
   }
-
+  const before = existsSync(sidecarPath) ? readFileSync(sidecarPath, 'utf8') : undefined;
   const ticketIds = new Set(readCorpus(cwd, config.target?.repo).map(ticket => ticket.id));
   const outcome = applyResults(loaded.map, parsed.value, { provider, ticketIds });
-  if (!outcome.ok) {
-    fail(outcome.reason);
+  if (!outcome.ok) return { ok: false, mode: 'apply', reason: outcome.reason, messages: [] };
+  loaded.map.save(sidecarPath);
+  const after = readFileSync(sidecarPath, 'utf8');
+  return { ok: true, mode: 'apply', provider, changed: before !== after, messages: [] };
+}
+
+/** `--plan`: compute the sync plan offline and write it as JSON to stdout only. */
+function runPlan(cwd: string, config: TicketBridgeConfig): void {
+  const result = planTrackerSync(cwd, config);
+  for (const message of result.messages) note(message);
+  if (!result.ok) {
+    fail(result.reason);
     return;
   }
-  loaded.map.save(sidecarPath);
+  if (result.mode !== 'plan') {
+    fail('internal tracker planning mode mismatch');
+    return;
+  }
+  process.stdout.write(`${JSON.stringify(result.plan, undefined, 2)}\n`);
+}
+
+/** `--apply-results <file>`: fold an executor's results into the sidecar offline. */
+function runApply(cwd: string, config: TicketBridgeConfig, filePath: string): void {
+  const result = applyTrackerSyncResults(cwd, config, filePath);
+  if (!result.ok) fail(result.reason);
 }
 
 /** An advisory on stderr — never stdout, which must stay a pure SyncPlan document. */

@@ -2,8 +2,8 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 5670/5675 tests pass (5 skipped)
-**Gherkin:** ✅ Acceptance lane passes (499 scenarios passed, 3 skipped; 15444 steps passed, 4 skipped)
+**Test Suite:** ✓ 5916/5921 tests pass (5 skipped)
+**Gherkin:** ✅ Acceptance lane passes (671 scenarios passed, 3 skipped; 21984 steps passed, 4 skipped)
 **Build:** ✅ Success (CLI package build, publint, and website production build)
 **Lint:** ✅ Clean
 **Scenarios:** All 0 scenarios marked complete
@@ -19,8 +19,8 @@ orphan warning for `codex-plugin/hooks.ts`), Knip found no dead code, all 200
 template pairs and 8 contracts are in sync, publint passed, and the production
 dependency audit found no vulnerabilities.
 
-The refreshed verification reran the complete 377-file Vitest suite, the
-502-scenario acceptance lane, 27 release tests, CLI package build, website
+The refreshed verification reran the complete 398-file Vitest suite, the
+674-scenario acceptance lane, 27 release tests, CLI package build, website
 typecheck/build, formatting, and diff hygiene after the final review fixes.
 
 ## Review Closeout
@@ -40,11 +40,14 @@ typecheck/build, formatting, and diff hygiene after the final review fixes.
 - The copyable workflow now uses Node 24.18.0 LTS, above the Node 24.17.0
   security floor that fixed two High and several Medium vulnerabilities; a
   release test prevents regression below that floor.
-- The generated ticket index now exactly represents all 467 canonical tickets,
+- The generated ticket index now exactly represents all 470 canonical tickets,
   including the four review tickets added here and six reconciled status changes.
 - Authentication documentation now distinguishes Safeword's preflight order
   from GitHub CLI's live `GH_TOKEN` → `GITHUB_TOKEN` → stored-auth precedence.
 - Final post-fix independent review ended with APPROVE, no critical issues, and
   no remaining suggested improvements.
 - The branch includes the latest remote reviewer commits and current `main`,
-  including the merged YBBGKB stop-review work and its indexed ticket.
+  including the typed public CLI protocol and continuous Codex migration work.
+- The main catch-up initially bypassed GitHub CLI credential discovery in the
+  new public `tracker sync` handler. A Commander-boundary regression test failed
+  without `GITHUB_TOKEN`, then passed after the handler reused `resolveGhCliToken`.

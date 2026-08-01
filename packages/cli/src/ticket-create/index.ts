@@ -46,11 +46,33 @@ export interface TicketCreationDependencies {
   minter: IdMinter;
 }
 
+export interface TicketCreationMutation {
+  surface: 'file' | 'network';
+  kind: string;
+  target: string;
+  operation: string;
+}
+
+export type RoutedTicketResult = NewTicketResult & {
+  ref?: TrackerReference;
+  mutations: readonly TicketCreationMutation[];
+};
+
+export class RoutedTicketCreationError extends Error {
+  readonly mutations: readonly TicketCreationMutation[];
+
+  constructor(cause: unknown, mutations: readonly TicketCreationMutation[]) {
+    super(cause instanceof Error ? cause.message : String(cause), { cause });
+    this.name = 'RoutedTicketCreationError';
+    this.mutations = mutations;
+  }
+}
+
 export async function createTicketRouted(
   cwd: string,
   options: RoutedTicketOptions,
   dependencies: TicketCreationDependencies,
-): Promise<NewTicketResult> {
+): Promise<RoutedTicketResult> {
   const mode = resolveCreationMode(dependencies.config, {
     issue: options.issue,
     type: options.type,
@@ -65,7 +87,7 @@ export async function createTicketRouted(
   };
 
   if (mode.mode === 'local') {
-    return createTicket(cwd, dependencies.minter, ticketOptions);
+    return { ...createTicket(cwd, dependencies.minter, ticketOptions), mutations: [] };
   }
 
   // Refuse to proceed against a corrupt sidecar BEFORE minting an issue — silently
@@ -75,19 +97,65 @@ export async function createTicketRouted(
 
   const provider = dependencies.config.provider as Provider;
   const writer = dependencies.buildWriter(provider, dependencies.config.target);
-  const identity = buildIdentitySource(mode, writer, buildMinimalPayload(options));
+  const mutations: TicketCreationMutation[] = [];
+  const identitySource = buildIdentitySource(mode, writer, buildMinimalPayload(options));
+  const identity = async () => {
+    const minted = await identitySource();
+    if (mode.mode === 'create') {
+      mutations.push({
+        surface: 'network',
+        kind: 'issue-create',
+        target: provider,
+        operation: 'write',
+      });
+    }
+    return minted;
+  };
   // For `create`, persist a `pending` ref before the folder is written, then promote
   // to `recorded` after — a folder on disk always has a map entry, so a later sync
   // reconciles instead of double-creating. `adopt` writes nothing before the folder:
   // the issue pre-exists (no create to be crash-unsafe about), and an early pending
   // write would downgrade an existing `recorded` entry on an adopt-collision.
-  const result = await createIssueFirstTicket(cwd, ticketOptions, identity, minted => {
-    if (mode.mode === 'create' && minted.ref !== undefined) {
+  try {
+    const result = await createIssueFirstTicket(cwd, ticketOptions, identity, minted => {
+      if (mode.mode !== 'create' || minted.ref === undefined) return;
+      const sidecarExisted = existsSync(trackerMapPath(cwd));
       writeReference(cwd, minted.id, minted.ref, 'pending');
+      mutations.push({
+        surface: 'file',
+        kind: sidecarExisted ? 'update' : 'create',
+        target: '.safeword/tracker-map.json',
+        operation: 'write',
+      });
+    });
+    mutations.push(
+      {
+        surface: 'file',
+        kind: 'create',
+        target: nodePath.relative(cwd, result.folderPath),
+        operation: 'mkdir',
+      },
+      {
+        surface: 'file',
+        kind: 'create',
+        target: nodePath.relative(cwd, result.ticketPath),
+        operation: 'write',
+      },
+    );
+    if (result.ref !== undefined) {
+      writeReference(cwd, result.id, result.ref, 'recorded');
+      mutations.push({
+        surface: 'file',
+        kind: 'update',
+        target: '.safeword/tracker-map.json',
+        operation: 'write',
+      });
     }
-  });
-  if (result.ref !== undefined) writeReference(cwd, result.id, result.ref, 'recorded');
-  return result;
+    return { ...result, mutations };
+  } catch (creationError) {
+    if (mutations.length === 0) throw creationError;
+    throw new RoutedTicketCreationError(creationError, mutations);
+  }
 }
 
 /** Refuse on a corrupt sidecar (a missing one is fine — the first tracker-backed ticket). */

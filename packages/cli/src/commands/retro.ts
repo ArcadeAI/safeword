@@ -188,6 +188,12 @@ export interface RetroCliOptions {
   sessionId?: string;
 }
 
+export interface RetroCommandExecution {
+  readonly outcome: RetroOutcome;
+  readonly extractionSucceeded: boolean;
+  readonly restTransportAvailable: boolean;
+}
+
 /** Injectable seam for `buildAutoExtractor` (tests assert the resolved model/argv). */
 export interface AutoExtractDependencies {
   /** Spawn the headless child process; defaults to the real `spawnSync`. */
@@ -383,12 +389,14 @@ export function reportRetroCommandOutcome(
  * findings JSON, then invokes this), and the transport is a REST client. Both
  * are intentionally thin and live outside the tested deterministic core.
  */
-export async function retroCommand(options: RetroCliOptions): Promise<void> {
+export async function executeRetroCommand(
+  options: RetroCliOptions,
+  cwd?: string,
+): Promise<RetroCommandExecution> {
   const { detectAgent } = await import('../../templates/hooks/lib/self-report.js');
-  const { error, info, success } = await import('../utils/output.js');
   const { createRestTransport, resolveGitHubToken } = await import('../retro/github-rest.js');
 
-  const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+  const projectDirectory = cwd ?? process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
   const autoExtractAgent = resolveAutoExtractAgent(process.env);
   let extractionSucceeded = true;
   const extract = await buildRetroExtractor(options, projectDirectory, autoExtractAgent, result => {
@@ -428,9 +436,19 @@ export async function retroCommand(options: RetroCliOptions): Promise<void> {
     }),
   });
 
-  reportRetroCommandOutcome(outcome, {
+  return {
+    outcome,
     extractionSucceeded,
     restTransportAvailable: restTransport !== undefined,
+  };
+}
+
+export async function retroCommand(options: RetroCliOptions): Promise<void> {
+  const { error, info, success } = await import('../utils/output.js');
+  const execution = await executeRetroCommand(options);
+  reportRetroCommandOutcome(execution.outcome, {
+    extractionSucceeded: execution.extractionSucceeded,
+    restTransportAvailable: execution.restTransportAvailable,
     output: { error, info, success },
   });
 }
@@ -449,6 +467,24 @@ export interface ReconcileCliDependencies {
   tracker?: ReconcileTracker;
 }
 
+export type RetroReconcileExecution =
+  | { readonly ok: true; readonly result: Awaited<ReturnType<typeof reconcile>> }
+  | { readonly ok: false; readonly reason: string };
+
+export async function executeRetroReconcile(
+  dependencies: ReconcileCliDependencies = {},
+): Promise<RetroReconcileExecution> {
+  const { createReconcileTransport, resolveGitHubToken } = await import('../retro/github-rest.js');
+  const tracker = dependencies.tracker ?? createReconcileTransport(resolveGitHubToken());
+  if (!tracker) return { ok: false, reason: 'no GitHub access; nothing swept' };
+
+  const result = await reconcile(tracker);
+  const totalFailure =
+    result.failed.length > 0 && result.flagged.length === 0 && result.skipped.length === 0;
+  if (totalFailure) return { ok: false, reason: 'every evaluated issue failed; nothing swept' };
+  return { ok: true, result };
+}
+
 /**
  * `safeword retro-reconcile` — the flag-only reconcile sweep (G19QG7 SM2). No
  * transcript involved; it reads open retro-labeled issues, normalizes their
@@ -460,16 +496,14 @@ export async function retroReconcileCommand(
   dependencies: ReconcileCliDependencies = {},
 ): Promise<void> {
   const { error, info, success } = await import('../utils/output.js');
-  const { createReconcileTransport, resolveGitHubToken } = await import('../retro/github-rest.js');
-
-  const tracker = dependencies.tracker ?? createReconcileTransport(resolveGitHubToken());
-  if (!tracker) {
-    error('retro-reconcile: no GitHub access; nothing swept.');
+  const execution = await executeRetroReconcile(dependencies);
+  if (!execution.ok) {
+    error(`retro-reconcile: ${execution.reason}.`);
     process.exitCode = 1;
     return;
   }
 
-  const result = await reconcile(tracker);
+  const { result } = execution;
   info(
     `reconcile: ${result.flagged.length} flagged possibly-resolved, ${result.skipped.length} skipped, ${result.deferred.length} deferred to a later run, ${result.failed.length} failed`,
   );
@@ -480,10 +514,5 @@ export async function retroReconcileCommand(
   // red run, not a report indistinguishable from a healthy quiet day (4KP67A).
   // `deferred` needs no check: it only populates once flagged hits the per-run
   // bound, so deferred > 0 implies flagged > 0 and the predicate is false.
-  if (result.failed.length > 0 && result.flagged.length === 0 && result.skipped.length === 0) {
-    error('retro-reconcile: every evaluated issue failed; nothing swept.');
-    process.exitCode = 1;
-    return;
-  }
   success('reconcile complete');
 }

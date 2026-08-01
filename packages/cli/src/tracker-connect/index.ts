@@ -9,10 +9,19 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { TrackerMap } from '../tracker-sync/tracker-map.js';
+import { loadTrackerMap, TrackerMap } from '../tracker-sync/tracker-map.js';
 import type { Provider } from '../tracker-sync/types.js';
+import { resolveNamespaceRoot } from '../utils/configured-paths.js';
 import { handoffSteps } from './handoff.js';
-import type { ConnectResult, ConnectTarget, Prompt, SecretStore, VerifyClient } from './types.js';
+import type {
+  ConnectMutation,
+  ConnectResult,
+  ConnectTarget,
+  Prompt,
+  SecretStore,
+  VerifyClient,
+} from './types.js';
+import { ConnectExecutionError } from './types.js';
 
 const SUPPORTED = new Set<Provider>(['linear', 'github']);
 
@@ -32,64 +41,152 @@ function configPath(cwd: string): string {
 }
 
 /** Merge the non-secret provider/target into `.safeword/config.json` (preserve other keys). */
-function writeProviderConfig(cwd: string, provider: Provider, target: ConnectTarget): void {
+function writeProviderConfig(
+  cwd: string,
+  provider: Provider,
+  target: ConnectTarget,
+): ConnectMutation | undefined {
   const path = configPath(cwd);
-  const existing: Record<string, unknown> = existsSync(path)
-    ? (JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>)
-    : {};
+  const before = existsSync(path) ? readFileSync(path, 'utf8') : undefined;
+  const existing: Record<string, unknown> =
+    before === undefined ? {} : (JSON.parse(before) as Record<string, unknown>);
   const priorBridge = (existing.ticketBridge ?? {}) as Record<string, unknown>;
   existing.ticketBridge = { ...priorBridge, provider, body: priorBridge.body ?? 'minimal', target };
-  writeFileSync(path, `${JSON.stringify(existing, undefined, 2)}\n`);
+  const after = `${JSON.stringify(existing, undefined, 2)}\n`;
+  writeFileSync(path, after);
+  return before === after
+    ? undefined
+    : {
+        surface: 'file',
+        kind: before === undefined ? 'create' : 'update',
+        target: '.safeword/config.json',
+        operation: 'write',
+      };
+}
+
+function appendMarker(
+  path: string,
+  target: string,
+  marker: string,
+  mutations: ConnectMutation[],
+): void {
+  const existed = existsSync(path);
+  const before = existed ? readFileSync(path, 'utf8') : '';
+  if (before.split(/\r?\n/u).includes(marker)) return;
+
+  const prefix = before === '' || before.endsWith('\n') ? '' : '\n';
+  writeFileSync(path, `${prefix}${marker}\n`, { flag: 'a' });
+  mutations.push({
+    surface: 'file',
+    kind: existed ? 'update' : 'create',
+    target,
+    operation: 'merge',
+  });
 }
 
 /** Offer the pollution opt-ins; write `.cursorindexingignore` + a `.gitattributes` marker on accept. */
-async function offerPollutionOptIns(dependencies: ConnectDependencies): Promise<void> {
+async function offerPollutionOptIns(
+  dependencies: ConnectDependencies,
+  mutations: ConnectMutation[],
+): Promise<void> {
   const accepted = await dependencies.prompt.confirm(
     'Add ignore/markers so coding agents don’t index the generated ticket files?',
     false,
   );
   if (!accepted) return;
-  writeFileSync(nodePath.join(dependencies.cwd, '.cursorindexingignore'), '.project/\n');
-  writeFileSync(
+  const namespaceRoot = resolveNamespaceRoot(dependencies.cwd);
+  const namespacePattern = `${nodePath.relative(dependencies.cwd, namespaceRoot).replaceAll('\\', '/')}/`;
+  appendMarker(
+    nodePath.join(dependencies.cwd, '.cursorindexingignore'),
+    '.cursorindexingignore',
+    namespacePattern,
+    mutations,
+  );
+  appendMarker(
     nodePath.join(dependencies.cwd, '.gitattributes'),
-    '.project/**/INDEX*.md linguist-generated=true\n',
-    { flag: 'a' },
+    '.gitattributes',
+    `${namespacePattern}**/INDEX*.md linguist-generated=true`,
+    mutations,
   );
 }
 
-export async function connectTracker(dependencies: ConnectDependencies): Promise<ConnectResult> {
+async function connectSupportedTracker(
+  dependencies: ConnectDependencies,
+  provider: Provider,
+  mutations: ConnectMutation[],
+): Promise<ConnectResult> {
   const { cwd, log } = dependencies;
 
-  // AC7 — an unsupported provider is rejected before any wiring.
-  if (!SUPPORTED.has(dependencies.provider as Provider)) {
-    log(`Provider "${dependencies.provider}" is not supported (use linear or github).`);
-    return { exitCode: 1, connected: false };
-  }
-  const provider = dependencies.provider as Provider;
-
   // AC2 — write non-secret config, then print the per-provider human handoff.
-  writeProviderConfig(cwd, provider, dependencies.target);
+  const configMutation = writeProviderConfig(cwd, provider, dependencies.target);
+  if (configMutation !== undefined) mutations.push(configMutation);
   for (const line of handoffSteps(provider, dependencies.target)) log(line);
 
   // AC3 — the secret lands in the store (keychain/env), never config, never logged.
   if (dependencies.token !== undefined) {
     const where = await dependencies.secretStore.store(provider, dependencies.token);
+    mutations.push({
+      surface: 'configuration',
+      kind: 'credential-store',
+      target: provider,
+      operation: where,
+    });
     log(`Credential stored in the ${where}.`);
   }
 
   // AC4 — verify before declaring the connection live.
+  mutations.push({
+    surface: 'network',
+    kind: 'verify-auth',
+    target: provider,
+    operation: 'read',
+  });
   const verdict = await dependencies.verify.whoami(provider);
   if (!verdict.ok) {
     log(`Not connected — ${verdict.missing}.`);
-    return { exitCode: 1, connected: false };
+    return { exitCode: 1, connected: false, mutations };
   }
 
   // AC5 — a verified connect seeds the empty sidecar (JS5K5G's first-run contract).
-  new TrackerMap().save(nodePath.join(cwd, '.safeword', 'tracker-map.json'));
+  const sidecarPath = nodePath.join(cwd, '.safeword', 'tracker-map.json');
+  const sidecar = loadTrackerMap(sidecarPath);
+  if (!sidecar.ok && sidecar.reason === 'corrupt') {
+    throw new Error(
+      `${sidecarPath} is not a valid tracker map; preserve or repair it before reconnecting.`,
+    );
+  }
+  if (!sidecar.ok) {
+    new TrackerMap().save(sidecarPath);
+    mutations.push({
+      surface: 'file',
+      kind: 'create',
+      target: '.safeword/tracker-map.json',
+      operation: 'write',
+    });
+  }
   log(`Connected to ${provider} — verified and ready to sync.`);
 
   // AC6 — offer the pollution opt-ins last (post-verify, non-fatal).
-  await offerPollutionOptIns(dependencies);
+  await offerPollutionOptIns(dependencies, mutations);
 
-  return { exitCode: 0, connected: true };
+  return { exitCode: 0, connected: true, mutations };
+}
+
+export async function connectTracker(dependencies: ConnectDependencies): Promise<ConnectResult> {
+  const mutations: ConnectMutation[] = [];
+  if (!SUPPORTED.has(dependencies.provider as Provider)) {
+    dependencies.log(
+      `Provider "${dependencies.provider}" is not supported (use linear or github).`,
+    );
+    return { exitCode: 1, connected: false, mutations };
+  }
+  try {
+    return await connectSupportedTracker(
+      dependencies,
+      dependencies.provider as Provider,
+      mutations,
+    );
+  } catch (connectError) {
+    throw new ConnectExecutionError(connectError, mutations);
+  }
 }

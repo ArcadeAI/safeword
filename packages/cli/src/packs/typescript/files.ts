@@ -23,6 +23,10 @@ import type {
   ProjectContext,
 } from '../types.js';
 
+// Deliberately duplicated with presets/typescript/detect.ts: published presets must
+// remain self-contained, while language packs may not import preset implementation.
+const SAFEWORD_PRIMARY_LINT_SCRIPT = 'eslint . && bun run lint:gherkin';
+
 // ============================================================================
 // Shared Definitions
 // ============================================================================
@@ -340,7 +344,7 @@ function mergeLintScripts(
     addScriptIfMissing(scripts, 'lint:eslint', 'eslint .');
   } else {
     // No existing linter: ESLint is the primary linter
-    addScriptIfMissing(scripts, 'lint', 'eslint . && bun run lint:gherkin');
+    addScriptIfMissing(scripts, 'lint', SAFEWORD_PRIMARY_LINT_SCRIPT);
   }
 }
 

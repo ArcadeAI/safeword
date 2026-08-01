@@ -5,7 +5,7 @@
  * This is the single source of truth for all file/dir/config operations.
  */
 
-import { lstatSync, unlinkSync } from 'node:fs';
+import { lstatSync, readlinkSync, unlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import type {
@@ -534,6 +534,8 @@ function computePlan(
 function computeInstallPlan(schema: SafewordSchema, ctx: ProjectContext): ReconcilePlan {
   const actions: Action[] = [];
   const wouldCreate: string[] = [];
+  const wouldUpdate: string[] = [];
+  const wouldRemove: string[] = [];
 
   // 1. Create all directories
   const allDirectories = [...schema.ownedDirs, ...schema.sharedDirs, ...schema.preservedDirs];
@@ -566,11 +568,10 @@ function computeInstallPlan(schema: SafewordSchema, ctx: ProjectContext): Reconc
   actions.push(...planTextUnpatches(schema.legacyTextPatches, ctx));
   const textPatchActions = planTextPatches(schema.textPatches, ctx);
   actions.push(...textPatchActions);
-  for (const action of textPatchActions) {
-    if (action.type === 'text-patch' && !exists(nodePath.join(ctx.cwd, action.path))) {
-      wouldCreate.push(action.path);
-    }
-  }
+  const dynamicChanges = planDynamicFileChanges(actions, ctx);
+  wouldCreate.push(...dynamicChanges.created);
+  wouldUpdate.push(...dynamicChanges.updated);
+  wouldRemove.push(...dynamicChanges.removed);
 
   // 7. Compute packages to install
   const packagesToInstall = computePackagesToInstall(
@@ -582,9 +583,9 @@ function computeInstallPlan(schema: SafewordSchema, ctx: ProjectContext): Reconc
 
   return {
     actions,
-    wouldCreate,
-    wouldUpdate: [],
-    wouldRemove: [],
+    wouldCreate: [...new Set(wouldCreate)],
+    wouldUpdate: [...new Set(wouldUpdate)],
+    wouldRemove: [...new Set(wouldRemove)],
     packagesToInstall,
     packagesToRemove: [],
   };
@@ -714,6 +715,10 @@ function computeUpgradePlan(schema: SafewordSchema, ctx: ProjectContext): Reconc
     ...planTextUnpatches(schema.legacyTextPatches, ctx),
     ...planTextPatches(schema.textPatches, ctx),
   );
+  const dynamicChanges = planDynamicFileChanges(actions, ctx);
+  wouldCreate.push(...dynamicChanges.created);
+  wouldUpdate.push(...dynamicChanges.updated);
+  wouldRemove.push(...dynamicChanges.removed);
 
   // 8. Compute packages to install
   const packagesToInstall = computePackagesToInstall(
@@ -730,9 +735,9 @@ function computeUpgradePlan(schema: SafewordSchema, ctx: ProjectContext): Reconc
 
   return {
     actions,
-    wouldCreate,
-    wouldUpdate,
-    wouldRemove,
+    wouldCreate: [...new Set(wouldCreate)],
+    wouldUpdate: [...new Set(wouldUpdate)],
+    wouldRemove: [...new Set(wouldRemove)],
     packagesToInstall,
     packagesToRemove,
   };
@@ -777,6 +782,8 @@ function computeUninstallPlan(
     ...planTextUnpatches(schema.textPatches, ctx),
     ...planTextUnpatches(schema.legacyTextPatches, ctx),
   );
+  const dynamicChanges = planDynamicFileChanges(actions, ctx);
+  wouldRemove.push(...dynamicChanges.removed);
 
   // 4. Remove preserved directories first (reverse order, only if empty)
   const preserved = planExistingDirectoriesRemoval(schema.preservedDirs.toReversed(), ctx.cwd);
@@ -813,37 +820,225 @@ function computeUninstallPlan(
 
   return {
     actions,
-    wouldCreate: [],
-    wouldUpdate: [],
-    wouldRemove,
+    wouldCreate: dynamicChanges.created,
+    wouldUpdate: dynamicChanges.updated,
+    wouldRemove: [...new Set(wouldRemove)],
     packagesToInstall: [],
     packagesToRemove,
   };
+}
+
+interface DynamicFileChanges {
+  readonly created: string[];
+  readonly updated: string[];
+  readonly removed: string[];
+}
+
+/**
+ * Predict content-level action effects without executing them. Reconciliation
+ * deliberately keeps executable actions even when their merge or patch is
+ * already satisfied; public Plans must describe changes, not executor work.
+ */
+function planDynamicFileChanges(
+  actions: readonly Action[],
+  ctx: ProjectContext,
+): DynamicFileChanges {
+  const created = new Set<string>();
+  const updated = new Set<string>();
+  const removed = new Set<string>();
+
+  for (const action of actions) {
+    planDynamicActionChange(action, ctx, { created, updated, removed });
+  }
+
+  return {
+    created: [...created],
+    updated: [...updated],
+    removed: [...removed],
+  };
+}
+
+function planDynamicActionChange(
+  action: Action,
+  ctx: ProjectContext,
+  changes: {
+    readonly created: Set<string>;
+    readonly updated: Set<string>;
+    readonly removed: Set<string>;
+  },
+): void {
+  switch (action.type) {
+    case 'json-merge': {
+      planJsonMergeChange(action, ctx, changes.created, changes.updated);
+      return;
+    }
+    case 'json-unmerge': {
+      planJsonUnmergeChange(action, ctx, changes.updated, changes.removed);
+      return;
+    }
+    case 'text-patch': {
+      planTextPatchChange(action, ctx, changes.created, changes.updated);
+      return;
+    }
+    case 'text-unpatch': {
+      planTextUnpatchChange(action, ctx, changes.updated, changes.removed);
+      return;
+    }
+    case 'chmod':
+    case 'mkdir':
+    case 'rm':
+    case 'rmdir':
+    case 'write': {
+      return;
+    }
+  }
+}
+
+function planJsonMergeChange(
+  action: Extract<Action, { type: 'json-merge' }>,
+  ctx: ProjectContext,
+  created: Set<string>,
+  updated: Set<string>,
+): void {
+  const fullPath = nodePath.join(ctx.cwd, action.path);
+  const existing = readJson(fullPath) as Record<string, unknown> | undefined;
+  if (existing === undefined && (exists(fullPath) || action.definition.skipIfMissing)) return;
+  const merged = action.definition.merge(existing ?? {}, ctx);
+  if (JSON.stringify(existing ?? {}) === JSON.stringify(merged)) return;
+  if (existing === undefined) created.add(action.path);
+  else updated.add(action.path);
+}
+
+function planJsonUnmergeChange(
+  action: Extract<Action, { type: 'json-unmerge' }>,
+  ctx: ProjectContext,
+  updated: Set<string>,
+  removed: Set<string>,
+): void {
+  const existing = readJson(nodePath.join(ctx.cwd, action.path)) as
+    Record<string, unknown> | undefined;
+  if (existing === undefined) return;
+  const unmerged = action.definition.unmerge(existing, ctx);
+  const remainingKeys = Object.keys(unmerged).filter(key => unmerged[key] !== undefined);
+  if (action.definition.removeFileIfEmpty && remainingKeys.length === 0) {
+    removed.add(action.path);
+  } else if (JSON.stringify(existing) !== JSON.stringify(unmerged)) {
+    updated.add(action.path);
+  }
+}
+
+function planTextPatchChange(
+  action: Extract<Action, { type: 'text-patch' }>,
+  ctx: ProjectContext,
+  created: Set<string>,
+  updated: Set<string>,
+): void {
+  const original = readFileSafe(nodePath.join(ctx.cwd, action.path));
+  const patched = computePatchedContent(original ?? '', action.definition);
+  if (patched === original) return;
+  if (original === undefined) created.add(action.path);
+  else updated.add(action.path);
+}
+
+function planTextUnpatchChange(
+  action: Extract<Action, { type: 'text-unpatch' }>,
+  ctx: ProjectContext,
+  updated: Set<string>,
+  removed: Set<string>,
+): void {
+  const original = readFileSafe(nodePath.join(ctx.cwd, action.path));
+  if (!original) return;
+  const unpatched = computeUnpatchedContent(original, action.definition);
+  if (unpatched === original) return;
+  if (shouldRemoveTextPatchTarget(unpatched, action.definition)) removed.add(action.path);
+  else updated.add(action.path);
 }
 
 // ============================================================================
 // Plan execution
 // ============================================================================
 
-interface ExecutionResult {
+export interface ExecutionResult {
   created: string[];
   updated: string[];
   removed: string[];
   warnings: string[];
 }
 
-function executePlan(plan: ReconcilePlan, ctx: ProjectContext): ExecutionResult {
+export class ReconcileExecutionError extends Error {
+  readonly partial: ExecutionResult;
+  readonly completedActions: readonly Action[];
+
+  constructor(cause: unknown, partial: ExecutionResult, completedActions: readonly Action[]) {
+    super(cause instanceof Error ? cause.message : String(cause));
+    this.name = 'ReconcileExecutionError';
+    this.partial = partial;
+    this.completedActions = completedActions;
+  }
+}
+
+export function executeReconciliationActions(
+  actions: readonly Action[],
+  ctx: ProjectContext,
+): ExecutionResult {
   const created: string[] = [];
   const updated: string[] = [];
   const removed: string[] = [];
   const warnings: string[] = [];
   const result = { created, updated, removed, warnings };
+  const completedActions: Action[] = [];
 
-  for (const action of plan.actions) {
-    executeAction(action, ctx, result);
+  for (const action of actions) {
+    const targets = action.type === 'chmod' ? action.paths : [action.path];
+    const before = new Map(
+      targets.map(target => [target, observePath(nodePath.join(ctx.cwd, target))]),
+    );
+    try {
+      executeAction(action, ctx, result);
+      for (const target of targets) {
+        recordObservedChange(
+          target,
+          before.get(target),
+          observePath(nodePath.join(ctx.cwd, target)),
+          result,
+        );
+      }
+      completedActions.push(action);
+    } catch (executionError) {
+      throw new ReconcileExecutionError(executionError, result, completedActions);
+    }
   }
 
   return result;
+}
+
+function executePlan(plan: ReconcilePlan, ctx: ProjectContext): ExecutionResult {
+  return executeReconciliationActions(plan.actions, ctx);
+}
+
+function observePath(path: string): string | undefined {
+  try {
+    const stat = lstatSync(path);
+    if (stat.isSymbolicLink()) return `link:${stat.mode}:${readlinkSync(path)}`;
+    if (stat.isDirectory()) return `directory:${stat.mode}`;
+    if (stat.isFile()) return `file:${stat.mode}:${readFile(path)}`;
+    return `other:${stat.mode}`;
+  } catch {
+    return undefined;
+  }
+}
+
+function recordObservedChange(
+  target: string,
+  before: string | undefined,
+  after: string | undefined,
+  result: ExecutionResult,
+): void {
+  if (before === after) return;
+  let changes = result.updated;
+  if (before === undefined) changes = result.created;
+  else if (after === undefined) changes = result.removed;
+  if (!changes.includes(target)) changes.push(target);
 }
 
 function executeChmod(cwd: string, paths: string[]): void {
@@ -853,23 +1048,22 @@ function executeChmod(cwd: string, paths: string[]): void {
   }
 }
 
-function executeRmdir(cwd: string, path: string, result: ExecutionResult): void {
-  if (removeIfEmpty(nodePath.join(cwd, path))) result.removed.push(path);
+function executeRmdir(cwd: string, path: string): void {
+  removeIfEmpty(nodePath.join(cwd, path));
 }
 
 function executeAction(action: Action, ctx: ProjectContext, result: ExecutionResult): void {
   switch (action.type) {
     case 'mkdir': {
       ensureDirectory(nodePath.join(ctx.cwd, action.path));
-      result.created.push(action.path);
       break;
     }
     case 'rmdir': {
-      executeRmdir(ctx.cwd, action.path, result);
+      executeRmdir(ctx.cwd, action.path);
       break;
     }
     case 'write': {
-      executeWrite(ctx.cwd, action.path, action.content, result);
+      executeWrite(ctx.cwd, action.path, action.content);
       break;
     }
     case 'rm': {
@@ -912,7 +1106,6 @@ function executeFileRemoval(cwd: string, path: string, result: ExecutionResult):
     // unlinkSync never recurses, so a path swapped to a directory after the
     // lstat check remains intact rather than being removed by a recursive rm.
     unlinkSync(fullPath);
-    result.removed.push(path);
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
     if (code === 'ENOENT' || code === 'ENOTDIR') return;
@@ -924,11 +1117,8 @@ function executeFileRemoval(cwd: string, path: string, result: ExecutionResult):
   }
 }
 
-function executeWrite(cwd: string, path: string, content: string, result: ExecutionResult): void {
-  const fullPath = nodePath.join(cwd, path);
-  const isExisted = exists(fullPath);
-  writeFile(fullPath, content);
-  (isExisted ? result.updated : result.created).push(path);
+function executeWrite(cwd: string, path: string, content: string): void {
+  writeFile(nodePath.join(cwd, path), content);
 }
 
 // ============================================================================
@@ -1071,6 +1261,7 @@ function executeJsonUnmerge(
     }
   }
 
+  if (JSON.stringify(existing) === JSON.stringify(unmerged)) return;
   writeJson(fullPath, unmerged);
 }
 
@@ -1123,7 +1314,11 @@ function executeTextPatch(cwd: string, path: string, definition: ResolvedTextPat
 
   const fullPath = nodePath.join(cwd, path);
   const original = readFileSafe(fullPath) ?? '';
+  const patched = computePatchedContent(original, definition);
+  if (patched !== original) writeFile(fullPath, patched);
+}
 
+function computePatchedContent(original: string, definition: ResolvedTextPatch): string {
   // Supersede: byte-exact strip of the legacy block this patch replaces (a no-op
   // when absent), so a customized managed file migrates the old block to `content`
   // on upgrade. Runs before the marker check so the swap still applies when the
@@ -1133,33 +1328,24 @@ function executeTextPatch(cwd: string, path: string, definition: ResolvedTextPat
 
   // Already patched: re-render/heal in place, persisting any supersede strip.
   if (content.includes(definition.marker)) {
-    healAlreadyPatchedFile(fullPath, original, content, definition);
-    return;
+    return healAlreadyPatchedContent(content, definition);
   }
 
   // Apply patch (this write also persists any supersede strip above).
-  const patched =
-    definition.operation === 'prepend'
-      ? definition.content + content
-      : content + definition.content;
-  writeFile(fullPath, patched);
+  return definition.operation === 'prepend'
+    ? definition.content + content
+    : content + definition.content;
 }
 
 // The marker is already present. Re-render a drifted managed block (#293), heal a
 // legacy `---#` separator artifact from safeword <=0.30.1, and/or persist a
-// supersede strip. `content` is post-supersede; `original` is the on-disk text.
-function healAlreadyPatchedFile(
-  fullPath: string,
-  original: string,
-  content: string,
-  definition: ResolvedTextPatch,
-): void {
+// supersede strip. `content` is the post-supersede on-disk text.
+function healAlreadyPatchedContent(content: string, definition: ResolvedTextPatch): string {
   // Re-renderable block (#293): when the resolved content has drifted from what's
   // on disk (e.g. a custom paths.projectRoot was added), replace the managed block
   // in place so existing installs heal on upgrade. A no-op when already current.
   if (definition.rerender && !content.includes(definition.content)) {
-    writeFile(fullPath, stripRerenderBlock(content, definition) + definition.content);
-    return;
+    return stripRerenderBlock(content, definition) + definition.content;
   }
   // Heal the bare-`---` separator that glued to a heading (`---# CLAUDE.md`) in
   // files corrupted by past installs. Narrowly scoped: the marker proves we
@@ -1170,7 +1356,7 @@ function healAlreadyPatchedFile(
   }
   // Persist if a heal and/or supersede strip changed the file (the latter is rare
   // here — a legacy block lingering alongside its replacement).
-  if (healed !== original) writeFile(fullPath, healed);
+  return healed;
 }
 
 function computeUnpatchedContent(content: string, definition: ResolvedTextPatch): string {
@@ -1215,7 +1401,7 @@ function executeTextUnpatch(cwd: string, path: string, definition: ResolvedTextP
     return;
   }
 
-  writeFile(fullPath, unpatched);
+  if (unpatched !== content) writeFile(fullPath, unpatched);
 }
 
 function removeExactTextPatchContent(content: string, definition: ResolvedTextPatch): string {

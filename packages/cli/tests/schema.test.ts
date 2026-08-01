@@ -685,6 +685,8 @@ describe('Schema - Single Source of Truth', () => {
         'stop.ts',
         // Cursor-only wrapper wired through .cursor/hooks.json, not Claude SETTINGS_HOOKS.
         'session-cursor-auto-upgrade.ts',
+        // Retained callable no-op while upgrades remove historical lifecycle registrations.
+        'session-auto-upgrade.ts',
         'write-review-stamp.ts',
         'resolve-namespace-root.ts',
         'record-skill-invocation.ts',

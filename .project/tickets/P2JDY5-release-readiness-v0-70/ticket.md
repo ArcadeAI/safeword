@@ -6,7 +6,7 @@ phase: done
 status: done
 subtype: bug-investigated
 created: 2026-07-31T01:26:54.405Z
-last_modified: 2026-08-01T07:33:33.000Z
+last_modified: 2026-08-01T15:47:09.000Z
 ---
 
 # Ship a clean release for safeword users
@@ -91,6 +91,8 @@ closing tracking items whose acceptance criteria are not demonstrably complete.
 - 2026-07-31T23:40:18.000Z Complete: Final independent re-review approved with no critical issues or suggestions. After merging current `main`, the canonical 467-ticket index is exact; 5,670 tests, 499 BDD scenarios, and the release, lint, typecheck, package, website, parity, architecture, dead-code, formatting, and production dependency gates passed.
 - 2026-08-01T07:28:47.000Z Reopened: A current-source quality pass found the copyable workflow still pinned Node 24.16.0, predating the High- and Medium-severity fixes released in Node 24.17.0. Added a release-gate regression test and advanced the example to current LTS 24.18.0.
 - 2026-08-01T07:33:33.000Z Complete: The new release gate failed on Node 24.16.0 and passes on 24.18.0. All 27 release tests, lint, typecheck, website typecheck/build, packaging, parity, formatting, dependency audit, and independent re-review are green with no critical issues remaining.
+- 2026-08-01T15:40:00.000Z Reopened: Merged the latest `main` after PR #1639 landed its typed public CLI protocol and continuous Codex migration work. Conflict review found that the new public `tracker sync` handler bypassed the GitHub CLI credential resolver added by this ticket.
+- 2026-08-01T15:47:09.000Z Complete: Routed GitHub CLI authentication through the new public tracker handler with a RED/GREEN Commander-boundary regression test, reconciled the exact 470-ticket index, and passed 5,916 tests, 671 acceptance scenarios, all 27 release tests, lint, typecheck, formatting, and parity.
 
 ## Root Cause
 
