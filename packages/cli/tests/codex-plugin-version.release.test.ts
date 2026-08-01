@@ -32,11 +32,11 @@ describe('Codex plugin release contract', () => {
     expect(manifest.version).toBe(version);
     const commands = codexPluginHookCommands(hooks.hooks);
     expect(commands).toEqual([
-      `bunx --bun safeword@${version} hook codex session-start`,
-      `bunx --bun safeword@${version} hook codex pre-tool-use`,
-      `bunx --bun safeword@${version} hook codex post-tool-use`,
-      `bunx --bun safeword@${version} hook codex user-prompt-submit`,
-      `bunx --bun safeword@${version} hook codex stop`,
+      `bunx --bun safeword@${version} hook codex session-start --plugin-hook`,
+      `bunx --bun safeword@${version} hook codex pre-tool-use --plugin-hook`,
+      `bunx --bun safeword@${version} hook codex post-tool-use --plugin-hook`,
+      `bunx --bun safeword@${version} hook codex user-prompt-submit --plugin-hook`,
+      `bunx --bun safeword@${version} hook codex stop --plugin-hook`,
     ]);
     for (const command of commands) {
       expect(() => {

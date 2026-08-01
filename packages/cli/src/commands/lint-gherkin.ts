@@ -5,28 +5,31 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
-import process from 'node:process';
 
+import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { collectExecutableFeatureFiles } from '../utils/feature-source.js';
 import { findGherkinLintIssues, type GherkinLintIssue } from '../utils/gherkin-feature.js';
 
-export function lintGherkin(files: string[]): Promise<void> {
-  lintGherkinSync(files);
-  return Promise.resolve();
-}
-
-function lintGherkinSync(files: readonly string[]): void {
-  const cwd = process.cwd();
+export function observeGherkinLint(cwd: string, files: readonly string[]): CliResult {
   const featureFiles =
     files.length === 0 ? discoverFeatureFiles(cwd) : resolveInputFiles(cwd, files);
-  const output = featureFiles.flatMap(file => lintFile(cwd, file));
-
-  if (output.length === 0) return;
-
-  for (const line of output) {
-    console.error(line);
+  const issues = featureFiles.flatMap(file => lintFile(cwd, file));
+  if (issues.length === 0) {
+    return createResult({
+      state: 'healthy',
+      data: { command: 'project lint-gherkin', files: featureFiles.length, arguments: files },
+    });
   }
-  process.exit(1);
+
+  return createResult({
+    state: 'failed',
+    errors: issues.map(issue => ({
+      code: issue.code,
+      message: issue.message,
+      retryable: false,
+    })),
+    data: { command: 'project lint-gherkin', files: featureFiles.length, arguments: files },
+  });
 }
 
 function resolveInputFiles(cwd: string, files: readonly string[]): string[] {
@@ -37,15 +40,21 @@ function discoverFeatureFiles(cwd: string): string[] {
   return collectExecutableFeatureFiles(cwd);
 }
 
-function lintFile(cwd: string, filePath: string): string[] {
+function lintFile(cwd: string, filePath: string): { code: string; message: string }[] {
   if (!existsSync(filePath)) {
-    return [`${formatPath(cwd, filePath)}: file not found [file-exists]`];
+    return [
+      {
+        code: 'GHERKIN_FILE_NOT_FOUND',
+        message: `${formatPath(cwd, filePath)}: file not found [file-exists]`,
+      },
+    ];
   }
 
   const content = readFileSync(filePath, 'utf8');
-  return findGherkinLintIssues(content, { filePath }).map(issue =>
-    formatIssue(cwd, filePath, issue),
-  );
+  return findGherkinLintIssues(content, { filePath }).map(issue => ({
+    code: `GHERKIN_${issue.rule.toUpperCase().replaceAll('-', '_')}`,
+    message: formatIssue(cwd, filePath, issue),
+  }));
 }
 
 function formatIssue(cwd: string, filePath: string, issue: GherkinLintIssue): string {

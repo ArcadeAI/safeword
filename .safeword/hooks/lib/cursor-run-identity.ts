@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { resolveNamespaceRoot } from './namespace-root.js';
+import { hasSafewordProjectMarker, resolveNamespaceRoot } from './namespace-root.js';
 import { commandWords, splitShellSegments } from './shell-segments.js';
 
 const CURSOR_RUN_IDENTITY_CACHE = 'cursor-run-identity.json';
@@ -210,6 +210,7 @@ export function readFreshCursorRunIdentity(input: ReadFreshRunIdentityInput): st
 }
 
 export function rememberCodexRunIdentity(input: RememberCodexRunIdentityInput): boolean {
+  if (!hasSafewordProjectMarker(input.projectDirectory)) return false;
   return rememberShellRunIdentity({
     projectDirectory: input.projectDirectory,
     cacheFile: CODEX_RUN_IDENTITY_CACHE,
@@ -266,6 +267,7 @@ export function readFreshCursorReviewStampIdentity(
 }
 
 export function rememberCodexReviewStampIdentity(input: RememberReviewStampIdentityInput): boolean {
+  if (!hasSafewordProjectMarker(input.projectDirectory)) return false;
   return rememberShellRunIdentity({
     projectDirectory: input.projectDirectory,
     cacheFile: CODEX_REVIEW_STAMP_IDENTITY_CACHE,

@@ -37,7 +37,7 @@ Both tools coexist — ESLint handles code analysis while Biome handles formatti
 
 ### Do my teammates need to install Safeword?
 
-No. Commit the Safe Word project configuration for the surfaces your team uses, such as `.safeword/`, `.claude/`, and `.cursor/`. Each Codex user installs the Safe Word plugin into their own profile with `safeword codex install`, starts a new Codex session, reviews it in `/hooks`, then optionally runs `safeword codex migrate --remove-legacy-hooks` for old project hooks. No Safe Word Codex workflow tree belongs in the repository. The linting devDependencies install with their normal `npm install` / `bun install`.
+No. Commit the Safe Word project configuration for the surfaces your team uses, such as `.safeword/`, `.claude/`, and `.cursor/`. Each Codex user installs the Safe Word plugin into their own profile with `safeword codex install`, starts a new Codex session, and reviews it in `/hooks`. To retire old project hooks, preview `safeword codex migrate --finalize`, review the exact config blocks, and run its copyable `--yes --plan <plan-id>` action. No Safe Word Codex workflow tree belongs in the repository. The linting devDependencies install with their normal `npm install` / `bun install`.
 
 ### Will it interfere with my development workflow?
 

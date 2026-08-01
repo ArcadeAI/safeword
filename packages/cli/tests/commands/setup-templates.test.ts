@@ -93,7 +93,7 @@ describe('Setup - Template Bundling (Story 1)', () => {
     expect(mdFiles.length).toBeGreaterThan(0);
   });
 
-  it('should block re-run and preserve user content', async () => {
+  it('should converge a re-run and preserve user content', async () => {
     createTypeScriptPackageJson(temporaryDirectory);
     initGitRepo(temporaryDirectory);
 
@@ -106,12 +106,11 @@ describe('Setup - Template Bundling (Story 1)', () => {
       '# My Learning\n\nImportant info.',
     );
 
-    // Re-run setup should exit with error (already configured)
+    // Re-run setup should converge without replacing user content.
     const result = await runCliWithoutInstall(['setup'], {
       cwd: temporaryDirectory,
     });
-    expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain('Already configured');
+    expect(result.exitCode).toBe(0);
 
     // User content should be untouched
     expect(fileExists(temporaryDirectory, '.safeword/learnings/my-learning.md')).toBe(true);

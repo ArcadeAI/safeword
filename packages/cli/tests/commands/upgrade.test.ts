@@ -186,7 +186,6 @@ if (args.includes(\`safeword@\${version}\`)) {
       writePackageJson(packageJson);
 
       const result = await runUpgradeWithFakeNpm();
-
       expect(result.exitCode).toBe(0);
       expect(readTestFile(temporaryDirectory, 'npm-args.log')).toContain(`safeword@${VERSION}`);
       const updatedPackageJson = readPackageJson();
@@ -207,7 +206,6 @@ if (args.includes(\`safeword@\${version}\`)) {
     it('should update stale registry specs through npm so package-lock stays in sync', async () => {
       createNpmLockedProjectWithStaleSafeword();
       const result = await runUpgradeWithFakeNpm();
-
       expect(result.exitCode).toBe(0);
       expect(fileExists(temporaryDirectory, 'npm-args.log')).toBe(true);
       expect(readTestFile(temporaryDirectory, 'npm-args.log')).toContain(`safeword@${VERSION}`);
@@ -299,20 +297,21 @@ if (args.includes(\`safeword@\${version}\`)) {
       const result = await runCli(['upgrade'], { cwd: temporaryDirectory });
 
       expect(result.exitCode).toBe(1);
-      expect(result.stderr.toLowerCase()).toMatch(/older|downgrade|cli|update/i);
+      expect(`${result.stdout}\n${result.stderr}`.toLowerCase()).toMatch(
+        /older|downgrade|cli|update/i,
+      );
     });
   });
 
-  describe('Test 9.6: Unconfigured project error', () => {
-    it('should error on unconfigured project', async () => {
+  describe('Test 9.6: Canonical setup convergence through the upgrade alias', () => {
+    it('should configure an unconfigured project and report deprecation', async () => {
       createTypeScriptPackageJson(temporaryDirectory);
-      // No setup
 
       const result = await runCli(['upgrade'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(1);
-      expect(result.stderr.toLowerCase()).toContain('not configured');
-      expect(result.stderr.toLowerCase()).toContain('setup');
+      expect(result.exitCode).toBe(0);
+      expect(fileExists(temporaryDirectory, '.safeword')).toBe(true);
+      expect(result.stdout).toContain('deprecated');
     });
   });
 
@@ -394,7 +393,6 @@ if (args.includes(\`safeword@\${version}\`)) {
       const result = await runCli(['upgrade'], { cwd: temporaryDirectory });
 
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toMatch(/installed.*python.*pack/i);
       expect(readSafewordConfig(temporaryDirectory).installedPacks).toContain('python');
     });
   });

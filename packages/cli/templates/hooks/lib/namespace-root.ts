@@ -16,6 +16,11 @@ import nodePath from 'node:path';
 export const NAMESPACE_ROOT_DEFAULT = '.project';
 export const NAMESPACE_ROOT_LEGACY = '.safeword-project';
 
+/** True after explicit Safeword setup has enrolled this repository. */
+export function hasSafewordProjectMarker(projectDirectory: string): boolean {
+  return existsSync(nodePath.join(projectDirectory, '.safeword', 'SAFEWORD.md'));
+}
+
 /**
  * The raw non-empty `paths.<key>` string from `.safeword/config.json`, or
  * `undefined` (unset, empty, non-string, or missing/unparseable config).

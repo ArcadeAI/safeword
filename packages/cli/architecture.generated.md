@@ -1,6 +1,6 @@
 ---
 generator: safeword-architecture
-fingerprint: aafc114899d86f51f3991fe5ed83890959874c8fcc2bea3f0a19085371d21c90
+fingerprint: f36633236f8ea3d272e8222b4ad3cf2523f6b0e14f86fef408c06c069a70c6f5
 ---
 
 # Architecture
@@ -22,6 +22,16 @@ No description yet — awaiting prose.
 <!-- reconciled: b5e10ab759c1bd1b8ecbc876dbbc0b76784831cacf5438183665db386a5ed922 -->
 
 `src/cli.ts`
+
+No description yet — awaiting prose.
+
+> ⚠ stale: structure changed since this section was reconciled.
+
+### cli-protocol
+
+<!-- reconciled: 651c294d5cc65ed4ea3742a35871986db4e6a41e47e1118e6290866f6cd6b52d -->
+
+`src/cli-protocol`
 
 No description yet — awaiting prose.
 

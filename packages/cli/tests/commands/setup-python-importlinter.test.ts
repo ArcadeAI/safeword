@@ -23,6 +23,7 @@ import {
   readTestFile,
   removeTemporaryDirectory,
   runCli,
+  runConfirmedRemoval,
   SKIP_INSTALL_ENV,
   TIMEOUT_SETUP,
   writeTestFile,
@@ -303,11 +304,7 @@ describe('python-importlinter-scaffold.TB1.R4 — create-once lifecycle (upgrade
 
 describe('python-importlinter-scaffold.TB1.R4 — create-once lifecycle (reset)', () => {
   async function runReset(): Promise<void> {
-    await runCli(['reset', '--yes'], {
-      cwd: state.projectDirectory,
-      env: SKIP_INSTALL_ENV,
-      timeout: TIMEOUT_SETUP,
-    });
+    await runConfirmedRemoval(state.projectDirectory);
   }
 
   it(
@@ -393,7 +390,7 @@ describe("python-importlinter-scaffold.TB1.R5 — installed with the pack's othe
       });
 
       expect(result.stdout).toMatch(
-        /Installing Python tools \(.*import-linter.*\)|Install Python tools: uv add --dev .*import-linter/,
+        /Python tools installed \(.*import-linter.*\)|Install Python tools: uv add --dev .*import-linter/,
       );
     },
     TIMEOUT_SETUP,

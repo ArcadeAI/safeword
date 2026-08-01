@@ -112,6 +112,8 @@ function createCodexHookTicketDirectory(projectRoot: string): string {
 }
 
 function createIncompleteCodexHookTicket(projectRoot: string): void {
+  mkdirSync(nodePath.join(projectRoot, '.safeword'), { recursive: true });
+  writeFileSync(nodePath.join(projectRoot, '.safeword/SAFEWORD.md'), '# enrolled\n');
   const ticketDirectory = createCodexHookTicketDirectory(projectRoot);
   writeFileSync(
     nodePath.join(ticketDirectory, 'ticket.md'),
@@ -128,6 +130,8 @@ function createIncompleteCodexHookTicket(projectRoot: string): void {
 }
 
 function createCompleteCodexHookTicket(projectRoot: string): void {
+  mkdirSync(nodePath.join(projectRoot, '.safeword'), { recursive: true });
+  writeFileSync(nodePath.join(projectRoot, '.safeword/SAFEWORD.md'), '# enrolled\n');
   const ticketDirectory = createCodexHookTicketDirectory(projectRoot);
   writeFileSync(
     nodePath.join(ticketDirectory, 'ticket.md'),

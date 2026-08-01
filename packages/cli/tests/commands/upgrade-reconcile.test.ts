@@ -22,9 +22,7 @@ import nodePath from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { ESLINT_PACKAGE } from '../../src/packs/typescript/files.js';
-import { removeTemporaryDirectory, runCli, runCommandSync } from '../helpers';
-
-const __dirname = import.meta.dirname;
+import { removeTemporaryDirectory, runCli, runCliWithoutInstall } from '../helpers';
 
 describe('Upgrade Command - Reconcile Integration', () => {
   let temporaryDirectory: string;
@@ -375,7 +373,7 @@ statusMessage = "Checking safeword PreToolUse gates"
       expect(existsSync(userHookPath)).toBe(true);
     });
 
-    it('removes the retired Codex retro filer without touching user agents', async () => {
+    it('preserves the legacy Codex retro filer and user agents before finalization', async () => {
       const { reconcile } = await import('../../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../../src/schema.js');
       const { createProjectContext } = await import('../../src/utils/context.js');
@@ -390,7 +388,7 @@ statusMessage = "Checking safeword PreToolUse gates"
 
       await reconcile(SAFEWORD_SCHEMA, 'upgrade', createProjectContext(temporaryDirectory));
 
-      expect(existsSync(retiredAgentPath)).toBe(false);
+      expect(existsSync(retiredAgentPath)).toBe(true);
       expect(existsSync(userAgentPath)).toBe(true);
     });
 
@@ -414,7 +412,7 @@ statusMessage = "Checking safeword PreToolUse gates"
       expect(existsSync(userFilePath)).toBe(true);
     });
 
-    it('removes a dangling symlink at the retired Codex agent path', async () => {
+    it('preserves a dangling symlink at the legacy Codex agent path', async () => {
       const { reconcile } = await import('../../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../../src/schema.js');
       const { createProjectContext } = await import('../../src/utils/context.js');
@@ -430,7 +428,7 @@ statusMessage = "Checking safeword PreToolUse gates"
 
       await reconcile(SAFEWORD_SCHEMA, 'upgrade', createProjectContext(temporaryDirectory));
 
-      expect(() => lstatSync(retiredAgentPath)).toThrow();
+      expect(lstatSync(retiredAgentPath).isSymbolicLink()).toBe(true);
     });
 
     it('leaves a retired Codex agent path alone when its parent is a user file', async () => {
@@ -481,6 +479,13 @@ timeout = 30
 statusMessage = "Checking safeword PreToolUse gates"
 `;
       writeFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), legacyConfig);
+      const legacySkillPath = nodePath.join(
+        temporaryDirectory,
+        '.agents/skills/review-spec/SKILL.md',
+      );
+      mkdirSync(nodePath.dirname(legacySkillPath), { recursive: true });
+      const legacySkill = '# Safeword review-spec legacy protection\n';
+      writeFileSync(legacySkillPath, legacySkill);
 
       const ctx = createProjectContext(temporaryDirectory);
       await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
@@ -490,10 +495,12 @@ statusMessage = "Checking safeword PreToolUse gates"
         'utf8',
       );
       expect(upgraded).toBe(legacyConfig);
+      expect(readFileSync(legacySkillPath, 'utf8')).toBe(legacySkill);
 
       await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx);
       const again = readFileSync(nodePath.join(temporaryDirectory, '.codex/config.toml'), 'utf8');
       expect(again).toBe(legacyConfig);
+      expect(readFileSync(legacySkillPath, 'utf8')).toBe(legacySkill);
     });
 
     it('tells users how to install the Codex plugin after upgrade', async () => {
@@ -591,50 +598,35 @@ statusMessage = "Checking safeword PreToolUse gates"
   });
 
   describe('upgrade command integration', () => {
-    it('should run upgrade successfully via CLI', () => {
+    it('should run upgrade successfully via CLI', async () => {
       createConfiguredProject('0.5.0');
 
-      const cliPath = nodePath.resolve(__dirname, '../../src/cli.ts');
-      const result = runCommandSync(`bunx tsx ${cliPath} upgrade`, {
-        cwd: temporaryDirectory,
-        timeout: 30_000,
-      });
+      const result = await runCliWithoutInstall(['upgrade'], { cwd: temporaryDirectory });
 
-      if (result.exitCode === 0) {
-        expect(result.stdout).toContain('Upgrade');
-      } else {
-        const sawUpgradeOutput =
-          result.stdout.includes('Upgrade') || result.stdout.includes('Upgrading');
-        expect(sawUpgradeOutput).toBe(true);
-      }
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('Complete');
+      expect(result.stdout).toContain('`upgrade` is deprecated; use `setup`.');
     });
 
-    it('should refuse downgrade when project is newer', () => {
+    it('should refuse downgrade when project is newer', async () => {
       createConfiguredProject('99.99.99');
 
-      const cliPath = nodePath.resolve(__dirname, '../../src/cli.ts');
-      const result = runCommandSync(`bunx tsx ${cliPath} upgrade`, {
-        cwd: temporaryDirectory,
-        timeout: 30_000,
-      });
+      const result = await runCliWithoutInstall(['upgrade'], { cwd: temporaryDirectory });
       expect(result.exitCode).not.toBe(0);
       expect(result.stderr.toLowerCase()).toMatch(/older|downgrade|cli/i);
     });
 
-    it('should error on unconfigured project', () => {
+    it('should converge an unconfigured project', async () => {
       // Just package.json, no .safeword
       writeFileSync(
         nodePath.join(temporaryDirectory, 'package.json'),
         JSON.stringify({ name: 'test', version: '1.0.0' }, undefined, 2),
       );
 
-      const cliPath = nodePath.resolve(__dirname, '../../src/cli.ts');
-      const result = runCommandSync(`bunx tsx ${cliPath} upgrade`, {
-        cwd: temporaryDirectory,
-        timeout: 30_000,
-      });
-      expect(result.exitCode).not.toBe(0);
-      expect(result.stderr.toLowerCase()).toContain('not configured');
+      const result = await runCliWithoutInstall(['upgrade'], { cwd: temporaryDirectory });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('Complete');
+      expect(existsSync(nodePath.join(temporaryDirectory, '.safeword'))).toBe(true);
     });
   });
 });

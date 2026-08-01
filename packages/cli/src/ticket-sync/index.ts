@@ -65,6 +65,15 @@ function detectConflictedIndex(indexPath: string): string | undefined {
   return hasMergeConflictMarkers(content) ? indexPath : undefined;
 }
 
+/** Read-only inspection used by status/doctor; never regenerates the indexes. */
+export function inspectTicketIndexConflicts(cwd: string): string[] {
+  const ticketsDirectory = resolveTicketsDirectory(cwd);
+  return [
+    detectConflictedIndex(nodePath.join(ticketsDirectory, INDEX_FILENAME)),
+    detectConflictedIndex(nodePath.join(ticketsDirectory, COMPLETED_INDEX_FILENAME)),
+  ].filter((path): path is string => path !== undefined);
+}
+
 /** Strip a single layer of matching surrounding quotes. */
 function stripQuotes(value: string): string {
   if (
@@ -347,11 +356,6 @@ export function syncTickets(cwd: string): TicketSyncResult {
   const relativeLabel = nodePath.relative(cwd, ticketsDirectory) || TICKETS_RELATIVE_PATH;
   const indexPath = nodePath.join(ticketsDirectory, INDEX_FILENAME);
   const completedIndexPath = nodePath.join(ticketsDirectory, COMPLETED_INDEX_FILENAME);
-  const indexConflicts = [
-    detectConflictedIndex(indexPath),
-    detectConflictedIndex(completedIndexPath),
-  ].filter((path): path is string => path !== undefined);
-
   if (!existsSync(ticketsDirectory)) {
     return {
       wrote: false,
@@ -363,6 +367,7 @@ export function syncTickets(cwd: string): TicketSyncResult {
       indexConflicts: [],
     };
   }
+  const indexConflicts = inspectTicketIndexConflicts(cwd);
 
   const { active, completed, skipped } = readTickets(ticketsDirectory, relativeLabel);
 

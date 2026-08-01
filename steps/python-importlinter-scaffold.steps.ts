@@ -69,17 +69,25 @@ function runSafeword(
 ): void {
   const { skipInstall = true } = options;
   assert.ok(world.projectDirectory, 'fixture project must exist before running safeword');
-  const commandArguments = command === 'reset' ? [command, '--yes'] : [command];
   const environment: Record<string, string | undefined> = {
     ...process.env,
     SAFEWORD_TEST_DISABLE_AUTO_UPGRADE: '1',
   };
   if (skipInstall) environment.SAFEWORD_SKIP_INSTALL = '1';
-  const result = spawnSync('bun', [CLI_PATH, ...commandArguments], {
-    cwd: world.projectDirectory,
-    env: environment,
-    encoding: 'utf8',
-  });
+  const run = (arguments_: string[]) =>
+    spawnSync('bun', [CLI_PATH, ...arguments_], {
+      cwd: world.projectDirectory,
+      env: environment,
+      encoding: 'utf8',
+    });
+  let result = run([command]);
+  if (command === 'reset') {
+    const preview = run(['reset', '--json', '--no-input']);
+    const envelope = JSON.parse(preview.stdout) as { data?: { plan?: { id?: string } } };
+    const planId = envelope.data?.plan?.id;
+    assert.equal(typeof planId, 'string', 'reset preview did not return a plan identity');
+    result = run(['reset', '--yes', '--plan', planId as string]);
+  }
   world.setupOutput = `${result.stdout}${result.stderr}`;
   if (command === 'setup') world.setupRan = true;
 }

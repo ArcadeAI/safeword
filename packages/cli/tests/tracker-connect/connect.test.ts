@@ -151,6 +151,26 @@ describe('connectTracker', () => {
     expect(readFileSync(nodePath.join(cwd, '.gitattributes'), 'utf8')).toMatch(/INDEX/);
   });
 
+  it('appends pollution markers without rewriting user-owned content', async () => {
+    const cursorPath = nodePath.join(cwd, '.cursorindexingignore');
+    const attributesPath = nodePath.join(cwd, '.gitattributes');
+    writeFileSync(cursorPath, 'first\n\nsecond');
+    writeFileSync(attributesPath, '*.png binary\n\n# keep this spacing');
+
+    await connectTracker(makeDependencies({ prompt: { confirm: () => Promise.resolve(true) } }));
+
+    expect(readFileSync(cursorPath, 'utf8')).toMatch(/^first\n\nsecond\n\.project\/\n$/u);
+    expect(readFileSync(attributesPath, 'utf8')).toMatch(
+      /^\*\.png binary\n\n# keep this spacing\n\.project\/\*\*\/INDEX\*\.md linguist-generated=true\n$/u,
+    );
+
+    const cursorAfterFirstConnect = readFileSync(cursorPath, 'utf8');
+    const attributesAfterFirstConnect = readFileSync(attributesPath, 'utf8');
+    await connectTracker(makeDependencies({ prompt: { confirm: () => Promise.resolve(true) } }));
+    expect(readFileSync(cursorPath, 'utf8')).toBe(cursorAfterFirstConnect);
+    expect(readFileSync(attributesPath, 'utf8')).toBe(attributesAfterFirstConnect);
+  });
+
   it('writes neither pollution opt-in file when declined', async () => {
     await connectTracker(makeDependencies({ prompt: { confirm: () => Promise.resolve(false) } }));
     expect(existsSync(nodePath.join(cwd, '.cursorindexingignore'))).toBe(false);

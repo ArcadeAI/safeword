@@ -16,6 +16,7 @@ import {
   readTestFile,
   removeTemporaryDirectory,
   runCli,
+  runConfirmedRemoval,
   writeTestFile,
 } from '../helpers';
 
@@ -95,7 +96,7 @@ describe('setup: husky hook shims (ZJMZ50 slice 3)', () => {
     await runCli(['setup'], { cwd: dir });
     expect(readTestFile(dir, '.husky/pre-commit')).toContain(COMMIT_SHIM);
 
-    const result = await runCli(['reset', '--yes'], { cwd: dir });
+    const result = await runConfirmedRemoval(dir);
 
     expect(result.exitCode).toBe(0);
     expect(readTestFile(dir, '.husky/pre-commit')).toBe(before);
@@ -106,7 +107,7 @@ describe('setup: husky hook shims (ZJMZ50 slice 3)', () => {
     await runCli(['setup'], { cwd: dir });
     expect(readTestFile(dir, '.husky/pre-push')).toContain(PUSH_SHIM);
 
-    await runCli(['reset', '--yes'], { cwd: dir });
+    await runConfirmedRemoval(dir);
 
     expect(fileExists(dir, '.husky/pre-push')).toBe(false);
   });
@@ -118,7 +119,7 @@ describe('setup: husky hook shims (ZJMZ50 slice 3)', () => {
     const patched = readTestFile(dir, '.husky/pre-commit');
     writeTestFile(dir, '.husky/pre-commit', `${patched}npm run docs-check\n`);
 
-    await runCli(['reset', '--yes'], { cwd: dir });
+    await runConfirmedRemoval(dir);
 
     const after = readTestFile(dir, '.husky/pre-commit');
     expect(after).toContain('npm run docs-check');

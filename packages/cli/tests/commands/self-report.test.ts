@@ -6,32 +6,32 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { selfReport } from '../../src/commands/self-report.js';
 import { recordSignal } from '../../templates/hooks/lib/self-report.js';
+import { runCli } from '../helpers.js';
 
 describe('selfReport (QYYC5Y)', () => {
   let projectDirectory: string;
-  let logs: string[];
-  let logSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'sw-selfreport-cmd-'));
-    logs = [];
-    logSpy = vi.spyOn(console, 'log').mockImplementation((...args: unknown[]) => {
-      logs.push(args.join(' '));
-    });
   });
 
   afterEach(() => {
-    logSpy.mockRestore();
     rmSync(projectDirectory, { recursive: true, force: true });
   });
 
   it('reports nothing when the spool is empty', async () => {
-    await selfReport({}, projectDirectory);
-    expect(logs.join('\n')).toContain('No safeword self-reports');
+    const result = await runCli([
+      'retro',
+      'signals',
+      '--no-input',
+      '--offline',
+      '--cwd',
+      projectDirectory,
+    ]);
+    expect(result.stdout).toContain('No safeword self-reports');
   });
 
   it('summarizes captured signals by signature with counts', async () => {
@@ -49,15 +49,22 @@ describe('selfReport (QYYC5Y)', () => {
     );
     recordSignal(projectDirectory, 's2', { source: 'check', exitCode: 1 }, '1');
 
-    await selfReport({}, projectDirectory);
-    const out = logs.join('\n');
+    const result = await runCli([
+      'self-report',
+      '--no-input',
+      '--offline',
+      '--cwd',
+      projectDirectory,
+    ]);
+    const out = result.stdout;
 
     expect(out).toContain('2 signature(s)');
     expect(out).toContain('2×  unknown:TypeError@post-tool-quality');
     expect(out).toContain('1×  unknown:exit1@check');
+    expect(result.stderr).toContain('deprecated');
   });
 
-  it('emits machine-readable JSON under --json', async () => {
+  it('emits the legacy raw JSON format under --format json', async () => {
     recordSignal(
       projectDirectory,
       's1',
@@ -65,8 +72,16 @@ describe('selfReport (QYYC5Y)', () => {
       '1',
     );
 
-    await selfReport({ json: true }, projectDirectory);
-    const parsed = JSON.parse(logs.join('\n')) as {
+    const result = await runCli([
+      'self-report',
+      '--format',
+      'json',
+      '--no-input',
+      '--offline',
+      '--cwd',
+      projectDirectory,
+    ]);
+    const parsed = JSON.parse(result.stdout) as {
       total: number;
       groups: { signature: string; count: number }[];
     };
@@ -84,8 +99,16 @@ describe('selfReport (QYYC5Y)', () => {
       '1',
     );
 
-    await selfReport({ format: 'issue' }, projectDirectory);
-    const drafts = JSON.parse(logs.join('\n')) as {
+    const result = await runCli([
+      'self-report',
+      '--format',
+      'issue',
+      '--no-input',
+      '--offline',
+      '--cwd',
+      projectDirectory,
+    ]);
+    const drafts = JSON.parse(result.stdout) as {
       title: string;
       labels: string[];
       body: string;
