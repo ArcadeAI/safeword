@@ -202,15 +202,7 @@ async function runRelayRetro(
       relayUrl: relay.relayUrl,
     });
   } catch (error) {
-    const persistenceError =
-      spoolFailed > 0 ? `${relayPersistenceErrorMessage(persistence, spoolFailed)}; ` : '';
-    return {
-      agentFilingNeeded: true,
-      drops,
-      errorMessage: `${persistenceError}retro relay delivery failed: ${relayDeliveryErrorMessage(error)}`,
-      ok: false,
-      result: emptyTriageResult(),
-    };
+    return relayDeliveryFailureOutcome(error, drops, persistence, spoolFailed);
   }
   const relayOutcome = { ...delivery, spoolFailed };
   if (spoolFailed > 0) {
@@ -241,6 +233,23 @@ async function runRelayRetro(
     drops,
     ok: true,
     relay: relayOutcome,
+    result: emptyTriageResult(),
+  };
+}
+
+function relayDeliveryFailureOutcome(
+  error: unknown,
+  drops: { schema: number; surface: number },
+  persistence: PromiseSettledResult<RelayDraftRequest | undefined>[],
+  spoolFailed: number,
+): RetroOutcome {
+  const persistenceError =
+    spoolFailed > 0 ? `${relayPersistenceErrorMessage(persistence, spoolFailed)}; ` : '';
+  return {
+    agentFilingNeeded: true,
+    drops,
+    errorMessage: `${persistenceError}retro relay delivery failed: ${relayDeliveryErrorMessage(error)}`,
+    ok: false,
     result: emptyTriageResult(),
   };
 }
