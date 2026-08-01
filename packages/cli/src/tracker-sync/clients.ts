@@ -1,9 +1,9 @@
 /**
  * Live TrackerClient adapters — the I/O boundary (JS5K5G). The GitHub adapter
  * shells out to `gh` (no new dependency; the ticket sanctions `gh` for stable
- * create/update). The Linear live client needs the Arcade integration, whose
- * auth/setup is owned by the connect-flow ticket (2TK5AD); until that lands it
- * surfaces an actionable error rather than failing obscurely. Both providers'
+ * create/update). The Linear live client still needs the Arcade integration;
+ * until that lands it points users to the supported adoption and portable-sync
+ * paths rather than a setup flow that cannot wire the client. Both providers'
  * *writer logic* ships and is unit-tested (writers.test.ts) over this port — only
  * the live adapter is the untested-by-unit shim, by design ("no live tracker in
  * tests").
@@ -167,11 +167,12 @@ function throwingClient(message: string): TrackerClient {
   return { createIssue: fail, updateIssue: fail, projectGraph: fail };
 }
 
-/** The Linear live client is pending the Arcade integration (2TK5AD). */
+export const LINEAR_LIVE_PROJECTION_GUIDANCE =
+  'Linear live projection is not wired. Adopt an existing Linear issue with `safeword ticket new <slug> --issue <key>`, or sync existing local tickets through `safeword sync-tracker --plan` and `--apply-results`.';
+
+/** The Linear live client is pending the Arcade integration. */
 function linearNotWired(): TrackerClient {
-  return throwingClient(
-    'Linear projection needs the Arcade integration — run `safeword setup` to wire it (tracked by 2TK5AD).',
-  );
+  return throwingClient(LINEAR_LIVE_PROJECTION_GUIDANCE);
 }
 
 /** A placeholder client for the non-selected provider — never invoked. */
