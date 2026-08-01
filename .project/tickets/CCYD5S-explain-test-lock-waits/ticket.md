@@ -2,10 +2,10 @@
 id: CCYD5S
 slug: explain-test-lock-waits
 type: patch
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-07-31T04:00:07.559Z
-last_modified: 2026-08-01T15:29:25Z
+last_modified: 2026-08-01T15:44:20Z
 ---
 
 # Make test-lock waits understandable for maintainers
@@ -16,9 +16,16 @@ last_modified: 2026-08-01T15:29:25Z
 
 ## Work Log
 
+- 2026-08-01T15:44:20Z Done: Quality-review recheck found no remaining
+  critical issues. Focused runner tests (11/11), lint/typecheck, and the
+  release catalogue (26/26) passed after GREEN 8e5ebbf9e.
 - 2026-08-01T15:29:25Z Review follow-up: Restoring exact subprocess argument
   assertions, repairing scenario-ledger ownership and ordering, and extending
   safe fallback/recovery to blank maximum waits and unidentifiable owner JSON.
+- 2026-08-01T15:29:25Z RED 8a5d2d35e: Captured the blank-maximum-wait and
+  unidentifiable-owner boundaries with real subprocess integration coverage.
+- 2026-08-01T15:29:25Z GREEN 8e5ebbf9e: Restored safe blank-value fallback
+  and extended stale recovery without weakening valid PID/timestamp behavior.
 - 2026-08-01T15:29:25Z RED: Focused lock-runner coverage reproduced a blank
   maximum wait bypassing serialization and a stale `{}` owner reaching the
   zero-wait escape instead of mtime recovery.

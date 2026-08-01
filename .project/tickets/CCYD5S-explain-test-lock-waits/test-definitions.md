@@ -32,8 +32,14 @@ timestamp, is reaped through the normal recovery paths
 - [x] RED skip: focused runner suite failed because incomplete metadata emitted no details
 - [x] GREEN fa16069cb
 - [x] REFACTOR skip: no additional structure was needed
-- [ ] RED: reproduce stale recovery for a syntactically valid owner object
-  with no usable process ID or timestamp, including an epoch timestamp.
+- [x] RED 8a5d2d35e
+  Reproduced stale recovery for a syntactically valid owner object with no
+  usable process ID or timestamp, including an epoch timestamp.
+- [x] GREEN 8e5ebbf9e
+  Focused runner suite passed 11/11 with mtime recovery for `{}` and age
+  recovery for the Unix epoch.
+- [x] REFACTOR skip: retained the existing recovery paths and named their
+  shared metadata validity checks.
 
 ## Rule: Wait diagnostics remain safely rate-limited
 
@@ -64,7 +70,11 @@ When a waiting runner sets its maximum wait to a negative or blank value
 Then it waits for the owner under the default maximum wait
 And it does not proceed without the lock or overlap the owner's build and test
 
-- [ ] RED: reproduce blank maximum-wait fallback while a real owner holds the lock.
+- [x] RED 8a5d2d35e
+  Reproduced blank maximum-wait fallback while a real owner holds the lock.
+- [x] GREEN 8e5ebbf9e
+  Focused runner suite passed 11/11 with blank and negative fallback.
+- [x] REFACTOR skip: reused the existing safe-integer environment resolver.
 
 ## Refactoring ledger
 
