@@ -49,7 +49,7 @@ const minimumLockStatusIntervalMilliseconds = 50;
 
 function resolveSafeIntegerEnvironmentVariable(name, fallback, minimum, allowZero = true) {
   const raw = process.env[name];
-  if (raw === undefined) {
+  if (raw === undefined || raw.trim() === '') {
     return fallback;
   }
 
@@ -84,12 +84,22 @@ function isProcessAlive(pid) {
   }
 }
 
+function isUsableOwnerPid(value) {
+  return Number.isSafeInteger(value) && value > 0;
+}
+
+function hasUsableOwnerTimestamp(value) {
+  return typeof value === 'string' && Number.isFinite(Date.parse(value));
+}
+
 function readOwner() {
   try {
     const parsed = JSON.parse(readFileSync(ownerPath, 'utf8'));
-    const readable = typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed);
+    const owner =
+      typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) ? parsed : {};
+    const readable = isUsableOwnerPid(owner.pid) || hasUsableOwnerTimestamp(owner.createdAt);
     return {
-      owner: readable ? parsed : {},
+      owner,
       readable,
     };
   } catch {
@@ -108,13 +118,15 @@ function removeStaleLock() {
     return false;
   }
 
-  if (typeof owner.pid === 'number' && !isProcessAlive(owner.pid)) {
+  if (isUsableOwnerPid(owner.pid) && !isProcessAlive(owner.pid)) {
     rmSync(lockDirectory, { force: true, recursive: true });
     return true;
   }
 
-  const createdAt = Date.parse(owner.createdAt);
-  if (Number.isFinite(createdAt) && Date.now() - createdAt > 6 * 60 * 60 * 1000) {
+  if (
+    hasUsableOwnerTimestamp(owner.createdAt) &&
+    Date.now() - Date.parse(owner.createdAt) > 6 * 60 * 60 * 1000
+  ) {
     rmSync(lockDirectory, { force: true, recursive: true });
     return true;
   }
@@ -138,8 +150,7 @@ function reportLockWait(waitedMilliseconds) {
   // this diagnostic read. Waiting remains correct even without metadata.
   const { owner } = readOwner();
 
-  const ownerPid =
-    typeof owner.pid === 'number' ? `owner PID ${owner.pid}` : 'owner PID unavailable';
+  const ownerPid = isUsableOwnerPid(owner.pid) ? `owner PID ${owner.pid}` : 'owner PID unavailable';
   const ownerCheckout =
     typeof owner.checkoutRoot === 'string' && owner.checkoutRoot !== ''
       ? `checkout ${owner.checkoutRoot}`
