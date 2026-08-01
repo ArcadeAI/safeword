@@ -74,7 +74,7 @@ function frontmatterBody(content: string): string | undefined {
  * Exact-line match so a different generator (e.g. `safeword-architecture-v2`)
  * is not mistaken for this one.
  */
-function isSafewordOwned(content: string): boolean {
+export function isSafewordOwned(content: string): boolean {
   return (
     frontmatterBody(content)?.split(/\r?\n/).includes(`${GENERATOR_KEY}: ${GENERATOR_VALUE}`) ??
     false
@@ -111,7 +111,13 @@ interface HealTarget {
   render: (priorStamps: Map<string, string>, priorProse: Map<string, PriorPurpose>) => string;
 }
 
-function healTarget(target: HealTarget): SelfHealResult {
+interface HealOptions {
+  priorProseContent?: string;
+  renderUnchanged?: boolean;
+  preservePriorStructure?: boolean;
+}
+
+function healTarget(target: HealTarget, options: HealOptions = {}): SelfHealResult {
   const existing = readExisting(target.path);
   const action = decideAction(
     existing,
@@ -120,15 +126,34 @@ function healTarget(target: HealTarget): SelfHealResult {
     target.matchesExisting,
   );
 
-  if (isWouldChangeAction(action)) {
+  if (isWouldChangeAction(action) || (options.renderUnchanged === true && action === 'unchanged')) {
     mkdirSync(nodePath.dirname(target.path), { recursive: true });
-    const priorStamps = existing === undefined ? new Map() : parseSectionStamps(existing);
-    const priorProse =
-      existing === undefined ? new Map() : (target.parseProse ?? parseSectionProse)(existing);
+    const { priorStamps, priorProse } = priorSectionHistory(
+      existing,
+      options.priorProseContent,
+      options.preservePriorStructure ?? false,
+      target.parseProse ?? parseSectionProse,
+    );
     writeFileSync(target.path, target.render(priorStamps, priorProse));
   }
 
   return { action, path: target.path };
+}
+
+function priorSectionHistory(
+  existing: string | undefined,
+  priorContent: string | undefined,
+  preservePriorStructure: boolean,
+  parseProse: (content: string) => Map<string, PriorPurpose>,
+): { priorStamps: Map<string, string>; priorProse: Map<string, PriorPurpose> } {
+  const ownedPrior =
+    priorContent !== undefined && isSafewordOwned(priorContent) ? priorContent : undefined;
+  const stampSource = preservePriorStructure ? (ownedPrior ?? existing) : existing;
+  const proseSource = ownedPrior ?? existing;
+  return {
+    priorStamps: stampSource === undefined ? new Map() : parseSectionStamps(stampSource),
+    priorProse: proseSource === undefined ? new Map() : parseProse(proseSource),
+  };
 }
 
 /** Dry-run of {@link healTarget}: the action it would take, writing nothing. */
@@ -237,6 +262,38 @@ export function selfHealProject(
 }
 
 /**
+ * Heal from `projectDirectory`'s structural shape while preserving human prose
+ * from the corresponding document under `proseProjectDirectory`.
+ *
+ * Commit-oriented staged-tree generation needs these as deliberately separate
+ * inputs: Git's index owns reproducible structure and fingerprints, while the
+ * worktree document owns prose a person may not have staged yet. Only prose is
+ * borrowed; section membership, paths, stamps, and fingerprints still come from
+ * the staged-tree target.
+ *
+ * `renderUnchanged` lets explicit `--staged` generation restore the staged
+ * fingerprint over worktree-only structural drift. `preservePriorStructure`
+ * retains worktree-only sections as orphans so their prose is not destroyed;
+ * commit-time `--stage` leaves it off to avoid leaking unrelated WIP.
+ */
+export function selfHealProjectPreservingProse(
+  projectDirectory: string,
+  proseProjectDirectory: string,
+  options: { renderUnchanged?: boolean; preservePriorStructure?: boolean } = {},
+  snapshot?: MonorepoArchitectureSnapshot,
+): SelfHealResult[] {
+  return projectTargets(projectDirectory, snapshot).map(target => {
+    const relativePath = nodePath.relative(projectDirectory, target.path);
+    const priorProseContent = readExisting(nodePath.join(proseProjectDirectory, relativePath));
+    return healTarget(target, {
+      priorProseContent,
+      renderUnchanged: options.renderUnchanged,
+      preservePriorStructure: options.preservePriorStructure,
+    });
+  });
+}
+
+/**
  * Dry-run of {@link selfHealProject}: the action per node, writing nothing.
  * Accepts the same operation-scoped snapshot reuse boundary as the mutating path.
  */
@@ -258,13 +315,13 @@ function readExisting(path: string): string | undefined {
 function decideAction(
   existing: string | undefined,
   fingerprint: string,
-  hasModules: boolean,
+  hasContent: boolean,
   matchesExisting?: (existing: string) => boolean,
 ): SelfHealAction {
   // Don't birth an empty doc: a contentless "## Modules" implies "no modules",
   // which is false for a monorepo the single-repo extractor can't read yet.
   // An existing doc still heals toward empty (orphan markers show real removals).
-  if (existing === undefined) return hasModules ? 'created' : 'noop';
+  if (existing === undefined) return hasContent ? 'created' : 'noop';
 
   // Never touch a document safeword does not own — a hand-written architecture
   // doc has no generator marker and must be left exactly as-is.
@@ -429,7 +486,10 @@ function parseSectionProse(content: string): Map<string, PriorPurpose> {
  * prose. Returns the next `inProse` state.
  */
 function accumulateProseLine(line: string, inProse: boolean, buffer: string[]): boolean {
-  if (isPurposeMetadataLine(line)) return inProse;
+  if (line.startsWith(RECONCILED_PREFIX)) return inProse;
+  if (line.startsWith(SEEDED_PURPOSE_PREFIX)) return inProse;
+  if (line.startsWith('> ⚠ orphaned:')) return true;
+  if (line.startsWith('> ⚠ stale:')) return inProse;
   if (!inProse) return /^`[^`]*`\s*$/.test(line);
   buffer.push(line);
   return true;
@@ -508,11 +568,11 @@ function renderDocument(
   const sections = verdicts
     .map(verdict => {
       const node = nodeByName.get(verdict.node);
-      if (node === undefined) return renderOrphanSection(verdict.node);
       // A section the heal has seen before keeps its prior stamp; a brand-new
       // node is stamped current (a placeholder awaiting prose, not stale).
       const stamp = priorStamps.get(verdict.node) ?? fingerprint;
       const prior = priorProse.get(verdict.node);
+      if (node === undefined) return renderOrphanSection(verdict.node, stamp, prior?.text ?? '');
       const { purpose, seeded } = resolveModulePurpose(node, prior);
       return renderSection(node, stamp, verdict.status, purpose, seeded);
     })
@@ -526,10 +586,9 @@ function resolveModulePurpose(
   node: SkeletonNode,
   prior: PriorPurpose | undefined,
 ): { purpose: string; seeded: boolean } {
-  const generatedPrior = prior?.generated === true;
-  const seeded = node.seededPurpose === true && (prior === undefined || generatedPrior);
+  const { seeded, useGeneratedPurpose } = generatedPurposeChoice(node.seededPurpose, prior);
   return {
-    purpose: seeded || generatedPrior ? node.purpose : (prior?.text ?? node.purpose),
+    purpose: useGeneratedPurpose ? node.purpose : (prior?.text ?? node.purpose),
     seeded,
   };
 }
@@ -550,8 +609,9 @@ function renderSection(
   return `### ${node.name}\n\n${RECONCILED_PREFIX} ${stamp} -->\n\n\`${node.path}\`\n${seed}\n${prose}\n${marker}`;
 }
 
-function renderOrphanSection(name: string): string {
-  return `### ${name}\n\n> ⚠ orphaned: this section describes a module that no longer exists.\n`;
+function renderOrphanSection(name: string, stamp: string, prose: string): string {
+  const preservedProse = prose.length > 0 ? `\n${prose}\n` : '';
+  return `### ${name}\n\n${RECONCILED_PREFIX} ${stamp} -->\n\n> ⚠ orphaned: this section describes a module that no longer exists.\n${preservedProse}`;
 }
 
 /**
@@ -617,11 +677,23 @@ function resolvePackagePurpose(
   node: PackageNode,
   prior: PriorPurpose | undefined,
 ): { purpose: string | undefined; seeded: boolean } {
-  const generatedPrior = prior?.generated === true;
-  const seeded = node.seededPurpose === true && (prior === undefined || generatedPrior);
+  const { seeded, useGeneratedPurpose } = generatedPurposeChoice(node.seededPurpose, prior);
   return {
-    purpose: seeded || generatedPrior ? node.purpose : prior?.text,
+    purpose: useGeneratedPurpose ? node.purpose : prior?.text,
     seeded,
+  };
+}
+
+/** Choose whether generator-owned purpose text may replace the prior section prose. */
+function generatedPurposeChoice(
+  hasSeededPurpose: boolean | undefined,
+  prior: PriorPurpose | undefined,
+): { seeded: boolean; useGeneratedPurpose: boolean } {
+  const generatedPrior = prior?.generated === true;
+  const seeded = hasSeededPurpose === true && (prior === undefined || generatedPrior);
+  return {
+    seeded,
+    useGeneratedPurpose: seeded || generatedPrior,
   };
 }
 

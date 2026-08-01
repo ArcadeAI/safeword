@@ -12,9 +12,27 @@ import { describe, expect, it } from 'vitest';
 import {
   commandWordIndex,
   commandWords,
+  parseShellCommandList,
   parseShellWords,
   splitShellSegments,
 } from '../../templates/hooks/lib/shell-segments.js';
+
+describe('parseShellCommandList', () => {
+  it('preserves shell control operators between command segments', () => {
+    expect(
+      parseShellCommandList('git add src/auth && git commit -m auth || echo failed; git status'),
+    ).toEqual([
+      { command: 'git add src/auth', operatorAfter: '&&' },
+      { command: 'git commit -m auth', operatorAfter: '||' },
+      { command: 'echo failed', operatorAfter: ';' },
+      { command: 'git status' },
+    ]);
+    expect(parseShellCommandList('printf x |& git add --pathspec-from-file=-')).toEqual([
+      { command: 'printf x', operatorAfter: '|&' },
+      { command: 'git add --pathspec-from-file=-' },
+    ]);
+  });
+});
 
 describe('splitShellSegments', () => {
   it('Scenario: `;`, newline, `&&`, `||`, and single `|` are segment boundaries', () => {

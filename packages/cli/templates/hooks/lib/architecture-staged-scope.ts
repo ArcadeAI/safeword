@@ -1,11 +1,12 @@
 // Safeword: scope the commit-time `architecture --stage` auto-fix to commits that
-// actually move the architecture shape (#425). The shape fingerprint excludes
-// versions and tracks module names, dependency *names*, boundary config, and
-// schema files — so a routine commit (a version bump, a docs edit) must NOT get a
-// regenerated architecture.generated.md injected into it. This gate mirrors those
-// inputs and is biased toward NOT regenerating: a false skip only leaves the doc
-// transiently stale (CI `architecture --check` catches it), whereas a false
-// trigger reintroduces the leak.
+// actually move the generated architecture state (#425). That state excludes
+// versions and tracks module names, normalized package descriptions, dependency
+// *names*, boundary config, and schema files — so a routine commit (a version
+// bump, a docs edit) must NOT get a regenerated architecture.generated.md
+// injected into it. This gate mirrors those inputs and is biased toward NOT
+// regenerating: a false skip only leaves the doc transiently stale (CI
+// `architecture --check` catches it), whereas a false trigger reintroduces the
+// leak.
 
 import { execFileSync } from 'node:child_process';
 
@@ -29,11 +30,23 @@ const STRUCTURAL_BASENAMES = new Set([
   'Cargo.toml',
 ]);
 
-function runGit(cwd: string, args: string[]): string {
+export interface ArchitectureScopeGitContext {
+  gitDirectory?: string;
+  indexPath?: string;
+  worktreeRoot?: string;
+}
+
+function runGit(cwd: string, args: string[], context?: ArchitectureScopeGitContext): string {
   try {
     return execFileSync('git', args, {
       cwd,
       encoding: 'utf8',
+      env: {
+        ...process.env,
+        ...(context?.gitDirectory === undefined ? {} : { GIT_DIR: context.gitDirectory }),
+        ...(context?.indexPath === undefined ? {} : { GIT_INDEX_FILE: context.indexPath }),
+        ...(context?.worktreeRoot === undefined ? {} : { GIT_WORK_TREE: context.worktreeRoot }),
+      },
       stdio: ['ignore', 'pipe', 'ignore'],
     });
   } catch {
@@ -42,8 +55,8 @@ function runGit(cwd: string, args: string[]): string {
   }
 }
 
-export function stagedFiles(cwd: string): string[] {
-  return runGit(cwd, ['diff', '--cached', '--name-only'])
+export function stagedFiles(cwd: string, context?: ArchitectureScopeGitContext): string[] {
+  return runGit(cwd, ['diff', '--cached', '--name-only'], context)
     .split('\n')
     .map(line => line.trim())
     .filter(line => line.length > 0);
@@ -60,9 +73,14 @@ function isStructuralPath(file: string): boolean {
   return file.endsWith('.sql') || file.endsWith('.prisma');
 }
 
-function readManifest(cwd: string, ref: string, file: string): Record<string, unknown> {
+function readManifest(
+  cwd: string,
+  ref: string,
+  file: string,
+  context?: ArchitectureScopeGitContext,
+): Record<string, unknown> {
   // ref '' → the staged (index) blob via `git show :file`.
-  const raw = runGit(cwd, ['show', ref === '' ? `:${file}` : `${ref}:${file}`]);
+  const raw = runGit(cwd, ['show', ref === '' ? `:${file}` : `${ref}:${file}`], context);
   if (raw === '') return {};
   try {
     const parsed = JSON.parse(raw) as unknown;
@@ -99,30 +117,47 @@ function workspacePatterns(manifest: Record<string, unknown>): string[] {
     .toSorted();
 }
 
+/** A usable package description, normalized exactly like the architecture purpose line. */
+function packageDescription(manifest: Record<string, unknown>): string | undefined {
+  const description = manifest.description;
+  return typeof description === 'string' && description.trim().length > 0
+    ? description.replaceAll(/\s+/g, ' ').trim()
+    : undefined;
+}
+
 /** The architecture-relevant inputs a package.json contributes (NOT name/version). */
 function manifestArchInputs(manifest: Record<string, unknown>): string {
   return JSON.stringify({
+    description: packageDescription(manifest),
     deps: dependencyNames(manifest),
     workspaces: workspacePatterns(manifest),
   });
 }
 
-function packageJsonArchInputsChanged(cwd: string, file: string): boolean {
+function packageJsonArchInputsChanged(
+  cwd: string,
+  file: string,
+  context?: ArchitectureScopeGitContext,
+): boolean {
   return (
-    manifestArchInputs(readManifest(cwd, 'HEAD', file)) !==
-    manifestArchInputs(readManifest(cwd, '', file))
+    manifestArchInputs(readManifest(cwd, 'HEAD', file, context)) !==
+    manifestArchInputs(readManifest(cwd, '', file, context))
   );
 }
 
 /**
  * Whether the staged change affects the architecture shape. A `package.json` is
- * relevant only when its dependency names or workspace globs changed — a pure
- * version bump leaves the fingerprint untouched and so must not trigger a regen.
+ * relevant only when its normalized description, dependency names, or workspace
+ * globs changed — a pure version bump leaves the generated document untouched
+ * and so must not trigger a regen.
  */
-export function stagedChangeAffectsArchitecture(cwd: string): boolean {
-  for (const file of stagedFiles(cwd)) {
+export function stagedChangeAffectsArchitecture(
+  cwd: string,
+  context?: ArchitectureScopeGitContext,
+): boolean {
+  for (const file of stagedFiles(cwd, context)) {
     if (isStructuralPath(file)) return true;
-    if (basename(file) === 'package.json' && packageJsonArchInputsChanged(cwd, file)) {
+    if (basename(file) === 'package.json' && packageJsonArchInputsChanged(cwd, file, context)) {
       return true;
     }
   }

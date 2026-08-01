@@ -141,6 +141,10 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     commandOptions: [
       { flags: '--check', description: 'Report drift without writing' },
       { flags: '--stage', description: 'Stage regenerated architecture documents' },
+      {
+        flags: '--staged',
+        description: 'Regenerate from the staged tree without staging documents',
+      },
     ],
   }),
   command('project sync-learnings', 'Refresh the project learning index', 'mutate'),

@@ -76,6 +76,60 @@ describe('architecture staged-scope gate (#425)', () => {
     expect(stagedChangeAffectsArchitecture(directory)).toBe(true);
   });
 
+  it('triggers when a package purpose description changes', () => {
+    write(
+      'package.json',
+      JSON.stringify(
+        { name: 'fixture', version: '1.0.0', description: 'Runs background jobs.' },
+        undefined,
+        2,
+      ),
+    );
+    commitAll('add package purpose');
+    write(
+      'package.json',
+      JSON.stringify(
+        {
+          name: 'fixture',
+          version: '1.0.0',
+          description: 'Runs scheduled background jobs.',
+        },
+        undefined,
+        2,
+      ),
+    );
+    git('add', '--', 'package.json');
+
+    expect(stagedChangeAffectsArchitecture(directory)).toBe(true);
+  });
+
+  it('does not trigger when only package description whitespace changes', () => {
+    write(
+      'package.json',
+      JSON.stringify(
+        { name: 'fixture', version: '1.0.0', description: 'Runs background jobs.' },
+        undefined,
+        2,
+      ),
+    );
+    commitAll('add package purpose');
+    write(
+      'package.json',
+      JSON.stringify(
+        {
+          name: 'fixture',
+          version: '1.0.0',
+          description: '  Runs   background\njobs.  ',
+        },
+        undefined,
+        2,
+      ),
+    );
+    git('add', '--', 'package.json');
+
+    expect(stagedChangeAffectsArchitecture(directory)).toBe(false);
+  });
+
   it('triggers when a src file is staged', () => {
     write('src/billing/index.ts', 'export const billing = true;\n');
     git('add', '--', 'src/billing/index.ts');

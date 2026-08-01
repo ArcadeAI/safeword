@@ -47,7 +47,9 @@ function heal(world: ProseWorld): void {
   const result = spawnSync('bun', [CLI_PATH, 'architecture'], {
     cwd: dir(world),
     encoding: 'utf8',
-    timeout: 30_000,
+    // This scenario performs repeated CLI heals and exceeded 30s once under
+    // Node 24 CI contention; keep per-process headroom without widening peers.
+    timeout: 60_000,
   });
   world.stdout = `${result.stdout ?? ''}${result.stderr ?? ''}`;
   assert.equal(result.status, 0, `architecture exited ${result.status}: ${world.stdout}`);
