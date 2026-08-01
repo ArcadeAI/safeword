@@ -2,7 +2,7 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 5916/5921 tests pass (5 skipped)
+**Test Suite:** ✓ 5937/5942 tests pass (5 skipped)
 **Gherkin:** ✅ Acceptance lane passes (671 scenarios passed, 3 skipped; 21984 steps passed, 4 skipped)
 **Build:** ✅ Success (CLI package build, publint, and website production build)
 **Lint:** ✅ Clean
@@ -19,7 +19,7 @@ orphan warning for `codex-plugin/hooks.ts`), Knip found no dead code, all 200
 template pairs and 8 contracts are in sync, publint passed, and the production
 dependency audit found no vulnerabilities.
 
-The refreshed verification reran the complete 398-file Vitest suite, the
+The refreshed verification reran the complete 401-file Vitest suite, the
 674-scenario acceptance lane, 27 release tests, CLI package build, website
 typecheck/build, formatting, and diff hygiene after the final review fixes.
 
@@ -40,7 +40,7 @@ typecheck/build, formatting, and diff hygiene after the final review fixes.
 - The copyable workflow now uses Node 24.18.0 LTS, above the Node 24.17.0
   security floor that fixed two High and several Medium vulnerabilities; a
   release test prevents regression below that floor.
-- The generated ticket index now exactly represents all 470 canonical tickets,
+- The generated ticket index now exactly represents all 472 canonical tickets,
   including the four review tickets added here and six reconciled status changes.
 - Authentication documentation now distinguishes Safeword's preflight order
   from GitHub CLI's live `GH_TOKEN` → `GITHUB_TOKEN` → stored-auth precedence.
@@ -51,3 +51,6 @@ typecheck/build, formatting, and diff hygiene after the final review fixes.
 - The main catch-up initially bypassed GitHub CLI credential discovery in the
   new public `tracker sync` handler. A Commander-boundary regression test failed
   without `GITHUB_TOKEN`, then passed after the handler reused `resolveGhCliToken`.
+- The latest main catch-up adds actionable Linear portable-sync guidance while
+  retaining the GitHub keychain path, immutable workflow actions, and patched
+  Node version. The new shared-lock runner also reports honest wait provenance.

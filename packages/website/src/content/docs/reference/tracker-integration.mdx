@@ -30,31 +30,46 @@ safeword connect github --repo owner/name
 safeword connect linear --team ENG
 ```
 
-`connect` writes the `ticketBridge` block to `.safeword/config.json`, verifies auth, and seeds an
-empty sidecar. Credentials are read from your OS keychain or an environment variable — **never**
-from config and never written to logs.
+`connect` writes the `ticketBridge` block to `.safeword/config.json`. GitHub's live connection also
+verifies auth and seeds an empty sidecar. For Linear, the command records the provider/team identity
+before attempting live verification. Because live Linear verification is not wired yet, it then
+reports `Not connected` and exits 1; the printed Arcade OAuth handoff does not enable live sync in
+this release. The saved config is sufficient for the portable path, and `--plan` can start without a
+sidecar. Credentials stay outside config and are never written to logs.
 
-:::note[GitHub today; Linear projection is pending]
-**GitHub** is fully wired end-to-end. **Linear** identity works — `connect linear` and adopting an
-existing issue with `--issue` need no network — but `sync-tracker` to Linear is **not yet wired**
-(it errors with an actionable message, tracked by ticket 2TK5AD). Use GitHub for the live
-status mirror today.
+:::note[GitHub live sync; Linear portable sync]
+**GitHub** supports both the one-command live sync and the portable transport. **Linear** supports
+tracker identity (`connect linear` and adopting an existing issue with `--issue`) plus sync through
+`--plan` / `--apply-results`. Only the built-in live transport behind plain `sync-tracker` is
+GitHub-only; use the portable transport with a Linear-capable executor.
 :::
 
-Once connected, `safeword ticket new <slug>` mints the tracker issue first and keys the local
-ticket to it; `--issue <key>` adopts an existing issue instead of creating one.
+With GitHub's live transport, `safeword ticket new <slug>` mints the tracker issue first and keys
+the local ticket to it. For either provider, `--issue <key>` adopts an existing issue instead of
+creating one. For non-epic Linear tickets, live minting is not wired: `ticket new` without `--issue`
+fails, while `--issue ENG-45` adopts that existing issue and later plans an `update`. A local ticket
+with no recorded tracker ref — for example, one that predates the connect — plans a `create`.
 
 ## Sync status to the tracker
+
+Plain live sync fails loudly (with a non-zero exit) when it cannot proceed. For GitHub, that means
+a missing credential turns CI red instead of silently allowing tracker state to drift. For Linear,
+plain live sync points directly to the supported portable path instead of asking for a credential
+that the unwired live adapter cannot use. In a non-interactive GitHub run authenticated by an
+`ARCADE_USER_ID` (a user identity, not a service account), Safeword also warns that a lapsed grant
+would otherwise fail silently.
+
+### Live transport (GitHub)
 
 ```bash
 safeword sync-tracker
 ```
 
-This walks your active tickets and creates/updates their issues (and closes the issue when a
-ticket is terminal). It is safe to run repeatedly. Run it whenever you want the tracker refreshed —
-or automate it in CI so nobody has to remember.
+This GitHub path walks your active tickets and creates/updates their issues (and closes the issue
+when a ticket is terminal). It is safe to run repeatedly. Run it whenever you want the tracker
+refreshed — or automate it in CI so nobody has to remember.
 
-### Automate in CI (GitHub Actions)
+#### Automate in CI (GitHub Actions)
 
 Safeword does not install a workflow for you — copy this into
 `.github/workflows/sync-tracker.yml`:
@@ -95,15 +110,15 @@ identity, not a service account), it also warns that a lapsed grant would otherw
 
 ### Portable transport (`--plan` / `--apply-results`)
 
-Plain `sync-tracker` reaches GitHub through the `gh` CLI. Where `gh` isn't installed — an agent
-session, a token-only runner — you can drive the sync in two offline steps and let **whatever has
-GitHub access** do the actual calls:
+The portable transport works with both GitHub and Linear. It is the current sync path for Linear,
+and it also lets GitHub users sync where the `gh` CLI is unavailable. Safeword computes and records
+the sync offline; an executor with access to the configured tracker performs the network calls:
 
 ```bash
 # 1. Compute the plan (no network, no credential) — JSON on stdout.
 safeword sync-tracker --plan > plan.json
 
-# 2. Your executor (an agent via its GitHub tools, a token+API script, …) reads plan.json,
+# 2. Your executor (an agent via tracker tools, a token+API script, …) reads plan.json,
 #    creates/updates/closes the issues, and writes back a results file:
 #    { "version": 1, "results": [{ "ticketId": "…", "number": "549", "url": "…/549" }] }
 
@@ -116,11 +131,70 @@ issue's number and back-link, and is idempotent — re-applying the same file ch
 flags are mutually exclusive, and a malformed results file is rejected without touching the map.
 Running `sync-tracker` with neither flag is the usual `gh` path, unchanged.
 
+#### Linear example
+
+First record the Linear team identity:
+
+```bash
+safeword connect linear --team ENG
+```
+
+The command writes the Linear provider and team to `.safeword/config.json`, then reports
+`Not connected` and exits 1 because live Linear verification still needs the Arcade integration.
+
+That exit is expected for the portable path; the required config has already landed. The printed
+Arcade OAuth step does not enable live Linear sync in this release. Run `connect linear` once
+outside `set -e` automation, confirm the saved provider and team, then run only the planning step in
+automation.
+
+Now generate the provider-neutral plan; this does not construct a Linear client:
+
+```bash
+safeword sync-tracker --plan > linear-plan.json
+```
+
+Have an executor with Linear access apply each `create`, `update`, or `close` intent in
+`linear-plan.json`. It then writes a result for each intent, preserving the plan's `ticketId`. For
+example, if local ticket `AB12CD` became Linear issue `ENG-45`:
+
+```json
+{
+  "version": 1,
+  "results": [
+    {
+      "ticketId": "AB12CD",
+      "number": "ENG-45",
+      "url": "https://linear.app/acme/issue/ENG-45/login-bug"
+    }
+  ]
+}
+```
+
+Save that document as `linear-results.json`, then record the Linear reference in the local map:
+
+```bash
+safeword sync-tracker --apply-results linear-results.json
+```
+
+Despite the field name `number`, Linear issue keys such as `ENG-45` are valid strings.
+`--apply-results` rejects a blank issue key or a URL that is not HTTP(S) for every provider; it
+also rejects results for tickets outside the local corpus. GitHub results receive additional
+numeric issue-number and URL-tail checks. Validation finishes before the map is changed, so one
+invalid result leaves the map untouched.
+
 ## Egress
 
-The projected issue body defaults to **minimal** (title, status, labels, back-link to the
-canonical ticket) — never your spec or work-log. `body: full` is opt-in per project, and projecting
-`full` to a **public** GitHub repo emits a loud egress warning.
+The projected issue body defaults to **minimal** (title, status, labels, and a pointer to the
+canonical ticket) — never your spec or work-log. For GitHub, that pointer is a clickable repository
+URL; in a Linear plan it is the ticket's relative path inside the repository. `body: full` is opt-in
+per project, and projecting `full` to a **public** GitHub repo emits a loud egress warning.
+
+That automatic public-target warning is GitHub-only. Linear has
+[private teams](https://linear.app/docs/private-teams), but its access boundary is workspace/team
+membership rather than GitHub's internet-public repository visibility, and Safeword does not
+inspect a Linear team's access settings. Before projecting `body: full` to Linear, verify that the
+configured team has the intended membership. Also protect the generated plan: under `body: full`,
+the plan file itself contains the full local ticket bodies.
 
 ## Configuration
 

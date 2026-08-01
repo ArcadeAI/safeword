@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (470)
+## Tickets (472)
 
 ### 001
 
@@ -947,6 +947,10 @@
 - **Pre-commit auto-resync of template/install pairs after formatter pass (168)** (in_progress, epic: —)
   Make the lint-staged formatter step transparent to dogfood parity — if it touches a template, the paired install copy automatically catches up before commit lands.
   → `.project/tickets/168-pre-commit-template-install-resync`
+- **Keep BDD evidence honest for user-visible scenarios (1698)** (done, epic: —)
+  Prevent implementation-level tests from being reported as proof of a
+  external issue: https://github.com/ArcadeAI/safeword/issues/1698
+  → `.project/tickets/1698-keep-bdd-evidence-honest`
 - **checkVerifyArtifact: parse PR-scope status, stop substring-matching negated mentions (1F08DD)** (done, epic: —)
   A ✅ PR Scope line that merely mentions 'piggybacked changes' in prose must pass; only a ❌ status or a positive failure claim fails.
   → `.project/tickets/1F08DD-verify-scope-status-parsing`
@@ -1198,6 +1202,9 @@
   Prevent Cursor `/audit` from silently missing canonical audit skill updates.
   external issue: https://github.com/ArcadeAI/safeword/issues/597
   → `.project/tickets/C7PXFR-prevent-cursor-audit-drift`
+- **Make test-lock waits understandable for maintainers (CCYD5S)** (done, epic: —)
+  Show who owns the package-test lock and how long a waiting test run has been queued.
+  → `.project/tickets/CCYD5S-explain-test-lock-waits`
 - **Let maintainers commit dogfood hook changes without package-link setup (CQ4CD3)** (done, epic: —)
   Make the normal protected commit path work in Safeword source worktrees when staged files trigger `.safeword` ESLint.
   external issue: https://github.com/ArcadeAI/safeword/issues/470

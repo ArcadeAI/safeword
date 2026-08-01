@@ -6,7 +6,7 @@ phase: done
 status: done
 subtype: bug-investigated
 created: 2026-07-31T01:26:54.405Z
-last_modified: 2026-08-01T15:47:09.000Z
+last_modified: 2026-08-01T16:11:37.000Z
 ---
 
 # Ship a clean release for safeword users
@@ -93,6 +93,8 @@ closing tracking items whose acceptance criteria are not demonstrably complete.
 - 2026-08-01T07:33:33.000Z Complete: The new release gate failed on Node 24.16.0 and passes on 24.18.0. All 27 release tests, lint, typecheck, website typecheck/build, packaging, parity, formatting, dependency audit, and independent re-review are green with no critical issues remaining.
 - 2026-08-01T15:40:00.000Z Reopened: Merged the latest `main` after PR #1639 landed its typed public CLI protocol and continuous Codex migration work. Conflict review found that the new public `tracker sync` handler bypassed the GitHub CLI credential resolver added by this ticket.
 - 2026-08-01T15:47:09.000Z Complete: Routed GitHub CLI authentication through the new public tracker handler with a RED/GREEN Commander-boundary regression test, reconciled the exact 470-ticket index, and passed 5,916 tests, 671 acceptance scenarios, all 27 release tests, lint, typecheck, formatting, and parity.
+- 2026-08-01T15:58:00.000Z Reopened: Main advanced again with honest BDD evidence/lock-wait behavior and Linear portable-sync guidance. Reconciled the tracker guide so Linear's supported path composes with GitHub keychain authentication, immutable Actions references, and the patched Node workflow.
+- 2026-08-01T16:11:37.000Z Complete: The combined tracker, public-CLI, Linear, and lock-runner suite passed 50 tests; the full suite passed 5,937 tests, all 27 release tests, lint, typecheck, formatting, parity, and website validation. The exact index now contains 472 canonical tickets.
 
 ## Root Cause
 

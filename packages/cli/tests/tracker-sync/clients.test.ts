@@ -7,7 +7,7 @@ import { execFileSync } from 'node:child_process';
 import { buildWriterRegistry, resolveRepoVisibility } from '../../src/tracker-sync/clients.js';
 
 /**
- * resolveRepoVisibility (JS5K5G AC10) — locks the public/private collapse and the
+ * Client adapter coverage (JS5K5G) — locks the public/private collapse and the
  * catch→undefined fail-safe the egress warning depends on. child_process is
  * mocked so no real `gh` is invoked.
  */
@@ -101,6 +101,33 @@ describe('GitHub graph projection client', () => {
       'gh',
       ['issue', 'edit', '42', '--parent', '100', '--repo', 'acme/repo'],
       { encoding: 'utf8' },
+    );
+  });
+});
+
+describe('Linear live projection client', () => {
+  const payload = {
+    title: 'Wire it up',
+    body: 'banner',
+    issueType: 'task',
+    labels: ['type:task'],
+    state: 'open' as const,
+  };
+  const ref = { provider: 'linear' as const, id: 'ENG-45' };
+
+  it.each([
+    ['create', () => buildWriterRegistry('linear', undefined).linear.create(payload)],
+    ['update', () => buildWriterRegistry('linear', undefined).linear.update(ref, payload)],
+    [
+      'projectGraph',
+      () =>
+        buildWriterRegistry('linear', undefined).linear.projectGraph(ref, payload, {
+          blockedBy: [],
+        }),
+    ],
+  ])('points %s callers to the supported adoption and portable-sync paths', async (_name, call) => {
+    await expect(call()).rejects.toThrow(
+      'Adopt an existing Linear issue with `safeword ticket new <slug> --issue <key>`, or sync existing local tickets through `safeword sync-tracker --plan` and `--apply-results`.',
     );
   });
 });
