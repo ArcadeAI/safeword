@@ -345,6 +345,52 @@ describe('runRetro', () => {
     }
   });
 
+  it('retains a spool-persistence error when delivery fails afterward', async () => {
+    const projectDirectory = mkdtempSync(
+      nodePath.join(tmpdir(), 'retro-persistence-delivery-failure-'),
+    );
+    const finding = rawFinding({ title: 'Corrupt before delivery' });
+    const validRelay = {
+      credential: 'swc_test',
+      fetch: () => Promise.reject(new Error('offline')),
+      installationId: 42,
+      readiness: { enabled: true },
+      relayUrl: 'https://relay.invalid',
+      repository: 'arcadeai/safeword',
+    };
+    try {
+      await runRetro(
+        { transcript: '/tmp/session.jsonl' },
+        dependencies({
+          extract: () => Promise.resolve([finding]),
+          projectDirectory,
+          relay: validRelay,
+        }),
+      );
+      const [persisted] = await listRelayRequests(projectDirectory);
+      if (persisted === undefined) throw new Error('missing persisted request');
+      writeFileSync(activeRelayPath(projectDirectory, persisted.requestId), '{"requestId":');
+
+      const outcome = await runRetro(
+        { transcript: '/tmp/session.jsonl' },
+        dependencies({
+          extract: () => Promise.resolve([finding]),
+          projectDirectory,
+          relay: { ...validRelay, relayUrl: 'not a URL' },
+        }),
+      );
+
+      expect(outcome).toMatchObject({
+        agentFilingNeeded: true,
+        errorMessage: expect.stringContaining('could not durably persist 1 finding'),
+        ok: false,
+      });
+      expect(outcome.errorMessage).toContain('retro relay delivery failed: invalid relay URL');
+    } finally {
+      rmSync(projectDirectory, { recursive: true, force: true });
+    }
+  });
+
   it('continues filing healthy findings when another persisted source is corrupt', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-corrupt-source-'));
     const first = rawFinding({ title: 'Poisoned finding' });

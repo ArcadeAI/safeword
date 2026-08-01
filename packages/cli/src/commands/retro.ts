@@ -202,10 +202,12 @@ async function runRelayRetro(
       relayUrl: relay.relayUrl,
     });
   } catch (error) {
+    const persistenceError =
+      spoolFailed > 0 ? `${relayPersistenceErrorMessage(persistence, spoolFailed)}; ` : '';
     return {
       agentFilingNeeded: true,
       drops,
-      errorMessage: `retro relay delivery failed: ${error instanceof Error ? error.message : 'unknown error'}`,
+      errorMessage: `${persistenceError}retro relay delivery failed: ${relayDeliveryErrorMessage(error)}`,
       ok: false,
       result: emptyTriageResult(),
     };
@@ -241,6 +243,10 @@ async function runRelayRetro(
     relay: relayOutcome,
     result: emptyTriageResult(),
   };
+}
+
+function relayDeliveryErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'unknown error';
 }
 
 function relayPersistenceErrorMessage(
