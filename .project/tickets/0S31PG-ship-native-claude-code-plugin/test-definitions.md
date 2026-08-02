@@ -32,6 +32,12 @@ Boundary-contract correction: RED bdd2101c3 captured Claude 2.1.170's real `sour
 - [x] GREEN 994eefd9f
 - [x] REFACTOR skip: exact source comparison is isolated from profile mutation
 
+### Scenario: Install rejects current metadata backed by a legacy cached payload
+
+- [x] RED 446c716fe
+- [x] GREEN 0416912bc
+- [x] REFACTOR skip: installed identity, inventory, required assets, and hashes are checked by focused validators
+
 ### Scenario: Claude subprocess failure reports partial profile effects without project mutation
 
 - [x] RED cf49c092f
