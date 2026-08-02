@@ -31,6 +31,20 @@ describe('closeout delivery evidence (93C14D NTB1.R1)', () => {
   });
 });
 
+describe('closeout merge authority (93C14D TBU1.R1)', () => {
+  it('defaults to no authority and never infers or escalates administrative authority', () => {
+    const skill = canonicalSkill();
+
+    expect(skill).toContain('Invocation alone grants no merge authority');
+    expect(skill).toContain('current user request');
+    expect(skill).toContain('normal merge');
+    expect(skill).toContain('administrative merge');
+    expect(skill).toContain('never escalate');
+    expect(skill).toContain('consumed');
+    expect(skill).toContain('historical');
+  });
+});
+
 describe('closeout host entry points (93C14D TBU1.R4)', () => {
   it('derives Claude, Cursor, and Codex entry points from production catalogues', () => {
     const cursor = CURSOR_COMMAND_WRAPPERS.find(wrapper => wrapper.name === 'closeout');
