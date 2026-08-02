@@ -32,6 +32,12 @@ describe('checkPrincipleTrace', () => {
     expect(checkPrincipleTrace(project(), PLAN)).toEqual([]);
   });
 
+  it('accepts a proof fragment only when the Markdown heading exists', () => {
+    const plan = PLAN.replace('verify.md', 'verify.md#evidence');
+
+    expect(checkPrincipleTrace(project(), plan)).toEqual([]);
+  });
+
   it.each([
     ['Unknown principle', 'Recovery stays in context', 'verify.md', '', 'missing source principle'],
     ['Delight the user', '', 'verify.md', '', 'incomplete principle mapping'],
@@ -51,6 +57,27 @@ describe('checkPrincipleTrace', () => {
 
     expect(checkPrincipleTrace(project(), plan)).toContain(
       `[E010] Broken principle trace: ${detail}: ${principle}`,
+    );
+  });
+
+  it('rejects a proof fragment whose Markdown heading does not exist', () => {
+    const plan = PLAN.replace('verify.md', 'verify.md#missing-heading');
+
+    expect(checkPrincipleTrace(project(), plan)).toContain(
+      '[E010] Broken principle trace: dead evidence reference: Delight the user',
+    );
+  });
+
+  it('does not treat supporting sections as source principles', () => {
+    const directory = project();
+    writeFileSync(
+      nodePath.join(directory, '.project', 'principles.md'),
+      '## Delight the user\n\n### Evidence\n\n## Further reading\n',
+    );
+    const plan = PLAN.replace('Delight the user', 'Further reading');
+
+    expect(checkPrincipleTrace(directory, plan)).toContain(
+      '[E010] Broken principle trace: missing source principle: Further reading',
     );
   });
 
