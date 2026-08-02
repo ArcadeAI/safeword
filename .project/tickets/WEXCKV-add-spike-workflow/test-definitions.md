@@ -36,7 +36,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 22a67160e
 - [x] GREEN ee7fb6636
-- [ ] REFACTOR
+- [x] REFACTOR skip: one report shape serves every terminal outcome
 
 ### Scenario: Spike code never becomes production implementation
 
