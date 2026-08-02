@@ -10,6 +10,7 @@ export interface GeneratedClaudePluginAsset {
 }
 
 interface ClaudePluginCatalogueInput {
+  readonly sourceRoot: string;
   readonly templatesRoot: string;
   readonly version: string;
 }
@@ -96,7 +97,7 @@ function pluginIdentity(version: string, hookManifest: string): string {
 export function generateClaudePluginAssets(
   input: ClaudePluginCatalogueInput,
 ): GeneratedClaudePluginAsset[] {
-  const { templatesRoot, version } = input;
+  const { sourceRoot, templatesRoot, version } = input;
   const hookManifest = pluginHookManifest();
   const assets = [
     ...directoryAssets(nodePath.join(templatesRoot, 'skills'), 'skills', adaptWorkflowReference),
@@ -109,6 +110,7 @@ export function generateClaudePluginAssets(
       'resources/templates',
       stripTrailingWhitespace,
     ),
+    ...directoryAssets(nodePath.join(sourceRoot, 'claude-plugin', 'runtime'), 'runtime'),
     { relativePath: nodePath.join('hooks', 'hooks.json'), content: hookManifest },
     { relativePath: 'identity.json', content: pluginIdentity(version, hookManifest) },
   ];

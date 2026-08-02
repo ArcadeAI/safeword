@@ -1,6 +1,15 @@
 import { strict as assert } from 'node:assert';
 import { spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -93,6 +102,7 @@ Given(
     const data = nodePath.join(root, 'data');
     const project = nodePath.join(root, 'project');
     cpSync(PLUGIN_ROOT, plugin, { recursive: true });
+    mkdirSync(project, { recursive: true });
     this.cacheFixture = { root, plugin, data, project };
   },
 );
@@ -127,7 +137,7 @@ Then(
     const proof = JSON.parse(
       readFileSync(nodePath.join(this.cacheFixture.data, 'execution-proof-v1.json'), 'utf8'),
     ) as { canonical_plugin_root?: string };
-    assert.equal(proof.canonical_plugin_root, this.cacheFixture.plugin);
+    assert.equal(proof.canonical_plugin_root, realpathSync(this.cacheFixture.plugin));
   },
 );
 

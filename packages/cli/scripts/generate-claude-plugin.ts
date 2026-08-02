@@ -7,6 +7,7 @@ const packageRoot = nodePath.resolve(import.meta.dirname, '..');
 const repoRoot = nodePath.resolve(packageRoot, '../..');
 const assets = writeClaudePluginCatalogue(
   {
+    sourceRoot: nodePath.join(packageRoot, 'src'),
     templatesRoot: nodePath.join(packageRoot, 'templates'),
     version: packageJson.version,
   },
