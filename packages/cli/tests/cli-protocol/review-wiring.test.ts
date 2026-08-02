@@ -22,7 +22,14 @@ fi
 payload=$(cat)
 printf '%s\n' '${agent}' >> "$SAFEWORD_REVIEW_LOG"
 dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\1/p')
-printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"approve","summary":"reviewed","findings":[]}\n' "$dispatch_id"
+identity=$(printenv SAFEWORD_FAKE_IDENTITY || true)
+if [ "$identity" = "missing" ]; then
+  printf '{"schema_version":1,"dispatch_id":"%s","verdict":"approve","summary":"reviewed","findings":[]}\n' "$dispatch_id"
+elif [ "$identity" = "contradictory" ]; then
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"other","verdict":"approve","summary":"reviewed","findings":[]}\n' "$dispatch_id"
+else
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"approve","summary":"reviewed","findings":[]}\n' "$dispatch_id"
+fi
 `,
     { mode: 0o755 },
   );
@@ -160,4 +167,47 @@ describe('cross-agent review public-command wiring', () => {
       },
     });
   });
+
+  it.each([
+    { identity: 'missing', code: 'REVIEWER_PROVENANCE_MISSING' },
+    { identity: 'contradictory', code: 'REVIEWER_PROVENANCE_CONTRADICTORY' },
+  ])(
+    'rejects $identity reviewer provenance without passing evidence',
+    async ({ identity, code }) => {
+      const directory = createTemporaryDirectory();
+      const log = nodePath.join(directory, 'review.log');
+      writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+      const bin = installFakeReviewer(directory, 'codex', log);
+
+      const result = await runCli(
+        [
+          'review',
+          'run',
+          'quality-review',
+          'review-input.md',
+          '--json',
+          '--no-input',
+          '--cwd',
+          directory,
+        ],
+        {
+          cwd: directory,
+          env: {
+            PATH: `${bin}:${process.env.PATH ?? ''}`,
+            SAFEWORD_AGENT_RUNTIME: 'claude',
+            SAFEWORD_FAKE_IDENTITY: identity,
+            SAFEWORD_REVIEW_LOG: log,
+            SAFEWORD_NO_UPDATE_CHECK: '1',
+          },
+        },
+      );
+
+      expect(result.exitCode).toBe(1);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        state: 'failed',
+        errors: [{ code }],
+        effects: { files: [] },
+      });
+    },
+  );
 });
