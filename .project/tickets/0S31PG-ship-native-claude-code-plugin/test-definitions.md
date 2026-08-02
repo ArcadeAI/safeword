@@ -201,7 +201,7 @@ Each scenario is tracked through RED, GREEN, and REFACTOR during implementation.
 ### Scenario: The production generation command produces the complete plugin from canonical sources
 
 - [x] RED cd1d3272f
-- [ ] GREEN
+- [x] GREEN ad8b306e0
 - [ ] REFACTOR
 
 ### Scenario: Generation fails on a missing transitive runtime dependency
