@@ -60,6 +60,24 @@ describe('resolveReviewKnowledgeSources', () => {
     );
   });
 
+  it('treats a configured directory as an unavailable review source', () => {
+    const directory = project();
+    mkdirSync(nodePath.join(directory, 'knowledge'));
+    writeFileSync(
+      nodePath.join(directory, '.safeword', 'config.json'),
+      JSON.stringify({ paths: { principles: 'knowledge' } }),
+    );
+
+    const unavailableSource = resolveReviewKnowledgeSources(directory)[0];
+    expect(unavailableSource).toMatchObject({
+      key: 'principles',
+      configured: true,
+      path: nodePath.join(directory, 'knowledge'),
+      exists: false,
+    });
+    expect(unavailableSource?.content).toBeNull();
+  });
+
   it('exposes the current sources as JSON through the installed review wrapper', () => {
     const directory = project();
     writeFileSync(nodePath.join(directory, '.project', 'principles.md'), '# Current values\n');

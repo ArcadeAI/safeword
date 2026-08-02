@@ -4,7 +4,7 @@
  * Tests for `safeword check` command.
  */
 
-import { rmSync, unlinkSync } from 'node:fs';
+import { mkdirSync, rmSync, unlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -338,6 +338,20 @@ describe('Test Suite 8: Health Check', () => {
   });
 
   describe('configurable persona path (ticket K7N2QM)', () => {
+    it.each(['personas', 'principles', 'surfaces', 'glossary'] as const)(
+      'reports a loud failure when configured %s path is a directory',
+      async key => {
+        await createConfiguredProject(temporaryDirectory);
+        mkdirSync(nodePath.join(temporaryDirectory, 'knowledge'));
+        setConfiguredPath(key, 'knowledge');
+
+        const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+        expect(result.exitCode).toBe(2);
+        expect(result.stdout).toContain(`${key}-path: knowledge: not a file`);
+      },
+    );
+
     it('R2.3: reports loud failure when configured path is missing', async () => {
       await createConfiguredProject(temporaryDirectory);
       setConfiguredPath('personas', 'docs/personas.md'); // file intentionally not created

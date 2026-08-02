@@ -106,7 +106,10 @@ const CONFIGURED_KNOWLEDGE_KEYS: readonly ConfiguredKnowledgeFileKey[] = [
 /** Factual configured-file health shared by user-authored project knowledge. */
 function findConfiguredKnowledgeIssues(cwd: string, key: ConfiguredKnowledgeFileKey): string[] {
   const override = readConfiguredPath(cwd, key);
-  if (override === undefined || exists(resolveConfiguredPath(cwd, key))) return [];
+  if (override === undefined) return [];
+  const configuredPath = resolveConfiguredPath(cwd, key);
+  if (isDirectory(configuredPath)) return [`${key}-path: ${override}: not a file`];
+  if (exists(configuredPath)) return [];
   return [`${key}-path: ${override}: file not found`];
 }
 
@@ -122,12 +125,12 @@ function findConfiguredKnowledgeAdvisories(cwd: string, key: ConfiguredKnowledge
 }
 
 function findPersonaIssues(cwd: string): string[] {
+  const configuredIssues = findConfiguredKnowledgeIssues(cwd, 'personas');
+  if (configuredIssues.length > 0) return configuredIssues;
   const filePath = resolveConfiguredPath(cwd, 'personas');
   const content = readFileSafe(filePath);
 
-  if (content === undefined) {
-    return findConfiguredKnowledgeIssues(cwd, 'personas');
-  }
+  if (content === undefined) return [];
 
   const errors = validatePersonas(parsePersonas(content));
   return errors.map(error => `personas.md:${error.line}: ${error.message}`);
@@ -160,12 +163,12 @@ function findNamespaceAdvisories(cwd: string): string[] {
  * YR6C49, mirrors K7N2QM).
  */
 function findGlossaryIssues(cwd: string): string[] {
+  const configuredIssues = findConfiguredKnowledgeIssues(cwd, 'glossary');
+  if (configuredIssues.length > 0) return configuredIssues;
   const filePath = resolveConfiguredPath(cwd, 'glossary');
   const content = readFileSafe(filePath);
 
-  if (content === undefined) {
-    return findConfiguredKnowledgeIssues(cwd, 'glossary');
-  }
+  if (content === undefined) return [];
 
   const errors = validateGlossary(parseGlossary(content));
   return errors.map(error => `glossary.md:${error.line}: ${error.message}`);

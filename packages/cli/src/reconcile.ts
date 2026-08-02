@@ -631,8 +631,8 @@ function planOwnedFilesActions(
 /**
  * True when the managed-file entry has a `configKey` AND a corresponding
  * `paths.<configKey>` override is set in `.safeword/config.json`. Used to
- * suppress install scaffolding and uninstall-full removal uniformly when
- * the user has redirected the read target (ticket K7N2QM).
+ * suppress install scaffolding when the user has redirected the read target
+ * (ticket K7N2QM). Authored knowledge is always preserved during uninstall.
  */
 function isConfigOverridden(definition: ManagedFileDefinition, cwd: string): boolean {
   if (!definition.configKey) return false;
