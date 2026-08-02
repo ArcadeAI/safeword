@@ -167,6 +167,7 @@ jobs:
             echo "::error::Generated Claude plugin drifted from canonical sources. Run 'bun run --cwd packages/cli generate:claude-plugin' and commit plugin/."
             exit 1
           }
+          bun run --cwd packages/cli check:claude-plugin
 
       - name: Lint
         run: bun run lint

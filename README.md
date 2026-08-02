@@ -25,7 +25,32 @@ bunx safeword@latest setup
 bunx safeword@latest doctor
 ```
 
-**3. Enable Codex, if your team uses it:**
+**3. Enable native agent plugins:**
+
+```bash
+# Claude Code 2.1.170+: installs the exact user-scoped release, then reloads it
+# in the current task without changing project files.
+bunx safeword@latest claude install
+# In Claude Code, run: /reload-plugins
+bunx safeword@latest claude status
+```
+
+Existing projects keep their working legacy Claude hooks until current plugin
+execution is proven. When status reports `cleanup-ready`, preview and explicitly
+confirm the exact project-only contraction:
+
+```bash
+bunx safeword@latest claude cleanup
+# Run the exact --yes --plan command returned by the preview.
+# If interrupted, status reports recovery-required:
+bunx safeword@latest claude recover
+```
+
+Cleanup never installs, enables, reloads, or changes plugin trust. It preserves
+unknown and third-party Claude content and refuses stale proof or concurrent
+edits.
+
+For Codex, if your team uses it:
 
 ```bash
 # Installs and verifies the profile-scoped plugin. It does not change this project.
@@ -56,8 +81,7 @@ recoverable backup; if status reports `recovery_required`, run
 - `.safeword/SAFEWORD.md` - Global patterns and workflows
 - `.safeword/guides/` - Testing methodology (BDD/TDD), code philosophy
 - `.safeword/hooks/` - Auto-linting, quality review hooks
-- `.claude/settings.json` - Hook configuration for Claude Code
-- `.claude/skills/` - Skills and slash-command workflows for Claude Code
+- Safe Word Claude plugin - User-scoped native workflows and hooks; install it with `safeword claude install`
 - Safe Word Codex plugin - Profile-scoped skills and hooks; install it with `safeword codex install`
 - `.cursor/hooks.json` - Hook configuration for Cursor
 - `.cursor/rules/` - Behavior rules for Cursor
@@ -71,7 +95,7 @@ recoverable backup; if status reports `recovery_required`, run
 
 **Stack-agnostic** — Safeword is a process layer, not a framework opinion. It works alongside any stack — Next, Elysia, Astro, Django, Gin, whatever you use. Your application code and runtime dependencies are never touched.
 
-**Your agent config stays yours** — Safeword-owned hooks load `.safeword/SAFEWORD.md` for Claude Code, Cursor, and Codex. Setup does not create or add imports to customer-owned `AGENTS.md` or `CLAUDE.md`; existing project instructions remain yours. Convergence only removes obsolete Safe Word import blocks left by older releases.
+**Your agent config stays yours** — Safeword-owned hooks load `.safeword/SAFEWORD.md` for Claude Code, Cursor, and Codex. Fresh setup delivers Claude workflows through the user-scoped native plugin and does not materialize legacy `.claude` hooks, skills, commands, or agents. Existing legacy projects keep that protection until verified plugin execution and explicit cleanup. Setup does not create or add imports to customer-owned `AGENTS.md` or `CLAUDE.md`; existing project instructions remain yours.
 
 **Dev-only tools** — Safeword installs ESLint, Prettier, supporting plugins, `jiti` for TypeScript config loading, plus the Gherkin acceptance lane (cucumber-js + tsx), as `devDependencies` — in every project. A pure Go/Python/Rust repo gets a minimal `private: true` package.json created to host them (the lane's step definitions are TypeScript and test your app from the outside). These are development tools — they never ship with your application or affect your runtime.
 
@@ -126,7 +150,7 @@ flowchart TD
 - **Verify** — the agent runs the relevant tests itself, never handing you something untested.
 - **Done** — hard-blocked until `/verify` writes `verify.md` to the ticket.
 
-The framework is **project-local** for Claude Code and Cursor: it writes to `.safeword/`, `.claude/`, and `.cursor/` in your repo. Codex uses the Safe Word plugin installed in each user's Codex profile; it receives no Codex-specific project-local configuration or workflow tree. Guides and learnings live in-repo and evolve as you work.
+Project state remains local in `.safeword/` and the configured namespace root. Claude Code and Codex load framework workflows from versioned user-profile plugins; Cursor keeps its project-local rules and hooks. Guides and learnings live in-repo and evolve as you work.
 
 ---
 
@@ -150,7 +174,7 @@ Key directories created in your project:
 - `.safeword/templates/` - Fillable document structures
 - `<namespace-root>/tickets/` - Tickets for complex/multi-step work (context anchors)
 - `.safeword/hooks/` - Automation scripts for Claude Code and Cursor
-- `.claude/skills/`, `.cursor/rules/` - Specialized agent capabilities
+- Safe Word Claude plugin, `.cursor/rules/` - Specialized agent capabilities
 - Safe Word Codex plugin - Profile-scoped workflow skills and hooks
 - `.cursor/commands/` - Slash commands for Cursor
 
