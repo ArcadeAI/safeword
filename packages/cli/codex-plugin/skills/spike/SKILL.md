@@ -37,6 +37,14 @@ If any field is missing, name the missing field and stop. Do not create a
 worktree, run a proof command, or spend the spike budget until the charter is
 complete.
 
+## Keep it question-sized
+
+- Default to one experiment, one worker, and the smallest kill-risk vertical
+  slice.
+- Permit parallel worktrees only for independent comparison variants using the
+  same charter and proof.
+- Reject feature-wide component work as production implementation, not a spike.
+
 ## Isolation
 
 Run experimental code on a dedicated branch and worktree, separate from
