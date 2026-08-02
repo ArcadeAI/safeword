@@ -9,8 +9,8 @@ Each scenario is tracked through RED, GREEN, and REFACTOR during implementation.
 ### Scenario: Install converges supported profile states to the exact enabled user-scoped plugin
 
 - [x] RED 89cb3147b
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 9e5a8c440
+- [x] REFACTOR skip: subprocess parsing, marketplace convergence, plugin convergence, and verification are isolated helpers
 
 ### Scenario: Fresh setup recommends an explicit user-scoped plugin install without writing legacy Claude assets
 
