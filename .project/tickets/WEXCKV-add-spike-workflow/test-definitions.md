@@ -48,7 +48,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Setup installs the same spike action for project-scoped hosts
 
-- [ ] RED
+- [x] RED 5a3875ea0
 - [ ] GREEN
 - [ ] REFACTOR
 
