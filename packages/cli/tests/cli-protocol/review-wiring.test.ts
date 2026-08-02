@@ -405,4 +405,60 @@ describe('cross-agent review public-command wiring', () => {
     });
     expect(readFileSync(log, 'utf8')).toBe('codex\nclaude\n');
   });
+
+  it('does not let a degraded fallback satisfy hard cross-agent enforcement', async () => {
+    const directory = createTemporaryDirectory();
+    const log = nodePath.join(directory, 'review.log');
+    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, '.safeword', 'config.json'),
+      JSON.stringify({ crossAgentReview: 'require' }),
+    );
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    const bin = installFakeReviewer(directory, 'codex', log);
+    installFakeReviewer(directory, 'claude', log);
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_FAKE_FAILURE: 'process',
+          SAFEWORD_FAKE_FAILURE_AGENT: 'codex',
+          SAFEWORD_REVIEW_LOG: log,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode).toBe(2);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'action_required',
+      recovery: [
+        {
+          command: 'safeword review run quality-review review-input.md',
+          description: 'Restore the Codex reviewer, then retry the independent review.',
+        },
+      ],
+      data: {
+        status: 'blocked',
+        assigned_reviewer: 'codex',
+        actual_reviewer: 'claude',
+        preferred_failure: 'process_failed',
+        independence: 'degraded',
+      },
+    });
+    expect(readFileSync(log, 'utf8')).toBe('codex\nclaude\n');
+  });
 });
