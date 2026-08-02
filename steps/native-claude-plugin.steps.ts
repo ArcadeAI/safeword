@@ -32,6 +32,7 @@ interface NativeClaudePluginWorld {
     project: string;
     statePath: string;
     projectSnapshot: string;
+    profileSnapshot: string;
     unrelatedProfile: unknown;
     result?: { status: number; output: string };
   };
@@ -397,6 +398,99 @@ Then('viable legacy protection remains authoritative', function (this: NativeCla
   );
 });
 
+function writeFakeClaude(fakeBin: string): void {
+  const fakeClaude = nodePath.join(fakeBin, 'claude');
+  writeFileSync(
+    fakeClaude,
+    `#!/usr/bin/env node
+const fs = require('node:fs');
+const statePath = process.env.FAKE_CLAUDE_STATE;
+const args = process.argv.slice(2);
+const read = () => JSON.parse(fs.readFileSync(statePath, 'utf8'));
+const write = value => fs.writeFileSync(statePath, JSON.stringify(value, null, 2) + '\\n');
+const state = read();
+const operation = args.join(' ');
+if (args[0] === '--version') { console.log(state.hostVersion); process.exit(0); }
+if (state.failOperation && operation.startsWith(state.failOperation)) {
+  console.error('simulated Claude failure: ' + state.failOperation); process.exit(70);
+}
+if (operation === 'plugin marketplace list --json') { console.log(JSON.stringify(state.marketplaces)); process.exit(0); }
+if (args[0] === 'plugin' && args[1] === 'marketplace' && args[2] === 'add') {
+  state.marketplaces.push({ name: 'safeword', source: args[3] }); write(state); process.exit(0);
+}
+if (operation === 'plugin list --json') { console.log(JSON.stringify(state.plugins)); process.exit(0); }
+if (args[0] === 'plugin' && ['install', 'enable', 'update'].includes(args[1])) {
+  state.plugins = [{ id: 'safeword@safeword', version: '0.71.0-rc.0', enabled: true, scope: 'user' }];
+  write(state); process.exit(0);
+}
+console.error('unexpected fake claude command: ' + operation); process.exit(64);
+`,
+  );
+  chmodSync(fakeClaude, 0o755);
+}
+
+function createLifecycleFixture(
+  world: NativeClaudePluginWorld,
+  overrides: Partial<{
+    hostVersion: string;
+    failOperation: string | null;
+    marketplaces: unknown[];
+    plugins: unknown[];
+  }>,
+): void {
+  const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-claude-lifecycle-'));
+  const project = nodePath.join(root, 'project');
+  const fakeBin = nodePath.join(root, 'bin');
+  const statePath = nodePath.join(root, 'claude-state.json');
+  mkdirSync(project, { recursive: true });
+  mkdirSync(fakeBin, { recursive: true });
+  writeFileSync(nodePath.join(project, 'keep.txt'), 'project bytes must not change\n');
+  const state = {
+    hostVersion: '2.1.170 (Claude Code)',
+    failOperation: null as string | null,
+    unrelated: { theme: 'dark', custom: ['preserve', 7] },
+    marketplaces: [] as unknown[],
+    plugins: [] as unknown[],
+    ...overrides,
+  };
+  const profileSnapshot = `${JSON.stringify(state, undefined, 2)}\n`;
+  writeFileSync(statePath, profileSnapshot);
+  writeFakeClaude(fakeBin);
+  world.lifecycle = {
+    root,
+    project,
+    statePath,
+    projectSnapshot: readFileSync(nodePath.join(project, 'keep.txt'), 'utf8'),
+    profileSnapshot,
+    unrelatedProfile: state.unrelated,
+  };
+}
+
+Given(
+  /^the Claude executable reports (2\.1\.169|unparseable output)$/u,
+  function (this: NativeClaudePluginWorld, version: string) {
+    createLifecycleFixture(this, {
+      hostVersion: version === 'unparseable output' ? version : `${version} (Claude Code)`,
+    });
+  },
+);
+
+Given(
+  'the active Claude profile maps the Safeword marketplace name to a different source',
+  function (this: NativeClaudePluginWorld) {
+    createLifecycleFixture(this, {
+      marketplaces: [{ name: 'safeword', source: 'https://example.com/impostor.git#v9' }],
+    });
+  },
+);
+
+Given(
+  /^a supported Claude profile whose (plugin install|plugin list) command fails$/u,
+  function (this: NativeClaudePluginWorld, operation: string) {
+    createLifecycleFixture(this, { failOperation: operation });
+  },
+);
+
 Given(
   /^a Claude Code 2\.1\.170 or newer profile with (no Safeword marketplace or plugin|the exact official Safeword plugin disabled|an enabled older official Safeword plugin version)$/u,
   function (this: NativeClaudePluginWorld, initialState: string) {
@@ -409,6 +503,8 @@ Given(
     writeFileSync(nodePath.join(project, 'keep.txt'), 'project bytes must not change\n');
     const officialSource = 'https://github.com/ArcadeAI/safeword.git#v0.71.0-rc.0';
     const state = {
+      hostVersion: '2.1.170 (Claude Code)',
+      failOperation: null,
       unrelated: { theme: 'dark', custom: ['preserve', 7] },
       marketplaces:
         initialState === 'no Safeword marketplace or plugin'
@@ -429,36 +525,15 @@ Given(
               },
             ],
     };
-    writeFileSync(statePath, `${JSON.stringify(state, undefined, 2)}\n`);
-    const fakeClaude = nodePath.join(fakeBin, 'claude');
-    writeFileSync(
-      fakeClaude,
-      `#!/usr/bin/env node
-const fs = require('node:fs');
-const statePath = process.env.FAKE_CLAUDE_STATE;
-const args = process.argv.slice(2);
-const read = () => JSON.parse(fs.readFileSync(statePath, 'utf8'));
-const write = value => fs.writeFileSync(statePath, JSON.stringify(value, null, 2) + '\\n');
-if (args[0] === '--version') { console.log('2.1.170 (Claude Code)'); process.exit(0); }
-const state = read();
-if (args.join(' ') === 'plugin marketplace list --json') { console.log(JSON.stringify(state.marketplaces)); process.exit(0); }
-if (args[0] === 'plugin' && args[1] === 'marketplace' && args[2] === 'add') {
-  state.marketplaces.push({ name: 'safeword', source: args[3] }); write(state); process.exit(0);
-}
-if (args.join(' ') === 'plugin list --json') { console.log(JSON.stringify(state.plugins)); process.exit(0); }
-if (args[0] === 'plugin' && ['install', 'enable', 'update'].includes(args[1])) {
-  state.plugins = [{ id: 'safeword@safeword', version: '0.71.0-rc.0', enabled: true, scope: 'user' }];
-  write(state); process.exit(0);
-}
-console.error('unexpected fake claude command: ' + args.join(' ')); process.exit(64);
-`,
-    );
-    chmodSync(fakeClaude, 0o755);
+    const profileSnapshot = `${JSON.stringify(state, undefined, 2)}\n`;
+    writeFileSync(statePath, profileSnapshot);
+    writeFakeClaude(fakeBin);
     this.lifecycle = {
       root,
       project,
       statePath,
       projectSnapshot: readFileSync(nodePath.join(project, 'keep.txt'), 'utf8'),
+      profileSnapshot,
       unrelatedProfile: state.unrelated,
     };
   },
@@ -547,6 +622,106 @@ Then(
     ]);
   },
 );
+
+Then(
+  'it returns unsupported-host with profile and project state byte-identical',
+  function (this: NativeClaudePluginWorld) {
+    assert.equal(this.lifecycle?.result?.status, 1);
+    assert.ok(this.lifecycle);
+    assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
+    assert.deepEqual(filesBeneath(this.lifecycle.project), ['keep.txt']);
+    const result = JSON.parse(this.lifecycle.result?.output ?? '') as { data?: unknown };
+    assert.deepEqual(result.data, {
+      command: 'claude install',
+      classification: 'unsupported-host',
+    });
+  },
+);
+
+Then(
+  'upgrading or reinstalling Claude Code is the sole safe next action',
+  function (this: NativeClaudePluginWorld) {
+    const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+      next_actions?: { command?: string }[];
+    };
+    assert.deepEqual(result.next_actions, [
+      { command: 'claude update', mutates: true, requires_human: true },
+    ]);
+  },
+);
+
+Then(
+  'installation fails without changing the project or the conflicting marketplace',
+  function (this: NativeClaudePluginWorld) {
+    assert.equal(this.lifecycle?.result?.status, 1);
+    assert.ok(this.lifecycle);
+    assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
+    assert.deepEqual(filesBeneath(this.lifecycle.project), ['keep.txt']);
+  },
+);
+
+Then(
+  'the result names the official marketplace identity as the safe next action',
+  function (this: NativeClaudePluginWorld) {
+    const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+      next_actions?: { command?: string }[];
+    };
+    assert.deepEqual(result.next_actions, [
+      {
+        command:
+          'claude plugin marketplace add https://github.com/ArcadeAI/safeword.git#v0.71.0-rc.0 --scope user',
+        mutates: true,
+        requires_human: true,
+      },
+    ]);
+  },
+);
+
+Then(
+  'it returns errored without changing project files or unrelated profile values',
+  function (this: NativeClaudePluginWorld) {
+    assert.equal(this.lifecycle?.result?.status, 1);
+    assert.ok(this.lifecycle);
+    assert.deepEqual(filesBeneath(this.lifecycle.project), ['keep.txt']);
+    const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+      unrelated?: unknown;
+    };
+    assert.deepEqual(state.unrelated, this.lifecycle.unrelatedProfile);
+    const result = JSON.parse(this.lifecycle.result?.output ?? '') as { data?: unknown };
+    assert.deepEqual(result.data, { command: 'claude install', classification: 'errored' });
+  },
+);
+
+Then(
+  'profile files outside the observed Claude command write set are byte-identical',
+  function (this: NativeClaudePluginWorld) {
+    assert.ok(this.lifecycle);
+    const before = JSON.parse(this.lifecycle.profileSnapshot) as { unrelated?: unknown };
+    const after = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+      unrelated?: unknown;
+    };
+    assert.deepEqual(after.unrelated, before.unrelated);
+  },
+);
+
+Then(
+  'every profile effect completed before the failure is reported exactly',
+  function (this: NativeClaudePluginWorld) {
+    const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+      effects?: { configuration?: unknown[] };
+    };
+    assert.deepEqual(result.effects?.configuration, [
+      { kind: 'add', target: 'safeword', operation: 'user' },
+    ]);
+  },
+);
+
+Then('the result names one repair or retry action', function (this: NativeClaudePluginWorld) {
+  const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+    next_actions?: unknown[];
+  };
+  assert.equal(result.next_actions?.length, 1);
+});
 
 Given(
   'an authenticated Claude task has installed or updated Safeword and supports plugin reload',

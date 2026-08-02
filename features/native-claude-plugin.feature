@@ -34,7 +34,7 @@ Feature: Ship Safeword as a native Claude Code plugin
       And no Claude-only legacy hooks, skills, commands, or agents are materialized
       And the result recommends safeword claude install without changing the Claude profile
 
-    @rejection @wip
+    @rejection
     Scenario Outline: Install refuses an unsupported Claude host before profile mutation
       Given the Claude executable reports <version>
       When safeword claude install runs
@@ -46,14 +46,14 @@ Feature: Ship Safeword as a native Claude Code plugin
         | 2.1.169            |
         | unparseable output |
 
-    @rejection @wip
+    @rejection
     Scenario: Install refuses a marketplace name that resolves to an unofficial source
       Given the active Claude profile maps the Safeword marketplace name to a different source
       When safeword claude install runs
       Then installation fails without changing the project or the conflicting marketplace
       And the result names the official marketplace identity as the safe next action
 
-    @rejection @wip
+    @rejection
     Scenario Outline: Claude subprocess failure reports partial profile effects without project mutation
       Given a supported Claude profile whose <operation> command fails
       When safeword claude install runs
