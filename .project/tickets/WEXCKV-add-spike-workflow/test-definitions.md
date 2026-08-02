@@ -40,7 +40,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Planning consumes the spike handoff after creating its design record
 
-- [ ] RED
+- [x] RED 19eeddd9d
 - [ ] GREEN
 - [ ] REFACTOR
 
