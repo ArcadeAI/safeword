@@ -2,14 +2,13 @@
 id: WEXCKV
 slug: add-spike-workflow
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 phase_skips:
   - intake: User confirmed the bounded spike scope before the first ticket snapshot was committed.
   - define-behavior: The spec and behavior review were completed before the first ticket snapshot was committed.
   - scenario-gate: The executable scenarios and independent scenario review were completed before the first ticket snapshot was committed.
   - plan-implementation: The implementation plan and independent plan review were completed before the first ticket snapshot was committed.
-  - verify: Full verification and audit completed before the done-state evidence was committed in the same snapshot.
 phase_anchors:
   - define-behavior: .project/tickets/WEXCKV-add-spike-workflow/spec.md
   - scenario-gate: features/add-spike-workflow.feature
@@ -30,7 +29,7 @@ done_when:
   - BDD routes eligible technical uncertainty through the checkpoint without changing phase order
   - generated host artifacts and parity tests include the new action skill
 created: 2026-08-02T14:48:51.806Z
-last_modified: 2026-08-02T17:25:18.000Z
+last_modified: 2026-08-02T17:37:58.000Z
 ---
 
 # add-spike-workflow
@@ -60,3 +59,4 @@ last_modified: 2026-08-02T17:25:18.000Z
 - 2026-08-02T17:23:16.000Z Phase: scenario-gate → plan-implementation after the fresh quality review approved all 30 scenarios and the complete production evidence chain.
 - 2026-08-02T17:24:18.000Z Phase: plan-implementation → implement after reconciling the reviewed plan with the quality fixes and the complete refactor ledger.
 - 2026-08-02T17:25:18.000Z Phase: implement → verify after every quality and refactor finding was resolved; final verification began from a clean worktree.
+- 2026-08-02T17:37:58.000Z Phase: verify → done after 6,120 Vitest tests, 715 acceptance scenarios, 24,150 acceptance steps, all 52 ledger checks, parity, lint, typecheck, and the diff-scoped audit passed with no evidence limits.
