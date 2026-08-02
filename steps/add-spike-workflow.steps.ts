@@ -46,6 +46,18 @@ function runGit(directory: string, args: string[]): string {
   return (result.stdout ?? '').trim();
 }
 
+function createGitRepositoryFixture(prefix: string): {
+  projectDirectory: string;
+  repositoryDirectory: string;
+} {
+  const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), prefix));
+  const repositoryDirectory = nodePath.join(projectDirectory, 'repo');
+  runGit(projectDirectory, ['init', 'repo']);
+  runGit(repositoryDirectory, ['config', 'user.email', 'spike@example.test']);
+  runGit(repositoryDirectory, ['config', 'user.name', 'Spike Test']);
+  return { projectDirectory, repositoryDirectory };
+}
+
 After(function (this: SpikeWorkflowWorld) {
   if (this.projectDirectory !== undefined) {
     rmSync(this.projectDirectory, { recursive: true, force: true });
@@ -188,11 +200,9 @@ Then(
 Given(
   /^(validated scenarios|ticket state) has uncommitted changes$/,
   function (this: SpikeWorkflowWorld, state: string) {
-    this.projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-spike-dirty-'));
-    this.repositoryDirectory = nodePath.join(this.projectDirectory, 'repo');
-    runGit(this.projectDirectory, ['init', 'repo']);
-    runGit(this.repositoryDirectory, ['config', 'user.email', 'spike@example.test']);
-    runGit(this.repositoryDirectory, ['config', 'user.name', 'Spike Test']);
+    const fixture = createGitRepositoryFixture('safeword-spike-dirty-');
+    this.projectDirectory = fixture.projectDirectory;
+    this.repositoryDirectory = fixture.repositoryDirectory;
 
     const scenarioPath = nodePath.join(this.repositoryDirectory, 'features/example.feature');
     const ticketPath = nodePath.join(this.repositoryDirectory, '.project/tickets/T/ticket.md');
@@ -263,12 +273,10 @@ Then(
 Given(
   'validated scenarios and ticket state are included in one commit',
   function (this: SpikeWorkflowWorld) {
-    this.projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-spike-base-'));
-    this.repositoryDirectory = nodePath.join(this.projectDirectory, 'repo');
+    const fixture = createGitRepositoryFixture('safeword-spike-base-');
+    this.projectDirectory = fixture.projectDirectory;
+    this.repositoryDirectory = fixture.repositoryDirectory;
     this.spikeWorktree = nodePath.join(this.projectDirectory, 'spike');
-    runGit(this.projectDirectory, ['init', 'repo']);
-    runGit(this.repositoryDirectory, ['config', 'user.email', 'spike@example.test']);
-    runGit(this.repositoryDirectory, ['config', 'user.name', 'Spike Test']);
 
     this.validatedScenarioContent = 'Feature: committed validated behavior\n';
     this.ticketStateContent = '---\nphase: scenario-gate\n---\nValidated together.\n';
@@ -335,13 +343,11 @@ Then('the workflow identifies the missing kill criterion', function (this: Spike
 Given(
   'a completed spike branch contains experimental commits and changed files',
   function (this: SpikeWorkflowWorld) {
-    this.projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-spike-git-'));
-    this.repositoryDirectory = nodePath.join(this.projectDirectory, 'repo');
+    const fixture = createGitRepositoryFixture('safeword-spike-git-');
+    this.projectDirectory = fixture.projectDirectory;
+    this.repositoryDirectory = fixture.repositoryDirectory;
     this.productionWorktree = nodePath.join(this.projectDirectory, 'production');
     const spikeWorktree = nodePath.join(this.projectDirectory, 'spike');
-    runGit(this.projectDirectory, ['init', 'repo']);
-    runGit(this.repositoryDirectory, ['config', 'user.email', 'spike@example.test']);
-    runGit(this.repositoryDirectory, ['config', 'user.name', 'Spike Test']);
     writeFileSync(nodePath.join(this.repositoryDirectory, 'proof.txt'), 'production base\n');
     runGit(this.repositoryDirectory, ['add', 'proof.txt']);
     runGit(this.repositoryDirectory, ['commit', '-m', 'production base']);
