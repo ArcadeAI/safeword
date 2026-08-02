@@ -10,6 +10,19 @@ allowed-tools: '*'
 Resolve one technical kill-risk with executable evidence. A spike is not a
 rough first implementation: its evidence survives, its code does not.
 
+## Eligibility gate
+
+Use a spike only after behavior is validated, when documentation and repository
+code cannot settle a kill-risk, failure would change the plan, and a bounded
+executable proof can answer it.
+
+Otherwise route the uncertainty before writing experimental code:
+
+- answerable from documentation or code → research it;
+- dependent on user-only knowledge → `/elicit`;
+- a choice among researchable alternatives → `/figure-it-out`;
+- known implementation work → continue to `plan-implementation`.
+
 ## Charter
 
 Define the experiment before writing code. Record all five fields:
