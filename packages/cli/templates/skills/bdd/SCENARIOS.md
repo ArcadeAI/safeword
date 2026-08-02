@@ -217,8 +217,9 @@ If the adversarial pass + user feedback produced new scenarios → loop back to 
    `/spike` as the next action. Remain in `scenario-gate`; do not set or advance
    to `plan-implementation`, and do not invoke the spike automatically. Wait for
    the user's explicit choice. If invoked, continue only after its evidence is
-   ready to distill. If the user declines, or no eligible risk exists, proceed
-   directly to the next item.
+   ready to distill. If the user declines, proceed directly to the next item.
+   If no eligible risk exists, continue without offering `/spike` and update
+   frontmatter directly to `phase: plan-implementation` in the next item.
 4. **Update frontmatter:** `phase: plan-implementation` — implementation design (the impl-plan, proof plan, build order, ADR work) happens there; see `PLAN_IMPLEMENTATION.md`.
 5. **Work log:** the phase hook stamps the transition with real time (Claude Code — on other harnesses add a short transition entry yourself); optionally add a narrative entry (validation outcome, proof-plan highlights).
 
