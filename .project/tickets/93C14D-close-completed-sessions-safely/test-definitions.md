@@ -51,7 +51,7 @@ required `Scenario:` heading grammar.
 ### Scenario: Closeout continues only the unfinished suffix
 
 - [x] RED af86a036e
-- [ ] GREEN
+- [x] GREEN e0bce09f1
 - [ ] REFACTOR
 
 ### Scenario: A local merge-command error after remote success is partial success
