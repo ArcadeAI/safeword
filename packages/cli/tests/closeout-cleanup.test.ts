@@ -39,6 +39,18 @@ function safeObservation(overrides: Partial<CloseoutObservation> = {}): Closeout
   };
 }
 
+function pullRequest() {
+  const value = safeObservation().pullRequests[0];
+  if (!value) throw new Error('fixture pull request missing');
+  return value;
+}
+
+function worktree(index: number) {
+  const value = safeObservation().worktrees[index];
+  if (!value) throw new Error(`fixture worktree ${index} missing`);
+  return value;
+}
+
 describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
   it('previews exact cleanup in worktree, remote, local order with a stable digest', () => {
     const observation = safeObservation();
@@ -63,10 +75,7 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       'ambiguous pull request',
       { pullRequests: [...safeObservation().pullRequests, ...safeObservation().pullRequests] },
     ],
-    [
-      'unmerged pull request',
-      { pullRequests: [{ ...safeObservation().pullRequests[0], state: 'OPEN' }] },
-    ],
+    ['unmerged pull request', { pullRequests: [{ ...pullRequest(), state: 'OPEN' }] }],
     [
       'fork or remote mismatch',
       { remote: { name: 'origin', url: 'git@github.com:other/widget.git', oid: 'a'.repeat(40) } },
@@ -76,19 +85,13 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       'changed remote ref',
       { remote: { name: 'origin', url: 'git@github.com:acme/widget.git', oid: 'c'.repeat(40) } },
     ],
-    [
-      'default branch',
-      { pullRequests: [{ ...safeObservation().pullRequests[0], headRefName: 'main' }] },
-    ],
+    ['default branch', { pullRequests: [{ ...pullRequest(), headRefName: 'main' }] }],
     ['unknown protection', { protection: 'unknown' }],
     ['protected branch', { protection: 'protected' }],
-    ['dirty worktree', { worktrees: [{ ...safeObservation().worktrees[1], dirty: true }] }],
-    ['locked worktree', { worktrees: [{ ...safeObservation().worktrees[1], locked: true }] }],
-    ['stale registration', { worktrees: [{ ...safeObservation().worktrees[1], prunable: true }] }],
-    [
-      'ambiguous worktree',
-      { worktrees: [safeObservation().worktrees[1], safeObservation().worktrees[1]] },
-    ],
+    ['dirty worktree', { worktrees: [{ ...worktree(1), dirty: true }] }],
+    ['locked worktree', { worktrees: [{ ...worktree(1), locked: true }] }],
+    ['stale registration', { worktrees: [{ ...worktree(1), prunable: true }] }],
+    ['ambiguous worktree', { worktrees: [worktree(1), worktree(1)] }],
     ['stale verification', { verification: { ...safeObservation().verification, current: false } }],
     ['failed verification', { verification: { ...safeObservation().verification, passed: false } }],
     ['missing session binding', { retro: { ...safeObservation().retro, bound: false } }],
@@ -106,7 +109,7 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
   it('treats proven-absent exact targets as complete without broadening scope', () => {
     const plan = buildCleanupPlan(
       safeObservation({
-        worktrees: [safeObservation().worktrees[0]],
+        worktrees: [worktree(0)],
         remote: undefined,
         localRefOid: undefined,
       }),

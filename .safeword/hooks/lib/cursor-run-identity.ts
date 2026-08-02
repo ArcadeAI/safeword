@@ -159,9 +159,11 @@ export function commandInvokesCloseoutCleanup(command: string): boolean {
   });
 }
 
-interface RememberCloseoutBindingInput extends CloseoutBinding {
+interface RememberCloseoutBindingInput {
   projectDirectory: string;
+  runtime: CloseoutBinding['runtime'];
   id: string | undefined;
+  transcriptPath?: string;
   now?: Date;
 }
 

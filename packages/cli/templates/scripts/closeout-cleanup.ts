@@ -1,6 +1,16 @@
 #!/usr/bin/env bun
 
 import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
+import { existsSync, readdirSync } from 'node:fs';
+import { homedir } from 'node:os';
+import nodePath from 'node:path';
+
+import {
+  type CloseoutBinding,
+  readFreshCloseoutBinding,
+} from '../hooks/lib/cursor-run-identity.ts';
+import { readSpooledDrafts } from '../hooks/lib/retro-draft-spool.ts';
 
 export interface PullRequestIdentity {
   url: string;
@@ -235,9 +245,319 @@ export function applyCleanupPlan(input: ApplyCleanupPlanInput): ApplyCleanupPlan
   return { applied: true, blockers: [] };
 }
 
-if (import.meta.main) {
-  console.error(
-    'closeout-cleanup is preview-first and requires a host-bound observation; invoke it through the closeout skill',
+interface ProcessResult {
+  status: number;
+  stdout: string;
+  stderr: string;
+}
+
+function run(
+  command: string,
+  arguments_: string[],
+  cwd: string,
+  options: { shell?: boolean } = {},
+): ProcessResult {
+  const result = spawnSync(command, arguments_, {
+    cwd,
+    encoding: 'utf8',
+    shell: options.shell ?? false,
+    env: process.env,
+  });
+  return {
+    status: result.status ?? 1,
+    stdout: result.stdout ?? '',
+    stderr: result.stderr ?? result.error?.message ?? '',
+  };
+}
+
+function git(cwd: string, ...arguments_: string[]): ProcessResult {
+  return run('git', arguments_, cwd);
+}
+
+function json<T>(result: ProcessResult): T | undefined {
+  if (result.status !== 0) return undefined;
+  try {
+    return JSON.parse(result.stdout) as T;
+  } catch {
+    return undefined;
+  }
+}
+
+function resolveRepositoryRoot(cwd: string): string | undefined {
+  const result = git(cwd, 'rev-parse', '--show-toplevel');
+  return result.status === 0 ? result.stdout.trim() || undefined : undefined;
+}
+
+function exactCodexTranscript(id: string): string | undefined {
+  const root = nodePath.join(
+    process.env.CODEX_HOME ?? nodePath.join(homedir(), '.codex'),
+    'sessions',
   );
-  process.exit(2);
+  if (!existsSync(root)) return undefined;
+  const matches: string[] = [];
+  const visit = (directory: string): void => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const path = nodePath.join(directory, entry.name);
+      if (entry.isDirectory()) visit(path);
+      else if (entry.isFile() && entry.name.endsWith('.jsonl') && entry.name.includes(id)) {
+        matches.push(path);
+      }
+    }
+  };
+  visit(root);
+  return matches.length === 1 ? matches[0] : undefined;
+}
+
+function resolveTranscript(binding: CloseoutBinding): string | undefined {
+  if (binding.transcriptPath && existsSync(binding.transcriptPath)) return binding.transcriptPath;
+  return binding.runtime === 'codex' ? exactCodexTranscript(binding.id) : undefined;
+}
+
+function runRetro(root: string, binding: CloseoutBinding): CloseoutObservation['retro'] {
+  const transcript = resolveTranscript(binding);
+  if (!transcript) return { bound: false, complete: false, pendingDrafts: 0 };
+  const retro = run(
+    'safeword',
+    [
+      'retro',
+      'run',
+      '--format',
+      'json',
+      '--auto-extract',
+      '--transcript',
+      transcript,
+      '--session-id',
+      binding.id,
+    ],
+    root,
+  );
+  const result = json<{
+    state?: string;
+    data?: { agent_filing_needed?: boolean };
+  }>(retro);
+  const pendingDrafts = readSpooledDrafts(root, binding.id).length;
+  return {
+    bound: true,
+    complete:
+      retro.status === 0 &&
+      (result?.state === 'healthy' || result?.state === 'changed') &&
+      result.data?.agent_filing_needed === false &&
+      pendingDrafts === 0,
+    pendingDrafts,
+  };
+}
+
+interface TestPlanEntry {
+  cwd: string;
+  command: string;
+  available: boolean;
+}
+
+function workingStateHash(root: string, headOid: string): string {
+  const status = git(root, 'status', '--porcelain=v1', '-z', '--untracked-files=all');
+  return createHash('sha256').update(`${headOid}\0${status.stdout}`).digest('hex');
+}
+
+function runVerification(root: string, expectedOid: string): CloseoutObservation['verification'] {
+  let passed = true;
+  for (const kind of ['verify', 'build', 'typecheck', 'bdd', 'deps']) {
+    const planResult = run(
+      'safeword',
+      ['project', 'test-plan', root, '--kind', kind, '--format', 'json'],
+      root,
+    );
+    const plan = json<TestPlanEntry[]>(planResult);
+    if (!plan || plan.some(entry => !entry.available)) {
+      passed = false;
+      continue;
+    }
+    for (const entry of plan) {
+      if (run(entry.command, [], entry.cwd, { shell: true }).status !== 0) passed = false;
+      if (git(root, 'rev-parse', 'HEAD').stdout.trim() !== expectedOid) passed = false;
+    }
+  }
+  const headOid = git(root, 'rev-parse', 'HEAD').stdout.trim();
+  return {
+    current: headOid === expectedOid,
+    passed,
+    headOid,
+    stateHash: workingStateHash(root, headOid),
+  };
+}
+
+interface GhPullRequest {
+  url: string;
+  state: string;
+  headRefName: string;
+  headRefOid: string;
+  headRepositoryOwner?: { login?: string };
+  headRepository?: { name?: string; nameWithOwner?: string };
+}
+
+function pullRequestIdentity(value: GhPullRequest): PullRequestIdentity | undefined {
+  const owner =
+    value.headRepositoryOwner?.login ?? value.headRepository?.nameWithOwner?.split('/')[0];
+  const repository =
+    value.headRepository?.name ?? value.headRepository?.nameWithOwner?.split('/')[1];
+  return owner && repository
+    ? {
+        url: value.url,
+        state: value.state,
+        headOwner: owner,
+        headRepository: repository,
+        headRefName: value.headRefName,
+        headRefOid: value.headRefOid,
+      }
+    : undefined;
+}
+
+function observePullRequest(root: string, pr: string): PullRequestIdentity[] {
+  const result = run(
+    'gh',
+    [
+      'pr',
+      'view',
+      pr,
+      '--json',
+      'url,state,headRefName,headRefOid,headRepositoryOwner,headRepository',
+    ],
+    root,
+  );
+  const parsed = json<GhPullRequest>(result);
+  const identity = parsed && pullRequestIdentity(parsed);
+  return identity ? [identity] : [];
+}
+
+function observeRemote(root: string, identity: PullRequestIdentity): RemoteIdentity | undefined {
+  const names = git(root, 'remote').stdout.trim().split('\n').filter(Boolean);
+  const matching = names.flatMap(name => {
+    const url = git(root, 'remote', 'get-url', name).stdout.trim();
+    return normalizedRepository(url) ===
+      `${identity.headOwner}/${identity.headRepository}`.toLowerCase()
+      ? [{ name, url }]
+      : [];
+  });
+  if (matching.length !== 1) return undefined;
+  const match = matching[0]!;
+  const remoteRef = git(
+    root,
+    'ls-remote',
+    '--refs',
+    match.name,
+    `refs/heads/${identity.headRefName}`,
+  );
+  const oid = remoteRef.stdout.trim().split(/\s+/u)[0];
+  return oid ? { ...match, oid } : undefined;
+}
+
+function parseWorktrees(root: string): WorktreeIdentity[] {
+  const records = git(root, 'worktree', 'list', '--porcelain').stdout.trim().split(/\n\n+/u);
+  return records.flatMap((record, index) => {
+    const fields = new Map(
+      record.split('\n').map(line => {
+        const split = line.indexOf(' ');
+        return split < 0 ? [line, ''] : [line.slice(0, split), line.slice(split + 1)];
+      }),
+    );
+    const path = fields.get('worktree');
+    const oid = fields.get('HEAD');
+    const branchRef = fields.get('branch');
+    if (!path || !oid || !branchRef?.startsWith('refs/heads/')) return [];
+    const status = git(path, 'status', '--porcelain=v1');
+    return [
+      {
+        path,
+        oid,
+        branch: branchRef.slice('refs/heads/'.length),
+        main: index === 0,
+        dirty: status.status !== 0 || status.stdout.trim() !== '',
+        locked: fields.has('locked'),
+        prunable: fields.has('prunable'),
+      },
+    ];
+  });
+}
+
+function observeProtection(
+  root: string,
+  identity: PullRequestIdentity,
+): CloseoutObservation['protection'] {
+  const result = run(
+    'gh',
+    [
+      'api',
+      `repos/${identity.headOwner}/${identity.headRepository}/branches/${encodeURIComponent(identity.headRefName)}`,
+    ],
+    root,
+  );
+  const parsed = json<{ protected?: boolean }>(result);
+  return parsed?.protected === true
+    ? 'protected'
+    : parsed?.protected === false
+      ? 'unprotected'
+      : 'unknown';
+}
+
+function observeCloseout(root: string, pr: string, binding: CloseoutBinding): CloseoutObservation {
+  const pullRequests = observePullRequest(root, pr);
+  const identity = pullRequests[0];
+  const expectedOid = identity?.headRefOid ?? '';
+  const localRef = identity
+    ? git(root, 'show-ref', '--verify', '--hash', `refs/heads/${identity.headRefName}`)
+    : undefined;
+  const defaultBranchResult = run('gh', ['repo', 'view', '--json', 'defaultBranchRef'], root);
+  const defaultBranch =
+    json<{ defaultBranchRef?: { name?: string } }>(defaultBranchResult)?.defaultBranchRef?.name ??
+    '';
+  return {
+    pullRequests,
+    remote: identity ? observeRemote(root, identity) : undefined,
+    localRefOid: localRef?.status === 0 ? localRef.stdout.trim() : undefined,
+    defaultBranch,
+    protection: identity ? observeProtection(root, identity) : 'unknown',
+    worktrees: parseWorktrees(root),
+    verification: runVerification(root, expectedOid),
+    retro: runRetro(root, binding),
+  };
+}
+
+function argumentValue(name: string): string | undefined {
+  const index = process.argv.indexOf(name);
+  return index >= 0 ? process.argv[index + 1] : undefined;
+}
+
+if (import.meta.main) {
+  const root = resolveRepositoryRoot(process.cwd());
+  const pr = argumentValue('--pr');
+  const binding = root ? readFreshCloseoutBinding({ projectDirectory: root }) : undefined;
+  if (!root || !pr || !binding) {
+    console.error(
+      'closeout blocked: repository, --pr, and a fresh host session binding are required',
+    );
+    process.exit(2);
+  }
+  const observation = observeCloseout(root, pr, binding);
+  const plan = buildCleanupPlan(observation);
+  const digest = cleanupPlanDigest(plan);
+  if (!process.argv.includes('--yes')) {
+    process.stdout.write(`${JSON.stringify({ digest, plan }, undefined, 2)}\n`);
+    process.exit(plan.blockers.length === 0 ? 0 : 2);
+  }
+  if (argumentValue('--plan') !== digest) {
+    console.error('closeout blocked: --plan must equal the fresh preview digest');
+    process.exit(2);
+  }
+  const result = applyCleanupPlan({
+    plan,
+    digest,
+    observe: () => observation,
+    execute: operation => {
+      const [command, ...arguments_] = operationCommand(operation);
+      if (!command) throw new Error('cleanup command is empty');
+      const execution = run(command, arguments_, root);
+      if (execution.status !== 0) throw new Error(execution.stderr || 'cleanup command failed');
+    },
+  });
+  process.stdout.write(`${JSON.stringify({ digest, plan, result }, undefined, 2)}\n`);
+  process.exit(result.applied ? 0 : 2);
 }
