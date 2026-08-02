@@ -14,7 +14,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario Outline: An incomplete charter cannot execute
 
-- [ ] RED
+- [x] RED 4280854f8
 - [ ] GREEN
 - [ ] REFACTOR
 
