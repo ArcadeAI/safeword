@@ -35,7 +35,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario Outline: Every spike result feeds the production implementation plan
 
 - [x] RED 22a67160e
-- [ ] GREEN
+- [x] GREEN ee7fb6636
 - [ ] REFACTOR
 
 ### Scenario: Spike code never becomes production implementation
