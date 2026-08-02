@@ -9,7 +9,7 @@ test-definitions.md is the R/G/R ledger. Executable Given/When/Then behavior liv
 ### Scenario Outline: Each author agent selects the opposite headless reviewer
 
 - [x] RED ddb235b15
-- [ ] GREEN
+- [x] GREEN 012896828
 - [ ] REFACTOR
 
 ### Scenario: A same-agent candidate cannot displace an available opposite reviewer
