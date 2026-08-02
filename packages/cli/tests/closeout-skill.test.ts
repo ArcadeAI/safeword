@@ -36,10 +36,10 @@ describe('closeout merge authority (93C14D TBU1.R1)', () => {
     const skill = canonicalSkill();
 
     expect(skill).toContain('Invocation alone grants no merge authority');
-    expect(skill).toContain('current user request');
+    expect(skill).toMatch(/current\s+user request/);
     expect(skill).toContain('normal merge');
     expect(skill).toContain('administrative merge');
-    expect(skill).toContain('never escalate');
+    expect(skill).toMatch(/never escalate/i);
     expect(skill).toContain('consumed');
     expect(skill).toContain('historical');
   });

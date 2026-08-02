@@ -27,3 +27,19 @@ any merge:
 Collect and report every blocker. Missing, stale, failing, pending, unknown, or
 ambiguous evidence means **no merge or cleanup**. A merge command's exit status
 never proves that the pull request is merged.
+
+## 2. Respect merge authority
+
+Invocation alone grants no merge authority. Read authority only from the current user request;
+historical, implied, or previously consumed authority is not available to a
+resumed closeout.
+
+- **No authority:** report that the delivery is ready and stop before merging.
+- **Normal merge:** only an explicit current request for a normal merge permits a
+  policy-compliant `gh pr merge`. Never escalate a blocked normal merge.
+- **Administrative merge:** only an explicit current request to perform an
+  administrative merge or bypass repository requirements permits `--admin`.
+
+Merge authority is consumed when the merge action is attempted. Entering a merge
+queue or enabling auto-merge consumes it too; later runs observe that queued
+action and do not repeat it.
