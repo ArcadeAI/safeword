@@ -56,7 +56,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED skip: canonical-template parity generated Codex during the load-bearing setup slice
 - [x] GREEN 6da2ce2f3
-- [ ] REFACTOR
+- [x] REFACTOR skip: generator proof uses the public catalogue writer directly
 
 ### Scenario: Host contracts keep spike behind explicit invocation
 
