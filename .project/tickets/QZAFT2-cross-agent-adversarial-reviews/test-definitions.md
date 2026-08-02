@@ -36,7 +36,7 @@ test-definitions.md is the R/G/R ledger. Executable Given/When/Then behavior liv
 
 - [x] RED c8fca35b0
 - [x] GREEN 6d22461d7
-- [ ] REFACTOR
+- [x] REFACTOR skip: the two identity classifications share one focused validation function
 
 ## Rule: cross-agent-review.TBU1.R3 — The reviewer is isolated from writes and unrelated credentials
 
