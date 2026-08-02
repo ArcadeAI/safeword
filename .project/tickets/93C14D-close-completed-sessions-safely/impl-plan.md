@@ -1,6 +1,6 @@
 # Impl Plan: Close completed sessions safely
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 
@@ -120,7 +120,7 @@ this 25-scenario feature because all Rules form one ordered closeout contract.
 | Principle | Consequence | Proof | Conflict |
 | --- | --- | --- | --- |
 | Optimize for the NTB without constraining the TBU | One natural-language closeout request yields a plain final state report, while merge authority and technical evidence remain explicit and no administrative action is inferred. | features/close-completed-sessions-safely.feature | |
-| 1. Structure enforces; instructions suggest | A digest-bound helper re-observes exact PR/ref/worktree state and refuses unsafe deletion; schema and generator tests independently prove distribution. | packages/cli/tests/scripts/closeout-cleanup.test.ts | explicit-conflict |
+| 1. Structure enforces; instructions suggest | A digest-bound helper re-observes exact PR/ref/worktree state and refuses unsafe deletion; schema and generator tests independently prove distribution. | packages/cli/tests/closeout-cleanup.test.ts | explicit-conflict |
 | 2. Fire at boundaries, not every turn | The workflow activates only when a user closes a completed session and re-observes state at merge, retro, and cleanup transitions. | packages/cli/templates/skills/closeout/SKILL.md | |
 | 3. Add, never replace | The new skill is added through existing schema/reconciliation and generated-host mechanisms without replacing customer-owned configuration. | packages/cli/src/schema.ts | |
 | 5. Clarity before correctness | A short staged contract delegates only the irreversible suffix to one purpose-built guard; no second lifecycle state machine is introduced. | packages/cli/templates/skills/closeout/SKILL.md | |
@@ -129,6 +129,29 @@ Architecture decisions honored: Schema as Single Source of Truth, Reconciliation
 Over Copy, Agent Parity, Template Separation, and the instruction to keep
 correctness-critical fallback guidance local because skill composition is soft.
 No ADR is warranted: this is a reversible use of established extension points.
+
+## Implementation reconciliation
+
+- The deterministic guard shipped as planned, with current-HEAD verification,
+  exact transcript provenance, fail-closed concurrent session binding, anchored
+  GitHub remote parsing, and compare-and-swap cleanup. Refactoring separated
+  binding and cleanup-planning concerns without changing the staged contract.
+- Installed-host proof is derived from production schema/catalogues. Claude and
+  Cursor are installed into a fixture, Codex is generated into its real profile
+  layout, and all three resolve the same installed guard contract. The guard's
+  destructive boundary is exercised once through that shared installed path
+  against real temporary Git state while `gh` alone is mocked; model selection
+  remains inside the declared manual evidence boundary.
+- Runtime adversarial review found and repaired four gaps before verification:
+  subprocesses now survive worktree removal, remote-observation errors are
+  unknown rather than absent, lookalike GitHub URLs are rejected, and concurrent
+  bindings cannot overwrite or adopt another session.
+- The independent semantic gate is hash-bound to the final Claude, Cursor,
+  Codex, guard, feature, and automated-result artifacts. Its deterministic test
+  rejects stale inputs, unknown reviewers, missing or non-binary rows, and any
+  failing verdict.
+- The planned authority, mandatory-retro, exact-cleanup, documentation, schema,
+  and host-parity decisions all held. No new state machine or ADR was introduced.
 
 ## Known deviations
 

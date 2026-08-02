@@ -4,6 +4,11 @@ slug: close-completed-sessions-safely
 type: feature
 phase: implement
 status: in_progress
+phase_skips:
+  - intake: Completed before the first feature checkpoint; the scoped spec and intake work log are committed with this ticket.
+  - define-behavior: Completed before the first feature checkpoint; the dimensions and scenario ledger are committed with this ticket.
+  - scenario-gate: Completed before the first feature checkpoint; the approved feature and review work log are committed with this ticket.
+  - plan-implementation: Completed before the first feature checkpoint; the reviewed implementation plan and phase anchor are committed with this ticket.
 scope:
   - add one canonical closeout skill that orchestrates verification, GitHub merge state, mandatory retro, exact cleanup, and final reporting
   - ship generated Claude Code, OpenAI Codex, and Cursor entry points from the canonical contract
@@ -75,3 +80,12 @@ last_modified: 2026-08-02T20:41:09.906Z
   hook-bound retro identity, exact PR/repository/ref checks, and hash-bound
   semantic review evidence. Fresh final review approved with zero must-fix
   findings; seven build tasks, four components, no ADR, split still declined.
+- 2026-08-02T23:35:30.000Z Implement: Shipped the canonical closeout contract,
+  deterministic guard, exact-session bindings, generated host adapters,
+  schema/catalogue registration, documentation, real-Git and installed-profile
+  integration coverage, and a hash-bound independent manual-review gate.
+- 2026-08-02T23:50:30.000Z Implement: Hash-bound review failed closed on
+  generic retro recovery, an unbound outside-worktree case, and insufficiently
+  bound parity evidence. Added typed recovery causes, delivery-worktree identity,
+  and production parity mutations; corrected one stale evidence SHA. Fresh review
+  recomputed all ten hashes and approved all 55 expanded examples.

@@ -68,11 +68,15 @@ describe('hash-bound independent closeout review (93C14D)', () => {
     expect(manifest.ticket).toBe('93C14D');
     expect(manifest.expected_scenarios).toEqual(expectedScenarios);
     expect(manifest.inputs.map(input => input.path)).toEqual([
+      'packages/cli/templates/skills/closeout/SKILL.md',
       '.claude/skills/closeout/SKILL.md',
       '.cursor/commands/closeout.md',
       '.safeword/scripts/closeout-cleanup.ts',
       'features/close-completed-sessions-safely.feature',
       'packages/cli/codex-plugin/skills/closeout/SKILL.md',
+      'packages/cli/tests/closeout-skill.test.ts',
+      'packages/cli/src/parity.ts',
+      'packages/cli/src/codex-plugin/catalogue.ts',
       '.project/tickets/93C14D-close-completed-sessions-safely/automated-review-results.json',
     ]);
     for (const input of manifest.inputs) {
