@@ -329,12 +329,8 @@ Then(
   },
 );
 
-Given('its experiment charter is missing the {word}', function (this: SpikeWorkflowWorld, field) {
+Given(/^its experiment charter is missing the (.+)$/, function (this: SpikeWorkflowWorld, field) {
   this.missingCharterField = field;
-});
-
-Given('its experiment charter is missing the kill criterion', function (this: SpikeWorkflowWorld) {
-  this.missingCharterField = 'kill criterion';
 });
 
 Then('no proof command runs', function (this: SpikeWorkflowWorld) {
@@ -342,13 +338,8 @@ Then('no proof command runs', function (this: SpikeWorkflowWorld) {
   assert.match(this.spikeSkill, /If any field is missing[\s\S]*Do not[\s\S]*run a proof command/i);
 });
 
-Then('the workflow identifies the missing {word}', function (this: SpikeWorkflowWorld, field) {
+Then(/^the workflow identifies the missing (.+)$/, function (this: SpikeWorkflowWorld, field) {
   assert.equal(this.missingCharterField, field);
-  assert.match(this.spikeSkill ?? '', /name (?:the missing field|it)/i);
-});
-
-Then('the workflow identifies the missing kill criterion', function (this: SpikeWorkflowWorld) {
-  assert.equal(this.missingCharterField, 'kill criterion');
   assert.match(this.spikeSkill ?? '', /name (?:the missing field|it)/i);
 });
 
