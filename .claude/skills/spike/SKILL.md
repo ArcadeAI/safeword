@@ -10,6 +10,9 @@ allowed-tools: '*'
 Resolve one technical kill-risk with executable evidence. A spike is not a
 rough first implementation: its evidence survives, its code does not.
 
+Run this workflow only after an explicit user request for `/spike`. A BDD
+checkpoint offer is not invocation; wait for the user to choose it.
+
 ## Eligibility gate
 
 Use a spike only after behavior is validated, when documentation and repository
