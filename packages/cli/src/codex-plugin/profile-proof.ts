@@ -325,6 +325,18 @@ function readIdentityBoundJson<T extends CodexPluginIdentity>(
   }
 }
 
+function readEventProof(
+  path: string,
+  expectedEvent: CodexPluginHookEvent,
+): CodexHookProofV1 | CodexHookProofV2 | null {
+  try {
+    const proof = JSON.parse(readFileSync(path, 'utf8')) as unknown;
+    return isCodexHookProof(proof) && proof.event === expectedEvent ? proof : null;
+  } catch {
+    return null;
+  }
+}
+
 // eslint-disable-next-line complexity -- aggregates independently written event proofs and preserves malformed/stale distinctions
 export function observeCodexHookProof(
   environment: NodeJS.ProcessEnv = process.env,
@@ -346,25 +358,16 @@ export function observeCodexHookProof(
     };
   }
 
-  const parsed: (CodexHookProofV1 | CodexHookProofV2)[] = [];
-  for (const item of existing) {
-    try {
-      const candidate = JSON.parse(readFileSync(item.path, 'utf8')) as unknown;
-      if (!isCodexHookProof(candidate) || candidate.event !== item.event) {
-        return malformedObservation();
-      }
-      parsed.push(candidate);
-    } catch {
-      return malformedObservation();
-    }
-  }
+  const parsed = existing.map(item => readEventProof(item.path, item.event));
+  if (parsed.includes(null)) return malformedObservation();
+  const validProofs = parsed.filter(proof => proof !== null);
 
   const identity = currentCodexPluginIdentity();
   const activationId =
     readActivationMarkerV2(environment, identity)?.activation_id ??
     readActivationReceipt(environment, identity)?.activation_id ??
     null;
-  const current = parsed.filter(
+  const current = validProofs.filter(
     proof =>
       matchesCodexPluginIdentity(proof, identity) &&
       (activationId === null ||
@@ -380,8 +383,8 @@ export function observeCodexHookProof(
   else if (current.length > 0) status = 'partial';
   return {
     status,
-    plugin_version: latest?.plugin_version ?? parsed[0]?.plugin_version ?? null,
-    manifest_sha256: latest?.manifest_sha256 ?? parsed[0]?.manifest_sha256 ?? null,
+    plugin_version: latest?.plugin_version ?? validProofs[0]?.plugin_version ?? null,
+    manifest_sha256: latest?.manifest_sha256 ?? validProofs[0]?.manifest_sha256 ?? null,
     recorded_at: latest?.recorded_at ?? null,
     activation_id: activationId,
     events,
