@@ -10,7 +10,7 @@ test-definitions.md is the R/G/R ledger. Executable Given/When/Then behavior liv
 
 - [x] RED ddb235b15
 - [x] GREEN 012896828
-- [ ] REFACTOR
+- [x] REFACTOR 1ab101c1c
 
 ### Scenario: A same-agent candidate cannot displace an available opposite reviewer
 
