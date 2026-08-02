@@ -1,10 +1,11 @@
-/* eslint-disable import-x/no-unresolved -- RED: production guard is introduced by GREEN */
 import { describe, expect, it } from 'vitest';
 
 import {
+  applyCleanupPlan,
   buildCleanupPlan,
   cleanupPlanDigest,
   type CloseoutObservation,
+  operationCommand,
 } from '../templates/scripts/closeout-cleanup.ts';
 
 function safeObservation(overrides: Partial<CloseoutObservation> = {}): CloseoutObservation {
@@ -113,5 +114,58 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     expect(plan.blockers).toEqual([]);
     expect(plan.operations).toEqual([]);
     expect(plan.completed).toEqual(['worktree', 'remote branch', 'local branch']);
+  });
+
+  it('applies only a digest-bound unchanged plan using compare-and-swap commands', () => {
+    const observation = safeObservation();
+    const plan = buildCleanupPlan(observation);
+    const executed: string[][] = [];
+
+    const result = applyCleanupPlan({
+      plan,
+      digest: cleanupPlanDigest(plan),
+      observe: () => observation,
+      execute: operation => {
+        executed.push(operationCommand(operation));
+      },
+    });
+
+    expect(result.applied).toBe(true);
+    expect(executed).toEqual([
+      ['git', '-C', '/repo', 'worktree', 'remove', '/repo-closeout'],
+      [
+        'git',
+        '-C',
+        '/repo',
+        'push',
+        `--force-with-lease=refs/heads/feature/closeout:${'a'.repeat(40)}`,
+        'origin',
+        ':refs/heads/feature/closeout',
+      ],
+      ['git', '-C', '/repo', 'update-ref', '-d', 'refs/heads/feature/closeout', 'a'.repeat(40)],
+    ]);
+    expect(executed.flat()).not.toContain('--force');
+  });
+
+  it('invalidates stale digests and changed observations before mutation', () => {
+    const plan = buildCleanupPlan(safeObservation());
+    const execute = () => {
+      throw new Error('must not execute');
+    };
+
+    expect(
+      applyCleanupPlan({ plan, digest: 'stale', observe: safeObservation, execute }).blockers,
+    ).toContain('cleanup plan digest does not match');
+    expect(
+      applyCleanupPlan({
+        plan,
+        digest: cleanupPlanDigest(plan),
+        observe: () =>
+          safeObservation({
+            verification: { ...safeObservation().verification, stateHash: 'changed' },
+          }),
+        execute,
+      }).blockers,
+    ).toContain('repository state changed after preview');
   });
 });
