@@ -22,6 +22,7 @@ interface SpikeWorkflowWorld {
   spikeCommit?: string;
   codexPluginDirectory?: string;
   codexSpikeSkill?: string;
+  bddScenariosGuidance?: string;
 }
 
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '..');
@@ -313,6 +314,35 @@ Then(
     assert.equal(existsSync(nodePath.join(REPO_ROOT, '.cursor/rules/safeword-spike.mdc')), false);
   },
 );
+
+Given('scenario validation has completed', function (this: SpikeWorkflowWorld) {
+  this.bddScenariosGuidance = readFileSync(
+    nodePath.join(REPO_ROOT, 'packages/cli/templates/skills/bdd/SCENARIOS.md'),
+    'utf8',
+  );
+});
+
+Given('one implementation risk requires executable evidence', function (this: SpikeWorkflowWorld) {
+  assert.ok(this.bddScenariosGuidance);
+});
+
+When('BDD transitions toward plan-implementation', function (this: SpikeWorkflowWorld) {
+  assert.ok(this.bddScenariosGuidance);
+});
+
+Then('the spike checkpoint is the next offered action', function (this: SpikeWorkflowWorld) {
+  assert.match(
+    this.bddScenariosGuidance ?? '',
+    /build-only[\s\S]*executable proof[\s\S]*offer[\s\S]*`?\/spike`?/i,
+  );
+});
+
+Then('plan-implementation has not begun', function (this: SpikeWorkflowWorld) {
+  assert.match(
+    this.bddScenariosGuidance ?? '',
+    /remain in `scenario-gate`[\s\S]*do not (?:set|advance)[^\n]*`plan-implementation`/i,
+  );
+});
 
 Given('a project without Claude or Cursor spike artifacts', function (this: SpikeWorkflowWorld) {
   this.projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-spike-'));
