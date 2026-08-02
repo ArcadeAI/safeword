@@ -2,8 +2,8 @@
 id: WEXCKV
 slug: add-spike-workflow
 type: feature
-phase: done
-status: done
+phase: scenario-gate
+status: in_progress
 phase_skips:
   - intake: User confirmed the bounded spike scope before the first ticket snapshot was committed.
   - define-behavior: The spec and behavior review were completed before the first ticket snapshot was committed.
@@ -28,7 +28,7 @@ done_when:
   - BDD routes eligible technical uncertainty through the checkpoint without changing phase order
   - generated host artifacts and parity tests include the new action skill
 created: 2026-08-02T14:48:51.806Z
-last_modified: 2026-08-02T16:25:39.000Z
+last_modified: 2026-08-02T16:38:00.000Z
 ---
 
 # add-spike-workflow
@@ -53,3 +53,4 @@ last_modified: 2026-08-02T16:25:39.000Z
 - 2026-08-02T16:08:00.000Z Lifecycle scenario and plan re-review passed: explicit handoff mapping, dirty-state rejection, and exact committed-base proof added; implementation resumed.
 - 2026-08-02T16:20:00.000Z Whole-ticket re-review passed the implementation and both lifecycle fixes; reconciled the plan's evidence/base decisions and closed cross-scenario refactoring with no additional abstraction.
 - 2026-08-02T16:25:39.000Z Phase: implement → done with an explicit verify provenance skip; verify and diff-scoped audit passed before this evidence snapshot with 6,120 tests, 713 acceptance scenarios, all 46 ledger entries complete, and no evidence limits.
+- 2026-08-02T16:38:00.000Z Quality review reopened the ticket at scenario-gate: production planning must be committed and reviewed in the fresh production worktree before coding, and branch phase provenance must be repaired before repush.
