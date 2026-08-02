@@ -202,7 +202,7 @@ Each scenario is tracked through RED, GREEN, and REFACTOR during implementation.
 
 - [x] RED cd1d3272f
 - [x] GREEN ad8b306e0
-- [ ] REFACTOR
+- [x] REFACTOR 28b21363a
 
 ### Scenario: Generation fails on a missing transitive runtime dependency
 
