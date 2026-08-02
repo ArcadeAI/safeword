@@ -28,7 +28,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 8be3791d8
 - [x] GREEN fd897c1ca
-- [ ] REFACTOR
+- [x] REFACTOR skip: three bullets match the three execution partitions directly
 
 ## Rule: spike-workflow.SWM1.R2 — evidence persists while experimental code stays disposable
 
