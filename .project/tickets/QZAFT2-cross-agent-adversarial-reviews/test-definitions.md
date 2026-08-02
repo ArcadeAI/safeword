@@ -109,14 +109,14 @@ test-definitions.md is the R/G/R ledger. Executable Given/When/Then behavior liv
 ### Scenario Outline: Each class-1 surface enters the shared coordinator
 
 - [x] RED 8e2db69d9
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 791b5f3cd
+- [x] REFACTOR skip: each canonical class-1 instruction names the same public command and kind
 
 ### Scenario: A class-1 surface that bypasses the coordinator fails parity validation
 
 - [x] RED 8e2db69d9
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 791b5f3cd
+- [x] REFACTOR skip: the parity table reports the exact canonical template that omits the coordinator
 
 ## Rule: cross-agent-review.SWM1.R2 — Opposite-agent behavior is consistent across desktop and cloud
 
@@ -148,9 +148,9 @@ test-definitions.md is the R/G/R ledger. Executable Given/When/Then behavior liv
 
 ### Scenario Outline: Excluded reviewer classes do not enter the cross-agent coordinator
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: class-2, class-3, TDD, and refactor routes predated the coordinator and the new negative parity table guards that boundary
+- [x] GREEN 791b5f3cd
+- [x] REFACTOR skip: exclusions remain declarative rows in the same parity test without production routing changes
 
 ---
 
