@@ -659,6 +659,16 @@ function observeProtection(
       : 'unknown';
 }
 
+export function defaultBranchArguments(identity: PullRequestIdentity): string[] {
+  return [
+    'repo',
+    'view',
+    `${identity.headOwner}/${identity.headRepository}`,
+    '--json',
+    'defaultBranchRef',
+  ];
+}
+
 function observeCloseout(root: string, pr: string, binding: CloseoutBinding): CloseoutObservation {
   const pullRequests = observePullRequest(root, pr);
   const identity = pullRequests[0];
@@ -666,7 +676,9 @@ function observeCloseout(root: string, pr: string, binding: CloseoutBinding): Cl
   const localRef = identity
     ? git(root, 'show-ref', '--verify', '--hash', `refs/heads/${identity.headRefName}`)
     : undefined;
-  const defaultBranchResult = run('gh', ['repo', 'view', '--json', 'defaultBranchRef'], root);
+  const defaultBranchResult = identity
+    ? run('gh', defaultBranchArguments(identity), root)
+    : { status: 1, stdout: '', stderr: 'pull request identity is unavailable' };
   const defaultBranch =
     json<{ defaultBranchRef?: { name?: string } }>(defaultBranchResult)?.defaultBranchRef?.name ??
     '';
