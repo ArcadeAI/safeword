@@ -1,9 +1,9 @@
 import { resolveRunIdentity } from '../../templates/hooks/lib/run-identity.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
-import type { ReviewerOutput, ReviewKind } from './contract.js';
+import type { ReviewerOutput, ReviewFailure, ReviewKind } from './contract.js';
 import { prepareReviewPacket } from './packet.js';
 import { oppositeReviewer } from './policy.js';
-import { assignedReviewerModel, runHeadlessReviewer } from './runtime.js';
+import { assignedReviewerModel, ReviewRuntimeError, runHeadlessReviewer } from './runtime.js';
 
 function provenanceFailure(
   output: ReviewerOutput,
@@ -15,6 +15,26 @@ function provenanceFailure(
     return 'REVIEWER_PROVENANCE_CONTRADICTORY';
   }
   return undefined;
+}
+
+async function executeReview(
+  reviewer: 'claude' | 'codex',
+  prepared: ReturnType<typeof prepareReviewPacket>,
+): Promise<{ output?: ReviewerOutput; failure?: ReviewFailure; changed: boolean }> {
+  let output: ReviewerOutput | undefined;
+  let failure: ReviewFailure | undefined;
+  try {
+    output = await runHeadlessReviewer(reviewer, prepared.packet, prepared.workspace);
+  } catch (error) {
+    if (!(error instanceof ReviewRuntimeError)) {
+      prepared.cleanup();
+      throw error;
+    }
+    failure = error.failure;
+  }
+  const changed = prepared.changed();
+  prepared.cleanup();
+  return { output, failure, changed };
 }
 
 export async function runReview(input: {
@@ -44,14 +64,7 @@ export async function runReview(input: {
   }
 
   const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
-  let output: ReviewerOutput;
-  let changed: boolean;
-  try {
-    output = await runHeadlessReviewer(reviewer, prepared.packet, prepared.workspace);
-    changed = prepared.changed();
-  } finally {
-    prepared.cleanup();
-  }
+  const { output, failure: preferredFailure, changed } = await executeReview(reviewer, prepared);
   if (changed) {
     return createResult({
       state: 'failed',
@@ -75,6 +88,27 @@ export async function runReview(input: {
       },
     });
   }
+  if (preferredFailure !== undefined) {
+    return createResult({
+      state: 'action_required',
+      findings: [
+        {
+          code: 'REVIEW_PREFERRED_ROUTE_FAILED',
+          message: `The independent ${reviewer} review did not run (${preferredFailure.replaceAll('_', ' ')}).`,
+          severity: 'warning',
+        },
+      ],
+      data: {
+        command: 'review run',
+        status: 'blocked',
+        author_agent: author,
+        assigned_reviewer: reviewer,
+        preferred_failure: preferredFailure,
+        independence: 'none',
+      },
+    });
+  }
+  if (output === undefined) throw new Error('Review completed without output or failure');
   const provenanceError = provenanceFailure(output, reviewer, prepared.packet.dispatch_id);
   if (provenanceError !== undefined) {
     return createResult({

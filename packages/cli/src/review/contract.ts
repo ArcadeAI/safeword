@@ -3,6 +3,13 @@ export type ReviewAuthor = ReviewAgent | 'cursor' | 'unknown';
 export type ReviewKind = 'quality-review' | 'scenario-gate' | 'plan-implementation';
 export type ReviewPolicy = 'prefer' | 'require' | 'off';
 export type ReviewIndependence = 'cross-agent' | 'degraded' | 'none';
+export type ReviewFailure =
+  | 'not_installed'
+  | 'not_authenticated'
+  | 'process_failed'
+  | 'timed_out'
+  | 'invalid_output'
+  | 'source_changed';
 
 export interface ReviewFinding {
   readonly severity: 'info' | 'warning' | 'error';
