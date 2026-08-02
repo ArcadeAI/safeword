@@ -57,6 +57,14 @@ function directoryAssets(
   }));
 }
 
+function claudeHookAssets(templatesRoot: string): GeneratedClaudePluginAsset[] {
+  return directoryAssets(nodePath.join(templatesRoot, 'hooks'), 'runtime/hooks').filter(asset => {
+    const relativeHookPath = nodePath.relative('runtime/hooks', asset.relativePath);
+    const hostDirectory = relativeHookPath.split(nodePath.sep, 1)[0];
+    return hostDirectory !== 'codex' && hostDirectory !== 'cursor';
+  });
+}
+
 function adaptHookValue(value: unknown): unknown {
   if (typeof value === 'string') {
     return value.replaceAll(PROJECT_HOOK_ROOT, () => PLUGIN_HOOK_ROOT);
@@ -93,7 +101,7 @@ export function generateClaudePluginAssets(
   const assets = [
     ...directoryAssets(nodePath.join(templatesRoot, 'skills'), 'skills', adaptWorkflowReference),
     ...directoryAssets(nodePath.join(templatesRoot, 'agents'), 'agents', adaptWorkflowReference),
-    ...directoryAssets(nodePath.join(templatesRoot, 'hooks'), 'runtime/hooks'),
+    ...claudeHookAssets(templatesRoot),
     ...directoryAssets(nodePath.join(templatesRoot, 'guides'), 'resources/guides'),
     ...directoryAssets(nodePath.join(templatesRoot, 'scripts'), 'resources/scripts'),
     ...directoryAssets(
