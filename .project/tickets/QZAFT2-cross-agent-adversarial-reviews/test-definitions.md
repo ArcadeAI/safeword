@@ -22,7 +22,7 @@ test-definitions.md is the R/G/R ledger. Executable Given/When/Then behavior liv
 
 - [x] RED 32083119d
 - [x] GREEN 268905524
-- [ ] REFACTOR
+- [x] REFACTOR skip: the existing-route branch is already the minimal explicit policy outcome
 
 ## Rule: cross-agent-review.TBU1.R2 — Review evidence names the actual agents and independence level
 
