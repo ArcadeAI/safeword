@@ -14,6 +14,7 @@ phase_anchors:
   - define-behavior: .project/tickets/WEXCKV-add-spike-workflow/spec.md
   - scenario-gate: features/add-spike-workflow.feature
   - plan-implementation: features/add-spike-workflow.feature
+  - implement: .project/tickets/WEXCKV-add-spike-workflow/impl-plan.md
   - done: .project/tickets/WEXCKV-add-spike-workflow/verify.md
 scope:
   - ship a manual spike action skill for bounded build-only uncertainty
