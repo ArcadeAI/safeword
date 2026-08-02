@@ -100,6 +100,19 @@ async function claudeStatusHandler(invocation: CommandInvocation): Promise<CliRe
   return observeClaudeStatus(invocation.cwd);
 }
 
+async function claudeCleanupHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const { cleanupClaudeLegacy } = await import('../claude-plugin/cleanup.js');
+  return cleanupClaudeLegacy(invocation.cwd, {
+    assumeYes: invocation.options.yes === true,
+    plan: stringOption(invocation.options, 'plan'),
+  });
+}
+
+async function claudeRecoverHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const { recoverClaudeCleanup } = await import('../claude-plugin/cleanup.js');
+  return recoverClaudeCleanup(invocation.cwd);
+}
+
 async function planHandler(invocation: CommandInvocation): Promise<CliResult> {
   const { observePlan } = await import('../commands/plan.js');
   return observePlan(invocation.cwd);
@@ -1318,6 +1331,8 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'codex status': codexStatusHandler,
   'claude install': claudeInstallHandler,
   'claude status': claudeStatusHandler,
+  'claude cleanup': claudeCleanupHandler,
+  'claude recover': claudeRecoverHandler,
   'codex clean-guidance': codexCleanGuidanceHandler,
   'codex recover': invocation => codexMutationHandler('codex recover', invocation),
   'ticket list': ticketListHandler,

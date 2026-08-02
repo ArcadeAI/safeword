@@ -24,7 +24,7 @@ import {
 } from '../packs/python/setup.js';
 import { getMissingPacks } from '../packs/registry.js';
 import { reconcile, ReconcileExecutionError, type ReconcileResult } from '../reconcile.js';
-import { SAFEWORD_SCHEMA } from '../schema.js';
+import { SAFEWORD_SCHEMA, type SafewordSchema } from '../schema.js';
 import { createProjectContext } from '../utils/context.js';
 import { exists, writeJson } from '../utils/fs.js';
 import { hookIntegrationNudge } from '../utils/hook-nudge.js';
@@ -598,17 +598,43 @@ function setupResult(input: SetupResultInput): CliResult {
   const actionRequired = findings.some(finding => finding.severity !== 'info');
   let state: CliResult['state'] = changed ? 'changed' : 'healthy';
   if (actionRequired) state = 'action_required';
-  const nextCommand = actionRequired
-    ? (installation.command ?? 'safeword setup')
-    : 'safeword codex install';
+  const nextCommands = actionRequired
+    ? [installation.command ?? 'safeword setup']
+    : ['safeword claude install', 'safeword codex install'];
   return createResult({
     state,
     changed,
     effects: { files, packages, network },
     findings,
-    nextActions: [{ command: nextCommand, mutates: true, requiresHuman: true }],
+    nextActions: nextCommands.map(command => ({ command, mutates: true, requiresHuman: true })),
     data: { configured: true, dependency_install: installation },
   });
+}
+
+function withoutClaudeLegacy<T>(values: Record<string, T>): Record<string, T> {
+  return Object.fromEntries(
+    Object.entries(values).filter(([path]) => !path.startsWith('.claude/')),
+  );
+}
+
+function setupSchemaForClaudeDelivery(cwd: string): SafewordSchema {
+  const pluginMarker = nodePath.join(cwd, '.safeword/claude-plugin/plugin-mode-v1.json');
+  const hasLegacy = [
+    ...Object.keys(SAFEWORD_SCHEMA.ownedFiles),
+    ...Object.keys(SAFEWORD_SCHEMA.managedFiles),
+    ...Object.keys(SAFEWORD_SCHEMA.jsonMerges),
+  ].some(path => path.startsWith('.claude/') && existsSync(nodePath.join(cwd, path)));
+  if (!existsSync(pluginMarker) && hasLegacy) return SAFEWORD_SCHEMA;
+  return {
+    ...SAFEWORD_SCHEMA,
+    ownedDirs: SAFEWORD_SCHEMA.ownedDirs.filter(path => !path.startsWith('.claude')),
+    sharedDirs: SAFEWORD_SCHEMA.sharedDirs.filter(path => !path.startsWith('.claude')),
+    deprecatedFiles: SAFEWORD_SCHEMA.deprecatedFiles.filter(path => !path.startsWith('.claude/')),
+    deprecatedDirs: SAFEWORD_SCHEMA.deprecatedDirs.filter(path => !path.startsWith('.claude')),
+    ownedFiles: withoutClaudeLegacy(SAFEWORD_SCHEMA.ownedFiles),
+    managedFiles: withoutClaudeLegacy(SAFEWORD_SCHEMA.managedFiles),
+    jsonMerges: withoutClaudeLegacy(SAFEWORD_SCHEMA.jsonMerges),
+  };
 }
 
 function applyCompatibilityMigrations(cwd: string, completedEffects: CompletedSetupEffects): void {
@@ -668,7 +694,8 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
   } = input;
   const context = createProjectContext(cwd);
   const operation = configured ? 'upgrade' : 'install';
-  const result = await reconcile(SAFEWORD_SCHEMA, operation, context);
+  const setupSchema = setupSchemaForClaudeDelivery(cwd);
+  const result = await reconcile(setupSchema, operation, context);
   const completedEffects: CompletedSetupEffects = {
     files: [...preliminaryFileEffects, ...effectsForReconciliation(result, 'upgrade').files],
     packages: [],
@@ -744,6 +771,7 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
     });
     const health = await checkHealth(cwd, {
       skipPackageChecks: Boolean(process.env.SAFEWORD_SKIP_INSTALL),
+      schema: setupSchema,
     });
     return verifiedSetupResult(applied, health, configured);
   } catch (setupError) {

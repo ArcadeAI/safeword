@@ -26,10 +26,9 @@ Feature: Ship Safeword as a native Claude Code plugin
         | the exact official Safeword plugin disabled         |
         | an enabled older official Safeword plugin version   |
 
-    @wip
     Scenario: Fresh setup recommends an explicit user-scoped plugin install without writing legacy Claude assets
       Given a project that has never installed Safeword
-      When safeword setup runs
+      When safeword setup runs for native Claude delivery
       Then project-owned Safeword state is created
       And no Claude-only legacy hooks, skills, commands, or agents are materialized
       And the result recommends safeword claude install without changing the Claude profile
@@ -273,7 +272,7 @@ Feature: Ship Safeword as a native Claude Code plugin
         | a missing hook entrypoint  |
         | a modified hook runtime    |
 
-  @wip @native-claude-plugin.NTB1.R3 @surface.claude-code @surface.safeword-cli
+  @native-claude-plugin.NTB1.R3 @surface.claude-code @surface.safeword-cli
   Rule: native-claude-plugin.NTB1.R3 — Cleanup never installs, upgrades, enables, reloads, or changes trust for the plugin or its marketplace
 
     Scenario: Successful cleanup makes no Claude lifecycle mutation

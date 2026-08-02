@@ -223,6 +223,18 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     networkPolicy: 'declared',
   }),
   command('claude status', 'Report Claude plugin and migration state', 'observe'),
+  command('claude cleanup', 'Remove verified legacy Claude project assets', 'destructive', {
+    promptPolicy: 'confirm',
+    commandOptions: [
+      { flags: '--yes', description: 'Confirm cleanup of the observed exact revision' },
+      {
+        flags: '--plan <id>',
+        description: 'Identity of the exact cleanup plan',
+        valueKind: 'plan-identity',
+      },
+    ],
+  }),
+  command('claude recover', 'Recover an interrupted Claude cleanup', 'mutate'),
   command(
     'codex clean-guidance',
     'Back up exact legacy Safe Word profile guidance',

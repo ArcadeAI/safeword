@@ -731,6 +731,180 @@ Then(
   },
 );
 
+function runLifecycleCommand(
+  world: NativeClaudePluginWorld,
+  command: string[],
+): { status: number; output: string } {
+  assert.ok(world.lifecycle);
+  const result = spawnSync(
+    'bun',
+    [
+      nodePath.join(REPO_ROOT, 'packages/cli/src/cli.ts'),
+      ...command,
+      '--json',
+      '--no-input',
+      '--cwd',
+      world.lifecycle.project,
+    ],
+    {
+      cwd: REPO_ROOT,
+      env: {
+        ...process.env,
+        CLAUDE_CONFIG_DIR: world.lifecycle.configRoot,
+        FAKE_CLAUDE_STATE: world.lifecycle.statePath,
+        PATH: `${nodePath.join(world.lifecycle.root, 'bin')}:${process.env.PATH ?? ''}`,
+      },
+      encoding: 'utf8',
+    },
+  );
+  return { status: result.status ?? 1, output: `${result.stdout ?? ''}${result.stderr ?? ''}` };
+}
+
+Given(
+  'a cleanup-ready project and a call-recording Claude command adapter',
+  function (this: NativeClaudePluginWorld) {
+    createStatusFixture(this, 'valid proof and wholly recognized removable legacy', false);
+  },
+);
+
+Given(
+  'cleanup preconditions fail and a call-recording Claude command adapter is present',
+  function (this: NativeClaudePluginWorld) {
+    createStatusFixture(this, 'enabled without execution proof', true);
+  },
+);
+
+Given(
+  'valid current plugin proof and a plugin-mode project with no Claude legacy assets',
+  function (this: NativeClaudePluginWorld) {
+    createStatusFixture(this, 'valid proof, durable plugin-mode marker, and no legacy', false);
+  },
+);
+
+When('safeword claude cleanup is confirmed', function (this: NativeClaudePluginWorld) {
+  const preview = runLifecycleCommand(this, ['claude', 'cleanup']);
+  const result = JSON.parse(preview.output) as { data?: { plan?: { id?: string } } };
+  const plan = result.data?.plan?.id;
+  this.lifecycle!.result =
+    typeof plan === 'string'
+      ? runLifecycleCommand(this, ['claude', 'cleanup', '--yes', '--plan', plan])
+      : preview;
+});
+
+Then(
+  'the cleanup transaction completes without any marketplace, install, update, enable, reload, or trust call',
+  function (this: NativeClaudePluginWorld) {
+    assert.equal(this.lifecycle?.result?.status, 0, this.lifecycle?.result?.output);
+    assert.ok(this.lifecycle);
+    assert.equal(
+      existsSync(nodePath.join(this.lifecycle.project, '.claude/skills/debug/SKILL.md')),
+      false,
+    );
+    assert.equal(
+      existsSync(
+        nodePath.join(
+          this.lifecycle.project,
+          '.safeword/claude-plugin/cleanup-transaction-v1.json',
+        ),
+      ),
+      false,
+    );
+    assert.ok(
+      existsSync(
+        nodePath.join(this.lifecycle.project, '.safeword/claude-plugin/plugin-mode-v1.json'),
+      ),
+    );
+    assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
+  },
+);
+
+Then('cleanup leaves the project unchanged', function (this: NativeClaudePluginWorld) {
+  assert.ok(this.lifecycle);
+  assert.equal(snapshotDirectory(this.lifecycle.project), this.lifecycle.projectTreeSnapshot);
+});
+
+Then(
+  'it makes no marketplace, install, update, enable, reload, or trust call',
+  function (this: NativeClaudePluginWorld) {
+    assert.ok(this.lifecycle);
+    assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
+  },
+);
+
+Then('it reports plugin-mode with no next action', function (this: NativeClaudePluginWorld) {
+  assert.equal(this.lifecycle?.result?.status, 0, this.lifecycle?.result?.output);
+  const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+    data?: { classification?: string };
+    next_actions?: unknown[];
+  };
+  assert.equal(result.data?.classification, 'plugin-mode');
+  assert.deepEqual(result.next_actions, []);
+});
+
+Then('profile and project bytes are unchanged', function (this: NativeClaudePluginWorld) {
+  assert.ok(this.lifecycle);
+  assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
+  assert.equal(snapshotDirectory(this.lifecycle.project), this.lifecycle.projectTreeSnapshot);
+});
+
+Given('a project that has never installed Safeword', function (this: NativeClaudePluginWorld) {
+  createLifecycleFixture(this, {});
+});
+
+When('safeword setup runs for native Claude delivery', function (this: NativeClaudePluginWorld) {
+  assert.ok(this.lifecycle);
+  const result = spawnSync(
+    'bun',
+    [
+      nodePath.join(REPO_ROOT, 'packages/cli/src/cli.ts'),
+      'setup',
+      '--json',
+      '--no-input',
+      '--cwd',
+      this.lifecycle.project,
+    ],
+    {
+      cwd: REPO_ROOT,
+      env: {
+        ...process.env,
+        SAFEWORD_SKIP_INSTALL: '1',
+        SAFEWORD_SKIP_SKILLS: '1',
+      },
+      encoding: 'utf8',
+    },
+  );
+  this.lifecycle.result = {
+    status: result.status ?? 1,
+    output: `${result.stdout ?? ''}${result.stderr ?? ''}`,
+  };
+});
+
+Then('project-owned Safeword state is created', function (this: NativeClaudePluginWorld) {
+  assert.equal(this.lifecycle?.result?.status, 0, this.lifecycle?.result?.output);
+  assert.ok(this.lifecycle);
+  assert.ok(existsSync(nodePath.join(this.lifecycle.project, '.safeword/version')));
+});
+
+Then(
+  'no Claude-only legacy hooks, skills, commands, or agents are materialized',
+  function (this: NativeClaudePluginWorld) {
+    assert.ok(this.lifecycle);
+    assert.equal(existsSync(nodePath.join(this.lifecycle.project, '.claude')), false);
+  },
+);
+
+Then(
+  'the result recommends safeword claude install without changing the Claude profile',
+  function (this: NativeClaudePluginWorld) {
+    assert.ok(this.lifecycle);
+    const result = JSON.parse(this.lifecycle.result?.output ?? '') as {
+      next_actions?: { command?: string }[];
+    };
+    assert.ok(result.next_actions?.some(action => action.command === 'safeword claude install'));
+    assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
+  },
+);
+
 Given(
   /^the Claude executable reports (2\.1\.169|unparseable output)$/u,
   function (this: NativeClaudePluginWorld, version: string) {

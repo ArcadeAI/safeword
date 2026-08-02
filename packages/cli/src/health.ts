@@ -20,7 +20,12 @@ import { getMissingPacks } from './packs/registry.js';
 import type { ProjectType } from './packs/types.js';
 import { typescriptPackages } from './packs/typescript/files.js';
 import { reconcile } from './reconcile.js';
-import { BDD_LANE_FILE_PATHS, BDD_LANE_SCRIPT, SAFEWORD_SCHEMA } from './schema.js';
+import {
+  BDD_LANE_FILE_PATHS,
+  BDD_LANE_SCRIPT,
+  SAFEWORD_SCHEMA,
+  type SafewordSchema,
+} from './schema.js';
 import { inspectTicketIndexConflicts, readTickets } from './ticket-sync/index.js';
 import { listArchitectureRecords } from './utils/architecture-records.js';
 import {
@@ -71,6 +76,13 @@ function findMissingFiles(cwd: string, actions: { type: string; path: string }[]
     }
   }
   return issues;
+}
+
+function missingClaudeSettingsIssues(cwd: string, schema: SafewordSchema): string[] {
+  const required = '.claude/settings.json' in schema.jsonMerges;
+  return required && !exists(nodePath.join(cwd, '.claude', 'settings.json'))
+    ? ['Missing: .claude/settings.json']
+    : [];
 }
 
 // The persona/glossary find*Issues + find*Advisories pairs below (and the
@@ -690,6 +702,8 @@ export interface CheckHealthOptions {
    * Standalone `check` leaves this false so the diagnostic reports the truth.
    */
   skipPackageChecks?: boolean;
+  /** Schema view used by the mutating command whose postcondition is being checked. */
+  schema?: SafewordSchema;
 }
 
 export async function checkHealth(
@@ -719,7 +733,7 @@ export async function checkHealth(
 
   // Use reconcile with dryRun to detect issues
   const ctx = createProjectContext(cwd);
-  const result = await reconcile(SAFEWORD_SCHEMA, 'upgrade', ctx, {
+  const result = await reconcile(options.schema ?? SAFEWORD_SCHEMA, 'upgrade', ctx, {
     dryRun: true,
   });
 
@@ -739,12 +753,8 @@ export async function checkHealth(
     ...findPersonaIssues(cwd),
     ...findGlossaryIssues(cwd),
     ...findDocumentationSourceIssues(cwd),
+    ...missingClaudeSettingsIssues(cwd, options.schema ?? SAFEWORD_SCHEMA),
   ];
-
-  // Check for missing .claude/settings.json
-  if (!exists(nodePath.join(cwd, '.claude', 'settings.json'))) {
-    issues.push('Missing: .claude/settings.json');
-  }
 
   // Check for missing language packs (unless install was deliberately skipped)
   const missingPacks = options.skipPackageChecks ? [] : getMissingPacks(cwd);
