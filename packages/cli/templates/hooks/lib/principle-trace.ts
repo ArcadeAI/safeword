@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { sectionBody } from './impl-plan.ts';
@@ -36,29 +36,70 @@ function parseTraceRows(implPlan: string): PrincipleTrace[] {
 }
 
 function principleNames(source: string | null): Set<string> {
-  return new Set(
-    (source ?? '')
-      .split('\n')
-      .map(line =>
-        line
-          .match(/^#{2,6}\s+(.+?)\s*$/u)?.[1]
-          ?.trim()
-          .toLowerCase(),
-      )
-      .filter((name): name is string => name !== undefined),
-  );
+  const names = new Set<string>();
+
+  for (const line of (source ?? '').split('\n')) {
+    const name = line
+      .match(/^##\s+(.+?)\s*$/u)?.[1]
+      ?.trim()
+      .toLowerCase();
+    if (name === 'further reading') break;
+    if (name !== undefined) names.add(name);
+  }
+
+  return names;
 }
 
-function proofTarget(proof: string): string {
+function proofTarget(proof: string): { path: string; fragment?: string } {
   const markdownTarget = proof.match(/\[[^\]]+\]\(([^)]+)\)/u)?.[1];
-  return (markdownTarget ?? proof).replaceAll('`', '').split('#')[0]?.replace(/:\d+$/u, '') ?? '';
+  const target = (markdownTarget ?? proof).replaceAll('`', '').trim();
+  const [path = '', fragment] = target.split('#', 2);
+
+  return { path: path.replace(/:\d+$/u, ''), fragment };
+}
+
+function markdownHeadingSlug(heading: string): string {
+  return heading
+    .trim()
+    .toLowerCase()
+    .replace(/<[^>]*>/gu, '')
+    .replace(/[^\p{L}\p{N}\s_-]/gu, '')
+    .replace(/\s+/gu, '-')
+    .replace(/-+/gu, '-');
+}
+
+function markdownFragmentResolves(path: string, fragment: string): boolean {
+  let decodedFragment: string;
+  try {
+    decodedFragment = decodeURIComponent(fragment).toLowerCase();
+  } catch {
+    return false;
+  }
+
+  const content = readFileSync(path, 'utf8');
+  const explicitIds = [...content.matchAll(/\bid=["']([^"']+)["']/giu)].map(match =>
+    match[1]?.toLowerCase(),
+  );
+  if (explicitIds.includes(decodedFragment)) return true;
+
+  return content
+    .split('\n')
+    .map(line => line.match(/^#{1,6}\s+(.+?)\s*#*\s*$/u)?.[1])
+    .filter((heading): heading is string => heading !== undefined)
+    .some(heading => markdownHeadingSlug(heading) === decodedFragment);
 }
 
 function proofResolves(projectDirectory: string, proof: string): boolean {
-  const target = proofTarget(proof).trim();
-  if (target === '') return false;
-  const resolved = nodePath.isAbsolute(target) ? target : nodePath.join(projectDirectory, target);
-  return existsSync(resolved);
+  const target = proofTarget(proof);
+  if (target.path === '') return false;
+  const resolved = nodePath.isAbsolute(target.path)
+    ? target.path
+    : nodePath.join(projectDirectory, target.path);
+  if (!existsSync(resolved)) return false;
+  if (target.fragment === undefined || target.fragment === '') return true;
+  if (!/\.mdx?$/iu.test(resolved)) return false;
+
+  return markdownFragmentResolves(resolved, target.fragment);
 }
 
 function finding(detail: string, principle: string): string {
