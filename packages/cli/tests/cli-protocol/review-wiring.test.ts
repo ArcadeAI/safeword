@@ -32,11 +32,11 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verd
 
 describe('cross-agent review public-command wiring', () => {
   it.each([
-    { author: 'claude', reviewer: 'codex' },
-    { author: 'codex', reviewer: 'claude' },
+    { author: 'claude', reviewer: 'codex', model: 'codex-default' },
+    { author: 'codex', reviewer: 'claude', model: 'claude-default' },
   ] as const)(
     'routes $author-authored work to headless $reviewer',
-    async ({ author, reviewer }) => {
+    async ({ author, reviewer, model }) => {
       const directory = createTemporaryDirectory();
       const target = nodePath.join(directory, 'review-input.md');
       const log = nodePath.join(directory, 'review.log');
@@ -75,7 +75,11 @@ describe('cross-agent review public-command wiring', () => {
           author_agent: author,
           assigned_reviewer: reviewer,
           actual_reviewer: reviewer,
+          assigned_model: model,
           independence: 'cross-agent',
+          reviewer_output: {
+            dispatch_id: expect.stringMatching(/^[0-9a-f-]{36}$/u),
+          },
         },
       });
       expect(readFileSync(log, 'utf8')).toBe(`${reviewer}\n`);
