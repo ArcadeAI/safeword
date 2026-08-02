@@ -137,7 +137,7 @@ Feature: Ship Safeword as a native Claude Code plugin
       Then validation fails naming the project-relative dependency
       And no plugin catalogue is published
 
-  @wip @native-claude-plugin.TBU1.R4 @surface.claude-code @surface.safeword-cli
+  @native-claude-plugin.TBU1.R4 @surface.claude-code @surface.safeword-cli
   Rule: native-claude-plugin.TBU1.R4 — Repeating any successful lifecycle operation is idempotent and produces no unrelated repository churn
 
     Scenario Outline: Repeating a completed lifecycle operation is a no-op

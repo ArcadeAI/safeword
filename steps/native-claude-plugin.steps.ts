@@ -38,6 +38,9 @@ interface NativeClaudePluginWorld {
     profileSnapshot: string;
     projectTreeSnapshot?: string;
     configTreeSnapshot?: string;
+    completedSnapshot?: string;
+    terminalClassification?: string;
+    completedOperation?: string;
     unrelatedProfile: unknown;
     result?: { status: number; output: string };
   };
@@ -1376,6 +1379,197 @@ Then('the plugin functional effect occurs exactly once', function (this: NativeC
 Then('no plugin reload or task restart is required', function (this: NativeClaudePluginWorld) {
   assert.equal(this.cacheFixture?.result?.status, 0, this.cacheFixture?.result?.output);
 });
+
+function resultClassification(output: string): string | undefined {
+  return (JSON.parse(output) as { data?: { classification?: string } }).data?.classification;
+}
+
+Given(
+  /^(safeword claude install|safeword claude cleanup|safeword claude recover) has completed successfully$/u,
+  function (this: NativeClaudePluginWorld, operation: string) {
+    if (operation.endsWith('install')) {
+      createLifecycleFixture(this, {
+        marketplaces: [
+          {
+            name: 'safeword',
+            source: 'git',
+            url: 'https://github.com/ArcadeAI/safeword.git',
+            ref: `v${EXPECTED_VERSION}`,
+          },
+        ],
+        plugins: [
+          {
+            id: 'safeword@safeword',
+            version: EXPECTED_VERSION,
+            enabled: true,
+            scope: 'user',
+            installPath: '',
+          },
+        ],
+      });
+      assert.ok(this.lifecycle);
+      const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+        plugins: Record<string, unknown>[];
+        installPath: string;
+      };
+      state.plugins[0] = { ...state.plugins[0], installPath: state.installPath };
+      writeFileSync(this.lifecycle.statePath, `${JSON.stringify(state, undefined, 2)}\n`);
+      this.lifecycle.result = runLifecycleCommand(this, ['claude', 'install']);
+    } else if (operation.endsWith('cleanup')) {
+      createStatusFixture(this, 'valid proof and wholly recognized removable legacy', false);
+      const preview = runLifecycleCommand(this, ['claude', 'cleanup']);
+      const id = (JSON.parse(preview.output) as { data?: { plan?: { id?: string } } }).data?.plan
+        ?.id;
+      assert.ok(id);
+      this.lifecycle!.result = runLifecycleCommand(this, [
+        'claude',
+        'cleanup',
+        '--yes',
+        '--plan',
+        id,
+      ]);
+    } else {
+      createLifecycleFixture(this, {});
+      this.lifecycle!.result = runLifecycleCommand(this, ['claude', 'recover']);
+    }
+    assert.ok(this.lifecycle?.result);
+    this.lifecycle.completedOperation = operation;
+    this.lifecycle.terminalClassification = resultClassification(this.lifecycle.result.output);
+    this.lifecycle.completedSnapshot = JSON.stringify({
+      project: snapshotDirectory(this.lifecycle.project),
+      config: snapshotDirectory(this.lifecycle.configRoot ?? ''),
+      profile: readFileSync(this.lifecycle.statePath, 'utf8'),
+    });
+  },
+);
+
+When(
+  /^the same (safeword claude install|safeword claude cleanup|safeword claude recover) runs again$/u,
+  function (this: NativeClaudePluginWorld, operation: string) {
+    this.lifecycle!.result = runLifecycleCommand(this, operation.split(' ').slice(1));
+  },
+);
+
+Then(
+  'its owned profile or project state is byte-identical to the completed state',
+  function (this: NativeClaudePluginWorld) {
+    assert.ok(this.lifecycle);
+    assert.equal(
+      JSON.stringify({
+        project: snapshotDirectory(this.lifecycle.project),
+        config: snapshotDirectory(this.lifecycle.configRoot ?? ''),
+        profile: readFileSync(this.lifecycle.statePath, 'utf8'),
+      }),
+      this.lifecycle.completedSnapshot,
+    );
+  },
+);
+
+Then(
+  'unrelated profile and project state is byte-identical',
+  function (this: NativeClaudePluginWorld) {
+    assert.ok(this.lifecycle);
+    const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
+      unrelated?: unknown;
+    };
+    assert.deepEqual(state.unrelated, this.lifecycle.unrelatedProfile);
+  },
+);
+
+Then(
+  'the versioned JSON result has the same successful terminal classification',
+  function (this: NativeClaudePluginWorld) {
+    assert.equal(this.lifecycle?.result?.status, 0, this.lifecycle?.result?.output);
+    assert.equal(
+      resultClassification(this.lifecycle?.result?.output ?? ''),
+      this.lifecycle?.terminalClassification,
+    );
+  },
+);
+
+Given(
+  'a project has an incomplete durable Claude cleanup transaction',
+  function (this: NativeClaudePluginWorld) {
+    createStatusFixture(this, 'accompanied by an incomplete transaction', true);
+  },
+);
+
+When('a new safeword claude cleanup runs', function (this: NativeClaudePluginWorld) {
+  this.lifecycle!.result = runLifecycleCommand(this, ['claude', 'cleanup']);
+});
+
+Then(
+  'it fails in recovery-required state without changing the project',
+  function (this: NativeClaudePluginWorld) {
+    assert.equal(this.lifecycle?.result?.status, 2, this.lifecycle?.result?.output);
+    assert.equal(resultClassification(this.lifecycle?.result?.output ?? ''), 'recovery-required');
+    assert.ok(this.lifecycle);
+    assert.equal(snapshotDirectory(this.lifecycle.project), this.lifecycle.projectTreeSnapshot);
+  },
+);
+
+Then(
+  'the sole safe next action is safeword claude recover',
+  function (this: NativeClaudePluginWorld) {
+    const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+      next_actions?: { command?: string }[];
+    };
+    assert.deepEqual(
+      result.next_actions?.map(action => action.command),
+      ['safeword claude recover'],
+    );
+  },
+);
+
+Given(
+  'a successfully cleaned project carries its durable plugin-mode marker',
+  function (this: NativeClaudePluginWorld) {
+    createStatusFixture(this, 'valid proof, durable plugin-mode marker, and no legacy', false);
+  },
+);
+
+When('safeword setup runs again', function (this: NativeClaudePluginWorld) {
+  assert.ok(this.lifecycle);
+  const result = spawnSync(
+    'bun',
+    [
+      nodePath.join(REPO_ROOT, 'packages/cli/src/cli.ts'),
+      'setup',
+      '--json',
+      '--no-input',
+      '--cwd',
+      this.lifecycle.project,
+    ],
+    {
+      cwd: REPO_ROOT,
+      env: { ...process.env, SAFEWORD_SKIP_INSTALL: '1', SAFEWORD_SKIP_SKILLS: '1' },
+      encoding: 'utf8',
+    },
+  );
+  this.lifecycle.result = {
+    status: result.status ?? 1,
+    output: `${result.stdout ?? ''}${result.stderr ?? ''}`,
+  };
+});
+
+Then(
+  'no retired Claude hook, skill, command, agent, or settings entry is recreated',
+  function (this: NativeClaudePluginWorld) {
+    assert.ok(this.lifecycle);
+    assert.equal(existsSync(nodePath.join(this.lifecycle.project, '.claude')), false);
+  },
+);
+
+Then(
+  'project-owned and Cursor-shared assets remain reconciled',
+  function (this: NativeClaudePluginWorld) {
+    assert.ok(this.lifecycle);
+    assert.ok(existsSync(nodePath.join(this.lifecycle.project, '.safeword/skills/debug/SKILL.md')));
+    assert.ok(
+      existsSync(nodePath.join(this.lifecycle.project, '.cursor/rules/safeword-debugging.mdc')),
+    );
+  },
+);
 
 Given(
   /^the Claude executable reports (2\.1\.169|unparseable output)$/u,
