@@ -59,6 +59,21 @@ describe('closeout observed resumption (93C14D NTB1.R3)', () => {
   });
 });
 
+describe('closeout retrospective boundary (93C14D NTB1.R2)', () => {
+  it('makes the exact current-session retrospective a fail-closed cleanup prerequisite', () => {
+    const skill = canonicalSkill();
+
+    expect(skill).toContain('safeword retro run --format json');
+    expect(skill).toContain('agent_filing_needed');
+    expect(skill).toContain('empty filing spool');
+    expect(skill).toMatch(/skip.*retro.*does not/i);
+    expect(skill).toMatch(/missing.*expired.*binding/i);
+    expect(skill).toContain('no newest-session fallback');
+    expect(skill).toMatch(/failed extraction.*failed filing.*pending drafts/is);
+    expect(skill).toMatch(/no cleanup/i);
+  });
+});
+
 describe('closeout host entry points (93C14D TBU1.R4)', () => {
   it('derives Claude, Cursor, and Codex entry points from production catalogues', () => {
     const cursor = CURSOR_COMMAND_WRAPPERS.find(wrapper => wrapper.name === 'closeout');
