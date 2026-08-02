@@ -71,4 +71,40 @@ describe('public CLI documentation', () => {
 
     expect(staleInvocations).toEqual([]);
   });
+
+  it('keeps Claude context guidance aligned with current Claude Code behavior', () => {
+    const templateGuide = readFileSync(
+      nodePath.join(REPO_ROOT, 'packages/cli/templates/guides/context-files-guide.md'),
+      'utf8',
+    );
+    const installedGuide = readFileSync(
+      nodePath.join(REPO_ROOT, '.safeword/guides/context-files-guide.md'),
+      'utf8',
+    );
+    const claudeContext = readFileSync(nodePath.join(REPO_ROOT, 'CLAUDE.md'), 'utf8');
+
+    expect(installedGuide).toBe(templateGuide);
+    expect(templateGuide).toContain('Claude Code supports `CLAUDE.local.md`');
+    expect(templateGuide).toContain('`@~/.claude/my-project-instructions.md`');
+    expect(templateGuide).toContain('max depth: 4 hops');
+    expect(templateGuide).not.toContain('`*.local.md` is no longer recommended');
+    expect(templateGuide).not.toContain('max depth: 5 hops');
+    expect(claudeContext).toContain('@./AGENTS.md');
+    expect(claudeContext).not.toContain('---@./AGENTS.md');
+  });
+
+  it('keeps generated architecture prose ready for human architecture review', () => {
+    const generatedArchitectureFiles = [
+      '.project/architecture.generated.md',
+      'packages/cli/architecture.generated.md',
+      'packages/website/architecture.generated.md',
+    ];
+
+    for (const file of generatedArchitectureFiles) {
+      const content = readFileSync(nodePath.join(REPO_ROOT, file), 'utf8');
+      expect(content, file).not.toContain('No description yet');
+      expect(content, file).not.toContain('⚠ stale');
+      expect(content, file).not.toContain('⚠ orphaned');
+    }
+  });
 });

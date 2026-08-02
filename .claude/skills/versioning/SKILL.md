@@ -37,7 +37,7 @@ existing behavior. If a change can't fit this constraint, bump major instead.
 ### Major (0.x -> 1.0, 1.x -> 2.0) — Notify, user decides
 
 The only class that breaks auto-upgrade silence. User runs
-`bunx safeword@<version> upgrade` manually after reviewing the changelog.
+`bunx safeword@<version> setup` manually after reviewing the changelog.
 
 - Removed or renamed hooks, skills, or commands
 - Changed reconcile behavior (owned -> managed, file moves)

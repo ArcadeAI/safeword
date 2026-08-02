@@ -78,7 +78,7 @@ See root AGENTS.md for TDD workflow. This file covers test-specific patterns.
 
 **Reliability note:** On current models the tool's main context file (e.g. `CLAUDE.md` in Claude Code, `AGENTS.md` in Codex) auto-loads reliably every session — you don't need to name it in the prompt to get it applied. The real reliability lever is **brevity**: a bloated file buries its own rules, so a rule the model ignores is usually a length problem, not a reference problem. Keep it short and the auto-loaded rules land.
 
-**Deprecated:** `*.local.md` is no longer recommended - use imports instead for better multi-worktree support
+**Local project preferences:** Claude Code supports `CLAUDE.local.md` for private, per-worktree instructions. Add it to `.gitignore`. Because it does not follow you across linked worktrees, import a file from your home directory when the same personal context should apply everywhere.
 
 ## File Structure Pattern
 
@@ -256,8 +256,8 @@ Details in @docs/git-workflow.md
 
 - **Relative paths:** `@docs/file.md` (relative to AGENTS.md location)
 - **Absolute paths:** `@/path/to/file.md`
-- **Home directory:** `@.safeword/guides/file.md` (personal conventions across all projects)
-- **Recursive imports:** Imported files can import others (max depth: 5 hops)
+- **Home directory:** `@~/.claude/my-project-instructions.md` (personal conventions across all projects and worktrees)
+- **Recursive imports:** Imported files can import others (max depth: 4 hops)
 - **Inline usage:** Can reference imports in text, not just standalone lines
 - **Code blocks:** Imports ignored inside `` `code spans` `` and code blocks
 

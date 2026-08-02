@@ -8,7 +8,7 @@ A CLI tool that installs AI coding agent configurations into projects. **This re
 
 2. **Reconciliation Over Copy**: The CLI computes diffs between installed and template versions, enabling clean upgrades without clobbering user changes.
 
-3. **IDE Parity**: Claude Code (skills + commands) and Cursor (commands + rules) have feature parity via different mechanisms. Enforced by tests.
+3. **Agent Parity**: Claude Code, Cursor, and Codex expose the same Safe Word workflows through host-native skills, commands/rules, and hooks. Schema, catalogue, and parity tests enforce the shared contract.
 
 4. **Dogfooding**: This repo runs safeword on itself. Template changes are tested in real usage before release.
 
@@ -60,32 +60,32 @@ When gathering context, ask like a good PM—not like a system collecting form f
 
 Claude Code has three mechanisms for controlling agent behavior. Understanding their enforcement levels prevents design mistakes.
 
-| Mechanism     | What It Does                         | Enforcement | Can Chain? |
-| ------------- | ------------------------------------ | ----------- | ---------- |
-| **Skills**    | Guidance documents in same context   | Soft        | No         |
-| **Subagents** | Isolated execution, separate context | Soft        | No nesting |
-| **Hooks**     | Shell commands on lifecycle events   | Hard        | N/A        |
+| Mechanism     | What It Does                         | Enforcement         | Composition                                     |
+| ------------- | ------------------------------------ | ------------------- | ----------------------------------------------- |
+| **Skills**    | Guidance loaded into agent context   | Soft                | Model-mediated; skills may invoke other skills  |
+| **Subagents** | Isolated execution, separate context | Soft                | Nested delegation is depth- and tool-controlled |
+| **Hooks**     | Commands on lifecycle events         | Hard when blockable | Event-specific; may block, annotate, or observe |
 
-**Skills** add knowledge to the current conversation. Claude decides when to apply them based on semantic matching. They cannot invoke other skills or guarantee execution.
+**Skills** add knowledge to the current conversation. Claude decides when to apply them based on semantic matching unless the user invokes one explicitly. Skills can compose through the Skill tool, but that handoff remains model-mediated and does not guarantee execution.
 
-**Subagents** run in isolated context windows with configurable tool access. They're good for task isolation but:
+**Subagents** run in isolated context windows with configurable tools and optional preloaded skills. They're good for task isolation, review, and parallel evidence gathering. Current Claude Code permits nested subagents up to a configurable depth (three layers by default); a definition can remove the Agent tool to keep a worker leaf-only.
 
-- Cannot spawn other subagents (no nesting)
-- Don't inherit skills unless explicitly configured
-- Claude decides when to delegate (soft enforcement)
+- Skills listed in frontmatter are preloaded; other available skills remain discoverable through the Skill tool
+- Tool access, background execution, worktree isolation, and nesting are explicit configuration choices
+- Natural-language delegation remains soft; an explicit agent mention is the reliable user-triggered form
 
-**Hooks** execute shell commands at lifecycle events (PreToolUse, PostToolUse, etc.). They provide hard enforcement:
+**Hooks** execute commands at lifecycle events (PreToolUse, PostToolUse, Stop, and others). They provide deterministic enforcement where the host event is blockable:
 
-- Exit code 2 blocks execution until acknowledged
+- Exit code 2 blocks blockable events such as PreToolUse and Stop; post-event hooks can only report because the action already happened
 - Run at app level, not relying on Claude to decide
-- Perfect for validation, formatting, notifications
+- Use structured output when the host needs a typed allow/deny/context decision
 
 **Design principles:**
 
-1. **Don't rely on skill-to-skill handoffs** — they depend on agent memory
-2. **Don't expect subagents to chain** — no nesting allowed
-3. **Use hooks for guaranteed enforcement** — they always run
-4. **Inline guidance when handoffs fail** — merge skills instead of delegating
+1. **Treat skill composition as soft** — a handoff still depends on the model choosing the next skill
+2. **Bound delegation explicitly** — preload required skills and restrict Agent/tool access when a worker must stay focused
+3. **Use hooks for invariants** — enforce policy at a blockable lifecycle boundary rather than relying on prose
+4. **Keep fallback guidance local** — if a handoff is required for correctness, inline the minimum contract or graduate it into a hook
 
 ## Architecture Decisions
 
@@ -116,9 +116,9 @@ See `ARCHITECTURE.md` for full structure including all packages and templates.
 
 ## Project-Specific Content
 
-**Location**: `<namespace-root>/` (never touched by CLI reset/upgrade)
+**Location**: `<namespace-root>/`
 
-Use for project-specific guides that shouldn't be overwritten by framework updates.
+Use for project-owned tickets, learnings, and supporting product context. Setup and remove preserve authored ticket/learning content; generated indexes and transient Safe Word state may be reconciled by the CLI.
 
 **Read the matching guide when ANY trigger fires:**
 

@@ -1,5 +1,6 @@
 {
   "name": "@safeword/website",
+  "description": "Documentation site for Safeword installation, workflows, and CLI reference",
   "version": "0.2.0",
   "private": true,
   "type": "module",
