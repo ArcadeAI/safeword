@@ -416,7 +416,8 @@ if (state.failOperation && operation.startsWith(state.failOperation)) {
 }
 if (operation === 'plugin marketplace list --json') { console.log(JSON.stringify(state.marketplaces)); process.exit(0); }
 if (args[0] === 'plugin' && args[1] === 'marketplace' && args[2] === 'add') {
-  state.marketplaces.push({ name: 'safeword', source: args[3] }); write(state); process.exit(0);
+  const [url, ref] = args[3].split('#');
+  state.marketplaces.push({ name: 'safeword', source: 'git', url, ref }); write(state); process.exit(0);
 }
 if (operation === 'plugin list --json') { console.log(JSON.stringify(state.plugins)); process.exit(0); }
 if (args[0] === 'plugin' && ['install', 'enable', 'update'].includes(args[1])) {
@@ -509,7 +510,14 @@ Given(
       marketplaces:
         initialState === 'no Safeword marketplace or plugin'
           ? []
-          : [{ name: 'safeword', source: officialSource }],
+          : [
+              {
+                name: 'safeword',
+                source: 'git',
+                url: officialSource.split('#')[0],
+                ref: officialSource.split('#')[1],
+              },
+            ],
       plugins:
         initialState === 'no Safeword marketplace or plugin'
           ? []
@@ -580,7 +588,9 @@ Then(
     assert.deepEqual(state.marketplaces, [
       {
         name: 'safeword',
-        source: 'https://github.com/ArcadeAI/safeword.git#v0.71.0-rc.0',
+        source: 'git',
+        url: 'https://github.com/ArcadeAI/safeword.git',
+        ref: 'v0.71.0-rc.0',
       },
     ]);
     assert.deepEqual(state.plugins, [
