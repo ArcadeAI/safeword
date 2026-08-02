@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { checkPrincipleTrace } from '../../templates/hooks/lib/principle-trace.js';
 
 const PLAN = `# Impl Plan\n\n**Status:** implemented\n\n## Design alignment\n\n| Principle | Consequence | Proof | Conflict |\n| --- | --- | --- | --- |\n| Delight the user | Recovery stays in context | verify.md | |\n\n## Known deviations\n\nNone.\n`;
+const PRINCIPLE = `## Delight the user\n\n**Intent:** Make success effortless.\n\n**Prefer:** Clear recovery.\n\n**Avoid:** Dead ends.\n\n**Evidence:** Walk the experience.\n`;
 
 describe('checkPrincipleTrace', () => {
   const temporaryDirectories: string[] = [];
@@ -16,7 +17,7 @@ describe('checkPrincipleTrace', () => {
     const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-principle-trace-'));
     temporaryDirectories.push(directory);
     mkdirSync(nodePath.join(directory, '.project'), { recursive: true });
-    writeFileSync(nodePath.join(directory, '.project', 'principles.md'), '## Delight the user\n');
+    writeFileSync(nodePath.join(directory, '.project', 'principles.md'), PRINCIPLE);
     writeFileSync(nodePath.join(directory, 'verify.md'), '# Evidence\n');
     return directory;
   }
@@ -93,12 +94,25 @@ describe('checkPrincipleTrace', () => {
     const directory = project();
     writeFileSync(
       nodePath.join(directory, '.project', 'principles.md'),
-      '## Delight the user\n\n### Evidence\n\n## Further reading\n',
+      `${PRINCIPLE}\n## Further reading\n`,
     );
     const plan = PLAN.replace('Delight the user', 'Further reading');
 
     expect(checkPrincipleTrace(directory, plan)).toContain(
       '[E010] Broken principle trace: missing source principle: Further reading',
+    );
+  });
+
+  it('does not treat an arbitrary level-two support heading as a principle', () => {
+    const directory = project();
+    writeFileSync(
+      nodePath.join(directory, '.project', 'principles.md'),
+      `## How to use this file\n\nIntroductory guidance.\n\n${PRINCIPLE}`,
+    );
+    const plan = PLAN.replace('Delight the user', 'How to use this file');
+
+    expect(checkPrincipleTrace(directory, plan)).toContain(
+      '[E010] Broken principle trace: missing source principle: How to use this file',
     );
   });
 

@@ -37,15 +37,30 @@ function parseTraceRows(implPlan: string): PrincipleTrace[] {
 
 function principleNames(source: string | null): Set<string> {
   const names = new Set<string>();
+  let current: { body: string[]; name: string } | undefined;
+  const recordCurrent = (): void => {
+    if (current === undefined) return;
+    const numbered = /^\d+\.\s+\S/u.test(current.name);
+    const structured = ['**intent:**', '**prefer:**', '**avoid:**', '**evidence:**'].every(
+      field => current?.body.some(line => line.trim().toLowerCase().startsWith(field)) === true,
+    );
+    if (numbered || structured) names.add(current.name.toLowerCase());
+  };
 
   for (const line of (source ?? '').split('\n')) {
-    const name = line
-      .match(/^##\s+(.+?)\s*$/u)?.[1]
-      ?.trim()
-      .toLowerCase();
-    if (name === 'further reading') break;
-    if (name !== undefined) names.add(name);
+    const name = line.match(/^##\s+(.+?)\s*$/u)?.[1]?.trim();
+    if (name === undefined) {
+      current?.body.push(line);
+      continue;
+    }
+    recordCurrent();
+    if (name.toLowerCase() === 'further reading') {
+      current = undefined;
+      break;
+    }
+    current = { name, body: [] };
   }
+  recordCurrent();
 
   return names;
 }
