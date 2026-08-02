@@ -30,7 +30,7 @@ describe('quality-review regressions for the public CLI boundary', () => {
     expect(result.stdout).not.toContain('Deprecated alias for retro run');
   });
 
-  it.each(['codex install', 'codex status', 'codex recover', 'ticket new'])(
+  it.each(['codex install', 'codex status', 'codex clean-guidance', 'codex recover', 'ticket new'])(
     'catalogs the public %s leaf',
     name => {
       expect(findCommandDefinition(name)).toEqual(

@@ -1,11 +1,22 @@
 import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+declare const Bun: { stdin: { json(): Promise<unknown> } };
+
 export type Agent = 'claude' | 'codex' | 'cursor';
 export type HookInput = {
   cwd?: string;
   workspace_root?: string;
 };
+
+const CODEX_AUTHORITY = [
+  'Current Safe Word authority: tickets and their user stories/test definitions live under `.project/` (or the configured namespace root), and current workflow guides live under `.safeword/guides/`.',
+  'These current paths supersede retired Safe Word instructions that require `planning/` or `docs/` story/test-definition trees or `~/.agents/coding/guides/`.',
+].join('\n');
+
+export function withCodexAuthority(context: string | null): string | null {
+  return context === null ? null : `${CODEX_AUTHORITY}\n\n${context}`;
+}
 
 export function parseAgent(args: readonly string[] = process.argv): Agent {
   const argument = args.find(value => value.startsWith('--agent='));
@@ -73,15 +84,16 @@ export function createSafewordContextResponse(
   context: string | null,
 ): string | undefined {
   if (!context) return undefined;
+  const agentContext = agent === 'codex' ? withCodexAuthority(context) : context;
 
   if (agent === 'cursor') {
-    return `${JSON.stringify({ additional_context: context })}\n`;
+    return `${JSON.stringify({ additional_context: agentContext })}\n`;
   }
 
   return `${JSON.stringify({
     hookSpecificOutput: {
       hookEventName: 'SessionStart',
-      additionalContext: context,
+      additionalContext: agentContext,
     },
   })}\n`;
 }

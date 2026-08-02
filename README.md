@@ -265,7 +265,12 @@ implicitly enroll repositories: until `safeword setup` creates
 `.project/` or other project state. Codex visibly skips
 unreviewed or changed plugin hooks and directs the builder to `/hooks`. Use
 `safeword codex status` to see which implementation currently protects the
-repository and one safe next action. After the running plugin records current
+repository and one safe next action. It also reports active profile-level
+`AGENTS.md` guidance that matches or resembles retired Safe Word instructions.
+For an exact registered historical revision, preview
+`safeword codex clean-guidance`, then apply its exact `--yes --plan <plan-id>`
+action to move the file to a recoverable backup. Edited variants are warning-only
+and remain untouched. After the running plugin records current
 proof, preview `safeword codex migrate --finalize`, then run its exact
 `--yes --plan <plan-id>` action to back up and retire only
 Safe Word-owned legacy assets. The deprecated `--remove-legacy-hooks` alias

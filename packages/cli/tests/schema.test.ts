@@ -741,6 +741,10 @@ describe('Schema - Single Source of Truth', () => {
         // (CDRJTW) — gitignored transient state, present on any machine that
         // has committed in this repo.
         'boundary-audit.jsonl',
+        // A completed Codex plugin finalization is recoverable project state,
+        // not an installed template. Its marker and backup are maintained by
+        // the migration transaction rather than setup reconciliation.
+        'codex-plugin.json',
       ]);
 
       const ownedPaths = new Set(Object.keys(SAFEWORD_SCHEMA.ownedFiles));
@@ -775,6 +779,7 @@ describe('Schema - Single Source of Truth', () => {
         if (ownedPaths.has(file)) continue;
         if (managedPaths.has(file)) continue;
         if (deprecatedPaths.has(file)) continue;
+        if (file.startsWith('.safeword/codex-migration-backup/')) continue;
         if (preservedDirectories.some(dir => file === dir || file.startsWith(`${dir}/`))) continue;
         untracked.push(file);
       }

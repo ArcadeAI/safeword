@@ -4,6 +4,10 @@ import {
   type Finding,
   type NextAction,
 } from '../cli-protocol/result.js';
+import {
+  legacyGlobalGuidanceDiagnostic,
+  observeLegacyGlobalGuidance,
+} from '../codex-plugin/legacy-global-guidance.js';
 import { checkHealth } from '../health.js';
 import { detectPackageManager } from '../utils/install.js';
 import { compareVersions, isSafePackageVersion } from '../utils/version.js';
@@ -73,7 +77,37 @@ function projectVersionFinding(
   };
 }
 
-export async function observeStatus(cwd: string): Promise<CliResult> {
+export async function observeStatus(
+  cwd: string,
+  environment: NodeJS.ProcessEnv = process.env,
+): Promise<CliResult> {
+  const result = await observeProjectStatus(cwd);
+  return withGlobalGuidance(result, environment);
+}
+
+function withGlobalGuidance(result: CliResult, environment: NodeJS.ProcessEnv): CliResult {
+  if (result.state === 'failed') return result;
+  if ((result.data as { configured?: boolean } | undefined)?.configured !== true) return result;
+  const diagnostic = legacyGlobalGuidanceDiagnostic(observeLegacyGlobalGuidance(environment));
+  if (diagnostic.finding === undefined) {
+    return {
+      ...result,
+      data: { ...(result.data as object), global_guidance: diagnostic.observation },
+    };
+  }
+  return {
+    ...result,
+    state: 'action_required',
+    findings: [...result.findings, diagnostic.finding],
+    nextActions: [
+      ...result.nextActions,
+      ...(diagnostic.nextAction === undefined ? [] : [diagnostic.nextAction]),
+    ],
+    data: { ...(result.data as object), global_guidance: diagnostic.observation },
+  };
+}
+
+async function observeProjectStatus(cwd: string): Promise<CliResult> {
   try {
     const health = await checkHealth(cwd);
     if (!health.configured) {

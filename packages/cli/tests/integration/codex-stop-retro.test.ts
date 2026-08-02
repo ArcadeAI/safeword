@@ -42,8 +42,11 @@ import {
 } from '../helpers';
 
 const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
-const HOOK = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/codex/stop.ts');
-const POST_TOOL_HOOK = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/codex/post-tool-quality.ts');
+const HOOK = nodePath.join(SAFEWORD_ROOT, 'packages/cli/templates/hooks/codex/stop.ts');
+const POST_TOOL_HOOK = nodePath.join(
+  SAFEWORD_ROOT,
+  'packages/cli/templates/hooks/codex/post-tool-quality.ts',
+);
 
 /** A Codex rollout JSONL with `n` function_call tool events. */
 function writeCodexRollout(directory: string, name: string, toolEvents: number): string {
