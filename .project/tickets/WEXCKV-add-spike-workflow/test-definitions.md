@@ -44,7 +44,7 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN e5e0248f0
 - [x] REFACTOR skip: lifecycle guidance and real-git proof have distinct responsibilities
 
-## Rule: spike-workflow.TBU1.R1 — supported hosts expose one manual action
+## Rule: spike-workflow.TBU1.R1 — supported hosts expose an explicit spike action
 
 ### Scenario: Setup installs the same spike action for project-scoped hosts
 
@@ -55,10 +55,10 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Catalogue generation ships the same spike action for Codex
 
 - [x] RED skip: canonical-template parity generated Codex during the load-bearing setup slice
-- [ ] GREEN
+- [x] GREEN 6da2ce2f3
 - [ ] REFACTOR
 
-### Scenario: Automatic skill selection cannot spend a spike budget
+### Scenario: Host contracts keep spike behind explicit invocation
 
 - [ ] RED
 - [ ] GREEN
