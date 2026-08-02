@@ -73,6 +73,110 @@ function block(plan: CleanupPlan, message: string): void {
   if (!plan.blockers.includes(message)) plan.blockers.push(message);
 }
 
+function collectPrerequisiteBlockers(
+  plan: CleanupPlan,
+  observation: CloseoutObservation,
+  pullRequest: PullRequestIdentity | undefined,
+): void {
+  if (pullRequest?.state !== 'MERGED')
+    block(plan, 'the exact pull request is not confirmed merged');
+  if (!observation.verification.current) block(plan, 'local verification is stale');
+  if (!observation.verification.passed) block(plan, 'local verification failed');
+  if (!observation.retro.bound)
+    block(plan, 'the current host session binding is missing or expired');
+  if (!observation.retro.complete) block(plan, 'the current session retrospective is incomplete');
+  if (observation.retro.pendingDrafts > 0)
+    block(plan, 'the current session filing spool has pending drafts');
+  if (observation.protection === 'unknown') block(plan, 'branch protection state is unknown');
+  if (observation.protection === 'protected') block(plan, 'the topic branch is protected');
+  if (observation.remoteResolution === 'ambiguous') {
+    block(plan, 'the pull request head repository does not map to exactly one git remote');
+  }
+}
+
+function collectRefBlockers(
+  plan: CleanupPlan,
+  observation: CloseoutObservation,
+  pullRequest: PullRequestIdentity,
+): void {
+  const expectedRepository = `${pullRequest.headOwner}/${pullRequest.headRepository}`.toLowerCase();
+  if (pullRequest.headRefName === observation.defaultBranch) {
+    block(plan, 'the default branch is never a closeout target');
+  }
+  if (observation.verification.headOid !== pullRequest.headRefOid) {
+    block(plan, 'verification does not cover the pull request head');
+  }
+  if (observation.localRefOid && observation.localRefOid !== pullRequest.headRefOid) {
+    block(plan, 'the local branch no longer matches the pull request head');
+  }
+  if (observation.remote) {
+    if (normalizedRepository(observation.remote.url) !== expectedRepository) {
+      block(plan, 'the pull request head repository does not match the selected git remote');
+    }
+    if (observation.remote.oid !== pullRequest.headRefOid) {
+      block(plan, 'the remote branch no longer matches the pull request head');
+    }
+  }
+}
+
+function collectWorktreeBlockers(
+  plan: CleanupPlan,
+  pullRequest: PullRequestIdentity,
+  topicWorktrees: WorktreeIdentity[],
+  mainWorktrees: WorktreeIdentity[],
+): void {
+  if (mainWorktrees.length !== 1) block(plan, 'exactly one surviving main worktree is required');
+  if (topicWorktrees.length > 1) block(plan, 'the linked topic worktree is ambiguous');
+  const worktree = topicWorktrees[0];
+  if (worktree?.main) block(plan, 'the main worktree is never a closeout target');
+  if (worktree?.dirty) block(plan, `the linked worktree is dirty: ${worktree.path}`);
+  if (worktree?.locked) block(plan, `the linked worktree is locked: ${worktree.path}`);
+  if (worktree?.prunable) block(plan, `the worktree registration is stale: ${worktree.path}`);
+  if (worktree && worktree.oid !== pullRequest.headRefOid) {
+    block(plan, `the linked worktree no longer matches the pull request head: ${worktree.path}`);
+  }
+}
+
+function assembleOperations(
+  plan: CleanupPlan,
+  observation: CloseoutObservation,
+  pullRequest: PullRequestIdentity,
+  worktree: WorktreeIdentity | undefined,
+  mainWorktree: WorktreeIdentity,
+): void {
+  if (worktree) {
+    plan.operations.push({
+      kind: 'remove-worktree',
+      cwd: mainWorktree.path,
+      path: worktree.path,
+      oid: pullRequest.headRefOid,
+    });
+  } else {
+    plan.completed.push('worktree');
+  }
+  if (observation.remote) {
+    plan.operations.push({
+      kind: 'delete-remote-ref',
+      cwd: mainWorktree.path,
+      remote: observation.remote.name,
+      ref: `refs/heads/${pullRequest.headRefName}`,
+      oid: pullRequest.headRefOid,
+    });
+  } else {
+    plan.completed.push('remote branch');
+  }
+  if (observation.localRefOid) {
+    plan.operations.push({
+      kind: 'delete-local-ref',
+      cwd: mainWorktree.path,
+      ref: `refs/heads/${pullRequest.headRefName}`,
+      oid: pullRequest.headRefOid,
+    });
+  } else {
+    plan.completed.push('local branch');
+  }
+}
+
 export function buildCleanupPlan(observation: CloseoutObservation): CleanupPlan {
   const plan: CleanupPlan = {
     version: 1,
@@ -88,92 +192,18 @@ export function buildCleanupPlan(observation: CloseoutObservation): CleanupPlan 
   const pullRequest =
     observation.pullRequests.length === 1 ? observation.pullRequests[0] : undefined;
   if (pullRequest) plan.identity = pullRequest;
-  if (pullRequest?.state !== 'MERGED')
-    block(plan, 'the exact pull request is not confirmed merged');
+  collectPrerequisiteBlockers(plan, observation, pullRequest);
+  if (!pullRequest) return plan;
 
-  if (!observation.verification.current) block(plan, 'local verification is stale');
-  if (!observation.verification.passed) block(plan, 'local verification failed');
-  if (!observation.retro.bound)
-    block(plan, 'the current host session binding is missing or expired');
-  if (!observation.retro.complete) block(plan, 'the current session retrospective is incomplete');
-  if (observation.retro.pendingDrafts > 0)
-    block(plan, 'the current session filing spool has pending drafts');
-  if (observation.protection === 'unknown') block(plan, 'branch protection state is unknown');
-  if (observation.protection === 'protected') block(plan, 'the topic branch is protected');
-  if (observation.remoteResolution === 'ambiguous') {
-    block(plan, 'the pull request head repository does not map to exactly one git remote');
-  }
-
-  if (pullRequest) {
-    const expectedRepository =
-      `${pullRequest.headOwner}/${pullRequest.headRepository}`.toLowerCase();
-    if (pullRequest.headRefName === observation.defaultBranch) {
-      block(plan, 'the default branch is never a closeout target');
-    }
-    if (observation.verification.headOid !== pullRequest.headRefOid) {
-      block(plan, 'verification does not cover the pull request head');
-    }
-    if (observation.localRefOid && observation.localRefOid !== pullRequest.headRefOid) {
-      block(plan, 'the local branch no longer matches the pull request head');
-    }
-    if (observation.remote) {
-      if (normalizedRepository(observation.remote.url) !== expectedRepository) {
-        block(plan, 'the pull request head repository does not match the selected git remote');
-      }
-      if (observation.remote.oid !== pullRequest.headRefOid) {
-        block(plan, 'the remote branch no longer matches the pull request head');
-      }
-    }
-
-    const topicWorktrees = observation.worktrees.filter(
-      worktree => worktree.branch === pullRequest.headRefName,
-    );
-    const mainWorktrees = observation.worktrees.filter(worktree => worktree.main);
-    if (mainWorktrees.length !== 1) block(plan, 'exactly one surviving main worktree is required');
-    const mainWorktree = mainWorktrees[0];
-    if (topicWorktrees.length > 1) block(plan, 'the linked topic worktree is ambiguous');
-    const worktree = topicWorktrees[0];
-    if (worktree?.main) block(plan, 'the main worktree is never a closeout target');
-    if (worktree?.dirty) block(plan, `the linked worktree is dirty: ${worktree.path}`);
-    if (worktree?.locked) block(plan, `the linked worktree is locked: ${worktree.path}`);
-    if (worktree?.prunable) block(plan, `the worktree registration is stale: ${worktree.path}`);
-    if (worktree && worktree.oid !== pullRequest.headRefOid) {
-      block(plan, `the linked worktree no longer matches the pull request head: ${worktree.path}`);
-    }
-
-    if (plan.blockers.length === 0 && mainWorktree) {
-      if (worktree) {
-        plan.operations.push({
-          kind: 'remove-worktree',
-          cwd: mainWorktree.path,
-          path: worktree.path,
-          oid: pullRequest.headRefOid,
-        });
-      } else {
-        plan.completed.push('worktree');
-      }
-      if (observation.remote) {
-        plan.operations.push({
-          kind: 'delete-remote-ref',
-          cwd: mainWorktree.path,
-          remote: observation.remote.name,
-          ref: `refs/heads/${pullRequest.headRefName}`,
-          oid: pullRequest.headRefOid,
-        });
-      } else {
-        plan.completed.push('remote branch');
-      }
-      if (observation.localRefOid) {
-        plan.operations.push({
-          kind: 'delete-local-ref',
-          cwd: mainWorktree.path,
-          ref: `refs/heads/${pullRequest.headRefName}`,
-          oid: pullRequest.headRefOid,
-        });
-      } else {
-        plan.completed.push('local branch');
-      }
-    }
+  collectRefBlockers(plan, observation, pullRequest);
+  const topicWorktrees = observation.worktrees.filter(
+    worktree => worktree.branch === pullRequest.headRefName,
+  );
+  const mainWorktrees = observation.worktrees.filter(worktree => worktree.main);
+  collectWorktreeBlockers(plan, pullRequest, topicWorktrees, mainWorktrees);
+  const mainWorktree = mainWorktrees[0];
+  if (plan.blockers.length === 0 && mainWorktree) {
+    assembleOperations(plan, observation, pullRequest, topicWorktrees[0], mainWorktree);
   }
 
   return plan;
