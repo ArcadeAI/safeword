@@ -52,5 +52,28 @@ production implementation.
 
 ## Evidence distillation
 
-Feed the result into the feature ticket's existing `impl-plan.md`. Experimental
-code is disposable.
+Classify the result exactly once:
+
+- **VALIDATED** — the hypothesis survived the kill criterion;
+- **PARTIAL** — the direction works only under named constraints;
+- **INVALIDATED** — the proof hit the wall and the direction is rejected.
+
+Return a concise report:
+
+```markdown
+## Spike result: <VALIDATED | PARTIAL | INVALIDATED>
+
+- Question:
+- Hypothesis:
+- Pre-spike base:
+- Proof command or walkthrough:
+- Evidence:
+- Constraints or wall:
+- Useful shortcuts:
+- Decision:
+- Production consequences:
+```
+
+Distill the evidence, shortcuts, decision, and production consequences into the
+feature ticket's existing `impl-plan.md`, updating Approach, Decisions, and
+Assessment triggers as applicable. Experimental code is disposable.
