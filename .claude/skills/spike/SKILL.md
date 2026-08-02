@@ -59,6 +59,8 @@ worktree.
 Once that state is committed, record the current production commit as
 `PRE_SPIKE_BASE`. Create a uniquely named `spike/<question-slug>` branch and
 sibling worktree from that exact commit; never reuse an existing path or branch.
+Before running the proof, verify the spike worktree is at `PRE_SPIKE_BASE` and
+contains the exact validated scenario and ticket-state files from that commit.
 
 Keep every experimental commit in the spike worktree. Production implementation
 starts later in a fresh worktree from `PRE_SPIKE_BASE`. Do not merge, rebase,
