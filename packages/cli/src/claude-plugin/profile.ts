@@ -124,6 +124,15 @@ function failedResult(error: unknown): CliResult {
     const message = error instanceof Error ? error.message : String(error);
     failure = new ClaudeProfileError('CLAUDE_PLUGIN_INSTALL_FAILED', message);
   }
+  let classification = 'errored';
+  let nextAction = 'safeword claude install';
+  if (failure.code === 'CLAUDE_VERSION_UNSUPPORTED') {
+    classification = 'unsupported-host';
+    nextAction = 'claude update';
+  } else if (failure.code === 'CLAUDE_MARKETPLACE_CONFLICT') {
+    classification = 'marketplace-conflict';
+    nextAction = `claude plugin marketplace add ${officialMarketplaceSource()} --scope user`;
+  }
   return createResult({
     state: 'failed',
     changed: failure.effects.length > 0,
@@ -131,12 +140,12 @@ function failedResult(error: unknown): CliResult {
     errors: [{ code: failure.code, message: failure.message, retryable: true }],
     nextActions: [
       {
-        command: `safeword claude install`,
+        command: nextAction,
         mutates: true,
         requiresHuman: true,
       },
     ],
-    data: { command: 'claude install' },
+    data: { command: 'claude install', classification },
   });
 }
 
