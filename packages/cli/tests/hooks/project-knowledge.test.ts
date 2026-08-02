@@ -74,6 +74,32 @@ describe('resolveReviewKnowledgeSources', () => {
       ]),
     );
   });
+
+  it('the namespace wrapper preserves absolute overrides and custom default basenames', () => {
+    const directory = project();
+    const wrapper = nodePath.join(__dirname, '../../templates/hooks/resolve-namespace-root.ts');
+    const absolutePath = nodePath.join(directory, 'external-principles.md');
+    writeFileSync(
+      nodePath.join(directory, '.safeword', 'config.json'),
+      JSON.stringify({ paths: { principles: absolutePath } }),
+    );
+
+    const configured = spawnSync('bun', [wrapper, directory, 'principles', 'values.md'], {
+      encoding: 'utf8',
+    });
+    expect(configured.status).toBe(0);
+    expect(configured.stdout).toBe(absolutePath);
+
+    writeFileSync(
+      nodePath.join(directory, '.safeword', 'config.json'),
+      JSON.stringify({ paths: {} }),
+    );
+    const derived = spawnSync('bun', [wrapper, directory, 'principles', 'values.md'], {
+      encoding: 'utf8',
+    });
+    expect(derived.status).toBe(0);
+    expect(derived.stdout).toBe(nodePath.join(directory, '.project', 'values.md'));
+  });
 });
 
 function source(
