@@ -11,6 +11,7 @@ interface SpikeWorkflowWorld {
   setupResult?: { status: number | null; stdout: string; stderr: string };
   spikeSkill?: string;
   missingCharterField?: string;
+  uncertaintyKind?: string;
 }
 
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '..');
@@ -40,6 +41,31 @@ Then(
     }
   },
 );
+
+Given(/^the uncertainty is (.+)$/, function (this: SpikeWorkflowWorld, kind: string) {
+  this.uncertaintyKind = kind;
+  this.spikeSkill = readFileSync(SPIKE_SKILL_PATH, 'utf8');
+});
+
+When('the maintainer considers a spike', function (this: SpikeWorkflowWorld) {
+  assert.ok(this.uncertaintyKind);
+});
+
+Then('the workflow directs the maintainer to {word}', function (this: SpikeWorkflowWorld, route) {
+  const expected: Record<string, RegExp> = {
+    research: /documentation or code[^\n]*→ research it/i,
+    elicit: /user-only knowledge[^\n]*→ `?\/elicit`?/i,
+    'figure-it-out': /researchable alternatives[^\n]*→ `?\/figure-it-out`?/i,
+  };
+  assert.match(this.spikeSkill ?? '', expected[route] ?? /this-pattern-must-not-match/);
+});
+
+Then('no experimental code begins', function (this: SpikeWorkflowWorld) {
+  assert.match(
+    this.spikeSkill ?? '',
+    /Otherwise route the uncertainty before writing experimental code/i,
+  );
+});
 
 Given('its experiment charter is missing the {word}', function (this: SpikeWorkflowWorld, field) {
   this.missingCharterField = field;
