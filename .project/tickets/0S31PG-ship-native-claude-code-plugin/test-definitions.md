@@ -6,9 +6,10 @@ Each scenario is tracked through RED, GREEN, and REFACTOR during implementation.
 
 Pre-release verification on 2026-08-02 passed every executable non-`@wip`,
 non-`@manual`, non-`@live` scenario: 769 passed and 3 were intentionally
-skipped. Unchecked ledger entries below remain the explicit interactive-host or
-release-boundary work that was not authorized in this run; they are not being
-collapsed into a false completed-release claim.
+skipped. The authorized interactive reload boundary also passed in a temporary
+Claude profile. Unchecked ledger entries below remain release-boundary work or
+automation bookkeeping; they are not being collapsed into a false
+completed-release claim.
 
 ## Rule: native-claude-plugin.TBU1.R1
 
@@ -127,11 +128,17 @@ Boundary-contract correction: RED bdd2101c3 captured Claude 2.1.170's real `sour
 ### Scenario: The next prompt after live plugin reload proves the new plugin before prompt processing
 
 - [x] RED 906691fa7
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN cd66cc7ac + live session 5d6daf03-bc80-4c7c-99b8-eb03c1c6c04b
+- [x] REFACTOR skip: live host acceptance exercised the shipped dispatcher without code changes
 
-`caaf3c8ed` proved dispatcher wiring only; interactive `/reload-plugins` and the
-following real prompt remain explicit `@live` acceptance.
+Claude Code 2.1.170 started without Safeword, then installed the generated
+plugin into a temporary profile while the task remained open. Interactive
+`/reload-plugins` reported one plugin and 24 hooks; the following ordinary
+prompt returned `SAFEWORD_INTERACTIVE_RELOAD_OK` and wrote a same-session
+UserPromptSubmit proof for the expected version and hook-manifest digest. A
+second isolated run invoked `/safeword:explain` immediately after reload;
+Claude identified and processed the Safeword skill, then ran all five Stop
+hooks, proving workflow availability in the live task as well as hook activation.
 
 ### Scenario: Refused live reload leaves legacy authority intact
 
