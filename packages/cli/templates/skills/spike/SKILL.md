@@ -12,7 +12,13 @@ rough first implementation: its evidence survives, its code does not.
 
 ## Charter
 
-Define the experiment before writing code.
+Define the experiment before writing code. Record all five fields:
+
+1. **Question** — one precise technical uncertainty.
+2. **Hypothesis** — the result expected and why.
+3. **Kill criterion** — the observable result that rejects the direction.
+4. **Proof** — the exact command or walkthrough and expected signal.
+5. **Budget** — one vertical slice with a time or effort ceiling.
 
 ## Isolation
 
