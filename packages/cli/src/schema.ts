@@ -82,10 +82,13 @@ export interface ContractDefinition {
 
 interface CodexMigrationDefinition {
   legacyFiles: string[];
+  cleanupFiles: string[];
   legacyDirs: string[];
   hookEvents: string[];
   hookEventNames: Record<string, string>;
   hookScripts: string[];
+  sharedRuntimePaths: readonly string[];
+  cleanupRuntimePaths: string[];
   hookScriptEvents: Record<string, string>;
   hookScriptPrefix: string;
   packageRunner: 'npx';
