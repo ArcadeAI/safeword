@@ -20,6 +20,10 @@ Define the experiment before writing code. Record all five fields:
 4. **Proof** — the exact command or walkthrough and expected signal.
 5. **Budget** — one vertical slice with a time or effort ceiling.
 
+If any field is missing, name the missing field and stop. Do not create a
+worktree, run a proof command, or spend the spike budget until the charter is
+complete.
+
 ## Isolation
 
 Run experimental code on a dedicated branch and worktree, separate from
