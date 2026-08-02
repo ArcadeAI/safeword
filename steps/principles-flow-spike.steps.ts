@@ -14,6 +14,11 @@ import { runParity } from '../packages/cli/src/parity.ts';
 import { reconcile } from '../packages/cli/src/reconcile.ts';
 import { SAFEWORD_SCHEMA } from '../packages/cli/src/schema.ts';
 import { defaultConfiguredPath } from '../packages/cli/src/utils/configured-paths.ts';
+import {
+  reviewEntrypoint,
+  type ReviewHost,
+  type ReviewStage,
+} from '../packages/cli/tests/helpers/review-entrypoints.ts';
 import type { SafewordWorld } from './world.ts';
 
 const ROOT = nodePath.resolve(import.meta.dirname, '..');
@@ -120,29 +125,16 @@ function tracePlan(row: string, deviations = 'None.'): string {
 }
 
 function entrypointPath(host: string, review: string): string {
-  const stage = {
-    spec: 'self-review/SKILL.md',
-    scenario: 'review-spec/SKILL.md',
-    plan: 'bdd/PLAN_IMPLEMENTATION.md',
-    quality: 'quality-review/SKILL.md',
-  }[review];
-  assert.ok(stage, `unknown review stage: ${review}`);
-  if (host === 'Claude Code') return `.claude/skills/${stage}`;
-  if (host === 'OpenAI Codex') {
-    return nodePath.join(
-      ROOT,
-      'packages/cli/codex-plugin/skills',
-      review === 'plan' ? 'bdd/references/PLAN_IMPLEMENTATION.md' : stage,
-    );
-  }
-  return (
-    {
-      spec: '.cursor/commands/self-review.md',
-      scenario: '.cursor/commands/review-spec.md',
-      plan: '.cursor/rules/bdd-plan-implementation.mdc',
-      quality: '.cursor/commands/quality-review.md',
-    }[review] ?? ''
-  );
+  const hostKey = {
+    'Claude Code': 'claude',
+    Cursor: 'cursor',
+    'OpenAI Codex': 'codex',
+  }[host] as ReviewHost | undefined;
+  assert.ok(hostKey, `unknown review host: ${host}`);
+  const entrypoint = reviewEntrypoint(hostKey, review as ReviewStage);
+  return entrypoint.host === 'codex'
+    ? nodePath.join(ROOT, 'packages/cli/codex-plugin', entrypoint.path)
+    : entrypoint.path;
 }
 
 function instructionsFor(directory: string, path: string): string {
