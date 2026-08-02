@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
@@ -56,6 +57,21 @@ describe('resolveReviewKnowledgeSources', () => {
     writeFileSync(nodePath.join(directory, 'docs', 'values.md'), 'second\n');
     expect(resolveReviewKnowledgeSources(directory)[0]).toEqual(
       source('principles', directory, 'docs/values.md', 'second\n'),
+    );
+  });
+
+  it('exposes the current sources as JSON through the installed review wrapper', () => {
+    const directory = project();
+    writeFileSync(nodePath.join(directory, '.project', 'principles.md'), '# Current values\n');
+    const wrapper = nodePath.join(__dirname, '../../templates/hooks/resolve-project-knowledge.ts');
+
+    const result = spawnSync('bun', [wrapper, directory], { encoding: 'utf8' });
+
+    expect(result.status).toBe(0);
+    expect(JSON.parse(result.stdout)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: 'principles', content: '# Current values\n' }),
+      ]),
     );
   });
 });

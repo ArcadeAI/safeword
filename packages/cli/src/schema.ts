@@ -630,6 +630,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/resolve-namespace-root.ts': {
       template: 'hooks/resolve-namespace-root.ts',
     },
+    '.safeword/hooks/resolve-project-knowledge.ts': {
+      template: 'hooks/resolve-project-knowledge.ts',
+    },
     '.safeword/hooks/record-skill-invocation.ts': {
       template: 'hooks/record-skill-invocation.ts',
     },
