@@ -86,6 +86,14 @@ function writeConfig(directory: string, paths: Partial<Record<KnowledgeKey, stri
   );
 }
 
+function configureKnowledgeOverride(world: KnowledgeWorld, key: KnowledgeKey): void {
+  const directory = project(world);
+  world.knowledge = key;
+  writeConfig(directory, { [key]: `knowledge/${key}.md` });
+  mkdirSync(nodePath.join(directory, 'knowledge'), { recursive: true });
+  writeFileSync(nodePath.join(directory, 'knowledge', `${key}.md`), `# User ${key}\n`);
+}
+
 async function install(directory: string): Promise<void> {
   await reconcile(SAFEWORD_SCHEMA, 'install', {
     cwd: directory,
@@ -282,18 +290,10 @@ Given(
 
 for (const key of KNOWLEDGE_KEYS) {
   Given(`paths.${key} points to an existing user-owned file`, function (this: KnowledgeWorld) {
-    const directory = project(this);
-    this.knowledge = key;
-    writeConfig(directory, { [key]: `knowledge/${key}.md` });
-    mkdirSync(nodePath.join(directory, 'knowledge'), { recursive: true });
-    writeFileSync(nodePath.join(directory, 'knowledge', `${key}.md`), `# User ${key}\n`);
+    configureKnowledgeOverride(this, key);
   });
   Given(`paths.${key} points to a user-owned file`, function (this: KnowledgeWorld) {
-    const directory = project(this);
-    this.knowledge = key;
-    writeConfig(directory, { [key]: `knowledge/${key}.md` });
-    mkdirSync(nodePath.join(directory, 'knowledge'), { recursive: true });
-    writeFileSync(nodePath.join(directory, 'knowledge', `${key}.md`), `# User ${key}\n`);
+    configureKnowledgeOverride(this, key);
   });
   Given(`paths.${key} points to a missing file`, function (this: KnowledgeWorld) {
     const directory = project(this);
