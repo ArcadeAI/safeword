@@ -53,12 +53,8 @@ async function executeReview(
 function fallbackFailure(input: {
   readonly output?: ReviewerOutput;
   readonly failure?: ReviewFailure;
-  readonly sourceChanged: boolean;
-  readonly snapshotChanged: boolean;
   readonly provenanceError?: string;
 }): string | undefined {
-  if (input.sourceChanged) return 'source_changed';
-  if (input.snapshotChanged) return 'invalid_output';
   if (input.output === undefined && input.failure === undefined) return 'invalid_output';
   return input.failure ?? input.provenanceError;
 }
@@ -204,6 +200,15 @@ async function runDegradedFallback(input: {
     input.author,
     prepared,
   );
+  const changedResult = changedReviewResult({
+    author: input.author,
+    reviewer: input.author,
+    kind: input.kind,
+    targets: input.targets,
+    sourceChanged,
+    snapshotChanged,
+  });
+  if (changedResult !== undefined) return changedResult;
   const provenanceError =
     output === undefined
       ? undefined
@@ -211,8 +216,6 @@ async function runDegradedFallback(input: {
   const failedBecause = fallbackFailure({
     output,
     failure,
-    sourceChanged,
-    snapshotChanged,
     provenanceError,
   });
   if (failedBecause !== undefined) {
@@ -418,7 +421,7 @@ export async function runReview(input: {
       assigned_reviewer: reviewer,
       actual_reviewer: output.reviewer_agent,
       assigned_model: assignedReviewerModel(reviewer),
-      actual_model: assignedReviewerModel(reviewer),
+      actual_model: assignedReviewerModel(output.reviewer_agent),
       independence: 'cross-agent',
       reviewer_output: output,
     },
