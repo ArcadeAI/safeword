@@ -280,27 +280,33 @@ function readActivationMarkerV2(
   environment: NodeJS.ProcessEnv,
   identity: CodexPluginIdentity,
 ): CodexActivationMarkerV2 | null {
-  const path = codexActivationMarkerPath(environment);
-  if (!existsSync(path)) return null;
-  try {
-    const marker = JSON.parse(readFileSync(path, 'utf8')) as unknown;
-    if (!isActivationMarkerV2(marker)) return null;
-    return matchesCodexPluginIdentity(marker, identity) ? marker : null;
-  } catch {
-    return null;
-  }
+  return readIdentityBoundJson(
+    codexActivationMarkerPath(environment),
+    identity,
+    isActivationMarkerV2,
+  );
 }
 
 function readActivationReceipt(
   environment: NodeJS.ProcessEnv,
   identity: CodexPluginIdentity,
 ): CodexActivationReceiptV1 | null {
-  const path = codexActivationReceiptPath(environment);
+  return readIdentityBoundJson(
+    codexActivationReceiptPath(environment),
+    identity,
+    isActivationReceiptV1,
+  );
+}
+
+function readIdentityBoundJson<T extends CodexPluginIdentity>(
+  path: string,
+  identity: CodexPluginIdentity,
+  validator: (value: unknown) => value is T,
+): T | null {
   if (!existsSync(path)) return null;
   try {
-    const receipt = JSON.parse(readFileSync(path, 'utf8')) as unknown;
-    if (!isActivationReceiptV1(receipt)) return null;
-    return matchesCodexPluginIdentity(receipt, identity) ? receipt : null;
+    const value = JSON.parse(readFileSync(path, 'utf8')) as unknown;
+    return validator(value) && matchesCodexPluginIdentity(value, identity) ? value : null;
   } catch {
     return null;
   }
