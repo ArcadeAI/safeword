@@ -68,7 +68,7 @@ Each scenario is tracked through RED, GREEN, and REFACTOR during implementation.
 
 - [x] RED 83f018986
 - [x] GREEN 4bd92e656
-- [ ] REFACTOR
+- [x] REFACTOR skip: proof writer and identity validation are already isolated at one cache-local entrypoint
 
 ### Scenario: A generated plugin reference cannot depend on a materialized project framework copy
 
