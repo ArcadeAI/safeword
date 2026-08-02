@@ -18,7 +18,7 @@ required `Scenario:` heading grammar.
 
 - [x] RED 7559b2855
 - [x] GREEN 681b1316e
-- [ ] REFACTOR
+- [x] REFACTOR skip: first slice is already one concise observation gate
 
 ### Scenario: A fully closed delivery reports every final state
 
