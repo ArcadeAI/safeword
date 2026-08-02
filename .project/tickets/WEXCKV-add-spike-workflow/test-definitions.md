@@ -53,8 +53,8 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Committed validated state becomes the shared spike base
 
 - [x] RED eb870aff3
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN ee670960b
+- [x] REFACTOR skip: one post-creation verification covers commit identity and validated files
 
 ### Scenario: Spike code never becomes production implementation
 
