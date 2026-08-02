@@ -3,6 +3,10 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { generateCodexPluginAssets } from '../src/codex-plugin/catalogue.js';
+import { CURSOR_COMMAND_WRAPPERS } from '../src/cursor-wrappers.js';
+import { SAFEWORD_SCHEMA } from '../src/schema.js';
+
 const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
 const canonicalSkillPath = nodePath.join(
   repoRoot,
@@ -24,5 +28,20 @@ describe('closeout delivery evidence (93C14D NTB1.R1)', () => {
     expect(skill).toContain('draft');
     expect(skill).toMatch(/no merge or cleanup/i);
     expect(skill).not.toMatch(/merge command.*proves.*merged/i);
+  });
+});
+
+describe('closeout host entry points (93C14D TBU1.R4)', () => {
+  it('derives Claude, Cursor, and Codex entry points from production catalogues', () => {
+    const cursor = CURSOR_COMMAND_WRAPPERS.find(wrapper => wrapper.name === 'closeout');
+    expect(cursor?.skillPath).toBe('closeout/SKILL.md');
+    expect(SAFEWORD_SCHEMA.ownedFiles['.claude/skills/closeout/SKILL.md']).toBeDefined();
+    expect(SAFEWORD_SCHEMA.ownedFiles['.cursor/commands/closeout.md']).toBeDefined();
+
+    const generatedCodex = generateCodexPluginAssets(
+      nodePath.join(repoRoot, 'packages/cli/templates/skills'),
+    ).find(asset => asset.relativePath === 'skills/closeout/SKILL.md');
+    expect(generatedCodex?.content).toContain('name: closeout');
+    expect(generatedCodex?.content).toContain('no merge or cleanup');
   });
 });
