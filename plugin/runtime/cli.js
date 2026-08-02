@@ -13981,56 +13981,56 @@ var init_cursor_wrappers = __esm(() => {
       name: "safeword-brainstorming",
       alwaysApply: false,
       description: "Collaborative brainstorming and rubber-ducking \u2014 divergence-first thinking partner. Use when the user wants to explore options, weigh approaches, or think through uncertainty before committing to a direction ('brainstorm', 'rubber duck', 'help me think', 'explore options', 'what are the tradeoffs').",
-      referencePath: ".claude/skills/brainstorm/SKILL.md",
+      referencePath: ".safeword/skills/brainstorm/SKILL.md",
       skill: "brainstorm"
     },
     {
       name: "safeword-debugging",
       alwaysApply: false,
       description: DEBUG_DESCRIPTION,
-      referencePath: ".claude/skills/debug/SKILL.md",
+      referencePath: ".safeword/skills/debug/SKILL.md",
       skill: "debug"
     },
     {
       name: "safeword-elicitation",
       alwaysApply: false,
       description: "Extract tacit knowledge through non-obvious microquestions \u2014 things only the user knows that can't be found in code, docs, or research. Use when about to guess at intent, context, or constraints, or when user says 'ask me', 'what do you need to know', 'what's missing'. Skips questions answerable by reading the codebase or searching the web.",
-      referencePath: ".claude/skills/elicit/SKILL.md",
+      referencePath: ".safeword/skills/elicit/SKILL.md",
       skill: "elicit"
     },
     {
       name: "safeword-figure-it-out",
       alwaysApply: false,
       description: "Explore and debate options with fresh documentation and research before committing. Use when facing a real decision with multiple plausible approaches \u2014 library/framework choice, architecture call, API or schema design, algorithm selection. Looks up current docs and recent research, weighs options on correctness and elegance, and resists bloat.",
-      referencePath: ".claude/skills/figure-it-out/SKILL.md",
+      referencePath: ".safeword/skills/figure-it-out/SKILL.md",
       skill: "figure-it-out"
     },
     {
       name: "safeword-quality-reviewing",
       alwaysApply: false,
       description: "Deep quality review of any work-product \u2014 code, docs, specs, plans, decisions \u2014 with web research. Use when explicitly verifying against latest docs ('double check against latest', 'verify versions', 'check security'), pressure-testing correctness and elegance, or needing deeper analysis beyond the automatic hook. Fetches current sources, checks versions and claims, and weighs alternatives.",
-      referencePath: ".claude/skills/quality-review/SKILL.md",
+      referencePath: ".safeword/skills/quality-review/SKILL.md",
       skill: "quality-review"
     },
     {
       name: "safeword-refactoring",
       alwaysApply: false,
       description: REFACTOR_DESCRIPTION,
-      referencePath: ".claude/skills/refactor/SKILL.md",
+      referencePath: ".safeword/skills/refactor/SKILL.md",
       skill: "refactor"
     },
     {
       name: "safeword-tdd-review",
       alwaysApply: false,
       description: "Step-aware quality review at TDD phase boundaries \u2014 review test quality after RED, implementation correctness after GREEN, completed scenario after REFACTOR. Use when user says 'review my test', 'review my implementation', 'is this GREEN solid?', or just finished a TDD step. (Note: Claude Code triggers this automatically via the phase-tracking hook; Cursor users must invoke explicitly.)",
-      referencePath: ".claude/skills/tdd-review/SKILL.md",
+      referencePath: ".safeword/skills/tdd-review/SKILL.md",
       skill: "tdd-review"
     },
     {
       name: "safeword-testing",
       alwaysApply: false,
       description: "How to write good tests. Use when writing tests in any context \u2014 'write tests', 'add tests', 'test this', 'need tests for', 'improve coverage'. Also consult when writing tests during BDD or debugging. Core knowledge for test quality across all workflows.",
-      referencePath: ".claude/skills/testing/SKILL.md",
+      referencePath: ".safeword/skills/testing/SKILL.md",
       skill: "testing"
     },
     {
@@ -14038,14 +14038,14 @@ var init_cursor_wrappers = __esm(() => {
       alwaysApply: false,
       description: "Ticket system and work logs for context anchoring during complex work. Use when creating tickets, managing work logs, referencing ticket IDs, or when work needs context anchoring (multi-step tasks, debugging, investigation).",
       globs: [".project/tickets/**", ".safeword-project/tickets/**", ".safeword/logs/**"],
-      referencePath: ".claude/skills/ticket-system/SKILL.md",
+      referencePath: ".safeword/skills/ticket-system/SKILL.md",
       skill: "ticket-system"
     },
     {
       name: "safeword-retro-filer",
       alwaysApply: false,
       description: "Files Safe Word's sanitized spooled retrospective drafts to its upstream tracker. Use only when a trusted Safe Word Stop continuation names a spool path. Do not use for ordinary retros, project issues, or user-authored drafts.",
-      referencePath: ".claude/skills/retro-filer/SKILL.md",
+      referencePath: ".safeword/skills/retro-filer/SKILL.md",
       skill: "retro-filer"
     },
     {
@@ -14053,7 +14053,7 @@ var init_cursor_wrappers = __esm(() => {
       alwaysApply: false,
       frontmatterOrder: "description-first",
       description: "USE WHEN starting feature work, running /bdd, resuming a BDD ticket, or user says 'add', 'implement', 'build', 'feature', 'resume', 'continue'. Orchestrates BDD phases.",
-      referencePath: ".claude/skills/bdd/SKILL.md",
+      referencePath: ".safeword/skills/bdd/SKILL.md",
       skill: "bdd"
     },
     {
@@ -14061,7 +14061,7 @@ var init_cursor_wrappers = __esm(() => {
       alwaysApply: false,
       frontmatterOrder: "description-first",
       description: "USE WHEN in BDD intake phase OR ticket has phase:intake. Guides discovery and context gathering for features.",
-      referencePath: ".claude/skills/bdd/DISCOVERY.md",
+      referencePath: ".safeword/skills/bdd/DISCOVERY.md",
       skill: "bdd"
     },
     {
@@ -14069,7 +14069,7 @@ var init_cursor_wrappers = __esm(() => {
       alwaysApply: false,
       frontmatterOrder: "description-first",
       description: "USE WHEN in BDD define-behavior or scenario-gate phase. Guides Given/When/Then scenario creation and validation.",
-      referencePath: ".claude/skills/bdd/SCENARIOS.md",
+      referencePath: ".safeword/skills/bdd/SCENARIOS.md",
       skill: "bdd"
     },
     {
@@ -14077,7 +14077,7 @@ var init_cursor_wrappers = __esm(() => {
       alwaysApply: false,
       frontmatterOrder: "description-first",
       description: "USE WHEN in BDD plan-implementation phase. Author impl-plan.md, run figure-it-out on load-bearing choices, ADR lifecycle, review before implement.",
-      referencePath: ".claude/skills/bdd/PLAN_IMPLEMENTATION.md",
+      referencePath: ".safeword/skills/bdd/PLAN_IMPLEMENTATION.md",
       skill: "bdd"
     },
     {
@@ -14085,7 +14085,7 @@ var init_cursor_wrappers = __esm(() => {
       alwaysApply: false,
       frontmatterOrder: "description-first",
       description: "USE WHEN in BDD implement phase. RED/GREEN TDD cycle; run /refactor after GREEN.",
-      referencePath: ".claude/skills/bdd/TDD.md",
+      referencePath: ".safeword/skills/bdd/TDD.md",
       skill: "bdd"
     },
     {
@@ -14093,7 +14093,7 @@ var init_cursor_wrappers = __esm(() => {
       alwaysApply: false,
       frontmatterOrder: "description-first",
       description: "USE WHEN in BDD verify phase OR all scenarios marked [x]. Evidence gate \u2014 cross-scenario refactor, then /verify and /audit.",
-      referencePath: ".claude/skills/bdd/VERIFY.md",
+      referencePath: ".safeword/skills/bdd/VERIFY.md",
       skill: "bdd"
     },
     {
@@ -14101,7 +14101,7 @@ var init_cursor_wrappers = __esm(() => {
       alwaysApply: false,
       frontmatterOrder: "description-first",
       description: "USE WHEN in BDD done phase (verify.md exists). Close the ticket \u2014 verification already happened in verify.",
-      referencePath: ".claude/skills/bdd/DONE.md",
+      referencePath: ".safeword/skills/bdd/DONE.md",
       skill: "bdd"
     },
     {
@@ -14109,7 +14109,7 @@ var init_cursor_wrappers = __esm(() => {
       alwaysApply: false,
       frontmatterOrder: "description-first",
       description: "USE WHEN BDD thresholds exceeded (2+ stories, >15 scenarios, >20 tasks). Split protocol and examples.",
-      referencePath: ".claude/skills/bdd/SPLITTING.md",
+      referencePath: ".safeword/skills/bdd/SPLITTING.md",
       skill: "bdd"
     }
   ];
@@ -14322,7 +14322,7 @@ function boundaryShimPatch(at) {
     when: (ctx) => ctx.hookManager === "husky"
   };
 }
-var MCP_JSON_MERGE, MARKDOWNLINT_CLI2_IGNORES_MERGE, CURSOR_RULE_WRAPPER_OWNED_FILES, CURSOR_COMMAND_WRAPPER_OWNED_FILES, CODEX_RUNTIME_ASSET_FILENAMES, CODEX_RUNTIME_ASSETS, NAMESPACE_TRANSIENT_BASENAMES, SAFEWORD_TRANSIENT_PATHS, NAMESPACE_GITIGNORE_PATTERNS, NAMESPACE_GITIGNORE_CONTENT, PRETTIER_EXCLUSIONS_HEADER = "# Safeword - managed prettier exclusions (owned dirs)", GITATTRIBUTES_HEADER = "# Safeword - managed merge strategy for generated artifacts", BDD_LANE_FILE_PATHS, BDD_LANE_SCRIPT = "test:bdd", SHARED_FILING_INVARIANTS, SESSION_TOKEN_RULE, BOUNDARY_SHIM_MARKER = "# Safeword boundary gate", SAFEWORD_SCHEMA;
+var MCP_JSON_MERGE, MARKDOWNLINT_CLI2_IGNORES_MERGE, CURSOR_RULE_WRAPPER_OWNED_FILES, CURSOR_COMMAND_WRAPPER_OWNED_FILES, CURSOR_SHARED_SKILL_FILES, CURSOR_SHARED_SKILL_OWNED_FILES, CURSOR_SHARED_SKILL_DIRS, CODEX_RUNTIME_ASSET_FILENAMES, CODEX_RUNTIME_ASSETS, NAMESPACE_TRANSIENT_BASENAMES, SAFEWORD_TRANSIENT_PATHS, NAMESPACE_GITIGNORE_PATTERNS, NAMESPACE_GITIGNORE_CONTENT, PRETTIER_EXCLUSIONS_HEADER = "# Safeword - managed prettier exclusions (owned dirs)", GITATTRIBUTES_HEADER = "# Safeword - managed merge strategy for generated artifacts", BDD_LANE_FILE_PATHS, BDD_LANE_SCRIPT = "test:bdd", SHARED_FILING_INVARIANTS, SESSION_TOKEN_RULE, BOUNDARY_SHIM_MARKER = "# Safeword boundary gate", SAFEWORD_SCHEMA;
 var init_schema = __esm(() => {
   init_inventory();
   init_files2();
@@ -14363,6 +14363,43 @@ var init_schema = __esm(() => {
     `.cursor/commands/${wrapper.name}.md`,
     { template: `commands/${wrapper.name}.md` }
   ]));
+  CURSOR_SHARED_SKILL_FILES = [
+    "audit/SKILL.md",
+    "bdd/SKILL.md",
+    "bdd/DISCOVERY.md",
+    "bdd/PLAN_IMPLEMENTATION.md",
+    "bdd/SCENARIOS.md",
+    "bdd/TDD.md",
+    "bdd/DONE.md",
+    "bdd/SPLITTING.md",
+    "bdd/VERIFY.md",
+    "brainstorm/SKILL.md",
+    "cleanup-zombies/SKILL.md",
+    "debug/SKILL.md",
+    "elicit/SKILL.md",
+    "explain/SKILL.md",
+    "figure-it-out/SKILL.md",
+    "lint/SKILL.md",
+    "quality-review/SKILL.md",
+    "refactor/SKILL.md",
+    "retro/SKILL.md",
+    "retro-filer/SKILL.md",
+    "review-spec/SKILL.md",
+    "self-review/SKILL.md",
+    "spike/SKILL.md",
+    "tdd-review/SKILL.md",
+    "testing/SKILL.md",
+    "ticket-system/SKILL.md",
+    "verify/SKILL.md"
+  ];
+  CURSOR_SHARED_SKILL_OWNED_FILES = Object.fromEntries(CURSOR_SHARED_SKILL_FILES.map((path3) => [
+    `.safeword/skills/${path3}`,
+    { template: `skills/${path3}` }
+  ]));
+  CURSOR_SHARED_SKILL_DIRS = [
+    ".safeword/skills",
+    ...new Set(CURSOR_SHARED_SKILL_FILES.map((path3) => `.safeword/skills/${path3.split("/")[0]}`))
+  ];
   CODEX_RUNTIME_ASSET_FILENAMES = [
     "pre-tool-quality.ts",
     "pre-tool-quality-helpers.ts",
@@ -14423,6 +14460,7 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       ".safeword/prompts",
       ".safeword/scripts",
       ".safeword/statusline",
+      ...CURSOR_SHARED_SKILL_DIRS,
       ".cursor",
       ".cursor/rules",
       ".cursor/commands",
@@ -14823,6 +14861,7 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       ".safeword/scripts/cleanup-zombies.sh": {
         template: "scripts/cleanup-zombies.sh"
       },
+      ...CURSOR_SHARED_SKILL_OWNED_FILES,
       ".claude/skills/debug/SKILL.md": {
         template: "skills/debug/SKILL.md"
       },

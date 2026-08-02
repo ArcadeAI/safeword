@@ -206,6 +206,48 @@ const CURSOR_COMMAND_WRAPPER_OWNED_FILES: Record<string, FileDefinition> = Objec
   ]),
 );
 
+const CURSOR_SHARED_SKILL_FILES = [
+  'audit/SKILL.md',
+  'bdd/SKILL.md',
+  'bdd/DISCOVERY.md',
+  'bdd/PLAN_IMPLEMENTATION.md',
+  'bdd/SCENARIOS.md',
+  'bdd/TDD.md',
+  'bdd/DONE.md',
+  'bdd/SPLITTING.md',
+  'bdd/VERIFY.md',
+  'brainstorm/SKILL.md',
+  'cleanup-zombies/SKILL.md',
+  'debug/SKILL.md',
+  'elicit/SKILL.md',
+  'explain/SKILL.md',
+  'figure-it-out/SKILL.md',
+  'lint/SKILL.md',
+  'quality-review/SKILL.md',
+  'refactor/SKILL.md',
+  'retro/SKILL.md',
+  'retro-filer/SKILL.md',
+  'review-spec/SKILL.md',
+  'self-review/SKILL.md',
+  'spike/SKILL.md',
+  'tdd-review/SKILL.md',
+  'testing/SKILL.md',
+  'ticket-system/SKILL.md',
+  'verify/SKILL.md',
+] as const;
+
+const CURSOR_SHARED_SKILL_OWNED_FILES: Record<string, FileDefinition> = Object.fromEntries(
+  CURSOR_SHARED_SKILL_FILES.map(path => [
+    `.safeword/skills/${path}`,
+    { template: `skills/${path}` },
+  ]),
+);
+
+const CURSOR_SHARED_SKILL_DIRS = [
+  '.safeword/skills',
+  ...new Set(CURSOR_SHARED_SKILL_FILES.map(path => `.safeword/skills/${path.split('/', 1)[0]}`)),
+];
+
 function skipCodexRuntimeAssetInstall(): undefined {
   return;
 }
@@ -441,6 +483,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/prompts',
     '.safeword/scripts',
     '.safeword/statusline',
+    ...CURSOR_SHARED_SKILL_DIRS,
     '.cursor',
     '.cursor/rules',
     '.cursor/commands',
@@ -925,6 +968,10 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/scripts/cleanup-zombies.sh': {
       template: 'scripts/cleanup-zombies.sh',
     },
+
+    // Host-neutral skill materialization retained for Cursor's thin wrappers.
+    // Claude loads the same canonical sources from its native plugin cache.
+    ...CURSOR_SHARED_SKILL_OWNED_FILES,
 
     // Claude skills (short names, auto-trigger + explicit invocation)
     '.claude/skills/debug/SKILL.md': {

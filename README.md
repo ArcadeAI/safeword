@@ -80,6 +80,7 @@ recoverable backup; if status reports `recovery_required`, run
 
 - `.safeword/SAFEWORD.md` - Global patterns and workflows
 - `.safeword/guides/` - Testing methodology (BDD/TDD), code philosophy
+- `.safeword/skills/` - Canonical project-local skill references retained for Cursor
 - `.safeword/hooks/` - Auto-linting, quality review hooks
 - Safe Word Claude plugin - User-scoped native workflows and hooks; install it with `safeword claude install`
 - Safe Word Codex plugin - Profile-scoped skills and hooks; install it with `safeword codex install`

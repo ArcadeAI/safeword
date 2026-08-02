@@ -958,6 +958,14 @@ Then('project-owned Safeword state is created', function (this: NativeClaudePlug
   assert.equal(this.lifecycle?.result?.status, 0, this.lifecycle?.result?.output);
   assert.ok(this.lifecycle);
   assert.ok(existsSync(nodePath.join(this.lifecycle.project, '.safeword/version')));
+  assert.ok(existsSync(nodePath.join(this.lifecycle.project, '.safeword/skills/debug/SKILL.md')));
+  assert.match(
+    readFileSync(
+      nodePath.join(this.lifecycle.project, '.cursor/rules/safeword-debugging.mdc'),
+      'utf8',
+    ),
+    /@\.safeword\/skills\/debug\/SKILL\.md/u,
+  );
 });
 
 Then(
