@@ -86,10 +86,12 @@ function sourceIsOfficial(entry: JsonObject): boolean {
     typeof entry.source === 'object' && entry.source !== null
       ? (entry.source as JsonObject)
       : entry;
+  const sourceKind = source.source;
   return (
     source.url === MARKETPLACE_BASE &&
     source.ref === `v${SAFEWORD_SCHEMA.version}` &&
-    (source.source === undefined || source.source === 'url')
+    (sourceKind === undefined ||
+      (typeof sourceKind === 'string' && ['url', 'git'].includes(sourceKind)))
   );
 }
 

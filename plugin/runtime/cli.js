@@ -27867,7 +27867,8 @@ function sourceIsOfficial(entry) {
   if (entry.source === officialMarketplaceSource())
     return true;
   const source = typeof entry.source === "object" && entry.source !== null ? entry.source : entry;
-  return source.url === MARKETPLACE_BASE && source.ref === `v${SAFEWORD_SCHEMA.version}` && (source.source === undefined || source.source === "url");
+  const sourceKind = source.source;
+  return source.url === MARKETPLACE_BASE && source.ref === `v${SAFEWORD_SCHEMA.version}` && (sourceKind === undefined || typeof sourceKind === "string" && ["url", "git"].includes(sourceKind));
 }
 function marketplaceEntries(cwd, effects) {
   return parseJsonArray(runClaude(cwd, ["plugin", "marketplace", "list", "--json"], effects), "plugin marketplace list --json", effects);
