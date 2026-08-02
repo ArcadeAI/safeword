@@ -49,7 +49,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Setup installs the same spike action for project-scoped hosts
 
 - [x] RED 5a3875ea0
-- [ ] GREEN
+- [x] GREEN 4c4f71d9b
 - [ ] REFACTOR
 
 ### Scenario: Catalogue generation ships the same spike action for Codex
