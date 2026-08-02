@@ -22,6 +22,11 @@ fi
 payload=$(cat)
 printf '%s\n' '${agent}' >> "$SAFEWORD_REVIEW_LOG"
 dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\1/p')
+failure=$(printenv SAFEWORD_FAKE_FAILURE || true)
+if [ "$failure" = "auth" ]; then printf 'not logged in\n' >&2; exit 1; fi
+if [ "$failure" = "process" ]; then printf 'review crashed\n' >&2; exit 7; fi
+if [ "$failure" = "timeout" ]; then /bin/sleep 1; fi
+if [ "$failure" = "invalid" ]; then printf 'not-json\n'; exit 0; fi
 identity=$(printenv SAFEWORD_FAKE_IDENTITY || true)
 mutate=$(printenv SAFEWORD_FAKE_MUTATE || true)
 if [ "$mutate" = "1" ]; then
@@ -299,4 +304,56 @@ describe('cross-agent review public-command wiring', () => {
     expect(result.stdout).not.toContain(authorSecret);
     expect(result.stdout).not.toContain(reviewerSecret);
   });
+
+  it.each([
+    { failure: 'not-installed', classification: 'not_installed' },
+    { failure: 'auth', classification: 'not_authenticated' },
+    { failure: 'process', classification: 'process_failed' },
+    { failure: 'timeout', classification: 'timed_out' },
+    { failure: 'invalid', classification: 'invalid_output' },
+  ])(
+    'preserves the $classification preferred-route failure',
+    async ({ failure, classification }) => {
+      const directory = createTemporaryDirectory();
+      const log = nodePath.join(directory, 'review.log');
+      writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+      const bin = nodePath.join(directory, 'bin');
+      mkdirSync(bin, { recursive: true });
+      if (failure !== 'not-installed') installFakeReviewer(directory, 'codex', log);
+
+      const result = await runCli(
+        [
+          'review',
+          'run',
+          'quality-review',
+          'review-input.md',
+          '--json',
+          '--no-input',
+          '--cwd',
+          directory,
+        ],
+        {
+          cwd: directory,
+          env: {
+            PATH: `${bin}:/usr/bin:/bin`,
+            SAFEWORD_AGENT_RUNTIME: 'claude',
+            SAFEWORD_FAKE_FAILURE: failure,
+            SAFEWORD_REVIEW_LOG: log,
+            SAFEWORD_REVIEW_TIMEOUT_MS: '50',
+            SAFEWORD_NO_UPDATE_CHECK: '1',
+          },
+        },
+      );
+
+      expect(result.exitCode).toBe(2);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        state: 'action_required',
+        data: {
+          status: 'blocked',
+          preferred_failure: classification,
+          independence: 'none',
+        },
+      });
+    },
+  );
 });
