@@ -17,7 +17,7 @@ required `Scenario:` heading grammar.
 ### Scenario: Incomplete delivery evidence blocks merge and cleanup
 
 - [x] RED 7559b2855
-- [ ] GREEN
+- [x] GREEN 681b1316e
 - [ ] REFACTOR
 
 ### Scenario: A fully closed delivery reports every final state
