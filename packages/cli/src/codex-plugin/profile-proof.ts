@@ -148,6 +148,16 @@ export function currentCodexPluginIdentity(): CodexPluginIdentity {
   };
 }
 
+function matchesCodexPluginIdentity(
+  value: { plugin_version?: unknown; manifest_sha256?: unknown },
+  identity: CodexPluginIdentity,
+): boolean {
+  return (
+    value.plugin_version === identity.plugin_version &&
+    value.manifest_sha256 === identity.manifest_sha256
+  );
+}
+
 export function writeCodexActivationMarker(
   environment: NodeJS.ProcessEnv = process.env,
   now = new Date(),
@@ -260,11 +270,7 @@ function legacyActivationMarkerMatches(path: string, identity: CodexPluginIdenti
   if (!existsSync(path)) return false;
   try {
     const marker = JSON.parse(readFileSync(path, 'utf8')) as Partial<CodexActivationMarkerV1>;
-    return (
-      marker.schema_version === 1 &&
-      marker.plugin_version === identity.plugin_version &&
-      marker.manifest_sha256 === identity.manifest_sha256
-    );
+    return marker.schema_version === 1 && matchesCodexPluginIdentity(marker, identity);
   } catch {
     return false;
   }
@@ -279,10 +285,7 @@ function readActivationMarkerV2(
   try {
     const marker = JSON.parse(readFileSync(path, 'utf8')) as unknown;
     if (!isActivationMarkerV2(marker)) return null;
-    return marker.plugin_version === identity.plugin_version &&
-      marker.manifest_sha256 === identity.manifest_sha256
-      ? marker
-      : null;
+    return matchesCodexPluginIdentity(marker, identity) ? marker : null;
   } catch {
     return null;
   }
@@ -297,10 +300,7 @@ function readActivationReceipt(
   try {
     const receipt = JSON.parse(readFileSync(path, 'utf8')) as unknown;
     if (!isActivationReceiptV1(receipt)) return null;
-    return receipt.plugin_version === identity.plugin_version &&
-      receipt.manifest_sha256 === identity.manifest_sha256
-      ? receipt
-      : null;
+    return matchesCodexPluginIdentity(receipt, identity) ? receipt : null;
   } catch {
     return null;
   }
@@ -347,8 +347,7 @@ export function observeCodexHookProof(
     null;
   const current = parsed.filter(
     proof =>
-      proof.plugin_version === identity.plugin_version &&
-      proof.manifest_sha256 === identity.manifest_sha256 &&
+      matchesCodexPluginIdentity(proof, identity) &&
       (activationId === null ||
         (proof.schema_version === 2 && proof.activation_id === activationId)),
   );
