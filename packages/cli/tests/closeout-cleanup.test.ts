@@ -10,6 +10,7 @@ import {
   buildCleanupPlan,
   cleanupPlanDigest,
   type CloseoutObservation,
+  defaultBranchArguments,
   operationCommand,
   safewordCliCommand,
   transcriptMatchesBinding,
@@ -69,6 +70,16 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     expect(safewordCliCommand(root)).toEqual(['bun', nodePath.join(installed, 'cli.js')]);
     rmSync(nodePath.join(root, 'node_modules'), { recursive: true, force: true });
     expect(safewordCliCommand(root)).toEqual(['bunx', 'safeword']);
+  });
+
+  it('looks up the default branch in the pull request head repository', () => {
+    expect(defaultBranchArguments(pullRequest())).toEqual([
+      'repo',
+      'view',
+      'acme/widget',
+      '--json',
+      'defaultBranchRef',
+    ]);
   });
 
   it('previews exact cleanup in worktree, remote, local order with a stable digest', () => {
