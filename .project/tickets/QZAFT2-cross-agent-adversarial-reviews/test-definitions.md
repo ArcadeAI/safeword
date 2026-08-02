@@ -49,7 +49,7 @@ test-definitions.md is the R/G/R ledger. Executable Given/When/Then behavior liv
 ### Scenario: An unrelated author-vendor credential never enters the reviewer boundary
 
 - [x] RED 6d3720066
-- [ ] GREEN
+- [x] GREEN fa48814c7
 - [ ] REFACTOR
 
 ## Rule: cross-agent-review.TBU2.R1 — Preferred-route failures are classified before fallback
