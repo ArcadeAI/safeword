@@ -32,11 +32,29 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: spike-workflow.SWM1.R2 — evidence persists while experimental code stays disposable
 
-### Scenario Outline: Every spike result feeds the production implementation plan
+### Scenario Outline: Every spike result produces a structured planning handoff
 
 - [x] RED 22a67160e
 - [x] GREEN ee7fb6636
 - [x] REFACTOR skip: one report shape serves every terminal outcome
+
+### Scenario: Planning consumes the spike handoff after creating its design record
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Dirty validated state cannot become the pre-spike base
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Committed validated state becomes the shared spike base
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ### Scenario: Spike code never becomes production implementation
 

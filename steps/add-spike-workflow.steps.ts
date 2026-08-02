@@ -25,6 +25,7 @@ interface SpikeWorkflowWorld {
   bddScenariosGuidance?: string;
   bddDiscoveryGuidance?: string;
   bddPhase?: string;
+  bddPlanningGuidance?: string;
 }
 
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '..');
@@ -122,14 +123,57 @@ When('the maintainer distills the experiment', function (this: SpikeWorkflowWorl
 });
 
 Then(
-  'impl-plan.md records its evidence, shortcuts, decisions, and production consequences',
+  'the workflow returns its evidence, shortcuts, decision, and production consequences',
   function (this: SpikeWorkflowWorld) {
     const skill = this.spikeSkill ?? '';
     assert.match(skill, /VALIDATED[\s\S]*PARTIAL[\s\S]*INVALIDATED/);
     for (const field of ['Evidence', 'Useful shortcuts', 'Decision', 'Production consequences']) {
       assert.match(skill, new RegExp(`- ${field}:`));
     }
-    assert.match(skill, /Distill[\s\S]*`impl-plan\.md`/i);
+    assert.match(skill, /Return a concise report/i);
+  },
+);
+
+Given(
+  'a completed spike returned structured evidence and impl-plan.md does not exist',
+  function (this: SpikeWorkflowWorld) {
+    this.bddPlanningGuidance = readFileSync(
+      nodePath.join(REPO_ROOT, 'packages/cli/templates/skills/bdd/PLAN_IMPLEMENTATION.md'),
+      'utf8',
+    );
+  },
+);
+
+When('plan-implementation begins', function (this: SpikeWorkflowWorld) {
+  assert.ok(this.bddPlanningGuidance);
+});
+
+Then('plan-implementation creates impl-plan.md', function (this: SpikeWorkflowWorld) {
+  assert.match(
+    this.bddPlanningGuidance ?? '',
+    /produces the implementation design record — `impl-plan\.md`/i,
+  );
+});
+
+Then('it maps evidence to the Approach proof', function (this: SpikeWorkflowWorld) {
+  assert.match(this.bddPlanningGuidance ?? '', /evidence → Approach proof/i);
+});
+
+Then('it maps shortcuts to the build order', function (this: SpikeWorkflowWorld) {
+  assert.match(this.bddPlanningGuidance ?? '', /shortcuts → Approach build order/i);
+});
+
+Then('it maps the decision to Decisions', function (this: SpikeWorkflowWorld) {
+  assert.match(this.bddPlanningGuidance ?? '', /decision → Decisions/i);
+});
+
+Then(
+  'it maps production consequences to implementation tasks and Assessment triggers',
+  function (this: SpikeWorkflowWorld) {
+    assert.match(
+      this.bddPlanningGuidance ?? '',
+      /production consequences → implementation tasks and Assessment triggers/i,
+    );
   },
 );
 

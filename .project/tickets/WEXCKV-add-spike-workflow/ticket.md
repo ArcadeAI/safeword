@@ -47,3 +47,5 @@ last_modified: 2026-08-02T14:55:00.000Z
 - 2026-08-02T15:16:00.000Z Phase: plan-implementation → implement; twelve scenario loops planned, no ADR emitted.
 - 2026-08-02T15:45:00.000Z Implementation discovery: Codex generation intentionally omits Claude-only manual metadata; returned to scenario-gate to specify the soft explicit-invocation contract honestly.
 - 2026-08-02T15:50:00.000Z Scenario and plan re-review passed: Codex parity is now an explicit soft guidance contract, not a hard auto-selection claim; implementation resumed.
+- 2026-08-02T16:00:00.000Z Whole-ticket quality review returned implementation to scenario-gate: plan creation must consume a structured handoff, and dirty validated state must not become PRE_SPIKE_BASE.
+- 2026-08-02T16:08:00.000Z Lifecycle scenario and plan re-review passed: explicit handoff mapping, dirty-state rejection, and exact committed-base proof added; implementation resumed.

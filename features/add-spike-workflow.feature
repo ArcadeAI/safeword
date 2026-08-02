@@ -54,16 +54,44 @@ Feature: Resolve build-only uncertainty with a spike
   @spike-workflow.SWM1.R2
   Rule: spike-workflow.SWM1.R2 — evidence persists while experimental code stays disposable
 
-    Scenario Outline: Every spike result feeds the production implementation plan
+    Scenario Outline: Every spike result produces a structured planning handoff
       Given a bounded spike has reached a <result> result
       When the maintainer distills the experiment
-      Then impl-plan.md records its evidence, shortcuts, decisions, and production consequences
+      Then the workflow returns its evidence, shortcuts, decision, and production consequences
 
       Examples:
         | result      |
         | VALIDATED   |
         | PARTIAL     |
         | INVALIDATED |
+
+    Scenario: Planning consumes the spike handoff after creating its design record
+      Given a completed spike returned structured evidence and impl-plan.md does not exist
+      When plan-implementation begins
+      Then plan-implementation creates impl-plan.md
+      And it maps evidence to the Approach proof
+      And it maps shortcuts to the build order
+      And it maps the decision to Decisions
+      And it maps production consequences to implementation tasks and Assessment triggers
+
+    @rejection
+    Scenario Outline: Dirty validated state cannot become the pre-spike base
+      Given <state> has uncommitted changes
+      When the maintainer prepares PRE_SPIKE_BASE
+      Then the workflow does not record PRE_SPIKE_BASE
+      And it creates no spike branch or worktree
+      And it requires the <state> changes to be included in a commit
+
+      Examples:
+        | state               |
+        | validated scenarios |
+        | ticket state        |
+
+    Scenario: Committed validated state becomes the shared spike base
+      Given validated scenarios and ticket state are included in one commit
+      When the maintainer prepares PRE_SPIKE_BASE
+      Then PRE_SPIKE_BASE identifies that commit
+      And the spike worktree contains the exact validated scenario and ticket changes
 
     @rejection
     Scenario: Spike code never becomes production implementation

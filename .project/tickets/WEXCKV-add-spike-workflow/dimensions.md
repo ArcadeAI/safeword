@@ -6,8 +6,8 @@
 | Experiment charter | complete question + hypothesis + kill criterion + proof + budget; any missing field blocks execution |
 | Execution shape | one kill-risk slice by default; independent comparison variants may fan out; feature-wide component fan-out is excluded |
 | Evidence outcome | VALIDATED; PARTIAL with constraints; INVALIDATED with the wall |
-| Code lifecycle | isolated worktree and branch; production implementation starts fresh; spike code never merges |
-| Durable output | evidence, shortcuts, decisions, and production consequences feed `impl-plan.md`; significant decisions may feed an ADR |
+| Code lifecycle | validated behavior and ticket state must be included in one commit before recording the base; dirty state records no base and creates no branch/worktree; the spike worktree must contain the exact committed state; production implementation starts fresh; spike code never merges |
+| Durable output | spike returns a structured handoff; `plan-implementation` creates `impl-plan.md` and maps evidence to Approach proof, shortcuts to build order, the decision to Decisions, and production consequences to tasks/triggers; significant decisions may feed an ADR |
 | Host exposure | Claude Code manual-only skill metadata; Cursor command with no automatic rule; generated Codex plugin with an explicit-invocation contract because Codex does not preserve Claude-only metadata |
 | BDD placement | after scenario validation; before `plan-implementation`; canonical phase order unchanged |
 
