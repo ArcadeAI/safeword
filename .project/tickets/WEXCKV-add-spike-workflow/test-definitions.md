@@ -41,7 +41,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Spike code never becomes production implementation
 
 - [x] RED 548a33ea1
-- [ ] GREEN
+- [x] GREEN e5e0248f0
 - [ ] REFACTOR
 
 ## Rule: spike-workflow.TBU1.R1 — supported hosts expose one manual action
