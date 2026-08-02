@@ -27,7 +27,7 @@ temporary directories.
 | Experimental code stays disposable | Real temporary git repository, spike branch, and worktrees | production branch starts at pre-spike base, has no spike commits, spike remains unmerged | `steps/add-spike-workflow.steps.ts` |
 | Project-host distribution | Real setup in a temporary project | installed Claude/Cursor actions share charter, isolation, and distillation clauses | `steps/add-spike-workflow.steps.ts`; schema/parity Vitest |
 | Codex distribution | Real catalogue generator against a temporary output root | generated Codex action carries canonical charter, isolation, and distillation clauses | `steps/add-spike-workflow.steps.ts`; generator/parity Vitest |
-| Automatic selection is excluded | Generated host metadata catalogue | Claude/Codex carry manual-only metadata; Cursor has command and no spike rule | `steps/add-spike-workflow.steps.ts`; schema/parity Vitest |
+| Explicit-invocation contracts | Generated host metadata and guidance catalogue | Claude carries manual-only metadata; Cursor has a command and no spike rule; Codex's generated description and body instruct the agent to require an explicit user request | `steps/add-spike-workflow.steps.ts`; schema/parity Vitest |
 | Planning seam and pre-validation rejection | BDD guidance contract with phase fixtures | exact post-validation offer and canonical pre-validation transitions | `steps/add-spike-workflow.steps.ts` |
 | Routine feature | BDD guidance contract with no-risk fixture | direct transition to `plan-implementation` | `steps/add-spike-workflow.steps.ts` |
 
@@ -53,16 +53,16 @@ Surface proof:
 - Cursor: real setup assertion on `.cursor/commands/spike.md` plus absence of a
   spike rule, making `/spike` the only exposure.
 - OpenAI Codex: generated-plugin assertion on
-  `packages/cli/codex-plugin/skills/spike/SKILL.md`.
-  The generator preserves `disable-model-invocation: true`, so implicit skill
-  selection cannot start a spike.
+  `packages/cli/codex-plugin/skills/spike/SKILL.md`. Codex generation does not
+  preserve Claude-only invocation metadata, so the description and body carry
+  the explicit-invocation guard. This is soft host guidance, not a hard hook.
 - Safeword CLI: real setup invocation plus schema/parity tests.
 
 ## Decisions
 
 | Decision | Choice | Alternatives considered | Rejected because |
 | --- | --- | --- | --- |
-| Workflow shape | Claude/Codex use `disable-model-invocation: true`; Cursor ships `/spike` as a command and no spike rule [1] | Automatic skill/rule; canonical BDD phase | A spike spends an explicit experiment budget, while a new phase adds hook and state machinery to an optional checkpoint. |
+| Workflow shape | Claude uses `disable-model-invocation: true`; Cursor ships `/spike` as a command and no spike rule; Codex receives an explicit-invocation guard in generated guidance [1] | Automatic skill/rule; canonical BDD phase; new enforcement hook | A spike spends an explicit experiment budget; Codex has no equivalent preserved metadata, and a new hook would add disproportionate machinery to an optional checkpoint. |
 | Placement | Offer after scenario validation and before `plan-implementation`; do not invoke automatically [2] | Intake; define-behavior; inside implementation | Earlier phases have not fixed behavior; implementation is too late for evidence meant to shape its plan. |
 | Delivery | Canonical template plus schema-owned Cursor command and generated profile-scoped Codex plugin [3] | Project-local Codex setup artifact; hand-maintained per-host copies | Codex delivery is profile-scoped, while existing generators and parity contracts prevent content drift. |
 | Evidence lifecycle | Structured result is distilled into existing `impl-plan.md`; significant choices may become ADRs | Permanent spike-specific plan/decision artifacts | Existing planning and ADR lanes already own durable production decisions; another artifact kind would duplicate them. |

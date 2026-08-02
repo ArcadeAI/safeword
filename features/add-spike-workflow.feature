@@ -74,7 +74,7 @@ Feature: Resolve build-only uncertainty with a spike
       And the spike branch remains unmerged
 
   @spike-workflow.TBU1.R1
-  Rule: spike-workflow.TBU1.R1 — supported hosts expose one manual action
+  Rule: spike-workflow.TBU1.R1 — supported hosts expose an explicit spike action
 
     Scenario: Setup installs the same spike action for project-scoped hosts
       Given a project without Claude or Cursor spike artifacts
@@ -85,14 +85,15 @@ Feature: Resolve build-only uncertainty with a spike
     Scenario: Catalogue generation ships the same spike action for Codex
       Given a Codex plugin catalogue without the spike action
       When the maintainer runs the real Codex catalogue generator
-      Then the generated Codex artifact exposes a manual spike action
+      Then the generated Codex artifact exposes a spike action whose contract requires explicit invocation
       And it requires the canonical charter, isolation, and evidence-distillation contract
 
     @rejection
-    Scenario: Automatic skill selection cannot spend a spike budget
-      Given the spike action is installed for every supported host
+    Scenario: Host contracts keep spike behind explicit invocation
+      Given the spike action is available through each host's supported delivery surface
       When each host evaluates workflows eligible for automatic selection
-      Then Claude Code and Codex exclude spike through manual-only skill metadata
+      Then Claude Code excludes spike through manual-only skill metadata
+      And the generated Codex description and body instruct the agent to run spike only after an explicit user request
       And Cursor exposes spike as a command without an automatic rule
 
   @spike-workflow.TBU1.R2

@@ -45,3 +45,5 @@ last_modified: 2026-08-02T14:55:00.000Z
 - 2026-08-02T15:06:00.000Z Phase: scenario-gate → plan-implementation; load-bearing slice is real setup parity across all three hosts.
 - 2026-08-02T15:15:00.000Z Plan gate: independent review passed after splitting project-scoped setup from profile-scoped Codex generation and making every proof boundary explicit.
 - 2026-08-02T15:16:00.000Z Phase: plan-implementation → implement; twelve scenario loops planned, no ADR emitted.
+- 2026-08-02T15:45:00.000Z Implementation discovery: Codex generation intentionally omits Claude-only manual metadata; returned to scenario-gate to specify the soft explicit-invocation contract honestly.
+- 2026-08-02T15:50:00.000Z Scenario and plan re-review passed: Codex parity is now an explicit soft guidance contract, not a hard auto-selection claim; implementation resumed.

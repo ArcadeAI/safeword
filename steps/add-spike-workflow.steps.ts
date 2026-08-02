@@ -6,6 +6,8 @@ import nodePath from 'node:path';
 
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
+import { writeCodexPluginCatalogue } from '../packages/cli/src/codex-plugin/catalogue.ts';
+
 interface SpikeWorkflowWorld {
   projectDirectory?: string;
   setupResult?: { status: number | null; stdout: string; stderr: string };
@@ -18,6 +20,8 @@ interface SpikeWorkflowWorld {
   productionWorktree?: string;
   preSpikeBase?: string;
   spikeCommit?: string;
+  codexPluginDirectory?: string;
+  codexSpikeSkill?: string;
 }
 
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '..');
@@ -88,16 +92,19 @@ When('the workflow bounds the experiment', function (this: SpikeWorkflowWorld) {
   assert.ok(this.spikeShape);
 });
 
-Then(/^it (.+)$/, function (this: SpikeWorkflowWorld, outcome: string) {
-  const expected: Record<string, RegExp> = {
-    'creates one experiment': /Default to one experiment, one worker/i,
-    'permits only those variants to fan out':
-      /parallel worktrees only for independent comparison variants/i,
-    'rejects the proposal as production implementation':
-      /Reject feature-wide component work[\s\S]*production implementation/i,
-  };
-  assert.match(this.spikeSkill ?? '', expected[outcome] ?? /this-pattern-must-not-match/);
-});
+Then(
+  /^it (creates one experiment|permits only those variants to fan out|rejects the proposal as production implementation)$/,
+  function (this: SpikeWorkflowWorld, outcome: string) {
+    const expected: Record<string, RegExp> = {
+      'creates one experiment': /Default to one experiment, one worker/i,
+      'permits only those variants to fan out':
+        /parallel worktrees only for independent comparison variants/i,
+      'rejects the proposal as production implementation':
+        /Reject feature-wide component work[\s\S]*production implementation/i,
+    };
+    assert.match(this.spikeSkill ?? '', expected[outcome] ?? /this-pattern-must-not-match/);
+  },
+);
 
 Given(
   /^a bounded spike has reached a (VALIDATED|PARTIAL|INVALIDATED) result$/,
@@ -215,6 +222,48 @@ Then('the spike branch remains unmerged', function (this: SpikeWorkflowWorld) {
   assert.doesNotMatch(merged, /spike\/experiment/);
   assert.match(this.spikeSkill ?? '', /spike branch remains\s+unmerged/i);
 });
+
+Given('a Codex plugin catalogue without the spike action', function (this: SpikeWorkflowWorld) {
+  this.projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-spike-codex-'));
+  this.codexPluginDirectory = nodePath.join(this.projectDirectory, 'plugin');
+  assert.equal(
+    existsSync(nodePath.join(this.codexPluginDirectory, 'skills/spike/SKILL.md')),
+    false,
+  );
+});
+
+When('the maintainer runs the real Codex catalogue generator', function (this: SpikeWorkflowWorld) {
+  assert.ok(this.codexPluginDirectory);
+  writeCodexPluginCatalogue(
+    nodePath.join(REPO_ROOT, 'packages/cli/templates/skills'),
+    this.codexPluginDirectory,
+  );
+});
+
+Then(
+  'the generated Codex artifact exposes a spike action whose contract requires explicit invocation',
+  function (this: SpikeWorkflowWorld) {
+    assert.ok(this.codexPluginDirectory);
+    this.codexSpikeSkill = readFileSync(
+      nodePath.join(this.codexPluginDirectory, 'skills/spike/SKILL.md'),
+      'utf8',
+    );
+    assert.match(this.codexSpikeSkill, /name: spike/);
+    assert.match(this.codexSpikeSkill, /only when explicitly\s+invoked/i);
+  },
+);
+
+Then(
+  'it requires the canonical charter, isolation, and evidence-distillation contract',
+  function (this: SpikeWorkflowWorld) {
+    const canonical = readFileSync(SPIKE_SKILL_PATH, 'utf8');
+    assert.ok(this.codexSpikeSkill);
+    for (const heading of ['## Charter', '## Isolation', '## Evidence distillation']) {
+      assert.ok(canonical.includes(heading));
+      assert.ok(this.codexSpikeSkill.includes(heading));
+    }
+  },
+);
 
 Given('a project without Claude or Cursor spike artifacts', function (this: SpikeWorkflowWorld) {
   this.projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-spike-'));

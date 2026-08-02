@@ -8,7 +8,7 @@
 | Evidence outcome | VALIDATED; PARTIAL with constraints; INVALIDATED with the wall |
 | Code lifecycle | isolated worktree and branch; production implementation starts fresh; spike code never merges |
 | Durable output | evidence, shortcuts, decisions, and production consequences feed `impl-plan.md`; significant decisions may feed an ADR |
-| Host exposure | Claude Code manual-only skill metadata; Cursor command with no automatic rule; generated Codex plugin manual-only skill metadata |
+| Host exposure | Claude Code manual-only skill metadata; Cursor command with no automatic rule; generated Codex plugin with an explicit-invocation contract because Codex does not preserve Claude-only metadata |
 | BDD placement | after scenario validation; before `plan-implementation`; canonical phase order unchanged |
 
 Coverage boundary: the feature specifies the shipped workflow and parity

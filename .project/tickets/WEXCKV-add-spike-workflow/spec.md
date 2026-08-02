@@ -72,7 +72,7 @@ Unaffected:
 > When I work through a supported coding agent, I want the same explicit spike
 > action, so I can use the workflow without learning host-specific mechanics.
 
-#### spike-workflow.TBU1.R1 — Every supported host exposes the manual spike action
+#### spike-workflow.TBU1.R1 — Every supported host exposes spike through an explicit invocation surface or contract
 
 #### spike-workflow.TBU1.R2 — BDD offers a spike only for a build-only risk after behavior is validated
 
@@ -86,7 +86,8 @@ skip: internal maintainer workflow
   walkthrough that can validate or invalidate it.
 - The eventual implementation plan records the spike evidence and production
   deltas while the experiment branch remains unmerged.
-- Claude Code, Cursor, and Codex receive the same manually invoked workflow.
+- Claude Code, Cursor, and Codex receive the same explicit-invocation workflow,
+  with Codex represented honestly as soft generated guidance.
 
 ## Open Questions
 
