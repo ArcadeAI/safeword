@@ -421,7 +421,7 @@ if (args[0] === 'plugin' && args[1] === 'marketplace' && args[2] === 'add') {
 }
 if (operation === 'plugin list --json') { console.log(JSON.stringify(state.plugins)); process.exit(0); }
 if (args[0] === 'plugin' && ['install', 'enable', 'update'].includes(args[1])) {
-  state.plugins = [{ id: 'safeword@safeword', version: '0.71.0-rc.0', enabled: true, scope: 'user' }];
+  state.plugins = [{ id: 'safeword@safeword', version: '0.71.0-rc.0', enabled: true, scope: 'user', installPath: state.installPath }];
   write(state); process.exit(0);
 }
 console.error('unexpected fake claude command: ' + operation); process.exit(64);
@@ -437,6 +437,7 @@ function createLifecycleFixture(
     failOperation: string | null;
     marketplaces: unknown[];
     plugins: unknown[];
+    installPath: string;
   }>,
 ): void {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-claude-lifecycle-'));
@@ -452,8 +453,10 @@ function createLifecycleFixture(
     unrelated: { theme: 'dark', custom: ['preserve', 7] },
     marketplaces: [] as unknown[],
     plugins: [] as unknown[],
+    installPath: nodePath.join(root, 'cache', 'safeword', '0.71.0-rc.0'),
     ...overrides,
   };
+  cpSync(PLUGIN_ROOT, state.installPath, { recursive: true });
   const profileSnapshot = `${JSON.stringify(state, undefined, 2)}\n`;
   writeFileSync(statePath, profileSnapshot);
   writeFakeClaude(fakeBin);
@@ -532,6 +535,7 @@ Given(
     const state = {
       hostVersion: '2.1.170 (Claude Code)',
       failOperation: null,
+      installPath: nodePath.join(root, 'cache', 'safeword', '0.71.0-rc.0'),
       unrelated: { theme: 'dark', custom: ['preserve', 7] },
       marketplaces:
         initialState === 'no Safeword marketplace or plugin'
@@ -556,10 +560,12 @@ Given(
                     : '0.71.0-rc.0',
                 enabled: initialState !== 'the exact official Safeword plugin disabled',
                 scope: 'user',
+                installPath: nodePath.join(root, 'cache', 'safeword', '0.71.0-rc.0'),
               },
             ],
     };
     const profileSnapshot = `${JSON.stringify(state, undefined, 2)}\n`;
+    cpSync(PLUGIN_ROOT, state.installPath, { recursive: true });
     writeFileSync(statePath, profileSnapshot);
     writeFakeClaude(fakeBin);
     this.lifecycle = {
@@ -609,7 +615,13 @@ Then(
     assert.ok(this.lifecycle);
     const state = JSON.parse(readFileSync(this.lifecycle.statePath, 'utf8')) as {
       marketplaces: { name: string; source: string }[];
-      plugins: { id: string; version: string; enabled: boolean; scope: string }[];
+      plugins: {
+        id: string;
+        version: string;
+        enabled: boolean;
+        scope: string;
+        installPath: string;
+      }[];
     };
     assert.deepEqual(state.marketplaces, [
       {
@@ -625,6 +637,7 @@ Then(
         version: '0.71.0-rc.0',
         enabled: true,
         scope: 'user',
+        installPath: nodePath.join(this.lifecycle.root, 'cache', 'safeword', '0.71.0-rc.0'),
       },
     ]);
   },
