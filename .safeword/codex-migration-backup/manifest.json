@@ -1,0 +1,152 @@
+{
+  "schema_version": 1,
+  "status": "finalized",
+  "transaction_id": "71931505-58fb-4400-9413-6aa2f32a8e70",
+  "plan_sha256": "17feb164e516e209c67054b7c07490d9a9cadc5cd2caae5b34919d33bcc0bd88",
+  "entries": [
+    {
+      "path": ".codex/config.toml",
+      "before": {
+        "kind": "file",
+        "mode": 420,
+        "sha256": "e0acbb71e36094d9c50e4f09444de606cc4eac27064db3e59965c8f5fdd2a638",
+        "payload": "payloads/0.bin"
+      },
+      "after": {
+        "kind": "file",
+        "mode": 420,
+        "sha256": "789e937696e9d76b36943b1ac5df04efa7fd7e08d066ab46e5f58808443aa3dc"
+      }
+    },
+    {
+      "path": ".codex/agents/safeword-retro-filer.toml",
+      "before": {
+        "kind": "file",
+        "mode": 420,
+        "sha256": "be8b6d6f7a30fd2abf0979c73f633ea92862699ce98d12fd62364156f110d211",
+        "payload": "payloads/1.bin"
+      },
+      "after": {
+        "kind": "absent"
+      }
+    },
+    {
+      "path": ".safeword/hooks/session-codex-start.ts",
+      "before": {
+        "kind": "file",
+        "mode": 420,
+        "sha256": "16d41f71b90fa89501b6e0856b3da19e676159281f42b8f1a760341ff1feddb3",
+        "payload": "payloads/2.bin"
+      },
+      "after": {
+        "kind": "absent"
+      }
+    },
+    {
+      "path": ".safeword/hooks/session-safeword-context.ts",
+      "before": {
+        "kind": "file",
+        "mode": 420,
+        "sha256": "56c7a97a760c978e747010192855709baad66adda31e04f6c35d9279b87b19a5",
+        "payload": "payloads/3.bin"
+      },
+      "after": {
+        "kind": "absent"
+      }
+    },
+    {
+      "path": ".safeword/hooks/prompt-timestamp.ts",
+      "before": {
+        "kind": "file",
+        "mode": 420,
+        "sha256": "d7939e98528717fed556adf65dcb9fd3c24fac530ba76be2db9c5faebbac27f3",
+        "payload": "payloads/4.bin"
+      },
+      "after": {
+        "kind": "absent"
+      }
+    },
+    {
+      "path": ".safeword/hooks/prompt-retro-nudge.ts",
+      "before": {
+        "kind": "file",
+        "mode": 420,
+        "sha256": "0800c8949b5cf2671173816d45e857f1759329e27b33fda7c7b16ecd54a9398a",
+        "payload": "payloads/5.bin"
+      },
+      "after": {
+        "kind": "absent"
+      }
+    },
+    {
+      "path": ".safeword/hooks/codex/pre-tool-quality.ts",
+      "before": {
+        "kind": "file",
+        "mode": 420,
+        "sha256": "ef8eb1d9b56091c38452a91bba38aadfe530434e26de6f75c7e3521bc808e693",
+        "payload": "payloads/6.bin"
+      },
+      "after": {
+        "kind": "absent"
+      }
+    },
+    {
+      "path": ".safeword/hooks/codex/stop.ts",
+      "before": {
+        "kind": "file",
+        "mode": 420,
+        "sha256": "6e8bc5bbd9e071982b311b78eecb674eb1dd1daa7d201c59516fd0e4514cd4fa",
+        "payload": "payloads/7.bin"
+      },
+      "after": {
+        "kind": "absent"
+      }
+    },
+    {
+      "path": ".safeword/hooks/codex/post-tool-skill-nudge.ts",
+      "before": {
+        "kind": "file",
+        "mode": 420,
+        "sha256": "7d03b5821873daae52caa41a98ef499cae62b9c398f03855db2b938f5f5a5023",
+        "payload": "payloads/8.bin"
+      },
+      "after": {
+        "kind": "absent"
+      }
+    },
+    {
+      "path": ".safeword/hooks/codex/post-tool-quality.ts",
+      "before": {
+        "kind": "file",
+        "mode": 420,
+        "sha256": "605722bf47159cf4ea3c9f106d1c1aae5ca67e6441f46b0c6f0ab615a6e38e06",
+        "payload": "payloads/9.bin"
+      },
+      "after": {
+        "kind": "absent"
+      }
+    },
+    {
+      "path": ".safeword/codex-plugin.json",
+      "before": {
+        "kind": "absent"
+      },
+      "after": {
+        "kind": "file",
+        "mode": 420,
+        "sha256": "b9c872a7ff8d308f3c7562f2c7b9a28c0eba3aaf9a417339665e6cff71b1f1dd"
+      }
+    },
+    {
+      "path": ".agents/skills/safeword-plugin-setup/SKILL.md",
+      "before": {
+        "kind": "absent"
+      },
+      "after": {
+        "kind": "file",
+        "mode": 420,
+        "sha256": "76a2d114a8fa4a4628661c289bcbf3a0bcfae910338560224cd0adc87f5ae585"
+      }
+    }
+  ]
+}
