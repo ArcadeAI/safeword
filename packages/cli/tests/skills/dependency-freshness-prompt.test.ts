@@ -18,6 +18,9 @@ const expectPromptTimestampSearch = (content: string): void => {
   expectNoHardcodedStableYear(content);
 };
 
+const CODEX_PLUGIN_USER_PROMPT_HOOK =
+  /bunx --bun safeword@[0-9A-Za-z.+-]+ hook codex user-prompt-submit/u;
+
 describe('dependency freshness instructions', () => {
   it.each([
     ['canonical SAFEWORD template', 'packages/cli/templates/SAFEWORD.md'],
@@ -66,7 +69,7 @@ describe('dependency freshness instructions', () => {
     const content = readRepoFile('packages/cli/codex-plugin/hooks.json');
 
     expect(content).toContain('"UserPromptSubmit"');
-    expect(content).toMatch(/bunx --bun safeword@[\d.]+ hook codex user-prompt-submit/u);
+    expect(content).toMatch(CODEX_PLUGIN_USER_PROMPT_HOOK);
     expect(content).not.toContain('npx');
     expect(content).not.toContain('.safeword/hooks/prompt-timestamp.ts');
   });

@@ -7,7 +7,7 @@ import { Given, Then, When } from '@cucumber/cucumber';
 import {
   codexMigrationExitCode,
   type CodexMigrationFacts,
-  type CodexMigrationResultV1,
+  type CodexMigrationResultV2,
   deriveCodexMigrationResult,
   renderCodexMigrationHuman,
 } from '../../src/codex-plugin/migration.ts';
@@ -16,7 +16,7 @@ import type { SafewordWorld } from './world.js';
 
 interface ContinuityStatusWorld extends SafewordWorld {
   codexFacts?: CodexMigrationFacts;
-  codexStatus?: CodexMigrationResultV1;
+  codexStatus?: CodexMigrationResultV2;
   codexStatusOutput?: string;
   codexStatusExitCode?: number;
   runCodexStatus?: () => { stdout: string; stderr: string; exitCode: number };
@@ -63,7 +63,7 @@ function facts(overrides: Partial<CodexMigrationFacts> = {}): CodexMigrationFact
     viableLegacyEvents: [],
     finalized: false,
     recoveryRequired: false,
-    restartPending: false,
+    activationPending: false,
     ...overrides,
   };
 }
@@ -77,23 +77,26 @@ function completeLegacy(overrides: Partial<CodexMigrationFacts> = {}): CodexMigr
   });
 }
 
-function parseProtocolStatus(stdout: string): CodexMigrationResultV1 {
+function parseProtocolStatus(stdout: string): CodexMigrationResultV2 {
   const envelope = JSON.parse(stdout) as {
     changed: boolean;
-    errors: CodexMigrationResultV1['errors'];
-    next_actions: CodexMigrationResultV1['next_actions'];
+    errors: CodexMigrationResultV2['errors'];
+    next_actions: CodexMigrationResultV2['next_actions'];
     data: {
-      migration_state: CodexMigrationResultV1['state'];
-      protected: CodexMigrationResultV1['protected'];
-      plugin: CodexMigrationResultV1['plugin'];
-      proof: CodexMigrationResultV1['proof'];
-      legacy: CodexMigrationResultV1['legacy'];
+      migration: {
+        schema_version: '2';
+        state: CodexMigrationResultV2['state'];
+      };
+      protected: CodexMigrationResultV2['protected'];
+      plugin: CodexMigrationResultV2['plugin'];
+      proof: CodexMigrationResultV2['proof'];
+      legacy: CodexMigrationResultV2['legacy'];
     };
   };
   return {
-    schema_version: '1',
+    schema_version: '2',
     ok: envelope.errors.length === 0,
-    state: envelope.data.migration_state,
+    state: envelope.data.migration.state,
     protected: envelope.data.protected,
     changed: envelope.changed,
     plugin: envelope.data.plugin,
@@ -135,13 +138,13 @@ function fixtureFacts(name: string): CodexMigrationFacts {
       return partialLegacy({ plugin: { ...enabledPlugin, enabled: false } });
     }
     case 'restart pending without legacy': {
-      return facts({ plugin: enabledPlugin, restartPending: true });
+      return facts({ plugin: enabledPlugin, activationPending: true });
     }
     case 'restart pending with complete legacy': {
-      return completeLegacy({ plugin: enabledPlugin, restartPending: true });
+      return completeLegacy({ plugin: enabledPlugin, activationPending: true });
     }
     case 'restart pending with partial legacy': {
-      return partialLegacy({ plugin: enabledPlugin, restartPending: true });
+      return partialLegacy({ plugin: enabledPlugin, activationPending: true });
     }
     case 'current proof and legacy':
     case 'current proof with legacy': {
@@ -172,7 +175,7 @@ function fixtureFacts(name: string): CodexMigrationFacts {
   }
 }
 
-function requireStatus(world: ContinuityStatusWorld): CodexMigrationResultV1 {
+function requireStatus(world: ContinuityStatusWorld): CodexMigrationResultV2 {
   assert.ok(world.codexStatus, 'Codex status was not derived');
   return world.codexStatus;
 }
@@ -257,7 +260,7 @@ function observeStatus(world: ContinuityStatusWorld): void {
   world.codexStatusExitCode = result.exitCode;
 }
 
-function derivePreparedStatus(world: ContinuityStatusWorld): CodexMigrationResultV1 {
+function derivePreparedStatus(world: ContinuityStatusWorld): CodexMigrationResultV2 {
   if (!world.codexStatus) {
     assert.ok(world.codexFacts, 'Codex facts were not initialized');
     world.codexStatus = deriveCodexMigrationResult(world.codexFacts);
@@ -292,8 +295,8 @@ Then(
   /^status reports ([a-z_]+), names protection as ([a-z]+), and ends with (.+)$/u,
   function (
     this: ContinuityStatusWorld,
-    state: CodexMigrationResultV1['state'],
-    protection: CodexMigrationResultV1['protected'],
+    state: CodexMigrationResultV2['state'],
+    protection: CodexMigrationResultV2['protected'],
     nextAction: string,
   ) {
     const status = requireStatus(this);
@@ -314,7 +317,7 @@ Then(
 );
 
 Then(
-  'status reports plugin_enabled_hook_unproven and recommends restarting and reviewing hooks',
+  'status reports plugin_enabled_hook_unproven and recommends a new task and hook review',
   function (this: ContinuityStatusWorld) {
     const status = requireStatus(this);
     assert.equal(status.state, 'plugin_enabled_hook_unproven');
@@ -332,9 +335,10 @@ Then(
 );
 
 Then(
-  'the output recommends restarting Codex and reviewing hooks',
+  'the output recommends starting a new Codex task and reviewing hooks',
   function (this: ContinuityStatusWorld) {
-    assert.match(this.codexStatusOutput ?? '', /Start a new Codex session.+review.+\/hooks/isu);
+    assert.match(this.codexStatusOutput ?? '', /Start a new Codex task.+review.+\/hooks/isu);
+    assert.match(this.codexStatusOutput ?? '', /No Codex restart is required/iu);
   },
 );
 
@@ -353,9 +357,9 @@ Then(
   /^stdout contains only the versioned(?: plugin)? status object and the command exits (\d+)$/u,
   function (this: ContinuityStatusWorld, exitCode: string) {
     const output = this.codexStatusOutput ?? '';
-    const parsed = JSON.parse(output) as CodexMigrationResultV1;
+    const parsed = JSON.parse(output) as CodexMigrationResultV2;
     assert.equal(output, `${JSON.stringify(parsed)}\n`);
-    assert.equal(parsed.schema_version, '1');
+    assert.equal(parsed.schema_version, '2');
     assert.equal(this.codexStatusExitCode, Number(exitCode));
   },
 );
@@ -364,9 +368,9 @@ Then(
   'stdout contains only the complete schema 1 object with a nonempty structured errors array',
   function (this: ContinuityStatusWorld) {
     const output = this.codexStatusOutput ?? '';
-    const parsed = JSON.parse(output) as CodexMigrationResultV1;
+    const parsed = JSON.parse(output) as CodexMigrationResultV2;
     assert.equal(output, `${JSON.stringify(parsed)}\n`);
-    assert.equal(parsed.schema_version, '1');
+    assert.equal(parsed.schema_version, '2');
     assert.ok(parsed.errors.length > 0);
   },
 );
@@ -389,11 +393,11 @@ Then(
   /^the complete schema 1 object reports state ([a-z_]+) and protection ([a-z]+)$/u,
   function (
     this: ContinuityStatusWorld,
-    state: CodexMigrationResultV1['state'],
-    protection: CodexMigrationResultV1['protected'],
+    state: CodexMigrationResultV2['state'],
+    protection: CodexMigrationResultV2['protected'],
   ) {
     const status = requireStatus(this);
-    assert.equal(status.schema_version, '1');
+    assert.equal(status.schema_version, '2');
     assert.equal(status.state, state);
     assert.equal(status.protected, protection);
     assert.deepEqual(Object.keys(status).toSorted(), [

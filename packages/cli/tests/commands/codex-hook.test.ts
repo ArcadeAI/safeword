@@ -6,6 +6,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  renameSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -18,7 +19,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   CODEX_PLUGIN_HOOK_EVENTS,
   observeCodexHookProof,
-  writeCodexRestartMarker,
+  writeCodexActivationMarker,
 } from '../../src/codex-plugin/profile-proof.js';
 import {
   normalizeNamespaceRootLabel,
@@ -112,12 +113,12 @@ describe('packagedNamespaceRootLabel', () => {
     expect(packagedNamespaceRootLabel(projectDirectory)).toBe('knowledge');
   });
 
-  it('replaces the matching restart marker with current proof on plugin SessionStart', () => {
+  it('replaces the matching activation marker with current proof on plugin SessionStart', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-'));
     directories.push(projectDirectory);
     const codexHome = nodePath.join(projectDirectory, 'profile');
     const environment = { CODEX_HOME: codexHome };
-    writeCodexRestartMarker(environment);
+    writeCodexActivationMarker(environment);
 
     const result = runCodexHook(
       projectDirectory,
@@ -128,12 +129,54 @@ describe('packagedNamespaceRootLabel', () => {
     );
 
     expect(result.status, result.stderr).toBe(0);
-    expect(existsSync(nodePath.join(codexHome, 'safeword/restart-pending-v1.json'))).toBe(false);
+    expect(existsSync(nodePath.join(codexHome, 'safeword/activation-pending-v1.json'))).toBe(false);
     const proof = JSON.parse(
       readFileSync(nodePath.join(codexHome, 'safeword/hook-proof-v1/session-start.json'), 'utf8'),
     ) as Record<string, unknown>;
     expect(proof.schema_version).toBe(1);
     expect(proof.manifest_sha256).toMatch(/^[\da-f]{64}$/u);
+  });
+
+  it('retires a matching legacy restart marker after durable SessionStart proof', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-'));
+    directories.push(projectDirectory);
+    const codexHome = nodePath.join(projectDirectory, 'profile');
+    const environment = { CODEX_HOME: codexHome };
+    const marker = writeCodexActivationMarker(environment);
+    const activationPath = nodePath.join(codexHome, 'safeword/activation-pending-v1.json');
+    const legacyPath = nodePath.join(codexHome, 'safeword/restart-pending-v1.json');
+    renameSync(activationPath, legacyPath);
+
+    const result = runCodexHook(
+      projectDirectory,
+      'session-start',
+      { hook_event_name: 'SessionStart', cwd: projectDirectory },
+      environment,
+      true,
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(marker.plugin_version).toBeDefined();
+    expect(existsSync(legacyPath)).toBe(false);
+    expect(existsSync(nodePath.join(codexHome, 'safeword/hook-proof-v1/session-start.json'))).toBe(
+      true,
+    );
+  });
+
+  it('retires a superseded legacy marker after writing canonical activation state', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-'));
+    directories.push(projectDirectory);
+    const codexHome = nodePath.join(projectDirectory, 'profile');
+    const environment = { CODEX_HOME: codexHome };
+    const activationPath = nodePath.join(codexHome, 'safeword/activation-pending-v1.json');
+    const legacyPath = nodePath.join(codexHome, 'safeword/restart-pending-v1.json');
+    writeCodexActivationMarker(environment);
+    renameSync(activationPath, legacyPath);
+
+    writeCodexActivationMarker(environment);
+
+    expect(existsSync(activationPath)).toBe(true);
+    expect(existsSync(legacyPath)).toBe(false);
   });
 
   it('records only the event executed by each packaged plugin hook', () => {

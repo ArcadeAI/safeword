@@ -23,6 +23,7 @@ import {
   applyCodexFinalization,
   type CodexFinalizationMutation,
 } from '../../src/codex-plugin/finalization.ts';
+import { currentCodexPluginIdentity } from '../../src/codex-plugin/profile-proof.ts';
 import { SAFEWORD_SCHEMA } from '../../src/schema.ts';
 import type { CliResult, SafewordWorld } from './world.js';
 
@@ -63,18 +64,25 @@ interface ContinuityCliWorld extends SafewordWorld {
   expectedState?: string;
   secondRunBaseline?: { project: Record<string, string>; profile: Record<string, string> };
   unsafeFinalization?: boolean;
+  pendingMarkerPath?: string;
 }
+
+type FakePluginState = 'absent' | 'enabled' | 'disabled';
 
 function writeExecutable(path: string, content: string): void {
   writeFileSync(path, content, { mode: 0o755 });
   chmodSync(path, 0o755);
 }
 
+function marketplaceStateForPluginState(state: FakePluginState): string {
+  return state === 'absent' ? 'absent' : 'git';
+}
+
 function initialize(
   world: ContinuityCliWorld,
   options: {
     config?: string;
-    pluginState?: 'absent' | 'enabled' | 'disabled';
+    pluginState?: FakePluginState;
     pluginVersion?: string | null;
     legacyRuntime?: boolean;
     enrolled?: boolean;
@@ -108,6 +116,10 @@ function initialize(
   }
   writeFileSync(nodePath.join(profile, 'plugin-state'), options.pluginState ?? 'enabled');
   writeFileSync(
+    nodePath.join(profile, 'marketplace-state'),
+    marketplaceStateForPluginState(options.pluginState ?? 'enabled'),
+  );
+  writeFileSync(
     nodePath.join(profile, 'plugin-version'),
     options.pluginVersion === null ? '' : (options.pluginVersion ?? SAFEWORD_SCHEMA.version),
   );
@@ -117,13 +129,34 @@ function initialize(
 set -eu
 state="$CODEX_HOME/plugin-state"
 version_state="$CODEX_HOME/plugin-version"
+marketplace_state="$CODEX_HOME/marketplace-state"
+printf '%s\n' "$*" >> "$SAFEWORD_CODEX_COMMAND_LOG"
 case "$*" in
   '--version') echo 'codex 0.141.0' ;;
+  'plugin marketplace list --json')
+    if [ "\${SAFEWORD_FAIL_MARKETPLACE_LIST:-0}" = "1" ]; then
+      echo 'marketplace observation failed' >&2
+      exit 7
+    fi
+    if [ "$(cat "$marketplace_state")" = "git" ]; then
+      echo '{"marketplaces":[{"name":"safeword","marketplaceSource":{"sourceType":"git","source":"https://github.com/ArcadeAI/safeword.git"}}]}'
+    else
+      echo '{"marketplaces":[]}'
+    fi
+    ;;
+  'plugin marketplace upgrade safeword --json')
+    if [ "\${SAFEWORD_FAIL_MARKETPLACE_UPGRADE:-0}" = "1" ]; then
+      echo 'marketplace refresh failed' >&2
+      exit 6
+    fi
+    echo '{"marketplaceName":"safeword"}'
+    ;;
   'plugin marketplace add '*)
     if [ "\${SAFEWORD_FAIL_PLUGIN_INSTALL:-0}" = "1" ]; then
       echo 'marketplace unavailable' >&2
       exit 9
     fi
+    printf 'git' > "$marketplace_state"
     echo '{"marketplaceName":"safeword"}'
     ;;
   'plugin add safeword@safeword --json')
@@ -176,6 +209,7 @@ exit 0
     CLAUDE_PROJECT_DIR: project,
     SAFEWORD_FAKE_PLUGIN_VERSION: SAFEWORD_SCHEMA.version,
     SAFEWORD_PACKAGED_HOOK_LOG: nodePath.join(root, 'packaged-hooks.log'),
+    SAFEWORD_CODEX_COMMAND_LOG: nodePath.join(root, 'codex-commands.log'),
   };
   world.runCodexStatus = () => run(world, ['codex', 'status', '--json']);
 }
@@ -237,12 +271,16 @@ function observeMigrationState(world: ContinuityCliWorld): string {
   const previous = world.result;
   const observed = run(world, ['codex', 'status', '--json']);
   world.result = previous;
-  assert.equal(observed.exitCode, 2);
+  assert.ok(
+    observed.exitCode === 0 || observed.exitCode === 2,
+    `unexpected Codex status exit ${observed.exitCode}: ${observed.stdout}${observed.stderr}`,
+  );
   const envelope = JSON.parse(observed.stdout) as {
-    data?: { migration_state?: string };
+    data?: { migration?: { schema_version?: string; state?: string } };
   };
-  assert.ok(envelope.data?.migration_state);
-  return envelope.data.migration_state;
+  assert.equal(envelope.data?.migration?.schema_version, '2');
+  assert.ok(envelope.data.migration.state);
+  return envelope.data.migration.state;
 }
 
 function snapshot(directory: string): Record<string, string> {
@@ -273,8 +311,38 @@ function proofPath(world: ContinuityCliWorld): string {
   return nodePath.join(requireProfile(world), 'safeword/hook-proof-v1/session-start.json');
 }
 
-function restartMarkerPath(world: ContinuityCliWorld): string {
+function activationMarkerPath(world: ContinuityCliWorld): string {
+  return nodePath.join(requireProfile(world), 'safeword/activation-pending-v1.json');
+}
+
+function legacyRestartMarkerPath(world: ContinuityCliWorld): string {
   return nodePath.join(requireProfile(world), 'safeword/restart-pending-v1.json');
+}
+
+function commandLog(world: ContinuityCliWorld): string {
+  const root = world.continuityRoot;
+  assert.ok(root);
+  return readFileSync(nodePath.join(root, 'codex-commands.log'), 'utf8');
+}
+
+function writePendingMarker(
+  world: ContinuityCliWorld,
+  options: { legacy?: boolean; version?: string; manifest?: string } = {},
+): string {
+  const identity = currentCodexPluginIdentity();
+  const path =
+    options.legacy === true ? legacyRestartMarkerPath(world) : activationMarkerPath(world);
+  mkdirSync(nodePath.dirname(path), { recursive: true });
+  writeFileSync(
+    path,
+    `${JSON.stringify({
+      schema_version: 1,
+      plugin_version: options.version ?? identity.plugin_version,
+      manifest_sha256: options.manifest ?? identity.manifest_sha256,
+    })}\n`,
+  );
+  world.pendingMarkerPath = path;
+  return path;
 }
 
 function recordEventProof(world: ContinuityCliWorld, event: string): void {
@@ -474,18 +542,18 @@ Then(
 );
 
 Then(
-  'migration reports plugin_installed_restart_required and changes no repository file',
+  'migration reports plugin_installed_new_session_required and changes no repository file',
   function (this: ContinuityCliWorld) {
     assert.equal(this.result.exitCode, 2);
-    assert.equal(observeMigrationState(this), 'plugin_installed_restart_required');
+    assert.equal(observeMigrationState(this), 'plugin_installed_new_session_required');
     assertRepoUnchanged(this);
   },
 );
 
 Then(
-  'the profile contains a restart marker bound to the installed version and hook manifest',
+  'the profile contains an activation marker bound to the installed version and hook manifest',
   function (this: ContinuityCliWorld) {
-    const marker = JSON.parse(readFileSync(restartMarkerPath(this), 'utf8')) as {
+    const marker = JSON.parse(readFileSync(activationMarkerPath(this), 'utf8')) as {
       schema_version: number;
       plugin_version: string;
       manifest_sha256: string;
@@ -496,11 +564,11 @@ Then(
   },
 );
 
-Given('a profile with a current restart-pending marker', function (this: ContinuityCliWorld) {
+Given('a profile with a current activation-pending marker', function (this: ContinuityCliWorld) {
   initialize(this, { pluginState: 'absent' });
   const install = run(this, ['codex', 'migrate']);
   assert.equal(install.exitCode, 2);
-  assert.equal(existsSync(restartMarkerPath(this)), true);
+  assert.equal(existsSync(activationMarkerPath(this)), true);
 });
 
 Given(
@@ -522,12 +590,12 @@ When('Codex invokes it with the plugin-hook marker', function (this: ContinuityC
 });
 
 Then(
-  'current proof replaces the restart marker and status no longer reports plugin_installed_restart_required',
+  'current proof replaces the activation marker and status no longer reports plugin_installed_new_session_required',
   function (this: ContinuityCliWorld) {
     assert.equal(existsSync(proofPath(this)), true);
-    assert.equal(existsSync(restartMarkerPath(this)), false);
+    assert.equal(existsSync(activationMarkerPath(this)), false);
     const status = run(this, ['codex', 'status']);
-    assert.doesNotMatch(status.stdout, /plugin_installed_restart_required/u);
+    assert.doesNotMatch(status.stdout, /plugin_installed_new_session_required/u);
   },
 );
 
@@ -865,7 +933,7 @@ Then('the command succeeds without changing repository files', function (this: C
 });
 
 Given(
-  /^the repository and active profile derive the (legacy|plugin_disabled|plugin_setup_required|plugin_installed_restart_required|plugin_enabled_hook_unproven|compatibility|not_configured) state$/u,
+  /^the repository and active profile derive the (legacy|plugin_disabled|plugin_setup_required|plugin_installed_new_session_required|plugin_enabled_hook_unproven|compatibility|not_configured) state$/u,
   function (this: ContinuityCliWorld, state: string) {
     this.expectedState = state;
     switch (state) {
@@ -884,7 +952,7 @@ Given(
         writeFileSync(nodePath.join(requireProfile(this), 'plugin-state'), 'absent');
         break;
       }
-      case 'plugin_installed_restart_required': {
+      case 'plugin_installed_new_session_required': {
         initialize(this, { pluginState: 'absent' });
         const installed = run(this, ['codex', 'migrate']);
         assert.equal(installed.exitCode, 2);
@@ -1231,14 +1299,268 @@ When('the teammate reads the repository bootstrap skill', function (this: Contin
 });
 
 Then(
-  'it explains install, restart, hook review, and status without embedding workflow policy',
+  'it explains install, next-task activation, hook review, and status without embedding workflow policy',
   function (this: ContinuityCliWorld) {
     const content = this.bootstrapContent ?? '';
     assert.match(content, /codex migrate/u);
-    assert.match(content, /restart/iu);
+    assert.match(content, /new Codex task/iu);
+    assert.match(content, /No Codex restart is required/iu);
     assert.match(content, /\/hooks/u);
     assert.match(content, /codex status/u);
     assert.doesNotMatch(content, /BDD|TDD|quality review/u);
+  },
+);
+
+Given(
+  'a Codex profile without the Safeword marketplace or plugin',
+  function (this: ContinuityCliWorld) {
+    initialize(this, { pluginState: 'absent' });
+  },
+);
+
+Given(
+  'a fresh Codex profile whose Safeword marketplace cannot be added',
+  function (this: ContinuityCliWorld) {
+    initialize(this, { pluginState: 'absent' });
+    this.continuityEnvironment = {
+      ...this.continuityEnvironment,
+      SAFEWORD_FAIL_PLUGIN_INSTALL: '1',
+    };
+  },
+);
+
+Given(
+  'a Codex profile with an older Safeword plugin from the configured Git marketplace',
+  function (this: ContinuityCliWorld) {
+    initialize(this, { pluginState: 'enabled', pluginVersion: '0.69.0' });
+  },
+);
+
+Given(
+  'a Codex profile whose configured Safeword Git marketplace cannot refresh',
+  function (this: ContinuityCliWorld) {
+    initialize(this, { pluginState: 'enabled', pluginVersion: '0.69.0' });
+    this.continuityEnvironment = {
+      ...this.continuityEnvironment,
+      SAFEWORD_FAIL_MARKETPLACE_UPGRADE: '1',
+    };
+  },
+);
+
+Given('a Codex task is running with an older Safeword plugin', function (this: ContinuityCliWorld) {
+  initialize(this, { pluginState: 'enabled', pluginVersion: '0.69.0' });
+});
+
+Given(
+  'the released Safeword plugin is installed but no new Codex task has supplied proof',
+  function (this: ContinuityCliWorld) {
+    initialize(this, { pluginState: 'enabled' });
+    writePendingMarker(this);
+  },
+);
+
+When('the builder installs the Safeword Codex plugin', function (this: ContinuityCliWorld) {
+  run(this, ['codex', 'install']);
+});
+
+When(
+  'the builder installs the released Safeword Codex plugin',
+  function (this: ContinuityCliWorld) {
+    run(this, ['codex', 'install']);
+  },
+);
+
+Then(
+  'the marketplace is added before the plugin install command selects the exact released Safeword version',
+  function (this: ContinuityCliWorld) {
+    const calls = commandLog(this);
+    assert.ok(
+      calls.indexOf('plugin marketplace add') < calls.indexOf('plugin add safeword@safeword'),
+    );
+    assert.equal(
+      readFileSync(nodePath.join(requireProfile(this), 'plugin-version'), 'utf8'),
+      SAFEWORD_SCHEMA.version,
+    );
+  },
+);
+
+Then(
+  'the existing marketplace is upgraded before the plugin install command selects the exact released Safeword version',
+  function (this: ContinuityCliWorld) {
+    const calls = commandLog(this);
+    assert.ok(
+      calls.indexOf('plugin marketplace upgrade safeword --json') <
+        calls.indexOf('plugin add safeword@safeword --json'),
+    );
+    assert.equal(
+      readFileSync(nodePath.join(requireProfile(this), 'plugin-version'), 'utf8'),
+      SAFEWORD_SCHEMA.version,
+    );
+  },
+);
+
+Then(
+  'installation fails before the plugin install command runs',
+  function (this: ContinuityCliWorld) {
+    assert.equal(this.result.exitCode, 1);
+    assert.doesNotMatch(commandLog(this), /plugin add safeword@safeword --json/u);
+  },
+);
+
+Then(
+  'the result says the current task keeps its loaded version and a new task uses the installed version without restarting Codex',
+  function (this: ContinuityCliWorld) {
+    const output = `${this.result.stdout}\n${this.result.stderr}`;
+    assert.match(output, /This task keeps its loaded Safe Word version/u);
+    assert.match(output, /Start a new Codex task/u);
+    assert.match(output, /No Codex restart is required/u);
+  },
+);
+
+When('the builder checks the Codex plugin activation status', function (this: ContinuityCliWorld) {
+  run(this, ['codex', 'status', '--json']);
+});
+
+Then(
+  'status reports plugin_installed_new_session_required and directs the builder to start a new task and review hooks',
+  function (this: ContinuityCliWorld) {
+    const status = JSON.parse(this.result.stdout) as {
+      data?: { migration?: { schema_version?: string; state?: string } };
+    };
+    assert.deepEqual(status.data?.migration, {
+      schema_version: '2',
+      state: 'plugin_installed_new_session_required',
+    });
+    const human = run(this, ['codex', 'status']);
+    assert.match(human.stdout, /Start a new Codex task.+review.+hooks/isu);
+  },
+);
+
+Given(
+  'a profile with next-task activation pending for the installed plugin identity',
+  function (this: ContinuityCliWorld) {
+    initialize(this, { pluginState: 'enabled' });
+    writePendingMarker(this);
+  },
+);
+
+Given(
+  /^activation is pending for (older|current) version and (older|current) hook manifest identity$/u,
+  function (this: ContinuityCliWorld, version: string, manifest: string) {
+    initialize(this, { pluginState: 'enabled' });
+    const identity = currentCodexPluginIdentity();
+    writePendingMarker(this, {
+      version: version === 'current' ? identity.plugin_version : '0.69.0',
+      manifest: manifest === 'current' ? identity.manifest_sha256 : '0'.repeat(64),
+    });
+  },
+);
+
+When(
+  'a new Codex task invokes the installed profile-plugin SessionStart dispatcher',
+  function (this: ContinuityCliWorld) {
+    recordEventProof(this, 'session-start');
+  },
+);
+
+Then(
+  'current proof replaces the pending marker and status no longer requires a new task',
+  function (this: ContinuityCliWorld) {
+    assert.equal(existsSync(activationMarkerPath(this)), false);
+    assert.equal(existsSync(proofPath(this)), true);
+    assert.notEqual(observeMigrationState(this), 'plugin_installed_new_session_required');
+  },
+);
+
+Then(
+  /^proof for current version and current hook manifest does not clear the unmatched marker or claim its activation$/u,
+  function (this: ContinuityCliWorld) {
+    assert.ok(this.pendingMarkerPath);
+    assert.equal(existsSync(this.pendingMarkerPath), true);
+    assert.notEqual(observeMigrationState(this), 'plugin');
+  },
+);
+
+Given(
+  'exact current plugin proof exists and no activation marker is pending',
+  function (this: ContinuityCliWorld) {
+    initialize(this, { pluginState: 'enabled' });
+    recordCurrentProof(this);
+    assert.equal(existsSync(activationMarkerPath(this)), false);
+  },
+);
+
+When('a later Codex task starts', function (this: ContinuityCliWorld) {
+  recordEventProof(this, 'session-start');
+});
+
+Then(
+  'exact current proof remains valid and status does not reintroduce a next-task requirement',
+  function (this: ContinuityCliWorld) {
+    assert.equal(observeMigrationState(this), 'plugin');
+    assert.equal(existsSync(activationMarkerPath(this)), false);
+  },
+);
+
+Given(
+  'a profile with a valid v0.70 restart-pending marker for the installed plugin identity',
+  function (this: ContinuityCliWorld) {
+    initialize(this, { pluginState: 'enabled' });
+    writePendingMarker(this, { legacy: true });
+  },
+);
+
+Given(
+  'current SessionStart proof for the installed plugin identity and a valid v0.70 restart-pending marker',
+  function (this: ContinuityCliWorld) {
+    initialize(this, { pluginState: 'enabled' });
+    recordEventProof(this, 'session-start');
+    writePendingMarker(this, { legacy: true });
+  },
+);
+
+Then(
+  'the legacy marker is removed and current SessionStart proof is retained',
+  function (this: ContinuityCliWorld) {
+    assert.equal(existsSync(legacyRestartMarkerPath(this)), false);
+    assert.equal(existsSync(proofPath(this)), true);
+  },
+);
+
+Then(
+  'proof still establishes the exact installed identity and the legacy marker is retired',
+  function (this: ContinuityCliWorld) {
+    const proof = JSON.parse(readFileSync(proofPath(this), 'utf8')) as {
+      plugin_version: string;
+      manifest_sha256: string;
+    };
+    assert.deepEqual(
+      { plugin_version: proof.plugin_version, manifest_sha256: proof.manifest_sha256 },
+      currentCodexPluginIdentity(),
+    );
+    assert.equal(existsSync(legacyRestartMarkerPath(this)), false);
+  },
+);
+
+Given(
+  /^a profile with a (malformed|stale) v0\.70 restart-pending marker$/u,
+  function (this: ContinuityCliWorld, markerKind: string) {
+    initialize(this, { pluginState: 'enabled' });
+    const path = legacyRestartMarkerPath(this);
+    mkdirSync(nodePath.dirname(path), { recursive: true });
+    if (markerKind === 'malformed') writeFileSync(path, '{bad json\n');
+    else writePendingMarker(this, { legacy: true, version: '0.69.0' });
+  },
+);
+
+Then(
+  'status does not report next-task activation pending or synthesize current proof from that marker',
+  function (this: ContinuityCliWorld) {
+    const status = JSON.parse(this.result.stdout) as {
+      data?: { migration?: { state?: string } };
+    };
+    assert.notEqual(status.data?.migration?.state, 'plugin_installed_new_session_required');
+    assert.equal(existsSync(proofPath(this)), false);
   },
 );
 

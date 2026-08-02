@@ -438,13 +438,16 @@ Then(
   },
 );
 
-Then('the builder is told to start a new Codex session', function (this: MigrationWorld) {
-  const output = migrationOutput(this);
-  assert.ok(
-    output.includes('Start a new Codex session') || output.includes('restart Codex'),
-    output,
-  );
-});
+Then(
+  'the builder is told to start a new Codex task without restarting the app',
+  function (this: MigrationWorld) {
+    const output = migrationOutput(this);
+    assert.ok(
+      output.includes('Start a new Codex task') && output.includes('No Codex restart is required'),
+      output,
+    );
+  },
+);
 
 Then(
   'Safe Word directs the builder to the Codex plugin install command',

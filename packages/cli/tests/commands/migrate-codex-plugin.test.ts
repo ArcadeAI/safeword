@@ -20,7 +20,7 @@ import { applyCodexFinalization } from '../../src/codex-plugin/finalization.js';
 import {
   CODEX_PLUGIN_HOOK_EVENTS,
   recordCodexHookProof,
-  writeCodexRestartMarker,
+  writeCodexActivationMarker,
 } from '../../src/codex-plugin/profile-proof.js';
 import { removeLegacyCodexHooks } from '../../src/commands/migrate-codex-plugin.js';
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
@@ -101,6 +101,34 @@ if [ -n "$(printenv SAFEWORD_LEGACY_ASSET_PATH 2>/dev/null || true)" ] && [ "$*"
 fi
 case "$*" in
   '--version') echo 'codex 0.141.0' ;;
+  'plugin marketplace list --json')
+    if [ "$(printenv SAFEWORD_FAIL_MARKETPLACE_LIST 2>/dev/null || true)" = "1" ]; then
+      echo 'marketplace observation failed' >&2
+      exit 7
+    fi
+    if [ "$(printenv SAFEWORD_MALFORMED_MARKETPLACE_LIST 2>/dev/null || true)" = "1" ]; then
+      echo '{bad json'
+    elif [ "$(printenv SAFEWORD_UNSUPPORTED_MARKETPLACE_LIST 2>/dev/null || true)" = "1" ]; then
+      echo '{"marketplaces":[null]}'
+    elif [ "$(printenv SAFEWORD_MARKETPLACE_SOURCE_TYPE 2>/dev/null || true)" = "local" ]; then
+      echo '{"marketplaces":[{"name":"safeword","marketplaceSource":{"sourceType":"local","source":"/tmp/safeword"}}]}'
+    elif [ "$(printenv SAFEWORD_MISMATCHED_GIT_MARKETPLACE 2>/dev/null || true)" = "1" ]; then
+      echo '{"marketplaces":[{"name":"safeword","marketplaceSource":{"sourceType":"git","source":"https://example.com/untrusted/safeword.git"}}]}'
+    elif [ "$(printenv SAFEWORD_SSH_GIT_MARKETPLACE 2>/dev/null || true)" = "1" ]; then
+      echo '{"marketplaces":[{"name":"safeword","marketplaceSource":{"sourceType":"git","source":"git@github.com:ArcadeAI/safeword.git"}}]}'
+    elif [ '${pluginInitiallyInstalled}' = 'true' ]; then
+      echo '{"marketplaces":[{"name":"safeword","marketplaceSource":{"sourceType":"git","source":"https://github.com/ArcadeAI/safeword.git"}}]}'
+    else
+      echo '{"marketplaces":[]}'
+    fi
+    ;;
+  'plugin marketplace upgrade safeword --json')
+    if [ "$(printenv SAFEWORD_FAIL_MARKETPLACE_UPGRADE 2>/dev/null || true)" = "1" ]; then
+      echo 'marketplace refresh failed' >&2
+      exit 6
+    fi
+    echo '{"marketplaceName":"safeword"}'
+    ;;
   'plugin marketplace add '* )
     if [ "$(printenv SAFEWORD_FAIL_PLUGIN_INSTALL 2>/dev/null || true)" = "1" ]; then
       echo 'marketplace unavailable' >&2
@@ -583,7 +611,13 @@ command = 'echo "keep this user hook"'
     expect(result.exitCode).toBe(2);
     const status = await runCodexCommand(fixture, ['codex', 'status', '--json']);
     expect(JSON.parse(status.stdout)).toMatchObject({
-      data: { migration_state: 'plugin_installed_restart_required' },
+      data: {
+        migration_state: 'plugin_installed_restart_required',
+        migration: {
+          schema_version: '2',
+          state: 'plugin_installed_new_session_required',
+        },
+      },
     });
     expect(readFileSync(configPath, 'utf8')).toBe(before);
     expect(existsSync(configPath)).toBe(true);
@@ -601,6 +635,10 @@ command = 'echo "keep this user hook"'
       changed: true,
       data: {
         migration_state: 'plugin_installed_restart_required',
+        migration: {
+          schema_version: '2',
+          state: 'plugin_installed_new_session_required',
+        },
         plugin: { version: SAFEWORD_SCHEMA.version },
       },
       effects: {
@@ -609,8 +647,101 @@ command = 'echo "keep this user hook"'
     });
     expect(readFileSync(fixture.configPath, 'utf8')).toBe(before);
     const calls = readFileSync(nodePath.join(fixture.directory, 'codex.log'), 'utf8');
-    expect(calls).toContain('plugin marketplace add');
+    expect(calls).toContain('plugin marketplace list --json');
+    expect(calls).toContain('plugin marketplace upgrade safeword --json');
     expect(calls).toContain('plugin add safeword@safeword --json');
+    expect(calls.indexOf('plugin marketplace upgrade')).toBeLessThan(
+      calls.indexOf('plugin add safeword@safeword'),
+    );
+  });
+
+  it('does not install from stale metadata when marketplace refresh fails', async () => {
+    const fixture = createMigrationFixture('', true, true, '0.68.0');
+
+    const result = await runCodexCommand(fixture, ['codex', 'install', '--json'], {
+      SAFEWORD_FAIL_MARKETPLACE_UPGRADE: '1',
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'failed',
+      errors: [
+        {
+          code: 'PLUGIN_MARKETPLACE_FAILED',
+          message: expect.stringContaining('marketplace refresh failed'),
+        },
+      ],
+    });
+    const calls = readFileSync(nodePath.join(fixture.directory, 'codex.log'), 'utf8');
+    expect(calls).toContain('plugin marketplace upgrade safeword --json');
+    expect(calls).not.toContain('plugin add safeword@safeword --json');
+  });
+
+  it('rejects a Git marketplace that reuses the Safeword name for another source', async () => {
+    const fixture = createMigrationFixture('', true, true, '0.68.0');
+
+    const result = await runCodexCommand(fixture, ['codex', 'install', '--json'], {
+      SAFEWORD_MISMATCHED_GIT_MARKETPLACE: '1',
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'failed',
+      errors: [
+        {
+          code: 'PLUGIN_MARKETPLACE_FAILED',
+          message: expect.stringContaining('does not point to ArcadeAI/safeword'),
+        },
+      ],
+    });
+    const calls = readFileSync(nodePath.join(fixture.directory, 'codex.log'), 'utf8');
+    expect(calls).not.toContain('plugin marketplace upgrade safeword --json');
+    expect(calls).not.toContain('plugin add safeword@safeword --json');
+  });
+
+  it('refreshes the official Safeword marketplace when configured with an SSH Git URL', async () => {
+    const fixture = createMigrationFixture('', true, true, '0.68.0');
+
+    const result = await runCodexCommand(fixture, ['codex', 'install'], {
+      SAFEWORD_SSH_GIT_MARKETPLACE: '1',
+    });
+
+    expect(result.exitCode).toBe(2);
+    const calls = readFileSync(nodePath.join(fixture.directory, 'codex.log'), 'utf8');
+    expect(calls).toContain('plugin marketplace upgrade safeword --json');
+    expect(calls).toContain('plugin add safeword@safeword --json');
+  });
+
+  it.each([
+    ['failed', { SAFEWORD_FAIL_MARKETPLACE_LIST: '1' }],
+    ['malformed', { SAFEWORD_MALFORMED_MARKETPLACE_LIST: '1' }],
+    ['unsupported', { SAFEWORD_UNSUPPORTED_MARKETPLACE_LIST: '1' }],
+  ])('fails closed when marketplace discovery is %s', async (_name, environment) => {
+    const fixture = createMigrationFixture('', true, false);
+
+    const result = await runCodexCommand(fixture, ['codex', 'install', '--json'], environment);
+
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'failed',
+      errors: [{ code: 'PLUGIN_MARKETPLACE_FAILED' }],
+    });
+    const calls = readFileSync(nodePath.join(fixture.directory, 'codex.log'), 'utf8');
+    expect(calls).not.toContain('plugin marketplace add');
+    expect(calls).not.toContain('plugin add safeword@safeword --json');
+  });
+
+  it('uses the supported add fallback for a configured non-Git marketplace', async () => {
+    const fixture = createMigrationFixture('', true, false);
+
+    const result = await runCodexCommand(fixture, ['codex', 'install'], {
+      SAFEWORD_MARKETPLACE_SOURCE_TYPE: 'local',
+    });
+
+    expect(result.exitCode).toBe(2);
+    const calls = readFileSync(nodePath.join(fixture.directory, 'codex.log'), 'utf8');
+    expect(calls).toContain('plugin marketplace add ArcadeAI/safeword');
+    expect(calls).not.toContain('plugin marketplace upgrade safeword --json');
   });
 
   it('refuses finalization when proof and the installed plugin version differ', async () => {
@@ -654,7 +785,11 @@ command = 'echo "keep this user hook"'
     const result = await runCodexCommand(fixture, ['codex', 'install']);
 
     expect(result.exitCode, result.stderr).toBe(2);
-    expect(`${result.stdout}\n${result.stderr}`).toContain('Start a new Codex session');
+    expect(`${result.stdout}\n${result.stderr}`).toContain(
+      'This task keeps its loaded Safe Word version',
+    );
+    expect(`${result.stdout}\n${result.stderr}`).toContain('Start a new Codex task');
+    expect(`${result.stdout}\n${result.stderr}`).toContain('No Codex restart is required');
     expect(existsSync(nodePath.join(directory, '.codex'))).toBe(false);
     const calls = readFileSync(nodePath.join(directory, 'codex.log'), 'utf8');
     expect(calls).toContain(
@@ -671,7 +806,7 @@ command = 'echo "keep this user hook"'
     const result = await runCodexCommand(fixture, ['codex', 'migrate']);
 
     expect(result.exitCode, result.stderr).toBe(2);
-    expect(`${result.stdout}\n${result.stderr}`).toContain('Start a new Codex session');
+    expect(`${result.stdout}\n${result.stderr}`).toContain('Start a new Codex task');
     expect(readFileSync(configPath, 'utf8')).toBe(LEGACY_HOOK_CONFIG);
     expect(readFileSync(nodePath.join(fixture.directory, 'codex.log'), 'utf8')).toContain(
       'plugin marketplace add',
@@ -735,7 +870,7 @@ command = 'echo "keep this user hook"'
 
     expect(result.exitCode).toBe(2);
     expect(result.stdout).toContain('plugin_enabled_hook_unproven');
-    expect(result.stdout).toContain('Start a new Codex session');
+    expect(result.stdout).toContain('Start a new Codex task');
     expect(result.stdout.match(/^Next:/gm)).toHaveLength(1);
   });
 
@@ -889,7 +1024,7 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     });
   });
 
-  it('records restart-required state after successful profile installation', async () => {
+  it('records next-task activation state after successful profile installation', async () => {
     const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, true, false);
     const codexHome = nodePath.join(fixture.directory, 'profile');
 
@@ -898,14 +1033,20 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     });
 
     expect(result.exitCode).toBe(2);
-    expect(result.stdout).toContain('Start a new Codex session');
+    expect(result.stdout).toContain('Start a new Codex task');
     const status = await runCodexCommand(fixture, ['codex', 'status', '--json']);
     expect(JSON.parse(status.stdout)).toMatchObject({
-      data: { migration_state: 'plugin_installed_restart_required' },
+      data: {
+        migration_state: 'plugin_installed_restart_required',
+        migration: {
+          schema_version: '2',
+          state: 'plugin_installed_new_session_required',
+        },
+      },
     });
     expect(readFileSync(fixture.configPath, 'utf8')).toBe(LEGACY_HOOK_CONFIG);
     const marker = JSON.parse(
-      readFileSync(nodePath.join(codexHome, 'safeword/restart-pending-v1.json'), 'utf8'),
+      readFileSync(nodePath.join(codexHome, 'safeword/activation-pending-v1.json'), 'utf8'),
     ) as Record<string, unknown>;
     expect(marker.schema_version).toBe(1);
     expect(marker.plugin_version).toMatch(/^\d+\.\d+\.\d+/u);
@@ -1114,7 +1255,8 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
       'utf8',
     );
     expect(bootstrap).toContain('safeword codex migrate');
-    expect(bootstrap).toContain('Restart Codex');
+    expect(bootstrap).toContain('start a new Codex task');
+    expect(bootstrap).toContain('No Codex restart is required');
     expect(bootstrap).toContain('/hooks');
     expect(bootstrap).toContain('safeword codex status');
     expect(bootstrap).not.toMatch(/\b(?:BDD|TDD|quality review|ticket workflow)\b/u);
@@ -1412,7 +1554,13 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
       schema_version: 1,
       changed: true,
       state: 'action_required',
-      data: { migration_state: 'plugin_installed_restart_required' },
+      data: {
+        migration_state: 'plugin_installed_restart_required',
+        migration: {
+          schema_version: '2',
+          state: 'plugin_installed_new_session_required',
+        },
+      },
     });
 
     const finalizing = createMigrationFixture(LEGACY_HOOK_CONFIG);
@@ -1484,14 +1632,17 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     expect(readFileSync(manifestPath, 'utf8')).toBe(before.manifest);
   });
 
-  it('converges repeated migration while a Codex restart is pending', async () => {
+  it('converges repeated migration while next-task activation is pending', async () => {
     const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
-    writeCodexRestartMarker({
+    writeCodexActivationMarker({
       CODEX_HOME: nodePath.join(fixture.directory, 'profile'),
     });
     const first = await runCodexCommand(fixture, ['codex', 'migrate']);
     expect(first.exitCode, first.stderr).toBe(2);
-    const markerPath = nodePath.join(fixture.directory, 'profile/safeword/restart-pending-v1.json');
+    const markerPath = nodePath.join(
+      fixture.directory,
+      'profile/safeword/activation-pending-v1.json',
+    );
     const marker = readFileSync(markerPath, 'utf8');
 
     const second = await runCodexCommand(fixture, ['codex', 'migrate']);
@@ -1499,7 +1650,13 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     expect(second.exitCode, second.stderr).toBe(2);
     const status = await runCodexCommand(fixture, ['codex', 'status', '--json']);
     expect(JSON.parse(status.stdout)).toMatchObject({
-      data: { migration_state: 'plugin_installed_restart_required' },
+      data: {
+        migration_state: 'plugin_installed_restart_required',
+        migration: {
+          schema_version: '2',
+          state: 'plugin_installed_new_session_required',
+        },
+      },
     });
     expect(readFileSync(markerPath, 'utf8')).toBe(marker);
     const calls = readFileSync(nodePath.join(fixture.directory, 'codex.log'), 'utf8');
@@ -1514,19 +1671,19 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     expect(result.exitCode, result.stderr).toBe(2);
     expect(result.stdout).toContain('plugin_enabled_hook_unproven');
     expect(
-      existsSync(nodePath.join(fixture.directory, 'profile/safeword/restart-pending-v1.json')),
+      existsSync(nodePath.join(fixture.directory, 'profile/safeword/activation-pending-v1.json')),
     ).toBe(false);
     expect(readFileSync(nodePath.join(fixture.directory, 'codex.log'), 'utf8')).not.toContain(
       'plugin marketplace add',
     );
   });
 
-  it('reinstalls an absent plugin even when a stale restart marker remains', async () => {
+  it('reinstalls an absent plugin even when a stale activation marker remains', async () => {
     const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, false, false);
     const environment = {
       CODEX_HOME: nodePath.join(fixture.directory, 'profile'),
     };
-    writeCodexRestartMarker(environment);
+    writeCodexActivationMarker(environment);
 
     const result = await runCodexCommand(fixture, ['codex', 'migrate', '--json']);
 
@@ -1539,7 +1696,7 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     );
   });
 
-  it('does not regress compatibility mode to restart-required on repeated migration', async () => {
+  it('does not regress compatibility mode to next-task-required on repeated migration', async () => {
     const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
     recordCurrentProof(fixture);
 
@@ -1548,7 +1705,7 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     expect(result.exitCode, result.stderr).toBe(2);
     expect(result.stdout).toContain('protected by the current profile plugin');
     expect(
-      existsSync(nodePath.join(fixture.directory, 'profile/safeword/restart-pending-v1.json')),
+      existsSync(nodePath.join(fixture.directory, 'profile/safeword/activation-pending-v1.json')),
     ).toBe(false);
     expect(readFileSync(nodePath.join(fixture.directory, 'codex.log'), 'utf8')).not.toContain(
       'plugin marketplace add',
