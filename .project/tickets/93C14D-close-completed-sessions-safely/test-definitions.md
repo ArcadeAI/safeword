@@ -84,7 +84,7 @@ required `Scenario:` heading grammar.
 
 - [x] RED 2fde0446f
 - [x] GREEN 28489255c
-- [ ] REFACTOR
+- [x] REFACTOR skip: authority states are explicit and non-duplicative
 
 ### Scenario: Normal authority never escalates to an administrative merge
 
