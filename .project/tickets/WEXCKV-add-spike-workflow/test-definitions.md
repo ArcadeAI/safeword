@@ -22,7 +22,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 1da00bdb7
 - [x] GREEN 325aa7d97
-- [ ] REFACTOR
+- [x] REFACTOR skip: eligibility table is already compact and exhaustive
 
 ### Scenario Outline: Spike execution stays question-sized
 
