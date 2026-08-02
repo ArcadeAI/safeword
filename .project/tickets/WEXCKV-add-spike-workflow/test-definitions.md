@@ -54,7 +54,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Catalogue generation ships the same spike action for Codex
 
-- [ ] RED
+- [x] RED skip: canonical-template parity generated Codex during the load-bearing setup slice
 - [ ] GREEN
 - [ ] REFACTOR
 
