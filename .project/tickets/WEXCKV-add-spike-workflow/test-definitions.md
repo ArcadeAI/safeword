@@ -47,8 +47,8 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario Outline: Dirty validated state cannot become the pre-spike base
 
 - [x] RED 8e3a24e61
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 701478c6e
+- [x] REFACTOR skip: one fail-closed guard protects both validated-state inputs
 
 ### Scenario: Committed validated state becomes the shared spike base
 
