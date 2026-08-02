@@ -5,6 +5,7 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { generateCodexPluginAssets } from '../../src/codex-plugin/catalogue.js';
 import { readFreshCloseoutBinding } from '../../templates/hooks/lib/closeout-binding.ts';
 import {
   createTemporaryDirectory,
@@ -44,8 +45,15 @@ describe('closeout production host adapters (93C14D TBU1.R4)', () => {
         'utf8',
       );
       const installedGuard = nodePath.join(directory, '.safeword/scripts/closeout-cleanup.ts');
+      const codexProfile = nodePath.join(directory, 'codex-profile/plugins/cache/safeword/0.0.0');
+      const canonicalSkills = nodePath.join(repoRoot, 'packages/cli/templates/skills');
+      for (const asset of generateCodexPluginAssets(canonicalSkills)) {
+        const target = nodePath.join(codexProfile, asset.relativePath);
+        mkdirSync(nodePath.dirname(target), { recursive: true });
+        writeFileSync(target, asset.content);
+      }
       const codexSkill = readFileSync(
-        nodePath.join(repoRoot, 'packages/cli/codex-plugin/skills/closeout/SKILL.md'),
+        nodePath.join(codexProfile, 'skills/closeout/SKILL.md'),
         'utf8',
       );
 
@@ -53,6 +61,12 @@ describe('closeout production host adapters (93C14D TBU1.R4)', () => {
       expect(cursorCommand).toContain('.claude/skills/closeout/SKILL.md');
       expect(codexSkill).toContain('bun .safeword/scripts/closeout-cleanup.ts');
       expect(readFileSync(installedGuard, 'utf8')).toContain('executeCleanupOperation');
+      const execution = spawnSync('bun', [installedGuard], {
+        cwd: directory,
+        encoding: 'utf8',
+      });
+      expect(execution.status).toBe(2);
+      expect(execution.stderr).toContain('a fresh host session binding are required');
     } finally {
       removeTemporaryDirectory(directory);
     }
