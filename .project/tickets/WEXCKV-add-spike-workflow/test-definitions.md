@@ -10,7 +10,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 617fd7964
 - [x] GREEN 1ad07d80f
-- [ ] REFACTOR
+- [x] REFACTOR skip: five-field list is the smallest readable contract
 
 ### Scenario Outline: An incomplete charter cannot execute
 
