@@ -5,7 +5,7 @@ type: feature
 phase: scenario-gate
 status: in_progress
 created: 2026-08-02T17:01:05.002Z
-last_modified: 2026-08-02T18:20:00.000Z
+last_modified: 2026-08-02T19:20:00.000Z
 scope:
   - opposite-agent headless execution for class-1 quality, phase, and architecture reviews
   - bounded read-only review packets with vendor-scoped credentials
@@ -54,3 +54,4 @@ phase_anchors:
 - 2026-08-02T18:45:00.000Z Gate: User approved the strengthened 19-scenario-group set. Re-entered scenario-gate for a fresh independent re-review.
 - 2026-08-02T18:55:00.000Z Scenario gate: Fresh headless Claude re-review returned PASS with 0 must-fix and 1 non-blocking rollout note; all five prior findings are resolved. Recorded the content-bound scenario-gate stamp with reviewer model provenance. The rollout guard's transition mechanics move to implementation planning; the end-state opposite-agent default remains scenario-bound. One eligible build-only kill-risk remains for the optional spike checkpoint: real nested Claude→Codex headless execution/auth/isolation (the reverse direction was proven while running the gate from Codex through Claude).
 - 2026-08-02T19:05:00.000Z Spike preparation: User requested catch-up plus spike. Fast-forwarded the new `codex/cross-agent-adversarial-reviews` branch to `origin/main` at `a59eb35086cad0ce55bacebfbfa9c874d44bb25e`; QZAFT2 artifacts had no overlap and Gherkin lint remained healthy. Recorded the bounded Claude→Codex spike charter in `spike.md`; cloud credential parity remains an explicit non-emulated constraint.
+- 2026-08-02T19:20:00.000Z Spike result — PARTIAL: Created isolated `spike/claude-launches-codex` worktree from baseline `ca9c56d3b6e9f41a651e981db30d57c8ae11dbc5`. The installed Claude CLI rejected `--tools`; the single permitted correction exposed variadic `--allowedTools` prompt consumption. Both attempts exited before a model turn or nested Codex launch, and the worktree remained clean. Retained the coordinator direction but withheld live-nesting validation; implementation must use structured argv/stdin, contract-test the Claude-hosted route, and keep live desktop/cloud smoke plus loud fallback as acceptance requirements.
