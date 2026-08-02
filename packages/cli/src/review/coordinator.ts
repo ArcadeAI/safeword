@@ -2,6 +2,7 @@ import { resolveRunIdentity } from '../../templates/hooks/lib/run-identity.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import type {
   ReviewAgent,
+  ReviewAuthor,
   ReviewerOutput,
   ReviewFailure,
   ReviewKind,
@@ -26,7 +27,12 @@ function provenanceFailure(
 async function executeReview(
   reviewer: 'claude' | 'codex',
   prepared: ReturnType<typeof prepareReviewPacket>,
-): Promise<{ output?: ReviewerOutput; failure?: ReviewFailure; changed: boolean }> {
+): Promise<{
+  output?: ReviewerOutput;
+  failure?: ReviewFailure;
+  sourceChanged: boolean;
+  snapshotChanged: boolean;
+}> {
   let output: ReviewerOutput | undefined;
   let failure: ReviewFailure | undefined;
   try {
@@ -38,18 +44,21 @@ async function executeReview(
     }
     failure = error.failure;
   }
-  const changed = prepared.changed();
+  const sourceChanged = prepared.sourceChanged();
+  const snapshotChanged = prepared.snapshotChanged();
   prepared.cleanup();
-  return { output, failure, changed };
+  return { output, failure, sourceChanged, snapshotChanged };
 }
 
 function fallbackFailure(input: {
   readonly output?: ReviewerOutput;
   readonly failure?: ReviewFailure;
-  readonly changed: boolean;
+  readonly sourceChanged: boolean;
+  readonly snapshotChanged: boolean;
   readonly provenanceError?: string;
 }): string | undefined {
-  if (input.changed) return 'source_changed';
+  if (input.sourceChanged) return 'source_changed';
+  if (input.snapshotChanged) return 'invalid_output';
   if (input.output === undefined && input.failure === undefined) return 'invalid_output';
   return input.failure ?? input.provenanceError;
 }
@@ -71,6 +80,116 @@ function recoveryDescription(reviewer: ReviewAgent, failure: ReviewFailure): str
   return 'Retry the independent review.';
 }
 
+function unsupportedAuthorResult(input: {
+  readonly author: ReviewAuthor;
+  readonly policy: ReviewPolicy;
+  readonly kind: ReviewKind;
+  readonly targets: readonly string[];
+}): CliResult {
+  if (input.policy === 'require') {
+    return createResult({
+      state: 'action_required',
+      findings: [
+        {
+          code: 'REVIEW_AUTHOR_UNSUPPORTED',
+          message: 'A required opposite-agent review needs a Claude or Codex author identity.',
+          severity: 'warning',
+        },
+      ],
+      recovery: [
+        {
+          command: retryCommand(input.kind, input.targets),
+          description: 'Run this review from Claude or Codex.',
+          requiresHuman: true,
+        },
+      ],
+      data: {
+        command: 'review run',
+        status: 'blocked',
+        author_agent: input.author,
+        independence: 'none',
+      },
+    });
+  }
+  return createResult({
+    state: 'healthy',
+    findings: [
+      {
+        code: 'REVIEW_EXISTING_ROUTE',
+        message: 'An independent cross-agent check was not run for this author runtime.',
+        severity: 'info',
+      },
+    ],
+    data: {
+      command: 'review run',
+      status: 'existing_route',
+      author_agent: input.author,
+      independence: 'none',
+    },
+  });
+}
+
+function changedReviewResult(input: {
+  readonly author: ReviewAgent;
+  readonly reviewer: ReviewAgent;
+  readonly kind: ReviewKind;
+  readonly targets: readonly string[];
+  readonly sourceChanged: boolean;
+  readonly snapshotChanged: boolean;
+}): CliResult | undefined {
+  if (input.snapshotChanged) {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'REVIEWER_WRITE_ATTEMPT',
+          message:
+            'The reviewer changed its disposable work packet; no passing evidence was recorded.',
+          retryable: false,
+        },
+      ],
+      effects: {
+        network: [{ kind: 'review', target: input.reviewer, operation: 'request' }],
+      },
+      data: {
+        command: 'review run',
+        status: 'blocked',
+        author_agent: input.author,
+        assigned_reviewer: input.reviewer,
+        independence: 'none',
+      },
+    });
+  }
+  if (!input.sourceChanged) return undefined;
+  return createResult({
+    state: 'failed',
+    errors: [
+      {
+        code: 'REVIEW_SOURCE_CHANGED',
+        message: 'A reviewed source changed during the check; no passing evidence was recorded.',
+        retryable: true,
+      },
+    ],
+    effects: {
+      network: [{ kind: 'review', target: input.reviewer, operation: 'request' }],
+    },
+    recovery: [
+      {
+        command: retryCommand(input.kind, input.targets),
+        description: 'Retry the independent review against the current source.',
+        requiresHuman: false,
+      },
+    ],
+    data: {
+      command: 'review run',
+      status: 'blocked',
+      author_agent: input.author,
+      assigned_reviewer: input.reviewer,
+      independence: 'none',
+    },
+  });
+}
+
 async function runDegradedFallback(input: {
   readonly cwd: string;
   readonly kind: ReviewKind;
@@ -81,12 +200,21 @@ async function runDegradedFallback(input: {
   readonly policy: ReviewPolicy;
 }): Promise<CliResult> {
   const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
-  const { output, failure, changed } = await executeReview(input.author, prepared);
+  const { output, failure, sourceChanged, snapshotChanged } = await executeReview(
+    input.author,
+    prepared,
+  );
   const provenanceError =
     output === undefined
       ? undefined
       : provenanceFailure(output, input.author, prepared.packet.dispatch_id);
-  const failedBecause = fallbackFailure({ output, failure, changed, provenanceError });
+  const failedBecause = fallbackFailure({
+    output,
+    failure,
+    sourceChanged,
+    snapshotChanged,
+    provenanceError,
+  });
   if (failedBecause !== undefined) {
     return createResult({
       state: 'action_required',
@@ -212,50 +340,26 @@ export async function runReview(input: {
   }
   const pair = oppositeReviewPair(author);
   if (pair === undefined) {
-    return createResult({
-      state: 'healthy',
-      findings: [
-        {
-          code: 'REVIEW_EXISTING_ROUTE',
-          message: 'An independent cross-agent check was not run for this author runtime.',
-          severity: 'info',
-        },
-      ],
-      data: {
-        command: 'review run',
-        status: 'existing_route',
-        author_agent: author,
-        independence: 'none',
-      },
-    });
+    return unsupportedAuthorResult({ author, policy, kind: input.kind, targets: input.targets });
   }
   const { reviewer } = pair;
 
   const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
-  const { output, failure: preferredFailure, changed } = await executeReview(reviewer, prepared);
-  if (changed) {
-    return createResult({
-      state: 'failed',
-      errors: [
-        {
-          code: 'REVIEWER_WRITE_ATTEMPT',
-          message:
-            'The reviewer changed its disposable work packet; no passing evidence was recorded.',
-          retryable: false,
-        },
-      ],
-      effects: {
-        network: [{ kind: 'review', target: reviewer, operation: 'request' }],
-      },
-      data: {
-        command: 'review run',
-        status: 'blocked',
-        author_agent: author,
-        assigned_reviewer: reviewer,
-        independence: 'none',
-      },
-    });
-  }
+  const {
+    output,
+    failure: preferredFailure,
+    sourceChanged,
+    snapshotChanged,
+  } = await executeReview(reviewer, prepared);
+  const changedResult = changedReviewResult({
+    author,
+    reviewer,
+    kind: input.kind,
+    targets: input.targets,
+    sourceChanged,
+    snapshotChanged,
+  });
+  if (changedResult !== undefined) return changedResult;
   if (preferredFailure !== undefined) {
     return runDegradedFallback({
       ...input,
