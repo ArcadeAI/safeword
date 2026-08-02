@@ -979,6 +979,203 @@ Then(
 );
 
 Given(
+  /^a cleanup-ready project with (the current accepted|a historical accepted) Safeword assets and mixed user and third-party Claude settings$/u,
+  function (this: NativeClaudePluginWorld, _fingerprint: string) {
+    createStatusFixture(this, 'valid proof and wholly recognized removable legacy', false);
+    assert.ok(this.lifecycle);
+    const settings = nodePath.join(this.lifecycle.project, '.claude/settings.json');
+    mkdirSync(nodePath.dirname(settings), { recursive: true });
+    writeFileSync(
+      settings,
+      `${JSON.stringify(
+        {
+          theme: 'user-owned',
+          hooks: {
+            PreToolUse: [
+              { hooks: [{ type: 'command', command: 'bun .safeword/hooks/pre-tool-quality.ts' }] },
+              { hooks: [{ type: 'command', command: 'third-party protect' }] },
+            ],
+          },
+        },
+        undefined,
+        2,
+      )}\n`,
+    );
+    const cursor = nodePath.join(this.lifecycle.project, '.cursor/keep.json');
+    const projectOwned = nodePath.join(this.lifecycle.project, '.safeword/user-state.json');
+    mkdirSync(nodePath.dirname(cursor), { recursive: true });
+    mkdirSync(nodePath.dirname(projectOwned), { recursive: true });
+    writeFileSync(cursor, '{"cursor":"keep"}\n');
+    writeFileSync(projectOwned, '{"project":"keep"}\n');
+    this.lifecycle.projectTreeSnapshot = snapshotDirectory(this.lifecycle.project);
+  },
+);
+
+Then(
+  'only the recognized Safeword files and settings entries are removed',
+  function (this: NativeClaudePluginWorld) {
+    assert.ok(this.lifecycle);
+    assert.equal(
+      existsSync(nodePath.join(this.lifecycle.project, '.claude/skills/debug/SKILL.md')),
+      false,
+    );
+    const settings = readFileSync(
+      nodePath.join(this.lifecycle.project, '.claude/settings.json'),
+      'utf8',
+    );
+    assert.doesNotMatch(settings, /\.safeword\/hooks/u);
+    assert.match(settings, /third-party protect/u);
+  },
+);
+
+Then(
+  'user-authored, third-party, Cursor-shared, and project-owned assets are byte-identical',
+  function (this: NativeClaudePluginWorld) {
+    assert.ok(this.lifecycle);
+    assert.equal(
+      readFileSync(nodePath.join(this.lifecycle.project, '.cursor/keep.json'), 'utf8'),
+      '{"cursor":"keep"}\n',
+    );
+    assert.equal(
+      readFileSync(nodePath.join(this.lifecycle.project, '.safeword/user-state.json'), 'utf8'),
+      '{"project":"keep"}\n',
+    );
+    assert.match(
+      readFileSync(nodePath.join(this.lifecycle.project, '.claude/settings.json'), 'utf8'),
+      /"theme": "user-owned"/u,
+    );
+  },
+);
+
+Then(
+  'the complete Claude profile is byte-identical to its pre-command snapshot',
+  function (this: NativeClaudePluginWorld) {
+    assert.ok(this.lifecycle);
+    assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
+    assert.equal(
+      snapshotDirectory(this.lifecycle.configRoot ?? ''),
+      this.lifecycle.configTreeSnapshot,
+    );
+  },
+);
+
+Given('a cleanup-ready project and profile', function (this: NativeClaudePluginWorld) {
+  createStatusFixture(this, 'valid proof and wholly recognized removable legacy', false);
+});
+
+When(
+  'the user declines safeword claude cleanup confirmation',
+  function (this: NativeClaudePluginWorld) {
+    this.lifecycle!.result = runLifecycleCommand(this, ['claude', 'cleanup']);
+  },
+);
+
+Then('every profile and project file is byte-identical', function (this: NativeClaudePluginWorld) {
+  assert.ok(this.lifecycle);
+  assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
+  assert.equal(snapshotDirectory(this.lifecycle.project), this.lifecycle.projectTreeSnapshot);
+  assert.equal(
+    snapshotDirectory(this.lifecycle.configRoot ?? ''),
+    this.lifecycle.configTreeSnapshot,
+  );
+});
+
+Then('no Claude lifecycle command is invoked', function (this: NativeClaudePluginWorld) {
+  assert.ok(this.lifecycle);
+  assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
+});
+
+Given(
+  'a cleanup-ready project whose managed Claude skill path contains content with no accepted Safeword fingerprint',
+  function (this: NativeClaudePluginWorld) {
+    createStatusFixture(this, 'valid proof and wholly recognized removable legacy', false);
+    assert.ok(this.lifecycle);
+    writeFileSync(
+      nodePath.join(this.lifecycle.project, '.claude/skills/debug/SKILL.md'),
+      'user-authored unknown skill\n',
+    );
+    this.lifecycle.projectTreeSnapshot = snapshotDirectory(this.lifecycle.project);
+  },
+);
+
+Then('cleanup refuses to contract that project', function (this: NativeClaudePluginWorld) {
+  assert.equal(this.lifecycle?.result?.status, 2, this.lifecycle?.result?.output);
+  const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+    data?: { classification?: string };
+  };
+  assert.equal(result.data?.classification, 'coexistence');
+});
+
+Then(
+  'the unknown content and every unrelated project file remain byte-identical',
+  function (this: NativeClaudePluginWorld) {
+    assert.ok(this.lifecycle);
+    assert.equal(snapshotDirectory(this.lifecycle.project), this.lifecycle.projectTreeSnapshot);
+  },
+);
+
+Given(
+  'an existing project has viable legacy Claude protection and arbitrary profile state',
+  function (this: NativeClaudePluginWorld) {
+    createLifecycleFixture(this, {});
+    assert.ok(this.lifecycle);
+    writeCanonicalLegacy(this.lifecycle.project);
+    this.lifecycle.projectTreeSnapshot = snapshotDirectory(this.lifecycle.project);
+  },
+);
+
+When('ordinary safeword setup upgrades the project', function (this: NativeClaudePluginWorld) {
+  assert.ok(this.lifecycle);
+  const result = spawnSync(
+    'bun',
+    [
+      nodePath.join(REPO_ROOT, 'packages/cli/src/cli.ts'),
+      'setup',
+      '--json',
+      '--no-input',
+      '--cwd',
+      this.lifecycle.project,
+    ],
+    {
+      cwd: REPO_ROOT,
+      env: { ...process.env, SAFEWORD_SKIP_INSTALL: '1', SAFEWORD_SKIP_SKILLS: '1' },
+      encoding: 'utf8',
+    },
+  );
+  this.lifecycle.result = {
+    status: result.status ?? 1,
+    output: `${result.stdout ?? ''}${result.stderr ?? ''}`,
+  };
+});
+
+Then(
+  'every viable legacy asset and the complete Claude profile are byte-identical',
+  function (this: NativeClaudePluginWorld) {
+    assert.ok(this.lifecycle);
+    assert.equal(
+      readFileSync(nodePath.join(this.lifecycle.project, '.claude/skills/debug/SKILL.md'), 'utf8'),
+      readFileSync(
+        nodePath.join(REPO_ROOT, 'packages/cli/templates/skills/debug/SKILL.md'),
+        'utf8',
+      ),
+    );
+    assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
+  },
+);
+
+Then(
+  'the result recommends the explicit Claude lifecycle command without invoking it',
+  function (this: NativeClaudePluginWorld) {
+    const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+      next_actions?: { command?: string }[];
+    };
+    assert.ok(result.next_actions?.some(action => action.command === 'safeword claude install'));
+    assert.ok(this.lifecycle);
+    assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
+  },
+);
+
+Given(
   /^the Claude executable reports (2\.1\.169|unparseable output)$/u,
   function (this: NativeClaudePluginWorld, version: string) {
     createLifecycleFixture(this, {

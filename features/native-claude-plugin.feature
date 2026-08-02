@@ -73,7 +73,7 @@ Feature: Ship Safeword as a native Claude Code plugin
         | plugin install |
         | plugin list    |
 
-  @wip @native-claude-plugin.TBU1.R2 @surface.claude-code @surface.safeword-cli
+  @native-claude-plugin.TBU1.R2 @surface.claude-code @surface.safeword-cli
   Rule: native-claude-plugin.TBU1.R2 — Plugin installation, update, coexistence, and cleanup preserve project-owned, user-authored, and third-party configuration
 
     Scenario Outline: Cleanup removes recognized Safeword entries from mixed Claude configuration
