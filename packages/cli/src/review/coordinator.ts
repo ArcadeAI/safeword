@@ -357,7 +357,7 @@ export async function runReview(input: {
     snapshotChanged,
   } = await executeReview(reviewer, prepared);
   const changedResult = changedReviewResult({
-    author,
+    author: pair.author,
     reviewer,
     kind: input.kind,
     targets: input.targets,

@@ -7,7 +7,7 @@ import { createTemporaryDirectory, runCli } from '../helpers.js';
 
 type ReviewAgent = 'claude' | 'codex';
 
-function installFakeReviewer(directory: string, agent: ReviewAgent, log: string): string {
+function installFakeReviewer(directory: string, agent: ReviewAgent, _log: string): string {
   const bin = nodePath.join(directory, 'bin');
   mkdirSync(bin, { recursive: true });
   const executable = nodePath.join(bin, agent);
@@ -803,7 +803,11 @@ describe('cross-agent review public-command wiring', () => {
     expect(() => readFileSync(log, 'utf8')).toThrow();
   });
 
-  it.each([
+  it.each<{
+    outcome: string;
+    environment: Record<string, string>;
+    firstLine: string;
+  }>([
     {
       outcome: 'cross-agent',
       environment: {},
