@@ -106,4 +106,4 @@ test-definitions.md is the R/G/R ledger.
 
 ## Feature-level cross-scenario refactor
 
-- [ ] cross-scenario
+- [x] cross-scenario skip: whole-ticket review found the existing real-git helpers and contract assertions cohesive, with no shared cleanup worth another abstraction
