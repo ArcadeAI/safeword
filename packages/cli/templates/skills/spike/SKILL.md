@@ -2,7 +2,6 @@
 name: spike
 description: Run a bounded disposable experiment to resolve one build-only technical uncertainty before production planning. Use only when explicitly invoked.
 disable-model-invocation: true
-allowed-tools: '*'
 ---
 
 # Spike
