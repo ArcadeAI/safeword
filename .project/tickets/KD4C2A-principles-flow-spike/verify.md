@@ -2,11 +2,11 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 6152/6152 tests pass (5 skipped; 410/410 files)
-**Gherkin:** ✅ Acceptance lane passes (725 passed, 3 skipped; 24,465 steps passed, 4 skipped)
+**Test Suite:** ✓ 6243/6243 tests pass (5 skipped; 413/413 files)
+**Gherkin:** ✅ Acceptance lane passes (768 passed, 3 skipped; 26,695 steps passed, 4 skipped)
 **Build:** ✅ Success
 **Lint:** ✅ Clean
-**Scenarios:** All 20 scenarios covered (54 automated examples; 18 judgment examples independently reviewed)
+**Scenarios:** All 20 scenarios marked complete (61/61 RED/GREEN/REFACTOR ledger checks; 54 automated examples; 18 judgment examples independently reviewed)
 **PR Scope:** ✅ Diff matches ticket scope
 **Dep Drift:** ✅ Clean
 **Parent Epic:** N/A
@@ -64,16 +64,28 @@ documentation, domain-reference, and changed-test checks are clean.
 **Verdict:** The no-new-step mechanism is supported; actual delight is not claimed.
 **Limitations:** No real-user study or live multi-host usability session was run.
 
+### Final independent quality review
+
+**Reviewer:** `/root/corrected_full_quality_review`, fresh independent quality reviewer
+**Review stage:** Final quality review after refactor, rc.3 rebase, and blocker fixes
+**Host surface:** Claude Code, Cursor, OpenAI Codex, and Safeword CLI
+**Resolved sources:** Current principles, personas, surfaces, ticket artifacts, complete `origin/main...HEAD` diff, installed/generated host assets, and current official host documentation
+**Claim:** The complete feature is current, correct, proportionate, wired through real entry points, and free of blocking quality or bloat concerns.
+**Evidence:** The reviewer traced configured-path health, full-reset preservation, repo-confined proof resolution, comment-aware principle parsing, architecture-claim separation, and the 12 production-derived host×review-stage routes. Two semantic false-greens found during the pass were fixed at `d045d7180`; the corrected 86-test focused suite passed before re-review.
+**Verdict:** APPROVE — no critical issues or suggested changes remain.
+**Limitations:** Official-source review and repository execution do not prove that every live host model will obey soft skill guidance.
+
 ## Verification commands
 
-- `bun run test -- --maxWorkers=2` from `packages/cli`: 410 files passed; 6,152 tests passed; 5 skipped.
-- `bun run test:bdd`: 728 automated scenarios; 725 passed and 3 skipped; 24,465 steps passed and 4 skipped. The feature contributes 54 automated examples; its 18 `@manual` judgment examples are reviewed above rather than counted as executable proof.
+- `bun run --cwd packages/cli test`: 413 files passed; 6,243 tests passed; 5 skipped.
+- `bun run test:bdd`: 771 automated scenarios; 768 passed and 3 skipped; 26,695 steps passed and 4 skipped. The feature contributes 54 automated examples; its 18 `@manual` judgment examples are reviewed above rather than counted as executable proof.
 - `bun run lint`: ESLint, Gherkin lint, and TypeScript passed.
 - `bun run --cwd packages/cli build`: build and declaration output passed.
-- Focused project-knowledge suite: 10 files and 121 tests passed.
+- Corrected principle/architecture health suite: 2 files and 86 tests passed.
 - Diff audit: no architecture, dependency-boundary, principle-trace, domain-reference, documentation, or changed-test finding.
 
-The unconstrained full Vitest run saturated local CPU and produced seven
-startup/time-limit failures. Each failed file passed alone; the complete
-two-worker run then passed all 410 files. The worker limit changes scheduling,
-not test selection.
+The fresh independent quality review approved the corrected snapshot after
+confirming full-reset preservation, configured-path safety, repo-confined proof
+resolution, comment-aware principle parsing, architecture-claim separation,
+and all 12 host×review-stage delivery routes. No critical or suggested changes
+remain.
