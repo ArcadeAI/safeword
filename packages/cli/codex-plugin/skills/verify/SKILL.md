@@ -171,9 +171,9 @@ run_plan
 plan_kind=typecheck
 run_plan
 
-# --- Supply-chain: `cargo deny check advisories` (RustSec DB) for Rust —
-#     the zero-false-positive security signal. Empty for non-Rust or when
-#     cargo-deny is absent (a visible skip, never a false green). ---
+# --- Supply-chain: JavaScript's package-manager audit, Python's `uv audit` or
+#     `pip-audit`, Go's pinned `govulncheck`, and Rust's cargo-deny advisories.
+#     A missing scanner prints a visible skip, never a false green. ---
 plan_kind=deps
 run_plan
 ```
