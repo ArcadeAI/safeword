@@ -10,9 +10,9 @@ required `Scenario:` heading grammar.
 
 ### Scenario: Current delivery evidence makes an authorized merge eligible
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 7559b2855
+- [x] GREEN 681b1316e
+- [x] REFACTOR skip: the readiness gate shares the same current-evidence predicate
 
 ### Scenario: Incomplete delivery evidence blocks merge and cleanup
 
@@ -22,9 +22,9 @@ required `Scenario:` heading grammar.
 
 ### Scenario: A fully closed delivery reports every final state
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 9324b87f8
+- [x] GREEN 29bf0cc66
+- [x] REFACTOR skip: the final report is one ordered durable-state checklist
 
 ## Rule: close-completed-sessions-safely.NTB1.R2 — Retrospective capture is a mandatory prerequisite to destructive cleanup
 
@@ -56,27 +56,27 @@ required `Scenario:` heading grammar.
 
 ### Scenario: A local merge-command error after remote success is partial success
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED af86a036e
+- [x] GREEN e0bce09f1
+- [x] REFACTOR skip: fresh observation already cleanly separates remote success from local failure
 
 ### Scenario: An unconfirmed merge result stops safely
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED af86a036e
+- [x] GREEN e0bce09f1
+- [x] REFACTOR skip: the unknown-state stop shares the re-observation boundary
 
 ### Scenario: A blocked closeout reports every simultaneous unresolved item
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 9324b87f8
+- [x] GREEN 29bf0cc66
+- [x] REFACTOR skip: all blocker collection is centralized in the report contract
 
 ### Scenario: Re-running a completed closeout is unchanged
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED af86a036e
+- [x] GREEN e0bce09f1
+- [x] REFACTOR skip: the already-closed terminal state is explicit and idempotent
 
 ## Rule: close-completed-sessions-safely.TBU1.R1 — Merge actions never exceed the authority explicitly granted by the user
 
@@ -88,67 +88,67 @@ required `Scenario:` heading grammar.
 
 ### Scenario: Normal authority never escalates to an administrative merge
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 2fde0446f
+- [x] GREEN 28489255c
+- [x] REFACTOR skip: the no-escalation rule is already one direct prohibition
 
 ### Scenario: Historical or implied admin intent is insufficient
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 2fde0446f
+- [x] GREEN 28489255c
+- [x] REFACTOR skip: current-request authority is centralized and unambiguous
 
 ## Rule: close-completed-sessions-safely.TBU1.R2 — Cleanup targets only the confirmed merged pull request's exact topic branch and linked worktree
 
 ### Scenario: Missing, ambiguous, or unmerged pull request identity blocks cleanup
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 195b7fe03
+- [x] GREEN 29bf0cc66
+- [x] REFACTOR skip: identity blockers share the guard's single collection path
 
 ### Scenario: Exact merged identity permits ordered cleanup
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 195b7fe03
+- [x] GREEN 29bf0cc66
+- [x] REFACTOR skip: the operation union enforces one explicit order
 
 ### Scenario: A squash or rebase merge can clean an exact non-ancestor branch
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED feb055f0c
+- [x] GREEN b184af7f9
+- [x] REFACTOR skip: compare-and-swap update-ref deliberately avoids ancestry logic
 
 ### Scenario: Already absent exact targets remain complete
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 195b7fe03
+- [x] GREEN 29bf0cc66
+- [x] REFACTOR skip: absence handling is centralized in plan completion fields
 
 ### Scenario: A merged topic branch with no linked worktree cleans only its exact branches
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 195b7fe03
+- [x] GREEN 29bf0cc66
+- [x] REFACTOR skip: the same exact-target planner naturally omits the absent worktree
 
 ### Scenario: Changed branch identity is preserved
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 195b7fe03
+- [x] GREEN 29bf0cc66
+- [x] REFACTOR skip: local and remote OID mismatches share the fail-closed identity check
 
 ## Rule: close-completed-sessions-safely.TBU1.R3 — Protected, dirty, locked, main, or ambiguous targets are preserved and reported instead of force-removed
 
 ### Scenario: Unsafe worktree targets are never removed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 195b7fe03
+- [x] GREEN 29bf0cc66
+- [x] REFACTOR skip: unsafe worktree states share one no-operation blocker path
 
 ### Scenario: A branch used by a different worktree is preserved
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 195b7fe03
+- [x] GREEN 29bf0cc66
+- [x] REFACTOR skip: multiple branch users resolve as an ambiguous worktree blocker
 
 ## Rule: close-completed-sessions-safely.TBU1.R4 — The same closeout contract is available through every supported local agent runtime
 
@@ -160,15 +160,15 @@ required `Scenario:` heading grammar.
 
 ### Scenario: Synchronized closeout artifacts pass host parity
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 7b60686d2
+- [x] GREEN 33066145e
+- [x] REFACTOR skip: production generation and parity catalogues remain the single source
 
 ### Scenario: Closeout drift fails parity at the changed surface
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 7b60686d2
+- [x] GREEN 33066145e
+- [x] REFACTOR skip: existing surface-specific parity failures need no duplicate mechanism
 
 ## Feature-level cross-scenario refactor
 
