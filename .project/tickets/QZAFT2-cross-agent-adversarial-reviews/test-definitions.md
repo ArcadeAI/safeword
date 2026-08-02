@@ -58,7 +58,7 @@ test-definitions.md is the R/G/R ledger. Executable Given/When/Then behavior liv
 
 - [x] RED 2c3e217d2
 - [x] GREEN db85fc1ee
-- [ ] REFACTOR
+- [x] REFACTOR skip: ReviewRuntimeError centralizes the typed failure matrix without route-specific branches
 
 ## Rule: cross-agent-review.TBU2.R2 — Fallback evidence never overstates independence
 
