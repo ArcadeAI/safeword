@@ -39,9 +39,9 @@ export interface CloseoutObservation {
 }
 
 export type CleanupOperation =
-  | { kind: 'remove-worktree'; path: string; oid: string }
-  | { kind: 'delete-remote-ref'; remote: string; ref: string; oid: string }
-  | { kind: 'delete-local-ref'; ref: string; oid: string };
+  | { kind: 'remove-worktree'; cwd: string; path: string; oid: string }
+  | { kind: 'delete-remote-ref'; cwd: string; remote: string; ref: string; oid: string }
+  | { kind: 'delete-local-ref'; cwd: string; ref: string; oid: string };
 
 export interface CleanupPlan {
   version: 1;
@@ -114,6 +114,9 @@ export function buildCleanupPlan(observation: CloseoutObservation): CleanupPlan 
     const topicWorktrees = observation.worktrees.filter(
       worktree => worktree.branch === pullRequest.headRefName,
     );
+    const mainWorktrees = observation.worktrees.filter(worktree => worktree.main);
+    if (mainWorktrees.length !== 1) block(plan, 'exactly one surviving main worktree is required');
+    const mainWorktree = mainWorktrees[0];
     if (topicWorktrees.length > 1) block(plan, 'the linked topic worktree is ambiguous');
     const worktree = topicWorktrees[0];
     if (worktree?.main) block(plan, 'the main worktree is never a closeout target');
@@ -124,10 +127,11 @@ export function buildCleanupPlan(observation: CloseoutObservation): CleanupPlan 
       block(plan, `the linked worktree no longer matches the pull request head: ${worktree.path}`);
     }
 
-    if (plan.blockers.length === 0) {
+    if (plan.blockers.length === 0 && mainWorktree) {
       if (worktree) {
         plan.operations.push({
           kind: 'remove-worktree',
+          cwd: mainWorktree.path,
           path: worktree.path,
           oid: pullRequest.headRefOid,
         });
@@ -137,6 +141,7 @@ export function buildCleanupPlan(observation: CloseoutObservation): CleanupPlan 
       if (observation.remote) {
         plan.operations.push({
           kind: 'delete-remote-ref',
+          cwd: mainWorktree.path,
           remote: observation.remote.name,
           ref: `refs/heads/${pullRequest.headRefName}`,
           oid: pullRequest.headRefOid,
@@ -147,6 +152,7 @@ export function buildCleanupPlan(observation: CloseoutObservation): CleanupPlan 
       if (observation.localRefOid) {
         plan.operations.push({
           kind: 'delete-local-ref',
+          cwd: mainWorktree.path,
           ref: `refs/heads/${pullRequest.headRefName}`,
           oid: pullRequest.headRefOid,
         });
@@ -161,6 +167,72 @@ export function buildCleanupPlan(observation: CloseoutObservation): CleanupPlan 
 
 export function cleanupPlanDigest(plan: CleanupPlan): string {
   return createHash('sha256').update(JSON.stringify(plan)).digest('hex');
+}
+
+export function operationCommand(operation: CleanupOperation): string[] {
+  switch (operation.kind) {
+    case 'remove-worktree':
+      return ['git', '-C', operation.cwd, 'worktree', 'remove', operation.path];
+    case 'delete-remote-ref':
+      return [
+        'git',
+        '-C',
+        operation.cwd,
+        'push',
+        `--force-with-lease=${operation.ref}:${operation.oid}`,
+        operation.remote,
+        `:${operation.ref}`,
+      ];
+    case 'delete-local-ref':
+      return ['git', '-C', operation.cwd, 'update-ref', '-d', operation.ref, operation.oid];
+  }
+}
+
+interface ApplyCleanupPlanInput {
+  plan: CleanupPlan;
+  digest: string;
+  observe: () => CloseoutObservation;
+  execute: (operation: CleanupOperation) => void;
+}
+
+export interface ApplyCleanupPlanResult {
+  applied: boolean;
+  blockers: string[];
+}
+
+export function applyCleanupPlan(input: ApplyCleanupPlanInput): ApplyCleanupPlanResult {
+  if (cleanupPlanDigest(input.plan) !== input.digest) {
+    return { applied: false, blockers: ['cleanup plan digest does not match'] };
+  }
+  if (input.plan.blockers.length > 0) {
+    return { applied: false, blockers: [...input.plan.blockers] };
+  }
+
+  const current = buildCleanupPlan(input.observe());
+  if (current.stateHash !== input.plan.stateHash) {
+    return { applied: false, blockers: ['repository state changed after preview'] };
+  }
+  if (cleanupPlanDigest(current) !== input.digest) {
+    return { applied: false, blockers: ['cleanup targets changed after preview'] };
+  }
+
+  for (const operation of input.plan.operations) {
+    const observed = input.observe();
+    const expected = input.plan.identity;
+    const actual = observed.pullRequests.length === 1 ? observed.pullRequests[0] : undefined;
+    if (
+      !expected ||
+      actual?.state !== 'MERGED' ||
+      actual.url !== expected.url ||
+      actual.headRefName !== expected.headRefName ||
+      actual.headRefOid !== expected.headRefOid
+    ) {
+      return { applied: false, blockers: ['pull request identity changed during cleanup'] };
+    }
+    input.execute(operation);
+  }
+
+  return { applied: true, blockers: [] };
 }
 
 if (import.meta.main) {
