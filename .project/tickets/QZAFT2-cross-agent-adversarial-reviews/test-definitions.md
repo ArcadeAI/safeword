@@ -42,7 +42,7 @@ test-definitions.md is the R/G/R ledger. Executable Given/When/Then behavior liv
 
 ### Scenario: A reviewer write attempt cannot alter the judged work
 
-- [ ] RED
+- [x] RED 96e21004a
 - [ ] GREEN
 - [ ] REFACTOR
 
