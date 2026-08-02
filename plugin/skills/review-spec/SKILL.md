@@ -11,7 +11,19 @@ Adversarially review a ticket's scenarios: treat them as if you're trying to bre
 - **Auto-fire** — the bdd flow invokes this on entering the `scenario-gate` phase.
 - **Manual re-run** — invoke `/review-spec` anytime after `define-behavior` (e.g., scenarios changed during implement and you want to re-validate). Allowed on a closed ticket too — a post-hoc audit is still readable.
 
-Read the active ticket's `.feature` source first; use `test-definitions.md` only as the R/G/R ledger and as a legacy scenario fallback when no feature source exists. test-definitions.md is the R/G/R ledger. Run every check below against the scenarios, and present findings in the **Findings format** at the end. **Review every scenario on its own merits** — a fixture can hold multiple independent defects on different scenarios, and finding one never lowers the bar for the rest; report EACH. (Not a `spec.md` framing review — JTBD/criteria/persona checks live in `self-review`.)
+Read the active ticket's `.feature` source first. At review time, run
+`bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/resolve-project-knowledge.ts` and read the current
+`principles`, `personas`, and `surfaces` source paths and content it returns, so
+the review is grounded in project knowledge rather than labels or stale intake
+context. The resolver honors `paths.principles`, `paths.personas`, and
+`paths.surfaces`. Also read `spec.md`. Use `test-definitions.md` only as the R/G/R ledger
+and as a legacy scenario fallback when no feature source exists.
+test-definitions.md is the R/G/R ledger. Run every check below against the
+scenarios, and present findings in the **Findings format** at the end. **Review
+every scenario on its own merits** — a fixture can hold multiple independent
+defects on different scenarios, and finding one never lowers the bar for the
+rest; report EACH. (This does not replace `self-review`'s `spec.md` framing
+gate.)
 
 ## Vacuous-pass test
 
@@ -73,8 +85,8 @@ Eight lenses across the whole scenario set (not per scenario) — each asks "wha
 - **Boundary** — zero / one / max / empty / null covered where they apply?
 - **Failure** — external-dependency failures covered (timeout, 5xx, malformed, partition)? Distinct from the feature's own rejections (the negative-case lens above).
 - **Security** — authn/authz failures and abuse vectors covered?
-- **Persona consistency** — is each scenario's triggering persona clear, and would another persona experience it differently?
-- **Surface coverage** — if `spec.md` lists affected surfaces, does each affected surface have a matching `@surface.<slug>` scenario tag or an explicit `skip:` reason, and are any `@surface.*` tags stale?
+- **Persona consistency** — does each scenario's triggering persona resolve in the configured personas file, and would another defined persona experience it differently?
+- **Surface coverage** — does each affected surface resolve in the configured surfaces file (or stay explicitly spec-local), have a matching `@surface.<slug>` scenario tag or an explicit `skip:` reason, and are any `@surface.*` tags stale?
 - **Invariant binding** — for each normative clause in `spec.md` (never / must not / always / only), name the scenario whose failure would falsify it **and** the condition under which it fails; a bare scenario reference is not a binding, it's a pointer that survives the invariant being violated. An invariant no scenario would catch is a **must-fix** — cheapest to write now, while no code exists to work around. Worse than a gap is the scenario whose title names the invariant while its `Given` establishes a weaker precondition: it reads as coverage and proves nothing, so report it as a vacuous pass, not a missing scenario. Found live in QRX2DN — the spec forbade an unbound session mutating ticket state, every row named `never_uses_a_fallback_for` bound a session id, and the no-identity case the invariant actually named shipped as a defect (#1425).
 - **Wiring** — for each behavior that crosses a module/command boundary, is there a scenario exercised end-to-end through the real entry point (real config → real collaborators, mocking only the process boundary), not only via injected internals? A path reachable solely through a `provider: none`-style short circuit has no wiring coverage (see `testing/SKILL.md` → Wiring Tests).
 

@@ -43,6 +43,56 @@ If in a BDD workflow, read the current ticket from `<namespace-root>/tickets/` a
 | verify              | Flaky-test & regression patterns, coverage gaps |
 | done                | CI/CD patterns, release checklists              |
 
+### Project-principle challenge
+
+For a BDD ticket, run `bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/resolve-project-knowledge.ts` at the
+start of each pass and read the current `principles`, `personas`, and `surfaces`
+paths and content it returns (including overrides such as `paths.principles`).
+Do not substitute labels or intake-era content.
+With `impl-plan.md`, read those sources alongside the plan and work-product.
+Treat the plan's
+**principle → concrete consequence → proof** entries as claims to refute, not a
+compliance checklist:
+
+- Challenge applicability, including a principle the plan may have omitted;
+  report only omissions that would materially change behavior, design, proof,
+  or a deliberate deviation.
+- Check that each consequence actually follows from the principle and appears
+  in the shipped work; check that the named proof demonstrates that consequence
+  rather than adjacent mechanics.
+- An experiential principle is not proven by tests alone. Require the
+  user-facing signal the plan named—such as a persona walkthrough, usability
+  observation, or Rave Moment check—and state any evidence limitation.
+- For sourcing or architecture principles, independently check current options,
+  extension boundaries, and compatibility claims against primary sources; do
+  not accept the plan's research summary as its own proof.
+- Treat an intentional conflict as valid only when Known deviations names it
+  and explains the trade-off.
+
+This is the judgment gate. `/audit` later checks trace integrity as observable
+facts only; it does not decide whether a principle was applicable or wise.
+
+### Persona and surface challenge
+
+For a BDD ticket, read `spec.md` plus the configured persona and surface
+inventories (`paths.personas` and `paths.surfaces`). Challenge whether the
+shipped behavior fulfills each persona's JTBD and Rules, rather than merely
+resolving a persona code. Then reconcile every affected surface against the
+plan, scenarios, and verification output:
+
+- Require one concrete proof result per affected surface, or a named `skip:`
+  with its limitation; an `@surface.*` tag alone is coverage intent, not surface
+  evidence.
+- Check the surface evidence used the real surface boundary or names why that
+  boundary could not run. A generic unit test does not prove runtime, client,
+  protocol, or deployment parity.
+- Challenge omitted personas or surfaces only when the source artifacts and
+  ticket scope make the omission material; do not turn either inventory into a
+  universal checklist.
+
+Persona fulfillment and proof fidelity are review judgments. `/audit` owns only
+unknown references, stale tags, and dead evidence links.
+
 ## 2. Research Angles
 
 Run each angle that applies — angle _diversity_ is the lever, not search volume: **source-currency** + **risk/security** (this section), **supersession** + **primary-source docs** (§3). If the user gave a focus or scope restriction, apply it to **every** angle — don't use it only for the first search.

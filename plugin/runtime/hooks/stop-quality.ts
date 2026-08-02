@@ -250,7 +250,7 @@ function checkImplPlanArtifact(ticketInfo: TicketInfo): void {
   const phasesRequiringImplemented = ['verify', 'done'];
   if (phasesRequiringImplemented.includes(ticketInfo.phase) && status !== 'implemented') {
     hardBlockDone(
-      `Impl plan reconciliation incomplete: impl-plan.md status is "${status ?? 'unknown'}". Walk Decisions, Arch alignment, and Known deviations against what shipped, then set **Status:** implemented (see TDD.md "Implement exit: reconcile the plan").`,
+      `Impl plan reconciliation incomplete: impl-plan.md status is "${status ?? 'unknown'}". Walk Decisions, Design alignment, and Known deviations against what shipped, then set **Status:** implemented (see TDD.md "Implement exit: reconcile the plan").`,
     );
   }
 }

@@ -3280,10 +3280,17 @@ function collectSectionBodies(lines) {
   }
   return bodies;
 }
+function validateAlignmentHeading(lines, errors) {
+  const headings = new Set(lines.map((line) => line.trim()).filter((line) => line.startsWith("## ")).map((line) => line.slice(3).trim().toLowerCase()));
+  if (headings.has(DESIGN_ALIGNMENT_HEADING) && headings.has(LEGACY_ARCH_ALIGNMENT_HEADING)) {
+    errors.push("Both `## Design alignment` and legacy `## Arch alignment` are present \u2014 keep exactly one.");
+  }
+}
 function parseImplPlan(content) {
   const errors = [];
   const lines = activeLines(content);
   const status = parseStatus(lines, errors);
+  validateAlignmentHeading(lines, errors);
   const bodies = collectSectionBodies(lines);
   const sections = {};
   const validatePresentSection = (name, body) => {
@@ -3316,18 +3323,19 @@ function parseImplPlan(content) {
   }
   return { status, sections, errors };
 }
-var IMPL_PLAN_SECTIONS, IMPL_PLAN_OPTIONAL_SECTIONS, STATUS_PREFIX = "**Status:**", SKIP_PREFIX = "skip:", SECTION_NAMES;
+var IMPL_PLAN_SECTIONS, IMPL_PLAN_OPTIONAL_SECTIONS, STATUS_PREFIX = "**Status:**", SKIP_PREFIX = "skip:", SECTION_NAMES, DESIGN_ALIGNMENT_HEADING = "design alignment", LEGACY_ARCH_ALIGNMENT_HEADING = "arch alignment";
 var init_impl_plan = __esm(() => {
   IMPL_PLAN_SECTIONS = [
     "Approach",
     "Decisions",
-    "Arch alignment",
+    "Design alignment",
     "Known deviations",
     "Assessment triggers"
   ];
   IMPL_PLAN_OPTIONAL_SECTIONS = ["Doc impact"];
   SECTION_NAMES = new Map([
     ...IMPL_PLAN_SECTIONS.map((name) => [name.toLowerCase(), name]),
+    ["arch alignment", "Design alignment"],
     ...IMPL_PLAN_OPTIONAL_SECTIONS.map((name) => [
       name.toLowerCase(),
       name
@@ -13331,6 +13339,12 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       ".safeword/hooks/resolve-namespace-root.ts": {
         template: "hooks/resolve-namespace-root.ts"
       },
+      ".safeword/hooks/resolve-project-knowledge.ts": {
+        template: "hooks/resolve-project-knowledge.ts"
+      },
+      ".safeword/hooks/audit-principle-trace.ts": {
+        template: "hooks/audit-principle-trace.ts"
+      },
       ".safeword/hooks/record-skill-invocation.ts": {
         template: "hooks/record-skill-invocation.ts"
       },
@@ -13377,6 +13391,8 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       ".safeword/hooks/lib/jtbd.ts": { template: "hooks/lib/jtbd.ts" },
       ".safeword/hooks/lib/phase-provenance.ts": { template: "hooks/lib/phase-provenance.ts" },
       ".safeword/hooks/lib/impl-plan.ts": { template: "hooks/lib/impl-plan.ts" },
+      ".safeword/hooks/lib/project-knowledge.ts": { template: "hooks/lib/project-knowledge.ts" },
+      ".safeword/hooks/lib/principle-trace.ts": { template: "hooks/lib/principle-trace.ts" },
       ".safeword/hooks/lib/plan-gate.ts": { template: "hooks/lib/plan-gate.ts" },
       ".safeword/hooks/lib/replan-relevance.ts": { template: "hooks/lib/replan-relevance.ts" },
       ".safeword/hooks/lib/replan.ts": { template: "hooks/lib/replan.ts" },
@@ -13707,6 +13723,10 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       ...golangManagedFiles,
       ...rustManagedFiles,
       ...sqlManagedFiles,
+      ".safeword-project/principles.md": {
+        template: "principles-template.md",
+        configKey: "principles"
+      },
       ".safeword-project/personas.md": {
         template: "personas-template.md",
         configKey: "personas"
@@ -14728,7 +14748,7 @@ function computeUninstallPlan(schema, ctx, full) {
   actions.push(...owned.actions);
   wouldRemove.push(...owned.removed);
   if (full) {
-    const removable = Object.entries(schema.managedFiles).filter(([, definition]) => !isConfigOverridden(definition, ctx.cwd)).map(([filePath]) => filePath);
+    const removable = Object.entries(schema.managedFiles).filter(([, definition]) => definition.configKey === undefined).map(([filePath]) => filePath);
     const managed = planExistingFilesRemoval(removable, ctx.cwd);
     actions.push(...managed.actions);
     wouldRemove.push(...managed.removed);
@@ -25781,16 +25801,36 @@ function missingClaudeSettingsIssues(cwd, schema) {
   const required = ".claude/settings.json" in schema.jsonMerges;
   return required && !exists(nodePath34.join(cwd, ".claude", "settings.json")) ? ["Missing: .claude/settings.json"] : [];
 }
+function findConfiguredKnowledgeIssues(cwd, key) {
+  const override = readConfiguredPath(cwd, key);
+  if (override === undefined)
+    return [];
+  const configuredPath = resolveConfiguredPath(cwd, key);
+  if (isDirectory(configuredPath))
+    return [`${key}-path: ${override}: not a file`];
+  if (exists(configuredPath))
+    return [];
+  return [`${key}-path: ${override}: file not found`];
+}
+function findConfiguredKnowledgeAdvisories(cwd, key) {
+  const override = readConfiguredPath(cwd, key);
+  if (override === undefined)
+    return [];
+  const defaultPath = defaultConfiguredPath(cwd, key);
+  if (!exists(defaultPath))
+    return [];
+  return [
+    `${nodePath34.relative(cwd, defaultPath)} exists but paths.${key} points to ${override} \u2014 legacy file is orphaned. Consider removing.`
+  ];
+}
 function findPersonaIssues(cwd) {
-  const override = readConfiguredPath(cwd, "personas");
+  const configuredIssues = findConfiguredKnowledgeIssues(cwd, "personas");
+  if (configuredIssues.length > 0)
+    return configuredIssues;
   const filePath = resolveConfiguredPath(cwd, "personas");
   const content = readFileSafe(filePath);
-  if (content === undefined) {
-    if (override !== undefined) {
-      return [`personas-path: ${override}: file not found`];
-    }
+  if (content === undefined)
     return [];
-  }
   const errors = validatePersonas(parsePersonas(content));
   return errors.map((error2) => `personas.md:${error2.line}: ${error2.message}`);
 }
@@ -25802,40 +25842,16 @@ function findNamespaceAdvisories(cwd) {
   }
   return [];
 }
-function findPersonaAdvisories(cwd) {
-  const override = readConfiguredPath(cwd, "personas");
-  if (override === undefined)
-    return [];
-  const defaultPath = defaultConfiguredPath(cwd, "personas");
-  if (!exists(defaultPath))
-    return [];
-  return [
-    `${nodePath34.relative(cwd, defaultPath)} exists but paths.personas points to ${override} \u2014 legacy file is orphaned. Consider removing.`
-  ];
-}
 function findGlossaryIssues(cwd) {
-  const override = readConfiguredPath(cwd, "glossary");
+  const configuredIssues = findConfiguredKnowledgeIssues(cwd, "glossary");
+  if (configuredIssues.length > 0)
+    return configuredIssues;
   const filePath = resolveConfiguredPath(cwd, "glossary");
   const content = readFileSafe(filePath);
-  if (content === undefined) {
-    if (override !== undefined) {
-      return [`glossary-path: ${override}: file not found`];
-    }
+  if (content === undefined)
     return [];
-  }
   const errors = validateGlossary(parseGlossary(content));
   return errors.map((error2) => `glossary.md:${error2.line}: ${error2.message}`);
-}
-function findGlossaryAdvisories(cwd) {
-  const override = readConfiguredPath(cwd, "glossary");
-  if (override === undefined)
-    return [];
-  const defaultPath = defaultConfiguredPath(cwd, "glossary");
-  if (!exists(defaultPath))
-    return [];
-  return [
-    `${nodePath34.relative(cwd, defaultPath)} exists but paths.glossary points to ${override} \u2014 legacy file is orphaned. Consider removing.`
-  ];
 }
 function findCucumberHarnessAdvisories(cwd, { existingCucumberHarness, scaffoldBddLane }) {
   if (existingCucumberHarness === undefined)
@@ -25894,7 +25910,7 @@ function findArchitectureAdvisories(cwd) {
     if (!archAlignmentHasContent(implPlan))
       return [];
     return [
-      `${ticketId}: impl-plan.md Arch alignment claims alignment, but no architecture record exists at ${resolved} \u2014 record the decision or mark the section skip:`
+      `${ticketId}: impl-plan.md Design alignment claims alignment, but no architecture record exists at ${resolved} \u2014 record the decision or mark the section skip:`
     ];
   });
 }
@@ -25905,10 +25921,11 @@ function archAlignmentHasContent(implPlanContent) {
 `)) {
     const line = raw.trim();
     if (line.startsWith("## ")) {
-      isInSection = line.slice(3).trim().toLowerCase() === "arch alignment";
+      const heading = line.slice(3).trim().toLowerCase();
+      isInSection = heading === "design alignment" || heading === "arch alignment";
       continue;
     }
-    if (isInSection && line !== "")
+    if (isInSection && line !== "" && !line.startsWith("|"))
       body.push(line);
   }
   if (body.length === 0)
@@ -26109,6 +26126,7 @@ async function checkHealth(cwd, options = {}) {
     ...findMissingFiles(cwd, actionsWithPath),
     ...findMissingPatches(cwd, actionsWithPath),
     ...findPersonaIssues(cwd),
+    ...PATH_ONLY_KNOWLEDGE_KEYS.flatMap((key) => findConfiguredKnowledgeIssues(cwd, key)),
     ...findGlossaryIssues(cwd),
     ...findDocumentationSourceIssues(cwd),
     ...missingClaudeSettingsIssues(cwd, healthSchema)
@@ -26127,8 +26145,7 @@ async function checkHealth(cwd, options = {}) {
     advisories: [
       ...ticketIndexConflicts.length === 0 ? [] : [buildIndexConflictListMessage(ticketIndexConflicts)],
       ...findNamespaceAdvisories(cwd),
-      ...findPersonaAdvisories(cwd),
-      ...findGlossaryAdvisories(cwd),
+      ...CONFIGURED_KNOWLEDGE_KEYS.flatMap((key) => findConfiguredKnowledgeAdvisories(cwd, key)),
       ...findCucumberHarnessAdvisories(cwd, ctx.projectType),
       ...coverageDiagnostics.advisories,
       ...findRelationAdvisories(cwd),
@@ -26138,6 +26155,7 @@ async function checkHealth(cwd, options = {}) {
     missingPacks
   };
 }
+var PATH_ONLY_KNOWLEDGE_KEYS, CONFIGURED_KNOWLEDGE_KEYS;
 var init_health = __esm(() => {
   init_phase_provenance();
   init_delivery_schema();
@@ -26157,6 +26175,13 @@ var init_health = __esm(() => {
   init_repo_path();
   init_scenario_coverage();
   init_version();
+  PATH_ONLY_KNOWLEDGE_KEYS = ["principles", "surfaces"];
+  CONFIGURED_KNOWLEDGE_KEYS = [
+    "personas",
+    "principles",
+    "surfaces",
+    "glossary"
+  ];
 });
 
 // src/utils/version.ts
@@ -33797,7 +33822,7 @@ function codexPluginVersionMatchesPackage(plugin) {
   return plugin.version === null || plugin.version === SAFEWORD_SCHEMA.version;
 }
 function pluginProtectionIsCurrent(facts) {
-  return facts.plugin.enabled === true && codexPluginVersionMatchesPackage(facts.plugin) && facts.proof.status === "current" && (facts.plugin.version === null || facts.proof.plugin_version === facts.plugin.version);
+  return !facts.activationPending && facts.plugin.enabled === true && codexPluginVersionMatchesPackage(facts.plugin) && facts.proof.status === "current" && (facts.plugin.version === null || facts.proof.plugin_version === facts.plugin.version);
 }
 function deriveCodexMigrationResult(facts) {
   const hasLegacy = facts.legacyAssets.length > 0 || facts.legacyEvents.length > 0;
@@ -33846,7 +33871,7 @@ function renderCodexMigrationHuman(result) {
   if (result.state === "plugin_setup_required") {
     lines.push(`Setup: ${CODEX_MIGRATION_SCHEMA.paths.bootstrapSkill}`);
   } else if (result.state === "plugin_installed_app_restart_required" || result.state === "plugin_enabled_hook_unproven") {
-    lines.push("This Codex app may keep its loaded Safe Word catalogue. Restart Codex, start a new task, then review the installed hooks with /hooks.");
+    lines.push(CODEX_RESTART_GUIDANCE);
   }
   const next = result.next_actions[0];
   if (next !== undefined)
@@ -33860,7 +33885,7 @@ function codexMigrationExitCode(result) {
     return 1;
   return result.ok ? 0 : 2;
 }
-var MIGRATION_STATE_RULES, NEXT_ACTIONS;
+var CODEX_RESTART_GUIDANCE = "This Codex app may keep its loaded Safe Word catalogue. Restart Codex, start a new task, then review the installed hooks with /hooks.", MIGRATION_STATE_RULES, NEXT_ACTIONS;
 var init_migration = __esm(() => {
   init_schema();
   init_inventory();
@@ -33979,7 +34004,7 @@ function codexHostsFromProcessTable(output, parentPid, format = "posix") {
   }
   return { available: true, running, current: null };
 }
-function observeProcessTable() {
+function observeCodexHostProcesses() {
   if (process.platform === "win32") {
     const result2 = spawnSync4("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", WINDOWS_PROCESS_COMMAND], { encoding: "utf8", timeout: 2000 });
     if (result2.status !== 0)
@@ -33995,11 +34020,8 @@ function observeProcessTable() {
   return codexHostsFromProcessTable(result.stdout, process.ppid);
 }
 function observeRunningCodexHosts() {
-  const observation = observeProcessTable();
+  const observation = observeCodexHostProcesses();
   return observation.available ? observation.running : null;
-}
-function observeCurrentCodexHost() {
-  return observeProcessTable().current;
 }
 function sameCodexHost(left, right) {
   return left.pid === right.pid && left.started_at === right.started_at;
@@ -34052,6 +34074,9 @@ function currentCodexPluginIdentity() {
     manifest_sha256: createHash12("sha256").update(manifest).digest("hex")
   };
 }
+function matchesCodexPluginIdentity(value, identity) {
+  return value.plugin_version === identity.plugin_version && value.manifest_sha256 === identity.manifest_sha256;
+}
 function writeCodexActivationMarker(environment = process.env, now = new Date, options = {}) {
   const path4 = codexActivationMarkerPath(environment);
   const activeHosts = options.activeHosts === undefined ? observeRunningCodexHosts() : options.activeHosts;
@@ -34075,20 +34100,35 @@ function writeCodexActivationMarker(environment = process.env, now = new Date, o
   rmSync6(legacyCodexRestartMarkerPath(environment), { force: true });
   return marker;
 }
+function hostObservationForOverride(current = null) {
+  return {
+    available: true,
+    current,
+    running: current === null ? [] : [current]
+  };
+}
+function activationReceiptForRestart(marker, hostObservation, identity, now) {
+  const currentHost = hostObservation.current;
+  if (!hostObservation.available || currentHost === null || marker.host_observation !== "observed" || now.getTime() < Date.parse(marker.installed_at) || marker.active_hosts.some((installedHost) => hostObservation.running.some((runningHost) => sameCodexHost(installedHost, runningHost)))) {
+    return null;
+  }
+  return {
+    schema_version: 1,
+    ...identity,
+    activation_id: marker.activation_id,
+    activated_at: now.toISOString(),
+    host: currentHost
+  };
+}
 function recordCodexHookProof(event, environment = process.env, now = new Date, writeOptions = {}) {
   const identity = currentCodexPluginIdentity();
   const marker = readActivationMarkerV2(environment, identity);
   let receipt = readActivationReceipt(environment, identity);
   if (event === "session-start" && marker !== null) {
-    const currentHost = "currentHost" in writeOptions ? writeOptions.currentHost ?? null : observeCurrentCodexHost();
-    if (currentHost !== null && marker.host_observation === "observed" && now.getTime() >= Date.parse(marker.installed_at) && marker.active_hosts.every((host) => !sameCodexHost(host, currentHost))) {
-      receipt = {
-        schema_version: 1,
-        ...identity,
-        activation_id: marker.activation_id,
-        activated_at: now.toISOString(),
-        host: currentHost
-      };
+    const hostObservation = writeOptions.hostObservation ?? ("currentHost" in writeOptions ? hostObservationForOverride(writeOptions.currentHost) : observeCodexHostProcesses());
+    const restartedReceipt = activationReceiptForRestart(marker, hostObservation, identity, now);
+    if (restartedReceipt !== null) {
+      receipt = restartedReceipt;
       writeAtomicJson(codexActivationReceiptPath(environment), receipt);
       rmSync6(codexActivationMarkerPath(environment), { force: true });
     }
@@ -34115,33 +34155,31 @@ function legacyActivationMarkerMatches(path4, identity) {
     return false;
   try {
     const marker = JSON.parse(readFileSync41(path4, "utf8"));
-    return marker.schema_version === 1 && marker.plugin_version === identity.plugin_version && marker.manifest_sha256 === identity.manifest_sha256;
+    return marker.schema_version === 1 && matchesCodexPluginIdentity(marker, identity);
   } catch {
     return false;
   }
 }
 function readActivationMarkerV2(environment, identity) {
-  const path4 = codexActivationMarkerPath(environment);
+  return readIdentityBoundJson(codexActivationMarkerPath(environment), identity, isActivationMarkerV2);
+}
+function readActivationReceipt(environment, identity) {
+  return readIdentityBoundJson(codexActivationReceiptPath(environment), identity, isActivationReceiptV1);
+}
+function readIdentityBoundJson(path4, identity, validator) {
   if (!existsSync34(path4))
     return null;
   try {
-    const marker = JSON.parse(readFileSync41(path4, "utf8"));
-    if (!isActivationMarkerV2(marker))
-      return null;
-    return marker.plugin_version === identity.plugin_version && marker.manifest_sha256 === identity.manifest_sha256 ? marker : null;
+    const value = JSON.parse(readFileSync41(path4, "utf8"));
+    return validator(value) && matchesCodexPluginIdentity(value, identity) ? value : null;
   } catch {
     return null;
   }
 }
-function readActivationReceipt(environment, identity) {
-  const path4 = codexActivationReceiptPath(environment);
-  if (!existsSync34(path4))
-    return null;
+function readEventProof(path4, expectedEvent) {
   try {
-    const receipt = JSON.parse(readFileSync41(path4, "utf8"));
-    if (!isActivationReceiptV1(receipt))
-      return null;
-    return receipt.plugin_version === identity.plugin_version && receipt.manifest_sha256 === identity.manifest_sha256 ? receipt : null;
+    const proof = JSON.parse(readFileSync41(path4, "utf8"));
+    return isCodexHookProof(proof) && proof.event === expectedEvent ? proof : null;
   } catch {
     return null;
   }
@@ -34163,21 +34201,13 @@ function observeCodexHookProof(environment = process.env) {
       missing_events: CODEX_PLUGIN_HOOK_EVENTS
     };
   }
-  const parsed2 = [];
-  for (const item of existing) {
-    try {
-      const candidate = JSON.parse(readFileSync41(item.path, "utf8"));
-      if (!isCodexHookProof(candidate) || candidate.event !== item.event) {
-        return malformedObservation();
-      }
-      parsed2.push(candidate);
-    } catch {
-      return malformedObservation();
-    }
-  }
+  const parsed2 = existing.map((item) => readEventProof(item.path, item.event));
+  if (parsed2.includes(null))
+    return malformedObservation();
+  const validProofs = parsed2.filter((proof) => proof !== null);
   const identity = currentCodexPluginIdentity();
   const activationId = readActivationMarkerV2(environment, identity)?.activation_id ?? readActivationReceipt(environment, identity)?.activation_id ?? null;
-  const current = parsed2.filter((proof) => proof.plugin_version === identity.plugin_version && proof.manifest_sha256 === identity.manifest_sha256 && (activationId === null || proof.schema_version === 2 && proof.activation_id === activationId));
+  const current = validProofs.filter((proof) => matchesCodexPluginIdentity(proof, identity) && (activationId === null || proof.schema_version === 2 && proof.activation_id === activationId));
   const events = current.map((proof) => proof.event);
   const missingEvents = CODEX_PLUGIN_HOOK_EVENTS.filter((event) => !events.includes(event));
   const latest = current.toSorted((left, right) => right.recorded_at.localeCompare(left.recorded_at)).at(0);
@@ -34188,8 +34218,8 @@ function observeCodexHookProof(environment = process.env) {
     status = "partial";
   return {
     status,
-    plugin_version: latest?.plugin_version ?? parsed2[0]?.plugin_version ?? null,
-    manifest_sha256: latest?.manifest_sha256 ?? parsed2[0]?.manifest_sha256 ?? null,
+    plugin_version: latest?.plugin_version ?? validProofs[0]?.plugin_version ?? null,
+    manifest_sha256: latest?.manifest_sha256 ?? validProofs[0]?.manifest_sha256 ?? null,
     recorded_at: latest?.recorded_at ?? null,
     activation_id: activationId,
     events,
@@ -34728,7 +34758,7 @@ var init_migrate_codex_plugin = __esm(() => {
   init_schema();
   CODEX_CONFIG_PATH2 = CODEX_MIGRATION_SCHEMA.paths.config;
   CODEX_MIGRATION_MESSAGES = {
-    plugin_installed_app_restart_required: "This Codex app may keep its loaded Safe Word catalogue. Restart Codex, start a new task, then review the installed hooks with /hooks.",
+    plugin_installed_app_restart_required: CODEX_RESTART_GUIDANCE,
     compatibility: "Codex is protected by the current profile plugin; verified legacy protection remains until explicit finalization.",
     plugin_enabled_hook_unproven: "Codex migration state: plugin_enabled_hook_unproven. Review /hooks in the restarted Codex app; when protection is confirmed, run safeword codex migrate --finalize.",
     recovery_required: "Codex migration state: recovery_required. Recovery is required before migration can continue."
