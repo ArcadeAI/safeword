@@ -153,7 +153,7 @@ Then reconcile the plan.
 All scenarios complete → reconcile `impl-plan.md` against what actually shipped, **before** advancing to verify (the stop hook blocks `verify`/`done` while the plan still says `planned`):
 
 1. **Walk the Decisions table** — for each row ask "did we actually do this, or did we change our mind?" Update changed rows: new choice, new rationale, the abandoned choice moves into Alternatives considered.
-2. **Walk Arch alignment** — for each claim ask "did the implementation honor this?" Move anything that deviated into **Known deviations** with the reason.
+2. **Walk Design alignment** — for applicable project principles and architecture claims, ask "did the implementation honor each stated consequence, and does its proof pass?" Move anything that deviated into **Known deviations** with the reason.
 3. **Refresh Assessment triggers** — add triggers the implementation surfaced (e.g., "works at current scale, degrades past 10x").
 4. **Flip the status line** to `**Status:** implemented`. The phase hook stamps the transition with real time (Claude Code — on other harnesses add a short transition entry yourself); log the reconciliation outcome ({N} decisions updated, {M} deviations recorded) as a narrative work-log entry.
 

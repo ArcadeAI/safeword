@@ -240,7 +240,8 @@ const CODEX_RUNTIME_ASSETS: Record<string, ManagedFileDefinition> = Object.fromE
  * the per-root `.gitignore` managed file (`NAMESPACE_GITIGNORE_CONTENT`) and the
  * repo-root `.gitignore` block (`SAFEWORD_TRANSIENT_PATHS`). Patterns are exact
  * filenames plus the one `quality-state*` glob — never a bare `*` — so durable
- * siblings (tickets/, learnings/, personas.md, glossary.md, surfaces.md) stay tracked.
+ * siblings (tickets/, learnings/, principles.md, personas.md, glossary.md,
+ * surfaces.md) stay tracked.
  */
 const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
   'quality-state*.json',
@@ -629,6 +630,12 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/resolve-namespace-root.ts': {
       template: 'hooks/resolve-namespace-root.ts',
     },
+    '.safeword/hooks/resolve-project-knowledge.ts': {
+      template: 'hooks/resolve-project-knowledge.ts',
+    },
+    '.safeword/hooks/audit-principle-trace.ts': {
+      template: 'hooks/audit-principle-trace.ts',
+    },
     '.safeword/hooks/record-skill-invocation.ts': {
       template: 'hooks/record-skill-invocation.ts',
     },
@@ -677,6 +684,8 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/jtbd.ts': { template: 'hooks/lib/jtbd.ts' },
     '.safeword/hooks/lib/phase-provenance.ts': { template: 'hooks/lib/phase-provenance.ts' },
     '.safeword/hooks/lib/impl-plan.ts': { template: 'hooks/lib/impl-plan.ts' },
+    '.safeword/hooks/lib/project-knowledge.ts': { template: 'hooks/lib/project-knowledge.ts' },
+    '.safeword/hooks/lib/principle-trace.ts': { template: 'hooks/lib/principle-trace.ts' },
     '.safeword/hooks/lib/plan-gate.ts': { template: 'hooks/lib/plan-gate.ts' },
     '.safeword/hooks/lib/replan-relevance.ts': { template: 'hooks/lib/replan-relevance.ts' },
     '.safeword/hooks/lib/replan.ts': { template: 'hooks/lib/replan.ts' },
@@ -1060,6 +1069,14 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     ...rustManagedFiles,
     // SQL managed files (.sqlfluff)
     ...sqlManagedFiles,
+
+    // Project principles — scaffolded once; users author the small, durable set
+    // that guides product and technical decisions. Like personas, a configured
+    // paths.principles override suppresses the default scaffold uniformly.
+    '.safeword-project/principles.md': {
+      template: 'principles-template.md',
+      configKey: 'principles',
+    },
 
     // Project personas — scaffolded once with format header + commented example;
     // user authors real persona blocks thereafter (safeword reads, never overwrites

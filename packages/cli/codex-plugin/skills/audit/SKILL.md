@@ -670,7 +670,35 @@ Test Quality:
 
 Review the changed area from the printed scope. For each significantly changed area, check if related docs, readmes, or guides need updating. Flag stale, missing, or contradictory impacted documentation as errors. Documentation drift is never a warning; date-only staleness with no changed-code contradiction is repository-audit context, not a diff finding.
 
-### 6. Namespace Domain Docs
+### 6. Principle Trace Integrity
+
+For the active ticket, when `impl-plan.md` declares project-principle alignment,
+resolve the source using `paths.principles` (default
+`<namespace-root>/principles.md`) and check the principle trace as **observable
+facts only**:
+
+- The named principle exists in the configured source.
+- The trace contains a non-empty concrete consequence and proof.
+- The proof reference resolves to recorded test, verification, or manual
+  evidence; an intentional conflict is named in Known deviations.
+
+Report a missing source entry, incomplete mapping, dead evidence reference, or
+unrecorded conflict as `[E010] Broken principle trace`. Do not judge whether a
+principle was applicable, whether the consequence was a wise interpretation,
+or whether an experience was genuinely delightful—those are adversarial
+`quality-review` judgments. A plan with no declared applicable principle is not
+an audit finding.
+
+Run the factual checker below verbatim. Its sentinel keeps the executable audit
+contract testable without turning semantic review into shell heuristics.
+
+```bash
+# principle-trace-check — E010 objective trace integrity only.
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
+bun "$PROJECT_DIR/.safeword/hooks/audit-principle-trace.ts" "$PROJECT_DIR"
+```
+
+### 7. Namespace Domain Docs
 
 When a changed feature/spec or changed domain doc references them, reconcile the
 three namespace domain docs — `personas.md`, `surfaces.md`, `glossary.md` —
@@ -687,20 +715,29 @@ PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null 
 source "$PROJECT_DIR/.safeword/hooks/lib/audit-scope.sh"
 audit_scope_initialize "$PROJECT_DIR"
 
-# A branch audit skips unrelated domain-doc corpus drift. Deleted and
-# type-changed feature/spec/domain files remain in reference review scope, so
-# they still trigger this check for broken-reference review. A repository audit
-# deliberately checks every domain doc and every discovered feature/spec.
-if [ "$AUDIT_SCOPE_MODE" = "diff" ] && ! audit_scope_has_review_path_matching '(^|/)(personas|surfaces|glossary)\.md$|\.feature$|(^|/)spec\.md$'; then
-  exit 0
-fi
-
 # Resolve the namespace root (honors config paths.projectRoot in real runs).
 # Fall back on directory existence — robust when the resolver hook is absent.
 NS_ROOT="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR" 2> /dev/null)"
 [ -d "$NS_ROOT" ] || {
   if [ -d "$PROJECT_DIR/.project" ]; then NS_ROOT="$PROJECT_DIR/.project"; else NS_ROOT="$PROJECT_DIR/.safeword-project"; fi
 }
+PERSONAS_FILE="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR" personas personas.md 2> /dev/null)"
+SURFACES_FILE="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR" surfaces surfaces.md 2> /dev/null)"
+GLOSSARY_FILE="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR" glossary glossary.md 2> /dev/null)"
+[ -n "$PERSONAS_FILE" ] || PERSONAS_FILE="$NS_ROOT/personas.md"
+[ -n "$SURFACES_FILE" ] || SURFACES_FILE="$NS_ROOT/surfaces.md"
+[ -n "$GLOSSARY_FILE" ] || GLOSSARY_FILE="$NS_ROOT/glossary.md"
+
+# A branch audit skips unrelated domain-doc corpus drift. Include configured
+# domain paths, whose basenames need not be personas.md/surfaces.md/glossary.md.
+if [ "$AUDIT_SCOPE_MODE" = "diff" ] && ! audit_scope_has_review_path_matching '(^|/)(personas|surfaces|glossary)\.md$|\.feature$|(^|/)spec\.md$'; then
+  domain_path_changed=false
+  for configured_domain_file in "$PERSONAS_FILE" "$SURFACES_FILE" "$GLOSSARY_FILE"; do
+    configured_domain_path="${configured_domain_file#"$PROJECT_DIR"/}"
+    audit_scope_path_changed "$configured_domain_path" && domain_path_changed=true
+  done
+  [ "$domain_path_changed" = true ] || exit 0
+fi
 
 # Single-source the HTML-comment strip used by every check below. Strips
 # same-line comments FIRST (`s/<!--.*-->//g`) then deletes multi-line comment
@@ -724,7 +761,11 @@ domain_docs_entry_count() {
 # In a diff audit, report only a changed domain doc. An unchanged empty scaffold
 # is existing debt, not a finding caused by an unrelated feature or spec change.
 for doc in personas surfaces glossary; do
-  dd_file="$NS_ROOT/$doc.md"
+  case "$doc" in
+    personas) dd_file="$PERSONAS_FILE" ;;
+    surfaces) dd_file="$SURFACES_FILE" ;;
+    glossary) dd_file="$GLOSSARY_FILE" ;;
+  esac
   [ -f "$dd_file" ] || continue
   domain_doc_path="${dd_file#"$PROJECT_DIR"/}"
   [ "$AUDIT_SCOPE_MODE" = "repository" ] || audit_scope_path_changed "$domain_doc_path" || continue
@@ -749,7 +790,7 @@ feature_directories() {
     return 127
   fi
 }
-surfaces_file="$NS_ROOT/surfaces.md"
+surfaces_file="$SURFACES_FILE"
 dd_file="$surfaces_file"
 surfaces_path="${surfaces_file#"$PROJECT_DIR"/}"
 if [ "$AUDIT_SCOPE_MODE" = "repository" ] || audit_scope_path_changed "$surfaces_path"; then
@@ -785,7 +826,7 @@ fi
 # --- Persona drift (E009): spec **Persona:** code referenced but undefined ---
 # Spec lines only, comment-stripped (feature lineage tags carry ticket-ids, not
 # personas). Suppressed when personas.md is empty/absent.
-personas_file="$NS_ROOT/personas.md"
+personas_file="$PERSONAS_FILE"
 tickets_dir="$NS_ROOT/tickets"
 dd_file="$personas_file"
 personas_path="${personas_file#"$PROJECT_DIR"/}"
@@ -923,7 +964,7 @@ fi
 
 **Empty-doc offer (W008):** report the empty doc and point the user to its template — do **not** draft entries or write the file during the audit pass (read-only). Filling it is a follow-up the user approves.
 
-**Coverage limitation:** the block reads the default namespace-root locations; per-file `paths.personas` / `paths.surfaces` / `paths.glossary` overrides are validated by `safeword doctor` (structure), not here. If the safeword feature-directory resolver is unavailable, W009 says E008 fell back to root `features/` only. Persona drift reads spec `**Persona:**` lines only — feature lineage tags are not a reliable persona source.
+**Coverage limitation:** configured `paths.personas`, `paths.surfaces`, and `paths.glossary` are resolved before reconciliation. `safeword doctor` separately reports missing configured files and orphaned defaults. If the safeword feature-directory resolver is unavailable, W009 says E008 fell back to root `features/` only. Persona drift reads spec `**Persona:**` lines only — feature lineage tags are not a reliable persona source.
 
 ---
 
@@ -941,6 +982,7 @@ Report findings by severity with codes:
 - [E007] Drifted layer→dir: `ARCHITECTURE.md` maps `domain` → `src/core/` but no such module path is in `architecture.generated.md`
 - [E008] Surface drift: `@surface.safeword-cli` is referenced in `features/` but has no matching entry in `surfaces.md`
 - [E009] Persona drift: persona code `DEV` is named in a spec `**Persona:**` line but has no matching entry in `personas.md`
+- [E010] Broken principle trace: `Delight the user` points to `verify.md#persona-walkthrough`, but that evidence record does not exist
 
 ### Warnings (should review)
 

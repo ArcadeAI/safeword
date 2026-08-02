@@ -43,9 +43,12 @@ installed helper — report it to the user and resolve before retrying.
 
 ## Review the spec (do this now, with the stamp written)
 
-The stamp records that a review was invoked; the actual scrutiny is yours. Read
-the active ticket's `spec.md` and check, against `personas.md` and the ticket's
-`scope` / `out_of_scope` frontmatter:
+The stamp records that a review was invoked; the actual scrutiny is yours. At
+review time, run `bun .safeword/hooks/resolve-project-knowledge.ts` and use its
+current `principles`, `personas`, and `surfaces` source paths and content—not
+labels remembered from intake. These resolve from `paths.principles`,
+`paths.personas`, and `paths.surfaces` when configured. Read those sources with the active ticket's
+`spec.md` and `scope` / `out_of_scope` frontmatter:
 
 - **Every JTBD resolves to a real persona** and reads as a genuine job (`When
 I…, I want…, so I can…`), not a restated feature.
@@ -53,6 +56,9 @@ I…, I want…, so I can…`), not a restated feature.
   stating an observable, product-level invariant — not an implementation detail.
 - **The criteria cover the ticket's scope** and stop at its `out_of_scope` line —
   no silent scope creep, no orphan capability.
+- **Every affected surface resolves against the configured surfaces inventory**
+  or is explicitly marked spec-local; no invented reusable context and no
+  configured surface silently renamed in `spec.md`.
 - **Nothing leaks implementation** (file names, function names, libraries) into
   spec-level prose.
 

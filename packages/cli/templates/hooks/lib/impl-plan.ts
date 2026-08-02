@@ -10,7 +10,7 @@ export type ImplPlanStatus = 'planned' | 'implemented';
 export const IMPL_PLAN_SECTIONS = [
   'Approach',
   'Decisions',
-  'Arch alignment',
+  'Design alignment',
   'Known deviations',
   'Assessment triggers',
 ] as const;
@@ -49,18 +49,22 @@ const SKIP_PREFIX = 'skip:';
 
 const SECTION_NAMES = new Map<string, ImplPlanAnySectionName>([
   ...IMPL_PLAN_SECTIONS.map((name): [string, ImplPlanAnySectionName] => [name.toLowerCase(), name]),
+  ['arch alignment', 'Design alignment'],
   ...IMPL_PLAN_OPTIONAL_SECTIONS.map((name): [string, ImplPlanAnySectionName] => [
     name.toLowerCase(),
     name,
   ]),
 ]);
 
+const DESIGN_ALIGNMENT_HEADING = 'design alignment';
+const LEGACY_ARCH_ALIGNMENT_HEADING = 'arch alignment';
+
 /**
  * Lines outside HTML comments. Mirrors jtbd.ts's comment handling — the
  * scaffolded template's guidance is commented, so a fresh scaffold parses
  * to empty sections.
  */
-function activeLines(content: string): string[] {
+export function activeLines(content: string): string[] {
   const lines: string[] = [];
   let inComment = false;
   for (const raw of content.split('\n')) {
@@ -121,10 +125,26 @@ function collectSectionBodies(lines: string[]): Map<ImplPlanAnySectionName, stri
   return bodies;
 }
 
+/** Reject the one ambiguous compatibility case before alias normalization. */
+function validateAlignmentHeading(lines: string[], errors: string[]): void {
+  const headings = new Set(
+    lines
+      .map(line => line.trim())
+      .filter(line => line.startsWith('## '))
+      .map(line => line.slice(3).trim().toLowerCase()),
+  );
+  if (headings.has(DESIGN_ALIGNMENT_HEADING) && headings.has(LEGACY_ARCH_ALIGNMENT_HEADING)) {
+    errors.push(
+      'Both `## Design alignment` and legacy `## Arch alignment` are present — keep exactly one.',
+    );
+  }
+}
+
 export function parseImplPlan(content: string): ImplPlanResult {
   const errors: string[] = [];
   const lines = activeLines(content);
   const status = parseStatus(lines, errors);
+  validateAlignmentHeading(lines, errors);
   const bodies = collectSectionBodies(lines);
 
   const sections: ImplPlanResult['sections'] = {};

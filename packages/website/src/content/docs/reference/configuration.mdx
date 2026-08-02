@@ -180,7 +180,7 @@ Safeword has two types of files:
 
 ## Project Namespace Root
 
-Safeword's project knowledge — tickets, learnings, personas, glossary, surfaces, architecture record — lives under a single **namespace root** directory, resolved in this order:
+Safeword's project knowledge — tickets, learnings, principles, personas, glossary, surfaces, architecture record — lives under a single **namespace root** directory, resolved in this order:
 
 1. `paths.projectRoot` in `.safeword/config.json`, if set
 2. `.project/` — the default for new installs
@@ -188,7 +188,7 @@ Safeword's project knowledge — tickets, learnings, personas, glossary, surface
 
 A project with neither directory resolves to `.project/`.
 
-The `paths` object also supports per-file overrides — `personas`, `glossary`, `surfaces`, and `architecture` — which default to `<root>/personas.md`, `<root>/glossary.md`, `<root>/surfaces.md`, and `<root>/architecture.md` under the resolved root. A per-file key wins over the root for its file.
+The `paths` object also supports per-file overrides — `principles`, `personas`, `glossary`, `surfaces`, and `architecture` — which default to matching `.md` files under the resolved root. A per-file key wins over the root for its file.
 
 Persona headers may carry an explicit short code, for example `## Platform Operator (PO)`. Automatic codes use **3–4 letters** (`Platform Operator` → `PLO`); explicit overrides may use **2–4 letters**. Carry the resolved code unchanged through JTBD ids and Gherkin lineage (`oauth-flow.PO1.R1`). Safeword still accepts existing explicit 5–6 character codes and resolves former derived aliases, so upgrading does not require renaming historical specs or scenarios.
 
@@ -199,6 +199,7 @@ Two directory keys, `features` and `steps`, point the BDD acceptance lane at rel
   "installedPacks": ["typescript"],
   "paths": {
     "projectRoot": ".project",
+    "principles": "docs/principles.md",
     "personas": "docs/personas.md",
     "glossary": "docs/glossary.md",
     "surfaces": "docs/surfaces.md",
@@ -218,6 +219,15 @@ Two directory keys, `features` and `steps`, point the BDD acceptance lane at rel
 ```
 
 Relative paths resolve against the project root (the directory containing `.safeword/`); absolute paths are used verbatim.
+
+`principles.md`, `personas.md`, and `surfaces.md` share one safe ownership
+lifecycle. Setup scaffolds a missing default, preserves authored content
+byte-for-byte, and suppresses the default scaffold when the matching
+`paths.principles`, `paths.personas`, or `paths.surfaces` override is present.
+Doctor fails non-zero with a key-specific error when a configured file is
+missing. When an override and its default both exist, doctor reports a zero-exit
+orphan advisory naming both paths; Safeword never deletes user-authored
+knowledge, so cleanup remains an explicit user choice.
 
 For adopted host harnesses with a house style, `bdd.conventions` points at a conventions document the host owns — what an unimplemented step body looks like, how spec-ahead scenarios are verified without executing them (for example a cucumber dry-run/check profile), and which tags the host's profiles exclude by default:
 

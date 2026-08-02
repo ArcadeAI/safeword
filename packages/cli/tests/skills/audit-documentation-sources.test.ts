@@ -14,6 +14,8 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { extractFencedBashBlock } from '../helpers/fenced-bash.js';
+
 const ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 
 const AUDIT_SURFACES = [
@@ -23,16 +25,6 @@ const AUDIT_SURFACES = [
 
 function readAuditSurface(relativePath: string): string {
   return readFileSync(nodePath.join(ROOT, relativePath), 'utf8');
-}
-
-function extractBashBlock(content: string, ordinal: number): string {
-  const blocks = content
-    .matchAll(/```bash\n[\s\S]*?\n```/g)
-    .map(match => match[0].replace(/^```bash\n/, '').replace(/\n```$/, ''))
-    .toArray();
-  const block = blocks[ordinal - 1];
-  if (!block) throw new Error(`Missing bash block ${ordinal}`);
-  return block;
 }
 
 function writeProjectFile(projectDirectory: string, relativePath: string, content: string): void {
@@ -57,7 +49,14 @@ function auditToolStubBody(command: string): string {
   }
   if (command === 'bun') {
     return String.raw`case "$1" in
-  */resolve-namespace-root.ts) printf '%s\n' "$2/.project" ;;
+  */resolve-namespace-root.ts)
+    if [ -n "$3" ]; then
+      if [ -n "$4" ]; then domain_basename="$4"; else domain_basename="$3.md"; fi
+      printf '%s\n' "$2/.project/$domain_basename"
+    else
+      printf '%s\n' "$2/.project"
+    fi
+    ;;
   */packages/cli/src/cli.ts) [ "$2" = "feature-directories" ] && printf '%s\n' "$PWD/features" ;;
   *) echo "[fake-bun] $@" ;;
 esac`;
@@ -151,7 +150,7 @@ function runAuditAutomation(
       rmSync(nodePath.join(binDirectory, command), { force: true });
     }
 
-    const result = spawnSync('bash', ['-c', extractBashBlock(auditSkillContent, 2)], {
+    const result = spawnSync('bash', ['-c', extractFencedBashBlock(auditSkillContent, 2)], {
       cwd: projectDirectory,
       env: {
         ...process.env,
@@ -177,6 +176,7 @@ function runDiffScopedAuditAutomation(options: {
   baselineFiles: Record<string, string>;
   changedFiles: Record<string, string>;
   blockOrdinal?: number;
+  blockMarker?: string;
   deletedFiles?: string[];
   includeOriginMain?: boolean;
   staleLocalMain?: boolean;
@@ -220,7 +220,10 @@ function runDiffScopedAuditAutomation(options: {
 
     const result = spawnSync(
       'bash',
-      ['-c', extractBashBlock(auditSkillContent, options.blockOrdinal ?? 2)],
+      [
+        '-c',
+        extractFencedBashBlock(auditSkillContent, options.blockMarker ?? options.blockOrdinal ?? 2),
+      ],
       {
         cwd: projectDirectory,
         env: {
@@ -534,7 +537,7 @@ describe('audit diff scope', () => {
         'features/unrelated.feature': '@surface.missing\nFeature: unrelated\n',
       },
       changedFiles: { 'README.md': '# Updated fixture\n' },
-      blockOrdinal: 5,
+      blockMarker: 'domain-docs-check',
       includeOriginMain: true,
     });
 
@@ -551,7 +554,7 @@ describe('audit diff scope', () => {
         'features/unrelated.feature': '@surface.missing\nFeature: unrelated\n',
       },
       changedFiles: { 'features/changed.feature': '@surface.known\nFeature: changed\n' },
-      blockOrdinal: 5,
+      blockMarker: 'domain-docs-check',
       includeOriginMain: true,
     });
 
@@ -567,7 +570,7 @@ describe('audit diff scope', () => {
         '.project/surfaces.md': '## Known\n',
       },
       changedFiles: { 'features/invalid.feature': '@surface.missing\nFeature: invalid\n' },
-      blockOrdinal: 5,
+      blockMarker: 'domain-docs-check',
       includeOriginMain: true,
     });
 
@@ -582,7 +585,7 @@ describe('audit diff scope', () => {
         '.project/personas.md': '## Designer (DES)\n',
       },
       changedFiles: { '.project/tickets/fixture/spec.md': '**Persona:** (GM)\n' },
-      blockOrdinal: 5,
+      blockMarker: 'domain-docs-check',
       includeOriginMain: true,
     });
 
@@ -599,7 +602,7 @@ describe('audit diff scope', () => {
         'features/unrelated.feature': '@surface.missing\nFeature: unrelated\n',
       },
       changedFiles: { 'README.md': '# Updated fixture\n' },
-      blockOrdinal: 5,
+      blockMarker: 'domain-docs-check',
       includeOriginMain: true,
       scopeRequest: 'repository',
     });

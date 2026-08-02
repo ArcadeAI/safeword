@@ -8,6 +8,33 @@ When evaluating a new feature, ticket approach, or design trade-off, check it ag
 
 ---
 
+## Optimize for the NTB without constraining the TBU
+
+**Intent:** Make safe, high-quality delivery understandable and automatic for
+the NTB without limiting the TBU's agency, evidence, or control.
+
+Safeword's default experience is designed for the Non-Technical Builder (NTB),
+who cannot audit the code and should not need to learn Safeword to get safe,
+high-quality work. Prefer invisible guardrails, plain-language outcomes, and a
+concrete next action over framework jargon or process the user must operate.
+
+That simplicity must not reduce the Technical Builder's (TBU) agency or
+capability. Keep technical evidence, direct controls, and explicit escape
+hatches available through progressive disclosure. Automate ceremony, not
+authority: make the safe path effortless for the NTB while keeping Safeword out
+of the TBU's way.
+
+**Prefer:** Safe defaults, plain-language decisions, concrete next actions,
+progressively disclosed technical detail, and explicit power-user controls.
+
+**Avoid:** Requiring the NTB to understand implementation mechanics, or forcing
+the TBU through simplified workflows that hide evidence, remove control, or add
+steps.
+
+**Evidence:** Walk an NTB through the outcome and recovery path without asking
+them to read code; walk a TBU through the same path and confirm no capability is
+lost and no unnecessary step is added.
+
 ## 1. Structure enforces; instructions suggest
 
 _"A well-trained model can still be exploited through a poorly configured harness." — [Trustworthy Agents in Practice](https://www.anthropic.com/research/trustworthy-agents)_
@@ -98,7 +125,7 @@ Code that is correct but unclear will be misunderstood and broken by the next ch
 
 **Clarity > Simplicity > Correctness** — in that order.
 
-This applies beyond code. Skill files should be concise (3 steps, not 9). Enforcement should be legible (a developer reading the hook should understand what it checks and why). Principles should be few (5, not 15). Documentation should be precise enough that an agent with no prior context can follow it without ambiguity.
+This applies beyond code. Skill files should be concise (3 steps, not 9). Enforcement should be legible (a developer reading the hook should understand what it checks and why). Principles should be few and load-bearing, not an exhaustive checklist. Documentation should be precise enough that an agent with no prior context can follow it without ambiguity.
 
 Delete what isn't needed. Don't abstract for hypothetical reuse. Don't comment what the code already says. Name things so the name is the documentation. When in doubt, choose the simpler solution that works today.
 
