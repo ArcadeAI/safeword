@@ -16,13 +16,12 @@ import {
   translateCodexInputToClaudeInputs,
 } from './pre-tool-quality-helpers.ts';
 import {
-  commandInvokesCloseoutCleanup,
   commandInvokesWriteReviewStamp,
   parseRecordSkillInvocationCommand,
   rememberCodexReviewStampIdentity,
   rememberCodexRunIdentity,
-  rememberCloseoutBinding,
 } from '../lib/cursor-run-identity.ts';
+import { commandInvokesCloseoutCleanup, rememberCloseoutBinding } from '../lib/closeout-binding.ts';
 import { installCrashCapture } from '../lib/self-report.ts';
 
 installCrashCapture('codex-pre-tool-quality', undefined, 'codex');

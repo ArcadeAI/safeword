@@ -11,13 +11,12 @@ import nodePath from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
-  commandInvokesCloseoutCleanup,
   commandInvokesWriteReviewStamp,
   parseRecordSkillInvocationCommand,
   rememberCursorReviewStampIdentity,
   rememberCursorRunIdentity,
-  rememberCloseoutBinding,
 } from '../lib/cursor-run-identity.ts';
+import { commandInvokesCloseoutCleanup, rememberCloseoutBinding } from '../lib/closeout-binding.ts';
 import { stashCursorTranscript } from '../lib/cursor-state.ts';
 import { AUTO_UPGRADE_LOCK_MESSAGE, isAutoUpgradeLockActive } from '../lib/auto-upgrade-lock.ts';
 import {

@@ -5,7 +5,7 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { readFreshCloseoutBinding } from '../../templates/hooks/lib/cursor-run-identity.ts';
+import { readFreshCloseoutBinding } from '../../templates/hooks/lib/closeout-binding.ts';
 import { repoRoot } from '../helpers.js';
 
 function project(): string {

@@ -6,10 +6,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
-import {
-  type CloseoutBinding,
-  readFreshCloseoutBinding,
-} from '../hooks/lib/cursor-run-identity.ts';
+import { type CloseoutBinding, readFreshCloseoutBinding } from '../hooks/lib/closeout-binding.ts';
 import { readSpooledDrafts } from '../hooks/lib/retro-draft-spool.ts';
 
 export interface PullRequestIdentity {

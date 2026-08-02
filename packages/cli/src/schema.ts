@@ -650,6 +650,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.safeword/hooks/lib/branch-staleness.ts': { template: 'hooks/lib/branch-staleness.ts' },
     '.safeword/hooks/lib/blocked-on-gate.ts': { template: 'hooks/lib/blocked-on-gate.ts' },
+    '.safeword/hooks/lib/closeout-binding.ts': { template: 'hooks/lib/closeout-binding.ts' },
     '.safeword/hooks/lib/cursor-run-identity.ts': {
       template: 'hooks/lib/cursor-run-identity.ts',
     },

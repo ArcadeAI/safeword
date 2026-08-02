@@ -8,7 +8,7 @@ import {
   commandInvokesCloseoutCleanup,
   readFreshCloseoutBinding,
   rememberCloseoutBinding,
-} from '../../templates/hooks/lib/cursor-run-identity.ts';
+} from '../../templates/hooks/lib/closeout-binding.ts';
 
 function project(): string {
   const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-closeout-binding-'));

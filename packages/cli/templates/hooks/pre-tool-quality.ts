@@ -14,11 +14,8 @@ import {
   parseTddStep,
 } from './lib/active-ticket.ts';
 import { detectLedgerWrite } from './lib/bash-ledger-writes.ts';
+import { commandInvokesCloseoutCleanup, rememberCloseoutBinding } from './lib/closeout-binding.ts';
 import { detectBroadProcessKill } from './lib/process-kill-guard.ts';
-import {
-  commandInvokesCloseoutCleanup,
-  rememberCloseoutBinding,
-} from './lib/cursor-run-identity.ts';
 import { evaluateBlockedOnGate } from './lib/blocked-on-gate.ts';
 import { isGitOperationInProgress } from './lib/git-operation.ts';
 import { collectNewTransitions } from './lib/checkbox-transitions.ts';
