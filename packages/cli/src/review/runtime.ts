@@ -8,11 +8,21 @@ const ARGUMENTS: Readonly<Record<ReviewAgent, readonly string[]>> = {
     '-p',
     '--output-format',
     'json',
-    '--permission-mode',
-    'bypassPermissions',
     '--no-session-persistence',
+    '--disable-slash-commands',
+    '--tools',
+    '',
   ],
-  codex: ['exec', '--json', '--sandbox', 'read-only', '--skip-git-repo-check', '-'],
+  codex: [
+    'exec',
+    '--json',
+    '--sandbox',
+    'read-only',
+    '--skip-git-repo-check',
+    '--ephemeral',
+    '--ignore-rules',
+    '-',
+  ],
 };
 
 const ASSIGNED_MODELS: Readonly<Record<ReviewAgent, string>> = {
@@ -37,6 +47,57 @@ export class ReviewRuntimeError extends Error {
 function timeoutMilliseconds(): number {
   const configured = Number(process.env.SAFEWORD_REVIEW_TIMEOUT_MS);
   return Number.isFinite(configured) && configured > 0 ? configured : 120_000;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function parseJson(value: string): unknown {
+  return JSON.parse(value) as unknown;
+}
+
+function parseClaudeOutput(stdout: string): unknown {
+  const envelope = parseJson(stdout);
+  if (isRecord(envelope) && typeof envelope.result === 'string') {
+    return parseJson(envelope.result);
+  }
+  return envelope;
+}
+
+function parseCodexOutput(stdout: string): unknown {
+  const events = stdout
+    .split('\n')
+    .filter(line => line.trim() !== '')
+    .map(line => parseJson(line));
+  const message = events.findLast(
+    event =>
+      isRecord(event) &&
+      event.type === 'item.completed' &&
+      isRecord(event.item) &&
+      event.item.type === 'agent_message' &&
+      typeof event.item.text === 'string',
+  );
+  if (isRecord(message) && isRecord(message.item) && typeof message.item.text === 'string') {
+    return parseJson(message.item.text);
+  }
+  return parseJson(stdout);
+}
+
+export function parseReviewerOutput(reviewer: ReviewAgent, stdout: string): ReviewerOutput {
+  return (
+    reviewer === 'claude' ? parseClaudeOutput(stdout) : parseCodexOutput(stdout)
+  ) as ReviewerOutput;
+}
+
+function reviewPrompt(packet: ReviewPacket): string {
+  return [
+    'Act as an adversarial reviewer. Review only the bounded files in this packet.',
+    'Do not use tools or modify files. Return only one JSON object matching the packet result contract.',
+    'Keep schema_version and dispatch_id unchanged; set reviewer_agent to your actual agent.',
+    'Use verdict approve or request_changes. Include summary and findings.',
+    JSON.stringify(packet),
+  ].join('\n');
 }
 
 export async function runHeadlessReviewer(
@@ -93,13 +154,13 @@ export async function runHeadlessReviewer(
         return;
       }
       try {
-        resolve(JSON.parse(stdout) as ReviewerOutput);
+        resolve(parseReviewerOutput(reviewer, stdout));
       } catch {
         reject(
           new ReviewRuntimeError('invalid_output', `${reviewer} returned invalid review output`),
         );
       }
     });
-    child.stdin.end(JSON.stringify(packet));
+    child.stdin.end(reviewPrompt(packet));
   });
 }
