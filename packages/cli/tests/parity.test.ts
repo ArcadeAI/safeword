@@ -4,6 +4,7 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { applyCodexFinalization } from '../src/codex-plugin/finalization.js';
 import { formatParityFixReport, runParity, syncParityPairs } from '../src/parity.js';
 
 function makeFixture(): { rootDirectory: string; templatesDirectory: string } {
@@ -198,6 +199,35 @@ describe('runParity', () => {
       expect(result.failures[0]?.kind).toBe('pair');
       expect(result.failures[0]?.message).toContain('.safeword/sample.ts');
       expect(result.failures[0]?.message.toLowerCase()).toMatch(/missing|not found|does not exist/);
+    });
+
+    it('allows a completed Codex plugin finalization to omit only its retired hook pairs', () => {
+      const { rootDirectory, templatesDirectory } = makeFixture();
+      const destinationPath = '.safeword/hooks/codex/stop.ts';
+      mkdirSync(nodePath.join(templatesDirectory, 'hooks/codex'), { recursive: true });
+      writeFileSync(nodePath.join(templatesDirectory, 'hooks/codex/stop.ts'), 'retired hook\n');
+
+      applyCodexFinalization(rootDirectory, [
+        { path: destinationPath, content: undefined },
+        { path: '.safeword/codex-plugin.json', content: '{}\n' },
+        {
+          path: '.agents/skills/safeword-plugin-setup/SKILL.md',
+          content: '# plugin bootstrap\n',
+        },
+      ]);
+
+      const input = {
+        schema: {
+          ownedFiles: { [destinationPath]: { template: 'hooks/codex/stop.ts' } },
+          contracts: {},
+        },
+        mode: 'all' as const,
+        rootDirectory,
+        templatesDirectory,
+      };
+
+      expect(runParity(input).failures).toHaveLength(0);
+      expect(syncParityPairs(input).synced).toEqual([]);
     });
 
     it('fails on whitespace-only differences (strict byte comparison)', () => {

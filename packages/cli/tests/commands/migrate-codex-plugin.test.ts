@@ -312,10 +312,19 @@ describe('migrate codex-plugin command', () => {
     const { directory, configPath } = fixture;
     const legacyHooksDirectory = nodePath.join(directory, '.safeword/hooks/codex');
     const legacyRuntimeHookPath = nodePath.join(legacyHooksDirectory, 'pre-tool-quality.ts');
+    const sharedRuntimeHookPaths = [
+      nodePath.join(directory, '.safeword/hooks/session-safeword-context.ts'),
+      nodePath.join(directory, '.safeword/hooks/prompt-timestamp.ts'),
+      nodePath.join(directory, '.safeword/hooks/prompt-retro-nudge.ts'),
+    ];
     const userHookPath = nodePath.join(legacyHooksDirectory, 'custom.ts');
     mkdirSync(legacyHooksDirectory, { recursive: true });
     writeFileSync(legacyRuntimeHookPath, '// legacy Safe Word hook\n');
     writeFileSync(userHookPath, '// user hook\n');
+    for (const path of sharedRuntimeHookPaths) {
+      mkdirSync(nodePath.dirname(path), { recursive: true });
+      writeFileSync(path, '// shared Safe Word hook\n');
+    }
 
     const result = await runMigration(fixture, { cleanupLegacyHooks: true });
 
@@ -331,6 +340,9 @@ describe('migrate codex-plugin command', () => {
     expect(migrated).toContain(USER_CODEX_CONFIG.trim());
     expect(readBackedUpFile(fixture, '.codex/config.toml')).toBe(original);
     expect(existsSync(legacyRuntimeHookPath)).toBe(false);
+    for (const path of sharedRuntimeHookPaths) {
+      expect(readFileSync(path, 'utf8')).toBe('// shared Safe Word hook\n');
+    }
     expect(existsSync(userHookPath)).toBe(true);
   });
 

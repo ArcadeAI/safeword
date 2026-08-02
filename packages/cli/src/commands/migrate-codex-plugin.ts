@@ -230,7 +230,7 @@ function pathExistsIncludingDanglingSymlink(path: string): boolean {
 }
 
 function observeLegacyAssets(cwd: string): string[] {
-  return SAFEWORD_SCHEMA.codexMigration.legacyFiles.filter(path =>
+  return SAFEWORD_SCHEMA.codexMigration.cleanupFiles.filter(path =>
     pathExistsIncludingDanglingSymlink(nodePath.join(cwd, path)),
   );
 }
