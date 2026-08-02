@@ -169,7 +169,7 @@ surfaces a real spec, scope, value, or risk decision.
 Off by default. When `.safeword/config.json` sets `architectureReviewGate: true`, the stop hook blocks `verify`/`done` for a new-flow feature until its `impl-plan.md` design has been **independently reviewed** — the same propose-then-challenge discipline the scenario-gate applies to scenarios, now applied to the design. Two requirements:
 
 1. **Cited evidence.** The Decisions section must carry a citation — a URL or a `[n]` source-reference marker — proving the choice was weighed against real evidence (the `/figure-it-out` trace), or an auditable `skip: <reason>`.
-2. **A fresh-context review.** Spawn a reviewer with **no conversation history**, handed only `impl-plan.md` and the ticket scope, to try to refute the design against its cited sources. On a pass, stamp it:
+2. **A fresh-context review.** Run `safeword review run plan-implementation <impl-plan.md> <ticket-spec> <feature-file>` so the shared coordinator gives only the bounded design evidence to the preferred opposite headless agent. Its typed result must satisfy the configured policy; a private subagent result cannot satisfy this gate. On a pass, stamp it:
 
    ```bash
    bun .safeword/hooks/write-review-stamp.ts impl-plan

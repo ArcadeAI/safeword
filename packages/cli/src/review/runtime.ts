@@ -44,6 +44,15 @@ const REQUIRED_CAPABILITIES: Readonly<Record<ReviewAgent, readonly string[]>> = 
 
 const MAX_OUTPUT_BYTES = 1024 * 1024;
 
+const REVIEW_RUBRICS: Readonly<Record<ReviewPacket['kind'], string>> = {
+  'quality-review':
+    'Check correctness, edge cases, security, unnecessary complexity, and whether public wiring is proven through real collaborators.',
+  'scenario-gate':
+    'Try to falsify every scenario. Check vacuous passes, atomic/observable/deterministic/independent structure, negative cases, boundaries, failures, security, invariants, and public-surface wiring.',
+  'plan-implementation':
+    'Try to refute the plan. Check wrong-direction design, missed scenarios, proof strategy, build order, architecture alignment, reversibility, and text removable without information loss.',
+};
+
 export function assignedReviewerModel(reviewer: ReviewAgent): string {
   return ASSIGNED_MODELS[reviewer];
 }
@@ -108,6 +117,7 @@ function reviewPrompt(packet: ReviewPacket): string {
   return [
     'Act as an adversarial reviewer. Review only the bounded files in this packet.',
     'Do not use tools or modify files. Return only one JSON object matching the packet result contract.',
+    REVIEW_RUBRICS[packet.kind],
     'Keep schema_version and dispatch_id unchanged; set reviewer_agent to your actual agent.',
     'Use verdict approve or request_changes. Include summary and findings.',
     JSON.stringify(packet),

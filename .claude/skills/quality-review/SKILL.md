@@ -164,17 +164,21 @@ Run the review in passes until **Critical issues** come back None. A couple of p
 
 Each pass:
 
-1. **Review with a fresh, independent reviewer.** A same-model, same-context
-   reviewer shares your blind spots, and ungrounded self-correction can
-   _degrade_ the work rather than improve it. Prefer a different model of
-   comparable-or-better capability; otherwise run a fresh-context pass on your
-   own model (the usual path, since most setups run one model) — never a
-   _weaker_ one. Hand the reviewer only the work-product and its scope, have it
-   apply §1–3, and return the Output Format above.
-   - Claude Code: Agent/Task tool. Codex: ask in your prompt — subagents never
-     auto-spawn, and `/agent` only switches existing threads. Cursor: subagents.
-     No sub-agent? Re-read in a fresh context — independence is the point, not
-     the mechanism.
+1. **Run the shared independent-review coordinator.** After gathering any
+   current-source evidence needed by §1–3, pass only the bounded work-product
+   and scope to the host-owned coordinator:
+
+   ```bash
+   safeword review run quality-review < changed-file > [more-changed-files...]
+   ```
+
+   Claude-authored work prefers headless Codex; Codex-authored work prefers
+   headless Claude. The coordinator uses a neutral snapshot, checks reviewer
+   provenance, preserves the exact preferred-route failure, and labels any
+   permitted same-agent fallback as degraded. Treat its typed result as the
+   review verdict. If it blocks, follow its one recovery action; do not invent
+   a private subagent route or mint passing evidence yourself.
+
 2. **Triage.** Fix every **Critical issue** this pass. Apply the **Suggested
    improvements** worth the change; list the rest — don't chase them.
 3. **Decide.** Stop when **Critical issues = None**; remaining suggestions are
