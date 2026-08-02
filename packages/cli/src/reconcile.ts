@@ -795,13 +795,13 @@ function computeUninstallPlan(
   actions.push(...owned.actions);
   wouldRemove.push(...owned.removed);
 
-  // 6. Full uninstall: remove managed files (skip configKey-overridden entries —
-  //    when the user has set paths.<configKey>, the default location is no longer
-  //    safeword's concern, and any file there is user content we must not delete.
-  //    See ticket K7N2QM).
+  // 6. Full uninstall: remove managed tooling, but preserve every project-owned
+  //    knowledge entry identified by configKey. Those files become authored
+  //    project context after scaffolding and must survive Safeword removal,
+  //    regardless of whether their configured path is default or overridden.
   if (full) {
     const removable = Object.entries(schema.managedFiles)
-      .filter(([, definition]) => !isConfigOverridden(definition, ctx.cwd))
+      .filter(([, definition]) => definition.configKey === undefined)
       .map(([filePath]) => filePath);
     const managed = planExistingFilesRemoval(removable, ctx.cwd);
     actions.push(...managed.actions);

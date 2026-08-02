@@ -167,6 +167,23 @@ describe('Reconcile — configured-paths suppression (K7N2QM)', () => {
     expect(after).toBe(userContent);
   });
 
+  it.each(['principles', 'personas', 'glossary', 'surfaces'] as const)(
+    '`reset --full` preserves authored default %s knowledge',
+    async key => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      const relativePath = `.project/${key}.md`;
+      const userContent = `# Authored ${key}\n\nThis belongs to the project.\n`;
+      mkdirSync(nodePath.join(cwd, '.project'), { recursive: true });
+      writeFileSync(nodePath.join(cwd, relativePath), userContent);
+
+      await reconcile(SAFEWORD_SCHEMA, 'uninstall-full', makeContext());
+
+      expect(readFileSync(nodePath.join(cwd, relativePath), 'utf8')).toBe(userContent);
+    },
+  );
+
   it('R4.2: skips default surfaces scaffold when paths.surfaces is configured', async () => {
     const { reconcile } = await import('../src/reconcile.js');
     const { SAFEWORD_SCHEMA } = await import('../src/schema.js');

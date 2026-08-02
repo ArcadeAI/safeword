@@ -159,12 +159,12 @@ export interface ManagedFileDefinition extends FileDefinition {
   /**
    * Optional logical key linking this entry to a user-configurable path
    * override in `.safeword/config.json` (`paths.<configKey>`). When the
-   * override is set, reconcile suppresses this entry uniformly — install
-   * skips the scaffold, uninstall-full skips the removal. The user owns
-   * the file at the configured location; safeword stops treating the
-   * default location as its concern.
+   * override is set, install skips the default scaffold. The key also marks
+   * the managed default as project-owned knowledge, so reset --full preserves
+   * it whether or not an override is active. Safeword must not delete authored
+   * knowledge while removing its own configuration.
    *
-   * See ticket K7N2QM for the data-loss-prevention rationale.
+   * See tickets K7N2QM and KD4C2A for the data-loss-prevention rationale.
    */
   configKey?: 'principles' | 'personas' | 'glossary' | 'surfaces' | 'architecture';
 
