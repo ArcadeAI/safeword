@@ -1,10 +1,23 @@
-import { existsSync, readFileSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { generateCodexPluginAssets } from '../src/codex-plugin/catalogue.js';
+import {
+  assertCodexPluginCatalogue,
+  generateCodexPluginAssets,
+} from '../src/codex-plugin/catalogue.js';
 import { CURSOR_COMMAND_WRAPPERS } from '../src/cursor-wrappers.js';
+import { runParity } from '../src/parity.js';
 import { SAFEWORD_SCHEMA } from '../src/schema.js';
 
 const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
@@ -118,5 +131,78 @@ describe('closeout host entry points (93C14D TBU1.R4)', () => {
     ).find(asset => asset.relativePath === 'skills/closeout/SKILL.md');
     expect(generatedCodex?.content).toContain('name: closeout');
     expect(generatedCodex?.content).toContain('no merge or cleanup');
+  });
+
+  it.each([
+    {
+      surface: 'canonical template',
+      managedPath: '.claude/skills/closeout/SKILL.md',
+      templatePath: 'skills/closeout/SKILL.md',
+      mutate: 'template' as const,
+    },
+    {
+      surface: 'dogfood Claude',
+      managedPath: '.claude/skills/closeout/SKILL.md',
+      templatePath: 'skills/closeout/SKILL.md',
+      mutate: 'managed' as const,
+    },
+    {
+      surface: 'generated Cursor',
+      managedPath: '.cursor/commands/closeout.md',
+      templatePath: 'commands/closeout.md',
+      mutate: 'managed' as const,
+    },
+  ])('detects closeout drift at the $surface surface through production parity', row => {
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-closeout-parity-'));
+    const templates = nodePath.join(fixture, 'templates');
+    const managed = nodePath.join(fixture, row.managedPath);
+    const template = nodePath.join(templates, row.templatePath);
+    try {
+      mkdirSync(nodePath.dirname(managed), { recursive: true });
+      mkdirSync(nodePath.dirname(template), { recursive: true });
+      writeFileSync(template, 'closeout contract\n');
+      writeFileSync(managed, 'closeout contract\n');
+      const schema = {
+        ownedFiles: { [row.managedPath]: { template: row.templatePath } },
+        contracts: {},
+      };
+      expect(
+        runParity({ schema, mode: 'all', rootDirectory: fixture, templatesDirectory: templates })
+          .failures,
+      ).toEqual([]);
+
+      writeFileSync(row.mutate === 'template' ? template : managed, 'drifted closeout contract\n');
+      const failures = runParity({
+        schema,
+        mode: 'all',
+        rootDirectory: fixture,
+        templatesDirectory: templates,
+      }).failures;
+      expect(failures[0]).toMatchObject({ kind: 'pair' });
+      expect(failures[0]?.message).toContain(row.managedPath);
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
+  it('detects generated Codex closeout drift through the production catalogue', () => {
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-closeout-codex-parity-'));
+    const canonicalSkills = nodePath.join(repoRoot, 'packages/cli/templates/skills');
+    const pluginDirectory = nodePath.join(fixture, 'codex-plugin');
+    try {
+      cpSync(nodePath.join(repoRoot, 'packages/cli/codex-plugin'), pluginDirectory, {
+        recursive: true,
+      });
+      assertCodexPluginCatalogue(canonicalSkills, pluginDirectory);
+      writeFileSync(
+        nodePath.join(pluginDirectory, 'skills/closeout/SKILL.md'),
+        'drifted closeout contract\n',
+      );
+      expect(() => {
+        assertCodexPluginCatalogue(canonicalSkills, pluginDirectory);
+      }).toThrow();
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
   });
 });
