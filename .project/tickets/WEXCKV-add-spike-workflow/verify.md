@@ -3,10 +3,10 @@
 ## Verify Checklist
 
 **Test Suite:** ✓ 6120/6120 tests pass (5 skipped)
-**Gherkin:** ✅ Acceptance lane passes (713 passed, 3 skipped)
+**Gherkin:** ✅ Acceptance lane passes (715 passed, 3 skipped)
 **Build:** ✅ Success
 **Lint:** ✅ Clean
-**Scenarios:** All 46 scenarios marked complete
+**Scenarios:** All 52 scenarios marked complete
 **PR Scope:** ✅ Diff matches ticket scope
 **Dep Drift:** ✅ Clean
 **Parent Epic:** N/A
@@ -22,9 +22,9 @@ feature-diff audit.
 ## Evidence
 
 - Full Vitest: 404 files passed; 6,120 tests passed; 5 skipped.
-- Full Cucumber: 716 scenarios; 713 passed and 3 skipped; 24,080 steps passed
+- Full Cucumber: 718 scenarios; 715 passed and 3 skipped; 24,150 steps passed
   and 4 skipped.
-- Spike feature: 28 scenarios and 960 steps passed.
+- Spike feature: 30 scenarios and 1,030 steps passed.
 - TypeScript typecheck: `tsc --noEmit` passed.
 - Lint: `eslint .` passed.
 - Audit scope: `origin/main` from merge base `eafe9d00ae4b2ee6e641d9a7f8dba4b6f3be0b8c`.
