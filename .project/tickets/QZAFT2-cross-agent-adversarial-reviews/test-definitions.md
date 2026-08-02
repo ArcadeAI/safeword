@@ -21,7 +21,7 @@ test-definitions.md is the R/G/R ledger. Executable Given/When/Then behavior liv
 ### Scenario: An author outside the Claude and Codex pairing keeps its existing route
 
 - [x] RED 32083119d
-- [ ] GREEN
+- [x] GREEN 268905524
 - [ ] REFACTOR
 
 ## Rule: cross-agent-review.TBU1.R2 — Review evidence names the actual agents and independence level
