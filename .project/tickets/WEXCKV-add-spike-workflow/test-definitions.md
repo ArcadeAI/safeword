@@ -52,7 +52,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Committed validated state becomes the shared spike base
 
-- [ ] RED
+- [x] RED eb870aff3
 - [ ] GREEN
 - [ ] REFACTOR
 
