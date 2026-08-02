@@ -72,16 +72,16 @@ const TREE_MANIFESTS = new Set<string>([
 /**
  * Kinds each non-Rust resolver opts out of, so a new PlanKind fails safe (the
  * language emits nothing) instead of falling through to a wrong command. `deps`
- * (supply-chain) is Rust-only for now. `typecheck` emits for JS/TS (`typecheck`
+ * emits an ecosystem-native vulnerability scan for every supported language.
+ * `typecheck` emits for JS/TS (`typecheck`
  * script), Python (mypy/pyright when configured), and Rust (clippy, in
  * resolveRust); Go's compiler covers it. `bdd` (Gherkin acceptance) emits for JS
  * (cucumber-js) and Python (behave); Go's godog and Rust's cucumber-rs fold into
  * the native test lane, so those skip it. Frozen sets mirror the manifest-set
  * idiom above and keep the guards uniform.
  */
-const JS_SKIP_KINDS: ReadonlySet<PlanKind> = new Set<PlanKind>(['deps']);
-const PYTHON_SKIP_KINDS: ReadonlySet<PlanKind> = new Set<PlanKind>(['build', 'deps']);
-const GO_SKIP_KINDS: ReadonlySet<PlanKind> = new Set<PlanKind>(['typecheck', 'deps', 'bdd']);
+const PYTHON_SKIP_KINDS: ReadonlySet<PlanKind> = new Set<PlanKind>(['build']);
+const GO_SKIP_KINDS: ReadonlySet<PlanKind> = new Set<PlanKind>(['typecheck', 'bdd']);
 
 /**
  * Parse the `SAFEWORD_FAKE_TOOLS` test seam (same spirit as `SAFEWORD_SKIP_INSTALL`):
@@ -192,11 +192,14 @@ function resolveJs(
   kind: PlanKind,
   isAvailable: ToolProbe,
 ): PlanEntry | undefined {
-  if (JS_SKIP_KINDS.has(kind)) return undefined;
   // JS is detected root-only: subdirectory package.json is too common to treat as a project root.
   const scripts = readRootScripts(root);
   if (!scripts) return undefined;
   const pm = detectPackageManager(root);
+  if (kind === 'deps') {
+    const command = pm === 'yarn' ? 'yarn npm audit' : `${pm} audit`;
+    return entry('javascript', root, command, pm, isAvailable(pm));
+  }
   const directScript = JS_DIRECT_SCRIPT[kind];
   if (directScript !== undefined) {
     const command = scripts[directScript];
@@ -363,7 +366,7 @@ function resolvePython(
   kind: PlanKind,
   isAvailable: ToolProbe,
 ): PlanEntry | undefined {
-  if (PYTHON_SKIP_KINDS.has(kind)) return undefined; // build/deps: no standard Python lane
+  if (PYTHON_SKIP_KINDS.has(kind)) return undefined; // build: no standard Python lane
   // typecheck/bdd detect Python via their OWN config markers (mypy/pyright/behave
   // configs are Python-only), so they don't require a packaging manifest — a repo
   // carrying just `mypy.ini` or `behave.ini` still gets its lane, run in the dir the
@@ -387,6 +390,28 @@ function resolvePython(
     return resolvePythonBdd(index, cwd, isAvailable);
   }
   if (PYTHON_MANIFESTS.every(manifest => !index.has(manifest))) return undefined;
+  if (kind === 'deps') {
+    const cwd = firstDirectory(root, index, PYTHON_MANIFESTS);
+    // `uv audit` is uv's native dependency audit. Other Python packaging
+    // layouts use pip-audit, which is maintained by PyPA. Select from project
+    // evidence rather than tool availability so a missing scanner stays a
+    // visible skip in the rendered plan instead of a false-green no-op.
+    if (index.has('uv.lock')) return entry('python', cwd, 'uv audit', 'uv', isAvailable('uv'));
+    if (index.has('requirements.txt'))
+      return entry(
+        'python',
+        cwd,
+        'pip-audit -r requirements.txt',
+        'pip-audit',
+        isAvailable('pip-audit'),
+      );
+    if (index.has('pyproject.toml'))
+      return entry('python', cwd, 'pip-audit .', 'pip-audit', isAvailable('pip-audit'));
+    // Legacy setup.py/setup.cfg/tox projects have no project-file input that
+    // pip-audit understands. Auditing the active environment is the supported
+    // fallback and remains visible if the scanner is unavailable.
+    return entry('python', cwd, 'pip-audit', 'pip-audit', isAvailable('pip-audit'));
+  }
   return resolvePythonTest(index, firstDirectory(root, index, PYTHON_MANIFESTS), isAvailable);
 }
 
@@ -396,10 +421,22 @@ function resolveGo(
   kind: PlanKind,
   isAvailable: ToolProbe,
 ): PlanEntry | undefined {
-  // Go skips typecheck/deps/bdd (GO_SKIP_KINDS): the compiler is the type checker,
-  // godog runs as `go test` subtests, and supply-chain is Rust-only for now.
+  // Go skips typecheck/bdd (GO_SKIP_KINDS): the compiler is the type checker and
+  // godog runs as `go test` subtests.
   if (GO_SKIP_KINDS.has(kind)) return undefined;
   if (!index.has('go.mod')) return undefined;
+  if (kind === 'deps') {
+    const cwd = existsSync(nodePath.join(root, 'go.work')) ? root : (index.get('go.mod') ?? root);
+    // Pin the scanner so this gate is reproducible and does not unexpectedly
+    // inherit a new govulncheck release through `@latest`.
+    return entry(
+      'go',
+      cwd,
+      'go run golang.org/x/vuln/cmd/govulncheck@v1.6.0 ./...',
+      'govulncheck',
+      isAvailable('go'),
+    );
+  }
   const verb = kind === 'build' ? 'build' : 'test';
   // A root go.work tests every workspace module — run the expansion from root.
   // Otherwise run `./...` in the module's own directory (supports nested modules).
