@@ -5,6 +5,8 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { extractFencedBashBlock } from '../helpers/fenced-bash.js';
+
 const ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 
 function readSurface(relativePath: string): string {
@@ -17,12 +19,7 @@ function readSurface(relativePath: string): string {
  */
 function extractDomainDocumentationBlock(): string {
   const content = readSurface('packages/cli/templates/skills/audit/SKILL.md');
-  const block = content
-    .matchAll(/```bash\n([\s\S]*?)\n```/g)
-    .map(match => match[1] ?? '')
-    .find(body => body.includes('domain-docs-check'));
-  if (!block) throw new Error('domain-docs-check bash block not found in audit SKILL.md');
-  return block;
+  return extractFencedBashBlock(content, 'domain-docs-check');
 }
 
 function writeExecutable(directory: string, name: string, body: string): void {

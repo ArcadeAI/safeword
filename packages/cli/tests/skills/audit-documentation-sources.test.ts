@@ -14,6 +14,8 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { extractFencedBashBlock } from '../helpers/fenced-bash.js';
+
 const ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 
 const AUDIT_SURFACES = [
@@ -23,25 +25,6 @@ const AUDIT_SURFACES = [
 
 function readAuditSurface(relativePath: string): string {
   return readFileSync(nodePath.join(ROOT, relativePath), 'utf8');
-}
-
-function extractBashBlock(content: string, ordinal: number): string {
-  const blocks = content
-    .matchAll(/```bash\n[\s\S]*?\n```/g)
-    .map(match => match[0].replace(/^```bash\n/, '').replace(/\n```$/, ''))
-    .toArray();
-  const block = blocks[ordinal - 1];
-  if (!block) throw new Error(`Missing bash block ${ordinal}`);
-  return block;
-}
-
-function extractBashBlockByMarker(content: string, marker: string): string {
-  const block = content
-    .matchAll(/```bash\n([\s\S]*?)\n```/g)
-    .map(match => match[1] ?? '')
-    .find(body => body.includes(marker));
-  if (!block) throw new Error(`Missing bash block marked ${marker}`);
-  return block;
 }
 
 function writeProjectFile(projectDirectory: string, relativePath: string, content: string): void {
@@ -167,7 +150,7 @@ function runAuditAutomation(
       rmSync(nodePath.join(binDirectory, command), { force: true });
     }
 
-    const result = spawnSync('bash', ['-c', extractBashBlock(auditSkillContent, 2)], {
+    const result = spawnSync('bash', ['-c', extractFencedBashBlock(auditSkillContent, 2)], {
       cwd: projectDirectory,
       env: {
         ...process.env,
@@ -239,9 +222,7 @@ function runDiffScopedAuditAutomation(options: {
       'bash',
       [
         '-c',
-        options.blockMarker === undefined
-          ? extractBashBlock(auditSkillContent, options.blockOrdinal ?? 2)
-          : extractBashBlockByMarker(auditSkillContent, options.blockMarker),
+        extractFencedBashBlock(auditSkillContent, options.blockMarker ?? options.blockOrdinal ?? 2),
       ],
       {
         cwd: projectDirectory,
