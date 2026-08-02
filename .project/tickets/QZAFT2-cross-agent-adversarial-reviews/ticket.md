@@ -2,8 +2,8 @@
 id: QZAFT2
 slug: cross-agent-adversarial-reviews
 type: feature
-phase: implement
-status: in_progress
+phase: done
+status: done
 created: 2026-08-02T17:01:05.002Z
 last_modified: 2026-08-02T21:20:00.000Z
 scope:
@@ -65,3 +65,6 @@ phase_anchors:
 - 2026-08-02T21:10:00.000Z Gate: Re-entered scenario-gate with 21 scenario groups after applying both strengthening findings and passing Gherkin lint.
 - 2026-08-02T21:15:00.000Z Scenario gate: Fresh headless Claude returned 0 must-fix and 0 should-strengthen findings across all 21 scenario groups, explicitly confirming the write-isolation and hard-enforcement opt-out gaps are resolved. Recorded a fresh content-bound scenario-gate stamp and advanced to plan-implementation.
 - 2026-08-02T21:20:00.000Z Plan gate: Fresh headless Claude returned PASS with all 21 scenario groups mapped and no blockers. Folded in its two non-blocking precision notes, recorded the content-bound plan-implementation stamp, and advanced to implement with seven coupled vertical slices and one architecture decision.
+- 2026-08-02T23:00:00.000Z Final quality gate: Live public-command smoke passed in both directions using existing desktop authentication. The final Codex-authored delta reached headless Claude under `require` policy and returned `approve` with dispatch `6ed64e69-aade-41e6-a2ba-87b37c0edb19`, validated Claude provenance, and no blocking findings.
+- 2026-08-02T23:10:00.000Z Mainline reconciliation: Rebased onto `origin/main` at `e22a2f96b`, preserved the new project-principles review contract alongside cross-agent coordinator routing and actual-model provenance, regenerated Codex plugin assets, and confirmed architecture state is current.
+- 2026-08-02T23:18:20.000Z Verification: 417 Vitest files passed (6296 tests, 5 skipped), all 771 Cucumber scenarios passed or were intentionally skipped (768 passed, 3 skipped), TypeScript/build/lint/dependency checks passed, 64/64 BDD ledger rows are complete, and the diff-scoped audit passed. Marked the feature done.
