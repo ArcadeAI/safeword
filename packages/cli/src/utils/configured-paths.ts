@@ -120,7 +120,7 @@ function parseGitDocumentationSource(
  * empty, non-string, or the config file is missing/unparseable.
  *
  * Exported for callers that need to know "is this overridden?" without
- * resolving the path (e.g., reconcile's `configKey` gate, `safeword check`
+ * resolving the path (e.g., reconcile's `configKey` gate, `safeword doctor`
  * advisory messaging).
  */
 export function readConfiguredPath(
@@ -179,7 +179,7 @@ export function readBddConventionsPath(cwd: string): string | undefined {
  * design: an unparseable config never silently disables enforcement.
  *
  * Read by both enforcement surfaces — the commit-time stage hook and the CI
- * `safeword architecture --check` backstop.
+ * `safeword project architecture --check` backstop.
  */
 export function isArchitectureDocumentEnforcementEnabled(cwd: string): boolean {
   const parsed = readSafewordConfig(cwd);

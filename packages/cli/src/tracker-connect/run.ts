@@ -1,7 +1,7 @@
 /**
  * Composition root for the connect flow (2TK5AD): wire the real boundary ports
  * (prompt / secret store / verify), resolve any env credential, and run the
- * orchestration. Shared by `safeword connect` and the `safeword setup` offer so
+ * orchestration. Shared by `safeword tracker connect` and the `safeword setup` offer so
  * neither command imports the other — commands stay independent (depcruise
  * `cli-no-cross-command-imports`); the shared logic lives in the module, not a
  * sibling command.

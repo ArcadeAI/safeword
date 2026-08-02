@@ -101,7 +101,7 @@ Claude Code has three mechanisms for controlling agent behavior. Understanding t
 
 **Decision**: Source templates in `packages/cli/templates/`, installed configs in `.safeword/`.
 
-**Why**: Clear separation between "what we ship" and "what's installed". Enables `bunx safeword upgrade` to sync changes.
+**Why**: Clear separation between "what we ship" and "what's installed". Enables `bunx safeword setup` to sync changes.
 
 ## Directory Roles
 
@@ -156,7 +156,7 @@ Write ticket names that describe **user value**, not implementation.
 
 ## Common Gotchas
 
-1. **templates/ vs .safeword/**: Edit `packages/cli/templates/` first, then `bunx safeword upgrade` to sync. Never edit `.safeword/` directly for framework changes.
+1. **templates/ vs .safeword/**: Edit `packages/cli/templates/` first, then `bunx safeword setup` to sync. Never edit `.safeword/` directly for framework changes.
 
 2. **Schema registration**: Every file in `packages/cli/templates/` MUST have an entry in `packages/cli/src/schema.ts`. Without it, the file exists but never gets installed. Run `bun run test -- --testNamePattern="should have entry"` to verify.
 

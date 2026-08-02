@@ -254,7 +254,7 @@ describe('audit drift check resolves the local safeword CLI, not @latest (#264)'
       // The in-repo source checkout is the middle fallback — assert it too so a
       // regression that drops the dogfood branch can't pass silently.
       expect(content).toContain('bun packages/cli/src/cli.ts');
-      expect(content).toContain('$SW sync-config --check');
+      expect(content).toContain('$SW project sync-config --check');
     },
   );
 });

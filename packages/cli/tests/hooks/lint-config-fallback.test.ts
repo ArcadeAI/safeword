@@ -33,7 +33,7 @@ const LANGUAGE_CASES = [
     extension: 'ts',
     configRelativePath: undefined,
     expectedWarning:
-      'TypeScript Safeword config is missing — linting with ESLint defaults, not Safeword rules. Run `safeword setup` or `safeword upgrade` to install it.',
+      'TypeScript Safeword config is missing — linting with ESLint defaults, not Safeword rules. Run `safeword setup` to install it.',
     forbidConfigArgument: true,
     stubCommands: [],
     expectedInvocations: [
@@ -60,7 +60,7 @@ const LANGUAGE_CASES = [
     extension: 'py',
     configRelativePath: undefined,
     expectedWarning:
-      'Python Safeword config is missing — linting with Ruff defaults, not Safeword rules. Run `safeword setup` or `safeword upgrade` to install it.',
+      'Python Safeword config is missing — linting with Ruff defaults, not Safeword rules. Run `safeword setup` to install it.',
     forbidConfigArgument: true,
     stubCommands: ['ruff'],
     expectedInvocations: [
@@ -87,7 +87,7 @@ const LANGUAGE_CASES = [
     extension: 'go',
     configRelativePath: undefined,
     expectedWarning:
-      'Go Safeword config is missing — linting with golangci-lint defaults, not Safeword rules. Run `safeword setup` or `safeword upgrade` to install it.',
+      'Go Safeword config is missing — linting with golangci-lint defaults, not Safeword rules. Run `safeword setup` to install it.',
     forbidConfigArgument: true,
     stubCommands: ['golangci-lint'],
     expectedInvocations: [
@@ -116,7 +116,7 @@ const LANGUAGE_CASES = [
     extension: 'rs',
     configRelativePath: undefined,
     expectedWarning:
-      'Rust Safeword config is missing — linting with rustfmt defaults, not Safeword rules. Run `safeword setup` or `safeword upgrade` to install it.',
+      'Rust Safeword config is missing — linting with rustfmt defaults, not Safeword rules. Run `safeword setup` to install it.',
     forbidConfigArgument: true,
     stubCommands: ['rustfmt'],
     expectedInvocations: [/^rustfmt .*source\.rs$/],

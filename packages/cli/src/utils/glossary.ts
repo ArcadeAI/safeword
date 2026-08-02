@@ -62,7 +62,7 @@ export type GlossaryReferenceResult =
  * gracefully on a missing or unreadable file — returns
  * `{ status: 'unknown' }` rather than throwing, regardless of whether the
  * resolved path is the default or a configured override. The loud signal
- * on configured-but-missing lives in `safeword check`, not here — keep
+ * on configured-but-missing lives in `safeword doctor`, not here — keep
  * this lookup cheap and side-effect-free (mirrors
  * `validatePersonaReference`, ticket K7N2QM).
  */

@@ -1,5 +1,5 @@
 /**
- * `safeword sync-tracker` — project the local ticket corpus one-way into the
+ * `safeword tracker sync` — project the local ticket corpus one-way into the
  * configured tracker (JS5K5G). Thin wrapper: read config, resolve the credential,
  * walk the corpus, build the live writer, and hand it all to the pure
  * orchestrator. Network runs only here / in CI, never in the per-turn loop.

@@ -314,7 +314,7 @@ function evaluateBirth(
 /**
  * Read one artifact's content by repo-relative path, or undefined when absent.
  * The tree behind it is the caller's choice: the staged index at the commit
- * boundary, HEAD at the push boundary, the filesystem for `safeword check`.
+ * boundary, HEAD at the push boundary, the filesystem for `safeword doctor`.
  * Callers with no tree at hand (write-time hooks) pass none — format-only.
  */
 export type ArtifactReader = (relpath: string) => string | undefined;
@@ -592,8 +592,8 @@ function validateAnchor(
 /**
  * At-rest variant of the anchor check (issue #824): does a feature ticket's
  * CURRENT phase carry a valid anchor? No transition needed — this is the
- * advisory view `safeword check` reports for in-progress tickets. Format-only
- * without a reader; existence + shape with one (`safeword check` injects the
+ * advisory view `safeword doctor` reports for in-progress tickets. Format-only
+ * without a reader; existence + shape with one (`safeword doctor` injects the
  * filesystem). One deliberate divergence from the transition detector: a
  * hex-shaped legacy anchor at rest is `not-applicable` — pre-redesign tickets
  * recorded SHAs honestly under the old convention, and re-litigating them

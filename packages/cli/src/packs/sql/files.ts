@@ -68,7 +68,7 @@ function generateSqlfluffBaseConfig(
     // sqlfluff --config patches key-by-key, so omitting means customer's values survive.
     return `# Safeword SQLFluff config - adds stricter rules on top of project config
 # Used by hooks for LLM enforcement. Human pre-commits use project config.
-# Re-run \`safeword upgrade\` to regenerate after project config changes.
+# Re-run \`safeword setup\` to regenerate after project config changes.
 #
 # NOTE: Your dialect and templater are preserved. Safeword only adds style rules.
 

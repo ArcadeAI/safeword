@@ -90,7 +90,7 @@ Safeword auto-detects your stack and configures linting accordingly:
 
 Detection is stored in `.safeword/config.json`. To force a refresh, delete that file and run `safeword setup` again.
 
-Edit-time linting uses the generated language-pack config when it exists. For JavaScript/TypeScript, Python, Go, and Rust, a missing config falls back to the tool's defaults and reports once per session that Safeword rules are not active. SQLFluff runs only when its generated config exists. The lint hook never repairs a pack, runs an upgrade, stages files, or creates a commit. Version upgrades remain the responsibility of the session-start auto-upgrade; to repair a missing pack manually, run `safeword setup` or `safeword upgrade`.
+Edit-time linting uses the generated language-pack config when it exists. For JavaScript/TypeScript, Python, Go, and Rust, a missing config falls back to the tool's defaults and reports once per session that Safeword rules are not active. SQLFluff runs only when its generated config exists. The lint hook never repairs a pack, runs setup, stages files, or creates a commit. Version convergence remains the responsibility of the session-start updater; to repair a missing pack manually, run `safeword setup`.
 
 ## Biome & Alternative Formatters
 
@@ -192,7 +192,7 @@ The `paths` object also supports per-file overrides — `personas`, `glossary`, 
 
 Persona headers may carry an explicit short code, for example `## Platform Operator (PO)`. Automatic codes use **3–4 letters** (`Platform Operator` → `PLO`); explicit overrides may use **2–4 letters**. Carry the resolved code unchanged through JTBD ids and Gherkin lineage (`oauth-flow.PO1.R1`). Safeword still accepts existing explicit 5–6 character codes and resolves former derived aliases, so upgrading does not require renaming historical specs or scenarios.
 
-Two directory keys, `features` and `steps`, point the BDD acceptance lane at relocated (or host-owned) directories. Unlike the per-file overrides they **augment** the defaults rather than replace them: `safeword codify`, `safeword lint-gherkin`, and the `safeword check` spec gate read the configured `features` directory _in addition to_ root `features/` and the workspace-package conventions, and the scaffolded `cucumber.mjs` runner reads both keys (`steps` matters only to the runner, for relocated TypeScript step definitions). Set them when your acceptance suite lives elsewhere (e.g. `tests/behaviors` + `tests/steps`), including when setup detected an existing cucumber harness and skipped the starter lane:
+Two directory keys, `features` and `steps`, point the BDD acceptance lane at relocated (or host-owned) directories. Unlike the per-file overrides they **augment** the defaults rather than replace them: `safeword project codify`, `safeword project lint-gherkin`, and the `safeword doctor` spec gate read the configured `features` directory _in addition to_ root `features/` and the workspace-package conventions, and the scaffolded `cucumber.mjs` runner reads both keys (`steps` matters only to the runner, for relocated TypeScript step definitions). Set them when your acceptance suite lives elsewhere (e.g. `tests/behaviors` + `tests/steps`), including when setup detected an existing cucumber harness and skipped the starter lane:
 
 ```json
 {
@@ -229,11 +229,11 @@ For adopted host harnesses with a house style, `bdd.conventions` points at a con
 }
 ```
 
-When set, `safeword codify` prints a pointer to the doc alongside its output, and the installed BDD skill prose directs agents to read and follow it over safeword's defaults. Safeword never parses or validates the doc — it lives next to the harness and is maintained by whoever maintains the harness, so it cannot drift the way conventions transcribed into skill prose do.
+When set, `safeword project codify` prints a pointer to the doc alongside its output, and the installed BDD skill prose directs agents to read and follow it over safeword's defaults. Safeword never parses or validates the doc — it lives next to the harness and is maintained by whoever maintains the harness, so it cannot drift the way conventions transcribed into skill prose do.
 
 `surfaces.md` is optional project knowledge for BDD. Use it for recurring product, agent, runtime, protocol, client, or deployment contexts where behavior must keep working, such as Claude Code, OpenAI Codex, Cursor, web, mobile, MCP, cloud service, or self-hosted deployments. Keep one-off contexts in a feature spec's `## Surfaces` section unless they recur across tickets, are ambiguous enough to drift, or are important enough that missing them would leave a context untested. When a spec lists affected surfaces, saved `.feature` scenarios should cover them with `@surface.<slug>` tags or explicit `skip:` reasons.
 
-`docs.sources` is separate from `paths.*`. Use it to tell audit where project documentation lives. Local sources are validated by `safeword check`; URL and git sources are treated as audit inventory and should be fetched during audit when access is available, or reported as skipped coverage when they are not accessible. Set `"docs": { "sources": [] }` to keep fallback discovery and stop future audits from asking for configured sources.
+`docs.sources` is separate from `paths.*`. Use it to tell audit where project documentation lives. Local sources are validated by `safeword doctor`; URL and git sources are treated as audit inventory and should be fetched during audit when access is available, or reported as skipped coverage when they are not accessible. Set `"docs": { "sources": [] }` to keep fallback discovery and stop future audits from asking for configured sources.
 
 ## Project-Specific Content
 
@@ -248,7 +248,7 @@ This folder is yours—Safeword will never modify it.
 ## Tracker Integration (`ticketBridge`)
 
 Mirror local tickets one-way into GitHub Issues or Linear. Off by default; configured via
-`safeword connect`. See [Tracker Integration](/reference/tracker-integration/) for the full guide.
+`safeword tracker connect`. See [Tracker Integration](/reference/tracker-integration/) for the full guide.
 
 ```json
 {

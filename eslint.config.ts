@@ -35,7 +35,7 @@ const ignores = [
   'packages/cli/scripts/*.js', // Node.js scripts with CommonJS globals
   'scripts/', // Monorepo dev scripts - standalone Bun scripts not in any tsconfig
   'experiments/', // Research spikes - self-contained, not in any tsconfig or workspace
-  'features/', // Root cucumber lane scaffolded by safeword upgrade - customer-facing, no tsconfig
+  'features/', // Root cucumber lane scaffolded by safeword setup - customer-facing, no tsconfig
   'steps/', // Root cucumber step definitions (same lane)
 ];
 

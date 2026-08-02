@@ -14,21 +14,19 @@ Install safeword's AI coding agent configuration into the current project.
 test -d .safeword && echo "Already installed" || echo "Not installed"
 ```
 
-2. If already installed, suggest `bunx safeword@latest upgrade` instead and stop.
-
-3. If not installed, run:
+2. Run the convergent setup command for both new and existing installations:
 
 ```bash
 bunx safeword@latest setup
 ```
 
-4. If `bunx` is not available, try:
+3. If `bunx` is not available, try:
 
 ```bash
 npx safeword@latest setup
 ```
 
-Setup auto-detects languages (TypeScript, Python, Go, Rust) and installs everything. No prompts.
+Setup auto-detects languages (TypeScript, Python, Go, Rust), creates missing configuration, and updates Safeword-owned files while preserving project customizations.
 
 ## What Gets Installed
 

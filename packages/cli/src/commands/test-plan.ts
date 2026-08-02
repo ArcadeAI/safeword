@@ -1,5 +1,5 @@
 /**
- * `safeword test-plan` — emit the test/build commands for every language present
+ * `safeword project test-plan` — emit the test/build commands for every language present
  * in the repo, as the single source of truth consumers (verify/audit/test-runner)
  * call. Plan-only: prints commands, never runs them.
  */

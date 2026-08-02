@@ -219,7 +219,7 @@ function getSafewordEslintConfigExtending(
 
   return `// Safeword ESLint config - extends project config with stricter rules
 // Used by hooks for LLM enforcement. Human pre-commits use project config.
-// Re-run \`safeword upgrade\` to regenerate after project config changes.
+// Re-run \`safeword setup\` to regenerate after project config changes.
 import { existsSync } from "node:fs";
 ${safewordImport}${prettier.import}
 

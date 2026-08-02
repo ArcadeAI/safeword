@@ -66,7 +66,7 @@ closing tracking items whose acceptance criteria are not demonstrably complete.
 - [x] A connected-provider wiring test crosses the real command/config/writer/process/sidecar/filesystem path with only `gh` replaced at the process boundary.
 - [x] Keychain-only sync authentication crosses the real command/config/corpus/writer/process/sidecar path with only `gh` replaced at the process boundary.
 - [x] Graph projection omits self-parent and self-blocker edges consistently in plan and live-sync paths.
-- [x] `safeword test-plan` verify, BDD, build, typecheck, and dependency lanes pass.
+- [x] `safeword project test-plan` verify, BDD, build, typecheck, and dependency lanes pass.
 - [x] Package release tests and package-content validation pass.
 - [x] Template/schema/installed-config parity checks pass.
 - [x] Architecture, dead-code, duplication, test-quality, and documentation audits have no release-blocking findings.
@@ -97,6 +97,7 @@ closing tracking items whose acceptance criteria are not demonstrably complete.
 - 2026-08-01T16:11:37.000Z Complete: The combined tracker, public-CLI, Linear, and lock-runner suite passed 50 tests; the full suite passed 5,937 tests, all 27 release tests, lint, typecheck, formatting, parity, and website validation. The exact index now contains 472 canonical tickets.
 - 2026-08-01T16:13:00.000Z Reopened: Main advanced during verification with architecture-fingerprint enforcement. Its only release-PR overlap was the generated ticket index; the architecture-focused suite passed 218 tests.
 - 2026-08-01T16:27:32.000Z Complete: A transient child-runner exit in the first full pass did not reproduce in isolation or in the complete rerun. Final evidence is 6,068 passing tests, 671 passing acceptance scenarios, 27 release tests, lint, typecheck, formatting, parity, and an exact 472-ticket index.
+- 2026-08-02T00:00:56.000Z Complete: Audited and updated every release-facing documentation layer for the canonical v0.70 command hierarchy, added a 403rd regression-test file to prevent alias drift, and moved the stop-hook test-plan consumer plus executable scenario drivers to the canonical command. Final evidence is 6,069 passing tests, 671 passing acceptance scenarios, 27 release tests, lint, typecheck, Markdown, formatting, website, and parity gates green.
 
 ## Root Cause
 

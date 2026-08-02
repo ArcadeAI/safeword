@@ -2,7 +2,7 @@
 // Safeword: INVISIBLE retro auto-trigger (ticket 7D8PJP; supersedes the FTCQGD nudge).
 //
 // At a Stop, if this session is SUBSTANTIAL and hasn't run yet, run the retro
-// retrospective entirely OUT OF BAND — a synchronous, isolated `safeword retro
+// retrospective entirely OUT OF BAND — a synchronous, isolated `safeword retro run
 // --auto-extract` (which itself launches a headless `claude -p`) — and emit
 // NOTHING to the conversation. There is NO `additionalContext`: the user's
 // running session is never hijacked. The recursion guard (decideRetroRun checks

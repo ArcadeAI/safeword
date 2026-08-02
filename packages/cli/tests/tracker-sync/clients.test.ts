@@ -127,7 +127,7 @@ describe('Linear live projection client', () => {
     ],
   ])('points %s callers to the supported adoption and portable-sync paths', async (_name, call) => {
     await expect(call()).rejects.toThrow(
-      'Adopt an existing Linear issue with `safeword ticket new <slug> --issue <key>`, or sync existing local tickets through `safeword sync-tracker --plan` and `--apply-results`.',
+      'Adopt an existing Linear issue with `safeword ticket new <slug> --issue <key>`, or sync existing local tickets through `safeword tracker sync --plan` and `--apply-results`.',
     );
   });
 });

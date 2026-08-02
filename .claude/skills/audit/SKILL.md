@@ -263,7 +263,7 @@ else
     elif [ -f packages/cli/src/cli.ts ]; then
       SW="bun packages/cli/src/cli.ts"
     else SW="bunx safeword"; fi
-    $SW sync-config --check 2>&1 || echo "[W007] Stale .safeword/depcruise-config.cjs — run \`safeword sync-config\` to refresh and commit"
+    $SW project sync-config --check 2>&1 || echo "[W007] Stale .safeword/depcruise-config.cjs — run \`safeword project sync-config\` to refresh and commit"
 
     # Config-drift coverage is JS/TS-only (W005 knip hints, W007 depcruise config).
     # Native stacks have no comparable drift check yet — say so instead of letting
@@ -924,7 +924,7 @@ fi
 
 **Empty-doc offer (W008):** report the empty doc and point the user to its template — do **not** draft entries or write the file during the audit pass (read-only). Filling it is a follow-up the user approves.
 
-**Coverage limitation:** the block reads the default namespace-root locations; per-file `paths.personas` / `paths.surfaces` / `paths.glossary` overrides are validated by `safeword check` (structure), not here. If the safeword feature-directory resolver is unavailable, W009 says E008 fell back to root `features/` only. Persona drift reads spec `**Persona:**` lines only — feature lineage tags are not a reliable persona source.
+**Coverage limitation:** the block reads the default namespace-root locations; per-file `paths.personas` / `paths.surfaces` / `paths.glossary` overrides are validated by `safeword doctor` (structure), not here. If the safeword feature-directory resolver is unavailable, W009 says E008 fell back to root `features/` only. Persona drift reads spec `**Persona:**` lines only — feature lineage tags are not a reliable persona source.
 
 ---
 
@@ -950,7 +950,7 @@ Report findings by severity with codes:
 - [W003] Staleness: `README.md` last modified 45 days ago (12 commits since)
 - [W005] Stale config: `knip.json` — `lodash` can be removed from ignoreDependencies
 - [W006] Learning file missing Covers: — `<namespace-root>/learnings/foo.md` (absent from INDEX.md)
-- [W007] Stale .safeword/depcruise-config.cjs — run `safeword sync-config` to refresh and commit
+- [W007] Stale .safeword/depcruise-config.cjs — run `safeword project sync-config` to refresh and commit
 - [W008] Empty domain doc: `surfaces.md` has no uncommented entries — fill from its template (BDD intake references degrade until filled)
 - [W009] Feature-directory resolver unavailable — E008 scanned root `features/` only
 

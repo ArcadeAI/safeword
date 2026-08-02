@@ -14,7 +14,7 @@ It is **off by default** (`provider: none`): an unconfigured project does nothin
 
 - **Local files stay canonical.** The tracker is a mirror, never a second master. Safeword writes
   outward only — it never lets the tracker drive your local tickets.
-- **Network runs only when you sync** (`safeword sync-tracker`) or in CI — never on every agent
+- **Network runs only when you sync** (`safeword tracker sync`) or in CI — never on every agent
   turn. Gates always read local files.
 - **Idempotent.** A sidecar (`.safeword/tracker-map.json`) records which ticket maps to which
   issue, so re-running updates the existing issue instead of creating a duplicate. A terminal
@@ -24,13 +24,13 @@ It is **off by default** (`provider: none`): an unconfigured project does nothin
 
 ```bash
 # GitHub Issues
-safeword connect github --repo owner/name
+safeword tracker connect github --repo owner/name
 
 # Linear
-safeword connect linear --team ENG
+safeword tracker connect linear --team ENG
 ```
 
-`connect` writes the `ticketBridge` block to `.safeword/config.json`. GitHub's live connection also
+`tracker connect` writes the `ticketBridge` block to `.safeword/config.json`. GitHub's live connection also
 verifies auth and seeds an empty sidecar. For Linear, the command records the provider/team identity
 before attempting live verification. Because live Linear verification is not wired yet, it then
 reports `Not connected` and exits 1; the printed Arcade OAuth handoff does not enable live sync in
@@ -40,7 +40,7 @@ sidecar. Credentials stay outside config and are never written to logs.
 :::note[GitHub live sync; Linear portable sync]
 **GitHub** supports both the one-command live sync and the portable transport. **Linear** supports
 tracker identity (`connect linear` and adopting an existing issue with `--issue`) plus sync through
-`--plan` / `--apply-results`. Only the built-in live transport behind plain `sync-tracker` is
+`--plan` / `--apply-results`. Only the built-in live transport behind plain `tracker sync` is
 GitHub-only; use the portable transport with a Linear-capable executor.
 :::
 
@@ -62,7 +62,7 @@ would otherwise fail silently.
 ### Live transport (GitHub)
 
 ```bash
-safeword sync-tracker
+safeword tracker sync
 ```
 
 This GitHub path walks your active tickets and creates/updates their issues (and closes the issue
@@ -91,19 +91,19 @@ jobs:
         with:
           # Match safeword's supported Node.js engine range.
           node-version: 24.18.0
-      - run: npx safeword sync-tracker
+      - run: npx safeword tracker sync
         env:
           # GitHub: the built-in token can create/update issues in this repo.
           # This workflow passes it explicitly as GITHUB_TOKEN.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-For local runs, `sync-tracker` also honors the GitHub CLI's resolved authentication. GitHub CLI
+For local runs, `tracker sync` also honors the GitHub CLI's resolved authentication. GitHub CLI
 uses `GH_TOKEN` ahead of `GITHUB_TOKEN`, then falls back to its stored credential when neither is
 set. Safeword's preflight probes `GH_TOKEN` or stored authentication before falling back to
 `GITHUB_TOKEN`; live writes delegate the final choice to `gh` using its normal precedence.
 
-`sync-tracker` **fails loudly (non-zero exit)** when a provider is configured but no credential
+`tracker sync` **fails loudly (non-zero exit)** when a provider is configured but no credential
 resolves — it never silently exits 0 and does nothing, so a misconfigured CI job turns red instead
 of quietly drifting. In a non-interactive run authenticated by an `ARCADE_USER_ID` (a user
 identity, not a service account), it also warns that a lapsed grant would otherwise fail silently.
@@ -116,27 +116,27 @@ the sync offline; an executor with access to the configured tracker performs the
 
 ```bash
 # 1. Compute the plan (no network, no credential) — JSON on stdout.
-safeword sync-tracker --plan > plan.json
+safeword tracker sync --plan > plan.json
 
 # 2. Your executor (an agent via tracker tools, a token+API script, …) reads plan.json,
 #    creates/updates/closes the issues, and writes back a results file:
 #    { "version": 1, "results": [{ "ticketId": "…", "number": "549", "url": "…/549" }] }
 
 # 3. Fold the results back into the local tracker-map (also offline).
-safeword sync-tracker --apply-results results.json
+safeword tracker sync --apply-results results.json
 ```
 
 `--plan` writes only the plan JSON to stdout (safe to pipe); `--apply-results` records each created
 issue's number and back-link, and is idempotent — re-applying the same file changes nothing. The two
 flags are mutually exclusive, and a malformed results file is rejected without touching the map.
-Running `sync-tracker` with neither flag is the usual `gh` path, unchanged.
+Running `tracker sync` with neither flag uses the built-in `gh` transport.
 
 #### Linear example
 
 First record the Linear team identity:
 
 ```bash
-safeword connect linear --team ENG
+safeword tracker connect linear --team ENG
 ```
 
 The command writes the Linear provider and team to `.safeword/config.json`, then reports
@@ -150,7 +150,7 @@ automation.
 Now generate the provider-neutral plan; this does not construct a Linear client:
 
 ```bash
-safeword sync-tracker --plan > linear-plan.json
+safeword tracker sync --plan > linear-plan.json
 ```
 
 Have an executor with Linear access apply each `create`, `update`, or `close` intent in
@@ -173,7 +173,7 @@ example, if local ticket `AB12CD` became Linear issue `ENG-45`:
 Save that document as `linear-results.json`, then record the Linear reference in the local map:
 
 ```bash
-safeword sync-tracker --apply-results linear-results.json
+safeword tracker sync --apply-results linear-results.json
 ```
 
 Despite the field name `number`, Linear issue keys such as `ENG-45` are valid strings.

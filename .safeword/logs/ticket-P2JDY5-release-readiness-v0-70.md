@@ -35,3 +35,9 @@
 - [08:59] Complete: Three independent reviews approved with no critical issues or suggestions. Full Vitest, BDD, release, lint, typecheck, package, website, parity, architecture, dead-code, formatting, and production dependency gates passed.
 - [16:20] Reopened: A new independent full-diff review found the generated ticket index stale despite the canonical tickets being reconciled. Regenerated the index and clarified the documented `GH_TOKEN`/stored-credential behavior before rerunning the release gates.
 - [16:40] Complete: Final re-review approved with no findings. After merging current `main`, 5,670 tests and 499 BDD scenarios passed; returned P2JDY5 to done and regenerated the canonical 467-ticket index.
+
+## Session: 2026-08-01
+
+- [17:00] Documented: Aligned public, website, plugin, template, generated Codex, dogfood, and agent-context documentation with the canonical v0.70 command hierarchy; added regression coverage against future alias drift.
+- [17:00] Cleaned: Moved the stop-hook test runner and executable test-plan scenarios to `safeword project test-plan`, removing compatibility warnings from normal verification while preserving explicit alias tests.
+- [17:00] Verified: Full Vitest passed 6,069 tests (5 skipped); BDD passed 671 scenarios (3 skipped); all 27 release tests, lint, typecheck, Markdown, formatting, website, parity, and diff-hygiene checks passed.

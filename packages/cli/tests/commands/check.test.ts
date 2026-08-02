@@ -599,7 +599,7 @@ describe('Test Suite 8: Health Check', () => {
       expect(result.exitCode).toBe(0);
       const combined = `${result.stdout}\n${result.stderr}`;
       expect(combined).toMatch(/merge-conflict markers/i);
-      expect(combined).toMatch(/safeword sync-tickets --quiet/i);
+      expect(combined).toMatch(/safeword project sync-tickets --quiet/i);
     });
   });
 

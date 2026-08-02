@@ -1,6 +1,6 @@
 /**
  * The opt-in `setup` offer (2TK5AD AC1, AC8). A single yes/no (default no) that,
- * on accept, runs the *same* connect flow `safeword connect` runs — one code path,
+ * on accept, runs the *same* connect flow `safeword tracker connect` runs — one code path,
  * so setup-connect and standalone-connect can't diverge. Declining is fully inert.
  */
 
@@ -15,7 +15,7 @@ export interface OfferDependencies {
   prompt: Prompt;
   /** Obtain the provider+target to connect (prompt the human); undefined cancels. */
   chooseConnect: () => Promise<ConnectChoice | undefined>;
-  /** Run the connect flow — the same orchestration `safeword connect` uses. */
+  /** Run the connect flow — the same orchestration `safeword tracker connect` uses. */
   connect: (choice: ConnectChoice) => Promise<ConnectResult>;
 }
 

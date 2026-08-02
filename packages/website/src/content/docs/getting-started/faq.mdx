@@ -41,7 +41,7 @@ No. Commit the Safe Word project configuration for the surfaces your team uses, 
 
 ### Will it interfere with my development workflow?
 
-No. Safeword's hooks and stricter linting rules only fire during AI agent sessions (Claude Code / Cursor / Codex events). They never run when you code normally. In repos that already use husky, setup appends one warn-only line to `pre-commit`/`pre-push` — the boundary evidence check. It reports, never blocks a commit, and `safeword reset` removes it; safeword never installs a hook manager. Safeword also adds `lint` and `format` scripts to your `package.json` — you can wire these into CI pipelines or precommit hooks if you want, but it's your choice.
+No. Safeword's hooks and stricter linting rules only fire during AI agent sessions (Claude Code / Cursor / Codex events). They never run when you code normally. In repos that already use husky, setup appends one warn-only line to `pre-commit`/`pre-push` — the boundary evidence check. It reports, never blocks a commit, and `safeword remove` removes it; safeword never installs a hook manager. Safeword also adds `lint` and `format` scripts to your `package.json` — you can wire these into CI pipelines or precommit hooks if you want, but it's your choice.
 
 ### Some lint rules are wrong for my project type
 
@@ -88,7 +88,7 @@ Both approaches work in your project's `eslint.config.mjs`. Safeword's LLM hook 
 
 ### Can I remove Safeword later?
 
-Yes. Run `bunx safeword reset --full` to remove all Safeword files and linting packages. Your application code is unaffected. See [CLI](/reference/cli) for details.
+Yes. Run `bunx safeword remove --full` to preview the removal, then run the exact `--yes --plan <id>` command Safeword prints. Your application code is unaffected. See [CLI](/reference/cli) for details.
 
 ### What if I only want some of the features?
 

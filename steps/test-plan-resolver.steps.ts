@@ -65,11 +65,15 @@ function runPlan(world: TestPlanWorld, kind: 'test' | 'build'): void {
   // Run from the repo root (valid package.json) and point the CLI at the temp
   // repo via the [dir] arg — so a malformed temp package.json can't trip the
   // bun runtime before the CLI's own (catching) resolver reads it.
-  world.cliStdout = execFileSync('bun', [cliPath, 'test-plan', target, '--kind', kind, '--json'], {
-    cwd: process.cwd(),
-    encoding: 'utf8',
-    env: { ...process.env, SAFEWORD_FAKE_TOOLS: world.fakeTools ?? 'all' },
-  });
+  world.cliStdout = execFileSync(
+    'bun',
+    [cliPath, 'project', 'test-plan', target, '--kind', kind, '--json'],
+    {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      env: { ...process.env, SAFEWORD_FAKE_TOOLS: world.fakeTools ?? 'all' },
+    },
+  );
   const envelope = JSON.parse(world.cliStdout) as { data?: { plan?: PlanEntry[] } };
   world.plan = envelope.data?.plan ?? [];
 }

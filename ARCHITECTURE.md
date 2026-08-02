@@ -82,7 +82,7 @@ packages/cli/
 │   ├── templates/        # Template content helpers
 │   ├── test-plan/        # Resolves per-language test/build/typecheck/bdd/deps command plans (verify + stop-gate source of truth)
 │   ├── ticket-sync/      # Generates <namespace-root>/tickets/INDEX.md + INDEX-completed.md discovery indexes
-│   ├── tracker-connect/  # `safeword connect` flow: tracker credentials, config, secret store
+│   ├── tracker-connect/  # `safeword tracker connect` flow: tracker credentials, config, secret store
 │   ├── tracker-sync/     # One-way projection of the ticket corpus into the configured tracker
 │   ├── upstream-monitor/ # Watches upstream agent-CLI changelogs (claude-code, codex-cli, cursor) via snapshots
 │   ├── utils/            # Detection, file ops, git, version
@@ -390,7 +390,7 @@ CLI command
 
 The Vitest lanes extend `vitest.base.ts` and use up to three workers. `test:bdd` is a **separate runner**: cucumber-js executes `.feature` files with TypeScript step defs (loaded via `tsx/esm`). Unit/integration stay in vitest (which globs only `*.test.ts`); the acceptance lane and the unit suite partition the tree, neither double-runs a spec.
 
-The lane is also **core customer scaffolding** (102b): `safeword setup` writes the same shape into every project — `cucumber.mjs` (safeword-owned), `features/` + `steps/` starters (customer-owned after creation), `@cucumber/cucumber` + `tsx` as conditional packages, and a `test:bdd` script (add-if-absent). A repo with no `package.json` (pure Go/Rust/Python) gets a minimal private one created to host the lane, and the TS toolchain comes along so the lane's step files are themselves linted (Option A, ticket 102b). **Unless the repo already has its own cucumber harness** (56JCFZ, issue #645): setup detects host cucumber configs/deps (excluding safeword's own template revisions, hash-registered in `cucumber-template-revisions.ts`), suppresses the entire starter lane, and points the user at `paths.features`/`paths.steps` — which all readers (`codify`/`lint-gherkin`/`check` via `feature-source.ts`) and the scaffolded runner consume as augment-not-replace. `safeword check` carries the persistent misalignment advisories; uninstall never removes host-owned harness pieces.
+The lane is also **core customer scaffolding** (102b): `safeword setup` writes the same shape into every project — `cucumber.mjs` (safeword-owned), `features/` + `steps/` starters (customer-owned after creation), `@cucumber/cucumber` + `tsx` as conditional packages, and a `test:bdd` script (add-if-absent). A repo with no `package.json` (pure Go/Rust/Python) gets a minimal private one created to host the lane, and the TS toolchain comes along so the lane's step files are themselves linted (Option A, ticket 102b). **Unless the repo already has its own cucumber harness** (56JCFZ, issue #645): setup detects host cucumber configs/deps (excluding safeword's own template revisions, hash-registered in `cucumber-template-revisions.ts`), suppresses the entire starter lane, and points the user at `paths.features`/`paths.steps` — which all readers (`project codify` / `project lint-gherkin` / `doctor` via `feature-source.ts`) and the scaffolded runner consume as augment-not-replace. `safeword doctor` carries the persistent misalignment advisories; removal never removes host-owned harness pieces.
 
 ---
 
@@ -404,7 +404,7 @@ tsup → dist/
   └── *.d.ts              # Type declarations
 ```
 
-Published files: `dist/` + `templates/` (bundled for setup/upgrade) + `codex-plugin/` (bundled for Codex plugin install).
+Published files: `dist/` + `templates/` (bundled for setup convergence) + `codex-plugin/` (bundled for Codex plugin install).
 
 **Publish gate:** `prepublishOnly` runs `test:release` (dogfood parity) then `build`.
 
@@ -518,7 +518,7 @@ Published files: `dist/` + `templates/` (bundled for setup/upgrade) + `codex-plu
 
 **Gate types:**
 
-- **LOC gate** (`loc`) — triggers when `git diff --stat HEAD` exceeds 400 LOC of project code; forces commit before more edits. Meta paths (`.safeword/`, `.claude/`, `.cursor/`, `.safeword-project/`) are excluded from the count via git pathspec, so setup/upgrade output doesn't inflate it.
+- **LOC gate** (`loc`) — triggers when `git diff --stat HEAD` exceeds 400 LOC of project code; forces commit before more edits. Meta paths (`.safeword/`, `.claude/`, `.cursor/`, `.safeword-project/`) are excluded from the count via git pathspec, so setup convergence output doesn't inflate it.
 - **Phase reminders** — prompt hook derives current phase from ticket.md via `getTicketInfo()` and injects phase-specific one-liner each turn. No blocking gate — guidance only.
 - **TDD step reminders** — prompt hook derives TDD step from test-definitions.md via `deriveTddStep()` during `implement` phase. Shows RED/GREEN/REFACTOR status each turn.
 
@@ -568,7 +568,7 @@ and Codex Stop so all three address the same state key.
 | Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                  |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | What           | BDD Phase 0 (`intake`) now writes a per-ticket `spec.md` with persona-anchored Jobs To Be Done → numbered Rules (Acceptance Criteria remain as the soft-deprecated legacy alternative) → engineering scope, backed by a project glossary and personas file. Scenarios carry lineage `<slug>.<persona><JTBD#>.R<#>.<scenario>` (or `.AC<#>` on the legacy path) so coverage gaps are machine-checkable. |
-| Why            | Engineering scope (`scope` / `out_of_scope` / `done_when`) captured _what_ to build but not _who_ for or _why_; product framing anchors scenarios to verifiable criteria and lets `safeword check` flag uncovered rules and orphan scenarios.                                                                                                                                                          |
+| Why            | Engineering scope (`scope` / `out_of_scope` / `done_when`) captured _what_ to build but not _who_ for or _why_; product framing anchors scenarios to verifiable criteria and lets `safeword doctor` flag uncovered rules and orphan scenarios.                                                                                                                                                         |
 | Trade-off      | Longer intake for features; Phase 0 advances through structured signoff sub-gates (orientation → JTBD → Rules → scope) rather than one step.                                                                                                                                                                                                                                                           |
 | Alternatives   | Keep engineering-only scope (rejected: no product framing); separate product skill with handoff (rejected: skill-to-skill handoffs unreliable — same reasoning as the BDD+TDD merge above).                                                                                                                                                                                                            |
 | Implementation | `packages/cli/templates/skills/bdd/DISCOVERY.md` (Phase 0 sub-phases + worked example), `SCENARIOS.md` (lineage numbering), `spec-template.md`, glossary/persona `managedFiles` entries; per-file path overrides via `.safeword/config.json` `paths.*` (ticket K7N2QM). Epic DZ2NM5.                                                                                                                   |

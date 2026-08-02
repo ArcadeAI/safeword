@@ -36,7 +36,7 @@ Safeword keeps a deterministic, point-in-time map of the system fresh on its own
   after out-of-band human edits). Prose that has fallen behind the structure is
   flagged `⚠ stale` rather than left silently wrong. A doc safeword does not own
   (no marker) is never touched.
-- **Enforced, not just suggested** — `safeword architecture --check` fails CI when
+- **Enforced, not just suggested** — `safeword project architecture --check` fails CI when
   a committed doc is stale; a commit-time hook regenerates and stages it
   automatically. Both honor `architectureDocEnforcement` (default-on; set `false`
   to opt out).
@@ -396,12 +396,12 @@ The layer rules above are a language-agnostic _concept_: who may import whom.
 `ARCHITECTURE.md` is the single source of truth for the rules; enforce them with
 the tool native to each language. Safeword wires up the JS/TS one for you.
 
-| Language   | Enforcement                                 | How                                                                                                                                                                                                       |
-| ---------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **JS/TS**  | **dependency-cruiser** (safeword-generated) | `safeword sync-config` generates `.safeword/depcruise-config.cjs` from your detected layers; `bun run deps` and CI fail on a forbidden edge. `eslint-plugin-boundaries` is a viable IDE-time alternative. |
-| **Python** | **import-linter**                           | Declare layer contracts in your `importlinter` config; `lint-imports` fails on a forbidden import. (Circular imports also fail at runtime.)                                                               |
-| **Go**     | **the compiler** (+ depguard)               | Circular package imports are a build error — if it builds, there are none. Enforce directional layer rules with `depguard` via golangci-lint.                                                             |
-| **Rust**   | **the compiler** (+ cargo-deny)             | The module system rejects circular module dependencies at build time. Gate crate-level dependencies with `cargo-deny`.                                                                                    |
+| Language   | Enforcement                                 | How                                                                                                                                                                                                               |
+| ---------- | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **JS/TS**  | **dependency-cruiser** (safeword-generated) | `safeword project sync-config` generates `.safeword/depcruise-config.cjs` from your detected layers; `bun run deps` and CI fail on a forbidden edge. `eslint-plugin-boundaries` is a viable IDE-time alternative. |
+| **Python** | **import-linter**                           | Declare layer contracts in your `importlinter` config; `lint-imports` fails on a forbidden import. (Circular imports also fail at runtime.)                                                                       |
+| **Go**     | **the compiler** (+ depguard)               | Circular package imports are a build error — if it builds, there are none. Enforce directional layer rules with `depguard` via golangci-lint.                                                                     |
+| **Rust**   | **the compiler** (+ cargo-deny)             | The module system rejects circular module dependencies at build time. Gate crate-level dependencies with `cargo-deny`.                                                                                            |
 
 **Concept → config:** define the layers and allowed dependencies in
 `ARCHITECTURE.md` (the table above), then let the per-language tool be the gate.

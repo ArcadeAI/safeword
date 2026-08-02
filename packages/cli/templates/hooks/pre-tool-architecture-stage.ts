@@ -5,7 +5,7 @@
 // the commit lands fresh — the "block later" half of inform-early/block-later,
 // implemented as auto-fix rather than a block. Honors the per-project opt-out
 // (architectureDocEnforcement: false, read by the CLI). Best-effort: never
-// blocks the commit (always exits 0); CI `safeword architecture --check` is the
+// blocks the commit (always exits 0); CI `safeword project architecture --check` is the
 // hard backstop for a bypassed hook or a hand-written commit.
 
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -631,7 +631,7 @@ function unmodeledCommitNeedsAdvice(command: string, baseDirectory: string): boo
 
 function writeUnmodeledCommitAdvisory(): void {
   const message =
-    'Safeword skipped architecture auto-staging because commands before `git commit` cannot be modeled safely. Run preceding commands first, then commit separately, or run safeword architecture --stage.';
+    'Safeword skipped architecture auto-staging because commands before `git commit` cannot be modeled safely. Run preceding commands first, then commit separately, or run safeword project architecture --stage.';
   process.stdout.write(
     `${JSON.stringify({
       systemMessage: message,

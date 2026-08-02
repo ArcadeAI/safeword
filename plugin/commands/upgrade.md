@@ -4,7 +4,7 @@ description: Upgrade safeword configuration to the latest version
 
 # Safeword Upgrade
 
-Upgrade safeword's configuration in the current project to the latest version.
+Converge safeword's configuration in the current project to the latest version.
 
 ## Instructions
 
@@ -19,13 +19,13 @@ test -d .safeword || echo "Not installed — run /safeword:setup first"
 3. If installed, run:
 
 ```bash
-bunx safeword@latest upgrade
+bunx safeword@latest setup
 ```
 
 4. If `bunx` is not available, try:
 
 ```bash
-npx safeword@latest upgrade
+npx safeword@latest setup
 ```
 
 ## After Upgrade

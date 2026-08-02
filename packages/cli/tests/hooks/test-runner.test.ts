@@ -43,7 +43,7 @@ afterEach(() => {
   temporaryDirectories.length = 0;
 });
 
-describe('runTests (resolves its suite via safeword test-plan)', () => {
+describe('runTests (resolves its suite via safeword project test-plan)', () => {
   it('allows the required BDD acceptance lane to use the Stop hook budget', () => {
     expect(timeoutMsForTestCommand('test:bdd')).toBe(5 * 60_000);
     expect(timeoutMsForTestCommand('bun')).toBe(60_000);
@@ -130,7 +130,7 @@ describe('runTests (resolves its suite via safeword test-plan)', () => {
     expect(result).toEqual({ passed: true, output: '', skipped: true });
   });
 
-  it('holds no per-language command strings and resolves via test-plan', () => {
+  it('holds no per-language command strings and resolves via the canonical project test-plan command', () => {
     const source = readFileSync(
       nodePath.join(repoRoot, 'packages/cli/templates/hooks/lib/test-runner.ts'),
       'utf8',
@@ -139,7 +139,8 @@ describe('runTests (resolves its suite via safeword test-plan)', () => {
     expect(source).not.toContain('nativeTestCommand');
     expect(source).not.toContain('getJsTestCommands');
     expect(source).not.toContain('pythonTestCommand');
-    expect(source).toContain('test-plan');
+    expect(source).toContain("'project', 'test-plan'");
+    expect(source).not.toContain("...cli.slice(1), 'test-plan'");
   });
 
   it('keeps the template and dogfood runner aligned', () => {

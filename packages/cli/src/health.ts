@@ -120,7 +120,7 @@ function findNamespaceAdvisories(cwd: string): string[] {
     isDirectory(nodePath.join(cwd, '.safeword-project'))
   ) {
     return [
-      'Both .project/ and .safeword-project/ exist — safeword reads .project/. Merge any needed legacy content into .project/ and remove .safeword-project/ (or run `safeword upgrade --migrate-namespace` after removing .project/ if the legacy directory is the real one).',
+      'Both .project/ and .safeword-project/ exist — safeword reads .project/. Merge any needed legacy content into .project/ and remove .safeword-project/ (or run `safeword setup --migrate-namespace` after removing .project/ if the legacy directory is the real one).',
     ];
   }
   return [];
@@ -212,7 +212,7 @@ function findCucumberHarnessAdvisories(
     return [];
   }
   return [
-    `Detected a cucumber harness (${existingCucumberHarness}) but paths.features is not set in .safeword/config.json — codify, lint-gherkin, and check cannot see your suite. Add e.g. "paths": { "features": "tests/behaviors", "steps": "tests/steps" } (paths.steps only matters when the scaffolded runner reads relocated TypeScript steps).`,
+    `Detected a cucumber harness (${existingCucumberHarness}) but paths.features is not set in .safeword/config.json — project codify, project lint-gherkin, and doctor cannot see your suite. Add e.g. "paths": { "features": "tests/behaviors", "steps": "tests/steps" } (paths.steps only matters when the scaffolded runner reads relocated TypeScript steps).`,
   ];
 }
 
@@ -778,9 +778,9 @@ export async function checkHealth(
 
 export interface ReportHealthOptions {
   /**
-   * Replaces the default `Run \`safeword upgrade\` …` instruction on every
+   * Replaces the default `Run \`safeword setup\` …` instruction on every
    * failure branch. Used by the post-upgrade self-verify (ticket 3293WH
-   * AC5): upgrade telling the user to run `safeword upgrade` as the fix is
+   * AC5): setup telling the user to run `safeword setup` as the fix is
    * a contradiction — an issue the reconcile just ran couldn't fix won't be
    * fixed by running it again.
    */
@@ -802,7 +802,7 @@ function firstFailureSection(health: HealthStatus): FailureSection | undefined {
       title: 'Missing Language Packs',
       lines: health.missingPacks.map(pack => `${pack} pack not installed`),
       render: listItem,
-      defaultHint: 'Run `safeword upgrade` to install missing packs',
+      defaultHint: 'Run `safeword setup` to install missing packs',
     };
   }
   if (health.missingPackages.length > 0) {
@@ -810,7 +810,7 @@ function firstFailureSection(health: HealthStatus): FailureSection | undefined {
       title: 'Missing Packages',
       lines: health.missingPackages,
       render: listItem,
-      defaultHint: 'Run `safeword upgrade` to install missing packages',
+      defaultHint: 'Run `safeword setup` to install missing packages',
     };
   }
   if (health.issues.length > 0) {
@@ -818,7 +818,7 @@ function firstFailureSection(health: HealthStatus): FailureSection | undefined {
       title: 'Issues Found',
       lines: health.issues,
       render: warn,
-      defaultHint: 'Run `safeword upgrade` to repair configuration',
+      defaultHint: 'Run `safeword setup` to repair configuration',
     };
   }
   return undefined;

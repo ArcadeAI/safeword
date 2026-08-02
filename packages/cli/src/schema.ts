@@ -340,7 +340,7 @@ function managedGitattributes(ctx: ProjectContext): string {
 /**
  * The starter BDD lane's full surface — files (the bddLaneFile entries
  * below), deps (typescriptPackages.conditional.scaffoldBddLane), and the
- * test:bdd script. The `safeword check` leftover-scaffold advisory
+ * test:bdd script. The `safeword doctor` leftover-scaffold advisory
  * enumerates from these constants so its list can never drift from the
  * schema (ticket 56JCFZ, TB3.AC2).
  */
@@ -412,7 +412,7 @@ export function boundaryShimCommand(at: 'commit' | 'push'): string {
 function boundaryShimPatch(at: 'commit' | 'push'): TextPatchDefinition {
   return {
     operation: 'append',
-    content: `${boundaryShimCommand(at)} ${BOUNDARY_SHIM_MARKER}: warn-only; removed by \`safeword reset\`\n`,
+    content: `${boundaryShimCommand(at)} ${BOUNDARY_SHIM_MARKER}: warn-only; removed by \`safeword remove\`\n`,
     marker: BOUNDARY_SHIM_MARKER,
     rerender: true,
     // A hook file that setup alone created holds nothing but the shim after

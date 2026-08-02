@@ -4,7 +4,7 @@
  * Covers:
  *   SM1.AC3 — shell plan format/eval scenarios (--format sh output + bash eval)
  *   SM1.AC1 — test-runner.ts structural assertions (no hardcoded language commands)
- *   SM1.AC2 — /verify skill structural assertions (section 2 evals test-plan, no inline language)
+ *   SM1.AC2 — /verify skill structural assertions (section 2 evals project test-plan, no inline language)
  *
  * TB1.AC1 scenarios (stop-hook runner integration) are tagged @wip and deferred — they
  * require running test-runner.ts as a subprocess with a live safeword CLI, which needs
@@ -48,11 +48,15 @@ function write(world: MigrateConsumersWorld, rel: string, content: string): void
 function runShellPlan(world: MigrateConsumersWorld, kind: 'test' | 'build'): string {
   const cliPath = nodePath.join(process.cwd(), 'packages/cli/src/cli.ts');
   const target = ensureRoot(world);
-  return execFileSync('bun', [cliPath, 'test-plan', target, '--kind', kind, '--format', 'sh'], {
-    cwd: process.cwd(),
-    encoding: 'utf8',
-    env: { ...process.env, SAFEWORD_FAKE_TOOLS: world.fakeTools ?? 'all' },
-  });
+  return execFileSync(
+    'bun',
+    [cliPath, 'project', 'test-plan', target, '--kind', kind, '--format', 'sh'],
+    {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      env: { ...process.env, SAFEWORD_FAKE_TOOLS: world.fakeTools ?? 'all' },
+    },
+  );
 }
 
 /**
@@ -243,8 +247,8 @@ Then(
   'section {int} of each evaluates {string}',
   function (this: MigrateConsumersWorld, section: number, expected: string) {
     // Check each whitespace-separated token appears in the section (order-independent).
-    // The actual code uses "test-plan --kind test --format sh", so we verify each
-    // token from "test-plan --format sh" is present rather than the exact substring.
+    // The actual code uses "project test-plan --kind test --format sh", so we verify each
+    // token from "project test-plan --format sh" is present rather than the exact substring.
     const tokens = expected.split(/\s+/);
     for (const content of this.verifyContents ?? []) {
       const sectionText = extractSection(content, section);

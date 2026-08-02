@@ -329,7 +329,7 @@ function addScriptIfMissing(scripts: Record<string, string>, name: string, comma
   if (!existing) scripts[name] = command;
 }
 
-const GHERKIN_LINT_SCRIPT = 'safeword lint-gherkin';
+const GHERKIN_LINT_SCRIPT = 'safeword project lint-gherkin';
 
 /**
  * Merge lint scripts based on project type.

@@ -1,5 +1,5 @@
 /**
- * `safeword architecture` — refresh the generated architecture state document(s)
+ * `safeword project architecture` — refresh the generated architecture state document(s)
  * (ticket QD5DTT, Slice 1; FPV0E4, Slice 2; XG9SFP, Slice 3).
  *
  * Default mode is a thin CLI entry over `selfHealProject`: re-extracts the
@@ -124,7 +124,7 @@ function warnUnreadableWorkspaces(
 ): void {
   for (const workspace of discoverUnreadableWorkspaces(cwd)) {
     reporter.warn(
-      `Workspace config present but unreadable: ${workspace.config} (${workspace.manager}). Its packages may be missing from the architecture doc — fix the config and re-run \`safeword architecture\`. (Advisory; nothing is blocked.)`,
+      `Workspace config present but unreadable: ${workspace.config} (${workspace.manager}). Its packages may be missing from the architecture doc — fix the config and re-run \`safeword project architecture\`. (Advisory; nothing is blocked.)`,
     );
   }
 }
@@ -415,7 +415,7 @@ function assertNoGitlinks(
 
   const paths = entries.map(entry => entry.slice(entry.indexOf('\t') + 1));
   throw new Error(
-    `Staged-tree architecture generation does not support submodule gitlinks: ${paths.join(', ')}. Run \`safeword architecture\` from the materialized worktree, or remove the gitlink from the staged tree before retrying.`,
+    `Staged-tree architecture generation does not support submodule gitlinks: ${paths.join(', ')}. Run \`safeword project architecture\` from the materialized worktree, or remove the gitlink from the staged tree before retrying.`,
   );
 }
 
@@ -907,7 +907,7 @@ function errorMessage(error_: unknown): string {
 /**
  * CI staleness backstop. Exits non-zero when ANY node is stale (would change),
  * passes when every node is current/`noop`/foreign or when enforcement is opted
- * out. Writes nothing — the fix is the human running `safeword architecture`.
+ * out. Writes nothing — the fix is the human running `safeword project architecture`.
  */
 function architectureCheck(cwd: string): Promise<void> {
   warnUnreadableWorkspaces(cwd);
@@ -919,7 +919,7 @@ function architectureCheck(cwd: string): Promise<void> {
   const stale = planSelfHealProject(cwd).filter(action => isWouldChangeAction(action));
   if (stale.length > 0) {
     error(
-      `Architecture docs are stale (${stale.join(', ')}). Run \`safeword architecture\` for the current worktree, or \`safeword architecture --staged\` to reproduce the staged tree, then commit the result.`,
+      `Architecture docs are stale (${stale.join(', ')}). Run \`safeword project architecture\` for the current worktree, or \`safeword project architecture --staged\` to reproduce the staged tree, then commit the result.`,
     );
     process.exit(1);
   }

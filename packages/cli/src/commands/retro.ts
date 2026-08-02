@@ -486,7 +486,7 @@ export async function executeRetroReconcile(
 }
 
 /**
- * `safeword retro-reconcile` — the flag-only reconcile sweep (G19QG7 SM2). No
+ * `safeword retro reconcile` — the flag-only reconcile sweep (G19QG7 SM2). No
  * transcript involved; it reads open retro-labeled issues, normalizes their
  * newest provenance to a code-state date, and marks possibly-resolved ones.
  * Fails loudly (exit 1) without GitHub access — a manual mode should say why it

@@ -1,5 +1,5 @@
 /**
- * `safeword codify <ticket>` — emit derived test artifacts from a ticket's
+ * `safeword project codify <ticket>` — emit derived test artifacts from a ticket's
  * `.feature` source when present, or legacy test-definitions.md otherwise.
  * Resolves the ticket folder, parses scenarios, and renders the skeleton to
  * stdout (default) or a file (`--out`, which refuses to overwrite). The

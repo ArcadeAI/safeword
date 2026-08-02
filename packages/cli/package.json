@@ -55,7 +55,7 @@
     "test:coverage": "node scripts/run-vitest-with-build-lock.mjs --coverage",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src tests && bun run lint:gherkin && tsc --noEmit",
-    "lint:gherkin": "bun src/cli.ts lint-gherkin",
+    "lint:gherkin": "bun src/cli.ts project lint-gherkin",
     "clean": "rm -rf dist",
     "prepublishOnly": "node scripts/check-bun-publish.js && bun run test:release && bun run build",
     "lint:eslint": "eslint .",

@@ -652,7 +652,7 @@ function renderRootIndex(
 function renderCoverageGaps(unreadable: UnreadableWorkspace[]): string {
   if (unreadable.length === 0) return '';
   const items = unreadable.map(entry => `> - \`${entry.config}\` (${entry.manager})`).join('\n');
-  return `## Coverage gaps\n\n> ⚠ not introspected — workspace config unreadable. A present workspace manager's member list could not be parsed, so its packages may be missing above. Fix the config and re-run \`safeword architecture\`:\n${items}\n`;
+  return `## Coverage gaps\n\n> ⚠ not introspected — workspace config unreadable. A present workspace manager's member list could not be parsed, so its packages may be missing above. Fix the config and re-run \`safeword project architecture\`:\n${items}\n`;
 }
 
 function renderPackageSection(

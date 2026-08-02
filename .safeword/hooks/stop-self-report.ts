@@ -66,7 +66,7 @@ async function main(): Promise<void> {
   // these signatures. With no durable marker the next Stop re-surfaces this same
   // line, and Stop additionalContext re-wakes the agent — that is the infinite
   // loop, not a cosmetic repeat, so silence is the safe failure here. (Cost of
-  // that failure: the signal stays in the spool and `safeword self-report` still
+  // that failure: the signal stays in the spool and `safeword retro signals` still
   // shows it; only the end-of-turn mention is skipped.)
   const signatures = [...new Set(fresh.map(record => signatureOf(record)))];
   if (!markSignaturesSurfaced(projectDirectory, sessionId, signatures)) return;
