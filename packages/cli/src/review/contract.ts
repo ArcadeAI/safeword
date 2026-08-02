@@ -33,3 +33,7 @@ export const REVIEW_KINDS = new Set<ReviewKind>([
   'scenario-gate',
   'plan-implementation',
 ]);
+
+export function isReviewKind(value: unknown): value is ReviewKind {
+  return typeof value === 'string' && REVIEW_KINDS.has(value as ReviewKind);
+}

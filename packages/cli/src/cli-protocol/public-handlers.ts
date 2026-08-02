@@ -500,8 +500,8 @@ async function lintGherkinHandler(invocation: CommandInvocation): Promise<CliRes
 async function reviewRunHandler(invocation: CommandInvocation): Promise<CliResult> {
   if (invocation.offline) return onlineRequired('review run');
   const [rawKind, rawTargets] = invocation.operands;
-  const { REVIEW_KINDS } = await import('../review/contract.js');
-  if (typeof rawKind !== 'string' || !REVIEW_KINDS.has(rawKind as never)) {
+  const { isReviewKind } = await import('../review/contract.js');
+  if (!isReviewKind(rawKind)) {
     return createResult({
       state: 'failed',
       errors: [
@@ -517,7 +517,7 @@ async function reviewRunHandler(invocation: CommandInvocation): Promise<CliResul
     ? rawTargets.filter((target): target is string => typeof target === 'string')
     : [];
   const { runReview } = await import('../review/coordinator.js');
-  return runReview({ cwd: invocation.cwd, kind: rawKind as never, targets });
+  return runReview({ cwd: invocation.cwd, kind: rawKind, targets });
 }
 
 async function codexStatusHandler(invocation: CommandInvocation): Promise<CliResult> {
