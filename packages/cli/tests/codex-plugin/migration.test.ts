@@ -49,7 +49,7 @@ function facts(overrides: Partial<CodexMigrationFacts> = {}): CodexMigrationFact
     viableLegacyEvents: [],
     finalized: false,
     recoveryRequired: false,
-    restartPending: false,
+    activationPending: false,
     ...overrides,
   };
 }
@@ -138,7 +138,7 @@ describe('Codex migration result', () => {
       next: 'safeword codex migrate',
     },
     {
-      name: 'restart pending with complete legacy',
+      name: 'next-task activation pending with complete legacy',
       input: facts({
         plugin: {
           installed: true,
@@ -148,9 +148,9 @@ describe('Codex migration result', () => {
         },
         legacyEvents: ['PreToolUse'],
         viableLegacyEvents: ['PreToolUse'],
-        restartPending: true,
+        activationPending: true,
       }),
-      state: 'plugin_installed_restart_required',
+      state: 'plugin_installed_new_session_required',
       protection: 'protected',
       next: 'safeword codex status',
     },
@@ -198,10 +198,12 @@ describe('Codex migration result', () => {
     if (state === 'plugin_setup_required') {
       lines.push('Setup: .agents/skills/safeword-plugin-setup/SKILL.md');
     } else if (
-      state === 'plugin_installed_restart_required' ||
+      state === 'plugin_installed_new_session_required' ||
       state === 'plugin_enabled_hook_unproven'
     ) {
-      lines.push('Start a new Codex session, then review the Safe Word plugin hooks with /hooks.');
+      lines.push(
+        'This task keeps its loaded Safe Word version. Start a new Codex task to use the installed plugin, then review its hooks with /hooks. No Codex restart is required.',
+      );
     }
     lines.push(`Next: ${next}`, '');
 
@@ -220,8 +222,8 @@ describe('Codex migration result', () => {
       2,
     ],
     [
-      'plugin_installed_restart_required',
-      facts({ plugin: enabledPlugin, restartPending: true }),
+      'plugin_installed_new_session_required',
+      facts({ plugin: enabledPlugin, activationPending: true }),
       2,
     ],
     ['plugin_enabled_hook_unproven', facts({ plugin: enabledPlugin }), 2],
@@ -259,7 +261,7 @@ describe('Codex migration result', () => {
       ].toSorted((left, right) => left.localeCompare(right)),
     );
     expect(result).toMatchObject({
-      schema_version: '1',
+      schema_version: '2',
       changed: false,
       plugin: {
         installed: expect.any(Boolean),
@@ -295,8 +297,8 @@ describe('Codex migration result', () => {
     });
   });
 
-  it('does not treat a restart marker as actionable when the plugin is absent', () => {
-    const result = deriveCodexMigrationResult(facts({ restartPending: true }));
+  it('does not treat an activation marker as actionable when the plugin is absent', () => {
+    const result = deriveCodexMigrationResult(facts({ activationPending: true }));
 
     expect(result).toMatchObject({
       state: 'not_configured',
@@ -305,10 +307,13 @@ describe('Codex migration result', () => {
   });
 
   it.each([
-    ['plugin_installed_restart_required', facts({ plugin: enabledPlugin, restartPending: true })],
+    [
+      'plugin_installed_new_session_required',
+      facts({ plugin: enabledPlugin, activationPending: true }),
+    ],
     ['plugin_enabled_hook_unproven', facts({ plugin: enabledPlugin })],
   ] as const)(
-    'marks the status action as human-gated by its restart and review prerequisite for %s',
+    'marks the status action as human-gated by its new-task and review prerequisite for %s',
     (_state, input) => {
       expect(deriveCodexMigrationResult(input).next_actions).toEqual([
         {

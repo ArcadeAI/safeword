@@ -39,7 +39,7 @@ You use Claude Code, Cursor, or Codex the same way you always have. Type a promp
 
     **Setup enrolls each repository.** Installing the profile plugin does not enroll every repository you open. Until `safeword setup` creates `.safeword/SAFEWORD.md`, project gates fail open and plugin hooks do not create `.project/` or other project state.
 
-    **PreToolUse gates run through the plugin.** Run `safeword codex install` to install and verify the profile-scoped plugin, start a new Codex session to load it, then review and trust it in Codex. Its hooks use version-pinned Bunx commands. Safeword guards the documented Codex PreToolUse paths it configures: `Bash`, `apply_patch` edit payloads, and file-editing tools.
+    **PreToolUse gates run through the plugin.** Run `safeword codex install` to refresh, install, and verify the profile-scoped plugin. The current task keeps its loaded version; start a new Codex task to load the installed version, then review and trust it in Codex. No app restart is required. Its hooks use version-pinned Bunx commands. Safeword guards the documented Codex PreToolUse paths it configures: `Bash`, `apply_patch` edit payloads, and file-editing tools.
 
     **Stop completion and nudges run through Codex continuations.** The packaged `safeword hook codex stop` entrypoint checks shared evidence for the session-bound, in-progress done-phase ticket and marks it done only when that evidence passes. It otherwise continues the turn with exact remediation or advisory text such as an ARCHITECTURE.md drift nudge; it never stages, commits, or opens a PR.
 
@@ -75,7 +75,7 @@ Open your project and ask your agent to build something real:
   <TabItem label="Codex">
     Watch what happens:
 
-    1. Run `safeword codex migrate`, then start a new Codex session
+    1. Run `safeword codex migrate`, then start a new Codex task without restarting the app
     2. Review the Safe Word plugin in `/hooks`
     3. Your agent follows scoped plugin skills such as `safeword:bdd`
     4. Before supported edits, Codex runs the plugin's version-pinned Bunx PreToolUse hook
@@ -101,7 +101,7 @@ Safeword added a few folders to your project:
 | `.cursor/commands/`     | Slash commands for Cursor                                |
 | `.safeword/`            | Config files, guides, and templates                      |
 
-These project files commit to your repo. The Safe Word Codex plugin is profile-scoped: each Codex user runs `safeword codex migrate`, restarts Codex, and reviews it in `/hooks`. Existing Safe Word Codex hooks remain authoritative until the running plugin records current proof and someone explicitly finalizes the repository migration. Finalization backs up the old state, removes only known Safe Word assets, and leaves a small setup bootstrap for future teammates. Each repository is enrolled separately by `safeword setup`, which creates the complete `.project/` namespace before plugin hooks can write project state.
+These project files commit to your repo. The Safe Word Codex plugin is profile-scoped: each Codex user runs `safeword codex migrate`, starts a new task, and reviews it in `/hooks`; the app does not need to restart. The task that installs an upgrade keeps its already-loaded version. Existing Safe Word Codex hooks remain authoritative until a new task's running plugin records current proof and someone explicitly finalizes the repository migration. Finalization backs up the old state, removes only known Safe Word assets, and leaves a small setup bootstrap for future teammates. Each repository is enrolled separately by `safeword setup`, which creates the complete `.project/` namespace before plugin hooks can write project state.
 
 For JS/TS projects, safeword also adds ESLint and Prettier as **devDependencies** in your `package.json`. These are development-only code quality tools — they don't ship with your application.
 

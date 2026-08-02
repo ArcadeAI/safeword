@@ -29,7 +29,7 @@ Feature: Install the Safe Word Codex plugin for new users
       When the builder installs the Safe Word Codex plugin
       Then the active Codex profile has the enabled Safe Word plugin
       And the project has no Safe Word Codex hook configuration
-      And the builder is told to start a new Codex session
+      And the builder is told to start a new Codex task without restarting the app
 
     Scenario: Repeating Codex installation remains profile-only
       Given a project has no Codex configuration

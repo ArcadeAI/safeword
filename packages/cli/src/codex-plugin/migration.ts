@@ -8,7 +8,7 @@ type CodexMigrationState =
   | 'plugin_disabled'
   | 'plugin_update_required'
   | 'legacy'
-  | 'plugin_installed_restart_required'
+  | 'plugin_installed_new_session_required'
   | 'plugin_enabled_hook_unproven'
   | 'compatibility'
   | 'plugin'
@@ -21,8 +21,8 @@ export interface CodexPluginObservation {
   observation: 'observed' | 'unknown';
 }
 
-export interface CodexMigrationResultV1 {
-  schema_version: '1';
+export interface CodexMigrationResultV2 {
+  schema_version: '2';
   ok: boolean;
   state: CodexMigrationState;
   /** Protection availability; interpret with `state` to identify its provider or absence. */
@@ -44,7 +44,7 @@ export interface CodexMigrationFacts {
   viableLegacyEvents: string[];
   finalized: boolean;
   recoveryRequired: boolean;
-  restartPending: boolean;
+  activationPending: boolean;
 }
 
 export function codexPluginVersionMatchesPackage(plugin: CodexPluginObservation): boolean {
@@ -63,14 +63,14 @@ function pluginProtectionIsCurrent(facts: CodexMigrationFacts): boolean {
   );
 }
 
-export function deriveCodexMigrationResult(facts: CodexMigrationFacts): CodexMigrationResultV1 {
+export function deriveCodexMigrationResult(facts: CodexMigrationFacts): CodexMigrationResultV2 {
   const hasLegacy = facts.legacyAssets.length > 0 || facts.legacyEvents.length > 0;
   const protectedStatus = legacyProtection(facts, hasLegacy);
   const state = migrationState(facts, hasLegacy);
   const nextCommand = nextAction(state);
 
   return {
-    schema_version: '1',
+    schema_version: '2',
     ok: state === 'plugin',
     state,
     protected: facts.recoveryRequired ? 'uncertain' : protectedStatus,
@@ -91,10 +91,10 @@ export function deriveCodexMigrationResult(facts: CodexMigrationFacts): CodexMig
             {
               command: nextCommand,
               mutates:
-                state !== 'plugin_installed_restart_required' &&
+                state !== 'plugin_installed_new_session_required' &&
                 state !== 'plugin_enabled_hook_unproven',
               // Even the read-only status actions have a human prerequisite:
-              // restart Codex and review /hooks before checking proof again.
+              // start a new task and review /hooks before checking proof again.
               requires_human: true,
             },
           ],
@@ -120,8 +120,8 @@ const MIGRATION_STATE_RULES: readonly {
       facts.plugin.enabled === true && !codexPluginVersionMatchesPackage(facts.plugin),
   },
   {
-    state: 'plugin_installed_restart_required',
-    matches: facts => facts.restartPending && facts.plugin.enabled === true,
+    state: 'plugin_installed_new_session_required',
+    matches: facts => facts.activationPending && facts.plugin.enabled === true,
   },
   {
     state: 'plugin_enabled_hook_unproven',
@@ -147,7 +147,7 @@ function migrationState(facts: CodexMigrationFacts, hasLegacy: boolean): CodexMi
 function legacyProtection(
   facts: CodexMigrationFacts,
   hasLegacy: boolean,
-): CodexMigrationResultV1['protected'] {
+): CodexMigrationResultV2['protected'] {
   if (pluginProtectionIsCurrent(facts)) return 'protected';
   if (!hasLegacy || facts.viableLegacyEvents.length === 0) return 'unprotected';
   return facts.viableLegacyEvents.length === facts.legacyEvents.length ? 'protected' : 'partial';
@@ -157,7 +157,7 @@ const NEXT_ACTIONS = {
   recovery_required: 'safeword codex recover',
   compatibility: 'safeword codex migrate --finalize',
   plugin: undefined,
-  plugin_installed_restart_required: 'safeword codex status',
+  plugin_installed_new_session_required: 'safeword codex status',
   plugin_enabled_hook_unproven: 'safeword codex status',
   plugin_setup_required: 'safeword codex migrate',
   plugin_disabled: 'safeword codex migrate',
@@ -170,22 +170,24 @@ function nextAction(state: CodexMigrationState): string | undefined {
   return NEXT_ACTIONS[state];
 }
 
-export function renderCodexMigrationHuman(result: CodexMigrationResultV1): string {
+export function renderCodexMigrationHuman(result: CodexMigrationResultV2): string {
   const lines = [`Codex migration: ${result.state}`, `Protection: ${result.protected}`];
   if (result.state === 'plugin_setup_required') {
     lines.push(`Setup: ${CODEX_MIGRATION_SCHEMA.paths.bootstrapSkill}`);
   } else if (
-    result.state === 'plugin_installed_restart_required' ||
+    result.state === 'plugin_installed_new_session_required' ||
     result.state === 'plugin_enabled_hook_unproven'
   ) {
-    lines.push('Start a new Codex session, then review the Safe Word plugin hooks with /hooks.');
+    lines.push(
+      'This task keeps its loaded Safe Word version. Start a new Codex task to use the installed plugin, then review its hooks with /hooks. No Codex restart is required.',
+    );
   }
   const next = result.next_actions[0];
   if (next !== undefined) lines.push(`Next: ${next.command}`);
   return `${lines.join('\n')}\n`;
 }
 
-export function codexMigrationExitCode(result: CodexMigrationResultV1): 0 | 1 | 2 {
+export function codexMigrationExitCode(result: CodexMigrationResultV2): 0 | 1 | 2 {
   if (result.errors.length > 0) return 1;
   return result.ok ? 0 : 2;
 }

@@ -185,7 +185,7 @@ Safeword manages two types of files:
 
 ### safeword codex install
 
-Install the Safe Word plugin into the active Codex profile and verify Codex reports it enabled. This profile-only action does not create or modify project Codex configuration. Start a new Codex session after installation to load the plugin's skills and hooks.
+Install the Safe Word plugin into the active Codex profile and verify Codex reports it enabled. For an existing Git-backed Safe Word marketplace, the command refreshes the marketplace before reinstalling the plugin; a fresh profile adds it first. This profile-only action does not create or modify project Codex configuration. The task that ran the command keeps its loaded version. Start a new Codex task to load the installed skills and hooks, then review them in `/hooks`; no Codex application restart is required.
 
 ```bash
 bunx safeword@latest codex install
@@ -205,6 +205,27 @@ required, and `1` for an execution error. JSON output writes one complete
 schema-1 object to stdout with the same exit semantics; diagnostics are
 represented in its structured `errors` array.
 
+The public CLI envelope remains schema 1. Its canonical Codex lifecycle state
+is versioned independently at `data.migration`:
+
+```json
+{
+  "schema_version": 1,
+  "data": {
+    "migration_state": "plugin_installed_restart_required",
+    "migration": {
+      "schema_version": "2",
+      "state": "plugin_installed_new_session_required"
+    }
+  }
+}
+```
+
+New consumers use `data.migration.schema_version` and `data.migration.state`.
+`data.migration_state` remains a deprecated schema-1 compatibility field and
+retains its former value; it must not be interpreted as a request to restart
+the Codex application.
+
 ### safeword codex migrate
 
 Resume the safe migration for the current profile and repository:
@@ -214,7 +235,8 @@ bunx safeword@latest codex migrate
 ```
 
 The first run installs the profile plugin without changing repository files.
-Restart Codex, review `/hooks`, and run `safeword codex status`. Working legacy
+Start a new Codex task without restarting the app, review `/hooks`, and run
+`safeword codex status`. Working legacy
 handlers remain authoritative for the events they can still run; the packaged
 plugin covers missing or broken legacy events.
 

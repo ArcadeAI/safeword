@@ -16,7 +16,7 @@ export interface CodexHookProofV1 {
   recorded_at: string;
 }
 
-export interface CodexRestartMarkerV1 {
+export interface CodexActivationMarkerV1 {
   schema_version: 1;
   plugin_version: string;
   manifest_sha256: string;
@@ -57,12 +57,19 @@ export function codexProofPath(
   );
 }
 
-function codexRestartMarkerPath(environment: NodeJS.ProcessEnv = process.env): string {
+function codexActivationMarkerPath(environment: NodeJS.ProcessEnv = process.env): string {
+  return nodePath.join(codexProfileDirectory(environment), 'safeword/activation-pending-v1.json');
+}
+
+function legacyCodexRestartMarkerPath(environment: NodeJS.ProcessEnv = process.env): string {
   return nodePath.join(codexProfileDirectory(environment), 'safeword/restart-pending-v1.json');
 }
 
-export function codexRestartIsPending(environment: NodeJS.ProcessEnv = process.env): boolean {
-  return restartMarkerMatches(codexRestartMarkerPath(environment), currentCodexPluginIdentity());
+export function codexActivationIsPending(environment: NodeJS.ProcessEnv = process.env): boolean {
+  const identity = currentCodexPluginIdentity();
+  return [codexActivationMarkerPath(environment), legacyCodexRestartMarkerPath(environment)].some(
+    path => activationMarkerMatches(path, identity),
+  );
 }
 
 function packagedHookManifestPath(): string {
@@ -88,15 +95,19 @@ export function currentCodexPluginIdentity(): {
   };
 }
 
-export function writeCodexRestartMarker(
+export function writeCodexActivationMarker(
   environment: NodeJS.ProcessEnv = process.env,
-): CodexRestartMarkerV1 {
-  const path = codexRestartMarkerPath(environment);
-  const marker: CodexRestartMarkerV1 = {
+): CodexActivationMarkerV1 {
+  const path = codexActivationMarkerPath(environment);
+  const marker: CodexActivationMarkerV1 = {
     schema_version: 1,
     ...currentCodexPluginIdentity(),
   };
   writeAtomicJson(path, marker);
+  // A successful canonical write supersedes every v0.70 pending marker. The
+  // new marker retains the exact current identity even when the legacy input
+  // was malformed or bound to the previously installed release.
+  rmSync(legacyCodexRestartMarkerPath(environment), { force: true });
   return marker;
 }
 
@@ -115,9 +126,13 @@ export function recordCodexHookProof(
   };
   writeAtomicJson(codexProofPath(environment, event), proof, writeOptions);
 
-  const markerPath = codexRestartMarkerPath(environment);
-  if (event === 'session-start' && restartMarkerMatches(markerPath, identity)) {
-    rmSync(markerPath);
+  if (event === 'session-start') {
+    for (const markerPath of [
+      codexActivationMarkerPath(environment),
+      legacyCodexRestartMarkerPath(environment),
+    ]) {
+      if (activationMarkerMatches(markerPath, identity)) rmSync(markerPath, { force: true });
+    }
   }
   return proof;
 }
@@ -133,13 +148,13 @@ function writeAtomicJson(
   });
 }
 
-function restartMarkerMatches(
+function activationMarkerMatches(
   path: string,
   identity: { plugin_version: string; manifest_sha256: string },
 ): boolean {
   if (!existsSync(path)) return false;
   try {
-    const marker = JSON.parse(readFileSync(path, 'utf8')) as Partial<CodexRestartMarkerV1>;
+    const marker = JSON.parse(readFileSync(path, 'utf8')) as Partial<CodexActivationMarkerV1>;
     return (
       marker.schema_version === 1 &&
       marker.plugin_version === identity.plugin_version &&
