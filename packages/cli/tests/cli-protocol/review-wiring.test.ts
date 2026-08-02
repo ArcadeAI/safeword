@@ -23,10 +23,13 @@ payload=$(cat)
 printf '%s\n' '${agent}' >> "$SAFEWORD_REVIEW_LOG"
 dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\1/p')
 failure=$(printenv SAFEWORD_FAKE_FAILURE || true)
-if [ "$failure" = "auth" ]; then printf 'not logged in\n' >&2; exit 1; fi
-if [ "$failure" = "process" ]; then printf 'review crashed\n' >&2; exit 7; fi
-if [ "$failure" = "timeout" ]; then /bin/sleep 1; fi
-if [ "$failure" = "invalid" ]; then printf 'not-json\n'; exit 0; fi
+failure_agent=$(printenv SAFEWORD_FAKE_FAILURE_AGENT || true)
+if [ -z "$failure_agent" ] || [ "$failure_agent" = "${agent}" ]; then
+  if [ "$failure" = "auth" ]; then printf 'not logged in\n' >&2; exit 1; fi
+  if [ "$failure" = "process" ]; then printf 'review crashed\n' >&2; exit 7; fi
+  if [ "$failure" = "timeout" ]; then /bin/sleep 1; fi
+  if [ "$failure" = "invalid" ]; then printf 'not-json\n'; exit 0; fi
+fi
 identity=$(printenv SAFEWORD_FAKE_IDENTITY || true)
 mutate=$(printenv SAFEWORD_FAKE_MUTATE || true)
 if [ "$mutate" = "1" ]; then
@@ -356,4 +359,50 @@ describe('cross-agent review public-command wiring', () => {
       });
     },
   );
+
+  it('records a permitted host-native fallback as degraded', async () => {
+    const directory = createTemporaryDirectory();
+    const log = nodePath.join(directory, 'review.log');
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    const bin = installFakeReviewer(directory, 'codex', log);
+    installFakeReviewer(directory, 'claude', log);
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_FAKE_FAILURE: 'process',
+          SAFEWORD_FAKE_FAILURE_AGENT: 'codex',
+          SAFEWORD_REVIEW_LOG: log,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'healthy',
+      data: {
+        status: 'approved',
+        author_agent: 'claude',
+        assigned_reviewer: 'codex',
+        actual_reviewer: 'claude',
+        preferred_failure: 'process_failed',
+        independence: 'degraded',
+      },
+    });
+    expect(readFileSync(log, 'utf8')).toBe('codex\nclaude\n');
+  });
 });
