@@ -314,6 +314,12 @@ describe('packagedNamespaceRootLabel', () => {
 
     expect(result.status, result.stderr).toBe(0);
     expect(result.stdout).toContain('SAFEWORD Agent Instructions');
+    expect(result.stdout).toContain('.project/');
+    expect(result.stdout).toContain('.safeword/guides/');
+    expect(result.stdout).toContain('supersede');
+    expect(result.stdout.indexOf('.project/')).toBeLessThan(
+      result.stdout.indexOf('SAFEWORD Agent Instructions'),
+    );
     expect(result.stdout).not.toContain('PROJECT-LOCAL INSTRUCTIONS MUST NOT APPEAR');
   });
 

@@ -1024,7 +1024,44 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     });
   });
 
-  it('records next-task activation state after successful profile installation', async () => {
+  it('reports edited legacy global guidance from Codex status and doctor without mutation', async () => {
+    const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
+    const agentsPath = nodePath.join(fixture.directory, 'profile/AGENTS.md');
+    mkdirSync(nodePath.dirname(agentsPath), { recursive: true });
+    const editedLegacy = [
+      '# Global Instructions for AI Coding Agents',
+      '## Feature Development Workflow (CRITICAL - Always Follow)',
+      'Search planning/user-stories/ before coding.',
+      'Read ~/.agents/coding/guides/testing-methodology.md.',
+      'My local addition.',
+    ].join('\n');
+    writeFileSync(agentsPath, editedLegacy);
+
+    const codexStatus = await runCodexCommand(fixture, ['codex', 'status', '--json']);
+    const doctor = await runCodexCommand(fixture, ['doctor', '--json']);
+
+    for (const result of [codexStatus, doctor]) {
+      expect(result.exitCode).toBe(2);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        state: 'action_required',
+        findings: expect.arrayContaining([
+          expect.objectContaining({
+            code: 'CODEX_LEGACY_GLOBAL_GUIDANCE_SUSPECTED',
+            metadata: {
+              classification: 'suspected_legacy',
+              disposition: 'manual_review',
+            },
+          }),
+        ]),
+        data: {
+          global_guidance: { state: 'suspected_legacy', path: agentsPath },
+        },
+      });
+    }
+    expect(readFileSync(agentsPath, 'utf8')).toBe(editedLegacy);
+  });
+
+  it('records restart-required state after successful profile installation', async () => {
     const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG, true, false);
     const codexHome = nodePath.join(fixture.directory, 'profile');
 

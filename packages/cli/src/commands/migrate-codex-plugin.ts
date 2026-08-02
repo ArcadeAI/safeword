@@ -25,6 +25,10 @@ import {
   regularCodexConfigMetadata,
 } from '../codex-plugin/legacy-config.js';
 import {
+  legacyGlobalGuidanceDiagnostic,
+  observeLegacyGlobalGuidance,
+} from '../codex-plugin/legacy-global-guidance.js';
+import {
   codexMigrationExitCode,
   type CodexMigrationResultV2,
   type CodexPluginObservation,
@@ -336,9 +340,10 @@ export function observeCodexMigration(
 ): CliResult {
   const result = observeCodexMigrationResult(cwd, environment);
   const legacyState = legacyCodexMigrationState(result.state);
+  const globalGuidance = legacyGlobalGuidanceDiagnostic(observeLegacyGlobalGuidance(environment));
   let state: CliResult['state'] = 'action_required';
   if (result.errors.length > 0) state = 'failed';
-  else if (result.ok) state = 'healthy';
+  else if (result.ok && globalGuidance.finding === undefined) state = 'healthy';
   return createResult({
     state,
     findings:
@@ -354,13 +359,17 @@ export function observeCodexMigration(
                 migration_state: result.state,
               },
             },
+            ...(globalGuidance.finding === undefined ? [] : [globalGuidance.finding]),
           ],
     errors: result.errors,
-    nextActions: result.next_actions.map(action => ({
-      command: action.command,
-      mutates: action.mutates,
-      requiresHuman: action.requires_human,
-    })),
+    nextActions: [
+      ...result.next_actions.map(action => ({
+        command: action.command,
+        mutates: action.mutates,
+        requiresHuman: action.requires_human,
+      })),
+      ...(globalGuidance.nextAction === undefined ? [] : [globalGuidance.nextAction]),
+    ],
     data: {
       command: 'codex status',
       // Compatibility field for schema-1 public-envelope consumers. New code
@@ -374,6 +383,7 @@ export function observeCodexMigration(
       plugin: result.plugin,
       proof: result.proof,
       legacy: result.legacy,
+      global_guidance: globalGuidance.observation,
     },
   });
 }
