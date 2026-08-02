@@ -295,7 +295,9 @@ function archAlignmentHasContent(implPlanContent: string): boolean {
       isInSection = heading === 'design alignment' || heading === 'arch alignment';
       continue;
     }
-    if (isInSection && line !== '') body.push(line);
+    // Principle alignment is the structured Markdown table in this shared
+    // section. Architecture claims are the remaining prose below it.
+    if (isInSection && line !== '' && !line.startsWith('|')) body.push(line);
   }
   if (body.length === 0) return false;
   return !(body.length === 1 && (body[0] ?? '').toLowerCase().startsWith('skip:'));

@@ -64,7 +64,7 @@ const LEGACY_ARCH_ALIGNMENT_HEADING = 'arch alignment';
  * scaffolded template's guidance is commented, so a fresh scaffold parses
  * to empty sections.
  */
-function activeLines(content: string): string[] {
+export function activeLines(content: string): string[] {
   const lines: string[] = [];
   let inComment = false;
   for (const raw of content.split('\n')) {

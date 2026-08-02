@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -118,6 +118,31 @@ describe('checkPrincipleTrace', () => {
 
     expect(checkPrincipleTrace(directory, plan)).toContain(
       '[E010] Broken principle trace: missing source principle: Further reading',
+    );
+  });
+
+  it('does not treat the commented examples in the shipped scaffold as principles', () => {
+    const directory = project();
+    const scaffold = readFileSync(
+      nodePath.join(__dirname, '../../templates/principles-template.md'),
+      'utf8',
+    );
+    writeFileSync(nodePath.join(directory, '.project', 'principles.md'), scaffold);
+
+    expect(checkPrincipleTrace(directory, PLAN)).toContain(
+      '[E010] Broken principle trace: missing source principle: Delight the user',
+    );
+  });
+
+  it('does not treat content after an unclosed comment as a principle', () => {
+    const directory = project();
+    writeFileSync(
+      nodePath.join(directory, '.project', 'principles.md'),
+      `# Principles\n\n<!-- guidance starts\n\n${PRINCIPLE}`,
+    );
+
+    expect(checkPrincipleTrace(directory, PLAN)).toContain(
+      '[E010] Broken principle trace: missing source principle: Delight the user',
     );
   });
 

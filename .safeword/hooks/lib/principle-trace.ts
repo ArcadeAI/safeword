@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { sectionBody } from './impl-plan.ts';
+import { activeLines, sectionBody } from './impl-plan.ts';
 import { resolveReviewKnowledgeSources } from './project-knowledge.ts';
 
 interface PrincipleTrace {
@@ -47,7 +47,7 @@ function principleNames(source: string | null): Set<string> {
     if (numbered || structured) names.add(current.name.toLowerCase());
   };
 
-  for (const line of (source ?? '').split('\n')) {
+  for (const line of activeLines(source ?? '')) {
     const name = line.match(/^##\s+(.+?)\s*$/u)?.[1]?.trim();
     if (name === undefined) {
       current?.body.push(line);

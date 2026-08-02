@@ -1228,6 +1228,26 @@ describe('Test Suite 8: Health Check', () => {
       expect(`${result.stdout}\n${result.stderr}`).not.toMatch(/ARC002/);
     });
 
+    it('stays silent when Design alignment contains principles but no architecture claim', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      rmSync(nodePath.join(temporaryDirectory, '.project', 'architecture.md'), {
+        force: true,
+      });
+      writeArchTicket(
+        'ARC004',
+        [
+          '| Principle | Consequence | Proof | Conflict |',
+          '| --- | --- | --- | --- |',
+          '| Delight the user | Recovery stays in context | verify.md | |',
+        ].join('\n'),
+      );
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).not.toMatch(/ARC004/);
+    });
+
     it('stays silent when Design alignment has content and the architecture location exists', async () => {
       await createConfiguredProject(temporaryDirectory);
       writeTestFile(
