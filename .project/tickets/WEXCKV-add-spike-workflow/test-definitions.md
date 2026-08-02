@@ -81,7 +81,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Routine features proceed without a spike
 
 - [x] RED f11119812
-- [ ] GREEN
+- [x] GREEN 6d80a5793
 - [ ] REFACTOR
 
 ---
