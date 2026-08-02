@@ -18,6 +18,7 @@ interface ClaudePluginCatalogueInput {
 const GENERATED_DIRECTORIES = ['agents', 'resources', 'runtime', 'skills'] as const;
 const PROJECT_HOOK_ROOT = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks';
 const PLUGIN_HOOK_ROOT = '"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks';
+const PLUGIN_DISPATCH = 'bun "${CLAUDE_PLUGIN_ROOT}"/runtime/dispatch.ts';
 
 function filesBeneath(directory: string, prefix = ''): string[] {
   if (!existsSync(directory)) return [];
@@ -77,8 +78,28 @@ function adaptHookValue(value: unknown): unknown {
   );
 }
 
+function wrapHookCommands(value: unknown, event: string): unknown {
+  if (Array.isArray(value)) return value.map(child => wrapHookCommands(child, event));
+  if (typeof value !== 'object' || value === null) return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, child]) => [
+      key,
+      key === 'command' && typeof child === 'string'
+        ? `${PLUGIN_DISPATCH} ${event} -- ${child}`
+        : wrapHookCommands(child, event),
+    ]),
+  );
+}
+
+function pluginHooks(): Record<string, unknown> {
+  const adapted = adaptHookValue(SETTINGS_HOOKS) as Record<string, unknown>;
+  return Object.fromEntries(
+    Object.entries(adapted).map(([event, entries]) => [event, wrapHookCommands(entries, event)]),
+  );
+}
+
 function pluginHookManifest(): string {
-  const hooks = adaptHookValue(SETTINGS_HOOKS);
+  const hooks = pluginHooks();
   return `${JSON.stringify({ hooks }, undefined, 2)}\n`;
 }
 

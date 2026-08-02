@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/session-bun-check.sh"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.ts SessionStart -- bash \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/session-bun-check.sh"
           }
         ]
       },
@@ -13,7 +13,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/session-dependency-readiness.ts"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.ts SessionStart -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/session-dependency-readiness.ts"
           }
         ]
       },
@@ -21,7 +21,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/session-auto-upgrade.ts",
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.ts SessionStart -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/session-auto-upgrade.ts",
             "asyncRewake": true
           }
         ]
@@ -30,7 +30,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/session-safeword-context.ts --agent=claude"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.ts SessionStart -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/session-safeword-context.ts --agent=claude"
           }
         ]
       },
@@ -38,7 +38,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/session-version.ts"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.ts SessionStart -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/session-version.ts"
           }
         ]
       },
@@ -46,7 +46,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/session-lint-check.ts"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.ts SessionStart -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/session-lint-check.ts"
           }
         ]
       },
@@ -54,7 +54,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/session-architecture-heal.ts"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.ts SessionStart -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/session-architecture-heal.ts"
           }
         ]
       },
@@ -62,7 +62,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/session-author-model.ts"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.ts SessionStart -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/session-author-model.ts"
           }
         ]
       },
@@ -70,16 +70,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/session-start-reentry.ts"
-          }
-        ]
-      },
-      {
-        "matcher": "compact",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/session-safeword-context.ts --agent=claude"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.ts SessionStart -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/session-start-reentry.ts"
           }
         ]
       },
@@ -88,7 +79,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/session-compact-context.ts"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.ts SessionStart -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/session-safeword-context.ts --agent=claude"
+          }
+        ]
+      },
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.ts SessionStart -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/session-compact-context.ts"
           }
         ]
       }
@@ -98,7 +98,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/prompt-timestamp.ts"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.ts UserPromptSubmit -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/prompt-timestamp.ts"
           }
         ]
       },
@@ -106,7 +106,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/prompt-questions.ts"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.ts UserPromptSubmit -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/prompt-questions.ts"
           }
         ]
       },
@@ -114,7 +114,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/prompt-retro-nudge.ts"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.ts UserPromptSubmit -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/prompt-retro-nudge.ts"
           }
         ]
       }
@@ -124,7 +124,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/stop-quality.ts"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.ts Stop -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/stop-quality.ts"
           }
         ]
       },
@@ -132,7 +132,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/stop-reentry.ts"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.ts Stop -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/stop-reentry.ts"
           }
         ]
       },
@@ -140,7 +140,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/stop-self-report.ts"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.ts Stop -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/stop-self-report.ts"
           }
         ]
       },
@@ -148,7 +148,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/stop-retro-filing.ts"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.ts Stop -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/stop-retro-filing.ts"
           }
         ]
       },
@@ -156,7 +156,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/stop-retro.ts",
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.ts Stop -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/stop-retro.ts",
             "async": true
           }
         ]
@@ -168,7 +168,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/pre-tool-dependency-readiness.ts"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.ts PreToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/pre-tool-dependency-readiness.ts"
           }
         ]
       },
@@ -177,7 +177,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/pre-tool-quality.ts"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.ts PreToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/pre-tool-quality.ts"
           }
         ]
       },
@@ -186,7 +186,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/pre-tool-quality.ts"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.ts PreToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/pre-tool-quality.ts"
           }
         ]
       },
@@ -195,7 +195,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/pre-tool-config-guard.ts"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.ts PreToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/pre-tool-config-guard.ts"
           }
         ]
       },
@@ -205,7 +205,7 @@
           {
             "type": "command",
             "if": "Bash(git *)",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/pre-tool-git-bare-fix.sh"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.ts PreToolUse -- bash \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/pre-tool-git-bare-fix.sh"
           }
         ]
       },
@@ -215,7 +215,7 @@
           {
             "type": "command",
             "if": "Bash(git commit*)",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/pre-tool-architecture-stage.ts"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.ts PreToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/pre-tool-architecture-stage.ts"
           }
         ]
       },
@@ -225,7 +225,7 @@
           {
             "type": "command",
             "if": "Bash(git checkout*)",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/pre-tool-stale-main.ts"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.ts PreToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/pre-tool-stale-main.ts"
           }
         ]
       },
@@ -235,7 +235,7 @@
           {
             "type": "command",
             "if": "Bash(git switch*)",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/pre-tool-stale-main.ts"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.ts PreToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/pre-tool-stale-main.ts"
           }
         ]
       }
@@ -246,7 +246,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/post-tool-lint.ts"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.ts PostToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/post-tool-lint.ts"
           }
         ]
       },
@@ -255,7 +255,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/post-tool-quality.ts"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.ts PostToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/post-tool-quality.ts"
           }
         ]
       },
@@ -264,7 +264,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/post-tool-skill-nudge.ts"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.ts PostToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/post-tool-skill-nudge.ts"
           }
         ]
       },
@@ -273,7 +273,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/post-tool-bypass-warn.ts"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.ts PostToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/post-tool-bypass-warn.ts"
           }
         ]
       },
@@ -282,7 +282,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/post-tool-sync-learnings.ts"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.ts PostToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/post-tool-sync-learnings.ts"
           }
         ]
       },
@@ -291,7 +291,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/post-tool-work-log.ts"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.ts PostToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/post-tool-work-log.ts"
           }
         ]
       },
@@ -300,7 +300,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/post-tool-dependency-readiness.ts"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.ts PostToolUse -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/post-tool-dependency-readiness.ts"
           }
         ]
       }
@@ -310,7 +310,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/session-cleanup-quality.ts"
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/dispatch.ts SessionEnd -- bun \"${CLAUDE_PLUGIN_ROOT}\"/runtime/hooks/session-cleanup-quality.ts"
           }
         ]
       }
