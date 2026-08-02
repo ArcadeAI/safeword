@@ -134,7 +134,7 @@ test-definitions.md is the R/G/R ledger. Executable Given/When/Then behavior liv
 
 ### Scenario: An explicit opt-out retains the existing route without cross-agent evidence
 
-- [ ] RED
+- [x] RED ce5937c9e
 - [ ] GREEN
 - [ ] REFACTOR
 
