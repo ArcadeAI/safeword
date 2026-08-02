@@ -1,4 +1,5 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -285,6 +286,78 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       remaining: ['delete-remote-ref', 'delete-local-ref'],
       blockers: ['delete-remote-ref failed: lease rejected'],
     });
+  });
+
+  it('executes the exact cleanup commands against a real linked git worktree and remote', () => {
+    const sandbox = mkdtempSync(nodePath.join(tmpdir(), 'safeword-closeout-git-'));
+    const main = nodePath.join(sandbox, 'main');
+    const topic = nodePath.join(sandbox, 'topic');
+    const remote = nodePath.join(sandbox, 'remote.git');
+    const git = (...arguments_: string[]) => {
+      const result = spawnSync('git', arguments_, { encoding: 'utf8' });
+      if (result.status !== 0) throw new Error(result.stderr);
+      return result.stdout.trim();
+    };
+
+    try {
+      git('init', '--bare', remote);
+      git('init', '--initial-branch=main', main);
+      git('-C', main, 'config', 'user.email', 'closeout@example.test');
+      git('-C', main, 'config', 'user.name', 'Closeout Test');
+      writeFileSync(nodePath.join(main, 'README.md'), 'main\n');
+      git('-C', main, 'add', 'README.md');
+      git('-C', main, 'commit', '-m', 'main');
+      git('-C', main, 'remote', 'add', 'origin', remote);
+      git('-C', main, 'push', '-u', 'origin', 'main');
+      git('-C', main, 'worktree', 'add', '-b', 'feature/closeout', topic);
+      writeFileSync(nodePath.join(topic, 'feature.txt'), 'topic\n');
+      git('-C', topic, 'add', 'feature.txt');
+      git('-C', topic, 'commit', '-m', 'topic');
+      git('-C', topic, 'push', '-u', 'origin', 'feature/closeout');
+      const oid = git('-C', topic, 'rev-parse', 'HEAD');
+      const mainWorktree = {
+        path: main,
+        branch: 'main',
+        oid: git('-C', main, 'rev-parse', 'HEAD'),
+        main: true,
+      };
+      const baseline = safeObservation({
+        pullRequests: [{ ...pullRequest(), headRefOid: oid }],
+        remote: { name: 'origin', url: 'git@github.com:acme/widget.git', oid },
+        localRefOid: oid,
+        worktrees: [mainWorktree, { path: topic, branch: 'feature/closeout', oid, main: false }],
+        verification: { current: true, passed: true, headOid: oid, stateHash: 'real-git' },
+      });
+      const afterWorktree = { ...baseline, worktrees: [mainWorktree] };
+      const afterRemote = {
+        ...afterWorktree,
+        remote: undefined,
+        remoteResolution: 'absent' as const,
+      };
+      const observations = [baseline, baseline, afterWorktree, afterRemote];
+      const plan = buildCleanupPlan(baseline);
+      const result = applyCleanupPlan({
+        plan,
+        digest: cleanupPlanDigest(plan),
+        observe: () => observations.shift() ?? afterRemote,
+        execute: operation => {
+          const [command, ...arguments_] = operationCommand(operation);
+          if (!command) throw new Error('missing command');
+          const execution = spawnSync(command, arguments_, { encoding: 'utf8' });
+          if (execution.status !== 0) throw new Error(execution.stderr);
+        },
+      });
+
+      expect(result.applied).toBe(true);
+      expect(existsSync(topic)).toBe(false);
+      expect(git('-C', main, 'ls-remote', '--heads', 'origin', 'feature/closeout')).toBe('');
+      expect(
+        spawnSync('git', ['-C', main, 'show-ref', '--verify', 'refs/heads/feature/closeout'])
+          .status,
+      ).not.toBe(0);
+    } finally {
+      rmSync(sandbox, { recursive: true, force: true });
+    }
   });
 
   it('accepts only transcript metadata bound to the exact session and repository', () => {
