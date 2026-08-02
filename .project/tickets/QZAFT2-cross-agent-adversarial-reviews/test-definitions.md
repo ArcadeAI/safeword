@@ -35,7 +35,7 @@ test-definitions.md is the R/G/R ledger. Executable Given/When/Then behavior liv
 ### Scenario Outline: Reviewer identity faults earn no review evidence
 
 - [x] RED c8fca35b0
-- [ ] GREEN
+- [x] GREEN 6d22461d7
 - [ ] REFACTOR
 
 ## Rule: cross-agent-review.TBU1.R3 — The reviewer is isolated from writes and unrelated credentials
