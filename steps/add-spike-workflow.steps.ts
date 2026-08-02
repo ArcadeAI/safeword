@@ -340,7 +340,7 @@ Then('the spike checkpoint is the next offered action', function (this: SpikeWor
 Then('plan-implementation has not begun', function (this: SpikeWorkflowWorld) {
   assert.match(
     this.bddScenariosGuidance ?? '',
-    /remain in `scenario-gate`[\s\S]*do not (?:set|advance)[^\n]*`plan-implementation`/i,
+    /remain in `scenario-gate`[\s\S]*do not set or advance\s+to `plan-implementation`/i,
   );
 });
 

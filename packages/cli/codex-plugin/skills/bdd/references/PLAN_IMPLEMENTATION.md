@@ -1,6 +1,6 @@
 # Plan Implementation: Design Before TDD
 
-**Entry:** Agent enters `plan-implementation` phase. Scenarios passed the scenario-gate; behavior is fixed. This phase produces the implementation design record — `impl-plan.md` — and nothing else ships from it. Application code stays untouched until `implement` (the pre-tool hook enforces this).
+**Entry:** Agent enters `plan-implementation` phase. Scenarios passed the scenario-gate; behavior is fixed. If a spike ran at the optional checkpoint, begin by distilling its evidence, shortcuts, decision, and production consequences into the Approach, Decisions, and Assessment triggers below; never reuse its code. This phase produces the implementation design record — `impl-plan.md` — and nothing else ships from it. Application code stays untouched until `implement` (the pre-tool hook enforces this).
 
 ## Design the approach — ideal first
 
