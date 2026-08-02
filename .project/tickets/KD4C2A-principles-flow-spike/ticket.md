@@ -2,7 +2,7 @@
 id: KD4C2A
 slug: principles-flow-spike
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 phase_skips:
   - intake: Completed before the first feature checkpoint; the scoped spec and intake work log are committed with this ticket.
@@ -10,7 +10,7 @@ phase_skips:
   - scenario-gate: Completed before the first feature checkpoint; the approved feature and review work log are committed with this ticket.
   - plan-implementation: Completed before the first feature checkpoint; the reviewed implementation plan and phase anchor are committed with this ticket.
 created: 2026-08-02T14:08:58.443Z
-last_modified: 2026-08-02T17:08:00Z
+last_modified: 2026-08-02T17:28:00Z
 scope:
   - scaffold principles as configurable user-owned project knowledge with health parity
   - make Design alignment canonical while accepting legacy Arch alignment plans
@@ -162,6 +162,10 @@ user-owned thereafter, namespace-root aware, and redirectable through
 
 ## Work Log
 
+- 2026-08-02T17:28:00Z Verify entry: Whole-diff quality review exposed and
+  resolved two evidence gaps: E010 now validates Markdown fragments and ignores
+  supporting principle sections, and a real setup-installed 12-row host-stage
+  matrix caught and fixed Cursor self-review's missing current-knowledge input.
 - 2026-08-02T17:08:00Z Plan-implementation exit: Fresh review passed, the
   valid planned artifact was stamped, and implementation began with alignment
   compatibility as the load-bearing slice.

@@ -30,8 +30,8 @@ required `Scenario:` heading grammar.
 
 ### Scenario: Each installed host review stage receives relevant configured knowledge
 
-- [x] RED 70a79e662
-- [x] GREEN 214f844cc
+- [x] RED bbefb9296
+- [x] GREEN aa8776428
 - [x] REFACTOR 617715b58
 
 ### Scenario: Labels alone cannot satisfy a source-grounded review
@@ -56,14 +56,14 @@ required `Scenario:` heading grammar.
 
 ### Scenario: Audit reports each broken principle trace as E010
 
-- [x] RED 863357249
-- [x] GREEN ff102a6f7
-- [x] REFACTOR skip: the sentinel delegates to the typed checker; no shell parser remains
+- [x] RED 46f568a24
+- [x] GREEN 7dc82463c
+- [x] REFACTOR skip: Markdown fragment resolution stays inside the typed checker
 
 ### Scenario: Semantic disagreement is not an audit failure
 
 - [x] RED skip: paired with the objective-defect mutation fixture
-- [x] GREEN ff102a6f7
+- [x] GREEN 7dc82463c
 - [x] REFACTOR skip: semantic judgment is explicitly owned by quality review
 
 ## Rule: project-knowledge.SWM1.R1 — Principles, personas, and surfaces share a safe configured-path lifecycle

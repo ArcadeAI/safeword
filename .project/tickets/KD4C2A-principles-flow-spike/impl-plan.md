@@ -107,7 +107,10 @@ entry points in the canonical catalogue/parity tests rather than another list.
 
 | Principle | Consequence | Proof | Conflict |
 | --- | --- | --- | --- |
-| 1. Structure enforces; instructions suggest | Heading cardinality, configured paths, current review-source resolution, and trace integrity are executable contracts. | packages/cli/tests/hooks/principle-trace.test.ts | |
+| 1. Structure enforces; instructions suggest | Alignment-heading cardinality is an executable parser contract. | packages/cli/tests/hooks/impl-plan.test.ts | |
+| 1. Structure enforces; instructions suggest | Configured project-knowledge paths change scaffold ownership. | packages/cli/tests/reconcile-configured-paths.test.ts | |
+| 1. Structure enforces; instructions suggest | Every installed host review stage resolves current knowledge. | packages/cli/tests/integration/project-knowledge-review-entrypoints.test.ts | |
+| 1. Structure enforces; instructions suggest | Objective principle traces reject incomplete or dead evidence. | packages/cli/tests/hooks/principle-trace.test.ts | |
 | 2. Fire at boundaries, not every turn | Semantic challenge runs at review boundaries; health and audit check only objective facts. | packages/cli/tests/skills/principles-review-documentation.test.ts | |
 | 3. Add, never replace | Setup preserves authored knowledge, overrides suppress defaults, and legacy alignment plans remain readable. | packages/cli/tests/reconcile-namespace-root.test.ts | |
 | 5. Clarity before correctness | New plans use one canonical alignment name and public docs describe one shared knowledge lifecycle. | packages/cli/tests/docs/project-knowledge-config.test.ts | |
