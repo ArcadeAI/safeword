@@ -81,4 +81,42 @@ describe('cross-agent review public-command wiring', () => {
       expect(readFileSync(log, 'utf8')).toBe(`${reviewer}\n`);
     },
   );
+
+  it('does not launch a same-agent candidate when the opposite reviewer is available', async () => {
+    const directory = createTemporaryDirectory();
+    const target = nodePath.join(directory, 'review-input.md');
+    const log = nodePath.join(directory, 'review.log');
+    writeFileSync(target, 'bounded review input\n');
+    const bin = installFakeReviewer(directory, 'claude', log);
+    installFakeReviewer(directory, 'codex', log);
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:${process.env.PATH ?? ''}`,
+          SAFEWORD_AGENT_RUNTIME: 'codex',
+          SAFEWORD_REVIEW_LOG: log,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(JSON.parse(result.stdout).data).toMatchObject({
+      assigned_reviewer: 'claude',
+      actual_reviewer: 'claude',
+    });
+    expect(readFileSync(log, 'utf8')).toBe('claude\n');
+  });
 });
