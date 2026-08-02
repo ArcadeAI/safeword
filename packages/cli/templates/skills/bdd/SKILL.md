@@ -59,10 +59,11 @@ safeword review run scenario-gate <feature-file> <ticket-spec> [legacy-test-defi
 The coordinator prefers the opposite headless agent, labels a permitted
 same-agent fallback as degraded, and blocks with one recovery action when no
 safe route remains. Do not bypass it with a private subagent. On a result that
-satisfies the configured policy, record the stamp:
+satisfies the configured policy, record the returned provenance in the stamp
+(substitute the four values from `data` in the coordinator result):
 
 ```bash
-bun .safeword/hooks/write-review-stamp.ts --phase <phase you are leaving>
+bun .safeword/hooks/write-review-stamp.ts --author-agent "<author_agent>" --reviewer-agent "<actual_reviewer>" --model "<assigned_model>" --independence "<independence>" --phase <phase you are leaving>
 ```
 
 If the reviewer finds blocking issues, fix them and re-review — don't stamp.
