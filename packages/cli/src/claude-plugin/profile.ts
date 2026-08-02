@@ -1,4 +1,7 @@
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { lstatSync, readFileSync } from 'node:fs';
+import nodePath from 'node:path';
 
 import { type CliResult, createResult, type Effect } from '../cli-protocol/result.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
@@ -190,6 +193,83 @@ function convergePlugin(cwd: string, effects: Effect[]): void {
   }
 }
 
+function fileSha256(path: string): string {
+  return createHash('sha256').update(readFileSync(path)).digest('hex');
+}
+
+function assertInstalledAsset(installPath: string, asset: JsonObject): void {
+  if (
+    typeof asset.path !== 'string' ||
+    nodePath.isAbsolute(asset.path) ||
+    asset.path.split(nodePath.sep).includes('..') ||
+    typeof asset.sha256 !== 'string'
+  ) {
+    throw new TypeError('installed inventory contains an unsafe asset');
+  }
+  const path = nodePath.join(installPath, asset.path);
+  if (!lstatSync(path).isFile() || fileSha256(path) !== asset.sha256) {
+    throw new TypeError(`installed asset failed integrity validation: ${asset.path}`);
+  }
+}
+
+function assertInstalledIdentity(
+  identity: JsonObject,
+  inventory: JsonObject,
+  inventoryContent: string,
+): asserts inventory is JsonObject & { assets: JsonObject[] } {
+  if (
+    identity.schema_version !== 1 ||
+    identity.plugin_version !== SAFEWORD_SCHEMA.version ||
+    identity.inventory_sha256 !== createHash('sha256').update(inventoryContent).digest('hex') ||
+    inventory.schema_version !== 1 ||
+    !Array.isArray(inventory.assets)
+  ) {
+    throw new TypeError('installed identity or inventory is inconsistent');
+  }
+}
+
+function assertRequiredNativeAssets(assets: readonly JsonObject[]): void {
+  const paths = new Set(assets.map(asset => asset.path));
+  for (const required of [
+    'hooks/hooks.json',
+    'runtime/cli.js',
+    'runtime/dispatch.ts',
+    'runtime/event-groups.json',
+  ]) {
+    if (!paths.has(required)) throw new TypeError(`installed native asset is missing: ${required}`);
+  }
+}
+
+function validateNativePayload(plugin: JsonObject): void {
+  if (typeof plugin.installPath !== 'string' || !lstatSync(plugin.installPath).isDirectory()) {
+    throw new TypeError('installed plugin path is missing');
+  }
+  const identityPath = nodePath.join(plugin.installPath, 'identity.json');
+  const inventoryPath = nodePath.join(plugin.installPath, 'inventory.json');
+  const identity = JSON.parse(readFileSync(identityPath, 'utf8')) as JsonObject;
+  const inventoryContent = readFileSync(inventoryPath, 'utf8');
+  const inventory = JSON.parse(inventoryContent) as JsonObject;
+  assertInstalledIdentity(identity, inventory, inventoryContent);
+  assertRequiredNativeAssets(inventory.assets);
+  for (const asset of inventory.assets) assertInstalledAsset(plugin.installPath, asset);
+  const hookManifest = nodePath.join(plugin.installPath, 'hooks/hooks.json');
+  if (identity.hook_manifest_sha256 !== fileSha256(hookManifest)) {
+    throw new TypeError('installed hook manifest does not match its identity');
+  }
+}
+
+function assertNativePayload(plugin: JsonObject, effects: readonly Effect[]): void {
+  try {
+    validateNativePayload(plugin);
+  } catch (error) {
+    throw new ClaudeProfileError(
+      'CLAUDE_PLUGIN_PAYLOAD_UNVERIFIED',
+      `Claude installed plugin metadata, but its native payload could not be verified: ${error instanceof Error ? error.message : String(error)}`,
+      effects,
+    );
+  }
+}
+
 function verifyPlugin(cwd: string, effects: readonly Effect[]): void {
   const plugin = safewordPlugin(pluginEntries(cwd, effects));
   if (
@@ -197,6 +277,7 @@ function verifyPlugin(cwd: string, effects: readonly Effect[]): void {
     plugin.enabled === true &&
     plugin.scope === 'user'
   ) {
+    assertNativePayload(plugin, effects);
     return;
   }
   throw new ClaudeProfileError(
