@@ -65,7 +65,7 @@ test-definitions.md is the R/G/R ledger. Executable Given/When/Then behavior liv
 ### Scenario: A permitted host-native fallback is recorded as degraded
 
 - [x] RED 7c916682a
-- [ ] GREEN
+- [x] GREEN 695114d4a
 - [ ] REFACTOR
 
 ### Scenario: A degraded fallback cannot satisfy hard cross-agent enforcement
