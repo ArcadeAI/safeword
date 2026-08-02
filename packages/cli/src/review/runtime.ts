@@ -14,6 +14,15 @@ const ARGUMENTS: Readonly<Record<ReviewAgent, readonly string[]>> = {
   codex: ['exec', '--json', '--sandbox', 'read-only', '--skip-git-repo-check', '-'],
 };
 
+const ASSIGNED_MODELS: Readonly<Record<ReviewAgent, string>> = {
+  claude: 'claude-default',
+  codex: 'codex-default',
+};
+
+export function assignedReviewerModel(reviewer: ReviewAgent): string {
+  return ASSIGNED_MODELS[reviewer];
+}
+
 export async function runHeadlessReviewer(
   reviewer: ReviewAgent,
   packet: ReviewPacket,

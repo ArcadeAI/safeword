@@ -3,7 +3,7 @@ import { type CliResult, createResult } from '../cli-protocol/result.js';
 import type { ReviewerOutput, ReviewKind } from './contract.js';
 import { buildReviewPacket } from './packet.js';
 import { oppositeReviewer } from './policy.js';
-import { runHeadlessReviewer } from './runtime.js';
+import { assignedReviewerModel, runHeadlessReviewer } from './runtime.js';
 
 function validatedOutput(
   output: ReviewerOutput,
@@ -68,6 +68,7 @@ export async function runReview(input: {
       author_agent: author,
       assigned_reviewer: reviewer,
       actual_reviewer: output.reviewer_agent,
+      assigned_model: assignedReviewerModel(reviewer),
       independence: 'cross-agent',
       reviewer_output: output,
     },
