@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
@@ -51,5 +52,22 @@ describe('checkPrincipleTrace', () => {
     expect(checkPrincipleTrace(project(), plan)).toContain(
       `[E010] Broken principle trace: ${detail}: ${principle}`,
     );
+  });
+
+  it('reports active-ticket findings through the installed audit entry point', () => {
+    const directory = project();
+    const ticketDirectory = nodePath.join(directory, '.project', 'tickets', 'TRACE1');
+    mkdirSync(ticketDirectory, { recursive: true });
+    writeFileSync(nodePath.join(ticketDirectory, 'ticket.md'), '---\nstatus: in_progress\n---\n');
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'impl-plan.md'),
+      PLAN.replace('verify.md', 'missing.md'),
+    );
+    const wrapper = nodePath.join(__dirname, '../../templates/hooks/audit-principle-trace.ts');
+
+    const result = spawnSync('bun', [wrapper, directory], { encoding: 'utf8' });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('[E010] Broken principle trace: dead evidence reference');
   });
 });

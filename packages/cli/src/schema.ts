@@ -633,6 +633,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/resolve-project-knowledge.ts': {
       template: 'hooks/resolve-project-knowledge.ts',
     },
+    '.safeword/hooks/audit-principle-trace.ts': {
+      template: 'hooks/audit-principle-trace.ts',
+    },
     '.safeword/hooks/record-skill-invocation.ts': {
       template: 'hooks/record-skill-invocation.ts',
     },

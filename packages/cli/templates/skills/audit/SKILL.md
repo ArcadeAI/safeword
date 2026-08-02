@@ -690,6 +690,15 @@ or whether an experience was genuinely delightful—those are adversarial
 `quality-review` judgments. A plan with no declared applicable principle is not
 an audit finding.
 
+Run the factual checker below verbatim. Its sentinel keeps the executable audit
+contract testable without turning semantic review into shell heuristics.
+
+```bash
+# principle-trace-check — E010 objective trace integrity only.
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
+bun "$PROJECT_DIR/.safeword/hooks/audit-principle-trace.ts" "$PROJECT_DIR"
+```
+
 ### 7. Namespace Domain Docs
 
 When a changed feature/spec or changed domain doc references them, reconcile the
