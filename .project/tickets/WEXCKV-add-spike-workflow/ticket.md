@@ -1,0 +1,47 @@
+---
+id: WEXCKV
+slug: add-spike-workflow
+type: feature
+phase: implement
+status: in_progress
+phase_skips:
+  - intake: User confirmed the bounded spike scope before the first ticket snapshot was committed.
+  - define-behavior: The spec and behavior review were completed before the first ticket snapshot was committed.
+  - scenario-gate: The executable scenarios and independent scenario review were completed before the first ticket snapshot was committed.
+  - plan-implementation: The implementation plan and independent plan review were completed before the first ticket snapshot was committed.
+phase_anchors:
+  - define-behavior: .project/tickets/WEXCKV-add-spike-workflow/spec.md
+  - scenario-gate: features/add-spike-workflow.feature
+  - plan-implementation: .project/tickets/WEXCKV-add-spike-workflow/impl-plan.md
+scope:
+  - ship a manual spike action skill for bounded build-only uncertainty
+  - integrate the spike checkpoint after BDD scenario validation and before implementation planning
+  - ship the workflow consistently for Claude Code, Cursor, and Codex
+out_of_scope:
+  - add a canonical BDD phase or new hook gates
+  - make every unfamiliar feature run a spike
+  - merge or promote spike code into production implementation
+done_when:
+  - a maintainer can invoke spike explicitly and receive a bounded experiment workflow
+  - BDD routes eligible technical uncertainty through the checkpoint without changing phase order
+  - generated host artifacts and parity tests include the new action skill
+created: 2026-08-02T14:48:51.806Z
+last_modified: 2026-08-02T14:55:00.000Z
+---
+
+# add-spike-workflow
+
+**Goal:** Let maintainers resolve a build-only technical uncertainty with disposable evidence before committing to a production implementation plan.
+
+**See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
+
+## Work Log
+
+- 2026-08-02T14:48:51.806Z Started: Created ticket WEXCKV
+- 2026-08-02T14:49:00.000Z Intake: User requested the full BDD flow after accepting the bounded, post-scenario-gate spike design; intake gates auto-confirmed for this run.
+- 2026-08-02T14:52:00.000Z Phase: intake → define-behavior; scope fixed around a manual, bounded, cross-host spike checkpoint.
+- 2026-08-02T14:55:00.000Z Phase: define-behavior → scenario-gate; four rules and eight scenarios cover eligibility, evidence lifecycle, host parity, and BDD placement.
+- 2026-08-02T15:05:00.000Z Scenario gate: independent review passed after tightening incomplete-charter, branch-history, real-setup, manual-only, and pre-validation boundaries.
+- 2026-08-02T15:06:00.000Z Phase: scenario-gate → plan-implementation; load-bearing slice is real setup parity across all three hosts.
+- 2026-08-02T15:15:00.000Z Plan gate: independent review passed after splitting project-scoped setup from profile-scoped Codex generation and making every proof boundary explicit.
+- 2026-08-02T15:16:00.000Z Phase: plan-implementation → implement; twelve scenario loops planned, no ADR emitted.
