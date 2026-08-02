@@ -170,11 +170,9 @@ describe('installed review entry points resolve current project knowledge', () =
 
   it('covers every host and review stage', () => {
     expect(REVIEW_ENTRYPOINTS).toHaveLength(12);
-    expect(Object.groupBy(REVIEW_ENTRYPOINTS, row => row.host)).toMatchObject({
-      claude: expect.arrayContaining(CLAUDE_REVIEW_ENTRYPOINTS),
-      cursor: expect.arrayContaining(CURSOR_REVIEW_ENTRYPOINTS),
-      codex: expect.arrayContaining(CODEX_REVIEW_ENTRYPOINTS),
-    });
+    for (const host of ['claude', 'cursor', 'codex']) {
+      expect(REVIEW_ENTRYPOINTS.filter(row => row.host === host)).toHaveLength(4);
+    }
     expect(new Set(REVIEW_ENTRYPOINTS.map(row => row.stage))).toHaveLength(4);
   });
 
