@@ -291,6 +291,11 @@ Given('a configured healthy project', function (this: PredictableCliWorld) {
 });
 
 Given('a configured project with managed drift', function (this: PredictableCliWorld) {
+  mkdirSync(join(temporaryProject(this), '.claude'), { recursive: true });
+  writeFileSync(
+    join(temporaryProject(this), '.claude', 'settings.json'),
+    '{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"bun .safeword/hooks/session-version.ts"}]}]}}\n',
+  );
   setupProject(this);
   rmSync(join(temporaryProject(this), '.claude', 'settings.json'));
 });

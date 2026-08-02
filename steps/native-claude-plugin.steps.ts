@@ -155,6 +155,8 @@ Given(
     const project = nodePath.join(root, 'project');
     cpSync(PLUGIN_ROOT, plugin, { recursive: true });
     mkdirSync(project, { recursive: true });
+    mkdirSync(nodePath.join(project, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(project, '.safeword/version'), `${EXPECTED_VERSION}\n`);
     this.cacheFixture = { root, plugin, data, project };
   },
 );
@@ -184,7 +186,8 @@ When('a Safeword plugin hook executes', function (this: NativeClaudePluginWorld)
   });
   this.cacheFixture.result = {
     status: result.status ?? 1,
-    output: `${result.stdout ?? ''}${result.stderr ?? ''}`,
+    output:
+      result.status === 0 ? (result.stdout ?? '') : `${result.stdout ?? ''}${result.stderr ?? ''}`,
   };
 });
 
@@ -201,7 +204,7 @@ When('its generated SessionStart entrypoint executes', function (this: NativeCla
       ...process.env,
       CLAUDE_PLUGIN_DATA: this.cacheFixture.data,
       CLAUDE_PLUGIN_ROOT: this.cacheFixture.plugin,
-      CLAUDE_PROJECT_DIR: REPO_ROOT,
+      CLAUDE_PROJECT_DIR: this.cacheFixture.project,
     },
     encoding: 'utf8',
     input: `${JSON.stringify({
@@ -213,7 +216,8 @@ When('its generated SessionStart entrypoint executes', function (this: NativeCla
   });
   this.cacheFixture.result = {
     status: result.status ?? 1,
-    output: `${result.stdout ?? ''}${result.stderr ?? ''}`,
+    output:
+      result.status === 0 ? (result.stdout ?? '') : `${result.stdout ?? ''}${result.stderr ?? ''}`,
   };
 });
 

@@ -16,16 +16,12 @@ import {
   detectUnanchoredPhaseState,
   type PhaseAnchorScope,
 } from '../templates/hooks/lib/phase-provenance.js';
+import { schemaForClaudeDelivery } from './claude-plugin/delivery-schema.js';
 import { getMissingPacks } from './packs/registry.js';
 import type { ProjectType } from './packs/types.js';
 import { typescriptPackages } from './packs/typescript/files.js';
 import { reconcile } from './reconcile.js';
-import {
-  BDD_LANE_FILE_PATHS,
-  BDD_LANE_SCRIPT,
-  SAFEWORD_SCHEMA,
-  type SafewordSchema,
-} from './schema.js';
+import { BDD_LANE_FILE_PATHS, BDD_LANE_SCRIPT, type SafewordSchema } from './schema.js';
 import { inspectTicketIndexConflicts, readTickets } from './ticket-sync/index.js';
 import { listArchitectureRecords } from './utils/architecture-records.js';
 import {
@@ -733,7 +729,8 @@ export async function checkHealth(
 
   // Use reconcile with dryRun to detect issues
   const ctx = createProjectContext(cwd);
-  const result = await reconcile(options.schema ?? SAFEWORD_SCHEMA, 'upgrade', ctx, {
+  const healthSchema = options.schema ?? schemaForClaudeDelivery(cwd);
+  const result = await reconcile(healthSchema, 'upgrade', ctx, {
     dryRun: true,
   });
 
@@ -753,7 +750,7 @@ export async function checkHealth(
     ...findPersonaIssues(cwd),
     ...findGlossaryIssues(cwd),
     ...findDocumentationSourceIssues(cwd),
-    ...missingClaudeSettingsIssues(cwd, options.schema ?? SAFEWORD_SCHEMA),
+    ...missingClaudeSettingsIssues(cwd, healthSchema),
   ];
 
   // Check for missing language packs (unless install was deliberately skipped)

@@ -1,6 +1,7 @@
 import { existsSync, lstatSync, readdirSync, readFileSync, readlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { schemaForClaudeDelivery } from '../claude-plugin/delivery-schema.js';
 import { diffFileSnapshots } from '../cli-protocol/file-effects.js';
 import { effectsForReconciliation } from '../cli-protocol/reconciliation.js';
 import { buildReplayCommand } from '../cli-protocol/replay-command.js';
@@ -24,7 +25,6 @@ import {
 } from '../packs/python/setup.js';
 import { getMissingPacks } from '../packs/registry.js';
 import { reconcile, ReconcileExecutionError, type ReconcileResult } from '../reconcile.js';
-import { SAFEWORD_SCHEMA, type SafewordSchema } from '../schema.js';
 import { createProjectContext } from '../utils/context.js';
 import { exists, writeJson } from '../utils/fs.js';
 import { hookIntegrationNudge } from '../utils/hook-nudge.js';
@@ -596,6 +596,16 @@ function setupResult(input: SetupResultInput): CliResult {
     ...pythonFindings(pythonSetup),
   ];
   const actionRequired = findings.some(finding => finding.severity !== 'info');
+  const resultFindings = actionRequired
+    ? findings
+    : [
+        ...findings,
+        {
+          code: 'SETUP_CODEX_PLUGIN_HANDOFF',
+          message: 'Codex plugin: safeword codex install',
+          severity: 'info' as const,
+        },
+      ];
   let state: CliResult['state'] = changed ? 'changed' : 'healthy';
   if (actionRequired) state = 'action_required';
   const nextCommands = actionRequired
@@ -605,36 +615,10 @@ function setupResult(input: SetupResultInput): CliResult {
     state,
     changed,
     effects: { files, packages, network },
-    findings,
+    findings: resultFindings,
     nextActions: nextCommands.map(command => ({ command, mutates: true, requiresHuman: true })),
     data: { configured: true, dependency_install: installation },
   });
-}
-
-function withoutClaudeLegacy<T>(values: Record<string, T>): Record<string, T> {
-  return Object.fromEntries(
-    Object.entries(values).filter(([path]) => !path.startsWith('.claude/')),
-  );
-}
-
-function setupSchemaForClaudeDelivery(cwd: string): SafewordSchema {
-  const pluginMarker = nodePath.join(cwd, '.safeword/claude-plugin/plugin-mode-v1.json');
-  const hasLegacy = [
-    ...Object.keys(SAFEWORD_SCHEMA.ownedFiles),
-    ...Object.keys(SAFEWORD_SCHEMA.managedFiles),
-    ...Object.keys(SAFEWORD_SCHEMA.jsonMerges),
-  ].some(path => path.startsWith('.claude/') && existsSync(nodePath.join(cwd, path)));
-  if (!existsSync(pluginMarker) && hasLegacy) return SAFEWORD_SCHEMA;
-  return {
-    ...SAFEWORD_SCHEMA,
-    ownedDirs: SAFEWORD_SCHEMA.ownedDirs.filter(path => !path.startsWith('.claude')),
-    sharedDirs: SAFEWORD_SCHEMA.sharedDirs.filter(path => !path.startsWith('.claude')),
-    deprecatedFiles: SAFEWORD_SCHEMA.deprecatedFiles.filter(path => !path.startsWith('.claude/')),
-    deprecatedDirs: SAFEWORD_SCHEMA.deprecatedDirs.filter(path => !path.startsWith('.claude')),
-    ownedFiles: withoutClaudeLegacy(SAFEWORD_SCHEMA.ownedFiles),
-    managedFiles: withoutClaudeLegacy(SAFEWORD_SCHEMA.managedFiles),
-    jsonMerges: withoutClaudeLegacy(SAFEWORD_SCHEMA.jsonMerges),
-  };
 }
 
 function applyCompatibilityMigrations(cwd: string, completedEffects: CompletedSetupEffects): void {
@@ -694,7 +678,7 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
   } = input;
   const context = createProjectContext(cwd);
   const operation = configured ? 'upgrade' : 'install';
-  const setupSchema = setupSchemaForClaudeDelivery(cwd);
+  const setupSchema = schemaForClaudeDelivery(cwd);
   const result = await reconcile(setupSchema, operation, context);
   const completedEffects: CompletedSetupEffects = {
     files: [...preliminaryFileEffects, ...effectsForReconciliation(result, 'upgrade').files],
