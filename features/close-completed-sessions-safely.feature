@@ -1,3 +1,6 @@
+# Collaborator actions and host invocation require hash-bound independent review;
+# deterministic guard, wiring, and parity behavior remains covered by Vitest.
+@manual
 Feature: Close completed sessions safely
 
   @close-completed-sessions-safely.NTB1.R1
