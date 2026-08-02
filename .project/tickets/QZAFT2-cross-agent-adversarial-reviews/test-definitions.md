@@ -86,7 +86,7 @@ test-definitions.md is the R/G/R ledger. Executable Given/When/Then behavior liv
 
 ### Scenario Outline: Every outcome leads with its independence status
 
-- [ ] RED
+- [x] RED fcf9332b7
 - [ ] GREEN
 - [ ] REFACTOR
 
