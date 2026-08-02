@@ -50,10 +50,15 @@ complete.
 
 ## Isolation
 
-Inspect the repository root, current worktrees, branch, and status. Record the
-current production commit as `PRE_SPIKE_BASE`. Create a uniquely named
-`spike/<question-slug>` branch and sibling worktree from that exact commit;
-never reuse an existing path or branch.
+Inspect the repository root, current worktrees, branch, and status. Validated
+scenario and ticket-state changes must be included in one commit. If there are
+uncommitted validated scenarios or ticket state, name the affected files and
+stop: do not record `PRE_SPIKE_BASE`, and do not create a spike branch or
+worktree.
+
+Once that state is committed, record the current production commit as
+`PRE_SPIKE_BASE`. Create a uniquely named `spike/<question-slug>` branch and
+sibling worktree from that exact commit; never reuse an existing path or branch.
 
 Keep every experimental commit in the spike worktree. Production implementation
 starts later in a fresh worktree from `PRE_SPIKE_BASE`. Do not merge, rebase,

@@ -231,7 +231,7 @@ Then('it creates no spike branch or worktree', function (this: SpikeWorkflowWorl
     runGit(this.repositoryDirectory, ['worktree', 'list', '--porcelain']),
     this.initialWorktrees,
   );
-  assert.match(this.spikeSkill ?? '', /do not create a spike branch or worktree/i);
+  assert.match(this.spikeSkill ?? '', /do not create a spike branch or\s+worktree/i);
 });
 
 Then(
@@ -240,7 +240,7 @@ Then(
     assert.equal(this.dirtyValidatedState, state);
     assert.match(
       this.spikeSkill ?? '',
-      /validated scenario and ticket-state changes[\s\S]*included in (?:one|the same) commit/i,
+      /validated\s+scenario and ticket-state changes[\s\S]*included in (?:one|the same) commit/i,
     );
   },
 );
