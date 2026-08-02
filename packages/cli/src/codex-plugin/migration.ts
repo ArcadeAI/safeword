@@ -47,6 +47,9 @@ export interface CodexMigrationFacts {
   activationPending: boolean;
 }
 
+export const CODEX_RESTART_GUIDANCE =
+  'This Codex app may keep its loaded Safe Word catalogue. Restart Codex, start a new task, then review the installed hooks with /hooks.';
+
 export function codexPluginVersionMatchesPackage(plugin: CodexPluginObservation): boolean {
   // Older Codex clients may omit nullable catalog version metadata. In that
   // case, current execution proof still binds protection to both the exact
@@ -179,9 +182,7 @@ export function renderCodexMigrationHuman(result: CodexMigrationResultV2): strin
     result.state === 'plugin_installed_app_restart_required' ||
     result.state === 'plugin_enabled_hook_unproven'
   ) {
-    lines.push(
-      'This Codex app may keep its loaded Safe Word catalogue. Restart Codex, start a new task, then review the installed hooks with /hooks.',
-    );
+    lines.push(CODEX_RESTART_GUIDANCE);
   }
   const next = result.next_actions[0];
   if (next !== undefined) lines.push(`Next: ${next.command}`);
