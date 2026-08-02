@@ -102,7 +102,7 @@ required `Scenario:` heading grammar.
 
 - [x] RED skip: preservation mutation evidence predates the frozen BDD ledger
 - [x] GREEN 8b71a272d
-- [x] REFACTOR cebc8838
+- [x] REFACTOR cecbc8838
 
 ## Rule: project-knowledge.SWM1.R2 — Design alignment is canonical without breaking legacy plans
 
@@ -137,7 +137,7 @@ required `Scenario:` heading grammar.
 ### Scenario: Public documentation distinguishes a complete contract from an incomplete one
 
 - [x] RED 5b1ff4339
-- [x] GREEN cebc8838
+- [x] GREEN cecbc8838
 - [x] REFACTOR skip: README and website intentionally use the same lifecycle vocabulary
 
 ## Feature-level cross-scenario refactor
