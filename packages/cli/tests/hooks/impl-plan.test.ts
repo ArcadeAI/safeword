@@ -127,8 +127,8 @@ describe('parseImplPlan section validation (Rule 2)', () => {
     const result = parseImplPlan(
       plan('planned', sectionsWith({ 'Arch alignment': 'skip: no ADRs in this project yet' })),
     );
-    expect(result.sections['Arch alignment']?.satisfied).toBe(true);
-    expect(result.sections['Arch alignment']?.skip).toBe('no ADRs in this project yet');
+    expect(result.sections['Design alignment']?.satisfied).toBe(true);
+    expect(result.sections['Design alignment']?.skip).toBe('no ADRs in this project yet');
     expect(result.errors).toEqual([]);
   });
 

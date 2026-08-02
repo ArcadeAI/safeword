@@ -34,7 +34,7 @@ describe('PLAN_IMPLEMENTATION.md contract (TXRHMD)', () => {
       for (const section of [
         'Approach',
         'Decisions',
-        'Arch alignment',
+        'Design alignment',
         'Known deviations',
         'Assessment triggers',
       ]) {

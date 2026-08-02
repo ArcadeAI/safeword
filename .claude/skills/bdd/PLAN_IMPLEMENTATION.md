@@ -26,7 +26,7 @@ worktree. Never reuse the spike's experimental code or commits.
 Re-read the configured principles file (`paths.principles`, default
 `<namespace-root>/principles.md`) so planning does not depend on intake context
 surviving. Identify only the **applicable project principles**—do not enumerate
-the catalogue as a checklist. For each applicable principle, record in Arch
+the catalogue as a checklist. For each applicable principle, record in Design
 alignment: **principle → concrete consequence → proof**. Put an intentional
 conflict in Known deviations with its reason. No applicable principle is a
 valid `skip:`; vague “complies with principles” prose is not.
@@ -46,7 +46,7 @@ Scaffold from `.safeword/templates/impl-plan-template.md` (sibling to `ticket.md
 
 - **Approach** — open with the riskiest assumption and the cheapest scenario that proves it; then the proof plan: for each scenario the primary proof (`unit`, `integration`, `E2E`, or `eval` per `testing/SKILL.md`'s highest practical scope rule), supporting proofs, at least one wiring test per new entry point, and the build order with the load-bearing slice first. Cover each **affected surface** the spec lists — name the proof that covers it or a per-surface `skip: <reason>`.
 - **Decisions** — one row per significant technical choice: choice, alternatives, rejected-because, with the `/figure-it-out` evidence cited.
-- **Arch alignment** — record applicable project principles with their concrete consequence and proof, then consult the architecture record (resolve `paths.architecture` in `.safeword/config.json`; default `.project/architecture.md`; a directory holds one ADR per `.md`, README excluded). Records exist: list the decisions this design honors. With neither applicable principles nor architecture records, write `skip: no applicable principles or ADRs` and offer to draft the first ADR for a significant decision (technology choices spanning features, data ownership, cross-service contracts).
+- **Design alignment** — record applicable project principles with their concrete consequence and proof, then consult the architecture record (resolve `paths.architecture` in `.safeword/config.json`; default `.project/architecture.md`; a directory holds one ADR per `.md`, README excluded). Records exist: list the decisions this design honors. With neither applicable principles nor architecture records, write `skip: no applicable principles or ADRs` and offer to draft the first ADR for a significant decision (technology choices spanning features, data ownership, cross-service contracts).
 - **Known deviations** — where this deviates from guidance and why that's acceptable.
 - **Doc impact** — which configured `docs.sources` surfaces the customer-visible changes touch, folded into the build order as tasks; internal-only: `skip: <reason>`.
 - **Assessment triggers** — what would prompt revisiting these choices.

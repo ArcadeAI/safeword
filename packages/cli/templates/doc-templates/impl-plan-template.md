@@ -38,7 +38,7 @@ readers must be able to tell intentional design from accident.
 Complex decisions may add a short paragraph under the table. If the feature
 has no architectural choices, write `skip: <reason>` instead. -->
 
-## Arch alignment
+## Design alignment
 
 <!-- First name only the applicable project principles from the configured
 paths.principles file. For each, record: principle → concrete consequence →

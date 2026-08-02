@@ -47,7 +47,7 @@ Before proceeding, run the **specificity self-test**: can you describe the behav
 principles file (`paths.principles`, default `<namespace-root>/principles.md`)
 when it exists. Apply it as a decision lens, not a checklist: a principle pays
 rent only when it changes behavior, design, proof, or a deliberate deviation.
-Features record applicable principles in `impl-plan.md`'s Arch alignment as
+Features record applicable principles in `impl-plan.md`'s Design alignment as
 **principle → concrete consequence → proof**. Tasks note a principle only when
 it materially changes the task; patches apply it silently unless they need an
 explicit exception. Never claim an experiential principle is proven by tests
