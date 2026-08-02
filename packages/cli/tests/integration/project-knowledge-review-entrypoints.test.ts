@@ -179,7 +179,7 @@ describe('installed review entry points resolve current project knowledge', () =
   });
 
   it.each(REVIEW_ENTRYPOINTS)(
-    '$host $stage entry point captures configured sources at review time',
+    '$host $stage procedure resolves configured sources when its instruction is followed',
     ({ host, stage, path }) => {
       const artifactRoot = host === 'codex' ? codexDistribution : projectDirectory;
       const instructions = readEntrypoint(artifactRoot, path);
