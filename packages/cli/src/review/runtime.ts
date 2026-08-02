@@ -5,11 +5,38 @@ import nodePath from 'node:path';
 import type { ReviewAgent, ReviewerOutput, ReviewFailure, ReviewPacket } from './contract.js';
 import { reviewerEnvironment } from './environment.js';
 
+const REVIEW_OUTPUT_SCHEMA = JSON.stringify({
+  type: 'object',
+  properties: {
+    schema_version: { const: 1 },
+    dispatch_id: { type: 'string' },
+    reviewer_agent: { enum: ['claude', 'codex'] },
+    verdict: { enum: ['approve', 'request_changes'] },
+    summary: { type: 'string' },
+    findings: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          severity: { enum: ['info', 'warning', 'error'] },
+          message: { type: 'string' },
+        },
+        required: ['severity', 'message'],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ['schema_version', 'dispatch_id', 'reviewer_agent', 'verdict', 'summary', 'findings'],
+  additionalProperties: false,
+});
+
 const ARGUMENTS: Readonly<Record<ReviewAgent, readonly string[]>> = {
   claude: [
     '-p',
     '--output-format',
     'json',
+    '--json-schema',
+    REVIEW_OUTPUT_SCHEMA,
     '--no-session-persistence',
     '--disable-slash-commands',
     '--tools',
@@ -38,7 +65,13 @@ const HELP_ARGUMENTS: Readonly<Record<ReviewAgent, readonly string[]>> = {
 };
 
 const REQUIRED_CAPABILITIES: Readonly<Record<ReviewAgent, readonly string[]>> = {
-  claude: ['--output-format', '--no-session-persistence', '--disable-slash-commands', '--tools'],
+  claude: [
+    '--output-format',
+    '--json-schema',
+    '--no-session-persistence',
+    '--disable-slash-commands',
+    '--tools',
+  ],
   codex: ['--json', '--sandbox', '--skip-git-repo-check', '--ephemeral', '--ignore-rules'],
 };
 
@@ -82,6 +115,9 @@ function parseJson(value: string): unknown {
 
 function parseClaudeOutput(stdout: string): unknown {
   const envelope = parseJson(stdout);
+  if (isRecord(envelope) && 'structured_output' in envelope) {
+    return envelope.structured_output;
+  }
   if (isRecord(envelope) && typeof envelope.result === 'string') {
     return parseJson(envelope.result);
   }

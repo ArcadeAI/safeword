@@ -20,7 +20,7 @@ if [ "$#" -gt 0 ] && [ "$1" = "--version" ]; then
   exit 0
 fi
 if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
-  printf '%s\n' '--output-format --no-session-persistence --disable-slash-commands --tools --json --sandbox --skip-git-repo-check --ephemeral --ignore-rules'
+  printf '%s\n' '--output-format --json-schema --no-session-persistence --disable-slash-commands --tools --json --sandbox --skip-git-repo-check --ephemeral --ignore-rules'
   exit 0
 fi
 payload=$(cat)
