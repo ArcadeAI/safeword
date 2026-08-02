@@ -391,6 +391,7 @@ Safeword reads project-level information from the project namespace root: `paths
   "installedPacks": ["typescript"],
   "paths": {
     "projectRoot": ".project",
+    "principles": "docs/principles.md",
     "personas": "docs/personas.md",
     "glossary": "docs/glossary.md",
     "surfaces": "docs/surfaces.md",
@@ -412,10 +413,11 @@ Safeword reads project-level information from the project namespace root: `paths
 - All `paths.*` keys are optional. Unset per-file keys fall back to `<namespace-root>/<key>.md`.
 - Relative paths resolve against project root (the directory containing `.safeword/config.json`).
 - Absolute paths are used verbatim — useful for shared monorepo setups where the file lives outside this project's tree.
-- When an override is set, `safeword setup` does NOT scaffold the default-location stub — one personas.md per project, where you named it.
-- `safeword doctor` validates the configured file. If the file is missing, you get a `personas-path:` error with non-zero exit (loud failure on configured-but-missing). If `.safeword-project/personas.md` still exists from a prior install, you get a zero-exit advisory naming the orphaned file (cleanup is up to you — safeword never deletes user content).
+- `principles.md`, `personas.md`, and `surfaces.md` are project-owned knowledge. Setup scaffolds each default only when absent and preserves authored content byte-for-byte.
+- When a `paths.principles`, `paths.personas`, or `paths.surfaces` override is set, setup does not scaffold that default-location file; the configured file is the live source.
+- `safeword doctor` fails non-zero when a configured knowledge file is missing, with a key-specific error such as `principles-path:`. If the configured file and its default both exist, doctor emits a zero-exit orphan advisory naming both paths. Cleanup stays explicit: Safeword never deletes user-authored knowledge.
 
-Tickets and learnings derive from `paths.projectRoot`. Personas, glossary, and architecture can also be redirected individually with their own `paths.*` keys.
+Tickets and learnings derive from `paths.projectRoot`. Principles, personas, glossary, surfaces, and architecture can also be redirected individually with their own `paths.*` keys.
 
 `docs.sources` tells audit where customer documentation lives. Local sources are validated by `safeword doctor`; URL and git sources are declared inventory for audit runs, which should fetch them when available or report them as skipped coverage. If you want audit to keep using fallback discovery and stop asking for configured sources, set `"docs": { "sources": [] }`.
 
