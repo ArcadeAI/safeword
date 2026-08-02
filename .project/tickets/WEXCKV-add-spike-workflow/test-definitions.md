@@ -8,7 +8,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Eligible uncertainty starts with a complete experiment charter
 
-- [ ] RED
+- [x] RED 617fd7964
 - [ ] GREEN
 - [ ] REFACTOR
 
