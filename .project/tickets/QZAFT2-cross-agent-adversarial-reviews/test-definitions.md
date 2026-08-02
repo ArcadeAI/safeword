@@ -142,7 +142,7 @@ test-definitions.md is the R/G/R ledger. Executable Given/When/Then behavior liv
 
 - [x] RED b90d16f26
 - [x] GREEN 3fdb303d2
-- [ ] REFACTOR
+- [x] REFACTOR skip: strict enforcement is already isolated in the shared stamp predicate and policy reader
 
 ## Rule: cross-agent-review.SWM1.R3 — Non-class-1 work retains its existing routing
 
