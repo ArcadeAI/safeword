@@ -82,6 +82,7 @@ describe('public CLI documentation', () => {
       'utf8',
     );
     const claudeContext = readFileSync(nodePath.join(REPO_ROOT, 'CLAUDE.md'), 'utf8');
+    const sharedContext = readFileSync(nodePath.join(REPO_ROOT, 'AGENTS.md'), 'utf8');
 
     expect(installedGuide).toBe(templateGuide);
     expect(templateGuide).toContain('Claude Code supports `CLAUDE.local.md`');
@@ -89,8 +90,11 @@ describe('public CLI documentation', () => {
     expect(templateGuide).toContain('max depth: 4 hops');
     expect(templateGuide).not.toContain('`*.local.md` is no longer recommended');
     expect(templateGuide).not.toContain('max depth: 5 hops');
-    expect(claudeContext).toContain('@./AGENTS.md');
-    expect(claudeContext).not.toContain('---@./AGENTS.md');
+    expect(claudeContext).toBe('@./AGENTS.md\n');
+    expect(sharedContext).toContain('## Development and Release');
+    expect(sharedContext).toContain('### Version Management');
+    expect(sharedContext).toContain('### Test Execution');
+    expect(sharedContext).toContain('Publish is CI-driven via OIDC trusted publishing');
   });
 
   it('keeps generated architecture prose ready for human architecture review', () => {
