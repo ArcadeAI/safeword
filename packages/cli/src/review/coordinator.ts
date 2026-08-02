@@ -1,6 +1,6 @@
 import { resolveRunIdentity } from '../../templates/hooks/lib/run-identity.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
-import type { ReviewerOutput, ReviewFailure, ReviewKind } from './contract.js';
+import type { ReviewAgent, ReviewerOutput, ReviewFailure, ReviewKind } from './contract.js';
 import { prepareReviewPacket } from './packet.js';
 import { oppositeReviewer } from './policy.js';
 import { assignedReviewerModel, ReviewRuntimeError, runHeadlessReviewer } from './runtime.js';
@@ -35,6 +35,71 @@ async function executeReview(
   const changed = prepared.changed();
   prepared.cleanup();
   return { output, failure, changed };
+}
+
+async function runDegradedFallback(input: {
+  readonly cwd: string;
+  readonly kind: ReviewKind;
+  readonly targets: readonly string[];
+  readonly author: ReviewAgent;
+  readonly assignedReviewer: ReviewAgent;
+  readonly preferredFailure: ReviewFailure;
+}): Promise<CliResult> {
+  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
+  const { output, failure, changed } = await executeReview(input.author, prepared);
+  const provenanceError =
+    output === undefined
+      ? undefined
+      : provenanceFailure(output, input.author, prepared.packet.dispatch_id);
+  if (changed || failure !== undefined || output === undefined || provenanceError !== undefined) {
+    return createResult({
+      state: 'action_required',
+      findings: [
+        {
+          code: 'REVIEW_ROUTES_EXHAUSTED',
+          message: 'The independent check did not run, and the fallback did not complete safely.',
+          severity: 'warning',
+        },
+      ],
+      data: {
+        command: 'review run',
+        status: 'blocked',
+        author_agent: input.author,
+        assigned_reviewer: input.assignedReviewer,
+        preferred_failure: input.preferredFailure,
+        fallback_failure: changed ? 'source_changed' : (failure ?? provenanceError),
+        independence: 'none',
+      },
+    });
+  }
+
+  return createResult({
+    state: output.verdict === 'approve' ? 'healthy' : 'action_required',
+    findings: [
+      {
+        code: 'REVIEW_INDEPENDENCE_DEGRADED',
+        message: 'The check ran, but it was not fully independent.',
+        severity: 'warning',
+      },
+    ],
+    effects: {
+      network: [
+        { kind: 'review', target: input.assignedReviewer, operation: 'request' },
+        { kind: 'review', target: input.author, operation: 'request' },
+      ],
+    },
+    data: {
+      command: 'review run',
+      status: output.verdict === 'approve' ? 'approved' : 'changes_requested',
+      author_agent: input.author,
+      assigned_reviewer: input.assignedReviewer,
+      actual_reviewer: output.reviewer_agent,
+      assigned_model: assignedReviewerModel(input.author),
+      preferred_failure: input.preferredFailure,
+      independence: 'degraded',
+      reviewer_output: output,
+    },
+  });
 }
 
 export async function runReview(input: {
@@ -89,23 +154,11 @@ export async function runReview(input: {
     });
   }
   if (preferredFailure !== undefined) {
-    return createResult({
-      state: 'action_required',
-      findings: [
-        {
-          code: 'REVIEW_PREFERRED_ROUTE_FAILED',
-          message: `The independent ${reviewer} review did not run (${preferredFailure.replaceAll('_', ' ')}).`,
-          severity: 'warning',
-        },
-      ],
-      data: {
-        command: 'review run',
-        status: 'blocked',
-        author_agent: author,
-        assigned_reviewer: reviewer,
-        preferred_failure: preferredFailure,
-        independence: 'none',
-      },
+    return runDegradedFallback({
+      ...input,
+      author: author as ReviewAgent,
+      assignedReviewer: reviewer,
+      preferredFailure,
     });
   }
   if (output === undefined) throw new Error('Review completed without output or failure');
