@@ -17,6 +17,11 @@ import {
 
 export type { CodexHostProcessIdentity } from './host-process.js';
 
+export interface CodexPluginIdentity {
+  plugin_version: string;
+  manifest_sha256: string;
+}
+
 export interface CodexHookProofV1 {
   schema_version: 1;
   event: CodexPluginHookEvent;
@@ -135,10 +140,7 @@ function packagedHookManifestPath(): string {
   return manifest;
 }
 
-export function currentCodexPluginIdentity(): {
-  plugin_version: string;
-  manifest_sha256: string;
-} {
+export function currentCodexPluginIdentity(): CodexPluginIdentity {
   const manifest = readFileSync(packagedHookManifestPath());
   return {
     plugin_version: SAFEWORD_SCHEMA.version,
@@ -254,10 +256,7 @@ function writeAtomicJson(
   });
 }
 
-function legacyActivationMarkerMatches(
-  path: string,
-  identity: { plugin_version: string; manifest_sha256: string },
-): boolean {
+function legacyActivationMarkerMatches(path: string, identity: CodexPluginIdentity): boolean {
   if (!existsSync(path)) return false;
   try {
     const marker = JSON.parse(readFileSync(path, 'utf8')) as Partial<CodexActivationMarkerV1>;
@@ -273,7 +272,7 @@ function legacyActivationMarkerMatches(
 
 function readActivationMarkerV2(
   environment: NodeJS.ProcessEnv,
-  identity: { plugin_version: string; manifest_sha256: string },
+  identity: CodexPluginIdentity,
 ): CodexActivationMarkerV2 | null {
   const path = codexActivationMarkerPath(environment);
   if (!existsSync(path)) return null;
@@ -291,7 +290,7 @@ function readActivationMarkerV2(
 
 function readActivationReceipt(
   environment: NodeJS.ProcessEnv,
-  identity: { plugin_version: string; manifest_sha256: string },
+  identity: CodexPluginIdentity,
 ): CodexActivationReceiptV1 | null {
   const path = codexActivationReceiptPath(environment);
   if (!existsSync(path)) return null;
