@@ -11,6 +11,7 @@ import {
   cleanupPlanDigest,
   type CloseoutObservation,
   operationCommand,
+  safewordCliCommand,
   transcriptMatchesBinding,
 } from '../templates/scripts/closeout-cleanup.ts';
 
@@ -59,6 +60,17 @@ function worktree(index: number) {
 }
 
 describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
+  it('resolves the project-local SafeWord CLI before the package runner fallback', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-closeout-cli-'));
+    const installed = nodePath.join(root, 'node_modules', 'safeword', 'dist');
+    mkdirSync(installed, { recursive: true });
+    writeFileSync(nodePath.join(installed, 'cli.js'), '');
+
+    expect(safewordCliCommand(root)).toEqual(['bun', nodePath.join(installed, 'cli.js')]);
+    rmSync(nodePath.join(root, 'node_modules'), { recursive: true, force: true });
+    expect(safewordCliCommand(root)).toEqual(['bunx', 'safeword']);
+  });
+
   it('previews exact cleanup in worktree, remote, local order with a stable digest', () => {
     const observation = safeObservation();
     const plan = buildCleanupPlan(observation);
