@@ -71,8 +71,8 @@ test-definitions.md is the R/G/R ledger. Executable Given/When/Then behavior liv
 ### Scenario: A degraded fallback cannot satisfy hard cross-agent enforcement
 
 - [x] RED f70dc8a4f
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN a409b5a68
+- [x] REFACTOR skip: policy parsing and the hard-enforcement branch are isolated in focused helpers
 
 ## Rule: cross-agent-review.TBU2.R3 — Exhausting safe routes blocks with recovery guidance
 
