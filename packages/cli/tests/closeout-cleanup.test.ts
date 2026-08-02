@@ -123,13 +123,15 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
 
   it('applies only a digest-bound unchanged plan using compare-and-swap commands', () => {
     const observation = safeObservation();
+    const afterWorktree = safeObservation({ worktrees: [worktree(0)] });
+    const observations = [observation, observation, afterWorktree, afterWorktree];
     const plan = buildCleanupPlan(observation);
     const executed: string[][] = [];
 
     const result = applyCleanupPlan({
       plan,
       digest: cleanupPlanDigest(plan),
-      observe: () => observation,
+      observe: () => observations.shift() ?? afterWorktree,
       execute: operation => {
         executed.push(operationCommand(operation));
       },

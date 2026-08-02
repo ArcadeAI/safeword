@@ -214,6 +214,39 @@ export interface ApplyCleanupPlanResult {
   blockers: string[];
 }
 
+function operationTargetMatches(
+  operation: CleanupOperation,
+  observation: CloseoutObservation,
+  identity: PullRequestIdentity,
+): boolean {
+  if (operation.kind === 'remove-worktree') {
+    const matches = observation.worktrees.filter(worktree => worktree.path === operation.path);
+    const worktree = matches[0];
+    return (
+      matches.length === 1 &&
+      worktree?.branch === identity.headRefName &&
+      worktree.oid === operation.oid &&
+      !worktree.main &&
+      !worktree.dirty &&
+      !worktree.locked &&
+      !worktree.prunable
+    );
+  }
+  if (operation.kind === 'delete-remote-ref') {
+    return (
+      observation.remoteResolution === 'matched' &&
+      observation.remote?.name === operation.remote &&
+      observation.remote.oid === operation.oid &&
+      operation.ref === `refs/heads/${identity.headRefName}`
+    );
+  }
+  return (
+    observation.localRefOid === operation.oid &&
+    operation.ref === `refs/heads/${identity.headRefName}` &&
+    !observation.worktrees.some(worktree => worktree.branch === identity.headRefName)
+  );
+}
+
 export function applyCleanupPlan(input: ApplyCleanupPlanInput): ApplyCleanupPlanResult {
   if (cleanupPlanDigest(input.plan) !== input.digest) {
     return { applied: false, blockers: ['cleanup plan digest does not match'] };
@@ -242,6 +275,12 @@ export function applyCleanupPlan(input: ApplyCleanupPlanInput): ApplyCleanupPlan
       actual.headRefOid !== expected.headRefOid
     ) {
       return { applied: false, blockers: ['pull request identity changed during cleanup'] };
+    }
+    if (!operationTargetMatches(operation, observed, expected)) {
+      return {
+        applied: false,
+        blockers: [`${operation.kind} target changed during cleanup`],
+      };
     }
     input.execute(operation);
   }
@@ -538,6 +577,28 @@ function observeCloseout(root: string, pr: string, binding: CloseoutBinding): Cl
   };
 }
 
+function reobserveCleanupTargets(
+  root: string,
+  pr: string,
+  baseline: CloseoutObservation,
+): CloseoutObservation {
+  const pullRequests = observePullRequest(root, pr);
+  const identity = pullRequests[0];
+  const localReference = identity
+    ? git(root, 'show-ref', '--verify', '--hash', `refs/heads/${identity.headRefName}`)
+    : undefined;
+  const remoteObservation = identity
+    ? observeRemote(root, identity)
+    : { remoteResolution: 'ambiguous' as const };
+  return {
+    ...baseline,
+    ...remoteObservation,
+    pullRequests,
+    localRefOid: localReference?.status === 0 ? localReference.stdout.trim() : undefined,
+    worktrees: parseWorktrees(root),
+  };
+}
+
 function argumentValue(name: string): string | undefined {
   const index = process.argv.indexOf(name);
   return index >= 0 ? process.argv[index + 1] : undefined;
@@ -564,10 +625,12 @@ if (import.meta.main) {
     console.error('closeout blocked: --plan must equal the fresh preview digest');
     process.exit(2);
   }
+  const survivingRoot = plan.operations[0]?.cwd ?? root;
+  process.chdir(survivingRoot);
   const result = applyCleanupPlan({
     plan,
     digest,
-    observe: () => observeCloseout(root, pr, binding),
+    observe: () => reobserveCleanupTargets(survivingRoot, pr, observation),
     execute: operation => {
       const [command, ...arguments_] = operationCommand(operation);
       if (!command) throw new Error('cleanup command is empty');
