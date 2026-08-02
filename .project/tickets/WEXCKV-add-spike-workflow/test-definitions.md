@@ -27,7 +27,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario Outline: Spike execution stays question-sized
 
 - [x] RED 8be3791d8
-- [ ] GREEN
+- [x] GREEN fd897c1ca
 - [ ] REFACTOR
 
 ## Rule: spike-workflow.SWM1.R2 — evidence persists while experimental code stays disposable
