@@ -20,6 +20,17 @@ describe('headless reviewer output adapters', () => {
     expect(parseReviewerOutput('claude', envelope)).toEqual(output);
   });
 
+  it('extracts Claude native structured output without trusting prose formatting', () => {
+    const envelope = JSON.stringify({
+      type: 'result',
+      subtype: 'success',
+      result: '```json\nnot trusted\n```',
+      structured_output: output,
+    });
+
+    expect(parseReviewerOutput('claude', envelope)).toEqual(output);
+  });
+
   it('extracts the last agent message from Codex JSONL events', () => {
     const codexOutput = { ...output, reviewer_agent: 'codex' as const };
     const stdout = [
