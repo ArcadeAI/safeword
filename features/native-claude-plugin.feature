@@ -101,7 +101,7 @@ Feature: Ship Safeword as a native Claude Code plugin
       Then every viable legacy asset and the complete Claude profile are byte-identical
       And the result recommends the explicit Claude lifecycle command without invoking it
 
-  @wip @native-claude-plugin.TBU1.R3 @surface.claude-code @surface.safeword-cli
+  @native-claude-plugin.TBU1.R3 @surface.claude-code @surface.safeword-cli
   Rule: native-claude-plugin.TBU1.R3 — Framework code executes from the installed versioned plugin while project state remains in the repository
 
     Scenario: A cached plugin resolves framework code internally and writes state to the documented boundaries
@@ -111,7 +111,7 @@ Feature: Ship Safeword as a native Claude Code plugin
       And execution proof is written beneath CLAUDE_PLUGIN_DATA
       And ticket, configuration, and runtime project state remain beneath the project root
 
-    @rejection
+    @rejection @wip
     Scenario: A generated plugin reference cannot depend on a materialized project framework copy
       Given a canonical workflow reference resolves through a project .safeword hook, guide, script, or template
       When the Claude plugin catalogue is validated
