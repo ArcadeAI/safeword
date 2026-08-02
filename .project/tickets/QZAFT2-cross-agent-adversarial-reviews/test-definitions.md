@@ -56,7 +56,7 @@ test-definitions.md is the R/G/R ledger. Executable Given/When/Then behavior liv
 
 ### Scenario Outline: Each preferred-route failure keeps its specific cause
 
-- [ ] RED
+- [x] RED 2c3e217d2
 - [ ] GREEN
 - [ ] REFACTOR
 
