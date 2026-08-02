@@ -31,9 +31,12 @@ interface NativeClaudePluginWorld {
   lifecycle?: {
     root: string;
     project: string;
+    configRoot?: string;
     statePath: string;
     projectSnapshot: string;
     profileSnapshot: string;
+    projectTreeSnapshot?: string;
+    configTreeSnapshot?: string;
     unrelatedProfile: unknown;
     result?: { status: number; output: string };
   };
@@ -75,6 +78,16 @@ function filesBeneath(directory: string, prefix = ''): string[] {
     if (entry.isDirectory()) return filesBeneath(absolute, relative);
     return entry.isFile() ? [relative] : [];
   });
+}
+
+function snapshotDirectory(directory: string): string {
+  if (!existsSync(directory)) return '[]';
+  return JSON.stringify(
+    filesBeneath(directory).map(path => [
+      path,
+      readFileSync(nodePath.join(directory, path)).toString('base64'),
+    ]),
+  );
 }
 
 Given(
@@ -476,6 +489,247 @@ function createLifecycleFixture(
     unrelatedProfile: state.unrelated,
   };
 }
+
+function writeCanonicalLegacy(project: string): string {
+  const relative = '.claude/skills/debug/SKILL.md';
+  const target = nodePath.join(project, relative);
+  mkdirSync(nodePath.dirname(target), { recursive: true });
+  cpSync(nodePath.join(REPO_ROOT, 'packages/cli/templates/skills/debug/SKILL.md'), target);
+  return target;
+}
+
+function writeStatusProof(
+  configRoot: string,
+  installPath: string,
+  overrides: Record<string, unknown> = {},
+): void {
+  const identity = JSON.parse(
+    readFileSync(nodePath.join(installPath, 'identity.json'), 'utf8'),
+  ) as { hook_manifest_sha256: string };
+  const proofPath = nodePath.join(
+    configRoot,
+    'plugins/data/safeword-safeword/execution-proof-v1.json',
+  );
+  mkdirSync(nodePath.dirname(proofPath), { recursive: true });
+  writeFileSync(
+    proofPath,
+    `${JSON.stringify(
+      {
+        schema_version: 1,
+        event: 'UserPromptSubmit',
+        plugin_version: EXPECTED_VERSION,
+        hook_manifest_sha256: identity.hook_manifest_sha256,
+        canonical_plugin_root: realpathSync(installPath),
+        recorded_at: new Date(0).toISOString(),
+        ...overrides,
+      },
+      undefined,
+      2,
+    )}\n`,
+  );
+}
+
+function createStatusFixture(
+  world: NativeClaudePluginWorld,
+  stateDescription: string,
+  viableLegacy: boolean,
+): void {
+  createLifecycleFixture(world, {});
+  assert.ok(world.lifecycle);
+  const fixture = world.lifecycle;
+  const configRoot = nodePath.join(fixture.root, 'claude-config');
+  mkdirSync(configRoot, { recursive: true });
+  fixture.configRoot = configRoot;
+  const state = JSON.parse(readFileSync(fixture.statePath, 'utf8')) as {
+    hostVersion: string;
+    failOperation: string | null;
+    plugins: Record<string, unknown>[];
+    installPath: string;
+  };
+  state.plugins = [
+    {
+      id: 'safeword@safeword',
+      version: EXPECTED_VERSION,
+      enabled: true,
+      scope: 'user',
+      installPath: state.installPath,
+    },
+  ];
+  if (viableLegacy || stateDescription.includes('recognized removable legacy')) {
+    writeCanonicalLegacy(fixture.project);
+  }
+
+  if (stateDescription.includes('incomplete transaction')) {
+    const transaction = nodePath.join(
+      fixture.project,
+      '.safeword/claude-plugin/cleanup-transaction-v1.json',
+    );
+    mkdirSync(nodePath.dirname(transaction), { recursive: true });
+    writeFileSync(transaction, '{"schema_version":1}\n');
+  } else if (stateDescription.includes('older than')) {
+    state.hostVersion = '2.1.169 (Claude Code)';
+  } else if (stateDescription.includes('unparseable')) {
+    state.hostVersion = 'not a version';
+  } else if (stateDescription === 'not installed') {
+    state.plugins = [];
+  } else if (stateDescription.includes('installed but disabled')) {
+    state.plugins[0] = { ...state.plugins[0], enabled: false };
+  } else if (stateDescription.includes('different version')) {
+    state.plugins[0] = { ...state.plugins[0], version: '0.70.0' };
+  } else if (stateDescription.includes('reported unhealthy')) {
+    state.failOperation = 'plugin list';
+  }
+  writeFileSync(fixture.statePath, `${JSON.stringify(state, undefined, 2)}\n`);
+
+  if (stateDescription.includes('malformed proof')) {
+    const path = nodePath.join(
+      configRoot,
+      'plugins/data/safeword-safeword/execution-proof-v1.json',
+    );
+    mkdirSync(nodePath.dirname(path), { recursive: true });
+    writeFileSync(path, '{not-json\n');
+  } else if (
+    !stateDescription.includes('without execution proof') &&
+    !stateDescription.includes('incomplete transaction') &&
+    !stateDescription.includes('older than') &&
+    !stateDescription.includes('unparseable') &&
+    stateDescription !== 'not installed' &&
+    !stateDescription.includes('installed but disabled') &&
+    !stateDescription.includes('different version') &&
+    !stateDescription.includes('reported unhealthy')
+  ) {
+    const overrides: Record<string, unknown> = {};
+    if (stateDescription.includes('stale version or digest')) {
+      overrides.plugin_version = '0.70.0';
+    }
+    if (stateDescription.includes('different canonical')) {
+      overrides.canonical_plugin_root = nodePath.join(fixture.root, 'other-cache');
+    }
+    writeStatusProof(configRoot, state.installPath, overrides);
+  }
+
+  if (stateDescription.includes('durable plugin-mode marker')) {
+    const marker = nodePath.join(fixture.project, '.safeword/claude-plugin/plugin-mode-v1.json');
+    mkdirSync(nodePath.dirname(marker), { recursive: true });
+    writeFileSync(marker, '{"schema_version":1}\n');
+  }
+  if (stateDescription.includes('recognized and conflicting legacy content')) {
+    const conflict = nodePath.join(fixture.project, '.claude/skills/quality-review/SKILL.md');
+    mkdirSync(nodePath.dirname(conflict), { recursive: true });
+    writeFileSync(conflict, 'user customized legacy protection\n');
+  }
+  fixture.profileSnapshot = readFileSync(fixture.statePath, 'utf8');
+  fixture.projectTreeSnapshot = snapshotDirectory(fixture.project);
+  fixture.configTreeSnapshot = snapshotDirectory(configRoot);
+}
+
+Given(
+  /^the profile and project represent (.+)$/u,
+  function (this: NativeClaudePluginWorld, state: string) {
+    createStatusFixture(this, state, false);
+  },
+);
+
+Given(
+  /^the project has viable legacy protection and the profile and project represent (.+)$/u,
+  function (this: NativeClaudePluginWorld, state: string) {
+    createStatusFixture(this, state, true);
+  },
+);
+
+When('safeword claude status runs', function (this: NativeClaudePluginWorld) {
+  assert.ok(this.lifecycle);
+  const result = spawnSync(
+    'bun',
+    [
+      nodePath.join(REPO_ROOT, 'packages/cli/src/cli.ts'),
+      'claude',
+      'status',
+      '--json',
+      '--no-input',
+      '--cwd',
+      this.lifecycle.project,
+    ],
+    {
+      cwd: REPO_ROOT,
+      env: {
+        ...process.env,
+        CLAUDE_CONFIG_DIR: this.lifecycle.configRoot,
+        FAKE_CLAUDE_STATE: this.lifecycle.statePath,
+        PATH: `${nodePath.join(this.lifecycle.root, 'bin')}:${process.env.PATH ?? ''}`,
+      },
+      encoding: 'utf8',
+    },
+  );
+  this.lifecycle.result = {
+    status: result.status ?? 1,
+    output: `${result.stdout ?? ''}${result.stderr ?? ''}`,
+  };
+});
+
+Then(
+  /^the versioned JSON classification is (.+) with exit (\d+)$/u,
+  function (this: NativeClaudePluginWorld, classification: string, exit: string) {
+    assert.equal(this.lifecycle?.result?.status, Number(exit), this.lifecycle?.result?.output);
+    const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+      schema_version?: number;
+      data?: { classification?: string };
+    };
+    assert.equal(result.schema_version, 1);
+    assert.equal(result.data?.classification, classification);
+  },
+);
+
+Then(
+  /^it reports (\d+) safe next action named (.+)$/u,
+  function (this: NativeClaudePluginWorld, count: string, action: string) {
+    const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+      next_actions?: { command?: string }[];
+    };
+    assert.equal(result.next_actions?.length, Number(count));
+    if (action !== 'none') assert.equal(result.next_actions?.[0]?.command, action);
+  },
+);
+
+Then(
+  /^it reports exactly one safe next action named (.+)$/u,
+  function (this: NativeClaudePluginWorld, action: string) {
+    const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
+      next_actions?: { command?: string }[];
+    };
+    assert.deepEqual(
+      result.next_actions?.map(item => item.command),
+      [action],
+    );
+  },
+);
+
+Then(
+  'profile and project bytes equal their pre-command snapshots',
+  function (this: NativeClaudePluginWorld) {
+    assert.ok(this.lifecycle);
+    assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
+    assert.equal(snapshotDirectory(this.lifecycle.project), this.lifecycle.projectTreeSnapshot);
+    assert.equal(
+      snapshotDirectory(this.lifecycle.configRoot ?? ''),
+      this.lifecycle.configTreeSnapshot,
+    );
+  },
+);
+
+Then(
+  'the viable legacy protection remains authoritative and unchanged',
+  function (this: NativeClaudePluginWorld) {
+    assert.ok(this.lifecycle);
+    assert.equal(
+      readFileSync(nodePath.join(this.lifecycle.project, '.claude/skills/debug/SKILL.md'), 'utf8'),
+      readFileSync(
+        nodePath.join(REPO_ROOT, 'packages/cli/templates/skills/debug/SKILL.md'),
+        'utf8',
+      ),
+    );
+  },
+);
 
 Given(
   /^the Claude executable reports (2\.1\.169|unparseable output)$/u,

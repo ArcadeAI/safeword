@@ -11,7 +11,17 @@ const MARKETPLACE_NAME = 'safeword';
 const PLUGIN_ID = 'safeword@safeword';
 const MARKETPLACE_BASE = 'https://github.com/ArcadeAI/safeword.git';
 
-type JsonObject = Record<string, unknown>;
+export type JsonObject = Record<string, unknown>;
+
+export type ClaudeProfileHealth =
+  'current' | 'unsupported-host' | 'missing' | 'disabled' | 'wrong-version' | 'errored';
+
+export interface ClaudeProfileObservation {
+  readonly health: ClaudeProfileHealth;
+  readonly plugin?: JsonObject;
+  readonly message?: string;
+  readonly nextAction?: string;
+}
 
 class ClaudeProfileError extends Error {
   constructor(
@@ -256,6 +266,51 @@ function validateNativePayload(plugin: JsonObject): void {
   if (identity.hook_manifest_sha256 !== fileSha256(hookManifest)) {
     throw new TypeError('installed hook manifest does not match its identity');
   }
+}
+
+/** Read-only profile observation used by `safeword claude status`. */
+export function observeClaudeProfile(cwd: string): ClaudeProfileObservation {
+  try {
+    assertSupportedHost(cwd);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      health: 'unsupported-host',
+      message,
+      nextAction: message.startsWith('Could not parse')
+        ? 'reinstall Claude Code'
+        : 'update Claude Code',
+    };
+  }
+
+  let plugin: JsonObject | undefined;
+  try {
+    plugin = safewordPlugin(pluginEntries(cwd, []));
+  } catch (error) {
+    return {
+      health: 'errored',
+      message: error instanceof Error ? error.message : String(error),
+      nextAction: 'repair the reported Claude plugin error',
+    };
+  }
+  return observeInstalledPlugin(plugin);
+}
+
+function observeInstalledPlugin(plugin: JsonObject | undefined): ClaudeProfileObservation {
+  if (plugin === undefined) return { health: 'missing' };
+  if (plugin.version !== SAFEWORD_SCHEMA.version) return { health: 'wrong-version', plugin };
+  if (plugin.enabled !== true) return { health: 'disabled', plugin };
+  try {
+    validateNativePayload(plugin);
+  } catch (error) {
+    return {
+      health: 'errored',
+      plugin,
+      message: `Installed native payload is unhealthy: ${error instanceof Error ? error.message : String(error)}`,
+      nextAction: 'repair the reported Claude plugin error',
+    };
+  }
+  return { health: 'current', plugin };
 }
 
 function assertNativePayload(plugin: JsonObject, effects: readonly Effect[]): void {

@@ -222,6 +222,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   command('claude install', 'Install the Claude profile plugin', 'mutate', {
     networkPolicy: 'declared',
   }),
+  command('claude status', 'Report Claude plugin and migration state', 'observe'),
   command(
     'codex clean-guidance',
     'Back up exact legacy Safe Word profile guidance',

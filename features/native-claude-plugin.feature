@@ -224,7 +224,6 @@ Feature: Ship Safeword as a native Claude Code plugin
   @native-claude-plugin.NTB1.R2 @surface.claude-code @surface.safeword-cli
   Rule: native-claude-plugin.NTB1.R2 — Missing, disabled, stale, malformed, or unproven plugin state leaves legacy protection intact and reports a safe next action
 
-    @wip
     Scenario Outline: Ready plugin states are classified without mutation
       Given the profile and project represent <state>
       When safeword claude status runs
@@ -237,7 +236,7 @@ Feature: Ship Safeword as a native Claude Code plugin
         | valid proof and wholly recognized removable legacy       | cleanup-ready  | 2    | 1            | safeword claude cleanup   |
         | valid proof, durable plugin-mode marker, and no legacy    | plugin-mode    | 0    | 0            | none                      |
 
-    @rejection @wip
+    @rejection
     Scenario Outline: Non-ready plugin states are classified without weakening legacy protection
       Given the project has viable legacy protection and the profile and project represent <state>
       When safeword claude status runs

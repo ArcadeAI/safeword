@@ -95,6 +95,11 @@ async function claudeInstallHandler(invocation: CommandInvocation): Promise<CliR
   return installClaudePlugin(invocation.cwd);
 }
 
+async function claudeStatusHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const { observeClaudeStatus } = await import('../claude-plugin/status.js');
+  return observeClaudeStatus(invocation.cwd);
+}
+
 async function planHandler(invocation: CommandInvocation): Promise<CliResult> {
   const { observePlan } = await import('../commands/plan.js');
   return observePlan(invocation.cwd);
@@ -1312,6 +1317,7 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'codex install': invocation => codexMutationHandler('codex install', invocation),
   'codex status': codexStatusHandler,
   'claude install': claudeInstallHandler,
+  'claude status': claudeStatusHandler,
   'codex clean-guidance': codexCleanGuidanceHandler,
   'codex recover': invocation => codexMutationHandler('codex recover', invocation),
   'ticket list': ticketListHandler,
