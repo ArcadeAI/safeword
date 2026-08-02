@@ -1,105 +1,40 @@
-# Test Definitions: Update Safeword without restarting Codex
+# Test Definitions: Activate Safeword upgrades coherently in Codex
 
 Feature source: `packages/cli/features/codex-plugin-next-task-upgrades.feature`
 
-test-definitions.md is the R/G/R ledger.
+test-definitions.md is the R/G/R ledger. The restart-bound rows supersede the
+original next-task-only rows after the rc.1 live gate disproved that contract.
 
-## Rule: codex-plugin-next-task-upgrades.TBU1.R1 — Installation refreshes an existing Git marketplace before selecting the released plugin
+## Rule R1 — Installation refreshes an existing Git marketplace
 
-### Scenario: Fresh profile adds the marketplace before installing the plugin
+- [x] Fresh profile adds before install — RED / GREEN / REFACTOR
+- [x] Marketplace add failure prevents install — RED / GREEN / REFACTOR
+- [x] Existing Git marketplace upgrades before install — RED / GREEN / REFACTOR
+- [x] Marketplace refresh failure prevents stale install — RED / GREEN / REFACTOR
 
-- [x] RED
-- [x] GREEN
-- [x] REFACTOR
+## Rule R2 — Installation status requires a Codex restart
 
-### Scenario: Marketplace add failure prevents plugin installation
+- [x] Successful installation requires app restart — RED / GREEN / REFACTOR
+- [x] Running task keeps its loaded bundle — RED / GREEN / REFACTOR
+- [x] New task in the same app remains pending — RED / GREEN / REFACTOR
+- [ ] Restarted app loads the exact released skills and hooks — RED / GREEN pending rc.2 live gate
+- [x] Pending status never claims the running app reloaded — RED / GREEN / REFACTOR
 
-- [x] RED
-- [x] GREEN
-- [x] REFACTOR
+## Rule R3 — Activation proof belongs to the installation and restarted app
 
-### Scenario: Existing Git marketplace refreshes before installing the released plugin
+- [x] Pre-install proof is invalidated — RED / GREEN / REFACTOR
+- [x] Same-host SessionStart cannot complete activation — RED / GREEN / REFACTOR
+- [x] Restarted-host SessionStart completes activation — RED / GREEN / REFACTOR
+- [x] Version or manifest mismatch prevents completion — RED / GREEN / REFACTOR
+- [x] Later tasks preserve completed activation — RED / GREEN / REFACTOR
+- [x] POSIX and Windows process identity parsing — RED / GREEN / REFACTOR
 
-- [x] RED
-- [x] GREEN
-- [x] REFACTOR
+## Rule R4 — Legacy markers cannot manufacture proof
 
-### Scenario: Marketplace refresh failure prevents installation from stale metadata
-
-- [x] RED
-- [x] GREEN
-- [x] REFACTOR
-
-## Rule: codex-plugin-next-task-upgrades.TBU1.R2 — The current task keeps its loaded plugin while a new task activates the installed version without an application restart
-
-### Scenario: Successful installation explains next-task activation without a restart
-
-- [x] RED
-- [x] GREEN
-- [x] REFACTOR
-
-### Scenario: Installing an upgrade does not change the running task
-
-Manual/live host check; automated supporting proof covers Safeword's immutable exact-version command.
-
-- [x] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: A new task activates the installed release without restarting Codex
-
-Manual/live host check; automated supporting proof covers exact SessionStart identity.
-
-- [x] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Pending activation status never claims the current task hot-reloaded
-
-- [x] RED
-- [x] GREEN
-- [x] REFACTOR
-
-## Rule: codex-plugin-next-task-upgrades.TBU1.R3 — Hook activation remains bound to the installed version and exact manifest until a new task supplies current proof
-
-### Scenario: Matching SessionStart proof completes next-task activation
-
-- [x] RED
-- [x] GREEN
-- [x] REFACTOR
-
-### Scenario: Either plugin identity mismatch prevents activation completion
-
-- [x] RED
-- [x] GREEN
-- [x] REFACTOR
-
-### Scenario: Later tasks preserve completed activation
-
-- [x] RED
-- [x] GREEN
-- [x] REFACTOR
-
-## Rule: codex-plugin-next-task-upgrades.TBU1.R4 — Profiles carrying the former restart marker converge to the next-task activation contract without losing proof state
-
-### Scenario: Matching legacy marker is recognized and retired by the next task
-
-- [x] RED
-- [x] GREEN
-- [x] REFACTOR
-
-### Scenario: Legacy-marker migration preserves existing exact proof
-
-- [x] RED
-- [x] GREEN
-- [x] REFACTOR
-
-### Scenario: Invalid legacy markers do not manufacture pending activation
-
-- [x] RED
-- [x] GREEN
-- [x] REFACTOR
+- [x] Malformed legacy marker creates no activation — RED / GREEN / REFACTOR
+- [x] Stale legacy marker creates no activation — RED / GREEN / REFACTOR
 
 ## Feature-level cross-scenario refactor
 
-- [x] cross-scenario
+- [x] Shared host identity and activation-marker logic
+- [ ] Full-suite and rc.2 live verification

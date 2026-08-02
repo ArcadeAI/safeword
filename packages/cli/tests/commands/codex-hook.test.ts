@@ -6,7 +6,6 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
-  renameSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -113,7 +112,7 @@ describe('packagedNamespaceRootLabel', () => {
     expect(packagedNamespaceRootLabel(projectDirectory)).toBe('knowledge');
   });
 
-  it('replaces the matching activation marker with current proof on plugin SessionStart', () => {
+  it('keeps activation pending when plugin SessionStart runs under the installing app', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-'));
     directories.push(projectDirectory);
     const codexHome = nodePath.join(projectDirectory, 'profile');
@@ -129,23 +128,30 @@ describe('packagedNamespaceRootLabel', () => {
     );
 
     expect(result.status, result.stderr).toBe(0);
-    expect(existsSync(nodePath.join(codexHome, 'safeword/activation-pending-v1.json'))).toBe(false);
+    expect(existsSync(nodePath.join(codexHome, 'safeword/activation-pending-v2.json'))).toBe(true);
     const proof = JSON.parse(
-      readFileSync(nodePath.join(codexHome, 'safeword/hook-proof-v1/session-start.json'), 'utf8'),
+      readFileSync(nodePath.join(codexHome, 'safeword/hook-proof-v2/session-start.json'), 'utf8'),
     ) as Record<string, unknown>;
-    expect(proof.schema_version).toBe(1);
+    expect(proof.schema_version).toBe(2);
     expect(proof.manifest_sha256).toMatch(/^[\da-f]{64}$/u);
   });
 
-  it('retires a matching legacy restart marker after durable SessionStart proof', () => {
+  it('does not retire a legacy restart marker from hook proof alone', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-'));
     directories.push(projectDirectory);
     const codexHome = nodePath.join(projectDirectory, 'profile');
     const environment = { CODEX_HOME: codexHome };
-    const marker = writeCodexActivationMarker(environment);
-    const activationPath = nodePath.join(codexHome, 'safeword/activation-pending-v1.json');
     const legacyPath = nodePath.join(codexHome, 'safeword/restart-pending-v1.json');
-    renameSync(activationPath, legacyPath);
+    const marker = writeCodexActivationMarker(environment);
+    writeFileSync(
+      legacyPath,
+      JSON.stringify({
+        schema_version: 1,
+        plugin_version: marker.plugin_version,
+        manifest_sha256: marker.manifest_sha256,
+      }),
+    );
+    rmSync(nodePath.join(codexHome, 'safeword/activation-pending-v2.json'));
 
     const result = runCodexHook(
       projectDirectory,
@@ -157,8 +163,8 @@ describe('packagedNamespaceRootLabel', () => {
 
     expect(result.status, result.stderr).toBe(0);
     expect(marker.plugin_version).toBeDefined();
-    expect(existsSync(legacyPath)).toBe(false);
-    expect(existsSync(nodePath.join(codexHome, 'safeword/hook-proof-v1/session-start.json'))).toBe(
+    expect(existsSync(legacyPath)).toBe(true);
+    expect(existsSync(nodePath.join(codexHome, 'safeword/hook-proof-v2/session-start.json'))).toBe(
       true,
     );
   });
@@ -168,10 +174,17 @@ describe('packagedNamespaceRootLabel', () => {
     directories.push(projectDirectory);
     const codexHome = nodePath.join(projectDirectory, 'profile');
     const environment = { CODEX_HOME: codexHome };
-    const activationPath = nodePath.join(codexHome, 'safeword/activation-pending-v1.json');
+    const activationPath = nodePath.join(codexHome, 'safeword/activation-pending-v2.json');
     const legacyPath = nodePath.join(codexHome, 'safeword/restart-pending-v1.json');
-    writeCodexActivationMarker(environment);
-    renameSync(activationPath, legacyPath);
+    mkdirSync(nodePath.dirname(legacyPath), { recursive: true });
+    writeFileSync(
+      legacyPath,
+      JSON.stringify({
+        schema_version: 1,
+        plugin_version: '0.70.0',
+        manifest_sha256: '0'.repeat(64),
+      }),
+    );
 
     writeCodexActivationMarker(environment);
 
@@ -201,7 +214,7 @@ describe('packagedNamespaceRootLabel', () => {
 
       expect(result.status, result.stderr).toBe(0);
       expect(
-        readdirSync(nodePath.join(codexHome, 'safeword/hook-proof-v1')).toSorted((left, right) =>
+        readdirSync(nodePath.join(codexHome, 'safeword/hook-proof-v2')).toSorted((left, right) =>
           left.localeCompare(right),
         ),
       ).toEqual(
@@ -230,7 +243,7 @@ describe('packagedNamespaceRootLabel', () => {
     );
 
     expect(result.status, result.stderr).toBe(0);
-    expect(existsSync(nodePath.join(codexHome, 'safeword/hook-proof-v1/session-start.json'))).toBe(
+    expect(existsSync(nodePath.join(codexHome, 'safeword/hook-proof-v2/session-start.json'))).toBe(
       false,
     );
   });

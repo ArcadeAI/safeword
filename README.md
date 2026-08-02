@@ -32,17 +32,17 @@ bunx safeword@latest doctor
 bunx safeword@latest codex install
 ```
 
-The current task keeps the Safe Word version it already loaded. Start a new
-Codex task to use the installed plugin, then review it in `/hooks`; you do not
-need to restart Codex. If this project has old Safe Word Codex hooks, use the
-resumable migration below; do not delete the working legacy protection by hand.
+The running Codex app may keep the Safe Word catalogue it already loaded.
+Restart Codex after installation, start a new task, then review the installed
+plugin in `/hooks`. If this project has old Safe Word Codex hooks, use the
+resumable migration below; do not delete working legacy protection by hand.
 
 For an existing repository, use the resumable migration instead:
 
 ```bash
 bunx safeword@latest codex status
 bunx safeword@latest codex migrate
-# Start a new Codex task, review /hooks, then check status again. No app restart.
+# Restart Codex, start a new task, review /hooks, then check status again.
 bunx safeword@latest codex migrate --finalize
 ```
 

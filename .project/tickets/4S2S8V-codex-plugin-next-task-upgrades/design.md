@@ -1,4 +1,4 @@
-# Design: Next-task Codex plugin upgrades
+# Design: Restart-bound Codex plugin upgrades
 
 **Related:** [Spec](./spec.md) | [Test definitions](./test-definitions.md)
 
@@ -6,14 +6,15 @@
 
 Safeword keeps Codex plugin bundles immutable and version-pinned. The installer
 refreshes the configured Git marketplace, installs the released cache copy, and
-writes a profile-local activation marker bound to the plugin version and hook
-manifest digest. It does not mutate the bundle already loaded by the running
-task. A later task's SessionStart proof clears the matching marker.
+writes a profile-local activation marker bound to the plugin version, hook
+manifest digest, installation ID/time, and every active Codex app-server
+identity. It does not mutate the bundle already loaded by the running app.
+SessionStart clears the marker only under a different app-server instance.
 
 The v0.70 restart marker remains a read-only compatibility input. The new
-release writes only `activation-pending-v1.json`; matching SessionStart proof
-retires either marker. Status uses next-task language and never promises a
-mid-task hot reload.
+release writes only `activation-pending-v2.json`; pre-install proof is removed.
+Status requires an app restart and never treats a same-app new task as reload
+evidence.
 
 ## Components
 
@@ -30,17 +31,17 @@ the Codex executable replaced by a recording fixture.
 
 ### Activation evidence
 
-**What:** Write, recognize, and clear exact-identity activation markers while
-accepting the former restart marker during migration.
+**What:** Write, recognize, and clear installation- and host-bound activation
+markers while accepting the former restart marker as compatibility input.
 
 **Where:** `packages/cli/src/codex-plugin/profile-proof.ts`
 
-**Identity:** `{ plugin_version, manifest_sha256 }`.
+**Identity:** `{ plugin_version, manifest_sha256, activation_id, installed_at, active_hosts }`.
 
 ### Migration status
 
 **What:** Introduce migration result schema v2 and derive
-`plugin_installed_new_session_required`, protection, next action, and human
+`plugin_installed_app_restart_required`, protection, next action, and human
 guidance from the installed plugin, proof, legacy protection, and activation
 marker. Schema v1 remains historical; the renamed enum is never emitted under
 the old schema identifier.
@@ -50,7 +51,7 @@ the old schema identifier.
 
 ### Documentation
 
-**What:** Explain install-now/activate-next-task behavior consistently in the
+**What:** Explain install-now/restart-to-activate behavior consistently in the
 README, website reference/quick-start/FAQ pages, migration bootstrap, and
 architecture decision.
 
@@ -59,9 +60,9 @@ architecture decision.
 1. The builder runs `bunx --bun safeword@latest codex install` while Codex is open.
 2. Safeword refreshes the existing Git marketplace or adds it for a fresh profile.
 3. Codex installs and enables the exact released plugin cache copy.
-4. Safeword confirms the running task keeps its loaded version and the next task uses the installed release; no application restart is requested.
-5. The builder starts a new task and reviews changed hooks in `/hooks`.
-6. Matching SessionStart proof clears pending activation.
+4. Safeword explains that the running app may retain a stale catalogue.
+5. The builder restarts Codex, starts a new task, and reviews `/hooks`.
+6. SessionStart under the new app-server identity clears pending activation.
 
 ## Key decisions
 
@@ -73,15 +74,14 @@ rewrite the running task's loaded manifest.
 **Why:** OpenAI documents bundled skills as available in new chats/sessions.
 Exact-version commands also keep Codex hook review meaningful.
 
-**Trade-off:** The installed release waits until the next task instead of
-appearing mid-task.
+**Trade-off:** The installed release waits for an app restart instead of merely
+the next task.
 
 ### Migrate marker names with a dual reader
 
-**What:** Write the new activation marker, read both marker names, and remove a
-legacy marker when matching SessionStart proof arrives. A successful canonical
-write also retires any superseded legacy marker after the new exact identity is
-durable.
+**What:** Write the new activation marker, read both marker names, and retire
+superseded legacy state only after the new canonical exact identity is durable.
+SessionStart proof alone does not mutate a legacy marker.
 
 **Why:** Existing v0.70 profiles must converge without manual cleanup or false
 activation claims.
@@ -102,7 +102,7 @@ The fallback preserves existing local test and authoring flows.
 
 ### Supersede only the affected architecture clauses
 
-**What:** Add a new ADR for next-task activation and migration result v2. Link
+**What:** Add an ADR superseding next-task activation with restart-bound proof. Link
 back to it from the older profile-plugin and typed-CLI ADRs as a partial
 supersession.
 
@@ -116,7 +116,7 @@ the public CLI protocol envelope remains unchanged.
 
 - Marketplace observation or refresh failures stop before plugin installation.
 - Installation or enablement verification failures retain existing repository protection.
-- Malformed or stale markers do not produce pending activation and are not silently promoted; a later successful canonical install may safely supersede and remove them.
+- Malformed canonical activation state remains pending and fails closed. Malformed or stale legacy markers are not silently promoted; a later successful canonical install may safely supersede and remove them.
 - Exact proof is written durably before a matching marker is removed.
 - Marketplace-list command failures and malformed JSON fail closed before installation; configured non-Git sources retain the supported add/install fallback.
 

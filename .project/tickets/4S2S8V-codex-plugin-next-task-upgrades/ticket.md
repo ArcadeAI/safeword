@@ -2,18 +2,19 @@
 id: 4S2S8V
 slug: codex-plugin-next-task-upgrades
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 phase_anchors:
   - 'define-behavior: .project/tickets/4S2S8V-codex-plugin-next-task-upgrades/spec.md'
   - 'scenario-gate: packages/cli/features/codex-plugin-next-task-upgrades.feature'
   - 'plan-implementation: .project/tickets/4S2S8V-codex-plugin-next-task-upgrades/impl-plan.md'
+  - 'verify: .project/tickets/4S2S8V-codex-plugin-next-task-upgrades/test-definitions.md'
 scope:
   - refresh an existing Git-backed Safeword Codex marketplace before reinstalling the released plugin
-  - represent post-install activation as a next-task requirement rather than an application restart
-  - preserve exact-version hook pinning, hook review, and manifest-bound activation proof
+  - represent post-install activation as pending until a different Codex app-server loads the plugin
+  - preserve exact-version hook pinning, hook review, and installation-bound activation proof
   - recognize and retire the legacy restart-pending marker during upgrades
-  - document the no-reboot upgrade workflow in customer and architecture documentation
+  - document the restart-bound upgrade workflow in customer and architecture documentation
 out_of_scope:
   - hot-reloading plugin skills or hooks into the task that installed the upgrade
   - changing remote MCP server reload behavior
@@ -22,16 +23,16 @@ out_of_scope:
 done_when:
   - an existing Git-backed Safeword marketplace is refreshed before the plugin is reinstalled
   - a fresh profile still adds and installs the marketplace successfully
-  - successful output says the current task keeps its loaded version and new tasks use the installed version without restarting Codex
-  - status and proof use next-task activation language while safely consuming legacy restart markers
+  - successful output requires a Codex restart before a new task verifies the installed version
+  - status and proof reject same-app SessionStart as coherent activation
   - focused tests, the full suite, lint, typecheck, and documentation checks pass
 created: 2026-08-02T04:08:45.228Z
-last_modified: 2026-08-02T07:20:00.000Z
+last_modified: 2026-08-02T17:55:00.000Z
 ---
 
-# Update Safeword without restarting Codex
+# Activate Safeword upgrades coherently in Codex
 
-**Goal:** Let Codex users install a Safeword plugin upgrade in a running app and activate it in their next task with clear, trust-preserving guidance.
+**Goal:** Let Codex users install a Safeword plugin upgrade and know when one coherent skills-and-hooks catalogue has actually loaded.
 
 **See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
 
@@ -55,3 +56,7 @@ last_modified: 2026-08-02T07:20:00.000Z
 - 2026-08-02T07:30:00.000Z Release candidate: prepared `0.71.0-rc.0` with all package, marketplace, plugin, and hook pins synchronized. The release workflow now publishes prerelease tags to npm's `next` dist-tag so the live exact-version test cannot advance the customer-facing `latest` channel. Release-gate tests, version sync, lint, typecheck, and formatting passed.
 - 2026-08-02T07:45:00.000Z CI recovery: the first prerelease CI run exposed two test helpers that incorrectly accepted only stable `x.y.z` hook pins. Expanded their SemVer matchers to accept prerelease and build metadata while keeping exact hook-event parsing; focused schema and dependency-freshness tests passed (44 tests), together with build, typecheck, and formatting.
 - 2026-08-02T07:52:00.000Z Acceptance recovery: CI then found the same stable-only parser in the Codex plugin hook-parity Cucumber step. It now accepts any explicit version token while the adjacent schema test retains exact package-version pinning. The targeted Cucumber lane passed 16 scenarios / 218 steps, with lint and formatting green.
+- 2026-08-02T16:10:00.000Z Live gate failed: a new Desktop task reused the rc.0 skill catalogue while rc.1 hooks executed. Matching proof timestamps predated the rc.1 installation marker, disproving both next-task activation and hook-proof-as-whole-plugin-proof.
+- 2026-08-02T16:40:00.000Z RED/GREEN correction: activation marker v2 now binds the installation to active Codex app-server PID/start identities, invalidates older proof, and clears only after SessionStart runs under a different host instance. Canonical status requires an app restart; POSIX and Windows process-table parsers fail closed. Removed retired dogfood project hooks while preserving MCP configuration. Focused proof/migration tests and revised acceptance scenarios pass.
+- 2026-08-02T17:35:00.000Z Phase: implement → verify. Full Vitest passed 407 files / 6,119 tests (5 skipped); full Cucumber passed 684 runnable scenarios / 22,400 steps (3 scenarios and 4 steps skipped); ESLint, Gherkin lint, formatting, and typecheck passed. Quality review tightened malformed-marker fail-closed behavior, replaced the process parser's backtracking-prone regex, narrowed the external-host refresh claim against current Codex app-server documentation, and corrected the restart-bound live runbook. Published rc.2 host evidence remains the final release gate.
+- 2026-08-02T17:55:00.000Z Final quality loop: independent review found and resolved an install-time process-observation false-green path, added an explicit observed/unavailable marker discriminator, covered quoted Windows executable paths, and reconciled design/runbook wording. Re-review returned APPROVE with no critical issues. Post-fix full Vitest passed 407 files / 6,121 tests (5 skipped); full Cucumber passed 684 runnable scenarios / 22,400 steps (3 scenarios and 4 steps skipped); ESLint, Gherkin lint, typecheck, formatting, Markdown lint, and Astro diagnostics passed. Published rc.2 same-app/restarted-app evidence remains the only release blocker.

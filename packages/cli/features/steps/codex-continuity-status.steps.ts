@@ -27,6 +27,7 @@ const missingProof: CodexMigrationFacts['proof'] = {
   plugin_version: null,
   manifest_sha256: null,
   recorded_at: null,
+  activation_id: null,
   events: [],
   missing_events: ['session-start', 'pre-tool-use', 'post-tool-use', 'user-prompt-submit', 'stop'],
 };
@@ -36,6 +37,7 @@ const currentProof: CodexMigrationFacts['proof'] = {
   plugin_version: SAFEWORD_SCHEMA.version,
   manifest_sha256: 'a'.repeat(64),
   recorded_at: '2026-07-28T00:00:00.000Z',
+  activation_id: null,
   events: ['session-start', 'pre-tool-use', 'post-tool-use', 'user-prompt-submit', 'stop'],
   missing_events: [],
 };
@@ -317,7 +319,7 @@ Then(
 );
 
 Then(
-  'status reports plugin_enabled_hook_unproven and recommends a new task and hook review',
+  'status reports plugin_enabled_hook_unproven and recommends hook review in the restarted app',
   function (this: ContinuityStatusWorld) {
     const status = requireStatus(this);
     assert.equal(status.state, 'plugin_enabled_hook_unproven');
@@ -335,10 +337,9 @@ Then(
 );
 
 Then(
-  'the output recommends starting a new Codex task and reviewing hooks',
+  'the output recommends restarting Codex and reviewing hooks',
   function (this: ContinuityStatusWorld) {
-    assert.match(this.codexStatusOutput ?? '', /Start a new Codex task.+review.+\/hooks/isu);
-    assert.match(this.codexStatusOutput ?? '', /No Codex restart is required/iu);
+    assert.match(this.codexStatusOutput ?? '', /Restart Codex.+review.+\/hooks/isu);
   },
 );
 

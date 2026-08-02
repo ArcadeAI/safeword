@@ -1,5 +1,5 @@
 @surface.openai-codex @surface.safeword-cli
-Feature: Update Safeword without restarting Codex
+Feature: Activate Safeword upgrades coherently in Codex
 
   @codex-plugin-next-task-upgrades.TBU1.R1
   Rule: codex-plugin-next-task-upgrades.TBU1.R1 — Installation refreshes an existing Git marketplace before selecting the released plugin
@@ -27,12 +27,12 @@ Feature: Update Safeword without restarting Codex
       Then installation fails before the plugin install command runs
 
   @codex-plugin-next-task-upgrades.TBU1.R2
-  Rule: codex-plugin-next-task-upgrades.TBU1.R2 — The current task keeps its loaded plugin while a new task activates the installed version without an application restart
+  Rule: codex-plugin-next-task-upgrades.TBU1.R2 — Installation status requires a Codex restart and never treats a same-app task as activated
 
-    Scenario: Successful installation explains next-task activation without a restart
+    Scenario: Successful installation explains the required app restart
       Given a Codex task is running with an older Safeword plugin
       When the builder installs the released Safeword Codex plugin
-      Then the result says the current task keeps its loaded version and a new task uses the installed version without restarting Codex
+      Then the result says the Codex app may keep its loaded catalogue and must restart before a new task verifies the installed version
 
     @live @manual
     Scenario: Installing an upgrade does not change the running task
@@ -41,29 +41,41 @@ Feature: Update Safeword without restarting Codex
       Then the running task keeps the older version-pinned hook manifest
 
     @live @manual
-    Scenario: A new task activates the installed release without restarting Codex
+    Scenario: A new task in the same app does not prove coherent activation
       Given the released Safeword Codex plugin is installed while another task keeps its loaded version
       When the builder starts a new Codex task
-      Then the new task loads the exact released hook manifest without restarting Codex
+      Then the new task may still expose an older skill catalogue and activation remains pending
+
+    @live @manual
+    Scenario: A restarted app activates the installed release coherently
+      Given the released Safeword Codex plugin is installed while another task keeps its loaded version
+      When the builder restarts Codex and starts a new task
+      Then the new task loads the exact released skill catalogue and hook manifest
 
     @rejection
-    Scenario: Pending activation status never claims the current task hot-reloaded
-      Given the released Safeword plugin is installed but no new Codex task has supplied proof
+    Scenario: Pending activation status never claims the running app reloaded
+      Given the released Safeword plugin is installed but Codex has not restarted
       When the builder checks the Codex plugin activation status
-      Then status reports plugin_installed_new_session_required and directs the builder to start a new task and review hooks
+      Then status reports plugin_installed_app_restart_required and directs the builder to restart before reviewing hooks
 
   @codex-plugin-next-task-upgrades.TBU1.R3
-  Rule: codex-plugin-next-task-upgrades.TBU1.R3 — Hook activation remains bound to the installed version and exact manifest until a new task supplies current proof
+  Rule: codex-plugin-next-task-upgrades.TBU1.R3 — Activation proof belongs to the exact installed release and a restarted Codex app
 
-    Scenario: Matching SessionStart proof completes next-task activation
-      Given a profile with next-task activation pending for the installed plugin identity
-      When a new Codex task invokes the installed profile-plugin SessionStart dispatcher
-      Then current proof replaces the pending marker and status no longer requires a new task
+    @rejection
+    Scenario: Matching SessionStart from the installing app does not complete activation
+      Given a profile with app-restart activation pending for the installed plugin identity
+      When a new task in the same Codex app invokes the installed profile-plugin SessionStart dispatcher
+      Then same-host proof does not replace the pending marker or satisfy the restart requirement
+
+    Scenario: Matching SessionStart from a restarted app completes activation
+      Given a profile with app-restart activation pending for the installed plugin identity
+      When a restarted Codex app invokes the installed profile-plugin SessionStart dispatcher
+      Then restart-bound proof replaces the pending marker and status no longer requires an app restart
 
     @rejection
     Scenario Outline: Either plugin identity mismatch prevents activation completion
       Given activation is pending for <pending-version> version and <pending-manifest> hook manifest identity
-      When a new Codex task invokes the installed profile-plugin SessionStart dispatcher
+      When a restarted Codex app invokes the installed profile-plugin SessionStart dispatcher
       Then proof for <proof-version> version and <proof-manifest> hook manifest does not clear the unmatched marker or claim its activation
 
       Examples:
@@ -74,26 +86,16 @@ Feature: Update Safeword without restarting Codex
     Scenario: Later tasks preserve completed activation
       Given exact current plugin proof exists and no activation marker is pending
       When a later Codex task starts
-      Then exact current proof remains valid and status does not reintroduce a next-task requirement
+      Then exact current proof remains valid and status does not reintroduce an app-restart requirement
 
   @codex-plugin-next-task-upgrades.TBU1.R4
-  Rule: codex-plugin-next-task-upgrades.TBU1.R4 — Profiles carrying the former restart marker converge to the next-task activation contract without losing proof state
-
-    Scenario: Matching legacy marker is recognized and retired by the next task
-      Given a profile with a valid v0.70 restart-pending marker for the installed plugin identity
-      When a new Codex task invokes the installed profile-plugin SessionStart dispatcher
-      Then the legacy marker is removed and current SessionStart proof is retained
-
-    Scenario: Legacy-marker migration preserves existing exact proof
-      Given current SessionStart proof for the installed plugin identity and a valid v0.70 restart-pending marker
-      When a new Codex task invokes the installed profile-plugin SessionStart dispatcher
-      Then proof still establishes the exact installed identity and the legacy marker is retired
+  Rule: codex-plugin-next-task-upgrades.TBU1.R4 — Invalid legacy markers never manufacture activation proof
 
     @rejection
     Scenario Outline: Invalid legacy markers do not manufacture pending activation
       Given a profile with a <marker-kind> v0.70 restart-pending marker
       When the builder checks the Codex plugin activation status
-      Then status does not report next-task activation pending or synthesize current proof from that marker
+      Then status does not report app-restart activation pending or synthesize current proof from that marker
 
       Examples:
         | marker-kind |

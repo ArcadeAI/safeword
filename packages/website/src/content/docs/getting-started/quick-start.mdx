@@ -39,7 +39,7 @@ You use Claude Code, Cursor, or Codex the same way you always have. Type a promp
 
     **Setup enrolls each repository.** Installing the profile plugin does not enroll every repository you open. Until `safeword setup` creates `.safeword/SAFEWORD.md`, project gates fail open and plugin hooks do not create `.project/` or other project state.
 
-    **PreToolUse gates run through the plugin.** Run `safeword codex install` to refresh, install, and verify the profile-scoped plugin. The current task keeps its loaded version; start a new Codex task to load the installed version, then review and trust it in Codex. No app restart is required. Its hooks use version-pinned Bunx commands. Safeword guards the documented Codex PreToolUse paths it configures: `Bash`, `apply_patch` edit payloads, and file-editing tools.
+    **PreToolUse gates run through the plugin.** Run `safeword codex install` to refresh, install, and verify the profile-scoped plugin. Restart Codex after installation, start a new task to load one coherent skills-and-hooks catalogue, then review and trust it in Codex. Its hooks use version-pinned Bunx commands. Safeword guards the documented Codex PreToolUse paths it configures: `Bash`, `apply_patch` edit payloads, and file-editing tools.
 
     **Stop completion and nudges run through Codex continuations.** The packaged `safeword hook codex stop` entrypoint checks shared evidence for the session-bound, in-progress done-phase ticket and marks it done only when that evidence passes. It otherwise continues the turn with exact remediation or advisory text such as an ARCHITECTURE.md drift nudge; it never stages, commits, or opens a PR.
 
@@ -75,7 +75,7 @@ Open your project and ask your agent to build something real:
   <TabItem label="Codex">
     Watch what happens:
 
-    1. Run `safeword codex migrate`, then start a new Codex task without restarting the app
+    1. Run `safeword codex migrate`, restart Codex, then start a new task
     2. Review the Safe Word plugin in `/hooks`
     3. Your agent follows scoped plugin skills such as `safeword:bdd`
     4. Before supported edits, Codex runs the plugin's version-pinned Bunx PreToolUse hook
