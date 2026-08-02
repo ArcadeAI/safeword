@@ -68,6 +68,7 @@ interface KnowledgeWorld extends SafewordWorld {
   docsValid?: boolean;
   evidence?: string;
   plan?: string;
+  reviewerDisputesTrace?: boolean;
 }
 
 function project(world: KnowledgeWorld): string {
@@ -249,9 +250,12 @@ Given(
   },
 );
 
-Given('a reviewer disputes whether the consequence was a wise interpretation', function () {
-  assert.ok(true);
-});
+Given(
+  'a reviewer disputes whether the consequence was a wise interpretation',
+  function (this: KnowledgeWorld) {
+    this.reviewerDisputesTrace = true;
+  },
+);
 
 When('the objective audit runs', function (this: KnowledgeWorld) {
   this.traceFindings = checkPrincipleTrace(project(this), tracePlan(this.plan ?? ''));
@@ -264,6 +268,7 @@ Then('it reports E010 with {string}', function (this: KnowledgeWorld, detail: st
 });
 
 Then('it reports no E010 for that disagreement', function (this: KnowledgeWorld) {
+  assert.equal(this.reviewerDisputesTrace, true);
   assert.deepEqual(this.traceFindings, []);
 });
 
