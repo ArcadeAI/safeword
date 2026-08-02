@@ -313,6 +313,46 @@ describe('cross-agent review public-command wiring', () => {
     expect(result.stdout).not.toContain(reviewerSecret);
   });
 
+  it('uses a managed Claude credential for a Codex-authored cloud review', async () => {
+    const directory = createTemporaryDirectory();
+    const reviewLog = nodePath.join(directory, 'review.log');
+    const environmentLog = nodePath.join(directory, 'environment.log');
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    const bin = installFakeReviewer(directory, 'claude', reviewLog);
+    const reviewerSecret = `sk-ant-${'c'.repeat(24)}`;
+    const authorSecret = `sk-openai-${'d'.repeat(24)}`;
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          ANTHROPIC_API_KEY: reviewerSecret,
+          OPENAI_API_KEY: authorSecret,
+          SAFEWORD_AGENT_RUNTIME: 'codex',
+          SAFEWORD_REVIEW_ENV_LOG: environmentLog,
+          SAFEWORD_REVIEW_LOG: reviewLog,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(readFileSync(environmentLog, 'utf8')).toBe('anthropic=present\nopenai=absent\n');
+    expect(result.stdout).not.toContain(authorSecret);
+    expect(result.stdout).not.toContain(reviewerSecret);
+  });
+
   it.each([
     {
       failure: 'not-installed',
