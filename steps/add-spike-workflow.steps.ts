@@ -58,6 +58,20 @@ function createGitRepositoryFixture(prefix: string): {
   return { projectDirectory, repositoryDirectory };
 }
 
+function writeValidatedState(
+  repositoryDirectory: string,
+  scenarioContent: string,
+  ticketContent: string,
+): { scenarioPath: string; ticketPath: string } {
+  const scenarioPath = nodePath.join(repositoryDirectory, 'features/example.feature');
+  const ticketPath = nodePath.join(repositoryDirectory, '.project/tickets/T/ticket.md');
+  mkdirSync(nodePath.dirname(scenarioPath), { recursive: true });
+  mkdirSync(nodePath.dirname(ticketPath), { recursive: true });
+  writeFileSync(scenarioPath, scenarioContent);
+  writeFileSync(ticketPath, ticketContent);
+  return { scenarioPath, ticketPath };
+}
+
 After(function (this: SpikeWorkflowWorld) {
   if (this.projectDirectory !== undefined) {
     rmSync(this.projectDirectory, { recursive: true, force: true });
@@ -204,12 +218,11 @@ Given(
     this.projectDirectory = fixture.projectDirectory;
     this.repositoryDirectory = fixture.repositoryDirectory;
 
-    const scenarioPath = nodePath.join(this.repositoryDirectory, 'features/example.feature');
-    const ticketPath = nodePath.join(this.repositoryDirectory, '.project/tickets/T/ticket.md');
-    mkdirSync(nodePath.dirname(scenarioPath), { recursive: true });
-    mkdirSync(nodePath.dirname(ticketPath), { recursive: true });
-    writeFileSync(scenarioPath, 'Feature: validated behavior\n');
-    writeFileSync(ticketPath, '---\nphase: scenario-gate\n---\n');
+    const { scenarioPath, ticketPath } = writeValidatedState(
+      this.repositoryDirectory,
+      'Feature: validated behavior\n',
+      '---\nphase: scenario-gate\n---\n',
+    );
     runGit(this.repositoryDirectory, ['add', '.']);
     runGit(this.repositoryDirectory, ['commit', '-m', 'validated state']);
 
@@ -280,12 +293,11 @@ Given(
 
     this.validatedScenarioContent = 'Feature: committed validated behavior\n';
     this.ticketStateContent = '---\nphase: scenario-gate\n---\nValidated together.\n';
-    const scenarioPath = nodePath.join(this.repositoryDirectory, 'features/example.feature');
-    const ticketPath = nodePath.join(this.repositoryDirectory, '.project/tickets/T/ticket.md');
-    mkdirSync(nodePath.dirname(scenarioPath), { recursive: true });
-    mkdirSync(nodePath.dirname(ticketPath), { recursive: true });
-    writeFileSync(scenarioPath, this.validatedScenarioContent);
-    writeFileSync(ticketPath, this.ticketStateContent);
+    writeValidatedState(
+      this.repositoryDirectory,
+      this.validatedScenarioContent,
+      this.ticketStateContent,
+    );
     runGit(this.repositoryDirectory, ['add', '.']);
     runGit(this.repositoryDirectory, ['commit', '-m', 'commit validated behavior and ticket']);
     this.preSpikeBase = runGit(this.repositoryDirectory, ['rev-parse', 'HEAD']);
