@@ -338,34 +338,35 @@ function commandLog(world: ContinuityCliWorld): string {
   return readFileSync(nodePath.join(root, 'codex-commands.log'), 'utf8');
 }
 
+function pendingMarkerPayload(options: {
+  legacy?: boolean;
+  version?: string;
+  manifest?: string;
+}): object {
+  const identity = currentCodexPluginIdentity();
+  const pluginIdentity = {
+    plugin_version: options.version ?? identity.plugin_version,
+    manifest_sha256: options.manifest ?? identity.manifest_sha256,
+  };
+  if (options.legacy === true) return { schema_version: 1, ...pluginIdentity };
+  return {
+    schema_version: 2,
+    ...pluginIdentity,
+    activation_id: 'acceptance-activation',
+    installed_at: '2026-08-02T08:30:00.000Z',
+    host_observation: 'observed',
+    active_hosts: [INSTALLING_HOST],
+  };
+}
+
 function writePendingMarker(
   world: ContinuityCliWorld,
   options: { legacy?: boolean; version?: string; manifest?: string } = {},
 ): string {
-  const identity = currentCodexPluginIdentity();
   const path =
     options.legacy === true ? legacyRestartMarkerPath(world) : activationMarkerPath(world);
   mkdirSync(nodePath.dirname(path), { recursive: true });
-  writeFileSync(
-    path,
-    `${JSON.stringify(
-      options.legacy === true
-        ? {
-            schema_version: 1,
-            plugin_version: options.version ?? identity.plugin_version,
-            manifest_sha256: options.manifest ?? identity.manifest_sha256,
-          }
-        : {
-            schema_version: 2,
-            plugin_version: options.version ?? identity.plugin_version,
-            manifest_sha256: options.manifest ?? identity.manifest_sha256,
-            activation_id: 'acceptance-activation',
-            installed_at: '2026-08-02T08:30:00.000Z',
-            host_observation: 'observed',
-            active_hosts: [INSTALLING_HOST],
-          },
-    )}\n`,
-  );
+  writeFileSync(path, `${JSON.stringify(pendingMarkerPayload(options))}\n`);
   world.pendingMarkerPath = path;
   return path;
 }
