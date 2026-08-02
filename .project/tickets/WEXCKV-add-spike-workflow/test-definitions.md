@@ -69,7 +69,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Build-only kill risk is surfaced at the planning seam
 
 - [x] RED 74e3f7edc
-- [ ] GREEN
+- [x] GREEN 1f4800037
 - [ ] REFACTOR
 
 ### Scenario Outline: BDD does not offer a spike before behavior is validated
