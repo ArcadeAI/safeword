@@ -82,7 +82,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED f11119812
 - [x] GREEN 6d80a5793
-- [ ] REFACTOR
+- [x] REFACTOR skip: explicit no-risk branch is a single readable sentence
 
 ---
 
