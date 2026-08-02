@@ -210,7 +210,8 @@ If the adversarial pass + user feedback produced new scenarios → loop back to 
 2. Adversarial pass + cross-cutting checks complete; findings presented in the findings format (or confirmed clean)
 3. **Check for one build-only kill-risk.** Run this checkpoint only here, after
    items 1–2 pass — never during intake, define-behavior, or while scenario
-   validation is incomplete. An eligible risk is one that documentation and
+   validation is incomplete. While items 1–2 are incomplete, remain in
+   `scenario-gate`. An eligible risk is one that documentation and
    repository code cannot settle, whose failure would materially change the
    plan, and that a bounded executable proof can answer. If one exists, offer
    `/spike` as the next action. Remain in `scenario-gate`; do not set or advance

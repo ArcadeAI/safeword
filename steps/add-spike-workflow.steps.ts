@@ -394,7 +394,7 @@ Then(
     assert.equal(transition, 'remains in scenario-gate until validation passes');
     assert.match(
       this.bddScenariosGuidance ?? '',
-      /while (?:items 1.?2|scenario validation) (?:are )?incomplete[^.]*remain in `scenario-gate`/i,
+      /while items 1.?2 are incomplete,\s+remain in\s+`scenario-gate`/i,
     );
   },
 );
