@@ -15,7 +15,8 @@ Read the active ticket's `.feature` source first. At review time, run
 `bun .safeword/hooks/resolve-project-knowledge.ts` and read the current
 `principles`, `personas`, and `surfaces` source paths and content it returns, so
 the review is grounded in project knowledge rather than labels or stale intake
-context. Also read `spec.md`. Use `test-definitions.md` only as the R/G/R ledger
+context. The resolver honors `paths.principles`, `paths.personas`, and
+`paths.surfaces`. Also read `spec.md`. Use `test-definitions.md` only as the R/G/R ledger
 and as a legacy scenario fallback when no feature source exists.
 test-definitions.md is the R/G/R ledger. Run every check below against the
 scenarios, and present findings in the **Findings format** at the end. **Review

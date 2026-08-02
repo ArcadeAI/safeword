@@ -46,7 +46,8 @@ installed helper — report it to the user and resolve before retrying.
 The stamp records that a review was invoked; the actual scrutiny is yours. At
 review time, run `bun .safeword/hooks/resolve-project-knowledge.ts` and use its
 current `principles`, `personas`, and `surfaces` source paths and content—not
-labels remembered from intake. Read those sources with the active ticket's
+labels remembered from intake. These resolve from `paths.principles`,
+`paths.personas`, and `paths.surfaces` when configured. Read those sources with the active ticket's
 `spec.md` and `scope` / `out_of_scope` frontmatter:
 
 - **Every JTBD resolves to a real persona** and reads as a genuine job (`When

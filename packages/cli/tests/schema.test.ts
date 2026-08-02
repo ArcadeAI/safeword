@@ -677,6 +677,8 @@ describe('Schema - Single Source of Truth', () => {
         'session-auto-upgrade.ts',
         'write-review-stamp.ts',
         'resolve-namespace-root.ts',
+        'resolve-project-knowledge.ts',
+        'audit-principle-trace.ts',
         'record-skill-invocation.ts',
         'pre-tool-quality-helpers.ts',
       ]);

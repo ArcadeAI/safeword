@@ -35,6 +35,15 @@ function extractBashBlock(content: string, ordinal: number): string {
   return block;
 }
 
+function extractBashBlockByMarker(content: string, marker: string): string {
+  const block = content
+    .matchAll(/```bash\n([\s\S]*?)\n```/g)
+    .map(match => match[1] ?? '')
+    .find(body => body.includes(marker));
+  if (!block) throw new Error(`Missing bash block marked ${marker}`);
+  return block;
+}
+
 function writeProjectFile(projectDirectory: string, relativePath: string, content: string): void {
   const absolutePath = nodePath.join(projectDirectory, relativePath);
   mkdirSync(nodePath.dirname(absolutePath), { recursive: true });
@@ -184,6 +193,7 @@ function runDiffScopedAuditAutomation(options: {
   baselineFiles: Record<string, string>;
   changedFiles: Record<string, string>;
   blockOrdinal?: number;
+  blockMarker?: string;
   deletedFiles?: string[];
   includeOriginMain?: boolean;
   staleLocalMain?: boolean;
@@ -227,7 +237,12 @@ function runDiffScopedAuditAutomation(options: {
 
     const result = spawnSync(
       'bash',
-      ['-c', extractBashBlock(auditSkillContent, options.blockOrdinal ?? 2)],
+      [
+        '-c',
+        options.blockMarker === undefined
+          ? extractBashBlock(auditSkillContent, options.blockOrdinal ?? 2)
+          : extractBashBlockByMarker(auditSkillContent, options.blockMarker),
+      ],
       {
         cwd: projectDirectory,
         env: {
@@ -541,7 +556,7 @@ describe('audit diff scope', () => {
         'features/unrelated.feature': '@surface.missing\nFeature: unrelated\n',
       },
       changedFiles: { 'README.md': '# Updated fixture\n' },
-      blockOrdinal: 5,
+      blockMarker: 'domain-docs-check',
       includeOriginMain: true,
     });
 
@@ -558,7 +573,7 @@ describe('audit diff scope', () => {
         'features/unrelated.feature': '@surface.missing\nFeature: unrelated\n',
       },
       changedFiles: { 'features/changed.feature': '@surface.known\nFeature: changed\n' },
-      blockOrdinal: 5,
+      blockMarker: 'domain-docs-check',
       includeOriginMain: true,
     });
 
@@ -574,7 +589,7 @@ describe('audit diff scope', () => {
         '.project/surfaces.md': '## Known\n',
       },
       changedFiles: { 'features/invalid.feature': '@surface.missing\nFeature: invalid\n' },
-      blockOrdinal: 5,
+      blockMarker: 'domain-docs-check',
       includeOriginMain: true,
     });
 
@@ -589,7 +604,7 @@ describe('audit diff scope', () => {
         '.project/personas.md': '## Designer (DES)\n',
       },
       changedFiles: { '.project/tickets/fixture/spec.md': '**Persona:** (GM)\n' },
-      blockOrdinal: 5,
+      blockMarker: 'domain-docs-check',
       includeOriginMain: true,
     });
 
@@ -606,7 +621,7 @@ describe('audit diff scope', () => {
         'features/unrelated.feature': '@surface.missing\nFeature: unrelated\n',
       },
       changedFiles: { 'README.md': '# Updated fixture\n' },
-      blockOrdinal: 5,
+      blockMarker: 'domain-docs-check',
       includeOriginMain: true,
       scopeRequest: 'repository',
     });
