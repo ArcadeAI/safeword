@@ -105,8 +105,8 @@ Feature: Resolve build-only uncertainty with a spike
     @rejection
     Scenario: Spike code never becomes production implementation
       Given a completed spike branch contains experimental commits and changed files
-      When production implementation begins
-      Then production implementation starts from the pre-spike production base in a fresh worktree
+      When the maintainer opens a fresh production worktree from PRE_SPIKE_BASE
+      Then production planning starts from the pre-spike production base in that fresh worktree
       And its branch history contains no merged or cherry-picked spike commits
       And the spike branch remains unmerged
 

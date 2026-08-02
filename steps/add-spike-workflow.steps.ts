@@ -431,24 +431,15 @@ Then(
   },
 );
 
-When('production implementation begins', function (this: SpikeWorkflowWorld) {
-  assert.ok(this.repositoryDirectory && this.productionWorktree && this.preSpikeBase);
-  runGit(this.repositoryDirectory, [
-    'worktree',
-    'add',
-    '-b',
-    'production/implementation',
-    this.productionWorktree,
-    this.preSpikeBase,
-  ]);
-});
-
 Then(
-  'production implementation starts from the pre-spike production base in a fresh worktree',
+  'production planning starts from the pre-spike production base in that fresh worktree',
   function (this: SpikeWorkflowWorld) {
     assert.ok(this.productionWorktree && this.preSpikeBase);
     assert.equal(runGit(this.productionWorktree, ['rev-parse', 'HEAD']), this.preSpikeBase);
-    assert.match(this.spikeSkill ?? '', /PRE_SPIKE_BASE[\s\S]*fresh worktree/i);
+    assert.match(
+      this.spikeSkill ?? '',
+      /fresh production worktree from `PRE_SPIKE_BASE`[\s\S]*plan-implementation/i,
+    );
   },
 );
 
