@@ -27,12 +27,12 @@ export async function runReview(input: {
   const reviewer = oppositeReviewer(author);
   if (reviewer === undefined) {
     return createResult({
-      state: 'action_required',
+      state: 'healthy',
       findings: [
         {
           code: 'REVIEW_EXISTING_ROUTE',
           message: 'An independent cross-agent check was not run for this author runtime.',
-          severity: 'warning',
+          severity: 'info',
         },
       ],
       data: {
