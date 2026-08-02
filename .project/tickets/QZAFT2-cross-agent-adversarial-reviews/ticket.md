@@ -28,7 +28,12 @@ done_when:
 phase_anchors:
   - define-behavior: .project/tickets/QZAFT2-cross-agent-adversarial-reviews/spec.md
   - scenario-gate: packages/cli/features/cross-agent-adversarial-reviews.feature
+  - plan-implementation: .project/tickets/QZAFT2-cross-agent-adversarial-reviews/impl-plan.md
   - implement: .project/tickets/QZAFT2-cross-agent-adversarial-reviews/impl-plan.md
+  - verify: .project/tickets/QZAFT2-cross-agent-adversarial-reviews/test-definitions.md
+  - done: .project/tickets/QZAFT2-cross-agent-adversarial-reviews/verify.md
+phase_skips:
+  - verify: The canonical verify and audit runs and verify.md were completed before the final done update; only a separate intermediate frontmatter commit was omitted.
 ---
 
 # Catch agent blind spots with cross-agent reviews
