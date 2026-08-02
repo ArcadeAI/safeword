@@ -43,3 +43,23 @@ resumed closeout.
 Merge authority is consumed when the merge action is attempted. Entering a merge
 queue or enabling auto-merge consumes it too; later runs observe that queued
 action and do not repeat it.
+
+## 3. Re-observe merge truth and resume
+
+After every merge command—success or error—re-observe the exact pull request:
+
+```sh
+gh pr view state,mergedAt,mergeCommit,headRefName,headRefOid < number > --json
+```
+
+Continue only when `state` is exactly `MERGED` and the observed head still
+matches the recorded pull request head. Queued, automatic, pending, unknown, or
+unobservable results are not merge proof; report the recovery check and stop.
+
+If the command reported an error but fresh observation proves the expected head
+was merged, report that the remote merge succeeded, do not retry it, and proceed
+to the mandatory retrospective. On every invocation, re-observe durable state
+and continue only the unfinished suffix. Treat an absent cleanup target as
+complete only after proving it was the exact planned target. If the pull request
+is merged, its retrospective is complete, and its exact branch and worktree are
+already absent, report that the session is already closed.
