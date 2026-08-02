@@ -108,13 +108,13 @@ test-definitions.md is the R/G/R ledger. Executable Given/When/Then behavior liv
 
 ### Scenario Outline: Each class-1 surface enters the shared coordinator
 
-- [ ] RED
+- [x] RED 8e2db69d9
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: A class-1 surface that bypasses the coordinator fails parity validation
 
-- [ ] RED
+- [x] RED 8e2db69d9
 - [ ] GREEN
 - [ ] REFACTOR
 
