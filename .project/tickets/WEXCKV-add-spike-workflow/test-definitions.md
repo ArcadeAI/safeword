@@ -9,7 +9,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Eligible uncertainty starts with a complete experiment charter
 
 - [x] RED 617fd7964
-- [ ] GREEN
+- [x] GREEN 1ad07d80f
 - [ ] REFACTOR
 
 ### Scenario Outline: An incomplete charter cannot execute
