@@ -132,6 +132,18 @@ test-definitions.md is the R/G/R ledger. Executable Given/When/Then behavior liv
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: An explicit opt-out retains the existing route without cross-agent evidence
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An explicit opt-out cannot satisfy hard cross-agent enforcement
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: cross-agent-review.SWM1.R3 — Non-class-1 work retains its existing routing
 
 ### Scenario Outline: Excluded reviewer classes do not enter the cross-agent coordinator

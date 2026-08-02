@@ -69,8 +69,9 @@ Feature: Cross-agent adversarial reviews
     @rejection @surface.safeword-cli
     Scenario: A reviewer write attempt cannot alter the judged work
       Given the reviewer runs against a bounded snapshot in a neutral workspace
-      When the reviewer attempts to write to the source worktree
-      Then the source worktree remains unchanged
+      When the reviewer writes to its working directory targeting the judged files
+      Then the change is confined to the disposable snapshot
+      And the source worktree is byte-for-byte unchanged
       And the write attempt earns no passing review evidence
 
     @rejection @surface.safeword-cli
@@ -211,6 +212,21 @@ Feature: Cross-agent adversarial reviews
       When a class-1 review starts
       Then Safe Word reports that the reviewer is not signed in
       And it does not request, print, or synthesize a secret value
+
+    Scenario: An explicit opt-out retains the existing route without cross-agent evidence
+      Given the builder explicitly opts out of cross-agent review
+      When a class-1 review starts
+      Then no opposite-agent reviewer process is launched
+      And the existing review route is retained without cross-agent evidence
+      And the outcome says the independent cross-agent check was not requested
+
+    @rejection
+    Scenario: An explicit opt-out cannot satisfy hard cross-agent enforcement
+      Given hard cross-agent enforcement is enabled
+      And the builder explicitly opts out of cross-agent review
+      When a class-1 review starts
+      Then the cross-agent gate remains unsatisfied
+      And the outcome says the independent cross-agent check was not requested
 
   @cross-agent-review.SWM1.R3
   Rule: cross-agent-review.SWM1.R3 — Non-class-1 work retains its existing routing

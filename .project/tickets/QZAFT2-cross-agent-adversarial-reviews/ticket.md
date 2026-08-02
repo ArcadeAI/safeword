@@ -2,16 +2,17 @@
 id: QZAFT2
 slug: cross-agent-adversarial-reviews
 type: feature
-phase: scenario-gate
+phase: implement
 status: in_progress
 created: 2026-08-02T17:01:05.002Z
-last_modified: 2026-08-02T20:00:00.000Z
+last_modified: 2026-08-02T21:20:00.000Z
 scope:
   - opposite-agent headless execution for class-1 quality, phase, and architecture reviews
   - bounded read-only review packets with vendor-scoped credentials
   - loud classified fallback, exhaustion, and NTB recovery messages
   - author and reviewer agent provenance in backward-compatible review evidence
   - Claude and Codex desktop/cloud parity with staged activation and a default-on end state
+  - an explicit opt-out that retains the existing route without claiming cross-agent independence
 out_of_scope:
   - Cursor reviewer selection
   - agent installation or credential provisioning
@@ -23,9 +24,11 @@ done_when:
   - each failure class yields a plain explanation, a concrete next action, and an honest fallback level
   - exhausted routes block loudly and degraded reviews never satisfy hard cross-agent enforcement
   - desktop/cloud parity and unchanged out-of-scope routing are covered without real secrets
+  - an explicit opt-out preserves the existing route and clearly states that cross-agent review was not requested, without satisfying hard enforcement
 phase_anchors:
   - define-behavior: .project/tickets/QZAFT2-cross-agent-adversarial-reviews/spec.md
   - scenario-gate: packages/cli/features/cross-agent-adversarial-reviews.feature
+  - implement: .project/tickets/QZAFT2-cross-agent-adversarial-reviews/impl-plan.md
 ---
 
 # Catch agent blind spots with cross-agent reviews
@@ -56,3 +59,9 @@ phase_anchors:
 - 2026-08-02T19:05:00.000Z Spike preparation: User requested catch-up plus spike. Fast-forwarded the new `codex/cross-agent-adversarial-reviews` branch to `origin/main` at `a59eb35086cad0ce55bacebfbfa9c874d44bb25e`; QZAFT2 artifacts had no overlap and Gherkin lint remained healthy. Recorded the bounded Claude→Codex spike charter in `spike.md`; cloud credential parity remains an explicit non-emulated constraint.
 - 2026-08-02T19:20:00.000Z Spike result — PARTIAL: Created isolated `spike/claude-launches-codex` worktree from baseline `ca9c56d3b6e9f41a651e981db30d57c8ae11dbc5`. The installed Claude CLI rejected `--tools`; the single permitted correction exposed variadic `--allowedTools` prompt consumption. Both attempts exited before a model turn or nested Codex launch, and the worktree remained clean. Retained the coordinator direction but withheld live-nesting validation; implementation must use structured argv/stdin, contract-test the Claude-hosted route, and keep live desktop/cloud smoke plus loud fallback as acceptance requirements.
 - 2026-08-02T20:00:00.000Z Spike follow-up — VALIDATED with constraint: Figure-it-out traced the failures to stale executable selection (`/usr/local/bin/claude` 1.0.43 ahead of Claude Code 2.1.170) and variadic prompt parsing. Explicit binaries plus stdin produced successful Claude→Codex and Codex→Claude markers with vendor credential variables removed. A nested read-only Codex process could not access Claude's desktop profile, while a host-boundary run could; implementation must resolve and capability-check binaries, keep the coordinator at an auth-capable host boundary, preserve reviewer isolation independently, and classify inaccessible credentials rather than silently weakening permissions.
+- 2026-08-02T20:10:00.000Z Phase: Advanced scenario-gate → plan-implementation after the independently reviewed scenario stamp and validated bidirectional spike. Planning will map every approved scenario to a proof and keep application code untouched until the plan passes its own independent review.
+- 2026-08-02T20:55:00.000Z Plan rework: The first independent plan review passed; after precision edits, a fresh re-review correctly found that spec.md's explicit opt-out had no scenario and was absent from condensed ticket scope. Returned to define-behavior to bind that approved requirement before implementation. Also expanding the implementation proof map from rule-level rows to one row per scenario group.
+- 2026-08-02T21:05:00.000Z Scenario re-review: Fresh headless Claude returned 0 must-fix, 2 should-strengthen, and 3 looks-good findings. Strengthened write isolation so a real snapshot mutation must remain confined and invalidates evidence; added a rejection sibling proving explicit opt-out cannot satisfy hard cross-agent enforcement.
+- 2026-08-02T21:10:00.000Z Gate: Re-entered scenario-gate with 21 scenario groups after applying both strengthening findings and passing Gherkin lint.
+- 2026-08-02T21:15:00.000Z Scenario gate: Fresh headless Claude returned 0 must-fix and 0 should-strengthen findings across all 21 scenario groups, explicitly confirming the write-isolation and hard-enforcement opt-out gaps are resolved. Recorded a fresh content-bound scenario-gate stamp and advanced to plan-implementation.
+- 2026-08-02T21:20:00.000Z Plan gate: Fresh headless Claude returned PASS with all 21 scenario groups mapped and no blockers. Folded in its two non-blocking precision notes, recorded the content-bound plan-implementation stamp, and advanced to implement with seven coupled vertical slices and one architecture decision.
