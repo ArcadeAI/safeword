@@ -173,4 +173,30 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       }).blockers,
     ).toContain('repository state changed after preview');
   });
+
+  it('re-observes each remaining target and stops after a concurrent ref change', () => {
+    const initial = safeObservation();
+    const remote = initial.remote;
+    if (!remote) throw new Error('fixture remote missing');
+    const changedRemote = safeObservation({
+      worktrees: [worktree(0)],
+      remote: { ...remote, oid: 'c'.repeat(40) },
+    });
+    const observations = [initial, initial, changedRemote];
+    const executed: string[] = [];
+    const plan = buildCleanupPlan(initial);
+
+    const result = applyCleanupPlan({
+      plan,
+      digest: cleanupPlanDigest(plan),
+      observe: () => observations.shift() ?? changedRemote,
+      execute: operation => {
+        executed.push(operation.kind);
+      },
+    });
+
+    expect(result.applied).toBe(false);
+    expect(result.blockers).toContain('delete-remote-ref target changed during cleanup');
+    expect(executed).toEqual(['remove-worktree']);
+  });
 });
