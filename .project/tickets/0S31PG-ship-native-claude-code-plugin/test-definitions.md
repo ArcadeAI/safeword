@@ -74,7 +74,13 @@ Each scenario is tracked through RED, GREEN, and REFACTOR during implementation.
 
 - [x] RED 8f914bce9
 - [x] GREEN 1233abd8f
-- [ ] REFACTOR
+- [x] REFACTOR skip: one typed reference graph now drives closure, validation, and inventory sealing
+
+### Scenario: A failed sibling hook prevents event-level plugin proof
+
+- [x] RED 1233abd8f
+- [x] GREEN 999f67b30
+- [x] REFACTOR skip: each proof-authorizing event has one aggregate dispatcher boundary
 
 ## Rule: native-claude-plugin.TBU1.R4
 
@@ -155,9 +161,9 @@ following real prompt remain explicit `@live` acceptance.
 
 ### Scenario: Damaged plugin runtime writes no plugin proof
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED e80fd0941
+- [x] GREEN 1233abd8f
+- [x] REFACTOR 999f67b30
 
 ## Rule: native-claude-plugin.NTB1.R3
 
@@ -208,7 +214,7 @@ following real prompt remain explicit `@live` acceptance.
 - [x] REFACTOR 28b21363a
 
 Catalogue completeness and real-manifest runtime integrity were strengthened in
-`1233abd8f` after quality review.
+`1233abd8f` and `999f67b30` after quality review.
 
 ### Scenario: Generation fails on a missing transitive runtime dependency
 
