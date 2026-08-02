@@ -40,7 +40,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Spike code never becomes production implementation
 
-- [ ] RED
+- [x] RED 548a33ea1
 - [ ] GREEN
 - [ ] REFACTOR
 
