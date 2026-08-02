@@ -66,6 +66,33 @@ describe('gatePhaseAdvance (TB2.AC1 — phase advance needs an independent revie
     const stamps: ReviewStamp[] = [{ scope: 'define-behavior', skipReason: 'docs-only phase' }];
     expect(gatePhaseAdvance('define-behavior', stamps)).toEqual({ ok: true });
   });
+
+  it('hard cross-agent enforcement rejects degraded or opted-out evidence', () => {
+    const degraded: ReviewStamp[] = [
+      {
+        scope: 'scenario-gate',
+        author: 'claude',
+        reviewer: 'claude',
+        independence: 'degraded',
+      },
+    ];
+
+    expect(gatePhaseAdvance('scenario-gate', degraded, 'require').ok).toBe(false);
+    expect(gatePhaseAdvance('scenario-gate', [], 'require').ok).toBe(false);
+  });
+
+  it('hard cross-agent enforcement accepts distinct validated provenance', () => {
+    const independent: ReviewStamp[] = [
+      {
+        scope: 'scenario-gate',
+        author: 'claude',
+        reviewer: 'codex',
+        independence: 'cross-agent',
+      },
+    ];
+
+    expect(gatePhaseAdvance('scenario-gate', independent, 'require')).toEqual({ ok: true });
+  });
 });
 
 describe('parseReviewStamps (read stamps from the skill-invocation-log)', () => {
@@ -110,6 +137,27 @@ describe('formatReviewStamp (write a stamp the gate will read — inverse of par
     expect(formatReviewStamp('NMSD94:spec@abc123', 'docs-only change')).toBe(
       'review:NMSD94:spec@abc123 skip:docs-only change',
     );
+  });
+
+  it('round-trips optional cross-agent provenance', () => {
+    const line = formatReviewStamp(
+      'QZAFT2:phase@scenario-gate',
+      undefined,
+      'codex-default',
+      'claude',
+      'codex',
+      'cross-agent',
+    );
+
+    expect(parseReviewStamps(`ts session ${line}`)).toEqual([
+      {
+        scope: 'QZAFT2:phase@scenario-gate',
+        model: 'codex-default',
+        author: 'claude',
+        reviewer: 'codex',
+        independence: 'cross-agent',
+      },
+    ]);
   });
 
   it('round-trips through parseReviewStamps (real review)', () => {
