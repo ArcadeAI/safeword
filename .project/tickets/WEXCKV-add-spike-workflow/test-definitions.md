@@ -50,7 +50,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 5a3875ea0
 - [x] GREEN 4c4f71d9b
-- [ ] REFACTOR
+- [x] REFACTOR skip: first vertical slice is already minimal and generator-owned
 
 ### Scenario: Catalogue generation ships the same spike action for Codex
 
