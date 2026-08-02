@@ -48,7 +48,7 @@ test-definitions.md is the R/G/R ledger. Executable Given/When/Then behavior liv
 
 ### Scenario: An unrelated author-vendor credential never enters the reviewer boundary
 
-- [ ] RED
+- [x] RED 6d3720066
 - [ ] GREEN
 - [ ] REFACTOR
 
