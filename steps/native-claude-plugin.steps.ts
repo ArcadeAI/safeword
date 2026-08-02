@@ -20,6 +20,7 @@ import nodePath from 'node:path';
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
 import {
+  assertClaudePluginAssetClosure,
   assertClaudePluginAssetReferences,
   type GeneratedClaudePluginAsset,
 } from '../packages/cli/src/claude-plugin/catalogue.js';
@@ -344,6 +345,78 @@ Then(
 );
 
 Then('no plugin catalogue is published', function (this: NativeClaudePluginWorld) {
+  assert.ok(this.validation?.error);
+});
+
+Given(
+  'a canonical Claude skill references a required guide absent from the generated catalogue',
+  function (this: NativeClaudePluginWorld) {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-claude-closure-'));
+    this.validation = {
+      root,
+      assets: [
+        {
+          relativePath: 'skills/probe/SKILL.md',
+          content:
+            '---\nname: probe\ndescription: Probe missing closure.\n---\n\nRead "${CLAUDE_PLUGIN_ROOT}/resources/guides/missing.md".\n',
+        },
+      ],
+    };
+  },
+);
+
+Given(
+  'canonical Claude assets define a skill and flat command with the same invocation name',
+  function (this: NativeClaudePluginWorld) {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-claude-invocation-'));
+    this.validation = {
+      root,
+      assets: [
+        {
+          relativePath: 'skills/probe/SKILL.md',
+          content: '---\nname: probe\ndescription: Probe duplicate.\n---\n',
+        },
+        { relativePath: 'commands/probe.md', content: '# Duplicate probe\n' },
+      ],
+    };
+  },
+);
+
+When('the Claude plugin catalogue is generated', function (this: NativeClaudePluginWorld) {
+  assert.ok(this.validation);
+  try {
+    assertClaudePluginAssetReferences(this.validation.assets);
+    assertClaudePluginAssetClosure(this.validation.assets);
+  } catch (error) {
+    this.validation.error = error instanceof Error ? error : new Error(String(error));
+  }
+});
+
+Then(
+  'generation fails naming the missing dependency and its referrer',
+  function (this: NativeClaudePluginWorld) {
+    assert.match(
+      this.validation?.error?.message ?? '',
+      /skills\/probe\/SKILL\.md.*resources\/guides\/missing\.md/u,
+    );
+  },
+);
+
+Then('the partial catalogue is not accepted', function (this: NativeClaudePluginWorld) {
+  assert.ok(this.validation?.error);
+});
+
+Then(
+  'generation fails naming both conflicting canonical sources',
+  function (this: NativeClaudePluginWorld) {
+    assert.match(
+      this.validation?.error?.message ?? '',
+      /skills\/probe\/SKILL\.md.*commands\/probe\.md/u,
+    );
+  },
+);
+
+Then('no ambiguous workflow is packaged', function (this: NativeClaudePluginWorld) {
   assert.ok(this.validation?.error);
 });
 

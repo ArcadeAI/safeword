@@ -338,14 +338,14 @@ Feature: Ship Safeword as a native Claude Code plugin
       Then every required transformed asset appears exactly once beneath plugin
       And the plugin manifest and every transitive reference resolve within the package
 
-    @rejection @wip
+    @rejection
     Scenario: Generation fails on a missing transitive runtime dependency
       Given a canonical Claude skill references a required guide absent from the generated catalogue
       When the Claude plugin catalogue is generated
       Then generation fails naming the missing dependency and its referrer
       And the partial catalogue is not accepted
 
-    @rejection @wip
+    @rejection
     Scenario: Generation rejects a duplicate invocation name across skills and commands
       Given canonical Claude assets define a skill and flat command with the same invocation name
       When the Claude plugin catalogue is generated

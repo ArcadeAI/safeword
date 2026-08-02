@@ -224,6 +224,12 @@ function transitiveClaudePluginAssets(
   return candidates.filter(asset => selected.has(asset.relativePath));
 }
 
+export function assertClaudePluginAssetClosure(
+  assets: readonly GeneratedClaudePluginAsset[],
+): void {
+  transitiveClaudePluginAssets(assets);
+}
+
 function stripTrailingWhitespace(content: string): string {
   return content
     .split('\n')
