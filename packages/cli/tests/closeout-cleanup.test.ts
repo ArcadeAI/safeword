@@ -35,6 +35,7 @@ function safeObservation(overrides: Partial<CloseoutObservation> = {}): Closeout
     localRefOid: 'a'.repeat(40),
     defaultBranch: 'main',
     protection: 'unprotected',
+    deliveryWorktreePath: '/repo-closeout',
     worktrees: [
       { path: '/repo', branch: 'main', oid: 'b'.repeat(40), main: true },
       {
@@ -198,6 +199,16 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       'the current session retrospective is incomplete',
     ],
     [
+      'failed retro extraction',
+      { retro: { ...safeObservation().retro, complete: false, failure: 'extraction' } },
+      'retrospective extraction failed; resolve the extraction failure',
+    ],
+    [
+      'failed retro filing',
+      { retro: { ...safeObservation().retro, complete: false, failure: 'filing' } },
+      'retrospective filing failed; resolve the filing failure',
+    ],
+    [
       'pending drafts',
       { retro: { ...safeObservation().retro, pendingDrafts: 2 } },
       'the current session filing spool has pending drafts',
@@ -210,6 +221,15 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       expect(plan.operations).toEqual([]);
     },
   );
+
+  it('preserves a topic branch used by a different worktree', () => {
+    const plan = buildCleanupPlan(safeObservation({ deliveryWorktreePath: '/somewhere-else' }));
+
+    expect(plan.blockers).toContain(
+      'the topic branch is used by a different worktree: /repo-closeout',
+    );
+    expect(plan.operations).toEqual([]);
+  });
 
   it('treats proven-absent exact targets as complete without broadening scope', () => {
     const plan = buildCleanupPlan(
