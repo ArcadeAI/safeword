@@ -150,7 +150,15 @@ jobs:
           # --access public: safeword is a public package.
           # ./ prefix REQUIRED — without it, npm parses the path as a GitHub repo
           # shorthand and tries to git-clone instead of reading the local tarball.
+          # Prereleases must never advance the customer-facing `latest` tag.
+          # Exact-version installs still resolve them for our live Codex gate.
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then
+            NPM_TAG=next
+          else
+            NPM_TAG=latest
+          fi
           npm publish ./release-artifacts/safeword-*.tgz \
             --provenance \
             --access public \
+            --tag "$NPM_TAG" \
             --ignore-scripts
