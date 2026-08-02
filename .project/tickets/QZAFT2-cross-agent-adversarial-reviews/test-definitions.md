@@ -16,7 +16,7 @@ test-definitions.md is the R/G/R ledger. Executable Given/When/Then behavior liv
 
 - [x] RED skip: route policy shipped in the preceding walking-skeleton loop; regression proof fails if the same-agent candidate is selected
 - [x] GREEN cb453b649
-- [ ] REFACTOR
+- [x] REFACTOR skip: the shared oppositeReviewer policy already expresses the rule without duplication
 
 ### Scenario: An author outside the Claude and Codex pairing keeps its existing route
 
