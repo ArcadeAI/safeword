@@ -208,6 +208,19 @@ function plannedEffectLines(data: unknown): string[] {
   return lines.length === 0 ? [] : ['Planned effects:', ...lines];
 }
 
+function reviewIndependenceLine(data: unknown): string | undefined {
+  if (!isRecord(data) || data.command !== 'review run') return undefined;
+  if (data.independence === 'cross-agent') return 'An independent agent checked the work.';
+  if (data.independence === 'degraded') return 'The check ran, but it was not fully independent.';
+  if (data.cross_agent_review === 'not_requested')
+    return 'An independent agent check was not requested.';
+  return 'The independent check did not run.';
+}
+
+function optionalLine(value: string | undefined): readonly string[] {
+  return value === undefined ? [] : [value];
+}
+
 const EFFECT_LABELS: Readonly<Record<string, string>> = {
   create: 'Created',
   update: 'Updated',
@@ -261,10 +274,13 @@ export function renderHumanStreams(
   }
   if (suppressHumanOutput(result, options)) return { stdout: '', stderr: '' };
 
+  const independenceLine = reviewIndependenceLine(result.data);
+  const messages = uniqueMessages(result).filter(message => message !== independenceLine);
   const lines = [
+    ...optionalLine(independenceLine),
     VERDICTS[result.state],
     `Changed: ${result.changed ? 'yes' : 'no'}`,
-    ...uniqueMessages(result),
+    ...messages,
     ...plannedEffectLines(result.data),
   ];
 
