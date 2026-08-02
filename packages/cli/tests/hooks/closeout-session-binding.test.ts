@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -75,5 +75,21 @@ describe('closeout host identity bridge (93C14D NTB1.R2/TBU1.R4)', () => {
     expect(rememberCloseoutBinding({ projectDirectory, runtime: 'codex', id: undefined })).toBe(
       false,
     );
+  });
+
+  it('atomically claims the cache before reading it', () => {
+    const projectDirectory = project();
+    const now = new Date('2026-08-02T12:00:00.000Z');
+    rememberCloseoutBinding({ projectDirectory, runtime: 'codex', id: 'thread-42', now });
+
+    const bindingPath = nodePath.join(
+      projectDirectory,
+      '.project',
+      'closeout-session-binding.json',
+    );
+    expect(existsSync(bindingPath)).toBe(true);
+    expect(readFreshCloseoutBinding({ projectDirectory, now })?.id).toBe('thread-42');
+    expect(existsSync(bindingPath)).toBe(false);
+    expect(readFreshCloseoutBinding({ projectDirectory, now })).toBeUndefined();
   });
 });

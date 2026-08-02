@@ -172,4 +172,4 @@ required `Scenario:` heading grammar.
 
 ## Feature-level cross-scenario refactor
 
-- [ ] cross-scenario
+- [x] cross-scenario 635d192bb

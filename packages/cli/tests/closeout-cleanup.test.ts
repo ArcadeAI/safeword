@@ -1,3 +1,7 @@
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import nodePath from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -6,6 +10,7 @@ import {
   cleanupPlanDigest,
   type CloseoutObservation,
   operationCommand,
+  transcriptMatchesBinding,
 } from '../templates/scripts/closeout-cleanup.ts';
 
 function safeObservation(overrides: Partial<CloseoutObservation> = {}): CloseoutObservation {
@@ -107,6 +112,7 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       { pullRequests: [{ ...pullRequest(), headRefName: 'main' }] },
       'the default branch is never a closeout target',
     ],
+    ['unknown default branch', { defaultBranch: '' }, 'the default branch is unknown'],
     ['unknown protection', { protection: 'unknown' }, 'branch protection state is unknown'],
     ['protected branch', { protection: 'protected' }, 'the topic branch is protected'],
     [
@@ -256,5 +262,31 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     expect(result.applied).toBe(false);
     expect(result.blockers).toContain('delete-remote-ref target changed during cleanup');
     expect(executed).toEqual(['remove-worktree']);
+  });
+
+  it('accepts only transcript metadata bound to the exact session and repository', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-closeout-transcript-'));
+    const transcript = nodePath.join(root, 'transcript.jsonl');
+    mkdirSync(nodePath.join(root, '.project'));
+    writeFileSync(
+      transcript,
+      `${JSON.stringify({ type: 'user', sessionId: 'session-42', cwd: root })}\n`,
+    );
+
+    expect(
+      transcriptMatchesBinding(transcript, { runtime: 'claude', id: 'session-42' }, root),
+    ).toBe(true);
+    expect(
+      transcriptMatchesBinding(transcript, { runtime: 'claude', id: 'other-session' }, root),
+    ).toBe(false);
+    expect(
+      transcriptMatchesBinding(transcript, { runtime: 'claude', id: 'session-42' }, '/other/repo'),
+    ).toBe(false);
+
+    const spoofedText = ['session-42', root].join(' ');
+    writeFileSync(transcript, `${JSON.stringify({ type: 'message', text: spoofedText })}\n`);
+    expect(
+      transcriptMatchesBinding(transcript, { runtime: 'claude', id: 'session-42' }, root),
+    ).toBe(false);
   });
 });
