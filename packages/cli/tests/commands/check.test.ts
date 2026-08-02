@@ -478,6 +478,57 @@ describe('Test Suite 8: Health Check', () => {
     });
   });
 
+  describe('configurable principles path', () => {
+    function setPrinciplesOverride(principlesPath: string): void {
+      const existing = JSON.parse(readTestFile(temporaryDirectory, '.safeword/config.json')) as {
+        paths?: Record<string, unknown>;
+        [key: string]: unknown;
+      };
+      writeTestFile(
+        temporaryDirectory,
+        '.safeword/config.json',
+        JSON.stringify({
+          ...existing,
+          paths: { ...existing.paths, principles: principlesPath },
+        }),
+      );
+    }
+
+    it('reports a loud failure when the configured principles path is missing', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      setPrinciplesOverride('docs/principles.md');
+      unlinkSync(nodePath.join(temporaryDirectory, '.project', 'principles.md'));
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(2);
+      expect(result.stdout).toMatch(/principles-path:.*docs\/principles\.md.*file not found/);
+    });
+
+    it('passes without an orphan advisory when a valid override replaces the default', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTestFile(temporaryDirectory, 'docs/principles.md', '# Principles\n\n## Delight users\n');
+      setPrinciplesOverride('docs/principles.md');
+      unlinkSync(nodePath.join(temporaryDirectory, '.project', 'principles.md'));
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).not.toMatch(/principles.*orphan/i);
+    });
+
+    it('reports an orphan advisory when an override and default principles file coexist', async () => {
+      await createConfiguredProject(temporaryDirectory);
+      writeTestFile(temporaryDirectory, 'docs/principles.md', '# Principles\n\n## Delight users\n');
+      setPrinciplesOverride('docs/principles.md');
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toMatch(/\.project\/principles\.md.*orphan/i);
+    });
+  });
+
   describe('glossary.md validation (ticket YR6C49)', () => {
     function setGlossaryOverride(glossaryPath: string): void {
       const existing = JSON.parse(readTestFile(temporaryDirectory, '.safeword/config.json')) as {
