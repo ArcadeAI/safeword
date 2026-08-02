@@ -15,7 +15,7 @@ test-definitions.md is the R/G/R ledger. Executable Given/When/Then behavior liv
 ### Scenario: A same-agent candidate cannot displace an available opposite reviewer
 
 - [x] RED skip: route policy shipped in the preceding walking-skeleton loop; regression proof fails if the same-agent candidate is selected
-- [ ] GREEN
+- [x] GREEN cb453b649
 - [ ] REFACTOR
 
 ### Scenario: An author outside the Claude and Codex pairing keeps its existing route
