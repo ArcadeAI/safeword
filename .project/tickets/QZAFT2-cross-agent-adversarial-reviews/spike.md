@@ -35,17 +35,34 @@ One vertical invocation plus at most one bounded setup correction, capped at 20 
 
 This machine can prove real local Claude → Codex nesting. Managed-cloud credential parity remains a separate acceptance concern covered through contract simulations and any available live cloud smoke evidence; this spike does not claim to impersonate either vendor's cloud secret store.
 
-## Result
+## Initial result
 
 **Classification: PARTIAL**
 
 The isolated spike worktree was created from `ca9c56d3b6e9f41a651e981db30d57c8ae11dbc5` and was clean before and after both bounded attempts. Neither attempt reached a Claude model turn or the nested Codex process:
 
-1. The installed Claude CLI rejected the documented `--tools Bash` option as unknown.
-2. The one permitted setup correction removed `--tools`, but `--allowedTools Bash` consumed the trailing prompt under this CLI's variadic argument parsing; Claude then exited because `--print` received no prompt.
+1. The `claude` selected by `PATH` was an obsolete 1.0.43 installation. It rejected the current `--tools` option and later requested a retired model that returned HTTP 404.
+2. A trailing prompt was also unsafe after variadic `--allowedTools`; that option consumed the prompt, so `--print` received no input.
 
-The experiment therefore produced no authentication, isolation, or parseability evidence for Claude → Codex nesting. It also produced no evidence that the nested subprocess design itself is unsound: the failure was confined to the outer test harness's CLI argument construction.
+These were test-harness and executable-resolution failures, not evidence against cross-agent execution. The user explicitly authorized a follow-up investigation and bidirectional proof.
+
+## Follow-up result
+
+**Classification: VALIDATED, with a host-boundary constraint**
+
+Current vendor documentation and installed help both support noninteractive prompts through stdin. Explicit executable discovery found Claude Code 2.1.170 at `/Users/alex/.bun/bin/claude` behind the stale `PATH` entry, and Codex CLI 0.141.0 at `/opt/homebrew/bin/codex`.
+
+Using explicit binaries and stdin prompts produced both required end-to-end markers:
+
+- Claude → Codex exited zero with `CLAUDE_WRAPPER_OK:NESTED_CODEX_OK_QZAFT2`. The Codex child was ephemeral, ignored user config and hooks, received no Claude credential variables, used JSONL output, and requested a read-only sandbox.
+- Codex → Claude exited zero with `CODEX_WRAPPER_OK:NESTED_CLAUDE_OK_QZAFT2`. The Claude child received no Codex credential variables, had no tools, used safe mode, and disabled session persistence.
+
+The Codex → Claude proof first reproduced an important boundary condition: a read-only nested Codex sandbox could start Claude but could not expose Claude's desktop profile login, yielding `Not logged in`. Running the isolated outer proof at the host boundary allowed Claude to reuse the existing `claude.ai` profile. This is consistent with treating nested sandbox permissions as insufficient proof of credential-store or filesystem isolation. The spike worktree remained clean throughout.
 
 ## Decision
 
-Keep the shared subprocess-coordinator design, but do not treat local Claude → Codex nesting as validated. During implementation, invoke reviewer CLIs directly with structured argument arrays and stdin input instead of relying on an agent-authored shell command. Cover the Claude-hosted route with executable contract tests, and require a real desktop/cloud smoke check before claiming live parity. If that smoke check cannot start, report the exact missing installation or authentication prerequisite and use the already-specified loud fallback path.
+Recommend a host-owned coordinator that resolves and capability-checks executable candidates, spawns them with structured argument arrays, sends review packets through stdin, and separately captures stdout and stderr. This is the smallest contract supported by both CLIs and avoids shell quoting, variadic-option, and stale-`PATH` failures. On desktop it may reuse a reviewer profile only when the host boundary can access that credential store; cloud sessions should pass only the reviewer vendor's managed credential. A nested auth denial is a classified authentication failure, never permission to weaken the judged-work sandbox silently.
+
+Keep the neutral snapshot and post-run integrity check even when a CLI reports read-only mode: nested sandbox behavior can differ from top-level enforcement. Require exact structured completion and reviewer provenance before accepting a review. If executable resolution, capability checks, authentication, or output validation fails, use the specified loud fallback and give one concrete recovery action.
+
+Evidence: [Claude Code CLI reference](https://docs.anthropic.com/en/docs/claude-code/cli-usage) and [Codex noninteractive CLI](https://github.com/openai/codex/blob/main/codex-rs/README.md).
