@@ -34,7 +34,7 @@ test-definitions.md is the R/G/R ledger. Executable Given/When/Then behavior liv
 
 ### Scenario Outline: Reviewer identity faults earn no review evidence
 
-- [ ] RED
+- [x] RED c8fca35b0
 - [ ] GREEN
 - [ ] REFACTOR
 
