@@ -52,7 +52,7 @@ required `Scenario:` heading grammar.
 
 - [x] RED af86a036e
 - [x] GREEN e0bce09f1
-- [ ] REFACTOR
+- [x] REFACTOR skip: reviewed the concise state-transition guidance; no structural change improved it
 
 ### Scenario: A local merge-command error after remote success is partial success
 
