@@ -30,19 +30,19 @@ required `Scenario:` heading grammar.
 
 ### Scenario: A completed retro permits cleanup
 
-- [ ] RED
+- [x] RED 0170c9663
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: Incomplete retro blocks cleanup
 
-- [ ] RED
+- [x] RED 0170c9663
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: A request to skip retro does not create a bypass
 
-- [ ] RED
+- [x] RED 0170c9663
 - [ ] GREEN
 - [ ] REFACTOR
 
