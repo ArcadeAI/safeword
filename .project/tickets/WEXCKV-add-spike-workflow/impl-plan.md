@@ -1,6 +1,6 @@
 # Impl Plan: Add spike workflow
 
-**Status:** planned
+**Status:** implemented
 
 ## Approach
 

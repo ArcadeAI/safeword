@@ -2,7 +2,7 @@
 id: WEXCKV
 slug: add-spike-workflow
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 phase_skips:
   - intake: User confirmed the bounded spike scope before the first ticket snapshot was committed.
@@ -15,6 +15,7 @@ phase_anchors:
   - scenario-gate: features/add-spike-workflow.feature
   - plan-implementation: features/add-spike-workflow.feature
   - implement: .project/tickets/WEXCKV-add-spike-workflow/impl-plan.md
+  - verify: .project/tickets/WEXCKV-add-spike-workflow/test-definitions.md
   - done: .project/tickets/WEXCKV-add-spike-workflow/verify.md
 scope:
   - ship a manual spike action skill for bounded build-only uncertainty
@@ -29,7 +30,7 @@ done_when:
   - BDD routes eligible technical uncertainty through the checkpoint without changing phase order
   - generated host artifacts and parity tests include the new action skill
 created: 2026-08-02T14:48:51.806Z
-last_modified: 2026-08-02T17:24:18.000Z
+last_modified: 2026-08-02T17:25:18.000Z
 ---
 
 # add-spike-workflow
@@ -58,3 +59,4 @@ last_modified: 2026-08-02T17:24:18.000Z
 - 2026-08-02T16:48:00.000Z Quality fixes: added real-Git coverage for the complete spike → committed plan → production evidence chain and removed blanket tool preapproval so proof commands retain normal host permissions.
 - 2026-08-02T17:23:16.000Z Phase: scenario-gate → plan-implementation after the fresh quality review approved all 30 scenarios and the complete production evidence chain.
 - 2026-08-02T17:24:18.000Z Phase: plan-implementation → implement after reconciling the reviewed plan with the quality fixes and the complete refactor ledger.
+- 2026-08-02T17:25:18.000Z Phase: implement → verify after every quality and refactor finding was resolved; final verification began from a clean worktree.
