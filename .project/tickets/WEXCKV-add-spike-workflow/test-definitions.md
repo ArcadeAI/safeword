@@ -70,7 +70,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 74e3f7edc
 - [x] GREEN 1f4800037
-- [ ] REFACTOR
+- [x] REFACTOR skip: checkpoint stays inside the existing scenario-gate exit
 
 ### Scenario Outline: BDD does not offer a spike before behavior is validated
 
