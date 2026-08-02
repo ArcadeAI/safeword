@@ -41,6 +41,8 @@ describe('Retro Relay deployment workflow', () => {
       group: 'retro-relay-production',
       'cancel-in-progress': false,
     });
+    expect(source).toContain('environment: retro-relay-production');
+    expect(source).toContain('actions/setup-node@v7');
     expect(source).toContain('RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}');
     expect(source).toContain('RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_RETRO_RELAY_PROJECT_ID }}');
     expect(source).toContain('RAILWAY_ENVIRONMENT: ${{ vars.RAILWAY_RETRO_RELAY_ENVIRONMENT }}');
