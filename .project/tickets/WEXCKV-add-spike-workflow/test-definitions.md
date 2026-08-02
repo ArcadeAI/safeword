@@ -68,7 +68,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Build-only kill risk is surfaced at the planning seam
 
-- [ ] RED
+- [x] RED 74e3f7edc
 - [ ] GREEN
 - [ ] REFACTOR
 
