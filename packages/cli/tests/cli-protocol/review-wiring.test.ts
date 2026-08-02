@@ -37,20 +37,23 @@ if { [ -z "$failure_agent" ] || [ "$failure_agent" = "${agent}" ]; } && { [ -z "
 fi
 identity=$(printenv SAFEWORD_FAKE_IDENTITY || true)
 mutate=$(printenv SAFEWORD_FAKE_MUTATE || true)
-if [ "$mutate" = "1" ]; then
+mutate_agent=$(printenv SAFEWORD_FAKE_MUTATE_AGENT || true)
+if [ "$mutate" = "1" ] && { [ -z "$mutate_agent" ] || [ "$mutate_agent" = "${agent}" ]; }; then
   printf 'reviewer mutation\n' > review-input.md
 fi
+verdict=$(printenv SAFEWORD_FAKE_VERDICT || true)
+if [ -z "$verdict" ]; then verdict=approve; fi
 env_log=$(printenv SAFEWORD_REVIEW_ENV_LOG || true)
 if [ -n "$env_log" ]; then
   if printenv ANTHROPIC_API_KEY >/dev/null 2>&1; then printf 'anthropic=present\n' >> "$env_log"; else printf 'anthropic=absent\n' >> "$env_log"; fi
   if printenv OPENAI_API_KEY >/dev/null 2>&1; then printf 'openai=present\n' >> "$env_log"; else printf 'openai=absent\n' >> "$env_log"; fi
 fi
 if [ "$identity" = "missing" ]; then
-  printf '{"schema_version":1,"dispatch_id":"%s","verdict":"approve","summary":"reviewed","findings":[]}\n' "$dispatch_id"
+  printf '{"schema_version":1,"dispatch_id":"%s","verdict":"%s","summary":"reviewed","findings":[]}\n' "$dispatch_id" "$verdict"
 elif [ "$identity" = "contradictory" ]; then
-  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"other","verdict":"approve","summary":"reviewed","findings":[]}\n' "$dispatch_id"
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"other","verdict":"%s","summary":"reviewed","findings":[]}\n' "$dispatch_id" "$verdict"
 else
-  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"approve","summary":"reviewed","findings":[]}\n' "$dispatch_id"
+  printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"%s","summary":"reviewed","findings":[]}\n' "$dispatch_id" "$verdict"
 fi
 `,
     { mode: 0o755 },
@@ -153,6 +156,50 @@ describe('cross-agent review public-command wiring', () => {
     });
     expect(readFileSync(log, 'utf8')).toBe('claude\n');
   });
+
+  it.each([
+    { preferredFailure: false, independence: 'cross-agent' },
+    { preferredFailure: true, independence: 'degraded' },
+  ])(
+    'surfaces a real collaborator request_changes verdict ($independence)',
+    async ({ preferredFailure, independence }) => {
+      const directory = createTemporaryDirectory();
+      const log = nodePath.join(directory, 'review.log');
+      writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+      const bin = installFakeReviewer(directory, 'codex', log);
+      installFakeReviewer(directory, 'claude', log);
+
+      const result = await runCli(
+        [
+          'review',
+          'run',
+          'quality-review',
+          'review-input.md',
+          '--json',
+          '--no-input',
+          '--cwd',
+          directory,
+        ],
+        {
+          cwd: directory,
+          env: {
+            PATH: `${bin}:/usr/bin:/bin`,
+            SAFEWORD_AGENT_RUNTIME: 'claude',
+            SAFEWORD_FAKE_FAILURE_CODEX: preferredFailure ? 'process' : '',
+            SAFEWORD_FAKE_VERDICT: 'request_changes',
+            SAFEWORD_REVIEW_LOG: log,
+            SAFEWORD_NO_UPDATE_CHECK: '1',
+          },
+        },
+      );
+
+      expect(result.exitCode).toBe(2);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        state: 'action_required',
+        data: { status: 'changes_requested', independence },
+      });
+    },
+  );
 
   it('retains the existing route for an author outside the Claude and Codex pairing', async () => {
     const directory = createTemporaryDirectory();
@@ -308,6 +355,47 @@ describe('cross-agent review public-command wiring', () => {
     );
 
     expect(readFileSync(target, 'utf8')).toBe(original);
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'failed',
+      errors: [{ code: 'REVIEWER_WRITE_ATTEMPT' }],
+      data: { independence: 'none' },
+    });
+  });
+
+  it('classifies a degraded fallback write as a reviewer write attempt', async () => {
+    const directory = createTemporaryDirectory();
+    const target = nodePath.join(directory, 'review-input.md');
+    const log = nodePath.join(directory, 'review.log');
+    writeFileSync(target, 'bounded review input\n');
+    const bin = installFakeReviewer(directory, 'codex', log);
+    installFakeReviewer(directory, 'claude', log);
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_FAKE_FAILURE_CODEX: 'process',
+          SAFEWORD_FAKE_MUTATE: '1',
+          SAFEWORD_FAKE_MUTATE_AGENT: 'claude',
+          SAFEWORD_REVIEW_LOG: log,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
     expect(result.exitCode).toBe(1);
     expect(JSON.parse(result.stdout)).toMatchObject({
       state: 'failed',
