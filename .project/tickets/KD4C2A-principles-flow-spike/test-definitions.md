@@ -32,7 +32,7 @@ required `Scenario:` heading grammar.
 
 - [x] RED bbefb9296
 - [x] GREEN aa8776428
-- [x] REFACTOR 617715b58
+- [x] REFACTOR 4c80c3df2
 
 ### Scenario: Labels alone cannot satisfy a source-grounded review
 
@@ -58,7 +58,7 @@ required `Scenario:` heading grammar.
 
 - [x] RED 46f568a24
 - [x] GREEN 7dc82463c
-- [x] REFACTOR skip: Markdown fragment resolution stays inside the typed checker
+- [x] REFACTOR cd7bd28af
 
 ### Scenario: Semantic disagreement is not an audit failure
 
@@ -142,4 +142,4 @@ required `Scenario:` heading grammar.
 
 ## Feature-level cross-scenario refactor
 
-- [x] cross-scenario ff102a6f7
+- [x] cross-scenario 9a25cfa7d

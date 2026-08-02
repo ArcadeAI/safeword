@@ -10,7 +10,7 @@ phase_skips:
   - scenario-gate: Completed before the first feature checkpoint; the approved feature and review work log are committed with this ticket.
   - plan-implementation: Completed before the first feature checkpoint; the reviewed implementation plan and phase anchor are committed with this ticket.
 created: 2026-08-02T14:08:58.443Z
-last_modified: 2026-08-02T17:28:00Z
+last_modified: 2026-08-02T18:10:00Z
 scope:
   - scaffold principles as configurable user-owned project knowledge with health parity
   - make Design alignment canonical while accepting legacy Arch alignment plans
@@ -33,6 +33,7 @@ phase_anchors:
   - define-behavior: .project/tickets/KD4C2A-principles-flow-spike/spec.md
   - scenario-gate: features/principles-flow-spike.feature
   - implement: .project/tickets/KD4C2A-principles-flow-spike/impl-plan.md
+  - verify: .project/tickets/KD4C2A-principles-flow-spike/verify.md
 ---
 
 # Make project knowledge shape and challenge feature delivery
@@ -162,6 +163,9 @@ user-owned thereafter, namespace-root aware, and redirectable through
 
 ## Work Log
 
+- 2026-08-02T18:10:00Z Verification: Executed all 72 feature examples, fixed
+  the stale legacy-heading acceptance contract, passed the complete 746-scenario
+  lane, and passed all 410 Vitest files under a two-worker contention limit.
 - 2026-08-02T17:28:00Z Verify entry: Whole-diff quality review exposed and
   resolved two evidence gaps: E010 now validates Markdown fragments and ignores
   supporting principle sections, and a real setup-installed 12-row host-stage
