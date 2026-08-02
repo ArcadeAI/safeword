@@ -4,8 +4,10 @@
 
 - ✓ 6,156/6,161 Vitest tests pass; 5 are intentional skips.
 - **Gherkin:** 769/772 scenarios pass; 3 are intentional skips. Every executable non-`@wip`, non-`@manual`, non-`@live` scenario passed.
-- **PR Scope:** Audit passed for the pre-release implementation scope. Plugin generation, packaged identity/inventory hashes, release-contract alignment, and cross-host parity all passed.
+- Audit passed for the pre-release implementation scope. Plugin generation, packaged identity/inventory hashes, release-contract alignment, and cross-host parity all passed.
 - **Release boundary:** Not executed. No version bump, tag, push, publish, marketplace install, or release was performed.
+
+**PR Scope:** ✅ Diff matches ticket scope; release and live-host boundaries remain explicitly open.
 
 ## Evidence
 
