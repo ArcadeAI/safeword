@@ -42,6 +42,24 @@ describe('Test Suite 8: Health Check', () => {
     );
   }
 
+  function setConfiguredPath(
+    key: 'glossary' | 'personas' | 'principles' | 'surfaces',
+    configuredPath: string,
+  ): void {
+    const existing = JSON.parse(readTestFile(temporaryDirectory, '.safeword/config.json')) as {
+      paths?: Record<string, unknown>;
+      [key: string]: unknown;
+    };
+    writeTestFile(
+      temporaryDirectory,
+      '.safeword/config.json',
+      JSON.stringify({
+        ...existing,
+        paths: { ...existing.paths, [key]: configuredPath },
+      }),
+    );
+  }
+
   describe('Test 8.1: Shows CLI version', () => {
     it('should display CLI version', async () => {
       await createConfiguredProject(temporaryDirectory);
@@ -320,28 +338,9 @@ describe('Test Suite 8: Health Check', () => {
   });
 
   describe('configurable persona path (ticket K7N2QM)', () => {
-    /**
-     * Add a `paths.personas` override to the project's existing
-     * `.safeword/config.json`. Preserves any other config keys (notably
-     * `installedPacks`) that `createConfiguredProject` wrote during
-     * setup — overwriting them would trigger spurious "missing pack"
-     * reports that short-circuit the issues section.
-     */
-    function setPersonasOverride(personasPath: string): void {
-      const existing = JSON.parse(readTestFile(temporaryDirectory, '.safeword/config.json')) as {
-        installedPacks?: string[];
-        [key: string]: unknown;
-      };
-      writeTestFile(
-        temporaryDirectory,
-        '.safeword/config.json',
-        JSON.stringify({ ...existing, paths: { personas: personasPath } }),
-      );
-    }
-
     it('R2.3: reports loud failure when configured path is missing', async () => {
       await createConfiguredProject(temporaryDirectory);
-      setPersonasOverride('docs/personas.md'); // file intentionally not created
+      setConfiguredPath('personas', 'docs/personas.md'); // file intentionally not created
       // Remove the scaffolded default so this test isolates the override branch.
       unlinkSync(nodePath.join(temporaryDirectory, '.project', 'personas.md'));
 
@@ -360,7 +359,7 @@ describe('Test Suite 8: Health Check', () => {
         'docs/personas.md',
         ['## Platform Operator (PO)', '**Role:** Owns infra.', ''].join('\n'),
       );
-      setPersonasOverride('docs/personas.md');
+      setConfiguredPath('personas', 'docs/personas.md');
       // Remove default so the legacy advisory does not fire.
       unlinkSync(nodePath.join(temporaryDirectory, '.project', 'personas.md'));
 
@@ -377,7 +376,7 @@ describe('Test Suite 8: Health Check', () => {
         'docs/personas.md',
         ['## A', '**Role:** Too short.', ''].join('\n'),
       );
-      setPersonasOverride('docs/personas.md');
+      setConfiguredPath('personas', 'docs/personas.md');
       unlinkSync(nodePath.join(temporaryDirectory, '.project', 'personas.md'));
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
@@ -395,7 +394,7 @@ describe('Test Suite 8: Health Check', () => {
         'docs/personas.md',
         ['## Platform Operator (PO)', '**Role:** Owns infra.', ''].join('\n'),
       );
-      setPersonasOverride('docs/personas.md');
+      setConfiguredPath('personas', 'docs/personas.md');
       // The default-location file was scaffolded by createConfiguredProject
       // and is intentionally left in place — that is the "legacy" condition.
 
@@ -440,24 +439,9 @@ describe('Test Suite 8: Health Check', () => {
   });
 
   describe('configurable surface path', () => {
-    function setSurfacesOverride(surfacesPath: string): void {
-      const existing = JSON.parse(readTestFile(temporaryDirectory, '.safeword/config.json')) as {
-        paths?: Record<string, unknown>;
-        [key: string]: unknown;
-      };
-      writeTestFile(
-        temporaryDirectory,
-        '.safeword/config.json',
-        JSON.stringify({
-          ...existing,
-          paths: { ...existing.paths, surfaces: surfacesPath },
-        }),
-      );
-    }
-
     it('reports a loud failure when the configured surface path is missing', async () => {
       await createConfiguredProject(temporaryDirectory);
-      setSurfacesOverride('docs/surfaces.md');
+      setConfiguredPath('surfaces', 'docs/surfaces.md');
       unlinkSync(nodePath.join(temporaryDirectory, '.project', 'surfaces.md'));
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
@@ -469,7 +453,7 @@ describe('Test Suite 8: Health Check', () => {
     it('reports an orphan advisory when an override and default surface file coexist', async () => {
       await createConfiguredProject(temporaryDirectory);
       writeTestFile(temporaryDirectory, 'docs/surfaces.md', '# Surfaces\n\n## Web\n');
-      setSurfacesOverride('docs/surfaces.md');
+      setConfiguredPath('surfaces', 'docs/surfaces.md');
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
@@ -479,24 +463,9 @@ describe('Test Suite 8: Health Check', () => {
   });
 
   describe('configurable principles path', () => {
-    function setPrinciplesOverride(principlesPath: string): void {
-      const existing = JSON.parse(readTestFile(temporaryDirectory, '.safeword/config.json')) as {
-        paths?: Record<string, unknown>;
-        [key: string]: unknown;
-      };
-      writeTestFile(
-        temporaryDirectory,
-        '.safeword/config.json',
-        JSON.stringify({
-          ...existing,
-          paths: { ...existing.paths, principles: principlesPath },
-        }),
-      );
-    }
-
     it('reports a loud failure when the configured principles path is missing', async () => {
       await createConfiguredProject(temporaryDirectory);
-      setPrinciplesOverride('docs/principles.md');
+      setConfiguredPath('principles', 'docs/principles.md');
       unlinkSync(nodePath.join(temporaryDirectory, '.project', 'principles.md'));
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
@@ -508,7 +477,7 @@ describe('Test Suite 8: Health Check', () => {
     it('passes without an orphan advisory when a valid override replaces the default', async () => {
       await createConfiguredProject(temporaryDirectory);
       writeTestFile(temporaryDirectory, 'docs/principles.md', '# Principles\n\n## Delight users\n');
-      setPrinciplesOverride('docs/principles.md');
+      setConfiguredPath('principles', 'docs/principles.md');
       unlinkSync(nodePath.join(temporaryDirectory, '.project', 'principles.md'));
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
@@ -520,7 +489,7 @@ describe('Test Suite 8: Health Check', () => {
     it('reports an orphan advisory when an override and default principles file coexist', async () => {
       await createConfiguredProject(temporaryDirectory);
       writeTestFile(temporaryDirectory, 'docs/principles.md', '# Principles\n\n## Delight users\n');
-      setPrinciplesOverride('docs/principles.md');
+      setConfiguredPath('principles', 'docs/principles.md');
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
@@ -530,18 +499,6 @@ describe('Test Suite 8: Health Check', () => {
   });
 
   describe('glossary.md validation (ticket YR6C49)', () => {
-    function setGlossaryOverride(glossaryPath: string): void {
-      const existing = JSON.parse(readTestFile(temporaryDirectory, '.safeword/config.json')) as {
-        installedPacks?: string[];
-        [key: string]: unknown;
-      };
-      writeTestFile(
-        temporaryDirectory,
-        '.safeword/config.json',
-        JSON.stringify({ ...existing, paths: { glossary: glossaryPath } }),
-      );
-    }
-
     it('R6.1: reports malformed glossary with line refs and exits non-zero', async () => {
       await createConfiguredProject(temporaryDirectory);
       // Two duplicate term blocks → duplicate-term errors.
@@ -561,7 +518,7 @@ describe('Test Suite 8: Health Check', () => {
 
     it('R6.2: reports loud failure when configured glossary path is missing', async () => {
       await createConfiguredProject(temporaryDirectory);
-      setGlossaryOverride('docs/glossary.md'); // file intentionally not created
+      setConfiguredPath('glossary', 'docs/glossary.md'); // file intentionally not created
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
@@ -583,7 +540,7 @@ describe('Test Suite 8: Health Check', () => {
         '.project/glossary.md',
         ['## Legacy', '**Definition:** Old location.', ''].join('\n'),
       );
-      setGlossaryOverride('docs/glossary.md');
+      setConfiguredPath('glossary', 'docs/glossary.md');
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
