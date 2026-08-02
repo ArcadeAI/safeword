@@ -27815,6 +27815,170 @@ var init_converge_setup = __esm(() => {
   };
 });
 
+// src/claude-plugin/profile.ts
+var exports_profile = {};
+__export(exports_profile, {
+  installClaudePlugin: () => installClaudePlugin
+});
+import { spawnSync as spawnSync2 } from "child_process";
+function runClaude(cwd, arguments_, effects) {
+  const result = spawnSync2("claude", arguments_, { cwd, encoding: "utf8" });
+  if (result.status !== 0) {
+    const detail = `${result.stderr ?? ""}${result.stdout ?? ""}`.trim();
+    const detailSuffix = detail === "" ? "" : ` (${detail})`;
+    throw new ClaudeProfileError("CLAUDE_PROFILE_COMMAND_FAILED", `Claude command failed: claude ${arguments_.join(" ")}${detailSuffix}`, effects);
+  }
+  return result.stdout ?? "";
+}
+function parseJsonArray(output, command, effects) {
+  try {
+    const value = JSON.parse(output);
+    if (!Array.isArray(value) || value.some((entry) => typeof entry !== "object" || entry === null)) {
+      throw new TypeError("expected a JSON array of objects");
+    }
+    return value;
+  } catch (error2) {
+    throw new ClaudeProfileError("CLAUDE_PROFILE_OUTPUT_INVALID", `Claude returned invalid JSON for ${command}: ${error2 instanceof Error ? error2.message : String(error2)}`, effects);
+  }
+}
+function versionAtLeast(version2, minimum) {
+  for (const [index, minimumComponent] of minimum.entries()) {
+    const component = version2[index] ?? -1;
+    if (component !== minimumComponent)
+      return component > minimumComponent;
+  }
+  return true;
+}
+function assertSupportedHost(cwd) {
+  const output = runClaude(cwd, ["--version"], []);
+  const match = /^(\d+)\.(\d+)\.(\d+)/u.exec(output.trim());
+  if (match === null) {
+    throw new ClaudeProfileError("CLAUDE_VERSION_UNSUPPORTED", `Could not parse the Claude Code version. Version ${MINIMUM_CLAUDE_VERSION.join(".")} or newer is required.`);
+  }
+  const version2 = match.slice(1).map(Number);
+  if (!versionAtLeast(version2, MINIMUM_CLAUDE_VERSION)) {
+    throw new ClaudeProfileError("CLAUDE_VERSION_UNSUPPORTED", `Claude Code ${MINIMUM_CLAUDE_VERSION.join(".")} or newer is required; found ${version2.join(".")}.`);
+  }
+}
+function officialMarketplaceSource() {
+  return `${MARKETPLACE_BASE}#v${SAFEWORD_SCHEMA.version}`;
+}
+function sourceIsOfficial(entry) {
+  if (entry.source === officialMarketplaceSource())
+    return true;
+  const source = typeof entry.source === "object" && entry.source !== null ? entry.source : entry;
+  return source.url === MARKETPLACE_BASE && source.ref === `v${SAFEWORD_SCHEMA.version}` && (source.source === undefined || source.source === "url");
+}
+function marketplaceEntries(cwd, effects) {
+  return parseJsonArray(runClaude(cwd, ["plugin", "marketplace", "list", "--json"], effects), "plugin marketplace list --json", effects);
+}
+function pluginEntries(cwd, effects) {
+  return parseJsonArray(runClaude(cwd, ["plugin", "list", "--json"], effects), "plugin list --json", effects);
+}
+function safewordMarketplace(entries) {
+  return entries.find((entry) => entry.name === MARKETPLACE_NAME);
+}
+function safewordPlugin(entries) {
+  return entries.find((entry) => entry.id === PLUGIN_ID);
+}
+function failedResult(error2) {
+  let failure;
+  if (error2 instanceof ClaudeProfileError)
+    failure = error2;
+  else {
+    const message = error2 instanceof Error ? error2.message : String(error2);
+    failure = new ClaudeProfileError("CLAUDE_PLUGIN_INSTALL_FAILED", message);
+  }
+  return createResult({
+    state: "failed",
+    changed: failure.effects.length > 0,
+    effects: { configuration: failure.effects },
+    errors: [{ code: failure.code, message: failure.message, retryable: true }],
+    nextActions: [
+      {
+        command: `safeword claude install`,
+        mutates: true,
+        requiresHuman: true
+      }
+    ],
+    data: { command: "claude install" }
+  });
+}
+function ensureMarketplace(cwd, effects) {
+  let marketplace = safewordMarketplace(marketplaceEntries(cwd, effects));
+  if (marketplace !== undefined && !sourceIsOfficial(marketplace)) {
+    throw new ClaudeProfileError("CLAUDE_MARKETPLACE_CONFLICT", `Claude marketplace ${MARKETPLACE_NAME} is configured from an unofficial source; expected ${officialMarketplaceSource()}.`);
+  }
+  if (marketplace !== undefined)
+    return;
+  runClaude(cwd, ["plugin", "marketplace", "add", officialMarketplaceSource(), "--scope", "user"], effects);
+  effects.push({ kind: "add", target: MARKETPLACE_NAME, operation: "user" });
+  marketplace = safewordMarketplace(marketplaceEntries(cwd, effects));
+  if (marketplace === undefined || !sourceIsOfficial(marketplace)) {
+    throw new ClaudeProfileError("CLAUDE_MARKETPLACE_UNVERIFIED", "Claude did not report the exact official Safeword marketplace after adding it.", effects);
+  }
+}
+function convergePlugin(cwd, effects) {
+  const plugin = safewordPlugin(pluginEntries(cwd, effects));
+  if (plugin === undefined) {
+    runClaude(cwd, ["plugin", "install", PLUGIN_ID, "--scope", "user"], effects);
+    effects.push({ kind: "install", target: PLUGIN_ID, operation: "user" });
+  } else if (plugin.version !== SAFEWORD_SCHEMA.version) {
+    runClaude(cwd, ["plugin", "update", PLUGIN_ID, "--scope", "user"], effects);
+    effects.push({ kind: "update", target: PLUGIN_ID, operation: "user" });
+  } else if (plugin.enabled !== true) {
+    runClaude(cwd, ["plugin", "enable", PLUGIN_ID, "--scope", "user"], effects);
+    effects.push({ kind: "enable", target: PLUGIN_ID, operation: "user" });
+  }
+}
+function verifyPlugin(cwd, effects) {
+  const plugin = safewordPlugin(pluginEntries(cwd, effects));
+  if (plugin?.version === SAFEWORD_SCHEMA.version && plugin.enabled === true && plugin.scope === "user") {
+    return;
+  }
+  throw new ClaudeProfileError("CLAUDE_PLUGIN_UNVERIFIED", `Claude did not report ${PLUGIN_ID} ${SAFEWORD_SCHEMA.version} as enabled at user scope.`, effects);
+}
+function installClaudePlugin(cwd) {
+  const effects = [];
+  try {
+    assertSupportedHost(cwd);
+    ensureMarketplace(cwd, effects);
+    convergePlugin(cwd, effects);
+    verifyPlugin(cwd, effects);
+    return createResult({
+      state: effects.length === 0 ? "healthy" : "changed",
+      effects: {
+        configuration: effects,
+        network: effects.map((effect) => ({ ...effect, target: "Claude plugin marketplace" }))
+      },
+      nextActions: [{ command: "/reload-plugins", mutates: false, requiresHuman: true }],
+      data: {
+        command: "claude install",
+        plugin: PLUGIN_ID,
+        version: SAFEWORD_SCHEMA.version,
+        scope: "user"
+      }
+    });
+  } catch (error2) {
+    return failedResult(error2);
+  }
+}
+var MINIMUM_CLAUDE_VERSION, MARKETPLACE_NAME = "safeword", PLUGIN_ID = "safeword@safeword", MARKETPLACE_BASE = "https://github.com/ArcadeAI/safeword.git", ClaudeProfileError;
+var init_profile = __esm(() => {
+  init_result();
+  init_schema();
+  MINIMUM_CLAUDE_VERSION = [2, 1, 170];
+  ClaudeProfileError = class ClaudeProfileError extends Error {
+    code;
+    effects;
+    constructor(code, message, effects = []) {
+      super(message);
+      this.code = code;
+      this.effects = effects;
+    }
+  };
+});
+
 // src/commands/plan.ts
 var exports_plan = {};
 __export(exports_plan, {
@@ -30485,7 +30649,7 @@ function renderShellPlan(entries) {
 }
 
 // src/test-plan/resolve.ts
-import { spawnSync as spawnSync2 } from "child_process";
+import { spawnSync as spawnSync3 } from "child_process";
 import { existsSync as existsSync27, readFileSync as readFileSync31 } from "fs";
 import nodePath55 from "path";
 import process10 from "process";
@@ -30510,7 +30674,7 @@ function defaultIsToolAvailable(tool) {
   const fake = process10.env.SAFEWORD_FAKE_TOOLS;
   if (fake !== undefined)
     return fakeToolProbe(fake)(tool);
-  return spawnSync2("command", ["-v", tool], { shell: true, stdio: "ignore" }).status === 0;
+  return spawnSync3("command", ["-v", tool], { shell: true, stdio: "ignore" }).status === 0;
 }
 function entry(language, cwd, command, runner, available) {
   return { language, cwd, command, runner, available };
@@ -33016,12 +33180,12 @@ __export(exports_migrate_codex_plugin, {
   migrateCodexPlugin: () => migrateCodexPlugin,
   installCodexPlugin: () => installCodexPlugin
 });
-import { spawnSync as spawnSync3 } from "child_process";
+import { spawnSync as spawnSync4 } from "child_process";
 import { createHash as createHash9 } from "crypto";
 import { lstatSync as lstatSync8, readFileSync as readFileSync37 } from "fs";
 import nodePath62 from "path";
 function run(command, arguments_) {
-  const result = spawnSync3(command, arguments_, { encoding: "utf8" });
+  const result = spawnSync4(command, arguments_, { encoding: "utf8" });
   if (result.error)
     throw new Error(`${command} is required. Install it, then re-run this command.`);
   if (result.status !== 0) {
@@ -33032,7 +33196,7 @@ function run(command, arguments_) {
 }
 function pluginObservationFromList(output) {
   const parsed2 = JSON.parse(output);
-  const plugin = parsed2.installed?.find((candidate) => candidate.pluginId === PLUGIN_ID);
+  const plugin = parsed2.installed?.find((candidate) => candidate.pluginId === PLUGIN_ID2);
   return {
     installed: plugin !== undefined,
     enabled: plugin?.enabled ?? (plugin === undefined ? false : null),
@@ -33097,7 +33261,7 @@ function refreshOrAddCodexMarketplace(marketplaceSource) {
 }
 function addCodexPluginToProfile(marketplaceSource) {
   refreshOrAddCodexMarketplace(marketplaceSource);
-  run("codex", ["plugin", "add", PLUGIN_ID, "--json"]);
+  run("codex", ["plugin", "add", PLUGIN_ID2, "--json"]);
 }
 function verifyCodexPluginIsEnabled(options = {}) {
   let pluginList;
@@ -33464,7 +33628,7 @@ function recoverCodexMigration(cwd = process.cwd(), options = {}) {
   }
   return changed;
 }
-var MARKETPLACE_SOURCE = "ArcadeAI/safeword", PLUGIN_ID = "safeword@safeword", CODEX_CONFIG_PATH2, CODEX_MIGRATION_MESSAGES;
+var MARKETPLACE_SOURCE = "ArcadeAI/safeword", PLUGIN_ID2 = "safeword@safeword", CODEX_CONFIG_PATH2, CODEX_MIGRATION_MESSAGES;
 var init_migrate_codex_plugin = __esm(() => {
   init_result();
   init_finalization();
@@ -40562,7 +40726,7 @@ __export(exports_retro, {
   buildProvenanceResolver: () => buildProvenanceResolver,
   buildAutoExtractor: () => buildAutoExtractor
 });
-import { spawnSync as spawnSync4 } from "child_process";
+import { spawnSync as spawnSync5 } from "child_process";
 import { mkdtempSync as mkdtempSync3, readFileSync as readFileSync42, writeFileSync as writeFileSync18 } from "fs";
 import { tmpdir as tmpdir2 } from "os";
 import nodePath69 from "path";
@@ -40631,7 +40795,7 @@ async function runRetro(options, dependencies) {
   return { ok: true, result, agentFilingNeeded, drops };
 }
 function spawnClaudeExtractor(argv, spawnOptions) {
-  const result = spawnSync4("claude", argv, {
+  const result = spawnSync5("claude", argv, {
     cwd: spawnOptions.cwd,
     env: spawnOptions.env,
     encoding: "utf8",
@@ -40641,7 +40805,7 @@ function spawnClaudeExtractor(argv, spawnOptions) {
   return Promise.resolve({ code: result.status, stdout: result.stdout ?? "" });
 }
 function spawnCodexExtractor(argv, spawnOptions) {
-  const result = spawnSync4("codex", argv, {
+  const result = spawnSync5("codex", argv, {
     cwd: spawnOptions.cwd,
     env: spawnOptions.env,
     stdio: spawnOptions.stdio,
@@ -40773,7 +40937,7 @@ async function executeRetroCommand(options, cwd) {
     projectDirectory,
     resolveProvenance: buildProvenanceResolver({
       projectDirectory,
-      runGit: () => spawnSync4("git", ["rev-parse", "--short", "HEAD"], {
+      runGit: () => spawnSync5("git", ["rev-parse", "--short", "HEAD"], {
         cwd: projectDirectory,
         encoding: "utf8",
         timeout: 1e4
@@ -41482,7 +41646,7 @@ __export(exports_codex_hook, {
   normalizeNamespaceRootLabel: () => normalizeNamespaceRootLabel,
   codexHook: () => codexHook
 });
-import { execFileSync as execFileSync9, spawnSync as spawnSync5 } from "child_process";
+import { execFileSync as execFileSync9, spawnSync as spawnSync6 } from "child_process";
 import {
   cpSync,
   existsSync as existsSync36,
@@ -41705,7 +41869,7 @@ function runPackagedHook(relativePath, rawInput, projectDirectory) {
       writeFileSync19(nodePath74.join(temporaryHookDirectory, "lib", "owned-paths.ts"), generateOwnedPathsModule(SAFEWORD_SCHEMA, packagedNamespaceRootLabel(projectDirectory)), "utf8");
       executableHookPath = nodePath74.join(temporaryHookDirectory, nodePath74.basename(hookPath));
     }
-    const result = spawnSync5("bun", [executableHookPath], {
+    const result = spawnSync6("bun", [executableHookPath], {
       cwd: projectDirectory,
       input: rawInput,
       encoding: "utf8",
@@ -44378,6 +44542,12 @@ async function setupHandler(invocation) {
     progress: invocation.progress
   });
 }
+async function claudeInstallHandler(invocation) {
+  if (invocation.offline)
+    return onlineRequired("claude install");
+  const { installClaudePlugin: installClaudePlugin2 } = await Promise.resolve().then(() => (init_profile(), exports_profile));
+  return installClaudePlugin2(invocation.cwd);
+}
 async function planHandler(invocation) {
   const { observePlan: observePlan2 } = await Promise.resolve().then(() => (init_plan3(), exports_plan));
   return observePlan2(invocation.cwd);
@@ -45251,6 +45421,7 @@ var HANDLERS = {
   "codex migrate": (invocation) => codexMutationHandler("codex migrate", invocation),
   "codex install": (invocation) => codexMutationHandler("codex install", invocation),
   "codex status": codexStatusHandler,
+  "claude install": claudeInstallHandler,
   "codex recover": (invocation) => codexMutationHandler("codex recover", invocation),
   "ticket list": ticketListHandler,
   "ticket new": ticketNewHandler,
@@ -45440,6 +45611,9 @@ var CANONICAL_COMMANDS = [
     networkPolicy: "declared"
   }),
   command("codex status", "Report Codex plugin and migration state", "observe"),
+  command("claude install", "Install the Claude profile plugin", "mutate", {
+    networkPolicy: "declared"
+  }),
   command("codex recover", "Restore backed-up legacy Codex project state", "destructive", {
     promptPolicy: "confirm",
     commandOptions: [

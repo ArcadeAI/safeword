@@ -219,6 +219,9 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     networkPolicy: 'declared',
   }),
   command('codex status', 'Report Codex plugin and migration state', 'observe'),
+  command('claude install', 'Install the Claude profile plugin', 'mutate', {
+    networkPolicy: 'declared',
+  }),
   command('codex recover', 'Restore backed-up legacy Codex project state', 'destructive', {
     promptPolicy: 'confirm',
     commandOptions: [

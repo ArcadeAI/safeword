@@ -84,6 +84,12 @@ async function setupHandler(invocation: CommandInvocation): Promise<CliResult> {
   });
 }
 
+async function claudeInstallHandler(invocation: CommandInvocation): Promise<CliResult> {
+  if (invocation.offline) return onlineRequired('claude install');
+  const { installClaudePlugin } = await import('../claude-plugin/profile.js');
+  return installClaudePlugin(invocation.cwd);
+}
+
 async function planHandler(invocation: CommandInvocation): Promise<CliResult> {
   const { observePlan } = await import('../commands/plan.js');
   return observePlan(invocation.cwd);
@@ -1171,6 +1177,7 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'codex migrate': invocation => codexMutationHandler('codex migrate', invocation),
   'codex install': invocation => codexMutationHandler('codex install', invocation),
   'codex status': codexStatusHandler,
+  'claude install': claudeInstallHandler,
   'codex recover': invocation => codexMutationHandler('codex recover', invocation),
   'ticket list': ticketListHandler,
   'ticket new': ticketNewHandler,
