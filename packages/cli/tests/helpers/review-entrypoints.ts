@@ -53,8 +53,9 @@ const CLAUDE_REVIEW_ENTRYPOINTS: ReviewEntrypoint[] = Object.entries(SAFEWORD_SC
     );
   })
   .map(([path, definition]) => {
-    const stage = required(definition.template, `missing template for ${path}`);
-    return { host: 'claude', review: reviewForTemplate(stage), stage, path };
+    const template = required(definition.template, `missing template for ${path}`);
+    const review = reviewForTemplate(template);
+    return { host: 'claude', review, stage: REVIEW_STAGE_TEMPLATES[review], path };
   });
 
 const CURSOR_REVIEW_ENTRYPOINTS: ReviewEntrypoint[] = CLAUDE_REVIEW_ENTRYPOINTS.map(claude => {

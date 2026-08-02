@@ -13,7 +13,6 @@ import {
   REVIEW_KNOWLEDGE_RESOLVER,
 } from '../helpers/review-entrypoints.js';
 
-const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 const RESOLVER_COMMAND = REVIEW_KNOWLEDGE_RESOLVER;
 
 const PROJECT_TYPE = {
