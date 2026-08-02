@@ -2,7 +2,7 @@ import { resolveRunIdentity } from '../../templates/hooks/lib/run-identity.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import type { ReviewAgent, ReviewerOutput, ReviewFailure, ReviewKind } from './contract.js';
 import { prepareReviewPacket } from './packet.js';
-import { oppositeReviewer } from './policy.js';
+import { oppositeReviewPair } from './policy.js';
 import { assignedReviewerModel, ReviewRuntimeError, runHeadlessReviewer } from './runtime.js';
 
 function provenanceFailure(
@@ -108,8 +108,8 @@ export async function runReview(input: {
   readonly targets: readonly string[];
 }): Promise<CliResult> {
   const author = resolveRunIdentity({}, { env: process.env }).runtime;
-  const reviewer = oppositeReviewer(author);
-  if (reviewer === undefined) {
+  const pair = oppositeReviewPair(author);
+  if (pair === undefined) {
     return createResult({
       state: 'healthy',
       findings: [
@@ -127,6 +127,7 @@ export async function runReview(input: {
       },
     });
   }
+  const { reviewer } = pair;
 
   const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
   const { output, failure: preferredFailure, changed } = await executeReview(reviewer, prepared);
@@ -156,7 +157,7 @@ export async function runReview(input: {
   if (preferredFailure !== undefined) {
     return runDegradedFallback({
       ...input,
-      author: author as ReviewAgent,
+      author: pair.author,
       assignedReviewer: reviewer,
       preferredFailure,
     });
