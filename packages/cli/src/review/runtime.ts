@@ -107,10 +107,32 @@ function parseCodexOutput(stdout: string): unknown {
   return parseJson(stdout);
 }
 
+function hasValidReviewerOutputBody(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  if (
+    value.schema_version !== 1 ||
+    (value.verdict !== 'approve' && value.verdict !== 'request_changes') ||
+    typeof value.summary !== 'string' ||
+    !Array.isArray(value.findings)
+  ) {
+    return false;
+  }
+  // Dispatch and reviewer identity are deliberately validated by the
+  // coordinator so it can distinguish missing from contradictory provenance.
+  return value.findings.every(
+    finding =>
+      isRecord(finding) &&
+      ['info', 'warning', 'error'].includes(String(finding.severity)) &&
+      typeof finding.message === 'string',
+  );
+}
+
 export function parseReviewerOutput(reviewer: ReviewAgent, stdout: string): ReviewerOutput {
-  return (
-    reviewer === 'claude' ? parseClaudeOutput(stdout) : parseCodexOutput(stdout)
-  ) as ReviewerOutput;
+  const output = reviewer === 'claude' ? parseClaudeOutput(stdout) : parseCodexOutput(stdout);
+  if (!hasValidReviewerOutputBody(output)) throw new Error('invalid reviewer output');
+  // Identity fields cross a separate trust boundary in coordinator.ts, which
+  // reports missing and contradictory provenance as distinct public failures.
+  return output as ReviewerOutput;
 }
 
 function reviewPrompt(packet: ReviewPacket): string {

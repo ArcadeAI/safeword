@@ -40,8 +40,6 @@ describe('headless reviewer output adapters', () => {
 
   it.each([
     ['wrong schema version', { ...output, schema_version: 2 }],
-    ['missing dispatch id', { ...output, dispatch_id: undefined }],
-    ['unknown reviewer', { ...output, reviewer_agent: 'gemini' }],
     ['unknown verdict', { ...output, verdict: 'looks-good' }],
     ['missing summary', { ...output, summary: undefined }],
     ['non-array findings', { ...output, findings: 'none' }],
