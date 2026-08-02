@@ -148,6 +148,37 @@ describe('Codex profile hook proof', () => {
     expect(observeCodexHookProof(environment).status).toBe('partial');
   });
 
+  it.each([
+    {
+      name: 'a non-SessionStart event',
+      event: 'pre-tool-use' as const,
+      now: new Date('2026-08-02T09:01:00.000Z'),
+      current: RESTARTED_HOST,
+    },
+    {
+      name: 'an unavailable current host',
+      event: 'session-start' as const,
+      now: new Date('2026-08-02T09:01:00.000Z'),
+      current: null,
+    },
+    {
+      name: 'a SessionStart timestamp before installation',
+      event: 'session-start' as const,
+      now: new Date('2026-08-02T08:50:00.000Z'),
+      current: RESTARTED_HOST,
+    },
+  ])('does not activate from $name', ({ event, now, current }) => {
+    const { codexHome, environment } = createProfileFixture();
+    writeCodexActivationMarker(environment, new Date('2026-08-02T08:52:42.000Z'), {
+      activationId: 'activation-rc2',
+      activeHosts: [OLD_HOST],
+    });
+
+    recordCodexHookProof(event, environment, now, { currentHost: current });
+
+    expect(existsSync(nodePath.join(codexHome, 'safeword/activation-pending-v2.json'))).toBe(true);
+  });
+
   it('does not activate while another install-time Codex app-server is still running', () => {
     const { codexHome, environment } = createProfileFixture();
     writeCodexActivationMarker(environment, new Date('2026-08-02T08:52:42.000Z'), {
