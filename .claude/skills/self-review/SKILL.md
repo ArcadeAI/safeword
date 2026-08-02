@@ -44,11 +44,11 @@ installed helper — report it to the user and resolve before retrying.
 
 ## Review the spec (do this now, with the stamp written)
 
-The stamp records that a review was invoked; the actual scrutiny is yours. Read
-the active ticket's `spec.md`, the configured personas file (`paths.personas`,
-default `<namespace-root>/personas.md`), the configured surfaces file
-(`paths.surfaces`, default `<namespace-root>/surfaces.md`), and the ticket's
-`scope` / `out_of_scope` frontmatter:
+The stamp records that a review was invoked; the actual scrutiny is yours. At
+review time, run `bun .safeword/hooks/resolve-project-knowledge.ts` and use its
+current `principles`, `personas`, and `surfaces` source paths and content—not
+labels remembered from intake. Read those sources with the active ticket's
+`spec.md` and `scope` / `out_of_scope` frontmatter:
 
 - **Every JTBD resolves to a real persona** and reads as a genuine job (`When
 I…, I want…, so I can…`), not a restated feature.

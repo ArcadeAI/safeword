@@ -14,7 +14,18 @@ Adversarially review a ticket's scenarios: treat them as if you're trying to bre
 - **Auto-fire** — the bdd flow invokes this on entering the `scenario-gate` phase.
 - **Manual re-run** — invoke `$safeword:review-spec` anytime after `define-behavior` (e.g., scenarios changed during implement and you want to re-validate). Allowed on a closed ticket too — a post-hoc audit is still readable.
 
-Read the active ticket's `.feature` source first; also read `spec.md`, the configured personas file (`paths.personas`, default `<namespace-root>/personas.md`), and the configured surfaces file (`paths.surfaces`, default `<namespace-root>/surfaces.md`) so persona consistency and surface coverage are grounded in project knowledge rather than labels alone. Use `test-definitions.md` only as the R/G/R ledger and as a legacy scenario fallback when no feature source exists. test-definitions.md is the R/G/R ledger. Run every check below against the scenarios, and present findings in the **Findings format** at the end. **Review every scenario on its own merits** — a fixture can hold multiple independent defects on different scenarios, and finding one never lowers the bar for the rest; report EACH. (This does not replace `self-review`'s `spec.md` framing gate.)
+Read the active ticket's `.feature` source first. At review time, run
+`bun .safeword/hooks/resolve-project-knowledge.ts` and read the current
+`principles`, `personas`, and `surfaces` source paths and content it returns, so
+the review is grounded in project knowledge rather than labels or stale intake
+context. Also read `spec.md`. Use `test-definitions.md` only as the R/G/R ledger
+and as a legacy scenario fallback when no feature source exists.
+test-definitions.md is the R/G/R ledger. Run every check below against the
+scenarios, and present findings in the **Findings format** at the end. **Review
+every scenario on its own merits** — a fixture can hold multiple independent
+defects on different scenarios, and finding one never lowers the bar for the
+rest; report EACH. (This does not replace `self-review`'s `spec.md` framing
+gate.)
 
 ## Vacuous-pass test
 

@@ -45,9 +45,12 @@ If in a BDD workflow, read the current ticket from `<namespace-root>/tickets/` a
 
 ### Project-principle challenge
 
-For a BDD ticket with `impl-plan.md`, resolve and read the configured principles
-file (`paths.principles`, default `<namespace-root>/principles.md`) alongside the
-plan and work-product. Treat the plan's
+For a BDD ticket, run `bun .safeword/hooks/resolve-project-knowledge.ts` at the
+start of each pass and read the current `principles`, `personas`, and `surfaces`
+paths and content it returns (including overrides such as `paths.principles`).
+Do not substitute labels or intake-era content.
+With `impl-plan.md`, read those sources alongside the plan and work-product.
+Treat the plan's
 **principle → concrete consequence → proof** entries as claims to refute, not a
 compliance checklist:
 
