@@ -934,6 +934,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/scripts/cleanup-zombies.sh': {
       template: 'scripts/cleanup-zombies.sh',
     },
+    '.safeword/scripts/closeout-cleanup.ts': {
+      template: 'scripts/closeout-cleanup.ts',
+    },
 
     // Claude skills (short names, auto-trigger + explicit invocation)
     '.claude/skills/debug/SKILL.md': {
