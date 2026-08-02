@@ -41,8 +41,8 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Planning consumes the spike handoff after creating its design record
 
 - [x] RED 19eeddd9d
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 39313d02d
+- [x] REFACTOR skip: the explicit mapping table is the smallest value-carrying handoff contract
 
 ### Scenario Outline: Dirty validated state cannot become the pre-spike base
 
