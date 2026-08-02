@@ -29,7 +29,7 @@ Feature: Keep Codex protection continuous during profile-plugin migration
       Given the active Codex profile reports the Safe Word plugin enabled
       And no current profile hook proof exists
       When the builder checks Codex status
-      Then status reports plugin_enabled_hook_unproven and recommends a new task and hook review
+      Then status reports plugin_enabled_hook_unproven and recommends hook review in the restarted app
 
     @rejection
     Scenario: Enabled older plugin requires an update
@@ -37,21 +37,22 @@ Feature: Keep Codex protection continuous during profile-plugin migration
       When the builder checks Codex status
       Then status reports plugin_update_required and recommends updating the plugin
 
-    Scenario: Successful installation requires a new Codex task
+    Scenario: Successful installation requires an app restart
       Given the active Codex profile does not contain the Safe Word plugin
       When the builder migrates Codex and installation succeeds
-      Then migration reports plugin_installed_new_session_required and changes no repository file
+      Then migration reports plugin_installed_app_restart_required and changes no repository file
       And the profile contains an activation marker bound to the installed version and hook manifest
 
-    Scenario: Plugin SessionStart clears next-task activation state
+    @rejection
+    Scenario: Plugin SessionStart from the installing app does not clear activation state
       Given a profile with a current activation-pending marker
       When Codex invokes the marked profile-plugin SessionStart dispatcher
-      Then current proof replaces the activation marker and status no longer reports plugin_installed_new_session_required
+      Then same-host proof preserves the activation marker and status still requires an app restart
 
     Scenario: Trusted plugin SessionStart records event-specific proof
       Given the Safe Word profile-plugin SessionStart dispatcher is trusted
       When Codex invokes it with the plugin-hook marker
-      Then the profile contains schema 1 proof with the running version, exact manifest digest, and a parseable UTC timestamp
+      Then the profile contains schema 2 proof with the running version, exact manifest digest, and a parseable UTC timestamp
 
     @rejection
     Scenario: Interrupted proof write cannot become current
@@ -153,13 +154,13 @@ Feature: Keep Codex protection continuous during profile-plugin migration
 
       Examples:
         | state                         | expected_state                  |
-        | legacy                        | plugin_installed_new_session_required |
-        | plugin_disabled               | plugin_installed_new_session_required |
-        | plugin_setup_required         | plugin_installed_new_session_required |
-        | plugin_installed_new_session_required | plugin_installed_new_session_required |
+        | legacy                        | plugin_installed_app_restart_required |
+        | plugin_disabled               | plugin_installed_app_restart_required |
+        | plugin_setup_required         | plugin_installed_app_restart_required |
+        | plugin_installed_app_restart_required | plugin_installed_app_restart_required |
         | plugin_enabled_hook_unproven  | plugin_enabled_hook_unproven    |
         | compatibility                 | compatibility                  |
-        | not_configured                | plugin_installed_new_session_required |
+        | not_configured                | plugin_installed_app_restart_required |
 
     @rejection
     Scenario: Migration remains blocked while recovery is required
@@ -242,9 +243,9 @@ Feature: Keep Codex protection continuous during profile-plugin migration
         | disabled plugin without legacy | plugin_disabled   | unprotected | safeword codex migrate           |
         | disabled plugin with complete legacy | plugin_disabled | protected | safeword codex migrate         |
         | disabled plugin with partial legacy | plugin_disabled | partial | safeword codex migrate             |
-        | restart pending without legacy | plugin_installed_new_session_required | unprotected | safeword codex status |
-        | restart pending with complete legacy | plugin_installed_new_session_required | protected | safeword codex status |
-        | restart pending with partial legacy | plugin_installed_new_session_required | partial | safeword codex status |
+        | restart pending without legacy | plugin_installed_app_restart_required | unprotected | safeword codex status |
+        | restart pending with complete legacy | plugin_installed_app_restart_required | protected | safeword codex status |
+        | restart pending with partial legacy | plugin_installed_app_restart_required | partial | safeword codex status |
         | current proof and legacy  | compatibility     | protected  | safeword codex migrate --finalize |
         | no configuration          | not_configured    | unprotected | safeword codex migrate           |
         | finalized without plugin  | plugin_setup_required | unprotected | safeword codex migrate        |
@@ -253,7 +254,7 @@ Feature: Keep Codex protection continuous during profile-plugin migration
       Given an enabled plugin without current proof and <legacy_fixture>
       When Safe Word derives human Codex status from the fixture
       Then status reports plugin_enabled_hook_unproven with protection <protection>
-      And the output recommends starting a new Codex task and reviewing hooks
+      And the output recommends restarting Codex and reviewing hooks
 
       Examples:
         | legacy_fixture                | protection |
@@ -301,9 +302,9 @@ Feature: Keep Codex protection continuous during profile-plugin migration
         | disabled without legacy        | plugin_disabled                    | unprotected | 1            | safeword codex migrate             | 2         |
         | disabled with complete legacy  | plugin_disabled                    | protected   | 1            | safeword codex migrate             | 2         |
         | disabled with partial legacy   | plugin_disabled                    | partial     | 1            | safeword codex migrate             | 2         |
-        | restart pending without legacy | plugin_installed_new_session_required  | unprotected | 1            | safeword codex status              | 2         |
-        | restart pending with complete legacy | plugin_installed_new_session_required | protected | 1            | safeword codex status              | 2         |
-        | restart pending with partial legacy | plugin_installed_new_session_required | partial | 1            | safeword codex status                | 2         |
+        | restart pending without legacy | plugin_installed_app_restart_required  | unprotected | 1            | safeword codex status              | 2         |
+        | restart pending with complete legacy | plugin_installed_app_restart_required | protected | 1            | safeword codex status              | 2         |
+        | restart pending with partial legacy | plugin_installed_app_restart_required | partial | 1            | safeword codex status                | 2         |
         | complete legacy                | legacy                             | protected   | 1            | safeword codex migrate             | 2         |
         | partial legacy                 | legacy                             | partial     | 1            | safeword codex migrate             | 2         |
         | unproven without legacy        | plugin_enabled_hook_unproven       | unprotected | 1            | safeword codex status              | 2         |
@@ -358,7 +359,7 @@ Feature: Keep Codex protection continuous during profile-plugin migration
     Scenario: New teammate receives only the plugin setup path
       Given a finalized repository opened by a teammate without the profile plugin
       When the teammate reads the repository bootstrap skill
-      Then it explains install, next-task activation, hook review, and status without embedding workflow policy
+      Then it explains install, app restart, hook review, and status without embedding workflow policy
 
     Scenario: Finalized project tells an unconfigured teammate to install the plugin
       Given a finalized repository opened by a teammate without the profile plugin

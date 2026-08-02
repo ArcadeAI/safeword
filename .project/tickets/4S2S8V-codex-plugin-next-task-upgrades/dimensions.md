@@ -1,14 +1,14 @@
-# Dimensions: Update Safeword without restarting Codex
+# Dimensions: Activate Safeword upgrades coherently in Codex
 
 | Dimension | Partitions and boundaries | Rule coverage |
 | --- | --- | --- |
 | Marketplace state | absent; configured Git source; configured non-Git source | R1 |
 | Marketplace refresh result | success; command failure before plugin installation | R1 |
-| Task lifecycle | task that installs the upgrade; first new task after installation; later tasks after proof | R2, R3 |
-| Activation evidence | no marker; current marker; matching proof; stale or mismatched proof | R3 |
-| Marker generation | canonical next-task marker; valid v0.70 restart marker; malformed or stale legacy marker | R4 |
+| Host lifecycle | installing app-server; new task under same host; restarted app-server; later tasks after proof | R2, R3 |
+| Activation evidence | no marker; installation-bound marker; same-host proof; restarted-host proof; stale or mismatched proof | R3 |
+| Marker generation | canonical v2 marker; valid v0.70 restart marker; malformed or stale legacy marker | R4 |
 | User guidance surface | install prose; status prose; migration bootstrap text; JSON migration state | R2, R4 |
-| Trust boundary | exact package version and manifest digest match; either identity differs | R3 |
+| Trust boundary | exact package version and manifest digest match; activation ID; app-server PID and start time | R3 |
 
 ## Coverage choices
 

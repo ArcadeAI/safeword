@@ -664,7 +664,7 @@ function codexFinalizationPlan(
   if (observation.proof.status !== 'current') {
     throw new CodexMigrationError(
       'FINALIZATION_PROOF_REQUIRED',
-      'Finalization requires current plugin hook proof. Start a new Codex task, review /hooks, then retry. No Codex restart is required.',
+      'Finalization requires current plugin hook proof from the restarted Codex app. Review /hooks, then retry.',
     );
   }
   // Profile verification is an external boundary. Re-snapshot afterward so
@@ -993,7 +993,7 @@ function codexPluginUpdateFailure(observed: CliResult): CliResult | undefined {
       {
         code: 'PLUGIN_UPDATE_REQUIRED',
         message:
-          'Finalization requires the packaged Safe Word plugin version. Run safeword codex install, start a new Codex task, and review /hooks. No Codex restart is required.',
+          'Finalization requires the packaged Safe Word plugin version. Run safeword codex install, restart Codex, start a new task, and review /hooks.',
         retryable: true,
       },
     ],

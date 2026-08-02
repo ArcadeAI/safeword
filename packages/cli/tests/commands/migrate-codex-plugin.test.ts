@@ -627,7 +627,7 @@ command = 'echo "keep this user hook"'
         migration_state: 'plugin_installed_restart_required',
         migration: {
           schema_version: '2',
-          state: 'plugin_installed_new_session_required',
+          state: 'plugin_installed_app_restart_required',
         },
       },
     });
@@ -649,7 +649,7 @@ command = 'echo "keep this user hook"'
         migration_state: 'plugin_installed_restart_required',
         migration: {
           schema_version: '2',
-          state: 'plugin_installed_new_session_required',
+          state: 'plugin_installed_app_restart_required',
         },
         plugin: { version: SAFEWORD_SCHEMA.version },
       },
@@ -798,10 +798,10 @@ command = 'echo "keep this user hook"'
 
     expect(result.exitCode, result.stderr).toBe(2);
     expect(`${result.stdout}\n${result.stderr}`).toContain(
-      'This task keeps its loaded Safe Word version',
+      'This Codex app may keep its loaded Safe Word catalogue',
     );
-    expect(`${result.stdout}\n${result.stderr}`).toContain('Start a new Codex task');
-    expect(`${result.stdout}\n${result.stderr}`).toContain('No Codex restart is required');
+    expect(`${result.stdout}\n${result.stderr}`).toContain('Restart Codex');
+    expect(`${result.stdout}\n${result.stderr}`).toContain('start a new task');
     expect(existsSync(nodePath.join(directory, '.codex'))).toBe(false);
     const calls = readFileSync(nodePath.join(directory, 'codex.log'), 'utf8');
     expect(calls).toContain(
@@ -818,7 +818,7 @@ command = 'echo "keep this user hook"'
     const result = await runCodexCommand(fixture, ['codex', 'migrate']);
 
     expect(result.exitCode, result.stderr).toBe(2);
-    expect(`${result.stdout}\n${result.stderr}`).toContain('Start a new Codex task');
+    expect(`${result.stdout}\n${result.stderr}`).toContain('Restart Codex');
     expect(readFileSync(configPath, 'utf8')).toBe(LEGACY_HOOK_CONFIG);
     expect(readFileSync(nodePath.join(fixture.directory, 'codex.log'), 'utf8')).toContain(
       'plugin marketplace add',
@@ -882,7 +882,7 @@ command = 'echo "keep this user hook"'
 
     expect(result.exitCode).toBe(2);
     expect(result.stdout).toContain('plugin_enabled_hook_unproven');
-    expect(result.stdout).toContain('Start a new Codex task');
+    expect(result.stdout).toContain('restarted Codex app');
     expect(result.stdout.match(/^Next:/gm)).toHaveLength(1);
   });
 
@@ -1082,24 +1082,28 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     });
 
     expect(result.exitCode).toBe(2);
-    expect(result.stdout).toContain('Start a new Codex task');
+    expect(result.stdout).toContain('Restart Codex');
     const status = await runCodexCommand(fixture, ['codex', 'status', '--json']);
     expect(JSON.parse(status.stdout)).toMatchObject({
       data: {
         migration_state: 'plugin_installed_restart_required',
         migration: {
           schema_version: '2',
-          state: 'plugin_installed_new_session_required',
+          state: 'plugin_installed_app_restart_required',
         },
       },
     });
     expect(readFileSync(fixture.configPath, 'utf8')).toBe(LEGACY_HOOK_CONFIG);
     const marker = JSON.parse(
-      readFileSync(nodePath.join(codexHome, 'safeword/activation-pending-v1.json'), 'utf8'),
+      readFileSync(nodePath.join(codexHome, 'safeword/activation-pending-v2.json'), 'utf8'),
     ) as Record<string, unknown>;
-    expect(marker.schema_version).toBe(1);
+    expect(marker.schema_version).toBe(2);
     expect(marker.plugin_version).toMatch(/^\d+\.\d+\.\d+/u);
     expect(marker.manifest_sha256).toMatch(/^[\da-f]{64}$/u);
+    expect(marker.activation_id).toEqual(expect.any(String));
+    expect(marker.installed_at).toEqual(expect.any(String));
+    expect(marker.host_observation).toBe('observed');
+    expect(marker.active_hosts).toEqual(expect.any(Array));
   });
 
   it('refuses finalization without current plugin-hook proof', async () => {
@@ -1304,8 +1308,8 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
       'utf8',
     );
     expect(bootstrap).toContain('safeword codex migrate');
+    expect(bootstrap).toContain('Restart Codex');
     expect(bootstrap).toContain('start a new Codex task');
-    expect(bootstrap).toContain('No Codex restart is required');
     expect(bootstrap).toContain('/hooks');
     expect(bootstrap).toContain('safeword codex status');
     expect(bootstrap).not.toMatch(/\b(?:BDD|TDD|quality review|ticket workflow)\b/u);
@@ -1607,7 +1611,7 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
         migration_state: 'plugin_installed_restart_required',
         migration: {
           schema_version: '2',
-          state: 'plugin_installed_new_session_required',
+          state: 'plugin_installed_app_restart_required',
         },
       },
     });
@@ -1681,7 +1685,7 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     expect(readFileSync(manifestPath, 'utf8')).toBe(before.manifest);
   });
 
-  it('converges repeated migration while next-task activation is pending', async () => {
+  it('converges repeated migration while app-restart activation is pending', async () => {
     const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
     writeCodexActivationMarker({
       CODEX_HOME: nodePath.join(fixture.directory, 'profile'),
@@ -1690,7 +1694,7 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     expect(first.exitCode, first.stderr).toBe(2);
     const markerPath = nodePath.join(
       fixture.directory,
-      'profile/safeword/activation-pending-v1.json',
+      'profile/safeword/activation-pending-v2.json',
     );
     const marker = readFileSync(markerPath, 'utf8');
 
@@ -1703,7 +1707,7 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
         migration_state: 'plugin_installed_restart_required',
         migration: {
           schema_version: '2',
-          state: 'plugin_installed_new_session_required',
+          state: 'plugin_installed_app_restart_required',
         },
       },
     });
@@ -1720,7 +1724,7 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     expect(result.exitCode, result.stderr).toBe(2);
     expect(result.stdout).toContain('plugin_enabled_hook_unproven');
     expect(
-      existsSync(nodePath.join(fixture.directory, 'profile/safeword/activation-pending-v1.json')),
+      existsSync(nodePath.join(fixture.directory, 'profile/safeword/activation-pending-v2.json')),
     ).toBe(false);
     expect(readFileSync(nodePath.join(fixture.directory, 'codex.log'), 'utf8')).not.toContain(
       'plugin marketplace add',
@@ -1745,7 +1749,7 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     );
   });
 
-  it('does not regress compatibility mode to next-task-required on repeated migration', async () => {
+  it('does not regress compatibility mode to app-restart-required on repeated migration', async () => {
     const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
     recordCurrentProof(fixture);
 
@@ -1754,7 +1758,7 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     expect(result.exitCode, result.stderr).toBe(2);
     expect(result.stdout).toContain('protected by the current profile plugin');
     expect(
-      existsSync(nodePath.join(fixture.directory, 'profile/safeword/activation-pending-v1.json')),
+      existsSync(nodePath.join(fixture.directory, 'profile/safeword/activation-pending-v2.json')),
     ).toBe(false);
     expect(readFileSync(nodePath.join(fixture.directory, 'codex.log'), 'utf8')).not.toContain(
       'plugin marketplace add',

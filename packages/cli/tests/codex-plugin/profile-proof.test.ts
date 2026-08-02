@@ -1,3 +1,5 @@
+/* eslint-disable unicorn/no-null -- null explicitly models an unavailable host observation */
+
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
@@ -6,11 +8,23 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   CODEX_PLUGIN_HOOK_EVENTS,
+  codexActivationIsPending,
+  type CodexHostProcessIdentity,
   codexProofPath,
   currentCodexPluginIdentity,
   observeCodexHookProof,
   recordCodexHookProof,
+  writeCodexActivationMarker,
 } from '../../src/codex-plugin/profile-proof.js';
+
+const OLD_HOST: CodexHostProcessIdentity = {
+  pid: 100,
+  started_at: '2026-08-02T08:00:00.000Z',
+};
+const RESTARTED_HOST: CodexHostProcessIdentity = {
+  pid: 200,
+  started_at: '2026-08-02T09:00:00.000Z',
+};
 
 describe('Codex profile hook proof', () => {
   const directories: string[] = [];
@@ -35,7 +49,7 @@ describe('Codex profile hook proof', () => {
 
     expect(existsSync(codexProofPath(environment))).toBe(false);
     expect(observeCodexHookProof(environment).status).toBe('missing');
-    expect(readdirSync(nodePath.join(codexHome, 'safeword'))).toEqual(['hook-proof-v1']);
+    expect(readdirSync(nodePath.join(codexHome, 'safeword'))).toEqual(['hook-proof-v2']);
   });
 
   it.each([
@@ -91,5 +105,91 @@ describe('Codex profile hook proof', () => {
       recordCodexHookProof(event, environment);
     }
     expect(observeCodexHookProof(environment).status).toBe('current');
+  });
+
+  it('invalidates proof that predates a new installation', () => {
+    const codexHome = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-profile-'));
+    directories.push(codexHome);
+    const environment = { CODEX_HOME: codexHome };
+    for (const event of CODEX_PLUGIN_HOOK_EVENTS) {
+      recordCodexHookProof(event, environment, new Date('2026-08-02T08:30:00.000Z'));
+    }
+    expect(observeCodexHookProof(environment).status).toBe('current');
+
+    writeCodexActivationMarker(environment, new Date('2026-08-02T08:52:42.000Z'), {
+      activationId: 'activation-rc2',
+      activeHosts: [OLD_HOST],
+    });
+
+    expect(observeCodexHookProof(environment).status).toBe('missing');
+  });
+
+  it('fails closed while a malformed canonical activation marker exists', () => {
+    const codexHome = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-profile-'));
+    directories.push(codexHome);
+    const environment = { CODEX_HOME: codexHome };
+    const markerPath = nodePath.join(codexHome, 'safeword/activation-pending-v2.json');
+    mkdirSync(nodePath.dirname(markerPath), { recursive: true });
+    writeFileSync(markerPath, '{"schema_version":');
+
+    expect(codexActivationIsPending(environment)).toBe(true);
+  });
+
+  it('does not accept a new task from the same Codex app-server as activation', () => {
+    const codexHome = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-profile-'));
+    directories.push(codexHome);
+    const environment = { CODEX_HOME: codexHome };
+    writeCodexActivationMarker(environment, new Date('2026-08-02T08:52:42.000Z'), {
+      activationId: 'activation-rc2',
+      activeHosts: [OLD_HOST],
+    });
+
+    recordCodexHookProof('session-start', environment, new Date('2026-08-02T08:55:00.000Z'), {
+      currentHost: OLD_HOST,
+    });
+
+    expect(existsSync(nodePath.join(codexHome, 'safeword/activation-pending-v2.json'))).toBe(true);
+    expect(observeCodexHookProof(environment).status).toBe('partial');
+  });
+
+  it('does not clear activation when the install-time host observation was unavailable', () => {
+    const codexHome = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-profile-'));
+    directories.push(codexHome);
+    const environment = { CODEX_HOME: codexHome };
+    writeCodexActivationMarker(environment, new Date('2026-08-02T08:52:42.000Z'), {
+      activationId: 'activation-unknown-hosts',
+      activeHosts: null,
+    });
+
+    recordCodexHookProof('session-start', environment, new Date('2026-08-02T09:01:00.000Z'), {
+      currentHost: RESTARTED_HOST,
+    });
+
+    expect(existsSync(nodePath.join(codexHome, 'safeword/activation-pending-v2.json'))).toBe(true);
+    expect(observeCodexHookProof(environment)).toMatchObject({
+      status: 'partial',
+      activation_id: 'activation-unknown-hosts',
+    });
+  });
+
+  it('accepts SessionStart only after the Codex app-server has restarted', () => {
+    const codexHome = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-profile-'));
+    directories.push(codexHome);
+    const environment = { CODEX_HOME: codexHome };
+    writeCodexActivationMarker(environment, new Date('2026-08-02T08:52:42.000Z'), {
+      activationId: 'activation-rc2',
+      activeHosts: [OLD_HOST],
+    });
+
+    recordCodexHookProof('session-start', environment, new Date('2026-08-02T09:01:00.000Z'), {
+      currentHost: RESTARTED_HOST,
+    });
+
+    expect(existsSync(nodePath.join(codexHome, 'safeword/activation-pending-v2.json'))).toBe(false);
+    expect(existsSync(nodePath.join(codexHome, 'safeword/activation-current-v1.json'))).toBe(true);
+    expect(observeCodexHookProof(environment)).toMatchObject({
+      status: 'partial',
+      activation_id: 'activation-rc2',
+    });
   });
 });

@@ -439,13 +439,10 @@ Then(
 );
 
 Then(
-  'the builder is told to start a new Codex task without restarting the app',
+  'the builder is told to restart Codex before reviewing the installed plugin',
   function (this: MigrationWorld) {
     const output = migrationOutput(this);
-    assert.ok(
-      output.includes('Start a new Codex task') && output.includes('No Codex restart is required'),
-      output,
-    );
+    assert.match(output, /(Restart Codex|restarted Codex app).+review.+\/hooks/isu);
   },
 );
 
