@@ -9,7 +9,7 @@ phase_anchors:
   - 'scenario-gate: features/native-claude-plugin.feature'
   - 'plan-implementation: .project/tickets/0S31PG-ship-native-claude-code-plugin/impl-plan.md'
   - 'implement: .project/tickets/0S31PG-ship-native-claude-code-plugin/test-definitions.md'
-  - 'verify: .project/tickets/0S31PG-ship-native-claude-code-plugin/verify.md'
+  - 'verify: .project/tickets/0S31PG-ship-native-claude-code-plugin/test-definitions.md'
 scope:
   - Generate a complete native Claude plugin from canonical Safeword hooks, skills, commands, agents, and their transitive runtime/reference assets.
   - Add user-scoped `safeword claude install`, read-only `status`, explicit project-scoped `cleanup`, and conflict-safe `recover` lifecycle commands with versioned JSON results.

@@ -306,4 +306,4 @@ Catalogue completeness and real-manifest runtime integrity were strengthened in
 
 ## Feature-level cross-scenario refactor
 
-- [ ] cross-scenario
+- [x] cross-scenario efc416145
