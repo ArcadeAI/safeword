@@ -42,7 +42,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 548a33ea1
 - [x] GREEN e5e0248f0
-- [ ] REFACTOR
+- [x] REFACTOR skip: lifecycle guidance and real-git proof have distinct responsibilities
 
 ## Rule: spike-workflow.TBU1.R1 — supported hosts expose one manual action
 
