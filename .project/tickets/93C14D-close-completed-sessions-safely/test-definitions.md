@@ -50,7 +50,7 @@ required `Scenario:` heading grammar.
 
 ### Scenario: Closeout continues only the unfinished suffix
 
-- [ ] RED
+- [x] RED af86a036e
 - [ ] GREEN
 - [ ] REFACTOR
 
