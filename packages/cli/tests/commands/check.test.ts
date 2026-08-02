@@ -1187,7 +1187,7 @@ describe('Test Suite 8: Health Check', () => {
   });
 
   describe('Architecture-claim advisory (K4BWTQ)', () => {
-    function implPlan(archAlignment: string): string {
+    function implPlan(designAlignment: string, heading = 'Design alignment'): string {
       return [
         '# Impl Plan: t',
         '',
@@ -1201,9 +1201,9 @@ describe('Test Suite 8: Health Check', () => {
         '',
         'skip: none',
         '',
-        '## Arch alignment',
+        `## ${heading}`,
         '',
-        archAlignment,
+        designAlignment,
         '',
         '## Known deviations',
         '',
@@ -1216,32 +1216,35 @@ describe('Test Suite 8: Health Check', () => {
       ].join('\n');
     }
 
-    function writeArchTicket(ticketId: string, archAlignment: string): void {
+    function writeArchTicket(ticketId: string, designAlignment: string, heading?: string): void {
       const base = `.project/tickets/${ticketId}`;
       writeTestFile(
         temporaryDirectory,
         `${base}/ticket.md`,
         ['---', `id: ${ticketId}`, 'type: feature', 'status: in_progress', '---', ''].join('\n'),
       );
-      writeTestFile(temporaryDirectory, `${base}/impl-plan.md`, implPlan(archAlignment));
+      writeTestFile(temporaryDirectory, `${base}/impl-plan.md`, implPlan(designAlignment, heading));
     }
 
-    it('flags Arch alignment content when the architecture location is absent', async () => {
-      await createConfiguredProject(temporaryDirectory);
-      rmSync(nodePath.join(temporaryDirectory, '.project', 'architecture.md'), {
-        force: true,
-      });
-      writeArchTicket('ARC001', 'Honors ADR-001 storage ownership.');
+    it.each(['Design alignment', 'Arch alignment'])(
+      'flags %s content when the architecture location is absent',
+      async heading => {
+        await createConfiguredProject(temporaryDirectory);
+        rmSync(nodePath.join(temporaryDirectory, '.project', 'architecture.md'), {
+          force: true,
+        });
+        writeArchTicket('ARC001', 'Honors ADR-001 storage ownership.', heading);
 
-      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+        const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(0);
-      const combined = `${result.stdout}\n${result.stderr}`;
-      expect(combined).toMatch(/ARC001/);
-      expect(combined).toMatch(/architecture/i);
-    });
+        expect(result.exitCode).toBe(0);
+        const combined = `${result.stdout}\n${result.stderr}`;
+        expect(combined).toMatch(/ARC001/);
+        expect(combined).toMatch(/architecture/i);
+      },
+    );
 
-    it('stays silent when Arch alignment is skip-annotated, even with no architecture location', async () => {
+    it('stays silent when Design alignment is skip-annotated, even with no architecture location', async () => {
       await createConfiguredProject(temporaryDirectory);
       rmSync(nodePath.join(temporaryDirectory, '.project', 'architecture.md'), {
         force: true,
@@ -1254,7 +1257,7 @@ describe('Test Suite 8: Health Check', () => {
       expect(`${result.stdout}\n${result.stderr}`).not.toMatch(/ARC002/);
     });
 
-    it('stays silent when Arch alignment has content and the architecture location exists', async () => {
+    it('stays silent when Design alignment has content and the architecture location exists', async () => {
       await createConfiguredProject(temporaryDirectory);
       writeTestFile(
         temporaryDirectory,

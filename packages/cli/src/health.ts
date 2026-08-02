@@ -24,6 +24,7 @@ import { BDD_LANE_FILE_PATHS, BDD_LANE_SCRIPT, SAFEWORD_SCHEMA } from './schema.
 import { inspectTicketIndexConflicts, readTickets } from './ticket-sync/index.js';
 import { listArchitectureRecords } from './utils/architecture-records.js';
 import {
+  type ConfiguredPathKey,
   defaultConfiguredPath,
   readConfiguredDocumentationSources,
   readConfiguredPath,
@@ -92,16 +93,33 @@ function findMissingFiles(cwd: string, actions: { type: string; path: string }[]
  *   in; typo would otherwise silently strand persona references). Ticket
  *   K7N2QM.
  */
+type LocalKnowledgeKey = Extract<ConfiguredPathKey, 'principles' | 'personas' | 'surfaces'>;
+
+/** Factual configured-file health shared by user-authored project knowledge. */
+function findConfiguredKnowledgeIssues(cwd: string, key: LocalKnowledgeKey): string[] {
+  const override = readConfiguredPath(cwd, key);
+  if (override === undefined || exists(resolveConfiguredPath(cwd, key))) return [];
+  return [`${key}-path: ${override}: file not found`];
+}
+
+/** Non-destructively identify a default knowledge file stranded by an override. */
+function findConfiguredKnowledgeAdvisories(cwd: string, key: LocalKnowledgeKey): string[] {
+  const override = readConfiguredPath(cwd, key);
+  if (override === undefined) return [];
+  const defaultPath = defaultConfiguredPath(cwd, key);
+  if (!exists(defaultPath)) return [];
+  return [
+    `${nodePath.relative(cwd, defaultPath)} exists but paths.${key} points to ${override} — legacy file is orphaned. Consider removing.`,
+  ];
+}
+
 function findPersonaIssues(cwd: string): string[] {
   const override = readConfiguredPath(cwd, 'personas');
   const filePath = resolveConfiguredPath(cwd, 'personas');
   const content = readFileSafe(filePath);
 
   if (content === undefined) {
-    if (override !== undefined) {
-      return [`personas-path: ${override}: file not found`];
-    }
-    return [];
+    return override === undefined ? [] : findConfiguredKnowledgeIssues(cwd, 'personas');
   }
 
   const errors = validatePersonas(parsePersonas(content));
@@ -135,13 +153,7 @@ function findNamespaceAdvisories(cwd: string): string[] {
  * from ticket K7N2QM); user owns cleanup.
  */
 function findPersonaAdvisories(cwd: string): string[] {
-  const override = readConfiguredPath(cwd, 'personas');
-  if (override === undefined) return [];
-  const defaultPath = defaultConfiguredPath(cwd, 'personas');
-  if (!exists(defaultPath)) return [];
-  return [
-    `${nodePath.relative(cwd, defaultPath)} exists but paths.personas points to ${override} — legacy file is orphaned. Consider removing.`,
-  ];
+  return findConfiguredKnowledgeAdvisories(cwd, 'personas');
 }
 
 /**
@@ -150,22 +162,21 @@ function findPersonaAdvisories(cwd: string): string[] {
  * no file, matching the persona configured-path contract.
  */
 function findSurfaceIssues(cwd: string): string[] {
-  const override = readConfiguredPath(cwd, 'surfaces');
-  if (override === undefined) return [];
-  return exists(resolveConfiguredPath(cwd, 'surfaces'))
-    ? []
-    : [`surfaces-path: ${override}: file not found`];
+  return findConfiguredKnowledgeIssues(cwd, 'surfaces');
 }
 
 /** Report a default surfaces file stranded by an active override. */
 function findSurfaceAdvisories(cwd: string): string[] {
-  const override = readConfiguredPath(cwd, 'surfaces');
-  if (override === undefined) return [];
-  const defaultPath = defaultConfiguredPath(cwd, 'surfaces');
-  if (!exists(defaultPath)) return [];
-  return [
-    `${nodePath.relative(cwd, defaultPath)} exists but paths.surfaces points to ${override} — legacy file is orphaned. Consider removing.`,
-  ];
+  return findConfiguredKnowledgeAdvisories(cwd, 'surfaces');
+}
+
+/** Principles stay semantically user-reviewed; health validates only their path lifecycle. */
+function findPrincipleIssues(cwd: string): string[] {
+  return findConfiguredKnowledgeIssues(cwd, 'principles');
+}
+
+function findPrincipleAdvisories(cwd: string): string[] {
+  return findConfiguredKnowledgeAdvisories(cwd, 'principles');
 }
 
 /**
@@ -293,7 +304,7 @@ function listTicketIds(ticketsRoot: string): string[] {
 /**
  * Surface architecture-claim mismatches as non-blocking advisories (ticket
  * K4BWTQ). Structural only — no prose extraction (YR6C49 ruling): when an
- * in-progress ticket's impl-plan.md Arch alignment section carries content
+ * in-progress ticket's impl-plan.md Design alignment section carries content
  * (not `skip:`) but the resolved `paths.architecture` location does not
  * exist, the claim cannot be honoring anything recorded. Zero-exit.
  */
@@ -312,12 +323,12 @@ function findArchitectureAdvisories(cwd: string): string[] {
     if (implPlan === undefined) return [];
     if (!archAlignmentHasContent(implPlan)) return [];
     return [
-      `${ticketId}: impl-plan.md Arch alignment claims alignment, but no architecture record exists at ${resolved} — record the decision or mark the section skip:`,
+      `${ticketId}: impl-plan.md Design alignment claims alignment, but no architecture record exists at ${resolved} — record the decision or mark the section skip:`,
     ];
   });
 }
 
-/** Whether the impl plan's `## Arch alignment` section carries real content
+/** Whether the impl plan's canonical or legacy alignment section carries real content
  * (non-empty, not a `skip:` annotation). */
 function archAlignmentHasContent(implPlanContent: string): boolean {
   let isInSection = false;
@@ -325,7 +336,8 @@ function archAlignmentHasContent(implPlanContent: string): boolean {
   for (const raw of implPlanContent.split('\n')) {
     const line = raw.trim();
     if (line.startsWith('## ')) {
-      isInSection = line.slice(3).trim().toLowerCase() === 'arch alignment';
+      const heading = line.slice(3).trim().toLowerCase();
+      isInSection = heading === 'design alignment' || heading === 'arch alignment';
       continue;
     }
     if (isInSection && line !== '') body.push(line);
@@ -761,6 +773,7 @@ export async function checkHealth(
     ...findMissingFiles(cwd, actionsWithPath),
     ...findMissingPatches(cwd, actionsWithPath),
     ...findPersonaIssues(cwd),
+    ...findPrincipleIssues(cwd),
     ...findSurfaceIssues(cwd),
     ...findGlossaryIssues(cwd),
     ...findDocumentationSourceIssues(cwd),
@@ -790,6 +803,7 @@ export async function checkHealth(
         : [buildIndexConflictListMessage(ticketIndexConflicts)]),
       ...findNamespaceAdvisories(cwd),
       ...findPersonaAdvisories(cwd),
+      ...findPrincipleAdvisories(cwd),
       ...findSurfaceAdvisories(cwd),
       ...findGlossaryAdvisories(cwd),
       ...findCucumberHarnessAdvisories(cwd, ctx.projectType),
