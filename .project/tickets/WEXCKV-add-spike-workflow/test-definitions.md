@@ -58,7 +58,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Reviewed spike planning reaches production without experimental history
 
-- [ ] RED
+- [x] RED 4cb548f48
 - [ ] GREEN
 - [ ] REFACTOR
 
