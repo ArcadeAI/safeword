@@ -48,6 +48,7 @@
     "test:slow": "node scripts/run-vitest-with-build-lock.mjs --config vitest.slow.config.ts",
     "test:slow:install-proof": "node scripts/run-vitest-with-build-lock.mjs --config vitest.slow.config.ts tests/integration/non-git-install-proof.slow.test.ts",
     "generate:codex-plugin": "bun scripts/generate-codex-plugin.ts",
+    "generate:claude-plugin": "bun scripts/generate-claude-plugin.ts",
     "generate:cursor-wrappers": "bun scripts/generate-cursor-wrappers.ts",
     "parity:fix": "bun ../../scripts/parity-check.ts --fix",
     "pretest:watch": "tsup",

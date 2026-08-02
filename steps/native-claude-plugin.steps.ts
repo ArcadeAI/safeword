@@ -53,7 +53,7 @@ Then(
       '.claude-plugin/plugin.json',
       'hooks/hooks.json',
       'skills/bdd/SKILL.md',
-      'skills/bdd/references/TDD.md',
+      'skills/bdd/TDD.md',
       'agents/safeword-retro-filer.md',
     ]) {
       assert.ok(files.includes(required), `missing generated Claude plugin asset: ${required}`);
