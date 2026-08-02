@@ -9,16 +9,36 @@ import { After, Given, Then, When } from '@cucumber/cucumber';
 interface SpikeWorkflowWorld {
   projectDirectory?: string;
   setupResult?: { status: number | null; stdout: string; stderr: string };
+  spikeSkill?: string;
 }
 
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '..');
 const CLI_PATH = nodePath.join(REPO_ROOT, 'packages/cli/src/cli.ts');
+const SPIKE_SKILL_PATH = nodePath.join(REPO_ROOT, 'packages/cli/templates/skills/spike/SKILL.md');
 
 After(function (this: SpikeWorkflowWorld) {
   if (this.projectDirectory !== undefined) {
     rmSync(this.projectDirectory, { recursive: true, force: true });
   }
 });
+
+Given('a validated feature with a build-only kill risk', function (this: SpikeWorkflowWorld) {
+  this.spikeSkill = readFileSync(SPIKE_SKILL_PATH, 'utf8');
+});
+
+When('the maintainer invokes the spike action', function (this: SpikeWorkflowWorld) {
+  assert.ok(this.spikeSkill, 'spike skill was not loaded');
+});
+
+Then(
+  'the experiment requires a question, hypothesis, kill criterion, proof, and budget',
+  function (this: SpikeWorkflowWorld) {
+    assert.ok(this.spikeSkill);
+    for (const field of ['Question', 'Hypothesis', 'Kill criterion', 'Proof', 'Budget']) {
+      assert.match(this.spikeSkill, new RegExp(`\\*\\*${field}\\*\\*`));
+    }
+  },
+);
 
 Given('a project without Claude or Cursor spike artifacts', function (this: SpikeWorkflowWorld) {
   this.projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-spike-'));
