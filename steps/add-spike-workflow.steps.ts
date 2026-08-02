@@ -18,8 +18,11 @@ interface SpikeWorkflowWorld {
   spikeResult?: string;
   repositoryDirectory?: string;
   productionWorktree?: string;
+  spikeWorktree?: string;
   preSpikeBase?: string;
   spikeCommit?: string;
+  validatedScenarioContent?: string;
+  ticketStateContent?: string;
   dirtyValidatedState?: string;
   initialBranches?: string;
   initialWorktrees?: string;
@@ -212,6 +215,16 @@ Given(
 
 When('the maintainer prepares PRE_SPIKE_BASE', function (this: SpikeWorkflowWorld) {
   assert.ok(this.repositoryDirectory && this.spikeSkill);
+  if (this.preSpikeBase && this.spikeWorktree) {
+    runGit(this.repositoryDirectory, [
+      'worktree',
+      'add',
+      '-b',
+      'spike/committed-state',
+      this.spikeWorktree,
+      this.preSpikeBase,
+    ]);
+  }
 });
 
 Then('the workflow does not record PRE_SPIKE_BASE', function (this: SpikeWorkflowWorld) {
@@ -241,6 +254,55 @@ Then(
     assert.match(
       this.spikeSkill ?? '',
       /validated\s+scenario and ticket-state changes[\s\S]*included in (?:one|the same) commit/i,
+    );
+  },
+);
+
+Given(
+  'validated scenarios and ticket state are included in one commit',
+  function (this: SpikeWorkflowWorld) {
+    this.projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-spike-base-'));
+    this.repositoryDirectory = nodePath.join(this.projectDirectory, 'repo');
+    this.spikeWorktree = nodePath.join(this.projectDirectory, 'spike');
+    runGit(this.projectDirectory, ['init', 'repo']);
+    runGit(this.repositoryDirectory, ['config', 'user.email', 'spike@example.test']);
+    runGit(this.repositoryDirectory, ['config', 'user.name', 'Spike Test']);
+
+    this.validatedScenarioContent = 'Feature: committed validated behavior\n';
+    this.ticketStateContent = '---\nphase: scenario-gate\n---\nValidated together.\n';
+    const scenarioPath = nodePath.join(this.repositoryDirectory, 'features/example.feature');
+    const ticketPath = nodePath.join(this.repositoryDirectory, '.project/tickets/T/ticket.md');
+    mkdirSync(nodePath.dirname(scenarioPath), { recursive: true });
+    mkdirSync(nodePath.dirname(ticketPath), { recursive: true });
+    writeFileSync(scenarioPath, this.validatedScenarioContent);
+    writeFileSync(ticketPath, this.ticketStateContent);
+    runGit(this.repositoryDirectory, ['add', '.']);
+    runGit(this.repositoryDirectory, ['commit', '-m', 'commit validated behavior and ticket']);
+    this.preSpikeBase = runGit(this.repositoryDirectory, ['rev-parse', 'HEAD']);
+    this.spikeSkill = readFileSync(SPIKE_SKILL_PATH, 'utf8');
+  },
+);
+
+Then('PRE_SPIKE_BASE identifies that commit', function (this: SpikeWorkflowWorld) {
+  assert.ok(this.spikeWorktree && this.preSpikeBase);
+  assert.equal(runGit(this.spikeWorktree, ['rev-parse', 'HEAD']), this.preSpikeBase);
+});
+
+Then(
+  'the spike worktree contains the exact validated scenario and ticket changes',
+  function (this: SpikeWorkflowWorld) {
+    assert.ok(this.spikeWorktree);
+    assert.equal(
+      readFileSync(nodePath.join(this.spikeWorktree, 'features/example.feature'), 'utf8'),
+      this.validatedScenarioContent,
+    );
+    assert.equal(
+      readFileSync(nodePath.join(this.spikeWorktree, '.project/tickets/T/ticket.md'), 'utf8'),
+      this.ticketStateContent,
+    );
+    assert.match(
+      this.spikeSkill ?? '',
+      /verify the spike worktree[\s\S]*exact validated scenario and ticket-state files/i,
     );
   },
 );
