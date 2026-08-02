@@ -8,7 +8,7 @@ test-definitions.md is the R/G/R ledger. Executable Given/When/Then behavior liv
 
 ### Scenario Outline: Each author agent selects the opposite headless reviewer
 
-- [ ] RED
+- [x] RED ddb235b15
 - [ ] GREEN
 - [ ] REFACTOR
 
